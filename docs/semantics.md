@@ -50,8 +50,16 @@
 | `None` | `None` | `Unit` | `void` |
 | `@dataclass` | `Class` | `Class` | `class` |
 | `@dataclass(frozen=True)` | `Class` | `Class`（值类型） | `valuetype` |
+| 无法静态定型 | `Dynamic` 📋 | `Dynamic` 📋 | `object`（装箱 CLR 值） |
 
-Phase 2 计划增加 Dynamic 与 PyValue，普通 Python `int` 保留 i64 快路径并支持 BigInteger 升级，普通对象保留身份与共享引用。frozen dataclass 的默认对象身份策略按 ADR-0009 修订；上表只描述当前 Phase 1 实现。
+动态路径的运行时内核已按 [ADR-0010](adr/0010-dynamic-value-representation.md) 实现并通过 xUnit
+（`PyOps` / `PyInt` / `PyRepr` / `PyNone` / `PyBaseException` / `PyCast`），但**编译器尚未生成
+动态代码**：`Ty::Dynamic` 的判定与降级、`MirType::Dynamic` 的装箱/拆箱与 codegen 发射仍在
+M2.1 内推进。在接通前，未标注函数与异构赋值仍然报错，不能据本表认为已可用。
+
+Phase 2 的目标语义是：标注只提供优化线索，缺少标注、异构赋值、多返回类型与调用点类型不一致
+时整函数降级到动态执行；普通 Python `int` 保留 i64 快路径并支持 BigInteger 升级，普通对象
+保留身份与共享引用。frozen dataclass 的默认对象身份策略按 ADR-0009 修订。
 
 ## 3. 运算规则
 
@@ -81,7 +89,7 @@ Phase 2 计划增加 Dynamic 与 PyValue，普通 Python `int` 保留 i64 快路
 | 1 | 负数整除 | `-7 // 2 == -4` | `div` 得 `-3`（向零截断） | `PyMath.FloorDivI64` |
 | 2 | 负数取模 | `-7 % 3 == 2` | `rem` 得 `-1` | `PyMath.ModI64` |
 | 3 | 真除法 | `7 / 2 == 3.5` | 整数 `div` 得 `3` | 先 `Cast` 为 f64 再 `div` |
-| 4 | 整数溢出 | 任意精度，永不溢出 | `add` 静默回绕 | Phase 1 `add.ovf` 抛异常；M2.1 升级 BigInteger，排期由 ADR-0009 修订 |
+| 4 | 整数溢出 | 任意精度，永不溢出 | `add` 静默回绕 | 动态路径按 ADR-0010 升级 BigInteger（运行时已实现，编译器待接）；静态特化仍用 `add.ovf`，溢出报错直到该函数降级为动态 |
 | 5 | 浮点打印 | `1.0`、`1e+16`、`1e-05` | `1`、`1E+16`、`1E-05` | `PyFormat.FloatRepr` |
 | 6 | 布尔打印 | `True` | `True` | 一致，但不要依赖 `bool.ToString()` 的区域设置 |
 | 7 | `print` 换行 | 总是 `\n` | `WriteLine` 在 Windows 是 `\r\n` | 统一写 `'\n'` |
