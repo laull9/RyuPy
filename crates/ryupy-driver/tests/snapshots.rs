@@ -338,6 +338,51 @@ fn snapshot_try_unsupported_handler_type() {
     insta::assert_snapshot!("m2_2_unsupported_handler_type", rendered);
 }
 
+/// M2.3：容器表达式统一降为 `Dynamic` 后的 MIR 与 CIL。
+///
+/// 这份快照同时锁住三件事：容器构造 / 下标读写降级成运行时调用、`object[]` 实参数组的
+/// 真实落地方式、以及 `for` 在动态序列上的迭代协议。改动态降级策略时先看这里的 diff。
+#[test]
+fn snapshot_m2_3_containers() {
+    let py_path = std::env::temp_dir().join("ryupy_test_m2_3_containers.py");
+    std::fs::write(
+        &py_path,
+        "def mix():\n    items = [1, 2]\n    items[0] = len(items)\n    lookup = {\"a\": 1}\n    lookup[\"a\"] = 2\n    total = 0\n    for value in items:\n        total = total + value\n    return total in items\n",
+    )
+    .unwrap();
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &py_path, Stage::Mir).expect("容器用例应能编译");
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &py_path, Stage::Cil).expect("容器用例应能出 CIL");
+    let _ = std::fs::remove_file(&py_path);
+
+    insta::assert_snapshot!("m2_3_containers_mir", mir);
+    insta::assert_snapshot!("m2_3_containers_cil", cil);
+}
+
+/// M2.3：切片赋值与星号解包。
+///
+/// 这两条语句最容易在实现里被悄悄丢掉：切片赋值需要三段下标 + 长度校验，星号解包需要在
+/// 运行时才知道 `*middle` 收多少个元素。快照保证它们确实生成了对应的运行时调用。
+#[test]
+fn snapshot_m2_3_slice_and_unpack() {
+    let py_path = std::env::temp_dir().join("ryupy_test_m2_3_slice.py");
+    std::fs::write(
+        &py_path,
+        "def reshape(values):\n    head, *tail = values\n    values[1:3] = [8, 9]\n    return values[::-1]\n",
+    )
+    .unwrap();
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &py_path, Stage::Mir).expect("切片 / 解包应能编译");
+    let _ = std::fs::remove_file(&py_path);
+
+    assert!(mir.contains("SetItem"), "期望切片赋值走运行时调用：{mir}");
+    assert!(mir.contains("UnpackCheck"), "期望星号解包有长度校验：{mir}");
+    insta::assert_snapshot!("m2_3_slice_unpack_mir", mir);
+}
+
 /// 动态属性访问：M2.2 起编译成 `PyObject.GetAttr` 运行时查找。
 ///
 /// 早期版本在编译期直接拒绝，但 Python 属性是运行时概念——类型未知不代表一定失败。

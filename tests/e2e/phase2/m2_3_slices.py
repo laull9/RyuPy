@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.3：负索引、扩展切片、切片赋值和边界错误。
 values = [0, 1, 2, 3, 4, 5]
 print(values[-1], values[::-2], values[-100:100])

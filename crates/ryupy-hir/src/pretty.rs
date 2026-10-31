@@ -66,6 +66,25 @@ fn dump_stmt(
                 AssignTarget::Attribute { base, name } => {
                     format!("{}.{}", dump_expr(module, body, *base), name)
                 }
+                AssignTarget::Subscript { base, index } => {
+                    format!(
+                        "{}[{}]",
+                        dump_expr(module, body, *base),
+                        dump_expr(module, body, *index)
+                    )
+                }
+                AssignTarget::Sequence(items) => items
+                    .iter()
+                    .map(|item| match item {
+                        crate::hir::SequenceItem::One(loc) => {
+                            format!("_target_{}", body.locals[*loc].name)
+                        }
+                        crate::hir::SequenceItem::Rest(loc) => {
+                            format!("*{}", body.locals[*loc].name)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", "),
             };
             writeln!(
                 out,
@@ -106,6 +125,22 @@ fn dump_stmt(
                 dump_stmt(out, indent + 1, module, body, s);
             }
         }
+        StmtKind::ForEach {
+            var,
+            iter,
+            body: stmts,
+        } => {
+            writeln!(
+                out,
+                "{pad}for {} in {}:",
+                body.locals[*var].name,
+                dump_expr(module, body, *iter)
+            )
+            .unwrap();
+            for &s in stmts {
+                dump_stmt(out, indent + 1, module, body, s);
+            }
+        }
         StmtKind::ForRange {
             var,
             start,
@@ -127,6 +162,13 @@ fn dump_stmt(
             for &s in stmts {
                 dump_stmt(out, indent + 1, module, body, s);
             }
+        }
+        StmtKind::Delete(targets) => {
+            let names: Vec<String> = targets
+                .iter()
+                .map(|e| dump_expr(module, body, *e))
+                .collect();
+            writeln!(out, "{pad}del {}", names.join(", ")).unwrap();
         }
         StmtKind::Break => writeln!(out, "{pad}break").unwrap(),
         StmtKind::Continue => writeln!(out, "{pad}continue").unwrap(),
@@ -176,6 +218,14 @@ fn dump_stmt(
     }
 }
 
+fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
+    items
+        .iter()
+        .map(|e| dump_expr(module, body, *e))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
@@ -198,7 +248,38 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
             Builtin::Abs => "abs".to_string(),
             Builtin::Str => "str".to_string(),
             Builtin::Type => "type".to_string(),
+            Builtin::Dynamic(name) => name.to_string(),
         },
+        ExprKind::List(items) => format!("[{}]", dump_list(module, body, items)),
+        ExprKind::Tuple(items) => format!("({})", dump_list(module, body, items)),
+        ExprKind::Set(items) => format!("{{{}}}", dump_list(module, body, items)),
+        ExprKind::Dict(pairs) => {
+            let parts: Vec<String> = pairs
+                .iter()
+                .map(|(k, v)| {
+                    format!(
+                        "{}: {}",
+                        dump_expr(module, body, *k),
+                        dump_expr(module, body, *v)
+                    )
+                })
+                .collect();
+            format!("{{{}}}", parts.join(", "))
+        }
+        ExprKind::Bytes(bytes) => format!("b{:?}", bytes),
+        ExprKind::Subscript { base, index } => {
+            format!(
+                "{}[{}]",
+                dump_expr(module, body, *base),
+                dump_expr(module, body, *index)
+            )
+        }
+        ExprKind::Slice { start, stop, step } => {
+            let part =
+                |e: &Option<ExprId>| e.map(|id| dump_expr(module, body, id)).unwrap_or_default();
+            format!("{}:{}:{}", part(start), part(stop), part(step))
+        }
+        ExprKind::Starred(inner) => format!("*{}", dump_expr(module, body, *inner)),
         ExprKind::Unary { op, operand } => format!("{op:?}({})", dump_expr(module, body, *operand)),
         ExprKind::Binary { op, lhs, rhs } => {
             let op_str = match op {

@@ -198,6 +198,20 @@ fn try_static(
     }
 }
 
+/// 取表达式的直接子表达式（用于「容器字面量整体降级但仍要检查元素」）。
+fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
+    match kind {
+        ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Set(items) => items.clone(),
+        ExprKind::Dict(pairs) => pairs.iter().flat_map(|(k, v)| [*k, *v]).collect(),
+        ExprKind::Subscript { base, index } => vec![*base, *index],
+        ExprKind::Slice { start, stop, step } => {
+            [*start, *stop, *step].into_iter().flatten().collect()
+        }
+        ExprKind::Starred(inner) => vec![*inner],
+        _ => Vec::new(),
+    }
+}
+
 pub fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
     match type_ref {
         TypeRef::Int => Ty::Int,
@@ -283,6 +297,29 @@ impl FunctionChecker<'_> {
                             self.infer.force(&loc_infer, Ty::Dynamic);
                         }
                     }
+                    AssignTarget::Subscript { base, index } => {
+                        self.check_expr(*base);
+                        self.check_expr(*index);
+                        self.soft_demote = true;
+                    }
+                    AssignTarget::Sequence(items) => {
+                        for item in items {
+                            let local = match item {
+                                ryupy_hir::SequenceItem::One(local)
+                                | ryupy_hir::SequenceItem::Rest(local) => *local,
+                            };
+                            let loc_infer = self.local_vars[local].clone();
+                            if self
+                                .infer
+                                .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
+                                .is_err()
+                            {
+                                self.soft_demote = true;
+                                self.infer.force(&loc_infer, Ty::Dynamic);
+                            }
+                        }
+                        self.soft_demote = true;
+                    }
                     AssignTarget::Attribute { base, name } => {
                         let base_ty = self.check_expr(*base);
                         self.check_attribute_assign(
@@ -328,6 +365,16 @@ impl FunctionChecker<'_> {
                     self.check_stmt(s);
                 }
             }
+            StmtKind::ForEach { var, iter, body } => {
+                // 通用迭代依赖容器协议，静态路径不展开
+                self.check_expr(*iter);
+                let var_infer = self.local_vars[*var].clone();
+                let _ = self.infer.unify(&var_infer, &InferTy::Known(Ty::Dynamic));
+                self.soft_demote = true;
+                for &s in body {
+                    self.check_stmt(s);
+                }
+            }
             StmtKind::ForRange {
                 var,
                 start,
@@ -352,6 +399,11 @@ impl FunctionChecker<'_> {
 
                 for &s in body {
                     self.check_stmt(s);
+                }
+            }
+            StmtKind::Delete(targets) => {
+                for &target in targets {
+                    self.check_expr(target);
                 }
             }
             StmtKind::Raise { value, cause } => {
@@ -478,7 +530,17 @@ impl FunctionChecker<'_> {
             ExprKind::Compare { op, lhs, rhs } => {
                 let lhs_ty = self.check_expr(*lhs);
                 let rhs_ty = self.check_expr(*rhs);
-                if lhs_ty.is_dynamic() || rhs_ty.is_dynamic() {
+                // `in` / `is` 走运行时容器协议，静态路径不展开
+                if matches!(
+                    op,
+                    ryupy_hir::CmpOp::In
+                        | ryupy_hir::CmpOp::NotIn
+                        | ryupy_hir::CmpOp::Is
+                        | ryupy_hir::CmpOp::IsNot
+                ) {
+                    self.soft_demote = true;
+                    Ty::Dynamic
+                } else if lhs_ty.is_dynamic() || rhs_ty.is_dynamic() {
                     Ty::Dynamic
                 } else {
                     match crate::ops::check_cmp_op(*op, &lhs_ty, &rhs_ty) {
@@ -516,6 +578,22 @@ impl FunctionChecker<'_> {
                 self.check_attribute_read(&base_ty, expr.range, name)
             }
             ExprKind::Call { callee, args } => self.check_call(*callee, args, expr.range),
+            // 容器字面量、下标、切片与星号：M2.3 起统一走动态路径，
+            // 静态容器类型留到优化阶段（见 optimization.md）。
+            ExprKind::List(_)
+            | ExprKind::Tuple(_)
+            | ExprKind::Set(_)
+            | ExprKind::Dict(_)
+            | ExprKind::Bytes(_)
+            | ExprKind::Subscript { .. }
+            | ExprKind::Slice { .. }
+            | ExprKind::Starred(_) => {
+                for child in expr_children(&expr.kind) {
+                    self.check_expr(child);
+                }
+                self.soft_demote = true;
+                Ty::Dynamic
+            }
             ExprKind::Missing => Ty::Error,
         };
 

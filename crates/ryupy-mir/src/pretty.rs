@@ -259,6 +259,24 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
             format!("dyn.{:?}({})", op, format_operand(operand))
         }
         Rvalue::DynTruthy { value } => format!("truthy({})", format_operand(value)),
+        Rvalue::CallWithArgs {
+            callee,
+            prefix,
+            args,
+        } => {
+            let prefix_str = prefix
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let args_str = args
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let sep = if prefix_str.is_empty() { "" } else { ", " };
+            format!("{callee:?}({prefix_str}{sep}[{args_str}])")
+        }
         Rvalue::CatchException => "caught_exception".to_string(),
     }
 }

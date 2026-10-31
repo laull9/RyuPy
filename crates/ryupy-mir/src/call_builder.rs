@@ -211,6 +211,40 @@ impl ExprBuilder<'_> {
                     }
                 }
             }
+            // `obj.method(args)`：方法调用统一走运行时容器协议
+            ExprKind::Attribute {
+                base,
+                name: ref attr_name,
+            } => {
+                let (base, name) = (base, attr_name.as_str().to_string());
+                let obj_op = self.build_expr(base);
+                let obj_ty = self.ty_of(base);
+                let obj = self.coerce(obj_op, &obj_ty, &MirType::Dynamic);
+                let mut args_ops = Vec::new();
+                for &arg in args {
+                    let arg_op = self.build_expr(arg);
+                    let arg_ty = self.ty_of(arg);
+                    args_ops.push(self.coerce(arg_op, &arg_ty, &MirType::Dynamic));
+                }
+                self.call_with_args(
+                    RuntimeFn::CallMethod,
+                    vec![obj, Operand::Const(Constant::Str(name))],
+                    args_ops,
+                )
+            }
+            ExprKind::Builtin(Builtin::Dynamic(name)) => {
+                let mut args_ops = Vec::new();
+                for &arg in args {
+                    let arg_op = self.build_expr(arg);
+                    let arg_ty = self.ty_of(arg);
+                    args_ops.push(self.coerce(arg_op, &arg_ty, &MirType::Dynamic));
+                }
+                self.call_with_args(
+                    RuntimeFn::DynBuiltin,
+                    vec![Operand::Const(Constant::Str(name.to_string()))],
+                    args_ops,
+                )
+            }
             ExprKind::Builtin(Builtin::Str) => {
                 // `str()` 无实参是空串；有实参时把值转成字符串（动态路径统一走运行时）
                 let Some(&arg) = args.first() else {

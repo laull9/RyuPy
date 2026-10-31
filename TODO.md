@@ -167,25 +167,32 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
       （`Body::regions` 按块下标区间描述受保护区；`finally` 用 catch-all + 状态码 + 分派块，不用 CIL finally）
 - [x] codegen：生成合法 CIL 异常表与 `leave` 等控制流；覆盖 return / break / continue 穿过 finally，以及清理时再抛异常
       （每条 catch 记录独立两指令入口；异常表按「内层优先」排序，否则 JIT 判 `InvalidProgramException`）
-- [~] 数值与内建错误统一映射：除零含 float、转换失败、索引 / 键 / 属性 / 名称错误；处理未赋值局部变量，避免 CLR 默认零值泄漏
-      （除零、转换失败、属性错误、未赋值局部变量（动态槽位）已统一；索引 / 键错误要等 M2.3 容器）
+- [x] 数值与内建错误统一映射：除零含 float、转换失败、索引 / 键 / 属性 / 名称错误；处理未赋值局部变量，避免 CLR 默认零值泄漏
+      （上述全部已统一：索引 / 键错误由 M2.3 容器补上，`KeyError.ForKey` 让 `args[0]` 是键本身）
 - [x] 保留 Python 异常链、用户文件与行号，建立基本 traceback
       （编译器插桩 `PushFrame` / `SetLine` / `PopTo`；`__cause__` 与 `__context__` 都按 CPython 措辞输出）
 - [x] 评估受控递归深度守卫与可恢复 RecursionError，测试安全阈值；不可用时保留 D005，不以 .NET 栈溢出捕获作为方案
       （`PyTraceback.PushFrame` 按帧数守卫，默认 1000 层，可用 `RYUPY_RECURSION_LIMIT` 调整）
-- [~] 验收：嵌套捕获、异常链、未捕获退出、finally 副作用与覆盖返回值通过；错误类型不再由 CLR 异常名代替
-      （`m2_2_exceptions` / `m2_2_finally` / `m2_2_recursion` 与四个 `tests/cases/errors` 已转正；索引 / 键错误待 M2.3）
+- [x] 验收：嵌套捕获、异常链、未捕获退出、finally 副作用与覆盖返回值通过；错误类型不再由 CLR 异常名代替
+      （`m2_2_exceptions` / `m2_2_finally` / `m2_2_recursion` 与四个 `tests/cases/errors` 已转正；索引 / 键错误已随 M2.3 容器一并转正）
 
 ### M2.3 容器与可变别名
 
 > 依赖 M2.1 / M2.2。用例按 list、tuple、dict、set、bytes 分开。
 
-- [ ] list / tuple：字面量、构造、嵌套、下标、负索引、切片、赋值 / 删除、append / extend / pop 与普通 / 星号解包
-- [ ] dict：保持插入顺序，增删查改、get / items / keys / values / update；定义视图与迭代中修改行为
-- [ ] set / frozenset：构造、成员判断、常用集合运算；统一可哈希判定与相等 / 哈希规则，覆盖 `True`、`1`、`1.0` 作键
-- [ ] 可变容器保留共享引用；递归 repr / equality 的支持边界明确，循环引用不能导致无界运行
-- [ ] bytes / bytearray：字面量、索引、切片、常用转换与可变写入；为文件和编码 API 提供对象模型
-- [ ] 验收：空 / 异构 / 嵌套容器、共享别名、切片边界、不可哈希键和迭代失效做 CPython 差分
+- [x] list / tuple：字面量、构造、嵌套、下标、负索引、切片、赋值 / 删除、append / extend / pop 与普通 / 星号解包
+      （`PyList` / `PyTuple`；星号解包由 `UnpackCheck` 校验长度后按下标取值，其余部分用 `PySlice` 一次切出）
+- [x] dict：保持插入顺序，增删查改、get / items / keys / values / update；定义视图与迭代中修改行为
+      （插入顺序由 `_keys` 单独维护；`Version` 变更使迭代器抛 `RuntimeError`，但视图本身是「活的」）
+- [x] set / frozenset：构造、成员判断、常用集合运算；统一可哈希判定与相等 / 哈希规则，覆盖 `True`、`1`、`1.0` 作键
+      （`|` `&` `^` `-` 优先走集合语义，再回退到整数位运算；相等与哈希集中在 `PyHash`）
+- [x] 可变容器保留共享引用；递归 repr / equality 的支持边界明确，循环引用不能导致无界运行
+      （赋值只复制引用；`PyRepr` 用「正在处理」集合保护，自引用打印 `[[...]]`）
+- [x] bytes / bytearray：字面量、索引、切片、常用转换与可变写入；为文件和编码 API 提供对象模型
+      （`PyBytes` / `PyByteArray`；bytearray 支持下标 / 切片赋值与删除，并与 bytes 按内容相等）
+- [x] 验收：空 / 异构 / 嵌套容器、共享别名、切片边界、不可哈希键和迭代失效做 CPython 差分
+      （`m2_3_containers` / `m2_3_slices` / `m2_3_bytes` / `m2_3_hashing` 已转正；顺带解锁 M2.2 遗留的索引 / 键错误映射）
+- [x] 额外修正：`print` 实参改为先全部求值再统一输出；`PyHash` 的 int / float 比较改走精确比较
 
 ### M2.4 迭代、字符串与常用内建
 

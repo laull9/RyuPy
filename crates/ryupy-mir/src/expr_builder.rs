@@ -151,8 +151,153 @@ impl<'a> ExprBuilder<'a> {
                 );
                 self.none_value()
             }
+            ExprKind::List(items) => self.build_sequence_literal(items, RuntimeFn::MakeList),
+            ExprKind::Tuple(items) => self.build_sequence_literal(items, RuntimeFn::MakeTuple),
+            ExprKind::Set(items) => self.build_sequence_literal(items, RuntimeFn::MakeSet),
+            ExprKind::Bytes(bytes) => {
+                // 每个字节当成一个 latin-1 字符放进 CIL 字符串，运行时再还原成字节
+                let text: String = bytes.iter().map(|b| *b as char).collect();
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::MakeBytes),
+                        args: vec![Operand::Const(Constant::Str(text))],
+                    },
+                });
+                Operand::Local(dest)
+            }
+            ExprKind::Dict(pairs) => self.build_dict_literal(pairs, expr_id),
+            ExprKind::Subscript { base, index } => {
+                let base_op = self.build_expr(*base);
+                let index_op = self.build_expr(*index);
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::GetItem),
+                        args: vec![base_op, index_op],
+                    },
+                });
+                Operand::Local(dest)
+            }
+            ExprKind::Slice { start, stop, step } => {
+                let part = |this: &mut Self, e: Option<ExprId>| match e {
+                    Some(id) => this.build_expr(id),
+                    None => this.runtime_call(RuntimeFn::DynNone, Vec::new(), MirType::Dynamic),
+                };
+                let start_op = part(self, *start);
+                let stop_op = part(self, *stop);
+                let step_op = part(self, *step);
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::MakeSlice),
+                        args: vec![start_op, stop_op, step_op],
+                    },
+                });
+                Operand::Local(dest)
+            }
+            // 星号只在容器字面量与赋值目标里有意义；这里落到容器的增量构建
+            ExprKind::Starred(inner) => self.build_expr(*inner),
             _ => self.none_value(),
         }
+    }
+
+    /// 容器字面量：没有星号时一次构造；有星号时先建空容器再逐个追加。
+    fn build_sequence_literal(&mut self, items: &[ExprId], callee: RuntimeFn) -> Operand {
+        let has_star = items.iter().any(|id| {
+            matches!(
+                self.hir.functions[self.current_hir_fn].body.exprs[*id].kind,
+                ExprKind::Starred(_)
+            )
+        });
+        if !has_star {
+            let mut args = Vec::new();
+            for &item in items {
+                let op = self.build_expr(item);
+                let ty = self.ty_of(item);
+                args.push(self.coerce(op, &ty, &MirType::Dynamic));
+            }
+            return self.call_with_args(callee, vec![], args);
+        }
+
+        // 含 `*x`：先建空列表，再 append / extend
+        let container = self.call_with_args(RuntimeFn::MakeList, vec![], vec![]);
+        for &item in items {
+            let starred = match &self.hir.functions[self.current_hir_fn].body.exprs[item].kind {
+                ExprKind::Starred(inner) => Some(*inner),
+                _ => None,
+            };
+            match starred {
+                Some(inner) => {
+                    let value = self.build_expr(inner);
+                    let ty = self.ty_of(inner);
+                    let boxed = self.coerce(value, &ty, &MirType::Dynamic);
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ListExtend),
+                        args: vec![container.clone(), boxed],
+                    }));
+                }
+                None => {
+                    let value = self.build_expr(item);
+                    let ty = self.ty_of(item);
+                    let boxed = self.coerce(value, &ty, &MirType::Dynamic);
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ListAppend),
+                        args: vec![container.clone(), boxed],
+                    }));
+                }
+            }
+        }
+        container
+    }
+
+    /// 字典字面量：空字典 + 逐项写入。
+    fn build_dict_literal(&mut self, pairs: &[(ExprId, ExprId)], _expr_id: ExprId) -> Operand {
+        // MakeDict 没有数组形参，走普通调用
+        let dict_dest = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest: dict_dest,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::MakeDict),
+                args: Vec::new(),
+            },
+        });
+        let dict = Operand::Local(dict_dest);
+        for &(key, value) in pairs {
+            let key_op = self.build_expr(key);
+            let key_ty = self.ty_of(key);
+            let key_boxed = self.coerce(key_op, &key_ty, &MirType::Dynamic);
+            let val_op = self.build_expr(value);
+            let val_ty = self.ty_of(value);
+            let val_boxed = self.coerce(val_op, &val_ty, &MirType::Dynamic);
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::SetItem),
+                args: vec![dict.clone(), key_boxed, val_boxed],
+            }));
+        }
+        dict
+    }
+
+    /// 生成一次带数组实参的运行时调用。
+    pub(crate) fn call_with_args(
+        &mut self,
+        callee: RuntimeFn,
+        prefix: Vec<Operand>,
+        args: Vec<Operand>,
+    ) -> Operand {
+        let dest = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: Rvalue::CallWithArgs {
+                callee,
+                prefix,
+                args,
+            },
+        });
+        Operand::Local(dest)
     }
 
     // ───────────────────────── 字面量 ─────────────────────────
@@ -395,6 +540,43 @@ impl<'a> ExprBuilder<'a> {
         }
     }
 
+    /// `in` / `not in` / `is` / `is not`。
+    fn build_membership_compare(&mut self, op: CmpOp, lhs: ExprId, rhs: ExprId) -> Operand {
+        let lhs_op = self.build_expr(lhs);
+        let lhs_ty = self.ty_of(lhs);
+        let lhs_value = self.coerce(lhs_op, &lhs_ty, &MirType::Dynamic);
+        let rhs_op = self.build_expr(rhs);
+        let rhs_ty = self.ty_of(rhs);
+        let rhs_value = self.coerce(rhs_op, &rhs_ty, &MirType::Dynamic);
+
+        let negate = matches!(op, CmpOp::NotIn | CmpOp::IsNot);
+        let runtime = match op {
+            CmpOp::Is | CmpOp::IsNot => RuntimeFn::IsSame,
+            _ => RuntimeFn::Contains,
+        };
+        // `in` 的语义是 `x in container`，运行时签名是 (container, value)
+        let (first, second) = match op {
+            CmpOp::Is | CmpOp::IsNot => (lhs_value, rhs_value),
+            _ => (rhs_value, lhs_value),
+        };
+
+        let raw = self.runtime_call(runtime, vec![first, second], MirType::Bool);
+        let value = if negate {
+            let dest = self.alloc_temp(MirType::Bool);
+            self.push_stmt(Statement::Assign {
+                dest,
+                value: Rvalue::Unary {
+                    op: crate::mir::UnaryOp::Not,
+                    operand: raw,
+                },
+            });
+            Operand::Local(dest)
+        } else {
+            raw
+        };
+        self.bool_to_value(value)
+    }
+
     /// 把 CIL `bool` 装成动态值；静态上下文原样返回。
     fn bool_to_value(&mut self, op: Operand) -> Operand {
         if !self.is_dynamic_context() {
@@ -481,6 +663,10 @@ impl<'a> ExprBuilder<'a> {
     }
 
     fn build_compare(&mut self, op: CmpOp, lhs: ExprId, rhs: ExprId, expr_id: ExprId) -> Operand {
+        // `in` / `not in` / `is` / `is not`：走运行时容器协议与身份比较
+        if matches!(op, CmpOp::In | CmpOp::NotIn | CmpOp::Is | CmpOp::IsNot) {
+            return self.build_membership_compare(op, lhs, rhs);
+        }
         let mut lhs_op = self.build_expr(lhs);
         let mut rhs_op = self.build_expr(rhs);
         let lhs_ty = self.ty_of(lhs);
@@ -515,6 +701,8 @@ impl<'a> ExprBuilder<'a> {
             CmpOp::LtE => BinOp::Le,
             CmpOp::Gt => BinOp::Gt,
             CmpOp::GtE => BinOp::Ge,
+            // 上面已提前返回，这里只是让 match 完整
+            CmpOp::In | CmpOp::NotIn | CmpOp::Is | CmpOp::IsNot => BinOp::Eq,
         };
 
         let dest = self.alloc_temp(MirType::Bool);
@@ -718,6 +906,8 @@ fn dyn_cmp_op(op: CmpOp) -> DynOp {
         CmpOp::LtE => DynOp::Le,
         CmpOp::Gt => DynOp::Gt,
         CmpOp::GtE => DynOp::Ge,
+        // 这三个走专用运行时调用，不会进入这里
+        CmpOp::In | CmpOp::NotIn | CmpOp::Is | CmpOp::IsNot => DynOp::Eq,
     }
 }
 

@@ -208,6 +208,15 @@ pub enum Rvalue {
     DynTruthy {
         value: Operand,
     },
+    /// 带「前缀操作数 + 数组实参」的运行时调用。
+    ///
+    /// 容器构造、方法调用、内建调用都长这样：若干固定位置的标量参数 + 一个 `object[]`。
+    /// 单独一个变体而不是给每种调用加一条指令，是为了让 codegen 的数组发射只写一份。
+    CallWithArgs {
+        callee: RuntimeFn,
+        prefix: Vec<Operand>,
+        args: Vec<Operand>,
+    },
     /// 异常处理入口处的「捕获到的异常对象」。
     ///
     /// CIL 在把控制权交给 catch 子句时会把异常对象压栈，所以这条 rvalue 本身不发射
@@ -429,6 +438,47 @@ pub enum RuntimeFn {
     TracePopTo,
     /// `PyTraceback.Attach(object)`：把当前栈快照挂到异常上。
     TraceAttach,
+    // ── 容器协议（M2.3）──
+    /// `PyOps.MakeList(object[])` / `MakeTuple` / `MakeSet`。
+    MakeList,
+    MakeTuple,
+    MakeSet,
+    /// `PyOps.MakeDict()`。
+    MakeDict,
+    /// `PyOps.MakeSlice(object, object, object)`。
+    MakeSlice,
+    /// `PyOps.MakeBytes(string)`。
+    MakeBytes,
+    /// `PyOps.GetItem(object, object)`。
+    GetItem,
+    /// `PyOps.SetItem(object, object, object)`。
+    SetItem,
+    /// `PyOps.DelItem(object, object)`。
+    DelItem,
+    /// `PyOps.Contains(object, object) -> bool`。
+    Contains,
+    /// `PyOps.Len(object) -> long`。
+    Len,
+    /// `PyOps.Is(object, object) -> bool`。
+    IsSame,
+    /// `PyOps.ReprValue(object) -> string`。
+    ReprValue,
+    /// `PyOps.CallBuiltin(string, object[])`。
+    DynBuiltin,
+    /// `PyOps.CallMethod(object, string, object[])`。
+    CallMethod,
+    /// `PyOps.ListAppend(list, item)`：星号字面量的增量构建。
+    ListAppend,
+    /// `PyOps.ListExtend(list, seq)`。
+    ListExtend,
+    /// `PyOps.UnpackCheck(long, long)`：解包数量不足时抛 ValueError。
+    UnpackCheck,
+    /// `PyOps.IterStart(object) -> object`：建立迭代器。
+    IterStart,
+    /// `PyOps.IterNextOk(object) -> bool`：推进迭代器。
+    IterNextOk,
+    /// `PyOps.IterValue(object) -> object`：取当前元素。
+    IterValue,
 }
 
 #[derive(Debug)]

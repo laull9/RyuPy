@@ -13,7 +13,7 @@ namespace RyuPy.Runtime;
 /// 操作码在 Rust 侧 <c>RuntimeFn</c> / <c>mir::DynOp</c> 中有对应常量，**修改必须两边同步**。
 /// 错误一律抛 <see cref="PyBaseException"/> 子类，不把 CLR 异常泄漏成 Python 异常类型。
 /// </remarks>
-public static class PyOps
+public static partial class PyOps
 {
     /// <summary>二元操作码：<c>a + b</c>。</summary>
     public const int Add = 1;
@@ -113,6 +113,10 @@ public static class PyOps
                 {
                     return ToDouble(a) - ToDouble(b);
                 }
+                if (SetDifference(a, b) is object difference)
+                {
+                    return difference;
+                }
                 throw BinaryTypeError("-", a, b);
             case Mul:
                 if (aInt && bInt)
@@ -174,12 +178,24 @@ public static class PyOps
                 }
                 throw BinaryTypeError("** or pow()", a, b);
             case BitAnd:
+                if (SetIntersect(a, b) is object intersection)
+                {
+                    return intersection;
+                }
                 RequireInts("&", a, b, aInt, bInt);
                 return PyInt.BitAnd(a, b);
             case BitOr:
+                if (SetUnion(a, b) is object union)
+                {
+                    return union;
+                }
                 RequireInts("|", a, b, aInt, bInt);
                 return PyInt.BitOr(a, b);
             case BitXor:
+                if (SetSymmetricDifference(a, b) is object xor)
+                {
+                    return xor;
+                }
                 RequireInts("^", a, b, aInt, bInt);
                 return PyInt.BitXor(a, b);
             case LShift:
@@ -391,37 +407,8 @@ public static class PyOps
         throw new PyValueError($"could not convert string to float: {PyRepr.Quote(text)}");
     }
 
-    private static bool ValuesEqual(object? a, object? b)
-    {
-        if (a is null || a is PyNone || b is null || b is PyNone)
-        {
-            return (a is null || a is PyNone) && (b is null || b is PyNone);
-        }
-        bool aInt = PyInt.IsInt(a);
-        bool bInt = PyInt.IsInt(b);
-        if (aInt && bInt)
-        {
-            return PyInt.Compare(a, b) == 0;
-        }
-        if (aInt && b is double bd)
-        {
-            return PyInt.CompareWithDouble(PyInt.ToBigInteger(a), bd) == 0;
-        }
-        if (bInt && a is double ad)
-        {
-            return PyInt.CompareWithDouble(PyInt.ToBigInteger(b), ad) == 0;
-        }
-        if (a is double da && b is double db)
-        {
-            return da == db;
-        }
-        if (a is string sa && b is string sb)
-        {
-            return string.Equals(sa, sb, StringComparison.Ordinal);
-        }
-        // 其它类型：M2.5 接入 __eq__，当前按身份比较
-        return ReferenceEquals(a, b);
-    }
+    /// <summary>Python 的 <c>==</c>（容器、数值、字符串统一规则）。</summary>
+    public static bool ValuesEqual(object? a, object? b) => PyHash.Equal(a, b);
 
     /// <summary>排序比较；返回 <c>null</c> 表示不可比较（NaN）或类型不支持（抛 TypeError）。</summary>
     private static int? Order(object a, object b, int op)
@@ -461,10 +448,136 @@ public static class PyOps
         {
             return Math.Sign(string.CompareOrdinal(sa, sb));
         }
-        throw new PyTypeError(
+        SequenceKind? kindA = SequenceKindOf(a);
+        SequenceKind? kindB = SequenceKindOf(b);
+        if (kindA is { } ka && kindB is { } kb)
+        {
+            // 序列之间只在同类可比：tuple 与 list 即使内容一致也是 TypeError
+            if (ka != kb)
+            {
+                throw Incomparable(symbol, a, b);
+            }
+            return Lexicographic(ElementsOf(a), ElementsOf(b), op, symbol);
+        }
+        if (kindA is not null || kindB is not null)
+        {
+            throw Incomparable(symbol, a, b);
+        }
+        throw Incomparable(symbol, a, b);
+    }
+
+    /// <summary>序列族：只有同族的序列可以互相排序。</summary>
+    private enum SequenceKind
+    {
+        Tuple,
+        List,
+        Buffer,
+    }
+
+    private static SequenceKind? SequenceKindOf(object value) => value switch
+    {
+        PyTuple => SequenceKind.Tuple,
+        PyList => SequenceKind.List,
+        PyBytes or PyByteArray => SequenceKind.Buffer,
+        _ => null,
+    };
+
+    private static object?[] ElementsOf(object sequence) => sequence switch
+    {
+        PyTuple tuple => tuple.Items,
+        PyList list => list.Items.ToArray(),
+        PyBytes bytes => BytesToObjects(bytes.Bytes),
+        PyByteArray buffer => BytesToObjects(buffer.Bytes),
+        _ => [],
+    };
+
+    private static object?[] BytesToObjects(System.Collections.Generic.IReadOnlyList<byte> bytes)
+    {
+        var items = new object?[bytes.Count];
+        for (int i = 0; i < bytes.Count; i++)
+        {
+            items[i] = (long)bytes[i];
+        }
+        return items;
+    }
+
+    /// <summary>
+    /// 序列的字典序比较：逐元素先判等再排序，前缀相同则短的更小。
+    /// </summary>
+    /// <remarks>
+    /// 与 CPython 一致，<c>(1, 2) &lt; (1, "a")</c> 抛的 TypeError 里写的<em>元素</em>类型，
+    /// 不是容器类型——所以这里递归回 <see cref="Order"/>，让它按元素重新生成诊断。
+    /// </remarks>
+    private static int Lexicographic(object?[] a, object?[] b, int op, string symbol)
+    {
+        int shared = Math.Min(a.Length, b.Length);
+        for (int i = 0; i < shared; i++)
+        {
+            object? left = a[i];
+            object? right = b[i];
+            bool leftNone = left is null or PyNone;
+            bool rightNone = right is null or PyNone;
+            if (leftNone && rightNone)
+            {
+                continue;
+            }
+            if (leftNone || rightNone)
+            {
+                throw Incomparable(symbol, left ?? PyNone.Instance, right ?? PyNone.Instance);
+            }
+            if (!PyHash.Equal(left, right))
+            {
+                return Order(left!, right!, op)
+                    ?? throw Incomparable(symbol, left!, right!);
+            }
+        }
+        return a.Length.CompareTo(b.Length);
+    }
+
+    private static PyTypeError Incomparable(string symbol, object a, object b) =>
+        new(
             $"'{symbol}' not supported between instances of '{PyRepr.TypeName(a)}' and '{PyRepr.TypeName(b)}'"
         );
-    }
+
+    /// <summary>集合的并集；任一侧不是集合时返回 <c>null</c>。</summary>
+    private static object? SetUnion(object a, object b) => (a, b) switch
+    {
+        (PySet left, PySet right) => left.Union(right),
+        (PySet left, PyFrozenSet right) => new PySet(left.Union(new PySet(right.Items)).Items),
+        (PyFrozenSet left, PyFrozenSet right) => left.Union(right),
+        (PyFrozenSet left, PySet right) => new PySet(left.Union(new PyFrozenSet(right.Items)).Items),
+        _ => null,
+    };
+
+    /// <summary>集合的交集。</summary>
+    private static object? SetIntersect(object a, object b) => (a, b) switch
+    {
+        (PySet left, PySet right) => left.Intersect(right),
+        (PySet left, PyFrozenSet right) => new PySet(left.Intersect(new PySet(right.Items)).Items),
+        (PyFrozenSet left, PyFrozenSet right) => left.Intersect(right),
+        (PyFrozenSet left, PySet right) => new PySet(left.Intersect(new PyFrozenSet(right.Items)).Items),
+        _ => null,
+    };
+
+    /// <summary>集合的差集。</summary>
+    private static object? SetDifference(object a, object b) => (a, b) switch
+    {
+        (PySet left, PySet right) => left.Difference(right),
+        (PySet left, PyFrozenSet right) => new PySet(left.Difference(new PySet(right.Items)).Items),
+        (PyFrozenSet left, PyFrozenSet right) => left.Difference(right),
+        (PyFrozenSet left, PySet right) => new PySet(left.Difference(new PyFrozenSet(right.Items)).Items),
+        _ => null,
+    };
+
+    /// <summary>集合的对称差。</summary>
+    private static object? SetSymmetricDifference(object a, object b) => (a, b) switch
+    {
+        (PySet left, PySet right) => left.SymmetricDifference(right),
+        (PySet left, PyFrozenSet right) => new PySet(left.SymmetricDifference(new PySet(right.Items)).Items),
+        (PyFrozenSet left, PyFrozenSet right) => left.SymmetricDifference(right),
+        (PyFrozenSet left, PySet right) => new PySet(left.SymmetricDifference(new PyFrozenSet(right.Items)).Items),
+        _ => null,
+    };
 
     private static void RequireInts(string symbol, object a, object b, bool aInt, bool bInt)
     {

@@ -35,6 +35,46 @@ public sealed class PyTuple
         return Items[normalized];
     }
 
+    /// <summary>按下标或切片取元素。</summary>
+    /// <param name="key">整数下标或切片。</param>
+    public object GetItem(object key)
+    {
+        if (key is PySlice slice)
+        {
+            var (start, _, step, count) = slice.Indices(Items.Length);
+            var result = new object?[count];
+            long index = start;
+            for (long i = 0; i < count; i++, index += step)
+            {
+                result[i] = Items[(int)index];
+            }
+            return new PyTuple(result);
+        }
+        return GetItem(key switch
+        {
+            bool b => b ? 1L : 0L,
+            long l => l,
+            int i => i,
+            _ => throw new PyTypeError(
+                $"tuple indices must be integers or slices, not {PyRepr.TypeName(key)}"
+            ),
+        })!;
+    }
+
+    /// <summary><c>x in tuple</c>。</summary>
+    /// <param name="value">被查找的值。</param>
+    public bool Contains(object? value)
+    {
+        foreach (object? item in Items)
+        {
+            if (PyHash.Equal(item, value))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>按 <c>repr</c> 规则格式化。</summary>
     public override string ToString() => PyRepr.Repr(this);
 }

@@ -34,7 +34,11 @@
 | `while … else` / `for … else` | ❌ | — |
 | 其它 `import`、模块与包 | ❌ | Phase 2 M2.7 |
 | `global` / `nonlocal` | ❌ | 分别为 M2.7 / M3.0 |
-| 列表 / 字典 / 元组 / 集合 | ❌ | Phase 2 |
+| 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
+| `x[i]` / `x[i:j:k]` / `del x[i]` / `x[i] = v` | ✅ M2.3 | `RuntimeFn::GetItem` / `SetItem` / `DelItem`；切片对象 `PySlice`，负值索引与越界按 Python 规则处理 |
+| `a in b` / `a not in b`、`a is b` / `a is not b` | ✅ M2.3 | `RuntimeFn::Contains` / `IsSame` |
+| 普通 / 星号（`a, *b, c = x`）解包赋值、`for x in 容器` | ✅ M2.3 | `RuntimeFn::UnpackCheck` 长度校验；`IterStart` / `IterNextOk` / `IterValue` 迭代协议 |
+| `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
 | 闭包、lambda、生成器、推导式、装饰器 | ❌ | Phase 3 M3.0–M3.3 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
@@ -128,6 +132,13 @@ CPython 一致的消息。
 | 21 | 模块初始化 | 按首次导入执行，循环中可见部分初始化对象 | .NET 静态构造时机不等同 Python import | M2.7 独立模块对象、缓存与初始化入口，不依赖静态构造自动复现 |
 | 22 | 方法与属性重绑定 | 后续查找须看到新绑定 | 缓存会保留旧目标 | M2.5–M2.9 携带类型 / shape / 模块版本，修改后失效并返回通用分派 |
 | 23 | 生成器清理 | close / throw 与 finally / with 联动 | 简单 IEnumerator 不覆盖全部协议 | M3.2 保存异常和清理状态；析构触发关闭的时机仍受 D001 限制 |
+| 24 | 整数与浮点相等 | `9007199254740993 == 9007199254740992.0` 为 `False` | 先转 `double` 后两者同值，得到 `True` | `PyHash` 的混合数值比较一律走 `PyInt.CompareWithDouble` 精确比较 |
+| 25 | NaN 作为字典键 | `nan == nan` 为 `False`，但同一个 nan 对象能在字典里查到自己 | — | `PyHash.Equal` 不含身份兜底，`PyKeyComparer` 含（见 §4.3） |
+| 26 | 实参求值顺序 | 全部实参先求值，再进入被调者 | 逐个下发 `Write*` 会边求值边输出 | M2.3 起先生成所有实参的临时量，再统一输出（见 §4.4） |
+| 27 | 序列比较 | 只在同族内字典序，跨族抛 `TypeError` | — | tuple / list / bytes 系列分族；错误写的是元素类型而非容器类型（见 §4.3） |
+| 24 | 整数与浮点相等 | `9007199254740993 == 9007199254740992.0` 为 `False` | 先转 `double` 后两者同值，得到 `True` | `PyHash` 里 int / float 混合比较一律走 `PyInt.CompareWithDouble` |
+| 25 | NaN 作为字典键 | `nan == nan` 为 `False`，但同一个 nan 对象能在字典里查到自己 | — | `Equal` 无身份兜底，`PyKeyComparer` 有（见 §4.3） |
+| 26 | 实参求值顺序 | 全部实参先求值，再进入被调者 | 逐个下发 `Write*` 会边求值边输出 | M2.3 起先生成实参临时量再统一输出（见 §4.4） |
 
 ### 4.1 未捕获异常与退出码（M2.2）
 
@@ -174,6 +185,34 @@ stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise
 **当前限制**：`except` 的类型只支持内建异常类型名（用户自定义异常在 M2.6）；traceback 的
 帧来自编译器插桩，`__traceback__` 属性暂时是 `None`，完整 frame 对象与 `sys._getframe`
 属于暂缓能力。
+
+### 4.3 容器与相等性（M2.3）
+
+容器表达式在类型层**统一降级为 `Dynamic`**：元素类型、键类型都不是编译期概念，`[1, "a"]`
+也不再分两种 list。代价是放弃静态特化，收益是不必为每种容器组合发明新的静态类型——Python
+自己也没有。
+
+- **相等性与哈希**集中在 `PyHash`：`Equal` 负责 `==`，`Of` 负责 `hash`。字典与集合通过
+  `PyKeyComparer` 把两者映射成 CLR 的 `IEqualityComparer<object>`。
+- **`==` 与键查找的身份语义不同**（有意）：`nan == nan` 必须为 `False`，但同一个 `nan`
+  对象作为字典键时必须能查到自己。前者对应 CPython 的 `PyObject_RichCompare`，后者对应带
+  指针快判的 `PyObject_RichCompareBool`；因此 `Equal` 不含身份兜底而 `PyKeyComparer` 含，
+  两边不能合并。
+- **int / float 混合比较必须精确**：`9007199254740993 == 9007199254740992.0` 在 CPython 是
+  `False`，而把整数先转成 `double` 再比较会静默得到 `True`。统一走 `PyInt.CompareWithDouble`。
+- **数字键三元组**：`True`、`1`、`1.0` 互为相同键且哈希一致（即 `hash(True) == hash(1)`）。
+- **序列比较**只在同族内成立：tuple / list / bytes 系列各自做字典序比较，跨族（如
+  `list < tuple`）抛 `TypeError`；元素不可排序时诊断里写的是**元素**类型而非容器类型。
+- **迭代期间修改**：字典迭代器记下开始时的 `Version`，增删后再取下一个元素抛 `RuntimeError`；
+  但 `dict.keys()` 视图是「活的」，新建一次遍历看到的是当时内容，不校验版本。
+- **循环引用**：`PyRepr` 用「正在处理」集合保护，自引用 list 打印 `[[...]]`、自引用 dict 打印
+  `{'a': {...}}`，不会无界递归。
+
+### 4.4 `print` 的实参求值顺序
+
+`print(a, b)` 必须**先求值全部实参，再统一输出**。早期实现边求值边写（`Write*` 逐个下发），
+使 `print(x, x.pop())` 写出的是调用前的内容，且实参里嵌套的输出会插到中间。现已改为先生成
+全部实参的临时量，再按序 `WriteSep` / `Write*` / `WriteNewline`。
 
 ## 5. 模块与入口
 

@@ -82,76 +82,73 @@ impl StmtLowerCtx<'_> {
             return None;
         };
 
-        let (start, stop, step) = if let ast::Expr::Call(call_expr) = &*for_stmt.iter {
-            let is_range = if let ast::Expr::Name(callee_name) = &*call_expr.func {
-                callee_name.id.as_str() == "range"
-            } else {
-                false
-            };
-            if !is_range {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, for_stmt.iter.range()),
-                        "Phase 1 仅支持 `for ... in range(...)` 循环",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("不支持非 range 的可迭代对象"),
-                );
-                return None;
-            }
-            if !call_expr.arguments.keywords.is_empty() {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, call_expr.range()),
-                        "range() 暂不支持关键字参数",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("仅支持位置参数"),
-                );
-            }
-            let args = &call_expr.arguments.args;
-            match args.len() {
-                1 => {
-                    let zero = self.body.exprs.alloc(Expr {
-                        kind: ExprKind::Literal(Literal::Int(0)),
-                        range: call_expr.range(),
-                    });
-                    let stop = self.lower_expr(&args[0]);
-                    (zero, stop, None)
+        let (start, stop, step) = match &*for_stmt.iter {
+            ast::Expr::Call(call_expr) => {
+                let is_range = if let ast::Expr::Name(callee_name) = &*call_expr.func {
+                    callee_name.id.as_str() == "range"
+                } else {
+                    false
+                };
+                if !is_range {
+                    // 非 range 的可迭代对象：走通用迭代协议（M2.3 容器图）
+                    let iter = self.lower_expr(&for_stmt.iter);
+                    self.loop_depth += 1;
+                    let body = self.lower_suite(&for_stmt.body);
+                    self.loop_depth -= 1;
+                    return Some(StmtKind::ForEach { var, iter, body });
                 }
-                2 => {
-                    let start = self.lower_expr(&args[0]);
-                    let stop = self.lower_expr(&args[1]);
-                    (start, stop, None)
-                }
-                3 => {
-                    let start = self.lower_expr(&args[0]);
-                    let stop = self.lower_expr(&args[1]);
-                    let step = self.lower_expr(&args[2]);
-                    (start, stop, Some(step))
-                }
-                _ => {
+                if !call_expr.arguments.keywords.is_empty() {
                     self.diagnostics.push(
                         Diagnostic::error(
                             Span::new(self.file, call_expr.range()),
-                            format!("range() 期望 1 到 3 个参数，得到 {}", args.len()),
+                            "range() 暂不支持关键字参数",
                         )
                         .with_code("E0100")
-                        .with_primary_label("参数数量错误"),
+                        .with_primary_label("仅支持位置参数"),
                     );
-                    return None;
+                }
+                let args = &call_expr.arguments.args;
+                match args.len() {
+                    1 => {
+                        let zero = self.body.exprs.alloc(Expr {
+                            kind: ExprKind::Literal(Literal::Int(0)),
+                            range: call_expr.range(),
+                        });
+                        let stop = self.lower_expr(&args[0]);
+                        (zero, stop, None)
+                    }
+                    2 => {
+                        let start = self.lower_expr(&args[0]);
+                        let stop = self.lower_expr(&args[1]);
+                        (start, stop, None)
+                    }
+                    3 => {
+                        let start = self.lower_expr(&args[0]);
+                        let stop = self.lower_expr(&args[1]);
+                        let step = self.lower_expr(&args[2]);
+                        (start, stop, Some(step))
+                    }
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, call_expr.range()),
+                                format!("range() 期望 1 到 3 个参数，得到 {}", args.len()),
+                            )
+                            .with_code("E0100")
+                            .with_primary_label("参数数量错误"),
+                        );
+                        return None;
+                    }
                 }
             }
-        } else {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, for_stmt.iter.range()),
-                    "Phase 1 仅支持 `for ... in range(...)` 循环",
-                )
-                .with_code("E0100")
-                .with_primary_label("不支持非 range 的可迭代对象"),
-            );
-            return None;
+            _ => {
+                // 非调用表达式也走通用迭代协议
+                let iter = self.lower_expr(&for_stmt.iter);
+                self.loop_depth += 1;
+                let body = self.lower_suite(&for_stmt.body);
+                self.loop_depth -= 1;
+                return Some(StmtKind::ForEach { var, iter, body });
+            }
         };
 
         self.loop_depth += 1;
