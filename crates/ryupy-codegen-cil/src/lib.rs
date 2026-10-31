@@ -12,11 +12,12 @@
 
 pub mod assembly;
 mod callables;
+mod modules;
 pub mod runtimeconfig;
 mod stackify;
 mod types;
 
-use ryupy_mir::Program;
+use ryupy_mir::LinkedProgram;
 
 #[derive(Debug, Clone)]
 pub struct EmitOptions {
@@ -33,11 +34,11 @@ pub enum CodegenError {
 }
 
 /// 生成程序集字节。
-pub fn emit_assembly(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
+pub fn emit_assembly(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
     assembly::emit(program, opts)
 }
 
 /// 生成可读的 CIL 文本（供 `ryupy dump --emit cil` 与快照测试）。
-pub fn dump_cil(program: &Program, opts: &EmitOptions) -> Result<String, CodegenError> {
+pub fn dump_cil(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
     assembly::dump(program, opts)
 }

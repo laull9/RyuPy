@@ -36,8 +36,13 @@
 | `from dataclasses import dataclass` + `@dataclass` | ✅ M1.5 | .NET class |
 | `@dataclass(frozen=True)` | ✅ M1.5 | .NET struct |
 | 链式比较 `a < b < c` | ✅ M1.2 | 中间项无副作用时展开，否则 ❌ |
-| 其它 `import`、模块与包 | ❌ | Phase 2 M2.7 |
-| `global` / `nonlocal` | ❌ | 分别为 M2.7 / M3.0 |
+| `import x` / `import x as y` / `from x import y` / 别名 | ✅ M2.7 | 编译期构建模块图，运行时走 `PyModules` 导入缓存 |
+| 普通包 `__init__.py` 与包内相对导入 | ✅ M2.7 | 相对导入在 HIR 换算成绝对模块名 |
+| 模块级变量、函数读写模块变量、`global` | ✅ M2.7 | 模块变量是静态槽位，模块对象通过生成的 getter / setter 暴露 |
+| `__name__` / `__package__` / `__file__`、`__main__` 入口 | ✅ M2.7 | 模块入口开头写入；入口模块名为 `__main__` |
+| `from x import *` | ❌ | 明确报 `E0100`，要求显式列出名字 |
+| 函数体内 `import` | ❌ | 明确报 `E0100`，当前只支持模块顶层导入 |
+| `nonlocal` | ❌ | M3.0 闭包 |
 | 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
 | `x[i]` / `x[i:j:k]` / `del x[i]` / `x[i] = v` | ✅ M2.3 | `RuntimeFn::GetItem` / `SetItem` / `DelItem`；切片对象 `PySlice`，负值索引与越界按 Python 规则处理 |
 | `a in b` / `a not in b`、`a is b` / `a is not b` | ✅ M2.3 | `RuntimeFn::Contains` / `IsSame` |
@@ -91,7 +96,7 @@
 `TypeError`。`str + int`、`"a" < 1` 等静态可见的错误也不再拒绝编译，交给 `PyOps` 给出与
 CPython 一致的消息。
 
-动态属性访问、容器、异常捕获已在 M2.2–M2.5 接入；目前仍未支持的是 `import` 与模块系统（M2.7），
+动态属性访问、容器、异常捕获已在 M2.2–M2.5 接入，模块系统在 M2.7 接入；
 以及多重继承、元类、任意描述符等暂缓能力。暂缓能力在编译期报诊断，不静默降级成占位值。
 
 ## 3. 运算规则

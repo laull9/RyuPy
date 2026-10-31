@@ -24,7 +24,8 @@ use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{
-    AssignTarget, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, StmtId, StmtKind,
+    AssignTarget, Binding, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, ModuleVarId,
+    StmtId, StmtKind,
 };
 use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 
@@ -35,7 +36,17 @@ use crate::mir::{
     Rvalue, Statement, Terminator,
 };
 
-pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnostic>) {
+/// 编译一个模块，返回（模块程序，模块导出表，诊断）。
+///
+/// 导出表是「Python 可见名字 → 静态槽位」，codegen 用它生成模块对象的属性读写。
+pub fn build_program(
+    hir: &Module,
+    types: &ModuleTypes,
+) -> (
+    Program,
+    Vec<(String, crate::mir::GlobalId)>,
+    Vec<Diagnostic>,
+) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut globals = Arena::default();
@@ -65,6 +76,7 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
         });
         let mir_id = classes.alloc(crate::mir::ClassDef {
             name: cls.name.as_str().to_string(),
+            codegen_name: cls.name.as_str().to_string(),
             fields,
             is_value_type: false,
             is_dataclass: cls.is_dataclass,
@@ -98,7 +110,29 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
         .filter_map(|(id, cls)| cls.factory_global.map(|global| (id, global)))
         .collect();
 
-    // 1. 预先为每个 HIR 函数分配 MIR FnId，并登记函数对象 / 默认值数组 / 签名所需的
+    // 1. 模块级变量：每个变量一个静态槽位，类型来自 ty 的提示。
+    //    名字带序号，link 阶段还会加模块前缀，保证合并后不重名。
+    let mut module_var_ids: FxHashMap<ModuleVarId, crate::mir::GlobalId> = FxHashMap::default();
+    let mut module_var_tys: FxHashMap<ModuleVarId, MirType> = FxHashMap::default();
+    for (var_id, var) in hir.vars.iter() {
+        let hint = types
+            .module_vars
+            .get(var_id)
+            .cloned()
+            .unwrap_or(Ty::Dynamic);
+        let ty = match ty_to_mir(&hint) {
+            MirType::Unit => MirType::Dynamic,
+            ty => ty,
+        };
+        let gid = globals.alloc(GlobalDecl {
+            name: format!("__mv{}_{}", var_id.into_raw().into_u32(), var.name),
+            ty: ty.clone(),
+        });
+        module_var_ids.insert(var_id, gid);
+        module_var_tys.insert(var_id, ty);
+    }
+
+    // 2. 预先为每个 HIR 函数分配 MIR FnId，并登记函数对象 / 默认值数组 / 签名所需的
     //    模块静态槽位。槽位在函数体构建之前分配，调用方才能在表达式里引用它们。
     let mut fn_map: FxHashMap<ryupy_hir::FuncId, FnId> = FxHashMap::default();
     let mut global_seq = 0usize;
@@ -122,8 +156,15 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
         let defaults_global = is_user.then(|| alloc_global(&mut globals, "__defaults"));
         let signature_global = is_user.then(|| alloc_global(&mut globals, "__sig"));
 
+        let codegen_name = if hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain {
+            "__module_main".to_string()
+        } else {
+            hir_fn.name.as_str().to_string()
+        };
         let mir_fn = Function {
             name: hir_fn.name.as_str().to_string(),
+            codegen_name,
+            source_file: hir.info.file.clone(),
             params: Vec::new(),
             ret: ret_ty,
             body: crate::mir::Body {
@@ -164,6 +205,8 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
             &class_map,
             &hir_class_globals,
             &class_factories,
+            &module_var_ids,
+            &globals,
             hir_fn_id,
         );
 
@@ -193,6 +236,23 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
             let mir_loc = builder.local_map[&p.local];
             params.push(mir_loc);
             builder.assigned_locals.insert(p.local);
+        }
+
+        // 模块入口开头把动态模块变量重置为 `None`：失败后重试等同于重新执行模块，
+        // 不应该读到上一次失败留下的值（CPython 会丢弃旧模块对象）。
+        if hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain {
+            for (var_id, _) in hir.vars.iter() {
+                let Some(&gid) = module_var_ids.get(&var_id) else {
+                    continue;
+                };
+                if module_var_tys[&var_id] != MirType::Dynamic {
+                    continue;
+                }
+                builder.push_stmt(Statement::SetGlobal {
+                    dest: gid,
+                    value: Operand::Const(Constant::None),
+                });
+            }
         }
 
         // 帧记录：traceback 需要知道「当前在哪个函数、第几行」
@@ -226,7 +286,27 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
         source_name: hir.source_name.clone(),
     };
 
-    (program, diagnostics)
+    // 模块导出表：模块变量 + 顶层函数 + 顶层类。
+    let mut exports: Vec<(String, crate::mir::GlobalId)> = Vec::new();
+    for (var_id, var) in hir.vars.iter() {
+        if let Some(&gid) = module_var_ids.get(&var_id) {
+            exports.push((var.name.as_str().to_owned(), gid));
+        }
+    }
+    for fn_id in &hir.top_functions {
+        if let Some(&mir_id) = fn_map.get(fn_id)
+            && let Some(gid) = program.functions[mir_id].function_global
+        {
+            exports.push((hir.functions[*fn_id].name.as_str().to_owned(), gid));
+        }
+    }
+    for cls_id in &hir.top_classes {
+        if let Some(&gid) = hir_class_globals.get(cls_id) {
+            exports.push((hir.classes[*cls_id].name.as_str().to_owned(), gid));
+        }
+    }
+
+    (program, exports, diagnostics)
 }
 
 /// `PyOps.ArgError` 的错误种类：未知关键字。
@@ -302,6 +382,10 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) hir_class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
     /// 异常类 → CLR 工厂委托的静态槽位。
     pub(crate) class_factories: &'a FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId>,
+    /// HIR 模块变量 → 静态槽位。
+    pub(crate) module_vars: &'a FxHashMap<ModuleVarId, crate::mir::GlobalId>,
+    /// 全部静态槽位（读取槽位类型做装箱/拆箱）。
+    pub(crate) globals: &'a Arena<GlobalDecl>,
     pub(crate) current_hir_fn: ryupy_hir::FuncId,
     pub(crate) locals: Arena<LocalDecl>,
     pub(crate) blocks: Arena<BasicBlock>,
@@ -363,6 +447,8 @@ impl<'a> FunctionBuilder<'a> {
         class_map: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::ClassDefId>,
         hir_class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
         class_factories: &'a FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId>,
+        module_vars: &'a FxHashMap<ModuleVarId, crate::mir::GlobalId>,
+        globals: &'a Arena<GlobalDecl>,
         current_hir_fn: ryupy_hir::FuncId,
     ) -> Self {
         let mut blocks = Arena::default();
@@ -379,6 +465,8 @@ impl<'a> FunctionBuilder<'a> {
             class_map,
             hir_class_globals,
             class_factories,
+            module_vars,
+            globals,
             current_hir_fn,
             locals: Arena::default(),
             blocks,
@@ -445,7 +533,10 @@ impl<'a> FunctionBuilder<'a> {
             dest: depth,
             value: Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::TracePush),
-                args: vec![Operand::Const(Constant::Str(fn_name))],
+                args: vec![
+                    Operand::Const(Constant::Str(self.hir.info.file.clone())),
+                    Operand::Const(Constant::Str(fn_name)),
+                ],
             },
         });
         self.frame_depth = Some(depth);
@@ -703,6 +794,8 @@ impl<'a> FunctionBuilder<'a> {
             fn_globals: self.fn_globals,
             fn_defaults: self.fn_defaults,
             class_globals: self.hir_class_globals,
+            module_vars: self.module_vars,
+            globals: self.globals,
             current_hir_fn: self.current_hir_fn,
             locals: &mut self.locals,
             blocks: &mut self.blocks,
@@ -711,6 +804,113 @@ impl<'a> FunctionBuilder<'a> {
             assigned_locals: &mut self.assigned_locals,
             reported_unbound: &mut self.reported_unbound,
             diagnostics: &mut self.diagnostics,
+        }
+    }
+
+    /// 把值写进绑定目标（局部变量或模块槽位），必要时补装箱/拆箱。
+    pub(crate) fn store_binding(&mut self, binding: Binding, value: Operand, from: &MirType) {
+        match binding {
+            Binding::Local(local) => {
+                let dest = self.local_map[&local];
+                self.assigned_locals.insert(local);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Use(value),
+                });
+            }
+            Binding::ModuleVar(var) => {
+                let gid = self.module_vars[&var];
+                let to = self.globals[gid].ty.clone();
+                let value = self.coerce_mir(value, from, &to);
+                self.push_stmt(Statement::SetGlobal { dest: gid, value });
+            }
+        }
+    }
+
+    /// 把一个操作数从 `from` 表示转换到 `to` 表示（Dynamic 与静态槽位之间）。
+    fn coerce_mir(&mut self, value: Operand, from: &MirType, to: &MirType) -> Operand {
+        if from == to {
+            return value;
+        }
+        let dest = self.alloc_temp(to.clone());
+        let rvalue = if *to == MirType::Dynamic {
+            Rvalue::Box {
+                value,
+                from: from.clone(),
+            }
+        } else if *from == MirType::Dynamic {
+            Rvalue::Unbox {
+                value,
+                to: to.clone(),
+            }
+        } else {
+            // 两个不同的静态表示：先装箱再拆箱，约定由运行时转换（如 i64 → f64）。
+            let boxed = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest: boxed,
+                value: Rvalue::Box {
+                    value,
+                    from: from.clone(),
+                },
+            });
+            Rvalue::Unbox {
+                value: Operand::Local(boxed),
+                to: to.clone(),
+            }
+        };
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: rvalue,
+        });
+        Operand::Local(dest)
+    }
+
+    /// 调用运行时导入一个模块，返回动态值。
+    fn import_value(&mut self, module: &str) -> Operand {
+        let temp = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest: temp,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::ImportModule),
+                args: vec![Operand::Const(Constant::Str(module.to_owned()))],
+            },
+        });
+        Operand::Local(temp)
+    }
+
+    /// `import x` / `import a.b` / `import x as y`。
+    fn build_import(&mut self, module: &str, bind: ModuleVarId, bind_root: bool) {
+        let gid = self.module_vars[&bind];
+        let value = if bind_root {
+            // `import a.b`：先把 a.b 初始化，再把顶层包 a 绑定到命名空间。
+            let _ = self.import_value(module);
+            let root = module.split('.').next().unwrap_or(module);
+            self.import_value(root)
+        } else {
+            self.import_value(module)
+        };
+        self.push_stmt(Statement::SetGlobal { dest: gid, value });
+    }
+
+    /// `from m import a, b as c`：逐个取属性，缺属性时运行时尝试导入子模块。
+    fn build_import_from(&mut self, module: &str, names: &[(String, ModuleVarId)]) {
+        for (name, bind) in names {
+            let gid = self.module_vars[bind];
+            let temp = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest: temp,
+                value: Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::ImportAttr),
+                    args: vec![
+                        Operand::Const(Constant::Str(module.to_owned())),
+                        Operand::Const(Constant::Str(name.clone())),
+                    ],
+                },
+            });
+            self.push_stmt(Statement::SetGlobal {
+                dest: gid,
+                value: Operand::Local(temp),
+            });
         }
     }
 
@@ -727,6 +927,21 @@ impl<'a> FunctionBuilder<'a> {
         match &stmt.kind {
             StmtKind::Expr(expr_id) => {
                 self.build_expr_stmt(*expr_id);
+            }
+            StmtKind::Import {
+                module,
+                bind,
+                bind_root,
+            } => {
+                let module = module.clone();
+                let bind = *bind;
+                let bind_root = *bind_root;
+                self.build_import(&module, bind, bind_root);
+            }
+            StmtKind::ImportFrom { module, names } => {
+                let module = module.clone();
+                let names = names.clone();
+                self.build_import_from(&module, &names);
             }
             StmtKind::Assign { target, value } => match target {
                 AssignTarget::Subscript { base, index } => {
@@ -746,9 +961,20 @@ impl<'a> FunctionBuilder<'a> {
                             self.expr_builder().assign_value(dest, val_op, &val_ty);
                             self.assigned_locals.insert(*loc);
                         }
+                        AssignTarget::ModuleVar(var) => {
+                            let gid = self.module_vars[var];
+                            let to = self.globals[gid].ty.clone();
+                            let value = self.expr_builder().coerce(val_op, &val_ty, &to);
+                            self.push_stmt(Statement::SetGlobal { dest: gid, value });
+                        }
                         AssignTarget::Attribute { base, name } => {
                             let base_ty = self.expr_builder().ty_of(*base);
                             let base_op = self.expr_builder().build_expr(*base);
+                            let base_op = if matches!(base_ty, Ty::Class(_)) {
+                                self.expr_builder().as_local(base_op)
+                            } else {
+                                base_op
+                            };
                             if let Ty::Class(cls_id) = base_ty {
                                 let cls = &self.hir.classes[cls_id];
                                 if let Some((field_idx, field)) =

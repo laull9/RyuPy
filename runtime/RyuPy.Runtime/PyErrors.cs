@@ -166,6 +166,18 @@ public static class PyErrors
         return value;
     }
 
+    /// <summary>读取可能未赋值的模块级名字（未赋值时与 CPython 一样抛 <c>NameError</c>）。</summary>
+    /// <param name="value">槽位当前内容。</param>
+    /// <param name="name">名字，用于错误消息。</param>
+    public static object LoadName(object? value, string name)
+    {
+        if (value is null or PyUnbound)
+        {
+            throw new PyNameError($"name '{name}' is not defined");
+        }
+        return value;
+    }
+
     /// <summary>未赋值局部变量的哨兵值。</summary>
     public static object Unbound() => PyUnbound.Instance;
 }

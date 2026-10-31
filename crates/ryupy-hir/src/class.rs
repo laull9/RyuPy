@@ -20,8 +20,7 @@ use ryupy_syntax::ast;
 
 use crate::expr::ExprLowerCtx;
 use crate::hir::{
-    Body, Class, ClassBase, ClassItem, ClassItemKind, Decorator, ExprId, Field, FuncId, LocalId,
-    Name,
+    Body, Class, ClassBase, ClassItem, ClassItemKind, Decorator, ExprId, Field, FuncId, Name,
 };
 use crate::operator::lower_type_ref;
 use crate::scope::{FunctionScope, GlobalScope, Resolution};
@@ -44,7 +43,7 @@ pub fn parse_class_def(
     globals: &GlobalScope,
     classes: &la_arena::Arena<Class>,
     methods: &[MethodSlot],
-    module_locals: &FxHashMap<Name, LocalId>,
+    module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     main_body: &mut Body,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<Class> {
@@ -138,14 +137,8 @@ pub fn parse_class_def(
                     ));
                     continue;
                 };
-                let value = lower_class_expr(
-                    file,
-                    globals,
-                    module_locals,
-                    main_body,
-                    diags,
-                    &assign.value,
-                );
+                let value =
+                    lower_class_expr(file, globals, module_vars, main_body, diags, &assign.value);
                 body.push(ClassItem {
                     kind: ClassItemKind::Attr {
                         name: Name::from(target.id.as_str()),
@@ -160,14 +153,8 @@ pub fn parse_class_def(
                         // 只有标注没有值：Python 只记录 __annotations__，不写属性。
                         continue;
                     };
-                    let value = lower_class_expr(
-                        file,
-                        globals,
-                        module_locals,
-                        main_body,
-                        diags,
-                        value_expr,
-                    );
+                    let value =
+                        lower_class_expr(file, globals, module_vars, main_body, diags, value_expr);
                     body.push(ClassItem {
                         kind: ClassItemKind::Attr {
                             name: Name::from(target.id.as_str()),
@@ -245,7 +232,7 @@ pub fn parse_class_def(
                 let value = lower_class_expr(
                     file,
                     globals,
-                    module_locals,
+                    module_vars,
                     main_body,
                     diags,
                     &expr_stmt.value,
@@ -453,7 +440,7 @@ fn parse_method_decorators(
 fn lower_class_expr(
     file: FileId,
     globals: &GlobalScope,
-    module_locals: &FxHashMap<Name, LocalId>,
+    module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     body: &mut Body,
     diags: &mut Vec<Diagnostic>,
     expr: &ast::Expr,
@@ -463,8 +450,7 @@ fn lower_class_expr(
         file,
         global_scope: globals,
         func_scope: &scope,
-        module_locals,
-        is_in_func: false,
+        module_vars,
         body,
         diagnostics: diags,
     };

@@ -93,6 +93,8 @@ pub struct RuntimeRefs {
     pub raise_prepare: MethodRefIndex,
     pub make_unbound: MethodRefIndex,
     pub load_checked: MethodRefIndex,
+    /// `PyErrors.LoadName(object, string)`：模块级名字的未赋值检查。
+    pub load_name: MethodRefIndex,
     pub dyn_str: MethodRefIndex,
     pub dyn_type: MethodRefIndex,
     pub dyn_get_attr: MethodRefIndex,
@@ -152,6 +154,19 @@ pub struct RuntimeRefs {
     pub bind_args: MethodRefIndex,
     pub py_function_ctor: MethodRefIndex,
     pub py_call_ctor: MethodRefIndex,
+    // ── 模块系统（M2.7）──
+    pub import_module: MethodRefIndex,
+    pub import_attr: MethodRefIndex,
+    pub module_register: MethodRefIndex,
+    pub module_run_main: MethodRefIndex,
+    pub module_same_name: MethodRefIndex,
+    pub module_missing_attr: MethodRefIndex,
+    pub module_set_dynamic: MethodRefIndex,
+    pub module_init_ctor: MethodRefIndex,
+    pub module_get_ctor: MethodRefIndex,
+    pub module_set_ctor: MethodRefIndex,
+    /// `RyuPy.Runtime.PyModule` 的类型（setter 的第一个参数）。
+    pub py_module_type: MethodType,
 }
 
 enum PendingTarget {
@@ -866,6 +881,13 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::LoadChecked => {
                         ins.push(Instruction::call(ctx.runtime_refs.load_checked))
                     }
+                    RuntimeFn::LoadName => ins.push(Instruction::call(ctx.runtime_refs.load_name)),
+                    RuntimeFn::ImportModule => {
+                        ins.push(Instruction::call(ctx.runtime_refs.import_module))
+                    }
+                    RuntimeFn::ImportAttr => {
+                        ins.push(Instruction::call(ctx.runtime_refs.import_attr))
+                    }
                     // 容器相关的调用与 CallWithArgs 走同一张表
                     RuntimeFn::MakeList
                     | RuntimeFn::MakeTuple
@@ -953,14 +975,27 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 ctx.local_slots,
                 ctx.runtime_refs,
             );
-            let cast = match to {
-                ryupy_mir::MirType::I64 => ctx.runtime_refs.cast_to_i64,
-                ryupy_mir::MirType::F64 => ctx.runtime_refs.cast_to_f64,
-                ryupy_mir::MirType::Bool => ctx.runtime_refs.cast_to_bool,
-                ryupy_mir::MirType::Str => ctx.runtime_refs.cast_to_str,
-                _ => ctx.runtime_refs.cast_to_i64,
-            };
-            ins.push(Instruction::call(cast));
+            match to {
+                ryupy_mir::MirType::Class(_) => {
+                    // 引用类型直接 castclass（dataclass 实例）。
+                    if let Some(mt) = crate::types::mir_type_to_method_type(to, ctx.class_types) {
+                        ins.push(Instruction::CastClass {
+                            skip_type_check: false,
+                            param0: mt,
+                        });
+                    }
+                }
+                _ => {
+                    let cast = match to {
+                        ryupy_mir::MirType::I64 => ctx.runtime_refs.cast_to_i64,
+                        ryupy_mir::MirType::F64 => ctx.runtime_refs.cast_to_f64,
+                        ryupy_mir::MirType::Bool => ctx.runtime_refs.cast_to_bool,
+                        ryupy_mir::MirType::Str => ctx.runtime_refs.cast_to_str,
+                        _ => ctx.runtime_refs.cast_to_i64,
+                    };
+                    ins.push(Instruction::call(cast));
+                }
+            }
         }
         Rvalue::DynBinary { op, lhs, rhs } => {
             ins.push(Instruction::LoadConstantInt32(op.code()));

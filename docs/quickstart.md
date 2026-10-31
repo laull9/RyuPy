@@ -1,6 +1,6 @@
 # 快速上手与部署边界
 
-当前实现为 Phase 1 M1.0–M1.5 的静态子集。动态核心、容器、普通类、异常与模块安排在 Phase 2；高级语法和标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
+当前实现覆盖 Phase 1 与 Phase 2 的 M2.1–M2.7：动态核心、容器、普通类、异常与模块系统。闭包、生成器、推导式、装饰器与标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
 
 ## 开发环境
 
@@ -34,7 +34,7 @@ make e2e
 make e2e-all   # 包括未来尚未实现的 pending 用例
 ```
 
-当前 `import` 仅支持特殊识别的 `from dataclasses import dataclass`；任意第三方库、标准库与多文件项目尚不可直接运行。不要据未来路线图推断现有 CLI 已具备这些能力。
+`import` 支持编译时可达的**项目内模块与包**（搜索路径是入口文件所在目录），以及特殊识别的 `from dataclasses import dataclass`；标准库、第三方库与桥接尚未接入。不要据未来路线图推断现有 CLI 已具备这些能力。
 
 ## 当前产物
 

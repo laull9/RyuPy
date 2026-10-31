@@ -24,7 +24,15 @@ print(p.x)
     let (parsed, diags) = ryupy_syntax::parse(file, src);
     assert!(diags.is_empty(), "diags: {diags:?}");
 
-    let (hir, diags) = lower_module(&parsed, "t.py", src);
+    let (hir, diags) = lower_module(
+        &parsed,
+        &ModuleInfo {
+            name: "__main__".into(),
+            package: String::new(),
+            file: "t.py".into(),
+        },
+        src,
+    );
     assert!(diags.is_empty(), "diags: {diags:?}");
     assert_eq!(hir.classes.len(), 1);
     let cls = &hir.classes[la_arena::Idx::from_raw(la_arena::RawIdx::from(0u32))];
@@ -50,7 +58,15 @@ print(f(10))
     let (parsed, diags) = ryupy_syntax::parse(file, src);
     assert!(diags.is_empty());
 
-    let (hir, diags) = lower_module(&parsed, "t.py", src);
+    let (hir, diags) = lower_module(
+        &parsed,
+        &ModuleInfo {
+            name: "__main__".into(),
+            package: String::new(),
+            file: "t.py".into(),
+        },
+        src,
+    );
     assert!(diags.is_empty(), "diags: {diags:?}");
     assert_eq!(hir.functions.len(), 3); // f, g, main
 }
@@ -71,7 +87,15 @@ def classify(n: int) -> int:
     let (parsed, diags) = ryupy_syntax::parse(file, src);
     assert!(diags.is_empty());
 
-    let (hir, diags) = lower_module(&parsed, "t.py", src);
+    let (hir, diags) = lower_module(
+        &parsed,
+        &ModuleInfo {
+            name: "__main__".into(),
+            package: String::new(),
+            file: "t.py".into(),
+        },
+        src,
+    );
     assert!(diags.is_empty(), "diags: {diags:?}");
     assert_eq!(hir.functions.len(), 2); // classify, main
 }
@@ -88,10 +112,19 @@ for i in range(10):
     let (parsed, diags) = ryupy_syntax::parse(file, src);
     assert!(diags.is_empty());
 
-    let (hir, diags) = lower_module(&parsed, "t.py", src);
+    let (hir, diags) = lower_module(
+        &parsed,
+        &ModuleInfo {
+            name: "__main__".into(),
+            package: String::new(),
+            file: "t.py".into(),
+        },
+        src,
+    );
     assert!(diags.is_empty(), "diags: {diags:?}");
     let main_fn = &hir.functions[hir.main];
-    assert_eq!(main_fn.body.root.len(), 2);
-    let for_stmt = &main_fn.body.stmts[main_fn.body.root[1]];
+    // 前三条是 `__name__` / `__package__` / `__file__` 的前言。
+    assert_eq!(main_fn.body.root.len(), 5);
+    let for_stmt = &main_fn.body.stmts[*main_fn.body.root.last().unwrap()];
     assert!(matches!(for_stmt.kind, StmtKind::ForRange { .. }));
 }

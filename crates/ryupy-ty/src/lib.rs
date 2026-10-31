@@ -13,6 +13,7 @@
 mod call;
 mod check;
 mod infer;
+mod module_vars;
 pub mod ops;
 mod ty;
 

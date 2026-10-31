@@ -14,7 +14,7 @@ use std::borrow::Cow;
 
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
-use ryupy_mir::{FnId, Function, GlobalId, MirType, Program};
+use ryupy_mir::{FnId, Function, GlobalId, LinkedProgram, MirType};
 
 use crate::stackify::RuntimeRefs;
 use crate::types::ClassTypeMap;
@@ -26,7 +26,7 @@ use crate::types::ClassTypeMap;
 pub(crate) fn allocate_global_fields(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
-    program: &Program,
+    program: &LinkedProgram,
     class_types: &ClassTypeMap,
     object_member: &MemberType,
     signature_member: &MemberType,
@@ -139,7 +139,7 @@ pub(crate) fn emit_thunk(
 pub(crate) fn emit_init_functions(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
-    program: &Program,
+    program: &LinkedProgram,
     refs: &RuntimeRefs,
     thunks: &FxHashMap<FnId, MethodIndex>,
 ) -> MethodIndex {

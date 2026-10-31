@@ -38,6 +38,10 @@ pub struct ExprBuilder<'a> {
     pub fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
     /// HIR 类 → 类对象静态槽位（普通类与 dataclass 类对象都从这里读取）。
     pub class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
+    /// HIR 模块变量 → 静态槽位。
+    pub module_vars: &'a FxHashMap<ryupy_hir::ModuleVarId, crate::mir::GlobalId>,
+    /// 全部静态槽位（读取槽位类型做装箱）。
+    pub globals: &'a la_arena::Arena<crate::mir::GlobalDecl>,
     pub current_hir_fn: ryupy_hir::FuncId,
     pub locals: &'a mut Arena<LocalDecl>,
     pub blocks: &'a mut Arena<BasicBlock>,
@@ -75,6 +79,39 @@ impl<'a> ExprBuilder<'a> {
         let expr = &hir_body.exprs[expr_id];
         match &expr.kind {
             ExprKind::Literal(lit) => self.build_literal(lit),
+            ExprKind::ModuleVar(var) => {
+                let gid = self.module_vars[var];
+                let global_ty = self.globals[gid].ty.clone();
+                let op = Operand::Global(gid);
+                // 动态槽位可能是「已解绑」哨兵（`except E as e` 结束后）；
+                // 读取时按 CPython 抛 NameError。
+                if global_ty == MirType::Dynamic {
+                    let name = self.hir.vars[*var].name.as_str().to_owned();
+                    let dest = self.alloc_temp(MirType::Dynamic);
+                    self.push_stmt(Statement::Assign {
+                        dest,
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::LoadName),
+                            args: vec![op, Operand::Const(Constant::Str(name))],
+                        },
+                    });
+                    return Operand::Local(dest);
+                }
+                // 动态函数里的静态模块变量要装箱。
+                if self.types.is_dynamic(self.current_hir_fn) {
+                    let dest = self.alloc_temp(MirType::Dynamic);
+                    self.push_stmt(Statement::Assign {
+                        dest,
+                        value: Rvalue::Box {
+                            value: op,
+                            from: global_ty,
+                        },
+                    });
+                    Operand::Local(dest)
+                } else {
+                    op
+                }
+            }
             ExprKind::Local(loc) => {
                 // 确定赋值分析（语义陷阱 #10）：
                 // - 动态槽位无法用 CLR 默认值区分「未赋值」与「值为 0/None」，
@@ -123,6 +160,13 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::Attribute { base, name } => {
                 let base_op = self.build_expr(*base);
                 let base_ty = self.ty_of(*base);
+                // 静态字段访问要求操作数是局部变量（codegen 从这里读字段类型）；
+                // 模块变量是静态槽位，先搬到临时局部。
+                let base_op = if matches!(base_ty, Ty::Class(_)) {
+                    self.as_local(base_op)
+                } else {
+                    base_op
+                };
                 if let Ty::Class(cls_id) = base_ty {
                     let cls = &self.hir.classes[cls_id];
                     if let Some((field_idx, field)) =
@@ -491,34 +535,81 @@ impl<'a> ExprBuilder<'a> {
         if matches!(to, MirType::Unit) {
             return self.none_value();
         }
-        // `Ty::None` 的操作数已经是运行时的 None 单例（装箱 object），
-        // 因此按动态值处理；否则会插入一次 `Box from Unit` 的非法装箱指令。
-        let from_dynamic = from.is_dynamic() || matches!(from, Ty::None);
+        // 类型旁表在动态函数里一律返回 `Dynamic`，但操作数本身可能是静态的
+        // （例如 `NewObject` 的结果）。装箱/拆箱必须以**操作数实际类型**为准，
+        // 否则会生成「对静态值拆箱」的非法 MIR。
+        let from_mir = self.operand_type(&op).unwrap_or_else(|| ty_to_mir(from));
+        // `Ty::None` 的操作数已经是运行时的 None 单例（装箱 object）。
+        let from_dynamic = matches!(from_mir, MirType::Dynamic) || matches!(from, Ty::None);
         let to_dynamic = matches!(to, MirType::Dynamic);
         match (from_dynamic, to_dynamic) {
-            (true, true) | (false, false) => op,
-            (false, true) => {
-                let dest = self.alloc_temp(MirType::Dynamic);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Box {
-                        value: op,
-                        from: ty_to_mir(from),
-                    },
-                });
-                Operand::Local(dest)
+            (true, true) => op,
+            (false, false) => {
+                if from_mir == *to {
+                    op
+                } else {
+                    // 两个静态表示之间（如 i64 → f64）：先装箱再交给运行时拆箱。
+                    let boxed = self.box_operand(op, &from_mir);
+                    self.unbox_operand(boxed, to)
+                }
             }
-            (true, false) => {
-                let dest = self.alloc_temp(to.clone());
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Unbox {
-                        value: op,
-                        to: to.clone(),
-                    },
-                });
-                Operand::Local(dest)
-            }
+            (false, true) => self.box_operand(op, &from_mir),
+            (true, false) => self.unbox_operand(op, to),
+        }
+    }
+
+    fn box_operand(&mut self, op: Operand, from: &MirType) -> Operand {
+        let dest = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: Rvalue::Box {
+                value: op,
+                from: from.clone(),
+            },
+        });
+        Operand::Local(dest)
+    }
+
+    fn unbox_operand(&mut self, op: Operand, to: &MirType) -> Operand {
+        let dest = self.alloc_temp(to.clone());
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: Rvalue::Unbox {
+                value: op,
+                to: to.clone(),
+            },
+        });
+        Operand::Local(dest)
+    }
+
+    /// 把操作数搬进一个局部变量（已经局部时原样返回）。
+    pub(crate) fn as_local(&mut self, op: Operand) -> Operand {
+        if matches!(op, Operand::Local(_)) {
+            return op;
+        }
+        let ty = self.operand_type(&op).unwrap_or(MirType::Dynamic);
+        let dest = self.alloc_temp(ty);
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: Rvalue::Use(op),
+        });
+        Operand::Local(dest)
+    }
+
+    /// 操作数在 CIL 层面的静态类型；无法判断时返回 `None`（按调用方给的类型处理）。
+    fn operand_type(&self, op: &Operand) -> Option<MirType> {
+        match op {
+            Operand::Local(id) => Some(self.locals[*id].ty.clone()),
+            Operand::Global(gid) => Some(self.globals[*gid].ty.clone()),
+            Operand::Const(constant) => Some(match constant {
+                crate::mir::Constant::I64(_) => MirType::I64,
+                crate::mir::Constant::F64(_) => MirType::F64,
+                crate::mir::Constant::Bool(_) => MirType::Bool,
+                crate::mir::Constant::Str(_) => MirType::Str,
+                crate::mir::Constant::Null | crate::mir::Constant::None => MirType::Dynamic,
+                crate::mir::Constant::BigInt(_) => MirType::Dynamic,
+            }),
+            Operand::Array(_) => Some(MirType::Dynamic),
         }
     }
 

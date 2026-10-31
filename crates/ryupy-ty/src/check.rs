@@ -32,6 +32,9 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
         modes.insert(func_id, initial_mode(func));
     }
 
+    // 模块级变量的槽位类型只依赖 HIR 结构，先算好供所有轮次复用。
+    let module_vars = crate::module_vars::infer_module_var_types(module);
+
     // ── 不动点：只降不升 ──────────────────────────────────────────────
     for _ in 0..MAX_ROUNDS {
         let sigs = compute_sigs(module, &modes);
@@ -40,7 +43,7 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
             if modes[func_id].is_dynamic() {
                 continue;
             }
-            let outcome = try_static(module, &sigs, &modes, func_id);
+            let outcome = try_static(module, &sigs, &modes, &module_vars, func_id);
             if outcome.needs_dynamic {
                 modes.insert(func_id, FuncMode::Dynamic);
                 changed = true;
@@ -54,6 +57,15 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
         }
         if !changed {
             break;
+        }
+    }
+
+    // 模块入口最终要走动态路径时，模块级槽位也统一装箱：
+    // 动态执行可能产生 BigInteger 等静态槽位放不下的值，写回静态槽位会溢出或截断。
+    let mut module_vars = module_vars;
+    if modes[module.main].is_dynamic() {
+        for (var_id, _) in module.vars.iter() {
+            module_vars.insert(var_id, Ty::Dynamic);
         }
     }
 
@@ -76,6 +88,7 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
             sig: &sig,
             all_sigs: &sigs,
             all_modes: &modes,
+            module_vars: &module_vars,
             infer: InferCtx::default(),
             local_vars: ArenaMap::default(),
             results: &mut results,
@@ -91,6 +104,7 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
         sigs,
         bodies,
         modes,
+        module_vars,
     };
     (types, diagnostics)
 }
@@ -168,6 +182,7 @@ fn try_static(
     module: &Module,
     sigs: &ArenaMap<ryupy_hir::FuncId, FnSig>,
     modes: &ArenaMap<ryupy_hir::FuncId, FuncMode>,
+    module_vars: &ArenaMap<ryupy_hir::ModuleVarId, Ty>,
     func_id: ryupy_hir::FuncId,
 ) -> StaticOutcome {
     let func = &module.functions[func_id];
@@ -182,6 +197,7 @@ fn try_static(
             sig: &sig,
             all_sigs: sigs,
             all_modes: modes,
+            module_vars,
             infer: InferCtx::default(),
             local_vars: ArenaMap::default(),
             results: &mut results,
@@ -239,6 +255,8 @@ pub(crate) struct FunctionChecker<'a> {
     pub(crate) sig: &'a FnSig,
     pub(crate) all_sigs: &'a ArenaMap<ryupy_hir::FuncId, FnSig>,
     pub(crate) all_modes: &'a ArenaMap<ryupy_hir::FuncId, FuncMode>,
+    /// 模块级变量的槽位类型。
+    pub(crate) module_vars: &'a ArenaMap<ryupy_hir::ModuleVarId, Ty>,
     pub(crate) infer: InferCtx,
     pub(crate) local_vars: ArenaMap<LocalId, InferTy>,
     pub(crate) results: &'a mut TypeckResults,
@@ -327,6 +345,19 @@ impl FunctionChecker<'_> {
                             self.infer.force(&loc_infer, Ty::Dynamic);
                         }
                     }
+                    AssignTarget::ModuleVar(var) => {
+                        // 模块级变量按槽位类型存放。值类型与槽位类型都能静态确定却不同，
+                        // 才认为需要降级（Python 允许重绑定，静态槽位放不下另一种类型）。
+                        let declared = self.module_vars.get(*var).cloned().unwrap_or(Ty::Dynamic);
+                        let mismatch = !declared.is_dynamic()
+                            && !val_ty.is_dynamic()
+                            && declared != Ty::Error
+                            && val_ty != Ty::Error
+                            && declared != val_ty;
+                        if mismatch {
+                            self.soft_demote = true;
+                        }
+                    }
                     AssignTarget::Subscript { base, index } => {
                         self.check_expr(*base);
                         self.check_expr(*index);
@@ -334,18 +365,23 @@ impl FunctionChecker<'_> {
                     }
                     AssignTarget::Sequence(items) => {
                         for item in items {
-                            let local = match item {
-                                ryupy_hir::SequenceItem::One(local)
-                                | ryupy_hir::SequenceItem::Rest(local) => *local,
+                            let binding = match item {
+                                ryupy_hir::SequenceItem::One(binding)
+                                | ryupy_hir::SequenceItem::Rest(binding) => *binding,
                             };
-                            let loc_infer = self.local_vars[local].clone();
-                            if self
-                                .infer
-                                .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
-                                .is_err()
-                            {
-                                self.soft_demote = true;
-                                self.infer.force(&loc_infer, Ty::Dynamic);
+                            match binding {
+                                ryupy_hir::Binding::Local(local) => {
+                                    let loc_infer = self.local_vars[local].clone();
+                                    if self
+                                        .infer
+                                        .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
+                                        .is_err()
+                                    {
+                                        self.soft_demote = true;
+                                        self.infer.force(&loc_infer, Ty::Dynamic);
+                                    }
+                                }
+                                ryupy_hir::Binding::ModuleVar(_) => self.soft_demote = true,
                             }
                         }
                         self.soft_demote = true;
@@ -406,8 +442,13 @@ impl FunctionChecker<'_> {
             } => {
                 // 通用迭代依赖容器协议，静态路径不展开
                 self.check_expr(*iter);
-                let var_infer = self.local_vars[*var].clone();
-                let _ = self.infer.unify(&var_infer, &InferTy::Known(Ty::Dynamic));
+                match var {
+                    ryupy_hir::Binding::Local(local) => {
+                        let var_infer = self.local_vars[*local].clone();
+                        let _ = self.infer.unify(&var_infer, &InferTy::Known(Ty::Dynamic));
+                    }
+                    ryupy_hir::Binding::ModuleVar(_) => {}
+                }
                 self.soft_demote = true;
                 for &s in body {
                     self.check_stmt(s);
@@ -434,10 +475,16 @@ impl FunctionChecker<'_> {
                     self.expect_range_int(*s, &step_ty, "step");
                 }
 
-                let var_ty = self.local_vars[*var].clone();
-                let _ = self
-                    .infer
-                    .unify(&var_ty, &crate::infer::InferTy::Known(Ty::Int));
+                match var {
+                    ryupy_hir::Binding::Local(local) => {
+                        let var_ty = self.local_vars[*local].clone();
+                        let _ = self
+                            .infer
+                            .unify(&var_ty, &crate::infer::InferTy::Known(Ty::Int));
+                    }
+                    // 模块级循环变量槽位类型由模块变量推导决定，这里不再约束。
+                    ryupy_hir::Binding::ModuleVar(_) => {}
+                }
 
                 for &s in body {
                     self.check_stmt(s);
@@ -447,6 +494,11 @@ impl FunctionChecker<'_> {
                 }
             }
             // 默认值表达式的类型在 main 的检查开头统一处理（见 check_function）
+            // 导入绑定都是动态值（模块对象 / 函数对象 / 任意属性），
+            // 静态路径不展开；读到的类型统一是 Dynamic。
+            StmtKind::Import { .. } | StmtKind::ImportFrom { .. } => {
+                self.soft_demote = true;
+            }
             StmtKind::FunctionDefaults(_) => {}
             StmtKind::Delete(targets) => {
                 for &target in targets {
@@ -478,15 +530,20 @@ impl FunctionChecker<'_> {
                     // 异常对象是动态值：`as e` 的局部变量按 Dynamic 处理，
                     // 同时让整函数降级——异常对象上的属性（`args` / `__cause__`）
                     // 需要 M2.5 的属性协议，静态槽位放不下。
-                    if let Some(local) = name {
-                        let loc_infer = self.local_vars[local].clone();
-                        if self
-                            .infer
-                            .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
-                            .is_err()
-                        {
-                            self.soft_demote = true;
-                            self.infer.force(&loc_infer, Ty::Dynamic);
+                    if let Some(binding) = name {
+                        match binding {
+                            ryupy_hir::Binding::Local(local) => {
+                                let loc_infer = self.local_vars[local].clone();
+                                if self
+                                    .infer
+                                    .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
+                                    .is_err()
+                                {
+                                    self.soft_demote = true;
+                                    self.infer.force(&loc_infer, Ty::Dynamic);
+                                }
+                            }
+                            ryupy_hir::Binding::ModuleVar(_) => self.soft_demote = true,
                         }
                     }
                     for s in handler_body {
@@ -546,6 +603,7 @@ impl FunctionChecker<'_> {
                 let infer_ty = self.local_vars[*loc_id].clone();
                 self.infer.resolve(&infer_ty).unwrap_or(Ty::Error)
             }
+            ExprKind::ModuleVar(var) => self.module_vars.get(*var).cloned().unwrap_or(Ty::Dynamic),
             // 函数名作为值使用时是一等函数对象；调用位置由 check_call 单独处理。
             ExprKind::Func(id) => Ty::Func(*id),
             ExprKind::Builtin(builtin) => match builtin {

@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.7：相对导入、缓存身份、模块全局与 from 绑定快照。
 import fixtures.module_case as package
 from fixtures.module_case import state

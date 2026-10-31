@@ -9,7 +9,7 @@ use ryupy_base::{Diagnostic, Ranged, Span};
 use ryupy_syntax::ast;
 
 use crate::hir::{
-    Expr, ExprKind, Literal, Local, LocalId, Name, SequenceItem, Stmt, StmtId, StmtKind,
+    Binding, Expr, ExprKind, Literal, Local, LocalId, Name, SequenceItem, Stmt, StmtId, StmtKind,
 };
 use crate::lower::StmtLowerCtx;
 
@@ -68,19 +68,19 @@ impl StmtLowerCtx<'_> {
         let var = match &*for_stmt.target {
             ast::Expr::Name(name_expr) => {
                 let name = Name::from(name_expr.id.as_str());
-                self.func_scope.locals.get(&name).copied()?
+                self.resolve_binding(&name)?
             }
             ast::Expr::Tuple(tuple) => {
                 let hidden = self.alloc_hidden_for_local(for_stmt.target.range());
                 let items = self.lower_sequence_target(&tuple.elts, tuple.range)?;
                 unpack_prefix = Some(self.synth_unpack_stmt(hidden, items, for_stmt.range));
-                hidden
+                Binding::Local(hidden)
             }
             ast::Expr::List(list) => {
                 let hidden = self.alloc_hidden_for_local(for_stmt.target.range());
                 let items = self.lower_sequence_target(&list.elts, list.range)?;
                 unpack_prefix = Some(self.synth_unpack_stmt(hidden, items, for_stmt.range));
-                hidden
+                Binding::Local(hidden)
             }
             _ => {
                 self.diagnostics.push(

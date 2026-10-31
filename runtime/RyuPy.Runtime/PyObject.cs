@@ -48,6 +48,7 @@ public static class PyObject
     public static object TypeOf(object? value) => value switch
     {
         PyInstance instance => instance.Class,
+        PyModule => PyType.Get("module"),
         PyClass => PyType.Get("type"),
         PyBaseException exception when exception.PythonClass is not null => exception.PythonClass,
         PyBoundMethod or PyFunction => PyType.Get("method"),
@@ -60,6 +61,7 @@ public static class PyObject
     /// <param name="name">属性名。</param>
     public static object? GetAttr(object? obj, string name) => obj switch
     {
+        PyModule module => module.GetAttr(name),
         PyInstance instance => GetInstanceAttr(instance, name),
         PyClass cls => GetClassAttr(cls, name),
         PySuper super => GetSuperAttr(super, name),
@@ -75,6 +77,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyModule module:
+                module.SetAttr(name, value);
+                return;
             case PyClass cls:
                 cls.SetAttr(name, value);
                 return;

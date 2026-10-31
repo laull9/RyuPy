@@ -17,7 +17,7 @@ use rustc_hash::FxHashMap;
 use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
 
-use crate::hir::{Body, BoolOp, Expr, ExprId, ExprKind, Literal, Name, UnaryOp};
+use crate::hir::{Body, BoolOp, Expr, ExprId, ExprKind, Literal, ModuleVarId, Name, UnaryOp};
 use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
@@ -25,8 +25,8 @@ pub struct ExprLowerCtx<'a> {
     pub file: FileId,
     pub global_scope: &'a GlobalScope,
     pub func_scope: &'a FunctionScope,
-    pub module_locals: &'a FxHashMap<Name, crate::hir::LocalId>,
-    pub is_in_func: bool,
+    /// 模块级变量表；模块作用域里的名字直接解析到这里。
+    pub module_vars: &'a FxHashMap<Name, ModuleVarId>,
     pub body: &'a mut Body,
     pub diagnostics: &'a mut Vec<Diagnostic>,
 }
@@ -186,34 +186,25 @@ impl<'a> ExprLowerCtx<'a> {
 
     fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
         let name = Name::from(name_expr.id.as_str());
-        // LEGB 查找顺序：1. Local 作用域
+        // `global` 声明的名字优先落到模块命名空间（即使同名的局部变量预扫描过）。
+        if self.func_scope.is_global(&name)
+            && let Some(&var) = self.module_vars.get(&name)
+        {
+            return ExprKind::ModuleVar(var);
+        }
+        // LEGB 查找顺序：Local → 顶层函数/类 → 模块变量 → Builtin。
         if let Some(&loc_id) = self.func_scope.locals.get(&name) {
             ExprKind::Local(loc_id)
         } else if let Some(&res) = self.global_scope.names.get(&name) {
-            // 2. Global 作用域（仅支持顶层函数与类）
             match res {
                 Resolution::Func(fn_id) => ExprKind::Func(fn_id),
                 Resolution::Class(cls_id) => ExprKind::Class(cls_id),
                 Resolution::Local(_) | Resolution::Builtin(_) => ExprKind::Missing,
             }
-        } else if let Some(&loc_id) = self.module_locals.get(&name) {
-            if self.is_in_func {
-                // 函数体内禁止读取模块级变量（语义陷阱 #5）
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, name_expr.range),
-                        format!("函数体内不能访问模块级变量 `{name}`"),
-                    )
-                    .with_code("E0105")
-                    .with_primary_label("Phase 1 函数体内只允许访问局部变量或顶层函数/类"),
-                );
-                ExprKind::Missing
-            } else {
-                // 模块作用域（顶层语句、参数默认值）里直接引用 main 的局部变量
-                ExprKind::Local(loc_id)
-            }
+        } else if let Some(&var) = self.module_vars.get(&name) {
+            // 模块级变量：函数体内读写同一份静态槽位（M2.7）。
+            ExprKind::ModuleVar(var)
         } else if let Some(builtin) = resolve_builtin(name.as_str()) {
-            // 3. Builtin 内建函数
             ExprKind::Builtin(builtin)
         } else {
             self.diagnostics.push(

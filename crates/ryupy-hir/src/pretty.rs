@@ -74,6 +74,14 @@ fn dump_loop_else(
     }
 }
 
+/// 绑定目标的显示名：局部变量用局部名，模块变量加 `global.` 前缀以便区分。
+fn binding_name(module: &Module, body: &Body, binding: crate::hir::Binding) -> String {
+    match binding {
+        crate::hir::Binding::Local(local) => body.locals[local].name.as_str().to_string(),
+        crate::hir::Binding::ModuleVar(var) => format!("global.{}", module.vars[var].name),
+    }
+}
+
 fn dump_stmt(
     out: &mut String,
     indent: usize,
@@ -87,9 +95,45 @@ fn dump_stmt(
         StmtKind::Expr(e) => {
             writeln!(out, "{pad}{}", dump_expr(module, body, *e)).unwrap();
         }
+        StmtKind::Import {
+            module: imported,
+            bind,
+            bind_root,
+        } => {
+            if *bind_root {
+                writeln!(out, "{pad}import {imported}").unwrap();
+            } else {
+                writeln!(
+                    out,
+                    "{pad}import {imported} as {}",
+                    binding_name(module, body, crate::hir::Binding::ModuleVar(*bind))
+                )
+                .unwrap();
+            }
+        }
+        StmtKind::ImportFrom {
+            module: imported,
+            names,
+        } => {
+            let items = names
+                .iter()
+                .map(|(name, bind)| {
+                    let bind_name =
+                        binding_name(module, body, crate::hir::Binding::ModuleVar(*bind));
+                    if *name == bind_name {
+                        name.clone()
+                    } else {
+                        format!("{name} as {bind_name}")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            writeln!(out, "{pad}from {imported} import {items}").unwrap();
+        }
         StmtKind::Assign { target, value } => {
             let target_str = match target {
                 AssignTarget::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
+                AssignTarget::ModuleVar(var) => format!("global.{}", module.vars[*var].name),
                 AssignTarget::Attribute { base, name } => {
                     format!("{}.{}", dump_expr(module, body, *base), name)
                 }
@@ -103,11 +147,11 @@ fn dump_stmt(
                 AssignTarget::Sequence(items) => items
                     .iter()
                     .map(|item| match item {
-                        crate::hir::SequenceItem::One(loc) => {
-                            format!("_target_{}", body.locals[*loc].name)
+                        crate::hir::SequenceItem::One(binding) => {
+                            binding_name(module, body, *binding)
                         }
-                        crate::hir::SequenceItem::Rest(loc) => {
-                            format!("*{}", body.locals[*loc].name)
+                        crate::hir::SequenceItem::Rest(binding) => {
+                            format!("*{}", binding_name(module, body, *binding))
                         }
                     })
                     .collect::<Vec<_>>()
@@ -166,7 +210,7 @@ fn dump_stmt(
             writeln!(
                 out,
                 "{pad}for {} in {}:",
-                body.locals[*var].name,
+                binding_name(module, body, *var),
                 dump_expr(module, body, *iter)
             )
             .unwrap();
@@ -183,7 +227,7 @@ fn dump_stmt(
             body: stmts,
             orelse,
         } => {
-            let var_name = &body.locals[*var].name;
+            let var_name = binding_name(module, body, *var);
             let step_str = step.map_or(String::new(), |s| {
                 format!(", {}", dump_expr(module, body, s))
             });
@@ -274,11 +318,11 @@ fn dump_stmt(
                     Some(types) => format!("except {}:", types.join(" | ")),
                 };
                 match handler.name {
-                    Some(local) => writeln!(
+                    Some(binding) => writeln!(
                         out,
                         "{pad}{} as {}:",
                         header.trim_end_matches(':'),
-                        body.locals[local].name
+                        binding_name(module, body, binding)
                     )
                     .unwrap(),
                     None => writeln!(out, "{pad}{header}").unwrap(),
@@ -323,6 +367,7 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
             Literal::None => "None".to_string(),
         },
         ExprKind::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
+        ExprKind::ModuleVar(var) => format!("global.{}", module.vars[*var].name),
         ExprKind::Func(fn_id) => module.functions[*fn_id].name.as_str().to_string(),
         ExprKind::Class(cls_id) => module.classes[*cls_id].name.as_str().to_string(),
         ExprKind::Builtin(b) => match b {

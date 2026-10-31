@@ -49,15 +49,16 @@ public static class PyTraceback
     /// 生成的字符串常量，数组里保存引用即可。
     /// </remarks>
     private static string[] _functions = new string[InitialFrameCapacity];
+    private static string[] _files = new string[InitialFrameCapacity];
     private static int[] _lines = new int[InitialFrameCapacity];
 
     /// <summary>当前栈深度（有效帧数）。</summary>
     private static int _depth;
 
-    /// <summary>源文件名；入口包装器启动时设置一次，供所有帧共用。</summary>
+    /// <summary>默认源文件名；没有逐帧信息时兜底。</summary>
     private static string _file = "<ryupy>";
 
-    /// <summary>设置源文件名（traceback 里 <c>File "..."</c> 的内容）。</summary>
+    /// <summary>设置默认源文件名（traceback 里 <c>File "..."</c> 的内容）。</summary>
     /// <param name="file">文件名。</param>
     public static void SetFile(string file) => _file = file;
 
@@ -82,8 +83,9 @@ public static class PyTraceback
     }
 
     /// <summary>压入一帧，返回该帧的深度（1 起）。</summary>
+    /// <param name="file">该帧所属源文件；多模块程序用逐帧文件名。</param>
     /// <param name="function">函数名；模块顶层传 <c>&lt;module&gt;</c>。</param>
-    public static long PushFrame(string function)
+    public static long PushFrame(string file, string function)
     {
         if (_depth >= RecursionLimit)
         {
@@ -92,9 +94,11 @@ public static class PyTraceback
         if (_depth == _functions.Length)
         {
             Array.Resize(ref _functions, _depth * 2);
+            Array.Resize(ref _files, _depth * 2);
             Array.Resize(ref _lines, _depth * 2);
         }
         _functions[_depth] = function;
+        _files[_depth] = file;
         _lines[_depth] = 0;
         _depth++;
         return _depth;
@@ -135,7 +139,8 @@ public static class PyTraceback
         for (int i = 0; i < _depth; i++)
         {
             int slot = _depth - 1 - i;
-            frames[i] = new PyStackFrame(_file, _functions[slot], _lines[slot]);
+            string file = string.IsNullOrEmpty(_files[slot]) ? _file : _files[slot];
+            frames[i] = new PyStackFrame(file, _functions[slot], _lines[slot]);
         }
         ex.Frames = frames;
     }

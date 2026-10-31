@@ -17,13 +17,16 @@ use std::borrow::Cow;
 
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
-use ryupy_mir::{FnId, Program};
+use ryupy_mir::{FnId, LinkedProgram};
 
 use crate::stackify::{ClassCodegenInfo, ClassInfoMap, RuntimeRefs, lower_function};
 use crate::types::ClassTypeMap;
 use crate::{CodegenError, EmitOptions};
 
-pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'static>, TypeIndex) {
+pub fn build_resolution(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> (Resolution<'static>, TypeIndex) {
     let dll_name = format!("{}.dll", opts.assembly_name);
     let mut res = Resolution::new(Module::new(dll_name));
     res.assembly = Some(Assembly::new(opts.assembly_name.clone()));
@@ -165,6 +168,9 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res.push_method_reference(method_ref! { static object @pyerrors_type::Unbound() });
     let load_checked = res
         .push_method_reference(method_ref! { static object @pyerrors_type::Load(object, string) });
+    let load_name = res.push_method_reference(
+        method_ref! { static object @pyerrors_type::LoadName(object, string) },
+    );
 
     // ── 容器协议（M2.3）──
     let make_list =
@@ -271,8 +277,9 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let user_exception_message = res.push_method_reference(method_ref! {
         static string @pyerrors_type::UserExceptionMessage(object[])
     });
-    let trace_push =
-        res.push_method_reference(method_ref! { static long @traceback_type::PushFrame(string) });
+    let trace_push = res.push_method_reference(
+        method_ref! { static long @traceback_type::PushFrame(string, string) },
+    );
     let trace_line =
         res.push_method_reference(method_ref! { static void @traceback_type::SetLine(int) });
     let trace_pop_to =
@@ -305,6 +312,50 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     });
     let py_call_ctor =
         res.push_method_reference(method_ref! { void @py_call_type::.ctor(object, nint) });
+
+    let module_init_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyModuleInit in #ryupy_runtime });
+    let module_get_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyModuleGet in #ryupy_runtime });
+    let module_set_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyModuleSet in #ryupy_runtime });
+    let module_init_type: MethodType = BaseType::class(module_init_ref).into();
+    let module_get_type: MethodType = BaseType::class(module_get_ref).into();
+    let module_set_type: MethodType = BaseType::class(module_set_ref).into();
+
+    // ── 模块系统（M2.7）──
+    let py_modules_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyModules in #ryupy_runtime });
+    let py_modules_type: MethodType = BaseType::class(py_modules_ref).into();
+    let py_module_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyModule in #ryupy_runtime });
+    let py_module_type: MethodType = BaseType::class(py_module_ref).into();
+    let import_module = res.push_method_reference(
+        method_ref! { static @py_module_type @py_modules_type::Import(string) },
+    );
+    let import_attr = res.push_method_reference(
+        method_ref! { static object @py_modules_type::ImportAttr(string, string) },
+    );
+    let module_run_main =
+        res.push_method_reference(method_ref! { static void @py_modules_type::RunMain() });
+    let module_same_name = res.push_method_reference(
+        method_ref! { static bool @py_modules_type::SameName(string, string) },
+    );
+    let module_missing_attr = res.push_method_reference(
+        method_ref! { static void @py_modules_type::MissingAttr(string, string) },
+    );
+    let module_set_dynamic = res.push_method_reference(method_ref! {
+        static void @py_modules_type::SetDynamic(@py_module_type, string, object)
+    });
+    let module_register = res.push_method_reference(method_ref! {
+        static void @py_modules_type::Register(string, string, string, @module_init_type, @module_get_type, @module_set_type)
+    });
+    let module_init_ctor =
+        res.push_method_reference(method_ref! { void @module_init_type::.ctor(object, nint) });
+    let module_get_ctor =
+        res.push_method_reference(method_ref! { void @module_get_type::.ctor(object, nint) });
+    let module_set_ctor =
+        res.push_method_reference(method_ref! { void @module_set_type::.ctor(object, nint) });
 
     // Python 异常类型名 → CLR 类型：CIL 的类型化 catch 按这些类型匹配。
     // 命名约定是 `Py<PythonName>`（如 `PyValueError`），与运行时 `PyExceptionTypes` 一致。
@@ -367,6 +418,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         raise_prepare,
         make_unbound,
         load_checked,
+        load_name,
         dyn_str,
         dyn_type,
         dyn_get_attr,
@@ -416,6 +468,17 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         bind_args,
         py_function_ctor,
         py_call_ctor,
+        import_module,
+        import_attr,
+        module_register,
+        module_run_main,
+        module_same_name,
+        module_missing_attr,
+        module_set_dynamic,
+        module_init_ctor,
+        module_get_ctor,
+        module_set_ctor,
+        py_module_type,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(
@@ -426,19 +489,6 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     res[module_class].flags.abstract_type = true;
     res[module_class].flags.sealed = true;
     res[module_class].flags.accessibility = TypeAccessibility::Public;
-
-    // 模块静态字段：函数对象 / 默认值数组 / 签名。MIR 里统一记成 Dynamic，
-    // 这里按用途给出具体 CLR 类型，读取时无需 castclass。
-    let object_member: MemberType = BaseType::class(object_ref).into();
-    let signature_member: MemberType = BaseType::class(py_signature_ref).into();
-    let global_fields = crate::callables::allocate_global_fields(
-        &mut res,
-        module_class,
-        program,
-        &ClassTypeMap::new(object_ref),
-        &object_member,
-        &signature_member,
-    );
 
     // 1. 为 dataclass 与用户异常类分配 CLR 类型。
     //
@@ -452,13 +502,26 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         }
         let type_idx = res.push_type_definition(TypeDefinition::new(
             Some("RyuPy.Generated".into()),
-            cls.name.clone(),
+            cls.codegen_name.clone(),
         ));
         class_types
             .classes
             .insert(cls_id, (type_idx, cls.is_value_type));
         class_defs.push((cls_id, type_idx));
     }
+
+    // 模块静态字段：函数对象 / 默认值数组 / 签名 / 模块变量。
+    // 必须在 dataclass 类型分配之后：模块变量可能持有 dataclass 实例（静态 Class 槽位）。
+    let object_member: MemberType = BaseType::class(object_ref).into();
+    let signature_member: MemberType = BaseType::class(py_signature_ref).into();
+    let global_fields = crate::callables::allocate_global_fields(
+        &mut res,
+        module_class,
+        program,
+        &class_types,
+        &object_member,
+        &signature_member,
+    );
     runtime_refs.global_fields = global_fields;
 
     // 2. dataclass：extends、字段与 .ctor。
@@ -532,7 +595,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         }
         let type_idx = res.push_type_definition(TypeDefinition::new(
             Some("RyuPy.Generated".into()),
-            format!("_{}", cls.name),
+            format!("_{}", cls.codegen_name),
         ));
         exception_type_indices.insert(cls_id, type_idx);
         // 用户异常类名也可能出现在 `except` 中；覆盖内建同名表项。
@@ -664,62 +727,49 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
 
     // 第一遍：为所有函数分配 MethodIndex。
     //
-    // 入口函数拆成两个方法：`Main` 是返回 int 的包装器（带 try/catch，负责把未捕获的
-    // Python 异常渲染成 traceback 并返回 1），`__main` 承载真正的模块顶层代码。
+    // 方法名用 `codegen_name`（link 阶段已按模块加前缀，保证唯一）；Python 可见的
+    // 函数名仍保留在 `Function::name`，供 PyFunction 与签名使用。
     let mut fn_indices: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
-    let mut entry_wrapper: Option<MethodIndex> = None;
     for (fn_id, func) in program.functions.iter() {
-        let method_idx = if fn_id == program.entry {
-            let main_method = res.push_method(
-                module_class,
-                Method::new(
-                    Accessibility::Public,
-                    msig! { static int (string[]) },
-                    "Main",
-                    None,
-                ),
-            );
-            res.set_entry_point(main_method);
-            entry_wrapper = Some(main_method);
-            // 顶层代码放进 __main()，保留 void 返回，避免包装器与模块返回值的耦合
-            res.push_method(
-                module_class,
-                Method::new(
-                    Accessibility::Private,
-                    msig! { static void () },
-                    "__main",
-                    None,
-                ),
-            )
-        } else {
-            let params: Vec<_> = func
-                .params
-                .iter()
-                .map(|&p| {
-                    crate::types::mir_type_to_parameter(&func.body.locals[p].ty, &class_types)
-                        .unwrap()
-                })
-                .collect();
-            let ret = crate::types::mir_type_to_return_type(&func.ret, &class_types);
-            let sig = MethodSignature::new(false, ret, params);
-            res.push_method(
-                module_class,
-                Method::new(
-                    Accessibility::Public,
-                    sig,
-                    Cow::Owned(func.name.clone()),
-                    None,
-                ),
-            )
-        };
+        let params: Vec<_> = func
+            .params
+            .iter()
+            .map(|&p| {
+                crate::types::mir_type_to_parameter(&func.body.locals[p].ty, &class_types).unwrap()
+            })
+            .collect();
+        let ret = crate::types::mir_type_to_return_type(&func.ret, &class_types);
+        let sig = MethodSignature::new(false, ret, params);
+        let method_idx = res.push_method(
+            module_class,
+            Method::new(
+                Accessibility::Public,
+                sig,
+                Cow::Owned(func.codegen_name.clone()),
+                None,
+            ),
+        );
         fn_indices.insert(fn_id, method_idx);
     }
 
-    // 每个用户函数生成一个统一签名的 thunk，供 PyFunction 的委托调用
+    // 入口包装器：`Main` 带 try/catch，负责把未捕获异常渲染成 traceback。
+    let wrapper = res.push_method(
+        module_class,
+        Method::new(
+            Accessibility::Public,
+            msig! { static int (string[]) },
+            "Main",
+            None,
+        ),
+    );
+    res.set_entry_point(wrapper);
+
+    // 每个用户函数生成统一签名的 thunk，供 PyFunction 的委托调用。
+    // 模块初始化函数不暴露成函数对象，跳过（它们由导入机制通过委托调用）。
     let mut thunks: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
     let mut thunk_index = 0usize;
     for (fn_id, func) in program.functions.iter() {
-        if fn_id == program.entry {
+        if func.function_global.is_none() {
             continue;
         }
         let thunk = crate::callables::emit_thunk(
@@ -735,13 +785,31 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         thunk_index += 1;
     }
 
-    // 模块初始化：在 `__main` 之前构造函数对象与默认值数组
+    // 模块初始化：构造函数对象、默认值数组与签名。
     let init_functions = crate::callables::emit_init_functions(
         &mut res,
         module_class,
         program,
         &runtime_refs,
         &thunks,
+    );
+
+    // 模块对象的属性读写入口 + 注册表。注册追加到 `__init_functions` 末尾，
+    // 此时函数对象与类工厂都已就绪。
+    let accessors = crate::modules::emit_module_accessors(
+        &mut res,
+        module_class,
+        program,
+        &runtime_refs,
+        &class_types,
+    );
+    crate::modules::append_module_registration(
+        &mut res,
+        program,
+        &runtime_refs,
+        &fn_indices,
+        init_functions,
+        &accessors,
     );
 
     // 第二遍：逐函数编译并填充 body
@@ -757,8 +825,26 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res[method_idx].body = Some(method_body);
     }
 
-    // 包装器最后生成：需要 `__main` 的方法下标
-    if let Some(wrapper) = entry_wrapper {
+    // 运行入口模块：由 `PyModules.RunMain()` 通过导入机制执行 `__main__`，
+    // 这样 `import` 与入口模块走同一条初始化路径（循环导入也成立）。
+    let run_main = res.push_method(
+        module_class,
+        Method::new(
+            Accessibility::Private,
+            msig! { static void () },
+            "__run_main",
+            None,
+        ),
+    );
+    let mut run_main_body = body::Method::new(vec![
+        Instruction::call(runtime_refs.module_run_main),
+        Instruction::Return,
+    ]);
+    run_main_body.header.maximum_stack_size = 8;
+    res[run_main].body = Some(run_main_body);
+
+    // 包装器最后生成：需要 `__run_main` 的方法下标
+    {
         let py_system_exit_ref = res.push_type_reference(ExternalTypeReference::new(
             Some("RyuPy.Runtime".into()),
             "PySystemExit",
@@ -771,7 +857,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         emit_entry_wrapper(
             &mut res,
             wrapper,
-            fn_indices[&program.entry],
+            run_main,
             report_unhandled,
             report_clr,
             py_exc_type,
@@ -782,7 +868,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             flush_stdout,
             init_functions,
             init_class_factories,
-            &program.source_name,
+            &program.modules[program.entry].file,
         );
     }
 
@@ -793,7 +879,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
 fn emit_init_class_factories(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
-    program: &Program,
+    program: &LinkedProgram,
     refs: &RuntimeRefs,
     factories: &FxHashMap<ryupy_mir::ClassDefId, MethodIndex>,
 ) -> MethodIndex {
@@ -936,7 +1022,7 @@ fn emit_entry_wrapper(
     res[wrapper].body = Some(method_body);
 }
 
-pub fn emit(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
+pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
     let (res, _) = build_resolution(program, opts);
     res.write(WriteOptions {
         // `true` 生成 PE32 + ILONLY（AnyCPU），不是「32 位程序」：
@@ -948,7 +1034,7 @@ pub fn emit(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenErr
     .map_err(|e| CodegenError::Write(e.to_string()))
 }
 
-pub fn dump(program: &Program, opts: &EmitOptions) -> Result<String, CodegenError> {
+pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
     let (res, module_class) = build_resolution(program, opts);
     let mut out = String::new();
     out.push_str(&format!(".assembly {}\n{{\n}}\n", opts.assembly_name));

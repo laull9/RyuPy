@@ -9,7 +9,7 @@
 //!   这样既保留计数循环的快路径，又让循环体里的 `i` 是动态值。
 
 use ryupy_base::{Diagnostic, Span};
-use ryupy_hir::{ExprId, LocalId as HirLocalId, StmtId};
+use ryupy_hir::{Binding, ExprId, StmtId};
 use ryupy_ty::Ty;
 
 use crate::build::FunctionBuilder;
@@ -24,7 +24,7 @@ impl FunctionBuilder<'_> {
     /// 可以复用同一套循环目标栈（`continue` 跳到步进块，`break` 跳到退出块）。
     pub(crate) fn build_for_each(
         &mut self,
-        var: HirLocalId,
+        var: Binding,
         iter: ExprId,
         body: &[StmtId],
         orelse: &[StmtId],
@@ -76,12 +76,7 @@ impl FunctionBuilder<'_> {
                 args: vec![Operand::Local(iterator)],
             },
         });
-        let var_mir = self.local_map[&var];
-        self.push_stmt(Statement::Assign {
-            dest: var_mir,
-            value: Rvalue::Use(Operand::Local(value)),
-        });
-        self.assigned_locals.insert(var);
+        self.store_binding(var, Operand::Local(value), &MirType::Dynamic);
 
         self.loop_stack.push((step_bb, exit_bb));
         for &stmt in body {
@@ -113,7 +108,7 @@ impl FunctionBuilder<'_> {
     /// 与 CPython 的 `TypeError: 'float' object cannot be interpreted as an integer` 一致。
     pub(crate) fn build_for_range_dynamic(
         &mut self,
-        var: HirLocalId,
+        var: Binding,
         start: ExprId,
         stop: ExprId,
         step: Option<ExprId>,
@@ -170,9 +165,6 @@ impl FunctionBuilder<'_> {
             dest: step_local,
             value: Rvalue::Use(step_i),
         });
-
-        let var_mir = self.local_map[&var];
-        self.assigned_locals.insert(var);
 
         let cond_bb = self.new_block();
         let body_bb = self.new_block();
@@ -261,10 +253,7 @@ impl FunctionBuilder<'_> {
                 from: MirType::I64,
             },
         });
-        self.push_stmt(Statement::Assign {
-            dest: var_mir,
-            value: Rvalue::Use(Operand::Local(boxed)),
-        });
+        self.store_binding(var, Operand::Local(boxed), &MirType::Dynamic);
         self.loop_stack.push((step_bb, exit_bb));
         for &s in body {
             self.build_stmt(s);
@@ -298,7 +287,7 @@ impl FunctionBuilder<'_> {
 
     pub(crate) fn build_for_range(
         &mut self,
-        var: HirLocalId,
+        var: Binding,
         start: ExprId,
         stop: ExprId,
         step: Option<ExprId>,
@@ -330,9 +319,6 @@ impl FunctionBuilder<'_> {
                 .with_primary_label("步长不能为 0"),
             );
         }
-
-        let var_mir = self.local_map[&var];
-        self.assigned_locals.insert(var);
 
         // range(...) 的参数只求值一次：先把起点、终点、步长复制进局部变量。
         //
@@ -468,10 +454,7 @@ impl FunctionBuilder<'_> {
 
         // 4. 循环体 (body_bb)：每轮开头把计数器写回用户变量
         self.current_bb = body_bb;
-        self.push_stmt(Statement::Assign {
-            dest: var_mir,
-            value: Rvalue::Use(Operand::Local(counter)),
-        });
+        self.store_binding(var, Operand::Local(counter), &MirType::I64);
         // 关键：continue 跳到 step_bb，break 跳到 exit_bb
         self.loop_stack.push((step_bb, exit_bb));
         for &s in body {

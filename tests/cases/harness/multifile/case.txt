@@ -1,4 +1,3 @@
 # 框架自检：入口导入同目录的辅助模块。
 # 辅助文件（helper.py）不得被当成独立用例收集，入口由 `entry = ` 显式声明。
-pending = true
 entry = entry.py
