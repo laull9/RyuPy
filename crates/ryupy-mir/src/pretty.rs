@@ -66,7 +66,29 @@ fn dump_function(out: &mut String, func: &Function, program: &Program) {
         writeln!(out).unwrap();
     }
 
-    // 3. 基本块
+    // 3. 异常区域
+    for (i, region) in func.body.regions.iter().enumerate() {
+        let kind = match &region.kind {
+            crate::mir::RegionKind::Catch { type_names } => {
+                format!("catch {}", type_names.join(" | "))
+            }
+            crate::mir::RegionKind::CatchAll => "catch-all".to_string(),
+            crate::mir::RegionKind::FinallyGuard => "finally-guard".to_string(),
+        };
+        writeln!(
+            out,
+            "    region r{i}: [{}, +{}) {kind} handler->bb{}",
+            region.try_start.into_raw(),
+            region.try_len,
+            region.handler.into_raw()
+        )
+        .unwrap();
+    }
+    if !func.body.regions.is_empty() {
+        writeln!(out).unwrap();
+    }
+
+    // 4. 基本块
     for (bb_id, bb) in func.body.blocks.iter() {
         dump_basic_block(out, bb_id, bb, func, program);
     }
@@ -96,6 +118,9 @@ fn dump_basic_block(
             }
             Statement::Eval(rval) => {
                 writeln!(out, "{};", format_rvalue(rval, program)).unwrap();
+            }
+            Statement::Line(line) => {
+                writeln!(out, "// line {line}").unwrap();
             }
             Statement::SetField { obj, field, value } => {
                 writeln!(
@@ -132,8 +157,12 @@ fn dump_basic_block(
             writeln!(out, "return {};", format_operand(op)).unwrap();
         }
         Terminator::Raise { value, cause } => {
-            let _ = (value, cause);
-            writeln!(out, "raise;").unwrap();
+            let value_str = value.as_ref().map(format_operand).unwrap_or_default();
+            let cause_str = cause
+                .as_ref()
+                .map(|c| format!(" from {}", format_operand(c)))
+                .unwrap_or_default();
+            writeln!(out, "raise {value_str}{cause_str};").unwrap();
         }
         Terminator::Unreachable => {
             writeln!(out, "unreachable;").unwrap();
@@ -230,5 +259,6 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
             format!("dyn.{:?}({})", op, format_operand(operand))
         }
         Rvalue::DynTruthy { value } => format!("truthy({})", format_operand(value)),
+        Rvalue::CatchException => "caught_exception".to_string(),
     }
 }

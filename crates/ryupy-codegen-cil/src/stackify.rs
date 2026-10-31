@@ -42,6 +42,8 @@ struct LowerCtx<'a> {
 pub struct CompiledBody {
     pub instructions: Vec<Instruction>,
     pub locals: Vec<LocalVariable>,
+    /// CIL 异常表（M2.2）。为空表示函数没有 `try`。
+    pub exceptions: Vec<body::Exception>,
 }
 
 pub struct RuntimeRefs {
@@ -80,11 +82,40 @@ pub struct RuntimeRefs {
     pub make_exception: MethodRefIndex,
     pub with_cause: MethodRefIndex,
     pub range_step: MethodRefIndex,
+    // ── 异常区域与栈帧（M2.2）──
+    pub handler_enter: MethodRefIndex,
+    pub handler_leave: MethodRefIndex,
+    pub reraise: MethodRefIndex,
+    pub raise_prepare: MethodRefIndex,
+    pub make_unbound: MethodRefIndex,
+    pub load_checked: MethodRefIndex,
+    pub dyn_str: MethodRefIndex,
+    pub dyn_type: MethodRefIndex,
+    pub dyn_get_attr: MethodRefIndex,
+    pub trace_push: MethodRefIndex,
+    pub trace_line: MethodRefIndex,
+    pub trace_pop_to: MethodRefIndex,
+    /// Python 异常类型名 → CLR 类型（CIL 类型化 catch 用）。
+    pub exception_types: FxHashMap<String, MethodType>,
 }
 
 enum PendingTarget {
     Branch(usize, BlockId),
     BranchTruthy(usize, BlockId),
+    /// `leave`：离开受保护区域时使用，CLR 会先执行被展开区域的处理器。
+    Leave(usize, BlockId),
+}
+
+/// 受保护区域的块下标窗口。
+struct RegionWindow {
+    start: usize,
+    end: usize,
+}
+
+impl RegionWindow {
+    fn contains(&self, block: usize) -> bool {
+        block >= self.start && block < self.end
+    }
 }
 
 pub fn lower_function(
@@ -115,12 +146,34 @@ pub fn lower_function(
 
     let mut instructions = Vec::new();
     let mut block_starts: FxHashMap<BlockId, usize> = FxHashMap::default();
+    let mut block_ends: FxHashMap<BlockId, usize> = FxHashMap::default();
     let mut pending_targets: Vec<PendingTarget> = Vec::new();
+
+    // 异常区域：块窗口（判断跳转是否离开受保护区）+ 处理入口块集合
+    let windows: Vec<RegionWindow> = func
+        .body
+        .regions
+        .iter()
+        .map(|r| RegionWindow {
+            start: r.try_start.into_raw().into_u32() as usize,
+            end: r.try_start.into_raw().into_u32() as usize + r.try_len,
+        })
+        .collect();
+    let mut handler_blocks: rustc_hash::FxHashSet<BlockId> = rustc_hash::FxHashSet::default();
+    for region in &func.body.regions {
+        handler_blocks.insert(region.handler);
+    }
 
     // 计算可达基本块集（避免发射死代码导致 JIT 校验失败）
     let mut reachable = rustc_hash::FxHashSet::default();
     let mut worklist = vec![func.body.entry];
     reachable.insert(func.body.entry);
+    // handler 只能经由异常边到达，普通前驱遍历看不到，必须单独作为根
+    for region in &func.body.regions {
+        if reachable.insert(region.handler) {
+            worklist.push(region.handler);
+        }
+    }
     while let Some(bb_id) = worklist.pop() {
         let bb = &func.body.blocks[bb_id];
         match &bb.terminator {
@@ -170,6 +223,11 @@ pub fn lower_function(
                 Statement::Eval(rvalue) => {
                     lower_rvalue(rvalue, &mut instructions, &ctx);
                 }
+                Statement::Line(line) => {
+                    // 只写一个静态字段，用于 traceback 定位
+                    instructions.push(Instruction::LoadConstantInt32(*line as i32));
+                    instructions.push(Instruction::call(runtime_refs.trace_line));
+                }
                 Statement::SetField { obj, field, value } => {
                     lower_operand(
                         obj,
@@ -202,6 +260,7 @@ pub fn lower_function(
             }
         }
 
+        let block_end_marker = block_id;
         match &block.terminator {
             Terminator::Return(None) => {
                 instructions.push(Instruction::Return);
@@ -218,8 +277,16 @@ pub fn lower_function(
             }
             Terminator::Goto(target) => {
                 let pos = instructions.len();
-                instructions.push(Instruction::Branch(0)); // 占位，稍后回填
-                pending_targets.push(PendingTarget::Branch(pos, *target));
+                // 处理入口必须用 leave 离开；普通跳转只要跨出任一受保护区也用 leave
+                let needs_leave = handler_blocks.contains(&block_id)
+                    || leaves_region(&windows, block_id, *target);
+                if needs_leave {
+                    instructions.push(Instruction::Leave(0)); // 占位，稍后回填
+                    pending_targets.push(PendingTarget::Leave(pos, *target));
+                } else {
+                    instructions.push(Instruction::Branch(0)); // 占位，稍后回填
+                    pending_targets.push(PendingTarget::Branch(pos, *target));
+                }
             }
             Terminator::Branch { cond, then_, else_ } => {
                 lower_operand(
@@ -264,6 +331,7 @@ pub fn lower_function(
             }
             Terminator::Unreachable => {}
         }
+        block_ends.insert(block_end_marker, instructions.len());
     }
 
     // 回填所有分支指令的跳转目标下标
@@ -277,13 +345,109 @@ pub fn lower_function(
                 let target_ins = block_starts.get(&target_block).copied().unwrap_or(0);
                 instructions[idx] = Instruction::BranchTruthy(target_ins);
             }
+            PendingTarget::Leave(idx, target_block) => {
+                let target_ins = block_starts.get(&target_block).copied().unwrap_or(0);
+                instructions[idx] = Instruction::Leave(target_ins);
+            }
         }
     }
+
+    let exceptions =
+        build_exception_table(func, &windows, &block_starts, &block_ends, runtime_refs);
 
     CompiledBody {
         instructions,
         locals,
+        exceptions,
     }
+}
+
+/// `block` 是否离开了某个包含它的受保护区域。
+fn leaves_region(windows: &[RegionWindow], block: BlockId, target: BlockId) -> bool {
+    let from = block.into_raw().into_u32() as usize;
+    let to = target.into_raw().into_u32() as usize;
+    windows.iter().any(|w| w.contains(from) && !w.contains(to))
+}
+
+/// 由 MIR 区域生成 CIL 异常表。
+///
+/// 每个区域的处理入口都被构造成**两条指令**（`stloc` 取下异常对象 + `leave` 跳出），
+/// 所以 handler 区间可以静态给出，不需要额外的块尾追踪。
+fn build_exception_table(
+    func: &ryupy_mir::Function,
+    windows: &[RegionWindow],
+    block_starts: &FxHashMap<BlockId, usize>,
+    block_ends: &FxHashMap<BlockId, usize>,
+    refs: &RuntimeRefs,
+) -> Vec<body::Exception> {
+    let mut clauses = Vec::new();
+    let catch_all = refs.exception_types.get("BaseException").cloned();
+
+    for (region, window) in func.body.regions.iter().zip(windows) {
+        // 受保护区间的指令范围：只统计真正发射过的块（死代码会被跳过）
+        let mut try_start = usize::MAX;
+        let mut try_end = 0usize;
+        for index in window.start..window.end {
+            let bb = BlockId::from_raw(la_arena::RawIdx::from(index as u32));
+            if let Some(&start) = block_starts.get(&bb) {
+                try_start = try_start.min(start);
+                try_end = try_end.max(block_ends.get(&bb).copied().unwrap_or(start));
+            }
+        }
+        if try_start == usize::MAX || try_end <= try_start {
+            continue;
+        }
+        let handler_start = match block_starts.get(&region.handler) {
+            Some(&offset) => offset,
+            None => continue,
+        };
+        let handler_end = block_ends
+            .get(&region.handler)
+            .copied()
+            .unwrap_or(handler_start);
+        let try_length = try_end - try_start;
+        let handler_length = handler_end - handler_start;
+
+        let mut push_clause = |kind: body::ExceptionKind| {
+            clauses.push(body::Exception {
+                kind,
+                try_offset: try_start,
+                try_length,
+                handler_offset: handler_start,
+                handler_length,
+            });
+        };
+
+        match &region.kind {
+            ryupy_mir::RegionKind::Catch { type_names } => {
+                let mut emitted = false;
+                for name in type_names {
+                    if let Some(ty) = refs.exception_types.get(name) {
+                        push_clause(body::ExceptionKind::TypedException(ty.clone()));
+                        emitted = true;
+                    }
+                }
+                // 名字没登记（理论上不会发生）：退化成 catch-all，至少保证语义正确
+                if !emitted {
+                    if let Some(ty) = &catch_all {
+                        push_clause(body::ExceptionKind::TypedException(ty.clone()));
+                    }
+                }
+            }
+            ryupy_mir::RegionKind::CatchAll | ryupy_mir::RegionKind::FinallyGuard => {
+                if let Some(ty) = &catch_all {
+                    push_clause(body::ExceptionKind::TypedException(ty.clone()));
+                }
+            }
+        }
+    }
+    // 异常表顺序不是随意的：CLR 按顺序匹配，且要求**内层（更早结束）的子句排在
+    // 外层之前**，否则 JIT 直接判 InvalidProgramException——而且不会告诉你是哪一条。
+    // 排序键取「try 结束位置升序」= 内层优先；结束位置相同（同一个 try 的多个 catch）
+    // 时按起点降序排，保持源码书写顺序（Python 按书写顺序匹配类型）。
+    // 早期实现按起点升序排，嵌套 try 一律失败，就是踩了这个坑。
+    clauses.sort_by_key(|c| (c.try_offset + c.try_length, std::cmp::Reverse(c.try_offset)));
+    clauses
 }
 
 fn lower_operand(
@@ -481,6 +645,40 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::RangeStep => {
                         ins.push(Instruction::call(ctx.runtime_refs.range_step))
                     }
+                    RuntimeFn::HandlerEnter => {
+                        ins.push(Instruction::call(ctx.runtime_refs.handler_enter))
+                    }
+                    RuntimeFn::HandlerLeave => {
+                        ins.push(Instruction::call(ctx.runtime_refs.handler_leave))
+                    }
+                    RuntimeFn::Reraise => ins.push(Instruction::call(ctx.runtime_refs.reraise)),
+                    RuntimeFn::RaisePrepare => {
+                        ins.push(Instruction::call(ctx.runtime_refs.raise_prepare))
+                    }
+                    RuntimeFn::MakeUnbound => {
+                        ins.push(Instruction::call(ctx.runtime_refs.make_unbound))
+                    }
+                    RuntimeFn::TracePush => {
+                        ins.push(Instruction::call(ctx.runtime_refs.trace_push))
+                    }
+                    RuntimeFn::TraceLine => {
+                        ins.push(Instruction::call(ctx.runtime_refs.trace_line))
+                    }
+                    RuntimeFn::TracePopTo => {
+                        ins.push(Instruction::call(ctx.runtime_refs.trace_pop_to))
+                    }
+                    RuntimeFn::DynStr => ins.push(Instruction::call(ctx.runtime_refs.dyn_str)),
+                    RuntimeFn::DynType => ins.push(Instruction::call(ctx.runtime_refs.dyn_type)),
+                    RuntimeFn::DynGetAttr => {
+                        ins.push(Instruction::call(ctx.runtime_refs.dyn_get_attr))
+                    }
+                    RuntimeFn::LoadChecked => {
+                        ins.push(Instruction::call(ctx.runtime_refs.load_checked))
+                    }
+                    RuntimeFn::TraceAttach => {
+                        // M2.2 用 PrepareRaise 合并了「挂栈帧 + 挂上下文」，这里不再单独发射
+                        ins.push(Instruction::NoOperation);
+                    }
                     RuntimeFn::CastToI64 => {
                         ins.push(Instruction::call(ctx.runtime_refs.cast_to_i64))
                     }
@@ -577,6 +775,10 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 ctx.runtime_refs,
             );
             ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy));
+        }
+        Rvalue::CatchException => {
+            // 异常对象由 CLR 在进入 handler 时压栈，这里不发射任何取值指令，
+            // 随后的 `stloc` 直接把它存进局部变量。
         }
         Rvalue::GetField { obj, field } => {
             lower_operand(obj, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);

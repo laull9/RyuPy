@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: rendered
+---
+[E0100] Error: except 目前只支持内建异常类型名（用户自定义异常在 M2.6 接续）
+   ╭─[ /var/folders/qm/62_zyfnn443fs89r1pvdk9mw0000gn/T/ryupy_test_bad_except.py:3:8 ]
+   │
+ 3 │ except 1:
+   │        ┬  
+   │        ╰── 不支持该异常类型表达式
+───╯

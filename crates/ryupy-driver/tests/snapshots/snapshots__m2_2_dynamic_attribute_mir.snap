@@ -1,0 +1,45 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn read(_0: dyn) -> dyn {
+    let _0: dyn; // obj
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "read");
+        // line 2
+        _3 = RuntimeFn::DynGetAttr(_0, const "value");
+        _2 = _3;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "<module>");
+        // line 4
+        _1 = box<I64>(const 1_i64);
+        _2 = read(_1);
+        RuntimeFn::WriteObject(_2);
+        RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

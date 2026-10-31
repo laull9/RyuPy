@@ -13,6 +13,8 @@ pub struct Program {
     pub classes: Arena<ClassDef>,
     /// 编译为 CIL `Main` 的入口函数。
     pub entry: FnId,
+    /// 源文件名，入口包装器用它设置 traceback 的文件名。
+    pub source_name: String,
 }
 
 #[derive(Debug)]
@@ -37,6 +39,45 @@ pub struct Body {
     pub locals: Arena<LocalDecl>,
     pub blocks: Arena<BasicBlock>,
     pub entry: BlockId,
+    /// 异常区域（M2.2）。区域彼此嵌套或不相交，靠「块下标区间」描述受保护代码。
+    pub regions: Vec<Region>,
+}
+
+/// 一个受保护的代码区域，对应 CIL 异常表里的一条或多条记录。
+///
+/// 为什么用「块下标区间」而不是块集合：codegen 按 arena 顺序发射指令，构建器保证
+/// 区域内的块是**连续分配**的，于是「块区间」与「指令区间」一一对应，异常表只需要
+/// 首尾两条指令的位置。
+#[derive(Debug)]
+pub struct Region {
+    pub kind: RegionKind,
+    /// 受保护区间首块。
+    pub try_start: BlockId,
+    /// 受保护区间块数。
+    pub try_len: usize,
+    /// 处理入口块（catch 分支或 finally 的异常通道）。
+    pub handler: BlockId,
+    /// 处理入口里保存异常对象的局部变量；入口首条语句从求值栈上取下异常对象。
+    pub exc_local: Option<LocalId>,
+}
+
+/// 异常区域的种类。
+#[derive(Debug)]
+pub enum RegionKind {
+    /// `except TypeError:` / `except (TypeError, ValueError):`。
+    ///
+    /// 一种类型一条 CIL catch 记录；CLR 按「类型及其基类」匹配，正好等于 Python 的
+    /// `except` 语义（前提是 CLR 继承树与 Python 继承树同构，见 `PyExceptionTypes`）。
+    Catch { type_names: Vec<String> },
+    /// 裸 `except:`：捕获所有 `PyBaseException`。
+    CatchAll,
+    /// `finally` 的异常通道：捕获所有 `PyBaseException`，把异常记进状态后跳进 finally 体。
+    ///
+    /// Python 的 `finally` 必须覆盖「return / break / continue / 异常」四类离开方式，
+    /// 而 CIL 的 finally 处理器不能抑制异常，也不能带状态离开。所以这里不用 CLR 的
+    /// finally，改成「catch-all + 状态机 + 分派块」：所有离开路径先写状态再跳进 finally 体，
+    /// finally 体执行完由分派块决定下一步。
+    FinallyGuard,
 }
 
 /// 动静双轨的类型表示：决定生成原生 CIL 指令还是 `PyValue` 操作。
@@ -82,6 +123,11 @@ pub enum Statement {
         field: u32,
         value: Operand,
     },
+    /// 记录当前行号：traceback 用它定位抛出点。
+    ///
+    /// 只写一个静态字段，不产生值；放在语句流里而不是终结符上，是因为同一块里
+    /// 连续多条语句要能各自报告自己的行号。
+    Line(u32),
 }
 
 #[derive(Clone, Debug)]
@@ -162,6 +208,11 @@ pub enum Rvalue {
     DynTruthy {
         value: Operand,
     },
+    /// 异常处理入口处的「捕获到的异常对象」。
+    ///
+    /// CIL 在把控制权交给 catch 子句时会把异常对象压栈，所以这条 rvalue 本身不发射
+    /// 任何取值指令，只承接 `stloc`——它必须出现在处理入口块的**第一条**语句。
+    CatchException,
 }
 
 /// 动态运算的操作码。数值必须与 C# 侧 `PyOps` 的常量一致（ADR-0010 的 ABI）。
@@ -264,6 +315,44 @@ pub enum Callee {
     Runtime(RuntimeFn),
 }
 
+/// 编译器认识的 Python 内建异常类型名。
+///
+/// 这张表是三方约定的单一来源：HIR 的名字解析、运行时的 `PyExceptionTypes`、
+/// codegen 的异常类型引用表都按它对齐。新增异常类型时三处必须同时修改。
+pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
+    "BaseException",
+    "Exception",
+    "SystemExit",
+    "KeyboardInterrupt",
+    "ArithmeticError",
+    "ZeroDivisionError",
+    "OverflowError",
+    "LookupError",
+    "IndexError",
+    "KeyError",
+    "ValueError",
+    "UnicodeError",
+    "UnicodeDecodeError",
+    "UnicodeEncodeError",
+    "TypeError",
+    "NameError",
+    "UnboundLocalError",
+    "AttributeError",
+    "RuntimeError",
+    "NotImplementedError",
+    "RecursionError",
+    "AssertionError",
+    "ImportError",
+    "ModuleNotFoundError",
+    "OSError",
+    "FileNotFoundError",
+    "FileExistsError",
+    "PermissionError",
+    "StopIteration",
+    "StopAsyncIteration",
+    "EOFError",
+];
+
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
@@ -314,6 +403,32 @@ pub enum RuntimeFn {
     CastToF64,
     CastToBool,
     CastToStr,
+    /// `PyErrors.EnterHandler(object) -> object`：进入 except 体，返回上一层当前异常。
+    HandlerEnter,
+    /// `PyErrors.LeaveHandler(object)`：离开 except 体，恢复上一层当前异常。
+    HandlerLeave,
+    /// `PyErrors.Reraise() -> object`：裸 `raise`。
+    Reraise,
+    /// `PyErrors.PrepareRaise(object) -> object`：抛前准备（挂上下文 + 记栈帧）。
+    RaisePrepare,
+    /// `PyRepr.StrValue(object) -> string`：`str(x)`。
+    DynStr,
+    /// `PyObject.TypeOf(object) -> object`：`type(x)`。
+    DynType,
+    /// `PyObject.GetAttr(object, string) -> object`：动态属性读取。
+    DynGetAttr,
+    /// `PyErrors.Load(object, string) -> object`：读取可能未赋值的局部变量。
+    LoadChecked,
+    /// `PyErrors.Unbound() -> object`：把变量标记为未赋值。
+    MakeUnbound,
+    /// `PyTraceback.PushFrame(string, string) -> long`：压入栈帧并返回深度。
+    TracePush,
+    /// `PyTraceback.SetLine(long)`：更新当前行号。
+    TraceLine,
+    /// `PyTraceback.PopTo(long)`：弹栈到指定深度。
+    TracePopTo,
+    /// `PyTraceback.Attach(object)`：把当前栈快照挂到异常上。
+    TraceAttach,
 }
 
 #[derive(Debug)]

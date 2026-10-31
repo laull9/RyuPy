@@ -26,7 +26,7 @@ p.x = 3.0
     let (parsed, diags) = parse(file, src);
     assert!(diags.is_empty());
 
-    let (hir, diags) = lower_module(&parsed);
+    let (hir, diags) = lower_module(&parsed, "t.py", src);
     assert!(diags.is_empty());
 
     let (_types, diags) = check_module(&hir);
@@ -51,7 +51,7 @@ v.x = 10
     let (parsed, diags) = parse(file, src);
     assert!(diags.is_empty());
 
-    let (hir, diags) = lower_module(&parsed);
+    let (hir, diags) = lower_module(&parsed, "t.py", src);
     assert!(diags.is_empty());
 
     let (_types, diags) = check_module(&hir);
@@ -68,7 +68,7 @@ fn check(src: &str) -> (crate::ModuleTypes, Vec<ryupy_base::Diagnostic>) {
     let file = db.add("test.py", src);
     let (parsed, diags) = parse(file, src);
     assert!(diags.is_empty(), "parse diags: {diags:?}");
-    let (hir, diags) = lower_module(&parsed);
+    let (hir, diags) = lower_module(&parsed, "t.py", src);
     assert!(diags.is_empty(), "hir diags: {diags:?}");
     check_module(&hir)
 }

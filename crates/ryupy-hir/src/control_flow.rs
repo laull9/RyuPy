@@ -22,6 +22,7 @@ impl StmtLowerCtx<'_> {
         self.body.stmts.alloc(Stmt {
             kind: StmtKind::If { cond, then_, else_ },
             range: if_stmt.range,
+            line: self.line_of(if_stmt.range.start().to_usize()),
         })
     }
 
@@ -40,6 +41,7 @@ impl StmtLowerCtx<'_> {
                 let nested_if = self.body.stmts.alloc(Stmt {
                     kind: StmtKind::If { cond, then_, else_ },
                     range: first.range,
+                    line: self.line_of(first.range.start().to_usize()),
                 });
                 vec![nested_if]
             }

@@ -5,17 +5,24 @@ expression: mir
 fn step(_0: Class(0), _1: f64) -> () {
     let _0: Class(0); // b
     let _1: f64; // dt
-    let _2: f64;
+    let _2: i64;
     let _3: f64;
     let _4: f64;
     let _5: f64;
+    let _6: f64;
 
     bb0: {
-        _2 = _0.0;
-        _3 = _0.1;
-        _4 = Mul(_3, _1);
-        _5 = Add(_2, _4);
-        _0.0 = _5;
+        _2 = RuntimeFn::TracePush(const "step");
+        // line 19
+        _3 = _0.0;
+        _4 = _0.1;
+        _5 = Mul(_4, _1);
+        _6 = Add(_3, _5);
+        _0.0 = _6;
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }
@@ -30,42 +37,59 @@ fn dot(_0: Class(1), _1: Class(1)) -> i64 {
     let _6: i64;
     let _7: i64;
     let _8: i64;
+    let _9: i64;
+    let _10: i64;
 
     bb0: {
-        _2 = _0.0;
-        _3 = _1.0;
-        _4 = Mul(_2, _3);
-        _5 = _0.1;
-        _6 = _1.1;
-        _7 = Mul(_5, _6);
-        _8 = Add(_4, _7);
-        return _8;
+        _2 = RuntimeFn::TracePush(const "dot");
+        // line 23
+        _4 = _0.0;
+        _5 = _1.0;
+        _6 = Mul(_4, _5);
+        _7 = _0.1;
+        _8 = _1.1;
+        _9 = Mul(_7, _8);
+        _10 = Add(_6, _9);
+        _3 = _10;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
     }
 }
 
 fn main() -> () {
     let _0: Class(0); // b
     let _1: i64; // _
-    let _2: Class(0);
-    let _3: bool;
-    let _4: ();
-    let _5: f64;
-    let _6: Class(1);
+    let _2: i64;
+    let _3: Class(0);
+    let _4: bool;
+    let _5: ();
+    let _6: f64;
     let _7: Class(1);
-    let _8: i64;
+    let _8: Class(1);
+    let _9: i64;
 
     bb0: {
-        _2 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
-        _0 = _2;
+        _2 = RuntimeFn::TracePush(const "<module>");
+        // line 26
+        _3 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
+        _0 = _3;
+        // line 27
         _1 = const 0_i64;
         goto -> bb1;
     }
     bb1: {
-        _3 = Lt(_1, const 10_i64);
-        branch _3 -> [then: bb2, else: bb4];
+        _4 = Lt(_1, const 10_i64);
+        branch _4 -> [then: bb2, else: bb4];
     }
     bb2: {
-        _4 = step(_0, const 0.5_f64);
+        // line 28
+        _5 = step(_0, const 0.5_f64);
         goto -> bb3;
     }
     bb3: {
@@ -73,14 +97,20 @@ fn main() -> () {
         goto -> bb1;
     }
     bb4: {
-        _5 = _0.0;
-        RuntimeFn::WriteF64(_5);
+        // line 29
+        _6 = _0.0;
+        RuntimeFn::WriteF64(_6);
         RuntimeFn::WriteNewline();
-        _6 = New(Class(1), [const 1_i64, const 2_i64]);
-        _7 = New(Class(1), [const 3_i64, const 4_i64]);
-        _8 = dot(_6, _7);
-        RuntimeFn::WriteI64(_8);
+        // line 30
+        _7 = New(Class(1), [const 1_i64, const 2_i64]);
+        _8 = New(Class(1), [const 3_i64, const 4_i64]);
+        _9 = dot(_7, _8);
+        RuntimeFn::WriteI64(_9);
         RuntimeFn::WriteNewline();
+        goto -> bb5;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

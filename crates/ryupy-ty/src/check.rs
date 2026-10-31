@@ -362,6 +362,45 @@ impl FunctionChecker<'_> {
                     self.check_expr(*c);
                 }
             }
+            StmtKind::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                for &s in body {
+                    self.check_stmt(s);
+                }
+                for &handler_id in handlers {
+                    let (name, handler_body) = {
+                        let handler = &self.func.body.handlers[handler_id];
+                        (handler.name, handler.body.clone())
+                    };
+                    // 异常对象是动态值：`as e` 的局部变量按 Dynamic 处理，
+                    // 同时让整函数降级——异常对象上的属性（`args` / `__cause__`）
+                    // 需要 M2.5 的属性协议，静态槽位放不下。
+                    if let Some(local) = name {
+                        let loc_infer = self.local_vars[local].clone();
+                        if self
+                            .infer
+                            .unify(&loc_infer, &InferTy::Known(Ty::Dynamic))
+                            .is_err()
+                        {
+                            self.soft_demote = true;
+                            self.infer.force(&loc_infer, Ty::Dynamic);
+                        }
+                    }
+                    for s in handler_body {
+                        self.check_stmt(s);
+                    }
+                }
+                for &s in orelse {
+                    self.check_stmt(s);
+                }
+                for &s in finalbody {
+                    self.check_stmt(s);
+                }
+            }
             StmtKind::Break | StmtKind::Continue => {}
         }
     }
@@ -407,7 +446,11 @@ impl FunctionChecker<'_> {
                 self.infer.resolve(&infer_ty).unwrap_or(Ty::Error)
             }
             ExprKind::Func(_) => Ty::None,
-            ExprKind::Builtin(_) => Ty::None,
+            ExprKind::Builtin(builtin) => match builtin {
+                ryupy_hir::Builtin::Str => Ty::Str,
+                ryupy_hir::Builtin::Type => Ty::Dynamic,
+                _ => Ty::None,
+            },
             ExprKind::Binary { op, lhs, rhs } => {
                 let lhs_ty = self.check_expr(*lhs);
                 let rhs_ty = self.check_expr(*rhs);

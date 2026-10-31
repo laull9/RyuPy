@@ -8,6 +8,7 @@ pub type ClassId = Idx<Class>;
 pub type LocalId = Idx<Local>;
 pub type ExprId = Idx<Expr>;
 pub type StmtId = Idx<Stmt>;
+pub type HandlerId = Idx<Handler>;
 
 /// 标识符。先用最朴素的 `Box<str>`，等 profile 证明有必要再换成字符串驻留（lasso）。
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -36,6 +37,8 @@ impl std::fmt::Display for Name {
 #[derive(Debug)]
 pub struct Module {
     pub file: FileId,
+    /// 源文件名。traceback 的 `File "..."` 与诊断都要用它，由 driver 提供。
+    pub source_name: String,
     pub functions: Arena<Function>,
     pub classes: Arena<Class>,
     /// 顶层语句组成的隐式入口函数。
@@ -105,6 +108,8 @@ pub struct Body {
     pub locals: Arena<Local>,
     pub exprs: Arena<Expr>,
     pub stmts: Arena<Stmt>,
+    /// `except` 分支：与语句分开存放，避免 `StmtKind` 过大。
+    pub handlers: Arena<Handler>,
     /// 函数体顶层语句序列。
     pub root: Vec<StmtId>,
 }
@@ -189,6 +194,10 @@ pub enum Builtin {
     Int,
     Float,
     Abs,
+    /// `str(x)`：动态路径走 `PyRepr.StrValue`。
+    Str,
+    /// `type(x)`：返回类型对象（最小实现，只有 `__name__`）。
+    Type,
     /// Python 异常类（`ValueError` 等）。构造调用走运行时的 `PyOps.MakeException`。
     Exception(&'static str),
 }
@@ -240,6 +249,8 @@ pub enum BoolOp {
 pub struct Stmt {
     pub kind: StmtKind,
     pub range: TextRange,
+    /// 语句起始行号（1 起）。traceback 直接用它，MIR 不需要再回查源码。
+    pub line: u32,
 }
 
 #[derive(Debug)]
@@ -276,6 +287,33 @@ pub enum StmtKind {
         value: Option<ExprId>,
         cause: Option<ExprId>,
     },
+    /// `try` 语句：`body` / `handlers` / `else` / `finally` 四部分，任意一部分可以为空。
+    ///
+    /// HIR 保留 Python 的四段结构，不提前去糖成「嵌套 try」：MIR 需要知道
+    /// 「哪些块属于受保护区域」「哪些块属于 else」「finally 要包住哪些部分」，
+    /// 这些信息一旦被去糖就失去了。
+    Try {
+        body: Vec<StmtId>,
+        handlers: Vec<HandlerId>,
+        orelse: Vec<StmtId>,
+        finalbody: Vec<StmtId>,
+    },
+}
+
+/// `except` 分支。独立分配在 [`Body::handlers`] 里，`Try` 只持有 ID。
+#[derive(Debug)]
+pub struct Handler {
+    /// 匹配的异常类型名；`None` 表示裸 `except:`。
+    ///
+    /// 之所以在 HIR 就把 `except ValueError` 解析成名字而不是保留表达式：
+    /// 匹配交给 CIL 的类型化 catch，需要的是**类型**而不是运行时可调用对象。
+    /// `except (TypeError, ValueError)` 展开成多个名字。用户自定义异常类
+    /// （以及任何非字面量类型表达式）留到 M2.6，届时改成按运行时类型匹配。
+    pub types: Option<Vec<&'static str>>,
+    /// `as name` 绑定的局部变量。
+    pub name: Option<LocalId>,
+    pub body: Vec<StmtId>,
+    pub range: TextRange,
 }
 
 #[derive(Debug)]

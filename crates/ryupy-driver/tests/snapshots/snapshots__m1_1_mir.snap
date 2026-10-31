@@ -8,13 +8,26 @@ fn main_calc(_0: i64) -> i64 {
     let _2: i64;
     let _3: i64;
     let _4: i64;
+    let _5: i64;
+    let _6: i64;
 
     bb0: {
-        _2 = helper(_0);
-        _3 = Mul(_2, const 2_i64);
-        _1 = _3;
-        _4 = Add(_1, const 1_i64);
-        return _4;
+        _2 = RuntimeFn::TracePush(const "main_calc");
+        // line 3
+        _3 = helper(_0);
+        _4 = Mul(_3, const 2_i64);
+        _1 = _4;
+        // line 4
+        _6 = Add(_1, const 1_i64);
+        _5 = _6;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _5;
     }
 }
 
@@ -22,25 +35,46 @@ fn helper(_0: i64) -> i64 {
     let _0: i64; // n
     let _1: i64; // t
     let _2: i64;
+    let _3: i64;
+    let _4: i64;
 
     bb0: {
-        _2 = Sub(_0, const 3_i64);
-        _1 = _2;
-        return _1;
+        _2 = RuntimeFn::TracePush(const "helper");
+        // line 8
+        _3 = Sub(_0, const 3_i64);
+        _1 = _3;
+        // line 9
+        _4 = _1;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _4;
     }
 }
 
 fn main() -> () {
     let _0: i64;
     let _1: i64;
+    let _2: i64;
 
     bb0: {
-        _0 = main_calc(const 10_i64);
-        RuntimeFn::WriteI64(_0);
-        RuntimeFn::WriteNewline();
-        _1 = helper(const 0_i64);
+        _0 = RuntimeFn::TracePush(const "<module>");
+        // line 12
+        _1 = main_calc(const 10_i64);
         RuntimeFn::WriteI64(_1);
         RuntimeFn::WriteNewline();
+        // line 13
+        _2 = helper(const 0_i64);
+        RuntimeFn::WriteI64(_2);
+        RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
         return;
     }
 }

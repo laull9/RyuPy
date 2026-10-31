@@ -37,9 +37,10 @@
 | 列表 / 字典 / 元组 / 集合 | ❌ | Phase 2 |
 | 闭包、lambda、生成器、推导式、装饰器 | ❌ | Phase 3 M3.0–M3.3 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
-| `raise exc` / `raise exc from cause` | ✅ M2.2 | `Terminator::Raise` + `PyOps.MakeException` / `WithCause`；未捕获时按 Python 形式退出 |
+| `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
-| `try` / `except` / `else` / `finally` | ❌ | M2.2 后续竖切；`raise` 裸重抛同样待 `except` 上下文 |
+| `try` / `except` / `except (A, B)` / `else` / `finally` / `except … as e` | ✅ M2.2 | CIL 类型化 catch + `finally` 状态机；详见 §4.1 |
+| `str(x)` / `type(x)` / 动态属性读取 | ✅ M2.2 | `PyRepr.StrValue` / `PyObject.TypeOf` / `PyObject.GetAttr`（当前覆盖异常与类型对象） |
 | 普通 class、单继承、方法 | ❌ | Phase 2 M2.5 / M2.6 |
 | `with` 与上下文协议 | ❌ | Phase 2 M2.8 |
 | 常用标准库 | ❌ | Phase 3 逐 API 移植，当前只有 dataclass 特殊降级 |
@@ -113,8 +114,8 @@ CPython 一致的消息。
 | 7 | `print` 换行 | 总是 `\n` | `WriteLine` 在 Windows 是 `\r\n` | 统一写 `'\n'` |
 | 8 | `range` 负步长 | `range(10, 0, -3)` → 10 7 4 1 | — | 计数循环的比较方向随步长符号变化 |
 | 9 | `range` 步长为 0 | `ValueError` | 死循环 | 字面量 0 编译期报错，变量运行时检查 |
-| 10 | 先读后写的局部变量 | `UnboundLocalError` | CIL local 默认为 0 | 编译期做「确定赋值」分析报错 |
-| 11 | 深递归 | `RecursionError`（默认 1000 层） | 栈溢出直接崩溃进程 | Phase 1 接受差异，记录在案 |
+| 10 | 先读后写的局部变量 | `UnboundLocalError` | CIL local 默认为 0 | 动态槽位初始化为「未赋值」哨兵，读取时检查并抛 `UnboundLocalError`；静态槽位（i64/f64）无法表示哨兵，仍编译期报错 |
+| 11 | 深递归 | `RecursionError`（默认 1000 层） | 栈溢出直接崩溃进程 | M2.2 起在 `PyTraceback.PushFrame` 按帧数守卫，默认 1000 层、可用 `RYUPY_RECURSION_LIMIT` 调整；抛可捕获的 `RecursionError` |
 | 12 | 除以零 | `ZeroDivisionError` | 整数抛 `DivideByZeroException`；浮点得 `inf` / NaN | 真除法与 `//` `%` 全部走运行时检查，抛 `ZeroDivisionError`；未捕获时按 Python 形式退出（M2.2） |
 | 13 | `int(nan)` / `int(inf)` | `ValueError` / `OverflowError` | `conv.i8` 结果未定义 | 运行时函数检查 |
 | 14 | 字符串长度 / 下标 | 按码点 | 按 UTF-16 单元 | Phase 1 不支持 `len`/下标；Phase 2 处理 |
@@ -130,21 +131,49 @@ CPython 一致的消息。
 
 ### 4.1 未捕获异常与退出码（M2.2）
 
-入口编译成两层：`Main(string[]) -> int` 是包装器，`try { __main(); return 0; } catch (PyBaseException e)
+入口编译成两层：`Main(string[]) -> int` 是包装器，先 `PyTraceback.SetFile(...)`，再
+`try { __main(); return 0; } catch (PySystemExit e) { return exitCode(e); } catch (PyBaseException e)
 { Report(e); return 1; }`。未捕获异常因此表现为：
 
 ```text
 Traceback (most recent call last):
-  File "<ryupy>", in <module>
-ZeroDivisionError: float division by zero
+  File "x.py", line 3, in fail
+  File "x.py", line 9, in <module>
+ValueError: source
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "x.py", line 5, in <module>
+RuntimeError: outer
 ```
 
-stderr 上是 traceback，最后一行是 `Type: message`，退出码 1——与 CPython 的契约一致
-（`tests/cases/errors/unhandled_zero_division` 已转正）。显式链 `raise ... from ...` 会按
-CPython 的措辞输出分隔段。
+stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise ... from ...` 用
+「direct cause」分隔，处理期间再抛出的异常用「During handling of …」分隔。
 
-**当前限制**：traceback 还没有逐帧的 `File "x.py", line N, in fn`（MIR 尚未携带源码行号），
-也没有 `__context__` 的隐式链。这些在 M2.2 的后续竖切补。
+**栈帧是怎么来的**：编译器在函数入口调 `PyTraceback.PushFrame`、每条语句前调 `SetLine`、
+统一返回块调 `PopTo`；异常被捕获时处理入口再补一次 `PopTo`，把被展开的帧弹掉。
+抛出前 `PyErrors.PrepareRaise` 把当前栈快照挂到异常对象上。
+
+### 4.2 `try` 的编译方式（M2.2）
+
+- **`except`** 编译成 CIL 的**类型化 catch**。CLR 按「类型及其基类」匹配，正好等于 Python 的
+  `except` 语义，前提是 CLR 继承树与 Python 继承树同构（见运行时 `PyExceptionTypes`）。
+  `except (A, B)` 为每种类型各生成一条记录；每条记录配一个**独立的两指令处理入口**
+  （`stloc` 取下异常 + `leave` 跳出），因为 CLR 会把「try 与 handler 区间完全相同」的
+  两条记录当成重复子句直接拒绝。
+- **异常表顺序**必须内层（更早结束）在前，否则 JIT 判 `InvalidProgramException` 且不报原因。
+- **`finally`** 不用 CIL 的 finally 处理器：CLR 的 finally 不能用 `leave` 离开、也无法抑制
+  正在传播的异常，而 Python 的 `finally` 必须支持 `return` / `break` 与吞掉异常。
+  实现改为「catch-all 异常通道 + 状态码 + 分派块」：所有离开路径（正常落下 / return /
+  break / continue / 异常）先把状态码写进局部变量再跳进 finally 体，执行完由分派块决定
+  下一步。`finally` 里 `return` 会覆盖待返回的值，与 CPython 一致。
+- **裸 `raise`** 取运行时保存的「当前异常」，没有则抛 `RuntimeError`。
+- **`except … as e`** 的分支结束后 `e` 被标记为未赋值，之后再读抛 `UnboundLocalError`。
+
+**当前限制**：`except` 的类型只支持内建异常类型名（用户自定义异常在 M2.6）；traceback 的
+帧来自编译器插桩，`__traceback__` 属性暂时是 `None`，完整 frame 对象与 `sys._getframe`
+属于暂缓能力。
 
 ## 5. 模块与入口
 

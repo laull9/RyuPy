@@ -137,6 +137,61 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         method_ref! { static object @pyops_type::WithCause(object, object) },
     );
 
+    // ── 异常区域与栈帧（M2.2）──
+    let pyerrors_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyErrors in #ryupy_runtime });
+    let pyerrors_type: MethodType = BaseType::class(pyerrors_ref).into();
+    let handler_enter = res
+        .push_method_reference(method_ref! { static object @pyerrors_type::EnterHandler(object) });
+    let handler_leave =
+        res.push_method_reference(method_ref! { static void @pyerrors_type::LeaveHandler(object) });
+    let reraise =
+        res.push_method_reference(method_ref! { static object @pyerrors_type::Reraise() });
+    let raise_prepare = res
+        .push_method_reference(method_ref! { static object @pyerrors_type::PrepareRaise(object) });
+    let make_unbound =
+        res.push_method_reference(method_ref! { static object @pyerrors_type::Unbound() });
+    let load_checked = res
+        .push_method_reference(method_ref! { static object @pyerrors_type::Load(object, string) });
+
+    // ── 对象协议（M2.2 最小集）──
+    let pyrepr_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyRepr in #ryupy_runtime });
+    let pyrepr_type: MethodType = BaseType::class(pyrepr_ref).into();
+    let pyobject_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyObject in #ryupy_runtime });
+    let pyobject_type: MethodType = BaseType::class(pyobject_ref).into();
+    let dyn_str =
+        res.push_method_reference(method_ref! { static string @pyrepr_type::StrValue(object) });
+    let dyn_type =
+        res.push_method_reference(method_ref! { static object @pyobject_type::TypeOf(object) });
+    let dyn_get_attr = res.push_method_reference(
+        method_ref! { static object @pyobject_type::GetAttr(object, string) },
+    );
+    let trace_push =
+        res.push_method_reference(method_ref! { static long @traceback_type::PushFrame(string) });
+    let trace_line =
+        res.push_method_reference(method_ref! { static void @traceback_type::SetLine(int) });
+    let trace_pop_to =
+        res.push_method_reference(method_ref! { static void @traceback_type::PopTo(long) });
+    let set_file =
+        res.push_method_reference(method_ref! { static void @traceback_type::SetFile(string) });
+
+    // Python 异常类型名 → CLR 类型：CIL 的类型化 catch 按这些类型匹配。
+    // 命名约定是 `Py<PythonName>`（如 `PyValueError`），与运行时 `PyExceptionTypes` 一致。
+    let mut exception_types: FxHashMap<String, MethodType> = FxHashMap::default();
+    for type_name in ryupy_mir::EXCEPTION_TYPE_NAMES {
+        let type_ref = if *type_name == "BaseException" {
+            py_exc_ref
+        } else {
+            res.push_type_reference(ExternalTypeReference::new(
+                Some("RyuPy.Runtime".into()),
+                format!("Py{type_name}"),
+                ResolutionScope::Assembly(ryupy_runtime),
+            ))
+        };
+        exception_types.insert((*type_name).to_string(), BaseType::class(type_ref).into());
+    }
+
     let runtime_refs = RuntimeRefs {
         write_i64,
         write_f64,
@@ -172,6 +227,19 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         range_step,
         make_exception,
         with_cause,
+        handler_enter,
+        handler_leave,
+        reraise,
+        raise_prepare,
+        make_unbound,
+        load_checked,
+        dyn_str,
+        dyn_type,
+        dyn_get_attr,
+        trace_push,
+        trace_line,
+        trace_pop_to,
+        exception_types,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(
@@ -325,17 +393,34 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         let compiled = lower_function(func, &runtime_refs, &fn_indices, &class_types, &class_info);
         let mut method_body = body::Method::with_locals(compiled.locals, compiled.instructions);
         method_body.header.maximum_stack_size = 64;
+        if !compiled.exceptions.is_empty() {
+            method_body.data_sections =
+                vec![body::DataSection::ExceptionHandlers(compiled.exceptions)];
+        }
         res[method_idx].body = Some(method_body);
     }
 
     // 包装器最后生成：需要 `__main` 的方法下标
     if let Some(wrapper) = entry_wrapper {
+        let py_system_exit_ref = res.push_type_reference(ExternalTypeReference::new(
+            Some("RyuPy.Runtime".into()),
+            "PySystemExit",
+            ResolutionScope::Assembly(ryupy_runtime),
+        ));
+        let py_system_exit_type: MethodType = BaseType::class(py_system_exit_ref).into();
+        let system_exit_code = res.push_method_reference(
+            method_ref! { static int @traceback_type::SystemExitCode(@py_system_exit_type) },
+        );
         emit_entry_wrapper(
             &mut res,
             wrapper,
             fn_indices[&program.entry],
             report_unhandled,
             py_exc_type,
+            py_system_exit_type,
+            set_file,
+            system_exit_code,
+            &program.source_name,
         );
     }
 
@@ -347,12 +432,17 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
 /// 这是 M2.2 的第一块：**未捕获异常必须按 Python 的方式退出**（stderr 上 traceback、
 /// 最后一行 `Type: message`、退出码 1），而不是让 CLR 打印 "Unhandled exception" 后
 /// 以 134 退出。抛出的异常对象由 catch 子句压栈，直接作为 `Report` 的实参。
+#[allow(clippy::too_many_arguments)]
 fn emit_entry_wrapper(
     res: &mut Resolution<'static>,
     wrapper: MethodIndex,
     body_method: MethodIndex,
     report_ref: MethodRefIndex,
     exception_type: MethodType,
+    system_exit_type: MethodType,
+    set_file: MethodRefIndex,
+    system_exit_code: MethodRefIndex,
+    source_name: &str,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: call __main
@@ -375,24 +465,40 @@ fn emit_entry_wrapper(
     // 处理区必须以 `leave` 离开、不能直接 `ret`——否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
     let instructions = vec![
+        Instruction::load_string(source_name),
+        Instruction::call(set_file),
         Instruction::call(body_method),
-        Instruction::Leave(4),
+        Instruction::Leave(11),
+        // SystemExit：算出退出码而不是打印 traceback
+        Instruction::call(system_exit_code),
+        Instruction::StoreLocal(0),
+        Instruction::Leave(11),
+        // 其余未捕获异常：打印 traceback 并退出 1
         Instruction::call(report_ref),
-        Instruction::Leave(6),
-        Instruction::LoadConstantInt32(0),
-        Instruction::Return,
         Instruction::LoadConstantInt32(1),
+        Instruction::StoreLocal(0),
+        Instruction::Leave(11),
+        Instruction::LoadLocal(0),
         Instruction::Return,
     ];
     let mut method_body = body::Method::new(instructions);
     method_body.header.maximum_stack_size = 8;
+    method_body.header.local_variables =
+        vec![LocalVariable::new(MethodType::from(BaseType::Int32))];
     method_body.data_sections = vec![body::DataSection::ExceptionHandlers(vec![
         body::Exception {
-            kind: body::ExceptionKind::TypedException(exception_type),
-            try_offset: 0,
+            kind: body::ExceptionKind::TypedException(system_exit_type),
+            try_offset: 2,
             try_length: 2,
-            handler_offset: 2,
-            handler_length: 2,
+            handler_offset: 4,
+            handler_length: 3,
+        },
+        body::Exception {
+            kind: body::ExceptionKind::TypedException(exception_type),
+            try_offset: 2,
+            try_length: 2,
+            handler_offset: 7,
+            handler_length: 4,
         },
     ])];
     res[wrapper].body = Some(method_body);
@@ -454,6 +560,28 @@ pub fn dump(program: &Program, opts: &EmitOptions) -> Result<String, CodegenErro
             }
             for (i, ins) in body.instructions.iter().enumerate() {
                 out.push_str(&format!("        IL_{i:04x}: {}\n", ins.show(&res)));
+            }
+            // 异常表：排错时没有它就等于盲调
+            for section in &body.data_sections {
+                if let body::DataSection::ExceptionHandlers(clauses) = section {
+                    for clause in clauses {
+                        let kind = match &clause.kind {
+                            body::ExceptionKind::TypedException(ty) => {
+                                format!("catch {}", ty.show(&res))
+                            }
+                            body::ExceptionKind::Filter { offset } => format!("filter {offset}"),
+                            body::ExceptionKind::Finally => "finally".to_string(),
+                            body::ExceptionKind::Fault => "fault".to_string(),
+                        };
+                        out.push_str(&format!(
+                            "        // EH: try [{}..{}) {kind} handler [{}..{})\n",
+                            clause.try_offset,
+                            clause.try_offset + clause.try_length,
+                            clause.handler_offset,
+                            clause.handler_offset + clause.handler_length
+                        ));
+                    }
+                }
             }
         }
         out.push_str("    }\n");

@@ -22,7 +22,7 @@
 
 use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
-use ryupy_base::{Diagnostic, Span};
+use ryupy_base::Diagnostic;
 use ryupy_hir::{
     AssignTarget, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, StmtId, StmtKind,
 };
@@ -30,8 +30,8 @@ use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 
 use crate::expr_builder::ExprBuilder;
 use crate::mir::{
-    BasicBlock, BinOp, BlockId, Callee, Constant, FnId, Function, LocalDecl, LocalId as MirLocalId,
-    MirType, Operand, Program, RuntimeFn, Rvalue, Statement, Terminator, UnaryOp,
+    BasicBlock, BlockId, Callee, Constant, FnId, Function, LocalDecl, LocalId as MirLocalId,
+    MirType, Operand, Program, Region, RuntimeFn, Rvalue, Statement, Terminator,
 };
 
 pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnostic>) {
@@ -68,6 +68,7 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
                 locals: Arena::default(),
                 blocks: Arena::default(),
                 entry: la_arena::Idx::from_raw(0.into()),
+                regions: Vec::new(),
             },
         };
         let mir_fn_id = functions.alloc(mir_fn);
@@ -101,12 +102,15 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
             builder.assigned_locals.insert(p.local);
         }
 
+        // 帧记录：traceback 需要知道「当前在哪个函数、第几行」
+        builder.emit_frame_push();
+
         // 构建语句
         for &stmt_id in &hir_fn.body.root {
             builder.build_stmt(stmt_id);
         }
 
-        builder.finish_current_block_with_return();
+        builder.finish_function();
 
         diagnostics.extend(builder.diagnostics);
 
@@ -116,6 +120,7 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
             locals: builder.locals,
             blocks: builder.blocks,
             entry,
+            regions: std::mem::take(&mut builder.regions),
         };
     }
 
@@ -124,6 +129,7 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
         functions,
         classes,
         entry,
+        source_name: hir.source_name.clone(),
     };
 
     (program, diagnostics)
@@ -144,21 +150,63 @@ pub fn ty_to_mir(ty: &Ty) -> MirType {
     }
 }
 
-struct FunctionBuilder<'a> {
-    hir: &'a Module,
-    types: &'a ModuleTypes,
-    fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
-    current_hir_fn: ryupy_hir::FuncId,
-    locals: Arena<LocalDecl>,
-    blocks: Arena<BasicBlock>,
-    entry: BlockId,
-    current_bb: BlockId,
-    local_map: FxHashMap<HirLocalId, MirLocalId>,
-    assigned_locals: FxHashSet<HirLocalId>,
-    reported_unbound: FxHashSet<HirLocalId>,
-    loop_stack: Vec<(BlockId, BlockId)>, // (continue_bb, break_bb)
-    diagnostics: Vec<Diagnostic>,
+/// 单个函数的 MIR 构建器。
+///
+/// 字段对外开放到 crate 内，是为了把「循环」「异常区域」这些小节的构建逻辑拆到
+/// 独立文件（`build_loops.rs` / `build_try.rs`），避免单文件过长。
+pub(crate) struct FunctionBuilder<'a> {
+    pub(crate) hir: &'a Module,
+    pub(crate) types: &'a ModuleTypes,
+    pub(crate) fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
+    pub(crate) current_hir_fn: ryupy_hir::FuncId,
+    pub(crate) locals: Arena<LocalDecl>,
+    pub(crate) blocks: Arena<BasicBlock>,
+    pub(crate) entry: BlockId,
+    pub(crate) current_bb: BlockId,
+    pub(crate) local_map: FxHashMap<HirLocalId, MirLocalId>,
+    pub(crate) assigned_locals: FxHashSet<HirLocalId>,
+    pub(crate) reported_unbound: FxHashSet<HirLocalId>,
+    pub(crate) loop_stack: Vec<(BlockId, BlockId)>, // (continue_bb, break_bb)
+    pub(crate) diagnostics: Vec<Diagnostic>,
+    /// 已构建的异常区域。
+    pub(crate) regions: Vec<Region>,
+    /// 当前嵌套的受保护区域起点（块下标），最内层在末尾。
+    pub(crate) protected_stack: Vec<usize>,
+    /// 当前正在构建的 finally 上下文，最内层在末尾。
+    pub(crate) finally_stack: Vec<FinallyCtx>,
+    /// `finally` 状态机的当前动作码；只有函数里出现过 finally 时才分配。
+    pub(crate) flow_kind: Option<MirLocalId>,
+    /// 函数级动作表：动作码 → 跳出目标。0/1/2 是内建动作（正常/异常/返回）。
+    pub(crate) actions: Vec<BlockId>,
+    /// 统一返回块。
+    pub(crate) epilogue: Option<BlockId>,
+    /// 需要跳到统一返回块的块。
+    pub(crate) epilogue_jumps: Vec<BlockId>,
+    /// 本函数保存返回值的局部变量。
+    pub(crate) retval: Option<MirLocalId>,
+    /// 返回类型。
+    pub(crate) ret_ty: MirType,
+    /// traceback 帧深度。
+    pub(crate) frame_depth: Option<MirLocalId>,
 }
+
+/// 一个正在构建的 `finally` 区域。
+pub(crate) struct FinallyCtx {
+    /// 需要在 finally 体执行完后接续的块。
+    ///
+    /// 存「待回填的源块」而不是「finally 入口块」，是因为入口块只能在区域窗口关闭之后
+    /// 分配（窗口内必须是受保护的代码），而构建期间还不知道它。
+    pub(crate) pending: Vec<BlockId>,
+    /// 区域起始块下标，用于判断跳出目标是否离开了本区域。
+    pub(crate) start: usize,
+}
+
+/// `finally` 分派块里的内建动作码。
+pub(crate) const FLOW_NORMAL: i64 = 0;
+pub(crate) const FLOW_EXCEPTION: i64 = 1;
+pub(crate) const FLOW_RETURN: i64 = 2;
+/// 自定义动作（break / continue / 跳出）从 3 开始。
+pub(crate) const FLOW_FIRST_CUSTOM: i64 = 3;
 
 impl<'a> FunctionBuilder<'a> {
     fn new(
@@ -186,38 +234,284 @@ impl<'a> FunctionBuilder<'a> {
             reported_unbound: FxHashSet::default(),
             loop_stack: Vec::new(),
             diagnostics: Vec::new(),
+            regions: Vec::new(),
+            protected_stack: Vec::new(),
+            finally_stack: Vec::new(),
+            flow_kind: None,
+            retval: None,
+            actions: Vec::new(),
+            epilogue: None,
+            epilogue_jumps: Vec::new(),
+            ret_ty: ty_to_mir(&types.sigs[current_hir_fn].ret),
+            frame_depth: None,
         }
     }
 
-    fn new_block(&mut self) -> BlockId {
+    pub(crate) fn new_block(&mut self) -> BlockId {
         self.blocks.alloc(BasicBlock {
             stmts: Vec::new(),
             terminator: Terminator::Unreachable,
         })
     }
 
-    fn push_stmt(&mut self, stmt: Statement) {
+    pub(crate) fn push_stmt(&mut self, stmt: Statement) {
         self.blocks[self.current_bb].stmts.push(stmt);
     }
 
-    fn is_current_unterminated(&self) -> bool {
+    pub(crate) fn is_current_unterminated(&self) -> bool {
         matches!(
             self.blocks[self.current_bb].terminator,
             Terminator::Unreachable
         )
     }
 
-    fn terminate_current(&mut self, term: Terminator) {
+    pub(crate) fn terminate_current(&mut self, term: Terminator) {
         if self.is_current_unterminated() {
             self.blocks[self.current_bb].terminator = term;
         }
     }
 
-    fn finish_current_block_with_return(&mut self) {
-        self.terminate_current(Terminator::Return(None));
+    // ───────────────────── 帧记录 / 行号 / 统一返回 ─────────────────────
+
+    /// 函数入口压入 traceback 栈帧，深度存进局部变量。
+    ///
+    /// 深度用于两个地方：正常返回时 `PopTo(depth)` 弹掉自己的帧；异常被兜住时
+    /// 同样用它把被展开的调用者帧弹掉，避免栈错误地一直增长。
+    pub(crate) fn emit_frame_push(&mut self) {
+        // 模块顶层函数在 traceback 里显示为 `<module>`，与 CPython 一致
+        let func = &self.hir.functions[self.current_hir_fn];
+        let fn_name = if matches!(func.kind, ryupy_hir::FunctionKind::ModuleMain) {
+            "<module>".to_string()
+        } else {
+            func.name.as_str().to_string()
+        };
+        let depth = self.alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: depth,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::TracePush),
+                args: vec![Operand::Const(Constant::Str(fn_name))],
+            },
+        });
+        self.frame_depth = Some(depth);
     }
 
-    fn expr_builder(&mut self) -> ExprBuilder<'_> {
+    /// 把 traceback 栈弹回本函数的深度。
+    ///
+    /// 异常穿过调用链时，被穿过的函数不会执行自己的返回路径，帧会残留在栈里。
+    /// 处理入口（catch / finally 通道）必须补一次弹栈，否则后续的递归深度判断会失真。
+    pub(crate) fn emit_frame_restore(&mut self) {
+        let Some(depth) = self.frame_depth else {
+            return;
+        };
+        self.push_stmt(Statement::Eval(Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::TracePopTo),
+            args: vec![Operand::Local(depth)],
+        }));
+    }
+
+    /// 记录语句行号（只在有帧记录时有效，但总是发射，便于诊断调试产物）。
+    fn emit_line(&mut self, line: u32) {
+        self.push_stmt(Statement::Line(line));
+    }
+
+    /// 分配（或复用）`finally` 状态变量。
+    pub(crate) fn flow_kind_local(&mut self) -> MirLocalId {
+        if let Some(local) = self.flow_kind {
+            return local;
+        }
+        let local = self.alloc_temp(MirType::I64);
+        self.flow_kind = Some(local);
+        local
+    }
+
+    /// 写状态码。
+    pub(crate) fn set_flow(&mut self, code: i64) {
+        let Some(flow) = self.flow_kind else { return };
+        self.push_stmt(Statement::Assign {
+            dest: flow,
+            value: Rvalue::Use(Operand::Const(Constant::I64(code))),
+        });
+    }
+
+    /// 把跳出目标登记进函数级动作表，返回状态码（相同目标复用同一个码）。
+    pub(crate) fn intern_action(&mut self, target: BlockId) -> i64 {
+        if let Some(idx) = self.actions.iter().position(|t| *t == target) {
+            return FLOW_FIRST_CUSTOM + idx as i64;
+        }
+        self.actions.push(target);
+        FLOW_FIRST_CUSTOM + (self.actions.len() - 1) as i64
+    }
+
+    /// 分配临时局部变量。
+    pub(crate) fn alloc_temp(&mut self, ty: MirType) -> MirLocalId {
+        self.locals.alloc(LocalDecl { ty, name: None })
+    }
+
+    /// 分配 `break` / `continue` / 普通跳出用的目标，并在需要时穿过 finally。
+    pub(crate) fn route_jump(&mut self, target: BlockId) {
+        if let Some(ctx) = self.finally_stack.last() {
+            if self.block_index(target) < ctx.start {
+                let code = self.intern_action(target);
+                self.set_flow(code);
+                let bb = self.current_bb;
+                self.finally_stack
+                    .last_mut()
+                    .expect("刚检查过非空")
+                    .pending
+                    .push(bb);
+                self.start_dead_block();
+                return;
+            }
+        }
+        self.terminate_current(Terminator::Goto(target));
+    }
+
+    /// 「目标待回填」之后必须换一个块继续构建。
+    ///
+    /// 为什么不能留原地：`build_stmt` 用「当前块是否已终结」判断上一条语句是否正常落下，
+    /// 待回填的块此刻还没有终结符，后续语句会被错误地接到它后面。新块没有前驱，
+    /// 会被 `simplify_cfg` 当成死代码清掉。
+    fn start_dead_block(&mut self) {
+        self.current_bb = self.new_block();
+    }
+
+    /// 把一批「目标待定」的块回填成 `Goto(target)`。
+    pub(crate) fn resolve_jumps(&mut self, pending: Vec<BlockId>, target: BlockId) {
+        for bb in pending {
+            if matches!(self.blocks[bb].terminator, Terminator::Unreachable) {
+                self.blocks[bb].terminator = Terminator::Goto(target);
+            }
+        }
+    }
+
+    /// 当前块「正常结束」：有 finally 时写 NORMAL 状态并交给它，否则记进 `pending`。
+    pub(crate) fn route_normal(&mut self, pending: &mut Vec<BlockId>) {
+        if self.finally_stack.is_empty() {
+            pending.push(self.current_bb);
+        } else {
+            self.set_flow(FLOW_NORMAL);
+            let bb = self.current_bb;
+            self.finally_stack
+                .last_mut()
+                .expect("刚检查过非空")
+                .pending
+                .push(bb);
+        }
+    }
+
+    /// `return`：写返回值到统一槽位，再走 finally 或直接去尾块。
+    pub(crate) fn build_return(&mut self, value: Option<ExprId>) {
+        let ret_ty = ty_to_mir(&self.types.sigs[self.current_hir_fn].ret);
+        let retval = self.retval_local();
+        if let Some(dest) = retval {
+            let op = match value {
+                Some(expr) => {
+                    let value_ty = self.expr_builder().ty_of(expr);
+                    let raw = self.expr_builder().build_expr(expr);
+                    self.expr_builder().coerce(raw, &value_ty, &ret_ty)
+                }
+                None => Operand::Const(Constant::I64(0)),
+            };
+            self.push_stmt(Statement::Assign {
+                dest,
+                value: Rvalue::Use(op),
+            });
+        }
+        if !self.finally_stack.is_empty() {
+            self.set_flow(FLOW_RETURN);
+            let bb = self.current_bb;
+            self.finally_stack
+                .last_mut()
+                .expect("刚检查过非空")
+                .pending
+                .push(bb);
+        } else {
+            let bb = self.current_bb;
+            self.epilogue_jumps.push(bb);
+        }
+        self.start_dead_block();
+    }
+
+    /// 返回槽位；返回类型是 `None` 时不需要槽位。
+    pub(crate) fn retval_local(&mut self) -> Option<MirLocalId> {
+        if matches!(self.ret_ty, MirType::Unit) {
+            return None;
+        }
+        if self.retval.is_none() {
+            let local = self.alloc_temp(self.ret_ty.clone());
+            self.retval = Some(local);
+        }
+        self.retval
+    }
+
+    /// 函数收尾：隐式返回 + 统一返回块（负责弹帧与 `ret`）。
+    ///
+    /// 所有 `return` 都汇聚到一个尾块，好处是「弹帧」只有一个出口，
+    /// 不用担心某条返回路径漏掉 `PopTo`。
+    pub(crate) fn finish_function(&mut self) {
+        // 有返回值的函数必须有一个返回槽位，哪怕所有路径都只是 `raise`：
+        // 尾块要读它，而尾块可能因为不可达被跳过，所以这里只负责「存在」。
+        if !matches!(self.ret_ty, MirType::Unit) && self.retval.is_none() {
+            let ty = self.ret_ty.clone();
+            self.retval = Some(self.alloc_temp(ty));
+        }
+        if self.is_current_unterminated() {
+            // 隐式 `return None`：非 Unit 函数要把默认值写进返回槽位
+            if let Some(dest) = self.retval {
+                let value = if matches!(self.ret_ty, MirType::Dynamic) {
+                    Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::DynNone),
+                        args: Vec::new(),
+                    }
+                } else {
+                    Rvalue::Use(Operand::Const(Constant::I64(0)))
+                };
+                self.push_stmt(Statement::Assign { dest, value });
+            }
+            let current = self.current_bb;
+            self.epilogue_jumps.push(current);
+        }
+        let epilogue = self.new_block();
+        self.current_bb = epilogue;
+
+        if let Some(depth) = self.frame_depth {
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::TracePopTo),
+                args: vec![Operand::Local(depth)],
+            }));
+        }
+        let ret_op = self.retval.map(Operand::Local);
+        self.blocks[epilogue].terminator = Terminator::Return(ret_op);
+        self.epilogue = Some(epilogue);
+
+        for bb in std::mem::take(&mut self.epilogue_jumps) {
+            if matches!(self.blocks[bb].terminator, Terminator::Unreachable) {
+                self.blocks[bb].terminator = Terminator::Goto(epilogue);
+            }
+        }
+    }
+
+    /// 块下标。用于比较「目标块是否在当前区域之前分配」，也就是是否离开了区域。
+    pub(crate) fn block_index(&self, bb: BlockId) -> usize {
+        bb.into_raw().into_u32() as usize
+    }
+
+    /// 下一个将要分配的块下标（等于当前已分配块数）。
+    pub(crate) fn block_index_of_next_block(&self) -> usize {
+        self.blocks.len()
+    }
+
+    /// 当前块若未终结则返回它（表示「正常落下」）。
+    pub(crate) fn if_unterminated_take(&mut self) -> Option<BlockId> {
+        if self.is_current_unterminated() {
+            Some(self.current_bb)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn expr_builder(&mut self) -> ExprBuilder<'_> {
         ExprBuilder {
             hir: self.hir,
             types: self.types,
@@ -233,7 +527,7 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    fn build_stmt(&mut self, stmt_id: StmtId) {
+    pub(crate) fn build_stmt(&mut self, stmt_id: StmtId) {
         if !self.is_current_unterminated() {
             // 当前基本块已终结（例如前一条语句是 return/break/continue）。
             // 只有当存在后续不可达语句时，才分配死代码块承载它。
@@ -241,6 +535,8 @@ impl<'a> FunctionBuilder<'a> {
         }
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let stmt = &hir_body.stmts[stmt_id];
+        let line = stmt.line;
+        self.emit_line(line);
         match &stmt.kind {
             StmtKind::Expr(expr_id) => {
                 self.build_expr_stmt(*expr_id);
@@ -273,13 +569,7 @@ impl<'a> FunctionBuilder<'a> {
                 }
             }
             StmtKind::Return(opt_expr) => {
-                let ret_ty = ty_to_mir(&self.types.sigs[self.current_hir_fn].ret);
-                let op = opt_expr.map(|e| {
-                    let value_ty = self.expr_builder().ty_of(e);
-                    let raw = self.expr_builder().build_expr(e);
-                    self.expr_builder().coerce(raw, &value_ty, &ret_ty)
-                });
-                self.terminate_current(Terminator::Return(op));
+                self.build_return(*opt_expr);
             }
             StmtKind::If { cond, then_, else_ } => {
                 let cond_raw = self.expr_builder().build_expr(*cond);
@@ -352,14 +642,15 @@ impl<'a> FunctionBuilder<'a> {
                     .loop_stack
                     .last()
                     .expect("break 语句在 HIR 降级阶段已做循环作用域检查");
-                self.terminate_current(Terminator::Goto(break_bb));
+                // 跳出可能要穿过 finally：由 route_jump 决定直接跳还是走状态机
+                self.route_jump(break_bb);
             }
             StmtKind::Continue => {
                 let (continue_bb, _) = *self
                     .loop_stack
                     .last()
                     .expect("continue 语句在 HIR 降级阶段已做循环作用域检查");
-                self.terminate_current(Terminator::Goto(continue_bb));
+                self.route_jump(continue_bb);
             }
             StmtKind::ForRange {
                 var,
@@ -371,382 +662,54 @@ impl<'a> FunctionBuilder<'a> {
                 self.build_for_range(*var, *start, *stop, *step, body);
             }
             StmtKind::Raise { value, cause } => {
-                let value_op = value.map(|e| {
-                    let ty = self.expr_builder().ty_of(e);
-                    let raw = self.expr_builder().build_expr(e);
-                    self.expr_builder().coerce(raw, &ty, &MirType::Dynamic)
-                });
+                // 裸 raise 取运行时「当前异常」；显式 raise 先准备（挂上下文 + 记栈帧）。
+                let value_op = match value {
+                    Some(expr) => {
+                        let ty = self.expr_builder().ty_of(*expr);
+                        let raw = self.expr_builder().build_expr(*expr);
+                        let boxed = self.expr_builder().coerce(raw, &ty, &MirType::Dynamic);
+                        let dest = self.alloc_temp(MirType::Dynamic);
+                        self.push_stmt(Statement::Assign {
+                            dest,
+                            value: Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::RaisePrepare),
+                                args: vec![boxed],
+                            },
+                        });
+                        Operand::Local(dest)
+                    }
+                    None => {
+                        let dest = self.alloc_temp(MirType::Dynamic);
+                        self.push_stmt(Statement::Assign {
+                            dest,
+                            value: Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::Reraise),
+                                args: Vec::new(),
+                            },
+                        });
+                        Operand::Local(dest)
+                    }
+                };
                 let cause_op = cause.map(|e| {
                     let ty = self.expr_builder().ty_of(e);
                     let raw = self.expr_builder().build_expr(e);
                     self.expr_builder().coerce(raw, &ty, &MirType::Dynamic)
                 });
                 self.terminate_current(Terminator::Raise {
-                    value: value_op,
+                    value: Some(value_op),
                     cause: cause_op,
                 });
             }
+            StmtKind::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                self.build_try(body, handlers, orelse, finalbody);
+            }
             StmtKind::Pass => {}
         }
-    }
-
-    /// 动态函数里的 `for x in range(...)`：边界先拆箱成 i64，循环变量仍是动态值。
-    ///
-    /// 好处是保留计数循环的快路径，不让 `range` 退化成迭代器；代价是边界必须是真整数，
-    /// 与 CPython 的 `TypeError: 'float' object cannot be interpreted as an integer` 一致。
-    fn build_for_range_dynamic(
-        &mut self,
-        var: HirLocalId,
-        start: ExprId,
-        stop: ExprId,
-        step: Option<ExprId>,
-        body: &[StmtId],
-    ) {
-        let start_op = self.expr_builder().build_expr(start);
-        let stop_op = self.expr_builder().build_expr(stop);
-        let step_op = match step {
-            Some(s) => self.expr_builder().build_expr(s),
-            None => Operand::Const(Constant::I64(1)),
-        };
-        let start_ty = self.expr_builder().ty_of(start);
-        let stop_ty = self.expr_builder().ty_of(stop);
-        let step_ty = step
-            .map(|s| self.expr_builder().ty_of(s))
-            .unwrap_or(Ty::Int);
-
-        // 边界拆箱到 i64；步长额外检查 0（Python 在 range 构造时抛 ValueError）
-        let start_i = self
-            .expr_builder()
-            .coerce(start_op, &start_ty, &MirType::I64);
-        let stop_i = self.expr_builder().coerce(stop_op, &stop_ty, &MirType::I64);
-        let step_i = if step.is_some() {
-            let raw = self
-                .expr_builder()
-                .coerce(step_op, &step_ty, &MirType::Dynamic);
-            let dest = self.expr_builder().alloc_temp(MirType::I64);
-            self.push_stmt(Statement::Assign {
-                dest,
-                value: Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::RangeStep),
-                    args: vec![raw],
-                },
-            });
-            Operand::Local(dest)
-        } else {
-            Operand::Const(Constant::I64(1))
-        };
-
-        // counter = start；循环变量在每轮开头装箱赋值
-        let counter = self.expr_builder().alloc_temp(MirType::I64);
-        self.push_stmt(Statement::Assign {
-            dest: counter,
-            value: Rvalue::Use(start_i),
-        });
-        let stop_local = self.expr_builder().alloc_temp(MirType::I64);
-        self.push_stmt(Statement::Assign {
-            dest: stop_local,
-            value: Rvalue::Use(stop_i),
-        });
-        let step_local = self.expr_builder().alloc_temp(MirType::I64);
-        self.push_stmt(Statement::Assign {
-            dest: step_local,
-            value: Rvalue::Use(step_i),
-        });
-
-        let var_mir = self.local_map[&var];
-        self.assigned_locals.insert(var);
-
-        let cond_bb = self.new_block();
-        let body_bb = self.new_block();
-        let step_bb = self.new_block();
-        let exit_bb = self.new_block();
-        self.terminate_current(Terminator::Goto(cond_bb));
-
-        // cond: (step > 0 && counter < stop) || (step < 0 && counter > stop)
-        self.current_bb = cond_bb;
-        let step_pos = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: step_pos,
-            value: Rvalue::Binary {
-                op: BinOp::Gt,
-                lhs: Operand::Local(step_local),
-                rhs: Operand::Const(Constant::I64(0)),
-            },
-        });
-        let lt = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: lt,
-            value: Rvalue::Binary {
-                op: BinOp::Lt,
-                lhs: Operand::Local(counter),
-                rhs: Operand::Local(stop_local),
-            },
-        });
-        let gt = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: gt,
-            value: Rvalue::Binary {
-                op: BinOp::Gt,
-                lhs: Operand::Local(counter),
-                rhs: Operand::Local(stop_local),
-            },
-        });
-        let positive = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: positive,
-            value: Rvalue::Binary {
-                op: BinOp::BitAnd,
-                lhs: Operand::Local(step_pos),
-                rhs: Operand::Local(lt),
-            },
-        });
-        let negative_step = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: negative_step,
-            value: Rvalue::Unary {
-                op: UnaryOp::Not,
-                operand: Operand::Local(step_pos),
-            },
-        });
-        let negative = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: negative,
-            value: Rvalue::Binary {
-                op: BinOp::BitAnd,
-                lhs: Operand::Local(negative_step),
-                rhs: Operand::Local(gt),
-            },
-        });
-        let cond = self.expr_builder().alloc_temp(MirType::Bool);
-        self.push_stmt(Statement::Assign {
-            dest: cond,
-            value: Rvalue::Binary {
-                op: BinOp::BitOr,
-                lhs: Operand::Local(positive),
-                rhs: Operand::Local(negative),
-            },
-        });
-        self.terminate_current(Terminator::Branch {
-            cond: Operand::Local(cond),
-            then_: body_bb,
-            else_: exit_bb,
-        });
-
-        // 循环体：先把 counter 装箱写进用户变量
-        self.current_bb = body_bb;
-        let boxed = self.expr_builder().alloc_temp(MirType::Dynamic);
-        self.push_stmt(Statement::Assign {
-            dest: boxed,
-            value: Rvalue::Box {
-                value: Operand::Local(counter),
-                from: MirType::I64,
-            },
-        });
-        self.push_stmt(Statement::Assign {
-            dest: var_mir,
-            value: Rvalue::Use(Operand::Local(boxed)),
-        });
-        self.loop_stack.push((step_bb, exit_bb));
-        for &s in body {
-            self.build_stmt(s);
-        }
-        self.loop_stack.pop();
-        if self.is_current_unterminated() {
-            self.terminate_current(Terminator::Goto(step_bb));
-        }
-
-        // 步长块
-        self.current_bb = step_bb;
-        self.push_stmt(Statement::Assign {
-            dest: counter,
-            value: Rvalue::Binary {
-                op: BinOp::Add,
-                lhs: Operand::Local(counter),
-                rhs: Operand::Local(step_local),
-            },
-        });
-        self.terminate_current(Terminator::Goto(cond_bb));
-
-        self.current_bb = exit_bb;
-    }
-
-    fn build_for_range(
-        &mut self,
-        var: HirLocalId,
-        start: ExprId,
-        stop: ExprId,
-        step: Option<ExprId>,
-        body: &[StmtId],
-    ) {
-        if self.types.is_dynamic(self.current_hir_fn) {
-            self.build_for_range_dynamic(var, start, stop, step, body);
-            return;
-        }
-
-        // 1. 求值起始、终止和步长操作数
-        let start_op = self.expr_builder().build_expr(start);
-        let stop_op = self.expr_builder().build_expr(stop);
-        let step_op = match step {
-            Some(s) => self.expr_builder().build_expr(s),
-            None => Operand::Const(Constant::I64(1)),
-        };
-
-        // 步长为常量 0 时，编译期报错（语义陷阱 #9）
-        if let Operand::Const(Constant::I64(0)) = step_op {
-            let range = self.hir.functions[self.current_hir_fn].body.exprs[step.unwrap()].range;
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.hir.file, range),
-                    "range() arg 3 must not be zero",
-                )
-                .with_code("E0302")
-                .with_primary_label("步长不能为 0"),
-            );
-        }
-
-        let var_mir = self.local_map[&var];
-        self.assigned_locals.insert(var);
-
-        // var = start
-        self.push_stmt(Statement::Assign {
-            dest: var_mir,
-            value: Rvalue::Use(start_op),
-        });
-
-        // 2. 基本块创建
-        let cond_bb = self.new_block();
-        let body_bb = self.new_block();
-        let step_bb = self.new_block();
-        let exit_bb = self.new_block();
-
-        self.terminate_current(Terminator::Goto(cond_bb));
-
-        // 3. 条件块 (cond_bb)
-        self.current_bb = cond_bb;
-        // 条件判断：
-        // 若 step 为常量 > 0：var < stop
-        // 若 step 为常量 < 0：var > stop
-        // 若 step 为非常量：(step > 0 && var < stop) || (step < 0 && var > stop)
-        let cond_local = self.expr_builder().alloc_temp(MirType::Bool);
-        match step_op {
-            Operand::Const(Constant::I64(s)) if s > 0 => {
-                self.push_stmt(Statement::Assign {
-                    dest: cond_local,
-                    value: Rvalue::Binary {
-                        op: BinOp::Lt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op,
-                    },
-                });
-            }
-            Operand::Const(Constant::I64(s)) if s < 0 => {
-                self.push_stmt(Statement::Assign {
-                    dest: cond_local,
-                    value: Rvalue::Binary {
-                        op: BinOp::Gt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op,
-                    },
-                });
-            }
-            _ => {
-                // 动态步长：判断 step > 0 ? var < stop : var > stop
-                let is_pos_temp = self.expr_builder().alloc_temp(MirType::Bool);
-                self.push_stmt(Statement::Assign {
-                    dest: is_pos_temp,
-                    value: Rvalue::Binary {
-                        op: BinOp::Gt,
-                        lhs: step_op.clone(),
-                        rhs: Operand::Const(Constant::I64(0)),
-                    },
-                });
-                let cond_lt = self.expr_builder().alloc_temp(MirType::Bool);
-                self.push_stmt(Statement::Assign {
-                    dest: cond_lt,
-                    value: Rvalue::Binary {
-                        op: BinOp::Lt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op.clone(),
-                    },
-                });
-                let cond_gt = self.expr_builder().alloc_temp(MirType::Bool);
-                self.push_stmt(Statement::Assign {
-                    dest: cond_gt,
-                    value: Rvalue::Binary {
-                        op: BinOp::Gt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op,
-                    },
-                });
-                let pos_cond = self.expr_builder().alloc_temp(MirType::Bool);
-                self.push_stmt(Statement::Assign {
-                    dest: pos_cond,
-                    value: Rvalue::Binary {
-                        op: BinOp::BitAnd,
-                        lhs: Operand::Local(is_pos_temp),
-                        rhs: Operand::Local(cond_lt),
-                    },
-                });
-                let not_pos = self.expr_builder().alloc_temp(MirType::Bool);
-                self.push_stmt(Statement::Assign {
-                    dest: not_pos,
-                    value: Rvalue::Unary {
-                        op: UnaryOp::Not,
-                        operand: Operand::Local(is_pos_temp),
-                    },
-                });
-                let neg_cond = self.expr_builder().alloc_temp(MirType::Bool);
-                self.push_stmt(Statement::Assign {
-                    dest: neg_cond,
-                    value: Rvalue::Binary {
-                        op: BinOp::BitAnd,
-                        lhs: Operand::Local(not_pos),
-                        rhs: Operand::Local(cond_gt),
-                    },
-                });
-                self.push_stmt(Statement::Assign {
-                    dest: cond_local,
-                    value: Rvalue::Binary {
-                        op: BinOp::BitOr,
-                        lhs: Operand::Local(pos_cond),
-                        rhs: Operand::Local(neg_cond),
-                    },
-                });
-            }
-        }
-
-        self.terminate_current(Terminator::Branch {
-            cond: Operand::Local(cond_local),
-            then_: body_bb,
-            else_: exit_bb,
-        });
-
-        // 4. 循环体 (body_bb)
-        self.current_bb = body_bb;
-        // 关键：continue 跳到 step_bb，break 跳到 exit_bb
-        self.loop_stack.push((step_bb, exit_bb));
-        for &s in body {
-            self.build_stmt(s);
-        }
-        self.loop_stack.pop();
-        if self.is_current_unterminated() {
-            self.terminate_current(Terminator::Goto(step_bb));
-        }
-
-        // 5. 步长递增块 (step_bb)
-        self.current_bb = step_bb;
-        self.push_stmt(Statement::Assign {
-            dest: var_mir,
-            value: Rvalue::Binary {
-                op: BinOp::Add,
-                lhs: Operand::Local(var_mir),
-                rhs: step_op,
-            },
-        });
-        self.terminate_current(Terminator::Goto(cond_bb));
-
-        // 6. 退出块 (exit_bb)
-        self.current_bb = exit_bb;
     }
 
     fn build_expr_stmt(&mut self, expr_id: ExprId) {

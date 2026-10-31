@@ -92,6 +92,13 @@ impl MirPass for SimplifyCfg {
         let mut reachable = FxHashSet::default();
         let mut worklist = vec![func.body.entry];
         reachable.insert(func.body.entry);
+        // 异常处理入口只能通过异常边到达，普通前驱遍历看不到它们。
+        // 漏掉会让整个 handler 被当成死代码清空。
+        for region in &func.body.regions {
+            if reachable.insert(region.handler) {
+                worklist.push(region.handler);
+            }
+        }
 
         while let Some(bb_id) = worklist.pop() {
             let bb = &func.body.blocks[bb_id];

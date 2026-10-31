@@ -23,10 +23,14 @@ public static class PyRepr
     {
         null => "NoneType",
         PyNone => "NoneType",
+        PyUnbound => "NoneType",
         bool => "bool",
         long or int or BigInteger => "int",
         double or float => "float",
         string => "str",
+        PyTuple => "tuple",
+        PyType => "type",
+        PyBaseException exception => exception.PyTypeName,
         _ => value.GetType().Name,
     };
 
@@ -35,13 +39,22 @@ public static class PyRepr
     {
         null => "None",
         PyNone => "None",
+        PyUnbound => "<unbound>",
         bool b => b ? "True" : "False",
         long l => l.ToString(CultureInfo.InvariantCulture),
         BigInteger big => big.ToString(CultureInfo.InvariantCulture),
         double d => PyFormat.FloatRepr(d),
         string s => s,
+        // str(异常) 是消息本身，不含类型名（与 CPython 一致）
+        PyBaseException exception => exception.PyMessage,
+        PyTuple tuple => ReprTuple(tuple),
+        PyType type => type.ToString(),
         _ => value.ToString() ?? string.Empty,
     };
+
+    /// <summary><c>str(value)</c> 的编译期入口：返回 CIL 字符串，便于静态槽位直接使用。</summary>
+    /// <param name="value">任意 Python 值。</param>
+    public static string StrValue(object? value) => Str(value);
 
     /// <summary>
     /// <c>repr(value)</c>。字符串用单引号、转义反斜杠与控制字符；非 ASCII 字符保持原样
@@ -50,8 +63,74 @@ public static class PyRepr
     public static string Repr(object? value) => value switch
     {
         string s => Quote(s),
+        PyBaseException exception => ReprException(exception),
+        PyTuple tuple => ReprTuple(tuple),
         _ => Str(value),
     };
+
+    /// <summary>
+    /// 容器的嵌套 <c>repr</c> 深度上限。
+    /// </summary>
+    /// <remarks>
+    /// Python 允许自引用容器（<c>a = []; a.append(a)</c>），CPython 用递归标记输出
+    /// <c>[[...]]</c>。RyuPy 目前用固定深度上限兜底，保证不会无界递归；
+    /// M2.3 会把这里换成「正在格式化的对象集合」，输出与 CPython 一致的省略形式。
+    /// </remarks>
+    private const int MaxContainerDepth = 8;
+
+    [ThreadStatic]
+    private static int _containerDepth;
+
+    /// <summary>元组的 <c>repr</c>：单元素要加逗号。</summary>
+    private static string ReprTuple(PyTuple tuple)
+    {
+        if (_containerDepth >= MaxContainerDepth)
+        {
+            return "(...)";
+        }
+        _containerDepth++;
+        try
+        {
+            if (tuple.Items.Length == 0)
+            {
+                return "()";
+            }
+            var builder = new StringBuilder("(");
+            for (int i = 0; i < tuple.Items.Length; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+                builder.Append(Repr(tuple.Items[i]));
+            }
+            if (tuple.Items.Length == 1)
+            {
+                builder.Append(',');
+            }
+            builder.Append(')');
+            return builder.ToString();
+        }
+        finally
+        {
+            _containerDepth--;
+        }
+    }
+
+    /// <summary>异常对象的 <c>repr</c>：<c>ValueError('x')</c>。</summary>
+    private static string ReprException(PyBaseException exception)
+    {
+        if (exception.Args.Length == 0)
+        {
+            return exception.PyTypeName + "()";
+        }
+        var parts = new string[exception.Args.Length];
+        for (int i = 0; i < exception.Args.Length; i++)
+        {
+            parts[i] = Repr(exception.Args[i]);
+        }
+        return exception.PyTypeName + "(" + string.Join(", ", parts) + ")";
+    }
 
     /// <summary>字符串的 Python <c>repr</c>：优先单引号，内部单引号且无单引号时切换双引号。</summary>
     public static string Quote(string text)

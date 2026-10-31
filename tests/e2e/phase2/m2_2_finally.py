@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.2：finally 覆盖返回值，循环跳转仍执行清理。
 def returning():
     try:

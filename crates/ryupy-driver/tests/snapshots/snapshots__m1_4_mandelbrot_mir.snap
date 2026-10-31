@@ -11,57 +11,84 @@ fn mandel(_0: f64, _1: f64, _2: i64) -> i64 {
     let _5: i64; // n
     let _6: f64; // zr2
     let _7: f64; // zi2
-    let _8: bool;
-    let _9: f64;
+    let _8: i64;
+    let _9: bool;
     let _10: f64;
     let _11: f64;
-    let _12: bool;
-    let _13: f64;
-    let _14: f64;
+    let _12: f64;
+    let _13: bool;
+    let _14: i64;
     let _15: f64;
     let _16: f64;
     let _17: f64;
-    let _18: i64;
+    let _18: f64;
+    let _19: f64;
+    let _20: i64;
 
     bb0: {
+        _8 = RuntimeFn::TracePush(const "mandel");
+        // line 3
         _3 = const 0_f64;
+        // line 4
         _4 = const 0_f64;
+        // line 5
         _5 = const 0_i64;
+        // line 6
         goto -> bb1;
     }
     bb1: {
-        _8 = Lt(_5, _2);
-        branch _8 -> [then: bb2, else: bb3];
+        _9 = Lt(_5, _2);
+        branch _9 -> [then: bb2, else: bb3];
     }
     bb2: {
-        _9 = Mul(_3, _3);
-        _6 = _9;
-        _10 = Mul(_4, _4);
-        _7 = _10;
-        _11 = Add(_6, _7);
-        _12 = Gt(_11, const 4_f64);
-        branch _12 -> [then: bb4, else: bb6];
+        // line 7
+        _10 = Mul(_3, _3);
+        _6 = _10;
+        // line 8
+        _11 = Mul(_4, _4);
+        _7 = _11;
+        // line 9
+        _12 = Add(_6, _7);
+        _13 = Gt(_12, const 4_f64);
+        branch _13 -> [then: bb4, else: bb6];
     }
     bb3: {
-        return _2;
+        // line 14
+        _14 = _2;
+        goto -> bb9;
     }
     bb4: {
-        return _5;
+        // line 10
+        _14 = _5;
+        goto -> bb9;
     }
     bb5: {
         unreachable;
     }
     bb6: {
-        _13 = Mul(const 2_f64, _3);
-        _14 = Mul(_13, _4);
-        _15 = Add(_14, _1);
-        _4 = _15;
-        _16 = Sub(_6, _7);
-        _17 = Add(_16, _0);
-        _3 = _17;
-        _18 = Add(_5, const 1_i64);
-        _5 = _18;
+        // line 11
+        _15 = Mul(const 2_f64, _3);
+        _16 = Mul(_15, _4);
+        _17 = Add(_16, _1);
+        _4 = _17;
+        // line 12
+        _18 = Sub(_6, _7);
+        _19 = Add(_18, _0);
+        _3 = _19;
+        // line 13
+        _20 = Add(_5, const 1_i64);
+        _5 = _20;
         goto -> bb1;
+    }
+    bb7: {
+        unreachable;
+    }
+    bb8: {
+        unreachable;
+    }
+    bb9: {
+        RuntimeFn::TracePopTo(_8);
+        return _14;
     }
 }
 
@@ -69,29 +96,34 @@ fn main() -> () {
     let _0: i64; // y
     let _1: str; // line
     let _2: i64; // x
-    let _3: bool;
+    let _3: i64;
     let _4: bool;
-    let _5: f64;
+    let _5: bool;
     let _6: f64;
     let _7: f64;
     let _8: f64;
     let _9: f64;
     let _10: f64;
-    let _11: i64;
-    let _12: bool;
-    let _13: str;
+    let _11: f64;
+    let _12: i64;
+    let _13: bool;
     let _14: str;
+    let _15: str;
 
     bb0: {
+        _3 = RuntimeFn::TracePush(const "<module>");
+        // line 17
         _0 = const -12_i64;
         goto -> bb1;
     }
     bb1: {
-        _3 = Lt(_0, const 13_i64);
-        branch _3 -> [then: bb2, else: bb4];
+        _4 = Lt(_0, const 13_i64);
+        branch _4 -> [then: bb2, else: bb12];
     }
     bb2: {
+        // line 18
         _1 = const "";
+        // line 19
         _2 = const -39_i64;
         goto -> bb5;
     }
@@ -100,43 +132,51 @@ fn main() -> () {
         goto -> bb1;
     }
     bb4: {
-        return;
+        unreachable;
     }
     bb5: {
-        _4 = Lt(_2, const 21_i64);
-        branch _4 -> [then: bb6, else: bb8];
+        _5 = Lt(_2, const 21_i64);
+        branch _5 -> [then: bb6, else: bb8];
     }
     bb6: {
-        _5 = Cast(I64ToF64, _2);
-        _6 = Cast(I64ToF64, _5);
-        _7 = RuntimeFn::TrueDivF64(_6, const 20_f64);
-        _8 = Cast(I64ToF64, _0);
-        _9 = Cast(I64ToF64, _8);
-        _10 = RuntimeFn::TrueDivF64(_9, const 10_f64);
-        _11 = mandel(_7, _10, const 200_i64);
-        _12 = Eq(_11, const 200_i64);
-        branch _12 -> [then: bb9, else: bb10];
+        // line 20
+        _6 = Cast(I64ToF64, _2);
+        _7 = Cast(I64ToF64, _6);
+        _8 = RuntimeFn::TrueDivF64(_7, const 20_f64);
+        _9 = Cast(I64ToF64, _0);
+        _10 = Cast(I64ToF64, _9);
+        _11 = RuntimeFn::TrueDivF64(_10, const 10_f64);
+        _12 = mandel(_8, _11, const 200_i64);
+        _13 = Eq(_12, const 200_i64);
+        branch _13 -> [then: bb9, else: bb10];
     }
     bb7: {
         _2 = Add(_2, const 1_i64);
         goto -> bb5;
     }
     bb8: {
+        // line 24
         RuntimeFn::WriteStr(_1);
         RuntimeFn::WriteNewline();
         goto -> bb3;
     }
     bb9: {
-        _13 = RuntimeFn::StrConcat(_1, const "#");
-        _1 = _13;
+        // line 21
+        _14 = RuntimeFn::StrConcat(_1, const "#");
+        _1 = _14;
         goto -> bb7;
     }
     bb10: {
-        _14 = RuntimeFn::StrConcat(_1, const ".");
-        _1 = _14;
+        // line 23
+        _15 = RuntimeFn::StrConcat(_1, const ".");
+        _1 = _15;
         goto -> bb7;
     }
     bb11: {
         unreachable;
+    }
+    bb12: {
+        RuntimeFn::TracePopTo(_3);
+        return;
     }
 }

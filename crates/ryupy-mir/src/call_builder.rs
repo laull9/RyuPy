@@ -211,6 +211,41 @@ impl ExprBuilder<'_> {
                     }
                 }
             }
+            ExprKind::Builtin(Builtin::Str) => {
+                // `str()` 无实参是空串；有实参时把值转成字符串（动态路径统一走运行时）
+                let Some(&arg) = args.first() else {
+                    return Operand::Const(Constant::Str(String::new()));
+                };
+                let arg_op = self.build_expr(arg);
+                let arg_ty = self.ty_of(arg);
+                let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
+                let dest = self.alloc_temp(MirType::Str);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::DynStr),
+                        args: vec![op],
+                    },
+                });
+                Operand::Local(dest)
+            }
+            ExprKind::Builtin(Builtin::Type) => {
+                let Some(&arg) = args.first() else {
+                    return Operand::Const(Constant::I64(0));
+                };
+                let arg_op = self.build_expr(arg);
+                let arg_ty = self.ty_of(arg);
+                let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::DynType),
+                        args: vec![op],
+                    },
+                });
+                Operand::Local(dest)
+            }
             ExprKind::Builtin(Builtin::Exception(name)) => {
                 // `ValueError("msg")` → PyOps.MakeException("ValueError", msg)
                 let mut args_ops = vec![Operand::Const(Constant::Str(name.to_owned()))];

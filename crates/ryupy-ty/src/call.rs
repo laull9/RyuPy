@@ -47,15 +47,10 @@ impl FunctionChecker<'_> {
                     Ty::Int | Ty::Float | Ty::Bool => Ty::Int,
                     Ty::Error => Ty::Error,
                     _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[args[0]].range),
-                                format!("int() 无法转换类型 `{arg_ty:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("不支持此类型转 int"),
-                        );
-                        Ty::Error
+                        // Python 不因静态类型拒绝：字符串等类型可能在运行时成功
+                        // （`int("12")`），也可能抛 ValueError。降级走动态路径。
+                        self.soft_demote = true;
+                        Ty::Dynamic
                     }
                 }
             }
@@ -83,15 +78,10 @@ impl FunctionChecker<'_> {
                     Ty::Int | Ty::Float | Ty::Bool => Ty::Float,
                     Ty::Error => Ty::Error,
                     _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[args[0]].range),
-                                format!("float() 无法转换类型 `{arg_ty:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("不支持此类型转 float"),
-                        );
-                        Ty::Error
+                        // Python 不因静态类型拒绝：字符串等类型可能在运行时成功
+                        // （`int("12")`），也可能抛 ValueError。降级走动态路径。
+                        self.soft_demote = true;
+                        Ty::Dynamic
                     }
                 }
             }
@@ -120,15 +110,10 @@ impl FunctionChecker<'_> {
                     Ty::Float => Ty::Float,
                     Ty::Error => Ty::Error,
                     _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[args[0]].range),
-                                format!("abs() 不支持类型 `{arg_ty:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("不支持此类型求绝对值"),
-                        );
-                        Ty::Error
+                        // Python 不因静态类型拒绝：字符串等类型可能在运行时成功
+                        // （`int("12")`），也可能抛 ValueError。降级走动态路径。
+                        self.soft_demote = true;
+                        Ty::Dynamic
                     }
                 }
             }

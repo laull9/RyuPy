@@ -4,11 +4,18 @@ expression: mir
 ---
 fn main() -> () {
     let _0: i64;
+    let _1: i64;
 
     bb0: {
-        _0 = Add(const 1_i64, const 2_i64);
-        RuntimeFn::WriteI64(_0);
+        _0 = RuntimeFn::TracePush(const "<module>");
+        // line 2
+        _1 = Add(const 1_i64, const 2_i64);
+        RuntimeFn::WriteI64(_1);
         RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
         return;
     }
 }

@@ -4,30 +4,48 @@ expression: mir
 ---
 fn fib_rec(_0: i64) -> i64 {
     let _0: i64; // n
-    let _1: bool;
-    let _2: i64;
+    let _1: i64;
+    let _2: bool;
     let _3: i64;
     let _4: i64;
     let _5: i64;
     let _6: i64;
+    let _7: i64;
+    let _8: i64;
 
     bb0: {
-        _1 = Lt(_0, const 2_i64);
-        branch _1 -> [then: bb1, else: bb3];
+        _1 = RuntimeFn::TracePush(const "fib_rec");
+        // line 3
+        _2 = Lt(_0, const 2_i64);
+        branch _2 -> [then: bb1, else: bb3];
     }
     bb1: {
-        return _0;
+        // line 4
+        _3 = _0;
+        goto -> bb6;
     }
     bb2: {
         unreachable;
     }
     bb3: {
-        _2 = Sub(_0, const 1_i64);
-        _3 = fib_rec(_2);
-        _4 = Sub(_0, const 2_i64);
+        // line 5
+        _4 = Sub(_0, const 1_i64);
         _5 = fib_rec(_4);
-        _6 = Add(_3, _5);
-        return _6;
+        _6 = Sub(_0, const 2_i64);
+        _7 = fib_rec(_6);
+        _8 = Add(_5, _7);
+        _3 = _8;
+        goto -> bb6;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        unreachable;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_1);
+        return _3;
     }
 }
 
@@ -37,23 +55,32 @@ fn fib_iter(_0: i64) -> i64 {
     let _2: i64; // b
     let _3: i64; // _
     let _4: i64; // t
-    let _5: bool;
-    let _6: i64;
+    let _5: i64;
+    let _6: bool;
+    let _7: i64;
+    let _8: i64;
 
     bb0: {
+        _5 = RuntimeFn::TracePush(const "fib_iter");
+        // line 9
         _1 = const 0_i64;
+        // line 10
         _2 = const 1_i64;
+        // line 11
         _3 = const 0_i64;
         goto -> bb1;
     }
     bb1: {
-        _5 = Lt(_3, _0);
-        branch _5 -> [then: bb2, else: bb4];
+        _6 = Lt(_3, _0);
+        branch _6 -> [then: bb2, else: bb4];
     }
     bb2: {
-        _6 = Add(_1, _2);
-        _4 = _6;
+        // line 12
+        _7 = Add(_1, _2);
+        _4 = _7;
+        // line 13
         _1 = _2;
+        // line 14
         _2 = _4;
         goto -> bb3;
     }
@@ -62,21 +89,38 @@ fn fib_iter(_0: i64) -> i64 {
         goto -> bb1;
     }
     bb4: {
-        return _1;
+        // line 15
+        _8 = _1;
+        goto -> bb6;
+    }
+    bb5: {
+        unreachable;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_5);
+        return _8;
     }
 }
 
 fn main() -> () {
     let _0: i64;
     let _1: i64;
+    let _2: i64;
 
     bb0: {
-        _0 = fib_rec(const 25_i64);
-        RuntimeFn::WriteI64(_0);
-        RuntimeFn::WriteNewline();
-        _1 = fib_iter(const 90_i64);
+        _0 = RuntimeFn::TracePush(const "<module>");
+        // line 18
+        _1 = fib_rec(const 25_i64);
         RuntimeFn::WriteI64(_1);
         RuntimeFn::WriteNewline();
+        // line 19
+        _2 = fib_iter(const 90_i64);
+        RuntimeFn::WriteI64(_2);
+        RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
         return;
     }
 }
