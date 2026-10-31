@@ -65,6 +65,9 @@ make e2e-all                                         # 含 pending，看进度
 可以通过 `--python /path/to/python3.12` 或 `PYTHON` 指定解释器。默认检查 Phase 1–3 与目录用例；
 Phase 4 需要显式选择，环境缺少 NumPy 时直接失败，不静默跳过。
 
+e2e 默认串行执行：用例按名字排序，输出行带 `[已跑/总数]` 进度，结果文件也与顺序一致。
+需要提速时可显式传 `cargo test -p ryupy-e2e -- --test-threads=8`，此时输出按完成顺序排列，不再保证稳定排序。
+
 基线脚本让每个程序在独立临时工作目录运行，避免文件测试污染仓库；关闭 pycache 写入，不修改
 用例源码。这只是 CPython 侧用例自检，不等于 RyuPy 支持。
 

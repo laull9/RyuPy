@@ -9,8 +9,13 @@
 //! cargo test -p ryupy-e2e                 # 全部非 pending 用例
 //! cargo test -p ryupy-e2e -- fib          # 按名字过滤
 //! cargo test -p ryupy-e2e -- --include-ignored   # 含 pending，看整体进度
+//! cargo test -p ryupy-e2e -- --test-threads=8    # 并行跑，输出顺序不再保证
 //! E2E_PYTHON_ONLY=1 cargo test -p ryupy-e2e      # 只自检用例与框架（不编译）
 //! ```
+//!
+//! 默认**串行**执行：用例按名字排序，输出顺序稳定，每条前面带 `[已跑/总数]` 进度。
+//! 并行能让 `dotnet` 调用重叠，但完成顺序随机，输出会乱序；需要提速时再显式传
+//! `--test-threads=N`。
 //!
 //! 每次运行都会把结果写进 `target/e2e/results.jsonl`（`name` / `status` / `detail`），
 //! 供脚本统计；`pending` 不计入通过数，`unexpected-pass` 表示该去掉 pending 标记了。
@@ -28,7 +33,11 @@ use ryupy_e2e::{CaseResult, CaseSpec, Status, diff_stdout, fresh_dir};
 static RESULTS: Mutex<Vec<CaseResult>> = Mutex::new(Vec::new());
 
 fn main() {
-    let args = Arguments::from_args();
+    let mut args = Arguments::from_args();
+    // 默认串行：libtest-mimic 并行时按「完成顺序」打印，用例耗时不同就会乱序，
+    // 也不方便判断还剩多少。串行开销很小（用例本身多在毫秒级），
+    // 需要重叠 `dotnet` 调用时用户可显式传 `--test-threads=N`。
+    args.test_threads.get_or_insert(1);
     let root = workspace_root();
     let python_only = std::env::var("E2E_PYTHON_ONLY").is_ok_and(|v| v == "1");
 
@@ -48,13 +57,25 @@ fn main() {
         cases.retain(|case| !case.name.starts_with("phase4/"));
     }
 
+    let total = cases.len();
+    // 前缀宽度取总数位数，保证 `[ 3/67]` 与 `[67/67]` 对齐。
+    let index_width = total.to_string().len();
     let trials: Vec<Trial> = cases
         .into_iter()
-        .map(|case| {
+        .enumerate()
+        .map(|(index, case)| {
             let root = root.clone();
-            let name = case.name.clone();
+            // 名字前缀就是进度：串行模式下 libtest-mimic 会在用例**开始前**打印这一行，
+            // 因此既能看到当前跑到第几个，也保证输出与名字排序一致。
+            // 过滤仍按完整名字做子串匹配，前缀不影响 `cargo test -- fib` 这类用法。
+            let label = format!(
+                "[{:>width$}/{total}] {}",
+                index + 1,
+                case.name,
+                width = index_width
+            );
             let ignored = case.pending && !python_only;
-            Trial::test(name, move || run_case(&root, &case, python_only))
+            Trial::test(label, move || run_case(&root, &case, python_only))
                 .with_ignored_flag(ignored)
         })
         .collect();
