@@ -611,7 +611,7 @@ impl FunctionChecker<'_> {
                 ryupy_hir::Builtin::Type => Ty::Dynamic,
                 _ => Ty::None,
             },
-            ExprKind::Binary { op, lhs, rhs } => {
+            ExprKind::Binary { op, lhs, rhs, .. } => {
                 let lhs_ty = self.check_expr(*lhs);
                 let rhs_ty = self.check_expr(*rhs);
                 if lhs_ty.is_dynamic() || rhs_ty.is_dynamic() {

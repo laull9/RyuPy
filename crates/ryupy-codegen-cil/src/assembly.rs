@@ -144,6 +144,10 @@ pub fn build_resolution(
     let dyn_truthy =
         res.push_method_reference(method_ref! { static bool @pyops_type::Truthy(object) });
     let dyn_none = res.push_method_reference(method_ref! { static object @pyops_type::None() });
+    let box_bool =
+        res.push_method_reference(method_ref! { static object @pyops_type::BoxBool(bool) });
+    let box_i64 =
+        res.push_method_reference(method_ref! { static object @pyops_type::BoxInt(long) });
     let empty_array = res.push_method_reference(method_ref! {
         static object[] @pyops_type::EmptyArray()
     });
@@ -450,6 +454,8 @@ pub fn build_resolution(
         pic_set_attr,
         dyn_truthy,
         dyn_none,
+        box_bool,
+        box_i64,
         empty_array,
         literal_fields: FxHashMap::default(),
         dyn_from_decimal,
@@ -580,7 +586,7 @@ pub fn build_resolution(
         module_class,
         &literal_inits,
         &object_member,
-        runtime_refs.dyn_from_decimal,
+        &runtime_refs,
     );
     runtime_refs.literal_fields = literal_fields;
 
@@ -985,7 +991,7 @@ fn emit_literal_init(
     module_class: TypeIndex,
     inits: &[(String, LiteralInit)],
     object_member: &MemberType,
-    from_decimal: MethodRefIndex,
+    refs: &RuntimeRefs,
 ) -> (FxHashMap<String, FieldIndex>, MethodIndex) {
     let mut fields = FxHashMap::default();
     let method = res.push_method(
@@ -1010,7 +1016,7 @@ fn emit_literal_init(
         match init {
             LiteralInit::I64(value) => {
                 ins.push(Instruction::LoadConstantInt64(*value));
-                ins.push(Instruction::BoxValue(BaseType::Int64.into()));
+                ins.push(Instruction::call(refs.box_i64));
             }
             LiteralInit::F64(value) => {
                 ins.push(Instruction::LoadConstantFloat64(*value));
@@ -1018,11 +1024,11 @@ fn emit_literal_init(
             }
             LiteralInit::Bool(value) => {
                 ins.push(Instruction::LoadConstantInt32(if *value { 1 } else { 0 }));
-                ins.push(Instruction::BoxValue(BaseType::Boolean.into()));
+                ins.push(Instruction::call(refs.box_bool));
             }
             LiteralInit::BigInt(text) => {
                 ins.push(Instruction::load_string(text.clone()));
-                ins.push(Instruction::call(from_decimal));
+                ins.push(Instruction::call(refs.dyn_from_decimal));
             }
         }
         ins.push(Instruction::StoreStaticField {

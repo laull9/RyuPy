@@ -245,7 +245,7 @@ fn expr_hint(
                 },
             }
         }
-        ExprKind::Binary { op, lhs, rhs } => {
+        ExprKind::Binary { op, lhs, rhs, .. } => {
             use ryupy_hir::BinOp;
             let a = expr_hint(module, body, *lhs, hints)?;
             let b = expr_hint(module, body, *rhs, hints)?;

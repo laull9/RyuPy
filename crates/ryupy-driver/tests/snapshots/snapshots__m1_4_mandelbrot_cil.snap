@@ -368,7 +368,7 @@ expression: cil
         IL_0014: LoadElement([System.Runtime]System.Object)
         IL_0015: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_0016: Call(static long RyuPy.Generated.Module.m0_mandel(double, double, long))
-        IL_0017: BoxValue(long)
+        IL_0017: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0018: Return
         IL_0019: LoadStaticField(RyuPy.Generated.Module.m0___sig_2)
         IL_001a: LoadArgument(0)
@@ -390,7 +390,7 @@ expression: cil
         IL_002a: LoadElement([System.Runtime]System.Object)
         IL_002b: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_002c: Call(static long RyuPy.Generated.Module.m0_mandel(double, double, long))
-        IL_002d: BoxValue(long)
+        IL_002d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_002e: Return
     }
 
@@ -495,7 +495,7 @@ expression: cil
         IL_0014: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
         IL_0015: BranchFalsy(25)
         IL_0016: LoadStaticField(RyuPy.Generated.Module.m0___mv3_y)
-        IL_0017: BoxValue(long)
+        IL_0017: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0018: Return
         IL_0019: LoadArgument(0)
         IL_001a: LoadString("line")
@@ -508,7 +508,7 @@ expression: cil
         IL_0021: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
         IL_0022: BranchFalsy(38)
         IL_0023: LoadStaticField(RyuPy.Generated.Module.m0___mv5_x)
-        IL_0024: BoxValue(long)
+        IL_0024: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0025: Return
         IL_0026: LoadArgument(0)
         IL_0027: LoadString("mandel")

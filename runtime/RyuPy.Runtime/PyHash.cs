@@ -84,6 +84,15 @@ public static class PyHash
     /// <param name="b">右操作数。</param>
     public static bool Equal(object? a, object? b)
     {
+        // 最常见的键 / 元素类型先比：不可能有用户 __eq__，结果与下面的通用顺序一致
+        if (a is long x && b is long y)
+        {
+            return x == y;
+        }
+        if (a is string sa0 && b is string sb0)
+        {
+            return string.Equals(sa0, sb0, StringComparison.Ordinal);
+        }
         // NaN 必须排在身份判断之前：即使是同一个 nan 对象，Python 里 nan == nan 也是 False。
         // 字典/集合查询用的身份兜底单独放在 <see cref="PyKeyComparer"/> 里，与 CPython 一致。
         if (a is double na && double.IsNaN(na))
@@ -99,11 +108,11 @@ public static class PyHash
             return true;
         }
         // 用户 `__eq__`：先试左侧，再试右侧（与 CPython 的富比较顺序一致）。
-        if (PyObject.TryMethod(a, "__eq__", [b], out object? leftResult))
+        if (PyObject.TryMethod1(a, "__eq__", b, out object? leftResult))
         {
             return PyOps.Truthy(leftResult);
         }
-        if (PyObject.TryMethod(b, "__eq__", [a], out object? rightResult))
+        if (PyObject.TryMethod1(b, "__eq__", a, out object? rightResult))
         {
             return PyOps.Truthy(rightResult);
         }

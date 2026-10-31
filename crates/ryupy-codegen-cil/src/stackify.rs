@@ -94,6 +94,10 @@ pub struct RuntimeRefs {
     pub pic_set_attr: MethodRefIndex,
     pub dyn_truthy: MethodRefIndex,
     pub dyn_none: MethodRefIndex,
+    /// `PyOps.BoxBool(bool)`：复用 True / False 单例。
+    pub box_bool: MethodRefIndex,
+    /// `PyOps.BoxInt(long)`：小整数走缓存。
+    pub box_i64: MethodRefIndex,
     /// `PyOps.EmptyArray()`：共享空 `object[]`，避免每次无关键字调用都 `newarr`。
     pub empty_array: MethodRefIndex,
     /// 动态数值字面量池：`Rvalue::Box` 直接复用静态字段里的装箱对象。
@@ -1013,18 +1017,7 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 ctx.local_slots,
                 ctx.runtime_refs,
             );
-            // 引用类型（str / class / 已是 object）不需要 box
-            let needs_box = !matches!(
-                from,
-                ryupy_mir::MirType::Str
-                    | ryupy_mir::MirType::Dynamic
-                    | ryupy_mir::MirType::Class(_)
-            );
-            if needs_box
-                && let Some(mt) = crate::types::mir_type_to_method_type(from, ctx.class_types)
-            {
-                ins.push(Instruction::BoxValue(mt));
-            }
+            emit_box(ins, from, ctx.runtime_refs, ctx.class_types);
         }
         Rvalue::Unbox { value, to } => {
             lower_operand(
@@ -1056,10 +1049,21 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 }
             }
         }
-        Rvalue::DynBinary { op, lhs, rhs } => {
+        Rvalue::DynBinary {
+            op,
+            lhs,
+            rhs,
+            inplace,
+        } => {
             let site = ctx.next_site();
             ins.push(Instruction::LoadConstantInt32(site));
-            ins.push(Instruction::LoadConstantInt32(op.code()));
+            // 增量赋值把标记位并进操作码，运行时据此选择原地路径（ABI 见 PyOps.InPlaceFlag）
+            let code = if *inplace {
+                op.code() | ryupy_mir::DynOp::INPLACE_FLAG
+            } else {
+                op.code()
+            };
+            ins.push(Instruction::LoadConstantInt32(code));
             lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             ins.push(Instruction::call(ctx.runtime_refs.pic_binary));
@@ -1170,6 +1174,29 @@ pub(crate) enum LiteralInit {
 }
 
 /// 为 `Box` 的常量生成稳定的池键；不是数值字面量时返回 `None`。
+/// 栈顶的静态值装箱成 `object`。
+///
+/// `bool` 复用运行时单例、`int` 走小整数缓存（都不分配），`float` 直接 `box`；
+/// 引用类型（str / class / 已是 object）不需要装箱。所有静态 → 动态的装箱都应经过这里，
+/// 保证 `True` 的身份在各模块之间一致。
+pub(crate) fn emit_box(
+    ins: &mut Vec<Instruction>,
+    from: &ryupy_mir::MirType,
+    refs: &RuntimeRefs,
+    class_types: &crate::types::ClassTypeMap,
+) {
+    match from {
+        ryupy_mir::MirType::Bool => ins.push(Instruction::call(refs.box_bool)),
+        ryupy_mir::MirType::I64 => ins.push(Instruction::call(refs.box_i64)),
+        ryupy_mir::MirType::Str | ryupy_mir::MirType::Dynamic | ryupy_mir::MirType::Class(_) => {}
+        _ => {
+            if let Some(mt) = crate::types::mir_type_to_method_type(from, class_types) {
+                ins.push(Instruction::BoxValue(mt));
+            }
+        }
+    }
+}
+
 pub(crate) fn boxed_literal_key(
     constant: &MirConstant,
     from: &ryupy_mir::MirType,

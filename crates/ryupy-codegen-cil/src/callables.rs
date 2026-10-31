@@ -203,9 +203,7 @@ fn emit_box_return(
     match &func.ret {
         MirType::Unit => ins.push(Instruction::call(refs.dyn_none)),
         MirType::I64 | MirType::F64 | MirType::Bool => {
-            if let Some(method_ty) = crate::types::mir_type_to_method_type(&func.ret, class_types) {
-                ins.push(Instruction::BoxValue(method_ty));
-            }
+            crate::stackify::emit_box(ins, &func.ret, refs, class_types);
         }
         _ => {}
     }

@@ -149,7 +149,12 @@ impl<'a> ExprBuilder<'a> {
                 }
                 Operand::Local(mir_local)
             }
-            ExprKind::Binary { op, lhs, rhs } => self.build_binary(*op, *lhs, *rhs, expr_id),
+            ExprKind::Binary {
+                op,
+                lhs,
+                rhs,
+                inplace,
+            } => self.build_binary(*op, *lhs, *rhs, *inplace, expr_id),
             ExprKind::Unary { op, operand } => self.build_unary(*op, *operand, expr_id),
             ExprKind::Compare { op, lhs, rhs } => self.build_compare(*op, *lhs, *rhs, expr_id),
             ExprKind::BoolOp { op, lhs, rhs } => self.build_bool_op(*op, *lhs, *rhs, expr_id),
@@ -632,18 +637,30 @@ impl<'a> ExprBuilder<'a> {
     }
 
     /// 动态二元运算。
-    fn dyn_binary(&mut self, op: DynOp, lhs: Operand, rhs: Operand) -> Operand {
+    fn dyn_binary(&mut self, op: DynOp, lhs: Operand, rhs: Operand, inplace: bool) -> Operand {
         let dest = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest,
-            value: Rvalue::DynBinary { op, lhs, rhs },
+            value: Rvalue::DynBinary {
+                op,
+                lhs,
+                rhs,
+                inplace,
+            },
         });
         Operand::Local(dest)
     }
 
     // ───────────────────────── 运算 ─────────────────────────
 
-    fn build_binary(&mut self, op: HirBinOp, lhs: ExprId, rhs: ExprId, expr_id: ExprId) -> Operand {
+    fn build_binary(
+        &mut self,
+        op: HirBinOp,
+        lhs: ExprId,
+        rhs: ExprId,
+        inplace: bool,
+        expr_id: ExprId,
+    ) -> Operand {
         let mut lhs_op = self.build_expr(lhs);
         let mut rhs_op = self.build_expr(rhs);
 
@@ -655,7 +672,7 @@ impl<'a> ExprBuilder<'a> {
             // 动态路径：操作数此时都是装箱值，直接交给运行时
             lhs_op = self.coerce(lhs_op, &lhs_ty, &MirType::Dynamic);
             rhs_op = self.coerce(rhs_op, &rhs_ty, &MirType::Dynamic);
-            return self.dyn_binary(dyn_bin_op(op), lhs_op, rhs_op);
+            return self.dyn_binary(dyn_bin_op(op), lhs_op, rhs_op, inplace);
         }
 
         // 隐式提升：若两端类型分别为 int 和 float，将 int 一端提升为 float

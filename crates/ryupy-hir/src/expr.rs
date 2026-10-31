@@ -72,7 +72,12 @@ impl<'a> ExprLowerCtx<'a> {
                 if let Some(op) = map_bin_op(bin.op) {
                     let lhs = self.lower_expr(&bin.left);
                     let rhs = self.lower_expr(&bin.right);
-                    ExprKind::Binary { op, lhs, rhs }
+                    ExprKind::Binary {
+                        op,
+                        lhs,
+                        rhs,
+                        inplace: false,
+                    }
                 } else {
                     self.diagnostics.push(
                         Diagnostic::error(Span::new(self.file, bin.range), "暂不支持该二元运算符")

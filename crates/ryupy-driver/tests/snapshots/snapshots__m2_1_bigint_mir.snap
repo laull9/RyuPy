@@ -163,7 +163,7 @@ fn main() -> () {
         // line 10
         _50 = RuntimeFn::LoadName(global@5, const "value");
         _51 = box<I64>(const 1_i64);
-        _52 = dyn.Add(_50, _51);
+        _52 = dyn.Add.inplace(_50, _51);
         g5 = _52;
         // line 11
         _53 = RuntimeFn::LoadName(global@5, const "value");

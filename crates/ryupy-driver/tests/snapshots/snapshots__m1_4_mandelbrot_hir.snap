@@ -13,7 +13,7 @@ def mandel(cr: float, ci: float, max_iter: int) -> int:
             return n
         zi = (((2.0 * zr) * zi) + ci)
         zr = ((zr2 - zi2) + cr)
-        n = (n + 1)
+        n = (n += 1)
     return max_iter
 
 def [main] main():

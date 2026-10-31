@@ -34,7 +34,7 @@ fn add(_0: dyn, _1: dyn) -> dyn {
         _2 = RuntimeFn::TracePush(const "m2_5_classes.py", const "add");
         // line 9
         _3 = RuntimeFn::DynGetAttr(_0, const "value");
-        _4 = dyn.Add(_3, _1);
+        _4 = dyn.Add.inplace(_3, _1);
         RuntimeFn::SetAttr(_0, const "value", _4);
         // line 10
         _6 = RuntimeFn::DynGetAttr(_0, const "value");

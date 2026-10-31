@@ -118,9 +118,9 @@ fn main() -> () {
         g3 = _4;
         // line 13
         _5 = RuntimeFn::LoadName(global@3, const "value");
-        _6 = dyn.call(global@4, [_5]);
+        _6 = twice(_5);
         _7 = box<Str>(const "ha");
-        _8 = dyn.call(global@4, [_7]);
+        _8 = twice(_7);
         RuntimeFn::WriteObject(_6);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_8);
@@ -131,9 +131,9 @@ fn main() -> () {
         // line 15
         _10 = RuntimeFn::LoadName(global@3, const "value");
         _11 = box<Bool>(const true);
-        _12 = dyn.call(global@7, [_11]);
+        _12 = choose(_11);
         _13 = box<Bool>(const false);
-        _14 = dyn.call(global@7, [_13]);
+        _14 = choose(_13);
         RuntimeFn::WriteObject(_10);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_12);

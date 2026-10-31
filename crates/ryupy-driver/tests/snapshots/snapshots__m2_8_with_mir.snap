@@ -1178,7 +1178,7 @@ fn main() -> () {
     bb82: {
         // line 29
         // line 35
-        _169 = dyn.call(global@17, []);
+        _169 = early_return();
         RuntimeFn::WriteObject(_169);
         RuntimeFn::WriteNewline();
         // line 37

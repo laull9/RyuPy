@@ -275,6 +275,9 @@ pub enum ExprKind {
         op: BinOp,
         lhs: ExprId,
         rhs: ExprId,
+        /// 来自增量赋值 `x op= y`：可变对象（list / bytearray / set / dict / 带 `__iop__` 的实例）
+        /// 要原地修改并保留身份，不可变值与普通二元运算相同。
+        inplace: bool,
     },
     /// 链式比较 `a < b < c` 在 lowering 时展开为 `a < b and b < c`
     /// （要求中间项无副作用，否则报「暂不支持」）。

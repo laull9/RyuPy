@@ -436,7 +436,7 @@ expression: cil
         IL_000c: LoadElement([System.Runtime]System.Object)
         IL_000d: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_000e: Call(static long RyuPy.Generated.Module.m0_classify(long))
-        IL_000f: BoxValue(long)
+        IL_000f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0010: Return
         IL_0011: LoadStaticField(RyuPy.Generated.Module.m0___sig_2)
         IL_0012: LoadArgument(0)
@@ -450,7 +450,7 @@ expression: cil
         IL_001a: LoadElement([System.Runtime]System.Object)
         IL_001b: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_001c: Call(static long RyuPy.Generated.Module.m0_classify(long))
-        IL_001d: BoxValue(long)
+        IL_001d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_001e: Return
     }
 
@@ -474,7 +474,7 @@ expression: cil
         IL_000c: LoadElement([System.Runtime]System.Object)
         IL_000d: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_000e: Call(static long RyuPy.Generated.Module.m0_collatz_steps(long))
-        IL_000f: BoxValue(long)
+        IL_000f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0010: Return
         IL_0011: LoadStaticField(RyuPy.Generated.Module.m0___sig_5)
         IL_0012: LoadArgument(0)
@@ -488,7 +488,7 @@ expression: cil
         IL_001a: LoadElement([System.Runtime]System.Object)
         IL_001b: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_001c: Call(static long RyuPy.Generated.Module.m0_collatz_steps(long))
-        IL_001d: BoxValue(long)
+        IL_001d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_001e: Return
     }
 
@@ -516,7 +516,7 @@ expression: cil
         IL_0010: LoadElement([System.Runtime]System.Object)
         IL_0011: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_0012: Call(static long RyuPy.Generated.Module.m0_first_multiple(long, long))
-        IL_0013: BoxValue(long)
+        IL_0013: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0014: Return
         IL_0015: LoadStaticField(RyuPy.Generated.Module.m0___sig_8)
         IL_0016: LoadArgument(0)
@@ -534,7 +534,7 @@ expression: cil
         IL_0022: LoadElement([System.Runtime]System.Object)
         IL_0023: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
         IL_0024: Call(static long RyuPy.Generated.Module.m0_first_multiple(long, long))
-        IL_0025: BoxValue(long)
+        IL_0025: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0026: Return
     }
 
@@ -693,7 +693,7 @@ expression: cil
         IL_0014: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
         IL_0015: BranchFalsy(25)
         IL_0016: LoadStaticField(RyuPy.Generated.Module.m0___mv3_x)
-        IL_0017: BoxValue(long)
+        IL_0017: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0018: Return
         IL_0019: LoadArgument(0)
         IL_001a: LoadString("classify")

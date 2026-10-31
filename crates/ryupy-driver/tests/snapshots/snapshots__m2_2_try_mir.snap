@@ -171,7 +171,7 @@ fn main() -> () {
         g2 = _3;
         // line 2
         // line 10
-        _4 = dyn.call(global@5, []);
+        _4 = returning();
         RuntimeFn::WriteObject(_4);
         RuntimeFn::WriteNewline();
         // line 11

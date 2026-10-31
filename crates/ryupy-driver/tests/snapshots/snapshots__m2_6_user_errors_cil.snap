@@ -18,7 +18,7 @@ expression: cil
     .method public static void __init_literals() cil managed
     {
         IL_0000: LoadConstantInt64(7)
-        IL_0001: BoxValue(long)
+        IL_0001: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0002: StoreStaticField(RyuPy.Generated.Module.__lit_0)
         IL_0003: Return
     }

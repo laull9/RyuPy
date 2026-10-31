@@ -68,11 +68,7 @@ pub(crate) fn emit_module_accessors(
                 param0: FieldSource::Definition(refs.global_fields[gid]),
             });
             let ty = program.globals[*gid].ty.clone();
-            if needs_box(&ty)
-                && let Some(mt) = crate::types::mir_type_to_method_type(&ty, class_types)
-            {
-                ins.push(Instruction::BoxValue(mt));
-            }
+            crate::stackify::emit_box(&mut ins, &ty, refs, class_types);
             ins.push(Instruction::Return);
             let next = ins.len();
             ins[skip] = Instruction::BranchFalsy(next);
@@ -150,14 +146,6 @@ pub(crate) fn emit_module_accessors(
     }
 
     ModuleAccessors { getters, setters }
-}
-
-/// 静态槽位是否需要装箱才能当 `object` 返回。
-fn needs_box(ty: &ryupy_mir::MirType) -> bool {
-    matches!(
-        ty,
-        ryupy_mir::MirType::I64 | ryupy_mir::MirType::F64 | ryupy_mir::MirType::Bool
-    )
 }
 
 /// 在 `__init_functions` 末尾追加 `PyModules.Register(...)` 调用。

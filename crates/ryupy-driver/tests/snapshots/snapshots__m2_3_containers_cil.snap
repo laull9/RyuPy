@@ -18,13 +18,13 @@ expression: cil
     .method public static void __init_literals() cil managed
     {
         IL_0000: LoadConstantInt64(0)
-        IL_0001: BoxValue(long)
+        IL_0001: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0002: StoreStaticField(RyuPy.Generated.Module.__lit_0)
         IL_0003: LoadConstantInt64(1)
-        IL_0004: BoxValue(long)
+        IL_0004: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0005: StoreStaticField(RyuPy.Generated.Module.__lit_1)
         IL_0006: LoadConstantInt64(2)
-        IL_0007: BoxValue(long)
+        IL_0007: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
         IL_0008: StoreStaticField(RyuPy.Generated.Module.__lit_2)
         IL_0009: Return
     }
@@ -169,7 +169,7 @@ expression: cil
         IL_0069: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Contains(object, object))
         IL_006a: StoreLocal(21)
         IL_006b: LoadLocal(21)
-        IL_006c: BoxValue(bool)
+        IL_006c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxBool(bool))
         IL_006d: StoreLocal(22)
         IL_006e: LoadLocal(22)
         IL_006f: StoreLocal(20)

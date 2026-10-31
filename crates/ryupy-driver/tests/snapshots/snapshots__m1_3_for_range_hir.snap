@@ -8,7 +8,7 @@ def [main] main():
     global.__file__ = "m1_3_for_range.py"
     global.total = 0
     for global.i in range(0, 10):
-        global.total = (global.total + global.i)
+        global.total = (global.total += global.i)
     print(global.total)
     for global.i in range(2, 5):
         print(global.i)
@@ -22,5 +22,5 @@ def [main] main():
             continue
         if (global.i Gt 20):
             break
-        global.acc = (global.acc + global.i)
+        global.acc = (global.acc += global.i)
     print(global.acc)

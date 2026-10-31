@@ -226,6 +226,22 @@ public static class PyObject
         }
     }
 
+    /// <summary>值是否可能带 Python 层方法（用户类实例、带 Python 类的异常）。</summary>
+    /// <remarks>热路径先用它排除内建值，避免为 <see cref="TryMethod"/> 构造实参数组。</remarks>
+    public static bool MayHaveMethods(object? value) =>
+        value is PyInstance || value is PyBaseException { PythonClass: not null };
+
+    /// <summary>单实参版本的 <see cref="TryMethod"/>：内建值直接返回 false，不分配实参数组。</summary>
+    public static bool TryMethod1(object? self, string name, object? arg, out object? result)
+    {
+        if (!MayHaveMethods(self))
+        {
+            result = null;
+            return false;
+        }
+        return TryMethod(self, name, [arg], out result);
+    }
+
     /// <summary>
     /// 尝试调用对象上的魔术方法（`__repr__` / `__eq__` / `__add__` …）。
     /// </summary>

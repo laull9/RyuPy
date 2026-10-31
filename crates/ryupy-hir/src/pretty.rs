@@ -411,7 +411,12 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
         }
         ExprKind::Starred(inner) => format!("*{}", dump_expr(module, body, *inner)),
         ExprKind::Unary { op, operand } => format!("{op:?}({})", dump_expr(module, body, *operand)),
-        ExprKind::Binary { op, lhs, rhs } => {
+        ExprKind::Binary {
+            op,
+            lhs,
+            rhs,
+            inplace,
+        } => {
             let op_str = match op {
                 BinOp::Add => "+",
                 BinOp::Sub => "-",
@@ -426,8 +431,10 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
                 BinOp::LShift => "<<",
                 BinOp::RShift => ">>",
             };
+            // 增量赋值显示为 `op=`，与普通二元运算区分
+            let suffix = if *inplace { "=" } else { "" };
             format!(
-                "({} {op_str} {})",
+                "({} {op_str}{suffix} {})",
                 dump_expr(module, body, *lhs),
                 dump_expr(module, body, *rhs)
             )

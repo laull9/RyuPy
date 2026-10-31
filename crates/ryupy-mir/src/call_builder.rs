@@ -2,8 +2,9 @@
 //!
 //! 调用分三条路径：
 //!
-//! 1. **静态直调**：被调函数是静态特化、实参里没有 `*` / `**`、且能按 Python 规则
-//!    完整绑定。这时按参数顺序生成实参（缺省值从模块静态数组读取），直接 `call` 静态方法。
+//! 1. **直调**：被调对象静态解析为某个 `def`、实参里没有 `*` / `**`、且能按 Python 规则
+//!    完整绑定。这时按参数顺序生成实参（缺省值从模块静态数组读取），直接 `call` 对应方法。
+//!    静态特化与动态模式的函数都适用（后者的形参 / 返回值是装箱 `dyn`）。
 //! 2. **运行时绑定**：动态函数、带 `*` / `**` 的调用、或绑定会失败（重复绑定、未知关键字、
 //!    缺少必需参数）的调用。把实参与关键字打包成数组交给 `PyOps.CallValue`，由
 //!    `PyBinder` 统一完成绑定并抛出与 CPython 一致的 `TypeError`。
@@ -72,9 +73,11 @@ impl ExprBuilder<'_> {
         let has_star = args
             .iter()
             .any(|arg| matches!(arg, CallArg::Starred(_) | CallArg::DoubleStarred(_)));
-        let is_dynamic = self.types.is_dynamic(fn_id);
-
-        if is_dynamic || has_star {
+        // 动态函数同样可以直调：被调对象在 HIR 里已静态解析为同一个 `def`（与静态直调相同的
+        // 名字绑定规则），参数与返回值在 MIR 签名里都是 `dyn`，实参装箱后直接 `call`，
+        // 省掉实参数组、PIC、`PyFunction.Invoke` 与 thunk。只有 `*` / `**` 或编译期绑定
+        // 不成立时才走运行时 binder。
+        if has_star {
             let Some(global) = self.fn_globals.get(&fn_id).copied() else {
                 return self.none_value();
             };

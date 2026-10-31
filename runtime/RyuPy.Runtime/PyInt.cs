@@ -111,60 +111,94 @@ internal static class PyInt
         return BigInteger.Parse(digits, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
     }
 
+    // ───────────────────────── 装箱与小整数缓存 ─────────────────────────
+
+    /// <summary>小整数缓存的下界（与 CPython 相同）。</summary>
+    private const long SmallMin = -5;
+
+    /// <summary>小整数缓存的上界（含，与 CPython 相同）。</summary>
+    private const long SmallMax = 256;
+
+    /// <summary>[-5, 256] 的预装箱对象：循环计数、下标、标志位等最常见的值不再逐次分配。</summary>
+    private static readonly object[] SmallInts = CreateSmallInts();
+
+    private static object[] CreateSmallInts()
+    {
+        var cache = new object[SmallMax - SmallMin + 1];
+        for (long value = SmallMin; value <= SmallMax; value++)
+        {
+            cache[value - SmallMin] = value;
+        }
+        return cache;
+    }
+
+    /// <summary>
+    /// 把 <c>long</c> 装箱成 Python <c>int</c>；小整数复用缓存对象。
+    /// </summary>
+    /// <remarks>
+    /// 与 CPython 的小整数缓存同一范围，所以 <c>a is b</c> 在这个范围内的结果也与 CPython 一致
+    /// （<see cref="PyOps.Is"/> 另外按值兜底，不依赖装箱来源）。codegen 的动态装箱与
+    /// <c>*I64</c> 快路径都经过这里。
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object Box(long value)
+    {
+        ulong offset = unchecked((ulong)(value - SmallMin));
+        return offset <= (ulong)(SmallMax - SmallMin) ? SmallInts[offset] : value;
+    }
+
+    /// <summary>该值是否落在小整数缓存范围（<c>is</c> 判断用）。</summary>
+    internal static bool IsSmall(long value) => value >= SmallMin && value <= SmallMax;
+
+    // 溢出检测不用 checked + catch：.NET 抛一次 OverflowException 要走完整的异常分派
+    // （数十微秒），反复越过 i64 边界的循环（大数取模、哈希累乘）会被它拖慢上百倍。
+    // 这里用位运算 / 128 位乘法判断溢出，越界时才构造 BigInteger。方法体不含异常处理，
+    // JIT 也就能把它们内联进 PyPic 的快路径。
+
     /// <summary>`long + long` 快路径；溢出升级 BigInteger。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object AddI64(long x, long y)
     {
-        try
-        {
-            return checked(x + y);
-        }
-        catch (OverflowException)
+        long sum = unchecked(x + y);
+        // 两个同号数相加得到异号结果 ⇔ 溢出
+        if (((x ^ sum) & (y ^ sum)) < 0)
         {
             return Normalize(new BigInteger(x) + y);
         }
+        return Box(sum);
     }
 
     /// <summary>`long - long` 快路径；溢出升级 BigInteger。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object SubtractI64(long x, long y)
     {
-        try
-        {
-            return checked(x - y);
-        }
-        catch (OverflowException)
+        long difference = unchecked(x - y);
+        // 异号相减、结果与被减数异号 ⇔ 溢出
+        if (((x ^ y) & (x ^ difference)) < 0)
         {
             return Normalize(new BigInteger(x) - y);
         }
+        return Box(difference);
     }
 
     /// <summary>`long * long` 快路径；溢出升级 BigInteger。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object MultiplyI64(long x, long y)
     {
-        try
-        {
-            return checked(x * y);
-        }
-        catch (OverflowException)
+        // 128 位乘积的高 64 位必须等于低 64 位的符号扩展，否则结果放不进 i64
+        long high = Math.BigMul(x, y, out long low);
+        if (high != (low >> 63))
         {
             return Normalize(new BigInteger(x) * y);
         }
+        return Box(low);
     }
 
     public static object Add(object a, object b)
     {
         if (TryI64(a, out long x) && TryI64(b, out long y))
         {
-            try
-            {
-                return checked(x + y);
-            }
-            catch (OverflowException)
-            {
-                return Normalize(new BigInteger(x) + y);
-            }
+            return AddI64(x, y);
         }
         return Normalize(ToBigInteger(a) + ToBigInteger(b));
     }
@@ -174,14 +208,7 @@ internal static class PyInt
     {
         if (TryI64(a, out long x) && TryI64(b, out long y))
         {
-            try
-            {
-                return checked(x - y);
-            }
-            catch (OverflowException)
-            {
-                return Normalize(new BigInteger(x) - y);
-            }
+            return SubtractI64(x, y);
         }
         return Normalize(ToBigInteger(a) - ToBigInteger(b));
     }
@@ -191,14 +218,7 @@ internal static class PyInt
     {
         if (TryI64(a, out long x) && TryI64(b, out long y))
         {
-            try
-            {
-                return checked(x * y);
-            }
-            catch (OverflowException)
-            {
-                return Normalize(new BigInteger(x) * y);
-            }
+            return MultiplyI64(x, y);
         }
         return Normalize(ToBigInteger(a) * ToBigInteger(b));
     }

@@ -74,11 +74,11 @@ public static partial class PyOps
         {
             return false;
         }
-        if (PyObject.TryMethod(a, BinaryMagicNames[op], [b], out result))
+        if (PyObject.TryMethod1(a, BinaryMagicNames[op], b, out result))
         {
             return true;
         }
-        return PyObject.TryMethod(b, ReflectedMagicNames[op], [a], out result);
+        return PyObject.TryMethod1(b, ReflectedMagicNames[op], a, out result);
     }
 
     private static bool TryUnaryMagic(string name, object value, out object? result) =>
@@ -111,12 +111,12 @@ public static partial class PyOps
                 result = false;
                 return false;
         }
-        if (PyObject.TryMethod(a, forward, [b], out object? value))
+        if (PyObject.TryMethod1(a, forward, b, out object? value))
         {
             result = Truthy(value);
             return true;
         }
-        if (PyObject.TryMethod(b, reflected, [a], out object? reflectedValue))
+        if (PyObject.TryMethod1(b, reflected, a, out object? reflectedValue))
         {
             result = Truthy(reflectedValue);
             return true;
