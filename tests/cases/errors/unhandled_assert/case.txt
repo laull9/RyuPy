@@ -1,0 +1,3 @@
+# M2.2：assert 失败抛 AssertionError（去糖为 if not cond: raise）。
+expect_exit = 1
+expect_exception = AssertionError: assert boom

@@ -425,6 +425,44 @@ impl StmtLowerCtx<'_> {
                 StmtKind::Return(val)
             }
             ast::Stmt::Pass(_) => StmtKind::Pass,
+            ast::Stmt::Assert(assert_stmt) => {
+                // `assert cond, msg` 去糖为 `if not cond: raise AssertionError(msg)`
+                let cond = self.lower_expr(&assert_stmt.test);
+                let not_cond = self.body.exprs.alloc(Expr {
+                    kind: ExprKind::Unary {
+                        op: crate::hir::UnaryOp::Not,
+                        operand: cond,
+                    },
+                    range: assert_stmt.test.range(),
+                });
+                let raise_args = match &assert_stmt.msg {
+                    Some(msg) => vec![self.lower_expr(msg)],
+                    None => Vec::new(),
+                };
+                let callee = self.body.exprs.alloc(Expr {
+                    kind: ExprKind::Builtin(crate::hir::Builtin::Exception("AssertionError")),
+                    range: assert_stmt.range,
+                });
+                let call = self.body.exprs.alloc(Expr {
+                    kind: ExprKind::Call {
+                        callee,
+                        args: raise_args,
+                    },
+                    range: assert_stmt.range,
+                });
+                let raise_stmt = self.body.stmts.alloc(Stmt {
+                    kind: StmtKind::Raise {
+                        value: Some(call),
+                        cause: None,
+                    },
+                    range: assert_stmt.range,
+                });
+                StmtKind::If {
+                    cond: not_cond,
+                    then_: vec![raise_stmt],
+                    else_: Vec::new(),
+                }
+            }
             ast::Stmt::Raise(raise_stmt) => {
                 let value = raise_stmt.exc.as_deref().map(|e| self.lower_expr(e));
                 let cause = raise_stmt.cause.as_deref().map(|e| self.lower_expr(e));
