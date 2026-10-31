@@ -1,0 +1,4 @@
+# M2.7：缺失模块必须抛 ModuleNotFoundError，而不是静默跳过导入。
+pending = true
+expect_exit = 1
+expect_exception = ModuleNotFoundError: ryupy_deliberately_missing_module

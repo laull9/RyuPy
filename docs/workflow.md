@@ -28,6 +28,7 @@ make run  FILE=foo.py                       # 编译并运行
 make test                                   # Python 基线 + 单元 + 快照
 make python-baseline                        # 自检含 pending 的 Phase 1–3 Python 用例
 make python-extensions                      # 自检 Phase 4，需 NumPy / sqlite3 / zlib
+make cases-selftest                         # 只验证用例与框架（多文件 / 参数 / 错误路径），不编译
 make e2e                                    # 端到端（跳过 pending）
 make e2e-all                                # 包括 pending，看整体进度
 make snap                                   # 审阅快照变更
@@ -69,10 +70,11 @@ Phase 1 已完成 M1.0–M1.5；旧 M1.6 的 AOT 保持待做并转入 M5.2。�
 | 某一层的输出结构 | insta 快照（`make dump` 的输出就是快照内容） |
 | 某个错误能否正确报出、提示是否友好 | 诊断文本快照（`render(.., color=false)`） |
 | 算法本身（并查集、运算规则表、浮点格式化） | 普通单元测试，覆盖边界值 |
-| 导入顺序、循环导入、模块共享状态 | M2.0 新增多文件 fixture，M2.7 转正 |
-| Python 异常、finally 与清理副作用 | M2.0 扩展错误路径框架，M2.2 起按类型 / 必要消息 / 用户位置比较 |
+| 导入顺序、循环导入、模块共享状态 | `tests/cases/` 的多文件目录用例，入口由清单声明 |
+| Python 异常、finally 与清理副作用 | `tests/cases/` 的错误路径用例：退出码 / 异常类型 / 消息 / cause / stdout |
+| 参数、环境变量、标准输入 | `tests/cases/` 的清单字段，`make cases-selftest` 先验证框架 |
 | 标准库兼容 | stdlib.md 中逐 API 的 CPython 差分与移植上游测试 |
-| 项目可运行 | 固定版本、入口、传递依赖和上游测试范围；原生 / 桥接分别统计 |
+| 项目可运行 | `tests/projects/` 固定版本、入口、传递依赖和测试范围；原生 / 桥接分别统计 |
 
 **发现 bug 时先写一个能复现它的最小 e2e 用例**，再修。用例永远保留。
 
