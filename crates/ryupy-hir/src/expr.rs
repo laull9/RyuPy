@@ -102,6 +102,11 @@ impl<'a> ExprLowerCtx<'a> {
                 ExprKind::IfExp { cond, then_, else_ }
             }
             ast::Expr::Call(call) => self.lower_call(call),
+            ast::Expr::Attribute(attr) => {
+                let base = self.lower_expr(&attr.value);
+                let name = Name::from(attr.attr.as_str());
+                ExprKind::Attribute { base, name }
+            }
             _ => {
                 self.diagnostics.push(
                     Diagnostic::error(Span::new(self.file, range), "暂不支持该表达式")

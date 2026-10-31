@@ -19,7 +19,8 @@ use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{FnId, Program};
 
-use crate::stackify::{RuntimeRefs, lower_function};
+use crate::stackify::{ClassCodegenInfo, ClassInfoMap, RuntimeRefs, lower_function};
+use crate::types::ClassTypeMap;
 use crate::{CodegenError, EmitOptions};
 
 pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'static>, TypeIndex) {
@@ -29,6 +30,8 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
 
     let sys_runtime = res.push_assembly_reference(ExternalAssemblyReference::new("System.Runtime"));
     let object_ref = res.push_type_reference(type_ref! { System.Object in #sys_runtime });
+    let valuetype_ref = res.push_type_reference(type_ref! { System.ValueType in #sys_runtime });
+    let object_ctor_ref = res.push_method_reference(method_ref! { void object::.ctor() });
 
     let ryupy_runtime =
         res.push_assembly_reference(ExternalAssemblyReference::new("RyuPy.Runtime"));
@@ -103,6 +106,87 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     res[module_class].flags.sealed = true;
     res[module_class].flags.accessibility = TypeAccessibility::Public;
 
+    // 1. 为所有类预先分配 TypeIndex
+    let mut class_types: ClassTypeMap = FxHashMap::default();
+    let mut class_defs: Vec<(ryupy_mir::ClassDefId, TypeIndex)> = Vec::new();
+    for (cls_id, cls) in program.classes.iter() {
+        let type_idx = res.push_type_definition(TypeDefinition::new(
+            Some("RyuPy.Generated".into()),
+            cls.name.clone(),
+        ));
+        class_types.insert(cls_id, (type_idx, cls.is_value_type));
+        class_defs.push((cls_id, type_idx));
+    }
+
+    // 2. 为每个类配置 extends、flags、fields 与 .ctor
+    let mut class_info: ClassInfoMap = FxHashMap::default();
+    for &(cls_id, type_idx) in &class_defs {
+        let cls = &program.classes[cls_id];
+        if cls.is_value_type {
+            res[type_idx].set_extends(valuetype_ref);
+            res[type_idx].flags.layout = Layout::Sequential(None);
+            res[type_idx].flags.sealed = true;
+            res[type_idx].flags.accessibility = TypeAccessibility::Public;
+        } else {
+            res[type_idx].set_extends(object_ref);
+            res[type_idx].flags.sealed = true;
+            res[type_idx].flags.accessibility = TypeAccessibility::Public;
+        }
+
+        let mut field_indices = Vec::new();
+        for (field_name, field_ty) in &cls.fields {
+            let member_ty = crate::types::mir_type_to_member_type(field_ty, &class_types).unwrap();
+            let field_idx = res.push_field(
+                type_idx,
+                Field::instance(Accessibility::Public, field_name.clone(), member_ty),
+            );
+            field_indices.push(field_idx);
+        }
+
+        // 构造函数 .ctor
+        let ctor_params: Vec<Parameter<MethodType>> = cls
+            .fields
+            .iter()
+            .map(|(_, field_ty)| {
+                crate::types::mir_type_to_parameter(field_ty, &class_types).unwrap()
+            })
+            .collect();
+        let ctor_sig = MethodSignature::instance(ReturnType::VOID, ctor_params);
+        let ctor_method_idx = res.push_method(
+            type_idx,
+            Method::new(Accessibility::Public, ctor_sig, ".ctor", None),
+        );
+        res[ctor_method_idx].special_name = true;
+        res[ctor_method_idx].runtime_special_name = true;
+
+        let mut ctor_instructions = Vec::new();
+        if !cls.is_value_type {
+            ctor_instructions.push(Instruction::LoadArgument(0));
+            ctor_instructions.push(Instruction::call(object_ctor_ref));
+        }
+        for (i, &f_idx) in field_indices.iter().enumerate() {
+            ctor_instructions.push(Instruction::LoadArgument(0));
+            ctor_instructions.push(Instruction::LoadArgument((i + 1) as u16));
+            ctor_instructions.push(Instruction::StoreField {
+                unaligned: None,
+                volatile: false,
+                param0: f_idx.into(),
+            });
+        }
+        ctor_instructions.push(Instruction::Return);
+        let mut ctor_body = body::Method::new(ctor_instructions);
+        ctor_body.header.maximum_stack_size = 8;
+        res[ctor_method_idx].body = Some(ctor_body);
+
+        class_info.insert(
+            cls_id,
+            ClassCodegenInfo {
+                ctor: ctor_method_idx,
+                fields: field_indices,
+            },
+        );
+    }
+
     // 第一遍：为所有函数分配 MethodIndex
     let mut fn_indices: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
     for (fn_id, func) in program.functions.iter() {
@@ -122,9 +206,12 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             let params: Vec<_> = func
                 .params
                 .iter()
-                .map(|&p| crate::types::mir_type_to_parameter(&func.body.locals[p].ty).unwrap())
+                .map(|&p| {
+                    crate::types::mir_type_to_parameter(&func.body.locals[p].ty, &class_types)
+                        .unwrap()
+                })
                 .collect();
-            let ret = crate::types::mir_type_to_return_type(&func.ret);
+            let ret = crate::types::mir_type_to_return_type(&func.ret, &class_types);
             let sig = MethodSignature::new(false, ret, params);
             res.push_method(
                 module_class,
@@ -142,7 +229,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     // 第二遍：逐函数编译并填充 body
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
-        let compiled = lower_function(func, &runtime_refs, &fn_indices);
+        let compiled = lower_function(func, &runtime_refs, &fn_indices, &class_types, &class_info);
         let mut method_body = body::Method::with_locals(compiled.locals, compiled.instructions);
         method_body.header.maximum_stack_size = 64;
         res[method_idx].body = Some(method_body);
@@ -213,5 +300,30 @@ pub fn dump(program: &Program, opts: &EmitOptions) -> Result<String, CodegenErro
     }
 
     out.push_str("}\n");
+
+    for (_cls_id, cls) in program.classes.iter() {
+        out.push('\n');
+        let extends_str = if cls.is_value_type {
+            "[System.Runtime]System.ValueType"
+        } else {
+            "[System.Runtime]System.Object"
+        };
+        out.push_str(&format!(
+            ".class public auto ansi sealed beforefieldinit RyuPy.Generated.{}\n    extends {}\n{{\n",
+            cls.name, extends_str
+        ));
+        for (f_name, f_ty) in &cls.fields {
+            let ty_str = match f_ty {
+                ryupy_mir::MirType::I64 => "int64",
+                ryupy_mir::MirType::F64 => "float64",
+                ryupy_mir::MirType::Bool => "bool",
+                ryupy_mir::MirType::Str => "string",
+                _ => "object",
+            };
+            out.push_str(&format!("    .field public {ty_str} {f_name}\n"));
+        }
+        out.push_str("}\n");
+    }
+
     Ok(out)
 }

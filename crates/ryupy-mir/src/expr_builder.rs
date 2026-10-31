@@ -13,10 +13,10 @@ use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{
-    BinOp as HirBinOp, Builtin, CmpOp, ExprId, ExprKind, Literal, LocalId as HirLocalId, Module,
+    BinOp as HirBinOp, CmpOp, ExprId, ExprKind, Literal, LocalId as HirLocalId, Module,
     UnaryOp as HirUnaryOp,
 };
-use ryupy_ty::{ModuleTypes, Ty};
+use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 
 use crate::build::ty_to_mir;
 use crate::mir::{
@@ -82,6 +82,28 @@ impl<'a> ExprBuilder<'a> {
                 self.build_if_exp(*cond, *then_, *else_, expr_id)
             }
             ExprKind::Call { callee, args } => self.build_call(*callee, args),
+            ExprKind::Attribute { base, name } => {
+                let base_op = self.build_expr(*base);
+                let base_ty = &self.types.bodies[self.current_hir_fn].exprs[*base];
+                if let Ty::Class(cls_id) = base_ty {
+                    let cls = &self.hir.classes[*cls_id];
+                    if let Some((field_idx, field)) =
+                        cls.fields.iter().enumerate().find(|(_, f)| f.name == *name)
+                    {
+                        let field_ty = type_ref_to_ty(&field.annotation);
+                        let dest = self.alloc_temp(ty_to_mir(&field_ty));
+                        self.push_stmt(Statement::Assign {
+                            dest,
+                            value: Rvalue::GetField {
+                                obj: base_op,
+                                field: field_idx as u32,
+                            },
+                        });
+                        return Operand::Local(dest);
+                    }
+                }
+                Operand::Const(Constant::I64(0))
+            }
             _ => Operand::Const(Constant::I64(0)),
         }
     }
@@ -286,145 +308,6 @@ impl<'a> ExprBuilder<'a> {
             },
         });
         Operand::Local(dest)
-    }
-
-    fn build_call(&mut self, callee: ExprId, args: &[ExprId]) -> Operand {
-        let hir_body = &self.hir.functions[self.current_hir_fn].body;
-        let callee_expr = &hir_body.exprs[callee];
-        match callee_expr.kind {
-            ExprKind::Func(fn_id) => {
-                let mir_fn_id = self.fn_map[&fn_id];
-                let mut args_ops = Vec::new();
-                for (i, &arg) in args.iter().enumerate() {
-                    let mut arg_op = self.build_expr(arg);
-                    let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[arg];
-                    if let Some(expected_ty) = self.types.sigs[fn_id].params.get(i) {
-                        if expected_ty == &Ty::Float && arg_ty == &Ty::Int {
-                            let cast_temp = self.alloc_temp(MirType::F64);
-                            self.push_stmt(Statement::Assign {
-                                dest: cast_temp,
-                                value: Rvalue::Cast {
-                                    kind: CastKind::I64ToF64,
-                                    operand: arg_op,
-                                },
-                            });
-                            arg_op = Operand::Local(cast_temp);
-                        }
-                    }
-                    args_ops.push(arg_op);
-                }
-                let ret_ty = ty_to_mir(&self.types.sigs[fn_id].ret);
-                let dest = self.alloc_temp(ret_ty);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Call {
-                        callee: Callee::Fn(mir_fn_id),
-                        args: args_ops,
-                    },
-                });
-                Operand::Local(dest)
-            }
-            ExprKind::Builtin(Builtin::Int) => {
-                if args.is_empty() {
-                    return Operand::Const(Constant::I64(0));
-                }
-                let arg_op = self.build_expr(args[0]);
-                let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[args[0]];
-                match arg_ty {
-                    Ty::Int => arg_op,
-                    Ty::Bool => {
-                        let dest = self.alloc_temp(MirType::I64);
-                        self.push_stmt(Statement::Assign {
-                            dest,
-                            value: Rvalue::Cast {
-                                kind: CastKind::BoolToI64,
-                                operand: arg_op,
-                            },
-                        });
-                        Operand::Local(dest)
-                    }
-                    Ty::Float => {
-                        let dest = self.alloc_temp(MirType::I64);
-                        self.push_stmt(Statement::Assign {
-                            dest,
-                            value: Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::F64ToI64),
-                                args: vec![arg_op],
-                            },
-                        });
-                        Operand::Local(dest)
-                    }
-                    _ => arg_op,
-                }
-            }
-            ExprKind::Builtin(Builtin::Float) => {
-                if args.is_empty() {
-                    return Operand::Const(Constant::F64(0.0));
-                }
-                let arg_op = self.build_expr(args[0]);
-                let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[args[0]];
-                match arg_ty {
-                    Ty::Float => arg_op,
-                    Ty::Int | Ty::Bool => {
-                        let op = if arg_ty == &Ty::Bool {
-                            let temp_i64 = self.alloc_temp(MirType::I64);
-                            self.push_stmt(Statement::Assign {
-                                dest: temp_i64,
-                                value: Rvalue::Cast {
-                                    kind: CastKind::BoolToI64,
-                                    operand: arg_op,
-                                },
-                            });
-                            Operand::Local(temp_i64)
-                        } else {
-                            arg_op
-                        };
-                        let dest = self.alloc_temp(MirType::F64);
-                        self.push_stmt(Statement::Assign {
-                            dest,
-                            value: Rvalue::Cast {
-                                kind: CastKind::I64ToF64,
-                                operand: op,
-                            },
-                        });
-                        Operand::Local(dest)
-                    }
-                    _ => arg_op,
-                }
-            }
-            ExprKind::Builtin(Builtin::Abs) => {
-                if args.is_empty() {
-                    return Operand::Const(Constant::I64(0));
-                }
-                let arg_op = self.build_expr(args[0]);
-                let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[args[0]];
-                match arg_ty {
-                    Ty::Float => {
-                        let dest = self.alloc_temp(MirType::F64);
-                        self.push_stmt(Statement::Assign {
-                            dest,
-                            value: Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::AbsF64),
-                                args: vec![arg_op],
-                            },
-                        });
-                        Operand::Local(dest)
-                    }
-                    _ => {
-                        let dest = self.alloc_temp(MirType::I64);
-                        self.push_stmt(Statement::Assign {
-                            dest,
-                            value: Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::AbsI64),
-                                args: vec![arg_op],
-                            },
-                        });
-                        Operand::Local(dest)
-                    }
-                }
-            }
-            _ => Operand::Const(Constant::I64(0)),
-        }
     }
 
     fn call_runtime_binary(

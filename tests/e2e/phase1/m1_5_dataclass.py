@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.5：@dataclass 编译为 .NET class / struct。
 from dataclasses import dataclass
 

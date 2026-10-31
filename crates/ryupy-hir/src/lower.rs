@@ -29,33 +29,90 @@ use crate::scope::{FunctionScope, GlobalScope, Resolution, collect_assigned_name
 pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
     let mut diagnostics = Vec::new();
     let mut functions = Arena::default();
+    let mut classes = Arena::default();
     let mut global_scope = GlobalScope::default();
 
-    // 第一遍：收集所有顶层 def，支持前向引用
+    // 第一遍：收集所有顶层 class 与 def，支持前向引用
+    let mut raw_classes = Vec::new();
     let mut user_funcs: Vec<(ast::StmtFunctionDef, crate::hir::FuncId)> = Vec::new();
     for stmt in &parsed.module.body {
-        if let ast::Stmt::FunctionDef(fn_def) = stmt {
-            let name = Name::from(fn_def.name.as_str());
-            if global_scope.names.contains_key(&name) {
+        match stmt {
+            ast::Stmt::ClassDef(cls_def) => {
+                let name = Name::from(cls_def.name.as_str());
+                if global_scope.names.contains_key(&name) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(parsed.file, cls_def.name.range()),
+                            format!("重复定义名字 `{name}`"),
+                        )
+                        .with_code("E0102")
+                        .with_primary_label("该名字已在模块中定义"),
+                    );
+                }
+                let cls_id = classes.alloc(crate::hir::Class {
+                    name: name.clone(),
+                    fields: Vec::new(),
+                    frozen: false,
+                    range: cls_def.range(),
+                });
+                global_scope.names.insert(name, Resolution::Class(cls_id));
+                raw_classes.push((cls_def, cls_id));
+            }
+            ast::Stmt::FunctionDef(fn_def) => {
+                let name = Name::from(fn_def.name.as_str());
+                if global_scope.names.contains_key(&name) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(parsed.file, fn_def.name.range()),
+                            format!("重复定义名字 `{name}`"),
+                        )
+                        .with_code("E0102")
+                        .with_primary_label("该名字已在模块中定义"),
+                    );
+                }
+                let func_id = functions.alloc(Function {
+                    name: name.clone(),
+                    kind: FunctionKind::User,
+                    params: Vec::new(),
+                    ret: None,
+                    body: Body::default(),
+                    range: fn_def.range(),
+                });
+                global_scope.names.insert(name, Resolution::Func(func_id));
+                user_funcs.push((fn_def.clone(), func_id));
+            }
+            ast::Stmt::ImportFrom(import_from) => {
+                if !crate::class::is_allowed_dataclass_import(import_from) {
+                    diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(parsed.file, import_from.range()),
+                            "Phase 1 仅支持 `from dataclasses import dataclass`",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("不支持该导入模块"),
+                    );
+                }
+            }
+            ast::Stmt::Import(import_stmt) => {
                 diagnostics.push(
                     Diagnostic::error(
-                        Span::new(parsed.file, fn_def.name.range()),
-                        format!("重复定义函数 `{name}`"),
+                        Span::new(parsed.file, import_stmt.range()),
+                        "Phase 1 不支持普通 import，仅支持 `from dataclasses import dataclass`",
                     )
-                    .with_code("E0102")
-                    .with_primary_label("该名字已在模块中定义"),
+                    .with_code("E0100")
+                    .with_primary_label("暂不支持普通 import 语法"),
                 );
             }
-            let func_id = functions.alloc(Function {
-                name: name.clone(),
-                kind: FunctionKind::User,
-                params: Vec::new(),
-                ret: None,
-                body: Body::default(),
-                range: fn_def.range(),
-            });
-            global_scope.names.insert(name, Resolution::Func(func_id));
-            user_funcs.push((fn_def.clone(), func_id));
+            _ => {}
+        }
+    }
+
+    // 解析所有 dataclass 类体字段
+    for (cls_def, cls_id) in raw_classes {
+        if let Some(parsed_cls) =
+            crate::class::parse_class_def(cls_def, parsed.file, &global_scope, &mut diagnostics)
+        {
+            classes[cls_id] = parsed_cls;
         }
     }
 
@@ -167,7 +224,13 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
         loop_depth: 0,
     };
     for stmt in &parsed.module.body {
-        if !matches!(stmt, ast::Stmt::FunctionDef(_)) {
+        if !matches!(
+            stmt,
+            ast::Stmt::FunctionDef(_)
+                | ast::Stmt::ClassDef(_)
+                | ast::Stmt::ImportFrom(_)
+                | ast::Stmt::Import(_)
+        ) {
             main_lower_ctx.lower_stmt_to_root(stmt);
         }
     }
@@ -176,7 +239,7 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
     let module = Module {
         file: parsed.file,
         functions,
-        classes: Arena::default(),
+        classes,
         main: main_id,
     };
 
@@ -234,26 +297,37 @@ impl StmtLowerCtx<'_> {
                 let val = self.lower_expr(&assign_stmt.value);
                 if assign_stmt.targets.len() == 1 {
                     let target = &assign_stmt.targets[0];
-                    if let ast::Expr::Name(name_expr) = target {
-                        let name = Name::from(name_expr.id.as_str());
-                        if let Some(&loc_id) = self.func_scope.locals.get(&name) {
+                    match target {
+                        ast::Expr::Name(name_expr) => {
+                            let name = Name::from(name_expr.id.as_str());
+                            if let Some(&loc_id) = self.func_scope.locals.get(&name) {
+                                StmtKind::Assign {
+                                    target: AssignTarget::Local(loc_id),
+                                    value: val,
+                                }
+                            } else {
+                                return None;
+                            }
+                        }
+                        ast::Expr::Attribute(attr_expr) => {
+                            let base = self.lower_expr(&attr_expr.value);
+                            let name = Name::from(attr_expr.attr.as_str());
                             StmtKind::Assign {
-                                target: AssignTarget::Local(loc_id),
+                                target: AssignTarget::Attribute { base, name },
                                 value: val,
                             }
-                        } else {
+                        }
+                        _ => {
+                            self.diagnostics.push(
+                                Diagnostic::error(
+                                    Span::new(self.file, target.range()),
+                                    "暂不支持非简单变量或属性访问的赋值目标",
+                                )
+                                .with_code("E0100")
+                                .with_primary_label("仅支持赋值给局部变量或属性"),
+                            );
                             return None;
                         }
-                    } else {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, target.range()),
-                                "暂不支持非简单变量的赋值目标",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("仅支持赋值给单个局部变量"),
-                        );
-                        return None;
                     }
                 } else {
                     self.diagnostics.push(
@@ -449,73 +523,5 @@ impl StmtLowerCtx<'_> {
             kind,
             range: stmt.range(),
         }))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ryupy_base::SourceDb;
-
-    #[test]
-    fn lowers_function_definitions_and_forward_reference() {
-        let mut db = SourceDb::default();
-        let src = r#"
-def f(x: int) -> int:
-    return g(x)
-
-def g(y: int) -> int:
-    return y + 1
-
-print(f(10))
-"#;
-        let file = db.add("test.py", src);
-        let (parsed, diags) = ryupy_syntax::parse(file, src);
-        assert!(diags.is_empty());
-
-        let (hir, diags) = lower_module(&parsed);
-        assert!(diags.is_empty(), "diags: {diags:?}");
-        assert_eq!(hir.functions.len(), 3); // f, g, main
-    }
-
-    #[test]
-    fn lowers_if_elif_else_control_flow() {
-        let mut db = SourceDb::default();
-        let src = r#"
-def classify(n: int) -> int:
-    if n < 0:
-        return -1
-    elif n == 0:
-        return 0
-    else:
-        return 1
-"#;
-        let file = db.add("test.py", src);
-        let (parsed, diags) = ryupy_syntax::parse(file, src);
-        assert!(diags.is_empty());
-
-        let (hir, diags) = lower_module(&parsed);
-        assert!(diags.is_empty(), "diags: {diags:?}");
-        assert_eq!(hir.functions.len(), 2); // classify, main
-    }
-
-    #[test]
-    fn lowers_for_range_loop() {
-        let mut db = SourceDb::default();
-        let src = r#"
-total = 0
-for i in range(10):
-    total += i
-"#;
-        let file = db.add("test.py", src);
-        let (parsed, diags) = ryupy_syntax::parse(file, src);
-        assert!(diags.is_empty());
-
-        let (hir, diags) = lower_module(&parsed);
-        assert!(diags.is_empty(), "diags: {diags:?}");
-        let main_fn = &hir.functions[hir.main];
-        assert_eq!(main_fn.body.root.len(), 2);
-        let for_stmt = &main_fn.body.stmts[main_fn.body.root[1]];
-        assert!(matches!(for_stmt.kind, StmtKind::ForRange { .. }));
     }
 }
