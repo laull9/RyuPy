@@ -1,6 +1,6 @@
 # ADR-0003：`PyValue` 的内存布局
 
-- 状态：提议（Phase 2 开工前定稿）
+- 状态：已被 [ADR-0010](0010-dynamic-value-representation.md) 取代（布局选择改为装箱 object）
 - 日期：2026-10-31
 
 ## 背景
