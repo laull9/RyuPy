@@ -114,11 +114,16 @@ target/e2e/<case>/            # e2e 测试的产物，便于失败后手工检�
 | 单元测试 | `#[test]` | 单个函数的边界情况（并查集、运算规则表…） | 各 crate 的 `#[cfg(test)]` |
 | 快照测试 | `insta` | 每层 IR 的文本转储、诊断文本 | 各 crate 的 `tests/` 或 `#[cfg(test)]` |
 | 端到端差分 | `libtest-mimic` | 同一 `.py` 在 CPython 与 RyuPy 下 stdout 一致 | `tests/e2e/**/*.py`，由 `ryupy-e2e` 驱动 |
+| 目录用例差分 | `libtest-mimic` + `ryupy-e2e` 库 | 入口 / 参数 / 环境 / stdio / 工作目录，以及退出码、异常类型、消息、cause | `tests/cases/**/case.txt` |
+| 项目级验收 | `ryupy-e2e` 项目 runner | 编译并运行固定项目入口，对照 CPython 基线 | `tests/projects/`，结果写 JSONL |
 | 运行时单测 | xUnit | `PyMath`、`PyFormat` 等 C# 语义函数 | `runtime/RyuPy.Runtime.Tests` |
 
-常用语义以固定版本 CPython 为差分基准。现有 e2e 比较成功用例的 stdout 与成功退出；M2.0 增加多文件、错误路径、异常类型和副作用的比较。已接受偏差另外测试，不混进一致性通过率。
+常用语义以固定版本 CPython 为差分基准。成功用例比较 stdout 与成功退出；目录用例另外比较参数、
+环境、stdio、工作目录与错误路径（退出码、异常类型、消息、cause），清单本身由 CPython 先行校验。
+已接受偏差另外测试，不混进一致性通过率。
 
-项目级验收固定项目版本、传递依赖、入口与上游测试范围，原生与桥接分别记录；标准库按 API 登记。细节见 [compatibility.md](compatibility.md) 与 [stdlib.md](stdlib.md)。这些新增测试入口尚待实现。
+项目级验收固定项目版本、传递依赖、入口与上游测试范围，原生与桥接分别记录；标准库按 API 登记。
+细节见 [compatibility.md](compatibility.md) 与 [stdlib.md](stdlib.md)。
 
 ## 7. Phase 2 / Phase 3 的设计边界（待实现）
 

@@ -7,9 +7,11 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+# 项目级运行入口（src/bin/projects.rs）需要真正调用编译流水线，
+# 因此 driver 是普通依赖而不是 dev-dependency。
+ryupy-driver.workspace = true
 
 [dev-dependencies]
-ryupy-driver.workspace = true
 libtest-mimic.workspace = true
 
 [[test]]

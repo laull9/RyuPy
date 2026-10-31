@@ -42,8 +42,12 @@ e2e: runtime ## 端到端差分测试（跳过 pending 用例）
 e2e-all: runtime ## 端到端测试，包括 pending 用例（查看进度用）
 	-cargo test -p ryupy-e2e -- --include-ignored
 
+.PHONY: cases-selftest
+cases-selftest: ## 只自检用例与框架：多文件/参数/环境/输入/错误路径（不编译 RyuPy）
+	E2E_PYTHON_ONLY=1 cargo test -p ryupy-e2e -- --include-ignored
+
 .PHONY: check
-check: lint test e2e ## 提交前必跑：lint + test + e2e
+check: lint test cases-selftest e2e ## 提交前必跑：lint + test + 用例自检 + e2e
 
 .PHONY: snap
 snap: ## 交互式审阅 insta 快照（需 cargo install cargo-insta）

@@ -1,5 +1,0 @@
-[
-  {"file": "m2_unhandled_zero_division.py", "exception": "ZeroDivisionError", "message": "division by zero", "stdout": "before\n"},
-  {"file": "m2_unhandled_chain.py", "exception": "RuntimeError", "message": "outer", "stdout": "", "cause": "ValueError: source"},
-  {"file": "m2_missing_module.py", "exception": "ModuleNotFoundError", "message": "ryupy_deliberately_missing_module", "stdout": ""}
-]
