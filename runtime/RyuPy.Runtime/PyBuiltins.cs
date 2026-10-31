@@ -383,7 +383,9 @@ public static partial class PyOps
             long digits = ToIndex(args[1]!, "ndigits");
             if (digits < 0)
             {
-                return (long)Math.Round(value, MidpointRounding.ToEven);
+                // 负 ndigits：按 10^(-digits) 取整（`round(123.456, -1) == 120.0`）
+                double unit = Math.Pow(10, -digits);
+                return Math.Round(value / unit, MidpointRounding.ToEven) * unit;
             }
             // 直接缩放成 double 会在 2.675 这类“二进制略小于中点”的值上
             // 恰好落回 267.5，从而多进一位（CPython 得 2.67）。这里按 double 的

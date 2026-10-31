@@ -15,6 +15,7 @@ print(list(enumerate([])), list(zip([], [1])), list(reversed(range(3))))
 # sum / min / max / round
 print(sum([1, 2, 3]), sum([1, 2], 10), min(3, 1, 2), max([], default=9))
 print(round(2.5), round(3.5), round(2.675, 2), round(2.5, 0))
+print(round(123.456, -1), round(135.0, -1), round(1250, -2))
 
 # 静态函数里的 while / for else（break 跳过 else）
 def loop_else(limit: int) -> None:
