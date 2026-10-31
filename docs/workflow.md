@@ -25,19 +25,23 @@ make check     # lint + 单元/快照测试 + e2e，全绿即环境 OK
 make help                                   # 全部命令
 make dump FILE=foo.py EMIT=ast|hir|types|mir|cil   # 查看任意阶段的 IR
 make run  FILE=foo.py                       # 编译并运行
-make test                                   # 单元 + 快照
+make test                                   # Python 基线 + 单元 + 快照
+make python-baseline                        # 自检含 pending 的 Phase 1–3 Python 用例
+make python-extensions                      # 自检 Phase 4，需 NumPy / sqlite3 / zlib
 make e2e                                    # 端到端（跳过 pending）
 make e2e-all                                # 包括 pending，看整体进度
 make snap                                   # 审阅快照变更
 make check                                  # 提交前必跑
 ```
 
-## 3. 核心循环：一次只做一个「竖切」
+## 3. 开发循环：一次只做一个「竖切」
 
 **曳光弹原则**：先打通一条贯穿所有层的最窄路径（`print(1 + 2)`），再逐个特性加宽。
 永远不要「先把 HIR 写完整，再写类型，再写 MIR」——那样要到最后一刻才知道设计行不行。
 
 每个特性按下面的步骤推进（对应 `TODO.md` 里的一个条目）：
+
+Phase 2 起先查看固定项目集的失败原因，再选择能解除阻塞的行为。TODO 中一个里程碑包含多个竖切，标准库以单个 API 或一小组相关行为推进；不把整个模块或整阶段塞进一个实现任务。冷门能力保持明确失败记录，不因为容易展示而插队。
 
 ```text
 ① 选条目    从 TODO.md 当前里程碑里挑一条，标记为进行中
@@ -50,9 +54,12 @@ make check                                  # 提交前必跑
 ④ 转正      去掉 `# ryupy: pending`，make e2e 通过
 ⑤ 收尾      make check 全绿 → 勾掉 TODO.md 条目 → 提交
 ⑥ 记录      踩到的坑写进 docs/notes/；做了取舍就写 ADR
+            更新项目 / 标准库清单，偏差写进 semantics.md §4 与 compatibility.md
 ```
 
 一个竖切理想情况下 **1~3 天内完成**。超过一周说明切得太大，拆小。
+
+Phase 1 已完成 M1.0–M1.5；旧 M1.6 的 AOT 保持待做并转入 M5.2。后续里程碑不得仅因重新排期就改成已完成。
 
 ## 4. 测试怎么选
 
@@ -62,8 +69,16 @@ make check                                  # 提交前必跑
 | 某一层的输出结构 | insta 快照（`make dump` 的输出就是快照内容） |
 | 某个错误能否正确报出、提示是否友好 | 诊断文本快照（`render(.., color=false)`） |
 | 算法本身（并查集、运算规则表、浮点格式化） | 普通单元测试，覆盖边界值 |
+| 导入顺序、循环导入、模块共享状态 | M2.0 新增多文件 fixture，M2.7 转正 |
+| Python 异常、finally 与清理副作用 | M2.0 扩展错误路径框架，M2.2 起按类型 / 必要消息 / 用户位置比较 |
+| 标准库兼容 | stdlib.md 中逐 API 的 CPython 差分与移植上游测试 |
+| 项目可运行 | 固定版本、入口、传递依赖和上游测试范围；原生 / 桥接分别统计 |
 
 **发现 bug 时先写一个能复现它的最小 e2e 用例**，再修。用例永远保留。
+
+后面四类测试入口属于后续任务，现有单文件 e2e 不能替代。已接受偏差单独验证并链接编号，不能通过改 CPython 期望值掩盖差异；pending、跳过与桥接结果不能补入原生通过数。
+
+Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPython 基线，先确认 pending 程序本身成立；Rust e2e 仍跳过 pending。多文件辅助模块不单独发现，预期错误退出由独立 manifest 验证，详见 [tests/README.md](../tests/README.md)。
 
 ## 5. 调试手段
 
@@ -75,8 +90,6 @@ make check                                  # 提交前必跑
 | 运行结果和 Python 不同 | 查 [semantics.md](semantics.md) 的「语义陷阱」一节，大概率是已知差异 |
 
 ## 6. 提交规范
-
-> 仓库已 `git init`，尚无提交。
 
 - 使用 Conventional Commits，scope 为 crate 名去掉前缀：
 
@@ -112,7 +125,12 @@ make check                                  # 提交前必跑
 - [ ] 至少有一个「错误输入」的诊断快照；
 - [ ] `make check` 全绿；
 - [ ] `TODO.md` 已更新，`semantics.md` 中对应特性的状态已更新；
+- [ ] 涉及模块 / 标准库 / 项目时，传递依赖、API 范围、平台和执行路径已经登记，相关项目测试通过；
+- [ ] 偏差有最小示例、影响和替代方式；低影响默认偏差经 ADR 接受，影响常用结果的性能扩展默认关闭；
+- [ ] 涉及缓存、容器、模块状态或桥接引用时，说明容量、增长与释放策略，覆盖失效和长期运行；
 - [ ] 写了一篇学习笔记。
+
+优化任务还需记录基准输入、工具链、冷启动 / 稳态与内存证据，守卫失败回到正确通用路径。项目覆盖率按 compatibility.md 的冻结分母计算；Phase 3 未达到 80% 时继续处理阻塞，Phase 5 也不能把未支持项写成可用。
 
 ## 10. 升级依赖
 

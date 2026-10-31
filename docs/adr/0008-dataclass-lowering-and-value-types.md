@@ -1,6 +1,6 @@
 # ADR-0008：@dataclass 降级与 .NET 值类型映射
 
-- **状态**：Accepted
+- **状态**：Phase 1 已接受；后续值类型适用范围由 [ADR-0009](0009-project-compatibility-first.md) 限定，默认保留对象身份；以下正文保留原决策
 - **日期**：2026-10-31
 - **决策者**：大喵老师 & USER
 - **相关 issue / PR**：M1.5

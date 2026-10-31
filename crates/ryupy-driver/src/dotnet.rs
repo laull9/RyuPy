@@ -34,5 +34,5 @@ pub fn run_dll(dll: &Path) -> Result<Output> {
 ///
 /// 然后执行 `dotnet publish -c Release -r <rid>`，返回生成的原生可执行文件路径。
 pub fn publish_aot(_dll: &Path, _out_dir: &Path) -> Result<PathBuf> {
-    anyhow::bail!("Native AOT 尚未实现（M1.6，见 TODO.md）")
+    anyhow::bail!("Native AOT 尚未实现（M5.2，见 TODO.md）")
 }

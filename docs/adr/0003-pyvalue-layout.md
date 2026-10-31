@@ -5,7 +5,7 @@
 
 ## 背景
 
-roadmap 设计了一个 16 字节的 `PyValue`：
+旧版 roadmap 设计了一个 16 字节的 `PyValue`；下面保留问题示例，当前路线图已删除该布局：
 
 ```csharp
 [StructLayout(LayoutKind.Explicit, Size = 16)]
@@ -44,14 +44,14 @@ public readonly struct PyValue {
 缺点：取堆对象类型时需要先排除哨兵；`None` 也要一个哨兵。
 
 ### C. 标量直接装箱到 `object`
-即 IronPython 的做法，违背「动态路径零堆分配」的目标，排除。
+实现简单，但标量算术频繁装箱增加分配。保留为性能对照，优先比较 A / B；不把所有动态操作承诺为零分配。
 
 ## 倾向
 
-倾向 B。Phase 2 开工时先写一个 BenchmarkDotNet 微基准对比 A 与 B（`a + b` 热循环），用数据定稿。
+倾向 B。M2.1 先用 BenchmarkDotNet 比较 A / B，覆盖算术、调用、容器访问与 GC，用数据定稿。
 
 ## 后果
 
-- 无论选 A 还是 B，都需要更新 roadmap 中的示例代码。
-- 另需注意：roadmap Phase 4 的 `NdView1D<T>` 被设计为 `ref struct`，它**不能**作为 `PyValue` 的字段、
+- 无论选 A 还是 B，都需要记录 ABI、值传递成本、布局大小、标量与堆引用的生命周期，并同步运行时和后端引用。
+- 另需注意：Phase 4 的短期数组视图可采用 `ref struct`，它**不能**作为 `PyValue` 的字段、
   不能放进堆对象、不能跨 `yield`/`await` 存活。动态路径持有 ndarray 时需要另一个非 ref 的句柄类型。

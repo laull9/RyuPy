@@ -1,336 +1,103 @@
-# RyuPy 编译器架构与五阶段技术路线设计文档
+# 愿景与路线图
 
-> **修订说明（2026-10-31）**：本文是项目的**愿景文档**，保留原貌。落地时的调整如下，以对应文档为准：
->
-> - 实际 crate 分层（新增 `ryupy-base` / `ryupy-syntax` / `ryupy-driver` / `ryupy-e2e`）见 [architecture.md](architecture.md)。
-> - MIR 采用非 SSA 形式，见 [ADR-0002](adr/0002-mir-non-ssa.md)。
-> - **Phase 2 的 `PyValue` 示例布局在 CLR 上不合法**（引用字段不能与 `long`/`double` 重叠），见 [ADR-0003](adr/0003-pyvalue-layout.md)。
-> - Phase 4 的 `NdView1D<T>` 是 `ref struct`，不能存入 `PyValue`、堆对象或跨 `yield`/`await`，见 ADR-0003「后果」。
-> - Phase 3 生成器「实现 `IEnumerator<T>` 的状态机结构体」：通过接口使用时会被装箱，建议用 class（与 C# 编译器一致）。
-> - 「第一周启动清单」已被 [TODO.md](../TODO.md) 中按里程碑拆分的任务取代。
-> - 运行生成程序先用子进程 `dotnet x.dll`，`netcorehost` 推迟引入。
+修订日期：2026-10-31。本文描述后续计划；已实现能力见 [semantics.md](semantics.md)，执行任务见 [TODO.md](../TODO.md)。本次调整记录在 [ADR-0009](adr/0009-project-compatibility-first.md)。
 
-**项目代号：** `RyuPy`（Python on RyuJIT & .NET Native AOT）
+## 愿景
 
-**宿主语言：** Rust（编译器前端、中端优化、CIL 代码生成） + C#（极简运行时底座 `RyuPy.Runtime`）
+把常见 Python 项目编译成 .NET CIL，让用户保留现有代码，在可证明类型和对象行为的地方获得编译执行的性能。编译器用 Rust 编写，运行时用 C# 编写。日常开发先通过 RyuJIT 运行；Native AOT 承担后续独立部署。
 
-**核心哲学：** **“静态代码走原生拆箱快车道，动态代码走值类型内联缓存，成熟基建 100% 复用现有生态。”**
+近期目标为约 80% 的实用 Python 兼容性。工作顺序由项目遇到的阻塞决定：容器、异常、模块和标准库排在冷门语法之前。语言特性完成数和几个数值基准不足以说明项目能跑。
 
----
+“80%”用固定项目集衡量：M2.0 选定至少 20 个、覆盖至少四类用途的纯 Python 项目，锁定版本、入口、依赖和验收测试；Phase 3 目标为其中至少 80% 原生通过。桥接项目另外统计。选集、计算方式和当前证据见 [compatibility.md](compatibility.md)。这个比例限定于该项目集，不能外推为 PyPI 的覆盖率。
 
-## 一、 核心架构哲学：为什么 RyuPy 能兼顾“极致性能”与“Native AOT”？
+## 取舍
 
-传统动态语言编译器（如 IronPython）之所以慢且无法支持 AOT，是因为它将所有变量无脑装箱为堆上的 `System.Object`，并在运行期依赖 `Reflection.Emit` 动态生成字节码。
+- 常用行为按选定的 CPython 版本做差分测试，包括异常、求值顺序、别名和副作用。
+- .NET 的 GC 不复现 CPython 的引用计数与即时析构时机。资源释放通过 `with`、`finally`、`close()` 明确表达；依赖 refcount 的项目记录为有偏差或不支持。
+- 冷门元编程、运行时生成代码、自定义导入钩子和解释器内部接口暂缓。项目回归集证明它们阻塞常见用途后，再单独排期。
+- 低影响行为可以采用更快的默认实现，每项先写 ADR，记录触发条件、收益、示例和适用项目。固定宽度整数、浮点重排等影响常用计算结果的扩展由用户显式选择；未记录的差异按缺陷处理。
+- 类型标注提供优化线索。Phase 2 默认兼容路径不因标注而增加 Python 没有的参数类型限制；特化失败返回通用路径。Phase 1 的静态限制仍如实记录。
+- 原生路径不依赖运行时生成 IL。libpython 桥接允许扩大生态覆盖，但会带来 Python 部署、对象生命周期和跨边界调用成本。
 
-**RyuPy 采用“动静双轨 + 零运行时 Emit”架构：**
+## 五个阶段
 
-1. **静态快车道（Unboxed Fast-Path）：** 凡是有类型标注（Type Hints）或能被前端通过数据流推导出的变量、函数与类，直接编译为 .NET 原生值类型（`int64`, `float64`, `bool`）和静态强类型 `struct`/`class`，生成纯粹的静态 CIL 指令，交由 .NET **RyuJIT** 进行自动向量化（AVX-512）与内联。
-2. **动态慢车道（Zero-Allocation Tagged Union）：** 无法静态推导的动态变量，**绝不使用 `System.Object` 装箱**，而是统一编译为 `RyuPy.Runtime` 提供的 16 字节栈上值类型结构体 `PyValue`（包含类型 Tag 与 64 位数据槽位）。标量类型在动态模式下依然是**零堆分配、零 GC 压力**。
-3. **100% 兼容 .NET Native AOT：** 所有的动态分发（运算符重载、属性查找）均通过预编译的静态多态内联缓存（Polymorphic Inline Cache, PIC）状态机完成，完全不依赖运行期动态生成 IL。这意味着任何 RyuPy 编译出的 `.dll`，都能直接通过微软官方的 **Native AOT (`ilc`)** 编译成无虚拟机依赖的原生机器码可执行文件。
-
----
-
-## 二、 “站在巨人肩膀上”：成熟第三方库选型矩阵
-
-遵循“绝不重复造轮子”**的原则，RyuPy 将词法分析、语法解析、CFG 图算法、PE/CIL 二进制封装及宿主调用全部卸载给成熟的工业级开源库，让核心开发只聚焦于**类型推导、中端降级与运行时语义。
-
-| 模块层级 | 选用的成熟第三方库 | 替你省掉的工作量与核心作用 |
+| 阶段 | 范围 | 验收结果 |
 | --- | --- | --- |
-| **Python 词法/语法前端** | **`ruff_python_parser`** + **`ruff_python_ast`** | **直接省去 3 万行代码。** Astral（Ruff / uv 团队）出品的工业级解析器，完美处理 Python 3.12+ 缩进状态机、f-string、模式匹配，速度极快且自带容错 AST。 |
-| **源码位置与诊断报错** | **`ruff_text_size`** + **`ariadne`** | 零成本管理源码字节偏移（`TextRange`），一行代码渲染出 `rustc` 级别的多行彩色类型报错与修复提示。 |
-| **扁平内存池与标识符驻留** | **`la-arena`** + **`ustr`** (或 **`lasso`**) + **`rustc-hash`** | `la-arena` 提供类型安全的 `Idx<T>` 索引句柄（彻底消除 Rust 生命周期传染）；`lasso` 实现多线程字符串驻留（String Interning）。 |
-| **控制流图与中端优化** | **`petgraph`** + **`egglog`** (可选) | 用 `petgraph` 直接计算支配树（Dominator Tree）、强连通分量与死代码消除；进阶阶段可直接引入 `egglog` 做基于等式饱和（E-Graph）的算子代数化简。 |
-| **CIL 字节码与 `.dll` 生成** | **`dotnetdll`** | **直接省去 2 万行二进制封装代码。** 纯 Rust 编写的 ECMA-335 标准库（`rustc_codegen_clr` 同款底座），直接用 Rust 构造类型表、方法表与 CIL 指令流并序列化为合法 `.dll`。 |
-| **CoreCLR 进程内联调** | **`netcorehost`** + **`insta`** | 在 Rust 测试进程中直接拉起本地 .NET 运行时，内存中编译并立即执行生成的 `.dll`；配合 `insta` 对生成的 CIL 汇编文本进行自动化快照回归测试。 |
-| **NumPy / C 扩展互操作** | **`pyo3-ffi`** + **`dlpack`** + **Python Buffer Protocol** | 直接复用 `pyo3-ffi` 的 CPython ABI 绑定与 `Py_buffer` 零拷贝内存视图协议，将 NumPy 底层连续内存直接映射为 .NET 的 `Span<T>` / `UnmanagedMemory`。 |
+| Phase 1，已完成 M1.0–M1.5 | 静态函数、数值、控制流、字符串、dataclass | 已有九个 Phase 1 e2e 用例；性能与语义限制均有记录 |
+| Phase 2 | 动态核心、容器、普通 class、异常、模块系统 | 无标注的多文件程序，含容器、对象、异常恢复和资源清理，端到端通过 |
+| Phase 3 | 闭包、生成器、推导式、装饰器、标准库移植 | 固定纯 Python 项目集原生通过率达到 80%；标准库按 API 清单验收 |
+| Phase 4 | 以 NumPy 为首的非纯 Python 模块可引入性 | 在明确的 Python / 扩展 / 平台组合上完成导入、基本调用与错误传播 |
+| Phase 5 | 兼容性清单、显式记录的偏差、交付工具链 | 发布可运行项目清单、失败原因和部署依赖；独立验证 Native AOT |
 
----
+旧 M1.6 的 Native AOT 尚未实现，转入 M5.2；矩阵乘法和 N-Body 留到有容器后补齐。调整阶段归属不代表这些任务已经完成。
 
-## 三、 Cargo Workspace 模块划分与编译流水线
+## Phase 2：动态核心、容器、普通 class、异常、模块系统
 
-### 1. 仓库目录结构
+目标为能组织业务逻辑的多文件程序。实现细节与依赖顺序见 TODO 的 M2.0–M2.9。
 
-```text
-ryupy/
-├── Cargo.toml
-├── crates/
-│   ├── ryupy-cli/          # 命令行入口 (build / run / aot / test)
-│   ├── ryupy-hir/          # 将 ruff_python_ast 降级为去糖后的 HIR，完成名称解析
-│   ├── ryupy-ty/           # 双向类型推导、流敏感类型收窄、动静边界标记 (Fast/Slow Path)
-│   ├── ryupy-mir/          # 基于 CFG 基本块的 SSA 中端表示、逃逸分析、yield 状态机降级
-│   └── ryupy-codegen-cil/  # MIR 栈化 (Stackification)、基于 dotnetdll 生成 .NET 程序集
-└── runtime/
-    └── RyuPy.Runtime/      # C# 编写的运行时核心库 (PyValue 结构体、DLR 缓存表、内置类型、NumPy 桥)
+| 工作 | 设计要求 |
+| --- | --- |
+| 动态值与调用 | 定稿 GC 合法的 `PyValue` 布局；未标注参数、异构赋值、默认参数、关键字参数、`*args` / `**kwargs`、函数对象和动静边界 |
+| 数值与运算 | 动态算术、比较、真值、短路；i64 溢出升级 `BigInteger`，覆盖大整数字面量与所有整数运算，不把普通数值正确性留到 Phase 5 |
+| 异常 | Python 异常继承树、`raise`、`try/except/else/finally`、裸重抛、异常链、用户异常、基本 traceback；映射实际运算产生的 .NET 异常 |
+| 容器 | list / tuple / dict / set，索引、切片、解包、可变操作；dict 顺序、相等性与哈希一致性；bytes / bytearray 的常用路径 |
+| 协议与内建 | 通用迭代、`for…else`、字符串码点操作、f-string、`len` / `iter` / `next` / `enumerate` / `zip` / `sorted` 等 |
+| 普通 class | `__init__`、实例与类属性、绑定方法、单继承、`super()`、常用魔术方法、`property` / `staticmethod` / `classmethod`；保留对象身份和引用共享 |
+| 模块与包 | 真实 `import` / `from` / 别名 / 相对导入，模块全局与 `global`、普通包、缓存、循环导入、初始化失败、入口元数据 |
+| 资源管理 | `with` 和 `__enter__` / `__exit__`，异常抑制与 `finally` 的控制流；为 Phase 3 文件 API 提供清理基础 |
 
-```
+模块解析由 driver 读取源码并构建模块图；HIR 分配名称与模块身份；MIR 表达模块初始化、动态操作和异常区域；C# 运行时维护模块状态与 Python 对象。后端只消费 MIR，不引入 HIR / ty 依赖。详见 [architecture.md](architecture.md) §7。
 
-### 2. 核心编译流水线
+属性和调用缓存从第一版就携带失效条件。普通方法替换、类属性写入、实例增删属性都必须让旧缓存失效。多重继承、任意描述符和元类暂缓；不能为了缓存速度静默冻结 Python 对象。
 
-```text
-Python 源码 (.py)
-  │
-  ├─► [1. ruff_python_parser] ──► Python AST (借用现成解析器)
-  │
-  ├─► [2. ryupy-hir]          ──► 语法糖展开 (推导式/装饰器/with) + 作用域符号表 (SymbolId)
-  │
-  ├─► [3. ryupy-ty]           ──► 渐进类型推导 (区分 NativeType 与 Dynamic PyValue)
-  │
-  ├─► [4. ryupy-mir]          ──► 构造 CFG 基本块 + 闭包捕获提升 + Generator 状态机转换 + 插入 Box/Unbox 边界守卫
-  │
-  ├─► [5. ryupy-codegen-cil]  ──► 寄存器转求值栈 (Stackification) + dotnetdll 吐出 .dll
-  │
-  └─► [6. .NET CLR / ILC]     ──► RyuJIT 即时编译执行  或  Native AOT 编译为独立二进制 (.exe)
+阶段验收使用多文件数据处理与命令行样例，覆盖共享可变数据、重复与循环导入、异常传播和资源清理。此时不宣称已支持任意无标注脚本。
 
-```
+## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 
----
+高级语法服务于实际库代码。闭包使用共享 cell 保留 late binding 和 `nonlocal` 写入；推导式保留独立作用域与求值顺序；生成器使用可持有堆引用的状态机，覆盖 `send` / `throw` / `close`、`yield from` 和暂停期间的 `finally`；装饰器按 Python 顺序执行并允许返回新的可调用对象。
 
-## 四、 五阶段演进技术路线图（Phased Roadmap）
+标准库移植单独按工程交付。C# 运行时重写和适配预计涉及万行级实现与测试，不能藏在一个“补标准库”条目里。语法支持允许后，也可编译经审查的纯 Python 标准库源码；其底层模块仍要由 C# 实现或 libpython 桥接。复用源码需要跟踪版本和许可证。
 
-### Phase 1：静态强类型子集与原生值类型底座（MVP 闭环）
+| 批次 | 优先模块与用途 | 实现路径 |
+| --- | --- | --- |
+| 基础系统与数据 | `sys`、`os` / `os.path`、`io`、`pathlib`、`math`、`time`、`json`、`re` | C# 语义适配；逐 API 测试，正则、路径与数值行为单列差异 |
+| 常用程序结构 | `collections` / `collections.abc`、`itertools`、`functools`、`dataclasses`、`typing` 的运行时常用部分、`contextlib` | C# 原生实现，或编译已审核的纯 Python 实现；跟踪传递依赖 |
+| 项目入口与测试 | `argparse`、`logging`、`unittest`、`enum`、`copy`、`datetime`、`random`、`string` | 由项目阻塞排序，按 API 分批交付 |
+| 尚未移植的必要模块 | 固定项目明确依赖的模块 | Phase 3 建立最小 libpython 桥；显式声明环境，另列桥接通过率 |
 
-**目标：** 打通从 Python 源码到 `.NET .dll` 再到 **Native AOT 独立可执行文件**的全链路，在纯静态数值与结构化计算上达到与原生 C# 1:1 的性能。
+标准库计划详见 [stdlib.md](stdlib.md)。`import json` 成功只说明加载成功；只有列出的 API 与差分测试通过，才算该部分可用。桥接到 CPython 执行整项测试，不计入 RyuPy 原生通过率。
 
-* **语言特性范围：**
-* 要求函数签名带有类型标注（`def foo(a: int, b: float) -> float:`），函数体内局部变量由 `ryupy-ty` 自动推导。
-* 支持基础标量（`int` 映射为 `int64`，`float` 映射为 `float64`，`bool`、`str`）、算术与位运算、`if/elif/else`、`while`、`for i in range(...)`（前端直接识别 `range` 语法糖并降级为原生计数循环，不生成迭代器对象）。
-* 支持 `@dataclass` 与静态类：属性固定，禁止动态增删字段，直接编译为 .NET 的 `class` 或值类型 `struct`（当标记 `@dataclass(frozen=True)` 时）。
+`async/await`、完整 `asyncio`、线程调度、模式匹配与重型运行时反射退出当前必做路径。若它们阻塞选集，保持失败记录并重新评估优先级，不删项目凑比例。
 
+## Phase 4：以 NumPy 为首的非纯 Python 模块可引入性
 
-* **核心编译技术任务：**
-1. **AST 到 HIR 降级：** 对接 `ruff_python_parser`，实现词法作用域分析（Lexical Scope Resolution），区分局部变量（`LocalId`）与全局变量。
-2. **局部类型推导器：** 基于并查集（Union-Find）实现函数内变量类型推导与类型一致性校验。
-3. **CIL 栈化代码生成（Stackification）：** 将三地址 MIR 指令转换为满足 ECMA-335 栈平衡校验（Stack Verification）的 CIL 指令序列，利用 `dotnetdll` 输出 `.dll` 与 `.runtimeconfig.json`。
+让 RyuPy 代码可以导入依赖 C / C++ / Rust 等原生实现的 Python 模块及其包装层。复用 Phase 3 的 libpython 宿主，先支持明确版本的 NumPy，再按项目依赖扩大范围。模块系统负责路由到桥接宿主，避免把整个项目交回 CPython 执行。
 
+首批覆盖 `import numpy as np`、from 导入、子模块、传递依赖与重复导入；模块对象、ndarray、dtype 和标量能够访问，创建数组、索引修改、基础运算与 linalg 调用通过。再用 sqlite3 / zlib 等扩展验证加载机制能够复用，列出其它第三方扩展的独立结果。
 
-* **阶段里程碑（Milestone 1）：**
-* 编译运行 Fibonacci、Mandelbrot 集、矩阵乘法、N-Body 物理模拟，耗时比 CPython 快 **50~100 倍**，且能通过 `dotnet publish /p:PublishAot=true` 生成脱离 .NET 环境直接运行的 2MB 二进制程序。
+每个组合记录 Python、模块与 wheel 版本、系统、架构、ABI 和系统动态库依赖。缺失依赖、初始化失败和 ABI 不匹配要明确报错；引用所有权、GIL、回调、异常与关闭必须通过测试。导入成功只证明可引入性，完整 API 兼容另按清单判断。部署问题参考 [NumPy 导入与 ABI 排错文档](https://numpy.org/doc/stable/user/troubleshooting-importerror.html)。
 
+零拷贝、Buffer Protocol、SIMD、DLPack 和 GPU 属于可引入之后的优化，不作为本阶段门槛。后续借用数组内存仍需证明布局与生命周期，ref struct 视图不能入堆或跨 yield。
 
+## Phase 5：兼容性清单与显式记录的偏差
 
----
+清单从 M2.0 就开始维护，Phase 5 负责发布验收，避免最后才发现范围不清。
 
-### Phase 2：渐进式动态类型支持与零堆分配 `PyValue`
+交付每个项目的版本、入口、测试集、依赖、原生或桥接路径、平台、通过结果和阻塞原因；每个标准库 API 的支持状态；每个偏差的最小示例、影响、替代写法和测试。refcount、析构时机、弱引用回调时机等差异长期保留。
 
-**目标：** 移除“必须写类型标注”的限制，支持未标注的动态 Python 代码与静态类型代码无缝混写，动态路径通过内联缓存预热提速。
+本阶段不承担“补齐所有长尾”的承诺。元类、多重继承、自定义 import hook、`eval/exec`、完整 frame / tracing API 只有在项目证据支持时才新增独立里程碑。
 
-* **核心运行时设计（在 `RyuPy.Runtime` 中实现 `PyValue`）：**
-为了避免传统 `object` 装箱带来的 GC 灾难，在 C# 运行时中定义一个 16 字节对齐的只读值类型联合体：
-```csharp
-[StructLayout(LayoutKind.Explicit, Size = 16)]
-public readonly struct PyValue
-{
-    [FieldOffset(0)] public readonly PyTag Tag;      // Int64, Float64, Bool, None, ObjectRef
-    [FieldOffset(8)] public readonly long IntVal;    // 标量直接存在栈/寄存器上，零堆分配！
-    [FieldOffset(8)] public readonly double FloatVal;
-    [FieldOffset(8)] public readonly object? ObjRef; // 仅当类型为 str/list/dict/自定义类时使用堆引用
-}
+Native AOT 工具链按 ADR-0005 的桩项目方案落地，分别验收原生与桥接产物。无 libpython 的产物可以免装 Python；桥接产物仍依赖对应解释器、标准库和扩展。AOT 构建需要 SDK 与目标平台工具链，不承诺任意平台交叉发布或固定二进制大小。
 
-```
+## 前瞻优化
 
+优化贯穿各阶段，排在正确性和项目阻塞之后。设计时留下快路径与退路，先测量再启用，详见 [optimization.md](optimization.md)。
 
-* **核心编译技术任务：**
-1. **渐进类型边界注入（Gradual Boundary Lowering）：**
-* 当静态 `int64` 传入未标注类型的动态函数时，MIR 自动插入 `PromoteToPyValue` 指令（构造栈上 `PyValue`）。
-* 当动态 `PyValue` 赋值给标注了 `x: int` 的静态变量时，MIR 自动插入 `UnboxInt64OrThrow` 守卫（检查 `Tag == PyTag.Int64`，失败则抛出标准 Python `TypeError`）。
+| 时点 | 优化 | 正确性条件 |
+| --- | --- | --- |
+| Phase 2 | 标量拆箱、有限大小 PIC、对象 shape 与类型版本、模块槽位 | 缓存失效后回到通用分派；整数溢出升级；保留重绑定与对象身份 |
+| Phase 3 | 流敏感收窄、带守卫的函数特化、临时元组标量替换、迭代器融合 | 别名、副作用、异常顺序、暂停点和可观察身份均受检查 |
+| Phase 4 之后按需 | 批量桥接、Buffer Protocol、布局专门化、SIMD、边界检查合并 | 模块已能导入并调用；布局、所有权和边界证明成立，保留一般路径 |
+| Phase 5 | 启动、构建、体积和长期运行内存优化 | 分开记录 JIT 冷启动、预热稳态与 AOT 数据；缓存有容量上限 |
 
-
-2. **AOT 友好的内联缓存（Static CallSite PIC）：**
-* 动态运算 `a + b` 编译为 `PyOps.Add(ref callSiteCache, a, b)`。
-* `callSiteCache` 是一个静态结构体槽位，记录最近一次执行成功的类型对与函数指针（如 `(Int64, Int64) -> &AddInt64`）。预热 1 次后，后续循环仅需一次整数比较即可直接命中快路径，且完美兼容 .NET 9/10 的 **Dynamic PGO（动态剖析引导优化）**。
-
-
-3. **核心动态容器接入：** 在 `RyuPy.Runtime` 中基于 .NET 高性能集合封装符合 Python 语义的 `PyList`、`PyDict`（保证插入顺序）、`PyTuple` 和 `PySet`。
-
-
-* **阶段里程碑（Milestone 2）：**
-* 不加任何类型标注运行标准 Python 脚本；一旦在热点函数加上 `x: int` 标注，编译器自动消去 `PyValue` Tag 检查，性能呈阶梯式飙升。
-
-
-
----
-
-### Phase 3：中端编译优化与高级控制流降级
-
-**目标：** 攻克 Python 最具表现力的高级语法（闭包、生成器、协程、模式匹配），并在 `ryupy-mir` 层引入深度静态优化，把动态开销榨干。
-
-* **核心编译技术任务：**
-1. **流敏感类型收窄（Flow-Sensitive Type Narrowing）：**
-在 CFG 上运行数据流分析：如果动态变量 `x` 经过了 `if isinstance(x, int):` 分支，或者在循环前被赋值为整数且循环内仅有整数加法，MIR 优化 Pass 自动将该基本块支配子树（Dominator Subtree）内的 `PyValue` **自动拆箱（Auto-Unboxing）** 为原生 `int64` 局部变量。
-2. **逃逸分析与标量替换（Escape Analysis & Scalar Replacement）：**
-Python 代码极其喜欢用临时元组交换变量或返回多值（如 `a, b = b, a` 或 `return x, y`）。MIR 逃逸分析识别未逃逸出当前函数的临时 `PyTuple` 或小型对象，直接在栈上拆解为独立的 CIL 局部变量（或利用 .NET 的 `ValueTuple<T1, T2>`），实现**零堆内存分配**。
-3. **闭包转换（Closure Conversion）：**
-分析嵌套函数捕获的 `nonlocal` 变量，自动在 CIL 中生成隐藏的闭包环境类（`DisplayClass`），将跨作用域读写的变量提升为环境类的字段。
-4. **生成器（`yield`）与协程（`async/await`）状态机降级：**
-* 将含 `yield` 的函数在 MIR 层重写为实现 .NET `IEnumerable<T>` / `IEnumerator<T>` 的状态机结构体，利用 CIL 的 `switch` 指令实现零开销跳转恢复。
-* 将 Python 的 `async def` 降级为 .NET 原生的 `AsyncTaskMethodBuilder` 状态机，底层直接跑在 .NET 世界级的线程池（Work-Stealing ThreadPool）上。
-
-
-
-
-* **阶段里程碑（Milestone 3）：**
-* 完整支持列表/字典推导式、`yield` 生成器管道、装饰器与异步并发，且生成的 `IEnumerable` 和 `Task` 可被 C# 代码直接无缝调用。
-
-
-
----
-
-### Phase 4：NumPy 与原生 C 扩展生态无缝兼容
-
-**目标：** 打破非官方 Python 编译器无法使用科学计算与量化库的魔咒，通过成熟协议实现 **NumPy / PyTorch / C 扩展的零拷贝互通**。
-
-为了避免自己重写几百万行的 C 扩展，本阶段采用“双引擎桥接 + 零拷贝内存视图”策略：
-
-```text
-+-----------------------------------------------------------------------+
-|                         RyuPy 编译生成的 .NET 进程                     |
-|                                                                       |
-|  [RyuPy 静态/JIT 代码]  ◄─── 零拷贝 Span<double> ───► [NumPy ndarray]  |
-|         │                    (Py_buffer / DLPack协议)        ▲        |
-|         │                                                    │        |
-|         └──────► 通过 pyo3-ffi / P/Invoke 调度控制流 ─────────┘        |
-|                                                  (内嵌 libpython.so)  |
-+-----------------------------------------------------------------------+
-
-```
-
-* **核心实现机制：**
-1. **控制流桥接（复用 `pyo3-ffi` / `libpython`）：**
-当 RyuPy 编译器检测到 `import numpy as np` 等外部 C 扩展导入时，由 `RyuPy.Runtime` 通过 P/Invoke 按需在进程内初始化轻量级 `libpython` 宿主，负责 C 扩展模块的加载与高层算子调用（如 `np.linalg.inv`）。
-2. **数据面零拷贝直通（Python Buffer Protocol $\leftrightarrow$ .NET `Span<T>`）：**
-这是性能封神的关键：当用户在 RyuPy 的循环或自定义算子中访问 `ndarray` 时，绝不通过 CPython API 逐个读取元素！
-* `RyuPy.Runtime` 调用一次 C-API `PyObject_GetBuffer` 获取 `Py_buffer` 结构体，直接拿到 NumPy 数组的底层裸指针 `void* buf`、维度 `shape` 与步长 `strides`。
-* 将该裸指针直接包装为 .NET 的无栈开销泛型切片 `Span<double>`（或自定义的值类型多维视图 `NdView<double>`）。
-* **RyuPy 的静态编译器将针对该视图的下标访问 `arr[i, j]` 直接编译为原生指针偏移指令（`ldind.r8` / `stind.r8`）**，让 .NET RyuJIT 直接在 NumPy 的内存块上进行 **SIMD（AVX2/AVX-512）向量化计算**。
-
-
-3. **DLPack 零拷贝张量协议接入：**
-引入 `dlpack` 标准头结构，支持将 RyuPy/NumPy/PyTorch 的 CPU 及 CUDA 显存指针与 .NET 生态（如 `TorchSharp`、ONNX Runtime 或自定义 CUDA 内核）进行零拷贝跨语言传递。
-
-
-* **阶段里程碑（Milestone 4）：**
-* 在同一个 `.py` 脚本中直接 `import numpy as np` 生成矩阵，随后进入 RyuPy 编写的密集双层循环指标计算函数，无需改写为向量化算子，执行速度直接持平手写 C++/Cython。
-
-
-
----
-
-### Phase 5：99.9% 语言长尾语义与一键 Native AOT 工具链
-
-**目标：** 补齐 Python 动态元编程长尾特性，打造媲美 `cargo` / `uv` 体验的现代化单文件编译器 CLI。
-
-* **核心长尾语义攻关：**
-1. **大整数溢出自动升级（Overflow Promotion）：**
-在要求 100% 严格兼容的模式下，静态 `int` 算术指令发射 CIL 的 `add.ovf` / `mul.ovf`（硬件级溢出标志检查）；一旦捕获 `OverflowException`，自动转入慢路径升级为 .NET 的 `System.Numerics.BigInteger`。
-2. **完整对象模型（MRO 与描述符协议）：**
-在 `RyuPy.Runtime` 中实现 C3 线性化多重继承算法、描述符协议（`__get__`, `__set__`）、元类（`metaclass`）以及猴子补丁（Monkey Patching）版本号失效机制（当类的属性字典发生修改时，递增类的 `VersionTag`，使关联的 PIC 内联缓存自动失效并重新绑定）。
-3. **异常模型精确映射：**
-将 Python 的异常继承树直接建模为继承自 `System.Exception` 的 .NET 异常类，利用 CIL 原生的 `.try` / `catch` / `finally` 异常表实现零开销正常路径执行。
-
-
-* **工具链与 Native AOT 终极集成：**
-* 封装 `ryupy build main.py --aot`：Rust 编译器先在几毫秒内吐出 `main.dll` 并链接 `RyuPy.Runtime.dll`，随后在后台自动调用 .NET SDK 的 **ILCompiler (`ilc`)**，直接输出单一的原生机器码可执行文件或供其他语言调用的 C-ABI 动态库。
-
-
-
----
-
-## 五、 核心数据结构与代码范式蓝本（立即可建仓起步）
-
-为了让你建仓时直接拥有最清爽的工业级骨架，以下是 Rust 中端 IR 与零拷贝 NumPy 桥接的核心接口设计：
-
-### 1. Rust 侧：零生命周期传染的混合类型 MIR（`crates/ryupy-mir/src/lib.rs`）
-
-```rust
-use la_arena::{Arena, Idx};
-
-pub type LocalId = Idx<LocalDecl>;
-pub type BlockId = Idx<BasicBlock>;
-
-/// 动静双轨类型表示：决定生成原生 CIL 指令还是 PyValue 操作
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MirType {
-    /// 静态快车道：直接映射为 CIL 原生类型，零装箱
-    I64,
-    F64,
-    Bool,
-    Str,
-    Class(u32),
-    /// 零拷贝数值视图：直接映射为裸指针 + 步长，支持 RyuJIT SIMD
-    NdArrayView { elem_ty: Box<MirType>, ndim: u8 },
-    /// 动态慢车道：映射为 RyuPy.Runtime.PyValue (16字节栈上 Struct)
-    Dynamic,
-}
-
-pub struct LocalDecl {
-    pub ty: MirType,
-    pub is_captured: bool, // 若为 true，由 Closure Conversion Pass 提升至 DisplayClass
-}
-
-pub enum Rvalue {
-    /// 原生无装箱算术（对应 CIL: add, sub, mul, div）
-    FastBinOp { op: BinOp, lhs: LocalId, rhs: LocalId },
-    /// 动态内联缓存调用（对应 RyuPy.Runtime.PyOps::Add(ref site, a, b)）
-    DynamicBinOp { site_id: u32, op: BinOp, lhs: LocalId, rhs: LocalId },
-    /// 动静边界转换指令
-    BoxToPyValue { src: LocalId, src_ty: MirType },
-    UnboxFromPyValue { src: LocalId, target_ty: MirType },
-}
-
-pub struct BasicBlock {
-    pub stmts: Vec<(LocalId, Rvalue)>,
-    pub terminator: Terminator,
-}
-
-```
-
-### 2. C# 运行时侧：NumPy 零拷贝内存桥接（`runtime/RyuPy.Runtime/NumPyBridge.cs`）
-
-```csharp
-using System;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
-namespace RyuPy.Runtime;
-
-/// <summary>
-/// 零堆分配的一维/多维 NumPy 内存视图，RyuPy 静态循环可直接内联访问
-/// </summary>
-public readonly unsafe ref struct NdView1D<T> where T : unmanaged
-{
-    private readonly T* _dataPtr;
-    private readonly nint _length;
-    private readonly nint _strideBytes;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public NdView1D(void* buf, nint length, nint strideBytes)
-    {
-        _dataPtr = (T*)buf;
-        _length = length;
-        _strideBytes = strideBytes;
-    }
-
-    public ref T this[nint index]
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            // 当步长连续时，RyuJIT 会直接消除乘法并触发 AVX-512 自动向量化
-            byte* bytePtr = (byte*)_dataPtr + (index * _strideBytes);
-            return ref *(T*)bytePtr;
-        }
-    }
-
-    public nint Length => _length;
-}
-
-```
-
----
-
-## 六、 第一周启动清单（Day 1 ~ Day 7 Action Plan）
-
-1. **Day 1：** 初始化 Cargo Workspace，引入 `ruff_python_parser`、`la-arena`、`dotnetdll` 和 `insta`，写 50 行代码跑通“输入一段 Python 源码字符串 $\rightarrow$ 打印 Ruff AST”。
-2. **Day 2~3：** 编写 `ryupy-hir` 与 `ryupy-ty` 的最小闭环，支持 `int`、`float`、`bool` 标量的双向类型推导，对类型不匹配的表达式通过 `ariadne` 报出带源码高亮的错误。
-3. **Day 4~5：** 在 `ryupy-codegen-cil` 中用 `dotnetdll` 构造第一个包含 `Main` 入口和静态方法的 `.NET .dll`，实现表达式求值栈化（Stackification）和 `while`/`if` 分支跳转。
-4. **Day 6~7：** 跑通第一个完整的端到端测试：用 `ryupy` 编译计算第 45 项递归/迭代斐波那契数列的 Python 脚本，用 `dotnet` 运行生成的 `.dll`，并执行 `dotnet publish /p:PublishAot=true` 拿到第一个原生机器码版本的 `RyuPy` 可执行文件。
+性能数据必须记录硬件、工具链、输入、重复次数、内存与分配量。取消原规划中未经验证的固定倍数、固定体积和自动向量化承诺。

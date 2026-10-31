@@ -1,95 +1,69 @@
-# RyuPy 快速上手与发布架构说明
+# 快速上手与部署边界
 
-> RyuPy 是一个用 Rust 编写的 Python → .NET CIL 编译器。
-> 原则：与 CPython 语义保持一致；不支持的特性在编译期明确报错，不产生静默运行时语义偏差。
+当前实现为 Phase 1 M1.0–M1.5 的静态子集。动态核心、容器、普通类、异常与模块安排在 Phase 2；高级语法和标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
 
----
+## 开发环境
 
-## 1. 环境准备
-
-| 依赖项 | 推荐版本 | 用途 |
-| :--- | :--- | :--- |
-| **Rust** | stable (2024 edition) | 构建编译器 CLI 本身 |
-| **.NET SDK** | 10.x | 构建运行时库 `RyuPy.Runtime`、运行生成的 `.dll`、Native AOT |
-| **Python** | 3.12+ | 端到端（e2e）差分测试的「黄金标准」对比源 |
-
-### 快速校验开发环境
-
-克隆仓库后，执行以下命令构建 C# 运行时并执行全量测试：
+| 依赖 | 版本 | 用途 |
+| --- | --- | --- |
+| Rust | stable，2024 edition | 构建编译器 |
+| .NET SDK | 10.x | 构建 C# 运行时与执行测试；后续 AOT 发布 |
+| Python | 3.12+ | 当前 CPython 差分测试；M2.0 将固定具体基准版本 |
 
 ```bash
-make runtime   # 构建 C# 运行时库（Release）
-make check     # 运行 fmt 检查 + clippy -D warnings + 单元测试 + e2e 差分测试
+make runtime
+make check
 ```
-如果终端输出全绿，说明开发环境配置完毕！
 
----
+这两条命令构建运行时并执行 fmt、clippy、Rust / C# 测试和已有 e2e。九个 Phase 1 e2e 当前已实现；项目级覆盖率尚未测量。
 
-## 2. 常用开发命令
-
-RyuPy 提供了开箱即用的 Makefile 指令：
+## 编译、运行与查看 IR
 
 ```bash
-# 1. 编译并运行 Python 文件
-make run FILE=tests/e2e/phase1/m1_0_print_int.py
+make run FILE=tests/e2e/phase1/m1_5_dataclass.py
+cargo run -q -p ryupy-cli -- build tests/e2e/phase1/m1_0_print_int.py -o out/
+dotnet out/m1_0_print_int.dll
 
-# 2. 查看编译流程中任意阶段的中间表示（IR）
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast    # Ruff 语法树
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=hir    # 高级 IR（去糖、作用域解析）
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=types  # 旁表类型信息
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=mir    # 中级 IR（控制流图、三地址指令）
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=cil    # ilasm 风格 CIL 汇编
+make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
+make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=hir
+make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=types
+make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=mir
+make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=cil
 
-# 3. 运行端到端差分测试（以 CPython 为基准比对输出）
-make e2e        # 运行当前所有已实现的特性用例
-make e2e-all    # 包含尚未实现的 pending 用例，查看整体里程碑进展
+make e2e
+make e2e-all   # 包括未来尚未实现的 pending 用例
 ```
 
----
+当前 `import` 仅支持特殊识别的 `from dataclasses import dataclass`；任意第三方库、标准库与多文件项目尚不可直接运行。不要据未来路线图推断现有 CLI 已具备这些能力。
 
-## 3. RyuPy 打包发布形态与依赖分析
+## 当前产物
 
-作为一款现代编译器，RyuPy 在发布部署时被设计为一个**独立、便携的 CLI 命令行工具**。
-
-### 3.1 发布形态（Artifact Format）
-
-当我们将 RyuPy 正式发布给终端用户时（例如通过 GitHub Releases、Homebrew、`cargo binstall` 或 `winget`）：
+`build` 默认输出到 `target/ryupy/<文件名>/`，也可以用 `-o` 指定目录：
 
 ```text
-ryupy-dist/
-├── ryupy                     # 独立的 CLI 二进制程序（Linux/macOS 为 Mach-O/ELF，Windows 为 ryupy.exe）
-└── RyuPy.Runtime.dll         # RyuPy 运行时辅助库（可直接嵌入 CLI 二进制内部，见下文）
+out/
+├── m1_0_print_int.dll
+├── m1_0_print_int.runtimeconfig.json
+└── RyuPy.Runtime.dll
 ```
 
-- **单一原生二进制**：
-  `ryupy` 是一个完全用 Rust 编译出的原生可执行文件，体积小、冷启动快、无依赖。
-- **内嵌运行时（Single-Binary Distribution）**：
-  在正式分发构建中，利用 Rust 的 `include_bytes!` 宏，可以在编译 `ryupy` 时直接将编译好的 `RyuPy.Runtime.dll` 二进制字节打包进 `ryupy` 可执行文件本身。当执行构建时，`ryupy` 自动将其释出到输出目录或全局缓存目录（如 `~/.ryupy/runtime/`），实现**真正单一二进制文件分发**。
+构建当前仓库需要 SDK 来生成 `RyuPy.Runtime.dll`。生成的普通程序集通过 .NET Runtime 运行，运行目标机不需要编译器或 Python。编译器自身不调用 CPython 做编译；Python 目前用于差分测试。
 
----
+## 计划中的分发与执行形态
 
-### 3.2 依赖解耦与架构设计
+以下内容尚待实现，特别是 `--aot` 虽已有参数入口，`publish_aot` 仍为占位实现。
 
-RyuPy 的一个核心架构优势是：**编译过程与目标平台的解耦**。
+| 形态 | 目标 | 构建与运行依赖 | 排期 |
+| --- | --- | --- | --- |
+| 原生语义的 JIT 程序 | 项目编译成 CIL，通过 RyuJIT 运行 | 目标机 .NET Runtime；不依赖 libpython，但只能调用已原生实现的 API | 现有静态子集可用，项目支持在 Phase 2 / 3 扩展 |
+| 桥接 JIT 程序 | 必要模块通过 libpython 调用 | .NET Runtime、兼容的 libpython、Python 标准库与扩展依赖 | M3.8，Phase 4 扩展到 NumPy 等非纯 Python 模块 |
+| 原生 AOT 程序 | `ryupy build --aot` 生成目标平台可执行文件 | 构建需 .NET SDK 与目标工具链；运行免装 .NET / Python，仍服从平台系统库依赖 | M5.2，承接旧 M1.6 |
+| 桥接 AOT 程序 | AOT 编译托管部分，保留解释器边界 | 构建需 SDK 与目标工具链；运行仍需 libpython / 标准库 / 扩展，单独验收裁剪与原生加载 | M5.2 独立验证 |
 
-#### ① 编译阶段（Compile Time）：纯 Rust，零环境依赖
-当用户执行：
-```bash
-ryupy build hello.py -o out/
-```
-- **不需要安装 Python**：RyuPy 静态内嵌了由 Rust 编写的高性能 Ruff AST 解析器；
-- **不需要安装 .NET SDK**：RyuPy 使用纯 Rust 编写的 `dotnetdll` 库直接生成符合 ECMA-335 标准的 PE 结构文件（`.dll`）和 `.runtimeconfig.json`；
-- **跨平台交叉编译**：在任何平台上都可以生成通用的 AnyCPU .NET 程序集。
+CLI 内嵌预构建运行时、全局缓存与发行包也属于后续分发设计，当前仓库没有完成单文件 CLI 发布。产物可跨哪些系统 / 架构运行，以实测支持矩阵为准。
 
-#### ② 运行阶段（Run Time）：两种执行形态
+原生通过、桥接通过和已接受偏差的区别见 [compatibility.md](compatibility.md)。Native AOT 的目标平台、构建与加载限制参考 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
 
-用户运行编译出来的产物时，有两种形态选择：
+## 后续阶段的 Python 用例
 
-| 运行形态 | 命令 | 产物形态 | 用户环境依赖 | 适用场景 |
-| :--- | :--- | :--- | :--- | :--- |
-| **标准 JIT 模式**<br>*(默认)* | `ryupy run hello.py`<br>或 `dotnet out/hello.dll` | `hello.dll`<br>`hello.runtimeconfig.json`<br>`RyuPy.Runtime.dll` | **.NET Runtime** (无需 SDK，仅需要标准 dotnet runtime) | 日常开发、快速测试、跨平台跨架构分发 |
-| **Native AOT 模式**<br>*(Phase 1 尾声实现)* | `ryupy build --aot hello.py` | `hello` (原生二进制) | **完全零依赖**（目标机无需安装 .NET、无需 Python） | 命令行工具、微服务容器镜像、高性能生产交付 |
-
-> [!NOTE]
-> **总结**：
-> RyuPy 本身发布为一个**独立的 CLI 工具**。用户安装了 `ryupy` CLI 即可直接把 Python 代码编译为 .NET 程序集；生成的程序既可以通过通用的 .NET Runtime 即时编译运行，也可以通过 `--aot` 输出完全自包含的原生单文件可执行文件！
+Phase 2–4 用例已经写入 `tests/e2e/` 并标记 pending。`python3 tests/run_python_baseline.py` 自检 Phase 1–3 的 CPython 行为；安装 NumPy 后加 `--phase phase4` 检查扩展基线。辅助包与预期错误退出的运行方式见 [测试说明](../tests/README.md)。这些基线通过不表示 RyuPy 已支持相应功能。
