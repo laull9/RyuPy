@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-Phase 0 与 Phase 1 M1.0–M1.5 已完成，目前支持静态函数、数值与控制流、基础字符串和 dataclass。下一步从 M2.0 的项目基线开始，补动态核心、容器、普通 class、异常和模块系统。
+Phase 0、Phase 1 与 Phase 2 的 M2.1–M2.10 已完成：静态数值路径、动态值与容器、普通 class / 单继承、异常、模块与包、`with`、有界 PIC。下一步是 Phase 3 M3.0 的闭包、lambda 与 nonlocal。
 
-近期目标为固定纯 Python 项目集至少 80% 原生通过；项目集与通过率尚待建立。随后推进闭包、生成器、推导式、装饰器和标准库移植。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。阶段安排见路线图。
+近期目标为固定纯 Python 项目集至少 80% 原生通过。项目集已冻结，当前 0/20 原生通过，逐项目阻塞见 [compatibility.md](docs/compatibility.md)。随后推进闭包、生成器、推导式、装饰器和标准库移植。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。阶段安排见路线图。
 
 ```bash
 make run FILE=tests/e2e/phase1/m1_5_dataclass.py
@@ -21,6 +21,7 @@ make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
 make runtime   # 构建 C# 运行时
 make check     # lint + 测试 + e2e
 make build     # 打宿主平台发行包（releases/）
+make bench     # CPython vs RyuPy 固定输入基准（不进入 make check）
 make help      # 全部命令
 ```
 

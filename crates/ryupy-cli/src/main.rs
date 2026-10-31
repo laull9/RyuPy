@@ -25,9 +25,17 @@ enum Command {
         out_dir: Option<PathBuf>,
         #[arg(long)]
         aot: bool,
+        /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
+        #[arg(short = 'I', long = "search-path")]
+        search_paths: Vec<PathBuf>,
     },
     /// 编译并立即用 dotnet 运行
-    Run { input: PathBuf },
+    Run {
+        input: PathBuf,
+        /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
+        #[arg(short = 'I', long = "search-path")]
+        search_paths: Vec<PathBuf>,
+    },
     /// 打印某一阶段的中间表示
     Dump {
         input: PathBuf,
@@ -92,6 +100,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             input,
             out_dir,
             aot,
+            search_paths,
         } => {
             let out_dir = out_dir.unwrap_or_else(|| default_out_dir(&input));
             let artifacts = ryupy_driver::build(
@@ -100,6 +109,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     input,
                     out_dir,
                     aot,
+                    search_paths,
                 },
             )?;
             eprintln!("已生成 {}", artifacts.dll.display());
@@ -108,7 +118,10 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             }
             Ok(ExitCode::SUCCESS)
         }
-        Command::Run { input } => {
+        Command::Run {
+            input,
+            search_paths,
+        } => {
             let out_dir = default_out_dir(&input);
             let artifacts = ryupy_driver::build(
                 sess,
@@ -116,6 +129,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     input,
                     out_dir,
                     aot: false,
+                    search_paths,
                 },
             )?;
             let status = std::process::Command::new(dotnet::dotnet_exe())

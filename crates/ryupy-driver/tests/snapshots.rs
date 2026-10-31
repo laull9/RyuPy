@@ -252,6 +252,7 @@ print(fib_iter(100))
         input: py_path.clone(),
         out_dir,
         aot: false,
+        search_paths: Vec::new(),
     };
     let artifacts = ryupy_driver::build(&mut sess, &opts).unwrap();
     let res = ryupy_driver::dotnet::run_dll(&artifacts.dll).unwrap();
@@ -461,4 +462,70 @@ fn snapshot_multiple_inheritance_diagnostic() {
         "期望多重继承诊断 E0100，实际：{rendered}"
     );
     insta::assert_snapshot!("m2_6_multiple_inheritance", rendered);
+}
+
+/// M2.8：`with` 去糖成 try/except/finally 后的 HIR / MIR / CIL。
+///
+/// HIR 快照锁住展开顺序：取 `__exit__` → `__enter__` → 绑定 → `handled` 标记 →
+/// try/handler/finally。MIR / CIL 快照锁住 `finally` 状态机与 `BaseException` 捕获。
+#[test]
+fn snapshot_m2_8_with() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_8_with.py");
+
+    let mut sess = Session::default();
+    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
+    insta::assert_snapshot!("m2_8_with_hir", hir);
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m2_8_with_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m2_8_with_cil", cil);
+}
+
+/// 错误输入：`async with` 明确拒绝，而不是静默当成同步上下文。
+#[test]
+fn snapshot_m2_8_async_with_diagnostic() {
+    let py_path = std::env::temp_dir().join("ryupy_test_async_with.py");
+    std::fs::write(
+        &py_path,
+        "async def work(manager):\n    async with manager:\n        print(1)\n",
+    )
+    .unwrap();
+
+    let mut sess = Session::default();
+    let res = dump(&mut sess, &py_path, Stage::Mir);
+    let _ = std::fs::remove_file(&py_path);
+
+    assert!(res.is_err(), "async with 应被拒绝");
+    let rendered = sess.render_diagnostics(false);
+    assert!(
+        rendered.contains("E0100") && rendered.contains("async with"),
+        "期望 async with 的 E0100 诊断，实际：{rendered}"
+    );
+    insta::assert_snapshot!("m2_8_async_with", rendered);
+}
+
+/// M2.9：动态运算 / 调用的 PIC 调用点编号与运行时入口。
+///
+/// 这里锁住三件事：每个 `DynBinary` 有独立 site 编号、`CallValue` / `CallMethod`
+/// 把 site 作为第一个实参、CIL 引用的是 `PyPic` 而不是通用 `PyOps` 入口。
+#[test]
+fn snapshot_m2_9_pic_cil() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_9_pic.py");
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).expect("PIC 用例应能出 CIL");
+
+    assert!(cil.contains("PyPic.Binary"), "期望二元运算走 PIC：{cil}");
+    assert!(
+        cil.contains("PyPic.CallMethod"),
+        "期望方法调用走 PIC：{cil}"
+    );
+    assert!(cil.contains("PyPic.CallValue"), "期望动态调用走 PIC：{cil}");
+    insta::assert_snapshot!("m2_9_pic_cil", cil);
 }

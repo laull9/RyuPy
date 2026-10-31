@@ -29,12 +29,22 @@ pub struct SourceModule {
 }
 
 /// 从入口文件构建模块图，返回模块列表（入口固定在 0 号）。
-pub fn load_program(sess: &mut Session, entry: &Path) -> Result<(Vec<SourceModule>, usize)> {
+///
+/// 搜索顺序：入口文件所在目录 → `search_paths`（按给定顺序）。与 CPython 的
+/// `sys.path[0]` 优先规则一致；额外的搜索根用于项目集里的 `third_party/` 源码。
+pub fn load_program(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+) -> Result<(Vec<SourceModule>, usize)> {
     let root = entry
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."))
         .to_path_buf();
+    let roots: Vec<PathBuf> = std::iter::once(root)
+        .chain(search_paths.iter().cloned())
+        .collect();
 
     let mut modules: BTreeMap<String, SourceModule> = BTreeMap::new();
     let mut queue: Vec<String> = Vec::new();
@@ -49,18 +59,18 @@ pub fn load_program(sess: &mut Session, entry: &Path) -> Result<(Vec<SourceModul
         if !seen.insert(name.clone()) {
             continue;
         }
-        // 父包先登记（`import a.b` 会先初始化 a，运行时依赖它已注册）。
-        if let Some((parent, _)) = name.rsplit_once('.') {
-            for prefix in package_prefixes(parent) {
+        // 父包先登记（`import a.b.c` 会依次初始化 a、a.b，运行时依赖它们已注册）。
+        if name.contains('.') {
+            for prefix in package_prefixes(&name) {
                 if !seen.contains(&prefix)
                     && !queue.contains(&prefix)
-                    && resolve_path(&root, &prefix).is_some()
+                    && resolve_in(&roots, &prefix).is_some()
                 {
                     queue.push(prefix);
                 }
             }
         }
-        let Some(path) = resolve_path(&root, &name) else {
+        let Some(path) = resolve_in(&roots, &name) else {
             // 未找到：编译不过滤，运行时抛 ModuleNotFoundError。
             continue;
         };
@@ -113,15 +123,20 @@ fn package_prefixes(name: &str) -> Vec<String> {
     (1..parts.len()).map(|i| parts[..i].join(".")).collect()
 }
 
-/// 模块名 → 源文件：优先 `<root>/a/b.py`，其次 `<root>/a/b/__init__.py`。
-fn resolve_path(root: &Path, name: &str) -> Option<PathBuf> {
+/// 在所有搜索根里找模块：每个根都优先 `<root>/a/b.py`，其次 `<root>/a/b/__init__.py`。
+fn resolve_in(roots: &[PathBuf], name: &str) -> Option<PathBuf> {
     let relative = name.replace('.', "/");
-    let file = root.join(format!("{relative}.py"));
-    if file.is_file() {
-        return Some(file);
+    for root in roots {
+        let file = root.join(format!("{relative}.py"));
+        if file.is_file() {
+            return Some(file);
+        }
+        let init = root.join(&relative).join("__init__.py");
+        if init.is_file() {
+            return Some(init);
+        }
     }
-    let init = root.join(&relative).join("__init__.py");
-    init.is_file().then_some(init)
+    None
 }
 
 /// 模块的 `__package__`：包自身是模块名，普通文件的包是它的父命名空间。

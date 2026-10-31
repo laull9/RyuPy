@@ -1,0 +1,149 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def __init__(self, name, suppress=..., fail=...):
+    self.name = name
+    self.suppress = suppress
+    self.fail = fail
+
+def __enter__(self):
+    print("enter", self.name)
+    if self.fail:
+raise ...;
+    return self.name
+
+def __exit__(self, kind, value, traceback):
+    print("exit", self.name, (kind.__name__ if kind else None))
+    return self.suppress
+
+def early_return():
+    if True:
+        $mgr$0 = Context("return")
+        $exit$1 = $mgr$0.__exit__
+        $value$2 = $mgr$0.__enter__()
+        $handled$3 = False
+        try:
+            print("before return")
+            return "done"
+        except BaseException as $exc$4:
+            $handled$3 = True
+            if Not($exit$1(type($exc$4), $exc$4, None)):
+raise ...;
+        finally:
+            if Not($handled$3):
+                $exit$1(None, None, None)
+
+def __enter__(self):
+    return self
+
+def __exit__(self, kind, value, traceback):
+raise ...;
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m2_8_with.py"
+    class Context:
+        def __init__(self, ...)
+        def __enter__(self, ...)
+        def __exit__(self, ...)
+    if True:
+        $mgr$0 = Context("a")
+        $exit$1 = $mgr$0.__exit__
+        $value$2 = $mgr$0.__enter__()
+        $handled$3 = False
+        try:
+            $mgr$4 = Context("b", suppress=True)
+            $exit$5 = $mgr$4.__exit__
+            $value$6 = $mgr$4.__enter__()
+            global.name = $value$6
+            $handled$7 = False
+            try:
+                print("body", global.name)
+raise ...;
+            except BaseException as $exc$8:
+                $handled$7 = True
+                if Not($exit$5(type($exc$8), $exc$8, None)):
+raise ...;
+            finally:
+                if Not($handled$7):
+                    $exit$5(None, None, None)
+        except BaseException as $exc$9:
+            $handled$3 = True
+            if Not($exit$1(type($exc$9), $exc$9, None)):
+raise ...;
+        finally:
+            if Not($handled$3):
+                $exit$1(None, None, None)
+    try:
+        if True:
+            $mgr$10 = Context("outer")
+            $exit$11 = $mgr$10.__exit__
+            $value$12 = $mgr$10.__enter__()
+            $handled$13 = False
+            try:
+                $mgr$14 = Context("inner", fail=True)
+                $exit$15 = $mgr$14.__exit__
+                $value$16 = $mgr$14.__enter__()
+                $handled$17 = False
+                try:
+                    print("unreachable")
+                except BaseException as $exc$18:
+                    $handled$17 = True
+                    if Not($exit$15(type($exc$18), $exc$18, None)):
+raise ...;
+                finally:
+                    if Not($handled$17):
+                        $exit$15(None, None, None)
+            except BaseException as $exc$19:
+                $handled$13 = True
+                if Not($exit$11(type($exc$19), $exc$19, None)):
+raise ...;
+            finally:
+                if Not($handled$13):
+                    $exit$11(None, None, None)
+    except ValueError:
+        print("enter failure caught")
+    defaults of early_return
+    print(early_return())
+    for global.index in range(0, 4):
+        if True:
+            $mgr$20 = Context(("loop" + str(global.index)))
+            $exit$21 = $mgr$20.__exit__
+            $value$22 = $mgr$20.__enter__()
+            $handled$23 = False
+            try:
+                if (global.index Eq 1):
+                    continue
+                if (global.index Eq 3):
+                    break
+                print("loop body", global.index)
+            except BaseException as $exc$24:
+                $handled$23 = True
+                if Not($exit$21(type($exc$24), $exc$24, None)):
+raise ...;
+            finally:
+                if Not($handled$23):
+                    $exit$21(None, None, None)
+    print("loop done")
+    class BadExit:
+        def __enter__(self, ...)
+        def __exit__(self, ...)
+    try:
+        if True:
+            $mgr$25 = BadExit()
+            $exit$26 = $mgr$25.__exit__
+            $value$27 = $mgr$25.__enter__()
+            $handled$28 = False
+            try:
+                print("bad body")
+            except BaseException as $exc$29:
+                $handled$28 = True
+                if Not($exit$26(type($exc$29), $exc$29, None)):
+raise ...;
+            finally:
+                if Not($handled$28):
+                    $exit$26(None, None, None)
+    except RuntimeError as global.error:
+        print("exit failure", global.error)

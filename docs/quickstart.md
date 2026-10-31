@@ -1,6 +1,6 @@
 # 快速上手与部署边界
 
-当前实现覆盖 Phase 1 与 Phase 2 的 M2.1–M2.7：动态核心、容器、普通类、异常与模块系统。闭包、生成器、推导式、装饰器与标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
+当前实现覆盖 Phase 1 与 Phase 2 的 M2.1–M2.10：动态核心、容器、普通类、异常、模块系统、`with` 与有界 PIC。闭包、生成器、推导式、装饰器与标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
 
 ## 开发环境
 
@@ -15,7 +15,7 @@ make runtime
 make check
 ```
 
-这两条命令构建运行时并执行 fmt、clippy、Rust / C# 测试和已有 e2e。九个 Phase 1 e2e 当前已实现；项目级覆盖率尚未测量。
+这两条命令构建运行时并执行 fmt、clippy、Rust / C# 测试、用例自检与 e2e。项目级覆盖率见 [compatibility.md](compatibility.md)，基准见 `make bench`。
 
 ## 编译、运行与查看 IR
 
@@ -32,9 +32,15 @@ make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=cil
 
 make e2e
 make e2e-all   # 包括未来尚未实现的 pending 用例
+make bench     # CPython vs RyuPy Release 的固定输入基准（不进入 make check）
 ```
 
-`import` 支持编译时可达的**项目内模块与包**（搜索路径是入口文件所在目录），以及特殊识别的 `from dataclasses import dataclass`；标准库、第三方库与桥接尚未接入。不要据未来路线图推断现有 CLI 已具备这些能力。
+`import` 支持编译时可达的模块与包：搜索顺序是入口文件所在目录 → `-I/--search-path` 指定的额外根（可重复）。项目集用 `-I third_party/projects/...` 加载第三方源码。`from dataclasses import dataclass` 仍是特殊识别的编译期能力；标准库、import hook 与桥接尚未接入。不要据未来路线图推断现有 CLI 已具备这些能力。
+
+```bash
+# 额外搜索根：入口目录优先，然后是给定的第三方源码目录
+cargo run -q -p ryupy-cli -- run app.py -I third_party/projects/six-1.16.0/six-1.16.0
+```
 
 ## 当前产物
 
@@ -48,7 +54,7 @@ out/
 └── RyuPy.Runtime.dll
 ```
 
-构建当前仓库需要 SDK 来生成 `RyuPy.Runtime.dll`。生成的普通程序集通过 .NET Runtime 运行，运行目标机不需要编译器或 Python。编译器自身不调用 CPython 做编译；Python 目前用于差分测试。
+构建当前仓库需要 SDK 来生成 `RyuPy.Runtime.dll`。生成的普通程序集通过 .NET Runtime 运行，运行目标机不需要编译器或 Python。编译器自身不调用 CPython 做编译；Python 目前用于差分测试与基准对照。
 
 ### 发行包
 

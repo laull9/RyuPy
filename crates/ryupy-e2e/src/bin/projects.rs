@@ -155,6 +155,7 @@ fn run_project(root: &Path, projects_dir: &Path, project: &Project) -> (ProjectS
         input: project.entry.clone(),
         out_dir: out_dir.clone(),
         aot: false,
+        search_paths: project_search_paths(root, project),
     };
     let artifacts = match ryupy_driver::build(&mut sess, &opts) {
         Ok(artifacts) => artifacts,
@@ -204,6 +205,56 @@ fn run_project(root: &Path, projects_dir: &Path, project: &Project) -> (ProjectS
             ),
         ),
         Err(err) => (ProjectStatus::Failed, format!("启动 dotnet 失败：{err}")),
+    }
+}
+
+/// 项目源码 + 传递依赖的模块搜索根。
+///
+/// sdist 解包后通常多一层 `<name>-<version>/`，部分项目再使用 `src/` 布局；
+/// 这里只负责找到「能直接 `import <包名>` 的父目录」，不解析安装元数据。
+fn project_search_paths(root: &Path, project: &Project) -> Vec<PathBuf> {
+    let store = root.join("third_party/projects");
+    let mut packages: Vec<(&str, &str)> = vec![(&project.pypi, &project.version)];
+    if project.deps.trim() != "-" {
+        for dep in project.deps.split(',') {
+            let dep = dep.trim();
+            if let Some((name, version)) = dep.split_once("==") {
+                packages.push((name, version));
+            }
+        }
+    }
+    packages
+        .into_iter()
+        .filter_map(|(name, version)| package_source_root(&store, name, version))
+        .collect()
+}
+
+fn package_source_root(store: &Path, name: &str, version: &str) -> Option<PathBuf> {
+    let mut current = store.join(format!("{name}-{version}"));
+    if !current.is_dir() {
+        return None;
+    }
+    loop {
+        // `src/` 布局：直接把它作为搜索根。
+        if current.join("src").is_dir() {
+            return Some(current.join("src"));
+        }
+        // sdist 顶层只有一个目录时，真正的源码在那层目录里，继续往下找。
+        let mut dirs = Vec::new();
+        let mut files = 0usize;
+        for entry in std::fs::read_dir(&current).ok()? {
+            let entry = entry.ok()?;
+            if entry.file_type().ok()?.is_dir() {
+                dirs.push(entry.path());
+            } else {
+                files += 1;
+            }
+        }
+        if files == 0 && dirs.len() == 1 {
+            current = dirs.remove(0);
+            continue;
+        }
+        return Some(current);
     }
 }
 

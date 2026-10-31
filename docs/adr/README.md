@@ -16,6 +16,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0009](0009-project-compatibility-first.md) | 按项目兼容性安排后续阶段 | 已接受 |
 | [0010](0010-dynamic-value-representation.md) | 动态值表示：装箱 object + 统一运算 ABI | 已接受 |
 | [0011](0011-release-package-layout.md) | 发行包布局与运行时定位 | 已接受 |
+| [0012](0012-bounded-dynamic-pic.md) | 有界动态运算 / 调用 PIC | 已接受 |
 
 ## 模板
 

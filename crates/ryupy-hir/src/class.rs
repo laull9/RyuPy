@@ -384,6 +384,10 @@ fn parse_base(
             }
         };
     }
+    // `class X(object)` 与不写基类等价；显式写出来是常见写法，不应被当成未知基类。
+    if base_name.id.as_str() == "object" {
+        return None;
+    }
     match crate::scope::resolve_builtin(base_name.id.as_str()) {
         Some(crate::hir::Builtin::Exception(type_name)) => Some(ClassBase::Builtin(type_name)),
         _ => {

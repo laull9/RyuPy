@@ -112,6 +112,7 @@ public static class PyObject
             case PyInstance instance:
                 if (instance.Attributes.Remove(name))
                 {
+                    instance.Touch();
                     return;
                 }
                 throw new PyAttributeError(
@@ -349,6 +350,7 @@ public static class PyObject
             return;
         }
         instance.Attributes[name] = value;
+        instance.Touch();
     }
 
     private static object? GetTypeAttr(PyType type, string name) =>

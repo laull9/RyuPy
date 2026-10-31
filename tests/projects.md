@@ -35,6 +35,9 @@ cargo run -p ryupy-e2e --bin projects    # 用 RyuPy 跑同一入口并对照基
 - 基线：每个项目写 `baselines/<id>/stdout.txt` 与 `meta.txt`（解释器版本、日期、退出码、最后一行
   stderr）。基线是「答案」，失败说明入口样例或环境有问题，不是 RyuPy 的能力声明。
 - 运行：结果写 `target/e2e/projects.jsonl` 并打印汇总表；`--only id,id` 只跑指定项目。
+  M2.9 起 runner 会把项目源码与传递依赖的 `third_party/projects/<包>-<版本>/`
+  （含 `src/` 布局）加入模块搜索根，因此「找不到第三方包」不再是统一阻塞，
+  首个编译 / 运行错误就是该项目的下一项阻塞。
 
 `make projects-baseline`、`make projects` 是对应的快捷命令。这两步不进入 `make check`：
 它们依赖联网抓取的源码，而提交门禁必须离线可跑。
