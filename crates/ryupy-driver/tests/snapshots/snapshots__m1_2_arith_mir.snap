@@ -53,7 +53,7 @@ fn main() -> () {
         RuntimeFn::WriteNewline();
         _7 = Cast(I64ToF64, const 10_i64);
         _8 = Cast(I64ToF64, const 4_i64);
-        _9 = Div(_7, _8);
+        _9 = RuntimeFn::TrueDivF64(_7, _8);
         RuntimeFn::WriteF64(_9);
         RuntimeFn::WriteNewline();
         _10 = Mul(const 2_i64, const 3_i64);

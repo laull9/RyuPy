@@ -109,9 +109,21 @@ expression: cil
         IL_0047: Branch(7)
     }
 
-    .method public static void Main(string[]) cil managed
+    .method public static int Main(string[]) cil managed
     {
         .entrypoint
+        IL_0000: Call(static void RyuPy.Generated.Module.__main())
+        IL_0001: Leave(4)
+        IL_0002: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.Report([RyuPy.Runtime]RyuPy.Runtime.PyBaseException))
+        IL_0003: Leave(6)
+        IL_0004: LoadConstantInt32(0)
+        IL_0005: Return
+        IL_0006: LoadConstantInt32(1)
+        IL_0007: Return
+    }
+
+    .method public static void __main() cil managed
+    {
         .locals init (
             [0] long,
             [1] string,
@@ -165,7 +177,7 @@ expression: cil
         IL_0021: StoreLocal(6)
         IL_0022: LoadLocal(6)
         IL_0023: LoadConstantFloat64(20.0)
-        IL_0024: Divide(Signed)
+        IL_0024: Call(static double [RyuPy.Runtime]RyuPy.Runtime.PyMath.TrueDivF64(double, double))
         IL_0025: StoreLocal(7)
         IL_0026: LoadLocal(0)
         IL_0027: ConvertFloat64
@@ -175,7 +187,7 @@ expression: cil
         IL_002b: StoreLocal(9)
         IL_002c: LoadLocal(9)
         IL_002d: LoadConstantFloat64(10.0)
-        IL_002e: Divide(Signed)
+        IL_002e: Call(static double [RyuPy.Runtime]RyuPy.Runtime.PyMath.TrueDivF64(double, double))
         IL_002f: StoreLocal(10)
         IL_0030: LoadLocal(7)
         IL_0031: LoadLocal(10)

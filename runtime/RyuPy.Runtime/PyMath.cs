@@ -15,7 +15,7 @@ public static class PyMath
     /// <summary><c>a // b</c>（int）。除数为 0 时应抛 Python <c>ZeroDivisionError</c>。</summary>
     public static long FloorDivI64(long a, long b)
     {
-        if (b == 0) throw new DivideByZeroException("division by zero");
+        if (b == 0) throw new PyZeroDivisionError("integer division or modulo by zero");
         long q = a / b;
         if ((a % b != 0) && ((a < 0) != (b < 0))) q--;
         return q;
@@ -24,18 +24,30 @@ public static class PyMath
     /// <summary><c>a % b</c>（int），结果符号与除数相同。</summary>
     public static long ModI64(long a, long b)
     {
-        if (b == 0) throw new DivideByZeroException("division by zero");
+        if (b == 0) throw new PyZeroDivisionError("integer modulo by zero");
         long r = a % b;
         if (r != 0 && ((r < 0) != (b < 0))) r += b;
         return r;
     }
 
+    /// <summary><c>a / b</c>（float）。除数为 0 时抛 <c>ZeroDivisionError</c>（语义陷阱 #12）。</summary>
+    public static double TrueDivF64(double a, double b)
+    {
+        if (b == 0.0) throw new PyZeroDivisionError("float division by zero");
+        return a / b;
+    }
+
     /// <summary><c>a // b</c>（float）。</summary>
-    public static double FloorDivF64(double a, double b) => Math.Floor(a / b);
+    public static double FloorDivF64(double a, double b)
+    {
+        if (b == 0.0) throw new PyZeroDivisionError("float floor division by zero");
+        return Math.Floor(a / b);
+    }
 
     /// <summary><c>a % b</c>（float），结果符号与除数相同。</summary>
     public static double ModF64(double a, double b)
     {
+        if (b == 0.0) throw new PyZeroDivisionError("float modulo");
         double r = a % b;
         if (r != 0 && ((r < 0) != (b < 0))) r += b;
         return r;

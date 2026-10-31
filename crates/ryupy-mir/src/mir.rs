@@ -277,6 +277,7 @@ pub enum RuntimeFn {
     StrConcat,
     FloorDivI64,
     ModI64,
+    TrueDivF64,
     FloorDivF64,
     ModF64,
     PowI64,

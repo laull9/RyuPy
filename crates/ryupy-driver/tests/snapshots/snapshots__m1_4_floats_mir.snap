@@ -36,7 +36,7 @@ fn main() -> () {
         RuntimeFn::WriteNewline();
         _2 = Cast(I64ToF64, const 3_i64);
         _3 = Cast(I64ToF64, const 2_i64);
-        _4 = Div(_2, _3);
+        _4 = RuntimeFn::TrueDivF64(_2, _3);
         RuntimeFn::WriteF64(_4);
         RuntimeFn::WriteNewline();
         _5 = Cast(I64ToF64, const 1_i64);

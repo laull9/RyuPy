@@ -161,11 +161,14 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M2.1。用例：`m2_2_exceptions.py`、`m2_2_finally.py`、错误退出 fixture。用户自定义异常在 M2.6 接续。
 
-- [ ] runtime：建立 BaseException / Exception 与常用子类，明确 `args`、异常匹配、`StopIteration`、`SystemExit` 和 .NET 异常边界映射
+- [~] runtime：建立 BaseException / Exception 与常用子类，明确 `args`、异常匹配、`StopIteration`、`SystemExit` 和 .NET 异常边界映射
+      （`PyBaseException` 家族 + `args` 字段已完成；`StopIteration` / `SystemExit` 的类型在，但语义（进程退出、迭代终止）要等 M2.4；未捕获异常已有 Python 形式退出）
 - [ ] hir / mir：`raise`、`raise ... from ...`、裸重抛、`try/except/else/finally`、assert 与异常变量清理；定义异常区域、展开边与验证规则
 - [ ] codegen：生成合法 CIL 异常表与 leave / endfinally 等控制流；覆盖 return / break / continue 穿过 finally，以及清理时再抛异常
-- [ ] 数值与内建错误统一映射：除零含 float、转换失败、索引 / 键 / 属性 / 名称错误；处理未赋值局部变量，避免 CLR 默认零值泄漏
-- [ ] 保留 Python 异常链、用户文件与行号，建立基本 traceback；完整 frame 对象与逐字节栈文本另列为暂缓
+- [~] 数值与内建错误统一映射：除零含 float、转换失败、索引 / 键 / 属性 / 名称错误；处理未赋值局部变量，避免 CLR 默认零值泄漏
+      （除零全路径已统一为 `ZeroDivisionError`；转换失败已有 `ValueError` / `OverflowError`；索引 / 键 / 属性要等 M2.3 / M2.5）
+- [~] 保留 Python 异常链、用户文件与行号，建立基本 traceback；完整 frame 对象与逐字节栈文本另列为暂缓
+      （`raise ... from ...` 的链与头部 traceback 已输出；MIR 尚未携带行号，逐帧 `File/line` 待补）
 - [ ] 评估受控递归深度守卫与可恢复 RecursionError，测试安全阈值；不可用时保留 D005，不以 .NET 栈溢出捕获作为方案
 - [ ] 验收：嵌套捕获、异常链、未捕获退出、finally 副作用与覆盖返回值通过；错误类型不再由 CLR 异常名代替
 

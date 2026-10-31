@@ -55,6 +55,7 @@ pub struct RuntimeRefs {
     pub floor_div_i64: MethodRefIndex,
     pub mod_i64: MethodRefIndex,
     pub pow_i64: MethodRefIndex,
+    pub true_div_f64: MethodRefIndex,
     pub floor_div_f64: MethodRefIndex,
     pub mod_f64: MethodRefIndex,
     pub pow_f64: MethodRefIndex,
@@ -411,6 +412,9 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     }
                     RuntimeFn::ModI64 => ins.push(Instruction::call(ctx.runtime_refs.mod_i64)),
                     RuntimeFn::PowI64 => ins.push(Instruction::call(ctx.runtime_refs.pow_i64)),
+                    RuntimeFn::TrueDivF64 => {
+                        ins.push(Instruction::call(ctx.runtime_refs.true_div_f64))
+                    }
                     RuntimeFn::FloorDivF64 => {
                         ins.push(Instruction::call(ctx.runtime_refs.floor_div_f64))
                     }

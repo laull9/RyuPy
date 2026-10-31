@@ -109,10 +109,10 @@ fn main() -> () {
     bb6: {
         _5 = Cast(I64ToF64, _2);
         _6 = Cast(I64ToF64, _5);
-        _7 = Div(_6, const 20_f64);
+        _7 = RuntimeFn::TrueDivF64(_6, const 20_f64);
         _8 = Cast(I64ToF64, _0);
         _9 = Cast(I64ToF64, _8);
-        _10 = Div(_9, const 10_f64);
+        _10 = RuntimeFn::TrueDivF64(_9, const 10_f64);
         _11 = mandel(_7, _10, const 200_i64);
         _12 = Eq(_11, const 200_i64);
         branch _12 -> [then: bb9, else: bb10];

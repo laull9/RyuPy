@@ -15,9 +15,21 @@ expression: cil
 .class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
     extends [System.Runtime]System.Object
 {
-    .method public static void Main(string[]) cil managed
+    .method public static int Main(string[]) cil managed
     {
         .entrypoint
+        IL_0000: Call(static void RyuPy.Generated.Module.__main())
+        IL_0001: Leave(4)
+        IL_0002: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.Report([RyuPy.Runtime]RyuPy.Runtime.PyBaseException))
+        IL_0003: Leave(6)
+        IL_0004: LoadConstantInt32(0)
+        IL_0005: Return
+        IL_0006: LoadConstantInt32(1)
+        IL_0007: Return
+    }
+
+    .method public static void __main() cil managed
+    {
         .locals init (
             [0] long,
             [1] long,
@@ -102,7 +114,7 @@ expression: cil
         IL_0036: StoreLocal(8)
         IL_0037: LoadLocal(7)
         IL_0038: LoadLocal(8)
-        IL_0039: Divide(Signed)
+        IL_0039: Call(static double [RyuPy.Runtime]RyuPy.Runtime.PyMath.TrueDivF64(double, double))
         IL_003a: StoreLocal(9)
         IL_003b: LoadLocal(9)
         IL_003c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
