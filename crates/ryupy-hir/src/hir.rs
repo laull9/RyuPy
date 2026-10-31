@@ -189,6 +189,8 @@ pub enum Builtin {
     Int,
     Float,
     Abs,
+    /// Python 异常类（`ValueError` 等）。构造调用走运行时的 `PyOps.MakeException`。
+    Exception(&'static str),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -269,6 +271,11 @@ pub enum StmtKind {
     Break,
     Continue,
     Pass,
+    /// `raise [exc [from cause]]`；两者都为 `None` 表示裸重抛。
+    Raise {
+        value: Option<ExprId>,
+        cause: Option<ExprId>,
+    },
 }
 
 #[derive(Debug)]

@@ -81,6 +81,10 @@ fn dump_stmt(
                 writeln!(out, "{pad}return").unwrap();
             }
         }
+        StmtKind::Raise { value, cause } => {
+            let _ = (value, cause);
+            writeln!(out, "raise ...;").unwrap();
+        }
         StmtKind::Pass => {
             writeln!(out, "{pad}pass").unwrap();
         }
@@ -144,6 +148,7 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
         ExprKind::Func(fn_id) => module.functions[*fn_id].name.as_str().to_string(),
         ExprKind::Class(cls_id) => module.classes[*cls_id].name.as_str().to_string(),
         ExprKind::Builtin(b) => match b {
+            Builtin::Exception(name) => name.to_string(),
             Builtin::Print => "print".to_string(),
             Builtin::Int => "int".to_string(),
             Builtin::Float => "float".to_string(),

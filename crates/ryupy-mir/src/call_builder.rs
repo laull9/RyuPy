@@ -211,6 +211,30 @@ impl ExprBuilder<'_> {
                     }
                 }
             }
+            ExprKind::Builtin(Builtin::Exception(name)) => {
+                // `ValueError("msg")` → PyOps.MakeException("ValueError", msg)
+                let mut args_ops = vec![Operand::Const(Constant::Str(name.to_owned()))];
+                if let Some(&arg) = args.first() {
+                    let arg_op = self.build_expr(arg);
+                    let arg_ty = self.ty_of(arg);
+                    args_ops.push(self.coerce(arg_op, &arg_ty, &MirType::Dynamic));
+                } else {
+                    args_ops.push(self.runtime_call(
+                        RuntimeFn::DynNone,
+                        Vec::new(),
+                        MirType::Dynamic,
+                    ));
+                }
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::MakeException),
+                        args: args_ops,
+                    },
+                });
+                Operand::Local(dest)
+            }
             _ => Operand::Const(Constant::I64(0)),
         }
     }

@@ -37,7 +37,8 @@
 | 列表 / 字典 / 元组 / 集合 | ❌ | Phase 2 |
 | 闭包、lambda、生成器、推导式、装饰器 | ❌ | Phase 3 M3.0–M3.3 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
-| 异常 `try` / `raise` / `finally` | ❌ | Phase 2 M2.2 |
+| `raise exc` / `raise exc from cause` | ✅ M2.2 | `Terminator::Raise` + `PyOps.MakeException` / `WithCause`；未捕获时按 Python 形式退出 |
+| `try` / `except` / `else` / `finally` | ❌ | M2.2 后续竖切；`raise` 裸重抛同样待 `except` 上下文 |
 | 普通 class、单继承、方法 | ❌ | Phase 2 M2.5 / M2.6 |
 | `with` 与上下文协议 | ❌ | Phase 2 M2.8 |
 | 常用标准库 | ❌ | Phase 3 逐 API 移植，当前只有 dataclass 特殊降级 |

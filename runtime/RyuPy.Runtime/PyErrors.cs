@@ -47,6 +47,10 @@ public class PyBaseException : Exception
         Cause = cause;
     }
 
+    /// <summary>返回挂上显式原因后的副本（<see cref="Cause"/> 只能在构造时确定）。</summary>
+    public PyBaseException WithCause(PyBaseException? cause) =>
+        new(PyTypeName, PyMessage, Args, cause);
+
     /// <summary>按 <c>TypeName: message</c> 渲染，供 traceback 与错误退出使用。</summary>
     public string Render() => PyMessage.Length == 0 ? PyTypeName : $"{PyTypeName}: {PyMessage}";
 }

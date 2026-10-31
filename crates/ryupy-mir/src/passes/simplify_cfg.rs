@@ -96,6 +96,7 @@ impl MirPass for SimplifyCfg {
         while let Some(bb_id) = worklist.pop() {
             let bb = &func.body.blocks[bb_id];
             match &bb.terminator {
+                Terminator::Raise { .. } => {}
                 Terminator::Goto(target) => {
                     if reachable.insert(*target) {
                         worklist.push(*target);

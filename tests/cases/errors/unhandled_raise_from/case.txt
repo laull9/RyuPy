@@ -1,0 +1,4 @@
+# M2.2：显式异常链必须出现在 stderr 里，最后一行是最外层异常。
+expect_exit = 1
+expect_exception = RuntimeError: outer
+expect_cause = ValueError: source

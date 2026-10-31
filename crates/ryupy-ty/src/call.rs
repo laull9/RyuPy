@@ -132,6 +132,14 @@ impl FunctionChecker<'_> {
                     }
                 }
             }
+            ExprKind::Builtin(Builtin::Exception(_)) => {
+                // 异常类构造：接受 0~1 个参数，结果是动态值（异常对象）
+                self.results.exprs.insert(callee, Ty::None);
+                for &arg in args {
+                    self.check_expr(arg);
+                }
+                Ty::Dynamic
+            }
             ExprKind::Func(target_fn_id) => {
                 let target_sig = self.all_sigs[target_fn_id].clone();
                 let callee_dynamic = self
