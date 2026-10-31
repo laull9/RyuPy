@@ -66,43 +66,51 @@ fn main() -> () {
     let _0: Class(0); // b
     let _1: i64; // _
     let _2: i64;
-    let _3: Class(0);
-    let _4: i64;
-    let _5: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: Class(0);
     let _6: i64;
-    let _7: bool;
-    let _8: dyn;
-    let _9: f64;
-    let _10: Class(1);
-    let _11: Class(1);
-    let _12: i64;
+    let _7: i64;
+    let _8: i64;
+    let _9: bool;
+    let _10: dyn;
+    let _11: f64;
+    let _12: Class(1);
+    let _13: Class(1);
+    let _14: i64;
 
     bb0: {
         _2 = RuntimeFn::TracePush(const "<module>");
+        // line 5
+        _3 = RuntimeFn::MakeClass(const "Body", [], null);
+        g0 = _3;
+        // line 12
+        _4 = RuntimeFn::MakeClass(const "Vec2", [], null);
+        g1 = _4;
         // line 18
         // line 22
         // line 26
-        _3 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
-        _0 = _3;
+        _5 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
+        _0 = _5;
         // line 27
-        _4 = const 0_i64;
-        _5 = const 10_i64;
-        _6 = const 1_i64;
+        _6 = const 0_i64;
+        _7 = const 10_i64;
+        _8 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _7 = Lt(_4, _5);
-        branch _7 -> [then: bb2, else: bb5];
+        _9 = Lt(_6, _7);
+        branch _9 -> [then: bb2, else: bb5];
     }
     bb2: {
-        _1 = _4;
+        _1 = _6;
         // line 28
         step(_0, const 0.5_f64);
-        _8 = RuntimeFn::DynNone();
+        _10 = RuntimeFn::DynNone();
         goto -> bb3;
     }
     bb3: {
-        _4 = Add(_4, _6);
+        _6 = Add(_6, _8);
         goto -> bb1;
     }
     bb4: {
@@ -110,14 +118,14 @@ fn main() -> () {
     }
     bb5: {
         // line 29
-        _9 = _0.0;
-        RuntimeFn::WriteF64(_9);
+        _11 = _0.0;
+        RuntimeFn::WriteF64(_11);
         RuntimeFn::WriteNewline();
         // line 30
-        _10 = New(Class(1), [const 1_i64, const 2_i64]);
-        _11 = New(Class(1), [const 3_i64, const 4_i64]);
-        _12 = dot(_10, _11);
-        RuntimeFn::WriteI64(_12);
+        _12 = New(Class(1), [const 1_i64, const 2_i64]);
+        _13 = New(Class(1), [const 3_i64, const 4_i64]);
+        _14 = dot(_12, _13);
+        RuntimeFn::WriteI64(_14);
         RuntimeFn::WriteNewline();
         goto -> bb6;
     }

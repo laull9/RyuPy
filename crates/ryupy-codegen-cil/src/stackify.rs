@@ -130,6 +130,19 @@ pub struct RuntimeRefs {
     pub iter_start: MethodRefIndex,
     pub iter_next_ok: MethodRefIndex,
     pub iter_value: MethodRefIndex,
+    // ── 类与属性协议（M2.5 / M2.6）──
+    pub make_class: MethodRefIndex,
+    pub set_attr: MethodRefIndex,
+    pub del_attr: MethodRefIndex,
+    pub decorate: MethodRefIndex,
+    /// `RyuPy.Runtime.PyClass` 的类型（异常类构造函数参数）。
+    pub py_class_type: MethodType,
+    /// `PyExceptionFactory` 委托的构造函数。
+    pub exception_factory_ctor: MethodRefIndex,
+    /// `PyBaseException.BindPythonClass(PyClass)`。
+    pub bind_python_class: MethodRefIndex,
+    /// `PyErrors.UserExceptionMessage(object[]) -> string`。
+    pub user_exception_message: MethodRefIndex,
     /// `System.Object` 的 `MethodType`：`object[]` 的元素类型。
     pub object_type: MethodType,
     // ── 一等函数与参数绑定（M2.1）──
@@ -196,12 +209,12 @@ pub fn lower_function(
         .flat_map(|(_, block)| block.stmts.iter())
         .map(|stmt| match stmt {
             Statement::Assign { value, .. } | Statement::Eval(value) => rvalue_arg_count(value),
-            Statement::SetField { .. } | Statement::Line(_) => 0,
+            Statement::SetField { .. } | Statement::SetGlobal { .. } | Statement::Line(_) => 0,
         })
         .max()
         .unwrap_or(0);
     // 16 个槽位的余量覆盖「实参本身又是一次嵌套调用 / 动态数组构造」的叠加
-    let max_stack_size = (max_args + 16).max(64);
+    let max_stack_size = (max_args + 16).max(256);
 
     let mut instructions = Vec::new();
     let mut block_starts: FxHashMap<BlockId, usize> = FxHashMap::default();
@@ -286,6 +299,21 @@ pub fn lower_function(
                     // 只写一个静态字段，用于 traceback 定位
                     instructions.push(Instruction::LoadConstantInt32(*line as i32));
                     instructions.push(Instruction::call(runtime_refs.trace_line));
+                }
+                Statement::SetGlobal { dest, value } => {
+                    lower_operand(
+                        value,
+                        &mut instructions,
+                        &param_slots,
+                        &local_slots,
+                        runtime_refs,
+                    );
+                    if let Some(&field) = runtime_refs.global_fields.get(dest) {
+                        instructions.push(Instruction::StoreStaticField {
+                            volatile: false,
+                            param0: FieldSource::Definition(field),
+                        });
+                    }
                 }
                 Statement::SetField { obj, field, value } => {
                     lower_operand(
@@ -621,6 +649,10 @@ fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRefIndex {
         RuntimeFn::IterStart => refs.iter_start,
         RuntimeFn::IterNextOk => refs.iter_next_ok,
         RuntimeFn::IterValue => refs.iter_value,
+        RuntimeFn::MakeClass => refs.make_class,
+        RuntimeFn::SetAttr => refs.set_attr,
+        RuntimeFn::DelAttr => refs.del_attr,
+        RuntimeFn::Decorate => refs.decorate,
         other => unreachable!("{other:?} 不是容器调用"),
     }
 }
@@ -855,7 +887,11 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     | RuntimeFn::UnpackCheck
                     | RuntimeFn::IterStart
                     | RuntimeFn::IterNextOk
-                    | RuntimeFn::IterValue => {
+                    | RuntimeFn::IterValue
+                    | RuntimeFn::MakeClass
+                    | RuntimeFn::SetAttr
+                    | RuntimeFn::DelAttr
+                    | RuntimeFn::Decorate => {
                         ins.push(Instruction::call(runtime_method(*rt_fn, ctx.runtime_refs)))
                     }
                     RuntimeFn::TraceAttach => {

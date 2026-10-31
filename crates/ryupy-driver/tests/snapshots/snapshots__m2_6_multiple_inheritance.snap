@@ -1,0 +1,12 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: rendered
+---
+[E0100] Error: 暂不支持多重继承
+   ╭─[ /var/folders/qm/62_zyfnn443fs89r1pvdk9mw0000gn/T/ryupy_test_multi_inherit.py:7:1 ]
+   │
+ 7 │ ╭─▶ class C(A, B):
+ 8 │ ├─▶     pass
+   │ │              
+   │ ╰────────────── 只支持一个基类
+───╯

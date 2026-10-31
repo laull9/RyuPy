@@ -46,7 +46,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 | `ryupy-driver` | 文件路径 → 产物 | 流水线编排、诊断汇总、产物布局、调用 dotnet | 编译逻辑 |
 | `ryupy-cli` | 命令行参数 | 参数解析、打印 | 一切逻辑 |
 | `ryupy-e2e` | `tests/e2e/**/*.py` | CPython 差分测试 | — |
-| `RyuPy.Runtime` (C#) | — | 内建函数、Python 数值语义；计划增加动态值、容器、对象、异常、模块与标准库适配 | 编译期名称解析与类型推导 |
+| `RyuPy.Runtime` (C#) | — | 内建函数、Python 数值语义、动态值、容器、普通对象 / 类协议、异常、模块与标准库适配 | 编译期名称解析与类型推导 |
 
 ## 3. 各层 IR 设计要点
 
@@ -82,7 +82,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 ### 3.5 CIL
 
-- 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有顶层函数（含 `Main`），每个 dataclass 一个类型。
+- 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有顶层函数（含 `Main`）、类工厂与异常工厂；每个 dataclass 与用户异常类各生成一个 CLR 类型，普通 class 由运行时 `PyClass` / `PyInstance` 承载。
 - 引用的外部程序集：`System.Runtime`（基础类型）、`RyuPy.Runtime`（内建函数与语义辅助）。
 - 整数算术用 `add.ovf` 等带溢出检查的指令（ADR-0004）；动态路径改用 `PyOps`，整数按需升级 BigInteger。
 - `MirType::Dynamic` 映射到 `System.Object`；装箱用 `box`，拆箱走 `PyCast`（ADR-0010）。

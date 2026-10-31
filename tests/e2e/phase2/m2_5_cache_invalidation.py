@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.5：预热后替换方法、property 和实例属性不得命中旧缓存。
 class Item:
     value = 1

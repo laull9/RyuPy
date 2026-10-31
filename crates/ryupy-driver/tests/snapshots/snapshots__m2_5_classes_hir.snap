@@ -1,0 +1,40 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def __init__(self, value):
+    self.value = value
+
+def add(self, amount):
+    self.value = (self.value + amount)
+    return self.value
+
+def doubled(self):
+    return (self.value * 2)
+
+def kind():
+    return "static"
+
+def named(cls):
+    return cls.category
+
+def [main] main():
+    class Box:
+        category = "box"
+        def __init__(self, ...)
+        def add(self, ...)
+        @property
+        def doubled(self, ...)
+        @staticmethod
+        def kind(self, ...)
+        @classmethod
+        def named(self, ...)
+    box = Box(3)
+    method = box.add
+    print(method(2), box.doubled, Box.kind(), Box.named())
+    box.category = "instance"
+    print(box.category, Box.category)
+    del box.category
+    print(box.category, hasattr(box, "missing"))
+    setattr(box, "extra", 7)
+    print(getattr(box, "extra"), getattr(box, "missing", 0))

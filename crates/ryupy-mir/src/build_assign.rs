@@ -126,27 +126,42 @@ impl FunctionBuilder<'_> {
         }
     }
 
-    /// `del obj[key]`。
+    /// `del obj[key]` / `del obj.attr`。
     pub(crate) fn build_delete(&mut self, target: ExprId) {
-        let hir_body = &self.hir.functions[self.current_hir_fn].body;
-        let ryupy_hir::ExprKind::Subscript { base, index } = &hir_body.exprs[target].kind else {
-            return;
+        let kind = {
+            let hir_body = &self.hir.functions[self.current_hir_fn].body;
+            hir_body.exprs[target].kind.clone()
         };
-        let (base, index) = (*base, *index);
-        let base_op = self.expr_builder().build_expr(base);
-        let base_ty = self.expr_builder().ty_of(base);
-        let obj = self
-            .expr_builder()
-            .coerce(base_op, &base_ty, &MirType::Dynamic);
-        let key_op = self.expr_builder().build_expr(index);
-        let key_ty = self.expr_builder().ty_of(index);
-        let key = self
-            .expr_builder()
-            .coerce(key_op, &key_ty, &MirType::Dynamic);
-        self.push_stmt(Statement::Eval(Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::DelItem),
-            args: vec![obj, key],
-        }));
+        match kind {
+            ryupy_hir::ExprKind::Subscript { base, index } => {
+                let base_op = self.expr_builder().build_expr(base);
+                let base_ty = self.expr_builder().ty_of(base);
+                let obj = self
+                    .expr_builder()
+                    .coerce(base_op, &base_ty, &MirType::Dynamic);
+                let key_op = self.expr_builder().build_expr(index);
+                let key_ty = self.expr_builder().ty_of(index);
+                let key = self
+                    .expr_builder()
+                    .coerce(key_op, &key_ty, &MirType::Dynamic);
+                self.push_stmt(Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::DelItem),
+                    args: vec![obj, key],
+                }));
+            }
+            ryupy_hir::ExprKind::Attribute { base, name } => {
+                let base_op = self.expr_builder().build_expr(base);
+                let base_ty = self.expr_builder().ty_of(base);
+                let obj = self
+                    .expr_builder()
+                    .coerce(base_op, &base_ty, &MirType::Dynamic);
+                self.push_stmt(Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::DelAttr),
+                    args: vec![obj, Operand::Const(Constant::Str(name.as_str().to_owned()))],
+                }));
+            }
+            _ => {}
+        }
     }
 
     /// 解包目标的 MIR 局部变量。

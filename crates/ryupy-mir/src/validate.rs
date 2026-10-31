@@ -95,6 +95,15 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                         validate_operand(func, block_id, obj, &mut errors);
                         validate_operand(func, block_id, value, &mut errors);
                     }
+                    Statement::SetGlobal { dest, value } => {
+                        if !program.globals.iter().any(|(id, _)| id == *dest) {
+                            errors.push(format!(
+                                "函数 `{}` 基本块 {:?} 写入了不存在的全局槽位 {:?}",
+                                func.name, block_id, dest
+                            ));
+                        }
+                        validate_operand(func, block_id, value, &mut errors);
+                    }
                     // 只是给 traceback 记录行号，没有操作数
                     Statement::Line(_) => {}
                 }

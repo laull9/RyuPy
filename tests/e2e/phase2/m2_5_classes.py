@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.5：实例 / 类属性、绑定方法与常用描述符。
 class Box:
     category = "box"

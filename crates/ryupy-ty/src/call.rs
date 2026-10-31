@@ -224,8 +224,15 @@ impl FunctionChecker<'_> {
     }
 
     /// dataclass 构造：位置实参按声明顺序、关键字实参按字段名。
+    ///
+    /// 普通 class（M2.5）的构造是运行时 `PyClass.Call`：`__init__` 绑定、参数错误与
+    /// 属性副作用都只有运行时才知道，因此这里直接返回 `Dynamic` 并让函数降级。
     fn check_class_call(&mut self, cls_id: ryupy_hir::ClassId, args: &[CallArg]) -> Ty {
         let cls = &self.module.classes[cls_id];
+        if !cls.is_dataclass {
+            self.soft_demote = true;
+            return Ty::Dynamic;
+        }
         let mut position = 0usize;
         for arg in args {
             let arg_ty = self.expr_ty_of(arg.expr());

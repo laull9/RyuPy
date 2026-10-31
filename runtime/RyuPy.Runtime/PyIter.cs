@@ -92,6 +92,8 @@ public sealed class PyIter : IPyIterator
         PyRange range => new PyRangeIter(range),
         // 迭代器本身可迭代：`iter(it)` 返回自身
         IPyIterator iterator => iterator,
+        // 普通实例：`__iter__` 返回迭代器；返回自身且定义 `__next__` 时包一层适配器。
+        PyInstance instance => CreateFromObject(instance),
         _ => throw NotIterable(source),
     };
 
@@ -208,4 +210,57 @@ public sealed class PyIter : IPyIterator
 
     private static PyTypeError NotIterable(object? value) =>
         new($"'{PyRepr.TypeName(value)}' object is not iterable");
+    private static IPyIterator CreateFromObject(PyInstance instance)
+    {
+        if (!PyObject.TryMethod(instance, "__iter__", [], out object? iterator))
+        {
+            throw NotIterable(instance);
+        }
+        if (ReferenceEquals(iterator, instance))
+        {
+            return new PyInstanceIterator(instance);
+        }
+        return Create(iterator);
+    }
+
+}
+
+
+/// <summary>用户对象的 `__next__` 迭代器适配（`__iter__` 返回自身时使用）。</summary>
+public sealed class PyInstanceIterator : IPyIterator
+{
+    private readonly PyInstance _instance;
+    private object? _current;
+    private bool _finished;
+
+    /// <summary>包装一个定义了 `__next__` 的实例。</summary>
+    public PyInstanceIterator(PyInstance instance) => _instance = instance;
+
+    /// <inheritdoc />
+    public bool MoveNext()
+    {
+        if (_finished)
+        {
+            return false;
+        }
+        try
+        {
+            if (!PyObject.TryMethod(_instance, "__next__", [], out object? value))
+            {
+                throw new PyTypeError(
+                    $"'{_instance.Class.Name}' object is not an iterator"
+                );
+            }
+            _current = value;
+            return true;
+        }
+        catch (PyStopIteration)
+        {
+            _finished = true;
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public object? Current() => _current;
 }

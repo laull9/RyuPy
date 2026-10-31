@@ -81,6 +81,17 @@ public static class PyErrors
     /// <param name="exception">即将抛出的异常。</param>
     public static object PrepareRaise(object exception)
     {
+        // `raise SomeClass` / `raise SomeClass(...)`：类对象先实例化（无参构造）。
+        switch (exception)
+        {
+            case PyClass cls:
+                exception = cls.Invoke([], [], [])
+                    ?? throw new PyTypeError("exceptions must derive from BaseException");
+                break;
+            case PyType type when PyExceptionHierarchy.IsKnown(type.Name):
+                exception = PyExceptionTypes.Create(type.Name, string.Empty);
+                break;
+        }
         if (exception is not PyBaseException ex)
         {
             throw new PyTypeError("exceptions must derive from BaseException");
@@ -114,6 +125,31 @@ public static class PyErrors
             _ => throw new PyTypeError("exception causes must derive from BaseException"),
         };
         return ex.WithCause(causeException);
+    }
+
+    /// <summary>
+    /// 用户异常的 <c>str()</c> 内容：`args` 按 Python 规则拼接。
+    /// </summary>
+    /// <remarks>
+    /// 一个参数直接输出它的 <c>str</c>；多个参数输出 <c>(a, b)</c> 形式；
+    /// 没有参数时为空。生成代码的异常构造函数从这里取消息。
+    /// </remarks>
+    public static string UserExceptionMessage(object?[] args)
+    {
+        if (args.Length == 0)
+        {
+            return string.Empty;
+        }
+        if (args.Length == 1)
+        {
+            return PyRepr.Str(args[0]);
+        }
+        var parts = new string[args.Length];
+        for (int i = 0; i < args.Length; i++)
+        {
+            parts[i] = PyRepr.Repr(args[i]);
+        }
+        return "(" + string.Join(", ", parts) + ")";
     }
 
     /// <summary>读取可能未赋值的局部变量；哨兵值表示从未赋值。</summary>

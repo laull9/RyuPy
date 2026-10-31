@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 
@@ -59,6 +60,7 @@ public static partial class PyOps
         PyByteArray array => key is PySlice slice2
             ? array.GetSlice(slice2)
             : array.GetItem(ToIndex(key, "bytearray")),
+        _ when PyObject.TryMethod(obj, "__getitem__", [key], out object? item) => item,
         _ => throw new PyTypeError($"'{PyRepr.TypeName(obj)}' object is not subscriptable"),
     };
 
@@ -83,6 +85,10 @@ public static partial class PyOps
             case PyTuple:
                 throw new PyTypeError($"'{PyRepr.TypeName(obj)}' object does not support item assignment");
             default:
+                if (PyObject.TryMethod(obj, "__setitem__", [key, value], out _))
+                {
+                    return;
+                }
                 throw new PyTypeError($"'{PyRepr.TypeName(obj)}' object does not support item assignment");
         }
     }
@@ -104,6 +110,10 @@ public static partial class PyOps
                 buffer.DelItem(key);
                 return;
             default:
+                if (PyObject.TryMethod(obj, "__delitem__", [key], out _))
+                {
+                    return;
+                }
                 throw new PyTypeError(
                     $"'{PyRepr.TypeName(obj)}' object does not support item deletion"
                 );
@@ -126,6 +136,9 @@ public static partial class PyOps
         string text => value is string needle && text.Contains(needle, StringComparison.Ordinal),
         PyBytes bytes => ContainsBytes(bytes.Span, value),
         PyByteArray array => ContainsBytes([.. array.Bytes], value),
+        _ when PyObject.TryMethod(container, "__contains__", [value], out object? found) =>
+            Truthy(found),
+        _ when container is PyInstance => ToSequence(container).Any(item => PyHash.Equal(item, value)),
         _ => throw new PyTypeError(
             $"argument of type '{PyRepr.TypeName(container)}' is not iterable"
         ),
@@ -144,6 +157,8 @@ public static partial class PyOps
         string text => PyText.Length(text),
         PyBytes bytes => bytes.Count,
         PyByteArray array => array.Count,
+        _ when PyObject.TryMethod(value, "__len__", [], out object? length) =>
+            PyCast.ToInt64(length),
         _ => throw new PyTypeError(
             $"object of type '{PyRepr.TypeName(value)}' has no len()"
         ),
@@ -179,6 +194,8 @@ public static partial class PyOps
         PyByteArray array => MapBytes([.. array.Bytes]),
         PyRange range => DrainIterator(new PyRangeIter(range)),
         IPyIterator iterator => DrainIterator(iterator),
+        _ when PyObject.TryMethod(value, "__iter__", [], out object? iterator) =>
+            ToSequence(PyIter.Create(iterator)),
         _ => throw new PyTypeError($"'{PyRepr.TypeName(value)}' object is not iterable"),
     };
 
@@ -298,6 +315,13 @@ public static partial class PyOps
     )
     {
         var (args, kwNames, kwValues) = FlattenArgs(rawArgs, rawNames, rawValues);
+        // 普通实例 / 类 / super 代理：走属性协议得到绑定方法，再统一调用。
+        if (obj is PyInstance or PyClass or PySuper
+            || (obj is PyBaseException exception && exception.PythonClass is not null))
+        {
+            object? attribute = PyObject.GetAttr(obj, name);
+            return CallValue(attribute, args, kwNames, kwValues);
+        }
         // 目前只有 list.sort 接受关键字；其余方法收到关键字立即报 TypeError，
         // 避免“多写了参数却被静默忽略”。
         if (kwNames.Length > 0)

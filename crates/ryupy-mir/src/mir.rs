@@ -34,8 +34,20 @@ pub struct Program {
 pub struct ClassDef {
     pub name: String,
     pub fields: Vec<(String, MirType)>,
-    /// true → .NET 值类型（struct），false → 引用类型（class）。
+    /// `@dataclass` 走静态字段布局；普通 class 由运行时 `PyClass` 承载，不生成 CLR 类型。
+    ///
+    /// ADR-0009 之后 `frozen=True` 也不再使用 .NET 值类型：值拷贝会破坏 Python 的
+    /// 对象身份，因此 `is_value_type` 保留字段但当前恒为 `false`。
     pub is_value_type: bool,
+    pub is_dataclass: bool,
+    /// 用户类继承链（单继承）；`None` 表示直接继承 `object`。
+    pub base: Option<ClassDefId>,
+    /// 继承的内建异常名（如 `ValueError`）；与 [`Self::is_exception`] 一起决定
+    /// codegen 生成的 CLR 基类。
+    pub builtin_base: Option<String>,
+    pub is_exception: bool,
+    /// 异常类的 CLR 工厂委托所在静态槽位。
+    pub factory_global: Option<GlobalId>,
 }
 
 /// 参数在调用绑定中的角色，与 HIR 的 `ParamKind` 一一对应。
@@ -164,6 +176,11 @@ pub enum Statement {
     SetField {
         obj: Operand,
         field: u32,
+        value: Operand,
+    },
+    /// 写模块级静态槽位（类对象在 `class` 语句位置创建后登记）。
+    SetGlobal {
+        dest: GlobalId,
         value: Operand,
     },
     /// 记录当前行号：traceback 用它定位抛出点。
@@ -546,6 +563,16 @@ pub enum RuntimeFn {
     StarArg,
     /// `PyOps.FormatValue(object, string, int) -> string`：f-string 的单段格式化。
     FormatValue,
+    // ── 类与属性协议（M2.5 / M2.6）──
+    /// `PyOps.MakeClass(string, object[], object) -> object`：创建类对象。
+    /// 第三个参数是异常类的工厂委托（普通类传 `null`）。
+    MakeClass,
+    /// `PyOps.SetAttr(object, string, object)`：实例 / 类属性写入。
+    SetAttr,
+    /// `PyOps.DelAttr(object, string)`：实例 / 类属性删除。
+    DelAttr,
+    /// `PyOps.Decorate(int, object) -> object`：应用 property / staticmethod / classmethod。
+    Decorate,
 }
 
 #[derive(Debug)]

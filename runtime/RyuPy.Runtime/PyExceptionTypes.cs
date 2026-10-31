@@ -24,79 +24,6 @@ namespace RyuPy.Runtime;
 // `PyExceptionTypes.Create` 里退化成 `PyException`（类型名仍正确，只是无法被专门的
 // `except Foo` 精确捕获——那种情况在诊断里有记录）。
 
-/// <summary>
-/// Python 异常基类：承载 Python 侧的类型名、消息、<c>args</c>、显式原因（<c>__cause__</c>）、
-/// 隐式上下文（<c>__context__</c>）与 traceback 位置列表。
-/// </summary>
-/// <remarks>
-/// 与 CLR 的关系：继承 <see cref="Exception"/>，因此可以被 CIL 的 catch 子句捕获，
-/// 也能通过 <c>PyBaseException</c> 一次性兜住所有 Python 异常。
-/// <see cref="Exception.Message"/> 只放 Python 消息本身，不拼类型前缀——
-/// <c>TypeError: message</c> 的渲染属于 traceback 的职责。
-/// </remarks>
-public class PyBaseException : Exception
-{
-    /// <summary>Python 异常类名，例如 <c>TypeError</c>。</summary>
-    public string PyTypeName { get; }
-
-    /// <summary>Python 侧消息（<c>str(exc)</c> 的内容）。</summary>
-    public string PyMessage { get; }
-
-    /// <summary><c>exc.args</c>：构造时的位置参数。</summary>
-    public object?[] Args { get; }
-
-    /// <summary><c>raise ... from ...</c> 的显式原因（<c>__cause__</c>）。</summary>
-    public PyBaseException? Cause { get; private set; }
-
-    /// <summary>
-    /// 隐式上下文（<c>__context__</c>）：在 <c>except</c> 处理期间抛出新的异常时，
-    /// 新异常自动挂上前一个异常。与 <see cref="Cause"/> 的区别在于它是自动建立的。
-    /// </summary>
-    public PyBaseException? Context { get; set; }
-
-    /// <summary>抛出点的栈帧快照，最内层在前；由 <see cref="PyTraceback"/> 在抛出时填写。</summary>
-    public PyStackFrame[] Frames { get; internal set; } = [];
-
-    /// <summary>用 Python 类型名与消息构造。</summary>
-    /// <param name="typeName">Python 类型名。</param>
-    /// <param name="message">消息。</param>
-    /// <param name="args">位置参数；为 null 时按消息推断。</param>
-    /// <param name="cause">显式原因。</param>
-    public PyBaseException(
-        string typeName,
-        string message,
-        object?[]? args = null,
-        PyBaseException? cause = null
-    )
-        : base(message, cause)
-    {
-        PyTypeName = typeName;
-        PyMessage = message;
-        Args = args ?? (message.Length == 0 ? [] : [message]);
-        Cause = cause;
-    }
-
-    /// <summary>
-    /// 返回挂上显式原因的副本。
-    /// </summary>
-    /// <remarks>
-    /// 必须用 <see cref="object.MemberwiseClone"/> 而不是「按类型名重新构造」：
-    /// CLR 的 <c>catch PyRuntimeError</c> 依赖**运行时类型**，如果这里造出一个基类实例，
-    /// Python 侧类型名看起来正确，但 `except RuntimeError` 永远捕获不到——
-    /// 这种错误在 traceback 里完全看不出来。
-    /// </remarks>
-    /// <param name="cause">显式原因。</param>
-    public PyBaseException WithCause(PyBaseException? cause)
-    {
-        var copy = (PyBaseException)MemberwiseClone();
-        copy.Cause = cause;
-        return copy;
-    }
-
-    /// <summary>按 <c>TypeName: message</c> 渲染，供 traceback 与错误退出使用。</summary>
-    public string Render() => PyMessage.Length == 0 ? PyTypeName : $"{PyTypeName}: {PyMessage}";
-}
-
 /// <summary><c>SystemExit</c>：解释器退出请求。</summary>
 public class PySystemExit : PyBaseException
 {
@@ -129,23 +56,6 @@ public class PyGeneratorExit : PyBaseException
         : base("GeneratorExit", "") { }
 }
 
-/// <summary>Python <c>Exception</c>：所有常规异常的共同基类。</summary>
-public class PyException : PyBaseException
-{
-    /// <summary>用 Python 类型名构造 <c>Exception</c> 家族的异常。</summary>
-    /// <param name="typeName">Python 类型名。</param>
-    /// <param name="message">消息。</param>
-    /// <param name="args">位置参数。</param>
-    /// <param name="cause">显式原因。</param>
-    public PyException(
-        string typeName,
-        string message,
-        object?[]? args = null,
-        PyBaseException? cause = null
-    )
-        : base(typeName, message, args, cause) { }
-}
-
 /// <summary><c>ArithmeticError</c>。</summary>
 public class PyArithmeticError : PyException
 {
@@ -159,24 +69,45 @@ public class PyArithmeticError : PyException
     /// <param name="message">消息。</param>
     protected PyArithmeticError(string typeName, string message)
         : base(typeName, message) { }
+
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyArithmeticError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>ZeroDivisionError</c>（<c>ArithmeticError</c> 子类）。</summary>
-public sealed class PyZeroDivisionError : PyArithmeticError
+public class PyZeroDivisionError : PyArithmeticError
 {
     /// <summary>构造 <c>ZeroDivisionError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyZeroDivisionError(string message)
         : base("ZeroDivisionError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyZeroDivisionError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>OverflowError</c>（<c>ArithmeticError</c> 子类）。</summary>
-public sealed class PyOverflowError : PyArithmeticError
+public class PyOverflowError : PyArithmeticError
 {
     /// <summary>构造 <c>OverflowError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyOverflowError(string message)
         : base("OverflowError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyOverflowError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>LookupError</c>：索引与键查找错误。</summary>
@@ -202,16 +133,23 @@ public class PyLookupError : PyException
 }
 
 /// <summary><c>IndexError</c>。</summary>
-public sealed class PyIndexError : PyLookupError
+public class PyIndexError : PyLookupError
 {
     /// <summary>构造 <c>IndexError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyIndexError(string message)
         : base("IndexError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyIndexError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>KeyError</c>。</summary>
-public sealed class PyKeyError : PyLookupError
+public class PyKeyError : PyLookupError
 {
     /// <summary>构造 <c>KeyError</c>。</summary>
     /// <param name="message">消息（<c>repr(key)</c>）。</param>
@@ -232,6 +170,13 @@ public sealed class PyKeyError : PyLookupError
     /// <param name="key">缺失的键。</param>
     public static PyKeyError ForKey(object? key) =>
         new(PyRepr.Repr(key), [key ?? PyNone.Instance]);
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyKeyError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>ValueError</c>。</summary>
@@ -247,39 +192,13 @@ public class PyValueError : PyException
     /// <param name="message">消息。</param>
     protected PyValueError(string typeName, string message)
         : base(typeName, message) { }
-}
 
-/// <summary><c>UnicodeError</c>（<c>ValueError</c> 子类）。</summary>
-public class PyUnicodeError : PyValueError
-{
-    /// <summary>构造 <c>UnicodeError</c>。</summary>
-    /// <param name="message">消息。</param>
-    public PyUnicodeError(string message)
-        : base("UnicodeError", message) { }
-
-    /// <summary>供子类指定自己的 Python 类型名。</summary>
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
     /// <param name="typeName">Python 类型名。</param>
     /// <param name="message">消息。</param>
-    protected PyUnicodeError(string typeName, string message)
-        : base(typeName, message) { }
-}
-
-/// <summary><c>UnicodeDecodeError</c>。</summary>
-public sealed class PyUnicodeDecodeError : PyUnicodeError
-{
-    /// <summary>构造 <c>UnicodeDecodeError</c>。</summary>
-    /// <param name="message">消息。</param>
-    public PyUnicodeDecodeError(string message)
-        : base("UnicodeDecodeError", message) { }
-}
-
-/// <summary><c>UnicodeEncodeError</c>。</summary>
-public sealed class PyUnicodeEncodeError : PyUnicodeError
-{
-    /// <summary>构造 <c>UnicodeEncodeError</c>。</summary>
-    /// <param name="message">消息。</param>
-    public PyUnicodeEncodeError(string message)
-        : base("UnicodeEncodeError", message) { }
+    /// <param name="args">位置参数。</param>
+    protected PyValueError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>TypeError</c>。</summary>
@@ -289,6 +208,13 @@ public class PyTypeError : PyException
     /// <param name="message">消息。</param>
     public PyTypeError(string message)
         : base("TypeError", message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyTypeError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>NameError</c>。</summary>
@@ -304,15 +230,29 @@ public class PyNameError : PyException
     /// <param name="message">消息。</param>
     protected PyNameError(string typeName, string message)
         : base(typeName, message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyNameError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>UnboundLocalError</c>：读取未赋值的局部变量。</summary>
-public sealed class PyUnboundLocalError : PyNameError
+public class PyUnboundLocalError : PyNameError
 {
     /// <summary>构造 <c>UnboundLocalError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyUnboundLocalError(string message)
         : base("UnboundLocalError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyUnboundLocalError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>AttributeError</c>。</summary>
@@ -322,6 +262,13 @@ public class PyAttributeError : PyException
     /// <param name="message">消息。</param>
     public PyAttributeError(string message)
         : base("AttributeError", message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyAttributeError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>RuntimeError</c>。</summary>
@@ -337,24 +284,45 @@ public class PyRuntimeError : PyException
     /// <param name="message">消息。</param>
     protected PyRuntimeError(string typeName, string message)
         : base(typeName, message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyRuntimeError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>NotImplementedError</c>。</summary>
-public sealed class PyNotImplementedError : PyRuntimeError
+public class PyNotImplementedError : PyRuntimeError
 {
     /// <summary>构造 <c>NotImplementedError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyNotImplementedError(string message)
         : base("NotImplementedError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyNotImplementedError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>RecursionError</c>。</summary>
-public sealed class PyRecursionError : PyRuntimeError
+public class PyRecursionError : PyRuntimeError
 {
     /// <summary>构造 <c>RecursionError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyRecursionError(string message)
         : base("RecursionError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyRecursionError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>AssertionError</c>。</summary>
@@ -364,6 +332,13 @@ public class PyAssertionError : PyException
     /// <param name="message">消息。</param>
     public PyAssertionError(string message)
         : base("AssertionError", message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyAssertionError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>ImportError</c>。</summary>
@@ -379,15 +354,29 @@ public class PyImportError : PyException
     /// <param name="message">消息。</param>
     protected PyImportError(string typeName, string message)
         : base(typeName, message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyImportError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>ModuleNotFoundError</c>。</summary>
-public sealed class PyModuleNotFoundError : PyImportError
+public class PyModuleNotFoundError : PyImportError
 {
     /// <summary>构造 <c>ModuleNotFoundError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyModuleNotFoundError(string message)
         : base("ModuleNotFoundError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyModuleNotFoundError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>OSError</c>：文件与系统调用错误。</summary>
@@ -403,33 +392,61 @@ public class PyOSError : PyException
     /// <param name="message">消息。</param>
     protected PyOSError(string typeName, string message)
         : base(typeName, message) { }
+
+    /// <summary>供用户异常子类使用。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyOSError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>FileNotFoundError</c>。</summary>
-public sealed class PyFileNotFoundError : PyOSError
+public class PyFileNotFoundError : PyOSError
 {
     /// <summary>构造 <c>FileNotFoundError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyFileNotFoundError(string message)
         : base("FileNotFoundError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyFileNotFoundError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>FileExistsError</c>。</summary>
-public sealed class PyFileExistsError : PyOSError
+public class PyFileExistsError : PyOSError
 {
     /// <summary>构造 <c>FileExistsError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyFileExistsError(string message)
         : base("FileExistsError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyFileExistsError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>PermissionError</c>。</summary>
-public sealed class PyPermissionError : PyOSError
+public class PyPermissionError : PyOSError
 {
     /// <summary>构造 <c>PermissionError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyPermissionError(string message)
         : base("PermissionError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyPermissionError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>StopIteration</c>：迭代器耗尽的信号，保留 <c>value</c>（M2.4 使用）。</summary>
@@ -448,20 +465,34 @@ public class PyStopIteration : PyException
 }
 
 /// <summary><c>StopAsyncIteration</c>。</summary>
-public sealed class PyStopAsyncIteration : PyException
+public class PyStopAsyncIteration : PyException
 {
     /// <summary>构造 <c>StopAsyncIteration</c>。</summary>
     public PyStopAsyncIteration()
         : base("StopAsyncIteration", "") { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyStopAsyncIteration(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary><c>EOFError</c>。</summary>
-public sealed class PyEOFError : PyException
+public class PyEOFError : PyException
 {
     /// <summary>构造 <c>EOFError</c>。</summary>
     /// <param name="message">消息。</param>
     public PyEOFError(string message)
         : base("EOFError", message) { }
+    /// <summary>供用户异常子类使用（类型名 / 消息 / 位置参数）。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyEOFError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
+
 }
 
 /// <summary>traceback 中的一帧：文件、函数名与行号。</summary>

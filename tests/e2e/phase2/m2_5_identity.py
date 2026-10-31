@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.5：普通对象和 frozen dataclass 跨动态调用仍共享身份。
 from dataclasses import dataclass
 
