@@ -1,4 +1,5 @@
-# 基准：Mandelbrot 集合内部区域（240×120、1000 次上限），大部分点跑满迭代。
+# bench: category=static
+# bench: desc=Mandelbrot 内部区域 240×120、1000 次上限，全标注的静态 f64 路径
 def mandel(cr: float, ci: float, max_iter: int) -> int:
     zr = 0.0
     zi = 0.0
