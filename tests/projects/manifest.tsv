@@ -1,0 +1,28 @@
+# 固定项目集（M2.0）。列用 TAB 分隔，`#` 开头为注释。
+#
+# 用途：Phase 2–3 的兼容性分母。每个项目固定版本与来源，入口样例在 entries/<id>.py，
+# 上游测试范围写在 test_scope 列；deps 列出传递依赖（同样固定版本，抓取脚本会一并下载）。
+# 只选纯 Python 项目：包含 C 扩展的项目放到 Phase 4 的可引入性矩阵里单独统计。
+#
+# 结果状态写在 docs/compatibility.md，本文件只描述「选集」，不描述「结果」。
+id	category	pypi	version	import	entry	test_scope	deps
+six	通用库	six	1.16.0	six	entries/six_sample.py	上游 test_six.py 的公共 API 子集（本阶段只跑 entry）	-
+sortedcontainers	数据结构	sortedcontainers	2.4.0	sortedcontainers	entries/sortedcontainers_sample.py	SortedList / SortedDict / SortedSet 的基本操作	-
+toml	配置解析	toml	0.10.2	toml	entries/toml_sample.py	loads / dumps 往返与嵌套表	-
+tomli	配置解析	tomli	2.0.1	tomli	entries/tomli_sample.py	loads 基本类型、数组表与错误位置	-
+pyparsing	解析	pyparsing	3.1.2	pyparsing	entries/pyparsing_sample.py	Word / Suppress / 解析动作与结果命名	-
+attrs	数据类	attrs	23.2.0	attrs	entries/attrs_sample.py	define / field 默认值与 asdict（元类路径，预期阻塞）	-
+networkx	图算法	networkx	3.3	networkx	entries/networkx_sample.py	Graph 增删边、最短路与度序列	-
+python-dateutil	日期	python-dateutil	2.9.0.post0	dateutil	entries/dateutil_sample.py	parser.parse 与 relativedelta	-
+click	命令行工具	click	8.1.7	click	entries/click_sample.py	command / option / 参数解析与 Context	-
+docopt	命令行工具	docopt	0.6.2	docopt	entries/docopt_sample.py	usage 解析与默认值	-
+pyfiglet	命令行工具	pyfiglet	1.0.2	pyfiglet	entries/pyfiglet_sample.py	Figlet 渲染与字体列表	-
+tabulate	文本与数据处理	tabulate	0.9.0	tabulate	entries/tabulate_sample.py	表格对齐与表头	-
+texttable	文本与数据处理	texttable	1.7.0	texttable	entries/texttable_sample.py	行列布局与对齐	-
+markdown	文本与数据处理	markdown	3.5.2	markdown	entries/markdown_sample.py	Markdown 转换与常用扩展	-
+chardet	文本与数据处理	chardet	5.2.0	chardet	entries/chardet_sample.py	detect 编码识别与置信度字段	-
+wcwidth	终端与文件自动化	wcwidth	0.2.13	wcwidth	entries/wcwidth_sample.py	wcswidth 与组合字符宽度	-
+colorama	终端与文件自动化	colorama	0.4.6	colorama	entries/colorama_sample.py	ANSI 常量与 init 行为	-
+termcolor	终端与文件自动化	termcolor	2.4.0	termcolor	entries/termcolor_sample.py	colored 的属性组合	-
+binaryornot	终端与文件自动化	binaryornot	0.4.4	binaryornot	entries/binaryornot_sample.py	is_binary 的文本与二进制判定	chardet==5.2.0
+progress	终端与文件自动化	progress	1.6	progress	entries/progress_sample.py	Bar 的构造参数与迭代计数	-

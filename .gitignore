@@ -1,8 +1,13 @@
 /target
-**/bin/
+# .NET 构建产物（Rust 的 src/bin/ 是源码目录，不能一并忽略）
+runtime/**/bin/
+runtime/**/obj/
 **/obj/
 *.pending-snap
 *.snap.new
 .DS_Store
 .idea/
 .vscode/
+
+# 抓取的项目源码（tests/fetch_projects.py 生成，锁定信息在 tests/projects/lock.tsv）
+/third_party/projects/

@@ -12,6 +12,7 @@
 
 import argparse
 import os
+from pinned_python import resolve as resolve_python
 from pathlib import Path
 import shlex
 import subprocess
@@ -132,7 +133,7 @@ def check_case(python, path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--python", default=os.environ.get("PYTHON", sys.executable))
+    parser.add_argument("--python", default=resolve_python())
     parser.add_argument("--phase", action="append", choices=["phase1", "phase2", "phase3", "phase4"])
     options = parser.parse_args()
     phases = options.phase or ["phase1", "phase2", "phase3"]
