@@ -112,7 +112,7 @@ CPython 一致的消息。
 | 1 | 负数整除 | `-7 // 2 == -4` | `div` 得 `-3`（向零截断） | `PyMath.FloorDivI64` |
 | 2 | 负数取模 | `-7 % 3 == 2` | `rem` 得 `-1` | `PyMath.ModI64` |
 | 3 | 真除法 | `7 / 2 == 3.5` | 整数 `div` 得 `3` | 先 `Cast` 为 f64 再 `div` |
-| 4 | 整数溢出 | 任意精度，永不溢出 | `add` 静默回绕 | 动态路径按 ADR-0010 升级 BigInteger；静态特化仍用 `add.ovf`，溢出即报错——去掉标注（或在调用点传非 int）即可走动态路径 |
+| 4 | 整数溢出 | 任意精度，永不溢出 | `add` 静默回绕 | 动态路径按 ADR-0010 升级 BigInteger；静态特化仍是 i64：`add.ovf` 等触发时由入口包装器转成 Python `OverflowError`（带 traceback，不泄漏 .NET 异常与调用栈），`//`、`%`、`abs`、`**` 在运行时函数里显式转换。去掉标注即可走动态路径 |
 | 5 | 浮点打印 | `1.0`、`1e+16`、`1e-05` | `1`、`1E+16`、`1E-05` | `PyFormat.FloatRepr` |
 | 6 | 布尔打印 | `True` | `True` | 一致，但不要依赖 `bool.ToString()` 的区域设置 |
 | 7 | `print` 换行 | 总是 `\n` | `WriteLine` 在 Windows 是 `\r\n` | 统一写 `'\n'` |
@@ -122,7 +122,7 @@ CPython 一致的消息。
 | 11 | 深递归 | `RecursionError`（默认 1000 层） | 栈溢出直接崩溃进程 | M2.2 起在 `PyTraceback.PushFrame` 按帧数守卫，默认 1000 层、可用 `RYUPY_RECURSION_LIMIT` 调整；抛可捕获的 `RecursionError` |
 | 12 | 除以零 | `ZeroDivisionError` | 整数抛 `DivideByZeroException`；浮点得 `inf` / NaN | 真除法与 `//` `%` 全部走运行时检查，抛 `ZeroDivisionError`；未捕获时按 Python 形式退出（M2.2） |
 | 13 | `int(nan)` / `int(inf)` | `ValueError` / `OverflowError` | `conv.i8` 结果未定义 | 运行时函数检查 |
-| 14 | 字符串长度 / 下标 | 按码点 | 按 UTF-16 单元 | Phase 1 不支持 `len`/下标；Phase 2 处理 |
+| 14 | 字符串长度 / 下标 / 切片 / 迭代 | 按码点 | `string.Length` 与下标按 UTF-16 code unit | M2.3 起统一走 `PyText`：`len("😀a") == 2`，`s[0] == "😀"`，切片与迭代按码点推进 |
 | 15 | 浮点 NaN 比较 | `nan < 1` 为 `False`，`nan != nan` 为 `True` | `clt` 正确；`!(a < b)` 式的取反实现会出错 | 比较指令不得用「取反」实现 `>=` 等 |
 | 16 | `-0.0` | 打印 `-0.0` | 打印 `-0` | `FloatRepr` 处理 |
 | 17 | `frozen=True` dataclass 语义 | 对象仍有稳定身份，字段还能指向可变对象 | .NET valuetype 传参 / 赋值为值拷贝 | 当前禁止字段写入，但 frozen 不能证明身份不可观察；M2.5 按 ADR-0009 保留默认身份，值表示须证明或显式选择 |
@@ -136,15 +136,23 @@ CPython 一致的消息。
 | 25 | NaN 作为字典键 | `nan == nan` 为 `False`，但同一个 nan 对象能在字典里查到自己 | — | `PyHash.Equal` 不含身份兜底，`PyKeyComparer` 含（见 §4.3） |
 | 26 | 实参求值顺序 | 全部实参先求值，再进入被调者 | 逐个下发 `Write*` 会边求值边输出 | M2.3 起先生成所有实参的临时量，再统一输出（见 §4.4） |
 | 27 | 序列比较 | 只在同族内字典序，跨族抛 `TypeError` | — | tuple / list / bytes 系列分族；错误写的是元素类型而非容器类型（见 §4.3） |
-| 24 | 整数与浮点相等 | `9007199254740993 == 9007199254740992.0` 为 `False` | 先转 `double` 后两者同值，得到 `True` | `PyHash` 里 int / float 混合比较一律走 `PyInt.CompareWithDouble` |
-| 25 | NaN 作为字典键 | `nan == nan` 为 `False`，但同一个 nan 对象能在字典里查到自己 | — | `Equal` 无身份兜底，`PyKeyComparer` 有（见 §4.3） |
-| 26 | 实参求值顺序 | 全部实参先求值，再进入被调者 | 逐个下发 `Write*` 会边求值边输出 | M2.3 起先生成实参临时量再统一输出（见 §4.4） |
+| 28 | 静态 i64 上限（RyuPy 偏差） | 任意精度 | — | 静态特化路径的 `+ - * // % abs ** <<` 结果超出 i64 时抛 `OverflowError`，消息注明「RyuPy static integer limit」。动态路径无此限制（D003） |
+| 29 | `int ** int` 的结果类型 | 指数为负时返回 `float`（`2 ** -1 == 0.5`） | — | 指数是确定的非负字面量时走静态快速幂；否则整表达式降级为动态，由 `PyInt.Power` 按真实指数返回 int / float |
+| 30 | `for` 循环变量与 `range` 参数 | 循环变量可被循环体重写而不影响迭代；`range(...)` 参数只求值一次 | 用循环变量当计数器会破坏迭代 | 静态计数循环使用隐藏计数器：每轮开头才写用户变量，边界复制进局部变量 |
+| 31 | 排序稳定性 | `sorted` / `list.sort` 稳定；`reverse=True` 仍保持相等元素的原始顺序 | `List.Sort` 不稳定，且「排完再反转」会颠倒相等元素 | `PySort` 自底向上归并排序；降序通过反转比较实现 |
+| 32 | 空容器真值 | `[]`、`{}`、`""`、`set()` 为假 | 引用类型默认非空 | `PyOps.Truthy` 显式列出每种容器类型（含 dict 视图、bytes / bytearray） |
+| 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | `PyOps.UnpackCheck(length, required, hasStar)`：星号形态只检查下限，非星号形态必须精确相等 |
+| 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
 
 ### 4.1 未捕获异常与退出码（M2.2）
 
 入口编译成两层：`Main(string[]) -> int` 是包装器，先 `PyTraceback.SetFile(...)`，再
 `try { __main(); return 0; } catch (PySystemExit e) { return exitCode(e); } catch (PyBaseException e)
-{ Report(e); return 1; }`。未捕获异常因此表现为：
+{ Report(e); return 1; } catch (Exception e) { ReportClr(e); return 1; }`。最后一层是兜底：
+静态 i64 算术仍可能抛 CLR 的 `OverflowException`，`ReportClr` 把它映射成 Python 的
+`OverflowError` 并按同样格式退出，**不会**打印 "Unhandled exception" 与 .NET 调用栈。
+所有路径汇合后先 `Builtins.Flush()` 再返回退出码，保证带缓冲的 stdout 在 stderr 之前写全。
+未捕获异常因此表现为：
 
 ```text
 Traceback (most recent call last):
@@ -203,8 +211,16 @@ stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise
 - **数字键三元组**：`True`、`1`、`1.0` 互为相同键且哈希一致（即 `hash(True) == hash(1)`）。
 - **序列比较**只在同族内成立：tuple / list / bytes 系列各自做字典序比较，跨族（如
   `list < tuple`）抛 `TypeError`；元素不可排序时诊断里写的是**元素**类型而非容器类型。
+- **字典布局**：`PyDict` 用「键 → 槽位下标」的索引加平行的键 / 值数组，删除留墓碑，墓碑过多时
+  压缩；删除是 O(1)，迭代按槽位顺序即插入顺序。`Version` 只在增删 / 清空时递增，**覆盖已有键
+  不递增**（CPython 允许迭代中给已有键赋新值）。
 - **迭代期间修改**：字典迭代器记下开始时的 `Version`，增删后再取下一个元素抛 `RuntimeError`；
-  但 `dict.keys()` 视图是「活的」，新建一次遍历看到的是当时内容，不校验版本。
+  但 `dict.keys()` 视图是「活的」，新建一次遍历看到的是当时内容，不校验版本。集合迭代使用确定性
+  快照（CPython 的集合迭代期修改是未定义行为）。
+- **字符串按码点**：`PyText` 提供 `Length` / `At` / `Slice` / `Items`，下标、切片、迭代与 `len`
+  都按码点而不是 UTF-16 code unit 计数。
+- **排序稳定**：`sorted` / `list.sort` 使用 `PySort` 的稳定归并排序，`reverse=True` 通过反转
+  比较实现，相等元素保持原始顺序。
 - **循环引用**：`PyRepr` 用「正在处理」集合保护，自引用 list 打印 `[[...]]`、自引用 dict 打印
   `{'a': {...}}`，不会无界递归。
 

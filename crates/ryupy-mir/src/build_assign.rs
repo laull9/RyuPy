@@ -54,7 +54,8 @@ impl FunctionBuilder<'_> {
         let before = star_index.unwrap_or(items.len());
         let after = items.len() - before - if star_index.is_some() { 1 } else { 0 };
 
-        // 长度：`len(seq)`，再校验至少能装下非星号位置
+        // 长度：`len(seq)`，再校验数量。星号形态只要求下限，非星号形态必须精确匹配
+        // （多出来的值也要报错，否则 `a, b = [1, 2, 3]` 会静默丢掉第三个元素）。
         let length = self.alloc_temp(MirType::I64);
         self.push_stmt(Statement::Assign {
             dest: length,
@@ -68,6 +69,7 @@ impl FunctionBuilder<'_> {
             args: vec![
                 Operand::Local(length),
                 Operand::Const(Constant::I64((before + after) as i64)),
+                Operand::Const(Constant::Bool(star_index.is_some())),
             ],
         }));
 

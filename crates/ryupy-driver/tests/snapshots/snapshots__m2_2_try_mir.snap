@@ -124,7 +124,7 @@ fn main() -> () {
     let _42: bool;
     let _43: dyn;
     let _44: dyn;
-    let _45: str;
+    let _45: dyn;
     let _46: dyn;
     let _47: dyn;
     let _48: dyn;

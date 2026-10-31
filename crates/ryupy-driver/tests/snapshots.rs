@@ -259,9 +259,11 @@ print(fib_iter(100))
 
     assert!(!res.status.success(), "fib_iter(100) 应当因算术溢出失败");
     let stderr = String::from_utf8_lossy(&res.stderr);
+    // 溢出要表现成 Python 的 OverflowError（带 traceback），
+    // 不能泄漏 .NET 的 "Unhandled exception. System.OverflowException" 与 CLR 调用栈
     assert!(
-        stderr.contains("OverflowException"),
-        "期望包含 OverflowException，实际 stderr: {stderr}"
+        stderr.contains("OverflowError") && !stderr.contains("System.OverflowException"),
+        "期望 Python 风格的 OverflowError，实际 stderr: {stderr}"
     );
 }
 

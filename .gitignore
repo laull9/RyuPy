@@ -6,6 +6,10 @@ runtime/**/obj/
 *.pending-snap
 *.snap.new
 .DS_Store
+
+# Python 基线脚本生成的字节码缓存
+__pycache__/
+*.pyc
 .idea/
 .vscode/
 

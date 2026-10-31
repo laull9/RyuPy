@@ -272,16 +272,30 @@ public static partial class PyOps
     }
 
     /// <summary>真值判定（条件、<c>not</c>、<c>and</c>/<c>or</c> 共用）。</summary>
+    /// <remarks>
+    /// 空容器为假是 Python 最常见的惯用法（<c>if not items:</c> / <c>while queue:</c>），
+    /// 因此每一种容器都必须显式列出——漏掉一类会静默进入错误分支，而不是报错。
+    /// 字符串按**码点**判空：UTF-16 的长度不影响「是否为空」这一结论。
+    /// </remarks>
     public static bool Truthy(object? value) => value switch
     {
         null => false,
         PyNone => false,
+        PyUnbound => false,
         bool b => b,
         long l => l != 0,
         int i => i != 0,
         BigInteger big => !big.IsZero,
         double d => d != 0.0,
         string s => s.Length > 0,
+        PyList list => list.Count > 0,
+        PyTuple tuple => tuple.Length > 0,
+        PyDict dict => dict.Count > 0,
+        PySet set => set.Count > 0,
+        PyFrozenSet frozen => frozen.Count > 0,
+        PyBytes bytes => bytes.Count > 0,
+        PyByteArray array => array.Count > 0,
+        PyDictView view => view.Count > 0,
         _ => true,
     };
 

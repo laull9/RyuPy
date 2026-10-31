@@ -508,6 +508,17 @@ impl FunctionChecker<'_> {
                 let rhs_ty = self.check_expr(*rhs);
                 if lhs_ty.is_dynamic() || rhs_ty.is_dynamic() {
                     Ty::Dynamic
+                } else if *op == BinOp::Pow
+                    && lhs_ty == Ty::Int
+                    && rhs_ty == Ty::Int
+                    && !self.is_nonneg_int_literal(*rhs)
+                {
+                    // Python 的 `int ** int` 在指数为负时返回 float（`2 ** -1 == 0.5`），
+                    // 结果类型取决于运行时的指数值。只有指数是确定的非负字面量时，
+                    // 结果才稳定是 int，可以走静态快速幂；其余情况让整个表达式动态化，
+                    // 由运行时按真实指数选择 int 或 float。
+                    self.soft_demote = true;
+                    Ty::Dynamic
                 } else {
                     self.check_binary_op(*op, lhs_ty, rhs_ty)
                 }
@@ -610,6 +621,17 @@ impl FunctionChecker<'_> {
                 self.soft_demote = true;
                 Ty::Dynamic
             }
+        }
+    }
+
+    /// 表达式是否为确定的非负整数字面量。
+    ///
+    /// 只有这种指数能保证 `int ** int` 的结果仍是 `int`（见 `ExprKind::Binary` 的处理），
+    /// 因而可以安全地发射静态快速幂。
+    fn is_nonneg_int_literal(&self, expr: ExprId) -> bool {
+        match &self.func.body.exprs[expr].kind {
+            ExprKind::Literal(Literal::Int(value)) => *value >= 0,
+            _ => false,
         }
     }
 

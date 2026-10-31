@@ -44,6 +44,8 @@ pub struct CompiledBody {
     pub locals: Vec<LocalVariable>,
     /// CIL 异常表（M2.2）。为空表示函数没有 `try`。
     pub exceptions: Vec<body::Exception>,
+    /// 求值栈峰值上限（`MaxStack`）。
+    pub max_stack_size: usize,
 }
 
 pub struct RuntimeRefs {
@@ -64,6 +66,8 @@ pub struct RuntimeRefs {
     pub f64_to_i64: MethodRefIndex,
     pub abs_i64: MethodRefIndex,
     pub abs_f64: MethodRefIndex,
+    pub shl_i64: MethodRefIndex,
+    pub shr_i64: MethodRefIndex,
     // ── 动态值 ABI（ADR-0010）──
     pub write_object: MethodRefIndex,
     pub dyn_binary: MethodRefIndex,
@@ -167,6 +171,23 @@ pub fn lower_function(
             local_slots.insert(loc_id, idx);
         }
     }
+
+    // 求值栈上限：语句之间所有值都存回局部变量，峰值只会出现在
+    // 「一次调用 / 容器构造把全部实参同时压栈」时。按最大实参个数加余量估算，
+    // 而不是写死 64——宽签名的函数会超过固定值，普通函数也不至于预留过多栈。
+    let max_args = func
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| block.stmts.iter())
+        .map(|stmt| match stmt {
+            Statement::Assign { value, .. } | Statement::Eval(value) => rvalue_arg_count(value),
+            Statement::SetField { .. } | Statement::Line(_) => 0,
+        })
+        .max()
+        .unwrap_or(0);
+    // 16 个槽位的余量覆盖「实参本身又是一次嵌套调用 / 动态数组构造」的叠加
+    let max_stack_size = (max_args + 16).max(64);
 
     let mut instructions = Vec::new();
     let mut block_starts: FxHashMap<BlockId, usize> = FxHashMap::default();
@@ -383,6 +404,7 @@ pub fn lower_function(
         instructions,
         locals,
         exceptions,
+        max_stack_size,
     }
 }
 
@@ -522,6 +544,17 @@ fn lower_object_array(args: &[Operand], ins: &mut Vec<Instruction>, ctx: &LowerC
             skip_null_check: false,
             param0: object_type.clone(),
         });
+    }
+}
+
+/// 一条 rvalue 最多会把多少个值同时留在求值栈上。
+///
+/// 只关心「同一层」的压栈数：调用/构造的实参全部先求值再压栈，因此取实参个数；
+/// 嵌套调用的额外深度已经包含在各自的实参计数里，这里不重复累加。
+fn rvalue_arg_count(value: &Rvalue) -> usize {
+    match value {
+        Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.len(),
+        _ => 0,
     }
 }
 
@@ -686,6 +719,8 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::F64ToI64 => ins.push(Instruction::call(ctx.runtime_refs.f64_to_i64)),
                     RuntimeFn::AbsI64 => ins.push(Instruction::call(ctx.runtime_refs.abs_i64)),
                     RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
+                    RuntimeFn::ShlI64 => ins.push(Instruction::call(ctx.runtime_refs.shl_i64)),
+                    RuntimeFn::ShrI64 => ins.push(Instruction::call(ctx.runtime_refs.shr_i64)),
                     RuntimeFn::WriteObject => {
                         ins.push(Instruction::call(ctx.runtime_refs.write_object))
                     }

@@ -86,7 +86,13 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
                 .body(hir_fn_id)
                 .map(|b| b.local_ty(hir_loc_id))
                 .unwrap_or(Ty::Dynamic);
-            let ty = ty_to_mir(&hir_ty);
+            // 局部变量里的 `None` 用运行时的 None 单例（装箱 object）表示：
+            // `Unit` 没有 CIL 表示、也无法分配槽位，若直接使用，赋值会把值留在求值栈上，
+            // 生成的方法被 CLR 判为 invalid program；而 i64 占位值又会把 `None` 打印成 0。
+            let ty = match ty_to_mir(&hir_ty) {
+                MirType::Unit => MirType::Dynamic,
+                ty => ty,
+            };
             let mir_loc = builder.locals.alloc(LocalDecl {
                 ty,
                 name: Some(hir_loc.name.to_string()),
@@ -746,21 +752,25 @@ impl<'a> FunctionBuilder<'a> {
                     let op = self.expr_builder().build_expr(arg);
                     let arg_ty = self.expr_builder().ty_of(arg);
                     // 动态函数里编译期不知道类型，统一交给 WriteObject（等价 print(str(v))）
-                    let rt_fn = if dynamic {
-                        RuntimeFn::WriteObject
+                    let (op, rt_fn) = if dynamic {
+                        (
+                            self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic),
+                            RuntimeFn::WriteObject,
+                        )
                     } else {
                         match arg_ty {
-                            Ty::Int => RuntimeFn::WriteI64,
-                            Ty::Float => RuntimeFn::WriteF64,
-                            Ty::Bool => RuntimeFn::WriteBool,
-                            Ty::Str => RuntimeFn::WriteStr,
-                            _ => RuntimeFn::WriteI64,
+                            Ty::Int => (op, RuntimeFn::WriteI64),
+                            Ty::Float => (op, RuntimeFn::WriteF64),
+                            Ty::Bool => (op, RuntimeFn::WriteBool),
+                            Ty::Str => (op, RuntimeFn::WriteStr),
+                            // None 没有静态表示，值本身已经是装箱的 None 单例
+                            Ty::None => {
+                                let boxed =
+                                    self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic);
+                                (boxed, RuntimeFn::WriteObject)
+                            }
+                            _ => (op, RuntimeFn::WriteI64),
                         }
-                    };
-                    let op = if dynamic {
-                        self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic)
-                    } else {
-                        op
                     };
                     written.push((op, rt_fn));
                 }

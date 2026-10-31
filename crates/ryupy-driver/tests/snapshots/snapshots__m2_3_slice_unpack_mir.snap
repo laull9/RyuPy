@@ -32,7 +32,7 @@ fn reshape(_0: dyn) -> dyn {
         _3 = RuntimeFn::TracePush(const "reshape");
         // line 2
         _4 = RuntimeFn::Len(_0);
-        RuntimeFn::UnpackCheck(_4, const 1_i64);
+        RuntimeFn::UnpackCheck(_4, const 1_i64, const true);
         _5 = box<I64>(const 0_i64);
         _1 = RuntimeFn::GetItem(_0, _5);
         _6 = box<I64>(const 1_i64);

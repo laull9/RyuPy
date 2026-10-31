@@ -120,6 +120,7 @@ public static partial class PyOps
         PyList list => list.Contains(value),
         PyTuple tuple => tuple.Contains(value),
         PyDict dict => dict.Contains(value),
+        PyDictView view => view.Contains(value),
         PySet set => set.Contains(value),
         PyFrozenSet frozen => frozen.Items.Contains(value ?? PyNone.Instance),
         string text => value is string needle && text.Contains(needle, StringComparison.Ordinal),
@@ -137,9 +138,10 @@ public static partial class PyOps
         PyList list => list.Count,
         PyTuple tuple => tuple.Length,
         PyDict dict => dict.Count,
+        PyDictView view => view.Count,
         PySet set => set.Count,
         PyFrozenSet frozen => frozen.Count,
-        string text => text.Length,
+        string text => PyText.Length(text),
         PyBytes bytes => bytes.Count,
         PyByteArray array => array.Count,
         _ => throw new PyTypeError(
@@ -219,19 +221,9 @@ public static partial class PyOps
     {
         object?[] items = ToSequence(Single("sorted", args));
         var list = new List<object?>(items);
-        list.Sort(CompareForSort);
+        // 用稳定排序：CPython 的 sorted 保证相等元素保持输入顺序
+        PySort.Sort(list, reverse: false);
         return new PyList(list);
-    }
-
-    private static int CompareForSort(object? a, object? b)
-    {
-        if (PyHash.Equal(a, b))
-        {
-            return 0;
-        }
-        object left = a ?? PyNone.Instance;
-        object right = b ?? PyNone.Instance;
-        return Compare(Lt, left, right) ? -1 : 1;
     }
 
     /// <summary>执行一个无返回值的方法并返回 <c>None</c>。</summary>
@@ -292,19 +284,26 @@ public static partial class PyOps
             ? it.Current()
             : throw new PyTypeError("IterValue 的参数不是迭代器");
 
-    /// <summary>解包长度校验：元素不够时抛 <c>ValueError</c>。</summary>
+    /// <summary>解包长度校验：元素个数与目标不符时抛 <c>ValueError</c>。</summary>
     /// <param name="length">序列长度。</param>
-    /// <param name="required">非星号目标的数量。</param>
-    public static void UnpackCheck(long length, long required)
+    /// <param name="required">除星号目标外的目标数量。</param>
+    /// <param name="hasStar">目标里是否有 <c>*rest</c>（有则只要求下限）。</param>
+    public static void UnpackCheck(long length, long required, bool hasStar)
     {
         if (length < required)
         {
+            // 星号形态只要求「至少」：中间那段可以是空列表
             throw new PyValueError(
-                length == 0
-                    ? "not enough values to unpack (expected at least "
-                        + $"{required}, got 0)"
-                    : $"not enough values to unpack (expected at least {required}, got {length})"
+                hasStar
+                    ? $"not enough values to unpack (expected at least {required}, got {length})"
+                    : $"not enough values to unpack (expected {required}, got {length})"
             );
+        }
+        if (!hasStar && length > required)
+        {
+            // 没有星号时多出来的值必须报错；漏掉这一检查会让 `a, b = [1, 2, 3]`
+            // 静默丢弃第三个元素
+            throw new PyValueError($"too many values to unpack (expected {required})");
         }
     }
 
@@ -400,11 +399,8 @@ public static partial class PyOps
                 throw new PyTypeError("sort() 目前只支持 reverse 参数");
             }
         }
-        list.Items.Sort(CompareForSort);
-        if (reverse)
-        {
-            list.Items.Reverse();
-        }
+        // 降序通过反转比较实现，而不是排完再倒序——后者会破坏相等元素的原始顺序
+        PySort.Sort(list.Items, reverse);
         return PyNone.Instance;
     }
 
@@ -579,22 +575,9 @@ public static partial class PyOps
     {
         if (key is PySlice slice)
         {
-            var (start, _, step, count) = slice.Indices(text.Length);
-            var builder = new StringBuilder((int)count);
-            long index = start;
-            for (long i = 0; i < count; i++, index += step)
-            {
-                builder.Append(text[(int)index]);
-            }
-            return builder.ToString();
+            return PyText.Slice(text, slice);
         }
-        long position = ToIndex(key, "string");
-        long normalized = position < 0 ? position + text.Length : position;
-        if (normalized < 0 || normalized >= text.Length)
-        {
-            throw new PyIndexError("string index out of range");
-        }
-        return text[(int)normalized].ToString();
+        return PyText.At(text, ToIndex(key, "string"));
     }
 
     private static long ToIndex(object? value, string context) => value switch
@@ -622,22 +605,15 @@ public static partial class PyOps
     private static object?[] KeysOf(PyDict dict)
     {
         var keys = new object?[dict.Count];
-        for (int i = 0; i < dict.Count; i++)
+        int index = 0;
+        foreach (object? key in dict.Keys)
         {
-            keys[i] = dict.Keys[i];
+            keys[index++] = key;
         }
         return keys;
     }
 
-    private static object?[] Chars(string text)
-    {
-        var items = new object?[text.Length];
-        for (int i = 0; i < text.Length; i++)
-        {
-            items[i] = text[i].ToString();
-        }
-        return items;
-    }
+    private static object?[] Chars(string text) => PyText.Items(text);
 
     private static object?[] MapBytes(ReadOnlySpan<byte> bytes)
     {
@@ -645,97 +621,6 @@ public static partial class PyOps
         for (int i = 0; i < bytes.Length; i++)
         {
             items[i] = (long)bytes[i];
-        }
-        return items;
-    }
-}
-
-/// <summary>字典视图的种类。</summary>
-public enum PyDictViewKind
-{
-    /// <summary><c>dict.keys()</c>。</summary>
-    Keys,
-
-    /// <summary><c>dict.values()</c>。</summary>
-    Values,
-
-    /// <summary><c>dict.items()</c>。</summary>
-    Items,
-}
-
-/// <summary>
-/// 字典视图：<c>keys()</c> / <c>values()</c> / <c>items()</c> 的返回值。
-/// </summary>
-/// <remarks>
-/// 视图是**活**的：构造后字典发生增删，视图立刻反映出来（CPython 的行为）。
-/// 版本号用于「迭代期间修改」检测——遍历开始时记下版本，取下一个元素时发现变化就抛
-/// <c>RuntimeError</c>，而不是给出不确定的遍历结果。
-/// </remarks>
-public sealed class PyDictView
-{
-    private readonly PyDict _dict;
-    private readonly long _version;
-    private int _cursor;
-
-    /// <summary>视图种类。</summary>
-    public PyDictViewKind Kind { get; }
-
-    /// <summary>构造视图。</summary>
-    /// <param name="dict">被观察的字典。</param>
-    /// <param name="kind">视图种类。</param>
-    public PyDictView(PyDict dict, PyDictViewKind kind)
-    {
-        _dict = dict;
-        Kind = kind;
-        _version = dict.Version;
-    }
-
-    /// <summary>当前元素个数（活的）。</summary>
-    public int Count => _dict.Count;
-
-    /// <summary>取下一个元素；到达末尾返回 <c>false</c>。</summary>
-    /// <param name="value">取到的元素。</param>
-    public bool TryNext(out object? value)
-    {
-        if (_dict.Version != _version)
-        {
-            throw new PyRuntimeError("dictionary changed size during iteration");
-        }
-        if (_cursor >= _dict.Count)
-        {
-            value = null;
-            return false;
-        }
-        object? key = _dict.Keys[_cursor++];
-        value = Kind switch
-        {
-            PyDictViewKind.Keys => key,
-            PyDictViewKind.Values => _dict.Get(key),
-            _ => new PyTuple([key, _dict.Get(key)]),
-        };
-        return true;
-    }
-
-    /// <summary>
-    /// 把视图摊平成数组（<c>list(view)</c> / <c>sorted(view)</c> 用）。
-    /// </summary>
-    /// <remarks>
-    /// 这里**不做**版本校验：视图是活的，新建一次遍历看到的是当前内容
-    /// （<c>keys = d.keys(); d["x"] = 1; list(keys)</c> 在 CPython 里是合法的）。
-    /// 版本校验只发生在同一个迭代器内部（见 <see cref="PyIter"/>）。
-    /// </remarks>
-    public object?[] ToArray()
-    {
-        var items = new object?[_dict.Count];
-        int index = 0;
-        foreach (var (key, value) in _dict.Entries())
-        {
-            items[index++] = Kind switch
-            {
-                PyDictViewKind.Keys => key,
-                PyDictViewKind.Values => value,
-                _ => new PyTuple([key, value]),
-            };
         }
         return items;
     }

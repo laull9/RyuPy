@@ -63,14 +63,36 @@ public class PyMathTests
     [Fact]
     public void F64ToI64ThrowsOnNaN()
     {
-        Assert.Throws<InvalidOperationException>(() => PyMath.F64ToI64(double.NaN));
+        Assert.Throws<PyValueError>(() => PyMath.F64ToI64(double.NaN));
     }
 
     [Fact]
     public void F64ToI64ThrowsOnInfinity()
     {
-        Assert.Throws<OverflowException>(() => PyMath.F64ToI64(double.PositiveInfinity));
-        Assert.Throws<OverflowException>(() => PyMath.F64ToI64(double.NegativeInfinity));
+        Assert.Throws<PyOverflowError>(() => PyMath.F64ToI64(double.PositiveInfinity));
+        Assert.Throws<PyOverflowError>(() => PyMath.F64ToI64(double.NegativeInfinity));
+    }
+
+    [Fact]
+    public void F64ToI64ThrowsOnOutOfRange()
+    {
+        Assert.Throws<PyOverflowError>(() => PyMath.F64ToI64(1e300));
+        Assert.Throws<PyOverflowError>(() => PyMath.F64ToI64(-1e300));
+    }
+
+    [Fact]
+    public void FloorDivRejectsMinValueByMinusOne()
+    {
+        // Python 的结果是 2^63，超出 i64；这里必须报 Python 的 OverflowError 而不是 CLR 异常
+        Assert.Throws<PyOverflowError>(() => PyMath.FloorDivI64(long.MinValue, -1));
+        // 余数按定义是 0，不需要溢出
+        Assert.Equal(0L, PyMath.ModI64(long.MinValue, -1));
+    }
+
+    [Fact]
+    public void PowOverflowBecomesPythonError()
+    {
+        Assert.Throws<PyOverflowError>(() => PyMath.PowI64(2, 64));
     }
 
     [Fact]

@@ -37,13 +37,22 @@ public static class PyTraceback
     private const string ContextSeparator =
         "\nDuring handling of the above exception, another exception occurred:\n";
 
-    private sealed class FrameSlot
-    {
-        public string Function = "";
-        public int Line;
-    }
+    /// <summary>帧栈的初始容量；超过时成倍增长。</summary>
+    private const int InitialFrameCapacity = 128;
 
-    private static readonly List<FrameSlot> Stack = [];
+    /// <summary>
+    /// 帧栈用两个平行数组而不是 <c>List&lt;FrameSlot&gt;</c>。
+    /// </summary>
+    /// <remarks>
+    /// 每次函数调用都会 <see cref="PushFrame"/>，用对象表示一帧等于「每次调用一次分配」。
+    /// 平行数组只在扩容时分配，压栈 / 弹栈 / 改行号都是纯字段写入。函数名是编译器
+    /// 生成的字符串常量，数组里保存引用即可。
+    /// </remarks>
+    private static string[] _functions = new string[InitialFrameCapacity];
+    private static int[] _lines = new int[InitialFrameCapacity];
+
+    /// <summary>当前栈深度（有效帧数）。</summary>
+    private static int _depth;
 
     /// <summary>源文件名；入口包装器启动时设置一次，供所有帧共用。</summary>
     private static string _file = "<ryupy>";
@@ -76,21 +85,30 @@ public static class PyTraceback
     /// <param name="function">函数名；模块顶层传 <c>&lt;module&gt;</c>。</param>
     public static long PushFrame(string function)
     {
-        if (Stack.Count >= RecursionLimit)
+        if (_depth >= RecursionLimit)
         {
             throw new PyRecursionError("maximum recursion depth exceeded");
         }
-        Stack.Add(new FrameSlot { Function = function, Line = 0 });
-        return Stack.Count;
+        if (_depth == _functions.Length)
+        {
+            Array.Resize(ref _functions, _depth * 2);
+            Array.Resize(ref _lines, _depth * 2);
+        }
+        _functions[_depth] = function;
+        _lines[_depth] = 0;
+        _depth++;
+        return _depth;
     }
 
     /// <summary>更新最内层帧的当前行号。</summary>
     /// <param name="line">行号（1 起）。</param>
     public static void SetLine(int line)
     {
-        if (Stack.Count > 0)
+        // 同一行里的多条语句（循环体、连续赋值）会重复设置；比较后再写，
+        // 避免无意义地打断 CPU 的写缓冲
+        if (_depth > 0 && _lines[_depth - 1] != line)
         {
-            Stack[^1].Line = line;
+            _lines[_depth - 1] = line;
         }
     }
 
@@ -98,9 +116,9 @@ public static class PyTraceback
     /// <param name="depth"><see cref="PushFrame"/> 返回的深度。</param>
     public static void PopTo(long depth)
     {
-        if (depth >= 1 && depth <= Stack.Count)
+        if (depth >= 1 && depth <= _depth)
         {
-            Stack.RemoveRange((int)depth - 1, Stack.Count - (int)(depth - 1));
+            _depth = (int)depth - 1;
         }
     }
 
@@ -112,12 +130,12 @@ public static class PyTraceback
         {
             return;
         }
-        var frames = new PyStackFrame[Stack.Count];
+        var frames = new PyStackFrame[_depth];
         // 最内层在前：倒序保存，格式化时再反过来输出
-        for (int i = 0; i < Stack.Count; i++)
+        for (int i = 0; i < _depth; i++)
         {
-            FrameSlot slot = Stack[Stack.Count - 1 - i];
-            frames[i] = new PyStackFrame(_file, slot.Function, slot.Line);
+            int slot = _depth - 1 - i;
+            frames[i] = new PyStackFrame(_file, _functions[slot], _lines[slot]);
         }
         ex.Frames = frames;
     }
@@ -174,9 +192,41 @@ public static class PyTraceback
     /// <param name="exception">未被捕获的异常。</param>
     public static void Report(PyBaseException exception)
     {
+        // stdout 是带缓冲的：若不先刷新，缓冲区里的输出会出现在 stderr 之后，
+        // 甚至随进程退出顺序不同而丢失
+        Builtins.Flush();
         TextWriter error = Console.Error;
         error.Write(Format(exception));
         error.Flush();
+    }
+
+    /// <summary>
+    /// 把意外泄漏到顶层的 CLR 异常映射成 Python 异常并报告。
+    /// </summary>
+    /// <remarks>
+    /// 正常情况下所有错误都应该已经是 <see cref="PyBaseException"/>；这里是**兜底**：
+    /// 静态 i64 算术（<c>add.ovf</c> 等）仍可能抛 .NET 的 <see cref="OverflowException"/>。
+    /// 若任其逃逸，进程会打印 "Unhandled exception. System.OverflowException" 与 .NET
+    /// 调用栈——既不是 Python 的错误信息，也把实现细节泄漏给用户。
+    ///
+    /// 未知异常统一映射为 <c>RuntimeError</c>，并保留原始消息；这比让 .NET 打印栈更接近
+    /// 「程序出错但按 Python 的方式退出」（退出码 1、最后一行 <c>Type: message</c>）。
+    /// </remarks>
+    /// <param name="exception">逃逸到顶层的 CLR 异常。</param>
+    public static void ReportClr(Exception exception)
+    {
+        PyBaseException mapped = exception switch
+        {
+            OverflowException => new PyOverflowError(
+                "int too large to fit in a 64-bit integer (RyuPy static integer limit)"
+            ),
+            DivideByZeroException => new PyZeroDivisionError(
+                "integer division or modulo by zero"
+            ),
+            _ => new PyRuntimeError(exception.Message),
+        };
+        Attach(mapped);
+        Report(mapped);
     }
 
     /// <summary>
@@ -186,6 +236,8 @@ public static class PyTraceback
     /// <param name="exit">退出请求。</param>
     public static int SystemExitCode(PySystemExit exit)
     {
+        // 与 CPython 一致：退出时先把 stdout 的缓冲写出去
+        Builtins.Flush();
         switch (exit.Code)
         {
             case null:
@@ -206,5 +258,5 @@ public static class PyTraceback
     }
 
     /// <summary>清空帧栈；仅用于同一进程内反复执行多个模块的宿主场景（测试）。</summary>
-    public static void Reset() => Stack.Clear();
+    public static void Reset() => _depth = 0;
 }

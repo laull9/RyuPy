@@ -56,9 +56,12 @@ fn fib_iter(_0: i64) -> i64 {
     let _3: i64; // _
     let _4: i64; // t
     let _5: i64;
-    let _6: bool;
+    let _6: i64;
     let _7: i64;
     let _8: i64;
+    let _9: bool;
+    let _10: i64;
+    let _11: i64;
 
     bb0: {
         _5 = RuntimeFn::TracePush(const "fib_iter");
@@ -67,17 +70,20 @@ fn fib_iter(_0: i64) -> i64 {
         // line 10
         _2 = const 1_i64;
         // line 11
-        _3 = const 0_i64;
+        _6 = const 0_i64;
+        _7 = _0;
+        _8 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _6 = Lt(_3, _0);
-        branch _6 -> [then: bb2, else: bb4];
+        _9 = Lt(_6, _7);
+        branch _9 -> [then: bb2, else: bb4];
     }
     bb2: {
+        _3 = _6;
         // line 12
-        _7 = Add(_1, _2);
-        _4 = _7;
+        _10 = Add(_1, _2);
+        _4 = _10;
         // line 13
         _1 = _2;
         // line 14
@@ -85,12 +91,12 @@ fn fib_iter(_0: i64) -> i64 {
         goto -> bb3;
     }
     bb3: {
-        _3 = Add(_3, const 1_i64);
+        _6 = Add(_6, _8);
         goto -> bb1;
     }
     bb4: {
         // line 15
-        _8 = _1;
+        _11 = _1;
         goto -> bb6;
     }
     bb5: {
@@ -98,7 +104,7 @@ fn fib_iter(_0: i64) -> i64 {
     }
     bb6: {
         RuntimeFn::TracePopTo(_5);
-        return _8;
+        return _11;
     }
 }
 

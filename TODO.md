@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 M1.0–M1.5 已完成，下一步 M2.0。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 M1.0–M1.5 已完成，Phase 2 已推进到容器、异常、迭代与字符串（M2.1–M2.4 部分完成），下一步 M2.7 模块系统。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -183,7 +183,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] list / tuple：字面量、构造、嵌套、下标、负索引、切片、赋值 / 删除、append / extend / pop 与普通 / 星号解包
       （`PyList` / `PyTuple`；星号解包由 `UnpackCheck` 校验长度后按下标取值，其余部分用 `PySlice` 一次切出）
 - [x] dict：保持插入顺序，增删查改、get / items / keys / values / update；定义视图与迭代中修改行为
-      （插入顺序由 `_keys` 单独维护；`Version` 变更使迭代器抛 `RuntimeError`，但视图本身是「活的」）
+      （`PyDict` 用「键 → 槽位下标 + 平行键值数组 + 墓碑」，删除 O(1)；`Version` 只在增删时递增，覆盖已有键不递增；视图是「活的」，迭代器按槽位推进并校验版本）
 - [x] set / frozenset：构造、成员判断、常用集合运算；统一可哈希判定与相等 / 哈希规则，覆盖 `True`、`1`、`1.0` 作键
       （`|` `&` `^` `-` 优先走集合语义，再回退到整数位运算；相等与哈希集中在 `PyHash`）
 - [x] 可变容器保留共享引用；递归 repr / equality 的支持边界明确，循环引用不能导致无界运行
@@ -199,11 +199,44 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 > 依赖 M2.3。用例：`m2_4_iteration.py`、`m2_4_strings.py`、`m2_4_builtins.py`；用户对象协议由 M2.5 接续。
 
 - [ ] `iter` / `next` / StopIteration、通用 for、for / while 的 else、in / not in；range 保留可验证的计数快路径
-- [ ] 字符串按 Python 码点处理 len / 下标 / 切片，覆盖非 BMP 与孤立代理值；实现常用 split / join / strip / replace / find 和编码转换
+- [x] 字符串按 Python 码点处理 len / 下标 / 切片，覆盖非 BMP 与孤立代理值
+      （`PyText`；`m2_10_dynamic_fixes` 覆盖 emoji 的长度、下标、切片与迭代）
+- [ ] 字符串常用 split / join / strip / replace / find 和编码转换（已接入 split / join，其余待补）
 - [ ] f-string 与常用格式化、repr / str / bool；`print` 的 sep / end / file / flush 分批接入，文件流依赖 M3.4
 - [ ] `len`、`range`、`enumerate`、`zip`、`reversed`、`sum`、`min/max`、`any/all`、round、稳定 `sorted` / list.sort，含 key 与 reverse
+      （`sorted` / `list.sort` 已改稳定归并并支持 reverse；`key=` 与其余内建待做）
 - [ ] `type` / `isinstance`、`is` / `is not`、id / hash、`getattr` / `setattr` / `hasattr` 等对象内建登记统一协议；类相关部分留到 M2.5 / M2.6
 - [ ] 验收：惰性消费、提前退出、空迭代器、Unicode、key 函数副作用和排序稳定性通过，未支持参数明确报错
+
+### M2.10 语义修正与性能收尾 ✅
+
+> 集中修复审查发现的正确性缺陷、静默错误与热路径开销；每项都有差分用例或单元测试。
+> 用例：`m1_6_range_var_and_shift.py`、`m2_10_dynamic_fixes.py`、`tests/cases/errors/unhandled_unpack_too_many`。
+
+- [x] 真值判定覆盖空 list / tuple / dict / set / frozenset / bytes / bytearray / dict 视图
+      （`PyOps.Truthy` 显式列出每种容器；`if not items:` 不再走错分支）
+- [x] 字符串按码点处理 `len` / 下标 / 切片 / 迭代，覆盖非 BMP 字符
+      （`PyText` 统一换算码点偏移；迭代器保存字符偏移，避免 O(n²)）
+- [x] 字典覆盖已有键不再误报「迭代期间修改」；删除降为 O(1)；迭代不再二次哈希
+      （槽位 + 墓碑 + 紧凑化；视图迭代直接在槽位上走，不复制快照）
+- [x] 静态 `for range` 改用隐藏计数器，`range` 参数只求值一次
+      （循环体改写循环变量不会缩短循环；边界变量被改写不影响迭代次数）
+- [x] 解包数量校验同时检查「不足」与「过多」，星号形态按下限检查
+      （`UnpackCheck(length, required, hasStar)`；`a, b = [1, 2, 3]` 抛 `ValueError`）
+- [x] 静态 i64 溢出统一转成 Python `OverflowError`
+      （`PyMath` 显式转换 `//` / `%` / `abs` / `**` / `int(float)`；入口包装器兜底 catch CLR 异常，不打印 .NET 调用栈；ADR-0004 现状、compatibility D003）
+- [x] 移位语义修正：`1 << 100` 不再被 CIL 取模成 `1 << 36`；`>>` 支持移位量 ≥ 64
+      （`PyMath.ShiftLeftI64` / `ShiftRightI64`，静态路径改走运行时调用）
+- [x] `int ** int` 负指数返回 float
+      （指数为确定的非负字面量时保留静态快速幂；否则表达式动态化，由 `PyInt.Power` 处理）
+- [x] 排序改为稳定归并：`sorted` / `list.sort`、`reverse=True` 都保持相等元素的原始顺序
+      （`PySort`；不再用不稳定的 `List.Sort` + 反转）
+- [x] codegen：`MaxStack` 按最大实参个数计算，不再写死 64；`Unit` 局部变量分配 i64 槽位
+      （修复 `x = None` 触发的 `InvalidProgramException`）
+- [x] Pass 产出的 MIR 校验失败改为返回错误，由 driver 报内部错误，不再 `panic!`
+- [x] 热路径开销：`PyInt` 增加 i64 快路径再升级 BigInteger、字符串哈希缓存、stdout 缓冲写入、
+      traceback 帧栈改平行数组、`SetLine` 仅在行号变化时写入、`NumericEqual` 的 i64 快路径
+- [x] 验收：新增用例与既有 23 项 e2e、快照、xUnit 全部通过；`make check` 通过
 
 ### M2.5 普通 class 与属性协议
 
@@ -423,10 +456,10 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 ## 待定 / 技术债
 
-- [ ] `Builtins` 当前每次写都经过 `Console.Out`（自动 flush），大量输出时很慢：改为带缓冲的 writer，进程退出前 flush
+- [x] `Builtins` 改为带缓冲的 writer（64 KiB），入口包装器退出前 `Flush`；错误报告前先刷新 stdout
 - [ ] `Name` 改为字符串驻留（等 profile 证明有必要）
 - [ ] 错误码登记表 `docs/errors.md`（每个错误码一个最小复现 + 说明）
-- [ ] 深递归 `RecursionError` 与 .NET 栈溢出的差异（陷阱 #11）
-- [ ] Phase 1 浮点除零与 floor div / mod 等数值边界缺少完整 Python 检查；M2.2 补异常与差分测试，当前不宣称错误路径兼容
+- [x] 深递归 `RecursionError` 守卫（M2.2），默认 1000 层，可用 `RYUPY_RECURSION_LIMIT` 调整
+- [x] 浮点除零与 floor div / mod 数值边界统一抛 Python 异常（M2.2），并有差分用例
 - [ ] Phase 1 类型标注约束与 frozen dataclass 值拷贝仍存在；M2.1 / M2.5 按 ADR-0009 解除默认兼容路径限制
 - [ ] CLI 的 run 分支当前直接启动 dotnet 子进程；后续收回 driver，保持 architecture.md §2 的编排边界，本次只同步文档和测试

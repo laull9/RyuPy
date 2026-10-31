@@ -83,8 +83,8 @@ fn main() -> () {
         RuntimeFn::WriteI64(_16);
         RuntimeFn::WriteNewline();
         // line 12
-        _17 = Shl(const 1_i64, const 10_i64);
-        _18 = Shr(const 1024_i64, const 3_i64);
+        _17 = RuntimeFn::ShlI64(const 1_i64, const 10_i64);
+        _18 = RuntimeFn::ShrI64(const 1024_i64, const 3_i64);
         RuntimeFn::WriteI64(_17);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteI64(_18);

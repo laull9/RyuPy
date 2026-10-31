@@ -308,10 +308,27 @@ impl FunctionBuilder<'_> {
         let var_mir = self.local_map[&var];
         self.assigned_locals.insert(var);
 
-        // var = start
+        // range(...) 的参数只求值一次：先把起点、终点、步长复制进局部变量。
+        //
+        // 两点原因：
+        // 1. `range(n)` 在进入循环时就把 n 固定下来，循环体再改 `n` 不影响迭代次数；
+        //    若条件里直接读用户变量，结果会随循环体变化。
+        // 2. 用户变量可能被循环体重新赋值（`for i in range(4): i = 100`），
+        //    因此推进必须用独立的隐藏计数器，每轮开头才写回用户变量。
+        let counter = self.alloc_temp(MirType::I64);
         self.push_stmt(Statement::Assign {
-            dest: var_mir,
+            dest: counter,
             value: Rvalue::Use(start_op),
+        });
+        let stop_local = self.alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: stop_local,
+            value: Rvalue::Use(stop_op),
+        });
+        let step_local = self.alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: step_local,
+            value: Rvalue::Use(step_op.clone()),
         });
 
         // 2. 基本块创建
@@ -325,9 +342,9 @@ impl FunctionBuilder<'_> {
         // 3. 条件块 (cond_bb)
         self.current_bb = cond_bb;
         // 条件判断：
-        // 若 step 为常量 > 0：var < stop
-        // 若 step 为常量 < 0：var > stop
-        // 若 step 为非常量：(step > 0 && var < stop) || (step < 0 && var > stop)
+        // 若 step 为常量 > 0：counter < stop
+        // 若 step 为常量 < 0：counter > stop
+        // 若 step 为非常量：(step > 0 && counter < stop) || (step < 0 && counter > stop)
         let cond_local = self.expr_builder().alloc_temp(MirType::Bool);
         match step_op {
             Operand::Const(Constant::I64(s)) if s > 0 => {
@@ -335,8 +352,8 @@ impl FunctionBuilder<'_> {
                     dest: cond_local,
                     value: Rvalue::Binary {
                         op: BinOp::Lt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op,
+                        lhs: Operand::Local(counter),
+                        rhs: Operand::Local(stop_local),
                     },
                 });
             }
@@ -345,19 +362,19 @@ impl FunctionBuilder<'_> {
                     dest: cond_local,
                     value: Rvalue::Binary {
                         op: BinOp::Gt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op,
+                        lhs: Operand::Local(counter),
+                        rhs: Operand::Local(stop_local),
                     },
                 });
             }
             _ => {
-                // 动态步长：判断 step > 0 ? var < stop : var > stop
+                // 动态步长：判断 step > 0 ? counter < stop : counter > stop
                 let is_pos_temp = self.expr_builder().alloc_temp(MirType::Bool);
                 self.push_stmt(Statement::Assign {
                     dest: is_pos_temp,
                     value: Rvalue::Binary {
                         op: BinOp::Gt,
-                        lhs: step_op.clone(),
+                        lhs: Operand::Local(step_local),
                         rhs: Operand::Const(Constant::I64(0)),
                     },
                 });
@@ -366,8 +383,8 @@ impl FunctionBuilder<'_> {
                     dest: cond_lt,
                     value: Rvalue::Binary {
                         op: BinOp::Lt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op.clone(),
+                        lhs: Operand::Local(counter),
+                        rhs: Operand::Local(stop_local),
                     },
                 });
                 let cond_gt = self.expr_builder().alloc_temp(MirType::Bool);
@@ -375,8 +392,8 @@ impl FunctionBuilder<'_> {
                     dest: cond_gt,
                     value: Rvalue::Binary {
                         op: BinOp::Gt,
-                        lhs: Operand::Local(var_mir),
-                        rhs: stop_op,
+                        lhs: Operand::Local(counter),
+                        rhs: Operand::Local(stop_local),
                     },
                 });
                 let pos_cond = self.expr_builder().alloc_temp(MirType::Bool);
@@ -422,8 +439,12 @@ impl FunctionBuilder<'_> {
             else_: exit_bb,
         });
 
-        // 4. 循环体 (body_bb)
+        // 4. 循环体 (body_bb)：每轮开头把计数器写回用户变量
         self.current_bb = body_bb;
+        self.push_stmt(Statement::Assign {
+            dest: var_mir,
+            value: Rvalue::Use(Operand::Local(counter)),
+        });
         // 关键：continue 跳到 step_bb，break 跳到 exit_bb
         self.loop_stack.push((step_bb, exit_bb));
         for &s in body {
@@ -437,11 +458,11 @@ impl FunctionBuilder<'_> {
         // 5. 步长递增块 (step_bb)
         self.current_bb = step_bb;
         self.push_stmt(Statement::Assign {
-            dest: var_mir,
+            dest: counter,
             value: Rvalue::Binary {
                 op: BinOp::Add,
-                lhs: Operand::Local(var_mir),
-                rhs: step_op,
+                lhs: Operand::Local(counter),
+                rhs: Operand::Local(step_local),
             },
         });
         self.terminate_current(Terminator::Goto(cond_bb));

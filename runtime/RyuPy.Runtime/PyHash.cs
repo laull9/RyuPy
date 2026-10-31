@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace RyuPy.Runtime;
 
@@ -28,6 +29,17 @@ namespace RyuPy.Runtime;
 /// </remarks>
 public static class PyHash
 {
+    /// <summary>字符串哈希缓存的启用阈值（字符数）。</summary>
+    private const int StringHashCacheThreshold = 32;
+
+    /// <summary>
+    /// 字符串 → 已算好的哈希。用弱表，避免把长字符串键永久钉在内存里。
+    /// </summary>
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
+        string,
+        System.Runtime.CompilerServices.StrongBox<long>
+    > StringHashes = new();
+
     /// <summary>计算 Python 哈希值。</summary>
     /// <param name="value">任意值。</param>
     public static long Of(object? value) => value switch
@@ -99,7 +111,7 @@ public static class PyHash
         switch (a)
         {
             case PyList la:
-                return b is PyList lb && SequenceEqual(la.Items.ToArray(), lb.Items.ToArray());
+                return b is PyList lb && SequenceEqual(la.Items, lb.Items);
             case PyDict da:
                 return b is PyDict db && DictEqual(da, db);
             case PySet s1:
@@ -133,7 +145,32 @@ public static class PyHash
         {
             return CompareExact(a, db2) == 0;
         }
+        // 小整数快路径：绝大多数比较都是两个 long，不需要构造 BigInteger
+        if (TryGetI64(a, out long left) && TryGetI64(b, out long right))
+        {
+            return left == right;
+        }
         return PyInt.ToBigInteger(a) == PyInt.ToBigInteger(b);
+    }
+
+    /// <summary>把 Python 整数（含 <c>bool</c>）读成 <c>long</c>；超出 i64 时返回 <c>false</c>。</summary>
+    private static bool TryGetI64(object value, out long result)
+    {
+        switch (value)
+        {
+            case bool b:
+                result = b ? 1L : 0L;
+                return true;
+            case long l:
+                result = l;
+                return true;
+            case int i:
+                result = i;
+                return true;
+            default:
+                result = 0;
+                return false;
+        }
     }
 
     /// <summary>
@@ -147,13 +184,16 @@ public static class PyHash
     private static int CompareExact(object integer, double value) =>
         PyInt.CompareWithDouble(PyInt.ToBigInteger(integer), value) ?? -1;
 
-    private static bool SequenceEqual(object?[] a, object?[] b)
+    private static bool SequenceEqual(
+        System.Collections.Generic.IReadOnlyList<object?> a,
+        System.Collections.Generic.IReadOnlyList<object?> b
+    )
     {
-        if (a.Length != b.Length)
+        if (a.Count != b.Count)
         {
             return false;
         }
-        for (int i = 0; i < a.Length; i++)
+        for (int i = 0; i < a.Count; i++)
         {
             if (!Equal(a[i], b[i]))
             {
@@ -215,13 +255,28 @@ public static class PyHash
     {
         // CPython 的字符串哈希带随机种子（PYTHONHASHSEED）。这里用确定性实现：
         // 只要「相等字符串哈希相同」且分布合理，语义就成立；具体数值不承诺与 CPython 一致。
+        //
+        // 长字符串作为字典键时会反复哈希；重算一次是 O(n)，在热循环里会退化成
+        // 「每次查找都扫一遍键」。为长度达到阈值的字符串缓存结果（字符串不可变，
+        // 缓存不需要失效逻辑），短字符串直接重算——填表本身比计算更贵。
+        if (text.Length >= StringHashCacheThreshold
+            && StringHashes.TryGetValue(text, out StrongBox<long>? cached))
+        {
+            return cached.Value;
+        }
         const long Modulus = (1L << 61) - 1;
         long hash = 0;
         foreach (char ch in text)
         {
             hash = (hash * 1000003 + ch) % Modulus;
         }
-        return FitsSigned(hash);
+        long result = FitsSigned(hash);
+        if (text.Length >= StringHashCacheThreshold)
+        {
+            // AddOrUpdate 处理并发下的重复插入；值相同，谁赢都无所谓
+            StringHashes.AddOrUpdate(text, new StrongBox<long>(result));
+        }
+        return result;
     }
 
     private static long BytesHash(PyBytes bytes)
