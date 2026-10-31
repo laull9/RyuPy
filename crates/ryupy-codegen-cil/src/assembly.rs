@@ -52,7 +52,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let write_sep =
         res.push_method_reference(method_ref! { static void @builtins_type::WriteSep() });
     let str_concat = res.push_method_reference(
-        method_ref! { static string #builtins_type::StrConcat(string, string) },
+        method_ref! { static string @builtins_type::StrConcat(string, string) },
     );
 
     let pymath_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyMath in #ryupy_runtime });
@@ -78,6 +78,46 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let abs_f64 =
         res.push_method_reference(method_ref! { static double #pymath_type::AbsF64(double) });
 
+    // ── 动态值 ABI（ADR-0010）──
+    let write_object =
+        res.push_method_reference(method_ref! { static void @builtins_type::WriteObject(object) });
+
+    let pyops_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #ryupy_runtime });
+    let pyops_type: MethodType = BaseType::class(pyops_ref).into();
+    let dyn_binary = res.push_method_reference(
+        method_ref! { static object @pyops_type::Binary(int, object, object) },
+    );
+    let dyn_compare = res.push_method_reference(
+        method_ref! { static bool @pyops_type::Compare(int, object, object) },
+    );
+    let dyn_unary =
+        res.push_method_reference(method_ref! { static object @pyops_type::Unary(int, object) });
+    let dyn_truthy =
+        res.push_method_reference(method_ref! { static bool @pyops_type::Truthy(object) });
+    let dyn_none = res.push_method_reference(method_ref! { static object @pyops_type::None() });
+    let dyn_from_decimal = res.push_method_reference(
+        method_ref! { static object @pyops_type::FromDecimalString(string) },
+    );
+    let dyn_to_int =
+        res.push_method_reference(method_ref! { static object @pyops_type::ToIntValue(object) });
+    let dyn_to_float =
+        res.push_method_reference(method_ref! { static object @pyops_type::ToFloatValue(object) });
+    let dyn_abs =
+        res.push_method_reference(method_ref! { static object @pyops_type::AbsValue(object) });
+
+    let pycast_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyCast in #ryupy_runtime });
+    let pycast_type: MethodType = BaseType::class(pycast_ref).into();
+    let cast_to_i64 =
+        res.push_method_reference(method_ref! { static long @pycast_type::ToInt64(object) });
+    let cast_to_f64 =
+        res.push_method_reference(method_ref! { static double @pycast_type::ToFloat64(object) });
+    let cast_to_bool =
+        res.push_method_reference(method_ref! { static bool @pycast_type::ToBool(object) });
+    let cast_to_str =
+        res.push_method_reference(method_ref! { static string @pycast_type::ToStr(object) });
+    let range_step =
+        res.push_method_reference(method_ref! { static long @pycast_type::RangeStep(object) });
+
     let runtime_refs = RuntimeRefs {
         write_i64,
         write_f64,
@@ -95,6 +135,21 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         f64_to_i64,
         abs_i64,
         abs_f64,
+        write_object,
+        dyn_binary,
+        dyn_compare,
+        dyn_unary,
+        dyn_truthy,
+        dyn_none,
+        dyn_from_decimal,
+        dyn_to_int,
+        dyn_to_float,
+        dyn_abs,
+        cast_to_i64,
+        cast_to_f64,
+        cast_to_bool,
+        cast_to_str,
+        range_step,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(
@@ -107,14 +162,16 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     res[module_class].flags.accessibility = TypeAccessibility::Public;
 
     // 1. 为所有类预先分配 TypeIndex
-    let mut class_types: ClassTypeMap = FxHashMap::default();
+    let mut class_types = ClassTypeMap::new(object_ref);
     let mut class_defs: Vec<(ryupy_mir::ClassDefId, TypeIndex)> = Vec::new();
     for (cls_id, cls) in program.classes.iter() {
         let type_idx = res.push_type_definition(TypeDefinition::new(
             Some("RyuPy.Generated".into()),
             cls.name.clone(),
         ));
-        class_types.insert(cls_id, (type_idx, cls.is_value_type));
+        class_types
+            .classes
+            .insert(cls_id, (type_idx, cls.is_value_type));
         class_defs.push((cls_id, type_idx));
     }
 

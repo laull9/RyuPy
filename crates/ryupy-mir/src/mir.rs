@@ -49,7 +49,9 @@ pub enum MirType {
     /// `None` / 无返回值，对应 CIL `void`（作为局部变量类型时不分配槽位）。
     Unit,
     Class(ClassDefId),
-    // Phase 2：Dynamic —— RyuPy.Runtime.PyValue
+    /// 动态值：CIL `object`，承载装箱的 `int` / `float` / `bool` / `str` / `None`
+    /// （[ADR-0010](../../../docs/adr/0010-dynamic-value-representation.md)）。
+    Dynamic,
     // Phase 4：NdArrayView { elem: Box<MirType>, ndim: u8 }
 }
 
@@ -94,6 +96,10 @@ pub enum Constant {
     F64(f64),
     Bool(bool),
     Str(String),
+    /// 超出 i64 的整数字面量，以十进制字符串携带，构造时由运行时转 BigInteger。
+    BigInt(String),
+    /// Python `None`（运行时单例）。
+    None,
 }
 
 #[derive(Debug)]
@@ -125,9 +131,95 @@ pub enum Rvalue {
         obj: Operand,
         field: u32,
     },
-    // Phase 2：
-    // DynamicBinary { site: u32, op: BinOp, lhs, rhs } —— PyOps.Add(ref site, a, b)
-    // BoxToPyValue { src, src_ty } / UnboxFromPyValue { src, target_ty }
+    /// 静态值装箱成动态值（CIL `box`）。
+    Box {
+        value: Operand,
+        from: MirType,
+    },
+    /// 动态值拆箱到静态槽位（调用 `PyCast.*`，类型不符抛 Python `TypeError`）。
+    Unbox {
+        value: Operand,
+        to: MirType,
+    },
+    /// 动态二元运算：`PyOps.Binary(op, a, b)`。
+    DynBinary {
+        op: DynOp,
+        lhs: Operand,
+        rhs: Operand,
+    },
+    /// 动态比较：`PyOps.Compare(op, a, b)`，结果是 CIL `bool`。
+    DynCompare {
+        op: DynOp,
+        lhs: Operand,
+        rhs: Operand,
+    },
+    /// 动态一元运算：`PyOps.Unary(op, a)`。
+    DynUnary {
+        op: DynOp,
+        operand: Operand,
+    },
+    /// 动态真值判定：`PyOps.Truthy(value)`，结果是 CIL `bool`。
+    DynTruthy {
+        value: Operand,
+    },
+}
+
+/// 动态运算的操作码。数值必须与 C# 侧 `PyOps` 的常量一致（ADR-0010 的 ABI）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DynOp {
+    Add,
+    Sub,
+    Mul,
+    TrueDiv,
+    FloorDiv,
+    Mod,
+    Pow,
+    BitAnd,
+    BitOr,
+    BitXor,
+    LShift,
+    RShift,
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Neg,
+    Pos,
+    Not,
+    Invert,
+}
+
+impl DynOp {
+    /// 运行时操作码编号。**修改必须与 `runtime/RyuPy.Runtime/PyOps.cs` 同步。**
+    pub fn code(self) -> i32 {
+        match self {
+            DynOp::Add => 1,
+            DynOp::Sub => 2,
+            DynOp::Mul => 3,
+            DynOp::TrueDiv => 4,
+            DynOp::FloorDiv => 5,
+            DynOp::Mod => 6,
+            DynOp::Pow => 7,
+            DynOp::BitAnd => 8,
+            DynOp::BitOr => 9,
+            DynOp::BitXor => 10,
+            DynOp::LShift => 11,
+            DynOp::RShift => 12,
+            // 比较与一元运算的编号各自从 1 开始，由调用的运行时方法区分
+            DynOp::Eq => 1,
+            DynOp::Ne => 2,
+            DynOp::Lt => 3,
+            DynOp::Le => 4,
+            DynOp::Gt => 5,
+            DynOp::Ge => 6,
+            DynOp::Neg => 1,
+            DynOp::Pos => 2,
+            DynOp::Not => 3,
+            DynOp::Invert => 4,
+        }
+    }
 }
 
 /// 已经是 CIL 层面的语义：`Div` 对整数是向零截断。Python 的 `//` 和 `%` 在构建 MIR 时
@@ -192,6 +284,31 @@ pub enum RuntimeFn {
     F64ToI64,
     AbsI64,
     AbsF64,
+    /// `print` 动态值（等价 `print(str(v))`）。
+    WriteObject,
+    /// `PyOps.Binary(int, object, object)`。
+    DynBinary,
+    /// `PyOps.Compare(int, object, object) -> bool`。
+    DynCompare,
+    /// `PyOps.Unary(int, object)`。
+    DynUnary,
+    /// `PyOps.Truthy(object) -> bool`。
+    DynTruthy,
+    /// `PyOps.None()`。
+    DynNone,
+    /// `PyOps.FromDecimalString(string)`。
+    DynFromDecimal,
+    /// `PyOps.ToIntValue` / `ToFloatValue` / `AbsValue`。
+    DynToInt,
+    DynToFloat,
+    DynAbs,
+    /// `PyCast.RangeStep`：动态步长拆箱为 i64，且为 0 时报 ValueError。
+    RangeStep,
+    /// `PyCast.*`：动态值拆箱到静态槽位。
+    CastToI64,
+    CastToF64,
+    CastToBool,
+    CastToStr,
 }
 
 #[derive(Debug)]

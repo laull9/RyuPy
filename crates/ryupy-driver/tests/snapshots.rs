@@ -264,3 +264,62 @@ print(fib_iter(100))
         "期望包含 OverflowException，实际 stderr: {stderr}"
     );
 }
+
+// ───────────────── M2.1：动态路径 ─────────────────
+
+/// 动态函数：类型旁表只有静态函数有内容，MIR/CIL 里出现装箱与 `PyOps` 调用。
+#[test]
+fn snapshot_m2_1_dynamic() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_1_dynamic.py");
+
+    let mut sess = Session::default();
+    let types = dump(&mut sess, &case, Stage::Types).unwrap();
+    insta::assert_snapshot!("m2_1_dynamic_types", types);
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m2_1_dynamic_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m2_1_dynamic_cil", cil);
+}
+
+/// 大整数：字面量以十进制字符串携带，超出 i64 的部分由运行时构造 BigInteger。
+#[test]
+fn snapshot_m2_1_bigint() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_1_bigint.py");
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m2_1_bigint_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m2_1_bigint_cil", cil);
+}
+
+/// 错误输入：动态上下文里的属性访问需要普通 class（M2.5），必须给出明确诊断。
+#[test]
+fn snapshot_dynamic_attribute_diagnostic() {
+    let py_path = std::env::temp_dir().join("ryupy_test_dynamic_attr.py");
+    std::fs::write(
+        &py_path,
+        "def read(obj):\n    return obj.value\n\nprint(read(1))\n",
+    )
+    .unwrap();
+
+    let mut sess = Session::default();
+    let res = dump(&mut sess, &py_path, Stage::Mir);
+    let _ = std::fs::remove_file(&py_path);
+
+    assert!(res.is_err(), "动态属性访问应被拒绝");
+    let rendered = sess.render_diagnostics(false);
+    assert!(
+        rendered.contains("E0303"),
+        "期望 E0303 诊断，实际：{rendered}"
+    );
+    insta::assert_snapshot!("m2_1_dynamic_attribute_diagnostic", rendered);
+}

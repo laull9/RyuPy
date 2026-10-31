@@ -146,6 +146,7 @@ fn format_type(ty: &MirType) -> String {
         MirType::Str => "str".to_string(),
         MirType::Unit => "()".to_string(),
         MirType::Class(id) => format!("Class({})", id.into_raw()),
+        MirType::Dynamic => "dyn".to_string(),
     }
 }
 
@@ -157,6 +158,8 @@ fn format_operand(op: &Operand) -> String {
             Constant::F64(v) => format!("const {v}_f64"),
             Constant::Bool(b) => format!("const {b}"),
             Constant::Str(s) => format!("const \"{s}\""),
+            Constant::BigInt(s) => format!("const {s}_bigint"),
+            Constant::None => "None".to_string(),
         },
     }
 }
@@ -201,5 +204,27 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
         Rvalue::GetField { obj, field } => {
             format!("{}.{}", format_operand(obj), field)
         }
+        Rvalue::Box { value, from } => {
+            format!("box<{:?}>({})", from, format_operand(value))
+        }
+        Rvalue::Unbox { value, to } => {
+            format!("unbox<{:?}>({})", to, format_operand(value))
+        }
+        Rvalue::DynBinary { op, lhs, rhs } => format!(
+            "dyn.{:?}({}, {})",
+            op,
+            format_operand(lhs),
+            format_operand(rhs)
+        ),
+        Rvalue::DynCompare { op, lhs, rhs } => format!(
+            "dyn.cmp.{:?}({}, {})",
+            op,
+            format_operand(lhs),
+            format_operand(rhs)
+        ),
+        Rvalue::DynUnary { op, operand } => {
+            format!("dyn.{:?}({})", op, format_operand(operand))
+        }
+        Rvalue::DynTruthy { value } => format!("truthy({})", format_operand(value)),
     }
 }

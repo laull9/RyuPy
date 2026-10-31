@@ -52,6 +52,10 @@ impl InferCtx {
             (InferTy::Known(ta), InferTy::Known(tb)) => {
                 if *ta == Ty::Error || *tb == Ty::Error {
                     Ok(Ty::Error)
+                } else if ta.is_dynamic() || tb.is_dynamic() {
+                    // 动态值可以与任何类型统一：Python 的变量本来就能装任意对象，
+                    // 统一成 Dynamic 后整个函数会降级到动态路径（M2.1）。
+                    Ok(Ty::Dynamic)
                 } else if ta == tb {
                     Ok(ta.clone())
                 } else {
@@ -102,6 +106,17 @@ impl InferCtx {
 
                 Ok(bound.unwrap_or(Ty::Error))
             }
+        }
+    }
+
+    /// 强制把一个推导变量绑定成指定类型（异构赋值时用来「忘记」先前结论）。
+    ///
+    /// 用途：`x = 1; x = "text"` 在 Python 里合法，静态推导无法给出单一类型，
+    /// 于是把变量改绑成 `Dynamic`，让整个函数降级到动态路径。
+    pub fn force(&mut self, t: &InferTy, ty: Ty) {
+        if let InferTy::Var(v) = t {
+            let root = self.find(*v);
+            self.binding[root.0 as usize] = Some(ty);
         }
     }
 

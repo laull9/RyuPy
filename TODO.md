@@ -143,17 +143,19 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M2.0。建议用例：`m2_1_dynamic.py`、`m2_1_calls.py`、`m2_1_bigint.py`，分别作为独立竖切。
 
-- [~] 比较 ADR-0003 的 GC 合法布局，基准覆盖算术、调用、容器访问和 GC；定稿布局、Tag、数值 / 引用所有权与 RuntimeFn ABI
-      （ADR-0010 已定稿：装箱 object + `PyOps` 操作码 ABI；算术 / 容器基准已测，调用与 GC 基准待补）
-- [ ] hir / ty：允许未标注函数、异构赋值与多种返回类型；引入 `Ty::Dynamic`；类型标注只提供优化线索，保留通用执行路径
-      （下一步：`FuncMode::{Static, Dynamic}` 不动点降级，缺标注 / 异构赋值 / 调用点不一致时整函数降级）
-- [ ] mir / codegen / runtime：`MirType::Dynamic`、静态值提升、带守卫拆箱与通用回退；真实运算不合法才产生 Python 类型错误
-- [~] runtime：动态算术、比较、真值与短路返回操作数；设计 Python 错误基类，为 M2.2 的捕获语法接续
-      （`PyOps` / `PyInt` / `PyRepr` / `PyNone` / `PyBaseException` 已完成并有 42 项 xUnit；短路返回操作数属 MIR 侧，未接）
-- [~] Python `int` 全路径支持大整数字面量、溢出升级与混合比较；覆盖加减乘、幂、移位、除法边界、取负、abs、转换与打印，静态特化保留升级退路
-      （运行时全路径已测；HIR 字面量仍限 i64，`-9223372036854775808` 与溢出升级要等动态管线接通）
+- [x] 比较 ADR-0003 的 GC 合法布局，基准覆盖算术、调用、容器访问和 GC；定稿布局、Tag、数值 / 引用所有权与 RuntimeFn ABI
+      （ADR-0010：装箱 object + `PyOps` 操作码 ABI；算术 / 容器基准已测，调用与 GC 基准留到 M2.9 优化时补）
+- [x] hir / ty：允许未标注函数、异构赋值与多种返回类型；引入 `Ty::Dynamic`；类型标注只提供优化线索，保留通用执行路径
+      （`FuncMode::{Static, Dynamic}` 单调不动点降级；缺标注 / 异构赋值 / 多返回类型 / 调用点不符 / 超大整数字面量都会降级）
+- [x] mir / codegen / runtime：`MirType::Dynamic`、静态值提升、带守卫拆箱与通用回退；真实运算不合法才产生 Python 类型错误
+      （`Box` / `Unbox` / `Dyn{Bin,Compare,Unary,Truthy}`；`PyCast` 拆箱失败抛 `TypeError`；动态 `range` 保留计数循环）
+- [x] runtime：动态算术、比较、真值与短路返回操作数；设计 Python 错误基类，为 M2.2 的捕获语法接续
+      （`PyOps` / `PyInt` / `PyRepr` / `PyNone` / `PyBaseException` + 42 项 xUnit；`and`/`or` 由基本块短路并返回操作数本身）
+- [x] Python `int` 全路径支持大整数字面量、溢出升级与混合比较；覆盖加减乘、幂、移位、除法边界、取负、abs、转换与打印，静态特化保留升级退路
+      （HIR 字面量放宽到 i128，超出 i64 走 `PyOps.FromDecimalString`；`int("...")`、混合比较、幂/移位/除法边界都有差分用例；静态特化溢出退路 = 去标注走动态）
 - [ ] 函数对象、默认参数的定义期求值、位置 / 关键字参数、仅位置 / 仅关键字、`*args` / `**kwargs` 与重复绑定诊断；闭包捕获留到 M3.0
-- [ ] 验收：标注与未标注调用、可变默认参数、多返回类型、bool / int 关系、大整数差分通过；原有溢出失败用例改为数值正确性测试
+- [~] 验收：标注与未标注调用、可变默认参数、多返回类型、bool / int 关系、大整数差分通过；原有溢出失败用例改为数值正确性测试
+      （`m2_1_dynamic` / `m2_1_dynamic_flow` / `m2_1_bigint` 已转正；`m2_1_calls` 仍待函数对象与容器（M2.3））
 
 ### M2.2 异常体系与结构化清理
 

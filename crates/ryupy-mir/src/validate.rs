@@ -168,6 +168,8 @@ fn operand_type(func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
             Constant::F64(_) => MirType::F64,
             Constant::Bool(_) => MirType::Bool,
             Constant::Str(_) => MirType::Str,
+            // 大整数与 None 只出现在动态路径
+            Constant::BigInt(_) | Constant::None => MirType::Dynamic,
         }),
     }
 }
@@ -224,6 +226,64 @@ fn validate_rvalue(
             }
         }
         Rvalue::GetField { obj, .. } => validate_operand(func, block_id, obj, errors),
+        Rvalue::Box { value, from } => {
+            validate_operand(func, block_id, value, errors);
+            if let Some(v_ty) = operand_type(func, value)
+                && &v_ty != from
+            {
+                errors.push(format!(
+                    "函数 `{}` 基本块 {:?} 装箱类型不一致：声明 {:?}，实际 {:?}",
+                    func.name, block_id, from, v_ty
+                ));
+            }
+        }
+        Rvalue::Unbox { value, .. } => {
+            validate_operand(func, block_id, value, errors);
+            if let Some(v_ty) = operand_type(func, value)
+                && v_ty != MirType::Dynamic
+            {
+                errors.push(format!(
+                    "函数 `{}` 基本块 {:?} 拆箱的源类型必须是 dyn，得到 {:?}",
+                    func.name, block_id, v_ty
+                ));
+            }
+        }
+        Rvalue::DynBinary { lhs, rhs, .. } | Rvalue::DynCompare { lhs, rhs, .. } => {
+            validate_operand(func, block_id, lhs, errors);
+            validate_operand(func, block_id, rhs, errors);
+            for op in [lhs, rhs] {
+                if let Some(ty) = operand_type(func, op)
+                    && ty != MirType::Dynamic
+                {
+                    errors.push(format!(
+                        "函数 `{}` 基本块 {:?} 动态运算的操作数必须是 dyn，得到 {:?}",
+                        func.name, block_id, ty
+                    ));
+                }
+            }
+        }
+        Rvalue::DynUnary { operand, .. } => {
+            validate_operand(func, block_id, operand, errors);
+            if let Some(ty) = operand_type(func, operand)
+                && ty != MirType::Dynamic
+            {
+                errors.push(format!(
+                    "函数 `{}` 基本块 {:?} 动态一元运算的操作数必须是 dyn，得到 {:?}",
+                    func.name, block_id, ty
+                ));
+            }
+        }
+        Rvalue::DynTruthy { value } => {
+            validate_operand(func, block_id, value, errors);
+            if let Some(ty) = operand_type(func, value)
+                && ty != MirType::Dynamic
+            {
+                errors.push(format!(
+                    "函数 `{}` 基本块 {:?} 真值判定的操作数必须是 dyn，得到 {:?}",
+                    func.name, block_id, ty
+                ));
+            }
+        }
     }
 }
 

@@ -66,12 +66,17 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 - `ModuleTypes { sigs: FuncId → FnSig, bodies: FuncId → TypeckResults }`，`TypeckResults` 记录每个 `ExprId` / `LocalId` 的 `Ty`。
 - Phase 1：签名必须完整标注；函数体内用并查集单态推导；`Ty::Error` 作为毒化类型抑制连锁报错。
-- Phase 2 计划：推不出来的落到 `Ty::Dynamic`（运行时 `PyValue`）；类型标注只提供优化线索，特化须有证明或守卫，失败返回通用路径，不新增 Python 没有的参数类型拒绝。
+- M2.1 起：每个函数有一个 `FuncMode`。静态检查能证明就保持 `Static`（i64/f64 直算），
+  遇到缺标注、异构赋值、多返回类型、调用点实参不符或超出 i64 的字面量就**整函数**降级为
+  `Dynamic`；降级单调、用不动点迭代收敛。标注只提供优化线索，不再新增 Python 没有的实参拒绝。
 
 ### 3.4 MIR —— 「定型的控制流图」
 
 - 非 SSA 的「局部变量 + 基本块 + terminator」形式（ADR-0002），与 CIL 的局部变量槽模型几乎一一对应。
 - 进入 MIR 后：所有局部变量类型确定；运算已区分 i64/f64；`//` `%` `**` `print` 等 Python 语义已改写为 `RuntimeFn` 调用；隐式类型提升已显式化为 `Cast`。
+- 动态函数（M2.1）：局部变量与参数是 `MirType::Dynamic`；字面量先 `Box`，运算走
+  `DynBinary` / `DynCompare` / `DynUnary` / `DynTruthy`；动态值进静态槽位时插 `Unbox`（`PyCast`）。
+  `range` 在动态函数里仍是计数循环，边界拆箱成 i64。
 - `validate.rs` 是 MIR 的「类型系统」：codegen 之前必跑，Pass 之后 debug 构建下自动跑。
 - 优化以 `MirPass` 为单位，每个 Pass 独立、可单独快照测试。
 
@@ -79,7 +84,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 - 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有顶层函数（含 `Main`），每个 dataclass 一个类型。
 - 引用的外部程序集：`System.Runtime`（基础类型）、`RyuPy.Runtime`（内建函数与语义辅助）。
-- 整数算术用 `add.ovf` 等带溢出检查的指令（ADR-0004）。
+- 整数算术用 `add.ovf` 等带溢出检查的指令（ADR-0004）；动态路径改用 `PyOps`，整数按需升级 BigInteger。
+- `MirType::Dynamic` 映射到 `System.Object`；装箱用 `box`，拆箱走 `PyCast`（ADR-0010）。
 
 ## 4. 诊断
 
