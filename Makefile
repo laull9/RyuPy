@@ -89,9 +89,33 @@ projects-baseline: ## 用固定 CPython 记录项目入口的基线答案
 projects: runtime ## 项目级运行：编译并运行项目入口，对照 CPython 基线
 	cargo run -q -p ryupy-e2e --bin projects
 
+# 基准参数：make bench BENCH="dynamic strings" ARGS="--save before"
+BENCH ?=
+ARGS ?=
+
 .PHONY: bench
-bench: ## 性能基准：CPython vs RyuPy Release（不进入 make check）
-	"$(PYTHON)" tests/run_benchmarks.py
+bench: runtime ## 性能基准：CPython vs RyuPy（BENCH=名字/类别过滤，ARGS=额外参数）
+	"$(PYTHON)" tests/run_benchmarks.py --detail $(ARGS) $(BENCH)
+
+.PHONY: bench-quick
+bench-quick: runtime ## 快速基准：1 次热身 + 3 次计时，适合改动后的粗测
+	"$(PYTHON)" tests/run_benchmarks.py --quick $(ARGS) $(BENCH)
+
+.PHONY: bench-list
+bench-list: ## 列出全部基准、类别、说明与 pending 状态
+	"$(PYTHON)" tests/run_benchmarks.py --list
+
+.PHONY: bench-profile
+bench-profile: runtime ## 采样剖析热点函数（需 dotnet-trace）：make bench-profile BENCH=sorting
+	"$(PYTHON)" tests/run_benchmarks.py --profile $(BENCH)
+
+.PHONY: bench-save
+bench-save: runtime ## 测量并另存为基线：make bench-save NAME=before
+	"$(PYTHON)" tests/run_benchmarks.py --detail --save $(or $(NAME),baseline) $(ARGS) $(BENCH)
+
+.PHONY: bench-compare
+bench-compare: runtime ## 测量并与基线对比：make bench-compare NAME=before
+	"$(PYTHON)" tests/run_benchmarks.py --compare $(or $(NAME),baseline) $(ARGS) $(BENCH)
 
 .PHONY: check
 check: lint test cases-selftest e2e ## 提交前必跑：lint + test + 用例自检 + e2e

@@ -60,7 +60,7 @@ make python-baseline                                 # 同上（默认阶段）
 make python-extensions                               # 扩展基线
 make cases-selftest                                  # 只跑框架自检（不编译 RyuPy）
 make e2e                                             # 正式差分（跳过 pending）
-make bench                                           # CPython vs RyuPy 基准（不进入门禁）
+make bench                                           # CPython vs RyuPy 基准（不进入门禁，见下文）
 make e2e-all                                         # 含 pending，看进度
 ```
 
@@ -72,6 +72,42 @@ e2e 默认串行执行：用例按名字排序，输出行带 `[已跑/总数]` 
 
 基线脚本让每个程序在独立临时工作目录运行，避免文件测试污染仓库；关闭 pycache 写入，不修改
 用例源码。这只是 CPython 侧用例自检，不等于 RyuPy 支持。
+
+## 性能基准（`make bench`）
+
+基准不进入 `make check`（耗时随机器波动），但每个基准的 stdout 都与 CPython 逐字节比对，
+输出不一致或运行失败时脚本以非零码退出。
+
+| 位置 | 作用 |
+| --- | --- |
+| `tests/benchmarks/*.py` | 一个文件一个基准；文件头 `# bench: category=… / desc=… / variant=标签:K=V / pending=M3.x` |
+| `tests/run_benchmarks.py` | 入口：过滤、次数、保存 / 对比、剖析 |
+| `tests/benchlib/suite.py` | 发现基准、解析元数据、按类别排序与过滤 |
+| `tests/benchlib/measure.py` | 构建 Release CLI 与 DLL，交替运行 CPython / RyuPy，`wait4` 取峰值内存 |
+| `tests/benchlib/cpython_harness.py` | CPython 侧计时外壳：只计脚本执行时间与 GC 次数 |
+| `tests/benchlib/report.py` | 中位数 / 波动 / 几何平均，Markdown 表格，JSON 保存与对比 |
+| `tests/benchlib/profile.py` | `dotnet-trace` 采样，汇总自身 / 包含耗时最高的函数 |
+
+类别：`startup`（只测启动）、`static`（全标注静态路径）、`numeric`、`dynamic`、`objects`、`containers`、
+`strings`、`algorithms`、`control`、`project`，以及 `phase3`（闭包 / 推导式 / 生成器 / 装饰器，pending）。
+
+```bash
+make bench                              # 全部基准 + 资源表（分配 / GC / JIT / 内存 / 编译耗时）
+make bench BENCH="dynamic strings"      # 按名字子串或类别过滤
+make bench-quick                        # 1 次热身 + 3 次计时
+make bench-list                         # 清单与 pending 状态
+make bench-save NAME=before             # 另存结果
+make bench-compare NAME=before          # 与已保存结果逐项对比
+make bench-profile BENCH=sorting        # 热点函数表 + speedscope 火焰图（需 dotnet-trace）
+make bench ARGS="--no-cpython --runs 9" # 其它参数见 python3 tests/run_benchmarks.py --help
+```
+
+口径：墙钟（含进程启动）取中位数，「执行 ms」是进程内计时（RyuPy 的 `RYUPY_STATS`、CPython 外壳），
+二者之差约等于启动成本；波动 = (max − min) / 中位数，超过 10% 会标 ⚠。结果保存在
+`<target>/bench/results/`（`latest.json` 每次覆盖），不同机器的结果不要直接比较。
+
+新增基准：写一个只依赖已支持特性、输出确定的脚本，CPython 侧耗时建议 50–300 ms；依赖未实现特性时
+标 `# bench: pending=M3.x`，默认跳过，`--include-pending` 会尝试编译并在跑通时提示「可转正」。
 
 ## 结果记录
 

@@ -1,130 +1,143 @@
 #!/usr/bin/env python3
-"""RyuPy 基准脚本（M2.9）。
+"""RyuPy 基准入口（`make bench`）：CPython 与 RyuPy Release 产物的逐项对照。
 
-对比 CPython 与 RyuPy Release 产物的稳态耗时。基准输入固定写在 `tests/benchmarks/*.py`：
+基准输入固定写在 `tests/benchmarks/*.py`，每个文件头部用 `# bench:` 注释声明类别、说明、
+变体与 pending 状态（格式见 `tests/benchlib/suite.py`）。`--list` 打印完整清单。
 
-- `fib.py`：`fib_rec(30)` + 20 万次 `fib_iter(90)`（静态数值路径）；
-- `mandelbrot.py`：Mandelbrot 内部区域 240×120、1000 次上限（静态浮点路径）；
-- `dynamic.py`：300 万次动态加法 + 200 万次方法调用（PIC 目标路径）；
-- `containers.py`：列表 append、字典读写与字符串拼接（容器 / 不可变字符串路径）。
-
-脚本先构建 Release CLI 与每个基准的 DLL，再用 `python3` / `dotnet` 各跑 5 次取中位数。
-动态基准额外对比 `RYUPY_PIC=0`，用于确认 PIC 的收益；收益不足时应把默认值改回关闭。
+每个基准报告：
+- 墙钟中位数（含进程启动）与加速比，按类别与总体给出几何平均；
+- 进程内执行耗时（RyuPy 的 `RYUPY_STATS` / CPython 外壳），与启动成本分开；
+- RyuPy 的托管分配量、各代 GC 次数与暂停、JIT 耗时与方法数，双方的峰值内存与编译耗时；
+- stdout 与 CPython 逐字节比对，任何不一致都让脚本以非零码退出。
 
 用法：
 ```bash
-python3 tests/run_benchmarks.py            # 全部
-python3 tests/run_benchmarks.py dynamic    # 只跑某个基准
+python3 tests/run_benchmarks.py                    # 全部可运行基准
+python3 tests/run_benchmarks.py dynamic strings    # 按名字子串或类别过滤
+python3 tests/run_benchmarks.py --quick            # 1 次热身 + 3 次计时
+python3 tests/run_benchmarks.py --no-cpython       # 只测 RyuPy（仍校验输出）
+python3 tests/run_benchmarks.py --save before      # 另存结果，之后 --compare before 对比
+python3 tests/run_benchmarks.py --include-pending  # 连 Phase 3 pending 基准一起尝试
+python3 tests/run_benchmarks.py --profile sorting  # dotnet-trace 采样，输出热点函数表
 ```
 
 不进入 `make check`：基准耗时随机器波动，提交门禁只跑正确性用例。
 """
 
+from __future__ import annotations
+
+import argparse
 import os
-from pathlib import Path
-import statistics
-import subprocess
 import sys
-import time
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tests"))
+
+from benchlib import measure, profile, report, suite  # noqa: E402
+
 BENCHMARKS = ROOT / "tests" / "benchmarks"
-RUNS = 5
 
 
-def target_dir() -> Path:
-    """`cargo metadata` 给出的 target 目录（可能被 CARGO_TARGET_DIR 覆盖）。"""
-    output = subprocess.run(
-        ["cargo", "metadata", "--format-version", "1", "--no-deps"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    import json
-
-    return Path(json.loads(output)["target_directory"])
-
-
-def build_cli(target: Path) -> Path:
-    print("构建 Release CLI ...", flush=True)
-    subprocess.run(
-        ["cargo", "build", "--release", "-p", "ryupy-cli"],
-        cwd=ROOT,
-        check=True,
-    )
-    return target / "release" / "ryupy"
+def parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="RyuPy vs CPython 基准")
+    parser.add_argument("filters", nargs="*", help="基准名子串或类别名")
+    parser.add_argument("--runs", type=int, default=5, help="计时次数（默认 5）")
+    parser.add_argument("--warmup", type=int, default=1, help="热身次数（默认 1）")
+    parser.add_argument("--quick", action="store_true", help="快速模式：1 次热身 + 3 次计时")
+    parser.add_argument("--no-cpython", action="store_true", help="不计时 CPython（仍跑一次校验输出）")
+    parser.add_argument("--include-pending", action="store_true", help="也尝试 pending 基准")
+    parser.add_argument("--save", metavar="NAME", help="把结果另存为 NAME.json")
+    parser.add_argument("--compare", metavar="NAME", help="与已保存的 NAME.json（或路径）对比")
+    parser.add_argument("--detail", action="store_true", help="额外输出资源表（分配 / GC / JIT / 内存）")
+    parser.add_argument("--list", action="store_true", help="只列出基准清单")
+    parser.add_argument("--profile", action="store_true", help="对选中的基准做 dotnet-trace 采样剖析")
+    args = parser.parse_args(argv)
+    if args.quick:
+        args.runs, args.warmup = 3, 1
+    return args
 
 
-def build_case(cli: Path, case: Path, target: Path) -> Path:
-    out_dir = target / "bench" / case.stem
-    subprocess.run(
-        [str(cli), "build", str(case), "-o", str(out_dir)],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-    )
-    return out_dir / f"{case.stem}.dll"
+def results_path(target: Path, name: str) -> Path:
+    path = Path(name)
+    if path.suffix == ".json" and path.exists():
+        return path
+    return target / "bench" / "results" / f"{name}.json"
 
 
-def measure(command: list[str], env: dict[str, str]) -> tuple[float, bytes]:
-    """跑一次预热 + RUNS 次计时，返回中位数（秒）与最后一次 stdout。"""
-    stdout = b""
-    subprocess.run(command, cwd=ROOT, env=env, check=True, capture_output=True)
-    samples = []
-    for _ in range(RUNS):
-        start = time.perf_counter()
-        result = subprocess.run(command, cwd=ROOT, env=env, check=True, capture_output=True)
-        samples.append(time.perf_counter() - start)
-        stdout = result.stdout
-    return statistics.median(samples), stdout
-
-
-def main() -> int:
-    only = sys.argv[1] if len(sys.argv) > 1 else None
-    target = target_dir()
-    cli = build_cli(target)
-    cases = sorted(BENCHMARKS.glob("*.py"))
-    if only:
-        cases = [case for case in cases if case.stem == only]
-    if not cases:
-        print(f"没有匹配的基准：{only}", file=sys.stderr)
-        return 2
-
-    print()
-    print("| 基准 | CPython (ms) | RyuPy (ms) | 相对 CPython | 输出一致 |")
-    print("| --- | ---: | ---: | ---: | --- |")
-    for case in cases:
-        dll = build_case(cli, case, target)
-        python_env = dict(os.environ)
-        ryupy_env = dict(os.environ)
-        ryupy_env.pop("RYUPY_PIC", None)
-        python = os.environ.get("PYTHON", sys.executable)
-        cpython_time, expected = measure([python, "-B", str(case)], python_env)
-        ryupy_time, actual = measure(["dotnet", str(dll)], ryupy_env)
-        ratio = cpython_time / ryupy_time if ryupy_time else 0.0
-        same = "是" if expected == actual else "否"
-        print(
-            f"| {case.stem} | {cpython_time * 1000:.1f} | {ryupy_time * 1000:.1f} "
-            f"| {ratio:.2f}x | {same} |"
-        )
-
-        if case.stem == "dynamic":
-            # 同一 DLL、只改运行期开关，排除编译差异。
-            off_env = dict(os.environ)
-            off_env["RYUPY_PIC"] = "0"
-            off_time, off_output = measure(["dotnet", str(dll)], off_env)
-            print(
-                f"| dynamic（PIC 关闭） | {cpython_time * 1000:.1f} "
-                f"| {off_time * 1000:.1f} | {cpython_time / off_time:.2f}x "
-                f"| {'是' if expected == off_output else '否'} |"
-            )
-
-    print()
-    print("口径：`python3 -B` 与 `dotnet <dll>`，各 1 次预热 + 5 次计时取中位数；")
-    print("宿主为 macOS arm64，Release 配置；未包含 `cargo build` 与 JIT 编译时间。")
+def run_profiles(cli: Path, target: Path, benches: list[suite.Benchmark]) -> int:
+    """只做剖析，不计时：每个基准一张热点表。"""
+    for bench in benches:
+        if bench.pending:
+            continue
+        dll, _, error = measure.build_case(ROOT, cli, bench, target)
+        if dll is None:
+            print(f"{bench.name}：编译失败 {error}", file=sys.stderr)
+            return 1
+        print(f"\n## {bench.name}\n", flush=True)
+        speedscope = profile.collect(dll, target / "bench" / "profile")
+        print("\n".join(profile.summarize(speedscope)))
     return 0
 
 
+def main(argv: list[str]) -> int:
+    args = parse_args(argv)
+    benches = suite.select(suite.discover(BENCHMARKS), args.filters)
+    if not benches:
+        print(f"没有匹配的基准：{' '.join(args.filters)}", file=sys.stderr)
+        return 2
+    if args.list:
+        print("\n".join(report.describe(benches)))
+        return 0
+
+    python = os.environ.get("PYTHON", sys.executable)
+    target = measure.target_dir(ROOT)
+    cli = measure.build_cli(ROOT, target)
+    if args.profile:
+        return run_profiles(cli, target, benches)
+    plan = measure.Plan(
+        root=ROOT,
+        python=python,
+        warmup=args.warmup,
+        runs=args.runs,
+        with_cpython=not args.no_cpython,
+        include_pending=args.include_pending,
+    )
+    # 先跑启动基准（suite 排序保证 startup 在最前），让后续表格能引用启动成本
+    results = []
+    for index, bench in enumerate(benches, 1):
+        print(f"[{index}/{len(benches)}] {bench.name} ...", flush=True, file=sys.stderr)
+        results.append(measure.measure_bench(plan, cli, target, bench))
+
+    env = report.environment(ROOT, python, args.runs, args.warmup)
+    lines = [""] + report.time_table(results) + [""]
+    lines += report.summary(results) + report.startup_line(results)
+    lines += report.environment_lines(env)
+    if args.detail:
+        lines += ["", *report.resource_table(results)]
+    if args.compare:
+        baseline_file = results_path(target, args.compare)
+        if not baseline_file.exists():
+            print(f"找不到基线结果：{baseline_file}", file=sys.stderr)
+            return 2
+        baseline_env, baseline = report.load(baseline_file)
+        lines += ["", *report.compare_table(results, baseline_env, baseline)]
+    print("\n".join(lines))
+
+    report.save(results_path(target, "latest"), env, results)
+    if args.save:
+        saved = results_path(target, args.save)
+        report.save(saved, env, results)
+        print(f"\n结果已保存：{saved}")
+
+    failed = [r for r in results if r.status in ("mismatch", "build-failed", "run-failed")]
+    for result in failed:
+        print(f"失败：{result.bench.name}：{report.STATUS_TEXT[result.status]} {result.note}", file=sys.stderr)
+    ready = [r.bench.name for r in results if r.status == "ready"]
+    if ready:
+        print(f"[可转正] 以下 pending 基准已能跑通，去掉 `# bench: pending=`：{', '.join(ready)}")
+    return 1 if failed else 0
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

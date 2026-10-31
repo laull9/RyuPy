@@ -1,4 +1,5 @@
-# 基准：递归 + 迭代斐波那契（输入固定，见 run_benchmarks.py）。
+# bench: category=static
+# bench: desc=递归 fib_rec(30) + 20 万次迭代 fib_iter(90)，全标注的静态 i64 路径
 def fib_rec(n: int) -> int:
     if n < 2:
         return n

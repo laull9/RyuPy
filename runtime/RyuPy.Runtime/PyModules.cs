@@ -217,8 +217,12 @@ public static class PyModules
         }
     }
 
-    /// <summary>执行入口模块（<c>__main__</c>）。</summary>
-    public static void RunMain() => Import("__main__");
+    /// <summary>执行入口模块（<c>__main__</c>）；开启 <c>RYUPY_STATS</c> 时从这里开始计执行耗时。</summary>
+    public static void RunMain()
+    {
+        PyStats.MarkMainStart();
+        Import("__main__");
+    }
 
     /// <summary>编译期字符串比较助手（生成的模块 getter / setter 用）。</summary>
     public static bool SameName(string left, string right) =>

@@ -1,4 +1,6 @@
-# 基准：动态函数调用 + 动态二元运算 + 方法调用（PIC 的主要目标）。
+# bench: category=dynamic
+# bench: desc=300 万次动态函数调用加法 + 200 万次方法调用（PIC 主要目标）
+# bench: variant=PIC 关闭:RYUPY_PIC=0
 def add(a, b):
     return a + b
 
