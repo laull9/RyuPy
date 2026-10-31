@@ -12,7 +12,7 @@ fn main_calc(_0: i64) -> i64 {
     let _6: i64;
 
     bb0: {
-        _2 = RuntimeFn::TracePush(const "main_calc");
+        _2 = RuntimeFn::TracePush(const "m1_1_functions.py", const "main_calc");
         // line 3
         _3 = helper(_0);
         _4 = Mul(_3, const 2_i64);
@@ -39,7 +39,7 @@ fn helper(_0: i64) -> i64 {
     let _4: i64;
 
     bb0: {
-        _2 = RuntimeFn::TracePush(const "helper");
+        _2 = RuntimeFn::TracePush(const "m1_1_functions.py", const "helper");
         // line 8
         _3 = Sub(_0, const 3_i64);
         _1 = _3;
@@ -62,7 +62,13 @@ fn main() -> () {
     let _2: i64;
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "<module>");
+        _0 = RuntimeFn::TracePush(const "m1_1_functions.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "m1_1_functions.py";
         // line 2
         // line 7
         // line 12

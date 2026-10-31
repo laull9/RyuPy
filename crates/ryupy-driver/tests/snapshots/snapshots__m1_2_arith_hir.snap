@@ -3,6 +3,9 @@ source: crates/ryupy-driver/tests/snapshots.rs
 expression: hir
 ---
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_2_arith.py"
     print((7 // 2))
     print((Neg(7) // 2))
     print((7 // Neg(2)))

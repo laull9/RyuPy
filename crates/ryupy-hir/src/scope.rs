@@ -35,6 +35,56 @@ pub struct GlobalScope {
 #[derive(Debug, Default)]
 pub struct FunctionScope {
     pub locals: FxHashMap<Name, LocalId>,
+    /// 该函数里 `global` 声明的名字：它们不是局部变量，赋值/读取都落到模块命名空间。
+    pub globals: FxHashSet<Name>,
+}
+
+impl FunctionScope {
+    /// 名字在该函数里是否指向模块级变量。
+    pub fn is_global(&self, name: &Name) -> bool {
+        self.globals.contains(name)
+    }
+}
+
+/// 收集函数体内的 `global` 声明（不进入嵌套 def / class）。
+pub fn collect_global_names(body: &[ast::Stmt]) -> Vec<Name> {
+    let mut out = Vec::new();
+    fn walk(stmts: &[ast::Stmt], out: &mut Vec<Name>) {
+        for stmt in stmts {
+            match stmt {
+                ast::Stmt::Global(g) => {
+                    out.extend(g.names.iter().map(|n| Name::from(n.as_str())));
+                }
+                ast::Stmt::If(s) => {
+                    walk(&s.body, out);
+                    for clause in &s.elif_else_clauses {
+                        walk(&clause.body, out);
+                    }
+                }
+                ast::Stmt::For(s) => {
+                    walk(&s.body, out);
+                    walk(&s.orelse, out);
+                }
+                ast::Stmt::While(s) => {
+                    walk(&s.body, out);
+                    walk(&s.orelse, out);
+                }
+                ast::Stmt::Try(s) => {
+                    walk(&s.body, out);
+                    for handler in &s.handlers {
+                        let ast::ExceptHandler::ExceptHandler(h) = handler;
+                        walk(&h.body, out);
+                    }
+                    walk(&s.orelse, out);
+                    walk(&s.finalbody, out);
+                }
+                ast::Stmt::With(s) => walk(&s.body, out),
+                _ => {}
+            }
+        }
+    }
+    walk(body, &mut out);
+    out
 }
 
 /// 预扫描函数体，返回所有被赋值的名字及其首次出现位置（规则 2）。

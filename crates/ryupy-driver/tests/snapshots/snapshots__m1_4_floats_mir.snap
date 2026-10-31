@@ -21,7 +21,13 @@ fn main() -> () {
     let _15: f64;
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "<module>");
+        _0 = RuntimeFn::TracePush(const "m1_4_floats.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "m1_4_floats.py";
         // line 2
         RuntimeFn::WriteF64(const 1_f64);
         RuntimeFn::WriteNewline();

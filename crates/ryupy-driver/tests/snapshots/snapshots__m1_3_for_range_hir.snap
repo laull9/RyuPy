@@ -3,21 +3,24 @@ source: crates/ryupy-driver/tests/snapshots.rs
 expression: hir
 ---
 def [main] main():
-    total = 0
-    for i in range(0, 10):
-        total = (total + i)
-    print(total)
-    for i in range(2, 5):
-        print(i)
-    for i in range(10, 0, Neg(3)):
-        print(i)
-    for i in range(5, 5):
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_3_for_range.py"
+    global.total = 0
+    for global.i in range(0, 10):
+        global.total = (global.total + global.i)
+    print(global.total)
+    for global.i in range(2, 5):
+        print(global.i)
+    for global.i in range(10, 0, Neg(3)):
+        print(global.i)
+    for global.i in range(5, 5):
         print("never")
-    acc = 0
-    for i in range(0, 100):
-        if ((i % 2) Eq 0):
+    global.acc = 0
+    for global.i in range(0, 100):
+        if ((global.i % 2) Eq 0):
             continue
-        if (i Gt 20):
+        if (global.i Gt 20):
             break
-        acc = (acc + i)
-    print(acc)
+        global.acc = (global.acc + global.i)
+    print(global.acc)

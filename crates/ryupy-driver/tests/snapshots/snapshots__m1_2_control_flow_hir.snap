@@ -35,6 +35,9 @@ def first_multiple(k: int, limit: int) -> int:
     return found
 
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_2_control_flow.py"
     defaults of classify
     defaults of collatz_steps
     defaults of first_multiple
@@ -42,6 +45,6 @@ def [main] main():
     print(collatz_steps(27))
     print(first_multiple(7, 100))
     print(first_multiple(7, 3))
-    x = 5
-    print(((x Gt 0) And (x Lt 10)))
-    print(((x Lt 0) Or (x Eq 5)))
+    global.x = 5
+    print(((global.x Gt 0) And (global.x Lt 10)))
+    print(((global.x Lt 0) Or (global.x Eq 5)))

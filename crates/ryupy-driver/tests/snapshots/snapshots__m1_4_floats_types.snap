@@ -2,4 +2,7 @@
 source: crates/ryupy-driver/tests/snapshots.rs
 expression: types
 ---
+module var Idx::<ModuleVar>(0): Str
+module var Idx::<ModuleVar>(1): Str
+module var Idx::<ModuleVar>(2): Str
 func Idx::<Function>(0) [Static]: [] -> None

@@ -17,12 +17,15 @@ def mandel(cr: float, ci: float, max_iter: int) -> int:
     return max_iter
 
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_4_mandelbrot.py"
     defaults of mandel
-    for y in range(Neg(12), 13):
-        line = ""
-        for x in range(Neg(39), 21):
-            if (mandel((x / 20.0), (y / 10.0), 200) Eq 200):
-                line = (line + "#")
+    for global.y in range(Neg(12), 13):
+        global.line = ""
+        for global.x in range(Neg(39), 21):
+            if (mandel((global.x / 20.0), (global.y / 10.0), 200) Eq 200):
+                global.line = (global.line + "#")
             else:
-                line = (line + ".")
-        print(line)
+                global.line = (global.line + ".")
+        print(global.line)

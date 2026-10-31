@@ -3,6 +3,9 @@ source: crates/ryupy-driver/tests/snapshots.rs
 expression: hir
 ---
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_4_floats.py"
     print(1.0)
     print((0.1 + 0.2))
     print(1e16)

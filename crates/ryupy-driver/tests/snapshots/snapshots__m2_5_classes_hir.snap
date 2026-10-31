@@ -19,6 +19,9 @@ def named(cls):
     return cls.category
 
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m2_5_classes.py"
     class Box:
         category = "box"
         def __init__(self, ...)
@@ -29,12 +32,12 @@ def [main] main():
         def kind(self, ...)
         @classmethod
         def named(self, ...)
-    box = Box(3)
-    method = box.add
-    print(method(2), box.doubled, Box.kind(), Box.named())
-    box.category = "instance"
-    print(box.category, Box.category)
-    del box.category
-    print(box.category, hasattr(box, "missing"))
-    setattr(box, "extra", 7)
-    print(getattr(box, "extra"), getattr(box, "missing", 0))
+    global.box = Box(3)
+    global.method = global.box.add
+    print(global.method(2), global.box.doubled, Box.kind(), Box.named())
+    global.box.category = "instance"
+    print(global.box.category, Box.category)
+    del global.box.category
+    print(global.box.category, hasattr(global.box, "missing"))
+    setattr(global.box, "extra", 7)
+    print(getattr(global.box, "extra"), getattr(global.box, "missing", 0))

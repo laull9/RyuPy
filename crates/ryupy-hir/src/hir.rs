@@ -4,6 +4,7 @@ use la_arena::{Arena, Idx};
 use ryupy_base::{FileId, TextRange};
 
 pub type FuncId = Idx<Function>;
+pub type ModuleVarId = Idx<ModuleVar>;
 pub type ClassId = Idx<Class>;
 pub type LocalId = Idx<Local>;
 pub type ExprId = Idx<Expr>;
@@ -34,13 +35,45 @@ impl std::fmt::Display for Name {
 
 // ───────────────────────────── 模块级 ─────────────────────────────
 
+/// 模块的身份信息，全部由 driver 提供（HIR 不读文件）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ModuleInfo {
+    /// 点分绝对模块名；入口文件固定为 `__main__`。
+    pub name: String,
+    /// `__package__`：包内的模块是所在包名，包的 `__init__.py` 是自身名字，入口为空串。
+    pub package: String,
+    /// `__file__`：traceback 与模块属性展示用的文件名。
+    pub file: String,
+}
+
+/// 模块级变量（M2.7）。
+///
+/// 模块顶层赋值、导入绑定、`global` 声明以及 `__name__` 等特殊名字都落在这里。
+/// 它们在 MIR 里是静态槽位，模块对象通过生成的 getter/setter 暴露给导入方。
+#[derive(Debug)]
+pub struct ModuleVar {
+    pub name: Name,
+    pub range: TextRange,
+    /// 模块级 `x: int = ...` 的标注，供类型推导取提示。
+    pub annotation: Option<TypeRef>,
+    /// 被函数里的 `global` 声明过。这类名字的读写走动态路径。
+    pub is_global: bool,
+}
+
 #[derive(Debug)]
 pub struct Module {
     pub file: FileId,
     /// 源文件名。traceback 的 `File "..."` 与诊断都要用它，由 driver 提供。
     pub source_name: String,
+    pub info: ModuleInfo,
     pub functions: Arena<Function>,
     pub classes: Arena<Class>,
+    /// 模块级变量。
+    pub vars: Arena<ModuleVar>,
+    /// 模块顶层定义的函数（不含类方法），按源码顺序。
+    pub top_functions: Vec<FuncId>,
+    /// 模块顶层定义的类，按源码顺序。
+    pub top_classes: Vec<ClassId>,
     /// 顶层语句组成的隐式入口函数。
     pub main: FuncId,
     /// 所有参数默认值表达式；它们的 `ExprId` 都位于 `main` 的 body 中。
@@ -229,6 +262,8 @@ pub enum ExprKind {
     Missing,
     Literal(Literal),
     Local(LocalId),
+    /// 读取模块级变量（M2.7）。
+    ModuleVar(ModuleVarId),
     Func(FuncId),
     Class(ClassId),
     Builtin(Builtin),
@@ -421,7 +456,7 @@ pub enum StmtKind {
     },
     /// `for var in <可迭代对象>`：通用迭代协议。
     ForEach {
-        var: LocalId,
+        var: Binding,
         iter: ExprId,
         body: Vec<StmtId>,
         /// `for ... else:`：迭代耗尽时执行；`break` 跳过。
@@ -429,7 +464,7 @@ pub enum StmtKind {
     },
     /// `for var in range(start, stop, step)` 的专用形式，编译为原生计数循环，不产生迭代器对象。
     ForRange {
-        var: LocalId,
+        var: Binding,
         start: ExprId,
         stop: ExprId,
         step: Option<ExprId>,
@@ -455,6 +490,22 @@ pub enum StmtKind {
     /// 顶层 `class` 定义。MIR 在**定义位置**创建类对象并顺序执行类体，
     /// 保证类属性求值、方法对象创建与模块语句的先后关系正确。
     ClassDef(ClassId),
+    /// `import x` / `import x as y` / `import a.b`（M2.7）。
+    ///
+    /// `bind_root` 表示 `import a.b` 没有别名：Python 只把顶层包 `a` 绑定到命名空间。
+    Import {
+        /// 绝对模块名。
+        module: String,
+        bind: ModuleVarId,
+        bind_root: bool,
+    },
+    /// `from x import a, b as c`（M2.7）。星号导入明确拒绝，由 lower 报诊断。
+    ImportFrom {
+        /// 绝对模块名。
+        module: String,
+        /// 依次绑定：导入方看到的名字 → 目标模块里的名字。
+        names: Vec<(String, ModuleVarId)>,
+    },
     /// `try` 语句：`body` / `handlers` / `else` / `finally` 四部分，任意一部分可以为空。
     ///
     /// HIR 保留 Python 的四段结构，不提前去糖成「嵌套 try」：MIR 需要知道
@@ -479,15 +530,23 @@ pub struct Handler {
     /// 接入：类名与内建异常名一样作为 catch 的类型标识（codegen 会生成对应的
     /// CLR 异常子类，保持 CLR 与 Python 继承树同构）。
     pub types: Option<Vec<String>>,
-    /// `as name` 绑定的局部变量。
-    pub name: Option<LocalId>,
+    /// `as name` 绑定的目标（函数内是局部变量，模块顶层是模块变量）。
+    pub name: Option<Binding>,
     pub body: Vec<StmtId>,
     pub range: TextRange,
+}
+
+/// 一个可赋值目标。函数内是局部变量，模块顶层是模块变量（M2.7）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Binding {
+    Local(LocalId),
+    ModuleVar(ModuleVarId),
 }
 
 #[derive(Debug)]
 pub enum AssignTarget {
     Local(LocalId),
+    ModuleVar(ModuleVarId),
     /// `obj.field = value`（dataclass 字段写入）。
     Attribute {
         base: ExprId,
@@ -506,7 +565,7 @@ pub enum AssignTarget {
 #[derive(Clone, Copy, Debug)]
 pub enum SequenceItem {
     /// 普通目标：按位置取一个元素。
-    One(LocalId),
+    One(Binding),
     /// 星号目标：把中间剩余的元素打包成列表。
-    Rest(LocalId),
+    Rest(Binding),
 }

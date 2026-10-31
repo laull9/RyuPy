@@ -17,7 +17,7 @@ fn returning() -> dyn {
     region r0: [1, +2) finally-guard handler->bb3
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "returning");
+        _0 = RuntimeFn::TracePush(const "m2_2_finally.py", const "returning");
         // line 3
         goto -> bb1;
     }
@@ -79,52 +79,52 @@ fn returning() -> dyn {
 }
 
 fn main() -> () {
-    let _0: dyn; // value
-    let _1: dyn; // error
-    let _2: i64;
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
-    let _6: i64;
+    let _6: dyn;
     let _7: i64;
     let _8: i64;
     let _9: i64;
     let _10: i64;
-    let _11: bool;
+    let _11: i64;
     let _12: bool;
     let _13: bool;
     let _14: bool;
     let _15: bool;
     let _16: bool;
     let _17: bool;
-    let _18: dyn;
+    let _18: bool;
     let _19: dyn;
-    let _20: i64;
-    let _21: dyn;
-    let _22: bool;
+    let _20: dyn;
+    let _21: i64;
+    let _22: dyn;
     let _23: dyn;
     let _24: bool;
     let _25: dyn;
-    let _26: dyn;
-    let _27: bool;
-    let _28: bool;
-    let _29: bool;
+    let _26: bool;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
     let _30: bool;
-    let _31: dyn;
-    let _32: dyn;
-    let _33: dyn;
+    let _31: bool;
+    let _32: bool;
+    let _33: bool;
     let _34: dyn;
     let _35: dyn;
     let _36: dyn;
     let _37: dyn;
     let _38: dyn;
-    let _39: bool;
-    let _40: bool;
-    let _41: bool;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
     let _42: bool;
-    let _43: dyn;
-    let _44: dyn;
-    let _45: dyn;
+    let _43: bool;
+    let _44: bool;
+    let _45: bool;
     let _46: dyn;
     let _47: dyn;
     let _48: dyn;
@@ -136,10 +136,16 @@ fn main() -> () {
     let _54: dyn;
     let _55: dyn;
     let _56: dyn;
-    let _57: bool;
-    let _58: bool;
-    let _59: bool;
-    let _60: bool;
+    let _57: dyn;
+    let _58: dyn;
+    let _59: dyn;
+    let _60: dyn;
+    let _61: dyn;
+    let _62: dyn;
+    let _63: bool;
+    let _64: bool;
+    let _65: bool;
+    let _66: bool;
 
     region r0: [6, +6) finally-guard handler->bb12
     region r1: [26, +1) finally-guard handler->bb27
@@ -148,40 +154,54 @@ fn main() -> () {
     region r4: [43, +1) catch ValueError handler->bb45
 
     bb0: {
-        _2 = RuntimeFn::TracePush(const "<module>");
+        g0 = None;
+        g1 = None;
+        g2 = None;
+        g3 = None;
+        g4 = None;
+        _0 = RuntimeFn::TracePush(const "m2_2_finally.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "m2_2_finally.py");
+        g2 = _3;
         // line 2
         // line 10
-        _3 = RuntimeFn::CallValue(global@0, [], [], []);
-        RuntimeFn::WriteObject(_3);
+        _4 = RuntimeFn::CallValue(global@5, [], [], []);
+        RuntimeFn::WriteObject(_4);
         RuntimeFn::WriteNewline();
         // line 11
-        _4 = box<I64>(const 0_i64);
-        _5 = box<I64>(const 3_i64);
-        _6 = unbox<I64>(_4);
+        _5 = box<I64>(const 0_i64);
+        _6 = box<I64>(const 3_i64);
         _7 = unbox<I64>(_5);
-        _8 = _6;
+        _8 = unbox<I64>(_6);
         _9 = _7;
-        _10 = const 1_i64;
+        _10 = _8;
+        _11 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _11 = Gt(_10, const 0_i64);
-        _12 = Lt(_8, _9);
-        _13 = Gt(_8, _9);
-        _14 = BitAnd(_11, _12);
-        _15 = Not(_11);
-        _16 = BitAnd(_15, _13);
-        _17 = BitOr(_14, _16);
-        branch _17 -> [then: bb2, else: bb5];
+        _12 = Gt(_11, const 0_i64);
+        _13 = Lt(_9, _10);
+        _14 = Gt(_9, _10);
+        _15 = BitAnd(_12, _13);
+        _16 = Not(_12);
+        _17 = BitAnd(_16, _14);
+        _18 = BitOr(_15, _17);
+        branch _18 -> [then: bb2, else: bb5];
     }
     bb2: {
-        _18 = box<I64>(_8);
-        _0 = _18;
+        _19 = box<I64>(_9);
+        g3 = _19;
         // line 12
         goto -> bb6;
     }
     bb3: {
-        _8 = Add(_8, _10);
+        _9 = Add(_9, _11);
         goto -> bb1;
     }
     bb4: {
@@ -193,15 +213,16 @@ fn main() -> () {
     }
     bb6: {
         // line 13
-        _21 = box<I64>(const 0_i64);
-        _22 = dyn.cmp.Eq(_0, _21);
-        _23 = box<Bool>(_22);
-        _24 = RuntimeFn::DynTruthy(_23);
-        branch _24 -> [then: bb7, else: bb9];
+        _22 = RuntimeFn::LoadName(global@3, const "value");
+        _23 = box<I64>(const 0_i64);
+        _24 = dyn.cmp.Eq(_22, _23);
+        _25 = box<Bool>(_24);
+        _26 = RuntimeFn::DynTruthy(_25);
+        branch _26 -> [then: bb7, else: bb9];
     }
     bb7: {
         // line 14
-        _20 = const 3_i64;
+        _21 = const 3_i64;
         goto -> bb14;
     }
     bb8: {
@@ -209,7 +230,7 @@ fn main() -> () {
     }
     bb9: {
         // line 15
-        _20 = const 4_i64;
+        _21 = const 4_i64;
         goto -> bb14;
     }
     bb10: {
@@ -219,31 +240,32 @@ fn main() -> () {
         unreachable;
     }
     bb12: {
-        _19 = caught_exception;
+        _20 = caught_exception;
         goto -> bb13;
     }
     bb13: {
-        RuntimeFn::TracePopTo(_2);
-        _25 = RuntimeFn::HandlerEnter(_19);
-        _20 = const 1_i64;
+        RuntimeFn::TracePopTo(_0);
+        _27 = RuntimeFn::HandlerEnter(_20);
+        _21 = const 1_i64;
         goto -> bb14;
     }
     bb14: {
         // line 17
-        _26 = box<Str>(const "loop cleanup");
-        RuntimeFn::WriteObject(_26);
+        _28 = box<Str>(const "loop cleanup");
+        _29 = RuntimeFn::LoadName(global@3, const "value");
+        RuntimeFn::WriteObject(_28);
         RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_0);
+        RuntimeFn::WriteObject(_29);
         RuntimeFn::WriteNewline();
         goto -> bb15;
     }
     bb15: {
-        _27 = Eq(_20, const 1_i64);
-        branch _27 -> [then: bb16, else: bb20];
+        _30 = Eq(_21, const 1_i64);
+        branch _30 -> [then: bb16, else: bb20];
     }
     bb16: {
-        RuntimeFn::HandlerLeave(_25);
-        raise _19;
+        RuntimeFn::HandlerLeave(_27);
+        raise _20;
     }
     bb17: {
         unreachable;
@@ -255,19 +277,19 @@ fn main() -> () {
         unreachable;
     }
     bb20: {
-        _28 = Eq(_20, const 2_i64);
-        branch _28 -> [then: bb60, else: bb21];
+        _31 = Eq(_21, const 2_i64);
+        branch _31 -> [then: bb60, else: bb21];
     }
     bb21: {
-        _29 = Eq(_20, const 3_i64);
-        branch _29 -> [then: bb3, else: bb22];
+        _32 = Eq(_21, const 3_i64);
+        branch _32 -> [then: bb3, else: bb22];
     }
     bb22: {
-        _30 = Eq(_20, const 4_i64);
-        branch _30 -> [then: bb5, else: bb23];
+        _33 = Eq(_21, const 4_i64);
+        branch _33 -> [then: bb5, else: bb23];
     }
     bb23: {
-        RuntimeFn::HandlerLeave(_25);
+        RuntimeFn::HandlerLeave(_27);
         goto -> bb3;
     }
     bb24: {
@@ -279,27 +301,27 @@ fn main() -> () {
     }
     bb26: {
         // line 20
-        _32 = box<Str>(const "first");
-        _33 = RuntimeFn::MakeException(const "ValueError", _32);
-        _34 = RuntimeFn::RaisePrepare(_33);
-        raise _34;
+        _35 = box<Str>(const "first");
+        _36 = RuntimeFn::MakeException(const "ValueError", _35);
+        _37 = RuntimeFn::RaisePrepare(_36);
+        raise _37;
     }
     bb27: {
-        _31 = caught_exception;
+        _34 = caught_exception;
         goto -> bb28;
     }
     bb28: {
-        RuntimeFn::TracePopTo(_2);
-        _35 = RuntimeFn::HandlerEnter(_31);
-        _20 = const 1_i64;
+        RuntimeFn::TracePopTo(_0);
+        _38 = RuntimeFn::HandlerEnter(_34);
+        _21 = const 1_i64;
         goto -> bb29;
     }
     bb29: {
         // line 22
-        _36 = box<Str>(const "cleanup");
-        _37 = RuntimeFn::MakeException(const "RuntimeError", _36);
-        _38 = RuntimeFn::RaisePrepare(_37);
-        raise _38;
+        _39 = box<Str>(const "cleanup");
+        _40 = RuntimeFn::MakeException(const "RuntimeError", _39);
+        _41 = RuntimeFn::RaisePrepare(_40);
+        raise _41;
     }
     bb30: {
         unreachable;
@@ -332,24 +354,27 @@ fn main() -> () {
         unreachable;
     }
     bb40: {
-        RuntimeFn::TracePopTo(_2);
-        _44 = RuntimeFn::HandlerEnter(_43);
-        _1 = _43;
+        RuntimeFn::TracePopTo(_0);
+        _47 = RuntimeFn::HandlerEnter(_46);
+        g4 = _46;
         // line 24
-        _45 = RuntimeFn::DynStr(_1);
-        _46 = RuntimeFn::DynGetAttr(_1, const "__context__");
-        _47 = RuntimeFn::DynType(_46);
-        _48 = RuntimeFn::DynGetAttr(_47, const "__name__");
-        RuntimeFn::WriteObject(_45);
+        _48 = RuntimeFn::LoadName(global@4, const "error");
+        _49 = RuntimeFn::DynStr(_48);
+        _50 = RuntimeFn::LoadName(global@4, const "error");
+        _51 = RuntimeFn::DynGetAttr(_50, const "__context__");
+        _52 = RuntimeFn::DynType(_51);
+        _53 = RuntimeFn::DynGetAttr(_52, const "__name__");
+        RuntimeFn::WriteObject(_49);
         RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_48);
+        RuntimeFn::WriteObject(_53);
         RuntimeFn::WriteNewline();
-        _1 = RuntimeFn::MakeUnbound();
-        RuntimeFn::HandlerLeave(_44);
+        _54 = RuntimeFn::MakeUnbound();
+        g4 = _54;
+        RuntimeFn::HandlerLeave(_47);
         goto -> bb42;
     }
     bb41: {
-        _43 = caught_exception;
+        _46 = caught_exception;
         goto -> bb40;
     }
     bb42: {
@@ -358,58 +383,58 @@ fn main() -> () {
     }
     bb43: {
         // line 26
-        _50 = box<Str>(const "body");
-        RuntimeFn::WriteObject(_50);
+        _56 = box<Str>(const "body");
+        RuntimeFn::WriteObject(_56);
         RuntimeFn::WriteNewline();
         goto -> bb46;
     }
     bb44: {
-        RuntimeFn::TracePopTo(_2);
-        _52 = RuntimeFn::HandlerEnter(_51);
+        RuntimeFn::TracePopTo(_0);
+        _58 = RuntimeFn::HandlerEnter(_57);
         // line 28
-        _53 = box<Str>(const "unexpected error");
-        RuntimeFn::WriteObject(_53);
+        _59 = box<Str>(const "unexpected error");
+        RuntimeFn::WriteObject(_59);
         RuntimeFn::WriteNewline();
-        RuntimeFn::HandlerLeave(_52);
-        _20 = const 0_i64;
+        RuntimeFn::HandlerLeave(_58);
+        _21 = const 0_i64;
         goto -> bb49;
     }
     bb45: {
-        _51 = caught_exception;
+        _57 = caught_exception;
         goto -> bb44;
     }
     bb46: {
         // line 30
-        _54 = box<Str>(const "else");
-        RuntimeFn::WriteObject(_54);
+        _60 = box<Str>(const "else");
+        RuntimeFn::WriteObject(_60);
         RuntimeFn::WriteNewline();
-        _20 = const 0_i64;
+        _21 = const 0_i64;
         goto -> bb49;
     }
     bb47: {
-        _49 = caught_exception;
+        _55 = caught_exception;
         goto -> bb48;
     }
     bb48: {
-        RuntimeFn::TracePopTo(_2);
-        _55 = RuntimeFn::HandlerEnter(_49);
-        _20 = const 1_i64;
+        RuntimeFn::TracePopTo(_0);
+        _61 = RuntimeFn::HandlerEnter(_55);
+        _21 = const 1_i64;
         goto -> bb49;
     }
     bb49: {
         // line 32
-        _56 = box<Str>(const "last");
-        RuntimeFn::WriteObject(_56);
+        _62 = box<Str>(const "last");
+        RuntimeFn::WriteObject(_62);
         RuntimeFn::WriteNewline();
         goto -> bb50;
     }
     bb50: {
-        _57 = Eq(_20, const 1_i64);
-        branch _57 -> [then: bb51, else: bb55];
+        _63 = Eq(_21, const 1_i64);
+        branch _63 -> [then: bb51, else: bb55];
     }
     bb51: {
-        RuntimeFn::HandlerLeave(_55);
-        raise _49;
+        RuntimeFn::HandlerLeave(_61);
+        raise _55;
     }
     bb52: {
         unreachable;
@@ -421,26 +446,26 @@ fn main() -> () {
         unreachable;
     }
     bb55: {
-        _58 = Eq(_20, const 2_i64);
-        branch _58 -> [then: bb60, else: bb56];
+        _64 = Eq(_21, const 2_i64);
+        branch _64 -> [then: bb60, else: bb56];
     }
     bb56: {
-        _59 = Eq(_20, const 3_i64);
-        branch _59 -> [then: bb3, else: bb57];
+        _65 = Eq(_21, const 3_i64);
+        branch _65 -> [then: bb3, else: bb57];
     }
     bb57: {
-        _60 = Eq(_20, const 4_i64);
-        branch _60 -> [then: bb5, else: bb58];
+        _66 = Eq(_21, const 4_i64);
+        branch _66 -> [then: bb5, else: bb58];
     }
     bb58: {
-        RuntimeFn::HandlerLeave(_55);
+        RuntimeFn::HandlerLeave(_61);
         goto -> bb60;
     }
     bb59: {
         unreachable;
     }
     bb60: {
-        RuntimeFn::TracePopTo(_2);
+        RuntimeFn::TracePopTo(_0);
         return;
     }
 }

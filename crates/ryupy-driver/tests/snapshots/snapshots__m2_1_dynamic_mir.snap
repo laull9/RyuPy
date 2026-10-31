@@ -9,7 +9,7 @@ fn twice(_0: dyn) -> dyn {
     let _3: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "twice");
+        _1 = RuntimeFn::TracePush(const "m2_1_dynamic.py", const "twice");
         // line 3
         _3 = dyn.Add(_0, _0);
         _2 = _3;
@@ -33,7 +33,7 @@ fn choose(_0: dyn) -> dyn {
     let _5: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "choose");
+        _1 = RuntimeFn::TracePush(const "m2_1_dynamic.py", const "choose");
         // line 7
         _2 = RuntimeFn::DynTruthy(_0);
         branch _2 -> [then: bb1, else: bb3];
@@ -66,8 +66,8 @@ fn choose(_0: dyn) -> dyn {
 }
 
 fn main() -> () {
-    let _0: dyn; // value
-    let _1: i64;
+    let _0: i64;
+    let _1: dyn;
     let _2: dyn;
     let _3: dyn;
     let _4: dyn;
@@ -85,83 +85,102 @@ fn main() -> () {
     let _16: dyn;
     let _17: dyn;
     let _18: dyn;
-    let _19: bool;
+    let _19: dyn;
     let _20: dyn;
     let _21: dyn;
     let _22: dyn;
     let _23: bool;
     let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: bool;
+    let _28: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "<module>");
+        g0 = None;
+        g1 = None;
+        g2 = None;
+        g3 = None;
+        _0 = RuntimeFn::TracePush(const "m2_1_dynamic.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "m2_1_dynamic.py");
+        g2 = _3;
         // line 2
         // line 6
         // line 12
-        _2 = box<I64>(const 3_i64);
-        _0 = _2;
+        _4 = box<I64>(const 3_i64);
+        g3 = _4;
         // line 13
-        _3 = RuntimeFn::CallValue(global@0, [_0], [], []);
-        _4 = box<Str>(const "ha");
-        _5 = RuntimeFn::CallValue(global@0, [_4], [], []);
-        RuntimeFn::WriteObject(_3);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_5);
-        RuntimeFn::WriteNewline();
-        // line 14
-        _6 = box<Str>(const "changed");
-        _0 = _6;
-        // line 15
-        _7 = box<Bool>(const true);
-        _8 = RuntimeFn::CallValue(global@3, [_7], [], []);
-        _9 = box<Bool>(const false);
-        _10 = RuntimeFn::CallValue(global@3, [_9], [], []);
-        RuntimeFn::WriteObject(_0);
+        _5 = RuntimeFn::LoadName(global@3, const "value");
+        _6 = RuntimeFn::CallValue(global@4, [_5], [], []);
+        _7 = box<Str>(const "ha");
+        _8 = RuntimeFn::CallValue(global@4, [_7], [], []);
+        RuntimeFn::WriteObject(_6);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_8);
-        RuntimeFn::WriteSep();
+        RuntimeFn::WriteNewline();
+        // line 14
+        _9 = box<Str>(const "changed");
+        g3 = _9;
+        // line 15
+        _10 = RuntimeFn::LoadName(global@3, const "value");
+        _11 = box<Bool>(const true);
+        _12 = RuntimeFn::CallValue(global@7, [_11], [], []);
+        _13 = box<Bool>(const false);
+        _14 = RuntimeFn::CallValue(global@7, [_13], [], []);
         RuntimeFn::WriteObject(_10);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_12);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_14);
         RuntimeFn::WriteNewline();
         // line 16
-        _11 = box<Bool>(const true);
-        _12 = box<I64>(const 2_i64);
-        _13 = dyn.Add(_11, _12);
-        _14 = box<I64>(const 2_i64);
-        _15 = box<F64>(const 0.5_f64);
-        _16 = dyn.Add(_14, _15);
-        _18 = box<I64>(const 0_i64);
-        _17 = _18;
-        _19 = RuntimeFn::DynTruthy(_17);
-        branch _19 -> [then: bb2, else: bb1];
+        _15 = box<Bool>(const true);
+        _16 = box<I64>(const 2_i64);
+        _17 = dyn.Add(_15, _16);
+        _18 = box<I64>(const 2_i64);
+        _19 = box<F64>(const 0.5_f64);
+        _20 = dyn.Add(_18, _19);
+        _22 = box<I64>(const 0_i64);
+        _21 = _22;
+        _23 = RuntimeFn::DynTruthy(_21);
+        branch _23 -> [then: bb2, else: bb1];
     }
     bb1: {
-        _20 = box<Str>(const "fallback");
-        _17 = _20;
+        _24 = box<Str>(const "fallback");
+        _21 = _24;
         goto -> bb2;
     }
     bb2: {
-        _22 = box<Str>(const "left");
-        _21 = _22;
-        _23 = RuntimeFn::DynTruthy(_21);
-        branch _23 -> [then: bb3, else: bb4];
+        _26 = box<Str>(const "left");
+        _25 = _26;
+        _27 = RuntimeFn::DynTruthy(_25);
+        branch _27 -> [then: bb3, else: bb4];
     }
     bb3: {
-        _24 = box<I64>(const 7_i64);
-        _21 = _24;
+        _28 = box<I64>(const 7_i64);
+        _25 = _28;
         goto -> bb4;
     }
     bb4: {
-        RuntimeFn::WriteObject(_13);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_16);
-        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_17);
         RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_20);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_21);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_25);
         RuntimeFn::WriteNewline();
         goto -> bb5;
     }
     bb5: {
-        RuntimeFn::TracePopTo(_1);
+        RuntimeFn::TracePopTo(_0);
         return;
     }
 }

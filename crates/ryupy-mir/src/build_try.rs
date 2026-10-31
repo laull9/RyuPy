@@ -266,13 +266,8 @@ impl FunctionBuilder<'_> {
             });
 
             // 2) `as name` 绑定
-            if let Some(local) = name {
-                let dest = self.local_map[&local];
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Use(Operand::Local(exc)),
-                });
-                self.assigned_locals.insert(local);
+            if let Some(binding) = name {
+                self.store_binding(binding, Operand::Local(exc), &MirType::Dynamic);
             }
 
             // 3) 分支体语句
@@ -282,16 +277,13 @@ impl FunctionBuilder<'_> {
 
             // 4) 正常结束：清理绑定、恢复当前异常，再走出口
             if self.is_current_unterminated() {
-                if let Some(local) = name {
-                    let dest = self.local_map[&local];
-                    self.push_stmt(Statement::Assign {
-                        dest,
-                        value: Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::MakeUnbound),
-                            args: Vec::new(),
-                        },
-                    });
-                    self.assigned_locals.remove(&local);
+                if let Some(binding) = name {
+                    let unbound = self.expr_builder().runtime_call(
+                        RuntimeFn::MakeUnbound,
+                        Vec::new(),
+                        MirType::Dynamic,
+                    );
+                    self.store_binding(binding, unbound, &MirType::Dynamic);
                 }
                 self.push_stmt(Statement::Eval(Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::HandlerLeave),

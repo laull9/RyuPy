@@ -7,6 +7,7 @@ pub type ClassDefId = Idx<ClassDef>;
 pub type LocalId = Idx<LocalDecl>;
 pub type BlockId = Idx<BasicBlock>;
 pub type GlobalId = Idx<GlobalDecl>;
+pub type ModuleId = Idx<ModuleDef>;
 
 /// 模块级静态槽位。
 ///
@@ -18,21 +19,54 @@ pub struct GlobalDecl {
     pub ty: MirType,
 }
 
+/// 单个模块的编译结果。
+///
+/// 多文件程序由 driver 逐模块调用 [`crate::build::build_program`]，再用
+/// [`crate::link::link`] 合并成 [`LinkedProgram`]。合并时重新分配 ID 与名字，
+/// 因此各模块内部的 arena 编号互不影响。
 #[derive(Debug)]
 pub struct Program {
     pub functions: Arena<Function>,
     pub classes: Arena<ClassDef>,
-    /// 模块级静态字段（函数对象、默认值数组、参数元数据）。
+    /// 模块级静态字段（函数对象、默认值数组、模块变量）。
     pub globals: Arena<GlobalDecl>,
-    /// 编译为 CIL `Main` 的入口函数。
+    /// 模块入口函数（顶层语句）。
     pub entry: FnId,
     /// 源文件名，入口包装器用它设置 traceback 的文件名。
     pub source_name: String,
 }
 
+/// 合并后的程序：所有可达模块 + 入口模块。
+#[derive(Debug)]
+pub struct LinkedProgram {
+    pub functions: Arena<Function>,
+    pub classes: Arena<ClassDef>,
+    pub globals: Arena<GlobalDecl>,
+    pub modules: Arena<ModuleDef>,
+    pub entry: ModuleId,
+}
+
+/// 一个已编译模块在运行时需要的信息。
+#[derive(Debug)]
+pub struct ModuleDef {
+    /// 点分绝对模块名；入口模块是 `__main__`。
+    pub name: String,
+    /// `__package__`。
+    pub package: String,
+    /// `__file__`。
+    pub file: String,
+    /// 模块初始化函数（顶层语句）。
+    pub init: FnId,
+    /// 模块对象暴露的名字 → 静态槽位（模块变量、顶层函数、顶层类）。
+    pub exports: Vec<(String, GlobalId)>,
+}
+
 #[derive(Debug)]
 pub struct ClassDef {
+    /// Python 可见的类名。
     pub name: String,
+    /// 生成的 CLR 类型名（多模块合并时加前缀，避免同名类冲突）。
+    pub codegen_name: String,
     pub fields: Vec<(String, MirType)>,
     /// `@dataclass` 走静态字段布局；普通 class 由运行时 `PyClass` 承载，不生成 CLR 类型。
     ///
@@ -74,7 +108,12 @@ pub struct ParamMeta {
 
 #[derive(Debug)]
 pub struct Function {
+    /// Python 可见的函数名（`PyFunction.__name__`）。
     pub name: String,
+    /// 生成到程序集里的唯一方法名（多模块合并时由 link 加前缀）。
+    pub codegen_name: String,
+    /// 该函数所属源文件，用于 traceback 的 `File "..."`。
+    pub source_file: String,
     /// 参数也是局部变量，按顺序对应 CIL 的 `ldarg.N`。
     pub params: Vec<LocalId>,
     pub ret: MirType,
@@ -500,6 +539,8 @@ pub enum RuntimeFn {
     LoadChecked,
     /// `PyErrors.Unbound() -> object`：把变量标记为未赋值。
     MakeUnbound,
+    /// `PyErrors.LoadName(object, string) -> object`：读取可能未赋值的模块级名字。
+    LoadName,
     /// `PyTraceback.PushFrame(string, string) -> long`：压入栈帧并返回深度。
     TracePush,
     /// `PyTraceback.SetLine(long)`：更新当前行号。
@@ -573,6 +614,11 @@ pub enum RuntimeFn {
     DelAttr,
     /// `PyOps.Decorate(int, object) -> object`：应用 property / staticmethod / classmethod。
     Decorate,
+    // ── 模块系统（M2.7）──
+    /// `PyModules.Import(string) -> object`：导入并返回模块对象（带缓存与循环处理）。
+    ImportModule,
+    /// `PyModules.ImportAttr(string, string) -> object`：`from m import name` 的取值。
+    ImportAttr,
 }
 
 #[derive(Debug)]

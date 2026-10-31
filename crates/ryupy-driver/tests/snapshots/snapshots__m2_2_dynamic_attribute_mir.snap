@@ -9,7 +9,7 @@ fn read(_0: dyn) -> dyn {
     let _3: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "read");
+        _1 = RuntimeFn::TracePush(const "ryupy_test_dynamic_attr.py", const "read");
         // line 2
         _3 = RuntimeFn::DynGetAttr(_0, const "value");
         _2 = _3;
@@ -28,14 +28,29 @@ fn main() -> () {
     let _0: i64;
     let _1: dyn;
     let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "<module>");
+        g0 = None;
+        g1 = None;
+        g2 = None;
+        _0 = RuntimeFn::TracePush(const "ryupy_test_dynamic_attr.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_test_dynamic_attr.py");
+        g2 = _3;
         // line 1
         // line 4
-        _1 = box<I64>(const 1_i64);
-        _2 = RuntimeFn::CallValue(global@0, [_1], [], []);
-        RuntimeFn::WriteObject(_2);
+        _4 = box<I64>(const 1_i64);
+        _5 = RuntimeFn::CallValue(global@3, [_4], [], []);
+        RuntimeFn::WriteObject(_5);
         RuntimeFn::WriteNewline();
         goto -> bb1;
     }

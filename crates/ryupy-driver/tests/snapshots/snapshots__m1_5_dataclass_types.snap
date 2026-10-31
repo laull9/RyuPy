@@ -2,6 +2,12 @@
 source: crates/ryupy-driver/tests/snapshots.rs
 expression: types
 ---
+module var Idx::<ModuleVar>(0): Str
+module var Idx::<ModuleVar>(1): Str
+module var Idx::<ModuleVar>(2): Str
+module var Idx::<ModuleVar>(3): Class(Idx::<Class>(0))
+module var Idx::<ModuleVar>(4): Int
+module var Idx::<ModuleVar>(5): Dynamic
 func Idx::<Function>(0) [Static]: [Class(Idx::<Class>(0)), Float] -> None
   local Idx::<Local>(0): Class(Idx::<Class>(0))
   local Idx::<Local>(1): Float
@@ -9,5 +15,3 @@ func Idx::<Function>(1) [Static]: [Class(Idx::<Class>(1)), Class(Idx::<Class>(1)
   local Idx::<Local>(0): Class(Idx::<Class>(1))
   local Idx::<Local>(1): Class(Idx::<Class>(1))
 func Idx::<Function>(2) [Static]: [] -> None
-  local Idx::<Local>(0): Class(Idx::<Class>(0))
-  local Idx::<Local>(1): Int

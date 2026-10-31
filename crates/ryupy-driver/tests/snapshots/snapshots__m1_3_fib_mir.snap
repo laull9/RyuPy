@@ -14,7 +14,7 @@ fn fib_rec(_0: i64) -> i64 {
     let _8: i64;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "fib_rec");
+        _1 = RuntimeFn::TracePush(const "m1_3_fib.py", const "fib_rec");
         // line 3
         _2 = Lt(_0, const 2_i64);
         branch _2 -> [then: bb1, else: bb3];
@@ -64,7 +64,7 @@ fn fib_iter(_0: i64) -> i64 {
     let _11: i64;
 
     bb0: {
-        _5 = RuntimeFn::TracePush(const "fib_iter");
+        _5 = RuntimeFn::TracePush(const "m1_3_fib.py", const "fib_iter");
         // line 9
         _1 = const 0_i64;
         // line 10
@@ -117,7 +117,13 @@ fn main() -> () {
     let _2: i64;
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "<module>");
+        _0 = RuntimeFn::TracePush(const "m1_3_fib.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "m1_3_fib.py";
         // line 2
         // line 8
         // line 18

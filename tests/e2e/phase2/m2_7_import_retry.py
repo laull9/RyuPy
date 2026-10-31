@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.7：失败模块允许重试，成功依赖的状态保留。
 from fixtures.failure_case import state
 

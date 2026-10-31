@@ -17,6 +17,9 @@ def fib_iter(n: int) -> int:
     return a
 
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_3_fib.py"
     defaults of fib_rec
     defaults of fib_iter
     print(fib_rec(25))

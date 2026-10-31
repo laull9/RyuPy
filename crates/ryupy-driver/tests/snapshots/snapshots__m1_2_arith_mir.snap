@@ -31,7 +31,13 @@ fn main() -> () {
     let _25: bool;
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "<module>");
+        _0 = RuntimeFn::TracePush(const "m1_2_arith.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "m1_2_arith.py";
         // line 2
         _1 = RuntimeFn::FloorDivI64(const 7_i64, const 2_i64);
         RuntimeFn::WriteI64(_1);

@@ -19,18 +19,20 @@ use ryupy_syntax::ast;
 
 use crate::expr::ExprLowerCtx;
 use crate::hir::{
-    AssignTarget, Body, Expr, ExprId, ExprKind, Function, FunctionKind, Local, Module, Name, Param,
-    Stmt, StmtId, StmtKind,
+    AssignTarget, Binding, Body, Expr, ExprId, ExprKind, Function, FunctionKind, Local, Module,
+    ModuleInfo, ModuleVar, ModuleVarId, Name, Param, Stmt, StmtId, StmtKind,
 };
 use crate::operator::{lower_type_ref, map_bin_op};
+use crate::scope;
 use crate::scope::{FunctionScope, GlobalScope, Resolution, collect_assigned_names};
 
 /// 降级整个模块。即使有错误也返回一个结构完整的 `Module`。
 ///
-/// `source_name` 是源文件路径，只用于 traceback 与诊断展示；它不参与名称解析。
+/// `info` 由 driver 提供（模块名 / 包名 / 文件名），HIR 不读文件也不搜索模块；
+/// 它只影响 `__name__` 等特殊变量、相对导入的绝对化以及诊断展示。
 pub fn lower_module(
     parsed: &ParsedModule,
-    source_name: &str,
+    info: &ModuleInfo,
     source: &str,
 ) -> (Module, Vec<Diagnostic>) {
     let mut diagnostics = Vec::new();
@@ -39,6 +41,9 @@ pub fn lower_module(
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope::default();
 
+    // 模块级变量与导入绑定（M2.7）：见 module_vars.rs。
+    let (mut vars, module_var_ids) = crate::module_vars::collect_module_vars(parsed, info);
+
     // 第一遍：收集所有顶层 class 与 def，支持前向引用。
     //
     // 类体的方法也是普通函数：这里先把它们全部分配 FuncId，函数体内可以互相前向
@@ -46,6 +51,8 @@ pub fn lower_module(
     // 同一轮之后统一降级。
     let mut raw_classes = Vec::new();
     let mut user_funcs: Vec<(ast::StmtFunctionDef, crate::hir::FuncId)> = Vec::new();
+    let mut top_classes: Vec<crate::hir::ClassId> = Vec::new();
+    let mut top_functions: Vec<crate::hir::FuncId> = Vec::new();
     for stmt in &parsed.module.body {
         match stmt {
             ast::Stmt::ClassDef(cls_def) => {
@@ -71,6 +78,7 @@ pub fn lower_module(
                     range: cls_def.range(),
                 });
                 global_scope.names.insert(name, Resolution::Class(cls_id));
+                top_classes.push(cls_id);
 
                 let mut methods = Vec::new();
                 for item in &cls_def.body {
@@ -116,29 +124,8 @@ pub fn lower_module(
                     range: fn_def.range(),
                 });
                 global_scope.names.insert(name, Resolution::Func(func_id));
+                top_functions.push(func_id);
                 user_funcs.push((fn_def.clone(), func_id));
-            }
-            ast::Stmt::ImportFrom(import_from) => {
-                if !crate::class::is_allowed_dataclass_import(import_from) {
-                    diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(parsed.file, import_from.range()),
-                            "Phase 1 仅支持 `from dataclasses import dataclass`",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("不支持该导入模块"),
-                    );
-                }
-            }
-            ast::Stmt::Import(import_stmt) => {
-                diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(parsed.file, import_stmt.range()),
-                        "Phase 1 不支持普通 import，仅支持 `from dataclasses import dataclass`",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("暂不支持普通 import 语法"),
-                );
             }
             _ => {}
         }
@@ -154,19 +141,7 @@ pub fn lower_module(
         range: parsed.module.range,
     });
 
-    // 预扫描模块顶层被赋值的名字（作为 main 的局部变量）
-    let top_assigned = collect_assigned_names(&parsed.module.body);
-    let mut module_locals = FxHashMap::default();
     let mut main_body = Body::default();
-    for (name, range) in top_assigned {
-        let local_id = main_body.locals.alloc(Local {
-            name: name.clone(),
-            annotation: None,
-            is_param: false,
-            range,
-        });
-        module_locals.insert(name, local_id);
-    }
 
     // 解析所有类：基类必须已经解析过，因此这里保持源码顺序。
     // 类体属性表达式降级到 main_body，由 MIR 在 `class` 语句位置求值。
@@ -177,7 +152,7 @@ pub fn lower_module(
             &global_scope,
             &classes,
             &methods,
-            &module_locals,
+            &module_var_ids,
             &mut main_body,
             &mut diagnostics,
         ) {
@@ -190,6 +165,11 @@ pub fn lower_module(
     for (fn_def, func_id) in user_funcs {
         let mut body = Body::default();
         let mut func_scope = FunctionScope::default();
+        // 先把 `global` 声明记进作用域：这些名字既不能登记成局部变量，
+        // 赋值/读取也要落到模块命名空间。
+        for name in scope::collect_global_names(&fn_def.body) {
+            func_scope.globals.insert(name);
+        }
         let mut params = Vec::new();
 
         // 1. 参数处理：按 Python 的绑定顺序（位置-only → 普通 → *args → 关键字-only → **kwargs）。
@@ -220,7 +200,7 @@ pub fn lower_module(
                 let id = lower_default_expr(
                     parsed.file,
                     &global_scope,
-                    &module_locals,
+                    &module_var_ids,
                     &mut main_body,
                     diagnostics,
                     expr,
@@ -301,6 +281,9 @@ pub fn lower_module(
 
         // 3. 预扫描函数内被赋值的局部变量（赋值即局部）
         for (name, range) in collect_assigned_names(&fn_def.body) {
+            if func_scope.is_global(&name) {
+                continue;
+            }
             if let std::collections::hash_map::Entry::Vacant(e) =
                 func_scope.locals.entry(name.clone())
             {
@@ -320,10 +303,12 @@ pub fn lower_module(
             diagnostics: &mut diagnostics,
             global_scope: &global_scope,
             func_scope: &mut func_scope,
-            module_locals: &module_locals,
+            module_vars: &module_var_ids,
+            vars: &mut vars,
+            module_scope: false,
+            package: &info.package,
             classes: &classes,
             body: &mut body,
-            is_in_func: true,
             loop_depth: 0,
             handler_depth: 0,
             line_starts: &line_starts,
@@ -339,22 +324,24 @@ pub fn lower_module(
     }
 
     // 降级 main 函数（模块顶层非 FunctionDef 语句）
-    let mut main_scope = FunctionScope {
-        locals: module_locals,
-    };
+    let mut main_scope = FunctionScope::default();
     let mut main_lower_ctx = StmtLowerCtx {
         file: parsed.file,
         diagnostics: &mut diagnostics,
         global_scope: &global_scope,
         func_scope: &mut main_scope,
-        module_locals: &FxHashMap::default(),
+        module_vars: &module_var_ids,
+        vars: &mut vars,
+        module_scope: true,
+        package: &info.package,
         classes: &classes,
         body: &mut main_body,
-        is_in_func: false,
         loop_depth: 0,
         handler_depth: 0,
         line_starts: &line_starts,
     };
+    // `__name__` / `__package__` / `__file__` 在模块代码执行前写入。
+    main_lower_ctx.emit_special_module_vars(info, parsed.module.range);
     for stmt in &parsed.module.body {
         match stmt {
             // `def` 不产生普通语句，但它的默认值必须在**定义位置**求值
@@ -370,7 +357,9 @@ pub fn lower_module(
                     main_lower_ctx.lower_class_def(*cls_id, cls_def.range());
                 }
             }
-            ast::Stmt::ImportFrom(_) | ast::Stmt::Import(_) => {}
+            ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_) => {
+                main_lower_ctx.lower_import_to_root(stmt);
+            }
             _ => main_lower_ctx.lower_stmt_to_root(stmt),
         }
     }
@@ -378,9 +367,13 @@ pub fn lower_module(
 
     let module = Module {
         file: parsed.file,
-        source_name: source_name.to_string(),
+        source_name: info.file.clone(),
+        info: info.clone(),
         functions,
         classes,
+        vars,
+        top_functions,
+        top_classes,
         main: main_id,
         default_exprs: all_default_exprs,
     };
@@ -393,11 +386,17 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) diagnostics: &'a mut Vec<Diagnostic>,
     pub(crate) global_scope: &'a GlobalScope,
     pub(crate) func_scope: &'a mut FunctionScope,
-    pub(crate) module_locals: &'a FxHashMap<Name, crate::hir::LocalId>,
+    /// 模块级变量表：模块作用域里的名字直接落到这里。
+    pub(crate) module_vars: &'a FxHashMap<Name, ModuleVarId>,
+    /// 模块级变量 arena；`x: T = ...` 要在 lowering 时补上标注。
+    pub(crate) vars: &'a mut Arena<ModuleVar>,
+    /// 是否位于模块顶层（只有模块顶层允许 import 语句）。
+    pub(crate) module_scope: bool,
+    /// 当前模块的 `__package__`，用于把相对导入换算成绝对模块名。
+    pub(crate) package: &'a str,
     /// 已解析的类（`except` 需要判断用户类是否属于异常家族）。
     pub(crate) classes: &'a Arena<crate::hir::Class>,
     pub(crate) body: &'a mut Body,
-    pub(crate) is_in_func: bool,
     pub(crate) loop_depth: usize,
     /// 当前所处的 `except` 体层数。只有 > 0 时裸 `raise` 才有意义。
     pub(crate) handler_depth: usize,
@@ -407,12 +406,11 @@ pub(crate) struct StmtLowerCtx<'a> {
 
 /// 把参数默认值表达式降级到模块入口函数的 body。
 ///
-/// 默认值在模块作用域求值，因此这里用空函数作用域 + 模块名字表解析名字，
-/// 并设置 `is_in_func = false`（允许引用顶层函数/类）。
+/// 默认值在模块作用域求值，因此这里用空函数作用域 + 模块变量表解析名字。
 fn lower_default_expr(
     file: FileId,
     global_scope: &GlobalScope,
-    module_locals: &FxHashMap<Name, crate::hir::LocalId>,
+    module_vars: &FxHashMap<Name, ModuleVarId>,
     body: &mut Body,
     diagnostics: &mut Vec<Diagnostic>,
     expr: &ast::Expr,
@@ -422,8 +420,7 @@ fn lower_default_expr(
         file,
         global_scope,
         func_scope: &scope,
-        module_locals,
-        is_in_func: false,
+        module_vars,
         body,
         diagnostics,
     };
@@ -456,8 +453,7 @@ impl StmtLowerCtx<'_> {
             file: self.file,
             global_scope: self.global_scope,
             func_scope: self.func_scope,
-            module_locals: self.module_locals,
-            is_in_func: self.is_in_func,
+            module_vars: self.module_vars,
             body: self.body,
             diagnostics: self.diagnostics,
         };
@@ -469,8 +465,7 @@ impl StmtLowerCtx<'_> {
             file: self.file,
             global_scope: self.global_scope,
             func_scope: self.func_scope,
-            module_locals: self.module_locals,
-            is_in_func: self.is_in_func,
+            module_vars: self.module_vars,
             body: self.body,
             diagnostics: self.diagnostics,
         };
@@ -508,6 +503,10 @@ impl StmtLowerCtx<'_> {
     }
 
     fn lower_stmt_to_root(&mut self, stmt: &ast::Stmt) {
+        if matches!(stmt, ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_)) {
+            self.lower_import_to_root(stmt);
+            return;
+        }
         if let Some(stmt_id) = self.lower_stmt(stmt) {
             self.body.root.push(stmt_id);
         }
@@ -516,6 +515,10 @@ impl StmtLowerCtx<'_> {
     pub(crate) fn lower_suite(&mut self, stmts: &[ast::Stmt]) -> Vec<StmtId> {
         let mut out = Vec::new();
         for s in stmts {
+            if matches!(s, ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_)) {
+                self.lower_import_into(s, &mut out);
+                continue;
+            }
             if let Some(id) = self.lower_stmt(s) {
                 out.push(id);
             }
@@ -534,10 +537,8 @@ impl StmtLowerCtx<'_> {
             match element {
                 ast::Expr::Name(name_expr) => {
                     let name = Name::from(name_expr.id.as_str());
-                    match self.func_scope.locals.get(&name) {
-                        Some(&local) => items.push(crate::hir::SequenceItem::One(local)),
-                        None => return None,
-                    }
+                    let binding = self.resolve_binding(&name)?;
+                    items.push(crate::hir::SequenceItem::One(binding));
                 }
                 ast::Expr::Starred(starred) => {
                     let ast::Expr::Name(name_expr) = starred.value.as_ref() else {
@@ -552,8 +553,8 @@ impl StmtLowerCtx<'_> {
                         return None;
                     };
                     let name = Name::from(name_expr.id.as_str());
-                    let local = *self.func_scope.locals.get(&name)?;
-                    items.push(crate::hir::SequenceItem::Rest(local));
+                    let binding = self.resolve_binding(&name)?;
+                    items.push(crate::hir::SequenceItem::Rest(binding));
                 }
                 _ => {
                     self.diagnostics.push(
@@ -622,21 +623,17 @@ impl StmtLowerCtx<'_> {
 
             let name = except.name.as_ref().and_then(|ident| {
                 let ident_name = Name::from(ident.as_str());
-                self.func_scope
-                    .locals
-                    .get(&ident_name)
-                    .copied()
-                    .or_else(|| {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, ident.range),
-                                format!("`{ident_name}` 未登记为局部变量"),
-                            )
-                            .with_code("E0101")
-                            .with_primary_label("内部错误：异常变量预扫描遗漏"),
-                        );
-                        None
-                    })
+                self.resolve_binding(&ident_name).or_else(|| {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, ident.range),
+                            format!("`{ident_name}` 未登记为变量"),
+                        )
+                        .with_code("E0101")
+                        .with_primary_label("内部错误：异常变量预扫描遗漏"),
+                    );
+                    None
+                })
             });
 
             // except 体里允许裸 `raise`
@@ -721,14 +718,22 @@ impl StmtLowerCtx<'_> {
                     match target {
                         ast::Expr::Name(name_expr) => {
                             let name = Name::from(name_expr.id.as_str());
-                            if let Some(&loc_id) = self.func_scope.locals.get(&name) {
-                                StmtKind::Assign {
-                                    target: AssignTarget::Local(loc_id),
-                                    value: val,
+                            let target = match self.resolve_binding(&name) {
+                                Some(Binding::Local(local)) => AssignTarget::Local(local),
+                                Some(Binding::ModuleVar(var)) => AssignTarget::ModuleVar(var),
+                                None => {
+                                    self.diagnostics.push(
+                                        Diagnostic::error(
+                                            Span::new(self.file, name_expr.range),
+                                            format!("未定义的赋值目标 `{name}`"),
+                                        )
+                                        .with_code("E0106")
+                                        .with_primary_label("名字未登记为局部变量或模块变量"),
+                                    );
+                                    return None;
                                 }
-                            } else {
-                                return None;
-                            }
+                            };
+                            StmtKind::Assign { target, value: val }
                         }
                         ast::Expr::Attribute(attr_expr) => {
                             let base = self.lower_expr(&attr_expr.value);
@@ -793,20 +798,22 @@ impl StmtLowerCtx<'_> {
                         self.global_scope,
                         self.diagnostics,
                     );
-                    if let Some(&loc_id) = self.func_scope.locals.get(&name) {
-                        self.body.locals[loc_id].annotation = Some(ann);
-                        if let Some(val_expr) = &ann_stmt.value {
-                            let val = self.lower_expr(val_expr);
-                            StmtKind::Assign {
-                                target: AssignTarget::Local(loc_id),
-                                value: val,
-                            }
-                        } else {
-                            return None;
+                    let target = match self.resolve_binding(&name) {
+                        Some(Binding::Local(local)) => {
+                            self.body.locals[local].annotation = Some(ann);
+                            AssignTarget::Local(local)
                         }
-                    } else {
+                        Some(Binding::ModuleVar(var)) => {
+                            self.vars[var].annotation = Some(ann);
+                            AssignTarget::ModuleVar(var)
+                        }
+                        None => return None,
+                    };
+                    let Some(val_expr) = &ann_stmt.value else {
                         return None;
-                    }
+                    };
+                    let val = self.lower_expr(val_expr);
+                    StmtKind::Assign { target, value: val }
                 } else {
                     self.diagnostics.push(
                         Diagnostic::error(
@@ -835,8 +842,9 @@ impl StmtLowerCtx<'_> {
                 let target = match &*aug_stmt.target {
                     ast::Expr::Name(name_expr) => {
                         let name = Name::from(name_expr.id.as_str());
-                        match self.func_scope.locals.get(&name) {
-                            Some(&loc_id) => AssignTarget::Local(loc_id),
+                        match self.resolve_binding(&name) {
+                            Some(Binding::Local(local)) => AssignTarget::Local(local),
+                            Some(Binding::ModuleVar(var)) => AssignTarget::ModuleVar(var),
                             None => return None,
                         }
                     }
@@ -1006,17 +1014,8 @@ impl StmtLowerCtx<'_> {
                 }
                 StmtKind::Continue
             }
-            ast::Stmt::Global(g) => {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, g.range),
-                        "Phase 1 暂不支持 global 声明",
-                    )
-                    .with_code("E0103")
-                    .with_primary_label("不支持 global"),
-                );
-                return None;
-            }
+            // `global` 在预扫描阶段已经登记为模块变量，这里不需要运行时动作。
+            ast::Stmt::Global(_) => return None,
             ast::Stmt::Nonlocal(n) => {
                 self.diagnostics.push(
                     Diagnostic::error(

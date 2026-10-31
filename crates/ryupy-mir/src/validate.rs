@@ -421,6 +421,8 @@ mod tests {
         });
         let func = Function {
             name: "main".to_string(),
+            codegen_name: "main".to_string(),
+            source_file: "t.py".to_string(),
             params: Vec::new(),
             ret: MirType::Unit,
             body: crate::mir::Body {

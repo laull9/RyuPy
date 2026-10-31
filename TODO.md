@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 M1.0–M1.5 已完成；Phase 2 已推进到普通 class、单继承与自定义异常（M2.1–M2.6 完成），下一步 M2.7 模块系统。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 M1.0–M1.5 已完成；Phase 2 已推进到模块系统（M2.1–M2.7 完成），下一步 M2.8 `with` 与上下文管理。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -247,17 +247,18 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 验收：覆盖方法、super 链、基类变更后的缓存、自定义异常捕获与清理通过，暂缓构造有诊断测试
       （`m2_6_inheritance` / `m2_6_user_errors` / `m2_6_exception_chain` 已转正）
 
-### M2.7 模块、包与模块全局
+### M2.7 模块、包与模块全局 ✅
 
 > 依赖 M2.1 / M2.2，多文件 fixture 复用 M2.0；可在容器完成后提前推进。用例目录：`m2_7_modules/`、`m2_7_cycles/`。
 
-- [ ] driver：文件解析、模块搜索路径、依赖图和源码注册；hir 接收已加载的模块身份与符号，不自行读文件
-- [ ] 支持 `import x`、`import x as y`、`from x import y`、别名、普通包 `__init__.py` 与包内相对导入；星号导入按 __all__ / 公有名称规则实施或明确拒绝
-- [ ] 模块命名空间、函数读写模块变量、`global`、`__name__` / `__file__` / `__package__`、`__main__` 入口，区分 import 与 from 的绑定行为
-- [ ] runtime：模块缓存，导入前登记部分初始化对象；重复导入只初始化一次，循环导入按访问时状态工作；失败移除失败模块条目且保留已成功依赖
-- [ ] 首批只加载已编译项目模块与已登记运行时模块；动态模块名通过显式可达清单处理，未登记项报 ModuleNotFoundError；自定义 import hook、namespace package、热重载暂缓
-- [ ] 后端生成各模块初始化入口与全局槽位，不能编译时提前执行有副作用的模块代码；普通模块重绑定后失效相关缓存
-- [ ] 验收：相对 / 重复 / 循环 / 缺失导入、失败重试、模块共享状态、入口保护与 from 绑定差分通过
+- [x] driver：文件解析、模块搜索路径、依赖图和源码注册；hir 接收已加载的模块身份与符号，不自行读文件
+- [x] 支持 `import x`、`import x as y`、`from x import y`、别名、普通包 `__init__.py` 与包内相对导入；星号导入明确拒绝（`E0100`）
+- [x] 模块命名空间、函数读写模块变量、`global`、`__name__` / `__file__` / `__package__`、`__main__` 入口，区分 import 与 from 的绑定行为
+- [x] runtime：模块缓存，导入前登记部分初始化对象；重复导入只初始化一次，循环导入按访问时状态工作；失败移除失败模块条目且保留已成功依赖
+- [x] 首批只加载已编译项目模块；未登记的模块名报 `ModuleNotFoundError`；自定义 import hook、namespace package、热重载暂缓
+- [x] 后端生成各模块初始化入口与全局槽位，不在编译时执行模块副作用；模块属性读写走生成的 getter / setter
+- [x] 验收：相对 / 重复 / 循环 / 缺失导入、失败重试、模块共享状态、入口保护与 from 绑定差分通过
+      （`m2_7_modules` / `m2_7_cycles` / `m2_7_import_retry` / `harness/multifile` / `errors/missing_module` 已转正）
 
 ### M2.8 with 与上下文管理
 

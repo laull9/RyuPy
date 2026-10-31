@@ -9,12 +9,15 @@ def dot(a: class, b: class) -> int:
     return ((a.x * b.x) + (a.y * b.y))
 
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_5_dataclass.py"
     class Body:
     class Vec2:
     defaults of step
     defaults of dot
-    b = Body(0.0, 2.0, 1.0)
-    for _ in range(0, 10):
-        step(b, 0.5)
-    print(b.x)
+    global.b = Body(0.0, 2.0, 1.0)
+    for global._ in range(0, 10):
+        step(global.b, 0.5)
+    print(global.b.x)
     print(dot(Vec2(1, 2), Vec2(3, 4)))

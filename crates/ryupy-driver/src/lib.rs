@@ -8,6 +8,7 @@
 //! ```
 
 pub mod dotnet;
+pub mod modules;
 pub mod runtime;
 
 use std::path::{Path, PathBuf};
@@ -77,26 +78,17 @@ pub struct Artifacts {
 }
 
 /// 运行前端 + 中端，返回 MIR。任何阶段出错都在阶段边界停止。
-/// traceback 里显示的文件名。
-///
-/// 用**文件名**而不是完整路径：快照与差分测试要求产物与机器的绝对路径无关，
-/// 而 traceback 的 `File "..."` 只需要能让用户定位到源文件。
-fn traceback_file_name(sess: &Session, file: FileId) -> String {
-    Path::new(&sess.sources.get(file).name)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| sess.sources.get(file).name.clone())
-}
-
-fn compile_to_mir(sess: &mut Session, file: FileId) -> Result<ryupy_mir::Program> {
-    let src = sess.sources.get(file).text.clone();
-
-    let (parsed, diags) = ryupy_syntax::parse(file, &src);
-    sess.diagnostics.extend(diags);
-    stop_if_errors(sess)?;
-
-    let source_name = traceback_file_name(sess, file);
-    let (hir, diags) = ryupy_hir::lower_module(&parsed, &source_name, &src);
+/// 编译一个模块到 MIR，并在阶段边界检查诊断。
+fn compile_module(
+    sess: &mut Session,
+    module: &modules::SourceModule,
+) -> Result<(ryupy_mir::Program, Vec<(String, ryupy_mir::GlobalId)>)> {
+    let info = ryupy_hir::ModuleInfo {
+        name: module.name.clone(),
+        package: module.package.clone(),
+        file: module.file.clone(),
+    };
+    let (hir, diags) = ryupy_hir::lower_module(&module.parsed, &info, &module.text);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
 
@@ -104,7 +96,7 @@ fn compile_to_mir(sess: &mut Session, file: FileId) -> Result<ryupy_mir::Program
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
 
-    let (mut mir, diags) = ryupy_mir::build_program(&hir, &types);
+    let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
     ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline())
@@ -112,7 +104,26 @@ fn compile_to_mir(sess: &mut Session, file: FileId) -> Result<ryupy_mir::Program
     if let Err(errs) = ryupy_mir::validate::validate(&mir) {
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
-    Ok(mir)
+    Ok((mir, exports))
+}
+
+/// 编译整个模块图，返回合并后的程序。
+fn compile_linked(sess: &mut Session, entry: &Path) -> Result<ryupy_mir::LinkedProgram> {
+    let (sources, entry_index) = modules::load_program(sess, entry)?;
+    let mut units = Vec::new();
+    for module in sources {
+        let (program, exports) = compile_module(sess, &module)?;
+        units.push((
+            program,
+            ryupy_mir::UnitMeta {
+                name: module.name.clone(),
+                package: module.package.clone(),
+                file: module.file.clone(),
+                exports,
+            },
+        ));
+    }
+    Ok(ryupy_mir::link(units, entry_index))
 }
 
 fn stop_if_errors(sess: &Session) -> Result<()> {
@@ -131,14 +142,13 @@ fn assembly_name(input: &Path) -> String {
 
 /// 编译一个 `.py` 文件为 `.dll`（可选再做 Native AOT）。
 pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
-    let file = sess.load_file(&opts.input)?;
-    let mir = compile_to_mir(sess, file)?;
+    let linked = compile_linked(sess, &opts.input)?;
 
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: name.clone(),
     };
-    let bytes = ryupy_codegen_cil::emit_assembly(&mir, &emit_opts)?;
+    let bytes = ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?;
 
     std::fs::create_dir_all(&opts.out_dir)?;
     let dll = opts.out_dir.join(format!("{name}.dll"));
@@ -158,19 +168,22 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
 }
 
 /// 运行到指定阶段并返回该阶段 IR 的文本。
+///
+/// `dump` 只处理入口模块本身（不做模块图搜索）：查看单个文件的 HIR / MIR 时，
+/// 其他模块的内容只会以 `Import` 节点出现。
 pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
-    let file = sess.load_file(input)?;
-    let src = sess.sources.get(file).text.clone();
-
-    let (parsed, diags) = ryupy_syntax::parse(file, &src);
-    sess.diagnostics.extend(diags);
+    let module = modules::load_single(sess, input)?;
     if stage == Stage::Ast {
-        return Ok(format!("{:#?}", parsed.module));
+        return Ok(format!("{:#?}", module.parsed.module));
     }
     stop_if_errors(sess)?;
 
-    let source_name = traceback_file_name(sess, file);
-    let (hir, diags) = ryupy_hir::lower_module(&parsed, &source_name, &src);
+    let info = ryupy_hir::ModuleInfo {
+        name: module.name.clone(),
+        package: module.package.clone(),
+        file: module.file.clone(),
+    };
+    let (hir, diags) = ryupy_hir::lower_module(&module.parsed, &info, &module.text);
     sess.diagnostics.extend(diags);
     if stage == Stage::Hir {
         return Ok(ryupy_hir::pretty::dump(&hir));
@@ -184,7 +197,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     }
     stop_if_errors(sess)?;
 
-    let (mut mir, diags) = ryupy_mir::build_program(&hir, &types);
+    let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
     ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline())
@@ -193,8 +206,20 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         return Ok(ryupy_mir::pretty::dump(&mir));
     }
 
+    let linked = ryupy_mir::link(
+        vec![(
+            mir,
+            ryupy_mir::UnitMeta {
+                name: module.name.clone(),
+                package: module.package.clone(),
+                file: module.file.clone(),
+                exports,
+            },
+        )],
+        0,
+    );
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: assembly_name(input),
     };
-    Ok(ryupy_codegen_cil::dump_cil(&mir, &emit_opts)?)
+    Ok(ryupy_codegen_cil::dump_cil(&linked, &emit_opts)?)
 }

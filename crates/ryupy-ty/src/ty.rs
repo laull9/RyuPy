@@ -79,6 +79,8 @@ pub struct ModuleTypes {
     pub sigs: ArenaMap<FuncId, FnSig>,
     pub bodies: ArenaMap<FuncId, TypeckResults>,
     pub modes: ArenaMap<FuncId, FuncMode>,
+    /// 模块级变量的槽位类型（M2.7）。
+    pub module_vars: ArenaMap<ryupy_hir::ModuleVarId, Ty>,
 }
 
 impl ModuleTypes {
@@ -97,6 +99,9 @@ impl ModuleTypes {
     pub fn dump(&self) -> String {
         use std::fmt::Write;
         let mut out = String::new();
+        for (var_id, ty) in self.module_vars.iter() {
+            let _ = writeln!(out, "module var {var_id:?}: {ty:?}");
+        }
         for (func_id, sig) in self.sigs.iter() {
             let mode = self.mode(func_id);
             let _ = writeln!(

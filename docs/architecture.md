@@ -82,7 +82,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 ### 3.5 CIL
 
-- 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有顶层函数（含 `Main`）、类工厂与异常工厂；每个 dataclass 与用户异常类各生成一个 CLR 类型，普通 class 由运行时 `PyClass` / `PyInstance` 承载。
+- 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有模块的函数、模块级静态槽位、类工厂与异常工厂；`Main` 只负责初始化全局状态并按导入机制执行 `__main__`。每个 dataclass 与用户异常类各生成一个 CLR 类型（多模块合并时加模块前缀），普通 class 由运行时 `PyClass` / `PyInstance` 承载。
+- 每个模块生成 `__mod_get_<i>` / `__mod_set_<i>` 与初始化入口，由 `PyModules` 注册；模块对象通过委托读写静态槽位，循环导入、缓存与失败重试由运行时处理。
 - 引用的外部程序集：`System.Runtime`（基础类型）、`RyuPy.Runtime`（内建函数与语义辅助）。
 - 整数算术用 `add.ovf` 等带溢出检查的指令（ADR-0004）；动态路径改用 `PyOps`，整数按需升级 BigInteger。
 - `MirType::Dynamic` 映射到 `System.Object`；装箱用 `box`，拆箱走 `PyCast`（ADR-0010）。
@@ -137,7 +138,7 @@ releases/                     # make build 的发行包（宿主平台，不进�
 
 ## 7. Phase 2 / Phase 3 的设计边界（待实现）
 
-以下描述计划接口的职责；实施里程碑时再冻结 Rust / C# 的具体数据结构。保持 §2 的依赖规则，不为模块和桥接增加反向依赖。
+以下冻结模块与桥接的职责边界；模块部分已在 M2.7 落地，桥接仍待实现。保持 §2 的依赖规则，不为模块和桥接增加反向依赖。
 
 | 层 / 模块 | 新职责 | 边界 |
 | --- | --- | --- |

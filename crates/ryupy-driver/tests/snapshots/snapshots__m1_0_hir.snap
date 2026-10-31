@@ -3,4 +3,7 @@ source: crates/ryupy-driver/tests/snapshots.rs
 expression: hir
 ---
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_0_print_int.py"
     print((1 + 2))

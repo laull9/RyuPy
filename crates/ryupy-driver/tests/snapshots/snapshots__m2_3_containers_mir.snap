@@ -28,7 +28,7 @@ fn mix() -> dyn {
     let _22: dyn;
 
     bb0: {
-        _4 = RuntimeFn::TracePush(const "mix");
+        _4 = RuntimeFn::TracePush(const "ryupy_test_m2_3_containers.py", const "mix");
         // line 2
         _5 = box<I64>(const 1_i64);
         _6 = box<I64>(const 2_i64);
@@ -93,7 +93,13 @@ fn main() -> () {
     let _0: i64;
 
     bb0: {
-        _0 = RuntimeFn::TracePush(const "<module>");
+        _0 = RuntimeFn::TracePush(const "ryupy_test_m2_3_containers.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "ryupy_test_m2_3_containers.py";
         // line 1
         goto -> bb1;
     }

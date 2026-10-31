@@ -26,7 +26,7 @@ fn mandel(_0: f64, _1: f64, _2: i64) -> i64 {
     let _20: i64;
 
     bb0: {
-        _8 = RuntimeFn::TracePush(const "mandel");
+        _8 = RuntimeFn::TracePush(const "m1_4_mandelbrot.py", const "mandel");
         // line 3
         _3 = const 0_f64;
         // line 4
@@ -96,54 +96,57 @@ fn mandel(_0: f64, _1: f64, _2: i64) -> i64 {
 }
 
 fn main() -> () {
-    let _0: i64; // y
-    let _1: str; // line
-    let _2: i64; // x
+    let _0: i64;
+    let _1: i64;
+    let _2: i64;
     let _3: i64;
-    let _4: i64;
+    let _4: bool;
     let _5: i64;
     let _6: i64;
-    let _7: bool;
-    let _8: i64;
-    let _9: i64;
-    let _10: i64;
-    let _11: bool;
+    let _7: i64;
+    let _8: bool;
+    let _9: f64;
+    let _10: f64;
+    let _11: f64;
     let _12: f64;
     let _13: f64;
     let _14: f64;
-    let _15: f64;
-    let _16: f64;
-    let _17: f64;
-    let _18: i64;
-    let _19: bool;
-    let _20: str;
-    let _21: str;
+    let _15: i64;
+    let _16: bool;
+    let _17: str;
+    let _18: str;
 
     bb0: {
-        _3 = RuntimeFn::TracePush(const "<module>");
+        _0 = RuntimeFn::TracePush(const "m1_4_mandelbrot.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "m1_4_mandelbrot.py";
         // line 2
         // line 17
-        _4 = const -12_i64;
-        _5 = const 13_i64;
-        _6 = const 1_i64;
+        _1 = const -12_i64;
+        _2 = const 13_i64;
+        _3 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _7 = Lt(_4, _5);
-        branch _7 -> [then: bb2, else: bb14];
+        _4 = Lt(_1, _2);
+        branch _4 -> [then: bb2, else: bb14];
     }
     bb2: {
-        _0 = _4;
+        g3 = _1;
         // line 18
-        _1 = const "";
+        g4 = const "";
         // line 19
-        _8 = const -39_i64;
-        _9 = const 21_i64;
-        _10 = const 1_i64;
+        _5 = const -39_i64;
+        _6 = const 21_i64;
+        _7 = const 1_i64;
         goto -> bb6;
     }
     bb3: {
-        _4 = Add(_4, _6);
+        _1 = Add(_1, _3);
         goto -> bb1;
     }
     bb4: {
@@ -153,24 +156,24 @@ fn main() -> () {
         unreachable;
     }
     bb6: {
-        _11 = Lt(_8, _9);
-        branch _11 -> [then: bb7, else: bb10];
+        _8 = Lt(_5, _6);
+        branch _8 -> [then: bb7, else: bb10];
     }
     bb7: {
-        _2 = _8;
+        g5 = _5;
         // line 20
-        _12 = Cast(I64ToF64, _2);
+        _9 = Cast(I64ToF64, global@5);
+        _10 = Cast(I64ToF64, _9);
+        _11 = RuntimeFn::TrueDivF64(_10, const 20_f64);
+        _12 = Cast(I64ToF64, global@3);
         _13 = Cast(I64ToF64, _12);
-        _14 = RuntimeFn::TrueDivF64(_13, const 20_f64);
-        _15 = Cast(I64ToF64, _0);
-        _16 = Cast(I64ToF64, _15);
-        _17 = RuntimeFn::TrueDivF64(_16, const 10_f64);
-        _18 = mandel(_14, _17, const 200_i64);
-        _19 = Eq(_18, const 200_i64);
-        branch _19 -> [then: bb11, else: bb12];
+        _14 = RuntimeFn::TrueDivF64(_13, const 10_f64);
+        _15 = mandel(_11, _14, const 200_i64);
+        _16 = Eq(_15, const 200_i64);
+        branch _16 -> [then: bb11, else: bb12];
     }
     bb8: {
-        _8 = Add(_8, _10);
+        _5 = Add(_5, _7);
         goto -> bb6;
     }
     bb9: {
@@ -178,27 +181,27 @@ fn main() -> () {
     }
     bb10: {
         // line 24
-        RuntimeFn::WriteStr(_1);
+        RuntimeFn::WriteStr(global@4);
         RuntimeFn::WriteNewline();
         goto -> bb3;
     }
     bb11: {
         // line 21
-        _20 = RuntimeFn::StrConcat(_1, const "#");
-        _1 = _20;
+        _17 = RuntimeFn::StrConcat(global@4, const "#");
+        g4 = _17;
         goto -> bb8;
     }
     bb12: {
         // line 23
-        _21 = RuntimeFn::StrConcat(_1, const ".");
-        _1 = _21;
+        _18 = RuntimeFn::StrConcat(global@4, const ".");
+        g4 = _18;
         goto -> bb8;
     }
     bb13: {
         unreachable;
     }
     bb14: {
-        RuntimeFn::TracePopTo(_3);
+        RuntimeFn::TracePopTo(_0);
         return;
     }
 }

@@ -15,10 +15,12 @@ mod build_loops;
 mod build_try;
 mod call_builder;
 pub mod expr_builder;
+pub mod link;
 mod mir;
 pub mod passes;
 pub mod pretty;
 pub mod validate;
 
 pub use build::build_program;
+pub use link::{UnitMeta, link};
 pub use mir::*;

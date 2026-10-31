@@ -9,7 +9,7 @@
 //! 序列解包的长度校验放在**取元素之前**：CPython 对 `a, b = [1]` 抛
 //! `ValueError: not enough values to unpack`，而不是先做一半再报错。
 
-use ryupy_hir::{ExprId, SequenceItem};
+use ryupy_hir::{Binding, ExprId, SequenceItem};
 
 use crate::build::FunctionBuilder;
 use crate::mir::{
@@ -75,14 +75,14 @@ impl FunctionBuilder<'_> {
 
         // 前半部分：正向下标
         for (i, item) in items.iter().take(before).enumerate() {
-            let dest = self.sequence_local(item);
+            let binding = sequence_binding(item);
             let index = self.box_index(Constant::I64(i as i64));
-            self.emit_get_item(seq.clone(), index, dest);
+            self.emit_get_item(seq.clone(), index, binding);
         }
 
         // 星号：中间段用切片，负数终点表示「从末尾往前数」
         if let Some(star) = star_index {
-            let dest = self.sequence_local(&items[star]);
+            let binding = sequence_binding(&items[star]);
             let start = self.box_index(Constant::I64(before as i64));
             let stop = if after == 0 {
                 self.expr_builder()
@@ -102,7 +102,7 @@ impl FunctionBuilder<'_> {
                 },
             });
             let slice = Operand::Local(slice_dest);
-            self.emit_get_item(seq.clone(), slice, dest);
+            self.emit_get_item(seq.clone(), slice, binding);
         }
 
         // 后半部分：从长度倒推下标，避免再分配一个临时列表
@@ -111,7 +111,7 @@ impl FunctionBuilder<'_> {
             .skip(before + usize::from(star_index.is_some()))
             .enumerate()
         {
-            let dest = self.sequence_local(item);
+            let binding = sequence_binding(item);
             let dest_local = self.alloc_temp(MirType::I64);
             self.push_stmt(Statement::Assign {
                 dest: dest_local,
@@ -122,7 +122,7 @@ impl FunctionBuilder<'_> {
                 },
             });
             let index = self.box_i64_local(dest_local);
-            self.emit_get_item(seq.clone(), index, dest);
+            self.emit_get_item(seq.clone(), index, binding);
         }
     }
 
@@ -164,14 +164,6 @@ impl FunctionBuilder<'_> {
         }
     }
 
-    /// 解包目标的 MIR 局部变量。
-    fn sequence_local(&self, item: &SequenceItem) -> MirLocalId {
-        let local = match item {
-            SequenceItem::One(local) | SequenceItem::Rest(local) => *local,
-        };
-        self.local_map[&local]
-    }
-
     /// 把整数常量装箱成动态下标。
     fn box_index(&mut self, constant: Constant) -> Operand {
         let dest = self.alloc_temp(MirType::Dynamic);
@@ -198,8 +190,9 @@ impl FunctionBuilder<'_> {
         Operand::Local(dest)
     }
 
-    /// 取下标并写进目标变量。
-    fn emit_get_item(&mut self, seq: Operand, index: Operand, dest: MirLocalId) {
+    /// 取下标并写进目标（局部变量或模块槽位）。解包出来的元素都是动态值。
+    fn emit_get_item(&mut self, seq: Operand, index: Operand, binding: Binding) {
+        let dest = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest,
             value: Rvalue::Call {
@@ -207,15 +200,25 @@ impl FunctionBuilder<'_> {
                 args: vec![seq, index],
             },
         });
+        self.store_binding(binding, Operand::Local(dest), &MirType::Dynamic);
     }
 
     /// 记录解包目标已赋值（供确定赋值分析使用）。
     pub(crate) fn mark_sequence_targets(&mut self, items: &[SequenceItem]) {
         for item in items {
-            let local = match item {
-                SequenceItem::One(local) | SequenceItem::Rest(local) => *local,
+            let binding = match item {
+                SequenceItem::One(binding) | SequenceItem::Rest(binding) => *binding,
             };
-            self.assigned_locals.insert(local);
+            if let Binding::Local(local) = binding {
+                self.assigned_locals.insert(local);
+            }
         }
+    }
+}
+
+/// 序列解包目标的绑定。
+fn sequence_binding(item: &SequenceItem) -> Binding {
+    match item {
+        SequenceItem::One(binding) | SequenceItem::Rest(binding) => *binding,
     }
 }

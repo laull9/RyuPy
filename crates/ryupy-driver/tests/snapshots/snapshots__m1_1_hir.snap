@@ -11,6 +11,9 @@ def helper(n: int) -> int:
     return t
 
 def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m1_1_functions.py"
     defaults of main_calc
     defaults of helper
     print(main_calc(10))
