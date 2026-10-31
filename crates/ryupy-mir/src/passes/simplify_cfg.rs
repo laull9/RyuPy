@@ -117,7 +117,7 @@ impl MirPass for SimplifyCfg {
         for (bb_id, bb) in func.body.blocks.iter_mut() {
             if !reachable.contains(&bb_id) {
                 bb.stmts.clear();
-                bb.terminator = Terminator::Return(None);
+                bb.terminator = Terminator::Unreachable;
             }
         }
     }

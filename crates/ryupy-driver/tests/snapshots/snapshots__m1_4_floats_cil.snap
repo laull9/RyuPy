@@ -1,0 +1,134 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m1_4_floats
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] double,
+            [1] double,
+            [2] double,
+            [3] double,
+            [4] double,
+            [5] double,
+            [6] double,
+            [7] double,
+            [8] double,
+            [9] double,
+            [10] double,
+            [11] double,
+            [12] long,
+            [13] long,
+            [14] double
+        )
+        IL_0000: LoadConstantFloat64(1.0)
+        IL_0001: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0002: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0003: LoadConstantFloat64(0.1)
+        IL_0004: LoadConstantFloat64(0.2)
+        IL_0005: Add
+        IL_0006: StoreLocal(0)
+        IL_0007: LoadLocal(0)
+        IL_0008: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0009: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_000a: LoadConstantFloat64(1e16)
+        IL_000b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_000c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_000d: LoadConstantFloat64(1e-5)
+        IL_000e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_000f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0010: LoadConstantFloat64(123456789.0)
+        IL_0011: LoadConstantFloat64(1000.0)
+        IL_0012: Multiply
+        IL_0013: StoreLocal(1)
+        IL_0014: LoadLocal(1)
+        IL_0015: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0016: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0017: LoadConstantFloat64(-2.5)
+        IL_0018: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0019: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_001a: LoadConstantInt64(3)
+        IL_001b: ConvertFloat64
+        IL_001c: StoreLocal(2)
+        IL_001d: LoadConstantInt64(2)
+        IL_001e: ConvertFloat64
+        IL_001f: StoreLocal(3)
+        IL_0020: LoadLocal(2)
+        IL_0021: LoadLocal(3)
+        IL_0022: Divide(Signed)
+        IL_0023: StoreLocal(4)
+        IL_0024: LoadLocal(4)
+        IL_0025: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0026: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0027: LoadConstantInt64(1)
+        IL_0028: ConvertFloat64
+        IL_0029: StoreLocal(5)
+        IL_002a: LoadLocal(5)
+        IL_002b: LoadConstantFloat64(0.5)
+        IL_002c: Add
+        IL_002d: StoreLocal(6)
+        IL_002e: LoadLocal(6)
+        IL_002f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0030: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0031: LoadConstantInt64(2)
+        IL_0032: ConvertFloat64
+        IL_0033: StoreLocal(7)
+        IL_0034: LoadConstantFloat64(7.5)
+        IL_0035: LoadLocal(7)
+        IL_0036: Call(static double [RyuPy.Runtime]RyuPy.Runtime.PyMath.FloorDivF64(double, double))
+        IL_0037: StoreLocal(8)
+        IL_0038: LoadLocal(8)
+        IL_0039: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_003a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_003b: LoadConstantInt64(2)
+        IL_003c: ConvertFloat64
+        IL_003d: StoreLocal(9)
+        IL_003e: LoadConstantFloat64(-7.5)
+        IL_003f: LoadLocal(9)
+        IL_0040: Call(static double [RyuPy.Runtime]RyuPy.Runtime.PyMath.ModF64(double, double))
+        IL_0041: StoreLocal(10)
+        IL_0042: LoadLocal(10)
+        IL_0043: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0044: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0045: LoadConstantFloat64(2.0)
+        IL_0046: LoadConstantFloat64(0.5)
+        IL_0047: Call(static double [RyuPy.Runtime]RyuPy.Runtime.PyMath.PowF64(double, double))
+        IL_0048: StoreLocal(11)
+        IL_0049: LoadLocal(11)
+        IL_004a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_004b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_004c: LoadConstantFloat64(3.99)
+        IL_004d: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.F64ToI64(double))
+        IL_004e: StoreLocal(12)
+        IL_004f: LoadLocal(12)
+        IL_0050: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0051: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0052: LoadConstantFloat64(-3.99)
+        IL_0053: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.F64ToI64(double))
+        IL_0054: StoreLocal(13)
+        IL_0055: LoadLocal(13)
+        IL_0056: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0057: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0058: LoadConstantInt64(3)
+        IL_0059: ConvertFloat64
+        IL_005a: StoreLocal(14)
+        IL_005b: LoadLocal(14)
+        IL_005c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_005d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_005e: Return
+    }
+}

@@ -39,3 +39,7 @@ libtest-mimic = "0.8"
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
+[patch.crates-io]
+dotnetdll = { path = "vendor/dotnetdll" }
+
+

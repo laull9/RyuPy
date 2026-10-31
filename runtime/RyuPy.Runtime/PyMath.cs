@@ -4,8 +4,11 @@ namespace RyuPy.Runtime;
 
 /// <summary>
 /// Python 数值运算中与 CIL 原生指令语义不同的部分。
-/// CIL 的 <c>div</c>/<c>rem</c> 向零截断，而 Python 的 <c>//</c>/<c>%</c> 向负无穷取整：
-/// <c>-7 // 2 == -4</c>，<c>-7 % 2 == 1</c>（CIL 分别得到 -3 和 -1）。
+/// 包含：
+/// 1. 向下取整除法（//）与取模（%），区别于 CIL 向零截断的 div/rem；
+/// 2. 幂运算（**）；
+/// 3. 浮点转整数（int(float)），带 NaN 与 Inf 检查（语义陷阱 #13）；
+/// 4. 绝对值运算（abs）。
 /// </summary>
 public static class PyMath
 {
@@ -38,7 +41,7 @@ public static class PyMath
         return r;
     }
 
-    /// <summary><c>a ** b</c>（int）。TODO(M1.2)：b 为负数时 Python 返回 float，需在类型检查阶段处理。</summary>
+    /// <summary><c>a ** b</c>（int）。</summary>
     public static long PowI64(long a, long b)
     {
         long result = 1;
@@ -53,4 +56,30 @@ public static class PyMath
 
     /// <summary><c>a ** b</c>（float）。</summary>
     public static double PowF64(double a, double b) => Math.Pow(a, b);
+
+    /// <summary>
+    /// <c>int(float)</c> 转换，向零截断，并做 NaN 与 Inf 越界检查（语义陷阱 #13）。
+    /// </summary>
+    public static long F64ToI64(double value)
+    {
+        if (double.IsNaN(value))
+        {
+            throw new InvalidOperationException("ValueError: cannot convert float NaN to integer");
+        }
+        if (double.IsInfinity(value))
+        {
+            throw new OverflowException("OverflowError: cannot convert float infinity to integer");
+        }
+        if (value > (double)long.MaxValue || value < (double)long.MinValue)
+        {
+            throw new OverflowException("OverflowError: Python int too large to convert to C long");
+        }
+        return (long)value;
+    }
+
+    /// <summary><c>abs(int)</c>。</summary>
+    public static long AbsI64(long value) => checked(Math.Abs(value));
+
+    /// <summary><c>abs(float)</c>。</summary>
+    public static double AbsF64(double value) => Math.Abs(value);
 }

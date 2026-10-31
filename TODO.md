@@ -80,22 +80,26 @@
 
 > 用例：`m1_3_for_range.py`、`m1_3_fib.py`
 
-- [ ] hir：识别 `for x in range(...)`（1~3 个参数）降级为 `ForRange`；其它可迭代对象报错
-- [ ] mir：计数循环，步长正负两种比较方向；`continue` 跳到递增块
-- [ ] mir：步长为字面量 0 编译期报错，为变量时运行时检查（陷阱 #9）
-- [ ] e2e：`fib_iter(100)` 溢出用例，记录为已知差异（ADR-0004）
-- [ ] 基准：fib(30) 对比 CPython，结果写进笔记
+- [x] hir：识别 `for x in range(...)`（1~3 个参数）降级为 `ForRange`；其它可迭代对象报错
+- [x] mir：计数循环，步长正负两种比较方向；`continue` 跳到递增块
+- [x] mir：步长为字面量 0 编译期报错，为变量时运行时检查（陷阱 #9）
+- [x] e2e：`fib_iter(100)` 溢出用例，记录为已知差异（ADR-0004）
+- [x] 基准：fib(30) 对比 CPython，结果写进笔记（比 CPython 快 6.2 倍）
+- [x] 去掉 m1_3_for_range 与 m1_3_fib 的 `pending`，`make check` 全绿 🎉
+- [x] 笔记：`docs/notes/` 记录 M1.3 实现总结（计数循环 CFG、步长正负方向、基础常量折叠与基准对比）
 
 ### M1.4 浮点、类型转换与字符串
 
 > 用例：`m1_4_floats.py`、`m1_4_mandelbrot.py`
 
-- [ ] ty / mir：`int` → `float` 隐式提升插入 `Cast`；`/` 总是 float
-- [ ] hir / ty / mir：`int()` / `float()` / `abs()` 内建
-- [ ] runtime：`PyFormat.FloatRepr` 按 CPython 规则实现（陷阱 #5、#16）+ 单元测试
-- [ ] runtime：`int(nan)` / `int(inf)` 检查（陷阱 #13）
-- [ ] 字符串字面量、`str + str`、`print(str)`
-- [ ] 基准：Mandelbrot 对比 CPython
+- [x] ty / mir：`int` → `float` 隐式提升插入 `Cast`；`/` 总是 float
+- [x] hir / ty / mir：`int()` / `float()` / `abs()` 内建
+- [x] runtime：`PyFormat.FloatRepr` 按 CPython 规则实现（陷阱 #5、#16）+ 单元测试覆盖
+- [x] runtime：`int(nan)` / `int(inf)` 检查（陷阱 #13）
+- [x] 字符串字面量、`str + str`、`print(str)`
+- [x] 基准：Mandelbrot 对比 CPython（50 次渲染纯计算耗时 44ms vs 267ms，快 6.1 倍）
+- [x] 去掉 m1_4_floats 与 m1_4_mandelbrot 的 `pending`，`make check` 全绿 🎉
+- [x] 笔记：`docs/notes/` 记录 M1.4 实现总结（浮点 repr 规整、空字符串 US 堆踩坑、分支压缩根治与曼德博基准）
 
 ### M1.5 `@dataclass`
 

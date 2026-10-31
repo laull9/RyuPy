@@ -56,6 +56,11 @@ pub fn check_binary_op(op: BinOp, lhs: &Ty, rhs: &Ty) -> Option<Ty> {
             | BinOp::Pow => Some(Ty::Float),
             _ => None,
         },
+        // 字符串拼接
+        (Ty::Str, Ty::Str) => match op {
+            BinOp::Add => Some(Ty::Str),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -120,6 +125,11 @@ mod tests {
             Some(Ty::Int)
         );
         assert!(check_binary_op(BinOp::BitAnd, &Ty::Float, &Ty::Float).is_none());
+        // 字符串拼接
+        assert_eq!(
+            check_binary_op(BinOp::Add, &Ty::Str, &Ty::Str),
+            Some(Ty::Str)
+        );
     }
 
     #[test]

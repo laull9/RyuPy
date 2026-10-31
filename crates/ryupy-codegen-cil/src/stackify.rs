@@ -28,14 +28,19 @@ pub struct RuntimeRefs {
     pub write_i64: MethodRefIndex,
     pub write_f64: MethodRefIndex,
     pub write_bool: MethodRefIndex,
+    pub write_str: MethodRefIndex,
     pub write_newline: MethodRefIndex,
     pub write_sep: MethodRefIndex,
+    pub str_concat: MethodRefIndex,
     pub floor_div_i64: MethodRefIndex,
     pub mod_i64: MethodRefIndex,
     pub pow_i64: MethodRefIndex,
     pub floor_div_f64: MethodRefIndex,
     pub mod_f64: MethodRefIndex,
     pub pow_f64: MethodRefIndex,
+    pub f64_to_i64: MethodRefIndex,
+    pub abs_i64: MethodRefIndex,
+    pub abs_f64: MethodRefIndex,
 }
 
 enum PendingTarget {
@@ -71,7 +76,34 @@ pub fn lower_function(
     let mut block_starts: FxHashMap<BlockId, usize> = FxHashMap::default();
     let mut pending_targets: Vec<PendingTarget> = Vec::new();
 
+    // 计算可达基本块集（避免发射死代码导致 JIT 校验失败）
+    let mut reachable = rustc_hash::FxHashSet::default();
+    let mut worklist = vec![func.body.entry];
+    reachable.insert(func.body.entry);
+    while let Some(bb_id) = worklist.pop() {
+        let bb = &func.body.blocks[bb_id];
+        match &bb.terminator {
+            Terminator::Goto(target) => {
+                if reachable.insert(*target) {
+                    worklist.push(*target);
+                }
+            }
+            Terminator::Branch { then_, else_, .. } => {
+                if reachable.insert(*then_) {
+                    worklist.push(*then_);
+                }
+                if reachable.insert(*else_) {
+                    worklist.push(*else_);
+                }
+            }
+            Terminator::Return(_) | Terminator::Unreachable => {}
+        }
+    }
+
     for (block_id, block) in func.body.blocks.iter() {
+        if !reachable.contains(&block_id) {
+            continue;
+        }
         block_starts.insert(block_id, instructions.len());
 
         for stmt in &block.stmts {
@@ -84,6 +116,7 @@ pub fn lower_function(
                         fn_map,
                         &param_slots,
                         &local_slots,
+                        &func.body.locals,
                     );
                     if let Some(&arg_idx) = param_slots.get(dest) {
                         instructions.push(Instruction::StoreArgument(arg_idx));
@@ -99,6 +132,7 @@ pub fn lower_function(
                         fn_map,
                         &param_slots,
                         &local_slots,
+                        &func.body.locals,
                     );
                 }
                 Statement::SetField { .. } => {}
@@ -177,6 +211,14 @@ fn lower_operand(
     }
 }
 
+fn is_f64_operand(op: &Operand, locals: &la_arena::Arena<ryupy_mir::LocalDecl>) -> bool {
+    match op {
+        Operand::Const(MirConstant::F64(_)) => true,
+        Operand::Local(loc) => locals[*loc].ty == ryupy_mir::MirType::F64,
+        _ => false,
+    }
+}
+
 fn lower_rvalue(
     rval: &Rvalue,
     ins: &mut Vec<Instruction>,
@@ -184,16 +226,36 @@ fn lower_rvalue(
     fn_map: &FxHashMap<FnId, MethodIndex>,
     param_slots: &FxHashMap<LocalId, u16>,
     local_slots: &FxHashMap<LocalId, u16>,
+    locals: &la_arena::Arena<ryupy_mir::LocalDecl>,
 ) {
     match rval {
         Rvalue::Use(op) => lower_operand(op, ins, param_slots, local_slots),
         Rvalue::Binary { op, lhs, rhs } => {
             lower_operand(lhs, ins, param_slots, local_slots);
             lower_operand(rhs, ins, param_slots, local_slots);
+            let is_float = is_f64_operand(lhs, locals) || is_f64_operand(rhs, locals);
             match op {
-                BinOp::Add => ins.push(Instruction::AddOverflow(NumberSign::Signed)),
-                BinOp::Sub => ins.push(Instruction::SubtractOverflow(NumberSign::Signed)),
-                BinOp::Mul => ins.push(Instruction::MultiplyOverflow(NumberSign::Signed)),
+                BinOp::Add => {
+                    if is_float {
+                        ins.push(Instruction::Add);
+                    } else {
+                        ins.push(Instruction::AddOverflow(NumberSign::Signed));
+                    }
+                }
+                BinOp::Sub => {
+                    if is_float {
+                        ins.push(Instruction::Subtract);
+                    } else {
+                        ins.push(Instruction::SubtractOverflow(NumberSign::Signed));
+                    }
+                }
+                BinOp::Mul => {
+                    if is_float {
+                        ins.push(Instruction::Multiply);
+                    } else {
+                        ins.push(Instruction::MultiplyOverflow(NumberSign::Signed));
+                    }
+                }
                 BinOp::Div => ins.push(Instruction::Divide(NumberSign::Signed)),
                 BinOp::BitAnd => ins.push(Instruction::And),
                 BinOp::BitOr => ins.push(Instruction::Or),
@@ -237,9 +299,8 @@ fn lower_rvalue(
             lower_operand(operand, ins, param_slots, local_slots);
             match kind {
                 CastKind::I64ToF64 => ins.push(Instruction::ConvertFloat64),
-                CastKind::F64ToI64 | CastKind::BoolToI64 => {
-                    ins.push(Instruction::Convert(ConversionType::Int64))
-                }
+                CastKind::F64ToI64 => ins.push(Instruction::call(runtime_refs.f64_to_i64)),
+                CastKind::BoolToI64 => ins.push(Instruction::Convert(ConversionType::Int64)),
             }
         }
         Rvalue::Call { callee, args } => {
@@ -251,10 +312,12 @@ fn lower_rvalue(
                     RuntimeFn::WriteI64 => ins.push(Instruction::call(runtime_refs.write_i64)),
                     RuntimeFn::WriteF64 => ins.push(Instruction::call(runtime_refs.write_f64)),
                     RuntimeFn::WriteBool => ins.push(Instruction::call(runtime_refs.write_bool)),
+                    RuntimeFn::WriteStr => ins.push(Instruction::call(runtime_refs.write_str)),
                     RuntimeFn::WriteNewline => {
                         ins.push(Instruction::call(runtime_refs.write_newline))
                     }
                     RuntimeFn::WriteSep => ins.push(Instruction::call(runtime_refs.write_sep)),
+                    RuntimeFn::StrConcat => ins.push(Instruction::call(runtime_refs.str_concat)),
                     RuntimeFn::FloorDivI64 => {
                         ins.push(Instruction::call(runtime_refs.floor_div_i64))
                     }
@@ -265,8 +328,9 @@ fn lower_rvalue(
                     }
                     RuntimeFn::ModF64 => ins.push(Instruction::call(runtime_refs.mod_f64)),
                     RuntimeFn::PowF64 => ins.push(Instruction::call(runtime_refs.pow_f64)),
-                    RuntimeFn::StrConcat => todo!("StrConcat 在 M1.4 实现"),
-                    _ => todo!("其他 Runtime 方法在后续里程碑实现"),
+                    RuntimeFn::F64ToI64 => ins.push(Instruction::call(runtime_refs.f64_to_i64)),
+                    RuntimeFn::AbsI64 => ins.push(Instruction::call(runtime_refs.abs_i64)),
+                    RuntimeFn::AbsF64 => ins.push(Instruction::call(runtime_refs.abs_f64)),
                 },
                 Callee::Fn(fn_id) => {
                     let method_idx = fn_map[fn_id];

@@ -1,0 +1,23 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def [main] main():
+    total = 0
+    for i in range(0, 10):
+        total = (total + i)
+    print(total)
+    for i in range(2, 5):
+        print(i)
+    for i in range(10, 0, Neg(3)):
+        print(i)
+    for i in range(5, 5):
+        print("never")
+    acc = 0
+    for i in range(0, 100):
+        if ((i % 2) Eq 0):
+            continue
+        if (i Gt 20):
+            break
+        acc = (acc + i)
+    print(acc)

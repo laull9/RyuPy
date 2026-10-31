@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.3 里程碑：递归与迭代斐波那契。
 def fib_rec(n: int) -> int:
     if n < 2:

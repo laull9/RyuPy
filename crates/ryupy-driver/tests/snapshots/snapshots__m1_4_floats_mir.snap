@@ -1,0 +1,68 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn main() -> () {
+    let _0: f64;
+    let _1: f64;
+    let _2: f64;
+    let _3: f64;
+    let _4: f64;
+    let _5: f64;
+    let _6: f64;
+    let _7: f64;
+    let _8: f64;
+    let _9: f64;
+    let _10: f64;
+    let _11: f64;
+    let _12: i64;
+    let _13: i64;
+    let _14: f64;
+
+    bb0: {
+        RuntimeFn::WriteF64(const 1_f64);
+        RuntimeFn::WriteNewline();
+        _0 = Add(const 0.1_f64, const 0.2_f64);
+        RuntimeFn::WriteF64(_0);
+        RuntimeFn::WriteNewline();
+        RuntimeFn::WriteF64(const 10000000000000000_f64);
+        RuntimeFn::WriteNewline();
+        RuntimeFn::WriteF64(const 0.00001_f64);
+        RuntimeFn::WriteNewline();
+        _1 = Mul(const 123456789_f64, const 1000_f64);
+        RuntimeFn::WriteF64(_1);
+        RuntimeFn::WriteNewline();
+        RuntimeFn::WriteF64(const -2.5_f64);
+        RuntimeFn::WriteNewline();
+        _2 = Cast(I64ToF64, const 3_i64);
+        _3 = Cast(I64ToF64, const 2_i64);
+        _4 = Div(_2, _3);
+        RuntimeFn::WriteF64(_4);
+        RuntimeFn::WriteNewline();
+        _5 = Cast(I64ToF64, const 1_i64);
+        _6 = Add(_5, const 0.5_f64);
+        RuntimeFn::WriteF64(_6);
+        RuntimeFn::WriteNewline();
+        _7 = Cast(I64ToF64, const 2_i64);
+        _8 = RuntimeFn::FloorDivF64(const 7.5_f64, _7);
+        RuntimeFn::WriteF64(_8);
+        RuntimeFn::WriteNewline();
+        _9 = Cast(I64ToF64, const 2_i64);
+        _10 = RuntimeFn::ModF64(const -7.5_f64, _9);
+        RuntimeFn::WriteF64(_10);
+        RuntimeFn::WriteNewline();
+        _11 = RuntimeFn::PowF64(const 2_f64, const 0.5_f64);
+        RuntimeFn::WriteF64(_11);
+        RuntimeFn::WriteNewline();
+        _12 = RuntimeFn::F64ToI64(const 3.99_f64);
+        RuntimeFn::WriteI64(_12);
+        RuntimeFn::WriteSep();
+        _13 = RuntimeFn::F64ToI64(const -3.99_f64);
+        RuntimeFn::WriteI64(_13);
+        RuntimeFn::WriteNewline();
+        _14 = Cast(I64ToF64, const 3_i64);
+        RuntimeFn::WriteF64(_14);
+        RuntimeFn::WriteNewline();
+        return;
+    }
+}

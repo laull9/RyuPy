@@ -1,0 +1,8 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: types
+---
+func Idx::<Function>(0): [] -> None
+  local Idx::<Local>(0): Int
+  local Idx::<Local>(1): Int
+  local Idx::<Local>(2): Int

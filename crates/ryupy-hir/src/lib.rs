@@ -9,6 +9,7 @@
 //! 数据布局采用 rust-analyzer 风格：每个函数体一组 arena，节点之间用 `Idx` 引用，
 //! 避免生命周期在各层之间传染。
 
+mod control_flow;
 pub mod expr;
 mod hir;
 pub mod lower;

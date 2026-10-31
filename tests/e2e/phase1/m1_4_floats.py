@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.4：float 运算与 repr 格式（与 .NET 默认格式差异很大）。
 print(1.0)
 print(0.1 + 0.2)

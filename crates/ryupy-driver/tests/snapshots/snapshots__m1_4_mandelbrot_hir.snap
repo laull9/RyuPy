@@ -1,0 +1,27 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def mandel(cr: float, ci: float, max_iter: int) -> int:
+    zr = 0.0
+    zi = 0.0
+    n = 0
+    while (n Lt max_iter):
+        zr2 = (zr * zr)
+        zi2 = (zi * zi)
+        if ((zr2 + zi2) Gt 4.0):
+            return n
+        zi = (((2.0 * zr) * zi) + ci)
+        zr = ((zr2 - zi2) + cr)
+        n = (n + 1)
+    return max_iter
+
+def [main] main():
+    for y in range(Neg(12), 13):
+        line = ""
+        for x in range(Neg(39), 21):
+            if (mandel((x / 20.0), (y / 10.0), 200) Eq 200):
+                line = (line + "#")
+            else:
+                line = (line + ".")
+        print(line)

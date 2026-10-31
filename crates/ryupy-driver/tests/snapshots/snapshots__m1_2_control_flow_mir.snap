@@ -5,23 +5,21 @@ expression: mir
 fn classify(_0: i64) -> i64 {
     let _0: i64; // n
     let _1: bool;
-    let _2: i64;
-    let _3: bool;
+    let _2: bool;
 
     bb0: {
         _1 = Lt(_0, const 0_i64);
         branch _1 -> [then: bb1, else: bb2];
     }
     bb1: {
-        _2 = Neg(const 1_i64);
-        return _2;
+        return const -1_i64;
     }
     bb2: {
-        _3 = Eq(_0, const 0_i64);
-        branch _3 -> [then: bb4, else: bb5];
+        _2 = Eq(_0, const 0_i64);
+        branch _2 -> [then: bb4, else: bb5];
     }
     bb3: {
-        return;
+        unreachable;
     }
     bb4: {
         return const 0_i64;
@@ -30,7 +28,7 @@ fn classify(_0: i64) -> i64 {
         return const 1_i64;
     }
     bb6: {
-        return;
+        unreachable;
     }
 }
 
@@ -84,46 +82,44 @@ fn first_multiple(_0: i64, _1: i64) -> i64 {
     let _1: i64; // limit
     let _2: i64; // i
     let _3: i64; // found
-    let _4: i64;
-    let _5: bool;
-    let _6: i64;
-    let _7: bool;
-    let _8: i64;
+    let _4: bool;
+    let _5: i64;
+    let _6: bool;
+    let _7: i64;
 
     bb0: {
         _2 = const 1_i64;
-        _4 = Neg(const 1_i64);
-        _3 = _4;
+        _3 = const -1_i64;
         goto -> bb2;
     }
     bb1: {
-        return;
+        unreachable;
     }
     bb2: {
-        _5 = Gt(_2, _1);
-        branch _5 -> [then: bb3, else: bb6];
+        _4 = Gt(_2, _1);
+        branch _4 -> [then: bb3, else: bb6];
     }
     bb3: {
         return _3;
     }
     bb4: {
-        return;
+        unreachable;
     }
     bb5: {
-        return;
+        unreachable;
     }
     bb6: {
-        _6 = RuntimeFn::ModI64(_2, _0);
-        _7 = Ne(_6, const 0_i64);
-        branch _7 -> [then: bb7, else: bb9];
+        _5 = RuntimeFn::ModI64(_2, _0);
+        _6 = Ne(_5, const 0_i64);
+        branch _6 -> [then: bb7, else: bb9];
     }
     bb7: {
-        _8 = Add(_2, const 1_i64);
-        _2 = _8;
+        _7 = Add(_2, const 1_i64);
+        _2 = _7;
         goto -> bb2;
     }
     bb8: {
-        return;
+        unreachable;
     }
     bb9: {
         _3 = _2;
@@ -139,58 +135,56 @@ fn main() -> () {
     let _4: i64;
     let _5: i64;
     let _6: i64;
-    let _7: i64;
+    let _7: bool;
     let _8: bool;
     let _9: bool;
     let _10: bool;
     let _11: bool;
     let _12: bool;
-    let _13: bool;
 
     bb0: {
-        _1 = Neg(const 5_i64);
-        _2 = classify(_1);
+        _1 = classify(const -5_i64);
+        RuntimeFn::WriteI64(_1);
+        RuntimeFn::WriteSep();
+        _2 = classify(const 0_i64);
         RuntimeFn::WriteI64(_2);
         RuntimeFn::WriteSep();
-        _3 = classify(const 0_i64);
+        _3 = classify(const 7_i64);
         RuntimeFn::WriteI64(_3);
-        RuntimeFn::WriteSep();
-        _4 = classify(const 7_i64);
+        RuntimeFn::WriteNewline();
+        _4 = collatz_steps(const 27_i64);
         RuntimeFn::WriteI64(_4);
         RuntimeFn::WriteNewline();
-        _5 = collatz_steps(const 27_i64);
+        _5 = first_multiple(const 7_i64, const 100_i64);
         RuntimeFn::WriteI64(_5);
         RuntimeFn::WriteNewline();
-        _6 = first_multiple(const 7_i64, const 100_i64);
+        _6 = first_multiple(const 7_i64, const 3_i64);
         RuntimeFn::WriteI64(_6);
         RuntimeFn::WriteNewline();
-        _7 = first_multiple(const 7_i64, const 3_i64);
-        RuntimeFn::WriteI64(_7);
-        RuntimeFn::WriteNewline();
         _0 = const 5_i64;
-        _9 = Gt(_0, const 0_i64);
-        _8 = _9;
-        branch _9 -> [then: bb1, else: bb2];
+        _8 = Gt(_0, const 0_i64);
+        _7 = _8;
+        branch _8 -> [then: bb1, else: bb2];
     }
     bb1: {
-        _10 = Lt(_0, const 10_i64);
-        _8 = _10;
+        _9 = Lt(_0, const 10_i64);
+        _7 = _9;
         goto -> bb2;
     }
     bb2: {
-        RuntimeFn::WriteBool(_8);
+        RuntimeFn::WriteBool(_7);
         RuntimeFn::WriteNewline();
-        _12 = Lt(_0, const 0_i64);
-        _11 = _12;
-        branch _12 -> [then: bb4, else: bb3];
+        _11 = Lt(_0, const 0_i64);
+        _10 = _11;
+        branch _11 -> [then: bb4, else: bb3];
     }
     bb3: {
-        _13 = Eq(_0, const 5_i64);
-        _11 = _13;
+        _12 = Eq(_0, const 5_i64);
+        _10 = _12;
         goto -> bb4;
     }
     bb4: {
-        RuntimeFn::WriteBool(_11);
+        RuntimeFn::WriteBool(_10);
         RuntimeFn::WriteNewline();
         return;
     }

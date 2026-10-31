@@ -1,0 +1,216 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m1_4_mandelbrot
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static long mandel(double, double, long) cil managed
+    {
+        .locals init (
+            [0] double,
+            [1] double,
+            [2] long,
+            [3] double,
+            [4] double,
+            [5] bool,
+            [6] double,
+            [7] double,
+            [8] double,
+            [9] bool,
+            [10] double,
+            [11] double,
+            [12] double,
+            [13] double,
+            [14] double,
+            [15] long
+        )
+        IL_0000: LoadConstantFloat64(0.0)
+        IL_0001: StoreLocal(0)
+        IL_0002: LoadConstantFloat64(0.0)
+        IL_0003: StoreLocal(1)
+        IL_0004: LoadConstantInt64(0)
+        IL_0005: StoreLocal(2)
+        IL_0006: Branch(7)
+        IL_0007: LoadLocal(2)
+        IL_0008: LoadArgument(2)
+        IL_0009: CompareLess(Signed)
+        IL_000a: StoreLocal(5)
+        IL_000b: LoadLocal(5)
+        IL_000c: BranchTruthy(14)
+        IL_000d: Branch(37)
+        IL_000e: LoadLocal(0)
+        IL_000f: LoadLocal(0)
+        IL_0010: Multiply
+        IL_0011: StoreLocal(6)
+        IL_0012: LoadLocal(6)
+        IL_0013: StoreLocal(3)
+        IL_0014: LoadLocal(1)
+        IL_0015: LoadLocal(1)
+        IL_0016: Multiply
+        IL_0017: StoreLocal(7)
+        IL_0018: LoadLocal(7)
+        IL_0019: StoreLocal(4)
+        IL_001a: LoadLocal(3)
+        IL_001b: LoadLocal(4)
+        IL_001c: Add
+        IL_001d: StoreLocal(8)
+        IL_001e: LoadLocal(8)
+        IL_001f: LoadConstantFloat64(4.0)
+        IL_0020: CompareGreater(Signed)
+        IL_0021: StoreLocal(9)
+        IL_0022: LoadLocal(9)
+        IL_0023: BranchTruthy(39)
+        IL_0024: Branch(41)
+        IL_0025: LoadArgument(2)
+        IL_0026: Return
+        IL_0027: LoadLocal(2)
+        IL_0028: Return
+        IL_0029: LoadConstantFloat64(2.0)
+        IL_002a: LoadLocal(0)
+        IL_002b: Multiply
+        IL_002c: StoreLocal(10)
+        IL_002d: LoadLocal(10)
+        IL_002e: LoadLocal(1)
+        IL_002f: Multiply
+        IL_0030: StoreLocal(11)
+        IL_0031: LoadLocal(11)
+        IL_0032: LoadArgument(1)
+        IL_0033: Add
+        IL_0034: StoreLocal(12)
+        IL_0035: LoadLocal(12)
+        IL_0036: StoreLocal(1)
+        IL_0037: LoadLocal(3)
+        IL_0038: LoadLocal(4)
+        IL_0039: Subtract
+        IL_003a: StoreLocal(13)
+        IL_003b: LoadLocal(13)
+        IL_003c: LoadArgument(0)
+        IL_003d: Add
+        IL_003e: StoreLocal(14)
+        IL_003f: LoadLocal(14)
+        IL_0040: StoreLocal(0)
+        IL_0041: LoadLocal(2)
+        IL_0042: LoadConstantInt64(1)
+        IL_0043: AddOverflow(Signed)
+        IL_0044: StoreLocal(15)
+        IL_0045: LoadLocal(15)
+        IL_0046: StoreLocal(2)
+        IL_0047: Branch(7)
+    }
+
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] long,
+            [1] string,
+            [2] long,
+            [3] bool,
+            [4] bool,
+            [5] double,
+            [6] double,
+            [7] double,
+            [8] double,
+            [9] double,
+            [10] double,
+            [11] long,
+            [12] bool,
+            [13] string,
+            [14] string
+        )
+        IL_0000: LoadConstantInt64(-12)
+        IL_0001: StoreLocal(0)
+        IL_0002: Branch(3)
+        IL_0003: LoadLocal(0)
+        IL_0004: LoadConstantInt64(13)
+        IL_0005: CompareLess(Signed)
+        IL_0006: StoreLocal(3)
+        IL_0007: LoadLocal(3)
+        IL_0008: BranchTruthy(10)
+        IL_0009: Branch(20)
+        IL_000a: LoadString("")
+        IL_000b: StoreLocal(1)
+        IL_000c: LoadConstantInt64(-39)
+        IL_000d: StoreLocal(2)
+        IL_000e: Branch(21)
+        IL_000f: LoadLocal(0)
+        IL_0010: LoadConstantInt64(1)
+        IL_0011: AddOverflow(Signed)
+        IL_0012: StoreLocal(0)
+        IL_0013: Branch(3)
+        IL_0014: Return
+        IL_0015: LoadLocal(2)
+        IL_0016: LoadConstantInt64(21)
+        IL_0017: CompareLess(Signed)
+        IL_0018: StoreLocal(4)
+        IL_0019: LoadLocal(4)
+        IL_001a: BranchTruthy(28)
+        IL_001b: Branch(65)
+        IL_001c: LoadLocal(2)
+        IL_001d: ConvertFloat64
+        IL_001e: StoreLocal(5)
+        IL_001f: LoadLocal(5)
+        IL_0020: ConvertFloat64
+        IL_0021: StoreLocal(6)
+        IL_0022: LoadLocal(6)
+        IL_0023: LoadConstantFloat64(20.0)
+        IL_0024: Divide(Signed)
+        IL_0025: StoreLocal(7)
+        IL_0026: LoadLocal(0)
+        IL_0027: ConvertFloat64
+        IL_0028: StoreLocal(8)
+        IL_0029: LoadLocal(8)
+        IL_002a: ConvertFloat64
+        IL_002b: StoreLocal(9)
+        IL_002c: LoadLocal(9)
+        IL_002d: LoadConstantFloat64(10.0)
+        IL_002e: Divide(Signed)
+        IL_002f: StoreLocal(10)
+        IL_0030: LoadLocal(7)
+        IL_0031: LoadLocal(10)
+        IL_0032: LoadConstantInt64(200)
+        IL_0033: Call(static long RyuPy.Generated.Module.mandel(double, double, long))
+        IL_0034: StoreLocal(11)
+        IL_0035: LoadLocal(11)
+        IL_0036: LoadConstantInt64(200)
+        IL_0037: CompareEqual
+        IL_0038: StoreLocal(12)
+        IL_0039: LoadLocal(12)
+        IL_003a: BranchTruthy(69)
+        IL_003b: Branch(76)
+        IL_003c: LoadLocal(2)
+        IL_003d: LoadConstantInt64(1)
+        IL_003e: AddOverflow(Signed)
+        IL_003f: StoreLocal(2)
+        IL_0040: Branch(21)
+        IL_0041: LoadLocal(1)
+        IL_0042: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteStr(string))
+        IL_0043: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0044: Branch(15)
+        IL_0045: LoadLocal(1)
+        IL_0046: LoadString("#")
+        IL_0047: Call(static string [RyuPy.Runtime]RyuPy.Runtime.Builtins.StrConcat(string, string))
+        IL_0048: StoreLocal(13)
+        IL_0049: LoadLocal(13)
+        IL_004a: StoreLocal(1)
+        IL_004b: Branch(60)
+        IL_004c: LoadLocal(1)
+        IL_004d: LoadString(".")
+        IL_004e: Call(static string [RyuPy.Runtime]RyuPy.Runtime.Builtins.StrConcat(string, string))
+        IL_004f: StoreLocal(14)
+        IL_0050: LoadLocal(14)
+        IL_0051: StoreLocal(1)
+        IL_0052: Branch(60)
+    }
+}
