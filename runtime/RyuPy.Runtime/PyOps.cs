@@ -62,6 +62,42 @@ public static class PyOps
     /// <summary>一元操作码：<c>~x</c>。</summary>
     public const int Invert = 4;
 
+    /// <summary>按名字构造 Python 异常对象；<paramref name="arg"/> 为 <c>None</c> 时消息为空。</summary>
+    public static object MakeException(string typeName, object? arg)
+    {
+        string message = arg is null || arg is PyNone ? string.Empty : PyRepr.Str(arg);
+        return typeName switch
+        {
+            "ValueError" => new PyValueError(message),
+            "TypeError" => new PyTypeError(message),
+            "RuntimeError" => new PyRuntimeError(message),
+            "ZeroDivisionError" => new PyZeroDivisionError(message),
+            "OverflowError" => new PyOverflowError(message),
+            "IndexError" => new PyIndexError(message),
+            "KeyError" => new PyKeyError(message),
+            "NameError" => new PyNameError(message),
+            "AttributeError" => new PyAttributeError(message),
+            "ArithmeticError" => new PyArithmeticError(message),
+            "StopIteration" => new PyStopIteration(null),
+            _ => new PyException(typeName, message),
+        };
+    }
+
+    /// <summary><c>raise exc from cause</c>：返回挂了显式原因的新异常对象。</summary>
+    public static object WithCause(object exception, object? cause)
+    {
+        if (exception is not PyBaseException ex)
+        {
+            throw new PyTypeError("exceptions must derive from BaseException");
+        }
+        PyBaseException? causeException = cause as PyBaseException;
+        if (cause is not null and not PyNone && causeException is null)
+        {
+            throw new PyTypeError("exception causes must derive from BaseException");
+        }
+        return ex.WithCause(causeException);
+    }
+
     /// <summary><c>None</c> 常量。</summary>
     public static object None() => PyNone.Instance;
 

@@ -130,6 +130,20 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "int" => Builtin::Int,
         "float" => Builtin::Float,
         "abs" => Builtin::Abs,
+        // 常用异常类：M2.2 只支持「构造 + 抛出 + 未捕获退出」，
+        // `except`/traceback 在后续竖切里接入。
+        "ValueError" => Builtin::Exception("ValueError"),
+        "TypeError" => Builtin::Exception("TypeError"),
+        "RuntimeError" => Builtin::Exception("RuntimeError"),
+        "ZeroDivisionError" => Builtin::Exception("ZeroDivisionError"),
+        "OverflowError" => Builtin::Exception("OverflowError"),
+        "IndexError" => Builtin::Exception("IndexError"),
+        "KeyError" => Builtin::Exception("KeyError"),
+        "NameError" => Builtin::Exception("NameError"),
+        "AttributeError" => Builtin::Exception("AttributeError"),
+        "ArithmeticError" => Builtin::Exception("ArithmeticError"),
+        "Exception" => Builtin::Exception("Exception"),
+        "StopIteration" => Builtin::Exception("StopIteration"),
         _ => return None,
     })
 }

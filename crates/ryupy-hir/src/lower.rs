@@ -425,6 +425,21 @@ impl StmtLowerCtx<'_> {
                 StmtKind::Return(val)
             }
             ast::Stmt::Pass(_) => StmtKind::Pass,
+            ast::Stmt::Raise(raise_stmt) => {
+                let value = raise_stmt.exc.as_deref().map(|e| self.lower_expr(e));
+                let cause = raise_stmt.cause.as_deref().map(|e| self.lower_expr(e));
+                if value.is_none() {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, raise_stmt.range),
+                            "暂不支持裸重抛（需要 try/except，M2.2 后续竖切）",
+                        )
+                        .with_code("E0304")
+                        .with_primary_label("裸 raise 依赖当前异常上下文"),
+                    );
+                }
+                StmtKind::Raise { value, cause }
+            }
             ast::Stmt::If(if_stmt) => return Some(self.lower_if(if_stmt)),
             ast::Stmt::While(while_stmt) => {
                 if !while_stmt.orelse.is_empty() {

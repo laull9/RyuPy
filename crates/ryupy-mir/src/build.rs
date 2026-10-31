@@ -370,6 +370,22 @@ impl<'a> FunctionBuilder<'a> {
             } => {
                 self.build_for_range(*var, *start, *stop, *step, body);
             }
+            StmtKind::Raise { value, cause } => {
+                let value_op = value.map(|e| {
+                    let ty = self.expr_builder().ty_of(e);
+                    let raw = self.expr_builder().build_expr(e);
+                    self.expr_builder().coerce(raw, &ty, &MirType::Dynamic)
+                });
+                let cause_op = cause.map(|e| {
+                    let ty = self.expr_builder().ty_of(e);
+                    let raw = self.expr_builder().build_expr(e);
+                    self.expr_builder().coerce(raw, &ty, &MirType::Dynamic)
+                });
+                self.terminate_current(Terminator::Raise {
+                    value: value_op,
+                    cause: cause_op,
+                });
+            }
             StmtKind::Pass => {}
         }
     }

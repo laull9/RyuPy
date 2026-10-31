@@ -131,6 +131,10 @@ fn dump_basic_block(
         Terminator::Return(Some(op)) => {
             writeln!(out, "return {};", format_operand(op)).unwrap();
         }
+        Terminator::Raise { value, cause } => {
+            let _ = (value, cause);
+            writeln!(out, "raise;").unwrap();
+        }
         Terminator::Unreachable => {
             writeln!(out, "unreachable;").unwrap();
         }

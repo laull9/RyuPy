@@ -251,7 +251,12 @@ impl<'a> ExprBuilder<'a> {
     }
 
     /// 生成一次运行时调用并把结果存进临时变量。
-    fn runtime_call(&mut self, rt_fn: RuntimeFn, args: Vec<Operand>, ret: MirType) -> Operand {
+    pub(crate) fn runtime_call(
+        &mut self,
+        rt_fn: RuntimeFn,
+        args: Vec<Operand>,
+        ret: MirType,
+    ) -> Operand {
         let dest = self.alloc_temp(ret);
         self.push_stmt(Statement::Assign {
             dest,

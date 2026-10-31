@@ -303,6 +303,10 @@ pub enum RuntimeFn {
     DynToInt,
     DynToFloat,
     DynAbs,
+    /// `PyOps.MakeException(string, object)`：构造异常对象。
+    MakeException,
+    /// `PyOps.WithCause(object, object)`：给异常挂显式原因。
+    WithCause,
     /// `PyCast.RangeStep`：动态步长拆箱为 i64，且为 0 时报 ValueError。
     RangeStep,
     /// `PyCast.*`：动态值拆箱到静态槽位。
@@ -321,6 +325,11 @@ pub enum Terminator {
         else_: BlockId,
     },
     Return(Option<Operand>),
+    /// `raise exc [from cause]`：抛出后当前块结束。
+    Raise {
+        value: Option<Operand>,
+        cause: Option<Operand>,
+    },
     /// 构建期间的占位，验证阶段不允许残留。
     Unreachable,
 }

@@ -130,6 +130,12 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res.push_method_reference(method_ref! { static string @pycast_type::ToStr(object) });
     let range_step =
         res.push_method_reference(method_ref! { static long @pycast_type::RangeStep(object) });
+    let make_exception = res.push_method_reference(
+        method_ref! { static object @pyops_type::MakeException(string, object) },
+    );
+    let with_cause = res.push_method_reference(
+        method_ref! { static object @pyops_type::WithCause(object, object) },
+    );
 
     let runtime_refs = RuntimeRefs {
         write_i64,
@@ -164,6 +170,8 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         cast_to_bool,
         cast_to_str,
         range_step,
+        make_exception,
+        with_cause,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(

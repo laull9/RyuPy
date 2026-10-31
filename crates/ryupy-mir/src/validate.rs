@@ -85,6 +85,14 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
             }
 
             match &block.terminator {
+                Terminator::Raise { value, cause } => {
+                    if let Some(v) = value {
+                        validate_operand(func, block_id, v, &mut errors);
+                    }
+                    if let Some(c) = cause {
+                        validate_operand(func, block_id, c, &mut errors);
+                    }
+                }
                 Terminator::Unreachable => {
                     if is_reachable {
                         errors.push(format!(

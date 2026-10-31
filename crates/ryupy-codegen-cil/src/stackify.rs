@@ -77,6 +77,8 @@ pub struct RuntimeRefs {
     pub cast_to_f64: MethodRefIndex,
     pub cast_to_bool: MethodRefIndex,
     pub cast_to_str: MethodRefIndex,
+    pub make_exception: MethodRefIndex,
+    pub with_cause: MethodRefIndex,
     pub range_step: MethodRefIndex,
 }
 
@@ -135,7 +137,7 @@ pub fn lower_function(
                     worklist.push(*else_);
                 }
             }
-            Terminator::Return(_) | Terminator::Unreachable => {}
+            Terminator::Return(_) | Terminator::Raise { .. } | Terminator::Unreachable => {}
         }
     }
 
@@ -234,6 +236,31 @@ pub fn lower_function(
                 let pos_else = instructions.len();
                 instructions.push(Instruction::Branch(0)); // 占位
                 pending_targets.push(PendingTarget::Branch(pos_else, *else_));
+            }
+            Terminator::Raise { value, cause } => {
+                match value {
+                    Some(v) => lower_operand(
+                        v,
+                        &mut instructions,
+                        &param_slots,
+                        &local_slots,
+                        runtime_refs,
+                    ),
+                    None => {
+                        instructions.push(Instruction::call(runtime_refs.dyn_none));
+                    }
+                }
+                if let Some(c) = cause {
+                    lower_operand(
+                        c,
+                        &mut instructions,
+                        &param_slots,
+                        &local_slots,
+                        runtime_refs,
+                    );
+                    instructions.push(Instruction::call(runtime_refs.with_cause));
+                }
+                instructions.push(Instruction::Throw);
             }
             Terminator::Unreachable => {}
         }
@@ -445,6 +472,12 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                         ins.push(Instruction::call(ctx.runtime_refs.dyn_to_float))
                     }
                     RuntimeFn::DynAbs => ins.push(Instruction::call(ctx.runtime_refs.dyn_abs)),
+                    RuntimeFn::MakeException => {
+                        ins.push(Instruction::call(ctx.runtime_refs.make_exception))
+                    }
+                    RuntimeFn::WithCause => {
+                        ins.push(Instruction::call(ctx.runtime_refs.with_cause))
+                    }
                     RuntimeFn::RangeStep => {
                         ins.push(Instruction::call(ctx.runtime_refs.range_step))
                     }

@@ -354,6 +354,14 @@ impl FunctionChecker<'_> {
                     self.check_stmt(s);
                 }
             }
+            StmtKind::Raise { value, cause } => {
+                if let Some(v) = value {
+                    self.check_expr(*v);
+                }
+                if let Some(c) = cause {
+                    self.check_expr(*c);
+                }
+            }
             StmtKind::Break | StmtKind::Continue => {}
         }
     }
