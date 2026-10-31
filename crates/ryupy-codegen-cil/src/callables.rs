@@ -81,8 +81,58 @@ pub(crate) fn emit_thunk(
 
     let object_type = refs.object_type.clone();
     let object_array: MethodType = BaseType::vector(object_type.clone()).into();
-    // 1. bound = PyBinder.Bind(sig, args, kwNames, kwValues, defaults)
-    let mut ins = vec![
+    let total = func.params.len();
+    let simple_positional = func.param_meta.iter().all(|p| {
+        matches!(
+            p.kind,
+            ryupy_mir::ParamKind::PositionalOnly | ryupy_mir::ParamKind::PositionalOrKeyword
+        )
+    });
+
+    let mut ins = Vec::new();
+    let mut fast_branches = Vec::new();
+
+    // 快路径：参数个数正好、没有关键字。常见调用不必进入 `PyBinder.Bind`
+    // （少一次调用帧，对递归深度与热路径都有明显收益）。
+    if simple_positional {
+        // if (args.Length != total) goto slow
+        ins.push(Instruction::LoadArgument(0));
+        ins.push(Instruction::LoadLength);
+        ins.push(Instruction::Convert(ConversionType::Int32));
+        ins.push(Instruction::LoadConstantInt32(total as i32));
+        fast_branches.push(ins.len());
+        ins.push(Instruction::BranchNotEqual(0));
+        // if (kwNames.Length != 0) goto slow
+        ins.push(Instruction::LoadArgument(1));
+        ins.push(Instruction::LoadLength);
+        ins.push(Instruction::Convert(ConversionType::Int32));
+        ins.push(Instruction::LoadConstantInt32(0));
+        fast_branches.push(ins.len());
+        ins.push(Instruction::BranchNotEqual(0));
+
+        for (index, param) in func.params.iter().enumerate() {
+            ins.push(Instruction::LoadArgument(0));
+            ins.push(Instruction::LoadConstantInt32(index as i32));
+            ins.push(Instruction::LoadElement {
+                skip_range_check: false,
+                skip_null_check: false,
+                param0: object_type.clone(),
+            });
+            let ty = func.body.locals[*param].ty.clone();
+            unbox_parameter(&mut ins, &ty, refs, class_types);
+        }
+        ins.push(Instruction::call(static_method));
+        emit_box_return(&mut ins, func, refs, class_types);
+        ins.push(Instruction::Return);
+    }
+
+    let slow_start = ins.len();
+    for branch in fast_branches {
+        ins[branch] = Instruction::BranchNotEqual(slow_start);
+    }
+
+    // 慢路径：完整 Python 参数绑定。
+    ins.extend([
         Instruction::LoadStaticField {
             volatile: false,
             param0: FieldSource::Definition(field_of(func.signature_global, refs)),
@@ -96,9 +146,8 @@ pub(crate) fn emit_thunk(
         },
         Instruction::call(refs.bind_args),
         Instruction::StoreLocal(0),
-    ];
+    ]);
 
-    // 2. 按参数顺序拆箱
     for (index, param) in func.params.iter().enumerate() {
         ins.push(Instruction::LoadLocal(0));
         ins.push(Instruction::LoadConstantInt32(index as i32));
@@ -111,28 +160,55 @@ pub(crate) fn emit_thunk(
         unbox_parameter(&mut ins, &ty, refs, class_types);
     }
 
-    // 3. 调用静态方法
     ins.push(Instruction::call(static_method));
-
-    // 4. 装箱返回值
-    match &func.ret {
-        MirType::Unit => {
-            ins.push(Instruction::call(refs.dyn_none));
-        }
-        MirType::I64 | MirType::F64 | MirType::Bool => {
-            if let Some(method_ty) = crate::types::mir_type_to_method_type(&func.ret, class_types) {
-                ins.push(Instruction::BoxValue(method_ty));
-            }
-        }
-        // 引用类型 / Dynamic 已经是 object，无需装箱
-        _ => {}
-    }
+    emit_box_return(&mut ins, func, refs, class_types);
     ins.push(Instruction::Return);
 
     let mut body = body::Method::with_locals(vec![LocalVariable::new(object_array)], ins);
     body.header.maximum_stack_size = func.params.len() + 8;
     res[method_idx].body = Some(body);
     method_idx
+}
+
+/// 函数体是否调用过内建 `super()`；用于决定方法调用是否需要维护上下文。
+fn function_uses_super(func: &Function) -> bool {
+    func.body.blocks.iter().any(|(_, block)| {
+        block.stmts.iter().any(|stmt| match stmt {
+            ryupy_mir::Statement::Assign {
+                value: ryupy_mir::Rvalue::Call { callee, args },
+                ..
+            }
+            | ryupy_mir::Statement::Eval(ryupy_mir::Rvalue::Call { callee, args }) => {
+                matches!(
+                    callee,
+                    ryupy_mir::Callee::Runtime(ryupy_mir::RuntimeFn::DynBuiltin)
+                ) && matches!(
+                    args.first(),
+                    Some(ryupy_mir::Operand::Const(ryupy_mir::Constant::Str(name)))
+                        if name == "super"
+                )
+            }
+            _ => false,
+        })
+    })
+}
+
+/// 把静态方法的返回值装箱成 `object`（`Unit` 转 None）。
+fn emit_box_return(
+    ins: &mut Vec<Instruction>,
+    func: &Function,
+    refs: &RuntimeRefs,
+    class_types: &ClassTypeMap,
+) {
+    match &func.ret {
+        MirType::Unit => ins.push(Instruction::call(refs.dyn_none)),
+        MirType::I64 | MirType::F64 | MirType::Bool => {
+            if let Some(method_ty) = crate::types::mir_type_to_method_type(&func.ret, class_types) {
+                ins.push(Instruction::BoxValue(method_ty));
+            }
+        }
+        _ => {}
+    }
 }
 
 /// 生成 `__init_functions`：分配默认值数组、签名与函数对象。
@@ -221,6 +297,9 @@ pub(crate) fn emit_init_functions(
             volatile: false,
             param0: FieldSource::Definition(defaults_field),
         });
+        ins.push(Instruction::LoadConstantInt32(
+            if function_uses_super(func) { 1 } else { 0 },
+        ));
         ins.push(Instruction::NewObject(UserMethod::Reference(
             refs.py_function_ctor,
         )));

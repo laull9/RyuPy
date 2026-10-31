@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace RyuPy.Runtime;
@@ -40,12 +41,34 @@ public sealed class PySignature
     /// <summary>该位置是否有默认值。</summary>
     public bool[] HasDefault { get; }
 
+    /// <summary>
+    /// 是否只有普通位置参数（没有 `*args` / `**kwargs` / 仅关键字参数）。
+    /// 这类签名的位置调用可以走无分配快路径。
+    /// </summary>
+    public bool SimplePositional { get; }
+
+    /// <summary>没有默认值的位置参数个数。</summary>
+    public int RequiredCount { get; }
+
     private PySignature(string name, string[] names, PyParamKind[] kinds, bool[] hasDefault)
     {
         Name = name;
         Names = names;
         Kinds = kinds;
         HasDefault = hasDefault;
+        SimplePositional = true;
+        RequiredCount = 0;
+        for (int i = 0; i < kinds.Length; i++)
+        {
+            if (kinds[i] is not (PyParamKind.PositionalOnly or PyParamKind.PositionalOrKeyword))
+            {
+                SimplePositional = false;
+            }
+            if (!hasDefault[i])
+            {
+                RequiredCount++;
+            }
+        }
     }
 
     /// <summary>由生成的模块初始化代码构造。</summary>
@@ -108,6 +131,37 @@ public static class PyBinder
         object?[] defaults
     )
     {
+        // 常见路径：只有普通位置参数、没有关键字实参。此时不需要 filled / 位置槽列表，
+        // 参数按顺序一一对应；实参正好占满时直接复用调用方数组（只读）。
+        if (signature.SimplePositional && kwNames.Length == 0)
+        {
+            int total = signature.Names.Length;
+            if (args.Length > total)
+            {
+                throw TooManyPositionals(signature, total, args.Length);
+            }
+            if (args.Length < signature.RequiredCount)
+            {
+                var missing = new List<string>();
+                for (int i = args.Length; i < signature.RequiredCount; i++)
+                {
+                    missing.Add(signature.Names[i]);
+                }
+                throw MissingArguments(signature, missing, "positional");
+            }
+            if (args.Length == total)
+            {
+                return args;
+            }
+            var fastBound = new object?[total];
+            Array.Copy(args, fastBound, args.Length);
+            for (int i = args.Length; i < total; i++)
+            {
+                fastBound[i] = defaults[i];
+            }
+            return fastBound;
+        }
+
         int count = signature.Names.Length;
         var bound = new object?[count];
         var filled = new bool[count];
@@ -309,16 +363,27 @@ public sealed class PyFunction
     /// <summary>默认值数组，与参数下标对齐。</summary>
     public object?[] Defaults { get; }
 
+    /// <summary>函数体是否调用过 `super()`；只有这类函数需要维护方法上下文。</summary>
+    public bool UsesSuper { get; }
+
     /// <summary>构造函数对象。</summary>
-    public PyFunction(string name, PySignature signature, PyCall body, object?[] defaults)
+    public PyFunction(
+        string name,
+        PySignature signature,
+        PyCall body,
+        object?[] defaults,
+        bool usesSuper = true
+    )
     {
         Name = name;
         Signature = signature;
         Body = body;
         Defaults = defaults;
+        UsesSuper = usesSuper;
     }
 
     /// <summary>用已展开的实参调用。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues) =>
         Body(args, kwNames, kwValues);
 

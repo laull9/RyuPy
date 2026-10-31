@@ -5,7 +5,8 @@
 
 - `fib.py`：`fib_rec(30)` + 20 万次 `fib_iter(90)`（静态数值路径）；
 - `mandelbrot.py`：Mandelbrot 内部区域 240×120、1000 次上限（静态浮点路径）；
-- `dynamic.py`：300 万次动态加法 + 200 万次方法调用（PIC 目标路径）。
+- `dynamic.py`：300 万次动态加法 + 200 万次方法调用（PIC 目标路径）；
+- `containers.py`：列表 append、字典读写与字符串拼接（容器 / 不可变字符串路径）。
 
 脚本先构建 Release CLI 与每个基准的 DLL，再用 `python3` / `dotnet` 各跑 5 次取中位数。
 动态基准额外对比 `RYUPY_PIC=0`，用于确认 PIC 的收益；收益不足时应把默认值改回关闭。

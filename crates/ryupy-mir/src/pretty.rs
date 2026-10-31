@@ -286,6 +286,25 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
             let sep = if prefix_str.is_empty() { "" } else { ", " };
             format!("{callee:?}({prefix_str}{sep}[{args_str}])")
         }
+        Rvalue::DynCallValue { callee, args } => {
+            let args_str = args
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("dyn.call({}, [{args_str}])", format_operand(callee))
+        }
+        Rvalue::DynCallMethod { obj, name, args } => {
+            let args_str = args
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                "dyn.method({}, \"{name}\", [{args_str}])",
+                format_operand(obj)
+            )
+        }
         Rvalue::CatchException => "caught_exception".to_string(),
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace RyuPy.Runtime;
 
@@ -57,7 +58,47 @@ public sealed class PyClass
 
     private readonly Dictionary<string, CacheEntry> _cache = new(StringComparer.Ordinal);
 
-    private readonly record struct CacheEntry(long Version, PyClass Owner, object? Value);
+    private readonly record struct CacheEntry(
+        long Version,
+        bool Found,
+        PyClass? Owner,
+        object? Value
+    );
+
+    /// <summary>属性查找缓存的版本与本类链是否含 property 的结果。</summary>
+    private long _propertyVersion = -1;
+    private bool _propertyFlag;
+
+    /// <summary>
+    /// 本类链是否定义过 <see cref="PyProperty"/>。大多数类没有描述符，属性读写可以
+    /// 直接跳过「数据描述符优先」的查找。
+    /// </summary>
+    public bool HasProperties
+    {
+        get
+        {
+            long version = _globalVersion;
+            if (_propertyVersion == version)
+            {
+                return _propertyFlag;
+            }
+            bool found = false;
+            for (PyClass? current = this; current is not null && !found; current = current.BaseClass)
+            {
+                foreach (object? value in current.Attributes.Values)
+                {
+                    if (value is PyProperty)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            _propertyVersion = version;
+            _propertyFlag = found;
+            return found;
+        }
+    }
 
     /// <summary>创建一个类对象。</summary>
     public PyClass(string name) => Name = name;
@@ -88,6 +129,41 @@ public sealed class PyClass
         Version = ++_globalVersion;
     }
 
+    /// <summary>实例属性名 → 槽位下标；槽位只追加，不重排。</summary>
+    private Dictionary<string, int>? _instanceSlots;
+
+    /// <summary>已分配的实例属性槽位数。</summary>
+    public int InstanceSlotCount { get; private set; }
+
+    /// <summary>查找实例属性槽位；没有分配过时返回 <c>false</c>。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetInstanceSlot(string name, out int slot)
+    {
+        if (_instanceSlots is null)
+        {
+            slot = -1;
+            return false;
+        }
+        return _instanceSlots.TryGetValue(name, out slot);
+    }
+
+    /// <summary>
+    /// 取或分配实例属性槽位。新增槽位会让类版本递增，使方法 PIC 重新确认遮蔽关系。
+    /// </summary>
+    public int GetOrAddInstanceSlot(string name)
+    {
+        _instanceSlots ??= new Dictionary<string, int>(StringComparer.Ordinal);
+        if (_instanceSlots.TryGetValue(name, out int slot))
+        {
+            return slot;
+        }
+        slot = InstanceSlotCount++;
+        _instanceSlots[name] = slot;
+        // 新增槽位可能让 `name` 从「类属性」变成「可被实例遮蔽」，方法缓存需要失效。
+        Touch();
+        return slot;
+    }
+
     /// <summary>
     /// 沿类链查找原始属性（不绑定、不调用 property）。
     /// </summary>
@@ -100,19 +176,28 @@ public sealed class PyClass
         long version = _globalVersion;
         if (_cache.TryGetValue(name, out CacheEntry cached) && cached.Version == version)
         {
-            owner = cached.Owner;
+            if (!cached.Found)
+            {
+                owner = null!;
+                value = null;
+                return false;
+            }
+            owner = cached.Owner!;
             value = cached.Value;
             return true;
         }
+        if (_cache.Count >= CacheLimit)
+        {
+            _cache.Clear();
+        }
         if (Walk(this, name, out owner, out value))
         {
-            if (_cache.Count >= CacheLimit)
-            {
-                _cache.Clear();
-            }
-            _cache[name] = new CacheEntry(version, owner, value);
+            _cache[name] = new CacheEntry(version, true, owner, value);
             return true;
         }
+        // 负结果也缓存：实例属性读取会先查 property，普通类没有同名类属性时
+        // 每次沿继承链走一遍是纯浪费。
+        _cache[name] = new CacheEntry(version, false, null, null);
         return false;
     }
 
@@ -200,14 +285,52 @@ public sealed class PyInstance
     /// <summary>所属类。</summary>
     public PyClass Class { get; }
 
-    /// <summary>实例属性。</summary>
-    public Dictionary<string, object?> Attributes { get; } = new(StringComparer.Ordinal);
+    /// <summary>按类槽位表存放的实例属性；未赋值的槽位是 <see cref="PyUnbound.Instance"/>。</summary>
+    private object?[] _slots = [];
 
-    /// <summary>实例属性修改次数；PIC 用它判断属性查找缓存是否过期。</summary>
-    public long Version { get; private set; }
+    /// <summary>读取槽位；越界、<c>null</c> 与未赋值哨兵都视为不存在。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryGetSlot(int slot, out object? value)
+    {
+        if ((uint)slot < (uint)_slots.Length)
+        {
+            object? current = _slots[slot];
+            if (current is not null && !ReferenceEquals(current, PyUnbound.Instance))
+            {
+                value = current;
+                return true;
+            }
+        }
+        value = null;
+        return false;
+    }
 
-    /// <summary>实例属性发生变化时递增版本。</summary>
-    internal void Touch() => Version++;
+    /// <summary>判断槽位是否已经赋过值。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal bool IsSlotSet(int slot) =>
+        (uint)slot < (uint)_slots.Length
+        && _slots[slot] is not null
+        && !ReferenceEquals(_slots[slot], PyUnbound.Instance);
+
+    /// <summary>写入槽位，必要时扩容。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void SetSlot(int slot, object? value)
+    {
+        if ((uint)slot >= (uint)_slots.Length)
+        {
+            Array.Resize(ref _slots, Math.Max(slot + 1, Math.Max(4, _slots.Length * 2)));
+        }
+        _slots[slot] = value;
+    }
+
+    /// <summary>删除槽位里的值。</summary>
+    internal void ClearSlot(int slot)
+    {
+        if ((uint)slot < (uint)_slots.Length)
+        {
+            _slots[slot] = PyUnbound.Instance;
+        }
+    }
 
     /// <summary>创建实例。</summary>
     public PyInstance(PyClass cls) => Class = cls;
@@ -312,26 +435,28 @@ public sealed class PySuper
 public static class PyMethodContext
 {
     [ThreadStatic]
-    private static PySuper? _current;
+    private static PyClass? _owner;
 
-    /// <summary>执行一个绑定方法；期间登记上下文供 `super()` 使用。</summary>
-    public static object? Run(PyClass owner, object? self, Func<object?> body)
+    [ThreadStatic]
+    private static object? _self;
+
+    /// <summary>当前方法定义类；没有正在执行的方法时为 <c>null</c>。</summary>
+    internal static PyClass? CurrentOwner => _owner;
+
+    /// <summary>当前接收者。</summary>
+    internal static object? CurrentSelf => _self;
+
+    /// <summary>设置当前方法上下文（调用方负责在 finally 中恢复旧值）。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void SetCurrent(PyClass? owner, object? self)
     {
-        PySuper? previous = _current;
-        _current = new PySuper(owner, self);
-        try
-        {
-            return body();
-        }
-        finally
-        {
-            _current = previous;
-        }
+        _owner = owner;
+        _self = self;
     }
 
-    /// <summary>零参数 `super()`。</summary>
+    /// <summary>零参数 `super()`；只在真正调用时分配代理对象。</summary>
     public static object MakeSuper() =>
-        _current ?? throw new PyRuntimeError("super(): no arguments");
+        _owner is null ? throw new PyRuntimeError("super(): no arguments") : new PySuper(_owner, _self);
 }
 
 /// <summary>codegen 为每个用户异常类生成的 CLR 工厂委托。</summary>

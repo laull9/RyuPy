@@ -87,10 +87,17 @@ pub struct RuntimeRefs {
     pub dyn_compare: MethodRefIndex,
     pub dyn_unary: MethodRefIndex,
     pub pic_binary: MethodRefIndex,
-    pub pic_call_value: MethodRefIndex,
-    pub pic_call_method: MethodRefIndex,
+    pub call_value: MethodRefIndex,
+    pub pic_call_value: [MethodRefIndex; 4],
+    pub pic_call_method: [MethodRefIndex; 4],
+    pub pic_get_attr: MethodRefIndex,
+    pub pic_set_attr: MethodRefIndex,
     pub dyn_truthy: MethodRefIndex,
     pub dyn_none: MethodRefIndex,
+    /// `PyOps.EmptyArray()`：共享空 `object[]`，避免每次无关键字调用都 `newarr`。
+    pub empty_array: MethodRefIndex,
+    /// 动态数值字面量池：`Rvalue::Box` 直接复用静态字段里的装箱对象。
+    pub literal_fields: FxHashMap<String, FieldIndex>,
     pub dyn_from_decimal: MethodRefIndex,
     pub dyn_to_int: MethodRefIndex,
     pub dyn_to_float: MethodRefIndex,
@@ -113,7 +120,6 @@ pub struct RuntimeRefs {
     pub load_name: MethodRefIndex,
     pub dyn_str: MethodRefIndex,
     pub dyn_type: MethodRefIndex,
-    pub dyn_get_attr: MethodRefIndex,
     pub trace_push: MethodRefIndex,
     pub trace_line: MethodRefIndex,
     pub trace_pop_to: MethodRefIndex,
@@ -594,6 +600,10 @@ fn lower_operand(
             }
         }
         Operand::Array(items) => {
+            if items.is_empty() {
+                ins.push(Instruction::call(refs.empty_array));
+                return;
+            }
             let object_type = refs.object_type.clone();
             ins.push(Instruction::LoadConstantInt32(items.len() as i32));
             ins.push(Instruction::NewArray(object_type.clone()));
@@ -630,6 +640,10 @@ fn lower_operand(
 ///
 /// 容器构造、方法调用与内建调用都用它，因此只写一份。
 fn lower_object_array(args: &[Operand], ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
+    if args.is_empty() {
+        ins.push(Instruction::call(ctx.runtime_refs.empty_array));
+        return;
+    }
     let object_type = ctx.runtime_refs.object_type.clone();
     ins.push(Instruction::LoadConstantInt32(args.len() as i32));
     ins.push(Instruction::NewArray(object_type.clone()));
@@ -791,7 +805,12 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             // 动态调用把调用点编号作为第一个实参，运行时据此做有界内联缓存。
             if matches!(
                 callee,
-                Callee::Runtime(RuntimeFn::CallValue | RuntimeFn::CallMethod)
+                Callee::Runtime(
+                    RuntimeFn::CallValue
+                        | RuntimeFn::CallMethod
+                        | RuntimeFn::DynGetAttr
+                        | RuntimeFn::SetAttr
+                )
             ) {
                 let site = ctx.next_site();
                 ins.push(Instruction::LoadConstantInt32(site));
@@ -835,7 +854,7 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
                     RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
                     RuntimeFn::CallValue => {
-                        ins.push(Instruction::call(ctx.runtime_refs.pic_call_value))
+                        ins.push(Instruction::call(ctx.runtime_refs.call_value))
                     }
                     RuntimeFn::TypeObject => {
                         ins.push(Instruction::call(ctx.runtime_refs.type_object))
@@ -901,7 +920,10 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::DynStr => ins.push(Instruction::call(ctx.runtime_refs.dyn_str)),
                     RuntimeFn::DynType => ins.push(Instruction::call(ctx.runtime_refs.dyn_type)),
                     RuntimeFn::DynGetAttr => {
-                        ins.push(Instruction::call(ctx.runtime_refs.dyn_get_attr))
+                        ins.push(Instruction::call(ctx.runtime_refs.pic_get_attr))
+                    }
+                    RuntimeFn::SetAttr => {
+                        ins.push(Instruction::call(ctx.runtime_refs.pic_set_attr))
                     }
                     RuntimeFn::LoadChecked => {
                         ins.push(Instruction::call(ctx.runtime_refs.load_checked))
@@ -914,7 +936,7 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                         ins.push(Instruction::call(ctx.runtime_refs.import_attr))
                     }
                     RuntimeFn::CallMethod => {
-                        ins.push(Instruction::call(ctx.runtime_refs.pic_call_method))
+                        ins.push(Instruction::call(ctx.runtime_refs.call_method))
                     }
                     // 容器相关的调用与 CallWithArgs 走同一张表
                     RuntimeFn::MakeList
@@ -938,7 +960,6 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     | RuntimeFn::IterNextOk
                     | RuntimeFn::IterValue
                     | RuntimeFn::MakeClass
-                    | RuntimeFn::SetAttr
                     | RuntimeFn::DelAttr
                     | RuntimeFn::Decorate => {
                         ins.push(Instruction::call(runtime_method(*rt_fn, ctx.runtime_refs)))
@@ -974,6 +995,17 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             ins.push(Instruction::NewObject(ctor.into()));
         }
         Rvalue::Box { value, from } => {
+            // 数值字面量只装箱一次：模块初始化时存进静态字段，循环里直接读。
+            if let Operand::Const(constant) = value
+                && let Some(field) = boxed_literal_key(constant, from)
+                    .and_then(|key| ctx.runtime_refs.literal_fields.get(&key).copied())
+            {
+                ins.push(Instruction::LoadStaticField {
+                    volatile: false,
+                    param0: FieldSource::Definition(field),
+                });
+                return;
+            }
             lower_operand(
                 value,
                 ins,
@@ -1059,6 +1091,35 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             );
             ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy));
         }
+        Rvalue::DynCallValue { callee, args } => {
+            let site = ctx.next_site();
+            ins.push(Instruction::LoadConstantInt32(site));
+            lower_operand(
+                callee,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            for arg in args {
+                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            }
+            ins.push(Instruction::call(
+                ctx.runtime_refs.pic_call_value[args.len()],
+            ));
+        }
+        Rvalue::DynCallMethod { obj, name, args } => {
+            let site = ctx.next_site();
+            ins.push(Instruction::LoadConstantInt32(site));
+            lower_operand(obj, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            ins.push(Instruction::load_string(name.clone()));
+            for arg in args {
+                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            }
+            ins.push(Instruction::call(
+                ctx.runtime_refs.pic_call_method[args.len()],
+            ));
+        }
         Rvalue::CallWithArgs {
             callee,
             prefix,
@@ -1073,11 +1134,7 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 lower_operand(op, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
             lower_object_array(args, ins, ctx);
-            let method = if is_method_call {
-                ctx.runtime_refs.pic_call_method
-            } else {
-                runtime_method(*callee, ctx.runtime_refs)
-            };
+            let method = runtime_method(*callee, ctx.runtime_refs);
             ins.push(Instruction::call(method));
         }
         Rvalue::CatchException => {
@@ -1100,5 +1157,44 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 param0: field_idx.into(),
             });
         }
+    }
+}
+
+/// 可池化的动态数值字面量。
+#[derive(Clone, Debug)]
+pub(crate) enum LiteralInit {
+    I64(i64),
+    F64(f64),
+    Bool(bool),
+    BigInt(String),
+}
+
+/// 为 `Box` 的常量生成稳定的池键；不是数值字面量时返回 `None`。
+pub(crate) fn boxed_literal_key(
+    constant: &MirConstant,
+    from: &ryupy_mir::MirType,
+) -> Option<String> {
+    use ryupy_mir::MirType;
+    match (from, constant) {
+        (MirType::I64, MirConstant::I64(v)) => Some(format!("i:{v}")),
+        (MirType::F64, MirConstant::F64(v)) => Some(format!("f:{:016x}", v.to_bits())),
+        (MirType::Bool, MirConstant::Bool(v)) => Some(format!("b:{v}")),
+        (MirType::Dynamic, MirConstant::BigInt(text)) => Some(format!("n:{text}")),
+        _ => None,
+    }
+}
+
+/// 生成池条目的初始化值；与 [`boxed_literal_key`] 一一对应。
+pub(crate) fn boxed_literal_init(
+    constant: &MirConstant,
+    from: &ryupy_mir::MirType,
+) -> Option<LiteralInit> {
+    use ryupy_mir::MirType;
+    match (from, constant) {
+        (MirType::I64, MirConstant::I64(v)) => Some(LiteralInit::I64(*v)),
+        (MirType::F64, MirConstant::F64(v)) => Some(LiteralInit::F64(*v)),
+        (MirType::Bool, MirConstant::Bool(v)) => Some(LiteralInit::Bool(*v)),
+        (MirType::Dynamic, MirConstant::BigInt(text)) => Some(LiteralInit::BigInt(text.clone())),
+        _ => None,
     }
 }

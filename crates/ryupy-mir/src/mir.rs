@@ -322,6 +322,21 @@ pub enum Rvalue {
         prefix: Vec<Operand>,
         args: Vec<Operand>,
     },
+    /// 动态位置调用：`callee(arg0, arg1, ...)`，没有关键字、`*`、`**`。
+    ///
+    /// 参数个数在编译期已知且较少（≤ 3），codegen 可以走 `PyPic.CallValueN`，
+    /// 由运行时复用调用点数组，避免每次调用分配 `object[]`。语义与
+    /// `CallValue(callee, [args], [], [])` 完全相同。
+    DynCallValue {
+        callee: Operand,
+        args: Vec<Operand>,
+    },
+    /// 动态方法位置调用：`obj.name(arg0, ...)`，没有关键字与展开实参。
+    DynCallMethod {
+        obj: Operand,
+        name: String,
+        args: Vec<Operand>,
+    },
     /// 异常处理入口处的「捕获到的异常对象」。
     ///
     /// CIL 在把控制权交给 catch 子句时会把异常对象压栈，所以这条 rvalue 本身不发射

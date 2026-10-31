@@ -60,6 +60,14 @@ public class PyPicTests
         Assert.Equal("ab", PyPic.Binary(1_000_000, PyOps.Add, "a", "b"));
         PyFunction function = Fn("f", _ => "ok");
         Assert.Equal("ok", PyPic.CallValue(1_000_000, function, [null], [], []));
+        // 专用入口同样不能越界访问调用点数组。
+        PyFunction identity = Fn("identity", args => args[0]);
+        Assert.Equal(5L, PyPic.CallValue1(1_000_000, identity, 5L));
+
+        PyClass cls = NewClass("Counter");
+        cls.SetAttr("echo", Fn("echo", args => args[1]));
+        var instance = (PyInstance)cls.Invoke([], [], [])!;
+        Assert.Equal(7L, PyPic.CallMethod1(1_000_000, instance, "echo", 7L));
     }
 
     [Fact]
