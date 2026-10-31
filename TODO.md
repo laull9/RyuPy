@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.11 全部完成（含模块、`with`、项目切片、PIC 与动态热路径优化），下一步 Phase 3 M3.0 闭包、lambda 与 nonlocal。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），下一步 Phase 3 M3.0 闭包、lambda 与 nonlocal。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -335,6 +335,29 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 语义不变：e2e / 快照 / xUnit / `make check` 全绿；新增 `containers` 基准登记容器与
       字符串拼接的剩余差距（字符串拼接受 .NET 不可变字符串限制）
 
+### M2.12 基准体系与动态路径第二轮优化 ✅
+
+> 把 `make bench` 从 4 个基准扩成按类别组织、可剖析、可对比的基准体系，再按剖析结果优化动态热路径。
+> 设计、测量与边界见 [ADR-0014](docs/adr/0014-benchmark-suite-and-dynamic-hot-paths.md)。
+> 用例：`m2_12_sequence_inplace.py`、`m2_12_identity_sort_cache.py`；xUnit：`HotPathTests`。
+
+- [x] 基准体系：`tests/benchmarks/` 22 个可运行基准 + 4 个 Phase 3 pending 基准，文件头 `# bench:` 声明类别 /
+      说明 / 变体 / pending；`tests/benchlib/` 负责发现、测量、报告、剖析
+- [x] 测量口径：墙钟（含启动）与进程内执行耗时分开；RyuPy 记录托管分配、GC 次数 / 暂停、JIT 耗时 / 方法数
+      （`RYUPY_STATS`，`PyStats.cs`），双方记录峰值内存与编译耗时；类别 / 总体几何平均
+- [x] 入口：`make bench` / `bench-quick` / `bench-list` / `bench-save` / `bench-compare` / `bench-profile`；
+      结果写 `<target>/bench/results/*.json`，`--compare` 逐项对比；`--profile` 用 dotnet-trace 输出热点函数表
+- [x] 语义补齐（基准暴露）：序列 `+` / `*`、增量赋值原地语义、增量赋值目标只求值一次、
+      `True` / 小整数的 `is`、排序只用 `<`
+- [x] 优化：动态函数编译期可绑定时直调；i64 溢出检测去掉异常；比较 / 相等 / 二元运算数值快路径；
+      `TryMethod` 不再为内建值分配实参数组；bool 单例与小整数装箱缓存；排序改为数组上的二分插入 + 归并
+- [x] PIC：修复「同一站点总写同一格」导致的实际单态缓存，改为每站点 4 条轮转；属性写入不再因类上有
+      其它 property 而整类放弃缓存；新增 property getter、类属性值、`super().method()` 缓存；实例槽位预分配
+- [x] 运行时文件按职责拆分（`PyCompare` / `PySequenceOps` / `PyTextMethods` / `PyBytes` / `PyPicMethods` /
+      `PyPicAttrs`），全部 ≤ 600 行；HIR 增量赋值降级拆到 `aug_assign.rs`
+- [x] 验收：几何平均加速比（CPython / RyuPy）0.40x → 0.53x，RyuPy 自身 1.35x（明细见 ADR-0014）；
+      e2e / 快照 / xUnit / `make check` 全绿
+
 ## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 
 阶段目标：固定纯 Python 项目集至少 80% 原生通过。标准库按 [stdlib.md](docs/stdlib.md) 的 API 批次实施，C# 重写与适配按万行级工程安排；以下里程碑必须继续拆成单个 API / 行为的竖切。先解锁语言依赖，标准库基础 API 可穿插推进；桥接结果独立统计。
@@ -347,6 +370,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] mir / codegen：共享 cell 与环境类，保持读写别名、late binding、闭包递归和函数逃逸
 - [ ] 运行时 callable 接通闭包环境、默认参数和必要元数据，非捕获函数保留轻量路径
 - [ ] 验收：循环捕获、多个闭包共享修改、lambda / 默认参数差异、外层退出后继续调用和非法 nonlocal 通过
+- 准备（M2.12 留下）：`call_builder::build_user_call` 现在对静态解析为顶层 `def` 的调用直接 `call`；
+  嵌套函数 / lambda 是运行时值，必须走 `call_value`（`DynCallValue` + PIC），不要误用直调路径。
+  `benchmarks/closures.py`（pending=M3.0）转正后用 `make bench-compare` 记录闭包调用成本
 
 ### M3.1 推导式与生成器表达式作用域
 
@@ -434,6 +460,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] 逃逸分析与临时元组标量替换，验证身份、别名、副作用、异常与暂停点；逃逸时保留对象
 - [ ] 研究已知迭代器融合、循环不变量外提、容器专门化，无法证明副作用安全时保留原路径
 - [ ] 维护 Fibonacci / Mandelbrot / 矩阵乘法 / N-Body 与项目热点基准，分别记录冷启动、稳态、分配与内存；无收益的优化保持关闭
+      （基础设施已在 M2.12 就绪：`make bench` 已含这些基准与分配 / GC / JIT / 内存列，`bench-profile` 定位热点；
+      M3.9 只需按优化项补对照与守卫失败用例）
 
 ### M3.10 Phase 3 项目兼容性验收
 
@@ -499,6 +527,14 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 ## 待定 / 技术债
 
+- [ ] `%` 字符串格式化（`"%d" % x`、`%(name)s`）：日志与老代码常用，当前抛 TypeError（semantics §4 #44）
+- [ ] 类体内引用同类刚定义的函数名（`v = property(getv, setv)`）报 E0106（semantics §4 #45）
+- [ ] `MemoryError` 类型缺失：超大序列重复暂用 OverflowError 代替
+- [ ] 动态路径剩余差距（ADR-0014「仍落后」）：异常抛捕（CLR 异常成本）、`str +=` 累加（不可变 string）、
+      容器下标 / 迭代的类型分派、5 个以上实参的方法调用
+- [ ] Rust 侧超过 600 行的文件按职责拆分：`codegen-cil/assembly.rs`（~1300）、`mir/build.rs`（~1300）、
+      `codegen-cil/stackify.rs`（~1200）、`mir/expr_builder.rs`（~1100）、`hir/lower.rs`（~1000）、`ty/check.rs`、
+      `mir/call_builder.rs`、`mir/mir.rs`、`e2e/lib.rs`；M3.0–M3.2 会集中修改前五个，先拆再加功能
 - [x] `Builtins` 改为带缓冲的 writer（64 KiB），入口包装器退出前 `Flush`；错误报告前先刷新 stdout
 - [ ] `Name` 改为字符串驻留（等 profile 证明有必要）
 - [ ] 错误码登记表 `docs/errors.md`（每个错误码一个最小复现 + 说明）

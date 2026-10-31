@@ -156,7 +156,7 @@ CPython 一致的消息。
 | 28 | 静态 i64 上限（RyuPy 偏差） | 任意精度 | — | 静态特化路径的 `+ - * // % abs ** <<` 结果超出 i64 时抛 `OverflowError`，消息注明「RyuPy static integer limit」。动态路径无此限制（D003） |
 | 29 | `int ** int` 的结果类型 | 指数为负时返回 `float`（`2 ** -1 == 0.5`） | — | 指数是确定的非负字面量时走静态快速幂；否则整表达式降级为动态，由 `PyInt.Power` 按真实指数返回 int / float |
 | 30 | `for` 循环变量与 `range` 参数 | 循环变量可被循环体重写而不影响迭代；`range(...)` 参数只求值一次 | 用循环变量当计数器会破坏迭代 | 静态计数循环使用隐藏计数器：每轮开头才写用户变量，边界复制进局部变量 |
-| 31 | 排序稳定性 | `sorted` / `list.sort` 稳定；`reverse=True` 仍保持相等元素的原始顺序 | `List.Sort` 不稳定，且「排完再反转」会颠倒相等元素 | `PySort` 自底向上归并排序；降序通过反转比较实现 |
+| 31 | 排序稳定性 | `sorted` / `list.sort` 稳定；`reverse=True` 仍保持相等元素的原始顺序 | `List.Sort` 不稳定，且「排完再反转」会颠倒相等元素 | `PySort` 二分插入 + 自底向上归并（只用 `<`，见 #43）；降序通过反转「先后」判断实现 |
 | 32 | 空容器真值 | `[]`、`{}`、`""`、`set()` 为假 | 引用类型默认非空 | `PyOps.Truthy` 显式列出每种容器类型（含 dict 视图、bytes / bytearray） |
 | 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | `PyOps.UnpackCheck(length, required, hasStar)`：星号形态只检查下限，非星号形态必须精确相等 |
 | 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
@@ -164,6 +164,13 @@ CPython 一致的消息。
 | 36 | 默认值求值时机 | 在 `def` 执行时于模块作用域求值、只求值一次；可变默认值跨调用共享 | — | 默认值在定义位置（`FunctionDefaults` 语句）写进模块静态数组；`def f(x=[])` 的所有调用共享同一个 list |
 | 37 | f-string 格式说明符 | 支持嵌套插值（`f"{x:{width}}"`） | — | 当前只支持纯字面量规格；嵌套插值报 `E0100`。格式子集：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比 |
 | 38 | `id(x)` | 返回对象地址（CPython 内部细节） | — | 返回运行时的稳定身份哈希；不伪造地址，登记为 D002 的内部观测差异 |
+| 39 | 序列拼接与重复 | `[1] + [2]`、`(1,) + (2,)`、`"ab" * 3`、`3 * [0]`；只允许同类拼接，次数 ≤ 0 得空序列 | — | M2.12：`PySequenceOps` 实现 list / tuple / str / bytes / bytearray 的 `+` / `*`，错误消息按 CPython（`can only concatenate list (not "tuple") to list`、`can't multiply sequence by non-int of type 'float'`） |
+| 40 | 增量赋值的原地语义 | `a += b` 对 list 原地 `extend`，别名可见、`a is` 原对象；对 int / str / tuple 生成新对象 | 去糖成 `a = a + b` 会丢失别名 | M2.12：HIR `Binary { inplace }` → 操作码标记位 → `PyOps.InPlaceBinary`；覆盖 list / bytearray / set（`\|= &= -= ^=`）/ `__iadd__` 等，错误消息写 `+=` |
+| 41 | 增量赋值目标只求值一次 | `a[f()] += 1`、`g().x += 1` 中 `f` / `g` 只调用一次 | 读、写各降级一次会执行两遍 | M2.12：`aug_assign.rs` 把非名字 / 字面量的子表达式先求值进隐藏局部 |
+| 42 | `True` / `False` 与小整数的 `is` | `True` 是单例；[-5, 256] 的 int 被缓存，`x is 0` 为真 | 每次 `box` 都是新对象 | M2.12：bool 装箱复用单例、小整数装箱走缓存；`PyOps.Is` 对 bool 与 [-5, 256] 的 int 按值判定（不依赖装箱来源）。范围外的 int 仍按对象身份，与 CPython 一样不应依赖 |
+| 43 | 排序只用 `<` | `sorted` / `list.sort` 只调用 `__lt__`，不调用 `__eq__` | — | M2.12：`PySort` 改为只用「小于」的二分插入 + 归并；此前每次比较先 `==` 再 `<`，会多调用用户 `__eq__` |
+| 44 | `%` 字符串格式化（未支持） | `"%d-%s" % (1, "a")` | — | 当前抛 `TypeError: unsupported operand type(s) for %`；登记为待做（TODO 技术债），不静默生成近似结果 |
+| 45 | 类体内引用同类定义的函数名（未支持） | `v = property(getv, setv)` 可以读到类体里刚定义的 `getv` | — | 当前报 `E0106` 未定义名字；类体作用域的名字解析待补（TODO 技术债） |
 
 ### 4.1 未捕获异常与退出码（M2.2）
 
