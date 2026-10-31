@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.1：异构值、动态返回与标注不强制限制实参。
 def twice(value: int) -> int:
     return value + value

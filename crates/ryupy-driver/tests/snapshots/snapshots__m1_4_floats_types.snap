@@ -2,4 +2,4 @@
 source: crates/ryupy-driver/tests/snapshots.rs
 expression: types
 ---
-func Idx::<Function>(0): [] -> None
+func Idx::<Function>(0) [Static]: [] -> None

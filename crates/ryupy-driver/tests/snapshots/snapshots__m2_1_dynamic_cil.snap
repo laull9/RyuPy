@@ -1,0 +1,197 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m2_1_dynamic
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static [System.Runtime]System.Object twice([System.Runtime]System.Object) cil managed
+    {
+        .locals init (
+            [0] [System.Runtime]System.Object
+        )
+        IL_0000: LoadConstantInt32(1)
+        IL_0001: LoadArgument(0)
+        IL_0002: LoadArgument(0)
+        IL_0003: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0004: StoreLocal(0)
+        IL_0005: LoadLocal(0)
+        IL_0006: Return
+    }
+
+    .method public static [System.Runtime]System.Object choose([System.Runtime]System.Object) cil managed
+    {
+        .locals init (
+            [0] bool,
+            [1] [System.Runtime]System.Object,
+            [2] [System.Runtime]System.Object
+        )
+        IL_0000: LoadArgument(0)
+        IL_0001: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Truthy(object))
+        IL_0002: StoreLocal(0)
+        IL_0003: LoadLocal(0)
+        IL_0004: BranchTruthy(6)
+        IL_0005: Branch(11)
+        IL_0006: LoadConstantInt64(12)
+        IL_0007: BoxValue(long)
+        IL_0008: StoreLocal(1)
+        IL_0009: LoadLocal(1)
+        IL_000a: Return
+        IL_000b: LoadString("twelve")
+        IL_000c: StoreLocal(2)
+        IL_000d: LoadLocal(2)
+        IL_000e: Return
+    }
+
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] [System.Runtime]System.Object,
+            [1] [System.Runtime]System.Object,
+            [2] [System.Runtime]System.Object,
+            [3] [System.Runtime]System.Object,
+            [4] [System.Runtime]System.Object,
+            [5] [System.Runtime]System.Object,
+            [6] [System.Runtime]System.Object,
+            [7] [System.Runtime]System.Object,
+            [8] [System.Runtime]System.Object,
+            [9] [System.Runtime]System.Object,
+            [10] [System.Runtime]System.Object,
+            [11] [System.Runtime]System.Object,
+            [12] [System.Runtime]System.Object,
+            [13] [System.Runtime]System.Object,
+            [14] [System.Runtime]System.Object,
+            [15] [System.Runtime]System.Object,
+            [16] [System.Runtime]System.Object,
+            [17] [System.Runtime]System.Object,
+            [18] bool,
+            [19] [System.Runtime]System.Object,
+            [20] [System.Runtime]System.Object,
+            [21] [System.Runtime]System.Object,
+            [22] bool,
+            [23] [System.Runtime]System.Object
+        )
+        IL_0000: LoadConstantInt64(3)
+        IL_0001: BoxValue(long)
+        IL_0002: StoreLocal(1)
+        IL_0003: LoadLocal(1)
+        IL_0004: StoreLocal(0)
+        IL_0005: LoadLocal(0)
+        IL_0006: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.twice([System.Runtime]System.Object))
+        IL_0007: StoreLocal(2)
+        IL_0008: LoadLocal(2)
+        IL_0009: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_000a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_000b: LoadString("ha")
+        IL_000c: StoreLocal(3)
+        IL_000d: LoadLocal(3)
+        IL_000e: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.twice([System.Runtime]System.Object))
+        IL_000f: StoreLocal(4)
+        IL_0010: LoadLocal(4)
+        IL_0011: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0012: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0013: LoadString("changed")
+        IL_0014: StoreLocal(5)
+        IL_0015: LoadLocal(5)
+        IL_0016: StoreLocal(0)
+        IL_0017: LoadLocal(0)
+        IL_0018: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0019: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_001a: LoadConstantInt32(1)
+        IL_001b: BoxValue(bool)
+        IL_001c: StoreLocal(6)
+        IL_001d: LoadLocal(6)
+        IL_001e: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.choose([System.Runtime]System.Object))
+        IL_001f: StoreLocal(7)
+        IL_0020: LoadLocal(7)
+        IL_0021: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0022: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0023: LoadConstantInt32(0)
+        IL_0024: BoxValue(bool)
+        IL_0025: StoreLocal(8)
+        IL_0026: LoadLocal(8)
+        IL_0027: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.choose([System.Runtime]System.Object))
+        IL_0028: StoreLocal(9)
+        IL_0029: LoadLocal(9)
+        IL_002a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_002b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_002c: LoadConstantInt32(1)
+        IL_002d: BoxValue(bool)
+        IL_002e: StoreLocal(10)
+        IL_002f: LoadConstantInt64(2)
+        IL_0030: BoxValue(long)
+        IL_0031: StoreLocal(11)
+        IL_0032: LoadConstantInt32(1)
+        IL_0033: LoadLocal(10)
+        IL_0034: LoadLocal(11)
+        IL_0035: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0036: StoreLocal(12)
+        IL_0037: LoadLocal(12)
+        IL_0038: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0039: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_003a: LoadConstantInt64(2)
+        IL_003b: BoxValue(long)
+        IL_003c: StoreLocal(13)
+        IL_003d: LoadConstantFloat64(0.5)
+        IL_003e: BoxValue(double)
+        IL_003f: StoreLocal(14)
+        IL_0040: LoadConstantInt32(1)
+        IL_0041: LoadLocal(13)
+        IL_0042: LoadLocal(14)
+        IL_0043: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0044: StoreLocal(15)
+        IL_0045: LoadLocal(15)
+        IL_0046: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0047: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0048: LoadConstantInt64(0)
+        IL_0049: BoxValue(long)
+        IL_004a: StoreLocal(17)
+        IL_004b: LoadLocal(17)
+        IL_004c: StoreLocal(16)
+        IL_004d: LoadLocal(16)
+        IL_004e: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Truthy(object))
+        IL_004f: StoreLocal(18)
+        IL_0050: LoadLocal(18)
+        IL_0051: BranchTruthy(88)
+        IL_0052: Branch(83)
+        IL_0053: LoadString("fallback")
+        IL_0054: StoreLocal(19)
+        IL_0055: LoadLocal(19)
+        IL_0056: StoreLocal(16)
+        IL_0057: Branch(88)
+        IL_0058: LoadLocal(16)
+        IL_0059: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_005a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_005b: LoadString("left")
+        IL_005c: StoreLocal(21)
+        IL_005d: LoadLocal(21)
+        IL_005e: StoreLocal(20)
+        IL_005f: LoadLocal(20)
+        IL_0060: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Truthy(object))
+        IL_0061: StoreLocal(22)
+        IL_0062: LoadLocal(22)
+        IL_0063: BranchTruthy(101)
+        IL_0064: Branch(107)
+        IL_0065: LoadConstantInt64(7)
+        IL_0066: BoxValue(long)
+        IL_0067: StoreLocal(23)
+        IL_0068: LoadLocal(23)
+        IL_0069: StoreLocal(20)
+        IL_006a: Branch(107)
+        IL_006b: LoadLocal(20)
+        IL_006c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_006d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_006e: Return
+    }
+}

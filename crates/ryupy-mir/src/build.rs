@@ -81,7 +81,11 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
 
         // 建立 HIR 局部变量 → MIR 局部变量映射
         for (hir_loc_id, hir_loc) in hir_fn.body.locals.iter() {
-            let ty = ty_to_mir(&types.bodies[hir_fn_id].locals[hir_loc_id]);
+            let hir_ty = types
+                .body(hir_fn_id)
+                .map(|b| b.local_ty(hir_loc_id))
+                .unwrap_or(Ty::Dynamic);
+            let ty = ty_to_mir(&hir_ty);
             let mir_loc = builder.locals.alloc(LocalDecl {
                 ty,
                 name: Some(hir_loc.name.to_string()),
@@ -133,7 +137,10 @@ pub fn ty_to_mir(ty: &Ty) -> MirType {
         Ty::Str => MirType::Str,
         Ty::None => MirType::Unit,
         Ty::Class(id) => MirType::Class(la_arena::Idx::from_raw(id.into_raw())),
-        Ty::Func(_) | Ty::Dynamic | Ty::Error => MirType::Unit,
+        Ty::Dynamic => MirType::Dynamic,
+        // 函数对象与毒化类型都不该走到 codegen；用 Dynamic 兜底而不是 Unit，
+        // 避免把「有值」错当成 void。
+        Ty::Func(_) | Ty::Error => MirType::Dynamic,
     }
 }
 
@@ -243,17 +250,15 @@ impl<'a> FunctionBuilder<'a> {
                 match target {
                     AssignTarget::Local(loc) => {
                         let dest = self.local_map[loc];
-                        self.push_stmt(Statement::Assign {
-                            dest,
-                            value: Rvalue::Use(val_op),
-                        });
+                        let val_ty = self.expr_builder().ty_of(*value);
+                        self.expr_builder().assign_value(dest, val_op, &val_ty);
                         self.assigned_locals.insert(*loc);
                     }
                     AssignTarget::Attribute { base, name } => {
                         let base_op = self.expr_builder().build_expr(*base);
-                        let base_ty = &self.types.bodies[self.current_hir_fn].exprs[*base];
+                        let base_ty = self.expr_builder().ty_of(*base);
                         if let Ty::Class(cls_id) = base_ty {
-                            let cls = &self.hir.classes[*cls_id];
+                            let cls = &self.hir.classes[cls_id];
                             if let Some((field_idx, _)) =
                                 cls.fields.iter().enumerate().find(|(_, f)| f.name == *name)
                             {
@@ -268,13 +273,18 @@ impl<'a> FunctionBuilder<'a> {
                 }
             }
             StmtKind::Return(opt_expr) => {
-                let op = opt_expr.map(|e| self.expr_builder().build_expr(e));
+                let ret_ty = ty_to_mir(&self.types.sigs[self.current_hir_fn].ret);
+                let op = opt_expr.map(|e| {
+                    let value_ty = self.expr_builder().ty_of(e);
+                    let raw = self.expr_builder().build_expr(e);
+                    self.expr_builder().coerce(raw, &value_ty, &ret_ty)
+                });
                 self.terminate_current(Terminator::Return(op));
             }
             StmtKind::If { cond, then_, else_ } => {
                 let cond_raw = self.expr_builder().build_expr(*cond);
-                let cond_ty = &self.types.bodies[self.current_hir_fn].exprs[*cond];
-                let cond_bool = self.expr_builder().to_bool_operand(cond_raw, cond_ty);
+                let cond_ty = self.expr_builder().ty_of(*cond);
+                let cond_bool = self.expr_builder().to_bool_operand(cond_raw, &cond_ty);
 
                 let then_bb = self.new_block();
                 let else_bb = self.new_block();
@@ -316,8 +326,8 @@ impl<'a> FunctionBuilder<'a> {
                 // 循环条件块
                 self.current_bb = cond_bb;
                 let cond_raw = self.expr_builder().build_expr(*cond);
-                let cond_ty = &self.types.bodies[self.current_hir_fn].exprs[*cond];
-                let cond_bool = self.expr_builder().to_bool_operand(cond_raw, cond_ty);
+                let cond_ty = self.expr_builder().ty_of(*cond);
+                let cond_bool = self.expr_builder().to_bool_operand(cond_raw, &cond_ty);
                 self.terminate_current(Terminator::Branch {
                     cond: cond_bool,
                     then_: body_bb,
@@ -364,6 +374,186 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
+    /// 动态函数里的 `for x in range(...)`：边界先拆箱成 i64，循环变量仍是动态值。
+    ///
+    /// 好处是保留计数循环的快路径，不让 `range` 退化成迭代器；代价是边界必须是真整数，
+    /// 与 CPython 的 `TypeError: 'float' object cannot be interpreted as an integer` 一致。
+    fn build_for_range_dynamic(
+        &mut self,
+        var: HirLocalId,
+        start: ExprId,
+        stop: ExprId,
+        step: Option<ExprId>,
+        body: &[StmtId],
+    ) {
+        let start_op = self.expr_builder().build_expr(start);
+        let stop_op = self.expr_builder().build_expr(stop);
+        let step_op = match step {
+            Some(s) => self.expr_builder().build_expr(s),
+            None => Operand::Const(Constant::I64(1)),
+        };
+        let start_ty = self.expr_builder().ty_of(start);
+        let stop_ty = self.expr_builder().ty_of(stop);
+        let step_ty = step
+            .map(|s| self.expr_builder().ty_of(s))
+            .unwrap_or(Ty::Int);
+
+        // 边界拆箱到 i64；步长额外检查 0（Python 在 range 构造时抛 ValueError）
+        let start_i = self
+            .expr_builder()
+            .coerce(start_op, &start_ty, &MirType::I64);
+        let stop_i = self.expr_builder().coerce(stop_op, &stop_ty, &MirType::I64);
+        let step_i = if step.is_some() {
+            let raw = self
+                .expr_builder()
+                .coerce(step_op, &step_ty, &MirType::Dynamic);
+            let dest = self.expr_builder().alloc_temp(MirType::I64);
+            self.push_stmt(Statement::Assign {
+                dest,
+                value: Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::RangeStep),
+                    args: vec![raw],
+                },
+            });
+            Operand::Local(dest)
+        } else {
+            Operand::Const(Constant::I64(1))
+        };
+
+        // counter = start；循环变量在每轮开头装箱赋值
+        let counter = self.expr_builder().alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: counter,
+            value: Rvalue::Use(start_i),
+        });
+        let stop_local = self.expr_builder().alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: stop_local,
+            value: Rvalue::Use(stop_i),
+        });
+        let step_local = self.expr_builder().alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: step_local,
+            value: Rvalue::Use(step_i),
+        });
+
+        let var_mir = self.local_map[&var];
+        self.assigned_locals.insert(var);
+
+        let cond_bb = self.new_block();
+        let body_bb = self.new_block();
+        let step_bb = self.new_block();
+        let exit_bb = self.new_block();
+        self.terminate_current(Terminator::Goto(cond_bb));
+
+        // cond: (step > 0 && counter < stop) || (step < 0 && counter > stop)
+        self.current_bb = cond_bb;
+        let step_pos = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: step_pos,
+            value: Rvalue::Binary {
+                op: BinOp::Gt,
+                lhs: Operand::Local(step_local),
+                rhs: Operand::Const(Constant::I64(0)),
+            },
+        });
+        let lt = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: lt,
+            value: Rvalue::Binary {
+                op: BinOp::Lt,
+                lhs: Operand::Local(counter),
+                rhs: Operand::Local(stop_local),
+            },
+        });
+        let gt = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: gt,
+            value: Rvalue::Binary {
+                op: BinOp::Gt,
+                lhs: Operand::Local(counter),
+                rhs: Operand::Local(stop_local),
+            },
+        });
+        let positive = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: positive,
+            value: Rvalue::Binary {
+                op: BinOp::BitAnd,
+                lhs: Operand::Local(step_pos),
+                rhs: Operand::Local(lt),
+            },
+        });
+        let negative_step = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: negative_step,
+            value: Rvalue::Unary {
+                op: UnaryOp::Not,
+                operand: Operand::Local(step_pos),
+            },
+        });
+        let negative = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: negative,
+            value: Rvalue::Binary {
+                op: BinOp::BitAnd,
+                lhs: Operand::Local(negative_step),
+                rhs: Operand::Local(gt),
+            },
+        });
+        let cond = self.expr_builder().alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: cond,
+            value: Rvalue::Binary {
+                op: BinOp::BitOr,
+                lhs: Operand::Local(positive),
+                rhs: Operand::Local(negative),
+            },
+        });
+        self.terminate_current(Terminator::Branch {
+            cond: Operand::Local(cond),
+            then_: body_bb,
+            else_: exit_bb,
+        });
+
+        // 循环体：先把 counter 装箱写进用户变量
+        self.current_bb = body_bb;
+        let boxed = self.expr_builder().alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest: boxed,
+            value: Rvalue::Box {
+                value: Operand::Local(counter),
+                from: MirType::I64,
+            },
+        });
+        self.push_stmt(Statement::Assign {
+            dest: var_mir,
+            value: Rvalue::Use(Operand::Local(boxed)),
+        });
+        self.loop_stack.push((step_bb, exit_bb));
+        for &s in body {
+            self.build_stmt(s);
+        }
+        self.loop_stack.pop();
+        if self.is_current_unterminated() {
+            self.terminate_current(Terminator::Goto(step_bb));
+        }
+
+        // 步长块
+        self.current_bb = step_bb;
+        self.push_stmt(Statement::Assign {
+            dest: counter,
+            value: Rvalue::Binary {
+                op: BinOp::Add,
+                lhs: Operand::Local(counter),
+                rhs: Operand::Local(step_local),
+            },
+        });
+        self.terminate_current(Terminator::Goto(cond_bb));
+
+        self.current_bb = exit_bb;
+    }
+
     fn build_for_range(
         &mut self,
         var: HirLocalId,
@@ -372,6 +562,11 @@ impl<'a> FunctionBuilder<'a> {
         step: Option<ExprId>,
         body: &[StmtId],
     ) {
+        if self.types.is_dynamic(self.current_hir_fn) {
+            self.build_for_range_dynamic(var, start, stop, step, body);
+            return;
+        }
+
         // 1. 求值起始、终止和步长操作数
         let start_op = self.expr_builder().build_expr(start);
         let stop_op = self.expr_builder().build_expr(stop);
@@ -544,6 +739,7 @@ impl<'a> FunctionBuilder<'a> {
         if let ExprKind::Call { callee, args } = &expr.kind {
             let callee_expr = &hir_body.exprs[*callee];
             if matches!(callee_expr.kind, ExprKind::Builtin(Builtin::Print)) {
+                let dynamic = self.types.is_dynamic(self.current_hir_fn);
                 for (i, &arg) in args.iter().enumerate() {
                     if i > 0 {
                         self.push_stmt(Statement::Eval(Rvalue::Call {
@@ -552,13 +748,23 @@ impl<'a> FunctionBuilder<'a> {
                         }));
                     }
                     let op = self.expr_builder().build_expr(arg);
-                    let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[arg];
-                    let rt_fn = match arg_ty {
-                        Ty::Int => RuntimeFn::WriteI64,
-                        Ty::Float => RuntimeFn::WriteF64,
-                        Ty::Bool => RuntimeFn::WriteBool,
-                        Ty::Str => RuntimeFn::WriteStr,
-                        _ => RuntimeFn::WriteI64,
+                    let arg_ty = self.expr_builder().ty_of(arg);
+                    // 动态函数里编译期不知道类型，统一交给 WriteObject（等价 print(str(v))）
+                    let rt_fn = if dynamic {
+                        RuntimeFn::WriteObject
+                    } else {
+                        match arg_ty {
+                            Ty::Int => RuntimeFn::WriteI64,
+                            Ty::Float => RuntimeFn::WriteF64,
+                            Ty::Bool => RuntimeFn::WriteBool,
+                            Ty::Str => RuntimeFn::WriteStr,
+                            _ => RuntimeFn::WriteI64,
+                        }
+                    };
+                    let op = if dynamic {
+                        self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic)
+                    } else {
+                        op
                     };
                     self.push_stmt(Statement::Eval(Rvalue::Call {
                         callee: Callee::Runtime(rt_fn),

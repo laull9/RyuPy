@@ -33,6 +33,7 @@ struct LowerCtx<'a> {
     runtime_refs: &'a RuntimeRefs,
     fn_map: &'a FxHashMap<FnId, MethodIndex>,
     class_info: &'a ClassInfoMap,
+    class_types: &'a ClassTypeMap,
     param_slots: &'a FxHashMap<LocalId, u16>,
     local_slots: &'a FxHashMap<LocalId, u16>,
     locals: &'a la_arena::Arena<ryupy_mir::LocalDecl>,
@@ -60,6 +61,22 @@ pub struct RuntimeRefs {
     pub f64_to_i64: MethodRefIndex,
     pub abs_i64: MethodRefIndex,
     pub abs_f64: MethodRefIndex,
+    // ── 动态值 ABI（ADR-0010）──
+    pub write_object: MethodRefIndex,
+    pub dyn_binary: MethodRefIndex,
+    pub dyn_compare: MethodRefIndex,
+    pub dyn_unary: MethodRefIndex,
+    pub dyn_truthy: MethodRefIndex,
+    pub dyn_none: MethodRefIndex,
+    pub dyn_from_decimal: MethodRefIndex,
+    pub dyn_to_int: MethodRefIndex,
+    pub dyn_to_float: MethodRefIndex,
+    pub dyn_abs: MethodRefIndex,
+    pub cast_to_i64: MethodRefIndex,
+    pub cast_to_f64: MethodRefIndex,
+    pub cast_to_bool: MethodRefIndex,
+    pub cast_to_str: MethodRefIndex,
+    pub range_step: MethodRefIndex,
 }
 
 enum PendingTarget {
@@ -125,6 +142,7 @@ pub fn lower_function(
         runtime_refs,
         fn_map,
         class_info,
+        class_types,
         param_slots: &param_slots,
         local_slots: &local_slots,
         locals: &func.body.locals,
@@ -150,8 +168,20 @@ pub fn lower_function(
                     lower_rvalue(rvalue, &mut instructions, &ctx);
                 }
                 Statement::SetField { obj, field, value } => {
-                    lower_operand(obj, &mut instructions, &param_slots, &local_slots);
-                    lower_operand(value, &mut instructions, &param_slots, &local_slots);
+                    lower_operand(
+                        obj,
+                        &mut instructions,
+                        &param_slots,
+                        &local_slots,
+                        runtime_refs,
+                    );
+                    lower_operand(
+                        value,
+                        &mut instructions,
+                        &param_slots,
+                        &local_slots,
+                        runtime_refs,
+                    );
                     let class_id = match obj {
                         Operand::Local(loc) => match func.body.locals[*loc].ty {
                             ryupy_mir::MirType::Class(id) => id,
@@ -174,7 +204,13 @@ pub fn lower_function(
                 instructions.push(Instruction::Return);
             }
             Terminator::Return(Some(op)) => {
-                lower_operand(op, &mut instructions, &param_slots, &local_slots);
+                lower_operand(
+                    op,
+                    &mut instructions,
+                    &param_slots,
+                    &local_slots,
+                    runtime_refs,
+                );
                 instructions.push(Instruction::Return);
             }
             Terminator::Goto(target) => {
@@ -183,7 +219,13 @@ pub fn lower_function(
                 pending_targets.push(PendingTarget::Branch(pos, *target));
             }
             Terminator::Branch { cond, then_, else_ } => {
-                lower_operand(cond, &mut instructions, &param_slots, &local_slots);
+                lower_operand(
+                    cond,
+                    &mut instructions,
+                    &param_slots,
+                    &local_slots,
+                    runtime_refs,
+                );
                 let pos_then = instructions.len();
                 instructions.push(Instruction::BranchTruthy(0)); // 占位
                 pending_targets.push(PendingTarget::BranchTruthy(pos_then, *then_));
@@ -221,6 +263,7 @@ fn lower_operand(
     ins: &mut Vec<Instruction>,
     param_slots: &FxHashMap<LocalId, u16>,
     local_slots: &FxHashMap<LocalId, u16>,
+    refs: &RuntimeRefs,
 ) {
     match op {
         Operand::Local(loc) => {
@@ -237,6 +280,11 @@ fn lower_operand(
                 ins.push(Instruction::LoadConstantInt32(if *b { 1 } else { 0 }))
             }
             MirConstant::Str(s) => ins.push(Instruction::load_string(s)),
+            MirConstant::BigInt(s) => {
+                ins.push(Instruction::load_string(s));
+                ins.push(Instruction::call(refs.dyn_from_decimal));
+            }
+            MirConstant::None => ins.push(Instruction::call(refs.dyn_none)),
         },
     }
 }
@@ -251,10 +299,12 @@ fn is_f64_operand(op: &Operand, locals: &la_arena::Arena<ryupy_mir::LocalDecl>) 
 
 fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
     match rval {
-        Rvalue::Use(op) => lower_operand(op, ins, ctx.param_slots, ctx.local_slots),
+        Rvalue::Use(op) => {
+            lower_operand(op, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs)
+        }
         Rvalue::Binary { op, lhs, rhs } => {
-            lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots);
-            lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots);
+            lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             let is_float = is_f64_operand(lhs, ctx.locals) || is_f64_operand(rhs, ctx.locals);
             match op {
                 BinOp::Add => {
@@ -307,7 +357,13 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             }
         }
         Rvalue::Unary { op, operand } => {
-            lower_operand(operand, ins, ctx.param_slots, ctx.local_slots);
+            lower_operand(
+                operand,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
             match op {
                 UnaryOp::Neg => ins.push(Instruction::Negate),
                 UnaryOp::Not => {
@@ -318,7 +374,13 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             }
         }
         Rvalue::Cast { kind, operand } => {
-            lower_operand(operand, ins, ctx.param_slots, ctx.local_slots);
+            lower_operand(
+                operand,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
             match kind {
                 CastKind::I64ToF64 => ins.push(Instruction::ConvertFloat64),
                 CastKind::F64ToI64 => ins.push(Instruction::call(ctx.runtime_refs.f64_to_i64)),
@@ -327,7 +389,7 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
         }
         Rvalue::Call { callee, args } => {
             for arg in args {
-                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots);
+                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
             match callee {
                 Callee::Runtime(rt_fn) => match rt_fn {
@@ -357,6 +419,43 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::F64ToI64 => ins.push(Instruction::call(ctx.runtime_refs.f64_to_i64)),
                     RuntimeFn::AbsI64 => ins.push(Instruction::call(ctx.runtime_refs.abs_i64)),
                     RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
+                    RuntimeFn::WriteObject => {
+                        ins.push(Instruction::call(ctx.runtime_refs.write_object))
+                    }
+                    RuntimeFn::DynBinary => {
+                        ins.push(Instruction::call(ctx.runtime_refs.dyn_binary))
+                    }
+                    RuntimeFn::DynCompare => {
+                        ins.push(Instruction::call(ctx.runtime_refs.dyn_compare))
+                    }
+                    RuntimeFn::DynUnary => ins.push(Instruction::call(ctx.runtime_refs.dyn_unary)),
+                    RuntimeFn::DynTruthy => {
+                        ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy))
+                    }
+                    RuntimeFn::DynNone => ins.push(Instruction::call(ctx.runtime_refs.dyn_none)),
+                    RuntimeFn::DynFromDecimal => {
+                        ins.push(Instruction::call(ctx.runtime_refs.dyn_from_decimal))
+                    }
+                    RuntimeFn::DynToInt => ins.push(Instruction::call(ctx.runtime_refs.dyn_to_int)),
+                    RuntimeFn::DynToFloat => {
+                        ins.push(Instruction::call(ctx.runtime_refs.dyn_to_float))
+                    }
+                    RuntimeFn::DynAbs => ins.push(Instruction::call(ctx.runtime_refs.dyn_abs)),
+                    RuntimeFn::RangeStep => {
+                        ins.push(Instruction::call(ctx.runtime_refs.range_step))
+                    }
+                    RuntimeFn::CastToI64 => {
+                        ins.push(Instruction::call(ctx.runtime_refs.cast_to_i64))
+                    }
+                    RuntimeFn::CastToF64 => {
+                        ins.push(Instruction::call(ctx.runtime_refs.cast_to_f64))
+                    }
+                    RuntimeFn::CastToBool => {
+                        ins.push(Instruction::call(ctx.runtime_refs.cast_to_bool))
+                    }
+                    RuntimeFn::CastToStr => {
+                        ins.push(Instruction::call(ctx.runtime_refs.cast_to_str))
+                    }
                 },
                 Callee::Fn(fn_id) => {
                     let method_idx = ctx.fn_map[fn_id];
@@ -366,13 +465,84 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
         }
         Rvalue::NewObject { class, args } => {
             for arg in args {
-                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots);
+                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
             let ctor = ctx.class_info[class].ctor;
             ins.push(Instruction::NewObject(ctor.into()));
         }
+        Rvalue::Box { value, from } => {
+            lower_operand(
+                value,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            // 引用类型（str / class / 已是 object）不需要 box
+            let needs_box = !matches!(
+                from,
+                ryupy_mir::MirType::Str
+                    | ryupy_mir::MirType::Dynamic
+                    | ryupy_mir::MirType::Class(_)
+            );
+            if needs_box
+                && let Some(mt) = crate::types::mir_type_to_method_type(from, ctx.class_types)
+            {
+                ins.push(Instruction::BoxValue(mt));
+            }
+        }
+        Rvalue::Unbox { value, to } => {
+            lower_operand(
+                value,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            let cast = match to {
+                ryupy_mir::MirType::I64 => ctx.runtime_refs.cast_to_i64,
+                ryupy_mir::MirType::F64 => ctx.runtime_refs.cast_to_f64,
+                ryupy_mir::MirType::Bool => ctx.runtime_refs.cast_to_bool,
+                ryupy_mir::MirType::Str => ctx.runtime_refs.cast_to_str,
+                _ => ctx.runtime_refs.cast_to_i64,
+            };
+            ins.push(Instruction::call(cast));
+        }
+        Rvalue::DynBinary { op, lhs, rhs } => {
+            ins.push(Instruction::LoadConstantInt32(op.code()));
+            lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            ins.push(Instruction::call(ctx.runtime_refs.dyn_binary));
+        }
+        Rvalue::DynCompare { op, lhs, rhs } => {
+            ins.push(Instruction::LoadConstantInt32(op.code()));
+            lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            ins.push(Instruction::call(ctx.runtime_refs.dyn_compare));
+        }
+        Rvalue::DynUnary { op, operand } => {
+            ins.push(Instruction::LoadConstantInt32(op.code()));
+            lower_operand(
+                operand,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            ins.push(Instruction::call(ctx.runtime_refs.dyn_unary));
+        }
+        Rvalue::DynTruthy { value } => {
+            lower_operand(
+                value,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy));
+        }
         Rvalue::GetField { obj, field } => {
-            lower_operand(obj, ins, ctx.param_slots, ctx.local_slots);
+            lower_operand(obj, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             let class_id = match obj {
                 Operand::Local(loc) => match ctx.locals[*loc].ty {
                     ryupy_mir::MirType::Class(id) => id,

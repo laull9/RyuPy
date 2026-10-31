@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: rendered
+---
+[E0303] Error: 动态值的属性访问尚未支持（M2.5 普通 class）
+   ╭─[ /var/folders/qm/62_zyfnn443fs89r1pvdk9mw0000gn/T/ryupy_test_dynamic_attr.py:2:12 ]
+   │
+ 2 │     return obj.value
+   │            ────┬────  
+   │                ╰────── 需要普通 class 与属性查找
+───╯

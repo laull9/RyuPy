@@ -31,6 +31,7 @@
 - [2026-10-31 M1.4 浮点、类型转换与字符串：CPython 对齐、空字符串陷阱与 6.1x Mandelbrot 基准](2026-10-31-m1.4-floats-and-strings.md)
 - [2026-10-31 M1.5 @dataclass：引用与值类型双轨、模块分层与 600 行拆分](2026-10-31-m1.5-dataclass.md)
 - [2026-10-31 M2.0 项目基线、用例框架与动态值 ABI](2026-10-31-m2.0-project-baseline.md)
+- [2026-10-31 M2.1 动态值管线：降级策略、装箱 ABI 与 BigInteger](2026-10-31-m2.1-dynamic-pipeline.md)
 
 ## 推荐阅读
 

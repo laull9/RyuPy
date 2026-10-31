@@ -1,0 +1,298 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m2_1_bigint
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] [System.Runtime]System.Object,
+            [1] [System.Runtime]System.Object,
+            [2] [System.Runtime]System.Object,
+            [3] [System.Runtime]System.Object,
+            [4] [System.Runtime]System.Object,
+            [5] [System.Runtime]System.Object,
+            [6] [System.Runtime]System.Object,
+            [7] [System.Runtime]System.Object,
+            [8] [System.Runtime]System.Object,
+            [9] [System.Runtime]System.Object,
+            [10] [System.Runtime]System.Object,
+            [11] [System.Runtime]System.Object,
+            [12] [System.Runtime]System.Object,
+            [13] [System.Runtime]System.Object,
+            [14] [System.Runtime]System.Object,
+            [15] [System.Runtime]System.Object,
+            [16] [System.Runtime]System.Object,
+            [17] [System.Runtime]System.Object,
+            [18] [System.Runtime]System.Object,
+            [19] [System.Runtime]System.Object,
+            [20] [System.Runtime]System.Object,
+            [21] [System.Runtime]System.Object,
+            [22] [System.Runtime]System.Object,
+            [23] [System.Runtime]System.Object,
+            [24] [System.Runtime]System.Object,
+            [25] [System.Runtime]System.Object,
+            [26] [System.Runtime]System.Object,
+            [27] [System.Runtime]System.Object,
+            [28] [System.Runtime]System.Object,
+            [29] [System.Runtime]System.Object,
+            [30] [System.Runtime]System.Object,
+            [31] [System.Runtime]System.Object,
+            [32] [System.Runtime]System.Object,
+            [33] [System.Runtime]System.Object,
+            [34] [System.Runtime]System.Object,
+            [35] [System.Runtime]System.Object,
+            [36] [System.Runtime]System.Object,
+            [37] [System.Runtime]System.Object,
+            [38] [System.Runtime]System.Object,
+            [39] [System.Runtime]System.Object,
+            [40] bool,
+            [41] [System.Runtime]System.Object,
+            [42] [System.Runtime]System.Object,
+            [43] [System.Runtime]System.Object,
+            [44] [System.Runtime]System.Object,
+            [45] [System.Runtime]System.Object,
+            [46] [System.Runtime]System.Object,
+            [47] [System.Runtime]System.Object,
+            [48] [System.Runtime]System.Object,
+            [49] [System.Runtime]System.Object
+        )
+        IL_0000: LoadConstantInt64(9223372036854775807)
+        IL_0001: BoxValue(long)
+        IL_0002: StoreLocal(3)
+        IL_0003: LoadLocal(3)
+        IL_0004: StoreLocal(0)
+        IL_0005: LoadString("9223372036854775808")
+        IL_0006: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.FromDecimalString(string))
+        IL_0007: StoreLocal(4)
+        IL_0008: LoadConstantInt32(1)
+        IL_0009: LoadLocal(4)
+        IL_000a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Unary(int, object))
+        IL_000b: StoreLocal(5)
+        IL_000c: LoadLocal(5)
+        IL_000d: StoreLocal(1)
+        IL_000e: LoadConstantInt64(1)
+        IL_000f: BoxValue(long)
+        IL_0010: StoreLocal(6)
+        IL_0011: LoadConstantInt32(1)
+        IL_0012: LoadLocal(0)
+        IL_0013: LoadLocal(6)
+        IL_0014: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0015: StoreLocal(7)
+        IL_0016: LoadLocal(7)
+        IL_0017: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0018: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0019: LoadConstantInt64(1)
+        IL_001a: BoxValue(long)
+        IL_001b: StoreLocal(8)
+        IL_001c: LoadConstantInt32(2)
+        IL_001d: LoadLocal(1)
+        IL_001e: LoadLocal(8)
+        IL_001f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0020: StoreLocal(9)
+        IL_0021: LoadLocal(9)
+        IL_0022: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0023: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0024: LoadConstantInt32(1)
+        IL_0025: LoadLocal(1)
+        IL_0026: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Unary(int, object))
+        IL_0027: StoreLocal(10)
+        IL_0028: LoadLocal(10)
+        IL_0029: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_002a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_002b: LoadLocal(1)
+        IL_002c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.AbsValue(object))
+        IL_002d: StoreLocal(11)
+        IL_002e: LoadLocal(11)
+        IL_002f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0030: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0031: LoadConstantInt64(10)
+        IL_0032: BoxValue(long)
+        IL_0033: StoreLocal(12)
+        IL_0034: LoadConstantInt64(40)
+        IL_0035: BoxValue(long)
+        IL_0036: StoreLocal(13)
+        IL_0037: LoadConstantInt32(7)
+        IL_0038: LoadLocal(12)
+        IL_0039: LoadLocal(13)
+        IL_003a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_003b: StoreLocal(14)
+        IL_003c: LoadLocal(14)
+        IL_003d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_003e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_003f: LoadConstantInt64(1)
+        IL_0040: BoxValue(long)
+        IL_0041: StoreLocal(15)
+        IL_0042: LoadConstantInt64(100)
+        IL_0043: BoxValue(long)
+        IL_0044: StoreLocal(16)
+        IL_0045: LoadConstantInt32(11)
+        IL_0046: LoadLocal(15)
+        IL_0047: LoadLocal(16)
+        IL_0048: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0049: StoreLocal(17)
+        IL_004a: LoadConstantInt64(70)
+        IL_004b: BoxValue(long)
+        IL_004c: StoreLocal(18)
+        IL_004d: LoadConstantInt32(12)
+        IL_004e: LoadLocal(17)
+        IL_004f: LoadLocal(18)
+        IL_0050: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0051: StoreLocal(19)
+        IL_0052: LoadLocal(19)
+        IL_0053: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0054: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0055: LoadConstantInt64(1)
+        IL_0056: BoxValue(long)
+        IL_0057: StoreLocal(20)
+        IL_0058: LoadConstantInt32(1)
+        IL_0059: LoadLocal(20)
+        IL_005a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Unary(int, object))
+        IL_005b: StoreLocal(21)
+        IL_005c: LoadConstantInt32(5)
+        IL_005d: LoadLocal(1)
+        IL_005e: LoadLocal(21)
+        IL_005f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0060: StoreLocal(22)
+        IL_0061: LoadLocal(22)
+        IL_0062: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0063: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0064: LoadConstantInt64(1)
+        IL_0065: BoxValue(long)
+        IL_0066: StoreLocal(23)
+        IL_0067: LoadConstantInt32(1)
+        IL_0068: LoadLocal(23)
+        IL_0069: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Unary(int, object))
+        IL_006a: StoreLocal(24)
+        IL_006b: LoadConstantInt32(6)
+        IL_006c: LoadLocal(1)
+        IL_006d: LoadLocal(24)
+        IL_006e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_006f: StoreLocal(25)
+        IL_0070: LoadLocal(25)
+        IL_0071: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_0072: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0073: LoadConstantInt64(10)
+        IL_0074: BoxValue(long)
+        IL_0075: StoreLocal(26)
+        IL_0076: LoadConstantInt64(30)
+        IL_0077: BoxValue(long)
+        IL_0078: StoreLocal(27)
+        IL_0079: LoadConstantInt32(7)
+        IL_007a: LoadLocal(26)
+        IL_007b: LoadLocal(27)
+        IL_007c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_007d: StoreLocal(28)
+        IL_007e: LoadConstantInt32(1)
+        IL_007f: LoadLocal(28)
+        IL_0080: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Unary(int, object))
+        IL_0081: StoreLocal(29)
+        IL_0082: LoadConstantInt64(7)
+        IL_0083: BoxValue(long)
+        IL_0084: StoreLocal(30)
+        IL_0085: LoadConstantInt32(5)
+        IL_0086: LoadLocal(29)
+        IL_0087: LoadLocal(30)
+        IL_0088: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0089: StoreLocal(31)
+        IL_008a: LoadLocal(31)
+        IL_008b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_008c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_008d: LoadConstantInt64(10)
+        IL_008e: BoxValue(long)
+        IL_008f: StoreLocal(32)
+        IL_0090: LoadConstantInt64(30)
+        IL_0091: BoxValue(long)
+        IL_0092: StoreLocal(33)
+        IL_0093: LoadConstantInt32(7)
+        IL_0094: LoadLocal(32)
+        IL_0095: LoadLocal(33)
+        IL_0096: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_0097: StoreLocal(34)
+        IL_0098: LoadConstantInt32(1)
+        IL_0099: LoadLocal(34)
+        IL_009a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Unary(int, object))
+        IL_009b: StoreLocal(35)
+        IL_009c: LoadConstantInt64(7)
+        IL_009d: BoxValue(long)
+        IL_009e: StoreLocal(36)
+        IL_009f: LoadConstantInt32(6)
+        IL_00a0: LoadLocal(35)
+        IL_00a1: LoadLocal(36)
+        IL_00a2: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_00a3: StoreLocal(37)
+        IL_00a4: LoadLocal(37)
+        IL_00a5: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_00a6: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_00a7: LoadConstantInt64(9007199254740993)
+        IL_00a8: BoxValue(long)
+        IL_00a9: StoreLocal(38)
+        IL_00aa: LoadConstantFloat64(9007199254740992.0)
+        IL_00ab: BoxValue(double)
+        IL_00ac: StoreLocal(39)
+        IL_00ad: LoadConstantInt32(1)
+        IL_00ae: LoadLocal(38)
+        IL_00af: LoadLocal(39)
+        IL_00b0: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Compare(int, object, object))
+        IL_00b1: StoreLocal(40)
+        IL_00b2: LoadLocal(40)
+        IL_00b3: BoxValue(bool)
+        IL_00b4: StoreLocal(41)
+        IL_00b5: LoadLocal(41)
+        IL_00b6: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_00b7: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_00b8: LoadLocal(0)
+        IL_00b9: StoreLocal(2)
+        IL_00ba: LoadConstantInt64(1)
+        IL_00bb: BoxValue(long)
+        IL_00bc: StoreLocal(42)
+        IL_00bd: LoadConstantInt32(1)
+        IL_00be: LoadLocal(2)
+        IL_00bf: LoadLocal(42)
+        IL_00c0: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_00c1: StoreLocal(43)
+        IL_00c2: LoadLocal(43)
+        IL_00c3: StoreLocal(2)
+        IL_00c4: LoadConstantInt64(3)
+        IL_00c5: BoxValue(long)
+        IL_00c6: StoreLocal(44)
+        IL_00c7: LoadConstantInt32(3)
+        IL_00c8: LoadLocal(2)
+        IL_00c9: LoadLocal(44)
+        IL_00ca: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_00cb: StoreLocal(45)
+        IL_00cc: LoadConstantInt64(2)
+        IL_00cd: BoxValue(long)
+        IL_00ce: StoreLocal(46)
+        IL_00cf: LoadConstantInt32(2)
+        IL_00d0: LoadLocal(45)
+        IL_00d1: LoadLocal(46)
+        IL_00d2: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.Binary(int, object, object))
+        IL_00d3: StoreLocal(47)
+        IL_00d4: LoadLocal(47)
+        IL_00d5: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_00d6: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_00d7: LoadString("123456789012345678901234567890")
+        IL_00d8: StoreLocal(48)
+        IL_00d9: LoadLocal(48)
+        IL_00da: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.ToIntValue(object))
+        IL_00db: StoreLocal(49)
+        IL_00dc: LoadLocal(49)
+        IL_00dd: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object))
+        IL_00de: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_00df: Return
+    }
+}

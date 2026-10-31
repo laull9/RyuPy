@@ -54,6 +54,21 @@ public static class PyCast
     /// <summary>拆箱为 <c>str</c>：只接受字符串，不做隐式 <c>str()</c>。</summary>
     public static string ToStr(object? value) => value as string ?? throw Mismatch("str", value);
 
+    /// <summary><c>range()</c> 步长拆箱为 <c>int64</c>，并检查不能为 0。</summary>
+    /// <remarks>
+    /// 静态路径在编译期就能拒绝字面量 0，动态路径只能在运行时检查——
+    /// 否则步长为 0 的计数循环会变成死循环。
+    /// </remarks>
+    public static long RangeStep(object? value)
+    {
+        long step = ToInt64(value);
+        if (step == 0)
+        {
+            throw new PyValueError("range() arg 3 must not be zero");
+        }
+        return step;
+    }
+
     private static PyTypeError Mismatch(string expected, object? value) =>
         new($"argument must be '{expected}', got '{PyRepr.TypeName(value)}'");
 }

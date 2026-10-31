@@ -1,0 +1,7 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: types
+---
+func Idx::<Function>(0) [Dynamic]: [Dynamic] -> Dynamic
+func Idx::<Function>(1) [Dynamic]: [Dynamic] -> Dynamic
+func Idx::<Function>(2) [Dynamic]: [] -> None

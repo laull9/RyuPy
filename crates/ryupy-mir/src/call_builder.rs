@@ -1,12 +1,14 @@
 //! 函数调用与构造器调用的 MIR 降级构建器。
 //!
 //! 职责：
-//! 1. **用户函数调用**：比对函数签名，若实参为 `int` 且形参为 `float` 则自动插入浮点提升，发射 [`Rvalue::Call`]；
-//! 2. **dataclass 构造调用**：按字段声明顺序转换实参（同样支持数值提升），发射 [`Rvalue::NewObject`]；
+//! 1. **用户函数调用**：按被调函数当前的 `FuncMode` 决定装箱策略——
+//!    静态签名 + 动态实参先拆箱（`PyCast`），动态签名 + 静态实参先装箱；
+//! 2. **dataclass 构造调用**：按字段声明顺序转换实参（仅静态路径）；
 //! 3. **内建函数调用**：
-//!    - `int(x)`：按参数类型执行直接使用、布尔转整型或调用运行时辅助 [`RuntimeFn::F64ToI64`]；
-//!    - `float(x)`：整型/布尔提升为浮点数；
-//!    - `abs(x)`：发射绝对值辅助调用 [`RuntimeFn::AbsI64`] 或 [`RuntimeFn::AbsF64`]。
+//!    - `int(x)` / `float(x)` / `abs(x)`：静态实参走原生转换；
+//!      动态实参走 `PyOps.ToIntValue` / `ToFloatValue` / `AbsValue`。
+//!
+//! 结果值的装箱由调用方上下文决定：动态函数里的调用结果要装箱后才能进局部变量。
 
 use ryupy_hir::{Builtin, ExprId, ExprKind};
 use ryupy_ty::{Ty, type_ref_to_ty};
@@ -16,32 +18,28 @@ use crate::expr_builder::ExprBuilder;
 use crate::mir::{Callee, CastKind, Constant, MirType, Operand, RuntimeFn, Rvalue, Statement};
 
 impl ExprBuilder<'_> {
-    pub(crate) fn build_call(&mut self, callee: ExprId, args: &[ExprId]) -> Operand {
+    pub(crate) fn build_call(
+        &mut self,
+        callee: ExprId,
+        args: &[ExprId],
+        call_expr: ExprId,
+    ) -> Operand {
         let callee_expr = &self.hir.functions[self.current_hir_fn].body.exprs[callee];
+        let call_ty = self.ty_of(call_expr);
         match callee_expr.kind {
             ExprKind::Func(fn_id) => {
+                let target_sig = self.types.sigs[fn_id].clone();
                 let mir_fn_id = self.fn_map[&fn_id];
                 let mut args_ops = Vec::new();
                 for (i, &arg) in args.iter().enumerate() {
-                    let mut arg_op = self.build_expr(arg);
-                    let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[arg];
-                    if let Some(expected_ty) = self.types.sigs[fn_id].params.get(i) {
-                        if expected_ty == &Ty::Float && arg_ty == &Ty::Int {
-                            let cast_temp = self.alloc_temp(MirType::F64);
-                            self.push_stmt(Statement::Assign {
-                                dest: cast_temp,
-                                value: Rvalue::Cast {
-                                    kind: CastKind::I64ToF64,
-                                    operand: arg_op,
-                                },
-                            });
-                            arg_op = Operand::Local(cast_temp);
-                        }
-                    }
-                    args_ops.push(arg_op);
+                    let arg_op = self.build_expr(arg);
+                    let arg_ty = self.ty_of(arg);
+                    let param_ty = target_sig.params.get(i).cloned().unwrap_or(Ty::Dynamic);
+                    let param_mir = ty_to_mir(&param_ty);
+                    args_ops.push(self.coerce(arg_op, &arg_ty, &param_mir));
                 }
-                let ret_ty = ty_to_mir(&self.types.sigs[fn_id].ret);
-                let dest = self.alloc_temp(ret_ty);
+                let ret_mir = ty_to_mir(&target_sig.ret);
+                let dest = self.alloc_temp(ret_mir);
                 self.push_stmt(Statement::Assign {
                     dest,
                     value: Rvalue::Call {
@@ -49,30 +47,24 @@ impl ExprBuilder<'_> {
                         args: args_ops,
                     },
                 });
-                Operand::Local(dest)
+                // 静态返回类型进入动态上下文时要装箱
+                let result = Operand::Local(dest);
+                self.coerce(result, &target_sig.ret, &ty_to_mir(&call_ty))
             }
             ExprKind::Class(cls_id) => {
                 let mir_cls_id = la_arena::Idx::from_raw(cls_id.into_raw());
                 let cls = &self.hir.classes[cls_id];
                 let mut args_ops = Vec::new();
                 for (i, &arg) in args.iter().enumerate() {
-                    let mut arg_op = self.build_expr(arg);
-                    let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[arg];
+                    let arg_op = self.build_expr(arg);
+                    let arg_ty = self.ty_of(arg);
                     if let Some(field) = cls.fields.get(i) {
-                        let expected_ty = type_ref_to_ty(&field.annotation);
-                        if expected_ty == Ty::Float && arg_ty == &Ty::Int {
-                            let cast_temp = self.alloc_temp(MirType::F64);
-                            self.push_stmt(Statement::Assign {
-                                dest: cast_temp,
-                                value: Rvalue::Cast {
-                                    kind: CastKind::I64ToF64,
-                                    operand: arg_op,
-                                },
-                            });
-                            arg_op = Operand::Local(cast_temp);
-                        }
+                        let field_ty = type_ref_to_ty(&field.annotation);
+                        let field_mir = ty_to_mir(&field_ty);
+                        args_ops.push(self.coerce(arg_op, &arg_ty, &field_mir));
+                    } else {
+                        args_ops.push(arg_op);
                     }
-                    args_ops.push(arg_op);
                 }
                 let dest = self.alloc_temp(MirType::Class(mir_cls_id));
                 self.push_stmt(Statement::Assign {
@@ -89,7 +81,19 @@ impl ExprBuilder<'_> {
                     return Operand::Const(Constant::I64(0));
                 }
                 let arg_op = self.build_expr(args[0]);
-                let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[args[0]];
+                let arg_ty = self.ty_of(args[0]);
+                if arg_ty.is_dynamic() {
+                    let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
+                    let dest = self.alloc_temp(MirType::Dynamic);
+                    self.push_stmt(Statement::Assign {
+                        dest,
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::DynToInt),
+                            args: vec![op],
+                        },
+                    });
+                    return Operand::Local(dest);
+                }
                 match arg_ty {
                     Ty::Int => arg_op,
                     Ty::Bool => {
@@ -122,11 +126,23 @@ impl ExprBuilder<'_> {
                     return Operand::Const(Constant::F64(0.0));
                 }
                 let arg_op = self.build_expr(args[0]);
-                let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[args[0]];
+                let arg_ty = self.ty_of(args[0]);
+                if arg_ty.is_dynamic() {
+                    let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
+                    let dest = self.alloc_temp(MirType::Dynamic);
+                    self.push_stmt(Statement::Assign {
+                        dest,
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::DynToFloat),
+                            args: vec![op],
+                        },
+                    });
+                    return Operand::Local(dest);
+                }
                 match arg_ty {
                     Ty::Float => arg_op,
                     Ty::Int | Ty::Bool => {
-                        let op = if arg_ty == &Ty::Bool {
+                        let op = if arg_ty == Ty::Bool {
                             let temp_i64 = self.alloc_temp(MirType::I64);
                             self.push_stmt(Statement::Assign {
                                 dest: temp_i64,
@@ -157,7 +173,19 @@ impl ExprBuilder<'_> {
                     return Operand::Const(Constant::I64(0));
                 }
                 let arg_op = self.build_expr(args[0]);
-                let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[args[0]];
+                let arg_ty = self.ty_of(args[0]);
+                if arg_ty.is_dynamic() {
+                    let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
+                    let dest = self.alloc_temp(MirType::Dynamic);
+                    self.push_stmt(Statement::Assign {
+                        dest,
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::DynAbs),
+                            args: vec![op],
+                        },
+                    });
+                    return Operand::Local(dest);
+                }
                 match arg_ty {
                     Ty::Float => {
                         let dest = self.alloc_temp(MirType::F64);

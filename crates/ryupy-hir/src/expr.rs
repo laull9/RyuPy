@@ -37,13 +37,19 @@ impl<'a> ExprLowerCtx<'a> {
         let kind = match expr {
             ast::Expr::NumberLiteral(num) => match &num.value {
                 ast::Number::Int(int_val) => {
+                    // 先试 i64 快路径；更大的值仍要进 HIR，由 ty 决定是否降级到动态执行
                     if let Some(val) = int_val.as_i64() {
-                        ExprKind::Literal(Literal::Int(val))
+                        ExprKind::Literal(Literal::Int(i128::from(val)))
+                    } else if let Some(val) = int_val.as_u64() {
+                        ExprKind::Literal(Literal::Int(i128::from(val)))
                     } else {
                         self.diagnostics.push(
-                            Diagnostic::error(Span::new(self.file, num.range), "整数超出 i64 范围")
-                                .with_code("E0100")
-                                .with_primary_label("数值过大，Phase 1 仅支持 64 位有符号整数"),
+                            Diagnostic::error(
+                                Span::new(self.file, num.range),
+                                "整数字面量超出支持范围",
+                            )
+                            .with_code("E0100")
+                            .with_primary_label("字面量超过 128 位有符号整数"),
                         );
                         ExprKind::Missing
                     }

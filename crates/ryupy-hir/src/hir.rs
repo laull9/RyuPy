@@ -173,7 +173,9 @@ pub enum ExprKind {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
-    Int(i64),
+    /// Python 整数。`i128` 是为了容纳 `-9223372036854775808`（`Neg(9223372036854775808)`
+    /// 的字面量本身超出 `i64`）。超出 `i128` 的字面量仍然报错。
+    Int(i128),
     Float(f64),
     Bool(bool),
     Str(Box<str>),

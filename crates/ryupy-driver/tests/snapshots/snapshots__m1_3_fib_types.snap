@@ -2,12 +2,12 @@
 source: crates/ryupy-driver/tests/snapshots.rs
 expression: types
 ---
-func Idx::<Function>(0): [Int] -> Int
+func Idx::<Function>(0) [Static]: [Int] -> Int
   local Idx::<Local>(0): Int
-func Idx::<Function>(1): [Int] -> Int
+func Idx::<Function>(1) [Static]: [Int] -> Int
   local Idx::<Local>(0): Int
   local Idx::<Local>(1): Int
   local Idx::<Local>(2): Int
   local Idx::<Local>(3): Int
   local Idx::<Local>(4): Int
-func Idx::<Function>(2): [] -> None
+func Idx::<Function>(2) [Static]: [] -> None

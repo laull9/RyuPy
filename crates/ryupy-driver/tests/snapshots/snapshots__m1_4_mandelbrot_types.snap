@@ -2,7 +2,7 @@
 source: crates/ryupy-driver/tests/snapshots.rs
 expression: types
 ---
-func Idx::<Function>(0): [Float, Float, Int] -> Int
+func Idx::<Function>(0) [Static]: [Float, Float, Int] -> Int
   local Idx::<Local>(0): Float
   local Idx::<Local>(1): Float
   local Idx::<Local>(2): Int
@@ -11,7 +11,7 @@ func Idx::<Function>(0): [Float, Float, Int] -> Int
   local Idx::<Local>(5): Int
   local Idx::<Local>(6): Float
   local Idx::<Local>(7): Float
-func Idx::<Function>(1): [] -> None
+func Idx::<Function>(1) [Static]: [] -> None
   local Idx::<Local>(0): Int
   local Idx::<Local>(1): Str
   local Idx::<Local>(2): Int

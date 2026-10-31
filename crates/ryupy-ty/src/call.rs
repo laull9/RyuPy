@@ -40,6 +40,9 @@ impl FunctionChecker<'_> {
                     return Ty::Int;
                 }
                 let arg_ty = self.check_expr(args[0]);
+                if arg_ty.is_dynamic() {
+                    return Ty::Dynamic;
+                }
                 match arg_ty {
                     Ty::Int | Ty::Float | Ty::Bool => Ty::Int,
                     Ty::Error => Ty::Error,
@@ -73,6 +76,9 @@ impl FunctionChecker<'_> {
                     return Ty::Float;
                 }
                 let arg_ty = self.check_expr(args[0]);
+                if arg_ty.is_dynamic() {
+                    return Ty::Dynamic;
+                }
                 match arg_ty {
                     Ty::Int | Ty::Float | Ty::Bool => Ty::Float,
                     Ty::Error => Ty::Error,
@@ -106,6 +112,9 @@ impl FunctionChecker<'_> {
                     return Ty::Error;
                 }
                 let arg_ty = self.check_expr(args[0]);
+                if arg_ty.is_dynamic() {
+                    return Ty::Dynamic;
+                }
                 match arg_ty {
                     Ty::Int => Ty::Int,
                     Ty::Float => Ty::Float,
@@ -125,6 +134,12 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Func(target_fn_id) => {
                 let target_sig = self.all_sigs[target_fn_id].clone();
+                let callee_dynamic = self
+                    .all_modes
+                    .get(target_fn_id)
+                    .copied()
+                    .unwrap_or(crate::ty::FuncMode::Static)
+                    .is_dynamic();
                 if args.len() != target_sig.params.len() {
                     self.diagnostics.push(
                         Diagnostic::error(
@@ -142,26 +157,27 @@ impl FunctionChecker<'_> {
 
                 for (i, &arg) in args.iter().enumerate() {
                     let arg_ty = self.check_expr(arg);
+                    if callee_dynamic {
+                        // 动态函数接受任何实参，参数个数已在上面检查
+                        continue;
+                    }
                     if let Some(expected_ty) = target_sig.params.get(i) {
                         if *expected_ty != Ty::Error
                             && arg_ty != Ty::Error
                             && *expected_ty != arg_ty
                             && !(*expected_ty == Ty::Float && arg_ty == Ty::Int)
                         {
-                            self.diagnostics.push(
-                                Diagnostic::error(
-                                    Span::new(self.file, self.func.body.exprs[arg].range),
-                                    format!(
-                                        "实参类型不匹配：期望 `{expected_ty:?}`，得到 `{arg_ty:?}`"
-                                    ),
-                                )
-                                .with_code("E0203")
-                                .with_primary_label("类型不匹配"),
-                            );
+                            // 标注不是运行时约束：实参不符时把被调函数降级为动态，
+                            // 它会在动态路径上按 Python 语义执行（M2.1）。
+                            self.demote_callees.push(target_fn_id);
                         }
                     }
                 }
-                target_sig.ret
+                if callee_dynamic {
+                    Ty::Dynamic
+                } else {
+                    target_sig.ret
+                }
             }
             ExprKind::Class(target_cls_id) => {
                 let target_cls = &self.module.classes[target_cls_id];

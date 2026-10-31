@@ -1,0 +1,124 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn twice(_0: dyn) -> dyn {
+    let _0: dyn; // value
+    let _1: dyn;
+
+    bb0: {
+        _1 = dyn.Add(_0, _0);
+        return _1;
+    }
+}
+
+fn choose(_0: dyn) -> dyn {
+    let _0: dyn; // flag
+    let _1: bool;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::DynTruthy(_0);
+        branch _1 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        _2 = box<I64>(const 12_i64);
+        return _2;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        _3 = box<Str>(const "twelve");
+        return _3;
+    }
+}
+
+fn main() -> () {
+    let _0: dyn; // value
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: bool;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: bool;
+    let _23: dyn;
+
+    bb0: {
+        _1 = box<I64>(const 3_i64);
+        _0 = _1;
+        _2 = twice(_0);
+        RuntimeFn::WriteObject(_2);
+        RuntimeFn::WriteSep();
+        _3 = box<Str>(const "ha");
+        _4 = twice(_3);
+        RuntimeFn::WriteObject(_4);
+        RuntimeFn::WriteNewline();
+        _5 = box<Str>(const "changed");
+        _0 = _5;
+        RuntimeFn::WriteObject(_0);
+        RuntimeFn::WriteSep();
+        _6 = box<Bool>(const true);
+        _7 = choose(_6);
+        RuntimeFn::WriteObject(_7);
+        RuntimeFn::WriteSep();
+        _8 = box<Bool>(const false);
+        _9 = choose(_8);
+        RuntimeFn::WriteObject(_9);
+        RuntimeFn::WriteNewline();
+        _10 = box<Bool>(const true);
+        _11 = box<I64>(const 2_i64);
+        _12 = dyn.Add(_10, _11);
+        RuntimeFn::WriteObject(_12);
+        RuntimeFn::WriteSep();
+        _13 = box<I64>(const 2_i64);
+        _14 = box<F64>(const 0.5_f64);
+        _15 = dyn.Add(_13, _14);
+        RuntimeFn::WriteObject(_15);
+        RuntimeFn::WriteSep();
+        _17 = box<I64>(const 0_i64);
+        _16 = _17;
+        _18 = RuntimeFn::DynTruthy(_16);
+        branch _18 -> [then: bb2, else: bb1];
+    }
+    bb1: {
+        _19 = box<Str>(const "fallback");
+        _16 = _19;
+        goto -> bb2;
+    }
+    bb2: {
+        RuntimeFn::WriteObject(_16);
+        RuntimeFn::WriteSep();
+        _21 = box<Str>(const "left");
+        _20 = _21;
+        _22 = RuntimeFn::DynTruthy(_20);
+        branch _22 -> [then: bb3, else: bb4];
+    }
+    bb3: {
+        _23 = box<I64>(const 7_i64);
+        _20 = _23;
+        goto -> bb4;
+    }
+    bb4: {
+        RuntimeFn::WriteObject(_20);
+        RuntimeFn::WriteNewline();
+        return;
+    }
+}
