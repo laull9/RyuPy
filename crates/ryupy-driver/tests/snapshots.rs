@@ -190,6 +190,28 @@ fn snapshot_m1_4_mandelbrot() {
 }
 
 #[test]
+fn snapshot_m1_5_dataclass() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase1/m1_5_dataclass.py");
+
+    let mut sess = Session::default();
+    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
+    insta::assert_snapshot!("m1_5_dataclass_hir", hir);
+
+    let mut sess = Session::default();
+    let types = dump(&mut sess, &case, Stage::Types).unwrap();
+    insta::assert_snapshot!("m1_5_dataclass_types", types);
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m1_5_dataclass_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m1_5_dataclass_cil", cil);
+}
+
+#[test]
 fn catches_range_zero_step() {
     let py_path = std::env::temp_dir().join("ryupy_test_zero_step.py");
     std::fs::write(&py_path, "for i in range(0, 10, 0):\n    print(i)\n").unwrap();

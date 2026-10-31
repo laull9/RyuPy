@@ -26,7 +26,7 @@ use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{
     AssignTarget, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, StmtId, StmtKind,
 };
-use ryupy_ty::{ModuleTypes, Ty};
+use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 
 use crate::expr_builder::ExprBuilder;
 use crate::mir::{
@@ -36,8 +36,25 @@ use crate::mir::{
 
 pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnostic>) {
     let mut functions = Arena::default();
-    let classes = Arena::default();
+    let mut classes = Arena::default();
     let mut diagnostics = Vec::new();
+
+    // 0. 构建 MIR 类的类型与字段定义
+    for (_cls_id, cls) in hir.classes.iter() {
+        let fields = cls
+            .fields
+            .iter()
+            .map(|f| {
+                let ty = type_ref_to_ty(&f.annotation);
+                (f.name.as_str().to_string(), ty_to_mir(&ty))
+            })
+            .collect();
+        classes.alloc(crate::mir::ClassDef {
+            name: cls.name.as_str().to_string(),
+            fields,
+            is_value_type: cls.frozen,
+        });
+    }
 
     // 1. 预先为每个 HIR 函数分配 MIR FnId
     let mut fn_map: FxHashMap<ryupy_hir::FuncId, FnId> = FxHashMap::default();
@@ -223,13 +240,31 @@ impl<'a> FunctionBuilder<'a> {
             }
             StmtKind::Assign { target, value } => {
                 let val_op = self.expr_builder().build_expr(*value);
-                if let AssignTarget::Local(loc) = target {
-                    let dest = self.local_map[loc];
-                    self.push_stmt(Statement::Assign {
-                        dest,
-                        value: Rvalue::Use(val_op),
-                    });
-                    self.assigned_locals.insert(*loc);
+                match target {
+                    AssignTarget::Local(loc) => {
+                        let dest = self.local_map[loc];
+                        self.push_stmt(Statement::Assign {
+                            dest,
+                            value: Rvalue::Use(val_op),
+                        });
+                        self.assigned_locals.insert(*loc);
+                    }
+                    AssignTarget::Attribute { base, name } => {
+                        let base_op = self.expr_builder().build_expr(*base);
+                        let base_ty = &self.types.bodies[self.current_hir_fn].exprs[*base];
+                        if let Ty::Class(cls_id) = base_ty {
+                            let cls = &self.hir.classes[*cls_id];
+                            if let Some((field_idx, _)) =
+                                cls.fields.iter().enumerate().find(|(_, f)| f.name == *name)
+                            {
+                                self.push_stmt(Statement::SetField {
+                                    obj: base_op,
+                                    field: field_idx as u32,
+                                    value: val_op,
+                                });
+                            }
+                        }
+                    }
                 }
             }
             StmtKind::Return(opt_expr) => {

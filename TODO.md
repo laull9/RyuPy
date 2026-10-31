@@ -101,15 +101,18 @@
 - [x] 去掉 m1_4_floats 与 m1_4_mandelbrot 的 `pending`，`make check` 全绿 🎉
 - [x] 笔记：`docs/notes/` 记录 M1.4 实现总结（浮点 repr 规整、空字符串 US 堆踩坑、分支压缩根治与曼德博基准）
 
-### M1.5 `@dataclass`
+### M1.5 `@dataclass` 🎯 ✅
 
 > 用例：`m1_5_dataclass.py`
 
-- [ ] hir：识别 `from dataclasses import dataclass`；解析 `@dataclass` / `@dataclass(frozen=True)` 类体字段
-- [ ] ty：`Ty::Class`、构造调用、字段读写类型检查；frozen 类字段写入报错
-- [ ] mir：`NewObject` / `GetField` / `SetField`
-- [ ] codegen：生成 class（字段 + 构造函数）与 valuetype
-- [ ] 思考并记录：frozen → struct 的值语义与 Python 引用语义的差异（`is` 比较等）
+- [x] hir：识别 `from dataclasses import dataclass`；解析 `@dataclass` / `@dataclass(frozen=True)` 类体字段
+- [x] ty：`Ty::Class`、构造调用、字段读写类型检查；frozen 类字段写入报错 `E0203`
+- [x] mir：`NewObject` / `GetField` / `SetField`
+- [x] codegen：生成 class（字段 + 构造函数）与 valuetype（Sequential 布局）
+- [x] 思考并记录：frozen → struct 的值语义与 Python 引用语义的差异（写入 semantics.md 陷阱 #17 与 ADR-0008）
+- [x] 快照：`snapshot_m1_5_dataclass`
+- [x] 去掉 m1_5_dataclass 的 `pending`，`make check` 全绿 🎉
+- [x] 笔记：`docs/notes/` 记录 M1.5 实现总结（dataclass 引用与值类型降级、模块分层与 600 行拆分）
 
 ### M1.6 Native AOT 与 Phase 1 收尾
 

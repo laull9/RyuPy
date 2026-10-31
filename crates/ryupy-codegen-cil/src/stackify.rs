@@ -15,9 +15,28 @@
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{
-    BinOp, BlockId, Callee, CastKind, Constant as MirConstant, FnId, LocalId, Operand, RuntimeFn,
-    Rvalue, Statement, Terminator, UnaryOp,
+    BinOp, BlockId, Callee, CastKind, ClassDefId, Constant as MirConstant, FnId, LocalId, Operand,
+    RuntimeFn, Rvalue, Statement, Terminator, UnaryOp,
 };
+
+use crate::types::ClassTypeMap;
+
+#[derive(Clone, Debug)]
+pub struct ClassCodegenInfo {
+    pub ctor: MethodIndex,
+    pub fields: Vec<FieldIndex>,
+}
+
+pub type ClassInfoMap = FxHashMap<ClassDefId, ClassCodegenInfo>;
+
+struct LowerCtx<'a> {
+    runtime_refs: &'a RuntimeRefs,
+    fn_map: &'a FxHashMap<FnId, MethodIndex>,
+    class_info: &'a ClassInfoMap,
+    param_slots: &'a FxHashMap<LocalId, u16>,
+    local_slots: &'a FxHashMap<LocalId, u16>,
+    locals: &'a la_arena::Arena<ryupy_mir::LocalDecl>,
+}
 
 pub struct CompiledBody {
     pub instructions: Vec<Instruction>,
@@ -52,6 +71,8 @@ pub fn lower_function(
     func: &ryupy_mir::Function,
     runtime_refs: &RuntimeRefs,
     fn_map: &FxHashMap<FnId, MethodIndex>,
+    class_types: &ClassTypeMap,
+    class_info: &ClassInfoMap,
 ) -> CompiledBody {
     // 区分形参（ldarg）与局部变量（ldloc）
     let mut param_slots: FxHashMap<LocalId, u16> = FxHashMap::default();
@@ -65,7 +86,7 @@ pub fn lower_function(
         if param_slots.contains_key(&loc_id) {
             continue;
         }
-        if let Some(var) = crate::types::mir_type_to_local_var(&local_decl.ty) {
+        if let Some(var) = crate::types::mir_type_to_local_var(&local_decl.ty, class_types) {
             let idx = locals.len() as u16;
             locals.push(var);
             local_slots.insert(loc_id, idx);
@@ -100,6 +121,15 @@ pub fn lower_function(
         }
     }
 
+    let ctx = LowerCtx {
+        runtime_refs,
+        fn_map,
+        class_info,
+        param_slots: &param_slots,
+        local_slots: &local_slots,
+        locals: &func.body.locals,
+    };
+
     for (block_id, block) in func.body.blocks.iter() {
         if !reachable.contains(&block_id) {
             continue;
@@ -109,15 +139,7 @@ pub fn lower_function(
         for stmt in &block.stmts {
             match stmt {
                 Statement::Assign { dest, value } => {
-                    lower_rvalue(
-                        value,
-                        &mut instructions,
-                        runtime_refs,
-                        fn_map,
-                        &param_slots,
-                        &local_slots,
-                        &func.body.locals,
-                    );
+                    lower_rvalue(value, &mut instructions, &ctx);
                     if let Some(&arg_idx) = param_slots.get(dest) {
                         instructions.push(Instruction::StoreArgument(arg_idx));
                     } else if let Some(&local_idx) = local_slots.get(dest) {
@@ -125,17 +147,25 @@ pub fn lower_function(
                     }
                 }
                 Statement::Eval(rvalue) => {
-                    lower_rvalue(
-                        rvalue,
-                        &mut instructions,
-                        runtime_refs,
-                        fn_map,
-                        &param_slots,
-                        &local_slots,
-                        &func.body.locals,
-                    );
+                    lower_rvalue(rvalue, &mut instructions, &ctx);
                 }
-                Statement::SetField { .. } => {}
+                Statement::SetField { obj, field, value } => {
+                    lower_operand(obj, &mut instructions, &param_slots, &local_slots);
+                    lower_operand(value, &mut instructions, &param_slots, &local_slots);
+                    let class_id = match obj {
+                        Operand::Local(loc) => match func.body.locals[*loc].ty {
+                            ryupy_mir::MirType::Class(id) => id,
+                            _ => panic!("SetField obj 不是 Class 类型"),
+                        },
+                        _ => panic!("SetField obj 必须是局部变量操作数"),
+                    };
+                    let field_idx = class_info[&class_id].fields[*field as usize];
+                    instructions.push(Instruction::StoreField {
+                        unaligned: None,
+                        volatile: false,
+                        param0: field_idx.into(),
+                    });
+                }
             }
         }
 
@@ -219,21 +249,13 @@ fn is_f64_operand(op: &Operand, locals: &la_arena::Arena<ryupy_mir::LocalDecl>) 
     }
 }
 
-fn lower_rvalue(
-    rval: &Rvalue,
-    ins: &mut Vec<Instruction>,
-    runtime_refs: &RuntimeRefs,
-    fn_map: &FxHashMap<FnId, MethodIndex>,
-    param_slots: &FxHashMap<LocalId, u16>,
-    local_slots: &FxHashMap<LocalId, u16>,
-    locals: &la_arena::Arena<ryupy_mir::LocalDecl>,
-) {
+fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
     match rval {
-        Rvalue::Use(op) => lower_operand(op, ins, param_slots, local_slots),
+        Rvalue::Use(op) => lower_operand(op, ins, ctx.param_slots, ctx.local_slots),
         Rvalue::Binary { op, lhs, rhs } => {
-            lower_operand(lhs, ins, param_slots, local_slots);
-            lower_operand(rhs, ins, param_slots, local_slots);
-            let is_float = is_f64_operand(lhs, locals) || is_f64_operand(rhs, locals);
+            lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots);
+            lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots);
+            let is_float = is_f64_operand(lhs, ctx.locals) || is_f64_operand(rhs, ctx.locals);
             match op {
                 BinOp::Add => {
                     if is_float {
@@ -285,7 +307,7 @@ fn lower_rvalue(
             }
         }
         Rvalue::Unary { op, operand } => {
-            lower_operand(operand, ins, param_slots, local_slots);
+            lower_operand(operand, ins, ctx.param_slots, ctx.local_slots);
             match op {
                 UnaryOp::Neg => ins.push(Instruction::Negate),
                 UnaryOp::Not => {
@@ -296,48 +318,74 @@ fn lower_rvalue(
             }
         }
         Rvalue::Cast { kind, operand } => {
-            lower_operand(operand, ins, param_slots, local_slots);
+            lower_operand(operand, ins, ctx.param_slots, ctx.local_slots);
             match kind {
                 CastKind::I64ToF64 => ins.push(Instruction::ConvertFloat64),
-                CastKind::F64ToI64 => ins.push(Instruction::call(runtime_refs.f64_to_i64)),
+                CastKind::F64ToI64 => ins.push(Instruction::call(ctx.runtime_refs.f64_to_i64)),
                 CastKind::BoolToI64 => ins.push(Instruction::Convert(ConversionType::Int64)),
             }
         }
         Rvalue::Call { callee, args } => {
             for arg in args {
-                lower_operand(arg, ins, param_slots, local_slots);
+                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots);
             }
             match callee {
                 Callee::Runtime(rt_fn) => match rt_fn {
-                    RuntimeFn::WriteI64 => ins.push(Instruction::call(runtime_refs.write_i64)),
-                    RuntimeFn::WriteF64 => ins.push(Instruction::call(runtime_refs.write_f64)),
-                    RuntimeFn::WriteBool => ins.push(Instruction::call(runtime_refs.write_bool)),
-                    RuntimeFn::WriteStr => ins.push(Instruction::call(runtime_refs.write_str)),
+                    RuntimeFn::WriteI64 => ins.push(Instruction::call(ctx.runtime_refs.write_i64)),
+                    RuntimeFn::WriteF64 => ins.push(Instruction::call(ctx.runtime_refs.write_f64)),
+                    RuntimeFn::WriteBool => {
+                        ins.push(Instruction::call(ctx.runtime_refs.write_bool))
+                    }
+                    RuntimeFn::WriteStr => ins.push(Instruction::call(ctx.runtime_refs.write_str)),
                     RuntimeFn::WriteNewline => {
-                        ins.push(Instruction::call(runtime_refs.write_newline))
+                        ins.push(Instruction::call(ctx.runtime_refs.write_newline))
                     }
-                    RuntimeFn::WriteSep => ins.push(Instruction::call(runtime_refs.write_sep)),
-                    RuntimeFn::StrConcat => ins.push(Instruction::call(runtime_refs.str_concat)),
+                    RuntimeFn::WriteSep => ins.push(Instruction::call(ctx.runtime_refs.write_sep)),
+                    RuntimeFn::StrConcat => {
+                        ins.push(Instruction::call(ctx.runtime_refs.str_concat))
+                    }
                     RuntimeFn::FloorDivI64 => {
-                        ins.push(Instruction::call(runtime_refs.floor_div_i64))
+                        ins.push(Instruction::call(ctx.runtime_refs.floor_div_i64))
                     }
-                    RuntimeFn::ModI64 => ins.push(Instruction::call(runtime_refs.mod_i64)),
-                    RuntimeFn::PowI64 => ins.push(Instruction::call(runtime_refs.pow_i64)),
+                    RuntimeFn::ModI64 => ins.push(Instruction::call(ctx.runtime_refs.mod_i64)),
+                    RuntimeFn::PowI64 => ins.push(Instruction::call(ctx.runtime_refs.pow_i64)),
                     RuntimeFn::FloorDivF64 => {
-                        ins.push(Instruction::call(runtime_refs.floor_div_f64))
+                        ins.push(Instruction::call(ctx.runtime_refs.floor_div_f64))
                     }
-                    RuntimeFn::ModF64 => ins.push(Instruction::call(runtime_refs.mod_f64)),
-                    RuntimeFn::PowF64 => ins.push(Instruction::call(runtime_refs.pow_f64)),
-                    RuntimeFn::F64ToI64 => ins.push(Instruction::call(runtime_refs.f64_to_i64)),
-                    RuntimeFn::AbsI64 => ins.push(Instruction::call(runtime_refs.abs_i64)),
-                    RuntimeFn::AbsF64 => ins.push(Instruction::call(runtime_refs.abs_f64)),
+                    RuntimeFn::ModF64 => ins.push(Instruction::call(ctx.runtime_refs.mod_f64)),
+                    RuntimeFn::PowF64 => ins.push(Instruction::call(ctx.runtime_refs.pow_f64)),
+                    RuntimeFn::F64ToI64 => ins.push(Instruction::call(ctx.runtime_refs.f64_to_i64)),
+                    RuntimeFn::AbsI64 => ins.push(Instruction::call(ctx.runtime_refs.abs_i64)),
+                    RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
                 },
                 Callee::Fn(fn_id) => {
-                    let method_idx = fn_map[fn_id];
+                    let method_idx = ctx.fn_map[fn_id];
                     ins.push(Instruction::call(method_idx));
                 }
             }
         }
-        _ => todo!("其他 Rvalue 在后续里程碑实现"),
+        Rvalue::NewObject { class, args } => {
+            for arg in args {
+                lower_operand(arg, ins, ctx.param_slots, ctx.local_slots);
+            }
+            let ctor = ctx.class_info[class].ctor;
+            ins.push(Instruction::NewObject(ctor.into()));
+        }
+        Rvalue::GetField { obj, field } => {
+            lower_operand(obj, ins, ctx.param_slots, ctx.local_slots);
+            let class_id = match obj {
+                Operand::Local(loc) => match ctx.locals[*loc].ty {
+                    ryupy_mir::MirType::Class(id) => id,
+                    _ => panic!("GetField obj 不是 Class 类型"),
+                },
+                _ => panic!("GetField obj 必须是局部变量操作数"),
+            };
+            let field_idx = ctx.class_info[&class_id].fields[*field as usize];
+            ins.push(Instruction::LoadField {
+                unaligned: None,
+                volatile: false,
+                param0: field_idx.into(),
+            });
+        }
     }
 }

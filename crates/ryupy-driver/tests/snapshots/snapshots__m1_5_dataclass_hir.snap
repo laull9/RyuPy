@@ -1,0 +1,16 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def step(b: class, dt: float) -> None:
+    b.x = (b.x + (b.v * dt))
+
+def dot(a: class, b: class) -> int:
+    return ((a.x * b.x) + (a.y * b.y))
+
+def [main] main():
+    b = Body(0.0, 2.0, 1.0)
+    for _ in range(0, 10):
+        step(b, 0.5)
+    print(b.x)
+    print(dot(Vec2(1, 2), Vec2(3, 4)))

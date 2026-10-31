@@ -10,10 +10,14 @@
 //!
 //! Phase 2 会引入 [`Ty::Dynamic`]：推不出来的变量不再报错，而是降级为 `PyValue`。
 
+mod call;
 mod check;
 mod infer;
 pub mod ops;
 mod ty;
 
-pub use check::check_module;
+pub use check::{check_module, type_ref_to_ty};
 pub use ty::*;
+
+#[cfg(test)]
+mod check_tests;

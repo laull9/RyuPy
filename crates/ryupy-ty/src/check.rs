@@ -11,8 +11,8 @@
 use la_arena::ArenaMap;
 use ryupy_base::{Diagnostic, FileId, Span};
 use ryupy_hir::{
-    AssignTarget, BinOp, Builtin, ExprId, ExprKind, Function, FunctionKind, Literal, LocalId,
-    Module, StmtKind, TypeRef,
+    AssignTarget, BinOp, ExprId, ExprKind, Function, FunctionKind, Literal, LocalId, Module,
+    StmtKind, TypeRef,
 };
 
 use crate::infer::{InferCtx, InferTy};
@@ -36,6 +36,7 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
 
         let mut checker = FunctionChecker {
             file: module.file,
+            module,
             func,
             sig: &sig,
             all_sigs: &sigs,
@@ -96,7 +97,7 @@ fn compute_fn_sig(file: FileId, func: &Function, diags: &mut Vec<Diagnostic>) ->
     FnSig { params, ret }
 }
 
-fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
+pub fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
     match type_ref {
         TypeRef::Int => Ty::Int,
         TypeRef::Float => Ty::Float,
@@ -108,15 +109,16 @@ fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
     }
 }
 
-struct FunctionChecker<'a> {
-    file: FileId,
-    func: &'a Function,
-    sig: &'a FnSig,
-    all_sigs: &'a ArenaMap<ryupy_hir::FuncId, FnSig>,
-    infer: InferCtx,
-    local_vars: ArenaMap<LocalId, InferTy>,
-    results: &'a mut TypeckResults,
-    diagnostics: &'a mut Vec<Diagnostic>,
+pub(crate) struct FunctionChecker<'a> {
+    pub(crate) file: FileId,
+    pub(crate) module: &'a Module,
+    pub(crate) func: &'a Function,
+    pub(crate) sig: &'a FnSig,
+    pub(crate) all_sigs: &'a ArenaMap<ryupy_hir::FuncId, FnSig>,
+    pub(crate) infer: InferCtx,
+    pub(crate) local_vars: ArenaMap<LocalId, InferTy>,
+    pub(crate) results: &'a mut TypeckResults,
+    pub(crate) diagnostics: &'a mut Vec<Diagnostic>,
 }
 
 impl FunctionChecker<'_> {
@@ -172,24 +174,91 @@ impl FunctionChecker<'_> {
             }
             StmtKind::Assign { target, value } => {
                 let val_ty = self.check_expr(*value);
-                if let AssignTarget::Local(loc_id) = target {
-                    let loc_infer = self.local_vars[*loc_id].clone();
-                    if let Err((expected, actual)) =
-                        self.infer.unify(&loc_infer, &InferTy::Known(val_ty))
-                    {
-                        let loc = &self.func.body.locals[*loc_id];
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[*value].range),
-                                format!("类型不匹配：期望 `{expected:?}`，得到 `{actual:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("类型不相容")
-                            .with_label(
-                                Span::new(self.file, loc.range),
-                                "期望类型来自该变量的定义",
-                            ),
-                        );
+                match target {
+                    AssignTarget::Local(loc_id) => {
+                        let loc_infer = self.local_vars[*loc_id].clone();
+                        if let Err((expected, actual)) =
+                            self.infer.unify(&loc_infer, &InferTy::Known(val_ty))
+                        {
+                            let loc = &self.func.body.locals[*loc_id];
+                            self.diagnostics.push(
+                                Diagnostic::error(
+                                    Span::new(self.file, self.func.body.exprs[*value].range),
+                                    format!("类型不匹配：期望 `{expected:?}`，得到 `{actual:?}`"),
+                                )
+                                .with_code("E0203")
+                                .with_primary_label("类型不相容")
+                                .with_label(
+                                    Span::new(self.file, loc.range),
+                                    "期望类型来自该变量的定义",
+                                ),
+                            );
+                        }
+                    }
+                    AssignTarget::Attribute { base, name } => {
+                        let base_ty = self.check_expr(*base);
+                        match base_ty {
+                            Ty::Class(cls_id) => {
+                                let cls = &self.module.classes[cls_id];
+                                if cls.frozen {
+                                    self.diagnostics.push(
+                                        Diagnostic::error(
+                                            Span::new(self.file, self.func.body.exprs[*base].range),
+                                            format!(
+                                                "不能修改被 @dataclass(frozen=True) 修饰的 `{}` 实例属性",
+                                                cls.name
+                                            ),
+                                        )
+                                        .with_code("E0203")
+                                        .with_primary_label("frozen dataclass 实例不可变"),
+                                    );
+                                } else if let Some(field) =
+                                    cls.fields.iter().find(|f| f.name == *name)
+                                {
+                                    let expected_ty = type_ref_to_ty(&field.annotation);
+                                    if expected_ty != Ty::Error
+                                        && val_ty != Ty::Error
+                                        && expected_ty != val_ty
+                                        && !(expected_ty == Ty::Float && val_ty == Ty::Int)
+                                    {
+                                        self.diagnostics.push(
+                                            Diagnostic::error(
+                                                Span::new(
+                                                    self.file,
+                                                    self.func.body.exprs[*value].range,
+                                                ),
+                                                format!(
+                                                    "字段 `{}` 赋值类型不匹配：期望 `{expected_ty:?}`，得到 `{val_ty:?}`",
+                                                    field.name
+                                                ),
+                                            )
+                                            .with_code("E0203")
+                                            .with_primary_label("类型不匹配"),
+                                        );
+                                    }
+                                } else {
+                                    self.diagnostics.push(
+                                        Diagnostic::error(
+                                            Span::new(self.file, stmt.range),
+                                            format!("类 `{}` 没有名为 `{}` 的属性", cls.name, name),
+                                        )
+                                        .with_code("E0203")
+                                        .with_primary_label("未定义的属性"),
+                                    );
+                                }
+                            }
+                            Ty::Error => {}
+                            _ => {
+                                self.diagnostics.push(
+                                    Diagnostic::error(
+                                        Span::new(self.file, stmt.range),
+                                        format!("类型 `{base_ty:?}` 不支持属性赋值"),
+                                    )
+                                    .with_code("E0203")
+                                    .with_primary_label("不支持属性赋值"),
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -305,7 +374,7 @@ impl FunctionChecker<'_> {
         }
     }
 
-    fn check_expr(&mut self, expr_id: ExprId) -> Ty {
+    pub(crate) fn check_expr(&mut self, expr_id: ExprId) -> Ty {
         let expr = &self.func.body.exprs[expr_id];
         let ty = match &expr.kind {
             ExprKind::Literal(lit) => match lit {
@@ -400,9 +469,42 @@ impl FunctionChecker<'_> {
                     Ty::Error
                 }
             }
+            ExprKind::Class(cls_id) => Ty::Class(*cls_id),
+            ExprKind::Attribute { base, name } => {
+                let base_ty = self.check_expr(*base);
+                match base_ty {
+                    Ty::Class(cls_id) => {
+                        let cls = &self.module.classes[cls_id];
+                        if let Some(field) = cls.fields.iter().find(|f| f.name == *name) {
+                            type_ref_to_ty(&field.annotation)
+                        } else {
+                            self.diagnostics.push(
+                                Diagnostic::error(
+                                    Span::new(self.file, expr.range),
+                                    format!("类 `{}` 没有名为 `{}` 的属性", cls.name, name),
+                                )
+                                .with_code("E0203")
+                                .with_primary_label("未定义的属性"),
+                            );
+                            Ty::Error
+                        }
+                    }
+                    Ty::Error => Ty::Error,
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, expr.range),
+                                format!("类型 `{base_ty:?}` 不支持属性访问 `{name}`"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("类型不支持属性访问"),
+                        );
+                        Ty::Error
+                    }
+                }
+            }
             ExprKind::Call { callee, args } => self.check_call(*callee, args, expr.range),
             ExprKind::Missing => Ty::Error,
-            _ => Ty::Error,
         };
 
         self.results.exprs.insert(expr_id, ty.clone());
@@ -420,171 +522,6 @@ impl FunctionChecker<'_> {
                     )
                     .with_code("E0203")
                     .with_primary_label("运算数类型不匹配"),
-                );
-                Ty::Error
-            }
-        }
-    }
-
-    fn check_call(&mut self, callee: ExprId, args: &[ExprId], range: ryupy_base::TextRange) -> Ty {
-        let callee_expr = &self.func.body.exprs[callee];
-        match callee_expr.kind {
-            ExprKind::Builtin(Builtin::Print) => {
-                self.results.exprs.insert(callee, Ty::None);
-                for &arg in args {
-                    self.check_expr(arg);
-                }
-                Ty::None
-            }
-            ExprKind::Builtin(Builtin::Int) => {
-                self.results.exprs.insert(callee, Ty::None);
-                if args.len() != 1 {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, range),
-                            format!("int() 期望 1 个参数，实际传入 {} 个", args.len()),
-                        )
-                        .with_code("E0204")
-                        .with_primary_label("参数个数不匹配"),
-                    );
-                    for &arg in args {
-                        self.check_expr(arg);
-                    }
-                    return Ty::Int;
-                }
-                let arg_ty = self.check_expr(args[0]);
-                match arg_ty {
-                    Ty::Int | Ty::Float | Ty::Bool => Ty::Int,
-                    Ty::Error => Ty::Error,
-                    _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[args[0]].range),
-                                format!("int() 无法转换类型 `{arg_ty:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("不支持此类型转 int"),
-                        );
-                        Ty::Error
-                    }
-                }
-            }
-            ExprKind::Builtin(Builtin::Float) => {
-                self.results.exprs.insert(callee, Ty::None);
-                if args.len() != 1 {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, range),
-                            format!("float() 期望 1 个参数，实际传入 {} 个", args.len()),
-                        )
-                        .with_code("E0204")
-                        .with_primary_label("参数个数不匹配"),
-                    );
-                    for &arg in args {
-                        self.check_expr(arg);
-                    }
-                    return Ty::Float;
-                }
-                let arg_ty = self.check_expr(args[0]);
-                match arg_ty {
-                    Ty::Int | Ty::Float | Ty::Bool => Ty::Float,
-                    Ty::Error => Ty::Error,
-                    _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[args[0]].range),
-                                format!("float() 无法转换类型 `{arg_ty:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("不支持此类型转 float"),
-                        );
-                        Ty::Error
-                    }
-                }
-            }
-            ExprKind::Builtin(Builtin::Abs) => {
-                self.results.exprs.insert(callee, Ty::None);
-                if args.len() != 1 {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, range),
-                            format!("abs() 期望 1 个参数，实际传入 {} 个", args.len()),
-                        )
-                        .with_code("E0204")
-                        .with_primary_label("参数个数不匹配"),
-                    );
-                    for &arg in args {
-                        self.check_expr(arg);
-                    }
-                    return Ty::Error;
-                }
-                let arg_ty = self.check_expr(args[0]);
-                match arg_ty {
-                    Ty::Int => Ty::Int,
-                    Ty::Float => Ty::Float,
-                    Ty::Error => Ty::Error,
-                    _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, self.func.body.exprs[args[0]].range),
-                                format!("abs() 不支持类型 `{arg_ty:?}`"),
-                            )
-                            .with_code("E0203")
-                            .with_primary_label("不支持此类型求绝对值"),
-                        );
-                        Ty::Error
-                    }
-                }
-            }
-            ExprKind::Func(target_fn_id) => {
-                let target_sig = self.all_sigs[target_fn_id].clone();
-                if args.len() != target_sig.params.len() {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, range),
-                            format!(
-                                "函数调用参数数量不匹配：期望 {} 个，实际传入 {} 个",
-                                target_sig.params.len(),
-                                args.len()
-                            ),
-                        )
-                        .with_code("E0204")
-                        .with_primary_label("参数个数不匹配"),
-                    );
-                }
-
-                for (i, &arg) in args.iter().enumerate() {
-                    let arg_ty = self.check_expr(arg);
-                    if let Some(expected_ty) = target_sig.params.get(i) {
-                        if *expected_ty != Ty::Error
-                            && arg_ty != Ty::Error
-                            && *expected_ty != arg_ty
-                            && !(*expected_ty == Ty::Float && arg_ty == Ty::Int)
-                        {
-                            self.diagnostics.push(
-                                Diagnostic::error(
-                                    Span::new(self.file, self.func.body.exprs[arg].range),
-                                    format!(
-                                        "实参类型不匹配：期望 `{expected_ty:?}`，得到 `{arg_ty:?}`"
-                                    ),
-                                )
-                                .with_code("E0203")
-                                .with_primary_label("类型不匹配"),
-                            );
-                        }
-                    }
-                }
-                target_sig.ret
-            }
-            _ => {
-                self.check_expr(callee);
-                for &arg in args {
-                    self.check_expr(arg);
-                }
-                self.diagnostics.push(
-                    Diagnostic::error(Span::new(self.file, range), "暂不支持调用非函数对象")
-                        .with_code("E0200")
-                        .with_primary_label("不是可调用的函数"),
                 );
                 Ty::Error
             }

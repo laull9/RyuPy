@@ -1,0 +1,86 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn step(_0: Class(0), _1: f64) -> () {
+    let _0: Class(0); // b
+    let _1: f64; // dt
+    let _2: f64;
+    let _3: f64;
+    let _4: f64;
+    let _5: f64;
+
+    bb0: {
+        _2 = _0.0;
+        _3 = _0.1;
+        _4 = Mul(_3, _1);
+        _5 = Add(_2, _4);
+        _0.0 = _5;
+        return;
+    }
+}
+
+fn dot(_0: Class(1), _1: Class(1)) -> i64 {
+    let _0: Class(1); // a
+    let _1: Class(1); // b
+    let _2: i64;
+    let _3: i64;
+    let _4: i64;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+
+    bb0: {
+        _2 = _0.0;
+        _3 = _1.0;
+        _4 = Mul(_2, _3);
+        _5 = _0.1;
+        _6 = _1.1;
+        _7 = Mul(_5, _6);
+        _8 = Add(_4, _7);
+        return _8;
+    }
+}
+
+fn main() -> () {
+    let _0: Class(0); // b
+    let _1: i64; // _
+    let _2: Class(0);
+    let _3: bool;
+    let _4: ();
+    let _5: f64;
+    let _6: Class(1);
+    let _7: Class(1);
+    let _8: i64;
+
+    bb0: {
+        _2 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
+        _0 = _2;
+        _1 = const 0_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _3 = Lt(_1, const 10_i64);
+        branch _3 -> [then: bb2, else: bb4];
+    }
+    bb2: {
+        _4 = step(_0, const 0.5_f64);
+        goto -> bb3;
+    }
+    bb3: {
+        _1 = Add(_1, const 1_i64);
+        goto -> bb1;
+    }
+    bb4: {
+        _5 = _0.0;
+        RuntimeFn::WriteF64(_5);
+        RuntimeFn::WriteNewline();
+        _6 = New(Class(1), [const 1_i64, const 2_i64]);
+        _7 = New(Class(1), [const 3_i64, const 4_i64]);
+        _8 = dot(_6, _7);
+        RuntimeFn::WriteI64(_8);
+        RuntimeFn::WriteNewline();
+        return;
+    }
+}

@@ -1,0 +1,162 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m1_5_dataclass
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static void step(RyuPy.Generated.Body, double) cil managed
+    {
+        .locals init (
+            [0] double,
+            [1] double,
+            [2] double,
+            [3] double
+        )
+        IL_0000: LoadArgument(0)
+        IL_0001: LoadField(RyuPy.Generated.Body.x)
+        IL_0002: StoreLocal(0)
+        IL_0003: LoadArgument(0)
+        IL_0004: LoadField(RyuPy.Generated.Body.v)
+        IL_0005: StoreLocal(1)
+        IL_0006: LoadLocal(1)
+        IL_0007: LoadArgument(1)
+        IL_0008: Multiply
+        IL_0009: StoreLocal(2)
+        IL_000a: LoadLocal(0)
+        IL_000b: LoadLocal(2)
+        IL_000c: Add
+        IL_000d: StoreLocal(3)
+        IL_000e: LoadArgument(0)
+        IL_000f: LoadLocal(3)
+        IL_0010: StoreField(RyuPy.Generated.Body.x)
+        IL_0011: Return
+    }
+
+    .method public static long dot(valuetype RyuPy.Generated.Vec2, valuetype RyuPy.Generated.Vec2) cil managed
+    {
+        .locals init (
+            [0] long,
+            [1] long,
+            [2] long,
+            [3] long,
+            [4] long,
+            [5] long,
+            [6] long
+        )
+        IL_0000: LoadArgument(0)
+        IL_0001: LoadField(RyuPy.Generated.Vec2.x)
+        IL_0002: StoreLocal(0)
+        IL_0003: LoadArgument(1)
+        IL_0004: LoadField(RyuPy.Generated.Vec2.x)
+        IL_0005: StoreLocal(1)
+        IL_0006: LoadLocal(0)
+        IL_0007: LoadLocal(1)
+        IL_0008: MultiplyOverflow(Signed)
+        IL_0009: StoreLocal(2)
+        IL_000a: LoadArgument(0)
+        IL_000b: LoadField(RyuPy.Generated.Vec2.y)
+        IL_000c: StoreLocal(3)
+        IL_000d: LoadArgument(1)
+        IL_000e: LoadField(RyuPy.Generated.Vec2.y)
+        IL_000f: StoreLocal(4)
+        IL_0010: LoadLocal(3)
+        IL_0011: LoadLocal(4)
+        IL_0012: MultiplyOverflow(Signed)
+        IL_0013: StoreLocal(5)
+        IL_0014: LoadLocal(2)
+        IL_0015: LoadLocal(5)
+        IL_0016: AddOverflow(Signed)
+        IL_0017: StoreLocal(6)
+        IL_0018: LoadLocal(6)
+        IL_0019: Return
+    }
+
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] RyuPy.Generated.Body,
+            [1] long,
+            [2] RyuPy.Generated.Body,
+            [3] bool,
+            [4] double,
+            [5] valuetype RyuPy.Generated.Vec2,
+            [6] valuetype RyuPy.Generated.Vec2,
+            [7] long
+        )
+        IL_0000: LoadConstantFloat64(0.0)
+        IL_0001: LoadConstantFloat64(2.0)
+        IL_0002: LoadConstantFloat64(1.0)
+        IL_0003: NewObject(void RyuPy.Generated.Body..ctor(double, double, double))
+        IL_0004: StoreLocal(2)
+        IL_0005: LoadLocal(2)
+        IL_0006: StoreLocal(0)
+        IL_0007: LoadConstantInt64(0)
+        IL_0008: StoreLocal(1)
+        IL_0009: Branch(10)
+        IL_000a: LoadLocal(1)
+        IL_000b: LoadConstantInt64(10)
+        IL_000c: CompareLess(Signed)
+        IL_000d: StoreLocal(3)
+        IL_000e: LoadLocal(3)
+        IL_000f: BranchTruthy(17)
+        IL_0010: Branch(26)
+        IL_0011: LoadLocal(0)
+        IL_0012: LoadConstantFloat64(0.5)
+        IL_0013: Call(static void RyuPy.Generated.Module.step(RyuPy.Generated.Body, double))
+        IL_0014: Branch(21)
+        IL_0015: LoadLocal(1)
+        IL_0016: LoadConstantInt64(1)
+        IL_0017: AddOverflow(Signed)
+        IL_0018: StoreLocal(1)
+        IL_0019: Branch(10)
+        IL_001a: LoadLocal(0)
+        IL_001b: LoadField(RyuPy.Generated.Body.x)
+        IL_001c: StoreLocal(4)
+        IL_001d: LoadLocal(4)
+        IL_001e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_001f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0020: LoadConstantInt64(1)
+        IL_0021: LoadConstantInt64(2)
+        IL_0022: NewObject(void RyuPy.Generated.Vec2..ctor(long, long))
+        IL_0023: StoreLocal(5)
+        IL_0024: LoadConstantInt64(3)
+        IL_0025: LoadConstantInt64(4)
+        IL_0026: NewObject(void RyuPy.Generated.Vec2..ctor(long, long))
+        IL_0027: StoreLocal(6)
+        IL_0028: LoadLocal(5)
+        IL_0029: LoadLocal(6)
+        IL_002a: Call(static long RyuPy.Generated.Module.dot(valuetype RyuPy.Generated.Vec2, valuetype RyuPy.Generated.Vec2))
+        IL_002b: StoreLocal(7)
+        IL_002c: LoadLocal(7)
+        IL_002d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_002e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_002f: Return
+    }
+}
+
+.class public auto ansi sealed beforefieldinit RyuPy.Generated.Body
+    extends [System.Runtime]System.Object
+{
+    .field public float64 x
+    .field public float64 v
+    .field public float64 m
+}
+
+.class public auto ansi sealed beforefieldinit RyuPy.Generated.Vec2
+    extends [System.Runtime]System.ValueType
+{
+    .field public int64 x
+    .field public int64 y
+}

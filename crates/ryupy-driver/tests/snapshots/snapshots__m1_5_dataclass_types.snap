@@ -1,0 +1,13 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: types
+---
+func Idx::<Function>(0): [Class(Idx::<Class>(0)), Float] -> None
+  local Idx::<Local>(0): Class(Idx::<Class>(0))
+  local Idx::<Local>(1): Float
+func Idx::<Function>(1): [Class(Idx::<Class>(1)), Class(Idx::<Class>(1))] -> Int
+  local Idx::<Local>(0): Class(Idx::<Class>(1))
+  local Idx::<Local>(1): Class(Idx::<Class>(1))
+func Idx::<Function>(2): [] -> None
+  local Idx::<Local>(0): Class(Idx::<Class>(0))
+  local Idx::<Local>(1): Int

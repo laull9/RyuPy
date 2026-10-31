@@ -9,22 +9,22 @@
 
 | 构造 | 状态 | 降级方式 |
 | --- | --- | --- |
-| 整数 / 浮点 / 布尔 / 字符串 / `None` 字面量 | 📋 M1.0 / M1.4 | `Literal` |
-| `print(a, b, ...)` | 📋 M1.0 | 按类型逐个 `Write*` + `WriteSep` + `WriteNewline` |
-| 带完整类型标注的 `def` | 📋 M1.1 | CIL 静态方法 |
-| 局部变量（不带标注 / `x: int = …`） | 📋 M1.1 | CIL local，类型由推导决定 |
-| `x += 1` 等增量赋值 | 📋 M1.1 | 去糖为 `x = x + 1` |
-| 函数调用（含前向引用、递归） | 📋 M1.1 | `call` |
-| 算术 / 位运算 / 比较 / `not` | 📋 M1.2 | 见第 3 节 |
-| `and` / `or`（短路） | 📋 M1.2 | 基本块分支 |
-| `if` / `elif` / `else`、条件表达式 | 📋 M1.2 | 基本块分支 |
-| `while`、`break`、`continue` | 📋 M1.2 | 基本块 + 循环目标栈 |
-| `for x in range(...)` | 📋 M1.3 | 原生计数循环，不产生迭代器 |
-| `int(x)` / `float(x)` / `abs(x)` | 📋 M1.4 | `Cast` / 运行时函数 |
-| `str + str` | 📋 M1.4 | `Builtins.StrConcat` |
-| `from dataclasses import dataclass` + `@dataclass` | 📋 M1.5 | .NET class |
-| `@dataclass(frozen=True)` | 📋 M1.5 | .NET struct |
-| 链式比较 `a < b < c` | 📋 M1.2 | 中间项无副作用时展开，否则 ❌ |
+| 整数 / 浮点 / 布尔 / 字符串 / `None` 字面量 | ✅ M1.0 / M1.4 | `Literal` |
+| `print(a, b, ...)` | ✅ M1.0 | 按类型逐个 `Write*` + `WriteSep` + `WriteNewline` |
+| 带完整类型标注的 `def` | ✅ M1.1 | CIL 静态方法 |
+| 局部变量（不带标注 / `x: int = …`） | ✅ M1.1 | CIL local，类型由推导决定 |
+| `x += 1` 等增量赋值 | ✅ M1.1 | 去糖为 `x = x + 1` |
+| 函数调用（含前向引用、递归） | ✅ M1.1 | `call` |
+| 算术 / 位运算 / 比较 / `not` | ✅ M1.2 | 见第 3 节 |
+| `and` / `or`（短路） | ✅ M1.2 | 基本块分支 |
+| `if` / `elif` / `else`、条件表达式 | ✅ M1.2 | 基本块分支 |
+| `while`、`break`、`continue` | ✅ M1.2 | 基本块 + 循环目标栈 |
+| `for x in range(...)` | ✅ M1.3 | 原生计数循环，不产生迭代器 |
+| `int(x)` / `float(x)` / `abs(x)` | ✅ M1.4 | `Cast` / 运行时函数 |
+| `str + str` | ✅ M1.4 | `Builtins.StrConcat` |
+| `from dataclasses import dataclass` + `@dataclass` | ✅ M1.5 | .NET class |
+| `@dataclass(frozen=True)` | ✅ M1.5 | .NET struct |
+| 链式比较 `a < b < c` | ✅ M1.2 | 中间项无副作用时展开，否则 ❌ |
 | `while … else` / `for … else` | ❌ | — |
 | 其它 `import` | ❌ | — |
 | `global` / `nonlocal` | ❌ | Phase 3 |
@@ -86,6 +86,7 @@
 | 14 | 字符串长度 / 下标 | 按码点 | 按 UTF-16 单元 | Phase 1 不支持 `len`/下标；Phase 2 处理 |
 | 15 | 浮点 NaN 比较 | `nan < 1` 为 `False`，`nan != nan` 为 `True` | `clt` 正确；`!(a < b)` 式的取反实现会出错 | 比较指令不得用「取反」实现 `>=` 等 |
 | 16 | `-0.0` | 打印 `-0.0` | 打印 `-0` | `FloatRepr` 处理 |
+| 17 | `frozen=True` dataclass 语义 | Python 中所有对象变量均为引用语义 | .NET `valuetype` 传参/赋值是值拷贝，无 GC 堆开销但无引用别名 | 编译期禁止修改 `frozen=True` 属性（报 E0203）；对纯不可变数据两者在外部观测等价；记录于 ADR-0008 |
 
 ## 5. 模块与入口
 

@@ -9,6 +9,7 @@
 //! - MIR 有自己的 ID 体系（[`FnId`]），**codegen 只依赖本 crate，不接触 HIR**。
 
 pub mod build;
+mod call_builder;
 pub mod expr_builder;
 mod mir;
 pub mod passes;
