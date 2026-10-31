@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace RyuPy.Runtime;
 
@@ -79,8 +80,23 @@ public static class PyPic
         };
 
     /// <summary>带调用点编号的二元运算入口。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object Binary(int site, int op, object a, object b)
     {
+        // 最常见形态直接走 long 快路径：跳过形状分类与缓存查找。
+        // 装箱数值都是 long；溢出由 PyInt 升级 BigInteger，语义不变。
+        if (a is long leftLong && b is long rightLong)
+        {
+            switch (op)
+            {
+                case PyOps.Add:
+                    return PyInt.AddI64(leftLong, rightLong);
+                case PyOps.Sub:
+                    return PyInt.SubtractI64(leftLong, rightLong);
+                case PyOps.Mul:
+                    return PyInt.MultiplyI64(leftLong, rightLong);
+            }
+        }
         if (!Enabled || (uint)site >= MaxSites)
         {
             return PyOps.Binary(op, a, b);
@@ -121,14 +137,16 @@ public static class PyPic
     {
         if (left == KindLong && right == KindLong)
         {
+            long x = (long)a;
+            long y = (long)b;
             switch (op)
             {
                 case PyOps.Add:
-                    return PyInt.Add(a, b);
+                    return PyInt.AddI64(x, y);
                 case PyOps.Sub:
-                    return PyInt.Subtract(a, b);
+                    return PyInt.SubtractI64(x, y);
                 case PyOps.Mul:
-                    return PyInt.Multiply(a, b);
+                    return PyInt.MultiplyI64(x, y);
             }
         }
         else if (left == KindDouble && right == KindDouble)
@@ -190,6 +208,12 @@ public static class PyPic
 
     private static readonly CallEntry[] CallEntries = new CallEntry[MaxSites * EntriesPerSite];
 
+    /// <summary>每个调用点复用的位置实参数组（只含实参，不含 self）。</summary>
+    private static readonly object?[][] ArgScratch = new object?[MaxSites][];
+
+    /// <summary>方法调用专用：`[self, arg0, ...]`，供 `PyFunction` 直接使用。</summary>
+    private static readonly object?[][] PreparedScratch = new object?[MaxSites][];
+
     private const byte CallFunction = 1;
     private const byte CallBound = 2;
     private const byte CallClass = 3;
@@ -233,6 +257,102 @@ public static class PyPic
         return result;
     }
 
+    /// <summary>`CallValueN`：纯位置调用，复用调用点数组。</summary>
+    public static object? CallValue0(int site, object? callable) =>
+        CallValueFast(site, callable, ArgFor(site, 0));
+
+    /// <summary>`CallValueN`：1 个位置实参。</summary>
+    public static object? CallValue1(int site, object? callable, object? a0)
+    {
+        object?[] args = ArgFor(site, 1);
+        args[0] = a0;
+        return CallValueFast(site, callable, args);
+    }
+
+    /// <summary>`CallValueN`：2 个位置实参。</summary>
+    public static object? CallValue2(int site, object? callable, object? a0, object? a1)
+    {
+        object?[] args = ArgFor(site, 2);
+        args[0] = a0;
+        args[1] = a1;
+        return CallValueFast(site, callable, args);
+    }
+
+    /// <summary>`CallValueN`：3 个位置实参。</summary>
+    public static object? CallValue3(
+        int site,
+        object? callable,
+        object? a0,
+        object? a1,
+        object? a2
+    )
+    {
+        object?[] args = ArgFor(site, 3);
+        args[0] = a0;
+        args[1] = a1;
+        args[2] = a2;
+        return CallValueFast(site, callable, args);
+    }
+
+    private static object? CallValueFast(int site, object? callable, object?[] args)
+    {
+        if (!Enabled || (uint)site >= MaxSites)
+        {
+            return PyOps.CallValue(callable, args, PyOps.EmptyArray(), PyOps.EmptyArray());
+        }
+        int baseIndex = site * EntriesPerSite;
+        byte kind = KindOfCallable(callable);
+        for (int i = 0; i < EntriesPerSite; i++)
+        {
+            ref CallEntry entry = ref CallEntries[baseIndex + i];
+            if (entry.Valid == 0 || !ReferenceEquals(entry.Target, callable))
+            {
+                continue;
+            }
+            if (kind == CallFunction)
+            {
+                return ((PyFunction)callable!).Invoke(args, EmptyNames, PyOps.EmptyArray());
+            }
+            if (kind == CallClass)
+            {
+                return ((PyClass)callable!).Invoke(args, EmptyNames, PyOps.EmptyArray());
+            }
+            break;
+        }
+
+        object? result = InvokeCached(kind, callable, args, PyOps.EmptyArray(), PyOps.EmptyArray());
+        if (kind != 0)
+        {
+            int slot = baseIndex + (int)((uint)site % EntriesPerSite);
+            CallEntries[slot] = new CallEntry
+            {
+                Valid = 1,
+                Kind = kind,
+                Target = callable,
+            };
+        }
+        return result;
+    }
+
+    /// <summary>取（必要时扩容）调用点的实参数组；同一调用点参数个数固定。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static object?[] ArgFor(int site, int length)
+    {
+        if ((uint)site >= MaxSites)
+        {
+            return length == 0 ? PyOps.EmptyArray() : new object?[length];
+        }
+        object?[]? args = ArgScratch[site];
+        if (args is null || args.Length != length)
+        {
+            args = length == 0 ? PyOps.EmptyArray() : new object?[length];
+            ArgScratch[site] = args;
+        }
+        return args;
+    }
+
+    private static readonly string[] EmptyNames = [];
+
     private static byte KindOfCallable(object? callable) =>
         callable switch
         {
@@ -268,7 +388,8 @@ public static class PyPic
         public string? Name;
         public PyClass? Class;
         public long ClassVersion;
-        public long InstanceVersion;
+        /// <summary>方法名对应的实例属性槽位；-1 表示该类从未给这个名字分配槽位。</summary>
+        public int ShadowSlot;
         public PyClass? Owner;
         public object? Target;
         /// <summary>1 表示接收者是实例，2 表示接收者是类（classmethod）。</summary>
@@ -277,6 +398,237 @@ public static class PyPic
     }
 
     private static readonly MethodEntry[] MethodEntries = new MethodEntry[MaxSites * EntriesPerSite];
+
+    /// <summary>`CallMethodN`：0 个位置实参。</summary>
+    public static object? CallMethod0(int site, object? obj, string name)
+    {
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        {
+            long classVersion = PyClass.GlobalVersion;
+            if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
+            {
+                object?[] prepared = PreparedFor(site, 1);
+                prepared[0] = entry.SelfKind == 2 ? entry.SelfClass : instance;
+                return InvokePreparedMethod(entry, prepared);
+            }
+            return CallMethodSlow(site, instance, name, classVersion, ArgFor(site, 0));
+        }
+        object?[] fallback = (uint)site < MaxSites ? ArgFor(site, 0) : PyOps.EmptyArray();
+        return PyOps.CallMethod(obj, name, fallback, PyOps.EmptyArray(), PyOps.EmptyArray());
+    }
+
+    /// <summary>`CallMethodN`：1 个位置实参。</summary>
+    public static object? CallMethod1(int site, object? obj, string name, object? a0)
+    {
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        {
+            long classVersion = PyClass.GlobalVersion;
+            if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
+            {
+                object?[] prepared = PreparedFor(site, 2);
+                prepared[0] = entry.SelfKind == 2 ? entry.SelfClass : instance;
+                prepared[1] = a0;
+                return InvokePreparedMethod(entry, prepared);
+            }
+            object?[] args = ArgFor(site, 1);
+            args[0] = a0;
+            return CallMethodSlow(site, instance, name, classVersion, args);
+        }
+        object?[] fallbackArgs = ArgFor(site, 1);
+        fallbackArgs[0] = a0;
+        return PyOps.CallMethod(
+            obj,
+            name,
+            fallbackArgs,
+            PyOps.EmptyArray(),
+            PyOps.EmptyArray()
+        );
+    }
+
+    /// <summary>`CallMethodN`：2 个位置实参。</summary>
+    public static object? CallMethod2(int site, object? obj, string name, object? a0, object? a1)
+    {
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        {
+            long classVersion = PyClass.GlobalVersion;
+            if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
+            {
+                object?[] prepared = PreparedFor(site, 3);
+                prepared[0] = entry.SelfKind == 2 ? entry.SelfClass : instance;
+                prepared[1] = a0;
+                prepared[2] = a1;
+                return InvokePreparedMethod(entry, prepared);
+            }
+            object?[] args = ArgFor(site, 2);
+            args[0] = a0;
+            args[1] = a1;
+            return CallMethodSlow(site, instance, name, classVersion, args);
+        }
+        object?[] fallbackArgs = ArgFor(site, 2);
+        fallbackArgs[0] = a0;
+        fallbackArgs[1] = a1;
+        return PyOps.CallMethod(
+            obj,
+            name,
+            fallbackArgs,
+            PyOps.EmptyArray(),
+            PyOps.EmptyArray()
+        );
+    }
+
+    /// <summary>`CallMethodN`：3 个位置实参。</summary>
+    public static object? CallMethod3(
+        int site,
+        object? obj,
+        string name,
+        object? a0,
+        object? a1,
+        object? a2
+    )
+    {
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
+        {
+            long classVersion = PyClass.GlobalVersion;
+            if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
+            {
+                object?[] prepared = PreparedFor(site, 4);
+                prepared[0] = entry.SelfKind == 2 ? entry.SelfClass : instance;
+                prepared[1] = a0;
+                prepared[2] = a1;
+                prepared[3] = a2;
+                return InvokePreparedMethod(entry, prepared);
+            }
+            object?[] args = ArgFor(site, 3);
+            args[0] = a0;
+            args[1] = a1;
+            args[2] = a2;
+            return CallMethodSlow(site, instance, name, classVersion, args);
+        }
+        object?[] fallbackArgs = ArgFor(site, 3);
+        fallbackArgs[0] = a0;
+        fallbackArgs[1] = a1;
+        fallbackArgs[2] = a2;
+        return PyOps.CallMethod(
+            obj,
+            name,
+            fallbackArgs,
+            PyOps.EmptyArray(),
+            PyOps.EmptyArray()
+        );
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static object? InvokePreparedMethod(MethodEntry entry, object?[] prepared) =>
+        PyObject.InvokePrepared(
+            (PyFunction)entry.Target!,
+            entry.Owner!,
+            prepared[0],
+            prepared,
+            EmptyNames,
+            PyOps.EmptyArray()
+        );
+
+    /// <summary>缓存未命中：走完整属性查找，并把可缓存的绑定方法登记下来。</summary>
+    private static object? CallMethodSlow(
+        int site,
+        PyInstance instance,
+        string name,
+        long classVersion,
+        object?[] args
+    )
+    {
+        object? attribute = PyObject.GetAttr(instance, name);
+        if (attribute is PyBoundMethod bound && bound.Target is PyFunction)
+        {
+            byte selfKind = bound.Self is PyClass selfClass ? (byte)2 : (byte)1;
+            int slot = site * EntriesPerSite + (int)((uint)site % EntriesPerSite);
+            MethodEntries[slot] = new MethodEntry
+            {
+                Valid = 1,
+                Name = name,
+                Class = instance.Class,
+                ClassVersion = classVersion,
+                ShadowSlot = instance.Class.TryGetInstanceSlot(name, out int shadowSlot)
+                    ? shadowSlot
+                    : -1,
+                Owner = bound.Owner,
+                Target = bound.Target,
+                SelfKind = selfKind,
+                SelfClass = selfKind == 2 ? bound.Self as PyClass : null,
+            };
+        }
+        return PyOps.CallValue(attribute, args, PyOps.EmptyArray(), PyOps.EmptyArray());
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryGetMethodEntry(
+        int site,
+        PyInstance instance,
+        string name,
+        long classVersion,
+        out MethodEntry found
+    )
+    {
+        int baseIndex = site * EntriesPerSite;
+        for (int i = 0; i < EntriesPerSite; i++)
+        {
+            ref MethodEntry entry = ref MethodEntries[baseIndex + i];
+            if (MethodEntryMatches(ref entry, name, instance, classVersion))
+            {
+                found = entry;
+                return true;
+            }
+        }
+        found = default;
+        return false;
+    }
+
+    private static object? CallMethodFast(int site, object? obj, string name, object?[] args)
+    {
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance)
+        {
+            return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
+        }
+        long classVersion = PyClass.GlobalVersion;
+        if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
+        {
+            object?[] prepared = PreparedFor(site, args.Length + 1);
+            prepared[0] = entry.SelfKind == 2 ? entry.SelfClass : instance;
+            Array.Copy(args, 0, prepared, 1, args.Length);
+            return InvokePreparedMethod(entry, prepared);
+        }
+        return CallMethodSlow(site, instance, name, classVersion, args);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static object?[] PreparedFor(int site, int length)
+    {
+        if ((uint)site >= MaxSites)
+        {
+            return new object?[length];
+        }
+        object?[]? prepared = PreparedScratch[site];
+        if (prepared is null || prepared.Length != length)
+        {
+            prepared = new object?[length];
+            PreparedScratch[site] = prepared;
+        }
+        return prepared;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool MethodEntryMatches(
+        ref MethodEntry entry,
+        string name,
+        PyInstance instance,
+        long classVersion
+    ) =>
+        entry.Valid != 0
+        && string.Equals(entry.Name, name, StringComparison.Ordinal)
+        && ReferenceEquals(entry.Class, instance.Class)
+        && entry.ClassVersion == classVersion
+        // 只有同名实例属性会遮蔽方法；槽位未赋值就是没有遮蔽，O(1) 检查。
+        && (entry.ShadowSlot < 0 || !instance.IsSlotSet(entry.ShadowSlot));
 
     /// <summary>带调用点编号的方法调用；只缓存普通实例 / 类方法。</summary>
     public static object? CallMethod(
@@ -297,16 +649,11 @@ public static class PyPic
         }
 
         long classVersion = PyClass.GlobalVersion;
-        long instanceVersion = instance.Version;
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
         {
             ref MethodEntry entry = ref MethodEntries[baseIndex + i];
-            if (entry.Valid == 0
-                || !string.Equals(entry.Name, name, StringComparison.Ordinal)
-                || !ReferenceEquals(entry.Class, instance.Class)
-                || entry.ClassVersion != classVersion
-                || entry.InstanceVersion != instanceVersion)
+            if (!MethodEntryMatches(ref entry, name, instance, classVersion))
             {
                 continue;
             }
@@ -332,7 +679,9 @@ public static class PyPic
                 Name = name,
                 Class = instance.Class,
                 ClassVersion = classVersion,
-                InstanceVersion = instanceVersion,
+                ShadowSlot = instance.Class.TryGetInstanceSlot(name, out int shadowSlot)
+                    ? shadowSlot
+                    : -1,
                 Owner = bound.Owner,
                 Target = bound.Target,
                 SelfKind = selfKind,
@@ -340,6 +689,97 @@ public static class PyPic
             };
         }
         return PyOps.CallValue(attribute, rawArgs, rawNames, rawValues);
+    }
+
+    // ───────────────────────── 实例属性 ─────────────────────────
+
+    private struct AttrEntry
+    {
+        public byte Valid;
+        public PyClass? Class;
+        public long ClassVersion;
+        public int Slot;
+    }
+
+    private static readonly AttrEntry[] GetAttrEntries = new AttrEntry[MaxSites * EntriesPerSite];
+    private static readonly AttrEntry[] SetAttrEntries = new AttrEntry[MaxSites * EntriesPerSite];
+
+    /// <summary>带调用点编号的实例属性读取；只缓存实例槽位。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object? GetAttr(int site, object? obj, string name)
+    {
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance)
+        {
+            return PyObject.GetAttr(obj, name);
+        }
+        long classVersion = PyClass.GlobalVersion;
+        int baseIndex = site * EntriesPerSite;
+        for (int i = 0; i < EntriesPerSite; i++)
+        {
+            ref AttrEntry entry = ref GetAttrEntries[baseIndex + i];
+            if (entry.Valid != 0
+                && ReferenceEquals(entry.Class, instance.Class)
+                && entry.ClassVersion == classVersion
+                && instance.TryGetSlot(entry.Slot, out object? cached))
+            {
+                return cached;
+            }
+        }
+
+        object? value = PyObject.GetAttr(obj, name);
+        if (instance.Class.TryGetInstanceSlot(name, out int slot)
+            && instance.TryGetSlot(slot, out _))
+        {
+            int index = baseIndex + (int)((uint)site % EntriesPerSite);
+            GetAttrEntries[index] = new AttrEntry
+            {
+                Valid = 1,
+                Class = instance.Class,
+                ClassVersion = classVersion,
+                Slot = slot,
+            };
+        }
+        return value;
+    }
+
+    /// <summary>带调用点编号的实例属性写入；只缓存无描述符类的实例槽位。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void SetAttr(int site, object? obj, string name, object? value)
+    {
+        if (!Enabled
+            || (uint)site >= MaxSites
+            || obj is not PyInstance instance
+            || instance.Class.HasProperties)
+        {
+            PyObject.SetAttr(obj, name, value);
+            return;
+        }
+        long classVersion = PyClass.GlobalVersion;
+        int baseIndex = site * EntriesPerSite;
+        for (int i = 0; i < EntriesPerSite; i++)
+        {
+            ref AttrEntry entry = ref SetAttrEntries[baseIndex + i];
+            if (entry.Valid != 0
+                && ReferenceEquals(entry.Class, instance.Class)
+                && entry.ClassVersion == classVersion)
+            {
+                instance.SetSlot(entry.Slot, value);
+                return;
+            }
+        }
+
+        PyObject.SetAttr(obj, name, value);
+        if (instance.Class.TryGetInstanceSlot(name, out int slot))
+        {
+            int index = baseIndex + (int)((uint)site % EntriesPerSite);
+            SetAttrEntries[index] = new AttrEntry
+            {
+                Valid = 1,
+                Class = instance.Class,
+                ClassVersion = PyClass.GlobalVersion,
+                Slot = slot,
+            };
+        }
     }
 
     /// <summary>把 MIR 的 <c>object[]</c> 关键字名转成 <c>string[]</c>。</summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace RyuPy.Runtime;
@@ -110,9 +111,9 @@ public static class PyObject
                 }
                 return;
             case PyInstance instance:
-                if (instance.Attributes.Remove(name))
+                if (instance.Class.TryGetInstanceSlot(name, out int slot) && instance.IsSlotSet(slot))
                 {
-                    instance.Touch();
+                    instance.ClearSlot(slot);
                     return;
                 }
                 throw new PyAttributeError(
@@ -156,24 +157,74 @@ public static class PyObject
         object?[] args,
         string[] kwNames,
         object?[] kwValues
-    ) =>
-        PyMethodContext.Run(
-            owner,
-            self,
-            () =>
-                target switch
-                {
-                    PyFunction function => function.Invoke(Prepend(self, args), kwNames, kwValues),
-                    PyStaticMethod method => PyOps.CallValue(method.Value, args, kwNames, kwValues),
-                    PyClassMethod method => PyOps.CallValue(
-                        method.Value,
-                        Prepend(self, args),
-                        kwNames,
-                        kwValues
-                    ),
-                    _ => PyOps.CallValue(target, Prepend(self, args), kwNames, kwValues),
-                }
-        );
+    )
+    {
+        // 绝大多数方法不调用 `super()`，不需要维护上下文，直接调用。
+        if (target is PyFunction plain && !plain.UsesSuper)
+        {
+            return plain.Invoke(Prepend(self, args), kwNames, kwValues);
+        }
+        // 不用闭包：`super()` 上下文用两个 ThreadStatic 字段保存，避免每次调用分配
+        // `PySuper` 与捕获 lambda。嵌套调用通过局部变量恢复。
+        PyClass? previousOwner = PyMethodContext.CurrentOwner;
+        object? previousSelf = PyMethodContext.CurrentSelf;
+        PyMethodContext.SetCurrent(owner, self);
+        try
+        {
+            if (target is PyFunction function)
+            {
+                return function.Invoke(Prepend(self, args), kwNames, kwValues);
+            }
+            if (target is PyStaticMethod method)
+            {
+                return PyOps.CallValue(method.Value, args, kwNames, kwValues);
+            }
+            if (target is PyClassMethod classMethod)
+            {
+                return PyOps.CallValue(
+                    classMethod.Value,
+                    Prepend(self, args),
+                    kwNames,
+                    kwValues
+                );
+            }
+            return PyOps.CallValue(target, Prepend(self, args), kwNames, kwValues);
+        }
+        finally
+        {
+            PyMethodContext.SetCurrent(previousOwner, previousSelf);
+        }
+    }
+
+    /// <summary>
+    /// 调用已经准备好的绑定方法参数（`[self, arg...]`），供 PIC 快速路径使用。
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static object? InvokePrepared(
+        PyFunction function,
+        PyClass owner,
+        object? self,
+        object?[] args,
+        string[] kwNames,
+        object?[] kwValues
+    )
+    {
+        if (!function.UsesSuper)
+        {
+            return function.Invoke(args, kwNames, kwValues);
+        }
+        PyClass? previousOwner = PyMethodContext.CurrentOwner;
+        object? previousSelf = PyMethodContext.CurrentSelf;
+        PyMethodContext.SetCurrent(owner, self);
+        try
+        {
+            return function.Invoke(args, kwNames, kwValues);
+        }
+        finally
+        {
+            PyMethodContext.SetCurrent(previousOwner, previousSelf);
+        }
+    }
 
     /// <summary>
     /// 尝试调用对象上的魔术方法（`__repr__` / `__eq__` / `__add__` …）。
@@ -232,7 +283,9 @@ public static class PyObject
     private static object? GetInstanceAttr(PyInstance instance, string name)
     {
         // 1. 数据描述符（property）优先，即使实例字典里有同名值。
-        if (instance.Class.TryLookup(name, out PyClass dataOwner, out object? data)
+        //    没有描述符的类直接跳过这次类查找。
+        if (instance.Class.HasProperties
+            && instance.Class.TryLookup(name, out PyClass dataOwner, out object? data)
             && data is PyProperty property)
         {
             if (property.Getter is null)
@@ -241,8 +294,9 @@ public static class PyObject
             }
             return InvokeBound(property.Getter, dataOwner, instance, [], [], []);
         }
-        // 2. 实例字典
-        if (instance.Attributes.TryGetValue(name, out object? value))
+        // 2. 实例属性槽位
+        if (instance.Class.TryGetInstanceSlot(name, out int instanceSlot)
+            && instance.TryGetSlot(instanceSlot, out object? value))
         {
             return value;
         }
@@ -337,7 +391,8 @@ public static class PyObject
     /// <summary>写实例属性；property setter 优先。</summary>
     private static void SetInstanceAttr(PyInstance instance, string name, object? value)
     {
-        if (instance.Class.TryLookup(name, out PyClass owner, out object? raw)
+        if (instance.Class.HasProperties
+            && instance.Class.TryLookup(name, out PyClass owner, out object? raw)
             && raw is PyProperty property)
         {
             if (property.Setter is null)
@@ -349,8 +404,8 @@ public static class PyObject
             InvokeBound(property.Setter, owner, instance, [value], [], []);
             return;
         }
-        instance.Attributes[name] = value;
-        instance.Touch();
+        int slot = instance.Class.GetOrAddInstanceSlot(name);
+        instance.SetSlot(slot, value);
     }
 
     private static object? GetTypeAttr(PyType type, string name) =>

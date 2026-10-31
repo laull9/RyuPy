@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.10 全部完成（含模块、`with`、项目切片与 PIC），下一步 Phase 3 M3.0 闭包、lambda 与 nonlocal。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.11 全部完成（含模块、`with`、项目切片、PIC 与动态热路径优化），下一步 Phase 3 M3.0 闭包、lambda 与 nonlocal。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -314,6 +314,26 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 热路径开销：`PyInt` 增加 i64 快路径再升级 BigInteger、字符串哈希缓存、stdout 缓冲写入、
       traceback 帧栈改平行数组、`SetLine` 仅在行号变化时写入、`NumericEqual` 的 i64 快路径
 - [x] 验收：新增用例与既有 e2e、快照、xUnit 全部通过；`make check` 通过
+
+### M2.11 动态热路径性能改造 ✅
+
+> 在不改变动态值表示（装箱 `object`）的前提下，消除调用、属性与字面量的固定分配。
+> 设计、测量与边界见 [ADR-0013](docs/adr/0013-dynamic-hot-path-allocations.md)。
+
+- [x] MIR 新增纯位置小参数调用 `DynCallValue` / `DynCallMethod`；codegen 走 `PyPic.CallValueN` /
+      `CallMethodN`，按调用点复用参数数组
+- [x] thunk 快路径：参数个数正确且无关键字时直接取参，跳过 `PyBinder.Bind`；Bind 自身增加
+      纯位置快路径（实参正好占满时复用调用方数组）
+- [x] 数值字面量池：`Box` 常量在模块初始化时装箱一次，循环直接读静态字段
+- [x] 实例属性槽位与属性 PIC：`PyClass` 属性名→槽位表、`PyInstance` 值数组；
+      `DynGetAttr` / `SetAttr` 命中时直接读写槽位，类版本变化或未赋值时回退
+- [x] 方法 PIC 扩展：缓存类版本与同名实例槽位；函数不调用 `super()` 时跳过方法上下文
+- [x] `long` 数值快路径（`PyInt.*I64`）与 `FlattenArgs` 无 `*` / `**` 快路径；
+      空关键字数组复用共享数组
+- [x] 基准更新：动态基准 792 ms → 196 ms（CPython 162 ms），纯动态调用 67 ms 已快于 CPython 80 ms；
+      `RYUPY_PIC=0` 为 386 ms，证明收益来自 PIC 与热路径而不是测量偏差
+- [x] 语义不变：e2e / 快照 / xUnit / `make check` 全绿；新增 `containers` 基准登记容器与
+      字符串拼接的剩余差距（字符串拼接受 .NET 不可变字符串限制）
 
 ## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 

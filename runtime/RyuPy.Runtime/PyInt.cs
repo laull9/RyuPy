@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace RyuPy.Runtime;
 
@@ -110,6 +111,48 @@ internal static class PyInt
         return BigInteger.Parse(digits, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>`long + long` 快路径；溢出升级 BigInteger。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object AddI64(long x, long y)
+    {
+        try
+        {
+            return checked(x + y);
+        }
+        catch (OverflowException)
+        {
+            return Normalize(new BigInteger(x) + y);
+        }
+    }
+
+    /// <summary>`long - long` 快路径；溢出升级 BigInteger。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object SubtractI64(long x, long y)
+    {
+        try
+        {
+            return checked(x - y);
+        }
+        catch (OverflowException)
+        {
+            return Normalize(new BigInteger(x) - y);
+        }
+    }
+
+    /// <summary>`long * long` 快路径；溢出升级 BigInteger。</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static object MultiplyI64(long x, long y)
+    {
+        try
+        {
+            return checked(x * y);
+        }
+        catch (OverflowException)
+        {
+            return Normalize(new BigInteger(x) * y);
+        }
+    }
+
     public static object Add(object a, object b)
     {
         if (TryI64(a, out long x) && TryI64(b, out long y))
@@ -126,6 +169,7 @@ internal static class PyInt
         return Normalize(ToBigInteger(a) + ToBigInteger(b));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object Subtract(object a, object b)
     {
         if (TryI64(a, out long x) && TryI64(b, out long y))
@@ -142,6 +186,7 @@ internal static class PyInt
         return Normalize(ToBigInteger(a) - ToBigInteger(b));
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object Multiply(object a, object b)
     {
         if (TryI64(a, out long x) && TryI64(b, out long y))

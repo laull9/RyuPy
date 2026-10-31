@@ -189,13 +189,13 @@ fn early_return() -> dyn {
     bb1: {
         // line 30
         _8 = box<Str>(const "return");
-        _9 = RuntimeFn::CallValue(global@0, [_8], [], []);
+        _9 = dyn.call(global@0, [_8]);
         _0 = _9;
         // line 30
         _10 = RuntimeFn::DynGetAttr(_0, const "__exit__");
         _1 = _10;
         // line 30
-        _11 = RuntimeFn::CallMethod(_0, const "__enter__", [], [], []);
+        _11 = dyn.method(_0, "__enter__", []);
         _2 = _11;
         // line 30
         _12 = box<Bool>(const false);
@@ -234,7 +234,7 @@ fn early_return() -> dyn {
         // line 30
         _21 = RuntimeFn::DynType(_4);
         _22 = RuntimeFn::DynNone();
-        _23 = RuntimeFn::CallValue(_1, [_21, _4, _22], [], []);
+        _23 = dyn.call(_1, [_21, _4, _22]);
         _24 = RuntimeFn::DynTruthy(_23);
         _25 = Not(_24);
         _26 = box<Bool>(_25);
@@ -283,7 +283,7 @@ fn early_return() -> dyn {
         _35 = RuntimeFn::DynNone();
         _36 = RuntimeFn::DynNone();
         _37 = RuntimeFn::DynNone();
-        _38 = RuntimeFn::CallValue(_1, [_35, _36, _37], [], []);
+        _38 = dyn.call(_1, [_35, _36, _37]);
         goto -> bb17;
     }
     bb15: {
@@ -689,13 +689,13 @@ fn main() -> () {
     bb1: {
         // line 19
         _39 = box<Str>(const "a");
-        _40 = RuntimeFn::CallValue(global@0, [_39], [], []);
+        _40 = dyn.call(global@0, [_39]);
         _0 = _40;
         // line 19
         _41 = RuntimeFn::DynGetAttr(_0, const "__exit__");
         _1 = _41;
         // line 19
-        _42 = RuntimeFn::CallMethod(_0, const "__enter__", [], [], []);
+        _42 = dyn.method(_0, "__enter__", []);
         _2 = _42;
         // line 19
         _43 = box<Bool>(const false);
@@ -720,7 +720,7 @@ fn main() -> () {
         _49 = RuntimeFn::DynGetAttr(_4, const "__exit__");
         _5 = _49;
         // line 19
-        _50 = RuntimeFn::CallMethod(_4, const "__enter__", [], [], []);
+        _50 = dyn.method(_4, "__enter__", []);
         _6 = _50;
         // line 19
         g5 = _6;
@@ -754,7 +754,7 @@ fn main() -> () {
         // line 19
         _61 = RuntimeFn::DynType(_8);
         _62 = RuntimeFn::DynNone();
-        _63 = RuntimeFn::CallValue(_5, [_61, _8, _62], [], []);
+        _63 = dyn.call(_5, [_61, _8, _62]);
         _64 = RuntimeFn::DynTruthy(_63);
         _65 = Not(_64);
         _66 = box<Bool>(_65);
@@ -803,7 +803,7 @@ fn main() -> () {
         _75 = RuntimeFn::DynNone();
         _76 = RuntimeFn::DynNone();
         _77 = RuntimeFn::DynNone();
-        _78 = RuntimeFn::CallValue(_5, [_75, _76, _77], [], []);
+        _78 = dyn.call(_5, [_75, _76, _77]);
         goto -> bb17;
     }
     bb15: {
@@ -845,7 +845,7 @@ fn main() -> () {
         // line 19
         _84 = RuntimeFn::DynType(_9);
         _85 = RuntimeFn::DynNone();
-        _86 = RuntimeFn::CallValue(_1, [_84, _9, _85], [], []);
+        _86 = dyn.call(_1, [_84, _9, _85]);
         _87 = RuntimeFn::DynTruthy(_86);
         _88 = Not(_87);
         _89 = box<Bool>(_88);
@@ -894,7 +894,7 @@ fn main() -> () {
         _98 = RuntimeFn::DynNone();
         _99 = RuntimeFn::DynNone();
         _100 = RuntimeFn::DynNone();
-        _101 = RuntimeFn::CallValue(_1, [_98, _99, _100], [], []);
+        _101 = dyn.call(_1, [_98, _99, _100]);
         goto -> bb34;
     }
     bb32: {
@@ -934,13 +934,13 @@ fn main() -> () {
     bb41: {
         // line 23
         _106 = box<Str>(const "outer");
-        _107 = RuntimeFn::CallValue(global@0, [_106], [], []);
+        _107 = dyn.call(global@0, [_106]);
         _10 = _107;
         // line 23
         _108 = RuntimeFn::DynGetAttr(_10, const "__exit__");
         _11 = _108;
         // line 23
-        _109 = RuntimeFn::CallMethod(_10, const "__enter__", [], [], []);
+        _109 = dyn.method(_10, "__enter__", []);
         _12 = _109;
         // line 23
         _110 = box<Bool>(const false);
@@ -964,7 +964,7 @@ fn main() -> () {
         _115 = RuntimeFn::DynGetAttr(_14, const "__exit__");
         _15 = _115;
         // line 23
-        _116 = RuntimeFn::CallMethod(_14, const "__enter__", [], [], []);
+        _116 = dyn.method(_14, "__enter__", []);
         _16 = _116;
         // line 23
         _117 = box<Bool>(const false);
@@ -990,7 +990,7 @@ fn main() -> () {
         // line 23
         _123 = RuntimeFn::DynType(_18);
         _124 = RuntimeFn::DynNone();
-        _125 = RuntimeFn::CallValue(_15, [_123, _18, _124], [], []);
+        _125 = dyn.call(_15, [_123, _18, _124]);
         _126 = RuntimeFn::DynTruthy(_125);
         _127 = Not(_126);
         _128 = box<Bool>(_127);
@@ -1039,7 +1039,7 @@ fn main() -> () {
         _137 = RuntimeFn::DynNone();
         _138 = RuntimeFn::DynNone();
         _139 = RuntimeFn::DynNone();
-        _140 = RuntimeFn::CallValue(_15, [_137, _138, _139], [], []);
+        _140 = dyn.call(_15, [_137, _138, _139]);
         goto -> bb57;
     }
     bb55: {
@@ -1081,7 +1081,7 @@ fn main() -> () {
         // line 23
         _146 = RuntimeFn::DynType(_19);
         _147 = RuntimeFn::DynNone();
-        _148 = RuntimeFn::CallValue(_11, [_146, _19, _147], [], []);
+        _148 = dyn.call(_11, [_146, _19, _147]);
         _149 = RuntimeFn::DynTruthy(_148);
         _150 = Not(_149);
         _151 = box<Bool>(_150);
@@ -1130,7 +1130,7 @@ fn main() -> () {
         _160 = RuntimeFn::DynNone();
         _161 = RuntimeFn::DynNone();
         _162 = RuntimeFn::DynNone();
-        _163 = RuntimeFn::CallValue(_11, [_160, _161, _162], [], []);
+        _163 = dyn.call(_11, [_160, _161, _162]);
         goto -> bb74;
     }
     bb72: {
@@ -1178,7 +1178,7 @@ fn main() -> () {
     bb82: {
         // line 29
         // line 35
-        _169 = RuntimeFn::CallValue(global@17, [], [], []);
+        _169 = dyn.call(global@17, []);
         RuntimeFn::WriteObject(_169);
         RuntimeFn::WriteNewline();
         // line 37
@@ -1235,13 +1235,13 @@ fn main() -> () {
         _188 = RuntimeFn::LoadName(global@6, const "index");
         _189 = RuntimeFn::DynStr(_188);
         _190 = dyn.Add(_187, _189);
-        _191 = RuntimeFn::CallValue(global@0, [_190], [], []);
+        _191 = dyn.call(global@0, [_190]);
         _20 = _191;
         // line 38
         _192 = RuntimeFn::DynGetAttr(_20, const "__exit__");
         _21 = _192;
         // line 38
-        _193 = RuntimeFn::CallMethod(_20, const "__enter__", [], [], []);
+        _193 = dyn.method(_20, "__enter__", []);
         _22 = _193;
         // line 38
         _194 = box<Bool>(const false);
@@ -1316,7 +1316,7 @@ fn main() -> () {
         // line 38
         _211 = RuntimeFn::DynType(_24);
         _212 = RuntimeFn::DynNone();
-        _213 = RuntimeFn::CallValue(_21, [_211, _24, _212], [], []);
+        _213 = dyn.call(_21, [_211, _24, _212]);
         _214 = RuntimeFn::DynTruthy(_213);
         _215 = Not(_214);
         _216 = box<Bool>(_215);
@@ -1365,7 +1365,7 @@ fn main() -> () {
         _225 = RuntimeFn::DynNone();
         _226 = RuntimeFn::DynNone();
         _227 = RuntimeFn::DynNone();
-        _228 = RuntimeFn::CallValue(_21, [_225, _226, _227], [], []);
+        _228 = dyn.call(_21, [_225, _226, _227]);
         goto -> bb111;
     }
     bb109: {
@@ -1418,13 +1418,13 @@ fn main() -> () {
     }
     bb122: {
         // line 56
-        _237 = RuntimeFn::CallValue(global@1, [], [], []);
+        _237 = dyn.call(global@1, []);
         _25 = _237;
         // line 56
         _238 = RuntimeFn::DynGetAttr(_25, const "__exit__");
         _26 = _238;
         // line 56
-        _239 = RuntimeFn::CallMethod(_25, const "__enter__", [], [], []);
+        _239 = dyn.method(_25, "__enter__", []);
         _27 = _239;
         // line 56
         _240 = box<Bool>(const false);
@@ -1456,7 +1456,7 @@ fn main() -> () {
         // line 56
         _246 = RuntimeFn::DynType(_29);
         _247 = RuntimeFn::DynNone();
-        _248 = RuntimeFn::CallValue(_26, [_246, _29, _247], [], []);
+        _248 = dyn.call(_26, [_246, _29, _247]);
         _249 = RuntimeFn::DynTruthy(_248);
         _250 = Not(_249);
         _251 = box<Bool>(_250);
@@ -1505,7 +1505,7 @@ fn main() -> () {
         _260 = RuntimeFn::DynNone();
         _261 = RuntimeFn::DynNone();
         _262 = RuntimeFn::DynNone();
-        _263 = RuntimeFn::CallValue(_26, [_260, _261, _262], [], []);
+        _263 = dyn.call(_26, [_260, _261, _262]);
         goto -> bb137;
     }
     bb135: {

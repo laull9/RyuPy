@@ -15,6 +15,11 @@ expression: cil
 .class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
     extends [System.Runtime]System.Object
 {
+    .method public static void __init_literals() cil managed
+    {
+        IL_0000: Return
+    }
+
     .method public static void __init_class_factories() cil managed
     {
         IL_0000: Return
@@ -302,20 +307,21 @@ expression: cil
 
     .method public static void __init_functions() cil managed
     {
-        IL_0000: LoadString("__main__")
-        IL_0001: LoadString("")
-        IL_0002: LoadString("m1_3_for_range.py")
-        IL_0003: LoadNull
-        IL_0004: LoadMethodPointer(static void RyuPy.Generated.Module.m0___module_main())
-        IL_0005: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit..ctor(object, nint))
-        IL_0006: LoadNull
-        IL_0007: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__mod_get_0(string))
-        IL_0008: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet..ctor(object, nint))
-        IL_0009: LoadNull
-        IL_000a: LoadMethodPointer(static void RyuPy.Generated.Module.__mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object))
-        IL_000b: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet..ctor(object, nint))
-        IL_000c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.Register(string, string, string, [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit, [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet, [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet))
-        IL_000d: Return
+        IL_0000: Call(static void RyuPy.Generated.Module.__init_literals())
+        IL_0001: LoadString("__main__")
+        IL_0002: LoadString("")
+        IL_0003: LoadString("m1_3_for_range.py")
+        IL_0004: LoadNull
+        IL_0005: LoadMethodPointer(static void RyuPy.Generated.Module.m0___module_main())
+        IL_0006: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit..ctor(object, nint))
+        IL_0007: LoadNull
+        IL_0008: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__mod_get_0(string))
+        IL_0009: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet..ctor(object, nint))
+        IL_000a: LoadNull
+        IL_000b: LoadMethodPointer(static void RyuPy.Generated.Module.__mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object))
+        IL_000c: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet..ctor(object, nint))
+        IL_000d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.Register(string, string, string, [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit, [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet, [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet))
+        IL_000e: Return
     }
 
     .method public static [System.Runtime]System.Object __mod_get_0(string) cil managed

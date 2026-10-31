@@ -73,8 +73,9 @@ public class PyClassTests
         PyObject.SetAttr(instance, "x", 5L);
         Assert.Equal(5L, PyObject.GetAttr(instance, "doubled"));
 
-        // 数据描述符优先：写实例字典不会覆盖 property 的读取结果。
-        instance.Attributes["doubled"] = 100L;
+        // 数据描述符优先：Python 层赋值会走 property setter，没有 setter 时直接报错，
+        // 不会把值塞进实例槽位。
+        Assert.Throws<PyAttributeError>(() => PyObject.SetAttr(instance, "doubled", 100L));
         Assert.Equal(5L, PyObject.GetAttr(instance, "doubled"));
     }
 

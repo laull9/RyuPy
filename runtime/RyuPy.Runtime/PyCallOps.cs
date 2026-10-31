@@ -16,6 +16,12 @@ namespace RyuPy.Runtime;
 /// </remarks>
 public static partial class PyOps
 {
+    /// <summary>共享的空实参数组；`CallValue` / `CallMethod` 没有关键字时复用。</summary>
+    private static readonly object?[] EmptyObjects = [];
+
+    /// <summary>返回共享空数组（调用方只读）。</summary>
+    public static object?[] EmptyArray() => EmptyObjects;
+
     /// <summary>`*iterable` 实参的标记。</summary>
     private sealed class StarredArg
     {
@@ -68,8 +74,8 @@ public static partial class PyOps
         };
     }
 
-    /// <summary>实参是否需要展开（含 <c>*</c> / <c>**</c>）。</summary>
-    internal static bool NeedsFlatten(object?[] rawArgs, object?[] rawNames)
+    /// <summary>位置实参里是否含 <c>*iterable</c>。</summary>
+    private static bool HasStarred(object?[] rawArgs)
     {
         foreach (object? arg in rawArgs)
         {
@@ -78,26 +84,40 @@ public static partial class PyOps
                 return true;
             }
         }
-        foreach (object? name in rawNames)
-        {
-            if (name is null or PyNone)
-            {
-                return true;
-            }
-        }
         return false;
     }
+
+    /// <summary>实参是否需要展开（含 <c>*</c> / <c>**</c>）。</summary>
+    internal static bool NeedsFlatten(object?[] rawArgs, object?[] rawNames) =>
+        HasStarred(rawArgs) || Array.IndexOf(rawNames, null) >= 0 || Array.IndexOf(rawNames, PyNone.Instance) >= 0;
 
     /// <summary>
     /// 展开 `*` / `**` 实参：位置数组里的 <see cref="StarredArg"/> 摊平，
     /// 名字为 <c>None</c> 的关键字项按映射展开。
     /// </summary>
+    private static readonly string[] EmptyNames = [];
+
     internal static (object?[] Args, string[] Names, object?[] Values) FlattenArgs(
         object?[] rawArgs,
         object?[] rawNames,
         object?[] rawValues
     )
     {
+        // 没有关键字时数组已经是展开形态，直接复用，避免每次调用分配。
+        if (rawNames.Length == 0 && !HasStarred(rawArgs))
+        {
+            return (rawArgs, EmptyNames, rawValues);
+        }
+        // 有关键字但没有 `*` / `**`：位置实参可以直接复用，只转换关键字名。
+        if (!NeedsFlatten(rawArgs, rawNames))
+        {
+            var plainNames = new string[rawNames.Length];
+            for (int i = 0; i < rawNames.Length; i++)
+            {
+                plainNames[i] = rawNames[i] as string ?? PyRepr.Str(rawNames[i]);
+            }
+            return (rawArgs, plainNames, rawValues);
+        }
         var args = new List<object?>(rawArgs.Length);
         foreach (object? arg in rawArgs)
         {

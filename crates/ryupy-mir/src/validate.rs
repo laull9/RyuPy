@@ -374,6 +374,18 @@ fn validate_rvalue(
                 validate_operand(func, block_id, op, errors);
             }
         }
+        Rvalue::DynCallValue { callee, args } => {
+            validate_operand(func, block_id, callee, errors);
+            for arg in args {
+                validate_operand(func, block_id, arg, errors);
+            }
+        }
+        Rvalue::DynCallMethod { obj, args, .. } => {
+            validate_operand(func, block_id, obj, errors);
+            for arg in args {
+                validate_operand(func, block_id, arg, errors);
+            }
+        }
         Rvalue::CatchException => {}
         Rvalue::DynTruthy { value } => {
             validate_operand(func, block_id, value, errors);

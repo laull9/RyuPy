@@ -17,9 +17,12 @@ use std::borrow::Cow;
 
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
-use ryupy_mir::{FnId, LinkedProgram};
+use ryupy_mir::{FnId, LinkedProgram, Operand, Rvalue, Statement};
 
-use crate::stackify::{ClassCodegenInfo, ClassInfoMap, RuntimeRefs, lower_function};
+use crate::stackify::{
+    ClassCodegenInfo, ClassInfoMap, LiteralInit, RuntimeRefs, boxed_literal_init,
+    boxed_literal_key, lower_function,
+};
 use crate::types::ClassTypeMap;
 use crate::{CodegenError, EmitOptions};
 
@@ -110,15 +113,40 @@ pub fn build_resolution(
     let pic_binary = res.push_method_reference(method_ref! {
         static object @pypic_type::Binary(int, int, object, object)
     });
-    let pic_call_value = res.push_method_reference(method_ref! {
-        static object @pypic_type::CallValue(int, object, object[], object[], object[])
-    });
-    let pic_call_method = res.push_method_reference(method_ref! {
-        static object @pypic_type::CallMethod(int, object, string, object[], object[], object[])
-    });
+    let pic_call_value = [
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallValue0(int, object)
+        }),
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallValue1(int, object, object)
+        }),
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallValue2(int, object, object, object)
+        }),
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallValue3(int, object, object, object, object)
+        }),
+    ];
+    let pic_call_method = [
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallMethod0(int, object, string)
+        }),
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallMethod1(int, object, string, object)
+        }),
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallMethod2(int, object, string, object, object)
+        }),
+        res.push_method_reference(method_ref! {
+            static object @pypic_type::CallMethod3(int, object, string, object, object, object)
+        }),
+    ];
     let dyn_truthy =
         res.push_method_reference(method_ref! { static bool @pyops_type::Truthy(object) });
     let dyn_none = res.push_method_reference(method_ref! { static object @pyops_type::None() });
+    let empty_array = res.push_method_reference(method_ref! {
+        static object[] @pyops_type::EmptyArray()
+    });
     let dyn_from_decimal = res.push_method_reference(
         method_ref! { static object @pyops_type::FromDecimalString(string) },
     );
@@ -215,8 +243,11 @@ pub fn build_resolution(
     let call_builtin = res.push_method_reference(method_ref! {
         static object @pyops_type::CallBuiltin(string, object[], object[], object[])
     });
+    let call_value = res.push_method_reference(method_ref! {
+        static object @pypic_type::CallValue(int, object, object[], object[], object[])
+    });
     let call_method = res.push_method_reference(method_ref! {
-        static object @pyops_type::CallMethod(object, string, object[], object[], object[])
+        static object @pypic_type::CallMethod(int, object, string, object[], object[], object[])
     });
     let array_get = res
         .push_method_reference(method_ref! { static object @pyops_type::ArrayGet(object, long) });
@@ -255,9 +286,12 @@ pub fn build_resolution(
         res.push_method_reference(method_ref! { static string @pyrepr_type::StrValue(object) });
     let dyn_type =
         res.push_method_reference(method_ref! { static object @pyobject_type::TypeOf(object) });
-    let dyn_get_attr = res.push_method_reference(
-        method_ref! { static object @pyobject_type::GetAttr(object, string) },
-    );
+    let pic_get_attr = res.push_method_reference(method_ref! {
+        static object @pypic_type::GetAttr(int, object, string)
+    });
+    let pic_set_attr = res.push_method_reference(method_ref! {
+        static void @pypic_type::SetAttr(int, object, string, object)
+    });
     // ── 普通类与属性协议（M2.5 / M2.6）──
     let pyclass_ref =
         res.push_type_reference(type_ref! { RyuPy.Runtime.PyClass in #ryupy_runtime });
@@ -317,7 +351,7 @@ pub fn build_resolution(
         )
     });
     let py_function_ctor = res.push_method_reference(method_ref! {
-        void @py_function_type::.ctor(string, @py_signature_type, @py_call_type, object[])
+        void @py_function_type::.ctor(string, @py_signature_type, @py_call_type, object[], bool)
     });
     let py_call_ctor =
         res.push_method_reference(method_ref! { void @py_call_type::.ctor(object, nint) });
@@ -409,10 +443,15 @@ pub fn build_resolution(
         dyn_compare,
         dyn_unary,
         pic_binary,
+        call_value,
         pic_call_value,
         pic_call_method,
+        pic_get_attr,
+        pic_set_attr,
         dyn_truthy,
         dyn_none,
+        empty_array,
+        literal_fields: FxHashMap::default(),
         dyn_from_decimal,
         dyn_to_int,
         dyn_to_float,
@@ -433,7 +472,6 @@ pub fn build_resolution(
         load_name,
         dyn_str,
         dyn_type,
-        dyn_get_attr,
         trace_push,
         trace_line,
         trace_pop_to,
@@ -534,6 +572,17 @@ pub fn build_resolution(
         &signature_member,
     );
     runtime_refs.global_fields = global_fields;
+
+    // 动态数值字面量池：循环里的 `1`、`0.5` 等只装箱一次。
+    let literal_inits = collect_literal_inits(program);
+    let (literal_fields, init_literals) = emit_literal_init(
+        &mut res,
+        module_class,
+        &literal_inits,
+        &object_member,
+        runtime_refs.dyn_from_decimal,
+    );
+    runtime_refs.literal_fields = literal_fields;
 
     // 2. dataclass：extends、字段与 .ctor。
     //
@@ -804,6 +853,12 @@ pub fn build_resolution(
         &runtime_refs,
         &thunks,
     );
+    // 字面量池必须先初始化，模块代码与函数默认值才可能读取它。
+    if let Some(body) = res[init_functions].body.as_mut() {
+        body.instructions
+            .insert(0, Instruction::call(init_literals));
+        body.header.maximum_stack_size = body.header.maximum_stack_size.max(8);
+    }
 
     // 模块对象的属性读写入口 + 注册表。注册追加到 `__init_functions` 末尾，
     // 此时函数对象与类工厂都已就绪。
@@ -892,6 +947,95 @@ pub fn build_resolution(
     }
 
     (res, module_class)
+}
+
+/// 收集所有 `Box` 常量里可以池化的数值字面量。
+fn collect_literal_inits(program: &LinkedProgram) -> Vec<(String, LiteralInit)> {
+    let mut out: FxHashMap<String, LiteralInit> = FxHashMap::default();
+    for (_, func) in program.functions.iter() {
+        for (_, block) in func.body.blocks.iter() {
+            for stmt in &block.stmts {
+                let Statement::Assign {
+                    value: Rvalue::Box { value, from },
+                    ..
+                } = stmt
+                else {
+                    continue;
+                };
+                let Operand::Const(constant) = value else {
+                    continue;
+                };
+                let Some(key) = boxed_literal_key(constant, from) else {
+                    continue;
+                };
+                if let Some(init) = boxed_literal_init(constant, from) {
+                    out.entry(key).or_insert(init);
+                }
+            }
+        }
+    }
+    let mut items: Vec<_> = out.into_iter().collect();
+    items.sort_by(|a, b| a.0.cmp(&b.0));
+    items
+}
+
+/// 为字面量池分配静态字段，并生成 `__init_literals` 初始化方法。
+fn emit_literal_init(
+    res: &mut Resolution<'static>,
+    module_class: TypeIndex,
+    inits: &[(String, LiteralInit)],
+    object_member: &MemberType,
+    from_decimal: MethodRefIndex,
+) -> (FxHashMap<String, FieldIndex>, MethodIndex) {
+    let mut fields = FxHashMap::default();
+    let method = res.push_method(
+        module_class,
+        Method::new(
+            Accessibility::Private,
+            msig! { static void () },
+            "__init_literals",
+            None,
+        ),
+    );
+    let mut ins = Vec::new();
+    for (index, (key, init)) in inits.iter().enumerate() {
+        let field = res.push_field(
+            module_class,
+            Field::static_member(
+                Accessibility::Private,
+                format!("__lit_{index}"),
+                object_member.clone(),
+            ),
+        );
+        match init {
+            LiteralInit::I64(value) => {
+                ins.push(Instruction::LoadConstantInt64(*value));
+                ins.push(Instruction::BoxValue(BaseType::Int64.into()));
+            }
+            LiteralInit::F64(value) => {
+                ins.push(Instruction::LoadConstantFloat64(*value));
+                ins.push(Instruction::BoxValue(BaseType::Float64.into()));
+            }
+            LiteralInit::Bool(value) => {
+                ins.push(Instruction::LoadConstantInt32(if *value { 1 } else { 0 }));
+                ins.push(Instruction::BoxValue(BaseType::Boolean.into()));
+            }
+            LiteralInit::BigInt(text) => {
+                ins.push(Instruction::load_string(text.clone()));
+                ins.push(Instruction::call(from_decimal));
+            }
+        }
+        ins.push(Instruction::StoreStaticField {
+            volatile: false,
+            param0: FieldSource::Definition(field),
+        });
+        fields.insert(key.clone(), field);
+    }
+    ins.push(Instruction::Return);
+    let mut body = body::Method::new(ins);
+    body.header.maximum_stack_size = 8;
+    res[method].body = Some(body);
+    (fields, method)
 }
 
 /// 生成 `__init_class_factories`：给用户异常类的静态槽位写入 CLR 工厂委托。

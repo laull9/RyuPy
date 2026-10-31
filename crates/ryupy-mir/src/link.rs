@@ -349,6 +349,15 @@ fn remap_rvalue(
                 .collect(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
         },
+        Rvalue::DynCallValue { callee, args } => Rvalue::DynCallValue {
+            callee: remap_operand(callee, global_map),
+            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
+        },
+        Rvalue::DynCallMethod { obj, name, args } => Rvalue::DynCallMethod {
+            obj: remap_operand(obj, global_map),
+            name: name.clone(),
+            args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
+        },
         Rvalue::CatchException => Rvalue::CatchException,
     }
 }

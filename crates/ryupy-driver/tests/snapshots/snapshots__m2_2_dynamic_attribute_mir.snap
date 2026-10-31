@@ -49,7 +49,7 @@ fn main() -> () {
         // line 1
         // line 4
         _4 = box<I64>(const 1_i64);
-        _5 = RuntimeFn::CallValue(global@3, [_4], [], []);
+        _5 = dyn.call(global@3, [_4]);
         RuntimeFn::WriteObject(_5);
         RuntimeFn::WriteNewline();
         goto -> bb1;

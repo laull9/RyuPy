@@ -194,7 +194,7 @@ fn main() -> () {
         RuntimeFn::SetAttr(_4, const "named", _8);
         // line 25
         _9 = box<I64>(const 3_i64);
-        _10 = RuntimeFn::CallValue(global@0, [_9], [], []);
+        _10 = dyn.call(global@0, [_9]);
         g4 = _10;
         // line 26
         _11 = RuntimeFn::LoadName(global@4, const "box");
@@ -203,11 +203,11 @@ fn main() -> () {
         // line 27
         _13 = RuntimeFn::LoadName(global@5, const "method");
         _14 = box<I64>(const 2_i64);
-        _15 = RuntimeFn::CallValue(_13, [_14], [], []);
+        _15 = dyn.call(_13, [_14]);
         _16 = RuntimeFn::LoadName(global@4, const "box");
         _17 = RuntimeFn::DynGetAttr(_16, const "doubled");
-        _18 = RuntimeFn::CallMethod(global@0, const "kind", [], [], []);
-        _19 = RuntimeFn::CallMethod(global@0, const "named", [], [], []);
+        _18 = dyn.method(global@0, "kind", []);
+        _19 = dyn.method(global@0, "named", []);
         RuntimeFn::WriteObject(_15);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_17);

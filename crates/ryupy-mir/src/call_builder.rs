@@ -275,7 +275,30 @@ impl ExprBuilder<'_> {
     // ───────────────────────── 运行时调用 ─────────────────────────
 
     /// 生成一次 `PyOps.CallValue(callable, args, kwNames, kwValues)`。
+    ///
+    /// 纯位置、参数不超过 3 个时改用 [`Rvalue::DynCallValue`]：codegen 会走
+    /// `PyPic.CallValueN`，运行时复用调用点上的参数数组。
     fn call_value(&mut self, callable: Operand, args: &[CallArg]) -> Operand {
+        if is_small_positional_call(args) {
+            let values: Vec<Operand> = args
+                .iter()
+                .map(|arg| {
+                    let expr = arg.expr();
+                    let op = self.build_expr(expr);
+                    let ty = self.ty_of(expr);
+                    self.coerce(op, &ty, &MirType::Dynamic)
+                })
+                .collect();
+            let dest = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest,
+                value: Rvalue::DynCallValue {
+                    callee: callable,
+                    args: values,
+                },
+            });
+            return Operand::Local(dest);
+        }
         let (positional, kw_names, kw_values) = self.build_call_arrays(args);
         let dest = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
@@ -527,6 +550,27 @@ impl ExprBuilder<'_> {
         let obj_op = self.build_expr(base);
         let obj_ty = self.ty_of(base);
         let obj = self.coerce(obj_op, &obj_ty, &MirType::Dynamic);
+        if is_small_positional_call(args) {
+            let values: Vec<Operand> = args
+                .iter()
+                .map(|arg| {
+                    let expr = arg.expr();
+                    let op = self.build_expr(expr);
+                    let ty = self.ty_of(expr);
+                    self.coerce(op, &ty, &MirType::Dynamic)
+                })
+                .collect();
+            let dest = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest,
+                value: Rvalue::DynCallMethod {
+                    obj,
+                    name,
+                    args: values,
+                },
+            });
+            return self.coerce(Operand::Local(dest), &Ty::Dynamic, &ty_to_mir(call_ty));
+        }
         let (positional, kw_names, kw_values) = self.build_call_arrays(args);
         let dest = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
@@ -641,4 +685,9 @@ fn default_value_for(ty: &MirType) -> Operand {
         MirType::Class(_) => Operand::Const(Constant::Null),
         _ => Operand::Const(Constant::None),
     }
+}
+
+/// 纯位置、无关键字、无 `*` / `**` 且参数不超过 3 个的调用可以走专用快速入口。
+fn is_small_positional_call(args: &[CallArg]) -> bool {
+    args.len() <= 3 && args.iter().all(|arg| matches!(arg, CallArg::Positional(_)))
 }
