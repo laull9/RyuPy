@@ -1,0 +1,90 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+Module {
+    file: Idx::<SourceFile>(0),
+    functions: Arena {
+        len: 1,
+        data: [
+            Function {
+                name: Name(
+                    "main",
+                ),
+                kind: ModuleMain,
+                params: [],
+                ret: None,
+                body: Body {
+                    locals: Arena {
+                        len: 0,
+                        data: [],
+                    },
+                    exprs: Arena {
+                        len: 5,
+                        data: [
+                            Expr {
+                                kind: Builtin(
+                                    Print,
+                                ),
+                                range: 92..97,
+                            },
+                            Expr {
+                                kind: Literal(
+                                    Int(
+                                        1,
+                                    ),
+                                ),
+                                range: 98..99,
+                            },
+                            Expr {
+                                kind: Literal(
+                                    Int(
+                                        2,
+                                    ),
+                                ),
+                                range: 102..103,
+                            },
+                            Expr {
+                                kind: Binary {
+                                    op: Add,
+                                    lhs: Idx::<Expr>(1),
+                                    rhs: Idx::<Expr>(2),
+                                },
+                                range: 98..103,
+                            },
+                            Expr {
+                                kind: Call {
+                                    callee: Idx::<Expr>(0),
+                                    args: [
+                                        Idx::<Expr>(3),
+                                    ],
+                                },
+                                range: 92..104,
+                            },
+                        ],
+                    },
+                    stmts: Arena {
+                        len: 1,
+                        data: [
+                            Stmt {
+                                kind: Expr(
+                                    Idx::<Expr>(4),
+                                ),
+                                range: 92..104,
+                            },
+                        ],
+                    },
+                    root: [
+                        Idx::<Stmt>(0),
+                    ],
+                },
+                range: 0..105,
+            },
+        ],
+    },
+    classes: Arena {
+        len: 0,
+        data: [],
+    },
+    main: Idx::<Function>(0),
+}

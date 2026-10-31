@@ -1,0 +1,81 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+Program {
+    functions: Arena {
+        len: 1,
+        data: [
+            Function {
+                name: "main",
+                params: [],
+                ret: Unit,
+                body: Body {
+                    locals: Arena {
+                        len: 1,
+                        data: [
+                            LocalDecl {
+                                ty: I64,
+                                name: None,
+                            },
+                        ],
+                    },
+                    blocks: Arena {
+                        len: 1,
+                        data: [
+                            BasicBlock {
+                                stmts: [
+                                    Assign {
+                                        dest: Idx::<LocalDecl>(0),
+                                        value: Binary {
+                                            op: Add,
+                                            lhs: Const(
+                                                I64(
+                                                    1,
+                                                ),
+                                            ),
+                                            rhs: Const(
+                                                I64(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Eval(
+                                        Call {
+                                            callee: Runtime(
+                                                WriteI64,
+                                            ),
+                                            args: [
+                                                Local(
+                                                    Idx::<LocalDecl>(0),
+                                                ),
+                                            ],
+                                        },
+                                    ),
+                                    Eval(
+                                        Call {
+                                            callee: Runtime(
+                                                WriteNewline,
+                                            ),
+                                            args: [],
+                                        },
+                                    ),
+                                ],
+                                terminator: Return(
+                                    None,
+                                ),
+                            },
+                        ],
+                    },
+                    entry: Idx::<BasicBlock>(0),
+                },
+            },
+        ],
+    },
+    classes: Arena {
+        len: 0,
+        data: [],
+    },
+    entry: Idx::<Function>(0),
+}

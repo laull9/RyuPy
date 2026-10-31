@@ -1,0 +1,33 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m1_0_print_int
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static void Main(string[] args) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] long
+        )
+        IL_0000: LoadConstantInt64(1)
+        IL_0001: LoadConstantInt64(2)
+        IL_0002: AddOverflow(Signed)
+        IL_0003: StoreLocal(0)
+        IL_0004: LoadLocal(0)
+        IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0006: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0007: Return
+    }
+}

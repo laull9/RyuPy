@@ -21,6 +21,7 @@ cargo test -p ryupy-e2e -- <名字过滤>
 ## 约定
 
 - 学习项目：人不手写代码，但是得清楚知道作用、流程。
+- 单代码文件不超过500行，超出时拆分模块、设计分层。
 - 各阶段遇到不支持的语法：报 `Diagnostic` 并继续，**不要 panic**。错误码分段见 architecture.md §4。
 - 只有 `ryupy-syntax` 依赖 ruff，只有 `ryupy-codegen-cil` 依赖 dotnetdll，codegen 不得依赖 HIR / ty。
 - 新增 `RuntimeFn` 时同步修改 `runtime/RyuPy.Runtime/` 与 codegen 引用表。

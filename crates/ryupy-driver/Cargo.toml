@@ -15,5 +15,8 @@ ryupy-mir.workspace = true
 ryupy-codegen-cil.workspace = true
 anyhow.workspace = true
 
+[dev-dependencies]
+insta.workspace = true
+
 [lints]
 workspace = true

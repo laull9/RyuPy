@@ -10,5 +10,5 @@ pub mod diagnostic;
 pub mod source;
 
 pub use diagnostic::{Diagnostic, Diagnostics, Label, Severity};
-pub use ruff_text_size::{TextRange, TextSize};
+pub use ruff_text_size::{Ranged, TextRange, TextSize};
 pub use source::{FileId, SourceDb, SourceFile, Span};
