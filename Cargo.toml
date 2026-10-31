@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.85"
+publish = false
+
+[workspace.dependencies]
+# ---- 内部 crate（依赖方向见 docs/architecture.md）----
+ryupy-base = { path = "crates/ryupy-base" }
+ryupy-syntax = { path = "crates/ryupy-syntax" }
+ryupy-hir = { path = "crates/ryupy-hir" }
+ryupy-ty = { path = "crates/ryupy-ty" }
+ryupy-mir = { path = "crates/ryupy-mir" }
+ryupy-codegen-cil = { path = "crates/ryupy-codegen-cil" }
+ryupy-driver = { path = "crates/ryupy-driver" }
+
+# ---- Python 前端：ruff 未发布到 crates.io，固定 git tag（见 ADR-0001）----
+ruff_python_parser = { git = "https://github.com/astral-sh/ruff", tag = "0.17.3" }
+ruff_python_ast = { git = "https://github.com/astral-sh/ruff", tag = "0.17.3" }
+ruff_text_size = { git = "https://github.com/astral-sh/ruff", tag = "0.17.3" }
+
+# ---- 基础设施 ----
+la-arena = "0.3.1"
+rustc-hash = "2.1"
+ariadne = "0.6"
+dotnetdll = "0.3.0"
+clap = { version = "4.6", features = ["derive"] }
+anyhow = "1"
+thiserror = "2"
+
+# ---- 测试 ----
+insta = "1.49"
+libtest-mimic = "0.8"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- 与 crates/ryupy-codegen-cil/src/runtimeconfig.rs 的 TARGET_FRAMEWORK_MAJOR 保持一致 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- 运行时必须始终兼容 Native AOT：开启裁剪 / AOT 分析器，禁止反射发射等 -->
+    <IsAotCompatible>true</IsAotCompatible>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <RootNamespace>RyuPy.Runtime</RootNamespace>
+  </PropertyGroup>
+
+</Project>

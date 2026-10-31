@@ -1,0 +1,21 @@
+[package]
+name = "ryupy-codegen-cil"
+description = "MIR → CIL：栈化与 .NET 程序集序列化（dotnetdll）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ryupy-base.workspace = true
+ryupy-mir.workspace = true
+la-arena.workspace = true
+rustc-hash.workspace = true
+dotnetdll.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,20 @@
+[package]
+name = "ryupy-mir"
+description = "基于基本块的中端 IR、HIR→MIR 构建与优化 Pass"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ryupy-base.workspace = true
+ryupy-hir.workspace = true
+ryupy-ty.workspace = true
+la-arena.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+# ryupy: pending
+# M1.4：float 运算与 repr 格式（与 .NET 默认格式差异很大）。
+print(1.0)
+print(0.1 + 0.2)
+print(1e16)
+print(1e-5)
+print(123456789.0 * 1000.0)
+print(-2.5)
+print(3 / 2)
+print(1 + 0.5)
+print(7.5 // 2)
+print(-7.5 % 2)
+print(2.0 ** 0.5)
+print(int(3.99), int(-3.99))
+print(float(3))

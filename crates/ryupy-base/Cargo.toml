@@ -1,0 +1,15 @@
+[package]
+name = "ryupy-base"
+description = "源码管理、Span 与诊断（所有 crate 的公共底座）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+la-arena.workspace = true
+ruff_text_size.workspace = true
+ariadne.workspace = true
+
+[lints]
+workspace = true

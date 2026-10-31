@@ -1,0 +1,19 @@
+[package]
+name = "ryupy-hir"
+description = "AST → HIR：去糖、作用域与名称解析"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ryupy-base.workspace = true
+ryupy-syntax.workspace = true
+la-arena.workspace = true
+rustc-hash.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true

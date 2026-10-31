@@ -1,0 +1,8 @@
+/target
+**/bin/
+**/obj/
+*.pending-snap
+*.snap.new
+.DS_Store
+.idea/
+.vscode/

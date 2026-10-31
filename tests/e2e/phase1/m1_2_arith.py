@@ -1,0 +1,16 @@
+# ryupy: pending
+# M1.2：Python 与 CIL 语义不同的算术。负数的 // 和 % 是重点。
+print(7 // 2)
+print(-7 // 2)
+print(7 // -2)
+print(7 % 3)
+print(-7 % 3)
+print(7 % -3)
+print(2 ** 10)
+print(10 / 4)
+print(1 + 2 * 3 - 4)
+print(5 & 3, 5 | 3, 5 ^ 3)
+print(1 << 10, 1024 >> 3)
+print(-(3 - 10))
+print(not True)
+print(3 < 5, 3 >= 5, 3 == 3, 3 != 3)

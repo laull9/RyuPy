@@ -1,0 +1,20 @@
+[package]
+name = "ryupy-e2e"
+description = "端到端差分测试（CPython vs RyuPy），需要 python3 与 dotnet"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+ryupy-driver.workspace = true
+libtest-mimic.workspace = true
+
+[[test]]
+name = "e2e"
+harness = false
+
+[lints]
+workspace = true

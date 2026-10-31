@@ -1,0 +1,18 @@
+[package]
+name = "ryupy-syntax"
+description = "对 ruff_python_parser 的薄封装：唯一直接依赖 ruff 解析器的 crate"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+ryupy-base.workspace = true
+ruff_python_parser.workspace = true
+ruff_python_ast.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true
