@@ -1,18 +1,205 @@
 //! MIR 文本转储，供 `ryupy dump --emit mir` 与 insta 快照使用。
+//!
+//! 采用类似 rustc MIR 的紧凑易读格式：
+//! ```text
+//! fn add(_0: i64, _1: i64) -> i64 {
+//!     let _0: i64; // a
+//!     let _1: i64; // b
+//!     let _2: i64;
+//!
+//!     bb0: {
+//!         _2 = Add(_0, _1);
+//!         return _2;
+//!     }
+//! }
+//! ```
 
-use crate::mir::Program;
+use std::fmt::Write;
 
-/// TODO(M1.1)：改成类似 rustc `-Zunpretty=mir` 的格式：
-///
-/// ```text
-/// fn fib(_0: i64) -> i64 {
-///     let _1: bool;
-///   bb0:
-///     _1 = Lt(_0, const 2_i64);
-///     branch _1 -> [true: bb1, false: bb2];
-///   ...
-/// }
-/// ```
+use crate::mir::{
+    BasicBlock, Callee, Constant, Function, MirType, Operand, Program, Rvalue, Statement,
+    Terminator,
+};
+
 pub fn dump(program: &Program) -> String {
-    format!("{program:#?}")
+    let mut out = String::new();
+    for (fn_id, func) in program.functions.iter() {
+        if fn_id != program.functions.iter().next().unwrap().0 {
+            out.push('\n');
+        }
+        dump_function(&mut out, func, program);
+    }
+    out
+}
+
+fn dump_function(out: &mut String, func: &Function, program: &Program) {
+    // 1. 函数签名
+    let params_str = func
+        .params
+        .iter()
+        .map(|&p| {
+            let ty_str = format_type(&func.body.locals[p].ty);
+            format!("_{}: {}", p.into_raw(), ty_str)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let ret_str = format_type(&func.ret);
+    writeln!(out, "fn {}({}) -> {} {{", func.name, params_str, ret_str).unwrap();
+
+    // 2. 局部变量声明
+    for (loc_id, loc) in func.body.locals.iter() {
+        let ty_str = format_type(&loc.ty);
+        if let Some(name) = &loc.name {
+            writeln!(
+                out,
+                "    let _{}: {}; // {}",
+                loc_id.into_raw(),
+                ty_str,
+                name
+            )
+            .unwrap();
+        } else {
+            writeln!(out, "    let _{}: {};", loc_id.into_raw(), ty_str).unwrap();
+        }
+    }
+    if !func.body.locals.is_empty() {
+        writeln!(out).unwrap();
+    }
+
+    // 3. 基本块
+    for (bb_id, bb) in func.body.blocks.iter() {
+        dump_basic_block(out, bb_id, bb, func, program);
+    }
+
+    writeln!(out, "}}").unwrap();
+}
+
+fn dump_basic_block(
+    out: &mut String,
+    bb_id: crate::mir::BlockId,
+    bb: &BasicBlock,
+    _func: &Function,
+    program: &Program,
+) {
+    writeln!(out, "    bb{}: {{", bb_id.into_raw()).unwrap();
+    for stmt in &bb.stmts {
+        write!(out, "        ").unwrap();
+        match stmt {
+            Statement::Assign { dest, value } => {
+                writeln!(
+                    out,
+                    "_{} = {};",
+                    dest.into_raw(),
+                    format_rvalue(value, program)
+                )
+                .unwrap();
+            }
+            Statement::Eval(rval) => {
+                writeln!(out, "{};", format_rvalue(rval, program)).unwrap();
+            }
+            Statement::SetField { obj, field, value } => {
+                writeln!(
+                    out,
+                    "{}.{} = {};",
+                    format_operand(obj),
+                    field,
+                    format_operand(value)
+                )
+                .unwrap();
+            }
+        }
+    }
+
+    write!(out, "        ").unwrap();
+    match &bb.terminator {
+        Terminator::Goto(target) => {
+            writeln!(out, "goto -> bb{};", target.into_raw()).unwrap();
+        }
+        Terminator::Branch { cond, then_, else_ } => {
+            writeln!(
+                out,
+                "branch {} -> [then: bb{}, else: bb{}];",
+                format_operand(cond),
+                then_.into_raw(),
+                else_.into_raw()
+            )
+            .unwrap();
+        }
+        Terminator::Return(None) => {
+            writeln!(out, "return;").unwrap();
+        }
+        Terminator::Return(Some(op)) => {
+            writeln!(out, "return {};", format_operand(op)).unwrap();
+        }
+        Terminator::Unreachable => {
+            writeln!(out, "unreachable;").unwrap();
+        }
+    }
+    writeln!(out, "    }}").unwrap();
+}
+
+fn format_type(ty: &MirType) -> String {
+    match ty {
+        MirType::I64 => "i64".to_string(),
+        MirType::F64 => "f64".to_string(),
+        MirType::Bool => "bool".to_string(),
+        MirType::Str => "str".to_string(),
+        MirType::Unit => "()".to_string(),
+        MirType::Class(id) => format!("Class({})", id.into_raw()),
+    }
+}
+
+fn format_operand(op: &Operand) -> String {
+    match op {
+        Operand::Local(loc) => format!("_{}", loc.into_raw()),
+        Operand::Const(c) => match c {
+            Constant::I64(v) => format!("const {v}_i64"),
+            Constant::F64(v) => format!("const {v}_f64"),
+            Constant::Bool(b) => format!("const {b}"),
+            Constant::Str(s) => format!("const \"{s}\""),
+        },
+    }
+}
+
+fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
+    match rval {
+        Rvalue::Use(op) => format_operand(op),
+        Rvalue::Binary { op, lhs, rhs } => {
+            format!("{:?}({}, {})", op, format_operand(lhs), format_operand(rhs))
+        }
+        Rvalue::Unary { op, operand } => {
+            format!("{:?}({})", op, format_operand(operand))
+        }
+        Rvalue::Cast { kind, operand } => {
+            format!("Cast({:?}, {})", kind, format_operand(operand))
+        }
+        Rvalue::Call { callee, args } => {
+            let callee_str = match callee {
+                Callee::Fn(id) => program
+                    .functions
+                    .iter()
+                    .find(|(i, _)| *i == *id)
+                    .map(|(_, f)| f.name.clone())
+                    .unwrap_or_else(|| format!("fn_{}", id.into_raw())),
+                Callee::Runtime(rt) => format!("RuntimeFn::{rt:?}"),
+            };
+            let args_str = args
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{callee_str}({args_str})")
+        }
+        Rvalue::NewObject { class, args } => {
+            let args_str = args
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("New(Class({}), [{}])", class.into_raw(), args_str)
+        }
+        Rvalue::GetField { obj, field } => {
+            format!("{}.{}", format_operand(obj), field)
+        }
+    }
 }

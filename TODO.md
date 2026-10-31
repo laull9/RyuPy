@@ -42,20 +42,21 @@
 
 > 用例：`m1_1_functions.py`
 
-- [ ] hir：`collect_assigned_names` 预扫描（函数级作用域 + 「赋值即局部」）
-- [ ] hir：顶层 `def` 收集（允许前向引用），参数与标注降级为 `Param` / `TypeRef`
-- [ ] hir：赋值、带标注赋值、增量赋值去糖、`return`
-- [ ] hir：`global` / `nonlocal` / 嵌套 `def` 报错；函数体内读取模块级变量报错
-- [ ] hir：`pretty::dump` 改为接近源码的缩进格式
-- [ ] ty：由标注计算 `FnSig`；缺标注报 `E0201`
-- [ ] ty：手写并查集 `find` / `unify` / `resolve`（含单元测试）
-- [ ] ty：类型不匹配报 `E0203`，用 secondary label 指出「期望类型来自哪里」
-- [ ] ty：`ModuleTypes::dump` 改为可读格式
-- [ ] mir：多函数、参数、`Callee::Fn` 调用、函数末尾隐式 `return`
-- [ ] mir：`pretty::dump` 改为 rustc MIR 风格
-- [ ] codegen：多个静态方法、`ldarg`、`call`、返回值
-- [ ] 测试：建立「编译失败」快照用例目录（如 `tests/ui/*.py` + 诊断文本快照）
-- [ ] 确定赋值分析：先读后写的局部变量编译期报错（语义陷阱 #10）
+- [x] hir：`collect_assigned_names` 预扫描（函数级作用域 + 「赋值即局部」）
+- [x] hir：顶层 `def` 收集（允许前向引用），参数与标注降级为 `Param` / `TypeRef`
+- [x] hir：赋值、带标注赋值、增量赋值去糖、`return`
+- [x] hir：`global` / `nonlocal` / 嵌套 `def` 报错；函数体内读取模块级变量报错
+- [x] hir：`pretty::dump` 改为接近源码的缩进格式
+- [x] ty：由标注计算 `FnSig`；缺标注报 `E0201`
+- [x] ty：手写并查集 `find` / `unify` / `resolve`（含单元测试）
+- [x] ty：类型不匹配报 `E0203`，用 secondary label 指出「期望类型来自哪里」
+- [x] ty：`ModuleTypes::dump` 改为可读格式
+- [x] mir：多函数、参数、`Callee::Fn` 调用、函数末尾隐式 `return`
+- [x] mir：`pretty::dump` 改为 rustc MIR 风格
+- [x] codegen：多个静态方法、`ldarg`、`call`、返回值
+- [x] 确定赋值分析：先读后写的局部变量编译期报错（语义陷阱 #10）
+- [x] 去掉 m1_1 的 `pending`，`make check` 全绿 🎉
+- [x] 笔记：`docs/notes/` 记录 M1.1 实现总结（作用域、并查集与 CIL 方法调用）
 
 ### M1.2 运算与控制流
 

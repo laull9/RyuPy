@@ -43,7 +43,16 @@ pub struct ModuleTypes {
 
 impl ModuleTypes {
     pub fn dump(&self) -> String {
-        // TODO(M1.1)：按「函数名 → 局部变量: 类型」格式输出，便于快照。
-        format!("{self:#?}")
+        use std::fmt::Write;
+        let mut out = String::new();
+        for (func_id, sig) in self.sigs.iter() {
+            let _ = writeln!(out, "func {:?}: {:?} -> {:?}", func_id, sig.params, sig.ret);
+            if let Some(body) = self.bodies.get(func_id) {
+                for (loc_id, ty) in body.locals.iter() {
+                    let _ = writeln!(out, "  local {:?}: {:?}", loc_id, ty);
+                }
+            }
+        }
+        out
     }
 }
