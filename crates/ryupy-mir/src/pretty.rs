@@ -186,6 +186,11 @@ fn format_type(ty: &MirType) -> String {
 fn format_operand(op: &Operand) -> String {
     match op {
         Operand::Local(loc) => format!("_{}", loc.into_raw()),
+        Operand::Global(global) => format!("global@{}", global.into_raw()),
+        Operand::Array(items) => {
+            let inner: Vec<String> = items.iter().map(format_operand).collect();
+            format!("[{}]", inner.join(", "))
+        }
         Operand::Const(c) => match c {
             Constant::I64(v) => format!("const {v}_i64"),
             Constant::F64(v) => format!("const {v}_f64"),
@@ -193,6 +198,7 @@ fn format_operand(op: &Operand) -> String {
             Constant::Str(s) => format!("const \"{s}\""),
             Constant::BigInt(s) => format!("const {s}_bigint"),
             Constant::None => "None".to_string(),
+            Constant::Null => "null".to_string(),
         },
     }
 }

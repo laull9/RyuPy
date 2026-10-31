@@ -35,7 +35,7 @@ fn mix() -> dyn {
         _7 = MakeList([_5, _6]);
         _0 = _7;
         // line 3
-        _8 = DynBuiltin(const "len", [_0]);
+        _8 = RuntimeFn::DynBuiltin(const "len", [_0], [], []);
         _9 = box<I64>(const 0_i64);
         RuntimeFn::SetItem(_0, _9, _8);
         // line 4
@@ -57,7 +57,7 @@ fn mix() -> dyn {
     }
     bb1: {
         _17 = RuntimeFn::IterNextOk(_16);
-        branch _17 -> [then: bb2, else: bb4];
+        branch _17 -> [then: bb2, else: bb5];
     }
     bb2: {
         _18 = RuntimeFn::IterValue(_16);
@@ -71,16 +71,19 @@ fn mix() -> dyn {
         unreachable;
     }
     bb4: {
+        unreachable;
+    }
+    bb5: {
         // line 9
         _21 = RuntimeFn::Contains(_0, _2);
         _22 = box<Bool>(_21);
         _20 = _22;
-        goto -> bb6;
-    }
-    bb5: {
-        unreachable;
+        goto -> bb7;
     }
     bb6: {
+        unreachable;
+    }
+    bb7: {
         RuntimeFn::TracePopTo(_4);
         return _20;
     }
@@ -91,6 +94,7 @@ fn main() -> () {
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "<module>");
+        // line 1
         goto -> bb1;
     }
     bb1: {

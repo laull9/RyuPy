@@ -11,6 +11,7 @@
 //! 演示了从零构造一个可执行程序集的全过程。
 
 pub mod assembly;
+mod callables;
 pub mod runtimeconfig;
 mod stackify;
 mod types;

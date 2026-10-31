@@ -43,6 +43,11 @@ pub struct Module {
     pub classes: Arena<Class>,
     /// 顶层语句组成的隐式入口函数。
     pub main: FuncId,
+    /// 所有参数默认值表达式；它们的 `ExprId` 都位于 `main` 的 body 中。
+    ///
+    /// Python 在模块作用域、`def` 执行时求值默认值，因此它们不是任何用户函数体的一部分。
+    /// 单独列出是为了让类型检查（在 main 上下文）覆盖它们。
+    pub default_exprs: Vec<ExprId>,
 }
 
 #[derive(Debug)]
@@ -63,11 +68,51 @@ pub enum FunctionKind {
     ModuleMain,
 }
 
+/// 参数在调用绑定中的角色（对应 Python 的 `/` 与 `*` 分隔）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParamKind {
+    /// `/` 之前：只能按位置传入。
+    PositionalOnly,
+    /// 普通参数：位置或关键字都可以。
+    PositionalOrKeyword,
+    /// `*args`：收集多出来的位置实参。
+    VarPositional,
+    /// `*` 之后：只能按关键字传入。
+    KeywordOnly,
+    /// `**kwargs`：收集未知的关键字实参。
+    VarKeyword,
+}
+
 #[derive(Debug)]
 pub struct Param {
     pub local: LocalId,
     pub annotation: Option<TypeRef>,
+    /// 默认值表达式。**该 `ExprId` 属于模块入口函数（main）的 body**：
+    /// Python 在 `def` 执行时（模块作用域）求值默认值，而不是每次调用时求值。
+    pub default: Option<ExprId>,
+    pub kind: ParamKind,
     pub range: TextRange,
+}
+
+/// 调用实参：位置、`*args`、关键字、`**kwargs` 四种形态。
+#[derive(Clone, Debug)]
+pub enum CallArg {
+    Positional(ExprId),
+    Starred(ExprId),
+    Keyword(Name, ExprId),
+    DoubleStarred(ExprId),
+}
+
+impl CallArg {
+    /// 该实参对应的表达式（关键字实参取右侧的值）。
+    pub fn expr(&self) -> ExprId {
+        match self {
+            CallArg::Positional(id)
+            | CallArg::Starred(id)
+            | CallArg::Keyword(_, id)
+            | CallArg::DoubleStarred(id) => *id,
+        }
+    }
 }
 
 /// Phase 1 只支持 `@dataclass`：字段固定、无方法继承。
@@ -168,7 +213,7 @@ pub enum ExprKind {
     },
     Call {
         callee: ExprId,
-        args: Vec<ExprId>,
+        args: Vec<CallArg>,
     },
     Attribute {
         base: ExprId,
@@ -184,6 +229,8 @@ pub enum ExprKind {
     Dict(Vec<(ExprId, ExprId)>),
     /// `b"..."`：源码里的字节串已经是字节序列，不需要再做编码。
     Bytes(Box<[u8]>),
+    /// f-string：字面量与插值段交替。
+    FString(Vec<FStringPart>),
     /// `obj[key]`，`key` 可以是 [`ExprKind::Slice`]。
     Subscript {
         base: ExprId,
@@ -197,6 +244,21 @@ pub enum ExprKind {
     },
     /// `*seq`：只出现在容器字面量与赋值目标里。
     Starred(ExprId),
+}
+
+/// f-string 的一段。
+#[derive(Clone, Debug, PartialEq)]
+pub enum FStringPart {
+    /// 原样输出的字面量（`{{` / `}}` 已由解析器还原成单个花括号）。
+    Literal(Box<str>),
+    /// `{expr}` / `{expr!r}` / `{expr:spec}`。
+    Value {
+        value: ExprId,
+        /// `!s` / `!r` / `!a` 的字节；没有转换时为 0。
+        conversion: u8,
+        /// 格式说明符；目前只支持纯字面量（含嵌套插值的规格暂不支持）。
+        spec: Option<Box<str>>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -306,12 +368,16 @@ pub enum StmtKind {
     While {
         cond: ExprId,
         body: Vec<StmtId>,
+        /// `while ... else:`：循环**正常结束**（条件变假）时执行；`break` 跳过。
+        orelse: Vec<StmtId>,
     },
     /// `for var in <可迭代对象>`：通用迭代协议。
     ForEach {
         var: LocalId,
         iter: ExprId,
         body: Vec<StmtId>,
+        /// `for ... else:`：迭代耗尽时执行；`break` 跳过。
+        orelse: Vec<StmtId>,
     },
     /// `for var in range(start, stop, step)` 的专用形式，编译为原生计数循环，不产生迭代器对象。
     ForRange {
@@ -320,10 +386,17 @@ pub enum StmtKind {
         stop: ExprId,
         step: Option<ExprId>,
         body: Vec<StmtId>,
+        /// `for ... else:`：迭代耗尽时执行；`break` 跳过。
+        orelse: Vec<StmtId>,
     },
     Break,
     Continue,
     Pass,
+    /// 内部节点：在模块入口的**定义位置**求值该函数的参数默认值。
+    ///
+    /// Python 在 `def` 执行时求值默认值；把它保留成一条语句（而不是统一提到开头），
+    /// 默认值才能引用此前的模块变量。
+    FunctionDefaults(FuncId),
     /// `raise [exc [from cause]]`；两者都为 `None` 表示裸重抛。
     Raise {
         value: Option<ExprId>,

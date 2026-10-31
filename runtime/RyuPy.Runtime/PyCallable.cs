@@ -1,0 +1,327 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace RyuPy.Runtime;
+
+/// <summary>
+/// 编译产物里的函数对象所使用的调用委托。
+/// </summary>
+/// <remarks>
+/// 生成的入口方法（thunk）签名与此一致：它接收已经展开的实参与关键字，调用
+/// <see cref="PyBinder.Bind"/> 完成绑定，再调用真正的静态方法并装箱返回值。
+/// </remarks>
+public delegate object? PyCall(object?[] args, string[] kwNames, object?[] kwValues);
+
+/// <summary>参数在调用绑定中的角色，判别值必须与 Rust 侧 <c>mir::ParamKind</c> 一致。</summary>
+public enum PyParamKind
+{
+    /// <summary>`/` 之前：只能按位置传入。</summary>
+    PositionalOnly = 0,
+    /// <summary>普通参数：位置或关键字都可以。</summary>
+    PositionalOrKeyword = 1,
+    /// <summary>`*args`：收集多出来的位置实参。</summary>
+    VarPositional = 2,
+    /// <summary>`*` 之后：只能按关键字传入。</summary>
+    KeywordOnly = 3,
+    /// <summary>`**kwargs`：收集未知的关键字实参。</summary>
+    VarKeyword = 4,
+}
+
+/// <summary>一个 Python 函数的参数元数据。</summary>
+public sealed class PySignature
+{
+    /// <summary>函数名（错误消息里使用）。</summary>
+    public string Name { get; }
+    /// <summary>参数名，顺序与函数签名一致。</summary>
+    public string[] Names { get; }
+    /// <summary>参数种类，与 <see cref="Names"/> 一一对应。</summary>
+    public PyParamKind[] Kinds { get; }
+    /// <summary>该位置是否有默认值。</summary>
+    public bool[] HasDefault { get; }
+
+    private PySignature(string name, string[] names, PyParamKind[] kinds, bool[] hasDefault)
+    {
+        Name = name;
+        Names = names;
+        Kinds = kinds;
+        HasDefault = hasDefault;
+    }
+
+    /// <summary>由生成的模块初始化代码构造。</summary>
+    /// <remarks>
+    /// 种类与默认值标志以字符串数组传入：生成代码构造 `string[]` 比构造
+    /// `int[]` / `bool[]` 少两种元素存储指令，也避免了对装箱数组元素的依赖。
+    /// </remarks>
+    public static PySignature Create(
+        string name,
+        string[] names,
+        string[] kinds,
+        string[] hasDefault
+    )
+    {
+        if (kinds.Length != names.Length || hasDefault.Length != names.Length)
+        {
+            throw new ArgumentException("参数元数据长度不一致");
+        }
+        var converted = new PyParamKind[kinds.Length];
+        var defaults = new bool[names.Length];
+        for (int i = 0; i < kinds.Length; i++)
+        {
+            converted[i] = kinds[i] switch
+            {
+                "posonly" => PyParamKind.PositionalOnly,
+                "pos" => PyParamKind.PositionalOrKeyword,
+                "varpos" => PyParamKind.VarPositional,
+                "kwonly" => PyParamKind.KeywordOnly,
+                "varkw" => PyParamKind.VarKeyword,
+                _ => throw new ArgumentException($"未知参数种类 {kinds[i]}"),
+            };
+            defaults[i] = hasDefault[i] == "1";
+        }
+        return new PySignature(name, names, converted, defaults);
+    }
+}
+
+/// <summary>
+/// 参数绑定：把位置实参、关键字实参与默认值映射到函数的形参槽位。
+/// </summary>
+/// <remarks>
+/// 规则与 CPython 一致：
+/// <list type="bullet">
+/// <item>位置实参先填 `PositionalOnly` / `PositionalOrKeyword`，多出来的进 `*args`；</item>
+/// <item>关键字实参按名字匹配 `PositionalOrKeyword` / `KeywordOnly`，未知的进 `**kwargs`；</item>
+/// <item>同一个形参被位置与关键字同时赋值 → <c>TypeError</c>；</item>
+/// <item>位置-only 形参被按关键字传入 → <c>TypeError</c>；</item>
+/// <item>没有默认值且未赋值 → `TypeError`。</item>
+/// </list>
+/// 这些错误都是 Python 语义错误，因此抛 <see cref="PyTypeError"/> 而不是 CLR 异常。
+/// </remarks>
+public static class PyBinder
+{
+    /// <summary>返回与参数顺序一致的绑定结果数组。</summary>
+    public static object?[] Bind(
+        PySignature signature,
+        object?[] args,
+        string[] kwNames,
+        object?[] kwValues,
+        object?[] defaults
+    )
+    {
+        int count = signature.Names.Length;
+        var bound = new object?[count];
+        var filled = new bool[count];
+
+        int varPositional = -1;
+        int varKeyword = -1;
+        var positionalSlots = new List<int>();
+        for (int i = 0; i < count; i++)
+        {
+            switch (signature.Kinds[i])
+            {
+                case PyParamKind.PositionalOnly:
+                case PyParamKind.PositionalOrKeyword:
+                    positionalSlots.Add(i);
+                    break;
+                case PyParamKind.VarPositional:
+                    varPositional = i;
+                    break;
+                case PyParamKind.VarKeyword:
+                    varKeyword = i;
+                    break;
+            }
+        }
+
+        // 1. 位置实参
+        var extraPositional = new List<object?>();
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (i < positionalSlots.Count)
+            {
+                int slot = positionalSlots[i];
+                bound[slot] = args[i];
+                filled[slot] = true;
+            }
+            else if (varPositional >= 0)
+            {
+                extraPositional.Add(args[i]);
+            }
+            else
+            {
+                throw TooManyPositionals(signature, positionalSlots.Count, args.Length);
+            }
+        }
+        if (varPositional >= 0)
+        {
+            bound[varPositional] = new PyTuple([.. extraPositional]);
+            filled[varPositional] = true;
+        }
+
+        // 2. 关键字实参
+        var positionalOnlyPassed = new List<string>();
+        var extraKeyword = new List<(string Name, object? Value)>();
+        for (int i = 0; i < kwNames.Length; i++)
+        {
+            string name = kwNames[i];
+            object? value = kwValues[i];
+            int slot = FindByName(signature, name);
+            if (slot >= 0)
+            {
+                if (filled[slot])
+                {
+                    throw new PyTypeError(
+                        $"{signature.Name}() got multiple values for argument '{name}'"
+                    );
+                }
+                bound[slot] = value;
+                filled[slot] = true;
+            }
+            else if (varKeyword >= 0)
+            {
+                extraKeyword.Add((name, value));
+            }
+            else if (IsPositionalOnlyName(signature, name))
+            {
+                positionalOnlyPassed.Add(name);
+            }
+            else
+            {
+                throw new PyTypeError(
+                    $"{signature.Name}() got an unexpected keyword argument '{name}'"
+                );
+            }
+        }
+        if (positionalOnlyPassed.Count > 0)
+        {
+            throw new PyTypeError(
+                $"{signature.Name}() got some positional-only arguments passed as keyword "
+                    + $"arguments: '{string.Join("', '", positionalOnlyPassed)}'"
+            );
+        }
+        if (varKeyword >= 0)
+        {
+            var dict = new PyDict();
+            foreach (var (name, value) in extraKeyword)
+            {
+                dict.Set(name, value);
+            }
+            bound[varKeyword] = dict;
+            filled[varKeyword] = true;
+        }
+
+        // 3. 默认值与缺失检查
+        var missingPositional = new List<string>();
+        var missingKeywordOnly = new List<string>();
+        for (int i = 0; i < count; i++)
+        {
+            if (filled[i] || signature.Kinds[i] == PyParamKind.VarPositional
+                || signature.Kinds[i] == PyParamKind.VarKeyword)
+            {
+                continue;
+            }
+            if (i < defaults.Length && signature.HasDefault[i])
+            {
+                bound[i] = defaults[i];
+                continue;
+            }
+            if (signature.Kinds[i] == PyParamKind.KeywordOnly)
+            {
+                missingKeywordOnly.Add(signature.Names[i]);
+            }
+            else
+            {
+                missingPositional.Add(signature.Names[i]);
+            }
+        }
+        if (missingPositional.Count > 0)
+        {
+            throw MissingArguments(signature, missingPositional, "positional");
+        }
+        if (missingKeywordOnly.Count > 0)
+        {
+            throw MissingArguments(signature, missingKeywordOnly, "keyword-only");
+        }
+        return bound;
+    }
+
+    private static int FindByName(PySignature signature, string name)
+    {
+        for (int i = 0; i < signature.Names.Length; i++)
+        {
+            if ((signature.Kinds[i] == PyParamKind.PositionalOrKeyword
+                    || signature.Kinds[i] == PyParamKind.KeywordOnly)
+                && signature.Names[i] == name)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static bool IsPositionalOnlyName(PySignature signature, string name)
+    {
+        for (int i = 0; i < signature.Names.Length; i++)
+        {
+            if (signature.Kinds[i] == PyParamKind.PositionalOnly && signature.Names[i] == name)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static PyTypeError TooManyPositionals(
+        PySignature signature,
+        int named,
+        int given
+    ) =>
+        new(
+            $"{signature.Name}() takes {named} positional argument"
+                + $"{(named == 1 ? "" : "s")} but {given} were given"
+        );
+
+    private static PyTypeError MissingArguments(
+        PySignature signature,
+        List<string> names,
+        string kind
+    ) =>
+        new(
+            $"{signature.Name}() missing {names.Count} required {kind} argument"
+                + $"{(names.Count == 1 ? "" : "s")}: '{string.Join("', '", names)}'"
+        );
+}
+
+/// <summary>
+/// 一等函数对象：名字、参数元数据、默认值数组与调用入口。
+/// </summary>
+/// <remarks>
+/// 默认值数组在模块初始化时分配、由模块顶层代码填充，因此多次调用共享同一份默认值——
+/// 这正是 <c>def f(x=[])</c> 在 CPython 里的行为。
+/// </remarks>
+public sealed class PyFunction
+{
+    /// <summary>函数名。</summary>
+    public string Name { get; }
+    /// <summary>参数元数据。</summary>
+    public PySignature Signature { get; }
+    /// <summary>调用入口（生成代码里的 thunk）。</summary>
+    public PyCall Body { get; }
+    /// <summary>默认值数组，与参数下标对齐。</summary>
+    public object?[] Defaults { get; }
+
+    /// <summary>构造函数对象。</summary>
+    public PyFunction(string name, PySignature signature, PyCall body, object?[] defaults)
+    {
+        Name = name;
+        Signature = signature;
+        Body = body;
+        Defaults = defaults;
+    }
+
+    /// <summary>用已展开的实参调用。</summary>
+    public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues) =>
+        Body(args, kwNames, kwValues);
+
+    /// <summary>与 CPython 一致的 <c>&lt;function name&gt;</c> 形式。</summary>
+    public override string ToString() => $"<function {Name}>";
+}

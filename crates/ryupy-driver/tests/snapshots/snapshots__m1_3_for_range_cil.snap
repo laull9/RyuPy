@@ -23,25 +23,26 @@ expression: cil
         )
         IL_0000: LoadString("m1_3_for_range.py")
         IL_0001: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetFile(string))
-        IL_0002: Call(static void RyuPy.Generated.Module.__main())
-        IL_0003: Leave(15)
-        IL_0004: Call(static int [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SystemExitCode([RyuPy.Runtime]RyuPy.Runtime.PySystemExit))
-        IL_0005: StoreLocal(0)
-        IL_0006: Leave(15)
-        IL_0007: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.Report([RyuPy.Runtime]RyuPy.Runtime.PyBaseException))
-        IL_0008: LoadConstantInt32(1)
-        IL_0009: StoreLocal(0)
-        IL_000a: Leave(15)
-        IL_000b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.ReportClr([System.Runtime]System.Exception))
-        IL_000c: LoadConstantInt32(1)
-        IL_000d: StoreLocal(0)
-        IL_000e: Leave(15)
-        IL_000f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.Flush())
-        IL_0010: LoadLocal(0)
-        IL_0011: Return
-        // EH: try [2..4) catch [RyuPy.Runtime]RyuPy.Runtime.PySystemExit handler [4..7)
-        // EH: try [2..4) catch [RyuPy.Runtime]RyuPy.Runtime.PyBaseException handler [7..11)
-        // EH: try [2..4) catch [System.Runtime]System.Exception handler [11..15)
+        IL_0002: Call(static void RyuPy.Generated.Module.__init_functions())
+        IL_0003: Call(static void RyuPy.Generated.Module.__main())
+        IL_0004: Leave(16)
+        IL_0005: Call(static int [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SystemExitCode([RyuPy.Runtime]RyuPy.Runtime.PySystemExit))
+        IL_0006: StoreLocal(0)
+        IL_0007: Leave(16)
+        IL_0008: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.Report([RyuPy.Runtime]RyuPy.Runtime.PyBaseException))
+        IL_0009: LoadConstantInt32(1)
+        IL_000a: StoreLocal(0)
+        IL_000b: Leave(16)
+        IL_000c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.ReportClr([System.Runtime]System.Exception))
+        IL_000d: LoadConstantInt32(1)
+        IL_000e: StoreLocal(0)
+        IL_000f: Leave(16)
+        IL_0010: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.Flush())
+        IL_0011: LoadLocal(0)
+        IL_0012: Return
+        // EH: try [3..5) catch [RyuPy.Runtime]RyuPy.Runtime.PySystemExit handler [5..8)
+        // EH: try [3..5) catch [RyuPy.Runtime]RyuPy.Runtime.PyBaseException handler [8..12)
+        // EH: try [3..5) catch [System.Runtime]System.Exception handler [12..16)
     }
 
     .method public static void __main() cil managed
@@ -281,5 +282,10 @@ expression: cil
         IL_00c9: LoadLocal(3)
         IL_00ca: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
         IL_00cb: Return
+    }
+
+    .method public static void __init_functions() cil managed
+    {
+        IL_0000: Return
     }
 }

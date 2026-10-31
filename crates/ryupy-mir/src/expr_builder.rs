@@ -19,7 +19,7 @@ use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{
-    BinOp as HirBinOp, CmpOp, ExprId, ExprKind, Literal, LocalId as HirLocalId, Module,
+    BinOp as HirBinOp, Builtin, CmpOp, ExprId, ExprKind, Literal, LocalId as HirLocalId, Module,
     UnaryOp as HirUnaryOp,
 };
 use ryupy_ty::{ModuleTypes, Ty, TypeckResults, type_ref_to_ty};
@@ -34,6 +34,8 @@ pub struct ExprBuilder<'a> {
     pub hir: &'a Module,
     pub types: &'a ModuleTypes,
     pub fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
+    pub fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
+    pub fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
     pub current_hir_fn: ryupy_hir::FuncId,
     pub locals: &'a mut Arena<LocalDecl>,
     pub blocks: &'a mut Arena<BasicBlock>,
@@ -154,6 +156,7 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::List(items) => self.build_sequence_literal(items, RuntimeFn::MakeList),
             ExprKind::Tuple(items) => self.build_sequence_literal(items, RuntimeFn::MakeTuple),
             ExprKind::Set(items) => self.build_sequence_literal(items, RuntimeFn::MakeSet),
+            ExprKind::FString(parts) => self.build_fstring(parts),
             ExprKind::Bytes(bytes) => {
                 // 每个字节当成一个 latin-1 字符放进 CIL 字符串，运行时再还原成字节
                 let text: String = bytes.iter().map(|b| *b as char).collect();
@@ -199,10 +202,95 @@ impl<'a> ExprBuilder<'a> {
                 });
                 Operand::Local(dest)
             }
+            // 内建构造名作为值（`isinstance(x, int)`、`f = str`）：构造类型对象
+            ExprKind::Builtin(builtin) => self.build_builtin_value(*builtin),
+            // 函数名作为值：加载模块静态字段里的 PyFunction 对象
+            ExprKind::Func(fn_id) => match self.fn_globals.get(fn_id).copied() {
+                Some(global) => Operand::Global(global),
+                None => self.none_value(),
+            },
             // 星号只在容器字面量与赋值目标里有意义；这里落到容器的增量构建
             ExprKind::Starred(inner) => self.build_expr(*inner),
             _ => self.none_value(),
         }
+    }
+
+    /// f-string：逐段格式化成字符串，再用 `StrConcat` 拼接。
+    ///
+    /// 动态函数里结果是装箱的 `object`（与 `str()` 的处理一致），否则是一个 `Str` 临时量。
+    fn build_fstring(&mut self, parts: &[ryupy_hir::FStringPart]) -> Operand {
+        use ryupy_hir::FStringPart;
+
+        let mut acc: Option<Operand> = None;
+        for part in parts {
+            let piece = match part {
+                FStringPart::Literal(text) => {
+                    Operand::Const(Constant::Str(text.as_ref().to_owned()))
+                }
+                FStringPart::Value {
+                    value,
+                    conversion,
+                    spec,
+                } => {
+                    let op = self.build_expr(*value);
+                    let ty = self.ty_of(*value);
+                    let boxed = self.coerce(op, &ty, &MirType::Dynamic);
+                    self.runtime_call(
+                        RuntimeFn::FormatValue,
+                        vec![
+                            boxed,
+                            Operand::Const(Constant::Str(spec.as_deref().unwrap_or("").to_owned())),
+                            Operand::Const(Constant::I64(*conversion as i64)),
+                        ],
+                        MirType::Str,
+                    )
+                }
+            };
+            acc = Some(match acc {
+                None => piece,
+                Some(previous) => {
+                    self.call_runtime_binary(RuntimeFn::StrConcat, previous, piece, MirType::Str)
+                }
+            });
+        }
+        let result = acc.unwrap_or(Operand::Const(Constant::Str(String::new())));
+        if self.is_dynamic_context() {
+            let dest = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest,
+                value: Rvalue::Use(result),
+            });
+            Operand::Local(dest)
+        } else {
+            result
+        }
+    }
+
+    /// 内建名字作为**值**使用时的结果。
+    ///
+    /// 构造函数（`int` / `str` / `list` …）在 Python 里是类型对象，`isinstance`
+    /// 和赋值都依赖它。真正调用走 `build_call`，不会到这里。
+    fn build_builtin_value(&mut self, builtin: Builtin) -> Operand {
+        let name = match builtin {
+            Builtin::Int => "int",
+            Builtin::Float => "float",
+            Builtin::Str => "str",
+            Builtin::Type => "type",
+            Builtin::Dynamic("list") => "list",
+            Builtin::Dynamic("tuple") => "tuple",
+            Builtin::Dynamic("dict") => "dict",
+            Builtin::Dynamic("set") => "set",
+            Builtin::Dynamic("frozenset") => "frozenset",
+            Builtin::Dynamic("bytes") => "bytes",
+            Builtin::Dynamic("bytearray") => "bytearray",
+            Builtin::Dynamic("bool") => "bool",
+            _ => return self.none_value(),
+        };
+        self.runtime_call(
+            RuntimeFn::TypeObject,
+            vec![Operand::Const(Constant::Str(name.to_owned()))],
+            MirType::Dynamic,
+        )
     }
 
     /// 容器字面量：没有星号时一次构造；有星号时先建空容器再逐个追加。
@@ -370,7 +458,7 @@ impl<'a> ExprBuilder<'a> {
             Constant::F64(_) => MirType::F64,
             Constant::Bool(_) => MirType::Bool,
             Constant::Str(_) => MirType::Str,
-            Constant::None => {
+            Constant::None | Constant::Null => {
                 return self.runtime_call(RuntimeFn::DynNone, Vec::new(), MirType::Dynamic);
             }
         };
@@ -389,6 +477,11 @@ impl<'a> ExprBuilder<'a> {
 
     /// 把 `op`（类型 `from`）转成目标表示 `to`。
     pub fn coerce(&mut self, op: Operand, from: &Ty, to: &MirType) -> Operand {
+        // 目标是 `Unit`（无值）：只需要一个可丢弃的占位。若继续往下走会生成
+        // `Unbox to Unit` 这种没有 CIL 含义的指令，或者给 Unit 分配局部变量。
+        if matches!(to, MirType::Unit) {
+            return self.none_value();
+        }
         // `Ty::None` 的操作数已经是运行时的 None 单例（装箱 object），
         // 因此按动态值处理；否则会插入一次 `Box from Unit` 的非法装箱指令。
         let from_dynamic = from.is_dynamic() || matches!(from, Ty::None);

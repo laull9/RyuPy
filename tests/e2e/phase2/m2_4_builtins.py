@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.4：稳定排序、key 调用与短路消费。
 def second(item):
     print("key", item[0])

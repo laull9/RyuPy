@@ -148,31 +148,111 @@ pub fn lower_module(
     }
 
     // 第二遍：降级各个用户函数体
+    let mut all_default_exprs = Vec::new();
     for (fn_def, func_id) in user_funcs {
         let mut body = Body::default();
         let mut func_scope = FunctionScope::default();
         let mut params = Vec::new();
 
-        // 1. 参数处理
-        for param_def in fn_def.parameters.iter_non_variadic_params() {
-            let param_name = Name::from(param_def.parameter.name.as_str());
-            let ann = param_def
-                .parameter
+        // 1. 参数处理：按 Python 的绑定顺序（位置-only → 普通 → *args → 关键字-only → **kwargs）。
+        //
+        // 默认值表达式降级到 **main 的 body**：Python 在 def 执行时于模块作用域求值，
+        // 不是每次调用时求值（`def f(x=[])` 的列表在多次调用间共享）。
+        let mut default_exprs = Vec::new();
+        let mut push_param = |params: &mut Vec<Param>,
+                              func_scope: &mut FunctionScope,
+                              body: &mut Body,
+                              diagnostics: &mut Vec<Diagnostic>,
+                              parameter: &ast::Parameter,
+                              kind: crate::hir::ParamKind,
+                              default: Option<&ast::Expr>| {
+            let param_name = Name::from(parameter.name.as_str());
+            let ann = parameter
                 .annotation
                 .as_deref()
-                .map(|e| lower_type_ref(e, parsed.file, &global_scope, &mut diagnostics));
+                .map(|e| lower_type_ref(e, parsed.file, &global_scope, diagnostics));
             let local_id = body.locals.alloc(Local {
                 name: param_name.clone(),
                 annotation: ann.clone(),
                 is_param: true,
-                range: param_def.parameter.range,
+                range: parameter.range,
             });
             func_scope.locals.insert(param_name, local_id);
+            let default = default.map(|expr| {
+                let id = lower_default_expr(
+                    parsed.file,
+                    &global_scope,
+                    &module_locals,
+                    &mut main_body,
+                    diagnostics,
+                    expr,
+                );
+                default_exprs.push(id);
+                id
+            });
             params.push(Param {
                 annotation: ann,
                 local: local_id,
-                range: param_def.parameter.range,
+                default,
+                kind,
+                range: parameter.range,
             });
+        };
+
+        for param_def in &fn_def.parameters.posonlyargs {
+            push_param(
+                &mut params,
+                &mut func_scope,
+                &mut body,
+                &mut diagnostics,
+                &param_def.parameter,
+                crate::hir::ParamKind::PositionalOnly,
+                param_def.default.as_deref(),
+            );
+        }
+        for param_def in &fn_def.parameters.args {
+            push_param(
+                &mut params,
+                &mut func_scope,
+                &mut body,
+                &mut diagnostics,
+                &param_def.parameter,
+                crate::hir::ParamKind::PositionalOrKeyword,
+                param_def.default.as_deref(),
+            );
+        }
+        if let Some(vararg) = &fn_def.parameters.vararg {
+            push_param(
+                &mut params,
+                &mut func_scope,
+                &mut body,
+                &mut diagnostics,
+                vararg,
+                crate::hir::ParamKind::VarPositional,
+                None,
+            );
+        }
+        for param_def in &fn_def.parameters.kwonlyargs {
+            push_param(
+                &mut params,
+                &mut func_scope,
+                &mut body,
+                &mut diagnostics,
+                &param_def.parameter,
+                crate::hir::ParamKind::KeywordOnly,
+                param_def.default.as_deref(),
+            );
+        }
+        if let Some(kwarg) = &fn_def.parameters.kwarg {
+            push_param(
+                &mut params,
+                &mut func_scope,
+                &mut body,
+                &mut diagnostics,
+                kwarg,
+                crate::hir::ParamKind::VarKeyword,
+                None,
+            );
         }
 
         // 2. 返回值标注
@@ -216,6 +296,7 @@ pub fn lower_module(
         functions[func_id].params = params;
         functions[func_id].ret = ret;
         functions[func_id].body = body;
+        all_default_exprs.extend(default_exprs);
     }
 
     // 降级 main 函数（模块顶层非 FunctionDef 语句）
@@ -235,14 +316,16 @@ pub fn lower_module(
         line_starts: &line_starts,
     };
     for stmt in &parsed.module.body {
-        if !matches!(
-            stmt,
-            ast::Stmt::FunctionDef(_)
-                | ast::Stmt::ClassDef(_)
-                | ast::Stmt::ImportFrom(_)
-                | ast::Stmt::Import(_)
-        ) {
-            main_lower_ctx.lower_stmt_to_root(stmt);
+        match stmt {
+            // `def` 不产生普通语句，但它的默认值必须在**定义位置**求值
+            ast::Stmt::FunctionDef(fn_def) => {
+                let name = Name::from(fn_def.name.as_str());
+                if let Some(Resolution::Func(func_id)) = global_scope.names.get(&name) {
+                    main_lower_ctx.lower_function_defaults(*func_id, fn_def.range());
+                }
+            }
+            ast::Stmt::ClassDef(_) | ast::Stmt::ImportFrom(_) | ast::Stmt::Import(_) => {}
+            _ => main_lower_ctx.lower_stmt_to_root(stmt),
         }
     }
     functions[main_id].body = main_body;
@@ -253,6 +336,7 @@ pub fn lower_module(
         functions,
         classes,
         main: main_id,
+        default_exprs: all_default_exprs,
     };
 
     (module, diagnostics)
@@ -271,6 +355,31 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) handler_depth: usize,
     /// 每一行的起始字节偏移，用于把 `TextRange` 换算成行号。
     pub(crate) line_starts: &'a [usize],
+}
+
+/// 把参数默认值表达式降级到模块入口函数的 body。
+///
+/// 默认值在模块作用域求值，因此这里用空函数作用域 + 模块名字表解析名字，
+/// 并设置 `is_in_func = false`（允许引用顶层函数/类）。
+fn lower_default_expr(
+    file: FileId,
+    global_scope: &GlobalScope,
+    module_locals: &FxHashMap<Name, crate::hir::LocalId>,
+    body: &mut Body,
+    diagnostics: &mut Vec<Diagnostic>,
+    expr: &ast::Expr,
+) -> ExprId {
+    let scope = FunctionScope::default();
+    let mut ctx = ExprLowerCtx {
+        file,
+        global_scope,
+        func_scope: &scope,
+        module_locals,
+        is_in_func: false,
+        body,
+        diagnostics,
+    };
+    ctx.lower_expr(expr)
 }
 
 /// 预先算出每一行的起始字节偏移，供 `TextRange` → 行号换算。
@@ -320,6 +429,21 @@ impl StmtLowerCtx<'_> {
         expr_ctx.lower_expr(expr)
     }
 
+    /// 在当前位置插入一条「求值某函数默认值」的内部语句。
+    pub(crate) fn lower_function_defaults(
+        &mut self,
+        func_id: crate::hir::FuncId,
+        range: ryupy_base::TextRange,
+    ) {
+        let line = self.line_of(range.start().to_usize());
+        let stmt_id = self.body.stmts.alloc(Stmt {
+            kind: StmtKind::FunctionDefaults(func_id),
+            range,
+            line,
+        });
+        self.body.root.push(stmt_id);
+    }
+
     fn lower_stmt_to_root(&mut self, stmt: &ast::Stmt) {
         if let Some(stmt_id) = self.lower_stmt(stmt) {
             self.body.root.push(stmt_id);
@@ -337,7 +461,7 @@ impl StmtLowerCtx<'_> {
     }
 
     /// 序列解包目标：`a, b` / `first, *rest, last`。
-    fn lower_sequence_target(
+    pub(crate) fn lower_sequence_target(
         &mut self,
         elements: &[ast::Expr],
         range: ryupy_base::TextRange,
@@ -718,7 +842,10 @@ impl StmtLowerCtx<'_> {
                 let call = self.body.exprs.alloc(Expr {
                     kind: ExprKind::Call {
                         callee,
-                        args: raise_args,
+                        args: raise_args
+                            .into_iter()
+                            .map(crate::hir::CallArg::Positional)
+                            .collect(),
                     },
                     range: assert_stmt.range,
                 });
@@ -747,21 +874,13 @@ impl StmtLowerCtx<'_> {
             ast::Stmt::Try(try_stmt) => return Some(self.lower_try(try_stmt)),
             ast::Stmt::If(if_stmt) => return Some(self.lower_if(if_stmt)),
             ast::Stmt::While(while_stmt) => {
-                if !while_stmt.orelse.is_empty() {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, while_stmt.range),
-                            "Phase 1 暂不支持 while ... else 语法",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("不支持 while else"),
-                    );
-                }
                 let cond = self.lower_expr(&while_stmt.test);
                 self.loop_depth += 1;
                 let body = self.lower_suite(&while_stmt.body);
                 self.loop_depth -= 1;
-                StmtKind::While { cond, body }
+                // `else` 不属于循环体：按当前 loop_depth 降级
+                let orelse = self.lower_suite(&while_stmt.orelse);
+                StmtKind::While { cond, body, orelse }
             }
             ast::Stmt::For(for_stmt) => {
                 let kind = self.lower_for(for_stmt)?;

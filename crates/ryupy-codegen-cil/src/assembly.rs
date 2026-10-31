@@ -195,11 +195,28 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res.push_method_reference(method_ref! { static bool @pyops_type::Is(object, object) });
     let repr_value =
         res.push_method_reference(method_ref! { static string @pyops_type::ReprValue(object) });
-    let call_builtin = res.push_method_reference(
-        method_ref! { static object @pyops_type::CallBuiltin(string, object[]) },
+    let call_builtin = res.push_method_reference(method_ref! {
+        static object @pyops_type::CallBuiltin(string, object[], object[], object[])
+    });
+    let call_method = res.push_method_reference(method_ref! {
+        static object @pyops_type::CallMethod(object, string, object[], object[], object[])
+    });
+    let array_get = res
+        .push_method_reference(method_ref! { static object @pyops_type::ArrayGet(object, long) });
+    let array_set = res.push_method_reference(
+        method_ref! { static void @pyops_type::ArraySet(object, long, object) },
     );
-    let call_method = res.push_method_reference(
-        method_ref! { static object @pyops_type::CallMethod(object, string, object[]) },
+    let call_value = res.push_method_reference(method_ref! {
+        static object @pyops_type::CallValue(object, object[], object[], object[])
+    });
+    let type_object =
+        res.push_method_reference(method_ref! { static object @pyops_type::TypeObject(string) });
+    let arg_error =
+        res.push_method_reference(method_ref! { static object @pyops_type::ArgError(int, string) });
+    let star_arg =
+        res.push_method_reference(method_ref! { static object @pyops_type::StarArg(object) });
+    let format_value = res.push_method_reference(
+        method_ref! { static string @pyops_type::FormatValue(object, string, int) },
     );
     let list_append = res
         .push_method_reference(method_ref! { static void @pyops_type::ListAppend(object, object) });
@@ -236,6 +253,32 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let set_file =
         res.push_method_reference(method_ref! { static void @traceback_type::SetFile(string) });
 
+    // ── 一等函数与参数绑定（M2.1）──
+    let py_signature_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PySignature in #ryupy_runtime });
+    let py_signature_type: MethodType = BaseType::class(py_signature_ref).into();
+    let py_call_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyCall in #ryupy_runtime });
+    let py_call_type: MethodType = BaseType::class(py_call_ref).into();
+    let py_function_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyFunction in #ryupy_runtime });
+    let py_function_type: MethodType = BaseType::class(py_function_ref).into();
+    let py_binder_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyBinder in #ryupy_runtime });
+    let py_binder_type: MethodType = BaseType::class(py_binder_ref).into();
+    let signature_create = res.push_method_reference(method_ref! {
+        static @py_signature_type @py_signature_type::Create(string, string[], string[], string[])
+    });
+    let bind_args = res.push_method_reference(method_ref! {
+        static object[] @py_binder_type::Bind(
+            @py_signature_type, object[], string[], object[], object[]
+        )
+    });
+    let py_function_ctor = res.push_method_reference(method_ref! {
+        void @py_function_type::.ctor(string, @py_signature_type, @py_call_type, object[])
+    });
+    let py_call_ctor =
+        res.push_method_reference(method_ref! { void @py_call_type::.ctor(object, nint) });
+
     // Python 异常类型名 → CLR 类型：CIL 的类型化 catch 按这些类型匹配。
     // 命名约定是 `Py<PythonName>`（如 `PyValueError`），与运行时 `PyExceptionTypes` 一致。
     let mut exception_types: FxHashMap<String, MethodType> = FxHashMap::default();
@@ -252,7 +295,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         exception_types.insert((*type_name).to_string(), BaseType::class(type_ref).into());
     }
 
-    let runtime_refs = RuntimeRefs {
+    let mut runtime_refs = RuntimeRefs {
         write_i64,
         write_f64,
         write_bool,
@@ -317,6 +360,13 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         repr_value,
         call_builtin,
         call_method,
+        array_get,
+        array_set,
+        call_value,
+        type_object,
+        arg_error,
+        star_arg,
+        format_value,
         list_append,
         list_extend,
         unpack_check,
@@ -324,6 +374,11 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         iter_next_ok,
         iter_value,
         object_type: MethodType::from(BaseType::class(object_ref)),
+        global_fields: FxHashMap::default(),
+        signature_create,
+        bind_args,
+        py_function_ctor,
+        py_call_ctor,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(
@@ -334,6 +389,19 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     res[module_class].flags.abstract_type = true;
     res[module_class].flags.sealed = true;
     res[module_class].flags.accessibility = TypeAccessibility::Public;
+
+    // 模块静态字段：函数对象 / 默认值数组 / 签名。MIR 里统一记成 Dynamic，
+    // 这里按用途给出具体 CLR 类型，读取时无需 castclass。
+    let object_member: MemberType = BaseType::class(object_ref).into();
+    let signature_member: MemberType = BaseType::class(py_signature_ref).into();
+    let global_fields = crate::callables::allocate_global_fields(
+        &mut res,
+        module_class,
+        program,
+        &ClassTypeMap::new(object_ref),
+        &object_member,
+        &signature_member,
+    );
 
     // 1. 为所有类预先分配 TypeIndex
     let mut class_types = ClassTypeMap::new(object_ref);
@@ -348,6 +416,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             .insert(cls_id, (type_idx, cls.is_value_type));
         class_defs.push((cls_id, type_idx));
     }
+    runtime_refs.global_fields = global_fields;
 
     // 2. 为每个类配置 extends、flags、fields 与 .ctor
     let mut class_info: ClassInfoMap = FxHashMap::default();
@@ -471,6 +540,35 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         fn_indices.insert(fn_id, method_idx);
     }
 
+    // 每个用户函数生成一个统一签名的 thunk，供 PyFunction 的委托调用
+    let mut thunks: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
+    let mut thunk_index = 0usize;
+    for (fn_id, func) in program.functions.iter() {
+        if fn_id == program.entry {
+            continue;
+        }
+        let thunk = crate::callables::emit_thunk(
+            &mut res,
+            module_class,
+            func,
+            fn_indices[&fn_id],
+            &runtime_refs,
+            &class_types,
+            thunk_index,
+        );
+        thunks.insert(fn_id, thunk);
+        thunk_index += 1;
+    }
+
+    // 模块初始化：在 `__main` 之前构造函数对象与默认值数组
+    let init_functions = crate::callables::emit_init_functions(
+        &mut res,
+        module_class,
+        program,
+        &runtime_refs,
+        &thunks,
+    );
+
     // 第二遍：逐函数编译并填充 body
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
@@ -507,6 +605,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             set_file,
             system_exit_code,
             flush_stdout,
+            init_functions,
             &program.source_name,
         );
     }
@@ -532,49 +631,52 @@ fn emit_entry_wrapper(
     set_file: MethodRefIndex,
     system_exit_code: MethodRefIndex,
     flush_stdout: MethodRefIndex,
+    init_functions: MethodIndex,
     source_name: &str,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: ldstr source_name
     //   1: call SetFile
-    //   2: call __main              ┐ try
-    //   3: leave 15                 ┘
-    //   4: call SystemExitCode      ┐ catch PySystemExit
-    //   5: stloc.0                  │
-    //   6: leave 15                 ┘
-    //   7: call Report              ┐ catch PyBaseException
-    //   8: ldc.i4.1                 │
-    //   9: stloc.0                  │
-    //  10: leave 15                 ┘
-    //  11: call ReportClr           ┐ catch System.Exception（兜底）
-    //  12: ldc.i4.1                 │
-    //  13: stloc.0                  │
-    //  14: leave 15                 ┘
-    //  15: call Flush               ← 所有路径汇合于此
-    //  16: ldloc.0
-    //  17: ret
+    //   2: call __init_functions    ← 构造函数对象与默认值数组
+    //   3: call __main              ┐ try
+    //   4: leave 16                 ┘
+    //   5: call SystemExitCode      ┐ catch PySystemExit
+    //   6: stloc.0                  │
+    //   7: leave 16                 ┘
+    //   8: call Report              ┐ catch PyBaseException
+    //   9: ldc.i4.1                 │
+    //  10: stloc.0                  │
+    //  11: leave 16                 ┘
+    //  12: call ReportClr           ┐ catch System.Exception（兜底）
+    //  13: ldc.i4.1                 │
+    //  14: stloc.0                  │
+    //  15: leave 16                 ┘
+    //  16: call Flush               ← 所有路径汇合于此
+    //  17: ldloc.0
+    //  18: ret
     //
     // 处理区必须以 `leave` 离开、不能直接 `ret`——否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
     let instructions = vec![
         Instruction::load_string(source_name),
         Instruction::call(set_file),
+        Instruction::call(init_functions),
         Instruction::call(body_method),
-        Instruction::Leave(15),
+        Instruction::Leave(16),
         // SystemExit：算出退出码而不是打印 traceback
         Instruction::call(system_exit_code),
         Instruction::StoreLocal(0),
-        Instruction::Leave(15),
+        Instruction::Leave(16),
         // 其余未捕获 Python 异常：打印 traceback 并退出 1
         Instruction::call(report_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(15),
+        Instruction::Leave(16),
         // 兜底：CLR 异常（静态 i64 溢出等）映射为 Python 错误后报告
         Instruction::call(report_clr_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(15),
+        Instruction::Leave(16),
         // 汇合点：刷新 stdout 缓冲后返回退出码
         Instruction::call(flush_stdout),
         Instruction::LoadLocal(0),
@@ -587,23 +689,23 @@ fn emit_entry_wrapper(
     method_body.data_sections = vec![body::DataSection::ExceptionHandlers(vec![
         body::Exception {
             kind: body::ExceptionKind::TypedException(system_exit_type),
-            try_offset: 2,
+            try_offset: 3,
             try_length: 2,
-            handler_offset: 4,
+            handler_offset: 5,
             handler_length: 3,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(exception_type),
-            try_offset: 2,
+            try_offset: 3,
             try_length: 2,
-            handler_offset: 7,
+            handler_offset: 8,
             handler_length: 4,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(clr_exception_type),
-            try_offset: 2,
+            try_offset: 3,
             try_length: 2,
-            handler_offset: 11,
+            handler_offset: 12,
             handler_length: 4,
         },
     ])];

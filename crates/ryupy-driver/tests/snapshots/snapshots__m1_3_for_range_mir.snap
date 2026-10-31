@@ -45,7 +45,7 @@ fn main() -> () {
     }
     bb1: {
         _7 = Lt(_4, _5);
-        branch _7 -> [then: bb2, else: bb4];
+        branch _7 -> [then: bb2, else: bb5];
     }
     bb2: {
         _1 = _4;
@@ -59,6 +59,9 @@ fn main() -> () {
         goto -> bb1;
     }
     bb4: {
+        unreachable;
+    }
+    bb5: {
         // line 5
         RuntimeFn::WriteI64(_0);
         RuntimeFn::WriteNewline();
@@ -66,123 +69,135 @@ fn main() -> () {
         _9 = const 2_i64;
         _10 = const 5_i64;
         _11 = const 1_i64;
-        goto -> bb5;
-    }
-    bb5: {
-        _12 = Lt(_9, _10);
-        branch _12 -> [then: bb6, else: bb8];
+        goto -> bb6;
     }
     bb6: {
+        _12 = Lt(_9, _10);
+        branch _12 -> [then: bb7, else: bb10];
+    }
+    bb7: {
         _1 = _9;
         // line 8
         RuntimeFn::WriteI64(_1);
         RuntimeFn::WriteNewline();
-        goto -> bb7;
-    }
-    bb7: {
-        _9 = Add(_9, _11);
-        goto -> bb5;
+        goto -> bb8;
     }
     bb8: {
+        _9 = Add(_9, _11);
+        goto -> bb6;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
         // line 10
         _13 = const 10_i64;
         _14 = const 0_i64;
         _15 = const -3_i64;
-        goto -> bb9;
+        goto -> bb11;
     }
-    bb9: {
+    bb11: {
         _16 = Gt(_13, _14);
-        branch _16 -> [then: bb10, else: bb12];
+        branch _16 -> [then: bb12, else: bb15];
     }
-    bb10: {
+    bb12: {
         _1 = _13;
         // line 11
         RuntimeFn::WriteI64(_1);
         RuntimeFn::WriteNewline();
+        goto -> bb13;
+    }
+    bb13: {
+        _13 = Add(_13, _15);
         goto -> bb11;
     }
-    bb11: {
-        _13 = Add(_13, _15);
-        goto -> bb9;
+    bb14: {
+        unreachable;
     }
-    bb12: {
+    bb15: {
         // line 13
         _17 = const 5_i64;
         _18 = const 5_i64;
         _19 = const 1_i64;
-        goto -> bb13;
+        goto -> bb16;
     }
-    bb13: {
+    bb16: {
         _20 = Lt(_17, _18);
-        branch _20 -> [then: bb14, else: bb16];
+        branch _20 -> [then: bb17, else: bb20];
     }
-    bb14: {
+    bb17: {
         _1 = _17;
         // line 14
         RuntimeFn::WriteStr(const "never");
         RuntimeFn::WriteNewline();
-        goto -> bb15;
+        goto -> bb18;
     }
-    bb15: {
+    bb18: {
         _17 = Add(_17, _19);
-        goto -> bb13;
+        goto -> bb16;
     }
-    bb16: {
+    bb19: {
+        unreachable;
+    }
+    bb20: {
         // line 16
         _2 = const 0_i64;
         // line 17
         _21 = const 0_i64;
         _22 = const 100_i64;
         _23 = const 1_i64;
-        goto -> bb17;
+        goto -> bb21;
     }
-    bb17: {
+    bb21: {
         _24 = Lt(_21, _22);
-        branch _24 -> [then: bb18, else: bb20];
+        branch _24 -> [then: bb22, else: bb25];
     }
-    bb18: {
+    bb22: {
         _1 = _21;
         // line 18
         _25 = RuntimeFn::ModI64(_1, const 2_i64);
         _26 = Eq(_25, const 0_i64);
-        branch _26 -> [then: bb21, else: bb23];
+        branch _26 -> [then: bb26, else: bb28];
     }
-    bb19: {
+    bb23: {
         _21 = Add(_21, _23);
-        goto -> bb17;
+        goto -> bb21;
     }
-    bb20: {
+    bb24: {
+        unreachable;
+    }
+    bb25: {
         // line 23
         RuntimeFn::WriteI64(_2);
         RuntimeFn::WriteNewline();
-        goto -> bb27;
-    }
-    bb21: {
-        // line 19
-        goto -> bb19;
-    }
-    bb22: {
-        unreachable;
-    }
-    bb23: {
-        // line 20
-        _27 = Gt(_1, const 20_i64);
-        branch _27 -> [then: bb24, else: bb26];
-    }
-    bb24: {
-        // line 21
-        goto -> bb20;
-    }
-    bb25: {
-        unreachable;
+        goto -> bb32;
     }
     bb26: {
+        // line 19
+        goto -> bb23;
+    }
+    bb27: {
+        unreachable;
+    }
+    bb28: {
+        // line 20
+        _27 = Gt(_1, const 20_i64);
+        branch _27 -> [then: bb29, else: bb31];
+    }
+    bb29: {
+        // line 21
+        goto -> bb25;
+    }
+    bb30: {
+        unreachable;
+    }
+    bb31: {
         // line 22
         _28 = Add(_2, _1);
         _2 = _28;
-        goto -> bb19;
+        goto -> bb23;
     }
-    bb27: {
+    bb32: {
         RuntimeFn::TracePopTo(_3);
         return;
     }

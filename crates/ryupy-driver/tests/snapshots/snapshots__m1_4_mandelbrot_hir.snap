@@ -17,6 +17,7 @@ def mandel(cr: float, ci: float, max_iter: int) -> int:
     return max_iter
 
 def [main] main():
+    defaults of mandel
     for y in range(Neg(12), 13):
         line = ""
         for x in range(Neg(39), 21):

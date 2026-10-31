@@ -6,11 +6,24 @@ pub type FnId = Idx<Function>;
 pub type ClassDefId = Idx<ClassDef>;
 pub type LocalId = Idx<LocalDecl>;
 pub type BlockId = Idx<BasicBlock>;
+pub type GlobalId = Idx<GlobalDecl>;
+
+/// 模块级静态槽位。
+///
+/// 目前只用于函数对象、参数默认值数组与参数元数据：它们必须在多次调用之间保持同一份
+/// 引用（`def f(x=[])` 的列表要在调用间共享）。M2.7 的模块变量会复用同一套机制。
+#[derive(Debug)]
+pub struct GlobalDecl {
+    pub name: String,
+    pub ty: MirType,
+}
 
 #[derive(Debug)]
 pub struct Program {
     pub functions: Arena<Function>,
     pub classes: Arena<ClassDef>,
+    /// 模块级静态字段（函数对象、默认值数组、参数元数据）。
+    pub globals: Arena<GlobalDecl>,
     /// 编译为 CIL `Main` 的入口函数。
     pub entry: FnId,
     /// 源文件名，入口包装器用它设置 traceback 的文件名。
@@ -25,6 +38,28 @@ pub struct ClassDef {
     pub is_value_type: bool,
 }
 
+/// 参数在调用绑定中的角色，与 HIR 的 `ParamKind` 一一对应。
+///
+/// codegen 只依赖 MIR，因此不能直接复用 HIR 的枚举；这里的判别值会写进运行时
+/// `PySignature`，**修改必须与 C# 侧 `PyParamKind` 同步**。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParamKind {
+    PositionalOnly = 0,
+    PositionalOrKeyword = 1,
+    VarPositional = 2,
+    KeywordOnly = 3,
+    VarKeyword = 4,
+}
+
+/// 一个 Python 参数的元数据（名字、绑定种类、默认值、槽位类型）。
+#[derive(Debug, Clone)]
+pub struct ParamMeta {
+    pub name: String,
+    pub kind: ParamKind,
+    pub has_default: bool,
+    pub ty: MirType,
+}
+
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
@@ -32,6 +67,14 @@ pub struct Function {
     pub params: Vec<LocalId>,
     pub ret: MirType,
     pub body: Body,
+    /// 参数元数据，顺序与 `params` 一致。
+    pub param_meta: Vec<ParamMeta>,
+    /// 该函数的 `PyFunction` 对象所在的模块静态槽位（`ModuleMain` 为 `None`）。
+    pub function_global: Option<GlobalId>,
+    /// 默认值数组（`object[]`）的槽位；没有默认值时为 `None`。
+    pub defaults_global: Option<GlobalId>,
+    /// `PySignature` 的槽位，供生成的调用入口（thunk）使用。
+    pub signature_global: Option<GlobalId>,
 }
 
 #[derive(Debug)]
@@ -134,6 +177,10 @@ pub enum Statement {
 pub enum Operand {
     Local(LocalId),
     Const(Constant),
+    /// 模块级静态字段。
+    Global(GlobalId),
+    /// 内联构造的 `object[]`（调用实参、关键字名字与值）。
+    Array(Vec<Operand>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -144,6 +191,8 @@ pub enum Constant {
     Str(String),
     /// 超出 i64 的整数字面量，以十进制字符串携带，构造时由运行时转 BigInteger。
     BigInt(String),
+    /// CIL `null` 引用（只在“必定不可达”的占位路径上使用）。
+    Null,
     /// Python `None`（运行时单例）。
     None,
 }
@@ -483,6 +532,20 @@ pub enum RuntimeFn {
     IterNextOk,
     /// `PyOps.IterValue(object) -> object`：取当前元素。
     IterValue,
+    /// `PyOps.ArraySet(object, long, object)`：写数组元素。
+    ArraySet,
+    /// `PyOps.ArrayGet(object, long) -> object`：读数组元素。
+    ArrayGet,
+    /// `PyOps.CallValue(object, object[], object[], object[]) -> object`：调用一等函数对象。
+    CallValue,
+    /// `PyOps.TypeObject(string) -> object`：内建构造名作为值使用时的类型对象。
+    TypeObject,
+    /// `PyOps.ArgError(int, string) -> object`：绑定失败时抛 `TypeError`（永不返回）。
+    ArgError,
+    /// `PyOps.StarArg(object) -> object`：给 `*iterable` 实参打标记，由运行时展开。
+    StarArg,
+    /// `PyOps.FormatValue(object, string, int) -> string`：f-string 的单段格式化。
+    FormatValue,
 }
 
 #[derive(Debug)]

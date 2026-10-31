@@ -22,7 +22,13 @@ impl FunctionBuilder<'_> {
     ///
     /// 结构是「条件块 → 循环体 → 步进块」，与计数循环同形，因此 `break` / `continue`
     /// 可以复用同一套循环目标栈（`continue` 跳到步进块，`break` 跳到退出块）。
-    pub(crate) fn build_for_each(&mut self, var: HirLocalId, iter: ExprId, body: &[StmtId]) {
+    pub(crate) fn build_for_each(
+        &mut self,
+        var: HirLocalId,
+        iter: ExprId,
+        body: &[StmtId],
+        orelse: &[StmtId],
+    ) {
         let iter_op = self.expr_builder().build_expr(iter);
         let iter_ty = self.expr_builder().ty_of(iter);
         let source = self
@@ -40,10 +46,11 @@ impl FunctionBuilder<'_> {
         let cond_bb = self.new_block();
         let body_bb = self.new_block();
         let step_bb = self.new_block();
+        let else_bb = self.new_block();
         let exit_bb = self.new_block();
         self.terminate_current(Terminator::Goto(cond_bb));
 
-        // 条件：还有下一个元素吗
+        // 条件：还有下一个元素吗；耗尽 → else（正常结束）
         self.current_bb = cond_bb;
         let ok = self.alloc_temp(MirType::Bool);
         self.push_stmt(Statement::Assign {
@@ -56,7 +63,7 @@ impl FunctionBuilder<'_> {
         self.terminate_current(Terminator::Branch {
             cond: Operand::Local(ok),
             then_: body_bb,
-            else_: exit_bb,
+            else_: else_bb,
         });
 
         // 循环体：先把当前元素写进循环变量
@@ -88,6 +95,15 @@ impl FunctionBuilder<'_> {
         // 步进块：迭代器自身在条件块里推进，这里只是跳回去
         self.current_bb = step_bb;
         self.terminate_current(Terminator::Goto(cond_bb));
+
+        // else 体：仅在迭代耗尽是到达；break 直接跳 exit 跳过它
+        self.current_bb = else_bb;
+        for &stmt in orelse {
+            self.build_stmt(stmt);
+        }
+        if self.is_current_unterminated() {
+            self.terminate_current(Terminator::Goto(exit_bb));
+        }
         self.current_bb = exit_bb;
     }
 
@@ -102,6 +118,7 @@ impl FunctionBuilder<'_> {
         stop: ExprId,
         step: Option<ExprId>,
         body: &[StmtId],
+        orelse: &[StmtId],
     ) {
         let start_op = self.expr_builder().build_expr(start);
         let stop_op = self.expr_builder().build_expr(stop);
@@ -160,6 +177,7 @@ impl FunctionBuilder<'_> {
         let cond_bb = self.new_block();
         let body_bb = self.new_block();
         let step_bb = self.new_block();
+        let else_bb = self.new_block();
         let exit_bb = self.new_block();
         self.terminate_current(Terminator::Goto(cond_bb));
 
@@ -230,7 +248,7 @@ impl FunctionBuilder<'_> {
         self.terminate_current(Terminator::Branch {
             cond: Operand::Local(cond),
             then_: body_bb,
-            else_: exit_bb,
+            else_: else_bb,
         });
 
         // 循环体：先把 counter 装箱写进用户变量
@@ -268,6 +286,13 @@ impl FunctionBuilder<'_> {
         });
         self.terminate_current(Terminator::Goto(cond_bb));
 
+        self.current_bb = else_bb;
+        for &stmt in orelse {
+            self.build_stmt(stmt);
+        }
+        if self.is_current_unterminated() {
+            self.terminate_current(Terminator::Goto(exit_bb));
+        }
         self.current_bb = exit_bb;
     }
 
@@ -278,9 +303,10 @@ impl FunctionBuilder<'_> {
         stop: ExprId,
         step: Option<ExprId>,
         body: &[StmtId],
+        orelse: &[StmtId],
     ) {
         if self.types.is_dynamic(self.current_hir_fn) {
-            self.build_for_range_dynamic(var, start, stop, step, body);
+            self.build_for_range_dynamic(var, start, stop, step, body, orelse);
             return;
         }
 
@@ -335,6 +361,7 @@ impl FunctionBuilder<'_> {
         let cond_bb = self.new_block();
         let body_bb = self.new_block();
         let step_bb = self.new_block();
+        let else_bb = self.new_block();
         let exit_bb = self.new_block();
 
         self.terminate_current(Terminator::Goto(cond_bb));
@@ -436,7 +463,7 @@ impl FunctionBuilder<'_> {
         self.terminate_current(Terminator::Branch {
             cond: Operand::Local(cond_local),
             then_: body_bb,
-            else_: exit_bb,
+            else_: else_bb,
         });
 
         // 4. 循环体 (body_bb)：每轮开头把计数器写回用户变量
@@ -467,7 +494,16 @@ impl FunctionBuilder<'_> {
         });
         self.terminate_current(Terminator::Goto(cond_bb));
 
-        // 6. 退出块 (exit_bb)
+        // 6. else 体：迭代耗尽是唯一入口；break 直接跳 exit 跳过它
+        self.current_bb = else_bb;
+        for &stmt in orelse {
+            self.build_stmt(stmt);
+        }
+        if self.is_current_unterminated() {
+            self.terminate_current(Terminator::Goto(exit_bb));
+        }
+
+        // 7. 退出块 (exit_bb)
         self.current_bb = exit_bb;
     }
 }

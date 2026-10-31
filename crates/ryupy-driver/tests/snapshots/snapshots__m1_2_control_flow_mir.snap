@@ -78,42 +78,45 @@ fn collatz_steps(_0: i64) -> i64 {
     }
     bb1: {
         _3 = Ne(_0, const 1_i64);
-        branch _3 -> [then: bb2, else: bb3];
+        branch _3 -> [then: bb2, else: bb4];
     }
     bb2: {
         // line 14
         _4 = RuntimeFn::ModI64(_0, const 2_i64);
         _5 = Eq(_4, const 0_i64);
-        branch _5 -> [then: bb4, else: bb5];
+        branch _5 -> [then: bb5, else: bb6];
     }
     bb3: {
-        // line 19
-        _10 = _1;
-        goto -> bb8;
+        unreachable;
     }
     bb4: {
+        // line 19
+        _10 = _1;
+        goto -> bb9;
+    }
+    bb5: {
         // line 15
         _6 = RuntimeFn::FloorDivI64(_0, const 2_i64);
         _0 = _6;
-        goto -> bb6;
+        goto -> bb7;
     }
-    bb5: {
+    bb6: {
         // line 17
         _7 = Mul(const 3_i64, _0);
         _8 = Add(_7, const 1_i64);
         _0 = _8;
-        goto -> bb6;
+        goto -> bb7;
     }
-    bb6: {
+    bb7: {
         // line 18
         _9 = Add(_1, const 1_i64);
         _1 = _9;
         goto -> bb1;
     }
-    bb7: {
+    bb8: {
         unreachable;
     }
-    bb8: {
+    bb9: {
         RuntimeFn::TracePopTo(_2);
         return _10;
     }
@@ -146,46 +149,49 @@ fn first_multiple(_0: i64, _1: i64) -> i64 {
     bb2: {
         // line 26
         _5 = Gt(_2, _1);
-        branch _5 -> [then: bb4, else: bb6];
+        branch _5 -> [then: bb5, else: bb7];
     }
     bb3: {
-        // line 33
-        _9 = _3;
-        goto -> bb11;
-    }
-    bb4: {
-        // line 27
-        goto -> bb3;
-    }
-    bb5: {
         unreachable;
     }
+    bb4: {
+        // line 33
+        _9 = _3;
+        goto -> bb12;
+    }
+    bb5: {
+        // line 27
+        goto -> bb4;
+    }
     bb6: {
+        unreachable;
+    }
+    bb7: {
         // line 28
         _6 = RuntimeFn::ModI64(_2, _0);
         _7 = Ne(_6, const 0_i64);
-        branch _7 -> [then: bb7, else: bb9];
+        branch _7 -> [then: bb8, else: bb10];
     }
-    bb7: {
+    bb8: {
         // line 29
         _8 = Add(_2, const 1_i64);
         _2 = _8;
         // line 30
         goto -> bb2;
     }
-    bb8: {
+    bb9: {
         unreachable;
     }
-    bb9: {
+    bb10: {
         // line 31
         _3 = _2;
         // line 32
-        goto -> bb3;
-    }
-    bb10: {
-        unreachable;
+        goto -> bb4;
     }
     bb11: {
+        unreachable;
+    }
+    bb12: {
         RuntimeFn::TracePopTo(_4);
         return _9;
     }
@@ -209,6 +215,9 @@ fn main() -> () {
 
     bb0: {
         _1 = RuntimeFn::TracePush(const "<module>");
+        // line 2
+        // line 11
+        // line 22
         // line 36
         _2 = classify(const -5_i64);
         _3 = classify(const 0_i64);

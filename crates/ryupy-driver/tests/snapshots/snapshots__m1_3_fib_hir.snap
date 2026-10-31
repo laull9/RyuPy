@@ -17,5 +17,7 @@ def fib_iter(n: int) -> int:
     return a
 
 def [main] main():
+    defaults of fib_rec
+    defaults of fib_iter
     print(fib_rec(25))
     print(fib_iter(90))

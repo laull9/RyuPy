@@ -15,8 +15,8 @@
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{
-    BinOp, BlockId, Callee, CastKind, ClassDefId, Constant as MirConstant, FnId, LocalId, Operand,
-    RuntimeFn, Rvalue, Statement, Terminator, UnaryOp,
+    BinOp, BlockId, Callee, CastKind, ClassDefId, Constant as MirConstant, FnId, GlobalId, LocalId,
+    Operand, RuntimeFn, Rvalue, Statement, Terminator, UnaryOp,
 };
 
 use crate::types::ClassTypeMap;
@@ -117,6 +117,13 @@ pub struct RuntimeRefs {
     pub repr_value: MethodRefIndex,
     pub call_builtin: MethodRefIndex,
     pub call_method: MethodRefIndex,
+    pub array_get: MethodRefIndex,
+    pub array_set: MethodRefIndex,
+    pub call_value: MethodRefIndex,
+    pub type_object: MethodRefIndex,
+    pub arg_error: MethodRefIndex,
+    pub star_arg: MethodRefIndex,
+    pub format_value: MethodRefIndex,
     pub list_append: MethodRefIndex,
     pub list_extend: MethodRefIndex,
     pub unpack_check: MethodRefIndex,
@@ -125,6 +132,13 @@ pub struct RuntimeRefs {
     pub iter_value: MethodRefIndex,
     /// `System.Object` 的 `MethodType`：`object[]` 的元素类型。
     pub object_type: MethodType,
+    // ── 一等函数与参数绑定（M2.1）──
+    /// 全局槽位 → 模块静态字段。
+    pub global_fields: FxHashMap<GlobalId, FieldIndex>,
+    pub signature_create: MethodRefIndex,
+    pub bind_args: MethodRefIndex,
+    pub py_function_ctor: MethodRefIndex,
+    pub py_call_ctor: MethodRefIndex,
 }
 
 enum PendingTarget {
@@ -511,6 +525,30 @@ fn lower_operand(
                 ins.push(Instruction::LoadLocal(local_idx));
             }
         }
+        Operand::Global(global) => {
+            if let Some(&field) = refs.global_fields.get(global) {
+                ins.push(Instruction::LoadStaticField {
+                    volatile: false,
+                    param0: FieldSource::Definition(field),
+                });
+            }
+        }
+        Operand::Array(items) => {
+            let object_type = refs.object_type.clone();
+            ins.push(Instruction::LoadConstantInt32(items.len() as i32));
+            ins.push(Instruction::NewArray(object_type.clone()));
+            for (index, item) in items.iter().enumerate() {
+                ins.push(Instruction::Duplicate);
+                ins.push(Instruction::LoadConstantInt32(index as i32));
+                lower_operand(item, ins, param_slots, local_slots, refs);
+                ins.push(Instruction::StoreElement {
+                    skip_type_check: false,
+                    skip_range_check: false,
+                    skip_null_check: false,
+                    param0: object_type.clone(),
+                });
+            }
+        }
         Operand::Const(c) => match c {
             MirConstant::I64(v) => ins.push(Instruction::LoadConstantInt64(*v)),
             MirConstant::F64(v) => ins.push(Instruction::LoadConstantFloat64(*v)),
@@ -523,6 +561,7 @@ fn lower_operand(
                 ins.push(Instruction::call(refs.dyn_from_decimal));
             }
             MirConstant::None => ins.push(Instruction::call(refs.dyn_none)),
+            MirConstant::Null => ins.push(Instruction::LoadNull),
         },
     }
 }
@@ -721,6 +760,19 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
                     RuntimeFn::ShlI64 => ins.push(Instruction::call(ctx.runtime_refs.shl_i64)),
                     RuntimeFn::ShrI64 => ins.push(Instruction::call(ctx.runtime_refs.shr_i64)),
+                    RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
+                    RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
+                    RuntimeFn::CallValue => {
+                        ins.push(Instruction::call(ctx.runtime_refs.call_value))
+                    }
+                    RuntimeFn::TypeObject => {
+                        ins.push(Instruction::call(ctx.runtime_refs.type_object))
+                    }
+                    RuntimeFn::ArgError => ins.push(Instruction::call(ctx.runtime_refs.arg_error)),
+                    RuntimeFn::StarArg => ins.push(Instruction::call(ctx.runtime_refs.star_arg)),
+                    RuntimeFn::FormatValue => {
+                        ins.push(Instruction::call(ctx.runtime_refs.format_value))
+                    }
                     RuntimeFn::WriteObject => {
                         ins.push(Instruction::call(ctx.runtime_refs.write_object))
                     }

@@ -35,6 +35,9 @@ def first_multiple(k: int, limit: int) -> int:
     return found
 
 def [main] main():
+    defaults of classify
+    defaults of collatz_steps
+    defaults of first_multiple
     print(classify(Neg(5)), classify(0), classify(7))
     print(collatz_steps(27))
     print(first_multiple(7, 100))

@@ -8,7 +8,9 @@
 use ryupy_base::{Diagnostic, Ranged, Span};
 use ryupy_syntax::ast;
 
-use crate::hir::{Expr, ExprKind, Literal, Name, Stmt, StmtId, StmtKind};
+use crate::hir::{
+    Expr, ExprKind, Literal, Local, LocalId, Name, SequenceItem, Stmt, StmtId, StmtKind,
+};
 use crate::lower::StmtLowerCtx;
 
 impl StmtLowerCtx<'_> {
@@ -57,29 +59,40 @@ impl StmtLowerCtx<'_> {
     /// 3. 迭代对象必须是 `range(...)` 调用，参数数量在 1 到 3 之间；
     /// 4. 循环体在 `loop_depth + 1` 上下文中降级，以支持内部 `break` / `continue` 校验。
     pub(crate) fn lower_for(&mut self, for_stmt: &ast::StmtFor) -> Option<StmtKind> {
-        if !for_stmt.orelse.is_empty() {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, for_stmt.range),
-                    "Phase 1 暂不支持 for ... else 语法",
-                )
-                .with_code("E0100")
-                .with_primary_label("不支持 for else"),
-            );
-        }
-        let var = if let ast::Expr::Name(name_expr) = &*for_stmt.target {
-            let name = Name::from(name_expr.id.as_str());
-            self.func_scope.locals.get(&name).copied()?
-        } else {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, for_stmt.target.range()),
-                    "Phase 1 仅支持单个局部变量作为循环变量",
-                )
-                .with_code("E0100")
-                .with_primary_label("不支持非简单变量循环目标"),
-            );
-            return None;
+        // `else` 不属于循环体：`break` 在其中非法，因此按当前 loop_depth 降级
+        let orelse = self.lower_suite(&for_stmt.orelse);
+        // 循环目标：单个名字直接使用；`a, b` / `a, *rest` 这样的序列目标
+        // 先写进一个隐藏局部，再在循环体开头做一次解包赋值
+        // （等价于 `for __item in ...: a, b = __item`）。
+        let mut unpack_prefix: Option<crate::hir::StmtId> = None;
+        let var = match &*for_stmt.target {
+            ast::Expr::Name(name_expr) => {
+                let name = Name::from(name_expr.id.as_str());
+                self.func_scope.locals.get(&name).copied()?
+            }
+            ast::Expr::Tuple(tuple) => {
+                let hidden = self.alloc_hidden_for_local(for_stmt.target.range());
+                let items = self.lower_sequence_target(&tuple.elts, tuple.range)?;
+                unpack_prefix = Some(self.synth_unpack_stmt(hidden, items, for_stmt.range));
+                hidden
+            }
+            ast::Expr::List(list) => {
+                let hidden = self.alloc_hidden_for_local(for_stmt.target.range());
+                let items = self.lower_sequence_target(&list.elts, list.range)?;
+                unpack_prefix = Some(self.synth_unpack_stmt(hidden, items, for_stmt.range));
+                hidden
+            }
+            _ => {
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        Span::new(self.file, for_stmt.target.range()),
+                        "暂不支持该循环目标（只支持单个变量或序列解包）",
+                    )
+                    .with_code("E0100")
+                    .with_primary_label("不支持该循环目标"),
+                );
+                return None;
+            }
         };
 
         let (start, stop, step) = match &*for_stmt.iter {
@@ -93,9 +106,17 @@ impl StmtLowerCtx<'_> {
                     // 非 range 的可迭代对象：走通用迭代协议（M2.3 容器图）
                     let iter = self.lower_expr(&for_stmt.iter);
                     self.loop_depth += 1;
-                    let body = self.lower_suite(&for_stmt.body);
+                    let mut body = self.lower_suite(&for_stmt.body);
+                    if let Some(prefix) = unpack_prefix {
+                        body.insert(0, prefix);
+                    }
                     self.loop_depth -= 1;
-                    return Some(StmtKind::ForEach { var, iter, body });
+                    return Some(StmtKind::ForEach {
+                        var,
+                        iter,
+                        body,
+                        orelse,
+                    });
                 }
                 if !call_expr.arguments.keywords.is_empty() {
                     self.diagnostics.push(
@@ -145,14 +166,25 @@ impl StmtLowerCtx<'_> {
                 // 非调用表达式也走通用迭代协议
                 let iter = self.lower_expr(&for_stmt.iter);
                 self.loop_depth += 1;
-                let body = self.lower_suite(&for_stmt.body);
+                let mut body = self.lower_suite(&for_stmt.body);
+                if let Some(prefix) = unpack_prefix {
+                    body.insert(0, prefix);
+                }
                 self.loop_depth -= 1;
-                return Some(StmtKind::ForEach { var, iter, body });
+                return Some(StmtKind::ForEach {
+                    var,
+                    iter,
+                    body,
+                    orelse,
+                });
             }
         };
 
         self.loop_depth += 1;
-        let body = self.lower_suite(&for_stmt.body);
+        let mut body = self.lower_suite(&for_stmt.body);
+        if let Some(prefix) = unpack_prefix {
+            body.insert(0, prefix);
+        }
         self.loop_depth -= 1;
 
         Some(StmtKind::ForRange {
@@ -161,6 +193,39 @@ impl StmtLowerCtx<'_> {
             stop,
             step,
             body,
+            orelse,
+        })
+    }
+
+    /// 为序列解包的循环目标分配一个隐藏局部（名字不可能与源码标识符冲突）。
+    fn alloc_hidden_for_local(&mut self, range: ryupy_base::TextRange) -> LocalId {
+        let index = self.body.locals.len();
+        self.body.locals.alloc(Local {
+            name: Name::from(format!("__for_item${index}").as_str()),
+            annotation: None,
+            is_param: false,
+            range,
+        })
+    }
+
+    /// 合成 `目标序列 = 隐藏局部` 的解包赋值语句。
+    fn synth_unpack_stmt(
+        &mut self,
+        hidden: LocalId,
+        items: Vec<SequenceItem>,
+        range: ryupy_base::TextRange,
+    ) -> StmtId {
+        let value = self.body.exprs.alloc(crate::hir::Expr {
+            kind: ExprKind::Local(hidden),
+            range,
+        });
+        self.body.stmts.alloc(crate::hir::Stmt {
+            kind: StmtKind::Assign {
+                target: crate::hir::AssignTarget::Sequence(items),
+                value,
+            },
+            range,
+            line: self.line_of(range.start().to_usize()),
         })
     }
 }

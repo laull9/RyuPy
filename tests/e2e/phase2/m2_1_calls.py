@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.1：定义期默认值、完整参数绑定和错误实参。
 def collect(first, /, second=2, *items, scale=1, **options):
     return (first + second + sum(items)) * scale, options

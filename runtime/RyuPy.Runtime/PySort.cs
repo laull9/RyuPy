@@ -17,26 +17,42 @@ namespace RyuPy.Runtime;
 ///
 /// # 实现
 ///
-/// 自底向上的归并排序：O(n log n) 最坏情况、稳定、只需一个与输入等长的辅助数组。
-/// 归并时「相等取左」即稳定性；<c>reverse</c> 通过反转比较结果实现，而不是排完再倒序，
-/// 因此降序时相等元素仍保持原始顺序。
-///
-/// 递归归并会为每层调用建立栈帧，宽度成倍增长的迭代写法没有这个问题，也便于
-/// 在「相邻两段已经有序」时整段跳过（对近似有序的输入接近 O(n)）。
+/// 自底向上的归并排序：O(n log n) 最坏情况、稳定、只需与输入等长的辅助数组。
+/// 计算 `key` 的结果在排序开始时**只算一次**（CPython 也如此），避免 key 函数
+/// 被反复调用产生副作用或性能问题。归并时「相等取左」即稳定性；<c>reverse</c>
+/// 通过反转比较结果实现，而不是排完再倒序。
 /// </remarks>
 public static class PySort
 {
-    /// <summary>原地排序。</summary>
+    /// <summary>原地排序（元素自身作为键）。</summary>
     /// <param name="items">待排序元素。</param>
     /// <param name="reverse">是否降序（仍保持稳定）。</param>
-    public static void Sort(List<object?> items, bool reverse)
+    public static void Sort(List<object?> items, bool reverse) =>
+        SortBy(items, reverse, null);
+
+    /// <summary>原地排序，可提供 key 函数。</summary>
+    /// <param name="items">待排序元素。</param>
+    /// <param name="reverse">是否降序（仍保持稳定）。</param>
+    /// <param name="key">键函数；<c>null</c> 表示用元素自身比较。</param>
+    public static void SortBy(
+        List<object?> items,
+        bool reverse,
+        Func<object?, object?>? key
+    )
     {
         int count = items.Count;
         if (count < 2)
         {
             return;
         }
-        object?[] buffer = new object?[count];
+        var keys = new object?[count];
+        for (int i = 0; i < count; i++)
+        {
+            keys[i] = key is null ? items[i] : key(items[i]);
+        }
+
+        var itemBuffer = new object?[count];
+        var keyBuffer = new object?[count];
         for (int width = 1; width < count; width *= 2)
         {
             for (int start = 0; start < count; start += width * 2)
@@ -48,11 +64,11 @@ public static class PySort
                     break;
                 }
                 // 两段已经符合目标顺序：跳过归并，近似有序的输入可以接近线性
-                if (Compare(items[middle - 1], items[middle], reverse) <= 0)
+                if (Compare(keys[middle - 1], keys[middle], reverse) <= 0)
                 {
                     continue;
                 }
-                Merge(items, buffer, start, middle, end, reverse);
+                Merge(items, keys, itemBuffer, keyBuffer, start, middle, end, reverse);
             }
         }
     }
@@ -60,7 +76,9 @@ public static class PySort
     /// <summary>归并 <c>[start, middle)</c> 与 <c>[middle, end)</c> 两段。</summary>
     private static void Merge(
         List<object?> items,
-        object?[] buffer,
+        object?[] keys,
+        object?[] itemBuffer,
+        object?[] keyBuffer,
         int start,
         int middle,
         int end,
@@ -73,30 +91,42 @@ public static class PySort
         while (left < middle && right < end)
         {
             // 相等时取左边：这是稳定性的唯一来源
-            if (Compare(items[left], items[right], reverse) <= 0)
+            if (Compare(keys[left], keys[right], reverse) <= 0)
             {
-                buffer[write++] = items[left++];
+                itemBuffer[write] = items[left];
+                keyBuffer[write] = keys[left];
+                left++;
             }
             else
             {
-                buffer[write++] = items[right++];
+                itemBuffer[write] = items[right];
+                keyBuffer[write] = keys[right];
+                right++;
             }
+            write++;
         }
         while (left < middle)
         {
-            buffer[write++] = items[left++];
+            itemBuffer[write] = items[left];
+            keyBuffer[write] = keys[left];
+            left++;
+            write++;
         }
         while (right < end)
         {
-            buffer[write++] = items[right++];
+            itemBuffer[write] = items[right];
+            keyBuffer[write] = keys[right];
+            right++;
+            write++;
         }
         for (int i = start; i < end; i++)
         {
-            items[i] = buffer[i];
+            items[i] = itemBuffer[i];
+            keys[i] = keyBuffer[i];
         }
     }
 
-    /// <summary>按目标顺序比较两个元素：负数表示 <paramref name="a"/> 在前。</summary>
+    /// <summary>按目标顺序比较两个键：负数表示 <paramref name="a"/> 在前。</summary>
     private static int Compare(object? a, object? b, bool reverse)
     {
         int result = CompareValues(a, b);

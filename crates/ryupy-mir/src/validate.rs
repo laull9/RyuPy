@@ -127,7 +127,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                 }
                 Terminator::Branch { cond, then_, else_ } => {
                     validate_operand(func, block_id, cond, &mut errors);
-                    if let Some(cond_ty) = operand_type(func, cond) {
+                    if let Some(cond_ty) = operand_type(program, func, cond) {
                         if cond_ty != MirType::Bool {
                             errors.push(format!(
                                 "函数 `{}` 基本块 {:?} Branch 条件类型期望为 Bool，得到 {:?}",
@@ -152,7 +152,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                     if is_reachable {
                         if let Some(val) = opt_val {
                             validate_operand(func, block_id, val, &mut errors);
-                            if let Some(val_ty) = operand_type(func, val) {
+                            if let Some(val_ty) = operand_type(program, func, val) {
                                 if val_ty != func.ret {
                                     errors.push(format!(
                                         "函数 `{}` 返回值类型不匹配：期望 {:?}，得到 {:?}",
@@ -235,7 +235,7 @@ fn validate_regions(func: &crate::mir::Function, errors: &mut Vec<String>) {
     }
 }
 
-fn operand_type(func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
+fn operand_type(program: &Program, func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
     match op {
         Operand::Local(loc) => func
             .body
@@ -243,13 +243,17 @@ fn operand_type(func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
             .iter()
             .find(|(id, _)| id == loc)
             .map(|(_, l)| l.ty.clone()),
+        Operand::Global(global) => Some(program.globals[*global].ty.clone()),
+        // 数组的元素类型永远是 object；内联数组本身在求值栈上是 `object[]`，
+        // 但在 MIR 里只作为运行时调用的参数使用，统一按 Dynamic 记。
+        Operand::Array(_) => Some(MirType::Dynamic),
         Operand::Const(c) => Some(match c {
             Constant::I64(_) => MirType::I64,
             Constant::F64(_) => MirType::F64,
             Constant::Bool(_) => MirType::Bool,
             Constant::Str(_) => MirType::Str,
             // 大整数与 None 只出现在动态路径
-            Constant::BigInt(_) | Constant::None => MirType::Dynamic,
+            Constant::BigInt(_) | Constant::None | Constant::Null => MirType::Dynamic,
         }),
     }
 }
@@ -266,7 +270,10 @@ fn validate_rvalue(
         Rvalue::Binary { op: _, lhs, rhs } => {
             validate_operand(func, block_id, lhs, errors);
             validate_operand(func, block_id, rhs, errors);
-            if let (Some(l_ty), Some(r_ty)) = (operand_type(func, lhs), operand_type(func, rhs)) {
+            if let (Some(l_ty), Some(r_ty)) = (
+                operand_type(program, func, lhs),
+                operand_type(program, func, rhs),
+            ) {
                 if l_ty != r_ty {
                     errors.push(format!(
                         "函数 `{}` 基本块 {:?} 二元运算两侧操作数类型不一致：{:?} vs {:?}",
@@ -308,7 +315,7 @@ fn validate_rvalue(
         Rvalue::GetField { obj, .. } => validate_operand(func, block_id, obj, errors),
         Rvalue::Box { value, from } => {
             validate_operand(func, block_id, value, errors);
-            if let Some(v_ty) = operand_type(func, value)
+            if let Some(v_ty) = operand_type(program, func, value)
                 && &v_ty != from
             {
                 errors.push(format!(
@@ -319,7 +326,7 @@ fn validate_rvalue(
         }
         Rvalue::Unbox { value, .. } => {
             validate_operand(func, block_id, value, errors);
-            if let Some(v_ty) = operand_type(func, value)
+            if let Some(v_ty) = operand_type(program, func, value)
                 && v_ty != MirType::Dynamic
             {
                 errors.push(format!(
@@ -332,7 +339,7 @@ fn validate_rvalue(
             validate_operand(func, block_id, lhs, errors);
             validate_operand(func, block_id, rhs, errors);
             for op in [lhs, rhs] {
-                if let Some(ty) = operand_type(func, op)
+                if let Some(ty) = operand_type(program, func, op)
                     && ty != MirType::Dynamic
                 {
                     errors.push(format!(
@@ -344,7 +351,7 @@ fn validate_rvalue(
         }
         Rvalue::DynUnary { operand, .. } => {
             validate_operand(func, block_id, operand, errors);
-            if let Some(ty) = operand_type(func, operand)
+            if let Some(ty) = operand_type(program, func, operand)
                 && ty != MirType::Dynamic
             {
                 errors.push(format!(
@@ -361,7 +368,7 @@ fn validate_rvalue(
         Rvalue::CatchException => {}
         Rvalue::DynTruthy { value } => {
             validate_operand(func, block_id, value, errors);
-            if let Some(ty) = operand_type(func, value)
+            if let Some(ty) = operand_type(program, func, value)
                 && ty != MirType::Dynamic
             {
                 errors.push(format!(
@@ -413,11 +420,16 @@ mod tests {
                 entry,
                 regions: Vec::new(),
             },
+            param_meta: Vec::new(),
+            function_global: None,
+            defaults_global: None,
+            signature_global: None,
         };
         let entry_fn = functions.alloc(func);
         let prog = Program {
             functions,
             classes: Arena::default(),
+            globals: Arena::default(),
             entry: entry_fn,
             source_name: "t.py".to_string(),
         };

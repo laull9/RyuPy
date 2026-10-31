@@ -100,8 +100,16 @@ fn initial_mode(func: &Function) -> FuncMode {
     if func.kind == FunctionKind::ModuleMain {
         return FuncMode::Static;
     }
+    // `*args` / `**kwargs` 的槽位在运行时是 tuple / dict，标注不能改变这一点；
+    // 这类函数一律走动态路径（参数是装箱值），由运行时完成绑定。
+    let has_variadic = func.params.iter().any(|p| {
+        matches!(
+            p.kind,
+            ryupy_hir::ParamKind::VarPositional | ryupy_hir::ParamKind::VarKeyword
+        )
+    });
     let params_annotated = func.params.iter().all(|p| p.annotation.is_some());
-    if params_annotated && func.ret.is_some() {
+    if !has_variadic && params_annotated && func.ret.is_some() {
         FuncMode::Static
     } else {
         FuncMode::Dynamic
@@ -263,6 +271,15 @@ impl FunctionChecker<'_> {
             self.check_stmt(stmt_id);
         }
 
+        // 参数默认值在模块作用域、def 执行时求值：放在语句之后检查，
+        // 这样默认值引用的模块变量已经完成类型推导（类型与求值顺序无关）。
+        // 它们仍然让 `has_dynamic` 能据此决定 main 是否降级。
+        if self.func.kind == FunctionKind::ModuleMain {
+            for &expr in &self.module.default_exprs {
+                self.check_expr(expr);
+            }
+        }
+
         for (loc_id, _loc) in self.func.body.locals.iter() {
             let infer_ty = self.local_vars[loc_id].clone();
             let resolved = match self.infer.resolve(&infer_ty) {
@@ -359,19 +376,30 @@ impl FunctionChecker<'_> {
                     self.check_stmt(s);
                 }
             }
-            StmtKind::While { cond, body } => {
+            StmtKind::While { cond, body, orelse } => {
                 self.check_cond(*cond);
                 for &s in body {
                     self.check_stmt(s);
                 }
+                for &s in orelse {
+                    self.check_stmt(s);
+                }
             }
-            StmtKind::ForEach { var, iter, body } => {
+            StmtKind::ForEach {
+                var,
+                iter,
+                body,
+                orelse,
+            } => {
                 // 通用迭代依赖容器协议，静态路径不展开
                 self.check_expr(*iter);
                 let var_infer = self.local_vars[*var].clone();
                 let _ = self.infer.unify(&var_infer, &InferTy::Known(Ty::Dynamic));
                 self.soft_demote = true;
                 for &s in body {
+                    self.check_stmt(s);
+                }
+                for &s in orelse {
                     self.check_stmt(s);
                 }
             }
@@ -381,6 +409,7 @@ impl FunctionChecker<'_> {
                 stop,
                 step,
                 body,
+                orelse,
             } => {
                 let start_ty = self.check_expr(*start);
                 let stop_ty = self.check_expr(*stop);
@@ -400,7 +429,12 @@ impl FunctionChecker<'_> {
                 for &s in body {
                     self.check_stmt(s);
                 }
+                for &s in orelse {
+                    self.check_stmt(s);
+                }
             }
+            // 默认值表达式的类型在 main 的检查开头统一处理（见 check_function）
+            StmtKind::FunctionDefaults(_) => {}
             StmtKind::Delete(targets) => {
                 for &target in targets {
                     self.check_expr(target);
@@ -497,7 +531,8 @@ impl FunctionChecker<'_> {
                 let infer_ty = self.local_vars[*loc_id].clone();
                 self.infer.resolve(&infer_ty).unwrap_or(Ty::Error)
             }
-            ExprKind::Func(_) => Ty::None,
+            // 函数名作为值使用时是一等函数对象；调用位置由 check_call 单独处理。
+            ExprKind::Func(id) => Ty::Func(*id),
             ExprKind::Builtin(builtin) => match builtin {
                 ryupy_hir::Builtin::Str => Ty::Str,
                 ryupy_hir::Builtin::Type => Ty::Dynamic,
@@ -589,6 +624,14 @@ impl FunctionChecker<'_> {
                 self.check_attribute_read(&base_ty, expr.range, name)
             }
             ExprKind::Call { callee, args } => self.check_call(*callee, args, expr.range),
+            ExprKind::FString(parts) => {
+                for part in parts {
+                    if let ryupy_hir::FStringPart::Value { value, .. } = part {
+                        self.check_expr(*value);
+                    }
+                }
+                Ty::Str
+            }
             // 容器字面量、下标、切片与星号：M2.3 起统一走动态路径，
             // 静态容器类型留到优化阶段（见 optimization.md）。
             ExprKind::List(_)

@@ -11,5 +11,7 @@ def helper(n: int) -> int:
     return t
 
 def [main] main():
+    defaults of main_calc
+    defaults of helper
     print(main_calc(10))
     print(helper(0))

@@ -73,6 +73,7 @@ fn main() -> () {
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "<module>");
+        // line 1
         goto -> bb1;
     }
     bb1: {

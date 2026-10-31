@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.4：非 BMP 字符、孤立代理值和常用格式化。
 text = "A🙂猫"
 print(len(text), text[1], text[::-1])

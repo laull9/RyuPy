@@ -94,13 +94,15 @@ fn main() -> () {
 
     bb0: {
         _1 = RuntimeFn::TracePush(const "<module>");
+        // line 2
+        // line 6
         // line 12
         _2 = box<I64>(const 3_i64);
         _0 = _2;
         // line 13
-        _3 = twice(_0);
+        _3 = RuntimeFn::CallValue(global@0, [_0], [], []);
         _4 = box<Str>(const "ha");
-        _5 = twice(_4);
+        _5 = RuntimeFn::CallValue(global@0, [_4], [], []);
         RuntimeFn::WriteObject(_3);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_5);
@@ -110,9 +112,9 @@ fn main() -> () {
         _0 = _6;
         // line 15
         _7 = box<Bool>(const true);
-        _8 = choose(_7);
+        _8 = RuntimeFn::CallValue(global@3, [_7], [], []);
         _9 = box<Bool>(const false);
-        _10 = choose(_9);
+        _10 = RuntimeFn::CallValue(global@3, [_9], [], []);
         RuntimeFn::WriteObject(_0);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_8);
