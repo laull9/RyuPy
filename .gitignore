@@ -1,4 +1,6 @@
 /target
+# `make build` 生成的发行包（二进制不进版本库，压缩包名与平台相关）
+/releases
 # .NET 构建产物（Rust 的 src/bin/ 是源码目录，不能一并忽略）
 runtime/**/bin/
 runtime/**/obj/

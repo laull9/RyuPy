@@ -31,6 +31,7 @@ make python-extensions                      # 自检 Phase 4，需 NumPy / sqlit
 make cases-selftest                         # 只验证用例与框架（多文件 / 参数 / 错误路径），不编译
 make e2e                                    # 端到端（跳过 pending）
 make e2e-all                                # 包括 pending，看整体进度
+make build                                  # 打发行包：Release CLI + 运行时 → releases/*.tar.gz
 make snap                                   # 审阅快照变更
 make check                                  # 提交前必跑
 ```
@@ -87,8 +88,8 @@ Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPyt
 | 场景 | 方法 |
 | --- | --- |
 | 不知道哪一层出错 | 从 `EMIT=ast` 开始逐层 dump，找第一个「不对」的层 |
-| 生成的 `.dll` 无法加载 / `InvalidProgramException` | `ilspycmd target/ryupy/x/x.dll` 反编译查看；常见原因是求值栈不平衡或分支目标错误 |
-| 想看 RyuJIT 生成的机器码 | `DOTNET_JitDisasm=<方法名> dotnet target/ryupy/x/x.dll`（.NET 7+ 可直接用） |
+| 生成的 `.dll` 无法加载 / `InvalidProgramException` | `ilspycmd __pycache__/x/x.dll` 反编译查看；常见原因是求值栈不平衡或分支目标错误 |
+| 想看 RyuJIT 生成的机器码 | `DOTNET_JitDisasm=<方法名> dotnet __pycache__/x/x.dll`（.NET 7+ 可直接用） |
 | 运行结果和 Python 不同 | 查 [semantics.md](semantics.md) 的「语义陷阱」一节，大概率是已知差异 |
 
 ## 6. 提交规范

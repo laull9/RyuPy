@@ -64,7 +64,7 @@ pub enum Stage {
 #[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub input: PathBuf,
-    /// 产物目录，默认 `target/ryupy/<stem>/`。
+    /// 产物目录，CLI 默认 `<源目录>/__pycache__/<stem>/`（见 `ryupy-cli`）。
     pub out_dir: PathBuf,
     pub aot: bool,
 }
