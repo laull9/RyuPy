@@ -320,10 +320,16 @@ fn remap_rvalue(
             value: remap_operand(value, global_map),
             to: remap_type(to, class_map),
         },
-        Rvalue::DynBinary { op, lhs, rhs } => Rvalue::DynBinary {
+        Rvalue::DynBinary {
+            op,
+            lhs,
+            rhs,
+            inplace,
+        } => Rvalue::DynBinary {
             op: *op,
             lhs: remap_operand(lhs, global_map),
             rhs: remap_operand(rhs, global_map),
+            inplace: *inplace,
         },
         Rvalue::DynCompare { op, lhs, rhs } => Rvalue::DynCompare {
             op: *op,

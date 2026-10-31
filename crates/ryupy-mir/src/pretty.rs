@@ -252,9 +252,15 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
         Rvalue::Unbox { value, to } => {
             format!("unbox<{:?}>({})", to, format_operand(value))
         }
-        Rvalue::DynBinary { op, lhs, rhs } => format!(
-            "dyn.{:?}({}, {})",
+        Rvalue::DynBinary {
             op,
+            lhs,
+            rhs,
+            inplace,
+        } => format!(
+            "dyn.{:?}{}({}, {})",
+            op,
+            if *inplace { ".inplace" } else { "" },
             format_operand(lhs),
             format_operand(rhs)
         ),

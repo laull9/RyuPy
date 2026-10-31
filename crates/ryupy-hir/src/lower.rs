@@ -22,7 +22,7 @@ use crate::hir::{
     AssignTarget, Binding, Body, Expr, ExprId, ExprKind, Function, FunctionKind, Local, Module,
     ModuleInfo, ModuleVar, ModuleVarId, Name, Param, Stmt, StmtId, StmtKind,
 };
-use crate::operator::{lower_type_ref, map_bin_op};
+use crate::operator::lower_type_ref;
 use crate::scope;
 use crate::scope::{FunctionScope, GlobalScope, Resolution, collect_assigned_names};
 
@@ -826,56 +826,8 @@ impl StmtLowerCtx<'_> {
                     return None;
                 }
             }
-            ast::Stmt::AugAssign(aug_stmt) => {
-                // `x += y` 去糖成 `x = x + y`；目标可以是局部变量、属性或下标。
-                let Some(op) = map_bin_op(aug_stmt.op) else {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, aug_stmt.range),
-                            "暂不支持该增量运算符",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("暂不支持的操作符"),
-                    );
-                    return None;
-                };
-                let target = match &*aug_stmt.target {
-                    ast::Expr::Name(name_expr) => {
-                        let name = Name::from(name_expr.id.as_str());
-                        match self.resolve_binding(&name) {
-                            Some(Binding::Local(local)) => AssignTarget::Local(local),
-                            Some(Binding::ModuleVar(var)) => AssignTarget::ModuleVar(var),
-                            None => return None,
-                        }
-                    }
-                    ast::Expr::Attribute(attr) => AssignTarget::Attribute {
-                        base: self.lower_expr(&attr.value),
-                        name: Name::from(attr.attr.as_str()),
-                    },
-                    ast::Expr::Subscript(sub) => AssignTarget::Subscript {
-                        base: self.lower_expr(&sub.value),
-                        index: self.lower_subscript_index(&sub.slice),
-                    },
-                    _ => {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, aug_stmt.target.range()),
-                                "暂不支持该增量赋值目标",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("目标必须是变量、属性或下标"),
-                        );
-                        return None;
-                    }
-                };
-                let lhs = self.lower_expr(&aug_stmt.target);
-                let rhs = self.lower_expr(&aug_stmt.value);
-                let bin = self.body.exprs.alloc(Expr {
-                    kind: ExprKind::Binary { op, lhs, rhs },
-                    range: aug_stmt.range,
-                });
-                StmtKind::Assign { target, value: bin }
-            }
+            // 增量赋值的去糖与「目标只求值一次」见 aug_assign.rs
+            ast::Stmt::AugAssign(aug_stmt) => return self.lower_aug_assign(aug_stmt),
             ast::Stmt::Return(ret_stmt) => {
                 let val = ret_stmt.value.as_deref().map(|v| self.lower_expr(v));
                 StmtKind::Return(val)

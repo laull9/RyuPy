@@ -77,11 +77,40 @@ public static partial class PyOps
     /// <summary><c>None</c> 常量。</summary>
     public static object None() => PyNone.Instance;
 
+    /// <summary>装箱后的 <c>True</c> 单例。</summary>
+    public static readonly object TrueObject = true;
+
+    /// <summary>装箱后的 <c>False</c> 单例。</summary>
+    public static readonly object FalseObject = false;
+
+    /// <summary>把 CIL <c>bool</c> 装箱成 Python <c>bool</c>：复用单例，不分配。</summary>
+    [System.Runtime.CompilerServices.MethodImpl(
+        System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining
+    )]
+    public static object BoxBool(bool value) => value ? TrueObject : FalseObject;
+
+    /// <summary>把 CIL <c>long</c> 装箱成 Python <c>int</c>：[-5, 256] 复用缓存（见 PyInt.Box）。</summary>
+    [System.Runtime.CompilerServices.MethodImpl(
+        System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining
+    )]
+    public static object BoxInt(long value) => PyInt.Box(value);
+
     /// <summary>超出 i64 的整数字面量：源码里是十进制字符串，构造期转成任意精度整数。</summary>
     public static object FromDecimalString(string text) => PyInt.Normalize(PyInt.ParseDecimal(text));
 
     /// <summary>二元运算：返回 Python 值（可能升级为 <c>BigInteger</c> 或 <c>double</c>）。</summary>
+    /// <remarks>操作码带 <see cref="InPlaceFlag"/> 时按增量赋值处理（见 <c>PySequenceOps.cs</c>）。</remarks>
     public static object Binary(int op, object a, object b)
+    {
+        if ((op & InPlaceFlag) != 0)
+        {
+            return InPlaceBinary(op & ~InPlaceFlag, a, b);
+        }
+        return BinaryCore(op, a, b, inplace: false);
+    }
+
+    /// <summary>二元运算的通用实现；<paramref name="inplace"/> 只影响错误消息里的运算符。</summary>
+    private static object BinaryCore(int op, object a, object b, bool inplace)
     {
         if (TryBinaryMagic(op, a, b, out object? magic))
         {
@@ -107,7 +136,11 @@ public static partial class PyOps
                 {
                     return string.Concat(left, right);
                 }
-                throw BinaryTypeError("+", a, b);
+                if (TryConcat(a, b, out object? concatenated))
+                {
+                    return concatenated!;
+                }
+                throw BinaryTypeError("+", a, b, inplace);
             case Sub:
                 if (aInt && bInt)
                 {
@@ -121,7 +154,7 @@ public static partial class PyOps
                 {
                     return difference;
                 }
-                throw BinaryTypeError("-", a, b);
+                throw BinaryTypeError("-", a, b, inplace);
             case Mul:
                 if (aInt && bInt)
                 {
@@ -131,12 +164,15 @@ public static partial class PyOps
                 {
                     return ToDouble(a) * ToDouble(b);
                 }
-                // str * int：Python 支持重复，这里先明确拒绝而不是静默返回错误结果
-                throw BinaryTypeError("*", a, b);
+                if (TryRepeat(a, b, out object? repeated))
+                {
+                    return repeated!;
+                }
+                throw BinaryTypeError("*", a, b, inplace);
             case TrueDiv:
                 if (!aNum || !bNum)
                 {
-                    throw BinaryTypeError("/", a, b);
+                    throw BinaryTypeError("/", a, b, inplace);
                 }
                 double divisor = ToDouble(b);
                 if (divisor == 0.0)
@@ -160,7 +196,7 @@ public static partial class PyOps
                     }
                     return Math.Floor(ToDouble(a) / floorDivisor);
                 }
-                throw BinaryTypeError("//", a, b);
+                throw BinaryTypeError("//", a, b, inplace);
             case Mod:
                 if (aInt && bInt)
                 {
@@ -170,7 +206,7 @@ public static partial class PyOps
                 {
                     return FloatModulo(ToDouble(a), ToDouble(b));
                 }
-                throw BinaryTypeError("%", a, b);
+                throw BinaryTypeError("%", a, b, inplace);
             case Pow:
                 if (aInt && bInt)
                 {
@@ -180,33 +216,33 @@ public static partial class PyOps
                 {
                     return Math.Pow(ToDouble(a), ToDouble(b));
                 }
-                throw BinaryTypeError("** or pow()", a, b);
+                throw BinaryTypeError(inplace ? "**" : "** or pow()", a, b, inplace);
             case BitAnd:
                 if (SetIntersect(a, b) is object intersection)
                 {
                     return intersection;
                 }
-                RequireInts("&", a, b, aInt, bInt);
+                RequireInts("&", a, b, aInt, bInt, inplace);
                 return PyInt.BitAnd(a, b);
             case BitOr:
                 if (SetUnion(a, b) is object union)
                 {
                     return union;
                 }
-                RequireInts("|", a, b, aInt, bInt);
+                RequireInts("|", a, b, aInt, bInt, inplace);
                 return PyInt.BitOr(a, b);
             case BitXor:
                 if (SetSymmetricDifference(a, b) is object xor)
                 {
                     return xor;
                 }
-                RequireInts("^", a, b, aInt, bInt);
+                RequireInts("^", a, b, aInt, bInt, inplace);
                 return PyInt.BitXor(a, b);
             case LShift:
-                RequireInts("<<", a, b, aInt, bInt);
+                RequireInts("<<", a, b, aInt, bInt, inplace);
                 return PyInt.ShiftLeft(a, b);
             case RShift:
-                RequireInts(">>", a, b, aInt, bInt);
+                RequireInts(">>", a, b, aInt, bInt, inplace);
                 return PyInt.ShiftRight(a, b);
             default:
                 throw new PyRuntimeError($"unknown binary opcode {op}");
@@ -216,6 +252,30 @@ public static partial class PyOps
     /// <summary>比较运算：返回 Python <c>bool</c>。NaN 下所有排序比较为假，相等为假、不等为真。</summary>
     public static bool Compare(int op, object a, object b)
     {
+        // 快路径：两侧都是 long / double / str 时与通用路径结果相同（不涉及用户魔术方法），
+        // 但跳过了 `__eq__` / `__lt__` 探测与 Order 的形态分类。double 的 IEEE 比较本身就满足
+        // Python 的 NaN 规则（相等为假、不等为真、排序比较为假）。
+        if (a is long x && b is long y)
+        {
+            return CompareOrdered(op, x.CompareTo(y));
+        }
+        if (a is double dx && b is double dy)
+        {
+            return op switch
+            {
+                Eq => dx == dy,
+                Ne => dx != dy,
+                Lt => dx < dy,
+                Le => dx <= dy,
+                Gt => dx > dy,
+                Ge => dx >= dy,
+                _ => throw new PyRuntimeError($"unknown compare opcode {op}"),
+            };
+        }
+        if (a is string sa && b is string sb)
+        {
+            return CompareOrdered(op, Math.Sign(string.CompareOrdinal(sa, sb)));
+        }
         if (op == Eq)
         {
             return ValuesEqual(a, b);
@@ -244,6 +304,18 @@ public static partial class PyOps
             _ => throw new PyRuntimeError($"unknown compare opcode {op}"),
         };
     }
+
+    /// <summary>把三路比较结果（负 / 零 / 正）换算成指定比较运算的布尔值。</summary>
+    private static bool CompareOrdered(int op, int order) => op switch
+    {
+        Eq => order == 0,
+        Ne => order != 0,
+        Lt => order < 0,
+        Le => order <= 0,
+        Gt => order > 0,
+        Ge => order >= 0,
+        _ => throw new PyRuntimeError($"unknown compare opcode {op}"),
+    };
 
     /// <summary>一元运算。</summary>
     public static object Unary(int op, object value)
@@ -413,138 +485,6 @@ public static partial class PyOps
         throw new PyValueError($"could not convert string to float: {PyRepr.Quote(text)}");
     }
 
-    /// <summary>Python 的 <c>==</c>（容器、数值、字符串统一规则）。</summary>
-    public static bool ValuesEqual(object? a, object? b) => PyHash.Equal(a, b);
-
-    /// <summary>排序比较；返回 <c>null</c> 表示不可比较（NaN）或类型不支持（抛 TypeError）。</summary>
-    private static int? Order(object a, object b, int op)
-    {
-        string symbol = op switch
-        {
-            Lt => "<",
-            Le => "<=",
-            Gt => ">",
-            Ge => ">=",
-            _ => "?",
-        };
-        bool aInt = PyInt.IsInt(a);
-        bool bInt = PyInt.IsInt(b);
-        if (aInt && bInt)
-        {
-            return PyInt.Compare(a, b);
-        }
-        if (aInt && b is double bd)
-        {
-            return PyInt.CompareWithDouble(PyInt.ToBigInteger(a), bd);
-        }
-        if (bInt && a is double ad)
-        {
-            int? reversed = PyInt.CompareWithDouble(PyInt.ToBigInteger(b), ad);
-            return reversed is null ? null : -reversed;
-        }
-        if (a is double da && b is double db)
-        {
-            if (double.IsNaN(da) || double.IsNaN(db))
-            {
-                return null;
-            }
-            return da.CompareTo(db);
-        }
-        if (a is string sa && b is string sb)
-        {
-            return Math.Sign(string.CompareOrdinal(sa, sb));
-        }
-        SequenceKind? kindA = SequenceKindOf(a);
-        SequenceKind? kindB = SequenceKindOf(b);
-        if (kindA is { } ka && kindB is { } kb)
-        {
-            // 序列之间只在同类可比：tuple 与 list 即使内容一致也是 TypeError
-            if (ka != kb)
-            {
-                throw Incomparable(symbol, a, b);
-            }
-            return Lexicographic(ElementsOf(a), ElementsOf(b), op, symbol);
-        }
-        if (kindA is not null || kindB is not null)
-        {
-            throw Incomparable(symbol, a, b);
-        }
-        throw Incomparable(symbol, a, b);
-    }
-
-    /// <summary>序列族：只有同族的序列可以互相排序。</summary>
-    private enum SequenceKind
-    {
-        Tuple,
-        List,
-        Buffer,
-    }
-
-    private static SequenceKind? SequenceKindOf(object value) => value switch
-    {
-        PyTuple => SequenceKind.Tuple,
-        PyList => SequenceKind.List,
-        PyBytes or PyByteArray => SequenceKind.Buffer,
-        _ => null,
-    };
-
-    private static object?[] ElementsOf(object sequence) => sequence switch
-    {
-        PyTuple tuple => tuple.Items,
-        PyList list => list.Items.ToArray(),
-        PyBytes bytes => BytesToObjects(bytes.Bytes),
-        PyByteArray buffer => BytesToObjects(buffer.Bytes),
-        _ => [],
-    };
-
-    private static object?[] BytesToObjects(System.Collections.Generic.IReadOnlyList<byte> bytes)
-    {
-        var items = new object?[bytes.Count];
-        for (int i = 0; i < bytes.Count; i++)
-        {
-            items[i] = (long)bytes[i];
-        }
-        return items;
-    }
-
-    /// <summary>
-    /// 序列的字典序比较：逐元素先判等再排序，前缀相同则短的更小。
-    /// </summary>
-    /// <remarks>
-    /// 与 CPython 一致，<c>(1, 2) &lt; (1, "a")</c> 抛的 TypeError 里写的<em>元素</em>类型，
-    /// 不是容器类型——所以这里递归回 <see cref="Order"/>，让它按元素重新生成诊断。
-    /// </remarks>
-    private static int Lexicographic(object?[] a, object?[] b, int op, string symbol)
-    {
-        int shared = Math.Min(a.Length, b.Length);
-        for (int i = 0; i < shared; i++)
-        {
-            object? left = a[i];
-            object? right = b[i];
-            bool leftNone = left is null or PyNone;
-            bool rightNone = right is null or PyNone;
-            if (leftNone && rightNone)
-            {
-                continue;
-            }
-            if (leftNone || rightNone)
-            {
-                throw Incomparable(symbol, left ?? PyNone.Instance, right ?? PyNone.Instance);
-            }
-            if (!PyHash.Equal(left, right))
-            {
-                return Order(left!, right!, op)
-                    ?? throw Incomparable(symbol, left!, right!);
-            }
-        }
-        return a.Length.CompareTo(b.Length);
-    }
-
-    private static PyTypeError Incomparable(string symbol, object a, object b) =>
-        new(
-            $"'{symbol}' not supported between instances of '{PyRepr.TypeName(a)}' and '{PyRepr.TypeName(b)}'"
-        );
-
     /// <summary>集合的并集；任一侧不是集合时返回 <c>null</c>。</summary>
     private static object? SetUnion(object a, object b) => (a, b) switch
     {
@@ -585,16 +525,24 @@ public static partial class PyOps
         _ => null,
     };
 
-    private static void RequireInts(string symbol, object a, object b, bool aInt, bool bInt)
+    private static void RequireInts(
+        string symbol,
+        object a,
+        object b,
+        bool aInt,
+        bool bInt,
+        bool inplace = false
+    )
     {
         if (!aInt || !bInt)
         {
-            throw BinaryTypeError(symbol, a, b);
+            throw BinaryTypeError(symbol, a, b, inplace);
         }
     }
 
-    private static PyTypeError BinaryTypeError(string symbol, object a, object b) =>
+    /// <summary>运算类型不支持；增量赋值的运算符写成 <c>+=</c>（与 CPython 一致）。</summary>
+    private static PyTypeError BinaryTypeError(string symbol, object a, object b, bool inplace = false) =>
         new(
-            $"unsupported operand type(s) for {symbol}: '{PyRepr.TypeName(a)}' and '{PyRepr.TypeName(b)}'"
+            $"unsupported operand type(s) for {symbol}{(inplace ? "=" : "")}: '{PyRepr.TypeName(a)}' and '{PyRepr.TypeName(b)}'"
         );
 }

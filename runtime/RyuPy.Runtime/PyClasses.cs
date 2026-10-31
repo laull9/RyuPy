@@ -332,8 +332,17 @@ public sealed class PyInstance
         }
     }
 
-    /// <summary>创建实例。</summary>
-    public PyInstance(PyClass cls) => Class = cls;
+    /// <summary>创建实例；槽位数组按类当前的槽位数预分配（`__init__` 写属性时不必逐次扩容）。</summary>
+    public PyInstance(PyClass cls)
+    {
+        Class = cls;
+        int count = cls.InstanceSlotCount;
+        if (count > 0)
+        {
+            // null 即「未赋值」（见 TryGetSlot），与哨兵等价
+            _slots = new object?[count];
+        }
+    }
 
     /// <summary>默认 `repr` 的地址部分；用运行时身份代替真实地址（D002）。</summary>
     public string DefaultRepr() =>

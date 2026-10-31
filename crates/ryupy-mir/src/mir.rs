@@ -292,11 +292,13 @@ pub enum Rvalue {
         value: Operand,
         to: MirType,
     },
-    /// 动态二元运算：`PyOps.Binary(op, a, b)`。
+    /// 动态二元运算：`PyPic.Binary(site, op, a, b)`。
     DynBinary {
         op: DynOp,
         lhs: Operand,
         rhs: Operand,
+        /// 增量赋值（`x op= y`）：运行时对可变对象原地修改，见 [`DynOp::INPLACE_FLAG`]。
+        inplace: bool,
     },
     /// 动态比较：`PyOps.Compare(op, a, b)`，结果是 CIL `bool`。
     DynCompare {
@@ -372,6 +374,9 @@ pub enum DynOp {
 }
 
 impl DynOp {
+    /// 增量赋值的操作码标记位：`code() | INPLACE_FLAG`。**与 `PyOps.InPlaceFlag` 同步。**
+    pub const INPLACE_FLAG: i32 = 0x100;
+
     /// 运行时操作码编号。**修改必须与 `runtime/RyuPy.Runtime/PyOps.cs` 同步。**
     pub fn code(self) -> i32 {
         match self {
