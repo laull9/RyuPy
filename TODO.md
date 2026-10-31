@@ -22,21 +22,21 @@
 
 ## Phase 1：静态强类型子集
 
-### M1.0 曳光弹：`print(1 + 2)` 🎯
+### M1.0 曳光弹：`print(1 + 2)` 🎯 ✅
 
 > 用例：`tests/e2e/phase1/m1_0_print_int.py`。目标是**最窄**地打通全链路，其它一律报「暂不支持」。
 
-- [ ] hir：`lower_module` 只处理「表达式语句 / 调用 `print` / 整数字面量 / `+`」，其它语法报 `E0100` 并产出 `Missing`
-- [ ] hir：合成隐式 `main` 函数
-- [ ] ty：`check_module` 只处理 `Int + Int → Int`、`print(...) → None`
-- [ ] mir：`build_program` 生成 `main`：`_1 = Add(1, 2); WriteI64(_1); WriteNewline(); return`
-- [ ] mir：`validate` 实现「无 `Unreachable` 残留」「ID 越界」两项检查
-- [ ] codegen：参照 dotnetdll 的 `tests/common/mod.rs`，构造程序集、`System.Runtime` 与 `RyuPy.Runtime` 引用、`RyuPy.Generated.Module` 类、`Main` 入口
-- [ ] codegen：栈化 `Assign(Binary)` / `Eval(Call)` / `Return`，整数加法用 `add.ovf`
-- [ ] codegen：`dump_cil` 输出 ilasm 风格文本
-- [ ] 快照：m1_0 的 HIR / MIR / CIL 三份快照
-- [ ] 去掉 m1_0 的 `pending`，`make e2e` 通过 🎉
-- [ ] 笔记：`docs/notes/` 写第一篇（从源码到 .dll 的全过程）
+- [x] hir：`lower_module` 只处理「表达式语句 / 调用 `print` / 整数字面量 / `+`」，其它语法报 `E0100` 并产出 `Missing`
+- [x] hir：合成隐式 `main` 函数
+- [x] ty：`check_module` 只处理 `Int + Int → Int`、`print(...) → None`
+- [x] mir：`build_program` 生成 `main`：`_1 = Add(1, 2); WriteI64(_1); WriteNewline(); return`
+- [x] mir：`validate` 实现「无 `Unreachable` 残留」「ID 越界」两项检查
+- [x] codegen：参照 dotnetdll 的 `tests/common/mod.rs`，构造程序集、`System.Runtime` 与 `RyuPy.Runtime` 引用、`RyuPy.Generated.Module` 类、`Main` 入口
+- [x] codegen：栈化 `Assign(Binary)` / `Eval(Call)` / `Return`，整数加法用 `add.ovf`
+- [x] codegen：`dump_cil` 输出 ilasm 风格文本
+- [x] 快照：m1_0 的 HIR / MIR / CIL 三份快照
+- [x] 去掉 m1_0 的 `pending`，`make e2e` 通过 🎉
+- [x] 笔记：`docs/notes/` 写第一篇（从源码到 .dll 的全过程）
 
 ### M1.1 函数与局部变量
 

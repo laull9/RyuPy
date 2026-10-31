@@ -9,11 +9,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 
 #[derive(Parser)]
-#[command(
-    name = "ryupy",
-    version,
-    about = "Python → .NET CIL 编译器"
-)]
+#[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
