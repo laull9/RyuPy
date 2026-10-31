@@ -72,20 +72,41 @@ impl<'a> ExprBuilder<'a> {
         match &expr.kind {
             ExprKind::Literal(lit) => self.build_literal(lit),
             ExprKind::Local(loc) => {
-                // 确定赋值分析：若局部变量在赋初值前被读取，报错 E0301（语义陷阱 #10）
-                if !self.assigned_locals.contains(loc) && !self.reported_unbound.contains(loc) {
-                    let var_name = &hir_body.locals[*loc].name;
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.hir.file, expr.range),
-                            format!("局部变量 `{var_name}` 在赋值前被读取"),
-                        )
-                        .with_code("E0301")
-                        .with_primary_label("在赋值前被使用（运行时将引发 UnboundLocalError）"),
-                    );
-                    self.reported_unbound.insert(*loc);
+                // 确定赋值分析（语义陷阱 #10）：
+                // - 动态槽位无法用 CLR 默认值区分「未赋值」与「值为 0/None」，
+                //   所以对「可能未赋值」的读取插入运行时检查，抛 UnboundLocalError；
+                // - 静态槽位（i64/f64）没有额外表示空间，仍作为编译期错误报出。
+                let mir_local = self.local_map[loc];
+                if !self.assigned_locals.contains(loc) {
+                    let var_name = hir_body.locals[*loc].name.to_string();
+                    // 只有动态函数才走运行时检查：静态函数的槽位是 i64/f64，
+                    // 类型旁表认为它是静态类型，插入动态检查会让后续运算错误地走动态路径。
+                    if self.is_dynamic_context()
+                        && matches!(self.locals[mir_local].ty, MirType::Dynamic)
+                    {
+                        let checked = self.runtime_call(
+                            RuntimeFn::LoadChecked,
+                            vec![
+                                Operand::Local(mir_local),
+                                Operand::Const(Constant::Str(var_name)),
+                            ],
+                            MirType::Dynamic,
+                        );
+                        return checked;
+                    }
+                    if !self.reported_unbound.contains(loc) {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.hir.file, expr.range),
+                                format!("局部变量 `{var_name}` 在赋值前被读取"),
+                            )
+                            .with_code("E0301")
+                            .with_primary_label("静态槽位无法表示「未赋值」"),
+                        );
+                        self.reported_unbound.insert(*loc);
+                    }
                 }
-                Operand::Local(self.local_map[loc])
+                Operand::Local(mir_local)
             }
             ExprKind::Binary { op, lhs, rhs } => self.build_binary(*op, *lhs, *rhs, expr_id),
             ExprKind::Unary { op, operand } => self.build_unary(*op, *operand, expr_id),
@@ -115,11 +136,15 @@ impl<'a> ExprBuilder<'a> {
                         return Operand::Local(dest);
                     }
                 }
-                // 动态对象的属性访问需要普通 class 与属性协议（M2.5）
+                if base_ty.is_dynamic() || matches!(base_ty, Ty::Error) {
+                    // 动态属性读取：M2.2 覆盖异常对象与类型对象（args / __cause__ / __name__），
+                    // 普通实例属性在 M2.5 由同一个入口扩展。
+                    return self.call_runtime_attr(base_op, name.as_str());
+                }
                 self.diagnostics.push(
                     Diagnostic::error(
                         Span::new(self.hir.file, expr.range),
-                        "动态值的属性访问尚未支持（M2.5 普通 class）",
+                        "该类型的属性访问尚未支持（M2.5 普通 class）",
                     )
                     .with_code("E0303")
                     .with_primary_label("需要普通 class 与属性查找"),
@@ -641,6 +666,19 @@ impl<'a> ExprBuilder<'a> {
         self.blocks[*self.current_bb].terminator = crate::mir::Terminator::Goto(join_bb);
 
         *self.current_bb = join_bb;
+        Operand::Local(dest)
+    }
+
+    /// 动态属性读取：`PyObject.GetAttr(obj, "name")`。
+    fn call_runtime_attr(&mut self, obj: Operand, name: &str) -> Operand {
+        let dest = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::DynGetAttr),
+                args: vec![obj, Operand::Const(Constant::Str(name.to_string()))],
+            },
+        });
         Operand::Local(dest)
     }
 

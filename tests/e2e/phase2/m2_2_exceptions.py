@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.2：异常匹配、重抛、异常链与异常变量清理。
 def fail():
     try:

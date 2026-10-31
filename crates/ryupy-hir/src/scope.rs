@@ -114,6 +114,22 @@ pub fn collect_assigned_names(body: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
                     }
                     walk_stmts(&s.body, names, seen);
                 }
+                ast::Stmt::Try(s) => {
+                    walk_stmts(&s.body, names, seen);
+                    for handler in &s.handlers {
+                        let ast::ExceptHandler::ExceptHandler(except) = handler;
+                        // `except E as x` 里的 x 是函数级局部变量
+                        if let Some(name) = except.name.as_ref() {
+                            let n = Name::from(name.id.as_str());
+                            if seen.insert(n.clone()) {
+                                names.push((n, name.range));
+                            }
+                        }
+                        walk_stmts(&except.body, names, seen);
+                    }
+                    walk_stmts(&s.orelse, names, seen);
+                    walk_stmts(&s.finalbody, names, seen);
+                }
                 // 嵌套 def / class 不递归进去（它们有独立作用域）
                 _ => {}
             }
@@ -125,26 +141,51 @@ pub fn collect_assigned_names(body: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
 }
 
 pub fn resolve_builtin(name: &str) -> Option<Builtin> {
+    // 内建异常类：名字表与运行时 `PyExceptionTypes` 保持一致（两边都登记才算可用）。
+    const EXCEPTIONS: &[&str] = &[
+        "BaseException",
+        "Exception",
+        "SystemExit",
+        "KeyboardInterrupt",
+        "ArithmeticError",
+        "ZeroDivisionError",
+        "OverflowError",
+        "LookupError",
+        "IndexError",
+        "KeyError",
+        "ValueError",
+        "UnicodeError",
+        "UnicodeDecodeError",
+        "UnicodeEncodeError",
+        "TypeError",
+        "NameError",
+        "UnboundLocalError",
+        "AttributeError",
+        "RuntimeError",
+        "NotImplementedError",
+        "RecursionError",
+        "AssertionError",
+        "ImportError",
+        "ModuleNotFoundError",
+        "OSError",
+        "FileNotFoundError",
+        "FileExistsError",
+        "PermissionError",
+        "StopIteration",
+        "EOFError",
+    ];
+
+    if let Some(exception) = EXCEPTIONS.iter().find(|e| **e == name) {
+        return Some(Builtin::Exception(exception));
+    }
+
     Some(match name {
         "print" => Builtin::Print,
         "int" => Builtin::Int,
         "float" => Builtin::Float,
         "abs" => Builtin::Abs,
-        // 常用异常类：M2.2 只支持「构造 + 抛出 + 未捕获退出」，
-        // `except`/traceback 在后续竖切里接入。
-        "ValueError" => Builtin::Exception("ValueError"),
-        "TypeError" => Builtin::Exception("TypeError"),
-        "RuntimeError" => Builtin::Exception("RuntimeError"),
-        "ZeroDivisionError" => Builtin::Exception("ZeroDivisionError"),
-        "OverflowError" => Builtin::Exception("OverflowError"),
-        "IndexError" => Builtin::Exception("IndexError"),
-        "KeyError" => Builtin::Exception("KeyError"),
-        "NameError" => Builtin::Exception("NameError"),
-        "AttributeError" => Builtin::Exception("AttributeError"),
-        "ArithmeticError" => Builtin::Exception("ArithmeticError"),
-        "Exception" => Builtin::Exception("Exception"),
-        "StopIteration" => Builtin::Exception("StopIteration"),
-        "AssertionError" => Builtin::Exception("AssertionError"),
+        "str" => Builtin::Str,
+        "type" => Builtin::Type,
         _ => return None,
     })
 }

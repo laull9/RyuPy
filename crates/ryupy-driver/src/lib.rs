@@ -77,6 +77,17 @@ pub struct Artifacts {
 }
 
 /// 运行前端 + 中端，返回 MIR。任何阶段出错都在阶段边界停止。
+/// traceback 里显示的文件名。
+///
+/// 用**文件名**而不是完整路径：快照与差分测试要求产物与机器的绝对路径无关，
+/// 而 traceback 的 `File "..."` 只需要能让用户定位到源文件。
+fn traceback_file_name(sess: &Session, file: FileId) -> String {
+    Path::new(&sess.sources.get(file).name)
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| sess.sources.get(file).name.clone())
+}
+
 fn compile_to_mir(sess: &mut Session, file: FileId) -> Result<ryupy_mir::Program> {
     let src = sess.sources.get(file).text.clone();
 
@@ -84,7 +95,8 @@ fn compile_to_mir(sess: &mut Session, file: FileId) -> Result<ryupy_mir::Program
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
 
-    let (hir, diags) = ryupy_hir::lower_module(&parsed);
+    let source_name = traceback_file_name(sess, file);
+    let (hir, diags) = ryupy_hir::lower_module(&parsed, &source_name, &src);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
 
@@ -156,7 +168,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     }
     stop_if_errors(sess)?;
 
-    let (hir, diags) = ryupy_hir::lower_module(&parsed);
+    let source_name = traceback_file_name(sess, file);
+    let (hir, diags) = ryupy_hir::lower_module(&parsed, &source_name, &src);
     sess.diagnostics.extend(diags);
     if stage == Stage::Hir {
         return Ok(ryupy_hir::pretty::dump(&hir));

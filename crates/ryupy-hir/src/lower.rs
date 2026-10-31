@@ -26,8 +26,15 @@ use crate::operator::{lower_type_ref, map_bin_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, collect_assigned_names};
 
 /// 降级整个模块。即使有错误也返回一个结构完整的 `Module`。
-pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
+///
+/// `source_name` 是源文件路径，只用于 traceback 与诊断展示；它不参与名称解析。
+pub fn lower_module(
+    parsed: &ParsedModule,
+    source_name: &str,
+    source: &str,
+) -> (Module, Vec<Diagnostic>) {
     let mut diagnostics = Vec::new();
+    let line_starts = compute_line_starts(source);
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope::default();
@@ -199,6 +206,8 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
             body: &mut body,
             is_in_func: true,
             loop_depth: 0,
+            handler_depth: 0,
+            line_starts: &line_starts,
         };
         for stmt in &fn_def.body {
             lower_ctx.lower_stmt_to_root(stmt);
@@ -222,6 +231,8 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
         body: &mut main_body,
         is_in_func: false,
         loop_depth: 0,
+        handler_depth: 0,
+        line_starts: &line_starts,
     };
     for stmt in &parsed.module.body {
         if !matches!(
@@ -238,6 +249,7 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
 
     let module = Module {
         file: parsed.file,
+        source_name: source_name.to_string(),
         functions,
         classes,
         main: main_id,
@@ -255,9 +267,32 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) body: &'a mut Body,
     pub(crate) is_in_func: bool,
     pub(crate) loop_depth: usize,
+    /// 当前所处的 `except` 体层数。只有 > 0 时裸 `raise` 才有意义。
+    pub(crate) handler_depth: usize,
+    /// 每一行的起始字节偏移，用于把 `TextRange` 换算成行号。
+    pub(crate) line_starts: &'a [usize],
+}
+
+/// 预先算出每一行的起始字节偏移，供 `TextRange` → 行号换算。
+fn compute_line_starts(source: &str) -> Vec<usize> {
+    let mut starts = vec![0usize];
+    for (idx, byte) in source.bytes().enumerate() {
+        if byte == b'\n' {
+            starts.push(idx + 1);
+        }
+    }
+    starts
 }
 
 impl StmtLowerCtx<'_> {
+    /// 字节偏移 → 1 起行号。
+    pub(crate) fn line_of(&self, offset: usize) -> u32 {
+        match self.line_starts.binary_search(&offset) {
+            Ok(idx) => idx as u32 + 1,
+            Err(idx) => idx as u32,
+        }
+    }
+
     pub(crate) fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
             file: self.file,
@@ -285,6 +320,118 @@ impl StmtLowerCtx<'_> {
             }
         }
         out
+    }
+
+    /// `try` 语句：四段结构原样进入 HIR，交给 MIR 划分受保护区域。
+    fn lower_try(&mut self, try_stmt: &ast::StmtTry) -> StmtId {
+        if try_stmt.is_star {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, try_stmt.range),
+                    "暂不支持 except* 异常组语法",
+                )
+                .with_code("E0100")
+                .with_primary_label("异常组属于暂缓能力"),
+            );
+        }
+
+        let body = self.lower_suite(&try_stmt.body);
+
+        let mut handlers = Vec::new();
+        for handler in &try_stmt.handlers {
+            let ast::ExceptHandler::ExceptHandler(except) = handler;
+            let types = match &except.type_ {
+                None => None,
+                Some(type_expr) => {
+                    let names = self.exception_type_names(type_expr);
+                    if names.is_empty() {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, type_expr.range()),
+                                "except 目前只支持内建异常类型名（用户自定义异常在 M2.6 接续）",
+                            )
+                            .with_code("E0100")
+                            .with_primary_label("不支持该异常类型表达式"),
+                        );
+                    }
+                    Some(names)
+                }
+            };
+
+            let name = except.name.as_ref().and_then(|ident| {
+                let ident_name = Name::from(ident.as_str());
+                self.func_scope
+                    .locals
+                    .get(&ident_name)
+                    .copied()
+                    .or_else(|| {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, ident.range),
+                                format!("`{ident_name}` 未登记为局部变量"),
+                            )
+                            .with_code("E0101")
+                            .with_primary_label("内部错误：异常变量预扫描遗漏"),
+                        );
+                        None
+                    })
+            });
+
+            // except 体里允许裸 `raise`
+            self.handler_depth += 1;
+            let handler_body = self.lower_suite(&except.body);
+            self.handler_depth -= 1;
+
+            let id = self.body.handlers.alloc(crate::hir::Handler {
+                types,
+                name,
+                body: handler_body,
+                range: except.range,
+            });
+            handlers.push(id);
+        }
+
+        let orelse = self.lower_suite(&try_stmt.orelse);
+        let finalbody = self.lower_suite(&try_stmt.finalbody);
+
+        self.body.stmts.alloc(Stmt {
+            kind: StmtKind::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            },
+            range: try_stmt.range,
+            line: self.line_of(try_stmt.range.start().to_usize()),
+        })
+    }
+
+    /// 把 `except` 的类型表达式解析成异常类型名列表。
+    ///
+    /// 支持 `except E:` 与 `except (E1, E2):`，其中每个名字必须是已登记的内建异常类。
+    /// 返回空列表表示无法解析（调用方报错）。
+    fn exception_type_names(&self, expr: &ast::Expr) -> Vec<&'static str> {
+        match expr {
+            ast::Expr::Name(name) => {
+                let ident = Name::from(name.id.as_str());
+                match self.global_scope.names.get(&ident) {
+                    // 用户定义了同名类时优先用局部/模块定义，M2.6 再接自定义异常
+                    Some(_) => Vec::new(),
+                    None => match crate::scope::resolve_builtin(name.id.as_str()) {
+                        Some(crate::hir::Builtin::Exception(type_name)) => vec![type_name],
+                        _ => Vec::new(),
+                    },
+                }
+            }
+            ast::Expr::Tuple(tuple) => {
+                let mut out = Vec::new();
+                for elt in &tuple.elts {
+                    out.extend(self.exception_type_names(elt));
+                }
+                out
+            }
+            _ => Vec::new(),
+        }
     }
 
     fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Option<StmtId> {
@@ -456,6 +603,7 @@ impl StmtLowerCtx<'_> {
                         cause: None,
                     },
                     range: assert_stmt.range,
+                    line: self.line_of(assert_stmt.range.start().to_usize()),
                 });
                 StmtKind::If {
                     cond: not_cond,
@@ -466,18 +614,12 @@ impl StmtLowerCtx<'_> {
             ast::Stmt::Raise(raise_stmt) => {
                 let value = raise_stmt.exc.as_deref().map(|e| self.lower_expr(e));
                 let cause = raise_stmt.cause.as_deref().map(|e| self.lower_expr(e));
-                if value.is_none() {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, raise_stmt.range),
-                            "暂不支持裸重抛（需要 try/except，M2.2 后续竖切）",
-                        )
-                        .with_code("E0304")
-                        .with_primary_label("裸 raise 依赖当前异常上下文"),
-                    );
-                }
+                // 裸 `raise` 不在 lowering 阶段报错：Python 允许它出现在任何位置，
+                // 没有正在处理的异常时在运行时抛 RuntimeError("No active exception to reraise")。
+                // 编译期拒绝会误伤「异常处理函数里的裸 raise」这类常见写法。
                 StmtKind::Raise { value, cause }
             }
+            ast::Stmt::Try(try_stmt) => return Some(self.lower_try(try_stmt)),
             ast::Stmt::If(if_stmt) => return Some(self.lower_if(if_stmt)),
             ast::Stmt::While(while_stmt) => {
                 if !while_stmt.orelse.is_empty() {
@@ -498,9 +640,11 @@ impl StmtLowerCtx<'_> {
             }
             ast::Stmt::For(for_stmt) => {
                 let kind = self.lower_for(for_stmt)?;
+                let line = self.line_of(for_stmt.range.start().to_usize());
                 return Some(self.body.stmts.alloc(Stmt {
                     kind,
                     range: for_stmt.range,
+                    line,
                 }));
             }
             ast::Stmt::Break(b) => {
@@ -572,9 +716,8 @@ impl StmtLowerCtx<'_> {
             }
         };
 
-        Some(self.body.stmts.alloc(Stmt {
-            kind,
-            range: stmt.range(),
-        }))
+        let range = stmt.range();
+        let line = self.line_of(range.start().to_usize());
+        Some(self.body.stmts.alloc(Stmt { kind, range, line }))
     }
 }

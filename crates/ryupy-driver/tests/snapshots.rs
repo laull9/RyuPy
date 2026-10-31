@@ -301,9 +301,49 @@ fn snapshot_m2_1_bigint() {
     insta::assert_snapshot!("m2_1_bigint_cil", cil);
 }
 
-/// 错误输入：动态上下文里的属性访问需要普通 class（M2.5），必须给出明确诊断。
+/// M2.2：异常区域的 MIR 与 CIL。
+///
+/// 这份快照同时锁住三件事：受保护区间的块划分、`finally` 的状态机分派、CIL 异常表。
+/// 改动图结构时先看这里的 diff，再决定是不是预期变化。
 #[test]
-fn snapshot_dynamic_attribute_diagnostic() {
+fn snapshot_m2_2_try() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_2_finally.py");
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m2_2_try_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m2_2_try_cil", cil);
+}
+
+/// 错误输入：`except` 的类型必须是内建异常类型名，其它表达式要明确拒绝。
+#[test]
+fn snapshot_try_unsupported_handler_type() {
+    let py_path = std::env::temp_dir().join("ryupy_test_bad_except.py");
+    std::fs::write(&py_path, "try:\n    print(1)\nexcept 1:\n    print(2)\n").unwrap();
+
+    let mut sess = Session::default();
+    let res = dump(&mut sess, &py_path, Stage::Mir);
+    let _ = std::fs::remove_file(&py_path);
+
+    assert!(res.is_err(), "非类型名的 except 应被拒绝");
+    let rendered = sess.render_diagnostics(false);
+    assert!(
+        rendered.contains("E0100"),
+        "期望 E0100 诊断，实际：{rendered}"
+    );
+    insta::assert_snapshot!("m2_2_unsupported_handler_type", rendered);
+}
+
+/// 动态属性访问：M2.2 起编译成 `PyObject.GetAttr` 运行时查找。
+///
+/// 早期版本在编译期直接拒绝，但 Python 属性是运行时概念——类型未知不代表一定失败。
+/// 找不到属性时由运行时抛 `AttributeError`，与 CPython 一致。
+#[test]
+fn snapshot_dynamic_attribute_access() {
     let py_path = std::env::temp_dir().join("ryupy_test_dynamic_attr.py");
     std::fs::write(
         &py_path,
@@ -312,14 +352,12 @@ fn snapshot_dynamic_attribute_diagnostic() {
     .unwrap();
 
     let mut sess = Session::default();
-    let res = dump(&mut sess, &py_path, Stage::Mir);
+    let mir = dump(&mut sess, &py_path, Stage::Mir).expect("动态属性访问应能编译");
     let _ = std::fs::remove_file(&py_path);
 
-    assert!(res.is_err(), "动态属性访问应被拒绝");
-    let rendered = sess.render_diagnostics(false);
     assert!(
-        rendered.contains("E0303"),
-        "期望 E0303 诊断，实际：{rendered}"
+        mir.contains("DynGetAttr"),
+        "期望生成动态属性读取调用，实际：{mir}"
     );
-    insta::assert_snapshot!("m2_1_dynamic_attribute_diagnostic", rendered);
+    insta::assert_snapshot!("m2_2_dynamic_attribute_mir", mir);
 }

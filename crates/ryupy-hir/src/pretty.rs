@@ -130,6 +130,49 @@ fn dump_stmt(
         }
         StmtKind::Break => writeln!(out, "{pad}break").unwrap(),
         StmtKind::Continue => writeln!(out, "{pad}continue").unwrap(),
+        StmtKind::Try {
+            body: try_body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
+            writeln!(out, "{pad}try:").unwrap();
+            for &s in try_body {
+                dump_stmt(out, indent + 1, module, body, s);
+            }
+            for &handler_id in handlers {
+                let handler = &body.handlers[handler_id];
+                let header = match &handler.types {
+                    None => "except:".to_string(),
+                    Some(types) => format!("except {}:", types.join(" | ")),
+                };
+                match handler.name {
+                    Some(local) => writeln!(
+                        out,
+                        "{pad}{} as {}:",
+                        header.trim_end_matches(':'),
+                        body.locals[local].name
+                    )
+                    .unwrap(),
+                    None => writeln!(out, "{pad}{header}").unwrap(),
+                }
+                for &s in &handler.body {
+                    dump_stmt(out, indent + 1, module, body, s);
+                }
+            }
+            if !orelse.is_empty() {
+                writeln!(out, "{pad}else:").unwrap();
+                for &s in orelse {
+                    dump_stmt(out, indent + 1, module, body, s);
+                }
+            }
+            if !finalbody.is_empty() {
+                writeln!(out, "{pad}finally:").unwrap();
+                for &s in finalbody {
+                    dump_stmt(out, indent + 1, module, body, s);
+                }
+            }
+        }
     }
 }
 
@@ -153,6 +196,8 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
             Builtin::Int => "int".to_string(),
             Builtin::Float => "float".to_string(),
             Builtin::Abs => "abs".to_string(),
+            Builtin::Str => "str".to_string(),
+            Builtin::Type => "type".to_string(),
         },
         ExprKind::Unary { op, operand } => format!("{op:?}({})", dump_expr(module, body, *operand)),
         ExprKind::Binary { op, lhs, rhs } => {

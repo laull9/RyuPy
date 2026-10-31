@@ -1,5 +1,4 @@
 # M2.2：未捕获异常必须保留显式 cause（`raise ... from ...`）。
-pending = true
 expect_exit = 1
 expect_exception = RuntimeError: outer
 expect_cause = ValueError: source
