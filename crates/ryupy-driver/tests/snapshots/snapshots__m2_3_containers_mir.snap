@@ -1,0 +1,100 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn mix() -> dyn {
+    let _0: dyn; // items
+    let _1: dyn; // lookup
+    let _2: dyn; // total
+    let _3: dyn; // value
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: bool;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: bool;
+    let _22: dyn;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "mix");
+        // line 2
+        _5 = box<I64>(const 1_i64);
+        _6 = box<I64>(const 2_i64);
+        _7 = MakeList([_5, _6]);
+        _0 = _7;
+        // line 3
+        _8 = DynBuiltin(const "len", [_0]);
+        _9 = box<I64>(const 0_i64);
+        RuntimeFn::SetItem(_0, _9, _8);
+        // line 4
+        _10 = RuntimeFn::MakeDict();
+        _11 = box<Str>(const "a");
+        _12 = box<I64>(const 1_i64);
+        RuntimeFn::SetItem(_10, _11, _12);
+        _1 = _10;
+        // line 5
+        _13 = box<I64>(const 2_i64);
+        _14 = box<Str>(const "a");
+        RuntimeFn::SetItem(_1, _14, _13);
+        // line 6
+        _15 = box<I64>(const 0_i64);
+        _2 = _15;
+        // line 7
+        _16 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _17 = RuntimeFn::IterNextOk(_16);
+        branch _17 -> [then: bb2, else: bb4];
+    }
+    bb2: {
+        _18 = RuntimeFn::IterValue(_16);
+        _3 = _18;
+        // line 8
+        _19 = dyn.Add(_2, _3);
+        _2 = _19;
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        // line 9
+        _21 = RuntimeFn::Contains(_0, _2);
+        _22 = box<Bool>(_21);
+        _20 = _22;
+        goto -> bb6;
+    }
+    bb5: {
+        unreachable;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_4);
+        return _20;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "<module>");
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

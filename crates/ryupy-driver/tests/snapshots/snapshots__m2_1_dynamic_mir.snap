@@ -99,37 +99,33 @@ fn main() -> () {
         _0 = _2;
         // line 13
         _3 = twice(_0);
-        RuntimeFn::WriteObject(_3);
-        RuntimeFn::WriteSep();
         _4 = box<Str>(const "ha");
         _5 = twice(_4);
+        RuntimeFn::WriteObject(_3);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_5);
         RuntimeFn::WriteNewline();
         // line 14
         _6 = box<Str>(const "changed");
         _0 = _6;
         // line 15
-        RuntimeFn::WriteObject(_0);
-        RuntimeFn::WriteSep();
         _7 = box<Bool>(const true);
         _8 = choose(_7);
-        RuntimeFn::WriteObject(_8);
-        RuntimeFn::WriteSep();
         _9 = box<Bool>(const false);
         _10 = choose(_9);
+        RuntimeFn::WriteObject(_0);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_8);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_10);
         RuntimeFn::WriteNewline();
         // line 16
         _11 = box<Bool>(const true);
         _12 = box<I64>(const 2_i64);
         _13 = dyn.Add(_11, _12);
-        RuntimeFn::WriteObject(_13);
-        RuntimeFn::WriteSep();
         _14 = box<I64>(const 2_i64);
         _15 = box<F64>(const 0.5_f64);
         _16 = dyn.Add(_14, _15);
-        RuntimeFn::WriteObject(_16);
-        RuntimeFn::WriteSep();
         _18 = box<I64>(const 0_i64);
         _17 = _18;
         _19 = RuntimeFn::DynTruthy(_17);
@@ -141,8 +137,6 @@ fn main() -> () {
         goto -> bb2;
     }
     bb2: {
-        RuntimeFn::WriteObject(_17);
-        RuntimeFn::WriteSep();
         _22 = box<Str>(const "left");
         _21 = _22;
         _23 = RuntimeFn::DynTruthy(_21);
@@ -154,6 +148,12 @@ fn main() -> () {
         goto -> bb4;
     }
     bb4: {
+        RuntimeFn::WriteObject(_13);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_16);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_17);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_21);
         RuntimeFn::WriteNewline();
         goto -> bb5;

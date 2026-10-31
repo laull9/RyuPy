@@ -342,6 +342,11 @@ fn validate_rvalue(
                 ));
             }
         }
+        Rvalue::CallWithArgs { prefix, args, .. } => {
+            for op in prefix.iter().chain(args.iter()) {
+                validate_operand(func, block_id, op, errors);
+            }
+        }
         Rvalue::CatchException => {}
         Rvalue::DynTruthy { value } => {
             validate_operand(func, block_id, value, errors);

@@ -211,12 +211,12 @@ fn main() -> () {
         _1 = RuntimeFn::TracePush(const "<module>");
         // line 36
         _2 = classify(const -5_i64);
+        _3 = classify(const 0_i64);
+        _4 = classify(const 7_i64);
         RuntimeFn::WriteI64(_2);
         RuntimeFn::WriteSep();
-        _3 = classify(const 0_i64);
         RuntimeFn::WriteI64(_3);
         RuntimeFn::WriteSep();
-        _4 = classify(const 7_i64);
         RuntimeFn::WriteI64(_4);
         RuntimeFn::WriteNewline();
         // line 37

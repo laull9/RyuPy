@@ -154,6 +154,52 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let load_checked = res
         .push_method_reference(method_ref! { static object @pyerrors_type::Load(object, string) });
 
+    // ── 容器协议（M2.3）──
+    let make_list =
+        res.push_method_reference(method_ref! { static object @pyops_type::MakeList(object[]) });
+    let make_tuple =
+        res.push_method_reference(method_ref! { static object @pyops_type::MakeTuple(object[]) });
+    let make_set =
+        res.push_method_reference(method_ref! { static object @pyops_type::MakeSet(object[]) });
+    let make_dict =
+        res.push_method_reference(method_ref! { static object @pyops_type::MakeDict() });
+    let make_slice = res.push_method_reference(
+        method_ref! { static object @pyops_type::MakeSlice(object, object, object) },
+    );
+    let make_bytes =
+        res.push_method_reference(method_ref! { static object @pyops_type::MakeBytes(string) });
+    let get_item = res
+        .push_method_reference(method_ref! { static object @pyops_type::GetItem(object, object) });
+    let set_item = res.push_method_reference(
+        method_ref! { static void @pyops_type::SetItem(object, object, object) },
+    );
+    let del_item =
+        res.push_method_reference(method_ref! { static void @pyops_type::DelItem(object, object) });
+    let contains = res
+        .push_method_reference(method_ref! { static bool @pyops_type::Contains(object, object) });
+    let len = res.push_method_reference(method_ref! { static long @pyops_type::Len(object) });
+    let is_same =
+        res.push_method_reference(method_ref! { static bool @pyops_type::Is(object, object) });
+    let repr_value =
+        res.push_method_reference(method_ref! { static string @pyops_type::ReprValue(object) });
+    let call_builtin = res.push_method_reference(
+        method_ref! { static object @pyops_type::CallBuiltin(string, object[]) },
+    );
+    let call_method = res.push_method_reference(
+        method_ref! { static object @pyops_type::CallMethod(object, string, object[]) },
+    );
+    let list_append = res
+        .push_method_reference(method_ref! { static void @pyops_type::ListAppend(object, object) });
+    let list_extend = res
+        .push_method_reference(method_ref! { static void @pyops_type::ListExtend(object, object) });
+    let unpack_check =
+        res.push_method_reference(method_ref! { static void @pyops_type::UnpackCheck(long, long) });
+    let iter_start =
+        res.push_method_reference(method_ref! { static object @pyops_type::IterStart(object) });
+    let iter_next_ok =
+        res.push_method_reference(method_ref! { static bool @pyops_type::IterNextOk(object) });
+    let iter_value =
+        res.push_method_reference(method_ref! { static object @pyops_type::IterValue(object) });
     // ── 对象协议（M2.2 最小集）──
     let pyrepr_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyRepr in #ryupy_runtime });
     let pyrepr_type: MethodType = BaseType::class(pyrepr_ref).into();
@@ -240,6 +286,28 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         trace_line,
         trace_pop_to,
         exception_types,
+        make_list,
+        make_tuple,
+        make_set,
+        make_dict,
+        make_slice,
+        make_bytes,
+        get_item,
+        set_item,
+        del_item,
+        contains,
+        len,
+        is_same,
+        repr_value,
+        call_builtin,
+        call_method,
+        list_append,
+        list_extend,
+        unpack_check,
+        iter_start,
+        iter_next_ok,
+        iter_value,
+        object_type: MethodType::from(BaseType::class(object_ref)),
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(

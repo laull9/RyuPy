@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
@@ -29,6 +30,19 @@ public static class PyRepr
         double or float => "float",
         string => "str",
         PyTuple => "tuple",
+        PyList => "list",
+        PyDict => "dict",
+        PySet => "set",
+        PyFrozenSet => "frozenset",
+        PyBytes => "bytes",
+        PyByteArray => "bytearray",
+        PySlice => "slice",
+        PyDictView view => view.Kind switch
+        {
+            PyDictViewKind.Keys => "dict_keys",
+            PyDictViewKind.Values => "dict_values",
+            _ => "dict_items",
+        },
         PyType => "type",
         PyBaseException exception => exception.PyTypeName,
         _ => value.GetType().Name,
@@ -48,6 +62,14 @@ public static class PyRepr
         // str(异常) 是消息本身，不含类型名（与 CPython 一致）
         PyBaseException exception => exception.PyMessage,
         PyTuple tuple => ReprTuple(tuple),
+        PyList list => ReprList(list),
+        PyDict dict => ReprDict(dict),
+        PySet set => ReprSet(set.Items),
+        PyFrozenSet frozen => "frozenset(" + ReprSet(frozen.Items) + ")",
+        PyBytes bytes => ReprBytes(bytes.Bytes),
+        PyByteArray array => "bytearray(" + ReprBytes([.. array.Bytes]) + ")",
+        PySlice slice => slice.ToString(),
+        PyDictView view => ReprView(view),
         PyType type => type.ToString(),
         _ => value.ToString() ?? string.Empty,
     };
@@ -65,6 +87,13 @@ public static class PyRepr
         string s => Quote(s),
         PyBaseException exception => ReprException(exception),
         PyTuple tuple => ReprTuple(tuple),
+        PyList list => ReprList(list),
+        PyDict dict => ReprDict(dict),
+        PySet set => ReprSet(set.Items),
+        PyFrozenSet frozen => "frozenset(" + ReprSet(frozen.Items) + ")",
+        PyBytes bytes => ReprBytes(bytes.Bytes),
+        PyByteArray array => "bytearray(" + ReprBytes([.. array.Bytes]) + ")",
+        PyDictView view => ReprView(view),
         _ => Str(value),
     };
 
@@ -130,6 +159,139 @@ public static class PyRepr
             parts[i] = Repr(exception.Args[i]);
         }
         return exception.PyTypeName + "(" + string.Join(", ", parts) + ")";
+    }
+
+    // ───────────────────── 容器 repr ─────────────────────
+    //
+    // 容器可以自引用（`a = []; a.append(a)`），必须记录「正在格式化」的对象，
+    // 否则会无限递归。CPython 输出 `[[...]]` / `{'k': {...}}` 这种省略形式，
+    // 这里沿用同样的规则。
+
+    [ThreadStatic]
+    private static HashSet<object>? _inProgress;
+
+    /// <summary>把容器 repr 包在递归保护里。</summary>
+    private static string WithCycleGuard(object container, string recursionLabel, Func<string> body)
+    {
+        _inProgress ??= new HashSet<object>(ReferenceEqualityComparer.Instance);
+        if (!_inProgress.Add(container))
+        {
+            return recursionLabel;
+        }
+        try
+        {
+            return body();
+        }
+        finally
+        {
+            _inProgress.Remove(container);
+        }
+    }
+
+    /// <summary>列表的 <c>repr</c>。</summary>
+    private static string ReprList(PyList list) =>
+        WithCycleGuard(list, "[...]", () =>
+        {
+            var builder = new StringBuilder("[");
+            for (int i = 0; i < list.Items.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+                builder.Append(Repr(list.Items[i]));
+            }
+            builder.Append(']');
+            return builder.ToString();
+        });
+
+    /// <summary>字典的 <c>repr</c>：保持插入顺序。</summary>
+    private static string ReprDict(PyDict dict) =>
+        WithCycleGuard(dict, "{...}", () =>
+        {
+            var builder = new StringBuilder("{");
+            bool first = true;
+            foreach (var (key, value) in dict.Entries())
+            {
+                if (!first)
+                {
+                    builder.Append(", ");
+                }
+                first = false;
+                builder.Append(Repr(key)).Append(": ").Append(Repr(value));
+            }
+            builder.Append('}');
+            return builder.ToString();
+        });
+
+    /// <summary>集合的 <c>repr</c>；空集合必须写成 <c>set()</c>。</summary>
+    private static string ReprSet(IEnumerable<object> items)
+    {
+        var parts = new List<string>();
+        foreach (object item in items)
+        {
+            parts.Add(Repr(item));
+        }
+        if (parts.Count == 0)
+        {
+            return "set()";
+        }
+        parts.Sort(StringComparer.Ordinal);
+        return "{" + string.Join(", ", parts) + "}";
+    }
+
+    /// <summary>视图的 <c>repr</c>。</summary>
+    private static string ReprView(PyDictView view)
+    {
+        string name = view.Kind switch
+        {
+            PyDictViewKind.Keys => "dict_keys",
+            PyDictViewKind.Values => "dict_values",
+            _ => "dict_items",
+        };
+        return name + "(" + ReprList(new PyList(PyOps.ToSequence(view.ToArray()))) + ")";
+    }
+
+    /// <summary>
+    /// <c>bytes</c> 的 <c>repr</c>：可打印 ASCII 原样输出，其余用 <c>\xNN</c>。
+    /// </summary>
+    private static string ReprBytes(byte[] bytes)
+    {
+        var builder = new StringBuilder(bytes.Length + 3);
+        builder.Append("b'");
+        foreach (byte b in bytes)
+        {
+            switch (b)
+            {
+                case (byte)'\\':
+                    builder.Append("\\\\");
+                    break;
+                case (byte)'\'':
+                    builder.Append("\\'");
+                    break;
+                case (byte)'\n':
+                    builder.Append("\\n");
+                    break;
+                case (byte)'\r':
+                    builder.Append("\\r");
+                    break;
+                case (byte)'\t':
+                    builder.Append("\\t");
+                    break;
+                default:
+                    if (b >= 0x20 && b < 0x7f)
+                    {
+                        builder.Append((char)b);
+                    }
+                    else
+                    {
+                        builder.Append("\\x").Append(b.ToString("x2"));
+                    }
+                    break;
+            }
+        }
+        builder.Append('\'');
+        return builder.ToString();
     }
 
     /// <summary>字符串的 Python <c>repr</c>：优先单引号，内部单引号且无单引号时切换双引号。</summary>

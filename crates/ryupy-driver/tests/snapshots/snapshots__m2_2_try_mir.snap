@@ -333,11 +333,11 @@ fn main() -> () {
         _1 = _43;
         // line 24
         _45 = RuntimeFn::DynStr(_1);
-        RuntimeFn::WriteObject(_45);
-        RuntimeFn::WriteSep();
         _46 = RuntimeFn::DynGetAttr(_1, const "__context__");
         _47 = RuntimeFn::DynType(_46);
         _48 = RuntimeFn::DynGetAttr(_47, const "__name__");
+        RuntimeFn::WriteObject(_45);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_48);
         RuntimeFn::WriteNewline();
         _1 = RuntimeFn::MakeUnbound();

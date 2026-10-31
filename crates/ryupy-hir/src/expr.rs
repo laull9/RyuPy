@@ -113,6 +113,22 @@ impl<'a> ExprLowerCtx<'a> {
                 let name = Name::from(attr.attr.as_str());
                 ExprKind::Attribute { base, name }
             }
+            ast::Expr::List(list) => ExprKind::List(self.lower_elements(&list.elts)),
+            ast::Expr::Tuple(tuple) => ExprKind::Tuple(self.lower_elements(&tuple.elts)),
+            ast::Expr::Set(set) => ExprKind::Set(self.lower_elements(&set.elts)),
+            ast::Expr::Dict(dict) => self.lower_dict(dict),
+            ast::Expr::BytesLiteral(bytes) => {
+                ExprKind::Bytes(bytes.value.bytes().collect::<Vec<u8>>().into_boxed_slice())
+            }
+            ast::Expr::Subscript(sub) => {
+                let base = self.lower_expr(&sub.value);
+                let index = self.lower_subscript_index(&sub.slice);
+                ExprKind::Subscript { base, index }
+            }
+            ast::Expr::Starred(starred) => {
+                let inner = self.lower_expr(&starred.value);
+                ExprKind::Starred(inner)
+            }
             _ => {
                 self.diagnostics.push(
                     Diagnostic::error(Span::new(self.file, range), "暂不支持该表达式")
@@ -124,6 +140,47 @@ impl<'a> ExprLowerCtx<'a> {
         };
 
         self.body.exprs.alloc(Expr { kind, range })
+    }
+
+    /// 容器字面量的元素列表，保留 `*x` 星号标记。
+    fn lower_elements(&mut self, elements: &[ast::Expr]) -> Vec<ExprId> {
+        elements.iter().map(|e| self.lower_expr(e)).collect()
+    }
+
+    /// `{k: v}` 字典字面量。`**other` 需要运行时合并，留到后续竖切。
+    fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
+        let mut pairs = Vec::new();
+        for item in &dict.items {
+            let Some(key) = &item.key else {
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        Span::new(self.file, item.value.range()),
+                        "暂不支持在字典字面量里使用 `**`",
+                    )
+                    .with_code("E0100")
+                    .with_primary_label("不支持字典解包"),
+                );
+                continue;
+            };
+            let key_id = self.lower_expr(key);
+            let value_id = self.lower_expr(&item.value);
+            pairs.push((key_id, value_id));
+        }
+        ExprKind::Dict(pairs)
+    }
+
+    /// 下标表达式：整数下标或切片。
+    pub(crate) fn lower_subscript_index(&mut self, slice: &ast::Expr) -> ExprId {
+        if let ast::Expr::Slice(slice_expr) = slice {
+            let start = slice_expr.lower.as_deref().map(|e| self.lower_expr(e));
+            let stop = slice_expr.upper.as_deref().map(|e| self.lower_expr(e));
+            let step = slice_expr.step.as_deref().map(|e| self.lower_expr(e));
+            return self.body.exprs.alloc(Expr {
+                kind: ExprKind::Slice { start, stop, step },
+                range: slice_expr.range,
+            });
+        }
+        self.lower_expr(slice)
     }
 
     fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {

@@ -64,6 +64,9 @@ pub fn collect_assigned_names(body: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
                     collect_expr(elt, names, seen);
                 }
             }
+            ast::Expr::Starred(starred) => {
+                collect_expr(&starred.value, names, seen);
+            }
             _ => {}
         }
     }
@@ -186,6 +189,19 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "abs" => Builtin::Abs,
         "str" => Builtin::Str,
         "type" => Builtin::Type,
+        "len" => Builtin::Dynamic("len"),
+        "list" => Builtin::Dynamic("list"),
+        "tuple" => Builtin::Dynamic("tuple"),
+        "dict" => Builtin::Dynamic("dict"),
+        "set" => Builtin::Dynamic("set"),
+        "frozenset" => Builtin::Dynamic("frozenset"),
+        "bytes" => Builtin::Dynamic("bytes"),
+        "bytearray" => Builtin::Dynamic("bytearray"),
+        "sorted" => Builtin::Dynamic("sorted"),
+        "hash" => Builtin::Dynamic("hash"),
+        "repr" => Builtin::Dynamic("repr"),
+        "bool" => Builtin::Dynamic("bool"),
+        "iter" => Builtin::Dynamic("iter"),
         _ => return None,
     })
 }

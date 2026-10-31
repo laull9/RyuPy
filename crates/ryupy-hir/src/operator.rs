@@ -49,7 +49,10 @@ pub fn map_cmp_op(op: ast::CmpOp) -> Option<CmpOp> {
         ast::CmpOp::LtE => CmpOp::LtE,
         ast::CmpOp::Gt => CmpOp::Gt,
         ast::CmpOp::GtE => CmpOp::GtE,
-        ast::CmpOp::Is | ast::CmpOp::IsNot | ast::CmpOp::In | ast::CmpOp::NotIn => return None,
+        ast::CmpOp::In => CmpOp::In,
+        ast::CmpOp::NotIn => CmpOp::NotIn,
+        ast::CmpOp::Is => CmpOp::Is,
+        ast::CmpOp::IsNot => CmpOp::IsNot,
     })
 }
 

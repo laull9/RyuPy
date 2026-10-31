@@ -46,13 +46,38 @@ impl MirPass for SimplifyCfg {
             }
         }
 
+        // 受保护区域窗口：跳转不能在收拢时跨出区域边界。
+        //
+        // 为什么必须检查：CIL 不允许从受保护区域内部直接 `br` 到区域外（必须 `leave`），
+        // 而这条 Pass 会把「空块 + goto」链折叠掉。折叠后目标可能落到区域外，
+        // 生成的 IL 会被 JIT 判为非法——错误信息只有 `InvalidProgramException`，
+        // 没有行号也没有指令位置，非常难查。
+        let windows: Vec<(usize, usize)> = func
+            .body
+            .regions
+            .iter()
+            .map(|r| {
+                let start = r.try_start.into_raw().into_u32() as usize;
+                (start, start + r.try_len)
+            })
+            .collect();
+        let leaves_region = |from: usize, to: usize| -> bool {
+            windows
+                .iter()
+                .any(|(start, end)| from >= *start && from < *end && !(to >= *start && to < *end))
+        };
+
         // 链式收拢（A -> B -> C => A -> C，带跳数限制防止环）
-        for (_, bb) in func.body.blocks.iter_mut() {
+        for (bb_id, bb) in func.body.blocks.iter_mut() {
             match &mut bb.terminator {
                 Terminator::Goto(target) => {
+                    let origin = bb_id.into_raw().into_u32() as usize;
                     let mut cur = *target;
                     let mut steps = 0;
                     while let Some(&next) = forward_map.get(&cur) {
+                        if leaves_region(origin, next.into_raw().into_u32() as usize) {
+                            break;
+                        }
                         cur = next;
                         steps += 1;
                         if steps > 16 {
@@ -62,9 +87,13 @@ impl MirPass for SimplifyCfg {
                     *target = cur;
                 }
                 Terminator::Branch { then_, else_, .. } => {
+                    let origin = bb_id.into_raw().into_u32() as usize;
                     let mut cur_then = *then_;
                     let mut steps = 0;
                     while let Some(&next) = forward_map.get(&cur_then) {
+                        if leaves_region(origin, next.into_raw().into_u32() as usize) {
+                            break;
+                        }
                         cur_then = next;
                         steps += 1;
                         if steps > 16 {
@@ -76,6 +105,9 @@ impl MirPass for SimplifyCfg {
                     let mut cur_else = *else_;
                     let mut steps = 0;
                     while let Some(&next) = forward_map.get(&cur_else) {
+                        if leaves_region(origin, next.into_raw().into_u32() as usize) {
+                            break;
+                        }
                         cur_else = next;
                         steps += 1;
                         if steps > 16 {

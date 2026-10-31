@@ -293,6 +293,20 @@ impl StmtLowerCtx<'_> {
         }
     }
 
+    /// 语句降级复用：把下标位置（可能是切片）降级成表达式。
+    pub(crate) fn lower_subscript_index(&mut self, slice: &ast::Expr) -> ExprId {
+        let mut expr_ctx = ExprLowerCtx {
+            file: self.file,
+            global_scope: self.global_scope,
+            func_scope: self.func_scope,
+            module_locals: self.module_locals,
+            is_in_func: self.is_in_func,
+            body: self.body,
+            diagnostics: self.diagnostics,
+        };
+        expr_ctx.lower_subscript_index(slice)
+    }
+
     pub(crate) fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
             file: self.file,
@@ -320,6 +334,67 @@ impl StmtLowerCtx<'_> {
             }
         }
         out
+    }
+
+    /// 序列解包目标：`a, b` / `first, *rest, last`。
+    fn lower_sequence_target(
+        &mut self,
+        elements: &[ast::Expr],
+        range: ryupy_base::TextRange,
+    ) -> Option<Vec<crate::hir::SequenceItem>> {
+        let mut items = Vec::new();
+        for element in elements {
+            match element {
+                ast::Expr::Name(name_expr) => {
+                    let name = Name::from(name_expr.id.as_str());
+                    match self.func_scope.locals.get(&name) {
+                        Some(&local) => items.push(crate::hir::SequenceItem::One(local)),
+                        None => return None,
+                    }
+                }
+                ast::Expr::Starred(starred) => {
+                    let ast::Expr::Name(name_expr) = starred.value.as_ref() else {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, starred.range),
+                                "星号解包的目标必须是简单变量",
+                            )
+                            .with_code("E0100")
+                            .with_primary_label("暂不支持嵌套解包目标"),
+                        );
+                        return None;
+                    };
+                    let name = Name::from(name_expr.id.as_str());
+                    let local = *self.func_scope.locals.get(&name)?;
+                    items.push(crate::hir::SequenceItem::Rest(local));
+                }
+                _ => {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, element.range()),
+                            "暂不支持嵌套的解包目标",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("只支持变量与星号变量"),
+                    );
+                    return None;
+                }
+            }
+        }
+        if items
+            .iter()
+            .filter(|i| matches!(i, crate::hir::SequenceItem::Rest(_)))
+            .count()
+            > 1
+        {
+            self.diagnostics.push(
+                Diagnostic::error(Span::new(self.file, range), "解包目标中只能有一个星号变量")
+                    .with_code("E0100")
+                    .with_primary_label("多个星号解包"),
+            );
+            return None;
+        }
+        Some(items)
     }
 
     /// `try` 语句：四段结构原样进入 HIR，交给 MIR 划分受保护区域。
@@ -464,6 +539,28 @@ impl StmtLowerCtx<'_> {
                                 value: val,
                             }
                         }
+                        ast::Expr::Subscript(sub) => {
+                            let base = self.lower_expr(&sub.value);
+                            let index = self.lower_subscript_index(&sub.slice);
+                            StmtKind::Assign {
+                                target: AssignTarget::Subscript { base, index },
+                                value: val,
+                            }
+                        }
+                        ast::Expr::Tuple(tuple) => {
+                            let items = self.lower_sequence_target(&tuple.elts, tuple.range)?;
+                            StmtKind::Assign {
+                                target: AssignTarget::Sequence(items),
+                                value: val,
+                            }
+                        }
+                        ast::Expr::List(list) => {
+                            let items = self.lower_sequence_target(&list.elts, list.range)?;
+                            StmtKind::Assign {
+                                target: AssignTarget::Sequence(items),
+                                value: val,
+                            }
+                        }
                         _ => {
                             self.diagnostics.push(
                                 Diagnostic::error(
@@ -572,6 +669,34 @@ impl StmtLowerCtx<'_> {
                 StmtKind::Return(val)
             }
             ast::Stmt::Pass(_) => StmtKind::Pass,
+            ast::Stmt::Delete(del_stmt) => {
+                let mut targets = Vec::new();
+                for target in &del_stmt.targets {
+                    match target {
+                        // 只支持 `del obj[...]`：删除名字需要模块命名空间（M2.7）
+                        ast::Expr::Subscript(sub) => {
+                            let base = self.lower_expr(&sub.value);
+                            let index = self.lower_subscript_index(&sub.slice);
+                            let id = self.body.exprs.alloc(Expr {
+                                kind: ExprKind::Subscript { base, index },
+                                range: sub.range,
+                            });
+                            targets.push(id);
+                        }
+                        _ => {
+                            self.diagnostics.push(
+                                Diagnostic::error(
+                                    Span::new(self.file, target.range()),
+                                    "暂不支持该 del 目标",
+                                )
+                                .with_code("E0100")
+                                .with_primary_label("目前只支持 del obj[...]"),
+                            );
+                        }
+                    }
+                }
+                StmtKind::Delete(targets)
+            }
             ast::Stmt::Assert(assert_stmt) => {
                 // `assert cond, msg` 去糖为 `if not cond: raise AssertionError(msg)`
                 let cond = self.lower_expr(&assert_stmt.test);

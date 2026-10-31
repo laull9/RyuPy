@@ -18,6 +18,79 @@ use crate::mir::{
 };
 
 impl FunctionBuilder<'_> {
+    /// `for var in <可迭代对象>`：走运行时迭代协议。
+    ///
+    /// 结构是「条件块 → 循环体 → 步进块」，与计数循环同形，因此 `break` / `continue`
+    /// 可以复用同一套循环目标栈（`continue` 跳到步进块，`break` 跳到退出块）。
+    pub(crate) fn build_for_each(&mut self, var: HirLocalId, iter: ExprId, body: &[StmtId]) {
+        let iter_op = self.expr_builder().build_expr(iter);
+        let iter_ty = self.expr_builder().ty_of(iter);
+        let source = self
+            .expr_builder()
+            .coerce(iter_op, &iter_ty, &MirType::Dynamic);
+        let iterator = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest: iterator,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::IterStart),
+                args: vec![source],
+            },
+        });
+
+        let cond_bb = self.new_block();
+        let body_bb = self.new_block();
+        let step_bb = self.new_block();
+        let exit_bb = self.new_block();
+        self.terminate_current(Terminator::Goto(cond_bb));
+
+        // 条件：还有下一个元素吗
+        self.current_bb = cond_bb;
+        let ok = self.alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: ok,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::IterNextOk),
+                args: vec![Operand::Local(iterator)],
+            },
+        });
+        self.terminate_current(Terminator::Branch {
+            cond: Operand::Local(ok),
+            then_: body_bb,
+            else_: exit_bb,
+        });
+
+        // 循环体：先把当前元素写进循环变量
+        self.current_bb = body_bb;
+        let value = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest: value,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::IterValue),
+                args: vec![Operand::Local(iterator)],
+            },
+        });
+        let var_mir = self.local_map[&var];
+        self.push_stmt(Statement::Assign {
+            dest: var_mir,
+            value: Rvalue::Use(Operand::Local(value)),
+        });
+        self.assigned_locals.insert(var);
+
+        self.loop_stack.push((step_bb, exit_bb));
+        for &stmt in body {
+            self.build_stmt(stmt);
+        }
+        self.loop_stack.pop();
+        if self.is_current_unterminated() {
+            self.terminate_current(Terminator::Goto(step_bb));
+        }
+
+        // 步进块：迭代器自身在条件块里推进，这里只是跳回去
+        self.current_bb = step_bb;
+        self.terminate_current(Terminator::Goto(cond_bb));
+        self.current_bb = exit_bb;
+    }
+
     /// 动态函数里的 `for x in range(...)`：边界先拆箱成 i64，循环变量仍是动态值。
     ///
     /// 好处是保留计数循环的快路径，不让 `range` 退化成迭代器；代价是边界必须是真整数，

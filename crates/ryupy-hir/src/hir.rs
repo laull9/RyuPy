@@ -174,6 +174,29 @@ pub enum ExprKind {
         base: ExprId,
         name: Name,
     },
+    /// `[a, b]`；元素可以是 [`ExprKind::Starred`]。
+    List(Vec<ExprId>),
+    /// `(a, b)`；元素可以是 [`ExprKind::Starred`]。
+    Tuple(Vec<ExprId>),
+    /// `{a, b}`。
+    Set(Vec<ExprId>),
+    /// `{k: v}`；`**mapping` 暂不支持。
+    Dict(Vec<(ExprId, ExprId)>),
+    /// `b"..."`：源码里的字节串已经是字节序列，不需要再做编码。
+    Bytes(Box<[u8]>),
+    /// `obj[key]`，`key` 可以是 [`ExprKind::Slice`]。
+    Subscript {
+        base: ExprId,
+        index: ExprId,
+    },
+    /// `a[start:stop:step]`，三段都可以省略（`None`）。
+    Slice {
+        start: Option<ExprId>,
+        stop: Option<ExprId>,
+        step: Option<ExprId>,
+    },
+    /// `*seq`：只出现在容器字面量与赋值目标里。
+    Starred(ExprId),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -200,6 +223,11 @@ pub enum Builtin {
     Type,
     /// Python 异常类（`ValueError` 等）。构造调用走运行时的 `PyOps.MakeException`。
     Exception(&'static str),
+    /// 走运行时统一入口的内建函数（`len` / `sorted` / `list` …）。
+    ///
+    /// 它们的语义完全由运行时决定（容器协议），编译期不需要知道返回类型；
+    /// 名字本身是编译期常量，运行时的 `PyOps.CallBuiltin` 按名字分派。
+    Dynamic(&'static str),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -237,6 +265,14 @@ pub enum CmpOp {
     LtE,
     Gt,
     GtE,
+    /// `in`：成员判断，走容器的 `__contains__`。
+    In,
+    /// `not in`。
+    NotIn,
+    /// `is`：引用身份。
+    Is,
+    /// `is not`。
+    IsNot,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -271,6 +307,12 @@ pub enum StmtKind {
         cond: ExprId,
         body: Vec<StmtId>,
     },
+    /// `for var in <可迭代对象>`：通用迭代协议。
+    ForEach {
+        var: LocalId,
+        iter: ExprId,
+        body: Vec<StmtId>,
+    },
     /// `for var in range(start, stop, step)` 的专用形式，编译为原生计数循环，不产生迭代器对象。
     ForRange {
         var: LocalId,
@@ -287,6 +329,8 @@ pub enum StmtKind {
         value: Option<ExprId>,
         cause: Option<ExprId>,
     },
+    /// `del a[i]` / `del a[x:y]`；目标是下标表达式。
+    Delete(Vec<ExprId>),
     /// `try` 语句：`body` / `handlers` / `else` / `finally` 四部分，任意一部分可以为空。
     ///
     /// HIR 保留 Python 的四段结构，不提前去糖成「嵌套 try」：MIR 需要知道
@@ -324,4 +368,20 @@ pub enum AssignTarget {
         base: ExprId,
         name: Name,
     },
+    /// `obj[key] = value`。
+    Subscript {
+        base: ExprId,
+        index: ExprId,
+    },
+    /// `a, b = ...` / `first, *middle, last = ...`。
+    Sequence(Vec<SequenceItem>),
+}
+
+/// 序列解包的一个位置。
+#[derive(Clone, Copy, Debug)]
+pub enum SequenceItem {
+    /// 普通目标：按位置取一个元素。
+    One(LocalId),
+    /// 星号目标：把中间剩余的元素打包成列表。
+    Rest(LocalId),
 }

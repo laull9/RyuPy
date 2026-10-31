@@ -97,6 +97,30 @@ pub struct RuntimeRefs {
     pub trace_pop_to: MethodRefIndex,
     /// Python 异常类型名 → CLR 类型（CIL 类型化 catch 用）。
     pub exception_types: FxHashMap<String, MethodType>,
+    // ── 容器协议（M2.3）──
+    pub make_list: MethodRefIndex,
+    pub make_tuple: MethodRefIndex,
+    pub make_set: MethodRefIndex,
+    pub make_dict: MethodRefIndex,
+    pub make_slice: MethodRefIndex,
+    pub make_bytes: MethodRefIndex,
+    pub get_item: MethodRefIndex,
+    pub set_item: MethodRefIndex,
+    pub del_item: MethodRefIndex,
+    pub contains: MethodRefIndex,
+    pub len: MethodRefIndex,
+    pub is_same: MethodRefIndex,
+    pub repr_value: MethodRefIndex,
+    pub call_builtin: MethodRefIndex,
+    pub call_method: MethodRefIndex,
+    pub list_append: MethodRefIndex,
+    pub list_extend: MethodRefIndex,
+    pub unpack_check: MethodRefIndex,
+    pub iter_start: MethodRefIndex,
+    pub iter_next_ok: MethodRefIndex,
+    pub iter_value: MethodRefIndex,
+    /// `System.Object` 的 `MethodType`：`object[]` 的元素类型。
+    pub object_type: MethodType,
 }
 
 enum PendingTarget {
@@ -481,6 +505,54 @@ fn lower_operand(
     }
 }
 
+/// 构造 `object[]`：`newarr` 后逐个 `stelem.ref`。
+///
+/// 容器构造、方法调用与内建调用都用它，因此只写一份。
+fn lower_object_array(args: &[Operand], ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
+    let object_type = ctx.runtime_refs.object_type.clone();
+    ins.push(Instruction::LoadConstantInt32(args.len() as i32));
+    ins.push(Instruction::NewArray(object_type.clone()));
+    for (index, op) in args.iter().enumerate() {
+        ins.push(Instruction::Duplicate);
+        ins.push(Instruction::LoadConstantInt32(index as i32));
+        lower_operand(op, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+        ins.push(Instruction::StoreElement {
+            skip_type_check: false,
+            skip_range_check: false,
+            skip_null_check: false,
+            param0: object_type.clone(),
+        });
+    }
+}
+
+/// `RuntimeFn` → 方法引用。容器相关的调用与普通调用共用这张表。
+fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRefIndex {
+    match callee {
+        RuntimeFn::MakeList => refs.make_list,
+        RuntimeFn::MakeTuple => refs.make_tuple,
+        RuntimeFn::MakeSet => refs.make_set,
+        RuntimeFn::MakeDict => refs.make_dict,
+        RuntimeFn::MakeSlice => refs.make_slice,
+        RuntimeFn::MakeBytes => refs.make_bytes,
+        RuntimeFn::GetItem => refs.get_item,
+        RuntimeFn::SetItem => refs.set_item,
+        RuntimeFn::DelItem => refs.del_item,
+        RuntimeFn::Contains => refs.contains,
+        RuntimeFn::Len => refs.len,
+        RuntimeFn::IsSame => refs.is_same,
+        RuntimeFn::ReprValue => refs.repr_value,
+        RuntimeFn::DynBuiltin => refs.call_builtin,
+        RuntimeFn::CallMethod => refs.call_method,
+        RuntimeFn::ListAppend => refs.list_append,
+        RuntimeFn::ListExtend => refs.list_extend,
+        RuntimeFn::UnpackCheck => refs.unpack_check,
+        RuntimeFn::IterStart => refs.iter_start,
+        RuntimeFn::IterNextOk => refs.iter_next_ok,
+        RuntimeFn::IterValue => refs.iter_value,
+        other => unreachable!("{other:?} 不是容器调用"),
+    }
+}
+
 fn is_f64_operand(op: &Operand, locals: &la_arena::Arena<ryupy_mir::LocalDecl>) -> bool {
     match op {
         Operand::Const(MirConstant::F64(_)) => true,
@@ -675,6 +747,30 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::LoadChecked => {
                         ins.push(Instruction::call(ctx.runtime_refs.load_checked))
                     }
+                    // 容器相关的调用与 CallWithArgs 走同一张表
+                    RuntimeFn::MakeList
+                    | RuntimeFn::MakeTuple
+                    | RuntimeFn::MakeSet
+                    | RuntimeFn::MakeDict
+                    | RuntimeFn::MakeSlice
+                    | RuntimeFn::MakeBytes
+                    | RuntimeFn::GetItem
+                    | RuntimeFn::SetItem
+                    | RuntimeFn::DelItem
+                    | RuntimeFn::Contains
+                    | RuntimeFn::Len
+                    | RuntimeFn::IsSame
+                    | RuntimeFn::ReprValue
+                    | RuntimeFn::DynBuiltin
+                    | RuntimeFn::CallMethod
+                    | RuntimeFn::ListAppend
+                    | RuntimeFn::ListExtend
+                    | RuntimeFn::UnpackCheck
+                    | RuntimeFn::IterStart
+                    | RuntimeFn::IterNextOk
+                    | RuntimeFn::IterValue => {
+                        ins.push(Instruction::call(runtime_method(*rt_fn, ctx.runtime_refs)))
+                    }
                     RuntimeFn::TraceAttach => {
                         // M2.2 用 PrepareRaise 合并了「挂栈帧 + 挂上下文」，这里不再单独发射
                         ins.push(Instruction::NoOperation);
@@ -775,6 +871,18 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                 ctx.runtime_refs,
             );
             ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy));
+        }
+        Rvalue::CallWithArgs {
+            callee,
+            prefix,
+            args,
+        } => {
+            for op in prefix {
+                lower_operand(op, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            }
+            lower_object_array(args, ins, ctx);
+            let method = runtime_method(*callee, ctx.runtime_refs);
+            ins.push(Instruction::call(method));
         }
         Rvalue::CatchException => {
             // 异常对象由 CLR 在进入 handler 时压栈，这里不发射任何取值指令，

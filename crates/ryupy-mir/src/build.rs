@@ -541,33 +541,44 @@ impl<'a> FunctionBuilder<'a> {
             StmtKind::Expr(expr_id) => {
                 self.build_expr_stmt(*expr_id);
             }
-            StmtKind::Assign { target, value } => {
-                let val_op = self.expr_builder().build_expr(*value);
-                match target {
-                    AssignTarget::Local(loc) => {
-                        let dest = self.local_map[loc];
-                        let val_ty = self.expr_builder().ty_of(*value);
-                        self.expr_builder().assign_value(dest, val_op, &val_ty);
-                        self.assigned_locals.insert(*loc);
-                    }
-                    AssignTarget::Attribute { base, name } => {
-                        let base_op = self.expr_builder().build_expr(*base);
-                        let base_ty = self.expr_builder().ty_of(*base);
-                        if let Ty::Class(cls_id) = base_ty {
-                            let cls = &self.hir.classes[cls_id];
-                            if let Some((field_idx, _)) =
-                                cls.fields.iter().enumerate().find(|(_, f)| f.name == *name)
-                            {
-                                self.push_stmt(Statement::SetField {
-                                    obj: base_op,
-                                    field: field_idx as u32,
-                                    value: val_op,
-                                });
+            StmtKind::Assign { target, value } => match target {
+                AssignTarget::Subscript { base, index } => {
+                    self.build_subscript_assign(*base, *index, *value);
+                }
+                AssignTarget::Sequence(items) => {
+                    let items = items.clone();
+                    self.build_sequence_assign(&items, *value);
+                    self.mark_sequence_targets(&items);
+                }
+                _ => {
+                    let val_op = self.expr_builder().build_expr(*value);
+                    match target {
+                        AssignTarget::Local(loc) => {
+                            let dest = self.local_map[loc];
+                            let val_ty = self.expr_builder().ty_of(*value);
+                            self.expr_builder().assign_value(dest, val_op, &val_ty);
+                            self.assigned_locals.insert(*loc);
+                        }
+                        AssignTarget::Attribute { base, name } => {
+                            let base_op = self.expr_builder().build_expr(*base);
+                            let base_ty = self.expr_builder().ty_of(*base);
+                            if let Ty::Class(cls_id) = base_ty {
+                                let cls = &self.hir.classes[cls_id];
+                                if let Some((field_idx, _)) =
+                                    cls.fields.iter().enumerate().find(|(_, f)| f.name == *name)
+                                {
+                                    self.push_stmt(Statement::SetField {
+                                        obj: base_op,
+                                        field: field_idx as u32,
+                                        value: val_op,
+                                    });
+                                }
                             }
                         }
+                        AssignTarget::Subscript { .. } | AssignTarget::Sequence(_) => {}
                     }
                 }
-            }
+            },
             StmtKind::Return(opt_expr) => {
                 self.build_return(*opt_expr);
             }
@@ -661,6 +672,9 @@ impl<'a> FunctionBuilder<'a> {
             } => {
                 self.build_for_range(*var, *start, *stop, *step, body);
             }
+            StmtKind::ForEach { var, iter, body } => {
+                self.build_for_each(*var, *iter, body);
+            }
             StmtKind::Raise { value, cause } => {
                 // 裸 raise 取运行时「当前异常」；显式 raise 先准备（挂上下文 + 记栈帧）。
                 let value_op = match value {
@@ -708,6 +722,11 @@ impl<'a> FunctionBuilder<'a> {
             } => {
                 self.build_try(body, handlers, orelse, finalbody);
             }
+            StmtKind::Delete(targets) => {
+                for &target in targets {
+                    self.build_delete(target);
+                }
+            }
             StmtKind::Pass => {}
         }
     }
@@ -719,13 +738,11 @@ impl<'a> FunctionBuilder<'a> {
             let callee_expr = &hir_body.exprs[*callee];
             if matches!(callee_expr.kind, ExprKind::Builtin(Builtin::Print)) {
                 let dynamic = self.types.is_dynamic(self.current_hir_fn);
-                for (i, &arg) in args.iter().enumerate() {
-                    if i > 0 {
-                        self.push_stmt(Statement::Eval(Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::WriteSep),
-                            args: Vec::new(),
-                        }));
-                    }
+                // 先求值全部参数，再统一输出：Python 的调用语义是「实参先全部求值，再进入被调者」，
+                // 边求值边写会让 `print(x, x.pop())` 写出调用前的 stale 内容，也会让被求值表达式
+                // 里的 print 插到中间。见 docs/notes M2.3「实参求值顺序」。
+                let mut written = Vec::with_capacity(args.len());
+                for &arg in args.iter() {
                     let op = self.expr_builder().build_expr(arg);
                     let arg_ty = self.expr_builder().ty_of(arg);
                     // 动态函数里编译期不知道类型，统一交给 WriteObject（等价 print(str(v))）
@@ -745,6 +762,15 @@ impl<'a> FunctionBuilder<'a> {
                     } else {
                         op
                     };
+                    written.push((op, rt_fn));
+                }
+                for (i, (op, rt_fn)) in written.into_iter().enumerate() {
+                    if i > 0 {
+                        self.push_stmt(Statement::Eval(Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::WriteSep),
+                            args: Vec::new(),
+                        }));
+                    }
                     self.push_stmt(Statement::Eval(Rvalue::Call {
                         callee: Callee::Runtime(rt_fn),
                         args: vec![op],

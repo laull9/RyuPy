@@ -1,0 +1,82 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn reshape(_0: dyn) -> dyn {
+    let _0: dyn; // values
+    let _1: dyn; // head
+    let _2: dyn; // tail
+    let _3: i64;
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "reshape");
+        // line 2
+        _4 = RuntimeFn::Len(_0);
+        RuntimeFn::UnpackCheck(_4, const 1_i64);
+        _5 = box<I64>(const 0_i64);
+        _1 = RuntimeFn::GetItem(_0, _5);
+        _6 = box<I64>(const 1_i64);
+        _7 = RuntimeFn::DynNone();
+        _8 = RuntimeFn::DynNone();
+        _9 = RuntimeFn::MakeSlice(_6, _7, _8);
+        _2 = RuntimeFn::GetItem(_0, _9);
+        // line 3
+        _10 = box<I64>(const 8_i64);
+        _11 = box<I64>(const 9_i64);
+        _12 = MakeList([_10, _11]);
+        _13 = box<I64>(const 1_i64);
+        _14 = box<I64>(const 3_i64);
+        _15 = RuntimeFn::DynNone();
+        _16 = RuntimeFn::MakeSlice(_13, _14, _15);
+        RuntimeFn::SetItem(_0, _16, _12);
+        // line 4
+        _18 = RuntimeFn::DynNone();
+        _19 = RuntimeFn::DynNone();
+        _20 = box<I64>(const 1_i64);
+        _21 = dyn.Neg(_20);
+        _22 = RuntimeFn::MakeSlice(_18, _19, _21);
+        _23 = RuntimeFn::GetItem(_0, _22);
+        _17 = _23;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_3);
+        return _17;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "<module>");
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

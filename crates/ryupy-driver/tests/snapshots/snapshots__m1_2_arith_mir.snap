@@ -74,19 +74,19 @@ fn main() -> () {
         RuntimeFn::WriteNewline();
         // line 11
         _14 = BitAnd(const 5_i64, const 3_i64);
+        _15 = BitOr(const 5_i64, const 3_i64);
+        _16 = BitXor(const 5_i64, const 3_i64);
         RuntimeFn::WriteI64(_14);
         RuntimeFn::WriteSep();
-        _15 = BitOr(const 5_i64, const 3_i64);
         RuntimeFn::WriteI64(_15);
         RuntimeFn::WriteSep();
-        _16 = BitXor(const 5_i64, const 3_i64);
         RuntimeFn::WriteI64(_16);
         RuntimeFn::WriteNewline();
         // line 12
         _17 = Shl(const 1_i64, const 10_i64);
+        _18 = Shr(const 1024_i64, const 3_i64);
         RuntimeFn::WriteI64(_17);
         RuntimeFn::WriteSep();
-        _18 = Shr(const 1024_i64, const 3_i64);
         RuntimeFn::WriteI64(_18);
         RuntimeFn::WriteNewline();
         // line 13
@@ -100,15 +100,15 @@ fn main() -> () {
         RuntimeFn::WriteNewline();
         // line 15
         _22 = Lt(const 3_i64, const 5_i64);
+        _23 = Ge(const 3_i64, const 5_i64);
+        _24 = Eq(const 3_i64, const 3_i64);
+        _25 = Ne(const 3_i64, const 3_i64);
         RuntimeFn::WriteBool(_22);
         RuntimeFn::WriteSep();
-        _23 = Ge(const 3_i64, const 5_i64);
         RuntimeFn::WriteBool(_23);
         RuntimeFn::WriteSep();
-        _24 = Eq(const 3_i64, const 3_i64);
         RuntimeFn::WriteBool(_24);
         RuntimeFn::WriteSep();
-        _25 = Ne(const 3_i64, const 3_i64);
         RuntimeFn::WriteBool(_25);
         RuntimeFn::WriteNewline();
         goto -> bb1;

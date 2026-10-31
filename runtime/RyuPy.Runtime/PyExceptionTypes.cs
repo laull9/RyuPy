@@ -192,6 +192,13 @@ public class PyLookupError : PyException
     /// <param name="message">消息。</param>
     protected PyLookupError(string typeName, string message)
         : base(typeName, message) { }
+
+    /// <summary>供子类指定类型名与位置参数。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyLookupError(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>IndexError</c>。</summary>
@@ -210,6 +217,21 @@ public sealed class PyKeyError : PyLookupError
     /// <param name="message">消息（<c>repr(key)</c>）。</param>
     public PyKeyError(string message)
         : base("KeyError", message) { }
+
+    private PyKeyError(string message, object?[] args)
+        : base("KeyError", message, args) { }
+
+    /// <summary>
+    /// 由缺失的键构造：<c>args</c> 保存**键本身**而不是消息字符串。
+    /// </summary>
+    /// <remarks>
+    /// CPython 的 <c>KeyError</c> 把键放进 <c>args[0]</c>，
+    /// 所以 <c>print(error.args)</c> 输出 <c>('missing',)</c>——
+    /// 直接拿消息字符串当参数会变成 <c>("'missing'",)</c>，把引号也包进去。
+    /// </remarks>
+    /// <param name="key">缺失的键。</param>
+    public static PyKeyError ForKey(object? key) =>
+        new(PyRepr.Repr(key), [key ?? PyNone.Instance]);
 }
 
 /// <summary><c>ValueError</c>。</summary>

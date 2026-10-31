@@ -69,9 +69,9 @@ fn main() -> () {
         RuntimeFn::WriteNewline();
         // line 13
         _13 = RuntimeFn::F64ToI64(const 3.99_f64);
+        _14 = RuntimeFn::F64ToI64(const -3.99_f64);
         RuntimeFn::WriteI64(_13);
         RuntimeFn::WriteSep();
-        _14 = RuntimeFn::F64ToI64(const -3.99_f64);
         RuntimeFn::WriteI64(_14);
         RuntimeFn::WriteNewline();
         // line 14

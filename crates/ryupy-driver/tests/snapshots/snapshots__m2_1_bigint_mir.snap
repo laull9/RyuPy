@@ -67,40 +67,40 @@ fn main() -> () {
         // line 4
         _7 = box<I64>(const 1_i64);
         _8 = dyn.Add(_0, _7);
-        RuntimeFn::WriteObject(_8);
-        RuntimeFn::WriteSep();
         _9 = box<I64>(const 1_i64);
         _10 = dyn.Sub(_1, _9);
+        _11 = dyn.Neg(_1);
+        _12 = RuntimeFn::DynAbs(_1);
+        RuntimeFn::WriteObject(_8);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_10);
         RuntimeFn::WriteSep();
-        _11 = dyn.Neg(_1);
         RuntimeFn::WriteObject(_11);
         RuntimeFn::WriteSep();
-        _12 = RuntimeFn::DynAbs(_1);
         RuntimeFn::WriteObject(_12);
         RuntimeFn::WriteNewline();
         // line 5
         _13 = box<I64>(const 10_i64);
         _14 = box<I64>(const 40_i64);
         _15 = dyn.Pow(_13, _14);
-        RuntimeFn::WriteObject(_15);
-        RuntimeFn::WriteSep();
         _16 = box<I64>(const 1_i64);
         _17 = box<I64>(const 100_i64);
         _18 = dyn.LShift(_16, _17);
         _19 = box<I64>(const 70_i64);
         _20 = dyn.RShift(_18, _19);
+        RuntimeFn::WriteObject(_15);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_20);
         RuntimeFn::WriteNewline();
         // line 6
         _21 = box<I64>(const 1_i64);
         _22 = dyn.Neg(_21);
         _23 = dyn.FloorDiv(_1, _22);
-        RuntimeFn::WriteObject(_23);
-        RuntimeFn::WriteSep();
         _24 = box<I64>(const 1_i64);
         _25 = dyn.Neg(_24);
         _26 = dyn.Mod(_1, _25);
+        RuntimeFn::WriteObject(_23);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_26);
         RuntimeFn::WriteNewline();
         // line 7
@@ -110,14 +110,14 @@ fn main() -> () {
         _30 = dyn.Neg(_29);
         _31 = box<I64>(const 7_i64);
         _32 = dyn.FloorDiv(_30, _31);
-        RuntimeFn::WriteObject(_32);
-        RuntimeFn::WriteSep();
         _33 = box<I64>(const 10_i64);
         _34 = box<I64>(const 30_i64);
         _35 = dyn.Pow(_33, _34);
         _36 = dyn.Neg(_35);
         _37 = box<I64>(const 7_i64);
         _38 = dyn.Mod(_36, _37);
+        RuntimeFn::WriteObject(_32);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_38);
         RuntimeFn::WriteNewline();
         // line 8
@@ -138,10 +138,10 @@ fn main() -> () {
         _46 = dyn.Mul(_2, _45);
         _47 = box<I64>(const 2_i64);
         _48 = dyn.Sub(_46, _47);
-        RuntimeFn::WriteObject(_48);
-        RuntimeFn::WriteSep();
         _49 = box<Str>(const "123456789012345678901234567890");
         _50 = RuntimeFn::DynToInt(_49);
+        RuntimeFn::WriteObject(_48);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_50);
         RuntimeFn::WriteNewline();
         goto -> bb1;
