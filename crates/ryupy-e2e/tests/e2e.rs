@@ -146,6 +146,7 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
         input: case.entry.clone(),
         out_dir: out_dir.clone(),
         aot: false,
+        search_paths: Vec::new(),
     };
     let artifacts = match ryupy_driver::build(&mut sess, &opts) {
         Ok(a) => a,

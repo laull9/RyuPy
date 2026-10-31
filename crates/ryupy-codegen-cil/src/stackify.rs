@@ -12,6 +12,8 @@
 //! 进阶（Phase 3+）：把「定义后立即且仅使用一次」的临时变量留在求值栈上，省掉 stloc/ldloc。
 //! RyuJIT 本身会做这类优化，所以只有在 IL 体积成为问题时才值得做。
 
+use std::cell::Cell;
+
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{
@@ -35,8 +37,19 @@ struct LowerCtx<'a> {
     class_info: &'a ClassInfoMap,
     class_types: &'a ClassTypeMap,
     param_slots: &'a FxHashMap<LocalId, u16>,
+    /// PIC 调用点编号由整程序共享的计数器分配。
+    site_counter: &'a Cell<u32>,
     local_slots: &'a FxHashMap<LocalId, u16>,
     locals: &'a la_arena::Arena<ryupy_mir::LocalDecl>,
+}
+
+impl LowerCtx<'_> {
+    /// 分配一个新的 PIC 调用点编号。
+    fn next_site(&self) -> i32 {
+        let site = self.site_counter.get();
+        self.site_counter.set(site + 1);
+        site as i32
+    }
 }
 
 pub struct CompiledBody {
@@ -73,6 +86,9 @@ pub struct RuntimeRefs {
     pub dyn_binary: MethodRefIndex,
     pub dyn_compare: MethodRefIndex,
     pub dyn_unary: MethodRefIndex,
+    pub pic_binary: MethodRefIndex,
+    pub pic_call_value: MethodRefIndex,
+    pub pic_call_method: MethodRefIndex,
     pub dyn_truthy: MethodRefIndex,
     pub dyn_none: MethodRefIndex,
     pub dyn_from_decimal: MethodRefIndex,
@@ -121,7 +137,6 @@ pub struct RuntimeRefs {
     pub call_method: MethodRefIndex,
     pub array_get: MethodRefIndex,
     pub array_set: MethodRefIndex,
-    pub call_value: MethodRefIndex,
     pub type_object: MethodRefIndex,
     pub arg_error: MethodRefIndex,
     pub star_arg: MethodRefIndex,
@@ -194,6 +209,7 @@ pub fn lower_function(
     fn_map: &FxHashMap<FnId, MethodIndex>,
     class_types: &ClassTypeMap,
     class_info: &ClassInfoMap,
+    site_counter: &Cell<u32>,
 ) -> CompiledBody {
     // 区分形参（ldarg）与局部变量（ldloc）
     let mut param_slots: FxHashMap<LocalId, u16> = FxHashMap::default();
@@ -287,6 +303,7 @@ pub fn lower_function(
         class_info,
         class_types,
         param_slots: &param_slots,
+        site_counter,
         local_slots: &local_slots,
         locals: &func.body.locals,
     };
@@ -771,6 +788,14 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             }
         }
         Rvalue::Call { callee, args } => {
+            // 动态调用把调用点编号作为第一个实参，运行时据此做有界内联缓存。
+            if matches!(
+                callee,
+                Callee::Runtime(RuntimeFn::CallValue | RuntimeFn::CallMethod)
+            ) {
+                let site = ctx.next_site();
+                ins.push(Instruction::LoadConstantInt32(site));
+            }
             for arg in args {
                 lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
@@ -810,7 +835,7 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
                     RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
                     RuntimeFn::CallValue => {
-                        ins.push(Instruction::call(ctx.runtime_refs.call_value))
+                        ins.push(Instruction::call(ctx.runtime_refs.pic_call_value))
                     }
                     RuntimeFn::TypeObject => {
                         ins.push(Instruction::call(ctx.runtime_refs.type_object))
@@ -888,6 +913,9 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     RuntimeFn::ImportAttr => {
                         ins.push(Instruction::call(ctx.runtime_refs.import_attr))
                     }
+                    RuntimeFn::CallMethod => {
+                        ins.push(Instruction::call(ctx.runtime_refs.pic_call_method))
+                    }
                     // 容器相关的调用与 CallWithArgs 走同一张表
                     RuntimeFn::MakeList
                     | RuntimeFn::MakeTuple
@@ -903,7 +931,6 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
                     | RuntimeFn::IsSame
                     | RuntimeFn::ReprValue
                     | RuntimeFn::DynBuiltin
-                    | RuntimeFn::CallMethod
                     | RuntimeFn::ListAppend
                     | RuntimeFn::ListExtend
                     | RuntimeFn::UnpackCheck
@@ -998,10 +1025,12 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             }
         }
         Rvalue::DynBinary { op, lhs, rhs } => {
+            let site = ctx.next_site();
+            ins.push(Instruction::LoadConstantInt32(site));
             ins.push(Instruction::LoadConstantInt32(op.code()));
             lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
-            ins.push(Instruction::call(ctx.runtime_refs.dyn_binary));
+            ins.push(Instruction::call(ctx.runtime_refs.pic_binary));
         }
         Rvalue::DynCompare { op, lhs, rhs } => {
             ins.push(Instruction::LoadConstantInt32(op.code()));
@@ -1035,11 +1064,20 @@ fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
             prefix,
             args,
         } => {
+            let is_method_call = matches!(callee, RuntimeFn::CallMethod);
+            if is_method_call {
+                let site = ctx.next_site();
+                ins.push(Instruction::LoadConstantInt32(site));
+            }
             for op in prefix {
                 lower_operand(op, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
             lower_object_array(args, ins, ctx);
-            let method = runtime_method(*callee, ctx.runtime_refs);
+            let method = if is_method_call {
+                ctx.runtime_refs.pic_call_method
+            } else {
+                runtime_method(*callee, ctx.runtime_refs)
+            };
             ins.push(Instruction::call(method));
         }
         Rvalue::CatchException => {

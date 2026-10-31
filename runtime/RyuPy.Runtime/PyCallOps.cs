@@ -68,6 +68,26 @@ public static partial class PyOps
         };
     }
 
+    /// <summary>实参是否需要展开（含 <c>*</c> / <c>**</c>）。</summary>
+    internal static bool NeedsFlatten(object?[] rawArgs, object?[] rawNames)
+    {
+        foreach (object? arg in rawArgs)
+        {
+            if (arg is StarredArg)
+            {
+                return true;
+            }
+        }
+        foreach (object? name in rawNames)
+        {
+            if (name is null or PyNone)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /// <summary>
     /// 展开 `*` / `**` 实参：位置数组里的 <see cref="StarredArg"/> 摊平，
     /// 名字为 <c>None</c> 的关键字项按映射展开。

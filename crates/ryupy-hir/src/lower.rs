@@ -969,6 +969,7 @@ impl StmtLowerCtx<'_> {
                 StmtKind::Raise { value, cause }
             }
             ast::Stmt::Try(try_stmt) => return Some(self.lower_try(try_stmt)),
+            ast::Stmt::With(with_stmt) => return self.lower_with(with_stmt),
             ast::Stmt::If(if_stmt) => return Some(self.lower_if(if_stmt)),
             ast::Stmt::While(while_stmt) => {
                 let cond = self.lower_expr(&while_stmt.test);

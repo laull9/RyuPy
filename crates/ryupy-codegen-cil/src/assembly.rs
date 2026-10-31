@@ -104,6 +104,18 @@ pub fn build_resolution(
     );
     let dyn_unary =
         res.push_method_reference(method_ref! { static object @pyops_type::Unary(int, object) });
+    // PIC：动态运算与方法调用的有界内联缓存（M2.9）。
+    let pypic_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyPic in #ryupy_runtime });
+    let pypic_type: MethodType = BaseType::class(pypic_ref).into();
+    let pic_binary = res.push_method_reference(method_ref! {
+        static object @pypic_type::Binary(int, int, object, object)
+    });
+    let pic_call_value = res.push_method_reference(method_ref! {
+        static object @pypic_type::CallValue(int, object, object[], object[], object[])
+    });
+    let pic_call_method = res.push_method_reference(method_ref! {
+        static object @pypic_type::CallMethod(int, object, string, object[], object[], object[])
+    });
     let dyn_truthy =
         res.push_method_reference(method_ref! { static bool @pyops_type::Truthy(object) });
     let dyn_none = res.push_method_reference(method_ref! { static object @pyops_type::None() });
@@ -211,9 +223,6 @@ pub fn build_resolution(
     let array_set = res.push_method_reference(
         method_ref! { static void @pyops_type::ArraySet(object, long, object) },
     );
-    let call_value = res.push_method_reference(method_ref! {
-        static object @pyops_type::CallValue(object, object[], object[], object[])
-    });
     let type_object =
         res.push_method_reference(method_ref! { static object @pyops_type::TypeObject(string) });
     let arg_error =
@@ -399,6 +408,9 @@ pub fn build_resolution(
         dyn_binary,
         dyn_compare,
         dyn_unary,
+        pic_binary,
+        pic_call_value,
+        pic_call_method,
         dyn_truthy,
         dyn_none,
         dyn_from_decimal,
@@ -443,7 +455,6 @@ pub fn build_resolution(
         call_method,
         array_get,
         array_set,
-        call_value,
         type_object,
         arg_error,
         star_arg,
@@ -812,10 +823,18 @@ pub fn build_resolution(
         &accessors,
     );
 
-    // 第二遍：逐函数编译并填充 body
+    // 第二遍：逐函数编译并填充 body。动态运算 / 调用的 PIC 编号在整程序内递增分配。
+    let site_counter = std::cell::Cell::new(0u32);
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
-        let compiled = lower_function(func, &runtime_refs, &fn_indices, &class_types, &class_info);
+        let compiled = lower_function(
+            func,
+            &runtime_refs,
+            &fn_indices,
+            &class_types,
+            &class_info,
+            &site_counter,
+        );
         let mut method_body = body::Method::with_locals(compiled.locals, compiled.instructions);
         method_body.header.maximum_stack_size = compiled.max_stack_size;
         if !compiled.exceptions.is_empty() {

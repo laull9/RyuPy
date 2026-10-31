@@ -41,11 +41,12 @@ CPython 校验声明的退出码与异常，再用同一份清单跑 RyuPy。声
 
 | 用例 | 覆盖 | 状态 |
 | --- | --- | --- |
-| `cases/errors/unhandled_zero_division` | 未捕获异常的非零退出与消息 | pending（M2.2） |
-| `cases/errors/unhandled_chain` | `raise ... from ...` 的异常链 | pending（M2.2） |
-| `cases/errors/missing_module` | `ModuleNotFoundError` | pending（M2.7） |
-| `cases/harness/args_env_stdin` | 框架自检：参数 / 环境 / stdin 传递 | pending（需 sys.argv 等，M2.7 / M3.4） |
-| `cases/harness/multifile` | 框架自检：入口导入辅助模块 | pending（M2.7） |
+| `cases/errors/unhandled_zero_division` | 未捕获异常的非零退出与消息 | 已转正（M2.2） |
+| `cases/errors/unhandled_chain` | `raise ... from ...` 的异常链 | 已转正（M2.2） |
+| `cases/errors/missing_module` | `ModuleNotFoundError` | 已转正（M2.7） |
+| `cases/harness/args_env_stdin` | 框架自检：参数 / 环境 / stdin 传递 | pending（需 `sys.argv` 等，M3.4） |
+| `cases/harness/multifile` | 框架自检：入口导入辅助模块 | 已转正（M2.7） |
+| `cases/harness/pipeline` | 多文件数据处理：继承、模块状态、异常恢复与 `with` 清理 | 已转正（M2.9） |
 
 两个 `harness` 用例在 RyuPy 侧要等模块系统与 `sys` 才能转正，但它们的价值已经兑现：CPython 侧
 自检证明框架确实把参数、环境变量、标准输入与多文件入口传给了子进程。
@@ -59,6 +60,7 @@ make python-baseline                                 # 同上（默认阶段）
 make python-extensions                               # 扩展基线
 make cases-selftest                                  # 只跑框架自检（不编译 RyuPy）
 make e2e                                             # 正式差分（跳过 pending）
+make bench                                           # CPython vs RyuPy 基准（不进入门禁）
 make e2e-all                                         # 含 pending，看进度
 ```
 
@@ -92,10 +94,10 @@ e2e 默认串行执行：用例按名字排序，输出行带 `[已跑/总数]` 
 2026-10-31 在 macOS arm64 上运行。解释器固定在 `tests/pinned-python.txt`（3.12.13，经
 `uv python find` 解析），工具链为 .NET 10.0.403、Rust stable：
 
-- 用例自检：Phase 1–3 的 51 个单文件用例 + 5 个目录用例共 52 项全部通过；
+- 用例自检：Phase 1–3 的单文件用例与 6 个目录用例全部通过；
 - 项目基线：20 个项目全部记录成功（`tests/projects/baselines/`）；
-- RyuPy 侧：12 个用例通过（9 个 Phase 1 + 3 个 M2.1 动态/大整数用例），其余 pending；
-  20 个项目全部 `unsupported`（阻塞：`import`）。
+- RyuPy 侧：M2.9 时 e2e 通过 50 项、pending 21 项；20 个项目全部 `unsupported`，
+  第一项阻塞逐项目写在 [compatibility.md](../docs/compatibility.md) 的矩阵里。
 
 扩展基线需要 CPython 3.12 + NumPy 2.3.4，命令见下：
 

@@ -19,6 +19,7 @@ mod module_vars;
 pub mod operator;
 pub mod pretty;
 mod scope;
+mod with;
 
 pub use hir::*;
 pub use lower::lower_module;

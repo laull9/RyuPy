@@ -133,12 +133,32 @@ public static class PyModules
     }
 
     /// <summary>导入模块；已缓存或正在初始化时直接返回现有对象。</summary>
+    /// <remarks>
+    /// 与 CPython 一致，点分模块先初始化父包（例如 <c>a.b.c</c> 依次初始化 <c>a</c>、
+    /// <c>a.b</c>）。父包初始化期间可能已经反向导入了本模块，因此父包返回后要
+    /// **重新检查缓存**，避免重复执行模块代码。
+    /// </remarks>
     public static PyModule Import(string name)
     {
         if (Cache.TryGetValue(name, out var cached))
         {
             return cached;
         }
+
+        PyModule? parent = null;
+        string? childName = null;
+        int dot = name.LastIndexOf('.');
+        if (dot > 0)
+        {
+            parent = Import(name[..dot]);
+            childName = name[(dot + 1)..];
+            // 父包初始化时可能已经通过 `from . import child` 导入了本模块。
+            if (Cache.TryGetValue(name, out var early))
+            {
+                return early;
+            }
+        }
+
         if (!Registry.TryGetValue(name, out var registration))
         {
             throw new PyModuleNotFoundError($"No module named '{name}'");
@@ -159,7 +179,6 @@ public static class PyModules
         {
             module.RunInit();
             module.State = 2;
-            return module;
         }
         catch
         {
@@ -167,6 +186,13 @@ public static class PyModules
             Cache.Remove(name);
             throw;
         }
+
+        // 成功导入后挂到父包上，`pkg.sub` 才能像 CPython 一样直接取到子模块。
+        if (parent is not null && childName is not null)
+        {
+            parent.SetAttr(childName, module);
+        }
+        return module;
     }
 
     /// <summary><c>from m import name</c>：先取属性，缺属性时尝试导入子模块。</summary>

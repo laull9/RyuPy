@@ -49,6 +49,9 @@ public sealed class PyClass
     /// <summary>全部类的修改版本。</summary>
     private static long _globalVersion;
 
+    /// <summary>当前全局修改版本；PIC 用它判断缓存条目是否过期。</summary>
+    public static long GlobalVersion => _globalVersion;
+
     /// <summary>属性查找缓存上限。</summary>
     private const int CacheLimit = 256;
 
@@ -174,18 +177,13 @@ public sealed class PyClass
             return created;
         }
 
-        if (kwNames.Length > 0)
-        {
-            throw new PyTypeError(
-                $"{Name}() got an unexpected keyword argument '{kwNames[0]}'"
-            );
-        }
         var instance = new PyInstance(this);
         if (TryLookup("__init__", out PyClass initOwner, out object? initMethod))
         {
+            // 关键字实参由 `PyFunction` 的参数绑定负责，与普通函数调用一致。
             PyObject.InvokeBound(initMethod, initOwner, instance, args, kwNames, kwValues);
         }
-        else if (args.Length > 0)
+        else if (args.Length > 0 || kwNames.Length > 0)
         {
             throw new PyTypeError($"{Name}() takes no arguments");
         }
@@ -204,6 +202,12 @@ public sealed class PyInstance
 
     /// <summary>实例属性。</summary>
     public Dictionary<string, object?> Attributes { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>实例属性修改次数；PIC 用它判断属性查找缓存是否过期。</summary>
+    public long Version { get; private set; }
+
+    /// <summary>实例属性发生变化时递增版本。</summary>
+    internal void Touch() => Version++;
 
     /// <summary>创建实例。</summary>
     public PyInstance(PyClass cls) => Class = cls;

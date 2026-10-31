@@ -155,7 +155,9 @@ releases/                     # make build 的发行包（宿主平台，不进�
 
 异常优先使用 CIL 原生异常区域。MIR 先定义处理区、展开目标与清理顺序，codegen 验证受保护区域之间的合法跳转；生成器将暂停中的处理区状态保存到状态机。完整 traceback 对象与解释器 frame 内部接口不属于首批范围。
 
-运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。
+`with` 在 HIR 去糖成已有的 `try` / `except BaseException` / `finally`（见 [semantics.md](semantics.md) §5.1），MIR 不再增加专用节点：异常区域、`return` / `break` / `continue` 的清理边与 `__exit__` 调用复用同一套 `finally` 状态机。`handled` 局部变量保证每次进入只调用一次 `__exit__`。
+
+运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。M2.9 的 PIC 由 codegen 分配调用点编号，`PyPic` 只缓存整数 / 浮点 / 字符串运算形状与普通类方法绑定；类全局版本、实例属性版本变化即失效，模块属性不缓存，见 [ADR-0012](adr/0012-bounded-dynamic-pic.md)。
 
 普通对象保留引用身份，frozen dataclass 的 Phase 1 值类型降级受 ADR-0009 限定。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
 

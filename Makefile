@@ -89,6 +89,10 @@ projects-baseline: ## 用固定 CPython 记录项目入口的基线答案
 projects: runtime ## 项目级运行：编译并运行项目入口，对照 CPython 基线
 	cargo run -q -p ryupy-e2e --bin projects
 
+.PHONY: bench
+bench: ## 性能基准：CPython vs RyuPy Release（不进入 make check）
+	"$(PYTHON)" tests/run_benchmarks.py
+
 .PHONY: check
 check: lint test cases-selftest e2e ## 提交前必跑：lint + test + 用例自检 + e2e
 

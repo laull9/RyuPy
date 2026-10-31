@@ -1,9 +1,9 @@
 # 兼容性清单与偏差
 
 本文从 Phase 2 开始持续更新。项目集已于 M2.0 冻结（20 个纯 Python 项目，6 类用途），
-CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**，多数阻塞在第三方包导入（搜索路径与桥接，M2.9）。
-语言层面 M2.1 的动态值管线已接通（未标注函数、异构赋值、大整数均有差分用例通过），
-但项目入口都要 `import`，所以分母上的数字还不会变化。
+CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 已接入额外模块搜索根，
+项目源码可以解析；剩余阻塞逐项目列在下表，集中在内建类型继承、装饰器/元类、内建函数与文件 API。
+语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
 
 ## 兼容性目标怎么计算
@@ -37,35 +37,36 @@ M2.0 已按下面规则冻结选集，规则本身不再变动：
 ## 项目矩阵
 
 结果由 `cargo run -p ryupy-e2e --bin projects` 实测，结论写进「结果与阻塞」列。
-M2.7 之后模块系统已支持**项目内**导入；项目样例依赖仓库 `third_party/` 里的第三方包，
-而当前搜索路径只有入口文件所在目录，所以多数项目的下一项阻塞变成运行时找不到第三方包。
-矩阵在 M2.9 统一刷新，下表的「最近验证」仍是 M2.7 之前的记录。
+M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 runner 会自动把
+`third_party/projects/<包>-<版本>/`（含 `src/` 布局与依赖）加入搜索路径，因此「找不到第三方包」
+不再是统一阻塞；下表是逐项目的第一项编译 / 运行阻塞，也是下一步工作的排序依据。
 
 | 项目 | 版本与来源 | 入口与上游测试范围 | 传递依赖 | 路径 / 平台 | 结果与阻塞 | 最近验证 |
 | --- | --- | --- | --- | --- | --- | --- |
-| six | 1.16.0 / PyPI | `six_sample.py`；上游 test_six.py 公共 API 子集 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| sortedcontainers | 2.4.0 / PyPI | `sortedcontainers_sample.py`；三种有序容器基本操作 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| toml | 0.10.2 / PyPI | `toml_sample.py`；loads/dumps 往返 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| tomli | 2.0.1 / PyPI | `tomli_sample.py`；数组表与错误位置 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| pyparsing | 3.1.2 / PyPI | `pyparsing_sample.py`；表达式与结果命名 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| attrs | 23.2.0 / PyPI | `attrs_sample.py`；define/field/asdict（元类路径） | 无 | 原生 / macOS arm64 | 编译阻塞：装饰器 / 元类未实现（见 `projects.jsonl`） | 2026-10-31 |
-| networkx | 3.3 / PyPI | `networkx_sample.py`；建图、最短路、度序列 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| python-dateutil | 2.9.0.post0 / PyPI | `dateutil_sample.py`；parse 与 relativedelta | six==1.16.0 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| click | 8.1.7 / PyPI | `click_sample.py`；command/option/参数解析 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| docopt | 0.6.2 / PyPI | `docopt_sample.py`；usage 解析与默认值 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| pyfiglet | 1.0.2 / PyPI | `pyfiglet_sample.py`；字体渲染 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| tabulate | 0.9.0 / PyPI | `tabulate_sample.py`；表格格式与空表 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| texttable | 1.7.0 / PyPI | `texttable_sample.py`；列对齐 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| markdown | 3.5.2 / PyPI | `markdown_sample.py`；转换与扩展 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| chardet | 5.2.0 / PyPI | `chardet_sample.py`；detect 结果字段 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| wcwidth | 0.2.13 / PyPI | `wcwidth_sample.py`；宽字符与组合字符 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| colorama | 0.4.6 / PyPI | `colorama_sample.py`；ANSI 常量与 init | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| termcolor | 2.4.0 / PyPI | `termcolor_sample.py`；colored 属性组合 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| binaryornot | 0.4.4 / PyPI | `binaryornot_sample.py`；文本/二进制判定 | chardet==5.2.0 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
-| progress | 1.6 / PyPI | `progress_sample.py`；Bar 构造与计数 | 无 | 原生 / macOS arm64 | 运行失败：找不到第三方包（待 M2.9 搜索路径） | 2026-10-31 |
+| six | 1.16.0 / PyPI | `six_sample.py`；上游 test_six.py 公共 API 子集 | 无 | 原生 / macOS arm64 | unsupported：基类必须是名字（`types.ModuleType` 属性基类） | 2026-10-31 |
+| sortedcontainers | 2.4.0 / PyPI | 三种有序容器基本操作 | 无 | 原生 / macOS arm64 | unsupported：`class ...(dict)` 内建容器继承 | 2026-10-31 |
+| toml | 0.10.2 / PyPI | loads/dumps 往返 | 无 | 原生 / macOS arm64 | unsupported：函数体内 `import` | 2026-10-31 |
+| tomli | 2.0.1 / PyPI | 数组表与错误位置 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
+| pyparsing | 3.1.2 / PyPI | 表达式与结果命名 | 无 | 原生 / macOS arm64 | unsupported：`NamedTuple` 基类 / 动态基类 | 2026-10-31 |
+| attrs | 23.2.0 / PyPI | define/field/asdict（元类路径） | 无 | 原生 / macOS arm64 | unsupported：类装饰器（仅支持 `@dataclass`） | 2026-10-31 |
+| networkx | 3.3 / PyPI | 建图、最短路、度序列 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
+| python-dateutil | 2.9.0.post0 / PyPI | parse 与 relativedelta | six==1.16.0 | 原生 / macOS arm64 | unsupported：函数体内 `import` | 2026-10-31 |
+| click | 8.1.7 / PyPI | command/option/参数解析 | 无 | 原生 / macOS arm64 | unsupported：属性表达式基类 | 2026-10-31 |
+| docopt | 0.6.2 / PyPI | usage 解析与默认值 | 无 | 原生 / macOS arm64 | unsupported：`class ...(list)` 内建容器继承 | 2026-10-31 |
+| pyfiglet | 1.0.2 / PyPI | 字体渲染 | 无 | 原生 / macOS arm64 | unsupported：动态基类 `unicode_string` | 2026-10-31 |
+| tabulate | 0.9.0 / PyPI | 表格格式与空表 | 无 | 原生 / macOS arm64 | unsupported：`class ...(str)` 内建字符串继承 | 2026-10-31 |
+| texttable | 1.7.0 / PyPI | 列对齐 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
+| markdown | 3.5.2 / PyPI | 转换与扩展 | 无 | 原生 / macOS arm64 | unsupported：内建 `map` 未接入 | 2026-10-31 |
+| chardet | 5.2.0 / PyPI | detect 结果字段 | 无 | 原生 / macOS arm64 | unsupported：复杂类型表达式（`TypeVar` 等） | 2026-10-31 |
+| wcwidth | 0.2.13 / PyPI | 宽字符与组合字符 | 无 | 原生 / macOS arm64 | unsupported：内建 `ord` 未接入 | 2026-10-31 |
+| colorama | 0.4.6 / PyPI | ANSI 常量与 init | 无 | 原生 / macOS arm64 | unsupported：内建 `dir` 未接入 | 2026-10-31 |
+| termcolor | 2.4.0 / PyPI | colored 属性组合 | 无 | 原生 / macOS arm64 | unsupported：复杂类型表达式 | 2026-10-31 |
+| binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / macOS arm64 | unsupported：内建 `open` 未接入（文件 API 在 M3.4） | 2026-10-31 |
+| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
 
-分母 20，原生通过 0，**0%**。这个数字在 Phase 2 期间会随 M2.1 / M2.2 / M2.3 / M2.5 / M2.7 推进
-而变化，每次变化都重跑项目 runner 并更新本表；不因未通过而修改分母。
+分母 20，原生通过 0，**0%**。M2.9 不要求此时达到最终 80%：当前阻塞集中在
+**内建类型继承、动态基类、装饰器 / 元类、内建函数与文件 API**，属于 Phase 3 的语言与标准库工作。
+每次推进都重跑项目 runner 并更新本表；不因未通过而修改分母。
 
 ## 结果状态
 
@@ -89,11 +90,12 @@ M2.7 之后模块系统已支持**项目内**导入；项目样例依赖仓库 `
 | --- | --- | --- | --- |
 | D001 | 依赖对象离开作用域后立即析构、`__del__` 或弱引用回调的具体时机 | 架构边界，长期不复现 CPython refcount；相关用户 API 尚未完整实现 | .NET GC 的回收时机不同；使用 `with` / `finally` / `close()`，依赖原时机的项目列为有偏差或不支持 |
 | D002 | `sys.getrefcount`、`id()` 的地址值、对象大小和解释器内部布局 | 内部观测接口暂缓，不伪造 CPython 数据 | 监测 CPython 内存细节的项目不在默认兼容承诺内；普通对象身份语义仍须保留 |
-| D003 | 静态特化路径（带完整标注）的 Python `int` 超过 i64 范围 | 动态路径已按 ADR-0010 升级 BigInteger；静态路径仍是 i64，`+ - * // % abs ** <<` 越界抛 Python `OverflowError`（消息注明 RyuPy static integer limit），不泄漏 CLR 异常与 .NET 栈 | 去掉标注或在调用点传动态值即可走任意精度；静态路径的大整数结果当前受限 |
-| D004 | Phase 1 frozen dataclass 赋值与传参采用值拷贝 | 已修（M2.5）：frozen dataclass 改为 .NET 引用类型，跨动态调用只复制引用，身份稳定；ADR-0008 的值类型降级不再用于默认路径 | 缺少针对值表示的显式性能扩展；需要值语义的优化必须先证明身份不可观察或由用户显式选择 |
-| D005 | 深递归 | 已修（M2.2）：`PyTraceback.PushFrame` 按帧数守卫，超过 1000 层抛可捕获的 `RecursionError`，可用 `RYUPY_RECURSION_LIMIT` 调整 | 默认上限比 CPython 保守（一层 Python 调用占多层 CLR 栈帧）；极深递归仍可能先耗尽 CLR 栈 |
-| D006 | Phase 1 签名标注与模块级变量限制 | M2.1 / M2.7 已解除；函数内导入与星号导入仍明确报错 | 受限代码仍在编译期报错，不能据路线图认定已可用 |
-| D007 | Phase 1 除零、数值转换等错误暴露 .NET 异常，浮点除法缺少完整 Python 检查 | 已修：真除法 / `//` / `%` / `int(float)` 统一抛 Python 异常，未捕获时按 Python 形式退出（M2.2）；索引 / 属性错误已随 M2.3 / M2.5 接入 Python 异常 | 无已知剩余差异 |
+| D003 | 静态特化路径（带完整标注）的 Python `int` 超过 i64 范围 | 动态路径已按 ADR-0010 升级 BigInteger；静态路径仍是 i64，`+ - * // % abs ** <<` 越界抛 Python `OverflowError`（消息注明 RyuPy static integer limit），不泄漏 CLR 异常与 .NET 栈。示例 / 测试：`m2_1_bigint`、`snapshots.rs::fib_iter_100_overflows` | 去掉标注或在调用点传动态值即可走任意精度；静态路径的大整数结果当前受限 |
+| D004 | Phase 1 frozen dataclass 赋值与传参采用值拷贝 | 已修（M2.5）：frozen dataclass 改为 .NET 引用类型，跨动态调用只复制引用，身份稳定；ADR-0008 的值类型降级不再用于默认路径。测试：`m2_5_identity`、`m1_5_dataclass` | 缺少针对值表示的显式性能扩展；需要值语义的优化必须先证明身份不可观察或由用户显式选择 |
+| D005 | 深递归 | 已修（M2.2）：`PyTraceback.PushFrame` 按帧数守卫，超过 1000 层抛可捕获的 `RecursionError`，可用 `RYUPY_RECURSION_LIMIT` 调整。测试：`m2_2_recursion` | 默认上限比 CPython 保守（一层 Python 调用占多层 CLR 栈帧）；极深递归仍可能先耗尽 CLR 栈 |
+| D006 | Phase 1 签名标注与模块级变量限制 | M2.1 / M2.7 已解除；函数内导入与星号导入仍明确报错。测试：`m2_1_*`、`m2_7_modules`；`from x import *` 与函数内 `import` 在编译期报 `E0100` | 受限代码仍在编译期报错，不能据路线图认定已可用 |
+| D007 | Phase 1 除零、数值转换等错误暴露 .NET 异常，浮点除法缺少完整 Python 检查 | 已修：真除法 / `//` / `%` / `int(float)` 统一抛 Python 异常，未捕获时按 Python 形式退出（M2.2）；索引 / 属性错误已随 M2.3 / M2.5 接入 Python 异常。测试：`m2_2_exceptions`、`m2_3_*`、`errors/unhandled_zero_division` | 无已知剩余差异 |
+| D008 | `with` 的 `__enter__` / `__exit__` 使用普通属性查找，CPython 按类型槽查找 | M2.8 已知边界；类方法与常见上下文管理器无差异，`m2_8_with` 覆盖这些路径 | 不要在实例字典里遮蔽 `__enter__` / `__exit__`；需要类型槽精确语义时改用普通 `try` / `finally` |
 
 D001 接受生命周期模型差异，不自动接受任何 `__del__` / weakref 行为；实际开放 API 时仍需定义
 支持范围和测试。D003、D005、D006、D007 属于待修限制，不作为永久性能取舍。
@@ -102,10 +104,11 @@ D001 接受生命周期模型差异，不自动接受任何 `__del__` / weakref 
 
 | 可以默认采用 | 需要守卫或用户选择 | 当前暂缓 |
 | --- | --- | --- |
-| 保留结果和副作用的拆箱、shape 槽位、模块槽位、有上限的 PIC、非逃逸临时对象消除 | 固定宽度整数、可观察的值类型身份变化、浮点重排、改变匹配或随机序列的替代算法；新增前写 ADR，默认关闭 | 任意元类、多重继承、完整描述符协议、`eval/exec`、动态 import hook、frame / tracing 内部接口、完整 asyncio |
+| 保留结果和副作用的拆箱、shape 槽位、模块槽位、有上限的 PIC（`RYUPY_PIC=0` 可关闭）、非逃逸临时对象消除 | 固定宽度整数、可观察的值类型身份变化、浮点重排、改变匹配或随机序列的替代算法；新增前写 ADR，默认关闭 | 任意元类、多重继承、完整描述符协议、`eval/exec`、动态 import hook、frame / tracing 内部接口、完整 asyncio |
 
-这些性能扩展目前只是边界说明，尚无对应 CLI 开关。字典顺序、相等与哈希、可变别名、异常传播、
-求值顺序和普通对象身份属于常见行为，不按“冷门差异”略过。
+有界 PIC 是当前唯一的默认性能扩展，可用环境变量 `RYUPY_PIC=0` 关闭（见 ADR-0012）。
+其它性能扩展仍是边界说明。字典顺序、相等与哈希、可变别名、异常传播、求值顺序和普通对象身份
+属于常见行为，不按“冷门差异”略过。
 
 ## 拒绝与报错
 
@@ -114,8 +117,8 @@ D001 接受生命周期模型差异，不自动接受任何 `__del__` / weakref 
 位置。构建时声明的桥接依赖缺失必须明确失败，不能偷偷切换执行引擎或静默返回占位值。
 
 低影响差异经 ADR 接受并公开登记后，可以采用高性能默认实现。默认构建的限制与偏差进入可读报告；
-影响常用计算结果的性能扩展由用户显式启用，在执行前可见并进入产物记录。这些报告机制安排在
-M2.9 与 M5.1，当前尚未实现。
+影响常用计算结果的性能扩展由用户显式启用，在执行前可见并进入产物记录。M2.9 已提供 PIC 的
+运行期开关，统一的限制报告与产物记录仍安排在 M5.1。
 
 ## 规范依据
 

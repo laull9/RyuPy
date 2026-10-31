@@ -68,6 +68,8 @@ pub struct BuildOptions {
     /// 产物目录，CLI 默认 `<源目录>/__pycache__/<stem>/`（见 `ryupy-cli`）。
     pub out_dir: PathBuf,
     pub aot: bool,
+    /// 额外的模块搜索根（等价于 `sys.path` 的其它条目）；入口文件所在目录始终排在最前。
+    pub search_paths: Vec<PathBuf>,
 }
 
 /// 构建产物（布局见 docs/architecture.md「产物布局」）。
@@ -108,8 +110,12 @@ fn compile_module(
 }
 
 /// 编译整个模块图，返回合并后的程序。
-fn compile_linked(sess: &mut Session, entry: &Path) -> Result<ryupy_mir::LinkedProgram> {
-    let (sources, entry_index) = modules::load_program(sess, entry)?;
+fn compile_linked(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+) -> Result<ryupy_mir::LinkedProgram> {
+    let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
     let mut units = Vec::new();
     for module in sources {
         let (program, exports) = compile_module(sess, &module)?;
@@ -142,7 +148,7 @@ fn assembly_name(input: &Path) -> String {
 
 /// 编译一个 `.py` 文件为 `.dll`（可选再做 Native AOT）。
 pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
-    let linked = compile_linked(sess, &opts.input)?;
+    let linked = compile_linked(sess, &opts.input, &opts.search_paths)?;
 
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
