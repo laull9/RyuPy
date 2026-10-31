@@ -20,6 +20,7 @@ make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
 ```bash
 make runtime   # 构建 C# 运行时
 make check     # lint + 测试 + e2e
+make build     # 打宿主平台发行包（releases/）
 make help      # 全部命令
 ```
 

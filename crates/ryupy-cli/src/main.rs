@@ -20,7 +20,7 @@ enum Command {
     /// 编译为 .dll（加 --aot 生成原生可执行文件）
     Build {
         input: PathBuf,
-        /// 产物目录，默认 target/ryupy/<文件名>/
+        /// 产物目录，默认 <源文件目录>/__pycache__/<文件名>/
         #[arg(short, long)]
         out_dir: Option<PathBuf>,
         #[arg(long)]
@@ -58,8 +58,11 @@ impl From<EmitArg> for Stage {
 }
 
 fn default_out_dir(input: &std::path::Path) -> PathBuf {
+    let dir = input.parent().unwrap_or_else(|| std::path::Path::new("."));
     let stem = input.file_stem().unwrap_or_default();
-    PathBuf::from("target/ryupy").join(stem)
+    // 与 CPython 存放 `foo.cpython-312.pyc` 的位置对齐：都收进源文件旁的 `__pycache__`，
+    // 避免编译产物散落在源码目录里。每个入口单独一个子目录，防止不同入口互相覆盖。
+    dir.join("__pycache__").join(stem)
 }
 
 fn main() -> ExitCode {

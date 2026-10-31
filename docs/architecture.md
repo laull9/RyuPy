@@ -104,13 +104,17 @@ ryupy-e2e（仅测试）─► ryupy-driver
 ## 5. 产物布局
 
 ```text
-target/ryupy/<name>/          # ryupy build 默认输出目录
+<源目录>/__pycache__/<name>/  # ryupy build 默认输出目录（与 CPython 的 .pyc 同位）
 ├── <name>.dll                # 生成的程序集
 ├── <name>.runtimeconfig.json # 让 `dotnet <name>.dll` 找到共享框架
 ├── RyuPy.Runtime.dll         # 从 runtime/…/bin/Release/net10.0/ 复制
 └── aot/                      # 计划于 M5.2 实现：桩项目与原生可执行文件（ADR-0005）
 
 target/e2e/<case>/            # e2e 测试的产物，便于失败后手工检查
+
+releases/                     # make build 的发行包（宿主平台，不进版本库）
+├── ryupy-<版本>-<平台>/       # bin/ryupy + runtime/RyuPy.Runtime.dll
+└── ryupy-<版本>-<平台>.tar.gz
 ```
 
 ## 6. 测试策略
