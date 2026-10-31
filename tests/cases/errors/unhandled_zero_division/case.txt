@@ -1,5 +1,4 @@
 # M2.2：未捕获异常的错误退出基线。
 # stdout 与 CPython 逐字节比较，异常只比较最后一行（traceback 栈帧属框架差异）。
-pending = true
 expect_exit = 1
 expect_exception = ZeroDivisionError: division by zero

@@ -113,7 +113,7 @@ CPython 一致的消息。
 | 9 | `range` 步长为 0 | `ValueError` | 死循环 | 字面量 0 编译期报错，变量运行时检查 |
 | 10 | 先读后写的局部变量 | `UnboundLocalError` | CIL local 默认为 0 | 编译期做「确定赋值」分析报错 |
 | 11 | 深递归 | `RecursionError`（默认 1000 层） | 栈溢出直接崩溃进程 | Phase 1 接受差异，记录在案 |
-| 12 | 除以零 | `ZeroDivisionError` | 整数抛 `DivideByZeroException`；浮点得 `inf` / NaN | 当前差异；M2.2 补浮点检查并统一 Python 异常类型 |
+| 12 | 除以零 | `ZeroDivisionError` | 整数抛 `DivideByZeroException`；浮点得 `inf` / NaN | 真除法与 `//` `%` 全部走运行时检查，抛 `ZeroDivisionError`；未捕获时按 Python 形式退出（M2.2） |
 | 13 | `int(nan)` / `int(inf)` | `ValueError` / `OverflowError` | `conv.i8` 结果未定义 | 运行时函数检查 |
 | 14 | 字符串长度 / 下标 | 按码点 | 按 UTF-16 单元 | Phase 1 不支持 `len`/下标；Phase 2 处理 |
 | 15 | 浮点 NaN 比较 | `nan < 1` 为 `False`，`nan != nan` 为 `True` | `clt` 正确；`!(a < b)` 式的取反实现会出错 | 比较指令不得用「取反」实现 `>=` 等 |
@@ -125,6 +125,24 @@ CPython 一致的消息。
 | 21 | 模块初始化 | 按首次导入执行，循环中可见部分初始化对象 | .NET 静态构造时机不等同 Python import | M2.7 独立模块对象、缓存与初始化入口，不依赖静态构造自动复现 |
 | 22 | 方法与属性重绑定 | 后续查找须看到新绑定 | 缓存会保留旧目标 | M2.5–M2.9 携带类型 / shape / 模块版本，修改后失效并返回通用分派 |
 | 23 | 生成器清理 | close / throw 与 finally / with 联动 | 简单 IEnumerator 不覆盖全部协议 | M3.2 保存异常和清理状态；析构触发关闭的时机仍受 D001 限制 |
+
+### 4.1 未捕获异常与退出码（M2.2）
+
+入口编译成两层：`Main(string[]) -> int` 是包装器，`try { __main(); return 0; } catch (PyBaseException e)
+{ Report(e); return 1; }`。未捕获异常因此表现为：
+
+```text
+Traceback (most recent call last):
+  File "<ryupy>", in <module>
+ZeroDivisionError: float division by zero
+```
+
+stderr 上是 traceback，最后一行是 `Type: message`，退出码 1——与 CPython 的契约一致
+（`tests/cases/errors/unhandled_zero_division` 已转正）。显式链 `raise ... from ...` 会按
+CPython 的措辞输出分隔段。
+
+**当前限制**：traceback 还没有逐帧的 `File "x.py", line N, in fn`（MIR 尚未携带源码行号），
+也没有 `__context__` 的隐式链。这些在 M2.2 的后续竖切补。
 
 ## 5. 模块与入口
 

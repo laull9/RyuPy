@@ -65,6 +65,9 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let pow_i64 =
         res.push_method_reference(method_ref! { static long @pymath_type::PowI64(long, long) });
 
+    let true_div_f64 = res.push_method_reference(
+        method_ref! { static double @pymath_type::TrueDivF64(double, double) },
+    );
     let floor_div_f64 = res.push_method_reference(
         method_ref! { static double @pymath_type::FloorDivF64(double, double) },
     );
@@ -105,6 +108,16 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let dyn_abs =
         res.push_method_reference(method_ref! { static object @pyops_type::AbsValue(object) });
 
+    // 未捕获异常的顶层报告（M2.2）
+    let py_exc_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyBaseException in #ryupy_runtime });
+    let py_exc_type: MethodType = BaseType::class(py_exc_ref).into();
+    let traceback_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyTraceback in #ryupy_runtime });
+    let traceback_type: MethodType = BaseType::class(traceback_ref).into();
+    let report_unhandled = res
+        .push_method_reference(method_ref! { static void @traceback_type::Report(@py_exc_type) });
+
     let pycast_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyCast in #ryupy_runtime });
     let pycast_type: MethodType = BaseType::class(pycast_ref).into();
     let cast_to_i64 =
@@ -129,6 +142,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         floor_div_i64,
         mod_i64,
         pow_i64,
+        true_div_f64,
         floor_div_f64,
         mod_f64,
         pow_f64,
@@ -244,21 +258,35 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         );
     }
 
-    // 第一遍：为所有函数分配 MethodIndex
+    // 第一遍：为所有函数分配 MethodIndex。
+    //
+    // 入口函数拆成两个方法：`Main` 是返回 int 的包装器（带 try/catch，负责把未捕获的
+    // Python 异常渲染成 traceback 并返回 1），`__main` 承载真正的模块顶层代码。
     let mut fn_indices: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
+    let mut entry_wrapper: Option<MethodIndex> = None;
     for (fn_id, func) in program.functions.iter() {
         let method_idx = if fn_id == program.entry {
             let main_method = res.push_method(
                 module_class,
                 Method::new(
                     Accessibility::Public,
-                    msig! { static void (string[]) },
+                    msig! { static int (string[]) },
                     "Main",
                     None,
                 ),
             );
             res.set_entry_point(main_method);
-            main_method
+            entry_wrapper = Some(main_method);
+            // 顶层代码放进 __main()，保留 void 返回，避免包装器与模块返回值的耦合
+            res.push_method(
+                module_class,
+                Method::new(
+                    Accessibility::Private,
+                    msig! { static void () },
+                    "__main",
+                    None,
+                ),
+            )
         } else {
             let params: Vec<_> = func
                 .params
@@ -292,7 +320,74 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res[method_idx].body = Some(method_body);
     }
 
+    // 包装器最后生成：需要 `__main` 的方法下标
+    if let Some(wrapper) = entry_wrapper {
+        emit_entry_wrapper(
+            &mut res,
+            wrapper,
+            fn_indices[&program.entry],
+            report_unhandled,
+            py_exc_type,
+        );
+    }
+
     (res, module_class)
+}
+
+/// 入口包装器：`try { __main(); return 0; } catch (PyBaseException e) { Report(e); return 1; }`。
+///
+/// 这是 M2.2 的第一块：**未捕获异常必须按 Python 的方式退出**（stderr 上 traceback、
+/// 最后一行 `Type: message`、退出码 1），而不是让 CLR 打印 "Unhandled exception" 后
+/// 以 134 退出。抛出的异常对象由 catch 子句压栈，直接作为 `Report` 的实参。
+fn emit_entry_wrapper(
+    res: &mut Resolution<'static>,
+    wrapper: MethodIndex,
+    body_method: MethodIndex,
+    report_ref: MethodRefIndex,
+    exception_type: MethodType,
+) {
+    // 指令布局（分支目标是**指令下标**）：
+    //   0: call __main
+    //   1: leave 5
+    //   2: (handler) call Report   ← 异常对象已在栈上
+    //   3: ldc.i4.1
+    //   4: ret
+    //   5: ldc.i4.0
+    //   6: ret
+    // 指令布局（分支目标是**指令下标**）：
+    //   0: call __main          ┐ try
+    //   1: leave 4              ┘
+    //   2: call Report          ┐ handler（异常对象由 catch 子句压栈）
+    //   3: leave 6              ┘
+    //   4: ldc.i4.0
+    //   5: ret
+    //   6: ldc.i4.1
+    //   7: ret
+    //
+    // 处理区必须以 `leave` 离开、不能直接 `ret`——否则 CLR 判为非法方法体
+    // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
+    let instructions = vec![
+        Instruction::call(body_method),
+        Instruction::Leave(4),
+        Instruction::call(report_ref),
+        Instruction::Leave(6),
+        Instruction::LoadConstantInt32(0),
+        Instruction::Return,
+        Instruction::LoadConstantInt32(1),
+        Instruction::Return,
+    ];
+    let mut method_body = body::Method::new(instructions);
+    method_body.header.maximum_stack_size = 8;
+    method_body.data_sections = vec![body::DataSection::ExceptionHandlers(vec![
+        body::Exception {
+            kind: body::ExceptionKind::TypedException(exception_type),
+            try_offset: 0,
+            try_length: 2,
+            handler_offset: 2,
+            handler_length: 2,
+        },
+    ])];
+    res[wrapper].body = Some(method_body);
 }
 
 pub fn emit(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {

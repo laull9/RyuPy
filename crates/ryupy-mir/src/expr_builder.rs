@@ -335,16 +335,9 @@ impl<'a> ExprBuilder<'a> {
                 if rhs_ty == Ty::Int {
                     rhs_op = self.cast_i64_to_f64(rhs_op);
                 }
-                let dest = self.alloc_temp(MirType::F64);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Binary {
-                        op: BinOp::Div,
-                        lhs: lhs_op,
-                        rhs: rhs_op,
-                    },
-                });
-                Operand::Local(dest)
+                // 除数为 0 时 Python 抛 ZeroDivisionError，CIL 的 `div` 只会得到 inf/NaN，
+                // 因此真除法统一走运行时检查（语义陷阱 #12）。
+                self.call_runtime_binary(RuntimeFn::TrueDivF64, lhs_op, rhs_op, MirType::F64)
             }
             _ => {
                 let mir_op = match op {
