@@ -2,7 +2,11 @@
 .DEFAULT_GOAL := help
 FILE ?= tests/e2e/phase1/m1_0_print_int.py
 EMIT ?= hir
-PYTHON ?= python3
+# 差分测试的标准答案必须来自固定的小版本（见 tests/pinned-python.txt）。
+# 优先用 uv 找到精确版本；找不到时回退 python3，由脚本打印警告。
+PYTHON_VERSION := $(shell cat tests/pinned-python.txt 2>/dev/null)
+PYTHON ?= $(shell uv python find $(PYTHON_VERSION) 2>/dev/null || echo python3)
+export PYTHON
 
 .PHONY: help
 help: ## 显示帮助
@@ -45,6 +49,18 @@ e2e-all: runtime ## 端到端测试，包括 pending 用例（查看进度用）
 .PHONY: cases-selftest
 cases-selftest: ## 只自检用例与框架：多文件/参数/环境/输入/错误路径（不编译 RyuPy）
 	E2E_PYTHON_ONLY=1 cargo test -p ryupy-e2e -- --include-ignored
+
+.PHONY: projects-fetch
+projects-fetch: ## 抓取固定项目集的 sdist 源码（需要联网，源码不进版本库）
+	"$(PYTHON)" tests/fetch_projects.py
+
+.PHONY: projects-baseline
+projects-baseline: ## 用固定 CPython 记录项目入口的基线答案
+	"$(PYTHON)" tests/run_projects_baseline.py
+
+.PHONY: projects
+projects: runtime ## 项目级运行：编译并运行项目入口，对照 CPython 基线
+	cargo run -q -p ryupy-e2e --bin projects
 
 .PHONY: check
 check: lint test cases-selftest e2e ## 提交前必跑：lint + test + 用例自检 + e2e

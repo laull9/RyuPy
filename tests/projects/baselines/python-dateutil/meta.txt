@@ -1,0 +1,7 @@
+id=python-dateutil
+pypi=python-dateutil
+version=2.9.0.post0
+python=Python 3.12.13
+recorded=2026-10-31
+exit=0
+stderr_last=

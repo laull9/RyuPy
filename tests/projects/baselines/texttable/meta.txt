@@ -1,0 +1,7 @@
+id=texttable
+pypi=texttable
+version=1.7.0
+python=Python 3.12.13
+recorded=2026-10-31
+exit=0
+stderr_last=

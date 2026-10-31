@@ -1,0 +1,7 @@
+id=click
+pypi=click
+version=8.1.7
+python=Python 3.12.13
+recorded=2026-10-31
+exit=0
+stderr_last=

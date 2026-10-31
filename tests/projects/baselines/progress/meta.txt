@@ -1,0 +1,7 @@
+id=progress
+pypi=progress
+version=1.6
+python=Python 3.12.13
+recorded=2026-10-31
+exit=0
+stderr_last=

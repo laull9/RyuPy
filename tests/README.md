@@ -86,7 +86,13 @@ Phase 4 需要显式选择，环境缺少 NumPy 时直接失败，不静默跳�
 
 ## 本次基线记录
 
-2026-10-31 在 macOS arm64 上运行，解释器为环境中默认 `python3`（当前 3.13.12）；
+2026-10-31 在 macOS arm64 上运行。解释器固定在 `tests/pinned-python.txt`（3.12.13，经
+`uv python find` 解析），工具链为 .NET 10.0.403、Rust stable：
+
+- 用例自检：Phase 1–3 的 41 个单文件用例 + 5 个目录用例全部通过；
+- 项目基线：20 个项目全部记录成功（`tests/projects/baselines/`）；
+- RyuPy 侧：9 个 Phase 1 用例通过，其余 pending；20 个项目全部 `unsupported`（阻塞：`import`）。
+
 扩展基线需要 CPython 3.12 + NumPy 2.3.4，命令见下：
 
 ```bash

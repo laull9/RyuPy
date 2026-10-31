@@ -1,0 +1,7 @@
+id=docopt
+pypi=docopt
+version=0.6.2
+python=Python 3.12.13
+recorded=2026-10-31
+exit=0
+stderr_last=  split = re.split('\n *(<\S+?>|-\S+?)', doc)[1:]

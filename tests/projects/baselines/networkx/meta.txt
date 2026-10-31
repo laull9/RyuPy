@@ -1,0 +1,7 @@
+id=networkx
+pypi=networkx
+version=3.3
+python=Python 3.12.13
+recorded=2026-10-31
+exit=0
+stderr_last=
