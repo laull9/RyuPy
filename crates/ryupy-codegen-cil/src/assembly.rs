@@ -42,10 +42,15 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res.push_method_reference(method_ref! { static void @builtins_type::WriteF64(double) });
     let write_bool =
         res.push_method_reference(method_ref! { static void @builtins_type::WriteBool(bool) });
+    let write_str =
+        res.push_method_reference(method_ref! { static void @builtins_type::WriteStr(string) });
     let write_newline =
         res.push_method_reference(method_ref! { static void @builtins_type::WriteNewline() });
     let write_sep =
-        res.push_method_reference(method_ref! { static void #builtins_type::WriteSep() });
+        res.push_method_reference(method_ref! { static void @builtins_type::WriteSep() });
+    let str_concat = res.push_method_reference(
+        method_ref! { static string #builtins_type::StrConcat(string, string) },
+    );
 
     let pymath_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyMath in #ryupy_runtime });
     let pymath_type: MethodType = BaseType::class(pymath_ref).into();
@@ -63,20 +68,30 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let mod_f64 = res
         .push_method_reference(method_ref! { static double @pymath_type::ModF64(double, double) });
     let pow_f64 = res
-        .push_method_reference(method_ref! { static double #pymath_type::PowF64(double, double) });
+        .push_method_reference(method_ref! { static double @pymath_type::PowF64(double, double) });
+    let f64_to_i64 =
+        res.push_method_reference(method_ref! { static long @pymath_type::F64ToI64(double) });
+    let abs_i64 = res.push_method_reference(method_ref! { static long @pymath_type::AbsI64(long) });
+    let abs_f64 =
+        res.push_method_reference(method_ref! { static double #pymath_type::AbsF64(double) });
 
     let runtime_refs = RuntimeRefs {
         write_i64,
         write_f64,
         write_bool,
+        write_str,
         write_newline,
         write_sep,
+        str_concat,
         floor_div_i64,
         mod_i64,
         pow_i64,
         floor_div_f64,
         mod_f64,
         pow_f64,
+        f64_to_i64,
+        abs_i64,
+        abs_f64,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(
@@ -128,10 +143,9 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
         let compiled = lower_function(func, &runtime_refs, &fn_indices);
-        res[method_idx].body = Some(body::Method {
-            data_sections: Vec::new(),
-            ..body::Method::with_locals(compiled.locals, compiled.instructions)
-        });
+        let mut method_body = body::Method::with_locals(compiled.locals, compiled.instructions);
+        method_body.header.maximum_stack_size = 64;
+        res[method_idx].body = Some(method_body);
     }
 
     (res, module_class)

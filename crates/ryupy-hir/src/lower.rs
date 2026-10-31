@@ -183,19 +183,19 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
     (module, diagnostics)
 }
 
-struct StmtLowerCtx<'a> {
-    file: FileId,
-    diagnostics: &'a mut Vec<Diagnostic>,
-    global_scope: &'a GlobalScope,
-    func_scope: &'a mut FunctionScope,
-    module_locals: &'a FxHashMap<Name, crate::hir::LocalId>,
-    body: &'a mut Body,
-    is_in_func: bool,
-    loop_depth: usize,
+pub(crate) struct StmtLowerCtx<'a> {
+    pub(crate) file: FileId,
+    pub(crate) diagnostics: &'a mut Vec<Diagnostic>,
+    pub(crate) global_scope: &'a GlobalScope,
+    pub(crate) func_scope: &'a mut FunctionScope,
+    pub(crate) module_locals: &'a FxHashMap<Name, crate::hir::LocalId>,
+    pub(crate) body: &'a mut Body,
+    pub(crate) is_in_func: bool,
+    pub(crate) loop_depth: usize,
 }
 
 impl StmtLowerCtx<'_> {
-    fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
+    pub(crate) fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
             file: self.file,
             global_scope: self.global_scope,
@@ -214,7 +214,7 @@ impl StmtLowerCtx<'_> {
         }
     }
 
-    fn lower_suite(&mut self, stmts: &[ast::Stmt]) -> Vec<StmtId> {
+    pub(crate) fn lower_suite(&mut self, stmts: &[ast::Stmt]) -> Vec<StmtId> {
         let mut out = Vec::new();
         for s in stmts {
             if let Some(id) = self.lower_stmt(s) {
@@ -369,6 +369,13 @@ impl StmtLowerCtx<'_> {
                 self.loop_depth -= 1;
                 StmtKind::While { cond, body }
             }
+            ast::Stmt::For(for_stmt) => {
+                let kind = self.lower_for(for_stmt)?;
+                return Some(self.body.stmts.alloc(Stmt {
+                    kind,
+                    range: for_stmt.range,
+                }));
+            }
             ast::Stmt::Break(b) => {
                 if self.loop_depth == 0 {
                     self.diagnostics.push(
@@ -443,37 +450,6 @@ impl StmtLowerCtx<'_> {
             range: stmt.range(),
         }))
     }
-
-    fn lower_if(&mut self, if_stmt: &ast::StmtIf) -> StmtId {
-        let cond = self.lower_expr(&if_stmt.test);
-        let then_ = self.lower_suite(&if_stmt.body);
-        let else_ = self.lower_elif_else(&if_stmt.elif_else_clauses);
-        self.body.stmts.alloc(Stmt {
-            kind: StmtKind::If { cond, then_, else_ },
-            range: if_stmt.range,
-        })
-    }
-
-    fn lower_elif_else(&mut self, clauses: &[ast::ElifElseClause]) -> Vec<StmtId> {
-        if clauses.is_empty() {
-            return Vec::new();
-        }
-        let first = &clauses[0];
-        let rest = &clauses[1..];
-        match &first.test {
-            Some(test_expr) => {
-                let cond = self.lower_expr(test_expr);
-                let then_ = self.lower_suite(&first.body);
-                let else_ = self.lower_elif_else(rest);
-                let nested_if = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::If { cond, then_, else_ },
-                    range: first.range,
-                });
-                vec![nested_if]
-            }
-            None => self.lower_suite(&first.body),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -521,5 +497,25 @@ def classify(n: int) -> int:
         let (hir, diags) = lower_module(&parsed);
         assert!(diags.is_empty(), "diags: {diags:?}");
         assert_eq!(hir.functions.len(), 2); // classify, main
+    }
+
+    #[test]
+    fn lowers_for_range_loop() {
+        let mut db = SourceDb::default();
+        let src = r#"
+total = 0
+for i in range(10):
+    total += i
+"#;
+        let file = db.add("test.py", src);
+        let (parsed, diags) = ryupy_syntax::parse(file, src);
+        assert!(diags.is_empty());
+
+        let (hir, diags) = lower_module(&parsed);
+        assert!(diags.is_empty(), "diags: {diags:?}");
+        let main_fn = &hir.functions[hir.main];
+        assert_eq!(main_fn.body.root.len(), 2);
+        let for_stmt = &main_fn.body.stmts[main_fn.body.root[1]];
+        assert!(matches!(for_stmt.kind, StmtKind::ForRange { .. }));
     }
 }

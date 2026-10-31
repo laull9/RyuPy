@@ -22,6 +22,7 @@ lint: ## fmt 检查 + clippy（警告视为错误）
 
 .PHONY: test
 test: ## 单元测试 + 快照测试（不含 e2e）
+	dotnet test runtime/RyuPy.Runtime.Tests -nologo -v q
 	cargo test --workspace --exclude ryupy-e2e
 
 .PHONY: e2e

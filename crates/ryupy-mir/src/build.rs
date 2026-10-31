@@ -22,7 +22,7 @@
 
 use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
-use ryupy_base::Diagnostic;
+use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{
     AssignTarget, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, StmtId, StmtKind,
 };
@@ -30,8 +30,8 @@ use ryupy_ty::{ModuleTypes, Ty};
 
 use crate::expr_builder::ExprBuilder;
 use crate::mir::{
-    BasicBlock, BlockId, Callee, FnId, Function, LocalDecl, LocalId as MirLocalId, MirType,
-    Program, RuntimeFn, Rvalue, Statement, Terminator,
+    BasicBlock, BinOp, BlockId, Callee, Constant, FnId, Function, LocalDecl, LocalId as MirLocalId,
+    MirType, Operand, Program, RuntimeFn, Rvalue, Statement, Terminator, UnaryOp,
 };
 
 pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnostic>) {
@@ -316,9 +316,191 @@ impl<'a> FunctionBuilder<'a> {
                     .expect("continue 语句在 HIR 降级阶段已做循环作用域检查");
                 self.terminate_current(Terminator::Goto(continue_bb));
             }
+            StmtKind::ForRange {
+                var,
+                start,
+                stop,
+                step,
+                body,
+            } => {
+                self.build_for_range(*var, *start, *stop, *step, body);
+            }
             StmtKind::Pass => {}
-            _ => {}
         }
+    }
+
+    fn build_for_range(
+        &mut self,
+        var: HirLocalId,
+        start: ExprId,
+        stop: ExprId,
+        step: Option<ExprId>,
+        body: &[StmtId],
+    ) {
+        // 1. 求值起始、终止和步长操作数
+        let start_op = self.expr_builder().build_expr(start);
+        let stop_op = self.expr_builder().build_expr(stop);
+        let step_op = match step {
+            Some(s) => self.expr_builder().build_expr(s),
+            None => Operand::Const(Constant::I64(1)),
+        };
+
+        // 步长为常量 0 时，编译期报错（语义陷阱 #9）
+        if let Operand::Const(Constant::I64(0)) = step_op {
+            let range = self.hir.functions[self.current_hir_fn].body.exprs[step.unwrap()].range;
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.hir.file, range),
+                    "range() arg 3 must not be zero",
+                )
+                .with_code("E0302")
+                .with_primary_label("步长不能为 0"),
+            );
+        }
+
+        let var_mir = self.local_map[&var];
+        self.assigned_locals.insert(var);
+
+        // var = start
+        self.push_stmt(Statement::Assign {
+            dest: var_mir,
+            value: Rvalue::Use(start_op),
+        });
+
+        // 2. 基本块创建
+        let cond_bb = self.new_block();
+        let body_bb = self.new_block();
+        let step_bb = self.new_block();
+        let exit_bb = self.new_block();
+
+        self.terminate_current(Terminator::Goto(cond_bb));
+
+        // 3. 条件块 (cond_bb)
+        self.current_bb = cond_bb;
+        // 条件判断：
+        // 若 step 为常量 > 0：var < stop
+        // 若 step 为常量 < 0：var > stop
+        // 若 step 为非常量：(step > 0 && var < stop) || (step < 0 && var > stop)
+        let cond_local = self.expr_builder().alloc_temp(MirType::Bool);
+        match step_op {
+            Operand::Const(Constant::I64(s)) if s > 0 => {
+                self.push_stmt(Statement::Assign {
+                    dest: cond_local,
+                    value: Rvalue::Binary {
+                        op: BinOp::Lt,
+                        lhs: Operand::Local(var_mir),
+                        rhs: stop_op,
+                    },
+                });
+            }
+            Operand::Const(Constant::I64(s)) if s < 0 => {
+                self.push_stmt(Statement::Assign {
+                    dest: cond_local,
+                    value: Rvalue::Binary {
+                        op: BinOp::Gt,
+                        lhs: Operand::Local(var_mir),
+                        rhs: stop_op,
+                    },
+                });
+            }
+            _ => {
+                // 动态步长：判断 step > 0 ? var < stop : var > stop
+                let is_pos_temp = self.expr_builder().alloc_temp(MirType::Bool);
+                self.push_stmt(Statement::Assign {
+                    dest: is_pos_temp,
+                    value: Rvalue::Binary {
+                        op: BinOp::Gt,
+                        lhs: step_op.clone(),
+                        rhs: Operand::Const(Constant::I64(0)),
+                    },
+                });
+                let cond_lt = self.expr_builder().alloc_temp(MirType::Bool);
+                self.push_stmt(Statement::Assign {
+                    dest: cond_lt,
+                    value: Rvalue::Binary {
+                        op: BinOp::Lt,
+                        lhs: Operand::Local(var_mir),
+                        rhs: stop_op.clone(),
+                    },
+                });
+                let cond_gt = self.expr_builder().alloc_temp(MirType::Bool);
+                self.push_stmt(Statement::Assign {
+                    dest: cond_gt,
+                    value: Rvalue::Binary {
+                        op: BinOp::Gt,
+                        lhs: Operand::Local(var_mir),
+                        rhs: stop_op,
+                    },
+                });
+                let pos_cond = self.expr_builder().alloc_temp(MirType::Bool);
+                self.push_stmt(Statement::Assign {
+                    dest: pos_cond,
+                    value: Rvalue::Binary {
+                        op: BinOp::BitAnd,
+                        lhs: Operand::Local(is_pos_temp),
+                        rhs: Operand::Local(cond_lt),
+                    },
+                });
+                let not_pos = self.expr_builder().alloc_temp(MirType::Bool);
+                self.push_stmt(Statement::Assign {
+                    dest: not_pos,
+                    value: Rvalue::Unary {
+                        op: UnaryOp::Not,
+                        operand: Operand::Local(is_pos_temp),
+                    },
+                });
+                let neg_cond = self.expr_builder().alloc_temp(MirType::Bool);
+                self.push_stmt(Statement::Assign {
+                    dest: neg_cond,
+                    value: Rvalue::Binary {
+                        op: BinOp::BitAnd,
+                        lhs: Operand::Local(not_pos),
+                        rhs: Operand::Local(cond_gt),
+                    },
+                });
+                self.push_stmt(Statement::Assign {
+                    dest: cond_local,
+                    value: Rvalue::Binary {
+                        op: BinOp::BitOr,
+                        lhs: Operand::Local(pos_cond),
+                        rhs: Operand::Local(neg_cond),
+                    },
+                });
+            }
+        }
+
+        self.terminate_current(Terminator::Branch {
+            cond: Operand::Local(cond_local),
+            then_: body_bb,
+            else_: exit_bb,
+        });
+
+        // 4. 循环体 (body_bb)
+        self.current_bb = body_bb;
+        // 关键：continue 跳到 step_bb，break 跳到 exit_bb
+        self.loop_stack.push((step_bb, exit_bb));
+        for &s in body {
+            self.build_stmt(s);
+        }
+        self.loop_stack.pop();
+        if self.is_current_unterminated() {
+            self.terminate_current(Terminator::Goto(step_bb));
+        }
+
+        // 5. 步长递增块 (step_bb)
+        self.current_bb = step_bb;
+        self.push_stmt(Statement::Assign {
+            dest: var_mir,
+            value: Rvalue::Binary {
+                op: BinOp::Add,
+                lhs: Operand::Local(var_mir),
+                rhs: step_op,
+            },
+        });
+        self.terminate_current(Terminator::Goto(cond_bb));
+
+        // 6. 退出块 (exit_bb)
+        self.current_bb = exit_bb;
     }
 
     fn build_expr_stmt(&mut self, expr_id: ExprId) {

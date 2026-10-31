@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.4 里程碑：ASCII Mandelbrot，纯 float 热循环。
 def mandel(cr: float, ci: float, max_iter: int) -> int:
     zr = 0.0

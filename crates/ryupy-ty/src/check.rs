@@ -232,8 +232,61 @@ impl FunctionChecker<'_> {
                     self.check_stmt(s);
                 }
             }
+            StmtKind::ForRange {
+                var,
+                start,
+                stop,
+                step,
+                body,
+            } => {
+                let start_ty = self.check_expr(*start);
+                let stop_ty = self.check_expr(*stop);
+                let step_ty = step.map(|s| self.check_expr(s)).unwrap_or(Ty::Int);
+
+                if start_ty != Ty::Error && start_ty != Ty::Int {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, self.func.body.exprs[*start].range),
+                            format!("range() 的 start 必须为 int，得到 `{start_ty:?}`"),
+                        )
+                        .with_code("E0203")
+                        .with_primary_label("期望 int 类型"),
+                    );
+                }
+                if stop_ty != Ty::Error && stop_ty != Ty::Int {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, self.func.body.exprs[*stop].range),
+                            format!("range() 的 stop 必须为 int，得到 `{stop_ty:?}`"),
+                        )
+                        .with_code("E0203")
+                        .with_primary_label("期望 int 类型"),
+                    );
+                }
+                if step_ty != Ty::Error && step_ty != Ty::Int {
+                    if let Some(s) = step {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, self.func.body.exprs[*s].range),
+                                format!("range() 的 step 必须为 int，得到 `{step_ty:?}`"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("期望 int 类型"),
+                        );
+                    }
+                }
+
+                // 循环变量 var 的类型必须是 int
+                let var_ty = self.local_vars[*var].clone();
+                let _ = self
+                    .infer
+                    .unify(&var_ty, &crate::infer::InferTy::Known(Ty::Int));
+
+                for &s in body {
+                    self.check_stmt(s);
+                }
+            }
             StmtKind::Break | StmtKind::Continue => {}
-            _ => {}
         }
     }
 
@@ -267,7 +320,7 @@ impl FunctionChecker<'_> {
                 self.infer.resolve(infer_ty).unwrap_or(Ty::Error)
             }
             ExprKind::Func(_) => Ty::None,
-            ExprKind::Builtin(Builtin::Print) => Ty::None,
+            ExprKind::Builtin(_) => Ty::None,
             ExprKind::Binary { op, lhs, rhs } => {
                 let lhs_ty = self.check_expr(*lhs);
                 let rhs_ty = self.check_expr(*rhs);
@@ -383,6 +436,106 @@ impl FunctionChecker<'_> {
                 }
                 Ty::None
             }
+            ExprKind::Builtin(Builtin::Int) => {
+                self.results.exprs.insert(callee, Ty::None);
+                if args.len() != 1 {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, range),
+                            format!("int() 期望 1 个参数，实际传入 {} 个", args.len()),
+                        )
+                        .with_code("E0204")
+                        .with_primary_label("参数个数不匹配"),
+                    );
+                    for &arg in args {
+                        self.check_expr(arg);
+                    }
+                    return Ty::Int;
+                }
+                let arg_ty = self.check_expr(args[0]);
+                match arg_ty {
+                    Ty::Int | Ty::Float | Ty::Bool => Ty::Int,
+                    Ty::Error => Ty::Error,
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, self.func.body.exprs[args[0]].range),
+                                format!("int() 无法转换类型 `{arg_ty:?}`"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("不支持此类型转 int"),
+                        );
+                        Ty::Error
+                    }
+                }
+            }
+            ExprKind::Builtin(Builtin::Float) => {
+                self.results.exprs.insert(callee, Ty::None);
+                if args.len() != 1 {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, range),
+                            format!("float() 期望 1 个参数，实际传入 {} 个", args.len()),
+                        )
+                        .with_code("E0204")
+                        .with_primary_label("参数个数不匹配"),
+                    );
+                    for &arg in args {
+                        self.check_expr(arg);
+                    }
+                    return Ty::Float;
+                }
+                let arg_ty = self.check_expr(args[0]);
+                match arg_ty {
+                    Ty::Int | Ty::Float | Ty::Bool => Ty::Float,
+                    Ty::Error => Ty::Error,
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, self.func.body.exprs[args[0]].range),
+                                format!("float() 无法转换类型 `{arg_ty:?}`"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("不支持此类型转 float"),
+                        );
+                        Ty::Error
+                    }
+                }
+            }
+            ExprKind::Builtin(Builtin::Abs) => {
+                self.results.exprs.insert(callee, Ty::None);
+                if args.len() != 1 {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, range),
+                            format!("abs() 期望 1 个参数，实际传入 {} 个", args.len()),
+                        )
+                        .with_code("E0204")
+                        .with_primary_label("参数个数不匹配"),
+                    );
+                    for &arg in args {
+                        self.check_expr(arg);
+                    }
+                    return Ty::Error;
+                }
+                let arg_ty = self.check_expr(args[0]);
+                match arg_ty {
+                    Ty::Int => Ty::Int,
+                    Ty::Float => Ty::Float,
+                    Ty::Error => Ty::Error,
+                    _ => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, self.func.body.exprs[args[0]].range),
+                                format!("abs() 不支持类型 `{arg_ty:?}`"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("不支持此类型求绝对值"),
+                        );
+                        Ty::Error
+                    }
+                }
+            }
             ExprKind::Func(target_fn_id) => {
                 let target_sig = self.all_sigs[target_fn_id].clone();
                 if args.len() != target_sig.params.len() {
@@ -406,6 +559,7 @@ impl FunctionChecker<'_> {
                         if *expected_ty != Ty::Error
                             && arg_ty != Ty::Error
                             && *expected_ty != arg_ty
+                            && !(*expected_ty == Ty::Float && arg_ty == Ty::Int)
                         {
                             self.diagnostics.push(
                                 Diagnostic::error(

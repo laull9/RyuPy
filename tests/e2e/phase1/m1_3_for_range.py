@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.3：for range 降级为原生计数循环。注意负步长与空区间。
 total = 0
 for i in range(10):

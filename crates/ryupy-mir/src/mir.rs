@@ -189,6 +189,9 @@ pub enum RuntimeFn {
     ModF64,
     PowI64,
     PowF64,
+    F64ToI64,
+    AbsI64,
+    AbsF64,
 }
 
 #[derive(Debug)]
