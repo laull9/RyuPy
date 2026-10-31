@@ -159,24 +159,15 @@ impl TryIntoCtx<(), DynamicBuffer> for Exception {
     fn try_into_ctx(self, into: &mut DynamicBuffer, (): ()) -> Result<usize, Self::Error> {
         let offset = &mut 0;
 
-        if let (Ok(tlen), Ok(hlen), Ok(toff), Ok(hoff)) = (
-            u8::try_from(self.try_length),
-            u8::try_from(self.handler_length),
-            u16::try_from(self.try_offset),
-            u16::try_from(self.handler_offset),
-        ) {
-            into.gwrite_with(self.flags as u8, offset, scroll::LE)?;
-            into.gwrite_with(toff, offset, scroll::LE)?;
-            into.gwrite_with(tlen, offset, scroll::LE)?;
-            into.gwrite_with(hoff, offset, scroll::LE)?;
-            into.gwrite_with(hlen, offset, scroll::LE)?;
-        } else {
-            into.gwrite_with(self.flags, offset, scroll::LE)?;
-            into.gwrite_with(self.try_offset, offset, scroll::LE)?;
-            into.gwrite_with(self.try_length, offset, scroll::LE)?;
-            into.gwrite_with(self.handler_offset, offset, scroll::LE)?;
-            into.gwrite_with(self.handler_length, offset, scroll::LE)?;
-        }
+        // 本类型只用于 **fat section**（24 字节/子句）的写入；small section 由
+        // `DataSection` 的写入路径逐字段处理。这里必须始终写完整 24 字节，
+        // 不能按单个子句的数值决定 11/12 字节的“small”形式——同一 section 内
+        // 的子句大小必须一致，否则偏移全部错位（典型症状是 InvalidProgramException）。
+        into.gwrite_with(self.flags, offset, scroll::LE)?;
+        into.gwrite_with(self.try_offset, offset, scroll::LE)?;
+        into.gwrite_with(self.try_length, offset, scroll::LE)?;
+        into.gwrite_with(self.handler_offset, offset, scroll::LE)?;
+        into.gwrite_with(self.handler_length, offset, scroll::LE)?;
 
         into.gwrite_with(self.class_token_or_filter, offset, scroll::LE)?;
 

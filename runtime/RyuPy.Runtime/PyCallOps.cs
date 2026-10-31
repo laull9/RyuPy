@@ -35,7 +35,7 @@ public static partial class PyOps
     public static object? ArrayGet(object array, long index) => ((object?[])array)[index];
 
     /// <summary>内建构造名作为值使用时的类型对象（供 <c>isinstance</c> 等）。</summary>
-    public static object TypeObject(string name) => new PyType(name);
+    public static object TypeObject(string name) => PyType.Get(name);
 
     /// <summary>绑定失败：抛出带给定消息的 <c>TypeError</c>。</summary>
     /// <remarks>
@@ -57,6 +57,11 @@ public static partial class PyOps
         return callable switch
         {
             PyFunction function => function.Invoke(args, names, values),
+            PyClass cls => cls.Invoke(args, names, values),
+            PyBoundMethod method => method.Invoke(args, names, values),
+            PyStaticMethod staticMethod => CallValue(staticMethod.Value, args, names, values),
+            PyClassMethod classMethod => CallValue(classMethod.Value, args, names, values),
+            PyInstance instance => CallInstance(instance, args, names, values),
             _ => throw new PyTypeError(
                 $"'{PyRepr.TypeName(callable)}' object is not callable"
             ),
@@ -125,4 +130,19 @@ public static partial class PyOps
         }
         return ([.. args], [.. names], [.. values]);
     }
+    /// <summary>调用实例的 `__call__`。</summary>
+    private static object? CallInstance(
+        PyInstance instance,
+        object?[] args,
+        string[] names,
+        object?[] values
+    )
+    {
+        if (instance.Class.TryLookup("__call__", out PyClass owner, out object? call))
+        {
+            return PyObject.InvokeBound(call, owner, instance, args, names, values);
+        }
+        throw new PyTypeError($"'{instance.Class.Name}' object is not callable");
+    }
+
 }

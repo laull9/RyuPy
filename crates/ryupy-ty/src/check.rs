@@ -278,6 +278,19 @@ impl FunctionChecker<'_> {
             for &expr in &self.module.default_exprs {
                 self.check_expr(expr);
             }
+            // 类体属性表达式也在模块作用域求值，必须补齐类型旁表，
+            // 否则 MIR 会把它们当成都态值而丢失静态特化。
+            for (_, class) in self.module.classes.iter() {
+                for item in &class.body {
+                    match &item.kind {
+                        ryupy_hir::ClassItemKind::Attr { value, .. }
+                        | ryupy_hir::ClassItemKind::Expr(value) => {
+                            self.check_expr(*value);
+                        }
+                        ryupy_hir::ClassItemKind::Method { .. } => {}
+                    }
+                }
+            }
         }
 
         for (loc_id, _loc) in self.func.body.locals.iter() {
@@ -487,6 +500,8 @@ impl FunctionChecker<'_> {
                     self.check_stmt(s);
                 }
             }
+            // 类体属性 / 表达式统一在模块入口的 `check_function` 尾部检查。
+            StmtKind::ClassDef(_) => {}
             StmtKind::Break | StmtKind::Continue => {}
         }
     }
@@ -618,7 +633,16 @@ impl FunctionChecker<'_> {
                     Ty::Dynamic
                 }
             }
-            ExprKind::Class(cls_id) => Ty::Class(*cls_id),
+            ExprKind::Class(cls_id) => {
+                if self.module.classes[*cls_id].is_dataclass {
+                    Ty::Class(*cls_id)
+                } else {
+                    // 普通 class 的类对象与实例都是运行时 `PyClass` / `PyInstance`，
+                    // 静态槽位放不下；整函数走动态路径（M2.5）。
+                    self.soft_demote = true;
+                    Ty::Dynamic
+                }
+            }
             ExprKind::Attribute { base, name } => {
                 let base_ty = self.check_expr(*base);
                 self.check_attribute_read(&base_ty, expr.range, name)

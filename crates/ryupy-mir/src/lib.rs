@@ -10,6 +10,7 @@
 
 pub mod build;
 mod build_assign;
+mod build_class;
 mod build_loops;
 mod build_try;
 mod call_builder;

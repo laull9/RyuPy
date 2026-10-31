@@ -41,8 +41,14 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
     let mut globals = Arena::default();
     let mut diagnostics = Vec::new();
 
-    // 0. 构建 MIR 类的类型与字段定义
-    for (_cls_id, cls) in hir.classes.iter() {
+    // 0. 构建 MIR 类定义。
+    //
+    // 普通 class 不生成 CLR 类型：它由运行时 `PyClass` / `PyInstance` 承载。
+    // dataclass 仍保留静态字段布局，但 ADR-0009 之后统一使用引用类型以保留身份。
+    let mut class_map: FxHashMap<ryupy_hir::ClassId, crate::mir::ClassDefId> = FxHashMap::default();
+    let mut hir_class_globals: FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId> =
+        FxHashMap::default();
+    for (hir_cls_id, cls) in hir.classes.iter() {
         let fields = cls
             .fields
             .iter()
@@ -51,12 +57,46 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
                 (f.name.as_str().to_string(), ty_to_mir(&ty))
             })
             .collect();
-        classes.alloc(crate::mir::ClassDef {
+        let factory_global = cls.is_exception.then(|| {
+            globals.alloc(GlobalDecl {
+                name: format!("__exc_factory_{}", hir_cls_id.into_raw().into_u32()),
+                ty: MirType::Dynamic,
+            })
+        });
+        let mir_id = classes.alloc(crate::mir::ClassDef {
             name: cls.name.as_str().to_string(),
             fields,
-            is_value_type: cls.frozen,
+            is_value_type: false,
+            is_dataclass: cls.is_dataclass,
+            base: None,
+            builtin_base: match cls.base {
+                Some(ryupy_hir::ClassBase::Builtin(name)) => Some(name.to_string()),
+                _ => None,
+            },
+            is_exception: cls.is_exception,
+            factory_global,
         });
+        let class_global = globals.alloc(GlobalDecl {
+            name: format!("__class_{}", hir_cls_id.into_raw().into_u32()),
+            ty: MirType::Dynamic,
+        });
+        class_map.insert(hir_cls_id, mir_id);
+        hir_class_globals.insert(hir_cls_id, class_global);
     }
+    // 基类映射放在第二遍：此时所有 ClassDefId 都已分配。
+    for (hir_cls_id, cls) in hir.classes.iter() {
+        if let Some(ryupy_hir::ClassBase::User(base_id)) = cls.base
+            && let Some(&base_mir) = class_map.get(&base_id)
+        {
+            classes[class_map[&hir_cls_id]].base = Some(base_mir);
+        }
+    }
+
+    // 异常类的工厂委托槽位（普通类没有）。
+    let class_factories: FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId> = classes
+        .iter()
+        .filter_map(|(id, cls)| cls.factory_global.map(|global| (id, global)))
+        .collect();
 
     // 1. 预先为每个 HIR 函数分配 MIR FnId，并登记函数对象 / 默认值数组 / 签名所需的
     //    模块静态槽位。槽位在函数体构建之前分配，调用方才能在表达式里引用它们。
@@ -115,8 +155,17 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
     // 2. 逐函数构建函数体
     for (hir_fn_id, hir_fn) in hir.functions.iter() {
         let mir_fn_id = fn_map[&hir_fn_id];
-        let mut builder =
-            FunctionBuilder::new(hir, types, &fn_map, &fn_globals, &fn_defaults, hir_fn_id);
+        let mut builder = FunctionBuilder::new(
+            hir,
+            types,
+            &fn_map,
+            &fn_globals,
+            &fn_defaults,
+            &class_map,
+            &hir_class_globals,
+            &class_factories,
+            hir_fn_id,
+        );
 
         // 建立 HIR 局部变量 → MIR 局部变量映射
         for (hir_loc_id, hir_loc) in hir_fn.body.locals.iter() {
@@ -247,6 +296,12 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     /// 每个函数默认值数组的静态槽位（没有默认值为 `None`）。
     pub(crate) fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
+    /// HIR 类 → MIR 类定义。
+    pub(crate) class_map: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::ClassDefId>,
+    /// HIR 类 → 类对象静态槽位（表达式构建直接使用）。
+    pub(crate) hir_class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
+    /// 异常类 → CLR 工厂委托的静态槽位。
+    pub(crate) class_factories: &'a FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId>,
     pub(crate) current_hir_fn: ryupy_hir::FuncId,
     pub(crate) locals: Arena<LocalDecl>,
     pub(crate) blocks: Arena<BasicBlock>,
@@ -298,12 +353,16 @@ pub(crate) const FLOW_RETURN: i64 = 2;
 pub(crate) const FLOW_FIRST_CUSTOM: i64 = 3;
 
 impl<'a> FunctionBuilder<'a> {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         hir: &'a Module,
         types: &'a ModuleTypes,
         fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
         fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
         fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
+        class_map: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::ClassDefId>,
+        hir_class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
+        class_factories: &'a FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId>,
         current_hir_fn: ryupy_hir::FuncId,
     ) -> Self {
         let mut blocks = Arena::default();
@@ -317,6 +376,9 @@ impl<'a> FunctionBuilder<'a> {
             fn_map,
             fn_globals,
             fn_defaults,
+            class_map,
+            hir_class_globals,
+            class_factories,
             current_hir_fn,
             locals: Arena::default(),
             blocks,
@@ -640,6 +702,7 @@ impl<'a> FunctionBuilder<'a> {
             fn_map: self.fn_map,
             fn_globals: self.fn_globals,
             fn_defaults: self.fn_defaults,
+            class_globals: self.hir_class_globals,
             current_hir_fn: self.current_hir_fn,
             locals: &mut self.locals,
             blocks: &mut self.blocks,
@@ -675,28 +738,45 @@ impl<'a> FunctionBuilder<'a> {
                     self.mark_sequence_targets(&items);
                 }
                 _ => {
+                    let val_ty = self.expr_builder().ty_of(*value);
                     let val_op = self.expr_builder().build_expr(*value);
                     match target {
                         AssignTarget::Local(loc) => {
                             let dest = self.local_map[loc];
-                            let val_ty = self.expr_builder().ty_of(*value);
                             self.expr_builder().assign_value(dest, val_op, &val_ty);
                             self.assigned_locals.insert(*loc);
                         }
                         AssignTarget::Attribute { base, name } => {
-                            let base_op = self.expr_builder().build_expr(*base);
                             let base_ty = self.expr_builder().ty_of(*base);
+                            let base_op = self.expr_builder().build_expr(*base);
                             if let Ty::Class(cls_id) = base_ty {
                                 let cls = &self.hir.classes[cls_id];
-                                if let Some((field_idx, _)) =
+                                if let Some((field_idx, field)) =
                                     cls.fields.iter().enumerate().find(|(_, f)| f.name == *name)
                                 {
+                                    let field_ty = ty_to_mir(&type_ref_to_ty(&field.annotation));
+                                    let value =
+                                        self.expr_builder().coerce(val_op, &val_ty, &field_ty);
                                     self.push_stmt(Statement::SetField {
                                         obj: base_op,
                                         field: field_idx as u32,
-                                        value: val_op,
+                                        value,
                                     });
                                 }
+                            } else {
+                                // 普通实例 / 类的动态属性写入（M2.5）：统一交给运行时，
+                                // 它负责实例字典、property setter 与 AttributeError。
+                                let value =
+                                    self.expr_builder()
+                                        .coerce(val_op, &val_ty, &MirType::Dynamic);
+                                self.push_stmt(Statement::Eval(Rvalue::Call {
+                                    callee: Callee::Runtime(RuntimeFn::SetAttr),
+                                    args: vec![
+                                        base_op,
+                                        Operand::Const(Constant::Str(name.as_str().to_owned())),
+                                        value,
+                                    ],
+                                }));
                             }
                         }
                         AssignTarget::Subscript { .. } | AssignTarget::Sequence(_) => {}
@@ -868,6 +948,9 @@ impl<'a> FunctionBuilder<'a> {
                 for &target in targets {
                     self.build_delete(target);
                 }
+            }
+            StmtKind::ClassDef(cls_id) => {
+                self.build_class_def(*cls_id);
             }
             StmtKind::Pass => {}
         }

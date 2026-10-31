@@ -1,105 +1,104 @@
-//! 类定义（@dataclass）AST → HIR 降级。
+//! 类定义 AST → HIR 降级。
 //!
-//! 职责：
-//! 1. **修饰器识别**：
-//!    - 识别 `@dataclass` 和 `@dataclass(frozen=True)`；
-//!    - 拦截不支持的修饰器或继承声明（报 [`E0100`]）；
-//! 2. **类体字段提取**：
-//!    - 解析 `x: float`、`y: int` 等带类型标注的字段声明；
-//!    - 拦截带默认值（`x: int = 1`）或包含方法定义的类体（报 [`E0100`]）；
-//! 3. **模块导入检查**：
-//!    - 识别 Phase 1 唯一允许的导入：`from dataclasses import dataclass`。
+//! 支持两类类：
+//!
+//! 1. **`@dataclass`**（M1.5）：只提取带类型标注的字段，构造由静态 `NewObject` 完成；
+//! 2. **普通 class**（M2.5 / M2.6）：类体按源码顺序降级成 [`ClassItem`]：
+//!    - `name = value` 写进类命名空间；
+//!    - `def` 变成方法函数（`self` 是普通参数）；
+//!    - `@property` / `@staticmethod` / `@classmethod` 保留为修饰器标记。
+//!
+//! 单继承只接受一个基类；基类可以是之前定义的普通类或内建异常类。多重继承、
+//! 元类、任意类装饰器与 `__getattribute__` 等暂缓能力都在这里明确报错，不静默降级。
+//!
+//! 类体属性的求值位置属于**模块入口函数**（Python 在 `class` 语句执行时求值），
+//! 因此属性表达式直接降级到 `main_body`，MIR 再把它们按源码顺序接到类定义处。
 
+use rustc_hash::FxHashMap;
 use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
 
-use crate::hir::{Class, Field, Name};
+use crate::expr::ExprLowerCtx;
+use crate::hir::{
+    Body, Class, ClassBase, ClassItem, ClassItemKind, Decorator, ExprId, Field, FuncId, LocalId,
+    Name,
+};
 use crate::operator::lower_type_ref;
-use crate::scope::GlobalScope;
+use crate::scope::{FunctionScope, GlobalScope, Resolution};
 
-/// 尝试解析 `@dataclass` 类定义。
+/// 类体里一条 `def` 的登记信息（第一遍收集时产生）。
+#[derive(Debug, Clone)]
+pub struct MethodSlot {
+    pub name: Name,
+    pub func: FuncId,
+    pub range: ryupy_base::TextRange,
+}
+
+/// 解析一个类定义。
+///
+/// `classes` 是**已经解析过**的类（基类因此必须写在前面，与 CPython 的类体执行顺序一致）。
+#[allow(clippy::too_many_arguments)]
 pub fn parse_class_def(
     class_def: &ast::StmtClassDef,
     file: FileId,
     globals: &GlobalScope,
+    classes: &la_arena::Arena<Class>,
+    methods: &[MethodSlot],
+    module_locals: &FxHashMap<Name, LocalId>,
+    main_body: &mut Body,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<Class> {
     let class_name = Name::from(class_def.name.as_str());
 
-    // Phase 1 不支持类继承
-    if let Some(args) = &class_def.arguments {
-        if !args.args.is_empty() || !args.keywords.is_empty() {
-            diags.push(
-                Diagnostic::error(Span::new(file, class_def.range()), "Phase 1 不支持类继承")
-                    .with_code("E0100")
-                    .with_primary_label("Phase 1 仅支持独立的 @dataclass，无基类"),
-            );
-            return None;
-        }
-    }
+    let (is_dataclass, frozen) = parse_class_decorators(class_def, file, diags);
 
-    // 检查修饰器：必须且仅能有 @dataclass 或 @dataclass(frozen=True/False)
-    let mut is_dataclass = false;
-    let mut frozen = false;
+    let base = parse_base(class_def, file, globals, classes, diags);
 
-    for dec in &class_def.decorator_list {
-        match &dec.expression {
-            ast::Expr::Name(name) if name.id.as_str() == "dataclass" => {
-                is_dataclass = true;
-            }
-            ast::Expr::Call(call) => {
-                if let ast::Expr::Name(callee) = &*call.func {
-                    if callee.id.as_str() == "dataclass" {
-                        is_dataclass = true;
-                        for kw in &call.arguments.keywords {
-                            if let Some(arg_name) = &kw.arg {
-                                if arg_name.as_str() == "frozen" {
-                                    if let ast::Expr::BooleanLiteral(b) = &kw.value {
-                                        frozen = b.value;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    if !is_dataclass {
+    // 基类如果是 dataclass：字段布局会变化，暂不支持继承数据类。
+    if let Some(ClassBase::User(base_id)) = base
+        && classes[base_id].is_dataclass
+    {
         diags.push(
             Diagnostic::error(
                 Span::new(file, class_def.range()),
-                format!("类 `{class_name}` 缺少 @dataclass 修饰器"),
+                "暂不支持继承 @dataclass 类",
             )
             .with_code("E0100")
-            .with_primary_label("Phase 1 仅支持 @dataclass 类定义"),
+            .with_primary_label("数据类继承留到后续里程碑"),
         );
-        return None;
     }
 
-    // 提取字段声明
+    let is_exception = match base {
+        Some(ClassBase::Builtin(_)) => true,
+        Some(ClassBase::User(base_id)) => classes[base_id].is_exception,
+        None => false,
+    };
+
     let mut fields = Vec::new();
+    let mut body = Vec::new();
+    let method_map: FxHashMap<&str, &MethodSlot> = methods
+        .iter()
+        .map(|method| (method.name.as_str(), method))
+        .collect();
+
     for stmt in &class_def.body {
         match stmt {
-            ast::Stmt::AnnAssign(ann) => {
+            ast::Stmt::Pass(_) => {}
+            ast::Stmt::AnnAssign(ann) if is_dataclass => {
                 if let ast::Expr::Name(target_name) = &*ann.target {
                     if ann.value.is_some() {
                         diags.push(
                             Diagnostic::error(
                                 Span::new(file, ann.range()),
-                                "Phase 1 dataclass 暂不支持字段默认值",
+                                "dataclass 暂不支持字段默认值",
                             )
                             .with_code("E0100")
                             .with_primary_label("不支持默认值赋初值"),
                         );
                     }
-                    let field_name = Name::from(target_name.id.as_str());
-                    let annotation = lower_type_ref(&ann.annotation, file, globals, diags);
                     fields.push(Field {
-                        name: field_name,
-                        annotation,
+                        name: Name::from(target_name.id.as_str()),
+                        annotation: lower_type_ref(&ann.annotation, file, globals, diags),
                         range: ann.range(),
                     });
                 } else {
@@ -110,10 +109,129 @@ pub fn parse_class_def(
                     );
                 }
             }
-            ast::Stmt::Pass(_) => {}
+            ast::Stmt::Assign(assign) => {
+                if is_dataclass {
+                    diags.push(
+                        Diagnostic::error(
+                            Span::new(file, assign.range()),
+                            "dataclass 类体内只允许字段标注",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("不允许此类语句"),
+                    );
+                    continue;
+                }
+                // 只支持 `name = value` 的类属性；其它目标（属性 / 下标 / 解包）暂缓。
+                if assign.targets.len() != 1 {
+                    diags.push(unsupported_class_statement(
+                        file,
+                        assign.range(),
+                        "链式赋值",
+                    ));
+                    continue;
+                }
+                let ast::Expr::Name(target) = &assign.targets[0] else {
+                    diags.push(unsupported_class_statement(
+                        file,
+                        assign.targets[0].range(),
+                        "只支持给类属性名字赋值",
+                    ));
+                    continue;
+                };
+                let value = lower_class_expr(
+                    file,
+                    globals,
+                    module_locals,
+                    main_body,
+                    diags,
+                    &assign.value,
+                );
+                body.push(ClassItem {
+                    kind: ClassItemKind::Attr {
+                        name: Name::from(target.id.as_str()),
+                        value,
+                    },
+                    range: assign.range(),
+                });
+            }
+            ast::Stmt::AnnAssign(ann) => {
+                if let ast::Expr::Name(target) = &*ann.target {
+                    let Some(value_expr) = &ann.value else {
+                        // 只有标注没有值：Python 只记录 __annotations__，不写属性。
+                        continue;
+                    };
+                    let value = lower_class_expr(
+                        file,
+                        globals,
+                        module_locals,
+                        main_body,
+                        diags,
+                        value_expr,
+                    );
+                    body.push(ClassItem {
+                        kind: ClassItemKind::Attr {
+                            name: Name::from(target.id.as_str()),
+                            value,
+                        },
+                        range: ann.range(),
+                    });
+                } else {
+                    diags.push(unsupported_class_statement(
+                        file,
+                        ann.range(),
+                        "带标注的属性名必须是标识符",
+                    ));
+                }
+            }
+            ast::Stmt::FunctionDef(fn_def) => {
+                if is_dataclass {
+                    diags.push(
+                        Diagnostic::error(
+                            Span::new(file, fn_def.range()),
+                            "dataclass 暂不支持定义方法",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("方法属于普通 class"),
+                    );
+                    continue;
+                }
+                if fn_def.name.as_str() == "__getattribute__" {
+                    diags.push(
+                        Diagnostic::error(
+                            Span::new(file, fn_def.range()),
+                            "暂不支持自定义 __getattribute__",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("属性查找协议目前由运行时固定实现"),
+                    );
+                    continue;
+                }
+                let Some(slot) = method_map.get(fn_def.name.as_str()) else {
+                    diags.push(
+                        Diagnostic::error(
+                            Span::new(file, fn_def.range()),
+                            "内部错误：方法没有登记为函数",
+                        )
+                        .with_code("E0101")
+                        .with_primary_label("方法预扫描遗漏"),
+                    );
+                    continue;
+                };
+                let decorators = parse_method_decorators(fn_def, file, diags);
+                body.push(ClassItem {
+                    kind: ClassItemKind::Method {
+                        func: slot.func,
+                        decorators,
+                    },
+                    range: fn_def.range(),
+                });
+            }
             ast::Stmt::Expr(expr_stmt) => {
-                // 允许 docstring 字符串字面量
-                if !matches!(&*expr_stmt.value, ast::Expr::StringLiteral(_)) {
+                // docstring：只保留为副作用表达式会无意义地求值字符串，直接跳过。
+                if matches!(&*expr_stmt.value, ast::Expr::StringLiteral(_)) {
+                    continue;
+                }
+                if is_dataclass {
                     diags.push(
                         Diagnostic::error(
                             Span::new(file, expr_stmt.range()),
@@ -122,27 +240,245 @@ pub fn parse_class_def(
                         .with_code("E0100")
                         .with_primary_label("不允许此类语句"),
                     );
+                    continue;
                 }
+                let value = lower_class_expr(
+                    file,
+                    globals,
+                    module_locals,
+                    main_body,
+                    diags,
+                    &expr_stmt.value,
+                );
+                body.push(ClassItem {
+                    kind: ClassItemKind::Expr(value),
+                    range: expr_stmt.range(),
+                });
             }
             _ => {
-                diags.push(
-                    Diagnostic::error(
-                        Span::new(file, stmt.range()),
-                        "Phase 1 dataclass 暂不支持定义方法或复杂语句",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("暂不支持定义类方法"),
-                );
+                diags.push(unsupported_class_statement(
+                    file,
+                    stmt.range(),
+                    "类体内暂不支持该语句",
+                ));
             }
         }
     }
 
+    if !is_dataclass && fields.is_empty() {
+        // 普通类不要求字段，这里只是让 `fields` 的用途明确：仅 dataclass 使用。
+    }
+
     Some(Class {
         name: class_name,
+        base,
         fields,
+        body,
         frozen,
+        is_dataclass,
+        is_exception,
         range: class_def.range(),
     })
+}
+
+/// 识别类修饰器：目前只支持 `@dataclass` / `@dataclass(frozen=True)`。
+fn parse_class_decorators(
+    class_def: &ast::StmtClassDef,
+    file: FileId,
+    diags: &mut Vec<Diagnostic>,
+) -> (bool, bool) {
+    let mut is_dataclass = false;
+    let mut frozen = false;
+    for dec in &class_def.decorator_list {
+        match &dec.expression {
+            ast::Expr::Name(name) if name.id.as_str() == "dataclass" => {
+                is_dataclass = true;
+            }
+            ast::Expr::Call(call) => {
+                if let ast::Expr::Name(callee) = &*call.func
+                    && callee.id.as_str() == "dataclass"
+                {
+                    is_dataclass = true;
+                    for kw in &call.arguments.keywords {
+                        if let Some(arg_name) = &kw.arg
+                            && arg_name.as_str() == "frozen"
+                            && let ast::Expr::BooleanLiteral(b) = &kw.value
+                        {
+                            frozen = b.value;
+                        }
+                    }
+                    continue;
+                }
+                diags.push(
+                    Diagnostic::error(
+                        Span::new(file, dec.range),
+                        "类装饰器暂不支持（目前只有 @dataclass）",
+                    )
+                    .with_code("E0100")
+                    .with_primary_label("任意类装饰器属于暂缓能力"),
+                );
+            }
+            _ => {
+                diags.push(
+                    Diagnostic::error(
+                        Span::new(file, dec.range),
+                        "类装饰器暂不支持（目前只有 @dataclass）",
+                    )
+                    .with_code("E0100")
+                    .with_primary_label("任意类装饰器属于暂缓能力"),
+                );
+            }
+        }
+    }
+    (is_dataclass, frozen)
+}
+
+/// 解析 `class X(Base):` 的基类。
+fn parse_base(
+    class_def: &ast::StmtClassDef,
+    file: FileId,
+    globals: &GlobalScope,
+    classes: &la_arena::Arena<Class>,
+    diags: &mut Vec<Diagnostic>,
+) -> Option<ClassBase> {
+    let Some(args) = &class_def.arguments else {
+        return None;
+    };
+    if !args.keywords.is_empty() {
+        diags.push(
+            Diagnostic::error(
+                Span::new(file, class_def.range()),
+                "不支持类关键字参数（元类等属于暂缓能力）",
+            )
+            .with_code("E0100")
+            .with_primary_label("不支持 metaclass / 其它类关键字"),
+        );
+        return None;
+    }
+    if args.args.len() > 1 {
+        diags.push(
+            Diagnostic::error(Span::new(file, class_def.range()), "暂不支持多重继承")
+                .with_code("E0100")
+                .with_primary_label("只支持一个基类"),
+        );
+        return None;
+    }
+    let base_expr = args.args.first()?;
+    let ast::Expr::Name(base_name) = base_expr else {
+        diags.push(
+            Diagnostic::error(
+                Span::new(file, base_expr.range()),
+                "基类必须是已定义的类名或内建异常类型",
+            )
+            .with_code("E0100")
+            .with_primary_label("不支持任意基类表达式"),
+        );
+        return None;
+    };
+    let name = Name::from(base_name.id.as_str());
+    if let Some(resolution) = globals.names.get(&name) {
+        return match resolution {
+            Resolution::Class(id) => {
+                // 基类必须在源码里已经定义：类体在 class 语句执行时求值，
+                // 前向引用在 CPython 里同样会 NameError。
+                let _ = &classes[*id];
+                Some(ClassBase::User(*id))
+            }
+            _ => {
+                diags.push(
+                    Diagnostic::error(
+                        Span::new(file, base_name.range),
+                        format!("`{name}` 不是可继承的类"),
+                    )
+                    .with_code("E0100")
+                    .with_primary_label("基类必须是类"),
+                );
+                None
+            }
+        };
+    }
+    match crate::scope::resolve_builtin(base_name.id.as_str()) {
+        Some(crate::hir::Builtin::Exception(type_name)) => Some(ClassBase::Builtin(type_name)),
+        _ => {
+            diags.push(
+                Diagnostic::error(
+                    Span::new(file, base_name.range),
+                    format!("未知基类 `{name}`"),
+                )
+                .with_code("E0100")
+                .with_primary_label("基类必须是用户类或内建异常类"),
+            );
+            None
+        }
+    }
+}
+
+/// 方法上的修饰器：只支持 property / staticmethod / classmethod。
+fn parse_method_decorators(
+    fn_def: &ast::StmtFunctionDef,
+    file: FileId,
+    diags: &mut Vec<Diagnostic>,
+) -> Vec<Decorator> {
+    let mut out = Vec::new();
+    for dec in &fn_def.decorator_list {
+        let ast::Expr::Name(name) = &dec.expression else {
+            diags.push(
+                Diagnostic::error(
+                    Span::new(file, dec.range),
+                    "方法修饰器必须是 property / staticmethod / classmethod",
+                )
+                .with_code("E0100")
+                .with_primary_label("任意方法装饰器属于暂缓能力"),
+            );
+            continue;
+        };
+        match name.id.as_str() {
+            "property" => out.push(Decorator::Property),
+            "staticmethod" => out.push(Decorator::StaticMethod),
+            "classmethod" => out.push(Decorator::ClassMethod),
+            _ => diags.push(
+                Diagnostic::error(
+                    Span::new(file, dec.range),
+                    format!("暂不支持方法修饰器 `{}`", name.id),
+                )
+                .with_code("E0100")
+                .with_primary_label("目前只支持 property / staticmethod / classmethod"),
+            ),
+        }
+    }
+    out
+}
+
+/// 在模块作用域降级类体里的表达式。
+fn lower_class_expr(
+    file: FileId,
+    globals: &GlobalScope,
+    module_locals: &FxHashMap<Name, LocalId>,
+    body: &mut Body,
+    diags: &mut Vec<Diagnostic>,
+    expr: &ast::Expr,
+) -> ExprId {
+    let scope = FunctionScope::default();
+    let mut ctx = ExprLowerCtx {
+        file,
+        global_scope: globals,
+        func_scope: &scope,
+        module_locals,
+        is_in_func: false,
+        body,
+        diagnostics: diags,
+    };
+    ctx.lower_expr(expr)
+}
+
+fn unsupported_class_statement(
+    file: FileId,
+    range: ryupy_base::TextRange,
+    label: &str,
+) -> Diagnostic {
+    Diagnostic::error(Span::new(file, range), format!("类体内暂不支持：{label}"))
+        .with_code("E0100")
+        .with_primary_label("类体目前支持属性赋值、方法与表达式语句")
 }
 
 /// 检查是否为合法导入：`from dataclasses import dataclass`。

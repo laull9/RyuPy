@@ -44,6 +44,13 @@ public static class PyRepr
             _ => "dict_items",
         },
         PyType => "type",
+        PyClass => "type",
+        PyInstance instance => instance.Class.Name,
+        PyBoundMethod => "method",
+        PyFunction => "function",
+        PyProperty => "property",
+        PyStaticMethod or PyClassMethod => "builtin_function_or_method",
+        PySuper => "super",
         PyBaseException exception => exception.PyTypeName,
         _ => value.GetType().Name,
     };
@@ -71,6 +78,12 @@ public static class PyRepr
         PySlice slice => slice.ToString(),
         PyDictView view => ReprView(view),
         PyType type => type.ToString(),
+        PyClass cls => cls.ToString(),
+        PyInstance instance => StrInstance(instance),
+        PyBoundMethod method => method.ToString(),
+        PyProperty property => property.ToString(),
+        PyStaticMethod staticMethod => staticMethod.ToString(),
+        PyClassMethod classMethod => classMethod.ToString(),
         _ => value.ToString() ?? string.Empty,
     };
 
@@ -94,8 +107,52 @@ public static class PyRepr
         PyBytes bytes => ReprBytes(bytes.Bytes),
         PyByteArray array => "bytearray(" + ReprBytes([.. array.Bytes]) + ")",
         PyDictView view => ReprView(view),
+        PyClass cls => cls.ToString(),
+        PyInstance instance => ReprInstance(instance),
+        PyBoundMethod method => method.ToString(),
+        PyProperty property => property.ToString(),
+        PyStaticMethod staticMethod => staticMethod.ToString(),
+        PyClassMethod classMethod => classMethod.ToString(),
         _ => Str(value),
     };
+
+    /// <summary>绑定方法 / 函数的名字（用于 <c>&lt;bound method Box.add of ...&gt;</c>）。</summary>
+    public static string MethodName(object? target) => target switch
+    {
+        PyFunction function => function.Name,
+        PyBoundMethod method => MethodName(method.Target),
+        _ => TypeName(target),
+    };
+
+    /// <summary>实例的 <c>str()</c>：优先 `__str__`，其次 `__repr__`，最后默认形式。</summary>
+    private static string StrInstance(PyInstance instance)
+    {
+        if (PyObject.TryMethod(instance, "__str__", [], out object? custom))
+        {
+            return RequireString(custom, "__str__", instance.Class.Name);
+        }
+        if (PyObject.TryMethod(instance, "__repr__", [], out object? repr))
+        {
+            return RequireString(repr, "__repr__", instance.Class.Name);
+        }
+        return instance.DefaultRepr();
+    }
+
+    /// <summary>实例的 <c>repr()</c>：只认 `__repr__`。</summary>
+    private static string ReprInstance(PyInstance instance)
+    {
+        if (PyObject.TryMethod(instance, "__repr__", [], out object? repr))
+        {
+            return RequireString(repr, "__repr__", instance.Class.Name);
+        }
+        return instance.DefaultRepr();
+    }
+
+    private static string RequireString(object? value, string method, string className) =>
+        value as string
+        ?? throw new PyTypeError(
+            $"__{method.Trim('_')}__ returned non-string (type {TypeName(value)})"
+        );
 
     /// <summary>
     /// 容器的嵌套 <c>repr</c> 深度上限。

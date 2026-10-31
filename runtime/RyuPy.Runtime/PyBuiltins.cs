@@ -87,6 +87,11 @@ public static partial class PyOps
         "next" => BuiltinNext(args, kwNames),
         "id" => WithKeywords(name, args, kwNames, () => Identity(Single(name, args))),
         "isinstance" => BuiltinIsInstance(args, kwNames),
+        "issubclass" => BuiltinIsSubclass(args, kwNames),
+        "property" => BuiltinProperty(args, kwNames),
+        "staticmethod" => BuiltinDescriptorWrapper(args, kwNames, "staticmethod", static v => new PyStaticMethod(v)),
+        "classmethod" => BuiltinDescriptorWrapper(args, kwNames, "classmethod", static v => new PyClassMethod(v)),
+        "super" => WithKeywords(name, args, kwNames, () => PyMethodContext.MakeSuper()),
         "getattr" => BuiltinGetAttr(args, kwNames),
         "hasattr" => BuiltinHasAttr(args, kwNames),
         "setattr" => BuiltinSetAttr(args, kwNames),
@@ -95,7 +100,7 @@ public static partial class PyOps
             name,
             args,
             kwNames,
-            () => Single(name, args) is PyFunction
+            () => IsCallable(Single(name, args))
         ),
         _ => throw new PyNameError($"name '{name}' is not defined"),
     };
@@ -488,6 +493,31 @@ public static partial class PyOps
         {
             throw new PyTypeError($"next expected 1 or 2 arguments, got {args.Length}");
         }
+        if (args[0] is PyInstance instance)
+        {
+            try
+            {
+                if (PyObject.TryMethod(instance, "__next__", [], out object? next))
+                {
+                    return next;
+                }
+            }
+            catch (PyStopIteration)
+            {
+                if (args.Length == 2)
+                {
+                    return args[1];
+                }
+                throw;
+            }
+            if (args.Length == 2)
+            {
+                return args[1];
+            }
+            throw new PyTypeError(
+                $"'{instance.Class.Name}' object is not an iterator"
+            );
+        }
         IPyIterator iterator = args[0] is IPyIterator it
             ? it
             : throw new PyTypeError(
@@ -532,76 +562,6 @@ public static partial class PyOps
             return false;
         }
         return MatchesType(args[0], args[1]);
-    }
-
-    private static bool MatchesType(object? value, object? type)
-    {
-        string expected = type switch
-        {
-            PyType pyType => pyType.Name,
-            _ => throw new PyTypeError(
-                $"isinstance() arg 2 must be a type or tuple of types, not "
-                    + $"'{PyRepr.TypeName(type)}'"
-            ),
-        };
-        string actual = PyRepr.TypeName(value);
-        if (expected == actual)
-        {
-            return true;
-        }
-        // bool 是 int 的子类
-        return expected == "int" && actual == "bool";
-    }
-
-    private static object? BuiltinGetAttr(object?[] args, string[] names)
-    {
-        RejectUnknownKeywords("getattr", names);
-        if (args.Length is < 2 or > 3)
-        {
-            throw new PyTypeError($"getattr expected 2 or 3 arguments, got {args.Length}");
-        }
-        string attr = args[1] as string
-            ?? throw new PyTypeError("attribute name must be string");
-        try
-        {
-            return PyObject.GetAttr(args[0], attr) ?? PyNone.Instance;
-        }
-        catch (PyAttributeError) when (args.Length == 3)
-        {
-            return args[2];
-        }
-    }
-
-    private static object BuiltinHasAttr(object?[] args, string[] names)
-    {
-        RejectUnknownKeywords("hasattr", names);
-        if (args.Length != 2)
-        {
-            throw new PyTypeError($"hasattr expected 2 arguments, got {args.Length}");
-        }
-        string attr = args[1] as string
-            ?? throw new PyTypeError("attribute name must be string");
-        try
-        {
-            PyObject.GetAttr(args[0], attr);
-            return true;
-        }
-        catch (PyAttributeError)
-        {
-            return false;
-        }
-    }
-
-    private static object? BuiltinSetAttr(object?[] args, string[] names)
-    {
-        RejectUnknownKeywords("setattr", names);
-        if (args.Length != 3)
-        {
-            throw new PyTypeError($"setattr expected 3 arguments, got {args.Length}");
-        }
-        throw new PyAttributeError(
-            "setattr 对当前对象类型尚未支持（普通 class 属性协议属于 M2.5）"
-        );
     }
 
     // ───────────────────────── print ─────────────────────────

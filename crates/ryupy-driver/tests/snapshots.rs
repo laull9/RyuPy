@@ -408,3 +408,57 @@ fn snapshot_dynamic_attribute_access() {
     );
     insta::assert_snapshot!("m2_2_dynamic_attribute_mir", mir);
 }
+
+/// M2.5：普通 class 的 HIR / MIR / CIL 结构快照。
+///
+/// 重点检查类体顺序、类对象槽位、方法函数对象与 `SetAttr` / `Decorate` 调用。
+#[test]
+fn snapshot_m2_5_classes() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_5_classes.py");
+
+    let mut sess = Session::default();
+    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
+    insta::assert_snapshot!("m2_5_classes_hir", hir);
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m2_5_classes_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m2_5_classes_cil", cil);
+}
+
+/// M2.6：用户异常类会生成 CLR 子类与工厂委托，CIL 快照防止继承链退化。
+#[test]
+fn snapshot_m2_6_user_errors_cil() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase2/m2_6_user_errors.py");
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m2_6_user_errors_cil", cil);
+}
+
+/// 暂缓能力必须明确报错：多重继承在 HIR 阶段给出 E0100。
+#[test]
+fn snapshot_multiple_inheritance_diagnostic() {
+    let py_path = std::env::temp_dir().join("ryupy_test_multi_inherit.py");
+    std::fs::write(
+        &py_path,
+        "class A:\n    pass\n\nclass B:\n    pass\n\nclass C(A, B):\n    pass\n",
+    )
+    .unwrap();
+
+    let mut sess = Session::default();
+    let _ = dump(&mut sess, &py_path, Stage::Hir);
+    let rendered = sess.render_diagnostics(false);
+    let _ = std::fs::remove_file(&py_path);
+
+    assert!(
+        rendered.contains("E0100"),
+        "期望多重继承诊断 E0100，实际：{rendered}"
+    );
+    insta::assert_snapshot!("m2_6_multiple_inheritance", rendered);
+}

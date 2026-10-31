@@ -83,6 +83,10 @@ public static partial class PyOps
     /// <summary>二元运算：返回 Python 值（可能升级为 <c>BigInteger</c> 或 <c>double</c>）。</summary>
     public static object Binary(int op, object a, object b)
     {
+        if (TryBinaryMagic(op, a, b, out object? magic))
+        {
+            return magic!;
+        }
         bool aInt = PyInt.IsInt(a);
         bool bInt = PyInt.IsInt(b);
         bool aNum = aInt || a is double;
@@ -220,6 +224,10 @@ public static partial class PyOps
         {
             return !ValuesEqual(a, b);
         }
+        if (TryRichCompare(op, a, b, out bool compared))
+        {
+            return compared;
+        }
 
         int? order = Order(a, b, op);
         if (order is null)
@@ -251,11 +259,19 @@ public static partial class PyOps
                 {
                     return -d;
                 }
+                if (TryUnaryMagic("__neg__", value, out object? negated))
+                {
+                    return negated!;
+                }
                 throw new PyTypeError($"bad operand type for unary -: '{PyRepr.TypeName(value)}'");
             case Pos:
                 if (PyInt.IsInt(value) || value is double)
                 {
                     return value;
+                }
+                if (TryUnaryMagic("__pos__", value, out object? positive))
+                {
+                    return positive!;
                 }
                 throw new PyTypeError($"bad operand type for unary +: '{PyRepr.TypeName(value)}'");
             case Not:
@@ -265,39 +281,15 @@ public static partial class PyOps
                 {
                     return PyInt.Invert(value);
                 }
+                if (TryUnaryMagic("__invert__", value, out object? inverted))
+                {
+                    return inverted!;
+                }
                 throw new PyTypeError($"bad operand type for unary ~: '{PyRepr.TypeName(value)}'");
             default:
                 throw new PyRuntimeError($"unknown unary opcode {op}");
         }
     }
-
-    /// <summary>真值判定（条件、<c>not</c>、<c>and</c>/<c>or</c> 共用）。</summary>
-    /// <remarks>
-    /// 空容器为假是 Python 最常见的惯用法（<c>if not items:</c> / <c>while queue:</c>），
-    /// 因此每一种容器都必须显式列出——漏掉一类会静默进入错误分支，而不是报错。
-    /// 字符串按**码点**判空：UTF-16 的长度不影响「是否为空」这一结论。
-    /// </remarks>
-    public static bool Truthy(object? value) => value switch
-    {
-        null => false,
-        PyNone => false,
-        PyUnbound => false,
-        bool b => b,
-        long l => l != 0,
-        int i => i != 0,
-        BigInteger big => !big.IsZero,
-        double d => d != 0.0,
-        string s => s.Length > 0,
-        PyList list => list.Count > 0,
-        PyTuple tuple => tuple.Length > 0,
-        PyDict dict => dict.Count > 0,
-        PySet set => set.Count > 0,
-        PyFrozenSet frozen => frozen.Count > 0,
-        PyBytes bytes => bytes.Count > 0,
-        PyByteArray array => array.Count > 0,
-        PyDictView view => view.Count > 0,
-        _ => true,
-    };
 
     /// <summary><c>int(x)</c>，结果为动态值。</summary>
     public static object ToIntValue(object value) => value switch

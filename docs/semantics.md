@@ -53,7 +53,9 @@
 | 字符串方法 `split` / `join` / `strip` / `replace` / `find` 等 | ✅ M2.4 | `PyOps.CallMethod`；返回值下标按码点计算 |
 | 内建 `len` / `range` / `enumerate` / `zip` / `reversed` / `sum` / `min` / `max` / `any` / `all` / `round` / `sorted` / `isinstance` / `id` / `getattr` / `hasattr` | ✅ M2.4 | `PyOps.CallBuiltin`；`sorted` / `list.sort` 支持 `key` 与 `reverse`，排序稳定 |
 | `print` 的 `sep` / `end` | ✅ M2.4 | 静态路径直接写分隔符与结尾；`file` / `flush` 依赖 M3.4 |
-| 普通 class、单继承、方法 | ❌ | Phase 2 M2.5 / M2.6 |
+| 普通 class、单继承、方法、绑定方法、`property` / `staticmethod` / `classmethod` | ✅ M2.5 / M2.6 | 运行时 `PyClass` / `PyInstance`；类体在 `class` 语句位置顺序执行 |
+| 用户自定义异常（`class E(ValueError)`） | ✅ M2.6 | codegen 生成 CLR 子类；类型化 catch 与 Python 继承树同构 |
+| `__repr__` / `__str__` / `__eq__` / `__hash__` / `__bool__` / `__len__` / `__iter__` / `__next__` / `__getitem__` 与常用运算槽 | ✅ M2.5 | `PyObject.TryMethod` 统一分派；未支持的魔术方法不伪造结果 |
 | `with` 与上下文协议 | ❌ | Phase 2 M2.8 |
 | 常用标准库 | ❌ | Phase 3 逐 API 移植，当前只有 dataclass 特殊降级 |
 | 多重继承、元类、任意描述符、动态代码与 import hook | ❌ | 暂缓，明确拒绝 |
@@ -68,7 +70,7 @@
 | `str` | `Str` | `Str` | `string` |
 | `None` | `None` | `Unit` | `void` |
 | `@dataclass` | `Class` | `Class` | `class` |
-| `@dataclass(frozen=True)` | `Class` | `Class`（值类型） | `valuetype` |
+| `@dataclass(frozen=True)` | `Class` | `Class`（引用类型） | `class`（ADR-0009：保留身份） |
 | 无法静态定型 | `Dynamic` ✅ M2.1 | `Dynamic` | `object`（装箱 CLR 值） |
 
 ### 2.1 静态特化与动态降级（M2.1）
@@ -89,8 +91,8 @@
 `TypeError`。`str + int`、`"a" < 1` 等静态可见的错误也不再拒绝编译，交给 `PyOps` 给出与
 CPython 一致的消息。
 
-仍未支持的动态操作：属性访问（需要普通 class，M2.5）、下标与容器（M2.3）、异常捕获（M2.2）、
-`import`（M2.7）——这些在编译期报 `E0303` 等诊断，不静默降级成占位值。
+动态属性访问、容器、异常捕获已在 M2.2–M2.5 接入；目前仍未支持的是 `import` 与模块系统（M2.7），
+以及多重继承、元类、任意描述符等暂缓能力。暂缓能力在编译期报诊断，不静默降级成占位值。
 
 ## 3. 运算规则
 
@@ -133,12 +135,12 @@ CPython 一致的消息。
 | 14 | 字符串长度 / 下标 / 切片 / 迭代 | 按码点 | `string.Length` 与下标按 UTF-16 code unit | M2.3 起统一走 `PyText`：`len("😀a") == 2`，`s[0] == "😀"`，切片与迭代按码点推进 |
 | 15 | 浮点 NaN 比较 | `nan < 1` 为 `False`，`nan != nan` 为 `True` | `clt` 正确；`!(a < b)` 式的取反实现会出错 | 比较指令不得用「取反」实现 `>=` 等 |
 | 16 | `-0.0` | 打印 `-0.0` | 打印 `-0` | `FloatRepr` 处理 |
-| 17 | `frozen=True` dataclass 语义 | 对象仍有稳定身份，字段还能指向可变对象 | .NET valuetype 传参 / 赋值为值拷贝 | 当前禁止字段写入，但 frozen 不能证明身份不可观察；M2.5 按 ADR-0009 保留默认身份，值表示须证明或显式选择 |
+| 17 | `frozen=True` dataclass 语义 | 对象仍有稳定身份，字段还能指向可变对象 | .NET valuetype 传参 / 赋值为值拷贝 | M2.5 起改为引用类型：禁止字段写入，但传参 / 赋值只复制引用，身份稳定（ADR-0009） |
 | 18 | 回收与析构时机 | CPython 多数对象按 refcount 回收；Python 语言不保证即时析构 | .NET GC 延迟回收 | 明确不复现 refcount / 析构 / 弱引用回调的具体时机，见 D001；资源用 with / finally / close |
 | 19 | 类型标注 | Python 不据函数 / 变量标注强制运行时类型 | 静态签名会限制实参类型 | M2.1 起改为「标注只作优化线索」：实参不符时被调函数降级为动态，不再报编译错误 |
 | 20 | 字典键与顺序 | 相等的数字键保持一致哈希，dict 保持插入顺序 | .NET 集合默认行为不能直接等同 Python | M2.3 统一 Python equality / hash 与顺序，覆盖 bool / int / float 混合键 |
 | 21 | 模块初始化 | 按首次导入执行，循环中可见部分初始化对象 | .NET 静态构造时机不等同 Python import | M2.7 独立模块对象、缓存与初始化入口，不依赖静态构造自动复现 |
-| 22 | 方法与属性重绑定 | 后续查找须看到新绑定 | 缓存会保留旧目标 | M2.5–M2.9 携带类型 / shape / 模块版本，修改后失效并返回通用分派 |
+| 22 | 方法与属性重绑定 | 后续查找须看到新绑定 | 缓存会保留旧目标 | M2.5 起类属性查找缓存携带全局修改版本，任意增删 / 替换立即失效；M2.7–M2.9 再扩展模块与 PIC |
 | 23 | 生成器清理 | close / throw 与 finally / with 联动 | 简单 IEnumerator 不覆盖全部协议 | M3.2 保存异常和清理状态；析构触发关闭的时机仍受 D001 限制 |
 | 24 | 整数与浮点相等 | `9007199254740993 == 9007199254740992.0` 为 `False` | 先转 `double` 后两者同值，得到 `True` | `PyHash` 的混合数值比较一律走 `PyInt.CompareWithDouble` 精确比较 |
 | 25 | NaN 作为字典键 | `nan == nan` 为 `False`，但同一个 nan 对象能在字典里查到自己 | — | `PyHash.Equal` 不含身份兜底，`PyKeyComparer` 含（见 §4.3） |
@@ -202,11 +204,14 @@ stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise
 - **裸 `raise`** 取运行时保存的「当前异常」，没有则抛 `RuntimeError`。
 - **`except … as e`** 的分支结束后 `e` 被标记为未赋值，之后再读抛 `UnboundLocalError`。
 
-**当前限制**：`except` 的类型只支持内建异常类型名（用户自定义异常在 M2.6）；traceback 的
+**用户自定义异常**：M2.6 起 `class E(ValueError)` 也会生成对应的 CLR 子类，codegen 在模块入口
+初始化异常工厂委托；`except E` / `except ValueError` 因此仍由类型化 catch 完成匹配。
+traceback 的
 帧来自编译器插桩，`__traceback__` 属性暂时是 `None`，完整 frame 对象与 `sys._getframe`
 属于暂缓能力。
 
 ### 4.3 容器与相等性（M2.3）
+
 
 容器表达式在类型层**统一降级为 `Dynamic`**：元素类型、键类型都不是编译期概念，`[1, "a"]`
 也不再分两种 list。代价是放弃静态特化，收益是不必为每种容器组合发明新的静态类型——Python
@@ -241,6 +246,27 @@ stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise
 `print(a, b)` 必须**先求值全部实参，再统一输出**。早期实现边求值边写（`Write*` 逐个下发），
 使 `print(x, x.pop())` 写出的是调用前的内容，且实参里嵌套的输出会插到中间。现已改为先生成
 全部实参的临时量，再按序 `WriteSep` / `Write*` / `WriteNewline`。
+
+### 4.5 普通类与属性协议（M2.5 / M2.6）
+
+普通类不生成 CLR 类型：类体是运行时语句，MIR 在 `class` 语句位置调用 `PyOps.MakeClass`，
+然后按源码顺序执行属性赋值、方法定义与表达式副作用。因此类体顺序、方法默认值求值时机和
+模块语句的相对顺序都与 CPython 一致。
+
+- **查找优先级**：`property`（数据描述符）→ 实例字典 → 类链；方法与 `staticmethod` /
+  `classmethod` 在读取时绑定。`del obj.attr` 只删除实例字典中的值，类属性继续可见。
+- **绑定方法**：`PyBoundMethod` 记录定义类与接收者；零参数 `super()` 通过线程局部的方法
+  上下文取「定义类的下一个基类」，因此多级继承链上的 `super().__init__` 语义正确。
+- **缓存失效**：类属性查找带缓存，条目记录全局修改版本。任何类属性增删 / 替换都会让缓存
+  失效（陷阱 #22）；条目超过 256 条整体清空，容量有界。
+- **魔术方法**：`__repr__` / `__str__` / `__eq__` / `__hash__` / `__bool__` / `__len__` /
+  `__iter__` / `__next__` / `__getitem__` / `__setitem__` / `__delitem__` / `__contains__`
+  与常用一元 / 二元运算槽接入统一入口。默认对象身份仍在：没有 `__eq__` 时按引用相等，
+  没有 `__hash__` 时按身份哈希。
+- **身份**：普通对象始终是引用；`frozen=True` dataclass 也改为 .NET 引用类型，装箱 / 传参
+  只复制引用，满足 ADR-0009 的默认身份要求。
+- **暂缓能力**：多重继承、元类、任意类装饰器、自定义 `__getattribute__` 在 HIR 报 `E0100`，
+  不静默降级。
 
 ## 5. 模块与入口
 

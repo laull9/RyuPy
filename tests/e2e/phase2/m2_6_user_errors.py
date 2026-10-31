@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.6：用户异常继承、参数和匹配。
 class InputError(ValueError):
     pass

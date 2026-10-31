@@ -36,6 +36,8 @@ pub struct ExprBuilder<'a> {
     pub fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
     pub fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     pub fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
+    /// HIR 类 → 类对象静态槽位（普通类与 dataclass 类对象都从这里读取）。
+    pub class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
     pub current_hir_fn: ryupy_hir::FuncId,
     pub locals: &'a mut Arena<LocalDecl>,
     pub blocks: &'a mut Arena<BasicBlock>,
@@ -209,6 +211,11 @@ impl<'a> ExprBuilder<'a> {
                 Some(global) => Operand::Global(global),
                 None => self.none_value(),
             },
+            // 类名作为值：加载类对象。`isinstance(x, Box)`、`Box.named` 都依赖它。
+            ExprKind::Class(cls_id) => match self.class_globals.get(cls_id).copied() {
+                Some(global) => Operand::Global(global),
+                None => self.none_value(),
+            },
             // 星号只在容器字面量与赋值目标里有意义；这里落到容器的增量构建
             ExprKind::Starred(inner) => self.build_expr(*inner),
             _ => self.none_value(),
@@ -272,6 +279,8 @@ impl<'a> ExprBuilder<'a> {
     /// 和赋值都依赖它。真正调用走 `build_call`，不会到这里。
     fn build_builtin_value(&mut self, builtin: Builtin) -> Operand {
         let name = match builtin {
+            // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
+            Builtin::Exception(type_name) => type_name,
             Builtin::Int => "int",
             Builtin::Float => "float",
             Builtin::Str => "str",

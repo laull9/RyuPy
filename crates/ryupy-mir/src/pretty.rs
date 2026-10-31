@@ -132,6 +132,9 @@ fn dump_basic_block(
                 )
                 .unwrap();
             }
+            Statement::SetGlobal { dest, value } => {
+                writeln!(out, "g{} = {};", dest.into_raw(), format_operand(value)).unwrap();
+            }
         }
     }
 

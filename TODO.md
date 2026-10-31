@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 M1.0–M1.5 已完成，Phase 2 已推进到容器、异常、迭代与字符串（M2.1–M2.4 部分完成），下一步 M2.7 模块系统。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 M1.0–M1.5 已完成；Phase 2 已推进到普通 class、单继承与自定义异常（M2.1–M2.6 完成），下一步 M2.7 模块系统。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -217,23 +217,35 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M2.2–M2.4。用例：`m2_5_classes.py`、`m2_5_identity.py`。
 
-- [ ] hir / ty / mir / codegen：普通类、类体顺序执行、`__init__`、实例创建、self、方法调用与绑定方法对象
-- [ ] runtime：实例属性、类属性、动态增删属性、属性查找优先级、缺失属性错误；保留共享引用、实例身份与类体副作用
-- [ ] 按竖切接入 `__repr__` / `__str__`、`__eq__` / `__hash__`、`__bool__` / `__len__`、`__iter__` / `__next__`、`__getitem__` 与常用运算槽；未支持的魔术方法明确登记
-- [ ] 实现受支持的 `property` / `staticmethod` / `classmethod` 绑定规则，不扩大为任意描述符协议
-- [ ] 设计 shape 与类型版本；属性增删、方法替换、类属性写入后缓存失效，超限回到通用查找
-- [ ] 落实 ADR-0009：普通对象默认有稳定身份；frozen dataclass 跨动态边界保留身份，不能每次装箱制造新对象；值表示须有证明或显式性能扩展
-- [ ] 验收：实例别名、同名类 / 实例属性、绑定方法、property 和缓存失效差分通过；保持 M1.5 回归
+- [x] hir / ty / mir / codegen：普通类、类体顺序执行、`__init__`、实例创建、self、方法调用与绑定方法对象
+      （类体降级为有序 `ClassItem`；`class` 语句在模块入口位置创建 `PyClass` 并顺序写属性 / 方法）
+- [x] runtime：实例属性、类属性、动态增删属性、属性查找优先级、缺失属性错误；保留共享引用、实例身份与类体副作用
+      （`PyClass` / `PyInstance`；数据描述符优先于实例字典，`AttributeError` 消息与 CPython 一致）
+- [x] 按竖切接入 `__repr__` / `__str__`、`__eq__` / `__hash__`、`__bool__` / `__len__`、`__iter__` / `__next__`、`__getitem__` 与常用运算槽；未支持的魔术方法明确登记
+      （`PyObject.TryMethod` 统一入口；迭代器适配 `PyInstanceIterator`；`__contains__` / `__setitem__` / `__delitem__` 与常用二元 / 一元运算槽）
+- [x] 实现受支持的 `property` / `staticmethod` / `classmethod` 绑定规则，不扩大为任意描述符协议
+      （`PyProperty` / `PyStaticMethod` / `PyClassMethod`；其他方法装饰器与 `__getattribute__` 报 `E0100`）
+- [x] 设计 shape 与类型版本；属性增删、方法替换、类属性写入后缓存失效，超限回到通用查找
+      （`PyClass` 按全局修改版本校验查找缓存，上限 256 条；任意类属性修改自动失效）
+- [x] 落实 ADR-0009：普通对象默认有稳定身份；frozen dataclass 跨动态边界保留身份，不能每次装箱制造新对象；值表示须有证明或显式性能扩展
+      （`frozen=True` 也改为 .NET 引用类型；装箱只复制引用，`identity(point) is point` 成立）
+- [x] 验收：实例别名、同名类 / 实例属性、绑定方法、property 和缓存失效差分通过；保持 M1.5 回归
+      （`m2_5_classes` / `m2_5_identity` / `m2_5_cache_invalidation` / `m2_5_protocols` 已转正）
 
 ### M2.6 单继承、super 与自定义异常
 
 > 依赖 M2.5。用例：`m2_6_inheritance.py`、`m2_6_user_errors.py`。
 
-- [ ] 普通单继承、方法覆盖、零参数 `super()` 与基类初始化；建立受支持类链和子类判断
-- [ ] 接通继承的属性 / 方法 / 运算协议、类修改版本传播与内建 `isinstance` / `issubclass`
-- [ ] 允许继承 Exception 的用户类，接入 M2.2 的抛出、匹配、参数与异常链
-- [ ] 多重继承、任意元类、自定义 `__getattribute__` 等未支持能力给出诊断；不静默降级成单继承或普通字段
-- [ ] 验收：覆盖方法、super 链、基类变更后的缓存、自定义异常捕获与清理通过，暂缓构造有诊断测试
+- [x] 普通单继承、方法覆盖、零参数 `super()` 与基类初始化；建立受支持类链和子类判断
+      （`PyClass.BaseClass` 单链；绑定方法记录定义类，`PyMethodContext` 提供零参数 `super()`）
+- [x] 接通继承的属性 / 方法 / 运算协议、类修改版本传播与内建 `isinstance` / `issubclass`
+      （属性查找沿类链；`PyExceptionHierarchy` 提供内建异常继承判断）
+- [x] 允许继承 Exception 的用户类，接入 M2.2 的抛出、匹配、参数与异常链
+      （codegen 为每个用户异常类生成 CLR 子类与工厂委托，类型化 catch 与 Python 继承树同构）
+- [x] 多重继承、任意元类、自定义 `__getattribute__` 等未支持能力给出诊断；不静默降级成单继承或普通字段
+      （HIR 报 `E0100`；诊断快照 `m2_6_multiple_inheritance`）
+- [x] 验收：覆盖方法、super 链、基类变更后的缓存、自定义异常捕获与清理通过，暂缓构造有诊断测试
+      （`m2_6_inheritance` / `m2_6_user_errors` / `m2_6_exception_chain` 已转正）
 
 ### M2.7 模块、包与模块全局
 
@@ -466,5 +478,5 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] 错误码登记表 `docs/errors.md`（每个错误码一个最小复现 + 说明）
 - [x] 深递归 `RecursionError` 守卫（M2.2），默认 1000 层，可用 `RYUPY_RECURSION_LIMIT` 调整
 - [x] 浮点除零与 floor div / mod 数值边界统一抛 Python 异常（M2.2），并有差分用例
-- [ ] Phase 1 类型标注约束与 frozen dataclass 值拷贝仍存在；M2.1 / M2.5 按 ADR-0009 解除默认兼容路径限制
+- [x] Phase 1 类型标注约束与 frozen dataclass 值拷贝已解除：M2.1 标注只作优化线索，M2.5 起 frozen dataclass 保留对象身份
 - [ ] CLI 的 run 分支当前直接启动 dotnet 子进程；后续收回 driver，保持 architecture.md §2 的编排边界，本次只同步文档和测试

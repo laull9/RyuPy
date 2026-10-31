@@ -209,6 +209,52 @@ fn dump_stmt(
         StmtKind::FunctionDefaults(id) => {
             writeln!(out, "{pad}defaults of {}", module.functions[*id].name).unwrap()
         }
+        StmtKind::ClassDef(id) => {
+            let class = &module.classes[*id];
+            let base = match class.base {
+                None => String::new(),
+                Some(crate::hir::ClassBase::User(base_id)) => {
+                    format!("({})", module.classes[base_id].name)
+                }
+                Some(crate::hir::ClassBase::Builtin(name)) => format!("({name})"),
+            };
+            writeln!(out, "{pad}class {}{base}:", class.name).unwrap();
+            for item in &class.body {
+                match &item.kind {
+                    crate::hir::ClassItemKind::Attr { name, value } => {
+                        writeln!(
+                            out,
+                            "{pad}    {} = {}",
+                            name,
+                            dump_expr(module, body, *value)
+                        )
+                        .unwrap();
+                    }
+                    crate::hir::ClassItemKind::Method { func, decorators } => {
+                        let decorators: Vec<&str> = decorators
+                            .iter()
+                            .map(|d| match d {
+                                crate::hir::Decorator::Property => "@property",
+                                crate::hir::Decorator::StaticMethod => "@staticmethod",
+                                crate::hir::Decorator::ClassMethod => "@classmethod",
+                            })
+                            .collect();
+                        for decorator in decorators {
+                            writeln!(out, "{pad}    {decorator}").unwrap();
+                        }
+                        writeln!(
+                            out,
+                            "{pad}    def {}(self, ...)",
+                            module.functions[*func].name
+                        )
+                        .unwrap();
+                    }
+                    crate::hir::ClassItemKind::Expr(value) => {
+                        writeln!(out, "{pad}    {}", dump_expr(module, body, *value)).unwrap();
+                    }
+                }
+            }
+        }
         StmtKind::Break => writeln!(out, "{pad}break").unwrap(),
         StmtKind::Continue => writeln!(out, "{pad}continue").unwrap(),
         StmtKind::Try {

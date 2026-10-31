@@ -115,14 +115,34 @@ impl CallArg {
     }
 }
 
-/// Phase 1 只支持 `@dataclass`：字段固定、无方法继承。
+/// 一个类定义。
+///
+/// 两类类共享同一结构：
+/// - `@dataclass`：`fields` 有内容，构造走静态 `NewObject`，类体只允许字段标注；
+/// - 普通 class（M2.5）：运行时由 `PyClass` / `PyInstance` 承载，类体按源码顺序
+///   求值属性并登记方法。
 #[derive(Debug)]
 pub struct Class {
     pub name: Name,
+    /// 单继承的基类；`None` 表示 `object`。
+    pub base: Option<ClassBase>,
     pub fields: Vec<Field>,
-    /// `@dataclass(frozen=True)` → 编译为 .NET 值类型 struct。
+    /// 类体按源码顺序执行：属性、方法、表达式语句。
+    pub body: Vec<ClassItem>,
+    /// `@dataclass(frozen=True)`：字段写入在编译期拒绝。
     pub frozen: bool,
+    /// `@dataclass` 修饰的类。
+    pub is_dataclass: bool,
+    /// 是否为 `BaseException` 家族（内建或用户定义）——决定能否出现在 `except` 中。
+    pub is_exception: bool,
     pub range: TextRange,
+}
+
+/// 单继承的基类表示。用户类指向已解析的 `ClassId`，内建基类保留异常类型名。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClassBase {
+    User(ClassId),
+    Builtin(&'static str),
 }
 
 #[derive(Debug)]
@@ -130,6 +150,34 @@ pub struct Field {
     pub name: Name,
     pub annotation: TypeRef,
     pub range: TextRange,
+}
+
+/// 类体里的一项，保留源码顺序（Python 的类体是顺序执行的）。
+#[derive(Clone, Debug)]
+pub struct ClassItem {
+    pub kind: ClassItemKind,
+    pub range: TextRange,
+}
+
+#[derive(Clone, Debug)]
+pub enum ClassItemKind {
+    /// `name = value` / `name: T = value`：写入类命名空间。
+    Attr { name: Name, value: ExprId },
+    /// 方法定义；`@property` / `@staticmethod` / `@classmethod` 在运行时应用。
+    Method {
+        func: FuncId,
+        decorators: Vec<Decorator>,
+    },
+    /// 表达式语句（通常是 docstring 或类体里的副作用）。
+    Expr(ExprId),
+}
+
+/// `def` 上方支持的类内修饰器。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Decorator {
+    Property,
+    StaticMethod,
+    ClassMethod,
 }
 
 /// 源码中写出来的类型标注（尚未检查）。
@@ -404,6 +452,9 @@ pub enum StmtKind {
     },
     /// `del a[i]` / `del a[x:y]`；目标是下标表达式。
     Delete(Vec<ExprId>),
+    /// 顶层 `class` 定义。MIR 在**定义位置**创建类对象并顺序执行类体，
+    /// 保证类属性求值、方法对象创建与模块语句的先后关系正确。
+    ClassDef(ClassId),
     /// `try` 语句：`body` / `handlers` / `else` / `finally` 四部分，任意一部分可以为空。
     ///
     /// HIR 保留 Python 的四段结构，不提前去糖成「嵌套 try」：MIR 需要知道
@@ -424,9 +475,10 @@ pub struct Handler {
     ///
     /// 之所以在 HIR 就把 `except ValueError` 解析成名字而不是保留表达式：
     /// 匹配交给 CIL 的类型化 catch，需要的是**类型**而不是运行时可调用对象。
-    /// `except (TypeError, ValueError)` 展开成多个名字。用户自定义异常类
-    /// （以及任何非字面量类型表达式）留到 M2.6，届时改成按运行时类型匹配。
-    pub types: Option<Vec<&'static str>>,
+    /// `except (TypeError, ValueError)` 展开成多个名字。用户自定义异常类在 M2.6
+    /// 接入：类名与内建异常名一样作为 catch 的类型标识（codegen 会生成对应的
+    /// CLR 异常子类，保持 CLR 与 Python 继承树同构）。
+    pub types: Option<Vec<String>>,
     /// `as name` 绑定的局部变量。
     pub name: Option<LocalId>,
     pub body: Vec<StmtId>,

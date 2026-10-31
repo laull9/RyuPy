@@ -30,7 +30,6 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
 
     let sys_runtime = res.push_assembly_reference(ExternalAssemblyReference::new("System.Runtime"));
     let object_ref = res.push_type_reference(type_ref! { System.Object in #sys_runtime });
-    let valuetype_ref = res.push_type_reference(type_ref! { System.ValueType in #sys_runtime });
     let object_ctor_ref = res.push_method_reference(method_ref! { void object::.ctor() });
 
     let ryupy_runtime =
@@ -244,6 +243,34 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let dyn_get_attr = res.push_method_reference(
         method_ref! { static object @pyobject_type::GetAttr(object, string) },
     );
+    // ── 普通类与属性协议（M2.5 / M2.6）──
+    let pyclass_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyClass in #ryupy_runtime });
+    let pyclass_type: MethodType = BaseType::class(pyclass_ref).into();
+    let make_class = res.push_method_reference(method_ref! {
+        static object @pyops_type::MakeClass(string, object[], object)
+    });
+    let set_attr = res.push_method_reference(method_ref! {
+        static void @pyops_type::SetAttr(object, string, object)
+    });
+    let del_attr = res.push_method_reference(method_ref! {
+        static void @pyops_type::DelAttr(object, string)
+    });
+    let decorate = res.push_method_reference(method_ref! {
+        static object @pyops_type::Decorate(int, object)
+    });
+    let exception_factory_ref =
+        res.push_type_reference(type_ref! { RyuPy.Runtime.PyExceptionFactory in #ryupy_runtime });
+    let exception_factory_type: MethodType = BaseType::class(exception_factory_ref).into();
+    let exception_factory_ctor = res.push_method_reference(method_ref! {
+        void @exception_factory_type::.ctor(object, nint)
+    });
+    let bind_python_class = res.push_method_reference(method_ref! {
+        void @py_exc_type::BindPythonClass(@pyclass_type)
+    });
+    let user_exception_message = res.push_method_reference(method_ref! {
+        static string @pyerrors_type::UserExceptionMessage(object[])
+    });
     let trace_push =
         res.push_method_reference(method_ref! { static long @traceback_type::PushFrame(string) });
     let trace_line =
@@ -282,6 +309,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     // Python 异常类型名 → CLR 类型：CIL 的类型化 catch 按这些类型匹配。
     // 命名约定是 `Py<PythonName>`（如 `PyValueError`），与运行时 `PyExceptionTypes` 一致。
     let mut exception_types: FxHashMap<String, MethodType> = FxHashMap::default();
+    let mut exception_type_refs: FxHashMap<String, TypeRefIndex> = FxHashMap::default();
     for type_name in ryupy_mir::EXCEPTION_TYPE_NAMES {
         let type_ref = if *type_name == "BaseException" {
             py_exc_ref
@@ -293,6 +321,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             ))
         };
         exception_types.insert((*type_name).to_string(), BaseType::class(type_ref).into());
+        exception_type_refs.insert((*type_name).to_string(), type_ref);
     }
 
     let mut runtime_refs = RuntimeRefs {
@@ -373,6 +402,14 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         iter_start,
         iter_next_ok,
         iter_value,
+        make_class,
+        set_attr,
+        del_attr,
+        decorate,
+        py_class_type: pyclass_type,
+        exception_factory_ctor,
+        bind_python_class,
+        user_exception_message,
         object_type: MethodType::from(BaseType::class(object_ref)),
         global_fields: FxHashMap::default(),
         signature_create,
@@ -403,10 +440,16 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         &signature_member,
     );
 
-    // 1. 为所有类预先分配 TypeIndex
+    // 1. 为 dataclass 与用户异常类分配 CLR 类型。
+    //
+    // 普通 class 不生成 CLR 类型：它由运行时 `PyClass` / `PyInstance` 承载。
+    // 用户异常类必须生成 CLR 子类，CIL 的类型化 catch 才能按 Python 异常继承树匹配。
     let mut class_types = ClassTypeMap::new(object_ref);
     let mut class_defs: Vec<(ryupy_mir::ClassDefId, TypeIndex)> = Vec::new();
     for (cls_id, cls) in program.classes.iter() {
+        if !cls.is_dataclass {
+            continue;
+        }
         let type_idx = res.push_type_definition(TypeDefinition::new(
             Some("RyuPy.Generated".into()),
             cls.name.clone(),
@@ -418,20 +461,15 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     }
     runtime_refs.global_fields = global_fields;
 
-    // 2. 为每个类配置 extends、flags、fields 与 .ctor
+    // 2. dataclass：extends、字段与 .ctor。
+    //
+    // ADR-0009 之后 frozen dataclass 也是引用类型：值拷贝会破坏对象身份。
     let mut class_info: ClassInfoMap = FxHashMap::default();
     for &(cls_id, type_idx) in &class_defs {
         let cls = &program.classes[cls_id];
-        if cls.is_value_type {
-            res[type_idx].set_extends(valuetype_ref);
-            res[type_idx].flags.layout = Layout::Sequential(None);
-            res[type_idx].flags.sealed = true;
-            res[type_idx].flags.accessibility = TypeAccessibility::Public;
-        } else {
-            res[type_idx].set_extends(object_ref);
-            res[type_idx].flags.sealed = true;
-            res[type_idx].flags.accessibility = TypeAccessibility::Public;
-        }
+        res[type_idx].set_extends(object_ref);
+        res[type_idx].flags.sealed = true;
+        res[type_idx].flags.accessibility = TypeAccessibility::Public;
 
         let mut field_indices = Vec::new();
         for (field_name, field_ty) in &cls.fields {
@@ -443,7 +481,6 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             field_indices.push(field_idx);
         }
 
-        // 构造函数 .ctor
         let ctor_params: Vec<Parameter<MethodType>> = cls
             .fields
             .iter()
@@ -459,11 +496,10 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res[ctor_method_idx].special_name = true;
         res[ctor_method_idx].runtime_special_name = true;
 
-        let mut ctor_instructions = Vec::new();
-        if !cls.is_value_type {
-            ctor_instructions.push(Instruction::LoadArgument(0));
-            ctor_instructions.push(Instruction::call(object_ctor_ref));
-        }
+        let mut ctor_instructions = vec![
+            Instruction::LoadArgument(0),
+            Instruction::call(object_ctor_ref),
+        ];
         for (i, &f_idx) in field_indices.iter().enumerate() {
             ctor_instructions.push(Instruction::LoadArgument(0));
             ctor_instructions.push(Instruction::LoadArgument((i + 1) as u16));
@@ -486,6 +522,145 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             },
         );
     }
+
+    // 3. 用户异常类：先分配类型，再配置继承与构造函数。
+    let mut exception_type_indices: FxHashMap<ryupy_mir::ClassDefId, TypeIndex> =
+        FxHashMap::default();
+    for (cls_id, cls) in program.classes.iter() {
+        if !cls.is_exception || cls.is_dataclass {
+            continue;
+        }
+        let type_idx = res.push_type_definition(TypeDefinition::new(
+            Some("RyuPy.Generated".into()),
+            format!("_{}", cls.name),
+        ));
+        exception_type_indices.insert(cls_id, type_idx);
+        // 用户异常类名也可能出现在 `except` 中；覆盖内建同名表项。
+        runtime_refs
+            .exception_types
+            .insert(cls.name.clone(), BaseType::class(type_idx).into());
+    }
+
+    let object_array: MethodType = BaseType::vector(BaseType::class(object_ref).into()).into();
+    let string_type: MethodType = BaseType::String.into();
+    let pyclass_mt = runtime_refs.py_class_type.clone();
+    let py_exc_mt: MethodType = BaseType::class(py_exc_ref).into();
+    let mut exception_ctors: FxHashMap<ryupy_mir::ClassDefId, MethodIndex> = FxHashMap::default();
+
+    for (cls_id, cls) in program.classes.iter() {
+        if !cls.is_exception || cls.is_dataclass {
+            continue;
+        }
+        let type_idx = exception_type_indices[&cls_id];
+        res[type_idx].flags.accessibility = TypeAccessibility::Public;
+        res[type_idx].flags.sealed = false;
+
+        let ctor_sig = MethodSignature::instance(
+            ReturnType::VOID,
+            vec![
+                Parameter::value(pyclass_mt.clone()),
+                Parameter::value(object_array.clone()),
+                Parameter::value(string_type.clone()),
+            ],
+        );
+        let ctor_idx = res.push_method(
+            type_idx,
+            Method::new(Accessibility::Public, ctor_sig, ".ctor", None),
+        );
+        res[ctor_idx].special_name = true;
+        res[ctor_idx].runtime_special_name = true;
+        exception_ctors.insert(cls_id, ctor_idx);
+
+        let mut ins = vec![Instruction::LoadArgument(0)];
+        if let Some(base_id) = cls.base
+            && let Some(&base_type) = exception_type_indices.get(&base_id)
+            && let Some(&base_ctor) = exception_ctors.get(&base_id)
+        {
+            // 用户异常链：直接转发给生成的基类构造函数。
+            res[type_idx].set_extends(base_type);
+            // 实例方法的参数下标从 1 开始：1 = PyClass，2 = args，3 = typeName。
+            ins.extend([
+                Instruction::LoadArgument(1),
+                Instruction::LoadArgument(2),
+                Instruction::LoadArgument(3),
+                Instruction::call(UserMethod::Definition(base_ctor)),
+            ]);
+        } else if let Some(builtin) = &cls.builtin_base {
+            let base_type_ref = exception_type_refs[builtin];
+            res[type_idx].set_extends(base_type_ref);
+            let base_mt = runtime_refs.exception_types[builtin].clone();
+            let base_ctor = res.push_method_reference(
+                method_ref! { void @base_mt::.ctor(string, string, object[]) },
+            );
+            ins.extend([
+                // 实例方法：1 = PyClass，2 = args，3 = typeName。
+                Instruction::LoadArgument(3),
+                Instruction::LoadArgument(2),
+                Instruction::call(runtime_refs.user_exception_message),
+                Instruction::LoadArgument(2),
+                Instruction::call(base_ctor),
+                // 把 Python 类对象挂到异常上（属性访问与 isinstance 需要）。
+                Instruction::LoadArgument(0),
+                Instruction::LoadArgument(1),
+                Instruction::call(runtime_refs.bind_python_class),
+            ]);
+        } else {
+            // 理论上不可达：异常类一定有用户基类或内建异常基类。
+            res[type_idx].set_extends(py_exc_ref);
+        }
+        ins.push(Instruction::Return);
+        let mut ctor_body = body::Method::new(ins);
+        ctor_body.header.maximum_stack_size = 8;
+        res[ctor_idx].body = Some(ctor_body);
+    }
+
+    // 4. 为每个用户异常类生成工厂方法，并生成 `__init_class_factories`。
+    let mut exception_factories: FxHashMap<ryupy_mir::ClassDefId, MethodIndex> =
+        FxHashMap::default();
+    for (cls_id, cls) in program.classes.iter() {
+        if !cls.is_exception || cls.is_dataclass {
+            continue;
+        }
+        let Some(&ctor_idx) = exception_ctors.get(&cls_id) else {
+            continue;
+        };
+        let factory_sig = MethodSignature::new(
+            false,
+            ReturnType::value(py_exc_mt.clone()),
+            vec![
+                Parameter::value(pyclass_mt.clone()),
+                Parameter::value(object_array.clone()),
+            ],
+        );
+        let factory_idx = res.push_method(
+            module_class,
+            Method::new(
+                Accessibility::Private,
+                factory_sig,
+                Cow::Owned(format!("__exc_factory_{}", cls_id.into_raw().into_u32())),
+                None,
+            ),
+        );
+        let ins = vec![
+            Instruction::LoadArgument(0),
+            Instruction::LoadArgument(1),
+            Instruction::load_string(cls.name.clone()),
+            Instruction::NewObject(UserMethod::Definition(ctor_idx)),
+            Instruction::Return,
+        ];
+        let mut factory_body = body::Method::new(ins);
+        factory_body.header.maximum_stack_size = 8;
+        res[factory_idx].body = Some(factory_body);
+        exception_factories.insert(cls_id, factory_idx);
+    }
+
+    let init_class_factories = emit_init_class_factories(
+        &mut res,
+        module_class,
+        program,
+        &runtime_refs,
+        &exception_factories,
+    );
 
     // 第一遍：为所有函数分配 MethodIndex。
     //
@@ -606,11 +781,57 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             system_exit_code,
             flush_stdout,
             init_functions,
+            init_class_factories,
             &program.source_name,
         );
     }
 
     (res, module_class)
+}
+
+/// 生成 `__init_class_factories`：给用户异常类的静态槽位写入 CLR 工厂委托。
+fn emit_init_class_factories(
+    res: &mut Resolution<'static>,
+    module_class: TypeIndex,
+    program: &Program,
+    refs: &RuntimeRefs,
+    factories: &FxHashMap<ryupy_mir::ClassDefId, MethodIndex>,
+) -> MethodIndex {
+    let method_idx = res.push_method(
+        module_class,
+        Method::new(
+            Accessibility::Private,
+            msig! { static void () },
+            "__init_class_factories",
+            None,
+        ),
+    );
+    let mut ins = Vec::new();
+    for (cls_id, factory) in factories {
+        let cls = &program.classes[*cls_id];
+        let Some(global) = cls.factory_global else {
+            continue;
+        };
+        let Some(&field) = refs.global_fields.get(&global) else {
+            continue;
+        };
+        ins.push(Instruction::LoadNull);
+        ins.push(Instruction::LoadMethodPointer(MethodSource::User(
+            UserMethod::Definition(*factory),
+        )));
+        ins.push(Instruction::NewObject(UserMethod::Reference(
+            refs.exception_factory_ctor,
+        )));
+        ins.push(Instruction::StoreStaticField {
+            volatile: false,
+            param0: FieldSource::Definition(field),
+        });
+    }
+    ins.push(Instruction::Return);
+    let mut body = body::Method::new(ins);
+    body.header.maximum_stack_size = 8;
+    res[method_idx].body = Some(body);
+    method_idx
 }
 
 /// 入口包装器：`try { __main(); return 0; } catch (PyBaseException e) { Report(e); return 1; }`。
@@ -632,28 +853,30 @@ fn emit_entry_wrapper(
     system_exit_code: MethodRefIndex,
     flush_stdout: MethodRefIndex,
     init_functions: MethodIndex,
+    init_class_factories: MethodIndex,
     source_name: &str,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: ldstr source_name
     //   1: call SetFile
-    //   2: call __init_functions    ← 构造函数对象与默认值数组
-    //   3: call __main              ┐ try
-    //   4: leave 16                 ┘
-    //   5: call SystemExitCode      ┐ catch PySystemExit
-    //   6: stloc.0                  │
-    //   7: leave 16                 ┘
-    //   8: call Report              ┐ catch PyBaseException
-    //   9: ldc.i4.1                 │
-    //  10: stloc.0                  │
-    //  11: leave 16                 ┘
-    //  12: call ReportClr           ┐ catch System.Exception（兜底）
-    //  13: ldc.i4.1                 │
-    //  14: stloc.0                  │
-    //  15: leave 16                 ┘
-    //  16: call Flush               ← 所有路径汇合于此
-    //  17: ldloc.0
-    //  18: ret
+    //   2: call __init_functions        ← 构造函数对象与默认值数组
+    //   3: call __init_class_factories  ← 用户异常类的 CLR 工厂委托
+    //   4: call __main                  ┐ try
+    //   5: leave 17                     ┘
+    //   6: call SystemExitCode          ┐ catch PySystemExit
+    //   7: stloc.0                      │
+    //   8: leave 17                     ┘
+    //   9: call Report                  ┐ catch PyBaseException
+    //  10: ldc.i4.1                     │
+    //  11: stloc.0                      │
+    //  12: leave 17                     ┘
+    //  13: call ReportClr               ┐ catch System.Exception（兜底）
+    //  14: ldc.i4.1                     │
+    //  15: stloc.0                      │
+    //  16: leave 17                     ┘
+    //  17: call Flush                   ← 所有路径汇合于此
+    //  18: ldloc.0
+    //  19: ret
     //
     // 处理区必须以 `leave` 离开、不能直接 `ret`——否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
@@ -661,22 +884,23 @@ fn emit_entry_wrapper(
         Instruction::load_string(source_name),
         Instruction::call(set_file),
         Instruction::call(init_functions),
+        Instruction::call(init_class_factories),
         Instruction::call(body_method),
-        Instruction::Leave(16),
+        Instruction::Leave(17),
         // SystemExit：算出退出码而不是打印 traceback
         Instruction::call(system_exit_code),
         Instruction::StoreLocal(0),
-        Instruction::Leave(16),
+        Instruction::Leave(17),
         // 其余未捕获 Python 异常：打印 traceback 并退出 1
         Instruction::call(report_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(16),
+        Instruction::Leave(17),
         // 兜底：CLR 异常（静态 i64 溢出等）映射为 Python 错误后报告
         Instruction::call(report_clr_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(16),
+        Instruction::Leave(17),
         // 汇合点：刷新 stdout 缓冲后返回退出码
         Instruction::call(flush_stdout),
         Instruction::LoadLocal(0),
@@ -689,23 +913,23 @@ fn emit_entry_wrapper(
     method_body.data_sections = vec![body::DataSection::ExceptionHandlers(vec![
         body::Exception {
             kind: body::ExceptionKind::TypedException(system_exit_type),
-            try_offset: 3,
+            try_offset: 4,
             try_length: 2,
-            handler_offset: 5,
+            handler_offset: 6,
             handler_length: 3,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(exception_type),
-            try_offset: 3,
+            try_offset: 4,
             try_length: 2,
-            handler_offset: 8,
+            handler_offset: 9,
             handler_length: 4,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(clr_exception_type),
-            try_offset: 3,
+            try_offset: 4,
             try_length: 2,
-            handler_offset: 12,
+            handler_offset: 13,
             handler_length: 4,
         },
     ])];
@@ -801,6 +1025,10 @@ pub fn dump(program: &Program, opts: &EmitOptions) -> Result<String, CodegenErro
     out.push_str("}\n");
 
     for (_cls_id, cls) in program.classes.iter() {
+        // 普通 class / 用户异常类由运行时对象承载，转储只展示 dataclass 的 CLR 布局。
+        if !cls.is_dataclass {
+            continue;
+        }
         out.push('\n');
         let extends_str = if cls.is_value_type {
             "[System.Runtime]System.ValueType"

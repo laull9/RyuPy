@@ -59,9 +59,20 @@ public static class PyHash
         PyDict => throw Unhashable("dict"),
         PySet => throw Unhashable("set"),
         PyByteArray => throw Unhashable("bytearray"),
-        // 其它对象按身份哈希（M2.5 起由 __hash__ 接管）
-        _ => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value),
+        // 普通对象：有 __hash__ 就用它，否则按身份哈希（与 CPython 默认一致）。
+        _ => CustomHash(value)
+            ?? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(value),
     };
+
+    /// <summary>调用用户 `__hash__`；没有定义时返回 <c>null</c>。</summary>
+    private static long? CustomHash(object? value)
+    {
+        if (!PyObject.TryMethod(value, "__hash__", [], out object? result))
+        {
+            return null;
+        }
+        return PyCast.ToInt64(result);
+    }
 
     /// <summary>该值能否作为字典键 / 集合元素。</summary>
     /// <param name="value">任意值。</param>
@@ -86,6 +97,15 @@ public static class PyHash
         if (ReferenceEquals(a, b))
         {
             return true;
+        }
+        // 用户 `__eq__`：先试左侧，再试右侧（与 CPython 的富比较顺序一致）。
+        if (PyObject.TryMethod(a, "__eq__", [b], out object? leftResult))
+        {
+            return PyOps.Truthy(leftResult);
+        }
+        if (PyObject.TryMethod(b, "__eq__", [a], out object? rightResult))
+        {
+            return PyOps.Truthy(rightResult);
         }
         if (a is null or PyNone || b is null or PyNone)
         {
