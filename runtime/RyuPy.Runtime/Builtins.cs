@@ -28,6 +28,12 @@ public static class Builtins
     /// <summary>写出 <c>str</c>。</summary>
     public static void WriteStr(string value) => Out.Write(value);
 
+    /// <summary>
+    /// 写出动态值：等价于 <c>print(str(value))</c>。动态路径（M2.1）里
+    /// 编译期不知道具体类型，统一走这里。
+    /// </summary>
+    public static void WriteObject(object? value) => Out.Write(PyRepr.Str(value));
+
     /// <summary><c>print</c> 参数之间的分隔符（默认 <c>sep=' '</c>）。</summary>
     public static void WriteSep() => Out.Write(' ');
 
