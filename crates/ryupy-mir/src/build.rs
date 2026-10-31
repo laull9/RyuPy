@@ -22,7 +22,7 @@
 
 use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
-use ryupy_base::Diagnostic;
+use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{
     AssignTarget, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, StmtId, StmtKind,
 };
@@ -30,13 +30,15 @@ use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 
 use crate::expr_builder::ExprBuilder;
 use crate::mir::{
-    BasicBlock, BlockId, Callee, Constant, FnId, Function, LocalDecl, LocalId as MirLocalId,
-    MirType, Operand, Program, Region, RuntimeFn, Rvalue, Statement, Terminator,
+    BasicBlock, BlockId, Callee, Constant, FnId, Function, GlobalDecl, LocalDecl,
+    LocalId as MirLocalId, MirType, Operand, ParamKind, ParamMeta, Program, Region, RuntimeFn,
+    Rvalue, Statement, Terminator,
 };
 
 pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnostic>) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
+    let mut globals = Arena::default();
     let mut diagnostics = Vec::new();
 
     // 0. 构建 MIR 类的类型与字段定义
@@ -56,10 +58,30 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
         });
     }
 
-    // 1. 预先为每个 HIR 函数分配 MIR FnId
+    // 1. 预先为每个 HIR 函数分配 MIR FnId，并登记函数对象 / 默认值数组 / 签名所需的
+    //    模块静态槽位。槽位在函数体构建之前分配，调用方才能在表达式里引用它们。
     let mut fn_map: FxHashMap<ryupy_hir::FuncId, FnId> = FxHashMap::default();
+    let mut global_seq = 0usize;
     for (hir_fn_id, hir_fn) in hir.functions.iter() {
         let ret_ty = ty_to_mir(&types.sigs[hir_fn_id].ret);
+        let param_meta = build_param_meta(hir, types, hir_fn_id);
+
+        let mut alloc_global = |globals: &mut Arena<GlobalDecl>, prefix: &str| {
+            let id = globals.alloc(GlobalDecl {
+                name: format!("{prefix}_{global_seq}"),
+                ty: MirType::Dynamic,
+            });
+            global_seq += 1;
+            id
+        };
+
+        let is_user = hir_fn.kind == ryupy_hir::FunctionKind::User;
+        let function_global = is_user.then(|| alloc_global(&mut globals, "__fn"));
+        // 每个用户函数都分配默认值数组：thunk 的绑定入口需要一个固定长度的数组，
+        // 没有默认值的槽位留空即可（PySignature.HasDefault 为 false 时不会被读取）。
+        let defaults_global = is_user.then(|| alloc_global(&mut globals, "__defaults"));
+        let signature_global = is_user.then(|| alloc_global(&mut globals, "__sig"));
+
         let mir_fn = Function {
             name: hir_fn.name.as_str().to_string(),
             params: Vec::new(),
@@ -70,15 +92,31 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
                 entry: la_arena::Idx::from_raw(0.into()),
                 regions: Vec::new(),
             },
+            param_meta,
+            function_global,
+            defaults_global,
+            signature_global,
         };
         let mir_fn_id = functions.alloc(mir_fn);
         fn_map.insert(hir_fn_id, mir_fn_id);
     }
 
+    let mut fn_globals: FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId> = FxHashMap::default();
+    let mut fn_defaults: FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>> =
+        FxHashMap::default();
+    for (hir_fn_id, mir_fn_id) in fn_map.iter() {
+        let function = &functions[*mir_fn_id];
+        if let Some(global) = function.function_global {
+            fn_globals.insert(*hir_fn_id, global);
+        }
+        fn_defaults.insert(*hir_fn_id, function.defaults_global);
+    }
+
     // 2. 逐函数构建函数体
     for (hir_fn_id, hir_fn) in hir.functions.iter() {
         let mir_fn_id = fn_map[&hir_fn_id];
-        let mut builder = FunctionBuilder::new(hir, types, &fn_map, hir_fn_id);
+        let mut builder =
+            FunctionBuilder::new(hir, types, &fn_map, &fn_globals, &fn_defaults, hir_fn_id);
 
         // 建立 HIR 局部变量 → MIR 局部变量映射
         for (hir_loc_id, hir_loc) in hir_fn.body.locals.iter() {
@@ -134,12 +172,16 @@ pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnos
     let program = Program {
         functions,
         classes,
+        globals,
         entry,
         source_name: hir.source_name.clone(),
     };
 
     (program, diagnostics)
 }
+
+/// `PyOps.ArgError` 的错误种类：未知关键字。
+pub const ARG_ERROR_UNEXPECTED_KEYWORD: i64 = 3;
 
 pub fn ty_to_mir(ty: &Ty) -> MirType {
     match ty {
@@ -156,6 +198,43 @@ pub fn ty_to_mir(ty: &Ty) -> MirType {
     }
 }
 
+/// 从 HIR 参数与类型签名构造 MIR 参数元数据。
+///
+/// `*args` / `**kwargs` 的槽位在运行时是 tuple / dict，即使写了标注也不能当成普通值，
+/// 因此强制为 `Dynamic`。
+fn build_param_meta(
+    hir: &Module,
+    types: &ModuleTypes,
+    hir_fn_id: ryupy_hir::FuncId,
+) -> Vec<ParamMeta> {
+    let hir_fn = &hir.functions[hir_fn_id];
+    let sig = &types.sigs[hir_fn_id];
+    hir_fn
+        .params
+        .iter()
+        .enumerate()
+        .map(|(index, param)| {
+            let kind = match param.kind {
+                ryupy_hir::ParamKind::PositionalOnly => ParamKind::PositionalOnly,
+                ryupy_hir::ParamKind::PositionalOrKeyword => ParamKind::PositionalOrKeyword,
+                ryupy_hir::ParamKind::VarPositional => ParamKind::VarPositional,
+                ryupy_hir::ParamKind::KeywordOnly => ParamKind::KeywordOnly,
+                ryupy_hir::ParamKind::VarKeyword => ParamKind::VarKeyword,
+            };
+            let ty = match kind {
+                ParamKind::VarPositional | ParamKind::VarKeyword => MirType::Dynamic,
+                _ => ty_to_mir(sig.params.get(index).unwrap_or(&Ty::Dynamic)),
+            };
+            ParamMeta {
+                name: hir_fn.body.locals[param.local].name.to_string(),
+                kind,
+                has_default: param.default.is_some(),
+                ty,
+            }
+        })
+        .collect()
+}
+
 /// 单个函数的 MIR 构建器。
 ///
 /// 字段对外开放到 crate 内，是为了把「循环」「异常区域」这些小节的构建逻辑拆到
@@ -164,6 +243,10 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) hir: &'a Module,
     pub(crate) types: &'a ModuleTypes,
     pub(crate) fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
+    /// 每个用户函数的函数对象静态槽位（调用一等函数值 / 运行时绑定用）。
+    pub(crate) fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
+    /// 每个函数默认值数组的静态槽位（没有默认值为 `None`）。
+    pub(crate) fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
     pub(crate) current_hir_fn: ryupy_hir::FuncId,
     pub(crate) locals: Arena<LocalDecl>,
     pub(crate) blocks: Arena<BasicBlock>,
@@ -219,6 +302,8 @@ impl<'a> FunctionBuilder<'a> {
         hir: &'a Module,
         types: &'a ModuleTypes,
         fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
+        fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
+        fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
         current_hir_fn: ryupy_hir::FuncId,
     ) -> Self {
         let mut blocks = Arena::default();
@@ -230,6 +315,8 @@ impl<'a> FunctionBuilder<'a> {
             hir,
             types,
             fn_map,
+            fn_globals,
+            fn_defaults,
             current_hir_fn,
             locals: Arena::default(),
             blocks,
@@ -439,6 +526,35 @@ impl<'a> FunctionBuilder<'a> {
         self.start_dead_block();
     }
 
+    /// 在定义位置求值一个函数的参数默认值，写进它的默认值数组。
+    ///
+    /// 默认值数组由 codegen 的 `__init_functions` 预先分配，这里只填元素，
+    /// 因此 `PyFunction` 持有的是同一份数组，多次调用共享可变默认值。
+    pub(crate) fn emit_function_defaults(&mut self, fn_id: ryupy_hir::FuncId) {
+        let Some(defaults_global) = self.fn_defaults.get(&fn_id).copied().flatten() else {
+            return;
+        };
+        let defaults: Vec<(usize, ExprId)> = self.hir.functions[fn_id]
+            .params
+            .iter()
+            .enumerate()
+            .filter_map(|(index, param)| param.default.map(|expr| (index, expr)))
+            .collect();
+        for (index, expr) in defaults {
+            let op = self.expr_builder().build_expr(expr);
+            let ty = self.expr_builder().ty_of(expr);
+            let value = self.expr_builder().coerce(op, &ty, &MirType::Dynamic);
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::ArraySet),
+                args: vec![
+                    Operand::Global(defaults_global),
+                    Operand::Const(Constant::I64(index as i64)),
+                    value,
+                ],
+            }));
+        }
+    }
+
     /// 返回槽位；返回类型是 `None` 时不需要槽位。
     pub(crate) fn retval_local(&mut self) -> Option<MirLocalId> {
         if matches!(self.ret_ty, MirType::Unit) {
@@ -522,6 +638,8 @@ impl<'a> FunctionBuilder<'a> {
             hir: self.hir,
             types: self.types,
             fn_map: self.fn_map,
+            fn_globals: self.fn_globals,
+            fn_defaults: self.fn_defaults,
             current_hir_fn: self.current_hir_fn,
             locals: &mut self.locals,
             blocks: &mut self.blocks,
@@ -623,14 +741,15 @@ impl<'a> FunctionBuilder<'a> {
 
                 self.current_bb = join_bb;
             }
-            StmtKind::While { cond, body } => {
+            StmtKind::While { cond, body, orelse } => {
                 let cond_bb = self.new_block();
                 let body_bb = self.new_block();
+                let else_bb = self.new_block();
                 let exit_bb = self.new_block();
 
                 self.terminate_current(Terminator::Goto(cond_bb));
 
-                // 循环条件块
+                // 循环条件块：条件变假 → else（正常结束）
                 self.current_bb = cond_bb;
                 let cond_raw = self.expr_builder().build_expr(*cond);
                 let cond_ty = self.expr_builder().ty_of(*cond);
@@ -638,10 +757,10 @@ impl<'a> FunctionBuilder<'a> {
                 self.terminate_current(Terminator::Branch {
                     cond: cond_bool,
                     then_: body_bb,
-                    else_: exit_bb,
+                    else_: else_bb,
                 });
 
-                // 循环体
+                // 循环体：break 直接跳 exit，跳过 else
                 self.current_bb = body_bb;
                 self.loop_stack.push((cond_bb, exit_bb));
                 for &s in body {
@@ -652,6 +771,14 @@ impl<'a> FunctionBuilder<'a> {
                     self.terminate_current(Terminator::Goto(cond_bb));
                 }
 
+                // else 体
+                self.current_bb = else_bb;
+                for &s in orelse {
+                    self.build_stmt(s);
+                }
+                if self.is_current_unterminated() {
+                    self.terminate_current(Terminator::Goto(exit_bb));
+                }
                 self.current_bb = exit_bb;
             }
             StmtKind::Break => {
@@ -669,17 +796,26 @@ impl<'a> FunctionBuilder<'a> {
                     .expect("continue 语句在 HIR 降级阶段已做循环作用域检查");
                 self.route_jump(continue_bb);
             }
+            StmtKind::FunctionDefaults(fn_id) => {
+                self.emit_function_defaults(*fn_id);
+            }
             StmtKind::ForRange {
                 var,
                 start,
                 stop,
                 step,
                 body,
+                orelse,
             } => {
-                self.build_for_range(*var, *start, *stop, *step, body);
+                self.build_for_range(*var, *start, *stop, *step, body, orelse);
             }
-            StmtKind::ForEach { var, iter, body } => {
-                self.build_for_each(*var, *iter, body);
+            StmtKind::ForEach {
+                var,
+                iter,
+                body,
+                orelse,
+            } => {
+                self.build_for_each(*var, *iter, body, orelse);
             }
             StmtKind::Raise { value, cause } => {
                 // 裸 raise 取运行时「当前异常」；显式 raise 先准备（挂上下文 + 记栈帧）。
@@ -742,54 +878,126 @@ impl<'a> FunctionBuilder<'a> {
         let expr = &hir_body.exprs[expr_id];
         if let ExprKind::Call { callee, args } = &expr.kind {
             let callee_expr = &hir_body.exprs[*callee];
-            if matches!(callee_expr.kind, ExprKind::Builtin(Builtin::Print)) {
+            let has_star = args.iter().any(|arg| {
+                matches!(
+                    arg,
+                    ryupy_hir::CallArg::Starred(_) | ryupy_hir::CallArg::DoubleStarred(_)
+                )
+            });
+            if matches!(callee_expr.kind, ExprKind::Builtin(Builtin::Print)) && !has_star {
+                // `print` 太低频地需要通用分派，单独展开：
+                // - 位置实参先全部求值（Python 的实参求值顺序），再统一输出；
+                // - `sep` / `end` 关键字决定分隔符与结尾，缺省仍是空格与换行；
+                // - `file` / `flush` 依赖文件流（M3.4），现在明确报 TypeError。
                 let dynamic = self.types.is_dynamic(self.current_hir_fn);
-                // 先求值全部参数，再统一输出：Python 的调用语义是「实参先全部求值，再进入被调者」，
-                // 边求值边写会让 `print(x, x.pop())` 写出调用前的 stale 内容，也会让被求值表达式
-                // 里的 print 插到中间。见 docs/notes M2.3「实参求值顺序」。
                 let mut written = Vec::with_capacity(args.len());
-                for &arg in args.iter() {
-                    let op = self.expr_builder().build_expr(arg);
-                    let arg_ty = self.expr_builder().ty_of(arg);
-                    // 动态函数里编译期不知道类型，统一交给 WriteObject（等价 print(str(v))）
-                    let (op, rt_fn) = if dynamic {
-                        (
-                            self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic),
-                            RuntimeFn::WriteObject,
-                        )
-                    } else {
-                        match arg_ty {
-                            Ty::Int => (op, RuntimeFn::WriteI64),
-                            Ty::Float => (op, RuntimeFn::WriteF64),
-                            Ty::Bool => (op, RuntimeFn::WriteBool),
-                            Ty::Str => (op, RuntimeFn::WriteStr),
-                            // None 没有静态表示，值本身已经是装箱的 None 单例
-                            Ty::None => {
-                                let boxed =
-                                    self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic);
-                                (boxed, RuntimeFn::WriteObject)
-                            }
-                            _ => (op, RuntimeFn::WriteI64),
+                let mut sep: Option<Operand> = None;
+                let mut end_op: Option<Operand> = None;
+
+                for arg in args {
+                    match arg {
+                        ryupy_hir::CallArg::Positional(expr) => {
+                            let op = self.expr_builder().build_expr(*expr);
+                            let arg_ty = self.expr_builder().ty_of(*expr);
+                            let (op, rt_fn) = if dynamic {
+                                (
+                                    self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic),
+                                    RuntimeFn::WriteObject,
+                                )
+                            } else {
+                                match arg_ty {
+                                    Ty::Int => (op, RuntimeFn::WriteI64),
+                                    Ty::Float => (op, RuntimeFn::WriteF64),
+                                    Ty::Bool => (op, RuntimeFn::WriteBool),
+                                    Ty::Str => (op, RuntimeFn::WriteStr),
+                                    Ty::None => {
+                                        let boxed = self.expr_builder().coerce(
+                                            op,
+                                            &arg_ty,
+                                            &MirType::Dynamic,
+                                        );
+                                        (boxed, RuntimeFn::WriteObject)
+                                    }
+                                    _ => (op, RuntimeFn::WriteI64),
+                                }
+                            };
+                            written.push((op, rt_fn));
                         }
-                    };
-                    written.push((op, rt_fn));
+                        ryupy_hir::CallArg::Starred(_) => {
+                            // `print(*xs)` 需要运行时展开，留到需要真实用例时再实现
+                            self.diagnostics.push(
+                                Diagnostic::error(
+                                    Span::new(
+                                        self.hir.file,
+                                        self.hir.functions[self.current_hir_fn].body.exprs
+                                            [arg.expr()]
+                                        .range,
+                                    ),
+                                    "print(*args) 暂不支持",
+                                )
+                                .with_code("E0304")
+                                .with_primary_label("暂不支持展开实参"),
+                            );
+                        }
+                        ryupy_hir::CallArg::Keyword(name, expr) => {
+                            let op = self.expr_builder().build_expr(*expr);
+                            let ty = self.expr_builder().ty_of(*expr);
+                            match name.as_str() {
+                                "sep" => {
+                                    sep = Some(self.expr_builder().coerce(op, &ty, &MirType::Str));
+                                }
+                                "end" => {
+                                    end_op =
+                                        Some(self.expr_builder().coerce(op, &ty, &MirType::Str));
+                                }
+                                other => {
+                                    // 求值后抛 TypeError：Python 的未知关键字也在调用时失败
+                                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                                        callee: Callee::Runtime(RuntimeFn::ArgError),
+                                        args: vec![
+                                            Operand::Const(Constant::I64(
+                                                ARG_ERROR_UNEXPECTED_KEYWORD,
+                                            )),
+                                            Operand::Const(Constant::Str(format!(
+                                                "print() got an unexpected keyword argument '{other}'"
+                                            ))),
+                                        ],
+                                    }));
+                                }
+                            }
+                        }
+                        ryupy_hir::CallArg::DoubleStarred(_) => {}
+                    }
                 }
+
                 for (i, (op, rt_fn)) in written.into_iter().enumerate() {
                     if i > 0 {
-                        self.push_stmt(Statement::Eval(Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::WriteSep),
-                            args: Vec::new(),
-                        }));
+                        match &sep {
+                            Some(sep_op) => self.push_stmt(Statement::Eval(Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::WriteStr),
+                                args: vec![sep_op.clone()],
+                            })),
+                            None => self.push_stmt(Statement::Eval(Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::WriteSep),
+                                args: Vec::new(),
+                            })),
+                        }
                     }
                     self.push_stmt(Statement::Eval(Rvalue::Call {
                         callee: Callee::Runtime(rt_fn),
                         args: vec![op],
                     }));
                 }
-                self.push_stmt(Statement::Eval(Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::WriteNewline),
-                    args: Vec::new(),
-                }));
+                match end_op {
+                    Some(end_op) => self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::WriteStr),
+                        args: vec![end_op],
+                    })),
+                    None => self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::WriteNewline),
+                        args: Vec::new(),
+                    })),
+                }
                 return;
             }
         }

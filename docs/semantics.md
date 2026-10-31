@@ -21,17 +21,21 @@
 | 局部变量（不带标注 / `x: int = …`） | ✅ M1.1 | CIL local，类型由推导决定 |
 | `x += 1` 等增量赋值 | ✅ M1.1 | 去糖为 `x = x + 1` |
 | 函数调用（含前向引用、递归） | ✅ M1.1 | `call` |
+| 位置 / 关键字实参、`*args`、`**kwargs`、`/` 后仅位置、`*` 后仅关键字 | ✅ M2.1 | 静态直调按参数顺序生成；无法静态绑定时走 `PyOps.CallValue` + `PyBinder`（运行时抛 `TypeError`） |
+| 参数默认值（定义时求值、可变默认值共享） | ✅ M2.1 | 在 `def` 所在位置求值到模块静态数组；`FunctionDefaults` 语句保证引用此前的模块变量 |
+| 一等函数（函数对象、作为实参 / 返回值、经变量调用） | ✅ M2.1 | 每个函数生成统一 thunk 与模块静态 `PyFunction`；`CallValue` 分派 |
 | 算术 / 位运算 / 比较 / `not` | ✅ M1.2 | 见第 3 节 |
 | `and` / `or`（短路） | ✅ M1.2 | 基本块分支 |
 | `if` / `elif` / `else`、条件表达式 | ✅ M1.2 | 基本块分支 |
 | `while`、`break`、`continue` | ✅ M1.2 | 基本块 + 循环目标栈 |
+| `while … else` / `for … else` | ✅ M2.4 | 条件变假 / 迭代耗尽进入 else 块；`break` 直接跳到出口跳过 else |
 | `for x in range(...)` | ✅ M1.3 | 原生计数循环，不产生迭代器 |
+| 通用 `for`（容器 / `iter` / `enumerate` / `zip` / `reversed` / `range` 值）、元组循环目标 | ✅ M2.4 | `IPyIterator` 迭代协议；元组目标先写隐藏局部再解包 |
 | `int(x)` / `float(x)` / `abs(x)` | ✅ M1.4 | `Cast` / 运行时函数 |
 | `str + str` | ✅ M1.4 | `Builtins.StrConcat` |
 | `from dataclasses import dataclass` + `@dataclass` | ✅ M1.5 | .NET class |
 | `@dataclass(frozen=True)` | ✅ M1.5 | .NET struct |
 | 链式比较 `a < b < c` | ✅ M1.2 | 中间项无副作用时展开，否则 ❌ |
-| `while … else` / `for … else` | ❌ | — |
 | 其它 `import`、模块与包 | ❌ | Phase 2 M2.7 |
 | `global` / `nonlocal` | ❌ | 分别为 M2.7 / M3.0 |
 | 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
@@ -45,6 +49,10 @@
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
 | `try` / `except` / `except (A, B)` / `else` / `finally` / `except … as e` | ✅ M2.2 | CIL 类型化 catch + `finally` 状态机；详见 §4.1 |
 | `str(x)` / `type(x)` / 动态属性读取 | ✅ M2.2 | `PyRepr.StrValue` / `PyObject.TypeOf` / `PyObject.GetAttr`（当前覆盖异常与类型对象） |
+| f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；嵌套格式说明符暂不支持 |
+| 字符串方法 `split` / `join` / `strip` / `replace` / `find` 等 | ✅ M2.4 | `PyOps.CallMethod`；返回值下标按码点计算 |
+| 内建 `len` / `range` / `enumerate` / `zip` / `reversed` / `sum` / `min` / `max` / `any` / `all` / `round` / `sorted` / `isinstance` / `id` / `getattr` / `hasattr` | ✅ M2.4 | `PyOps.CallBuiltin`；`sorted` / `list.sort` 支持 `key` 与 `reverse`，排序稳定 |
+| `print` 的 `sep` / `end` | ✅ M2.4 | 静态路径直接写分隔符与结尾；`file` / `flush` 依赖 M3.4 |
 | 普通 class、单继承、方法 | ❌ | Phase 2 M2.5 / M2.6 |
 | `with` 与上下文协议 | ❌ | Phase 2 M2.8 |
 | 常用标准库 | ❌ | Phase 3 逐 API 移植，当前只有 dataclass 特殊降级 |
@@ -143,6 +151,10 @@ CPython 一致的消息。
 | 32 | 空容器真值 | `[]`、`{}`、`""`、`set()` 为假 | 引用类型默认非空 | `PyOps.Truthy` 显式列出每种容器类型（含 dict 视图、bytes / bytearray） |
 | 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | `PyOps.UnpackCheck(length, required, hasStar)`：星号形态只检查下限，非星号形态必须精确相等 |
 | 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
+| 35 | 参数绑定错误 | 运行时 `TypeError`：缺少 / 过多 / 重复绑定 / 未知关键字 / 位置-only 当关键字 | — | `PyBinder` 按 CPython 规则绑定并生成相同措辞的消息；编译期只判断能否走静态快路径，**不**把绑定错误变成编译错误 |
+| 36 | 默认值求值时机 | 在 `def` 执行时于模块作用域求值、只求值一次；可变默认值跨调用共享 | — | 默认值在定义位置（`FunctionDefaults` 语句）写进模块静态数组；`def f(x=[])` 的所有调用共享同一个 list |
+| 37 | f-string 格式说明符 | 支持嵌套插值（`f"{x:{width}}"`） | — | 当前只支持纯字面量规格；嵌套插值报 `E0100`。格式子集：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比 |
+| 38 | `id(x)` | 返回对象地址（CPython 内部细节） | — | 返回运行时的稳定身份哈希；不伪造地址，登记为 D002 的内部观测差异 |
 
 ### 4.1 未捕获异常与退出码（M2.2）
 

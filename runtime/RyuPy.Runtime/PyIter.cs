@@ -25,7 +25,26 @@ namespace RyuPy.Runtime;
 /// <see cref="PyOps.IterValue"/> 取当前元素。分开两步是为了让 MIR 用普通条件分支
 /// 表达循环，不需要为 <c>StopIteration</c> 建立异常区域。
 /// </remarks>
-public sealed class PyIter
+/// <summary>
+/// 迭代器的最小协议：推进与取当前值。
+/// </summary>
+/// <remarks>
+/// 编译产物只通过 <c>PyOps.IterNextOk</c> / <c>PyOps.IterValue</c> 接触迭代器，
+/// 因此 enumerate / zip / range 等运行时迭代器只要实现这个接口即可参与 <c>for</c>。
+/// </remarks>
+public interface IPyIterator
+{
+    /// <summary>推进一个位置；返回是否还有元素。</summary>
+    bool MoveNext();
+
+    /// <summary>取当前元素（<see cref="MoveNext"/> 返回 <c>true</c> 之后调用）。</summary>
+    object? Current();
+}
+
+/// <summary>
+/// 编译产物使用的通用迭代器：按容器类型选择游标语义（列表按下标、字典按槽位、集合用快照）。
+/// </summary>
+public sealed class PyIter : IPyIterator
 {
     private readonly object _source;
     private readonly long _version;
@@ -57,7 +76,7 @@ public sealed class PyIter
 
     /// <summary>为任意可迭代对象建立迭代器。</summary>
     /// <param name="source">可迭代对象。</param>
-    public static PyIter Create(object? source) => source switch
+    public static IPyIterator Create(object? source) => source switch
     {
         null or PyNone => throw NotIterable(source),
         PyList list => new PyIter(list, 0, null, null),
@@ -70,6 +89,9 @@ public sealed class PyIter
         string text => new PyIter(text, 0, null, null),
         PyBytes bytes => new PyIter(bytes, 0, null, null),
         PyByteArray array => new PyIter(array, 0, null, null),
+        PyRange range => new PyRangeIter(range),
+        // 迭代器本身可迭代：`iter(it)` 返回自身
+        IPyIterator iterator => iterator,
         _ => throw NotIterable(source),
     };
 

@@ -3,8 +3,8 @@
 use std::fmt::Write;
 
 use crate::hir::{
-    AssignTarget, BinOp, Body, Builtin, ExprId, ExprKind, Function, FunctionKind, Literal, Module,
-    StmtKind, TypeRef,
+    AssignTarget, BinOp, Body, Builtin, CallArg, ExprId, ExprKind, Function, FunctionKind, Literal,
+    Module, ParamKind, StmtKind, TypeRef,
 };
 
 pub fn dump(module: &Module) -> String {
@@ -26,10 +26,19 @@ fn dump_func(out: &mut String, module: &Module, func: &Function) {
         if i > 0 {
             out.push_str(", ");
         }
+        match p.kind {
+            ParamKind::VarPositional => out.push('*'),
+            ParamKind::VarKeyword => out.push_str("**"),
+            ParamKind::PositionalOnly => {}
+            ParamKind::PositionalOrKeyword | ParamKind::KeywordOnly => {}
+        }
         let loc = &func.body.locals[p.local];
         write!(out, "{}", loc.name).unwrap();
         if let Some(ann) = &p.annotation {
             write!(out, ": {}", dump_type_ref(ann)).unwrap();
+        }
+        if p.default.is_some() {
+            out.push_str("=...");
         }
     }
     out.push(')');
@@ -44,6 +53,24 @@ fn dump_func(out: &mut String, module: &Module, func: &Function) {
         for &stmt_id in &func.body.root {
             dump_stmt(out, 1, module, &func.body, stmt_id);
         }
+    }
+}
+
+/// 循环的 `else` 子句；为空时不输出。
+fn dump_loop_else(
+    out: &mut String,
+    indent: usize,
+    module: &Module,
+    body: &Body,
+    orelse: &[crate::hir::StmtId],
+) {
+    if orelse.is_empty() {
+        return;
+    }
+    let pad = "    ".repeat(indent);
+    writeln!(out, "{pad}else:").unwrap();
+    for &s in orelse {
+        dump_stmt(out, indent + 1, module, body, s);
     }
 }
 
@@ -119,16 +146,22 @@ fn dump_stmt(
                 }
             }
         }
-        StmtKind::While { cond, body: stmts } => {
+        StmtKind::While {
+            cond,
+            body: stmts,
+            orelse,
+        } => {
             writeln!(out, "{pad}while {}:", dump_expr(module, body, *cond)).unwrap();
             for &s in stmts {
                 dump_stmt(out, indent + 1, module, body, s);
             }
+            dump_loop_else(out, indent, module, body, orelse);
         }
         StmtKind::ForEach {
             var,
             iter,
             body: stmts,
+            orelse,
         } => {
             writeln!(
                 out,
@@ -140,6 +173,7 @@ fn dump_stmt(
             for &s in stmts {
                 dump_stmt(out, indent + 1, module, body, s);
             }
+            dump_loop_else(out, indent, module, body, orelse);
         }
         StmtKind::ForRange {
             var,
@@ -147,6 +181,7 @@ fn dump_stmt(
             stop,
             step,
             body: stmts,
+            orelse,
         } => {
             let var_name = &body.locals[*var].name;
             let step_str = step.map_or(String::new(), |s| {
@@ -162,6 +197,7 @@ fn dump_stmt(
             for &s in stmts {
                 dump_stmt(out, indent + 1, module, body, s);
             }
+            dump_loop_else(out, indent, module, body, orelse);
         }
         StmtKind::Delete(targets) => {
             let names: Vec<String> = targets
@@ -169,6 +205,9 @@ fn dump_stmt(
                 .map(|e| dump_expr(module, body, *e))
                 .collect();
             writeln!(out, "{pad}del {}", names.join(", ")).unwrap();
+        }
+        StmtKind::FunctionDefaults(id) => {
+            writeln!(out, "{pad}defaults of {}", module.functions[*id].name).unwrap()
         }
         StmtKind::Break => writeln!(out, "{pad}break").unwrap(),
         StmtKind::Continue => writeln!(out, "{pad}continue").unwrap(),
@@ -324,10 +363,32 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
         ),
         ExprKind::Call { callee, args } => {
             let callee_str = dump_expr(module, body, *callee);
-            let args_str: Vec<String> = args.iter().map(|&a| dump_expr(module, body, a)).collect();
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|arg| match arg {
+                    CallArg::Positional(id) => dump_expr(module, body, *id),
+                    CallArg::Starred(id) => format!("*{}", dump_expr(module, body, *id)),
+                    CallArg::Keyword(name, id) => {
+                        format!("{name}={}", dump_expr(module, body, *id))
+                    }
+                    CallArg::DoubleStarred(id) => format!("**{}", dump_expr(module, body, *id)),
+                })
+                .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
         ExprKind::Attribute { base, name } => format!("{}.{name}", dump_expr(module, body, *base)),
+        ExprKind::FString(parts) => {
+            let inner: Vec<String> = parts
+                .iter()
+                .map(|part| match part {
+                    crate::hir::FStringPart::Literal(text) => text.to_string(),
+                    crate::hir::FStringPart::Value { value, .. } => {
+                        format!("{{{}}}", dump_expr(module, body, *value))
+                    }
+                })
+                .collect();
+            format!("f\"{}\"", inner.join(""))
+        }
     }
 }
 

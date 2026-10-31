@@ -153,9 +153,11 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
       （`PyOps` / `PyInt` / `PyRepr` / `PyNone` / `PyBaseException` + 42 项 xUnit；`and`/`or` 由基本块短路并返回操作数本身）
 - [x] Python `int` 全路径支持大整数字面量、溢出升级与混合比较；覆盖加减乘、幂、移位、除法边界、取负、abs、转换与打印，静态特化保留升级退路
       （HIR 字面量放宽到 i128，超出 i64 走 `PyOps.FromDecimalString`；`int("...")`、混合比较、幂/移位/除法边界都有差分用例；静态特化溢出退路 = 去标注走动态）
-- [ ] 函数对象、默认参数的定义期求值、位置 / 关键字参数、仅位置 / 仅关键字、`*args` / `**kwargs` 与重复绑定诊断；闭包捕获留到 M3.0
-- [~] 验收：标注与未标注调用、可变默认参数、多返回类型、bool / int 关系、大整数差分通过；原有溢出失败用例改为数值正确性测试
-      （`m2_1_dynamic` / `m2_1_dynamic_flow` / `m2_1_bigint` 已转正；`m2_1_calls` 仍待函数对象与容器（M2.3））
+- [x] 函数对象、默认参数的定义期求值、位置 / 关键字参数、仅位置 / 仅关键字、`*args` / `**kwargs` 与重复绑定诊断；闭包捕获留到 M3.0
+      （`PyFunction` + 统一 thunk：生成代码把实参与关键字打包，`PyBinder` 按 CPython 规则绑定并抛 `TypeError`；
+      静态直调保留快路径；默认值在 `def` 位置求值，可变默认值跨调用共享）
+- [x] 验收：标注与未标注调用、可变默认参数、多返回类型、bool / int 关系、大整数差分通过；原有溢出失败用例改为数值正确性测试
+      （`m2_1_dynamic` / `m2_1_dynamic_flow` / `m2_1_bigint` / `m2_1_calls` / `m2_1_call_binding` / `m2_1_defaults_static` 已转正）
 
 ### M2.2 异常体系与结构化清理
 
@@ -198,45 +200,18 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M2.3。用例：`m2_4_iteration.py`、`m2_4_strings.py`、`m2_4_builtins.py`；用户对象协议由 M2.5 接续。
 
-- [ ] `iter` / `next` / StopIteration、通用 for、for / while 的 else、in / not in；range 保留可验证的计数快路径
+- [x] `iter` / `next` / StopIteration、通用 for、for / while 的 else、in / not in；range 保留可验证的计数快路径
+      （`IPyIterator`；`enumerate` / `zip` / `reversed` / `range` 是运行时迭代器；元组循环目标先写隐藏局部再解包）
 - [x] 字符串按 Python 码点处理 len / 下标 / 切片，覆盖非 BMP 与孤立代理值
       （`PyText`；`m2_10_dynamic_fixes` 覆盖 emoji 的长度、下标、切片与迭代）
-- [ ] 字符串常用 split / join / strip / replace / find 和编码转换（已接入 split / join，其余待补）
-- [ ] f-string 与常用格式化、repr / str / bool；`print` 的 sep / end / file / flush 分批接入，文件流依赖 M3.4
-- [ ] `len`、`range`、`enumerate`、`zip`、`reversed`、`sum`、`min/max`、`any/all`、round、稳定 `sorted` / list.sort，含 key 与 reverse
-      （`sorted` / `list.sort` 已改稳定归并并支持 reverse；`key=` 与其余内建待做）
-- [ ] `type` / `isinstance`、`is` / `is not`、id / hash、`getattr` / `setattr` / `hasattr` 等对象内建登记统一协议；类相关部分留到 M2.5 / M2.6
-- [ ] 验收：惰性消费、提前退出、空迭代器、Unicode、key 函数副作用和排序稳定性通过，未支持参数明确报错
-
-### M2.10 语义修正与性能收尾 ✅
-
-> 集中修复审查发现的正确性缺陷、静默错误与热路径开销；每项都有差分用例或单元测试。
-> 用例：`m1_6_range_var_and_shift.py`、`m2_10_dynamic_fixes.py`、`tests/cases/errors/unhandled_unpack_too_many`。
-
-- [x] 真值判定覆盖空 list / tuple / dict / set / frozenset / bytes / bytearray / dict 视图
-      （`PyOps.Truthy` 显式列出每种容器；`if not items:` 不再走错分支）
-- [x] 字符串按码点处理 `len` / 下标 / 切片 / 迭代，覆盖非 BMP 字符
-      （`PyText` 统一换算码点偏移；迭代器保存字符偏移，避免 O(n²)）
-- [x] 字典覆盖已有键不再误报「迭代期间修改」；删除降为 O(1)；迭代不再二次哈希
-      （槽位 + 墓碑 + 紧凑化；视图迭代直接在槽位上走，不复制快照）
-- [x] 静态 `for range` 改用隐藏计数器，`range` 参数只求值一次
-      （循环体改写循环变量不会缩短循环；边界变量被改写不影响迭代次数）
-- [x] 解包数量校验同时检查「不足」与「过多」，星号形态按下限检查
-      （`UnpackCheck(length, required, hasStar)`；`a, b = [1, 2, 3]` 抛 `ValueError`）
-- [x] 静态 i64 溢出统一转成 Python `OverflowError`
-      （`PyMath` 显式转换 `//` / `%` / `abs` / `**` / `int(float)`；入口包装器兜底 catch CLR 异常，不打印 .NET 调用栈；ADR-0004 现状、compatibility D003）
-- [x] 移位语义修正：`1 << 100` 不再被 CIL 取模成 `1 << 36`；`>>` 支持移位量 ≥ 64
-      （`PyMath.ShiftLeftI64` / `ShiftRightI64`，静态路径改走运行时调用）
-- [x] `int ** int` 负指数返回 float
-      （指数为确定的非负字面量时保留静态快速幂；否则表达式动态化，由 `PyInt.Power` 处理）
-- [x] 排序改为稳定归并：`sorted` / `list.sort`、`reverse=True` 都保持相等元素的原始顺序
-      （`PySort`；不再用不稳定的 `List.Sort` + 反转）
-- [x] codegen：`MaxStack` 按最大实参个数计算，不再写死 64；`Unit` 局部变量分配 i64 槽位
-      （修复 `x = None` 触发的 `InvalidProgramException`）
-- [x] Pass 产出的 MIR 校验失败改为返回错误，由 driver 报内部错误，不再 `panic!`
-- [x] 热路径开销：`PyInt` 增加 i64 快路径再升级 BigInteger、字符串哈希缓存、stdout 缓冲写入、
-      traceback 帧栈改平行数组、`SetLine` 仅在行号变化时写入、`NumericEqual` 的 i64 快路径
-- [x] 验收：新增用例与既有 23 项 e2e、快照、xUnit 全部通过；`make check` 通过
+- [x] 字符串常用 split / join / strip / lstrip / rstrip / replace / find / rfind / index / count / startswith / endswith 和编码转换
+- [x] f-string 与常用格式化、repr / str / bool；`print` 的 `sep` / `end` 已接入，`file` / `flush` 依赖 M3.4 的文件流
+      （`PyOps.FormatValue`：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比，未知规格抛 `ValueError`）
+- [x] `len`、`range`、`enumerate`、`zip`、`reversed`、`sum`、`min/max`、`any/all`、round、稳定 `sorted` / list.sort，含 key 与 reverse
+      （`PySort.SortBy`：key 只计算一次，降序仍稳定；`round` 按 double 的精确二进制值做银行家舍入）
+- [x] `type` / `isinstance`、`is` / `is not`、id / hash、`getattr` / `setattr` / `hasattr` 等对象内建登记统一协议；`setattr` 的属性协议随 M2.5 普通 class 接入
+- [x] 验收：惰性消费、提前退出、空迭代器、Unicode、key 函数副作用和排序稳定性通过，未支持参数明确报错
+      （`m2_4_iteration` / `m2_4_iteration_extra` / `m2_4_strings` / `m2_4_builtins` 已转正）
 
 ### M2.5 普通 class 与属性协议
 
@@ -291,6 +266,36 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] 更新项目矩阵与默认限制报告，逐项目写下一项阻塞；所有已接受偏差均链接示例与测试
 - [ ] 检查容器扩容、shape / PIC 增长和模块缓存生命周期，执行可变对象与导入的长期运行测试
 - [ ] `make check` 及本阶段多文件 / 错误路径 / 项目入口通过；更新语义表、ADR 与学习笔记
+
+### M2.10 语义修正与性能收尾 ✅
+
+> 集中修复审查发现的正确性缺陷、静默错误与热路径开销；每项都有差分用例或单元测试。
+> 用例：`m1_6_range_var_and_shift.py`、`m2_10_dynamic_fixes.py`、`tests/cases/errors/unhandled_unpack_too_many`。
+
+- [x] 真值判定覆盖空 list / tuple / dict / set / frozenset / bytes / bytearray / dict 视图
+      （`PyOps.Truthy` 显式列出每种容器；`if not items:` 不再走错分支）
+- [x] 字符串按码点处理 `len` / 下标 / 切片 / 迭代，覆盖非 BMP 字符
+      （`PyText` 统一换算码点偏移；迭代器保存字符偏移，避免 O(n²)）
+- [x] 字典覆盖已有键不再误报「迭代期间修改」；删除降为 O(1)；迭代不再二次哈希
+      （槽位 + 墓碑 + 紧凑化；视图迭代直接在槽位上走，不复制快照）
+- [x] 静态 `for range` 改用隐藏计数器，`range` 参数只求值一次
+      （循环体改写循环变量不会缩短循环；边界变量被改写不影响迭代次数）
+- [x] 解包数量校验同时检查「不足」与「过多」，星号形态按下限检查
+      （`UnpackCheck(length, required, hasStar)`；`a, b = [1, 2, 3]` 抛 `ValueError`）
+- [x] 静态 i64 溢出统一转成 Python `OverflowError`
+      （`PyMath` 显式转换 `//` / `%` / `abs` / `**` / `int(float)`；入口包装器兜底 catch CLR 异常，不打印 .NET 调用栈；ADR-0004 现状、compatibility D003）
+- [x] 移位语义修正：`1 << 100` 不再被 CIL 取模成 `1 << 36`；`>>` 支持移位量 ≥ 64
+      （`PyMath.ShiftLeftI64` / `ShiftRightI64`，静态路径改走运行时调用）
+- [x] `int ** int` 负指数返回 float
+      （指数为确定的非负字面量时保留静态快速幂；否则表达式动态化，由 `PyInt.Power` 处理）
+- [x] 排序改为稳定归并：`sorted` / `list.sort`、`reverse=True` 都保持相等元素的原始顺序
+      （`PySort`；不再用不稳定的 `List.Sort` + 反转）
+- [x] codegen：`MaxStack` 按最大实参个数计算，不再写死 64；`Unit` 局部变量分配 i64 槽位
+      （修复 `x = None` 触发的 `InvalidProgramException`）
+- [x] Pass 产出的 MIR 校验失败改为返回错误，由 driver 报内部错误，不再 `panic!`
+- [x] 热路径开销：`PyInt` 增加 i64 快路径再升级 BigInteger、字符串哈希缓存、stdout 缓冲写入、
+      traceback 帧栈改平行数组、`SetLine` 仅在行号变化时写入、`NumericEqual` 的 i64 快路径
+- [x] 验收：新增用例与既有 23 项 e2e、快照、xUnit 全部通过；`make check` 通过
 
 ## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 

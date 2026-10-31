@@ -117,6 +117,7 @@ impl<'a> ExprLowerCtx<'a> {
             ast::Expr::Tuple(tuple) => ExprKind::Tuple(self.lower_elements(&tuple.elts)),
             ast::Expr::Set(set) => ExprKind::Set(self.lower_elements(&set.elts)),
             ast::Expr::Dict(dict) => self.lower_dict(dict),
+            ast::Expr::FString(fstring) => self.lower_fstring(fstring),
             ast::Expr::BytesLiteral(bytes) => {
                 ExprKind::Bytes(bytes.value.bytes().collect::<Vec<u8>>().into_boxed_slice())
             }
@@ -195,17 +196,22 @@ impl<'a> ExprLowerCtx<'a> {
                 Resolution::Class(cls_id) => ExprKind::Class(cls_id),
                 Resolution::Local(_) | Resolution::Builtin(_) => ExprKind::Missing,
             }
-        } else if self.is_in_func && self.module_locals.contains_key(&name) {
-            // 函数体内禁止读取模块级变量（语义陷阱 #5）
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, name_expr.range),
-                    format!("函数体内不能访问模块级变量 `{name}`"),
-                )
-                .with_code("E0105")
-                .with_primary_label("Phase 1 函数体内只允许访问局部变量或顶层函数/类"),
-            );
-            ExprKind::Missing
+        } else if let Some(&loc_id) = self.module_locals.get(&name) {
+            if self.is_in_func {
+                // 函数体内禁止读取模块级变量（语义陷阱 #5）
+                self.diagnostics.push(
+                    Diagnostic::error(
+                        Span::new(self.file, name_expr.range),
+                        format!("函数体内不能访问模块级变量 `{name}`"),
+                    )
+                    .with_code("E0105")
+                    .with_primary_label("Phase 1 函数体内只允许访问局部变量或顶层函数/类"),
+                );
+                ExprKind::Missing
+            } else {
+                // 模块作用域（顶层语句、参数默认值）里直接引用 main 的局部变量
+                ExprKind::Local(loc_id)
+            }
         } else if let Some(builtin) = resolve_builtin(name.as_str()) {
             // 3. Builtin 内建函数
             ExprKind::Builtin(builtin)
@@ -313,21 +319,88 @@ impl<'a> ExprLowerCtx<'a> {
         self.body.exprs[cur].kind.clone()
     }
 
+    /// f-string → 字面量 / 插值段序列。
+    ///
+    /// 格式说明符本身也可以包含插值（`f"{x:{width}}"`），这需要运行时构造规格字符串；
+    /// 当前只支持纯字面量的规格，遇到嵌套插值报诊断。
+    fn lower_fstring(&mut self, fstring: &ast::ExprFString) -> ExprKind {
+        use crate::hir::FStringPart;
+
+        let mut parts = Vec::new();
+        for element in fstring.value.elements() {
+            match element {
+                ast::InterpolatedStringElement::Literal(literal) => {
+                    parts.push(FStringPart::Literal(literal.value.clone()));
+                }
+                ast::InterpolatedStringElement::Interpolation(item) => {
+                    let value = self.lower_expr(&item.expression);
+                    let spec = match &item.format_spec {
+                        None => None,
+                        Some(spec) => {
+                            let mut text = String::new();
+                            let mut ok = true;
+                            for part in spec.elements.iter() {
+                                match part {
+                                    ast::InterpolatedStringElement::Literal(literal) => {
+                                        text.push_str(&literal.value);
+                                    }
+                                    ast::InterpolatedStringElement::Interpolation(_) => {
+                                        ok = false;
+                                    }
+                                }
+                            }
+                            if !ok {
+                                self.diagnostics.push(
+                                    Diagnostic::error(
+                                        Span::new(self.file, spec.range),
+                                        "f-string 的格式说明符暂不支持嵌套插值",
+                                    )
+                                    .with_code("E0100")
+                                    .with_primary_label("不支持嵌套插值"),
+                                );
+                            }
+                            Some(text.into_boxed_str())
+                        }
+                    };
+                    parts.push(FStringPart::Value {
+                        value,
+                        conversion: item.conversion.to_byte().unwrap_or(0),
+                        spec,
+                    });
+                }
+            }
+        }
+        ExprKind::FString(parts)
+    }
+
+    /// 调用实参完整保留四种形态：位置、`*args`、关键字、`**kwargs`。
+    ///
+    /// 绑定（谁对应哪个参数、默认值、重复绑定报错）属于语义层，放在 ty / MIR 处理，
+    /// HIR 只负责忠实记录源码里写出来的形态。
     fn lower_call(&mut self, call: &ast::ExprCall) -> ExprKind {
+        use crate::hir::CallArg;
+
         let callee = self.lower_expr(&call.func);
         let mut args = Vec::new();
         for arg in &*call.arguments.args {
-            args.push(self.lower_expr(arg));
+            match arg {
+                ast::Expr::Starred(starred) => {
+                    args.push(CallArg::Starred(self.lower_expr(&starred.value)));
+                }
+                _ => args.push(CallArg::Positional(self.lower_expr(arg))),
+            }
         }
-        if !call.arguments.keywords.is_empty() {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, call.arguments.range),
-                    "Phase 1 暂不支持关键字参数",
-                )
-                .with_code("E0100")
-                .with_primary_label("不支持关键字参数"),
-            );
+        for keyword in &call.arguments.keywords {
+            match &keyword.arg {
+                Some(name) => {
+                    let value = self.lower_expr(&keyword.value);
+                    args.push(CallArg::Keyword(Name::from(name.as_str()), value));
+                }
+                None => {
+                    let value = self.lower_expr(&keyword.value);
+                    args.push(CallArg::DoubleStarred(value));
+                }
+            }
         }
         ExprKind::Call { callee, args }
     }

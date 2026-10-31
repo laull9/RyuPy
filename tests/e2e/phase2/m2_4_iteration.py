@@ -1,4 +1,3 @@
-# ryupy: pending
 # M2.4：迭代耗尽、循环 else 与惰性消费。
 iterator = iter([2, 4])
 print(next(iterator), next(iterator), next(iterator, "end"))
