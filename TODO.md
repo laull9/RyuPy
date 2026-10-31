@@ -295,7 +295,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] Pass 产出的 MIR 校验失败改为返回错误，由 driver 报内部错误，不再 `panic!`
 - [x] 热路径开销：`PyInt` 增加 i64 快路径再升级 BigInteger、字符串哈希缓存、stdout 缓冲写入、
       traceback 帧栈改平行数组、`SetLine` 仅在行号变化时写入、`NumericEqual` 的 i64 快路径
-- [x] 验收：新增用例与既有 23 项 e2e、快照、xUnit 全部通过；`make check` 通过
+- [x] 验收：新增用例与既有 e2e、快照、xUnit 全部通过；`make check` 通过
 
 ## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 
