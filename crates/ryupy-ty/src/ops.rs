@@ -25,6 +25,10 @@ pub fn check_binary_op(op: BinOp, lhs: &Ty, rhs: &Ty) -> Option<Ty> {
 
     match (lhs, rhs) {
         // 整数 x 整数
+        //
+        // 注意 `**`：表里写 `Int`，但 `int ** int` 的结果类型取决于指数值
+        // （负指数返回 float）。实际的动静边界在 `check.rs` 的 `ExprKind::Binary`
+        // 处理里决定——只有指数是确定的非负字面量时才保留 `Int`。
         (Ty::Int, Ty::Int) => match op {
             BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::FloorDiv | BinOp::Mod | BinOp::Pow => {
                 Some(Ty::Int)

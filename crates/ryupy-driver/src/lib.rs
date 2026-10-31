@@ -107,7 +107,8 @@ fn compile_to_mir(sess: &mut Session, file: FileId) -> Result<ryupy_mir::Program
     let (mut mir, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline());
+    ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline())
+        .map_err(|e| anyhow::anyhow!(e))?;
     if let Err(errs) = ryupy_mir::validate::validate(&mir) {
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
@@ -186,7 +187,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     let (mut mir, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline());
+    ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline())
+        .map_err(|e| anyhow::anyhow!(e))?;
     if stage == Stage::Mir {
         return Ok(ryupy_mir::pretty::dump(&mir));
     }

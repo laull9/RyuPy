@@ -64,6 +64,17 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
             }
         }
 
+        // `Unit` 没有 CIL 表示，不能作为局部变量（None 用 Dynamic 表示）。
+        // 若放行，codegen 会为赋值发射一个没有目标的求值栈值，生成非法方法体。
+        for (loc_id, local) in func.body.locals.iter() {
+            if local.ty == MirType::Unit {
+                errors.push(format!(
+                    "函数 `{}` 的局部变量 {:?} 类型是 Unit；None 应当用 Dynamic 表示",
+                    func.name, loc_id
+                ));
+            }
+        }
+
         for (block_id, block) in func.body.blocks.iter() {
             let is_reachable = reachable.contains(&block_id);
             for stmt in &block.stmts {

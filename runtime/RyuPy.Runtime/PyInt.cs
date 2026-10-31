@@ -13,6 +13,17 @@ namespace RyuPy.Runtime;
 /// 分配、能被 JIT 放在寄存器里。代价是每条路径都要判断「是否还在 i64 内」，因此所有结果
 /// 都经过 <see cref="Normalize"/> 收敛回 <c>long</c>，让后续的类型判定保持简单。
 ///
+/// # 快路径的写法
+///
+/// 每个算术入口都先做 `TryI64` 双路判定：
+/// <list type="bullet">
+/// <item>两边都是 <c>long</c>（含 <c>bool</c> / <c>int</c>）→ 在 <c>checked</c> 块里算；</item>
+/// <item>溢出（<see cref="OverflowException"/>，只在真正越界时发生）→ 转 <see cref="BigInteger"/>；</item>
+/// <item>任意一边已经是 <see cref="BigInteger"/> → 直接走大整数路径。</item>
+/// </list>
+///
+/// 这样动态路径的小整数运算不再有 <c>new BigInteger</c> 与额外装箱，而大整数语义保持不变。
+///
 /// <c>bool</c> 在 Python 里是 <c>int</c> 的子类：参与算术与比较时按 0/1 处理，但
 /// <c>repr</c> 仍输出 <c>True</c>/<c>False</c>（见 <see cref="PyRepr"/>）。
 /// </remarks>
@@ -24,6 +35,26 @@ internal static class PyInt
     /// <summary>该值是否为 Python <c>int</c>（含 <c>bool</c>）。</summary>
     public static bool IsInt(object? value) =>
         value is long or int or BigInteger or bool;
+
+    /// <summary>判断值能否无损放进 <c>long</c>；<c>bool</c> 按 0/1 处理。</summary>
+    public static bool TryI64(object value, out long result)
+    {
+        switch (value)
+        {
+            case bool b:
+                result = b ? 1L : 0L;
+                return true;
+            case long l:
+                result = l;
+                return true;
+            case int i:
+                result = i;
+                return true;
+            default:
+                result = 0;
+                return false;
+        }
+    }
 
     /// <summary>转成 <see cref="BigInteger"/>；调用方需保证是 <c>int</c> 语义的值。</summary>
     public static BigInteger ToBigInteger(object value) => value switch
@@ -79,22 +110,92 @@ internal static class PyInt
         return BigInteger.Parse(digits, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture);
     }
 
-    public static object Add(object a, object b) =>
-        Normalize(ToBigInteger(a) + ToBigInteger(b));
+    public static object Add(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            try
+            {
+                return checked(x + y);
+            }
+            catch (OverflowException)
+            {
+                return Normalize(new BigInteger(x) + y);
+            }
+        }
+        return Normalize(ToBigInteger(a) + ToBigInteger(b));
+    }
 
-    public static object Subtract(object a, object b) =>
-        Normalize(ToBigInteger(a) - ToBigInteger(b));
+    public static object Subtract(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            try
+            {
+                return checked(x - y);
+            }
+            catch (OverflowException)
+            {
+                return Normalize(new BigInteger(x) - y);
+            }
+        }
+        return Normalize(ToBigInteger(a) - ToBigInteger(b));
+    }
 
-    public static object Multiply(object a, object b) =>
-        Normalize(ToBigInteger(a) * ToBigInteger(b));
+    public static object Multiply(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            try
+            {
+                return checked(x * y);
+            }
+            catch (OverflowException)
+            {
+                return Normalize(new BigInteger(x) * y);
+            }
+        }
+        return Normalize(ToBigInteger(a) * ToBigInteger(b));
+    }
 
-    public static object Negate(object a) => Normalize(-ToBigInteger(a));
+    public static object Negate(object a)
+    {
+        if (TryI64(a, out long x))
+        {
+            return x == long.MinValue ? Normalize(-new BigInteger(x)) : -x;
+        }
+        return Normalize(-ToBigInteger(a));
+    }
 
-    public static object Abs(object a) => Normalize(BigInteger.Abs(ToBigInteger(a)));
+    public static object Abs(object a)
+    {
+        if (TryI64(a, out long x))
+        {
+            return x == long.MinValue ? Normalize(BigInteger.Abs(new BigInteger(x))) : Math.Abs(x);
+        }
+        return Normalize(BigInteger.Abs(ToBigInteger(a)));
+    }
 
     /// <summary><c>a // b</c>：向负无穷取整，余数符号跟随除数。</summary>
     public static object FloorDivide(object a, object b)
     {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            if (y == 0)
+            {
+                throw new PyZeroDivisionError("integer division or modulo by zero");
+            }
+            // long.MinValue / -1 在 i64 里会溢出：交给大整数路径得到 2^63
+            if (!(x == long.MinValue && y == -1))
+            {
+                long quotient = x / y;
+                if ((x % y != 0) && ((x < 0) != (y < 0)))
+                {
+                    quotient--;
+                }
+                return quotient;
+            }
+        }
         BigInteger divisor = ToBigInteger(b);
         if (divisor.IsZero)
         {
@@ -106,6 +207,23 @@ internal static class PyInt
     /// <summary><c>a % b</c>：结果符号与除数相同。</summary>
     public static object Modulo(object a, object b)
     {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            if (y == 0)
+            {
+                throw new PyZeroDivisionError("integer modulo by zero");
+            }
+            if (x == long.MinValue && y == -1)
+            {
+                return 0L;
+            }
+            long remainder = x % y;
+            if (remainder != 0 && ((remainder < 0) != (y < 0)))
+            {
+                remainder += y;
+            }
+            return remainder;
+        }
         BigInteger divisor = ToBigInteger(b);
         if (divisor.IsZero)
         {
@@ -151,23 +269,64 @@ internal static class PyInt
         return Normalize(BigInteger.Pow(baseValue, (int)exponent));
     }
 
-    public static object BitAnd(object a, object b) => Normalize(ToBigInteger(a) & ToBigInteger(b));
+    public static object BitAnd(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            return x & y;
+        }
+        return Normalize(ToBigInteger(a) & ToBigInteger(b));
+    }
 
-    public static object BitOr(object a, object b) => Normalize(ToBigInteger(a) | ToBigInteger(b));
+    public static object BitOr(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            return x | y;
+        }
+        return Normalize(ToBigInteger(a) | ToBigInteger(b));
+    }
 
-    public static object BitXor(object a, object b) => Normalize(ToBigInteger(a) ^ ToBigInteger(b));
+    public static object BitXor(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            return x ^ y;
+        }
+        return Normalize(ToBigInteger(a) ^ ToBigInteger(b));
+    }
 
-    public static object Invert(object a) => Normalize(~ToBigInteger(a));
+    public static object Invert(object a)
+    {
+        if (TryI64(a, out long x))
+        {
+            return ~x;
+        }
+        return Normalize(~ToBigInteger(a));
+    }
 
     public static object ShiftLeft(object a, object b)
     {
         int count = ShiftCount(b);
+        if (TryI64(a, out long x))
+        {
+            // 左移没有 overflow 检查：先判断结果能否落回 i64，能则走快路径
+            if (count < 64 && x <= (long.MaxValue >> count) && x >= (long.MinValue >> count))
+            {
+                return x << count;
+            }
+        }
         return Normalize(ToBigInteger(a) << count);
     }
 
     public static object ShiftRight(object a, object b)
     {
         int count = ShiftCount(b);
+        if (TryI64(a, out long x))
+        {
+            // Python 的 >> 对负数按无限位补码右移；count >= 64 时结果为 -1 / 0
+            return count >= 64 ? (x < 0 ? -1L : 0L) : (x >> count);
+        }
         return Normalize(ToBigInteger(a) >> count);
     }
 
@@ -186,8 +345,14 @@ internal static class PyInt
     }
 
     /// <summary>整数之间的大小比较。</summary>
-    public static int Compare(object a, object b) =>
-        ToBigInteger(a).CompareTo(ToBigInteger(b));
+    public static int Compare(object a, object b)
+    {
+        if (TryI64(a, out long x) && TryI64(b, out long y))
+        {
+            return x.CompareTo(y);
+        }
+        return ToBigInteger(a).CompareTo(ToBigInteger(b));
+    }
 
     /// <summary>
     /// 整数与浮点的精确比较（CPython 语义）：不能先把整数转成 <c>double</c>，
@@ -217,5 +382,43 @@ internal static class PyInt
         }
         double fraction = value - Math.Floor(value);
         return fraction > 0 ? -1 : 0;
+    }
+
+    /// <summary>
+    /// <see cref="CompareWithDouble(BigInteger, double)"/> 的 i64 快路径。
+    /// </summary>
+    /// <remarks>
+    /// 小整数与浮点比较在动态代码里很常见（<c>i &lt; 1e9</c>），构造 <c>BigInteger</c>
+    /// 只为比较大小并不划算。这里先按浮点数的整数部分判断，只有落在
+    /// 「double 无法精确表示整数」的区间（|v| ≥ 2^53）才回退到大整数比较。
+    /// </remarks>
+    public static int? CompareWithDouble(long integer, double value)
+    {
+        if (double.IsNaN(value))
+        {
+            return null;
+        }
+        if (double.IsPositiveInfinity(value))
+        {
+            return -1;
+        }
+        if (double.IsNegativeInfinity(value))
+        {
+            return 1;
+        }
+        if (Math.Abs(value) < 9.007199254740992e15)
+        {
+            double floor = Math.Floor(value);
+            if (integer < floor)
+            {
+                return -1;
+            }
+            if (integer > floor)
+            {
+                return 1;
+            }
+            return value - floor > 0 ? -1 : 0;
+        }
+        return CompareWithDouble(new BigInteger(integer), value);
     }
 }

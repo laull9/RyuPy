@@ -1,0 +1,3 @@
+# M2.3：解包元素过多必须报错，而不是静默丢弃多出来的值。
+expect_exit = 1
+expect_exception = ValueError: too many values to unpack (expected 2)

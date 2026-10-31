@@ -54,6 +54,9 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let str_concat = res.push_method_reference(
         method_ref! { static string @builtins_type::StrConcat(string, string) },
     );
+    // stdout 带缓冲：入口包装器退出前必须显式刷新
+    let flush_stdout =
+        res.push_method_reference(method_ref! { static void @builtins_type::Flush() });
 
     let pymath_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyMath in #ryupy_runtime });
     let pymath_type: MethodType = BaseType::class(pymath_ref).into();
@@ -79,7 +82,11 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         res.push_method_reference(method_ref! { static long @pymath_type::F64ToI64(double) });
     let abs_i64 = res.push_method_reference(method_ref! { static long @pymath_type::AbsI64(long) });
     let abs_f64 =
-        res.push_method_reference(method_ref! { static double #pymath_type::AbsF64(double) });
+        res.push_method_reference(method_ref! { static double @pymath_type::AbsF64(double) });
+    let shl_i64 = res
+        .push_method_reference(method_ref! { static long @pymath_type::ShiftLeftI64(long, long) });
+    let shr_i64 = res
+        .push_method_reference(method_ref! { static long @pymath_type::ShiftRightI64(long, long) });
 
     // ── 动态值 ABI（ADR-0010）──
     let write_object =
@@ -112,11 +119,17 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
     let py_exc_ref =
         res.push_type_reference(type_ref! { RyuPy.Runtime.PyBaseException in #ryupy_runtime });
     let py_exc_type: MethodType = BaseType::class(py_exc_ref).into();
+    let clr_exc_ref = res.push_type_reference(type_ref! { System.Exception in #sys_runtime });
+    let clr_exc_type: MethodType = BaseType::class(clr_exc_ref).into();
     let traceback_ref =
         res.push_type_reference(type_ref! { RyuPy.Runtime.PyTraceback in #ryupy_runtime });
     let traceback_type: MethodType = BaseType::class(traceback_ref).into();
     let report_unhandled = res
         .push_method_reference(method_ref! { static void @traceback_type::Report(@py_exc_type) });
+    // 兜底：非 Python 异常（静态 i64 溢出等）也按 Python 格式退出，不泄漏 .NET 调用栈
+    let report_clr = res.push_method_reference(
+        method_ref! { static void @traceback_type::ReportClr(@clr_exc_type) },
+    );
 
     let pycast_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyCast in #ryupy_runtime });
     let pycast_type: MethodType = BaseType::class(pycast_ref).into();
@@ -192,8 +205,9 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         .push_method_reference(method_ref! { static void @pyops_type::ListAppend(object, object) });
     let list_extend = res
         .push_method_reference(method_ref! { static void @pyops_type::ListExtend(object, object) });
-    let unpack_check =
-        res.push_method_reference(method_ref! { static void @pyops_type::UnpackCheck(long, long) });
+    let unpack_check = res.push_method_reference(
+        method_ref! { static void @pyops_type::UnpackCheck(long, long, bool) },
+    );
     let iter_start =
         res.push_method_reference(method_ref! { static object @pyops_type::IterStart(object) });
     let iter_next_ok =
@@ -256,6 +270,8 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         f64_to_i64,
         abs_i64,
         abs_f64,
+        shl_i64,
+        shr_i64,
         write_object,
         dyn_binary,
         dyn_compare,
@@ -460,7 +476,7 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
         let method_idx = fn_indices[&fn_id];
         let compiled = lower_function(func, &runtime_refs, &fn_indices, &class_types, &class_info);
         let mut method_body = body::Method::with_locals(compiled.locals, compiled.instructions);
-        method_body.header.maximum_stack_size = 64;
+        method_body.header.maximum_stack_size = compiled.max_stack_size;
         if !compiled.exceptions.is_empty() {
             method_body.data_sections =
                 vec![body::DataSection::ExceptionHandlers(compiled.exceptions)];
@@ -484,10 +500,13 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
             wrapper,
             fn_indices[&program.entry],
             report_unhandled,
+            report_clr,
             py_exc_type,
+            clr_exc_type,
             py_system_exit_type,
             set_file,
             system_exit_code,
+            flush_stdout,
             &program.source_name,
         );
     }
@@ -506,29 +525,34 @@ fn emit_entry_wrapper(
     wrapper: MethodIndex,
     body_method: MethodIndex,
     report_ref: MethodRefIndex,
+    report_clr_ref: MethodRefIndex,
     exception_type: MethodType,
+    clr_exception_type: MethodType,
     system_exit_type: MethodType,
     set_file: MethodRefIndex,
     system_exit_code: MethodRefIndex,
+    flush_stdout: MethodRefIndex,
     source_name: &str,
 ) {
     // 指令布局（分支目标是**指令下标**）：
-    //   0: call __main
-    //   1: leave 5
-    //   2: (handler) call Report   ← 异常对象已在栈上
-    //   3: ldc.i4.1
-    //   4: ret
-    //   5: ldc.i4.0
-    //   6: ret
-    // 指令布局（分支目标是**指令下标**）：
-    //   0: call __main          ┐ try
-    //   1: leave 4              ┘
-    //   2: call Report          ┐ handler（异常对象由 catch 子句压栈）
-    //   3: leave 6              ┘
-    //   4: ldc.i4.0
-    //   5: ret
-    //   6: ldc.i4.1
-    //   7: ret
+    //   0: ldstr source_name
+    //   1: call SetFile
+    //   2: call __main              ┐ try
+    //   3: leave 15                 ┘
+    //   4: call SystemExitCode      ┐ catch PySystemExit
+    //   5: stloc.0                  │
+    //   6: leave 15                 ┘
+    //   7: call Report              ┐ catch PyBaseException
+    //   8: ldc.i4.1                 │
+    //   9: stloc.0                  │
+    //  10: leave 15                 ┘
+    //  11: call ReportClr           ┐ catch System.Exception（兜底）
+    //  12: ldc.i4.1                 │
+    //  13: stloc.0                  │
+    //  14: leave 15                 ┘
+    //  15: call Flush               ← 所有路径汇合于此
+    //  16: ldloc.0
+    //  17: ret
     //
     // 处理区必须以 `leave` 离开、不能直接 `ret`——否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
@@ -536,16 +560,23 @@ fn emit_entry_wrapper(
         Instruction::load_string(source_name),
         Instruction::call(set_file),
         Instruction::call(body_method),
-        Instruction::Leave(11),
+        Instruction::Leave(15),
         // SystemExit：算出退出码而不是打印 traceback
         Instruction::call(system_exit_code),
         Instruction::StoreLocal(0),
-        Instruction::Leave(11),
-        // 其余未捕获异常：打印 traceback 并退出 1
+        Instruction::Leave(15),
+        // 其余未捕获 Python 异常：打印 traceback 并退出 1
         Instruction::call(report_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(11),
+        Instruction::Leave(15),
+        // 兜底：CLR 异常（静态 i64 溢出等）映射为 Python 错误后报告
+        Instruction::call(report_clr_ref),
+        Instruction::LoadConstantInt32(1),
+        Instruction::StoreLocal(0),
+        Instruction::Leave(15),
+        // 汇合点：刷新 stdout 缓冲后返回退出码
+        Instruction::call(flush_stdout),
         Instruction::LoadLocal(0),
         Instruction::Return,
     ];
@@ -568,6 +599,13 @@ fn emit_entry_wrapper(
             handler_offset: 7,
             handler_length: 4,
         },
+        body::Exception {
+            kind: body::ExceptionKind::TypedException(clr_exception_type),
+            try_offset: 2,
+            try_length: 2,
+            handler_offset: 11,
+            handler_length: 4,
+        },
     ])];
     res[wrapper].body = Some(method_body);
 }
@@ -575,6 +613,9 @@ fn emit_entry_wrapper(
 pub fn emit(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
     let (res, _) = build_resolution(program, opts);
     res.write(WriteOptions {
+        // `true` 生成 PE32 + ILONLY（AnyCPU），不是「32 位程序」：
+        // .NET 编译器对 AnyCPU 程序集同样使用 I386 文件头，运行时按目标平台 JIT。
+        // 改成 `false` 会写成 AMD64 专用镜像，反而不能在 arm64 / x86 上加载。
         is_32_bit: true,
         is_executable: false,
     })

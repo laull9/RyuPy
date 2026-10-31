@@ -39,14 +39,19 @@ impl ExprBuilder<'_> {
                     args_ops.push(self.coerce(arg_op, &arg_ty, &param_mir));
                 }
                 let ret_mir = ty_to_mir(&target_sig.ret);
+                let call = Rvalue::Call {
+                    callee: Callee::Fn(mir_fn_id),
+                    args: args_ops,
+                };
+                if matches!(ret_mir, MirType::Unit) {
+                    // 返回 None 的函数编译成 void 方法：没有返回值可存。
+                    // 调用表达式本身仍要占一个位置（例如 `x = f()`），用静态路径的
+                    // None 占位值/动态 None 单例顶替，避免给 void 调用分配槽位。
+                    self.push_stmt(Statement::Eval(call));
+                    return self.none_value();
+                }
                 let dest = self.alloc_temp(ret_mir);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Call {
-                        callee: Callee::Fn(mir_fn_id),
-                        args: args_ops,
-                    },
-                });
+                self.push_stmt(Statement::Assign { dest, value: call });
                 // 静态返回类型进入动态上下文时要装箱
                 let result = Operand::Local(dest);
                 self.coerce(result, &target_sig.ret, &ty_to_mir(&call_ty))
@@ -253,7 +258,15 @@ impl ExprBuilder<'_> {
                 let arg_op = self.build_expr(arg);
                 let arg_ty = self.ty_of(arg);
                 let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
-                let dest = self.alloc_temp(MirType::Str);
+                // 动态函数里 `str(x)` 的结果要能直接参与动态运算（拼接、比较、装箱），
+                // 因此槽位必须是 `object`；声明成 `Str` 会让 `str(1) + "x"` 这类表达式
+                // 的动态运算拿到一个 str 类型的操作数，被 MIR 校验拒绝。
+                let ret_ty = if self.is_dynamic_context() {
+                    MirType::Dynamic
+                } else {
+                    MirType::Str
+                };
+                let dest = self.alloc_temp(ret_ty);
                 self.push_stmt(Statement::Assign {
                     dest,
                     value: Rvalue::Call {

@@ -342,12 +342,10 @@ impl<'a> ExprBuilder<'a> {
                 }
             }
             Literal::None => {
-                if self.is_dynamic_context() {
-                    self.none_value()
-                } else {
-                    // 静态路径的 None 是 Unit，用 0 占位
-                    Operand::Const(Constant::I64(0))
-                }
+                // None 在所有路径上都用运行时的 None 单例（装箱 object）表示：
+                // 静态路径没有 `Unit` 值，占位 0 会把 `print(None)` 写成 0，
+                // 也会让 `x is None` 判错。
+                self.none_value()
             }
         }
     }
@@ -357,12 +355,12 @@ impl<'a> ExprBuilder<'a> {
         self.types.is_dynamic(self.current_hir_fn)
     }
 
-    fn none_value(&mut self) -> Operand {
-        if self.is_dynamic_context() {
-            self.runtime_call(RuntimeFn::DynNone, Vec::new(), MirType::Dynamic)
-        } else {
-            Operand::Const(Constant::I64(0))
-        }
+    /// Python `None` 的值：运行时的 `None` 单例（装箱 `object`）。
+    ///
+    /// 静态路径没有单独的 `None` 类型，但语义上它必须与动态路径一致——否则
+    /// `print(None)`、`x is None`、把 `None` 传进容器都会得到错误结果。
+    pub(crate) fn none_value(&mut self) -> Operand {
+        self.runtime_call(RuntimeFn::DynNone, Vec::new(), MirType::Dynamic)
     }
 
     /// 把一个常量装箱成动态值。
@@ -391,7 +389,9 @@ impl<'a> ExprBuilder<'a> {
 
     /// 把 `op`（类型 `from`）转成目标表示 `to`。
     pub fn coerce(&mut self, op: Operand, from: &Ty, to: &MirType) -> Operand {
-        let from_dynamic = from.is_dynamic();
+        // `Ty::None` 的操作数已经是运行时的 None 单例（装箱 object），
+        // 因此按动态值处理；否则会插入一次 `Box from Unit` 的非法装箱指令。
+        let from_dynamic = from.is_dynamic() || matches!(from, Ty::None);
         let to_dynamic = matches!(to, MirType::Dynamic);
         match (from_dynamic, to_dynamic) {
             (true, true) | (false, false) => op,
@@ -514,6 +514,15 @@ impl<'a> ExprBuilder<'a> {
                 // 因此真除法统一走运行时检查（语义陷阱 #12）。
                 self.call_runtime_binary(RuntimeFn::TrueDivF64, lhs_op, rhs_op, MirType::F64)
             }
+            HirBinOp::LShift => {
+                // CIL 的 shl 把移位量按 63 取模（1 << 100 会算成 1 << 36）；
+                // 运行时入口负责「溢出报 OverflowError」与正确的大移位语义
+                self.call_runtime_binary(RuntimeFn::ShlI64, lhs_op, rhs_op, MirType::I64)
+            }
+            HirBinOp::RShift => {
+                // 移位量 ≥ 64 时 Python 的结果是 0 / -1，CIL 的 shr 同样会取模
+                self.call_runtime_binary(RuntimeFn::ShrI64, lhs_op, rhs_op, MirType::I64)
+            }
             _ => {
                 let mir_op = match op {
                     HirBinOp::Add => BinOp::Add,
@@ -522,8 +531,7 @@ impl<'a> ExprBuilder<'a> {
                     HirBinOp::BitAnd => BinOp::BitAnd,
                     HirBinOp::BitOr => BinOp::BitOr,
                     HirBinOp::BitXor => BinOp::BitXor,
-                    HirBinOp::LShift => BinOp::Shl,
-                    HirBinOp::RShift => BinOp::Shr,
+                    // 移位已在上面改写成运行时调用：CIL 指令的移位量会取模
                     _ => BinOp::Add,
                 };
                 let dest = self.alloc_temp(ty_to_mir(&expr_ty));

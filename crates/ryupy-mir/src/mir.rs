@@ -383,6 +383,10 @@ pub enum RuntimeFn {
     F64ToI64,
     AbsI64,
     AbsF64,
+    /// `PyMath.ShiftLeftI64(long, long)`：溢出转 `OverflowError`（CIL 的 shl 会取模）。
+    ShlI64,
+    /// `PyMath.ShiftRightI64(long, long)`：处理移位量 ≥ 64。
+    ShrI64,
     /// `print` 动态值（等价 `print(str(v))`）。
     WriteObject,
     /// `PyOps.Binary(int, object, object)`。
@@ -471,7 +475,7 @@ pub enum RuntimeFn {
     ListAppend,
     /// `PyOps.ListExtend(list, seq)`。
     ListExtend,
-    /// `PyOps.UnpackCheck(long, long)`：解包数量不足时抛 ValueError。
+    /// `PyOps.UnpackCheck(long, long, bool)`：解包数量不符时抛 ValueError（bool 表示有星号）。
     UnpackCheck,
     /// `PyOps.IterStart(object) -> object`：建立迭代器。
     IterStart,
