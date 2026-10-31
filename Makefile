@@ -2,6 +2,7 @@
 .DEFAULT_GOAL := help
 FILE ?= tests/e2e/phase1/m1_0_print_int.py
 EMIT ?= hir
+PYTHON ?= python3
 
 .PHONY: help
 help: ## 显示帮助
@@ -21,9 +22,17 @@ lint: ## fmt 检查 + clippy（警告视为错误）
 	cargo clippy --workspace --all-targets -- -D warnings
 
 .PHONY: test
-test: ## 单元测试 + 快照测试（不含 e2e）
+test: python-baseline ## Python 基线 + 单元测试 + 快照测试（不含编译 e2e）
 	dotnet test runtime/RyuPy.Runtime.Tests -nologo -v q
 	cargo test --workspace --exclude ryupy-e2e
+
+.PHONY: python-baseline
+python-baseline: ## 自检 Phase 1–3 的 CPython 用例与预期错误退出
+	"$(PYTHON)" tests/run_python_baseline.py
+
+.PHONY: python-extensions
+python-extensions: ## 自检 Phase 4 扩展基线（需已安装 NumPy、sqlite3、zlib）
+	"$(PYTHON)" tests/run_python_baseline.py --phase phase4
 
 .PHONY: e2e
 e2e: runtime ## 端到端差分测试（跳过 pending 用例）

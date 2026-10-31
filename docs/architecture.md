@@ -46,7 +46,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 | `ryupy-driver` | 文件路径 → 产物 | 流水线编排、诊断汇总、产物布局、调用 dotnet | 编译逻辑 |
 | `ryupy-cli` | 命令行参数 | 参数解析、打印 | 一切逻辑 |
 | `ryupy-e2e` | `tests/e2e/**/*.py` | CPython 差分测试 | — |
-| `RyuPy.Runtime` (C#) | — | 内建函数、Python 数值语义、（Phase 2+）`PyValue`、容器、对象模型 | — |
+| `RyuPy.Runtime` (C#) | — | 内建函数、Python 数值语义；计划增加动态值、容器、对象、异常、模块与标准库适配 | 编译期名称解析与类型推导 |
 
 ## 3. 各层 IR 设计要点
 
@@ -66,7 +66,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 - `ModuleTypes { sigs: FuncId → FnSig, bodies: FuncId → TypeckResults }`，`TypeckResults` 记录每个 `ExprId` / `LocalId` 的 `Ty`。
 - Phase 1：签名必须完整标注；函数体内用并查集单态推导；`Ty::Error` 作为毒化类型抑制连锁报错。
-- Phase 2：推不出来的落到 `Ty::Dynamic`（运行时 `PyValue`）。
+- Phase 2 计划：推不出来的落到 `Ty::Dynamic`（运行时 `PyValue`）；类型标注只提供优化线索，特化须有证明或守卫，失败返回通用路径，不新增 Python 没有的参数类型拒绝。
 
 ### 3.4 MIR —— 「定型的控制流图」
 
@@ -102,7 +102,7 @@ target/ryupy/<name>/          # ryupy build 默认输出目录
 ├── <name>.dll                # 生成的程序集
 ├── <name>.runtimeconfig.json # 让 `dotnet <name>.dll` 找到共享框架
 ├── RyuPy.Runtime.dll         # 从 runtime/…/bin/Release/net10.0/ 复制
-└── aot/                      # 仅 --aot：桩项目与原生可执行文件（ADR-0005）
+└── aot/                      # 计划于 M5.2 实现：桩项目与原生可执行文件（ADR-0005）
 
 target/e2e/<case>/            # e2e 测试的产物，便于失败后手工检查
 ```
@@ -114,18 +114,37 @@ target/e2e/<case>/            # e2e 测试的产物，便于失败后手工检�
 | 单元测试 | `#[test]` | 单个函数的边界情况（并查集、运算规则表…） | 各 crate 的 `#[cfg(test)]` |
 | 快照测试 | `insta` | 每层 IR 的文本转储、诊断文本 | 各 crate 的 `tests/` 或 `#[cfg(test)]` |
 | 端到端差分 | `libtest-mimic` | 同一 `.py` 在 CPython 与 RyuPy 下 stdout 一致 | `tests/e2e/**/*.py`，由 `ryupy-e2e` 驱动 |
-| 运行时单测 | （待建）xUnit | `PyMath`、`PyFormat` 等 C# 语义函数 | `runtime/RyuPy.Runtime.Tests` |
+| 运行时单测 | xUnit | `PyMath`、`PyFormat` 等 C# 语义函数 | `runtime/RyuPy.Runtime.Tests` |
 
-**以 CPython 为唯一真相**：e2e 不手写期望输出，而是现场运行 `python3`。这样语义差异会被自动发现，而不是被错误的期望值掩盖。
+常用语义以固定版本 CPython 为差分基准。现有 e2e 比较成功用例的 stdout 与成功退出；M2.0 增加多文件、错误路径、异常类型和副作用的比较。已接受偏差另外测试，不混进一致性通过率。
 
-## 7. 相对 roadmap 的修订
+项目级验收固定项目版本、传递依赖、入口与上游测试范围，原生与桥接分别记录；标准库按 API 登记。细节见 [compatibility.md](compatibility.md) 与 [stdlib.md](stdlib.md)。这些新增测试入口尚待实现。
 
-roadmap 是愿景文档，落地时做了以下调整（详见对应 ADR）：
+## 7. Phase 2 / Phase 3 的设计边界（待实现）
 
-| roadmap 原设计 | 现设计 | 原因 |
+以下描述计划接口的职责；实施里程碑时再冻结 Rust / C# 的具体数据结构。保持 §2 的依赖规则，不为模块和桥接增加反向依赖。
+
+| 层 / 模块 | 新职责 | 边界 |
 | --- | --- | --- |
-| 5 个编译器 crate | 增加 `ryupy-base`、`ryupy-syntax`、`ryupy-driver`、`ryupy-e2e` | 隔离 ruff 依赖；编排逻辑不该在 CLI；测试需要 python+dotnet，单独成 crate |
-| MIR 为 SSA | 非 SSA 的 locals + blocks | 与 CIL 模型匹配，省掉 φ 消解（ADR-0002） |
-| `PyValue` 用 `FieldOffset(8)` 重叠 `long` 与 `object` | 不可行，改为独立引用字段 | CLR 禁止引用字段与非引用字段重叠（ADR-0003） |
-| 先用 `netcorehost` 进程内运行 | 先用子进程 `dotnet x.dll` | 简单可靠，够用再优化 |
-| Day 1 引入全部依赖 | 按需引入 | `petgraph`、`egglog`、`pyo3-ffi` 等到对应阶段再加 |
+| driver | 读取多文件、搜索与构建模块图、分配源码身份、组织产物和依赖报告 | 不在编译期执行 Python 模块副作用；嵌入解释器不进入前端 crate |
+| HIR | 模块 / 全局 / 局部 / cell 名称分类，动态调用与异常语法降级 | 接收已加载模块，不读文件；不依赖 C# 运行时布局 |
+| ty | 静态推导、Dynamic 合流、调用与容器类型事实 | 标注不自动变成运行时强制限制 |
+| MIR | 动态边界、模块初始化、对象操作、异常区域与清理边、闭包和生成器状态机 | 语义操作与 RuntimeFn 完全显式化；验证处理异常展开和暂停后的状态 |
+| codegen-cil | 发射 MIR 定义的类型、函数、模块槽位、异常表与运行时引用 | 不读 HIR / ty；不决定 Python 属性查找与导入语义 |
+| C# 语言运行时 | PyValue、数值、容器、对象协议、异常、模块缓存、带版本的分派缓存 | 原生路径不依赖 Reflection.Emit；CLR 引用字段不得与数值字段重叠 |
+| C# 标准库适配 | Python API 到 .NET 系统能力的语义包装 | 按 API 分模块，逐项记录异常、编码、路径、参数与平台差异 |
+| 可选 libpython 宿主 | 解释器初始化、GIL、引用所有权、对象 / 异常 / 回调转换 | 与原生运行时隔离；跨堆引用有释放策略，桥接依赖进入部署清单 |
+
+模块具有稳定身份与初始化状态：未初始化、初始化中、已完成；执行前登记模块对象，失败时清除失败模块的缓存条目，已成功导入依赖保留。依赖图用于发现和编译可达源码，运行时仍按 Python 求值顺序触发初始化，支持循环导入的部分可见状态。`import` / `from` 的绑定与缓存规则参考 [Python 导入系统](https://docs.python.org/3.12/reference/import.html)。
+
+异常优先使用 CIL 原生异常区域。MIR 先定义处理区、展开目标与清理顺序，codegen 验证受保护区域之间的合法跳转；生成器将暂停中的处理区状态保存到状态机。完整 traceback 对象与解释器 frame 内部接口不属于首批范围。
+
+运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。
+
+普通对象保留引用身份，frozen dataclass 的 Phase 1 值类型降级受 ADR-0009 限定。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
+
+原生路径继续满足 AOT 分析约束，但真正发布与裁剪测试安排在 M5.2。动态导入通过构建时可达清单限定；桥接产物仍需 libpython 与扩展。Native AOT 对运行时程序集加载和代码生成的限制见 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
+
+## 8. 保留的架构决定
+
+保留实际九个 crate 的分层、非 SSA MIR（ADR-0002）、GC 合法的 PyValue 候选布局（ADR-0003）、子进程 `dotnet x.dll` 运行方式与按需引入依赖。Phase 3 有数据流分析需求后再判断是否增加 SSA 视图或图算法库，不照旧愿景提前引入完整优化框架。

@@ -1,6 +1,6 @@
 //! 端到端差分测试：同一份 `.py` 分别用 CPython 和 RyuPy 运行，比较 stdout 与退出状态。
 //!
-//! 用例位于 `<workspace>/tests/e2e/**/*.py`，每个文件是一个独立测试。
+//! 用例位于 `<workspace>/tests/e2e/**/*.py`，fixtures 目录只供导入，其余文件各为一个独立测试。
 //! 文件开头的注释指令：
 //! - `# ryupy: pending` —— 功能尚未实现，测试标记为 ignored（`make e2e-all` 可强制运行）。
 //!
@@ -50,7 +50,7 @@ fn collect_py_files(dir: &Path, out: &mut Vec<PathBuf>) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.is_dir() {
+        if path.is_dir() && path.file_name().is_none_or(|name| name != "fixtures") {
             collect_py_files(&path, out);
         } else if path.extension().is_some_and(|e| e == "py") {
             out.push(path);
