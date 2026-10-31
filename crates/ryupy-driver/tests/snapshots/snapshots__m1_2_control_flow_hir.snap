@@ -1,0 +1,44 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def classify(n: int) -> int:
+    if (n Lt 0):
+        return Neg(1)
+    else:
+        if (n Eq 0):
+            return 0
+        else:
+            return 1
+
+def collatz_steps(n: int) -> int:
+    steps = 0
+    while (n NotEq 1):
+        if ((n % 2) Eq 0):
+            n = (n // 2)
+        else:
+            n = ((3 * n) + 1)
+        steps = (steps + 1)
+    return steps
+
+def first_multiple(k: int, limit: int) -> int:
+    i = 1
+    found = Neg(1)
+    while True:
+        if (i Gt limit):
+            break
+        if ((i % k) NotEq 0):
+            i = (i + 1)
+            continue
+        found = i
+        break
+    return found
+
+def [main] main():
+    print(classify(Neg(5)), classify(0), classify(7))
+    print(collatz_steps(27))
+    print(first_multiple(7, 100))
+    print(first_multiple(7, 3))
+    x = 5
+    print(((x Gt 0) And (x Lt 10)))
+    print(((x Lt 0) Or (x Eq 5)))

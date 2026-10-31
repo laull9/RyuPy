@@ -1,0 +1,227 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m1_2_arith
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] long,
+            [1] long,
+            [2] long,
+            [3] long,
+            [4] long,
+            [5] long,
+            [6] long,
+            [7] long,
+            [8] long,
+            [9] long,
+            [10] long,
+            [11] double,
+            [12] double,
+            [13] double,
+            [14] long,
+            [15] long,
+            [16] long,
+            [17] long,
+            [18] long,
+            [19] long,
+            [20] long,
+            [21] long,
+            [22] long,
+            [23] long,
+            [24] bool,
+            [25] bool,
+            [26] bool,
+            [27] bool,
+            [28] bool
+        )
+        IL_0000: LoadConstantInt64(7)
+        IL_0001: LoadConstantInt64(2)
+        IL_0002: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.FloorDivI64(long, long))
+        IL_0003: StoreLocal(0)
+        IL_0004: LoadLocal(0)
+        IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0006: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0007: LoadConstantInt64(7)
+        IL_0008: Negate
+        IL_0009: StoreLocal(1)
+        IL_000a: LoadLocal(1)
+        IL_000b: LoadConstantInt64(2)
+        IL_000c: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.FloorDivI64(long, long))
+        IL_000d: StoreLocal(2)
+        IL_000e: LoadLocal(2)
+        IL_000f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0010: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0011: LoadConstantInt64(2)
+        IL_0012: Negate
+        IL_0013: StoreLocal(3)
+        IL_0014: LoadConstantInt64(7)
+        IL_0015: LoadLocal(3)
+        IL_0016: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.FloorDivI64(long, long))
+        IL_0017: StoreLocal(4)
+        IL_0018: LoadLocal(4)
+        IL_0019: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_001a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_001b: LoadConstantInt64(7)
+        IL_001c: LoadConstantInt64(3)
+        IL_001d: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.ModI64(long, long))
+        IL_001e: StoreLocal(5)
+        IL_001f: LoadLocal(5)
+        IL_0020: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0021: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0022: LoadConstantInt64(7)
+        IL_0023: Negate
+        IL_0024: StoreLocal(6)
+        IL_0025: LoadLocal(6)
+        IL_0026: LoadConstantInt64(3)
+        IL_0027: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.ModI64(long, long))
+        IL_0028: StoreLocal(7)
+        IL_0029: LoadLocal(7)
+        IL_002a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_002b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_002c: LoadConstantInt64(3)
+        IL_002d: Negate
+        IL_002e: StoreLocal(8)
+        IL_002f: LoadConstantInt64(7)
+        IL_0030: LoadLocal(8)
+        IL_0031: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.ModI64(long, long))
+        IL_0032: StoreLocal(9)
+        IL_0033: LoadLocal(9)
+        IL_0034: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0035: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0036: LoadConstantInt64(2)
+        IL_0037: LoadConstantInt64(10)
+        IL_0038: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyMath.PowI64(long, long))
+        IL_0039: StoreLocal(10)
+        IL_003a: LoadLocal(10)
+        IL_003b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_003c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_003d: LoadConstantInt64(10)
+        IL_003e: ConvertFloat64
+        IL_003f: StoreLocal(11)
+        IL_0040: LoadConstantInt64(4)
+        IL_0041: ConvertFloat64
+        IL_0042: StoreLocal(12)
+        IL_0043: LoadLocal(11)
+        IL_0044: LoadLocal(12)
+        IL_0045: Divide(Signed)
+        IL_0046: StoreLocal(13)
+        IL_0047: LoadLocal(13)
+        IL_0048: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteF64(double))
+        IL_0049: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_004a: LoadConstantInt64(2)
+        IL_004b: LoadConstantInt64(3)
+        IL_004c: MultiplyOverflow(Signed)
+        IL_004d: StoreLocal(14)
+        IL_004e: LoadConstantInt64(1)
+        IL_004f: LoadLocal(14)
+        IL_0050: AddOverflow(Signed)
+        IL_0051: StoreLocal(15)
+        IL_0052: LoadLocal(15)
+        IL_0053: LoadConstantInt64(4)
+        IL_0054: SubtractOverflow(Signed)
+        IL_0055: StoreLocal(16)
+        IL_0056: LoadLocal(16)
+        IL_0057: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0058: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0059: LoadConstantInt64(5)
+        IL_005a: LoadConstantInt64(3)
+        IL_005b: And
+        IL_005c: StoreLocal(17)
+        IL_005d: LoadLocal(17)
+        IL_005e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_005f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0060: LoadConstantInt64(5)
+        IL_0061: LoadConstantInt64(3)
+        IL_0062: Or
+        IL_0063: StoreLocal(18)
+        IL_0064: LoadLocal(18)
+        IL_0065: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0066: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0067: LoadConstantInt64(5)
+        IL_0068: LoadConstantInt64(3)
+        IL_0069: Xor
+        IL_006a: StoreLocal(19)
+        IL_006b: LoadLocal(19)
+        IL_006c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_006d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_006e: LoadConstantInt64(1)
+        IL_006f: LoadConstantInt64(10)
+        IL_0070: ShiftLeft
+        IL_0071: StoreLocal(20)
+        IL_0072: LoadLocal(20)
+        IL_0073: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0074: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0075: LoadConstantInt64(1024)
+        IL_0076: LoadConstantInt64(3)
+        IL_0077: ShiftRight(Signed)
+        IL_0078: StoreLocal(21)
+        IL_0079: LoadLocal(21)
+        IL_007a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_007b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_007c: LoadConstantInt64(3)
+        IL_007d: LoadConstantInt64(10)
+        IL_007e: SubtractOverflow(Signed)
+        IL_007f: StoreLocal(22)
+        IL_0080: LoadLocal(22)
+        IL_0081: Negate
+        IL_0082: StoreLocal(23)
+        IL_0083: LoadLocal(23)
+        IL_0084: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0085: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0086: LoadConstantInt32(1)
+        IL_0087: LoadConstantInt32(0)
+        IL_0088: CompareEqual
+        IL_0089: StoreLocal(24)
+        IL_008a: LoadLocal(24)
+        IL_008b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteBool(bool))
+        IL_008c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_008d: LoadConstantInt64(3)
+        IL_008e: LoadConstantInt64(5)
+        IL_008f: CompareLess(Signed)
+        IL_0090: StoreLocal(25)
+        IL_0091: LoadLocal(25)
+        IL_0092: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteBool(bool))
+        IL_0093: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_0094: LoadConstantInt64(3)
+        IL_0095: LoadConstantInt64(5)
+        IL_0096: CompareLess(Signed)
+        IL_0097: LoadConstantInt32(0)
+        IL_0098: CompareEqual
+        IL_0099: StoreLocal(26)
+        IL_009a: LoadLocal(26)
+        IL_009b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteBool(bool))
+        IL_009c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_009d: LoadConstantInt64(3)
+        IL_009e: LoadConstantInt64(3)
+        IL_009f: CompareEqual
+        IL_00a0: StoreLocal(27)
+        IL_00a1: LoadLocal(27)
+        IL_00a2: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteBool(bool))
+        IL_00a3: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteSep())
+        IL_00a4: LoadConstantInt64(3)
+        IL_00a5: LoadConstantInt64(3)
+        IL_00a6: CompareEqual
+        IL_00a7: LoadConstantInt32(0)
+        IL_00a8: CompareEqual
+        IL_00a9: StoreLocal(28)
+        IL_00aa: LoadLocal(28)
+        IL_00ab: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteBool(bool))
+        IL_00ac: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_00ad: Return
+    }
+}

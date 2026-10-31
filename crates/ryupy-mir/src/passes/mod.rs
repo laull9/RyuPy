@@ -10,14 +10,18 @@
 
 use crate::mir::{Function, Program};
 
+mod simplify_cfg;
+
+pub use simplify_cfg::SimplifyCfg;
+
 pub trait MirPass {
     fn name(&self) -> &'static str;
     fn run(&self, func: &mut Function);
 }
 
-/// 默认 Pass 流水线。目前为空，先让端到端跑通。
+/// 默认 Pass 流水线。
 pub fn default_pipeline() -> Vec<Box<dyn MirPass>> {
-    Vec::new()
+    vec![Box::new(SimplifyCfg)]
 }
 
 pub fn run_pipeline(program: &mut Program, passes: &[Box<dyn MirPass>]) {
@@ -25,10 +29,12 @@ pub fn run_pipeline(program: &mut Program, passes: &[Box<dyn MirPass>]) {
         for (_, func) in program.functions.iter_mut() {
             pass.run(func);
         }
-        debug_assert!(
-            crate::validate::validate(program).is_ok(),
-            "Pass `{}` 产出了非法 MIR",
-            pass.name()
-        );
+        if let Err(errs) = crate::validate::validate(program) {
+            panic!(
+                "Pass `{}` 产出了非法 MIR:\n{}",
+                pass.name(),
+                errs.join("\n")
+            );
+        }
     }
 }

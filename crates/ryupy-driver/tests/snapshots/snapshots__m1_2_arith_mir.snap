@@ -1,0 +1,108 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: i64;
+    let _2: i64;
+    let _3: i64;
+    let _4: i64;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: i64;
+    let _11: f64;
+    let _12: f64;
+    let _13: f64;
+    let _14: i64;
+    let _15: i64;
+    let _16: i64;
+    let _17: i64;
+    let _18: i64;
+    let _19: i64;
+    let _20: i64;
+    let _21: i64;
+    let _22: i64;
+    let _23: i64;
+    let _24: bool;
+    let _25: bool;
+    let _26: bool;
+    let _27: bool;
+    let _28: bool;
+
+    bb0: {
+        _0 = RuntimeFn::FloorDivI64(const 7_i64, const 2_i64);
+        RuntimeFn::WriteI64(_0);
+        RuntimeFn::WriteNewline();
+        _1 = Neg(const 7_i64);
+        _2 = RuntimeFn::FloorDivI64(_1, const 2_i64);
+        RuntimeFn::WriteI64(_2);
+        RuntimeFn::WriteNewline();
+        _3 = Neg(const 2_i64);
+        _4 = RuntimeFn::FloorDivI64(const 7_i64, _3);
+        RuntimeFn::WriteI64(_4);
+        RuntimeFn::WriteNewline();
+        _5 = RuntimeFn::ModI64(const 7_i64, const 3_i64);
+        RuntimeFn::WriteI64(_5);
+        RuntimeFn::WriteNewline();
+        _6 = Neg(const 7_i64);
+        _7 = RuntimeFn::ModI64(_6, const 3_i64);
+        RuntimeFn::WriteI64(_7);
+        RuntimeFn::WriteNewline();
+        _8 = Neg(const 3_i64);
+        _9 = RuntimeFn::ModI64(const 7_i64, _8);
+        RuntimeFn::WriteI64(_9);
+        RuntimeFn::WriteNewline();
+        _10 = RuntimeFn::PowI64(const 2_i64, const 10_i64);
+        RuntimeFn::WriteI64(_10);
+        RuntimeFn::WriteNewline();
+        _11 = Cast(I64ToF64, const 10_i64);
+        _12 = Cast(I64ToF64, const 4_i64);
+        _13 = Div(_11, _12);
+        RuntimeFn::WriteF64(_13);
+        RuntimeFn::WriteNewline();
+        _14 = Mul(const 2_i64, const 3_i64);
+        _15 = Add(const 1_i64, _14);
+        _16 = Sub(_15, const 4_i64);
+        RuntimeFn::WriteI64(_16);
+        RuntimeFn::WriteNewline();
+        _17 = BitAnd(const 5_i64, const 3_i64);
+        RuntimeFn::WriteI64(_17);
+        RuntimeFn::WriteSep();
+        _18 = BitOr(const 5_i64, const 3_i64);
+        RuntimeFn::WriteI64(_18);
+        RuntimeFn::WriteSep();
+        _19 = BitXor(const 5_i64, const 3_i64);
+        RuntimeFn::WriteI64(_19);
+        RuntimeFn::WriteNewline();
+        _20 = Shl(const 1_i64, const 10_i64);
+        RuntimeFn::WriteI64(_20);
+        RuntimeFn::WriteSep();
+        _21 = Shr(const 1024_i64, const 3_i64);
+        RuntimeFn::WriteI64(_21);
+        RuntimeFn::WriteNewline();
+        _22 = Sub(const 3_i64, const 10_i64);
+        _23 = Neg(_22);
+        RuntimeFn::WriteI64(_23);
+        RuntimeFn::WriteNewline();
+        _24 = Not(const true);
+        RuntimeFn::WriteBool(_24);
+        RuntimeFn::WriteNewline();
+        _25 = Lt(const 3_i64, const 5_i64);
+        RuntimeFn::WriteBool(_25);
+        RuntimeFn::WriteSep();
+        _26 = Ge(const 3_i64, const 5_i64);
+        RuntimeFn::WriteBool(_26);
+        RuntimeFn::WriteSep();
+        _27 = Eq(const 3_i64, const 3_i64);
+        RuntimeFn::WriteBool(_27);
+        RuntimeFn::WriteSep();
+        _28 = Ne(const 3_i64, const 3_i64);
+        RuntimeFn::WriteBool(_28);
+        RuntimeFn::WriteNewline();
+        return;
+    }
+}

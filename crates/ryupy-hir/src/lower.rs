@@ -1,6 +1,6 @@
-//! AST → HIR lowering。
+//! AST → HIR 降级。
 //!
-//! 流程（两遍）：
+//! 流程：
 //! 1. **收集**：遍历模块顶层，为每个 `def` / `class` 分配 `FuncId` / `ClassId`，填入 [`GlobalScope`]。
 //!    同时创建隐式 `main` 函数。
 //! 2. **降级**：逐个函数体
@@ -17,14 +17,13 @@ use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ParsedModule;
 use ryupy_syntax::ast;
 
+use crate::expr::ExprLowerCtx;
 use crate::hir::{
-    AssignTarget, Body, Expr, ExprId, ExprKind, Function, FunctionKind, Literal, Local, Module,
-    Name, Param, Stmt, StmtKind,
+    AssignTarget, Body, Expr, ExprId, ExprKind, Function, FunctionKind, Local, Module, Name, Param,
+    Stmt, StmtId, StmtKind,
 };
-use crate::scope::{
-    FunctionScope, GlobalScope, Resolution, collect_assigned_names, resolve_builtin,
-};
-use crate::type_ref::{lower_type_ref, map_bin_op};
+use crate::operator::{lower_type_ref, map_bin_op};
+use crate::scope::{FunctionScope, GlobalScope, Resolution, collect_assigned_names};
 
 /// 降级整个模块。即使有错误也返回一个结构完整的 `Module`。
 pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
@@ -106,8 +105,8 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
             });
             func_scope.locals.insert(param_name, local_id);
             params.push(Param {
-                local: local_id,
                 annotation: ann,
+                local: local_id,
                 range: param_def.parameter.range,
             });
         }
@@ -142,9 +141,10 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
             module_locals: &module_locals,
             body: &mut body,
             is_in_func: true,
+            loop_depth: 0,
         };
         for stmt in &fn_def.body {
-            lower_ctx.lower_stmt(stmt);
+            lower_ctx.lower_stmt_to_root(stmt);
         }
 
         functions[func_id].params = params;
@@ -164,10 +164,11 @@ pub fn lower_module(parsed: &ParsedModule) -> (Module, Vec<Diagnostic>) {
         module_locals: &FxHashMap::default(),
         body: &mut main_body,
         is_in_func: false,
+        loop_depth: 0,
     };
     for stmt in &parsed.module.body {
         if !matches!(stmt, ast::Stmt::FunctionDef(_)) {
-            main_lower_ctx.lower_stmt(stmt);
+            main_lower_ctx.lower_stmt_to_root(stmt);
         }
     }
     functions[main_id].body = main_body;
@@ -190,33 +191,58 @@ struct StmtLowerCtx<'a> {
     module_locals: &'a FxHashMap<Name, crate::hir::LocalId>,
     body: &'a mut Body,
     is_in_func: bool,
+    loop_depth: usize,
 }
 
 impl StmtLowerCtx<'_> {
-    fn lower_stmt(&mut self, stmt: &ast::Stmt) {
-        match stmt {
+    fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
+        let mut expr_ctx = ExprLowerCtx {
+            file: self.file,
+            global_scope: self.global_scope,
+            func_scope: self.func_scope,
+            module_locals: self.module_locals,
+            is_in_func: self.is_in_func,
+            body: self.body,
+            diagnostics: self.diagnostics,
+        };
+        expr_ctx.lower_expr(expr)
+    }
+
+    fn lower_stmt_to_root(&mut self, stmt: &ast::Stmt) {
+        if let Some(stmt_id) = self.lower_stmt(stmt) {
+            self.body.root.push(stmt_id);
+        }
+    }
+
+    fn lower_suite(&mut self, stmts: &[ast::Stmt]) -> Vec<StmtId> {
+        let mut out = Vec::new();
+        for s in stmts {
+            if let Some(id) = self.lower_stmt(s) {
+                out.push(id);
+            }
+        }
+        out
+    }
+
+    fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Option<StmtId> {
+        let kind = match stmt {
             ast::Stmt::Expr(expr_stmt) => {
                 let expr_id = self.lower_expr(&expr_stmt.value);
-                let stmt_id = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::Expr(expr_id),
-                    range: expr_stmt.range,
-                });
-                self.body.root.push(stmt_id);
+                StmtKind::Expr(expr_id)
             }
             ast::Stmt::Assign(assign_stmt) => {
                 let val = self.lower_expr(&assign_stmt.value);
-                for target in &assign_stmt.targets {
+                if assign_stmt.targets.len() == 1 {
+                    let target = &assign_stmt.targets[0];
                     if let ast::Expr::Name(name_expr) = target {
                         let name = Name::from(name_expr.id.as_str());
                         if let Some(&loc_id) = self.func_scope.locals.get(&name) {
-                            let stmt_id = self.body.stmts.alloc(Stmt {
-                                kind: StmtKind::Assign {
-                                    target: AssignTarget::Local(loc_id),
-                                    value: val,
-                                },
-                                range: assign_stmt.range,
-                            });
-                            self.body.root.push(stmt_id);
+                            StmtKind::Assign {
+                                target: AssignTarget::Local(loc_id),
+                                value: val,
+                            }
+                        } else {
+                            return None;
                         }
                     } else {
                         self.diagnostics.push(
@@ -227,7 +253,18 @@ impl StmtLowerCtx<'_> {
                             .with_code("E0100")
                             .with_primary_label("仅支持赋值给单个局部变量"),
                         );
+                        return None;
                     }
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, assign_stmt.range()),
+                            "暂不支持多元链式赋值",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("不支持形如 a = b = 1 的链式赋值"),
+                    );
+                    return None;
                 }
             }
             ast::Stmt::AnnAssign(ann_stmt) => {
@@ -243,15 +280,15 @@ impl StmtLowerCtx<'_> {
                         self.body.locals[loc_id].annotation = Some(ann);
                         if let Some(val_expr) = &ann_stmt.value {
                             let val = self.lower_expr(val_expr);
-                            let stmt_id = self.body.stmts.alloc(Stmt {
-                                kind: StmtKind::Assign {
-                                    target: AssignTarget::Local(loc_id),
-                                    value: val,
-                                },
-                                range: ann_stmt.range,
-                            });
-                            self.body.root.push(stmt_id);
+                            StmtKind::Assign {
+                                target: AssignTarget::Local(loc_id),
+                                value: val,
+                            }
+                        } else {
+                            return None;
                         }
+                    } else {
+                        return None;
                     }
                 } else {
                     self.diagnostics.push(
@@ -262,6 +299,7 @@ impl StmtLowerCtx<'_> {
                         .with_code("E0100")
                         .with_primary_label("目标必须是变量"),
                     );
+                    return None;
                 }
             }
             ast::Stmt::AugAssign(aug_stmt) => {
@@ -278,14 +316,10 @@ impl StmtLowerCtx<'_> {
                                 kind: ExprKind::Binary { op, lhs, rhs },
                                 range: aug_stmt.range,
                             });
-                            let stmt_id = self.body.stmts.alloc(Stmt {
-                                kind: StmtKind::Assign {
-                                    target: AssignTarget::Local(loc_id),
-                                    value: bin,
-                                },
-                                range: aug_stmt.range,
-                            });
-                            self.body.root.push(stmt_id);
+                            StmtKind::Assign {
+                                target: AssignTarget::Local(loc_id),
+                                value: bin,
+                            }
                         } else {
                             self.diagnostics.push(
                                 Diagnostic::error(
@@ -295,7 +329,10 @@ impl StmtLowerCtx<'_> {
                                 .with_code("E0100")
                                 .with_primary_label("暂不支持的操作符"),
                             );
+                            return None;
                         }
+                    } else {
+                        return None;
                     }
                 } else {
                     self.diagnostics.push(
@@ -306,22 +343,57 @@ impl StmtLowerCtx<'_> {
                         .with_code("E0100")
                         .with_primary_label("目标必须是简单变量"),
                     );
+                    return None;
                 }
             }
             ast::Stmt::Return(ret_stmt) => {
                 let val = ret_stmt.value.as_deref().map(|v| self.lower_expr(v));
-                let stmt_id = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::Return(val),
-                    range: ret_stmt.range,
-                });
-                self.body.root.push(stmt_id);
+                StmtKind::Return(val)
             }
-            ast::Stmt::Pass(p) => {
-                let stmt_id = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::Pass,
-                    range: p.range,
-                });
-                self.body.root.push(stmt_id);
+            ast::Stmt::Pass(_) => StmtKind::Pass,
+            ast::Stmt::If(if_stmt) => return Some(self.lower_if(if_stmt)),
+            ast::Stmt::While(while_stmt) => {
+                if !while_stmt.orelse.is_empty() {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, while_stmt.range),
+                            "Phase 1 暂不支持 while ... else 语法",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("不支持 while else"),
+                    );
+                }
+                let cond = self.lower_expr(&while_stmt.test);
+                self.loop_depth += 1;
+                let body = self.lower_suite(&while_stmt.body);
+                self.loop_depth -= 1;
+                StmtKind::While { cond, body }
+            }
+            ast::Stmt::Break(b) => {
+                if self.loop_depth == 0 {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, b.range),
+                            "'break' 只能在循环体内部使用",
+                        )
+                        .with_code("E0107")
+                        .with_primary_label("循环外的 break"),
+                    );
+                }
+                StmtKind::Break
+            }
+            ast::Stmt::Continue(c) => {
+                if self.loop_depth == 0 {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, c.range),
+                            "'continue' 只能在循环体内部使用",
+                        )
+                        .with_code("E0107")
+                        .with_primary_label("循环外的 continue"),
+                    );
+                }
+                StmtKind::Continue
             }
             ast::Stmt::Global(g) => {
                 self.diagnostics.push(
@@ -332,6 +404,7 @@ impl StmtLowerCtx<'_> {
                     .with_code("E0103")
                     .with_primary_label("不支持 global"),
                 );
+                return None;
             }
             ast::Stmt::Nonlocal(n) => {
                 self.diagnostics.push(
@@ -342,6 +415,7 @@ impl StmtLowerCtx<'_> {
                     .with_code("E0103")
                     .with_primary_label("不支持 nonlocal"),
                 );
+                return None;
             }
             ast::Stmt::FunctionDef(f) => {
                 self.diagnostics.push(
@@ -352,6 +426,7 @@ impl StmtLowerCtx<'_> {
                     .with_code("E0104")
                     .with_primary_label("不支持嵌套 def"),
                 );
+                return None;
             }
             _ => {
                 self.diagnostics.push(
@@ -359,120 +434,45 @@ impl StmtLowerCtx<'_> {
                         .with_code("E0100")
                         .with_primary_label("暂不支持此语法结构"),
                 );
-            }
-        }
-    }
-
-    fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
-        let range = expr.range();
-        let kind = match expr {
-            ast::Expr::NumberLiteral(num) => match &num.value {
-                ast::Number::Int(int_val) => {
-                    if let Some(val) = int_val.as_i64() {
-                        ExprKind::Literal(Literal::Int(val))
-                    } else {
-                        self.diagnostics.push(
-                            Diagnostic::error(Span::new(self.file, num.range), "整数超出 i64 范围")
-                                .with_code("E0100")
-                                .with_primary_label("数值过大，Phase 1 仅支持 64 位有符号整数"),
-                        );
-                        ExprKind::Missing
-                    }
-                }
-                ast::Number::Float(f) => ExprKind::Literal(Literal::Float(*f)),
-                _ => {
-                    self.diagnostics.push(
-                        Diagnostic::error(Span::new(self.file, num.range), "暂不支持该数值字面量")
-                            .with_code("E0100")
-                            .with_primary_label("暂不支持此类数值"),
-                    );
-                    ExprKind::Missing
-                }
-            },
-            ast::Expr::BooleanLiteral(b) => ExprKind::Literal(Literal::Bool(b.value)),
-            ast::Expr::NoneLiteral(_) => ExprKind::Literal(Literal::None),
-            ast::Expr::StringLiteral(s) => ExprKind::Literal(Literal::Str(s.value.to_str().into())),
-            ast::Expr::Name(name_expr) => {
-                let name = Name::from(name_expr.id.as_str());
-                // LEGB 查找：1. Local
-                if let Some(&loc_id) = self.func_scope.locals.get(&name) {
-                    ExprKind::Local(loc_id)
-                } else if let Some(&res) = self.global_scope.names.get(&name) {
-                    // 2. Global
-                    match res {
-                        Resolution::Func(fn_id) => ExprKind::Func(fn_id),
-                        Resolution::Class(cls_id) => ExprKind::Class(cls_id),
-                        Resolution::Local(_) | Resolution::Builtin(_) => ExprKind::Missing,
-                    }
-                } else if self.is_in_func && self.module_locals.contains_key(&name) {
-                    // 函数体内禁止读取模块级变量（语义陷阱）
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, name_expr.range),
-                            format!("函数体内不能访问模块级变量 `{name}`"),
-                        )
-                        .with_code("E0105")
-                        .with_primary_label("Phase 1 函数体内只允许访问局部变量或顶层函数/类"),
-                    );
-                    ExprKind::Missing
-                } else if let Some(builtin) = resolve_builtin(name.as_str()) {
-                    // 3. Builtin
-                    ExprKind::Builtin(builtin)
-                } else {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, name_expr.range),
-                            format!("未定义的变量或名称 `{name}`"),
-                        )
-                        .with_code("E0106")
-                        .with_primary_label("未解析的名字"),
-                    );
-                    ExprKind::Missing
-                }
-            }
-            ast::Expr::BinOp(bin) => {
-                if let Some(op) = map_bin_op(bin.op) {
-                    let lhs = self.lower_expr(&bin.left);
-                    let rhs = self.lower_expr(&bin.right);
-                    ExprKind::Binary { op, lhs, rhs }
-                } else {
-                    self.diagnostics.push(
-                        Diagnostic::error(Span::new(self.file, bin.range), "暂不支持该运算符")
-                            .with_code("E0100")
-                            .with_primary_label("暂不支持此运算"),
-                    );
-                    ExprKind::Missing
-                }
-            }
-            ast::Expr::Call(call) => {
-                let callee = self.lower_expr(&call.func);
-                let mut args = Vec::new();
-                for arg in &*call.arguments.args {
-                    args.push(self.lower_expr(arg));
-                }
-                if !call.arguments.keywords.is_empty() {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, call.arguments.range),
-                            "Phase 1 暂不支持关键字参数",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("不支持关键字参数"),
-                    );
-                }
-                ExprKind::Call { callee, args }
-            }
-            _ => {
-                self.diagnostics.push(
-                    Diagnostic::error(Span::new(self.file, range), "暂不支持该表达式")
-                        .with_code("E0100")
-                        .with_primary_label("M1.1 暂不支持该语法"),
-                );
-                ExprKind::Missing
+                return None;
             }
         };
 
-        self.body.exprs.alloc(Expr { kind, range })
+        Some(self.body.stmts.alloc(Stmt {
+            kind,
+            range: stmt.range(),
+        }))
+    }
+
+    fn lower_if(&mut self, if_stmt: &ast::StmtIf) -> StmtId {
+        let cond = self.lower_expr(&if_stmt.test);
+        let then_ = self.lower_suite(&if_stmt.body);
+        let else_ = self.lower_elif_else(&if_stmt.elif_else_clauses);
+        self.body.stmts.alloc(Stmt {
+            kind: StmtKind::If { cond, then_, else_ },
+            range: if_stmt.range,
+        })
+    }
+
+    fn lower_elif_else(&mut self, clauses: &[ast::ElifElseClause]) -> Vec<StmtId> {
+        if clauses.is_empty() {
+            return Vec::new();
+        }
+        let first = &clauses[0];
+        let rest = &clauses[1..];
+        match &first.test {
+            Some(test_expr) => {
+                let cond = self.lower_expr(test_expr);
+                let then_ = self.lower_suite(&first.body);
+                let else_ = self.lower_elif_else(rest);
+                let nested_if = self.body.stmts.alloc(Stmt {
+                    kind: StmtKind::If { cond, then_, else_ },
+                    range: first.range,
+                });
+                vec![nested_if]
+            }
+            None => self.lower_suite(&first.body),
+        }
     }
 }
 
@@ -500,5 +500,26 @@ print(f(10))
         let (hir, diags) = lower_module(&parsed);
         assert!(diags.is_empty(), "diags: {diags:?}");
         assert_eq!(hir.functions.len(), 3); // f, g, main
+    }
+
+    #[test]
+    fn lowers_if_elif_else_control_flow() {
+        let mut db = SourceDb::default();
+        let src = r#"
+def classify(n: int) -> int:
+    if n < 0:
+        return -1
+    elif n == 0:
+        return 0
+    else:
+        return 1
+"#;
+        let file = db.add("test.py", src);
+        let (parsed, diags) = ryupy_syntax::parse(file, src);
+        assert!(diags.is_empty());
+
+        let (hir, diags) = lower_module(&parsed);
+        assert!(diags.is_empty(), "diags: {diags:?}");
+        assert_eq!(hir.functions.len(), 2); // classify, main
     }
 }

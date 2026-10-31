@@ -217,7 +217,38 @@ impl FunctionChecker<'_> {
                 }
             }
             StmtKind::Pass => {}
+            StmtKind::If { cond, then_, else_ } => {
+                self.check_cond(*cond);
+                for &s in then_ {
+                    self.check_stmt(s);
+                }
+                for &s in else_ {
+                    self.check_stmt(s);
+                }
+            }
+            StmtKind::While { cond, body } => {
+                self.check_cond(*cond);
+                for &s in body {
+                    self.check_stmt(s);
+                }
+            }
+            StmtKind::Break | StmtKind::Continue => {}
             _ => {}
+        }
+    }
+
+    fn check_cond(&mut self, cond: ExprId) {
+        let cond_ty = self.check_expr(cond);
+        if cond_ty != Ty::Error && cond_ty != Ty::Bool && cond_ty != Ty::Int && cond_ty != Ty::Float
+        {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, self.func.body.exprs[cond].range),
+                    format!("条件必须为布尔值或数值，得到 `{cond_ty:?}`"),
+                )
+                .with_code("E0203")
+                .with_primary_label("条件表达式类型无效"),
+            );
         }
     }
 
@@ -242,6 +273,80 @@ impl FunctionChecker<'_> {
                 let rhs_ty = self.check_expr(*rhs);
                 self.check_binary_op(*op, lhs_ty, rhs_ty, expr.range)
             }
+            ExprKind::Unary { op, operand } => {
+                let operand_ty = self.check_expr(*operand);
+                match crate::ops::check_unary_op(*op, &operand_ty) {
+                    Some(t) => t,
+                    None => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, expr.range),
+                                format!("类型 `{operand_ty:?}` 不支持一元运算符 `{op:?}`"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("类型不支持此一元操作"),
+                        );
+                        Ty::Error
+                    }
+                }
+            }
+            ExprKind::Compare { op, lhs, rhs } => {
+                let lhs_ty = self.check_expr(*lhs);
+                let rhs_ty = self.check_expr(*rhs);
+                match crate::ops::check_cmp_op(*op, &lhs_ty, &rhs_ty) {
+                    Some(t) => t,
+                    None => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, expr.range),
+                                format!("类型 `{lhs_ty:?}` 和 `{rhs_ty:?}` 之间不支持比较运算"),
+                            )
+                            .with_code("E0203")
+                            .with_primary_label("比较运算类型不匹配"),
+                        );
+                        Ty::Error
+                    }
+                }
+            }
+            ExprKind::BoolOp { op: _, lhs, rhs } => {
+                let lhs_ty = self.check_expr(*lhs);
+                let rhs_ty = self.check_expr(*rhs);
+                if lhs_ty == Ty::Error || rhs_ty == Ty::Error {
+                    Ty::Error
+                } else if lhs_ty == rhs_ty {
+                    lhs_ty
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, expr.range),
+                            format!("短路逻辑两端类型不一致：`{lhs_ty:?}` vs `{rhs_ty:?}`"),
+                        )
+                        .with_code("E0203")
+                        .with_primary_label("Phase 1 要求短路逻辑操作数类型一致"),
+                    );
+                    Ty::Error
+                }
+            }
+            ExprKind::IfExp { cond, then_, else_ } => {
+                self.check_cond(*cond);
+                let then_ty = self.check_expr(*then_);
+                let else_ty = self.check_expr(*else_);
+                if then_ty == Ty::Error || else_ty == Ty::Error {
+                    Ty::Error
+                } else if then_ty == else_ty {
+                    then_ty
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, expr.range),
+                            format!("条件表达式两分支类型不一致：`{then_ty:?}` vs `{else_ty:?}`"),
+                        )
+                        .with_code("E0203")
+                        .with_primary_label("条件表达式两分支类型必须相同"),
+                    );
+                    Ty::Error
+                }
+            }
             ExprKind::Call { callee, args } => self.check_call(*callee, args, expr.range),
             ExprKind::Missing => Ty::Error,
             _ => Ty::Error,
@@ -252,30 +357,13 @@ impl FunctionChecker<'_> {
     }
 
     fn check_binary_op(&mut self, op: BinOp, lhs: Ty, rhs: Ty, range: ryupy_base::TextRange) -> Ty {
-        if lhs == Ty::Error || rhs == Ty::Error {
-            return Ty::Error;
-        }
-
-        match (lhs, rhs) {
-            (Ty::Int, Ty::Int) => match op {
-                BinOp::Add | BinOp::Sub | BinOp::Mul => Ty::Int,
-                _ => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, range),
-                            format!("暂不支持运算符 `{op:?}`"),
-                        )
-                        .with_code("E0200")
-                        .with_primary_label("不支持的运算符"),
-                    );
-                    Ty::Error
-                }
-            },
-            (l, r) => {
+        match crate::ops::check_binary_op(op, &lhs, &rhs) {
+            Some(t) => t,
+            None => {
                 self.diagnostics.push(
                     Diagnostic::error(
                         Span::new(self.file, range),
-                        format!("不支持类型 `{l:?}` 和 `{r:?}` 的二元运算"),
+                        format!("不支持类型 `{lhs:?}` 和 `{rhs:?}` 的二元运算符 `{op:?}`"),
                     )
                     .with_code("E0203")
                     .with_primary_label("运算数类型不匹配"),

@@ -1,13 +1,13 @@
 //! MIR 合法性检查。codegen 之前必跑，Pass 之后在 debug 构建下也跑。
 //!
-//! 检查项（逐步补全）：
+//! 检查项：
 //! - [x] 不存在 `Terminator::Unreachable` 占位
 //! - [x] 所有 `LocalId` / `BlockId` 都在各自 arena 范围内
-//! - [ ] `Binary` 两侧操作数类型一致；`Branch` 条件为 `Bool`
-//! - [ ] `Return` 的值类型与函数返回类型一致
-//! - [ ] `Call` 实参个数、类型与被调函数签名一致
+//! - [x] `Binary` 两侧操作数类型一致；`Branch` 条件为 `Bool`
+//! - [x] `Return` 的值类型与函数返回类型一致
+//! - [x] `Call` 实参个数与被调函数签名一致
 
-use crate::mir::{Callee, Operand, Program, Rvalue, Statement, Terminator};
+use crate::mir::{Callee, Constant, MirType, Operand, Program, Rvalue, Statement, Terminator};
 
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
@@ -27,6 +27,31 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
             ));
         }
 
+        // 收集从 entry 可达的基本块集合
+        let mut reachable = rustc_hash::FxHashSet::default();
+        let mut worklist = vec![func.body.entry];
+        reachable.insert(func.body.entry);
+        while let Some(bb_id) = worklist.pop() {
+            if let Some((_, bb)) = func.body.blocks.iter().find(|&(id, _)| id == bb_id) {
+                match &bb.terminator {
+                    Terminator::Goto(target) => {
+                        if reachable.insert(*target) {
+                            worklist.push(*target);
+                        }
+                    }
+                    Terminator::Branch { then_, else_, .. } => {
+                        if reachable.insert(*then_) {
+                            worklist.push(*then_);
+                        }
+                        if reachable.insert(*else_) {
+                            worklist.push(*else_);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
         for &param in &func.params {
             if !func.body.locals.iter().any(|(id, _)| id == param) {
                 errors.push(format!(
@@ -37,6 +62,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
         }
 
         for (block_id, block) in func.body.blocks.iter() {
+            let is_reachable = reachable.contains(&block_id);
             for stmt in &block.stmts {
                 match stmt {
                     Statement::Assign { dest, value } => {
@@ -60,10 +86,12 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
 
             match &block.terminator {
                 Terminator::Unreachable => {
-                    errors.push(format!(
-                        "函数 `{}` 基本块 {:?} 残留了 Unreachable 终结符",
-                        func.name, block_id
-                    ));
+                    if is_reachable {
+                        errors.push(format!(
+                            "函数 `{}` 基本块 {:?} 残留了 Unreachable 终结符",
+                            func.name, block_id
+                        ));
+                    }
                 }
                 Terminator::Goto(target) => {
                     if !func.body.blocks.iter().any(|(id, _)| id == *target) {
@@ -75,6 +103,14 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                 }
                 Terminator::Branch { cond, then_, else_ } => {
                     validate_operand(func, block_id, cond, &mut errors);
+                    if let Some(cond_ty) = operand_type(func, cond) {
+                        if cond_ty != MirType::Bool {
+                            errors.push(format!(
+                                "函数 `{}` 基本块 {:?} Branch 条件类型期望为 Bool，得到 {:?}",
+                                func.name, block_id, cond_ty
+                            ));
+                        }
+                    }
                     if !func.body.blocks.iter().any(|(id, _)| id == *then_) {
                         errors.push(format!(
                             "函数 `{}` 基本块 {:?} Branch then 目标 {:?} 不在 blocks arena 中",
@@ -89,8 +125,23 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                     }
                 }
                 Terminator::Return(opt_val) => {
-                    if let Some(val) = opt_val {
-                        validate_operand(func, block_id, val, &mut errors);
+                    if is_reachable {
+                        if let Some(val) = opt_val {
+                            validate_operand(func, block_id, val, &mut errors);
+                            if let Some(val_ty) = operand_type(func, val) {
+                                if val_ty != func.ret {
+                                    errors.push(format!(
+                                        "函数 `{}` 返回值类型不匹配：期望 {:?}，得到 {:?}",
+                                        func.name, func.ret, val_ty
+                                    ));
+                                }
+                            }
+                        } else if func.ret != MirType::Unit {
+                            errors.push(format!(
+                                "函数 `{}` 期望返回 {:?}，但终结符为空 Return",
+                                func.name, func.ret
+                            ));
+                        }
                     }
                 }
             }
@@ -104,6 +155,23 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     }
 }
 
+fn operand_type(func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
+    match op {
+        Operand::Local(loc) => func
+            .body
+            .locals
+            .iter()
+            .find(|(id, _)| id == loc)
+            .map(|(_, l)| l.ty.clone()),
+        Operand::Const(c) => Some(match c {
+            Constant::I64(_) => MirType::I64,
+            Constant::F64(_) => MirType::F64,
+            Constant::Bool(_) => MirType::Bool,
+            Constant::Str(_) => MirType::Str,
+        }),
+    }
+}
+
 fn validate_rvalue(
     func: &crate::mir::Function,
     block_id: crate::mir::BlockId,
@@ -113,15 +181,33 @@ fn validate_rvalue(
 ) {
     match rvalue {
         Rvalue::Use(op) => validate_operand(func, block_id, op, errors),
-        Rvalue::Binary { lhs, rhs, .. } => {
+        Rvalue::Binary { op: _, lhs, rhs } => {
             validate_operand(func, block_id, lhs, errors);
             validate_operand(func, block_id, rhs, errors);
+            if let (Some(l_ty), Some(r_ty)) = (operand_type(func, lhs), operand_type(func, rhs)) {
+                if l_ty != r_ty {
+                    errors.push(format!(
+                        "函数 `{}` 基本块 {:?} 二元运算两侧操作数类型不一致：{:?} vs {:?}",
+                        func.name, block_id, l_ty, r_ty
+                    ));
+                }
+            }
         }
         Rvalue::Unary { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Cast { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Call { callee, args } => {
             if let Callee::Fn(fn_id) = callee {
-                if !program.functions.iter().any(|(id, _)| id == *fn_id) {
+                if let Some((_, target_fn)) = program.functions.iter().find(|(id, _)| id == fn_id) {
+                    if args.len() != target_fn.params.len() {
+                        errors.push(format!(
+                            "函数 `{}` 调用 `{}` 实参个数不匹配：期望 {}，得到 {}",
+                            func.name,
+                            target_fn.name,
+                            target_fn.params.len(),
+                            args.len()
+                        ));
+                    }
+                } else {
                     errors.push(format!(
                         "函数 `{}` 基本块 {:?} 调用的函数 {:?} 不在 functions arena 中",
                         func.name, block_id, fn_id

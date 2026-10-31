@@ -1,0 +1,19 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: hir
+---
+def [main] main():
+    print((7 // 2))
+    print((Neg(7) // 2))
+    print((7 // Neg(2)))
+    print((7 % 3))
+    print((Neg(7) % 3))
+    print((7 % Neg(3)))
+    print((2 ** 10))
+    print((10 / 4))
+    print(((1 + (2 * 3)) - 4))
+    print((5 & 3), (5 | 3), (5 ^ 3))
+    print((1 << 10), (1024 >> 3))
+    print(Neg((3 - 10)))
+    print(Not(True))
+    print((3 Lt 5), (3 GtE 5), (3 Eq 3), (3 NotEq 3))

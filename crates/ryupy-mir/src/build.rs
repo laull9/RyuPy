@@ -22,16 +22,16 @@
 
 use la_arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
-use ryupy_base::{Diagnostic, Span};
+use ryupy_base::Diagnostic;
 use ryupy_hir::{
-    AssignTarget, BinOp as HirBinOp, Builtin, ExprId, ExprKind, Literal, LocalId as HirLocalId,
-    Module, StmtKind,
+    AssignTarget, Builtin, ExprId, ExprKind, LocalId as HirLocalId, Module, StmtId, StmtKind,
 };
 use ryupy_ty::{ModuleTypes, Ty};
 
+use crate::expr_builder::ExprBuilder;
 use crate::mir::{
-    BasicBlock, BinOp, Callee, Constant, FnId, Function, LocalDecl, LocalId as MirLocalId, MirType,
-    Operand, Program, RuntimeFn, Rvalue, Statement, Terminator,
+    BasicBlock, BlockId, Callee, FnId, Function, LocalDecl, LocalId as MirLocalId, MirType,
+    Program, RuntimeFn, Rvalue, Statement, Terminator,
 };
 
 pub fn build_program(hir: &Module, types: &ModuleTypes) -> (Program, Vec<Diagnostic>) {
@@ -127,11 +127,12 @@ struct FunctionBuilder<'a> {
     current_hir_fn: ryupy_hir::FuncId,
     locals: Arena<LocalDecl>,
     blocks: Arena<BasicBlock>,
-    entry: crate::mir::BlockId,
-    current_bb: crate::mir::BlockId,
+    entry: BlockId,
+    current_bb: BlockId,
     local_map: FxHashMap<HirLocalId, MirLocalId>,
     assigned_locals: FxHashSet<HirLocalId>,
     reported_unbound: FxHashSet<HirLocalId>,
+    loop_stack: Vec<(BlockId, BlockId)>, // (continue_bb, break_bb)
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -159,24 +160,61 @@ impl<'a> FunctionBuilder<'a> {
             local_map: FxHashMap::default(),
             assigned_locals: FxHashSet::default(),
             reported_unbound: FxHashSet::default(),
+            loop_stack: Vec::new(),
             diagnostics: Vec::new(),
         }
+    }
+
+    fn new_block(&mut self) -> BlockId {
+        self.blocks.alloc(BasicBlock {
+            stmts: Vec::new(),
+            terminator: Terminator::Unreachable,
+        })
     }
 
     fn push_stmt(&mut self, stmt: Statement) {
         self.blocks[self.current_bb].stmts.push(stmt);
     }
 
-    fn finish_current_block_with_return(&mut self) {
-        if matches!(
+    fn is_current_unterminated(&self) -> bool {
+        matches!(
             self.blocks[self.current_bb].terminator,
             Terminator::Unreachable
-        ) {
-            self.blocks[self.current_bb].terminator = Terminator::Return(None);
+        )
+    }
+
+    fn terminate_current(&mut self, term: Terminator) {
+        if self.is_current_unterminated() {
+            self.blocks[self.current_bb].terminator = term;
         }
     }
 
-    fn build_stmt(&mut self, stmt_id: ryupy_hir::StmtId) {
+    fn finish_current_block_with_return(&mut self) {
+        self.terminate_current(Terminator::Return(None));
+    }
+
+    fn expr_builder(&mut self) -> ExprBuilder<'_> {
+        ExprBuilder {
+            hir: self.hir,
+            types: self.types,
+            fn_map: self.fn_map,
+            current_hir_fn: self.current_hir_fn,
+            locals: &mut self.locals,
+            blocks: &mut self.blocks,
+            current_bb: &mut self.current_bb,
+            local_map: &self.local_map,
+            assigned_locals: &mut self.assigned_locals,
+            reported_unbound: &mut self.reported_unbound,
+            diagnostics: &mut self.diagnostics,
+        }
+    }
+
+    fn build_stmt(&mut self, stmt_id: StmtId) {
+        if !self.is_current_unterminated() {
+            // 当前基本块已终结（例如前一条语句是 return/break/continue）。
+            // 只有当存在后续不可达语句时，才分配死代码块承载它。
+            self.current_bb = self.new_block();
+        }
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let stmt = &hir_body.stmts[stmt_id];
         match &stmt.kind {
@@ -184,7 +222,7 @@ impl<'a> FunctionBuilder<'a> {
                 self.build_expr_stmt(*expr_id);
             }
             StmtKind::Assign { target, value } => {
-                let val_op = self.build_expr(*value);
+                let val_op = self.expr_builder().build_expr(*value);
                 if let AssignTarget::Local(loc) = target {
                     let dest = self.local_map[loc];
                     self.push_stmt(Statement::Assign {
@@ -195,8 +233,88 @@ impl<'a> FunctionBuilder<'a> {
                 }
             }
             StmtKind::Return(opt_expr) => {
-                let op = opt_expr.map(|e| self.build_expr(e));
-                self.blocks[self.current_bb].terminator = Terminator::Return(op);
+                let op = opt_expr.map(|e| self.expr_builder().build_expr(e));
+                self.terminate_current(Terminator::Return(op));
+            }
+            StmtKind::If { cond, then_, else_ } => {
+                let cond_raw = self.expr_builder().build_expr(*cond);
+                let cond_ty = &self.types.bodies[self.current_hir_fn].exprs[*cond];
+                let cond_bool = self.expr_builder().to_bool_operand(cond_raw, cond_ty);
+
+                let then_bb = self.new_block();
+                let else_bb = self.new_block();
+                let join_bb = self.new_block();
+
+                self.terminate_current(Terminator::Branch {
+                    cond: cond_bool,
+                    then_: then_bb,
+                    else_: else_bb,
+                });
+
+                // then 分支
+                self.current_bb = then_bb;
+                for &s in then_ {
+                    self.build_stmt(s);
+                }
+                if self.is_current_unterminated() {
+                    self.terminate_current(Terminator::Goto(join_bb));
+                }
+
+                // else 分支
+                self.current_bb = else_bb;
+                for &s in else_ {
+                    self.build_stmt(s);
+                }
+                if self.is_current_unterminated() {
+                    self.terminate_current(Terminator::Goto(join_bb));
+                }
+
+                self.current_bb = join_bb;
+            }
+            StmtKind::While { cond, body } => {
+                let cond_bb = self.new_block();
+                let body_bb = self.new_block();
+                let exit_bb = self.new_block();
+
+                self.terminate_current(Terminator::Goto(cond_bb));
+
+                // 循环条件块
+                self.current_bb = cond_bb;
+                let cond_raw = self.expr_builder().build_expr(*cond);
+                let cond_ty = &self.types.bodies[self.current_hir_fn].exprs[*cond];
+                let cond_bool = self.expr_builder().to_bool_operand(cond_raw, cond_ty);
+                self.terminate_current(Terminator::Branch {
+                    cond: cond_bool,
+                    then_: body_bb,
+                    else_: exit_bb,
+                });
+
+                // 循环体
+                self.current_bb = body_bb;
+                self.loop_stack.push((cond_bb, exit_bb));
+                for &s in body {
+                    self.build_stmt(s);
+                }
+                self.loop_stack.pop();
+                if self.is_current_unterminated() {
+                    self.terminate_current(Terminator::Goto(cond_bb));
+                }
+
+                self.current_bb = exit_bb;
+            }
+            StmtKind::Break => {
+                let (_, break_bb) = *self
+                    .loop_stack
+                    .last()
+                    .expect("break 语句在 HIR 降级阶段已做循环作用域检查");
+                self.terminate_current(Terminator::Goto(break_bb));
+            }
+            StmtKind::Continue => {
+                let (continue_bb, _) = *self
+                    .loop_stack
+                    .last()
+                    .expect("continue 语句在 HIR 降级阶段已做循环作用域检查");
+                self.terminate_current(Terminator::Goto(continue_bb));
             }
             StmtKind::Pass => {}
             _ => {}
@@ -216,7 +334,7 @@ impl<'a> FunctionBuilder<'a> {
                             args: Vec::new(),
                         }));
                     }
-                    let op = self.build_expr(arg);
+                    let op = self.expr_builder().build_expr(arg);
                     let arg_ty = &self.types.bodies[self.current_hir_fn].exprs[arg];
                     let rt_fn = match arg_ty {
                         Ty::Int => RuntimeFn::WriteI64,
@@ -237,86 +355,6 @@ impl<'a> FunctionBuilder<'a> {
                 return;
             }
         }
-        let _ = self.build_expr(expr_id);
-    }
-
-    fn build_expr(&mut self, expr_id: ExprId) -> Operand {
-        let hir_body = &self.hir.functions[self.current_hir_fn].body;
-        let expr = &hir_body.exprs[expr_id];
-        match &expr.kind {
-            ExprKind::Literal(lit) => match lit {
-                Literal::Int(v) => Operand::Const(Constant::I64(*v)),
-                Literal::Float(v) => Operand::Const(Constant::F64(*v)),
-                Literal::Bool(b) => Operand::Const(Constant::Bool(*b)),
-                Literal::Str(s) => Operand::Const(Constant::Str(s.to_string())),
-                Literal::None => Operand::Const(Constant::I64(0)),
-            },
-            ExprKind::Local(loc) => {
-                if !self.assigned_locals.contains(loc) && !self.reported_unbound.contains(loc) {
-                    let var_name = &hir_body.locals[*loc].name;
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.hir.file, expr.range),
-                            format!("局部变量 `{var_name}` 在赋值前被读取"),
-                        )
-                        .with_code("E0301")
-                        .with_primary_label("在赋值前被使用（运行时将引发 UnboundLocalError）"),
-                    );
-                    self.reported_unbound.insert(*loc);
-                }
-                Operand::Local(self.local_map[loc])
-            }
-            ExprKind::Binary { op, lhs, rhs } => {
-                let lhs_op = self.build_expr(*lhs);
-                let rhs_op = self.build_expr(*rhs);
-                let mir_op = match op {
-                    HirBinOp::Add => BinOp::Add,
-                    HirBinOp::Sub => BinOp::Sub,
-                    HirBinOp::Mul => BinOp::Mul,
-                    HirBinOp::FloorDiv => BinOp::Div,
-                    _ => BinOp::Add,
-                };
-                let expr_ty = &self.types.bodies[self.current_hir_fn].exprs[expr_id];
-                let dest = self.locals.alloc(LocalDecl {
-                    ty: ty_to_mir(expr_ty),
-                    name: None,
-                });
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Binary {
-                        op: mir_op,
-                        lhs: lhs_op,
-                        rhs: rhs_op,
-                    },
-                });
-                Operand::Local(dest)
-            }
-            ExprKind::Call { callee, args } => {
-                let callee_expr = &hir_body.exprs[*callee];
-                if let ExprKind::Func(fn_id) = callee_expr.kind {
-                    let mir_fn_id = self.fn_map[&fn_id];
-                    let mut args_ops = Vec::new();
-                    for &arg in args {
-                        args_ops.push(self.build_expr(arg));
-                    }
-                    let ret_ty = ty_to_mir(&self.types.sigs[fn_id].ret);
-                    let dest = self.locals.alloc(LocalDecl {
-                        ty: ret_ty,
-                        name: None,
-                    });
-                    self.push_stmt(Statement::Assign {
-                        dest,
-                        value: Rvalue::Call {
-                            callee: Callee::Fn(mir_fn_id),
-                            args: args_ops,
-                        },
-                    });
-                    Operand::Local(dest)
-                } else {
-                    Operand::Const(Constant::I64(0))
-                }
-            }
-            _ => Operand::Const(Constant::I64(0)),
-        }
+        let _ = self.expr_builder().build_expr(expr_id);
     }
 }

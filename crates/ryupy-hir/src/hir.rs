@@ -119,13 +119,13 @@ pub struct Local {
     pub range: TextRange,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Expr {
     pub kind: ExprKind,
     pub range: TextRange,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ExprKind {
     /// 错误恢复占位：对应的错误已经报过，下游静默跳过。
     Missing,

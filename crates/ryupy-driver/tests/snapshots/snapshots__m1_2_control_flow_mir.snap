@@ -1,0 +1,197 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn classify(_0: i64) -> i64 {
+    let _0: i64; // n
+    let _1: bool;
+    let _2: i64;
+    let _3: bool;
+
+    bb0: {
+        _1 = Lt(_0, const 0_i64);
+        branch _1 -> [then: bb1, else: bb2];
+    }
+    bb1: {
+        _2 = Neg(const 1_i64);
+        return _2;
+    }
+    bb2: {
+        _3 = Eq(_0, const 0_i64);
+        branch _3 -> [then: bb4, else: bb5];
+    }
+    bb3: {
+        return;
+    }
+    bb4: {
+        return const 0_i64;
+    }
+    bb5: {
+        return const 1_i64;
+    }
+    bb6: {
+        return;
+    }
+}
+
+fn collatz_steps(_0: i64) -> i64 {
+    let _0: i64; // n
+    let _1: i64; // steps
+    let _2: bool;
+    let _3: i64;
+    let _4: bool;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+
+    bb0: {
+        _1 = const 0_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _2 = Ne(_0, const 1_i64);
+        branch _2 -> [then: bb2, else: bb3];
+    }
+    bb2: {
+        _3 = RuntimeFn::ModI64(_0, const 2_i64);
+        _4 = Eq(_3, const 0_i64);
+        branch _4 -> [then: bb4, else: bb5];
+    }
+    bb3: {
+        return _1;
+    }
+    bb4: {
+        _5 = RuntimeFn::FloorDivI64(_0, const 2_i64);
+        _0 = _5;
+        goto -> bb6;
+    }
+    bb5: {
+        _6 = Mul(const 3_i64, _0);
+        _7 = Add(_6, const 1_i64);
+        _0 = _7;
+        goto -> bb6;
+    }
+    bb6: {
+        _8 = Add(_1, const 1_i64);
+        _1 = _8;
+        goto -> bb1;
+    }
+}
+
+fn first_multiple(_0: i64, _1: i64) -> i64 {
+    let _0: i64; // k
+    let _1: i64; // limit
+    let _2: i64; // i
+    let _3: i64; // found
+    let _4: i64;
+    let _5: bool;
+    let _6: i64;
+    let _7: bool;
+    let _8: i64;
+
+    bb0: {
+        _2 = const 1_i64;
+        _4 = Neg(const 1_i64);
+        _3 = _4;
+        goto -> bb2;
+    }
+    bb1: {
+        return;
+    }
+    bb2: {
+        _5 = Gt(_2, _1);
+        branch _5 -> [then: bb3, else: bb6];
+    }
+    bb3: {
+        return _3;
+    }
+    bb4: {
+        return;
+    }
+    bb5: {
+        return;
+    }
+    bb6: {
+        _6 = RuntimeFn::ModI64(_2, _0);
+        _7 = Ne(_6, const 0_i64);
+        branch _7 -> [then: bb7, else: bb9];
+    }
+    bb7: {
+        _8 = Add(_2, const 1_i64);
+        _2 = _8;
+        goto -> bb2;
+    }
+    bb8: {
+        return;
+    }
+    bb9: {
+        _3 = _2;
+        goto -> bb3;
+    }
+}
+
+fn main() -> () {
+    let _0: i64; // x
+    let _1: i64;
+    let _2: i64;
+    let _3: i64;
+    let _4: i64;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: bool;
+    let _9: bool;
+    let _10: bool;
+    let _11: bool;
+    let _12: bool;
+    let _13: bool;
+
+    bb0: {
+        _1 = Neg(const 5_i64);
+        _2 = classify(_1);
+        RuntimeFn::WriteI64(_2);
+        RuntimeFn::WriteSep();
+        _3 = classify(const 0_i64);
+        RuntimeFn::WriteI64(_3);
+        RuntimeFn::WriteSep();
+        _4 = classify(const 7_i64);
+        RuntimeFn::WriteI64(_4);
+        RuntimeFn::WriteNewline();
+        _5 = collatz_steps(const 27_i64);
+        RuntimeFn::WriteI64(_5);
+        RuntimeFn::WriteNewline();
+        _6 = first_multiple(const 7_i64, const 100_i64);
+        RuntimeFn::WriteI64(_6);
+        RuntimeFn::WriteNewline();
+        _7 = first_multiple(const 7_i64, const 3_i64);
+        RuntimeFn::WriteI64(_7);
+        RuntimeFn::WriteNewline();
+        _0 = const 5_i64;
+        _9 = Gt(_0, const 0_i64);
+        _8 = _9;
+        branch _9 -> [then: bb1, else: bb2];
+    }
+    bb1: {
+        _10 = Lt(_0, const 10_i64);
+        _8 = _10;
+        goto -> bb2;
+    }
+    bb2: {
+        RuntimeFn::WriteBool(_8);
+        RuntimeFn::WriteNewline();
+        _12 = Lt(_0, const 0_i64);
+        _11 = _12;
+        branch _12 -> [then: bb4, else: bb3];
+    }
+    bb3: {
+        _13 = Eq(_0, const 5_i64);
+        _11 = _13;
+        goto -> bb4;
+    }
+    bb4: {
+        RuntimeFn::WriteBool(_11);
+        RuntimeFn::WriteNewline();
+        return;
+    }
+}

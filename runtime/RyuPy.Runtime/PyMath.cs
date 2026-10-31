@@ -12,7 +12,7 @@ public static class PyMath
     /// <summary><c>a // b</c>（int）。除数为 0 时应抛 Python <c>ZeroDivisionError</c>。</summary>
     public static long FloorDivI64(long a, long b)
     {
-        // TODO(M1.2)：b == 0 时抛 ZeroDivisionError（异常体系见 Phase 5，Phase 1 可先用 DivideByZeroException）。
+        if (b == 0) throw new DivideByZeroException("division by zero");
         long q = a / b;
         if ((a % b != 0) && ((a < 0) != (b < 0))) q--;
         return q;
@@ -21,6 +21,7 @@ public static class PyMath
     /// <summary><c>a % b</c>（int），结果符号与除数相同。</summary>
     public static long ModI64(long a, long b)
     {
+        if (b == 0) throw new DivideByZeroException("division by zero");
         long r = a % b;
         if (r != 0 && ((r < 0) != (b < 0))) r += b;
         return r;
