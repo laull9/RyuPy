@@ -12,7 +12,7 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[command(
     name = "ryupy",
     version,
-    about = "Python → .NET CIL 编译器（学习项目）"
+    about = "Python → .NET CIL 编译器"
 )]
 struct Cli {
     #[command(subcommand)]

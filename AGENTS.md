@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-RyuPy：Rust 编写的 Python → .NET CIL 编译器，**学习项目**。所有对话、文档、注释使用中文。
+RyuPy：Rust 编写的 Python → .NET CIL 编译器。所有对话、文档、注释使用中文。
 
 ## 必读
 
@@ -20,7 +20,7 @@ cargo test -p ryupy-e2e -- <名字过滤>
 
 ## 约定
 
-- 这是学习项目：用户想亲手实现编译器核心逻辑。除非明确要求，不要替用户完成 `todo!()` 处的实现；可以解释、审阅、给提示。
+- 学习项目：人不手写代码，但是得清楚知道作用、流程。
 - 各阶段遇到不支持的语法：报 `Diagnostic` 并继续，**不要 panic**。错误码分段见 architecture.md §4。
 - 只有 `ryupy-syntax` 依赖 ruff，只有 `ryupy-codegen-cil` 依赖 dotnetdll，codegen 不得依赖 HIR / ty。
 - 新增 `RuntimeFn` 时同步修改 `runtime/RyuPy.Runtime/` 与 codegen 引用表。

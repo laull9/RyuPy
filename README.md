@@ -3,8 +3,6 @@
 把 Python 编译成 .NET CIL 程序集，交给 RyuJIT 运行或用 Native AOT 编译为原生可执行文件。
 编译器用 Rust 编写，运行时底座 `RyuPy.Runtime` 用 C# 编写。
 
-> **这是一个学习项目。** 目标是亲手走一遍「源码 → AST → HIR → 类型 → MIR → CIL」的完整编译器流水线。
-
 ## 当前状态
 
 **Phase 0（脚手架）已完成，Phase 1 M1.0 待开工。** 解析器与诊断已可用，其余各阶段为带设计说明的 `todo!()` 骨架。
