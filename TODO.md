@@ -164,7 +164,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [~] runtime：建立 BaseException / Exception 与常用子类，明确 `args`、异常匹配、`StopIteration`、`SystemExit` 和 .NET 异常边界映射
       （`PyBaseException` 家族 + `args` 字段已完成；`StopIteration` / `SystemExit` 的类型在，但语义（进程退出、迭代终止）要等 M2.4；未捕获异常已有 Python 形式退出）
 - [~] hir / mir：`raise`、`raise ... from ...`、裸重抛、`try/except/else/finally`、assert 与异常变量清理；定义异常区域、展开边与验证规则
-      （`raise` 与 `raise ... from ...` 已完成；`try/except/else/finally`、裸重抛、assert 待做）
+      （`raise`、`raise ... from ...`、`assert` 已完成；`try/except/else/finally` 与裸重抛待做）
 - [ ] codegen：生成合法 CIL 异常表与 leave / endfinally 等控制流；覆盖 return / break / continue 穿过 finally，以及清理时再抛异常
 - [~] 数值与内建错误统一映射：除零含 float、转换失败、索引 / 键 / 属性 / 名称错误；处理未赋值局部变量，避免 CLR 默认零值泄漏
       （除零全路径已统一为 `ZeroDivisionError`；转换失败已有 `ValueError` / `OverflowError`；索引 / 键 / 属性要等 M2.3 / M2.5）

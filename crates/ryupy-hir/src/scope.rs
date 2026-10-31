@@ -144,6 +144,7 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "ArithmeticError" => Builtin::Exception("ArithmeticError"),
         "Exception" => Builtin::Exception("Exception"),
         "StopIteration" => Builtin::Exception("StopIteration"),
+        "AssertionError" => Builtin::Exception("AssertionError"),
         _ => return None,
     })
 }

@@ -38,6 +38,7 @@
 | 闭包、lambda、生成器、推导式、装饰器 | ❌ | Phase 3 M3.0–M3.3 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` | ✅ M2.2 | `Terminator::Raise` + `PyOps.MakeException` / `WithCause`；未捕获时按 Python 形式退出 |
+| `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
 | `try` / `except` / `else` / `finally` | ❌ | M2.2 后续竖切；`raise` 裸重抛同样待 `except` 上下文 |
 | 普通 class、单继承、方法 | ❌ | Phase 2 M2.5 / M2.6 |
 | `with` 与上下文协议 | ❌ | Phase 2 M2.8 |
