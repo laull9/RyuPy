@@ -38,15 +38,45 @@ pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'s
 
     let write_i64 =
         res.push_method_reference(method_ref! { static void @builtins_type::WriteI64(long) });
+    let write_f64 =
+        res.push_method_reference(method_ref! { static void @builtins_type::WriteF64(double) });
+    let write_bool =
+        res.push_method_reference(method_ref! { static void @builtins_type::WriteBool(bool) });
     let write_newline =
         res.push_method_reference(method_ref! { static void @builtins_type::WriteNewline() });
     let write_sep =
         res.push_method_reference(method_ref! { static void #builtins_type::WriteSep() });
 
+    let pymath_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyMath in #ryupy_runtime });
+    let pymath_type: MethodType = BaseType::class(pymath_ref).into();
+
+    let floor_div_i64 = res
+        .push_method_reference(method_ref! { static long @pymath_type::FloorDivI64(long, long) });
+    let mod_i64 =
+        res.push_method_reference(method_ref! { static long @pymath_type::ModI64(long, long) });
+    let pow_i64 =
+        res.push_method_reference(method_ref! { static long @pymath_type::PowI64(long, long) });
+
+    let floor_div_f64 = res.push_method_reference(
+        method_ref! { static double @pymath_type::FloorDivF64(double, double) },
+    );
+    let mod_f64 = res
+        .push_method_reference(method_ref! { static double @pymath_type::ModF64(double, double) });
+    let pow_f64 = res
+        .push_method_reference(method_ref! { static double #pymath_type::PowF64(double, double) });
+
     let runtime_refs = RuntimeRefs {
         write_i64,
+        write_f64,
+        write_bool,
         write_newline,
         write_sep,
+        floor_div_i64,
+        mod_i64,
+        pow_i64,
+        floor_div_f64,
+        mod_f64,
+        pow_f64,
     };
 
     let module_class = res.push_type_definition(TypeDefinition::new(

@@ -15,8 +15,8 @@
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{
-    BinOp, Callee, Constant as MirConstant, FnId, LocalId, Operand, RuntimeFn, Rvalue, Statement,
-    Terminator,
+    BinOp, BlockId, Callee, CastKind, Constant as MirConstant, FnId, LocalId, Operand, RuntimeFn,
+    Rvalue, Statement, Terminator, UnaryOp,
 };
 
 pub struct CompiledBody {
@@ -26,8 +26,21 @@ pub struct CompiledBody {
 
 pub struct RuntimeRefs {
     pub write_i64: MethodRefIndex,
+    pub write_f64: MethodRefIndex,
+    pub write_bool: MethodRefIndex,
     pub write_newline: MethodRefIndex,
     pub write_sep: MethodRefIndex,
+    pub floor_div_i64: MethodRefIndex,
+    pub mod_i64: MethodRefIndex,
+    pub pow_i64: MethodRefIndex,
+    pub floor_div_f64: MethodRefIndex,
+    pub mod_f64: MethodRefIndex,
+    pub pow_f64: MethodRefIndex,
+}
+
+enum PendingTarget {
+    Branch(usize, BlockId),
+    BranchTruthy(usize, BlockId),
 }
 
 pub fn lower_function(
@@ -55,8 +68,12 @@ pub fn lower_function(
     }
 
     let mut instructions = Vec::new();
+    let mut block_starts: FxHashMap<BlockId, usize> = FxHashMap::default();
+    let mut pending_targets: Vec<PendingTarget> = Vec::new();
 
-    for (_block_id, block) in func.body.blocks.iter() {
+    for (block_id, block) in func.body.blocks.iter() {
+        block_starts.insert(block_id, instructions.len());
+
         for stmt in &block.stmts {
             match stmt {
                 Statement::Assign { dest, value } => {
@@ -96,7 +113,36 @@ pub fn lower_function(
                 lower_operand(op, &mut instructions, &param_slots, &local_slots);
                 instructions.push(Instruction::Return);
             }
-            _ => {}
+            Terminator::Goto(target) => {
+                let pos = instructions.len();
+                instructions.push(Instruction::Branch(0)); // 占位，稍后回填
+                pending_targets.push(PendingTarget::Branch(pos, *target));
+            }
+            Terminator::Branch { cond, then_, else_ } => {
+                lower_operand(cond, &mut instructions, &param_slots, &local_slots);
+                let pos_then = instructions.len();
+                instructions.push(Instruction::BranchTruthy(0)); // 占位
+                pending_targets.push(PendingTarget::BranchTruthy(pos_then, *then_));
+
+                let pos_else = instructions.len();
+                instructions.push(Instruction::Branch(0)); // 占位
+                pending_targets.push(PendingTarget::Branch(pos_else, *else_));
+            }
+            Terminator::Unreachable => {}
+        }
+    }
+
+    // 回填所有分支指令的跳转目标下标
+    for pending in pending_targets {
+        match pending {
+            PendingTarget::Branch(idx, target_block) => {
+                let target_ins = block_starts.get(&target_block).copied().unwrap_or(0);
+                instructions[idx] = Instruction::Branch(target_ins);
+            }
+            PendingTarget::BranchTruthy(idx, target_block) => {
+                let target_ins = block_starts.get(&target_block).copied().unwrap_or(0);
+                instructions[idx] = Instruction::BranchTruthy(target_ins);
+            }
         }
     }
 
@@ -145,16 +191,55 @@ fn lower_rvalue(
             lower_operand(lhs, ins, param_slots, local_slots);
             lower_operand(rhs, ins, param_slots, local_slots);
             match op {
-                BinOp::Add => {
-                    ins.push(Instruction::AddOverflow(NumberSign::Signed));
+                BinOp::Add => ins.push(Instruction::AddOverflow(NumberSign::Signed)),
+                BinOp::Sub => ins.push(Instruction::SubtractOverflow(NumberSign::Signed)),
+                BinOp::Mul => ins.push(Instruction::MultiplyOverflow(NumberSign::Signed)),
+                BinOp::Div => ins.push(Instruction::Divide(NumberSign::Signed)),
+                BinOp::BitAnd => ins.push(Instruction::And),
+                BinOp::BitOr => ins.push(Instruction::Or),
+                BinOp::BitXor => ins.push(Instruction::Xor),
+                BinOp::Shl => ins.push(Instruction::ShiftLeft),
+                BinOp::Shr => ins.push(Instruction::ShiftRight(NumberSign::Signed)),
+                BinOp::Eq => ins.push(Instruction::CompareEqual),
+                BinOp::Ne => {
+                    ins.push(Instruction::CompareEqual);
+                    ins.push(Instruction::LoadConstantInt32(0));
+                    ins.push(Instruction::CompareEqual);
                 }
-                BinOp::Sub => {
-                    ins.push(Instruction::SubtractOverflow(NumberSign::Signed));
+                BinOp::Lt => ins.push(Instruction::CompareLess(NumberSign::Signed)),
+                BinOp::Gt => ins.push(Instruction::CompareGreater(NumberSign::Signed)),
+                BinOp::Le => {
+                    // CIL 无 cle，以 !(a > b) 实现
+                    ins.push(Instruction::CompareGreater(NumberSign::Signed));
+                    ins.push(Instruction::LoadConstantInt32(0));
+                    ins.push(Instruction::CompareEqual);
                 }
-                BinOp::Mul => {
-                    ins.push(Instruction::MultiplyOverflow(NumberSign::Signed));
+                BinOp::Ge => {
+                    // CIL 无 cge，以 !(a < b) 实现
+                    ins.push(Instruction::CompareLess(NumberSign::Signed));
+                    ins.push(Instruction::LoadConstantInt32(0));
+                    ins.push(Instruction::CompareEqual);
                 }
-                _ => todo!("其他二元运算在后续里程碑实现"),
+            }
+        }
+        Rvalue::Unary { op, operand } => {
+            lower_operand(operand, ins, param_slots, local_slots);
+            match op {
+                UnaryOp::Neg => ins.push(Instruction::Negate),
+                UnaryOp::Not => {
+                    ins.push(Instruction::LoadConstantInt32(0));
+                    ins.push(Instruction::CompareEqual);
+                }
+                UnaryOp::BitNot => ins.push(Instruction::Not),
+            }
+        }
+        Rvalue::Cast { kind, operand } => {
+            lower_operand(operand, ins, param_slots, local_slots);
+            match kind {
+                CastKind::I64ToF64 => ins.push(Instruction::ConvertFloat64),
+                CastKind::F64ToI64 | CastKind::BoolToI64 => {
+                    ins.push(Instruction::Convert(ConversionType::Int64))
+                }
             }
         }
         Rvalue::Call { callee, args } => {
@@ -163,15 +248,24 @@ fn lower_rvalue(
             }
             match callee {
                 Callee::Runtime(rt_fn) => match rt_fn {
-                    RuntimeFn::WriteI64 => {
-                        ins.push(Instruction::call(runtime_refs.write_i64));
-                    }
+                    RuntimeFn::WriteI64 => ins.push(Instruction::call(runtime_refs.write_i64)),
+                    RuntimeFn::WriteF64 => ins.push(Instruction::call(runtime_refs.write_f64)),
+                    RuntimeFn::WriteBool => ins.push(Instruction::call(runtime_refs.write_bool)),
                     RuntimeFn::WriteNewline => {
-                        ins.push(Instruction::call(runtime_refs.write_newline));
+                        ins.push(Instruction::call(runtime_refs.write_newline))
                     }
-                    RuntimeFn::WriteSep => {
-                        ins.push(Instruction::call(runtime_refs.write_sep));
+                    RuntimeFn::WriteSep => ins.push(Instruction::call(runtime_refs.write_sep)),
+                    RuntimeFn::FloorDivI64 => {
+                        ins.push(Instruction::call(runtime_refs.floor_div_i64))
                     }
+                    RuntimeFn::ModI64 => ins.push(Instruction::call(runtime_refs.mod_i64)),
+                    RuntimeFn::PowI64 => ins.push(Instruction::call(runtime_refs.pow_i64)),
+                    RuntimeFn::FloorDivF64 => {
+                        ins.push(Instruction::call(runtime_refs.floor_div_f64))
+                    }
+                    RuntimeFn::ModF64 => ins.push(Instruction::call(runtime_refs.mod_f64)),
+                    RuntimeFn::PowF64 => ins.push(Instruction::call(runtime_refs.pow_f64)),
+                    RuntimeFn::StrConcat => todo!("StrConcat 在 M1.4 实现"),
                     _ => todo!("其他 Runtime 方法在后续里程碑实现"),
                 },
                 Callee::Fn(fn_id) => {

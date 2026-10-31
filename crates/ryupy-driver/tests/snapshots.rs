@@ -56,3 +56,47 @@ fn catches_unassigned_local_read() {
         sess.diagnostics
     );
 }
+
+#[test]
+fn snapshot_m1_2_arith() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase1/m1_2_arith.py");
+
+    let mut sess = Session::default();
+    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
+    insta::assert_snapshot!("m1_2_arith_hir", hir);
+
+    let mut sess = Session::default();
+    let types = dump(&mut sess, &case, Stage::Types).unwrap();
+    insta::assert_snapshot!("m1_2_arith_types", types);
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m1_2_arith_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m1_2_arith_cil", cil);
+}
+
+#[test]
+fn snapshot_m1_2_control_flow() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase1/m1_2_control_flow.py");
+
+    let mut sess = Session::default();
+    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
+    insta::assert_snapshot!("m1_2_control_flow_hir", hir);
+
+    let mut sess = Session::default();
+    let types = dump(&mut sess, &case, Stage::Types).unwrap();
+    insta::assert_snapshot!("m1_2_control_flow_types", types);
+
+    let mut sess = Session::default();
+    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
+    insta::assert_snapshot!("m1_2_control_flow_mir", mir);
+
+    let mut sess = Session::default();
+    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
+    insta::assert_snapshot!("m1_2_control_flow_cil", cil);
+}

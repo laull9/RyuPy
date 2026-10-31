@@ -1,0 +1,266 @@
+//! 表达式 AST → HIR 降级。
+//!
+//! 流程与要点：
+//! 1. **字面量与变量**：
+//!    - 将各类数值、布尔、字符串与 None 转换为 [`Literal`]；
+//!    - 按照 LEGB 规则（局部变量 → 全局函数/类 → 内建）解析变量；
+//!    - 在函数体内若读取模块级变量，根据语义规范第 5 节报 [`E0105`] 阻断。
+//! 2. **运算符与去糖**：
+//!    - 二元与一元算符：映射为 [`BinOp`] 与 [`UnaryOp`]；
+//!    - 链式比较（`a < b < c`）：去糖展开为二元短路逻辑 `(a < b) and (b < c)`；
+//!    - 多元布尔逻辑（`a and b and c`）：展开为左结合的二元 [`BoolOp`] 树；
+//!    - 条件表达式（`then_ if cond else else_`）：降级为 [`IfExp`]。
+//! 3. **健壮性**：
+//!    - 遇到不受支持的语法结构，生成 [`Diagnostic`] 并产出 [`ExprKind::Missing`]，绝不 panic。
+
+use rustc_hash::FxHashMap;
+use ryupy_base::{Diagnostic, FileId, Ranged, Span};
+use ryupy_syntax::ast;
+
+use crate::hir::{Body, BoolOp, Expr, ExprId, ExprKind, Literal, Name, UnaryOp};
+use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
+use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
+
+pub struct ExprLowerCtx<'a> {
+    pub file: FileId,
+    pub global_scope: &'a GlobalScope,
+    pub func_scope: &'a FunctionScope,
+    pub module_locals: &'a FxHashMap<Name, crate::hir::LocalId>,
+    pub is_in_func: bool,
+    pub body: &'a mut Body,
+    pub diagnostics: &'a mut Vec<Diagnostic>,
+}
+
+impl<'a> ExprLowerCtx<'a> {
+    pub fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
+        let range = expr.range();
+        let kind = match expr {
+            ast::Expr::NumberLiteral(num) => match &num.value {
+                ast::Number::Int(int_val) => {
+                    if let Some(val) = int_val.as_i64() {
+                        ExprKind::Literal(Literal::Int(val))
+                    } else {
+                        self.diagnostics.push(
+                            Diagnostic::error(Span::new(self.file, num.range), "整数超出 i64 范围")
+                                .with_code("E0100")
+                                .with_primary_label("数值过大，Phase 1 仅支持 64 位有符号整数"),
+                        );
+                        ExprKind::Missing
+                    }
+                }
+                ast::Number::Float(f) => ExprKind::Literal(Literal::Float(*f)),
+                _ => {
+                    self.diagnostics.push(
+                        Diagnostic::error(Span::new(self.file, num.range), "暂不支持该数值字面量")
+                            .with_code("E0100")
+                            .with_primary_label("暂不支持此类数值"),
+                    );
+                    ExprKind::Missing
+                }
+            },
+            ast::Expr::BooleanLiteral(b) => ExprKind::Literal(Literal::Bool(b.value)),
+            ast::Expr::NoneLiteral(_) => ExprKind::Literal(Literal::None),
+            ast::Expr::StringLiteral(s) => ExprKind::Literal(Literal::Str(s.value.to_str().into())),
+            ast::Expr::Name(name_expr) => self.lower_name(name_expr),
+            ast::Expr::BinOp(bin) => {
+                if let Some(op) = map_bin_op(bin.op) {
+                    let lhs = self.lower_expr(&bin.left);
+                    let rhs = self.lower_expr(&bin.right);
+                    ExprKind::Binary { op, lhs, rhs }
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(Span::new(self.file, bin.range), "暂不支持该二元运算符")
+                            .with_code("E0100")
+                            .with_primary_label("暂不支持此运算"),
+                    );
+                    ExprKind::Missing
+                }
+            }
+            ast::Expr::UnaryOp(u) => {
+                if let Some(op) = map_unary_op(u.op) {
+                    if op == UnaryOp::Pos {
+                        // +x 在数值上等价于 x 本身
+                        return self.lower_expr(&u.operand);
+                    }
+                    let operand = self.lower_expr(&u.operand);
+                    ExprKind::Unary { op, operand }
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(Span::new(self.file, u.range), "暂不支持该一元运算符")
+                            .with_code("E0100")
+                            .with_primary_label("暂不支持此一元操作"),
+                    );
+                    ExprKind::Missing
+                }
+            }
+            ast::Expr::Compare(cmp) => self.lower_compare(cmp),
+            ast::Expr::BoolOp(b) => self.lower_bool_op(b),
+            ast::Expr::If(if_exp) => {
+                let cond = self.lower_expr(&if_exp.test);
+                let then_ = self.lower_expr(&if_exp.body);
+                let else_ = self.lower_expr(&if_exp.orelse);
+                ExprKind::IfExp { cond, then_, else_ }
+            }
+            ast::Expr::Call(call) => self.lower_call(call),
+            _ => {
+                self.diagnostics.push(
+                    Diagnostic::error(Span::new(self.file, range), "暂不支持该表达式")
+                        .with_code("E0100")
+                        .with_primary_label("Phase 1 暂不支持该语法"),
+                );
+                ExprKind::Missing
+            }
+        };
+
+        self.body.exprs.alloc(Expr { kind, range })
+    }
+
+    fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
+        let name = Name::from(name_expr.id.as_str());
+        // LEGB 查找顺序：1. Local 作用域
+        if let Some(&loc_id) = self.func_scope.locals.get(&name) {
+            ExprKind::Local(loc_id)
+        } else if let Some(&res) = self.global_scope.names.get(&name) {
+            // 2. Global 作用域（仅支持顶层函数与类）
+            match res {
+                Resolution::Func(fn_id) => ExprKind::Func(fn_id),
+                Resolution::Class(cls_id) => ExprKind::Class(cls_id),
+                Resolution::Local(_) | Resolution::Builtin(_) => ExprKind::Missing,
+            }
+        } else if self.is_in_func && self.module_locals.contains_key(&name) {
+            // 函数体内禁止读取模块级变量（语义陷阱 #5）
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, name_expr.range),
+                    format!("函数体内不能访问模块级变量 `{name}`"),
+                )
+                .with_code("E0105")
+                .with_primary_label("Phase 1 函数体内只允许访问局部变量或顶层函数/类"),
+            );
+            ExprKind::Missing
+        } else if let Some(builtin) = resolve_builtin(name.as_str()) {
+            // 3. Builtin 内建函数
+            ExprKind::Builtin(builtin)
+        } else {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, name_expr.range),
+                    format!("未定义的变量或名称 `{name}`"),
+                )
+                .with_code("E0106")
+                .with_primary_label("未解析的名字"),
+            );
+            ExprKind::Missing
+        }
+    }
+
+    fn lower_compare(&mut self, cmp: &ast::ExprCompare) -> ExprKind {
+        if cmp.ops.is_empty() || cmp.operands.len() < 2 {
+            return ExprKind::Missing;
+        }
+
+        // 简单二元比较：a < b
+        if cmp.ops.len() == 1 {
+            let op = match map_cmp_op(cmp.ops[0]) {
+                Some(o) => o,
+                None => {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, cmp.range()),
+                            "暂不支持该比较运算符",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("暂不支持的比较操作"),
+                    );
+                    return ExprKind::Missing;
+                }
+            };
+            let lhs = self.lower_expr(&cmp.operands[0]);
+            let rhs = self.lower_expr(&cmp.operands[1]);
+            return ExprKind::Compare { op, lhs, rhs };
+        }
+
+        // 链式比较去糖：a < b < c => (a < b) and (b < c)
+        // 注意：中间表达式求值在没有副作用时可安全复制
+        let mut sub_comparisons = Vec::new();
+        for (i, op_raw) in cmp.ops.iter().enumerate() {
+            let op = match map_cmp_op(*op_raw) {
+                Some(o) => o,
+                None => {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, cmp.range()),
+                            "暂不支持该比较运算符",
+                        )
+                        .with_code("E0100")
+                        .with_primary_label("暂不支持的比较操作"),
+                    );
+                    return ExprKind::Missing;
+                }
+            };
+            let lhs = self.lower_expr(&cmp.operands[i]);
+            let rhs = self.lower_expr(&cmp.operands[i + 1]);
+            let pair_cmp = self.body.exprs.alloc(Expr {
+                kind: ExprKind::Compare { op, lhs, rhs },
+                range: cmp.range(),
+            });
+            sub_comparisons.push(pair_cmp);
+        }
+
+        // 用 and 连接各个比较分量
+        let mut result = sub_comparisons[0];
+        for &next_cmp in &sub_comparisons[1..] {
+            result = self.body.exprs.alloc(Expr {
+                kind: ExprKind::BoolOp {
+                    op: BoolOp::And,
+                    lhs: result,
+                    rhs: next_cmp,
+                },
+                range: cmp.range(),
+            });
+        }
+
+        self.body.exprs[result].kind.clone()
+    }
+
+    fn lower_bool_op(&mut self, b: &ast::ExprBoolOp) -> ExprKind {
+        let op = map_bool_op(b.op);
+        if b.values.is_empty() {
+            return ExprKind::Missing;
+        }
+        if b.values.len() == 1 {
+            let single = self.lower_expr(&b.values[0]);
+            return self.body.exprs[single].kind.clone();
+        }
+
+        // 多元布尔左结合展开：a and b and c => (a and b) and c
+        let mut cur = self.lower_expr(&b.values[0]);
+        for val_expr in &b.values[1..] {
+            let rhs = self.lower_expr(val_expr);
+            cur = self.body.exprs.alloc(Expr {
+                kind: ExprKind::BoolOp { op, lhs: cur, rhs },
+                range: b.range(),
+            });
+        }
+        self.body.exprs[cur].kind.clone()
+    }
+
+    fn lower_call(&mut self, call: &ast::ExprCall) -> ExprKind {
+        let callee = self.lower_expr(&call.func);
+        let mut args = Vec::new();
+        for arg in &*call.arguments.args {
+            args.push(self.lower_expr(arg));
+        }
+        if !call.arguments.keywords.is_empty() {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, call.arguments.range),
+                    "Phase 1 暂不支持关键字参数",
+                )
+                .with_code("E0100")
+                .with_primary_label("不支持关键字参数"),
+            );
+        }
+        ExprKind::Call { callee, args }
+    }
+}

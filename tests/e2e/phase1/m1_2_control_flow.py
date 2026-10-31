@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.2：if/elif/else、while、break/continue、短路求值。
 def classify(n: int) -> int:
     if n < 0:

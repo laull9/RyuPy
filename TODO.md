@@ -62,17 +62,19 @@
 
 > 用例：`m1_2_arith.py`、`m1_2_control_flow.py`
 
-- [ ] hir：全部 `BinOp` / `UnaryOp` / `CmpOp`；链式比较展开；`and` / `or` 多元转二元；条件表达式
-- [ ] hir：`if` / `elif` / `else`、`while`、`break` / `continue`（在循环外报错）
-- [ ] ty：按 semantics.md §3 实现运算规则表（独立函数 + 表驱动单元测试）
-- [ ] ty：条件表达式中 `int` / `float` 的真值处理
-- [ ] mir：分支 / 循环基本块构建、循环目标栈、短路求值
-- [ ] mir：`//` `%` `**` 改写为 `RuntimeFn`
-- [ ] mir：`simplify_cfg` Pass（删不可达块、合并 Goto 链）+ 快照
-- [ ] mir：`validate` 补全类型检查项
-- [ ] codegen：分支指令与目标回填；比较指令序列（无 `cle`/`cge`，注意 NaN，见陷阱 #15）
-- [ ] runtime：`FloorDivI64` 除零处理；建立 `RyuPy.Runtime.Tests` 覆盖 `PyMath`
-- [ ] 移位量越界处理（ADR-0004）
+- [x] hir：全部 `BinOp` / `UnaryOp` / `CmpOp`；链式比较展开；`and` / `or` 多元转二元；条件表达式
+- [x] hir：`if` / `elif` / `else`、`while`、`break` / `continue`（在循环外报错）
+- [x] ty：按 semantics.md §3 实现运算规则表（独立函数 + 表驱动单元测试）
+- [x] ty：条件表达式中 `int` / `float` 的真值处理
+- [x] mir：分支 / 循环基本块构建、循环目标栈、短路求值
+- [x] mir：`//` `%` `**` 改写为 `RuntimeFn`
+- [x] mir：`simplify_cfg` Pass（删不可达块、合并 Goto 链）+ 快照
+- [x] mir：`validate` 补全类型检查项
+- [x] codegen：分支指令与目标回填；比较指令序列（无 `cle`/`cge`，注意 NaN，见陷阱 #15）
+- [x] runtime：`FloorDivI64` 除零处理；
+- [x] 移位量越界处理（ADR-0004）
+- [x] 去掉 m1_2_arith 与 m1_2_control_flow 的 `pending`，`make check` 全绿 🎉
+- [x] 笔记：`docs/notes/` 记录 M1.2 实现总结（运算语义、短路求值、CFG 构建与分支回填）
 
 ### M1.3 `for range` 与斐波那契
 

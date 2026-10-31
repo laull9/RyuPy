@@ -12,6 +12,7 @@
 
 mod check;
 mod infer;
+pub mod ops;
 mod ty;
 
 pub use check::check_module;
