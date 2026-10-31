@@ -15,7 +15,7 @@ expression: cil
 .class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
     extends [System.Runtime]System.Object
 {
-    .method public static void Main(string[] args) cil managed
+    .method public static void Main(string[]) cil managed
     {
         .entrypoint
         .locals init (

@@ -1,4 +1,3 @@
-# ryupy: pending
 # M1.1：带类型标注的函数、局部变量推导、函数间前向引用。
 def main_calc(x: int) -> int:
     y = helper(x) * 2

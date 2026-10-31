@@ -13,6 +13,7 @@ mod hir;
 pub mod lower;
 pub mod pretty;
 mod scope;
+mod type_ref;
 
 pub use hir::*;
 pub use lower::lower_module;

@@ -5,6 +5,7 @@
 //! ```text
 //! .assembly <name>
 //! .assembly extern System.Runtime
+//! .assembly extern System.Console
 //! .assembly extern RyuPy.Runtime
 //! .class public abstract sealed RyuPy.Generated.Module      // 所有顶层函数都是它的静态方法
 //!     .method public static void Main(string[] args) { .entrypoint ... }
@@ -12,16 +13,16 @@
 //! .class public RyuPy.Generated.<DataclassName>               // 每个 @dataclass 一个
 //! ```
 
-use dotnetdll::prelude::*;
-use ryupy_mir::Program;
+use std::borrow::Cow;
 
-use crate::stackify::{CompiledBody, RuntimeRefs, lower_function};
+use dotnetdll::prelude::*;
+use rustc_hash::FxHashMap;
+use ryupy_mir::{FnId, Program};
+
+use crate::stackify::{RuntimeRefs, lower_function};
 use crate::{CodegenError, EmitOptions};
 
-pub fn build_resolution(
-    program: &Program,
-    opts: &EmitOptions,
-) -> (Resolution<'static>, CompiledBody) {
+pub fn build_resolution(program: &Program, opts: &EmitOptions) -> (Resolution<'static>, TypeIndex) {
     let dll_name = format!("{}.dll", opts.assembly_name);
     let mut res = Resolution::new(Module::new(dll_name));
     res.assembly = Some(Assembly::new(opts.assembly_name.clone()));
@@ -57,27 +58,53 @@ pub fn build_resolution(
     res[module_class].flags.sealed = true;
     res[module_class].flags.accessibility = TypeAccessibility::Public;
 
-    let entry_func = &program.functions[program.entry];
-    let compiled_body = lower_function(entry_func, &runtime_refs);
+    // 第一遍：为所有函数分配 MethodIndex
+    let mut fn_indices: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
+    for (fn_id, func) in program.functions.iter() {
+        let method_idx = if fn_id == program.entry {
+            let main_method = res.push_method(
+                module_class,
+                Method::new(
+                    Accessibility::Public,
+                    msig! { static void (string[]) },
+                    "Main",
+                    None,
+                ),
+            );
+            res.set_entry_point(main_method);
+            main_method
+        } else {
+            let params: Vec<_> = func
+                .params
+                .iter()
+                .map(|&p| crate::types::mir_type_to_parameter(&func.body.locals[p].ty).unwrap())
+                .collect();
+            let ret = crate::types::mir_type_to_return_type(&func.ret);
+            let sig = MethodSignature::new(false, ret, params);
+            res.push_method(
+                module_class,
+                Method::new(
+                    Accessibility::Public,
+                    sig,
+                    Cow::Owned(func.name.clone()),
+                    None,
+                ),
+            )
+        };
+        fn_indices.insert(fn_id, method_idx);
+    }
 
-    let main_method = res.push_method(
-        module_class,
-        Method::new(
-            Accessibility::Public,
-            msig! { static void (string[]) },
-            "Main",
-            Some(body::Method {
-                data_sections: Vec::new(),
-                ..body::Method::with_locals(
-                    compiled_body.locals.clone(),
-                    compiled_body.instructions.clone(),
-                )
-            }),
-        ),
-    );
-    res.set_entry_point(main_method);
+    // 第二遍：逐函数编译并填充 body
+    for (fn_id, func) in program.functions.iter() {
+        let method_idx = fn_indices[&fn_id];
+        let compiled = lower_function(func, &runtime_refs, &fn_indices);
+        res[method_idx].body = Some(body::Method {
+            data_sections: Vec::new(),
+            ..body::Method::with_locals(compiled.locals, compiled.instructions)
+        });
+    }
 
-    (res, compiled_body)
+    (res, module_class)
 }
 
 pub fn emit(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
@@ -90,7 +117,7 @@ pub fn emit(program: &Program, opts: &EmitOptions) -> Result<Vec<u8>, CodegenErr
 }
 
 pub fn dump(program: &Program, opts: &EmitOptions) -> Result<String, CodegenError> {
-    let (res, compiled) = build_resolution(program, opts);
+    let (res, module_class) = build_resolution(program, opts);
     let mut out = String::new();
     out.push_str(&format!(".assembly {}\n{{\n}}\n", opts.assembly_name));
     out.push_str(".assembly extern System.Runtime\n{\n}\n");
@@ -99,24 +126,48 @@ pub fn dump(program: &Program, opts: &EmitOptions) -> Result<String, CodegenErro
         ".class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module\n",
     );
     out.push_str("    extends [System.Runtime]System.Object\n{\n");
-    out.push_str("    .method public static void Main(string[] args) cil managed\n    {\n");
-    out.push_str("        .entrypoint\n");
-    if !compiled.locals.is_empty() {
-        out.push_str("        .locals init (\n");
-        for (i, loc) in compiled.locals.iter().enumerate() {
-            let comma = if i + 1 < compiled.locals.len() {
-                ","
-            } else {
-                ""
-            };
-            out.push_str(&format!("            [{i}] {}{comma}\n", loc.show(&res)));
+
+    for (idx, method) in res[module_class].methods.iter().enumerate() {
+        if idx > 0 {
+            out.push('\n');
         }
-        out.push_str("        )\n");
+        let ret_str = method.signature.return_type.show(&res);
+        let params_str = method
+            .signature
+            .parameters
+            .iter()
+            .map(|p| p.show(&res))
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(
+            "    .method public static {ret_str} {}({params_str}) cil managed\n    {{\n",
+            method.name
+        ));
+
+        if method.name == "Main" {
+            out.push_str("        .entrypoint\n");
+        }
+
+        if let Some(body) = &method.body {
+            if !body.header.local_variables.is_empty() {
+                out.push_str("        .locals init (\n");
+                for (i, loc) in body.header.local_variables.iter().enumerate() {
+                    let comma = if i + 1 < body.header.local_variables.len() {
+                        ","
+                    } else {
+                        ""
+                    };
+                    out.push_str(&format!("            [{i}] {}{comma}\n", loc.show(&res)));
+                }
+                out.push_str("        )\n");
+            }
+            for (i, ins) in body.instructions.iter().enumerate() {
+                out.push_str(&format!("        IL_{i:04x}: {}\n", ins.show(&res)));
+            }
+        }
+        out.push_str("    }\n");
     }
-    for (i, ins) in compiled.instructions.iter().enumerate() {
-        out.push_str(&format!("        IL_{i:04x}: {}\n", ins.show(&res)));
-    }
-    out.push_str("    }\n");
+
     out.push_str("}\n");
     Ok(out)
 }

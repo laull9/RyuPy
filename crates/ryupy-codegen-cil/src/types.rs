@@ -23,6 +23,21 @@ pub fn mir_type_to_base_type(ty: &MirType) -> Option<BaseType<MethodType>> {
     }
 }
 
+pub fn mir_type_to_method_type(ty: &MirType) -> Option<MethodType> {
+    mir_type_to_base_type(ty).map(Into::into)
+}
+
+pub fn mir_type_to_return_type(ty: &MirType) -> ReturnType<MethodType> {
+    match mir_type_to_method_type(ty) {
+        Some(mt) => ReturnType::value(mt),
+        None => ReturnType::VOID,
+    }
+}
+
+pub fn mir_type_to_parameter(ty: &MirType) -> Option<Parameter<MethodType>> {
+    mir_type_to_method_type(ty).map(Parameter::value)
+}
+
 pub fn mir_type_to_local_var(ty: &MirType) -> Option<LocalVariable> {
     mir_type_to_base_type(ty).map(|b| LocalVariable::new(b.into()))
 }

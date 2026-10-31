@@ -1,0 +1,46 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: mir
+---
+fn main_calc(_0: i64) -> i64 {
+    let _0: i64; // x
+    let _1: i64; // y
+    let _2: i64;
+    let _3: i64;
+    let _4: i64;
+
+    bb0: {
+        _2 = helper(_0);
+        _3 = Mul(_2, const 2_i64);
+        _1 = _3;
+        _4 = Add(_1, const 1_i64);
+        return _4;
+    }
+}
+
+fn helper(_0: i64) -> i64 {
+    let _0: i64; // n
+    let _1: i64; // t
+    let _2: i64;
+
+    bb0: {
+        _2 = Sub(_0, const 3_i64);
+        _1 = _2;
+        return _1;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: i64;
+
+    bb0: {
+        _0 = main_calc(const 10_i64);
+        RuntimeFn::WriteI64(_0);
+        RuntimeFn::WriteNewline();
+        _1 = helper(const 0_i64);
+        RuntimeFn::WriteI64(_1);
+        RuntimeFn::WriteNewline();
+        return;
+    }
+}

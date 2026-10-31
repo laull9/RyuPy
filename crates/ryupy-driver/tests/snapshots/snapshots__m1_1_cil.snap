@@ -1,0 +1,80 @@
+---
+source: crates/ryupy-driver/tests/snapshots.rs
+expression: cil
+---
+.assembly m1_1_functions
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static long main_calc(long) cil managed
+    {
+        .locals init (
+            [0] long,
+            [1] long,
+            [2] long,
+            [3] long
+        )
+        IL_0000: LoadArgument(0)
+        IL_0001: Call(static long RyuPy.Generated.Module.helper(long))
+        IL_0002: StoreLocal(1)
+        IL_0003: LoadLocal(1)
+        IL_0004: LoadConstantInt64(2)
+        IL_0005: MultiplyOverflow(Signed)
+        IL_0006: StoreLocal(2)
+        IL_0007: LoadLocal(2)
+        IL_0008: StoreLocal(0)
+        IL_0009: LoadLocal(0)
+        IL_000a: LoadConstantInt64(1)
+        IL_000b: AddOverflow(Signed)
+        IL_000c: StoreLocal(3)
+        IL_000d: LoadLocal(3)
+        IL_000e: Return
+    }
+
+    .method public static long helper(long) cil managed
+    {
+        .locals init (
+            [0] long,
+            [1] long
+        )
+        IL_0000: LoadArgument(0)
+        IL_0001: LoadConstantInt64(3)
+        IL_0002: SubtractOverflow(Signed)
+        IL_0003: StoreLocal(1)
+        IL_0004: LoadLocal(1)
+        IL_0005: StoreLocal(0)
+        IL_0006: LoadLocal(0)
+        IL_0007: Return
+    }
+
+    .method public static void Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] long,
+            [1] long
+        )
+        IL_0000: LoadConstantInt64(10)
+        IL_0001: Call(static long RyuPy.Generated.Module.main_calc(long))
+        IL_0002: StoreLocal(0)
+        IL_0003: LoadLocal(0)
+        IL_0004: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0006: LoadConstantInt64(0)
+        IL_0007: Call(static long RyuPy.Generated.Module.helper(long))
+        IL_0008: StoreLocal(1)
+        IL_0009: LoadLocal(1)
+        IL_000a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_000b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_000c: Return
+    }
+}

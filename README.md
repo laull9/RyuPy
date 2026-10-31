@@ -5,7 +5,7 @@
 
 ## 当前状态
 
-**Phase 0（脚手架）已完成，Phase 1 M1.0 待开工。** 解析器与诊断已可用，其余各阶段为带设计说明的 `todo!()` 骨架。
+**Phase 0（脚手架）与 Phase 1 M1.0（曳光弹）已完成，Phase 1 M1.1 进行中。**
 
 ```bash
 make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast   # ✅ 可用
@@ -44,6 +44,7 @@ docs/                  文档
 
 | 文档 | 内容 |
 | --- | --- |
+| [docs/quickstart.md](docs/quickstart.md) | 快速上手与发布架构说明 |
 | [docs/roadmap.md](docs/roadmap.md) | 愿景与五阶段路线图 |
 | [docs/architecture.md](docs/architecture.md) | 分层、依赖规则、各层 IR 设计、测试策略 |
 | [docs/semantics.md](docs/semantics.md) | 支持的 Python 子集、类型映射、语义陷阱清单 |

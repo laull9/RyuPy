@@ -9,16 +9,15 @@
 //! 3. 未被赋值的名字按 LEGB 查找：Local → Enclosing（Phase 3 闭包）→ Global → Builtin。
 //! 4. `global` / `nonlocal` 声明会改变第 2 条（Phase 1 暂不支持，报错即可）。
 
-// 骨架阶段：lowering 实现后删除这一行。
-#![allow(dead_code)]
-
-use rustc_hash::FxHashMap;
-use ryupy_base::TextRange;
+use rustc_hash::{FxHashMap, FxHashSet};
+use ryupy_base::{Ranged, TextRange};
+use ryupy_syntax::ast;
 
 use crate::hir::{Builtin, ClassId, FuncId, LocalId, Name};
 
 /// 名字解析的结果。
-#[derive(Clone, Copy, Debug)]
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Resolution {
     Local(LocalId),
     Func(FuncId),
@@ -39,9 +38,90 @@ pub struct FunctionScope {
 }
 
 /// 预扫描函数体，返回所有被赋值的名字及其首次出现位置（规则 2）。
-pub fn collect_assigned_names(_body: &[ryupy_syntax::ast::Stmt]) -> Vec<(Name, TextRange)> {
-    // 需要递归进入 if/while/for 的子语句，但不要进入嵌套的 def/class/lambda。
-    todo!("M1.1：实现赋值名预扫描")
+pub fn collect_assigned_names(body: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
+    let mut names = Vec::new();
+    let mut seen = FxHashSet::default();
+
+    fn collect_expr(
+        expr: &ast::Expr,
+        names: &mut Vec<(Name, TextRange)>,
+        seen: &mut FxHashSet<Name>,
+    ) {
+        match expr {
+            ast::Expr::Name(name) => {
+                let n = Name::from(name.id.as_str());
+                if seen.insert(n.clone()) {
+                    names.push((n, name.range()));
+                }
+            }
+            ast::Expr::Tuple(tuple) => {
+                for elt in &tuple.elts {
+                    collect_expr(elt, names, seen);
+                }
+            }
+            ast::Expr::List(list) => {
+                for elt in &list.elts {
+                    collect_expr(elt, names, seen);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn walk_stmts(
+        stmts: &[ast::Stmt],
+        names: &mut Vec<(Name, TextRange)>,
+        seen: &mut FxHashSet<Name>,
+    ) {
+        for stmt in stmts {
+            match stmt {
+                ast::Stmt::Assign(s) => {
+                    for target in &s.targets {
+                        collect_expr(target, names, seen);
+                    }
+                }
+                ast::Stmt::AnnAssign(s) => {
+                    collect_expr(&s.target, names, seen);
+                }
+                ast::Stmt::AugAssign(s) => {
+                    collect_expr(&s.target, names, seen);
+                }
+                ast::Stmt::For(s) => {
+                    collect_expr(&s.target, names, seen);
+                    walk_stmts(&s.body, names, seen);
+                    walk_stmts(&s.orelse, names, seen);
+                }
+                ast::Stmt::While(s) => {
+                    walk_stmts(&s.body, names, seen);
+                    walk_stmts(&s.orelse, names, seen);
+                }
+                ast::Stmt::If(s) => {
+                    walk_stmts(&s.body, names, seen);
+                    for clause in &s.elif_else_clauses {
+                        walk_stmts(&clause.body, names, seen);
+                    }
+                }
+                ast::Stmt::Match(s) => {
+                    for case in &s.cases {
+                        walk_stmts(&case.body, names, seen);
+                    }
+                }
+                ast::Stmt::With(s) => {
+                    for item in &s.items {
+                        if let Some(target) = &item.optional_vars {
+                            collect_expr(target, names, seen);
+                        }
+                    }
+                    walk_stmts(&s.body, names, seen);
+                }
+                // 嵌套 def / class 不递归进去（它们有独立作用域）
+                _ => {}
+            }
+        }
+    }
+
+    walk_stmts(body, &mut names, &mut seen);
+    names
 }
 
 pub fn resolve_builtin(name: &str) -> Option<Builtin> {
@@ -52,4 +132,29 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "abs" => Builtin::Abs,
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ryupy_base::SourceDb;
+
+    #[test]
+    fn collects_assigned_variables_across_blocks() {
+        let mut db = SourceDb::default();
+        let src = r#"
+y = 1
+if True:
+    z = 2
+for i in range(10):
+    w = 3
+def nested():
+    inner = 4
+"#;
+        let file = db.add("t.py", src);
+        let (parsed, _) = ryupy_syntax::parse(file, src);
+        let names = collect_assigned_names(&parsed.module.body);
+        let name_strs: Vec<&str> = names.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(name_strs, vec!["y", "z", "i", "w"]);
+    }
 }
