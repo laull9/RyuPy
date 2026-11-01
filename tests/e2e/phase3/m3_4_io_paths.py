@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.4：文件用例必须在隔离工作目录运行，异常离开仍关闭流。
 import io
 import os

@@ -5,11 +5,10 @@
 //! import 的运行时调用都在这里。控制流语句的分派也在本文件，
 //! 循环与 `try` 的具体构建分别在 `build_loops.rs` / `build_try.rs`。
 
-use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{AssignTarget, Builtin, ExprId, ExprKind, ModuleVarId, StmtId, StmtKind};
 use ryupy_ty::{Ty, type_ref_to_ty};
 
-use crate::build::{ARG_ERROR_UNEXPECTED_KEYWORD, FunctionBuilder, ty_to_mir};
+use crate::build::{FunctionBuilder, ty_to_mir};
 use crate::mir::{Callee, Constant, MirType, Operand, RuntimeFn, Rvalue, Statement, Terminator};
 
 impl FunctionBuilder<'_> {
@@ -388,126 +387,12 @@ impl FunctionBuilder<'_> {
         let expr = &hir_body.exprs[expr_id];
         if let ExprKind::Call { callee, args } = &expr.kind {
             let callee_expr = &hir_body.exprs[*callee];
-            let has_star = args.iter().any(|arg| {
-                matches!(
-                    arg,
-                    ryupy_hir::CallArg::Starred(_) | ryupy_hir::CallArg::DoubleStarred(_)
-                )
-            });
-            if matches!(callee_expr.kind, ExprKind::Builtin(Builtin::Print)) && !has_star {
-                // `print` 太低频地需要通用分派，单独展开：
-                // - 位置实参先全部求值（Python 的实参求值顺序），再统一输出；
-                // - `sep` / `end` 关键字决定分隔符与结尾，缺省仍是空格与换行；
-                // - `file` / `flush` 依赖文件流（M3.4），现在明确报 TypeError。
-                let dynamic = self.types.is_dynamic(self.current_hir_fn);
-                let mut written = Vec::with_capacity(args.len());
-                let mut sep: Option<Operand> = None;
-                let mut end_op: Option<Operand> = None;
-
-                for arg in args {
-                    match arg {
-                        ryupy_hir::CallArg::Positional(expr) => {
-                            let op = self.expr_builder().build_expr(*expr);
-                            let arg_ty = self.expr_builder().ty_of(*expr);
-                            let (op, rt_fn) = if dynamic {
-                                (
-                                    self.expr_builder().coerce(op, &arg_ty, &MirType::Dynamic),
-                                    RuntimeFn::WriteObject,
-                                )
-                            } else {
-                                match arg_ty {
-                                    Ty::Int => (op, RuntimeFn::WriteI64),
-                                    Ty::Float => (op, RuntimeFn::WriteF64),
-                                    Ty::Bool => (op, RuntimeFn::WriteBool),
-                                    Ty::Str => (op, RuntimeFn::WriteStr),
-                                    Ty::None => {
-                                        let boxed = self.expr_builder().coerce(
-                                            op,
-                                            &arg_ty,
-                                            &MirType::Dynamic,
-                                        );
-                                        (boxed, RuntimeFn::WriteObject)
-                                    }
-                                    _ => (op, RuntimeFn::WriteI64),
-                                }
-                            };
-                            written.push((op, rt_fn));
-                        }
-                        ryupy_hir::CallArg::Starred(_) => {
-                            // `print(*xs)` 需要运行时展开，留到需要真实用例时再实现
-                            self.diagnostics.push(
-                                Diagnostic::error(
-                                    Span::new(
-                                        self.hir.file,
-                                        self.hir.functions[self.current_hir_fn].body.exprs
-                                            [arg.expr()]
-                                        .range,
-                                    ),
-                                    "print(*args) 暂不支持",
-                                )
-                                .with_code("E0304")
-                                .with_primary_label("暂不支持展开实参"),
-                            );
-                        }
-                        ryupy_hir::CallArg::Keyword(name, expr) => {
-                            let op = self.expr_builder().build_expr(*expr);
-                            let ty = self.expr_builder().ty_of(*expr);
-                            match name.as_str() {
-                                "sep" => {
-                                    sep = Some(self.expr_builder().coerce(op, &ty, &MirType::Str));
-                                }
-                                "end" => {
-                                    end_op =
-                                        Some(self.expr_builder().coerce(op, &ty, &MirType::Str));
-                                }
-                                other => {
-                                    // 求值后抛 TypeError：Python 的未知关键字也在调用时失败
-                                    self.push_stmt(Statement::Eval(Rvalue::Call {
-                                        callee: Callee::Runtime(RuntimeFn::ArgError),
-                                        args: vec![
-                                            Operand::Const(Constant::I64(
-                                                ARG_ERROR_UNEXPECTED_KEYWORD,
-                                            )),
-                                            Operand::Const(Constant::Str(format!(
-                                                "print() got an unexpected keyword argument '{other}'"
-                                            ))),
-                                        ],
-                                    }));
-                                }
-                            }
-                        }
-                        ryupy_hir::CallArg::DoubleStarred(_) => {}
-                    }
-                }
-
-                for (i, (op, rt_fn)) in written.into_iter().enumerate() {
-                    if i > 0 {
-                        match &sep {
-                            Some(sep_op) => self.push_stmt(Statement::Eval(Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::WriteStr),
-                                args: vec![sep_op.clone()],
-                            })),
-                            None => self.push_stmt(Statement::Eval(Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::WriteSep),
-                                args: Vec::new(),
-                            })),
-                        }
-                    }
-                    self.push_stmt(Statement::Eval(Rvalue::Call {
-                        callee: Callee::Runtime(rt_fn),
-                        args: vec![op],
-                    }));
-                }
-                match end_op {
-                    Some(end_op) => self.push_stmt(Statement::Eval(Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::WriteStr),
-                        args: vec![end_op],
-                    })),
-                    None => self.push_stmt(Statement::Eval(Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::WriteNewline),
-                        args: Vec::new(),
-                    })),
-                }
+            if matches!(callee_expr.kind, ExprKind::Builtin(Builtin::Print))
+                && args
+                    .iter()
+                    .all(|arg| matches!(arg, ryupy_hir::CallArg::Positional(_)))
+            {
+                self.build_print_fast(args);
                 return;
             }
         }

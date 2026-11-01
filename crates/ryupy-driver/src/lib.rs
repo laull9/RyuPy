@@ -153,6 +153,7 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: name.clone(),
+        entry_source_path: Some(opts.input.to_string_lossy().into_owned()),
     };
     let bytes = ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?;
 
@@ -226,6 +227,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     );
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: assembly_name(input),
+        entry_source_path: Some(input.to_string_lossy().into_owned()),
     };
     Ok(ryupy_codegen_cil::dump_cil(&linked, &emit_opts)?)
 }

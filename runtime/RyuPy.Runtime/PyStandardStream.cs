@@ -1,0 +1,85 @@
+using System;
+using System.IO;
+
+namespace RyuPy.Runtime;
+
+/// <summary>标准文本流的原生包装；只包装进程已拥有的流，不额外打开用户路径。</summary>
+public sealed class PyStandardStream : PyNativeObject, IPyIterator
+{
+    private readonly TextReader? _reader;
+    private readonly TextWriter? _writer;
+    private readonly string _name;
+    private bool _closed;
+    private object? _current;
+
+    /// <summary>创建输入或输出包装。</summary>
+    public PyStandardStream(string name, TextReader? reader, TextWriter? writer)
+    { _name = name; _reader = reader; _writer = writer; }
+
+    /// <inheritdoc />
+    public override string TypeName => "TextIOWrapper";
+
+    /// <summary>静态print共用此入口，避免为每个值重新创建绑定函数。</summary>
+    public void Write(string text)
+    {
+        CheckOpen();
+        if (_writer is null) throw new PyOSError("not writable");
+        PyIO.Guard(() => { _writer.Write(text); return PyNone.Instance; });
+    }
+
+    /// <summary>显式刷新输出。</summary>
+    public void Flush() { CheckOpen(); PyIO.Guard(() => { _writer?.Flush(); return PyNone.Instance; }); }
+
+    private void CheckOpen() { if (_closed) throw new PyValueError("I/O operation on closed file."); }
+
+    private string Read(long size, bool line)
+    {
+        CheckOpen();
+        if (_reader is null) throw new PyOSError("not readable");
+        if (size < -1) size = -1;
+        var output = new System.Text.StringBuilder();
+        while (size != 0)
+        {
+            int next = _reader.Read();
+            if (next < 0) break;
+            // 标准输入按通用换行和Unicode码点计数，不暴露UTF-16半个代理项。
+            if (next == '\r') { if (_reader.Peek() == '\n') _reader.Read(); next = '\n'; }
+            output.Append((char)next);
+            if (char.IsHighSurrogate((char)next) && _reader.Peek() >= 0 && char.IsLowSurrogate((char)_reader.Peek()))
+                output.Append((char)_reader.Read());
+            if (size > 0) size--;
+            if (line && next == '\n') break;
+        }
+        return output.ToString();
+    }
+
+    /// <inheritdoc />
+    public override object? GetAttr(string name) => name switch
+    {
+        "name" => _name, "mode" => _reader is null ? "w" : "r", "encoding" => "utf-8",
+        "errors" => "strict", "closed" => _closed,
+        "write" => PyNativeFunctions.Create("write", ["text"], [null], 1, args =>
+        { string text = PyCast.ToStr(args[0]); Write(text); return PyText.Length(text); }),
+        "read" or "readline" => PyNativeFunctions.Create(name, ["size"], [-1L], 0,
+            args => PyIO.Guard(() => Read(PyCast.ToInt64(args[0]), name == "readline"))),
+        "flush" => PyNativeFunctions.Create(name, [], [], 0, _ => { Flush(); return PyNone.Instance; }),
+        "close" => PyNativeFunctions.Create(name, [], [], 0, _ =>
+        { if (!_closed) _writer?.Flush(); _closed = true; return PyNone.Instance; }),
+        "readable" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return _reader is not null; }),
+        "writable" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return _writer is not null; }),
+        "seekable" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return false; }),
+        "isatty" => PyNativeFunctions.Create(name, [], [], 0, _ =>
+        { CheckOpen(); return _reader is not null ? !Console.IsInputRedirected : _name == "<stderr>" ? !Console.IsErrorRedirected : !Console.IsOutputRedirected; }),
+        "__enter__" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return this; }),
+        "__exit__" => PyNativeFunctions.Create(name, ["type", "value", "traceback"], [null, null, null], 3,
+            _ => { if (!_closed) _writer?.Flush(); _closed = true; return false; }),
+        "__iter__" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return this; }),
+        "__next__" => PyNativeFunctions.Create(name, [], [], 0, _ => MoveNext() ? Current() : throw new PyStopIteration()),
+        _ => throw Missing(name),
+    };
+
+    /// <inheritdoc />
+    public bool MoveNext() { string line = Read(-1, true); _current = line; return line.Length > 0; }
+    /// <inheritdoc />
+    public object? Current() => _current;
+}

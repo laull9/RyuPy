@@ -10,7 +10,7 @@
 //! Python 语义改写在这里完成：
 //! - `a // b`、`a % b`、`a ** b` → `Callee::Runtime(..)`；
 //! - `int` 与 `float` 混合 → 先插入 `Cast { I64ToF64 }`；
-//! - `print(a, b)` → 按各参数类型依次 `WriteI64` / `WriteF64` / ...，中间 `WriteSep`，末尾 `WriteNewline`；
+//! - print 的全位置调用先准备实参、固定输出目标，再按静态类型直接 Write；关键字/星号走动态绑定。
 //! - `str + str` → `StrConcat`；
 //! - `for i in range(a, b, s)` → 计数循环（注意 `s` 为负数时比较方向相反，`s == 0` 要抛 `ValueError`）。
 //!

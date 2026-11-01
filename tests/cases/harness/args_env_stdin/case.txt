@@ -1,7 +1,5 @@
 # 框架自检：命令行参数、环境变量与标准输入必须原样传给子进程。
-# RyuPy 侧需要 sys.argv / os.environ / input（M2.7 / M3.4），因此保持 pending；
-# 但 CPython 侧自检（E2E_PYTHON_ONLY=1）会验证框架本身能正确传递这三项。
-pending = true
+# M3.4 已接入 sys.argv / os.environ / input，同时验证框架和真实编译结果。
 args = alpha "beta gamma"
 env = RYUPY_CASE_ENV=case-value
 stdin = first line\n

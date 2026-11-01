@@ -25,60 +25,69 @@ pub(crate) fn emit_entry_wrapper(
     clr_exception_type: MethodType,
     system_exit_type: MethodType,
     set_file: MethodRefIndex,
+    initialize_system: MethodRefIndex,
     system_exit_code: MethodRefIndex,
-    flush_stdout: MethodRefIndex,
+    exit_flush: MethodRefIndex,
     init_functions: MethodIndex,
     init_class_factories: MethodIndex,
     source_name: &str,
+    source_path: &str,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: ldstr source_name
     //   1: call SetFile
-    //   2: call __init_functions        ← 构造函数对象与默认值数组
-    //   3: call __init_class_factories  ← 用户异常类的 CLR 工厂委托
-    //   4: call __main                  ┐ try
-    //   5: leave 17                     ┘
-    //   6: call SystemExitCode          ┐ catch PySystemExit
-    //   7: stloc.0                      │
-    //   8: leave 17                     ┘
-    //   9: call Report                  ┐ catch PyBaseException
-    //  10: ldc.i4.1                     │
-    //  11: stloc.0                      │
-    //  12: leave 17                     ┘
-    //  13: call ReportClr               ┐ catch System.Exception（兜底）
-    //  14: ldc.i4.1                     │
-    //  15: stloc.0                      │
-    //  16: leave 17                     ┘
-    //  17: call Flush                   ← 所有路径汇合于此
-    //  18: ldloc.0
-    //  19: ret
+    //   2: ldstr source_path           ┐ try
+    //   3: ldarg.0                    │ 真实 Main(string[] args)，不解析宿主命令行
+    //   4: call PySystem.Initialize    │
+    //   5: call __init_functions       │ 构造函数对象与默认值数组
+    //   6: call __init_class_factories │ 用户异常类的 CLR 工厂委托
+    //   7: call __main                │
+    //   8: leave 20                   ┘
+    //   9: call SystemExitCode         ┐ catch PySystemExit
+    //  10: stloc.0                     │
+    //  11: leave 20                    ┘
+    //  12: call Report                 ┐ catch PyBaseException
+    //  13: ldc.i4.1                    │
+    //  14: stloc.0                     │
+    //  15: leave 20                    ┘
+    //  16: call ReportClr              ┐ catch System.Exception（兜底）
+    //  17: ldc.i4.1                    │
+    //  18: stloc.0                     │
+    //  19: leave 20                    ┘
+    //  20: ldloc.0                     ← 所有路径汇合于此，原退出码作为实参
+    //  21: call FlushForExit           ← 刷新失败由运行时报告并改为120
+    //  22: ret
     //
-    // 处理区必须以 `leave` 离开、不能直接 `ret`——否则 CLR 判为非法方法体
+    // 系统初始化也位于保护区中，初始化失败与普通Python异常共享退出规则。
+    // 处理区必须以 leave 离开、不能直接 ret，否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
     let instructions = vec![
         Instruction::load_string(source_name),
         Instruction::call(set_file),
+        Instruction::load_string(source_path),
+        Instruction::LoadArgument(0),
+        Instruction::call(initialize_system),
         Instruction::call(init_functions),
         Instruction::call(init_class_factories),
         Instruction::call(body_method),
-        Instruction::Leave(17),
+        Instruction::Leave(20),
         // SystemExit：算出退出码而不是打印 traceback
         Instruction::call(system_exit_code),
         Instruction::StoreLocal(0),
-        Instruction::Leave(17),
+        Instruction::Leave(20),
         // 其余未捕获 Python 异常：打印 traceback 并退出 1
         Instruction::call(report_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(17),
+        Instruction::Leave(20),
         // 兜底：CLR 异常（静态 i64 溢出等）映射为 Python 错误后报告
         Instruction::call(report_clr_ref),
         Instruction::LoadConstantInt32(1),
         Instruction::StoreLocal(0),
-        Instruction::Leave(17),
-        // 汇合点：刷新 stdout 缓冲后返回退出码
-        Instruction::call(flush_stdout),
+        Instruction::Leave(20),
+        // 汇合点：运行时刷新当前stdout，失败时按Python规则返回120，EH索引不变。
         Instruction::LoadLocal(0),
+        Instruction::call(exit_flush),
         Instruction::Return,
     ];
     // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
@@ -91,23 +100,23 @@ pub(crate) fn emit_entry_wrapper(
     method_body.data_sections = vec![body::DataSection::ExceptionHandlers(vec![
         body::Exception {
             kind: body::ExceptionKind::TypedException(system_exit_type),
-            try_offset: 4,
-            try_length: 2,
-            handler_offset: 6,
+            try_offset: 2,
+            try_length: 7,
+            handler_offset: 9,
             handler_length: 3,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(exception_type),
-            try_offset: 4,
-            try_length: 2,
-            handler_offset: 9,
+            try_offset: 2,
+            try_length: 7,
+            handler_offset: 12,
             handler_length: 4,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(clr_exception_type),
-            try_offset: 4,
-            try_length: 2,
-            handler_offset: 13,
+            try_offset: 2,
+            try_length: 7,
+            handler_offset: 16,
             handler_length: 4,
         },
     ])];

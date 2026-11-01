@@ -1,6 +1,8 @@
 //! 普通 yield 首切：逐层验证状态机，并锁定尚不能保证的暂停语义诊断。
 
-use ryupy_driver::{Session, Stage, dump};
+use ryupy_driver::{Session, Stage};
+mod support;
+use support::dump;
 
 #[test]
 fn snapshot_m3_2_basic() {

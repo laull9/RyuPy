@@ -241,6 +241,8 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "FileNotFoundError",
         "FileExistsError",
         "PermissionError",
+        "IsADirectoryError",
+        "NotADirectoryError",
         "StopIteration",
         "EOFError",
     ];
@@ -251,6 +253,8 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
 
     Some(match name {
         "print" => Builtin::Print,
+        "open" => Builtin::Dynamic("open"),
+        "input" => Builtin::Dynamic("input"),
         "int" => Builtin::Int,
         "float" => Builtin::Float,
         "abs" => Builtin::Abs,

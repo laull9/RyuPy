@@ -1,6 +1,8 @@
 //! 既有语言竖切的 IR 与诊断快照；宿主临时路径不属于语义断言。
 
-use ryupy_driver::{Session, Stage, dump};
+use ryupy_driver::{Session, Stage};
+mod support;
+use support::dump;
 
 #[test]
 fn snapshot_m1_0() {

@@ -142,18 +142,18 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             for arg in args {
                 lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
+            let system = &ctx.runtime_refs.system;
             match callee {
                 Callee::Runtime(rt_fn) => match rt_fn {
-                    RuntimeFn::WriteI64 => ins.push(Instruction::call(ctx.runtime_refs.write_i64)),
-                    RuntimeFn::WriteF64 => ins.push(Instruction::call(ctx.runtime_refs.write_f64)),
-                    RuntimeFn::WriteBool => {
-                        ins.push(Instruction::call(ctx.runtime_refs.write_bool))
+                    RuntimeFn::PrintTarget => {
+                        ins.push(Instruction::call(ctx.runtime_refs.system.print_target))
                     }
-                    RuntimeFn::WriteStr => ins.push(Instruction::call(ctx.runtime_refs.write_str)),
-                    RuntimeFn::WriteNewline => {
-                        ins.push(Instruction::call(ctx.runtime_refs.write_newline))
-                    }
-                    RuntimeFn::WriteSep => ins.push(Instruction::call(ctx.runtime_refs.write_sep)),
+                    RuntimeFn::WriteI64 => ins.push(Instruction::call(system.write_i64)),
+                    RuntimeFn::WriteF64 => ins.push(Instruction::call(system.write_f64)),
+                    RuntimeFn::WriteBool => ins.push(Instruction::call(system.write_bool)),
+                    RuntimeFn::WriteStr => ins.push(Instruction::call(system.write_str)),
+                    RuntimeFn::WriteNewline => ins.push(Instruction::call(system.write_newline)),
+                    RuntimeFn::WriteSep => ins.push(Instruction::call(system.write_sep)),
                     RuntimeFn::StrConcat => {
                         ins.push(Instruction::call(ctx.runtime_refs.str_concat))
                     }
@@ -227,9 +227,7 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                     RuntimeFn::FormatValue => {
                         ins.push(Instruction::call(ctx.runtime_refs.format_value))
                     }
-                    RuntimeFn::WriteObject => {
-                        ins.push(Instruction::call(ctx.runtime_refs.write_object))
-                    }
+                    RuntimeFn::WriteObject => ins.push(Instruction::call(system.write_object)),
                     RuntimeFn::DynBinary => {
                         ins.push(Instruction::call(ctx.runtime_refs.dyn_binary))
                     }

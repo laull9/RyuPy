@@ -6,6 +6,7 @@ public static partial class PyOps
 {
     private static bool MatchesType(object? value, object? type) => type switch
     {
+        PyNativeType native => native.Accepts(value),
         PyClass cls => PyObject.IsInstance(value, cls),
         PyType pyType => MatchesBuiltin(value, pyType.Name),
         _ => throw new PyTypeError(
@@ -53,6 +54,8 @@ public static partial class PyOps
 
     private static bool IsSubclassOf(object? child, object? parent) => (child, parent) switch
     {
+        (PyNativeType derived, PyNativeType baseType) => derived.IsSubclassOf(baseType),
+        (PyNativeType, PyType builtin) => builtin.Name == "object",
         (PyClass derived, PyClass baseClass) => derived.IsSubclassOf(baseClass),
         (PyClass derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name)
             || builtin.Name == "object",
@@ -89,7 +92,7 @@ public static partial class PyOps
     }
 
     private static bool IsCallable(object? value) => value is
-        PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
+        PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyNativeType or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
         or PyInstance;
     private static object? BuiltinGetAttr(object?[] args, string[] names)
     {

@@ -1,0 +1,2 @@
+expect_exit = 255
+expect_exception = OverflowError: Python int too large to convert to C long

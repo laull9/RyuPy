@@ -15,6 +15,7 @@ mod build_decorators;
 mod build_expr_context;
 mod build_flow;
 mod build_loops;
+mod build_print;
 mod build_stmts;
 mod build_try;
 mod call_builder;
@@ -43,3 +44,6 @@ mod yield_expr;
 mod prepared_call;
 
 mod container_literals;
+
+#[cfg(test)]
+mod print_tests;

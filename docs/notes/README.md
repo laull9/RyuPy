@@ -61,6 +61,8 @@
 - [2026-11-01 Unicode内建与wcwidth首阻断](2026-11-01-unicode-builtins.md)
 - [2026-11-01 M3.2 异常恢复与清理](2026-11-01-m3.2-generator-cleanup.md)
 
+- [2026-11-01 M3.4 系统、路径与文件](2026-11-01-m3.4-system-paths.md)
+
 ## 推荐阅读
 
 | 主题 | 资料 |

@@ -34,6 +34,8 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "FileNotFoundError",
     "FileExistsError",
     "PermissionError",
+    "IsADirectoryError",
+    "NotADirectoryError",
     "StopIteration",
     "StopAsyncIteration",
     "EOFError",
@@ -42,7 +44,9 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
-    // print(a, b) → WriteI64(a); WriteSep(); WriteF64(b); WriteNewline()
+    /// 本次print的输出目标；实参准备完成后捕获一次，所有Write入口首参使用它。
+    PrintTarget,
+    // print(a,b) → target=PrintTarget(); WriteI64(target,a); WriteSep(target); ...
     WriteI64,
     WriteF64,
     WriteBool,

@@ -87,6 +87,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         &program,
         &crate::EmitOptions {
             assembly_name: "eh_capacity".into(),
+            entry_source_path: None,
         },
     )
     .unwrap()

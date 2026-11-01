@@ -1,0 +1,4 @@
+# 只使用框架隔离工作目录和捕获流，不触碰外部用户文件。
+entry = entry.py
+args = first second
+stdin = line one\nline two\n
