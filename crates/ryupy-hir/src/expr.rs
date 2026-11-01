@@ -14,10 +14,12 @@
 //!    - 遇到不受支持的语法结构，生成 [`Diagnostic`] 并产出 [`ExprKind::Missing`]，绝不 panic。
 
 use rustc_hash::FxHashMap;
-use ryupy_base::{Diagnostic, FileId, Ranged, Span};
+use ryupy_base::{Diagnostic, FileId, Ranged, Span, TextRange};
 use ryupy_syntax::ast;
 
-use crate::hir::{Body, BoolOp, Expr, ExprId, ExprKind, Literal, ModuleVarId, Name, UnaryOp};
+use crate::hir::{
+    Body, BoolOp, Expr, ExprId, ExprKind, FuncId, Literal, ModuleVarId, Name, UnaryOp,
+};
 use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
@@ -27,6 +29,12 @@ pub struct ExprLowerCtx<'a> {
     pub func_scope: &'a FunctionScope,
     /// 模块级变量表；模块作用域里的名字直接解析到这里。
     pub module_vars: &'a FxHashMap<Name, ModuleVarId>,
+    /// 嵌套 def / lambda 的 AST 位置 → FuncId（M3.0）。lambda 表达式靠它找到
+    /// 分析阶段分配的函数；类体等未分析位置查不到，明确拒绝。
+    pub nested_funcs: &'a FxHashMap<TextRange, FuncId>,
+    /// lambda 参数默认值：在**外层作用域** lambda 位置求值，先暂存、
+    /// 循环结束后回填进对应函数的 `Param::default`（与嵌套 def 一致）。
+    pub nested_defaults: &'a mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
     pub body: &'a mut Body,
     pub diagnostics: &'a mut Vec<Diagnostic>,
 }
@@ -135,6 +143,7 @@ impl<'a> ExprLowerCtx<'a> {
                 let inner = self.lower_expr(&starred.value);
                 ExprKind::Starred(inner)
             }
+            ast::Expr::Lambda(lambda) => self.lower_lambda(lambda),
             _ => {
                 self.diagnostics.push(
                     Diagnostic::error(Span::new(self.file, range), "暂不支持该表达式")
@@ -189,6 +198,52 @@ impl<'a> ExprLowerCtx<'a> {
         self.lower_expr(slice)
     }
 
+    /// lambda 表达式（M3.0）：分析阶段已为它分配匿名函数，这里记录引用；
+    /// 参数默认值在当前位置（外层作用域）求值——每次执行 lambda 表达式都
+    /// 重新求值，与嵌套 def 一致。
+    fn lower_lambda(&mut self, lambda: &ast::ExprLambda) -> ExprKind {
+        let Some(&func_id) = self.nested_funcs.get(&lambda.range) else {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, lambda.range),
+                    "lambda 暂不支持出现在此位置",
+                )
+                .with_code("E0100")
+                .with_primary_label("类体等位置的 lambda 尚未支持"),
+            );
+            return ExprKind::Missing;
+        };
+        if let Some(parameters) = &lambda.parameters {
+            let mut aligned: Vec<Option<ExprId>> = Vec::new();
+            for param_def in parameters.posonlyargs.iter().chain(&parameters.args) {
+                aligned.push(
+                    param_def
+                        .default
+                        .as_deref()
+                        .map(|expr| self.lower_expr(expr)),
+                );
+            }
+            if parameters.vararg.is_some() {
+                aligned.push(None);
+            }
+            for param_def in &parameters.kwonlyargs {
+                aligned.push(
+                    param_def
+                        .default
+                        .as_deref()
+                        .map(|expr| self.lower_expr(expr)),
+                );
+            }
+            if parameters.kwarg.is_some() {
+                aligned.push(None);
+            }
+            if aligned.iter().any(Option::is_some) {
+                self.nested_defaults.insert(func_id, aligned);
+            }
+        }
+        ExprKind::Lambda(func_id)
+    }
+
     fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
         let name = Name::from(name_expr.id.as_str());
         // `global` 声明的名字优先落到模块命名空间（即使同名的局部变量预扫描过）。
@@ -196,6 +251,11 @@ impl<'a> ExprLowerCtx<'a> {
             && let Some(&var) = self.module_vars.get(&name)
         {
             return ExprKind::ModuleVar(var);
+        }
+        // 外层 cell（M3.0 闭包）：`nonlocal` 声明的名字与捕获的自由变量。
+        // cell 读取在运行时有未赋值检查，返回装箱值。
+        if let Some(&idx) = self.func_scope.free.get(&name) {
+            return ExprKind::Free(idx);
         }
         // LEGB 查找顺序：Local → 顶层函数/类 → 模块变量 → Builtin。
         if let Some(&loc_id) = self.func_scope.locals.get(&name) {

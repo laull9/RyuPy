@@ -1,0 +1,40 @@
+---
+source: crates/ryupy-driver/tests/m3_0.rs
+expression: output
+---
+def counter():
+    # cells=[Name("value")], free=[]
+    value = 0
+    add = def add (nested)
+    read = def read (nested)
+    return (add, read)
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m3_0_closures.py"
+    defaults of counter
+    global.add, global.read = counter()
+    print(global.add(2), global.read(), global.add(3), global.read())
+    global.late = []
+    global.early = []
+    for global.index in range(0, 3):
+        global.late.append(<lambda <lambda>>)
+        global.early.append(<lambda <lambda>>)
+    print(global.late[0](), global.late[1](), global.late[2]())
+    print(global.early[0](), global.early[1](), global.early[2]())
+
+def [nested] <lambda>():
+    return global.index
+
+def [nested] <lambda>(value=...):
+    return value
+
+def [nested] add(amount):
+    # cells=[], free=[Name("value")]
+    cell[0] = (cell[0] += amount)
+    return cell[0]
+
+def [nested] read():
+    # cells=[], free=[Name("value")]
+    return cell[0]

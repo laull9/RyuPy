@@ -1,0 +1,347 @@
+---
+source: crates/ryupy-driver/tests/m3_0.rs
+expression: output
+---
+fn counter() -> dyn {
+    let _0: dyn; // value
+    let _1: dyn; // add
+    let _2: dyn; // read
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::CellNew();
+        _3 = RuntimeFn::TracePush(const "m3_0_closures.py", const "counter");
+        // line 3
+        _4 = box<I64>(const 0_i64);
+        RuntimeFn::CellSet(_0, _4);
+        // line 5
+        _5 = MakeFunction(add; env=[_0]; defaults=[null]);
+        _1 = _5;
+        // line 10
+        _6 = MakeFunction(read; env=[_0]; defaults=[]);
+        _2 = _6;
+        // line 13
+        _8 = MakeTuple([_1, _2]);
+        _7 = _8;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_3);
+        return _7;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: i64;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: i64;
+    let _25: i64;
+    let _26: i64;
+    let _27: i64;
+    let _28: i64;
+    let _29: bool;
+    let _30: bool;
+    let _31: bool;
+    let _32: bool;
+    let _33: bool;
+    let _34: bool;
+    let _35: bool;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
+    let _47: dyn;
+    let _48: dyn;
+    let _49: dyn;
+    let _50: dyn;
+    let _51: dyn;
+    let _52: dyn;
+    let _53: dyn;
+    let _54: dyn;
+    let _55: dyn;
+    let _56: dyn;
+    let _57: dyn;
+    let _58: dyn;
+    let _59: dyn;
+    let _60: dyn;
+    let _61: dyn;
+    let _62: dyn;
+    let _63: dyn;
+    let _64: dyn;
+    let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
+
+    bb0: {
+        g0 = None;
+        g1 = None;
+        g2 = None;
+        g3 = None;
+        g4 = None;
+        g5 = None;
+        g6 = None;
+        g7 = None;
+        _0 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "m3_0_closures.py");
+        g2 = _3;
+        // line 2
+        // line 16
+        _4 = counter();
+        _5 = RuntimeFn::Len(_4);
+        RuntimeFn::UnpackCheck(_5, const 2_i64, const false);
+        _6 = box<I64>(const 0_i64);
+        _7 = RuntimeFn::GetItem(_4, _6);
+        g3 = _7;
+        _8 = box<I64>(const 1_i64);
+        _9 = RuntimeFn::GetItem(_4, _8);
+        g4 = _9;
+        // line 17
+        _10 = RuntimeFn::LoadName(global@3, const "add");
+        _11 = box<I64>(const 2_i64);
+        _12 = dyn.call(_10, [_11]);
+        _13 = RuntimeFn::LoadName(global@4, const "read");
+        _14 = dyn.call(_13, []);
+        _15 = RuntimeFn::LoadName(global@3, const "add");
+        _16 = box<I64>(const 3_i64);
+        _17 = dyn.call(_15, [_16]);
+        _18 = RuntimeFn::LoadName(global@4, const "read");
+        _19 = dyn.call(_18, []);
+        RuntimeFn::WriteObject(_12);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_14);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_17);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_19);
+        RuntimeFn::WriteNewline();
+        // line 18
+        _20 = MakeList([]);
+        g5 = _20;
+        // line 19
+        _21 = MakeList([]);
+        g6 = _21;
+        // line 20
+        _22 = box<I64>(const 0_i64);
+        _23 = box<I64>(const 3_i64);
+        _24 = unbox<I64>(_22);
+        _25 = unbox<I64>(_23);
+        _26 = _24;
+        _27 = _25;
+        _28 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _29 = Gt(_28, const 0_i64);
+        _30 = Lt(_26, _27);
+        _31 = Gt(_26, _27);
+        _32 = BitAnd(_29, _30);
+        _33 = Not(_29);
+        _34 = BitAnd(_33, _31);
+        _35 = BitOr(_32, _34);
+        branch _35 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _36 = box<I64>(_26);
+        g7 = _36;
+        // line 21
+        _37 = RuntimeFn::LoadName(global@5, const "late");
+        _38 = MakeFunction(<lambda>; env=[]; defaults=[]);
+        _39 = dyn.method(_37, "append", [_38]);
+        // line 22
+        _40 = RuntimeFn::LoadName(global@6, const "early");
+        _41 = RuntimeFn::LoadName(global@7, const "index");
+        _42 = MakeFunction(<lambda>; env=[]; defaults=[_41]);
+        _43 = dyn.method(_40, "append", [_42]);
+        goto -> bb3;
+    }
+    bb3: {
+        _26 = Add(_26, _28);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 23
+        _44 = RuntimeFn::LoadName(global@5, const "late");
+        _45 = box<I64>(const 0_i64);
+        _46 = RuntimeFn::GetItem(_44, _45);
+        _47 = dyn.call(_46, []);
+        _48 = RuntimeFn::LoadName(global@5, const "late");
+        _49 = box<I64>(const 1_i64);
+        _50 = RuntimeFn::GetItem(_48, _49);
+        _51 = dyn.call(_50, []);
+        _52 = RuntimeFn::LoadName(global@5, const "late");
+        _53 = box<I64>(const 2_i64);
+        _54 = RuntimeFn::GetItem(_52, _53);
+        _55 = dyn.call(_54, []);
+        RuntimeFn::WriteObject(_47);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_51);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_55);
+        RuntimeFn::WriteNewline();
+        // line 24
+        _56 = RuntimeFn::LoadName(global@6, const "early");
+        _57 = box<I64>(const 0_i64);
+        _58 = RuntimeFn::GetItem(_56, _57);
+        _59 = dyn.call(_58, []);
+        _60 = RuntimeFn::LoadName(global@6, const "early");
+        _61 = box<I64>(const 1_i64);
+        _62 = RuntimeFn::GetItem(_60, _61);
+        _63 = dyn.call(_62, []);
+        _64 = RuntimeFn::LoadName(global@6, const "early");
+        _65 = box<I64>(const 2_i64);
+        _66 = RuntimeFn::GetItem(_64, _65);
+        _67 = dyn.call(_66, []);
+        RuntimeFn::WriteObject(_59);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_63);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_67);
+        RuntimeFn::WriteNewline();
+        goto -> bb6;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}
+
+fn <lambda>() -> dyn {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<lambda>");
+        // line 21
+        _2 = RuntimeFn::LoadName(global@7, const "index");
+        _1 = _2;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_0);
+        return _1;
+    }
+}
+
+fn <lambda>(_0: dyn) -> dyn {
+    let _0: dyn; // value
+    let _1: i64;
+    let _2: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<lambda>");
+        // line 22
+        _2 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn add(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // amount
+    let _1: dyn; // __env
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "m3_0_closures.py", const "add");
+        // line 7
+        _3 = RuntimeFn::CellGetFree(_1, const 0_i64, const "value");
+        _4 = dyn.Add.inplace(_3, _0);
+        _5 = RuntimeFn::ArrayGet(_1, const 0_i64);
+        RuntimeFn::CellSet(_5, _4);
+        // line 8
+        _7 = RuntimeFn::CellGetFree(_1, const 0_i64, const "value");
+        _6 = _7;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _6;
+    }
+}
+
+fn read(_0: dyn) -> dyn {
+    let _0: dyn; // __env
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "m3_0_closures.py", const "read");
+        // line 11
+        _3 = RuntimeFn::CellGetFree(_0, const 0_i64, const "value");
+        _2 = _3;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}

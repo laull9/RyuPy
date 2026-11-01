@@ -3,7 +3,8 @@
 本文从 Phase 2 开始持续更新。项目集已于 M2.0 冻结（20 个纯 Python 项目，6 类用途），
 CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 已接入额外模块搜索根，
 项目源码可以解析；剩余阻塞逐项目列在下表，集中在内建类型继承、装饰器/元类、内建函数与文件 API。
-语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过。
+语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal。
+2026-11-01 重跑固定项目集，仍为 0/20 原生通过；没有新增桥接路径。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
 
 ## 兼容性目标怎么计算
@@ -43,26 +44,26 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 
 | 项目 | 版本与来源 | 入口与上游测试范围 | 传递依赖 | 路径 / 平台 | 结果与阻塞 | 最近验证 |
 | --- | --- | --- | --- | --- | --- | --- |
-| six | 1.16.0 / PyPI | `six_sample.py`；上游 test_six.py 公共 API 子集 | 无 | 原生 / macOS arm64 | unsupported：基类必须是名字（`types.ModuleType` 属性基类） | 2026-10-31 |
-| sortedcontainers | 2.4.0 / PyPI | 三种有序容器基本操作 | 无 | 原生 / macOS arm64 | unsupported：`class ...(dict)` 内建容器继承 | 2026-10-31 |
-| toml | 0.10.2 / PyPI | loads/dumps 往返 | 无 | 原生 / macOS arm64 | unsupported：函数体内 `import` | 2026-10-31 |
-| tomli | 2.0.1 / PyPI | 数组表与错误位置 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
-| pyparsing | 3.1.2 / PyPI | 表达式与结果命名 | 无 | 原生 / macOS arm64 | unsupported：`NamedTuple` 基类 / 动态基类 | 2026-10-31 |
-| attrs | 23.2.0 / PyPI | define/field/asdict（元类路径） | 无 | 原生 / macOS arm64 | unsupported：类装饰器（仅支持 `@dataclass`） | 2026-10-31 |
-| networkx | 3.3 / PyPI | 建图、最短路、度序列 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
-| python-dateutil | 2.9.0.post0 / PyPI | parse 与 relativedelta | six==1.16.0 | 原生 / macOS arm64 | unsupported：函数体内 `import` | 2026-10-31 |
-| click | 8.1.7 / PyPI | command/option/参数解析 | 无 | 原生 / macOS arm64 | unsupported：属性表达式基类 | 2026-10-31 |
-| docopt | 0.6.2 / PyPI | usage 解析与默认值 | 无 | 原生 / macOS arm64 | unsupported：`class ...(list)` 内建容器继承 | 2026-10-31 |
-| pyfiglet | 1.0.2 / PyPI | 字体渲染 | 无 | 原生 / macOS arm64 | unsupported：动态基类 `unicode_string` | 2026-10-31 |
-| tabulate | 0.9.0 / PyPI | 表格格式与空表 | 无 | 原生 / macOS arm64 | unsupported：`class ...(str)` 内建字符串继承 | 2026-10-31 |
-| texttable | 1.7.0 / PyPI | 列对齐 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
-| markdown | 3.5.2 / PyPI | 转换与扩展 | 无 | 原生 / macOS arm64 | unsupported：内建 `map` 未接入 | 2026-10-31 |
-| chardet | 5.2.0 / PyPI | detect 结果字段 | 无 | 原生 / macOS arm64 | unsupported：复杂类型表达式（`TypeVar` 等） | 2026-10-31 |
-| wcwidth | 0.2.13 / PyPI | 宽字符与组合字符 | 无 | 原生 / macOS arm64 | unsupported：内建 `ord` 未接入 | 2026-10-31 |
-| colorama | 0.4.6 / PyPI | ANSI 常量与 init | 无 | 原生 / macOS arm64 | unsupported：内建 `dir` 未接入 | 2026-10-31 |
-| termcolor | 2.4.0 / PyPI | colored 属性组合 | 无 | 原生 / macOS arm64 | unsupported：复杂类型表达式 | 2026-10-31 |
-| binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / macOS arm64 | unsupported：内建 `open` 未接入（文件 API 在 M3.4） | 2026-10-31 |
-| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-10-31 |
+| six | 1.16.0 / PyPI | `six_sample.py`；上游 test_six.py 公共 API 子集 | 无 | 原生 / macOS arm64 | unsupported：基类必须是名字（`types.ModuleType` 属性基类） | 2026-11-01 |
+| sortedcontainers | 2.4.0 / PyPI | 三种有序容器基本操作 | 无 | 原生 / macOS arm64 | unsupported：`class ...(dict)` 内建容器继承 | 2026-11-01 |
+| toml | 0.10.2 / PyPI | loads/dumps 往返 | 无 | 原生 / macOS arm64 | unsupported：函数体内 `import` | 2026-11-01 |
+| tomli | 2.0.1 / PyPI | 数组表与错误位置 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-11-01 |
+| pyparsing | 3.1.2 / PyPI | 表达式与结果命名 | 无 | 原生 / macOS arm64 | unsupported：`NamedTuple` 基类 / 动态基类 | 2026-11-01 |
+| attrs | 23.2.0 / PyPI | define/field/asdict（元类路径） | 无 | 原生 / macOS arm64 | unsupported：类装饰器（仅支持 `@dataclass`） | 2026-11-01 |
+| networkx | 3.3 / PyPI | 建图、最短路、度序列 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-11-01 |
+| python-dateutil | 2.9.0.post0 / PyPI | parse 与 relativedelta | six==1.16.0 | 原生 / macOS arm64 | unsupported：函数体内 `import` | 2026-11-01 |
+| click | 8.1.7 / PyPI | command/option/参数解析 | 无 | 原生 / macOS arm64 | unsupported：属性表达式基类 | 2026-11-01 |
+| docopt | 0.6.2 / PyPI | usage 解析与默认值 | 无 | 原生 / macOS arm64 | unsupported：`class ...(list)` 内建容器继承 | 2026-11-01 |
+| pyfiglet | 1.0.2 / PyPI | 字体渲染 | 无 | 原生 / macOS arm64 | unsupported：动态基类 `unicode_string` | 2026-11-01 |
+| tabulate | 0.9.0 / PyPI | 表格格式与空表 | 无 | 原生 / macOS arm64 | unsupported：`class ...(str)` 内建字符串继承 | 2026-11-01 |
+| texttable | 1.7.0 / PyPI | 列对齐 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-11-01 |
+| markdown | 3.5.2 / PyPI | 转换与扩展 | 无 | 原生 / macOS arm64 | unsupported：内建 `map` 未接入 | 2026-11-01 |
+| chardet | 5.2.0 / PyPI | detect 结果字段 | 无 | 原生 / macOS arm64 | unsupported：复杂类型表达式（`TypeVar` 等） | 2026-11-01 |
+| wcwidth | 0.2.13 / PyPI | 宽字符与组合字符 | 无 | 原生 / macOS arm64 | unsupported：内建 `ord` 未接入 | 2026-11-01 |
+| colorama | 0.4.6 / PyPI | ANSI 常量与 init | 无 | 原生 / macOS arm64 | unsupported：内建 `dir` 未接入 | 2026-11-01 |
+| termcolor | 2.4.0 / PyPI | colored 属性组合 | 无 | 原生 / macOS arm64 | unsupported：复杂类型表达式 | 2026-11-01 |
+| binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / macOS arm64 | unsupported：内建 `open` 未接入（文件 API 在 M3.4） | 2026-11-01 |
+| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / macOS arm64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-11-01 |
 
 分母 20，原生通过 0，**0%**。M2.9 不要求此时达到最终 80%：当前阻塞集中在
 **内建类型继承、动态基类、装饰器 / 元类、内建函数与文件 API**，属于 Phase 3 的语言与标准库工作。

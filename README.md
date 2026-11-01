@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-Phase 0、Phase 1 与 Phase 2 的 M2.1–M2.10 已完成：静态数值路径、动态值与容器、普通 class / 单继承、异常、模块与包、`with`、有界 PIC。下一步是 Phase 3 M3.0 的闭包、lambda 与 nonlocal。
+Phase 0、Phase 1、Phase 2 与 M3.0 已完成：静态数值路径、动态值与容器、普通 class / 单继承、异常、模块与包、`with`、有界 PIC，以及闭包、lambda 与 nonlocal。下一步是 M3.1 推导式作用域。
 
 近期目标为固定纯 Python 项目集至少 80% 原生通过。项目集已冻结，当前 0/20 原生通过，逐项目阻塞见 [compatibility.md](docs/compatibility.md)。随后推进闭包、生成器、推导式、装饰器和标准库移植。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。阶段安排见路线图。
 

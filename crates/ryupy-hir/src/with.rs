@@ -270,6 +270,11 @@ impl StmtLowerCtx<'_> {
                         let value_expr = self.local_expr(value, name_expr.range);
                         out.push(self.push_assign_target(target, value_expr, name_expr.range));
                     }
+                    Some(Binding::Free(idx)) => {
+                        let target = AssignTarget::Free(idx);
+                        let value_expr = self.local_expr(value, name_expr.range);
+                        out.push(self.push_assign_target(target, value_expr, name_expr.range));
+                    }
                     None => {
                         self.diagnostics.push(
                             Diagnostic::error(

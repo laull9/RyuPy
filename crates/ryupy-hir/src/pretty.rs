@@ -19,6 +19,7 @@ pub fn dump(module: &Module) -> String {
 fn dump_func(out: &mut String, module: &Module, func: &Function) {
     let kind_str = match func.kind {
         FunctionKind::User => "def",
+        FunctionKind::Nested => "def [nested]",
         FunctionKind::ModuleMain => "def [main]",
     };
     write!(out, "{kind_str} {}(", func.name).unwrap();
@@ -46,6 +47,14 @@ fn dump_func(out: &mut String, module: &Module, func: &Function) {
         write!(out, " -> {}", dump_type_ref(ret)).unwrap();
     }
     out.push_str(":\n");
+    if !func.closure.cells.is_empty() || !func.closure.free.is_empty() {
+        writeln!(
+            out,
+            "    # cells={:?}, free={:?}",
+            func.closure.cells, func.closure.free
+        )
+        .unwrap();
+    }
 
     if func.body.root.is_empty() {
         out.push_str("    pass\n");
@@ -79,6 +88,7 @@ fn binding_name(module: &Module, body: &Body, binding: crate::hir::Binding) -> S
     match binding {
         crate::hir::Binding::Local(local) => body.locals[local].name.as_str().to_string(),
         crate::hir::Binding::ModuleVar(var) => format!("global.{}", module.vars[var].name),
+        crate::hir::Binding::Free(idx) => format!("cell[{idx}]"),
     }
 }
 
@@ -134,6 +144,7 @@ fn dump_stmt(
             let target_str = match target {
                 AssignTarget::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
                 AssignTarget::ModuleVar(var) => format!("global.{}", module.vars[*var].name),
+                AssignTarget::Free(idx) => format!("cell[{idx}]"),
                 AssignTarget::Attribute { base, name } => {
                     format!("{}.{}", dump_expr(module, body, *base), name)
                 }
@@ -253,6 +264,20 @@ fn dump_stmt(
         StmtKind::FunctionDefaults(id) => {
             writeln!(out, "{pad}defaults of {}", module.functions[*id].name).unwrap()
         }
+        StmtKind::NestedDef { func, target } => {
+            let target_str = match target {
+                AssignTarget::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
+                AssignTarget::ModuleVar(var) => format!("global.{}", module.vars[*var].name),
+                AssignTarget::Free(idx) => format!("cell[{idx}]"),
+                _ => "?".to_string(),
+            };
+            writeln!(
+                out,
+                "{pad}{} = def {} (nested)",
+                target_str, module.functions[*func].name
+            )
+            .unwrap()
+        }
         StmtKind::ClassDef(id) => {
             let class = &module.classes[*id];
             let base = match class.base {
@@ -368,6 +393,10 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
         },
         ExprKind::Local(loc_id) => body.locals[*loc_id].name.as_str().to_string(),
         ExprKind::ModuleVar(var) => format!("global.{}", module.vars[*var].name),
+        ExprKind::Free(idx) => format!("cell[{idx}]"),
+        ExprKind::Lambda(func_id) => {
+            format!("<lambda {}>", module.functions[*func_id].name)
+        }
         ExprKind::Func(fn_id) => module.functions[*fn_id].name.as_str().to_string(),
         ExprKind::Class(cls_id) => module.classes[*cls_id].name.as_str().to_string(),
         ExprKind::Builtin(b) => match b {

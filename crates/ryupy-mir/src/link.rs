@@ -87,6 +87,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 function_global: func.function_global.map(|g| global_map[&g]),
                 defaults_global: func.defaults_global.map(|g| global_map[&g]),
                 signature_global: func.signature_global.map(|g| global_map[&g]),
+                env: func.env,
             });
             fn_map.insert(old, new_id);
         }
@@ -119,6 +120,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 locals.alloc(LocalDecl {
                     ty: remap_type(&decl.ty, &class_map),
                     name: decl.name.clone(),
+                    is_cell: decl.is_cell,
                 });
             }
             let body = Body {
@@ -364,6 +366,18 @@ fn remap_rvalue(
             name: name.clone(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
         },
+        Rvalue::MakeFunction {
+            func,
+            env,
+            defaults,
+        } => Rvalue::MakeFunction {
+            func: fn_map[func],
+            env: env.iter().map(|a| remap_operand(a, global_map)).collect(),
+            defaults: defaults
+                .iter()
+                .map(|a| remap_operand(a, global_map))
+                .collect(),
+        },
         Rvalue::CatchException => Rvalue::CatchException,
     }
 }
@@ -404,6 +418,7 @@ impl Function {
             function_global: None,
             defaults_global: None,
             signature_global: None,
+            env: None,
         }
     }
 }

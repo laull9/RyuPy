@@ -9,10 +9,13 @@ namespace RyuPy.Runtime;
 /// 编译产物里的函数对象所使用的调用委托。
 /// </summary>
 /// <remarks>
-/// 生成的入口方法（thunk）签名与此一致：它接收已经展开的实参与关键字，调用
-/// <see cref="PyBinder.Bind"/> 完成绑定，再调用真正的静态方法并装箱返回值。
+/// 生成的入口方法（thunk）签名与此一致：第一个参数是函数对象自身——慢路径
+/// （<see cref="PyBinder.Bind"/>）要从实例上取签名、默认值与闭包环境；每次执行
+/// `def` 都会创建新的默认值数组（M3.0），所以它们必须跟着实例走而不是静态槽位。
+/// thunk 完成绑定后调用真正的静态方法并装箱返回值；闭包函数还会把
+/// <see cref="PyFunction.Env"/> 作为额外尾参传给静态方法。
 /// </remarks>
-public delegate object? PyCall(object?[] args, string[] kwNames, object?[] kwValues);
+public delegate object? PyCall(PyFunction self, object?[] args, string[] kwNames, object?[] kwValues);
 
 /// <summary>参数在调用绑定中的角色，判别值必须与 Rust 侧 <c>mir::ParamKind</c> 一致。</summary>
 public enum PyParamKind
@@ -366,13 +369,20 @@ public sealed class PyFunction
     /// <summary>函数体是否调用过 `super()`；只有这类函数需要维护方法上下文。</summary>
     public bool UsesSuper { get; }
 
+    /// <summary>
+    /// 闭包环境（M3.0）：外层作用域的 cell 数组；非闭包函数为 <c>null</c>。
+    /// 同一 cell 对象被多个闭包共享，这正是 late binding 与共享修改的来源。
+    /// </summary>
+    public object?[]? Env { get; }
+
     /// <summary>构造函数对象。</summary>
     public PyFunction(
         string name,
         PySignature signature,
         PyCall body,
         object?[] defaults,
-        bool usesSuper = true
+        bool usesSuper = true,
+        object?[]? env = null
     )
     {
         Name = name;
@@ -380,12 +390,13 @@ public sealed class PyFunction
         Body = body;
         Defaults = defaults;
         UsesSuper = usesSuper;
+        Env = env;
     }
 
     /// <summary>用已展开的实参调用。</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues) =>
-        Body(args, kwNames, kwValues);
+        Body(this, args, kwNames, kwValues);
 
     /// <summary>与 CPython 一致的 <c>&lt;function name&gt;</c> 形式。</summary>
     public override string ToString() => $"<function {Name}>";

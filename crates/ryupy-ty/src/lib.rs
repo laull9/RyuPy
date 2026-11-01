@@ -12,6 +12,8 @@
 
 mod call;
 mod check;
+mod check_attrs;
+mod check_stmts;
 mod infer;
 mod module_vars;
 pub mod ops;

@@ -91,12 +91,34 @@ pub struct Function {
     pub ret: Option<TypeRef>,
     pub body: Body,
     pub range: TextRange,
+    /// 闭包信息（M3.0）：free 变量、被捕获的 cell 局部与嵌套函数标记。
+    ///
+    /// 由 `closures.rs` 在 lowering 之前分析整个 AST 填写；对顶层函数
+    /// `free` / `cells` 通常为空，`has_nested` 标记体内是否有嵌套 def / lambda。
+    pub closure: ClosureInfo,
+}
+
+/// 一个函数作用域的闭包分析结果。
+#[derive(Debug, Default, Clone)]
+pub struct ClosureInfo {
+    /// 本函数引用的外层 cell（含 `nonlocal`），顺序即 env 数组下标。
+    ///
+    /// 创建本函数对象时，外层按此顺序把对应的 cell 装进 env；
+    /// 函数体内通过 `ExprKind::Free(idx)` / `AssignTarget::Free(idx)` 访问。
+    pub free: Vec<Name>,
+    /// 本函数内被嵌套函数捕获的局部名（需要装箱成 cell），按发现顺序。
+    pub cells: Vec<Name>,
+    /// 体内存在嵌套 `def` / lambda：本函数降级为动态路径并在 def 位置创建函数对象。
+    pub has_nested: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FunctionKind {
     /// 用户写的 `def`。
     User,
+    /// 嵌套 `def` / lambda（M3.0）：在 def 位置通过 `MakeFunction` 创建运行时对象，
+    /// 没有模块级静态槽位；调用一律走运行时 `call_value`。
+    Nested,
     /// 由顶层语句合成的入口。
     ModuleMain,
 }
@@ -264,6 +286,10 @@ pub enum ExprKind {
     Local(LocalId),
     /// 读取模块级变量（M2.7）。
     ModuleVar(ModuleVarId),
+    /// 读取外层函数的 cell（M3.0 闭包）：下标对应当前函数 `ClosureInfo::free`。
+    Free(usize),
+    /// lambda 表达式（M3.0）：在求值位置创建匿名函数对象。
+    Lambda(FuncId),
     Func(FuncId),
     Class(ClassId),
     Builtin(Builtin),
@@ -483,6 +509,14 @@ pub enum StmtKind {
     /// Python 在 `def` 执行时求值默认值；把它保留成一条语句（而不是统一提到开头），
     /// 默认值才能引用此前的模块变量。
     FunctionDefaults(FuncId),
+    /// 嵌套 `def`（M3.0）：在执行位置创建函数对象并写入绑定名。
+    ///
+    /// 参数默认值也在此时于**外层作用域**求值（每次执行 def 都会产生新的默认值数组）。
+    /// `target` 是函数对象写入的位置：外层函数里是局部变量，模块顶层是模块变量。
+    NestedDef {
+        func: FuncId,
+        target: AssignTarget,
+    },
     /// `raise [exc [from cause]]`；两者都为 `None` 表示裸重抛。
     Raise {
         value: Option<ExprId>,
@@ -539,36 +573,14 @@ pub struct Handler {
     pub range: TextRange,
 }
 
-/// 一个可赋值目标。函数内是局部变量，模块顶层是模块变量（M2.7）。
+/// 一个可赋值目标。函数内是局部变量，模块顶层是模块变量（M2.7）；
+/// `nonlocal` 声明的名字是外层 cell（M3.0）。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Binding {
     Local(LocalId),
     ModuleVar(ModuleVarId),
+    /// 外层函数的 cell（`nonlocal`）。
+    Free(usize),
 }
 
-#[derive(Debug)]
-pub enum AssignTarget {
-    Local(LocalId),
-    ModuleVar(ModuleVarId),
-    /// `obj.field = value`（dataclass 字段写入）。
-    Attribute {
-        base: ExprId,
-        name: Name,
-    },
-    /// `obj[key] = value`。
-    Subscript {
-        base: ExprId,
-        index: ExprId,
-    },
-    /// `a, b = ...` / `first, *middle, last = ...`。
-    Sequence(Vec<SequenceItem>),
-}
-
-/// 序列解包的一个位置。
-#[derive(Clone, Copy, Debug)]
-pub enum SequenceItem {
-    /// 普通目标：按位置取一个元素。
-    One(Binding),
-    /// 星号目标：把中间剩余的元素打包成列表。
-    Rest(Binding),
-}
+pub use crate::assign_target::{AssignTarget, SequenceItem};

@@ -19,12 +19,11 @@ use ryupy_syntax::ast;
 
 use crate::expr::ExprLowerCtx;
 use crate::hir::{
-    AssignTarget, Binding, Body, Expr, ExprId, ExprKind, Function, FunctionKind, Local, Module,
-    ModuleInfo, ModuleVar, ModuleVarId, Name, Param, Stmt, StmtId, StmtKind,
+    Body, ExprId, Function, FunctionKind, Module, ModuleInfo, ModuleVar, ModuleVarId, Name, Stmt,
+    StmtKind,
 };
-use crate::operator::lower_type_ref;
-use crate::scope;
-use crate::scope::{FunctionScope, GlobalScope, Resolution, collect_assigned_names};
+use crate::lower_fn::{FnSource, LowerArgs, lower_function_body};
+use crate::scope::{FunctionScope, GlobalScope, Resolution};
 
 /// 降级整个模块。即使有错误也返回一个结构完整的 `Module`。
 ///
@@ -50,7 +49,7 @@ pub fn lower_module(
     // 引用（通过 `self.other()` 在运行时查找），也保证类体属性表达式与方法体在
     // 同一轮之后统一降级。
     let mut raw_classes = Vec::new();
-    let mut user_funcs: Vec<(ast::StmtFunctionDef, crate::hir::FuncId)> = Vec::new();
+    let mut user_funcs: Vec<(&ast::StmtFunctionDef, crate::hir::FuncId)> = Vec::new();
     let mut top_classes: Vec<crate::hir::ClassId> = Vec::new();
     let mut top_functions: Vec<crate::hir::FuncId> = Vec::new();
     for stmt in &parsed.module.body {
@@ -93,13 +92,14 @@ pub fn lower_module(
                         ret: None,
                         body: Body::default(),
                         range: fn_def.range(),
+                        closure: Default::default(),
                     });
                     methods.push(crate::class::MethodSlot {
                         name: method_name,
                         func: func_id,
                         range: fn_def.range(),
                     });
-                    user_funcs.push((fn_def.clone(), func_id));
+                    user_funcs.push((fn_def, func_id));
                 }
                 raw_classes.push((cls_def, cls_id, methods));
             }
@@ -122,10 +122,11 @@ pub fn lower_module(
                     ret: None,
                     body: Body::default(),
                     range: fn_def.range(),
+                    closure: Default::default(),
                 });
                 global_scope.names.insert(name, Resolution::Func(func_id));
                 top_functions.push(func_id);
-                user_funcs.push((fn_def.clone(), func_id));
+                user_funcs.push((fn_def, func_id));
             }
             _ => {}
         }
@@ -139,7 +140,16 @@ pub fn lower_module(
         ret: None,
         body: Body::default(),
         range: parsed.module.range,
+        closure: Default::default(),
     });
+
+    // M3.0：闭包作用域分析——发现嵌套 def / lambda 并计算 free / cell 变量。
+    // 必须在降级任何函数体之前完成：名字解析（Free / cell）和 lambda 表达式
+    // 都依赖它的登记表。
+    let analysis =
+        crate::closures::analyze_closures(parsed, &mut functions, main_id, &mut diagnostics);
+    let mut nested_defaults: FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>> =
+        FxHashMap::default();
 
     let mut main_body = Body::default();
 
@@ -153,6 +163,7 @@ pub fn lower_module(
             &classes,
             &methods,
             &module_var_ids,
+            &analysis.nested_funcs,
             &mut main_body,
             &mut diagnostics,
         ) {
@@ -160,167 +171,67 @@ pub fn lower_module(
         }
     }
 
-    // 第二遍：降级各个用户函数体（含类方法）
+    // 第二遍：降级各个用户函数体（含类方法与嵌套函数 / lambda）。
+    // 顶层函数先降级、嵌套函数按发现顺序降级——保证父作用域的嵌套 def 语句
+    // （在父函数体降级时触发默认值求值）先于子函数体处理。
     let mut all_default_exprs = Vec::new();
-    for (fn_def, func_id) in user_funcs {
-        let mut body = Body::default();
-        let mut func_scope = FunctionScope::default();
-        // 先把 `global` 声明记进作用域：这些名字既不能登记成局部变量，
-        // 赋值/读取也要落到模块命名空间。
-        for name in scope::collect_global_names(&fn_def.body) {
-            func_scope.globals.insert(name);
-        }
-        let mut params = Vec::new();
-
-        // 1. 参数处理：按 Python 的绑定顺序（位置-only → 普通 → *args → 关键字-only → **kwargs）。
-        //
-        // 默认值表达式降级到 **main 的 body**：Python 在 def 执行时于模块作用域求值，
-        // 不是每次调用时求值（`def f(x=[])` 的列表在多次调用间共享）。
-        let mut default_exprs = Vec::new();
-        let mut push_param = |params: &mut Vec<Param>,
-                              func_scope: &mut FunctionScope,
-                              body: &mut Body,
-                              diagnostics: &mut Vec<Diagnostic>,
-                              parameter: &ast::Parameter,
-                              kind: crate::hir::ParamKind,
-                              default: Option<&ast::Expr>| {
-            let param_name = Name::from(parameter.name.as_str());
-            let ann = parameter
-                .annotation
-                .as_deref()
-                .map(|e| lower_type_ref(e, parsed.file, &global_scope, diagnostics));
-            let local_id = body.locals.alloc(Local {
-                name: param_name.clone(),
-                annotation: ann.clone(),
-                is_param: true,
-                range: parameter.range,
-            });
-            func_scope.locals.insert(param_name, local_id);
-            let default = default.map(|expr| {
-                let id = lower_default_expr(
-                    parsed.file,
-                    &global_scope,
-                    &module_var_ids,
-                    &mut main_body,
-                    diagnostics,
-                    expr,
-                );
-                default_exprs.push(id);
-                id
-            });
-            params.push(Param {
-                annotation: ann,
-                local: local_id,
-                default,
-                kind,
-                range: parameter.range,
-            });
-        };
-
-        for param_def in &fn_def.parameters.posonlyargs {
-            push_param(
-                &mut params,
-                &mut func_scope,
-                &mut body,
-                &mut diagnostics,
-                &param_def.parameter,
-                crate::hir::ParamKind::PositionalOnly,
-                param_def.default.as_deref(),
-            );
-        }
-        for param_def in &fn_def.parameters.args {
-            push_param(
-                &mut params,
-                &mut func_scope,
-                &mut body,
-                &mut diagnostics,
-                &param_def.parameter,
-                crate::hir::ParamKind::PositionalOrKeyword,
-                param_def.default.as_deref(),
-            );
-        }
-        if let Some(vararg) = &fn_def.parameters.vararg {
-            push_param(
-                &mut params,
-                &mut func_scope,
-                &mut body,
-                &mut diagnostics,
-                vararg,
-                crate::hir::ParamKind::VarPositional,
-                None,
-            );
-        }
-        for param_def in &fn_def.parameters.kwonlyargs {
-            push_param(
-                &mut params,
-                &mut func_scope,
-                &mut body,
-                &mut diagnostics,
-                &param_def.parameter,
-                crate::hir::ParamKind::KeywordOnly,
-                param_def.default.as_deref(),
-            );
-        }
-        if let Some(kwarg) = &fn_def.parameters.kwarg {
-            push_param(
-                &mut params,
-                &mut func_scope,
-                &mut body,
-                &mut diagnostics,
-                kwarg,
-                crate::hir::ParamKind::VarKeyword,
-                None,
-            );
-        }
-
-        // 2. 返回值标注
-        let ret = fn_def
-            .returns
-            .as_deref()
-            .map(|e| lower_type_ref(e, parsed.file, &global_scope, &mut diagnostics));
-
-        // 3. 预扫描函数内被赋值的局部变量（赋值即局部）
-        for (name, range) in collect_assigned_names(&fn_def.body) {
-            if func_scope.is_global(&name) {
-                continue;
-            }
-            if let std::collections::hash_map::Entry::Vacant(e) =
-                func_scope.locals.entry(name.clone())
-            {
-                let local_id = body.locals.alloc(Local {
-                    name,
-                    annotation: None,
-                    is_param: false,
-                    range,
-                });
-                e.insert(local_id);
-            }
-        }
-
-        // 4. 降级函数体语句
-        let mut lower_ctx = StmtLowerCtx {
+    let mut lower_one = |func_id: crate::hir::FuncId,
+                         source: FnSource<'_>,
+                         functions: &mut Arena<Function>,
+                         diagnostics: &mut Vec<Diagnostic>| {
+        lower_function_body(LowerArgs {
             file: parsed.file,
-            diagnostics: &mut diagnostics,
+            package: &info.package,
+            source,
+            func_id,
+            functions,
             global_scope: &global_scope,
-            func_scope: &mut func_scope,
             module_vars: &module_var_ids,
             vars: &mut vars,
-            module_scope: false,
-            package: &info.package,
             classes: &classes,
-            body: &mut body,
-            loop_depth: 0,
-            handler_depth: 0,
+            analysis: &analysis,
+            nested_defaults: &mut nested_defaults,
+            all_default_exprs: &mut all_default_exprs,
+            main_body: &mut main_body,
             line_starts: &line_starts,
+            diagnostics,
+        });
+    };
+    for (fn_def, func_id) in &user_funcs {
+        lower_one(
+            *func_id,
+            FnSource::Def(fn_def),
+            &mut functions,
+            &mut diagnostics,
+        );
+    }
+    for (func_id, range) in &analysis.nested_order {
+        let Some(node) = crate::closures_find::find_nested_ast(&parsed.module.body, *range) else {
+            diagnostics.push(
+                Diagnostic::error(Span::new(parsed.file, *range), "内部错误：嵌套函数节点丢失")
+                    .with_code("E0101")
+                    .with_primary_label("闭包分析登记的 AST 位置在降级时找不到"),
+            );
+            continue;
         };
-        for stmt in &fn_def.body {
-            lower_ctx.lower_stmt_to_root(stmt);
+        match node {
+            crate::closures_find::NestedAst::Def(fn_def) => {
+                lower_one(
+                    *func_id,
+                    FnSource::Def(fn_def),
+                    &mut functions,
+                    &mut diagnostics,
+                );
+            }
+            crate::closures_find::NestedAst::Lambda(lambda) => {
+                lower_one(
+                    *func_id,
+                    FnSource::Lambda(lambda),
+                    &mut functions,
+                    &mut diagnostics,
+                );
+            }
         }
-
-        functions[func_id].params = params;
-        functions[func_id].ret = ret;
-        functions[func_id].body = body;
-        all_default_exprs.extend(default_exprs);
     }
 
     // 降级 main 函数（模块顶层非 FunctionDef 语句）
@@ -335,6 +246,8 @@ pub fn lower_module(
         module_scope: true,
         package: &info.package,
         classes: &classes,
+        nested_funcs: &analysis.nested_funcs,
+        nested_defaults: &mut nested_defaults,
         body: &mut main_body,
         loop_depth: 0,
         handler_depth: 0,
@@ -364,6 +277,18 @@ pub fn lower_module(
         }
     }
     functions[main_id].body = main_body;
+    functions[main_id].closure = analysis.infos[&main_id].clone();
+
+    // 回填嵌套函数（def / lambda）的默认值：它们在外层作用域的定义位置求值
+    //（见 lower_nested_def 与 lower_lambda）。main 降级也会产生新的登记
+    //（模块顶层的 lambda），因此回填必须在 main 降级之后。
+    for (func_id, defaults) in &nested_defaults {
+        for (index, expr) in defaults.iter().enumerate() {
+            if let Some(expr) = expr {
+                functions[*func_id].params[index].default = Some(*expr);
+            }
+        }
+    }
 
     let module = Module {
         file: parsed.file,
@@ -380,7 +305,6 @@ pub fn lower_module(
 
     (module, diagnostics)
 }
-
 pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) file: FileId,
     pub(crate) diagnostics: &'a mut Vec<Diagnostic>,
@@ -396,6 +320,11 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) package: &'a str,
     /// 已解析的类（`except` 需要判断用户类是否属于异常家族）。
     pub(crate) classes: &'a Arena<crate::hir::Class>,
+    /// 嵌套 def / lambda 的 AST 位置 → FuncId（M3.0，见 closures.rs）。
+    pub(crate) nested_funcs: &'a FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
+    /// 嵌套函数的默认值：在**外层作用域** def 位置求值，先暂存、循环结束后
+    /// 回填进对应函数的 `Param::default`。
+    pub(crate) nested_defaults: &'a mut FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>>,
     pub(crate) body: &'a mut Body,
     pub(crate) loop_depth: usize,
     /// 当前所处的 `except` 体层数。只有 > 0 时裸 `raise` 才有意义。
@@ -406,11 +335,15 @@ pub(crate) struct StmtLowerCtx<'a> {
 
 /// 把参数默认值表达式降级到模块入口函数的 body。
 ///
-/// 默认值在模块作用域求值，因此这里用空函数作用域 + 模块变量表解析名字。
-fn lower_default_expr(
+/// 默认值在模块作用域求值，因此这里用空函数作用域 + 模块变量表解析名字；
+/// 默认值里若还有 lambda（带参数默认值），同样登记进 `nested_defaults`。
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lower_default_expr(
     file: FileId,
     global_scope: &GlobalScope,
     module_vars: &FxHashMap<Name, ModuleVarId>,
+    nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
+    nested_defaults: &mut FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>>,
     body: &mut Body,
     diagnostics: &mut Vec<Diagnostic>,
     expr: &ast::Expr,
@@ -421,6 +354,8 @@ fn lower_default_expr(
         global_scope,
         func_scope: &scope,
         module_vars,
+        nested_funcs,
+        nested_defaults,
         body,
         diagnostics,
     };
@@ -454,6 +389,8 @@ impl StmtLowerCtx<'_> {
             global_scope: self.global_scope,
             func_scope: self.func_scope,
             module_vars: self.module_vars,
+            nested_funcs: self.nested_funcs,
+            nested_defaults: self.nested_defaults,
             body: self.body,
             diagnostics: self.diagnostics,
         };
@@ -466,6 +403,8 @@ impl StmtLowerCtx<'_> {
             global_scope: self.global_scope,
             func_scope: self.func_scope,
             module_vars: self.module_vars,
+            nested_funcs: self.nested_funcs,
+            nested_defaults: self.nested_defaults,
             body: self.body,
             diagnostics: self.diagnostics,
         };
@@ -500,509 +439,5 @@ impl StmtLowerCtx<'_> {
             line,
         });
         self.body.root.push(stmt_id);
-    }
-
-    fn lower_stmt_to_root(&mut self, stmt: &ast::Stmt) {
-        if matches!(stmt, ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_)) {
-            self.lower_import_to_root(stmt);
-            return;
-        }
-        if let Some(stmt_id) = self.lower_stmt(stmt) {
-            self.body.root.push(stmt_id);
-        }
-    }
-
-    pub(crate) fn lower_suite(&mut self, stmts: &[ast::Stmt]) -> Vec<StmtId> {
-        let mut out = Vec::new();
-        for s in stmts {
-            if matches!(s, ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_)) {
-                self.lower_import_into(s, &mut out);
-                continue;
-            }
-            if let Some(id) = self.lower_stmt(s) {
-                out.push(id);
-            }
-        }
-        out
-    }
-
-    /// 序列解包目标：`a, b` / `first, *rest, last`。
-    pub(crate) fn lower_sequence_target(
-        &mut self,
-        elements: &[ast::Expr],
-        range: ryupy_base::TextRange,
-    ) -> Option<Vec<crate::hir::SequenceItem>> {
-        let mut items = Vec::new();
-        for element in elements {
-            match element {
-                ast::Expr::Name(name_expr) => {
-                    let name = Name::from(name_expr.id.as_str());
-                    let binding = self.resolve_binding(&name)?;
-                    items.push(crate::hir::SequenceItem::One(binding));
-                }
-                ast::Expr::Starred(starred) => {
-                    let ast::Expr::Name(name_expr) = starred.value.as_ref() else {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, starred.range),
-                                "星号解包的目标必须是简单变量",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("暂不支持嵌套解包目标"),
-                        );
-                        return None;
-                    };
-                    let name = Name::from(name_expr.id.as_str());
-                    let binding = self.resolve_binding(&name)?;
-                    items.push(crate::hir::SequenceItem::Rest(binding));
-                }
-                _ => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, element.range()),
-                            "暂不支持嵌套的解包目标",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("只支持变量与星号变量"),
-                    );
-                    return None;
-                }
-            }
-        }
-        if items
-            .iter()
-            .filter(|i| matches!(i, crate::hir::SequenceItem::Rest(_)))
-            .count()
-            > 1
-        {
-            self.diagnostics.push(
-                Diagnostic::error(Span::new(self.file, range), "解包目标中只能有一个星号变量")
-                    .with_code("E0100")
-                    .with_primary_label("多个星号解包"),
-            );
-            return None;
-        }
-        Some(items)
-    }
-
-    /// `try` 语句：四段结构原样进入 HIR，交给 MIR 划分受保护区域。
-    fn lower_try(&mut self, try_stmt: &ast::StmtTry) -> StmtId {
-        if try_stmt.is_star {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, try_stmt.range),
-                    "暂不支持 except* 异常组语法",
-                )
-                .with_code("E0100")
-                .with_primary_label("异常组属于暂缓能力"),
-            );
-        }
-
-        let body = self.lower_suite(&try_stmt.body);
-
-        let mut handlers = Vec::new();
-        for handler in &try_stmt.handlers {
-            let ast::ExceptHandler::ExceptHandler(except) = handler;
-            let types = match &except.type_ {
-                None => None,
-                Some(type_expr) => {
-                    let names = self.exception_type_names(type_expr);
-                    if names.is_empty() {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, type_expr.range()),
-                                "except 目前只支持内建异常类型名（用户自定义异常在 M2.6 接续）",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("不支持该异常类型表达式"),
-                        );
-                    }
-                    Some(names)
-                }
-            };
-
-            let name = except.name.as_ref().and_then(|ident| {
-                let ident_name = Name::from(ident.as_str());
-                self.resolve_binding(&ident_name).or_else(|| {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, ident.range),
-                            format!("`{ident_name}` 未登记为变量"),
-                        )
-                        .with_code("E0101")
-                        .with_primary_label("内部错误：异常变量预扫描遗漏"),
-                    );
-                    None
-                })
-            });
-
-            // except 体里允许裸 `raise`
-            self.handler_depth += 1;
-            let handler_body = self.lower_suite(&except.body);
-            self.handler_depth -= 1;
-
-            let id = self.body.handlers.alloc(crate::hir::Handler {
-                types,
-                name,
-                body: handler_body,
-                range: except.range,
-            });
-            handlers.push(id);
-        }
-
-        let orelse = self.lower_suite(&try_stmt.orelse);
-        let finalbody = self.lower_suite(&try_stmt.finalbody);
-
-        self.body.stmts.alloc(Stmt {
-            kind: StmtKind::Try {
-                body,
-                handlers,
-                orelse,
-                finalbody,
-            },
-            range: try_stmt.range,
-            line: self.line_of(try_stmt.range.start().to_usize()),
-        })
-    }
-
-    /// 把 `except` 的类型表达式解析成异常类型名列表。
-    ///
-    /// 支持 `except E:` 与 `except (E1, E2):`，其中每个名字可以是内建异常类，
-    /// 也可以是**继承自 BaseException 的用户类**（M2.6）。返回空列表表示无法解析，
-    /// 调用方报诊断。
-    fn exception_type_names(&self, expr: &ast::Expr) -> Vec<String> {
-        match expr {
-            ast::Expr::Name(name) => {
-                let ident = Name::from(name.id.as_str());
-                match self.global_scope.names.get(&ident) {
-                    // 用户类：必须位于 BaseException 家族，否则 `except X` 在 CPython
-                    // 里是 TypeError，这里作为暂不支持的能力明确拒绝。
-                    Some(Resolution::Class(cls_id)) => {
-                        let cls = &self.classes[*cls_id];
-                        if cls.is_exception {
-                            vec![cls.name.as_str().to_owned()]
-                        } else {
-                            Vec::new()
-                        }
-                    }
-                    Some(_) => Vec::new(),
-                    None => match crate::scope::resolve_builtin(name.id.as_str()) {
-                        Some(crate::hir::Builtin::Exception(type_name)) => {
-                            vec![type_name.to_owned()]
-                        }
-                        _ => Vec::new(),
-                    },
-                }
-            }
-            ast::Expr::Tuple(tuple) => {
-                let mut out = Vec::new();
-                for elt in &tuple.elts {
-                    out.extend(self.exception_type_names(elt));
-                }
-                out
-            }
-            _ => Vec::new(),
-        }
-    }
-
-    fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Option<StmtId> {
-        let kind = match stmt {
-            ast::Stmt::Expr(expr_stmt) => {
-                let expr_id = self.lower_expr(&expr_stmt.value);
-                StmtKind::Expr(expr_id)
-            }
-            ast::Stmt::Assign(assign_stmt) => {
-                let val = self.lower_expr(&assign_stmt.value);
-                if assign_stmt.targets.len() == 1 {
-                    let target = &assign_stmt.targets[0];
-                    match target {
-                        ast::Expr::Name(name_expr) => {
-                            let name = Name::from(name_expr.id.as_str());
-                            let target = match self.resolve_binding(&name) {
-                                Some(Binding::Local(local)) => AssignTarget::Local(local),
-                                Some(Binding::ModuleVar(var)) => AssignTarget::ModuleVar(var),
-                                None => {
-                                    self.diagnostics.push(
-                                        Diagnostic::error(
-                                            Span::new(self.file, name_expr.range),
-                                            format!("未定义的赋值目标 `{name}`"),
-                                        )
-                                        .with_code("E0106")
-                                        .with_primary_label("名字未登记为局部变量或模块变量"),
-                                    );
-                                    return None;
-                                }
-                            };
-                            StmtKind::Assign { target, value: val }
-                        }
-                        ast::Expr::Attribute(attr_expr) => {
-                            let base = self.lower_expr(&attr_expr.value);
-                            let name = Name::from(attr_expr.attr.as_str());
-                            StmtKind::Assign {
-                                target: AssignTarget::Attribute { base, name },
-                                value: val,
-                            }
-                        }
-                        ast::Expr::Subscript(sub) => {
-                            let base = self.lower_expr(&sub.value);
-                            let index = self.lower_subscript_index(&sub.slice);
-                            StmtKind::Assign {
-                                target: AssignTarget::Subscript { base, index },
-                                value: val,
-                            }
-                        }
-                        ast::Expr::Tuple(tuple) => {
-                            let items = self.lower_sequence_target(&tuple.elts, tuple.range)?;
-                            StmtKind::Assign {
-                                target: AssignTarget::Sequence(items),
-                                value: val,
-                            }
-                        }
-                        ast::Expr::List(list) => {
-                            let items = self.lower_sequence_target(&list.elts, list.range)?;
-                            StmtKind::Assign {
-                                target: AssignTarget::Sequence(items),
-                                value: val,
-                            }
-                        }
-                        _ => {
-                            self.diagnostics.push(
-                                Diagnostic::error(
-                                    Span::new(self.file, target.range()),
-                                    "暂不支持非简单变量或属性访问的赋值目标",
-                                )
-                                .with_code("E0100")
-                                .with_primary_label("仅支持赋值给局部变量或属性"),
-                            );
-                            return None;
-                        }
-                    }
-                } else {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, assign_stmt.range()),
-                            "暂不支持多元链式赋值",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("不支持形如 a = b = 1 的链式赋值"),
-                    );
-                    return None;
-                }
-            }
-            ast::Stmt::AnnAssign(ann_stmt) => {
-                if let ast::Expr::Name(name_expr) = &*ann_stmt.target {
-                    let name = Name::from(name_expr.id.as_str());
-                    let ann = lower_type_ref(
-                        &ann_stmt.annotation,
-                        self.file,
-                        self.global_scope,
-                        self.diagnostics,
-                    );
-                    let target = match self.resolve_binding(&name) {
-                        Some(Binding::Local(local)) => {
-                            self.body.locals[local].annotation = Some(ann);
-                            AssignTarget::Local(local)
-                        }
-                        Some(Binding::ModuleVar(var)) => {
-                            self.vars[var].annotation = Some(ann);
-                            AssignTarget::ModuleVar(var)
-                        }
-                        None => return None,
-                    };
-                    let Some(val_expr) = &ann_stmt.value else {
-                        return None;
-                    };
-                    let val = self.lower_expr(val_expr);
-                    StmtKind::Assign { target, value: val }
-                } else {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, ann_stmt.target.range()),
-                            "暂不支持带标注的非变量赋值",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("目标必须是变量"),
-                    );
-                    return None;
-                }
-            }
-            // 增量赋值的去糖与「目标只求值一次」见 aug_assign.rs
-            ast::Stmt::AugAssign(aug_stmt) => return self.lower_aug_assign(aug_stmt),
-            ast::Stmt::Return(ret_stmt) => {
-                let val = ret_stmt.value.as_deref().map(|v| self.lower_expr(v));
-                StmtKind::Return(val)
-            }
-            ast::Stmt::Pass(_) => StmtKind::Pass,
-            ast::Stmt::Delete(del_stmt) => {
-                let mut targets = Vec::new();
-                for target in &del_stmt.targets {
-                    match target {
-                        // 删除名字需要模块命名空间（M2.7），这里只处理容器下标与属性。
-                        ast::Expr::Subscript(sub) => {
-                            let base = self.lower_expr(&sub.value);
-                            let index = self.lower_subscript_index(&sub.slice);
-                            let id = self.body.exprs.alloc(Expr {
-                                kind: ExprKind::Subscript { base, index },
-                                range: sub.range,
-                            });
-                            targets.push(id);
-                        }
-                        ast::Expr::Attribute(attr) => {
-                            let base = self.lower_expr(&attr.value);
-                            let name = Name::from(attr.attr.as_str());
-                            let id = self.body.exprs.alloc(Expr {
-                                kind: ExprKind::Attribute { base, name },
-                                range: attr.range,
-                            });
-                            targets.push(id);
-                        }
-                        _ => {
-                            self.diagnostics.push(
-                                Diagnostic::error(
-                                    Span::new(self.file, target.range()),
-                                    "暂不支持该 del 目标",
-                                )
-                                .with_code("E0100")
-                                .with_primary_label("目前只支持 del obj[...] 与 del obj.attr"),
-                            );
-                        }
-                    }
-                }
-                StmtKind::Delete(targets)
-            }
-            ast::Stmt::Assert(assert_stmt) => {
-                // `assert cond, msg` 去糖为 `if not cond: raise AssertionError(msg)`
-                let cond = self.lower_expr(&assert_stmt.test);
-                let not_cond = self.body.exprs.alloc(Expr {
-                    kind: ExprKind::Unary {
-                        op: crate::hir::UnaryOp::Not,
-                        operand: cond,
-                    },
-                    range: assert_stmt.test.range(),
-                });
-                let raise_args = match &assert_stmt.msg {
-                    Some(msg) => vec![self.lower_expr(msg)],
-                    None => Vec::new(),
-                };
-                let callee = self.body.exprs.alloc(Expr {
-                    kind: ExprKind::Builtin(crate::hir::Builtin::Exception("AssertionError")),
-                    range: assert_stmt.range,
-                });
-                let call = self.body.exprs.alloc(Expr {
-                    kind: ExprKind::Call {
-                        callee,
-                        args: raise_args
-                            .into_iter()
-                            .map(crate::hir::CallArg::Positional)
-                            .collect(),
-                    },
-                    range: assert_stmt.range,
-                });
-                let raise_stmt = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::Raise {
-                        value: Some(call),
-                        cause: None,
-                    },
-                    range: assert_stmt.range,
-                    line: self.line_of(assert_stmt.range.start().to_usize()),
-                });
-                StmtKind::If {
-                    cond: not_cond,
-                    then_: vec![raise_stmt],
-                    else_: Vec::new(),
-                }
-            }
-            ast::Stmt::Raise(raise_stmt) => {
-                let value = raise_stmt.exc.as_deref().map(|e| self.lower_expr(e));
-                let cause = raise_stmt.cause.as_deref().map(|e| self.lower_expr(e));
-                // 裸 `raise` 不在 lowering 阶段报错：Python 允许它出现在任何位置，
-                // 没有正在处理的异常时在运行时抛 RuntimeError("No active exception to reraise")。
-                // 编译期拒绝会误伤「异常处理函数里的裸 raise」这类常见写法。
-                StmtKind::Raise { value, cause }
-            }
-            ast::Stmt::Try(try_stmt) => return Some(self.lower_try(try_stmt)),
-            ast::Stmt::With(with_stmt) => return self.lower_with(with_stmt),
-            ast::Stmt::If(if_stmt) => return Some(self.lower_if(if_stmt)),
-            ast::Stmt::While(while_stmt) => {
-                let cond = self.lower_expr(&while_stmt.test);
-                self.loop_depth += 1;
-                let body = self.lower_suite(&while_stmt.body);
-                self.loop_depth -= 1;
-                // `else` 不属于循环体：按当前 loop_depth 降级
-                let orelse = self.lower_suite(&while_stmt.orelse);
-                StmtKind::While { cond, body, orelse }
-            }
-            ast::Stmt::For(for_stmt) => {
-                let kind = self.lower_for(for_stmt)?;
-                let line = self.line_of(for_stmt.range.start().to_usize());
-                return Some(self.body.stmts.alloc(Stmt {
-                    kind,
-                    range: for_stmt.range,
-                    line,
-                }));
-            }
-            ast::Stmt::Break(b) => {
-                if self.loop_depth == 0 {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, b.range),
-                            "'break' 只能在循环体内部使用",
-                        )
-                        .with_code("E0107")
-                        .with_primary_label("循环外的 break"),
-                    );
-                }
-                StmtKind::Break
-            }
-            ast::Stmt::Continue(c) => {
-                if self.loop_depth == 0 {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, c.range),
-                            "'continue' 只能在循环体内部使用",
-                        )
-                        .with_code("E0107")
-                        .with_primary_label("循环外的 continue"),
-                    );
-                }
-                StmtKind::Continue
-            }
-            // `global` 在预扫描阶段已经登记为模块变量，这里不需要运行时动作。
-            ast::Stmt::Global(_) => return None,
-            ast::Stmt::Nonlocal(n) => {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, n.range),
-                        "Phase 1 暂不支持 nonlocal 声明",
-                    )
-                    .with_code("E0103")
-                    .with_primary_label("不支持 nonlocal"),
-                );
-                return None;
-            }
-            ast::Stmt::FunctionDef(f) => {
-                self.diagnostics.push(
-                    Diagnostic::error(
-                        Span::new(self.file, f.range),
-                        "Phase 1 暂不支持嵌套函数定义",
-                    )
-                    .with_code("E0104")
-                    .with_primary_label("不支持嵌套 def"),
-                );
-                return None;
-            }
-            _ => {
-                self.diagnostics.push(
-                    Diagnostic::error(Span::new(self.file, stmt.range()), "暂不支持该语句")
-                        .with_code("E0100")
-                        .with_primary_label("暂不支持此语法结构"),
-                );
-                return None;
-            }
-        };
-
-        let range = stmt.range();
-        let line = self.line_of(range.start().to_usize());
-        Some(self.body.stmts.alloc(Stmt { kind, range, line }))
     }
 }

@@ -37,12 +37,24 @@ pub struct FunctionScope {
     pub locals: FxHashMap<Name, LocalId>,
     /// 该函数里 `global` 声明的名字：它们不是局部变量，赋值/读取都落到模块命名空间。
     pub globals: FxHashSet<Name>,
+    /// 该函数里 `nonlocal` 声明的名字（M3.0）：指向外层函数的 cell。
+    pub nonlocals: FxHashSet<Name>,
+    /// 外层 cell 名字 → `ClosureInfo::free` 下标（M3.0）。读取与写入都按此下标访问 env。
+    pub free: FxHashMap<Name, usize>,
+    /// 本函数内被捕获的局部名（cell）（M3.0）。嵌套 def 创建函数对象时，
+    /// 靠它判断 free 名字来自当前局部 cell 还是外层 env。
+    pub cells: FxHashSet<Name>,
 }
 
 impl FunctionScope {
     /// 名字在该函数里是否指向模块级变量。
     pub fn is_global(&self, name: &Name) -> bool {
         self.globals.contains(name)
+    }
+
+    /// 名字是否指向外层函数的 cell（M3.0）。
+    pub fn free_index(&self, name: &Name) -> Option<usize> {
+        self.free.get(name).copied()
     }
 }
 

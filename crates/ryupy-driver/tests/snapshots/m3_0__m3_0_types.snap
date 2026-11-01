@@ -1,0 +1,18 @@
+---
+source: crates/ryupy-driver/tests/m3_0.rs
+expression: output
+---
+module var Idx::<ModuleVar>(0): Dynamic
+module var Idx::<ModuleVar>(1): Dynamic
+module var Idx::<ModuleVar>(2): Dynamic
+module var Idx::<ModuleVar>(3): Dynamic
+module var Idx::<ModuleVar>(4): Dynamic
+module var Idx::<ModuleVar>(5): Dynamic
+module var Idx::<ModuleVar>(6): Dynamic
+module var Idx::<ModuleVar>(7): Dynamic
+func Idx::<Function>(0) [Dynamic]: [] -> Dynamic
+func Idx::<Function>(1) [Dynamic]: [] -> None
+func Idx::<Function>(2) [Dynamic]: [] -> Dynamic
+func Idx::<Function>(3) [Dynamic]: [Dynamic] -> Dynamic
+func Idx::<Function>(4) [Dynamic]: [Dynamic] -> Dynamic
+func Idx::<Function>(5) [Dynamic]: [] -> Dynamic

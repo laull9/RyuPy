@@ -209,6 +209,29 @@ fn format_operand(op: &Operand) -> String {
 fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
     match rval {
         Rvalue::Use(op) => format_operand(op),
+        Rvalue::MakeFunction {
+            func,
+            env,
+            defaults,
+        } => {
+            let name = program
+                .functions
+                .iter()
+                .find(|(i, _)| *i == *func)
+                .map(|(_, f)| f.name.clone())
+                .unwrap_or_else(|| format!("fn_{}", func.into_raw()));
+            let env_str = env
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            let defaults_str = defaults
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("MakeFunction({name}; env=[{env_str}]; defaults=[{defaults_str}])")
+        }
         Rvalue::Binary { op, lhs, rhs } => {
             format!("{:?}({}, {})", op, format_operand(lhs), format_operand(rhs))
         }

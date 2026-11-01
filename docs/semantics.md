@@ -22,8 +22,8 @@
 | `x += 1` 等增量赋值 | ✅ M1.1 | 去糖为 `x = x + 1` |
 | 函数调用（含前向引用、递归） | ✅ M1.1 | `call` |
 | 位置 / 关键字实参、`*args`、`**kwargs`、`/` 后仅位置、`*` 后仅关键字 | ✅ M2.1 | 静态直调按参数顺序生成；无法静态绑定时走 `PyOps.CallValue` + `PyBinder`（运行时抛 `TypeError`） |
-| 参数默认值（定义时求值、可变默认值共享） | ✅ M2.1 | 在 `def` 所在位置求值到模块静态数组；`FunctionDefaults` 语句保证引用此前的模块变量 |
-| 一等函数（函数对象、作为实参 / 返回值、经变量调用） | ✅ M2.1 | 每个函数生成统一 thunk 与模块静态 `PyFunction`；`CallValue` 分派 |
+| 参数默认值（定义时求值、可变默认值共享） | ✅ M2.1 | 在定义位置的外层作用域求值；顶层使用模块数组，嵌套 def / lambda 使用各自函数实例的默认值数组 |
+| 一等函数（函数对象、作为实参 / 返回值、经变量调用） | ✅ M2.1 | 每个函数生成统一 thunk；顶层使用模块函数对象，嵌套函数在定义位置创建对象；`CallValue` 分派 |
 | 算术 / 位运算 / 比较 / `not` | ✅ M1.2 | 见第 3 节 |
 | `and` / `or`（短路） | ✅ M1.2 | 基本块分支 |
 | `if` / `elif` / `else`、条件表达式 | ✅ M1.2 | 基本块分支 |
@@ -42,13 +42,14 @@
 | `__name__` / `__package__` / `__file__`、`__main__` 入口 | ✅ M2.7 | 模块入口开头写入；入口模块名为 `__main__` |
 | `from x import *` | ❌ | 明确报 `E0100`，要求显式列出名字 |
 | 函数体内 `import` | ❌ | 明确报 `E0100`，当前只支持模块顶层导入 |
-| `nonlocal` | ❌ | M3.0 闭包 |
+| `nonlocal` | ✅ M3.0 | 名字解析到最近外层函数的共享 cell；非法声明报 `E0103` |
 | 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
 | `x[i]` / `x[i:j:k]` / `del x[i]` / `x[i] = v` | ✅ M2.3 | `RuntimeFn::GetItem` / `SetItem` / `DelItem`；切片对象 `PySlice`，负值索引与越界按 Python 规则处理 |
 | `a in b` / `a not in b`、`a is b` / `a is not b` | ✅ M2.3 | `RuntimeFn::Contains` / `IsSame` |
 | 普通 / 星号（`a, *b, c = x`）解包赋值、`for x in 容器` | ✅ M2.3 | `RuntimeFn::UnpackCheck` 长度校验；`IterStart` / `IterNextOk` / `IterValue` 迭代协议 |
 | `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
-| 闭包、lambda、生成器、推导式、装饰器 | ❌ | Phase 3 M3.0–M3.3 |
+| 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
+| 生成器、推导式、普通函数装饰器 | ❌ | Phase 3 M3.1–M3.3 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
@@ -172,6 +173,9 @@ CPython 一致的消息。
 | 44 | `%` 字符串格式化（未支持） | `"%d-%s" % (1, "a")` | — | 当前抛 `TypeError: unsupported operand type(s) for %`；登记为待做（TODO 技术债），不静默生成近似结果 |
 | 45 | 类体内引用同类定义的函数名（未支持） | `v = property(getv, setv)` 可以读到类体里刚定义的 `getv` | — | 当前报 `E0106` 未定义名字；类体作用域的名字解析待补（TODO 技术债） |
 
+| 46 | 闭包 late binding 与默认值 | 闭包读调用时的变量；默认值保留定义时的结果 | 复制捕获值会丢失共享修改 | M3.0：一个绑定对应一个 cell，多闭包共享，默认值在 def / lambda 位置求值 |
+| 47 | 空 cell 的异常 | 本地 cell 抛 `UnboundLocalError`，外层自由变量抛 `NameError` | null / 默认零值无法区分 | M3.0：cell 放未赋值哨兵；读取时按作用域选择异常，被捕获的 except 绑定在正常、返回、循环跳转和异常退出时都清空 cell |
+
 ### 4.1 未捕获异常与退出码（M2.2）
 
 入口编译成两层：`Main(string[]) -> int` 是包装器，先 `PyTraceback.SetFile(...)`，再
@@ -281,6 +285,17 @@ traceback 的
   只复制引用，满足 ADR-0009 的默认身份要求。
 - **暂缓能力**：多重继承、元类、任意类装饰器、自定义 `__getattribute__` 在 HIR 报 `E0100`，
   不静默降级。
+
+### 4.6 闭包作用域（M3.0）
+
+赋值与参数创建当前函数绑定；被子函数引用的绑定变为 cell。`nonlocal` 跳过只转发环境的
+中间函数，指向最近的外层函数绑定。`global` 指向模块，并截断子函数对该名字的向外查找。
+模块变量不创建 cell。分支和循环里的 def 保留原来的执行位置，多个工厂调用各有独立 cell。
+
+声明与参数冲突、同时 global / nonlocal、先使用或赋值后声明、没有外层绑定以及模块级
+nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E0100`，按后续里程碑推进。
+类体 lambda、函数内 class、`del` 局部名和 cell 的反射接口仍未支持，不能据闭包用例推定可用。
+共享环境的容量和 GC 生命周期见 [ADR-0015](adr/0015-shared-closure-cells.md)。
 
 ## 5. 模块与入口
 

@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
+assertion_line: 322
 expression: cil
 ---
 .assembly m2_2_finally
@@ -589,17 +590,17 @@ expression: cil
         // EH: try [4..6) catch [System.Runtime]System.Exception handler [13..17)
     }
 
-    .method public static object __thunk_0(object[], string[], object[]) cil managed
+    .method public static [System.Runtime]System.Object __thunk_0([RyuPy.Runtime]RyuPy.Runtime.PyFunction, [System.Runtime]System.Object[], string[], [System.Runtime]System.Object[]) cil managed
     {
         .locals init (
             [0] [System.Runtime]System.Object[]
         )
-        IL_0000: LoadArgument(0)
+        IL_0000: LoadArgument(1)
         IL_0001: LoadLength
         IL_0002: Convert(Int32)
         IL_0003: LoadConstantInt32(0)
         IL_0004: BranchNotEqual(12)
-        IL_0005: LoadArgument(1)
+        IL_0005: LoadArgument(2)
         IL_0006: LoadLength
         IL_0007: Convert(Int32)
         IL_0008: LoadConstantInt32(0)
@@ -607,54 +608,56 @@ expression: cil
         IL_000a: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.m0_returning())
         IL_000b: Return
         IL_000c: LoadStaticField(RyuPy.Generated.Module.m0___sig_2)
-        IL_000d: LoadArgument(0)
-        IL_000e: LoadArgument(1)
-        IL_000f: LoadArgument(2)
-        IL_0010: LoadStaticField(RyuPy.Generated.Module.m0___defaults_1)
-        IL_0011: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyBinder.Bind([RyuPy.Runtime]RyuPy.Runtime.PySignature, object[], string[], object[], object[]))
-        IL_0012: StoreLocal(0)
-        IL_0013: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.m0_returning())
-        IL_0014: Return
+        IL_000d: LoadArgument(1)
+        IL_000e: LoadArgument(2)
+        IL_000f: LoadArgument(3)
+        IL_0010: LoadArgument(0)
+        IL_0011: Call(object[] [RyuPy.Runtime]RyuPy.Runtime.PyFunction.get_Defaults())
+        IL_0012: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyBinder.Bind([RyuPy.Runtime]RyuPy.Runtime.PySignature, object[], string[], object[], object[]))
+        IL_0013: StoreLocal(0)
+        IL_0014: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.m0_returning())
+        IL_0015: Return
     }
 
     .method public static void __init_functions() cil managed
     {
         IL_0000: Call(static void RyuPy.Generated.Module.__init_literals())
-        IL_0001: LoadConstantInt32(0)
-        IL_0002: NewArray([System.Runtime]System.Object)
-        IL_0003: StoreStaticField(RyuPy.Generated.Module.m0___defaults_1)
-        IL_0004: LoadString("returning")
-        IL_0005: LoadConstantInt32(0)
-        IL_0006: NewArray(string)
-        IL_0007: LoadConstantInt32(0)
-        IL_0008: NewArray(string)
-        IL_0009: LoadConstantInt32(0)
-        IL_000a: NewArray(string)
-        IL_000b: Call(static [RyuPy.Runtime]RyuPy.Runtime.PySignature [RyuPy.Runtime]RyuPy.Runtime.PySignature.Create(string, string[], string[], string[]))
-        IL_000c: StoreStaticField(RyuPy.Generated.Module.m0___sig_2)
+        IL_0001: LoadString("returning")
+        IL_0002: LoadConstantInt32(0)
+        IL_0003: NewArray(string)
+        IL_0004: LoadConstantInt32(0)
+        IL_0005: NewArray(string)
+        IL_0006: LoadConstantInt32(0)
+        IL_0007: NewArray(string)
+        IL_0008: Call(static [RyuPy.Runtime]RyuPy.Runtime.PySignature [RyuPy.Runtime]RyuPy.Runtime.PySignature.Create(string, string[], string[], string[]))
+        IL_0009: StoreStaticField(RyuPy.Generated.Module.m0___sig_2)
+        IL_000a: LoadConstantInt32(0)
+        IL_000b: NewArray([System.Runtime]System.Object)
+        IL_000c: StoreStaticField(RyuPy.Generated.Module.m0___defaults_1)
         IL_000d: LoadString("returning")
         IL_000e: LoadStaticField(RyuPy.Generated.Module.m0___sig_2)
         IL_000f: LoadNull
-        IL_0010: LoadMethodPointer(static object RyuPy.Generated.Module.__thunk_0(object[], string[], object[]))
+        IL_0010: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__thunk_0([RyuPy.Runtime]RyuPy.Runtime.PyFunction, [System.Runtime]System.Object[], string[], [System.Runtime]System.Object[]))
         IL_0011: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyCall..ctor(object, nint))
         IL_0012: LoadStaticField(RyuPy.Generated.Module.m0___defaults_1)
         IL_0013: LoadConstantInt32(0)
-        IL_0014: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyFunction..ctor(string, [RyuPy.Runtime]RyuPy.Runtime.PySignature, [RyuPy.Runtime]RyuPy.Runtime.PyCall, object[], bool))
-        IL_0015: StoreStaticField(RyuPy.Generated.Module.m0___fn_0)
-        IL_0016: LoadString("__main__")
-        IL_0017: LoadString("")
-        IL_0018: LoadString("m2_2_finally.py")
-        IL_0019: LoadNull
-        IL_001a: LoadMethodPointer(static void RyuPy.Generated.Module.m0___module_main())
-        IL_001b: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit..ctor(object, nint))
-        IL_001c: LoadNull
-        IL_001d: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__mod_get_0(string))
-        IL_001e: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet..ctor(object, nint))
-        IL_001f: LoadNull
-        IL_0020: LoadMethodPointer(static void RyuPy.Generated.Module.__mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object))
-        IL_0021: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet..ctor(object, nint))
-        IL_0022: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.Register(string, string, string, [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit, [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet, [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet))
-        IL_0023: Return
+        IL_0014: LoadNull
+        IL_0015: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyFunction..ctor(string, [RyuPy.Runtime]RyuPy.Runtime.PySignature, [RyuPy.Runtime]RyuPy.Runtime.PyCall, object[], bool, object[]))
+        IL_0016: StoreStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_0017: LoadString("__main__")
+        IL_0018: LoadString("")
+        IL_0019: LoadString("m2_2_finally.py")
+        IL_001a: LoadNull
+        IL_001b: LoadMethodPointer(static void RyuPy.Generated.Module.m0___module_main())
+        IL_001c: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit..ctor(object, nint))
+        IL_001d: LoadNull
+        IL_001e: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__mod_get_0(string))
+        IL_001f: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet..ctor(object, nint))
+        IL_0020: LoadNull
+        IL_0021: LoadMethodPointer(static void RyuPy.Generated.Module.__mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object))
+        IL_0022: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet..ctor(object, nint))
+        IL_0023: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.Register(string, string, string, [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit, [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet, [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet))
+        IL_0024: Return
     }
 
     .method public static [System.Runtime]System.Object __mod_get_0(string) cil managed

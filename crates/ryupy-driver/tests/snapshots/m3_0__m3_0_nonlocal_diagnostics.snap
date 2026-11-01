@@ -1,0 +1,75 @@
+---
+source: crates/ryupy-driver/tests/m3_0.rs
+expression: output
+---
+没有外层绑定
+[E0103] Error: 没有找到 `missing` 可供 nonlocal 绑定的外层函数变量
+   ╭─[ nonlocal.py:2:14 ]
+   │
+ 2 │     nonlocal missing
+   │              ───┬───  
+   │                 ╰───── nonlocal 只能指向外层函数的局部变量
+───╯
+
+模块声明
+[E0103] Error: 模块作用域不能使用 nonlocal 声明 `value`
+   ╭─[ nonlocal.py:1:1 ]
+   │
+ 1 │ nonlocal value
+   │ ───────┬──────  
+   │        ╰──────── nonlocal 只能出现在函数体内
+───╯
+
+模块变量不能当外层绑定
+[E0103] Error: 没有找到 `value` 可供 nonlocal 绑定的外层函数变量
+   ╭─[ nonlocal.py:3:14 ]
+   │
+ 3 │     nonlocal value
+   │              ──┬──  
+   │                ╰──── nonlocal 只能指向外层函数的局部变量
+───╯
+
+参数冲突
+[E0103] Error: 参数 `value` 不能声明为 global 或 nonlocal
+   ╭─[ nonlocal.py:4:18 ]
+   │
+ 4 │         nonlocal value
+   │                  ──┬──  
+   │                    ╰──── 调整作用域声明或局部绑定
+───╯
+
+声明冲突
+[E0103] Error: `value` 不能同时声明为 global 与 nonlocal
+   ╭─[ nonlocal.py:5:18 ]
+   │
+ 5 │         nonlocal value
+   │                  ──┬──  
+   │                    ╰──── 调整作用域声明或局部绑定
+───╯
+
+读取在声明前
+[E0103] Error: `value` 在作用域声明之前已经使用或赋值
+   ╭─[ nonlocal.py:5:18 ]
+   │
+ 5 │         nonlocal value
+   │                  ──┬──  
+   │                    ╰──── 调整作用域声明或局部绑定
+───╯
+
+赋值在声明前
+[E0103] Error: `value` 在作用域声明之前已经使用或赋值
+   ╭─[ nonlocal.py:5:18 ]
+   │
+ 5 │         nonlocal value
+   │                  ──┬──  
+   │                    ╰──── 调整作用域声明或局部绑定
+───╯
+
+global 截断外层查找
+[E0103] Error: 没有找到 `value` 可供 nonlocal 绑定的外层函数变量
+   ╭─[ nonlocal.py:6:22 ]
+   │
+ 6 │             nonlocal value
+   │                      ──┬──  
+   │                        ╰──── nonlocal 只能指向外层函数的局部变量
+───╯

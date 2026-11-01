@@ -24,7 +24,7 @@ public class PyPicTests
             names.Select(_ => "pos").ToArray(),
             names.Select(_ => "0").ToArray()
         );
-        return new PyFunction(name, sig, (args, _, _) => body(args), []);
+        return new PyFunction(name, sig, (self, args, _, _) => body(args), []);
     }
 
     private static PyClass NewClass(string name) => (PyClass)PyOps.MakeClass(name, [], null);
