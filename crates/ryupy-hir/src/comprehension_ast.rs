@@ -1,7 +1,7 @@
-//! 三类急切推导式的只读 AST 视图。
+//! 推导式与生成器表达式的只读 AST 视图。
 //!
 //! 统一作用域与迭代规则，但保留结果种类；字典另外携带先于 value 求值的 key。
-//! 生成器表达式不进入这个视图，避免把惰性求值误实现成急切容器。
+//! 生成器表达式复用作用域规则，但函数体发出 Yield，不能急切物化。
 
 use ryupy_base::TextRange;
 use ryupy_syntax::ast;
@@ -11,6 +11,7 @@ pub(crate) enum ComprehensionKind {
     List,
     Dict,
     Set,
+    Generator,
 }
 
 #[derive(Clone, Copy)]
@@ -46,6 +47,13 @@ impl<'a> Comprehension<'a> {
                 key: None,
                 kind: ComprehensionKind::Set,
             },
+            ast::Expr::Generator(comp) => Self {
+                range: comp.range,
+                generators: &comp.generators,
+                elt: &comp.elt,
+                key: None,
+                kind: ComprehensionKind::Generator,
+            },
             _ => return None,
         })
     }
@@ -55,6 +63,7 @@ impl<'a> Comprehension<'a> {
             ComprehensionKind::List => "<listcomp>",
             ComprehensionKind::Dict => "<dictcomp>",
             ComprehensionKind::Set => "<setcomp>",
+            ComprehensionKind::Generator => "<genexpr>",
         }
     }
 }

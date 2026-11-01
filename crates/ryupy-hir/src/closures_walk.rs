@@ -279,7 +279,10 @@ impl<'a> Visitor<'a> for ScopeCollector {
                 }
                 ast::ExprContext::Invalid => {}
             },
-            ast::Expr::ListComp(_) | ast::Expr::DictComp(_) | ast::Expr::SetComp(_) => {
+            ast::Expr::ListComp(_)
+            | ast::Expr::DictComp(_)
+            | ast::Expr::SetComp(_)
+            | ast::Expr::Generator(_) => {
                 if let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(expr) {
                     if let Some(first) = comp.generators.first() {
                         self.visit_expr(&first.iter);

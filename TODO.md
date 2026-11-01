@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），Phase 3 M3.0 闭包、lambda 与 nonlocal 已完成，M3.1 三类急切推导式已实现，M3.2 普通 yield 状态机首切已实现，继续扩展生成器协议。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），Phase 3 M3.0 闭包、lambda 与 nonlocal 已完成，M3.1 三类急切推导式与生成器表达式已实现，M3.2 普通 yield 状态机首切已实现，继续扩展生成器协议。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -383,8 +383,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] list / dict / set 推导式，支持多层 for 与 if，独立作用域、闭包捕获和求值顺序
   - [x] list：多层 for / if、平坦解包、独立作用域、共享 cell、最左 iterable 立即取迭代器（ADR-0016）
   - [x] dict / set：重复键、key-before-value、哈希/异常顺序与集合去重分别验收
-- [ ] 生成器表达式先定义外层迭代对象的立即求值与后续惰性边界，衔接 M3.2 状态机
-- [x] 急切推导式验收：变量不泄漏、嵌套条件、副作用、重复键和异常顺序通过；海象运算符明确拒绝（生成器表达式仍待 M3.2）
+- [x] 生成器表达式最左迭代对象立即求值 / 取迭代器，其余元素、过滤与内层 iterable 惰性执行，复用 M3.2 状态机；独立作用域与共享 cell 差分通过
+- [x] 急切推导式验收：变量不泄漏、嵌套条件、副作用、重复键和异常顺序通过；海象运算符明确拒绝（生成器表达式另有惰性差分）
 
 ### M3.2 生成器与暂停时清理
 
@@ -392,7 +392,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 - [x] 普通 yield 首切：MIR 状态机、暂停 / 恢复、局部与共享 cell 保存、迭代 / 耗尽、重入防护及意外 StopIteration 转 RuntimeError（`m3_2_generator_basic.py`）；异常区域与完整协议仍待后续
 - [ ] `return value` / StopIteration.value、`send`、`throw`、`close` 和 GeneratorExit；明确关闭状态与重入错误
-- [ ] `yield from` 委托传递 next / send / throw / close 与返回值；生成器表达式完成惰性执行
+- [ ] `yield from` 委托传递 next / send / throw / close 与返回值；生成器表达式的普通惰性迭代已完成，完整协议随此项接续
 - [ ] yield 穿过 try / finally / with 时保留清理状态，关闭和异常展开不跳过退出；实现生成器内意外 StopIteration 的 Python 行为
 - [ ] 验收：部分消费、嵌套委托、关闭、异常与资源释放通过；即时析构触发的关闭时机仍受 D001 限制
 

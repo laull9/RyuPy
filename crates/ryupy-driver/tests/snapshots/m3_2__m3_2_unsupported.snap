@@ -11,6 +11,24 @@ expression: output
    │    ╰─────
 ───╯
 
+lambda默认super
+[E0100] Error: 生成器内零参 super 暂未保存跨暂停的方法上下文
+   ╭─[ generator.py:2:26 ]
+   │
+ 2 │     yield (lambda x=super(): x)
+   │                          ─┬
+   │                           ╰── 当前普通 yield 首切不能保证此路径的暂停语义
+───╯
+
+嵌套函数默认super
+[E0100] Error: 生成器内零参 super 暂未保存跨暂停的方法上下文
+   ╭─[ generator.py:2:18 ]
+   │
+ 2 │     def f(x=super()):
+   │                  ─┬
+   │                   ╰── 当前普通 yield 首切不能保证此路径的暂停语义
+───╯
+
 零参 super
 [E0100] Error: 生成器内零参 super 暂未保存跨暂停的方法上下文
    ╭─[ generator.py:3:20 ]

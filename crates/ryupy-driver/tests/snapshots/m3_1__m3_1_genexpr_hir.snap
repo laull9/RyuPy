@@ -1,0 +1,16 @@
+---
+source: crates/ryupy-driver/tests/m3_1.rs
+expression: "output.replace(path.to_str().unwrap(), \"genexpr.py\")"
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_test_generator_expression.py"
+    global.values = <lambda <genexpr>>(iter([1, 2]))
+    print(list(global.values))
+
+def [nested] <genexpr>(.0):
+    for x in .0:
+        if (x Gt 1):
+            yield (x * 2)
+    return

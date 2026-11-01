@@ -38,13 +38,40 @@ expression: output
    │                 ╰──────────── 不能把 async for 静默降级为同步迭代
 ───╯
 
-生成器表达式
+生成器海象
 [E0100] Error: 暂不支持该表达式
+   ╭─[ comprehensions.py:1:9 ]
+   │
+ 1 │ print(((y := x) for x in [1]))
+   │         ───┬──
+   │            ╰──── Phase 1 暂不支持该语法
+───╯
+
+生成器异步
+[E0100] Error: 暂不支持异步推导式
    ╭─[ comprehensions.py:1:7 ]
    │
- 1 │ print((x for x in [1]))
-   │       ────────┬───────
-   │               ╰───────── Phase 1 暂不支持该语法
+ 1 │ print((x async for x in []))
+   │       ──────────┬──────────
+   │                 ╰──────────── 不能把 async for 静默降级为同步迭代
+───╯
+
+生成器零参super
+[E0100] Error: 生成器表达式内零参 super 暂未支持独立恢复作用域
+   ╭─[ comprehensions.py:1:13 ]
+   │
+ 1 │ print((super() for x in [1]))
+   │             ─┬
+   │              ╰──
+───╯
+
+生成器lambda默认super
+[E0100] Error: 生成器表达式内零参 super 暂未支持独立恢复作用域
+   ╭─[ comprehensions.py:1:22 ]
+   │
+ 1 │ print((lambda x=super(): x for i in [1]))
+   │                      ─┬
+   │                       ╰──
 ───╯
 
 海象表达式
