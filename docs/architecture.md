@@ -58,9 +58,12 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 - **rust-analyzer 风格 arena**：每个函数一个 `Body { locals, exprs, stmts }`，节点用 `Idx<T>` 互相引用，没有生命周期参数。
 - 每个节点自带 `TextRange`，诊断随时可定位源码。
-- 去糖规则集中在 `lower.rs`：`+=`、`elif`、链式比较、`for … in range(…)`、多元 `and/or`。
+- `lower.rs` 编排降级，语句与函数体分别放在 `lower_stmts.rs` / `lower_fn.rs`：`+=`、`elif`、链式比较、`for … in range(…)`、多元 `and/or`。
 - 顶层语句收拢为隐式函数 `Module::main`，最终成为 CIL 的 `Main`。
 - 遇到不支持的语法：报诊断 + `ExprKind::Missing`，**绝不 panic**。
+
+- M3.0 先由 `closures_walk.rs` 建立函数作用域树，再由 `closures.rs` 沿父链解析 free / cell。
+  `closures_decl.rs` 检查声明冲突；默认值属于定义位置的外层作用域，函数体单独降级。
 
 ### 3.3 类型（旁表，不改 HIR）
 
@@ -80,6 +83,9 @@ ryupy-e2e（仅测试）─► ryupy-driver
 - `validate.rs` 是 MIR 的「类型系统」：codegen 之前必跑，Pass 之后 debug 构建下自动跑。
 - 优化以 `MirPass` 为单位，每个 Pass 独立、可单独快照测试。
 
+- M3.0 用 `MakeFunction` 显式携带环境 cell 与默认值；环境作为隐藏尾参数，Python 参数元数据
+  不包含它。`CellNew` / `CellGet` / `CellGetFree` / `CellSet` 统一读写共享绑定。
+
 ### 3.5 CIL
 
 - 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有模块的函数、模块级静态槽位、类工厂与异常工厂；`Main` 只负责初始化全局状态并按导入机制执行 `__main__`。每个 dataclass 与用户异常类各生成一个 CLR 类型（多模块合并时加模块前缀），普通 class 由运行时 `PyClass` / `PyInstance` 承载。
@@ -87,6 +93,10 @@ ryupy-e2e（仅测试）─► ryupy-driver
 - 引用的外部程序集：`System.Runtime`（基础类型）、`RyuPy.Runtime`（内建函数与语义辅助）。
 - 整数算术用 `add.ovf` 等带溢出检查的指令（ADR-0004）；动态路径改用 `PyOps`，整数按需升级 BigInteger。
 - `MirType::Dynamic` 映射到 `System.Object`；装箱用 `box`，拆箱走 `PyCast`（ADR-0010）。
+
+闭包的 `PyCall` 委托首先接收函数对象自身；thunk 从中取默认值与环境。非捕获函数保持 null
+环境，静态可证明的顶层调用继续直调。运行时引用、入口包装与字面量池分别放在 `refs.rs`、
+`entry.rs`、`literals.rs`；操作数和右值栈化分别放在 `stackify_operands.rs`、`stackify_rvalue.rs`。
 
 ## 4. 诊断
 

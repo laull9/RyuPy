@@ -1,5 +1,4 @@
 # bench: category=phase3
-# bench: pending=M3.0
 # bench: desc=闭包与 lambda：工厂函数、共享 cell 写入、lambda 作为 key
 def make_adder(n):
     def add(x):

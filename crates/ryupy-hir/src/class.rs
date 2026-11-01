@@ -44,6 +44,7 @@ pub fn parse_class_def(
     classes: &la_arena::Arena<Class>,
     methods: &[MethodSlot],
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
+    nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
     main_body: &mut Body,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<Class> {
@@ -137,8 +138,15 @@ pub fn parse_class_def(
                     ));
                     continue;
                 };
-                let value =
-                    lower_class_expr(file, globals, module_vars, main_body, diags, &assign.value);
+                let value = lower_class_expr(
+                    file,
+                    globals,
+                    module_vars,
+                    nested_funcs,
+                    main_body,
+                    diags,
+                    &assign.value,
+                );
                 body.push(ClassItem {
                     kind: ClassItemKind::Attr {
                         name: Name::from(target.id.as_str()),
@@ -153,8 +161,15 @@ pub fn parse_class_def(
                         // 只有标注没有值：Python 只记录 __annotations__，不写属性。
                         continue;
                     };
-                    let value =
-                        lower_class_expr(file, globals, module_vars, main_body, diags, value_expr);
+                    let value = lower_class_expr(
+                        file,
+                        globals,
+                        module_vars,
+                        nested_funcs,
+                        main_body,
+                        diags,
+                        value_expr,
+                    );
                     body.push(ClassItem {
                         kind: ClassItemKind::Attr {
                             name: Name::from(target.id.as_str()),
@@ -233,6 +248,7 @@ pub fn parse_class_def(
                     file,
                     globals,
                     module_vars,
+                    nested_funcs,
                     main_body,
                     diags,
                     &expr_stmt.value,
@@ -445,16 +461,23 @@ fn lower_class_expr(
     file: FileId,
     globals: &GlobalScope,
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
+    nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
     body: &mut Body,
     diags: &mut Vec<Diagnostic>,
     expr: &ast::Expr,
 ) -> ExprId {
     let scope = FunctionScope::default();
+    // 类体里不支持 lambda（lower_lambda 会报诊断），因此不需要真正的
+    // 嵌套默认值登记表；这里放一个空表满足签名。
+    let mut dummy_nested_defaults: FxHashMap<crate::hir::FuncId, Vec<Option<crate::hir::ExprId>>> =
+        FxHashMap::default();
     let mut ctx = ExprLowerCtx {
         file,
         global_scope: globals,
         func_scope: &scope,
         module_vars,
+        nested_funcs,
+        nested_defaults: &mut dummy_nested_defaults,
         body,
         diagnostics: diags,
     };

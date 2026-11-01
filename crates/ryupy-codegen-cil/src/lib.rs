@@ -12,9 +12,15 @@
 
 pub mod assembly;
 mod callables;
+mod entry;
+mod literals;
 mod modules;
+mod refs;
 pub mod runtimeconfig;
 mod stackify;
+mod stackify_operands;
+mod stackify_refs;
+mod stackify_rvalue;
 mod types;
 
 use ryupy_mir::LinkedProgram;
@@ -35,10 +41,10 @@ pub enum CodegenError {
 
 /// 生成程序集字节。
 pub fn emit_assembly(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
-    assembly::emit(program, opts)
+    entry::emit(program, opts)
 }
 
 /// 生成可读的 CIL 文本（供 `ryupy dump --emit cil` 与快照测试）。
 pub fn dump_cil(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
-    assembly::dump(program, opts)
+    entry::dump(program, opts)
 }

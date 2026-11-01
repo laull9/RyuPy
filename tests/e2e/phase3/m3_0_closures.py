@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.0：共享 cell、late binding 与默认参数捕获。
 def counter():
     value = 0

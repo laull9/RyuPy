@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），下一步 Phase 3 M3.0 闭包、lambda 与 nonlocal。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），Phase 3 M3.0 闭包、lambda 与 nonlocal 已完成，下一步 M3.1 推导式作用域。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -364,15 +364,17 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 ### M3.0 闭包、lambda 与 nonlocal
 
-> 依赖 Phase 2 函数对象 / 模块作用域。用例：`m3_0_closures.py`。
+> 依赖 Phase 2 函数对象 / 模块作用域。用例：`m3_0_closures.py`、`m3_0_scope_edges.py`、`m3_0_exception_cells.py`。
 
-- [ ] hir：嵌套函数、lambda、free / cell 变量分析与 nonlocal 解析；区分模块 global、外层 cell 与当前局部
-- [ ] mir / codegen：共享 cell 与环境类，保持读写别名、late binding、闭包递归和函数逃逸
-- [ ] 运行时 callable 接通闭包环境、默认参数和必要元数据，非捕获函数保留轻量路径
-- [ ] 验收：循环捕获、多个闭包共享修改、lambda / 默认参数差异、外层退出后继续调用和非法 nonlocal 通过
-- 准备（M2.12 留下）：`call_builder::build_user_call` 现在对静态解析为顶层 `def` 的调用直接 `call`；
-  嵌套函数 / lambda 是运行时值，必须走 `call_value`（`DynCallValue` + PIC），不要误用直调路径。
-  `benchmarks/closures.py`（pending=M3.0）转正后用 `make bench-compare` 记录闭包调用成本
+- [x] hir：嵌套函数、lambda、free / cell 分析与 nonlocal 解析；区分模块 global、外层 cell 与当前局部
+- [x] mir / codegen：共享 cell 与环境数组，保持读写别名、late binding、闭包递归和函数逃逸（ADR-0015）
+- [x] 运行时 callable：thunk 接收函数实例，从中读取默认参数与环境；签名共享，非捕获函数使用 null 环境
+- [x] 验收：循环捕获、共享修改、参数捕获、默认值、互相递归、分支定义、外层退出后调用、空 cell、except 各退出路径清理与非法 nonlocal；逐层快照和诊断快照已补齐
+- [x] `tests/benchmarks/closures.py` 转正；对比 M2.12 运行记录并保存 M3.0 基线，旧基线没有闭包通过项，不计算前后提升
+- [x] 固定项目集重跑：仍 0/20 原生通过；项目首个阻塞与日期已更新，详见 compatibility.md
+
+嵌套函数 / lambda 走运行时 `call_value`，静态可证明的顶层调用继续直调。分配与性能记录见
+[实现笔记](docs/notes/2026-11-01-m3.0-closures.md)。
 
 ### M3.1 推导式与生成器表达式作用域
 
@@ -532,9 +534,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] `MemoryError` 类型缺失：超大序列重复暂用 OverflowError 代替
 - [ ] 动态路径剩余差距（ADR-0014「仍落后」）：异常抛捕（CLR 异常成本）、`str +=` 累加（不可变 string）、
       容器下标 / 迭代的类型分派、5 个以上实参的方法调用
-- [ ] Rust 侧超过 600 行的文件按职责拆分：`codegen-cil/assembly.rs`（~1300）、`mir/build.rs`（~1300）、
-      `codegen-cil/stackify.rs`（~1200）、`mir/expr_builder.rs`（~1100）、`hir/lower.rs`（~1000）、`ty/check.rs`、
-      `mir/call_builder.rs`、`mir/mir.rs`、`e2e/lib.rs`；M3.0–M3.2 会集中修改前五个，先拆再加功能
+- [x] M3.0 涉及的超长文件已按职责拆分：`codegen-cil/assembly.rs` / `stackify.rs`、`mir/build.rs` / `expr_builder.rs` / `mir.rs`、`hir/lower.rs` / `hir.rs`、`ty/check.rs`；保留介绍与注释
+- [ ] 剩余既有超长文件：`mir/call_builder.rs`、`e2e/lib.rs`，在对应功能修改前拆分
+- [ ] 函数对象的 `__name__` / `__defaults__` / `__closure__` 反射暂未接入
 - [x] `Builtins` 改为带缓冲的 writer（64 KiB），入口包装器退出前 `Flush`；错误报告前先刷新 stdout
 - [ ] `Name` 改为字符串驻留（等 profile 证明有必要）
 - [ ] 错误码登记表 `docs/errors.md`（每个错误码一个最小复现 + 说明）

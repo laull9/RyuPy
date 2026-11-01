@@ -276,6 +276,40 @@ fn validate_rvalue(
 ) {
     match rvalue {
         Rvalue::Use(op) => validate_operand(func, block_id, op, errors),
+        Rvalue::MakeFunction {
+            func: target,
+            env,
+            defaults,
+        } => {
+            // 默认值必须覆盖所有 Python 参数槽位；环境参数不参与 binder。
+            if let Some((_, nested)) = program.functions.iter().find(|(id, _)| id == target) {
+                if defaults.len() != nested.param_meta.len()
+                    || env.is_empty() == nested.env.is_some()
+                    || nested.signature_global.is_none()
+                {
+                    errors.push(format!(
+                        "函数 `{}` 创建 `{}` 时默认值、环境或签名不一致",
+                        func.name, nested.name
+                    ));
+                }
+            } else {
+                errors.push(format!(
+                    "函数 `{}` 创建了不存在的函数 {:?}",
+                    func.name, target
+                ));
+            }
+            for op in env.iter().chain(defaults.iter()) {
+                validate_operand(func, block_id, op, errors);
+                if let Some(ty) = operand_type(program, func, op)
+                    && ty != MirType::Dynamic
+                {
+                    errors.push(format!(
+                        "函数 `{}` 的闭包环境与默认值必须装箱，得到 {:?}",
+                        func.name, ty
+                    ));
+                }
+            }
+        }
         Rvalue::Binary { op: _, lhs, rhs } => {
             validate_operand(func, block_id, lhs, errors);
             validate_operand(func, block_id, rhs, errors);
@@ -447,6 +481,7 @@ mod tests {
             function_global: None,
             defaults_global: None,
             signature_global: None,
+            env: None,
         };
         let entry_fn = functions.alloc(func);
         let prog = Program {

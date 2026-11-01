@@ -23,7 +23,7 @@ public class PyClassTests
             names.Select(_ => "pos").ToArray(),
             names.Select(_ => "0").ToArray()
         );
-        return new PyFunction(name, sig, (args, _, _) => body(args), []);
+        return new PyFunction(name, sig, (self, args, _, _) => body(args), []);
     }
 
     private static PyClass NewClass(string name) => (PyClass)PyOps.MakeClass(name, [], null);
@@ -106,7 +106,7 @@ public class PyClassTests
             ["self", "other"],
             ["pos", "pos"],
             ["0", "0"]
-        ), (args, _, _) =>
+        ), (self, args, _, _) =>
             PyHash.Equal(PyObject.GetAttr(args[0], "x"), PyObject.GetAttr(args[1], "x")), []));
         cls.SetAttr("__hash__", Fn("__hash__", args => PyHash.Of(PyObject.GetAttr(args[0], "x"))));
         cls.SetAttr("__bool__", Fn("__bool__", args => PyOps.Truthy(PyObject.GetAttr(args[0], "x"))));

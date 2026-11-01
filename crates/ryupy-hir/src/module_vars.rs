@@ -19,7 +19,7 @@ use crate::hir::{
 };
 use crate::imports;
 use crate::lower::StmtLowerCtx;
-use crate::scope::{self, collect_assigned_names};
+use crate::scope::collect_assigned_names;
 
 /// 收集模块级变量；同名只登记一次，`global` 声明的名字标记为动态。
 pub(crate) fn collect_module_vars(
@@ -55,28 +55,35 @@ pub(crate) fn collect_module_vars(
     for (name, range) in collect_assigned_names(&parsed.module.body) {
         ensure_var(&name, range, None);
     }
-    // 所有函数（含类方法）里 `global` 声明的名字。
-    let mut global_names = Vec::new();
+    // 模块语句块里的 def 绑定到模块；直接顶层 def 继续使用已有函数槽位。
     for stmt in &parsed.module.body {
-        match stmt {
-            ast::Stmt::FunctionDef(f) => {
-                for name in scope::collect_global_names(&f.body) {
-                    ensure_var(&name, f.range, None);
-                    global_names.push(name);
-                }
+        if !matches!(stmt, ast::Stmt::FunctionDef(_) | ast::Stmt::ClassDef(_)) {
+            for name in crate::closures_find::collect_def_names(std::slice::from_ref(stmt)) {
+                ensure_var(&name, parsed.module.range, None);
             }
-            ast::Stmt::ClassDef(c) => {
-                for item in &c.body {
-                    if let ast::Stmt::FunctionDef(f) = item {
-                        for name in scope::collect_global_names(&f.body) {
-                            ensure_var(&name, f.range, None);
-                            global_names.push(name);
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
+    }
+    // global 可以出现在任意深度的嵌套函数。这里遍历全部函数体，统一登记模块槽位。
+    use ryupy_syntax::ast::visitor::{Visitor, walk_stmt};
+    #[derive(Default)]
+    struct Globals(Vec<Name>);
+    impl<'a> Visitor<'a> for Globals {
+        fn visit_stmt(&mut self, stmt: &'a ast::Stmt) {
+            if let ast::Stmt::Global(global) = stmt {
+                self.0
+                    .extend(global.names.iter().map(|n| Name::from(n.as_str())));
+            } else {
+                walk_stmt(self, stmt);
+            }
+        }
+    }
+    let mut collector = Globals::default();
+    for stmt in &parsed.module.body {
+        collector.visit_stmt(stmt);
+    }
+    let global_names = collector.0;
+    for name in &global_names {
+        ensure_var(name, parsed.module.range, None);
     }
     // 模块级导入绑定的名字。
     for request in imports::collect_imports(&parsed.module.body, &info.package) {
@@ -232,12 +239,16 @@ impl StmtLowerCtx<'_> {
         }
     }
 
-    /// 名字在当前位置绑定到哪里：`global` 声明与模块顶层都是模块变量。
+    /// 名字在当前位置绑定到哪里：`global` 声明与模块顶层都是模块变量；
+    /// `nonlocal` 声明 / 捕获的外层 cell 是 Free（M3.0）。
     pub(crate) fn resolve_binding(&self, name: &Name) -> Option<Binding> {
-        if !self.func_scope.is_global(name)
-            && let Some(&local) = self.func_scope.locals.get(name)
-        {
-            return Some(Binding::Local(local));
+        if !self.func_scope.is_global(name) {
+            if let Some(&idx) = self.func_scope.free.get(name) {
+                return Some(Binding::Free(idx));
+            }
+            if let Some(&local) = self.func_scope.locals.get(name) {
+                return Some(Binding::Local(local));
+            }
         }
         self.module_vars.get(name).copied().map(Binding::ModuleVar)
     }

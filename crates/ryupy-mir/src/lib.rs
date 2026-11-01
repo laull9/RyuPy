@@ -11,14 +11,19 @@
 pub mod build;
 mod build_assign;
 mod build_class;
+mod build_flow;
 mod build_loops;
+mod build_stmts;
 mod build_try;
 mod call_builder;
 pub mod expr_builder;
+mod expr_ops;
+mod expr_values;
 pub mod link;
 mod mir;
 pub mod passes;
 pub mod pretty;
+mod runtime_fn;
 pub mod validate;
 
 pub use build::build_program;

@@ -16,7 +16,7 @@ use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
 use ryupy_mir::{FnId, Function, GlobalId, LinkedProgram, MirType};
 
-use crate::stackify::RuntimeRefs;
+use crate::stackify_refs::RuntimeRefs;
 use crate::types::ClassTypeMap;
 
 /// 为 MIR 的模块级 `GlobalDecl` 分配静态字段。
@@ -60,6 +60,11 @@ pub(crate) fn allocate_global_fields(
 }
 
 /// 生成一个函数的 thunk。
+///
+/// 统一签名 `object (PyFunction, object[], string[], object[])`：第一个参数是函数
+/// 对象自身——慢路径要从实例上取签名 / 默认值 / 闭包环境（M3.0 的嵌套函数没有
+/// 静态默认值槽位）。闭包函数把 `Env` 透传给静态方法的额外尾参数；静态方法的
+/// 签名在 assembly.rs 按 `Function::env` 生成。
 pub(crate) fn emit_thunk(
     res: &mut Resolution<'static>,
     module_class: TypeIndex,
@@ -69,19 +74,36 @@ pub(crate) fn emit_thunk(
     class_types: &ClassTypeMap,
     index: usize,
 ) -> MethodIndex {
-    let method_idx = res.push_method(
-        module_class,
-        Method::new(
-            Accessibility::Private,
-            msig! { static object (object[], string[], object[]) },
-            Cow::Owned(format!("__thunk_{index}")),
-            None,
-        ),
-    );
-
     let object_type = refs.object_type.clone();
     let object_array: MethodType = BaseType::vector(object_type.clone()).into();
-    let total = func.params.len();
+    let method_idx = {
+        let py_function_mt = refs.py_function_type.clone();
+        let string_array: MethodType = BaseType::vector(BaseType::String.into()).into();
+        let sig = MethodSignature::new(
+            false,
+            ReturnType::value(object_type.clone()),
+            vec![
+                Parameter::value(py_function_mt),
+                Parameter::value(object_array.clone()),
+                Parameter::value(string_array),
+                Parameter::value(object_array.clone()),
+            ],
+        );
+        res.push_method(
+            module_class,
+            Method::new(
+                Accessibility::Private,
+                sig,
+                Cow::Owned(format!("__thunk_{index}")),
+                None,
+            ),
+        )
+    };
+
+    // env 形参不属于 Python 参数：绑定、快路径与默认值数组都按 Python 参数算。
+    let env_extra = usize::from(func.env.is_some());
+    let py_params = &func.params[..func.params.len() - env_extra];
+    let total = py_params.len();
     let simple_positional = func.param_meta.iter().all(|p| {
         matches!(
             p.kind,
@@ -96,22 +118,22 @@ pub(crate) fn emit_thunk(
     // （少一次调用帧，对递归深度与热路径都有明显收益）。
     if simple_positional {
         // if (args.Length != total) goto slow
-        ins.push(Instruction::LoadArgument(0));
+        ins.push(Instruction::LoadArgument(1));
         ins.push(Instruction::LoadLength);
         ins.push(Instruction::Convert(ConversionType::Int32));
         ins.push(Instruction::LoadConstantInt32(total as i32));
         fast_branches.push(ins.len());
         ins.push(Instruction::BranchNotEqual(0));
         // if (kwNames.Length != 0) goto slow
-        ins.push(Instruction::LoadArgument(1));
+        ins.push(Instruction::LoadArgument(2));
         ins.push(Instruction::LoadLength);
         ins.push(Instruction::Convert(ConversionType::Int32));
         ins.push(Instruction::LoadConstantInt32(0));
         fast_branches.push(ins.len());
         ins.push(Instruction::BranchNotEqual(0));
 
-        for (index, param) in func.params.iter().enumerate() {
-            ins.push(Instruction::LoadArgument(0));
+        for (index, param) in py_params.iter().enumerate() {
+            ins.push(Instruction::LoadArgument(1));
             ins.push(Instruction::LoadConstantInt32(index as i32));
             ins.push(Instruction::LoadElement {
                 skip_range_check: false,
@@ -121,6 +143,7 @@ pub(crate) fn emit_thunk(
             let ty = func.body.locals[*param].ty.clone();
             unbox_parameter(&mut ins, &ty, refs, class_types);
         }
+        emit_load_env(&mut ins, func.env, refs);
         ins.push(Instruction::call(static_method));
         emit_box_return(&mut ins, func, refs, class_types);
         ins.push(Instruction::Return);
@@ -131,24 +154,22 @@ pub(crate) fn emit_thunk(
         ins[branch] = Instruction::BranchNotEqual(slow_start);
     }
 
-    // 慢路径：完整 Python 参数绑定。
+    // 慢路径：完整 Python 参数绑定。默认值与闭包环境都从函数实例上取。
     ins.extend([
         Instruction::LoadStaticField {
             volatile: false,
             param0: FieldSource::Definition(field_of(func.signature_global, refs)),
         },
-        Instruction::LoadArgument(0),
         Instruction::LoadArgument(1),
         Instruction::LoadArgument(2),
-        Instruction::LoadStaticField {
-            volatile: false,
-            param0: FieldSource::Definition(field_of(func.defaults_global, refs)),
-        },
+        Instruction::LoadArgument(3),
+        Instruction::LoadArgument(0),
+        Instruction::call(refs.py_function_get_defaults),
         Instruction::call(refs.bind_args),
         Instruction::StoreLocal(0),
     ]);
 
-    for (index, param) in func.params.iter().enumerate() {
+    for (index, param) in py_params.iter().enumerate() {
         ins.push(Instruction::LoadLocal(0));
         ins.push(Instruction::LoadConstantInt32(index as i32));
         ins.push(Instruction::LoadElement {
@@ -159,19 +180,29 @@ pub(crate) fn emit_thunk(
         let ty = func.body.locals[*param].ty.clone();
         unbox_parameter(&mut ins, &ty, refs, class_types);
     }
+    emit_load_env(&mut ins, func.env, refs);
 
     ins.push(Instruction::call(static_method));
     emit_box_return(&mut ins, func, refs, class_types);
     ins.push(Instruction::Return);
 
     let mut body = body::Method::with_locals(vec![LocalVariable::new(object_array)], ins);
-    body.header.maximum_stack_size = func.params.len() + 8;
+    body.header.maximum_stack_size = py_params.len() + 8;
     res[method_idx].body = Some(body);
     method_idx
 }
 
+/// 把 thunk 第 0 个参数（函数对象自身）的 `Env` 压栈：闭包函数透传，
+/// 非闭包不压栈（静态方法没有该形参，压栈与否必须与方法签名一致）。
+fn emit_load_env(ins: &mut Vec<Instruction>, env: Option<ryupy_mir::LocalId>, refs: &RuntimeRefs) {
+    if env.is_some() {
+        ins.push(Instruction::LoadArgument(0));
+        ins.push(Instruction::call(refs.py_function_get_env));
+    }
+}
+
 /// 函数体是否调用过内建 `super()`；用于决定方法调用是否需要维护上下文。
-fn function_uses_super(func: &Function) -> bool {
+pub(crate) fn function_uses_super(func: &Function) -> bool {
     func.body.blocks.iter().any(|(_, block)| {
         block.stmts.iter().any(|stmt| match stmt {
             ryupy_mir::Statement::Assign {
@@ -203,7 +234,7 @@ fn emit_box_return(
     match &func.ret {
         MirType::Unit => ins.push(Instruction::call(refs.dyn_none)),
         MirType::I64 | MirType::F64 | MirType::Bool => {
-            crate::stackify::emit_box(ins, &func.ret, refs, class_types);
+            crate::stackify_refs::emit_box(ins, &func.ret, refs, class_types);
         }
         _ => {}
     }
@@ -232,26 +263,14 @@ pub(crate) fn emit_init_functions(
     let mut ins = Vec::new();
 
     for (fn_id, func) in program.functions.iter() {
-        let (Some(function_global), Some(defaults_global), Some(signature_global)) = (
-            func.function_global,
-            func.defaults_global,
-            func.signature_global,
-        ) else {
+        let Some(signature_global) = func.signature_global else {
             continue;
         };
-        let function_field = field_of(Some(function_global), refs);
-        let defaults_field = field_of(Some(defaults_global), refs);
         let signature_field = field_of(Some(signature_global), refs);
 
-        // defaults = new object[参数个数]
-        ins.push(Instruction::LoadConstantInt32(func.params.len() as i32));
-        ins.push(Instruction::NewArray(object_type.clone()));
-        ins.push(Instruction::StoreStaticField {
-            volatile: false,
-            param0: defaults_field.into(),
-        });
-
         // signature = PySignature.Create(name, names, kinds, hasDefault)
+        // 嵌套函数（M3.0）没有函数对象 / 默认值静态槽位，但 MakeFunction 在
+        // def 位置创建 PyFunction 时同样需要签名，因此签名一律在此初始化。
         ins.push(Instruction::load_string(func.name.clone()));
         emit_string_array(
             &mut ins,
@@ -276,6 +295,23 @@ pub(crate) fn emit_init_functions(
             param0: signature_field.into(),
         });
 
+        // 顶层函数：分配默认值数组并创建函数对象；嵌套函数的对象在 def 位置创建。
+        let (Some(function_global), Some(defaults_global)) =
+            (func.function_global, func.defaults_global)
+        else {
+            continue;
+        };
+        let function_field = field_of(Some(function_global), refs);
+        let defaults_field = field_of(Some(defaults_global), refs);
+
+        // defaults = new object[参数个数]
+        ins.push(Instruction::LoadConstantInt32(func.params.len() as i32));
+        ins.push(Instruction::NewArray(object_type.clone()));
+        ins.push(Instruction::StoreStaticField {
+            volatile: false,
+            param0: defaults_field.into(),
+        });
+
         // function = new PyFunction(name, sig, new PyCall(null, &thunk), defaults)
         ins.push(Instruction::load_string(func.name.clone()));
         ins.push(Instruction::LoadStaticField {
@@ -298,6 +334,8 @@ pub(crate) fn emit_init_functions(
         ins.push(Instruction::LoadConstantInt32(
             if function_uses_super(func) { 1 } else { 0 },
         ));
+        // 顶层函数没有闭包环境：env 固定 null（M3.0）。
+        ins.push(Instruction::LoadNull);
         ins.push(Instruction::NewObject(UserMethod::Reference(
             refs.py_function_ctor,
         )));

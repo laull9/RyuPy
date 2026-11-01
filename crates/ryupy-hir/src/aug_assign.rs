@@ -54,6 +54,7 @@ impl StmtLowerCtx<'_> {
                 let target = match self.resolve_binding(&name) {
                     Some(Binding::Local(local)) => AssignTarget::Local(local),
                     Some(Binding::ModuleVar(var)) => AssignTarget::ModuleVar(var),
+                    Some(Binding::Free(idx)) => AssignTarget::Free(idx),
                     None => return None,
                 };
                 (target, self.lower_expr(&aug_stmt.target))

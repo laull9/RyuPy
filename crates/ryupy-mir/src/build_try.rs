@@ -41,9 +41,10 @@
 //! `0` 正常落下、`1` 异常、`2` 返回、`3+` 跳出到某个块。跳出目标按函数级动作表去重，
 //! 同一个 `break` 目标只占一个码。
 
-use ryupy_hir::{HandlerId, StmtId};
+use ryupy_hir::{Binding, HandlerId, StmtId};
 
-use crate::build::{FLOW_EXCEPTION, FLOW_FIRST_CUSTOM, FLOW_RETURN, FinallyCtx, FunctionBuilder};
+use crate::build::FunctionBuilder;
+use crate::build_flow::{FLOW_EXCEPTION, FLOW_FIRST_CUSTOM, FLOW_RETURN, FinallyCtx};
 use crate::mir::{
     BinOp, BlockId, Callee, Constant, LocalId as MirLocalId, MirType, Operand, Region, RegionKind,
     RuntimeFn, Rvalue, Statement, Terminator,
@@ -58,7 +59,20 @@ impl FunctionBuilder<'_> {
         orelse: &[StmtId],
         finalbody: &[StmtId],
     ) {
-        let has_finally = !finalbody.is_empty();
+        self.build_try_cleanup(body, handlers, orelse, finalbody, None);
+    }
+
+    /// 捕获的 except 变量在任意退出路径都要清空。复用 finally 的展开通道，
+    /// 让 return / break / continue / 再抛异常共用同一次 cell 清理与异常上下文恢复。
+    fn build_try_cleanup(
+        &mut self,
+        body: &[StmtId],
+        handlers: &[HandlerId],
+        orelse: &[StmtId],
+        finalbody: &[StmtId],
+        cleanup: Option<(Binding, MirLocalId)>,
+    ) {
+        let has_finally = !finalbody.is_empty() || cleanup.is_some();
 
         // 0) 区域从一个干净的块开始：受保护区间必须落在块边界上，
         //    否则前面的语句抛出的异常会被这条 try 误捕获。
@@ -185,12 +199,26 @@ impl FunctionBuilder<'_> {
             for &stmt in finalbody {
                 self.build_stmt(stmt);
             }
+            if let Some((binding, previous)) = cleanup {
+                let unbound = self.expr_builder().runtime_call(
+                    RuntimeFn::MakeUnbound,
+                    Vec::new(),
+                    MirType::Dynamic,
+                );
+                self.store_binding(binding, unbound, &MirType::Dynamic);
+                self.push_stmt(Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::HandlerLeave),
+                    args: vec![Operand::Local(previous)],
+                }));
+            }
             let finally_fallthrough = self.if_unterminated_take();
             self.build_dispatch(
                 finally_fallthrough,
                 flow_kind.expect("已检查"),
                 guard_exc.expect("已检查"),
-                prev_current,
+                cleanup
+                    .map(|(_, previous)| previous)
+                    .unwrap_or(prev_current),
                 &mut after_jumps,
             );
 
@@ -270,9 +298,24 @@ impl FunctionBuilder<'_> {
                 self.store_binding(binding, Operand::Local(exc), &MirType::Dynamic);
             }
 
-            // 3) 分支体语句
-            for &stmt in &handler_body {
-                self.build_stmt(stmt);
+            // 3) 捕获绑定需要在所有退出路径清空。普通未捕获绑定仍走已有轻量路径。
+            let captured = match name {
+                Some(Binding::Local(local)) => self.locals[self.local_map[&local]].is_cell,
+                Some(Binding::Free(_)) => true,
+                _ => false,
+            };
+            if captured {
+                self.build_try_cleanup(
+                    &handler_body,
+                    &[],
+                    &[],
+                    &[],
+                    name.map(|binding| (binding, previous)),
+                );
+            } else {
+                for &stmt in &handler_body {
+                    self.build_stmt(stmt);
+                }
             }
 
             // 4) 正常结束：清理绑定、恢复当前异常，再走出口

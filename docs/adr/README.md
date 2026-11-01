@@ -19,6 +19,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0012](0012-bounded-dynamic-pic.md) | 有界动态运算 / 调用 PIC | 已接受（性能数据由 0013 更新） |
 | [0013](0013-dynamic-hot-path-allocations.md) | 动态热路径去分配，保留装箱表示 | 已接受 |
 | [0014](0014-benchmark-suite-and-dynamic-hot-paths.md) | 基准体系与动态热路径第二轮优化 | 已接受 |
+| [0015](0015-shared-closure-cells.md) | 共享 cell 与函数实例环境 | 已接受 |
 
 ## 模板
 
