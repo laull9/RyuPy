@@ -1,6 +1,6 @@
 # 标准库移植计划
 
-标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，其余表内能力仍待实现；Phase 1 的 dataclass 特殊降级及 M3.3 混合装饰器必填字段路径除外（非完整 dataclasses 模块）。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
+标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)，不代表完整 dataclasses 或 typing。其余表内能力仍待实现。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
 
 ## 项目驱动的基础内建
 
@@ -22,7 +22,7 @@ C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连�
 
 ## 分批范围
 
-下表列出首批目标 API；M3.4 / M3.5 已实现范围和未支持参数以独立 API 表为准，其余仍待验证，不承诺整个模块。M2.0 项目盘点后可扩大范围，删减或换路径必须保留项目阻塞记录。
+下表列出首批目标 API；M3.4 / M3.5 / M3.6 已实现范围和未支持参数以独立 API 表为准，其余仍待验证，不承诺整个模块。M2.0 项目盘点后可扩大范围，删减或换路径必须保留项目阻塞记录。
 
 | 批次 / 里程碑 | 模块 | 首批 API 范围 | 需要单列的行为 |
 | --- | --- | --- | --- |

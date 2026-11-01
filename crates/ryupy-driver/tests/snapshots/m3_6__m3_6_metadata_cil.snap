@@ -1,0 +1,666 @@
+---
+source: crates/ryupy-driver/tests/m3_6.rs
+expression: "output.replace(path.to_str().unwrap(), \"metadata.py\")"
+---
+.assembly ryupy_m3_6_metadata
+{
+}
+.assembly extern System.Runtime
+{
+}
+.assembly extern RyuPy.Runtime
+{
+}
+
+.class public abstract sealed auto ansi beforefieldinit RyuPy.Generated.Module
+    extends [System.Runtime]System.Object
+{
+    .method public static void __init_literals() cil managed
+    {
+        IL_0000: LoadConstantInt64(1)
+        IL_0001: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
+        IL_0002: StoreStaticField(RyuPy.Generated.Module.__lit_0)
+        IL_0003: LoadConstantInt64(2)
+        IL_0004: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
+        IL_0005: StoreStaticField(RyuPy.Generated.Module.__lit_1)
+        IL_0006: Return
+    }
+
+    .method public static void __init_class_factories() cil managed
+    {
+        IL_0000: Return
+    }
+
+    .method public static [System.Runtime]System.Object m0_identity([System.Runtime]System.Object) cil managed
+    {
+        .locals init (
+            [0] long,
+            [1] [System.Runtime]System.Object
+        )
+        IL_0000: LoadString("ryupy_m3_6_metadata.py")
+        IL_0001: LoadString("identity")
+        IL_0002: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PushFrame(string, string))
+        IL_0003: StoreLocal(0)
+        IL_0004: LoadConstantInt32(8)
+        IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0006: LoadArgument(0)
+        IL_0007: StoreLocal(1)
+        IL_0008: Branch(9)
+        IL_0009: LoadLocal(0)
+        IL_000a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_000b: LoadLocal(1)
+        IL_000c: Return
+    }
+
+    .method public static void m0___module_main() cil managed
+    {
+        .locals init (
+            [0] long,
+            [1] [System.Runtime]System.Object,
+            [2] [System.Runtime]System.Object,
+            [3] [System.Runtime]System.Object,
+            [4] [System.Runtime]System.Object,
+            [5] [System.Runtime]System.Object,
+            [6] [System.Runtime]System.Object,
+            [7] [System.Runtime]System.Object,
+            [8] [System.Runtime]System.Object,
+            [9] [System.Runtime]System.Object,
+            [10] [System.Runtime]System.Object,
+            [11] [System.Runtime]System.Object,
+            [12] [System.Runtime]System.Object,
+            [13] [System.Runtime]System.Object,
+            [14] [System.Runtime]System.Object,
+            [15] [System.Runtime]System.Object,
+            [16] [System.Runtime]System.Object,
+            [17] [System.Runtime]System.Object,
+            [18] [System.Runtime]System.Object,
+            [19] [System.Runtime]System.Object,
+            [20] [System.Runtime]System.Object,
+            [21] [System.Runtime]System.Object,
+            [22] [System.Runtime]System.Object,
+            [23] [System.Runtime]System.Object,
+            [24] [System.Runtime]System.Object,
+            [25] [System.Runtime]System.Object,
+            [26] [System.Runtime]System.Object,
+            [27] [System.Runtime]System.Object,
+            [28] [System.Runtime]System.Object,
+            [29] [System.Runtime]System.Object,
+            [30] [System.Runtime]System.Object,
+            [31] [System.Runtime]System.Object,
+            [32] [System.Runtime]System.Object,
+            [33] [System.Runtime]System.Object,
+            [34] [System.Runtime]System.Object,
+            [35] [System.Runtime]System.Object,
+            [36] long,
+            [37] [System.Runtime]System.Object,
+            [38] [System.Runtime]System.Object,
+            [39] bool,
+            [40] bool
+        )
+        IL_0000: LoadNull
+        IL_0001: StoreStaticField(RyuPy.Generated.Module.m0___mv0___name__)
+        IL_0002: LoadNull
+        IL_0003: StoreStaticField(RyuPy.Generated.Module.m0___mv1___package__)
+        IL_0004: LoadNull
+        IL_0005: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
+        IL_0006: LoadNull
+        IL_0007: StoreStaticField(RyuPy.Generated.Module.m0___mv3_Record)
+        IL_0008: LoadNull
+        IL_0009: StoreStaticField(RyuPy.Generated.Module.m0___mv4_dataclass)
+        IL_000a: LoadNull
+        IL_000b: StoreStaticField(RyuPy.Generated.Module.m0___mv5_field)
+        IL_000c: LoadNull
+        IL_000d: StoreStaticField(RyuPy.Generated.Module.m0___mv6_FrozenInstanceError)
+        IL_000e: LoadNull
+        IL_000f: StoreStaticField(RyuPy.Generated.Module.m0___mv7_Optional)
+        IL_0010: LoadString("ryupy_m3_6_metadata.py")
+        IL_0011: LoadString("<module>")
+        IL_0012: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PushFrame(string, string))
+        IL_0013: StoreLocal(0)
+        IL_0014: LoadConstantInt32(1)
+        IL_0015: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0016: LoadString("__main__")
+        IL_0017: StoreLocal(1)
+        IL_0018: LoadLocal(1)
+        IL_0019: StoreStaticField(RyuPy.Generated.Module.m0___mv0___name__)
+        IL_001a: LoadConstantInt32(1)
+        IL_001b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_001c: LoadString("")
+        IL_001d: StoreLocal(2)
+        IL_001e: LoadLocal(2)
+        IL_001f: StoreStaticField(RyuPy.Generated.Module.m0___mv1___package__)
+        IL_0020: LoadConstantInt32(1)
+        IL_0021: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0022: LoadString("ryupy_m3_6_metadata.py")
+        IL_0023: StoreLocal(3)
+        IL_0024: LoadLocal(3)
+        IL_0025: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
+        IL_0026: LoadConstantInt32(1)
+        IL_0027: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0028: LoadString("dataclasses")
+        IL_0029: LoadString("dataclass")
+        IL_002a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.ImportAttr(string, string))
+        IL_002b: StoreLocal(4)
+        IL_002c: LoadLocal(4)
+        IL_002d: StoreStaticField(RyuPy.Generated.Module.m0___mv4_dataclass)
+        IL_002e: LoadString("dataclasses")
+        IL_002f: LoadString("field")
+        IL_0030: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.ImportAttr(string, string))
+        IL_0031: StoreLocal(5)
+        IL_0032: LoadLocal(5)
+        IL_0033: StoreStaticField(RyuPy.Generated.Module.m0___mv5_field)
+        IL_0034: LoadString("dataclasses")
+        IL_0035: LoadString("FrozenInstanceError")
+        IL_0036: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.ImportAttr(string, string))
+        IL_0037: StoreLocal(6)
+        IL_0038: LoadLocal(6)
+        IL_0039: StoreStaticField(RyuPy.Generated.Module.m0___mv6_FrozenInstanceError)
+        IL_003a: LoadConstantInt32(2)
+        IL_003b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_003c: LoadString("typing")
+        IL_003d: LoadString("Optional")
+        IL_003e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.ImportAttr(string, string))
+        IL_003f: StoreLocal(7)
+        IL_0040: LoadLocal(7)
+        IL_0041: StoreStaticField(RyuPy.Generated.Module.m0___mv7_Optional)
+        IL_0042: LoadConstantInt32(3)
+        IL_0043: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0044: LoadString("Record")
+        IL_0045: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyOps.EmptyArray())
+        IL_0046: LoadNull
+        IL_0047: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.MakeClass(string, object[], object))
+        IL_0048: StoreLocal(8)
+        IL_0049: LoadLocal(8)
+        IL_004a: StoreStaticField(RyuPy.Generated.Module.m0___class_0)
+        IL_004b: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.MakeDict())
+        IL_004c: StoreLocal(9)
+        IL_004d: LoadConstantInt32(0)
+        IL_004e: LoadLocal(8)
+        IL_004f: LoadString("__annotations__")
+        IL_0050: LoadLocal(9)
+        IL_0051: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_0052: LoadStaticField(RyuPy.Generated.Module.__lit_0)
+        IL_0053: StoreLocal(10)
+        IL_0054: LoadConstantInt32(1)
+        IL_0055: LoadLocal(8)
+        IL_0056: LoadString("value")
+        IL_0057: LoadLocal(10)
+        IL_0058: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_0059: LoadString("int")
+        IL_005a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_005b: StoreLocal(11)
+        IL_005c: LoadLocal(11)
+        IL_005d: StoreLocal(12)
+        IL_005e: LoadLocal(8)
+        IL_005f: LoadString("__annotations__")
+        IL_0060: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.ClassNamespaceGet(object, string))
+        IL_0061: StoreLocal(13)
+        IL_0062: LoadLocal(13)
+        IL_0063: LoadString("value")
+        IL_0064: LoadLocal(12)
+        IL_0065: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.SetItem(object, object, object))
+        IL_0066: LoadStaticField(RyuPy.Generated.Module.m0___mv5_field)
+        IL_0067: LoadString("field")
+        IL_0068: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LoadName(object, string))
+        IL_0069: StoreLocal(14)
+        IL_006a: LoadString("list")
+        IL_006b: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_006c: StoreLocal(15)
+        IL_006d: LoadConstantInt32(2)
+        IL_006e: LoadLocal(14)
+        IL_006f: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyOps.EmptyArray())
+        IL_0070: LoadConstantInt32(1)
+        IL_0071: NewArray([System.Runtime]System.Object)
+        IL_0072: Duplicate
+        IL_0073: LoadConstantInt32(0)
+        IL_0074: LoadString("default_factory")
+        IL_0075: StoreElement([System.Runtime]System.Object)
+        IL_0076: LoadConstantInt32(1)
+        IL_0077: NewArray([System.Runtime]System.Object)
+        IL_0078: Duplicate
+        IL_0079: LoadConstantInt32(0)
+        IL_007a: LoadLocal(15)
+        IL_007b: StoreElement([System.Runtime]System.Object)
+        IL_007c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.CallValue(int, object, object[], object[], object[]))
+        IL_007d: StoreLocal(16)
+        IL_007e: LoadConstantInt32(3)
+        IL_007f: LoadLocal(8)
+        IL_0080: LoadString("items")
+        IL_0081: LoadLocal(16)
+        IL_0082: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_0083: LoadString("list")
+        IL_0084: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_0085: StoreLocal(17)
+        IL_0086: LoadLocal(17)
+        IL_0087: StoreLocal(18)
+        IL_0088: LoadLocal(8)
+        IL_0089: LoadString("__annotations__")
+        IL_008a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.ClassNamespaceGet(object, string))
+        IL_008b: StoreLocal(19)
+        IL_008c: LoadLocal(19)
+        IL_008d: LoadString("items")
+        IL_008e: LoadLocal(18)
+        IL_008f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.SetItem(object, object, object))
+        IL_0090: LoadLocal(8)
+        IL_0091: LoadConstantInt32(2)
+        IL_0092: NewArray([System.Runtime]System.Object)
+        IL_0093: Duplicate
+        IL_0094: LoadConstantInt32(0)
+        IL_0095: LoadString("value")
+        IL_0096: StoreElement([System.Runtime]System.Object)
+        IL_0097: Duplicate
+        IL_0098: LoadConstantInt32(1)
+        IL_0099: LoadString("items")
+        IL_009a: StoreElement([System.Runtime]System.Object)
+        IL_009b: LoadConstantInt32(1)
+        IL_009c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.DeclareDataclass(object, object[], bool))
+        IL_009d: LoadLocal(8)
+        IL_009e: LoadConstantInt32(1)
+        IL_009f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.ApplyDataclass(object, bool))
+        IL_00a0: StoreLocal(20)
+        IL_00a1: LoadLocal(20)
+        IL_00a2: StoreStaticField(RyuPy.Generated.Module.m0___mv3_Record)
+        IL_00a3: LoadConstantInt32(7)
+        IL_00a4: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_00a5: LoadStaticField(RyuPy.Generated.Module.m0___mv7_Optional)
+        IL_00a6: LoadString("Optional")
+        IL_00a7: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LoadName(object, string))
+        IL_00a8: StoreLocal(21)
+        IL_00a9: LoadString("int")
+        IL_00aa: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_00ab: StoreLocal(22)
+        IL_00ac: LoadLocal(21)
+        IL_00ad: LoadLocal(22)
+        IL_00ae: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.GetItem(object, object))
+        IL_00af: StoreLocal(23)
+        IL_00b0: LoadLocal(23)
+        IL_00b1: StoreLocal(24)
+        IL_00b2: LoadStaticField(RyuPy.Generated.Module.m0___mv7_Optional)
+        IL_00b3: LoadString("Optional")
+        IL_00b4: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LoadName(object, string))
+        IL_00b5: StoreLocal(25)
+        IL_00b6: LoadString("int")
+        IL_00b7: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_00b8: StoreLocal(26)
+        IL_00b9: LoadLocal(25)
+        IL_00ba: LoadLocal(26)
+        IL_00bb: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.GetItem(object, object))
+        IL_00bc: StoreLocal(27)
+        IL_00bd: LoadLocal(27)
+        IL_00be: StoreLocal(28)
+        IL_00bf: LoadStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_00c0: LoadNull
+        IL_00c1: LoadConstantInt32(2)
+        IL_00c2: NewArray([System.Runtime]System.Object)
+        IL_00c3: Duplicate
+        IL_00c4: LoadConstantInt32(0)
+        IL_00c5: LoadString("value")
+        IL_00c6: StoreElement([System.Runtime]System.Object)
+        IL_00c7: Duplicate
+        IL_00c8: LoadConstantInt32(1)
+        IL_00c9: LoadString("return")
+        IL_00ca: StoreElement([System.Runtime]System.Object)
+        IL_00cb: LoadConstantInt32(2)
+        IL_00cc: NewArray([System.Runtime]System.Object)
+        IL_00cd: Duplicate
+        IL_00ce: LoadConstantInt32(0)
+        IL_00cf: LoadLocal(24)
+        IL_00d0: StoreElement([System.Runtime]System.Object)
+        IL_00d1: Duplicate
+        IL_00d2: LoadConstantInt32(1)
+        IL_00d3: LoadLocal(28)
+        IL_00d4: StoreElement([System.Runtime]System.Object)
+        IL_00d5: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.FunctionMetadata(object, object, object[], object[]))
+        IL_00d6: LoadConstantInt32(9)
+        IL_00d7: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_00d8: Branch(217)
+        IL_00d9: LoadConstantInt32(10)
+        IL_00da: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_00db: LoadStaticField(RyuPy.Generated.Module.__lit_1)
+        IL_00dc: StoreLocal(29)
+        IL_00dd: LoadStaticField(RyuPy.Generated.Module.m0___mv3_Record)
+        IL_00de: LoadString("Record")
+        IL_00df: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LoadName(object, string))
+        IL_00e0: StoreLocal(30)
+        IL_00e1: LoadConstantInt32(4)
+        IL_00e2: LoadLocal(30)
+        IL_00e3: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.CallValue0(int, object))
+        IL_00e4: StoreLocal(31)
+        IL_00e5: LoadConstantInt32(5)
+        IL_00e6: LoadLocal(31)
+        IL_00e7: LoadString("value")
+        IL_00e8: LoadLocal(29)
+        IL_00e9: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_00ea: Leave(294)
+        IL_00eb: LoadLocal(0)
+        IL_00ec: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_00ed: LoadLocal(32)
+        IL_00ee: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.EnterHandler(object))
+        IL_00ef: StoreLocal(33)
+        IL_00f0: Branch(243)
+        IL_00f1: StoreLocal(32)
+        IL_00f2: Leave(235)
+        IL_00f3: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_00f4: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.EnterHandler(object))
+        IL_00f5: StoreLocal(35)
+        IL_00f6: LoadConstantInt32(12)
+        IL_00f7: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_00f8: LoadString("frozen")
+        IL_00f9: StoreLocal(37)
+        IL_00fa: Call(static object [RyuPy.Runtime]RyuPy.Runtime.Builtins.PrintTarget())
+        IL_00fb: StoreLocal(38)
+        IL_00fc: LoadLocal(38)
+        IL_00fd: LoadLocal(37)
+        IL_00fe: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteObject(object, object))
+        IL_00ff: LoadLocal(38)
+        IL_0100: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline(object))
+        IL_0101: LoadConstantInt64(0)
+        IL_0102: StoreLocal(36)
+        IL_0103: Leave(270)
+        IL_0104: StoreLocal(34)
+        IL_0105: Leave(262)
+        IL_0106: LoadLocal(0)
+        IL_0107: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0108: LoadLocal(34)
+        IL_0109: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.EnterHandler(object))
+        IL_010a: StoreLocal(35)
+        IL_010b: LoadConstantInt64(1)
+        IL_010c: StoreLocal(36)
+        IL_010d: Branch(270)
+        IL_010e: LoadLocal(33)
+        IL_010f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LeaveHandler(object))
+        IL_0110: Branch(273)
+        IL_0111: LoadLocal(36)
+        IL_0112: LoadConstantInt64(1)
+        IL_0113: CompareEqual
+        IL_0114: StoreLocal(39)
+        IL_0115: LoadLocal(39)
+        IL_0116: BranchTruthy(280)
+        IL_0117: Branch(284)
+        IL_0118: LoadLocal(33)
+        IL_0119: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LeaveHandler(object))
+        IL_011a: LoadLocal(34)
+        IL_011b: Throw
+        IL_011c: LoadLocal(36)
+        IL_011d: LoadConstantInt64(2)
+        IL_011e: CompareEqual
+        IL_011f: StoreLocal(40)
+        IL_0120: LoadLocal(40)
+        IL_0121: BranchTruthy(295)
+        IL_0122: Branch(291)
+        IL_0123: LoadLocal(33)
+        IL_0124: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LeaveHandler(object))
+        IL_0125: Branch(295)
+        IL_0126: Branch(295)
+        IL_0127: LoadLocal(0)
+        IL_0128: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0129: Return
+        // EH: try [217..235) catch [RyuPy.Runtime]RyuPy.Runtime.PyFrozenInstanceError handler [241..243)
+        // EH: try [243..260) catch [RyuPy.Runtime]RyuPy.Runtime.PyBaseException handler [260..262)
+    }
+
+    .method public static int Main(string[]) cil managed
+    {
+        .entrypoint
+        .locals init (
+            [0] int
+        )
+        IL_0000: LoadString("ryupy_m3_6_metadata.py")
+        IL_0001: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetFile(string))
+        IL_0002: LoadString("ryupy_m3_6_metadata.py")
+        IL_0003: LoadArgument(0)
+        IL_0004: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PySystem.Initialize(string, string[]))
+        IL_0005: Call(static void RyuPy.Generated.Module.__init_functions())
+        IL_0006: Call(static void RyuPy.Generated.Module.__init_class_factories())
+        IL_0007: Call(static void RyuPy.Generated.Module.__run_main())
+        IL_0008: Leave(20)
+        IL_0009: Call(static int [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SystemExitCode([RyuPy.Runtime]RyuPy.Runtime.PySystemExit))
+        IL_000a: StoreLocal(0)
+        IL_000b: Leave(20)
+        IL_000c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.Report([RyuPy.Runtime]RyuPy.Runtime.PyBaseException))
+        IL_000d: LoadConstantInt32(1)
+        IL_000e: StoreLocal(0)
+        IL_000f: Leave(20)
+        IL_0010: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.ReportClr([System.Runtime]System.Exception))
+        IL_0011: LoadConstantInt32(1)
+        IL_0012: StoreLocal(0)
+        IL_0013: Leave(20)
+        IL_0014: LoadLocal(0)
+        IL_0015: Call(static int [RyuPy.Runtime]RyuPy.Runtime.Builtins.FlushForExit(int))
+        IL_0016: Return
+        // EH: try [2..9) catch [RyuPy.Runtime]RyuPy.Runtime.PySystemExit handler [9..12)
+        // EH: try [2..9) catch [RyuPy.Runtime]RyuPy.Runtime.PyBaseException handler [12..16)
+        // EH: try [2..9) catch [System.Runtime]System.Exception handler [16..20)
+    }
+
+    .method public static [System.Runtime]System.Object __thunk_0([RyuPy.Runtime]RyuPy.Runtime.PyFunction, [System.Runtime]System.Object[], string[], [System.Runtime]System.Object[]) cil managed
+    {
+        .locals init (
+            [0] [System.Runtime]System.Object[]
+        )
+        IL_0000: LoadArgument(1)
+        IL_0001: LoadLength
+        IL_0002: Convert(Int32)
+        IL_0003: LoadConstantInt32(1)
+        IL_0004: BranchNotEqual(15)
+        IL_0005: LoadArgument(2)
+        IL_0006: LoadLength
+        IL_0007: Convert(Int32)
+        IL_0008: LoadConstantInt32(0)
+        IL_0009: BranchNotEqual(15)
+        IL_000a: LoadArgument(1)
+        IL_000b: LoadConstantInt32(0)
+        IL_000c: LoadElement([System.Runtime]System.Object)
+        IL_000d: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.m0_identity([System.Runtime]System.Object))
+        IL_000e: Return
+        IL_000f: LoadStaticField(RyuPy.Generated.Module.m0___sig_2)
+        IL_0010: LoadArgument(1)
+        IL_0011: LoadArgument(2)
+        IL_0012: LoadArgument(3)
+        IL_0013: LoadArgument(0)
+        IL_0014: Call(object[] [RyuPy.Runtime]RyuPy.Runtime.PyFunction.get_Defaults())
+        IL_0015: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyBinder.Bind([RyuPy.Runtime]RyuPy.Runtime.PySignature, object[], string[], object[], object[]))
+        IL_0016: StoreLocal(0)
+        IL_0017: LoadLocal(0)
+        IL_0018: LoadConstantInt32(0)
+        IL_0019: LoadElement([System.Runtime]System.Object)
+        IL_001a: Call(static [System.Runtime]System.Object RyuPy.Generated.Module.m0_identity([System.Runtime]System.Object))
+        IL_001b: Return
+    }
+
+    .method public static void __init_functions() cil managed
+    {
+        IL_0000: Call(static void RyuPy.Generated.Module.__init_literals())
+        IL_0001: LoadString("identity")
+        IL_0002: LoadConstantInt32(1)
+        IL_0003: NewArray(string)
+        IL_0004: Duplicate
+        IL_0005: LoadConstantInt32(0)
+        IL_0006: LoadString("value")
+        IL_0007: StoreElement(string)
+        IL_0008: LoadConstantInt32(1)
+        IL_0009: NewArray(string)
+        IL_000a: Duplicate
+        IL_000b: LoadConstantInt32(0)
+        IL_000c: LoadString("pos")
+        IL_000d: StoreElement(string)
+        IL_000e: LoadConstantInt32(1)
+        IL_000f: NewArray(string)
+        IL_0010: Duplicate
+        IL_0011: LoadConstantInt32(0)
+        IL_0012: LoadString("0")
+        IL_0013: StoreElement(string)
+        IL_0014: Call(static [RyuPy.Runtime]RyuPy.Runtime.PySignature [RyuPy.Runtime]RyuPy.Runtime.PySignature.Create(string, string[], string[], string[]))
+        IL_0015: StoreStaticField(RyuPy.Generated.Module.m0___sig_2)
+        IL_0016: LoadConstantInt32(1)
+        IL_0017: NewArray([System.Runtime]System.Object)
+        IL_0018: StoreStaticField(RyuPy.Generated.Module.m0___defaults_1)
+        IL_0019: LoadString("identity")
+        IL_001a: LoadStaticField(RyuPy.Generated.Module.m0___sig_2)
+        IL_001b: LoadNull
+        IL_001c: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__thunk_0([RyuPy.Runtime]RyuPy.Runtime.PyFunction, [System.Runtime]System.Object[], string[], [System.Runtime]System.Object[]))
+        IL_001d: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyCall..ctor(object, nint))
+        IL_001e: LoadStaticField(RyuPy.Generated.Module.m0___defaults_1)
+        IL_001f: LoadConstantInt32(0)
+        IL_0020: LoadNull
+        IL_0021: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyFunction..ctor(string, [RyuPy.Runtime]RyuPy.Runtime.PySignature, [RyuPy.Runtime]RyuPy.Runtime.PyCall, object[], bool, object[]))
+        IL_0022: StoreStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_0023: LoadString("__main__")
+        IL_0024: LoadString("")
+        IL_0025: LoadString("ryupy_m3_6_metadata.py")
+        IL_0026: LoadNull
+        IL_0027: LoadMethodPointer(static void RyuPy.Generated.Module.m0___module_main())
+        IL_0028: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit..ctor(object, nint))
+        IL_0029: LoadNull
+        IL_002a: LoadMethodPointer(static [System.Runtime]System.Object RyuPy.Generated.Module.__mod_get_0(string))
+        IL_002b: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet..ctor(object, nint))
+        IL_002c: LoadNull
+        IL_002d: LoadMethodPointer(static void RyuPy.Generated.Module.__mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object))
+        IL_002e: NewObject(void [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet..ctor(object, nint))
+        IL_002f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.Register(string, string, string, [RyuPy.Runtime]RyuPy.Runtime.PyModuleInit, [RyuPy.Runtime]RyuPy.Runtime.PyModuleGet, [RyuPy.Runtime]RyuPy.Runtime.PyModuleSet))
+        IL_0030: Return
+    }
+
+    .method public static [System.Runtime]System.Object __mod_get_0(string) cil managed
+    {
+        IL_0000: LoadArgument(0)
+        IL_0001: LoadString("__name__")
+        IL_0002: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0003: BranchFalsy(6)
+        IL_0004: LoadStaticField(RyuPy.Generated.Module.m0___mv0___name__)
+        IL_0005: Return
+        IL_0006: LoadArgument(0)
+        IL_0007: LoadString("__package__")
+        IL_0008: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0009: BranchFalsy(12)
+        IL_000a: LoadStaticField(RyuPy.Generated.Module.m0___mv1___package__)
+        IL_000b: Return
+        IL_000c: LoadArgument(0)
+        IL_000d: LoadString("__file__")
+        IL_000e: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_000f: BranchFalsy(18)
+        IL_0010: LoadStaticField(RyuPy.Generated.Module.m0___mv2___file__)
+        IL_0011: Return
+        IL_0012: LoadArgument(0)
+        IL_0013: LoadString("Record")
+        IL_0014: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0015: BranchFalsy(24)
+        IL_0016: LoadStaticField(RyuPy.Generated.Module.m0___mv3_Record)
+        IL_0017: Return
+        IL_0018: LoadArgument(0)
+        IL_0019: LoadString("dataclass")
+        IL_001a: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_001b: BranchFalsy(30)
+        IL_001c: LoadStaticField(RyuPy.Generated.Module.m0___mv4_dataclass)
+        IL_001d: Return
+        IL_001e: LoadArgument(0)
+        IL_001f: LoadString("field")
+        IL_0020: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0021: BranchFalsy(36)
+        IL_0022: LoadStaticField(RyuPy.Generated.Module.m0___mv5_field)
+        IL_0023: Return
+        IL_0024: LoadArgument(0)
+        IL_0025: LoadString("FrozenInstanceError")
+        IL_0026: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0027: BranchFalsy(42)
+        IL_0028: LoadStaticField(RyuPy.Generated.Module.m0___mv6_FrozenInstanceError)
+        IL_0029: Return
+        IL_002a: LoadArgument(0)
+        IL_002b: LoadString("Optional")
+        IL_002c: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_002d: BranchFalsy(48)
+        IL_002e: LoadStaticField(RyuPy.Generated.Module.m0___mv7_Optional)
+        IL_002f: Return
+        IL_0030: LoadArgument(0)
+        IL_0031: LoadString("identity")
+        IL_0032: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0033: BranchFalsy(54)
+        IL_0034: LoadStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_0035: Return
+        IL_0036: LoadString("__main__")
+        IL_0037: LoadArgument(0)
+        IL_0038: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.MissingAttr(string, string))
+        IL_0039: LoadNull
+        IL_003a: Return
+    }
+
+    .method public static void __mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object) cil managed
+    {
+        IL_0000: LoadArgument(1)
+        IL_0001: LoadString("__name__")
+        IL_0002: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0003: BranchFalsy(7)
+        IL_0004: LoadArgument(2)
+        IL_0005: StoreStaticField(RyuPy.Generated.Module.m0___mv0___name__)
+        IL_0006: Return
+        IL_0007: LoadArgument(1)
+        IL_0008: LoadString("__package__")
+        IL_0009: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_000a: BranchFalsy(14)
+        IL_000b: LoadArgument(2)
+        IL_000c: StoreStaticField(RyuPy.Generated.Module.m0___mv1___package__)
+        IL_000d: Return
+        IL_000e: LoadArgument(1)
+        IL_000f: LoadString("__file__")
+        IL_0010: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0011: BranchFalsy(21)
+        IL_0012: LoadArgument(2)
+        IL_0013: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
+        IL_0014: Return
+        IL_0015: LoadArgument(1)
+        IL_0016: LoadString("Record")
+        IL_0017: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0018: BranchFalsy(28)
+        IL_0019: LoadArgument(2)
+        IL_001a: StoreStaticField(RyuPy.Generated.Module.m0___mv3_Record)
+        IL_001b: Return
+        IL_001c: LoadArgument(1)
+        IL_001d: LoadString("dataclass")
+        IL_001e: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_001f: BranchFalsy(35)
+        IL_0020: LoadArgument(2)
+        IL_0021: StoreStaticField(RyuPy.Generated.Module.m0___mv4_dataclass)
+        IL_0022: Return
+        IL_0023: LoadArgument(1)
+        IL_0024: LoadString("field")
+        IL_0025: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0026: BranchFalsy(42)
+        IL_0027: LoadArgument(2)
+        IL_0028: StoreStaticField(RyuPy.Generated.Module.m0___mv5_field)
+        IL_0029: Return
+        IL_002a: LoadArgument(1)
+        IL_002b: LoadString("FrozenInstanceError")
+        IL_002c: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_002d: BranchFalsy(51)
+        IL_002e: LoadString("NotImplementedError")
+        IL_002f: LoadString("rebinding static exception import '__main__.FrozenInstanceError' is not supported")
+        IL_0030: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.MakeException(string, object))
+        IL_0031: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.PrepareRaise(object))
+        IL_0032: Throw
+        IL_0033: LoadArgument(1)
+        IL_0034: LoadString("Optional")
+        IL_0035: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_0036: BranchFalsy(58)
+        IL_0037: LoadArgument(2)
+        IL_0038: StoreStaticField(RyuPy.Generated.Module.m0___mv7_Optional)
+        IL_0039: Return
+        IL_003a: LoadArgument(1)
+        IL_003b: LoadString("identity")
+        IL_003c: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_003d: BranchFalsy(65)
+        IL_003e: LoadArgument(2)
+        IL_003f: StoreStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_0040: Return
+        IL_0041: LoadArgument(0)
+        IL_0042: LoadArgument(1)
+        IL_0043: LoadArgument(2)
+        IL_0044: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.SetDynamic([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, object))
+        IL_0045: Return
+    }
+
+    .method public static void __run_main() cil managed
+    {
+        IL_0000: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.RunMain())
+        IL_0001: Return
+    }
+}

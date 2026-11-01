@@ -88,6 +88,8 @@ fn main() -> () {
     let _16: dyn;
     let _17: dyn;
     let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
 
     bb0: {
         g1 = null;
@@ -111,25 +113,27 @@ fn main() -> () {
         _6 = _5;
         _7 = MakeFunction(f; env=[]; defaults=[_6]);
         _8 = RuntimeFn::TypeObject(const "int");
-        _9 = RuntimeFn::TypeObject(const "int");
-        RuntimeFn::FunctionMetadata(_7, null, [const "x", const "return"], [_8, _9]);
-        _10 = RuntimeFn::CallValue(_4, [_7], [], []);
-        g4 = _10;
+        _9 = _8;
+        _10 = RuntimeFn::TypeObject(const "int");
+        _11 = _10;
+        RuntimeFn::FunctionMetadata(_7, null, [const "x", const "return"], [_9, _11]);
+        _12 = RuntimeFn::CallValue(_4, [_7], [], []);
+        g4 = _12;
         // line 6
-        _11 = RuntimeFn::MakeClass(const "C", [], null);
-        g0 = _11;
-        RuntimeFn::SetAttr(_11, const "deco", global@5);
-        _12 = RuntimeFn::ClassNamespaceGet(_11, const "deco");
-        _13 = _12;
-        _14 = MakeFunction(method; env=[]; defaults=[null]);
-        _15 = RuntimeFn::CallValue(_13, [_14], [], []);
-        RuntimeFn::SetAttr(_11, const "method", _15);
+        _13 = RuntimeFn::MakeClass(const "C", [], null);
+        g0 = _13;
+        RuntimeFn::SetAttr(_13, const "deco", global@5);
+        _14 = RuntimeFn::ClassNamespaceGet(_13, const "deco");
+        _15 = _14;
+        _16 = MakeFunction(method; env=[]; defaults=[null]);
+        _17 = RuntimeFn::CallValue(_15, [_16], [], []);
+        RuntimeFn::SetAttr(_13, const "method", _17);
         // line 11
-        _16 = dyn.call(global@0, []);
-        _17 = dyn.method(_16, "method", []);
-        _18 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_18, _17);
-        RuntimeFn::WriteNewline(_18);
+        _18 = dyn.call(global@0, []);
+        _19 = dyn.method(_18, "method", []);
+        _20 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_20, _19);
+        RuntimeFn::WriteNewline(_20);
         goto -> bb1;
     }
     bb1: {

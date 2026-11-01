@@ -38,6 +38,7 @@ public static class PyRepr
         PyBytes => "bytes",
         PyByteArray => "bytearray",
         PySlice => "slice",
+        PyRange => "range",
         PyDictView view => view.Kind switch
         {
             PyDictViewKind.Keys => "dict_keys",

@@ -47,23 +47,6 @@ public static partial class PyOps
 
     // ───────────────────────── 下标 ─────────────────────────
 
-    /// <summary><c>obj[key]</c>。</summary>
-    /// <param name="obj">容器。</param>
-    /// <param name="key">下标或键。</param>
-    public static object? GetItem(object? obj, object? key) => obj switch
-    {
-        PyList list => list.GetItem(key!),
-        PyTuple tuple => tuple.GetItem(key!),
-        PyDict dict => dict.Get(key),
-        string text => GetString(text, key),
-        PyBytes bytes => key is PySlice slice ? bytes.GetSlice(slice) : bytes.GetItem(ToIndex(key, "bytes")),
-        PyByteArray array => key is PySlice slice2
-            ? array.GetSlice(slice2)
-            : array.GetItem(ToIndex(key, "bytearray")),
-        _ when PyObject.TryMethod1(obj, "__getitem__", key, out object? item) => item,
-        _ => throw new PyTypeError($"'{PyRepr.TypeName(obj)}' object is not subscriptable"),
-    };
-
     /// <summary><c>obj[key] = value</c>。</summary>
     /// <param name="obj">容器。</param>
     /// <param name="key">下标或键。</param>

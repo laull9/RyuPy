@@ -1,0 +1,23 @@
+---
+source: crates/ryupy-driver/tests/m3_6.rs
+expression: "output.replace(path.to_str().unwrap(), \"metadata.py\")"
+---
+def identity(value: <runtime>) -> <runtime>:
+    return value
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_m3_6_metadata.py"
+    from dataclasses import dataclass as global.dataclass, field as global.field, FrozenInstanceError as global.FrozenInstanceError
+    from typing import Optional as global.Optional
+    class Record:
+        value = 1
+        value: int
+        items = global.field(default_factory=list)
+        items: list
+    defaults of identity
+    try:
+        global.Record().value = 2
+    except dataclasses.FrozenInstanceError:
+        print("frozen")

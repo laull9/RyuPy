@@ -78,6 +78,7 @@ internal sealed class PyJsonWriter
                 PyList list => Sequence(list.Items, depth),
                 PyTuple tuple => Sequence(tuple.Items, depth),
                 PyDict dict => Object(dict, depth),
+                IPyNativeMapping mapping => Object(mapping.Dictionary, depth),
                 _ => Default(value, depth),
             };
             foreach (string chunk in result) yield return chunk;

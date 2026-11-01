@@ -2,7 +2,7 @@
 //!
 //! 支持两类类：
 //!
-//! 1. **`@dataclass`**（M1.5）：只提取带类型标注的字段，构造由静态 `NewObject` 完成；
+//! 1. **`@dataclass`**：字段声明与类体保留顺序，运行时装饰生成方法；
 //! 2. **普通 class**（M2.5 / M2.6）：类体按源码顺序降级成 [`ClassItem`]：
 //!    - `name = value` 写进类命名空间；
 //!    - `def` 变成方法函数（`self` 是普通参数）；
@@ -43,7 +43,7 @@ pub fn parse_class_def(
     methods: &[MethodSlot],
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
-    nested_defaults: &mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
+    nested_defaults: &mut crate::definition_metadata::DefinitionMetadata,
     class_scopes: &mut FxHashMap<FuncId, rustc_hash::FxHashSet<Name>>,
     main_body: &mut Body,
     diags: &mut Vec<Diagnostic>,
@@ -125,7 +125,14 @@ pub fn parse_class_def(
     };
 
     let mut class_names = rustc_hash::FxHashSet::default();
-    let mut fields = Vec::new();
+    if class_def
+        .body
+        .iter()
+        .any(|stmt| matches!(stmt, ast::Stmt::AnnAssign(_)))
+    {
+        class_names.insert(Name::from("__annotations__"));
+    }
+    let mut fields: Vec<Field> = Vec::new();
     let mut declared_fields = Vec::new();
     let mut body = Vec::new();
     let method_map: FxHashMap<ryupy_base::TextRange, &MethodSlot> = methods
@@ -139,48 +146,25 @@ pub fn parse_class_def(
         {
             let name = Name::from(name.id.as_str());
             if !declared_fields.contains(&name) {
-                declared_fields.push(name);
+                declared_fields.push(name.clone());
+            }
+            // 保存原静态字段布局线索，默认执行仍走runtime_dataclass；后续特化须另证安全。
+            if is_dataclass {
+                let field = Field {
+                    name: name.clone(),
+                    annotation: lower_type_ref(&annotation.annotation, file, globals, diags),
+                    range: annotation.range(),
+                };
+                if let Some(previous) = fields.iter_mut().find(|field| field.name == name) {
+                    *previous = field;
+                } else {
+                    fields.push(field);
+                }
             }
         }
         match stmt {
             ast::Stmt::Pass(_) => {}
-            ast::Stmt::AnnAssign(ann) if is_dataclass => {
-                if let ast::Expr::Name(target_name) = &*ann.target {
-                    if ann.value.is_some() {
-                        diags.push(
-                            Diagnostic::error(
-                                Span::new(file, ann.range()),
-                                "dataclass 暂不支持字段默认值",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("不支持默认值赋初值"),
-                        );
-                    }
-                    fields.push(Field {
-                        name: Name::from(target_name.id.as_str()),
-                        annotation: lower_type_ref(&ann.annotation, file, globals, diags),
-                        range: ann.range(),
-                    });
-                } else {
-                    diags.push(
-                        Diagnostic::error(Span::new(file, ann.range()), "字段名必须为标识符")
-                            .with_code("E0100")
-                            .with_primary_label("无效的字段名"),
-                    );
-                }
-            }
             ast::Stmt::Assign(assign) => {
-                if is_dataclass {
-                    diags.push(
-                        Diagnostic::error(
-                            Span::new(file, assign.range()),
-                            "dataclass 类体内只允许字段标注",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("不允许此类语句"),
-                    );
-                    continue;
-                }
                 // 只支持 `name = value` 的类属性；其它目标（属性 / 下标 / 解包）暂缓。
                 if assign.targets.len() != 1 {
                     diags.push(unsupported_class_statement(
@@ -219,10 +203,28 @@ pub fn parse_class_def(
             }
             ast::Stmt::AnnAssign(ann) => {
                 if let ast::Expr::Name(target) = &*ann.target {
-                    let Some(value_expr) = &ann.value else {
-                        // 只有标注没有值：Python 只记录 __annotations__，不写属性。
-                        continue;
-                    };
+                    if let Some(value_expr) = &ann.value {
+                        let value = lower_class_expr(
+                            Some(&class_names),
+                            file,
+                            globals,
+                            module_vars,
+                            nested_funcs,
+                            nested_defaults,
+                            main_body,
+                            diags,
+                            value_expr,
+                        );
+                        body.push(ClassItem {
+                            kind: ClassItemKind::Attr {
+                                name: Name::from(target.id.as_str()),
+                                value,
+                            },
+                            range: ann.range(),
+                        });
+                        // 右值先写入命名空间，标注表达式可立即引用该名字。
+                        class_names.insert(Name::from(target.id.as_str()));
+                    }
                     let value = lower_class_expr(
                         Some(&class_names),
                         file,
@@ -232,10 +234,10 @@ pub fn parse_class_def(
                         nested_defaults,
                         main_body,
                         diags,
-                        value_expr,
+                        &ann.annotation,
                     );
                     body.push(ClassItem {
-                        kind: ClassItemKind::Attr {
+                        kind: ClassItemKind::Annotation {
                             name: Name::from(target.id.as_str()),
                             value,
                         },
@@ -250,17 +252,6 @@ pub fn parse_class_def(
                 }
             }
             ast::Stmt::FunctionDef(fn_def) => {
-                if is_dataclass {
-                    diags.push(
-                        Diagnostic::error(
-                            Span::new(file, fn_def.range()),
-                            "dataclass 暂不支持定义方法",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("方法属于普通 class"),
-                    );
-                    continue;
-                }
                 if fn_def.name.as_str() == "__getattribute__" {
                     diags.push(
                         Diagnostic::error(
@@ -307,17 +298,6 @@ pub fn parse_class_def(
             ast::Stmt::Expr(expr_stmt) => {
                 // docstring：只保留为副作用表达式会无意义地求值字符串，直接跳过。
                 if matches!(&*expr_stmt.value, ast::Expr::StringLiteral(_)) {
-                    continue;
-                }
-                if is_dataclass {
-                    diags.push(
-                        Diagnostic::error(
-                            Span::new(file, expr_stmt.range()),
-                            "dataclass 类体内只允许字段标注",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("不允许此类语句"),
-                    );
                     continue;
                 }
                 let value = lower_class_expr(
@@ -376,6 +356,7 @@ pub fn parse_class_def(
         body,
         frozen,
         is_dataclass,
+        runtime_dataclass: is_dataclass,
         is_exception,
         range: class_def.range(),
         decorators,
@@ -475,7 +456,7 @@ pub(crate) fn lower_class_expr(
     globals: &GlobalScope,
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
-    nested_defaults: &mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
+    nested_defaults: &mut crate::definition_metadata::DefinitionMetadata,
     body: &mut Body,
     diags: &mut Vec<Diagnostic>,
     expr: &ast::Expr,

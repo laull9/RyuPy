@@ -314,6 +314,10 @@ fn dump_stmt(
             writeln!(out, "{pad}class {}{base}:", class.name).unwrap();
             for item in &class.body {
                 match &item.kind {
+                    crate::hir::ClassItemKind::Annotation { name, value } => {
+                        writeln!(out, "{pad}    {name}: {}", dump_expr(module, body, *value))
+                            .unwrap();
+                    }
                     crate::hir::ClassItemKind::Attr { name, value } => {
                         writeln!(
                             out,
@@ -564,5 +568,6 @@ fn dump_type_ref(ty: &TypeRef) -> &'static str {
         TypeRef::None => "None",
         TypeRef::Class(_) => "class",
         TypeRef::Error => "<error>",
+        TypeRef::Runtime => "<runtime>",
     }
 }

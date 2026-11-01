@@ -57,6 +57,7 @@ public static class PyHash
         PyBytes bytes => BytesHash(bytes),
         PyList => throw Unhashable("list"),
         PyDict => throw Unhashable("dict"),
+        IPyNativeMapping or PyDeque => throw Unhashable(PyRepr.TypeName(value)),
         PySet => throw Unhashable("set"),
         PyByteArray => throw Unhashable("bytearray"),
         // 普通对象：有 __hash__ 就用它，否则按身份哈希（与 CPython 默认一致）。
@@ -77,7 +78,7 @@ public static class PyHash
     /// <summary>该值能否作为字典键 / 集合元素。</summary>
     /// <param name="value">任意值。</param>
     public static bool IsHashable(object? value) =>
-        value is not (PyList or PyDict or PySet or PyByteArray);
+        value is not (PyList or PyDict or PySet or PyByteArray or IPyNativeMapping or PyDeque);
 
     /// <summary>Python 的 <c>==</c>。</summary>
     /// <param name="a">左操作数。</param>

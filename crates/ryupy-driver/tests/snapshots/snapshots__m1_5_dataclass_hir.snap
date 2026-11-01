@@ -12,12 +12,18 @@ def [main] main():
     global.__name__ = "__main__"
     global.__package__ = ""
     global.__file__ = "m1_5_dataclass.py"
+    from dataclasses import dataclass as global.dataclass
     class Body:
+        x: float
+        v: float
+        m: float
     class Vec2:
+        x: int
+        y: int
     defaults of step
     defaults of dot
-    global.b = Body(0.0, 2.0, 1.0)
+    global.b = global.Body(0.0, 2.0, 1.0)
     for global._ in range(0, 10):
         step(global.b, 0.5)
     print(global.b.x)
-    print(dot(Vec2(1, 2), Vec2(3, 4)))
+    print(dot(global.Vec2(1, 2), global.Vec2(3, 4)))

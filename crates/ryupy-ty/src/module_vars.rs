@@ -148,7 +148,8 @@ fn annotation_ty(module: &Module, var: &ryupy_hir::ModuleVar) -> Option<Ty> {
     let ty = match ty {
         Ty::Class(id)
             if !module.classes[id].is_dataclass
-                || module.classes[id].decorated_binding.is_some() =>
+                || (module.classes[id].decorated_binding.is_some()
+                    || module.classes[id].runtime_dataclass) =>
         {
             Ty::Dynamic
         }
@@ -298,7 +299,9 @@ fn expr_hint(
             let ExprKind::Class(id) = &body.exprs[*callee].kind else {
                 return None;
             };
-            (module.classes[*id].is_dataclass && module.classes[*id].decorated_binding.is_none())
+            (module.classes[*id].is_dataclass
+                && (module.classes[*id].decorated_binding.is_none()
+                    && !module.classes[*id].runtime_dataclass))
                 .then_some(Ty::Class(*id))
         }
         _ => None,

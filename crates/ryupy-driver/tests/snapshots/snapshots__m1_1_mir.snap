@@ -62,10 +62,14 @@ fn main() -> () {
     let _2: dyn;
     let _3: dyn;
     let _4: dyn;
-    let _5: i64;
+    let _5: dyn;
     let _6: dyn;
-    let _7: i64;
+    let _7: dyn;
     let _8: dyn;
+    let _9: i64;
+    let _10: dyn;
+    let _11: i64;
+    let _12: dyn;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_1_functions.py", const "<module>");
@@ -77,22 +81,26 @@ fn main() -> () {
         g2 = const "m1_1_functions.py";
         // line 2
         _1 = RuntimeFn::TypeObject(const "int");
-        _2 = RuntimeFn::TypeObject(const "int");
-        RuntimeFn::FunctionMetadata(global@3, null, [const "x", const "return"], [_1, _2]);
-        // line 7
+        _2 = _1;
         _3 = RuntimeFn::TypeObject(const "int");
-        _4 = RuntimeFn::TypeObject(const "int");
-        RuntimeFn::FunctionMetadata(global@6, null, [const "n", const "return"], [_3, _4]);
+        _4 = _3;
+        RuntimeFn::FunctionMetadata(global@3, null, [const "x", const "return"], [_2, _4]);
+        // line 7
+        _5 = RuntimeFn::TypeObject(const "int");
+        _6 = _5;
+        _7 = RuntimeFn::TypeObject(const "int");
+        _8 = _7;
+        RuntimeFn::FunctionMetadata(global@6, null, [const "n", const "return"], [_6, _8]);
         // line 12
-        _5 = main_calc(const 10_i64);
-        _6 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteI64(_6, _5);
-        RuntimeFn::WriteNewline(_6);
+        _9 = main_calc(const 10_i64);
+        _10 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_10, _9);
+        RuntimeFn::WriteNewline(_10);
         // line 13
-        _7 = helper(const 0_i64);
-        _8 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteI64(_8, _7);
-        RuntimeFn::WriteNewline(_8);
+        _11 = helper(const 0_i64);
+        _12 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_12, _11);
+        RuntimeFn::WriteNewline(_12);
         goto -> bb1;
     }
     bb1: {

@@ -1,0 +1,250 @@
+---
+source: crates/ryupy-driver/tests/m3_6.rs
+expression: output
+---
+fn unused(_0: dyn) -> dyn {
+    let _0: dyn; // n
+    let _1: dyn; // i
+    let _2: i64;
+    let _3: dyn;
+    let _4: i64;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+    let _9: bool;
+    let _10: bool;
+    let _11: bool;
+    let _12: bool;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+    let _16: dyn;
+    let _17: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_m3_6_dead_box.py", const "unused");
+        // line 2
+        _3 = box<I64>(const 0_i64);
+        _4 = unbox<I64>(_3);
+        _5 = unbox<I64>(_0);
+        _6 = _4;
+        _7 = _5;
+        _8 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _9 = Gt(_8, const 0_i64);
+        _10 = Lt(_6, _7);
+        _11 = Gt(_6, _7);
+        _12 = BitAnd(_9, _10);
+        _13 = Not(_9);
+        _14 = BitAnd(_13, _11);
+        _15 = BitOr(_12, _14);
+        branch _15 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        // line 3
+        goto -> bb3;
+    }
+    bb3: {
+        _6 = Add(_6, _8);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        _17 = RuntimeFn::DynNone();
+        goto -> bb6;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_2);
+        return _17;
+    }
+}
+
+fn observed(_0: dyn) -> dyn {
+    let _0: dyn; // n
+    let _1: dyn; // i
+    let _2: i64;
+    let _3: dyn;
+    let _4: i64;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+    let _9: bool;
+    let _10: bool;
+    let _11: bool;
+    let _12: bool;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+    let _16: dyn;
+    let _17: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_m3_6_dead_box.py", const "observed");
+        // line 5
+        _3 = box<I64>(const 0_i64);
+        _4 = unbox<I64>(_3);
+        _5 = unbox<I64>(_0);
+        _6 = _4;
+        _7 = _5;
+        _8 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _9 = Gt(_8, const 0_i64);
+        _10 = Lt(_6, _7);
+        _11 = Gt(_6, _7);
+        _12 = BitAnd(_9, _10);
+        _13 = Not(_9);
+        _14 = BitAnd(_13, _11);
+        _15 = BitOr(_12, _14);
+        branch _15 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _16 = box<I64>(_6);
+        _1 = _16;
+        // line 6
+        goto -> bb3;
+    }
+    bb3: {
+        _6 = Add(_6, _8);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 7
+        _17 = _1;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_2);
+        return _17;
+    }
+}
+
+fn captured(_0: dyn) -> dyn {
+    let _0: dyn; // n
+    let _1: dyn; // i
+    let _2: dyn; // fn
+    let _3: i64;
+    let _4: dyn;
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: bool;
+    let _11: bool;
+    let _12: bool;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+    let _16: bool;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::CellNew();
+        _3 = RuntimeFn::TracePush(const "ryupy_m3_6_dead_box.py", const "captured");
+        // line 9
+        _4 = box<I64>(const 0_i64);
+        _5 = unbox<I64>(_4);
+        _6 = unbox<I64>(_0);
+        _7 = _5;
+        _8 = _6;
+        _9 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _10 = Gt(_9, const 0_i64);
+        _11 = Lt(_7, _8);
+        _12 = Gt(_7, _8);
+        _13 = BitAnd(_10, _11);
+        _14 = Not(_10);
+        _15 = BitAnd(_14, _12);
+        _16 = BitOr(_13, _15);
+        branch _16 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _17 = box<I64>(_7);
+        RuntimeFn::CellSet(_1, _17);
+        // line 10
+        _18 = MakeFunction(<lambda>; env=[_1]; defaults=[]);
+        _2 = _18;
+        goto -> bb3;
+    }
+    bb3: {
+        _7 = Add(_7, _9);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 11
+        _19 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_3);
+        return _19;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_6_dead_box.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "ryupy_m3_6_dead_box.py";
+        // line 1
+        // line 4
+        // line 8
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}
+
+fn <lambda>(_0: dyn) -> dyn {
+    let _0: dyn; // __env
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_m3_6_dead_box.py", const "<lambda>");
+        // line 10
+        _3 = RuntimeFn::CellGetFree(_0, const 0_i64, const "i");
+        _2 = _3;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}

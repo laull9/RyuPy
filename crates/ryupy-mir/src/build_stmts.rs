@@ -214,6 +214,13 @@ impl FunctionBuilder<'_> {
                     else_: else_bb,
                 });
 
+                // 动态函数的分支必须从同一确定赋值状态出发，汇合只保留交集。
+                // 否则then里的赋值会误让else/join跳过LoadChecked，未赋值被静默当None。
+                // 静态函数的既有编译期诊断策略不在本次窄修范围。
+                let assigned_before = self
+                    .types
+                    .is_dynamic(self.current_hir_fn)
+                    .then(|| self.assigned_locals.clone());
                 // then 分支
                 self.current_bb = then_bb;
                 for &s in then_ {
@@ -223,6 +230,9 @@ impl FunctionBuilder<'_> {
                     self.terminate_current(Terminator::Goto(join_bb));
                 }
 
+                let then_assigned = assigned_before
+                    .as_ref()
+                    .map(|before| std::mem::replace(&mut self.assigned_locals, before.clone()));
                 // else 分支
                 self.current_bb = else_bb;
                 for &s in else_ {
@@ -232,6 +242,10 @@ impl FunctionBuilder<'_> {
                     self.terminate_current(Terminator::Goto(join_bb));
                 }
 
+                if let Some(then_assigned) = then_assigned {
+                    self.assigned_locals
+                        .retain(|local| then_assigned.contains(local));
+                }
                 self.current_bb = join_bb;
             }
             StmtKind::While { cond, body, orelse } => {

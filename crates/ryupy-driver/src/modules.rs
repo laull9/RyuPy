@@ -152,7 +152,7 @@ fn module_package(name: &str, path: &Path) -> String {
 /// dump 不遍历依赖源码，但异常静态身份仍必须遵循入口目录的源码优先规则。
 pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
     let root = entry.parent().unwrap_or(Path::new(".")).to_path_buf();
-    ["json", "re"]
+    ["json", "re", "dataclasses"]
         .into_iter()
         .filter(|name| resolve_in(std::slice::from_ref(&root), name).is_none())
         .collect()

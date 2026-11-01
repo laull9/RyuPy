@@ -46,9 +46,9 @@ public static partial class PyErrors
             current is not null
             && !ReferenceEquals(current, exception)
             && exception.Context is null
-            && !ReferenceEquals(exception.Cause, current)
         )
         {
+            // 显式 Cause 与隐式 Context 可以是同一实例；显示时优先 Cause，不应删掉可读的 Context。
             exception.Context = current;
         }
         return exception;

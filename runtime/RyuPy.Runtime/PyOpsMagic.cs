@@ -75,11 +75,11 @@ public static partial class PyOps
         {
             return false;
         }
-        if (PyObject.TryMethod1(a, BinaryMagicNames[op], b, out result))
+        if (PyObject.TryMethod1(a, BinaryMagicNames[op], b, out result) && result is not PyNotImplemented)
         {
             return true;
         }
-        return PyObject.TryMethod1(b, ReflectedMagicNames[op], a, out result);
+        return PyObject.TryMethod1(b, ReflectedMagicNames[op], a, out result) && result is not PyNotImplemented;
     }
 
     private static bool TryUnaryMagic(string name, object value, out object? result) =>

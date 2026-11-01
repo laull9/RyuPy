@@ -167,11 +167,6 @@ impl StmtLowerCtx<'_> {
                 }
             }
             ast::Stmt::ImportFrom(from) => {
-                // `dataclasses` 由编译期特殊处理（class lowering 识别装饰器），
-                // 不是真正的运行时模块，不生成导入语句。
-                if from.level == 0 && from.module.as_deref() == Some("dataclasses") {
-                    return;
-                }
                 let level = from.level;
                 let Some(module) = imports::absolute_module(
                     from.module.as_ref().map(|m| m.as_str()),

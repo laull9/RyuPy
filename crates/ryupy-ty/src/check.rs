@@ -121,7 +121,7 @@ fn initial_mode(module: &Module, func: &Function) -> FuncMode {
     if func.params.iter().filter_map(|p| p.annotation.as_ref())
         .chain(func.ret.iter())
         .chain(func.body.locals.iter().filter_map(|(_, l)| l.annotation.as_ref()))
-        .any(|ann| matches!(ann, TypeRef::Class(id) if module.classes[*id].decorated_binding.is_some()))
+        .any(|ann| matches!(ann, TypeRef::Class(id) if (module.classes[*id].decorated_binding.is_some() || module.classes[*id].runtime_dataclass)))
     {
         return FuncMode::Dynamic;
     }
@@ -192,7 +192,12 @@ fn compute_sigs(
 /// 类装饰器可替换类对象；原静态布局不再是可信类型事实。
 pub(crate) fn module_type_ref_to_ty(module: &Module, annotation: &TypeRef) -> Ty {
     match annotation {
-        TypeRef::Class(id) if module.classes[*id].decorated_binding.is_some() => Ty::Dynamic,
+        TypeRef::Class(id)
+            if (module.classes[*id].decorated_binding.is_some()
+                || module.classes[*id].runtime_dataclass) =>
+        {
+            Ty::Dynamic
+        }
         _ => type_ref_to_ty(annotation),
     }
 }
@@ -272,6 +277,7 @@ pub fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
         TypeRef::None => Ty::None,
         TypeRef::Class(id) => Ty::Class(*id),
         TypeRef::Error => Ty::Error,
+        TypeRef::Runtime => Ty::Dynamic,
     }
 }
 
@@ -326,7 +332,7 @@ impl FunctionChecker<'_> {
             // 类体属性表达式也在模块作用域求值，必须补齐类型旁表，
             // 否则 MIR 会把它们当成都态值而丢失静态特化。
             for (_, class) in self.module.classes.iter() {
-                self.soft_demote |= class.decorated_binding.is_some();
+                self.soft_demote |= class.decorated_binding.is_some() || class.runtime_dataclass;
                 for decorator in &class.decorators {
                     if let ryupy_hir::Decorator::Expr(expr) = decorator {
                         self.check_expr(*expr);
@@ -337,7 +343,8 @@ impl FunctionChecker<'_> {
                 }
                 for item in &class.body {
                     match &item.kind {
-                        ryupy_hir::ClassItemKind::Attr { value, .. }
+                        ryupy_hir::ClassItemKind::Annotation { value, .. }
+                        | ryupy_hir::ClassItemKind::Attr { value, .. }
                         | ryupy_hir::ClassItemKind::Expr(value) => {
                             self.check_expr(*value);
                         }
@@ -477,7 +484,8 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Class(cls_id) => {
                 if self.module.classes[*cls_id].is_dataclass
-                    && self.module.classes[*cls_id].decorated_binding.is_none()
+                    && (self.module.classes[*cls_id].decorated_binding.is_none()
+                        && !self.module.classes[*cls_id].runtime_dataclass)
                 {
                     Ty::Class(*cls_id)
                 } else {

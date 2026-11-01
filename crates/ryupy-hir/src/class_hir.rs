@@ -6,7 +6,7 @@ use ryupy_base::TextRange;
 /// 一个类定义。
 ///
 /// 两类类共享同一结构：
-/// - `@dataclass`：`fields` 有内容，构造走静态 `NewObject`，类体只允许字段标注；
+/// - `@dataclass`：默认由运行时应用装饰器；`fields` 静态布局保留给可证明特化；
 /// - 普通 class（M2.5）：运行时由 `PyClass` / `PyInstance` 承载，类体按源码顺序
 ///   求值属性并登记方法。
 #[derive(Debug)]
@@ -24,6 +24,8 @@ pub struct Class {
     pub frozen: bool,
     /// `@dataclass` 修饰的类。
     pub is_dataclass: bool,
+    /// 完整运行时数据类语义；静态字段布局仅保留供将来可证明特化。
+    pub runtime_dataclass: bool,
     /// 是否为 `BaseException` 家族（内建或用户定义）——决定能否出现在 `except` 中。
     pub is_exception: bool,
     pub range: TextRange,
@@ -58,6 +60,8 @@ pub struct ClassItem {
 
 #[derive(Clone, Debug)]
 pub enum ClassItemKind {
+    /// 字段标注在可选初值之后求值，写入当前类的__annotations__。
+    Annotation { name: Name, value: ExprId },
     /// `name = value` / `name: T = value`：写入类命名空间。
     Attr { name: Name, value: ExprId },
     /// 方法定义；`@property` / `@staticmethod` / `@classmethod` 在运行时应用。

@@ -40,6 +40,18 @@ public static class PyNativeModules
             if (key == "error")
                 throw new PyNotImplementedError("rebinding re.error is not supported");
         });
+        PyModules.RegisterNative("collections", PyCollections.CreateAttributes());
+        PyModules.RegisterNative("collections.abc", PyAbc.CreateAttributes());
+        PyModules.Import("collections.abc");
+        PyModules.RegisterNative("itertools", PyItertools.CreateAttributes());
+        PyModules.RegisterNative("functools", PyFunctools.CreateAttributes());
+        PyModules.RegisterNative("contextlib", PyContextLib.CreateAttributes());
+        PyModules.RegisterNative("typing", PyTyping.CreateAttributes());
+        PyModules.RegisterNative("dataclasses", PyDataclasses.CreateAttributes(), (key, _) =>
+        {
+            if (key == "FrozenInstanceError")
+                throw new PyNotImplementedError("rebinding dataclasses.FrozenInstanceError is not supported");
+        });
         var os = PyOs.CreateAttributes();
         os["environ"] = new PyEnvironment();
         os["getenv"] = PyNativeFunctions.Create("getenv", ["key", "default"], [null, PyNone.Instance], 1,

@@ -1,0 +1,205 @@
+---
+source: crates/ryupy-driver/tests/m3_6.rs
+expression: "output.replace(path.to_str().unwrap(), \"metadata.py\")"
+---
+fn identity(_0: dyn) -> dyn {
+    let _0: dyn; // value
+    let _1: i64;
+    let _2: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_m3_6_metadata.py", const "identity");
+        // line 8
+        _2 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+    let _36: i64;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: bool;
+    let _40: bool;
+
+    region r0: [4, +1) finally-guard handler->bb5
+    region r1: [1, +1) catch dataclasses.FrozenInstanceError handler->bb3
+
+    bb0: {
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        g6 = null;
+        g7 = null;
+        g8 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_6_metadata.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g1 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g2 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_m3_6_metadata.py");
+        g3 = _3;
+        // line 1
+        _4 = RuntimeFn::ImportAttr(const "dataclasses", const "dataclass");
+        g5 = _4;
+        _5 = RuntimeFn::ImportAttr(const "dataclasses", const "field");
+        g6 = _5;
+        _6 = RuntimeFn::ImportAttr(const "dataclasses", const "FrozenInstanceError");
+        g7 = _6;
+        // line 2
+        _7 = RuntimeFn::ImportAttr(const "typing", const "Optional");
+        g8 = _7;
+        // line 3
+        _8 = RuntimeFn::MakeClass(const "Record", [], null);
+        g0 = _8;
+        _9 = RuntimeFn::MakeDict();
+        RuntimeFn::SetAttr(_8, const "__annotations__", _9);
+        _10 = box<I64>(const 1_i64);
+        RuntimeFn::SetAttr(_8, const "value", _10);
+        _11 = RuntimeFn::TypeObject(const "int");
+        _12 = _11;
+        _13 = RuntimeFn::ClassNamespaceGet(_8, const "__annotations__");
+        RuntimeFn::SetItem(_13, const "value", _12);
+        _14 = RuntimeFn::LoadName(global@6, const "field");
+        _15 = RuntimeFn::TypeObject(const "list");
+        _16 = RuntimeFn::CallValue(_14, [], [const "default_factory"], [_15]);
+        RuntimeFn::SetAttr(_8, const "items", _16);
+        _17 = RuntimeFn::TypeObject(const "list");
+        _18 = _17;
+        _19 = RuntimeFn::ClassNamespaceGet(_8, const "__annotations__");
+        RuntimeFn::SetItem(_19, const "items", _18);
+        RuntimeFn::DeclareDataclass(_8, [const "value", const "items"], const true);
+        _20 = RuntimeFn::ApplyDataclass(_8, const true);
+        g4 = _20;
+        // line 7
+        _21 = RuntimeFn::LoadName(global@8, const "Optional");
+        _22 = RuntimeFn::TypeObject(const "int");
+        _23 = RuntimeFn::GetItem(_21, _22);
+        _24 = _23;
+        _25 = RuntimeFn::LoadName(global@8, const "Optional");
+        _26 = RuntimeFn::TypeObject(const "int");
+        _27 = RuntimeFn::GetItem(_25, _26);
+        _28 = _27;
+        RuntimeFn::FunctionMetadata(global@9, null, [const "value", const "return"], [_24, _28]);
+        // line 9
+        goto -> bb1;
+    }
+    bb1: {
+        // line 10
+        _29 = box<I64>(const 2_i64);
+        _30 = RuntimeFn::LoadName(global@4, const "Record");
+        _31 = dyn.call(_30, []);
+        RuntimeFn::SetAttr(_31, const "value", _29);
+        goto -> bb14;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_0);
+        _33 = RuntimeFn::HandlerEnter(_32);
+        goto -> bb4;
+    }
+    bb3: {
+        _32 = caught_exception;
+        goto -> bb2;
+    }
+    bb4: {
+        _35 = RuntimeFn::HandlerEnter(None);
+        // line 12
+        _37 = box<Str>(const "frozen");
+        _38 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_38, _37);
+        RuntimeFn::WriteNewline(_38);
+        _36 = const 0_i64;
+        goto -> bb7;
+    }
+    bb5: {
+        _34 = caught_exception;
+        goto -> bb6;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_0);
+        _35 = RuntimeFn::HandlerEnter(_34);
+        _36 = const 1_i64;
+        goto -> bb7;
+    }
+    bb7: {
+        RuntimeFn::HandlerLeave(_33);
+        goto -> bb8;
+    }
+    bb8: {
+        _39 = Eq(_36, const 1_i64);
+        branch _39 -> [then: bb9, else: bb11];
+    }
+    bb9: {
+        RuntimeFn::HandlerLeave(_33);
+        raise _34;
+    }
+    bb10: {
+        unreachable;
+    }
+    bb11: {
+        _40 = Eq(_36, const 2_i64);
+        branch _40 -> [then: bb15, else: bb12];
+    }
+    bb12: {
+        RuntimeFn::HandlerLeave(_33);
+        goto -> bb15;
+    }
+    bb13: {
+        unreachable;
+    }
+    bb14: {
+        goto -> bb15;
+    }
+    bb15: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

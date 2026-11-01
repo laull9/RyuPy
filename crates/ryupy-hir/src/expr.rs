@@ -38,7 +38,7 @@ pub struct ExprLowerCtx<'a> {
     pub nested_funcs: &'a FxHashMap<TextRange, FuncId>,
     /// lambda 参数默认值：在**外层作用域** lambda 位置求值，先暂存、
     /// 循环结束后回填进对应函数的 `Param::default`（与嵌套 def 一致）。
-    pub nested_defaults: &'a mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
+    pub nested_defaults: &'a mut crate::definition_metadata::DefinitionMetadata,
     pub body: &'a mut Body,
     pub diagnostics: &'a mut Vec<Diagnostic>,
 }

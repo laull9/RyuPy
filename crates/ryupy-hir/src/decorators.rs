@@ -1,7 +1,7 @@
 //! 装饰器定义位置降级：保留源码顺序与表达式所属作用域，不在HIR执行应用。
 //! 原函数/类的创建及逆序应用由MIR负责，最终绑定只在整条装饰链成功后写入。
 
-use crate::hir::{Body, Decorator, ExprId, FuncId, ModuleVarId, Name};
+use crate::hir::{Body, Decorator, FuncId, ModuleVarId, Name};
 use crate::scope::GlobalScope;
 use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_base::{Diagnostic, FileId, Ranged, Span, TextRange};
@@ -134,12 +134,10 @@ pub(crate) fn validate_mutable_markers(
 
 pub(crate) fn has_runtime_class_decorators(
     class: &ast::StmtClassDef,
-    markers: &FxHashSet<TextRange>,
+    _markers: &FxHashSet<TextRange>,
 ) -> bool {
-    class
-        .decorator_list
-        .iter()
-        .any(|decorator| !markers.contains(&decorator.expression.range()))
+    // 数据类装饰同样可能抛错，公开绑定必须等转换成功后才写入。
+    !class.decorator_list.is_empty()
 }
 
 /// dataclass仍走专用字段转换，但在混合链中保留其准确位置。
@@ -207,7 +205,7 @@ pub(crate) fn lower_list(
     globals: &GlobalScope,
     module_vars: &FxHashMap<Name, ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, FuncId>,
-    nested_defaults: &mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
+    nested_defaults: &mut crate::definition_metadata::DefinitionMetadata,
     body: &mut Body,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Vec<Decorator> {
@@ -276,7 +274,7 @@ mod tests {
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let classes: Vec<_> = module.classes.iter().map(|(_, class)| class).collect();
         assert!(classes[0].is_dataclass);
-        assert!(classes[0].decorated_binding.is_none());
+        assert!(classes[0].decorated_binding.is_some());
         assert!(!classes[1].is_dataclass);
         assert!(classes[1].decorated_binding.is_some());
     }

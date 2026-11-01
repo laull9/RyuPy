@@ -451,7 +451,8 @@ impl ExprBuilder<'_> {
     // ───────────────────────── 类构造 ─────────────────────────
 
     fn build_class_call(&mut self, cls_id: ryupy_hir::ClassId, args: &[CallArg]) -> Operand {
-        let is_dataclass = self.hir.classes[cls_id].is_dataclass;
+        let is_dataclass =
+            self.hir.classes[cls_id].is_dataclass && !self.hir.classes[cls_id].runtime_dataclass;
         if !is_dataclass {
             // 普通 class：构造是运行时 `PyClass.Call`（查找 `__init__`、绑定参数、
             // 异常类还要通过工厂委托创建 CLR 异常对象）。

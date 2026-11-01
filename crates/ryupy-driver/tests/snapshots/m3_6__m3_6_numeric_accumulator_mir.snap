@@ -1,0 +1,196 @@
+---
+source: crates/ryupy-driver/tests/m3_6.rs
+expression: output
+---
+fn accumulate(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // initial
+    let _1: dyn; // values
+    let _2: dyn; // total
+    let _3: dyn; // i
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: bool;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "ryupy_m3_6_numeric_accumulator.py", const "accumulate");
+        // line 2
+        _2 = _0;
+        // line 3
+        _5 = box<I64>(const 0_i64);
+        _6 = RuntimeFn::DynBuiltin(const "len", [_1], [], []);
+        _7 = unbox<I64>(_5);
+        _8 = unbox<I64>(_6);
+        _9 = _7;
+        _10 = _8;
+        _11 = const 1_i64;
+        _24 = RuntimeFn::NumericAccumulatorCreate(_2);
+        goto -> bb1;
+    }
+    bb1: {
+        _12 = Gt(_11, const 0_i64);
+        _13 = Lt(_9, _10);
+        _14 = Gt(_9, _10);
+        _15 = BitAnd(_12, _13);
+        _16 = Not(_12);
+        _17 = BitAnd(_16, _14);
+        _18 = BitOr(_15, _17);
+        branch _18 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _19 = box<I64>(_9);
+        _3 = _19;
+        // line 4
+        _20 = RuntimeFn::GetItem(_1, _3);
+        RuntimeFn::NumericAccumulatorAdd(_24, _20);
+        goto -> bb3;
+    }
+    bb3: {
+        _9 = Add(_9, _11);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        _2 = RuntimeFn::NumericAccumulatorValue(_24);
+        // line 5
+        _23 = MakeTuple([_2, _2]);
+        _22 = _23;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_4);
+        return _22;
+    }
+}
+
+fn observed(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // initial
+    let _1: dyn; // values
+    let _2: dyn; // total
+    let _3: dyn; // seen
+    let _4: dyn; // i
+    let _5: i64;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: i64;
+    let _13: i64;
+    let _14: bool;
+    let _15: bool;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
+    let _19: bool;
+    let _20: bool;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+
+    bb0: {
+        _5 = RuntimeFn::TracePush(const "ryupy_m3_6_numeric_accumulator.py", const "observed");
+        // line 7
+        _2 = _0;
+        // line 8
+        _6 = MakeList([]);
+        _3 = _6;
+        // line 9
+        _7 = box<I64>(const 0_i64);
+        _8 = RuntimeFn::DynBuiltin(const "len", [_1], [], []);
+        _9 = unbox<I64>(_7);
+        _10 = unbox<I64>(_8);
+        _11 = _9;
+        _12 = _10;
+        _13 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _14 = Gt(_13, const 0_i64);
+        _15 = Lt(_11, _12);
+        _16 = Gt(_11, _12);
+        _17 = BitAnd(_14, _15);
+        _18 = Not(_14);
+        _19 = BitAnd(_18, _16);
+        _20 = BitOr(_17, _19);
+        branch _20 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _21 = box<I64>(_11);
+        _4 = _21;
+        // line 10
+        _22 = dyn.method(_3, "append", [_2]);
+        // line 11
+        _23 = RuntimeFn::GetItem(_1, _4);
+        _24 = dyn.Add.inplace(_2, _23);
+        _2 = _24;
+        goto -> bb3;
+    }
+    bb3: {
+        _11 = Add(_11, _13);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 12
+        _26 = MakeTuple([_2, _3]);
+        _25 = _26;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_5);
+        return _25;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_6_numeric_accumulator.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "ryupy_m3_6_numeric_accumulator.py";
+        // line 1
+        // line 6
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

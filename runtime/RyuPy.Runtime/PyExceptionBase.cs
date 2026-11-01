@@ -27,6 +27,9 @@ public class PyBaseException : Exception
     /// <summary><c>raise ... from ...</c> 的显式原因（<c>__cause__</c>）。</summary>
     public PyBaseException? Cause { get; private set; }
 
+    /// <summary>显式 cause（含 from None）抑制隐式上下文的报告，但不删除 Context 本身。</summary>
+    public bool SuppressContextFlag { get; set; }
+
     /// <summary>
     /// 隐式上下文（<c>__context__</c>）：在 <c>except</c> 处理期间抛出新的异常时，
     /// 新异常自动挂上前一个异常。与 <see cref="Cause"/> 的区别在于它是自动建立的。
@@ -62,6 +65,7 @@ public class PyBaseException : Exception
         PyMessage = message;
         Args = args ?? (message.Length == 0 ? [] : [message]);
         Cause = cause;
+        SuppressContextFlag = cause is not null;
     }
 
     /// <summary>供生成的用户异常子类使用：指定类型名、消息与位置参数。</summary>
@@ -72,20 +76,20 @@ public class PyBaseException : Exception
         : this(typeName, message, args, null) { }
 
     /// <summary>
-    /// 返回挂上显式原因的副本。
+    /// 在原实例上挂接显式原因并返回自身。
     /// </summary>
     /// <remarks>
-    /// 必须用 <see cref="object.MemberwiseClone"/> 而不是「按类型名重新构造」：
-    /// CLR 的 <c>catch PyRuntimeError</c> 依赖**运行时类型**，如果这里造出一个基类实例，
-    /// Python 侧类型名看起来正确，但 `except RuntimeError` 永远捕获不到——
-    /// 这种错误在 traceback 里完全看不出来。
+    /// Python 的 `raise existing from cause` 不创建副本：异常身份、用户属性及运行时子类都必须保留。
+    /// 因此既不能 MemberwiseClone，也不能按类型名重新构造；后者还会破坏 CLR 类型化 catch。
+    /// `cause == null` 表示显式 from None，仍必须记录抑制标志，不能与从未指定 cause 混淆。
+    /// Context 保留供程序读取，仅在报告时依据标志决定是否显示。
     /// </remarks>
     /// <param name="cause">显式原因。</param>
     public PyBaseException WithCause(PyBaseException? cause)
     {
-        var copy = (PyBaseException)MemberwiseClone();
-        copy.Cause = cause;
-        return copy;
+        Cause = cause;
+        SuppressContextFlag = true;
+        return this;
     }
 
     /// <summary>按 <c>TypeName: message</c> 渲染，供 traceback 与错误退出使用。</summary>

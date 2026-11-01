@@ -257,6 +257,8 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "print" => Builtin::Print,
         "open" => Builtin::Dynamic("open"),
         "input" => Builtin::Dynamic("input"),
+        "object" => Builtin::Dynamic("object"),
+        "pow" => Builtin::Dynamic("pow"),
         "int" => Builtin::Int,
         "float" => Builtin::Float,
         "abs" => Builtin::Abs,

@@ -150,20 +150,12 @@ fn snapshot_m3_2_prepared_call() {
 }
 
 #[test]
-fn snapshot_m3_2_prepared_dataclass_boundary() {
+fn snapshot_prepared_dataclass_runtime_support() {
     let path = std::env::temp_dir().join("ryupy_test_prepared_dataclass.py");
     std::fs::write(&path, "from dataclasses import dataclass\n@dataclass\nclass P:\n    x: int\ndef g():\n    return P((yield 1))\n").unwrap();
     let mut session = Session::default();
-    assert!(dump(&mut session, &path, Stage::Mir).is_err());
-    assert!(session.diagnostics.iter().any(|d| d.code == Some("E0305")));
-    let output = session
-        .render_diagnostics(false)
-        .replace(path.to_str().unwrap(), "generator.py");
-    let output = output
-        .lines()
-        .map(str::trim_end)
-        .collect::<Vec<_>>()
-        .join("\n");
+    // M3.6默认数据类改为完整运行时对象；旧E0305边界已由真实差分解除。
+    let output = dump(&mut session, &path, Stage::Mir).expect("运行时数据类支持暂停实参");
     insta::assert_snapshot!("m3_2_prepared_dataclass", output);
     std::fs::remove_file(path).unwrap();
 }

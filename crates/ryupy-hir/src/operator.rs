@@ -3,9 +3,9 @@
 //! 职责：
 //! 1. 将 Ruff AST 的各类运算操作符（算术、位运算、比较、一元、逻辑）转换为 HIR 的对应枚举；
 //! 2. 将源码中的类型标注（如 `int`、`float`、`bool` 等）解析为 [`TypeRef`]；
-//! 3. 遇到不受支持的操作符或未知类型时，记录相应的编译期诊断。
+//! 3. 无法证明的标注保留运行时语义，不据此增加参数类型限制。
 
-use ryupy_base::{Diagnostic, FileId, Ranged, Span};
+use ryupy_base::{Diagnostic, FileId};
 use ryupy_syntax::ast;
 
 use crate::hir::{BinOp, BoolOp, CmpOp, Name, TypeRef, UnaryOp};
@@ -67,9 +67,9 @@ pub fn map_bool_op(op: ast::BoolOp) -> BoolOp {
 /// 将 AST 类型标注表达式降级为 HIR [`TypeRef`]。
 pub fn lower_type_ref(
     expr: &ast::Expr,
-    file: FileId,
+    _file: FileId,
     globals: &GlobalScope,
-    diags: &mut Vec<Diagnostic>,
+    _diags: &mut Vec<Diagnostic>,
 ) -> TypeRef {
     match expr {
         ast::Expr::Name(name) => match name.id.as_str() {
@@ -82,26 +82,11 @@ pub fn lower_type_ref(
                 if let Some(Resolution::Class(cls_id)) = globals.names.get(&Name::from(other)) {
                     TypeRef::Class(*cls_id)
                 } else {
-                    diags.push(
-                        Diagnostic::error(
-                            Span::new(file, name.range()),
-                            format!("无法识别的类型标注 `{other}`"),
-                        )
-                        .with_code("E0101")
-                        .with_primary_label("未知的类型"),
-                    );
-                    TypeRef::Error
+                    TypeRef::Runtime
                 }
             }
         },
         ast::Expr::NoneLiteral(_) => TypeRef::None,
-        _ => {
-            diags.push(
-                Diagnostic::error(Span::new(file, expr.range()), "暂不支持复杂的类型表达式")
-                    .with_code("E0101")
-                    .with_primary_label("类型表达式暂不支持"),
-            );
-            TypeRef::Error
-        }
+        _ => TypeRef::Runtime,
     }
 }

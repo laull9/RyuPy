@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.6：常用容器、惰性工具、函数包装和生成器上下文。
 from collections import Counter, defaultdict, deque
 from contextlib import contextmanager

@@ -2,54 +2,56 @@
 source: crates/ryupy-driver/tests/snapshots.rs
 expression: mir
 ---
-fn step(_0: Class(0), _1: f64) -> () {
-    let _0: Class(0); // b
-    let _1: f64; // dt
+fn step(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // b
+    let _1: dyn; // dt
     let _2: i64;
-    let _3: f64;
-    let _4: f64;
-    let _5: f64;
-    let _6: f64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
 
     bb0: {
         _2 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "step");
         // line 19
-        _3 = _0.0;
-        _4 = _0.1;
-        _5 = Mul(_4, _1);
-        _6 = Add(_3, _5);
-        _0.0 = _6;
+        _3 = RuntimeFn::DynGetAttr(_0, const "x");
+        _4 = RuntimeFn::DynGetAttr(_0, const "v");
+        _5 = dyn.Mul(_4, _1);
+        _6 = dyn.Add(_3, _5);
+        RuntimeFn::SetAttr(_0, const "x", _6);
+        _7 = RuntimeFn::DynNone();
         goto -> bb1;
     }
     bb1: {
         RuntimeFn::TracePopTo(_2);
-        return;
+        return _7;
     }
 }
 
-fn dot(_0: Class(1), _1: Class(1)) -> i64 {
-    let _0: Class(1); // a
-    let _1: Class(1); // b
+fn dot(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // a
+    let _1: dyn; // b
     let _2: i64;
-    let _3: i64;
-    let _4: i64;
-    let _5: i64;
-    let _6: i64;
-    let _7: i64;
-    let _8: i64;
-    let _9: i64;
-    let _10: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
 
     bb0: {
         _2 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "dot");
         // line 23
-        _4 = _0.0;
-        _5 = _1.0;
-        _6 = Mul(_4, _5);
-        _7 = _0.1;
-        _8 = _1.1;
-        _9 = Mul(_7, _8);
-        _10 = Add(_6, _9);
+        _4 = RuntimeFn::DynGetAttr(_0, const "x");
+        _5 = RuntimeFn::DynGetAttr(_1, const "x");
+        _6 = dyn.Mul(_4, _5);
+        _7 = RuntimeFn::DynGetAttr(_0, const "y");
+        _8 = RuntimeFn::DynGetAttr(_1, const "y");
+        _9 = dyn.Mul(_7, _8);
+        _10 = dyn.Add(_6, _9);
         _3 = _10;
         goto -> bb2;
     }
@@ -69,66 +71,187 @@ fn main() -> () {
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
-    let _6: Class(0);
-    let _7: i64;
-    let _8: i64;
-    let _9: i64;
-    let _10: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
     let _11: dyn;
-    let _12: Class(0);
-    let _13: f64;
+    let _12: dyn;
+    let _13: dyn;
     let _14: dyn;
-    let _15: Class(1);
-    let _16: Class(1);
-    let _17: i64;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
     let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: i64;
+    let _46: i64;
+    let _47: i64;
+    let _48: i64;
+    let _49: i64;
+    let _50: bool;
+    let _51: bool;
+    let _52: bool;
+    let _53: bool;
+    let _54: bool;
+    let _55: bool;
+    let _56: bool;
+    let _57: dyn;
+    let _58: dyn;
+    let _59: dyn;
+    let _60: dyn;
+    let _61: dyn;
+    let _62: dyn;
+    let _63: dyn;
+    let _64: dyn;
+    let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
+    let _68: dyn;
+    let _69: dyn;
+    let _70: dyn;
+    let _71: dyn;
+    let _72: dyn;
+    let _73: dyn;
 
     bb0: {
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        g6 = null;
         g7 = null;
+        g8 = null;
+        g9 = null;
         _0 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "<module>");
         // line 1
-        g2 = const "__main__";
+        _1 = box<Str>(const "__main__");
+        g2 = _1;
         // line 1
-        g3 = const "";
+        _2 = box<Str>(const "");
+        g3 = _2;
         // line 1
-        g4 = const "m1_5_dataclass.py";
+        _3 = box<Str>(const "m1_5_dataclass.py");
+        g4 = _3;
+        // line 2
+        _4 = RuntimeFn::ImportAttr(const "dataclasses", const "dataclass");
+        g9 = _4;
         // line 5
-        _1 = RuntimeFn::MakeClass(const "Body", [], null);
-        g0 = _1;
-        RuntimeFn::DeclareDataclass(_1, [const "x", const "v", const "m"], const false);
+        _5 = RuntimeFn::MakeClass(const "Body", [], null);
+        g0 = _5;
+        _6 = RuntimeFn::MakeDict();
+        RuntimeFn::SetAttr(_5, const "__annotations__", _6);
+        _7 = RuntimeFn::TypeObject(const "float");
+        _8 = _7;
+        _9 = RuntimeFn::ClassNamespaceGet(_5, const "__annotations__");
+        RuntimeFn::SetItem(_9, const "x", _8);
+        _10 = RuntimeFn::TypeObject(const "float");
+        _11 = _10;
+        _12 = RuntimeFn::ClassNamespaceGet(_5, const "__annotations__");
+        RuntimeFn::SetItem(_12, const "v", _11);
+        _13 = RuntimeFn::TypeObject(const "float");
+        _14 = _13;
+        _15 = RuntimeFn::ClassNamespaceGet(_5, const "__annotations__");
+        RuntimeFn::SetItem(_15, const "m", _14);
+        RuntimeFn::DeclareDataclass(_5, [const "x", const "v", const "m"], const false);
+        _16 = RuntimeFn::ApplyDataclass(_5, const false);
+        g7 = _16;
         // line 12
-        _2 = RuntimeFn::MakeClass(const "Vec2", [], null);
-        g1 = _2;
-        RuntimeFn::DeclareDataclass(_2, [const "x", const "y"], const true);
+        _17 = RuntimeFn::MakeClass(const "Vec2", [], null);
+        g1 = _17;
+        _18 = RuntimeFn::MakeDict();
+        RuntimeFn::SetAttr(_17, const "__annotations__", _18);
+        _19 = RuntimeFn::TypeObject(const "int");
+        _20 = _19;
+        _21 = RuntimeFn::ClassNamespaceGet(_17, const "__annotations__");
+        RuntimeFn::SetItem(_21, const "x", _20);
+        _22 = RuntimeFn::TypeObject(const "int");
+        _23 = _22;
+        _24 = RuntimeFn::ClassNamespaceGet(_17, const "__annotations__");
+        RuntimeFn::SetItem(_24, const "y", _23);
+        RuntimeFn::DeclareDataclass(_17, [const "x", const "y"], const true);
+        _25 = RuntimeFn::ApplyDataclass(_17, const true);
+        g8 = _25;
         // line 18
-        _3 = RuntimeFn::TypeObject(const "float");
-        _4 = RuntimeFn::DynNone();
-        RuntimeFn::FunctionMetadata(global@8, null, [const "b", const "dt", const "return"], [global@0, _3, _4]);
+        _26 = RuntimeFn::LoadName(global@7, const "Body");
+        _27 = _26;
+        _28 = RuntimeFn::TypeObject(const "float");
+        _29 = _28;
+        _30 = RuntimeFn::DynNone();
+        _31 = _30;
+        RuntimeFn::FunctionMetadata(global@10, null, [const "b", const "dt", const "return"], [_27, _29, _31]);
         // line 22
-        _5 = RuntimeFn::TypeObject(const "int");
-        RuntimeFn::FunctionMetadata(global@11, null, [const "a", const "b", const "return"], [global@1, global@1, _5]);
+        _32 = RuntimeFn::LoadName(global@8, const "Vec2");
+        _33 = _32;
+        _34 = RuntimeFn::LoadName(global@8, const "Vec2");
+        _35 = _34;
+        _36 = RuntimeFn::TypeObject(const "int");
+        _37 = _36;
+        RuntimeFn::FunctionMetadata(global@13, null, [const "a", const "b", const "return"], [_33, _35, _37]);
         // line 26
-        _6 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
-        g5 = _6;
+        _38 = RuntimeFn::LoadName(global@7, const "Body");
+        _39 = box<F64>(const 0_f64);
+        _40 = box<F64>(const 2_f64);
+        _41 = box<F64>(const 1_f64);
+        _42 = dyn.call(_38, [_39, _40, _41]);
+        g5 = _42;
         // line 27
-        _7 = const 0_i64;
-        _8 = const 10_i64;
-        _9 = const 1_i64;
+        _43 = box<I64>(const 0_i64);
+        _44 = box<I64>(const 10_i64);
+        _45 = unbox<I64>(_43);
+        _46 = unbox<I64>(_44);
+        _47 = _45;
+        _48 = _46;
+        _49 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _10 = Lt(_7, _8);
-        branch _10 -> [then: bb2, else: bb5];
+        _50 = Gt(_49, const 0_i64);
+        _51 = Lt(_47, _48);
+        _52 = Gt(_47, _48);
+        _53 = BitAnd(_50, _51);
+        _54 = Not(_50);
+        _55 = BitAnd(_54, _52);
+        _56 = BitOr(_53, _55);
+        branch _56 -> [then: bb2, else: bb5];
     }
     bb2: {
-        g6 = _7;
+        _57 = box<I64>(_47);
+        g6 = _57;
         // line 28
-        step(global@5, const 0.5_f64);
-        _11 = RuntimeFn::DynNone();
+        _58 = RuntimeFn::LoadName(global@5, const "b");
+        _59 = box<F64>(const 0.5_f64);
+        _60 = step(_58, _59);
         goto -> bb3;
     }
     bb3: {
-        _7 = Add(_7, _9);
+        _47 = Add(_47, _49);
         goto -> bb1;
     }
     bb4: {
@@ -136,18 +259,24 @@ fn main() -> () {
     }
     bb5: {
         // line 29
-        _12 = global@5;
-        _13 = _12.0;
-        _14 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteF64(_14, _13);
-        RuntimeFn::WriteNewline(_14);
+        _61 = RuntimeFn::LoadName(global@5, const "b");
+        _62 = RuntimeFn::DynGetAttr(_61, const "x");
+        _63 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_63, _62);
+        RuntimeFn::WriteNewline(_63);
         // line 30
-        _15 = New(Class(1), [const 1_i64, const 2_i64]);
-        _16 = New(Class(1), [const 3_i64, const 4_i64]);
-        _17 = dot(_15, _16);
-        _18 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteI64(_18, _17);
-        RuntimeFn::WriteNewline(_18);
+        _64 = RuntimeFn::LoadName(global@8, const "Vec2");
+        _65 = box<I64>(const 1_i64);
+        _66 = box<I64>(const 2_i64);
+        _67 = dyn.call(_64, [_65, _66]);
+        _68 = RuntimeFn::LoadName(global@8, const "Vec2");
+        _69 = box<I64>(const 3_i64);
+        _70 = box<I64>(const 4_i64);
+        _71 = dyn.call(_68, [_69, _70]);
+        _72 = dot(_67, _71);
+        _73 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_73, _72);
+        RuntimeFn::WriteNewline(_73);
         goto -> bb6;
     }
     bb6: {

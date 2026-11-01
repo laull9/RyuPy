@@ -321,11 +321,8 @@ internal static class PyInt
         BigInteger baseValue = ToBigInteger(a);
         if (exponent.Sign < 0)
         {
-            if (baseValue.IsZero)
-            {
-                throw new PyZeroDivisionError("0.0 cannot be raised to a negative power");
-            }
-            return Math.Pow((double)baseValue, (double)exponent);
+            // 先完成两项到浮点的检查转换，再判断零负幂，保留巨大指数的错误优先级。
+            return PyPowerBuiltin.FloatPower(PyOps.ToDouble(baseValue), PyOps.ToDouble(exponent));
         }
         if (exponent > MaxBitShift)
         {

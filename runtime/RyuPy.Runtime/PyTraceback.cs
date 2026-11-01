@@ -150,13 +150,14 @@ public static class PyTraceback
     public static string Format(PyBaseException exception)
     {
         var builder = new StringBuilder();
-        AppendChain(builder, exception, 0);
+        AppendChain(builder, exception, 0, new HashSet<PyBaseException>(ReferenceEqualityComparer.Instance));
         return builder.ToString();
     }
 
-    private static void AppendChain(StringBuilder builder, PyBaseException exception, int depth)
+    private static void AppendChain(StringBuilder builder, PyBaseException exception, int depth, HashSet<PyBaseException> seen)
     {
-        // 异常链可能是环（异常对象允许被重新抛出并且互相挂接），限制递归深度
+        // 异常链可能成环；身份集合避免同一实例反复报告，深度上限仍保护特别长的无环链。
+        seen.Add(exception);
         if (depth > 16)
         {
             AppendSingle(builder, exception);
@@ -165,12 +166,15 @@ public static class PyTraceback
 
         if (exception.Cause is not null)
         {
-            AppendChain(builder, exception.Cause, depth + 1);
-            builder.Append(CauseSeparator);
+            if (!seen.Contains(exception.Cause))
+            {
+                AppendChain(builder, exception.Cause, depth + 1, seen);
+                builder.Append(CauseSeparator);
+            }
         }
-        else if (exception.Context is not null)
+        else if (!exception.SuppressContextFlag && exception.Context is not null && !seen.Contains(exception.Context))
         {
-            AppendChain(builder, exception.Context, depth + 1);
+            AppendChain(builder, exception.Context, depth + 1, seen);
             builder.Append(ContextSeparator);
         }
         AppendSingle(builder, exception);

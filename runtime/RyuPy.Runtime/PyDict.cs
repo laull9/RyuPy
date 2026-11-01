@@ -205,6 +205,9 @@ public sealed class PyDict
     {
         switch (other)
         {
+            case IPyNativeMapping mapping:
+                Update(mapping.Dictionary);
+                break;
             case PyDict dict:
                 foreach (var (key, value) in dict.Entries())
                 {

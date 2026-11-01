@@ -30,6 +30,7 @@ impl ExceptionImport {
         };
         let resolved = match (self.module.as_str(), member) {
             ("json", "JSONDecodeError") => Some("json.JSONDecodeError"),
+            ("dataclasses", "FrozenInstanceError") => Some("dataclasses.FrozenInstanceError"),
             ("re", "error") => Some("re.error"),
             _ => None,
         };

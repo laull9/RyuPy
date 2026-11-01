@@ -15,7 +15,7 @@ impl FunctionChecker<'_> {
         match base_ty {
             Ty::Class(cls_id) => {
                 let cls = &self.module.classes[*cls_id];
-                if cls.decorated_binding.is_some() {
+                if cls.decorated_binding.is_some() || cls.runtime_dataclass {
                     return Ty::Dynamic;
                 }
                 if let Some(field) = cls.fields.iter().find(|f| f.name == *name) {
@@ -58,7 +58,7 @@ impl FunctionChecker<'_> {
         match base_ty {
             Ty::Class(cls_id) => {
                 let cls = &self.module.classes[cls_id];
-                if cls.decorated_binding.is_some() {
+                if cls.decorated_binding.is_some() || cls.runtime_dataclass {
                     self.soft_demote = true;
                     return;
                 }

@@ -37,7 +37,7 @@ pub(crate) struct LowerArgs<'a, 'b> {
     pub(crate) vars: &'a mut Arena<ModuleVar>,
     pub(crate) classes: &'a Arena<crate::hir::Class>,
     pub(crate) analysis: &'a crate::closures::ClosureAnalysis,
-    pub(crate) nested_defaults: &'a mut FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>>,
+    pub(crate) nested_defaults: &'a mut crate::definition_metadata::DefinitionMetadata,
     pub(crate) all_default_exprs: &'a mut Vec<ExprId>,
     /// 顶层函数参数默认值的降级目标（嵌套函数的默认值在 def 位置由
     /// `lower_nested_def` 降级进外层函数体，不走这里）。
@@ -315,6 +315,43 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
                 e.insert(local_id);
             }
         }
+    }
+
+    if !is_nested && let FnSource::Def(def) = &source {
+        let mut annotations = Vec::new();
+        for parameter in def.parameters.iter() {
+            if let Some(expr) = parameter.annotation() {
+                let value = crate::lower::lower_default_expr(
+                    class_names,
+                    file,
+                    global_scope,
+                    module_vars,
+                    &analysis.nested_funcs,
+                    nested_defaults,
+                    main_body,
+                    diagnostics,
+                    expr,
+                );
+                all_default_exprs.push(value);
+                annotations.push((Name::from(parameter.name().as_str()), value));
+            }
+        }
+        if let Some(expr) = &def.returns {
+            let value = crate::lower::lower_default_expr(
+                class_names,
+                file,
+                global_scope,
+                module_vars,
+                &analysis.nested_funcs,
+                nested_defaults,
+                main_body,
+                diagnostics,
+                expr,
+            );
+            all_default_exprs.push(value);
+            annotations.push((Name::from("return"), value));
+        }
+        nested_defaults.annotations.insert(func_id, annotations);
     }
 
     // 降级函数体

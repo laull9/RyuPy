@@ -102,6 +102,8 @@ pub struct Function {
     pub is_generator: bool,
     /// 首条字符串语句的文档内容；没有文档时为 None。
     pub docstring: Option<String>,
+    /// 定义位置求值的真实注解对象，与静态类型线索分开保存。
+    pub annotation_values: Vec<(Name, ExprId)>,
 }
 
 /// 一个函数作用域的闭包分析结果。
@@ -186,6 +188,8 @@ pub enum TypeRef {
     Bool,
     Str,
     None,
+    /// 合法运行时注解，不据此限制实参或推断存储布局。
+    Runtime,
     /// 用户定义的类，名字已解析。
     Class(ClassId),
     /// 无法识别的标注；已经报过错，下游当作 `Error` 类型处理。

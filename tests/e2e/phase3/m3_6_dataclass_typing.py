@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.6：dataclass 默认工厂、生成方法、冻结与注解元数据。
 from dataclasses import FrozenInstanceError, dataclass, field
 from typing import Optional

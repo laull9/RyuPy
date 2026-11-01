@@ -1,0 +1,7 @@
+construct_prepared ns=256.34 bytes=120.00
+construct_args ns=296.29 bytes=208.00
+array_reads ns=14.09 bytes=0.00
+pic_reads ns=16.26 bytes=0.00
+generic_reads ns=83.69 bytes=0.00
+numeric_only ns=31.50 bytes=24.00
+pic_read_sum ns=27.14 bytes=24.00

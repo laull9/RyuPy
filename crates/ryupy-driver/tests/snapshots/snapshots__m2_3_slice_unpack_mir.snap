@@ -38,14 +38,12 @@ fn reshape(_0: dyn) -> dyn {
         RuntimeFn::UnpackCheck(_4, const 1_i64, const true);
         _5 = box<I64>(const 0_i64);
         _6 = RuntimeFn::GetItem(_0, _5);
-        _1 = _6;
         _7 = box<I64>(const 1_i64);
         _8 = RuntimeFn::DynNone();
         _9 = RuntimeFn::DynNone();
         _10 = RuntimeFn::MakeSlice(_7, _8, _9);
         _11 = RuntimeFn::GetItem(_0, _10);
         _12 = RuntimeFn::DynBuiltin(const "list", [_11], [], []);
-        _2 = _12;
         // line 3
         _13 = box<I64>(const 8_i64);
         _14 = box<I64>(const 9_i64);

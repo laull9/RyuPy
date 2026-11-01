@@ -213,7 +213,6 @@ fn early_return() -> dyn {
         _1 = _10;
         // line 30
         _11 = dyn.method(_0, "__enter__", []);
-        _2 = _11;
         // line 30
         _12 = box<Bool>(const false);
         _3 = _12;
@@ -914,7 +913,6 @@ fn main() -> () {
         _1 = _46;
         // line 19
         _47 = dyn.method(_0, "__enter__", []);
-        _2 = _47;
         // line 19
         _48 = box<Bool>(const false);
         _3 = _48;
@@ -1328,7 +1326,6 @@ fn main() -> () {
         _11 = _135;
         // line 23
         _136 = dyn.method(_10, "__enter__", []);
-        _12 = _136;
         // line 23
         _137 = box<Bool>(const false);
         _13 = _137;
@@ -1353,7 +1350,6 @@ fn main() -> () {
         _15 = _144;
         // line 23
         _145 = dyn.method(_14, "__enter__", []);
-        _16 = _145;
         // line 23
         _146 = box<Bool>(const false);
         _17 = _146;
@@ -1843,7 +1839,6 @@ fn main() -> () {
         _21 = _249;
         // line 38
         _250 = dyn.method(_20, "__enter__", []);
-        _22 = _250;
         // line 38
         _251 = box<Bool>(const false);
         _23 = _251;
@@ -2146,7 +2141,6 @@ fn main() -> () {
         _26 = _314;
         // line 56
         _315 = dyn.method(_25, "__enter__", []);
-        _27 = _315;
         // line 56
         _316 = box<Bool>(const false);
         _28 = _316;

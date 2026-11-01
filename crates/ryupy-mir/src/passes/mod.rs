@@ -10,8 +10,14 @@
 
 use crate::mir::{Function, Program};
 
+mod dead_values;
+#[cfg(test)]
+mod dead_values_tests;
+mod numeric_accumulator;
 mod simplify_cfg;
 
+pub use dead_values::DeadValues;
+pub use numeric_accumulator::NumericAccumulator;
 pub use simplify_cfg::SimplifyCfg;
 
 pub trait MirPass {
@@ -21,7 +27,11 @@ pub trait MirPass {
 
 /// 默认 Pass 流水线。
 pub fn default_pipeline() -> Vec<Box<dyn MirPass>> {
-    vec![Box::new(SimplifyCfg)]
+    vec![
+        Box::new(SimplifyCfg),
+        Box::new(DeadValues),
+        Box::new(NumericAccumulator),
+    ]
 }
 
 /// 依次运行 Pass，并在每个 Pass 之后校验 MIR。
@@ -47,3 +57,6 @@ pub fn run_pipeline(program: &mut Program, passes: &[Box<dyn MirPass>]) -> Resul
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod numeric_accumulator_tests;

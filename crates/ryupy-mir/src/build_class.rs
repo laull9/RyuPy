@@ -39,7 +39,7 @@ impl FunctionBuilder<'_> {
             .iter()
             .map(|name| Operand::Const(Constant::Str(name.as_str().to_owned())))
             .collect();
-        let decorators = if decorated_binding.is_some() {
+        let decorators = if decorated_binding.is_some() || cls.runtime_dataclass {
             cls.decorators.clone()
         } else {
             vec![]
@@ -92,9 +92,37 @@ impl FunctionBuilder<'_> {
         let class_object = Operand::Local(dest);
 
         let previous_namespace = self.class_namespace.replace(class_object.clone());
+        if items
+            .iter()
+            .any(|item| matches!(item.kind, ClassItemKind::Annotation { .. }))
+        {
+            let annotations =
+                self.expr_builder()
+                    .runtime_call(RuntimeFn::MakeDict, vec![], MirType::Dynamic);
+            self.emit_set_attr(class_object.clone(), "__annotations__", annotations);
+        }
         // 3. 按源码顺序执行类体。
         for item in items {
             match item.kind {
+                ClassItemKind::Annotation { name, value } => {
+                    let value = self.freeze_expression(value);
+                    let mapping = self.expr_builder().runtime_call(
+                        RuntimeFn::ClassNamespaceGet,
+                        vec![
+                            class_object.clone(),
+                            Operand::Const(Constant::Str("__annotations__".into())),
+                        ],
+                        MirType::Dynamic,
+                    );
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::SetItem),
+                        args: vec![
+                            mapping,
+                            Operand::Const(Constant::Str(name.as_str().to_owned())),
+                            value,
+                        ],
+                    }));
+                }
                 ClassItemKind::Attr { name, value } => {
                     let raw = self.expr_builder().build_expr(value);
                     let ty = self.expr_builder().ty_of(value);

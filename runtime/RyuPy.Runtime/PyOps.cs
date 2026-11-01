@@ -214,7 +214,7 @@ public static partial class PyOps
                 }
                 if (aNum && bNum)
                 {
-                    return Math.Pow(ToDouble(a), ToDouble(b));
+                    return PyPowerBuiltin.FloatPower(ToDouble(a), ToDouble(b));
                 }
                 throw BinaryTypeError(inplace ? "**" : "** or pow()", a, b, inplace);
             case BitAnd:

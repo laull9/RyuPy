@@ -42,7 +42,7 @@ p.x = 3.0
 }
 
 #[test]
-fn reports_error_on_modifying_frozen_dataclass() {
+fn frozen_writes_are_runtime_errors_not_compile_errors() {
     let mut db = SourceDb::default();
     let src = r#"
 from dataclasses import dataclass
@@ -71,9 +71,8 @@ v.x = 10
     assert!(diags.is_empty());
 
     let (_types, diags) = check_module(&hir);
-    assert_eq!(diags.len(), 1);
-    assert_eq!(diags[0].code, Some("E0203"));
-    assert!(diags[0].message.contains("frozen=True"));
+    // M3.6保留try/except观察FrozenInstanceError的机会，编译器不提前拒绝。
+    assert!(diags.is_empty(), "diags: {diags:?}");
 }
 
 // ───────────────── M2.1：静态 / 动态模式判定 ─────────────────
@@ -194,7 +193,7 @@ def mutate(p: Point) -> Point:
 }
 
 #[test]
-fn pure_dataclass_annotations_keep_static_signature() {
+fn pure_dataclass_annotations_use_runtime_signature_by_default() {
     let (types, diagnostics) = check(
         "from dataclasses import dataclass
 @dataclass
@@ -209,6 +208,6 @@ def read(p: Point) -> int:
         types
             .sigs
             .iter()
-            .any(|(_, sig)| matches!(sig.params.as_slice(), [crate::Ty::Class(_)]))
+            .any(|(_, sig)| matches!(sig.params.as_slice(), [crate::Ty::Dynamic]))
     );
 }
