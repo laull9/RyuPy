@@ -1,0 +1,614 @@
+[
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556788.380942,
+    "wall_seconds": 1.3739652169970213,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556789.7554867,
+    "wall_seconds": 2.0918416419954156,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556791.8477845,
+    "wall_seconds": 1.0105289509956492,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556792.8591182,
+    "wall_seconds": 2.97833312000148,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556795.841596,
+    "wall_seconds": 1.1774910040039686,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556797.0202866,
+    "wall_seconds": 1.2275213749962859,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556798.248314,
+    "wall_seconds": 0.9599732510032482,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556799.2089272,
+    "wall_seconds": 1.4837600939936237,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556800.693296,
+    "wall_seconds": 1.29921577800269,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556801.993196,
+    "wall_seconds": 1.1635566879995167,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556803.1574872,
+    "wall_seconds": 1.0864686280037859,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556804.2444758,
+    "wall_seconds": 2.015996271999029,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556806.2615416,
+    "wall_seconds": 1.6269403180049267,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556807.8935745,
+    "wall_seconds": 1.5686970400056452,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556809.463134,
+    "wall_seconds": 0.9844747079987428,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556810.4487147,
+    "wall_seconds": 1.6529518580064178,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556812.1022816,
+    "wall_seconds": 0.957610602999921,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556813.0604882,
+    "wall_seconds": 1.4364398210018408,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556814.4978287,
+    "wall_seconds": 0.9524451390025206,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556815.4508986,
+    "wall_seconds": 2.207287889003055,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556817.6587577,
+    "wall_seconds": 0.8693169850012055,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556818.5314286,
+    "wall_seconds": 2.8244749430014053,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556821.3586864,
+    "wall_seconds": 0.7809933360040304,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556822.1403348,
+    "wall_seconds": 1.7302385270013474,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556823.871405,
+    "wall_seconds": 0.7310202790031326,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556824.603065,
+    "wall_seconds": 2.430316172001767,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556827.0348032,
+    "wall_seconds": 0.8205701650003903,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556827.8561454,
+    "wall_seconds": 1.8394509100035066,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556829.6971297,
+    "wall_seconds": 1.144706106002559,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 1,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556830.8447332,
+    "wall_seconds": 2.219461307999154,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556833.0649695,
+    "wall_seconds": 0.8524206900037825,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556833.9189575,
+    "wall_seconds": 1.234910712002602,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556835.1546853,
+    "wall_seconds": 0.6880205340057728,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556835.8434672,
+    "wall_seconds": 2.1820684890044504,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556838.026672,
+    "wall_seconds": 0.7083839219994843,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 2,
+    "phase": "time",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "time",
+      "3",
+      "7"
+    ],
+    "utc_epoch_start": 1793556838.7362542,
+    "wall_seconds": 2.062640733005537,
+    "exit_code": 0
+  }
+]

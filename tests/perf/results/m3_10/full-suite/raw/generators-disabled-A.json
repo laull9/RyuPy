@@ -1,0 +1,25 @@
+{
+  "name": "generators",
+  "tier": "disabled",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/generators/generators.dll"
+  ],
+  "utc_epoch_start": 1793559984.548328,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 1635.9970689954935,
+  "maxrss": 97251328,
+  "stats": {
+    "main_ms": 1415.412,
+    "alloc_bytes": 196228592,
+    "gc0": 37,
+    "gc1": 6,
+    "gc2": 2,
+    "gc_pause_ms": 206.619,
+    "jit_ms": 259.743,
+    "jit_methods": 242,
+    "heap_bytes": 47596560
+  }
+}

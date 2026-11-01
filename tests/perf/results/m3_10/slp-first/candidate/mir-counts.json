@@ -1,0 +1,23 @@
+{
+  "A": {
+    "vector_arithmetic": 0,
+    "packs": 0,
+    "extracts": 0,
+    "isa": 0,
+    "exact_guards": 0
+  },
+  "B": {
+    "vector_arithmetic": 0,
+    "packs": 0,
+    "extracts": 0,
+    "isa": 3,
+    "exact_guards": 30
+  },
+  "C": {
+    "vector_arithmetic": 18,
+    "packs": 9,
+    "extracts": 6,
+    "isa": 3,
+    "exact_guards": 30
+  }
+}

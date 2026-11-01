@@ -1,0 +1,8 @@
+matmul-default-baseline ok
+matmul-default-candidate ok
+matmul-disabled-baseline ok
+matmul-disabled-candidate ok
+nbody-default-baseline ok
+nbody-default-candidate ok
+nbody-disabled-baseline ok
+nbody-disabled-candidate ok

@@ -1,0 +1,15 @@
+{
+  "scope": "micro",
+  "tier": "disabled",
+  "variant": "B",
+  "repeat": 0,
+  "phase": "jit",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro-harness/bin/Release/net10.0/measure.dll",
+    "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro/slp_pairs.dll"
+  ],
+  "utc_epoch_start": 1793558032.7049081,
+  "wall_seconds": 0.9223860749989399,
+  "exit_code": 0
+}

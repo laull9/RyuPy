@@ -17,6 +17,8 @@ use crate::mir::{
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
     crate::validate_identities::validate(program, &mut errors);
+    crate::validate_vectors::validate(program, &mut errors);
+    crate::validate_list_reads::validate(program, &mut errors);
     if !program.functions.iter().any(|(id, _)| id == program.entry) {
         errors.push(format!(
             "程序入口函数 {:?} 不在 functions arena 中",
@@ -119,6 +121,12 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                                         | RuntimeFn::GeneratorInput
                                         | RuntimeFn::GeneratorRetry
                                         | RuntimeFn::PrintTarget
+                                        | RuntimeFn::NumericListCreate
+                                        | RuntimeFn::NumericListAppendF64
+                                        | RuntimeFn::NumericListPeekList
+                                        | RuntimeFn::NumericListCanReadF64
+                                        | RuntimeFn::NumericListReadCheckedF64
+                                        | RuntimeFn::NumericListReadF64
                                         | RuntimeFn::NumericAccumulatorCreate
                                         | RuntimeFn::NumericAccumulatorValue
                                         | RuntimeFn::ValidateOrdinaryBase
@@ -439,6 +447,15 @@ fn validate_rvalue(
                 validate_operand(func, block_id, arg, errors);
             }
         }
+        Rvalue::IsVector128Supported => {}
+        Rvalue::VectorPackF64 { low, high } => {
+            validate_operand(func, block_id, low, errors);
+            validate_operand(func, block_id, high, errors);
+        }
+        Rvalue::VectorBinaryF64 { lhs, rhs, .. } => {
+            validate_operand(func, block_id, lhs, errors);
+            validate_operand(func, block_id, rhs, errors);
+        }
         Rvalue::NewObject { args, .. } => {
             for arg in args {
                 validate_operand(func, block_id, arg, errors);
@@ -456,7 +473,10 @@ fn validate_rvalue(
                 ));
             }
         }
+        Rvalue::VectorLaneF64 { value, .. } => validate_operand(func, block_id, value, errors),
         Rvalue::Unbox { value, .. }
+        | Rvalue::IsBoxedF64 { value }
+        | Rvalue::UnboxExactF64 { value }
         | Rvalue::IsBoxedI64 { value }
         | Rvalue::UnboxExactI64 { value } => {
             validate_operand(func, block_id, value, errors);

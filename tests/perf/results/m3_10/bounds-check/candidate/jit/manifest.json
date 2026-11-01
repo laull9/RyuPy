@@ -1,0 +1,66 @@
+[
+  {
+    "tier": "default",
+    "which": "before",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/before/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/validation/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "exit_code": 0,
+    "asm_sha256": "31a65f08cc3652fc6197c24a39ac931cd8c899f6ef3bd6a0054cc00a1698ddaf"
+  },
+  {
+    "tier": "default",
+    "which": "after",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/after/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/validation/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "exit_code": 0,
+    "asm_sha256": "ab5ad9906ea24b0160aed490a66ab4e9bbd828abf9a70df26b3568279f8e36ff"
+  },
+  {
+    "tier": "disabled",
+    "which": "before",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/before/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/validation/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "exit_code": 0,
+    "asm_sha256": "067cca729c9d59d5dc8aa19c40e2318470779547f682f65f13675842c2cff88d"
+  },
+  {
+    "tier": "disabled",
+    "which": "after",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/after/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/validation/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "exit_code": 0,
+    "asm_sha256": "4ec23f1aff603e78b323d133e6b6c97e88da3253a845705dbad0598be5e6cd42"
+  }
+]

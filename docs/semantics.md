@@ -238,8 +238,8 @@ traceback 的
 
 
 容器表达式在类型层**统一降级为 `Dynamic`**：元素类型、键类型都不是编译期概念，`[1, "a"]`
-也不再分两种 list。代价是放弃静态特化，收益是不必为每种容器组合发明新的静态类型——Python
-自己也没有。
+也不再分两种 Python list 类型。这不禁止 MIR 在有证明/守卫的热点采用内部特化表示；
+M3.10 的数值列表岛已按 ADR-0039 完成有界验收，不能将其冒称通用容器已经完成特化。
 
 - **相等性与哈希**集中在 `PyHash`：`Equal` 负责 `==`，`Of` 负责 `hash`。字典与集合通过
   `PyKeyComparer` 把两者映射成 CLR 的 `IEqualityComparer<object>`。
@@ -247,6 +247,12 @@ traceback 的
   对象作为字典键时必须能查到自己。前者对应 CPython 的 `PyObject_RichCompare`，后者对应带
   指针快判的 `PyObject_RichCompareBool`；因此 `Equal` 不含身份兜底而 `PyKeyComparer` 含，
   两边不能合并。
+- list/tuple 元素相等以及 list 成员查询也需先认同一对象，再调用元素相等协议；
+  共享 NaN 可在容器内认同自身，直接 `nan == nan` 仍为 False。既有字典**值**比较
+  尚缺同一身份短路，独立欠账见 `m3_shared_nan_dict_pending.py`，未算本数值岛支持范围。
+- list 整数下标支持一次 `__index__` 调用，并在回调完成后按当前长度处理负下标；
+  超出宿主索引范围为 IndexError。自定义 `__index__` 返回 bool 的弃用警告协议仍明确
+  NotImplementedError，不将原生 bool 下标与该返回值边界混淆；此窄修不代表其它序列已同步支持。
 - **int / float 混合比较必须精确**：`9007199254740993 == 9007199254740992.0` 在 CPython 是
   `False`，而把整数先转成 `double` 再比较会静默得到 `True`。统一走 `PyInt.CompareWithDouble`。
 - **数字键三元组**：`True`、`1`、`1.0` 互为相同键且哈希一致（即 `hash(True) == hash(1)`）。

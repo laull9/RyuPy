@@ -1,0 +1,25 @@
+{
+  "name": "closures",
+  "tier": "disabled",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/closures/closures.dll"
+  ],
+  "utc_epoch_start": 1793559973.4364834,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 619.6822070050985,
+  "maxrss": 49283072,
+  "stats": {
+    "main_ms": 259.898,
+    "alloc_bytes": 109297824,
+    "gc0": 23,
+    "gc1": 2,
+    "gc2": 1,
+    "gc_pause_ms": 8.95,
+    "jit_ms": 313.551,
+    "jit_methods": 230,
+    "heap_bytes": 13175800
+  }
+}

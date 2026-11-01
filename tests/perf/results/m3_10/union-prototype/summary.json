@@ -1,0 +1,366 @@
+{
+  "default": {
+    "object_integer": {
+      "seconds": 0.0237551,
+      "bytes": 24000048,
+      "process_medians": [
+        0.0237551,
+        0.0245559,
+        0.0218983
+      ]
+    },
+    "selective_local": {
+      "seconds": 0.0004562,
+      "bytes": 24,
+      "process_medians": [
+        0.0004872,
+        0.0003638,
+        0.0004562
+      ]
+    },
+    "value16_integer": {
+      "seconds": 0.0015356,
+      "bytes": 24,
+      "process_medians": [
+        0.0015356,
+        0.0018004,
+        0.0014221
+      ]
+    },
+    "value24_integer": {
+      "seconds": 0.001829,
+      "bytes": 24,
+      "process_medians": [
+        0.001829,
+        0.0022338,
+        0.0013806
+      ]
+    },
+    "object_float": {
+      "seconds": 0.0223956,
+      "bytes": 24000048,
+      "process_medians": [
+        0.0097461,
+        0.0223956,
+        0.0308162
+      ]
+    },
+    "value16_float": {
+      "seconds": 0.0045068,
+      "bytes": 24,
+      "process_medians": [
+        0.0027629,
+        0.0059053,
+        0.0045068
+      ]
+    },
+    "value24_float": {
+      "seconds": 0.0031934,
+      "bytes": 24,
+      "process_medians": [
+        0.0031934,
+        0.0060184,
+        0.0028129
+      ]
+    },
+    "call_object": {
+      "seconds": 0.0182741,
+      "bytes": 24000024,
+      "process_medians": [
+        0.0182741,
+        0.0345697,
+        0.0178892
+      ]
+    },
+    "call_16": {
+      "seconds": 0.008455,
+      "bytes": 48,
+      "process_medians": [
+        0.008455,
+        0.0038505,
+        0.0226624
+      ]
+    },
+    "call_24": {
+      "seconds": 0.0327971,
+      "bytes": 48,
+      "process_medians": [
+        0.0327971,
+        0.0370598,
+        0.0326895
+      ]
+    },
+    "call_16in": {
+      "seconds": 0.0123405,
+      "bytes": 48,
+      "process_medians": [
+        0.0144874,
+        0.0123405,
+        0.0078869
+      ]
+    },
+    "call_24in": {
+      "seconds": 0.0156157,
+      "bytes": 48,
+      "process_medians": [
+        0.0156157,
+        0.029753,
+        0.0116566
+      ]
+    },
+    "call_16object": {
+      "seconds": 0.0203695,
+      "bytes": 48000048,
+      "process_medians": [
+        0.0203695,
+        0.0244142,
+        0.0199095
+      ]
+    },
+    "call_24object": {
+      "seconds": 0.0219914,
+      "bytes": 48000048,
+      "process_medians": [
+        0.0219914,
+        0.0235375,
+        0.0197317
+      ]
+    },
+    "container_object": {
+      "seconds": 0.0159039,
+      "bytes": 24000584,
+      "process_medians": [
+        0.0174963,
+        0.0159039,
+        0.0122045
+      ]
+    },
+    "container_16": {
+      "seconds": 0.0029241,
+      "bytes": 1048,
+      "process_medians": [
+        0.0038955,
+        0.0026507,
+        0.0029241
+      ]
+    },
+    "container_24": {
+      "seconds": 0.0034171,
+      "bytes": 1560,
+      "process_medians": [
+        0.0045632,
+        0.0034171,
+        0.0030769
+      ]
+    },
+    "references_object": {
+      "seconds": 0.0026667,
+      "bytes": 32856,
+      "process_medians": [
+        0.0042011,
+        0.0020978,
+        0.0026667
+      ]
+    },
+    "references_16": {
+      "seconds": 0.00367,
+      "bytes": 65624,
+      "process_medians": [
+        0.0059974,
+        0.0027744,
+        0.00367
+      ]
+    },
+    "references_24": {
+      "seconds": 0.0063411,
+      "bytes": 98392,
+      "process_medians": [
+        0.0069032,
+        0.0063411,
+        0.0048313
+      ]
+    }
+  },
+  "disabled": {
+    "object_integer": {
+      "seconds": 0.0083019,
+      "bytes": 24000048,
+      "process_medians": [
+        0.0087888,
+        0.0083019,
+        0.008144
+      ]
+    },
+    "selective_local": {
+      "seconds": 0.0003596,
+      "bytes": 24,
+      "process_medians": [
+        0.0003596,
+        0.0003423,
+        0.0005986
+      ]
+    },
+    "value16_integer": {
+      "seconds": 0.0109811,
+      "bytes": 24,
+      "process_medians": [
+        0.0113301,
+        0.010726,
+        0.0109811
+      ]
+    },
+    "value24_integer": {
+      "seconds": 0.0107942,
+      "bytes": 24,
+      "process_medians": [
+        0.0107942,
+        0.0108124,
+        0.010076
+      ]
+    },
+    "object_float": {
+      "seconds": 0.0300068,
+      "bytes": 24000048,
+      "process_medians": [
+        0.0289654,
+        0.0300068,
+        0.030607
+      ]
+    },
+    "value16_float": {
+      "seconds": 0.0131183,
+      "bytes": 24,
+      "process_medians": [
+        0.0121463,
+        0.0132518,
+        0.0131183
+      ]
+    },
+    "value24_float": {
+      "seconds": 0.0128347,
+      "bytes": 24,
+      "process_medians": [
+        0.0128347,
+        0.0117841,
+        0.0246454
+      ]
+    },
+    "call_object": {
+      "seconds": 0.0103138,
+      "bytes": 24000024,
+      "process_medians": [
+        0.0103138,
+        0.0089292,
+        0.014417
+      ]
+    },
+    "call_16": {
+      "seconds": 0.0032486,
+      "bytes": 48,
+      "process_medians": [
+        0.0030262,
+        0.0032486,
+        0.0047138
+      ]
+    },
+    "call_24": {
+      "seconds": 0.0115293,
+      "bytes": 48,
+      "process_medians": [
+        0.011326,
+        0.0115293,
+        0.018137
+      ]
+    },
+    "call_16in": {
+      "seconds": 0.0033522,
+      "bytes": 48,
+      "process_medians": [
+        0.0033522,
+        0.0028328,
+        0.0049253
+      ]
+    },
+    "call_24in": {
+      "seconds": 0.0050474,
+      "bytes": 48,
+      "process_medians": [
+        0.00752,
+        0.0050474,
+        0.0046724
+      ]
+    },
+    "call_16object": {
+      "seconds": 0.0216556,
+      "bytes": 48000048,
+      "process_medians": [
+        0.0216556,
+        0.0197464,
+        0.0220552
+      ]
+    },
+    "call_24object": {
+      "seconds": 0.0238685,
+      "bytes": 48000048,
+      "process_medians": [
+        0.0238685,
+        0.0225144,
+        0.0523055
+      ]
+    },
+    "container_object": {
+      "seconds": 0.0135064,
+      "bytes": 24000584,
+      "process_medians": [
+        0.0135064,
+        0.0123007,
+        0.0259256
+      ]
+    },
+    "container_16": {
+      "seconds": 0.0028593,
+      "bytes": 1048,
+      "process_medians": [
+        0.0028593,
+        0.0026658,
+        0.0060149
+      ]
+    },
+    "container_24": {
+      "seconds": 0.003714,
+      "bytes": 1560,
+      "process_medians": [
+        0.003714,
+        0.0030811,
+        0.0067643
+      ]
+    },
+    "references_object": {
+      "seconds": 0.0040338,
+      "bytes": 32856,
+      "process_medians": [
+        0.0033825,
+        0.0040338,
+        0.0042481
+      ]
+    },
+    "references_16": {
+      "seconds": 0.0030316,
+      "bytes": 65624,
+      "process_medians": [
+        0.0026421,
+        0.0030316,
+        0.0042724
+      ]
+    },
+    "references_24": {
+      "seconds": 0.0101456,
+      "bytes": 98392,
+      "process_medians": [
+        0.0088763,
+        0.0101456,
+        0.0171722
+      ]
+    }
+  }
+}

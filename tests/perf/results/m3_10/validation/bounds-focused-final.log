@@ -1,0 +1,133 @@
+   Compiling ryupy-mir v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-mir)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.55s
+     Running unittests src/lib.rs (target/debug/deps/ryupy_mir-4ed57f8f2743272d)
+
+running 93 tests
+test binding_validation_tests::linked_export_guards_reject_invalid_slots_and_types ... ok
+test exact_types::f64_tests::guarded_double_and_preserving_alias_are_valid ... ok
+test exact_types::f64_tests::exact_double_requires_dynamic_input_f64_destination_and_no_dropped_value ... ok
+test exact_types::f64_tests::double_boxes_do_not_qualify_as_integer_leaf_arguments ... ok
+test binding_validation_tests::class_namespace_contains_checks_arguments_and_boolean_destination ... ok
+test exact_types::f64_tests::mixed_kind_join_and_backedge_invalidate_double_fact ... ok
+test exact_types::f64_tests::integer_guard_and_writes_cannot_prove_double ... ok
+test exact_types::tests::cold_binary_cannot_discard_result_or_pass_unboxed_python_values ... ok
+test binding_validation_tests::bound_check_rejects_wrong_arity_types_and_assigned_void ... ok
+test exact_types::tests::boxing_bool_does_not_prove_exact_i64_and_wrong_destinations_fail ... ok
+test exact_types::tests::wrapping_add_requires_two_i64_operands ... ok
+test generator_exceptions::tests::delegated_resume_preserves_input_for_delegate_step ... ok
+test exact_types::tests::rewritten_subject_condition_join_and_backedge_kill_proof ... ok
+test exact_types::tests::cold_binary_opcode_must_be_supported_compile_time_constant ... ok
+test exact_types::tests::guarded_exact_unbox_is_valid_and_self_copy_keeps_exact_value ... ok
+test generator_exceptions::tests::exception_retry_has_single_physical_region_and_external_returns ... ok
+test generator_exceptions::tests::statement_yield_discards_input_via_local_not_cil_stack ... ok
+test list_read_tests::packed_call_cannot_bypass_trusted_abi_or_dominance ... ok
+test list_read_tests::callback_clears_fact_and_old_bool_cannot_reestablish_it ... ok
+test list_read_tests::pair_and_condition_writes_invalidate_proof ... ok
+test list_read_tests::same_pair_guard_and_pure_reads_preserve_proof ... ok
+test list_read_tests::different_receiver_or_index_does_not_reuse_proof ... ok
+test generator_tests::rejects_invalid_resume_and_frame ... ok
+test list_read_tests::trusted_read_requires_f64_result_consumption_and_dynamic_pair ... ok
+test list_read_tests::unguarded_diamond_and_mutating_backedge_reject ... ok
+test list_read_tests::global_write_unknown_call_bool_alias_and_eh_cannot_preserve_proof ... ok
+test generator_tests::rejects_suspend_before_codegen ... ok
+test list_read_tests::writes_and_suspension_reject_trusted_read ... ok
+test passes::dead_values_tests::closure_cell_write_and_nested_array_reads_preserve_boxed_value ... ok
+test numeric_list_abi_tests::numeric_list_calls_validate_arguments_results_and_stack_consumption ... ok
+test passes::dead_values_tests::generator_frames_and_exception_metadata_are_conservative_roots ... ok
+test passes::dead_values_tests::discarded_calls_unbox_arithmetic_and_field_access_still_execute ... ok
+test passes::dead_values_tests::returning_loop_target_preserves_all_definitions ... ok
+test passes::dead_values_tests::unread_loop_target_removes_box_chain_but_keeps_declarations_and_lines ... ok
+test passes::float_chain_tests::chain_input_and_function_size_budgets_preserve_original_operations ... ok
+test passes::float_chain_tests::escaping_middle_and_redefined_or_aliased_destinations_reject_chain ... ok
+test passes::float_chain_tests::exception_closure_cell_generator_and_intermediate_inplace_are_rejected ... ok
+test passes::float_chain_tests::callbacks_lines_copies_and_cross_block_chains_are_not_fused ... ok
+test passes::float_chain_tests::guarded_chain_keeps_original_fallback_and_boxes_only_final_fast_result ... ok
+test passes::float_loop_tests::no_loop_internal_block_may_be_the_function_entry ... ok
+test passes::float_loop_tests::extra_incoming_edges_breaks_and_accumulator_observation_prevent_loop_strategy ... ok
+test passes::float_loop_tests::observing_total_earlier_in_the_chain_and_escaping_final_temporary_are_rejected ... ok
+test passes::float_loop_tests::non_float_initial_value_and_missing_or_extra_resets_keep_short_chain_strategy ... ok
+test passes::float_loop_tests::outer_reentry_is_allowed_only_with_a_new_preheader_reset ... ok
+test passes::float_chain_tests::failed_candidates_consume_attempt_budget ... ok
+test passes::float_loop_tests::raw_state_has_only_boundary_boxes_and_keeps_original_dynamic_chain ... ok
+test passes::float_loop_tests::no_more_than_four_loops_use_raw_state_in_one_function ... ok
+test passes::float_slp_tests::ordered_dependency_topology_and_contiguous_regions_are_required ... ok
+test passes::float_slp_tests::pipeline_keeps_both_slp_arms_explicit_and_scalar_takes_precedence ... ok
+test passes::float_slp_tests::no_hardware_path_jumps_to_original_scalar_operations_without_vector_instructions ... ok
+test passes::float_slp_tests::rejected_pairs_consume_attempt_budget_and_success_budget_is_four ... ok
+test passes::float_slp_tests::paired_chain_has_isa_guard_two_final_boxes_and_optimizable_scalar_fallback ... ok
+test passes::float_slp_tests::scalar_control_arm_keeps_identical_guards_boxes_and_original_lane_order ... ok
+test passes::float_slp_tests::shared_readonly_external_keeps_distinct_fresh_results ... ok
+test passes::float_slp_tests::shared_output_observation_and_cross_lane_dependency_are_rejected ... ok
+test passes::float_slp_tests::unchanged_third_item_call_stays_after_both_lanes_and_before_container ... ok
+test passes::interval_narrow_tests::growing_backedge_widens_to_top ... ok
+test passes::interval_narrow_tests::hull_drives_automatic_unbox_without_changing_source_boxes ... ok
+test passes::interval_narrow_tests::bool_missing_and_overflow_branches_stay_dynamic ... ok
+test passes::interval_narrow_tests::unknown_native_local_or_call_result_does_not_invent_interval ... ok
+test passes::interval_narrow_tests::over_budget_and_cell_inputs_are_unchanged ... ok
+test passes::leaf_inline_tests::pipeline_experiments_are_independent_and_default_leaf_is_off ... ok
+test passes::leaf_inline_tests::default_and_non_leaf_bodies_do_not_get_guessed ... ok
+test passes::leaf_inline_tests::per_function_budget_is_four_and_fallback_is_not_revisited ... ok
+test passes::interval_narrow_tests::transformed_join_passes_independent_exact_type_verifier ... ok
+test passes::leaf_inline_tests::recursion_check_is_only_on_success_and_has_void_zero_argument_abi ... ok
+test passes::leaf_inline_tests::guard_uses_new_immutable_anchor_and_keeps_original_call ... ok
+test passes::leaf_inline_tests::unknown_or_boolean_arguments_keep_original_call_without_anchor ... ok
+test passes::leaf_inline_tests::identity_slots_cannot_be_written_reused_or_exported ... ok
+test passes::numeric_accumulator_tests::default_pipeline_retains_holder_and_explicit_option_selects_direct ... ok
+test passes::numeric_accumulator_tests::nonentry_preheader_entry_backedge_and_exit_bypass_reject ... ok
+test passes::numeric_accumulator_tests::strict_loop_materializes_only_at_unique_exit ... ok
+test passes::numeric_accumulator_tests::observations_rhs_alias_cell_exception_and_generator_reject ... ok
+test passes::numeric_list_tests::real_two_level_region_shares_arithmetic_and_preserves_original_read_fallback ... ok
+test passes::numeric_list_tests::excess_depth_and_partial_budget_never_rewrite_the_factory ... ok
+test passes::numeric_list_tests::unique_but_non_dominating_factory_is_not_a_proof_of_list_identity ... ok
+test passes::numeric_list_tests::observed_loads_callback_boundaries_and_dependent_indices_reject_island ... ok
+test passes::tuple_scalar_tests::freezes_all_elements_before_rebinding_and_selects_negative_index ... ok
+test passes::tuple_scalar_tests::identity_alias_call_nested_array_and_return_escape_preserve_tuple ... ok
+test passes::numeric_list_tests::total_observation_or_non_append_sink_does_not_change_list_factory ... ok
+test passes::tuple_scalar_tests::oversized_tuple_and_cross_block_read_are_not_rewritten ... ok
+test passes::tuple_scalar_tests::cells_generators_closures_and_exception_regions_are_outside_first_slice ... ok
+test passes::tuple_scalar_tests::repeated_lengths_only_remove_checks_after_their_own_unique_definition ... ok
+test passes::tuple_scalar_tests::failed_unpack_check_stays_in_place_after_constant_length ... ok
+test passes::tuple_scalar_tests::unknown_out_of_bounds_late_and_reassigned_indices_preserve_tuple ... ok
+test print_tests::print_target_result_cannot_remain_on_cil_stack ... ok
+test print_tests::print_write_requires_target_and_matching_primitive ... ok
+test validate::tests::catches_unreachable_terminator ... ok
+test vector_tests::guarded_private_vector_and_copy_pass ... ok
+test vector_tests::missing_guard_overwrite_and_unguarded_diamond_fail ... ok
+test vector_tests::vector_cannot_escape_through_box_call_array_return_or_parameter ... ok
+test vector_tests::private_vector_rejects_lane_opcode_pack_and_result_type_errors ... ok
+test passes::tuple_scalar_tests::attempt_budget_counts_failed_candidates_and_never_revisits_them ... ok
+
+test result: ok. 93 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+   Doc-tests ryupy_mir
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling ryupy-mir v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-mir)
+   Compiling ryupy-codegen-cil v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-codegen-cil)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.65s
+     Running unittests src/lib.rs (target/debug/deps/ryupy_codegen_cil-d65b9c8a54c48aeb)
+
+running 1 test
+test numeric_list_tests::numeric_list_abi_preserves_unboxed_double_and_object_results ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+   Compiling ryupy-codegen-cil v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-codegen-cil)
+   Compiling ryupy-driver v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-driver)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.10s
+     Running tests/numeric_list.rs (target/debug/deps/numeric_list-f607aac8ea5a79cc)
+
+running 2 tests
+test real_matrix_uses_identity_safe_numeric_producer_and_consumer ... ok
+test numeric_list_observation_and_fallback_match_pinned_python ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+   Compiling ryupy-mir v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-mir)
+   Compiling ryupy-codegen-cil v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-codegen-cil)
+   Compiling ryupy-driver v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-driver)
+   Compiling ryupy-cli v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-cli)
+    Finished `release` profile [optimized] target(s) in 10.25s

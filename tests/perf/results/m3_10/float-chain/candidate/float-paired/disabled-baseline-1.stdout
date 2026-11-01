@@ -1,0 +1,56 @@
+semantics float_hit True
+sample float_hit 0.0005591610024566762 True
+sample float_hit 0.0010672280041035265 True
+sample float_hit 0.0021033469965914264 True
+sample float_hit 0.0005942589996266179 True
+sample float_hit 0.0004308459974708967 True
+sample float_hit 0.0006982410050113685 True
+sample float_hit 0.00041369200334884226 True
+semantics norm_hit True
+sample norm_hit 0.001631835002626758 True
+sample norm_hit 0.0011451099999248981 True
+sample norm_hit 0.0011914440037799068 True
+sample norm_hit 0.001226070999109652 True
+sample norm_hit 0.0016659539978718385 True
+sample norm_hit 0.0016602639952907339 True
+sample norm_hit 0.001392262005538214 True
+semantics first_bool True
+sample first_bool 0.0013680429983651266 True
+sample first_bool 0.0013397180009633303 True
+sample first_bool 0.0014166440014378168 True
+sample first_bool 0.0014474339986918494 True
+sample first_bool 0.0014542069984599948 True
+sample first_bool 0.001506159002019558 True
+sample first_bool 0.0013223550049588084 True
+semantics first_int True
+sample first_int 0.000392738998925779 True
+sample first_int 0.00032029100111685693 True
+sample first_int 0.00037602800148306414 True
+sample first_int 0.0013620329991681501 True
+sample first_int 0.0006042839959263802 True
+sample first_int 0.0007892590001574717 True
+sample first_int 0.00045030199544271454 True
+semantics first_custom True
+sample first_custom 0.003664348005258944 True
+sample first_custom 0.004027037997730076 True
+sample first_custom 0.004066733999934513 True
+sample first_custom 0.004360742001153994 True
+sample first_custom 0.004978401004336774 True
+sample first_custom 0.004087320005055517 True
+sample first_custom 0.004238907000399195 True
+semantics last_custom True
+sample last_custom 0.0064674090026528575 True
+sample last_custom 0.012774972994520795 True
+sample last_custom 0.0071619430018472485 True
+sample last_custom 0.0098237970014452 True
+sample last_custom 0.008719328005099669 True
+sample last_custom 0.009045970000443049 True
+sample last_custom 0.004442265002580825 True
+semantics mixed True
+sample mixed 0.0027903880036319606 True
+sample mixed 0.0029880880028940737 True
+sample mixed 0.003878144998452626 True
+sample mixed 0.0032823599976836704 True
+sample mixed 0.002809410994814243 True
+sample mixed 0.0031359560016426258 True
+sample mixed 0.0026973540007020347 True

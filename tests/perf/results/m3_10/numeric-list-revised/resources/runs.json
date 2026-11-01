@@ -1,0 +1,212 @@
+[
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556769.033119,
+    "wall_seconds": 0.7769733940003789,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "resources",
+      "3",
+      "3"
+    ],
+    "utc_epoch_start": 1793556769.8110375,
+    "wall_seconds": 1.2404735430027358,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556771.0523365,
+    "wall_seconds": 0.7948671319973073,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "resources",
+      "3",
+      "3"
+    ],
+    "utc_epoch_start": 1793556771.848364,
+    "wall_seconds": 1.4352899210061878,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556773.285113,
+    "wall_seconds": 1.1572392279995256,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "resources",
+      "3",
+      "3"
+    ],
+    "utc_epoch_start": 1793556774.443044,
+    "wall_seconds": 1.0715147879964206,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556775.5155077,
+    "wall_seconds": 0.9370402229978936,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "resources",
+      "3",
+      "3"
+    ],
+    "utc_epoch_start": 1793556776.453426,
+    "wall_seconds": 1.8767132430002675,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556778.3313804,
+    "wall_seconds": 0.8685490120042232,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "resources",
+      "3",
+      "3"
+    ],
+    "utc_epoch_start": 1793556779.2012026,
+    "wall_seconds": 1.7887144929991337,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/micro/numeric_list.dll"
+    ],
+    "utc_epoch_start": 1793556780.9905362,
+    "wall_seconds": 0.8028677199981757,
+    "exit_code": 0
+  },
+  {
+    "scope": "matmul",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "resources",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/core-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/C/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/validation/A-matmul.stdout",
+      "resources",
+      "3",
+      "3"
+    ],
+    "utc_epoch_start": 1793556781.7955768,
+    "wall_seconds": 1.9053878970007645,
+    "exit_code": 0
+  }
+]

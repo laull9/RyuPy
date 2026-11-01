@@ -1,0 +1,15 @@
+resources
+default first_bool [12960064, 9360064, 9360064] B/A% -27.78 C/A% -27.78 C/B% 0.0
+default first_custom [15833920, 12233920, 12233920] B/A% -22.74 C/A% -22.74 C/B% 0.0
+default float_list [12960064, 5760064, 5760064] B/A% -55.56 C/A% -55.56 C/B% 0.0
+default float_tuple [10560024, 3360024, 3360024] B/A% -68.18 C/A% -68.18 C/B% 0.0
+default last_bool [12960064, 9360064, 9360064] B/A% -27.78 C/A% -27.78 C/B% 0.0
+default last_custom [15833920, 12233920, 12233920] B/A% -22.74 C/A% -22.74 C/B% 0.0
+default scalar_tail [14160064, 6960064, 6960064] B/A% -50.85 C/A% -50.85 C/B% 0.0
+disabled first_bool [12960064, 9360064, 9360064] B/A% -27.78 C/A% -27.78 C/B% 0.0
+disabled first_custom [15833920, 12233920, 12233920] B/A% -22.74 C/A% -22.74 C/B% 0.0
+disabled float_list [12960064, 5760064, 5760064] B/A% -55.56 C/A% -55.56 C/B% 0.0
+disabled float_tuple [10560024, 3360024, 3360024] B/A% -68.18 C/A% -68.18 C/B% 0.0
+disabled last_bool [12960064, 9360064, 9360064] B/A% -27.78 C/A% -27.78 C/B% 0.0
+disabled last_custom [15833920, 12233920, 12233920] B/A% -22.74 C/A% -22.74 C/B% 0.0
+disabled scalar_tail [14160064, 6960064, 6960064] B/A% -50.85 C/A% -50.85 C/B% 0.0

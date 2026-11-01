@@ -1,0 +1,56 @@
+semantics float_list True
+sample float_list 0.003691509999043774 True
+sample float_list 0.004852860998653341 True
+sample float_list 0.004537300999800209 True
+sample float_list 0.004480911004066002 True
+sample float_list 0.0034637550052138977 True
+sample float_list 0.00428035300137708 True
+sample float_list 0.004055578996485565 True
+semantics float_tuple True
+sample float_tuple 0.001015042005747091 True
+sample float_tuple 0.0011457770015113056 True
+sample float_tuple 0.0017903949992614798 True
+sample float_tuple 0.0010969779978040606 True
+sample float_tuple 0.001032486994517967 True
+sample float_tuple 0.0018705490001593716 True
+sample float_tuple 0.0009482450041105039 True
+semantics scalar_tail True
+sample scalar_tail 0.0058232119990861975 True
+sample scalar_tail 0.0055841729990788735 True
+sample scalar_tail 0.005872597001143731 True
+sample scalar_tail 0.0084345340001164 True
+sample scalar_tail 0.004412244001287036 True
+sample scalar_tail 0.006101759005105123 True
+sample scalar_tail 0.0038361279948730953 True
+semantics first_bool True
+sample first_bool 0.009431174003111664 True
+sample first_bool 0.013964360005047638 True
+sample first_bool 0.012541160998807754 True
+sample first_bool 0.008518585003912449 True
+sample first_bool 0.010457869997480884 True
+sample first_bool 0.026554481002676766 True
+sample first_bool 0.008368798000446986 True
+semantics last_bool True
+sample last_bool 0.0076810209939139895 True
+sample last_bool 0.005939145994489081 True
+sample last_bool 0.006699379002384376 True
+sample last_bool 0.004253535000316333 True
+sample last_bool 0.0052779380057472736 True
+sample last_bool 0.026127713004825637 True
+sample last_bool 0.005465538997668773 True
+semantics first_custom True
+sample first_custom 0.02059225700213574 True
+sample first_custom 0.016878875001566485 True
+sample first_custom 0.01892452299944125 True
+sample first_custom 0.016437063000921626 True
+sample first_custom 0.019884567998815328 True
+sample first_custom 0.016420851003204007 True
+sample first_custom 0.019440790005319286 True
+semantics last_custom True
+sample last_custom 0.02121195400104625 True
+sample last_custom 0.02113797899801284 True
+sample last_custom 0.016473010000481736 True
+sample last_custom 0.028978705006011296 True
+sample last_custom 0.032440608003525995 True
+sample last_custom 0.008025428003747948 True
+sample last_custom 0.009058493000338785 True

@@ -185,7 +185,78 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             );
             emit_box(ins, from, ctx.runtime_refs, ctx.class_types);
         }
-        Rvalue::IsBoxedI64 { value } => {
+        Rvalue::IsVector128Supported => ins.push(Instruction::call(
+            ctx.runtime_refs
+                .vectors
+                .as_ref()
+                .expect("已验证向量程序应有BCL引用")
+                .supported,
+        )),
+        Rvalue::VectorPackF64 { low, high } => {
+            lower_operand(low, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            lower_operand(
+                high,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            ins.push(Instruction::call(
+                ctx.runtime_refs
+                    .vectors
+                    .as_ref()
+                    .expect("已验证向量程序应有BCL引用")
+                    .pack,
+            ));
+        }
+        Rvalue::VectorBinaryF64 { op, lhs, rhs } => {
+            lower_operand(lhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            lower_operand(rhs, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+            let method = match op {
+                BinOp::Add => {
+                    &ctx.runtime_refs
+                        .vectors
+                        .as_ref()
+                        .expect("已验证向量程序应有BCL引用")
+                        .add
+                }
+                BinOp::Sub => {
+                    &ctx.runtime_refs
+                        .vectors
+                        .as_ref()
+                        .expect("已验证向量程序应有BCL引用")
+                        .subtract
+                }
+                BinOp::Mul => {
+                    &ctx.runtime_refs
+                        .vectors
+                        .as_ref()
+                        .expect("已验证向量程序应有BCL引用")
+                        .multiply
+                }
+                _ => unreachable!("MIR验证器拒绝非Add/Sub/Mul向量操作"),
+            };
+            ins.push(Instruction::call(method.clone()));
+        }
+        Rvalue::VectorLaneF64 { value, lane } => {
+            lower_operand(
+                value,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            ins.push(Instruction::LoadConstantInt32(i32::from(*lane)));
+            ins.push(Instruction::call(
+                ctx.runtime_refs
+                    .vectors
+                    .as_ref()
+                    .expect("已验证向量程序应有BCL引用")
+                    .lane
+                    .clone(),
+            ));
+        }
+        Rvalue::IsBoxedI64 { value } | Rvalue::IsBoxedF64 { value } => {
             lower_operand(
                 value,
                 ins,
@@ -194,13 +265,18 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                 ctx.runtime_refs,
             );
             // isinst 对值类型只接受对应的盒；CLR null 不是语言层的 None 对象。
-            ins.push(Instruction::IsInstance(BaseType::Int64.into()));
+            let exact_type = if matches!(rval, Rvalue::IsBoxedF64 { .. }) {
+                BaseType::Float64
+            } else {
+                BaseType::Int64
+            };
+            ins.push(Instruction::IsInstance(exact_type.into()));
             ins.push(Instruction::LoadNull);
             ins.push(Instruction::CompareEqual);
             ins.push(Instruction::LoadConstantInt32(0));
             ins.push(Instruction::CompareEqual);
         }
-        Rvalue::UnboxExactI64 { value } => {
+        Rvalue::UnboxExactI64 { value } | Rvalue::UnboxExactF64 { value } => {
             lower_operand(
                 value,
                 ins,
@@ -209,7 +285,12 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                 ctx.runtime_refs,
             );
             // MIR 验证器负责守卫支配性；此处不调用具有转换语义的 PyCast。
-            ins.push(Instruction::UnboxIntoValue(BaseType::Int64.into()));
+            let exact_type = if matches!(rval, Rvalue::UnboxExactF64 { .. }) {
+                BaseType::Float64
+            } else {
+                BaseType::Int64
+            };
+            ins.push(Instruction::UnboxIntoValue(exact_type.into()));
         }
         Rvalue::Unbox { value, to } => {
             lower_operand(

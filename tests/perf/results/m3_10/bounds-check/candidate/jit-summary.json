@@ -1,0 +1,136 @@
+{
+  "disabled-after.asm": [
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "sha256": "4ec23f1aff603e78b323d133e6b6c97e88da3253a845705dbad0598be5e6cd42",
+      "bytes": [
+        "4693"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 1
+    }
+  ],
+  "disabled-before.asm": [
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "sha256": "067cca729c9d59d5dc8aa19c40e2318470779547f682f65f13675842c2cff88d",
+      "bytes": [
+        "4563"
+      ],
+      "read_error_calls": 4,
+      "range_check_helper": 1
+    }
+  ],
+  "default-after.asm": [
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "sha256": "0d3bdea32fbaf70d224a72db51b6c2e7c85849fdc007fdf8c1fc7d2fe6812b11",
+      "bytes": [
+        "3344"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:CanReadF64(System.Object,System.Object):bool (Tier0)",
+      "sha256": "6b5406fcec9349deb2c9a441a2b9757bc5d2b9b3d59503e0446a3d4ecafed565",
+      "bytes": [
+        "169"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:ReadCheckedF64(System.Object,System.Object):double (Tier0)",
+      "sha256": "218f05518ef29d34e4a9b5a3c29f4afca5cb2b3e1faf5152feb4e79998127669",
+      "bytes": [
+        "98"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "sha256": "698dd66d2b617cdc272939ec40512f0699961430a16cba12044fc2a820d060b9",
+      "bytes": [
+        "6467"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 1
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "sha256": "3ebf356ba7ec9bb7c8bf6e265e9c9eaab745203164fb4d9d6c414e5006187ed3",
+      "bytes": [
+        "6227"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 1
+    }
+  ],
+  "default-before.asm": [
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "sha256": "d1f6bbc582616ca71a668938c3789928fa52c65c8b7f9c7efa75cdf0bb376827",
+      "bytes": [
+        "3344"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:CanReadF64(System.Object,System.Object):bool (Tier0)",
+      "sha256": "6b5406fcec9349deb2c9a441a2b9757bc5d2b9b3d59503e0446a3d4ecafed565",
+      "bytes": [
+        "169"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:ReadF64(System.Object,System.Object):double (Tier0)",
+      "sha256": "07e67bf4f99a733de15a5601d5e801eb68a60dce84f8fa988cbde912f31f8a5b",
+      "bytes": [
+        "253"
+      ],
+      "read_error_calls": 4,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "sha256": "2ac0957097ade01671f1f3ad49f35d723f15df438107041673353162f564ac0c",
+      "bytes": [
+        "6565"
+      ],
+      "read_error_calls": 6,
+      "range_check_helper": 1
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "sha256": "693ed7b06a62ae9d51e8886fd3f8745ec43703ff15e61c3fb129ede04828a9b2",
+      "bytes": [
+        "6286"
+      ],
+      "read_error_calls": 4,
+      "range_check_helper": 1
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:CanReadF64(System.Object,System.Object):bool (Instrumented Tier0)",
+      "sha256": "047b8608376b992dc78e32ab5dc6306853de2ba3f18549efd5f5cee2e55b1ba2",
+      "bytes": [
+        "232"
+      ],
+      "read_error_calls": 0,
+      "range_check_helper": 0
+    },
+    {
+      "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:ReadF64(System.Object,System.Object):double (Instrumented Tier0)",
+      "sha256": "9b5f1290503fc879996d740e7cd29b0910a8cc9e177324c845bca9269380efff",
+      "bytes": [
+        "328"
+      ],
+      "read_error_calls": 4,
+      "range_check_helper": 0
+    }
+  ]
+}

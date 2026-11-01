@@ -1,0 +1,12 @@
+{
+  "mir": {
+    "baseline_sha256": "7f0ba5521e392380bcda8857a037a8e34880d24e435be58c8473e8647d75f98f",
+    "candidate_sha256": "7f0ba5521e392380bcda8857a037a8e34880d24e435be58c8473e8647d75f98f",
+    "raw_equal": true
+  },
+  "cil": {
+    "baseline_sha256": "bc15ace82dff48f4284e075d007cee4bb157814359fe31d5f86172fd11464ef9",
+    "candidate_sha256": "bc15ace82dff48f4284e075d007cee4bb157814359fe31d5f86172fd11464ef9",
+    "raw_equal": true
+  }
+}

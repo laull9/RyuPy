@@ -1,0 +1,14 @@
+{
+  "scope": "micro",
+  "tier": "disabled",
+  "variant": "B",
+  "repeat": 0,
+  "phase": "time",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro/slp_pairs.dll"
+  ],
+  "utc_epoch_start": 1793558014.8086774,
+  "wall_seconds": 1.074267319003411,
+  "exit_code": 0
+}

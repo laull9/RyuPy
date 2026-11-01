@@ -9,10 +9,12 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub(crate) vectors: Option<crate::vector_refs::VectorRefs>,
     /// 普通Enum类体完成转换；Python规则由运行时处理。
     pub enum_finalize: MethodRefIndex,
     pub enum_create: MethodRefIndex,
     pub(crate) classes: crate::class_refs::ClassRefs,
+    pub(crate) numeric_list: crate::numeric_list_refs::NumericListRefs,
     pub(crate) typed_dict: crate::typed_dict_refs::TypedDictRefs,
     pub dict_set_scalar_key: MethodRefIndex,
     pub(crate) accumulator: crate::accumulator_refs::AccumulatorRefs,

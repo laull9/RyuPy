@@ -1,0 +1,25 @@
+{
+  "name": "containers",
+  "tier": "disabled",
+  "variant": "C",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/containers/containers.dll"
+  ],
+  "utc_epoch_start": 1793559920.4044175,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 1004.4733789982274,
+  "maxrss": 180908032,
+  "stats": {
+    "main_ms": 765.324,
+    "alloc_bytes": 2534944808,
+    "gc0": 451,
+    "gc1": 23,
+    "gc2": 21,
+    "gc_pause_ms": 113.475,
+    "jit_ms": 217.542,
+    "jit_methods": 208,
+    "heap_bytes": 70868624
+  }
+}

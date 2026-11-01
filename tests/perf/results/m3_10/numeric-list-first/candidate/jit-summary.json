@@ -1,0 +1,192 @@
+{
+  "matmul-default-A-0.asm": {
+    "sha256": "37c5bfd6fe2aa4a6f292f7bb9f8a35c5f47b95ea0ed6cb74109d092b9bffbb6c",
+    "methods": [
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_sizes": [
+      "2905",
+      "4374"
+    ],
+    "fma": false
+  },
+  "matmul-default-B-0.asm": {
+    "sha256": "ab25f2b5f3a084b49d2054fb27226b4419b097d2f8f52112479b93ac1c89b401",
+    "methods": [
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_sizes": [
+      "2905",
+      "4374"
+    ],
+    "fma": false
+  },
+  "matmul-default-C-0.asm": {
+    "sha256": "02ea70cf607ac141a1a7c781de466cb30a542b0786d410d2fb98f80fcfb4d19b",
+    "methods": [
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_sizes": [
+      "3344",
+      "5970",
+      "5864"
+    ],
+    "fma": false
+  },
+  "matmul-disabled-A-0.asm": {
+    "sha256": "924d6d69de825beac1c502b21da158b7952af250310ce87be4d47eb6d8322465",
+    "methods": [
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_sizes": [
+      "2879"
+    ],
+    "fma": false
+  },
+  "matmul-disabled-B-0.asm": {
+    "sha256": "924d6d69de825beac1c502b21da158b7952af250310ce87be4d47eb6d8322465",
+    "methods": [
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_sizes": [
+      "2879"
+    ],
+    "fma": false
+  },
+  "matmul-disabled-C-0.asm": {
+    "sha256": "e5b187f571c8c6794f124241bfbb1fbec8be8564cc140f86e4454ab9ff56b9ba",
+    "methods": [
+      "RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_sizes": [
+      "3059"
+    ],
+    "fma": false
+  },
+  "micro-default-A-0.asm": {
+    "sha256": "cc5eb5d9dee34286e7fc9ac160b9d6b6827e7ded69881984420f6d1254c7fa5e",
+    "methods": [
+      "RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (Tier0)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_sizes": [
+      "185",
+      "556",
+      "464",
+      "925",
+      "2199",
+      "4684",
+      "7061",
+      "6790"
+    ],
+    "fma": false
+  },
+  "micro-default-B-0.asm": {
+    "sha256": "2587509589af33f576f56bddf218eef7bcfb65a84be98d78c652f6d82f88253f",
+    "methods": [
+      "RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (Tier0)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_sizes": [
+      "185",
+      "556",
+      "464",
+      "925",
+      "2199",
+      "4684",
+      "7061",
+      "6790"
+    ],
+    "fma": false
+  },
+  "micro-default-C-0.asm": {
+    "sha256": "ce1ea85b07ff29020d63d06007213fac7a6eb6551d64320ce211205958c1465f",
+    "methods": [
+      "RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (Tier0)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_sizes": [
+      "185",
+      "556",
+      "464",
+      "925",
+      "2199",
+      "5318",
+      "8298",
+      "8046",
+      "8065"
+    ],
+    "fma": false
+  },
+  "micro-disabled-A-0.asm": {
+    "sha256": "bd1319f4030fc1a25aa94c9476c812fe77f2a2030a6e08695a53fa26336c545c",
+    "methods": [
+      "RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_sizes": [
+      "206",
+      "295",
+      "1107",
+      "4859"
+    ],
+    "fma": false
+  },
+  "micro-disabled-B-0.asm": {
+    "sha256": "bd1319f4030fc1a25aa94c9476c812fe77f2a2030a6e08695a53fa26336c545c",
+    "methods": [
+      "RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_sizes": [
+      "206",
+      "295",
+      "1107",
+      "4859"
+    ],
+    "fma": false
+  },
+  "micro-disabled-C-0.asm": {
+    "sha256": "081a9f6a8fb8326e9026d84fc1d0242ac32f59732e3239666294bf442bb54a61",
+    "methods": [
+      "RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (FullOpts)",
+      "RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_sizes": [
+      "206",
+      "295",
+      "1107",
+      "5139"
+    ],
+    "fma": false
+  }
+}

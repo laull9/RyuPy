@@ -1,0 +1,56 @@
+semantics float_hit True
+sample float_hit 0.001432740995369386 True
+sample float_hit 0.004552270002022851 True
+sample float_hit 0.0040253100014524534 True
+sample float_hit 0.0010423379935673438 True
+sample float_hit 0.0008886710056685843 True
+sample float_hit 0.001163070002803579 True
+sample float_hit 0.0008848610013956204 True
+semantics norm_hit True
+sample norm_hit 0.0015556839935015887 True
+sample norm_hit 0.0019933469957322814 True
+sample norm_hit 0.0014464330015471205 True
+sample norm_hit 0.0016365510018658824 True
+sample norm_hit 0.0013233030040282756 True
+sample norm_hit 0.001756183999532368 True
+sample norm_hit 0.0016336269982275553 True
+semantics first_bool True
+sample first_bool 0.0034626409978955053 True
+sample first_bool 0.0036179710004944354 True
+sample first_bool 0.00383764900470851 True
+sample first_bool 0.0029287740035215393 True
+sample first_bool 0.003197382000507787 True
+sample first_bool 0.0033925820025615394 True
+sample first_bool 0.002655409996805247 True
+semantics first_int True
+sample first_int 0.0003359969996381551 True
+sample first_int 0.00043765300506493077 True
+sample first_int 0.0003319260067655705 True
+sample first_int 0.0004053980010212399 True
+sample first_int 0.0005947110039414838 True
+sample first_int 0.00041059800423681736 True
+sample first_int 0.0003318620001664385 True
+semantics first_custom True
+sample first_custom 0.012750792004226241 True
+sample first_custom 0.011046628998883534 True
+sample first_custom 0.009925621998263523 True
+sample first_custom 0.010527929996897 True
+sample first_custom 0.013918883996666409 True
+sample first_custom 0.011030995003238786 True
+sample first_custom 0.012624615003005601 True
+semantics last_custom True
+sample last_custom 0.01636187899566721 True
+sample last_custom 0.017655884999840055 True
+sample last_custom 0.015019448997918516 True
+sample last_custom 0.028262913998332806 True
+sample last_custom 0.03634040299948538 True
+sample last_custom 0.044766792001610156 True
+sample last_custom 0.024071943000308238 True
+semantics mixed True
+sample mixed 0.010197764000622556 True
+sample mixed 0.010389782997663133 True
+sample mixed 0.009403552998264786 True
+sample mixed 0.008787099999608472 True
+sample mixed 0.009977761001209728 True
+sample mixed 0.008528389000275638 True
+sample mixed 0.00730133599427063 True

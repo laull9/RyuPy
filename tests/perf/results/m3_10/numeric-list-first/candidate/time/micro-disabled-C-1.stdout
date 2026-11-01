@@ -1,0 +1,56 @@
+semantics construct_refs True
+sample construct_refs 0.0005585309991147369 True
+sample construct_refs 0.0005322860015439801 True
+sample construct_refs 0.0004031490025226958 True
+sample construct_refs 0.0005300729972077534 True
+sample construct_refs 0.0006078829974285327 True
+sample construct_refs 0.0006820230046287179 True
+sample construct_refs 0.0006601530039915815 True
+semantics append_refs True
+sample append_refs 0.00191568899754202 True
+sample append_refs 0.002737754002737347 True
+sample append_refs 0.00202743800036842 True
+sample append_refs 0.0017659689983702265 True
+sample append_refs 0.0018850529959308915 True
+sample append_refs 0.001702800000202842 True
+sample append_refs 0.0024864229999366216 True
+semantics read_refs True
+sample read_refs 0.0020545639999909326 True
+sample read_refs 0.0014468529989244416 True
+sample read_refs 0.0013577380013884977 True
+sample read_refs 0.0018286350023117848 True
+sample read_refs 0.0018342120019951835 True
+sample read_refs 0.001523032995464746 True
+sample read_refs 0.002305289999640081 True
+semantics float True
+sample float 0.005016670002078172 True
+sample float 0.0043226829948253 True
+sample float 0.0037840570003027096 True
+sample float 0.0038517549983225763 True
+sample float 0.004181083000730723 True
+sample float 0.0037285159996827133 True
+sample float 0.0038479070062749088 True
+semantics bool True
+sample bool 0.009186458002659492 True
+sample bool 0.008629845004179515 True
+sample bool 0.008321843997691758 True
+sample bool 0.00896041599480668 True
+sample bool 0.009523500993964262 True
+sample bool 0.008477090996166226 True
+sample bool 0.0111276440002257 True
+semantics custom True
+sample custom 0.015169253005296923 True
+sample custom 0.015620828999090008 True
+sample custom 0.014028929006599355 True
+sample custom 0.01346920899959514 True
+sample custom 0.013847103000443894 True
+sample custom 0.013362551995669492 True
+sample custom 0.014096794999204576 True
+semantics mixed True
+sample mixed 0.00865014900045935 True
+sample mixed 0.008493061999615747 True
+sample mixed 0.008834289001242723 True
+sample mixed 0.011348950996762142 True
+sample mixed 0.010595112005830742 True
+sample mixed 0.009002282997244038 True
+sample mixed 0.009105765995627735 True

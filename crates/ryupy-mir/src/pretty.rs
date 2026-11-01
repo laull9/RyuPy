@@ -186,6 +186,7 @@ fn dump_basic_block(
 fn format_type(ty: &MirType) -> String {
     match ty {
         MirType::I64 => "i64".to_string(),
+        MirType::V128F64 => "v128f64".to_string(),
         MirType::F64 => "f64".to_string(),
         MirType::Bool => "bool".to_string(),
         MirType::Str => "str".to_string(),
@@ -293,6 +294,22 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
         Rvalue::Box { value, from } => {
             format!("box<{:?}>({})", from, format_operand(value))
         }
+        Rvalue::IsVector128Supported => "vector128_supported()".into(),
+        Rvalue::VectorPackF64 { low, high } => format!(
+            "vector_pack_f64({}, {})",
+            format_operand(low),
+            format_operand(high)
+        ),
+        Rvalue::VectorBinaryF64 { op, lhs, rhs } => format!(
+            "vector_{op:?}_f64({}, {})",
+            format_operand(lhs),
+            format_operand(rhs)
+        ),
+        Rvalue::VectorLaneF64 { value, lane } => {
+            format!("vector_lane_f64({}, {lane})", format_operand(value))
+        }
+        Rvalue::IsBoxedF64 { value } => format!("is_boxed_f64({})", format_operand(value)),
+        Rvalue::UnboxExactF64 { value } => format!("unbox_exact_f64({})", format_operand(value)),
         Rvalue::IsBoxedI64 { value } => format!("is_boxed_i64({})", format_operand(value)),
         Rvalue::UnboxExactI64 { value } => format!("unbox_exact_i64({})", format_operand(value)),
         Rvalue::Unbox { value, to } => {

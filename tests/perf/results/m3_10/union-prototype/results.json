@@ -1,0 +1,7346 @@
+{
+  "samples": {
+    "default": [
+      {
+        "object_integer": [
+          {
+            "name": "object_integer",
+            "repeat": 0,
+            "seconds": 0.0277959,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 1,
+            "seconds": 0.0250262,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 2,
+            "seconds": 0.0264311,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 3,
+            "seconds": 0.0230056,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 4,
+            "seconds": 0.0236805,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 5,
+            "seconds": 0.0237439,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 6,
+            "seconds": 0.0237551,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "selective_local": [
+          {
+            "name": "selective_local",
+            "repeat": 0,
+            "seconds": 0.000511,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 1,
+            "seconds": 0.0009036,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 2,
+            "seconds": 0.0004872,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 3,
+            "seconds": 0.0004034,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 4,
+            "seconds": 0.0003666,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 5,
+            "seconds": 0.0003642,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 6,
+            "seconds": 0.000546,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_integer": [
+          {
+            "name": "value16_integer",
+            "repeat": 0,
+            "seconds": 0.0013508,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 1,
+            "seconds": 0.0017665,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 2,
+            "seconds": 0.0015356,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 3,
+            "seconds": 0.0015129,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 4,
+            "seconds": 0.0016017,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 5,
+            "seconds": 0.0021112,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 6,
+            "seconds": 0.0013611,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_integer": [
+          {
+            "name": "value24_integer",
+            "repeat": 0,
+            "seconds": 0.0013502,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 1,
+            "seconds": 0.002526,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 2,
+            "seconds": 0.0022346,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 3,
+            "seconds": 0.001829,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 4,
+            "seconds": 0.0015176,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 5,
+            "seconds": 0.0020754,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 6,
+            "seconds": 0.0015605,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "object_float": [
+          {
+            "name": "object_float",
+            "repeat": 0,
+            "seconds": 0.0447415,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 1,
+            "seconds": 0.0277766,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 2,
+            "seconds": 0.0091402,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 3,
+            "seconds": 0.0091527,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 4,
+            "seconds": 0.0097461,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 5,
+            "seconds": 0.0112346,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 6,
+            "seconds": 0.0094102,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_float": [
+          {
+            "name": "value16_float",
+            "repeat": 0,
+            "seconds": 0.003711,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 1,
+            "seconds": 0.0028617,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 2,
+            "seconds": 0.0024036,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 3,
+            "seconds": 0.0023634,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 4,
+            "seconds": 0.0025936,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 5,
+            "seconds": 0.0027629,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 6,
+            "seconds": 0.0031839,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_float": [
+          {
+            "name": "value24_float",
+            "repeat": 0,
+            "seconds": 0.0030501,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 1,
+            "seconds": 0.0033363,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 2,
+            "seconds": 0.0025943,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 3,
+            "seconds": 0.0031934,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 4,
+            "seconds": 0.0034011,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 5,
+            "seconds": 0.0033271,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 6,
+            "seconds": 0.0027434,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "call_object": [
+          {
+            "name": "call_object",
+            "repeat": 0,
+            "seconds": 0.0171479,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 1,
+            "seconds": 0.0169557,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 2,
+            "seconds": 0.0179563,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 3,
+            "seconds": 0.0274481,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 4,
+            "seconds": 0.0197995,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 5,
+            "seconds": 0.0182741,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 6,
+            "seconds": 0.0200735,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16": [
+          {
+            "name": "call_16",
+            "repeat": 0,
+            "seconds": 0.0273929,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 1,
+            "seconds": 0.0269631,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 2,
+            "seconds": 0.0264852,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 3,
+            "seconds": 0.0078922,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 4,
+            "seconds": 0.008455,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 5,
+            "seconds": 0.0083704,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 6,
+            "seconds": 0.0080704,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24": [
+          {
+            "name": "call_24",
+            "repeat": 0,
+            "seconds": 0.036147,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 1,
+            "seconds": 0.0357699,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 2,
+            "seconds": 0.0328981,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 3,
+            "seconds": 0.0302741,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 4,
+            "seconds": 0.0327971,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 5,
+            "seconds": 0.0320179,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 6,
+            "seconds": 0.0316451,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16in": [
+          {
+            "name": "call_16in",
+            "repeat": 0,
+            "seconds": 0.0144874,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 1,
+            "seconds": 0.0148906,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 2,
+            "seconds": 0.0165762,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 3,
+            "seconds": 0.0136177,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 4,
+            "seconds": 0.0137779,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 5,
+            "seconds": 0.0167856,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 6,
+            "seconds": 0.0144065,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24in": [
+          {
+            "name": "call_24in",
+            "repeat": 0,
+            "seconds": 0.0349477,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 1,
+            "seconds": 0.0342327,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 2,
+            "seconds": 0.0249663,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 3,
+            "seconds": 0.0156157,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 4,
+            "seconds": 0.0126392,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 5,
+            "seconds": 0.0130811,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 6,
+            "seconds": 0.0112277,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16object": [
+          {
+            "name": "call_16object",
+            "repeat": 0,
+            "seconds": 0.0204955,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 1,
+            "seconds": 0.0238864,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 2,
+            "seconds": 0.0203695,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 3,
+            "seconds": 0.0226181,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 4,
+            "seconds": 0.0192616,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 5,
+            "seconds": 0.019595,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 6,
+            "seconds": 0.0173855,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24object": [
+          {
+            "name": "call_24object",
+            "repeat": 0,
+            "seconds": 0.0240393,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 1,
+            "seconds": 0.0212923,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 2,
+            "seconds": 0.0218717,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 3,
+            "seconds": 0.0441459,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 4,
+            "seconds": 0.0219914,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 5,
+            "seconds": 0.0208726,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 6,
+            "seconds": 0.0227373,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "container_object": [
+          {
+            "name": "container_object",
+            "repeat": 0,
+            "seconds": 0.0185827,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 1,
+            "seconds": 0.0174963,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 2,
+            "seconds": 0.0174162,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 3,
+            "seconds": 0.0171513,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 4,
+            "seconds": 0.0167767,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 5,
+            "seconds": 0.0244716,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 6,
+            "seconds": 0.0286604,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_16": [
+          {
+            "name": "container_16",
+            "repeat": 0,
+            "seconds": 0.0042092,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 1,
+            "seconds": 0.003879,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 2,
+            "seconds": 0.0031701,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 3,
+            "seconds": 0.0055942,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 4,
+            "seconds": 0.0029575,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 5,
+            "seconds": 0.0038955,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 6,
+            "seconds": 0.00443,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_24": [
+          {
+            "name": "container_24",
+            "repeat": 0,
+            "seconds": 0.0045632,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 1,
+            "seconds": 0.0039275,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 2,
+            "seconds": 0.0047692,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 3,
+            "seconds": 0.0044191,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 4,
+            "seconds": 0.0039734,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 5,
+            "seconds": 0.0050531,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 6,
+            "seconds": 0.0060782,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "references_object": [
+          {
+            "name": "references_object",
+            "repeat": 0,
+            "seconds": 0.0046224,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 1,
+            "seconds": 0.0033924,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 2,
+            "seconds": 0.0035368,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 3,
+            "seconds": 0.0032882,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 4,
+            "seconds": 0.0042011,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 5,
+            "seconds": 0.0045025,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 6,
+            "seconds": 0.0042886,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_16": [
+          {
+            "name": "references_16",
+            "repeat": 0,
+            "seconds": 0.0054418,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 1,
+            "seconds": 0.0060541,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 2,
+            "seconds": 0.0059974,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 3,
+            "seconds": 0.0046508,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 4,
+            "seconds": 0.0058765,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 5,
+            "seconds": 0.0063314,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 6,
+            "seconds": 0.0062753,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_24": [
+          {
+            "name": "references_24",
+            "repeat": 0,
+            "seconds": 0.0069032,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 1,
+            "seconds": 0.0069745,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 2,
+            "seconds": 0.0088684,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 3,
+            "seconds": 0.0087067,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 4,
+            "seconds": 0.0052091,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 5,
+            "seconds": 0.0062717,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 6,
+            "seconds": 0.0054244,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ]
+      },
+      {
+        "object_integer": [
+          {
+            "name": "object_integer",
+            "repeat": 0,
+            "seconds": 0.0252455,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 1,
+            "seconds": 0.0235758,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 2,
+            "seconds": 0.0234458,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 3,
+            "seconds": 0.0243429,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 4,
+            "seconds": 0.0252688,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 5,
+            "seconds": 0.0245559,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 6,
+            "seconds": 0.0253619,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "selective_local": [
+          {
+            "name": "selective_local",
+            "repeat": 0,
+            "seconds": 0.0004355,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 1,
+            "seconds": 0.0004959,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 2,
+            "seconds": 0.0003638,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 3,
+            "seconds": 0.0003417,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 4,
+            "seconds": 0.0003844,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 5,
+            "seconds": 0.0003368,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 6,
+            "seconds": 0.0003361,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_integer": [
+          {
+            "name": "value16_integer",
+            "repeat": 0,
+            "seconds": 0.001437,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 1,
+            "seconds": 0.0015215,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 2,
+            "seconds": 0.0022369,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 3,
+            "seconds": 0.0020242,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 4,
+            "seconds": 0.0018004,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 5,
+            "seconds": 0.0020663,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 6,
+            "seconds": 0.0016344,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_integer": [
+          {
+            "name": "value24_integer",
+            "repeat": 0,
+            "seconds": 0.0022338,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 1,
+            "seconds": 0.0022077,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 2,
+            "seconds": 0.0013384,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 3,
+            "seconds": 0.0022758,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 4,
+            "seconds": 0.0015093,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 5,
+            "seconds": 0.0024432,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 6,
+            "seconds": 0.0046151,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "object_float": [
+          {
+            "name": "object_float",
+            "repeat": 0,
+            "seconds": 0.039258,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 1,
+            "seconds": 0.0365545,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 2,
+            "seconds": 0.0173344,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 3,
+            "seconds": 0.0223956,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 4,
+            "seconds": 0.0287554,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 5,
+            "seconds": 0.0178571,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 6,
+            "seconds": 0.020886,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_float": [
+          {
+            "name": "value16_float",
+            "repeat": 0,
+            "seconds": 0.0043757,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 1,
+            "seconds": 0.0070548,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 2,
+            "seconds": 0.0069989,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 3,
+            "seconds": 0.0049272,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 4,
+            "seconds": 0.0059053,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 5,
+            "seconds": 0.0069311,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 6,
+            "seconds": 0.0026666,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_float": [
+          {
+            "name": "value24_float",
+            "repeat": 0,
+            "seconds": 0.0064912,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 1,
+            "seconds": 0.003928,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 2,
+            "seconds": 0.007232,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 3,
+            "seconds": 0.0061109,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 4,
+            "seconds": 0.005662,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 5,
+            "seconds": 0.0043613,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 6,
+            "seconds": 0.0060184,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "call_object": [
+          {
+            "name": "call_object",
+            "repeat": 0,
+            "seconds": 0.033336,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 1,
+            "seconds": 0.0345697,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 2,
+            "seconds": 0.0375194,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 3,
+            "seconds": 0.0401707,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 4,
+            "seconds": 0.043179,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 5,
+            "seconds": 0.0330326,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 6,
+            "seconds": 0.0263983,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16": [
+          {
+            "name": "call_16",
+            "repeat": 0,
+            "seconds": 0.0297599,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 1,
+            "seconds": 0.0350104,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 2,
+            "seconds": 0.0094398,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 3,
+            "seconds": 0.0034061,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 4,
+            "seconds": 0.0038505,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 5,
+            "seconds": 0.0031718,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 6,
+            "seconds": 0.0028006,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24": [
+          {
+            "name": "call_24",
+            "repeat": 0,
+            "seconds": 0.0366687,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 1,
+            "seconds": 0.0413963,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 2,
+            "seconds": 0.0370598,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 3,
+            "seconds": 0.0399885,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 4,
+            "seconds": 0.0347451,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 5,
+            "seconds": 0.0387881,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 6,
+            "seconds": 0.0356982,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16in": [
+          {
+            "name": "call_16in",
+            "repeat": 0,
+            "seconds": 0.0123405,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 1,
+            "seconds": 0.0112521,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 2,
+            "seconds": 0.0110519,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 3,
+            "seconds": 0.0109939,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 4,
+            "seconds": 0.0148385,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 5,
+            "seconds": 0.0127519,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 6,
+            "seconds": 0.0131629,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24in": [
+          {
+            "name": "call_24in",
+            "repeat": 0,
+            "seconds": 0.0315478,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 1,
+            "seconds": 0.0285253,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 2,
+            "seconds": 0.0351915,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 3,
+            "seconds": 0.0322774,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 4,
+            "seconds": 0.029753,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 5,
+            "seconds": 0.0181329,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 6,
+            "seconds": 0.0139059,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16object": [
+          {
+            "name": "call_16object",
+            "repeat": 0,
+            "seconds": 0.0230534,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 1,
+            "seconds": 0.025263,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 2,
+            "seconds": 0.0204556,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 3,
+            "seconds": 0.0244142,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 4,
+            "seconds": 0.0220482,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 5,
+            "seconds": 0.0278297,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 6,
+            "seconds": 0.025229,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24object": [
+          {
+            "name": "call_24object",
+            "repeat": 0,
+            "seconds": 0.0234458,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 1,
+            "seconds": 0.0214513,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 2,
+            "seconds": 0.0219678,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 3,
+            "seconds": 0.0246372,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 4,
+            "seconds": 0.0235375,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 5,
+            "seconds": 0.0246839,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 6,
+            "seconds": 0.0276749,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "container_object": [
+          {
+            "name": "container_object",
+            "repeat": 0,
+            "seconds": 0.0145886,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 1,
+            "seconds": 0.0144742,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 2,
+            "seconds": 0.0152319,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 3,
+            "seconds": 0.0159039,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 4,
+            "seconds": 0.0176054,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 5,
+            "seconds": 0.0188587,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 6,
+            "seconds": 0.0159646,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_16": [
+          {
+            "name": "container_16",
+            "repeat": 0,
+            "seconds": 0.0025411,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 1,
+            "seconds": 0.0025841,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 2,
+            "seconds": 0.0027112,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 3,
+            "seconds": 0.0027234,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 4,
+            "seconds": 0.0026507,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 5,
+            "seconds": 0.0024494,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 6,
+            "seconds": 0.0028739,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_24": [
+          {
+            "name": "container_24",
+            "repeat": 0,
+            "seconds": 0.0031177,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 1,
+            "seconds": 0.0034171,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 2,
+            "seconds": 0.0038049,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 3,
+            "seconds": 0.0037152,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 4,
+            "seconds": 0.0029524,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 5,
+            "seconds": 0.003089,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 6,
+            "seconds": 0.0036763,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "references_object": [
+          {
+            "name": "references_object",
+            "repeat": 0,
+            "seconds": 0.0020293,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 1,
+            "seconds": 0.0023722,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 2,
+            "seconds": 0.0021417,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 3,
+            "seconds": 0.0017814,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 4,
+            "seconds": 0.002116,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 5,
+            "seconds": 0.0018259,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 6,
+            "seconds": 0.0020978,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_16": [
+          {
+            "name": "references_16",
+            "repeat": 0,
+            "seconds": 0.0027452,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 1,
+            "seconds": 0.0027744,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 2,
+            "seconds": 0.0025123,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 3,
+            "seconds": 0.0025801,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 4,
+            "seconds": 0.0030485,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 5,
+            "seconds": 0.0030243,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 6,
+            "seconds": 0.0029978,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_24": [
+          {
+            "name": "references_24",
+            "repeat": 0,
+            "seconds": 0.0057585,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 1,
+            "seconds": 0.0063411,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 2,
+            "seconds": 0.0061893,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 3,
+            "seconds": 0.0079178,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 4,
+            "seconds": 0.0121033,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 5,
+            "seconds": 0.006534,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 6,
+            "seconds": 0.0054129,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ]
+      },
+      {
+        "object_integer": [
+          {
+            "name": "object_integer",
+            "repeat": 0,
+            "seconds": 0.0218983,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 1,
+            "seconds": 0.0215214,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 2,
+            "seconds": 0.0241802,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 3,
+            "seconds": 0.0244574,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 4,
+            "seconds": 0.0253156,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 5,
+            "seconds": 0.0168916,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 6,
+            "seconds": 0.0124084,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "selective_local": [
+          {
+            "name": "selective_local",
+            "repeat": 0,
+            "seconds": 0.0028814,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 1,
+            "seconds": 0.0007993,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 2,
+            "seconds": 0.0018658,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 3,
+            "seconds": 0.0004562,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 4,
+            "seconds": 0.0003389,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 5,
+            "seconds": 0.0003561,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 6,
+            "seconds": 0.0003352,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_integer": [
+          {
+            "name": "value16_integer",
+            "repeat": 0,
+            "seconds": 0.0019737,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 1,
+            "seconds": 0.0022188,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 2,
+            "seconds": 0.0013404,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 3,
+            "seconds": 0.0013333,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 4,
+            "seconds": 0.0010231,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 5,
+            "seconds": 0.0014221,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 6,
+            "seconds": 0.0014935,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_integer": [
+          {
+            "name": "value24_integer",
+            "repeat": 0,
+            "seconds": 0.0018952,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 1,
+            "seconds": 0.0010971,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 2,
+            "seconds": 0.0015799,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 3,
+            "seconds": 0.0011857,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 4,
+            "seconds": 0.0012432,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 5,
+            "seconds": 0.0016803,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 6,
+            "seconds": 0.0013806,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "object_float": [
+          {
+            "name": "object_float",
+            "repeat": 0,
+            "seconds": 0.0335302,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 1,
+            "seconds": 0.0316576,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 2,
+            "seconds": 0.0302614,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 3,
+            "seconds": 0.0321132,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 4,
+            "seconds": 0.0308162,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 5,
+            "seconds": 0.0297675,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 6,
+            "seconds": 0.0284034,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_float": [
+          {
+            "name": "value16_float",
+            "repeat": 0,
+            "seconds": 0.0048057,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 1,
+            "seconds": 0.0040635,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 2,
+            "seconds": 0.0045138,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 3,
+            "seconds": 0.0040423,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 4,
+            "seconds": 0.0057029,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 5,
+            "seconds": 0.0045068,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 6,
+            "seconds": 0.0043998,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_float": [
+          {
+            "name": "value24_float",
+            "repeat": 0,
+            "seconds": 0.0035003,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 1,
+            "seconds": 0.0028499,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 2,
+            "seconds": 0.002624,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 3,
+            "seconds": 0.0026342,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 4,
+            "seconds": 0.0028129,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 5,
+            "seconds": 0.003066,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 6,
+            "seconds": 0.0027075,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "call_object": [
+          {
+            "name": "call_object",
+            "repeat": 0,
+            "seconds": 0.0178892,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 1,
+            "seconds": 0.0159039,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 2,
+            "seconds": 0.0158264,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 3,
+            "seconds": 0.0163648,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 4,
+            "seconds": 0.019526,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 5,
+            "seconds": 0.0432195,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 6,
+            "seconds": 0.0297058,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16": [
+          {
+            "name": "call_16",
+            "repeat": 0,
+            "seconds": 0.0267763,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 1,
+            "seconds": 0.0253988,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 2,
+            "seconds": 0.0255378,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 3,
+            "seconds": 0.0216764,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 4,
+            "seconds": 0.022189,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 5,
+            "seconds": 0.0212684,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 6,
+            "seconds": 0.0226624,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24": [
+          {
+            "name": "call_24",
+            "repeat": 0,
+            "seconds": 0.0326895,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 1,
+            "seconds": 0.0340341,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 2,
+            "seconds": 0.0374913,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 3,
+            "seconds": 0.0300337,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 4,
+            "seconds": 0.0321265,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 5,
+            "seconds": 0.03142,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 6,
+            "seconds": 0.034786,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16in": [
+          {
+            "name": "call_16in",
+            "repeat": 0,
+            "seconds": 0.0222722,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 1,
+            "seconds": 0.017463,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 2,
+            "seconds": 0.018899,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 3,
+            "seconds": 0.0078869,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 4,
+            "seconds": 0.0039645,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 5,
+            "seconds": 0.0041271,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 6,
+            "seconds": 0.0038195,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24in": [
+          {
+            "name": "call_24in",
+            "repeat": 0,
+            "seconds": 0.0170719,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 1,
+            "seconds": 0.0204643,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 2,
+            "seconds": 0.0147715,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 3,
+            "seconds": 0.0116566,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 4,
+            "seconds": 0.0109169,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 5,
+            "seconds": 0.0107131,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 6,
+            "seconds": 0.0107262,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16object": [
+          {
+            "name": "call_16object",
+            "repeat": 0,
+            "seconds": 0.0234645,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 1,
+            "seconds": 0.0329809,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 2,
+            "seconds": 0.0295851,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 3,
+            "seconds": 0.0183599,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 4,
+            "seconds": 0.0199095,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 5,
+            "seconds": 0.0173218,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 6,
+            "seconds": 0.017503,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24object": [
+          {
+            "name": "call_24object",
+            "repeat": 0,
+            "seconds": 0.0187534,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 1,
+            "seconds": 0.0183288,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 2,
+            "seconds": 0.0197317,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 3,
+            "seconds": 0.0226622,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 4,
+            "seconds": 0.0186697,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 5,
+            "seconds": 0.0209235,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 6,
+            "seconds": 0.020139,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "container_object": [
+          {
+            "name": "container_object",
+            "repeat": 0,
+            "seconds": 0.0110208,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 1,
+            "seconds": 0.0124633,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 2,
+            "seconds": 0.0122045,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 3,
+            "seconds": 0.0127187,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 4,
+            "seconds": 0.0117267,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 5,
+            "seconds": 0.0121819,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 6,
+            "seconds": 0.0147999,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_16": [
+          {
+            "name": "container_16",
+            "repeat": 0,
+            "seconds": 0.0029241,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 1,
+            "seconds": 0.0026002,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 2,
+            "seconds": 0.0027482,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 3,
+            "seconds": 0.0030302,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 4,
+            "seconds": 0.0043327,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 5,
+            "seconds": 0.0030961,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 6,
+            "seconds": 0.0025793,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_24": [
+          {
+            "name": "container_24",
+            "repeat": 0,
+            "seconds": 0.0029495,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 1,
+            "seconds": 0.0034887,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 2,
+            "seconds": 0.0029418,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 3,
+            "seconds": 0.0030769,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 4,
+            "seconds": 0.0038359,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 5,
+            "seconds": 0.0029038,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 6,
+            "seconds": 0.0031205,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "references_object": [
+          {
+            "name": "references_object",
+            "repeat": 0,
+            "seconds": 0.0026667,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 1,
+            "seconds": 0.0023738,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 2,
+            "seconds": 0.0024736,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 3,
+            "seconds": 0.0025466,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 4,
+            "seconds": 0.003304,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 5,
+            "seconds": 0.0029214,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 6,
+            "seconds": 0.0036267,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_16": [
+          {
+            "name": "references_16",
+            "repeat": 0,
+            "seconds": 0.0030822,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 1,
+            "seconds": 0.0042579,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 2,
+            "seconds": 0.0035369,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 3,
+            "seconds": 0.0028836,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 4,
+            "seconds": 0.00367,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 5,
+            "seconds": 0.0039978,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 6,
+            "seconds": 0.0043043,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_24": [
+          {
+            "name": "references_24",
+            "repeat": 0,
+            "seconds": 0.0059344,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 1,
+            "seconds": 0.0048313,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 2,
+            "seconds": 0.0041821,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 3,
+            "seconds": 0.0044959,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 4,
+            "seconds": 0.0048317,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 5,
+            "seconds": 0.0046658,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 6,
+            "seconds": 0.0052833,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ]
+      }
+    ],
+    "disabled": [
+      {
+        "object_integer": [
+          {
+            "name": "object_integer",
+            "repeat": 0,
+            "seconds": 0.0102599,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 1,
+            "seconds": 0.0084996,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 2,
+            "seconds": 0.0110571,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 3,
+            "seconds": 0.0086429,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 4,
+            "seconds": 0.0109912,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 5,
+            "seconds": 0.0081323,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 6,
+            "seconds": 0.0087888,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "selective_local": [
+          {
+            "name": "selective_local",
+            "repeat": 0,
+            "seconds": 0.0004237,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 1,
+            "seconds": 0.0005502,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 2,
+            "seconds": 0.0003596,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 3,
+            "seconds": 0.0003945,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 4,
+            "seconds": 0.0003234,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 5,
+            "seconds": 0.0003468,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 6,
+            "seconds": 0.0003235,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_integer": [
+          {
+            "name": "value16_integer",
+            "repeat": 0,
+            "seconds": 0.0100449,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 1,
+            "seconds": 0.0113301,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 2,
+            "seconds": 0.0209187,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 3,
+            "seconds": 0.0118525,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 4,
+            "seconds": 0.0108552,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 5,
+            "seconds": 0.0106302,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 6,
+            "seconds": 0.0157534,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_integer": [
+          {
+            "name": "value24_integer",
+            "repeat": 0,
+            "seconds": 0.0098505,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 1,
+            "seconds": 0.0120661,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 2,
+            "seconds": 0.0121807,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 3,
+            "seconds": 0.0110245,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 4,
+            "seconds": 0.0107942,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 5,
+            "seconds": 0.0101524,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 6,
+            "seconds": 0.0100118,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "object_float": [
+          {
+            "name": "object_float",
+            "repeat": 0,
+            "seconds": 0.0289654,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 1,
+            "seconds": 0.0286176,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 2,
+            "seconds": 0.0322424,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 3,
+            "seconds": 0.0287285,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 4,
+            "seconds": 0.0309975,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 5,
+            "seconds": 0.0293709,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 6,
+            "seconds": 0.027885,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_float": [
+          {
+            "name": "value16_float",
+            "repeat": 0,
+            "seconds": 0.0134004,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 1,
+            "seconds": 0.0116129,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 2,
+            "seconds": 0.0131513,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 3,
+            "seconds": 0.0127394,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 4,
+            "seconds": 0.0118267,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 5,
+            "seconds": 0.0114916,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 6,
+            "seconds": 0.0121463,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_float": [
+          {
+            "name": "value24_float",
+            "repeat": 0,
+            "seconds": 0.0143231,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 1,
+            "seconds": 0.0140953,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 2,
+            "seconds": 0.0128347,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 3,
+            "seconds": 0.0117969,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 4,
+            "seconds": 0.0120429,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 5,
+            "seconds": 0.0111702,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 6,
+            "seconds": 0.0134613,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "call_object": [
+          {
+            "name": "call_object",
+            "repeat": 0,
+            "seconds": 0.0103138,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 1,
+            "seconds": 0.0095427,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 2,
+            "seconds": 0.0093147,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 3,
+            "seconds": 0.0104526,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 4,
+            "seconds": 0.0106011,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 5,
+            "seconds": 0.0105196,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 6,
+            "seconds": 0.010263,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16": [
+          {
+            "name": "call_16",
+            "repeat": 0,
+            "seconds": 0.0027409,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 1,
+            "seconds": 0.0030262,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 2,
+            "seconds": 0.0034817,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 3,
+            "seconds": 0.0033864,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 4,
+            "seconds": 0.0035764,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 5,
+            "seconds": 0.0030033,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 6,
+            "seconds": 0.0028881,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24": [
+          {
+            "name": "call_24",
+            "repeat": 0,
+            "seconds": 0.0109135,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 1,
+            "seconds": 0.011069,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 2,
+            "seconds": 0.0102659,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 3,
+            "seconds": 0.011326,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 4,
+            "seconds": 0.0130854,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 5,
+            "seconds": 0.0116337,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 6,
+            "seconds": 0.0115944,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16in": [
+          {
+            "name": "call_16in",
+            "repeat": 0,
+            "seconds": 0.0037059,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 1,
+            "seconds": 0.0033522,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 2,
+            "seconds": 0.0029619,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 3,
+            "seconds": 0.0029302,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 4,
+            "seconds": 0.0030518,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 5,
+            "seconds": 0.0038695,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 6,
+            "seconds": 0.0033692,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24in": [
+          {
+            "name": "call_24in",
+            "repeat": 0,
+            "seconds": 0.0053427,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 1,
+            "seconds": 0.0064473,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 2,
+            "seconds": 0.009467,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 3,
+            "seconds": 0.0143643,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 4,
+            "seconds": 0.009904,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 5,
+            "seconds": 0.0053796,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 6,
+            "seconds": 0.00752,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16object": [
+          {
+            "name": "call_16object",
+            "repeat": 0,
+            "seconds": 0.0214915,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 1,
+            "seconds": 0.0256735,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 2,
+            "seconds": 0.0214839,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 3,
+            "seconds": 0.0216556,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 4,
+            "seconds": 0.0291153,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 5,
+            "seconds": 0.0276567,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 6,
+            "seconds": 0.0212336,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24object": [
+          {
+            "name": "call_24object",
+            "repeat": 0,
+            "seconds": 0.0238685,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 1,
+            "seconds": 0.0260237,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 2,
+            "seconds": 0.0339354,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 3,
+            "seconds": 0.0230884,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 4,
+            "seconds": 0.0221715,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 5,
+            "seconds": 0.0261363,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 6,
+            "seconds": 0.0233742,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "container_object": [
+          {
+            "name": "container_object",
+            "repeat": 0,
+            "seconds": 0.0161191,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 1,
+            "seconds": 0.013815,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 2,
+            "seconds": 0.0135064,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 3,
+            "seconds": 0.0140134,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 4,
+            "seconds": 0.0128634,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 5,
+            "seconds": 0.0124093,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 6,
+            "seconds": 0.0126076,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_16": [
+          {
+            "name": "container_16",
+            "repeat": 0,
+            "seconds": 0.0031112,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 1,
+            "seconds": 0.0028073,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 2,
+            "seconds": 0.0025199,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 3,
+            "seconds": 0.0026684,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 4,
+            "seconds": 0.0028593,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 5,
+            "seconds": 0.003017,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 6,
+            "seconds": 0.0031676,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_24": [
+          {
+            "name": "container_24",
+            "repeat": 0,
+            "seconds": 0.003714,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 1,
+            "seconds": 0.0031028,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 2,
+            "seconds": 0.0043583,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 3,
+            "seconds": 0.0040563,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 4,
+            "seconds": 0.0044969,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 5,
+            "seconds": 0.0034756,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 6,
+            "seconds": 0.0033165,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "references_object": [
+          {
+            "name": "references_object",
+            "repeat": 0,
+            "seconds": 0.0031595,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 1,
+            "seconds": 0.0035423,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 2,
+            "seconds": 0.0037361,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 3,
+            "seconds": 0.0031405,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 4,
+            "seconds": 0.0034456,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 5,
+            "seconds": 0.0032,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 6,
+            "seconds": 0.0033825,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_16": [
+          {
+            "name": "references_16",
+            "repeat": 0,
+            "seconds": 0.0028054,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 1,
+            "seconds": 0.0026327,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 2,
+            "seconds": 0.0026421,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 3,
+            "seconds": 0.0026009,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 4,
+            "seconds": 0.0028903,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 5,
+            "seconds": 0.0026346,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 6,
+            "seconds": 0.0027549,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_24": [
+          {
+            "name": "references_24",
+            "repeat": 0,
+            "seconds": 0.0088763,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 1,
+            "seconds": 0.0093623,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 2,
+            "seconds": 0.0080911,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 3,
+            "seconds": 0.0084446,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 4,
+            "seconds": 0.0082943,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 5,
+            "seconds": 0.0093315,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 6,
+            "seconds": 0.0098241,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ]
+      },
+      {
+        "object_integer": [
+          {
+            "name": "object_integer",
+            "repeat": 0,
+            "seconds": 0.008024,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 1,
+            "seconds": 0.0083524,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 2,
+            "seconds": 0.0070183,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 3,
+            "seconds": 0.0083019,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 4,
+            "seconds": 0.0091943,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 5,
+            "seconds": 0.0066774,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 6,
+            "seconds": 0.0089603,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "selective_local": [
+          {
+            "name": "selective_local",
+            "repeat": 0,
+            "seconds": 0.0003423,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 1,
+            "seconds": 0.0003233,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 2,
+            "seconds": 0.0003339,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 3,
+            "seconds": 0.0005287,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 4,
+            "seconds": 0.0003665,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 5,
+            "seconds": 0.0003234,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 6,
+            "seconds": 0.0003648,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_integer": [
+          {
+            "name": "value16_integer",
+            "repeat": 0,
+            "seconds": 0.0109664,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 1,
+            "seconds": 0.0101468,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 2,
+            "seconds": 0.010726,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 3,
+            "seconds": 0.0129541,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 4,
+            "seconds": 0.0108255,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 5,
+            "seconds": 0.0106598,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 6,
+            "seconds": 0.0105565,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_integer": [
+          {
+            "name": "value24_integer",
+            "repeat": 0,
+            "seconds": 0.0102091,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 1,
+            "seconds": 0.0106521,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 2,
+            "seconds": 0.0162564,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 3,
+            "seconds": 0.0111799,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 4,
+            "seconds": 0.0108124,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 5,
+            "seconds": 0.0093957,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 6,
+            "seconds": 0.0123459,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "object_float": [
+          {
+            "name": "object_float",
+            "repeat": 0,
+            "seconds": 0.029461,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 1,
+            "seconds": 0.030168,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 2,
+            "seconds": 0.0300068,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 3,
+            "seconds": 0.0332208,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 4,
+            "seconds": 0.0267357,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 5,
+            "seconds": 0.0306695,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 6,
+            "seconds": 0.0274981,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_float": [
+          {
+            "name": "value16_float",
+            "repeat": 0,
+            "seconds": 0.0153494,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 1,
+            "seconds": 0.0154256,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 2,
+            "seconds": 0.0117316,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 3,
+            "seconds": 0.0132518,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 4,
+            "seconds": 0.0127668,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 5,
+            "seconds": 0.0130353,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 6,
+            "seconds": 0.0136594,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_float": [
+          {
+            "name": "value24_float",
+            "repeat": 0,
+            "seconds": 0.010609,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 1,
+            "seconds": 0.0118931,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 2,
+            "seconds": 0.0120839,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 3,
+            "seconds": 0.0117841,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 4,
+            "seconds": 0.0112166,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 5,
+            "seconds": 0.0143727,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 6,
+            "seconds": 0.011464,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "call_object": [
+          {
+            "name": "call_object",
+            "repeat": 0,
+            "seconds": 0.0113517,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 1,
+            "seconds": 0.0084899,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 2,
+            "seconds": 0.0089292,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 3,
+            "seconds": 0.0097721,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 4,
+            "seconds": 0.0081229,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 5,
+            "seconds": 0.0096941,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 6,
+            "seconds": 0.0083917,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16": [
+          {
+            "name": "call_16",
+            "repeat": 0,
+            "seconds": 0.0032486,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 1,
+            "seconds": 0.0035414,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 2,
+            "seconds": 0.0035325,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 3,
+            "seconds": 0.0040317,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 4,
+            "seconds": 0.0028804,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 5,
+            "seconds": 0.0029098,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 6,
+            "seconds": 0.0031276,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24": [
+          {
+            "name": "call_24",
+            "repeat": 0,
+            "seconds": 0.0116659,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 1,
+            "seconds": 0.0115293,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 2,
+            "seconds": 0.0105066,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 3,
+            "seconds": 0.0113767,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 4,
+            "seconds": 0.0124814,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 5,
+            "seconds": 0.0116261,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 6,
+            "seconds": 0.0114211,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16in": [
+          {
+            "name": "call_16in",
+            "repeat": 0,
+            "seconds": 0.0030112,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 1,
+            "seconds": 0.0027204,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 2,
+            "seconds": 0.0027737,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 3,
+            "seconds": 0.0030371,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 4,
+            "seconds": 0.0028328,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 5,
+            "seconds": 0.0027413,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 6,
+            "seconds": 0.0032911,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24in": [
+          {
+            "name": "call_24in",
+            "repeat": 0,
+            "seconds": 0.0045623,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 1,
+            "seconds": 0.004566,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 2,
+            "seconds": 0.0050598,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 3,
+            "seconds": 0.0050474,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 4,
+            "seconds": 0.0049748,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 5,
+            "seconds": 0.0051418,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 6,
+            "seconds": 0.006776,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16object": [
+          {
+            "name": "call_16object",
+            "repeat": 0,
+            "seconds": 0.0197464,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 1,
+            "seconds": 0.0217558,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 2,
+            "seconds": 0.0193088,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 3,
+            "seconds": 0.0196262,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 4,
+            "seconds": 0.0211606,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 5,
+            "seconds": 0.0190506,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 6,
+            "seconds": 0.0225258,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24object": [
+          {
+            "name": "call_24object",
+            "repeat": 0,
+            "seconds": 0.0218766,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 1,
+            "seconds": 0.0284356,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 2,
+            "seconds": 0.0211426,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 3,
+            "seconds": 0.0240719,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 4,
+            "seconds": 0.0221362,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 5,
+            "seconds": 0.0262174,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 6,
+            "seconds": 0.0225144,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "container_object": [
+          {
+            "name": "container_object",
+            "repeat": 0,
+            "seconds": 0.0106315,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 1,
+            "seconds": 0.0130092,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 2,
+            "seconds": 0.0136128,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 3,
+            "seconds": 0.0111222,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 4,
+            "seconds": 0.0116345,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 5,
+            "seconds": 0.0139478,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 6,
+            "seconds": 0.0123007,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_16": [
+          {
+            "name": "container_16",
+            "repeat": 0,
+            "seconds": 0.0024328,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 1,
+            "seconds": 0.0027834,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 2,
+            "seconds": 0.0027851,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 3,
+            "seconds": 0.0024324,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 4,
+            "seconds": 0.0026658,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 5,
+            "seconds": 0.0025306,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 6,
+            "seconds": 0.002948,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_24": [
+          {
+            "name": "container_24",
+            "repeat": 0,
+            "seconds": 0.003428,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 1,
+            "seconds": 0.003291,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 2,
+            "seconds": 0.0034248,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 3,
+            "seconds": 0.0027785,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 4,
+            "seconds": 0.0027705,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 5,
+            "seconds": 0.0030811,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 6,
+            "seconds": 0.0028952,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "references_object": [
+          {
+            "name": "references_object",
+            "repeat": 0,
+            "seconds": 0.0032547,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 1,
+            "seconds": 0.0049891,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 2,
+            "seconds": 0.0032567,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 3,
+            "seconds": 0.0048625,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 4,
+            "seconds": 0.0038356,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 5,
+            "seconds": 0.0040338,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 6,
+            "seconds": 0.0047353,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_16": [
+          {
+            "name": "references_16",
+            "repeat": 0,
+            "seconds": 0.0023715,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 1,
+            "seconds": 0.0030316,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 2,
+            "seconds": 0.0025966,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 3,
+            "seconds": 0.0030396,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 4,
+            "seconds": 0.0028514,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 5,
+            "seconds": 0.0052287,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 6,
+            "seconds": 0.0035557,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_24": [
+          {
+            "name": "references_24",
+            "repeat": 0,
+            "seconds": 0.0123907,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 1,
+            "seconds": 0.0095805,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 2,
+            "seconds": 0.0101456,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 3,
+            "seconds": 0.0098177,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 4,
+            "seconds": 0.0103627,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 5,
+            "seconds": 0.0108981,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 6,
+            "seconds": 0.0092413,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ]
+      },
+      {
+        "object_integer": [
+          {
+            "name": "object_integer",
+            "repeat": 0,
+            "seconds": 0.0075534,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 1,
+            "seconds": 0.0106412,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 2,
+            "seconds": 0.008144,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 3,
+            "seconds": 0.0073513,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 4,
+            "seconds": 0.0095127,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 5,
+            "seconds": 0.0078943,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_integer",
+            "repeat": 6,
+            "seconds": 0.0081842,
+            "bytes": 24000048,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "selective_local": [
+          {
+            "name": "selective_local",
+            "repeat": 0,
+            "seconds": 0.0005201,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 1,
+            "seconds": 0.0006208,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 2,
+            "seconds": 0.0003872,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 3,
+            "seconds": 0.0005986,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 4,
+            "seconds": 0.0007172,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 5,
+            "seconds": 0.0007284,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "selective_local",
+            "repeat": 6,
+            "seconds": 0.0003963,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_integer": [
+          {
+            "name": "value16_integer",
+            "repeat": 0,
+            "seconds": 0.0127496,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 1,
+            "seconds": 0.0109811,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 2,
+            "seconds": 0.010398,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 3,
+            "seconds": 0.0114261,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 4,
+            "seconds": 0.0106791,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 5,
+            "seconds": 0.0118781,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_integer",
+            "repeat": 6,
+            "seconds": 0.0109266,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_integer": [
+          {
+            "name": "value24_integer",
+            "repeat": 0,
+            "seconds": 0.0111985,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 1,
+            "seconds": 0.010076,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 2,
+            "seconds": 0.0099376,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 3,
+            "seconds": 0.0100179,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 4,
+            "seconds": 0.0092236,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 5,
+            "seconds": 0.0112562,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_integer",
+            "repeat": 6,
+            "seconds": 0.0101386,
+            "bytes": 24,
+            "result": 3001000,
+            "iterations": 1000000
+          }
+        ],
+        "object_float": [
+          {
+            "name": "object_float",
+            "repeat": 0,
+            "seconds": 0.0307687,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 1,
+            "seconds": 0.0290506,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 2,
+            "seconds": 0.0268839,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 3,
+            "seconds": 0.030607,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 4,
+            "seconds": 0.0318458,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 5,
+            "seconds": 0.0261447,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "object_float",
+            "repeat": 6,
+            "seconds": 0.0311483,
+            "bytes": 24000048,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value16_float": [
+          {
+            "name": "value16_float",
+            "repeat": 0,
+            "seconds": 0.0127544,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 1,
+            "seconds": 0.0117261,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 2,
+            "seconds": 0.0252162,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 3,
+            "seconds": 0.0160742,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 4,
+            "seconds": 0.0118153,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 5,
+            "seconds": 0.0132875,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value16_float",
+            "repeat": 6,
+            "seconds": 0.0131183,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "value24_float": [
+          {
+            "name": "value24_float",
+            "repeat": 0,
+            "seconds": 0.0308331,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 1,
+            "seconds": 0.0204404,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 2,
+            "seconds": 0.0224667,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 3,
+            "seconds": 0.0321613,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 4,
+            "seconds": 0.0224274,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 5,
+            "seconds": 0.0258469,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          },
+          {
+            "name": "value24_float",
+            "repeat": 6,
+            "seconds": 0.0246454,
+            "bytes": 24,
+            "result": 501000,
+            "iterations": 1000000
+          }
+        ],
+        "call_object": [
+          {
+            "name": "call_object",
+            "repeat": 0,
+            "seconds": 0.0138231,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 1,
+            "seconds": 0.0269723,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 2,
+            "seconds": 0.0199037,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 3,
+            "seconds": 0.0143355,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 4,
+            "seconds": 0.0152381,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 5,
+            "seconds": 0.014417,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_object",
+            "repeat": 6,
+            "seconds": 0.0137874,
+            "bytes": 24000024,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16": [
+          {
+            "name": "call_16",
+            "repeat": 0,
+            "seconds": 0.0049679,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 1,
+            "seconds": 0.0043616,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 2,
+            "seconds": 0.0044057,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 3,
+            "seconds": 0.0053213,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 4,
+            "seconds": 0.0047138,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 5,
+            "seconds": 0.0042698,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16",
+            "repeat": 6,
+            "seconds": 0.0047659,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24": [
+          {
+            "name": "call_24",
+            "repeat": 0,
+            "seconds": 0.0163363,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 1,
+            "seconds": 0.0145158,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 2,
+            "seconds": 0.0163811,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 3,
+            "seconds": 0.0200568,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 4,
+            "seconds": 0.0189834,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 5,
+            "seconds": 0.0218382,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24",
+            "repeat": 6,
+            "seconds": 0.018137,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16in": [
+          {
+            "name": "call_16in",
+            "repeat": 0,
+            "seconds": 0.0031399,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 1,
+            "seconds": 0.0047555,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 2,
+            "seconds": 0.0049253,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 3,
+            "seconds": 0.0058647,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 4,
+            "seconds": 0.0055958,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 5,
+            "seconds": 0.0063393,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16in",
+            "repeat": 6,
+            "seconds": 0.0041746,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24in": [
+          {
+            "name": "call_24in",
+            "repeat": 0,
+            "seconds": 0.0043597,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 1,
+            "seconds": 0.004791,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 2,
+            "seconds": 0.0045496,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 3,
+            "seconds": 0.0050631,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 4,
+            "seconds": 0.0055504,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 5,
+            "seconds": 0.0046724,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24in",
+            "repeat": 6,
+            "seconds": 0.0044209,
+            "bytes": 48,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_16object": [
+          {
+            "name": "call_16object",
+            "repeat": 0,
+            "seconds": 0.046089,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 1,
+            "seconds": 0.0223403,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 2,
+            "seconds": 0.0218807,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 3,
+            "seconds": 0.0217626,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 4,
+            "seconds": 0.0220552,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 5,
+            "seconds": 0.0192152,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_16object",
+            "repeat": 6,
+            "seconds": 0.0374533,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "call_24object": [
+          {
+            "name": "call_24object",
+            "repeat": 0,
+            "seconds": 0.0477604,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 1,
+            "seconds": 0.0523055,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 2,
+            "seconds": 0.0515107,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 3,
+            "seconds": 0.0543503,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 4,
+            "seconds": 0.0511144,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 5,
+            "seconds": 0.0525162,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          },
+          {
+            "name": "call_24object",
+            "repeat": 6,
+            "seconds": 0.0533547,
+            "bytes": 48000048,
+            "result": 1001000,
+            "iterations": 1000000
+          }
+        ],
+        "container_object": [
+          {
+            "name": "container_object",
+            "repeat": 0,
+            "seconds": 0.026574,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 1,
+            "seconds": 0.0205102,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 2,
+            "seconds": 0.0231759,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 3,
+            "seconds": 0.0268723,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 4,
+            "seconds": 0.0275364,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 5,
+            "seconds": 0.0259256,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_object",
+            "repeat": 6,
+            "seconds": 0.0254696,
+            "bytes": 24000584,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_16": [
+          {
+            "name": "container_16",
+            "repeat": 0,
+            "seconds": 0.006733,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 1,
+            "seconds": 0.0056569,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 2,
+            "seconds": 0.005051,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 3,
+            "seconds": 0.0061593,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 4,
+            "seconds": 0.0054854,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 5,
+            "seconds": 0.0060149,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_16",
+            "repeat": 6,
+            "seconds": 0.0066226,
+            "bytes": 1048,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "container_24": [
+          {
+            "name": "container_24",
+            "repeat": 0,
+            "seconds": 0.0075073,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 1,
+            "seconds": 0.0064956,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 2,
+            "seconds": 0.0064026,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 3,
+            "seconds": 0.0087861,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 4,
+            "seconds": 0.005598,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 5,
+            "seconds": 0.0069917,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          },
+          {
+            "name": "container_24",
+            "repeat": 6,
+            "seconds": 0.0067643,
+            "bytes": 1560,
+            "result": 1064000,
+            "iterations": 1000000
+          }
+        ],
+        "references_object": [
+          {
+            "name": "references_object",
+            "repeat": 0,
+            "seconds": 0.0041492,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 1,
+            "seconds": 0.0043909,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 2,
+            "seconds": 0.0034672,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 3,
+            "seconds": 0.0055901,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 4,
+            "seconds": 0.0041479,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 5,
+            "seconds": 0.0061066,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_object",
+            "repeat": 6,
+            "seconds": 0.0042481,
+            "bytes": 32856,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_16": [
+          {
+            "name": "references_16",
+            "repeat": 0,
+            "seconds": 0.0077909,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 1,
+            "seconds": 0.0052334,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 2,
+            "seconds": 0.0031792,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 3,
+            "seconds": 0.0032739,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 4,
+            "seconds": 0.0042724,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 5,
+            "seconds": 0.0052313,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_16",
+            "repeat": 6,
+            "seconds": 0.002597,
+            "bytes": 65624,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ],
+        "references_24": [
+          {
+            "name": "references_24",
+            "repeat": 0,
+            "seconds": 0.0171722,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 1,
+            "seconds": 0.0140265,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 2,
+            "seconds": 0.0169215,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 3,
+            "seconds": 0.014586,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 4,
+            "seconds": 0.0178865,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 5,
+            "seconds": 0.0179109,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          },
+          {
+            "name": "references_24",
+            "repeat": 6,
+            "seconds": 0.0179053,
+            "bytes": 98392,
+            "result": 502048,
+            "iterations": 1000000
+          }
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "default": {
+      "object_integer": {
+        "seconds": 0.0237551,
+        "bytes": 24000048,
+        "process_medians": [
+          0.0237551,
+          0.0245559,
+          0.0218983
+        ]
+      },
+      "selective_local": {
+        "seconds": 0.0004562,
+        "bytes": 24,
+        "process_medians": [
+          0.0004872,
+          0.0003638,
+          0.0004562
+        ]
+      },
+      "value16_integer": {
+        "seconds": 0.0015356,
+        "bytes": 24,
+        "process_medians": [
+          0.0015356,
+          0.0018004,
+          0.0014221
+        ]
+      },
+      "value24_integer": {
+        "seconds": 0.001829,
+        "bytes": 24,
+        "process_medians": [
+          0.001829,
+          0.0022338,
+          0.0013806
+        ]
+      },
+      "object_float": {
+        "seconds": 0.0223956,
+        "bytes": 24000048,
+        "process_medians": [
+          0.0097461,
+          0.0223956,
+          0.0308162
+        ]
+      },
+      "value16_float": {
+        "seconds": 0.0045068,
+        "bytes": 24,
+        "process_medians": [
+          0.0027629,
+          0.0059053,
+          0.0045068
+        ]
+      },
+      "value24_float": {
+        "seconds": 0.0031934,
+        "bytes": 24,
+        "process_medians": [
+          0.0031934,
+          0.0060184,
+          0.0028129
+        ]
+      },
+      "call_object": {
+        "seconds": 0.0182741,
+        "bytes": 24000024,
+        "process_medians": [
+          0.0182741,
+          0.0345697,
+          0.0178892
+        ]
+      },
+      "call_16": {
+        "seconds": 0.008455,
+        "bytes": 48,
+        "process_medians": [
+          0.008455,
+          0.0038505,
+          0.0226624
+        ]
+      },
+      "call_24": {
+        "seconds": 0.0327971,
+        "bytes": 48,
+        "process_medians": [
+          0.0327971,
+          0.0370598,
+          0.0326895
+        ]
+      },
+      "call_16in": {
+        "seconds": 0.0123405,
+        "bytes": 48,
+        "process_medians": [
+          0.0144874,
+          0.0123405,
+          0.0078869
+        ]
+      },
+      "call_24in": {
+        "seconds": 0.0156157,
+        "bytes": 48,
+        "process_medians": [
+          0.0156157,
+          0.029753,
+          0.0116566
+        ]
+      },
+      "call_16object": {
+        "seconds": 0.0203695,
+        "bytes": 48000048,
+        "process_medians": [
+          0.0203695,
+          0.0244142,
+          0.0199095
+        ]
+      },
+      "call_24object": {
+        "seconds": 0.0219914,
+        "bytes": 48000048,
+        "process_medians": [
+          0.0219914,
+          0.0235375,
+          0.0197317
+        ]
+      },
+      "container_object": {
+        "seconds": 0.0159039,
+        "bytes": 24000584,
+        "process_medians": [
+          0.0174963,
+          0.0159039,
+          0.0122045
+        ]
+      },
+      "container_16": {
+        "seconds": 0.0029241,
+        "bytes": 1048,
+        "process_medians": [
+          0.0038955,
+          0.0026507,
+          0.0029241
+        ]
+      },
+      "container_24": {
+        "seconds": 0.0034171,
+        "bytes": 1560,
+        "process_medians": [
+          0.0045632,
+          0.0034171,
+          0.0030769
+        ]
+      },
+      "references_object": {
+        "seconds": 0.0026667,
+        "bytes": 32856,
+        "process_medians": [
+          0.0042011,
+          0.0020978,
+          0.0026667
+        ]
+      },
+      "references_16": {
+        "seconds": 0.00367,
+        "bytes": 65624,
+        "process_medians": [
+          0.0059974,
+          0.0027744,
+          0.00367
+        ]
+      },
+      "references_24": {
+        "seconds": 0.0063411,
+        "bytes": 98392,
+        "process_medians": [
+          0.0069032,
+          0.0063411,
+          0.0048313
+        ]
+      }
+    },
+    "disabled": {
+      "object_integer": {
+        "seconds": 0.0083019,
+        "bytes": 24000048,
+        "process_medians": [
+          0.0087888,
+          0.0083019,
+          0.008144
+        ]
+      },
+      "selective_local": {
+        "seconds": 0.0003596,
+        "bytes": 24,
+        "process_medians": [
+          0.0003596,
+          0.0003423,
+          0.0005986
+        ]
+      },
+      "value16_integer": {
+        "seconds": 0.0109811,
+        "bytes": 24,
+        "process_medians": [
+          0.0113301,
+          0.010726,
+          0.0109811
+        ]
+      },
+      "value24_integer": {
+        "seconds": 0.0107942,
+        "bytes": 24,
+        "process_medians": [
+          0.0107942,
+          0.0108124,
+          0.010076
+        ]
+      },
+      "object_float": {
+        "seconds": 0.0300068,
+        "bytes": 24000048,
+        "process_medians": [
+          0.0289654,
+          0.0300068,
+          0.030607
+        ]
+      },
+      "value16_float": {
+        "seconds": 0.0131183,
+        "bytes": 24,
+        "process_medians": [
+          0.0121463,
+          0.0132518,
+          0.0131183
+        ]
+      },
+      "value24_float": {
+        "seconds": 0.0128347,
+        "bytes": 24,
+        "process_medians": [
+          0.0128347,
+          0.0117841,
+          0.0246454
+        ]
+      },
+      "call_object": {
+        "seconds": 0.0103138,
+        "bytes": 24000024,
+        "process_medians": [
+          0.0103138,
+          0.0089292,
+          0.014417
+        ]
+      },
+      "call_16": {
+        "seconds": 0.0032486,
+        "bytes": 48,
+        "process_medians": [
+          0.0030262,
+          0.0032486,
+          0.0047138
+        ]
+      },
+      "call_24": {
+        "seconds": 0.0115293,
+        "bytes": 48,
+        "process_medians": [
+          0.011326,
+          0.0115293,
+          0.018137
+        ]
+      },
+      "call_16in": {
+        "seconds": 0.0033522,
+        "bytes": 48,
+        "process_medians": [
+          0.0033522,
+          0.0028328,
+          0.0049253
+        ]
+      },
+      "call_24in": {
+        "seconds": 0.0050474,
+        "bytes": 48,
+        "process_medians": [
+          0.00752,
+          0.0050474,
+          0.0046724
+        ]
+      },
+      "call_16object": {
+        "seconds": 0.0216556,
+        "bytes": 48000048,
+        "process_medians": [
+          0.0216556,
+          0.0197464,
+          0.0220552
+        ]
+      },
+      "call_24object": {
+        "seconds": 0.0238685,
+        "bytes": 48000048,
+        "process_medians": [
+          0.0238685,
+          0.0225144,
+          0.0523055
+        ]
+      },
+      "container_object": {
+        "seconds": 0.0135064,
+        "bytes": 24000584,
+        "process_medians": [
+          0.0135064,
+          0.0123007,
+          0.0259256
+        ]
+      },
+      "container_16": {
+        "seconds": 0.0028593,
+        "bytes": 1048,
+        "process_medians": [
+          0.0028593,
+          0.0026658,
+          0.0060149
+        ]
+      },
+      "container_24": {
+        "seconds": 0.003714,
+        "bytes": 1560,
+        "process_medians": [
+          0.003714,
+          0.0030811,
+          0.0067643
+        ]
+      },
+      "references_object": {
+        "seconds": 0.0040338,
+        "bytes": 32856,
+        "process_medians": [
+          0.0033825,
+          0.0040338,
+          0.0042481
+        ]
+      },
+      "references_16": {
+        "seconds": 0.0030316,
+        "bytes": 65624,
+        "process_medians": [
+          0.0026421,
+          0.0030316,
+          0.0042724
+        ]
+      },
+      "references_24": {
+        "seconds": 0.0101456,
+        "bytes": 98392,
+        "process_medians": [
+          0.0088763,
+          0.0101456,
+          0.0171722
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{"check":"pass","size16":16,"size24":24,"containsRefs16":true,"containsRefs24":true,"existingAlias":true,"naiveImmediateAlias":false,"gcRoots":true,"overflowBigInteger":true}
+31000
+31000
+11000
+11000
+11000
+11000
+{"check":"pass","size16":16,"size24":24,"containsRefs16":true,"containsRefs24":true,"existingAlias":true,"naiveImmediateAlias":false,"gcRoots":true,"overflowBigInteger":true}
+31000
+31000
+11000
+11000
+11000
+11000

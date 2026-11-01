@@ -1,0 +1,11 @@
+semantics float True
+semantics empty True
+semantics bool True
+semantics reentry True
+semantics custom_first True
+semantics custom_middle True
+semantics custom_last True
+semantics shared_first True
+semantics shared_middle True
+semantics shared_last True
+semantics mixed_restore True

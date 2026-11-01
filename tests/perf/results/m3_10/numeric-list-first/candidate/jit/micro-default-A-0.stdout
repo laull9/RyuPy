@@ -1,0 +1,28 @@
+semantics construct_refs True
+semantics append_refs True
+semantics read_refs True
+semantics float True
+semantics bool True
+semantics custom True
+semantics mixed True
+{"label":"construct_refs","sample":0,"alloc_bytes":480288,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"construct_refs","sample":1,"alloc_bytes":480288,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"construct_refs","sample":2,"alloc_bytes":480288,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"append_refs","sample":0,"alloc_bytes":524648,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"append_refs","sample":1,"alloc_bytes":524648,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"append_refs","sample":2,"alloc_bytes":524648,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"read_refs","sample":0,"alloc_bytes":1427776,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"read_refs","sample":1,"alloc_bytes":1427776,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.121,"jit_ms":0,"jit_methods":0}
+{"label":"read_refs","sample":2,"alloc_bytes":1427776,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"float","sample":0,"alloc_bytes":1428224,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"float","sample":1,"alloc_bytes":1428224,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.123,"jit_ms":0,"jit_methods":0}
+{"label":"float","sample":2,"alloc_bytes":1428224,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}
+{"label":"bool","sample":0,"alloc_bytes":4308176,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.243,"jit_ms":6.7034,"jit_methods":9}
+{"label":"bool","sample":1,"alloc_bytes":4308176,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.243,"jit_ms":4.1188,"jit_methods":7}
+{"label":"bool","sample":2,"alloc_bytes":4308176,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.18,"jit_ms":2.4735,"jit_methods":9}
+{"label":"custom","sample":0,"alloc_bytes":8628224,"gc0":2,"gc1":0,"gc2":0,"gc_pause_ms":0.294,"jit_ms":4.5244,"jit_methods":21}
+{"label":"custom","sample":1,"alloc_bytes":8622032,"gc0":2,"gc1":0,"gc2":0,"gc_pause_ms":0.281,"jit_ms":21.3768,"jit_methods":51}
+{"label":"custom","sample":2,"alloc_bytes":8622032,"gc0":2,"gc1":0,"gc2":0,"gc_pause_ms":0.21,"jit_ms":7.6562,"jit_methods":9}
+{"label":"mixed","sample":0,"alloc_bytes":5742032,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.098,"jit_ms":4.1131,"jit_methods":4}
+{"label":"mixed","sample":1,"alloc_bytes":5742032,"gc0":1,"gc1":0,"gc2":0,"gc_pause_ms":0.075,"jit_ms":0.906,"jit_methods":1}
+{"label":"mixed","sample":2,"alloc_bytes":5742032,"gc0":2,"gc1":0,"gc2":0,"gc_pause_ms":0.18,"jit_ms":2.7101,"jit_methods":5}

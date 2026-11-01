@@ -1,0 +1,25 @@
+{
+  "name": "list_ops",
+  "tier": "default",
+  "variant": "C",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/list_ops/list_ops.dll"
+  ],
+  "utc_epoch_start": 1793559925.8969321,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 635.5922240036307,
+  "maxrss": 101343232,
+  "stats": {
+    "main_ms": 487.326,
+    "alloc_bytes": 122471624,
+    "gc0": 18,
+    "gc1": 6,
+    "gc2": 3,
+    "gc_pause_ms": 121.537,
+    "jit_ms": 139.733,
+    "jit_methods": 398,
+    "heap_bytes": 39766992
+  }
+}

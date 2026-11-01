@@ -1,0 +1,7 @@
+semantics construct_refs True
+semantics append_refs True
+semantics read_refs True
+semantics float True
+semantics bool True
+semantics custom True
+semantics mixed True

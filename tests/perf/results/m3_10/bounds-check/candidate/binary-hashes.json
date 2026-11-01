@@ -1,0 +1,9 @@
+{
+  "ryupy-candidate": "d9447ed733f8743a53bfff1e2b4b5d1b1f7a3c918751bb29d221ad0054fcca34",
+  "runtime/RyuPy.Runtime.dll": "fc4e746cd24ca868dfa0cf31665d97578c9a86828a97c8e594ed01458bd925b7",
+  "before/bench/matmul/matmul.dll": "80e91cf21428d214c26eb48af9b71f2745308698d699b5b261110624d1e7fa98",
+  "after/bench/matmul/matmul.dll": "641c463ee399b4f6753571a67eb3873644939ac1901175d63125881b5a91e78b",
+  "before/bench/matmul/RyuPy.Runtime.dll": "fc4e746cd24ca868dfa0cf31665d97578c9a86828a97c8e594ed01458bd925b7",
+  "after/bench/matmul/RyuPy.Runtime.dll": "fc4e746cd24ca868dfa0cf31665d97578c9a86828a97c8e594ed01458bd925b7",
+  "core-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "fc4e746cd24ca868dfa0cf31665d97578c9a86828a97c8e594ed01458bd925b7"
+}

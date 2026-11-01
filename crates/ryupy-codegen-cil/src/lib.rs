@@ -76,3 +76,15 @@ mod exact_i64_tests;
 
 #[cfg(test)]
 mod function_identity_tests;
+
+#[cfg(test)]
+mod exact_f64_tests;
+
+mod math_refs;
+mod numeric_list_refs;
+#[cfg(test)]
+mod numeric_list_tests;
+
+mod vector_refs;
+#[cfg(test)]
+mod vector_tests;

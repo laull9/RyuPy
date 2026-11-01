@@ -1,0 +1,25 @@
+{
+  "name": "attrs",
+  "tier": "disabled",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/attrs/attrs.dll"
+  ],
+  "utc_epoch_start": 1793559916.0430753,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 568.9791990007507,
+  "maxrss": 53374976,
+  "stats": {
+    "main_ms": 368.092,
+    "alloc_bytes": 176239160,
+    "gc0": 40,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 6.964,
+    "jit_ms": 276.59,
+    "jit_methods": 252,
+    "heap_bytes": 7234640
+  }
+}

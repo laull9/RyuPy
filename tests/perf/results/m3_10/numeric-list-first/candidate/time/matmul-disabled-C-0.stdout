@@ -1,0 +1,8 @@
+613423466.816
+{"kind":"kernel_time","name":"matmul","sample":0,"elapsed_ms":314.0187}
+{"kind":"kernel_time","name":"matmul","sample":1,"elapsed_ms":343.9802}
+{"kind":"kernel_time","name":"matmul","sample":2,"elapsed_ms":348.1274}
+{"kind":"kernel_time","name":"matmul","sample":3,"elapsed_ms":288.8567}
+{"kind":"kernel_time","name":"matmul","sample":4,"elapsed_ms":313.6506}
+{"kind":"kernel_time","name":"matmul","sample":5,"elapsed_ms":450.7465}
+{"kind":"kernel_time","name":"matmul","sample":6,"elapsed_ms":390.1802}

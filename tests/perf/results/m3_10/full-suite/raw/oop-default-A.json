@@ -1,0 +1,25 @@
+{
+  "name": "oop",
+  "tier": "default",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/oop/oop.dll"
+  ],
+  "utc_epoch_start": 1793559917.210241,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 575.4207439968013,
+  "maxrss": 51003392,
+  "stats": {
+    "main_ms": 461.309,
+    "alloc_bytes": 104261160,
+    "gc0": 23,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 7.362,
+    "jit_ms": 220.025,
+    "jit_methods": 646,
+    "heap_bytes": 6446568
+  }
+}

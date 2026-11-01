@@ -1,0 +1,68 @@
+ M .gitattributes
+ M TODO.md
+ M crates/ryupy-codegen-cil/src/exact_i64_tests.rs
+ M crates/ryupy-codegen-cil/src/lib.rs
+ M crates/ryupy-codegen-cil/src/refs.rs
+ M crates/ryupy-codegen-cil/src/stackify_refs.rs
+ M crates/ryupy-codegen-cil/src/stackify_runtime.rs
+ M crates/ryupy-codegen-cil/src/stackify_rvalue.rs
+ M crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_cil.snap
+ M crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_mir.snap
+ M crates/ryupy-mir/src/exact_types.rs
+ M crates/ryupy-mir/src/exact_types_tests.rs
+ M crates/ryupy-mir/src/lib.rs
+ M crates/ryupy-mir/src/link.rs
+ M crates/ryupy-mir/src/mir.rs
+ M crates/ryupy-mir/src/passes/dead_values.rs
+ M crates/ryupy-mir/src/passes/mod.rs
+ M crates/ryupy-mir/src/pretty.rs
+ M crates/ryupy-mir/src/runtime_fn.rs
+ M crates/ryupy-mir/src/validate.rs
+ M crates/ryupy-mir/src/validate_runtime_calls.rs
+ M docs/adr/0003-pyvalue-layout.md
+ M docs/adr/0010-dynamic-value-representation.md
+ M docs/adr/README.md
+ M docs/optimization.md
+ M docs/semantics.md
+ M runtime/RyuPy.Runtime.Tests/PyHashTests.cs
+ M runtime/RyuPy.Runtime/PyContainers.cs
+ M runtime/RyuPy.Runtime/PyHash.cs
+?? crates/ryupy-codegen-cil/src/exact_f64_tests.rs
+?? crates/ryupy-codegen-cil/src/math_refs.rs
+?? crates/ryupy-codegen-cil/src/numeric_list_refs.rs
+?? crates/ryupy-codegen-cil/src/numeric_list_tests.rs
+?? crates/ryupy-driver/tests/float_chain.rs
+?? crates/ryupy-driver/tests/float_loop.rs
+?? crates/ryupy-driver/tests/numeric_list.rs
+?? crates/ryupy-mir/src/exact_f64_tests.rs
+?? crates/ryupy-mir/src/numeric_list_abi_tests.rs
+?? crates/ryupy-mir/src/passes/float_chain.rs
+?? crates/ryupy-mir/src/passes/float_chain_expand.rs
+?? crates/ryupy-mir/src/passes/float_chain_tests.rs
+?? crates/ryupy-mir/src/passes/float_loop.rs
+?? crates/ryupy-mir/src/passes/float_loop_expand.rs
+?? crates/ryupy-mir/src/passes/float_loop_tests.rs
+?? crates/ryupy-mir/src/passes/numeric_list.rs
+?? crates/ryupy-mir/src/passes/numeric_list_analysis.rs
+?? crates/ryupy-mir/src/passes/numeric_list_expand.rs
+?? crates/ryupy-mir/src/passes/numeric_list_tests.rs
+?? docs/adr/0037-guarded-float-chain-scalarization.md
+?? docs/adr/0038-inner-float-loop-materialization.md
+?? docs/adr/0039-adaptive-numeric-list-island.md
+?? docs/notes/2026-11-01-m3.10-dynamic-representation.md
+?? docs/notes/2026-11-01-m3.10-numeric-list-runtime.md
+?? runtime/RyuPy.Runtime.Tests/PyNumericListTests.cs
+?? runtime/RyuPy.Runtime/PyNumericList.cs
+?? runtime/RyuPy.Runtime/PyNumericListOps.cs
+?? runtime/RyuPy.Runtime/PyNumericSlot.cs
+?? tests/e2e/phase3/m3_10_float_chain.py
+?? tests/e2e/phase3/m3_10_float_loop.py
+?? tests/e2e/phase3/m3_10_numeric_list_island.py
+?? tests/e2e/phase3/m3_shared_nan_dict_pending.py
+?? tests/perf/compare_float_chain.py
+?? tests/perf/compare_float_loop.py
+?? tests/perf/compare_numeric_list.py
+?? tests/perf/float_chain.py
+?? tests/perf/float_loop.py
+?? tests/perf/numeric_list.py
+?? tests/perf/results/m3_10/

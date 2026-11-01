@@ -1,0 +1,2848 @@
+diff --git a/crates/ryupy-codegen-cil/src/exact_i64_tests.rs b/crates/ryupy-codegen-cil/src/exact_i64_tests.rs
+index 7de2d36..77f257b 100644
+--- a/crates/ryupy-codegen-cil/src/exact_i64_tests.rs
++++ b/crates/ryupy-codegen-cil/src/exact_i64_tests.rs
+@@ -9,7 +9,7 @@ use ryupy_mir::{
+     MirType, ModuleDef, Operand, RuntimeFn, Rvalue, Statement, Terminator,
+ };
+ 
+-fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
++pub(super) fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
+     locals.alloc(LocalDecl {
+         ty,
+         name: None,
+@@ -17,7 +17,7 @@ fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
+     })
+ }
+ 
+-fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Function {
++pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Function {
+     Function {
+         name: name.into(),
+         codegen_name: name.into(),
+@@ -34,7 +34,11 @@ fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Funct
+     }
+ }
+ 
+-fn single_block(locals: Arena<LocalDecl>, stmts: Vec<Statement>, ret: Option<Operand>) -> Body {
++pub(super) fn single_block(
++    locals: Arena<LocalDecl>,
++    stmts: Vec<Statement>,
++    ret: Option<Operand>,
++) -> Body {
+     let mut blocks = Arena::default();
+     let entry = blocks.alloc(BasicBlock {
+         stmts,
+@@ -48,7 +52,7 @@ fn single_block(locals: Arena<LocalDecl>, stmts: Vec<Statement>, ret: Option<Ope
+     }
+ }
+ 
+-fn program() -> LinkedProgram {
++pub(super) fn program() -> LinkedProgram {
+     let mut functions = Arena::default();
+     let init = functions.alloc(function(
+         "__main__",
+diff --git a/crates/ryupy-codegen-cil/src/lib.rs b/crates/ryupy-codegen-cil/src/lib.rs
+index 13cfebd..1112d69 100644
+--- a/crates/ryupy-codegen-cil/src/lib.rs
++++ b/crates/ryupy-codegen-cil/src/lib.rs
+@@ -76,3 +76,6 @@ mod exact_i64_tests;
+ 
+ #[cfg(test)]
+ mod function_identity_tests;
++
++#[cfg(test)]
++mod exact_f64_tests;
+diff --git a/crates/ryupy-codegen-cil/src/stackify_rvalue.rs b/crates/ryupy-codegen-cil/src/stackify_rvalue.rs
+index 96dcfb0..552b704 100644
+--- a/crates/ryupy-codegen-cil/src/stackify_rvalue.rs
++++ b/crates/ryupy-codegen-cil/src/stackify_rvalue.rs
+@@ -185,7 +185,7 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
+             );
+             emit_box(ins, from, ctx.runtime_refs, ctx.class_types);
+         }
+-        Rvalue::IsBoxedI64 { value } => {
++        Rvalue::IsBoxedI64 { value } | Rvalue::IsBoxedF64 { value } => {
+             lower_operand(
+                 value,
+                 ins,
+@@ -194,13 +194,18 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
+                 ctx.runtime_refs,
+             );
+             // isinst 对值类型只接受对应的盒；CLR null 不是语言层的 None 对象。
+-            ins.push(Instruction::IsInstance(BaseType::Int64.into()));
++            let exact_type = if matches!(rval, Rvalue::IsBoxedF64 { .. }) {
++                BaseType::Float64
++            } else {
++                BaseType::Int64
++            };
++            ins.push(Instruction::IsInstance(exact_type.into()));
+             ins.push(Instruction::LoadNull);
+             ins.push(Instruction::CompareEqual);
+             ins.push(Instruction::LoadConstantInt32(0));
+             ins.push(Instruction::CompareEqual);
+         }
+-        Rvalue::UnboxExactI64 { value } => {
++        Rvalue::UnboxExactI64 { value } | Rvalue::UnboxExactF64 { value } => {
+             lower_operand(
+                 value,
+                 ins,
+@@ -209,7 +214,12 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
+                 ctx.runtime_refs,
+             );
+             // MIR 验证器负责守卫支配性；此处不调用具有转换语义的 PyCast。
+-            ins.push(Instruction::UnboxIntoValue(BaseType::Int64.into()));
++            let exact_type = if matches!(rval, Rvalue::UnboxExactF64 { .. }) {
++                BaseType::Float64
++            } else {
++                BaseType::Int64
++            };
++            ins.push(Instruction::UnboxIntoValue(exact_type.into()));
+         }
+         Rvalue::Unbox { value, to } => {
+             lower_operand(
+diff --git a/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_cil.snap b/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_cil.snap
+index ec828ca..dbe3f7d 100644
+--- a/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_cil.snap
++++ b/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_cil.snap
+@@ -63,7 +63,18 @@ expression: cil
+             [2] [System.Runtime]System.Object,
+             [3] [System.Runtime]System.Object,
+             [4] [System.Runtime]System.Object,
+-            [5] [System.Runtime]System.Object
++            [5] [System.Runtime]System.Object,
++            [6] [System.Runtime]System.Object,
++            [7] double,
++            [8] [System.Runtime]System.Object,
++            [9] double,
++            [10] [System.Runtime]System.Object,
++            [11] double,
++            [12] double,
++            [13] double,
++            [14] bool,
++            [15] bool,
++            [16] bool
+         )
+         IL_0000: LoadString("m1_5_dataclass.py")
+         IL_0001: LoadString("step")
+@@ -81,30 +92,89 @@ expression: cil
+         IL_000d: LoadString("v")
+         IL_000e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
+         IL_000f: StoreLocal(2)
+-        IL_0010: LoadConstantInt32(2)
+-        IL_0011: LoadConstantInt32(3)
+-        IL_0012: LoadLocal(2)
+-        IL_0013: LoadArgument(1)
+-        IL_0014: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+-        IL_0015: StoreLocal(3)
+-        IL_0016: LoadConstantInt32(3)
+-        IL_0017: LoadConstantInt32(1)
+-        IL_0018: LoadLocal(1)
+-        IL_0019: LoadLocal(3)
+-        IL_001a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+-        IL_001b: StoreLocal(4)
+-        IL_001c: LoadConstantInt32(4)
+-        IL_001d: LoadArgument(0)
+-        IL_001e: LoadString("x")
+-        IL_001f: LoadLocal(4)
+-        IL_0020: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+-        IL_0021: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+-        IL_0022: StoreLocal(5)
+-        IL_0023: Branch(36)
+-        IL_0024: LoadLocal(0)
+-        IL_0025: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+-        IL_0026: LoadLocal(5)
+-        IL_0027: Return
++        IL_0010: LoadLocal(2)
++        IL_0011: StoreLocal(6)
++        IL_0012: LoadArgument(1)
++        IL_0013: StoreLocal(8)
++        IL_0014: LoadLocal(1)
++        IL_0015: StoreLocal(10)
++        IL_0016: Branch(89)
++        IL_0017: LoadLocal(0)
++        IL_0018: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
++        IL_0019: LoadLocal(5)
++        IL_001a: Return
++        IL_001b: LoadConstantInt32(2)
++        IL_001c: LoadArgument(0)
++        IL_001d: LoadString("x")
++        IL_001e: LoadLocal(4)
++        IL_001f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
++        IL_0020: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
++        IL_0021: StoreLocal(5)
++        IL_0022: Branch(23)
++        IL_0023: LoadConstantInt32(3)
++        IL_0024: LoadConstantInt32(3)
++        IL_0025: LoadLocal(2)
++        IL_0026: LoadArgument(1)
++        IL_0027: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
++        IL_0028: StoreLocal(3)
++        IL_0029: LoadConstantInt32(4)
++        IL_002a: LoadConstantInt32(1)
++        IL_002b: LoadLocal(1)
++        IL_002c: LoadLocal(3)
++        IL_002d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
++        IL_002e: StoreLocal(4)
++        IL_002f: Branch(27)
++        IL_0030: LoadLocal(6)
++        IL_0031: UnboxIntoValue(double)
++        IL_0032: StoreLocal(7)
++        IL_0033: LoadLocal(8)
++        IL_0034: UnboxIntoValue(double)
++        IL_0035: StoreLocal(9)
++        IL_0036: LoadLocal(10)
++        IL_0037: UnboxIntoValue(double)
++        IL_0038: StoreLocal(11)
++        IL_0039: LoadLocal(7)
++        IL_003a: LoadLocal(9)
++        IL_003b: Multiply
++        IL_003c: StoreLocal(12)
++        IL_003d: LoadLocal(11)
++        IL_003e: LoadLocal(12)
++        IL_003f: Add
++        IL_0040: StoreLocal(13)
++        IL_0041: LoadLocal(13)
++        IL_0042: BoxValue(double)
++        IL_0043: StoreLocal(4)
++        IL_0044: Branch(27)
++        IL_0045: LoadLocal(10)
++        IL_0046: IsInstance(double)
++        IL_0047: LoadNull
++        IL_0048: CompareEqual
++        IL_0049: LoadConstantInt32(0)
++        IL_004a: CompareEqual
++        IL_004b: StoreLocal(14)
++        IL_004c: LoadLocal(14)
++        IL_004d: BranchTruthy(48)
++        IL_004e: Branch(35)
++        IL_004f: LoadLocal(8)
++        IL_0050: IsInstance(double)
++        IL_0051: LoadNull
++        IL_0052: CompareEqual
++        IL_0053: LoadConstantInt32(0)
++        IL_0054: CompareEqual
++        IL_0055: StoreLocal(15)
++        IL_0056: LoadLocal(15)
++        IL_0057: BranchTruthy(69)
++        IL_0058: Branch(35)
++        IL_0059: LoadLocal(6)
++        IL_005a: IsInstance(double)
++        IL_005b: LoadNull
++        IL_005c: CompareEqual
++        IL_005d: LoadConstantInt32(0)
++        IL_005e: CompareEqual
++        IL_005f: StoreLocal(16)
++        IL_0060: LoadLocal(16)
++        IL_0061: BranchTruthy(79)
++        IL_0062: Branch(35)
+     }
+ 
+     .method public static [System.Runtime]System.Object m0_dot([System.Runtime]System.Object, [System.Runtime]System.Object) cil managed
+@@ -118,7 +188,18 @@ expression: cil
+             [5] [System.Runtime]System.Object,
+             [6] [System.Runtime]System.Object,
+             [7] [System.Runtime]System.Object,
+-            [8] [System.Runtime]System.Object
++            [8] [System.Runtime]System.Object,
++            [9] [System.Runtime]System.Object,
++            [10] double,
++            [11] [System.Runtime]System.Object,
++            [12] double,
++            [13] [System.Runtime]System.Object,
++            [14] double,
++            [15] double,
++            [16] double,
++            [17] bool,
++            [18] bool,
++            [19] bool
+         )
+         IL_0000: LoadString("m1_5_dataclass.py")
+         IL_0001: LoadString("dot")
+@@ -152,25 +233,84 @@ expression: cil
+         IL_001d: LoadString("y")
+         IL_001e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
+         IL_001f: StoreLocal(6)
+-        IL_0020: LoadConstantInt32(10)
+-        IL_0021: LoadConstantInt32(3)
+-        IL_0022: LoadLocal(5)
+-        IL_0023: LoadLocal(6)
+-        IL_0024: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+-        IL_0025: StoreLocal(7)
+-        IL_0026: LoadConstantInt32(11)
+-        IL_0027: LoadConstantInt32(1)
+-        IL_0028: LoadLocal(4)
+-        IL_0029: LoadLocal(7)
+-        IL_002a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+-        IL_002b: StoreLocal(8)
+-        IL_002c: LoadLocal(8)
+-        IL_002d: StoreLocal(1)
+-        IL_002e: Branch(47)
+-        IL_002f: LoadLocal(0)
+-        IL_0030: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+-        IL_0031: LoadLocal(1)
+-        IL_0032: Return
++        IL_0020: LoadLocal(5)
++        IL_0021: StoreLocal(9)
++        IL_0022: LoadLocal(6)
++        IL_0023: StoreLocal(11)
++        IL_0024: LoadLocal(4)
++        IL_0025: StoreLocal(13)
++        IL_0026: Branch(100)
++        IL_0027: LoadLocal(0)
++        IL_0028: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
++        IL_0029: LoadLocal(1)
++        IL_002a: Return
++        IL_002b: LoadLocal(8)
++        IL_002c: StoreLocal(1)
++        IL_002d: Branch(39)
++        IL_002e: LoadConstantInt32(10)
++        IL_002f: LoadConstantInt32(3)
++        IL_0030: LoadLocal(5)
++        IL_0031: LoadLocal(6)
++        IL_0032: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
++        IL_0033: StoreLocal(7)
++        IL_0034: LoadConstantInt32(11)
++        IL_0035: LoadConstantInt32(1)
++        IL_0036: LoadLocal(4)
++        IL_0037: LoadLocal(7)
++        IL_0038: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
++        IL_0039: StoreLocal(8)
++        IL_003a: Branch(43)
++        IL_003b: LoadLocal(9)
++        IL_003c: UnboxIntoValue(double)
++        IL_003d: StoreLocal(10)
++        IL_003e: LoadLocal(11)
++        IL_003f: UnboxIntoValue(double)
++        IL_0040: StoreLocal(12)
++        IL_0041: LoadLocal(13)
++        IL_0042: UnboxIntoValue(double)
++        IL_0043: StoreLocal(14)
++        IL_0044: LoadLocal(10)
++        IL_0045: LoadLocal(12)
++        IL_0046: Multiply
++        IL_0047: StoreLocal(15)
++        IL_0048: LoadLocal(14)
++        IL_0049: LoadLocal(15)
++        IL_004a: Add
++        IL_004b: StoreLocal(16)
++        IL_004c: LoadLocal(16)
++        IL_004d: BoxValue(double)
++        IL_004e: StoreLocal(8)
++        IL_004f: Branch(43)
++        IL_0050: LoadLocal(13)
++        IL_0051: IsInstance(double)
++        IL_0052: LoadNull
++        IL_0053: CompareEqual
++        IL_0054: LoadConstantInt32(0)
++        IL_0055: CompareEqual
++        IL_0056: StoreLocal(17)
++        IL_0057: LoadLocal(17)
++        IL_0058: BranchTruthy(59)
++        IL_0059: Branch(46)
++        IL_005a: LoadLocal(11)
++        IL_005b: IsInstance(double)
++        IL_005c: LoadNull
++        IL_005d: CompareEqual
++        IL_005e: LoadConstantInt32(0)
++        IL_005f: CompareEqual
++        IL_0060: StoreLocal(18)
++        IL_0061: LoadLocal(18)
++        IL_0062: BranchTruthy(80)
++        IL_0063: Branch(46)
++        IL_0064: LoadLocal(9)
++        IL_0065: IsInstance(double)
++        IL_0066: LoadNull
++        IL_0067: CompareEqual
++        IL_0068: LoadConstantInt32(0)
++        IL_0069: CompareEqual
++        IL_006a: StoreLocal(19)
++        IL_006b: LoadLocal(19)
++        IL_006c: BranchTruthy(90)
++        IL_006d: Branch(46)
+     }
+ 
+     .method public static void m0___module_main() cil managed
+diff --git a/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_mir.snap b/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_mir.snap
+index 732d966..e7358f4 100644
+--- a/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_mir.snap
++++ b/crates/ryupy-driver/tests/snapshots/snapshots__m1_5_dataclass_mir.snap
+@@ -11,22 +11,63 @@ fn step(_0: dyn, _1: dyn) -> dyn {
+     let _5: dyn;
+     let _6: dyn;
+     let _7: dyn;
++    let _8: dyn;
++    let _9: f64;
++    let _10: dyn;
++    let _11: f64;
++    let _12: dyn;
++    let _13: f64;
++    let _14: f64;
++    let _15: f64;
++    let _16: bool;
++    let _17: bool;
++    let _18: bool;
+ 
+     bb0: {
+         _2 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "step");
+         // line 19
+         _3 = RuntimeFn::DynGetAttr(_0, const "x");
+         _4 = RuntimeFn::DynGetAttr(_0, const "v");
+-        _5 = dyn.Mul(_4, _1);
+-        _6 = dyn.Add(_3, _5);
+-        RuntimeFn::SetAttr(_0, const "x", _6);
+-        _7 = RuntimeFn::DynNone();
+-        goto -> bb1;
++        _8 = _4;
++        _10 = _1;
++        _12 = _3;
++        goto -> bb7;
+     }
+     bb1: {
+         RuntimeFn::TracePopTo(_2);
+         return _7;
+     }
++    bb2: {
++        RuntimeFn::SetAttr(_0, const "x", _6);
++        _7 = RuntimeFn::DynNone();
++        goto -> bb1;
++    }
++    bb3: {
++        _5 = dyn.Mul(_4, _1);
++        _6 = dyn.Add(_3, _5);
++        goto -> bb2;
++    }
++    bb4: {
++        _9 = unbox_exact_f64(_8);
++        _11 = unbox_exact_f64(_10);
++        _13 = unbox_exact_f64(_12);
++        _14 = Mul(_9, _11);
++        _15 = Add(_13, _14);
++        _6 = box<F64>(_15);
++        goto -> bb2;
++    }
++    bb5: {
++        _16 = is_boxed_f64(_12);
++        branch _16 -> [then: bb4, else: bb3];
++    }
++    bb6: {
++        _17 = is_boxed_f64(_10);
++        branch _17 -> [then: bb5, else: bb3];
++    }
++    bb7: {
++        _18 = is_boxed_f64(_8);
++        branch _18 -> [then: bb6, else: bb3];
++    }
+ }
+ 
+ fn dot(_0: dyn, _1: dyn) -> dyn {
+@@ -41,6 +82,17 @@ fn dot(_0: dyn, _1: dyn) -> dyn {
+     let _8: dyn;
+     let _9: dyn;
+     let _10: dyn;
++    let _11: dyn;
++    let _12: f64;
++    let _13: dyn;
++    let _14: f64;
++    let _15: dyn;
++    let _16: f64;
++    let _17: f64;
++    let _18: f64;
++    let _19: bool;
++    let _20: bool;
++    let _21: bool;
+ 
+     bb0: {
+         _2 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "dot");
+@@ -50,10 +102,10 @@ fn dot(_0: dyn, _1: dyn) -> dyn {
+         _6 = dyn.Mul(_4, _5);
+         _7 = RuntimeFn::DynGetAttr(_0, const "y");
+         _8 = RuntimeFn::DynGetAttr(_1, const "y");
+-        _9 = dyn.Mul(_7, _8);
+-        _10 = dyn.Add(_6, _9);
+-        _3 = _10;
+-        goto -> bb2;
++        _11 = _7;
++        _13 = _8;
++        _15 = _6;
++        goto -> bb8;
+     }
+     bb1: {
+         unreachable;
+@@ -62,6 +114,36 @@ fn dot(_0: dyn, _1: dyn) -> dyn {
+         RuntimeFn::TracePopTo(_2);
+         return _3;
+     }
++    bb3: {
++        _3 = _10;
++        goto -> bb2;
++    }
++    bb4: {
++        _9 = dyn.Mul(_7, _8);
++        _10 = dyn.Add(_6, _9);
++        goto -> bb3;
++    }
++    bb5: {
++        _12 = unbox_exact_f64(_11);
++        _14 = unbox_exact_f64(_13);
++        _16 = unbox_exact_f64(_15);
++        _17 = Mul(_12, _14);
++        _18 = Add(_16, _17);
++        _10 = box<F64>(_18);
++        goto -> bb3;
++    }
++    bb6: {
++        _19 = is_boxed_f64(_15);
++        branch _19 -> [then: bb5, else: bb4];
++    }
++    bb7: {
++        _20 = is_boxed_f64(_13);
++        branch _20 -> [then: bb6, else: bb4];
++    }
++    bb8: {
++        _21 = is_boxed_f64(_11);
++        branch _21 -> [then: bb7, else: bb4];
++    }
+ }
+ 
+ fn main() -> () {
+diff --git a/crates/ryupy-mir/src/exact_types.rs b/crates/ryupy-mir/src/exact_types.rs
+index 5ca8d79..0aa0644 100644
+--- a/crates/ryupy-mir/src/exact_types.rs
++++ b/crates/ryupy-mir/src/exact_types.rs
+@@ -1,18 +1,25 @@
+ //! 非SSA的有限must类型事实：可达输入为空不等于尚未访问；合流取交集，写入杀死旧证明。
+-//! 目前只证明boxed Int64，并仅用于内部精确拆箱；不从Python标注/isinstance推断精确类型。
++//! 证明boxed Int64/Double时保留不同标签，仅用于内部精确拆箱；不从Python标注/isinstance推断。
+ use crate::mir::*;
+ use rustc_hash::{FxHashMap, FxHashSet};
+ use std::collections::VecDeque;
+ 
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++enum ExactKind {
++    I64,
++    F64,
++}
++
+ #[derive(Clone, Debug, Default, PartialEq, Eq)]
+ struct Facts {
+-    exact: FxHashSet<LocalId>,
++    exact: FxHashMap<LocalId, ExactKind>,
+     /// 条件局部 → 被测试的冻结局部；不传播predicate别名，避免漏跟踪依赖写入。
+-    predicates: FxHashMap<LocalId, LocalId>,
++    predicates: FxHashMap<LocalId, (LocalId, ExactKind)>,
+ }
+ impl Facts {
+     fn meet(&mut self, other: &Self) {
+-        self.exact.retain(|local| other.exact.contains(local));
++        self.exact
++            .retain(|local, kind| other.exact.get(local) == Some(kind));
+         self.predicates
+             .retain(|cond, subject| other.predicates.get(cond) == Some(subject));
+     }
+@@ -24,21 +31,27 @@ impl Facts {
+         let exact = match value {
+             Rvalue::Box {
+                 from: MirType::I64, ..
+-            } => true,
+-            Rvalue::Use(Operand::Local(source)) => self.exact.contains(source),
+-            _ => false,
++            } => Some(ExactKind::I64),
++            Rvalue::Box {
++                from: MirType::F64, ..
++            } => Some(ExactKind::F64),
++            Rvalue::Use(Operand::Local(source)) => self.exact.get(source).copied(),
++            _ => None,
+         };
+         let predicate = match value {
+             Rvalue::IsBoxedI64 {
+                 value: Operand::Local(subject),
+-            } if subject != dest => Some(*subject),
++            } if subject != dest => Some((*subject, ExactKind::I64)),
++            Rvalue::IsBoxedF64 {
++                value: Operand::Local(subject),
++            } if subject != dest => Some((*subject, ExactKind::F64)),
+             _ => None,
+         };
+         self.exact.remove(dest);
+         self.predicates
+-            .retain(|cond, subject| cond != dest && subject != dest);
+-        if exact {
+-            self.exact.insert(*dest);
++            .retain(|cond, (subject, _)| cond != dest && subject != dest);
++        if let Some(kind) = exact {
++            self.exact.insert(*dest, kind);
+         }
+         if let Some(subject) = predicate {
+             self.predicates.insert(*dest, subject);
+@@ -69,9 +82,9 @@ fn inputs(function: &Function) -> FxHashMap<BlockId, Facts> {
+             Terminator::Branch { cond, then_, else_ } => {
+                 let mut yes = output.clone();
+                 if let Operand::Local(condition) = cond
+-                    && let Some(subject) = output.predicates.get(condition).copied()
++                    && let Some((subject, kind)) = output.predicates.get(condition).copied()
+                 {
+-                    yes.exact.insert(subject);
++                    yes.exact.insert(subject, kind);
+                     output.exact.remove(&subject);
+                 }
+                 edges.push((*then_, yes));
+@@ -112,7 +125,7 @@ pub(crate) fn exact_call_sites(function: &Function) -> FxHashSet<(BlockId, usize
+             } = stmt
+                 && args
+                     .iter()
+-                    .all(|arg| matches!(arg, Operand::Local(local) if facts.exact.contains(local)))
++                    .all(|arg| matches!(arg, Operand::Local(local) if facts.exact.get(local) == Some(&ExactKind::I64)))
+             {
+                 sites.insert((id, position));
+             }
+@@ -131,6 +144,8 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
+                 Statement::Assign {
+                     value: Rvalue::IsBoxedI64 { .. }
+                         | Rvalue::UnboxExactI64 { .. }
++                        | Rvalue::IsBoxedF64 { .. }
++                        | Rvalue::UnboxExactF64 { .. }
+                         | Rvalue::Binary {
+                             op: BinOp::WrappingAdd,
+                             ..
+@@ -139,6 +154,8 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
+                 } | Statement::Eval(
+                     Rvalue::IsBoxedI64 { .. }
+                         | Rvalue::UnboxExactI64 { .. }
++                        | Rvalue::IsBoxedF64 { .. }
++                        | Rvalue::UnboxExactF64 { .. }
+                         | Rvalue::Binary {
+                             op: BinOp::WrappingAdd,
+                             ..
+@@ -173,9 +190,20 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
+                 _ => continue,
+             };
+             let expected = match value {
+-                Rvalue::IsBoxedI64 { .. } => Some(MirType::Bool),
++                Rvalue::IsBoxedI64 { .. } | Rvalue::IsBoxedF64 { .. } => Some(MirType::Bool),
++                Rvalue::UnboxExactF64 { value } => {
++                    if !matches!(value, Operand::Local(local) if facts.exact.get(local) == Some(&ExactKind::F64))
++                    {
++                        errors.push(format!(
++                            "函数 `{}` 块 {:?} 的精确拆箱缺少当前局部的boxed Double真边证明",
++                            function.name, id
++                        ));
++                    }
++                    Some(MirType::F64)
++                }
+                 Rvalue::UnboxExactI64 { value } => {
+-                    if !matches!(value, Operand::Local(local) if facts.exact.contains(local)) {
++                    if !matches!(value, Operand::Local(local) if facts.exact.get(local) == Some(&ExactKind::I64))
++                    {
+                         errors.push(format!(
+                             "函数 `{}` 块 {:?} 的精确拆箱缺少当前局部的boxed Int64真边证明",
+                             function.name, id
+@@ -224,3 +252,7 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
+ #[cfg(test)]
+ #[path = "exact_types_tests.rs"]
+ mod tests;
++
++#[cfg(test)]
++#[path = "exact_f64_tests.rs"]
++mod f64_tests;
+diff --git a/crates/ryupy-mir/src/exact_types_tests.rs b/crates/ryupy-mir/src/exact_types_tests.rs
+index 50723c3..905edda 100644
+--- a/crates/ryupy-mir/src/exact_types_tests.rs
++++ b/crates/ryupy-mir/src/exact_types_tests.rs
+@@ -2,7 +2,7 @@
+ use crate::mir::*;
+ use la_arena::Arena;
+ 
+-fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
++pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
+     let mut locals = Arena::default();
+     let subject = locals.alloc(LocalDecl {
+         ty: MirType::Dynamic,
+diff --git a/crates/ryupy-mir/src/link.rs b/crates/ryupy-mir/src/link.rs
+index c979ed7..0775d32 100644
+--- a/crates/ryupy-mir/src/link.rs
++++ b/crates/ryupy-mir/src/link.rs
+@@ -362,6 +362,12 @@ fn remap_rvalue(
+             value: remap_operand(value, global_map),
+             from: remap_type(from, class_map),
+         },
++        Rvalue::IsBoxedF64 { value } => Rvalue::IsBoxedF64 {
++            value: remap_operand(value, global_map),
++        },
++        Rvalue::UnboxExactF64 { value } => Rvalue::UnboxExactF64 {
++            value: remap_operand(value, global_map),
++        },
+         Rvalue::IsBoxedI64 { value } => Rvalue::IsBoxedI64 {
+             value: remap_operand(value, global_map),
+         },
+diff --git a/crates/ryupy-mir/src/mir.rs b/crates/ryupy-mir/src/mir.rs
+index d7f6b50..703074f 100644
+--- a/crates/ryupy-mir/src/mir.rs
++++ b/crates/ryupy-mir/src/mir.rs
+@@ -329,6 +329,14 @@ pub enum Rvalue {
+         value: Operand,
+         to: MirType,
+     },
++    /// 纯CLR精确boxed Double测试；不包含整数/bool或用户数值转换。
++    IsBoxedF64 {
++        value: Operand,
++    },
++    /// 已被精确Double事实证明的动态局部拆箱；不调用PyCast。
++    UnboxExactF64 {
++        value: Operand,
++    },
+     /// 纯CLR精确boxed Int64测试；不包含Python bool/大整数转换。
+     IsBoxedI64 {
+         value: Operand,
+diff --git a/crates/ryupy-mir/src/passes/dead_values.rs b/crates/ryupy-mir/src/passes/dead_values.rs
+index 04bde11..45489b4 100644
+--- a/crates/ryupy-mir/src/passes/dead_values.rs
++++ b/crates/ryupy-mir/src/passes/dead_values.rs
+@@ -96,6 +96,8 @@ pub(super) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
+         | Rvalue::GetField { obj: value, .. }
+         | Rvalue::Box { value, .. }
+         | Rvalue::Unbox { value, .. }
++        | Rvalue::IsBoxedF64 { value }
++        | Rvalue::UnboxExactF64 { value }
+         | Rvalue::IsBoxedI64 { value }
+         | Rvalue::UnboxExactI64 { value }
+         | Rvalue::DynTruthy { value }
+diff --git a/crates/ryupy-mir/src/passes/mod.rs b/crates/ryupy-mir/src/passes/mod.rs
+index c7daf93..91212d5 100644
+--- a/crates/ryupy-mir/src/passes/mod.rs
++++ b/crates/ryupy-mir/src/passes/mod.rs
+@@ -1,7 +1,7 @@
+ //! MIR 优化 / 变换 Pass。
+ //!
+ //! 每个 Pass 是一个独立模块，实现 [`MirPass`]。约定：
+-//! - Pass 结束后 MIR 必须仍能通过 [`crate::validate`]（debug 构建下自动检查）；
++//! - Pass 结束后 MIR 必须仍能通过 [`crate::validate`]（每个 Pass 后始终检查）；
+ //! - 每个 Pass 配一组 insta 快照：输入 MIR → 输出 MIR。
+ //!
+ //! 计划中的 Pass：
+@@ -13,6 +13,14 @@ use crate::mir::{Function, Program};
+ mod dead_values;
+ #[cfg(test)]
+ mod dead_values_tests;
++mod float_chain;
++mod float_chain_expand;
++#[cfg(test)]
++mod float_chain_tests;
++mod float_loop;
++mod float_loop_expand;
++#[cfg(test)]
++mod float_loop_tests;
+ mod interval_facts;
+ mod interval_narrow;
+ #[cfg(test)]
+@@ -30,6 +38,7 @@ mod tuple_scalar;
+ mod tuple_scalar_tests;
+ 
+ pub use dead_values::DeadValues;
++pub use float_chain::FloatChain;
+ pub use interval_narrow::IntervalNarrow;
+ pub use numeric_accumulator::{DirectNumericAccumulator, NumericAccumulator};
+ pub use simplify_cfg::SimplifyCfg;
+@@ -86,6 +95,8 @@ pub fn pipeline_with_options(
+     passes.push(PipelinePass::Function(Box::new(TupleScalar)));
+     passes.push(PipelinePass::Function(Box::new(DeadValues)));
+     passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));
++    // M3.10 有界原型：最终默认策略由真实差分与配对性能决定。
++    passes.push(PipelinePass::Function(Box::new(FloatChain)));
+     if experimental_leaf_inline {
+         passes.push(PipelinePass::Program(Box::new(leaf_inline::LeafInline)));
+     }
+diff --git a/crates/ryupy-mir/src/pretty.rs b/crates/ryupy-mir/src/pretty.rs
+index 9fab123..1f89b26 100644
+--- a/crates/ryupy-mir/src/pretty.rs
++++ b/crates/ryupy-mir/src/pretty.rs
+@@ -293,6 +293,8 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
+         Rvalue::Box { value, from } => {
+             format!("box<{:?}>({})", from, format_operand(value))
+         }
++        Rvalue::IsBoxedF64 { value } => format!("is_boxed_f64({})", format_operand(value)),
++        Rvalue::UnboxExactF64 { value } => format!("unbox_exact_f64({})", format_operand(value)),
+         Rvalue::IsBoxedI64 { value } => format!("is_boxed_i64({})", format_operand(value)),
+         Rvalue::UnboxExactI64 { value } => format!("unbox_exact_i64({})", format_operand(value)),
+         Rvalue::Unbox { value, to } => {
+diff --git a/crates/ryupy-mir/src/validate.rs b/crates/ryupy-mir/src/validate.rs
+index 9e1ad12..4fbb6e3 100644
+--- a/crates/ryupy-mir/src/validate.rs
++++ b/crates/ryupy-mir/src/validate.rs
+@@ -457,6 +457,8 @@ fn validate_rvalue(
+             }
+         }
+         Rvalue::Unbox { value, .. }
++        | Rvalue::IsBoxedF64 { value }
++        | Rvalue::UnboxExactF64 { value }
+         | Rvalue::IsBoxedI64 { value }
+         | Rvalue::UnboxExactI64 { value } => {
+             validate_operand(func, block_id, value, errors);
+diff --git a/crates/ryupy-codegen-cil/src/exact_f64_tests.rs b/crates/ryupy-codegen-cil/src/exact_f64_tests.rs
+new file mode 100644
+index 0000000..e4b4168
+--- /dev/null
++++ b/crates/ryupy-codegen-cil/src/exact_f64_tests.rs
+@@ -0,0 +1,178 @@
++//! Double原语的真实PE契约：isinst/unbox.any与独立mul/add，不引入Python转换或融合算术助手。
++use super::exact_i64_tests::{function, local, program, single_block};
++use dotnetdll::prelude::*;
++use la_arena::Arena;
++use ryupy_mir::{
++    BasicBlock, BinOp, Body, Constant, MirType, Operand, Rvalue, Statement, Terminator,
++};
++
++#[test]
++fn exact_double_guard_unbox_and_arithmetic_are_mechanical_clr_operations() {
++    let mut program = program();
++    let mut locals = Arena::default();
++    let input = local(&mut locals, MirType::Dynamic);
++    let guard = local(&mut locals, MirType::Bool);
++    let value = local(&mut locals, MirType::F64);
++    let mut blocks = Arena::default();
++    let entry = blocks.alloc(BasicBlock {
++        stmts: vec![Statement::Assign {
++            dest: guard,
++            value: Rvalue::IsBoxedF64 {
++                value: Operand::Local(input),
++            },
++        }],
++        terminator: Terminator::Unreachable,
++    });
++    let yes = blocks.alloc(BasicBlock {
++        stmts: vec![Statement::Assign {
++            dest: value,
++            value: Rvalue::UnboxExactF64 {
++                value: Operand::Local(input),
++            },
++        }],
++        terminator: Terminator::Return(Some(Operand::Local(value))),
++    });
++    let no = blocks.alloc(BasicBlock {
++        stmts: vec![],
++        terminator: Terminator::Return(Some(Operand::Const(Constant::F64(0.0)))),
++    });
++    blocks[entry].terminator = Terminator::Branch {
++        cond: Operand::Local(guard),
++        then_: yes,
++        else_: no,
++    };
++    program.functions.alloc(function(
++        "guarded_double",
++        Body {
++            locals,
++            blocks,
++            entry,
++            regions: vec![],
++        },
++        vec![input],
++        MirType::F64,
++    ));
++    let mut locals = Arena::default();
++    let input = local(&mut locals, MirType::Dynamic);
++    let value = local(&mut locals, MirType::F64);
++    program.functions.alloc(function(
++        "converting_double",
++        single_block(
++            locals,
++            vec![Statement::Assign {
++                dest: value,
++                value: Rvalue::Unbox {
++                    value: Operand::Local(input),
++                    to: MirType::F64,
++                },
++            }],
++            Some(Operand::Local(value)),
++        ),
++        vec![input],
++        MirType::F64,
++    ));
++    let mut locals = Arena::default();
++    let a = local(&mut locals, MirType::F64);
++    let b = local(&mut locals, MirType::F64);
++    let c = local(&mut locals, MirType::F64);
++    let product = local(&mut locals, MirType::F64);
++    let result = local(&mut locals, MirType::F64);
++    program.functions.alloc(function(
++        "double_chain",
++        single_block(
++            locals,
++            vec![
++                Statement::Assign {
++                    dest: product,
++                    value: Rvalue::Binary {
++                        op: BinOp::Mul,
++                        lhs: Operand::Local(a),
++                        rhs: Operand::Local(b),
++                    },
++                },
++                Statement::Assign {
++                    dest: result,
++                    value: Rvalue::Binary {
++                        op: BinOp::Add,
++                        lhs: Operand::Local(product),
++                        rhs: Operand::Local(c),
++                    },
++                },
++            ],
++            Some(Operand::Local(result)),
++        ),
++        vec![a, b, c],
++        MirType::F64,
++    ));
++    let bytes = crate::emit_assembly(
++        &program,
++        &crate::EmitOptions {
++            assembly_name: "exact_f64".into(),
++            entry_source_path: None,
++        },
++    )
++    .unwrap();
++    let res = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
++    let instructions = |name: &str| {
++        &res.type_definitions
++            .iter()
++            .flat_map(|t| &t.methods)
++            .find(|m| m.name == name)
++            .unwrap()
++            .body
++            .as_ref()
++            .unwrap()
++            .instructions
++    };
++    let exact = instructions("guarded_double");
++    let guard = exact
++        .iter()
++        .position(|i| matches!(i, Instruction::IsInstance(_)))
++        .unwrap();
++    assert!(exact[guard].show(&res).contains("double"));
++    assert!(matches!(exact[guard + 1], Instruction::LoadNull));
++    assert!(matches!(exact[guard + 2], Instruction::CompareEqual));
++    assert!(matches!(
++        exact[guard + 3],
++        Instruction::LoadConstantInt32(0)
++    ));
++    assert!(matches!(exact[guard + 4], Instruction::CompareEqual));
++    assert!(
++        exact
++            .iter()
++            .find(|i| matches!(i, Instruction::UnboxIntoValue(_)))
++            .unwrap()
++            .show(&res)
++            .contains("double")
++    );
++    assert!(!exact.iter().any(|i| i.show(&res).contains("PyCast")));
++    assert!(
++        instructions("converting_double")
++            .iter()
++            .any(|i| i.show(&res).contains("ToFloat64"))
++    );
++    let chain = instructions("double_chain");
++    assert_eq!(
++        chain
++            .iter()
++            .filter(|i| matches!(i, Instruction::Multiply))
++            .count(),
++        1
++    );
++    assert_eq!(
++        chain
++            .iter()
++            .filter(|i| matches!(i, Instruction::Add))
++            .count(),
++        1
++    );
++    assert!(!chain.iter().any(|i| matches!(
++        i,
++        Instruction::AddOverflow(_) | Instruction::MultiplyOverflow(_)
++    )));
++    assert!(
++        !chain
++            .iter()
++            .any(|i| i.show(&res).contains("PyPic") || i.show(&res).contains("FusedMultiply"))
++    );
++}
+diff --git a/crates/ryupy-driver/tests/float_chain.rs b/crates/ryupy-driver/tests/float_chain.rs
+new file mode 100644
+index 0000000..4007827
+--- /dev/null
++++ b/crates/ryupy-driver/tests/float_chain.rs
+@@ -0,0 +1,110 @@
++//! 短浮点链必须在真实源码命中；差分覆盖精确守卫失败、逐次舍入与原异常位置。
++use ryupy_driver::{BuildOptions, Session, Stage};
++mod support;
++
++fn section<'a>(mir: &'a str, name: &str) -> &'a str {
++    mir.split(&format!("fn {name}("))
++        .nth(1)
++        .unwrap_or_else(|| panic!("缺少被测试函数 {name}"))
++        .split("\nfn ")
++        .next()
++        .unwrap()
++}
++
++#[test]
++fn real_numeric_kernels_expose_guarded_float_chains() {
++    let root = ryupy_driver::runtime::workspace_root();
++    for (file, name) in [("matmul.py", "matmul"), ("nbody.py", "advance")] {
++        let mut session = Session::default();
++        let mir = support::dump(
++            &mut session,
++            &root.join("tests/benchmarks").join(file),
++            Stage::Mir,
++        )
++        .unwrap();
++        let function = section(&mir, name);
++        assert!(function.contains("is_boxed_f64"), "{name} 没有真实守卫");
++        assert!(
++            function.contains("unbox_exact_f64"),
++            "{name} 没有真实直接浮点拆箱"
++        );
++        assert!(function.contains("dyn.Mul"), "必须保留原动态失败路径");
++    }
++}
++
++#[test]
++fn float_chain_fixture_matches_pinned_python_after_real_specialization() {
++    let root = ryupy_driver::runtime::workspace_root();
++    let input = root.join("tests/e2e/phase3/m3_10_float_chain.py");
++    let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
++    let version = std::process::Command::new(&python)
++        .arg("--version")
++        .output()
++        .unwrap();
++    let pinned = std::fs::read_to_string(root.join("tests/pinned-python.txt")).unwrap();
++    assert!(String::from_utf8_lossy(&version.stdout).contains(pinned.trim()));
++    let expected = std::process::Command::new(&python)
++        .arg(&input)
++        .output()
++        .unwrap();
++    assert!(expected.status.success());
++    let mut session = Session::default();
++    let mir = support::dump(&mut session, &input, Stage::Mir).unwrap();
++    for name in ["mul_add", "norm_squared"] {
++        assert!(
++            section(&mir, name).contains("unbox_exact_f64"),
++            "真实语义差分必须命中 {name}"
++        );
++    }
++    let artifact = ryupy_driver::build(
++        &mut session,
++        &BuildOptions {
++            input,
++            out_dir: root.join("target/test_float_chain"),
++            aot: false,
++            search_paths: vec![],
++        },
++    )
++    .unwrap();
++    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
++    assert_eq!(
++        actual.status.code(),
++        expected.status.code(),
++        "{}",
++        String::from_utf8_lossy(&actual.stderr)
++    );
++    assert_eq!(actual.stdout, expected.stdout);
++    assert_eq!(actual.stderr, expected.stderr);
++}
++
++#[test]
++fn guard_failure_retains_original_user_protocol_traceback() {
++    let root = ryupy_driver::runtime::workspace_root();
++    let dir = root.join("target/test_float_chain_trace");
++    std::fs::create_dir_all(&dir).unwrap();
++    let input = dir.join("float_chain_error.py");
++    std::fs::write(
++        &input,
++        "class Bad:\n    def __radd__(self, other):\n        raise ValueError('原回调')\ndef fused(a, b, c):\n    return a * b + c\nprint(fused(2.0, 3.0, Bad()))\n",
++    )
++    .unwrap();
++    let mut session = Session::default();
++    let mir = support::dump(&mut session, &input, Stage::Mir).unwrap();
++    assert!(section(&mir, "fused").contains("unbox_exact_f64"));
++    let artifact = ryupy_driver::build(
++        &mut session,
++        &BuildOptions {
++            input,
++            out_dir: dir.join("build"),
++            aot: false,
++            search_paths: vec![],
++        },
++    )
++    .unwrap();
++    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
++    assert_eq!(actual.status.code(), Some(1));
++    let error = String::from_utf8_lossy(&actual.stderr);
++    assert!(error.contains("line 3, in __radd__"), "{error}");
++    assert!(error.contains("line 5, in fused"), "{error}");
++    assert!(error.contains("ValueError: 原回调"), "{error}");
++}
+diff --git a/crates/ryupy-driver/tests/float_loop.rs b/crates/ryupy-driver/tests/float_loop.rs
+new file mode 100644
+index 0000000..0e09109
+--- /dev/null
++++ b/crates/ryupy-driver/tests/float_loop.rs
+@@ -0,0 +1,112 @@
++//! 内层浮点累加必须真实命中；不以旧entry-holder或普通短链通过冒充跨迭代验证。
++use ryupy_driver::{BuildOptions, Session, Stage};
++mod support;
++
++fn section<'a>(mir: &'a str, name: &str) -> &'a str {
++    mir.split(&format!("fn {name}("))
++        .nth(1)
++        .unwrap_or_else(|| panic!("缺少被测试函数 {name}"))
++        .split("\nfn ")
++        .next()
++        .unwrap()
++}
++
++#[test]
++fn real_matrix_and_nested_fixture_use_cross_iteration_float_state() {
++    let root = ryupy_driver::runtime::workspace_root();
++    for (path, names) in [
++        ("tests/benchmarks/matmul.py", vec!["matmul"]),
++        (
++            "tests/e2e/phase3/m3_10_float_loop.py",
++            vec!["accumulate", "repeated", "zero_identity"],
++        ),
++    ] {
++        let mut session = Session::default();
++        let mir = support::dump(&mut session, &root.join(path), Stage::Mir).unwrap();
++        for name in names {
++            let body = section(&mir, name);
++            assert!(body.contains("$float_loop_raw"), "未真实命中{name}：{body}");
++            assert!(body.contains("$float_loop_mode"), "缺少慢路状态：{body}");
++            assert!(body.contains("dyn.Add.inplace"), "原协议回退丢失：{body}");
++        }
++        if path.ends_with("m3_10_float_loop.py") {
++            for name in ["observed", "interrupted", "early_return"] {
++                assert!(
++                    !section(&mir, name).contains("$float_loop_raw"),
++                    "有观察或其它出口的 {name} 不得进入原生累加状态"
++                );
++            }
++        }
++    }
++}
++
++#[test]
++fn loop_identity_reentry_and_protocol_fixture_match_pinned_python() {
++    let root = ryupy_driver::runtime::workspace_root();
++    let input = root.join("tests/e2e/phase3/m3_10_float_loop.py");
++    let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
++    let version = std::process::Command::new(&python)
++        .arg("--version")
++        .output()
++        .unwrap();
++    let pinned = std::fs::read_to_string(root.join("tests/pinned-python.txt")).unwrap();
++    assert!(String::from_utf8_lossy(&version.stdout).contains(pinned.trim()));
++    let expected = std::process::Command::new(&python)
++        .arg(&input)
++        .output()
++        .unwrap();
++    assert!(expected.status.success());
++    let mut session = Session::default();
++    let artifact = ryupy_driver::build(
++        &mut session,
++        &BuildOptions {
++            input,
++            out_dir: root.join("target/test_float_loop"),
++            aot: false,
++            search_paths: vec![],
++        },
++    )
++    .unwrap();
++    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
++    assert_eq!(
++        actual.status.code(),
++        expected.status.code(),
++        "{}",
++        String::from_utf8_lossy(&actual.stderr)
++    );
++    assert_eq!(actual.stdout, expected.stdout);
++    assert_eq!(actual.stderr, expected.stderr);
++}
++
++#[test]
++fn failed_protocol_observes_materialized_previous_sum_and_original_trace() {
++    let root = ryupy_driver::runtime::workspace_root();
++    let dir = root.join("target/test_float_loop_trace");
++    std::fs::create_dir_all(&dir).unwrap();
++    let input = dir.join("float_loop_error.py");
++    std::fs::write(
++        &input,
++        "class Bad:\n    def __mul__(self, other):\n        return self\n    def __radd__(self, other):\n        print(other)\n        raise ValueError('原回调')\ndef accumulate(values):\n    for outer in range(1):\n        total = 0.0\n        for index in range(len(values)):\n            total += values[index] * 1.0\n    return total\nprint(accumulate([1.25, Bad()]))\n",
++    )
++    .unwrap();
++    let mut session = Session::default();
++    let mir = support::dump(&mut session, &input, Stage::Mir).unwrap();
++    assert!(section(&mir, "accumulate").contains("$float_loop_raw"));
++    let artifact = ryupy_driver::build(
++        &mut session,
++        &BuildOptions {
++            input,
++            out_dir: dir.join("build"),
++            aot: false,
++            search_paths: vec![],
++        },
++    )
++    .unwrap();
++    let actual = ryupy_driver::dotnet::run_dll(&artifact.dll).unwrap();
++    assert_eq!(actual.status.code(), Some(1));
++    assert_eq!(actual.stdout, b"1.25\n");
++    let error = String::from_utf8_lossy(&actual.stderr);
++    assert!(error.contains("line 6, in __radd__"), "{error}");
++    assert!(error.contains("line 11, in accumulate"), "{error}");
++    assert!(error.contains("ValueError: 原回调"), "{error}");
++}
+diff --git a/crates/ryupy-mir/src/exact_f64_tests.rs b/crates/ryupy-mir/src/exact_f64_tests.rs
+new file mode 100644
+index 0000000..fdb8157
+--- /dev/null
++++ b/crates/ryupy-mir/src/exact_f64_tests.rs
+@@ -0,0 +1,185 @@
++//! Double证明不能与Int64/bool混淆；同样遵守写kill、合流及循环回边的must事实契约。
++use crate::mir::*;
++fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
++    let (mut p, blocks, locals) = super::tests::sample();
++    let [entry, yes, no] = blocks;
++    let [subject, cond, result] = locals;
++    let f = &mut p.functions[p.entry];
++    f.ret = MirType::F64;
++    f.body.locals[result].ty = MirType::F64;
++    f.body.blocks[entry].stmts = vec![Statement::Assign {
++        dest: cond,
++        value: Rvalue::IsBoxedF64 {
++            value: Operand::Local(subject),
++        },
++    }];
++    f.body.blocks[yes].stmts = vec![Statement::Assign {
++        dest: result,
++        value: Rvalue::UnboxExactF64 {
++            value: Operand::Local(subject),
++        },
++    }];
++    f.body.blocks[no].terminator = Terminator::Return(Some(Operand::Const(Constant::F64(0.0))));
++    (p, blocks, locals)
++}
++fn rejected(p: &Program) {
++    assert!(
++        crate::validate::validate(p)
++            .unwrap_err()
++            .iter()
++            .any(|error| error.contains("精确") || error.contains("拆箱"))
++    );
++}
++fn box_value(dest: LocalId, value: Constant, from: MirType) -> Statement {
++    Statement::Assign {
++        dest,
++        value: Rvalue::Box {
++            value: Operand::Const(value),
++            from,
++        },
++    }
++}
++#[test]
++fn guarded_double_and_preserving_alias_are_valid() {
++    let (mut p, [_, yes, _], [subject, _, _]) = sample();
++    crate::validate::validate(&p).unwrap();
++    p.functions[p.entry].body.blocks[yes].stmts.insert(
++        0,
++        Statement::Assign {
++            dest: subject,
++            value: Rvalue::Use(Operand::Local(subject)),
++        },
++    );
++    crate::validate::validate(&p).unwrap();
++}
++#[test]
++fn integer_guard_and_writes_cannot_prove_double() {
++    for case in 0..4 {
++        let (mut p, [entry, yes, _], [subject, cond, _]) = sample();
++        let f = &mut p.functions[p.entry];
++        match case {
++            0 => {
++                f.body.blocks[entry].stmts[0] = Statement::Assign {
++                    dest: cond,
++                    value: Rvalue::IsBoxedI64 {
++                        value: Operand::Local(subject),
++                    },
++                }
++            }
++            1 => f.body.blocks[yes]
++                .stmts
++                .insert(0, box_value(subject, Constant::I64(1), MirType::I64)),
++            2 => f.body.blocks[yes]
++                .stmts
++                .insert(0, box_value(subject, Constant::Bool(true), MirType::Bool)),
++            _ => f.body.blocks[entry].stmts.push(Statement::Assign {
++                dest: cond,
++                value: Rvalue::Use(Operand::Const(Constant::Bool(true))),
++            }),
++        }
++        rejected(&p);
++    }
++}
++#[test]
++fn mixed_kind_join_and_backedge_invalidate_double_fact() {
++    for mixed in [false, true] {
++        let (mut p, [entry, yes, no], [subject, cond, result]) = sample();
++        let f = &mut p.functions[p.entry];
++        f.body.blocks[entry].stmts = vec![Statement::Assign {
++            dest: cond,
++            value: Rvalue::Use(Operand::Const(Constant::Bool(true))),
++        }];
++        let join = f.body.blocks.alloc(BasicBlock {
++            stmts: vec![Statement::Assign {
++                dest: result,
++                value: Rvalue::UnboxExactF64 {
++                    value: Operand::Local(subject),
++                },
++            }],
++            terminator: Terminator::Return(Some(Operand::Local(result))),
++        });
++        f.body.blocks[yes].stmts = vec![box_value(subject, Constant::F64(1.0), MirType::F64)];
++        f.body.blocks[no].stmts = if mixed {
++            vec![box_value(subject, Constant::I64(1), MirType::I64)]
++        } else {
++            vec![box_value(subject, Constant::F64(2.0), MirType::F64)]
++        };
++        f.body.blocks[yes].terminator = Terminator::Goto(join);
++        f.body.blocks[no].terminator = Terminator::Goto(join);
++        if mixed {
++            rejected(&p);
++        } else {
++            crate::validate::validate(&p).unwrap();
++        }
++    }
++    let (mut p, [_, yes, no], [subject, _, _]) = sample();
++    let f = &mut p.functions[p.entry];
++    f.body.blocks[yes]
++        .stmts
++        .push(box_value(subject, Constant::I64(1), MirType::I64));
++    f.body.blocks[yes].terminator = Terminator::Branch {
++        cond: Operand::Const(Constant::Bool(true)),
++        then_: yes,
++        else_: no,
++    };
++    rejected(&p);
++}
++#[test]
++fn double_boxes_do_not_qualify_as_integer_leaf_arguments() {
++    let (mut p, [entry, yes, _], [subject, cond, result]) = sample();
++    let f = &mut p.functions[p.entry];
++    let output = f.body.locals.alloc(LocalDecl {
++        ty: MirType::Dynamic,
++        name: None,
++        is_cell: false,
++    });
++    f.body.blocks[entry].stmts = vec![
++        box_value(subject, Constant::F64(-0.0), MirType::F64),
++        Statement::Assign {
++            dest: cond,
++            value: Rvalue::Use(Operand::Const(Constant::Bool(true))),
++        },
++    ];
++    f.body.blocks[yes].stmts.push(Statement::Assign {
++        dest: output,
++        value: Rvalue::DynCallValue {
++            callee: Operand::Const(Constant::None),
++            args: vec![Operand::Local(subject)],
++        },
++    });
++    assert!(super::exact_call_sites(f).is_empty());
++    f.body.blocks[yes].stmts.pop();
++    crate::validate::validate(&p).unwrap();
++    // 相反方向同样不能用Double证明Int64拆箱。
++    let f = &mut p.functions[p.entry];
++    f.ret = MirType::I64;
++    f.body.locals[result].ty = MirType::I64;
++    f.body.blocks[yes].stmts[0] = Statement::Assign {
++        dest: result,
++        value: Rvalue::UnboxExactI64 {
++            value: Operand::Local(subject),
++        },
++    };
++    rejected(&p);
++}
++#[test]
++fn exact_double_requires_dynamic_input_f64_destination_and_no_dropped_value() {
++    for case in 0..3 {
++        let (mut p, [entry, yes, _], [subject, _, result]) = sample();
++        let f = &mut p.functions[p.entry];
++        match case {
++            0 => f.body.locals[result].ty = MirType::I64,
++            1 => {
++                f.body.blocks[yes].stmts[0] = Statement::Eval(Rvalue::UnboxExactF64 {
++                    value: Operand::Local(subject),
++                })
++            }
++            _ => {
++                f.body.blocks[entry].stmts[0] = Statement::Eval(Rvalue::IsBoxedF64 {
++                    value: Operand::Const(Constant::F64(1.0)),
++                })
++            }
++        }
++        rejected(&p);
++    }
++}
+diff --git a/crates/ryupy-mir/src/passes/float_chain.rs b/crates/ryupy-mir/src/passes/float_chain.rs
+new file mode 100644
+index 0000000..e405821
+--- /dev/null
++++ b/crates/ryupy-mir/src/passes/float_chain.rs
+@@ -0,0 +1,274 @@
++//! 有界精确浮点算术链：守卫只放宽表示，不把动态协议或操作次序交给后端猜测。
++//!
++//! 首版仅连续的 2–8 条 Add/Sub/Mul，所有输入是动态局部；中间值无名字、无外部读取。
++//! 每函数最多尝试 16 个候选（失败也计入），块/局部/语句预算限制拒绝路径扫描成本。
++use super::MirPass;
++use super::dead_values::{read_operand, read_value};
++use crate::mir::*;
++use rustc_hash::{FxHashMap, FxHashSet};
++
++pub struct FloatChain;
++const MAX_STEPS: usize = 8;
++const MAX_INPUTS: usize = 8;
++const MAX_ATTEMPTS: usize = 16;
++const MAX_BLOCKS: usize = 128;
++const MAX_LOCALS: usize = 512;
++const MAX_STATEMENTS: usize = 4096;
++
++pub(super) struct Step {
++    pub(super) dest: LocalId,
++    pub(super) op: BinOp,
++    pub(super) lhs: LocalId,
++    pub(super) rhs: LocalId,
++}
++pub(super) struct Plan {
++    pub(super) block: BlockId,
++    pub(super) start: usize,
++    pub(super) steps: Vec<Step>,
++    pub(super) inputs: Vec<LocalId>,
++}
++
++impl MirPass for FloatChain {
++    fn name(&self) -> &'static str {
++        "float_chain"
++    }
++    fn run(&self, function: &mut Function) {
++        if !eligible(function) {
++            return;
++        }
++        let mut candidates = Vec::new();
++        // 初次只记每个最大连续段的稳定首 dest；不在改写后重访慢路中的同一段。
++        'blocks: for (_, body) in function.body.blocks.iter() {
++            let mut inside = false;
++            for stmt in &body.stmts {
++                if let Some((dest, ..)) = dynamic_step(stmt) {
++                    if !inside {
++                        candidates.push(dest);
++                        if candidates.len() == MAX_ATTEMPTS {
++                            break 'blocks;
++                        }
++                    }
++                    inside = true;
++                } else {
++                    inside = false;
++                }
++            }
++        }
++        let mut loop_successes = 0;
++        for dest in candidates {
++            let definitions = definitions(function);
++            let Some(positions) = definitions.get(&dest) else {
++                continue;
++            };
++            let [(block, start)] = positions.as_slice() else {
++                continue;
++            };
++            let Some(plan) = candidate(function, &definitions, *block, *start) else {
++                continue;
++            };
++            // 同一初始候选只选一种表示；慢路原链不会进入新一轮扫描。
++            if loop_successes < 4 && super::float_loop::try_expand(function, &plan) {
++                loop_successes += 1;
++                continue;
++            }
++            // 每输入三个局部（快照/guard/unbox），每步一个原生结果；CFG至多inputs+3块。
++            if function.body.locals.len() + 3 * plan.inputs.len() + plan.steps.len() > MAX_LOCALS
++                || function.body.blocks.len() + plan.inputs.len() + 3 > MAX_BLOCKS
++            {
++                continue;
++            }
++            super::float_chain_expand::expand(function, plan);
++        }
++    }
++}
++fn eligible(function: &Function) -> bool {
++    function.signature_global.is_some()
++        && function.env.is_none()
++        && function.body.regions.is_empty()
++        && function.body.locals.len() <= MAX_LOCALS
++        && function.body.blocks.len() <= MAX_BLOCKS
++        && function
++            .body
++            .blocks
++            .iter()
++            .map(|(_, block)| block.stmts.len())
++            .sum::<usize>()
++            <= MAX_STATEMENTS
++        && !function.body.locals.iter().any(|(_, local)| local.is_cell)
++        && !function.body.blocks.iter().any(|(_, block)| {
++            matches!(block.terminator, Terminator::Suspend { .. })
++                || block.stmts.iter().any(|stmt| {
++                    matches!(
++                        stmt,
++                        Statement::Assign {
++                            value: Rvalue::MakeGenerator { .. },
++                            ..
++                        } | Statement::Eval(Rvalue::MakeGenerator { .. })
++                    )
++                })
++        })
++}
++
++type Definitions = FxHashMap<LocalId, Vec<(BlockId, usize)>>;
++fn definitions(function: &Function) -> Definitions {
++    let mut result = Definitions::default();
++    for (block, body) in function.body.blocks.iter() {
++        for (position, statement) in body.stmts.iter().enumerate() {
++            if let Statement::Assign { dest, .. } = statement {
++                result.entry(*dest).or_default().push((block, position));
++            }
++        }
++    }
++    result
++}
++fn dynamic_step(statement: &Statement) -> Option<(LocalId, DynOp, &Operand, &Operand, bool)> {
++    match statement {
++        Statement::Assign {
++            dest,
++            value:
++                Rvalue::DynBinary {
++                    op,
++                    lhs,
++                    rhs,
++                    inplace,
++                },
++        } => Some((*dest, *op, lhs, rhs, *inplace)),
++        _ => None,
++    }
++}
++fn candidate(
++    function: &Function,
++    definitions: &Definitions,
++    block: BlockId,
++    start: usize,
++) -> Option<Plan> {
++    let statements = &function.body.blocks[block].stmts;
++    let count = statements[start..]
++        .iter()
++        .take_while(|stmt| dynamic_step(stmt).is_some())
++        .count();
++    if !(2..=MAX_STEPS).contains(&count) {
++        return None;
++    }
++    let mut destinations = FxHashSet::default();
++    for (offset, stmt) in statements[start..start + count].iter().enumerate() {
++        let (dest, _, _, _, _) = dynamic_step(stmt)?;
++        if function.body.locals[dest].ty != MirType::Dynamic
++            || function.params.contains(&dest)
++            || (offset + 1 != count && function.body.locals[dest].name.is_some())
++            || definitions.get(&dest)?.as_slice() != [(block, start + offset)]
++            || !destinations.insert(dest)
++        {
++            return None;
++        }
++    }
++    let mut plan = Plan {
++        block,
++        start,
++        steps: vec![],
++        inputs: vec![],
++    };
++    let mut produced = FxHashSet::default();
++    let mut inputs = FxHashSet::default();
++    let mut consumed = FxHashSet::default();
++    for (offset, stmt) in statements[start..start + count].iter().enumerate() {
++        let (dest, op, lhs, rhs, inplace) = dynamic_step(stmt)?;
++        let op = match op {
++            DynOp::Add => BinOp::Add,
++            DynOp::Sub => BinOp::Sub,
++            DynOp::Mul => BinOp::Mul,
++            _ => return None,
++        };
++        if inplace && (offset + 1 != count || !matches!(op, BinOp::Add | BinOp::Sub)) {
++            return None;
++        }
++        let (Operand::Local(lhs), Operand::Local(rhs)) = (lhs, rhs) else {
++            return None;
++        };
++        for operand in [*lhs, *rhs] {
++            if function.body.locals[operand].ty != MirType::Dynamic {
++                return None;
++            }
++            if destinations.contains(&operand) {
++                // 自写/前向读取不能当作已生成中间量，也不能降级成外部输入。
++                if !produced.contains(&operand) {
++                    return None;
++                }
++                consumed.insert(operand);
++            } else if inputs.insert(operand) {
++                plan.inputs.push(operand);
++            }
++        }
++        plan.steps.push(Step {
++            dest,
++            op,
++            lhs: *lhs,
++            rhs: *rhs,
++        });
++        produced.insert(dest);
++    }
++    if plan.inputs.len() > MAX_INPUTS || plan.inputs.is_empty() {
++        return None;
++    }
++    let intermediate: FxHashSet<_> = plan
++        .steps
++        .iter()
++        .take(count - 1)
++        .map(|step| step.dest)
++        .collect();
++    // 不删除独立、无消费者的算术；首切只接受每个中间值都真正流向链内后续操作。
++    if !intermediate.iter().all(|local| consumed.contains(local)) {
++        return None;
++    }
++    for (id, body) in function.body.blocks.iter() {
++        if !terminator_reads(&body.terminator).is_disjoint(&intermediate) {
++            return None;
++        }
++        for (index, statement) in body.stmts.iter().enumerate() {
++            if id == block && (start..start + count).contains(&index) {
++                continue;
++            }
++            if !statement_reads(statement).is_disjoint(&intermediate) {
++                return None;
++            }
++        }
++    }
++    Some(plan)
++}
++fn statement_reads(statement: &Statement) -> FxHashSet<LocalId> {
++    let mut reads = FxHashSet::default();
++    match statement {
++        Statement::Assign { value, .. } | Statement::Eval(value) => read_value(value, &mut reads),
++        Statement::SetField { obj, value, .. } => {
++            read_operand(obj, &mut reads);
++            read_operand(value, &mut reads);
++        }
++        Statement::SetGlobal { value, .. } => read_operand(value, &mut reads),
++        Statement::Line(_) => {}
++    }
++    reads
++}
++fn terminator_reads(terminator: &Terminator) -> FxHashSet<LocalId> {
++    let mut reads = FxHashSet::default();
++    match terminator {
++        Terminator::Branch { cond, .. } => read_operand(cond, &mut reads),
++        Terminator::Suspend { value, input, .. } => {
++            read_operand(value, &mut reads);
++            if let Some(input) = input {
++                reads.insert(*input);
++            }
++        }
++        Terminator::Return(value) => {
++            if let Some(value) = value {
++                read_operand(value, &mut reads);
++            }
++        }
++        Terminator::Raise { value, cause } => {
++            for operand in value.iter().chain(cause.iter()) {
++                read_operand(operand, &mut reads);
++            }
++        }
++        Terminator::Goto(_) | Terminator::Unreachable => {}
++    }
++    reads
++}
+diff --git a/crates/ryupy-mir/src/passes/float_chain_expand.rs b/crates/ryupy-mir/src/passes/float_chain_expand.rs
+new file mode 100644
+index 0000000..21be230
+--- /dev/null
++++ b/crates/ryupy-mir/src/passes/float_chain_expand.rs
+@@ -0,0 +1,96 @@
++//! 将已证明无观察的浮点链展开成精确类型守卫、原生计算与原动态慢路。
++//!
++//! 输入只冻结引用，失败路径搬移原语句而非重新求值；快路保持每次 F64 运算与舍入顺序，
++//! 不重结合、不使用 FMA，只有最终结果装箱。普通对象仍按原 DynBinary 协议执行。
++use super::float_chain::Plan;
++use crate::mir::*;
++use rustc_hash::FxHashMap;
++
++pub(super) fn expand(function: &mut Function, plan: Plan) {
++    let Some(final_dest) = plan.steps.last().map(|step| step.dest) else {
++        return;
++    };
++    let tail = function.body.blocks[plan.block]
++        .stmts
++        .split_off(plan.start + plan.steps.len());
++    let original = function.body.blocks[plan.block].stmts.split_off(plan.start);
++    let next = std::mem::replace(
++        &mut function.body.blocks[plan.block].terminator,
++        Terminator::Unreachable,
++    );
++    let continuation = block(function, tail, next);
++    let fallback = block(function, original, Terminator::Goto(continuation));
++    let mut raw = FxHashMap::default();
++    let mut frozen = Vec::new();
++    let mut fast = Vec::new();
++    for input in &plan.inputs {
++        let snapshot = local(function, MirType::Dynamic);
++        function.body.blocks[plan.block]
++            .stmts
++            .push(assign(snapshot, Rvalue::Use(get(*input))));
++        let value = local(function, MirType::F64);
++        fast.push(assign(
++            value,
++            Rvalue::UnboxExactF64 {
++                value: get(snapshot),
++            },
++        ));
++        raw.insert(*input, value);
++        frozen.push(snapshot);
++    }
++    for step in &plan.steps {
++        let result = local(function, MirType::F64);
++        fast.push(assign(
++            result,
++            Rvalue::Binary {
++                op: step.op,
++                lhs: get(raw[&step.lhs]),
++                rhs: get(raw[&step.rhs]),
++            },
++        ));
++        raw.insert(step.dest, result);
++    }
++    fast.push(assign(
++        final_dest,
++        Rvalue::Box {
++            value: get(raw[&final_dest]),
++            from: MirType::F64,
++        },
++    ));
++    let mut success = block(function, fast, Terminator::Goto(continuation));
++    // 每个 exact unbox 均由所有输入的真分支支配；不靠运行时转换或静态注解冒充证明。
++    for snapshot in frozen.into_iter().rev() {
++        let condition = local(function, MirType::Bool);
++        success = block(
++            function,
++            vec![assign(
++                condition,
++                Rvalue::IsBoxedF64 {
++                    value: get(snapshot),
++                },
++            )],
++            Terminator::Branch {
++                cond: get(condition),
++                then_: success,
++                else_: fallback,
++            },
++        );
++    }
++    function.body.blocks[plan.block].terminator = Terminator::Goto(success);
++}
++fn local(function: &mut Function, ty: MirType) -> LocalId {
++    function.body.locals.alloc(LocalDecl {
++        ty,
++        name: None,
++        is_cell: false,
++    })
++}
++fn block(function: &mut Function, stmts: Vec<Statement>, terminator: Terminator) -> BlockId {
++    function.body.blocks.alloc(BasicBlock { stmts, terminator })
++}
++fn assign(dest: LocalId, value: Rvalue) -> Statement {
++    Statement::Assign { dest, value }
++}
++fn get(local: LocalId) -> Operand {
++    Operand::Local(local)
++}
+diff --git a/crates/ryupy-mir/src/passes/float_chain_tests.rs b/crates/ryupy-mir/src/passes/float_chain_tests.rs
+new file mode 100644
+index 0000000..21ff703
+--- /dev/null
++++ b/crates/ryupy-mir/src/passes/float_chain_tests.rs
+@@ -0,0 +1,270 @@
++//! 浮点链只在精确守卫成功时消除中间盒；逃逸、别名与协议边界保留动态路径。
++use super::MirPass;
++use super::float_chain::FloatChain;
++use crate::mir::*;
++use la_arena::{Arena, RawIdx};
++
++fn local(locals: &mut Arena<LocalDecl>) -> LocalId {
++    locals.alloc(LocalDecl {
++        ty: MirType::Dynamic,
++        name: None,
++        is_cell: false,
++    })
++}
++fn operation(dest: LocalId, op: DynOp, lhs: LocalId, rhs: LocalId, inplace: bool) -> Statement {
++    Statement::Assign {
++        dest,
++        value: Rvalue::DynBinary {
++            op,
++            lhs: Operand::Local(lhs),
++            rhs: Operand::Local(rhs),
++            inplace,
++        },
++    }
++}
++fn sample() -> (Function, [LocalId; 5]) {
++    let mut locals = Arena::default();
++    let a = local(&mut locals);
++    let b = local(&mut locals);
++    let c = local(&mut locals);
++    let middle = local(&mut locals);
++    let result = local(&mut locals);
++    let mut blocks = Arena::default();
++    let entry = blocks.alloc(BasicBlock {
++        stmts: vec![
++            operation(middle, DynOp::Mul, a, b, false),
++            operation(result, DynOp::Add, middle, c, true),
++        ],
++        terminator: Terminator::Return(Some(Operand::Local(result))),
++    });
++    (
++        Function {
++            name: "float_chain".into(),
++            codegen_name: "float_chain".into(),
++            source_file: "float_chain.py".into(),
++            params: vec![a, b, c],
++            ret: MirType::Dynamic,
++            body: Body {
++                locals,
++                blocks,
++                entry,
++                regions: vec![],
++            },
++            param_meta: vec![],
++            function_global: None,
++            defaults_global: None,
++            specialization_identity_global: None,
++            signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
++            env: None,
++        },
++        [a, b, c, middle, result],
++    )
++}
++fn count(f: &Function, predicate: impl Fn(&Rvalue) -> bool) -> usize {
++    f.body
++        .blocks
++        .iter()
++        .flat_map(|(_, block)| &block.stmts)
++        .filter(|stmt| match stmt {
++            Statement::Assign { value, .. } | Statement::Eval(value) => predicate(value),
++            _ => false,
++        })
++        .count()
++}
++#[test]
++fn guarded_chain_keeps_original_fallback_and_boxes_only_final_fast_result() {
++    let (mut f, [a, b, c, _, _]) = sample();
++    FloatChain.run(&mut f);
++    assert_eq!(count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })), 3);
++    assert_eq!(count(&f, |v| matches!(v, Rvalue::UnboxExactF64 { .. })), 3);
++    assert_eq!(
++        count(&f, |v| matches!(
++            v,
++            Rvalue::Binary {
++                op: BinOp::Mul | BinOp::Add,
++                ..
++            }
++        )),
++        2
++    );
++    assert_eq!(
++        count(&f, |v| matches!(
++            v,
++            Rvalue::Box {
++                from: MirType::F64,
++                ..
++            }
++        )),
++        1
++    );
++    assert_eq!(count(&f, |v| matches!(v, Rvalue::DynBinary { .. })), 2);
++    let snapshots = &f.body.blocks[f.body.entry].stmts;
++    for (stmt, input) in snapshots.iter().take(3).zip([a, b, c]) {
++        assert!(
++            matches!(stmt, Statement::Assign { value: Rvalue::Use(Operand::Local(source)), .. } if *source == input)
++        );
++    }
++}
++#[test]
++fn escaping_middle_and_redefined_or_aliased_destinations_reject_chain() {
++    for case in 0..5 {
++        let (mut f, [a, _, c, middle, result]) = sample();
++        let entry = f.body.entry;
++        match case {
++            0 => f.body.blocks[entry].terminator = Terminator::Return(Some(Operand::Local(middle))),
++            1 => f.body.locals[middle].name = Some("observed".into()),
++            2 => f.body.blocks[entry].stmts.push(Statement::Assign {
++                dest: result,
++                value: Rvalue::Use(Operand::Local(a)),
++            }),
++            3 => f.body.blocks[entry].stmts[1] = operation(c, DynOp::Add, middle, c, true),
++            _ => f.body.blocks[entry]
++                .stmts
++                .push(Statement::Eval(Rvalue::CallWithArgs {
++                    callee: RuntimeFn::MakeTuple,
++                    prefix: vec![],
++                    args: vec![Operand::Array(vec![Operand::Local(middle)])],
++                })),
++        }
++        FloatChain.run(&mut f);
++        assert_eq!(
++            count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })),
++            0,
++            "case {case}"
++        );
++    }
++}
++#[test]
++fn callbacks_lines_copies_and_cross_block_chains_are_not_fused() {
++    for case in 0..4 {
++        let (mut f, [a, _, _, _, result]) = sample();
++        let entry = f.body.entry;
++        match case {
++            0 => f.body.blocks[entry].stmts.insert(1, Statement::Line(10)),
++            1 => f.body.blocks[entry].stmts.insert(
++                1,
++                Statement::Assign {
++                    dest: result,
++                    value: Rvalue::Use(Operand::Local(a)),
++                },
++            ),
++            2 => f.body.blocks[entry].stmts.insert(
++                1,
++                Statement::Eval(Rvalue::Call {
++                    callee: Callee::Runtime(RuntimeFn::DynStr),
++                    args: vec![Operand::Local(a)],
++                }),
++            ),
++            _ => {
++                let last = f.body.blocks[entry].stmts.pop().unwrap();
++                let next = f.body.blocks.alloc(BasicBlock {
++                    stmts: vec![last],
++                    terminator: Terminator::Return(Some(Operand::Local(result))),
++                });
++                f.body.blocks[entry].terminator = Terminator::Goto(next);
++            }
++        }
++        FloatChain.run(&mut f);
++        assert_eq!(count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })), 0);
++    }
++}
++#[test]
++fn exception_closure_cell_generator_and_intermediate_inplace_are_rejected() {
++    for case in 0..6 {
++        let (mut f, [a, b, _, middle, _]) = sample();
++        let entry = f.body.entry;
++        match case {
++            0 => f.env = Some(a),
++            1 => f.body.locals[a].is_cell = true,
++            2 => f.signature_global = None,
++            3 => f.body.regions.push(Region {
++                kind: RegionKind::CatchAll,
++                try_start: entry,
++                try_len: 1,
++                handler: entry,
++                exc_local: None,
++            }),
++            4 => {
++                f.body.blocks[entry].terminator = Terminator::Suspend {
++                    value: Operand::Local(a),
++                    resume: entry,
++                    input: None,
++                    delegated: false,
++                }
++            }
++            _ => f.body.blocks[entry].stmts[0] = operation(middle, DynOp::Mul, a, b, true),
++        }
++        FloatChain.run(&mut f);
++        assert_eq!(count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })), 0);
++    }
++}
++#[test]
++fn failed_candidates_consume_attempt_budget() {
++    let (mut f, [a, b, c, _, _]) = sample();
++    let entry = f.body.entry;
++    f.body.blocks[entry].stmts.clear();
++    for index in 0..17 {
++        let middle = local(&mut f.body.locals);
++        let result = local(&mut f.body.locals);
++        if index < 16 {
++            f.body.locals[middle].name = Some("escape".into());
++        }
++        f.body.blocks[entry].stmts.extend([
++            operation(middle, DynOp::Mul, a, b, false),
++            operation(result, DynOp::Add, middle, c, true),
++            Statement::Line(index),
++        ]);
++    }
++    FloatChain.run(&mut f);
++    assert_eq!(count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })), 0);
++}
++
++#[test]
++fn chain_input_and_function_size_budgets_preserve_original_operations() {
++    for case in 0..4 {
++        let (mut f, [a, b, _, middle, result]) = sample();
++        let entry = f.body.entry;
++        match case {
++            0 | 1 => {
++                f.body.blocks[entry].stmts.clear();
++                let count = if case == 0 { 9 } else { 8 };
++                let mut previous = a;
++                for _ in 0..count {
++                    let input = if case == 1 {
++                        local(&mut f.body.locals)
++                    } else {
++                        b
++                    };
++                    let dest = local(&mut f.body.locals);
++                    f.body.blocks[entry].stmts.push(operation(
++                        dest,
++                        DynOp::Add,
++                        previous,
++                        input,
++                        false,
++                    ));
++                    previous = dest;
++                }
++                f.body.blocks[entry].terminator =
++                    Terminator::Return(Some(Operand::Local(previous)));
++            }
++            2 => {
++                for _ in 0..512 {
++                    local(&mut f.body.locals);
++                }
++            }
++            _ => {
++                f.body.blocks[entry].stmts = vec![
++                    operation(middle, DynOp::Mul, a, b, false),
++                    operation(result, DynOp::Mul, middle, b, true),
++                ];
++            }
++        }
++        FloatChain.run(&mut f);
++        assert_eq!(
++            count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })),
++            0,
++            "预算/末条操作限制 {case}"
++        );
++    }
++}
+diff --git a/crates/ryupy-mir/src/passes/float_loop.rs b/crates/ryupy-mir/src/passes/float_loop.rs
+new file mode 100644
+index 0000000..a40dcab
+--- /dev/null
++++ b/crates/ryupy-mir/src/passes/float_loop.rs
+@@ -0,0 +1,226 @@
++//! 浮点链的循环状态策略：只接受唯一入口/出口的五块循环与本次入口的精确浮点重置。
++//!
++//! 共用 FloatChain 的候选、逃逸检查及尝试预算；此处再证明累加槽不可在循环中观察。
++//! 外层可重入 preheader，但每次必须先重新赋初值；不猜用户类型，不改变旧整数 holder。
++use super::dead_values::{read_operand, read_value};
++use super::float_chain::Plan as Chain;
++use crate::mir::*;
++use rustc_hash::{FxHashMap, FxHashSet};
++
++pub(super) struct Plan {
++    pub(super) preheader: BlockId,
++    pub(super) header: BlockId,
++    pub(super) exit: BlockId,
++    pub(super) total: LocalId,
++}
++
++pub(super) fn try_expand(function: &mut Function, chain: &Chain) -> bool {
++    let Some(plan) = candidate(function, chain) else {
++        return false;
++    };
++    let inputs = chain.inputs.len() - 1;
++    // 状态四槽；其余每输入三个槽，每步一个原生结果。慢路/出口/初始化共新增九块。
++    if function.body.locals.len() + 4 + 3 * inputs + chain.steps.len() > 512
++        || function.body.blocks.len() + inputs + 9 > 128
++    {
++        return false;
++    }
++    super::float_loop_expand::expand(function, chain, plan);
++    true
++}
++fn candidate(function: &Function, chain: &Chain) -> Option<Plan> {
++    let body = chain.block;
++    let predecessor = super::numeric_accumulator_match::predecessors(function);
++    let [header] = predecessor.get(&body)?.as_slice() else {
++        return None;
++    };
++    let header = *header;
++    let Terminator::Branch {
++        then_, else_: exit, ..
++    } = function.body.blocks[header].terminator
++    else {
++        return None;
++    };
++    if then_ != body {
++        return None;
++    }
++    let Terminator::Goto(latch) = function.body.blocks[body].terminator else {
++        return None;
++    };
++    if !matches!(function.body.blocks[latch].terminator, Terminator::Goto(target) if target == header)
++        || predecessor.get(&latch)?.as_slice() != [body]
++        || predecessor.get(&exit)?.as_slice() != [header]
++    {
++        return None;
++    }
++    let incoming = predecessor.get(&header)?;
++    if incoming.len() != 2 || !incoming.contains(&latch) {
++        return None;
++    }
++    let preheader = *incoming.iter().find(|&&source| source != latch)?;
++    if !matches!(function.body.blocks[preheader].terminator, Terminator::Goto(target) if target == header)
++        || [preheader, header, body, latch, exit]
++            .into_iter()
++            .collect::<FxHashSet<_>>()
++            .len()
++            != 5
++        || [header, body, latch, exit].contains(&function.body.entry)
++    {
++        return None;
++    }
++    let last_position = chain.start + chain.steps.len() - 1;
++    let Statement::Assign {
++        dest: temporary,
++        value:
++            Rvalue::DynBinary {
++                op: DynOp::Add | DynOp::Sub,
++                lhs: Operand::Local(total),
++                inplace: true,
++                ..
++            },
++    } = &function.body.blocks[body].stmts[last_position]
++    else {
++        return None;
++    };
++    let temporary = *temporary;
++    let total = *total;
++    if !chain.inputs.contains(&total)
++        || function.params.contains(&total)
++        || function.body.locals[total].ty != MirType::Dynamic
++        || !matches!(function.body.blocks[body].stmts.get(last_position + 1),
++            Some(Statement::Assign { dest, value: Rvalue::Use(Operand::Local(source)) }) if *dest == total && *source == temporary)
++    {
++        return None;
++    }
++    // s 在链内只能是末条 lhs；其它读取即使没有逃逸，也会要求观察当前盒。
++    if chain.steps[..chain.steps.len() - 1]
++        .iter()
++        .any(|step| step.lhs == total || step.rhs == total)
++        || chain.steps.last()?.rhs == total
++    {
++        return None;
++    }
++    let mut writes = Vec::new();
++    let mut temporary_reads = 0;
++    for (id, block) in function.body.blocks.iter() {
++        let reads = terminator_reads(&block.terminator);
++        if reads.contains(&temporary)
++            || ([header, body, latch].contains(&id) && reads.contains(&total))
++        {
++            return None;
++        }
++        for (position, statement) in block.stmts.iter().enumerate() {
++            let reads = statement_reads(statement);
++            if reads.contains(&temporary) {
++                if id != body || position != last_position + 1 {
++                    return None;
++                }
++                temporary_reads += 1;
++            }
++            if [header, body, latch].contains(&id)
++                && reads.contains(&total)
++                && (id != body || position != last_position)
++            {
++                return None;
++            }
++            if let Statement::Assign { dest, .. } = statement
++                && *dest == total
++            {
++                writes.push((id, position));
++            }
++        }
++    }
++    if temporary_reads != 1 || writes.len() != 2 || !writes.contains(&(body, last_position + 1)) {
++        return None;
++    }
++    let reset = writes.iter().find(|(id, _)| *id == preheader)?.1;
++    if !initial_float(function, preheader, reset, total) {
++        return None;
++    }
++    Some(Plan {
++        preheader,
++        header,
++        exit,
++        total,
++    })
++}
++
++fn initial_float(function: &Function, block: BlockId, reset: usize, total: LocalId) -> bool {
++    // 一次建全函数定义表；沿最多16层同pre块、严格向前的只读Use链寻找BoxF64。
++    let mut definitions: FxHashMap<LocalId, Vec<(BlockId, usize)>> = FxHashMap::default();
++    for (id, body) in function.body.blocks.iter() {
++        for (position, stmt) in body.stmts.iter().enumerate() {
++            if let Statement::Assign { dest, .. } = stmt {
++                definitions.entry(*dest).or_default().push((id, position));
++            }
++        }
++    }
++    let mut current = reset;
++    for _ in 0..16 {
++        match &function.body.blocks[block].stmts[current] {
++            Statement::Assign {
++                value: Rvalue::Box {
++                    from: MirType::F64, ..
++                },
++                ..
++            } => return true,
++            Statement::Assign {
++                value: Rvalue::Use(Operand::Local(source)),
++                ..
++            } => {
++                if *source == total || function.params.contains(source) {
++                    return false;
++                }
++                let Some(positions) = definitions.get(source) else {
++                    return false;
++                };
++                let [(id, position)] = positions.as_slice() else {
++                    return false;
++                };
++                if *id != block || *position >= current {
++                    return false;
++                }
++                current = *position;
++            }
++            _ => return false,
++        }
++    }
++    false
++}
++fn statement_reads(statement: &Statement) -> FxHashSet<LocalId> {
++    let mut reads = FxHashSet::default();
++    match statement {
++        Statement::Assign { value, .. } | Statement::Eval(value) => read_value(value, &mut reads),
++        Statement::SetField { obj, value, .. } => {
++            read_operand(obj, &mut reads);
++            read_operand(value, &mut reads);
++        }
++        Statement::SetGlobal { value, .. } => read_operand(value, &mut reads),
++        Statement::Line(_) => {}
++    }
++    reads
++}
++fn terminator_reads(terminator: &Terminator) -> FxHashSet<LocalId> {
++    let mut reads = FxHashSet::default();
++    match terminator {
++        Terminator::Branch { cond, .. } => read_operand(cond, &mut reads),
++        Terminator::Suspend { value, input, .. } => {
++            read_operand(value, &mut reads);
++            if let Some(input) = input {
++                reads.insert(*input);
++            }
++        }
++        Terminator::Return(value) => {
++            if let Some(value) = value {
++                read_operand(value, &mut reads);
++            }
++        }
++        Terminator::Raise { value, cause } => {
++            for value in value.iter().chain(cause.iter()) {
++                read_operand(value, &mut reads);
++            }
++        }
++        Terminator::Goto(_) | Terminator::Unreachable => {}
++    }
++    reads
++}
+diff --git a/crates/ryupy-mir/src/passes/float_loop_expand.rs b/crates/ryupy-mir/src/passes/float_loop_expand.rs
+new file mode 100644
+index 0000000..59430f6
+--- /dev/null
++++ b/crates/ryupy-mir/src/passes/float_loop_expand.rs
+@@ -0,0 +1,184 @@
++//! 循环浮点状态展开：原对象缓存/原生值/模式分离，跨迭代只在可观察边界物化。
++//!
++//! mode && total==CLR null 表示快路产生了尚未装箱的新值；零轮与慢路返回的原盒保持身份。
++//! 原动态链与写回整体搬入慢路，任何用户异常发生前都不提前提交下一轮状态。
++use super::float_chain::Plan as Chain;
++use super::float_loop::Plan;
++use crate::mir::*;
++use rustc_hash::FxHashMap;
++
++pub(super) fn expand(f: &mut Function, chain: &Chain, plan: Plan) {
++    let raw_total = local(f, MirType::F64);
++    let mode = local(f, MirType::Bool);
++    f.body.locals[raw_total].name = Some("$float_loop_raw".into());
++    f.body.locals[mode].name = Some("$float_loop_mode".into());
++    let is_null = local(f, MirType::Bool);
++    let dirty = local(f, MirType::Bool);
++    let tail = f.body.blocks[chain.block]
++        .stmts
++        .split_off(chain.start + chain.steps.len() + 1);
++    let original = f.body.blocks[chain.block].stmts.split_off(chain.start);
++    let next = std::mem::replace(
++        &mut f.body.blocks[chain.block].terminator,
++        Terminator::Unreachable,
++    );
++    let continuation = block(f, tail, next);
++    let reload = block(
++        f,
++        vec![unbox(raw_total, plan.total)],
++        Terminator::Goto(continuation),
++    );
++    let mut slow_statements = original;
++    slow_statements.push(assign(
++        mode,
++        Rvalue::IsBoxedF64 {
++            value: get(plan.total),
++        },
++    ));
++    let slow = block(f, slow_statements, branch(mode, reload, continuation));
++    let materialize = block(
++        f,
++        vec![boxed(plan.total, raw_total)],
++        Terminator::Goto(slow),
++    );
++    let fallback = block(
++        f,
++        dirty_guard(plan.total, mode, is_null, dirty),
++        branch(dirty, materialize, slow),
++    );
++
++    let mut raw = FxHashMap::default();
++    raw.insert(plan.total, raw_total);
++    let mut fast_statements = Vec::new();
++    let mut snapshots = Vec::new();
++    for &input in chain.inputs.iter().filter(|&&input| input != plan.total) {
++        let snapshot = local(f, MirType::Dynamic);
++        f.body.blocks[chain.block]
++            .stmts
++            .push(assign(snapshot, Rvalue::Use(get(input))));
++        let native = local(f, MirType::F64);
++        raw.insert(input, native);
++        snapshots.push(snapshot);
++        fast_statements.push(unbox(native, snapshot));
++    }
++    let mut last_result = raw_total;
++    for step in &chain.steps {
++        let result = local(f, MirType::F64);
++        fast_statements.push(assign(
++            result,
++            Rvalue::Binary {
++                op: step.op,
++                lhs: get(raw[&step.lhs]),
++                rhs: get(raw[&step.rhs]),
++            },
++        ));
++        raw.insert(step.dest, result);
++        last_result = result;
++    }
++    fast_statements.extend([
++        assign(raw_total, Rvalue::Use(get(last_result))),
++        assign(plan.total, Rvalue::Use(Operand::Const(Constant::Null))),
++    ]);
++    let mut fast = block(f, fast_statements, Terminator::Goto(continuation));
++    for snapshot in snapshots.into_iter().rev() {
++        let check = local(f, MirType::Bool);
++        fast = block(
++            f,
++            vec![assign(
++                check,
++                Rvalue::IsBoxedF64 {
++                    value: get(snapshot),
++                },
++            )],
++            branch(check, fast, fallback),
++        );
++    }
++    f.body.blocks[chain.block].terminator = branch(mode, fast, fallback);
++
++    // 每次外层重入都重置模式和raw；保留pre中原Box/Use写入的对象，不复制初始盒。
++    let initial_reload = block(
++        f,
++        vec![unbox(raw_total, plan.total)],
++        Terminator::Goto(plan.header),
++    );
++    f.body.blocks[plan.preheader].stmts.extend([
++        assign(raw_total, Rvalue::Use(Operand::Const(Constant::F64(0.0)))),
++        assign(
++            mode,
++            Rvalue::IsBoxedF64 {
++                value: get(plan.total),
++            },
++        ),
++    ]);
++    f.body.blocks[plan.preheader].terminator = branch(mode, initial_reload, plan.header);
++
++    // 唯一正常出口只物化dirty值；慢路产生的共享盒与零轮初值都直接沿用。
++    let exit_stmts = std::mem::take(&mut f.body.blocks[plan.exit].stmts);
++    let exit_term = std::mem::replace(
++        &mut f.body.blocks[plan.exit].terminator,
++        Terminator::Unreachable,
++    );
++    let final_exit = block(f, exit_stmts, exit_term);
++    let exit_box = block(
++        f,
++        vec![boxed(plan.total, raw_total)],
++        Terminator::Goto(final_exit),
++    );
++    f.body.blocks[plan.exit].stmts = dirty_guard(plan.total, mode, is_null, dirty);
++    f.body.blocks[plan.exit].terminator = branch(dirty, exit_box, final_exit);
++}
++fn dirty_guard(total: LocalId, mode: LocalId, is_null: LocalId, dirty: LocalId) -> Vec<Statement> {
++    vec![
++        assign(
++            is_null,
++            Rvalue::Binary {
++                op: BinOp::Eq,
++                lhs: get(total),
++                rhs: Operand::Const(Constant::Null),
++            },
++        ),
++        assign(
++            dirty,
++            Rvalue::Binary {
++                op: BinOp::BitAnd,
++                lhs: get(mode),
++                rhs: get(is_null),
++            },
++        ),
++    ]
++}
++fn unbox(dest: LocalId, source: LocalId) -> Statement {
++    assign(dest, Rvalue::UnboxExactF64 { value: get(source) })
++}
++fn boxed(dest: LocalId, source: LocalId) -> Statement {
++    assign(
++        dest,
++        Rvalue::Box {
++            value: get(source),
++            from: MirType::F64,
++        },
++    )
++}
++fn local(f: &mut Function, ty: MirType) -> LocalId {
++    f.body.locals.alloc(LocalDecl {
++        ty,
++        name: None,
++        is_cell: false,
++    })
++}
++fn block(f: &mut Function, stmts: Vec<Statement>, terminator: Terminator) -> BlockId {
++    f.body.blocks.alloc(BasicBlock { stmts, terminator })
++}
++fn assign(dest: LocalId, value: Rvalue) -> Statement {
++    Statement::Assign { dest, value }
++}
++fn get(local: LocalId) -> Operand {
++    Operand::Local(local)
++}
++fn branch(cond: LocalId, then_: BlockId, else_: BlockId) -> Terminator {
++    Terminator::Branch {
++        cond: get(cond),
++        then_,
++        else_,
++    }
++}
+diff --git a/crates/ryupy-mir/src/passes/float_loop_tests.rs b/crates/ryupy-mir/src/passes/float_loop_tests.rs
+new file mode 100644
+index 0000000..d42aa91
+--- /dev/null
++++ b/crates/ryupy-mir/src/passes/float_loop_tests.rs
+@@ -0,0 +1,373 @@
++//! 浮点循环状态策略的结构验收：每次重入重置、原盒/慢路保留、严格图与观察约束。
++use super::MirPass;
++use super::float_chain::FloatChain;
++use crate::mir::*;
++use la_arena::{Arena, RawIdx};
++
++fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
++    locals.alloc(LocalDecl {
++        ty,
++        name: None,
++        is_cell: false,
++    })
++}
++fn assign(dest: LocalId, value: Rvalue) -> Statement {
++    Statement::Assign { dest, value }
++}
++fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
++    let mut locals = Arena::default();
++    let a = local(&mut locals, MirType::Dynamic);
++    let b = local(&mut locals, MirType::Dynamic);
++    let initial = local(&mut locals, MirType::Dynamic);
++    let total = local(&mut locals, MirType::Dynamic);
++    let product = local(&mut locals, MirType::Dynamic);
++    let result = local(&mut locals, MirType::Dynamic);
++    locals[total].name = Some("total".into());
++    let mut blocks = Arena::default();
++    let ids: Vec<_> = (0..5)
++        .map(|_| {
++            blocks.alloc(BasicBlock {
++                stmts: vec![],
++                terminator: Terminator::Unreachable,
++            })
++        })
++        .collect();
++    let [pre, header, body, latch, exit] = ids.try_into().unwrap();
++    blocks[pre].stmts = vec![
++        assign(
++            initial,
++            Rvalue::Box {
++                value: Operand::Const(Constant::F64(0.0)),
++                from: MirType::F64,
++            },
++        ),
++        assign(total, Rvalue::Use(Operand::Local(initial))),
++    ];
++    blocks[pre].terminator = Terminator::Goto(header);
++    blocks[header].terminator = Terminator::Branch {
++        cond: Operand::Const(Constant::Bool(true)),
++        then_: body,
++        else_: exit,
++    };
++    blocks[body].stmts = vec![
++        assign(
++            product,
++            Rvalue::DynBinary {
++                op: DynOp::Mul,
++                lhs: Operand::Local(a),
++                rhs: Operand::Local(b),
++                inplace: false,
++            },
++        ),
++        assign(
++            result,
++            Rvalue::DynBinary {
++                op: DynOp::Add,
++                lhs: Operand::Local(total),
++                rhs: Operand::Local(product),
++                inplace: true,
++            },
++        ),
++        assign(total, Rvalue::Use(Operand::Local(result))),
++    ];
++    blocks[body].terminator = Terminator::Goto(latch);
++    blocks[latch].terminator = Terminator::Goto(header);
++    blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
++    (
++        Function {
++            name: "float_loop".into(),
++            codegen_name: "float_loop".into(),
++            source_file: "float_loop.py".into(),
++            params: vec![a, b],
++            ret: MirType::Dynamic,
++            body: Body {
++                locals,
++                blocks,
++                entry: pre,
++                regions: vec![],
++            },
++            param_meta: vec![],
++            function_global: None,
++            defaults_global: None,
++            specialization_identity_global: None,
++            signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
++            env: None,
++        },
++        [pre, header, body, latch, exit],
++        [a, b, initial, total, product, result],
++    )
++}
++fn optimized(f: &Function) -> bool {
++    f.body
++        .locals
++        .iter()
++        .any(|(_, l)| l.name.as_deref() == Some("$float_loop_raw"))
++}
++fn count(f: &Function, predicate: impl Fn(&Rvalue) -> bool) -> usize {
++    f.body
++        .blocks
++        .iter()
++        .flat_map(|(_, b)| &b.stmts)
++        .filter(|s| match s {
++            Statement::Assign { value, .. } | Statement::Eval(value) => predicate(value),
++            _ => false,
++        })
++        .count()
++}
++#[test]
++fn raw_state_has_only_boundary_boxes_and_keeps_original_dynamic_chain() {
++    let (mut f, [pre, _, _, _, exit], [_, _, _, total, _, _]) = sample();
++    FloatChain.run(&mut f);
++    assert!(optimized(&f));
++    assert_eq!(
++        count(&f, |v| matches!(v, Rvalue::DynBinary { .. })),
++        2,
++        "原慢路不应再被短链guard包装"
++    );
++    assert_eq!(
++        count(&f, |v| matches!(
++            v,
++            Rvalue::Box {
++                from: MirType::F64,
++                ..
++            }
++        )),
++        3,
++        "初值盒+慢路物化+出口物化"
++    );
++    assert_eq!(
++        count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })),
++        4,
++        "两个普通输入与初始化/慢路模式检查"
++    );
++    assert!(matches!(
++        f.body.blocks[pre].terminator,
++        Terminator::Branch { .. }
++    ));
++    assert!(matches!(
++        f.body.blocks[exit].terminator,
++        Terminator::Branch { .. }
++    ));
++    let fast = f
++        .body
++        .blocks
++        .iter()
++        .find(|(_, b)| {
++            b.stmts.iter().any(|s| {
++                matches!(s,
++        Statement::Assign{dest,value:Rvalue::Use(Operand::Const(Constant::Null))} if *dest==total)
++            })
++        })
++        .unwrap()
++        .1;
++    assert!(!fast.stmts.iter().any(|s| matches!(
++        s,
++        Statement::Assign {
++            value: Rvalue::Box { .. },
++            ..
++        }
++    )));
++    assert!(
++        f.body.blocks[pre].stmts.iter().any(|s| matches!(s,
++        Statement::Assign{dest,value:Rvalue::Use(Operand::Local(_))} if *dest==total)),
++        "零轮保原对象写入"
++    );
++}
++#[test]
++fn outer_reentry_is_allowed_only_with_a_new_preheader_reset() {
++    let (mut f, [pre, _, _, _, exit], _) = sample();
++    let outer = f.body.blocks.alloc(BasicBlock {
++        stmts: vec![],
++        terminator: Terminator::Goto(pre),
++    });
++    f.body.entry = outer;
++    f.body.blocks[exit].terminator = Terminator::Goto(pre);
++    FloatChain.run(&mut f);
++    assert!(optimized(&f));
++    assert!(f.body.blocks[pre].stmts.iter().any(|s|matches!(s,
++        Statement::Assign{value:Rvalue::Use(Operand::Const(Constant::F64(value))),..} if *value==0.0)),"每次pre重入重置raw再检查真实初值");
++}
++#[test]
++fn non_float_initial_value_and_missing_or_extra_resets_keep_short_chain_strategy() {
++    for case in 0..4 {
++        let (mut f, [pre, _, _, _, _], [a, _, initial, total, _, _]) = sample();
++        match case {
++            0 => {
++                f.body.blocks[pre].stmts[0] = assign(
++                    initial,
++                    Rvalue::Box {
++                        value: Operand::Const(Constant::I64(0)),
++                        from: MirType::I64,
++                    },
++                )
++            }
++            1 => f.body.blocks[pre].stmts[1] = assign(total, Rvalue::Use(Operand::Local(a))),
++            2 => f.body.blocks[pre]
++                .stmts
++                .push(assign(total, Rvalue::Use(Operand::Local(initial)))),
++            _ => {
++                f.body.blocks[pre].stmts.remove(1);
++                f.params.push(total);
++            }
++        }
++        FloatChain.run(&mut f);
++        assert!(!optimized(&f), "case {case}");
++        assert!(
++            count(&f, |v| matches!(v, Rvalue::IsBoxedF64 { .. })) > 0,
++            "不匹配loop仍沿原短链"
++        );
++    }
++}
++#[test]
++fn extra_incoming_edges_breaks_and_accumulator_observation_prevent_loop_strategy() {
++    for case in 0..5 {
++        let (mut f, [pre, header, body, latch, exit], [_, _, _, total, _, result]) = sample();
++        match case {
++            0 => {
++                f.body.blocks.alloc(BasicBlock {
++                    stmts: vec![],
++                    terminator: Terminator::Goto(exit),
++                });
++            }
++            1 => {
++                f.body.blocks[body].terminator = Terminator::Branch {
++                    cond: Operand::Const(Constant::Bool(true)),
++                    then_: latch,
++                    else_: exit,
++                }
++            }
++            2 => f.body.blocks[header]
++                .stmts
++                .push(Statement::Eval(Rvalue::Call {
++                    callee: Callee::Runtime(RuntimeFn::DynStr),
++                    args: vec![Operand::Local(total)],
++                })),
++            3 => f.body.blocks[latch]
++                .stmts
++                .push(Statement::Eval(Rvalue::Call {
++                    callee: Callee::Runtime(RuntimeFn::DynStr),
++                    args: vec![Operand::Local(total)],
++                })),
++            _ => f.body.blocks[pre].stmts.push(Statement::Eval(Rvalue::Call {
++                callee: Callee::Runtime(RuntimeFn::DynStr),
++                args: vec![Operand::Local(result)],
++            })),
++        }
++        FloatChain.run(&mut f);
++        assert!(!optimized(&f), "case {case}");
++    }
++}
++#[test]
++fn observing_total_earlier_in_the_chain_and_escaping_final_temporary_are_rejected() {
++    for case in 0..2 {
++        let (mut f, [_, _, body, _, exit], [a, _, _, total, product, result]) = sample();
++        if case == 0 {
++            f.body.blocks[body].stmts[0] = assign(
++                product,
++                Rvalue::DynBinary {
++                    op: DynOp::Mul,
++                    lhs: Operand::Local(total),
++                    rhs: Operand::Local(a),
++                    inplace: false,
++                },
++            );
++        } else {
++            f.body.blocks[exit].terminator = Terminator::Return(Some(Operand::Local(result)));
++        }
++        FloatChain.run(&mut f);
++        assert!(!optimized(&f));
++    }
++}
++
++#[test]
++fn no_loop_internal_block_may_be_the_function_entry() {
++    for position in 1..5 {
++        let (mut f, blocks, _) = sample();
++        f.body.entry = blocks[position];
++        FloatChain.run(&mut f);
++        assert!(!optimized(&f));
++    }
++}
++
++#[test]
++fn no_more_than_four_loops_use_raw_state_in_one_function() {
++    let (mut f, _, [a, b, ..]) = sample();
++    f.body.blocks = Arena::default();
++    let mut previous_exit: Option<BlockId> = None;
++    for index in 0..5 {
++        let initial = local(&mut f.body.locals, MirType::Dynamic);
++        let total = local(&mut f.body.locals, MirType::Dynamic);
++        let product = local(&mut f.body.locals, MirType::Dynamic);
++        let result = local(&mut f.body.locals, MirType::Dynamic);
++        let ids: Vec<_> = (0..5)
++            .map(|_| {
++                f.body.blocks.alloc(BasicBlock {
++                    stmts: vec![],
++                    terminator: Terminator::Unreachable,
++                })
++            })
++            .collect();
++        let [pre, header, body, latch, exit] = ids.try_into().unwrap();
++        if let Some(previous) = previous_exit {
++            f.body.blocks[previous].terminator = Terminator::Goto(pre);
++        } else {
++            f.body.entry = pre;
++        }
++        f.body.blocks[pre].stmts = vec![
++            assign(
++                initial,
++                Rvalue::Box {
++                    value: Operand::Const(Constant::F64(index as f64)),
++                    from: MirType::F64,
++                },
++            ),
++            assign(total, Rvalue::Use(Operand::Local(initial))),
++        ];
++        f.body.blocks[pre].terminator = Terminator::Goto(header);
++        f.body.blocks[header].terminator = Terminator::Branch {
++            cond: Operand::Const(Constant::Bool(true)),
++            then_: body,
++            else_: exit,
++        };
++        f.body.blocks[body].stmts = vec![
++            assign(
++                product,
++                Rvalue::DynBinary {
++                    op: DynOp::Mul,
++                    lhs: Operand::Local(a),
++                    rhs: Operand::Local(b),
++                    inplace: false,
++                },
++            ),
++            assign(
++                result,
++                Rvalue::DynBinary {
++                    op: DynOp::Add,
++                    lhs: Operand::Local(total),
++                    rhs: Operand::Local(product),
++                    inplace: true,
++                },
++            ),
++            assign(total, Rvalue::Use(Operand::Local(result))),
++        ];
++        f.body.blocks[body].terminator = Terminator::Goto(latch);
++        f.body.blocks[latch].terminator = Terminator::Goto(header);
++        f.body.blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
++        previous_exit = Some(exit);
++    }
++    FloatChain.run(&mut f);
++    assert_eq!(
++        f.body
++            .locals
++            .iter()
++            .filter(|(_, local)| local.name.as_deref() == Some("$float_loop_raw"))
++            .count(),
++        4
++    );
++    assert!(f.body.blocks.len() <= 128 && f.body.locals.len() <= 512);
++    assert_eq!(
++        count(&f, |v| matches!(v, Rvalue::DynBinary { .. })),
++        10,
++        "每个动态原链只留一份，不重复特化"
++    );
++}

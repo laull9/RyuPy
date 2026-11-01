@@ -1,0 +1,66 @@
+[
+  {
+    "name": "matmul",
+    "tier": "default",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-loop-baseline-d5jFe4/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "d12d10d5a46a30327599ac1ac8c4abad0fe86f571fa8b6e3309ba1d1488a9108"
+  },
+  {
+    "name": "matmul",
+    "tier": "default",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "942f033946755d729c84ae5e77c96eab3ceca2780e41c3e39aff4b9364cd8290"
+  },
+  {
+    "name": "matmul",
+    "tier": "disabled",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-loop-baseline-d5jFe4/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "e7e0659a3ee3430ed8ce61328eb2cde7eacc0f1f5f6396035c3c287734b2b4ad"
+  },
+  {
+    "name": "matmul",
+    "tier": "disabled",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-loop-candidate-rMw9l4/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "0846025ad3275e3cad6ed4c88d875029a843be3b896612fba49bfc0b783cacc7"
+  }
+]

@@ -1,18 +1,25 @@
 //! 非SSA的有限must类型事实：可达输入为空不等于尚未访问；合流取交集，写入杀死旧证明。
-//! 目前只证明boxed Int64，并仅用于内部精确拆箱；不从Python标注/isinstance推断精确类型。
+//! 证明boxed Int64/Double时保留不同标签，仅用于内部精确拆箱；不从Python标注/isinstance推断。
 use crate::mir::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::VecDeque;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ExactKind {
+    I64,
+    F64,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Facts {
-    exact: FxHashSet<LocalId>,
+    exact: FxHashMap<LocalId, ExactKind>,
     /// 条件局部 → 被测试的冻结局部；不传播predicate别名，避免漏跟踪依赖写入。
-    predicates: FxHashMap<LocalId, LocalId>,
+    predicates: FxHashMap<LocalId, (LocalId, ExactKind)>,
 }
 impl Facts {
     fn meet(&mut self, other: &Self) {
-        self.exact.retain(|local| other.exact.contains(local));
+        self.exact
+            .retain(|local, kind| other.exact.get(local) == Some(kind));
         self.predicates
             .retain(|cond, subject| other.predicates.get(cond) == Some(subject));
     }
@@ -24,21 +31,27 @@ impl Facts {
         let exact = match value {
             Rvalue::Box {
                 from: MirType::I64, ..
-            } => true,
-            Rvalue::Use(Operand::Local(source)) => self.exact.contains(source),
-            _ => false,
+            } => Some(ExactKind::I64),
+            Rvalue::Box {
+                from: MirType::F64, ..
+            } => Some(ExactKind::F64),
+            Rvalue::Use(Operand::Local(source)) => self.exact.get(source).copied(),
+            _ => None,
         };
         let predicate = match value {
             Rvalue::IsBoxedI64 {
                 value: Operand::Local(subject),
-            } if subject != dest => Some(*subject),
+            } if subject != dest => Some((*subject, ExactKind::I64)),
+            Rvalue::IsBoxedF64 {
+                value: Operand::Local(subject),
+            } if subject != dest => Some((*subject, ExactKind::F64)),
             _ => None,
         };
         self.exact.remove(dest);
         self.predicates
-            .retain(|cond, subject| cond != dest && subject != dest);
-        if exact {
-            self.exact.insert(*dest);
+            .retain(|cond, (subject, _)| cond != dest && subject != dest);
+        if let Some(kind) = exact {
+            self.exact.insert(*dest, kind);
         }
         if let Some(subject) = predicate {
             self.predicates.insert(*dest, subject);
@@ -69,9 +82,9 @@ fn inputs(function: &Function) -> FxHashMap<BlockId, Facts> {
             Terminator::Branch { cond, then_, else_ } => {
                 let mut yes = output.clone();
                 if let Operand::Local(condition) = cond
-                    && let Some(subject) = output.predicates.get(condition).copied()
+                    && let Some((subject, kind)) = output.predicates.get(condition).copied()
                 {
-                    yes.exact.insert(subject);
+                    yes.exact.insert(subject, kind);
                     output.exact.remove(&subject);
                 }
                 edges.push((*then_, yes));
@@ -112,7 +125,7 @@ pub(crate) fn exact_call_sites(function: &Function) -> FxHashSet<(BlockId, usize
             } = stmt
                 && args
                     .iter()
-                    .all(|arg| matches!(arg, Operand::Local(local) if facts.exact.contains(local)))
+                    .all(|arg| matches!(arg, Operand::Local(local) if facts.exact.get(local) == Some(&ExactKind::I64)))
             {
                 sites.insert((id, position));
             }
@@ -131,6 +144,8 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
                 Statement::Assign {
                     value: Rvalue::IsBoxedI64 { .. }
                         | Rvalue::UnboxExactI64 { .. }
+                        | Rvalue::IsBoxedF64 { .. }
+                        | Rvalue::UnboxExactF64 { .. }
                         | Rvalue::Binary {
                             op: BinOp::WrappingAdd,
                             ..
@@ -139,6 +154,8 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
                 } | Statement::Eval(
                     Rvalue::IsBoxedI64 { .. }
                         | Rvalue::UnboxExactI64 { .. }
+                        | Rvalue::IsBoxedF64 { .. }
+                        | Rvalue::UnboxExactF64 { .. }
                         | Rvalue::Binary {
                             op: BinOp::WrappingAdd,
                             ..
@@ -173,9 +190,20 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
                 _ => continue,
             };
             let expected = match value {
-                Rvalue::IsBoxedI64 { .. } => Some(MirType::Bool),
+                Rvalue::IsBoxedI64 { .. } | Rvalue::IsBoxedF64 { .. } => Some(MirType::Bool),
+                Rvalue::UnboxExactF64 { value } => {
+                    if !matches!(value, Operand::Local(local) if facts.exact.get(local) == Some(&ExactKind::F64))
+                    {
+                        errors.push(format!(
+                            "函数 `{}` 块 {:?} 的精确拆箱缺少当前局部的boxed Double真边证明",
+                            function.name, id
+                        ));
+                    }
+                    Some(MirType::F64)
+                }
                 Rvalue::UnboxExactI64 { value } => {
-                    if !matches!(value, Operand::Local(local) if facts.exact.contains(local)) {
+                    if !matches!(value, Operand::Local(local) if facts.exact.get(local) == Some(&ExactKind::I64))
+                    {
                         errors.push(format!(
                             "函数 `{}` 块 {:?} 的精确拆箱缺少当前局部的boxed Int64真边证明",
                             function.name, id
@@ -224,3 +252,7 @@ pub(crate) fn validate(program: &Program, function: &Function, errors: &mut Vec<
 #[cfg(test)]
 #[path = "exact_types_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "exact_f64_tests.rs"]
+mod f64_tests;

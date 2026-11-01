@@ -26,6 +26,10 @@ pub struct Session {
     pub experimental_direct_accumulator: bool,
     /// 实验：精确Int64实参的受守卫纯叶内联；guard失败性能未达默认门槛。
     pub experimental_leaf_inline: bool,
+    /// 仅诊断：SLP保相同守卫/物化，但使用直接标量运算，隔离packed本身的收益。
+    pub diagnostic_scalar_slp: bool,
+    /// 实验：两lane packed SLP已实现，但相对同守卫标量无净收益，默认关闭。
+    pub experimental_packed_slp: bool,
 }
 
 impl Session {
@@ -121,9 +125,11 @@ fn compile_module(
     stop_if_errors(sess)?;
     ryupy_mir::passes::run_pipeline(
         &mut mir,
-        &ryupy_mir::passes::pipeline_with_options(
+        &ryupy_mir::passes::pipeline_with_slp_options(
             sess.experimental_direct_accumulator,
             sess.experimental_leaf_inline,
+            sess.diagnostic_scalar_slp,
+            sess.experimental_packed_slp,
         ),
     )
     .map_err(|e| anyhow::anyhow!(e))?;
@@ -286,9 +292,11 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     stop_if_errors(sess)?;
     ryupy_mir::passes::run_pipeline(
         &mut mir,
-        &ryupy_mir::passes::pipeline_with_options(
+        &ryupy_mir::passes::pipeline_with_slp_options(
             sess.experimental_direct_accumulator,
             sess.experimental_leaf_inline,
+            sess.diagnostic_scalar_slp,
+            sess.experimental_packed_slp,
         ),
     )
     .map_err(|e| anyhow::anyhow!(e))?;

@@ -1,0 +1,1035 @@
+{
+  "matmul-default-A-0.asm": {
+    "sha256": "37c5bfd6fe2aa4a6f292f7bb9f8a35c5f47b95ea0ed6cb74109d092b9bffbb6c",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "d9e588eb3b413cf387b54cd992a505c684636244a44eb78e6b749d9b1b022fe0",
+        "size": [
+          "2905"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "aa06a6e21bb3a8bde63267ce4f57e674bd9e40d7c469dd1eeaa0c69a5126bcf2",
+        "size": [
+          "4374"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "matmul-default-B-0.asm": {
+    "sha256": "37c5bfd6fe2aa4a6f292f7bb9f8a35c5f47b95ea0ed6cb74109d092b9bffbb6c",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "d9e588eb3b413cf387b54cd992a505c684636244a44eb78e6b749d9b1b022fe0",
+        "size": [
+          "2905"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "aa06a6e21bb3a8bde63267ce4f57e674bd9e40d7c469dd1eeaa0c69a5126bcf2",
+        "size": [
+          "4374"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "matmul-default-C-0.asm": {
+    "sha256": "054961a5d60660a3e3bed83936febe44cfed6b1012c569473ffea1edfc92d6e2",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "d1f6bbc582616ca71a668938c3789928fa52c65c8b7f9c7efa75cdf0bb376827",
+        "size": [
+          "3344"
+        ],
+        "numeric_calls": [
+          "Create",
+          "ReadF64",
+          "ReadF64",
+          "CanReadF64",
+          "PeekList",
+          "CanReadF64",
+          "AppendF64"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:CanReadF64(System.Object,System.Object):bool (Tier0)",
+        "sha256": "6b5406fcec9349deb2c9a441a2b9757bc5d2b9b3d59503e0446a3d4ecafed565",
+        "size": [
+          "169"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:PeekList(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "21a7a73da7e4699d3c38d60698025ab8b7af5b2be19219e1a04ea6851bc0cf43",
+        "size": [
+          "171"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:ReadF64(System.Object,System.Object):double (Tier0)",
+        "sha256": "07e67bf4f99a733de15a5601d5e801eb68a60dce84f8fa988cbde912f31f8a5b",
+        "size": [
+          "253"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:AppendF64(System.Object,double):System.Object (Tier0)",
+        "sha256": "b4169521de8a244a55db028bfa9708156866f542d1a86808f2e47f448ec169e4",
+        "size": [
+          "105"
+        ],
+        "numeric_calls": [
+          "AppendError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "2ac0957097ade01671f1f3ad49f35d723f15df438107041673353162f564ac0c",
+        "size": [
+          "6565"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "AppendError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "693ed7b06a62ae9d51e8886fd3f8745ec43703ff15e61c3fb129ede04828a9b2",
+        "size": [
+          "6286"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "AppendError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:CanReadF64(System.Object,System.Object):bool (Instrumented Tier0)",
+        "sha256": "047b8608376b992dc78e32ab5dc6306853de2ba3f18549efd5f5cee2e55b1ba2",
+        "size": [
+          "232"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:ReadF64(System.Object,System.Object):double (Instrumented Tier0)",
+        "sha256": "9b5f1290503fc879996d740e7cd29b0910a8cc9e177324c845bca9269380efff",
+        "size": [
+          "328"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyNumericListOps:PeekList(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "26a8c047f56c8db6c0f43195fe26b1034d754b21054ab9d7a3988752d31ff914",
+        "size": [
+          "230"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "matmul-disabled-A-0.asm": {
+    "sha256": "924d6d69de825beac1c502b21da158b7952af250310ce87be4d47eb6d8322465",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "924d6d69de825beac1c502b21da158b7952af250310ce87be4d47eb6d8322465",
+        "size": [
+          "2879"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "matmul-disabled-B-0.asm": {
+    "sha256": "924d6d69de825beac1c502b21da158b7952af250310ce87be4d47eb6d8322465",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "924d6d69de825beac1c502b21da158b7952af250310ce87be4d47eb6d8322465",
+        "size": [
+          "2879"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "matmul-disabled-C-0.asm": {
+    "sha256": "067cca729c9d59d5dc8aa19c40e2318470779547f682f65f13675842c2cff88d",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "067cca729c9d59d5dc8aa19c40e2318470779547f682f65f13675842c2cff88d",
+        "size": [
+          "4563"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      }
+    ]
+  },
+  "micro-default-A-0.asm": {
+    "sha256": "fe23d87e9a7a6153a80e96c22fd25c0ee57e38e329976e1e320156c087683c4c",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "23495710b8f3b6608bd4dc566014034172e8a938fbf22215cfb9204976cc06d9",
+        "size": [
+          "185"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "931aef914e5f4086928e3759a6db12017adb0a4893dbdb69b6f42b307d9e0447",
+        "size": [
+          "556"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "9b417ee949ac9ec6d5a050039cad3e78f99a996eaa96753740331d13b8fe6b55",
+        "size": [
+          "464"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "5f0f8784a0da91daf5c0309edc15210a06638c5808f97cd87905ae7b4a69ebf9",
+        "size": [
+          "925"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "2063ac267496cd23ff0ce1128cd927e517c8b228d17e856aa7e7c0a862e20146",
+        "size": [
+          "1333"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Tier0)",
+        "sha256": "fd4dea8ef11e9a142aa50325d8b505b87451fc03601103c4b3810fccccd42931",
+        "size": [
+          "121"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Tier0)",
+        "sha256": "6d8e934d837dc047c557148487c0487fef791cd81c1d49b59842b363f8818031",
+        "size": [
+          "346"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Tier0)",
+        "sha256": "d3e2d3abb5c7f9b2a944f9d10aba817588946a366d8004895643a95d24d5eb91",
+        "size": [
+          "77"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "fa19f361f6c8b49829cf2d5d9eb20d90851da6f1d7bb71f82c53bf047db42ae3",
+        "size": [
+          "2199"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "b04192dde983debbf08ae883d796dcffe9518343c80b60b30cd6bfc9f148974b",
+        "size": [
+          "4684"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "6fc0dca13a8c68ca4f74889a8c4b42a7be18bbb8c4c46a76d371a15c5b3be199",
+        "size": [
+          "7061"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "420ea5a74f500b9d8887ead0e44f7aa4563df81bcad463ff083933551966a1c2",
+        "size": [
+          "6790"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "43f3267e955952c30a04f00f910a18d6d3fb431229e834a4ad8d19168743afad",
+        "size": [
+          "1650"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Instrumented Tier0)",
+        "sha256": "14216143db77c05bde96a47b76168823d007794a99b77e4cab6e1133e38a1546",
+        "size": [
+          "151"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Instrumented Tier0)",
+        "sha256": "d3d5b40b963862cd80a6df5b97100da0264d2b71db64b8bc9cd78a30cf312bce",
+        "size": [
+          "397"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Instrumented Tier0)",
+        "sha256": "f2b6f11d4086a6a2a42c5e35e8cf7fd7306737a4cf596149a9e030e00df19960",
+        "size": [
+          "77"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Tier1)",
+        "sha256": "63abb761ed3cc8ba3a6960eb175dc525d3d711d259afc73f34e0ebcf6ce45231",
+        "size": [
+          "1113"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Tier1)",
+        "sha256": "c73834cf46c3410d5b3b30334747d085156980d045d3e2c376511bc94ab960d0",
+        "size": [
+          "190"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Tier1)",
+        "sha256": "25f3e6ddfc240faf5c109a154a8d5e102c4f9db6ccfb70dd6588af30e73ee567",
+        "size": [
+          "221"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Tier1)",
+        "sha256": "9a802569759a64afac86ee8d1e9f47691e7b2cc30e3be0ad4709fb3c70613313",
+        "size": [
+          "147"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "micro-default-B-0.asm": {
+    "sha256": "fe834b7facd05adbcb599263e5fe3941d969ea6d6a8e0c1b173103f3ded6e311",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "23495710b8f3b6608bd4dc566014034172e8a938fbf22215cfb9204976cc06d9",
+        "size": [
+          "185"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "931aef914e5f4086928e3759a6db12017adb0a4893dbdb69b6f42b307d9e0447",
+        "size": [
+          "556"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "9b417ee949ac9ec6d5a050039cad3e78f99a996eaa96753740331d13b8fe6b55",
+        "size": [
+          "464"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "5f0f8784a0da91daf5c0309edc15210a06638c5808f97cd87905ae7b4a69ebf9",
+        "size": [
+          "925"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "2063ac267496cd23ff0ce1128cd927e517c8b228d17e856aa7e7c0a862e20146",
+        "size": [
+          "1333"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Tier0)",
+        "sha256": "fd4dea8ef11e9a142aa50325d8b505b87451fc03601103c4b3810fccccd42931",
+        "size": [
+          "121"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Tier0)",
+        "sha256": "9d2ab165f4d429a40273e2041870b0b7f2bddf54c03aa88ec13599dbb28d54eb",
+        "size": [
+          "251"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Tier0)",
+        "sha256": "27293907d5008f1c4fec58d6d27c051d5ce345860cb17855346de36c83e6a1b0",
+        "size": [
+          "165"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "ee0156e7cafd377eb54bffc0ff49eee2bf5736a3b38a45e477e05cb6de48ae4d",
+        "size": [
+          "2199"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "b04192dde983debbf08ae883d796dcffe9518343c80b60b30cd6bfc9f148974b",
+        "size": [
+          "4684"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "6fc0dca13a8c68ca4f74889a8c4b42a7be18bbb8c4c46a76d371a15c5b3be199",
+        "size": [
+          "7061"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "420ea5a74f500b9d8887ead0e44f7aa4563df81bcad463ff083933551966a1c2",
+        "size": [
+          "6790"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "43f3267e955952c30a04f00f910a18d6d3fb431229e834a4ad8d19168743afad",
+        "size": [
+          "1650"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Instrumented Tier0)",
+        "sha256": "14216143db77c05bde96a47b76168823d007794a99b77e4cab6e1133e38a1546",
+        "size": [
+          "151"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Instrumented Tier0)",
+        "sha256": "66af88f1d365d6efa25c1a619840f75b4cd0347fcd18d6cb296536e8d407be43",
+        "size": [
+          "311"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Instrumented Tier0)",
+        "sha256": "8b8bde314b855d3c38b7b8285a476e3672471480aab767fbf3d7aa6b9a4d2b04",
+        "size": [
+          "225"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Tier1)",
+        "sha256": "7cceff908a0b8ff6cc3e3ef4b79fbfb0b159c1015fb87a33920c4132ae30678b",
+        "size": [
+          "1230"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Tier1)",
+        "sha256": "a8397af243bf2fa6a281aaff8dec7af6addd46b2f8c12b221ef574112108fd32",
+        "size": [
+          "316"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Tier1)",
+        "sha256": "98166d0e4db872f31c289e708b11f343db83e0769398870e5169a7527f85c28c",
+        "size": [
+          "154"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Tier1)",
+        "sha256": "d27c182b01566da34c415bf38aa3ae21086c139579a5cfad1dbbacb76ac6b67f",
+        "size": [
+          "88"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "micro-default-C-0.asm": {
+    "sha256": "a1f3b1aa4d625b4eaa3fe00fd6c44a7fefa29651f3259708a5c539865f9ce1ae",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "23495710b8f3b6608bd4dc566014034172e8a938fbf22215cfb9204976cc06d9",
+        "size": [
+          "185"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "931aef914e5f4086928e3759a6db12017adb0a4893dbdb69b6f42b307d9e0447",
+        "size": [
+          "556"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "9b417ee949ac9ec6d5a050039cad3e78f99a996eaa96753740331d13b8fe6b55",
+        "size": [
+          "464"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "5f0f8784a0da91daf5c0309edc15210a06638c5808f97cd87905ae7b4a69ebf9",
+        "size": [
+          "925"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Tier0)",
+        "sha256": "2063ac267496cd23ff0ce1128cd927e517c8b228d17e856aa7e7c0a862e20146",
+        "size": [
+          "1333"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Tier0)",
+        "sha256": "fd4dea8ef11e9a142aa50325d8b505b87451fc03601103c4b3810fccccd42931",
+        "size": [
+          "121"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Tier0)",
+        "sha256": "9d2ab165f4d429a40273e2041870b0b7f2bddf54c03aa88ec13599dbb28d54eb",
+        "size": [
+          "251"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Tier0)",
+        "sha256": "27293907d5008f1c4fec58d6d27c051d5ce345860cb17855346de36c83e6a1b0",
+        "size": [
+          "165"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "ee0156e7cafd377eb54bffc0ff49eee2bf5736a3b38a45e477e05cb6de48ae4d",
+        "size": [
+          "2199"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "752f747d4bab9cd877934563360d1bb0f958e826fefeeee63b2cecc162cfcce9",
+        "size": [
+          "5318"
+        ],
+        "numeric_calls": [
+          "Create",
+          "Create",
+          "ReadF64",
+          "ReadF64",
+          "CanReadF64",
+          "CanReadF64",
+          "AppendF64",
+          "ReadF64",
+          "ReadF64",
+          "CanReadF64",
+          "CanReadF64",
+          "AppendF64"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "b9e1fd95015d47a2908774c440a24b2da3f09d389537dffef9b9a0aa20ba04dc",
+        "size": [
+          "9889"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "AppendError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "5735c6af152b1c9f10ae65053a3a42e80a3b5c36e6890000a5fa685c21c3a5cf",
+        "size": [
+          "9640"
+        ],
+        "numeric_calls": [
+          "AppendError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "fc24bd52f448bcfca19e3308ab3508233d77771068432a7c754c78210ff08b5d",
+        "size": [
+          "9782"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "AppendError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "43f3267e955952c30a04f00f910a18d6d3fb431229e834a4ad8d19168743afad",
+        "size": [
+          "1650"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Instrumented Tier0)",
+        "sha256": "14216143db77c05bde96a47b76168823d007794a99b77e4cab6e1133e38a1546",
+        "size": [
+          "151"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Instrumented Tier0)",
+        "sha256": "66af88f1d365d6efa25c1a619840f75b4cd0347fcd18d6cb296536e8d407be43",
+        "size": [
+          "311"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Instrumented Tier0)",
+        "sha256": "8b8bde314b855d3c38b7b8285a476e3672471480aab767fbf3d7aa6b9a4d2b04",
+        "size": [
+          "225"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (Tier1)",
+        "sha256": "56bef0a723817833a1c48d26178d867e3d11202213cfb99eed89e6a9cdaf74c2",
+        "size": [
+          "1140"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (Tier1)",
+        "sha256": "d8f6bace317458795038f2d275fc1fce4e803ce9de62192ec3aac58c5336cf8e",
+        "size": [
+          "316"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (Tier1)",
+        "sha256": "522a8152d560869de727070b7df3b5f26ed0fc3cac2c6fe68fb66e103283ff0b",
+        "size": [
+          "154"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (Tier1)",
+        "sha256": "ab5ae43bae391349d6f36d2214c4c692b6e8ffc92a0f5598bd71edf996b02a02",
+        "size": [
+          "88"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "micro-disabled-A-0.asm": {
+    "sha256": "6bc3161facfccc82fc50573b1671ac0d967819fb16fdc77608486ccffa5bf048",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "2fdfd4137b221a68276c8f24ec329c30b40a2f4f8850915a30f5d3f44f078746",
+        "size": [
+          "206"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "330823df544ff422e689030cb73db238e84a73862e1c55311030af20e47f755c",
+        "size": [
+          "295"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "f1f2002fc411e45dc444a9211930a66a66b04c98fd919fcd3de182814d420bc3",
+        "size": [
+          "1107"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "46ad9d70d684a807dd9e3792eaed7f5ed482bbd66a864770fec6094c3b6f4783",
+        "size": [
+          "1004"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (FullOpts)",
+        "sha256": "f06664defec585048a5f15d958dd003e5dfde42d6eb67dfa6f79c1e7ceb2fd27",
+        "size": [
+          "71"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:ToIndex(System.Object):long (FullOpts)",
+        "sha256": "37c5c39f42f6c6529c5a86dc14960027f667d3695b4eac575ba142974e20c7fd",
+        "size": [
+          "185"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(long):System.Object:this (FullOpts)",
+        "sha256": "1b1ff785959e58e4af17422841c5e6e63da004720bc86953b8208cb8ecdabe03",
+        "size": [
+          "59"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "4af2b6729b9075ac8353f35a5251f11382f3bc48d660e146fd9a595be66f6e81",
+        "size": [
+          "4859"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "micro-disabled-B-0.asm": {
+    "sha256": "7226c9fe80e9a2df35d33723ebcf4d5cce2fea686728e255844c4bfebced376f",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "2fdfd4137b221a68276c8f24ec329c30b40a2f4f8850915a30f5d3f44f078746",
+        "size": [
+          "206"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "330823df544ff422e689030cb73db238e84a73862e1c55311030af20e47f755c",
+        "size": [
+          "295"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "f1f2002fc411e45dc444a9211930a66a66b04c98fd919fcd3de182814d420bc3",
+        "size": [
+          "1107"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "46ad9d70d684a807dd9e3792eaed7f5ed482bbd66a864770fec6094c3b6f4783",
+        "size": [
+          "1004"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (FullOpts)",
+        "sha256": "9e83eb4779fda898331157ddc731545f3177c3c95476860dac72c65374742a08",
+        "size": [
+          "238"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "4af2b6729b9075ac8353f35a5251f11382f3bc48d660e146fd9a595be66f6e81",
+        "size": [
+          "4859"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      }
+    ]
+  },
+  "micro-disabled-C-0.asm": {
+    "sha256": "f6238cf18e5f26d81579950c01e2f5445447d6b53738c035fa63fd194c5ecbad",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_construct_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "2fdfd4137b221a68276c8f24ec329c30b40a2f4f8850915a30f5d3f44f078746",
+        "size": [
+          "206"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_append_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "330823df544ff422e689030cb73db238e84a73862e1c55311030af20e47f755c",
+        "size": [
+          "295"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_read_refs(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "f1f2002fc411e45dc444a9211930a66a66b04c98fd919fcd3de182814d420bc3",
+        "size": [
+          "1107"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyOps:GetItem(System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "46ad9d70d684a807dd9e3792eaed7f5ed482bbd66a864770fec6094c3b6f4783",
+        "size": [
+          "1004"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Runtime.PyList:GetItem(System.Object):System.Object:this (FullOpts)",
+        "sha256": "9e83eb4779fda898331157ddc731545f3177c3c95476860dac72c65374742a08",
+        "size": [
+          "238"
+        ],
+        "numeric_calls": [],
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_produce_consume(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "f6ae4b60d4a9a1711fade958dfff0b7e1a6fde775f0722a337264a3a761951db",
+        "size": [
+          "7450"
+        ],
+        "numeric_calls": [
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError",
+          "ReadError"
+        ],
+        "fma": false
+      }
+    ]
+  }
+}

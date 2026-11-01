@@ -1,0 +1,14 @@
+{
+  "scope": "micro",
+  "tier": "default",
+  "variant": "A",
+  "repeat": 0,
+  "phase": "time",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/A/micro/numeric_list.dll"
+  ],
+  "utc_epoch_start": 1793556788.380942,
+  "wall_seconds": 1.3739652169970213,
+  "exit_code": 0
+}

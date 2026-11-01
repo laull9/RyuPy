@@ -1,0 +1,25 @@
+{
+  "name": "records",
+  "tier": "default",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/records/records.dll"
+  ],
+  "utc_epoch_start": 1793559967.572291,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 1256.7404490037006,
+  "maxrss": 83238912,
+  "stats": {
+    "main_ms": 1083.84,
+    "alloc_bytes": 89327944,
+    "gc0": 16,
+    "gc1": 7,
+    "gc2": 3,
+    "gc_pause_ms": 104.178,
+    "jit_ms": 437.382,
+    "jit_methods": 877,
+    "heap_bytes": 22562960
+  }
+}

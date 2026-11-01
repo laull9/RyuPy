@@ -1,0 +1,190 @@
+[
+  {
+    "file": "float-jit/default-baseline.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mul_add(System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_norm(System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mul_add(System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_norm(System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_bytes": [
+      "597",
+      "867",
+      "770",
+      "2832",
+      "4405",
+      "2178"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 9
+  },
+  {
+    "file": "float-jit/default-candidate.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mul_add(System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_norm(System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mul_add(System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_norm(System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_bytes": [
+      "1288",
+      "1620",
+      "1450",
+      "2150",
+      "3735",
+      "2731",
+      "2703"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 23
+  },
+  {
+    "file": "float-jit/disabled-baseline.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mul_add(System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_norm(System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "1533",
+      "3083",
+      "1758"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 9
+  },
+  {
+    "file": "float-jit/disabled-candidate.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mul_add(System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_norm(System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeat_mixed(System.Object,System.Object):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "1567",
+      "3119",
+      "1835"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 14
+  },
+  {
+    "file": "numeric-jit/matmul-default-baseline.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "1906",
+      "4240",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 3
+  },
+  {
+    "file": "numeric-jit/matmul-default-candidate.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2568",
+      "4209",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 5
+  },
+  {
+    "file": "numeric-jit/matmul-disabled-baseline.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2442",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 3
+  },
+  {
+    "file": "numeric-jit/matmul-disabled-candidate.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2569",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 4
+  },
+  {
+    "file": "numeric-jit/nbody-default-baseline.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "5531",
+      "8658",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 2
+  },
+  {
+    "file": "numeric-jit/nbody-default-candidate.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "11994",
+      "9954",
+      "11541",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 39
+  },
+  {
+    "file": "numeric-jit/nbody-disabled-baseline.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "8106",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 3
+  },
+  {
+    "file": "numeric-jit/nbody-disabled-candidate.asm",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "8471",
+      "47"
+    ],
+    "fused_multiply_add_instructions": 0,
+    "multiply_double_instructions": 14
+  }
+]

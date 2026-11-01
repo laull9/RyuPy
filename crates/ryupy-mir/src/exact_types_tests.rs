@@ -2,7 +2,7 @@
 use crate::mir::*;
 use la_arena::Arena;
 
-fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
+pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
     let mut locals = Arena::default();
     let subject = locals.alloc(LocalDecl {
         ty: MirType::Dynamic,

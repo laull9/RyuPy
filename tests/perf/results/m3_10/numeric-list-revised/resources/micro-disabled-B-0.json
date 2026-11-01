@@ -1,0 +1,15 @@
+{
+  "scope": "micro",
+  "tier": "disabled",
+  "variant": "B",
+  "repeat": 0,
+  "phase": "resources",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro-harness/bin/Release/net10.0/measure.dll",
+    "/tmp/ryupy-m3_10-numeric-list-revised-p1ypjG/B/micro/numeric_list.dll"
+  ],
+  "utc_epoch_start": 1793556778.3313804,
+  "wall_seconds": 0.8685490120042232,
+  "exit_code": 0
+}

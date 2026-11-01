@@ -1,0 +1,56 @@
+semantics float_list True
+sample float_list 0.005219609003688674 True
+sample float_list 0.003912398002285045 True
+sample float_list 0.004802633993676864 True
+sample float_list 0.004088005000085104 True
+sample float_list 0.0043205770052736625 True
+sample float_list 0.00394062800478423 True
+sample float_list 0.004626631001883652 True
+semantics float_tuple True
+sample float_tuple 0.0019245579969719984 True
+sample float_tuple 0.001920260998304002 True
+sample float_tuple 0.0013622740007122047 True
+sample float_tuple 0.0011344020022079349 True
+sample float_tuple 0.001418461004504934 True
+sample float_tuple 0.0012754970011883415 True
+sample float_tuple 0.0011259589955443516 True
+semantics scalar_tail True
+sample scalar_tail 0.004194264001853298 True
+sample scalar_tail 0.003987600997788832 True
+sample scalar_tail 0.005925064004259184 True
+sample scalar_tail 0.0057858020009007305 True
+sample scalar_tail 0.005286063002131414 True
+sample scalar_tail 0.006271357000514399 True
+sample scalar_tail 0.004324720001022797 True
+semantics first_bool True
+sample first_bool 0.00914240800193511 True
+sample first_bool 0.008981247003248427 True
+sample first_bool 0.010857039997063112 True
+sample first_bool 0.008607866999227554 True
+sample first_bool 0.008639744002721272 True
+sample first_bool 0.052831631001026835 True
+sample first_bool 0.008884502000000793 True
+semantics last_bool True
+sample last_bool 0.01099905800219858 True
+sample last_bool 0.009091232997889165 True
+sample last_bool 0.010072750003018882 True
+sample last_bool 0.008316655999806244 True
+sample last_bool 0.005568893000599928 True
+sample last_bool 0.05892253600177355 True
+sample last_bool 0.004538597000646405 True
+semantics first_custom True
+sample first_custom 0.018553014000644907 True
+sample first_custom 0.01879479100171011 True
+sample first_custom 0.02666291000059573 True
+sample first_custom 0.016850466003234033 True
+sample first_custom 0.016463732994452585 True
+sample first_custom 0.015461051996680908 True
+sample first_custom 0.040315516002010554 True
+semantics last_custom True
+sample last_custom 0.01667186499980744 True
+sample last_custom 0.022371506005583797 True
+sample last_custom 0.02711132100375835 True
+sample last_custom 0.02135947199712973 True
+sample last_custom 0.01659891199960839 True
+sample last_custom 0.041949874997953884 True
+sample last_custom 0.00813363199995365 True

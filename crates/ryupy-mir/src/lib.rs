@@ -58,3 +58,14 @@ mod validate_exports;
 mod class_lookup;
 
 mod validate_identities;
+
+#[cfg(test)]
+mod numeric_list_abi_tests;
+
+mod validate_vectors;
+#[cfg(test)]
+mod vector_tests;
+
+#[cfg(test)]
+mod list_read_tests;
+mod validate_list_reads;

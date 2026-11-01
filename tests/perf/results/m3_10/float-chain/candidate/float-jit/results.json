@@ -1,0 +1,974 @@
+[
+  {
+    "tier": "default",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/float-harness/bin/Release/net10.0/float.dll",
+      "/tmp/ryupy-m3_10-float-baseline-ST6PGl/float-artifact/float_chain.dll"
+    ],
+    "samples": [
+      {
+        "label": "float_hit",
+        "sample": 0,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 1,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 2,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 0,
+        "alloc_bytes": 3600000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.083,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 1,
+        "alloc_bytes": 3600000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 2,
+        "alloc_bytes": 3600000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.071,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 0,
+        "alloc_bytes": 1440000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.089,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 1,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 2,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 0,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 1,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 2,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.677,
+        "jit_ms": 7.7247,
+        "jit_methods": 25
+      },
+      {
+        "label": "first_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.155,
+        "jit_ms": 20.0882,
+        "jit_methods": 46
+      },
+      {
+        "label": "first_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.162,
+        "jit_ms": 10.2972,
+        "jit_methods": 6
+      },
+      {
+        "label": "last_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.095,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.105,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.116,
+        "jit_ms": 0.8811,
+        "jit_methods": 2
+      },
+      {
+        "label": "mixed",
+        "sample": 0,
+        "alloc_bytes": 3587688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.13,
+        "jit_ms": 0.2489,
+        "jit_methods": 1
+      },
+      {
+        "label": "mixed",
+        "sample": 1,
+        "alloc_bytes": 3587688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.083,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 2,
+        "alloc_bytes": 3587688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.092,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "9ae96dc0f803e3a2981368c4bd1999d3127ab6163ba88070d70b6b7e9892a7ad"
+  },
+  {
+    "tier": "default",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/float-harness/bin/Release/net10.0/float.dll",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/float-artifact/float_chain.dll"
+    ],
+    "samples": [
+      {
+        "label": "float_hit",
+        "sample": 0,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 1,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 2,
+        "alloc_bytes": 720000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 1.103,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 0,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 1,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 2,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 0,
+        "alloc_bytes": 1440000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.554,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 1,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 2,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 0,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 1,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 2,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.196,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.124,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 2.0968,
+        "jit_methods": 10
+      },
+      {
+        "label": "last_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.203,
+        "jit_ms": 11.0912,
+        "jit_methods": 10
+      },
+      {
+        "label": "last_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.121,
+        "jit_ms": 8.1955,
+        "jit_methods": 12
+      },
+      {
+        "label": "last_custom",
+        "sample": 2,
+        "alloc_bytes": 3600048,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.121,
+        "jit_ms": 1.6474,
+        "jit_methods": 2
+      },
+      {
+        "label": "mixed",
+        "sample": 0,
+        "alloc_bytes": 3347688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.096,
+        "jit_ms": 5.0782,
+        "jit_methods": 1
+      },
+      {
+        "label": "mixed",
+        "sample": 1,
+        "alloc_bytes": 3347688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.082,
+        "jit_ms": 0.6355,
+        "jit_methods": 1
+      },
+      {
+        "label": "mixed",
+        "sample": 2,
+        "alloc_bytes": 3347688,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0.3656,
+        "jit_methods": 1
+      }
+    ],
+    "asm_sha256": "383c3e780038fa2505aedc54846350d10a761396b0afe1189187f8184f0a0e12"
+  },
+  {
+    "tier": "disabled",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/float-harness/bin/Release/net10.0/float.dll",
+      "/tmp/ryupy-m3_10-float-baseline-ST6PGl/float-artifact/float_chain.dll"
+    ],
+    "samples": [
+      {
+        "label": "float_hit",
+        "sample": 0,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 1,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 2,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 0,
+        "alloc_bytes": 3600000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.043,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 1,
+        "alloc_bytes": 3600000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 2,
+        "alloc_bytes": 3600000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.071,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 0,
+        "alloc_bytes": 1440000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.126,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 1,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 2,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 0,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 1,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 2,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.076,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.159,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.082,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.089,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.086,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.088,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 0,
+        "alloc_bytes": 3587688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.07,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 1,
+        "alloc_bytes": 3587688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.066,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 2,
+        "alloc_bytes": 3587688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.111,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "4ab73cbba2c4c453c172913da96ba6ee88dad30ecd3a300f8f264fe2e32dc4a8"
+  },
+  {
+    "tier": "disabled",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/float-harness/bin/Release/net10.0/float.dll",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/float-artifact/float_chain.dll"
+    ],
+    "samples": [
+      {
+        "label": "float_hit",
+        "sample": 0,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 1,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "float_hit",
+        "sample": 2,
+        "alloc_bytes": 720000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 1.586,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 0,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 1,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "norm_hit",
+        "sample": 2,
+        "alloc_bytes": 720000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 0,
+        "alloc_bytes": 1440000,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.224,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 1,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_bool",
+        "sample": 2,
+        "alloc_bytes": 1440000,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 0,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 1,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_int",
+        "sample": 2,
+        "alloc_bytes": 716928,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.092,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.08,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "first_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 0,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.129,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 1,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.092,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "last_custom",
+        "sample": 2,
+        "alloc_bytes": 3593856,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.081,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 0,
+        "alloc_bytes": 3347688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.268,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 1,
+        "alloc_bytes": 3347688,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.087,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "label": "mixed",
+        "sample": 2,
+        "alloc_bytes": 3347688,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "36e0c17539e8eea6ebac0855503e8441c51917a69f84665872c0b7cb31c441e8"
+  }
+]

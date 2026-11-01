@@ -1,0 +1,58 @@
+{
+  "name": "matmul",
+  "tier": "disabled",
+  "mode": "resources",
+  "variant": "baseline",
+  "repeat": 0,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/core-harness/bin/Release/net10.0/measure.dll",
+    "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/before/bench/matmul/matmul.dll",
+    "matmul",
+    "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/validation/matmul.stdout",
+    "resources",
+    "3",
+    "3"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 964.420747004624,
+  "maxrss": 63336448,
+  "samples": [
+    {
+      "kind": "kernel_resources",
+      "name": "matmul",
+      "sample": 0,
+      "alloc_bytes": 1278672,
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 0,
+      "jit_ms": 0,
+      "jit_methods": 0
+    },
+    {
+      "kind": "kernel_resources",
+      "name": "matmul",
+      "sample": 1,
+      "alloc_bytes": 1278672,
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 0,
+      "jit_ms": 0,
+      "jit_methods": 0
+    },
+    {
+      "kind": "kernel_resources",
+      "name": "matmul",
+      "sample": 2,
+      "alloc_bytes": 1278672,
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 0,
+      "jit_ms": 0,
+      "jit_methods": 0
+    }
+  ]
+}

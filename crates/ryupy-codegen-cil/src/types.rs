@@ -22,13 +22,16 @@ use ryupy_mir::{ClassDefId, MirType};
 pub struct ClassTypeMap {
     /// `System.Object` 的类型引用（外部类型，用 TypeRefIndex 表示）。
     pub object: TypeRefIndex,
+    /// BCL私有向量局部的泛型值类型定义，不属于用户class。
+    pub vector: Option<TypeRefIndex>,
     pub classes: FxHashMap<ClassDefId, (TypeIndex, bool)>,
 }
 
 impl ClassTypeMap {
-    pub fn new(object: TypeRefIndex) -> Self {
+    pub fn new(object: TypeRefIndex, vector: Option<TypeRefIndex>) -> Self {
         Self {
             object,
+            vector,
             classes: FxHashMap::default(),
         }
     }
@@ -45,6 +48,10 @@ pub fn mir_type_to_base_type(
     match ty {
         MirType::I64 => Some(BaseType::Int64),
         MirType::F64 => Some(BaseType::Float64),
+        MirType::V128F64 => Some(BaseType::valuetype(TypeSource::generic(
+            class_types.vector?,
+            vec![BaseType::Float64.into()],
+        ))),
         MirType::Bool => Some(BaseType::Boolean),
         MirType::Str => Some(BaseType::String),
         MirType::Unit => None,
@@ -67,6 +74,13 @@ pub fn mir_type_to_member_type(ty: &MirType, class_types: &ClassTypeMap) -> Opti
     match ty {
         MirType::I64 => Some(BaseType::Int64.into()),
         MirType::F64 => Some(BaseType::Float64.into()),
+        MirType::V128F64 => Some(
+            BaseType::valuetype(TypeSource::generic(
+                class_types.vector?,
+                vec![BaseType::Float64.into()],
+            ))
+            .into(),
+        ),
         MirType::Bool => Some(BaseType::Boolean.into()),
         MirType::Str => Some(BaseType::String.into()),
         MirType::Unit => None,

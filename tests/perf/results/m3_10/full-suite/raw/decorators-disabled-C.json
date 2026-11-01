@@ -1,0 +1,25 @@
+{
+  "name": "decorators",
+  "tier": "disabled",
+  "variant": "C",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/decorators/decorators.dll"
+  ],
+  "utc_epoch_start": 1793559979.8564358,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 919.02789100277,
+  "maxrss": 46366720,
+  "stats": {
+    "main_ms": 691.017,
+    "alloc_bytes": 383448576,
+    "gc0": 90,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 17.796,
+    "jit_ms": 226.008,
+    "jit_methods": 219,
+    "heap_bytes": 5354984
+  }
+}

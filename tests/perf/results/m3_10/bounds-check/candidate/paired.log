@@ -1,0 +1,16 @@
+matmul-default-time-baseline-0 ok
+matmul-default-time-candidate-0 ok
+matmul-default-time-candidate-1 ok
+matmul-default-time-baseline-1 ok
+matmul-default-time-baseline-2 ok
+matmul-default-time-candidate-2 ok
+matmul-default-resources-baseline-0 ok
+matmul-default-resources-candidate-0 ok
+matmul-disabled-time-baseline-0 ok
+matmul-disabled-time-candidate-0 ok
+matmul-disabled-time-candidate-1 ok
+matmul-disabled-time-baseline-1 ok
+matmul-disabled-time-baseline-2 ok
+matmul-disabled-time-candidate-2 ok
+matmul-disabled-resources-baseline-0 ok
+matmul-disabled-resources-candidate-0 ok

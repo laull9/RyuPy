@@ -1,0 +1,56 @@
+semantics float_hit True
+sample float_hit 0.000640192003629636 True
+sample float_hit 0.0014272319967858493 True
+sample float_hit 0.0003654280008049682 True
+sample float_hit 0.0002194780026911758 True
+sample float_hit 0.00021417300013126805 True
+sample float_hit 0.00021440999989863485 True
+sample float_hit 0.00031262600532500073 True
+semantics norm_hit True
+sample norm_hit 0.0003638970010797493 True
+sample norm_hit 0.0003539680037647486 True
+sample norm_hit 0.00031401200249092653 True
+sample norm_hit 0.00029085399728501216 True
+sample norm_hit 0.0005972490034764633 True
+sample norm_hit 0.00024937299895100296 True
+sample norm_hit 0.00025126100081251934 True
+semantics first_bool True
+sample first_bool 0.0019446439982857555 True
+sample first_bool 0.0017458400034229271 True
+sample first_bool 0.00156107699876884 True
+sample first_bool 0.0017176469991682097 True
+sample first_bool 0.0015221799985738471 True
+sample first_bool 0.001643426003283821 True
+sample first_bool 0.0015663770027458668 True
+semantics first_int True
+sample first_int 0.00037819399585714564 True
+sample first_int 0.0003952410042984411 True
+sample first_int 0.0003783069987548515 True
+sample first_int 0.0003195939934812486 True
+sample first_int 0.0003968919991166331 True
+sample first_int 0.00030923299345886335 True
+sample first_int 0.0003754939971258864 True
+semantics first_custom True
+sample first_custom 0.005532681003387552 True
+sample first_custom 0.004519636000622995 True
+sample first_custom 0.00396411200199509 True
+sample first_custom 0.004560165005386807 True
+sample first_custom 0.004232284998579416 True
+sample first_custom 0.005108450000989251 True
+sample first_custom 0.004116434996831231 True
+semantics last_custom True
+sample last_custom 0.004936425000778399 True
+sample last_custom 0.005199767998419702 True
+sample last_custom 0.004412637004861608 True
+sample last_custom 0.004578250998747535 True
+sample last_custom 0.00553815300372662 True
+sample last_custom 0.00459500499709975 True
+sample last_custom 0.004650802002288401 True
+semantics mixed True
+sample mixed 0.0030583439947804436 True
+sample mixed 0.003229449997888878 True
+sample mixed 0.004243709001457319 True
+sample mixed 0.003639694994490128 True
+sample mixed 0.004114125003980007 True
+sample mixed 0.0025534339947625995 True
+sample mixed 0.0030597589939134195 True

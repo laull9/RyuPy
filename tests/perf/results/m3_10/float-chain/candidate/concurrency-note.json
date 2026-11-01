@@ -1,0 +1,12 @@
+{
+  "reported_external_task": "父报告另一worker于2026-11-01 16:51:11 UTC左右执行固定13短pending基线约0.05s，随后已停止",
+  "overlap_candidates": [
+    {
+      "file": "nbody-default-time-candidate-0.json",
+      "estimated_process_start_utc": "2026-11-01T16:51:07.398698+00:00",
+      "record_file_mtime_utc": "2026-11-01T16:51:14.674693+00:00",
+      "note": "基于进程wall与JSON文件mtime估计，不是样本级时间戳；不据此删除或重测"
+    }
+  ],
+  "policy": "整组原样保留；不挑选/删除/重跑。只能定位可能重叠进程，不能将具体7样本精确归因。"
+}

@@ -1,0 +1,452 @@
+{
+  "micro-default-A-0.asm": {
+    "sha256": "0961ae8d132d113a59b430fa480bef1388862c5343494629f6538cb74c490eae",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "eecc85d20b25cd6b7a79054e388ff85e323e235642da2f46fac8e2bf9c0ebd00",
+        "code_bytes": [
+          "1080"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "ba379bfa724515c2419d3193cf4cf8f99f91c0f48de032007c30bfd59f4f054b",
+        "code_bytes": [
+          "6992"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "90d5005e3ab0c2254654dd3dce89d2703c9d5574a0654924a3cbb9f24050e1c2",
+        "code_bytes": [
+          "1083"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "306cd44ea53fc08d09f22b0f07e4a95606f465fe17e408d0e6507f4cdd83e138",
+        "code_bytes": [
+          "6992"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "9a4d655669027fc41ca9e7fef9c4eb6a6faec01e5bf8ce6f629a696a1dac0783",
+        "code_bytes": [
+          "1148"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "021ace9fb567821d48ca9c31e322bf20fc81fcc29c214d981ff23e0985c9b81a",
+        "code_bytes": [
+          "6471"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      }
+    ]
+  },
+  "micro-default-B-0.asm": {
+    "sha256": "52979727c68251e3219121aea80430732eadaf22990ecdbe967710f1940aef91",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "51332c20afba41767021ccc69b6b9a581818b427ee75a45aabd008ac506b16d0",
+        "code_bytes": [
+          "3769"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "2ff992d15d42044e0ad997102896feba00ede3db39b3f044a939462db88aaf4a",
+        "code_bytes": [
+          "7574"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "fea5f72c94b75e9632e2abc73a2cefa090de38cba55cac590ab691afe135f435",
+        "code_bytes": [
+          "3772"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "a294c06b2908b20a89bf7325ee52bc32733df592a779f00bf9d439d59a99b57c",
+        "code_bytes": [
+          "7656"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "f0a42146d4306c885b75eb1b296ae565c95b0fee0ce188b088a1d76ec5ffdea4",
+        "code_bytes": [
+          "3837"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "92ef0f568b5b91c999b656180e8547f5e667ea0f8bbe666339cb9ecd00329d2a",
+        "code_bytes": [
+          "7109"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "212b2536d26c97dca102b8ee0b3a30d2a36a1dc3001af870e71e822b21875035",
+        "code_bytes": [
+          "7521"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "f9e04876e58f8f62b3ce8ef3296544de17024b7514ee87e643c3e20a99a1c333",
+        "code_bytes": [
+          "7541"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "b79d24d9029e5875c6991c4bbd2d2dd0bc96f64d1f812678e6471f706570e1e8",
+        "code_bytes": [
+          "10650"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "bad5e8fe928250752fe2f4f5801bc329e0d434d3d21a722570a56ba1a6ee3868",
+        "code_bytes": [
+          "10815"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      }
+    ]
+  },
+  "micro-default-C-0.asm": {
+    "sha256": "8c53c8c18776e58eab57c79e3ee1854234e76603b988e24f15899422a257845b",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "9722626e845a5b6afc8e6de1fee856feba0b7ec0dcb114275d6df2879c533ef6",
+        "code_bytes": [
+          "3864"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 3,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "a2920907d9e9773325915f4f3f26fb1e42421d7d101c6fcdbf670f79f849b621",
+        "code_bytes": [
+          "7583"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "925a6b8005939fb231af144e09f8b72b4132f256acb3f4d66d84176d0bc381f1",
+        "code_bytes": [
+          "3867"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 3,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "c43fc8454fc0852a6c1a3d18f89e8e5713acf5575701d101a66db6c465f22a55",
+        "code_bytes": [
+          "7538"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "sha256": "935c5044efb38d4c1edf0888bda07686dbe821c4b9b9da5df10ee4ddb319eb1c",
+        "code_bytes": [
+          "3923"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 3,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "be9af27aefa86cf520ab7a32041e8c6aa3b4c3713cdf8bfcd015f29649e22c79",
+        "code_bytes": [
+          "7106"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "07f8b5df5787fdd87392f63bc5c3c81f40bd3b36f0f8e0baa034f706db393ab4",
+        "code_bytes": [
+          "7392"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "6aa6b006485912e0525c34ff9ba2078e9fd418236506d12dc00fb2196ab8ff44",
+        "code_bytes": [
+          "7525"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "68d1cb8f88cf565cfd16d5508448416dcf8806cd8c70e571dce23d7b641e0292",
+        "code_bytes": [
+          "8785"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+        "sha256": "412acef551e4ae3a47ad50e90835efe9f5a66f274f8d43100e11cee02960eb6c",
+        "code_bytes": [
+          "9404"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      }
+    ]
+  },
+  "micro-disabled-A-0.asm": {
+    "sha256": "d5881e53cb0704e96be618810988e0938253147356bbaee1c888de7f5bf5fa98",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "7db683510d103ace9e9c13b9ed06aa7837dcdd0348f6ae7c24abaccf3c9cf580",
+        "code_bytes": [
+          "7121"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "9885bc761cde69b00ecb0d6a7dfc1cb744642e8aabeab6faae7cae9c2c5d65dd",
+        "code_bytes": [
+          "7076"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "ef02cb76a766268378c60add7d72e40f35e6c12f798be7b0a2152ecb7c43c9f9",
+        "code_bytes": [
+          "7173"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      }
+    ]
+  },
+  "micro-disabled-B-0.asm": {
+    "sha256": "5992189617f0d998d0343f0ad21e2448dac921f384f84e327f9c89c9a2ed9e69",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "0de84332b560cff47ae929c847a8efc3d796b3e692269e3a495e2df19781aa15",
+        "code_bytes": [
+          "7294"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "5763dff3b17551d03b7f72183b32a0c86aae48c37f267b1425610a06587969c7",
+        "code_bytes": [
+          "7204"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "1ea5fb1a4dca34298c7cb9ca8f3f4ec1051f2faa99d4b12168bd321ca0fa064c",
+        "code_bytes": [
+          "7124"
+        ],
+        "packed_multiply": 0,
+        "packed_add": 0,
+        "pack_low": 0,
+        "extract_high": 0,
+        "fma": false
+      }
+    ]
+  },
+  "micro-disabled-C-0.asm": {
+    "sha256": "5fa383b3b9a81a11967e780b0e15233dc1d5fcbead16b3662601920fff1b2939",
+    "methods": [
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_list_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "e9869f2c4c77da9cc3ae28adf77d0f909c71af68166ba0addf68753a83c73129",
+        "code_bytes": [
+          "7243"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tuple_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "6895899aa8cd1f95a2ef10de361bb0e30f5725994d31ea39756af227b326e0ae",
+        "code_bytes": [
+          "7153"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      },
+      {
+        "header": "; Assembly listing for method RyuPy.Generated.Module:m0_tail_pairs(System.Object,System.Object,System.Object,System.Object,System.Object):System.Object (FullOpts)",
+        "sha256": "cca45ac8e52727bc5fd8aceca8fd1828abca97174a8555098297135846590fc3",
+        "code_bytes": [
+          "7088"
+        ],
+        "packed_multiply": 3,
+        "packed_add": 3,
+        "pack_low": 3,
+        "extract_high": 1,
+        "fma": false
+      }
+    ]
+  }
+}

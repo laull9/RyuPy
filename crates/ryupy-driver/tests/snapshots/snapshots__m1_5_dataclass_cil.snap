@@ -63,7 +63,18 @@ expression: cil
             [2] [System.Runtime]System.Object,
             [3] [System.Runtime]System.Object,
             [4] [System.Runtime]System.Object,
-            [5] [System.Runtime]System.Object
+            [5] [System.Runtime]System.Object,
+            [6] [System.Runtime]System.Object,
+            [7] double,
+            [8] [System.Runtime]System.Object,
+            [9] double,
+            [10] [System.Runtime]System.Object,
+            [11] double,
+            [12] double,
+            [13] double,
+            [14] bool,
+            [15] bool,
+            [16] bool
         )
         IL_0000: LoadString("m1_5_dataclass.py")
         IL_0001: LoadString("step")
@@ -81,30 +92,89 @@ expression: cil
         IL_000d: LoadString("v")
         IL_000e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
         IL_000f: StoreLocal(2)
-        IL_0010: LoadConstantInt32(2)
-        IL_0011: LoadConstantInt32(3)
-        IL_0012: LoadLocal(2)
-        IL_0013: LoadArgument(1)
-        IL_0014: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
-        IL_0015: StoreLocal(3)
-        IL_0016: LoadConstantInt32(3)
-        IL_0017: LoadConstantInt32(1)
-        IL_0018: LoadLocal(1)
-        IL_0019: LoadLocal(3)
-        IL_001a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
-        IL_001b: StoreLocal(4)
-        IL_001c: LoadConstantInt32(4)
-        IL_001d: LoadArgument(0)
-        IL_001e: LoadString("x")
-        IL_001f: LoadLocal(4)
-        IL_0020: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
-        IL_0021: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
-        IL_0022: StoreLocal(5)
-        IL_0023: Branch(36)
-        IL_0024: LoadLocal(0)
-        IL_0025: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
-        IL_0026: LoadLocal(5)
-        IL_0027: Return
+        IL_0010: LoadLocal(2)
+        IL_0011: StoreLocal(6)
+        IL_0012: LoadArgument(1)
+        IL_0013: StoreLocal(8)
+        IL_0014: LoadLocal(1)
+        IL_0015: StoreLocal(10)
+        IL_0016: Branch(89)
+        IL_0017: LoadLocal(0)
+        IL_0018: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0019: LoadLocal(5)
+        IL_001a: Return
+        IL_001b: LoadConstantInt32(2)
+        IL_001c: LoadArgument(0)
+        IL_001d: LoadString("x")
+        IL_001e: LoadLocal(4)
+        IL_001f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_0020: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0021: StoreLocal(5)
+        IL_0022: Branch(23)
+        IL_0023: LoadConstantInt32(3)
+        IL_0024: LoadConstantInt32(3)
+        IL_0025: LoadLocal(2)
+        IL_0026: LoadArgument(1)
+        IL_0027: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+        IL_0028: StoreLocal(3)
+        IL_0029: LoadConstantInt32(4)
+        IL_002a: LoadConstantInt32(1)
+        IL_002b: LoadLocal(1)
+        IL_002c: LoadLocal(3)
+        IL_002d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+        IL_002e: StoreLocal(4)
+        IL_002f: Branch(27)
+        IL_0030: LoadLocal(6)
+        IL_0031: UnboxIntoValue(double)
+        IL_0032: StoreLocal(7)
+        IL_0033: LoadLocal(8)
+        IL_0034: UnboxIntoValue(double)
+        IL_0035: StoreLocal(9)
+        IL_0036: LoadLocal(10)
+        IL_0037: UnboxIntoValue(double)
+        IL_0038: StoreLocal(11)
+        IL_0039: LoadLocal(7)
+        IL_003a: LoadLocal(9)
+        IL_003b: Multiply
+        IL_003c: StoreLocal(12)
+        IL_003d: LoadLocal(11)
+        IL_003e: LoadLocal(12)
+        IL_003f: Add
+        IL_0040: StoreLocal(13)
+        IL_0041: LoadLocal(13)
+        IL_0042: BoxValue(double)
+        IL_0043: StoreLocal(4)
+        IL_0044: Branch(27)
+        IL_0045: LoadLocal(10)
+        IL_0046: IsInstance(double)
+        IL_0047: LoadNull
+        IL_0048: CompareEqual
+        IL_0049: LoadConstantInt32(0)
+        IL_004a: CompareEqual
+        IL_004b: StoreLocal(14)
+        IL_004c: LoadLocal(14)
+        IL_004d: BranchTruthy(48)
+        IL_004e: Branch(35)
+        IL_004f: LoadLocal(8)
+        IL_0050: IsInstance(double)
+        IL_0051: LoadNull
+        IL_0052: CompareEqual
+        IL_0053: LoadConstantInt32(0)
+        IL_0054: CompareEqual
+        IL_0055: StoreLocal(15)
+        IL_0056: LoadLocal(15)
+        IL_0057: BranchTruthy(69)
+        IL_0058: Branch(35)
+        IL_0059: LoadLocal(6)
+        IL_005a: IsInstance(double)
+        IL_005b: LoadNull
+        IL_005c: CompareEqual
+        IL_005d: LoadConstantInt32(0)
+        IL_005e: CompareEqual
+        IL_005f: StoreLocal(16)
+        IL_0060: LoadLocal(16)
+        IL_0061: BranchTruthy(79)
+        IL_0062: Branch(35)
     }
 
     .method public static [System.Runtime]System.Object m0_dot([System.Runtime]System.Object, [System.Runtime]System.Object) cil managed
@@ -118,7 +188,18 @@ expression: cil
             [5] [System.Runtime]System.Object,
             [6] [System.Runtime]System.Object,
             [7] [System.Runtime]System.Object,
-            [8] [System.Runtime]System.Object
+            [8] [System.Runtime]System.Object,
+            [9] [System.Runtime]System.Object,
+            [10] double,
+            [11] [System.Runtime]System.Object,
+            [12] double,
+            [13] [System.Runtime]System.Object,
+            [14] double,
+            [15] double,
+            [16] double,
+            [17] bool,
+            [18] bool,
+            [19] bool
         )
         IL_0000: LoadString("m1_5_dataclass.py")
         IL_0001: LoadString("dot")
@@ -152,25 +233,84 @@ expression: cil
         IL_001d: LoadString("y")
         IL_001e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
         IL_001f: StoreLocal(6)
-        IL_0020: LoadConstantInt32(10)
-        IL_0021: LoadConstantInt32(3)
-        IL_0022: LoadLocal(5)
-        IL_0023: LoadLocal(6)
-        IL_0024: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
-        IL_0025: StoreLocal(7)
-        IL_0026: LoadConstantInt32(11)
-        IL_0027: LoadConstantInt32(1)
-        IL_0028: LoadLocal(4)
-        IL_0029: LoadLocal(7)
-        IL_002a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
-        IL_002b: StoreLocal(8)
-        IL_002c: LoadLocal(8)
-        IL_002d: StoreLocal(1)
-        IL_002e: Branch(47)
-        IL_002f: LoadLocal(0)
-        IL_0030: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
-        IL_0031: LoadLocal(1)
-        IL_0032: Return
+        IL_0020: LoadLocal(5)
+        IL_0021: StoreLocal(9)
+        IL_0022: LoadLocal(6)
+        IL_0023: StoreLocal(11)
+        IL_0024: LoadLocal(4)
+        IL_0025: StoreLocal(13)
+        IL_0026: Branch(100)
+        IL_0027: LoadLocal(0)
+        IL_0028: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0029: LoadLocal(1)
+        IL_002a: Return
+        IL_002b: LoadLocal(8)
+        IL_002c: StoreLocal(1)
+        IL_002d: Branch(39)
+        IL_002e: LoadConstantInt32(10)
+        IL_002f: LoadConstantInt32(3)
+        IL_0030: LoadLocal(5)
+        IL_0031: LoadLocal(6)
+        IL_0032: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+        IL_0033: StoreLocal(7)
+        IL_0034: LoadConstantInt32(11)
+        IL_0035: LoadConstantInt32(1)
+        IL_0036: LoadLocal(4)
+        IL_0037: LoadLocal(7)
+        IL_0038: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+        IL_0039: StoreLocal(8)
+        IL_003a: Branch(43)
+        IL_003b: LoadLocal(9)
+        IL_003c: UnboxIntoValue(double)
+        IL_003d: StoreLocal(10)
+        IL_003e: LoadLocal(11)
+        IL_003f: UnboxIntoValue(double)
+        IL_0040: StoreLocal(12)
+        IL_0041: LoadLocal(13)
+        IL_0042: UnboxIntoValue(double)
+        IL_0043: StoreLocal(14)
+        IL_0044: LoadLocal(10)
+        IL_0045: LoadLocal(12)
+        IL_0046: Multiply
+        IL_0047: StoreLocal(15)
+        IL_0048: LoadLocal(14)
+        IL_0049: LoadLocal(15)
+        IL_004a: Add
+        IL_004b: StoreLocal(16)
+        IL_004c: LoadLocal(16)
+        IL_004d: BoxValue(double)
+        IL_004e: StoreLocal(8)
+        IL_004f: Branch(43)
+        IL_0050: LoadLocal(13)
+        IL_0051: IsInstance(double)
+        IL_0052: LoadNull
+        IL_0053: CompareEqual
+        IL_0054: LoadConstantInt32(0)
+        IL_0055: CompareEqual
+        IL_0056: StoreLocal(17)
+        IL_0057: LoadLocal(17)
+        IL_0058: BranchTruthy(59)
+        IL_0059: Branch(46)
+        IL_005a: LoadLocal(11)
+        IL_005b: IsInstance(double)
+        IL_005c: LoadNull
+        IL_005d: CompareEqual
+        IL_005e: LoadConstantInt32(0)
+        IL_005f: CompareEqual
+        IL_0060: StoreLocal(18)
+        IL_0061: LoadLocal(18)
+        IL_0062: BranchTruthy(80)
+        IL_0063: Branch(46)
+        IL_0064: LoadLocal(9)
+        IL_0065: IsInstance(double)
+        IL_0066: LoadNull
+        IL_0067: CompareEqual
+        IL_0068: LoadConstantInt32(0)
+        IL_0069: CompareEqual
+        IL_006a: StoreLocal(19)
+        IL_006b: LoadLocal(19)
+        IL_006c: BranchTruthy(90)
+        IL_006d: Branch(46)
     }
 
     .method public static void m0___module_main() cil managed

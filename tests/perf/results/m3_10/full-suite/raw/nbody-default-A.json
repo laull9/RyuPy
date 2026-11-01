@@ -1,0 +1,25 @@
+{
+  "name": "nbody",
+  "tier": "default",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nbody/nbody.dll"
+  ],
+  "utc_epoch_start": 1793559898.522424,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 1147.4877729997388,
+  "maxrss": 52977664,
+  "stats": {
+    "main_ms": 1022.869,
+    "alloc_bytes": 682683600,
+    "gc0": 162,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 26.441,
+    "jit_ms": 165.945,
+    "jit_methods": 472,
+    "heap_bytes": 3583128
+  }
+}

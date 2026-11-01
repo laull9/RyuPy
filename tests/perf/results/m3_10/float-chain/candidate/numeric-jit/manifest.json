@@ -1,0 +1,130 @@
+[
+  {
+    "name": "matmul",
+    "tier": "default",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-baseline-ST6PGl/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "794705a0ef35bdb4f7d6a9601fca67a8dbc9bfdf3d7fa54968e7618bdfb362ef"
+  },
+  {
+    "name": "matmul",
+    "tier": "default",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "d12d10d5a46a30327599ac1ac8c4abad0fe86f571fa8b6e3309ba1d1488a9108"
+  },
+  {
+    "name": "matmul",
+    "tier": "disabled",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-baseline-ST6PGl/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "26b766d4b40c55a8910f8bfacbb0ca899114e1dc62ed2583f49368e54aee17ac"
+  },
+  {
+    "name": "matmul",
+    "tier": "disabled",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "e7e0659a3ee3430ed8ce61328eb2cde7eacc0f1f5f6396035c3c287734b2b4ad"
+  },
+  {
+    "name": "nbody",
+    "tier": "default",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-baseline-ST6PGl/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "4886e7fb4ea519ec6f93a40c54a11468521f2df5bf48c143ebc488d24a27b6ac"
+  },
+  {
+    "name": "nbody",
+    "tier": "default",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "5a91c6fb13b170fe2f977b992bf619b1888911e0ce376fda68aff3f96c89f135"
+  },
+  {
+    "name": "nbody",
+    "tier": "disabled",
+    "which": "baseline",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-baseline-ST6PGl/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "71ae747e48d0d83052d5075fb1f479936e2a16525f2a5c598c904c65c7fde729"
+  },
+  {
+    "name": "nbody",
+    "tier": "disabled",
+    "which": "candidate",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_10-float-candidate-Fvkv7H/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "asm_sha256": "a4fda21a5df5aaaefdca2a4216d50f5fdf62c342411237988f11bd183c44241b"
+  }
+]

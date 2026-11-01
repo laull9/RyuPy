@@ -1,0 +1,25 @@
+{
+  "name": "hello",
+  "tier": "disabled",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/hello/hello.dll"
+  ],
+  "utc_epoch_start": 1793559889.4100506,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 266.3814710031147,
+  "maxrss": 38412288,
+  "stats": {
+    "main_ms": 11.799,
+    "alloc_bytes": 394816,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 184.303,
+    "jit_methods": 181,
+    "heap_bytes": 405456
+  }
+}

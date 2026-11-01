@@ -1,0 +1,3347 @@
+{
+  "scope": "26项原规模冷进程单样本；非统计稳态，不做显著性结论",
+  "runs_per_item_per_tier": 1,
+  "warmups": 0,
+  "variants": [
+    "A旧M3.9整体",
+    "C最终M3.10默认整体"
+  ],
+  "hashes": {
+    "A-cli": "beeda4c6ebb8da1735c77d52e237b0e8afa117873e261f7705d018e6032e9a9a",
+    "C-cli": "d9447ed733f8743a53bfff1e2b4b5d1b1f7a3c918751bb29d221ad0054fcca34",
+    "A-runtime.dll": "d9678b3d13d756843e8fef814275c7ba2cc4888fd2ed48ab17579f03bda17169",
+    "C-runtime.dll": "fc4e746cd24ca868dfa0cf31665d97578c9a86828a97c8e594ed01458bd925b7",
+    "A/hello": "90dc7e9445e55028787f532532f78bbe3e49fd8dd7694db4947000b4a3a27f1f",
+    "C/hello": "3e22eecea25890c7976c89a56f907e0322402b13e43ddef059c48b08566e3f35",
+    "A/fib": "a7b40b7b120470fb102416ae0be606f7835829a897c3679e55dc98d30f9559d8",
+    "C/fib": "8e24e2d0c6080c199bf6c78bc6512f64c294d6eec007781c16c9075b0fbb781a",
+    "A/mandelbrot": "8c1d8aaa09c7705e66635a42af17637a67e300974f402290eb9904a3d438bbd2",
+    "C/mandelbrot": "894eca17848cace0724abfb8177a7e5ab2e98b550d15edb8365871d18ff81200",
+    "A/bigint": "1defdda5596c696adec1bfb5230bde9ecc1ce54732187ec07a3881b33df323eb",
+    "C/bigint": "f182f2064bb640251134e0de556f4fa89c73629800bede975f9f7518a7efca22",
+    "A/matmul": "311f747f87cac9946dcc1f69279385aa1254e88236830be091f5d46f3dff832b",
+    "C/matmul": "a6f27d655e316ee0595a1e98dcf94c67460ade6a2deeedbaa4e2b9bd29ba0bc5",
+    "A/nbody": "3347e8abcf95cbc2301faf524542e7334968025597b5e1dfd702d17e8c62f8e4",
+    "C/nbody": "b46f664f5b30db6d516f8ce74d867a8c329a8f053246680a5b4150b8c4ee9e7d",
+    "A/sieve": "f6613cd2177c746396987c00da861be2947ec9686a762a807c15f0775cf8e814",
+    "C/sieve": "8d53fb9cb2a5ed972a4e1de9236faac8d05014825889387e7a5f99411a9c9c17",
+    "A/spectral_norm": "5df284e294238e8b7c81032c86f829d1e711dcb2546c404944a99409d07848a7",
+    "C/spectral_norm": "4771b7212bd6dc9b82891001bc419b478156ba1225cad57a083eaafde31cef04",
+    "A/calls": "bbbfd43e16f4b71b70485f91c40b208477807b487a419fac7fbec648a5e1b751",
+    "C/calls": "32f7a539d203bb376a9e045a2a93fa728a3513a45b42d9da301efb2f7cadc49c",
+    "A/dynamic": "f3153eb4d255b0f211fdac08269a9d10ed0c9281c3a5c16367360d5f8ce9f207",
+    "C/dynamic": "89d491014ad8fcb7d08f4b75c7005174debf52c07a9b595f731ccda4404c0386",
+    "A/attrs": "adb550d4068e6649492d20517d92c4ecdd526a88de8aa786246affb6e083a805",
+    "C/attrs": "ed52fcce2b11e6fb1bb2dbd2638b46463871a56b290407e3fff2b9dedfaac872",
+    "A/oop": "c55a35ffcdb49cbe4c7bbcbb71983af6ec36c072d2cbf280f7221974227c4d2e",
+    "C/oop": "b3a4ab42404008b006c02021bc75e6822e47abea88055a89b97eade43d12c7ad",
+    "A/containers": "fec212f7221fdb1db600831566dc81097486f09716f64aadb065534be4c3c6ce",
+    "C/containers": "9edefd94334e849abd466833b408066eb50b14b66588a74922bd6a38b670de5f",
+    "A/dict_ops": "1305c0a658c18599fc558d55a2c1fd82f84d18649f1a9f1c4426ce7eb95c972c",
+    "C/dict_ops": "117fc6bf0ba4fde6d195db6a987ec1708e6312a2abed51505cabd863ed5542c4",
+    "A/list_ops": "f542e4654f923258d2b297e07279ddbdcb001679849be48627d65568fad6234f",
+    "C/list_ops": "680d4cb9f99d31de06cdd669ac080cfb9747149a45f8513e8d831a939a92a30c",
+    "A/set_tuple": "9b5eccb7b97082e1c8c3b207d2d087f52bae727c06ec57613151f4c6e9c59e75",
+    "C/set_tuple": "ba7fa3c661732044e6c518403bde701ea4fbf8cb2303d456f0009526a02c9673",
+    "A/str_concat": "00c7239113d7c7bd62fbba52884ba380f0624e179cdb46ef6ee6ab3f9461cb49",
+    "C/str_concat": "572753d26e74e9d301a673013cffebd895e5f872b0a1b86a1f82af09a4ae266c",
+    "A/strings": "11985834bc263f4b63cd0892acf4fb510f5a758c56f67e0421fd991323a93147",
+    "C/strings": "834e3b6514d55c1758a98fc8e7e326dfec0367d7b1cea62e69eb8dc8f576c49b",
+    "A/nqueens": "4b7c8ae148cccef3606659fc8d9f79ff20baa2d6d512da6a4c03114d8f0abc3c",
+    "C/nqueens": "472e06ad50b7a4f3a7ddbfe5b3d6036f94a55513166e601e922adfcbeec00f5d",
+    "A/sorting": "96b738767fe2eb548c58c8ea6ebdb878e7de0eb9c68435acd38977cf44f10e72",
+    "C/sorting": "dccafcc1c8897cc9f6fd0710aaa48bfa2a6785f0b72b2187190515d44e9e5e86",
+    "A/exceptions": "de5a8fc21fa1ffd75d7a7435d05ba3e7fdb8d8cd6d9fa55e8b330f057250ba82",
+    "C/exceptions": "4cdfac93ea201d97c34e6e70d51d1983dc926270afe9c4e2757ab65f5b69b545",
+    "A/records": "d1f6f018303ea019bcab16f9c039458cd6d64e587efbe1fa2bf459a645694a95",
+    "C/records": "38fbf12809505a4041a51fc3865780ea7f8183524e0fda80577536906d4fb6a2",
+    "A/closures": "046fe5d6091640742f425e01e9cd909ddf7135e17191488a4dc9a1772c804bd6",
+    "C/closures": "63eedc8528a1cfa8e39b559aa6d3caba3f30d242e6faa4f849926f83ddc0096c",
+    "A/comprehensions": "4edc8a574b6f5be5effbf3a42c61b98fa5e3ec6c4d12b54f0b883bee409a8d2e",
+    "C/comprehensions": "7e600491a6e8dbc5c23a15a8a5c6f8898ebd2fdc484096e664bdce5b91eac958",
+    "A/decorators": "854eed3dff60a85d29aa4d8faa14cf2dd47f1e26108a1fa3089776581cfc2dcb",
+    "C/decorators": "539d19eabd602bd675c7c3fc93c1ba643896f21c16c6d1f4d5ea4f4b21fcd7fb",
+    "A/generators": "77f67718b61f4d432924f0018688cc34a7794e760a46d1e859522ce1bc4c4dca",
+    "C/generators": "f5cceedaca7c99e95133558ca7c7d341e2ee7d05be0e63f7e804fd67b60428f2"
+  },
+  "compile": [
+    {
+      "name": "hello",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/hello.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/hello"
+      ],
+      "compile_ms": 4.5638910014531575,
+      "exit_code": 0
+    },
+    {
+      "name": "hello",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/hello.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/hello"
+      ],
+      "compile_ms": 3.65036499715643,
+      "exit_code": 0
+    },
+    {
+      "name": "fib",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/fib.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/fib"
+      ],
+      "compile_ms": 5.104677999042906,
+      "exit_code": 0
+    },
+    {
+      "name": "fib",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/fib.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/fib"
+      ],
+      "compile_ms": 4.984664003131911,
+      "exit_code": 0
+    },
+    {
+      "name": "mandelbrot",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/mandelbrot.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/mandelbrot"
+      ],
+      "compile_ms": 4.146842002228368,
+      "exit_code": 0
+    },
+    {
+      "name": "mandelbrot",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/mandelbrot.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/mandelbrot"
+      ],
+      "compile_ms": 3.638082998804748,
+      "exit_code": 0
+    },
+    {
+      "name": "bigint",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/bigint.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/bigint"
+      ],
+      "compile_ms": 3.803302002779674,
+      "exit_code": 0
+    },
+    {
+      "name": "bigint",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/bigint.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/bigint"
+      ],
+      "compile_ms": 4.642204999981914,
+      "exit_code": 0
+    },
+    {
+      "name": "matmul",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/matmul.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/matmul"
+      ],
+      "compile_ms": 3.702558999066241,
+      "exit_code": 0
+    },
+    {
+      "name": "matmul",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/matmul.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/matmul"
+      ],
+      "compile_ms": 6.313628000498284,
+      "exit_code": 0
+    },
+    {
+      "name": "nbody",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/nbody.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nbody"
+      ],
+      "compile_ms": 6.968640998820774,
+      "exit_code": 0
+    },
+    {
+      "name": "nbody",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/nbody.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nbody"
+      ],
+      "compile_ms": 8.674805998452939,
+      "exit_code": 0
+    },
+    {
+      "name": "sieve",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/sieve.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sieve"
+      ],
+      "compile_ms": 5.112579005071893,
+      "exit_code": 0
+    },
+    {
+      "name": "sieve",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/sieve.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sieve"
+      ],
+      "compile_ms": 4.493840999202803,
+      "exit_code": 0
+    },
+    {
+      "name": "spectral_norm",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/spectral_norm.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/spectral_norm"
+      ],
+      "compile_ms": 7.530265000241343,
+      "exit_code": 0
+    },
+    {
+      "name": "spectral_norm",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/spectral_norm.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/spectral_norm"
+      ],
+      "compile_ms": 5.311717999575194,
+      "exit_code": 0
+    },
+    {
+      "name": "calls",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/calls.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/calls"
+      ],
+      "compile_ms": 5.800357001135126,
+      "exit_code": 0
+    },
+    {
+      "name": "calls",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/calls.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/calls"
+      ],
+      "compile_ms": 3.984904004028067,
+      "exit_code": 0
+    },
+    {
+      "name": "dynamic",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/dynamic.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dynamic"
+      ],
+      "compile_ms": 4.243776995281223,
+      "exit_code": 0
+    },
+    {
+      "name": "dynamic",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/dynamic.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dynamic"
+      ],
+      "compile_ms": 5.216658006247599,
+      "exit_code": 0
+    },
+    {
+      "name": "attrs",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/attrs.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/attrs"
+      ],
+      "compile_ms": 3.6915960008627735,
+      "exit_code": 0
+    },
+    {
+      "name": "attrs",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/attrs.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/attrs"
+      ],
+      "compile_ms": 3.9586440034327097,
+      "exit_code": 0
+    },
+    {
+      "name": "oop",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/oop.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/oop"
+      ],
+      "compile_ms": 3.3547349958098494,
+      "exit_code": 0
+    },
+    {
+      "name": "oop",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/oop.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/oop"
+      ],
+      "compile_ms": 4.373543997644447,
+      "exit_code": 0
+    },
+    {
+      "name": "containers",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/containers.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/containers"
+      ],
+      "compile_ms": 4.717168005299754,
+      "exit_code": 0
+    },
+    {
+      "name": "containers",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/containers.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/containers"
+      ],
+      "compile_ms": 3.5928899960708804,
+      "exit_code": 0
+    },
+    {
+      "name": "dict_ops",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/dict_ops.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dict_ops"
+      ],
+      "compile_ms": 5.849615998158697,
+      "exit_code": 0
+    },
+    {
+      "name": "dict_ops",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/dict_ops.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dict_ops"
+      ],
+      "compile_ms": 3.361228998983279,
+      "exit_code": 0
+    },
+    {
+      "name": "list_ops",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/list_ops.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/list_ops"
+      ],
+      "compile_ms": 6.105593995016534,
+      "exit_code": 0
+    },
+    {
+      "name": "list_ops",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/list_ops.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/list_ops"
+      ],
+      "compile_ms": 4.550354999082629,
+      "exit_code": 0
+    },
+    {
+      "name": "set_tuple",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/set_tuple.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/set_tuple"
+      ],
+      "compile_ms": 3.761440995731391,
+      "exit_code": 0
+    },
+    {
+      "name": "set_tuple",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/set_tuple.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/set_tuple"
+      ],
+      "compile_ms": 7.069194994983263,
+      "exit_code": 0
+    },
+    {
+      "name": "str_concat",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/str_concat.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/str_concat"
+      ],
+      "compile_ms": 4.05968999984907,
+      "exit_code": 0
+    },
+    {
+      "name": "str_concat",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/str_concat.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/str_concat"
+      ],
+      "compile_ms": 4.352719995949883,
+      "exit_code": 0
+    },
+    {
+      "name": "strings",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/strings.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/strings"
+      ],
+      "compile_ms": 4.549060002318583,
+      "exit_code": 0
+    },
+    {
+      "name": "strings",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/strings.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/strings"
+      ],
+      "compile_ms": 3.9229160029208288,
+      "exit_code": 0
+    },
+    {
+      "name": "nqueens",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/nqueens.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nqueens"
+      ],
+      "compile_ms": 8.421473001362756,
+      "exit_code": 0
+    },
+    {
+      "name": "nqueens",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/nqueens.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nqueens"
+      ],
+      "compile_ms": 4.904738001641817,
+      "exit_code": 0
+    },
+    {
+      "name": "sorting",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/sorting.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sorting"
+      ],
+      "compile_ms": 3.8210810016607866,
+      "exit_code": 0
+    },
+    {
+      "name": "sorting",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/sorting.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sorting"
+      ],
+      "compile_ms": 4.804563999641687,
+      "exit_code": 0
+    },
+    {
+      "name": "exceptions",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/exceptions.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/exceptions"
+      ],
+      "compile_ms": 4.562479000014719,
+      "exit_code": 0
+    },
+    {
+      "name": "exceptions",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/exceptions.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/exceptions"
+      ],
+      "compile_ms": 6.104156003857497,
+      "exit_code": 0
+    },
+    {
+      "name": "records",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/records.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/records"
+      ],
+      "compile_ms": 4.409597000631038,
+      "exit_code": 0
+    },
+    {
+      "name": "records",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/records.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/records"
+      ],
+      "compile_ms": 6.152137997560203,
+      "exit_code": 0
+    },
+    {
+      "name": "closures",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/closures.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/closures"
+      ],
+      "compile_ms": 5.739751002693083,
+      "exit_code": 0
+    },
+    {
+      "name": "closures",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/closures.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/closures"
+      ],
+      "compile_ms": 4.794827000296209,
+      "exit_code": 0
+    },
+    {
+      "name": "comprehensions",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/comprehensions.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/comprehensions"
+      ],
+      "compile_ms": 4.6696349963895045,
+      "exit_code": 0
+    },
+    {
+      "name": "comprehensions",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/comprehensions.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/comprehensions"
+      ],
+      "compile_ms": 5.8731269964482635,
+      "exit_code": 0
+    },
+    {
+      "name": "decorators",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/decorators.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/decorators"
+      ],
+      "compile_ms": 4.947824003465939,
+      "exit_code": 0
+    },
+    {
+      "name": "decorators",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/decorators.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/decorators"
+      ],
+      "compile_ms": 4.602073997375555,
+      "exit_code": 0
+    },
+    {
+      "name": "generators",
+      "variant": "A",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/generators.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/generators"
+      ],
+      "compile_ms": 4.426371000590734,
+      "exit_code": 0
+    },
+    {
+      "name": "generators",
+      "variant": "C",
+      "command": [
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C-cli",
+        "build",
+        "/workspace/shared/RyuPy/tests/benchmarks/generators.py",
+        "-o",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/generators"
+      ],
+      "compile_ms": 3.700087996548973,
+      "exit_code": 0
+    }
+  ],
+  "samples": [
+    {
+      "name": "hello",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/hello/hello.dll"
+      ],
+      "utc_epoch_start": 1793559888.9167206,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 113.03489000420086,
+      "maxrss": 35876864,
+      "stats": {
+        "main_ms": 4.833,
+        "alloc_bytes": 395680,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 58.715,
+        "jit_methods": 329,
+        "heap_bytes": 405456
+      }
+    },
+    {
+      "name": "hello",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/hello/hello.dll"
+      ],
+      "utc_epoch_start": 1793559889.0314949,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 153.5843859965098,
+      "maxrss": 35909632,
+      "stats": {
+        "main_ms": 5.496,
+        "alloc_bytes": 395720,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 79.539,
+        "jit_methods": 329,
+        "heap_bytes": 405456
+      }
+    },
+    {
+      "name": "hello",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/hello/hello.dll"
+      ],
+      "utc_epoch_start": 1793559889.1873307,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 220.824417003314,
+      "maxrss": 38395904,
+      "stats": {
+        "main_ms": 24.596,
+        "alloc_bytes": 394856,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 155.42,
+        "jit_methods": 181,
+        "heap_bytes": 405456
+      }
+    },
+    {
+      "name": "hello",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/hello/hello.dll"
+      ],
+      "utc_epoch_start": 1793559889.4100506,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 266.3814710031147,
+      "maxrss": 38412288,
+      "stats": {
+        "main_ms": 11.799,
+        "alloc_bytes": 394816,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 184.303,
+        "jit_methods": 181,
+        "heap_bytes": 405456
+      }
+    },
+    {
+      "name": "fib",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/fib/fib.dll"
+      ],
+      "utc_epoch_start": 1793559889.6798317,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 377.268259995617,
+      "maxrss": 39030784,
+      "stats": {
+        "main_ms": 260.698,
+        "alloc_bytes": 397904,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 90.486,
+        "jit_methods": 346,
+        "heap_bytes": 413680
+      }
+    },
+    {
+      "name": "fib",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/fib/fib.dll"
+      ],
+      "utc_epoch_start": 1793559890.0586882,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 372.264958001324,
+      "maxrss": 38936576,
+      "stats": {
+        "main_ms": 235.207,
+        "alloc_bytes": 397864,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 98.326,
+        "jit_methods": 346,
+        "heap_bytes": 413680
+      }
+    },
+    {
+      "name": "fib",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/fib/fib.dll"
+      ],
+      "utc_epoch_start": 1793559890.4324448,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 517.1897780019208,
+      "maxrss": 38318080,
+      "stats": {
+        "main_ms": 244.136,
+        "alloc_bytes": 396992,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 219.355,
+        "jit_methods": 186,
+        "heap_bytes": 405456
+      }
+    },
+    {
+      "name": "fib",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/fib/fib.dll"
+      ],
+      "utc_epoch_start": 1793559890.9508128,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 475.8693839976331,
+      "maxrss": 38342656,
+      "stats": {
+        "main_ms": 269.176,
+        "alloc_bytes": 397032,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 164.224,
+        "jit_methods": 186,
+        "heap_bytes": 405456
+      }
+    },
+    {
+      "name": "mandelbrot",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/mandelbrot/mandelbrot.dll"
+      ],
+      "utc_epoch_start": 1793559891.4282494,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 423.92357099743094,
+      "maxrss": 42967040,
+      "stats": {
+        "main_ms": 318.237,
+        "alloc_bytes": 8274616,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 1.109,
+        "jit_ms": 98.963,
+        "jit_methods": 374,
+        "heap_bytes": 4325504
+      }
+    },
+    {
+      "name": "mandelbrot",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/mandelbrot/mandelbrot.dll"
+      ],
+      "utc_epoch_start": 1793559891.8535697,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 534.1471239953535,
+      "maxrss": 42885120,
+      "stats": {
+        "main_ms": 414.32,
+        "alloc_bytes": 8274656,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 1.184,
+        "jit_ms": 107.534,
+        "jit_methods": 374,
+        "heap_bytes": 4325544
+      }
+    },
+    {
+      "name": "mandelbrot",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/mandelbrot/mandelbrot.dll"
+      ],
+      "utc_epoch_start": 1793559892.3895957,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 830.3677520016208,
+      "maxrss": 42655744,
+      "stats": {
+        "main_ms": 576.091,
+        "alloc_bytes": 8273784,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 1.733,
+        "jit_ms": 207.405,
+        "jit_methods": 184,
+        "heap_bytes": 4325576
+      }
+    },
+    {
+      "name": "mandelbrot",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/mandelbrot/mandelbrot.dll"
+      ],
+      "utc_epoch_start": 1793559893.2224402,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 612.6526250009192,
+      "maxrss": 42835968,
+      "stats": {
+        "main_ms": 378.802,
+        "alloc_bytes": 8273744,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0.879,
+        "jit_ms": 191.57,
+        "jit_methods": 184,
+        "heap_bytes": 4325536
+      }
+    },
+    {
+      "name": "bigint",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/bigint/bigint.dll"
+      ],
+      "utc_epoch_start": 1793559893.8372085,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 476.5760920054163,
+      "maxrss": 47783936,
+      "stats": {
+        "main_ms": 343.781,
+        "alloc_bytes": 124684656,
+        "gc0": 29,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 7.255,
+        "jit_ms": 153.488,
+        "jit_methods": 475,
+        "heap_bytes": 3871432
+      }
+    },
+    {
+      "name": "bigint",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/bigint/bigint.dll"
+      ],
+      "utc_epoch_start": 1793559894.3224132,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 423.8984399999026,
+      "maxrss": 47099904,
+      "stats": {
+        "main_ms": 320.091,
+        "alloc_bytes": 124684616,
+        "gc0": 29,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 6.519,
+        "jit_ms": 90.794,
+        "jit_methods": 401,
+        "heap_bytes": 3875072
+      }
+    },
+    {
+      "name": "bigint",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/bigint/bigint.dll"
+      ],
+      "utc_epoch_start": 1793559894.7480204,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 551.8289879983058,
+      "maxrss": 46276608,
+      "stats": {
+        "main_ms": 378.804,
+        "alloc_bytes": 124689944,
+        "gc0": 29,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 7.463,
+        "jit_ms": 237.051,
+        "jit_methods": 233,
+        "heap_bytes": 3876312
+      }
+    },
+    {
+      "name": "bigint",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/bigint/bigint.dll"
+      ],
+      "utc_epoch_start": 1793559895.3044872,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 614.8074689990608,
+      "maxrss": 46350336,
+      "stats": {
+        "main_ms": 393.855,
+        "alloc_bytes": 124683792,
+        "gc0": 29,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 10.517,
+        "jit_ms": 262.2,
+        "jit_methods": 233,
+        "heap_bytes": 3878304
+      }
+    },
+    {
+      "name": "matmul",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/matmul/matmul.dll"
+      ],
+      "utc_epoch_start": 1793559895.921699,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 486.9551559968386,
+      "maxrss": 53305344,
+      "stats": {
+        "main_ms": 371.677,
+        "alloc_bytes": 151237304,
+        "gc0": 34,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 24.782,
+        "jit_ms": 185.922,
+        "jit_methods": 456,
+        "heap_bytes": 7827600
+      }
+    },
+    {
+      "name": "matmul",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/matmul/matmul.dll"
+      ],
+      "utc_epoch_start": 1793559896.4107687,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 308.4306419987115,
+      "maxrss": 49987584,
+      "stats": {
+        "main_ms": 183.643,
+        "alloc_bytes": 8171760,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 5.548,
+        "jit_ms": 157.864,
+        "jit_methods": 408,
+        "heap_bytes": 5309864
+      }
+    },
+    {
+      "name": "matmul",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/matmul/matmul.dll"
+      ],
+      "utc_epoch_start": 1793559896.7211702,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 332.26010799990036,
+      "maxrss": 46809088,
+      "stats": {
+        "main_ms": 171.422,
+        "alloc_bytes": 8170904,
+        "gc0": 1,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 5.36,
+        "jit_ms": 194.805,
+        "jit_methods": 222,
+        "heap_bytes": 5311216
+      }
+    },
+    {
+      "name": "matmul",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/matmul/matmul.dll"
+      ],
+      "utc_epoch_start": 1793559897.0552437,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 510.9724829962943,
+      "maxrss": 49676288,
+      "stats": {
+        "main_ms": 328.842,
+        "alloc_bytes": 151242624,
+        "gc0": 34,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 31.062,
+        "jit_ms": 213.85,
+        "jit_methods": 217,
+        "heap_bytes": 7827624
+      }
+    },
+    {
+      "name": "nbody",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nbody/nbody.dll"
+      ],
+      "utc_epoch_start": 1793559897.56806,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 951.3859009966836,
+      "maxrss": 53170176,
+      "stats": {
+        "main_ms": 802.38,
+        "alloc_bytes": 418682368,
+        "gc0": 98,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 16.417,
+        "jit_ms": 171.354,
+        "jit_methods": 472,
+        "heap_bytes": 7191896
+      }
+    },
+    {
+      "name": "nbody",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nbody/nbody.dll"
+      ],
+      "utc_epoch_start": 1793559898.522424,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1147.4877729997388,
+      "maxrss": 52977664,
+      "stats": {
+        "main_ms": 1022.869,
+        "alloc_bytes": 682683600,
+        "gc0": 162,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 26.441,
+        "jit_ms": 165.945,
+        "jit_methods": 472,
+        "heap_bytes": 3583128
+      }
+    },
+    {
+      "name": "nbody",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nbody/nbody.dll"
+      ],
+      "utc_epoch_start": 1793559899.6726513,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1446.9993579987204,
+      "maxrss": 54546432,
+      "stats": {
+        "main_ms": 1249.559,
+        "alloc_bytes": 682682728,
+        "gc0": 162,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 28.941,
+        "jit_ms": 428.147,
+        "jit_methods": 229,
+        "heap_bytes": 3582296
+      }
+    },
+    {
+      "name": "nbody",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nbody/nbody.dll"
+      ],
+      "utc_epoch_start": 1793559901.1230686,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1606.2366230034968,
+      "maxrss": 54185984,
+      "stats": {
+        "main_ms": 1314.56,
+        "alloc_bytes": 418687688,
+        "gc0": 98,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 26.57,
+        "jit_ms": 470.943,
+        "jit_methods": 228,
+        "heap_bytes": 7203224
+      }
+    },
+    {
+      "name": "sieve",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sieve/sieve.dll"
+      ],
+      "utc_epoch_start": 1793559902.7331748,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 751.1320419944241,
+      "maxrss": 79503360,
+      "stats": {
+        "main_ms": 629.34,
+        "alloc_bytes": 140381136,
+        "gc0": 26,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 176.649,
+        "jit_ms": 199.145,
+        "jit_methods": 412,
+        "heap_bytes": 36088392
+      }
+    },
+    {
+      "name": "sieve",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sieve/sieve.dll"
+      ],
+      "utc_epoch_start": 1793559903.4867,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 717.2710090017063,
+      "maxrss": 81137664,
+      "stats": {
+        "main_ms": 603.161,
+        "alloc_bytes": 140381208,
+        "gc0": 26,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 197.605,
+        "jit_ms": 133.908,
+        "jit_methods": 415,
+        "heap_bytes": 36088440
+      }
+    },
+    {
+      "name": "sieve",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sieve/sieve.dll"
+      ],
+      "utc_epoch_start": 1793559904.2061133,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1897.7343719961937,
+      "maxrss": 78655488,
+      "stats": {
+        "main_ms": 1488.789,
+        "alloc_bytes": 140385856,
+        "gc0": 26,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 339.031,
+        "jit_ms": 372.908,
+        "jit_methods": 208,
+        "heap_bytes": 36083312
+      }
+    },
+    {
+      "name": "sieve",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sieve/sieve.dll"
+      ],
+      "utc_epoch_start": 1793559906.1098452,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1267.8920879989164,
+      "maxrss": 78348288,
+      "stats": {
+        "main_ms": 939.334,
+        "alloc_bytes": 140379608,
+        "gc0": 26,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 250.43,
+        "jit_ms": 311.041,
+        "jit_methods": 210,
+        "heap_bytes": 36088416
+      }
+    },
+    {
+      "name": "spectral_norm",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/spectral_norm/spectral_norm.dll"
+      ],
+      "utc_epoch_start": 1793559907.383998,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 477.5756730014109,
+      "maxrss": 43167744,
+      "stats": {
+        "main_ms": 277.64,
+        "alloc_bytes": 28226224,
+        "gc0": 6,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 5.498,
+        "jit_ms": 192.777,
+        "jit_methods": 439,
+        "heap_bytes": 3492352
+      }
+    },
+    {
+      "name": "spectral_norm",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/spectral_norm/spectral_norm.dll"
+      ],
+      "utc_epoch_start": 1793559907.8664112,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 404.4066659989767,
+      "maxrss": 45334528,
+      "stats": {
+        "main_ms": 212.454,
+        "alloc_bytes": 77224536,
+        "gc0": 17,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 6.418,
+        "jit_ms": 147.996,
+        "jit_methods": 386,
+        "heap_bytes": 4530312
+      }
+    },
+    {
+      "name": "spectral_norm",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/spectral_norm/spectral_norm.dll"
+      ],
+      "utc_epoch_start": 1793559908.2745483,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 395.85246900242055,
+      "maxrss": 49319936,
+      "stats": {
+        "main_ms": 182.861,
+        "alloc_bytes": 77229856,
+        "gc0": 17,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 5.574,
+        "jit_ms": 231.886,
+        "jit_methods": 225,
+        "heap_bytes": 4538128
+      }
+    },
+    {
+      "name": "spectral_norm",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/spectral_norm/spectral_norm.dll"
+      ],
+      "utc_epoch_start": 1793559908.6721509,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 387.5988159998087,
+      "maxrss": 46866432,
+      "stats": {
+        "main_ms": 165.237,
+        "alloc_bytes": 28231544,
+        "gc0": 6,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 3.079,
+        "jit_ms": 244.124,
+        "jit_methods": 223,
+        "heap_bytes": 3500048
+      }
+    },
+    {
+      "name": "calls",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/calls/calls.dll"
+      ],
+      "utc_epoch_start": 1793559909.0626762,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 598.736641004507,
+      "maxrss": 47915008,
+      "stats": {
+        "main_ms": 489.693,
+        "alloc_bytes": 419539544,
+        "gc0": 100,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 11.858,
+        "jit_ms": 110.628,
+        "jit_methods": 387,
+        "heap_bytes": 1591464
+      }
+    },
+    {
+      "name": "calls",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/calls/calls.dll"
+      ],
+      "utc_epoch_start": 1793559909.663479,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 774.5596020031371,
+      "maxrss": 47808512,
+      "stats": {
+        "main_ms": 630.428,
+        "alloc_bytes": 419539584,
+        "gc0": 100,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 14.48,
+        "jit_ms": 126.765,
+        "jit_methods": 387,
+        "heap_bytes": 1591664
+      }
+    },
+    {
+      "name": "calls",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/calls/calls.dll"
+      ],
+      "utc_epoch_start": 1793559910.440546,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 573.7530580008752,
+      "maxrss": 45268992,
+      "stats": {
+        "main_ms": 388.304,
+        "alloc_bytes": 419538712,
+        "gc0": 100,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 12.562,
+        "jit_ms": 198.187,
+        "jit_methods": 202,
+        "heap_bytes": 1578712
+      }
+    },
+    {
+      "name": "calls",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/calls/calls.dll"
+      ],
+      "utc_epoch_start": 1793559911.017053,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 604.255471000215,
+      "maxrss": 45469696,
+      "stats": {
+        "main_ms": 406.869,
+        "alloc_bytes": 419544864,
+        "gc0": 100,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 12.212,
+        "jit_ms": 214.845,
+        "jit_methods": 202,
+        "heap_bytes": 1599056
+      }
+    },
+    {
+      "name": "dynamic",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dynamic/dynamic.dll"
+      ],
+      "utc_epoch_start": 1793559911.6268482,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 592.7071359983529,
+      "maxrss": 46264320,
+      "stats": {
+        "main_ms": 473.765,
+        "alloc_bytes": 243448040,
+        "gc0": 56,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 10.245,
+        "jit_ms": 119.105,
+        "jit_methods": 469,
+        "heap_bytes": 7527280
+      }
+    },
+    {
+      "name": "dynamic",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dynamic/dynamic.dll"
+      ],
+      "utc_epoch_start": 1793559912.2233608,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 632.1434860001318,
+      "maxrss": 46088192,
+      "stats": {
+        "main_ms": 502.029,
+        "alloc_bytes": 243448000,
+        "gc0": 56,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 9.297,
+        "jit_ms": 119.863,
+        "jit_methods": 469,
+        "heap_bytes": 7527240
+      }
+    },
+    {
+      "name": "dynamic",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dynamic/dynamic.dll"
+      ],
+      "utc_epoch_start": 1793559912.857736,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 609.7700859972974,
+      "maxrss": 45572096,
+      "stats": {
+        "main_ms": 414.473,
+        "alloc_bytes": 243447128,
+        "gc0": 56,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 8.109,
+        "jit_ms": 205.305,
+        "jit_methods": 231,
+        "heap_bytes": 7527264
+      }
+    },
+    {
+      "name": "dynamic",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dynamic/dynamic.dll"
+      ],
+      "utc_epoch_start": 1793559913.4696078,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 591.9781449993025,
+      "maxrss": 45563904,
+      "stats": {
+        "main_ms": 406.045,
+        "alloc_bytes": 243447168,
+        "gc0": 56,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 10.486,
+        "jit_ms": 199.702,
+        "jit_methods": 231,
+        "heap_bytes": 7527304
+      }
+    },
+    {
+      "name": "attrs",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/attrs/attrs.dll"
+      ],
+      "utc_epoch_start": 1793559914.0638864,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 695.5322870053351,
+      "maxrss": 52432896,
+      "stats": {
+        "main_ms": 585.872,
+        "alloc_bytes": 176240032,
+        "gc0": 40,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 12.5,
+        "jit_ms": 168.769,
+        "jit_methods": 580,
+        "heap_bytes": 7234904
+      }
+    },
+    {
+      "name": "attrs",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/attrs/attrs.dll"
+      ],
+      "utc_epoch_start": 1793559914.7615376,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 684.5344609973836,
+      "maxrss": 52436992,
+      "stats": {
+        "main_ms": 574.574,
+        "alloc_bytes": 176240072,
+        "gc0": 40,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 7.391,
+        "jit_ms": 155.979,
+        "jit_methods": 569,
+        "heap_bytes": 7234656
+      }
+    },
+    {
+      "name": "attrs",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/attrs/attrs.dll"
+      ],
+      "utc_epoch_start": 1793559915.4482543,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 591.7599570020684,
+      "maxrss": 53395456,
+      "stats": {
+        "main_ms": 390.427,
+        "alloc_bytes": 176239200,
+        "gc0": 40,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 7.042,
+        "jit_ms": 278.13,
+        "jit_methods": 252,
+        "heap_bytes": 7234680
+      }
+    },
+    {
+      "name": "attrs",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/attrs/attrs.dll"
+      ],
+      "utc_epoch_start": 1793559916.0430753,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 568.9791990007507,
+      "maxrss": 53374976,
+      "stats": {
+        "main_ms": 368.092,
+        "alloc_bytes": 176239160,
+        "gc0": 40,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 6.964,
+        "jit_ms": 276.59,
+        "jit_methods": 252,
+        "heap_bytes": 7234640
+      }
+    },
+    {
+      "name": "oop",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/oop/oop.dll"
+      ],
+      "utc_epoch_start": 1793559916.6149213,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 593.0846929986728,
+      "maxrss": 51052544,
+      "stats": {
+        "main_ms": 479.221,
+        "alloc_bytes": 104267400,
+        "gc0": 23,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 12.257,
+        "jit_ms": 235.281,
+        "jit_methods": 646,
+        "heap_bytes": 6446640
+      }
+    },
+    {
+      "name": "oop",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/oop/oop.dll"
+      ],
+      "utc_epoch_start": 1793559917.210241,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 575.4207439968013,
+      "maxrss": 51003392,
+      "stats": {
+        "main_ms": 461.309,
+        "alloc_bytes": 104261160,
+        "gc0": 23,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 7.362,
+        "jit_ms": 220.025,
+        "jit_methods": 646,
+        "heap_bytes": 6446568
+      }
+    },
+    {
+      "name": "oop",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/oop/oop.dll"
+      ],
+      "utc_epoch_start": 1793559917.787535,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 540.5199050001102,
+      "maxrss": 51052544,
+      "stats": {
+        "main_ms": 334.296,
+        "alloc_bytes": 104266480,
+        "gc0": 23,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 5.882,
+        "jit_ms": 274.611,
+        "jit_methods": 257,
+        "heap_bytes": 6457832
+      }
+    },
+    {
+      "name": "oop",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/oop/oop.dll"
+      ],
+      "utc_epoch_start": 1793559918.3309176,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 565.2255559980404,
+      "maxrss": 50982912,
+      "stats": {
+        "main_ms": 326.202,
+        "alloc_bytes": 104266528,
+        "gc0": 23,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 7.084,
+        "jit_ms": 275.08,
+        "jit_methods": 257,
+        "heap_bytes": 6454784
+      }
+    },
+    {
+      "name": "containers",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/containers/containers.dll"
+      ],
+      "utc_epoch_start": 1793559918.8992865,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 694.518241994956,
+      "maxrss": 156983296,
+      "stats": {
+        "main_ms": 582.896,
+        "alloc_bytes": 2534924760,
+        "gc0": 454,
+        "gc1": 26,
+        "gc2": 24,
+        "gc_pause_ms": 71.307,
+        "jit_ms": 79.603,
+        "jit_methods": 366,
+        "heap_bytes": 109522720
+      }
+    },
+    {
+      "name": "containers",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/containers/containers.dll"
+      ],
+      "utc_epoch_start": 1793559919.5962138,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 801.9219400011934,
+      "maxrss": 120565760,
+      "stats": {
+        "main_ms": 652.465,
+        "alloc_bytes": 2534932144,
+        "gc0": 456,
+        "gc1": 28,
+        "gc2": 26,
+        "gc_pause_ms": 95.903,
+        "jit_ms": 107.79,
+        "jit_methods": 366,
+        "heap_bytes": 62097760
+      }
+    },
+    {
+      "name": "containers",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/containers/containers.dll"
+      ],
+      "utc_epoch_start": 1793559920.4044175,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1004.4733789982274,
+      "maxrss": 180908032,
+      "stats": {
+        "main_ms": 765.324,
+        "alloc_bytes": 2534944808,
+        "gc0": 451,
+        "gc1": 23,
+        "gc2": 21,
+        "gc_pause_ms": 113.475,
+        "jit_ms": 217.542,
+        "jit_methods": 208,
+        "heap_bytes": 70868624
+      }
+    },
+    {
+      "name": "containers",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/containers/containers.dll"
+      ],
+      "utc_epoch_start": 1793559921.4114544,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 878.03848299518,
+      "maxrss": 181231616,
+      "stats": {
+        "main_ms": 688.477,
+        "alloc_bytes": 2534974640,
+        "gc0": 452,
+        "gc1": 24,
+        "gc2": 22,
+        "gc_pause_ms": 82.115,
+        "jit_ms": 190.049,
+        "jit_methods": 208,
+        "heap_bytes": 19513344
+      }
+    },
+    {
+      "name": "dict_ops",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dict_ops/dict_ops.dll"
+      ],
+      "utc_epoch_start": 1793559922.2925174,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 677.6132450031582,
+      "maxrss": 67104768,
+      "stats": {
+        "main_ms": 556.338,
+        "alloc_bytes": 71668048,
+        "gc0": 14,
+        "gc1": 3,
+        "gc2": 2,
+        "gc_pause_ms": 20.564,
+        "jit_ms": 143.098,
+        "jit_methods": 434,
+        "heap_bytes": 16008592
+      }
+    },
+    {
+      "name": "dict_ops",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dict_ops/dict_ops.dll"
+      ],
+      "utc_epoch_start": 1793559922.9725661,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 688.0750330019509,
+      "maxrss": 67411968,
+      "stats": {
+        "main_ms": 556.259,
+        "alloc_bytes": 71668008,
+        "gc0": 14,
+        "gc1": 3,
+        "gc2": 2,
+        "gc_pause_ms": 21.905,
+        "jit_ms": 149.576,
+        "jit_methods": 428,
+        "heap_bytes": 16008520
+      }
+    },
+    {
+      "name": "dict_ops",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dict_ops/dict_ops.dll"
+      ],
+      "utc_epoch_start": 1793559923.663692,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 537.1175250038505,
+      "maxrss": 66793472,
+      "stats": {
+        "main_ms": 287.637,
+        "alloc_bytes": 71673336,
+        "gc0": 14,
+        "gc1": 3,
+        "gc2": 2,
+        "gc_pause_ms": 19.711,
+        "jit_ms": 278.439,
+        "jit_methods": 227,
+        "heap_bytes": 16008520
+      }
+    },
+    {
+      "name": "dict_ops",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dict_ops/dict_ops.dll"
+      ],
+      "utc_epoch_start": 1793559924.2033257,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 694.8201549967052,
+      "maxrss": 66637824,
+      "stats": {
+        "main_ms": 460.992,
+        "alloc_bytes": 71667192,
+        "gc0": 14,
+        "gc1": 3,
+        "gc2": 2,
+        "gc_pause_ms": 45.361,
+        "jit_ms": 304.414,
+        "jit_methods": 224,
+        "heap_bytes": 17818960
+      }
+    },
+    {
+      "name": "list_ops",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/list_ops/list_ops.dll"
+      ],
+      "utc_epoch_start": 1793559924.9080312,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 985.6959169992479,
+      "maxrss": 101720064,
+      "stats": {
+        "main_ms": 773.995,
+        "alloc_bytes": 122471000,
+        "gc0": 18,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 133.613,
+        "jit_ms": 162.339,
+        "jit_methods": 411,
+        "heap_bytes": 39775144
+      }
+    },
+    {
+      "name": "list_ops",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/list_ops/list_ops.dll"
+      ],
+      "utc_epoch_start": 1793559925.8969321,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 635.5922240036307,
+      "maxrss": 101343232,
+      "stats": {
+        "main_ms": 487.326,
+        "alloc_bytes": 122471624,
+        "gc0": 18,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 121.537,
+        "jit_ms": 139.733,
+        "jit_methods": 398,
+        "heap_bytes": 39766992
+      }
+    },
+    {
+      "name": "list_ops",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/list_ops/list_ops.dll"
+      ],
+      "utc_epoch_start": 1793559926.5350795,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 613.1801649971749,
+      "maxrss": 101306368,
+      "stats": {
+        "main_ms": 383.506,
+        "alloc_bytes": 122472112,
+        "gc0": 18,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 108.613,
+        "jit_ms": 277.027,
+        "jit_methods": 234,
+        "heap_bytes": 39783432
+      }
+    },
+    {
+      "name": "list_ops",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/list_ops/list_ops.dll"
+      ],
+      "utc_epoch_start": 1793559927.150818,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 539.255484000023,
+      "maxrss": 101404672,
+      "stats": {
+        "main_ms": 359.07,
+        "alloc_bytes": 122473440,
+        "gc0": 18,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 111.169,
+        "jit_ms": 228.59,
+        "jit_methods": 236,
+        "heap_bytes": 39778208
+      }
+    },
+    {
+      "name": "set_tuple",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/set_tuple/set_tuple.dll"
+      ],
+      "utc_epoch_start": 1793559927.6928778,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 653.3636680032942,
+      "maxrss": 76939264,
+      "stats": {
+        "main_ms": 530.776,
+        "alloc_bytes": 149345312,
+        "gc0": 32,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 47.629,
+        "jit_ms": 135.055,
+        "jit_methods": 437,
+        "heap_bytes": 17888520
+      }
+    },
+    {
+      "name": "set_tuple",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/set_tuple/set_tuple.dll"
+      ],
+      "utc_epoch_start": 1793559928.3486881,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 600.531627998862,
+      "maxrss": 76591104,
+      "stats": {
+        "main_ms": 495.643,
+        "alloc_bytes": 149347304,
+        "gc0": 32,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 49.435,
+        "jit_ms": 104.187,
+        "jit_methods": 399,
+        "heap_bytes": 17896552
+      }
+    },
+    {
+      "name": "set_tuple",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/set_tuple/set_tuple.dll"
+      ],
+      "utc_epoch_start": 1793559928.9517787,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 486.8278180001653,
+      "maxrss": 76210176,
+      "stats": {
+        "main_ms": 296.187,
+        "alloc_bytes": 149344392,
+        "gc0": 32,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 38.535,
+        "jit_ms": 201.532,
+        "jit_methods": 240,
+        "heap_bytes": 17969576
+      }
+    },
+    {
+      "name": "set_tuple",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/set_tuple/set_tuple.dll"
+      ],
+      "utc_epoch_start": 1793559929.4422228,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 470.5331829973147,
+      "maxrss": 76341248,
+      "stats": {
+        "main_ms": 306.442,
+        "alloc_bytes": 149357624,
+        "gc0": 32,
+        "gc1": 6,
+        "gc2": 3,
+        "gc_pause_ms": 42.894,
+        "jit_ms": 201.611,
+        "jit_methods": 240,
+        "heap_bytes": 17985688
+      }
+    },
+    {
+      "name": "str_concat",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/str_concat/str_concat.dll"
+      ],
+      "utc_epoch_start": 1793559929.9153714,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 4935.970152000664,
+      "maxrss": 74633216,
+      "stats": {
+        "main_ms": 4818.857,
+        "alloc_bytes": 20031631560,
+        "gc0": 2847,
+        "gc1": 2628,
+        "gc2": 2627,
+        "gc_pause_ms": 820.48,
+        "jit_ms": 90.558,
+        "jit_methods": 362,
+        "heap_bytes": 6091840
+      }
+    },
+    {
+      "name": "str_concat",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/str_concat/str_concat.dll"
+      ],
+      "utc_epoch_start": 1793559934.854068,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 5039.663989999099,
+      "maxrss": 77266944,
+      "stats": {
+        "main_ms": 4910.955,
+        "alloc_bytes": 20030191664,
+        "gc0": 2664,
+        "gc1": 2446,
+        "gc2": 2445,
+        "gc_pause_ms": 841.346,
+        "jit_ms": 109.913,
+        "jit_methods": 362,
+        "heap_bytes": 6091464
+      }
+    },
+    {
+      "name": "str_concat",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/str_concat/str_concat.dll"
+      ],
+      "utc_epoch_start": 1793559939.8968039,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 3599.9502900012885,
+      "maxrss": 58384384,
+      "stats": {
+        "main_ms": 3435.377,
+        "alloc_bytes": 20027228240,
+        "gc0": 2155,
+        "gc1": 1938,
+        "gc2": 1937,
+        "gc_pause_ms": 486.4,
+        "jit_ms": 170.568,
+        "jit_methods": 208,
+        "heap_bytes": 6099768
+      }
+    },
+    {
+      "name": "str_concat",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/str_concat/str_concat.dll"
+      ],
+      "utc_epoch_start": 1793559943.500681,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 5216.82782300195,
+      "maxrss": 110080000,
+      "stats": {
+        "main_ms": 5045.279,
+        "alloc_bytes": 20029584640,
+        "gc0": 2542,
+        "gc1": 2324,
+        "gc2": 2323,
+        "gc_pause_ms": 1063.748,
+        "jit_ms": 160.458,
+        "jit_methods": 208,
+        "heap_bytes": 6103160
+      }
+    },
+    {
+      "name": "strings",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/strings/strings.dll"
+      ],
+      "utc_epoch_start": 1793559948.7204444,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1565.8327799974359,
+      "maxrss": 71548928,
+      "stats": {
+        "main_ms": 1278.359,
+        "alloc_bytes": 166910048,
+        "gc0": 33,
+        "gc1": 5,
+        "gc2": 2,
+        "gc_pause_ms": 108.725,
+        "jit_ms": 607.261,
+        "jit_methods": 672,
+        "heap_bytes": 20874768
+      }
+    },
+    {
+      "name": "strings",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/strings/strings.dll"
+      ],
+      "utc_epoch_start": 1793559950.2902298,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 880.03088899859,
+      "maxrss": 69689344,
+      "stats": {
+        "main_ms": 736.459,
+        "alloc_bytes": 166503736,
+        "gc0": 33,
+        "gc1": 5,
+        "gc2": 2,
+        "gc_pause_ms": 64.04,
+        "jit_ms": 315.398,
+        "jit_methods": 466,
+        "heap_bytes": 20507592
+      }
+    },
+    {
+      "name": "strings",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/strings/strings.dll"
+      ],
+      "utc_epoch_start": 1793559951.1728046,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1168.1577150011435,
+      "maxrss": 69492736,
+      "stats": {
+        "main_ms": 769.833,
+        "alloc_bytes": 166502864,
+        "gc0": 33,
+        "gc1": 5,
+        "gc2": 2,
+        "gc_pause_ms": 97.583,
+        "jit_ms": 501.593,
+        "jit_methods": 248,
+        "heap_bytes": 20529448
+      }
+    },
+    {
+      "name": "strings",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/strings/strings.dll"
+      ],
+      "utc_epoch_start": 1793559952.344084,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1470.4427719989326,
+      "maxrss": 69902336,
+      "stats": {
+        "main_ms": 1043.43,
+        "alloc_bytes": 166909112,
+        "gc0": 33,
+        "gc1": 5,
+        "gc2": 2,
+        "gc_pause_ms": 120.422,
+        "jit_ms": 623.348,
+        "jit_methods": 248,
+        "heap_bytes": 20875160
+      }
+    },
+    {
+      "name": "nqueens",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nqueens/nqueens.dll"
+      ],
+      "utc_epoch_start": 1793559953.820923,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 462.335042997438,
+      "maxrss": 42745856,
+      "stats": {
+        "main_ms": 310.407,
+        "alloc_bytes": 3593504,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 143.088,
+        "jit_methods": 489,
+        "heap_bytes": 3608840
+      }
+    },
+    {
+      "name": "nqueens",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nqueens/nqueens.dll"
+      ],
+      "utc_epoch_start": 1793559954.2870345,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 347.85093599930406,
+      "maxrss": 42987520,
+      "stats": {
+        "main_ms": 234.274,
+        "alloc_bytes": 3589752,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 149.801,
+        "jit_methods": 491,
+        "heap_bytes": 3600648
+      }
+    },
+    {
+      "name": "nqueens",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nqueens/nqueens.dll"
+      ],
+      "utc_epoch_start": 1793559954.6380737,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 906.2359890012885,
+      "maxrss": 41689088,
+      "stats": {
+        "main_ms": 405.494,
+        "alloc_bytes": 3588880,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 470.967,
+        "jit_methods": 207,
+        "heap_bytes": 3600648
+      }
+    },
+    {
+      "name": "nqueens",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nqueens/nqueens.dll"
+      ],
+      "utc_epoch_start": 1793559955.547366,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1019.9100719983107,
+      "maxrss": 41549824,
+      "stats": {
+        "main_ms": 558.188,
+        "alloc_bytes": 3586440,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 515.048,
+        "jit_methods": 209,
+        "heap_bytes": 3600648
+      }
+    },
+    {
+      "name": "sorting",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sorting/sorting.dll"
+      ],
+      "utc_epoch_start": 1793559956.60519,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1459.2847250023624,
+      "maxrss": 85381120,
+      "stats": {
+        "main_ms": 1260.261,
+        "alloc_bytes": 67363312,
+        "gc0": 7,
+        "gc1": 5,
+        "gc2": 3,
+        "gc_pause_ms": 86.552,
+        "jit_ms": 482.082,
+        "jit_methods": 409,
+        "heap_bytes": 38594680
+      }
+    },
+    {
+      "name": "sorting",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sorting/sorting.dll"
+      ],
+      "utc_epoch_start": 1793559958.0776758,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1286.9869970018044,
+      "maxrss": 84901888,
+      "stats": {
+        "main_ms": 903.419,
+        "alloc_bytes": 67363240,
+        "gc0": 7,
+        "gc1": 5,
+        "gc2": 3,
+        "gc_pause_ms": 83.141,
+        "jit_ms": 298.876,
+        "jit_methods": 410,
+        "heap_bytes": 38594592
+      }
+    },
+    {
+      "name": "sorting",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sorting/sorting.dll"
+      ],
+      "utc_epoch_start": 1793559959.3689482,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 855.6183359978604,
+      "maxrss": 81563648,
+      "stats": {
+        "main_ms": 639.937,
+        "alloc_bytes": 67368560,
+        "gc0": 7,
+        "gc1": 5,
+        "gc2": 3,
+        "gc_pause_ms": 95.822,
+        "jit_ms": 239.762,
+        "jit_methods": 229,
+        "heap_bytes": 41002872
+      }
+    },
+    {
+      "name": "sorting",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sorting/sorting.dll"
+      ],
+      "utc_epoch_start": 1793559960.227873,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 809.588051000901,
+      "maxrss": 81735680,
+      "stats": {
+        "main_ms": 564.53,
+        "alloc_bytes": 67362456,
+        "gc0": 7,
+        "gc1": 5,
+        "gc2": 3,
+        "gc_pause_ms": 107.446,
+        "jit_ms": 262.264,
+        "jit_methods": 226,
+        "heap_bytes": 40994960
+      }
+    },
+    {
+      "name": "exceptions",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/exceptions/exceptions.dll"
+      ],
+      "utc_epoch_start": 1793559961.0436287,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 626.7331240014755,
+      "maxrss": 50425856,
+      "stats": {
+        "main_ms": 495.683,
+        "alloc_bytes": 98442456,
+        "gc0": 22,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 11.796,
+        "jit_ms": 218.419,
+        "jit_methods": 539,
+        "heap_bytes": 6808496
+      }
+    },
+    {
+      "name": "exceptions",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/exceptions/exceptions.dll"
+      ],
+      "utc_epoch_start": 1793559961.69352,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1978.8701919969753,
+      "maxrss": 50438144,
+      "stats": {
+        "main_ms": 1393.652,
+        "alloc_bytes": 98442496,
+        "gc0": 22,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 38.303,
+        "jit_ms": 845.064,
+        "jit_methods": 589,
+        "heap_bytes": 6808480
+      }
+    },
+    {
+      "name": "exceptions",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/exceptions/exceptions.dll"
+      ],
+      "utc_epoch_start": 1793559963.6910226,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1488.2094850036083,
+      "maxrss": 47431680,
+      "stats": {
+        "main_ms": 812.711,
+        "alloc_bytes": 98441624,
+        "gc0": 22,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 12.757,
+        "jit_ms": 429.903,
+        "jit_methods": 228,
+        "heap_bytes": 6807040
+      }
+    },
+    {
+      "name": "exceptions",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/exceptions/exceptions.dll"
+      ],
+      "utc_epoch_start": 1793559965.1845944,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 607.9926490056096,
+      "maxrss": 47513600,
+      "stats": {
+        "main_ms": 377.627,
+        "alloc_bytes": 98441584,
+        "gc0": 22,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 9.362,
+        "jit_ms": 206.768,
+        "jit_methods": 228,
+        "heap_bytes": 6807000
+      }
+    },
+    {
+      "name": "records",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/records/records.dll"
+      ],
+      "utc_epoch_start": 1793559965.7957368,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1757.7401449962053,
+      "maxrss": 82821120,
+      "stats": {
+        "main_ms": 1569.115,
+        "alloc_bytes": 89808288,
+        "gc0": 16,
+        "gc1": 7,
+        "gc2": 3,
+        "gc_pause_ms": 185.288,
+        "jit_ms": 916.335,
+        "jit_methods": 907,
+        "heap_bytes": 23240536
+      }
+    },
+    {
+      "name": "records",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/records/records.dll"
+      ],
+      "utc_epoch_start": 1793559967.572291,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1256.7404490037006,
+      "maxrss": 83238912,
+      "stats": {
+        "main_ms": 1083.84,
+        "alloc_bytes": 89327944,
+        "gc0": 16,
+        "gc1": 7,
+        "gc2": 3,
+        "gc_pause_ms": 104.178,
+        "jit_ms": 437.382,
+        "jit_methods": 877,
+        "heap_bytes": 22562960
+      }
+    },
+    {
+      "name": "records",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/records/records.dll"
+      ],
+      "utc_epoch_start": 1793559968.8397813,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1425.0458780006738,
+      "maxrss": 77942784,
+      "stats": {
+        "main_ms": 1098.686,
+        "alloc_bytes": 89321928,
+        "gc0": 16,
+        "gc1": 7,
+        "gc2": 3,
+        "gc_pause_ms": 187.242,
+        "jit_ms": 520.104,
+        "jit_methods": 303,
+        "heap_bytes": 22617616
+      }
+    },
+    {
+      "name": "records",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/records/records.dll"
+      ],
+      "utc_epoch_start": 1793559970.2737367,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1150.9284720013966,
+      "maxrss": 77811712,
+      "stats": {
+        "main_ms": 843.241,
+        "alloc_bytes": 89802096,
+        "gc0": 16,
+        "gc1": 7,
+        "gc2": 3,
+        "gc_pause_ms": 152.263,
+        "jit_ms": 451.244,
+        "jit_methods": 300,
+        "heap_bytes": 23295048
+      }
+    },
+    {
+      "name": "closures",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/closures/closures.dll"
+      ],
+      "utc_epoch_start": 1793559971.4306905,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 585.2066689985804,
+      "maxrss": 52277248,
+      "stats": {
+        "main_ms": 346.567,
+        "alloc_bytes": 109298680,
+        "gc0": 23,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 12.525,
+        "jit_ms": 165.683,
+        "jit_methods": 429,
+        "heap_bytes": 13174976
+      }
+    },
+    {
+      "name": "closures",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/closures/closures.dll"
+      ],
+      "utc_epoch_start": 1793559972.0192235,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 798.228460997052,
+      "maxrss": 52301824,
+      "stats": {
+        "main_ms": 516.67,
+        "alloc_bytes": 109298728,
+        "gc0": 23,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 21.493,
+        "jit_ms": 284.822,
+        "jit_methods": 428,
+        "heap_bytes": 13174960
+      }
+    },
+    {
+      "name": "closures",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/closures/closures.dll"
+      ],
+      "utc_epoch_start": 1793559972.8240955,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 607.8184520010836,
+      "maxrss": 49250304,
+      "stats": {
+        "main_ms": 351.665,
+        "alloc_bytes": 109297872,
+        "gc0": 23,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 18.35,
+        "jit_ms": 274.852,
+        "jit_methods": 227,
+        "heap_bytes": 13175816
+      }
+    },
+    {
+      "name": "closures",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/closures/closures.dll"
+      ],
+      "utc_epoch_start": 1793559973.4364834,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 619.6822070050985,
+      "maxrss": 49283072,
+      "stats": {
+        "main_ms": 259.898,
+        "alloc_bytes": 109297824,
+        "gc0": 23,
+        "gc1": 2,
+        "gc2": 1,
+        "gc_pause_ms": 8.95,
+        "jit_ms": 313.551,
+        "jit_methods": 230,
+        "heap_bytes": 13175800
+      }
+    },
+    {
+      "name": "comprehensions",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/comprehensions/comprehensions.dll"
+      ],
+      "utc_epoch_start": 1793559974.0630627,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 964.9038019997533,
+      "maxrss": 67596288,
+      "stats": {
+        "main_ms": 814.829,
+        "alloc_bytes": 127813312,
+        "gc0": 20,
+        "gc1": 10,
+        "gc2": 7,
+        "gc_pause_ms": 277.723,
+        "jit_ms": 448.991,
+        "jit_methods": 643,
+        "heap_bytes": 9571832
+      }
+    },
+    {
+      "name": "comprehensions",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/comprehensions/comprehensions.dll"
+      ],
+      "utc_epoch_start": 1793559975.032641,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 900.8115190008539,
+      "maxrss": 70500352,
+      "stats": {
+        "main_ms": 740.347,
+        "alloc_bytes": 127816712,
+        "gc0": 19,
+        "gc1": 10,
+        "gc2": 6,
+        "gc_pause_ms": 243.567,
+        "jit_ms": 439.102,
+        "jit_methods": 649,
+        "heap_bytes": 13812536
+      }
+    },
+    {
+      "name": "comprehensions",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/comprehensions/comprehensions.dll"
+      ],
+      "utc_epoch_start": 1793559975.9370396,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 789.4494950014632,
+      "maxrss": 71430144,
+      "stats": {
+        "main_ms": 613.649,
+        "alloc_bytes": 127808592,
+        "gc0": 18,
+        "gc1": 10,
+        "gc2": 6,
+        "gc_pause_ms": 264.16,
+        "jit_ms": 213.132,
+        "jit_methods": 244,
+        "heap_bytes": 15076328
+      }
+    },
+    {
+      "name": "comprehensions",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/comprehensions/comprehensions.dll"
+      ],
+      "utc_epoch_start": 1793559976.7291667,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1272.6889749974362,
+      "maxrss": 71376896,
+      "stats": {
+        "main_ms": 848.043,
+        "alloc_bytes": 127810048,
+        "gc0": 18,
+        "gc1": 10,
+        "gc2": 6,
+        "gc_pause_ms": 330.447,
+        "jit_ms": 460.392,
+        "jit_methods": 244,
+        "heap_bytes": 19311168
+      }
+    },
+    {
+      "name": "decorators",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/decorators/decorators.dll"
+      ],
+      "utc_epoch_start": 1793559978.0061736,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1011.3260210055159,
+      "maxrss": 47661056,
+      "stats": {
+        "main_ms": 717.322,
+        "alloc_bytes": 383449408,
+        "gc0": 90,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 22.881,
+        "jit_ms": 352.599,
+        "jit_methods": 547,
+        "heap_bytes": 5355704
+      }
+    },
+    {
+      "name": "decorators",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/decorators/decorators.dll"
+      ],
+      "utc_epoch_start": 1793559979.0223842,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 830.1557689992478,
+      "maxrss": 47505408,
+      "stats": {
+        "main_ms": 657.31,
+        "alloc_bytes": 383455640,
+        "gc0": 90,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 17.159,
+        "jit_ms": 304.35,
+        "jit_methods": 547,
+        "heap_bytes": 5370656
+      }
+    },
+    {
+      "name": "decorators",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/decorators/decorators.dll"
+      ],
+      "utc_epoch_start": 1793559979.8564358,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 919.02789100277,
+      "maxrss": 46366720,
+      "stats": {
+        "main_ms": 691.017,
+        "alloc_bytes": 383448576,
+        "gc0": 90,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 17.796,
+        "jit_ms": 226.008,
+        "jit_methods": 219,
+        "heap_bytes": 5354984
+      }
+    },
+    {
+      "name": "decorators",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/decorators/decorators.dll"
+      ],
+      "utc_epoch_start": 1793559980.7783382,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 763.1994389957981,
+      "maxrss": 46469120,
+      "stats": {
+        "main_ms": 543.716,
+        "alloc_bytes": 383454728,
+        "gc0": 90,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 12.432,
+        "jit_ms": 206.006,
+        "jit_methods": 219,
+        "heap_bytes": 5354976
+      }
+    },
+    {
+      "name": "generators",
+      "tier": "default",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/generators/generators.dll"
+      ],
+      "utc_epoch_start": 1793559981.5472353,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1637.5256390019786,
+      "maxrss": 98037760,
+      "stats": {
+        "main_ms": 1508.321,
+        "alloc_bytes": 196228944,
+        "gc0": 37,
+        "gc1": 6,
+        "gc2": 2,
+        "gc_pause_ms": 195.263,
+        "jit_ms": 180.17,
+        "jit_methods": 537,
+        "heap_bytes": 47596712
+      }
+    },
+    {
+      "name": "generators",
+      "tier": "default",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/generators/generators.dll"
+      ],
+      "utc_epoch_start": 1793559983.1882021,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1353.3656789950328,
+      "maxrss": 98111488,
+      "stats": {
+        "main_ms": 1239.553,
+        "alloc_bytes": 196228920,
+        "gc0": 37,
+        "gc1": 6,
+        "gc2": 2,
+        "gc_pause_ms": 191.89,
+        "jit_ms": 138.091,
+        "jit_methods": 537,
+        "heap_bytes": 47596672
+      }
+    },
+    {
+      "name": "generators",
+      "tier": "disabled",
+      "variant": "A",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/generators/generators.dll"
+      ],
+      "utc_epoch_start": 1793559984.548328,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1635.9970689954935,
+      "maxrss": 97251328,
+      "stats": {
+        "main_ms": 1415.412,
+        "alloc_bytes": 196228592,
+        "gc0": 37,
+        "gc1": 6,
+        "gc2": 2,
+        "gc_pause_ms": 206.619,
+        "jit_ms": 259.743,
+        "jit_methods": 242,
+        "heap_bytes": 47596560
+      }
+    },
+    {
+      "name": "generators",
+      "tier": "disabled",
+      "variant": "C",
+      "command": [
+        "dotnet",
+        "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/generators/generators.dll"
+      ],
+      "utc_epoch_start": 1793559986.188417,
+      "status": "ok",
+      "exit_code": 0,
+      "wall_ms": 1856.433291999565,
+      "maxrss": 97054720,
+      "stats": {
+        "main_ms": 1656.105,
+        "alloc_bytes": 196234816,
+        "gc0": 37,
+        "gc1": 6,
+        "gc2": 2,
+        "gc_pause_ms": 295.067,
+        "jit_ms": 250.419,
+        "jit_methods": 242,
+        "heap_bytes": 47596600
+      }
+    }
+  ]
+}

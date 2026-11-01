@@ -154,7 +154,7 @@ pub(crate) fn emit_module_accessors(
                         });
                     }
                 }
-                ryupy_mir::MirType::Unit => {}
+                ryupy_mir::MirType::Unit | ryupy_mir::MirType::V128F64 => {}
             }
             ins.push(Instruction::StoreStaticField {
                 volatile: false,

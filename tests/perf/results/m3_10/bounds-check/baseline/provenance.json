@@ -1,0 +1,7 @@
+{
+  "before_cli": "最终默认flags版本，父完整gate通过；保存时源码已并发含ReadChecked，capture-working-tree.patch不是该CLI精确复建来源",
+  "numeric_matmul_body": "复用numeric-list-revised/C已验证产物；SLP候选旧新matmul MIR/CIL此前已验证逐字相同",
+  "numeric_body_source_patch": "numeric-body-source.patch，基点9023f21",
+  "runtime_before": "0347f3878919bae370decd00533d6f322126285baf3f4bee5cd32ef04400f0a5",
+  "timing_runtime": "GO后两方统一最新runtime，不用旧runtime隔离前一步的普通布局差异"
+}

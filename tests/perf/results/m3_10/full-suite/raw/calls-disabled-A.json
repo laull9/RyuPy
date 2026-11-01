@@ -1,0 +1,25 @@
+{
+  "name": "calls",
+  "tier": "disabled",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/calls/calls.dll"
+  ],
+  "utc_epoch_start": 1793559911.017053,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 604.255471000215,
+  "maxrss": 45469696,
+  "stats": {
+    "main_ms": 406.869,
+    "alloc_bytes": 419544864,
+    "gc0": 100,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 12.212,
+    "jit_ms": 214.845,
+    "jit_methods": 202,
+    "heap_bytes": 1599056
+  }
+}

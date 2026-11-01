@@ -399,7 +399,7 @@ fn unbox_parameter(
             }
         }
         // Dynamic 已经是 object；Unit 不会出现在参数里
-        MirType::Dynamic | MirType::Unit => {}
+        MirType::Dynamic | MirType::Unit | MirType::V128F64 => {}
     }
 }
 

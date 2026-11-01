@@ -1,0 +1,25 @@
+{
+  "name": "fib",
+  "tier": "default",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/fib/fib.dll"
+  ],
+  "utc_epoch_start": 1793559890.0586882,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 372.264958001324,
+  "maxrss": 38936576,
+  "stats": {
+    "main_ms": 235.207,
+    "alloc_bytes": 397864,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 98.326,
+    "jit_methods": 346,
+    "heap_bytes": 413680
+  }
+}

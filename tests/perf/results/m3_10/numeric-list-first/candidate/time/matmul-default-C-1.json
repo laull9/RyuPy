@@ -1,0 +1,20 @@
+{
+  "scope": "matmul",
+  "tier": "default",
+  "variant": "C",
+  "repeat": 1,
+  "phase": "time",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-numeric-list-candidate-tWv1iY/C/core-harness/bin/Release/net10.0/measure.dll",
+    "/tmp/ryupy-m3_10-numeric-list-candidate-tWv1iY/C/bench/matmul/matmul.dll",
+    "matmul",
+    "/tmp/ryupy-m3_10-numeric-list-candidate-tWv1iY/validation/A-matmul.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "utc_epoch_start": 1793556364.906365,
+  "wall_seconds": 2.697388469001453,
+  "exit_code": 0
+}

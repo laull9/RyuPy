@@ -15,6 +15,18 @@ public class PyHashTests
     }
 
     [Fact]
+    public void SequenceEqualityRecognizesSharedNanButNotDistinctNanObjects()
+    {
+        object shared = double.NaN;
+        object distinct = double.NaN;
+        Assert.False(PyHash.Equal(shared, shared));
+        Assert.True(PyHash.Equal(new PyList([shared]), new PyList([shared])));
+        Assert.True(PyHash.Equal(new PyTuple([shared]), new PyTuple([shared])));
+        Assert.False(PyHash.Equal(new PyList([shared]), new PyList([distinct])));
+        Assert.False(PyHash.Equal(new PyTuple([shared]), new PyTuple([distinct])));
+    }
+
+    [Fact]
     public void NanKeyIsFoundByIdentityInDict()
     {
         // 与 CPython 一致：d[nan] 能取回自己（字典查找带指针快判），但 nan == nan 仍为假

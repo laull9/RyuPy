@@ -1,0 +1,7 @@
+semantics float_hit True
+semantics norm_hit True
+semantics first_bool True
+semantics first_int True
+semantics first_custom True
+semantics last_custom True
+semantics mixed True

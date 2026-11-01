@@ -74,7 +74,7 @@ impl MirPass for DeadValues {
     }
 }
 
-pub(super) fn read_operand(operand: &Operand, reads: &mut FxHashSet<LocalId>) {
+pub(crate) fn read_operand(operand: &Operand, reads: &mut FxHashSet<LocalId>) {
     match operand {
         Operand::Local(local) => {
             reads.insert(*local);
@@ -89,13 +89,21 @@ pub(super) fn read_operand(operand: &Operand, reads: &mut FxHashSet<LocalId>) {
 }
 
 /// exhaustive match保证新增MIR变体必须明确登记读取，不能因漏统计误删活值。
-pub(super) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
+pub(crate) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
     match value {
+        Rvalue::IsVector128Supported => {}
+        Rvalue::VectorPackF64 { low, high } => {
+            read_operand(low, reads);
+            read_operand(high, reads);
+        }
         Rvalue::Use(value)
         | Rvalue::GeneratorDelegateStep { delegate: value }
         | Rvalue::GetField { obj: value, .. }
         | Rvalue::Box { value, .. }
         | Rvalue::Unbox { value, .. }
+        | Rvalue::VectorLaneF64 { value, .. }
+        | Rvalue::IsBoxedF64 { value }
+        | Rvalue::UnboxExactF64 { value }
         | Rvalue::IsBoxedI64 { value }
         | Rvalue::UnboxExactI64 { value }
         | Rvalue::DynTruthy { value }
@@ -103,6 +111,7 @@ pub(super) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
         | Rvalue::Cast { operand: value, .. }
         | Rvalue::DynUnary { operand: value, .. } => read_operand(value, reads),
         Rvalue::Binary { lhs, rhs, .. }
+        | Rvalue::VectorBinaryF64 { lhs, rhs, .. }
         | Rvalue::DynBinary { lhs, rhs, .. }
         | Rvalue::DynCompare { lhs, rhs, .. } => {
             read_operand(lhs, reads);

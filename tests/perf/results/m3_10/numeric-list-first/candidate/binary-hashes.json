@@ -1,0 +1,20 @@
+{
+  "A/micro/numeric_list.dll": "5a8099f6a11cd490b9b0d8f6a02d57b5ac8f161a9ff7980bd6b3a7ff886f88d0",
+  "A/micro/RyuPy.Runtime.dll": "0ccd1c6695fa8e6981b1393c363072953307820e1e4ce3ea91c0b466769e3adb",
+  "A/bench/matmul/matmul.dll": "2f749d4c0a3a4c0ed51a63eca4baccd10e638c4ac8931fb8923f5ad85e7ebcf2",
+  "A/bench/matmul/RyuPy.Runtime.dll": "0ccd1c6695fa8e6981b1393c363072953307820e1e4ce3ea91c0b466769e3adb",
+  "A/micro-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "0ccd1c6695fa8e6981b1393c363072953307820e1e4ce3ea91c0b466769e3adb",
+  "A/core-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "0ccd1c6695fa8e6981b1393c363072953307820e1e4ce3ea91c0b466769e3adb",
+  "B/micro/numeric_list.dll": "5a8099f6a11cd490b9b0d8f6a02d57b5ac8f161a9ff7980bd6b3a7ff886f88d0",
+  "B/micro/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "B/bench/matmul/matmul.dll": "2f749d4c0a3a4c0ed51a63eca4baccd10e638c4ac8931fb8923f5ad85e7ebcf2",
+  "B/bench/matmul/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "B/micro-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "B/core-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "C/micro/numeric_list.dll": "e05f9c62054bf0b0cea66f6389b00903738a49718d0a0c4ab365785735ce7c2f",
+  "C/micro/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "C/bench/matmul/matmul.dll": "80e91cf21428d214c26eb48af9b71f2745308698d699b5b261110624d1e7fa98",
+  "C/bench/matmul/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "C/micro-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66",
+  "C/core-harness/bin/Release/net10.0/RyuPy.Runtime.dll": "bc8d9fff8924b1db0d5bf445c0314e991afd2704d8aa5e0c4527133106ab4e66"
+}

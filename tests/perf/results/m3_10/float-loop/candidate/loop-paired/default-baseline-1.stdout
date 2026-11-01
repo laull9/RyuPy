@@ -1,0 +1,88 @@
+semantics float True
+sample float 0.0018937690038001165 True
+sample float 0.002058175996353384 True
+sample float 0.0016501270001754165 True
+sample float 0.0016488239998579957 True
+sample float 0.002155825997760985 True
+sample float 0.0019426970029599033 True
+sample float 0.001545141996757593 True
+semantics empty True
+sample empty 7.400012691505253e-07 True
+sample empty 3.2220050343312323e-06 True
+sample empty 7.790004019625485e-07 True
+sample empty 7.530034054070711e-07 True
+sample empty 7.109993021003902e-07 True
+sample empty 7.490016287192702e-07 True
+sample empty 6.440022843889892e-07 True
+semantics bool True
+sample bool 0.005395313004555646 True
+sample bool 0.006744600999809336 True
+sample bool 0.005781972002296243 True
+sample bool 0.005769821000285447 True
+sample bool 0.006809776998125017 True
+sample bool 0.004266689000360202 True
+sample bool 0.004409972003486473 True
+semantics reentry True
+sample reentry 0.0018387390009593219 True
+sample reentry 0.001646486998652108 True
+sample reentry 0.001652812003158033 True
+sample reentry 0.0017205689946422353 True
+sample reentry 0.0018874079978559166 True
+sample reentry 0.001905500997963827 True
+sample reentry 0.0024694189996807836 True
+semantics custom_first True
+sample custom_first 0.031315461004851386 True
+sample custom_first 0.02237897900340613 True
+sample custom_first 0.05516773000272224 True
+sample custom_first 0.05869601800077362 True
+sample custom_first 0.03959803100588033 True
+sample custom_first 0.02181756500067422 True
+sample custom_first 0.014704439003253356 True
+semantics custom_middle True
+sample custom_middle 0.005161419001524337 True
+sample custom_middle 0.004848468997806776 True
+sample custom_middle 0.0034586969995871186 True
+sample custom_middle 0.003577607996703591 True
+sample custom_middle 0.004975841999112163 True
+sample custom_middle 0.006816289002017584 True
+sample custom_middle 0.005139940003573429 True
+semantics custom_last True
+sample custom_last 0.0011686469952110201 True
+sample custom_last 0.00098398399859434 True
+sample custom_last 0.0012141870029154234 True
+sample custom_last 0.0012704069958999753 True
+sample custom_last 0.0015044730025692843 True
+sample custom_last 0.0011344900049152784 True
+sample custom_last 0.0011990409984719008 True
+semantics shared_first True
+sample shared_first 0.0015891579969320446 True
+sample shared_first 0.001335853994532954 True
+sample shared_first 0.0009572620037943125 True
+sample shared_first 0.0012129069946240634 True
+sample shared_first 0.001162852997367736 True
+sample shared_first 0.0009339020034531131 True
+sample shared_first 0.001174894998257514 True
+semantics shared_middle True
+sample shared_middle 0.0009786570008145645 True
+sample shared_middle 0.000928506997297518 True
+sample shared_middle 0.0007910900021670386 True
+sample shared_middle 0.0009869499990600161 True
+sample shared_middle 0.0013250720003270544 True
+sample shared_middle 0.001091810001526028 True
+sample shared_middle 0.0009689099970273674 True
+semantics shared_last True
+sample shared_last 0.0009167600001092069 True
+sample shared_last 0.001283028002944775 True
+sample shared_last 0.0009999039975809865 True
+sample shared_last 0.0010916059982264414 True
+sample shared_last 0.0012212470028316602 True
+sample shared_last 0.0020182009975542314 True
+sample shared_last 0.0008145959945977665 True
+semantics mixed_restore True
+sample mixed_restore 0.006995481002377346 True
+sample mixed_restore 0.014149411996186245 True
+sample mixed_restore 0.009888722001051065 True
+sample mixed_restore 0.007968657002493273 True
+sample mixed_restore 0.005875893999473192 True
+sample mixed_restore 0.0054225710046011955 True
+sample mixed_restore 0.00685430399607867 True

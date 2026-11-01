@@ -1,0 +1,1231 @@
+fn make_bodies() -> dyn {
+    let _0: dyn; // sun
+    let _1: dyn; // jupiter
+    let _2: dyn; // saturn
+    let _3: dyn; // uranus
+    let _4: dyn; // neptune
+    let _5: i64;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
+    let _47: dyn;
+    let _48: dyn;
+    let _49: dyn;
+    let _50: dyn;
+    let _51: dyn;
+    let _52: dyn;
+    let _53: dyn;
+    let _54: dyn;
+    let _55: dyn;
+    let _56: dyn;
+    let _57: dyn;
+    let _58: dyn;
+    let _59: dyn;
+    let _60: dyn;
+    let _61: dyn;
+    let _62: dyn;
+    let _63: dyn;
+    let _64: dyn;
+    let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
+    let _68: dyn;
+    let _69: dyn;
+    let _70: dyn;
+    let _71: dyn;
+    let _72: dyn;
+    let _73: dyn;
+    let _74: dyn;
+    let _75: dyn;
+    let _76: dyn;
+    let _77: dyn;
+    let _78: dyn;
+    let _79: dyn;
+    let _80: dyn;
+    let _81: dyn;
+    let _82: dyn;
+    let _83: dyn;
+    let _84: dyn;
+    let _85: dyn;
+    let _86: dyn;
+    let _87: dyn;
+    let _88: dyn;
+    let _89: dyn;
+
+    bb0: {
+        _5 = RuntimeFn::TracePush(const "nbody.py", const "make_bodies");
+        // line 9
+        _6 = box<F64>(const 0_f64);
+        _7 = box<F64>(const 0_f64);
+        _8 = box<F64>(const 0_f64);
+        _9 = box<F64>(const 0_f64);
+        _10 = box<F64>(const 0_f64);
+        _11 = box<F64>(const 0_f64);
+        _12 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _13 = MakeList([_6, _7, _8, _9, _10, _11, _12]);
+        _0 = _13;
+        // line 10
+        _14 = box<F64>(const 4.841431442464721_f64);
+        _15 = box<F64>(const 1.1603200440274284_f64);
+        _16 = dyn.Neg(_15);
+        _17 = box<F64>(const 0.10362204447112311_f64);
+        _18 = dyn.Neg(_17);
+        _19 = box<F64>(const 0.001660076642744037_f64);
+        _20 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _21 = dyn.Mul(_19, _20);
+        _22 = box<F64>(const 0.007699011184197404_f64);
+        _23 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _24 = dyn.Mul(_22, _23);
+        _25 = box<F64>(const 0.0000690460016972063_f64);
+        _26 = dyn.Neg(_25);
+        _27 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _28 = dyn.Mul(_26, _27);
+        _29 = box<F64>(const 0.0009547919384243266_f64);
+        _30 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _31 = dyn.Mul(_29, _30);
+        _32 = MakeList([_14, _16, _18, _21, _24, _28, _31]);
+        _1 = _32;
+        // line 19
+        _33 = box<F64>(const 8.34336671824458_f64);
+        _34 = box<F64>(const 4.124798564124305_f64);
+        _35 = box<F64>(const 0.4035234171143214_f64);
+        _36 = dyn.Neg(_35);
+        _37 = box<F64>(const 0.002767425107268624_f64);
+        _38 = dyn.Neg(_37);
+        _39 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _40 = dyn.Mul(_38, _39);
+        _41 = box<F64>(const 0.004998528012349172_f64);
+        _42 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _43 = dyn.Mul(_41, _42);
+        _44 = box<F64>(const 0.000023041729757376393_f64);
+        _45 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _46 = dyn.Mul(_44, _45);
+        _47 = box<F64>(const 0.0002858859806661308_f64);
+        _48 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _49 = dyn.Mul(_47, _48);
+        _50 = MakeList([_33, _34, _36, _40, _43, _46, _49]);
+        _2 = _50;
+        // line 28
+        _51 = box<F64>(const 12.894369562139131_f64);
+        _52 = box<F64>(const 15.111151401698631_f64);
+        _53 = dyn.Neg(_52);
+        _54 = box<F64>(const 0.22330757889265573_f64);
+        _55 = dyn.Neg(_54);
+        _56 = box<F64>(const 0.002964601375647616_f64);
+        _57 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _58 = dyn.Mul(_56, _57);
+        _59 = box<F64>(const 0.0023784717395948095_f64);
+        _60 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _61 = dyn.Mul(_59, _60);
+        _62 = box<F64>(const 0.000029658956854023756_f64);
+        _63 = dyn.Neg(_62);
+        _64 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _65 = dyn.Mul(_63, _64);
+        _66 = box<F64>(const 0.00004366244043351563_f64);
+        _67 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _68 = dyn.Mul(_66, _67);
+        _69 = MakeList([_51, _53, _55, _58, _61, _65, _68]);
+        _3 = _69;
+        // line 37
+        _70 = box<F64>(const 15.379697114850917_f64);
+        _71 = box<F64>(const 25.919314609987964_f64);
+        _72 = dyn.Neg(_71);
+        _73 = box<F64>(const 0.17925877295037118_f64);
+        _74 = box<F64>(const 0.0026806777249038932_f64);
+        _75 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _76 = dyn.Mul(_74, _75);
+        _77 = box<F64>(const 0.001628241700382423_f64);
+        _78 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _79 = dyn.Mul(_77, _78);
+        _80 = box<F64>(const 0.00009515922545197159_f64);
+        _81 = dyn.Neg(_80);
+        _82 = RuntimeFn::LoadName(global@5, const "DAYS_PER_YEAR");
+        _83 = dyn.Mul(_81, _82);
+        _84 = box<F64>(const 0.000051513890204661145_f64);
+        _85 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _86 = dyn.Mul(_84, _85);
+        _87 = MakeList([_70, _72, _73, _76, _79, _83, _86]);
+        _4 = _87;
+        // line 46
+        _89 = MakeList([_0, _1, _2, _3, _4]);
+        _88 = _89;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_5);
+        return _88;
+    }
+}
+
+fn offset_momentum(_0: dyn) -> dyn {
+    let _0: dyn; // bodies
+    let _1: dyn; // px
+    let _2: dyn; // py
+    let _3: dyn; // pz
+    let _4: dyn; // b
+    let _5: dyn; // sun
+    let _6: i64;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: bool;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+
+    bb0: {
+        _6 = RuntimeFn::TracePush(const "nbody.py", const "offset_momentum");
+        // line 50
+        _7 = box<F64>(const 0_f64);
+        _1 = _7;
+        // line 51
+        _8 = box<F64>(const 0_f64);
+        _2 = _8;
+        // line 52
+        _9 = box<F64>(const 0_f64);
+        _3 = _9;
+        // line 53
+        _10 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _11 = RuntimeFn::IterNextOk(_10);
+        branch _11 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _12 = RuntimeFn::IterValue(_10);
+        _4 = _12;
+        // line 54
+        _13 = box<I64>(const 3_i64);
+        _14 = RuntimeFn::GetItem(_4, _13);
+        _15 = box<I64>(const 6_i64);
+        _16 = RuntimeFn::GetItem(_4, _15);
+        _17 = dyn.Mul(_14, _16);
+        _18 = dyn.Sub.inplace(_1, _17);
+        _1 = _18;
+        // line 55
+        _19 = box<I64>(const 4_i64);
+        _20 = RuntimeFn::GetItem(_4, _19);
+        _21 = box<I64>(const 6_i64);
+        _22 = RuntimeFn::GetItem(_4, _21);
+        _23 = dyn.Mul(_20, _22);
+        _24 = dyn.Sub.inplace(_2, _23);
+        _2 = _24;
+        // line 56
+        _25 = box<I64>(const 5_i64);
+        _26 = RuntimeFn::GetItem(_4, _25);
+        _27 = box<I64>(const 6_i64);
+        _28 = RuntimeFn::GetItem(_4, _27);
+        _29 = dyn.Mul(_26, _28);
+        _30 = dyn.Sub.inplace(_3, _29);
+        _3 = _30;
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 57
+        _31 = box<I64>(const 0_i64);
+        _32 = RuntimeFn::GetItem(_0, _31);
+        _5 = _32;
+        // line 58
+        _33 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _34 = dyn.TrueDiv(_1, _33);
+        _35 = box<I64>(const 3_i64);
+        RuntimeFn::SetItem(_5, _35, _34);
+        // line 59
+        _36 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _37 = dyn.TrueDiv(_2, _36);
+        _38 = box<I64>(const 4_i64);
+        RuntimeFn::SetItem(_5, _38, _37);
+        // line 60
+        _39 = RuntimeFn::LoadName(global@4, const "SOLAR_MASS");
+        _40 = dyn.TrueDiv(_3, _39);
+        _41 = box<I64>(const 5_i64);
+        RuntimeFn::SetItem(_5, _41, _40);
+        _42 = RuntimeFn::DynNone();
+        goto -> bb6;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_6);
+        return _42;
+    }
+}
+
+fn energy(_0: dyn) -> dyn {
+    let _0: dyn; // bodies
+    let _1: dyn; // e
+    let _2: dyn; // n
+    let _3: dyn; // i
+    let _4: dyn; // b
+    let _5: dyn; // j
+    let _6: dyn; // c
+    let _7: dyn; // dx
+    let _8: dyn; // dy
+    let _9: dyn; // dz
+    let _10: i64;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: i64;
+    let _15: i64;
+    let _16: i64;
+    let _17: i64;
+    let _18: i64;
+    let _19: bool;
+    let _20: bool;
+    let _21: bool;
+    let _22: bool;
+    let _23: bool;
+    let _24: bool;
+    let _25: bool;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
+    let _47: dyn;
+    let _48: dyn;
+    let _49: dyn;
+    let _50: dyn;
+    let _51: dyn;
+    let _52: dyn;
+    let _53: i64;
+    let _54: i64;
+    let _55: i64;
+    let _56: i64;
+    let _57: i64;
+    let _58: bool;
+    let _59: bool;
+    let _60: bool;
+    let _61: bool;
+    let _62: bool;
+    let _63: bool;
+    let _64: bool;
+    let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
+    let _68: dyn;
+    let _69: dyn;
+    let _70: dyn;
+    let _71: dyn;
+    let _72: dyn;
+    let _73: dyn;
+    let _74: dyn;
+    let _75: dyn;
+    let _76: dyn;
+    let _77: dyn;
+    let _78: dyn;
+    let _79: dyn;
+    let _80: dyn;
+    let _81: dyn;
+    let _82: dyn;
+    let _83: dyn;
+    let _84: dyn;
+    let _85: dyn;
+    let _86: dyn;
+    let _87: dyn;
+    let _88: dyn;
+    let _89: dyn;
+    let _90: dyn;
+    let _91: dyn;
+    let _92: dyn;
+    let _93: dyn;
+    let _94: dyn;
+    let _95: dyn;
+    let _96: dyn;
+
+    bb0: {
+        _10 = RuntimeFn::TracePush(const "nbody.py", const "energy");
+        // line 64
+        _11 = box<F64>(const 0_f64);
+        _1 = _11;
+        // line 65
+        _12 = RuntimeFn::DynBuiltin(const "len", [_0], [], []);
+        _2 = _12;
+        // line 66
+        _13 = box<I64>(const 0_i64);
+        _14 = unbox<I64>(_13);
+        _15 = unbox<I64>(_2);
+        _16 = _14;
+        _17 = _15;
+        _18 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _19 = Gt(_18, const 0_i64);
+        _20 = Lt(_16, _17);
+        _21 = Gt(_16, _17);
+        _22 = BitAnd(_19, _20);
+        _23 = Not(_19);
+        _24 = BitAnd(_23, _21);
+        _25 = BitOr(_22, _24);
+        branch _25 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _26 = box<I64>(_16);
+        _3 = _26;
+        // line 67
+        _27 = RuntimeFn::GetItem(_0, _3);
+        _4 = _27;
+        // line 68
+        _28 = box<F64>(const 0.5_f64);
+        _29 = box<I64>(const 6_i64);
+        _30 = RuntimeFn::GetItem(_4, _29);
+        _31 = dyn.Mul(_28, _30);
+        _32 = box<I64>(const 3_i64);
+        _33 = RuntimeFn::GetItem(_4, _32);
+        _34 = box<I64>(const 3_i64);
+        _35 = RuntimeFn::GetItem(_4, _34);
+        _36 = dyn.Mul(_33, _35);
+        _37 = box<I64>(const 4_i64);
+        _38 = RuntimeFn::GetItem(_4, _37);
+        _39 = box<I64>(const 4_i64);
+        _40 = RuntimeFn::GetItem(_4, _39);
+        _41 = dyn.Mul(_38, _40);
+        _42 = dyn.Add(_36, _41);
+        _43 = box<I64>(const 5_i64);
+        _44 = RuntimeFn::GetItem(_4, _43);
+        _45 = box<I64>(const 5_i64);
+        _46 = RuntimeFn::GetItem(_4, _45);
+        _47 = dyn.Mul(_44, _46);
+        _48 = dyn.Add(_42, _47);
+        _49 = dyn.Mul(_31, _48);
+        _50 = dyn.Add.inplace(_1, _49);
+        _1 = _50;
+        // line 69
+        _51 = box<I64>(const 1_i64);
+        _52 = dyn.Add(_3, _51);
+        _53 = unbox<I64>(_52);
+        _54 = unbox<I64>(_2);
+        _55 = _53;
+        _56 = _54;
+        _57 = const 1_i64;
+        goto -> bb6;
+    }
+    bb3: {
+        _16 = Add(_16, _18);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 75
+        _96 = _1;
+        goto -> bb12;
+    }
+    bb6: {
+        _58 = Gt(_57, const 0_i64);
+        _59 = Lt(_55, _56);
+        _60 = Gt(_55, _56);
+        _61 = BitAnd(_58, _59);
+        _62 = Not(_58);
+        _63 = BitAnd(_62, _60);
+        _64 = BitOr(_61, _63);
+        branch _64 -> [then: bb7, else: bb3];
+    }
+    bb7: {
+        _65 = box<I64>(_55);
+        _5 = _65;
+        // line 70
+        _66 = RuntimeFn::GetItem(_0, _5);
+        _6 = _66;
+        // line 71
+        _67 = box<I64>(const 0_i64);
+        _68 = RuntimeFn::GetItem(_4, _67);
+        _69 = box<I64>(const 0_i64);
+        _70 = RuntimeFn::GetItem(_6, _69);
+        _71 = dyn.Sub(_68, _70);
+        _7 = _71;
+        // line 72
+        _72 = box<I64>(const 1_i64);
+        _73 = RuntimeFn::GetItem(_4, _72);
+        _74 = box<I64>(const 1_i64);
+        _75 = RuntimeFn::GetItem(_6, _74);
+        _76 = dyn.Sub(_73, _75);
+        _8 = _76;
+        // line 73
+        _77 = box<I64>(const 2_i64);
+        _78 = RuntimeFn::GetItem(_4, _77);
+        _79 = box<I64>(const 2_i64);
+        _80 = RuntimeFn::GetItem(_6, _79);
+        _81 = dyn.Sub(_78, _80);
+        _9 = _81;
+        // line 74
+        _82 = box<I64>(const 6_i64);
+        _83 = RuntimeFn::GetItem(_4, _82);
+        _84 = box<I64>(const 6_i64);
+        _85 = RuntimeFn::GetItem(_6, _84);
+        _86 = dyn.Mul(_83, _85);
+        _87 = dyn.Mul(_7, _7);
+        _88 = dyn.Mul(_8, _8);
+        _89 = dyn.Add(_87, _88);
+        _90 = dyn.Mul(_9, _9);
+        _91 = dyn.Add(_89, _90);
+        _92 = box<F64>(const 0.5_f64);
+        _93 = dyn.Pow(_91, _92);
+        _94 = dyn.TrueDiv(_86, _93);
+        _95 = dyn.Sub.inplace(_1, _94);
+        _1 = _95;
+        goto -> bb8;
+    }
+    bb8: {
+        _55 = Add(_55, _57);
+        goto -> bb6;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        unreachable;
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        RuntimeFn::TracePopTo(_10);
+        return _96;
+    }
+}
+
+fn advance(_0: dyn, _1: dyn, _2: dyn) -> dyn {
+    let _0: dyn; // bodies
+    let _1: dyn; // dt
+    let _2: dyn; // steps
+    let _3: dyn; // n
+    let _4: dyn; // _
+    let _5: dyn; // i
+    let _6: dyn; // b
+    let _7: dyn; // j
+    let _8: dyn; // c
+    let _9: dyn; // dx
+    let _10: dyn; // dy
+    let _11: dyn; // dz
+    let _12: dyn; // d2
+    let _13: dyn; // mag
+    let _14: dyn; // bm
+    let _15: dyn; // cm
+    let _16: dyn; // __aug$16
+    let _17: dyn; // __aug$17
+    let _18: dyn; // __aug$18
+    let _19: dyn; // __aug$19
+    let _20: dyn; // __aug$20
+    let _21: dyn; // __aug$21
+    let _22: dyn; // __aug$22
+    let _23: dyn; // __aug$23
+    let _24: dyn; // __aug$24
+    let _25: i64;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: i64;
+    let _29: i64;
+    let _30: i64;
+    let _31: i64;
+    let _32: i64;
+    let _33: bool;
+    let _34: bool;
+    let _35: bool;
+    let _36: bool;
+    let _37: bool;
+    let _38: bool;
+    let _39: bool;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: i64;
+    let _43: i64;
+    let _44: i64;
+    let _45: i64;
+    let _46: i64;
+    let _47: bool;
+    let _48: bool;
+    let _49: bool;
+    let _50: bool;
+    let _51: bool;
+    let _52: bool;
+    let _53: bool;
+    let _54: dyn;
+    let _55: dyn;
+    let _56: dyn;
+    let _57: dyn;
+    let _58: i64;
+    let _59: i64;
+    let _60: i64;
+    let _61: i64;
+    let _62: i64;
+    let _63: bool;
+    let _64: bool;
+    let _65: bool;
+    let _66: bool;
+    let _67: bool;
+    let _68: bool;
+    let _69: bool;
+    let _70: dyn;
+    let _71: dyn;
+    let _72: dyn;
+    let _73: dyn;
+    let _74: dyn;
+    let _75: dyn;
+    let _76: dyn;
+    let _77: dyn;
+    let _78: dyn;
+    let _79: dyn;
+    let _80: dyn;
+    let _81: dyn;
+    let _82: dyn;
+    let _83: dyn;
+    let _84: dyn;
+    let _85: dyn;
+    let _86: dyn;
+    let _87: dyn;
+    let _88: dyn;
+    let _89: dyn;
+    let _90: dyn;
+    let _91: dyn;
+    let _92: dyn;
+    let _93: dyn;
+    let _94: dyn;
+    let _95: dyn;
+    let _96: dyn;
+    let _97: dyn;
+    let _98: dyn;
+    let _99: dyn;
+    let _100: dyn;
+    let _101: dyn;
+    let _102: dyn;
+    let _103: bool;
+    let _104: dyn;
+    let _105: dyn;
+    let _106: dyn;
+    let _107: dyn;
+    let _108: dyn;
+    let _109: dyn;
+    let _110: bool;
+    let _111: dyn;
+    let _112: dyn;
+    let _113: dyn;
+    let _114: dyn;
+    let _115: dyn;
+    let _116: dyn;
+    let _117: bool;
+    let _118: dyn;
+    let _119: dyn;
+    let _120: dyn;
+    let _121: dyn;
+    let _122: dyn;
+    let _123: dyn;
+    let _124: bool;
+    let _125: dyn;
+    let _126: dyn;
+    let _127: dyn;
+    let _128: dyn;
+    let _129: dyn;
+    let _130: dyn;
+    let _131: bool;
+    let _132: dyn;
+    let _133: dyn;
+    let _134: dyn;
+    let _135: dyn;
+    let _136: dyn;
+    let _137: dyn;
+    let _138: bool;
+    let _139: dyn;
+    let _140: dyn;
+    let _141: dyn;
+    let _142: dyn;
+    let _143: dyn;
+    let _144: dyn;
+    let _145: bool;
+    let _146: dyn;
+    let _147: dyn;
+    let _148: bool;
+    let _149: dyn;
+    let _150: dyn;
+    let _151: dyn;
+    let _152: dyn;
+    let _153: dyn;
+    let _154: dyn;
+    let _155: dyn;
+    let _156: dyn;
+    let _157: bool;
+    let _158: dyn;
+    let _159: dyn;
+    let _160: dyn;
+    let _161: dyn;
+    let _162: dyn;
+    let _163: dyn;
+    let _164: dyn;
+    let _165: dyn;
+    let _166: bool;
+    let _167: dyn;
+    let _168: dyn;
+    let _169: dyn;
+    let _170: dyn;
+    let _171: dyn;
+    let _172: dyn;
+    let _173: dyn;
+    let _174: dyn;
+
+    bb0: {
+        _25 = RuntimeFn::TracePush(const "nbody.py", const "advance");
+        // line 79
+        _26 = RuntimeFn::DynBuiltin(const "len", [_0], [], []);
+        _3 = _26;
+        // line 80
+        _27 = box<I64>(const 0_i64);
+        _28 = unbox<I64>(_27);
+        _29 = unbox<I64>(_2);
+        _30 = _28;
+        _31 = _29;
+        _32 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _33 = Gt(_32, const 0_i64);
+        _34 = Lt(_30, _31);
+        _35 = Gt(_30, _31);
+        _36 = BitAnd(_33, _34);
+        _37 = Not(_33);
+        _38 = BitAnd(_37, _35);
+        _39 = BitOr(_36, _38);
+        branch _39 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        // line 81
+        _41 = box<I64>(const 0_i64);
+        _42 = unbox<I64>(_41);
+        _43 = unbox<I64>(_3);
+        _44 = _42;
+        _45 = _43;
+        _46 = const 1_i64;
+        goto -> bb6;
+    }
+    bb3: {
+        _30 = Add(_30, _32);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        _174 = RuntimeFn::DynNone();
+        goto -> bb48;
+    }
+    bb6: {
+        _47 = Gt(_46, const 0_i64);
+        _48 = Lt(_44, _45);
+        _49 = Gt(_44, _45);
+        _50 = BitAnd(_47, _48);
+        _51 = Not(_47);
+        _52 = BitAnd(_51, _49);
+        _53 = BitOr(_50, _52);
+        branch _53 -> [then: bb7, else: bb10];
+    }
+    bb7: {
+        _54 = box<I64>(_44);
+        _5 = _54;
+        // line 82
+        _55 = RuntimeFn::GetItem(_0, _5);
+        _6 = _55;
+        // line 83
+        _56 = box<I64>(const 1_i64);
+        _57 = dyn.Add(_5, _56);
+        _58 = unbox<I64>(_57);
+        _59 = unbox<I64>(_3);
+        _60 = _58;
+        _61 = _59;
+        _62 = const 1_i64;
+        goto -> bb11;
+    }
+    bb8: {
+        _44 = Add(_44, _46);
+        goto -> bb6;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        // line 98
+        _144 = RuntimeFn::IterStart(_0);
+        goto -> bb34;
+    }
+    bb11: {
+        _63 = Gt(_62, const 0_i64);
+        _64 = Lt(_60, _61);
+        _65 = Gt(_60, _61);
+        _66 = BitAnd(_63, _64);
+        _67 = Not(_63);
+        _68 = BitAnd(_67, _65);
+        _69 = BitOr(_66, _68);
+        branch _69 -> [then: bb12, else: bb8];
+    }
+    bb12: {
+        _70 = box<I64>(_60);
+        _7 = _70;
+        // line 84
+        _71 = RuntimeFn::GetItem(_0, _7);
+        _8 = _71;
+        // line 85
+        _72 = box<I64>(const 0_i64);
+        _73 = RuntimeFn::GetItem(_6, _72);
+        _74 = box<I64>(const 0_i64);
+        _75 = RuntimeFn::GetItem(_8, _74);
+        _76 = dyn.Sub(_73, _75);
+        _9 = _76;
+        // line 86
+        _77 = box<I64>(const 1_i64);
+        _78 = RuntimeFn::GetItem(_6, _77);
+        _79 = box<I64>(const 1_i64);
+        _80 = RuntimeFn::GetItem(_8, _79);
+        _81 = dyn.Sub(_78, _80);
+        _10 = _81;
+        // line 87
+        _82 = box<I64>(const 2_i64);
+        _83 = RuntimeFn::GetItem(_6, _82);
+        _84 = box<I64>(const 2_i64);
+        _85 = RuntimeFn::GetItem(_8, _84);
+        _86 = dyn.Sub(_83, _85);
+        _11 = _86;
+        // line 88
+        _87 = dyn.Mul(_9, _9);
+        _88 = dyn.Mul(_10, _10);
+        _89 = dyn.Add(_87, _88);
+        _90 = dyn.Mul(_11, _11);
+        _91 = dyn.Add(_89, _90);
+        _12 = _91;
+        // line 89
+        _92 = box<F64>(const 0.5_f64);
+        _93 = dyn.Pow(_12, _92);
+        _94 = dyn.Mul(_12, _93);
+        _95 = dyn.TrueDiv(_1, _94);
+        _13 = _95;
+        // line 90
+        _96 = box<I64>(const 6_i64);
+        _97 = RuntimeFn::GetItem(_6, _96);
+        _98 = dyn.Mul(_97, _13);
+        _14 = _98;
+        // line 91
+        _99 = box<I64>(const 6_i64);
+        _100 = RuntimeFn::GetItem(_8, _99);
+        _101 = dyn.Mul(_100, _13);
+        _15 = _101;
+        // line 92
+        _102 = box<Bool>(const true);
+        _103 = RuntimeFn::DynTruthy(_102);
+        branch _103 -> [then: bb16, else: bb18];
+    }
+    bb13: {
+        _60 = Add(_60, _62);
+        goto -> bb11;
+    }
+    bb14: {
+        unreachable;
+    }
+    bb15: {
+        unreachable;
+    }
+    bb16: {
+        // line 92
+        _16 = _6;
+        // line 92
+        _104 = box<I64>(const 3_i64);
+        _105 = RuntimeFn::GetItem(_16, _104);
+        _106 = dyn.Mul(_9, _15);
+        _107 = dyn.Sub.inplace(_105, _106);
+        _108 = box<I64>(const 3_i64);
+        RuntimeFn::SetItem(_16, _108, _107);
+        goto -> bb18;
+    }
+    bb17: {
+        unreachable;
+    }
+    bb18: {
+        // line 93
+        _109 = box<Bool>(const true);
+        _110 = RuntimeFn::DynTruthy(_109);
+        branch _110 -> [then: bb19, else: bb21];
+    }
+    bb19: {
+        // line 93
+        _17 = _6;
+        // line 93
+        _111 = box<I64>(const 4_i64);
+        _112 = RuntimeFn::GetItem(_17, _111);
+        _113 = dyn.Mul(_10, _15);
+        _114 = dyn.Sub.inplace(_112, _113);
+        _115 = box<I64>(const 4_i64);
+        RuntimeFn::SetItem(_17, _115, _114);
+        goto -> bb21;
+    }
+    bb20: {
+        unreachable;
+    }
+    bb21: {
+        // line 94
+        _116 = box<Bool>(const true);
+        _117 = RuntimeFn::DynTruthy(_116);
+        branch _117 -> [then: bb22, else: bb24];
+    }
+    bb22: {
+        // line 94
+        _18 = _6;
+        // line 94
+        _118 = box<I64>(const 5_i64);
+        _119 = RuntimeFn::GetItem(_18, _118);
+        _120 = dyn.Mul(_11, _15);
+        _121 = dyn.Sub.inplace(_119, _120);
+        _122 = box<I64>(const 5_i64);
+        RuntimeFn::SetItem(_18, _122, _121);
+        goto -> bb24;
+    }
+    bb23: {
+        unreachable;
+    }
+    bb24: {
+        // line 95
+        _123 = box<Bool>(const true);
+        _124 = RuntimeFn::DynTruthy(_123);
+        branch _124 -> [then: bb25, else: bb27];
+    }
+    bb25: {
+        // line 95
+        _19 = _8;
+        // line 95
+        _125 = box<I64>(const 3_i64);
+        _126 = RuntimeFn::GetItem(_19, _125);
+        _127 = dyn.Mul(_9, _14);
+        _128 = dyn.Add.inplace(_126, _127);
+        _129 = box<I64>(const 3_i64);
+        RuntimeFn::SetItem(_19, _129, _128);
+        goto -> bb27;
+    }
+    bb26: {
+        unreachable;
+    }
+    bb27: {
+        // line 96
+        _130 = box<Bool>(const true);
+        _131 = RuntimeFn::DynTruthy(_130);
+        branch _131 -> [then: bb28, else: bb30];
+    }
+    bb28: {
+        // line 96
+        _20 = _8;
+        // line 96
+        _132 = box<I64>(const 4_i64);
+        _133 = RuntimeFn::GetItem(_20, _132);
+        _134 = dyn.Mul(_10, _14);
+        _135 = dyn.Add.inplace(_133, _134);
+        _136 = box<I64>(const 4_i64);
+        RuntimeFn::SetItem(_20, _136, _135);
+        goto -> bb30;
+    }
+    bb29: {
+        unreachable;
+    }
+    bb30: {
+        // line 97
+        _137 = box<Bool>(const true);
+        _138 = RuntimeFn::DynTruthy(_137);
+        branch _138 -> [then: bb31, else: bb13];
+    }
+    bb31: {
+        // line 97
+        _21 = _8;
+        // line 97
+        _139 = box<I64>(const 5_i64);
+        _140 = RuntimeFn::GetItem(_21, _139);
+        _141 = dyn.Mul(_11, _14);
+        _142 = dyn.Add.inplace(_140, _141);
+        _143 = box<I64>(const 5_i64);
+        RuntimeFn::SetItem(_21, _143, _142);
+        goto -> bb13;
+    }
+    bb32: {
+        unreachable;
+    }
+    bb33: {
+        unreachable;
+    }
+    bb34: {
+        _145 = RuntimeFn::IterNextOk(_144);
+        branch _145 -> [then: bb35, else: bb3];
+    }
+    bb35: {
+        _146 = RuntimeFn::IterValue(_144);
+        _6 = _146;
+        // line 99
+        _147 = box<Bool>(const true);
+        _148 = RuntimeFn::DynTruthy(_147);
+        branch _148 -> [then: bb39, else: bb41];
+    }
+    bb36: {
+        unreachable;
+    }
+    bb37: {
+        unreachable;
+    }
+    bb38: {
+        unreachable;
+    }
+    bb39: {
+        // line 99
+        _22 = _6;
+        // line 99
+        _149 = box<I64>(const 0_i64);
+        _150 = RuntimeFn::GetItem(_22, _149);
+        _151 = box<I64>(const 3_i64);
+        _152 = RuntimeFn::GetItem(_6, _151);
+        _153 = dyn.Mul(_1, _152);
+        _154 = dyn.Add.inplace(_150, _153);
+        _155 = box<I64>(const 0_i64);
+        RuntimeFn::SetItem(_22, _155, _154);
+        goto -> bb41;
+    }
+    bb40: {
+        unreachable;
+    }
+    bb41: {
+        // line 100
+        _156 = box<Bool>(const true);
+        _157 = RuntimeFn::DynTruthy(_156);
+        branch _157 -> [then: bb42, else: bb44];
+    }
+    bb42: {
+        // line 100
+        _23 = _6;
+        // line 100
+        _158 = box<I64>(const 1_i64);
+        _159 = RuntimeFn::GetItem(_23, _158);
+        _160 = box<I64>(const 4_i64);
+        _161 = RuntimeFn::GetItem(_6, _160);
+        _162 = dyn.Mul(_1, _161);
+        _163 = dyn.Add.inplace(_159, _162);
+        _164 = box<I64>(const 1_i64);
+        RuntimeFn::SetItem(_23, _164, _163);
+        goto -> bb44;
+    }
+    bb43: {
+        unreachable;
+    }
+    bb44: {
+        // line 101
+        _165 = box<Bool>(const true);
+        _166 = RuntimeFn::DynTruthy(_165);
+        branch _166 -> [then: bb45, else: bb34];
+    }
+    bb45: {
+        // line 101
+        _24 = _6;
+        // line 101
+        _167 = box<I64>(const 2_i64);
+        _168 = RuntimeFn::GetItem(_24, _167);
+        _169 = box<I64>(const 5_i64);
+        _170 = RuntimeFn::GetItem(_6, _169);
+        _171 = dyn.Mul(_1, _170);
+        _172 = dyn.Add.inplace(_168, _171);
+        _173 = box<I64>(const 2_i64);
+        RuntimeFn::SetItem(_24, _173, _172);
+        goto -> bb34;
+    }
+    bb46: {
+        unreachable;
+    }
+    bb47: {
+        unreachable;
+    }
+    bb48: {
+        RuntimeFn::TracePopTo(_25);
+        return _174;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        g6 = null;
+        _0 = RuntimeFn::TracePush(const "nbody.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "nbody.py");
+        g2 = _3;
+        // line 3
+        _4 = box<F64>(const 3.141592653589793_f64);
+        g3 = _4;
+        // line 4
+        _5 = box<I64>(const 4_i64);
+        _6 = RuntimeFn::LoadName(global@3, const "PI");
+        _7 = dyn.Mul(_5, _6);
+        _8 = RuntimeFn::LoadName(global@3, const "PI");
+        _9 = dyn.Mul(_7, _8);
+        g4 = _9;
+        // line 5
+        _10 = box<F64>(const 365.24_f64);
+        g5 = _10;
+        // line 8
+        // line 49
+        // line 63
+        // line 78
+        // line 104
+        _11 = make_bodies();
+        g6 = _11;
+        // line 105
+        _12 = RuntimeFn::LoadName(global@6, const "bodies");
+        _13 = offset_momentum(_12);
+        // line 106
+        _14 = RuntimeFn::LoadName(global@6, const "bodies");
+        _15 = energy(_14);
+        _16 = box<I64>(const 9_i64);
+        _17 = RuntimeFn::DynBuiltin(const "round", [_15, _16], [], []);
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_18, _17);
+        RuntimeFn::WriteNewline(_18);
+        // line 107
+        _19 = RuntimeFn::LoadName(global@6, const "bodies");
+        _20 = box<F64>(const 0.01_f64);
+        _21 = box<I64>(const 100000_i64);
+        _22 = advance(_19, _20, _21);
+        // line 108
+        _23 = RuntimeFn::LoadName(global@6, const "bodies");
+        _24 = energy(_23);
+        _25 = box<I64>(const 9_i64);
+        _26 = RuntimeFn::DynBuiltin(const "round", [_24, _25], [], []);
+        _27 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_27, _26);
+        RuntimeFn::WriteNewline(_27);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

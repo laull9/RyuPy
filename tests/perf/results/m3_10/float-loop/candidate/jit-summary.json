@@ -1,0 +1,138 @@
+[
+  {
+    "file": "loop-jit/default-baseline.asm",
+    "sha256": "4694ce0a651e3dedfbf192e5d80a45104e5ba618109e32540b17968a8eff7a3e",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeated(System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeated(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_bytes": [
+      "1917",
+      "2739",
+      "3516",
+      "2217",
+      "3969",
+      "3625",
+      "1910",
+      "2423"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "loop-jit/default-candidate.asm",
+    "sha256": "cc2108771f99003fdc3eec73b4380797c640ddd23fbc7c3876a96cffc9d0f9fc",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeated(System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeated(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (Tier1-OSR)"
+    ],
+    "code_bytes": [
+      "2290",
+      "2935",
+      "3556",
+      "2554",
+      "4103",
+      "3725",
+      "3766",
+      "2281",
+      "2589",
+      "2681"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "loop-jit/disabled-baseline.asm",
+    "sha256": "64281df48efc3f47ecf316a56d26808381682df1fb4f73e0584732dd06fc01de",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeated(System.Object):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "1958",
+      "2385"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "loop-jit/disabled-candidate.asm",
+    "sha256": "47bcfee5befe383ba3a0b815ef1275e4429b3dcc55ef44832e0aab5b4d90f670",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_accumulate(System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_repeated(System.Object):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2228",
+      "2681"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "numeric-jit/matmul-default-baseline.asm",
+    "sha256": "d12d10d5a46a30327599ac1ac8c4abad0fe86f571fa8b6e3309ba1d1488a9108",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2568",
+      "4209",
+      "47"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "numeric-jit/matmul-default-candidate.asm",
+    "sha256": "942f033946755d729c84ae5e77c96eab3ceca2780e41c3e39aff4b9364cd8290",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2905",
+      "4374",
+      "47"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "numeric-jit/matmul-disabled-baseline.asm",
+    "sha256": "e7e0659a3ee3430ed8ce61328eb2cde7eacc0f1f5f6396035c3c287734b2b4ad",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2569",
+      "47"
+    ],
+    "fma_instruction_count": 0
+  },
+  {
+    "file": "numeric-jit/matmul-disabled-candidate.asm",
+    "sha256": "0846025ad3275e3cad6ed4c88d875029a843be3b896612fba49bfc0b783cacc7",
+    "versions": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "code_bytes": [
+      "2879",
+      "47"
+    ],
+    "fma_instruction_count": 0
+  }
+]

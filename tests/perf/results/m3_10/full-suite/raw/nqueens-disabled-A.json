@@ -1,0 +1,25 @@
+{
+  "name": "nqueens",
+  "tier": "disabled",
+  "variant": "A",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nqueens/nqueens.dll"
+  ],
+  "utc_epoch_start": 1793559955.547366,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 1019.9100719983107,
+  "maxrss": 41549824,
+  "stats": {
+    "main_ms": 558.188,
+    "alloc_bytes": 3586440,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 515.048,
+    "jit_methods": 209,
+    "heap_bytes": 3600648
+  }
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "jit",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/A/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/A/micro/slp_pairs.dll"
+    ],
+    "utc_epoch_start": 1793558028.6753418,
+    "wall_seconds": 1.087056439006119,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "jit",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro/slp_pairs.dll"
+    ],
+    "utc_epoch_start": 1793558029.7632868,
+    "wall_seconds": 0.9030804459980573,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "default",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "jit",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/C/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/C/micro/slp_pairs.dll"
+    ],
+    "utc_epoch_start": 1793558030.6670215,
+    "wall_seconds": 1.027485982995131,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "A",
+    "repeat": 0,
+    "phase": "jit",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/A/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/A/micro/slp_pairs.dll"
+    ],
+    "utc_epoch_start": 1793558031.6952698,
+    "wall_seconds": 1.0090314670014777,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "B",
+    "repeat": 0,
+    "phase": "jit",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/B/micro/slp_pairs.dll"
+    ],
+    "utc_epoch_start": 1793558032.7049081,
+    "wall_seconds": 0.9223860749989399,
+    "exit_code": 0
+  },
+  {
+    "scope": "micro",
+    "tier": "disabled",
+    "variant": "C",
+    "repeat": 0,
+    "phase": "jit",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/C/micro-harness/bin/Release/net10.0/measure.dll",
+      "/tmp/ryupy-m3_10-slp-candidate-XdWjc0/C/micro/slp_pairs.dll"
+    ],
+    "utc_epoch_start": 1793558033.6288674,
+    "wall_seconds": 1.0703699470032007,
+    "exit_code": 0
+  }
+]

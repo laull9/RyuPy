@@ -1,0 +1,4 @@
+613423466.816
+{"kind":"kernel_time","name":"matmul","sample":0,"elapsed_ms":70.2514}
+{"kind":"kernel_time","name":"matmul","sample":1,"elapsed_ms":69.9619}
+{"kind":"kernel_time","name":"matmul","sample":2,"elapsed_ms":66.8952}

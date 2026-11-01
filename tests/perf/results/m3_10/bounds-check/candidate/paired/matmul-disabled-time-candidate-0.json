@@ -1,0 +1,40 @@
+{
+  "name": "matmul",
+  "tier": "disabled",
+  "mode": "time",
+  "variant": "candidate",
+  "repeat": 0,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/core-harness/bin/Release/net10.0/measure.dll",
+    "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/after/bench/matmul/matmul.dll",
+    "matmul",
+    "/tmp/ryupy-m3_10-bounds-candidate-rNMtDu/validation/matmul.stdout",
+    "time",
+    "3",
+    "3"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 1033.6361110021244,
+  "maxrss": 63025152,
+  "samples": [
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 0,
+      "elapsed_ms": 83.7002
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 1,
+      "elapsed_ms": 82.9292
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 2,
+      "elapsed_ms": 75.859
+    }
+  ]
+}

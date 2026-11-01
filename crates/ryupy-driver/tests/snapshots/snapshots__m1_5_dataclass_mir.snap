@@ -11,21 +11,62 @@ fn step(_0: dyn, _1: dyn) -> dyn {
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
+    let _8: dyn;
+    let _9: f64;
+    let _10: dyn;
+    let _11: f64;
+    let _12: dyn;
+    let _13: f64;
+    let _14: f64;
+    let _15: f64;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
 
     bb0: {
         _2 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "step");
         // line 19
         _3 = RuntimeFn::DynGetAttr(_0, const "x");
         _4 = RuntimeFn::DynGetAttr(_0, const "v");
-        _5 = dyn.Mul(_4, _1);
-        _6 = dyn.Add(_3, _5);
-        RuntimeFn::SetAttr(_0, const "x", _6);
-        _7 = RuntimeFn::DynNone();
-        goto -> bb1;
+        _8 = _4;
+        _10 = _1;
+        _12 = _3;
+        goto -> bb7;
     }
     bb1: {
         RuntimeFn::TracePopTo(_2);
         return _7;
+    }
+    bb2: {
+        RuntimeFn::SetAttr(_0, const "x", _6);
+        _7 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb3: {
+        _5 = dyn.Mul(_4, _1);
+        _6 = dyn.Add(_3, _5);
+        goto -> bb2;
+    }
+    bb4: {
+        _9 = unbox_exact_f64(_8);
+        _11 = unbox_exact_f64(_10);
+        _13 = unbox_exact_f64(_12);
+        _14 = Mul(_9, _11);
+        _15 = Add(_13, _14);
+        _6 = box<F64>(_15);
+        goto -> bb2;
+    }
+    bb5: {
+        _16 = is_boxed_f64(_12);
+        branch _16 -> [then: bb4, else: bb3];
+    }
+    bb6: {
+        _17 = is_boxed_f64(_10);
+        branch _17 -> [then: bb5, else: bb3];
+    }
+    bb7: {
+        _18 = is_boxed_f64(_8);
+        branch _18 -> [then: bb6, else: bb3];
     }
 }
 
@@ -41,6 +82,17 @@ fn dot(_0: dyn, _1: dyn) -> dyn {
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
+    let _11: dyn;
+    let _12: f64;
+    let _13: dyn;
+    let _14: f64;
+    let _15: dyn;
+    let _16: f64;
+    let _17: f64;
+    let _18: f64;
+    let _19: bool;
+    let _20: bool;
+    let _21: bool;
 
     bb0: {
         _2 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "dot");
@@ -50,10 +102,10 @@ fn dot(_0: dyn, _1: dyn) -> dyn {
         _6 = dyn.Mul(_4, _5);
         _7 = RuntimeFn::DynGetAttr(_0, const "y");
         _8 = RuntimeFn::DynGetAttr(_1, const "y");
-        _9 = dyn.Mul(_7, _8);
-        _10 = dyn.Add(_6, _9);
-        _3 = _10;
-        goto -> bb2;
+        _11 = _7;
+        _13 = _8;
+        _15 = _6;
+        goto -> bb8;
     }
     bb1: {
         unreachable;
@@ -61,6 +113,36 @@ fn dot(_0: dyn, _1: dyn) -> dyn {
     bb2: {
         RuntimeFn::TracePopTo(_2);
         return _3;
+    }
+    bb3: {
+        _3 = _10;
+        goto -> bb2;
+    }
+    bb4: {
+        _9 = dyn.Mul(_7, _8);
+        _10 = dyn.Add(_6, _9);
+        goto -> bb3;
+    }
+    bb5: {
+        _12 = unbox_exact_f64(_11);
+        _14 = unbox_exact_f64(_13);
+        _16 = unbox_exact_f64(_15);
+        _17 = Mul(_12, _14);
+        _18 = Add(_16, _17);
+        _10 = box<F64>(_18);
+        goto -> bb3;
+    }
+    bb6: {
+        _19 = is_boxed_f64(_15);
+        branch _19 -> [then: bb5, else: bb4];
+    }
+    bb7: {
+        _20 = is_boxed_f64(_13);
+        branch _20 -> [then: bb6, else: bb4];
+    }
+    bb8: {
+        _21 = is_boxed_f64(_11);
+        branch _21 -> [then: bb7, else: bb4];
     }
 }
 

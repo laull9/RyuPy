@@ -1,0 +1,17 @@
+resources
+default append_refs [524648, 524656, 524656] B/A% 0.0 C/A% 0.0 C/B% 0.0
+default bool [4308176, 4308192, 4308256] B/A% 0.0 C/A% 0.0 C/B% 0.0
+default construct_refs [480288, 480304, 480304] B/A% 0.0 C/A% 0.0 C/B% 0.0
+default custom [8622032, 8622048, 8622112] B/A% 0.0 C/A% 0.0 C/B% 0.0
+default float [1428224, 1428240, 1428256] B/A% 0.0 C/A% 0.0 C/B% 0.0
+default matmul [1391448, 1393872, 1278672] B/A% 0.17 C/A% -8.1 C/B% -8.26
+default mixed [5742032, 5742048, 5742112] B/A% 0.0 C/A% 0.0 C/B% 0.0
+default read_refs [1427776, 1427776, 1427776] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled append_refs [524648, 524656, 524656] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled bool [4308176, 4308192, 4308256] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled construct_refs [480288, 480304, 480304] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled custom [8622032, 8622048, 8622112] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled float [1428224, 1428240, 1428256] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled matmul [1391448, 1393872, 1278672] B/A% 0.17 C/A% -8.1 C/B% -8.26
+disabled mixed [5742032, 5742048, 5742112] B/A% 0.0 C/A% 0.0 C/B% 0.0
+disabled read_refs [1427776, 1427776, 1427776] B/A% 0.0 C/A% 0.0 C/B% 0.0

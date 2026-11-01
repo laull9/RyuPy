@@ -44,6 +44,24 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::GeneratorRetry => ins.push(Instruction::call(ctx.runtime_refs.generator_retry)),
         RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
         RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
+        RuntimeFn::NumericListCreate => {
+            ins.push(Instruction::call(ctx.runtime_refs.numeric_list.create))
+        }
+        RuntimeFn::NumericListAppendF64 => {
+            ins.push(Instruction::call(ctx.runtime_refs.numeric_list.append_f64))
+        }
+        RuntimeFn::NumericListPeekList => {
+            ins.push(Instruction::call(ctx.runtime_refs.numeric_list.peek_list))
+        }
+        RuntimeFn::NumericListCanReadF64 => ins.push(Instruction::call(
+            ctx.runtime_refs.numeric_list.can_read_f64,
+        )),
+        RuntimeFn::NumericListReadCheckedF64 => ins.push(Instruction::call(
+            ctx.runtime_refs.numeric_list.read_checked_f64,
+        )),
+        RuntimeFn::NumericListReadF64 => {
+            ins.push(Instruction::call(ctx.runtime_refs.numeric_list.read_f64))
+        }
         RuntimeFn::NumericAccumulatorCreate => {
             ins.push(Instruction::call(ctx.runtime_refs.accumulator.create))
         }

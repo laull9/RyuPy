@@ -1,0 +1,5 @@
+3e599f3ecbb848b903289621e0f92c0743ef786f984e099af72b8e863b81b413  /tmp/ryupy-m3_10-numeric-list-baseline-4y3zve/ryupy-baseline
+026a5f833af3fe4342207ce16acd8f1cedebe0c2bfea60bb9208879ce5611b98  /tmp/ryupy-m3_10-numeric-list-baseline-4y3zve/runtime/RyuPy.Runtime.deps.json
+0ccd1c6695fa8e6981b1393c363072953307820e1e4ce3ea91c0b466769e3adb  /tmp/ryupy-m3_10-numeric-list-baseline-4y3zve/runtime/RyuPy.Runtime.dll
+f958de21e6f5c29d2ec7e711f392c8dfebcb72225368126b3a793b4423eab9ed  /tmp/ryupy-m3_10-numeric-list-baseline-4y3zve/runtime/RyuPy.Runtime.pdb
+d4696551e9cd67f29ea4bc84f5555ac751e8db07257112aec2f5837ea5530721  /tmp/ryupy-m3_10-numeric-list-baseline-4y3zve/runtime/RyuPy.Runtime.xml

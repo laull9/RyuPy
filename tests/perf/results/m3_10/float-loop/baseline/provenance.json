@@ -1,0 +1,7 @@
+{
+  "baseline": "9023f21 + 已测short-chain source.patch；不是后续正在编辑的FloatLoop树",
+  "cli_sha256": "2b64e382fee9467bc71530c8c5a42fc0e41563263eb772fafbc3ace47eb247ee",
+  "runtime_sha256_for_next_pair": "0ccd1c6695fa8e6981b1393c363072953307820e1e4ce3ea91c0b466769e3adb",
+  "previous_runtime_sha256": "d9678b3d13d756843e8fef814275c7ba2cc4888fd2ed48ab17579f03bda17169",
+  "state": "只保存产物与准备源码，尚未构建或计时；正式两方统一新runtime"
+}

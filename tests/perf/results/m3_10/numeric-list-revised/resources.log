@@ -1,0 +1,12 @@
+micro-default-A-0 PASS 0.777
+matmul-default-A-0 PASS 1.24
+micro-default-B-0 PASS 0.795
+matmul-default-B-0 PASS 1.435
+micro-default-C-0 PASS 1.157
+matmul-default-C-0 PASS 1.072
+micro-disabled-A-0 PASS 0.937
+matmul-disabled-A-0 PASS 1.877
+micro-disabled-B-0 PASS 0.869
+matmul-disabled-B-0 PASS 1.789
+micro-disabled-C-0 PASS 0.803
+matmul-disabled-C-0 PASS 1.905

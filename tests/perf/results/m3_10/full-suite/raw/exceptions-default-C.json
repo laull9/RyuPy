@@ -1,0 +1,25 @@
+{
+  "name": "exceptions",
+  "tier": "default",
+  "variant": "C",
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/exceptions/exceptions.dll"
+  ],
+  "utc_epoch_start": 1793559961.69352,
+  "status": "ok",
+  "exit_code": 0,
+  "wall_ms": 1978.8701919969753,
+  "maxrss": 50438144,
+  "stats": {
+    "main_ms": 1393.652,
+    "alloc_bytes": 98442496,
+    "gc0": 22,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 38.303,
+    "jit_ms": 845.064,
+    "jit_methods": 589,
+    "heap_bytes": 6808480
+  }
+}

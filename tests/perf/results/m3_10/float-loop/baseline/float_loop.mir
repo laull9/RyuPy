@@ -1,0 +1,2842 @@
+fn accumulate(_0: dyn) -> dyn {
+    let _0: dyn; // values
+    let _1: dyn; // outer
+    let _2: dyn; // total
+    let _3: dyn; // index
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: bool;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: i64;
+    let _24: i64;
+    let _25: i64;
+    let _26: i64;
+    let _27: i64;
+    let _28: bool;
+    let _29: bool;
+    let _30: bool;
+    let _31: bool;
+    let _32: bool;
+    let _33: bool;
+    let _34: bool;
+    let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: f64;
+    let _43: dyn;
+    let _44: f64;
+    let _45: dyn;
+    let _46: f64;
+    let _47: f64;
+    let _48: f64;
+    let _49: bool;
+    let _50: bool;
+    let _51: bool;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "float_loop.py", const "accumulate");
+        // line 8
+        _5 = box<I64>(const 0_i64);
+        _6 = box<I64>(const 1_i64);
+        _7 = unbox<I64>(_5);
+        _8 = unbox<I64>(_6);
+        _9 = _7;
+        _10 = _8;
+        _11 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _12 = Gt(_11, const 0_i64);
+        _13 = Lt(_9, _10);
+        _14 = Gt(_9, _10);
+        _15 = BitAnd(_12, _13);
+        _16 = Not(_12);
+        _17 = BitAnd(_16, _14);
+        _18 = BitOr(_15, _17);
+        branch _18 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        // line 9
+        _20 = box<F64>(const 0_f64);
+        _2 = _20;
+        // line 10
+        _21 = box<I64>(const 0_i64);
+        _22 = RuntimeFn::DynBuiltin(const "len", [_0], [], []);
+        _23 = unbox<I64>(_21);
+        _24 = unbox<I64>(_22);
+        _25 = _23;
+        _26 = _24;
+        _27 = const 1_i64;
+        goto -> bb6;
+    }
+    bb3: {
+        _9 = Add(_9, _11);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 12
+        _40 = _2;
+        goto -> bb12;
+    }
+    bb6: {
+        _28 = Gt(_27, const 0_i64);
+        _29 = Lt(_25, _26);
+        _30 = Gt(_25, _26);
+        _31 = BitAnd(_28, _29);
+        _32 = Not(_28);
+        _33 = BitAnd(_32, _30);
+        _34 = BitOr(_31, _33);
+        branch _34 -> [then: bb7, else: bb3];
+    }
+    bb7: {
+        _35 = box<I64>(_25);
+        _3 = _35;
+        // line 11
+        _36 = RuntimeFn::GetItem(_0, _3);
+        _37 = box<F64>(const 1_f64);
+        _41 = _36;
+        _43 = _37;
+        _45 = _2;
+        goto -> bb18;
+    }
+    bb8: {
+        _25 = Add(_25, _27);
+        goto -> bb6;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        unreachable;
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        RuntimeFn::TracePopTo(_4);
+        return _40;
+    }
+    bb13: {
+        _2 = _39;
+        goto -> bb8;
+    }
+    bb14: {
+        _38 = dyn.Mul(_36, _37);
+        _39 = dyn.Add.inplace(_2, _38);
+        goto -> bb13;
+    }
+    bb15: {
+        _42 = unbox_exact_f64(_41);
+        _44 = unbox_exact_f64(_43);
+        _46 = unbox_exact_f64(_45);
+        _47 = Mul(_42, _44);
+        _48 = Add(_46, _47);
+        _39 = box<F64>(_48);
+        goto -> bb13;
+    }
+    bb16: {
+        _49 = is_boxed_f64(_45);
+        branch _49 -> [then: bb15, else: bb14];
+    }
+    bb17: {
+        _50 = is_boxed_f64(_43);
+        branch _50 -> [then: bb16, else: bb14];
+    }
+    bb18: {
+        _51 = is_boxed_f64(_41);
+        branch _51 -> [then: bb17, else: bb14];
+    }
+}
+
+fn repeated(_0: dyn) -> dyn {
+    let _0: dyn; // rows
+    let _1: dyn; // results
+    let _2: dyn; // row_index
+    let _3: dyn; // values
+    let _4: dyn; // total
+    let _5: dyn; // index
+    let _6: i64;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: i64;
+    let _11: i64;
+    let _12: i64;
+    let _13: i64;
+    let _14: i64;
+    let _15: bool;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
+    let _19: bool;
+    let _20: bool;
+    let _21: bool;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: i64;
+    let _28: i64;
+    let _29: i64;
+    let _30: i64;
+    let _31: i64;
+    let _32: bool;
+    let _33: bool;
+    let _34: bool;
+    let _35: bool;
+    let _36: bool;
+    let _37: bool;
+    let _38: bool;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
+    let _47: f64;
+    let _48: dyn;
+    let _49: f64;
+    let _50: dyn;
+    let _51: f64;
+    let _52: f64;
+    let _53: f64;
+    let _54: bool;
+    let _55: bool;
+    let _56: bool;
+
+    bb0: {
+        _6 = RuntimeFn::TracePush(const "float_loop.py", const "repeated");
+        // line 16
+        _7 = MakeList([]);
+        _1 = _7;
+        // line 17
+        _8 = box<I64>(const 0_i64);
+        _9 = RuntimeFn::DynBuiltin(const "len", [_0], [], []);
+        _10 = unbox<I64>(_8);
+        _11 = unbox<I64>(_9);
+        _12 = _10;
+        _13 = _11;
+        _14 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _15 = Gt(_14, const 0_i64);
+        _16 = Lt(_12, _13);
+        _17 = Gt(_12, _13);
+        _18 = BitAnd(_15, _16);
+        _19 = Not(_15);
+        _20 = BitAnd(_19, _17);
+        _21 = BitOr(_18, _20);
+        branch _21 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _22 = box<I64>(_12);
+        _2 = _22;
+        // line 18
+        _23 = RuntimeFn::GetItem(_0, _2);
+        _3 = _23;
+        // line 19
+        _24 = box<F64>(const 0_f64);
+        _4 = _24;
+        // line 20
+        _25 = box<I64>(const 0_i64);
+        _26 = RuntimeFn::DynBuiltin(const "len", [_3], [], []);
+        _27 = unbox<I64>(_25);
+        _28 = unbox<I64>(_26);
+        _29 = _27;
+        _30 = _28;
+        _31 = const 1_i64;
+        goto -> bb6;
+    }
+    bb3: {
+        _12 = Add(_12, _14);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 23
+        _45 = _1;
+        goto -> bb12;
+    }
+    bb6: {
+        _32 = Gt(_31, const 0_i64);
+        _33 = Lt(_29, _30);
+        _34 = Gt(_29, _30);
+        _35 = BitAnd(_32, _33);
+        _36 = Not(_32);
+        _37 = BitAnd(_36, _34);
+        _38 = BitOr(_35, _37);
+        branch _38 -> [then: bb7, else: bb10];
+    }
+    bb7: {
+        _39 = box<I64>(_29);
+        _5 = _39;
+        // line 21
+        _40 = RuntimeFn::GetItem(_3, _5);
+        _41 = box<F64>(const 1_f64);
+        _46 = _40;
+        _48 = _41;
+        _50 = _4;
+        goto -> bb18;
+    }
+    bb8: {
+        _29 = Add(_29, _31);
+        goto -> bb6;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        // line 22
+        _44 = dyn.method(_1, "append", [_4]);
+        goto -> bb3;
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        RuntimeFn::TracePopTo(_6);
+        return _45;
+    }
+    bb13: {
+        _4 = _43;
+        goto -> bb8;
+    }
+    bb14: {
+        _42 = dyn.Mul(_40, _41);
+        _43 = dyn.Add.inplace(_4, _42);
+        goto -> bb13;
+    }
+    bb15: {
+        _47 = unbox_exact_f64(_46);
+        _49 = unbox_exact_f64(_48);
+        _51 = unbox_exact_f64(_50);
+        _52 = Mul(_47, _49);
+        _53 = Add(_51, _52);
+        _43 = box<F64>(_53);
+        goto -> bb13;
+    }
+    bb16: {
+        _54 = is_boxed_f64(_50);
+        branch _54 -> [then: bb15, else: bb14];
+    }
+    bb17: {
+        _55 = is_boxed_f64(_48);
+        branch _55 -> [then: bb16, else: bb14];
+    }
+    bb18: {
+        _56 = is_boxed_f64(_46);
+        branch _56 -> [then: bb17, else: bb14];
+    }
+}
+
+fn __init__(_0: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "float_loop.py", const "__init__");
+        // line 28
+        _2 = box<I64>(const 0_i64);
+        RuntimeFn::SetAttr(_0, const "calls", _2);
+        _3 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_1);
+        return _3;
+    }
+}
+
+fn __mul__(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // other
+    let _2: dyn; // __aug$2
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "float_loop.py", const "__mul__");
+        // line 31
+        _4 = box<Bool>(const true);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 31
+        _2 = _0;
+        // line 31
+        _6 = RuntimeFn::DynGetAttr(_2, const "calls");
+        _7 = box<I64>(const 1_i64);
+        _8 = dyn.Add.inplace(_6, _7);
+        RuntimeFn::SetAttr(_2, const "calls", _8);
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 32
+        _9 = _0;
+        goto -> bb5;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_3);
+        return _9;
+    }
+}
+
+fn __init__(_0: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "float_loop.py", const "__init__");
+        // line 37
+        _2 = box<F64>(const 0_f64);
+        RuntimeFn::SetAttr(_0, const "total", _2);
+        // line 38
+        _3 = box<I64>(const 0_i64);
+        RuntimeFn::SetAttr(_0, const "calls", _3);
+        _4 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_1);
+        return _4;
+    }
+}
+
+fn __iadd__(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // other
+    let _2: dyn; // __aug$2
+    let _3: dyn; // __aug$3
+    let _4: i64;
+    let _5: dyn;
+    let _6: bool;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: bool;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: bool;
+    let _16: dyn;
+    let _17: dyn;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "float_loop.py", const "__iadd__");
+        // line 41
+        _5 = box<Bool>(const true);
+        _6 = RuntimeFn::DynTruthy(_5);
+        branch _6 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 41
+        _2 = _0;
+        // line 41
+        _7 = RuntimeFn::DynGetAttr(_2, const "calls");
+        _8 = box<I64>(const 1_i64);
+        _9 = dyn.Add.inplace(_7, _8);
+        RuntimeFn::SetAttr(_2, const "calls", _9);
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 42
+        _10 = RuntimeFn::DynBuiltin(const "isinstance", [_1, global@0], [], []);
+        _11 = RuntimeFn::DynTruthy(_10);
+        branch _11 -> [then: bb4, else: bb6];
+    }
+    bb4: {
+        // line 43
+        _13 = RuntimeFn::LoadName(global@10, const "shared");
+        _12 = _13;
+        goto -> bb12;
+    }
+    bb5: {
+        unreachable;
+    }
+    bb6: {
+        // line 44
+        _14 = box<Bool>(const true);
+        _15 = RuntimeFn::DynTruthy(_14);
+        branch _15 -> [then: bb8, else: bb10];
+    }
+    bb7: {
+        unreachable;
+    }
+    bb8: {
+        // line 44
+        _3 = _0;
+        // line 44
+        _16 = RuntimeFn::DynGetAttr(_3, const "total");
+        _17 = dyn.Add.inplace(_16, _1);
+        RuntimeFn::SetAttr(_3, const "total", _17);
+        goto -> bb10;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        // line 45
+        _12 = _0;
+        goto -> bb12;
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        RuntimeFn::TracePopTo(_4);
+        return _12;
+    }
+}
+
+fn __init__(_0: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "float_loop.py", const "__init__");
+        // line 50
+        _2 = box<I64>(const 0_i64);
+        RuntimeFn::SetAttr(_0, const "mul_calls", _2);
+        // line 51
+        _3 = box<I64>(const 0_i64);
+        RuntimeFn::SetAttr(_0, const "add_calls", _3);
+        // line 52
+        _4 = RuntimeFn::DynNone();
+        RuntimeFn::SetAttr(_0, const "last_left", _4);
+        _5 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_1);
+        return _5;
+    }
+}
+
+fn __mul__(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // other
+    let _2: dyn; // __aug$2
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "float_loop.py", const "__mul__");
+        // line 55
+        _4 = box<Bool>(const true);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 55
+        _2 = _0;
+        // line 55
+        _6 = RuntimeFn::DynGetAttr(_2, const "mul_calls");
+        _7 = box<I64>(const 1_i64);
+        _8 = dyn.Add.inplace(_6, _7);
+        RuntimeFn::SetAttr(_2, const "mul_calls", _8);
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 56
+        _9 = _0;
+        goto -> bb5;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_3);
+        return _9;
+    }
+}
+
+fn __radd__(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // left
+    let _2: dyn; // __aug$2
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "float_loop.py", const "__radd__");
+        // line 59
+        _4 = box<Bool>(const true);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 59
+        _2 = _0;
+        // line 59
+        _6 = RuntimeFn::DynGetAttr(_2, const "add_calls");
+        _7 = box<I64>(const 1_i64);
+        _8 = dyn.Add.inplace(_6, _7);
+        RuntimeFn::SetAttr(_2, const "add_calls", _8);
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 60
+        RuntimeFn::SetAttr(_0, const "last_left", _1);
+        // line 61
+        _9 = box<F64>(const 1_f64);
+        _10 = dyn.Add(_1, _9);
+        _11 = RuntimeFn::LoadName(global@11, const "bucket");
+        RuntimeFn::SetAttr(_11, const "total", _10);
+        // line 62
+        _13 = RuntimeFn::LoadName(global@11, const "bucket");
+        _12 = _13;
+        goto -> bb5;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_3);
+        return _12;
+    }
+}
+
+fn __init__(_0: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "float_loop.py", const "__init__");
+        // line 67
+        _2 = box<I64>(const 0_i64);
+        RuntimeFn::SetAttr(_0, const "mul_calls", _2);
+        // line 68
+        _3 = box<I64>(const 0_i64);
+        RuntimeFn::SetAttr(_0, const "add_calls", _3);
+        // line 69
+        _4 = RuntimeFn::DynNone();
+        RuntimeFn::SetAttr(_0, const "last_left", _4);
+        _5 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_1);
+        return _5;
+    }
+}
+
+fn __mul__(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // other
+    let _2: dyn; // __aug$2
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "float_loop.py", const "__mul__");
+        // line 72
+        _4 = box<Bool>(const true);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 72
+        _2 = _0;
+        // line 72
+        _6 = RuntimeFn::DynGetAttr(_2, const "mul_calls");
+        _7 = box<I64>(const 1_i64);
+        _8 = dyn.Add.inplace(_6, _7);
+        RuntimeFn::SetAttr(_2, const "mul_calls", _8);
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 73
+        _9 = _0;
+        goto -> bb5;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_3);
+        return _9;
+    }
+}
+
+fn __radd__(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // left
+    let _2: dyn; // __aug$2
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "float_loop.py", const "__radd__");
+        // line 76
+        _4 = box<Bool>(const true);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 76
+        _2 = _0;
+        // line 76
+        _6 = RuntimeFn::DynGetAttr(_2, const "add_calls");
+        _7 = box<I64>(const 1_i64);
+        _8 = dyn.Add.inplace(_6, _7);
+        RuntimeFn::SetAttr(_2, const "add_calls", _8);
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 77
+        RuntimeFn::SetAttr(_0, const "last_left", _1);
+        // line 78
+        _10 = RuntimeFn::LoadName(global@10, const "shared");
+        _9 = _10;
+        goto -> bb5;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_3);
+        return _9;
+    }
+}
+
+fn reset() -> dyn {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "float_loop.py", const "reset");
+        // line 107
+        _1 = box<F64>(const 0_f64);
+        _2 = RuntimeFn::LoadName(global@11, const "bucket");
+        RuntimeFn::SetAttr(_2, const "total", _1);
+        // line 108
+        _3 = box<I64>(const 0_i64);
+        _4 = RuntimeFn::LoadName(global@11, const "bucket");
+        RuntimeFn::SetAttr(_4, const "calls", _3);
+        // line 109
+        _5 = box<I64>(const 0_i64);
+        _6 = RuntimeFn::LoadName(global@12, const "token");
+        RuntimeFn::SetAttr(_6, const "mul_calls", _5);
+        // line 110
+        _7 = box<I64>(const 0_i64);
+        _8 = RuntimeFn::LoadName(global@12, const "token");
+        RuntimeFn::SetAttr(_8, const "add_calls", _7);
+        // line 111
+        _9 = RuntimeFn::DynNone();
+        _10 = RuntimeFn::LoadName(global@12, const "token");
+        RuntimeFn::SetAttr(_10, const "last_left", _9);
+        // line 112
+        _11 = box<I64>(const 0_i64);
+        _12 = RuntimeFn::LoadName(global@13, const "shared_token");
+        RuntimeFn::SetAttr(_12, const "mul_calls", _11);
+        // line 113
+        _13 = box<I64>(const 0_i64);
+        _14 = RuntimeFn::LoadName(global@13, const "shared_token");
+        RuntimeFn::SetAttr(_14, const "add_calls", _13);
+        // line 114
+        _15 = RuntimeFn::DynNone();
+        _16 = RuntimeFn::LoadName(global@13, const "shared_token");
+        RuntimeFn::SetAttr(_16, const "last_left", _15);
+        // line 115
+        _17 = box<I64>(const 0_i64);
+        _18 = RuntimeFn::LoadName(global@14, const "release");
+        RuntimeFn::SetAttr(_18, const "calls", _17);
+        _19 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return _19;
+    }
+}
+
+fn run(_0: dyn) -> dyn {
+    let _0: dyn; // label
+    let _1: i64;
+    let _2: dyn;
+    let _3: bool;
+    let _4: dyn;
+    let _5: bool;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "float_loop.py", const "run");
+        // line 119
+        _2 = box<Str>(const "reentry");
+        _3 = dyn.cmp.Eq(_0, _2);
+        _4 = box<Bool>(_3);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
+    }
+    bb1: {
+        // line 120
+        _7 = RuntimeFn::LoadName(global@21, const "rows");
+        _8 = repeated(_7);
+        _6 = _8;
+        goto -> bb6;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        // line 121
+        _9 = RuntimeFn::LoadName(global@18, const "inputs");
+        _10 = RuntimeFn::GetItem(_9, _0);
+        _11 = accumulate(_10);
+        _6 = _11;
+        goto -> bb6;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        unreachable;
+    }
+    bb6: {
+        RuntimeFn::TracePopTo(_1);
+        return _6;
+    }
+}
+
+fn check(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // label
+    let _1: dyn; // result
+    let _2: dyn; // expected
+    let _3: dyn; // index
+    let _4: dyn; // position
+    let _5: i64;
+    let _6: dyn;
+    let _7: bool;
+    let _8: dyn;
+    let _9: bool;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: bool;
+    let _15: dyn;
+    let _16: bool;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: bool;
+    let _20: dyn;
+    let _21: bool;
+    let _22: bool;
+    let _23: dyn;
+    let _24: bool;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: bool;
+    let _30: dyn;
+    let _31: bool;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: bool;
+    let _35: dyn;
+    let _36: bool;
+    let _37: dyn;
+    let _38: bool;
+    let _39: dyn;
+    let _40: bool;
+    let _41: bool;
+    let _42: dyn;
+    let _43: bool;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
+    let _47: dyn;
+    let _48: bool;
+    let _49: dyn;
+    let _50: bool;
+    let _51: dyn;
+    let _52: dyn;
+    let _53: dyn;
+    let _54: bool;
+    let _55: dyn;
+    let _56: bool;
+    let _57: dyn;
+    let _58: dyn;
+    let _59: bool;
+    let _60: dyn;
+    let _61: bool;
+    let _62: bool;
+    let _63: dyn;
+    let _64: bool;
+    let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
+    let _68: dyn;
+    let _69: bool;
+    let _70: dyn;
+    let _71: bool;
+    let _72: dyn;
+    let _73: dyn;
+    let _74: dyn;
+    let _75: dyn;
+    let _76: dyn;
+    let _77: dyn;
+    let _78: dyn;
+    let _79: dyn;
+    let _80: dyn;
+    let _81: bool;
+    let _82: dyn;
+    let _83: bool;
+    let _84: bool;
+    let _85: dyn;
+    let _86: bool;
+    let _87: dyn;
+    let _88: dyn;
+    let _89: dyn;
+    let _90: dyn;
+    let _91: dyn;
+    let _92: dyn;
+    let _93: dyn;
+    let _94: dyn;
+    let _95: bool;
+    let _96: dyn;
+    let _97: bool;
+    let _98: dyn;
+    let _99: dyn;
+    let _100: dyn;
+    let _101: bool;
+    let _102: dyn;
+    let _103: bool;
+    let _104: bool;
+    let _105: dyn;
+    let _106: bool;
+    let _107: dyn;
+    let _108: dyn;
+    let _109: dyn;
+    let _110: dyn;
+    let _111: dyn;
+    let _112: dyn;
+    let _113: dyn;
+    let _114: bool;
+    let _115: dyn;
+    let _116: bool;
+    let _117: dyn;
+    let _118: dyn;
+    let _119: dyn;
+    let _120: bool;
+    let _121: dyn;
+    let _122: bool;
+    let _123: bool;
+    let _124: dyn;
+    let _125: bool;
+    let _126: dyn;
+    let _127: dyn;
+    let _128: dyn;
+    let _129: dyn;
+    let _130: bool;
+    let _131: dyn;
+    let _132: bool;
+    let _133: dyn;
+    let _134: dyn;
+    let _135: dyn;
+    let _136: dyn;
+    let _137: bool;
+    let _138: dyn;
+    let _139: bool;
+    let _140: dyn;
+    let _141: dyn;
+    let _142: bool;
+    let _143: dyn;
+    let _144: bool;
+    let _145: bool;
+    let _146: dyn;
+    let _147: bool;
+    let _148: dyn;
+    let _149: dyn;
+    let _150: dyn;
+    let _151: dyn;
+    let _152: bool;
+    let _153: bool;
+    let _154: dyn;
+    let _155: bool;
+    let _156: bool;
+    let _157: dyn;
+    let _158: bool;
+    let _159: dyn;
+    let _160: dyn;
+    let _161: dyn;
+    let _162: dyn;
+    let _163: dyn;
+    let _164: dyn;
+    let _165: dyn;
+    let _166: dyn;
+    let _167: dyn;
+    let _168: bool;
+    let _169: dyn;
+    let _170: bool;
+    let _171: dyn;
+    let _172: dyn;
+    let _173: dyn;
+    let _174: dyn;
+    let _175: dyn;
+    let _176: bool;
+    let _177: dyn;
+    let _178: bool;
+    let _179: bool;
+    let _180: dyn;
+    let _181: bool;
+    let _182: dyn;
+    let _183: dyn;
+    let _184: dyn;
+    let _185: dyn;
+    let _186: dyn;
+    let _187: dyn;
+    let _188: dyn;
+    let _189: dyn;
+    let _190: dyn;
+    let _191: bool;
+    let _192: dyn;
+    let _193: bool;
+    let _194: dyn;
+    let _195: dyn;
+    let _196: dyn;
+    let _197: dyn;
+    let _198: dyn;
+    let _199: bool;
+    let _200: dyn;
+    let _201: bool;
+    let _202: bool;
+    let _203: dyn;
+    let _204: bool;
+    let _205: dyn;
+    let _206: dyn;
+    let _207: dyn;
+    let _208: dyn;
+    let _209: dyn;
+    let _210: i64;
+    let _211: i64;
+    let _212: i64;
+    let _213: i64;
+    let _214: i64;
+    let _215: bool;
+    let _216: bool;
+    let _217: bool;
+    let _218: bool;
+    let _219: bool;
+    let _220: bool;
+    let _221: bool;
+    let _222: dyn;
+    let _223: dyn;
+    let _224: dyn;
+    let _225: dyn;
+    let _226: dyn;
+    let _227: dyn;
+    let _228: dyn;
+    let _229: bool;
+    let _230: dyn;
+    let _231: bool;
+    let _232: dyn;
+    let _233: bool;
+    let _234: dyn;
+    let _235: bool;
+    let _236: bool;
+    let _237: dyn;
+    let _238: bool;
+    let _239: dyn;
+    let _240: dyn;
+    let _241: dyn;
+    let _242: dyn;
+    let _243: dyn;
+    let _244: dyn;
+    let _245: dyn;
+    let _246: dyn;
+    let _247: dyn;
+    let _248: dyn;
+    let _249: dyn;
+    let _250: dyn;
+    let _251: bool;
+    let _252: dyn;
+    let _253: bool;
+    let _254: bool;
+    let _255: dyn;
+    let _256: bool;
+    let _257: dyn;
+    let _258: dyn;
+    let _259: dyn;
+    let _260: dyn;
+    let _261: dyn;
+    let _262: dyn;
+    let _263: dyn;
+    let _264: dyn;
+    let _265: dyn;
+    let _266: bool;
+    let _267: dyn;
+    let _268: bool;
+    let _269: bool;
+    let _270: dyn;
+    let _271: bool;
+    let _272: dyn;
+    let _273: dyn;
+    let _274: dyn;
+    let _275: dyn;
+    let _276: dyn;
+    let _277: dyn;
+    let _278: dyn;
+    let _279: bool;
+    let _280: dyn;
+    let _281: bool;
+    let _282: dyn;
+    let _283: dyn;
+    let _284: dyn;
+    let _285: bool;
+    let _286: dyn;
+    let _287: bool;
+    let _288: bool;
+    let _289: dyn;
+    let _290: bool;
+    let _291: dyn;
+    let _292: dyn;
+    let _293: dyn;
+    let _294: dyn;
+    let _295: dyn;
+    let _296: dyn;
+    let _297: dyn;
+    let _298: bool;
+    let _299: dyn;
+    let _300: bool;
+    let _301: bool;
+    let _302: dyn;
+    let _303: bool;
+    let _304: dyn;
+    let _305: dyn;
+    let _306: dyn;
+    let _307: dyn;
+    let _308: dyn;
+    let _309: dyn;
+    let _310: dyn;
+    let _311: bool;
+    let _312: dyn;
+    let _313: bool;
+    let _314: dyn;
+    let _315: dyn;
+    let _316: dyn;
+    let _317: dyn;
+    let _318: dyn;
+    let _319: dyn;
+    let _320: dyn;
+    let _321: dyn;
+    let _322: bool;
+    let _323: dyn;
+    let _324: bool;
+    let _325: bool;
+    let _326: dyn;
+    let _327: bool;
+    let _328: dyn;
+    let _329: dyn;
+    let _330: dyn;
+    let _331: dyn;
+    let _332: bool;
+    let _333: dyn;
+    let _334: dyn;
+    let _335: dyn;
+    let _336: dyn;
+    let _337: bool;
+    let _338: dyn;
+    let _339: bool;
+    let _340: dyn;
+    let _341: bool;
+    let _342: bool;
+    let _343: dyn;
+    let _344: bool;
+    let _345: dyn;
+    let _346: dyn;
+    let _347: dyn;
+    let _348: dyn;
+    let _349: dyn;
+    let _350: dyn;
+    let _351: dyn;
+    let _352: bool;
+    let _353: dyn;
+    let _354: bool;
+    let _355: dyn;
+    let _356: dyn;
+    let _357: dyn;
+    let _358: bool;
+    let _359: dyn;
+    let _360: bool;
+    let _361: bool;
+    let _362: dyn;
+    let _363: bool;
+    let _364: dyn;
+    let _365: dyn;
+    let _366: dyn;
+    let _367: dyn;
+    let _368: dyn;
+    let _369: dyn;
+    let _370: dyn;
+    let _371: bool;
+    let _372: dyn;
+    let _373: bool;
+    let _374: bool;
+    let _375: dyn;
+    let _376: bool;
+    let _377: dyn;
+    let _378: dyn;
+    let _379: dyn;
+    let _380: dyn;
+    let _381: dyn;
+
+    bb0: {
+        _5 = RuntimeFn::TracePush(const "float_loop.py", const "check");
+        // line 125
+        _6 = box<Str>(const "float");
+        _7 = dyn.cmp.Eq(_0, _6);
+        _8 = box<Bool>(_7);
+        _9 = RuntimeFn::DynTruthy(_8);
+        branch _9 -> [then: bb1, else: bb2];
+    }
+    bb1: {
+        // line 126
+        _11 = RuntimeFn::LoadName(global@9, const "count");
+        _12 = box<F64>(const 0.25_f64);
+        _13 = dyn.Mul(_11, _12);
+        _14 = dyn.cmp.Eq(_1, _13);
+        _15 = box<Bool>(_14);
+        _10 = _15;
+        _16 = RuntimeFn::DynTruthy(_10);
+        branch _16 -> [then: bb4, else: bb5];
+    }
+    bb2: {
+        // line 127
+        _28 = box<Str>(const "empty");
+        _29 = dyn.cmp.Eq(_0, _28);
+        _30 = box<Bool>(_29);
+        _31 = RuntimeFn::DynTruthy(_30);
+        branch _31 -> [then: bb9, else: bb10];
+    }
+    bb3: {
+        // line 155
+        _381 = box<Bool>(const true);
+        _380 = _381;
+        goto -> bb105;
+    }
+    bb4: {
+        _17 = RuntimeFn::DynType(_1);
+        _18 = RuntimeFn::TypeObject(const "float");
+        _19 = RuntimeFn::IsSame(_17, _18);
+        _20 = box<Bool>(_19);
+        _10 = _20;
+        goto -> bb5;
+    }
+    bb5: {
+        _21 = RuntimeFn::DynTruthy(_10);
+        _22 = Not(_21);
+        _23 = box<Bool>(_22);
+        _24 = RuntimeFn::DynTruthy(_23);
+        branch _24 -> [then: bb6, else: bb3];
+    }
+    bb6: {
+        // line 126
+        _25 = RuntimeFn::DynNone();
+        _26 = RuntimeFn::MakeException(const "AssertionError", _25);
+        _27 = RuntimeFn::RaisePrepare(_26);
+        raise _27;
+    }
+    bb7: {
+        unreachable;
+    }
+    bb8: {
+        unreachable;
+    }
+    bb9: {
+        // line 128
+        _33 = RuntimeFn::LoadName(global@15, const "zero_reference");
+        _34 = RuntimeFn::IsSame(_1, _33);
+        _35 = box<Bool>(_34);
+        _32 = _35;
+        _36 = RuntimeFn::DynTruthy(_32);
+        branch _36 -> [then: bb12, else: bb13];
+    }
+    bb10: {
+        // line 129
+        _47 = box<Str>(const "bool");
+        _48 = dyn.cmp.Eq(_0, _47);
+        _49 = box<Bool>(_48);
+        _50 = RuntimeFn::DynTruthy(_49);
+        branch _50 -> [then: bb17, else: bb18];
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        _37 = box<F64>(const 0_f64);
+        _38 = dyn.cmp.Eq(_1, _37);
+        _39 = box<Bool>(_38);
+        _32 = _39;
+        goto -> bb13;
+    }
+    bb13: {
+        _40 = RuntimeFn::DynTruthy(_32);
+        _41 = Not(_40);
+        _42 = box<Bool>(_41);
+        _43 = RuntimeFn::DynTruthy(_42);
+        branch _43 -> [then: bb14, else: bb3];
+    }
+    bb14: {
+        // line 128
+        _44 = RuntimeFn::DynNone();
+        _45 = RuntimeFn::MakeException(const "AssertionError", _44);
+        _46 = RuntimeFn::RaisePrepare(_45);
+        raise _46;
+    }
+    bb15: {
+        unreachable;
+    }
+    bb16: {
+        unreachable;
+    }
+    bb17: {
+        // line 130
+        _52 = RuntimeFn::LoadName(global@9, const "count");
+        _53 = RuntimeFn::DynToFloat(_52);
+        _54 = dyn.cmp.Eq(_1, _53);
+        _55 = box<Bool>(_54);
+        _51 = _55;
+        _56 = RuntimeFn::DynTruthy(_51);
+        branch _56 -> [then: bb20, else: bb21];
+    }
+    bb18: {
+        // line 131
+        _68 = box<Str>(const "reentry");
+        _69 = dyn.cmp.Eq(_0, _68);
+        _70 = box<Bool>(_69);
+        _71 = RuntimeFn::DynTruthy(_70);
+        branch _71 -> [then: bb25, else: bb26];
+    }
+    bb19: {
+        unreachable;
+    }
+    bb20: {
+        _57 = RuntimeFn::DynType(_1);
+        _58 = RuntimeFn::TypeObject(const "float");
+        _59 = RuntimeFn::IsSame(_57, _58);
+        _60 = box<Bool>(_59);
+        _51 = _60;
+        goto -> bb21;
+    }
+    bb21: {
+        _61 = RuntimeFn::DynTruthy(_51);
+        _62 = Not(_61);
+        _63 = box<Bool>(_62);
+        _64 = RuntimeFn::DynTruthy(_63);
+        branch _64 -> [then: bb22, else: bb3];
+    }
+    bb22: {
+        // line 130
+        _65 = RuntimeFn::DynNone();
+        _66 = RuntimeFn::MakeException(const "AssertionError", _65);
+        _67 = RuntimeFn::RaisePrepare(_66);
+        raise _67;
+    }
+    bb23: {
+        unreachable;
+    }
+    bb24: {
+        unreachable;
+    }
+    bb25: {
+        // line 132
+        _72 = RuntimeFn::LoadName(global@9, const "count");
+        _73 = box<I64>(const 3_i64);
+        _74 = dyn.FloorDiv(_72, _73);
+        _75 = box<F64>(const 0.25_f64);
+        _76 = dyn.Mul(_74, _75);
+        _2 = _76;
+        // line 133
+        _77 = box<F64>(const 0_f64);
+        _78 = RuntimeFn::LoadName(global@10, const "shared");
+        _79 = box<F64>(const 0_f64);
+        _80 = MakeList([_2, _77, _78, _2, _79, _2]);
+        _81 = dyn.cmp.Eq(_1, _80);
+        _82 = box<Bool>(_81);
+        _83 = RuntimeFn::DynTruthy(_82);
+        _84 = Not(_83);
+        _85 = box<Bool>(_84);
+        _86 = RuntimeFn::DynTruthy(_85);
+        branch _86 -> [then: bb28, else: bb30];
+    }
+    bb26: {
+        // line 136
+        _129 = box<Str>(const "mixed_restore");
+        _130 = dyn.cmp.Eq(_0, _129);
+        _131 = box<Bool>(_130);
+        _132 = RuntimeFn::DynTruthy(_131);
+        branch _132 -> [then: bb41, else: bb42];
+    }
+    bb27: {
+        unreachable;
+    }
+    bb28: {
+        // line 133
+        _87 = RuntimeFn::DynNone();
+        _88 = RuntimeFn::MakeException(const "AssertionError", _87);
+        _89 = RuntimeFn::RaisePrepare(_88);
+        raise _89;
+    }
+    bb29: {
+        unreachable;
+    }
+    bb30: {
+        // line 134
+        _91 = box<I64>(const 1_i64);
+        _92 = RuntimeFn::GetItem(_1, _91);
+        _93 = box<I64>(const 4_i64);
+        _94 = RuntimeFn::GetItem(_1, _93);
+        _95 = RuntimeFn::IsSame(_92, _94);
+        _96 = box<Bool>(_95);
+        _90 = _96;
+        _97 = RuntimeFn::DynTruthy(_90);
+        branch _97 -> [then: bb31, else: bb32];
+    }
+    bb31: {
+        _98 = box<I64>(const 2_i64);
+        _99 = RuntimeFn::GetItem(_1, _98);
+        _100 = RuntimeFn::LoadName(global@10, const "shared");
+        _101 = RuntimeFn::IsSame(_99, _100);
+        _102 = box<Bool>(_101);
+        _90 = _102;
+        goto -> bb32;
+    }
+    bb32: {
+        _103 = RuntimeFn::DynTruthy(_90);
+        _104 = Not(_103);
+        _105 = box<Bool>(_104);
+        _106 = RuntimeFn::DynTruthy(_105);
+        branch _106 -> [then: bb33, else: bb35];
+    }
+    bb33: {
+        // line 134
+        _107 = RuntimeFn::DynNone();
+        _108 = RuntimeFn::MakeException(const "AssertionError", _107);
+        _109 = RuntimeFn::RaisePrepare(_108);
+        raise _109;
+    }
+    bb34: {
+        unreachable;
+    }
+    bb35: {
+        // line 135
+        _111 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _112 = RuntimeFn::DynGetAttr(_111, const "mul_calls");
+        _113 = box<I64>(const 1_i64);
+        _114 = dyn.cmp.Eq(_112, _113);
+        _115 = box<Bool>(_114);
+        _110 = _115;
+        _116 = RuntimeFn::DynTruthy(_110);
+        branch _116 -> [then: bb36, else: bb37];
+    }
+    bb36: {
+        _117 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _118 = RuntimeFn::DynGetAttr(_117, const "add_calls");
+        _119 = box<I64>(const 1_i64);
+        _120 = dyn.cmp.Eq(_118, _119);
+        _121 = box<Bool>(_120);
+        _110 = _121;
+        goto -> bb37;
+    }
+    bb37: {
+        _122 = RuntimeFn::DynTruthy(_110);
+        _123 = Not(_122);
+        _124 = box<Bool>(_123);
+        _125 = RuntimeFn::DynTruthy(_124);
+        branch _125 -> [then: bb38, else: bb3];
+    }
+    bb38: {
+        // line 135
+        _126 = RuntimeFn::DynNone();
+        _127 = RuntimeFn::MakeException(const "AssertionError", _126);
+        _128 = RuntimeFn::RaisePrepare(_127);
+        raise _128;
+    }
+    bb39: {
+        unreachable;
+    }
+    bb40: {
+        unreachable;
+    }
+    bb41: {
+        // line 137
+        _134 = RuntimeFn::LoadName(global@10, const "shared");
+        _135 = box<F64>(const 0.25_f64);
+        _136 = dyn.Add(_134, _135);
+        _137 = dyn.cmp.Eq(_1, _136);
+        _138 = box<Bool>(_137);
+        _133 = _138;
+        _139 = RuntimeFn::DynTruthy(_133);
+        branch _139 -> [then: bb44, else: bb45];
+    }
+    bb42: {
+        // line 142
+        _208 = box<I64>(const 0_i64);
+        _209 = box<I64>(const 3_i64);
+        _210 = unbox<I64>(_208);
+        _211 = unbox<I64>(_209);
+        _212 = _210;
+        _213 = _211;
+        _214 = const 1_i64;
+        goto -> bb62;
+    }
+    bb43: {
+        unreachable;
+    }
+    bb44: {
+        _140 = RuntimeFn::DynType(_1);
+        _141 = RuntimeFn::TypeObject(const "float");
+        _142 = RuntimeFn::IsSame(_140, _141);
+        _143 = box<Bool>(_142);
+        _133 = _143;
+        goto -> bb45;
+    }
+    bb45: {
+        _144 = RuntimeFn::DynTruthy(_133);
+        _145 = Not(_144);
+        _146 = box<Bool>(_145);
+        _147 = RuntimeFn::DynTruthy(_146);
+        branch _147 -> [then: bb46, else: bb48];
+    }
+    bb46: {
+        // line 137
+        _148 = RuntimeFn::DynNone();
+        _149 = RuntimeFn::MakeException(const "AssertionError", _148);
+        _150 = RuntimeFn::RaisePrepare(_149);
+        raise _150;
+    }
+    bb47: {
+        unreachable;
+    }
+    bb48: {
+        // line 138
+        _151 = RuntimeFn::LoadName(global@10, const "shared");
+        _152 = RuntimeFn::IsSame(_1, _151);
+        _153 = Not(_152);
+        _154 = box<Bool>(_153);
+        _155 = RuntimeFn::DynTruthy(_154);
+        _156 = Not(_155);
+        _157 = box<Bool>(_156);
+        _158 = RuntimeFn::DynTruthy(_157);
+        branch _158 -> [then: bb49, else: bb51];
+    }
+    bb49: {
+        // line 138
+        _159 = RuntimeFn::DynNone();
+        _160 = RuntimeFn::MakeException(const "AssertionError", _159);
+        _161 = RuntimeFn::RaisePrepare(_160);
+        raise _161;
+    }
+    bb50: {
+        unreachable;
+    }
+    bb51: {
+        // line 139
+        _163 = RuntimeFn::LoadName(global@12, const "token");
+        _164 = RuntimeFn::DynGetAttr(_163, const "mul_calls");
+        _165 = RuntimeFn::LoadName(global@9, const "count");
+        _166 = box<I64>(const 4_i64);
+        _167 = dyn.FloorDiv(_165, _166);
+        _168 = dyn.cmp.Eq(_164, _167);
+        _169 = box<Bool>(_168);
+        _162 = _169;
+        _170 = RuntimeFn::DynTruthy(_162);
+        branch _170 -> [then: bb52, else: bb53];
+    }
+    bb52: {
+        _171 = RuntimeFn::LoadName(global@12, const "token");
+        _172 = RuntimeFn::DynGetAttr(_171, const "add_calls");
+        _173 = RuntimeFn::LoadName(global@9, const "count");
+        _174 = box<I64>(const 4_i64);
+        _175 = dyn.FloorDiv(_173, _174);
+        _176 = dyn.cmp.Eq(_172, _175);
+        _177 = box<Bool>(_176);
+        _162 = _177;
+        goto -> bb53;
+    }
+    bb53: {
+        _178 = RuntimeFn::DynTruthy(_162);
+        _179 = Not(_178);
+        _180 = box<Bool>(_179);
+        _181 = RuntimeFn::DynTruthy(_180);
+        branch _181 -> [then: bb54, else: bb56];
+    }
+    bb54: {
+        // line 139
+        _182 = RuntimeFn::DynNone();
+        _183 = RuntimeFn::MakeException(const "AssertionError", _182);
+        _184 = RuntimeFn::RaisePrepare(_183);
+        raise _184;
+    }
+    bb55: {
+        unreachable;
+    }
+    bb56: {
+        // line 140
+        _186 = RuntimeFn::LoadName(global@14, const "release");
+        _187 = RuntimeFn::DynGetAttr(_186, const "calls");
+        _188 = RuntimeFn::LoadName(global@9, const "count");
+        _189 = box<I64>(const 4_i64);
+        _190 = dyn.FloorDiv(_188, _189);
+        _191 = dyn.cmp.Eq(_187, _190);
+        _192 = box<Bool>(_191);
+        _185 = _192;
+        _193 = RuntimeFn::DynTruthy(_185);
+        branch _193 -> [then: bb57, else: bb58];
+    }
+    bb57: {
+        _194 = RuntimeFn::LoadName(global@11, const "bucket");
+        _195 = RuntimeFn::DynGetAttr(_194, const "calls");
+        _196 = RuntimeFn::LoadName(global@9, const "count");
+        _197 = box<I64>(const 2_i64);
+        _198 = dyn.FloorDiv(_196, _197);
+        _199 = dyn.cmp.Eq(_195, _198);
+        _200 = box<Bool>(_199);
+        _185 = _200;
+        goto -> bb58;
+    }
+    bb58: {
+        _201 = RuntimeFn::DynTruthy(_185);
+        _202 = Not(_201);
+        _203 = box<Bool>(_202);
+        _204 = RuntimeFn::DynTruthy(_203);
+        branch _204 -> [then: bb59, else: bb3];
+    }
+    bb59: {
+        // line 140
+        _205 = RuntimeFn::DynNone();
+        _206 = RuntimeFn::MakeException(const "AssertionError", _205);
+        _207 = RuntimeFn::RaisePrepare(_206);
+        raise _207;
+    }
+    bb60: {
+        unreachable;
+    }
+    bb61: {
+        unreachable;
+    }
+    bb62: {
+        _215 = Gt(_214, const 0_i64);
+        _216 = Lt(_212, _213);
+        _217 = Gt(_212, _213);
+        _218 = BitAnd(_215, _216);
+        _219 = Not(_215);
+        _220 = BitAnd(_219, _217);
+        _221 = BitOr(_218, _220);
+        branch _221 -> [then: bb63, else: bb3];
+    }
+    bb63: {
+        _222 = box<I64>(_212);
+        _3 = _222;
+        // line 143
+        _223 = RuntimeFn::LoadName(global@16, const "positions");
+        _224 = RuntimeFn::GetItem(_223, _3);
+        _4 = _224;
+        // line 144
+        _225 = box<Str>(const "custom_");
+        _226 = RuntimeFn::LoadName(global@17, const "labels");
+        _227 = RuntimeFn::GetItem(_226, _3);
+        _228 = dyn.Add(_225, _227);
+        _229 = dyn.cmp.Eq(_0, _228);
+        _230 = box<Bool>(_229);
+        _231 = RuntimeFn::DynTruthy(_230);
+        branch _231 -> [then: bb67, else: bb68];
+    }
+    bb64: {
+        _212 = Add(_212, _214);
+        goto -> bb62;
+    }
+    bb65: {
+        unreachable;
+    }
+    bb66: {
+        unreachable;
+    }
+    bb67: {
+        // line 145
+        _232 = RuntimeFn::LoadName(global@11, const "bucket");
+        _233 = RuntimeFn::IsSame(_1, _232);
+        _234 = box<Bool>(_233);
+        _235 = RuntimeFn::DynTruthy(_234);
+        _236 = Not(_235);
+        _237 = box<Bool>(_236);
+        _238 = RuntimeFn::DynTruthy(_237);
+        branch _238 -> [then: bb70, else: bb72];
+    }
+    bb68: {
+        // line 150
+        _307 = box<Str>(const "shared_");
+        _308 = RuntimeFn::LoadName(global@17, const "labels");
+        _309 = RuntimeFn::GetItem(_308, _3);
+        _310 = dyn.Add(_307, _309);
+        _311 = dyn.cmp.Eq(_0, _310);
+        _312 = box<Bool>(_311);
+        _313 = RuntimeFn::DynTruthy(_312);
+        branch _313 -> [then: bb87, else: bb64];
+    }
+    bb69: {
+        unreachable;
+    }
+    bb70: {
+        // line 145
+        _239 = RuntimeFn::DynNone();
+        _240 = RuntimeFn::MakeException(const "AssertionError", _239);
+        _241 = RuntimeFn::RaisePrepare(_240);
+        raise _241;
+    }
+    bb71: {
+        unreachable;
+    }
+    bb72: {
+        // line 146
+        _242 = RuntimeFn::LoadName(global@11, const "bucket");
+        _243 = RuntimeFn::DynGetAttr(_242, const "total");
+        _244 = RuntimeFn::LoadName(global@9, const "count");
+        _245 = box<I64>(const 1_i64);
+        _246 = dyn.Sub(_244, _245);
+        _247 = box<F64>(const 0.25_f64);
+        _248 = dyn.Mul(_246, _247);
+        _249 = box<F64>(const 1_f64);
+        _250 = dyn.Add(_248, _249);
+        _251 = dyn.cmp.Eq(_243, _250);
+        _252 = box<Bool>(_251);
+        _253 = RuntimeFn::DynTruthy(_252);
+        _254 = Not(_253);
+        _255 = box<Bool>(_254);
+        _256 = RuntimeFn::DynTruthy(_255);
+        branch _256 -> [then: bb73, else: bb75];
+    }
+    bb73: {
+        // line 146
+        _257 = RuntimeFn::DynNone();
+        _258 = RuntimeFn::MakeException(const "AssertionError", _257);
+        _259 = RuntimeFn::RaisePrepare(_258);
+        raise _259;
+    }
+    bb74: {
+        unreachable;
+    }
+    bb75: {
+        // line 147
+        _260 = RuntimeFn::LoadName(global@11, const "bucket");
+        _261 = RuntimeFn::DynGetAttr(_260, const "calls");
+        _262 = RuntimeFn::LoadName(global@9, const "count");
+        _263 = dyn.Sub(_262, _4);
+        _264 = box<I64>(const 1_i64);
+        _265 = dyn.Sub(_263, _264);
+        _266 = dyn.cmp.Eq(_261, _265);
+        _267 = box<Bool>(_266);
+        _268 = RuntimeFn::DynTruthy(_267);
+        _269 = Not(_268);
+        _270 = box<Bool>(_269);
+        _271 = RuntimeFn::DynTruthy(_270);
+        branch _271 -> [then: bb76, else: bb78];
+    }
+    bb76: {
+        // line 147
+        _272 = RuntimeFn::DynNone();
+        _273 = RuntimeFn::MakeException(const "AssertionError", _272);
+        _274 = RuntimeFn::RaisePrepare(_273);
+        raise _274;
+    }
+    bb77: {
+        unreachable;
+    }
+    bb78: {
+        // line 148
+        _276 = RuntimeFn::LoadName(global@12, const "token");
+        _277 = RuntimeFn::DynGetAttr(_276, const "mul_calls");
+        _278 = box<I64>(const 1_i64);
+        _279 = dyn.cmp.Eq(_277, _278);
+        _280 = box<Bool>(_279);
+        _275 = _280;
+        _281 = RuntimeFn::DynTruthy(_275);
+        branch _281 -> [then: bb79, else: bb80];
+    }
+    bb79: {
+        _282 = RuntimeFn::LoadName(global@12, const "token");
+        _283 = RuntimeFn::DynGetAttr(_282, const "add_calls");
+        _284 = box<I64>(const 1_i64);
+        _285 = dyn.cmp.Eq(_283, _284);
+        _286 = box<Bool>(_285);
+        _275 = _286;
+        goto -> bb80;
+    }
+    bb80: {
+        _287 = RuntimeFn::DynTruthy(_275);
+        _288 = Not(_287);
+        _289 = box<Bool>(_288);
+        _290 = RuntimeFn::DynTruthy(_289);
+        branch _290 -> [then: bb81, else: bb83];
+    }
+    bb81: {
+        // line 148
+        _291 = RuntimeFn::DynNone();
+        _292 = RuntimeFn::MakeException(const "AssertionError", _291);
+        _293 = RuntimeFn::RaisePrepare(_292);
+        raise _293;
+    }
+    bb82: {
+        unreachable;
+    }
+    bb83: {
+        // line 149
+        _294 = RuntimeFn::LoadName(global@12, const "token");
+        _295 = RuntimeFn::DynGetAttr(_294, const "last_left");
+        _296 = box<F64>(const 0.25_f64);
+        _297 = dyn.Mul(_4, _296);
+        _298 = dyn.cmp.Eq(_295, _297);
+        _299 = box<Bool>(_298);
+        _300 = RuntimeFn::DynTruthy(_299);
+        _301 = Not(_300);
+        _302 = box<Bool>(_301);
+        _303 = RuntimeFn::DynTruthy(_302);
+        branch _303 -> [then: bb84, else: bb64];
+    }
+    bb84: {
+        // line 149
+        _304 = RuntimeFn::DynNone();
+        _305 = RuntimeFn::MakeException(const "AssertionError", _304);
+        _306 = RuntimeFn::RaisePrepare(_305);
+        raise _306;
+    }
+    bb85: {
+        unreachable;
+    }
+    bb86: {
+        unreachable;
+    }
+    bb87: {
+        // line 151
+        _314 = RuntimeFn::LoadName(global@10, const "shared");
+        _315 = RuntimeFn::LoadName(global@9, const "count");
+        _316 = dyn.Sub(_315, _4);
+        _317 = box<I64>(const 1_i64);
+        _318 = dyn.Sub(_316, _317);
+        _319 = box<F64>(const 0.25_f64);
+        _320 = dyn.Mul(_318, _319);
+        _321 = dyn.Add(_314, _320);
+        _322 = dyn.cmp.Eq(_1, _321);
+        _323 = box<Bool>(_322);
+        _324 = RuntimeFn::DynTruthy(_323);
+        _325 = Not(_324);
+        _326 = box<Bool>(_325);
+        _327 = RuntimeFn::DynTruthy(_326);
+        branch _327 -> [then: bb90, else: bb92];
+    }
+    bb88: {
+        unreachable;
+    }
+    bb89: {
+        unreachable;
+    }
+    bb90: {
+        // line 151
+        _328 = RuntimeFn::DynNone();
+        _329 = RuntimeFn::MakeException(const "AssertionError", _328);
+        _330 = RuntimeFn::RaisePrepare(_329);
+        raise _330;
+    }
+    bb91: {
+        unreachable;
+    }
+    bb92: {
+        // line 152
+        _331 = RuntimeFn::LoadName(global@10, const "shared");
+        _332 = RuntimeFn::IsSame(_1, _331);
+        _333 = box<Bool>(_332);
+        _334 = RuntimeFn::LoadName(global@9, const "count");
+        _335 = box<I64>(const 1_i64);
+        _336 = dyn.Sub(_334, _335);
+        _337 = dyn.cmp.Eq(_4, _336);
+        _338 = box<Bool>(_337);
+        _339 = dyn.cmp.Eq(_333, _338);
+        _340 = box<Bool>(_339);
+        _341 = RuntimeFn::DynTruthy(_340);
+        _342 = Not(_341);
+        _343 = box<Bool>(_342);
+        _344 = RuntimeFn::DynTruthy(_343);
+        branch _344 -> [then: bb93, else: bb95];
+    }
+    bb93: {
+        // line 152
+        _345 = RuntimeFn::DynNone();
+        _346 = RuntimeFn::MakeException(const "AssertionError", _345);
+        _347 = RuntimeFn::RaisePrepare(_346);
+        raise _347;
+    }
+    bb94: {
+        unreachable;
+    }
+    bb95: {
+        // line 153
+        _349 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _350 = RuntimeFn::DynGetAttr(_349, const "mul_calls");
+        _351 = box<I64>(const 1_i64);
+        _352 = dyn.cmp.Eq(_350, _351);
+        _353 = box<Bool>(_352);
+        _348 = _353;
+        _354 = RuntimeFn::DynTruthy(_348);
+        branch _354 -> [then: bb96, else: bb97];
+    }
+    bb96: {
+        _355 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _356 = RuntimeFn::DynGetAttr(_355, const "add_calls");
+        _357 = box<I64>(const 1_i64);
+        _358 = dyn.cmp.Eq(_356, _357);
+        _359 = box<Bool>(_358);
+        _348 = _359;
+        goto -> bb97;
+    }
+    bb97: {
+        _360 = RuntimeFn::DynTruthy(_348);
+        _361 = Not(_360);
+        _362 = box<Bool>(_361);
+        _363 = RuntimeFn::DynTruthy(_362);
+        branch _363 -> [then: bb98, else: bb100];
+    }
+    bb98: {
+        // line 153
+        _364 = RuntimeFn::DynNone();
+        _365 = RuntimeFn::MakeException(const "AssertionError", _364);
+        _366 = RuntimeFn::RaisePrepare(_365);
+        raise _366;
+    }
+    bb99: {
+        unreachable;
+    }
+    bb100: {
+        // line 154
+        _367 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _368 = RuntimeFn::DynGetAttr(_367, const "last_left");
+        _369 = box<F64>(const 0.25_f64);
+        _370 = dyn.Mul(_4, _369);
+        _371 = dyn.cmp.Eq(_368, _370);
+        _372 = box<Bool>(_371);
+        _373 = RuntimeFn::DynTruthy(_372);
+        _374 = Not(_373);
+        _375 = box<Bool>(_374);
+        _376 = RuntimeFn::DynTruthy(_375);
+        branch _376 -> [then: bb101, else: bb64];
+    }
+    bb101: {
+        // line 154
+        _377 = RuntimeFn::DynNone();
+        _378 = RuntimeFn::MakeException(const "AssertionError", _377);
+        _379 = RuntimeFn::RaisePrepare(_378);
+        raise _379;
+    }
+    bb102: {
+        unreachable;
+    }
+    bb103: {
+        unreachable;
+    }
+    bb104: {
+        unreachable;
+    }
+    bb105: {
+        RuntimeFn::TracePopTo(_5);
+        return _380;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: bool;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: bool;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: bool;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
+    let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
+    let _47: dyn;
+    let _48: dyn;
+    let _49: dyn;
+    let _50: dyn;
+    let _51: dyn;
+    let _52: dyn;
+    let _53: dyn;
+    let _54: dyn;
+    let _55: dyn;
+    let _56: dyn;
+    let _57: dyn;
+    let _58: dyn;
+    let _59: dyn;
+    let _60: dyn;
+    let _61: dyn;
+    let _62: dyn;
+    let _63: dyn;
+    let _64: dyn;
+    let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
+    let _68: dyn;
+    let _69: i64;
+    let _70: i64;
+    let _71: i64;
+    let _72: i64;
+    let _73: i64;
+    let _74: bool;
+    let _75: bool;
+    let _76: bool;
+    let _77: bool;
+    let _78: bool;
+    let _79: bool;
+    let _80: bool;
+    let _81: dyn;
+    let _82: dyn;
+    let _83: dyn;
+    let _84: dyn;
+    let _85: dyn;
+    let _86: dyn;
+    let _87: dyn;
+    let _88: dyn;
+    let _89: dyn;
+    let _90: dyn;
+    let _91: dyn;
+    let _92: dyn;
+    let _93: dyn;
+    let _94: dyn;
+    let _95: dyn;
+    let _96: dyn;
+    let _97: dyn;
+    let _98: dyn;
+    let _99: dyn;
+    let _100: dyn;
+    let _101: dyn;
+    let _102: dyn;
+    let _103: dyn;
+    let _104: dyn;
+    let _105: dyn;
+    let _106: dyn;
+    let _107: dyn;
+    let _108: dyn;
+    let _109: dyn;
+    let _110: dyn;
+    let _111: dyn;
+    let _112: dyn;
+    let _113: dyn;
+    let _114: dyn;
+    let _115: dyn;
+    let _116: dyn;
+    let _117: dyn;
+    let _118: dyn;
+    let _119: dyn;
+    let _120: dyn;
+    let _121: dyn;
+    let _122: dyn;
+    let _123: dyn;
+    let _124: dyn;
+    let _125: dyn;
+    let _126: dyn;
+    let _127: dyn;
+    let _128: dyn;
+    let _129: dyn;
+    let _130: dyn;
+    let _131: dyn;
+    let _132: dyn;
+    let _133: dyn;
+    let _134: dyn;
+    let _135: dyn;
+    let _136: dyn;
+    let _137: dyn;
+    let _138: dyn;
+    let _139: dyn;
+    let _140: dyn;
+    let _141: dyn;
+    let _142: dyn;
+    let _143: dyn;
+    let _144: dyn;
+    let _145: dyn;
+    let _146: dyn;
+    let _147: dyn;
+    let _148: dyn;
+    let _149: dyn;
+    let _150: dyn;
+    let _151: dyn;
+    let _152: dyn;
+    let _153: dyn;
+    let _154: dyn;
+    let _155: dyn;
+    let _156: dyn;
+    let _157: dyn;
+    let _158: dyn;
+    let _159: dyn;
+    let _160: dyn;
+    let _161: bool;
+    let _162: dyn;
+    let _163: dyn;
+    let _164: dyn;
+    let _165: dyn;
+    let _166: dyn;
+    let _167: dyn;
+    let _168: bool;
+    let _169: bool;
+    let _170: dyn;
+    let _171: bool;
+    let _172: dyn;
+    let _173: dyn;
+    let _174: dyn;
+    let _175: dyn;
+    let _176: dyn;
+    let _177: dyn;
+    let _178: dyn;
+    let _179: dyn;
+    let _180: dyn;
+    let _181: bool;
+    let _182: bool;
+    let _183: dyn;
+    let _184: bool;
+    let _185: dyn;
+    let _186: bool;
+    let _187: bool;
+    let _188: dyn;
+    let _189: bool;
+    let _190: dyn;
+    let _191: dyn;
+    let _192: i64;
+    let _193: i64;
+    let _194: i64;
+    let _195: i64;
+    let _196: i64;
+    let _197: bool;
+    let _198: bool;
+    let _199: bool;
+    let _200: bool;
+    let _201: bool;
+    let _202: bool;
+    let _203: bool;
+    let _204: dyn;
+    let _205: dyn;
+    let _206: dyn;
+    let _207: dyn;
+    let _208: dyn;
+    let _209: dyn;
+    let _210: bool;
+    let _211: bool;
+    let _212: dyn;
+    let _213: bool;
+    let _214: dyn;
+    let _215: dyn;
+    let _216: dyn;
+    let _217: dyn;
+    let _218: dyn;
+    let _219: i64;
+    let _220: i64;
+    let _221: i64;
+    let _222: i64;
+    let _223: i64;
+    let _224: bool;
+    let _225: bool;
+    let _226: bool;
+    let _227: bool;
+    let _228: bool;
+    let _229: bool;
+    let _230: bool;
+    let _231: dyn;
+    let _232: dyn;
+    let _233: dyn;
+    let _234: dyn;
+    let _235: dyn;
+    let _236: dyn;
+    let _237: dyn;
+    let _238: dyn;
+    let _239: dyn;
+    let _240: dyn;
+    let _241: dyn;
+    let _242: dyn;
+    let _243: dyn;
+    let _244: bool;
+    let _245: bool;
+    let _246: dyn;
+    let _247: bool;
+    let _248: dyn;
+    let _249: dyn;
+    let _250: dyn;
+    let _251: dyn;
+    let _252: dyn;
+    let _253: dyn;
+    let _254: dyn;
+    let _255: dyn;
+
+    bb0: {
+        g4 = null;
+        g5 = null;
+        g6 = null;
+        g7 = null;
+        g8 = null;
+        g9 = null;
+        g10 = null;
+        g11 = null;
+        g12 = null;
+        g13 = null;
+        g14 = null;
+        g15 = null;
+        g16 = null;
+        g17 = null;
+        g18 = null;
+        g19 = null;
+        g20 = null;
+        g21 = null;
+        g22 = null;
+        g23 = null;
+        g24 = null;
+        g25 = null;
+        g26 = null;
+        g27 = null;
+        g28 = null;
+        g29 = null;
+        _0 = RuntimeFn::TracePush(const "float_loop.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g4 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g5 = _2;
+        // line 1
+        _3 = box<Str>(const "float_loop.py");
+        g6 = _3;
+        // line 3
+        _4 = RuntimeFn::ImportModule(const "sys");
+        g28 = _4;
+        // line 4
+        _5 = RuntimeFn::ImportModule(const "time");
+        g29 = _5;
+        // line 7
+        // line 15
+        // line 26
+        _6 = RuntimeFn::MakeClass(const "Release", [], null);
+        g0 = _6;
+        _7 = MakeFunction(__init__; env=[]; defaults=[null]);
+        RuntimeFn::SetAttr(_6, const "__init__", _7);
+        _8 = MakeFunction(__mul__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_6, const "__mul__", _8);
+        // line 35
+        _9 = RuntimeFn::MakeClass(const "Bucket", [], null);
+        g1 = _9;
+        _10 = MakeFunction(__init__; env=[]; defaults=[null]);
+        RuntimeFn::SetAttr(_9, const "__init__", _10);
+        _11 = MakeFunction(__iadd__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_9, const "__iadd__", _11);
+        // line 48
+        _12 = RuntimeFn::MakeClass(const "Token", [], null);
+        g2 = _12;
+        _13 = MakeFunction(__init__; env=[]; defaults=[null]);
+        RuntimeFn::SetAttr(_12, const "__init__", _13);
+        _14 = MakeFunction(__mul__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_12, const "__mul__", _14);
+        _15 = MakeFunction(__radd__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_12, const "__radd__", _15);
+        // line 65
+        _16 = RuntimeFn::MakeClass(const "SharedFloat", [], null);
+        g3 = _16;
+        _17 = MakeFunction(__init__; env=[]; defaults=[null]);
+        RuntimeFn::SetAttr(_16, const "__init__", _17);
+        _18 = MakeFunction(__mul__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_16, const "__mul__", _18);
+        _19 = MakeFunction(__radd__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_16, const "__radd__", _19);
+        // line 81
+        _20 = box<Str>(const "--validate");
+        _21 = RuntimeFn::LoadName(global@28, const "sys");
+        _22 = RuntimeFn::DynGetAttr(_21, const "argv");
+        _23 = RuntimeFn::Contains(_22, _20);
+        _24 = box<Bool>(_23);
+        g7 = _24;
+        // line 83
+        _25 = box<Str>(const "--diagnostic");
+        _26 = RuntimeFn::LoadName(global@28, const "sys");
+        _27 = RuntimeFn::DynGetAttr(_26, const "argv");
+        _28 = RuntimeFn::Contains(_27, _25);
+        _29 = box<Bool>(_28);
+        g8 = _29;
+        // line 84
+        _31 = RuntimeFn::LoadName(global@7, const "validate");
+        _32 = RuntimeFn::DynTruthy(_31);
+        branch _32 -> [then: bb1, else: bb2];
+    }
+    bb1: {
+        _33 = box<I64>(const 24_i64);
+        _30 = _33;
+        goto -> bb3;
+    }
+    bb2: {
+        _34 = box<I64>(const 30000_i64);
+        _30 = _34;
+        goto -> bb3;
+    }
+    bb3: {
+        g9 = _30;
+        // line 85
+        _35 = box<F64>(const 1000.25_f64);
+        g10 = _35;
+        // line 86
+        _36 = dyn.call(global@1, []);
+        g11 = _36;
+        // line 87
+        _37 = dyn.call(global@2, []);
+        g12 = _37;
+        // line 88
+        _38 = dyn.call(global@3, []);
+        g13 = _38;
+        // line 89
+        _39 = dyn.call(global@0, []);
+        g14 = _39;
+        // line 90
+        _40 = MakeList([]);
+        _41 = accumulate(_40);
+        g15 = _41;
+        // line 91
+        _42 = box<I64>(const 0_i64);
+        _43 = RuntimeFn::LoadName(global@9, const "count");
+        _44 = box<I64>(const 2_i64);
+        _45 = dyn.FloorDiv(_43, _44);
+        _46 = RuntimeFn::LoadName(global@9, const "count");
+        _47 = box<I64>(const 1_i64);
+        _48 = dyn.Sub(_46, _47);
+        _49 = MakeList([_42, _45, _48]);
+        g16 = _49;
+        // line 92
+        _50 = box<Str>(const "first");
+        _51 = box<Str>(const "middle");
+        _52 = box<Str>(const "last");
+        _53 = MakeList([_50, _51, _52]);
+        g17 = _53;
+        // line 93
+        _54 = RuntimeFn::MakeDict();
+        _55 = box<Str>(const "float");
+        _56 = box<F64>(const 0.25_f64);
+        _57 = MakeList([_56]);
+        _58 = RuntimeFn::LoadName(global@9, const "count");
+        _59 = dyn.Mul(_57, _58);
+        _60 = box<Str>(const "empty");
+        _61 = MakeList([]);
+        _62 = box<Str>(const "bool");
+        _63 = box<Bool>(const true);
+        _64 = MakeList([_63]);
+        _65 = RuntimeFn::LoadName(global@9, const "count");
+        _66 = dyn.Mul(_64, _65);
+        RuntimeFn::SetItem(_54, _55, _59);
+        RuntimeFn::SetItem(_54, _60, _61);
+        RuntimeFn::SetItem(_54, _62, _66);
+        g18 = _54;
+        // line 94
+        _67 = box<I64>(const 0_i64);
+        _68 = box<I64>(const 3_i64);
+        _69 = unbox<I64>(_67);
+        _70 = unbox<I64>(_68);
+        _71 = _69;
+        _72 = _70;
+        _73 = const 1_i64;
+        goto -> bb4;
+    }
+    bb4: {
+        _74 = Gt(_73, const 0_i64);
+        _75 = Lt(_71, _72);
+        _76 = Gt(_71, _72);
+        _77 = BitAnd(_74, _75);
+        _78 = Not(_74);
+        _79 = BitAnd(_78, _76);
+        _80 = BitOr(_77, _79);
+        branch _80 -> [then: bb5, else: bb8];
+    }
+    bb5: {
+        _81 = box<I64>(_71);
+        g19 = _81;
+        // line 95
+        _82 = box<F64>(const 0.25_f64);
+        _83 = MakeList([_82]);
+        _84 = RuntimeFn::LoadName(global@9, const "count");
+        _85 = dyn.Mul(_83, _84);
+        g20 = _85;
+        // line 96
+        _86 = RuntimeFn::LoadName(global@12, const "token");
+        _87 = RuntimeFn::LoadName(global@20, const "values");
+        _88 = RuntimeFn::LoadName(global@16, const "positions");
+        _89 = RuntimeFn::LoadName(global@19, const "index");
+        _90 = RuntimeFn::GetItem(_88, _89);
+        RuntimeFn::SetItem(_87, _90, _86);
+        // line 97
+        _91 = RuntimeFn::LoadName(global@20, const "values");
+        _92 = RuntimeFn::LoadName(global@18, const "inputs");
+        _93 = box<Str>(const "custom_");
+        _94 = RuntimeFn::LoadName(global@17, const "labels");
+        _95 = RuntimeFn::LoadName(global@19, const "index");
+        _96 = RuntimeFn::GetItem(_94, _95);
+        _97 = dyn.Add(_93, _96);
+        RuntimeFn::SetItem(_92, _97, _91);
+        // line 98
+        _98 = box<F64>(const 0.25_f64);
+        _99 = MakeList([_98]);
+        _100 = RuntimeFn::LoadName(global@9, const "count");
+        _101 = dyn.Mul(_99, _100);
+        g20 = _101;
+        // line 99
+        _102 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _103 = RuntimeFn::LoadName(global@20, const "values");
+        _104 = RuntimeFn::LoadName(global@16, const "positions");
+        _105 = RuntimeFn::LoadName(global@19, const "index");
+        _106 = RuntimeFn::GetItem(_104, _105);
+        RuntimeFn::SetItem(_103, _106, _102);
+        // line 100
+        _107 = RuntimeFn::LoadName(global@20, const "values");
+        _108 = RuntimeFn::LoadName(global@18, const "inputs");
+        _109 = box<Str>(const "shared_");
+        _110 = RuntimeFn::LoadName(global@17, const "labels");
+        _111 = RuntimeFn::LoadName(global@19, const "index");
+        _112 = RuntimeFn::GetItem(_110, _111);
+        _113 = dyn.Add(_109, _112);
+        RuntimeFn::SetItem(_108, _113, _107);
+        goto -> bb6;
+    }
+    bb6: {
+        _71 = Add(_71, _73);
+        goto -> bb4;
+    }
+    bb7: {
+        unreachable;
+    }
+    bb8: {
+        // line 101
+        _114 = RuntimeFn::LoadName(global@12, const "token");
+        _115 = box<F64>(const 0.25_f64);
+        _116 = RuntimeFn::LoadName(global@14, const "release");
+        _117 = box<F64>(const 0.25_f64);
+        _118 = MakeList([_114, _115, _116, _117]);
+        _119 = RuntimeFn::LoadName(global@9, const "count");
+        _120 = box<I64>(const 4_i64);
+        _121 = dyn.FloorDiv(_119, _120);
+        _122 = dyn.Mul(_118, _121);
+        _123 = RuntimeFn::LoadName(global@18, const "inputs");
+        _124 = box<Str>(const "mixed_restore");
+        RuntimeFn::SetItem(_123, _124, _122);
+        // line 102
+        _125 = box<F64>(const 0.25_f64);
+        _126 = MakeList([_125]);
+        _127 = RuntimeFn::LoadName(global@9, const "count");
+        _128 = box<I64>(const 3_i64);
+        _129 = dyn.FloorDiv(_127, _128);
+        _130 = dyn.Mul(_126, _129);
+        _131 = MakeList([]);
+        _132 = RuntimeFn::LoadName(global@13, const "shared_token");
+        _133 = MakeList([_132]);
+        _134 = box<F64>(const 0.25_f64);
+        _135 = MakeList([_134]);
+        _136 = RuntimeFn::LoadName(global@9, const "count");
+        _137 = box<I64>(const 3_i64);
+        _138 = dyn.FloorDiv(_136, _137);
+        _139 = dyn.Mul(_135, _138);
+        _140 = MakeList([]);
+        _141 = box<F64>(const 0.25_f64);
+        _142 = MakeList([_141]);
+        _143 = RuntimeFn::LoadName(global@9, const "count");
+        _144 = box<I64>(const 3_i64);
+        _145 = dyn.FloorDiv(_143, _144);
+        _146 = dyn.Mul(_142, _145);
+        _147 = MakeList([_130, _131, _133, _139, _140, _146]);
+        g21 = _147;
+        // line 106
+        // line 118
+        // line 124
+        // line 158
+        _148 = box<Str>(const "float");
+        _149 = box<Str>(const "empty");
+        _150 = box<Str>(const "bool");
+        _151 = box<Str>(const "reentry");
+        _152 = box<Str>(const "custom_first");
+        _153 = box<Str>(const "custom_middle");
+        _154 = box<Str>(const "custom_last");
+        _155 = box<Str>(const "shared_first");
+        _156 = box<Str>(const "shared_middle");
+        _157 = box<Str>(const "shared_last");
+        _158 = box<Str>(const "mixed_restore");
+        _159 = MakeList([_148, _149, _150, _151, _152, _153, _154, _155, _156, _157, _158]);
+        _160 = RuntimeFn::IterStart(_159);
+        goto -> bb9;
+    }
+    bb9: {
+        _161 = RuntimeFn::IterNextOk(_160);
+        branch _161 -> [then: bb10, else: bb38];
+    }
+    bb10: {
+        _162 = RuntimeFn::IterValue(_160);
+        g22 = _162;
+        // line 160
+        _163 = reset();
+        // line 161
+        _164 = RuntimeFn::LoadName(global@22, const "label");
+        _165 = RuntimeFn::LoadName(global@22, const "label");
+        _166 = run(_165);
+        _167 = check(_164, _166);
+        _168 = RuntimeFn::DynTruthy(_167);
+        _169 = Not(_168);
+        _170 = box<Bool>(_169);
+        _171 = RuntimeFn::DynTruthy(_170);
+        branch _171 -> [then: bb14, else: bb16];
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        unreachable;
+    }
+    bb13: {
+        unreachable;
+    }
+    bb14: {
+        // line 161
+        _172 = RuntimeFn::DynNone();
+        _173 = RuntimeFn::MakeException(const "AssertionError", _172);
+        _174 = RuntimeFn::RaisePrepare(_173);
+        raise _174;
+    }
+    bb15: {
+        unreachable;
+    }
+    bb16: {
+        // line 162
+        _175 = box<Str>(const "semantics");
+        _176 = RuntimeFn::LoadName(global@22, const "label");
+        _177 = box<Bool>(const true);
+        _178 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_178, _175);
+        RuntimeFn::WriteSep(_178);
+        RuntimeFn::WriteObject(_178, _176);
+        RuntimeFn::WriteSep(_178);
+        RuntimeFn::WriteObject(_178, _177);
+        RuntimeFn::WriteNewline(_178);
+        // line 163
+        _180 = RuntimeFn::LoadName(global@7, const "validate");
+        _181 = RuntimeFn::DynTruthy(_180);
+        _182 = Not(_181);
+        _183 = box<Bool>(_182);
+        _179 = _183;
+        _184 = RuntimeFn::DynTruthy(_179);
+        branch _184 -> [then: bb17, else: bb18];
+    }
+    bb17: {
+        _185 = RuntimeFn::LoadName(global@8, const "diagnostic");
+        _186 = RuntimeFn::DynTruthy(_185);
+        _187 = Not(_186);
+        _188 = box<Bool>(_187);
+        _179 = _188;
+        goto -> bb18;
+    }
+    bb18: {
+        _189 = RuntimeFn::DynTruthy(_179);
+        branch _189 -> [then: bb19, else: bb9];
+    }
+    bb19: {
+        // line 164
+        _190 = box<I64>(const 0_i64);
+        _191 = box<I64>(const 3_i64);
+        _192 = unbox<I64>(_190);
+        _193 = unbox<I64>(_191);
+        _194 = _192;
+        _195 = _193;
+        _196 = const 1_i64;
+        goto -> bb22;
+    }
+    bb20: {
+        unreachable;
+    }
+    bb21: {
+        unreachable;
+    }
+    bb22: {
+        _197 = Gt(_196, const 0_i64);
+        _198 = Lt(_194, _195);
+        _199 = Gt(_194, _195);
+        _200 = BitAnd(_197, _198);
+        _201 = Not(_197);
+        _202 = BitAnd(_201, _199);
+        _203 = BitOr(_200, _202);
+        branch _203 -> [then: bb23, else: bb26];
+    }
+    bb23: {
+        _204 = box<I64>(_194);
+        g23 = _204;
+        // line 165
+        _205 = reset();
+        // line 166
+        _206 = RuntimeFn::LoadName(global@22, const "label");
+        _207 = RuntimeFn::LoadName(global@22, const "label");
+        _208 = run(_207);
+        _209 = check(_206, _208);
+        _210 = RuntimeFn::DynTruthy(_209);
+        _211 = Not(_210);
+        _212 = box<Bool>(_211);
+        _213 = RuntimeFn::DynTruthy(_212);
+        branch _213 -> [then: bb27, else: bb24];
+    }
+    bb24: {
+        _194 = Add(_194, _196);
+        goto -> bb22;
+    }
+    bb25: {
+        unreachable;
+    }
+    bb26: {
+        // line 167
+        _217 = box<I64>(const 0_i64);
+        _218 = box<I64>(const 7_i64);
+        _219 = unbox<I64>(_217);
+        _220 = unbox<I64>(_218);
+        _221 = _219;
+        _222 = _220;
+        _223 = const 1_i64;
+        goto -> bb30;
+    }
+    bb27: {
+        // line 166
+        _214 = RuntimeFn::DynNone();
+        _215 = RuntimeFn::MakeException(const "AssertionError", _214);
+        _216 = RuntimeFn::RaisePrepare(_215);
+        raise _216;
+    }
+    bb28: {
+        unreachable;
+    }
+    bb29: {
+        unreachable;
+    }
+    bb30: {
+        _224 = Gt(_223, const 0_i64);
+        _225 = Lt(_221, _222);
+        _226 = Gt(_221, _222);
+        _227 = BitAnd(_224, _225);
+        _228 = Not(_224);
+        _229 = BitAnd(_228, _226);
+        _230 = BitOr(_227, _229);
+        branch _230 -> [then: bb31, else: bb9];
+    }
+    bb31: {
+        _231 = box<I64>(_221);
+        g24 = _231;
+        // line 168
+        _232 = reset();
+        // line 169
+        _233 = RuntimeFn::LoadName(global@29, const "time");
+        _234 = dyn.method(_233, "perf_counter", []);
+        g25 = _234;
+        // line 170
+        _235 = RuntimeFn::LoadName(global@22, const "label");
+        _236 = run(_235);
+        g26 = _236;
+        // line 171
+        _237 = RuntimeFn::LoadName(global@29, const "time");
+        _238 = dyn.method(_237, "perf_counter", []);
+        _239 = RuntimeFn::LoadName(global@25, const "start");
+        _240 = dyn.Sub(_238, _239);
+        g27 = _240;
+        // line 172
+        _241 = RuntimeFn::LoadName(global@22, const "label");
+        _242 = RuntimeFn::LoadName(global@26, const "result");
+        _243 = check(_241, _242);
+        _244 = RuntimeFn::DynTruthy(_243);
+        _245 = Not(_244);
+        _246 = box<Bool>(_245);
+        _247 = RuntimeFn::DynTruthy(_246);
+        branch _247 -> [then: bb35, else: bb37];
+    }
+    bb32: {
+        _221 = Add(_221, _223);
+        goto -> bb30;
+    }
+    bb33: {
+        unreachable;
+    }
+    bb34: {
+        unreachable;
+    }
+    bb35: {
+        // line 172
+        _248 = RuntimeFn::DynNone();
+        _249 = RuntimeFn::MakeException(const "AssertionError", _248);
+        _250 = RuntimeFn::RaisePrepare(_249);
+        raise _250;
+    }
+    bb36: {
+        unreachable;
+    }
+    bb37: {
+        // line 173
+        _251 = box<Str>(const "sample");
+        _252 = RuntimeFn::LoadName(global@22, const "label");
+        _253 = RuntimeFn::LoadName(global@27, const "elapsed");
+        _254 = box<Bool>(const true);
+        _255 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_255, _251);
+        RuntimeFn::WriteSep(_255);
+        RuntimeFn::WriteObject(_255, _252);
+        RuntimeFn::WriteSep(_255);
+        RuntimeFn::WriteObject(_255, _253);
+        RuntimeFn::WriteSep(_255);
+        RuntimeFn::WriteObject(_255, _254);
+        RuntimeFn::WriteNewline(_255);
+        goto -> bb32;
+    }
+    bb38: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

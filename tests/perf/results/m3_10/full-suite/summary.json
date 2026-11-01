@@ -1,0 +1,2981 @@
+{
+  "scope": "单冷样本描述性比值，非统计稳定/显著性证据",
+  "rows": [
+    {
+      "tier": "default",
+      "name": "hello",
+      "A": {
+        "name": "hello",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/hello/hello.dll"
+        ],
+        "utc_epoch_start": 1793559888.9167206,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 113.03489000420086,
+        "maxrss": 35876864,
+        "stats": {
+          "main_ms": 4.833,
+          "alloc_bytes": 395680,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 58.715,
+          "jit_methods": 329,
+          "heap_bytes": 405456
+        }
+      },
+      "C": {
+        "name": "hello",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/hello/hello.dll"
+        ],
+        "utc_epoch_start": 1793559889.0314949,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 153.5843859965098,
+        "maxrss": 35909632,
+        "stats": {
+          "main_ms": 5.496,
+          "alloc_bytes": 395720,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 79.539,
+          "jit_methods": 329,
+          "heap_bytes": 405456
+        }
+      },
+      "main_ratio": 1.1371818746120423,
+      "wall_ratio": 1.35873433406979,
+      "allocation_ratio": 1.0001010917913467
+    },
+    {
+      "tier": "default",
+      "name": "fib",
+      "A": {
+        "name": "fib",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/fib/fib.dll"
+        ],
+        "utc_epoch_start": 1793559890.0586882,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 372.264958001324,
+        "maxrss": 38936576,
+        "stats": {
+          "main_ms": 235.207,
+          "alloc_bytes": 397864,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 98.326,
+          "jit_methods": 346,
+          "heap_bytes": 413680
+        }
+      },
+      "C": {
+        "name": "fib",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/fib/fib.dll"
+        ],
+        "utc_epoch_start": 1793559889.6798317,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 377.268259995617,
+        "maxrss": 39030784,
+        "stats": {
+          "main_ms": 260.698,
+          "alloc_bytes": 397904,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 90.486,
+          "jit_methods": 346,
+          "heap_bytes": 413680
+        }
+      },
+      "main_ratio": 1.1083768765385382,
+      "wall_ratio": 1.0134401637509893,
+      "allocation_ratio": 1.0001005368668692
+    },
+    {
+      "tier": "default",
+      "name": "mandelbrot",
+      "A": {
+        "name": "mandelbrot",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/mandelbrot/mandelbrot.dll"
+        ],
+        "utc_epoch_start": 1793559891.4282494,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 423.92357099743094,
+        "maxrss": 42967040,
+        "stats": {
+          "main_ms": 318.237,
+          "alloc_bytes": 8274616,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 1.109,
+          "jit_ms": 98.963,
+          "jit_methods": 374,
+          "heap_bytes": 4325504
+        }
+      },
+      "C": {
+        "name": "mandelbrot",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/mandelbrot/mandelbrot.dll"
+        ],
+        "utc_epoch_start": 1793559891.8535697,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 534.1471239953535,
+        "maxrss": 42885120,
+        "stats": {
+          "main_ms": 414.32,
+          "alloc_bytes": 8274656,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 1.184,
+          "jit_ms": 107.534,
+          "jit_methods": 374,
+          "heap_bytes": 4325544
+        }
+      },
+      "main_ratio": 1.3019227808205833,
+      "wall_ratio": 1.2600080781981111,
+      "allocation_ratio": 1.0000048340611818
+    },
+    {
+      "tier": "default",
+      "name": "bigint",
+      "A": {
+        "name": "bigint",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/bigint/bigint.dll"
+        ],
+        "utc_epoch_start": 1793559894.3224132,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 423.8984399999026,
+        "maxrss": 47099904,
+        "stats": {
+          "main_ms": 320.091,
+          "alloc_bytes": 124684616,
+          "gc0": 29,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 6.519,
+          "jit_ms": 90.794,
+          "jit_methods": 401,
+          "heap_bytes": 3875072
+        }
+      },
+      "C": {
+        "name": "bigint",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/bigint/bigint.dll"
+        ],
+        "utc_epoch_start": 1793559893.8372085,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 476.5760920054163,
+        "maxrss": 47783936,
+        "stats": {
+          "main_ms": 343.781,
+          "alloc_bytes": 124684656,
+          "gc0": 29,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 7.255,
+          "jit_ms": 153.488,
+          "jit_methods": 475,
+          "heap_bytes": 3871432
+        }
+      },
+      "main_ratio": 1.0740102033484227,
+      "wall_ratio": 1.1242695113610839,
+      "allocation_ratio": 1.0000003208094252
+    },
+    {
+      "tier": "default",
+      "name": "matmul",
+      "A": {
+        "name": "matmul",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/matmul/matmul.dll"
+        ],
+        "utc_epoch_start": 1793559895.921699,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 486.9551559968386,
+        "maxrss": 53305344,
+        "stats": {
+          "main_ms": 371.677,
+          "alloc_bytes": 151237304,
+          "gc0": 34,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 24.782,
+          "jit_ms": 185.922,
+          "jit_methods": 456,
+          "heap_bytes": 7827600
+        }
+      },
+      "C": {
+        "name": "matmul",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/matmul/matmul.dll"
+        ],
+        "utc_epoch_start": 1793559896.4107687,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 308.4306419987115,
+        "maxrss": 49987584,
+        "stats": {
+          "main_ms": 183.643,
+          "alloc_bytes": 8171760,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 5.548,
+          "jit_ms": 157.864,
+          "jit_methods": 408,
+          "heap_bytes": 5309864
+        }
+      },
+      "main_ratio": 0.4940929893428972,
+      "wall_ratio": 0.6333861305304958,
+      "allocation_ratio": 0.05403270082095618
+    },
+    {
+      "tier": "default",
+      "name": "nbody",
+      "A": {
+        "name": "nbody",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nbody/nbody.dll"
+        ],
+        "utc_epoch_start": 1793559898.522424,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1147.4877729997388,
+        "maxrss": 52977664,
+        "stats": {
+          "main_ms": 1022.869,
+          "alloc_bytes": 682683600,
+          "gc0": 162,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 26.441,
+          "jit_ms": 165.945,
+          "jit_methods": 472,
+          "heap_bytes": 3583128
+        }
+      },
+      "C": {
+        "name": "nbody",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nbody/nbody.dll"
+        ],
+        "utc_epoch_start": 1793559897.56806,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 951.3859009966836,
+        "maxrss": 53170176,
+        "stats": {
+          "main_ms": 802.38,
+          "alloc_bytes": 418682368,
+          "gc0": 98,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 16.417,
+          "jit_ms": 171.354,
+          "jit_methods": 472,
+          "heap_bytes": 7191896
+        }
+      },
+      "main_ratio": 0.7844406272944042,
+      "wall_ratio": 0.8291033014753528,
+      "allocation_ratio": 0.6132890375570762
+    },
+    {
+      "tier": "default",
+      "name": "sieve",
+      "A": {
+        "name": "sieve",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sieve/sieve.dll"
+        ],
+        "utc_epoch_start": 1793559902.7331748,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 751.1320419944241,
+        "maxrss": 79503360,
+        "stats": {
+          "main_ms": 629.34,
+          "alloc_bytes": 140381136,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 176.649,
+          "jit_ms": 199.145,
+          "jit_methods": 412,
+          "heap_bytes": 36088392
+        }
+      },
+      "C": {
+        "name": "sieve",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sieve/sieve.dll"
+        ],
+        "utc_epoch_start": 1793559903.4867,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 717.2710090017063,
+        "maxrss": 81137664,
+        "stats": {
+          "main_ms": 603.161,
+          "alloc_bytes": 140381208,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 197.605,
+          "jit_ms": 133.908,
+          "jit_methods": 415,
+          "heap_bytes": 36088440
+        }
+      },
+      "main_ratio": 0.9584024533638413,
+      "wall_ratio": 0.9549199992816054,
+      "allocation_ratio": 1.000000512889424
+    },
+    {
+      "tier": "default",
+      "name": "spectral_norm",
+      "A": {
+        "name": "spectral_norm",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/spectral_norm/spectral_norm.dll"
+        ],
+        "utc_epoch_start": 1793559907.8664112,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 404.4066659989767,
+        "maxrss": 45334528,
+        "stats": {
+          "main_ms": 212.454,
+          "alloc_bytes": 77224536,
+          "gc0": 17,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 6.418,
+          "jit_ms": 147.996,
+          "jit_methods": 386,
+          "heap_bytes": 4530312
+        }
+      },
+      "C": {
+        "name": "spectral_norm",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/spectral_norm/spectral_norm.dll"
+        ],
+        "utc_epoch_start": 1793559907.383998,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 477.5756730014109,
+        "maxrss": 43167744,
+        "stats": {
+          "main_ms": 277.64,
+          "alloc_bytes": 28226224,
+          "gc0": 6,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 5.498,
+          "jit_ms": 192.777,
+          "jit_methods": 439,
+          "heap_bytes": 3492352
+        }
+      },
+      "main_ratio": 1.306824065444755,
+      "wall_ratio": 1.180929280237481,
+      "allocation_ratio": 0.3655084959008365
+    },
+    {
+      "tier": "default",
+      "name": "calls",
+      "A": {
+        "name": "calls",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/calls/calls.dll"
+        ],
+        "utc_epoch_start": 1793559909.0626762,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 598.736641004507,
+        "maxrss": 47915008,
+        "stats": {
+          "main_ms": 489.693,
+          "alloc_bytes": 419539544,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 11.858,
+          "jit_ms": 110.628,
+          "jit_methods": 387,
+          "heap_bytes": 1591464
+        }
+      },
+      "C": {
+        "name": "calls",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/calls/calls.dll"
+        ],
+        "utc_epoch_start": 1793559909.663479,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 774.5596020031371,
+        "maxrss": 47808512,
+        "stats": {
+          "main_ms": 630.428,
+          "alloc_bytes": 419539584,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 14.48,
+          "jit_ms": 126.765,
+          "jit_methods": 387,
+          "heap_bytes": 1591664
+        }
+      },
+      "main_ratio": 1.2873943470705116,
+      "wall_ratio": 1.2936565911577584,
+      "allocation_ratio": 1.0000000953426216
+    },
+    {
+      "tier": "default",
+      "name": "dynamic",
+      "A": {
+        "name": "dynamic",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dynamic/dynamic.dll"
+        ],
+        "utc_epoch_start": 1793559912.2233608,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 632.1434860001318,
+        "maxrss": 46088192,
+        "stats": {
+          "main_ms": 502.029,
+          "alloc_bytes": 243448000,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 9.297,
+          "jit_ms": 119.863,
+          "jit_methods": 469,
+          "heap_bytes": 7527240
+        }
+      },
+      "C": {
+        "name": "dynamic",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dynamic/dynamic.dll"
+        ],
+        "utc_epoch_start": 1793559911.6268482,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 592.7071359983529,
+        "maxrss": 46264320,
+        "stats": {
+          "main_ms": 473.765,
+          "alloc_bytes": 243448040,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 10.245,
+          "jit_ms": 119.105,
+          "jit_methods": 469,
+          "heap_bytes": 7527280
+        }
+      },
+      "main_ratio": 0.9437004635190397,
+      "wall_ratio": 0.9376148756173837,
+      "allocation_ratio": 1.0000001643061351
+    },
+    {
+      "tier": "default",
+      "name": "attrs",
+      "A": {
+        "name": "attrs",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/attrs/attrs.dll"
+        ],
+        "utc_epoch_start": 1793559914.0638864,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 695.5322870053351,
+        "maxrss": 52432896,
+        "stats": {
+          "main_ms": 585.872,
+          "alloc_bytes": 176240032,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 12.5,
+          "jit_ms": 168.769,
+          "jit_methods": 580,
+          "heap_bytes": 7234904
+        }
+      },
+      "C": {
+        "name": "attrs",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/attrs/attrs.dll"
+        ],
+        "utc_epoch_start": 1793559914.7615376,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 684.5344609973836,
+        "maxrss": 52436992,
+        "stats": {
+          "main_ms": 574.574,
+          "alloc_bytes": 176240072,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.391,
+          "jit_ms": 155.979,
+          "jit_methods": 569,
+          "heap_bytes": 7234656
+        }
+      },
+      "main_ratio": 0.9807159242974575,
+      "wall_ratio": 0.9841879000969121,
+      "allocation_ratio": 1.0000002269631907
+    },
+    {
+      "tier": "default",
+      "name": "oop",
+      "A": {
+        "name": "oop",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/oop/oop.dll"
+        ],
+        "utc_epoch_start": 1793559917.210241,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 575.4207439968013,
+        "maxrss": 51003392,
+        "stats": {
+          "main_ms": 461.309,
+          "alloc_bytes": 104261160,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.362,
+          "jit_ms": 220.025,
+          "jit_methods": 646,
+          "heap_bytes": 6446568
+        }
+      },
+      "C": {
+        "name": "oop",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/oop/oop.dll"
+        ],
+        "utc_epoch_start": 1793559916.6149213,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 593.0846929986728,
+        "maxrss": 51052544,
+        "stats": {
+          "main_ms": 479.221,
+          "alloc_bytes": 104267400,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 12.257,
+          "jit_ms": 235.281,
+          "jit_methods": 646,
+          "heap_bytes": 6446640
+        }
+      },
+      "main_ratio": 1.0388286376376787,
+      "wall_ratio": 1.0306974491033811,
+      "allocation_ratio": 1.0000598497081752
+    },
+    {
+      "tier": "default",
+      "name": "containers",
+      "A": {
+        "name": "containers",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/containers/containers.dll"
+        ],
+        "utc_epoch_start": 1793559918.8992865,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 694.518241994956,
+        "maxrss": 156983296,
+        "stats": {
+          "main_ms": 582.896,
+          "alloc_bytes": 2534924760,
+          "gc0": 454,
+          "gc1": 26,
+          "gc2": 24,
+          "gc_pause_ms": 71.307,
+          "jit_ms": 79.603,
+          "jit_methods": 366,
+          "heap_bytes": 109522720
+        }
+      },
+      "C": {
+        "name": "containers",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/containers/containers.dll"
+        ],
+        "utc_epoch_start": 1793559919.5962138,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 801.9219400011934,
+        "maxrss": 120565760,
+        "stats": {
+          "main_ms": 652.465,
+          "alloc_bytes": 2534932144,
+          "gc0": 456,
+          "gc1": 28,
+          "gc2": 26,
+          "gc_pause_ms": 95.903,
+          "jit_ms": 107.79,
+          "jit_methods": 366,
+          "heap_bytes": 62097760
+        }
+      },
+      "main_ratio": 1.1193506217232578,
+      "wall_ratio": 1.154644891252572,
+      "allocation_ratio": 1.0000029129069692
+    },
+    {
+      "tier": "default",
+      "name": "dict_ops",
+      "A": {
+        "name": "dict_ops",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dict_ops/dict_ops.dll"
+        ],
+        "utc_epoch_start": 1793559922.9725661,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 688.0750330019509,
+        "maxrss": 67411968,
+        "stats": {
+          "main_ms": 556.259,
+          "alloc_bytes": 71668008,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 21.905,
+          "jit_ms": 149.576,
+          "jit_methods": 428,
+          "heap_bytes": 16008520
+        }
+      },
+      "C": {
+        "name": "dict_ops",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dict_ops/dict_ops.dll"
+        ],
+        "utc_epoch_start": 1793559922.2925174,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 677.6132450031582,
+        "maxrss": 67104768,
+        "stats": {
+          "main_ms": 556.338,
+          "alloc_bytes": 71668048,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 20.564,
+          "jit_ms": 143.098,
+          "jit_methods": 434,
+          "heap_bytes": 16008592
+        }
+      },
+      "main_ratio": 1.0001420201740556,
+      "wall_ratio": 0.9847955709813365,
+      "allocation_ratio": 1.0000005581290887
+    },
+    {
+      "tier": "default",
+      "name": "list_ops",
+      "A": {
+        "name": "list_ops",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/list_ops/list_ops.dll"
+        ],
+        "utc_epoch_start": 1793559924.9080312,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 985.6959169992479,
+        "maxrss": 101720064,
+        "stats": {
+          "main_ms": 773.995,
+          "alloc_bytes": 122471000,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 133.613,
+          "jit_ms": 162.339,
+          "jit_methods": 411,
+          "heap_bytes": 39775144
+        }
+      },
+      "C": {
+        "name": "list_ops",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/list_ops/list_ops.dll"
+        ],
+        "utc_epoch_start": 1793559925.8969321,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 635.5922240036307,
+        "maxrss": 101343232,
+        "stats": {
+          "main_ms": 487.326,
+          "alloc_bytes": 122471624,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 121.537,
+          "jit_ms": 139.733,
+          "jit_methods": 398,
+          "heap_bytes": 39766992
+        }
+      },
+      "main_ratio": 0.6296242223786975,
+      "wall_ratio": 0.644815721605668,
+      "allocation_ratio": 1.000005095083734
+    },
+    {
+      "tier": "default",
+      "name": "set_tuple",
+      "A": {
+        "name": "set_tuple",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/set_tuple/set_tuple.dll"
+        ],
+        "utc_epoch_start": 1793559928.3486881,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 600.531627998862,
+        "maxrss": 76591104,
+        "stats": {
+          "main_ms": 495.643,
+          "alloc_bytes": 149347304,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 49.435,
+          "jit_ms": 104.187,
+          "jit_methods": 399,
+          "heap_bytes": 17896552
+        }
+      },
+      "C": {
+        "name": "set_tuple",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/set_tuple/set_tuple.dll"
+        ],
+        "utc_epoch_start": 1793559927.6928778,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 653.3636680032942,
+        "maxrss": 76939264,
+        "stats": {
+          "main_ms": 530.776,
+          "alloc_bytes": 149345312,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 47.629,
+          "jit_ms": 135.055,
+          "jit_methods": 437,
+          "heap_bytes": 17888520
+        }
+      },
+      "main_ratio": 1.0708836803909265,
+      "wall_ratio": 1.0879754496536398,
+      "allocation_ratio": 0.9999866619621068
+    },
+    {
+      "tier": "default",
+      "name": "str_concat",
+      "A": {
+        "name": "str_concat",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/str_concat/str_concat.dll"
+        ],
+        "utc_epoch_start": 1793559929.9153714,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 4935.970152000664,
+        "maxrss": 74633216,
+        "stats": {
+          "main_ms": 4818.857,
+          "alloc_bytes": 20031631560,
+          "gc0": 2847,
+          "gc1": 2628,
+          "gc2": 2627,
+          "gc_pause_ms": 820.48,
+          "jit_ms": 90.558,
+          "jit_methods": 362,
+          "heap_bytes": 6091840
+        }
+      },
+      "C": {
+        "name": "str_concat",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/str_concat/str_concat.dll"
+        ],
+        "utc_epoch_start": 1793559934.854068,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 5039.663989999099,
+        "maxrss": 77266944,
+        "stats": {
+          "main_ms": 4910.955,
+          "alloc_bytes": 20030191664,
+          "gc0": 2664,
+          "gc1": 2446,
+          "gc2": 2445,
+          "gc_pause_ms": 841.346,
+          "jit_ms": 109.913,
+          "jit_methods": 362,
+          "heap_bytes": 6091464
+        }
+      },
+      "main_ratio": 1.0191120010409107,
+      "wall_ratio": 1.0210077927550687,
+      "allocation_ratio": 0.9999281188855892
+    },
+    {
+      "tier": "default",
+      "name": "strings",
+      "A": {
+        "name": "strings",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/strings/strings.dll"
+        ],
+        "utc_epoch_start": 1793559950.2902298,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 880.03088899859,
+        "maxrss": 69689344,
+        "stats": {
+          "main_ms": 736.459,
+          "alloc_bytes": 166503736,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 64.04,
+          "jit_ms": 315.398,
+          "jit_methods": 466,
+          "heap_bytes": 20507592
+        }
+      },
+      "C": {
+        "name": "strings",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/strings/strings.dll"
+        ],
+        "utc_epoch_start": 1793559948.7204444,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1565.8327799974359,
+        "maxrss": 71548928,
+        "stats": {
+          "main_ms": 1278.359,
+          "alloc_bytes": 166910048,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 108.725,
+          "jit_ms": 607.261,
+          "jit_methods": 672,
+          "heap_bytes": 20874768
+        }
+      },
+      "main_ratio": 1.7358182872366283,
+      "wall_ratio": 1.7792929766127161,
+      "allocation_ratio": 1.0024402575567433
+    },
+    {
+      "tier": "default",
+      "name": "nqueens",
+      "A": {
+        "name": "nqueens",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nqueens/nqueens.dll"
+        ],
+        "utc_epoch_start": 1793559953.820923,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 462.335042997438,
+        "maxrss": 42745856,
+        "stats": {
+          "main_ms": 310.407,
+          "alloc_bytes": 3593504,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 143.088,
+          "jit_methods": 489,
+          "heap_bytes": 3608840
+        }
+      },
+      "C": {
+        "name": "nqueens",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nqueens/nqueens.dll"
+        ],
+        "utc_epoch_start": 1793559954.2870345,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 347.85093599930406,
+        "maxrss": 42987520,
+        "stats": {
+          "main_ms": 234.274,
+          "alloc_bytes": 3589752,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 149.801,
+          "jit_methods": 491,
+          "heap_bytes": 3600648
+        }
+      },
+      "main_ratio": 0.7547316909734639,
+      "wall_ratio": 0.7523784780493735,
+      "allocation_ratio": 0.9989558937460484
+    },
+    {
+      "tier": "default",
+      "name": "sorting",
+      "A": {
+        "name": "sorting",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sorting/sorting.dll"
+        ],
+        "utc_epoch_start": 1793559958.0776758,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1286.9869970018044,
+        "maxrss": 84901888,
+        "stats": {
+          "main_ms": 903.419,
+          "alloc_bytes": 67363240,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 83.141,
+          "jit_ms": 298.876,
+          "jit_methods": 410,
+          "heap_bytes": 38594592
+        }
+      },
+      "C": {
+        "name": "sorting",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sorting/sorting.dll"
+        ],
+        "utc_epoch_start": 1793559956.60519,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1459.2847250023624,
+        "maxrss": 85381120,
+        "stats": {
+          "main_ms": 1260.261,
+          "alloc_bytes": 67363312,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 86.552,
+          "jit_ms": 482.082,
+          "jit_methods": 409,
+          "heap_bytes": 38594680
+        }
+      },
+      "main_ratio": 1.394990585763638,
+      "wall_ratio": 1.1338768211349042,
+      "allocation_ratio": 1.0000010688321999
+    },
+    {
+      "tier": "default",
+      "name": "exceptions",
+      "A": {
+        "name": "exceptions",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/exceptions/exceptions.dll"
+        ],
+        "utc_epoch_start": 1793559961.0436287,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 626.7331240014755,
+        "maxrss": 50425856,
+        "stats": {
+          "main_ms": 495.683,
+          "alloc_bytes": 98442456,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 11.796,
+          "jit_ms": 218.419,
+          "jit_methods": 539,
+          "heap_bytes": 6808496
+        }
+      },
+      "C": {
+        "name": "exceptions",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/exceptions/exceptions.dll"
+        ],
+        "utc_epoch_start": 1793559961.69352,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1978.8701919969753,
+        "maxrss": 50438144,
+        "stats": {
+          "main_ms": 1393.652,
+          "alloc_bytes": 98442496,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 38.303,
+          "jit_ms": 845.064,
+          "jit_methods": 589,
+          "heap_bytes": 6808480
+        }
+      },
+      "main_ratio": 2.8115791745934398,
+      "wall_ratio": 3.157436740159144,
+      "allocation_ratio": 1.000000406328749
+    },
+    {
+      "tier": "default",
+      "name": "records",
+      "A": {
+        "name": "records",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/records/records.dll"
+        ],
+        "utc_epoch_start": 1793559967.572291,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1256.7404490037006,
+        "maxrss": 83238912,
+        "stats": {
+          "main_ms": 1083.84,
+          "alloc_bytes": 89327944,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 104.178,
+          "jit_ms": 437.382,
+          "jit_methods": 877,
+          "heap_bytes": 22562960
+        }
+      },
+      "C": {
+        "name": "records",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/records/records.dll"
+        ],
+        "utc_epoch_start": 1793559965.7957368,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1757.7401449962053,
+        "maxrss": 82821120,
+        "stats": {
+          "main_ms": 1569.115,
+          "alloc_bytes": 89808288,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 185.288,
+          "jit_ms": 916.335,
+          "jit_methods": 907,
+          "heap_bytes": 23240536
+        }
+      },
+      "main_ratio": 1.447736750811928,
+      "wall_ratio": 1.3986500923000287,
+      "allocation_ratio": 1.0053773094788794
+    },
+    {
+      "tier": "default",
+      "name": "closures",
+      "A": {
+        "name": "closures",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/closures/closures.dll"
+        ],
+        "utc_epoch_start": 1793559971.4306905,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 585.2066689985804,
+        "maxrss": 52277248,
+        "stats": {
+          "main_ms": 346.567,
+          "alloc_bytes": 109298680,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 12.525,
+          "jit_ms": 165.683,
+          "jit_methods": 429,
+          "heap_bytes": 13174976
+        }
+      },
+      "C": {
+        "name": "closures",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/closures/closures.dll"
+        ],
+        "utc_epoch_start": 1793559972.0192235,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 798.228460997052,
+        "maxrss": 52301824,
+        "stats": {
+          "main_ms": 516.67,
+          "alloc_bytes": 109298728,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 21.493,
+          "jit_ms": 284.822,
+          "jit_methods": 428,
+          "heap_bytes": 13174960
+        }
+      },
+      "main_ratio": 1.4908228423364023,
+      "wall_ratio": 1.3640112173755634,
+      "allocation_ratio": 1.0000004391635837
+    },
+    {
+      "tier": "default",
+      "name": "comprehensions",
+      "A": {
+        "name": "comprehensions",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/comprehensions/comprehensions.dll"
+        ],
+        "utc_epoch_start": 1793559975.032641,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 900.8115190008539,
+        "maxrss": 70500352,
+        "stats": {
+          "main_ms": 740.347,
+          "alloc_bytes": 127816712,
+          "gc0": 19,
+          "gc1": 10,
+          "gc2": 6,
+          "gc_pause_ms": 243.567,
+          "jit_ms": 439.102,
+          "jit_methods": 649,
+          "heap_bytes": 13812536
+        }
+      },
+      "C": {
+        "name": "comprehensions",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/comprehensions/comprehensions.dll"
+        ],
+        "utc_epoch_start": 1793559974.0630627,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 964.9038019997533,
+        "maxrss": 67596288,
+        "stats": {
+          "main_ms": 814.829,
+          "alloc_bytes": 127813312,
+          "gc0": 20,
+          "gc1": 10,
+          "gc2": 7,
+          "gc_pause_ms": 277.723,
+          "jit_ms": 448.991,
+          "jit_methods": 643,
+          "heap_bytes": 9571832
+        }
+      },
+      "main_ratio": 1.1006041761498324,
+      "wall_ratio": 1.0711494931481207,
+      "allocation_ratio": 0.9999733994096172
+    },
+    {
+      "tier": "default",
+      "name": "decorators",
+      "A": {
+        "name": "decorators",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/decorators/decorators.dll"
+        ],
+        "utc_epoch_start": 1793559978.0061736,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1011.3260210055159,
+        "maxrss": 47661056,
+        "stats": {
+          "main_ms": 717.322,
+          "alloc_bytes": 383449408,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 22.881,
+          "jit_ms": 352.599,
+          "jit_methods": 547,
+          "heap_bytes": 5355704
+        }
+      },
+      "C": {
+        "name": "decorators",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/decorators/decorators.dll"
+        ],
+        "utc_epoch_start": 1793559979.0223842,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 830.1557689992478,
+        "maxrss": 47505408,
+        "stats": {
+          "main_ms": 657.31,
+          "alloc_bytes": 383455640,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 17.159,
+          "jit_ms": 304.35,
+          "jit_methods": 547,
+          "heap_bytes": 5370656
+        }
+      },
+      "main_ratio": 0.9163388269145516,
+      "wall_ratio": 0.8208587060519429,
+      "allocation_ratio": 1.0000162524699998
+    },
+    {
+      "tier": "default",
+      "name": "generators",
+      "A": {
+        "name": "generators",
+        "tier": "default",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/generators/generators.dll"
+        ],
+        "utc_epoch_start": 1793559983.1882021,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1353.3656789950328,
+        "maxrss": 98111488,
+        "stats": {
+          "main_ms": 1239.553,
+          "alloc_bytes": 196228920,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 191.89,
+          "jit_ms": 138.091,
+          "jit_methods": 537,
+          "heap_bytes": 47596672
+        }
+      },
+      "C": {
+        "name": "generators",
+        "tier": "default",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/generators/generators.dll"
+        ],
+        "utc_epoch_start": 1793559981.5472353,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1637.5256390019786,
+        "maxrss": 98037760,
+        "stats": {
+          "main_ms": 1508.321,
+          "alloc_bytes": 196228944,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 195.263,
+          "jit_ms": 180.17,
+          "jit_methods": 537,
+          "heap_bytes": 47596712
+        }
+      },
+      "main_ratio": 1.2168265495706918,
+      "wall_ratio": 1.2099653954709078,
+      "allocation_ratio": 1.000000122306131
+    },
+    {
+      "tier": "disabled",
+      "name": "hello",
+      "A": {
+        "name": "hello",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/hello/hello.dll"
+        ],
+        "utc_epoch_start": 1793559889.4100506,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 266.3814710031147,
+        "maxrss": 38412288,
+        "stats": {
+          "main_ms": 11.799,
+          "alloc_bytes": 394816,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 184.303,
+          "jit_methods": 181,
+          "heap_bytes": 405456
+        }
+      },
+      "C": {
+        "name": "hello",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/hello/hello.dll"
+        ],
+        "utc_epoch_start": 1793559889.1873307,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 220.824417003314,
+        "maxrss": 38395904,
+        "stats": {
+          "main_ms": 24.596,
+          "alloc_bytes": 394856,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 155.42,
+          "jit_methods": 181,
+          "heap_bytes": 405456
+        }
+      },
+      "main_ratio": 2.084583439274515,
+      "wall_ratio": 0.8289781424051524,
+      "allocation_ratio": 1.0001013130166965
+    },
+    {
+      "tier": "disabled",
+      "name": "fib",
+      "A": {
+        "name": "fib",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/fib/fib.dll"
+        ],
+        "utc_epoch_start": 1793559890.4324448,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 517.1897780019208,
+        "maxrss": 38318080,
+        "stats": {
+          "main_ms": 244.136,
+          "alloc_bytes": 396992,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 219.355,
+          "jit_methods": 186,
+          "heap_bytes": 405456
+        }
+      },
+      "C": {
+        "name": "fib",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/fib/fib.dll"
+        ],
+        "utc_epoch_start": 1793559890.9508128,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 475.8693839976331,
+        "maxrss": 38342656,
+        "stats": {
+          "main_ms": 269.176,
+          "alloc_bytes": 397032,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 164.224,
+          "jit_methods": 186,
+          "heap_bytes": 405456
+        }
+      },
+      "main_ratio": 1.1025657830061932,
+      "wall_ratio": 0.920105934490967,
+      "allocation_ratio": 1.0001007576978882
+    },
+    {
+      "tier": "disabled",
+      "name": "mandelbrot",
+      "A": {
+        "name": "mandelbrot",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/mandelbrot/mandelbrot.dll"
+        ],
+        "utc_epoch_start": 1793559893.2224402,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 612.6526250009192,
+        "maxrss": 42835968,
+        "stats": {
+          "main_ms": 378.802,
+          "alloc_bytes": 8273744,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0.879,
+          "jit_ms": 191.57,
+          "jit_methods": 184,
+          "heap_bytes": 4325536
+        }
+      },
+      "C": {
+        "name": "mandelbrot",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/mandelbrot/mandelbrot.dll"
+        ],
+        "utc_epoch_start": 1793559892.3895957,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 830.3677520016208,
+        "maxrss": 42655744,
+        "stats": {
+          "main_ms": 576.091,
+          "alloc_bytes": 8273784,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 1.733,
+          "jit_ms": 207.405,
+          "jit_methods": 184,
+          "heap_bytes": 4325576
+        }
+      },
+      "main_ratio": 1.5208235436982909,
+      "wall_ratio": 1.3553647174863162,
+      "allocation_ratio": 1.0000048345706611
+    },
+    {
+      "tier": "disabled",
+      "name": "bigint",
+      "A": {
+        "name": "bigint",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/bigint/bigint.dll"
+        ],
+        "utc_epoch_start": 1793559894.7480204,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 551.8289879983058,
+        "maxrss": 46276608,
+        "stats": {
+          "main_ms": 378.804,
+          "alloc_bytes": 124689944,
+          "gc0": 29,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 7.463,
+          "jit_ms": 237.051,
+          "jit_methods": 233,
+          "heap_bytes": 3876312
+        }
+      },
+      "C": {
+        "name": "bigint",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/bigint/bigint.dll"
+        ],
+        "utc_epoch_start": 1793559895.3044872,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 614.8074689990608,
+        "maxrss": 46350336,
+        "stats": {
+          "main_ms": 393.855,
+          "alloc_bytes": 124683792,
+          "gc0": 29,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 10.517,
+          "jit_ms": 262.2,
+          "jit_methods": 233,
+          "heap_bytes": 3878304
+        }
+      },
+      "main_ratio": 1.0397329489656921,
+      "wall_ratio": 1.1141268080700182,
+      "allocation_ratio": 0.9999506616187108
+    },
+    {
+      "tier": "disabled",
+      "name": "matmul",
+      "A": {
+        "name": "matmul",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/matmul/matmul.dll"
+        ],
+        "utc_epoch_start": 1793559897.0552437,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 510.9724829962943,
+        "maxrss": 49676288,
+        "stats": {
+          "main_ms": 328.842,
+          "alloc_bytes": 151242624,
+          "gc0": 34,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 31.062,
+          "jit_ms": 213.85,
+          "jit_methods": 217,
+          "heap_bytes": 7827624
+        }
+      },
+      "C": {
+        "name": "matmul",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/matmul/matmul.dll"
+        ],
+        "utc_epoch_start": 1793559896.7211702,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 332.26010799990036,
+        "maxrss": 46809088,
+        "stats": {
+          "main_ms": 171.422,
+          "alloc_bytes": 8170904,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 5.36,
+          "jit_ms": 194.805,
+          "jit_methods": 222,
+          "heap_bytes": 5311216
+        }
+      },
+      "main_ratio": 0.5212898595678168,
+      "wall_ratio": 0.650250491086249,
+      "allocation_ratio": 0.0540251404260217
+    },
+    {
+      "tier": "disabled",
+      "name": "nbody",
+      "A": {
+        "name": "nbody",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nbody/nbody.dll"
+        ],
+        "utc_epoch_start": 1793559899.6726513,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1446.9993579987204,
+        "maxrss": 54546432,
+        "stats": {
+          "main_ms": 1249.559,
+          "alloc_bytes": 682682728,
+          "gc0": 162,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 28.941,
+          "jit_ms": 428.147,
+          "jit_methods": 229,
+          "heap_bytes": 3582296
+        }
+      },
+      "C": {
+        "name": "nbody",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nbody/nbody.dll"
+        ],
+        "utc_epoch_start": 1793559901.1230686,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1606.2366230034968,
+        "maxrss": 54185984,
+        "stats": {
+          "main_ms": 1314.56,
+          "alloc_bytes": 418687688,
+          "gc0": 98,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 26.57,
+          "jit_ms": 470.943,
+          "jit_methods": 228,
+          "heap_bytes": 7203224
+        }
+      },
+      "main_ratio": 1.0520191523569515,
+      "wall_ratio": 1.110046534661225,
+      "allocation_ratio": 0.6132976137049713
+    },
+    {
+      "tier": "disabled",
+      "name": "sieve",
+      "A": {
+        "name": "sieve",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sieve/sieve.dll"
+        ],
+        "utc_epoch_start": 1793559906.1098452,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1267.8920879989164,
+        "maxrss": 78348288,
+        "stats": {
+          "main_ms": 939.334,
+          "alloc_bytes": 140379608,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 250.43,
+          "jit_ms": 311.041,
+          "jit_methods": 210,
+          "heap_bytes": 36088416
+        }
+      },
+      "C": {
+        "name": "sieve",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sieve/sieve.dll"
+        ],
+        "utc_epoch_start": 1793559904.2061133,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1897.7343719961937,
+        "maxrss": 78655488,
+        "stats": {
+          "main_ms": 1488.789,
+          "alloc_bytes": 140385856,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 339.031,
+          "jit_ms": 372.908,
+          "jit_methods": 208,
+          "heap_bytes": 36083312
+        }
+      },
+      "main_ratio": 1.584941032689118,
+      "wall_ratio": 1.4967633207581115,
+      "allocation_ratio": 1.0000445078889235
+    },
+    {
+      "tier": "disabled",
+      "name": "spectral_norm",
+      "A": {
+        "name": "spectral_norm",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/spectral_norm/spectral_norm.dll"
+        ],
+        "utc_epoch_start": 1793559908.2745483,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 395.85246900242055,
+        "maxrss": 49319936,
+        "stats": {
+          "main_ms": 182.861,
+          "alloc_bytes": 77229856,
+          "gc0": 17,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.574,
+          "jit_ms": 231.886,
+          "jit_methods": 225,
+          "heap_bytes": 4538128
+        }
+      },
+      "C": {
+        "name": "spectral_norm",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/spectral_norm/spectral_norm.dll"
+        ],
+        "utc_epoch_start": 1793559908.6721509,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 387.5988159998087,
+        "maxrss": 46866432,
+        "stats": {
+          "main_ms": 165.237,
+          "alloc_bytes": 28231544,
+          "gc0": 6,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 3.079,
+          "jit_ms": 244.124,
+          "jit_methods": 223,
+          "heap_bytes": 3500048
+        }
+      },
+      "main_ratio": 0.9036207829991086,
+      "wall_ratio": 0.9791496740606124,
+      "allocation_ratio": 0.36555220302365965
+    },
+    {
+      "tier": "disabled",
+      "name": "calls",
+      "A": {
+        "name": "calls",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/calls/calls.dll"
+        ],
+        "utc_epoch_start": 1793559911.017053,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 604.255471000215,
+        "maxrss": 45469696,
+        "stats": {
+          "main_ms": 406.869,
+          "alloc_bytes": 419544864,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 12.212,
+          "jit_ms": 214.845,
+          "jit_methods": 202,
+          "heap_bytes": 1599056
+        }
+      },
+      "C": {
+        "name": "calls",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/calls/calls.dll"
+        ],
+        "utc_epoch_start": 1793559910.440546,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 573.7530580008752,
+        "maxrss": 45268992,
+        "stats": {
+          "main_ms": 388.304,
+          "alloc_bytes": 419538712,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 12.562,
+          "jit_ms": 198.187,
+          "jit_methods": 202,
+          "heap_bytes": 1578712
+        }
+      },
+      "main_ratio": 0.9543710629219723,
+      "wall_ratio": 0.9495206672289624,
+      "allocation_ratio": 0.9999853364907358
+    },
+    {
+      "tier": "disabled",
+      "name": "dynamic",
+      "A": {
+        "name": "dynamic",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dynamic/dynamic.dll"
+        ],
+        "utc_epoch_start": 1793559912.857736,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 609.7700859972974,
+        "maxrss": 45572096,
+        "stats": {
+          "main_ms": 414.473,
+          "alloc_bytes": 243447128,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 8.109,
+          "jit_ms": 205.305,
+          "jit_methods": 231,
+          "heap_bytes": 7527264
+        }
+      },
+      "C": {
+        "name": "dynamic",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dynamic/dynamic.dll"
+        ],
+        "utc_epoch_start": 1793559913.4696078,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 591.9781449993025,
+        "maxrss": 45563904,
+        "stats": {
+          "main_ms": 406.045,
+          "alloc_bytes": 243447168,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 10.486,
+          "jit_ms": 199.702,
+          "jit_methods": 231,
+          "heap_bytes": 7527304
+        }
+      },
+      "main_ratio": 0.9796657442101174,
+      "wall_ratio": 0.9708218861394361,
+      "allocation_ratio": 1.0000001643067238
+    },
+    {
+      "tier": "disabled",
+      "name": "attrs",
+      "A": {
+        "name": "attrs",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/attrs/attrs.dll"
+        ],
+        "utc_epoch_start": 1793559916.0430753,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 568.9791990007507,
+        "maxrss": 53374976,
+        "stats": {
+          "main_ms": 368.092,
+          "alloc_bytes": 176239160,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 6.964,
+          "jit_ms": 276.59,
+          "jit_methods": 252,
+          "heap_bytes": 7234640
+        }
+      },
+      "C": {
+        "name": "attrs",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/attrs/attrs.dll"
+        ],
+        "utc_epoch_start": 1793559915.4482543,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 591.7599570020684,
+        "maxrss": 53395456,
+        "stats": {
+          "main_ms": 390.427,
+          "alloc_bytes": 176239200,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.042,
+          "jit_ms": 278.13,
+          "jit_methods": 252,
+          "heap_bytes": 7234680
+        }
+      },
+      "main_ratio": 1.0606777653412736,
+      "wall_ratio": 1.040037945220714,
+      "allocation_ratio": 1.0000002269643138
+    },
+    {
+      "tier": "disabled",
+      "name": "oop",
+      "A": {
+        "name": "oop",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/oop/oop.dll"
+        ],
+        "utc_epoch_start": 1793559917.787535,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 540.5199050001102,
+        "maxrss": 51052544,
+        "stats": {
+          "main_ms": 334.296,
+          "alloc_bytes": 104266480,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.882,
+          "jit_ms": 274.611,
+          "jit_methods": 257,
+          "heap_bytes": 6457832
+        }
+      },
+      "C": {
+        "name": "oop",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/oop/oop.dll"
+        ],
+        "utc_epoch_start": 1793559918.3309176,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 565.2255559980404,
+        "maxrss": 50982912,
+        "stats": {
+          "main_ms": 326.202,
+          "alloc_bytes": 104266528,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.084,
+          "jit_ms": 275.08,
+          "jit_methods": 257,
+          "heap_bytes": 6454784
+        }
+      },
+      "main_ratio": 0.9757879244741188,
+      "wall_ratio": 1.0457071992527733,
+      "allocation_ratio": 1.0000004603588803
+    },
+    {
+      "tier": "disabled",
+      "name": "containers",
+      "A": {
+        "name": "containers",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/containers/containers.dll"
+        ],
+        "utc_epoch_start": 1793559921.4114544,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 878.03848299518,
+        "maxrss": 181231616,
+        "stats": {
+          "main_ms": 688.477,
+          "alloc_bytes": 2534974640,
+          "gc0": 452,
+          "gc1": 24,
+          "gc2": 22,
+          "gc_pause_ms": 82.115,
+          "jit_ms": 190.049,
+          "jit_methods": 208,
+          "heap_bytes": 19513344
+        }
+      },
+      "C": {
+        "name": "containers",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/containers/containers.dll"
+        ],
+        "utc_epoch_start": 1793559920.4044175,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1004.4733789982274,
+        "maxrss": 180908032,
+        "stats": {
+          "main_ms": 765.324,
+          "alloc_bytes": 2534944808,
+          "gc0": 451,
+          "gc1": 23,
+          "gc2": 21,
+          "gc_pause_ms": 113.475,
+          "jit_ms": 217.542,
+          "jit_methods": 208,
+          "heap_bytes": 70868624
+        }
+      },
+      "main_ratio": 1.1116188340351238,
+      "wall_ratio": 1.1439969869791475,
+      "allocation_ratio": 0.9999882318349347
+    },
+    {
+      "tier": "disabled",
+      "name": "dict_ops",
+      "A": {
+        "name": "dict_ops",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/dict_ops/dict_ops.dll"
+        ],
+        "utc_epoch_start": 1793559923.663692,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 537.1175250038505,
+        "maxrss": 66793472,
+        "stats": {
+          "main_ms": 287.637,
+          "alloc_bytes": 71673336,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 19.711,
+          "jit_ms": 278.439,
+          "jit_methods": 227,
+          "heap_bytes": 16008520
+        }
+      },
+      "C": {
+        "name": "dict_ops",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/dict_ops/dict_ops.dll"
+        ],
+        "utc_epoch_start": 1793559924.2033257,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 694.8201549967052,
+        "maxrss": 66637824,
+        "stats": {
+          "main_ms": 460.992,
+          "alloc_bytes": 71667192,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 45.361,
+          "jit_ms": 304.414,
+          "jit_methods": 224,
+          "heap_bytes": 17818960
+        }
+      },
+      "main_ratio": 1.6026867197196466,
+      "wall_ratio": 1.2936091686669957,
+      "allocation_ratio": 0.9999142777447948
+    },
+    {
+      "tier": "disabled",
+      "name": "list_ops",
+      "A": {
+        "name": "list_ops",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/list_ops/list_ops.dll"
+        ],
+        "utc_epoch_start": 1793559927.150818,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 539.255484000023,
+        "maxrss": 101404672,
+        "stats": {
+          "main_ms": 359.07,
+          "alloc_bytes": 122473440,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 111.169,
+          "jit_ms": 228.59,
+          "jit_methods": 236,
+          "heap_bytes": 39778208
+        }
+      },
+      "C": {
+        "name": "list_ops",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/list_ops/list_ops.dll"
+        ],
+        "utc_epoch_start": 1793559926.5350795,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 613.1801649971749,
+        "maxrss": 101306368,
+        "stats": {
+          "main_ms": 383.506,
+          "alloc_bytes": 122472112,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 108.613,
+          "jit_ms": 277.027,
+          "jit_methods": 234,
+          "heap_bytes": 39783432
+        }
+      },
+      "main_ratio": 1.0680535828668505,
+      "wall_ratio": 1.1370865632163858,
+      "allocation_ratio": 0.9999891568326977
+    },
+    {
+      "tier": "disabled",
+      "name": "set_tuple",
+      "A": {
+        "name": "set_tuple",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/set_tuple/set_tuple.dll"
+        ],
+        "utc_epoch_start": 1793559928.9517787,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 486.8278180001653,
+        "maxrss": 76210176,
+        "stats": {
+          "main_ms": 296.187,
+          "alloc_bytes": 149344392,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 38.535,
+          "jit_ms": 201.532,
+          "jit_methods": 240,
+          "heap_bytes": 17969576
+        }
+      },
+      "C": {
+        "name": "set_tuple",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/set_tuple/set_tuple.dll"
+        ],
+        "utc_epoch_start": 1793559929.4422228,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 470.5331829973147,
+        "maxrss": 76341248,
+        "stats": {
+          "main_ms": 306.442,
+          "alloc_bytes": 149357624,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 42.894,
+          "jit_ms": 201.611,
+          "jit_methods": 240,
+          "heap_bytes": 17985688
+        }
+      },
+      "main_ratio": 1.0346233967054597,
+      "wall_ratio": 0.9665289566446981,
+      "allocation_ratio": 1.0000886005816676
+    },
+    {
+      "tier": "disabled",
+      "name": "str_concat",
+      "A": {
+        "name": "str_concat",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/str_concat/str_concat.dll"
+        ],
+        "utc_epoch_start": 1793559943.500681,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 5216.82782300195,
+        "maxrss": 110080000,
+        "stats": {
+          "main_ms": 5045.279,
+          "alloc_bytes": 20029584640,
+          "gc0": 2542,
+          "gc1": 2324,
+          "gc2": 2323,
+          "gc_pause_ms": 1063.748,
+          "jit_ms": 160.458,
+          "jit_methods": 208,
+          "heap_bytes": 6103160
+        }
+      },
+      "C": {
+        "name": "str_concat",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/str_concat/str_concat.dll"
+        ],
+        "utc_epoch_start": 1793559939.8968039,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 3599.9502900012885,
+        "maxrss": 58384384,
+        "stats": {
+          "main_ms": 3435.377,
+          "alloc_bytes": 20027228240,
+          "gc0": 2155,
+          "gc1": 1938,
+          "gc2": 1937,
+          "gc_pause_ms": 486.4,
+          "jit_ms": 170.568,
+          "jit_methods": 208,
+          "heap_bytes": 6099768
+        }
+      },
+      "main_ratio": 0.6809092222650124,
+      "wall_ratio": 0.6900649996782429,
+      "allocation_ratio": 0.9998823540256899
+    },
+    {
+      "tier": "disabled",
+      "name": "strings",
+      "A": {
+        "name": "strings",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/strings/strings.dll"
+        ],
+        "utc_epoch_start": 1793559951.1728046,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1168.1577150011435,
+        "maxrss": 69492736,
+        "stats": {
+          "main_ms": 769.833,
+          "alloc_bytes": 166502864,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 97.583,
+          "jit_ms": 501.593,
+          "jit_methods": 248,
+          "heap_bytes": 20529448
+        }
+      },
+      "C": {
+        "name": "strings",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/strings/strings.dll"
+        ],
+        "utc_epoch_start": 1793559952.344084,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1470.4427719989326,
+        "maxrss": 69902336,
+        "stats": {
+          "main_ms": 1043.43,
+          "alloc_bytes": 166909112,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 120.422,
+          "jit_ms": 623.348,
+          "jit_methods": 248,
+          "heap_bytes": 20875160
+        }
+      },
+      "main_ratio": 1.3553978590161764,
+      "wall_ratio": 1.258770757677608,
+      "allocation_ratio": 1.0024398859589587
+    },
+    {
+      "tier": "disabled",
+      "name": "nqueens",
+      "A": {
+        "name": "nqueens",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/nqueens/nqueens.dll"
+        ],
+        "utc_epoch_start": 1793559955.547366,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1019.9100719983107,
+        "maxrss": 41549824,
+        "stats": {
+          "main_ms": 558.188,
+          "alloc_bytes": 3586440,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 515.048,
+          "jit_methods": 209,
+          "heap_bytes": 3600648
+        }
+      },
+      "C": {
+        "name": "nqueens",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/nqueens/nqueens.dll"
+        ],
+        "utc_epoch_start": 1793559954.6380737,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 906.2359890012885,
+        "maxrss": 41689088,
+        "stats": {
+          "main_ms": 405.494,
+          "alloc_bytes": 3588880,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "jit_ms": 470.967,
+          "jit_methods": 207,
+          "heap_bytes": 3600648
+        }
+      },
+      "main_ratio": 0.7264470035185279,
+      "wall_ratio": 0.888544994193164,
+      "allocation_ratio": 1.0006803403932591
+    },
+    {
+      "tier": "disabled",
+      "name": "sorting",
+      "A": {
+        "name": "sorting",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/sorting/sorting.dll"
+        ],
+        "utc_epoch_start": 1793559959.3689482,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 855.6183359978604,
+        "maxrss": 81563648,
+        "stats": {
+          "main_ms": 639.937,
+          "alloc_bytes": 67368560,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 95.822,
+          "jit_ms": 239.762,
+          "jit_methods": 229,
+          "heap_bytes": 41002872
+        }
+      },
+      "C": {
+        "name": "sorting",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/sorting/sorting.dll"
+        ],
+        "utc_epoch_start": 1793559960.227873,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 809.588051000901,
+        "maxrss": 81735680,
+        "stats": {
+          "main_ms": 564.53,
+          "alloc_bytes": 67362456,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 107.446,
+          "jit_ms": 262.264,
+          "jit_methods": 226,
+          "heap_bytes": 40994960
+        }
+      },
+      "main_ratio": 0.8821649631135564,
+      "wall_ratio": 0.9462023158453274,
+      "allocation_ratio": 0.9999093939368751
+    },
+    {
+      "tier": "disabled",
+      "name": "exceptions",
+      "A": {
+        "name": "exceptions",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/exceptions/exceptions.dll"
+        ],
+        "utc_epoch_start": 1793559965.1845944,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 607.9926490056096,
+        "maxrss": 47513600,
+        "stats": {
+          "main_ms": 377.627,
+          "alloc_bytes": 98441584,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 9.362,
+          "jit_ms": 206.768,
+          "jit_methods": 228,
+          "heap_bytes": 6807000
+        }
+      },
+      "C": {
+        "name": "exceptions",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/exceptions/exceptions.dll"
+        ],
+        "utc_epoch_start": 1793559963.6910226,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1488.2094850036083,
+        "maxrss": 47431680,
+        "stats": {
+          "main_ms": 812.711,
+          "alloc_bytes": 98441624,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 12.757,
+          "jit_ms": 429.903,
+          "jit_methods": 228,
+          "heap_bytes": 6807040
+        }
+      },
+      "main_ratio": 2.1521527856853457,
+      "wall_ratio": 2.4477425630681884,
+      "allocation_ratio": 1.0000004063323484
+    },
+    {
+      "tier": "disabled",
+      "name": "records",
+      "A": {
+        "name": "records",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/records/records.dll"
+        ],
+        "utc_epoch_start": 1793559968.8397813,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1425.0458780006738,
+        "maxrss": 77942784,
+        "stats": {
+          "main_ms": 1098.686,
+          "alloc_bytes": 89321928,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 187.242,
+          "jit_ms": 520.104,
+          "jit_methods": 303,
+          "heap_bytes": 22617616
+        }
+      },
+      "C": {
+        "name": "records",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/records/records.dll"
+        ],
+        "utc_epoch_start": 1793559970.2737367,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1150.9284720013966,
+        "maxrss": 77811712,
+        "stats": {
+          "main_ms": 843.241,
+          "alloc_bytes": 89802096,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 152.263,
+          "jit_ms": 451.244,
+          "jit_methods": 300,
+          "heap_bytes": 23295048
+        }
+      },
+      "main_ratio": 0.7674995403600301,
+      "wall_ratio": 0.8076431010180097,
+      "allocation_ratio": 1.0053757012499775
+    },
+    {
+      "tier": "disabled",
+      "name": "closures",
+      "A": {
+        "name": "closures",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/closures/closures.dll"
+        ],
+        "utc_epoch_start": 1793559973.4364834,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 619.6822070050985,
+        "maxrss": 49283072,
+        "stats": {
+          "main_ms": 259.898,
+          "alloc_bytes": 109297824,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 8.95,
+          "jit_ms": 313.551,
+          "jit_methods": 230,
+          "heap_bytes": 13175800
+        }
+      },
+      "C": {
+        "name": "closures",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/closures/closures.dll"
+        ],
+        "utc_epoch_start": 1793559972.8240955,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 607.8184520010836,
+        "maxrss": 49250304,
+        "stats": {
+          "main_ms": 351.665,
+          "alloc_bytes": 109297872,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 18.35,
+          "jit_ms": 274.852,
+          "jit_methods": 227,
+          "heap_bytes": 13175816
+        }
+      },
+      "main_ratio": 1.3530885193422035,
+      "wall_ratio": 0.9808550981940374,
+      "allocation_ratio": 1.0000004391670232
+    },
+    {
+      "tier": "disabled",
+      "name": "comprehensions",
+      "A": {
+        "name": "comprehensions",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/comprehensions/comprehensions.dll"
+        ],
+        "utc_epoch_start": 1793559975.9370396,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 789.4494950014632,
+        "maxrss": 71430144,
+        "stats": {
+          "main_ms": 613.649,
+          "alloc_bytes": 127808592,
+          "gc0": 18,
+          "gc1": 10,
+          "gc2": 6,
+          "gc_pause_ms": 264.16,
+          "jit_ms": 213.132,
+          "jit_methods": 244,
+          "heap_bytes": 15076328
+        }
+      },
+      "C": {
+        "name": "comprehensions",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/comprehensions/comprehensions.dll"
+        ],
+        "utc_epoch_start": 1793559976.7291667,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1272.6889749974362,
+        "maxrss": 71376896,
+        "stats": {
+          "main_ms": 848.043,
+          "alloc_bytes": 127810048,
+          "gc0": 18,
+          "gc1": 10,
+          "gc2": 6,
+          "gc_pause_ms": 330.447,
+          "jit_ms": 460.392,
+          "jit_methods": 244,
+          "heap_bytes": 19311168
+        }
+      },
+      "main_ratio": 1.3819675417054376,
+      "wall_ratio": 1.6121220965440952,
+      "allocation_ratio": 1.0000113920353648
+    },
+    {
+      "tier": "disabled",
+      "name": "decorators",
+      "A": {
+        "name": "decorators",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/decorators/decorators.dll"
+        ],
+        "utc_epoch_start": 1793559980.7783382,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 763.1994389957981,
+        "maxrss": 46469120,
+        "stats": {
+          "main_ms": 543.716,
+          "alloc_bytes": 383454728,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 12.432,
+          "jit_ms": 206.006,
+          "jit_methods": 219,
+          "heap_bytes": 5354976
+        }
+      },
+      "C": {
+        "name": "decorators",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/decorators/decorators.dll"
+        ],
+        "utc_epoch_start": 1793559979.8564358,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 919.02789100277,
+        "maxrss": 46366720,
+        "stats": {
+          "main_ms": 691.017,
+          "alloc_bytes": 383448576,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 17.796,
+          "jit_ms": 226.008,
+          "jit_methods": 219,
+          "heap_bytes": 5354984
+        }
+      },
+      "main_ratio": 1.270915330797696,
+      "wall_ratio": 1.2041778911839973,
+      "allocation_ratio": 0.9999839563850677
+    },
+    {
+      "tier": "disabled",
+      "name": "generators",
+      "A": {
+        "name": "generators",
+        "tier": "disabled",
+        "variant": "A",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/A/bench/generators/generators.dll"
+        ],
+        "utc_epoch_start": 1793559984.548328,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1635.9970689954935,
+        "maxrss": 97251328,
+        "stats": {
+          "main_ms": 1415.412,
+          "alloc_bytes": 196228592,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 206.619,
+          "jit_ms": 259.743,
+          "jit_methods": 242,
+          "heap_bytes": 47596560
+        }
+      },
+      "C": {
+        "name": "generators",
+        "tier": "disabled",
+        "variant": "C",
+        "command": [
+          "dotnet",
+          "/tmp/ryupy-m3_10-final-suite-GPrNc2/C/bench/generators/generators.dll"
+        ],
+        "utc_epoch_start": 1793559986.188417,
+        "status": "ok",
+        "exit_code": 0,
+        "wall_ms": 1856.433291999565,
+        "maxrss": 97054720,
+        "stats": {
+          "main_ms": 1656.105,
+          "alloc_bytes": 196234816,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 295.067,
+          "jit_ms": 250.419,
+          "jit_methods": 242,
+          "heap_bytes": 47596600
+        }
+      },
+      "main_ratio": 1.1700515468287678,
+      "wall_ratio": 1.134741209004378,
+      "allocation_ratio": 1.0000317181096627
+    }
+  ],
+  "geomeans_without_hello": {
+    "default": {
+      "main_ratio": 1.0953649770821332,
+      "wall_ratio": 1.0882727421929976,
+      "allocation_ratio": 0.8383928131640885
+    },
+    "disabled": {
+      "main_ratio": 1.0814765816424048,
+      "wall_ratio": 1.0837939354519914,
+      "allocation_ratio": 0.8384438459200783
+    }
+  }
+}

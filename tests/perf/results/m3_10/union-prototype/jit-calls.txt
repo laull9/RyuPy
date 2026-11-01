@@ -1,0 +1,364 @@
+; Assembly listing for method Numeric:Call16(Value16):Value16 (FullOpts)
+; Emitting BLENDED_CODE for generic X64 + VEX + EVEX on Unix
+; FullOpts code
+; optimized code
+; rbp based frame
+; partially interruptible
+; No PGO data
+; 0 inlinees with PGO data; 10 single block inlinees; 1 inlinees without PGO data
+
+G_M000_IG01:                ;; offset=0x0000
+       push     rbp
+       push     rbx
+       sub      rsp, 40
+       lea      rbp, [rsp+0x30]
+       xor      eax, eax
+       mov      qword ptr [rbp-0x28], rax
+       vxorps   xmm8, xmm8, xmm8
+       vmovdqa  xmmword ptr [rbp-0x20], xmm8
+       mov      qword ptr [rbp-0x10], rax
+ 
+G_M000_IG02:                ;; offset=0x001F
+       mov      rax, 0x7F83BE400270
+       mov      rax, gword ptr [rax]
+       mov      rcx, rax
+       mov      gword ptr [rbp-0x18], rdi
+       mov      qword ptr [rbp-0x10], rsi
+       mov      gword ptr [rbp-0x28], rcx
+       mov      qword ptr [rbp-0x20], 1
+       cmp      gword ptr [rbp-0x18], rax
+       jne      SHORT G_M000_IG04
+ 
+G_M000_IG03:                ;; offset=0x0049
+       cmp      gword ptr [rbp-0x28], rax
+       jne      SHORT G_M000_IG04
+       mov      rdx, qword ptr [rbp-0x10]
+       add      rdx, qword ptr [rbp-0x20]
+       mov      rdi, rdx
+       xor      rdi, qword ptr [rbp-0x10]
+       mov      rcx, rdx
+       xor      rcx, qword ptr [rbp-0x20]
+       and      rdi, rcx
+       jge      SHORT G_M000_IG07
+ 
+G_M000_IG04:                ;; offset=0x006A
+       mov      rdi, 0x7F83BE400278
+       mov      rax, gword ptr [rdi]
+       cmp      gword ptr [rbp-0x18], rax
+       jne      SHORT G_M000_IG05
+       cmp      gword ptr [rbp-0x28], rax
+       je       SHORT G_M000_IG06
+ 
+G_M000_IG05:                ;; offset=0x0083
+       lea      rdi, [rbp-0x18]
+       call     [Value16:Materialize():System.Object:this]
+       mov      rbx, rax
+       lea      rdi, [rbp-0x28]
+       call     [Value16:Materialize():System.Object:this]
+       mov      rsi, rax
+       mov      rdi, rbx
+       call     [Numeric:Add(System.Object,System.Object):System.Object]
+       mov      rdi, rax
+       call     [Value16:Fresh(System.Object):Value16]
+       jmp      SHORT G_M000_IG07
+ 
+G_M000_IG06:                ;; offset=0x00B1
+       vmovsd   xmm0, qword ptr [rbp-0x10]
+       vmovsd   xmm1, qword ptr [rbp-0x20]
+       vaddsd   xmm0, xmm0, xmm1
+       vmovq    rdx, xmm0
+ 
+G_M000_IG07:                ;; offset=0x00C4
+       add      rsp, 40
+       pop      rbx
+       pop      rbp
+       ret      
+ 
+; Total bytes of code 203
+
+; Assembly listing for method Numeric:Call24(Value24):Value24 (FullOpts)
+; Emitting BLENDED_CODE for generic X64 + VEX + EVEX on Unix
+; FullOpts code
+; optimized code
+; rbp based frame
+; partially interruptible
+; No PGO data
+; 0 inlinees with PGO data; 6 single block inlinees; 1 inlinees without PGO data
+
+G_M000_IG01:                ;; offset=0x0000
+       push     rbp
+       push     r15
+       push     r14
+       push     rbx
+       sub      rsp, 72
+       lea      rbp, [rsp+0x60]
+       vxorps   xmm8, xmm8, xmm8
+       vmovdqu32 zmmword ptr [rbp-0x60], zmm8
+       xor      eax, eax
+       mov      qword ptr [rbp-0x20], rax
+       mov      rbx, rdi
+ 
+G_M000_IG02:                ;; offset=0x0027
+       vmovdqu  xmm0, xmmword ptr [rbp+0x10]
+       vmovdqu  xmmword ptr [rbp-0x48], xmm0
+       mov      rdi, qword ptr [rbp+0x20]
+       mov      qword ptr [rbp-0x38], rdi
+ 
+G_M000_IG03:                ;; offset=0x0039
+       xor      rdi, rdi
+       mov      gword ptr [rbp-0x60], rdi
+       mov      qword ptr [rbp-0x58], 1
+       mov      byte  ptr [rbp-0x50], 2
+       cmp      byte  ptr [rbp-0x38], 2
+       jne      SHORT G_M000_IG05
+ 
+G_M000_IG04:                ;; offset=0x0051
+       cmp      byte  ptr [rbp-0x50], 2
+       jne      SHORT G_M000_IG05
+       mov      r15, qword ptr [rbp-0x40]
+       add      r15, qword ptr [rbp-0x58]
+       mov      rdi, r15
+       xor      rdi, qword ptr [rbp-0x40]
+       mov      rax, r15
+       xor      rax, qword ptr [rbp-0x58]
+       and      rdi, rax
+       jge      SHORT G_M000_IG08
+ 
+G_M000_IG05:                ;; offset=0x0072
+       cmp      byte  ptr [rbp-0x38], 3
+       jne      SHORT G_M000_IG06
+       cmp      byte  ptr [rbp-0x50], 3
+       je       SHORT G_M000_IG07
+ 
+G_M000_IG06:                ;; offset=0x007E
+       lea      rdi, [rbp-0x48]
+       call     [Value24:Materialize():System.Object:this]
+       mov      r15, rax
+       lea      rdi, [rbp-0x60]
+       call     [Value24:Materialize():System.Object:this]
+       mov      rsi, rax
+       mov      rdi, r15
+       call     [Numeric:Add(System.Object,System.Object):System.Object]
+       mov      rsi, rax
+       lea      rdi, [rbp-0x30]
+       call     [Value24:Fresh(System.Object):Value24]
+       mov      rsi, gword ptr [rbp-0x30]
+       mov      r15, qword ptr [rbp-0x28]
+       movzx    r14, byte  ptr [rbp-0x20]
+       jmp      SHORT G_M000_IG09
+ 
+G_M000_IG07:                ;; offset=0x00BD
+       vmovsd   xmm0, qword ptr [rbp-0x40]
+       vmovsd   xmm1, qword ptr [rbp-0x58]
+       vaddsd   xmm0, xmm0, xmm1
+       vmovq    r15, xmm0
+       xor      rsi, rsi
+       mov      r14d, 3
+       jmp      SHORT G_M000_IG09
+ 
+G_M000_IG08:                ;; offset=0x00DA
+       xor      rsi, rsi
+       mov      r14d, 2
+ 
+G_M000_IG09:                ;; offset=0x00E2
+       mov      rdi, rbx
+       call     CORINFO_HELP_CHECKED_ASSIGN_REF
+       mov      qword ptr [rbx+0x08], r15
+       mov      byte  ptr [rbx+0x10], r14b
+       mov      rax, rbx
+ 
+G_M000_IG10:                ;; offset=0x00F5
+       add      rsp, 72
+       pop      rbx
+       pop      r14
+       pop      r15
+       pop      rbp
+       ret      
+ 
+; Total bytes of code 256
+
+; Assembly listing for method Numeric:Call16In(byref):Value16 (FullOpts)
+; Emitting BLENDED_CODE for generic X64 + VEX + EVEX on Unix
+; FullOpts code
+; optimized code
+; rbp based frame
+; partially interruptible
+; No PGO data
+; 0 inlinees with PGO data; 10 single block inlinees; 1 inlinees without PGO data
+
+G_M000_IG01:                ;; offset=0x0000
+       push     rbp
+       push     rbx
+       sub      rsp, 40
+       lea      rbp, [rsp+0x30]
+       xor      eax, eax
+       mov      qword ptr [rbp-0x28], rax
+       vxorps   xmm8, xmm8, xmm8
+       vmovdqa  xmmword ptr [rbp-0x20], xmm8
+       mov      qword ptr [rbp-0x10], rax
+ 
+G_M000_IG02:                ;; offset=0x001F
+       mov      rax, gword ptr [rdi]
+       mov      rdi, qword ptr [rdi+0x08]
+       mov      rcx, 0x7F83BE400270
+       mov      rbx, gword ptr [rcx]
+       mov      rcx, rbx
+       mov      gword ptr [rbp-0x18], rax
+       mov      qword ptr [rbp-0x10], rdi
+       mov      gword ptr [rbp-0x28], rcx
+       mov      qword ptr [rbp-0x20], 1
+       cmp      gword ptr [rbp-0x18], rbx
+       jne      SHORT G_M000_IG04
+ 
+G_M000_IG03:                ;; offset=0x0050
+       cmp      gword ptr [rbp-0x28], rbx
+       jne      SHORT G_M000_IG04
+       mov      rdx, qword ptr [rbp-0x10]
+       add      rdx, qword ptr [rbp-0x20]
+       mov      rdi, rdx
+       xor      rdi, qword ptr [rbp-0x10]
+       mov      rax, rdx
+       xor      rax, qword ptr [rbp-0x20]
+       and      rdi, rax
+       jge      SHORT G_M000_IG07
+ 
+G_M000_IG04:                ;; offset=0x0071
+       mov      rdi, 0x7F83BE400278
+       mov      rax, gword ptr [rdi]
+       cmp      gword ptr [rbp-0x18], rax
+       jne      SHORT G_M000_IG05
+       cmp      gword ptr [rbp-0x28], rax
+       je       SHORT G_M000_IG06
+ 
+G_M000_IG05:                ;; offset=0x008A
+       lea      rdi, [rbp-0x18]
+       call     [Value16:Materialize():System.Object:this]
+       mov      rbx, rax
+       lea      rdi, [rbp-0x28]
+       call     [Value16:Materialize():System.Object:this]
+       mov      rsi, rax
+       mov      rdi, rbx
+       call     [Numeric:Add(System.Object,System.Object):System.Object]
+       mov      rdi, rax
+       call     [Value16:Fresh(System.Object):Value16]
+       jmp      SHORT G_M000_IG08
+ 
+G_M000_IG06:                ;; offset=0x00B8
+       vmovsd   xmm0, qword ptr [rbp-0x10]
+       vmovsd   xmm1, qword ptr [rbp-0x20]
+       vaddsd   xmm0, xmm0, xmm1
+       vmovq    rdx, xmm0
+       jmp      SHORT G_M000_IG08
+ 
+G_M000_IG07:                ;; offset=0x00CD
+       mov      rax, rbx
+ 
+G_M000_IG08:                ;; offset=0x00D0
+       add      rsp, 40
+       pop      rbx
+       pop      rbp
+       ret      
+ 
+; Total bytes of code 215
+
+; Assembly listing for method Numeric:Call24In(byref):Value24 (FullOpts)
+; Emitting BLENDED_CODE for generic X64 + VEX + EVEX on Unix
+; FullOpts code
+; optimized code
+; rbp based frame
+; partially interruptible
+; No PGO data
+; 0 inlinees with PGO data; 6 single block inlinees; 1 inlinees without PGO data
+
+G_M000_IG01:                ;; offset=0x0000
+       push     rbp
+       push     r15
+       push     r14
+       push     rbx
+       sub      rsp, 72
+       lea      rbp, [rsp+0x60]
+       vxorps   xmm8, xmm8, xmm8
+       vmovdqu32 zmmword ptr [rbp-0x60], zmm8
+       xor      eax, eax
+       mov      qword ptr [rbp-0x20], rax
+       mov      rbx, rdi
+ 
+G_M000_IG02:                ;; offset=0x0027
+       mov      rdi, gword ptr [rsi]
+       mov      rax, qword ptr [rsi+0x08]
+       movzx    rcx, byte  ptr [rsi+0x10]
+       mov      gword ptr [rbp-0x48], rdi
+       mov      qword ptr [rbp-0x40], rax
+       mov      byte  ptr [rbp-0x38], cl
+       xor      rdi, rdi
+       mov      gword ptr [rbp-0x60], rdi
+       mov      qword ptr [rbp-0x58], 1
+       mov      byte  ptr [rbp-0x50], 2
+       cmp      byte  ptr [rbp-0x38], 2
+       jne      SHORT G_M000_IG04
+ 
+G_M000_IG03:                ;; offset=0x0055
+       cmp      byte  ptr [rbp-0x50], 2
+       jne      SHORT G_M000_IG04
+       mov      r15, qword ptr [rbp-0x40]
+       add      r15, qword ptr [rbp-0x58]
+       mov      rdi, r15
+       xor      rdi, qword ptr [rbp-0x40]
+       mov      rax, r15
+       xor      rax, qword ptr [rbp-0x58]
+       and      rdi, rax
+       jge      SHORT G_M000_IG07
+ 
+G_M000_IG04:                ;; offset=0x0076
+       cmp      byte  ptr [rbp-0x38], 3
+       jne      SHORT G_M000_IG05
+       cmp      byte  ptr [rbp-0x50], 3
+       je       SHORT G_M000_IG06
+ 
+G_M000_IG05:                ;; offset=0x0082
+       lea      rdi, [rbp-0x48]
+       call     [Value24:Materialize():System.Object:this]
+       mov      r15, rax
+       lea      rdi, [rbp-0x60]
+       call     [Value24:Materialize():System.Object:this]
+       mov      rsi, rax
+       mov      rdi, r15
+       call     [Numeric:Add(System.Object,System.Object):System.Object]
+       mov      rsi, rax
+       lea      rdi, [rbp-0x30]
+       call     [Value24:Fresh(System.Object):Value24]
+       mov      rsi, gword ptr [rbp-0x30]
+       mov      r15, qword ptr [rbp-0x28]
+       movzx    r14, byte  ptr [rbp-0x20]
+       jmp      SHORT G_M000_IG08
+ 
+G_M000_IG06:                ;; offset=0x00C1
+       vmovsd   xmm0, qword ptr [rbp-0x40]
+       vmovsd   xmm1, qword ptr [rbp-0x58]
+       vaddsd   xmm0, xmm0, xmm1
+       vmovq    r15, xmm0
+       xor      rsi, rsi
+       mov      r14d, 3
+       jmp      SHORT G_M000_IG08
+ 
+G_M000_IG07:                ;; offset=0x00DE
+       xor      rsi, rsi
+       mov      r14d, 2
+ 
+G_M000_IG08:                ;; offset=0x00E6
+       mov      rdi, rbx
+       call     CORINFO_HELP_CHECKED_ASSIGN_REF
+       mov      qword ptr [rbx+0x08], r15
+       mov      byte  ptr [rbx+0x10], r14b
+       mov      rax, rbx
+ 
+G_M000_IG09:                ;; offset=0x00F9
+       add      rsp, 72
+       pop      rbx
+       pop      r14
+       pop      r15
+       pop      rbp
+       ret      
+ 
+; Total bytes of code 260
+
