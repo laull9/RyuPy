@@ -50,7 +50,7 @@
 | `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
-| 普通生成器 | 部分 | 语句 yield、if/for/while、裸 return、共享 cell、next/迭代/耗尽；完整协议待后续 |
+| 普通生成器 | 部分 | 语句 yield、if/for/while、return value、共享 cell、next/迭代/耗尽；完整协议待后续 |
 | 生成器表达式 | ✅ | 最左 iterable 立即取迭代器，元素 / 过滤 / 内层 iterable 惰性；协议限制同普通生成器 |
 | 普通函数装饰器 | ❌ | Phase 3 M3.3 后续竖切 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
@@ -379,6 +379,10 @@ M2.11 在不改变「动态值 = 装箱 object」的前提下消除了大部分�
 每次 next 恢复局部、临时量、循环迭代器和共享 cell 引用，yield None 与正常耗尽分离。
 完成或异常后永久耗尽并释放保存引用；重入抛 ValueError，意外逃逸的 StopIteration 转 RuntimeError 并保留原因。
 每次恢复独立登记 / 清理 traceback，暂停不会把调用栈留在线程状态里。
-当前只支持语句 yield、普通控制流和裸 return；生成器内零参 super、try/with、return value、表达式型 yield、yield from 报 E0100。
+当前支持语句 yield、普通控制流和 return value；生成器内零参 super、try/with、表达式型 yield、yield from 报 E0100。
+完成值由触发首次结束的 next 以 StopIteration.value 暴露，args 保留非 None 终值作为单个原对象；
+异常构造不提前调用终值 __str__，仅实际格式化时读取最新内容。
+再次耗尽为 None / 空 args。for、list、next(default) 消费结束时不缓存终值，之后 next 不会再次领取。
+此处不表示一般 StopIteration(...) 构造已完整支持；通用异常构造 ABI 的无参 / 显式 None / 多参保真仍待补齐。
 send/throw/close 入口目前显式抛 NotImplementedError，不宣称完整生成器协议或清理语义。
 状态机首版保存全部局部，存在装箱与数组读写代价，尚无性能收益测量，见 ADR-0017。

@@ -25,6 +25,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | [0017](0017-generator-frame-state-machine.md) | 普通生成器先使用全局部堆帧状态机 | 已接受 |
 
+| [0018](0018-generator-return-lifetime.md) | 生成器终值由触发完成的操作立即消费 | 已接受 |
+
 ## 模板
 
 ```markdown

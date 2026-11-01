@@ -426,7 +426,7 @@ expression: "output.replace(path.to_str().unwrap(), \"genexpr.py\")"
         IL_007e: LoadConstantInt64(0)
         IL_007f: LoadLocal(18)
         IL_0080: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.ArraySet(object, long, object))
-        IL_0081: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0081: LoadLocal(12)
         IL_0082: Return
         IL_0083: LoadLocal(24)
         IL_0084: LoadConstantInt64(9)

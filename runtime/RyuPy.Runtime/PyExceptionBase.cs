@@ -19,7 +19,7 @@ public class PyBaseException : Exception
     public string PyTypeName { get; }
 
     /// <summary>Python 侧消息（<c>str(exc)</c> 的内容）。</summary>
-    public string PyMessage { get; }
+    public virtual string PyMessage { get; }
 
     /// <summary><c>exc.args</c>：构造时的位置参数。</summary>
     public object?[] Args { get; }
@@ -89,7 +89,12 @@ public class PyBaseException : Exception
     }
 
     /// <summary>按 <c>TypeName: message</c> 渲染，供 traceback 与错误退出使用。</summary>
-    public string Render() => PyMessage.Length == 0 ? PyTypeName : $"{PyTypeName}: {PyMessage}";
+    public string Render()
+    {
+        // 延迟消息可能调用用户 __str__，一次报告只求值一次。
+        string message = PyMessage;
+        return message.Length == 0 ? PyTypeName : $"{PyTypeName}: {message}";
+    }
 }
 
 /// <summary>Python <c>Exception</c>：所有常规异常的共同基类。</summary>

@@ -37,7 +37,6 @@ fn snapshot_m3_2_unsupported() {
         ),
         ("接收 send", "def f():\n    value = yield 1\n"),
         ("yield from", "def f():\n    yield from []\n"),
-        ("返回值", "def f():\n    yield 1\n    return 2\n"),
         (
             "异常区域",
             "def f():\n    try:\n        yield 1\n    finally:\n        print(2)\n",
@@ -74,4 +73,21 @@ fn snapshot_m3_2_unsupported() {
         .collect::<Vec<_>>()
         .join("\n");
     insta::assert_snapshot!("m3_2_unsupported", output);
+}
+
+#[test]
+fn snapshot_m3_2_return_value() {
+    let path = std::env::temp_dir().join("ryupy_test_generator_return.py");
+    std::fs::write(
+        &path,
+        "def values():\n    yield 1\n    return 9\n\nprint(list(values()))\n",
+    )
+    .unwrap();
+    let mut session = Session::default();
+    let output = dump(&mut session, &path, Stage::Mir).expect("完成边应保留返回值");
+    insta::assert_snapshot!(
+        "m3_2_return_mir",
+        output.replace(path.to_str().unwrap(), "generator.py")
+    );
+    std::fs::remove_file(path).unwrap();
 }

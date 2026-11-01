@@ -227,7 +227,7 @@ fn values(_18: dyn) -> dyn {
     bb8: {
         _33 = box<I64>(const -1_i64);
         RuntimeFn::ArraySet(_18, const 0_i64, _33);
-        return None;
+        return _17;
     }
     bb9: {
         _49 = Eq(_48, const 6_i64);

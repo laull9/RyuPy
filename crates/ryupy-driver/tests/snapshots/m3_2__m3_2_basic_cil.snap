@@ -505,7 +505,7 @@ expression: "output.replace(path.to_str().unwrap(), \"generator.py\")"
         IL_00bc: LoadConstantInt64(0)
         IL_00bd: LoadLocal(32)
         IL_00be: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.ArraySet(object, long, object))
-        IL_00bf: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_00bf: LoadLocal(17)
         IL_00c0: Return
         IL_00c1: LoadLocal(47)
         IL_00c2: LoadConstantInt64(6)

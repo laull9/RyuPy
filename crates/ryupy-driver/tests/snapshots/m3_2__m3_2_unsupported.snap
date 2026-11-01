@@ -56,15 +56,6 @@ yield from
    │           ╰──────── Phase 1 暂不支持该语法
 ───╯
 
-返回值
-[E0100] Error: 生成器 return value 留待返回值协议竖切
-   ╭─[ generator.py:3:5 ]
-   │
- 3 │     return 2
-   │     ────┬───
-   │         ╰───── 当前普通 yield 首切不能保证此路径的暂停语义
-───╯
-
 异常区域
 [E0100] Error: 生成器内 try 暂未支持跨暂停的异常状态
    ╭─[ generator.py:2:5 ]

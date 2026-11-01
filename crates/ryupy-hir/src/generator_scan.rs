@@ -1,6 +1,6 @@
 //! 扫描当前函数的 yield 与首个生成器竖切边界；不进入嵌套函数/类/lambda 的函数体，默认值仍在当前作用域。
 //!
-//! 即使 yield 位于不可达分支，整个函数仍是生成器。异常区域跨暂停、返回值、
+//! 即使 yield 位于不可达分支，整个函数仍是生成器。异常区域跨暂停、
 //! yield from 和表达式型 yield 留待后续竖切，不能静默按普通函数执行。
 
 use ryupy_base::{Diagnostic, FileId, Span};
@@ -27,9 +27,6 @@ pub(crate) fn analyze(file: FileId, body: &[ast::Stmt], diagnostics: &mut Vec<Di
                 ast::Stmt::With(value) => self
                     .unsupported
                     .push((value.range, "生成器内 with 暂未支持跨暂停的资源清理")),
-                ast::Stmt::Return(value) if value.value.is_some() => self
-                    .unsupported
-                    .push((value.range, "生成器 return value 留待返回值协议竖切")),
                 _ => {}
             }
             walk_stmt(self, stmt);

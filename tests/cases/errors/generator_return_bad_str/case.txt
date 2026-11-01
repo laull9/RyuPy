@@ -1,0 +1,4 @@
+# 完成异常报告不得再次泄漏用户 __str__ 抛出的错误。
+entry = entry.py
+expect_exit = 1
+expect_exception = StopIteration: <exception str() failed>
