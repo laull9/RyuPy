@@ -78,6 +78,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
 ### 3.4 MIR —— 「定型的控制流图」
 
 - 非 SSA 的「局部变量 + 基本块 + terminator」形式（ADR-0002），与 CIL 的局部变量槽模型几乎一一对应。
+- 调用降级按职责拆分：`call_builder.rs` 处理用户调用绑定、方法与构造器；
+  `call_builtins.rs` 处理内建分派和数值转换，二者仍只依赖 HIR / 类型与 MIR。
 - 进入 MIR 后：所有局部变量类型确定；运算已区分 i64/f64；`//` `%` `**` `print` 等 Python 语义已改写为 `RuntimeFn` 调用；隐式类型提升已显式化为 `Cast`。
 - 动态函数（M2.1）：局部变量与参数是 `MirType::Dynamic`；字面量先 `Box`，运算走
   `DynBinary` / `DynCompare` / `DynUnary` / `DynTruthy`；动态值进静态槽位时插 `Unbox`（`PyCast`）。
@@ -147,6 +149,8 @@ releases/                     # make build 的发行包（宿主平台，不进�
 
 项目级验收固定项目版本、传递依赖、入口与上游测试范围，原生与桥接分别记录；标准库按 API 登记。
 细节见 [compatibility.md](compatibility.md) 与 [stdlib.md](stdlib.md)。
+测试框架的用例模型与解析在 `ryupy-e2e/src/lib.rs`，结果状态和 JSONL 序列化独立在
+`results.rs`，由库根重导出既有公共接口，不改变统计口径。
 
 ## 7. Phase 2 / Phase 3 的设计边界（待实现）
 
