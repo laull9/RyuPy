@@ -175,3 +175,24 @@ pub(crate) fn contains_yield(expr: &ast::Expr) -> bool {
     scan.visit_expr(expr);
     scan.has_yield
 }
+
+/// 当前内建构造 ABI 的能力门禁应在 HIR 诊断，不让 MIR 混用 E01xx。
+pub(crate) fn prepared_builtin_supported(
+    builtin: crate::hir::Builtin,
+    args: &[crate::hir::CallArg],
+) -> bool {
+    use crate::hir::{Builtin, CallArg};
+    if matches!(builtin, Builtin::Dynamic("super")) {
+        return false;
+    }
+    let narrow = matches!(
+        builtin,
+        Builtin::Int
+            | Builtin::Float
+            | Builtin::Str
+            | Builtin::Type
+            | Builtin::Exception(_)
+            | Builtin::Dynamic("bool" | "bytes" | "bytearray")
+    );
+    !narrow || (args.len() == 1 && matches!(args[0], CallArg::Positional(_)))
+}

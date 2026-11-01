@@ -36,3 +36,5 @@ pub use mir::*;
 mod generator_tests;
 
 mod yield_expr;
+
+mod prepared_call;

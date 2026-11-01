@@ -500,7 +500,7 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
             dump_expr(module, body, *cond),
             dump_expr(module, body, *else_)
         ),
-        ExprKind::Call { callee, args } => {
+        ExprKind::Call { callee, args } | ExprKind::PreparedCall { callee, args } => {
             let callee_str = dump_expr(module, body, *callee);
             let args_str: Vec<String> = args
                 .iter()

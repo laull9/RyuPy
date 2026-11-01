@@ -29,6 +29,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | [0019](0019-generator-send-input.md) | send 使用显式帧输入槽与恢复接收局部 | 已接受 |
 
+| [0020](0020-prepared-suspending-calls.md) | 暂停调用先固定目标，保留普通调用热路径 | 已接受 |
+
 ## 模板
 
 ```markdown

@@ -65,6 +65,7 @@ public static partial class PyOps
             PyFunction function => function.Invoke(args, names, values),
             PyClass cls => cls.Invoke(args, names, values),
             PyBoundMethod method => method.Invoke(args, names, values),
+            PyBuiltinMethod method => method.Invoke(args, names, values),
             PyStaticMethod staticMethod => CallValue(staticMethod.Value, args, names, values),
             PyClassMethod classMethod => CallValue(classMethod.Value, args, names, values),
             PyInstance instance => CallInstance(instance, args, names, values),

@@ -454,7 +454,9 @@ impl FunctionChecker<'_> {
                 let base_ty = self.check_expr(*base);
                 self.check_attribute_read(&base_ty, expr.range, name)
             }
-            ExprKind::Call { callee, args } => self.check_call(*callee, args, expr.range),
+            ExprKind::Call { callee, args } | ExprKind::PreparedCall { callee, args } => {
+                self.check_call(*callee, args, expr.range)
+            }
             ExprKind::FString(parts) => {
                 for part in parts {
                     if let ryupy_hir::FStringPart::Value { value, .. } = part {

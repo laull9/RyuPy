@@ -281,7 +281,7 @@ impl ExprBuilder<'_> {
     ///
     /// 纯位置、参数不超过 3 个时改用 [`Rvalue::DynCallValue`]：codegen 会走
     /// `PyPic.CallValueN`，运行时复用调用点上的参数数组。
-    fn call_value(&mut self, callable: Operand, args: &[CallArg]) -> Operand {
+    pub(crate) fn call_value(&mut self, callable: Operand, args: &[CallArg]) -> Operand {
         if is_small_positional_call(args) {
             let values: Vec<Operand> = args
                 .iter()

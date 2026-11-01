@@ -500,11 +500,19 @@ impl<'a> ExprLowerCtx<'a> {
     /// 绑定（谁对应哪个参数、默认值、重复绑定报错）属于语义层，放在 ty / MIR 处理，
     /// HIR 只负责忠实记录源码里写出来的形态。
     fn lower_call(&mut self, call: &ast::ExprCall) -> ExprKind {
-        if crate::generator_scan::call_suspends(call) {
+        let suspends = crate::generator_scan::call_suspends(call);
+        if suspends
+            && (call
+                .arguments
+                .args
+                .iter()
+                .any(|arg| matches!(arg, ast::Expr::Starred(_)))
+                || call.arguments.keywords.iter().any(|arg| arg.arg.is_none()))
+        {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, call.arguments.range),
-                    "调用实参内 yield 暂未支持暂停前的方法绑定与实参展开",
+                    "调用星号实参暂未支持跨暂停的立即展开",
                 )
                 .with_code("E0100")
                 .with_primary_label("先把 yield 的接收值赋给局部，再进行调用"),
@@ -535,6 +543,23 @@ impl<'a> ExprLowerCtx<'a> {
                 }
             }
         }
-        ExprKind::Call { callee, args }
+        if suspends
+            && let ExprKind::Builtin(builtin) = self.body.exprs[callee].kind
+            && !crate::generator_scan::prepared_builtin_supported(builtin, &args)
+        {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, call.arguments.range),
+                    "该内建的多参数或关键字暂停调用尚未支持完整构造协议",
+                )
+                .with_code("E0100"),
+            );
+            return ExprKind::Missing;
+        }
+        if suspends {
+            ExprKind::PreparedCall { callee, args }
+        } else {
+            ExprKind::Call { callee, args }
+        }
     }
 }

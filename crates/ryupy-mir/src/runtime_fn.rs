@@ -106,6 +106,8 @@ pub enum RuntimeFn {
     DynType,
     /// `PyObject.GetAttr(object, string) -> object`：动态属性读取。
     DynGetAttr,
+    /// `PyOps.PrepareMethod(object, string) -> object`：实参暂停前绑定方法。
+    PrepareMethod,
     /// `PyErrors.Load(object, string) -> object`：读取可能未赋值的局部变量。
     LoadChecked,
     /// `PyErrors.Unbound() -> object`：把变量标记为未赋值。
