@@ -49,10 +49,6 @@ fn snapshot_m3_2_unsupported() {
             "def g():\n    return int((yield 1), (yield 2))\n",
         ),
         (
-            "暂停调用展开",
-            "def g(f, items):\n    f(*items, (yield 1))\n",
-        ),
-        (
             "暂停关键字展开",
             "def g(f, items):\n    f(**items, x=(yield 1))\n",
         ),
@@ -193,6 +189,21 @@ fn snapshot_m3_2_starred_containers() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("星号容器应保持原类型和插入边界");
+        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn snapshot_m3_2_starred_call() {
+    let path = std::env::temp_dir().join("ryupy_test_starred_call.py");
+    std::fs::write(&path, "def g(f, items):\n    return f(*items, (yield 1))\n").unwrap();
+    for (stage, name) in [
+        (Stage::Mir, "m3_2_starred_call_mir"),
+        (Stage::Cil, "m3_2_starred_call_cil"),
+    ] {
+        let mut session = Session::default();
+        let output = dump(&mut session, &path, stage).expect("star展开应在Suspend之前");
         insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
     }
     std::fs::remove_file(path).unwrap();

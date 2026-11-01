@@ -327,6 +327,26 @@ impl ExprBuilder<'_> {
         &mut self,
         args: &[CallArg],
     ) -> (Vec<Operand>, Vec<Operand>, Vec<Operand>) {
+        self.build_call_arrays_mode(args, false)
+    }
+
+    /// 跨暂停调用的混合位置组立即展开；唯一一个 * 源仍在最终调用展开。
+    pub(crate) fn build_prepared_call_arrays(
+        &mut self,
+        args: &[CallArg],
+    ) -> (Vec<Operand>, Vec<Operand>, Vec<Operand>) {
+        self.build_call_arrays_mode(args, true)
+    }
+
+    fn build_call_arrays_mode(
+        &mut self,
+        args: &[CallArg],
+        prepared: bool,
+    ) -> (Vec<Operand>, Vec<Operand>, Vec<Operand>) {
+        let positional_count = args
+            .iter()
+            .filter(|arg| matches!(arg, CallArg::Positional(_) | CallArg::Starred(_)))
+            .count();
         let mut positional = Vec::new();
         let mut kw_names = Vec::new();
         let mut kw_values = Vec::new();
@@ -341,6 +361,19 @@ impl ExprBuilder<'_> {
                     let op = self.build_expr(*expr);
                     let ty = self.ty_of(*expr);
                     let boxed = self.coerce(op, &ty, &MirType::Dynamic);
+                    let boxed = if prepared && positional_count > 1 {
+                        // CPython 混合位置组的 LIST_EXTEND 在后续实参之前执行。
+                        // 使用私有列表快照，恢复后的最终 FlattenArgs 只迭代该内建列表，
+                        // 不再运行原 iterable 的用户代码或观察它的后续变更。
+                        let snapshot = self.call_with_args(RuntimeFn::MakeList, vec![], vec![]);
+                        self.push_stmt(Statement::Eval(Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::ListExtend),
+                            args: vec![snapshot.clone(), boxed],
+                        }));
+                        snapshot
+                    } else {
+                        boxed
+                    };
                     positional.push(self.runtime_call(
                         RuntimeFn::StarArg,
                         vec![boxed],

@@ -14,6 +14,7 @@ impl ExprBuilder<'_> {
         expression: ExprId,
     ) -> Operand {
         let call_ty = self.ty_of(expression);
+        let has_star = args.iter().any(|arg| matches!(arg, CallArg::Starred(_)));
         let kind = self.hir.functions[self.current_hir_fn].body.exprs[callee]
             .kind
             .clone();
@@ -44,6 +45,19 @@ impl ExprBuilder<'_> {
                 }
             };
             // 避开只读取首参的静态快路径，确保全部实参在调用前逐个恢复求值。
+            if has_star {
+                let (positional, names, values) = self.build_prepared_call_arrays(args);
+                return self.runtime_call(
+                    RuntimeFn::DynBuiltin,
+                    vec![
+                        Operand::Const(Constant::Str(name.to_owned())),
+                        Operand::Array(positional),
+                        Operand::Array(names),
+                        Operand::Array(values),
+                    ],
+                    MirType::Dynamic,
+                );
+            }
             return self.call_builtin_by_name(name, args);
         }
         let callable = if let ExprKind::Attribute { base, name } = kind {
@@ -66,7 +80,21 @@ impl ExprBuilder<'_> {
             dest: saved,
             value: Rvalue::Use(callable),
         });
-        let result = self.call_value(Operand::Local(saved), args);
+        let result = if has_star {
+            let (positional, names, values) = self.build_prepared_call_arrays(args);
+            self.runtime_call(
+                RuntimeFn::CallValue,
+                vec![
+                    Operand::Local(saved),
+                    Operand::Array(positional),
+                    Operand::Array(names),
+                    Operand::Array(values),
+                ],
+                MirType::Dynamic,
+            )
+        } else {
+            self.call_value(Operand::Local(saved), args)
+        };
         self.coerce(result, &Ty::Dynamic, &ty_to_mir(&call_ty))
     }
 }
