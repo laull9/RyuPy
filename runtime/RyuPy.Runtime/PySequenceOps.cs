@@ -59,11 +59,15 @@ public static partial class PyOps
             case PyList list when op == Mul:
                 RepeatInPlace(list.Items, RepeatCount(a, b));
                 return list;
-            case PyByteArray array when op == Add && b is PyBytes or PyByteArray:
-                array.Bytes.AddRange(b is PyBytes bytes ? bytes.Bytes : [.. ((PyByteArray)b).Bytes]);
+            case PyByteArray array when op == Add && b is PyBytes or PyByteArray or IPyBufferView:
+                array.Extend(b);
                 return array;
             case PyByteArray array when op == Mul:
-                RepeatInPlace(array.Bytes, RepeatCount(a, b));
+                int times = RepeatCount(a, b);
+                array.EnsureCanResize(array.Count * (times - 1));
+                int previousCount = array.Count;
+                RepeatInPlace(array.Bytes, times);
+                array.RecordResize(previousCount);
                 return array;
             case PySet set when b is PySet or PyFrozenSet:
                 if (SetInPlace(op, set, b is PySet s ? s.Items : ((PyFrozenSet)b).Items))

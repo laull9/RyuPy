@@ -17,13 +17,18 @@ public static class PyTyping
 
     private static Dictionary<string, object?> Build()
     {
-        var result = new Dictionary<string, object?> { ["TYPE_CHECKING"] = false };
-        foreach (string name in new[] { "Any", "Optional", "Union", "List", "Dict", "Tuple", "Set", "FrozenSet", "Callable", "Iterable", "Iterator", "Sequence", "Mapping", "MutableMapping", "Collection", "Container" })
+        var result = new Dictionary<string, object?>
+        {
+            ["TYPE_CHECKING"] = false, ["TypedDict"] = PyTypedDict.Factory,
+            ["is_typeddict"] = PyNativeFunctions.Create("is_typeddict", ["tp"], [null], 1,
+                args => PyTypedDict.IsTypedDict(args[0])),
+        };
+        foreach (string name in new[] { "Any", "Optional", "Union", "Literal", "List", "Dict", "Tuple", "Set", "FrozenSet", "Callable", "Iterable", "Iterator", "Sequence", "Mapping", "MutableMapping", "Collection", "Container" })
         {
             var form = new PyTypingForm(name); Forms[name] = form; result[name] = form;
         }
         result["get_origin"] = PyNativeFunctions.Create("get_origin", ["tp"], [null], 1,
-            args => args[0] is PyTypingAlias alias ? alias.Origin : args[0] is PyTypingForm form && form.Name != "Union" ? Origin(form.Name) : PyNone.Instance);
+            args => args[0] is PyTypingAlias alias ? alias.Origin : args[0] is PyTypingForm form && form.Name is not ("Union" or "Literal") ? Origin(form.Name) : PyNone.Instance);
         result["get_args"] = PyNativeFunctions.Create("get_args", ["tp"], [null], 1,
             args => args[0] is PyTypingAlias alias ? alias.PublicArguments() : new PyTuple([]));
         result["cast"] = PyNativeFunctions.Create("cast", ["typ", "val"], [null, null], 2, args => args[1]);
@@ -32,7 +37,7 @@ public static class PyTyping
 
     internal static object Origin(string name) => name switch
     {
-        "Union" => Forms["Union"], "Optional" or "Any" => PyNone.Instance,
+        "Union" => Forms["Union"], "Literal" => Forms["Literal"], "Optional" or "Any" => PyNone.Instance,
         "List" => PyType.Get("list"), "Dict" => PyType.Get("dict"), "Tuple" => PyType.Get("tuple"),
         "Set" => PyType.Get("set"), "FrozenSet" => PyType.Get("frozenset"),
         // Callable的ABC身份在collections.abc注册后解析，而非另造同名对象。
@@ -46,6 +51,7 @@ public static class PyTyping
         _ = Attributes.Value;
         if (name == "Any") throw new PyTypeError("type 'Any' is not subscriptable");
         object?[] args = parameter is PyTuple tuple ? tuple.Items : [parameter];
+        if (name == "Literal") return Intern(name, name, Forms[name], PyTypingLiteral.Normalize(args));
         if (name == "Optional")
         {
             if (args.Length != 1) throw new PyTypeError("typing.Optional requires a single type");
@@ -66,6 +72,12 @@ public static class PyTyping
             for (int i = 0; i < parameters.Count; i++) callArgs[i] = TypeArgument(parameters.Items[i]);
             callArgs[^1] = TypeArgument(args[1]);
             return Intern(name, name, Origin(name), callArgs);
+        }
+        if (name == "Tuple" && Array.Exists(args, value => value is PyEllipsis))
+        {
+            if (args.Length != 2 || args[1] is not PyEllipsis)
+                throw new PyNotImplementedError("typing.Tuple currently supports Ellipsis only as Tuple[T, ...]");
+            return Intern(name, name, Origin(name), [TypeArgument(args[0]), PyEllipsis.Instance]);
         }
         int required = name is "Dict" or "Mapping" or "MutableMapping" ? 2 : name == "Tuple" ? -1 : 1;
         if (required >= 0 && args.Length != required)
@@ -108,7 +120,7 @@ public static class PyTyping
 
     private static PyTypingAlias Intern(string cacheName, string name, object origin, object?[] args)
     {
-        object key = new PyTuple([cacheName, new PyTuple(args)]);
+        object key = new PyTuple([cacheName, name == "Literal" ? PyTypingLiteral.Key(args) : new PyTuple(args)]);
         lock (AliasLock)
         {
             if (Aliases.TryGetValue(key, out PyTypingAlias? existing)) return existing;
@@ -121,14 +133,16 @@ public static class PyTyping
     private static object TypeArgument(object? value) => value switch
     {
         null or PyNone => PyType.Get("NoneType"),
-        PyTypingForm { Name: "Optional" or "Union" } => throw new PyTypeError("Plain special form is not valid as a type argument"),
-        PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm => value,
+        PyTypingForm { Name: "Optional" or "Union" or "Literal" } => throw new PyTypeError("Plain special form is not valid as a type argument"),
+        PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType => value,
         string => throw new PyNotImplementedError("typing forward references are not supported yet"),
         _ => throw new PyTypeError("Parameters to generic types must be types."),
     };
 
     internal static string Display(object? value) => value switch
     {
+        PyEllipsis => "...",
+        PyTypedDictType typed => typed.Module + "." + typed.Name,
         PyType type => type.Name,
         PyClass cls => "__main__." + cls.Name,
         PyNativeType type => type.Module + "." + type.Name,

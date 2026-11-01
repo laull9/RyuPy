@@ -24,10 +24,18 @@ pub enum AssignTarget {
 }
 
 /// 序列解包的一个位置。
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum SequenceItem {
     /// 普通目标：按位置取一个元素。
-    One(Binding),
+    One(SequenceTarget),
     /// 星号目标：把中间剩余的元素打包成列表。
-    Rest(Binding),
+    Rest(SequenceTarget),
+}
+
+/// 平坦解包的叶目标；对象与下标表达式在轮到写入时才执行。
+#[derive(Clone, Debug)]
+pub enum SequenceTarget {
+    Binding(Binding),
+    Attribute { base: ExprId, name: Name },
+    Subscript { base: ExprId, index: ExprId },
 }

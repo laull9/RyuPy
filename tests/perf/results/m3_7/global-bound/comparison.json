@@ -1,0 +1,1430 @@
+{
+  "samples": {
+    "default-before-read": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0012022,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.001556,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0010495,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0010567,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0010647,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0012288,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.001378,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0012452,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0011003,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0015325,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0037025,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0015364,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.001246,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0010847,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0012832,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0013257,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0014133,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0010335,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0015873,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.00128,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0016818,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      }
+    ],
+    "default-before-dynamic": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0037705,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0040294,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0035513,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0031913,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0041563,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.003184,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0034177,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0152505,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0111726,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0122179,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0121422,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0109388,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0126156,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0123489,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0036687,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0034584,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0034553,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0031288,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0032676,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0030548,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0038097,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0112214,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0126597,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0113893,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0107606,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0115154,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0128412,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0105322,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0040446,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0039125,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0033584,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0049265,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0034781,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0035683,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0039226,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0127664,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0127828,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0126695,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0147077,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0128791,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0131997,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0115289,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      }
+    ],
+    "default-after-read": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0013477,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0013935,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0014076,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0019737,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0015566,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0015045,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0019843,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0022018,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0015506,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0014262,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0017754,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0014892,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0014865,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0048149,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0016602,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0014548,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0018546,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0022773,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0013541,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.001316,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.001898,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      }
+    ],
+    "default-after-dynamic": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0034456,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0037979,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0037543,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0037634,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0039457,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0039695,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.003821,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0136449,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0121986,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0143137,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0129926,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0131064,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0126445,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0099031,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0042881,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0048376,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0042787,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0039691,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0041192,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0033117,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0031354,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0119024,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0114115,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0142714,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0143259,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0107896,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0103126,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0123216,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0033095,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0035586,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.003292,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0043109,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0036487,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.003731,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0033027,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0114511,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0145396,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0111024,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0113805,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0108901,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0128704,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0105661,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      }
+    ],
+    "disabled-before-read": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0024013,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0032535,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0023307,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0020022,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0020925,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0020304,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0020793,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0024958,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0028942,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0023024,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0021844,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0037217,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0027715,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0026865,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0020517,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0020567,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0020957,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.002013,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0023433,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.002394,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0019726,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      }
+    ],
+    "disabled-before-dynamic": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0054328,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0058122,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0051913,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0047039,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0045288,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0046941,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.004621,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0176023,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0164818,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0159764,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0188261,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0170046,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0176193,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0176858,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0042611,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0041998,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0045253,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0078787,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0045853,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0044332,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0060326,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0155808,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.018386,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0165557,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.016695,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.015181,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.015873,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0149568,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.004973,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0051468,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0046982,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0048328,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0046298,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0049285,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0041234,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0145196,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.017472,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0173169,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0191711,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0177101,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0152949,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.017301,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      }
+    ],
+    "disabled-after-read": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0024906,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0029048,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0027438,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0069241,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0026972,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0043465,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0048625,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0038725,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0025245,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0030055,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0023531,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0031584,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0023568,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0027405,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0024504,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0023854,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.002347,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0028712,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0026537,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.002936,
+            "result": 7000000,
+            "allocated": 24
+          },
+          {
+            "seconds": 0.0024346,
+            "result": 7000000,
+            "allocated": 24
+          }
+        ]
+      }
+    ],
+    "disabled-after-dynamic": [
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0061387,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0050439,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0047963,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0047573,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0048413,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0046408,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0050418,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0190835,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0177141,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0189189,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.01782,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0179539,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0188051,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0182905,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0057736,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0058526,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0043588,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0041866,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0045544,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0046721,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0048141,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0156425,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0153018,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0163591,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.018889,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0171437,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0179497,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0167436,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      },
+      {
+        "global_sum": [
+          {
+            "seconds": 0.0045281,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0046061,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0049406,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0047123,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0049823,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0059634,
+            "result": 7000000,
+            "allocated": 64
+          },
+          {
+            "seconds": 0.0049132,
+            "result": 7000000,
+            "allocated": 64
+          }
+        ],
+        "global_store_read": [
+          {
+            "seconds": 0.0181904,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0158079,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0182787,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0157727,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0153394,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.014685,
+            "result": 499999500000,
+            "allocated": 23993896
+          },
+          {
+            "seconds": 0.0165674,
+            "result": 499999500000,
+            "allocated": 23993896
+          }
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "default-before-read": {
+      "global_sum": 0.001246
+    },
+    "default-before-dynamic": {
+      "global_sum": 0.0035513,
+      "global_store_read": 0.0122179
+    },
+    "default-after-read": {
+      "global_sum": 0.0015506
+    },
+    "default-after-dynamic": {
+      "global_sum": 0.0037979,
+      "global_store_read": 0.0119024
+    },
+    "disabled-before-read": {
+      "global_sum": 0.0020925
+    },
+    "disabled-before-dynamic": {
+      "global_sum": 0.0047039,
+      "global_store_read": 0.0173169
+    },
+    "disabled-after-read": {
+      "global_sum": 0.0027405
+    },
+    "disabled-after-dynamic": {
+      "global_sum": 0.0048413,
+      "global_store_read": 0.0167436
+    }
+  }
+}

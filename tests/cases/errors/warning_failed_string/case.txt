@@ -1,0 +1,4 @@
+# 显式str错误可抛出，但未捕获报告必须安全降级，不能泄漏CLR异常。
+entry = entry.py
+expect_exit = 1
+expect_exception = CustomWarning: <exception str() failed>

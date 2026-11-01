@@ -45,6 +45,7 @@ public static partial class PyOps
     {
         // 编译器内部用限定名避免与同名用户异常类的CLR引用冲突。
         "json.JSONDecodeError" => "JSONDecodeError",
+        "io.UnsupportedOperation" => "UnsupportedOperation",
         "re.error" => "error",
         "dataclasses.FrozenInstanceError" => "FrozenInstanceError",
         _ => name,
@@ -70,8 +71,14 @@ public static partial class PyOps
         return callable switch
         {
             PyType type when IsBuiltinConstructor(type.Name) => PyOps.CallBuiltin(type.Name, args, names, values),
+            PyType type when PyExceptionHierarchy.IsSubclass(type.Name, "Warning") =>
+                ConstructWarning(type.Name, args, names),
+            PyType { Name: "ellipsis" } => PyEllipsis.Create(args, names),
+            PyType { Name: "_TypedDictMeta" } => throw new PyNotImplementedError("direct TypedDict metaclass construction is not supported"),
+            PyType { Name: "NotImplementedType" } => PyNotImplemented.Create(args, names),
             PyType { Name: "error" } => PyRegex.ConstructError(args, names, values),
             PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError(args, names, values),
+            PyType { Name: "UnsupportedOperation" } => PyUnsupportedOperation.Construct(args, names),
             IPyNativeCallable native => native.Invoke(args, names, values),
             PyFunction function => function.Invoke(args, names, values),
             PyBuiltinFunction function => function.Invoke(args, names, values),
@@ -86,6 +93,13 @@ public static partial class PyOps
                 $"'{PyRepr.TypeName(callable)}' object is not callable"
             ),
         };
+    }
+
+    /// <summary>警告构造保留所有原始参数；拒绝关键字，不提前执行用户 str。</summary>
+    private static PyBaseException ConstructWarning(string name, object?[] args, string[] names)
+    {
+        if (names.Length != 0) throw new PyTypeError($"{name}() takes no keyword arguments");
+        return PyWarningTypes.Create(name, args);
     }
 
     /// <summary>作为值传递的受支持内建构造器；dataclass工厂等不能把list类型误判为不可调用。</summary>

@@ -64,7 +64,7 @@
 | 内建 `ord` / `chr` 直接调用 | ✅ Phase 3 项目驱动 | Unicode码点/单字节、chr整数与`__index__`，范围和参数错误；一等内建函数值已接共享身份与动态调用（M3.3） |
 | `print` 的 `sep` / `end` | ✅ M2.4 | 静态路径直接写分隔符与结尾；`file` / `flush` 依赖 M3.4 |
 | 普通 class、单继承、方法、绑定方法、`property` / `staticmethod` / `classmethod` | ✅ M2.5 / M2.6 | 运行时 `PyClass` / `PyInstance`；类体在 `class` 语句位置顺序执行 |
-| 用户自定义异常（`class E(ValueError)`） | ✅ M2.6 | codegen 生成 CLR 子类；类型化 catch 与 Python 继承树同构 |
+| 用户自定义异常（`class E(ValueError)`） | ✅ M2.6 | codegen 生成 CLR 主继承树；io.UnsupportedOperation 的额外父边由 MIR 原位展开 |
 | `__repr__` / `__str__` / `__eq__` / `__hash__` / `__bool__` / `__len__` / `__iter__` / `__next__` / `__getitem__` 与常用运算槽 | ✅ M2.5 | `PyObject.TryMethod` 统一分派；未支持的魔术方法不伪造结果 |
 | `with` / 多上下文 / `as` / 异常抑制 | ✅ M2.8 | 去糖为 `try` / `except BaseException` / `finally`；`__enter__` / `__exit__` 走普通属性与调用协议 |
 | 常用标准库 | 🚧 M3.4–M3.6 | 按独立 API 表开放；不是整个模块兼容 |
@@ -215,7 +215,7 @@ stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise
 ### 4.2 `try` 的编译方式（M2.2）
 
 - **`except`** 编译成 CIL 的**类型化 catch**。CLR 按「类型及其基类」匹配，正好等于 Python 的
-  `except` 语义，前提是 CLR 继承树与 Python 继承树同构（见运行时 `PyExceptionTypes`）。
+  `except` 语义，CLR 主继承树之外的已登记额外父边（目前仅 io.UnsupportedOperation → ValueError）由 MIR 在原 handler 位置展开独立 catch，见 io-unsupported-operation.md。用户异常内部按所属模块限定身份，不以显示名覆盖其它模块或内建异常。
   `except (A, B)` 为每种类型各生成一条记录；每条记录配一个**独立的两指令处理入口**
   （`stloc` 取下异常 + `leave` 跳出），因为 CLR 会把「try 与 handler 区间完全相同」的
   两条记录当成重复子句直接拒绝。
@@ -402,8 +402,11 @@ yield from逐项转发next/send/throw/close，消费委托StopIteration.value；
 RHS重绑定或暂停不改变写回位置，写回失败也不撤销已发生的原地修改。property setter本身仍未支持。
 字典字面量现支持yield：按固定CPython 3.12基线，≤15对先按key/value顺序求全部表达式再插入，
 16–17对逐对求值插入；故小字典后值异常前不hash，16–17对首hash异常则阻止后续求值。
-超过17对只有所有key为纯Number/String/Bool/None字面量才支持（无用户hash/eq，直接插入）；
-其他键的分块缓存hash合并未实现，报E0100。不为无可观察差异的纯标量键模拟内部临时字典。
+超过17对的全标量字面量键继续直接插入；动态键在每对key/value各求值一次后，
+由运行时精确检查真实int/bool/str/float/None值（含CLR BigInteger），再插入尚未公开的字典。
+非标量键（包括tuple、bytes、用户对象）在hash/eq/repr之前明确NotImplementedError；
+用户键的分块缓存hash合并仍未实现。原E0100范围收窄为运行时守卫，不为无用户回调的
+标量键模拟CPython内部临时字典；不改变<=17项及字典`**`的既有边界。
 暂停调用现支持`*`位置实参：多个位置项时逐个star立即展开快照，唯一位置项为star时
 保留源至关键字准备结束后的最终调用才展开；位置组先于关键字组求值，无论源码关键字写在何处。
 当前还对带`**`展开的调用实参内yield报E0100，映射快照/重复键时序留待独立竖切。
@@ -446,9 +449,12 @@ getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细
 sys.modules/path 为受控只读视图，不支持动态 import hook；环境与模块 keys/items 是快照。
 Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 词法拒绝测试分开记录。
 Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
-io.UnsupportedOperation 的双重异常层级未实现，当前能力错误为 OSError；完整文件描述符、
-编码错误策略、复杂 glob 等长尾保持明确未支持。文本逐码点实现优先语义，未声称性能提升。
-本轮发现既有正整数字面量仅支持到 u64::MAX，超过范围 E0100；int(十进制字符串) 可创建更大整数，
+io.UnsupportedOperation 已通过 CLR 主树、Python 额外父边及原位 typed catch 展开，支持
+OSError/ValueError 两父捕获；无参/单参构造、既有流能力错误和内存流 fileno 的准确范围见
+[io-unsupported-operation.md](io-unsupported-operation.md)，该增量修订 ADR-0028 的旧边界，见 ADR-0031。
+完整文件描述符、编码错误策略、复杂 glob 等长尾仍未支持；StringIO 非零相对定位仍为普通 OSError。
+文本逐码点实现优先语义，未声称性能提升。
+M3.4 当时发现正整数字面量仅支持到 u64::MAX；M3.7 已扩展到下文有界 BigInt token 路径。int(十进制字符串) 也可创建更大整数，
 不把后者的运行时 BigInteger 能力误写成任意大小源码整数字面量支持。
 
 ### 数值、JSON 与正则（M3.5）
@@ -476,3 +482,65 @@ repr补不可打印控制/分隔符与孤立代理项转义，不把日志中的
 不会为保留旧静态速度而忽略生成 eq、factory、property 或 frozen 错误。
 类型元数据不等于运行时类型检查；Protocol、NamedTuple、TypeVar 与完整前向引用仍未实现。
 Hashable 的隐式类 hash 槽边界保留独立 pending，不用启发式关系冒充 ABC 正确性。
+
+### 源码模块之间的普通运行时基类
+
+`from package import Base as Alias; class Child(Alias)` 与 `class Child(module.Base)`
+在定义位置读取实际绑定，并由普通类守卫检查完整单继承祖先链，不传播跨模块
+`ClassId`，也不以导入名猜测类型。别名/模块属性改绑为另一个普通用户类时继承新值；
+`from` 旧绑定继续保留原类对象。类装饰器表达式、基类表达式、类体、逆序装饰应用按
+既有定义顺序执行；仅全部成功后发布最终公开绑定，失败保留旧绑定及已发生的副作用。
+本地继续派生运行时基类的类，也保留动态公开槽和真实基类检查。
+
+首切仅开放已解析模块槽名字或属性基类表达式，普通类保持 `PyClass/PyInstance`
+动态表示；直接工厂调用基类、多重继承和类关键字/自定义元类仍未实现。
+运行时守卫不调用用户 `hash/eq/repr`，按引用身份检查祖先；非普通值、内建类型、
+异常类、Enum、dataclass，以及需要专用入口的原生类均在类体前明确
+`NotImplementedError`。已验证的原生 TestCase/Enum 和静态异常类入口保持原能力。
+这不是模拟所有 CPython 元类失败时序：例如整数基对象可让 CPython 先执行类体、
+最终构造再失败，该路径独立 pending，不冒称原生兼容。
+
+成本是每个类定义一次 O(继承深度) 守卫与引用身份集合分配、以及运行时公开绑定；
+没有给每次实例构造/字段读写增加守卫，不宣称比静态定义路径更快。
+验收：`m3_7_runtime_bases.py` 与源码 fixtures、`runtime_bases` driver、
+`PyRuntimeBasesTests`；特殊基类和非类元类时序各有独立 pending 正例。
+
+### 函数内导入和局部注解目标
+
+静态 import 可在函数/方法/生成器实际执行位置发生，局部、global、nonlocal 和捕获 cell
+保留绑定身份；失败不覆盖旧值，from 多项按前缀逐项完成。依赖图发现不是初始化，
+AOT 仍要求未调用函数的静态依赖源码可编译。动态导入、星号导入和函数内异常别名
+catch 仍未开放，完整边界见 [function-imports.md](function-imports.md)。
+函数内属性/下标注解不求值，右值和目标求值/写入仍执行；注解中 yield 的符号判定
+保留，未支持绑定语法不静默忽略。详见 [annotation-targets.md](annotation-targets.md)。
+
+### 大整数字面量与旧异常别名
+
+大整数 token 在 HIR 有界正规化，复用 MIR BigInt 常量池与运行时解析 ABI；全部进制
+限制为 4300 个有效十进制位，超界明确 E0100，不声称 CPython 所有进制的无限容量。
+不能证明参数默认值适合静态槽时仅降级所属函数，小整数安全路径保留；
+详见 [integer-literals.md](integer-literals.md)。
+IOError、EnvironmentError 规范化为同一个 OSError 类对象，直接构造、catch、
+用户派生和生成器注入匹配复用原路径；局部绑定仍优先。一等 OSError 类对象调用
+尚未实现，原新增验收保存在独立 `m3_7_oserror_firstclass_pending.py`，不冒称完成。
+
+
+### TypedDict total-only 与 Ellipsis
+
+TypedDict 类定义的有限专用入口仍求真实基值，不删 TYPE_CHECKING 分支；单父合并
+字段与 total 只影响本类声明，运行时调用返回 dict 而非校验值类型。
+Required/NotRequired、前向引用、非简单注解目标及复杂元类保持明确未支持，
+详见 [TypedDict API](typing-typed-dict.md)。
+Ellipsis 为真实单例，源码 `...` 不受用户重绑同名内建名字影响，
+`typing.Tuple[T, ...]` 保参数身份；同名模块槽保 Dynamic 以支持未绑定时的窄单例回退。
+其它内建模块槽回退仍未实现，不能据此宣称完整动态名称查找。
+
+
+### 普通类体条件与已知字符串属性
+
+普通类体 if/elif/else 在定义位置执行，可能绑定名字仅在 own 字典缺失时才求模块/内建
+回退；方法仍不捕获类命名空间。所有分支的注解语法先触发空字典初始化，未执行声明
+不写字段；普通含条件类的后置dataclass按实际注解dict工作，不用静态union字段。
+特殊Enum/TypedDict/显式dataclass条件仍诊断，详见 [类体条件](class-body-conditions.md)。
+已知Str的属性读取交已有动态协议，不再因静态接收者类型误拒split/upper等；当前
+函数粒度策略会降所属函数，不改变独立数值函数，详见 [字符串属性](string-attributes.md)。

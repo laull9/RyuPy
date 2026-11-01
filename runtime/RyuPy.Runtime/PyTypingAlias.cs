@@ -13,7 +13,7 @@ public sealed class PyTypingAlias(string name, object origin, object?[] argument
     /// <summary>内部参数快照，不通过Python属性暴露可变数组。</summary>
     internal object?[] Arguments { get; } = (object?[])arguments.Clone();
     /// <inheritdoc />
-    public override string TypeName => Name == "Union" ? "_UnionGenericAlias" : "_GenericAlias";
+    public override string TypeName => Name == "Union" ? "_UnionGenericAlias" : Name == "Literal" ? "_LiteralGenericAlias" : "_GenericAlias";
     /// <inheritdoc />
     public override object? GetAttr(string name) => name switch
     {
@@ -39,6 +39,17 @@ public sealed class PyTypingAlias(string name, object origin, object?[] argument
     {
         if (other is not PyTypingAlias alias) return PyNotImplemented.Instance;
         if (Name != alias.Name || Arguments.Length != alias.Arguments.Length) return false;
+        if (Name == "Literal")
+        {
+            foreach (object? arg in Arguments)
+            {
+                bool found = false;
+                foreach (object? candidate in alias.Arguments)
+                    if (PyTypingLiteral.Equal(arg, candidate)) { found = true; break; }
+                if (!found) return false;
+            }
+            return true;
+        }
         if (Name != "Union")
         {
             for (int i = 0; i < Arguments.Length; i++) if (!PyHash.Equal(Arguments[i], alias.Arguments[i])) return false;
@@ -55,6 +66,7 @@ public sealed class PyTypingAlias(string name, object origin, object?[] argument
 
     private long Hash()
     {
+        if (Name == "Literal") return PyTypingLiteral.Hash(Arguments);
         if (Name != "Union") return PyHash.Of(new PyTuple([Name, new PyTuple(Arguments)]));
         long hash = 0;
         foreach (object? arg in Arguments) hash ^= PyHash.Of(arg);
@@ -72,7 +84,8 @@ public sealed class PyTypingAlias(string name, object origin, object?[] argument
     public override string PythonRepr()
     {
         var parts = new List<string>();
-        foreach (object? arg in Arguments) parts.Add(PyTyping.Display(arg));
+        foreach (object? arg in Arguments) parts.Add(Name == "Literal" ? PyRepr.Repr(arg) : PyTyping.Display(arg));
+        if (Name == "Literal" && parts.Count == 0) return "typing.Literal[()]";
         if (Name == "Union" && Arguments.Length == 2)
         {
             int none = Arguments[0] is PyType { Name: "NoneType" } ? 0 : Arguments[1] is PyType { Name: "NoneType" } ? 1 : -1;

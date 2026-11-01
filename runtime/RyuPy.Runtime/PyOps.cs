@@ -112,6 +112,9 @@ public static partial class PyOps
     /// <summary>二元运算的通用实现；<paramref name="inplace"/> 只影响错误消息里的运算符。</summary>
     private static object BinaryCore(int op, object a, object b, bool inplace)
     {
+        // 精确内建字符串的 % 已实现格式化槽，不能让右侧 __rmod__ 抢在转换前执行。
+        // 其它类型仍沿既有二元/反射协议；数值取模不受此入口影响。
+        if (op == Mod && a is string format) return PyPercentFormat.Format(format, b);
         if (TryBinaryMagic(op, a, b, out object? magic))
         {
             return magic!;
@@ -398,6 +401,7 @@ public static partial class PyOps
         {
             return Math.Abs(d);
         }
+        if (PyObject.TryMethod(value, "__abs__", [], out object? result)) return result ?? PyNone.Instance;
         throw new PyTypeError($"bad operand type for abs(): '{PyRepr.TypeName(value)}'");
     }
 

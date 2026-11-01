@@ -47,6 +47,11 @@ public static partial class PyOps
         "reversed" => BuiltinReversed(args, kwNames),
         "enumerate" => BuiltinEnumerate(args, kwNames, kwValues),
         "zip" => BuiltinZip(args, kwNames),
+        "map" => PyMap.Create(args, kwNames, kwValues),
+        "memoryview" => PyMemoryView.Create(args, kwNames, kwValues),
+        "Ellipsis" => throw new PyTypeError("'ellipsis' object is not callable"),
+        "NotImplemented" => throw new PyTypeError("'NotImplementedType' object is not callable"),
+        "dir" => PyDir.Call(args, kwNames, kwValues),
         "sum" => BuiltinSum(args, kwNames, kwValues),
         "min" => BuiltinMinMax("min", args, kwNames, kwValues),
         "max" => BuiltinMinMax("max", args, kwNames, kwValues),
@@ -503,6 +508,8 @@ public static partial class PyOps
         }
         if (args[0] is PyGenerator generator)
             return generator.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
+        if (args[0] is PyMap map)
+            return map.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
         if (args[0] is PyInstance instance)
         {
             try

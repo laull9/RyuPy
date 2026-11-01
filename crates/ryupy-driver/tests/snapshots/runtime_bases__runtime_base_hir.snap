@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/runtime_bases.rs
+expression: output
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_runtime_base_snapshot.py"
+    from package import Base as global.Alias
+    class Child(global.Alias):
+    class Grandchild(global.Child):

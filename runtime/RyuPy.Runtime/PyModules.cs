@@ -99,7 +99,7 @@ public sealed class PyModule
 /// </list>
 /// 注册表由生成的 <c>__init_functions</c> 在入口处填充，因此只有编译时可达的模块能被导入。
 /// </remarks>
-public static class PyModules
+public static partial class PyModules
 {
     private sealed class Registration(
         string package,
@@ -118,6 +118,20 @@ public static class PyModules
 
     private static readonly Dictionary<string, Registration> Registry = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, PyModule> Cache = new(StringComparer.Ordinal);
+
+    /// <summary>从帧文件标识查唯一模块；当前编译器可能只存 basename，歧义不能猜测。</summary>
+    public static string? ModuleForFile(string file)
+    {
+        string? found = null;
+        foreach (var pair in Registry)
+        {
+            if (pair.Value.File.Length == 0 || !string.Equals(pair.Value.File, file, StringComparison.Ordinal)) continue;
+            if (found is not null)
+                throw new PyNotImplementedError("warning source file maps to multiple modules");
+            found = pair.Key;
+        }
+        return found;
+    }
 
     /// <summary>登记一个已编译模块。同名重复登记以最后一次为准。</summary>
     public static void Register(

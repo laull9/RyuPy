@@ -1,12 +1,12 @@
 # 标准库移植计划
 
-标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)，不代表完整 dataclasses 或 typing。其余表内能力仍待实现。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
+标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)，不代表完整 dataclasses 或 typing。M3.7 已完成用户批准的有界逐 API 交付，已实现的有限范围见 [项目工具表](stdlib-project-tools.md)，未列能力不自动视为支持。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
 
 ## 项目驱动的基础内建
 
 `ord` / `chr` 直接调用已原生实现，独立于下方待做模块表：ord接受单码点str和单字节bytes/bytearray，
 chr接受整数/bool与一次`__index__`转换；代理项可往返。严格拒绝错误参数和关键字，区分C int溢出与Unicode范围错误。
-M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。wcwidth真实入口首阻断已前移到map，并不表示项目通过。
+M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。这只描述基础内建；后续map等竖切已使wcwidth固定入口及九项指定上游场景通过，不代表整个标准库完成。
 
 ## 工作规模与实现路径
 

@@ -56,14 +56,16 @@ fn main() -> () {
     let _30: dyn;
     let _31: dyn;
     let _32: dyn;
-    let _33: dyn;
+    let _33: i64;
     let _34: dyn;
     let _35: dyn;
-    let _36: i64;
-    let _37: dyn;
+    let _36: dyn;
+    let _37: i64;
     let _38: dyn;
-    let _39: bool;
-    let _40: bool;
+    let _39: dyn;
+    let _40: i64;
+    let _41: bool;
+    let _42: bool;
 
     region r0: [4, +1) finally-guard handler->bb5
     region r1: [1, +1) catch dataclasses.FrozenInstanceError handler->bb3
@@ -141,8 +143,9 @@ fn main() -> () {
         goto -> bb14;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_0);
-        _33 = RuntimeFn::HandlerEnter(_32);
+        _33 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_33);
+        _34 = RuntimeFn::HandlerEnter(_32);
         goto -> bb4;
     }
     bb3: {
@@ -150,46 +153,47 @@ fn main() -> () {
         goto -> bb2;
     }
     bb4: {
-        _35 = RuntimeFn::HandlerEnter(None);
+        _36 = RuntimeFn::HandlerEnter(None);
         // line 12
-        _37 = box<Str>(const "frozen");
-        _38 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_38, _37);
-        RuntimeFn::WriteNewline(_38);
-        _36 = const 0_i64;
+        _38 = box<Str>(const "frozen");
+        _39 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_39, _38);
+        RuntimeFn::WriteNewline(_39);
+        _37 = const 0_i64;
         goto -> bb7;
     }
     bb5: {
-        _34 = caught_exception;
+        _35 = caught_exception;
         goto -> bb6;
     }
     bb6: {
-        RuntimeFn::TracePopTo(_0);
-        _35 = RuntimeFn::HandlerEnter(_34);
-        _36 = const 1_i64;
+        _40 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_40);
+        _36 = RuntimeFn::HandlerEnter(_35);
+        _37 = const 1_i64;
         goto -> bb7;
     }
     bb7: {
-        RuntimeFn::HandlerLeave(_33);
+        RuntimeFn::HandlerLeave(_34);
         goto -> bb8;
     }
     bb8: {
-        _39 = Eq(_36, const 1_i64);
-        branch _39 -> [then: bb9, else: bb11];
+        _41 = Eq(_37, const 1_i64);
+        branch _41 -> [then: bb9, else: bb11];
     }
     bb9: {
-        RuntimeFn::HandlerLeave(_33);
-        raise _34;
+        RuntimeFn::HandlerLeave(_34);
+        raise _35;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _40 = Eq(_36, const 2_i64);
-        branch _40 -> [then: bb15, else: bb12];
+        _42 = Eq(_37, const 2_i64);
+        branch _42 -> [then: bb15, else: bb12];
     }
     bb12: {
-        RuntimeFn::HandlerLeave(_33);
+        RuntimeFn::HandlerLeave(_34);
         goto -> bb15;
     }
     bb13: {

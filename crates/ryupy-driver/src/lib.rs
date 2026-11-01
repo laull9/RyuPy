@@ -82,7 +82,7 @@ pub struct Artifacts {
 /// 单模块产物与跨模块绑定契约，一同交给链接器。
 struct CompiledModule {
     program: ryupy_mir::Program,
-    exports: Vec<(String, ryupy_mir::GlobalId)>,
+    exports: Vec<ryupy_mir::ModuleExport>,
     protected_exports: Vec<String>,
 }
 
@@ -133,10 +133,19 @@ fn compile_linked(
     search_paths: &[PathBuf],
 ) -> Result<ryupy_mir::LinkedProgram> {
     let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
-    let native_exceptions: Vec<&str> = ["json", "re", "dataclasses"]
-        .into_iter()
-        .filter(|name| !sources.iter().any(|source| source.name == *name))
-        .collect();
+    let entry_file = sources[entry_index].parsed.file;
+    let native_exceptions: Vec<&str> = [
+        "json",
+        "re",
+        "dataclasses",
+        "unittest",
+        "enum",
+        "io",
+        "typing",
+    ]
+    .into_iter()
+    .filter(|name| !sources.iter().any(|source| source.name == *name))
+    .collect();
     let mut units = Vec::new();
     for module in sources {
         let CompiledModule {
@@ -155,7 +164,32 @@ fn compile_linked(
             },
         ));
     }
-    Ok(ryupy_mir::link(units, entry_index))
+    let linked = ryupy_mir::link(units, entry_index);
+    check_linked_exports(sess, &linked, entry_file)?;
+    Ok(linked)
+}
+
+/// 链接后的导出 guard 也必须验证，避免错误字段 ID 或栈类型进入 codegen。
+fn check_linked_exports(
+    sess: &mut Session,
+    linked: &ryupy_mir::LinkedProgram,
+    file: FileId,
+) -> Result<()> {
+    if let Err(errors) = ryupy_mir::validate::validate_linked_exports(linked) {
+        for error in errors {
+            sess.diagnostics.push(
+                ryupy_base::Diagnostic::error(
+                    ryupy_base::Span::new(
+                        file,
+                        ryupy_base::TextRange::empty(ryupy_base::TextSize::new(0)),
+                    ),
+                    format!("内部 MIR 导出契约验证失败：{error}"),
+                )
+                .with_code("E0399"),
+            );
+        }
+    }
+    stop_if_errors(sess)
 }
 
 fn stop_if_errors(sess: &Session) -> Result<()> {
@@ -258,6 +292,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         )],
         0,
     );
+    check_linked_exports(sess, &linked, module.parsed.file)?;
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: assembly_name(input),
         entry_source_path: Some(input.to_string_lossy().into_owned()),

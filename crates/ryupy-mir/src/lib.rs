@@ -47,3 +47,11 @@ mod container_literals;
 
 #[cfg(test)]
 mod print_tests;
+
+mod module_bindings;
+
+#[cfg(test)]
+mod binding_validation_tests;
+mod validate_exports;
+
+mod class_lookup;

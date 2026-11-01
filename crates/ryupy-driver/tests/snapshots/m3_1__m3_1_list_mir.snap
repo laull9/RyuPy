@@ -175,16 +175,16 @@ fn main() -> () {
     let _66: dyn;
     let _67: dyn;
     let _68: dyn;
-    let _69: dyn;
+    let _69: i64;
     let _70: dyn;
     let _71: dyn;
-    let _72: i64;
-    let _73: dyn;
+    let _72: dyn;
+    let _73: i64;
     let _74: dyn;
-    let _75: bool;
-    let _76: bool;
-    let _77: dyn;
-    let _78: dyn;
+    let _75: dyn;
+    let _76: i64;
+    let _77: bool;
+    let _78: bool;
     let _79: dyn;
     let _80: dyn;
     let _81: dyn;
@@ -198,6 +198,8 @@ fn main() -> () {
     let _89: dyn;
     let _90: dyn;
     let _91: dyn;
+    let _92: dyn;
+    let _93: dyn;
 
     region r0: [4, +1) finally-guard handler->bb5
     region r1: [1, +1) catch ZeroDivisionError handler->bb3
@@ -255,9 +257,9 @@ fn main() -> () {
         RuntimeFn::UnpackCheck(_22, const 2_i64, const false);
         _23 = box<I64>(const 0_i64);
         _24 = RuntimeFn::GetItem(_21, _23);
-        g4 = _24;
         _25 = box<I64>(const 1_i64);
         _26 = RuntimeFn::GetItem(_21, _25);
+        g4 = _24;
         g5 = _26;
         // line 17
         _27 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
@@ -329,8 +331,9 @@ fn main() -> () {
         goto -> bb14;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_0);
-        _69 = RuntimeFn::HandlerEnter(_68);
+        _69 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_69);
+        _70 = RuntimeFn::HandlerEnter(_68);
         goto -> bb4;
     }
     bb3: {
@@ -338,46 +341,47 @@ fn main() -> () {
         goto -> bb2;
     }
     bb4: {
-        _71 = RuntimeFn::HandlerEnter(None);
+        _72 = RuntimeFn::HandlerEnter(None);
         // line 34
-        _73 = RuntimeFn::LoadName(global@7, const "x");
-        _74 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_74, _73);
-        RuntimeFn::WriteNewline(_74);
-        _72 = const 0_i64;
+        _74 = RuntimeFn::LoadName(global@7, const "x");
+        _75 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_75, _74);
+        RuntimeFn::WriteNewline(_75);
+        _73 = const 0_i64;
         goto -> bb7;
     }
     bb5: {
-        _70 = caught_exception;
+        _71 = caught_exception;
         goto -> bb6;
     }
     bb6: {
-        RuntimeFn::TracePopTo(_0);
-        _71 = RuntimeFn::HandlerEnter(_70);
-        _72 = const 1_i64;
+        _76 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_76);
+        _72 = RuntimeFn::HandlerEnter(_71);
+        _73 = const 1_i64;
         goto -> bb7;
     }
     bb7: {
-        RuntimeFn::HandlerLeave(_69);
+        RuntimeFn::HandlerLeave(_70);
         goto -> bb8;
     }
     bb8: {
-        _75 = Eq(_72, const 1_i64);
-        branch _75 -> [then: bb9, else: bb11];
+        _77 = Eq(_73, const 1_i64);
+        branch _77 -> [then: bb9, else: bb11];
     }
     bb9: {
-        RuntimeFn::HandlerLeave(_69);
-        raise _70;
+        RuntimeFn::HandlerLeave(_70);
+        raise _71;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _76 = Eq(_72, const 2_i64);
-        branch _76 -> [then: bb15, else: bb12];
+        _78 = Eq(_73, const 2_i64);
+        branch _78 -> [then: bb15, else: bb12];
     }
     bb12: {
-        RuntimeFn::HandlerLeave(_69);
+        RuntimeFn::HandlerLeave(_70);
         goto -> bb14;
     }
     bb13: {
@@ -385,26 +389,26 @@ fn main() -> () {
     }
     bb14: {
         // line 37
-        _77 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
-        _78 = MakeList([]);
-        _79 = RuntimeFn::DynBuiltin(const "iter", [_78], [], []);
-        _80 = dyn.call(_77, [_79]);
-        _81 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_81, _80);
-        RuntimeFn::WriteNewline(_81);
+        _79 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _80 = MakeList([]);
+        _81 = RuntimeFn::DynBuiltin(const "iter", [_80], [], []);
+        _82 = dyn.call(_79, [_81]);
+        _83 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_83, _82);
+        RuntimeFn::WriteNewline(_83);
         // line 38
-        _82 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
-        _83 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
-        _84 = box<I64>(const 4_i64);
-        _85 = box<I64>(const 5_i64);
-        _86 = MakeList([_84, _85]);
-        _87 = RuntimeFn::DynBuiltin(const "iter", [_86], [], []);
-        _88 = dyn.call(_83, [_87]);
+        _84 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _85 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _86 = box<I64>(const 4_i64);
+        _87 = box<I64>(const 5_i64);
+        _88 = MakeList([_86, _87]);
         _89 = RuntimeFn::DynBuiltin(const "iter", [_88], [], []);
-        _90 = dyn.call(_82, [_89]);
-        _91 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_91, _90);
-        RuntimeFn::WriteNewline(_91);
+        _90 = dyn.call(_85, [_89]);
+        _91 = RuntimeFn::DynBuiltin(const "iter", [_90], [], []);
+        _92 = dyn.call(_84, [_91]);
+        _93 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_93, _92);
+        RuntimeFn::WriteNewline(_93);
         goto -> bb15;
     }
     bb15: {
@@ -738,9 +742,9 @@ fn <listcomp>(_0: dyn) -> dyn {
         RuntimeFn::UnpackCheck(_10, const 2_i64, const false);
         _11 = box<I64>(const 0_i64);
         _12 = RuntimeFn::GetItem(_4, _11);
-        _1 = _12;
         _13 = box<I64>(const 1_i64);
         _14 = RuntimeFn::GetItem(_4, _13);
+        _1 = _12;
         _2 = _14;
         // line 18
         _15 = dyn.Add(_1, _2);

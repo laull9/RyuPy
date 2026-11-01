@@ -4,7 +4,7 @@
 //! 1. **字面量与变量**：
 //!    - 将各类数值、布尔、字符串与 None 转换为 [`Literal`]；
 //!    - 按照 LEGB 规则（局部变量 → 全局函数/类 → 内建）解析变量；
-//!    - 在函数体内若读取模块级变量，根据语义规范第 5 节报 [`E0105`] 阻断。
+//!    - 模块级读取保留共享槽身份；真正未知名字在模块降级结束后登记，运行时检查绑定。
 //! 2. **运算符与去糖**：
 //!    - 二元与一元算符：映射为 [`BinOp`] 与 [`UnaryOp`]；
 //!    - 链式比较（`a < b < c`）：去糖展开为二元短路逻辑 `(a < b) and (b < c)`；
@@ -25,7 +25,7 @@ use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
 pub struct ExprLowerCtx<'a> {
     /// 仅类体当前已绑定名称；方法/lambda函数体不继承该命名空间。
-    pub class_names: Option<&'a rustc_hash::FxHashSet<Name>>,
+    pub class_names: Option<&'a crate::class_scope::ClassScope>,
     /// 模块默认值和类体不能包含 yield；函数体/嵌套默认值可以。
     pub allow_yield: bool,
     pub file: FileId,
@@ -80,15 +80,28 @@ impl<'a> ExprLowerCtx<'a> {
                     } else if let Some(val) = int_val.as_u64() {
                         ExprKind::Literal(Literal::Int(i128::from(val)))
                     } else {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, num.range),
-                                "整数字面量超出支持范围",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("正整数字面量超过当前支持的 64 位无符号整数范围"),
-                        );
-                        ExprKind::Missing
+                        match crate::integer_literal::decimal_integer(&int_val.to_string()) {
+                            Ok(decimal) => ExprKind::Literal(Literal::BigInt(decimal)),
+                            Err(error) => {
+                                let label = match error {
+                                    crate::integer_literal::IntegerLiteralError::Capacity => {
+                                        "超过本实现4300有效十进制位的整数字面量容量"
+                                    }
+                                    crate::integer_literal::IntegerLiteralError::InvalidToken => {
+                                        "无法正规化已解析的整数字面量"
+                                    }
+                                };
+                                self.diagnostics.push(
+                                    Diagnostic::error(
+                                        Span::new(self.file, num.range),
+                                        "整数字面量超出支持范围",
+                                    )
+                                    .with_code("E0100")
+                                    .with_primary_label(label),
+                                );
+                                ExprKind::Missing
+                            }
+                        }
                     }
                 }
                 ast::Number::Float(f) => ExprKind::Literal(Literal::Float(*f)),
@@ -102,6 +115,9 @@ impl<'a> ExprLowerCtx<'a> {
                 }
             },
             ast::Expr::BooleanLiteral(b) => ExprKind::Literal(Literal::Bool(b.value)),
+            ast::Expr::EllipsisLiteral(_) => {
+                ExprKind::Builtin(crate::hir::Builtin::Dynamic("Ellipsis"))
+            }
             ast::Expr::NoneLiteral(_) => ExprKind::Literal(Literal::None),
             ast::Expr::StringLiteral(s) => ExprKind::Literal(Literal::Str(s.value.to_str().into())),
             ast::Expr::Name(name_expr) => self.lower_name(name_expr),
@@ -202,30 +218,8 @@ impl<'a> ExprLowerCtx<'a> {
 
     /// `{k: v}` 字典字面量。`**other` 需要运行时合并，留到后续竖切。
     fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
-        // 大字典在 CPython 中分块建表再复用缓存 hash 合并。只对不会执行用户
-        // hash/eq 的纯标量字面量键采用直接插入；名字/调用不能仅凭推断类型放行。
-        if dict.items.len() > 17
-            && !dict.items.iter().all(|item| {
-                matches!(
-                    item.key.as_ref(),
-                    Some(
-                        ast::Expr::NumberLiteral(_)
-                            | ast::Expr::StringLiteral(_)
-                            | ast::Expr::BooleanLiteral(_)
-                            | ast::Expr::NoneLiteral(_)
-                    )
-                )
-            })
-        {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, dict.range),
-                    "超过17项的字典暂仅支持标量字面量键；动态键分块缓存哈希合并尚未支持",
-                )
-                .with_code("E0100"),
-            );
-            return ExprKind::Missing;
-        }
+        // >17项的动态键交给MIR逐对插入的精确标量守卫；用户键仍明确运行时拒绝。
+        // 不能按类型标注猜测键安全，也不删除未执行分支中的整个字典表达式。
         let mut pairs = Vec::new();
         for item in &dict.items {
             let Some(key) = &item.key else {
@@ -308,8 +302,29 @@ impl<'a> ExprLowerCtx<'a> {
 
     fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
         let name = Name::from(name_expr.id.as_str());
-        if self.class_names.is_some_and(|names| names.contains(&name)) {
-            return ExprKind::ClassLocal(name);
+        if let Some(scope) = self.class_names
+            && scope.contains(&name)
+        {
+            if scope.definite(&name) {
+                return ExprKind::ClassLocal(name);
+            }
+            let saved = self.class_names.take();
+            // 未执行的回退不能提前诊断未实现内建；真正读取时复用模块缺绑定冷诊断。
+            let kind = if crate::unresolved_globals::unsupported_builtin(name.as_str())
+                && resolve_builtin(name.as_str()).is_none()
+                && !self.module_vars.contains_key(&name)
+                && !self.global_scope.names.contains_key(&name)
+            {
+                ExprKind::UnresolvedGlobal(name.clone())
+            } else {
+                self.lower_name(name_expr)
+            };
+            self.class_names = saved;
+            let fallback = self.body.exprs.alloc(Expr {
+                kind,
+                range: name_expr.range,
+            });
+            return ExprKind::ClassLookup { name, fallback };
         }
         // `global` 声明的名字优先落到模块命名空间（即使同名的局部变量预扫描过）。
         if self.func_scope.is_global(&name)
@@ -342,16 +357,18 @@ impl<'a> ExprLowerCtx<'a> {
             ExprKind::ModuleVar(var)
         } else if let Some(builtin) = resolve_builtin(name.as_str()) {
             ExprKind::Builtin(builtin)
-        } else {
+        } else if crate::unresolved_globals::unsupported_builtin(name.as_str()) {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, name_expr.range),
-                    format!("未定义的变量或名称 `{name}`"),
+                    format!("内建名称 `{name}` 尚未实现"),
                 )
-                .with_code("E0106")
-                .with_primary_label("未解析的名字"),
+                .with_code("E0100")
+                .with_primary_label("不把标准内建伪装成未知全局变量"),
             );
             ExprKind::Missing
+        } else {
+            ExprKind::UnresolvedGlobal(name)
         }
     }
 

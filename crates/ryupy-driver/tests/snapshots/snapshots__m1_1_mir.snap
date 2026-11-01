@@ -72,25 +72,31 @@ fn main() -> () {
     let _12: dyn;
 
     bb0: {
+        g3 = const false;
+        g4 = const false;
+        g5 = const false;
         _0 = RuntimeFn::TracePush(const "m1_1_functions.py", const "<module>");
         // line 1
         g0 = const "__main__";
+        g3 = const true;
         // line 1
         g1 = const "";
+        g4 = const true;
         // line 1
         g2 = const "m1_1_functions.py";
+        g5 = const true;
         // line 2
         _1 = RuntimeFn::TypeObject(const "int");
         _2 = _1;
         _3 = RuntimeFn::TypeObject(const "int");
         _4 = _3;
-        RuntimeFn::FunctionMetadata(global@3, null, [const "x", const "return"], [_2, _4]);
+        RuntimeFn::FunctionMetadata(global@6, null, [const "x", const "return"], [_2, _4]);
         // line 7
         _5 = RuntimeFn::TypeObject(const "int");
         _6 = _5;
         _7 = RuntimeFn::TypeObject(const "int");
         _8 = _7;
-        RuntimeFn::FunctionMetadata(global@6, null, [const "n", const "return"], [_6, _8]);
+        RuntimeFn::FunctionMetadata(global@9, null, [const "n", const "return"], [_6, _8]);
         // line 12
         _9 = main_calc(const 10_i64);
         _10 = RuntimeFn::PrintTarget();

@@ -55,7 +55,7 @@ pub(crate) fn emit_entry_wrapper(
     //  18: stloc.0                     │
     //  19: leave 20                    ┘
     //  20: ldloc.0                     ← 所有路径汇合于此，原退出码作为实参
-    //  21: call FlushForExit           ← 刷新失败由运行时报告并改为120
+    //  21: call FinishExit            ← 回调先行；刷新失败由运行时报告并改为120
     //  22: ret
     //
     // 系统初始化也位于保护区中，初始化失败与普通Python异常共享退出规则。

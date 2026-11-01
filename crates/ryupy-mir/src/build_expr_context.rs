@@ -13,6 +13,7 @@ impl FunctionBuilder<'_> {
             class_globals: self.hir_class_globals,
             module_vars: self.module_vars,
             globals: self.globals,
+            module_bound_flags: self.module_bound_flags,
             current_hir_fn: self.current_hir_fn,
             env: self.env,
             class_namespace: self.class_namespace.clone(),

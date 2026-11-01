@@ -1,0 +1,155 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+fn add(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // a
+    let _1: dyn; // b
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_m3_7_map.py", const "add");
+        // line 2
+        _4 = dyn.Add(_0, _1);
+        _3 = _4;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
+fn shadow(_0: dyn) -> dyn {
+    let _0: dyn; // map
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_m3_7_map.py", const "shadow");
+        // line 7
+        _3 = RuntimeFn::TypeObject(const "str");
+        _4 = box<I64>(const 3_i64);
+        _5 = MakeList([_4]);
+        _6 = dyn.call(_0, [_3, _5]);
+        _2 = _6;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_map.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_m3_7_map.py");
+        g2 = _3;
+        // line 1
+        // line 3
+        _4 = RuntimeFn::BuiltinFunction(const "map");
+        g3 = _4;
+        // line 4
+        _5 = RuntimeFn::TypeObject(const "str");
+        _6 = box<I64>(const 1_i64);
+        _7 = box<I64>(const 2_i64);
+        _8 = MakeList([_6, _7]);
+        _9 = RuntimeFn::DynBuiltin(const "map", [_5, _8], [], []);
+        _10 = RuntimeFn::DynBuiltin(const "list", [_9], [], []);
+        _11 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_11, _10);
+        RuntimeFn::WriteNewline(_11);
+        // line 5
+        _12 = RuntimeFn::LoadName(global@3, const "mapping");
+        _13 = box<I64>(const 1_i64);
+        _14 = MakeList([_13]);
+        _15 = box<I64>(const 2_i64);
+        _16 = MakeList([_15]);
+        _17 = dyn.call(_12, [global@4, _14, _16]);
+        _18 = RuntimeFn::DynBuiltin(const "list", [_17], [], []);
+        _19 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_19, _18);
+        RuntimeFn::WriteNewline(_19);
+        // line 6
+        // line 8
+        _20 = MakeFunction(<lambda>; env=[]; defaults=[null, null]);
+        _21 = shadow(_20);
+        _22 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_22, _21);
+        RuntimeFn::WriteNewline(_22);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}
+
+fn <lambda>(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // fn
+    let _1: dyn; // values
+    let _2: i64;
+    let _3: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_m3_7_map.py", const "<lambda>");
+        // line 8
+        _3 = _1;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}

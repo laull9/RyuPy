@@ -1,0 +1,14 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_m3_7_enum.py"
+    from enum import Enum as global.Enum
+    class Color(native Enum: global.Enum):
+        RED = 1
+        ALIAS = class_namespace.RED
+        BLUE = 2
+    print((global.Color(1) Is global.Color.RED))

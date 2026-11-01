@@ -22,6 +22,8 @@ public static class PySystem
             ["stderr"] = DefaultError, ["__stdin__"] = DefaultInput, ["__stdout__"] = DefaultOutput,
             ["__stderr__"] = DefaultError, ["modules"] = new PyModuleView(),
             ["platform"] = OperatingSystem.IsWindows() ? "win32" : OperatingSystem.IsMacOS() ? "darwin" : "linux",
+            ["version_info"] = PySystemVersion.VersionInfo, ["version"] = PySystemVersion.Version,
+            ["implementation"] = PySystemVersion.Implementation,
             ["byteorder"] = BitConverter.IsLittleEndian ? "little" : "big", ["maxsize"] = long.MaxValue,
             ["exit"] = PyNativeFunctions.Create("exit", ["status"], [PyNone.Instance], 0,
                 values => throw new PySystemExit(values[0] is PyNone ? null : values[0])),
@@ -30,7 +32,7 @@ public static class PySystem
         {
             PyModules.RegisterNative("sys", attributes, (name, _) =>
             {
-                if (name is "modules" or "path") throw new PyNotImplementedError("replacement of sys." + name + " is not supported");
+                if (name is "modules" or "path" or "unraisablehook") throw new PyNotImplementedError("replacement of sys." + name + " is not supported");
             });
             _sys = PyModules.Import("sys");
         }

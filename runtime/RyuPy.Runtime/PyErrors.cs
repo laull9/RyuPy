@@ -117,6 +117,8 @@ public static partial class PyErrors
         // 当前单参 ABI 尚不区分无参和显式 None；二者沿用内部耗尽的空 args 约定。
         if (typeName == "StopIteration") return new PyStopIteration(arg);
         if (typeName == "SystemExit") return new PySystemExit(arg);
+        if (PyExceptionHierarchy.IsSubclass(typeName, "Warning"))
+            return PyWarningTypes.Create(typeName, arg is null ? [] : [arg]);
         string message = arg is null or PyNone ? string.Empty : PyRepr.Str(arg);
         return PyExceptionTypes.Create(typeName, message);
     }
@@ -146,6 +148,10 @@ public static partial class PyErrors
     /// 一个参数直接输出它的 <c>str</c>；多个参数输出 <c>(a, b)</c> 形式；
     /// 没有参数时为空。生成代码的异常构造函数从这里取消息。
     /// </remarks>
+    public static string UserExceptionMessageForBase(string builtinBase, object?[] args) =>
+        PyExceptionHierarchy.IsSubclass(builtinBase, "Warning") || builtinBase is "UnsupportedOperation" or "io.UnsupportedOperation" ? "" : UserExceptionMessage(args);
+
+    /// <summary>按参数生成显式异常消息；警告仅在真正格式化时调用。</summary>
     public static string UserExceptionMessage(object?[] args)
     {
         if (args.Length == 0)
@@ -185,7 +191,10 @@ public static partial class PyErrors
     {
         if (value is null or PyUnbound)
         {
-            throw new PyNameError($"name '{name}' is not defined");
+            // Ellipsis的模块槽由类型层保为Dynamic，未绑定时可返回真实内建单例。
+            // 已绑定值（包括None）必须原样保留；其它内建回退仍明确限制。
+            if (name == "Ellipsis") return PyEllipsis.Instance;
+            PyOps.CheckGlobalBound(false, name);
         }
         return value;
     }

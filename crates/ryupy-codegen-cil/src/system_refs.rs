@@ -23,7 +23,7 @@ impl SystemRefs {
         let builtins: MethodType = BaseType::class(builtins).into();
         Self {
             exit_flush: res
-                .push_method_reference(method_ref! { static int @builtins::FlushForExit(int) }),
+                .push_method_reference(method_ref! { static int @builtins::FinishExit(int) }),
             write_i64: res.push_method_reference(
                 method_ref! { static void @builtins::WriteI64(object, long) },
             ),

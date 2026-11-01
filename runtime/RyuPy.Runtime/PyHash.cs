@@ -55,6 +55,8 @@ public static class PyHash
         PyTuple tuple => TupleHash(tuple),
         PyFrozenSet frozen => SetHash(frozen),
         PyBytes bytes => BytesHash(bytes),
+        PyBuiltinMethod method => method.IdentityHash(),
+        PyInstance member when PyEnum.IsMember(member) => PyEnum.MemberHash(member),
         PyList => throw Unhashable("list"),
         PyDict => throw Unhashable("dict"),
         IPyNativeMapping or PyDeque => throw Unhashable(PyRepr.TypeName(value)),
@@ -142,6 +144,8 @@ public static class PyHash
         }
         switch (a)
         {
+            case PyBuiltinMethod method:
+                return b is PyBuiltinMethod other && method.SameMethod(other);
             case PyList la:
                 return b is PyList lb && SequenceEqual(la.Items, lb.Items);
             case PyDict da:
@@ -366,9 +370,12 @@ public static class PyHash
             return value > 0 ? 314159 : -314159;
         }
         // 与整数值相等的浮点必须哈希到同一个值：hash(1.0) == hash(1)
-        if (Math.Floor(value) == value && Math.Abs(value) < 9.2e18)
+        if (Math.Floor(value) == value)
         {
-            return (long)value;
+            // 上界用精确 2^63 且不包含它；double(long.MaxValue) 已舍入到 2^63。
+            if (value >= long.MinValue && value < 9223372036854775808.0) return (long)value;
+            // 超出 i64 的整数浮点仍须与同值 BigInteger 命中同一字典/集合键。
+            return BigIntegerHash(new BigInteger(value));
         }
         return BitConverter.DoubleToInt64Bits(value);
     }

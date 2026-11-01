@@ -16,6 +16,7 @@ public static partial class PyOps
 {
     private static object? ByteArrayMethod(PyByteArray array, string name, object?[] args) => name switch
     {
+        "startswith" or "endswith" => PyBinaryAffix.Match(array, name, args),
         "append" => AppendByte(array, args),
         "extend" => ExtendByteArray(array, args),
         "decode" => PyEncoding.Decode([.. array.Bytes], args.Length > 0 ? AsText(args[0]) : "utf-8"),
@@ -38,6 +39,7 @@ public static partial class PyOps
     {
         "decode" => bytes.Decode(args.Length > 0 ? AsText(args[0]) : "utf-8"),
         "hex" => Convert.ToHexString(bytes.Bytes).ToLowerInvariant(),
+        "startswith" or "endswith" => PyBinaryAffix.Match(bytes, name, args),
         _ => throw MissingAttribute("bytes", name),
     };
 

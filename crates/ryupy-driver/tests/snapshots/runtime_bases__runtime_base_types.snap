@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/runtime_bases.rs
+expression: output
+---
+module var Idx::<ModuleVar>(0): Dynamic
+module var Idx::<ModuleVar>(1): Dynamic
+module var Idx::<ModuleVar>(2): Dynamic
+module var Idx::<ModuleVar>(3): Dynamic
+module var Idx::<ModuleVar>(4): Dynamic
+module var Idx::<ModuleVar>(5): Dynamic
+func Idx::<Function>(0) [Dynamic]: [] -> None

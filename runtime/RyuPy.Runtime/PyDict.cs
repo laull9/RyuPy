@@ -205,6 +205,9 @@ public sealed class PyDict
     {
         switch (other)
         {
+            case PyEnumMembers proxy:
+                Update(proxy.Dictionary);
+                break;
             case IPyNativeMapping mapping:
                 Update(mapping.Dictionary);
                 break;

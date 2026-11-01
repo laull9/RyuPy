@@ -229,11 +229,18 @@ pub struct Expr {
 pub enum ExprKind {
     /// 类体定义位置读取先前类命名空间绑定；不对descriptor做实例绑定。
     ClassLocal(Name),
+    /// 条件可能绑定的类名字；仅命名空间缺值时求 fallback。
+    ClassLookup {
+        name: Name,
+        fallback: ExprId,
+    },
     /// 暂停并在恢复后得到 send 的值；next 对应 None。
     Yield(Option<ExprId>),
     YieldFrom(ExprId),
     /// 错误恢复占位：对应的错误已经报过，下游静默跳过。
     Missing,
+    /// 降级期临时名称，模块完成前必须统一登记并替换为 ModuleVar。
+    UnresolvedGlobal(Name),
     Literal(Literal),
     Local(LocalId),
     /// 读取模块级变量（M2.7）。
@@ -333,8 +340,10 @@ pub enum FStringPart {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     /// Python 整数。`i128` 是为了容纳 `-9223372036854775808`（`Neg(9223372036854775808)`
-    /// 的字面量本身超出 `i64`）。超出 `i128` 的字面量仍然报错。
+    /// 的字面量本身超出 `i64`）。当前Small路径来自Ruff的u64表示。
     Int(i128),
+    /// 超u64的正整数字面量，已在容量内正规化为有效十进制字符串。
+    BigInt(Box<str>),
     Float(f64),
     Bool(bool),
     Str(Box<str>),
@@ -499,7 +508,7 @@ pub enum StmtKind {
     Import {
         /// 绝对模块名。
         module: String,
-        bind: ModuleVarId,
+        bind: Binding,
         bind_root: bool,
     },
     /// `from x import a, b as c`（M2.7）。星号导入明确拒绝，由 lower 报诊断。
@@ -507,7 +516,7 @@ pub enum StmtKind {
         /// 绝对模块名。
         module: String,
         /// 依次绑定：导入方看到的名字 → 目标模块里的名字。
-        names: Vec<(String, ModuleVarId)>,
+        names: Vec<(String, Binding)>,
     },
     /// `try` 语句：`body` / `handlers` / `else` / `finally` 四部分，任意一部分可以为空。
     ///
@@ -549,4 +558,4 @@ pub enum Binding {
     Free(usize),
 }
 
-pub use crate::assign_target::{AssignTarget, SequenceItem};
+pub use crate::assign_target::{AssignTarget, SequenceItem, SequenceTarget};

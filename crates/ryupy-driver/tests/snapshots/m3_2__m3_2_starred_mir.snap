@@ -31,13 +31,19 @@ fn main() -> () {
     let _0: i64;
 
     bb0: {
+        g3 = const false;
+        g4 = const false;
+        g5 = const false;
         _0 = RuntimeFn::TracePush(const "ryupy_test_starred_containers.py", const "<module>");
         // line 1
         g0 = const "__main__";
+        g3 = const true;
         // line 1
         g1 = const "";
+        g4 = const true;
         // line 1
         g2 = const "ryupy_test_starred_containers.py";
+        g5 = const true;
         // line 1
         goto -> bb1;
     }

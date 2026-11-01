@@ -1,0 +1,48 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+复杂延迟注解
+[E0100] Error: 暂不支持该延迟注解表达式的规范字符串化
+   ╭─[ future.py:2:21 ]
+   │
+ 2 │ def function(value: unknown()):
+   │                     ────┬────
+   │                         ╰────── 不执行注解或使用原始源码代替规范字符串
+───╯
+
+比较语法切换
+[E0100] Error: 尚未支持future特性 `barry_as_FLUFL`
+   ╭─[ future.py:1:24 ]
+   │
+ 1 │ from __future__ import barry_as_FLUFL
+   │                        ───────┬──────
+   │                               ╰──────── 不静默忽略会改变语言语义的future指令
+───╯
+
+未知指令
+[E0100] Error: 尚未支持future特性 `missing`
+   ╭─[ future.py:1:24 ]
+   │
+ 1 │ from __future__ import missing
+   │                        ───┬───
+   │                           ╰───── 不静默忽略会改变语言语义的future指令
+───╯
+
+非开头导入
+[E0100] Error: future导入只能位于模块开头的连续指令区（可在docstring之后）
+   ╭─[ future.py:2:1 ]
+   │
+ 2 │ from __future__ import division
+   │ ───────────────┬───────────────
+   │                ╰─────────────────
+───╯
+
+条件内导入
+[E0100] Error: future导入只能位于模块开头的连续指令区（可在docstring之后）
+   ╭─[ future.py:2:5 ]
+   │
+ 2 │     from __future__ import division
+   │     ───────────────┬───────────────
+   │                    ╰─────────────────
+───╯

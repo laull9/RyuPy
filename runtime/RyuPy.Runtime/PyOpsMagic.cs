@@ -13,6 +13,7 @@ public static partial class PyOps
     /// </remarks>
     public static bool Truthy(object? value) => value switch
     {
+        PyNotImplemented => PyWarnings.BooleanNotImplemented(),
         null => false,
         PyNone => false,
         PyUnbound => false,
@@ -112,12 +113,12 @@ public static partial class PyOps
                 result = false;
                 return false;
         }
-        if (PyObject.TryMethod1(a, forward, b, out object? value))
+        if (PyObject.TryMethod1(a, forward, b, out object? value) && value is not PyNotImplemented)
         {
             result = Truthy(value);
             return true;
         }
-        if (PyObject.TryMethod1(b, reflected, a, out object? reflectedValue))
+        if (PyObject.TryMethod1(b, reflected, a, out object? reflectedValue) && reflectedValue is not PyNotImplemented)
         {
             result = Truthy(reflectedValue);
             return true;

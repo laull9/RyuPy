@@ -33,6 +33,7 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
 
     // 模块级变量的槽位类型只依赖 HIR 结构，先算好供所有轮次复用。
     let module_vars = crate::module_vars::infer_module_var_types(module);
+    crate::default_modes::apply(module, &module_vars, &mut modes);
 
     // ── 不动点：只降不升 ──────────────────────────────────────────────
     for _ in 0..MAX_ROUNDS {
@@ -338,25 +339,16 @@ impl FunctionChecker<'_> {
                         self.check_expr(*expr);
                     }
                 }
-                if let Some(ryupy_hir::ClassBase::Expr(expr)) = &class.base {
+                if let Some(
+                    ryupy_hir::ClassBase::Expr(expr)
+                    | ryupy_hir::ClassBase::Runtime(expr)
+                    | ryupy_hir::ClassBase::Native { value: expr, .. }
+                    | ryupy_hir::ClassBase::TypedDict { value: expr, .. },
+                ) = &class.base
+                {
                     self.check_expr(*expr);
                 }
-                for item in &class.body {
-                    match &item.kind {
-                        ryupy_hir::ClassItemKind::Annotation { value, .. }
-                        | ryupy_hir::ClassItemKind::Attr { value, .. }
-                        | ryupy_hir::ClassItemKind::Expr(value) => {
-                            self.check_expr(*value);
-                        }
-                        ryupy_hir::ClassItemKind::Method { decorators, .. } => {
-                            for decorator in decorators {
-                                if let ryupy_hir::Decorator::Expr(expr) = decorator {
-                                    self.check_expr(*expr);
-                                }
-                            }
-                        }
-                    }
-                }
+                self.check_class_items(&class.body);
             }
         }
 
@@ -372,6 +364,30 @@ impl FunctionChecker<'_> {
         }
     }
 
+    fn check_class_items(&mut self, items: &[ryupy_hir::ClassItem]) {
+        for item in items {
+            match &item.kind {
+                ryupy_hir::ClassItemKind::If { test, body, orelse } => {
+                    self.check_expr(*test);
+                    self.check_class_items(body);
+                    self.check_class_items(orelse);
+                }
+                ryupy_hir::ClassItemKind::Annotation { value, .. }
+                | ryupy_hir::ClassItemKind::Attr { value, .. }
+                | ryupy_hir::ClassItemKind::Expr(value) => {
+                    self.check_expr(*value);
+                }
+                ryupy_hir::ClassItemKind::Method { decorators, .. } => {
+                    for decorator in decorators {
+                        if let ryupy_hir::Decorator::Expr(expr) = decorator {
+                            self.check_expr(*expr);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     pub(crate) fn check_expr(&mut self, expr_id: ExprId) -> Ty {
         let expr = &self.func.body.exprs[expr_id];
         let ty = match &expr.kind {
@@ -382,6 +398,10 @@ impl FunctionChecker<'_> {
                         self.soft_demote = true;
                     }
                     Ty::Int
+                }
+                Literal::BigInt(_) => {
+                    self.soft_demote = true;
+                    Ty::Dynamic
                 }
                 Literal::Float(_) => Ty::Float,
                 Literal::Bool(_) => Ty::Bool,
@@ -394,6 +414,10 @@ impl FunctionChecker<'_> {
             }
             ExprKind::ModuleVar(var) => self.module_vars.get(*var).cloned().unwrap_or(Ty::Dynamic),
             // 闭包自由变量与 lambda 对象都是动态值（M3.0）
+            ExprKind::ClassLookup { fallback, .. } => {
+                self.check_expr(*fallback);
+                Ty::Dynamic
+            }
             ExprKind::Free(_) | ExprKind::Lambda(_) | ExprKind::ClassLocal(_) => Ty::Dynamic,
             // 函数名作为值使用时是一等函数对象；调用位置由 check_call 单独处理。
             ExprKind::Func(id) => Ty::Func(*id),
@@ -528,7 +552,7 @@ impl FunctionChecker<'_> {
                 self.soft_demote = true;
                 Ty::Dynamic
             }
-            ExprKind::Missing => Ty::Error,
+            ExprKind::Missing | ExprKind::UnresolvedGlobal(_) => Ty::Error,
         };
 
         self.results.exprs.insert(expr_id, ty.clone());

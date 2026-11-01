@@ -1,0 +1,82 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+fn setUp(_0: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "native_base.py", const "setUp");
+        // line 5
+        _2 = box<I64>(const 1_i64);
+        RuntimeFn::SetAttr(_0, const "value", _2);
+        _3 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_1);
+        return _3;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+
+    bb0: {
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        g6 = null;
+        _0 = RuntimeFn::TracePush(const "native_base.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g2 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g3 = _2;
+        // line 1
+        _3 = box<Str>(const "native_base.py");
+        g4 = _3;
+        // line 1
+        _4 = RuntimeFn::ImportModule(const "unittest");
+        g5 = _4;
+        // line 2
+        _5 = RuntimeFn::ImportAttr(const "unittest", const "TestCase");
+        g6 = _5;
+        // line 3
+        _6 = RuntimeFn::LoadName(global@5, const "testing");
+        _7 = RuntimeFn::DynGetAttr(_6, const "TestCase");
+        _8 = _7;
+        _9 = RuntimeFn::MakeClass(const "First", [_8], null);
+        g0 = _9;
+        _10 = MakeFunction(setUp; env=[]; defaults=[null]);
+        RuntimeFn::SetAttr(_9, const "setUp", _10);
+        // line 6
+        _11 = RuntimeFn::LoadName(global@6, const "Base");
+        _12 = _11;
+        _13 = RuntimeFn::MakeClass(const "Second", [_12], null);
+        g1 = _13;
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

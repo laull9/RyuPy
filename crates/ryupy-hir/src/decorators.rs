@@ -200,7 +200,7 @@ pub(crate) fn dataclass_flags(
 pub(crate) fn lower_list(
     decorators: &[ast::Decorator],
     class: bool,
-    class_names: Option<&rustc_hash::FxHashSet<Name>>,
+    class_names: Option<&crate::class_scope::ClassScope>,
     file: FileId,
     globals: &GlobalScope,
     module_vars: &FxHashMap<Name, ModuleVarId>,

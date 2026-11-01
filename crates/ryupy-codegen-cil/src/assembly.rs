@@ -178,10 +178,10 @@ pub(crate) fn build_resolution(
             format!("_{}", cls.codegen_name),
         ));
         exception_type_indices.insert(cls_id, type_idx);
-        // 用户异常类名也可能出现在 `except` 中；覆盖内建同名表项。
+        // 用户异常采用链接后的内部限定名，不能覆盖内建或其它模块的同名类型。
         runtime_refs
             .exception_types
-            .insert(cls.name.clone(), BaseType::class(type_idx).into());
+            .insert(cls.codegen_name.clone(), BaseType::class(type_idx).into());
     }
 
     let object_array: MethodType = BaseType::vector(BaseType::class(object_ref).into()).into();
@@ -238,8 +238,10 @@ pub(crate) fn build_resolution(
             ins.extend([
                 // 实例方法：1 = PyClass，2 = args，3 = typeName。
                 Instruction::LoadArgument(3),
+                // 消息是否延迟由运行时基类ABI决定，后端不解释Python警告类别。
+                Instruction::load_string(builtin.clone()),
                 Instruction::LoadArgument(2),
-                Instruction::call(runtime_refs.user_exception_message),
+                Instruction::call(runtime_refs.user_exception_message_for_base),
                 Instruction::LoadArgument(2),
                 Instruction::call(base_ctor),
                 // 把 Python 类对象挂到异常上（属性访问与 isinstance 需要）。

@@ -1,0 +1,7 @@
+global_sum 0.0012452 7000000 allocated=24
+global_sum 0.0011003 7000000 allocated=24
+global_sum 0.0015325 7000000 allocated=24
+global_sum 0.0037025 7000000 allocated=24
+global_sum 0.0015364 7000000 allocated=24
+global_sum 0.001246 7000000 allocated=24
+global_sum 0.0010847 7000000 allocated=24

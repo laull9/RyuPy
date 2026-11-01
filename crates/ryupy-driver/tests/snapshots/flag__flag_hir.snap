@@ -1,0 +1,13 @@
+---
+source: crates/ryupy-driver/tests/flag.rs
+expression: output
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_flag_snapshot.py"
+    from enum import Flag as global.Flag
+    class Bits(native Flag: global.Flag):
+        A = 1
+        B = 2
+        BOTH = (class_namespace.A | class_namespace.B)

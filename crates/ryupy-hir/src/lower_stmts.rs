@@ -39,65 +39,6 @@ impl StmtLowerCtx<'_> {
         out
     }
 
-    /// 序列解包目标：`a, b` / `first, *rest, last`。
-    pub(crate) fn lower_sequence_target(
-        &mut self,
-        elements: &[ast::Expr],
-        range: ryupy_base::TextRange,
-    ) -> Option<Vec<crate::hir::SequenceItem>> {
-        let mut items = Vec::new();
-        for element in elements {
-            match element {
-                ast::Expr::Name(name_expr) => {
-                    let name = Name::from(name_expr.id.as_str());
-                    let binding = self.resolve_binding(&name)?;
-                    items.push(crate::hir::SequenceItem::One(binding));
-                }
-                ast::Expr::Starred(starred) => {
-                    let ast::Expr::Name(name_expr) = starred.value.as_ref() else {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, starred.range),
-                                "星号解包的目标必须是简单变量",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("暂不支持嵌套解包目标"),
-                        );
-                        return None;
-                    };
-                    let name = Name::from(name_expr.id.as_str());
-                    let binding = self.resolve_binding(&name)?;
-                    items.push(crate::hir::SequenceItem::Rest(binding));
-                }
-                _ => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, element.range()),
-                            "暂不支持嵌套的解包目标",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("只支持变量与星号变量"),
-                    );
-                    return None;
-                }
-            }
-        }
-        if items
-            .iter()
-            .filter(|i| matches!(i, crate::hir::SequenceItem::Rest(_)))
-            .count()
-            > 1
-        {
-            self.diagnostics.push(
-                Diagnostic::error(Span::new(self.file, range), "解包目标中只能有一个星号变量")
-                    .with_code("E0100")
-                    .with_primary_label("多个星号解包"),
-            );
-            return None;
-        }
-        Some(items)
-    }
-
     /// `try` 语句：四段结构原样进入 HIR，交给 MIR 划分受保护区域。
     fn lower_try(&mut self, try_stmt: &ast::StmtTry) -> StmtId {
         if try_stmt.is_star {
@@ -271,6 +212,9 @@ impl StmtLowerCtx<'_> {
                 StmtKind::Expr(expr_id)
             }
             ast::Stmt::Assign(assign_stmt) => {
+                if assign_stmt.targets.len() > 1 {
+                    return self.lower_chain_assign(assign_stmt);
+                }
                 let val = self.lower_expr(&assign_stmt.value);
                 if assign_stmt.targets.len() == 1 {
                     let target = &assign_stmt.targets[0];
@@ -350,6 +294,17 @@ impl StmtLowerCtx<'_> {
                 }
             }
             ast::Stmt::AnnAssign(ann_stmt) => {
+                if self.global_scope.postponed_annotations {
+                    return self.lower_postponed_assignment(ann_stmt);
+                }
+                if !self.module_scope
+                    && matches!(
+                        ann_stmt.target.as_ref(),
+                        ast::Expr::Attribute(_) | ast::Expr::Subscript(_)
+                    )
+                {
+                    return self.lower_local_annotated_target(ann_stmt);
+                }
                 if let ast::Expr::Name(name_expr) = &*ann_stmt.target {
                     let name = Name::from(name_expr.id.as_str());
                     let ann = crate::operator::lower_type_ref(

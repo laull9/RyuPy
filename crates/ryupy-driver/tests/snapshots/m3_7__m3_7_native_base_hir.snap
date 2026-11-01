@@ -1,0 +1,16 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+def setUp(self):
+    self.value = 1
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "native_base.py"
+    import unittest as global.testing
+    from unittest import TestCase as global.Base
+    class First(native UnittestTestCase: global.testing.TestCase):
+        def setUp(self, ...)
+    class Second(native UnittestTestCase: global.Base):

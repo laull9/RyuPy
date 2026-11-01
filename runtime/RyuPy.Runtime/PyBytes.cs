@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace RyuPy.Runtime;
 
@@ -59,6 +60,27 @@ public sealed class PyByteArray
 {
     /// <summary>字节内容。</summary>
     public List<byte> Bytes { get; }
+
+    private int _exports;
+    private long _resizeEpoch;
+    /// <summary>成功改变长度的结构版本，识别用户回调中resize后恢复原长度的情况。</summary>
+    internal long ResizeEpoch => _resizeEpoch;
+    /// <summary>仅在实际写入成功后记录；同长写、空操作和失败检查不改变结构版本。</summary>
+    internal void RecordResize(int previousCount)
+    {
+        if (Bytes.Count != previousCount) _resizeEpoch = unchecked(_resizeEpoch + 1);
+    }
+    /// <summary>每个独立memoryview持一个租约；最终回收可能与执行线程并发。</summary>
+    internal void AcquireExport() => Interlocked.Increment(ref _exports);
+    /// <summary>只由view的幂等release释放租约，不调用用户代码。</summary>
+    internal void ReleaseExport() => Interlocked.Decrement(ref _exports);
+    /// <summary>完成参数转换之后检查实际长度变化；空操作不被活动导出阻止。</summary>
+    internal void EnsureCanResize(int delta)
+    {
+        if (delta != 0 && Volatile.Read(ref _exports) != 0)
+            throw new PyBufferError("Existing exports of data: object cannot be re-sized");
+    }
+
 
     /// <summary>用字节序列构造。</summary>
     /// <param name="bytes">字节。</param>
@@ -119,6 +141,8 @@ public sealed class PyByteArray
                     {
                         return;
                     }
+                    int previousCount = Count;
+                    EnsureCanResize(-(int)count);
                     if (step > 0)
                     {
                         // 从后往前删，前面的下标才不会因为移除而失效
@@ -136,6 +160,7 @@ public sealed class PyByteArray
                             Bytes.RemoveAt((int)position);
                         }
                     }
+                    RecordResize(previousCount);
                     return;
                 }
             case long raw:
@@ -145,7 +170,10 @@ public sealed class PyByteArray
                     {
                         throw new PyIndexError("bytearray index out of range");
                     }
+                    EnsureCanResize(-1);
+                    int previousCount = Count;
                     Bytes.RemoveAt((int)normalized);
+                    RecordResize(previousCount);
                     return;
                 }
             case int or bool or short or byte or System.Numerics.BigInteger:
@@ -160,11 +188,26 @@ public sealed class PyByteArray
 
     /// <summary><c>extend(x)</c>。</summary>
     /// <param name="value">字节序列。</param>
-    public void Extend(object? value) => Bytes.AddRange(PyEncoding.ToBytes(value));
+    public void Extend(object? value)
+    {
+        // 输入迭代/元素校验先完成，再检查导出锁；失败不部分写入或提前吞掉副作用。
+        byte[] bytes = PyEncoding.ToBytes(value);
+        EnsureCanResize(bytes.Length);
+        int previousCount = Count;
+        Bytes.AddRange(bytes);
+        RecordResize(previousCount);
+    }
 
     /// <summary><c>append(x)</c>。</summary>
     /// <param name="value">0~255 的整数。</param>
-    public void Append(object? value) => Bytes.Add(PyEncoding.ToByte(value));
+    public void Append(object? value)
+    {
+        byte item = PyEncoding.ToByte(value);
+        EnsureCanResize(1);
+        int previousCount = Count;
+        Bytes.Add(item);
+        RecordResize(previousCount);
+    }
 
     /// <summary>复制成 <c>bytes</c>。</summary>
     public PyBytes ToBytes() => new([.. Bytes]);
@@ -235,29 +278,44 @@ public static class PyEncoding
     {
         PyBytes bytes => bytes.Bytes,
         PyByteArray array => [.. array.Bytes],
+        IPyBufferView view => view.CopyBuffer(),
         string text => Encoding.Latin1.GetBytes(text),
-        _ => Array.ConvertAll(PyOps.ToSequence(value), ToByte),
+        _ => CollectBytes(value),
     };
+
+    private static byte[] CollectBytes(object? value)
+    {
+        var bytes = new List<byte>();
+        IPyIterator iterator = PyIter.Create(value);
+        // 每次next之后立即验证当前元素，非法元素后的用户迭代器副作用不能继续执行。
+        while (iterator.MoveNext()) bytes.Add(ToByte(iterator.Current()));
+        return bytes.ToArray();
+    }
 
     /// <summary>把整数转成单字节，越界抛 <c>ValueError</c>。</summary>
     /// <param name="value">整数值。</param>
     public static byte ToByte(object? value)
     {
-        long number = value switch
+        if (!PyInt.IsInt(value))
         {
-            bool b => b ? 1 : 0,
-            long l => l,
-            int i => i,
-            _ => throw new PyTypeError(
-                $"'{
-                    PyRepr.TypeName(value)
-                }' object cannot be interpreted as an integer"
-            ),
-        };
-        if (number < 0 || number > 255)
-        {
-            throw new PyValueError("byte must be in range(0, 256)");
+            string type = PyRepr.TypeName(value);
+            if (!PyObject.TryMethod(value, "__index__", [], out value))
+                throw new PyTypeError($"'{type}' object cannot be interpreted as an integer");
+            if (value is bool)
+                throw new PyNotImplementedError("bool returned by __index__ in byte conversion is not supported");
+            if (!PyInt.IsInt(value))
+                throw new PyTypeError($"__index__ returned non-int (type {PyRepr.TypeName(value)})");
         }
-        return (byte)number;
+        // 只检查转换结果的范围，不catch用户__index__抛出的OverflowError或其它异常。
+        if (PyInt.TryI64(value!, out long number))
+        {
+            if (number >= 0 && number <= 255) return (byte)number;
+        }
+        else
+        {
+            var integer = PyInt.ToBigInteger(value!);
+            if (integer >= 0 && integer <= 255) return (byte)integer;
+        }
+        throw new PyValueError("byte must be in range(0, 256)");
     }
 }

@@ -1,0 +1,22 @@
+---
+source: crates/ryupy-driver/tests/class_if.rs
+expression: output
+---
+def method(self, x=...):
+    return x
+
+def method(self, x=...):
+    return x
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_class_if_snapshot.py"
+    global.value = 7
+    class C:
+        if global.value:
+            value = 8
+            def method(self, ...)
+        else:
+            def method(self, ...)
+        after = class_lookup(value, global.value)

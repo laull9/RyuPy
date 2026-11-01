@@ -60,7 +60,23 @@ pub struct ModuleDef {
     /// 模块初始化函数（顶层语句）。
     pub init: FnId,
     /// 模块对象暴露的名字 → 静态槽位（模块变量、顶层函数、顶层类）。
-    pub exports: Vec<(String, GlobalId)>,
+    pub exports: Vec<ModuleExport>,
+}
+
+/// 导出读取的显式绑定状态协议；后端不得依据 Python 名称或 CLR 默认值猜测。
+#[derive(Debug, Clone)]
+pub enum ExportGuard {
+    None,
+    ValueSentinel,
+    BoundFlag(GlobalId),
+}
+
+/// 一个公开名字及其存储、绑定状态。
+#[derive(Debug, Clone)]
+pub struct ModuleExport {
+    pub name: String,
+    pub value: GlobalId,
+    pub guard: ExportGuard,
 }
 
 #[derive(Debug)]

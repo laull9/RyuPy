@@ -18,9 +18,13 @@ pub struct Class {
     /// 类自身简单标注名，按首次声明顺序去重；供动态dataclass转换读取。
     /// 不参与静态字段布局，也不把普通类标注强行解析为TypeRef。
     pub declared_fields: Vec<Name>,
+    /// 原生普通Enum的源码顺序成员名（含别名）；None表示普通类。
+    pub enum_members: Option<Vec<Name>>,
     /// 类体按源码顺序执行：属性、方法、表达式语句。
     pub body: Vec<ClassItem>,
-    /// `@dataclass(frozen=True)`：字段写入在编译期拒绝。
+    /// 包含任意类作用域标注，即使位于未执行条件分支也要初始化字典。
+    pub has_annotations: bool,
+    /// `@dataclass(frozen=True)`：运行时生成冻结写入协议。
     pub frozen: bool,
     /// `@dataclass` 修饰的类。
     pub is_dataclass: bool,
@@ -42,6 +46,26 @@ pub enum ClassBase {
     Builtin(&'static str),
     /// 已知普通类经装饰后，从最终模块绑定读取运行时基类。
     Expr(ExprId),
+    /// 真实运行时普通类基值；定义时检查完整祖先链，禁止特殊布局绕入普通类。
+    Runtime(ExprId),
+    /// 仅选择TypedDict专用构建协议，不把候选别名视为不可变身份。
+    TypedDict {
+        value: ExprId,
+        total: bool,
+    },
+    /// driver确认真实原生模块且绑定稳定；value仍在定义位置读取真实类值。
+    Native {
+        kind: NativeBase,
+        value: ExprId,
+    },
+}
+
+/// 经过逐项实现/验收的可继承原生类，不是任意模块属性白名单。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NativeBase {
+    UnittestTestCase,
+    Enum,
+    Flag,
 }
 
 #[derive(Debug)]
@@ -60,6 +84,12 @@ pub struct ClassItem {
 
 #[derive(Clone, Debug)]
 pub enum ClassItemKind {
+    /// 条件在类定义时执行，不改变命名空间或提前折叠分支。
+    If {
+        test: ExprId,
+        body: Vec<ClassItem>,
+        orelse: Vec<ClassItem>,
+    },
     /// 字段标注在可选初值之后求值，写入当前类的__annotations__。
     Annotation { name: Name, value: ExprId },
     /// `name = value` / `name: T = value`：写入类命名空间。

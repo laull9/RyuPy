@@ -1,0 +1,117 @@
+---
+source: crates/ryupy-driver/tests/function_imports.rs
+expression: output
+---
+fn outer() -> dyn {
+    let _0: dyn; // alias
+    let _1: dyn; // change
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::CellNew();
+        _2 = RuntimeFn::TracePush(const "ryupy_function_import_snapshot.py", const "outer");
+        // line 2
+        _3 = RuntimeFn::DynNone();
+        RuntimeFn::CellSet(_0, _3);
+        // line 3
+        _4 = MakeFunction(change; env=[_0]; defaults=[]);
+        _1 = _4;
+        // line 6
+        _5 = dyn.call(_1, []);
+        // line 7
+        _7 = RuntimeFn::CellGet(_0, const "alias");
+        _8 = box<I64>(const 9_i64);
+        _9 = dyn.call(_7, [_8]);
+        _6 = _9;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _6;
+    }
+}
+
+fn load() -> dyn {
+    let _0: dyn; // math
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_function_import_snapshot.py", const "load");
+        // line 9
+        _2 = RuntimeFn::ImportModule(const "math");
+        _0 = _2;
+        // line 10
+        _4 = RuntimeFn::LoadChecked(_0, const "math");
+        _3 = _4;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _3;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+
+    bb0: {
+        g3 = const false;
+        g4 = const false;
+        g5 = const false;
+        _0 = RuntimeFn::TracePush(const "ryupy_function_import_snapshot.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        g3 = const true;
+        // line 1
+        g1 = const "";
+        g4 = const true;
+        // line 1
+        g2 = const "ryupy_function_import_snapshot.py";
+        g5 = const true;
+        // line 1
+        // line 8
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}
+
+fn change(_0: dyn) -> dyn {
+    let _0: dyn; // __env
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_function_import_snapshot.py", const "change");
+        // line 5
+        _2 = RuntimeFn::ImportAttr(const "math", const "sqrt");
+        _3 = RuntimeFn::ArrayGet(_0, const 0_i64);
+        RuntimeFn::CellSet(_3, _2);
+        _4 = RuntimeFn::DynNone();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_1);
+        return _4;
+    }
+}

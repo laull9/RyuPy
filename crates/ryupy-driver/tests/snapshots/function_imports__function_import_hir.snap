@@ -1,0 +1,25 @@
+---
+source: crates/ryupy-driver/tests/function_imports.rs
+expression: output
+---
+def outer():
+    # cells=[Name("alias")], free=[]
+    alias = None
+    change = def change (nested)
+    change()
+    return alias(9)
+
+def load():
+    import math as math
+    return math
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_function_import_snapshot.py"
+    defaults of outer
+    defaults of load
+
+def [nested] change():
+    # cells=[], free=[Name("alias")]
+    from math import sqrt as cell[0]

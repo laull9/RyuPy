@@ -29,6 +29,9 @@ public sealed partial class PyClass
     /// <summary>类名（`__name__` 与错误消息使用）。</summary>
     public string Name { get; }
 
+    /// <summary>枚举类冷元数据标记；普通类热路径不查询弱表。</summary>
+    internal bool HasEnumMetadata { get; set; }
+
     /// <summary>用户基类；`None` 表示直接继承 `object` 或内建异常。</summary>
     public PyClass? BaseClass { get; internal set; }
 
@@ -109,6 +112,7 @@ public sealed partial class PyClass
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
+        PyEnum.GuardClassMutation(this, name);
         Attributes[name] = value;
         Touch();
     }
@@ -116,6 +120,7 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        PyEnum.GuardClassMutation(this, name);
         if (!Attributes.Remove(name))
         {
             return false;
@@ -145,6 +150,14 @@ public sealed partial class PyClass
             return false;
         }
         return _instanceSlots.TryGetValue(name, out slot);
+    }
+
+    /// <summary>枚举某实例真正已赋值的属性名，不暴露同类其它实例或已删除的槽位。</summary>
+    internal IEnumerable<string> AssignedInstanceNames(PyInstance instance)
+    {
+        if (_instanceSlots is null) yield break;
+        foreach (var (name, slot) in _instanceSlots)
+            if (instance.IsSlotSet(slot)) yield return name;
     }
 
     /// <summary>
@@ -246,6 +259,7 @@ public sealed partial class PyClass
     /// <summary>创建实例并执行 `__init__`。</summary>
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues)
     {
+        if (HasEnumMetadata) return PyEnum.Construct(this, args, kwNames, kwValues);
         if (ExceptionFactory is not null)
         {
             // 用户异常：CLR 工厂已经根据 args 构造了异常对象；如果用户写了 `__init__`
@@ -490,6 +504,8 @@ public static partial class PyOps
             switch (bases[0])
             {
                 case PyClass baseClass:
+                    if (baseClass.HasEnumMetadata)
+                        throw new PyNotImplementedError("dynamic Enum inheritance requires a compiled Enum factory");
                     cls.BaseClass = baseClass;
                     break;
                 case PyType type when type.Name == "object":

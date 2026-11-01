@@ -1,0 +1,33 @@
+---
+source: crates/ryupy-driver/tests/chained_assignment.rs
+expression: output
+---
+def bind(target, index):
+    if True:
+        __chain$3 = []
+        target.value = __chain$3
+        target[index] = __chain$3
+        payload = __chain$3
+    return payload
+
+def integers() -> bool:
+    if True:
+        __chain$2 = 1000000
+        a = __chain$2
+        b = __chain$2
+    return (a Is b)
+
+def paused(target):
+    if True:
+        __chain$2 = []
+        first = __chain$2
+        target[(yield 0)] = __chain$2
+    return first
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_m3_7_chain.py"
+    defaults of bind
+    defaults of integers
+    defaults of paused

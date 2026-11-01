@@ -109,7 +109,7 @@ fn read_module(sess: &mut Session, path: &Path, name: &str, package: &str) -> Re
 }
 
 fn collect_requests(parsed: &ParsedModule, package: &str, queue: &mut Vec<String>) {
-    for request in ryupy_hir::imports::collect_imports(&parsed.module.body, package) {
+    for request in ryupy_hir::imports::collect_all_imports(&parsed.module.body, package) {
         queue.push(request.module.clone());
         if let Some(name) = &request.name {
             queue.push(format!("{}.{name}", request.module));
@@ -149,13 +149,21 @@ fn module_package(name: &str, path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// dump 不遍历依赖源码，但异常静态身份仍必须遵循入口目录的源码优先规则。
+/// dump 不遍历依赖源码，但异常 / 原生基类静态身份仍遵循入口目录的源码优先规则。
 pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
     let root = entry.parent().unwrap_or(Path::new(".")).to_path_buf();
-    ["json", "re", "dataclasses"]
-        .into_iter()
-        .filter(|name| resolve_in(std::slice::from_ref(&root), name).is_none())
-        .collect()
+    [
+        "json",
+        "re",
+        "dataclasses",
+        "unittest",
+        "enum",
+        "io",
+        "typing",
+    ]
+    .into_iter()
+    .filter(|name| resolve_in(std::slice::from_ref(&root), name).is_none())
+    .collect()
 }
 
 #[cfg(test)]

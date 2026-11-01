@@ -1,0 +1,49 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+def __str__(self):
+    global.log.append("str")
+    return "message-value"
+
+def __str__(self):
+raise ...;
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m3_7_warning_classes.py"
+    for global.category in [Warning, UserWarning, DeprecationWarning, PendingDeprecationWarning, RuntimeWarning, SyntaxWarning, FutureWarning, ImportWarning, UnicodeWarning, BytesWarning, ResourceWarning]:
+        global.value = global.category("message")
+        print(type(global.value).__name__, str(global.value), global.value.args, isinstance(global.value, Warning), isinstance(global.value, Exception))
+    try:
+raise ...;
+    except UserWarning as global.value:
+        print(type(global.value).__name__, str(global.value))
+    try:
+raise ...;
+    except Warning as global.value:
+        print(type(global.value).__name__, str(global.value))
+    class ProjectWarning(UserWarning):
+    try:
+raise ...;
+    except UserWarning as global.value:
+        print(type(global.value).__name__, str(global.value), isinstance(global.value, ProjectWarning))
+    print(issubclass(ProjectWarning, UserWarning), issubclass(UserWarning, Warning))
+    print(issubclass(Warning, Exception), issubclass(UnicodeWarning, UnicodeError))
+    global.log = []
+    class Message:
+        def __str__(self, ...)
+    class DerivedWarning(ProjectWarning):
+    global.message = Message()
+    global.warning = DerivedWarning(global.message)
+    print(global.log, (global.warning.args[0] Is global.message))
+    print(str(global.warning), global.log)
+    class BadMessage:
+        def __str__(self, ...)
+    global.warning = ProjectWarning(BadMessage())
+    print(type(global.warning).__name__)
+    try:
+        str(global.warning)
+    except ValueError as global.error:
+        print(str(global.error))

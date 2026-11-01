@@ -684,7 +684,7 @@ expression: "output.replace(path.to_str().unwrap(), \"generator.py\")"
         IL_0012: StoreLocal(0)
         IL_0013: Leave(20)
         IL_0014: LoadLocal(0)
-        IL_0015: Call(static int [RyuPy.Runtime]RyuPy.Runtime.Builtins.FlushForExit(int))
+        IL_0015: Call(static int [RyuPy.Runtime]RyuPy.Runtime.Builtins.FinishExit(int))
         IL_0016: Return
         // EH: try [2..9) catch [RyuPy.Runtime]RyuPy.Runtime.PySystemExit handler [9..12)
         // EH: try [2..9) catch [RyuPy.Runtime]RyuPy.Runtime.PyBaseException handler [12..16)
@@ -784,32 +784,44 @@ expression: "output.replace(path.to_str().unwrap(), \"generator.py\")"
         IL_0000: LoadArgument(0)
         IL_0001: LoadString("__name__")
         IL_0002: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
-        IL_0003: BranchFalsy(6)
+        IL_0003: BranchFalsy(9)
         IL_0004: LoadStaticField(RyuPy.Generated.Module.m0___mv0___name__)
-        IL_0005: Return
-        IL_0006: LoadArgument(0)
-        IL_0007: LoadString("__package__")
-        IL_0008: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
-        IL_0009: BranchFalsy(12)
-        IL_000a: LoadStaticField(RyuPy.Generated.Module.m0___mv1___package__)
-        IL_000b: Return
-        IL_000c: LoadArgument(0)
-        IL_000d: LoadString("__file__")
-        IL_000e: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
-        IL_000f: BranchFalsy(18)
-        IL_0010: LoadStaticField(RyuPy.Generated.Module.m0___mv2___file__)
+        IL_0005: LoadString("__main__")
+        IL_0006: LoadString("__name__")
+        IL_0007: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.LoadAttribute(object, string, string))
+        IL_0008: Return
+        IL_0009: LoadArgument(0)
+        IL_000a: LoadString("__package__")
+        IL_000b: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_000c: BranchFalsy(18)
+        IL_000d: LoadStaticField(RyuPy.Generated.Module.m0___mv1___package__)
+        IL_000e: LoadString("__main__")
+        IL_000f: LoadString("__package__")
+        IL_0010: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.LoadAttribute(object, string, string))
         IL_0011: Return
         IL_0012: LoadArgument(0)
-        IL_0013: LoadString("values")
+        IL_0013: LoadString("__file__")
         IL_0014: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
-        IL_0015: BranchFalsy(24)
-        IL_0016: LoadStaticField(RyuPy.Generated.Module.m0___fn_0)
-        IL_0017: Return
-        IL_0018: LoadString("__main__")
-        IL_0019: LoadArgument(0)
-        IL_001a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.MissingAttr(string, string))
-        IL_001b: LoadNull
-        IL_001c: Return
+        IL_0015: BranchFalsy(27)
+        IL_0016: LoadStaticField(RyuPy.Generated.Module.m0___mv2___file__)
+        IL_0017: LoadString("__main__")
+        IL_0018: LoadString("__file__")
+        IL_0019: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.LoadAttribute(object, string, string))
+        IL_001a: Return
+        IL_001b: LoadArgument(0)
+        IL_001c: LoadString("values")
+        IL_001d: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyModules.SameName(string, string))
+        IL_001e: BranchFalsy(36)
+        IL_001f: LoadStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_0020: LoadString("__main__")
+        IL_0021: LoadString("values")
+        IL_0022: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyModules.LoadAttribute(object, string, string))
+        IL_0023: Return
+        IL_0024: LoadString("__main__")
+        IL_0025: LoadArgument(0)
+        IL_0026: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyModules.MissingAttr(string, string))
+        IL_0027: LoadNull
+        IL_0028: Return
     }
 
     .method public static void __mod_set_0([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object) cil managed

@@ -9,8 +9,8 @@ use ryupy_hir::{Binding, ExprId};
 
 use crate::build::{FunctionBuilder, ty_to_mir};
 use crate::mir::{
-    BlockId, Callee, Constant, LocalDecl, LocalId as MirLocalId, MirType, Operand, RuntimeFn,
-    Rvalue, Statement, Terminator,
+    BinOp, BlockId, Callee, Constant, LocalDecl, LocalId as MirLocalId, MirType, Operand,
+    RuntimeFn, Rvalue, Statement, Terminator,
 };
 
 /// 一个正在构建的 `finally` 区域。
@@ -35,7 +35,7 @@ impl FunctionBuilder<'_> {
     /// 函数入口压入 traceback 栈帧，深度存进局部变量。
     ///
     /// 深度用于两个地方：正常返回时 `PopTo(depth)` 弹掉自己的帧；异常被兜住时
-    /// 同样用它把被展开的调用者帧弹掉，避免栈错误地一直增长。
+    /// 用depth+1只弹掉被展开的被调用者帧，保留当前帧。
     pub(crate) fn emit_frame_push(&mut self) {
         // 模块顶层函数在 traceback 里显示为 `<module>`，与 CPython 一致
         let func = &self.hir.functions[self.current_hir_fn];
@@ -66,9 +66,23 @@ impl FunctionBuilder<'_> {
         let Some(depth) = self.frame_depth else {
             return;
         };
+        // 生成器每次恢复的帧由运行时Retry管理；原降级本来也会删除这里的PopTo。
+        // 提前跳过可避免新增无用的跨暂停局部及读取已被移除的TracePush结果。
+        if self.hir.functions[self.current_hir_fn].is_generator {
+            return;
+        }
+        let keep_current = self.alloc_temp(MirType::I64);
+        self.push_stmt(Statement::Assign {
+            dest: keep_current,
+            value: Rvalue::Binary {
+                op: BinOp::Add,
+                lhs: Operand::Local(depth),
+                rhs: Operand::Const(Constant::I64(1)),
+            },
+        });
         self.push_stmt(Statement::Eval(Rvalue::Call {
             callee: Callee::Runtime(RuntimeFn::TracePopTo),
-            args: vec![Operand::Local(depth)],
+            args: vec![Operand::Local(keep_current)],
         }));
     }
 

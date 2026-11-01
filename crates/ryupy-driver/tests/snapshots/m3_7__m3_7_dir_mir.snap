@@ -1,0 +1,58 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_dir.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_m3_7_dir.py");
+        g2 = _3;
+        // line 1
+        _4 = RuntimeFn::BuiltinFunction(const "dir");
+        g3 = _4;
+        // line 2
+        _5 = box<I64>(const 1_i64);
+        _6 = MakeList([_5]);
+        _7 = RuntimeFn::DynBuiltin(const "dir", [_6], [], []);
+        _8 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_8, _7);
+        RuntimeFn::WriteNewline(_8);
+        // line 3
+        _9 = RuntimeFn::LoadName(global@3, const "listing");
+        _10 = box<Str>(const "text");
+        _11 = dyn.call(_9, [_10]);
+        _12 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_12, _11);
+        RuntimeFn::WriteNewline(_12);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

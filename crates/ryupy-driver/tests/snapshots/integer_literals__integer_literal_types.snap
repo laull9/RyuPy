@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/integer_literals.rs
+expression: output
+---
+module var Idx::<ModuleVar>(0): Dynamic
+module var Idx::<ModuleVar>(1): Dynamic
+module var Idx::<ModuleVar>(2): Dynamic
+func Idx::<Function>(0) [Dynamic]: [Dynamic] -> Dynamic
+func Idx::<Function>(1) [Static]: [Int] -> Int
+  local Idx::<Local>(0): Int
+func Idx::<Function>(2) [Dynamic]: [] -> None

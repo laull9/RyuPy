@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.7：参数解析与日志流，避免时间和默认 stderr 格式影响差分。
 import argparse
 import io

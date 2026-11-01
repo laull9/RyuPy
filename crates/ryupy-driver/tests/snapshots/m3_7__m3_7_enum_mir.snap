@@ -1,0 +1,76 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: bool;
+    let _18: dyn;
+    let _19: dyn;
+
+    bb0: {
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_enum.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g1 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g2 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_m3_7_enum.py");
+        g3 = _3;
+        // line 1
+        _4 = RuntimeFn::ImportAttr(const "enum", const "Enum");
+        g4 = _4;
+        // line 2
+        _5 = RuntimeFn::LoadName(global@4, const "Enum");
+        _6 = _5;
+        _7 = RuntimeFn::EnumCreate(const "Color", [_6], null);
+        g0 = _7;
+        _8 = box<I64>(const 1_i64);
+        RuntimeFn::SetAttr(_7, const "RED", _8);
+        _9 = RuntimeFn::ClassNamespaceGet(_7, const "RED");
+        RuntimeFn::SetAttr(_7, const "ALIAS", _9);
+        _10 = box<I64>(const 2_i64);
+        RuntimeFn::SetAttr(_7, const "BLUE", _10);
+        _11 = RuntimeFn::EnumFinalize(_7, [const "RED", const "ALIAS", const "BLUE"]);
+        g5 = _11;
+        // line 6
+        _12 = RuntimeFn::LoadName(global@5, const "Color");
+        _13 = box<I64>(const 1_i64);
+        _14 = dyn.call(_12, [_13]);
+        _15 = RuntimeFn::LoadName(global@5, const "Color");
+        _16 = RuntimeFn::DynGetAttr(_15, const "RED");
+        _17 = RuntimeFn::IsSame(_14, _16);
+        _18 = box<Bool>(_17);
+        _19 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_19, _18);
+        RuntimeFn::WriteNewline(_19);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

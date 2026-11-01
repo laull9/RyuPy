@@ -1,0 +1,58 @@
+---
+source: crates/ryupy-driver/tests/typed_dict.rs
+expression: output
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+
+    bb0: {
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_typed_dict_snapshot.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g1 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g2 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_typed_dict_snapshot.py");
+        g3 = _3;
+        // line 1
+        _4 = RuntimeFn::ImportAttr(const "typing", const "TypedDict");
+        g4 = _4;
+        // line 2
+        _5 = RuntimeFn::LoadName(global@4, const "TypedDict");
+        _6 = _5;
+        _7 = RuntimeFn::TypedDictBegin(const "Record", _6, const false, const "__main__");
+        g0 = _7;
+        _8 = RuntimeFn::MakeDict();
+        RuntimeFn::SetAttr(_7, const "__annotations__", _8);
+        _9 = RuntimeFn::TypeObject(const "int");
+        _10 = _9;
+        _11 = RuntimeFn::ClassNamespaceGet(_7, const "__annotations__");
+        RuntimeFn::SetItem(_11, const "x", _10);
+        _12 = RuntimeFn::TypedDictFinish(_7);
+        g5 = _12;
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

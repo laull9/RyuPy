@@ -14,6 +14,7 @@ use crate::hir::{ClosureInfo, FuncId, Function, FunctionKind, Name};
 
 #[derive(Default)]
 pub(crate) struct ScopeCollector {
+    postponed_annotations: bool,
     assigned: Vec<Name>,
     globals: FxHashSet<Name>,
     nonlocals: Vec<(Name, TextRange)>,
@@ -36,7 +37,10 @@ pub(crate) fn collect_module_nested(
     nested_funcs: &mut FxHashMap<TextRange, FuncId>,
     nested_def_names: &mut FxHashMap<TextRange, Name>,
 ) {
-    let mut collector = ScopeCollector::default();
+    let mut collector = ScopeCollector {
+        postponed_annotations: scopes[parent].postponed_annotations,
+        ..ScopeCollector::default()
+    };
     for stmt in body {
         match stmt {
             ast::Stmt::FunctionDef(def) => {
@@ -44,7 +48,9 @@ pub(crate) fn collect_module_nested(
                     collector.visit_expr(&decorator.expression);
                 }
                 collector.visit_defaults(&def.parameters);
-                if let Some(annotation) = &def.returns {
+                if !collector.postponed_annotations
+                    && let Some(annotation) = &def.returns
+                {
                     collector.visit_expr(annotation);
                 }
             }
@@ -76,12 +82,15 @@ pub(crate) fn walk_function_scope(
     nested_funcs: &mut FxHashMap<TextRange, FuncId>,
     nested_def_names: &mut FxHashMap<TextRange, Name>,
 ) {
-    let mut collector = ScopeCollector::default();
+    let mut collector = ScopeCollector {
+        postponed_annotations: scopes[parent].postponed_annotations,
+        ..ScopeCollector::default()
+    };
     for parameter in parameters.iter() {
         collector.push_assigned(Name::from(parameter.name().as_str()));
     }
     // except 的绑定名不以 Expr::Name 出现，复用已有的局部变量扫描补齐。
-    for (name, _) in crate::scope::collect_assigned_names(body) {
+    for (name, _) in crate::scope::collect_function_bindings(body) {
         collector.push_assigned(name);
     }
     for stmt in body {
@@ -111,6 +120,7 @@ fn push_scope(
     });
     let index = scopes.len();
     scopes.push(ScopeData {
+        postponed_annotations: collector.postponed_annotations,
         func_id,
         is_module: false,
         range,
@@ -167,7 +177,10 @@ fn register_discovered(
                 let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(&expr) else {
                     continue;
                 };
-                let mut collector = ScopeCollector::default();
+                let mut collector = ScopeCollector {
+                    postponed_annotations: scopes[parent].postponed_annotations,
+                    ..ScopeCollector::default()
+                };
                 // 首个 iterable 在外层读取，其迭代器通过隐藏参数传入。
                 for (index, generator) in comp.generators.iter().enumerate() {
                     collector.visit_expr(&generator.target);
@@ -204,7 +217,10 @@ fn register_discovered(
                 nested_def_names,
             ),
             Nested::Lambda(lambda) => {
-                let mut collector = ScopeCollector::default();
+                let mut collector = ScopeCollector {
+                    postponed_annotations: scopes[parent].postponed_annotations,
+                    ..ScopeCollector::default()
+                };
                 if let Some(parameters) = &lambda.parameters {
                     for parameter in parameters.iter() {
                         collector.push_assigned(Name::from(parameter.name().as_str()));
@@ -235,17 +251,38 @@ impl ScopeCollector {
                 self.visit_expr(base);
             }
         }
-        for item in &class.body {
-            if let ast::Stmt::FunctionDef(def) = item {
+        self.visit_class_items(&class.body);
+    }
+
+    // 条件内的方法依旧是已登记的类方法，不再当模块嵌套函数重复分配。
+    fn visit_class_items(&mut self, items: &[ast::Stmt]) {
+        for item in items {
+            if let ast::Stmt::If(branch) = item {
+                self.visit_expr(&branch.test);
+                self.visit_class_items(&branch.body);
+                for clause in &branch.elif_else_clauses {
+                    if let Some(test) = &clause.test {
+                        self.visit_expr(test);
+                    }
+                    self.visit_class_items(&clause.body);
+                }
+            } else if let ast::Stmt::FunctionDef(def) = item {
                 for decorator in &def.decorator_list {
                     self.visit_expr(&decorator.expression);
                 }
                 self.visit_defaults(&def.parameters);
-                if let Some(annotation) = &def.returns {
+                if !self.postponed_annotations
+                    && let Some(annotation) = &def.returns
+                {
                     self.visit_expr(annotation);
                 }
             } else {
                 self.visit_stmt(item);
+                if !self.postponed_annotations
+                    && let ast::Stmt::AnnAssign(annotation) = item
+                {
+                    self.visit_expr(&annotation.annotation);
+                }
             }
         }
     }
@@ -259,7 +296,9 @@ impl ScopeCollector {
     /// 默认值在外层求值：读到的变量和内含的 lambda 都归入当前收集器。
     fn visit_defaults(&mut self, parameters: &ast::Parameters) {
         for parameter in parameters.iter() {
-            if let Some(annotation) = parameter.annotation() {
+            if !self.postponed_annotations
+                && let Some(annotation) = parameter.annotation()
+            {
                 self.visit_expr(annotation);
             }
         }
@@ -280,7 +319,9 @@ impl<'a> Visitor<'a> for ScopeCollector {
                     self.visit_expr(&decorator.expression);
                 }
                 self.visit_defaults(&def.parameters);
-                if let Some(annotation) = &def.returns {
+                if !self.postponed_annotations
+                    && let Some(annotation) = &def.returns
+                {
                     self.visit_expr(annotation);
                 }
                 self.nested.push(Nested::Def(def.clone()));
@@ -288,6 +329,13 @@ impl<'a> Visitor<'a> for ScopeCollector {
             ast::Stmt::ClassDef(class) => {
                 self.push_assigned(Name::from(class.name.as_str()));
                 self.visit_class_expressions(class);
+            }
+            // 函数局部注解从不执行；类体需执行的旧模式注解由visit_class_expressions单独处理。
+            ast::Stmt::AnnAssign(assign) => {
+                self.visit_expr(&assign.target);
+                if let Some(value) = &assign.value {
+                    self.visit_expr(value);
+                }
             }
             ast::Stmt::Global(global) => {
                 self.globals

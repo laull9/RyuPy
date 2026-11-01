@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/typed_dict.rs
+expression: output
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_typed_dict_snapshot.py"
+    from typing import TypedDict as global.TypedDict
+    class Record(TypedDict Idx::<Expr>(0), total=false):
+        x: int

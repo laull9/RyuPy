@@ -1,0 +1,4 @@
+# 用户警告的error策略复用真实异常报告，不绕过自定义str。
+entry = entry.py
+expect_exit = 1
+expect_exception = CustomWarning: rendered

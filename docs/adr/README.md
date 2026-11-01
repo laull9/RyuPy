@@ -40,6 +40,12 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | [0027](0027-definition-time-decorators.md) | 定义位置装饰器与混合dataclass表示 | 已接受 |
 
+| [0028](0028-system-streams-paths.md) | 系统、流与路径 API 的有限原生实现 | 已接受 |
+| [0029](0029-numeric-json-regex.md) | 数值、JSON 与正则 API 的有限原生实现 | 已接受 |
+| [0030](0030-tools-metadata-guarded-dataclasses.md) | 工具协议、元数据与守卫数据类优化 | 已接受 |
+| [0031](0031-project-tools.md) | 项目入口工具与协议的有限原生实现 | 已接受 |
+| [0032](0032-bounded-stdlib-and-compatibility-gate.md) | 有界标准库交付与独立项目兼容性门（用户批准重排） | 已接受 |
+
 ## 模板
 
 ```markdown
@@ -63,5 +69,3 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 ## 后果
 带来的代价、需要后续跟进的事项、什么情况下应该重新审视。
 ```
-
-| [0030](0030-tools-metadata-guarded-dataclasses.md) | 工具协议、元数据与守卫数据类优化 | 已接受 |

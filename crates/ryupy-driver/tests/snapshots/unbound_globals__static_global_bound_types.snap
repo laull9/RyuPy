@@ -1,0 +1,10 @@
+---
+source: crates/ryupy-driver/tests/unbound_globals.rs
+expression: output
+---
+module var Idx::<ModuleVar>(0): Str
+module var Idx::<ModuleVar>(1): Str
+module var Idx::<ModuleVar>(2): Str
+module var Idx::<ModuleVar>(3): Int
+func Idx::<Function>(0) [Static]: [] -> Int
+func Idx::<Function>(1) [Static]: [] -> None

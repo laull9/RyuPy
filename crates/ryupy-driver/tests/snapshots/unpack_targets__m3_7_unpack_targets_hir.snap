@@ -1,0 +1,18 @@
+---
+source: crates/ryupy-driver/tests/unpack_targets.rs
+expression: output
+---
+def bind(target, values):
+    target.first, target[0] = values
+    first, *target.rest = values
+    return first
+
+def paused(target, values):
+    target.first, target[(yield 0)] = values
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_m3_7_unpack_targets.py"
+    defaults of bind
+    defaults of paused

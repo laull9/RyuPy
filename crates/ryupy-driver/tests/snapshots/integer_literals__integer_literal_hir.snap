@@ -1,0 +1,17 @@
+---
+source: crates/ryupy-driver/tests/integer_literals.rs
+expression: output
+---
+def huge(value: int=...) -> int:
+    return value
+
+def small(value: int) -> int:
+    return (value + 3)
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_big_integer_types.py"
+    defaults of huge
+    defaults of small
+    print(huge(), small(4))

@@ -25,6 +25,7 @@ public static class PyRepr
         PyNativeObject native => native.TypeName,
         null => "NoneType",
         PyNone => "NoneType",
+        PyNotImplemented => "NotImplementedType",
         PyUnbound => "NoneType",
         bool => "bool",
         long or int or BigInteger => "int",
@@ -51,9 +52,9 @@ public static class PyRepr
         PyInstance instance => instance.Class.Name,
         PyBoundMethod => "method",
         PyFunction => "function",
+        PyBuiltinMethod { IsMethodWrapper: true } => "method-wrapper",
         PyBuiltinFunction or PyBuiltinMethod => "builtin_function_or_method",
         PyGenerator => "generator",
-        PyNotImplemented => "NotImplementedType",
         PyProperty => "property",
         PyStaticMethod or PyClassMethod => "builtin_function_or_method",
         PySuper => "super",
@@ -67,6 +68,7 @@ public static class PyRepr
         PyNativeObject native => native.PythonStr(),
         null => "None",
         PyNone => "None",
+        PyNotImplemented => "NotImplemented",
         PyUnbound => "<unbound>",
         bool b => b ? "True" : "False",
         long l => l.ToString(CultureInfo.InvariantCulture),
@@ -74,7 +76,7 @@ public static class PyRepr
         double d => PyFormat.FloatRepr(d),
         string s => s,
         // str(异常) 是消息本身，不含类型名（与 CPython 一致）
-        PyBaseException exception => exception.PyMessage,
+        PyBaseException exception => StrException(exception),
         PyTuple tuple => ReprTuple(tuple),
         PyList list => ReprList(list),
         PyDict dict => ReprDict(dict),
@@ -86,7 +88,7 @@ public static class PyRepr
         PyDictView view => ReprView(view),
         PyType type => type.ToString(),
         PyNativeType type => type.ToString(),
-        PyClass cls => cls.ToString(),
+        PyClass cls => PyEnum.IsEnumClass(cls) ? PyEnum.ClassRepr(cls) : cls.ToString(),
         PyInstance instance => StrInstance(instance),
         PyModule module => module.ToString(),
         PyBoundMethod method => method.ToString(),
@@ -117,7 +119,7 @@ public static class PyRepr
         PyBytes bytes => ReprBytes(bytes.Bytes),
         PyByteArray array => "bytearray(" + ReprBytes([.. array.Bytes]) + ")",
         PyDictView view => ReprView(view),
-        PyClass cls => cls.ToString(),
+        PyClass cls => PyEnum.IsEnumClass(cls) ? PyEnum.ClassRepr(cls) : cls.ToString(),
         PyInstance instance => ReprInstance(instance),
         PyModule module => $"<module '{module.Name}' from '{module.File}'>",
         PyBoundMethod method => method.ToString(),
@@ -135,9 +137,18 @@ public static class PyRepr
         _ => TypeName(target),
     };
 
+    /// <summary>用户异常覆盖的 __str__ 与普通实例一样可观察；默认仍延迟读取原 args 消息。</summary>
+    private static string StrException(PyBaseException exception)
+    {
+        if (PyObject.TryMethod(exception, "__str__", [], out object? custom))
+            return RequireString(custom, "__str__", exception.PyTypeName);
+        return exception.PyMessage;
+    }
+
     /// <summary>实例的 <c>str()</c>：优先 `__str__`，其次 `__repr__`，最后默认形式。</summary>
     private static string StrInstance(PyInstance instance)
     {
+        if (PyEnum.IsMember(instance)) return PyEnum.MemberRepr(instance, false);
         if (PyObject.TryMethod(instance, "__str__", [], out object? custom))
         {
             return RequireString(custom, "__str__", instance.Class.Name);
@@ -152,6 +163,7 @@ public static class PyRepr
     /// <summary>实例的 <c>repr()</c>：只认 `__repr__`。</summary>
     private static string ReprInstance(PyInstance instance)
     {
+        if (PyEnum.IsMember(instance)) return PyEnum.MemberRepr(instance, true);
         if (PyObject.TryMethod(instance, "__repr__", [], out object? repr))
         {
             return RequireString(repr, "__repr__", instance.Class.Name);

@@ -23,7 +23,7 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     public void Write(string text)
     {
         CheckOpen();
-        if (_writer is null) throw new PyOSError("not writable");
+        if (_writer is null) throw new PyUnsupportedOperation("not writable");
         PyIO.Guard(() => { _writer.Write(text); return PyNone.Instance; });
     }
 
@@ -35,7 +35,7 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     private string Read(long size, bool line)
     {
         CheckOpen();
-        if (_reader is null) throw new PyOSError("not readable");
+        if (_reader is null) throw new PyUnsupportedOperation("not readable");
         if (size < -1) size = -1;
         var output = new System.Text.StringBuilder();
         while (size != 0)

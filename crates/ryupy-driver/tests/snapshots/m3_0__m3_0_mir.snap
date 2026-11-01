@@ -138,9 +138,9 @@ fn main() -> () {
         RuntimeFn::UnpackCheck(_5, const 2_i64, const false);
         _6 = box<I64>(const 0_i64);
         _7 = RuntimeFn::GetItem(_4, _6);
-        g3 = _7;
         _8 = box<I64>(const 1_i64);
         _9 = RuntimeFn::GetItem(_4, _8);
+        g3 = _7;
         g4 = _9;
         // line 17
         _10 = RuntimeFn::LoadName(global@3, const "add");

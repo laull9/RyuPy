@@ -1,0 +1,2 @@
+# 固定CPython 3.12的warn使用每模块registry；不与warn_explicit全局once行为混淆。
+entry = entry.py

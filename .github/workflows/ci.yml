@@ -25,8 +25,22 @@ jobs:
         with:
           dotnet-version: "10.0.x"
       - uses: actions/setup-python@v5
+        if: runner.os != 'macOS'
         with:
           python-version: "3.12.13"
+      # setup-python 的 3.12.13 清单不含 Darwin；不放宽差分基线或跳过 macOS 测试。
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        if: runner.os == 'macOS'
+        with:
+          version: "0.13.4"
+          enable-cache: false
+      - name: install pinned Python on macOS
+        if: runner.os == 'macOS'
+        run: |
+          uv python install 3.12.13
+          python_path="$(uv python find 3.12.13)"
+          "$python_path" -c 'import sys; assert sys.version_info[:3] == (3, 12, 13), sys.version'
+          echo "PYTHON=$python_path" >> "$GITHUB_ENV"
       - name: lint
         run: make lint
       - name: unit & snapshot tests

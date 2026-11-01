@@ -1,0 +1,177 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+fn result() -> dyn {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_not_implemented.py", const "result");
+        // line 2
+        _2 = RuntimeFn::BuiltinFunction(const "NotImplemented");
+        _1 = _2;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_0);
+        return _1;
+    }
+}
+
+fn shadow(_0: dyn) -> dyn {
+    let _0: dyn; // NotImplemented
+    let _1: i64;
+    let _2: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_m3_7_not_implemented.py", const "shadow");
+        // line 4
+        _2 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: i64;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: i64;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: i64;
+    let _20: bool;
+    let _21: bool;
+
+    region r0: [4, +1) finally-guard handler->bb5
+    region r1: [1, +1) catch TypeError handler->bb3
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_not_implemented.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_m3_7_not_implemented.py");
+        g2 = _3;
+        // line 1
+        // line 3
+        // line 5
+        _4 = RuntimeFn::BuiltinFunction(const "NotImplemented");
+        g3 = _4;
+        // line 6
+        _5 = RuntimeFn::LoadName(global@3, const "value");
+        _6 = result();
+        _7 = box<I64>(const 3_i64);
+        _8 = shadow(_7);
+        _9 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_9, _5);
+        RuntimeFn::WriteSep(_9);
+        RuntimeFn::WriteObject(_9, _6);
+        RuntimeFn::WriteSep(_9);
+        RuntimeFn::WriteObject(_9, _8);
+        RuntimeFn::WriteNewline(_9);
+        // line 7
+        goto -> bb1;
+    }
+    bb1: {
+        // line 8
+        _10 = RuntimeFn::DynBuiltin(const "NotImplemented", [], [], []);
+        goto -> bb14;
+    }
+    bb2: {
+        _12 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_12);
+        _13 = RuntimeFn::HandlerEnter(_11);
+        goto -> bb4;
+    }
+    bb3: {
+        _11 = caught_exception;
+        goto -> bb2;
+    }
+    bb4: {
+        _15 = RuntimeFn::HandlerEnter(None);
+        // line 10
+        _17 = box<Str>(const "not callable");
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_18, _17);
+        RuntimeFn::WriteNewline(_18);
+        _16 = const 0_i64;
+        goto -> bb7;
+    }
+    bb5: {
+        _14 = caught_exception;
+        goto -> bb6;
+    }
+    bb6: {
+        _19 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_19);
+        _15 = RuntimeFn::HandlerEnter(_14);
+        _16 = const 1_i64;
+        goto -> bb7;
+    }
+    bb7: {
+        RuntimeFn::HandlerLeave(_13);
+        goto -> bb8;
+    }
+    bb8: {
+        _20 = Eq(_16, const 1_i64);
+        branch _20 -> [then: bb9, else: bb11];
+    }
+    bb9: {
+        RuntimeFn::HandlerLeave(_13);
+        raise _14;
+    }
+    bb10: {
+        unreachable;
+    }
+    bb11: {
+        _21 = Eq(_16, const 2_i64);
+        branch _21 -> [then: bb15, else: bb12];
+    }
+    bb12: {
+        RuntimeFn::HandlerLeave(_13);
+        goto -> bb15;
+    }
+    bb13: {
+        unreachable;
+    }
+    bb14: {
+        goto -> bb15;
+    }
+    bb15: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

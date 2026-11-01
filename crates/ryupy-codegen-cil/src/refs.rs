@@ -42,7 +42,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let str_concat = res.push_method_reference(
         method_ref! { static string @builtins_type::StrConcat(string, string) },
     );
-    // 保留旧Flush ABI引用；入口改用FlushForExit，运行时报告等内部路径仍可直接刷新。
+    // 保留旧Flush ABI引用；入口改用FinishExit，运行时报告等内部路径仍可直接刷新。
     let _flush_stdout =
         res.push_method_reference(method_ref! { static void @builtins_type::Flush() });
 
@@ -195,9 +195,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         res.push_method_reference(method_ref! { static object @pyerrors_type::Unbound() });
     let load_checked = res
         .push_method_reference(method_ref! { static object @pyerrors_type::Load(object, string) });
-    let load_name = res.push_method_reference(
-        method_ref! { static object @pyerrors_type::LoadName(object, string) },
-    );
 
     // ── 容器协议（M2.3）──
     let make_list =
@@ -308,8 +305,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let bind_python_class = res.push_method_reference(method_ref! {
         void @py_exc_type::BindPythonClass(@pyclass_type)
     });
-    let user_exception_message = res.push_method_reference(method_ref! {
-        static string @pyerrors_type::UserExceptionMessage(object[])
+    let user_exception_message_for_base = res.push_method_reference(method_ref! {
+        static string @pyerrors_type::UserExceptionMessageForBase(string, object[])
     });
     let trace_push = res.push_method_reference(
         method_ref! { static long @traceback_type::PushFrame(string, string) },
@@ -423,6 +420,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
                 Some("RyuPy.Runtime".into()),
                 match *type_name {
                     "re.error" => "PyRegexError".to_owned(),
+                    "io.UnsupportedOperation" => "PyUnsupportedOperation".to_owned(),
                     "json.JSONDecodeError" => "PyJSONDecodeError".to_owned(),
                     "dataclasses.FrozenInstanceError" => "PyFrozenInstanceError".to_owned(),
                     name => format!("Py{name}"),
@@ -435,7 +433,23 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     }
     let (generator_resume_ctor, generator_ctor, generator_input, generator_retry) =
         crate::generator_refs::build(res, ryupy_runtime);
+    let enum_type = res.push_type_reference(type_ref! { RyuPy.Runtime.PyEnum in #ryupy_runtime });
+    let enum_type: MethodType = BaseType::class(enum_type).into();
+    let enum_finalize = res.push_method_reference(
+        method_ref! { static object @enum_type::Finalize(object, object[]) },
+    );
+    let enum_create = res.push_method_reference(
+        method_ref! { static object @enum_type::Create(string, object[], object) },
+    );
+    let dict_set_scalar_key = res.push_method_reference(
+        method_ref! { static void @pyops_type::DictSetScalarKey(object, object, object) },
+    );
     let runtime_refs = RuntimeRefs {
+        dict_set_scalar_key,
+        enum_create,
+        classes: crate::class_refs::ClassRefs::build(res, ryupy_runtime),
+        typed_dict: crate::typed_dict_refs::TypedDictRefs::build(res, ryupy_runtime),
+        enum_finalize,
         accumulator: crate::accumulator_refs::AccumulatorRefs::build(res, ryupy_runtime),
         system: crate::system_refs::SystemRefs::build(res, ryupy_runtime),
         function_objects: crate::function_refs::FunctionRefs::build(res, ryupy_runtime),
@@ -490,7 +504,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         raise_prepare,
         make_unbound,
         load_checked,
-        load_name,
+        bindings: crate::module_binding_refs::BindingRefs::build(res, ryupy_runtime),
         dyn_str,
         dyn_type,
         trace_push,
@@ -533,7 +547,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         py_class_type: pyclass_type,
         exception_factory_ctor,
         bind_python_class,
-        user_exception_message,
+        user_exception_message_for_base,
         object_type: MethodType::from(BaseType::class(object_ref)),
         global_fields: FxHashMap::default(),
         signature_create,

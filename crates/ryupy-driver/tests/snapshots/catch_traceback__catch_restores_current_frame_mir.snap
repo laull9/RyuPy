@@ -1,0 +1,157 @@
+---
+source: crates/ryupy-driver/tests/catch_traceback.rs
+expression: mir
+---
+fn original() -> dyn {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_catch_current_frame.py", const "original");
+        // line 2
+        _1 = box<Str>(const "old");
+        _2 = RuntimeFn::MakeException(const "ValueError", _1);
+        _3 = RuntimeFn::RaisePrepare(_2);
+        raise _3;
+    }
+    bb1: {
+        unreachable;
+    }
+}
+
+fn caught() -> dyn {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: i64;
+    let _8: i64;
+    let _9: bool;
+    let _10: bool;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+
+    region r0: [5, +1) finally-guard handler->bb6
+    region r1: [1, +1) catch ValueError handler->bb3
+    region r2: [1, +1) catch io.UnsupportedOperation handler->bb4
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_catch_current_frame.py", const "caught");
+        // line 4
+        goto -> bb1;
+    }
+    bb1: {
+        // line 5
+        _1 = original();
+        goto -> bb15;
+    }
+    bb2: {
+        _3 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_3);
+        _4 = RuntimeFn::HandlerEnter(_2);
+        goto -> bb5;
+    }
+    bb3: {
+        _2 = caught_exception;
+        goto -> bb2;
+    }
+    bb4: {
+        _2 = caught_exception;
+        goto -> bb2;
+    }
+    bb5: {
+        _6 = RuntimeFn::HandlerEnter(None);
+        // line 7
+        _7 = const 0_i64;
+        goto -> bb8;
+    }
+    bb6: {
+        _5 = caught_exception;
+        goto -> bb7;
+    }
+    bb7: {
+        _8 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_8);
+        _6 = RuntimeFn::HandlerEnter(_5);
+        _7 = const 1_i64;
+        goto -> bb8;
+    }
+    bb8: {
+        RuntimeFn::HandlerLeave(_4);
+        goto -> bb9;
+    }
+    bb9: {
+        _9 = Eq(_7, const 1_i64);
+        branch _9 -> [then: bb10, else: bb12];
+    }
+    bb10: {
+        RuntimeFn::HandlerLeave(_4);
+        raise _5;
+    }
+    bb11: {
+        unreachable;
+    }
+    bb12: {
+        _10 = Eq(_7, const 2_i64);
+        branch _10 -> [then: bb16, else: bb13];
+    }
+    bb13: {
+        RuntimeFn::HandlerLeave(_4);
+        goto -> bb15;
+    }
+    bb14: {
+        unreachable;
+    }
+    bb15: {
+        // line 8
+        _11 = box<Str>(const "new");
+        _12 = RuntimeFn::MakeException(const "RuntimeError", _11);
+        _13 = RuntimeFn::RaisePrepare(_12);
+        raise _13;
+    }
+    bb16: {
+        RuntimeFn::TracePopTo(_0);
+        return _14;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_catch_current_frame.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_catch_current_frame.py");
+        g2 = _3;
+        // line 1
+        // line 3
+        // line 9
+        _4 = caught();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

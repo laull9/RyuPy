@@ -1,0 +1,22 @@
+{
+  "python": "3.12.13",
+  "unicode": "15.0.0",
+  "behavior_fnv64": 17127505844844960952,
+  "verified_codepoints": 1114112,
+  "mismatches": 0,
+  "ranges": {
+    "EastAsianWidth": 315,
+    "Combining": 388
+  },
+  "source_urls": {
+    "LICENSE.txt": "https://www.unicode.org/license.txt",
+    "EastAsianWidth.txt": "https://www.unicode.org/Public/15.0.0/ucd/EastAsianWidth.txt",
+    "UnicodeData.txt": "https://www.unicode.org/Public/15.0.0/ucd/UnicodeData.txt"
+  },
+  "source_sha256": {
+    "LICENSE.txt": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+    "EastAsianWidth.txt": "743e7bc435c04ab1a8459710b1c3cad56eedced5b806b4659b6e69b85d0adf2a",
+    "UnicodeData.txt": "806e9aed65037197f1ec85e12be6e8cd870fc5608b4de0fffd990f689f376a73"
+  },
+  "generated_sha256": "0ff655f2e9c44b9179e1708786f77193a0e6cf34828b29620b764c424d36bdae"
+}

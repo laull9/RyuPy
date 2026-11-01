@@ -29,7 +29,7 @@ pub struct UnitMeta {
     pub package: String,
     pub file: String,
     /// 模块导出：Python 名字 → 模块内部槽位。
-    pub exports: Vec<(String, GlobalId)>,
+    pub exports: Vec<crate::mir::ModuleExport>,
 }
 
 /// 把各模块的 `Program` 合并成一个程序集级别的 IR。
@@ -137,7 +137,24 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                         kind: match &region.kind {
                             crate::mir::RegionKind::Catch { type_names } => {
                                 crate::mir::RegionKind::Catch {
-                                    type_names: type_names.clone(),
+                                    // 用户异常引用使用本模块的内部类型身份；不污染内建裸名。
+                                    type_names: type_names
+                                        .iter()
+                                        .map(|name| {
+                                            program
+                                                .classes
+                                                .iter()
+                                                .find(|(_, cls)| {
+                                                    cls.is_exception && cls.name == *name
+                                                })
+                                                .map_or_else(
+                                                    || name.clone(),
+                                                    |(_, cls)| {
+                                                        format!("{prefix}{}", cls.codegen_name)
+                                                    },
+                                                )
+                                        })
+                                        .collect(),
                                 }
                             }
                             crate::mir::RegionKind::CatchAll => crate::mir::RegionKind::CatchAll,
@@ -163,7 +180,16 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
         let exports = meta
             .exports
             .iter()
-            .map(|(name, gid)| (name.clone(), global_map[gid]))
+            .map(|export| crate::mir::ModuleExport {
+                name: export.name.clone(),
+                value: global_map[&export.value],
+                guard: match export.guard {
+                    crate::mir::ExportGuard::BoundFlag(flag) => {
+                        crate::mir::ExportGuard::BoundFlag(global_map[&flag])
+                    }
+                    ref guard => guard.clone(),
+                },
+            })
             .collect();
         module_ids.push(modules.alloc(ModuleDef {
             protected_exports: meta.protected_exports,

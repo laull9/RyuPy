@@ -1,0 +1,41 @@
+---
+source: crates/ryupy-driver/tests/m3_7.rs
+expression: output
+---
+动态成员
+[E0100] Error: Enum成员仅支持int/str/bool/None字面量及此前成员别名
+   ╭─[ enum_boundaries.py:3:5 ]
+   │
+ 3 │     A = int('1')
+   │     ──────┬─────
+   │           ╰───────
+───╯
+
+重复成员
+[E0100] Error: Enum成员/方法名字不能重复声明
+   ╭─[ enum_boundaries.py:4:5 ]
+   │
+ 4 │     A = 2
+   │     ──┬──
+   │       ╰────
+───╯
+
+构造钩子
+[E0100] Error: 暂不支持Enum特殊方法、构造钩子或覆盖name/value描述符
+   ╭─[ enum_boundaries.py:3:5 ]
+   │
+ 3 │ ╭─▶     def __new__(cls):
+ 4 │ ├─▶         pass
+   │ │
+   │ ╰──────────────────
+───╯
+
+继承已有Enum
+[E0100] Error: 暂不支持以装饰后的异常类、dataclass或已定义Enum作为基类
+   ╭─[ enum_boundaries.py:4:1 ]
+   │
+ 4 │ ╭─▶ class D(C):
+ 5 │ ├─▶     B = 2
+   │ │
+   │ ╰───────────────
+───╯

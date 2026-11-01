@@ -14,6 +14,7 @@ mod call;
 mod check;
 mod check_attrs;
 mod check_stmts;
+mod default_modes;
 mod infer;
 mod module_vars;
 pub mod ops;
@@ -24,3 +25,5 @@ pub use ty::*;
 
 #[cfg(test)]
 mod check_tests;
+#[cfg(test)]
+mod primitive_attribute_tests;

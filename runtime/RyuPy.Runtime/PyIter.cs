@@ -90,6 +90,7 @@ public sealed class PyIter : IPyIterator
         PyBytes bytes => new PyIter(bytes, 0, null, null),
         PyByteArray array => new PyIter(array, 0, null, null),
         PyRange range => new PyRangeIter(range),
+        PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Iterate(cls),
         // 原生流的__iter__仍需检查关闭状态，不能被IPyIterator快路径绕过。
         PyNativeObject native => CreateFromObject(native),
         // 迭代器本身可迭代：`iter(it)` 返回自身

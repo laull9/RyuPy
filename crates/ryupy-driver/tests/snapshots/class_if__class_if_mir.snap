@@ -1,0 +1,131 @@
+---
+source: crates/ryupy-driver/tests/class_if.rs
+expression: output
+---
+fn method(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // x
+    let _2: i64;
+    let _3: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_class_if_snapshot.py", const "method");
+        // line 6
+        _3 = _1;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
+fn method(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // self
+    let _1: dyn; // x
+    let _2: i64;
+    let _3: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_class_if_snapshot.py", const "method");
+        // line 9
+        _3 = _1;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: bool;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: bool;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+
+    bb0: {
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_class_if_snapshot.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g1 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g2 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_class_if_snapshot.py");
+        g3 = _3;
+        // line 1
+        _4 = box<I64>(const 7_i64);
+        g4 = _4;
+        // line 2
+        _5 = RuntimeFn::MakeClass(const "C", [], null);
+        g0 = _5;
+        _6 = RuntimeFn::LoadName(global@4, const "value");
+        _7 = RuntimeFn::DynTruthy(_6);
+        branch _7 -> [then: bb1, else: bb2];
+    }
+    bb1: {
+        _8 = box<I64>(const 8_i64);
+        RuntimeFn::SetAttr(_5, const "value", _8);
+        _9 = RuntimeFn::ClassNamespaceGet(_5, const "value");
+        _10 = _9;
+        _11 = MakeFunction(method; env=[]; defaults=[null, _10]);
+        RuntimeFn::SetAttr(_5, const "method", _11);
+        goto -> bb3;
+    }
+    bb2: {
+        _12 = RuntimeFn::LoadName(global@4, const "value");
+        _13 = _12;
+        _14 = MakeFunction(method; env=[]; defaults=[null, _13]);
+        RuntimeFn::SetAttr(_5, const "method", _14);
+        goto -> bb3;
+    }
+    bb3: {
+        _15 = RuntimeFn::ClassNamespaceContains(_5, const "value");
+        branch _15 -> [then: bb4, else: bb5];
+    }
+    bb4: {
+        _17 = RuntimeFn::ClassNamespaceGet(_5, const "value");
+        _16 = _17;
+        goto -> bb6;
+    }
+    bb5: {
+        _18 = RuntimeFn::LoadName(global@4, const "value");
+        _16 = _18;
+        goto -> bb6;
+    }
+    bb6: {
+        RuntimeFn::SetAttr(_5, const "after", _16);
+        goto -> bb7;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

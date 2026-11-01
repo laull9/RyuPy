@@ -8,6 +8,7 @@ public static partial class PyOps
     /// <param name="key">下标或键。</param>
     public static object? GetItem(object? obj, object? key) => obj switch
     {
+        PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.GetItem(cls, key),
         PyType type when type.Name is "list" or "dict" or "tuple" or "set" or "frozenset" => PyTyping.SubscribeNative(type, key),
         PyNativeType type when PyAbc.IsAbc(type) => PyTyping.SubscribeNative(type, key),
         PyList list => list.GetItem(key!),

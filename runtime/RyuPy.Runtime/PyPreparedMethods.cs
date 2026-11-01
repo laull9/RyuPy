@@ -7,8 +7,13 @@ public sealed class PyBuiltinMethod
     private readonly string _name;
     private readonly PyBuiltinMethodCall _call;
 
+    // 仅本轮实现的长度槽使用method-wrapper身份，不按所有dunder名称泛化。
+    internal bool IsMethodWrapper => _name == "__len__";
+
     /// <inheritdoc />
-    public override string ToString() => $"<built-in method {_name}>";
+    public override string ToString() => IsMethodWrapper
+        ? $"<method-wrapper '{_name}' of {PyRepr.TypeName(_receiver)} object at 0x{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_receiver):x}>"
+        : $"<built-in method {_name}>";
 
     internal PyBuiltinMethod(object receiver, string name, PyBuiltinMethodCall call)
     {
@@ -16,6 +21,23 @@ public sealed class PyBuiltinMethod
         _name = name;
         _call = call;
     }
+
+    /// <summary>一等绑定方法的接收者与名称元数据；不把Python对象暴露为CLR反射对象。</summary>
+    internal object? GetMetadata(string name) => name switch
+    {
+        "__self__" => _receiver, "__name__" => _name,
+        "__qualname__" => PyRepr.TypeName(_receiver) + "." + _name,
+        "__module__" when !IsMethodWrapper => PyNone.Instance,
+        "__objclass__" when IsMethodWrapper => PyObject.TypeOf(_receiver),
+        "__class__" when IsMethodWrapper => PyType.Get("method-wrapper"),
+        _ => throw new PyAttributeError($"'{(IsMethodWrapper ? "method-wrapper" : "builtin_function_or_method")}' object has no attribute '{name}'"),
+    };
+
+    /// <summary>同一接收者上的同一方法相等，不调用接收者自己的相等或hash协议。</summary>
+    internal bool SameMethod(PyBuiltinMethod other) =>
+        ReferenceEquals(_receiver, other._receiver) && _name == other._name;
+    internal long IdentityHash() => System.HashCode.Combine(
+        System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(_receiver), _name);
 
     /// <summary>使用已展开实参调用固定入口；参数错误直到这里才发生。</summary>
     /// <param name="args">位置参数。</param>
@@ -46,6 +68,7 @@ public static partial class PyOps
         // 不能用空实参试调用来判断存在性，否则会提前执行副作用或触发参数错误。
         PyBuiltinMethodCall? call = receiver switch
         {
+            _ when name == "__len__" && IsBuiltinSized(receiver) => PreparedLength,
             PyList when name is "append" or "extend" or "insert" or "pop" or "remove"
                 or "index" or "count" or "clear" or "reverse" or "copy" or "sort" => PreparedList,
             PyTuple when name is "count" or "index" => PreparedTuple,
@@ -53,8 +76,8 @@ public static partial class PyOps
                 or "pop" or "setdefault" or "clear" or "copy" => PreparedDict,
             PySet when name is "add" or "remove" or "discard" or "union" or "intersection"
                 or "difference" => PreparedSet,
-            PyByteArray when name is "append" or "extend" or "decode" => PreparedByteArray,
-            PyBytes when name is "decode" or "hex" => PreparedBytes,
+            PyByteArray when name is "append" or "extend" or "decode" or "startswith" or "endswith" => PreparedByteArray,
+            PyBytes when name is "decode" or "hex" or "startswith" or "endswith" => PreparedBytes,
             string when name is "encode" or "upper" or "lower" or "strip" or "lstrip"
                 or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
                 or "index" or "rindex" or "count" or "startswith" or "endswith" => PreparedText,
@@ -73,6 +96,7 @@ public static partial class PyOps
     {
         (int min, int max) = (receiver, name) switch
         {
+            (_, "__len__") when IsBuiltinSized(receiver) => (0, 0),
             (PyList, "clear" or "reverse" or "copy" or "sort") => (0, 0),
             (PyList, "pop") => (0, 1),
             (PyList, "insert") => (2, 2),
@@ -84,6 +108,7 @@ public static partial class PyOps
             (PySet, "add" or "remove" or "discard" or "union" or "intersection" or "difference") => (1, 1),
             (PyByteArray, "append" or "extend") => (1, 1),
             (PyByteArray or PyBytes, "decode") => (0, 1),
+            (PyByteArray or PyBytes, "startswith" or "endswith") => (1, 3),
             (PyBytes, "hex") => (0, 0),
             (string, "upper" or "lower") => (0, 0),
             (string, "encode" or "strip" or "lstrip" or "rstrip" or "split" or "splitlines") => (0, 1),

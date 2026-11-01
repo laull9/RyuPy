@@ -1,0 +1,117 @@
+---
+source: crates/ryupy-driver/tests/integer_literals.rs
+expression: output
+---
+fn huge(_0: dyn) -> dyn {
+    let _0: dyn; // value
+    let _1: i64;
+    let _2: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_big_integer_types.py", const "huge");
+        // line 2
+        _2 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn small(_0: i64) -> i64 {
+    let _0: i64; // value
+    let _1: i64;
+    let _2: i64;
+    let _3: i64;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_big_integer_types.py", const "small");
+        // line 4
+        _3 = Add(_0, const 3_i64);
+        _2 = _3;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: i64;
+    let _18: i64;
+    let _19: dyn;
+    let _20: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_big_integer_types.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_big_integer_types.py");
+        g2 = _3;
+        // line 1
+        _4 = box<Dynamic>(const 184467440737095516160_bigint);
+        _5 = dyn.Neg(_4);
+        RuntimeFn::ArraySet(global@4, const 0_i64, _5);
+        _6 = RuntimeFn::TypeObject(const "int");
+        _7 = _6;
+        _8 = RuntimeFn::TypeObject(const "int");
+        _9 = _8;
+        RuntimeFn::FunctionMetadata(global@3, null, [const "value", const "return"], [_7, _9]);
+        // line 3
+        _10 = RuntimeFn::TypeObject(const "int");
+        _11 = _10;
+        _12 = RuntimeFn::TypeObject(const "int");
+        _13 = _12;
+        RuntimeFn::FunctionMetadata(global@6, null, [const "value", const "return"], [_11, _13]);
+        // line 5
+        _14 = RuntimeFn::ArrayGet(global@4, const 0_i64);
+        _15 = huge(_14);
+        _16 = box<I64>(const 4_i64);
+        _17 = unbox<I64>(_16);
+        _18 = small(_17);
+        _19 = box<I64>(_18);
+        _20 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_20, _15);
+        RuntimeFn::WriteSep(_20);
+        RuntimeFn::WriteObject(_20, _19);
+        RuntimeFn::WriteNewline(_20);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

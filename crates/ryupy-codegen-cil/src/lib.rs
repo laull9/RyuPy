@@ -23,6 +23,7 @@ pub mod runtimeconfig;
 mod stackify;
 mod stackify_operands;
 mod stackify_refs;
+mod stackify_runtime;
 mod stackify_rvalue;
 mod system_refs;
 mod types;
@@ -60,3 +61,12 @@ mod entry_tests;
 
 #[cfg(test)]
 mod exception_table_tests;
+
+#[cfg(test)]
+mod exception_constructor_tests;
+
+mod class_refs;
+
+mod module_binding_refs;
+
+mod typed_dict_refs;

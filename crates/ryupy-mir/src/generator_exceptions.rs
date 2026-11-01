@@ -33,7 +33,13 @@ impl Plan {
         self.regions.iter().map(|region| region.handler)
     }
 
-    pub(super) fn finish(self, body: &mut Body, frame: LocalId, saved: &[(LocalId, MirType)]) {
+    pub(super) fn finish(
+        self,
+        body: &mut Body,
+        frame: LocalId,
+        saved: &[(LocalId, MirType)],
+        exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+    ) {
         if self.regions.is_empty() {
             return;
         }
@@ -115,7 +121,14 @@ impl Plan {
                 RegionKind::Catch { type_names } => {
                     let mut target = dispatch;
                     for name in type_names.iter().rev() {
-                        target = type_test(body, caught, name, choose, target);
+                        target = type_test(
+                            body,
+                            caught,
+                            name,
+                            exception_globals.get(name).copied(),
+                            choose,
+                            target,
+                        );
                     }
                     target
                 }
@@ -198,18 +211,31 @@ fn compare(
     )
 }
 
-fn type_test(body: &mut Body, caught: LocalId, name: &str, yes: BlockId, no: BlockId) -> BlockId {
+fn type_test(
+    body: &mut Body,
+    caught: LocalId,
+    name: &str,
+    user_class: Option<GlobalId>,
+    yes: BlockId,
+    no: BlockId,
+) -> BlockId {
     let ty = local(&mut body.locals, MirType::Dynamic);
     let answer = local(&mut body.locals, MirType::Dynamic);
     let cond = local(&mut body.locals, MirType::Bool);
     alloc(
         body,
         vec![
-            call(
-                ty,
-                RuntimeFn::TypeObject,
-                vec![Operand::Const(Constant::Str(name.to_owned()))],
-            ),
+            match user_class {
+                Some(global) => Statement::Assign {
+                    dest: ty,
+                    value: Rvalue::Use(Operand::Global(global)),
+                },
+                None => call(
+                    ty,
+                    RuntimeFn::TypeObject,
+                    vec![Operand::Const(Constant::Str(name.to_owned()))],
+                ),
+            },
             call(
                 answer,
                 RuntimeFn::DynBuiltin,
@@ -355,6 +381,7 @@ mod tests {
             &mut body,
             frame,
             &[(caught, MirType::Dynamic), (input, MirType::Dynamic)],
+            &Default::default(),
         );
         assert_eq!(body.entry, block_id(0));
         assert_eq!(body.regions.len(), 1);
@@ -445,7 +472,7 @@ mod tests {
             entry: id,
             source_name: "test.py".into(),
         };
-        crate::generators::lower(&mut program, &[id]);
+        crate::generators::lower(&mut program, &[id], &Default::default());
         let mut input_calls = 0;
         for (_, function) in program.functions.iter() {
             for (_, block) in function.body.blocks.iter() {
@@ -526,7 +553,7 @@ mod tests {
             entry: id,
             source_name: "test.py".into(),
         };
-        crate::generators::lower(&mut program, &[id]);
+        crate::generators::lower(&mut program, &[id], &Default::default());
         let mut steps = 0;
         for (_, function) in program.functions.iter() {
             for (_, block) in function.body.blocks.iter() {

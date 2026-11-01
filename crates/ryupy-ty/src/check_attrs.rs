@@ -32,7 +32,9 @@ impl FunctionChecker<'_> {
                     Ty::Error
                 }
             }
-            Ty::Dynamic | Ty::Error => Ty::Dynamic,
+            // str的方法已由运行时支持；只让属性结果动态化，不改接收者类型或其它函数。
+            // 当前函数级模式会降级实际使用该属性的函数，数值函数仍可保持Static。
+            Ty::Str | Ty::Dynamic | Ty::Error => Ty::Dynamic,
             _ => {
                 self.diagnostics.push(
                     Diagnostic::error(
