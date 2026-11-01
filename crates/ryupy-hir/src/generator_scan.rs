@@ -169,13 +169,6 @@ pub(crate) fn call_suspends(call: &ast::ExprCall) -> bool {
     scan.has_yield
 }
 
-/// 判断当前求值作用域内是否暂停，不进入内层函数体。
-pub(crate) fn contains_yield(expr: &ast::Expr) -> bool {
-    let mut scan = Scan::default();
-    scan.visit_expr(expr);
-    scan.has_yield
-}
-
 /// 当前内建构造 ABI 的能力门禁应在 HIR 诊断，不让 MIR 混用 E01xx。
 pub(crate) fn prepared_builtin_supported(
     builtin: crate::hir::Builtin,

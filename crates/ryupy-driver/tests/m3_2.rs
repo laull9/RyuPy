@@ -24,6 +24,14 @@ fn snapshot_m3_2_unsupported() {
     let cases = [
         ("模块 yield", "yield 1\n"),
         (
+            "大字典首项动态键",
+            "def g(k):\n    return {k: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16, 17: (yield 1)}\n",
+        ),
+        (
+            "大字典尾项动态键",
+            "def g(k):\n    return {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16, k: 17}\n",
+        ),
+        (
             "lambda默认super",
             "def g():\n    yield (lambda x=super(): x)\n",
         ),
@@ -39,10 +47,6 @@ fn snapshot_m3_2_unsupported() {
         (
             "暂停多参内建构造",
             "def g():\n    return int((yield 1), (yield 2))\n",
-        ),
-        (
-            "字典字面量暂停",
-            "def g(key):\n    return {key: 1, 'x': (yield 2)}\n",
         ),
         (
             "暂停调用展开",

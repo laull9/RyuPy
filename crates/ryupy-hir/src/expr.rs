@@ -186,16 +186,25 @@ impl<'a> ExprLowerCtx<'a> {
 
     /// `{k: v}` 字典字面量。`**other` 需要运行时合并，留到后续竖切。
     fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
-        if dict.items.iter().any(|item| {
-            item.key
-                .as_ref()
-                .is_some_and(crate::generator_scan::contains_yield)
-                || crate::generator_scan::contains_yield(&item.value)
-        }) {
+        // 大字典在 CPython 中分块建表再复用缓存 hash 合并。只对不会执行用户
+        // hash/eq 的纯标量字面量键采用直接插入；名字/调用不能仅凭推断类型放行。
+        if dict.items.len() > 17
+            && !dict.items.iter().all(|item| {
+                matches!(
+                    item.key.as_ref(),
+                    Some(
+                        ast::Expr::NumberLiteral(_)
+                            | ast::Expr::StringLiteral(_)
+                            | ast::Expr::BooleanLiteral(_)
+                            | ast::Expr::NoneLiteral(_)
+                    )
+                )
+            })
+        {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, dict.range),
-                    "字典字面量内 yield 暂未支持跨暂停的哈希时序",
+                    "超过17项的字典暂仅支持标量字面量键；动态键分块缓存哈希合并尚未支持",
                 )
                 .with_code("E0100"),
             );
