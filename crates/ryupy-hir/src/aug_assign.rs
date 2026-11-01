@@ -39,6 +39,19 @@ enum AugOperand<'a> {
 impl StmtLowerCtx<'_> {
     /// 降级一条增量赋值；需要隐藏局部时返回包裹它们的 `if True:`。
     pub(crate) fn lower_aug_assign(&mut self, aug_stmt: &ast::StmtAugAssign) -> Option<StmtId> {
+        if !matches!(aug_stmt.target.as_ref(), ast::Expr::Name(_))
+            && (crate::generator_scan::contains_yield(&aug_stmt.target)
+                || crate::generator_scan::contains_yield(&aug_stmt.value))
+        {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, aug_stmt.range),
+                    "属性或下标增量赋值暂未支持跨暂停保存目标",
+                )
+                .with_code("E0100"),
+            );
+            return None;
+        }
         let Some(op) = map_bin_op(aug_stmt.op) else {
             self.diagnostics.push(
                 Diagnostic::error(Span::new(self.file, aug_stmt.range), "暂不支持该增量运算符")

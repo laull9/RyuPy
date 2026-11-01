@@ -483,6 +483,8 @@ pub enum Terminator {
     Suspend {
         value: Operand,
         resume: BlockId,
+        /// 恢复后接收 send 的局部；语句型 yield 可忽略。
+        input: Option<LocalId>,
     },
     Goto(BlockId),
     Branch {

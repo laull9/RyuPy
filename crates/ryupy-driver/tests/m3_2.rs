@@ -35,7 +35,43 @@ fn snapshot_m3_2_unsupported() {
             "零参 super",
             "class A:\n    def values(self):\n        yield super().value()\n",
         ),
-        ("接收 send", "def f():\n    value = yield 1\n"),
+        ("模块表达式yield", "value = (yield 1)\n"),
+        ("暂停tuple星号", "def g():\n    return (*(yield 1),)\n"),
+        ("暂停set星号", "def g():\n    return {*(yield 1)}\n"),
+        (
+            "暂停复杂增量目标",
+            "def g(items):\n    items[0] += (yield 1)\n",
+        ),
+        (
+            "字典字面量暂停",
+            "def g(key):\n    return {key: 1, 'x': (yield 2)}\n",
+        ),
+        ("暂停调用方法", "def g(a):\n    yield a.f((yield 1))\n"),
+        (
+            "暂停调用展开",
+            "def g(f, items):\n    f(*items, (yield 1))\n",
+        ),
+        (
+            "暂停关键字展开",
+            "def g(f, items):\n    f(**items, x=(yield 1))\n",
+        ),
+        (
+            "暂停调用lambda默认值",
+            "def g(f):\n    f(lambda x=(yield 1): x)\n",
+        ),
+        (
+            "字典key内部yield",
+            "def f():\n    return {(yield x): x for x in [1]}\n",
+        ),
+        ("模块默认值yield", "def f(x=(yield 1)):\n    return x\n"),
+        (
+            "列表推导式内部yield",
+            "def f():\n    return [(yield x) for x in [1]]\n",
+        ),
+        (
+            "生成器表达式内部yield",
+            "def f():\n    return ((yield x) for x in [1])\n",
+        ),
         ("yield from", "def f():\n    yield from []\n"),
         (
             "异常区域",
@@ -89,5 +125,21 @@ fn snapshot_m3_2_return_value() {
         "m3_2_return_mir",
         output.replace(path.to_str().unwrap(), "generator.py")
     );
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn snapshot_m3_2_send() {
+    let path = std::env::temp_dir().join("ryupy_test_generator_send.py");
+    std::fs::write(&path, "def echo():\n    value = yield 1\n    return value\n\niterator = echo()\nprint(next(iterator))\n").unwrap();
+    for (stage, name) in [
+        (Stage::Hir, "m3_2_send_hir"),
+        (Stage::Mir, "m3_2_send_mir"),
+        (Stage::Cil, "m3_2_send_cil"),
+    ] {
+        let mut session = Session::default();
+        let output = dump(&mut session, &path, stage).expect("yield表达式应有恢复接收槽");
+        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+    }
     std::fs::remove_file(path).unwrap();
 }

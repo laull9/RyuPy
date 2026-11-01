@@ -72,12 +72,12 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
         FnSource::Comprehension(comp) => {
             let generator = comp.kind == crate::comprehension_ast::ComprehensionKind::Generator;
-            if generator {
-                crate::generator_scan::validate_expression(file, *comp, diagnostics);
-            }
+            crate::generator_scan::validate_expression(file, *comp, diagnostics);
             generator
         }
-        _ => false,
+        FnSource::Lambda(lambda) => {
+            crate::generator_scan::analyze_lambda(file, &lambda.body, diagnostics)
+        }
     };
     let is_lambda = matches!(source, FnSource::Lambda(_));
     let info = analysis.infos.get(&func_id).cloned().unwrap_or_default();

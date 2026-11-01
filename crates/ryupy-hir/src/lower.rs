@@ -361,6 +361,7 @@ pub(crate) fn lower_default_expr(
 ) -> ExprId {
     let scope = FunctionScope::default();
     let mut ctx = ExprLowerCtx {
+        allow_yield: false,
         file,
         global_scope,
         func_scope: &scope,
@@ -396,6 +397,7 @@ impl StmtLowerCtx<'_> {
     /// 语句降级复用：把下标位置（可能是切片）降级成表达式。
     pub(crate) fn lower_subscript_index(&mut self, slice: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
+            allow_yield: !self.module_scope,
             file: self.file,
             global_scope: self.global_scope,
             func_scope: self.func_scope,
@@ -410,6 +412,7 @@ impl StmtLowerCtx<'_> {
 
     pub(crate) fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
+            allow_yield: !self.module_scope,
             file: self.file,
             global_scope: self.global_scope,
             func_scope: self.func_scope,

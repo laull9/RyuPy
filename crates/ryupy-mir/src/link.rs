@@ -248,7 +248,12 @@ fn remap_stmt(
 
 fn remap_terminator(term: &Terminator, global_map: &FxHashMap<GlobalId, GlobalId>) -> Terminator {
     match term {
-        Terminator::Suspend { value, resume } => Terminator::Suspend {
+        Terminator::Suspend {
+            value,
+            resume,
+            input,
+        } => Terminator::Suspend {
+            input: *input,
             value: remap_operand(value, global_map),
             resume: *resume,
         },

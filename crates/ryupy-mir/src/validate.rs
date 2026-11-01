@@ -157,7 +157,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                         ));
                     }
                 }
-                Terminator::Suspend { value, resume } => {
+                Terminator::Suspend { value, resume, .. } => {
                     validate_operand(func, block_id, value, &mut errors);
                     errors.push(format!(
                         "函数 `{}` 有尚未降级的暂停边 {:?}",

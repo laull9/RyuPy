@@ -472,6 +472,7 @@ fn lower_class_expr(
     let mut dummy_nested_defaults: FxHashMap<crate::hir::FuncId, Vec<Option<crate::hir::ExprId>>> =
         FxHashMap::default();
     let mut ctx = ExprLowerCtx {
+        allow_yield: false,
         file,
         global_scope: globals,
         func_scope: &scope,

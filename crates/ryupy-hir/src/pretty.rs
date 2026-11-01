@@ -389,6 +389,12 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
 fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::Yield(value) => format!(
+            "(yield {})",
+            value
+                .map(|value| dump_expr(module, body, value))
+                .unwrap_or_else(|| "None".to_owned())
+        ),
         ExprKind::Missing => "<missing>".to_string(),
         ExprKind::Literal(lit) => match lit {
             Literal::Int(v) => v.to_string(),

@@ -238,6 +238,7 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
             [*start, *stop, *step].into_iter().flatten().collect()
         }
         ExprKind::Starred(inner) => vec![*inner],
+        ExprKind::Yield(value) => value.iter().copied().collect(),
         _ => Vec::new(),
     }
 }
@@ -471,7 +472,8 @@ impl FunctionChecker<'_> {
             | ExprKind::Bytes(_)
             | ExprKind::Subscript { .. }
             | ExprKind::Slice { .. }
-            | ExprKind::Starred(_) => {
+            | ExprKind::Starred(_)
+            | ExprKind::Yield(_) => {
                 for child in expr_children(&expr.kind) {
                     self.check_expr(child);
                 }
