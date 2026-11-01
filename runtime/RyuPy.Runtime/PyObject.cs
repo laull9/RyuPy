@@ -102,6 +102,10 @@ public static class PyObject
             case PyInstance instance:
                 SetInstanceAttr(instance, name, value);
                 return;
+            case PyBaseException exception when name == "__suppress_context__":
+                exception.SuppressContextFlag = value is bool flag ? flag
+                    : throw new PyTypeError("attribute value type must be bool");
+                return;
             case PyBaseException exception when exception.PythonClass is not null:
                 exception.UserAttributes[name] = value;
                 return;
@@ -173,6 +177,7 @@ public static class PyObject
     /// <param name="self">接收者（实例或类对象）。</param>
     public static object? Bind(object? raw, PyClass owner, object? self) => raw switch
     {
+        IPyNativeDescriptor descriptor => descriptor.Bind(owner, self),
         PyFunction fn => new PyBoundMethod(owner, self, fn),
         PyStaticMethod method => method.Value,
         PyClassMethod method => new PyBoundMethod(owner, ClassMethodReceiver(owner, self), method.Value),
@@ -425,6 +430,7 @@ public static class PyObject
         }
         return raw switch
         {
+            IPyNativeDescriptor descriptor => descriptor.Bind(owner, null),
             // 类对象访问普通函数得到未绑定函数（Python 3 语义）
             PyFunction function => function,
             PyStaticMethod method => method.Value,
@@ -491,6 +497,7 @@ public static class PyObject
 
     private static object? GetExceptionAttr(PyBaseException exception, string name)
     {
+        if (name == "__suppress_context__") return exception.SuppressContextFlag;
         // 用户异常类上定义的方法 / 属性优先（`e.describe()` 之类）。
         if (exception.PythonClass is not null
             && exception.PythonClass.TryLookup(name, out PyClass owner, out object? raw))

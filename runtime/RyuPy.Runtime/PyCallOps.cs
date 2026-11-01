@@ -46,6 +46,7 @@ public static partial class PyOps
         // 编译器内部用限定名避免与同名用户异常类的CLR引用冲突。
         "json.JSONDecodeError" => "JSONDecodeError",
         "re.error" => "error",
+        "dataclasses.FrozenInstanceError" => "FrozenInstanceError",
         _ => name,
     });
 
@@ -68,8 +69,10 @@ public static partial class PyOps
         var (args, names, values) = FlattenArgs(rawArgs, rawNames, rawValues);
         return callable switch
         {
+            PyType type when IsBuiltinConstructor(type.Name) => PyOps.CallBuiltin(type.Name, args, names, values),
             PyType { Name: "error" } => PyRegex.ConstructError(args, names, values),
             PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError(args, names, values),
+            IPyNativeCallable native => native.Invoke(args, names, values),
             PyFunction function => function.Invoke(args, names, values),
             PyBuiltinFunction function => function.Invoke(args, names, values),
             PyNativeType type => type.Invoke(args, names, values),
@@ -84,6 +87,11 @@ public static partial class PyOps
             ),
         };
     }
+
+    /// <summary>作为值传递的受支持内建构造器；dataclass工厂等不能把list类型误判为不可调用。</summary>
+    internal static bool IsBuiltinConstructor(string name) => name is
+        "int" or "float" or "str" or "bool" or "list" or "tuple" or "dict" or "set" or "frozenset"
+        or "bytes" or "bytearray" or "type";
 
     /// <summary>位置实参里是否含 <c>*iterable</c>。</summary>
     private static bool HasStarred(object?[] rawArgs)
@@ -153,8 +161,9 @@ public static partial class PyOps
             object? value = rawValues[i];
             if (name is null or PyNone)
             {
-                // `**mapping`：只接受字典（Python 也允许任意 mapping，当前子集先支持 dict）
-                if (value is not PyDict mapping)
+                // `**mapping`：接受字典及原生 dict 子类；任意 Mapping 协议仍单独验收。
+                PyDict? mapping = value as PyDict ?? (value as IPyNativeMapping)?.Dictionary;
+                if (mapping is null)
                 {
                     throw new PyTypeError(
                         $"argument after ** must be a mapping, not "

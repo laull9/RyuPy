@@ -1,7 +1,7 @@
 //! 定义位置的函数创建、元数据和装饰器应用；所有中间值先保存再执行后续用户代码。
 use crate::build::FunctionBuilder;
 use crate::mir::{Callee, Constant, MirType, Operand, RuntimeFn, Rvalue, Statement};
-use ryupy_hir::{AssignTarget, Binding, Decorator, ExprId, FuncId, TypeRef};
+use ryupy_hir::{AssignTarget, Binding, Decorator, ExprId, FuncId};
 
 impl FunctionBuilder<'_> {
     /// 冻结装饰器表达式的当前值，避免后续默认值重绑定模块槽位。
@@ -136,23 +136,12 @@ impl FunctionBuilder<'_> {
             return;
         }
         let doc = function.docstring.clone();
-        let mut annotations: Vec<_> = function
-            .params
-            .iter()
-            .filter_map(|p| {
-                p.annotation
-                    .clone()
-                    .map(|ty| (function.body.locals[p.local].name.as_str().to_owned(), ty))
-            })
-            .collect();
-        if let Some(ret) = &function.ret {
-            annotations.push(("return".to_owned(), ret.clone()));
-        }
+        let annotations = function.annotation_values.clone();
         let mut names = Vec::new();
         let mut values = Vec::new();
         for (name, annotation) in annotations {
-            names.push(Operand::Const(Constant::Str(name)));
-            values.push(self.annotation_value(&annotation));
+            names.push(Operand::Const(Constant::Str(name.as_str().to_owned())));
+            values.push(self.freeze_expression(annotation));
         }
         let doc = doc
             .map(|s| Operand::Const(Constant::Str(s)))
@@ -161,35 +150,5 @@ impl FunctionBuilder<'_> {
             callee: Callee::Runtime(RuntimeFn::FunctionMetadata),
             args: vec![value, doc, Operand::Array(names), Operand::Array(values)],
         }));
-    }
-
-    fn annotation_value(&mut self, annotation: &TypeRef) -> Operand {
-        let name = match annotation {
-            TypeRef::Int => "int",
-            TypeRef::Float => "float",
-            TypeRef::Bool => "bool",
-            TypeRef::Str => "str",
-            TypeRef::Class(id) => {
-                let global = self.hir.classes[*id]
-                    .decorated_binding
-                    .and_then(|id| self.module_vars.get(&id))
-                    .or_else(|| self.hir_class_globals.get(id));
-                return global
-                    .map(|g| Operand::Global(*g))
-                    .unwrap_or(Operand::Const(Constant::Null));
-            }
-            TypeRef::None | TypeRef::Error => {
-                return self.expr_builder().runtime_call(
-                    RuntimeFn::DynNone,
-                    vec![],
-                    MirType::Dynamic,
-                );
-            }
-        };
-        self.expr_builder().runtime_call(
-            RuntimeFn::TypeObject,
-            vec![Operand::Const(Constant::Str(name.to_owned()))],
-            MirType::Dynamic,
-        )
     }
 }

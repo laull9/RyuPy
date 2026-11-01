@@ -40,12 +40,17 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "StopAsyncIteration",
     "EOFError",
     "json.JSONDecodeError",
+    "dataclasses.FrozenInstanceError",
     "re.error",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
+    /// 无逃逸循环累加器：一次holder分配、受守卫数值累加、出口物化。
+    NumericAccumulatorCreate,
+    NumericAccumulatorAdd,
+    NumericAccumulatorValue,
     /// 本次print的输出目标；实参准备完成后捕获一次，所有Write入口首参使用它。
     PrintTarget,
     // print(a,b) → target=PrintTarget(); WriteI64(target,a); WriteSep(target); ...

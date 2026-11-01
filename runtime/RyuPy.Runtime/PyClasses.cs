@@ -262,6 +262,8 @@ public sealed partial class PyClass
             return created;
         }
 
+        if (TryConstructDataclass(args, kwNames, out PyInstance? fastInstance)) return fastInstance;
+
         var instance = new PyInstance(this);
         if (TryLookup("__init__", out PyClass initOwner, out object? initMethod))
         {

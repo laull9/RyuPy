@@ -109,6 +109,19 @@ impl crate::lower::StmtLowerCtx<'_> {
         }
         self.nested_defaults.insert(func_id, aligned);
 
+        let mut annotations = Vec::new();
+        for parameter in fn_def.parameters.iter() {
+            if let Some(expr) = parameter.annotation() {
+                annotations.push((Name::from(parameter.name().as_str()), self.lower_expr(expr)));
+            }
+        }
+        if let Some(expr) = &fn_def.returns {
+            annotations.push((Name::from("return"), self.lower_expr(expr)));
+        }
+        self.nested_defaults
+            .annotations
+            .insert(func_id, annotations);
+
         let line = self.line_of(fn_def.range.start().to_usize());
         let stmt_id = self.body.stmts.alloc(crate::hir::Stmt {
             kind: if decorators.is_empty() {

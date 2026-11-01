@@ -37,9 +37,11 @@ print(p.x)
     assert_eq!(hir.classes.len(), 1);
     let cls = &hir.classes[la_arena::Idx::from_raw(la_arena::RawIdx::from(0u32))];
     assert_eq!(cls.name.as_str(), "Point");
+    assert!(cls.runtime_dataclass);
     assert_eq!(cls.fields.len(), 2);
-    assert_eq!(cls.fields[0].name.as_str(), "x");
-    assert_eq!(cls.fields[1].name.as_str(), "y");
+    assert_eq!(cls.fields[0].annotation, TypeRef::Float);
+    assert_eq!(cls.declared_fields[0].as_str(), "x");
+    assert_eq!(cls.declared_fields[1].as_str(), "y");
 }
 
 #[test]

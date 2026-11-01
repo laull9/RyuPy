@@ -14,6 +14,9 @@ impl FunctionChecker<'_> {
                 self.check_expr(default);
             }
         }
+        for (_, annotation) in &self.module.functions[func].annotation_values {
+            self.check_expr(*annotation);
+        }
     }
 
     pub(crate) fn check_stmt(&mut self, stmt_id: ryupy_hir::StmtId) {

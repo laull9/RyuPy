@@ -25,6 +25,7 @@ public static partial class PyOps
     ) => name switch
     {
         "len" => BuiltinLen(args, kwNames),
+        "pow" => PyPowerBuiltin.Invoke(args, kwNames, kwValues),
         "ord" => WithKeywords(name, args, kwNames, () => UnicodeOrd(Single(name, args))),
         "chr" => WithKeywords(name, args, kwNames, () => UnicodeChr(Single(name, args))),
         "list" => BuiltinSequenceConstruct(args, kwNames, static items => new PyList(items)),
@@ -221,7 +222,10 @@ public static partial class PyOps
     private static object BuiltinReversed(object?[] args, string[] names)
     {
         RejectUnknownKeywords("reversed", names);
-        object?[] items = ToSequence(Single("reversed", args));
+        object? value = Single("reversed", args);
+        if (value is PyNativeObject && PyObject.TryMethod(value, "__reversed__", [], out object? reversed))
+            return reversed ?? PyNone.Instance;
+        object?[] items = ToSequence(value);
         return new PyReversedIter(items);
     }
 

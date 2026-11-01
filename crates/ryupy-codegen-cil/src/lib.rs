@@ -10,6 +10,7 @@
 //! 参考：dotnetdll 自带测试 `tests/hello_world.rs` 与 `tests/common/mod.rs`
 //! 演示了从零构造一个可执行程序集的全过程。
 
+mod accumulator_refs;
 pub mod assembly;
 mod callables;
 mod entry;

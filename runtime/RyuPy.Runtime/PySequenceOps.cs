@@ -42,7 +42,7 @@ public static partial class PyOps
 
     /// <summary>该值是否可能有不同于普通二元运算的原地语义（快路径据此跳过不可变值）。</summary>
     internal static bool HasInPlaceSlot(object a) =>
-        a is PyList or PyByteArray or PySet or PyInstance;
+        a is PyList or PyByteArray or PySet or PyInstance or PyNativeObject;
 
     /// <summary>增量赋值：可变对象原地修改并返回自身，否则退回普通二元运算。</summary>
     /// <param name="op">不含标记位的二元操作码。</param>
@@ -71,8 +71,9 @@ public static partial class PyOps
                     return set;
                 }
                 break;
-            case PyInstance when op > 0 && op < InPlaceMagicNames.Length:
-                if (PyObject.TryMethod(a, InPlaceMagicNames[op], [b], out object? result))
+            case PyInstance or PyNativeObject when op > 0 && op < InPlaceMagicNames.Length:
+                if (PyObject.TryMethod(a, InPlaceMagicNames[op], [b], out object? result)
+                    && result is not PyNotImplemented)
                 {
                     return result!;
                 }

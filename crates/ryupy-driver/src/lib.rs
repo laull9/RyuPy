@@ -133,7 +133,7 @@ fn compile_linked(
     search_paths: &[PathBuf],
 ) -> Result<ryupy_mir::LinkedProgram> {
     let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
-    let native_exceptions: Vec<&str> = ["json", "re"]
+    let native_exceptions: Vec<&str> = ["json", "re", "dataclasses"]
         .into_iter()
         .filter(|name| !sources.iter().any(|source| source.name == *name))
         .collect();

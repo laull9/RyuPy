@@ -44,6 +44,9 @@ pub(crate) fn collect_module_nested(
                     collector.visit_expr(&decorator.expression);
                 }
                 collector.visit_defaults(&def.parameters);
+                if let Some(annotation) = &def.returns {
+                    collector.visit_expr(annotation);
+                }
             }
             ast::Stmt::ClassDef(class) => {
                 collector.visit_class_expressions(class);
@@ -156,6 +159,7 @@ fn register_discovered(
             closure: ClosureInfo::default(),
             is_generator: false,
             docstring: None,
+            annotation_values: Vec::new(),
         });
         nested_funcs.insert(range, child);
         match node {
@@ -237,6 +241,9 @@ impl ScopeCollector {
                     self.visit_expr(&decorator.expression);
                 }
                 self.visit_defaults(&def.parameters);
+                if let Some(annotation) = &def.returns {
+                    self.visit_expr(annotation);
+                }
             } else {
                 self.visit_stmt(item);
             }
@@ -251,6 +258,11 @@ impl ScopeCollector {
 
     /// 默认值在外层求值：读到的变量和内含的 lambda 都归入当前收集器。
     fn visit_defaults(&mut self, parameters: &ast::Parameters) {
+        for parameter in parameters.iter() {
+            if let Some(annotation) = parameter.annotation() {
+                self.visit_expr(annotation);
+            }
+        }
         for parameter in parameters.iter_non_variadic_params() {
             if let Some(default) = &parameter.default {
                 self.visit_expr(default);
@@ -268,6 +280,9 @@ impl<'a> Visitor<'a> for ScopeCollector {
                     self.visit_expr(&decorator.expression);
                 }
                 self.visit_defaults(&def.parameters);
+                if let Some(annotation) = &def.returns {
+                    self.visit_expr(annotation);
+                }
                 self.nested.push(Nested::Def(def.clone()));
             }
             ast::Stmt::ClassDef(class) => {

@@ -22,6 +22,7 @@ mod comprehension_ast;
 mod comprehensions;
 mod control_flow;
 mod decorators;
+mod definition_metadata;
 mod exception_imports;
 pub mod expr;
 mod generator_scan;

@@ -497,6 +497,7 @@ impl<'a> ExprBuilder<'a> {
             Builtin::Float => "float",
             Builtin::Str => "str",
             Builtin::Type => "type",
+            Builtin::Dynamic("object") => "object",
             Builtin::Dynamic("list") => "list",
             Builtin::Dynamic("tuple") => "tuple",
             Builtin::Dynamic("dict") => "dict",

@@ -31,6 +31,8 @@ public sealed class PyNativeType
     public bool Accepts(object? value) => _accepts(value);
     /// <summary>受支持的原生类继承关系。</summary>
     public bool IsSubclassOf(PyNativeType other) => ReferenceEquals(this, other) || _bases.Contains(other.Name);
+    /// <summary>原生类已明确登记的内建祖先，例如defaultdict的dict。</summary>
+    public bool IsSubclassOfBuiltin(string name) => name == "object" || _bases.Contains(name);
     /// <summary>调用类构造器，未开放的构造明确拒绝。</summary>
     public object? Invoke(object?[] args, string[] names, object?[] values) => _factory is null
         ? throw new PyNotImplementedError($"construction of {Module}.{Name} is not supported")

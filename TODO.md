@@ -378,6 +378,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] 补齐剩余表达式 yield 求值准备：双星号实参映射快照、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
 - [ ] set/frozenset源含用户对象的星号展开需复用源缓存hash；当前显式NotImplementedError，不重跑用户hash（`m3_2_set_cached_hash.py` pending）
 - [ ] 生成器方法零参super的owner/self上下文保存；当前仍E0100，普通方法支持不代表恢复委托可用
+- [ ] M3.6 额外发现：普通类创建时的隐式 `__hash__ = None` 槽及继承/动态重绑规则；`collections.abc.Hashable` 暂不导出，原正向与新增反例保留 `m3_6_hashable_pending.py`，不以启发式判断冒充兼容。
 
 ### M3.0 闭包、lambda 与 nonlocal
 
@@ -454,16 +455,17 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 聚合门禁：241 C#、105 编译 e2e / 17 ignored、118 CPython 基线；stdlib-numeric.md 与 ADR-0029 逐 API 记录参数/语法/容量边界。固定项目仍原生 0/20，JSON高级选项与旧类绑定欠账保留独立pending。
 
-### M3.6 标准库：容器工具、函数工具与类型元数据
+### M3.6 标准库：容器工具、函数工具与类型元数据 ✅
 
 > 依赖 M3.0–M3.3，contextmanager 依赖生成器清理。
+> 完成原始验收与限定 API：297 C#、122 编译 e2e / 16 ignored、134 CPython 基线；构造守卫、死装箱消除与受守卫累加槽均经实际编译 A/B 和身份/回退差分。见 ADR-0030、三张 API 表及性能记录；固定项目仍 0/20，Hashable 等欠账保留。
 
-- [ ] `collections` / `collections.abc`：deque / defaultdict / Counter 与项目所需协议，支持范围独立登记
-- [ ] `itertools`：chain / islice / repeat 起步，逐个补项目所需迭代工具并测试消费边界
-- [ ] `functools`：partial / reduce / wraps / lru_cache；验证包装元数据、参数绑定、强引用规则与有界缓存
-- [ ] `dataclasses`：字段默认值 / factory、repr / eq / frozen；保持身份规则与 Phase 1 回归，复杂继承参数另列
-- [ ] `typing` 常用运行时元数据 / 类型别名与 `contextlib.contextmanager`，不把完整 typing / 反射接口标为已支持
-- [ ] 验收：逐 API 差分、可变工厂、包装函数、缓存回收与生成器清理通过，更新项目阻塞
+- [x] `collections` / `collections.abc`：deque / defaultdict / Counter 与项目所需协议，支持范围独立登记
+- [x] `itertools`：chain / islice / repeat 起步，逐个补项目所需迭代工具并测试消费边界
+- [x] `functools`：partial / reduce / wraps / lru_cache；验证包装元数据、参数绑定、强引用规则与有界缓存
+- [x] `dataclasses`：字段默认值 / factory、repr / eq / frozen；保持身份规则与 Phase 1 回归，复杂继承参数另列
+- [x] `typing` 常用运行时元数据 / 类型别名与 `contextlib.contextmanager`，不把完整 typing / 反射接口标为已支持
+- [x] 验收：逐 API 差分、可变工厂、包装函数、缓存回收与生成器清理通过，更新项目阻塞
 
 ### M3.7 标准库：项目入口与剩余阻塞
 
@@ -575,8 +577,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] 动态路径剩余差距（ADR-0014「仍落后」）：异常抛捕（CLR 异常成本）、`str +=` 累加（不可变 string）、
       容器下标 / 迭代的类型分派、5 个以上实参的方法调用
 - [x] M3.0 涉及的超长文件已按职责拆分：`codegen-cil/assembly.rs` / `stackify.rs`、`mir/build.rs` / `expr_builder.rs` / `mir.rs`、`hir/lower.rs` / `hir.rs`、`ty/check.rs`；保留介绍与注释
-- [ ] 剩余既有超长文件：`mir/call_builder.rs`、`e2e/lib.rs`，在对应功能修改前拆分
-- [ ] 函数对象的 `__name__` / `__defaults__` / `__closure__` 反射暂未接入
+- [x] 既有超长 `mir/call_builder.rs`、`e2e/lib.rs` 已随对应功能拆分到 600 行内；后续扩展仍须先检查职责和行数
+- [x] 函数对象的 `__name__` / `__doc__` / `__annotations__` 已接入声明范围，供 wraps 等使用
+- [ ] 函数对象的 `__defaults__` / `__closure__` 完整反射仍未接入
 - [x] `Builtins` 改为带缓冲的 writer（64 KiB），入口包装器退出前 `Flush`；错误报告前先刷新 stdout
 - [ ] `Name` 改为字符串驻留（等 profile 证明有必要）
 - [ ] 错误码登记表 `docs/errors.md`（每个错误码一个最小复现 + 说明）

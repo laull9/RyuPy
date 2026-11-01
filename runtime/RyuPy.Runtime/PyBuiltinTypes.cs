@@ -21,6 +21,9 @@ public static partial class PyOps
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOfBuiltin(expected)
             : PyExceptionHierarchy.IsSubclass(exception.PyTypeName, expected),
+        IPyNativeMapping => expected is "dict" or "object",
+        PyNativeObject native => PyNativeType.LookupByName(native.TypeName)?.IsSubclassOfBuiltin(expected)
+            ?? string.Equals(native.TypeName, expected, StringComparison.Ordinal),
         PyClass => expected == "type",
         PyType => expected == "type",
         PyBoundMethod => expected == "method",
@@ -54,8 +57,9 @@ public static partial class PyOps
 
     private static bool IsSubclassOf(object? child, object? parent) => (child, parent) switch
     {
+        (_, PyNativeType abc) when PyAbc.IsAbc(abc) => PyAbc.IsSubclass(child, abc),
         (PyNativeType derived, PyNativeType baseType) => derived.IsSubclassOf(baseType),
-        (PyNativeType, PyType builtin) => builtin.Name == "object",
+        (PyNativeType derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name),
         (PyClass derived, PyClass baseClass) => derived.IsSubclassOf(baseClass),
         (PyClass derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name)
             || builtin.Name == "object",
@@ -91,8 +95,9 @@ public static partial class PyOps
         return wrap(Single(name, args));
     }
 
-    private static bool IsCallable(object? value) => value is PyType { Name: "JSONDecodeError" or "error" } || value is
-        PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyNativeType or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
+    private static bool IsCallable(object? value) => value is PyType type
+        && (IsBuiltinConstructor(type.Name) || type.Name is "JSONDecodeError" or "error") || value is
+        IPyNativeCallable or PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyNativeType or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
         or PyInstance;
     private static object? BuiltinGetAttr(object?[] args, string[] names)
     {

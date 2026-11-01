@@ -20,6 +20,9 @@ impl<'a> Visitor<'a> for Scan {
                     self.visit_expr(&decorator.expression);
                 }
                 visit_defaults(self, &def.parameters);
+                if let Some(annotation) = &def.returns {
+                    self.visit_expr(annotation);
+                }
                 return;
             }
             ast::Stmt::ClassDef(_) => return,
@@ -146,6 +149,11 @@ pub(crate) fn validate_expression(
 
 /// 默认值在定义时执行，不能随嵌套函数体一起跳过。
 fn visit_defaults<'a>(visitor: &mut impl Visitor<'a>, parameters: &'a ast::Parameters) {
+    for parameter in parameters.iter() {
+        if let Some(annotation) = parameter.annotation() {
+            visitor.visit_expr(annotation);
+        }
+    }
     for parameter in parameters.iter_non_variadic_params() {
         if let Some(default) = &parameter.default {
             visitor.visit_expr(default);

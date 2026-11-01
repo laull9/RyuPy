@@ -33,8 +33,8 @@
 | 通用 `for`（容器 / `iter` / `enumerate` / `zip` / `reversed` / `range` 值）、元组循环目标 | ✅ M2.4 | `IPyIterator` 迭代协议；元组目标先写隐藏局部再解包 |
 | `int(x)` / `float(x)` / `abs(x)` | ✅ M1.4 | `Cast` / 运行时函数 |
 | `str + str` | ✅ M1.4 | `Builtins.StrConcat` |
-| `from dataclasses import dataclass` + `@dataclass` | ✅ M1.5 | .NET class |
-| `@dataclass(frozen=True)` | ✅ M1.5 | .NET struct |
+| `from dataclasses import dataclass` + `@dataclass` | ✅ M1.5 / M3.6 | 当前默认 PyClass/PyInstance，生成字段方法与守卫构造 |
+| `@dataclass(frozen=True)` | ✅ M1.5 / M3.6 | 引用身份不变，外部写入/删除抛 FrozenInstanceError |
 | 链式比较 `a < b < c` | ✅ M1.2 | 中间项无副作用时展开，否则 ❌ |
 | `import x` / `import x as y` / `from x import y` / 别名 | ✅ M2.7 | 编译期构建模块图，运行时走 `PyModules` 导入缓存 |
 | 普通包 `__init__.py` 与包内相对导入 | ✅ M2.7 | 相对导入在 HIR 换算成绝对模块名 |
@@ -67,7 +67,7 @@
 | 用户自定义异常（`class E(ValueError)`） | ✅ M2.6 | codegen 生成 CLR 子类；类型化 catch 与 Python 继承树同构 |
 | `__repr__` / `__str__` / `__eq__` / `__hash__` / `__bool__` / `__len__` / `__iter__` / `__next__` / `__getitem__` 与常用运算槽 | ✅ M2.5 | `PyObject.TryMethod` 统一分派；未支持的魔术方法不伪造结果 |
 | `with` / 多上下文 / `as` / 异常抑制 | ✅ M2.8 | 去糖为 `try` / `except BaseException` / `finally`；`__enter__` / `__exit__` 走普通属性与调用协议 |
-| 常用标准库 | ❌ | Phase 3 逐 API 移植，当前只有 dataclass 特殊降级 |
+| 常用标准库 | 🚧 M3.4–M3.6 | 按独立 API 表开放；不是整个模块兼容 |
 | 多重继承、元类、任意描述符、动态代码与 import hook | ❌ | 暂缓，明确拒绝 |
 | 继承内建容器 / 字符串（`class X(dict)`） | ❌ | 明确报 `E0100`；`class X(object)` 等价于不写基类 |
 | `async with` | ❌ | 明确报 `E0100`，不退化成同步上下文 |
@@ -81,8 +81,8 @@
 | `bool` | `Bool` | `Bool` | `bool` |
 | `str` | `Str` | `Str` | `string` |
 | `None` | `None` | `Unit` | `void` |
-| `@dataclass` | `Class` | `Class` | `class` |
-| `@dataclass(frozen=True)` | `Class` | `Class`（引用类型） | `class`（ADR-0009：保留身份） |
+| `@dataclass` | `Class` | `Dynamic`（默认） | PyInstance 引用 |
+| `@dataclass(frozen=True)` | `Class` | `Dynamic`（默认） | PyInstance 引用（ADR-0009：保留身份） |
 | 无法静态定型 | `Dynamic` ✅ M2.1 | `Dynamic` | `object`（装箱 CLR 值） |
 
 ### 2.1 静态特化与动态降级（M2.1）
@@ -416,7 +416,7 @@ tuple / set 星号展开现支持暂停和普通路径：tuple从构建列表冻
 支持的暂停调用现已在参数求值前绑定目标：函数/普通类对象保存到临时局部，方法立即取属性。
 property和缺属性错误在参数yield前发生；非callable属性在参数求完后才报TypeError。
 内建方法绑定固定接收者和类型静态入口，参数恢复后先校验支持的arity再执行副作用；普通无暂停PIC路径不变。
-直接dataclass暂停构造因专用字段ABI尚未接入报E0305。int/float/str/type/异常及bool/bytes/bytearray的暂停构造
+旧静态dataclass暂停构造专用ABI仍报E0305；M3.6默认动态dataclass走普通类绑定/调用。int/float/str/type/异常及bool/bytes/bytearray的暂停构造
 目前仅接受单位置参数，super暂停调用仍拒绝，未宣称完整内建构造签名支持。
 
 ### Unicode内建的表示边界
@@ -430,9 +430,9 @@ ord/chr支持普通码点、补充平面和单独代理项；但两个独立代�
 装饰器表达式按源码顺序先求值，随后默认值/函数创建或基类/类体执行，最后逆序应用；
 只有全部成功才替换公开绑定。跨模块读取同一最终结果，不能按原函数/类静态直达。
 函数 __name__/__doc__/__annotations__ 和用户属性字典可读写；包装不自动复制元数据。
-注解只承诺现有基础类型/用户类/None范围，完整反射和functools.wraps未完成。
-纯dataclass保持静态表示；混合装饰器dataclass为动态PyInstance，字段、frozen与身份
-遵守装饰顺序，默认值/factory和完整dataclasses字段对象仍留M3.6。property的
+M3.6 注解保存定义时的真实对象，functools.wraps 已开放限定元数据复制；完整反射仍未完成。
+M3.3 曾仅对混合装饰器 dataclass 使用动态 PyInstance；M3.6 默认统一为该引用表示，
+字段、frozen 与身份遵守装饰顺序，并扩展默认值/factory 与限定字段对象（见 stdlib-metadata.md）。property的
 getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细边界见
 [ADR-0027](adr/0027-definition-time-decorators.md)。
 
@@ -464,3 +464,15 @@ re只接收经过Python子集解析的模式，Unicode分类固定3.12.13/Unicod
 模块异常导出只读，实际用于typed handler的稳定import/from别名禁止跨模块改写；
 本地同名源码及用户同名异常不会误认。完整动态except表达式未完成。
 repr补不可打印控制/分隔符与孤立代理项转义，不把日志中的控制字符当作可打印文本直接写出。
+
+### 容器工具、函数工具与类型元数据（M3.6）
+
+逐 API 范围见 [容器工具](stdlib-collections.md)、[函数工具](stdlib-functional.md)、
+[数据类与元数据](stdlib-metadata.md)，设计及性能见 ADR-0030。
+原生 dict 子类包装参与 ** 展开、JSON 与复制；可变容器不能作为 hash 键。
+缓存保存强引用并按容量淘汰，partial 与方法描述符严格区分；contextmanager 的装饰器路径
+同样保存异常处理上下文。显式 cause 不复制原异常，from None 仅抑制报告链而保留 context。
+默认数据类统一保留 Python 类与实例身份，属性修改或 init 替换使构造计划重新检查/回退；
+不会为保留旧静态速度而忽略生成 eq、factory、property 或 frozen 错误。
+类型元数据不等于运行时类型检查；Protocol、NamedTuple、TypeVar 与完整前向引用仍未实现。
+Hashable 的隐式类 hash 槽边界保留独立 pending，不用启发式关系冒充 ABC 正确性。

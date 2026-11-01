@@ -195,6 +195,15 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                     }
                     RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
                     RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
+                    RuntimeFn::NumericAccumulatorCreate => {
+                        ins.push(Instruction::call(ctx.runtime_refs.accumulator.create))
+                    }
+                    RuntimeFn::NumericAccumulatorAdd => {
+                        ins.push(Instruction::call(ctx.runtime_refs.accumulator.add))
+                    }
+                    RuntimeFn::NumericAccumulatorValue => {
+                        ins.push(Instruction::call(ctx.runtime_refs.accumulator.value))
+                    }
                     RuntimeFn::CellNew => ins.push(Instruction::call(ctx.runtime_refs.cell_new)),
                     RuntimeFn::CellGet => ins.push(Instruction::call(ctx.runtime_refs.cell_get)),
                     RuntimeFn::CellSet => ins.push(Instruction::call(ctx.runtime_refs.cell_set)),

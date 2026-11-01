@@ -28,6 +28,8 @@ public static partial class PyOps
 {
     [ThreadStatic]
     private static HashSet<PyInstance>? _dataclassReprActive;
+    // 工厂缺参标记不是公开MISSING；显式传入MISSING仍是用户的实际值。
+    private static readonly object DataclassFactoryDefault = new();
 
     /// <summary>只登记原始动态数据类的必填字段，不提前执行 dataclass 装饰标记。</summary>
     /// <param name="cls">原始类对象。</param>
@@ -54,61 +56,127 @@ public static partial class PyOps
     public static object ApplyDataclass(object current, bool frozen)
     {
         if (current is not PyClass cls) throw new PyTypeError("dataclass decorator requires a class");
+        if (cls.DataclassActive) throw new PyNotImplementedError("reapplying dataclass is not supported yet");
         if (cls.BaseClass is not null || cls.BuiltinBase is not null)
             throw new PyNotImplementedError("runtime dataclass inheritance is not supported yet");
         string[] fields = cls.DataclassFields ?? [];
-        // 当前仅生成必填字段；普通类属性值是 dataclass 默认值，不能悄悄忽略。
-        // property 仍保留显式传参时的 setter 路径，省略参数不承诺 descriptor 默认值语义。
-        foreach (string field in fields)
-            if (cls.Attributes.TryGetValue(field, out object? declared) && declared is not PyProperty)
-                throw new PyNotImplementedError("runtime dataclass field defaults are not supported yet");
+        PyDict? annotations = null;
+        if (cls.Attributes.TryGetValue("__annotations__", out object? annotationObject))
+        {
+            annotations = annotationObject as PyDict
+                ?? throw new PyNotImplementedError("dataclass annotations require a dict");
+            var names = new List<string>();
+            foreach (object? key in annotations.Keys)
+                names.Add(key as string ?? throw new PyTypeError("dataclass field names must be strings"));
+            fields = names.ToArray();
+        }
+        var declarations = new PyDataclassField[fields.Length];
+        bool hasDefault = false;
+        for (int index = 0; index < fields.Length; index++)
+        {
+            string field = fields[index];
+            object? value = cls.Attributes.TryGetValue(field, out object? declared)
+                ? declared : PyDataclasses.Missing;
+            var metadata = value as PyDataclassField ?? new PyDataclassField(value,
+                PyDataclasses.Missing, true, true, true);
+            metadata.Name = field;
+            metadata.Annotation = annotations?.GetOrDefault(field, PyNone.Instance) ?? PyNone.Instance;
+            declarations[index] = metadata;
+            bool optional = !ReferenceEquals(metadata.Default, PyDataclasses.Missing)
+                || !ReferenceEquals(metadata.Factory, PyDataclasses.Missing);
+            if (metadata.Init && hasDefault && !optional)
+                throw new PyTypeError($"non-default argument '{field}' follows default argument");
+            hasDefault |= metadata.Init && optional;
+            if (metadata.Default is PyList or PyDict or PySet or PyByteArray or PyDeque or IPyNativeMapping
+                || metadata.Default is PyInstance instanceDefault
+                && instanceDefault.Class.TryLookup("__hash__", out _, out var hash)
+                && hash is null or PyNone)
+                throw new PyValueError($"mutable default for field {field} is not allowed: use default_factory");
+            // field()声明本身不是实例默认值；公开类属性只保留真实default。
+            if (value is PyDataclassField)
+            {
+                if (ReferenceEquals(metadata.Default, PyDataclasses.Missing)) cls.DeleteAttr(field);
+                else cls.SetAttr(field, metadata.Default);
+            }
+        }
         // 装饰器选项属于此次应用，不能因下层替换了类而丢失或借用替换类的旧选项。
         cls.DataclassFrozen = frozen;
         if (!cls.Attributes.ContainsKey("__init__"))
         {
-            var names = new string[fields.Length + 1];
-            names[0] = "__dataclass_self__";
-            while (Array.IndexOf(fields, names[0]) >= 0) names[0] += "_";
-            Array.Copy(fields, 0, names, 1, fields.Length);
-            cls.SetAttr("__init__", DataclassMethod(cls.Name + ".__init__", names, bound =>
+            var parameters = new List<string> { "__dataclass_self__" };
+            while (Array.IndexOf(fields, parameters[0]) >= 0) parameters[0] += "_";
+            var defaults = new List<object?> { null };
+            var flags = new List<string> { "0" };
+            foreach (var field in declarations)
             {
+                if (!field.Init) continue;
+                parameters.Add(field.Name!);
+                bool factory = !ReferenceEquals(field.Factory, PyDataclasses.Missing);
+                defaults.Add(factory ? DataclassFactoryDefault : field.Default);
+                flags.Add(factory || !ReferenceEquals(field.Default, PyDataclasses.Missing) ? "1" : "0");
+            }
+            var kinds = new string[parameters.Count];
+            Array.Fill(kinds, "pos");
+            var signature = PySignature.Create(cls.Name + ".__init__", parameters.ToArray(), kinds, flags.ToArray());
+            // CPython在生成方法时决定是否包含post-init调用；之后只动态解析已生成的调用。
+            bool hasPostInit = cls.TryLookup("__post_init__", out _, out _);
+            var generatedInit = new PyFunction("__init__", signature, (self, args, names, values) =>
+            {
+                object?[] bound = PyBinder.Bind(signature, args, names, values, self.Defaults);
                 PyInstance instance = DataclassInstance(bound[0]);
-                for (int index = 0; index < fields.Length; index++)
+                int next = 1;
+                foreach (var field in declarations)
                 {
-                    if (cls.DataclassFrozen)
-                        PyObject.InitializeDataclassField(instance, fields[index], bound[index + 1] ?? PyNone.Instance);
-                    else
-                        PyObject.SetAttr(instance, fields[index], bound[index + 1] ?? PyNone.Instance);
+                    object? value = field.Init ? bound[next++] : DataclassFactoryDefault;
+                    if (ReferenceEquals(value, DataclassFactoryDefault))
+                    {
+                        if (ReferenceEquals(field.Factory, PyDataclasses.Missing)) continue;
+                        value = PyOps.CallValue(field.Factory, [], [], []);
+                    }
+                    if (cls.DataclassFrozen) PyObject.InitializeDataclassField(instance, field.Name!, value);
+                    else PyObject.SetAttr(instance, field.Name!, value);
                 }
+                if (hasPostInit)
+                    PyOps.CallValue(PyObject.GetAttr(instance, "__post_init__"), [], [], []);
                 return PyNone.Instance;
-            }));
+            }, defaults.ToArray(), false);
+            cls.SetAttr("__init__", generatedInit);
+            cls.RegisterDataclassConstructor(generatedInit, declarations, hasPostInit);
         }
+        string[] reprFields = Array.ConvertAll(Array.FindAll(declarations, field => field.Repr), field => field.Name!);
+        string[] compareFields = Array.ConvertAll(Array.FindAll(declarations, field => field.Compare), field => field.Name!);
         if (!cls.Attributes.ContainsKey("__repr__"))
             cls.SetAttr("__repr__", DataclassMethod(cls.Name + ".__repr__", ["self"], bound =>
-                DataclassRepr(DataclassInstance(bound[0]), fields)));
+                DataclassRepr(DataclassInstance(bound[0]), reprFields)));
         if (!cls.Attributes.ContainsKey("__eq__"))
             cls.SetAttr("__eq__", DataclassMethod(cls.Name + ".__eq__", ["self", "other"], bound =>
             {
                 PyInstance self = DataclassInstance(bound[0]);
                 if (bound[1] is not PyInstance other || !ReferenceEquals(self.Class, other.Class))
                     return PyNotImplemented.Instance;
-                foreach (string field in fields)
-                {
-                    object? left = PyObject.GetAttr(self, field), right = PyObject.GetAttr(other, field);
-                    if (!ReferenceEquals(left, right) && !PyHash.Equal(left, right)) return false;
-                }
-                return true;
+                // CPython先分别构造左右字段tuple，再比较，getter副作用不可交错。
+                var left = new object?[compareFields.Length];
+                var right = new object?[compareFields.Length];
+                for (int index = 0; index < compareFields.Length; index++)
+                    left[index] = PyObject.GetAttr(self, compareFields[index]);
+                for (int index = 0; index < compareFields.Length; index++)
+                    right[index] = PyObject.GetAttr(other, compareFields[index]);
+                return PyHash.Equal(new PyTuple(left), new PyTuple(right));
             }));
+        if (!cls.Attributes.ContainsKey("__hash__") && !frozen) cls.SetAttr("__hash__", PyNone.Instance);
         if (!cls.Attributes.ContainsKey("__hash__"))
             cls.SetAttr("__hash__", DataclassMethod(cls.Name + ".__hash__", ["self"], bound =>
             {
                 if (!cls.DataclassFrozen) throw new PyTypeError($"unhashable type: '{cls.Name}'");
-                var values = new object?[fields.Length];
-                for (int index = 0; index < fields.Length; index++)
-                    values[index] = PyObject.GetAttr(bound[0], fields[index]);
+                var values = new object?[compareFields.Length];
+                for (int index = 0; index < compareFields.Length; index++)
+                    values[index] = PyObject.GetAttr(bound[0], compareFields[index]);
                 return PyHash.Of(new PyTuple(values));
             }));
-        if (!cls.Attributes.ContainsKey("__match_args__")) cls.SetAttr("__match_args__", new PyTuple(fields));
+        if (!cls.Attributes.ContainsKey("__match_args__")) cls.SetAttr("__match_args__", new PyTuple(Array.ConvertAll(Array.FindAll(declarations, field => field.Init), field => field.Name!)));
+        var fieldMap = new PyDict();
+        foreach (var field in declarations) fieldMap.Set(field.Name!, field);
+        cls.SetAttr("__dataclass_fields__", fieldMap);
         cls.DataclassActive = true;
         return cls;
     }

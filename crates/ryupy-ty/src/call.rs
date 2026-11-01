@@ -229,7 +229,7 @@ impl FunctionChecker<'_> {
     /// 属性副作用都只有运行时才知道，因此这里直接返回 `Dynamic` 并让函数降级。
     fn check_class_call(&mut self, cls_id: ryupy_hir::ClassId, args: &[CallArg]) -> Ty {
         let cls = &self.module.classes[cls_id];
-        if !cls.is_dataclass || cls.decorated_binding.is_some() {
+        if !cls.is_dataclass || (cls.decorated_binding.is_some() || cls.runtime_dataclass) {
             self.soft_demote = true;
             return Ty::Dynamic;
         }

@@ -14,14 +14,12 @@ use crate::mir::{
 
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
-
     if !program.functions.iter().any(|(id, _)| id == program.entry) {
         errors.push(format!(
             "程序入口函数 {:?} 不在 functions arena 中",
             program.entry
         ));
     }
-
     for (_fn_id, func) in program.functions.iter() {
         if !func.body.blocks.iter().any(|(id, _)| id == func.body.entry) {
             errors.push(format!(
@@ -29,7 +27,6 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                 func.name, func.body.entry
             ));
         }
-
         // 收集从 entry 可达的基本块集合
         let mut reachable = rustc_hash::FxHashSet::default();
         let mut worklist = vec![func.body.entry];
@@ -65,7 +62,6 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                 ));
             }
         }
-
         // `Unit` 没有 CIL 表示，不能作为局部变量（None 用 Dynamic 表示）。
         // 若放行，codegen 会为赋值发射一个没有目标的求值栈值，生成非法方法体。
         for (loc_id, local) in func.body.locals.iter() {
@@ -89,6 +85,18 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             ));
                         }
                         validate_rvalue(func, block_id, value, program, &mut errors);
+                        if matches!(
+                            value,
+                            Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                                ..
+                            }
+                        ) {
+                            errors.push(format!(
+                                "函数 `{}` 的累加器Add无返回值，不能写入局部",
+                                func.name
+                            ));
+                        }
                     }
                     Statement::Eval(rvalue) => {
                         validate_rvalue(func, block_id, rvalue, program, &mut errors);
@@ -99,6 +107,8 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                                     RuntimeFn::GeneratorInput
                                         | RuntimeFn::GeneratorRetry
                                         | RuntimeFn::PrintTarget
+                                        | RuntimeFn::NumericAccumulatorCreate
+                                        | RuntimeFn::NumericAccumulatorValue
                                 ),
                                 ..
                             }
@@ -383,10 +393,14 @@ fn validate_rvalue(
         Rvalue::Unary { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Cast { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Call { callee, args } => {
-            // print专用ABI把目标作为首参；防止漏传后生成栈不平衡的CIL。
+            // 输出与累加器专用ABI校验，防止参数错配生成栈不平衡的CIL。
             if let Callee::Runtime(runtime) = callee {
                 let expected: Option<&[MirType]> = match runtime {
                     RuntimeFn::PrintTarget => Some(&[]),
+                    RuntimeFn::NumericAccumulatorCreate | RuntimeFn::NumericAccumulatorValue => {
+                        Some(&[MirType::Dynamic])
+                    }
+                    RuntimeFn::NumericAccumulatorAdd => Some(&[MirType::Dynamic, MirType::Dynamic]),
                     RuntimeFn::WriteI64 => Some(&[MirType::Dynamic, MirType::I64]),
                     RuntimeFn::WriteF64 => Some(&[MirType::Dynamic, MirType::F64]),
                     RuntimeFn::WriteBool => Some(&[MirType::Dynamic, MirType::Bool]),
@@ -402,8 +416,19 @@ fn validate_rvalue(
                         }))
                 {
                     errors.push(format!(
-                        "函数 {} 的 {:?} 参数不符合输出目标ABI",
-                        func.name, runtime
+                        "函数 {} 的 {:?} 参数不符合{}",
+                        func.name,
+                        runtime,
+                        if matches!(
+                            runtime,
+                            RuntimeFn::NumericAccumulatorCreate
+                                | RuntimeFn::NumericAccumulatorAdd
+                                | RuntimeFn::NumericAccumulatorValue
+                        ) {
+                            "累加器ABI"
+                        } else {
+                            "输出目标ABI"
+                        }
                     ));
                 }
             }

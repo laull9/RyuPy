@@ -76,7 +76,8 @@ pub fn build_program(
             codegen_name: cls.name.as_str().to_string(),
             fields,
             is_value_type: false,
-            is_dataclass: cls.is_dataclass && cls.decorated_binding.is_none(),
+            is_dataclass: cls.is_dataclass
+                && (cls.decorated_binding.is_none() && !cls.runtime_dataclass),
             base: None,
             builtin_base: match cls.base {
                 Some(ryupy_hir::ClassBase::Builtin(name)) => Some(name.to_string()),

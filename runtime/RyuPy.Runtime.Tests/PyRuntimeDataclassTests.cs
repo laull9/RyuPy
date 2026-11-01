@@ -194,25 +194,34 @@ public class PyRuntimeDataclassTests
     }
 
     [Fact]
-    public void ReplacementFieldDefaultsAreRejectedBeforeGeneratingMethods()
+    public void ReplacementFieldDefaultsBelongToTheReplacementAndMutableDefaultsAreRejected()
     {
         var original = Class("Original");
         PyOps.DeclareDataclass(original, ["original_field"], false);
-        foreach (object? defaultValue in new object?[] { 1L, PyNone.Instance, null, new PyList() })
+        foreach (object? defaultValue in new object?[] { 1L, PyNone.Instance, null })
         {
             var replacement = Class("Replacement");
-            // 模拟普通替代类自己的标注声明，不能套用原类 original_field。
+            // 读取替代类自己的默认值，不借用原类布局；M3.6已支持这些默认值。
             PyOps.DeclareDataclass(replacement, ["replacement_field"], false);
             replacement.SetAttr("replacement_field", defaultValue);
-            Assert.Throws<PyNotImplementedError>(() => PyOps.ApplyDataclass(replacement, true));
-            Assert.False(replacement.Attributes.ContainsKey("__init__"));
-            Assert.False(replacement.Attributes.ContainsKey("__repr__"));
-            Assert.Same(defaultValue, replacement.Attributes["replacement_field"]);
+            PyOps.ApplyDataclass(replacement, true);
             object instance = replacement.Invoke([], [], [])!;
-            // 失败不能留下已激活的冻结状态。
-            PyObject.SetAttr(instance, "still_mutable", 7L);
-            Assert.Equal(7L, PyObject.GetAttr(instance, "still_mutable"));
+            object? value = PyObject.GetAttr(instance, "replacement_field");
+            if (defaultValue is null) Assert.True(value is null or PyNone);
+            else Assert.Same(defaultValue, value);
+            Assert.Throws<PyFrozenInstanceError>(() => PyObject.SetAttr(instance, "replacement_field", 7L));
+            Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(instance, "original_field"));
         }
+        var invalid = Class("MutableReplacement");
+        PyOps.DeclareDataclass(invalid, ["items"], false);
+        invalid.SetAttr("items", new PyList());
+        Assert.Throws<PyValueError>(() => PyOps.ApplyDataclass(invalid, true));
+        Assert.False(invalid.Attributes.ContainsKey("__init__"));
+        Assert.False(invalid.Attributes.ContainsKey("__repr__"));
+        object ordinary = invalid.Invoke([], [], [])!;
+        // 失败不能留下已激活的冻结状态。
+        PyObject.SetAttr(ordinary, "still_mutable", 7L);
+        Assert.Equal(7L, PyObject.GetAttr(ordinary, "still_mutable"));
         var supported = Class("SupportedReplacement");
         PyOps.DeclareDataclass(supported, ["own_field"], false);
         PyOps.ApplyDataclass(supported, false);

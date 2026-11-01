@@ -123,6 +123,7 @@ pub fn lower_module_with_native_exceptions(
                     body: Vec::new(),
                     frozen: false,
                     is_dataclass: false,
+                    runtime_dataclass: false,
                     is_exception: false,
                     range: cls_def.range(),
                     decorators: Vec::new(),
@@ -158,6 +159,7 @@ pub fn lower_module_with_native_exceptions(
                         closure: Default::default(),
                         is_generator: false,
                         docstring: None,
+                        annotation_values: Vec::new(),
                     });
                     methods.push(crate::class::MethodSlot {
                         name: method_name,
@@ -192,6 +194,7 @@ pub fn lower_module_with_native_exceptions(
                     closure: Default::default(),
                     is_generator: false,
                     docstring: None,
+                    annotation_values: Vec::new(),
                 });
                 if !fn_def.decorator_list.is_empty() {
                     global_scope.dynamic_names.insert(name.clone());
@@ -216,6 +219,7 @@ pub fn lower_module_with_native_exceptions(
         closure: Default::default(),
         is_generator: false,
         docstring: None,
+        annotation_values: Vec::new(),
     });
 
     // M3.0：闭包作用域分析——发现嵌套 def / lambda 并计算 free / cell 变量。
@@ -223,8 +227,7 @@ pub fn lower_module_with_native_exceptions(
     // 都依赖它的登记表。
     let analysis =
         crate::closures::analyze_closures(parsed, &mut functions, main_id, &mut diagnostics);
-    let mut nested_defaults: FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>> =
-        FxHashMap::default();
+    let mut nested_defaults = crate::definition_metadata::DefinitionMetadata::default();
 
     let mut main_body = Body::default();
 
@@ -387,12 +390,16 @@ pub fn lower_module_with_native_exceptions(
     // 回填嵌套函数（def / lambda）的默认值：它们在外层作用域的定义位置求值
     //（见 lower_nested_def 与 lower_lambda）。main 降级也会产生新的登记
     //（模块顶层的 lambda），因此回填必须在 main 降级之后。
-    for (func_id, defaults) in &nested_defaults {
+    for (func_id, defaults) in &nested_defaults.defaults {
         for (index, expr) in defaults.iter().enumerate() {
             if let Some(expr) = expr {
                 functions[*func_id].params[index].default = Some(*expr);
             }
         }
+    }
+
+    for (func_id, annotations) in nested_defaults.annotations {
+        functions[func_id].annotation_values = annotations;
     }
 
     let module = Module {
@@ -432,7 +439,7 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) nested_funcs: &'a FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
     /// 嵌套函数的默认值：在**外层作用域** def 位置求值，先暂存、循环结束后
     /// 回填进对应函数的 `Param::default`。
-    pub(crate) nested_defaults: &'a mut FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>>,
+    pub(crate) nested_defaults: &'a mut crate::definition_metadata::DefinitionMetadata,
     pub(crate) body: &'a mut Body,
     pub(crate) loop_depth: usize,
     /// 当前所处的 `except` 体层数。只有 > 0 时裸 `raise` 才有意义。
@@ -452,7 +459,7 @@ pub(crate) fn lower_default_expr(
     global_scope: &GlobalScope,
     module_vars: &FxHashMap<Name, ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
-    nested_defaults: &mut FxHashMap<crate::hir::FuncId, Vec<Option<ExprId>>>,
+    nested_defaults: &mut crate::definition_metadata::DefinitionMetadata,
     body: &mut Body,
     diagnostics: &mut Vec<Diagnostic>,
     expr: &ast::Expr,

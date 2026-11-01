@@ -20,6 +20,7 @@ impl ExprBuilder<'_> {
             .clone();
         if let ExprKind::Class(class) = kind
             && self.hir.classes[class].is_dataclass
+            && !self.hir.classes[class].runtime_dataclass
         {
             let range = self.hir.functions[self.current_hir_fn].body.exprs[expression].range;
             self.diagnostics.push(

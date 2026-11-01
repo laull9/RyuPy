@@ -79,7 +79,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
   委托Step由生成器降级补frame参数，运行时处理协议不持frame，CIL不理解Python委托语义。
   PC -1 的恢复返回值是终值；
   普通迭代立即丢弃，仅首次完成的 next 将其放入 StopIteration，运行时不缓存终值。
-  帧槽 0 为 PC，槽 1 为本次 send 输入，原 LocalId 从槽 2 起保存；Suspend 携可选接收局部，
+  Suspend 携可选接收局部，
   恢复目标先取输入再清控制槽引用。表达式求值的已有临时量同样跨暂停保存。
   参数含暂停的无星号调用以 HIR PreparedCall 标记，MIR先固定callee / PrepareMethod结果再求args；
   运行时仅为这些调用创建内建方法绑定包装，普通CallMethod的PIC路径不额外分配。
@@ -111,7 +111,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 ### 3.5 CIL
 
-- 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有模块的函数、模块级静态槽位、类工厂与异常工厂；`Main` 只负责初始化全局状态并按导入机制执行 `__main__`。每个 dataclass 与用户异常类各生成一个 CLR 类型（多模块合并时加模块前缀），普通 class 由运行时 `PyClass` / `PyInstance` 承载。
+- 生成的程序集：一个静态类 `RyuPy.Generated.Module` 承载所有模块的函数、模块级静态槽位、类工厂与异常工厂；`Main` 只负责初始化全局状态并按导入机制执行 `__main__`。用户异常类生成 CLR 类型（多模块合并时加模块前缀）；M3.6 默认 dataclass 与普通 class 均由运行时 `PyClass` / `PyInstance` 承载。旧静态 dataclass 代码路径保留但不作为兼容默认。
 - 每个模块生成 `__mod_get_<i>` / `__mod_set_<i>` 与初始化入口，由 `PyModules` 注册；模块对象通过委托读写静态槽位，循环导入、缓存与失败重试由运行时处理。
 - 引用的外部程序集：`System.Runtime`（基础类型）、`RyuPy.Runtime`（内建函数与语义辅助）。
 - 整数算术用 `add.ovf` 等带溢出检查的指令（ADR-0004）；动态路径改用 `PyOps`，整数按需升级 BigInteger。
@@ -194,7 +194,7 @@ releases/                     # make build 的发行包（宿主平台，不进�
 
 运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。M2.9 的 PIC 由 codegen 分配调用点编号，`PyPic` 只缓存整数 / 浮点 / 字符串运算形状与普通类方法绑定；类全局版本、实例属性版本变化即失效，模块属性不缓存，见 [ADR-0012](adr/0012-bounded-dynamic-pic.md)。
 
-普通对象保留引用身份，frozen dataclass 的 Phase 1 值类型降级受 ADR-0009 限定。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
+普通对象与 frozen dataclass 均保留引用身份；M3.6 默认统一使用 PyInstance，旧 Phase 1 值类型降级不再作为当前实现。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
 
 原生路径继续满足 AOT 分析约束，但真正发布与裁剪测试安排在 M5.2。动态导入通过构建时可达清单限定；桥接产物仍需 libpython 与扩展。Native AOT 对运行时程序集加载和代码生成的限制见 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
 
