@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/str_concat.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/str_concat"
+  ],
+  "compile_ms": 4.422846999659669,
+  "exit_code": 0,
+  "dll_sha256": "073dc267e14a48fd568176ee6bfc9bf868bed9db4041028e08dceae90e5ae3d6"
+}

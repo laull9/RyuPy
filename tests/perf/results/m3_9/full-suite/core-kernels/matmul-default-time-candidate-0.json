@@ -1,0 +1,64 @@
+{
+  "name": "matmul",
+  "tier": "default",
+  "mode": "time",
+  "variant": "candidate",
+  "repeat": 0,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/matmul/matmul.dll",
+    "matmul",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/matmul.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 2285.62120499555,
+  "maxrss": 68997120,
+  "samples": [
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 0,
+      "elapsed_ms": 181.1664
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 1,
+      "elapsed_ms": 166.4956
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 2,
+      "elapsed_ms": 163.6844
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 3,
+      "elapsed_ms": 165.2849
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 4,
+      "elapsed_ms": 176.283
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 5,
+      "elapsed_ms": 174.6701
+    },
+    {
+      "kind": "kernel_time",
+      "name": "matmul",
+      "sample": 6,
+      "elapsed_ms": 174.5161
+    }
+  ]
+}

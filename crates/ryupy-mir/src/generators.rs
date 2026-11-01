@@ -284,6 +284,7 @@ fn lower_one(
         body,
         param_meta: Vec::new(),
         function_global: None,
+        specialization_identity_global: None,
         defaults_global: None,
         signature_global: None,
         env: None,

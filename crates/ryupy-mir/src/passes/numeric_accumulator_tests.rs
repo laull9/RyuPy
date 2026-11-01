@@ -1,5 +1,5 @@
 //! 累加器只改写入口支配、没有观察或逃逸的唯一自然循环。
-use super::{MirPass, numeric_accumulator::NumericAccumulator};
+use super::{MirPass, numeric_accumulator::DirectNumericAccumulator};
 use crate::mir::*;
 use la_arena::{Arena, RawIdx};
 
@@ -73,6 +73,7 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
             },
             param_meta: vec![],
             function_global: None,
+            specialization_identity_global: None,
             defaults_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
@@ -86,10 +87,13 @@ fn transformed(function: &Function) -> bool {
         b.stmts.iter().any(|s| {
             matches!(
                 s,
-                Statement::Eval(Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                Statement::Assign {
+                    value: Rvalue::Binary {
+                        op: BinOp::WrappingAdd,
+                        ..
+                    },
                     ..
-                })
+                }
             )
         })
     })
@@ -97,12 +101,90 @@ fn transformed(function: &Function) -> bool {
 #[test]
 fn strict_loop_materializes_only_at_unique_exit() {
     let (mut f, [entry, _, body, _, exit], [total, _, _]) = sample();
-    NumericAccumulator.run(&mut f);
+    DirectNumericAccumulator.run(&mut f);
     assert!(transformed(&f));
-    assert_eq!(f.body.blocks[entry].stmts.len(), 2);
-    assert_eq!(f.body.blocks[body].stmts.len(), 1);
+    assert!(matches!(
+        f.body.blocks[entry].terminator,
+        Terminator::Branch { .. }
+    ));
+    assert!(matches!(
+        f.body.blocks[body].terminator,
+        Terminator::Branch { .. }
+    ));
+    assert!(matches!(
+        f.body.blocks[exit].terminator,
+        Terminator::Branch { .. }
+    ));
+    let [
+        Statement::Assign {
+            dest: empty,
+            value:
+                Rvalue::Binary {
+                    op: BinOp::Eq,
+                    lhs: Operand::Local(subject),
+                    rhs: Operand::Const(Constant::Null),
+                },
+        },
+        Statement::Assign {
+            dest: needed,
+            value:
+                Rvalue::Binary {
+                    op: BinOp::BitAnd,
+                    lhs: Operand::Local(mode),
+                    rhs: Operand::Local(empty_read),
+                },
+        },
+    ] = f.body.blocks[exit].stmts.as_slice()
+    else {
+        panic!("物化必须同时检查整数模式和CLR null");
+    };
+    assert_eq!(*subject, total);
+    assert_eq!(empty, empty_read);
+    assert_eq!(f.body.locals[*mode].ty, MirType::Bool);
     assert!(
-        matches!(&f.body.blocks[exit].stmts[0], Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::NumericAccumulatorValue), .. } } if *dest == total)
+        matches!(f.body.blocks[exit].terminator, Terminator::Branch { cond: Operand::Local(cond), .. } if cond == *needed)
+    );
+    assert!(f.body.blocks.iter().any(|(_, block)| block.stmts.iter().any(|stmt| matches!(stmt, Statement::Assign { dest, value: Rvalue::IsBoxedI64 { value: Operand::Local(source) } } if dest == mode && *source == total))));
+    let mut boxed_total = 0;
+    for (_, block) in f.body.blocks.iter() {
+        for stmt in &block.stmts {
+            if matches!(stmt, Statement::Assign { dest, value: Rvalue::Box { .. } } if *dest == total)
+            {
+                boxed_total += 1;
+            }
+            assert!(!matches!(
+                stmt,
+                Statement::Assign {
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(
+                            RuntimeFn::NumericAccumulatorCreate
+                                | RuntimeFn::NumericAccumulatorAdd
+                                | RuntimeFn::NumericAccumulatorValue
+                        ),
+                        ..
+                    },
+                    ..
+                } | Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                    ..
+                })
+            ));
+        }
+    }
+    assert_eq!(boxed_total, 2, "只有慢路入口和唯一出口可物化累加盒");
+    let mut functions = Arena::default();
+    let entry = functions.alloc(f);
+    let program = Program {
+        functions,
+        classes: Arena::default(),
+        globals: Arena::default(),
+        entry,
+        source_name: "sum.py".into(),
+    };
+    assert!(
+        crate::validate::validate(&program).is_ok(),
+        "{:?}",
+        crate::validate::validate(&program)
     );
 }
 #[test]
@@ -137,7 +219,7 @@ fn observations_rhs_alias_cell_exception_and_generator_reject() {
             6 => f.body.blocks[entry].stmts.clear(),
             _ => unreachable!(),
         }
-        NumericAccumulator.run(&mut f);
+        DirectNumericAccumulator.run(&mut f);
         assert!(!transformed(&f), "拒绝边界 {variant}");
     }
 }
@@ -151,11 +233,45 @@ fn nonentry_preheader_entry_backedge_and_exit_bypass_reject() {
         });
         match variant {
             0 => f.body.entry = extra,
-            1 => {} // 不可达前驱也保守拒绝，入口不得重建holder。
+            1 => {} // 不可达前驱也保守拒绝，入口不得重建累加状态。
             2 => f.body.blocks[extra].terminator = Terminator::Goto(exit),
             _ => unreachable!(),
         }
-        NumericAccumulator.run(&mut f);
+        DirectNumericAccumulator.run(&mut f);
         assert!(!transformed(&f), "CFG边界 {variant}");
     }
+}
+
+#[test]
+fn default_pipeline_retains_holder_and_explicit_option_selects_direct() {
+    // 后续可以增加其它Pass，但两种累加展开必须互斥且恰好运行一次。
+    for experimental in [false, true] {
+        let pipeline = super::pipeline_with_direct_accumulator(experimental);
+        let count = |name| pipeline.iter().filter(|pass| pass.name() == name).count();
+        assert_eq!(count("numeric_accumulator"), usize::from(!experimental));
+        assert_eq!(
+            count("direct_numeric_accumulator_experimental"),
+            usize::from(experimental)
+        );
+    }
+    assert!(
+        super::default_pipeline()
+            .iter()
+            .any(|pass| pass.name() == "numeric_accumulator")
+    );
+    let (mut f, _, _) = sample();
+    super::NumericAccumulator.run(&mut f);
+    assert!(!transformed(&f));
+    assert!(
+        f.body
+            .blocks
+            .iter()
+            .any(|(_, b)| b.stmts.iter().any(|s| matches!(
+                s,
+                Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                    ..
+                })
+            )))
+    );
 }

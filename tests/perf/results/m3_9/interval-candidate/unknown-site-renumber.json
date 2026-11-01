@@ -1,0 +1,12 @@
+{
+  "method": "choose_unknown",
+  "raw_equal": false,
+  "only_change": {
+    "instruction": "IL_001c",
+    "old": "LoadConstantInt32(3)",
+    "new": "LoadConstantInt32(1)",
+    "meaning": "后续PyPic.Binary调用的site编号；两处先前优化点消失，重排编号"
+  },
+  "all_other_text_identical": true,
+  "normalized_sha256": "facf1f3fcf810550bb81dd1fa29276763ea58319bd9c626d3a6ea88c762bbb86"
+}

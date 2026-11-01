@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/dynamic.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/dynamic"
+  ],
+  "compile_ms": 5.2386370007297955,
+  "exit_code": 0,
+  "dll_sha256": "13ca22dadfa120f6de449e129b52934016b524102738b07b023527cbb9251678"
+}

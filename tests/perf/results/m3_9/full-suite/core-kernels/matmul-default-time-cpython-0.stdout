@@ -1,0 +1,7 @@
+{"name": "matmul", "sample": 0, "kind": "kernel_time", "elapsed_ms": 103.33814399928087}
+{"name": "matmul", "sample": 1, "kind": "kernel_time", "elapsed_ms": 123.5357909972663}
+{"name": "matmul", "sample": 2, "kind": "kernel_time", "elapsed_ms": 114.11458400107222}
+{"name": "matmul", "sample": 3, "kind": "kernel_time", "elapsed_ms": 118.31254600110697}
+{"name": "matmul", "sample": 4, "kind": "kernel_time", "elapsed_ms": 118.34440500388155}
+{"name": "matmul", "sample": 5, "kind": "kernel_time", "elapsed_ms": 123.3948369990685}
+{"name": "matmul", "sample": 6, "kind": "kernel_time", "elapsed_ms": 120.5076670012204}

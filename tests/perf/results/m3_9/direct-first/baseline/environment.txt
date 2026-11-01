@@ -1,0 +1,61 @@
+.NET SDK:
+ Version:           10.0.403
+ Commit:            5a2162bea6
+ Workload version:  10.0.400-manifests.a00bebb6
+ MSBuild version:   18.9.15+5a2162bea
+
+Runtime Environment:
+ OS Name:     debian
+ OS Version:  13
+ OS Platform: Linux
+ RID:         linux-x64
+ Base Path:   /workspace/shared/toolchains/dotnet/sdk/10.0.403/
+
+.NET workloads installed:
+There are no installed workloads to display.
+Configured to use workload sets when installing new manifests.
+No workload sets are installed. Run "dotnet workload restore" to install a workload set.
+
+Host:
+  Version:      10.0.14
+  Architecture: x64
+  Commit:       0427b9abbe
+
+.NET SDKs installed:
+  10.0.403 [/workspace/shared/toolchains/dotnet/sdk]
+
+.NET runtimes installed:
+  Microsoft.AspNetCore.App 10.0.14 [/workspace/shared/toolchains/dotnet/shared/Microsoft.AspNetCore.App]
+  Microsoft.NETCore.App 10.0.14 [/workspace/shared/toolchains/dotnet/shared/Microsoft.NETCore.App]
+
+Other architectures found:
+  None
+
+Environment variables:
+  DOTNET_CLI_HOME                          [/workspace/shared/toolchains/dotnet-cli-home]
+  DOTNET_CLI_TELEMETRY_OPTOUT              [1]
+  DOTNET_ROOT                              [/workspace/shared/toolchains/dotnet]
+
+global.json file:
+  Not found
+
+Learn more:
+  https://aka.ms/dotnet/info
+
+Download .NET:
+  https://aka.ms/dotnet/download
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+Linux dc97bebc95d5 6.18.57 #1 SMP Tue Oct 20 21:56:04 UTC 2026 x86_64 GNU/Linux
+lscpu不可用：容器未暴露sysfs CPU possible；改保存proc摘要
+processor	: 0
+model name	: INTEL(R) XEON(R) PLATINUM 8573C
+cpu MHz		: 2300.000
+processor	: 1
+model name	: INTEL(R) XEON(R) PLATINUM 8573C
+cpu MHz		: 2300.000
+processor	: 2
+model name	: INTEL(R) XEON(R) PLATINUM 8573C
+cpu MHz		: 2300.000
+processor	: 3
+model name	: INTEL(R) XEON(R) PLATINUM 8573C
+cpu MHz		: 2300.000

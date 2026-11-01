@@ -1,0 +1,25 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/spectral_norm/spectral_norm.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 385.55442100187065,
+  "maxrss": 125710336,
+  "stats": {
+    "main_ms": 178.667,
+    "alloc_bytes": 77229968,
+    "gc0": 17,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 4.992,
+    "jit_ms": 235.089,
+    "jit_methods": 225,
+    "heap_bytes": 4538192
+  },
+  "exit_code": 0,
+  "environment": {
+    "DOTNET_TieredCompilation": "0",
+    "PYTHONHASHSEED": "0"
+  }
+}

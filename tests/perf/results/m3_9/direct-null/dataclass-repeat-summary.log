@@ -1,0 +1,32 @@
+{
+  "default_baseline": {
+    "construction": 0.007068009996146429,
+    "field_reads": 0.0025498789982520975,
+    "equality": 0.046803281002212316
+  },
+  "default_cold": {
+    "construction": 0.006638680999458302,
+    "field_reads": 0.0026043640027637593,
+    "equality": 0.03264742499595741
+  },
+  "default_null": {
+    "construction": 0.008620617998531088,
+    "field_reads": 0.0024989689991343766,
+    "equality": 0.04837334900366841
+  },
+  "disabled_baseline": {
+    "construction": 0.004393921997689176,
+    "field_reads": 0.0026973700005328283,
+    "equality": 0.022711196004820522
+  },
+  "disabled_cold": {
+    "construction": 0.004286308998416644,
+    "field_reads": 0.0026230060029774904,
+    "equality": 0.018398840998997912
+  },
+  "disabled_null": {
+    "construction": 0.004462306998902932,
+    "field_reads": 0.003258270997321233,
+    "equality": 0.019443513003352564
+  }
+}

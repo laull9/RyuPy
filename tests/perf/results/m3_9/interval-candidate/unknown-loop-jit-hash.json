@@ -1,0 +1,21 @@
+{
+  "baseline": {
+    "sha256": "514d60059e8c41220cdf968e42d3a14936ba56ef1441c0ead4214e2cc2a52f7d",
+    "bytes": [
+      "515"
+    ],
+    "stack_reservations": [
+      "40"
+    ]
+  },
+  "candidate": {
+    "sha256": "514d60059e8c41220cdf968e42d3a14936ba56ef1441c0ead4214e2cc2a52f7d",
+    "bytes": [
+      "515"
+    ],
+    "stack_reservations": [
+      "40"
+    ]
+  },
+  "text_equal": true
+}

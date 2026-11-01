@@ -1,0 +1,216 @@
+[
+  {
+    "name": "fib",
+    "tier": "default",
+    "baseline_sha256": "b2ed6c7fb1c44398252a1fb69a681bbf08072183458d9a13983e988fcdfc8dbe",
+    "candidate_sha256": "2da21bd7bcd0b4c7653d82669ebe19e082d59d62f0fd13e90b206b2759af0548",
+    "full_diffable_text_equal": false,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (Tier1)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (Instrumented Tier0)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (Tier1)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (Tier1)"
+    ],
+    "baseline_code_sizes": [
+      "238",
+      "398",
+      "398",
+      "533",
+      "268"
+    ],
+    "candidate_code_sizes": [
+      "238",
+      "398",
+      "398",
+      "533",
+      "268",
+      "301"
+    ]
+  },
+  {
+    "name": "fib",
+    "tier": "disabled",
+    "baseline_sha256": "10cf3b5b8cae044a02671779d3509f65a806a397c0deea03cffae34c150f0218",
+    "candidate_sha256": "10cf3b5b8cae044a02671779d3509f65a806a397c0deea03cffae34c150f0218",
+    "full_diffable_text_equal": true,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (FullOpts)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_rec(long):long (FullOpts)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_fib_iter(long):long (FullOpts)"
+    ],
+    "baseline_code_sizes": [
+      "155",
+      "205"
+    ],
+    "candidate_code_sizes": [
+      "155",
+      "205"
+    ]
+  },
+  {
+    "name": "mandelbrot",
+    "tier": "default",
+    "baseline_sha256": "bb412dccf4e1f089d569e0f3aece0cf914cf0a318ac95ca0204101b82c968229",
+    "candidate_sha256": "f02618c08b6e93027a07a8ff0d81abc43949c5491d2d611cd491ff67b4eb8c99",
+    "full_diffable_text_equal": false,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Tier1)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Tier1-OSR)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (Tier1)"
+    ],
+    "baseline_code_sizes": [
+      "687",
+      "696",
+      "687",
+      "629",
+      "877"
+    ],
+    "candidate_code_sizes": [
+      "687",
+      "696",
+      "687",
+      "629",
+      "884"
+    ]
+  },
+  {
+    "name": "mandelbrot",
+    "tier": "disabled",
+    "baseline_sha256": "8624f3f66682160369ca67ab2e108bcd06c2989990019875cf7390dea5431256",
+    "candidate_sha256": "8624f3f66682160369ca67ab2e108bcd06c2989990019875cf7390dea5431256",
+    "full_diffable_text_equal": true,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (FullOpts)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_mandel(double,double,long):long (FullOpts)"
+    ],
+    "baseline_code_sizes": [
+      "370"
+    ],
+    "candidate_code_sizes": [
+      "370"
+    ]
+  },
+  {
+    "name": "matmul",
+    "tier": "default",
+    "baseline_sha256": "794705a0ef35bdb4f7d6a9601fca67a8dbc9bfdf3d7fa54968e7618bdfb362ef",
+    "candidate_sha256": "794705a0ef35bdb4f7d6a9601fca67a8dbc9bfdf3d7fa54968e7618bdfb362ef",
+    "full_diffable_text_equal": true,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "baseline_code_sizes": [
+      "1906",
+      "4240",
+      "47"
+    ],
+    "candidate_code_sizes": [
+      "1906",
+      "4240",
+      "47"
+    ]
+  },
+  {
+    "name": "matmul",
+    "tier": "disabled",
+    "baseline_sha256": "26b766d4b40c55a8910f8bfacbb0ca899114e1dc62ed2583f49368e54aee17ac",
+    "candidate_sha256": "26b766d4b40c55a8910f8bfacbb0ca899114e1dc62ed2583f49368e54aee17ac",
+    "full_diffable_text_equal": true,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_matmul(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_matmul(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "baseline_code_sizes": [
+      "2442",
+      "47"
+    ],
+    "candidate_code_sizes": [
+      "2442",
+      "47"
+    ]
+  },
+  {
+    "name": "nbody",
+    "tier": "default",
+    "baseline_sha256": "4886e7fb4ea519ec6f93a40c54a11468521f2df5bf48c143ebc488d24a27b6ac",
+    "candidate_sha256": "4886e7fb4ea519ec6f93a40c54a11468521f2df5bf48c143ebc488d24a27b6ac",
+    "full_diffable_text_equal": true,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Instrumented Tier0)",
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (Tier1-OSR)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "baseline_code_sizes": [
+      "5531",
+      "8658",
+      "47"
+    ],
+    "candidate_code_sizes": [
+      "5531",
+      "8658",
+      "47"
+    ]
+  },
+  {
+    "name": "nbody",
+    "tier": "disabled",
+    "baseline_sha256": "71ae747e48d0d83052d5075fb1f479936e2a16525f2a5c598c904c65c7fde729",
+    "candidate_sha256": "71ae747e48d0d83052d5075fb1f479936e2a16525f2a5c598c904c65c7fde729",
+    "full_diffable_text_equal": true,
+    "baseline_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "candidate_methods": [
+      "; Assembly listing for method RyuPy.Generated.Module:m0_advance(System.Object,System.Object,System.Object):System.Object (FullOpts)",
+      "; Assembly listing for method (dynamicClass):InvokeStub_Module.m0_advance(System.Object,System.Span`1[System.Object]):System.Object (FullOpts)"
+    ],
+    "baseline_code_sizes": [
+      "8106",
+      "47"
+    ],
+    "candidate_code_sizes": [
+      "8106",
+      "47"
+    ]
+  }
+]

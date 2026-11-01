@@ -1,0 +1,39 @@
+semantics swap True
+sample swap 6.21310027781874e-05 True
+sample swap 4.105400148546323e-05 True
+sample swap 3.911100066034123e-05 True
+sample swap 7.385900244116783e-05 True
+sample swap 3.938400186598301e-05 True
+sample swap 3.9018996176309884e-05 True
+sample swap 3.901699528796598e-05 True
+semantics read True
+sample read 3.921300231013447e-05 True
+sample read 0.0002115889947162941 True
+sample read 3.321399708511308e-05 True
+sample read 6.413799565052614e-05 True
+sample read 3.934499545721337e-05 True
+sample read 3.323800046928227e-05 True
+sample read 3.438400017330423e-05 True
+semantics escape True
+sample escape 0.005684237999957986 True
+sample escape 0.0010144330008188263 True
+sample escape 0.0015237409970723093 True
+sample escape 0.0012016030013910495 True
+sample escape 0.0015463109957636334 True
+sample escape 0.003391915000975132 True
+sample escape 0.001507537999714259 True
+allocation swap 0 64 20001 0.0031998400079996
+allocation swap 1 64 20001 0.0031998400079996
+allocation swap 2 64 20001 0.0031998400079996
+allocation swap 3 64 20001 0.0031998400079996
+allocation swap 4 64 20001 0.0031998400079996
+allocation read 0 0 20001 0
+allocation read 1 0 20001 0
+allocation read 2 0 20001 0
+allocation read 3 0 20001 0
+allocation read 4 0 20001 0
+allocation escape 0 1280088 20001 64.001199940003
+allocation escape 1 1280088 20001 64.001199940003
+allocation escape 2 1280088 20001 64.001199940003
+allocation escape 3 1280088 20001 64.001199940003
+allocation escape 4 1280088 20001 64.001199940003

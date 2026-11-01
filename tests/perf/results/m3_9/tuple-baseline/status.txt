@@ -1,0 +1,33 @@
+ M TODO.md
+ M crates/ryupy-cli/src/main.rs
+ M crates/ryupy-codegen-cil/src/lib.rs
+ M crates/ryupy-codegen-cil/src/stackify_rvalue.rs
+ M crates/ryupy-driver/src/lib.rs
+ M crates/ryupy-mir/src/lib.rs
+ M crates/ryupy-mir/src/link.rs
+ M crates/ryupy-mir/src/mir.rs
+ M crates/ryupy-mir/src/passes/dead_values.rs
+ M crates/ryupy-mir/src/passes/mod.rs
+ M crates/ryupy-mir/src/passes/numeric_accumulator.rs
+ M crates/ryupy-mir/src/passes/numeric_accumulator_tests.rs
+ M crates/ryupy-mir/src/pretty.rs
+ M crates/ryupy-mir/src/validate.rs
+ M docs/optimization.md
+ M docs/roadmap.md
+?? crates/ryupy-codegen-cil/src/exact_i64_tests.rs
+?? crates/ryupy-driver/tests/direct_accumulator.rs
+?? crates/ryupy-driver/tests/snapshots/direct_accumulator__direct_accumulator_mir.snap
+?? crates/ryupy-mir/src/exact_types.rs
+?? crates/ryupy-mir/src/exact_types_tests.rs
+?? crates/ryupy-mir/src/passes/numeric_accumulator_expand.rs
+?? crates/ryupy-mir/src/passes/numeric_accumulator_holder.rs
+?? crates/ryupy-mir/src/passes/numeric_accumulator_match.rs
+?? crates/ryupy-mir/src/validate_runtime_calls.rs
+?? docs/adr/0033-direct-cil-guarded-accumulator.md
+?? tests/e2e/phase3/m3_9_direct_accumulator.py
+?? tests/e2e/phase3/m3_9_tuple_scalar.py
+?? tests/perf/accumulator_guards.py
+?? tests/perf/accumulator_range.py
+?? tests/perf/compare_accumulator_guards.py
+?? tests/perf/results/m3_9/
+?? tests/perf/tuple_scalar.py

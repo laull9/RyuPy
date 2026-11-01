@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/bigint.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/bigint"
+  ],
+  "compile_ms": 10.976124998705927,
+  "exit_code": 0,
+  "dll_sha256": "fcfa8ea2961720a7cee7c85719893cc822d09d8253ec92986e8b6ea0c0764154"
+}

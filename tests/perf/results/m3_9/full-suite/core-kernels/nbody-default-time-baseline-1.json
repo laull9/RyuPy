@@ -1,0 +1,64 @@
+{
+  "name": "nbody",
+  "tier": "default",
+  "mode": "time",
+  "variant": "baseline",
+  "repeat": 1,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/nbody/nbody.dll",
+    "nbody",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 9799.69382899435,
+  "maxrss": 60133376,
+  "samples": [
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 0,
+      "elapsed_ms": 784.6473
+    },
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 1,
+      "elapsed_ms": 809.493
+    },
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 2,
+      "elapsed_ms": 804.9321
+    },
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 3,
+      "elapsed_ms": 779.7896
+    },
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 4,
+      "elapsed_ms": 823.3382
+    },
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 5,
+      "elapsed_ms": 809.7751
+    },
+    {
+      "kind": "kernel_time",
+      "name": "nbody",
+      "sample": 6,
+      "elapsed_ms": 808.6072
+    }
+  ]
+}

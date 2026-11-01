@@ -1,0 +1,226 @@
+[
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "call_true",
+    "baseline_seconds": 0.0015067860003910027,
+    "candidate_seconds": 0.0012738840014208108,
+    "change_percent": -15.456873033712492
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "call_false",
+    "baseline_seconds": 0.0017378619959345087,
+    "candidate_seconds": 0.001283193996641785,
+    "change_percent": -26.16249163376365
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "loop_true",
+    "baseline_seconds": 0.0011075369984610006,
+    "candidate_seconds": 0.0009109879974857904,
+    "change_percent": -17.746495263664208
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "loop_false",
+    "baseline_seconds": 0.0008295700026792474,
+    "candidate_seconds": 0.000745056000596378,
+    "change_percent": -10.18768781536411
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "unknown_int",
+    "baseline_seconds": 0.0017093049973482266,
+    "candidate_seconds": 0.0015639569974155165,
+    "change_percent": -8.50333908566343
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "unknown_bool",
+    "baseline_seconds": 0.0031165389955276623,
+    "candidate_seconds": 0.0036746709956787527,
+    "change_percent": 17.908712226993728
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "unknown_overflow",
+    "baseline_seconds": 0.0090916230037692,
+    "candidate_seconds": 0.01123389600252267,
+    "change_percent": 23.56315256214789
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "call_true",
+    "baseline_seconds": 0.0007651470004930161,
+    "candidate_seconds": 0.0005795070028398186,
+    "change_percent": -24.262004233641633
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "call_false",
+    "baseline_seconds": 0.0005054489956819452,
+    "candidate_seconds": 0.00047032400470925495,
+    "change_percent": -6.949265162808382
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "loop_true",
+    "baseline_seconds": 0.0005379509966587648,
+    "candidate_seconds": 0.0005812640010844916,
+    "change_percent": 8.05147768007599
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "loop_false",
+    "baseline_seconds": 0.000606720001087524,
+    "candidate_seconds": 0.000498241999594029,
+    "change_percent": -17.87941740820346
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "unknown_int",
+    "baseline_seconds": 0.0005460510001285002,
+    "candidate_seconds": 0.000597423997533042,
+    "change_percent": 9.408095103287506
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "unknown_bool",
+    "baseline_seconds": 0.0014084939975873567,
+    "candidate_seconds": 0.001319261995377019,
+    "change_percent": -6.335277421358221
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "unknown_overflow",
+    "baseline_seconds": 0.0057311580021632835,
+    "candidate_seconds": 0.007608992003952153,
+    "change_percent": 32.7653504070218
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "call_true",
+    "baseline_seconds": 0.001570463995449245,
+    "candidate_seconds": 0.0009740810055518523,
+    "change_percent": -37.97495463923654
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "call_false",
+    "baseline_seconds": 0.0015549689996987581,
+    "candidate_seconds": 0.001102374000765849,
+    "change_percent": -29.106367973933235
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "loop_true",
+    "baseline_seconds": 0.0016828430016175844,
+    "candidate_seconds": 0.0008691600014572032,
+    "change_percent": -48.351688147869524
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "loop_false",
+    "baseline_seconds": 0.0017511370024294592,
+    "candidate_seconds": 0.0009738689986988902,
+    "change_percent": -44.38647590977849
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "unknown_int",
+    "baseline_seconds": 0.0015306100031011738,
+    "candidate_seconds": 0.0014326429954962805,
+    "change_percent": -6.400520537981724
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "unknown_bool",
+    "baseline_seconds": 0.002751571999397129,
+    "candidate_seconds": 0.0027886039970326237,
+    "change_percent": 1.3458487600400248
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "unknown_overflow",
+    "baseline_seconds": 0.009172512996883597,
+    "candidate_seconds": 0.010069009003927931,
+    "change_percent": 9.773722941018704
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "call_true",
+    "baseline_seconds": 0.0004563769980450161,
+    "candidate_seconds": 0.0004317310012993403,
+    "change_percent": -5.40035910031661
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "call_false",
+    "baseline_seconds": 0.00045288699766388163,
+    "candidate_seconds": 0.00044339099986245856,
+    "change_percent": -2.0967698013866776
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "loop_true",
+    "baseline_seconds": 0.0007336600028793328,
+    "candidate_seconds": 0.0005151829973328859,
+    "change_percent": -29.779053606440154
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "loop_false",
+    "baseline_seconds": 0.0016448840033262968,
+    "candidate_seconds": 0.0005137140033184551,
+    "change_percent": -68.76898296295552
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "unknown_int",
+    "baseline_seconds": 0.0005243129999144003,
+    "candidate_seconds": 0.00046093499986454844,
+    "change_percent": -12.08781778445298
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "unknown_bool",
+    "baseline_seconds": 0.0014488510059891269,
+    "candidate_seconds": 0.001275030997931026,
+    "change_percent": -11.997093375342239
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "unknown_overflow",
+    "baseline_seconds": 0.005570253997575492,
+    "candidate_seconds": 0.008611224999185652,
+    "change_percent": 54.593040154610065
+  }
+]

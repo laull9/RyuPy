@@ -1,0 +1,118 @@
+[1/26] hello ...
+BENCH_STATUS hello ok
+[2/26] fib ...
+BENCH_STATUS fib ok
+[3/26] mandelbrot ...
+BENCH_STATUS mandelbrot ok
+[4/26] bigint ...
+BENCH_STATUS bigint ok
+[5/26] matmul ...
+BENCH_STATUS matmul ok
+[6/26] nbody ...
+BENCH_STATUS nbody ok
+[7/26] sieve ...
+BENCH_STATUS sieve ok
+[8/26] spectral_norm ...
+BENCH_STATUS spectral_norm ok
+[9/26] calls ...
+BENCH_STATUS calls ok
+[10/26] dynamic ...
+BENCH_STATUS dynamic ok
+[11/26] attrs ...
+BENCH_STATUS attrs ok
+[12/26] oop ...
+BENCH_STATUS oop ok
+[13/26] containers ...
+BENCH_STATUS containers ok
+[14/26] dict_ops ...
+BENCH_STATUS dict_ops ok
+[15/26] list_ops ...
+BENCH_STATUS list_ops ok
+[16/26] set_tuple ...
+BENCH_STATUS set_tuple ok
+[17/26] str_concat ...
+BENCH_STATUS str_concat ok
+[18/26] strings ...
+BENCH_STATUS strings ok
+[19/26] nqueens ...
+BENCH_STATUS nqueens ok
+[20/26] sorting ...
+BENCH_STATUS sorting ok
+[21/26] exceptions ...
+BENCH_STATUS exceptions ok
+[22/26] records ...
+BENCH_STATUS records ok
+[23/26] closures ...
+BENCH_STATUS closures ok
+[24/26] comprehensions ...
+BENCH_STATUS comprehensions ready
+[25/26] decorators ...
+BENCH_STATUS decorators ready
+[26/26] generators ...
+BENCH_STATUS generators ready
+
+| 基准 | 类别 | CPython ms | RyuPy ms | 加速比 | RyuPy 执行 ms | 波动 | 状态 |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| hello | startup | 44.0 | 163 | 0.27x | 11.1 | 17% | ✓ ⚠波动 |
+| fib | static | 648 | 371 | 1.75x | 164 | 34% | ✓ ⚠波动 |
+| mandelbrot | static | 3053 | 520 | 5.87x | 347 | 30% | ✓ ⚠波动 |
+| bigint | numeric | 235 | 520 | 0.45x | 338 | 14% | ✓ ⚠波动 |
+| matmul | numeric | 171 | 698 | 0.25x | 511 | 69% | ✓ ⚠波动 |
+| nbody | numeric | 759 | 1372 | 0.55x | 1187 | 40% | ✓ ⚠波动 |
+| sieve | numeric | 297 | 842 | 0.35x | 649 | 17% | ✓ ⚠波动 |
+| spectral_norm | numeric | 212 | 314 | 0.67x | 144 | 15% | ✓ ⚠波动 |
+| calls | dynamic | 400 | 560 | 0.71x | 378 | 13% | ✓ ⚠波动 |
+| dynamic | dynamic | 506 | 618 | 0.82x | 411 | 23% | ✓ ⚠波动 |
+| ↳ PIC 关闭 | | 506 | 958 | 0.53x | 767 | | |
+| attrs | objects | 348 | 431 | 0.81x | 287 | 10% | ✓ ⚠波动 |
+| oop | objects | 206 | 465 | 0.44x | 296 | 4% | ✓ |
+| containers | containers | 114 | 845 | 0.13x | 664 | 14% | ✓ ⚠波动 |
+| dict_ops | containers | 176 | 379 | 0.47x | 225 | 19% | ✓ ⚠波动 |
+| list_ops | containers | 181 | 532 | 0.34x | 352 | 7% | ✓ |
+| set_tuple | containers | 227 | 545 | 0.42x | 350 | 21% | ✓ ⚠波动 |
+| str_concat | strings | 783 | 3967 | 0.20x | 3804 | 3% | ✓ |
+| strings | strings | 177 | 527 | 0.34x | 361 | 17% | ✓ ⚠波动 |
+| nqueens | algorithms | 185 | 343 | 0.54x | 183 | 22% | ✓ ⚠波动 |
+| sorting | algorithms | 329 | 709 | 0.46x | 504 | 26% | ✓ ⚠波动 |
+| exceptions | control | 162 | 421 | 0.39x | 271 | 2% | ✓ |
+| records | project | 235 | 661 | 0.36x | 503 | 43% | ✓ ⚠波动 |
+| closures | phase3 | 275 | 340 | 0.81x | 198 | 13% | ✓ ⚠波动 |
+| comprehensions | phase3 | 135 | 524 | 0.26x | 374 | 6% | 可转正（M3.1） |
+| decorators | phase3 | 219 | 598 | 0.37x | 455 | 29% | 可转正（M3.3） ⚠波动 |
+| generators | phase3 | 294 | 1148 | 0.26x | 996 | 1% | 可转正（M3.2） |
+
+几何平均加速比（CPython / RyuPy，>1 更快）：**0.52x**；按类别：static 3.20x，numeric 0.43x，dynamic 0.76x，objects 0.60x，containers 0.31x，strings 0.26x，algorithms 0.50x，control 0.39x，project 0.36x，phase3 0.81x
+启动成本（hello，墙钟中位数）：CPython 44.0 ms，RyuPy 163 ms；「执行 ms」是进程内计时，不含这部分启动成本。
+口径：x86_64，Linux-6.18.57-x86_64-with-glibc2.41；CPython 3.12.13，.NET 10.0.403，提交 e1c1ee1+dirty；1 次热身 + 3 次计时取中位数（墙钟含进程启动）。
+
+| 基准 | RyuPy 分配 MB | GC 0/1/2 | GC 暂停 ms | JIT ms（方法数） | 峰值内存 MB CPython / RyuPy | 编译 ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| hello | 0.4 | 0/0/0 | 0.0 | 136（181） | 23.8 / 36.5 | 4.0 |
+| fib | 0.4 | 0/0/0 | 0.0 | 190（186） | 23.8 / 36.6 | 8.2 |
+| mandelbrot | 7.9 | 1/0/0 | 0.8 | 139（184） | 23.8 / 40.7 | 8.3 |
+| bigint | 118.9 | 29/0/0 | 8.6 | 229（233） | 23.8 / 44.1 | 4.7 |
+| matmul | 144.2 | 34/1/0 | 16.6 | 155（217） | 23.8 / 47.4 | 5.6 |
+| nbody | 651.1 | 162/1/0 | 37.2 | 365（229） | 23.8 / 52.1 | 5.7 |
+| sieve | 133.9 | 26/2/1 | 214.9 | 195（210） | 27.4 / 74.5 | 13.3 |
+| spectral_norm | 73.6 | 17/1/0 | 4.8 | 186（225） | 23.8 / 47.0 | 5.7 |
+| calls | 400.1 | 100/0/0 | 11.7 | 186（202） | 23.8 / 43.5 | 5.2 |
+| dynamic | 232.2 | 56/1/0 | 7.6 | 259（231） | 23.8 / 43.5 | 5.2 |
+| attrs | 168.1 | 40/1/0 | 5.3 | 194（252） | 23.8 / 50.9 | 4.5 |
+| oop | 99.4 | 23/1/0 | 7.3 | 231（257） | 23.8 / 48.7 | 4.4 |
+| containers | 2417.5 | 458/30/28 | 84.4 | 202（208） | 30.1 / 129.4 | 4.1 |
+| dict_ops | 68.4 | 14/3/2 | 16.5 | 191（227） | 25.1 / 63.6 | 7.7 |
+| list_ops | 116.8 | 18/6/3 | 104.0 | 222（236） | 35.2 / 96.6 | 4.4 |
+| set_tuple | 142.4 | 32/6/3 | 38.4 | 245（240） | 28.2 / 72.7 | 4.2 |
+| str_concat | 19103.3 | 2792/2574/2573 | 557.5 | 187（208） | 23.8 / 60.1 | 4.3 |
+| strings | 158.8 | 33/5/2 | 38.8 | 219（248） | 23.8 / 66.4 | 6.4 |
+| nqueens | 3.4 | 0/0/0 | 0.0 | 149（209） | 23.8 / 39.5 | 6.5 |
+| sorting | 64.2 | 7/5/3 | 71.8 | 232（229） | 37.4 / 77.9 | 4.5 |
+| exceptions | 93.9 | 22/1/0 | 4.0 | 151（228） | 23.8 / 45.3 | 3.9 |
+| records | 85.2 | 16/7/3 | 84.8 | 242（303） | 29.9 / 74.4 | 6.7 |
+| closures | 104.2 | 23/2/1 | 8.2 | 151（230） | 23.8 / 47.0 | 4.3 |
+| comprehensions | 121.9 | 18/10/5 | 138.9 | 164（244） | 23.8 / 68.3 | 6.0 |
+| decorators | 365.7 | 90/1/0 | 9.5 | 146（219） | 23.8 / 44.2 | 5.6 |
+| generators | 187.1 | 37/6/2 | 140.9 | 173（242） | 23.8 / 92.8 | 4.7 |
+
+结果已保存：/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/results/suite.json
+[可转正] 以下 pending 基准已能跑通，去掉 `# bench: pending=`：comprehensions, decorators, generators

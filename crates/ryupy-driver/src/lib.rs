@@ -21,6 +21,11 @@ use ryupy_base::{Diagnostics, FileId, SourceDb};
 pub struct Session {
     pub sources: SourceDb,
     pub diagnostics: Diagnostics,
+    /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
+    /// 仅控制本次会话的 MIR 流水线，不从进程环境隐式读取，也不改变语言语义。
+    pub experimental_direct_accumulator: bool,
+    /// 实验：精确Int64实参的受守卫纯叶内联；guard失败性能未达默认门槛。
+    pub experimental_leaf_inline: bool,
 }
 
 impl Session {
@@ -114,8 +119,14 @@ fn compile_module(
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline())
-        .map_err(|e| anyhow::anyhow!(e))?;
+    ryupy_mir::passes::run_pipeline(
+        &mut mir,
+        &ryupy_mir::passes::pipeline_with_options(
+            sess.experimental_direct_accumulator,
+            sess.experimental_leaf_inline,
+        ),
+    )
+    .map_err(|e| anyhow::anyhow!(e))?;
     if let Err(errs) = ryupy_mir::validate::validate(&mir) {
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
@@ -273,8 +284,14 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(&mut mir, &ryupy_mir::passes::default_pipeline())
-        .map_err(|e| anyhow::anyhow!(e))?;
+    ryupy_mir::passes::run_pipeline(
+        &mut mir,
+        &ryupy_mir::passes::pipeline_with_options(
+            sess.experimental_direct_accumulator,
+            sess.experimental_leaf_inline,
+        ),
+    )
+    .map_err(|e| anyhow::anyhow!(e))?;
     if stage == Stage::Mir {
         return Ok(ryupy_mir::pretty::dump(&mir));
     }

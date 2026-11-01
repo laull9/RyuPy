@@ -1,0 +1,482 @@
+[
+  {
+    "which": "baseline",
+    "name": "fib",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/fib/fib.dll",
+      "fib",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "b2ed6c7fb1c44398252a1fb69a681bbf08072183458d9a13983e988fcdfc8dbe"
+  },
+  {
+    "which": "baseline",
+    "name": "fib",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/fib/fib.dll",
+      "fib",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "10cf3b5b8cae044a02671779d3509f65a806a397c0deea03cffae34c150f0218"
+  },
+  {
+    "which": "baseline",
+    "name": "mandelbrot",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/mandelbrot/mandelbrot.dll",
+      "mandelbrot",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/mandelbrot.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "bb412dccf4e1f089d569e0f3aece0cf914cf0a318ac95ca0204101b82c968229"
+  },
+  {
+    "which": "baseline",
+    "name": "mandelbrot",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/mandelbrot/mandelbrot.dll",
+      "mandelbrot",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/mandelbrot.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "8624f3f66682160369ca67ab2e108bcd06c2989990019875cf7390dea5431256"
+  },
+  {
+    "which": "baseline",
+    "name": "matmul",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 41.932,
+        "jit_ms": 6.0141,
+        "jit_methods": 6
+      }
+    ],
+    "asm_sha256": "794705a0ef35bdb4f7d6a9601fca67a8dbc9bfdf3d7fa54968e7618bdfb362ef"
+  },
+  {
+    "which": "baseline",
+    "name": "matmul",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 24.022,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "26b766d4b40c55a8910f8bfacbb0ca899114e1dc62ed2583f49368e54aee17ac"
+  },
+  {
+    "which": "baseline",
+    "name": "nbody",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 36.652,
+        "jit_ms": 3.3815,
+        "jit_methods": 5
+      }
+    ],
+    "asm_sha256": "4886e7fb4ea519ec6f93a40c54a11468521f2df5bf48c143ebc488d24a27b6ac"
+  },
+  {
+    "which": "baseline",
+    "name": "nbody",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 37.093,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "71ae747e48d0d83052d5075fb1f479936e2a16525f2a5c598c904c65c7fde729"
+  },
+  {
+    "which": "candidate",
+    "name": "fib",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/fib/fib.dll",
+      "fib",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "2da21bd7bcd0b4c7653d82669ebe19e082d59d62f0fd13e90b206b2759af0548"
+  },
+  {
+    "which": "candidate",
+    "name": "fib",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/fib/fib.dll",
+      "fib",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "10cf3b5b8cae044a02671779d3509f65a806a397c0deea03cffae34c150f0218"
+  },
+  {
+    "which": "candidate",
+    "name": "mandelbrot",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/mandelbrot/mandelbrot.dll",
+      "mandelbrot",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/mandelbrot.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "f02618c08b6e93027a07a8ff0d81abc43949c5491d2d611cd491ff67b4eb8c99"
+  },
+  {
+    "which": "candidate",
+    "name": "mandelbrot",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/mandelbrot/mandelbrot.dll",
+      "mandelbrot",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/mandelbrot.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "8624f3f66682160369ca67ab2e108bcd06c2989990019875cf7390dea5431256"
+  },
+  {
+    "which": "candidate",
+    "name": "matmul",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 23.29,
+        "jit_ms": 6.7668,
+        "jit_methods": 1
+      }
+    ],
+    "asm_sha256": "794705a0ef35bdb4f7d6a9601fca67a8dbc9bfdf3d7fa54968e7618bdfb362ef"
+  },
+  {
+    "which": "candidate",
+    "name": "matmul",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/matmul/matmul.dll",
+      "matmul",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/matmul.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 29.793,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "26b766d4b40c55a8910f8bfacbb0ca899114e1dc62ed2583f49368e54aee17ac"
+  },
+  {
+    "which": "candidate",
+    "name": "nbody",
+    "tier": "default",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 33.68,
+        "jit_ms": 4.5566,
+        "jit_methods": 6
+      }
+    ],
+    "asm_sha256": "4886e7fb4ea519ec6f93a40c54a11468521f2df5bf48c143ebc488d24a27b6ac"
+  },
+  {
+    "which": "candidate",
+    "name": "nbody",
+    "tier": "disabled",
+    "command": [
+      "dotnet",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/nbody/nbody.dll",
+      "nbody",
+      "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+      "resources",
+      "3",
+      "1"
+    ],
+    "resources": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 32.759,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "asm_sha256": "71ae747e48d0d83052d5075fb1f479936e2a16525f2a5c598c904c65c7fde729"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "default_baseline": {
+    "range_int": 0.0019111299989162944
+  },
+  "default_cold": {
+    "range_int": 0.0025045430011232384
+  },
+  "default_null": {
+    "range_int": 0.0019907700043404475
+  },
+  "disabled_baseline": {
+    "range_int": 0.001974742997845169
+  },
+  "disabled_cold": {
+    "range_int": 0.003104653995251283
+  },
+  "disabled_null": {
+    "range_int": 0.0032240080035990104
+  }
+}

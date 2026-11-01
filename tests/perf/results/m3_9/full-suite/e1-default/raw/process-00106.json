@@ -1,0 +1,24 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/containers/containers.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 741.7156390001765,
+  "maxrss": 166899712,
+  "stats": {
+    "main_ms": 627.718,
+    "alloc_bytes": 2534930128,
+    "gc0": 455,
+    "gc1": 27,
+    "gc2": 25,
+    "gc_pause_ms": 78.693,
+    "jit_ms": 88.619,
+    "jit_methods": 366,
+    "heap_bytes": 28940608
+  },
+  "exit_code": 0,
+  "environment": {
+    "PYTHONHASHSEED": "0"
+  }
+}

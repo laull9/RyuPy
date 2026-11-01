@@ -1,0 +1,12 @@
+{
+  "default_baseline": {
+    "construction": 0.005899992997001391,
+    "field_reads": 0.002582344000984449,
+    "equality": 0.022703866998199373
+  },
+  "disabled_baseline": {
+    "construction": 0.0038438789997599088,
+    "field_reads": 0.0023063379994709976,
+    "equality": 0.017416436996427365
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/comprehensions.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/comprehensions"
+  ],
+  "compile_ms": 15.09150199854048,
+  "exit_code": 0,
+  "dll_sha256": "fa9e6660e7350acd6ee75bbb12cb3512a5c58ecde2ca20e2fdfdb8ca97a7bf2f"
+}

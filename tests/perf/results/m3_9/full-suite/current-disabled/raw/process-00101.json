@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "-B",
+    "/workspace/shared/RyuPy/tests/benchlib/cpython_harness.py",
+    "/workspace/shared/RyuPy/tests/benchmarks/containers.py"
+  ],
+  "stats_env": null,
+  "wall_ms": 134.85871099692304,
+  "maxrss": 31543296,
+  "stats": {
+    "main_ms": 97.42967499914812,
+    "gc0": 11,
+    "gc1": 1,
+    "gc2": 0
+  },
+  "exit_code": 0,
+  "environment": {
+    "DOTNET_TieredCompilation": "0",
+    "PYTHONHASHSEED": "0"
+  }
+}

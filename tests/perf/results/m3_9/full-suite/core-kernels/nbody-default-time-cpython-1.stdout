@@ -1,0 +1,7 @@
+{"name": "nbody", "sample": 0, "kind": "kernel_time", "elapsed_ms": 724.6443550029653}
+{"name": "nbody", "sample": 1, "kind": "kernel_time", "elapsed_ms": 930.3072040056577}
+{"name": "nbody", "sample": 2, "kind": "kernel_time", "elapsed_ms": 670.2648470018175}
+{"name": "nbody", "sample": 3, "kind": "kernel_time", "elapsed_ms": 746.0988969978644}
+{"name": "nbody", "sample": 4, "kind": "kernel_time", "elapsed_ms": 1102.2295660004602}
+{"name": "nbody", "sample": 5, "kind": "kernel_time", "elapsed_ms": 772.1545579988742}
+{"name": "nbody", "sample": 6, "kind": "kernel_time", "elapsed_ms": 814.6237019973341}

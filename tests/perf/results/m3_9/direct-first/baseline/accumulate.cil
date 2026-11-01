@@ -1,0 +1,130 @@
+    .method public static [System.Runtime]System.Object m0_accumulate([System.Runtime]System.Object, [System.Runtime]System.Object) cil managed
+    {
+        .locals init (
+            [0] [System.Runtime]System.Object,
+            [1] [System.Runtime]System.Object,
+            [2] long,
+            [3] [System.Runtime]System.Object,
+            [4] [System.Runtime]System.Object,
+            [5] long,
+            [6] long,
+            [7] long,
+            [8] long,
+            [9] long,
+            [10] bool,
+            [11] bool,
+            [12] bool,
+            [13] bool,
+            [14] bool,
+            [15] bool,
+            [16] bool,
+            [17] [System.Runtime]System.Object,
+            [18] [System.Runtime]System.Object,
+            [19] [System.Runtime]System.Object,
+            [20] [System.Runtime]System.Object,
+            [21] [System.Runtime]System.Object
+        )
+        IL_0000: LoadString("accumulator_guards.py")
+        IL_0001: LoadString("accumulate")
+        IL_0002: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PushFrame(string, string))
+        IL_0003: StoreLocal(2)
+        IL_0004: LoadConstantInt32(8)
+        IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0006: LoadArgument(0)
+        IL_0007: StoreLocal(0)
+        IL_0008: LoadConstantInt32(10)
+        IL_0009: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_000a: LoadStaticField(RyuPy.Generated.Module.__lit_3)
+        IL_000b: StoreLocal(3)
+        IL_000c: LoadString("len")
+        IL_000d: LoadConstantInt32(1)
+        IL_000e: NewArray([System.Runtime]System.Object)
+        IL_000f: Duplicate
+        IL_0010: LoadConstantInt32(0)
+        IL_0011: LoadArgument(1)
+        IL_0012: StoreElement([System.Runtime]System.Object)
+        IL_0013: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyOps.EmptyArray())
+        IL_0014: Call(static object[] [RyuPy.Runtime]RyuPy.Runtime.PyOps.EmptyArray())
+        IL_0015: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.CallBuiltin(string, object[], object[], object[]))
+        IL_0016: StoreLocal(4)
+        IL_0017: LoadLocal(3)
+        IL_0018: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
+        IL_0019: StoreLocal(5)
+        IL_001a: LoadLocal(4)
+        IL_001b: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
+        IL_001c: StoreLocal(6)
+        IL_001d: LoadLocal(5)
+        IL_001e: StoreLocal(7)
+        IL_001f: LoadLocal(6)
+        IL_0020: StoreLocal(8)
+        IL_0021: LoadConstantInt64(1)
+        IL_0022: StoreLocal(9)
+        IL_0023: LoadLocal(0)
+        IL_0024: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyNumericAccumulator.Create(object))
+        IL_0025: StoreLocal(21)
+        IL_0026: Branch(39)
+        IL_0027: LoadLocal(9)
+        IL_0028: LoadConstantInt64(0)
+        IL_0029: CompareGreater(Signed)
+        IL_002a: StoreLocal(10)
+        IL_002b: LoadLocal(7)
+        IL_002c: LoadLocal(8)
+        IL_002d: CompareLess(Signed)
+        IL_002e: StoreLocal(11)
+        IL_002f: LoadLocal(7)
+        IL_0030: LoadLocal(8)
+        IL_0031: CompareGreater(Signed)
+        IL_0032: StoreLocal(12)
+        IL_0033: LoadLocal(10)
+        IL_0034: LoadLocal(11)
+        IL_0035: And
+        IL_0036: StoreLocal(13)
+        IL_0037: LoadLocal(10)
+        IL_0038: LoadConstantInt32(0)
+        IL_0039: CompareEqual
+        IL_003a: StoreLocal(14)
+        IL_003b: LoadLocal(14)
+        IL_003c: LoadLocal(12)
+        IL_003d: And
+        IL_003e: StoreLocal(15)
+        IL_003f: LoadLocal(13)
+        IL_0040: LoadLocal(15)
+        IL_0041: Or
+        IL_0042: StoreLocal(16)
+        IL_0043: LoadLocal(16)
+        IL_0044: BranchTruthy(70)
+        IL_0045: Branch(90)
+        IL_0046: LoadLocal(7)
+        IL_0047: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long))
+        IL_0048: StoreLocal(17)
+        IL_0049: LoadLocal(17)
+        IL_004a: StoreLocal(1)
+        IL_004b: LoadConstantInt32(11)
+        IL_004c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_004d: LoadArgument(1)
+        IL_004e: LoadLocal(1)
+        IL_004f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.GetItem(object, object))
+        IL_0050: StoreLocal(18)
+        IL_0051: LoadLocal(21)
+        IL_0052: LoadLocal(18)
+        IL_0053: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyNumericAccumulator.Add(object, object))
+        IL_0054: Branch(85)
+        IL_0055: LoadLocal(7)
+        IL_0056: LoadLocal(9)
+        IL_0057: AddOverflow(Signed)
+        IL_0058: StoreLocal(7)
+        IL_0059: Branch(39)
+        IL_005a: LoadLocal(21)
+        IL_005b: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyNumericAccumulator.Value(object))
+        IL_005c: StoreLocal(0)
+        IL_005d: LoadConstantInt32(12)
+        IL_005e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_005f: LoadLocal(0)
+        IL_0060: StoreLocal(20)
+        IL_0061: Branch(98)
+        IL_0062: LoadLocal(2)
+        IL_0063: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0064: LoadLocal(20)
+        IL_0065: Return
+    }
+

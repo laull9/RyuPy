@@ -1,0 +1,63 @@
+{
+  "name": "fib",
+  "tier": "default",
+  "mode": "time",
+  "variant": "cpython",
+  "repeat": 0,
+  "command": [
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core_cpython.py",
+    "/workspace/shared/RyuPy/tests/benchmarks/fib.py",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 9355.75529399648,
+  "maxrss": 16101376,
+  "samples": [
+    {
+      "name": "fib",
+      "sample": 0,
+      "kind": "kernel_time",
+      "elapsed_ms": 1097.2374150005635
+    },
+    {
+      "name": "fib",
+      "sample": 1,
+      "kind": "kernel_time",
+      "elapsed_ms": 771.2635710049653
+    },
+    {
+      "name": "fib",
+      "sample": 2,
+      "kind": "kernel_time",
+      "elapsed_ms": 996.6932300012559
+    },
+    {
+      "name": "fib",
+      "sample": 3,
+      "kind": "kernel_time",
+      "elapsed_ms": 1046.9555430026958
+    },
+    {
+      "name": "fib",
+      "sample": 4,
+      "kind": "kernel_time",
+      "elapsed_ms": 809.8564920001081
+    },
+    {
+      "name": "fib",
+      "sample": 5,
+      "kind": "kernel_time",
+      "elapsed_ms": 788.2844800042221
+    },
+    {
+      "name": "fib",
+      "sample": 6,
+      "kind": "kernel_time",
+      "elapsed_ms": 904.9424430049839
+    }
+  ]
+}

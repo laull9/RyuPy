@@ -1,0 +1,154 @@
+---
+source: crates/ryupy-driver/tests/tuple_scalar.rs
+expression: mir
+---
+fn swap(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // a
+    let _1: dyn; // b
+    let _2: i64;
+    let _3: dyn;
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_tuple_scalar.py", const "swap");
+        // line 2
+        _11 = _1;
+        _12 = _0;
+        _6 = _11;
+        _8 = _12;
+        _0 = _6;
+        _1 = _8;
+        // line 3
+        _10 = dyn.Add(_0, _1);
+        _9 = _10;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _9;
+    }
+}
+
+fn first(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // a
+    let _1: dyn; // b
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePush(const "ryupy_tuple_scalar.py", const "first");
+        // line 6
+        _7 = _0;
+        _6 = _7;
+        _3 = _6;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
+fn escape(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // a
+    let _1: dyn; // b
+    let _2: dyn; // pair
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "ryupy_tuple_scalar.py", const "escape");
+        // line 9
+        _4 = MakeTuple([_0, _1]);
+        _2 = _4;
+        // line 10
+        _5 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_5, _2);
+        RuntimeFn::WriteNewline(_5);
+        // line 11
+        _7 = box<I64>(const 0_i64);
+        _8 = RuntimeFn::GetItem(_2, _7);
+        _6 = _8;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_3);
+        return _6;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_tuple_scalar.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_tuple_scalar.py");
+        g2 = _3;
+        // line 1
+        // line 5
+        // line 8
+        // line 13
+        _4 = box<I64>(const 1_i64);
+        _5 = box<I64>(const 2_i64);
+        _6 = swap(_4, _5);
+        _7 = box<I64>(const 3_i64);
+        _8 = box<I64>(const 4_i64);
+        _9 = first(_7, _8);
+        _10 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_10, _6);
+        RuntimeFn::WriteSep(_10);
+        RuntimeFn::WriteObject(_10, _9);
+        RuntimeFn::WriteNewline(_10);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "mandelbrot",
+  "tier": "default",
+  "variant": "default",
+  "which": "baseline",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/mandelbrot/mandelbrot.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 482.1412829987821,
+  "maxrss": 42991616,
+  "stats": {
+    "main_ms": 368.159,
+    "alloc_bytes": 8274712,
+    "gc0": 1,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0.94,
+    "jit_ms": 96.709,
+    "jit_methods": 374,
+    "heap_bytes": 4325600
+  }
+}

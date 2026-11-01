@@ -1,0 +1,144 @@
+{
+  "cli": "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+  "cli_sha256": "beeda4c6ebb8da1735c77d52e237b0e8afa117873e261f7705d018e6032e9a9a",
+  "cli_profile": "release",
+  "runtime": "/tmp/ryupy-m3_9-full-suite-eGJqTT/RyuPy.Runtime.dll",
+  "runtime_sha256": "d9678b3d13d756843e8fef814275c7ba2cc4888fd2ed48ab17579f03bda17169",
+  "tier": "default",
+  "python": "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+  "runs": 3,
+  "warmup": 1,
+  "warmup_scope": "另起进程；main_ms仍含本进程JIT，不是充分稳态",
+  "benchmarks": [
+    {
+      "name": "hello",
+      "pending": "",
+      "sha256": "41585ec94d2096d3ed175f64737bd55412a57c14c4493882ef4ca0843d41b189"
+    },
+    {
+      "name": "fib",
+      "pending": "",
+      "sha256": "cb368520da29d8d37271b0e733066d1c996757dcc0cfa392c5487255b5b4ebdb"
+    },
+    {
+      "name": "mandelbrot",
+      "pending": "",
+      "sha256": "01c1f48dd553eba4b3ef700571b56cb2029db494b9ca8d2dd13eb83a1a997849"
+    },
+    {
+      "name": "bigint",
+      "pending": "",
+      "sha256": "f12ff715cecd477f97de8382e9bd7cfa13674bef08c2727a8f03d36e94f0521e"
+    },
+    {
+      "name": "matmul",
+      "pending": "",
+      "sha256": "b957c02f25eacb756ab290a4c66fd9371ba6d7ff4d22d37d626895fd90a95f95"
+    },
+    {
+      "name": "nbody",
+      "pending": "",
+      "sha256": "4d9cf5ce0492a029eb0f1a3f91c833b7029ebacc4bb0639695ea7cdb32db3822"
+    },
+    {
+      "name": "sieve",
+      "pending": "",
+      "sha256": "57550eb55b98dcdcfc9fd757e76f8ae8c449fed6cfbcd811df993e98603bcb1e"
+    },
+    {
+      "name": "spectral_norm",
+      "pending": "",
+      "sha256": "e8213c3a69824d51e11c6f557b784ade4381778edf9e25e5899ecf4c3331c795"
+    },
+    {
+      "name": "calls",
+      "pending": "",
+      "sha256": "bfa6a4f38cb7cc0999a0e4e2cf87bc6ca4c50f0fe1042dd4981c39f6ba17a3a5"
+    },
+    {
+      "name": "dynamic",
+      "pending": "",
+      "sha256": "60ad88dd2b457c2a6ec0bd2a978ecc959c7f08adcf706c4c1d1a3995ba1b1a41"
+    },
+    {
+      "name": "attrs",
+      "pending": "",
+      "sha256": "395a60e5bcab371a9b8c59ff1deffadd29d7d2eea36d8cc41486e5a50f646ab8"
+    },
+    {
+      "name": "oop",
+      "pending": "",
+      "sha256": "e5383184a725c3175a568c5c01191b83a4a609128931517c580358c8eddac578"
+    },
+    {
+      "name": "containers",
+      "pending": "",
+      "sha256": "0d3e9a6dc4e63d5b4e79666e7bb8c3b469e9fae7aaf696c9287f658bd64edecf"
+    },
+    {
+      "name": "dict_ops",
+      "pending": "",
+      "sha256": "3cf16dd83c77437faade5f29a560e9e36f7fd2d27a9bdbf3ce0ea327b2c7a1b3"
+    },
+    {
+      "name": "list_ops",
+      "pending": "",
+      "sha256": "d0299eb52fb1ab1a729ce7225a94fc0c00c9791d011a15c7bf0c6870096dbd81"
+    },
+    {
+      "name": "set_tuple",
+      "pending": "",
+      "sha256": "aee7be1a899ebc5bc705f57fab6f51738d2e6eb5027c6e7b536d85d25634939b"
+    },
+    {
+      "name": "str_concat",
+      "pending": "",
+      "sha256": "ad546d6de99c094c37bb0c25fc89098aa1e27c52cc43e0b5b5f4d9d194a4a0f0"
+    },
+    {
+      "name": "strings",
+      "pending": "",
+      "sha256": "6eb4ae05081bef0506ade9ffe79751598013998f0744bbe16a60d39d6a057c01"
+    },
+    {
+      "name": "nqueens",
+      "pending": "",
+      "sha256": "a3b861d8cdb0819d546e4ad03fd0f207e91fd2646378b23b5af2f710bdbeffe0"
+    },
+    {
+      "name": "sorting",
+      "pending": "",
+      "sha256": "8818aef6dfaef4aae55666164c9841a73bfcc908dec68f3756262d73658c48be"
+    },
+    {
+      "name": "exceptions",
+      "pending": "",
+      "sha256": "8cb278be1121c9f143cef3d5f139fd253c206d36228dd39f5ec0f1f028ed9404"
+    },
+    {
+      "name": "records",
+      "pending": "",
+      "sha256": "4827c7745ff004a2d21d55c44db13a792d6ecfb986857acf4efc2873ae2b75bd"
+    },
+    {
+      "name": "closures",
+      "pending": "",
+      "sha256": "377a4c0f5fad9339724456b1e442af52c170f2a22b31a87e30359c14f6214213"
+    },
+    {
+      "name": "comprehensions",
+      "pending": "M3.1",
+      "sha256": "f16009121fff72a58070b3381ea5808c46e3b0e6c536dd648cee4e58f1809352"
+    },
+    {
+      "name": "decorators",
+      "pending": "M3.3",
+      "sha256": "35f55336b6e75ae2affb543327d7f4a470db497ae2949615746f91b1a007fd21"
+    },
+    {
+      "name": "generators",
+      "pending": "M3.2",
+      "sha256": "9810c882eaefc10c56a824d20a92e910117e9b1ba54364948c320f8e2ce67f0b"
+    }
+  ]
+}

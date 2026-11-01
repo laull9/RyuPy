@@ -1,0 +1,27 @@
+{
+  "name": "sorting",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/sorting/sorting.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 758.8380649976898,
+  "maxrss": 81735680,
+  "stats": {
+    "main_ms": 555.814,
+    "alloc_bytes": 67362504,
+    "gc0": 7,
+    "gc1": 5,
+    "gc2": 3,
+    "gc_pause_ms": 72.568,
+    "jit_ms": 259.756,
+    "jit_methods": 229,
+    "heap_bytes": 40995016
+  }
+}

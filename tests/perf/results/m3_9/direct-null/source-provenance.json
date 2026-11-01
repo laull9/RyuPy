@@ -1,0 +1,9 @@
+{
+  "kind": "historical-partial-tracked-diff",
+  "complete_source_reconstruction": false,
+  "raw_diff": "production.diff",
+  "raw_diff_sha256": "c945670d245bd0da9809e6b278e6e58cf2db6315e3f67b02ebd91ef4748324ba",
+  "omission": "当时未跟踪的新增编译器源码没有包含在git diff中。",
+  "evidence_scope": "源码差异仅局部；产物hash、IR、实际JIT与测量记录仍为历史产物证据。",
+  "remediation": "不修改历史raw diff；另存当前源码快照，最终提交记录完整可重建源码。"
+}

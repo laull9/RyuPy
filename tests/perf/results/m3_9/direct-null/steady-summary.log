@@ -1,0 +1,8 @@
+{
+  "default_baseline": 0.0294086,
+  "default_cold": 0.0287157,
+  "default_null": 0.0274946,
+  "disabled_baseline": 0.0263417,
+  "disabled_cold": 0.0289898,
+  "disabled_null": 0.0292697
+}

@@ -1,0 +1,27 @@
+{
+  "name": "records",
+  "tier": "default",
+  "variant": "default",
+  "which": "candidate",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/records/records.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 1173.365089998697,
+  "maxrss": 82972672,
+  "stats": {
+    "main_ms": 1039.41,
+    "alloc_bytes": 89322960,
+    "gc0": 16,
+    "gc1": 7,
+    "gc2": 3,
+    "gc_pause_ms": 91.911,
+    "jit_ms": 434.157,
+    "jit_methods": 904,
+    "heap_bytes": 22566248
+  }
+}

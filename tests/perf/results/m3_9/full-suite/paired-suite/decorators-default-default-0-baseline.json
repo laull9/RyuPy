@@ -1,0 +1,27 @@
+{
+  "name": "decorators",
+  "tier": "default",
+  "variant": "default",
+  "which": "baseline",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/decorators/decorators.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 797.1676849992946,
+  "maxrss": 47697920,
+  "stats": {
+    "main_ms": 649.474,
+    "alloc_bytes": 383449504,
+    "gc0": 90,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 26.332,
+    "jit_ms": 223.903,
+    "jit_methods": 547,
+    "heap_bytes": 5356816
+  }
+}

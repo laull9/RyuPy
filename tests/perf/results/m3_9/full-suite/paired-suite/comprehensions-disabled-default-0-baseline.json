@@ -1,0 +1,27 @@
+{
+  "name": "comprehensions",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/comprehensions/comprehensions.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 688.2808259979356,
+  "maxrss": 71331840,
+  "stats": {
+    "main_ms": 474.053,
+    "alloc_bytes": 127808712,
+    "gc0": 19,
+    "gc1": 11,
+    "gc2": 6,
+    "gc_pause_ms": 191.844,
+    "jit_ms": 243.466,
+    "jit_methods": 244,
+    "heap_bytes": 19230368
+  }
+}

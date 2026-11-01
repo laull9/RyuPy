@@ -1,0 +1,3 @@
+# 已有模块delattr缺口，保留完整公开函数删除后的旧别名验收，不计入叶特化通过。
+entry = entry.py
+pending = true

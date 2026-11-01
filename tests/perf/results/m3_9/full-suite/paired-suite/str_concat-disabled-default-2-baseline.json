@@ -1,0 +1,27 @@
+{
+  "name": "str_concat",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 2,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/str_concat/str_concat.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 4272.9161660026875,
+  "maxrss": 79515648,
+  "stats": {
+    "main_ms": 4095.619,
+    "alloc_bytes": 20031821192,
+    "gc0": 2844,
+    "gc1": 2625,
+    "gc2": 2624,
+    "gc_pause_ms": 580.437,
+    "jit_ms": 174.067,
+    "jit_methods": 208,
+    "heap_bytes": 6091976
+  }
+}

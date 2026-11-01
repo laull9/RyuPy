@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/decorators.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/decorators"
+  ],
+  "compile_ms": 7.679522997932509,
+  "exit_code": 0,
+  "dll_sha256": "b978a932f1f783ef19280043fe561a2668627b9faa6b6a987a6435a63523317c"
+}

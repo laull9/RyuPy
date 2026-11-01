@@ -143,6 +143,8 @@ pub enum RuntimeFn {
     CheckGlobalBound,
     /// `PyTraceback.PushFrame(string, string) -> long`：压入栈帧并返回深度。
     TracePush,
+    /// 与TracePush相同的递归深度检查，但不压入无回调叶快路的帧。
+    TraceCheckDepth,
     /// `PyTraceback.SetLine(long)`：更新当前行号。
     TraceLine,
     /// `PyTraceback.PopTo(long)`：弹栈到指定深度。

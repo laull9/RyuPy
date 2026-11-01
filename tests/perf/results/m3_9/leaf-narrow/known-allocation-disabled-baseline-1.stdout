@@ -1,0 +1,52 @@
+semantics index_fast 39998
+sample index_fast 0.001505635998910293 39998
+sample index_fast 0.0022097870023571886 39998
+sample index_fast 0.0027806330035673454 39998
+sample index_fast 0.0008688420057296753 39998
+sample index_fast 0.003971322999859694 39998
+sample index_fast 0.0035335100037627853 39998
+sample index_fast 0.003518049998092465 39998
+semantics index_rebind 20000
+sample index_rebind 0.001151132004451938 20000
+sample index_rebind 0.0013320430007297546 20000
+sample index_rebind 0.0010145539999939501 20000
+sample index_rebind 0.001061386996298097 20000
+sample index_rebind 0.001421093002136331 20000
+sample index_rebind 0.001452898999559693 20000
+sample index_rebind 0.0015752109975437634 20000
+semantics constant_fast 14
+sample constant_fast 0.0007678239999222569 14
+sample constant_fast 0.001058369998645503 14
+sample constant_fast 0.0006490739979199134 14
+sample constant_fast 0.0008133279989124276 14
+sample constant_fast 0.002806058000714984 14
+sample constant_fast 0.0005873019981663674 14
+sample constant_fast 0.0009844099986366928 14
+semantics constant_rebind 8
+sample constant_rebind 0.0013571259987656958 8
+sample constant_rebind 0.0006601000059163198 8
+sample constant_rebind 0.0005748299954575486 8
+sample constant_rebind 0.0007562360042356886 8
+sample constant_rebind 0.0006940090024727397 8
+sample constant_rebind 0.0012042660018778406 8
+sample constant_rebind 0.0009196699975291267 8
+allocation index_fast 0 950736 20000 47.5368
+allocation index_fast 1 950736 20000 47.5368
+allocation index_fast 2 950736 20000 47.5368
+allocation index_fast 3 950736 20000 47.5368
+allocation index_fast 4 950736 20000 47.5368
+allocation index_rebind 0 947688 20000 47.3844
+allocation index_rebind 1 947688 20000 47.3844
+allocation index_rebind 2 947688 20000 47.3844
+allocation index_rebind 3 947688 20000 47.3844
+allocation index_rebind 4 947688 20000 47.3844
+allocation constant_fast 0 0 20000 0
+allocation constant_fast 1 0 20000 0
+allocation constant_fast 2 0 20000 0
+allocation constant_fast 3 0 20000 0
+allocation constant_fast 4 0 20000 0
+allocation constant_rebind 0 0 20000 0
+allocation constant_rebind 1 0 20000 0
+allocation constant_rebind 2 0 20000 0
+allocation constant_rebind 3 0 20000 0
+allocation constant_rebind 4 0 20000 0

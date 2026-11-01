@@ -1,0 +1,27 @@
+{
+  "name": "list_ops",
+  "tier": "default",
+  "variant": "default",
+  "which": "candidate",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/list_ops/list_ops.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 516.2879080016864,
+  "maxrss": 101576704,
+  "stats": {
+    "main_ms": 414.861,
+    "alloc_bytes": 122474640,
+    "gc0": 18,
+    "gc1": 6,
+    "gc2": 3,
+    "gc_pause_ms": 102.693,
+    "jit_ms": 101.277,
+    "jit_methods": 398,
+    "heap_bytes": 39775312
+  }
+}

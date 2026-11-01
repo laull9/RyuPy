@@ -1,0 +1,287 @@
+fn tuple_iteration(_0: dyn, _1: dyn, _2: dyn) -> dyn {
+    let _0: dyn; // a
+    let _1: dyn; // b
+    let _2: dyn; // c
+    let _3: dyn; // total
+    let _4: dyn; // value
+    let _5: i64;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: bool;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+
+    bb0: {
+        _5 = RuntimeFn::TracePush(const "ryupy-m3_9-loop-research.py", const "tuple_iteration");
+        // line 2
+        _6 = box<I64>(const 0_i64);
+        _3 = _6;
+        // line 3
+        _7 = MakeTuple([_0, _1, _2]);
+        _8 = RuntimeFn::IterStart(_7);
+        goto -> bb1;
+    }
+    bb1: {
+        _9 = RuntimeFn::IterNextOk(_8);
+        branch _9 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _10 = RuntimeFn::IterValue(_8);
+        _4 = _10;
+        // line 4
+        _11 = dyn.Add.inplace(_3, _4);
+        _3 = _11;
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 5
+        _12 = _3;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_5);
+        return _12;
+    }
+}
+
+fn invariant(_0: i64, _1: i64, _2: i64) -> i64 {
+    let _0: i64; // n
+    let _1: i64; // a
+    let _2: i64; // b
+    let _3: i64; // total
+    let _4: i64; // i
+    let _5: i64;
+    let _6: i64;
+    let _7: i64;
+    let _8: i64;
+    let _9: bool;
+    let _10: i64;
+    let _11: i64;
+    let _12: i64;
+    let _13: i64;
+
+    bb0: {
+        _5 = RuntimeFn::TracePush(const "ryupy-m3_9-loop-research.py", const "invariant");
+        // line 8
+        _3 = const 0_i64;
+        // line 9
+        _6 = const 0_i64;
+        _7 = _0;
+        _8 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _9 = Lt(_6, _7);
+        branch _9 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        // line 10
+        _10 = BitXor(_1, _2);
+        _11 = BitAnd(_10, const 255_i64);
+        _12 = Add(_3, _11);
+        _3 = _12;
+        goto -> bb3;
+    }
+    bb3: {
+        _6 = Add(_6, _8);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 11
+        _13 = _3;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_5);
+        return _13;
+    }
+}
+
+fn list_index(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // n
+    let _1: dyn; // values
+    let _2: dyn; // total
+    let _3: dyn; // i
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: bool;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "ryupy-m3_9-loop-research.py", const "list_index");
+        // line 14
+        _5 = box<I64>(const 0_i64);
+        _2 = _5;
+        // line 15
+        _6 = box<I64>(const 0_i64);
+        _7 = unbox<I64>(_6);
+        _8 = unbox<I64>(_0);
+        _9 = _7;
+        _10 = _8;
+        _11 = const 1_i64;
+        _24 = RuntimeFn::NumericAccumulatorCreate(_2);
+        goto -> bb1;
+    }
+    bb1: {
+        _12 = Gt(_11, const 0_i64);
+        _13 = Lt(_9, _10);
+        _14 = Gt(_9, _10);
+        _15 = BitAnd(_12, _13);
+        _16 = Not(_12);
+        _17 = BitAnd(_16, _14);
+        _18 = BitOr(_15, _17);
+        branch _18 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        // line 16
+        _20 = box<I64>(const 0_i64);
+        _21 = RuntimeFn::GetItem(_1, _20);
+        RuntimeFn::NumericAccumulatorAdd(_24, _21);
+        goto -> bb3;
+    }
+    bb3: {
+        _9 = Add(_9, _11);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        _2 = RuntimeFn::NumericAccumulatorValue(_24);
+        // line 17
+        _23 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_4);
+        return _23;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: i64;
+    let _20: i64;
+    let _21: i64;
+    let _22: i64;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy-m3_9-loop-research.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy-m3_9-loop-research.py");
+        g2 = _3;
+        // line 1
+        // line 7
+        _4 = RuntimeFn::TypeObject(const "int");
+        _5 = _4;
+        _6 = RuntimeFn::TypeObject(const "int");
+        _7 = _6;
+        _8 = RuntimeFn::TypeObject(const "int");
+        _9 = _8;
+        _10 = RuntimeFn::TypeObject(const "int");
+        _11 = _10;
+        RuntimeFn::FunctionMetadata(global@6, null, [const "n", const "a", const "b", const "return"], [_5, _7, _9, _11]);
+        // line 13
+        // line 19
+        _12 = box<I64>(const 1_i64);
+        _13 = box<I64>(const 2_i64);
+        _14 = box<I64>(const 3_i64);
+        _15 = tuple_iteration(_12, _13, _14);
+        _16 = box<I64>(const 3_i64);
+        _17 = box<I64>(const 12_i64);
+        _18 = box<I64>(const 7_i64);
+        _19 = unbox<I64>(_16);
+        _20 = unbox<I64>(_17);
+        _21 = unbox<I64>(_18);
+        _22 = invariant(_19, _20, _21);
+        _23 = box<I64>(_22);
+        _24 = box<I64>(const 3_i64);
+        _25 = box<I64>(const 5_i64);
+        _26 = box<I64>(const 6_i64);
+        _27 = MakeList([_25, _26]);
+        _28 = list_index(_24, _27);
+        _29 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_29, _15);
+        RuntimeFn::WriteSep(_29);
+        RuntimeFn::WriteObject(_29, _23);
+        RuntimeFn::WriteSep(_29);
+        RuntimeFn::WriteObject(_29, _28);
+        RuntimeFn::WriteNewline(_29);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "bigint",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "candidate",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/bigint/bigint.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 505.34902599611087,
+  "maxrss": 46166016,
+  "stats": {
+    "main_ms": 296.964,
+    "alloc_bytes": 124683928,
+    "gc0": 29,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 5.442,
+    "jit_ms": 221.084,
+    "jit_methods": 233,
+    "heap_bytes": 3878440
+  }
+}

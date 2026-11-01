@@ -1,0 +1,27 @@
+{
+  "name": "hello",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/hello/hello.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 188.05553499987582,
+  "maxrss": 38309888,
+  "stats": {
+    "main_ms": 10.822,
+    "alloc_bytes": 394928,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 137.264,
+    "jit_methods": 181,
+    "heap_bytes": 405456
+  }
+}

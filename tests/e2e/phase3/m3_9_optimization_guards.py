@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.9：特化失配、大整数升级和临时对象逃逸不能改变结果。
 def twice(value: int) -> int:
     return value + value

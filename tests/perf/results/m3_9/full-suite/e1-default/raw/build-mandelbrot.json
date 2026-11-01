@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/mandelbrot.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/mandelbrot"
+  ],
+  "compile_ms": 14.264983001339715,
+  "exit_code": 0,
+  "dll_sha256": "e845c11f1adda284e94675dfef254b1951a8ae86d5d0d61db76bd7956ad56d5f"
+}

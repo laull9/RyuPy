@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/nbody.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/nbody"
+  ],
+  "compile_ms": 5.8473750032135285,
+  "exit_code": 0,
+  "dll_sha256": "53e63e7f4daa53b7184f4989e66a9e0b91de2ff2f7605089a7d98686b0c93cae"
+}

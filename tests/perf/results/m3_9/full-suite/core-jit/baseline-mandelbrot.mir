@@ -1,0 +1,265 @@
+fn mandel(_0: f64, _1: f64, _2: i64) -> i64 {
+    let _0: f64; // cr
+    let _1: f64; // ci
+    let _2: i64; // max_iter
+    let _3: f64; // zr
+    let _4: f64; // zi
+    let _5: i64; // n
+    let _6: f64; // zr2
+    let _7: f64; // zi2
+    let _8: i64;
+    let _9: bool;
+    let _10: f64;
+    let _11: f64;
+    let _12: f64;
+    let _13: bool;
+    let _14: i64;
+    let _15: f64;
+    let _16: f64;
+    let _17: f64;
+    let _18: f64;
+    let _19: f64;
+    let _20: i64;
+
+    bb0: {
+        _8 = RuntimeFn::TracePush(const "mandelbrot.py", const "mandel");
+        // line 4
+        _3 = const 0_f64;
+        // line 5
+        _4 = const 0_f64;
+        // line 6
+        _5 = const 0_i64;
+        // line 7
+        goto -> bb1;
+    }
+    bb1: {
+        _9 = Lt(_5, _2);
+        branch _9 -> [then: bb2, else: bb4];
+    }
+    bb2: {
+        // line 8
+        _10 = Mul(_3, _3);
+        _6 = _10;
+        // line 9
+        _11 = Mul(_4, _4);
+        _7 = _11;
+        // line 10
+        _12 = Add(_6, _7);
+        _13 = Gt(_12, const 4_f64);
+        branch _13 -> [then: bb5, else: bb7];
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        // line 15
+        _14 = _2;
+        goto -> bb10;
+    }
+    bb5: {
+        // line 11
+        _14 = _5;
+        goto -> bb10;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        // line 12
+        _15 = Mul(const 2_f64, _3);
+        _16 = Mul(_15, _4);
+        _17 = Add(_16, _1);
+        _4 = _17;
+        // line 13
+        _18 = Sub(_6, _7);
+        _19 = Add(_18, _0);
+        _3 = _19;
+        // line 14
+        _20 = Add(_5, const 1_i64);
+        _5 = _20;
+        goto -> bb1;
+    }
+    bb8: {
+        unreachable;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        RuntimeFn::TracePopTo(_8);
+        return _14;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: bool;
+    let _13: i64;
+    let _14: i64;
+    let _15: i64;
+    let _16: bool;
+    let _17: i64;
+    let _18: f64;
+    let _19: f64;
+    let _20: f64;
+    let _21: i64;
+    let _22: f64;
+    let _23: f64;
+    let _24: f64;
+    let _25: f64;
+    let _26: f64;
+    let _27: i64;
+    let _28: bool;
+    let _29: str;
+    let _30: str;
+    let _31: str;
+    let _32: str;
+    let _33: str;
+    let _34: dyn;
+
+    bb0: {
+        g8 = const false;
+        g9 = const false;
+        g10 = const false;
+        g11 = const false;
+        g12 = const false;
+        g13 = const false;
+        g14 = const false;
+        g15 = const false;
+        _0 = RuntimeFn::TracePush(const "mandelbrot.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        g8 = const true;
+        // line 1
+        g1 = const "";
+        g9 = const true;
+        // line 1
+        g2 = const "mandelbrot.py";
+        g10 = const true;
+        // line 3
+        _1 = RuntimeFn::TypeObject(const "float");
+        _2 = _1;
+        _3 = RuntimeFn::TypeObject(const "float");
+        _4 = _3;
+        _5 = RuntimeFn::TypeObject(const "int");
+        _6 = _5;
+        _7 = RuntimeFn::TypeObject(const "int");
+        _8 = _7;
+        RuntimeFn::FunctionMetadata(global@16, null, [const "cr", const "ci", const "max_iter", const "return"], [_2, _4, _6, _8]);
+        // line 18
+        _9 = const 0_i64;
+        _10 = const 120_i64;
+        _11 = const 1_i64;
+        goto -> bb1;
+    }
+    bb1: {
+        _12 = Lt(_9, _10);
+        branch _12 -> [then: bb2, else: bb14];
+    }
+    bb2: {
+        g3 = _9;
+        g11 = const true;
+        // line 19
+        g4 = const "";
+        g12 = const true;
+        // line 20
+        _13 = const 0_i64;
+        _14 = const 240_i64;
+        _15 = const 1_i64;
+        goto -> bb6;
+    }
+    bb3: {
+        _9 = Add(_9, _11);
+        goto -> bb1;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        unreachable;
+    }
+    bb6: {
+        _16 = Lt(_13, _14);
+        branch _16 -> [then: bb7, else: bb10];
+    }
+    bb7: {
+        g5 = _13;
+        g13 = const true;
+        // line 21
+        RuntimeFn::CheckGlobalBound(global@13, const "x");
+        _17 = global@5;
+        _18 = Cast(I64ToF64, _17);
+        _19 = Mul(_18, const 0.0005_f64);
+        _20 = Add(const -0.8_f64, _19);
+        g6 = _20;
+        g14 = const true;
+        // line 22
+        RuntimeFn::CheckGlobalBound(global@11, const "y");
+        _21 = global@3;
+        _22 = Cast(I64ToF64, _21);
+        _23 = Mul(_22, const 0.001_f64);
+        _24 = Add(const -0.1_f64, _23);
+        g7 = _24;
+        g15 = const true;
+        // line 23
+        RuntimeFn::CheckGlobalBound(global@14, const "cr");
+        _25 = global@6;
+        RuntimeFn::CheckGlobalBound(global@15, const "ci");
+        _26 = global@7;
+        _27 = mandel(_25, _26, const 1000_i64);
+        _28 = Eq(_27, const 1000_i64);
+        branch _28 -> [then: bb11, else: bb12];
+    }
+    bb8: {
+        _13 = Add(_13, _15);
+        goto -> bb6;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        // line 27
+        RuntimeFn::CheckGlobalBound(global@12, const "line");
+        _33 = global@4;
+        _34 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteStr(_34, _33);
+        RuntimeFn::WriteNewline(_34);
+        goto -> bb3;
+    }
+    bb11: {
+        // line 24
+        RuntimeFn::CheckGlobalBound(global@12, const "line");
+        _29 = global@4;
+        _30 = RuntimeFn::StrConcat(_29, const "#");
+        g4 = _30;
+        g12 = const true;
+        goto -> bb8;
+    }
+    bb12: {
+        // line 26
+        RuntimeFn::CheckGlobalBound(global@12, const "line");
+        _31 = global@4;
+        _32 = RuntimeFn::StrConcat(_31, const ".");
+        g4 = _32;
+        g12 = const true;
+        goto -> bb8;
+    }
+    bb13: {
+        unreachable;
+    }
+    bb14: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

@@ -1,0 +1,7 @@
+dotnet build runtime/RyuPy.Runtime -c Release -nologo -v q
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:12.38

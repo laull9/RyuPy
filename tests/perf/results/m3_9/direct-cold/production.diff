@@ -1,0 +1,872 @@
+diff --git a/TODO.md b/TODO.md
+index f02ec56..990047f 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -483,6 +483,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入
+ ### M3.8 标准库桥接的最小宿主
+ 
+ > 依赖 Phase 2 模块 / callable / 异常。为未原生移植的必要依赖提供显式路径，复用于 Phase 4。
++> 排序说明（2026-11-01 用户JIT方向与批准重排）：本项保持全部未完成，暂后排到确有桥接依赖时；它不是M3.9/M3.10原生优化的技术前置，不因后排视作跳过或完成。
+ 
+ - [ ] 写 ADR：宿主隔离、P/Invoke 边界、Python 版本与搜索路径、初始化 / 退出、线程 / GIL；不让编译阶段 crate 链接解释器
+ - [ ] 标量 / 字符串 / 容器与 callable 转换，owned / borrowed 引用、包装身份与异常双向传播；解决跨堆引用环和回调释放
+@@ -493,6 +494,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入
+ ### M3.9 前瞻优化的首批验证
+ 
+ > 按 [optimization.md](docs/optimization.md) 逐项立项，已有正确通用路径后才做；不阻塞常用 API 移植。
++> 当前优先整里程碑。首实验为受守卫的直接CIL局部累加槽，先保留当前holder基线、真实JIT汇编/分配及失败守卫用例；有限前向数据流，不先全量SSA重写。当前Tier1已内联旧helper，是否启用须由实测收益决定；此首切不等于本节全部完成。
+ 
+ - [ ] 按 ADR-0002 评估迭代数据流或 SSA 视图；流敏感收窄 / 自动拆箱覆盖 bool 子类型、精确类型、值域与合流点
+ - [ ] 带守卫函数特化与有限变体，失败回通用路径；限制代码体积并验证标注不会新增类型拒绝
+diff --git a/crates/ryupy-codegen-cil/src/lib.rs b/crates/ryupy-codegen-cil/src/lib.rs
+index dbe036f..fb6e25f 100644
+--- a/crates/ryupy-codegen-cil/src/lib.rs
++++ b/crates/ryupy-codegen-cil/src/lib.rs
+@@ -70,3 +70,6 @@ mod class_refs;
+ mod module_binding_refs;
+ 
+ mod typed_dict_refs;
++
++#[cfg(test)]
++mod exact_i64_tests;
+diff --git a/crates/ryupy-codegen-cil/src/stackify_rvalue.rs b/crates/ryupy-codegen-cil/src/stackify_rvalue.rs
+index 06631f4..96dcfb0 100644
+--- a/crates/ryupy-codegen-cil/src/stackify_rvalue.rs
++++ b/crates/ryupy-codegen-cil/src/stackify_rvalue.rs
+@@ -52,6 +52,8 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
+                         ins.push(Instruction::AddOverflow(NumberSign::Signed));
+                     }
+                 }
++                // 仅机械发射 MIR 显式请求的回绕运算；溢出分支由 MIR 构造。
++                BinOp::WrappingAdd => ins.push(Instruction::Add),
+                 BinOp::Sub => {
+                     if is_float {
+                         ins.push(Instruction::Subtract);
+@@ -139,8 +141,13 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
+                 let site = ctx.next_site();
+                 ins.push(Instruction::LoadConstantInt32(site));
+             }
+-            for arg in args {
++            for (index, arg) in args.iter().enumerate() {
+                 lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
++                if index == 0 && matches!(callee, Callee::Runtime(RuntimeFn::DynBinary)) {
++                    // 固定 ABI 的首参是 CLR int；MIR 验证器已约束常量可表示性。
++                    // 只适配签名宽度，不在后端解释操作码或选择动态回退语义。
++                    ins.push(Instruction::Convert(ConversionType::Int32));
++                }
+             }
+             match callee {
+                 Callee::Runtime(rt_fn) => crate::stackify_runtime::emit_call(rt_fn, ins, ctx),
+@@ -178,6 +185,32 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
+             );
+             emit_box(ins, from, ctx.runtime_refs, ctx.class_types);
+         }
++        Rvalue::IsBoxedI64 { value } => {
++            lower_operand(
++                value,
++                ins,
++                ctx.param_slots,
++                ctx.local_slots,
++                ctx.runtime_refs,
++            );
++            // isinst 对值类型只接受对应的盒；CLR null 不是语言层的 None 对象。
++            ins.push(Instruction::IsInstance(BaseType::Int64.into()));
++            ins.push(Instruction::LoadNull);
++            ins.push(Instruction::CompareEqual);
++            ins.push(Instruction::LoadConstantInt32(0));
++            ins.push(Instruction::CompareEqual);
++        }
++        Rvalue::UnboxExactI64 { value } => {
++            lower_operand(
++                value,
++                ins,
++                ctx.param_slots,
++                ctx.local_slots,
++                ctx.runtime_refs,
++            );
++            // MIR 验证器负责守卫支配性；此处不调用具有转换语义的 PyCast。
++            ins.push(Instruction::UnboxIntoValue(BaseType::Int64.into()));
++        }
+         Rvalue::Unbox { value, to } => {
+             lower_operand(
+                 value,
+diff --git a/crates/ryupy-driver/tests/snapshots/m3_6__m3_6_numeric_accumulator_mir.snap b/crates/ryupy-driver/tests/snapshots/m3_6__m3_6_numeric_accumulator_mir.snap
+index 575aea0..e9f3a17 100644
+--- a/crates/ryupy-driver/tests/snapshots/m3_6__m3_6_numeric_accumulator_mir.snap
++++ b/crates/ryupy-driver/tests/snapshots/m3_6__m3_6_numeric_accumulator_mir.snap
+@@ -1,5 +1,6 @@
+ ---
+ source: crates/ryupy-driver/tests/m3_6.rs
++assertion_line: 39
+ expression: output
+ ---
+ fn accumulate(_0: dyn, _1: dyn) -> dyn {
+@@ -27,7 +28,18 @@ fn accumulate(_0: dyn, _1: dyn) -> dyn {
+     let _21: dyn;
+     let _22: dyn;
+     let _23: dyn;
+-    let _24: dyn;
++    let _24: i64;
++    let _25: bool;
++    let _26: bool;
++    let _27: dyn;
++    let _28: bool;
++    let _29: i64;
++    let _30: i64;
++    let _31: i64;
++    let _32: i64;
++    let _33: i64;
++    let _34: bool;
++    let _35: dyn;
+ 
+     bb0: {
+         _4 = RuntimeFn::TracePush(const "ryupy_m3_6_numeric_accumulator.py", const "accumulate");
+@@ -41,8 +53,10 @@ fn accumulate(_0: dyn, _1: dyn) -> dyn {
+         _9 = _7;
+         _10 = _8;
+         _11 = const 1_i64;
+-        _24 = RuntimeFn::NumericAccumulatorCreate(_2);
+-        goto -> bb1;
++        _24 = const 0_i64;
++        _26 = const false;
++        _25 = is_boxed_i64(_2);
++        branch _25 -> [then: bb9, else: bb1];
+     }
+     bb1: {
+         _12 = Gt(_11, const 0_i64);
+@@ -59,8 +73,8 @@ fn accumulate(_0: dyn, _1: dyn) -> dyn {
+         _3 = _19;
+         // line 4
+         _20 = RuntimeFn::GetItem(_1, _3);
+-        RuntimeFn::NumericAccumulatorAdd(_24, _20);
+-        goto -> bb3;
++        _27 = _20;
++        branch _25 -> [then: bb16, else: bb13];
+     }
+     bb3: {
+         _9 = Add(_9, _11);
+@@ -70,11 +84,7 @@ fn accumulate(_0: dyn, _1: dyn) -> dyn {
+         unreachable;
+     }
+     bb5: {
+-        _2 = RuntimeFn::NumericAccumulatorValue(_24);
+-        // line 5
+-        _23 = MakeTuple([_2, _2]);
+-        _22 = _23;
+-        goto -> bb7;
++        branch _26 -> [then: bb18, else: bb17];
+     }
+     bb6: {
+         unreachable;
+@@ -83,6 +93,61 @@ fn accumulate(_0: dyn, _1: dyn) -> dyn {
+         RuntimeFn::TracePopTo(_4);
+         return _22;
+     }
++    bb8: {
++        goto -> bb3;
++    }
++    bb9: {
++        _24 = unbox_exact_i64(_2);
++        goto -> bb1;
++    }
++    bb10: {
++        _24 = unbox_exact_i64(_2);
++        goto -> bb8;
++    }
++    bb11: {
++        _35 = RuntimeFn::DynBinary(const 257_i64, _2, _27);
++        _2 = _35;
++        _26 = const false;
++        _25 = is_boxed_i64(_2);
++        branch _25 -> [then: bb10, else: bb8];
++    }
++    bb12: {
++        _2 = box<I64>(_24);
++        _26 = const false;
++        goto -> bb11;
++    }
++    bb13: {
++        branch _26 -> [then: bb12, else: bb11];
++    }
++    bb14: {
++        _24 = _30;
++        _26 = const true;
++        goto -> bb8;
++    }
++    bb15: {
++        _29 = unbox_exact_i64(_27);
++        _30 = WrappingAdd(_24, _29);
++        _31 = BitXor(_24, _30);
++        _32 = BitXor(_29, _30);
++        _33 = BitAnd(_31, _32);
++        _34 = Ge(_33, const 0_i64);
++        branch _34 -> [then: bb14, else: bb13];
++    }
++    bb16: {
++        _28 = is_boxed_i64(_27);
++        branch _28 -> [then: bb15, else: bb13];
++    }
++    bb17: {
++        // line 5
++        _23 = MakeTuple([_2, _2]);
++        _22 = _23;
++        goto -> bb7;
++    }
++    bb18: {
++        _2 = box<I64>(_24);
++        _26 = const false;
++        goto -> bb17;
++    }
+ }
+ 
+ fn observed(_0: dyn, _1: dyn) -> dyn {
+diff --git a/crates/ryupy-mir/src/lib.rs b/crates/ryupy-mir/src/lib.rs
+index 187555e..4721d7c 100644
+--- a/crates/ryupy-mir/src/lib.rs
++++ b/crates/ryupy-mir/src/lib.rs
+@@ -20,6 +20,7 @@ mod build_stmts;
+ mod build_try;
+ mod call_builder;
+ mod call_builtins;
++mod exact_types;
+ pub mod expr_builder;
+ mod expr_ops;
+ mod expr_values;
+diff --git a/crates/ryupy-mir/src/link.rs b/crates/ryupy-mir/src/link.rs
+index c7e2fd5..ff9676d 100644
+--- a/crates/ryupy-mir/src/link.rs
++++ b/crates/ryupy-mir/src/link.rs
+@@ -359,6 +359,12 @@ fn remap_rvalue(
+             value: remap_operand(value, global_map),
+             from: remap_type(from, class_map),
+         },
++        Rvalue::IsBoxedI64 { value } => Rvalue::IsBoxedI64 {
++            value: remap_operand(value, global_map),
++        },
++        Rvalue::UnboxExactI64 { value } => Rvalue::UnboxExactI64 {
++            value: remap_operand(value, global_map),
++        },
+         Rvalue::Unbox { value, to } => Rvalue::Unbox {
+             value: remap_operand(value, global_map),
+             to: remap_type(to, class_map),
+diff --git a/crates/ryupy-mir/src/mir.rs b/crates/ryupy-mir/src/mir.rs
+index b1b20ec..159744f 100644
+--- a/crates/ryupy-mir/src/mir.rs
++++ b/crates/ryupy-mir/src/mir.rs
+@@ -327,6 +327,14 @@ pub enum Rvalue {
+         value: Operand,
+         to: MirType,
+     },
++    /// 纯CLR精确boxed Int64测试；不包含Python bool/大整数转换。
++    IsBoxedI64 {
++        value: Operand,
++    },
++    /// 仅在迭代类型事实证明为boxed Int64的边上拆箱。
++    UnboxExactI64 {
++        value: Operand,
++    },
+     /// 动态二元运算：`PyPic.Binary(site, op, a, b)`。
+     DynBinary {
+         op: DynOp,
+@@ -460,6 +468,8 @@ impl DynOp {
+ #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+ pub enum BinOp {
+     Add,
++    /// i64模2^64加法；溢出判定/动态回退必须由MIR显式构造。
++    WrappingAdd,
+     Sub,
+     Mul,
+     Div,
+diff --git a/crates/ryupy-mir/src/passes/dead_values.rs b/crates/ryupy-mir/src/passes/dead_values.rs
+index 540549f..04bde11 100644
+--- a/crates/ryupy-mir/src/passes/dead_values.rs
++++ b/crates/ryupy-mir/src/passes/dead_values.rs
+@@ -96,6 +96,8 @@ pub(super) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
+         | Rvalue::GetField { obj: value, .. }
+         | Rvalue::Box { value, .. }
+         | Rvalue::Unbox { value, .. }
++        | Rvalue::IsBoxedI64 { value }
++        | Rvalue::UnboxExactI64 { value }
+         | Rvalue::DynTruthy { value }
+         | Rvalue::Unary { operand: value, .. }
+         | Rvalue::Cast { operand: value, .. }
+diff --git a/crates/ryupy-mir/src/passes/mod.rs b/crates/ryupy-mir/src/passes/mod.rs
+index caeeab8..3ddfe58 100644
+--- a/crates/ryupy-mir/src/passes/mod.rs
++++ b/crates/ryupy-mir/src/passes/mod.rs
+@@ -14,6 +14,8 @@ mod dead_values;
+ #[cfg(test)]
+ mod dead_values_tests;
+ mod numeric_accumulator;
++mod numeric_accumulator_expand;
++mod numeric_accumulator_match;
+ mod simplify_cfg;
+ 
+ pub use dead_values::DeadValues;
+diff --git a/crates/ryupy-mir/src/passes/numeric_accumulator.rs b/crates/ryupy-mir/src/passes/numeric_accumulator.rs
+index be49ceb..217bf09 100644
+--- a/crates/ryupy-mir/src/passes/numeric_accumulator.rs
++++ b/crates/ryupy-mir/src/passes/numeric_accumulator.rs
+@@ -1,22 +1,9 @@
+-//! 受守卫的循环累加器实验：只匹配无异常区、无逃逸的三块自然循环，不猜测Python类型。
+-//!
+-//! 运行时holder保存原initial身份，只在精确long加法安全时延迟装箱；其它类型/溢出完整回退。
+-//! 本pass不改变CFG，仅把preheader末尾、body唯一+=和唯一exit入口接到普通RuntimeFn ABI。
++//! 有界循环累加优化入口：保持严格候选，把类型守卫/溢出/回退明确展开到MIR。
++//! 不承诺Tier1更快（旧holder已能内联）；默认启用取决配对性能与语义验收。
+ use super::MirPass;
+-use super::dead_values::{read_operand, read_value};
+ use crate::mir::*;
+-use rustc_hash::{FxHashMap, FxHashSet};
+ 
+ pub struct NumericAccumulator;
+-struct Plan {
+-    preheader: BlockId,
+-    body: BlockId,
+-    exit: BlockId,
+-    update: usize,
+-    total: LocalId,
+-    rhs: Operand,
+-}
+-
+ impl MirPass for NumericAccumulator {
+     fn name(&self) -> &'static str {
+         "numeric_accumulator"
+@@ -27,247 +14,28 @@ impl MirPass for NumericAccumulator {
+             || function.signature_global.is_none()
+             || function.env.is_some()
+             || function.body.blocks.iter().any(|(_, block)| {
+-                block.stmts.iter().any(|statement| {
+-                    matches!(
+-                        statement,
+-                        Statement::Assign {
+-                            value: Rvalue::MakeGenerator { .. },
+-                            ..
+-                        } | Statement::Eval(Rvalue::MakeGenerator { .. })
+-                    )
+-                })
++                matches!(block.terminator, Terminator::Suspend { .. })
++                    || block.stmts.iter().any(|statement| {
++                        matches!(
++                            statement,
++                            Statement::Assign {
++                                value: Rvalue::MakeGenerator { .. },
++                                ..
++                            } | Statement::Eval(Rvalue::MakeGenerator { .. })
++                        )
++                    })
+             })
+         {
+             return;
+         }
+-        let predecessors = predecessors(function);
+-        // 每函数最多改写一个严格候选，避免重叠循环之间共享holder与退出物化顺序。
+-        let plan = function
+-            .body
+-            .blocks
+-            .iter()
+-            .find_map(|(header, _)| candidate(function, header, &predecessors));
++        let predecessors = super::numeric_accumulator_match::predecessors(function);
++        // 每函数最多改写一个严格候选，避免重叠循环之间共享累加状态与退出物化顺序。
++        let plan = function.body.blocks.iter().find_map(|(header, _)| {
++            super::numeric_accumulator_match::candidate(function, header, &predecessors)
++        });
+         let Some(plan) = plan else {
+             return;
+         };
+-        let holder = function.body.locals.alloc(LocalDecl {
+-            ty: MirType::Dynamic,
+-            name: None,
+-            is_cell: false,
+-        });
+-        function.body.blocks[plan.preheader]
+-            .stmts
+-            .push(Statement::Assign {
+-                dest: holder,
+-                value: Rvalue::Call {
+-                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorCreate),
+-                    args: vec![Operand::Local(plan.total)],
+-                },
+-            });
+-        let statements = &mut function.body.blocks[plan.body].stmts;
+-        statements.splice(
+-            plan.update..plan.update + 2,
+-            [Statement::Eval(Rvalue::Call {
+-                callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+-                args: vec![Operand::Local(holder), plan.rhs],
+-            })],
+-        );
+-        function.body.blocks[plan.exit].stmts.insert(
+-            0,
+-            Statement::Assign {
+-                dest: plan.total,
+-                value: Rvalue::Call {
+-                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorValue),
+-                    args: vec![Operand::Local(holder)],
+-                },
+-            },
+-        );
+-    }
+-}
+-
+-fn candidate(
+-    function: &Function,
+-    header: BlockId,
+-    predecessors: &FxHashMap<BlockId, Vec<BlockId>>,
+-) -> Option<Plan> {
+-    let Terminator::Branch {
+-        then_: body,
+-        else_: exit,
+-        ..
+-    } = &function.body.blocks[header].terminator
+-    else {
+-        return None;
+-    };
+-    let (body, exit) = (*body, *exit);
+-    let Terminator::Goto(latch) = function.body.blocks[body].terminator else {
+-        return None;
+-    };
+-    if !matches!(function.body.blocks[latch].terminator, Terminator::Goto(target) if target == header)
+-    {
+-        return None;
+-    }
+-    let incoming = predecessors.get(&header)?;
+-    if incoming.len() != 2 || !incoming.contains(&latch) {
+-        return None;
+-    }
+-    let preheader = *incoming.iter().find(|&&block| block != latch)?;
+-    if preheader != function.body.entry
+-        || !predecessors.get(&preheader)?.is_empty()
+-        || !matches!(function.body.blocks[preheader].terminator, Terminator::Goto(target) if target == header)
+-    {
+-        return None;
+-    }
+-    if [preheader, header, body, latch, exit]
+-        .into_iter()
+-        .collect::<FxHashSet<_>>()
+-        .len()
+-        != 5
+-        || function.body.entry == header
+-        || function.body.entry == body
+-        || function.body.entry == latch
+-        || function.body.entry == exit
+-        || predecessors.get(&body)?.as_slice() != [header]
+-        || predecessors.get(&latch)?.as_slice() != [body]
+-        || predecessors.get(&exit)?.as_slice() != [header]
+-    {
+-        return None;
+-    }
+-    let statements = &function.body.blocks[body].stmts;
+-    for (update, pair) in statements.windows(2).enumerate() {
+-        let Statement::Assign {
+-            dest: temporary,
+-            value:
+-                Rvalue::DynBinary {
+-                    op: DynOp::Add,
+-                    lhs: Operand::Local(total),
+-                    rhs,
+-                    inplace: true,
+-                },
+-        } = &pair[0]
+-        else {
+-            continue;
+-        };
+-        if !matches!(&pair[1], Statement::Assign { dest, value: Rvalue::Use(Operand::Local(source)) }
+-            if dest == total && source == temporary)
+-        {
+-            continue;
+-        }
+-        let local = &function.body.locals[*total];
+-        if local.is_cell
+-            || local.name.is_none()
+-            || local.ty != MirType::Dynamic
+-            || statements[update + 2..]
+-                .iter()
+-                .any(|statement| !matches!(statement, Statement::Line(_)))
+-        {
+-            continue;
+-        }
+-        // 入口必须已经直接赋值；不提前执行可能未绑定的读，也不处理LoadChecked(total)模式。
+-        if !function.body.blocks[preheader]
+-            .stmts
+-            .iter()
+-            .any(|statement| matches!(statement, Statement::Assign { dest, .. } if dest == total))
+-        {
+-            continue;
+-        }
+-        let mut rhs_reads = FxHashSet::default();
+-        read_operand(rhs, &mut rhs_reads);
+-        if rhs_reads.contains(total) {
+-            continue;
+-        }
+-        let loop_blocks = [header, body, latch];
+-        let (mut total_reads, mut total_writes, mut temporary_reads, mut temporary_writes) =
+-            (0, 0, 0, 0);
+-        for (id, block) in function.body.blocks.iter() {
+-            for statement in &block.stmts {
+-                let reads = statement_reads(statement);
+-                temporary_reads += usize::from(reads.contains(temporary));
+-                if let Statement::Assign { dest, .. } = statement {
+-                    temporary_writes += usize::from(dest == temporary);
+-                    if loop_blocks.contains(&id) {
+-                        total_writes += usize::from(dest == total);
+-                    }
+-                }
+-                if loop_blocks.contains(&id) {
+-                    total_reads += usize::from(reads.contains(total));
+-                }
+-            }
+-            let reads = terminator_reads(&block.terminator);
+-            temporary_reads += usize::from(reads.contains(temporary));
+-            if loop_blocks.contains(&id) {
+-                total_reads += usize::from(reads.contains(total));
+-            }
+-        }
+-        if total_reads == 1 && total_writes == 1 && temporary_reads == 1 && temporary_writes == 1 {
+-            return Some(Plan {
+-                preheader,
+-                body,
+-                exit,
+-                update,
+-                total: *total,
+-                rhs: rhs.clone(),
+-            });
+-        }
+-    }
+-    None
+-}
+-
+-fn predecessors(function: &Function) -> FxHashMap<BlockId, Vec<BlockId>> {
+-    let mut result: FxHashMap<_, Vec<_>> = function
+-        .body
+-        .blocks
+-        .iter()
+-        .map(|(id, _)| (id, vec![]))
+-        .collect();
+-    for (id, block) in function.body.blocks.iter() {
+-        let destinations = match &block.terminator {
+-            Terminator::Goto(target) | Terminator::Suspend { resume: target, .. } => vec![*target],
+-            Terminator::Branch { then_, else_, .. } => vec![*then_, *else_],
+-            Terminator::Return(_) | Terminator::Raise { .. } | Terminator::Unreachable => vec![],
+-        };
+-        for target in destinations {
+-            if let Some(incoming) = result.get_mut(&target) {
+-                incoming.push(id);
+-            }
+-        }
+-    }
+-    result
+-}
+-
+-fn statement_reads(statement: &Statement) -> FxHashSet<LocalId> {
+-    let mut reads = FxHashSet::default();
+-    match statement {
+-        Statement::Assign { value, .. } | Statement::Eval(value) => read_value(value, &mut reads),
+-        Statement::SetField { obj, value, .. } => {
+-            read_operand(obj, &mut reads);
+-            read_operand(value, &mut reads);
+-        }
+-        Statement::SetGlobal { value, .. } => read_operand(value, &mut reads),
+-        Statement::Line(_) => {}
+-    }
+-    reads
+-}
+-fn terminator_reads(terminator: &Terminator) -> FxHashSet<LocalId> {
+-    let mut reads = FxHashSet::default();
+-    match terminator {
+-        Terminator::Branch { cond, .. } => read_operand(cond, &mut reads),
+-        Terminator::Suspend { value, input, .. } => {
+-            read_operand(value, &mut reads);
+-            if let Some(input) = input {
+-                reads.insert(*input);
+-            }
+-        }
+-        Terminator::Return(value) => {
+-            if let Some(value) = value {
+-                read_operand(value, &mut reads);
+-            }
+-        }
+-        Terminator::Raise { value, cause } => {
+-            for operand in value.iter().chain(cause.iter()) {
+-                read_operand(operand, &mut reads);
+-            }
+-        }
+-        Terminator::Goto(_) | Terminator::Unreachable => {}
++        super::numeric_accumulator_expand::expand(function, plan);
+     }
+-    reads
+ }
+diff --git a/crates/ryupy-mir/src/passes/numeric_accumulator_tests.rs b/crates/ryupy-mir/src/passes/numeric_accumulator_tests.rs
+index 4fb3909..db9b9c6 100644
+--- a/crates/ryupy-mir/src/passes/numeric_accumulator_tests.rs
++++ b/crates/ryupy-mir/src/passes/numeric_accumulator_tests.rs
+@@ -86,10 +86,13 @@ fn transformed(function: &Function) -> bool {
+         b.stmts.iter().any(|s| {
+             matches!(
+                 s,
+-                Statement::Eval(Rvalue::Call {
+-                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
++                Statement::Assign {
++                    value: Rvalue::Binary {
++                        op: BinOp::WrappingAdd,
++                        ..
++                    },
+                     ..
+-                })
++                }
+             )
+         })
+     })
+@@ -99,10 +102,59 @@ fn strict_loop_materializes_only_at_unique_exit() {
+     let (mut f, [entry, _, body, _, exit], [total, _, _]) = sample();
+     NumericAccumulator.run(&mut f);
+     assert!(transformed(&f));
+-    assert_eq!(f.body.blocks[entry].stmts.len(), 2);
+-    assert_eq!(f.body.blocks[body].stmts.len(), 1);
++    assert!(matches!(
++        f.body.blocks[entry].terminator,
++        Terminator::Branch { .. }
++    ));
++    assert!(matches!(
++        f.body.blocks[body].terminator,
++        Terminator::Branch { .. }
++    ));
++    assert!(matches!(
++        f.body.blocks[exit].terminator,
++        Terminator::Branch { .. }
++    ));
++    assert!(f.body.blocks[exit].stmts.is_empty());
++    let mut boxed_total = 0;
++    for (_, block) in f.body.blocks.iter() {
++        for stmt in &block.stmts {
++            if matches!(stmt, Statement::Assign { dest, value: Rvalue::Box { .. } } if *dest == total)
++            {
++                boxed_total += 1;
++            }
++            assert!(!matches!(
++                stmt,
++                Statement::Assign {
++                    value: Rvalue::Call {
++                        callee: Callee::Runtime(
++                            RuntimeFn::NumericAccumulatorCreate
++                                | RuntimeFn::NumericAccumulatorAdd
++                                | RuntimeFn::NumericAccumulatorValue
++                        ),
++                        ..
++                    },
++                    ..
++                } | Statement::Eval(Rvalue::Call {
++                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
++                    ..
++                })
++            ));
++        }
++    }
++    assert_eq!(boxed_total, 2, "只有慢路入口和唯一出口可物化累加盒");
++    let mut functions = Arena::default();
++    let entry = functions.alloc(f);
++    let program = Program {
++        functions,
++        classes: Arena::default(),
++        globals: Arena::default(),
++        entry,
++        source_name: "sum.py".into(),
++    };
+     assert!(
+-        matches!(&f.body.blocks[exit].stmts[0], Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::NumericAccumulatorValue), .. } } if *dest == total)
++        crate::validate::validate(&program).is_ok(),
++        "{:?}",
++        crate::validate::validate(&program)
+     );
+ }
+ #[test]
+@@ -151,7 +203,7 @@ fn nonentry_preheader_entry_backedge_and_exit_bypass_reject() {
+         });
+         match variant {
+             0 => f.body.entry = extra,
+-            1 => {} // 不可达前驱也保守拒绝，入口不得重建holder。
++            1 => {} // 不可达前驱也保守拒绝，入口不得重建累加状态。
+             2 => f.body.blocks[extra].terminator = Terminator::Goto(exit),
+             _ => unreachable!(),
+         }
+diff --git a/crates/ryupy-mir/src/pretty.rs b/crates/ryupy-mir/src/pretty.rs
+index b5ff40f..9fab123 100644
+--- a/crates/ryupy-mir/src/pretty.rs
++++ b/crates/ryupy-mir/src/pretty.rs
+@@ -293,6 +293,8 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
+         Rvalue::Box { value, from } => {
+             format!("box<{:?}>({})", from, format_operand(value))
+         }
++        Rvalue::IsBoxedI64 { value } => format!("is_boxed_i64({})", format_operand(value)),
++        Rvalue::UnboxExactI64 { value } => format!("unbox_exact_i64({})", format_operand(value)),
+         Rvalue::Unbox { value, to } => {
+             format!("unbox<{:?}>({})", to, format_operand(value))
+         }
+diff --git a/crates/ryupy-mir/src/validate.rs b/crates/ryupy-mir/src/validate.rs
+index de5c20d..7ed3711 100644
+--- a/crates/ryupy-mir/src/validate.rs
++++ b/crates/ryupy-mir/src/validate.rs
+@@ -55,6 +55,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
+         }
+ 
+         validate_regions(func, &mut errors);
++        crate::exact_types::validate(program, func, &mut errors);
+ 
+         for &param in &func.params {
+             if !func.body.locals.iter().any(|(id, _)| id == param) {
+@@ -88,6 +89,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
+                         }
+                         validate_rvalue(func, block_id, value, program, &mut errors);
+                         class_namespace::validate_destination(func, *dest, value, &mut errors);
++                        runtime_calls::validate_destination(func, *dest, value, &mut errors);
+                         if matches!(
+                             value,
+                             Rvalue::Call {
+@@ -109,7 +111,8 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
+                             rvalue,
+                             Rvalue::Call {
+                                 callee: Callee::Runtime(
+-                                    RuntimeFn::ClassNamespaceContains
++                                    RuntimeFn::DynBinary
++                                        | RuntimeFn::ClassNamespaceContains
+                                         | RuntimeFn::GeneratorInput
+                                         | RuntimeFn::GeneratorRetry
+                                         | RuntimeFn::PrintTarget
+@@ -288,7 +291,11 @@ fn validate_regions(func: &crate::mir::Function, errors: &mut Vec<String>) {
+     }
+ }
+ 
+-fn operand_type(program: &Program, func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
++pub(crate) fn operand_type(
++    program: &Program,
++    func: &crate::mir::Function,
++    op: &Operand,
++) -> Option<MirType> {
+     match op {
+         Operand::Local(loc) => func
+             .body
+@@ -406,62 +413,7 @@ fn validate_rvalue(
+         Rvalue::Unary { operand, .. } => validate_operand(func, block_id, operand, errors),
+         Rvalue::Cast { operand, .. } => validate_operand(func, block_id, operand, errors),
+         Rvalue::Call { callee, args } => {
+-            // 输出与累加器专用ABI校验，防止参数错配生成栈不平衡的CIL。
+-            if let Callee::Runtime(runtime) = callee {
+-                let expected: Option<&[MirType]> = match runtime {
+-                    RuntimeFn::PrintTarget => Some(&[]),
+-                    RuntimeFn::CheckGlobalBound => Some(&[MirType::Bool, MirType::Str]),
+-                    RuntimeFn::ClassNamespaceContains => Some(&[MirType::Dynamic, MirType::Str]),
+-                    RuntimeFn::NumericAccumulatorCreate
+-                    | RuntimeFn::NumericAccumulatorValue
+-                    | RuntimeFn::TypedDictFinish
+-                    | RuntimeFn::ValidateOrdinaryBase => Some(&[MirType::Dynamic]),
+-                    RuntimeFn::TypedDictBegin => {
+-                        Some(&[MirType::Str, MirType::Dynamic, MirType::Bool, MirType::Str])
+-                    }
+-                    RuntimeFn::NumericAccumulatorAdd => Some(&[MirType::Dynamic, MirType::Dynamic]),
+-                    RuntimeFn::WriteI64 => Some(&[MirType::Dynamic, MirType::I64]),
+-                    RuntimeFn::WriteF64 => Some(&[MirType::Dynamic, MirType::F64]),
+-                    RuntimeFn::WriteBool => Some(&[MirType::Dynamic, MirType::Bool]),
+-                    RuntimeFn::WriteStr => Some(&[MirType::Dynamic, MirType::Str]),
+-                    RuntimeFn::WriteObject => Some(&[MirType::Dynamic, MirType::Dynamic]),
+-                    RuntimeFn::WriteSep | RuntimeFn::WriteNewline => Some(&[MirType::Dynamic]),
+-                    _ => None,
+-                };
+-                if let Some(expected) = expected
+-                    && (args.len() != expected.len()
+-                        || args.iter().zip(expected).any(|(arg, ty)| {
+-                            operand_type(program, func, arg).is_some_and(|actual| &actual != ty)
+-                        }))
+-                {
+-                    errors.push(format!(
+-                        "函数 {} 的 {:?} 参数不符合{}",
+-                        func.name,
+-                        runtime,
+-                        if matches!(
+-                            runtime,
+-                            RuntimeFn::NumericAccumulatorCreate
+-                                | RuntimeFn::NumericAccumulatorAdd
+-                                | RuntimeFn::NumericAccumulatorValue
+-                        ) {
+-                            "累加器ABI"
+-                        } else if matches!(
+-                            runtime,
+-                            RuntimeFn::TypedDictBegin | RuntimeFn::TypedDictFinish
+-                        ) {
+-                            "TypedDict构建ABI"
+-                        } else if matches!(runtime, RuntimeFn::CheckGlobalBound) {
+-                            "模块绑定位ABI"
+-                        } else if matches!(runtime, RuntimeFn::ClassNamespaceContains) {
+-                            "类命名空间存在性ABI"
+-                        } else if matches!(runtime, RuntimeFn::ValidateOrdinaryBase) {
+-                            "普通基类守卫ABI"
+-                        } else {
+-                            "输出目标ABI"
+-                        }
+-                    ));
+-                }
+-            }
++            runtime_calls::validate_call(program, func, callee, args, errors);
+             if let Callee::Fn(fn_id) = callee {
+                 if let Some((_, target_fn)) = program.functions.iter().find(|(id, _)| id == fn_id) {
+                     if args.len() != target_fn.params.len() {
+@@ -501,7 +453,9 @@ fn validate_rvalue(
+                 ));
+             }
+         }
+-        Rvalue::Unbox { value, .. } => {
++        Rvalue::Unbox { value, .. }
++        | Rvalue::IsBoxedI64 { value }
++        | Rvalue::UnboxExactI64 { value } => {
+             validate_operand(func, block_id, value, errors);
+             if let Some(v_ty) = operand_type(program, func, value)
+                 && v_ty != MirType::Dynamic
+@@ -591,3 +545,6 @@ mod tests;
+ 
+ #[path = "validate_class_namespace.rs"]
+ mod class_namespace;
++
++#[path = "validate_runtime_calls.rs"]
++mod runtime_calls;
+diff --git a/docs/optimization.md b/docs/optimization.md
+index 6fd4cce..db138c7 100644
+--- a/docs/optimization.md
++++ b/docs/optimization.md
+@@ -1,6 +1,6 @@
+ # 前瞻优化计划
+ 
+-本文安排尚未实现的优化，现有控制流简化与基础常量折叠继续保留。项目阻塞优先级高于微基准；每项优化先有正确的通用路径，再加入证明或守卫。路线图见 [roadmap.md](roadmap.md)，阶段任务见 [TODO.md](../TODO.md)。
++本文安排尚未实现的优化，现有控制流简化与基础常量折叠继续保留。原计划以项目阻塞优先；经用户批准的当前执行顺序见下文，独立兼容门仍保留。每项优化先有正确的通用路径，再加入证明或守卫。路线图见 [roadmap.md](roadmap.md)，阶段任务见 [TODO.md](../TODO.md)。
+ 
+ ## 测量方法与当前基线
+ 
+@@ -28,6 +28,16 @@ M2.12 的基线与各项优化的收益、边界见 [ADR-0014](adr/0014-benchmar
+ 模块槽位、i64 快路径（无异常的溢出检测）与小整数 / bool 装箱缓存已实现；类版本当前是全局版本号，
+ 按类细分版本、容器同质存储仍是待做项。
+ 
++## 当前执行顺序与实证约束
++
++经用户批准将标准库交付与项目兼容门拆分，M3.7已交付，固定入口仍5/20；
++按明确JIT方向优先M3.9→M3.10。M3.8桥接保持未完成后排，原16/20目标保留M3.11，
++不再用追逐单库新链无限阻塞有证据的原生优化。
++首个M3.9实验复用已有严格非逃逸累加候选，探索直接typed CIL状态和整数快路。
++当前基线的holder helper在Tier1/FullOpts已被JIT内联，不能仅以CIL少了call宣称收益；
++必须比较实际机器码、状态寄存器/对象存储、分配及稳态分布。无收益则不默认启用。
++当前实验约束见 [ADR-0033](adr/0033-direct-cil-guarded-accumulator.md)，仍待配对验证，不是已完成优化清单。
++
+ ## Phase 3 按热点推进
+ 
+ | 优化 | 证明或守卫 | 不能越过的边界 |
+diff --git a/docs/roadmap.md b/docs/roadmap.md
+index 9655000..cd3cad1 100644
+--- a/docs/roadmap.md
++++ b/docs/roadmap.md
+@@ -65,7 +65,8 @@ M3.7 完成不能宣称项目兼容目标完成，固定分母、预定入口和
+ 原项目覆盖验收完整迁至 **M3.11 独立兼容性门**，仍须至少16/20原生通过；
+ Phase 3 整体目标仍受该门约束。**M3.10** 则独立验收面向 .NET JIT 的直接typed CIL、
+ 特化、逃逸/装箱消除、容器与循环/SIMD证据，不以更快通用解释helper替代。
+-M3.8 桥接与 M3.9 首批优化保持未完成；后续先评估实际依赖和优化准备，不假称已实现。
++M3.8 桥接保持未完成，按用户JIT方向暂后排：它不是原生MIR/CIL优化的技术依赖。
++当前先执行M3.9首批优化验证，再进入M3.10；没有把后排桥接勾作完成。
+ 后续候选按 [影响面与成本](project-backlog.md) 登记，不保证解除首阻断即项目通过。
+ 这是用户明确授权的验收/排期调整，原文与后果见 [ADR-0032](adr/0032-bounded-stdlib-and-compatibility-gate.md)。
+ 

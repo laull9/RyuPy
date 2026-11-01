@@ -1,0 +1,25 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/hello/hello.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 162.98778800410219,
+  "maxrss": 38293504,
+  "stats": {
+    "main_ms": 11.058,
+    "alloc_bytes": 394992,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 120.116,
+    "jit_methods": 181,
+    "heap_bytes": 405456
+  },
+  "exit_code": 0,
+  "environment": {
+    "DOTNET_TieredCompilation": "0",
+    "PYTHONHASHSEED": "0"
+  }
+}

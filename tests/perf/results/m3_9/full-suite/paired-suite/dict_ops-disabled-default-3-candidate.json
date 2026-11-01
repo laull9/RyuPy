@@ -1,0 +1,27 @@
+{
+  "name": "dict_ops",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "candidate",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/dict_ops/dict_ops.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 406.2560759994085,
+  "maxrss": 66908160,
+  "stats": {
+    "main_ms": 239.641,
+    "alloc_bytes": 71667336,
+    "gc0": 14,
+    "gc1": 3,
+    "gc2": 2,
+    "gc_pause_ms": 18.364,
+    "jit_ms": 205.404,
+    "jit_methods": 227,
+    "heap_bytes": 16008808
+  }
+}

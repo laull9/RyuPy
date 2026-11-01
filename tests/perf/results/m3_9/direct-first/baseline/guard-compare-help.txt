@@ -1,0 +1,13 @@
+usage: compare_accumulator_guards.py [-h] --output OUTPUT
+                                     [--processes PROCESSES]
+                                     variants [variants ...]
+
+比较相同守卫负载的独立产物；不构建、不替换runtime，保留回退回归而不挑选快路数字。
+
+positional arguments:
+  variants              标签=包含accumulator_guards.dll和对应runtime的目录
+
+options:
+  -h, --help            show this help message and exit
+  --output OUTPUT
+  --processes PROCESSES

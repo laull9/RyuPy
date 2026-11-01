@@ -1,5 +1,4 @@
 # bench: category=phase3
-# bench: pending=M3.2
 # bench: desc=生成器：yield 迭代、yield from 委托、生成器表达式求和
 def count_up(n):
     i = 0

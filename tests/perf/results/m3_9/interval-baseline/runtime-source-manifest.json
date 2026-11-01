@@ -1,0 +1,5 @@
+{
+  "base_commit": "e1c1ee101fb8480e1b375b62a0f056978cfca8aa",
+  "patch_sha256": "797a0634df5216f9aec9e1af667594f7e97b14da5e933e052db43fe321c319fa",
+  "scope": "只捕获当前runtime差异，不把当前正在开发的Rust源码当旧CLI来源"
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/matmul.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/matmul"
+  ],
+  "compile_ms": 5.6058389964164235,
+  "exit_code": 0,
+  "dll_sha256": "295f423be3e888f8ddd5b0f76c45fb50f92a59310f077c5bc464c3f2c9a9b39b"
+}

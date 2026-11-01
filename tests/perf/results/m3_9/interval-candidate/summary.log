@@ -1,0 +1,38 @@
+{
+  "default_baseline": {
+    "call_true": 0.0015067860003910027,
+    "call_false": 0.0017378619959345087,
+    "loop_true": 0.0011075369984610006,
+    "loop_false": 0.0008295700026792474,
+    "unknown_int": 0.0017093049973482266,
+    "unknown_bool": 0.0031165389955276623,
+    "unknown_overflow": 0.0090916230037692
+  },
+  "default_candidate": {
+    "call_true": 0.0012738840014208108,
+    "call_false": 0.001283193996641785,
+    "loop_true": 0.0009109879974857904,
+    "loop_false": 0.000745056000596378,
+    "unknown_int": 0.0015639569974155165,
+    "unknown_bool": 0.0036746709956787527,
+    "unknown_overflow": 0.01123389600252267
+  },
+  "disabled_baseline": {
+    "call_true": 0.0007651470004930161,
+    "call_false": 0.0005054489956819452,
+    "loop_true": 0.0005379509966587648,
+    "loop_false": 0.000606720001087524,
+    "unknown_int": 0.0005460510001285002,
+    "unknown_bool": 0.0014084939975873567,
+    "unknown_overflow": 0.0057311580021632835
+  },
+  "disabled_candidate": {
+    "call_true": 0.0005795070028398186,
+    "call_false": 0.00047032400470925495,
+    "loop_true": 0.0005812640010844916,
+    "loop_false": 0.000498241999594029,
+    "unknown_int": 0.000597423997533042,
+    "unknown_bool": 0.001319261995377019,
+    "unknown_overflow": 0.007608992003952153
+  }
+}

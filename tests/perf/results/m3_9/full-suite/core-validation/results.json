@@ -1,0 +1,58 @@
+[
+  {
+    "which": "e1",
+    "kind": "kernel_time",
+    "name": "fib",
+    "sample": 0,
+    "elapsed_ms": 213.3374
+  },
+  {
+    "which": "e1",
+    "kind": "kernel_time",
+    "name": "mandelbrot",
+    "sample": 0,
+    "elapsed_ms": 294.6974
+  },
+  {
+    "which": "e1",
+    "kind": "kernel_time",
+    "name": "matmul",
+    "sample": 0,
+    "elapsed_ms": 231.5902
+  },
+  {
+    "which": "e1",
+    "kind": "kernel_time",
+    "name": "nbody",
+    "sample": 0,
+    "elapsed_ms": 853.0154
+  },
+  {
+    "which": "current",
+    "kind": "kernel_time",
+    "name": "fib",
+    "sample": 0,
+    "elapsed_ms": 119.9532
+  },
+  {
+    "which": "current",
+    "kind": "kernel_time",
+    "name": "mandelbrot",
+    "sample": 0,
+    "elapsed_ms": 241.8026
+  },
+  {
+    "which": "current",
+    "kind": "kernel_time",
+    "name": "matmul",
+    "sample": 0,
+    "elapsed_ms": 158.3903
+  },
+  {
+    "which": "current",
+    "kind": "kernel_time",
+    "name": "nbody",
+    "sample": 0,
+    "elapsed_ms": 1288.2251
+  }
+]

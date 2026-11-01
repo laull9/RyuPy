@@ -1,0 +1,3 @@
+-0.169075164
+-0.169079859
+{"kind":"kernel_resources","name":"nbody","sample":0,"alloc_bytes":679200088,"gc0":162,"gc1":0,"gc2":0,"gc_pause_ms":36.652,"jit_ms":3.3815,"jit_methods":5}

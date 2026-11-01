@@ -1,0 +1,50 @@
+{
+  "default_baseline": {
+    "int_fast": 0.0020303880010033026,
+    "bool_fallback": 0.0048415150013170205,
+    "float_fallback": 0.004587106996041257,
+    "radd_fallback": 0.012185074003355112,
+    "iadd_fallback": 0.012915995001094416,
+    "overflow_alternating": 0.005892436995054595
+  },
+  "default_first": {
+    "int_fast": 0.0013980670046294108,
+    "bool_fallback": 0.003530852001858875,
+    "float_fallback": 0.0013873960051569156,
+    "radd_fallback": 0.011057192001317162,
+    "iadd_fallback": 0.011111239000456408,
+    "overflow_alternating": 0.010949029005132616
+  },
+  "default_cold": {
+    "int_fast": 0.0015038749988889322,
+    "bool_fallback": 0.0032607280008960515,
+    "float_fallback": 0.0036530770012177527,
+    "radd_fallback": 0.010434206000354607,
+    "iadd_fallback": 0.010683995998988394,
+    "overflow_alternating": 0.006558853994647507
+  },
+  "disabled_baseline": {
+    "int_fast": 0.0008161209989339113,
+    "bool_fallback": 0.002070335998723749,
+    "float_fallback": 0.002338364996830933,
+    "radd_fallback": 0.0040570359997218475,
+    "iadd_fallback": 0.003646586999821011,
+    "overflow_alternating": 0.0034324340012972243
+  },
+  "disabled_first": {
+    "int_fast": 0.0008097149984678254,
+    "bool_fallback": 0.0016391940007451922,
+    "float_fallback": 0.00062006799998926,
+    "radd_fallback": 0.004043278997414745,
+    "iadd_fallback": 0.00409813199803466,
+    "overflow_alternating": 0.0035287360005895607
+  },
+  "disabled_cold": {
+    "int_fast": 0.001094250997994095,
+    "bool_fallback": 0.0018916780027211644,
+    "float_fallback": 0.0013920670025981963,
+    "radd_fallback": 0.003395380001165904,
+    "iadd_fallback": 0.004019439002149738,
+    "overflow_alternating": 0.004086572000232991
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "mandelbrot",
+  "tier": "default",
+  "mode": "time",
+  "variant": "cpython",
+  "repeat": 0,
+  "command": [
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core_cpython.py",
+    "/workspace/shared/RyuPy/tests/benchmarks/mandelbrot.py",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/mandelbrot.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 34452.84711700515,
+  "maxrss": 16625664,
+  "samples": [
+    {
+      "name": "mandelbrot",
+      "sample": 0,
+      "kind": "kernel_time",
+      "elapsed_ms": 2842.7873569962685
+    },
+    {
+      "name": "mandelbrot",
+      "sample": 1,
+      "kind": "kernel_time",
+      "elapsed_ms": 2695.802886999445
+    },
+    {
+      "name": "mandelbrot",
+      "sample": 2,
+      "kind": "kernel_time",
+      "elapsed_ms": 2642.345671003568
+    },
+    {
+      "name": "mandelbrot",
+      "sample": 3,
+      "kind": "kernel_time",
+      "elapsed_ms": 2709.3518510009744
+    },
+    {
+      "name": "mandelbrot",
+      "sample": 4,
+      "kind": "kernel_time",
+      "elapsed_ms": 2916.5938919977634
+    },
+    {
+      "name": "mandelbrot",
+      "sample": 5,
+      "kind": "kernel_time",
+      "elapsed_ms": 2724.502691999078
+    },
+    {
+      "name": "mandelbrot",
+      "sample": 6,
+      "kind": "kernel_time",
+      "elapsed_ms": 2793.343051998818
+    }
+  ]
+}

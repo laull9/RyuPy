@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/nqueens.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/nqueens"
+  ],
+  "compile_ms": 7.288811000762507,
+  "exit_code": 0,
+  "dll_sha256": "5c37369e0cd6f22efe9e12bc3d5b48caca3d681729e4dcae93aa267df2c12216"
+}

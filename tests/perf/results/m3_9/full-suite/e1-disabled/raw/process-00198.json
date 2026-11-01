@@ -1,0 +1,25 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/decorators/decorators.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 750.9865630054264,
+  "maxrss": 125710336,
+  "stats": {
+    "main_ms": 561.427,
+    "alloc_bytes": 383448648,
+    "gc0": 90,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 11.412,
+    "jit_ms": 190.933,
+    "jit_methods": 219,
+    "heap_bytes": 5355072
+  },
+  "exit_code": 0,
+  "environment": {
+    "DOTNET_TieredCompilation": "0",
+    "PYTHONHASHSEED": "0"
+  }
+}

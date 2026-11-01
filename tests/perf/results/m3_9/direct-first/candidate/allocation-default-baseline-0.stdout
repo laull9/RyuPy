@@ -1,0 +1,27 @@
+semantics True Record(x=3, y=4)
+construction 0.018094707003911026 1249975000
+field_reads 0.0029684900000575 1400000
+equality 0.05619957499584416 50000
+construction 0.006182361998071428 1249975000
+field_reads 0.0025089219998335466 1400000
+equality 0.05789501599792857 50000
+construction 0.010216139002295677 1249975000
+field_reads 0.004030218995467294 1400000
+equality 0.0643969439988723 50000
+construction 0.009468126998399384 1249975000
+field_reads 0.0031519109979853965 1400000
+equality 0.1206013159971917 50000
+construction 0.008733754002605565 1249975000
+field_reads 0.002450904001307208 1400000
+equality 0.019674061994010117 50000
+construction 0.007438153996190522 1249975000
+field_reads 0.0020904839984723367 1400000
+equality 0.010132515999430325 50000
+construction 0.003025680998689495 1249975000
+field_reads 0.0022019350071786903 1400000
+equality 0.010329416996682994 50000
+compiled_field_reads batch=0 ns_per_iteration=12.248 bytes_per_iteration=0.000360 total_bytes=360 calls=5 iterations=1000000 result=1400000
+compiled_field_reads batch=1 ns_per_iteration=12.903 bytes_per_iteration=0.000360 total_bytes=360 calls=5 iterations=1000000 result=1400000
+compiled_field_reads batch=2 ns_per_iteration=12.149 bytes_per_iteration=0.000360 total_bytes=360 calls=5 iterations=1000000 result=1400000
+compiled_field_reads batch=3 ns_per_iteration=13.103 bytes_per_iteration=0.000360 total_bytes=360 calls=5 iterations=1000000 result=1400000
+compiled_field_reads batch=4 ns_per_iteration=11.197 bytes_per_iteration=0.000360 total_bytes=360 calls=5 iterations=1000000 result=1400000

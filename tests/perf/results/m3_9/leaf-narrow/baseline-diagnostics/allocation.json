@@ -1,0 +1,542 @@
+[
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "alias",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "direct",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "alias",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "direct",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "alias",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 0,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 1,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 2,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 3,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "direct",
+    "batch": 4,
+    "bytes": 950800,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.54
+  }
+]

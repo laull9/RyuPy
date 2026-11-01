@@ -1,0 +1,63 @@
+{
+  "name": "matmul",
+  "tier": "default",
+  "mode": "time",
+  "variant": "cpython",
+  "repeat": 1,
+  "command": [
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core_cpython.py",
+    "/workspace/shared/RyuPy/tests/benchmarks/matmul.py",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/matmul.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 1516.283962999296,
+  "maxrss": 17166336,
+  "samples": [
+    {
+      "name": "matmul",
+      "sample": 0,
+      "kind": "kernel_time",
+      "elapsed_ms": 147.30432299984386
+    },
+    {
+      "name": "matmul",
+      "sample": 1,
+      "kind": "kernel_time",
+      "elapsed_ms": 128.02571399515728
+    },
+    {
+      "name": "matmul",
+      "sample": 2,
+      "kind": "kernel_time",
+      "elapsed_ms": 132.42527999682352
+    },
+    {
+      "name": "matmul",
+      "sample": 3,
+      "kind": "kernel_time",
+      "elapsed_ms": 125.66561700077727
+    },
+    {
+      "name": "matmul",
+      "sample": 4,
+      "kind": "kernel_time",
+      "elapsed_ms": 134.48504600091837
+    },
+    {
+      "name": "matmul",
+      "sample": 5,
+      "kind": "kernel_time",
+      "elapsed_ms": 120.67710099654505
+    },
+    {
+      "name": "matmul",
+      "sample": 6,
+      "kind": "kernel_time",
+      "elapsed_ms": 125.0673190006637
+    }
+  ]
+}

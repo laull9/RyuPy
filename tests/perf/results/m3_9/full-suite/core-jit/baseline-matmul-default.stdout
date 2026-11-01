@@ -1,0 +1,2 @@
+613423466.816
+{"kind":"kernel_resources","name":"matmul","sample":0,"alloc_bytes":144671448,"gc0":33,"gc1":1,"gc2":1,"gc_pause_ms":41.932,"jit_ms":6.0141,"jit_methods":6}

@@ -1,0 +1,9 @@
+  Determining projects to restore...
+  Restored /tmp/ryupy-m3_9-null-candidate-NOm0xF/steady-harness/steady.csproj (in 141 ms).
+  steady -> /tmp/ryupy-m3_9-null-candidate-NOm0xF/steady-harness/bin/Release/net10.0/steady.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:05.16

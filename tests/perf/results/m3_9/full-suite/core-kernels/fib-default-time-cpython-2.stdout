@@ -1,0 +1,7 @@
+{"name": "fib", "sample": 0, "kind": "kernel_time", "elapsed_ms": 693.4773340035463}
+{"name": "fib", "sample": 1, "kind": "kernel_time", "elapsed_ms": 670.3249870042782}
+{"name": "fib", "sample": 2, "kind": "kernel_time", "elapsed_ms": 652.2086379991379}
+{"name": "fib", "sample": 3, "kind": "kernel_time", "elapsed_ms": 755.0902009970741}
+{"name": "fib", "sample": 4, "kind": "kernel_time", "elapsed_ms": 710.6588070018915}
+{"name": "fib", "sample": 5, "kind": "kernel_time", "elapsed_ms": 670.4273639988969}
+{"name": "fib", "sample": 6, "kind": "kernel_time", "elapsed_ms": 653.6934379982995}

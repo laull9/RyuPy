@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/calls.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/calls"
+  ],
+  "compile_ms": 12.404841996612959,
+  "exit_code": 0,
+  "dll_sha256": "249ef3275cd97e4af2bfe7b269b2005d62d766f5e20f7043c88ac196ace8a21d"
+}

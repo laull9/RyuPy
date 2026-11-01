@@ -1,0 +1,5 @@
+   Compiling ryupy-mir v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-mir)
+   Compiling ryupy-codegen-cil v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-codegen-cil)
+   Compiling ryupy-driver v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-driver)
+   Compiling ryupy-cli v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.10s

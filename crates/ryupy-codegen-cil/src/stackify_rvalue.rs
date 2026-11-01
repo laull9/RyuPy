@@ -52,6 +52,8 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                         ins.push(Instruction::AddOverflow(NumberSign::Signed));
                     }
                 }
+                // 仅机械发射 MIR 显式请求的回绕运算；溢出分支由 MIR 构造。
+                BinOp::WrappingAdd => ins.push(Instruction::Add),
                 BinOp::Sub => {
                     if is_float {
                         ins.push(Instruction::Subtract);
@@ -139,8 +141,13 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                 let site = ctx.next_site();
                 ins.push(Instruction::LoadConstantInt32(site));
             }
-            for arg in args {
+            for (index, arg) in args.iter().enumerate() {
                 lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
+                if index == 0 && matches!(callee, Callee::Runtime(RuntimeFn::DynBinary)) {
+                    // 固定 ABI 的首参是 CLR int；MIR 验证器已约束常量可表示性。
+                    // 只适配签名宽度，不在后端解释操作码或选择动态回退语义。
+                    ins.push(Instruction::Convert(ConversionType::Int32));
+                }
             }
             match callee {
                 Callee::Runtime(rt_fn) => crate::stackify_runtime::emit_call(rt_fn, ins, ctx),
@@ -177,6 +184,32 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                 ctx.runtime_refs,
             );
             emit_box(ins, from, ctx.runtime_refs, ctx.class_types);
+        }
+        Rvalue::IsBoxedI64 { value } => {
+            lower_operand(
+                value,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            // isinst 对值类型只接受对应的盒；CLR null 不是语言层的 None 对象。
+            ins.push(Instruction::IsInstance(BaseType::Int64.into()));
+            ins.push(Instruction::LoadNull);
+            ins.push(Instruction::CompareEqual);
+            ins.push(Instruction::LoadConstantInt32(0));
+            ins.push(Instruction::CompareEqual);
+        }
+        Rvalue::UnboxExactI64 { value } => {
+            lower_operand(
+                value,
+                ins,
+                ctx.param_slots,
+                ctx.local_slots,
+                ctx.runtime_refs,
+            );
+            // MIR 验证器负责守卫支配性；此处不调用具有转换语义的 PyCast。
+            ins.push(Instruction::UnboxIntoValue(BaseType::Int64.into()));
         }
         Rvalue::Unbox { value, to } => {
             lower_operand(

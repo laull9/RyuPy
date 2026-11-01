@@ -1,0 +1,27 @@
+{
+  "name": "calls",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/calls/calls.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 533.0145749976509,
+  "maxrss": 45256704,
+  "stats": {
+    "main_ms": 354.269,
+    "alloc_bytes": 419538784,
+    "gc0": 100,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 10.107,
+    "jit_ms": 181.174,
+    "jit_methods": 202,
+    "heap_bytes": 1592216
+  }
+}

@@ -1,0 +1,1038 @@
+{
+  "fib|default|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      101.2824,
+      98.4232,
+      96.7461
+    ],
+    "median_ms": 98.4232,
+    "process_maxrss_median": 45490176,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 1,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 2,
+        "alloc_bytes": 48,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 44.1186,
+        "jit_methods": 66
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "fib|default|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      97.9613,
+      86.3,
+      97.209
+    ],
+    "median_ms": 97.209,
+    "process_maxrss_median": 45740032,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 1,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 2,
+        "alloc_bytes": 48,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 67.631,
+        "jit_methods": 66
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "fib|default|cpython": {
+    "process_count": 3,
+    "process_medians_ms": [
+      904.9424430049839,
+      600.8063390036114,
+      670.4273639988969
+    ],
+    "median_ms": 670.4273639988969,
+    "process_maxrss_median": 16101376,
+    "resources_raw": [
+      {
+        "name": "fib",
+        "sample": 0,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "fib",
+        "sample": 1,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "fib",
+        "sample": 2,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      }
+    ],
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0
+  },
+  "fib|disabled|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      231.9998,
+      193.6026,
+      213.1093
+    ],
+    "median_ms": 213.1093,
+    "process_maxrss_median": 44482560,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 1,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 2,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "fib|disabled|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      193.4431,
+      211.8369,
+      188.4922
+    ],
+    "median_ms": 193.4431,
+    "process_maxrss_median": 44302336,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 1,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "fib",
+        "sample": 2,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "mandelbrot|default|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      188.6069,
+      233.5729,
+      212.3314
+    ],
+    "median_ms": 212.3314,
+    "process_maxrss_median": 50421760,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 1,
+        "alloc_bytes": 48,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 49.3502,
+        "jit_methods": 63
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 2,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "mandelbrot|default|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      230.8015,
+      220.0782,
+      222.9397
+    ],
+    "median_ms": 222.9397,
+    "process_maxrss_median": 50253824,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 1,
+        "alloc_bytes": 48,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 70.9176,
+        "jit_methods": 63
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 2,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "mandelbrot|default|cpython": {
+    "process_count": 3,
+    "process_medians_ms": [
+      2724.502691999078,
+      2884.065644997463,
+      3109.272214001976
+    ],
+    "median_ms": 2884.065644997463,
+    "process_maxrss_median": 16756736,
+    "resources_raw": [
+      {
+        "name": "mandelbrot",
+        "sample": 0,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "mandelbrot",
+        "sample": 1,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "mandelbrot",
+        "sample": 2,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      }
+    ],
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0
+  },
+  "mandelbrot|disabled|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      515.7148,
+      538.9883,
+      495.4551
+    ],
+    "median_ms": 515.7148,
+    "process_maxrss_median": 49192960,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 1,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 2,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "mandelbrot|disabled|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      469.4548,
+      554.3524,
+      498.077
+    ],
+    "median_ms": 498.077,
+    "process_maxrss_median": 49102848,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 0,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 1,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "mandelbrot",
+        "sample": 2,
+        "alloc_bytes": 0,
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 0,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 0,
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 0,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "matmul|default|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      157.6,
+      171.3717,
+      170.0186
+    ],
+    "median_ms": 170.0186,
+    "process_maxrss_median": 69259264,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 23.691,
+        "jit_ms": 0.4073,
+        "jit_methods": 1
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 1,
+        "alloc_bytes": 144672120,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 21.709,
+        "jit_ms": 17.947,
+        "jit_methods": 31
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 2,
+        "alloc_bytes": 144671472,
+        "gc0": 33,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 23.355,
+        "jit_ms": 68.526,
+        "jit_methods": 57
+      }
+    ],
+    "alloc_bytes_median": 144671472,
+    "gc0_median": 33,
+    "gc1_median": 1,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 23.355,
+    "jit_ms_median": 17.947,
+    "jit_methods_median": 31
+  },
+  "matmul|default|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      174.5161,
+      172.5899,
+      168.6539
+    ],
+    "median_ms": 172.5899,
+    "process_maxrss_median": 69029888,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 25.92,
+        "jit_ms": 6.0269,
+        "jit_methods": 1
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 1,
+        "alloc_bytes": 144672120,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 20.577,
+        "jit_ms": 14.2779,
+        "jit_methods": 16
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 2,
+        "alloc_bytes": 144683832,
+        "gc0": 33,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 18.547,
+        "jit_ms": 96.8687,
+        "jit_methods": 99
+      }
+    ],
+    "alloc_bytes_median": 144672120,
+    "gc0_median": 33,
+    "gc1_median": 1,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 20.577,
+    "jit_ms_median": 14.2779,
+    "jit_methods_median": 16
+  },
+  "matmul|default|cpython": {
+    "process_count": 3,
+    "process_medians_ms": [
+      118.34440500388155,
+      128.02571399515728,
+      127.38637800066499
+    ],
+    "median_ms": 127.38637800066499,
+    "process_maxrss_median": 17166336,
+    "resources_raw": [
+      {
+        "name": "matmul",
+        "sample": 0,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "matmul",
+        "sample": 1,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "matmul",
+        "sample": 2,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      }
+    ],
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0
+  },
+  "matmul|disabled|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      227.6271,
+      243.337,
+      251.5239
+    ],
+    "median_ms": 243.337,
+    "process_maxrss_median": 65294336,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 23.136,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 1,
+        "alloc_bytes": 144672120,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 22.416,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 2,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 22.16,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 144671448,
+    "gc0_median": 33,
+    "gc1_median": 1,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 22.416,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "matmul|disabled|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      217.6812,
+      200.0872,
+      233.7653
+    ],
+    "median_ms": 217.6812,
+    "process_maxrss_median": 65306624,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 0,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 1,
+        "gc_pause_ms": 30.187,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 1,
+        "alloc_bytes": 144672504,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 23.054,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "matmul",
+        "sample": 2,
+        "alloc_bytes": 144671448,
+        "gc0": 33,
+        "gc1": 1,
+        "gc2": 0,
+        "gc_pause_ms": 21.538,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 144671448,
+    "gc0_median": 33,
+    "gc1_median": 1,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 23.054,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "nbody|default|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      951.7755,
+      808.6072,
+      911.363
+    ],
+    "median_ms": 911.363,
+    "process_maxrss_median": 60162048,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 32.205,
+        "jit_ms": 1.8331,
+        "jit_methods": 4
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 1,
+        "alloc_bytes": 679322352,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 68.458,
+        "jit_ms": 137.0044,
+        "jit_methods": 139
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 2,
+        "alloc_bytes": 679309624,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 60.045,
+        "jit_ms": 20.9208,
+        "jit_methods": 12
+      }
+    ],
+    "alloc_bytes_median": 679309624,
+    "gc0_median": 163,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 60.045,
+    "jit_ms_median": 20.9208,
+    "jit_methods_median": 12
+  },
+  "nbody|default|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      878.8813,
+      912.6286,
+      919.2638
+    ],
+    "median_ms": 912.6286,
+    "process_maxrss_median": 60239872,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 32.885,
+        "jit_ms": 2.0767,
+        "jit_methods": 6
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 1,
+        "alloc_bytes": 679310016,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 68.129,
+        "jit_ms": 136.2788,
+        "jit_methods": 139
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 2,
+        "alloc_bytes": 679309624,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 59.744,
+        "jit_ms": 8.9302,
+        "jit_methods": 12
+      }
+    ],
+    "alloc_bytes_median": 679309624,
+    "gc0_median": 163,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 59.744,
+    "jit_ms_median": 8.9302,
+    "jit_methods_median": 12
+  },
+  "nbody|default|cpython": {
+    "process_count": 3,
+    "process_medians_ms": [
+      672.2429209985421,
+      772.1545579988742,
+      630.7402820020798
+    ],
+    "median_ms": 672.2429209985421,
+    "process_maxrss_median": 17506304,
+    "resources_raw": [
+      {
+        "name": "nbody",
+        "sample": 0,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "nbody",
+        "sample": 1,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      },
+      {
+        "name": "nbody",
+        "sample": 2,
+        "kind": "kernel_resources",
+        "gc0": 0,
+        "gc1": 0,
+        "gc2": 0
+      }
+    ],
+    "gc0_median": 0,
+    "gc1_median": 0,
+    "gc2_median": 0
+  },
+  "nbody|disabled|baseline": {
+    "process_count": 3,
+    "process_medians_ms": [
+      1057.1771,
+      993.3614,
+      972.3166
+    ],
+    "median_ms": 993.3614,
+    "process_maxrss_median": 60125184,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 30.849,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 1,
+        "alloc_bytes": 679309968,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 74.588,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 2,
+        "alloc_bytes": 679309624,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 69.783,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 679309624,
+    "gc0_median": 163,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 69.783,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  },
+  "nbody|disabled|candidate": {
+    "process_count": 3,
+    "process_medians_ms": [
+      1453.4447,
+      887.37,
+      1037.6033
+    ],
+    "median_ms": 1037.6033,
+    "process_maxrss_median": 60399616,
+    "resources_raw": [
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 0,
+        "alloc_bytes": 679200088,
+        "gc0": 162,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 31.929,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 1,
+        "alloc_bytes": 679309968,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 61.143,
+        "jit_ms": 0,
+        "jit_methods": 0
+      },
+      {
+        "kind": "kernel_resources",
+        "name": "nbody",
+        "sample": 2,
+        "alloc_bytes": 679309624,
+        "gc0": 163,
+        "gc1": 0,
+        "gc2": 0,
+        "gc_pause_ms": 57.816,
+        "jit_ms": 0,
+        "jit_methods": 0
+      }
+    ],
+    "alloc_bytes_median": 679309624,
+    "gc0_median": 163,
+    "gc1_median": 0,
+    "gc2_median": 0,
+    "gc_pause_ms_median": 57.816,
+    "jit_ms_median": 0,
+    "jit_methods_median": 0
+  }
+}

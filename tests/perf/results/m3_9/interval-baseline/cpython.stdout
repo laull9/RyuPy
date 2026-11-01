@@ -1,0 +1,7 @@
+semantics call_true 100
+semantics call_false 180
+semantics loop_true 100
+semantics loop_false 180
+semantics unknown_int 260
+semantics unknown_bool 60
+semantics unknown_overflow 184467440737095516180

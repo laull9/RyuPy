@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/spectral_norm.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/spectral_norm"
+  ],
+  "compile_ms": 18.283372999576386,
+  "exit_code": 0,
+  "dll_sha256": "ace1946ca4736e4439f6ce90e2f9f0ace50dfea85ba370f7ee00adf7915437cc"
+}

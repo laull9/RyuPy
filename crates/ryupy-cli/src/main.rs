@@ -11,6 +11,12 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
+    /// 实验：将受守卫循环累加展开成直接 CIL（不保证更快；默认使用 holder）
+    #[arg(long, global = true)]
+    experimental_direct_accumulator: bool,
+    /// 实验：受守卫纯叶调用内联（默认关闭，不保证更快）
+    #[arg(long, global = true)]
+    experimental_leaf_inline: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -75,7 +81,11 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
-    let mut sess = Session::default();
+    let mut sess = Session {
+        experimental_direct_accumulator: cli.experimental_direct_accumulator,
+        experimental_leaf_inline: cli.experimental_leaf_inline,
+        ..Session::default()
+    };
     let result = run(cli.command, &mut sess);
 
     if !sess.diagnostics.is_empty() {
@@ -145,5 +155,86 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             print!("{}", ryupy_driver::dump(sess, &input, emit.into())?);
             Ok(ExitCode::SUCCESS)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn direct_accumulator_is_explicit_for_every_command() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.experimental_direct_accumulator);
+            for arguments in [
+                vec![
+                    "ryupy",
+                    "--experimental-direct-accumulator",
+                    command,
+                    "input.py",
+                ],
+                vec![
+                    "ryupy",
+                    command,
+                    "input.py",
+                    "--experimental-direct-accumulator",
+                ],
+            ] {
+                let enabled = Cli::try_parse_from(arguments).unwrap();
+                assert!(enabled.experimental_direct_accumulator);
+            }
+        }
+    }
+
+    #[test]
+    fn direct_accumulator_flag_rejects_unrecognized_values() {
+        // 它是明确的布尔开关，不接受可能被误读为其它优化模式的字符串。
+        assert!(
+            Cli::try_parse_from([
+                "ryupy",
+                "--experimental-direct-accumulator=unknown",
+                "build",
+                "input.py",
+            ])
+            .is_err()
+        );
+    }
+}
+
+#[cfg(test)]
+mod leaf_flag_tests {
+    use super::*;
+    #[test]
+    fn leaf_inline_is_explicit_independent_and_composable() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.experimental_leaf_inline && !default.experimental_direct_accumulator);
+            for arguments in [
+                vec!["ryupy", "--experimental-leaf-inline", command, "input.py"],
+                vec!["ryupy", command, "input.py", "--experimental-leaf-inline"],
+            ] {
+                let leaf = Cli::try_parse_from(arguments).unwrap();
+                assert!(leaf.experimental_leaf_inline && !leaf.experimental_direct_accumulator);
+            }
+            let both = Cli::try_parse_from([
+                "ryupy",
+                "--experimental-direct-accumulator",
+                command,
+                "input.py",
+                "--experimental-leaf-inline",
+            ])
+            .unwrap();
+            assert!(both.experimental_leaf_inline && both.experimental_direct_accumulator);
+        }
+        assert!(
+            Cli::try_parse_from([
+                "ryupy",
+                "--experimental-leaf-inline=unknown",
+                "build",
+                "input.py"
+            ])
+            .is_err()
+        );
     }
 }

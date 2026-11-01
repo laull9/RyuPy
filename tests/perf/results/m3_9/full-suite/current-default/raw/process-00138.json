@@ -1,0 +1,24 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/str_concat/str_concat.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 4316.139838003437,
+  "maxrss": 82731008,
+  "stats": {
+    "main_ms": 4206.299,
+    "alloc_bytes": 20031186784,
+    "gc0": 2784,
+    "gc1": 2566,
+    "gc2": 2565,
+    "gc_pause_ms": 613.454,
+    "jit_ms": 93.831,
+    "jit_methods": 362,
+    "heap_bytes": 6099864
+  },
+  "exit_code": 0,
+  "environment": {
+    "PYTHONHASHSEED": "0"
+  }
+}

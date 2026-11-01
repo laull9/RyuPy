@@ -1,0 +1,104 @@
+{
+ "environment": {
+  "date": "2026-11-02T00:34:06",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "cpu": "x86_64",
+  "python": "3.12.13",
+  "dotnet": "10.0.403",
+  "commit": "e1c1ee1+dirty",
+  "runs": 1,
+  "warmup": 0
+ },
+ "results": [
+  {
+   "name": "comprehensions",
+   "category": "phase3",
+   "status": "ok",
+   "compile_ms": 14.524767000693828,
+   "cpython": null,
+   "ryupy": {
+    "wall_ms": [
+     837.7925989989308
+    ],
+    "main_ms": [
+     718.8
+    ],
+    "maxrss": [
+     68567040
+    ],
+    "stats": {
+     "main_ms": 718.8,
+     "alloc_bytes": 127817448,
+     "gc0": 19,
+     "gc1": 10,
+     "gc2": 6,
+     "gc_pause_ms": 200.47,
+     "jit_ms": 323.75,
+     "jit_methods": 654,
+     "heap_bytes": 20390504
+    }
+   },
+   "variants": {}
+  },
+  {
+   "name": "decorators",
+   "category": "phase3",
+   "status": "ok",
+   "compile_ms": 10.826067999005318,
+   "cpython": null,
+   "ryupy": {
+    "wall_ms": [
+     753.8599630061071
+    ],
+    "main_ms": [
+     625.329
+    ],
+    "maxrss": [
+     47783936
+    ],
+    "stats": {
+     "main_ms": 625.329,
+     "alloc_bytes": 383449304,
+     "gc0": 90,
+     "gc1": 1,
+     "gc2": 0,
+     "gc_pause_ms": 15.504,
+     "jit_ms": 181.769,
+     "jit_methods": 547,
+     "heap_bytes": 5356752
+    }
+   },
+   "variants": {}
+  },
+  {
+   "name": "generators",
+   "category": "phase3",
+   "status": "ok",
+   "compile_ms": 8.550568003556691,
+   "cpython": null,
+   "ryupy": {
+    "wall_ms": [
+     1661.8368540002848
+    ],
+    "main_ms": [
+     1535.876
+    ],
+    "maxrss": [
+     98086912
+    ],
+    "stats": {
+     "main_ms": 1535.876,
+     "alloc_bytes": 196228808,
+     "gc0": 37,
+     "gc1": 6,
+     "gc2": 2,
+     "gc_pause_ms": 235.178,
+     "jit_ms": 147.209,
+     "jit_methods": 537,
+     "heap_bytes": 47588344
+    }
+   },
+   "variants": {}
+  }
+ ]
+}

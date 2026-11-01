@@ -1,0 +1,9 @@
+832040
+2880067194370816120
+{"kind":"kernel_time","name":"fib","sample":0,"elapsed_ms":130.1089}
+{"kind":"kernel_time","name":"fib","sample":1,"elapsed_ms":87.3232}
+{"kind":"kernel_time","name":"fib","sample":2,"elapsed_ms":100.4612}
+{"kind":"kernel_time","name":"fib","sample":3,"elapsed_ms":94.699}
+{"kind":"kernel_time","name":"fib","sample":4,"elapsed_ms":96.7461}
+{"kind":"kernel_time","name":"fib","sample":5,"elapsed_ms":106.3088}
+{"kind":"kernel_time","name":"fib","sample":6,"elapsed_ms":89.2828}

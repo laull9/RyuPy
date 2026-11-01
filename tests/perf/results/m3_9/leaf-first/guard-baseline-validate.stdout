@@ -1,0 +1,6 @@
+semantics int True
+semantics bool True
+semantics float True
+semantics overflow True
+semantics custom True
+semantics rebind True

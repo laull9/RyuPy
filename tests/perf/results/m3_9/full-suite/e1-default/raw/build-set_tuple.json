@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/set_tuple.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/set_tuple"
+  ],
+  "compile_ms": 18.748858994513284,
+  "exit_code": 0,
+  "dll_sha256": "584e98a19baf95875c833334fc28f9382ebb79b563969439781e8a983eb8a1c5"
+}

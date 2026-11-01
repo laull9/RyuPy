@@ -1,0 +1,27 @@
+{
+  "name": "generators",
+  "tier": "default",
+  "variant": "default",
+  "which": "candidate",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/generators/generators.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 1526.149131997954,
+  "maxrss": 98168832,
+  "stats": {
+    "main_ms": 1395.304,
+    "alloc_bytes": 196229088,
+    "gc0": 37,
+    "gc1": 6,
+    "gc2": 2,
+    "gc_pause_ms": 199.323,
+    "jit_ms": 158.365,
+    "jit_methods": 537,
+    "heap_bytes": 47588616
+  }
+}

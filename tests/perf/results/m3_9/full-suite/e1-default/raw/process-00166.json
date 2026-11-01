@@ -1,0 +1,24 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/exceptions/exceptions.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 477.75071300566196,
+  "maxrss": 125710336,
+  "stats": {
+    "main_ms": 369.657,
+    "alloc_bytes": 98442552,
+    "gc0": 22,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 4.371,
+    "jit_ms": 169.285,
+    "jit_methods": 533,
+    "heap_bytes": 6807072
+  },
+  "exit_code": 0,
+  "environment": {
+    "PYTHONHASHSEED": "0"
+  }
+}

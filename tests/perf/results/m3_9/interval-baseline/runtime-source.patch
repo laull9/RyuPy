@@ -1,0 +1,80 @@
+diff --git a/runtime/RyuPy.Runtime/PyTraceback.cs b/runtime/RyuPy.Runtime/PyTraceback.cs
+index c20cf5f..f72f0d6 100644
+--- a/runtime/RyuPy.Runtime/PyTraceback.cs
++++ b/runtime/RyuPy.Runtime/PyTraceback.cs
+@@ -87,10 +87,7 @@ public static class PyTraceback
+     /// <param name="function">函数名；模块顶层传 <c>&lt;module&gt;</c>。</param>
+     public static long PushFrame(string file, string function)
+     {
+-        if (_depth >= RecursionLimit)
+-        {
+-            throw new PyRecursionError("maximum recursion depth exceeded");
+-        }
++        CheckDepth();
+         if (_depth == _functions.Length)
+         {
+             Array.Resize(ref _functions, _depth * 2);
+@@ -104,6 +101,14 @@ public static class PyTraceback
+         return _depth;
+     }
+ 
++    /// <summary>验证下一次 Python 调用的深度，不压入帧；无可观察函数体的守卫内联仍必须保留此检查。</summary>
++    public static void CheckDepth()
++    {
++        // 与普通入口共享同一限额和错误，不能因省略叶函数帧而吞掉可捕获异常。
++        if (_depth >= RecursionLimit)
++            throw new PyRecursionError("maximum recursion depth exceeded");
++    }
++
+     /// <summary>保存调用者帧深度；原生回调捕获异常后用 PopTo(depth + 1) 恢复，不创建虚假帧。</summary>
+     public static long CaptureDepth() => _depth;
+ 
+diff --git a/runtime/RyuPy.Runtime.Tests/PyTracebackDepthTests.cs b/runtime/RyuPy.Runtime.Tests/PyTracebackDepthTests.cs
+new file mode 100644
+index 0000000..2d07df3
+--- /dev/null
++++ b/runtime/RyuPy.Runtime.Tests/PyTracebackDepthTests.cs
+@@ -0,0 +1,43 @@
++using RyuPy.Runtime;
++
++namespace RyuPy.Runtime.Tests;
++
++/// <summary>守卫叶调用与普通压帧共用递归边界，检查本身不改变调用位置或帧深度。</summary>
++[Collection("生成器帧栈")]
++public class PyTracebackDepthTests
++{
++    [Fact]
++    public void CheckDepthPreservesFrameAndMatchesPushFailure()
++    {
++        long saved = PyTraceback.CaptureDepth();
++        try
++        {
++            PyRecursionError? pushError = null;
++            while (pushError is null)
++            {
++                long before = PyTraceback.CaptureDepth();
++                try { PyTraceback.PushFrame("depth.py", "caller"); }
++                catch (PyRecursionError error)
++                {
++                    pushError = error;
++                    Assert.Equal(before, PyTraceback.CaptureDepth());
++                }
++                if (pushError is null)
++                {
++                    PyTraceback.SetLine(37);
++                    // 最后一个合法帧的下一次检查会失败；在此前成功检查不写帧。
++                    try { PyTraceback.CheckDepth(); }
++                    catch (PyRecursionError) { }
++                    Assert.Equal(before + 1, PyTraceback.CaptureDepth());
++                    Assert.Equal(37, PyTraceback.GetCallerLocation(1).Line);
++                }
++            }
++            long full = PyTraceback.CaptureDepth();
++            var checkedError = Assert.Throws<PyRecursionError>(PyTraceback.CheckDepth);
++            Assert.Equal(pushError.PyMessage, checkedError.PyMessage);
++            Assert.Equal(full, PyTraceback.CaptureDepth());
++            Assert.Empty(checkedError.Frames);
++        }
++        finally { PyTraceback.PopTo(saved + 1); }
++    }
++}

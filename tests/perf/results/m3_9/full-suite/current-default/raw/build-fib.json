@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/fib.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/fib"
+  ],
+  "compile_ms": 4.565673996694386,
+  "exit_code": 0,
+  "dll_sha256": "bf37d1616ae080dcb20932bfab1cb9242d5ab0b4eda86c6a6adce1fac6bb063f"
+}

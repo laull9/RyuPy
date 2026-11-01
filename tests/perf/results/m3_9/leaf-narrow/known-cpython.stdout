@@ -1,0 +1,4 @@
+semantics index_fast 38
+semantics index_rebind 20
+semantics constant_fast 14
+semantics constant_rebind 8

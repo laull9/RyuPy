@@ -1,0 +1,129 @@
+---
+source: crates/ryupy-driver/tests/leaf_inline.rs
+expression: mir
+---
+fn twice(_0: dyn) -> dyn {
+    let _0: dyn; // value
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "ryupy_leaf_inline.py", const "twice");
+        // line 2
+        _3 = dyn.Add(_0, _0);
+        _2 = _3;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn invoke() -> dyn {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: i64;
+    let _13: bool;
+    let _14: bool;
+    let _15: bool;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_leaf_inline.py", const "invoke");
+        // line 5
+        _2 = RuntimeFn::LoadName(global@3, const "alias");
+        _3 = box<I64>(const 7_i64);
+        _5 = _2;
+        _6 = _3;
+        _15 = Eq(_5, global@10);
+        branch _15 -> [then: bb7, else: bb4];
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_0);
+        return _1;
+    }
+    bb3: {
+        _1 = _4;
+        goto -> bb2;
+    }
+    bb4: {
+        _4 = dyn.call(_5, [_6]);
+        goto -> bb3;
+    }
+    bb5: {
+        RuntimeFn::TraceCheckDepth();
+        _4 = box<I64>(_9);
+        goto -> bb3;
+    }
+    bb6: {
+        _7 = unbox_exact_i64(_6);
+        _8 = unbox_exact_i64(_6);
+        _9 = WrappingAdd(_7, _8);
+        _10 = BitXor(_7, _9);
+        _11 = BitXor(_8, _9);
+        _12 = BitAnd(_10, _11);
+        _13 = Ge(_12, const 0_i64);
+        branch _13 -> [then: bb5, else: bb4];
+    }
+    bb7: {
+        _14 = is_boxed_i64(_6);
+        branch _14 -> [then: bb6, else: bb4];
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_leaf_inline.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_leaf_inline.py");
+        g2 = _3;
+        // line 1
+        // line 3
+        g3 = global@4;
+        // line 4
+        // line 6
+        _4 = invoke();
+        _5 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_5, _4);
+        RuntimeFn::WriteNewline(_5);
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

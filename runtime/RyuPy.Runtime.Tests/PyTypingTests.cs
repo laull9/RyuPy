@@ -4,6 +4,8 @@ using Xunit;
 namespace RyuPy.Runtime.Tests;
 
 /// <summary>有限 typing 元数据的身份、参数快照和错误边界；不把别名当运行时实参验证器。</summary>
+// 原生模块注册属于进程级状态，不能与其它初始化测试并行看到半登记的模块表。
+[Collection("生成器帧栈")]
 public class PyTypingTests
 {
     public PyTypingTests() => PyNativeModules.Register();

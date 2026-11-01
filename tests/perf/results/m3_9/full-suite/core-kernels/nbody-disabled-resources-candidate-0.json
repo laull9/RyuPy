@@ -1,0 +1,58 @@
+{
+  "name": "nbody",
+  "tier": "disabled",
+  "mode": "resources",
+  "variant": "candidate",
+  "repeat": 0,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/nbody/nbody.dll",
+    "nbody",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+    "resources",
+    "3",
+    "3"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 7712.750612998207,
+  "maxrss": 60350464,
+  "samples": [
+    {
+      "kind": "kernel_resources",
+      "name": "nbody",
+      "sample": 0,
+      "alloc_bytes": 679200088,
+      "gc0": 162,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 31.929,
+      "jit_ms": 0,
+      "jit_methods": 0
+    },
+    {
+      "kind": "kernel_resources",
+      "name": "nbody",
+      "sample": 1,
+      "alloc_bytes": 679309968,
+      "gc0": 163,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 61.143,
+      "jit_ms": 0,
+      "jit_methods": 0
+    },
+    {
+      "kind": "kernel_resources",
+      "name": "nbody",
+      "sample": 2,
+      "alloc_bytes": 679309624,
+      "gc0": 163,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 57.816,
+      "jit_ms": 0,
+      "jit_methods": 0
+    }
+  ]
+}

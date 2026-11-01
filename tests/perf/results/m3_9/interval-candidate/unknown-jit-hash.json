@@ -1,0 +1,50 @@
+{
+  "default": {
+    "baseline": {
+      "sha256": "ac9d0edf7acda74bb82ae58784c2af95d43319994b39a48d9172782c22da7755",
+      "versions": [
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (Tier0)",
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (Tier1)"
+      ],
+      "bytes": [
+        "242",
+        "272",
+        "1585"
+      ]
+    },
+    "candidate": {
+      "sha256": "27d22636cf4abcf661739d70c830e9327a39feea652cca4a3dd352fc9ca6d02f",
+      "versions": [
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (Tier0)",
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (Tier1)"
+      ],
+      "bytes": [
+        "242",
+        "272",
+        "1024"
+      ]
+    }
+  },
+  "disabled": {
+    "baseline": {
+      "sha256": "62bdec378c189aa1d824a482f28ae8b926115639bf79ae413665115d5b8342cc",
+      "versions": [
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (FullOpts)"
+      ],
+      "bytes": [
+        "690"
+      ]
+    },
+    "candidate": {
+      "sha256": "62bdec378c189aa1d824a482f28ae8b926115639bf79ae413665115d5b8342cc",
+      "versions": [
+        "; Assembly listing for method RyuPy.Generated.Module:m0_choose_unknown(System.Object,System.Object):System.Object (FullOpts)"
+      ],
+      "bytes": [
+        "690"
+      ]
+    }
+  }
+}

@@ -80,6 +80,8 @@ pub struct RuntimeRefs {
     pub dyn_str: MethodRefIndex,
     pub dyn_type: MethodRefIndex,
     pub trace_push: MethodRefIndex,
+    /// 只检查递归限额，不增减 traceback 帧。
+    pub trace_check_depth: MethodRefIndex,
     pub trace_line: MethodRefIndex,
     pub trace_pop_to: MethodRefIndex,
     /// Python 异常类型名 → CLR 类型（CIL 类型化 catch 用）。

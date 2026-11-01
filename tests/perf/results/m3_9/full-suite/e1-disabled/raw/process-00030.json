@@ -1,0 +1,25 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/bigint/bigint.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 529.0555680039688,
+  "maxrss": 125710336,
+  "stats": {
+    "main_ms": 331.829,
+    "alloc_bytes": 125970056,
+    "gc0": 30,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 5.762,
+    "jit_ms": 242.992,
+    "jit_methods": 237,
+    "heap_bytes": 981456
+  },
+  "exit_code": 0,
+  "environment": {
+    "DOTNET_TieredCompilation": "0",
+    "PYTHONHASHSEED": "0"
+  }
+}

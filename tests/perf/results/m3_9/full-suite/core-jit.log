@@ -1,0 +1,16 @@
+baseline-fib-default ok
+baseline-fib-disabled ok
+baseline-mandelbrot-default ok
+baseline-mandelbrot-disabled ok
+baseline-matmul-default ok
+baseline-matmul-disabled ok
+baseline-nbody-default ok
+baseline-nbody-disabled ok
+candidate-fib-default ok
+candidate-fib-disabled ok
+candidate-mandelbrot-default ok
+candidate-mandelbrot-disabled ok
+candidate-matmul-default ok
+candidate-matmul-disabled ok
+candidate-nbody-default ok
+candidate-nbody-disabled ok

@@ -1,0 +1,5 @@
+-0.169075164
+-0.169079859
+{"kind":"kernel_resources","name":"nbody","sample":0,"alloc_bytes":679200088,"gc0":162,"gc1":0,"gc2":0,"gc_pause_ms":32.205,"jit_ms":1.8331,"jit_methods":4}
+{"kind":"kernel_resources","name":"nbody","sample":1,"alloc_bytes":679322352,"gc0":163,"gc1":0,"gc2":0,"gc_pause_ms":68.458,"jit_ms":137.0044,"jit_methods":139}
+{"kind":"kernel_resources","name":"nbody","sample":2,"alloc_bytes":679309624,"gc0":163,"gc1":0,"gc2":0,"gc_pause_ms":60.045,"jit_ms":20.9208,"jit_methods":12}

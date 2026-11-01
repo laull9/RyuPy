@@ -1,0 +1,24 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/fib/fib.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 367.4870730028488,
+  "maxrss": 38952960,
+  "stats": {
+    "main_ms": 261.572,
+    "alloc_bytes": 398032,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 73.582,
+    "jit_methods": 346,
+    "heap_bytes": 413680
+  },
+  "exit_code": 0,
+  "environment": {
+    "PYTHONHASHSEED": "0"
+  }
+}

@@ -1,0 +1,9 @@
+  Determining projects to restore...
+  Restored /tmp/ryupy-m3_9-leaf-narrow-8wLQS8/harness/alloc.csproj (in 128 ms).
+  alloc -> /tmp/ryupy-m3_9-leaf-narrow-8wLQS8/harness/bin/Release/net10.0/alloc.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.17

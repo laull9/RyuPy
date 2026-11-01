@@ -1,0 +1,3082 @@
+{
+  "e1-default": {
+    "hello": {
+      "status": "ok",
+      "compile_ms": 7.451195000612643,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 35.77536199736642,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 9.536919998936355,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 104.25689800467808,
+          "maxrss": 125710336,
+          "alloc_bytes": 395768,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 405456,
+          "jit_methods": 329,
+          "jit_ms": 53.222,
+          "main_ms": 5.579,
+          "sample_count": 3
+        }
+      }
+    },
+    "fib": {
+      "status": "ok",
+      "compile_ms": 11.189660996024031,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 690.3926610029885,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 663.4838440004387,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 354.9503889953485,
+          "maxrss": 125710336,
+          "alloc_bytes": 397968,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 413680,
+          "jit_methods": 346,
+          "jit_ms": 62.57,
+          "main_ms": 261.355,
+          "sample_count": 3
+        }
+      }
+    },
+    "mandelbrot": {
+      "status": "ok",
+      "compile_ms": 14.264983001339715,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 2609.9395120036206,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 2570.019755999965,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 406.4434550018632,
+          "maxrss": 125710336,
+          "alloc_bytes": 8274712,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 1.912,
+          "heap_bytes": 4325600,
+          "jit_methods": 374,
+          "jit_ms": 90.745,
+          "main_ms": 306.921,
+          "sample_count": 3
+        }
+      }
+    },
+    "bigint": {
+      "status": "ok",
+      "compile_ms": 13.961797005322296,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 216.0694669946679,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 177.50910500035388,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 402.67853399564046,
+          "maxrss": 125710336,
+          "alloc_bytes": 125964712,
+          "gc0": 30,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 5.366,
+          "heap_bytes": 960160,
+          "jit_methods": 408,
+          "jit_ms": 86.112,
+          "main_ms": 305.472,
+          "sample_count": 3
+        }
+      }
+    },
+    "matmul": {
+      "status": "ok",
+      "compile_ms": 16.96108300529886,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 180.89605000568554,
+          "maxrss": 125710336,
+          "gc0": 12,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 147.7890349997324,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 449.7219609984313,
+          "maxrss": 125710336,
+          "alloc_bytes": 151237400,
+          "gc0": 34,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 23.214,
+          "heap_bytes": 7827696,
+          "jit_methods": 452,
+          "jit_ms": 138.316,
+          "main_ms": 355.994,
+          "sample_count": 3
+        }
+      }
+    },
+    "nbody": {
+      "status": "ok",
+      "compile_ms": 25.58947799843736,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 832.2028190013953,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 793.3647710015066,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1150.5535280011827,
+          "maxrss": 125710336,
+          "alloc_bytes": 682683688,
+          "gc0": 162,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 22.335,
+          "heap_bytes": 3583264,
+          "jit_methods": 472,
+          "jit_ms": 159.529,
+          "main_ms": 1018.994,
+          "sample_count": 3
+        }
+      }
+    },
+    "sieve": {
+      "status": "ok",
+      "compile_ms": 15.350542998930905,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 272.2033980026026,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 238.70685099973343,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 620.6480280015967,
+          "maxrss": 125710336,
+          "alloc_bytes": 140381136,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 144.232,
+          "heap_bytes": 36088480,
+          "jit_methods": 412,
+          "jit_ms": 95.771,
+          "main_ms": 516.48,
+          "sample_count": 3
+        }
+      }
+    },
+    "spectral_norm": {
+      "status": "ok",
+      "compile_ms": 13.349629000003915,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 180.82103000051575,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 148.7610379990656,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 263.3569180034101,
+          "maxrss": 125710336,
+          "alloc_bytes": 77224624,
+          "gc0": 17,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 4.935,
+          "heap_bytes": 4530376,
+          "jit_methods": 386,
+          "jit_ms": 89.774,
+          "main_ms": 155.925,
+          "sample_count": 3
+        }
+      }
+    },
+    "calls": {
+      "status": "ok",
+      "compile_ms": 13.636998999572825,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 402.9678810038604,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 376.0557319983491,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 574.0232589960215,
+          "maxrss": 125710336,
+          "alloc_bytes": 419539632,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 11.792,
+          "heap_bytes": 1591600,
+          "jit_methods": 387,
+          "jit_ms": 102.654,
+          "main_ms": 469.529,
+          "sample_count": 3
+        }
+      }
+    },
+    "dynamic": {
+      "status": "ok",
+      "compile_ms": 14.412924996577203,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 445.35238499520347,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 411.66703299677465,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 548.2227309985319,
+          "maxrss": 125710336,
+          "alloc_bytes": 243448104,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.419,
+          "heap_bytes": 7527344,
+          "jit_methods": 469,
+          "jit_ms": 93.798,
+          "main_ms": 449.957,
+          "sample_count": 3
+        },
+        "ryupy:0": {
+          "wall_ms": 771.0034690026077,
+          "maxrss": 125710336,
+          "alloc_bytes": 403448008,
+          "gc0": 95,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 11.067,
+          "heap_bytes": 4421464,
+          "jit_methods": 553,
+          "jit_ms": 141.324,
+          "main_ms": 677.188,
+          "sample_count": 3
+        }
+      }
+    },
+    "attrs": {
+      "status": "ok",
+      "compile_ms": 13.16337900061626,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 326.4954760015826,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 291.61893900163705,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 761.9529150033486,
+          "maxrss": 125710336,
+          "alloc_bytes": 176240120,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.496,
+          "heap_bytes": 7234768,
+          "jit_methods": 546,
+          "jit_ms": 151.712,
+          "main_ms": 624.346,
+          "sample_count": 3
+        }
+      }
+    },
+    "oop": {
+      "status": "ok",
+      "compile_ms": 14.008725003805012,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 200.98455600236775,
+          "maxrss": 125710336,
+          "gc0": 13,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 170.0618749964633,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 551.7810630044551,
+          "maxrss": 125710336,
+          "alloc_bytes": 104261264,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.95,
+          "heap_bytes": 6446736,
+          "jit_methods": 648,
+          "jit_ms": 211.448,
+          "main_ms": 426.996,
+          "sample_count": 3
+        }
+      }
+    },
+    "containers": {
+      "status": "ok",
+      "compile_ms": 9.987347999413032,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 116.45562900230289,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 87.71196900488576,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 674.392868000723,
+          "maxrss": 166899712,
+          "alloc_bytes": 2534929280,
+          "gc0": 451,
+          "gc1": 23,
+          "gc2": 21,
+          "gc_pause_ms": 68.303,
+          "heap_bytes": 28940608,
+          "jit_methods": 366,
+          "jit_ms": 77.098,
+          "main_ms": 571.828,
+          "sample_count": 3
+        }
+      }
+    },
+    "dict_ops": {
+      "status": "ok",
+      "compile_ms": 18.16167799552204,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 132.8859659988666,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 103.6639500016463,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 555.481672003225,
+          "maxrss": 125710336,
+          "alloc_bytes": 71668120,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 23.133,
+          "heap_bytes": 17818992,
+          "jit_methods": 437,
+          "jit_ms": 116.607,
+          "main_ms": 460.808,
+          "sample_count": 3
+        }
+      }
+    },
+    "list_ops": {
+      "status": "ok",
+      "compile_ms": 14.662620997114573,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 196.80306499503786,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 161.45346999837784,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 575.0093280003057,
+          "maxrss": 125710336,
+          "alloc_bytes": 122471104,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 106.23,
+          "heap_bytes": 39775248,
+          "jit_methods": 398,
+          "jit_ms": 109.333,
+          "main_ms": 454.611,
+          "sample_count": 3
+        }
+      }
+    },
+    "set_tuple": {
+      "status": "ok",
+      "compile_ms": 18.748858994513284,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 233.5447719960939,
+          "maxrss": 125710336,
+          "gc0": 129,
+          "gc1": 11,
+          "gc2": 1,
+          "main_ms": 197.21915199625073,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 642.5948590040207,
+          "maxrss": 125710336,
+          "alloc_bytes": 149345352,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 44.855,
+          "heap_bytes": 17888584,
+          "jit_methods": 437,
+          "jit_ms": 131.637,
+          "main_ms": 527.325,
+          "sample_count": 3
+        }
+      }
+    },
+    "str_concat": {
+      "status": "ok",
+      "compile_ms": 8.366372996533755,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 844.6801379977842,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 812.7431829998386,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 3772.421187000873,
+          "maxrss": 125710336,
+          "alloc_bytes": 20029160760,
+          "gc0": 2515,
+          "gc1": 2297,
+          "gc2": 2296,
+          "gc_pause_ms": 572.018,
+          "heap_bytes": 6091728,
+          "jit_methods": 362,
+          "jit_ms": 68.53,
+          "main_ms": 3682.708,
+          "sample_count": 3
+        }
+      }
+    },
+    "strings": {
+      "status": "ok",
+      "compile_ms": 13.652478999574669,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 185.950036997383,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 153.42948699981207,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 777.6618839998264,
+          "maxrss": 125710336,
+          "alloc_bytes": 166503880,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 47.19,
+          "heap_bytes": 20514288,
+          "jit_methods": 537,
+          "jit_ms": 225.259,
+          "main_ms": 677.899,
+          "sample_count": 3
+        }
+      }
+    },
+    "nqueens": {
+      "status": "ok",
+      "compile_ms": 18.377066997345537,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 185.3276179972454,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 152.66767800494563,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 321.37133999640355,
+          "maxrss": 125710336,
+          "alloc_bytes": 3593608,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 3608848,
+          "jit_methods": 489,
+          "jit_ms": 128.442,
+          "main_ms": 231.021,
+          "sample_count": 3
+        }
+      }
+    },
+    "sorting": {
+      "status": "ok",
+      "compile_ms": 11.252172997046728,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 443.47096999990754,
+          "maxrss": 125710336,
+          "gc0": 142,
+          "gc1": 12,
+          "gc2": 1,
+          "main_ms": 388.37319999583997,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 751.175275996502,
+          "maxrss": 125710336,
+          "alloc_bytes": 67369424,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 69.21,
+          "heap_bytes": 38602672,
+          "jit_methods": 402,
+          "jit_ms": 110.957,
+          "main_ms": 648.484,
+          "sample_count": 3
+        }
+      }
+    },
+    "exceptions": {
+      "status": "ok",
+      "compile_ms": 18.68877199740382,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 162.2534859998268,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 131.03864599543158,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 496.034014999168,
+          "maxrss": 125710336,
+          "alloc_bytes": 98442552,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.586,
+          "heap_bytes": 6807072,
+          "jit_methods": 533,
+          "jit_ms": 160.978,
+          "main_ms": 392.986,
+          "sample_count": 3
+        }
+      }
+    },
+    "records": {
+      "status": "ok",
+      "compile_ms": 12.223322999489028,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 217.60786500090035,
+          "maxrss": 125710336,
+          "gc0": 90,
+          "gc1": 8,
+          "gc2": 0,
+          "main_ms": 170.57180399569916,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 980.4283670018776,
+          "maxrss": 125710336,
+          "alloc_bytes": 89328912,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 92.826,
+          "heap_bytes": 22595960,
+          "jit_methods": 743,
+          "jit_ms": 299.362,
+          "main_ms": 871.142,
+          "sample_count": 3
+        }
+      }
+    },
+    "closures": {
+      "status": "ok",
+      "compile_ms": 14.076311003009323,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 264.9093419968267,
+          "maxrss": 125710336,
+          "gc0": 77,
+          "gc1": 7,
+          "gc2": 0,
+          "main_ms": 212.3777200031327,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 380.74943499668734,
+          "maxrss": 125710336,
+          "alloc_bytes": 109298784,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 8.867,
+          "heap_bytes": 13174952,
+          "jit_methods": 429,
+          "jit_ms": 105.78,
+          "main_ms": 264.674,
+          "sample_count": 3
+        }
+      }
+    },
+    "comprehensions": {
+      "status": "ready",
+      "compile_ms": 13.641135999932885,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 141.09919800102944,
+          "maxrss": 125710336,
+          "gc0": 219,
+          "gc1": 19,
+          "gc2": 1,
+          "main_ms": 104.93734200281324,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 658.135425997898,
+          "maxrss": 125710336,
+          "alloc_bytes": 127809688,
+          "gc0": 20,
+          "gc1": 10,
+          "gc2": 6,
+          "gc_pause_ms": 173.661,
+          "heap_bytes": 10129456,
+          "jit_methods": 650,
+          "jit_ms": 280.871,
+          "main_ms": 554.453,
+          "sample_count": 3
+        }
+      }
+    },
+    "decorators": {
+      "status": "ready",
+      "compile_ms": 11.78991900087567,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 212.42373999848496,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 176.00600099831354,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 666.9766510021873,
+          "maxrss": 125710336,
+          "alloc_bytes": 383449504,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 12.429,
+          "heap_bytes": 5356568,
+          "jit_methods": 547,
+          "jit_ms": 191.079,
+          "main_ms": 562.787,
+          "sample_count": 3
+        }
+      }
+    },
+    "generators": {
+      "status": "ready",
+      "compile_ms": 12.810148997232318,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 316.9402990024537,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 277.4006420004298,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1306.9556129994453,
+          "maxrss": 125710336,
+          "alloc_bytes": 196229016,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 171.756,
+          "heap_bytes": 47588544,
+          "jit_methods": 537,
+          "jit_ms": 154.014,
+          "main_ms": 1197.406,
+          "sample_count": 3
+        }
+      }
+    }
+  },
+  "current-default": {
+    "hello": {
+      "status": "ok",
+      "compile_ms": 4.6212469969759695,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 42.91078700043727,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 12.293309002416208,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 127.78450100449845,
+          "maxrss": 35864576,
+          "alloc_bytes": 395848,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 405456,
+          "jit_methods": 329,
+          "jit_ms": 69.754,
+          "main_ms": 5.679,
+          "sample_count": 3
+        }
+      }
+    },
+    "fib": {
+      "status": "ok",
+      "compile_ms": 4.565673996694386,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 702.3543820032501,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 666.8818299949635,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 365.40209999657236,
+          "maxrss": 38928384,
+          "alloc_bytes": 398032,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 413680,
+          "jit_methods": 346,
+          "jit_ms": 71.242,
+          "main_ms": 252.028,
+          "sample_count": 3
+        }
+      }
+    },
+    "mandelbrot": {
+      "status": "ok",
+      "compile_ms": 4.310452000936493,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 3035.897608999221,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 2995.6538780024857,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 529.8026839955128,
+          "maxrss": 42946560,
+          "alloc_bytes": 8274784,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 1.385,
+          "heap_bytes": 4325672,
+          "jit_methods": 375,
+          "jit_ms": 117.496,
+          "main_ms": 379.148,
+          "sample_count": 3
+        }
+      }
+    },
+    "bigint": {
+      "status": "ok",
+      "compile_ms": 7.714575003774371,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 261.03773299837485,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 193.09651399817085,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 661.182699004712,
+          "maxrss": 47882240,
+          "alloc_bytes": 124684784,
+          "gc0": 29,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 14.241,
+          "heap_bytes": 3871560,
+          "jit_methods": 496,
+          "jit_ms": 260.969,
+          "main_ms": 507.031,
+          "sample_count": 3
+        }
+      }
+    },
+    "matmul": {
+      "status": "ok",
+      "compile_ms": 9.055681999598164,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 455.95787600177573,
+          "maxrss": 27238400,
+          "gc0": 12,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 378.35693699889816,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 592.4602939994656,
+          "maxrss": 53227520,
+          "alloc_bytes": 151237472,
+          "gc0": 34,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 24.57,
+          "heap_bytes": 7827768,
+          "jit_methods": 456,
+          "jit_ms": 232.441,
+          "main_ms": 451.27,
+          "sample_count": 3
+        }
+      }
+    },
+    "nbody": {
+      "status": "ok",
+      "compile_ms": 5.8473750032135285,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 665.5596519995015,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 622.2321029999875,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1074.3085560025065,
+          "maxrss": 52961280,
+          "alloc_bytes": 682683768,
+          "gc0": 162,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 22.676,
+          "heap_bytes": 3582648,
+          "jit_methods": 472,
+          "jit_ms": 154.82,
+          "main_ms": 954.842,
+          "sample_count": 3
+        }
+      }
+    },
+    "sieve": {
+      "status": "ok",
+      "compile_ms": 6.4896089970716275,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 253.59326099714963,
+          "maxrss": 28712960,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 209.27694300189614,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 773.5223979980219,
+          "maxrss": 83509248,
+          "alloc_bytes": 140380672,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 130.479,
+          "heap_bytes": 35792544,
+          "jit_methods": 412,
+          "jit_ms": 148.026,
+          "main_ms": 649.102,
+          "sample_count": 3
+        }
+      }
+    },
+    "spectral_norm": {
+      "status": "ok",
+      "compile_ms": 8.4282739990158,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 200.62517199403374,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 162.7885320049245,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 299.5378060004441,
+          "maxrss": 45264896,
+          "alloc_bytes": 77224704,
+          "gc0": 17,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.912,
+          "heap_bytes": 4530504,
+          "jit_methods": 386,
+          "jit_ms": 97.618,
+          "main_ms": 185.674,
+          "sample_count": 3
+        }
+      }
+    },
+    "calls": {
+      "status": "ok",
+      "compile_ms": 5.0809009990189224,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 488.24427100043977,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 428.40822599828243,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 605.741081002634,
+          "maxrss": 47726592,
+          "alloc_bytes": 419539712,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 12.212,
+          "heap_bytes": 1591416,
+          "jit_methods": 387,
+          "jit_ms": 100.981,
+          "main_ms": 495.464,
+          "sample_count": 3
+        }
+      }
+    },
+    "dynamic": {
+      "status": "ok",
+      "compile_ms": 6.729842003551312,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 470.3865009942092,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 441.75322799856076,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 593.317147999187,
+          "maxrss": 46206976,
+          "alloc_bytes": 243448168,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 9.69,
+          "heap_bytes": 7527408,
+          "jit_methods": 469,
+          "jit_ms": 109.617,
+          "main_ms": 482.585,
+          "sample_count": 3
+        },
+        "ryupy:0": {
+          "wall_ms": 849.4644910024363,
+          "maxrss": 45899776,
+          "alloc_bytes": 403448072,
+          "gc0": 95,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 13.885,
+          "heap_bytes": 4420960,
+          "jit_methods": 553,
+          "jit_ms": 158.483,
+          "main_ms": 750.146,
+          "sample_count": 3
+        }
+      }
+    },
+    "attrs": {
+      "status": "ok",
+      "compile_ms": 4.883745998085942,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 303.59947599936277,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 268.7744240029133,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 766.0445620058454,
+          "maxrss": 51978240,
+          "alloc_bytes": 176240200,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 9.823,
+          "heap_bytes": 7234784,
+          "jit_methods": 567,
+          "jit_ms": 154.546,
+          "main_ms": 645.384,
+          "sample_count": 3
+        }
+      }
+    },
+    "oop": {
+      "status": "ok",
+      "compile_ms": 6.045925998478197,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 272.5333359994693,
+          "maxrss": 27238400,
+          "gc0": 13,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 236.55283900006907,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 475.4313430021284,
+          "maxrss": 50974720,
+          "alloc_bytes": 104261328,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.494,
+          "heap_bytes": 6446824,
+          "jit_methods": 648,
+          "jit_ms": 208.891,
+          "main_ms": 379.573,
+          "sample_count": 3
+        }
+      }
+    },
+    "containers": {
+      "status": "ok",
+      "compile_ms": 3.641787996457424,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 127.13847299892223,
+          "maxrss": 31547392,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 91.08687000116333,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 758.2769660002668,
+          "maxrss": 179544064,
+          "alloc_bytes": 2534937568,
+          "gc0": 454,
+          "gc1": 26,
+          "gc2": 24,
+          "gc_pause_ms": 75.965,
+          "heap_bytes": 22064344,
+          "jit_methods": 366,
+          "jit_ms": 86.701,
+          "main_ms": 651.975,
+          "sample_count": 3
+        }
+      }
+    },
+    "dict_ops": {
+      "status": "ok",
+      "compile_ms": 6.425095998565666,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 153.18943100282922,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 117.3544910052442,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 620.7594890001928,
+          "maxrss": 67293184,
+          "alloc_bytes": 71668168,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 23.44,
+          "heap_bytes": 16008688,
+          "jit_methods": 437,
+          "jit_ms": 132.016,
+          "main_ms": 504.092,
+          "sample_count": 3
+        }
+      }
+    },
+    "list_ops": {
+      "status": "ok",
+      "compile_ms": 4.285030001483392,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 186.4924900000915,
+          "maxrss": 36900864,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 147.94303700182354,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 560.8398170006694,
+          "maxrss": 101621760,
+          "alloc_bytes": 122472984,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 109.397,
+          "heap_bytes": 39775312,
+          "jit_methods": 398,
+          "jit_ms": 113.596,
+          "main_ms": 432.812,
+          "sample_count": 3
+        }
+      }
+    },
+    "set_tuple": {
+      "status": "ok",
+      "compile_ms": 5.450399999972433,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 210.4112679953687,
+          "maxrss": 29614080,
+          "gc0": 129,
+          "gc1": 11,
+          "gc2": 1,
+          "main_ms": 179.44003800221253,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 563.0393539977376,
+          "maxrss": 76849152,
+          "alloc_bytes": 149345448,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 38.528,
+          "heap_bytes": 17888624,
+          "jit_methods": 437,
+          "jit_ms": 113.063,
+          "main_ms": 453.128,
+          "sample_count": 3
+        }
+      }
+    },
+    "str_concat": {
+      "status": "ok",
+      "compile_ms": 4.422846999659669,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 772.5320760000614,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 741.7173689973424,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 4186.503210999945,
+          "maxrss": 82731008,
+          "alloc_bytes": 20031186784,
+          "gc0": 2730,
+          "gc1": 2511,
+          "gc2": 2510,
+          "gc_pause_ms": 586.004,
+          "heap_bytes": 6099864,
+          "jit_methods": 362,
+          "jit_ms": 85.933,
+          "main_ms": 4074.314,
+          "sample_count": 3
+        }
+      }
+    },
+    "strings": {
+      "status": "ok",
+      "compile_ms": 5.794647993752733,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 185.35834299837006,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 152.96907800075132,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 790.7937549971393,
+          "maxrss": 71024640,
+          "alloc_bytes": 166503920,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 49.311,
+          "heap_bytes": 20478760,
+          "jit_methods": 553,
+          "jit_ms": 266.94,
+          "main_ms": 667.847,
+          "sample_count": 3
+        }
+      }
+    },
+    "nqueens": {
+      "status": "ok",
+      "compile_ms": 7.288811000762507,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 182.90530599915655,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 146.4677549956832,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 331.06396500079427,
+          "maxrss": 42598400,
+          "alloc_bytes": 3593672,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 3608840,
+          "jit_methods": 489,
+          "jit_ms": 142.344,
+          "main_ms": 236.157,
+          "sample_count": 3
+        }
+      }
+    },
+    "sorting": {
+      "status": "ok",
+      "compile_ms": 8.685779001098126,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 407.88432799308794,
+          "maxrss": 39165952,
+          "gc0": 142,
+          "gc1": 12,
+          "gc2": 1,
+          "main_ms": 349.76860899769235,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 801.0819780029124,
+          "maxrss": 85291008,
+          "alloc_bytes": 67363392,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 71.147,
+          "heap_bytes": 38594784,
+          "jit_methods": 402,
+          "jit_ms": 120.424,
+          "main_ms": 690.974,
+          "sample_count": 3
+        }
+      }
+    },
+    "exceptions": {
+      "status": "ok",
+      "compile_ms": 5.092623003292829,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 152.45676899940008,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 114.55118199955905,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 668.424622999737,
+          "maxrss": 50520064,
+          "alloc_bytes": 98442624,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 6.374,
+          "heap_bytes": 6807144,
+          "jit_methods": 539,
+          "jit_ms": 224.814,
+          "main_ms": 511.81,
+          "sample_count": 3
+        }
+      }
+    },
+    "records": {
+      "status": "ok",
+      "compile_ms": 5.386570999689866,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 254.82937599736033,
+          "maxrss": 31301632,
+          "gc0": 90,
+          "gc1": 8,
+          "gc2": 0,
+          "main_ms": 200.1013379995129,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1059.5987899941974,
+          "maxrss": 82333696,
+          "alloc_bytes": 89324376,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 93.457,
+          "heap_bytes": 22574472,
+          "jit_methods": 755,
+          "jit_ms": 280.884,
+          "main_ms": 941.661,
+          "sample_count": 3
+        }
+      }
+    },
+    "closures": {
+      "status": "ok",
+      "compile_ms": 5.990584002574906,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 210.5671910030651,
+          "maxrss": 27238400,
+          "gc0": 77,
+          "gc1": 7,
+          "gc2": 0,
+          "main_ms": 177.1170659994823,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 488.98060899955453,
+          "maxrss": 52064256,
+          "alloc_bytes": 109298848,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 10.554,
+          "heap_bytes": 13174952,
+          "jit_methods": 397,
+          "jit_ms": 104.336,
+          "main_ms": 322.968,
+          "sample_count": 3
+        }
+      }
+    },
+    "comprehensions": {
+      "status": "ready",
+      "compile_ms": 6.160500000987668,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 154.98649300570833,
+          "maxrss": 27238400,
+          "gc0": 219,
+          "gc1": 19,
+          "gc2": 1,
+          "main_ms": 113.76007099897834,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 615.8330260004732,
+          "maxrss": 69029888,
+          "alloc_bytes": 127809720,
+          "gc0": 19,
+          "gc1": 10,
+          "gc2": 6,
+          "gc_pause_ms": 162.274,
+          "heap_bytes": 19179576,
+          "jit_methods": 629,
+          "jit_ms": 277.508,
+          "main_ms": 527.229,
+          "sample_count": 3
+        }
+      }
+    },
+    "decorators": {
+      "status": "ready",
+      "compile_ms": 7.679522997932509,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 205.0470079993829,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 169.7651440044865,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 724.4798359970446,
+          "maxrss": 47718400,
+          "alloc_bytes": 383449576,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 14.613,
+          "heap_bytes": 5356752,
+          "jit_methods": 547,
+          "jit_ms": 239.826,
+          "main_ms": 570.996,
+          "sample_count": 3
+        }
+      }
+    },
+    "generators": {
+      "status": "ready",
+      "compile_ms": 7.372863001364749,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 328.17816700116964,
+          "maxrss": 27238400,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 289.2805439987569,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1355.3498520050198,
+          "maxrss": 98172928,
+          "alloc_bytes": 196229088,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 168.529,
+          "heap_bytes": 47588616,
+          "jit_methods": 537,
+          "jit_ms": 131.903,
+          "main_ms": 1252.313,
+          "sample_count": 3
+        }
+      }
+    }
+  },
+  "e1-disabled": {
+    "hello": {
+      "status": "ok",
+      "compile_ms": 7.253421004861593,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 46.367130998987705,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 11.713250001776032,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 187.243911997939,
+          "maxrss": 125710336,
+          "alloc_bytes": 394928,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 405456,
+          "jit_methods": 181,
+          "jit_ms": 135.628,
+          "main_ms": 14.618,
+          "sample_count": 3
+        }
+      }
+    },
+    "fib": {
+      "status": "ok",
+      "compile_ms": 10.933630997897126,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 717.7102160057984,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 691.1395130009623,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 351.4542609991622,
+          "maxrss": 125710336,
+          "alloc_bytes": 397104,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 405456,
+          "jit_methods": 186,
+          "jit_ms": 147.635,
+          "main_ms": 169.196,
+          "sample_count": 3
+        }
+      }
+    },
+    "mandelbrot": {
+      "status": "ok",
+      "compile_ms": 11.1587720020907,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 2897.700581997924,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 2856.591898998886,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 517.7055249951081,
+          "maxrss": 125710336,
+          "alloc_bytes": 8273856,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0.979,
+          "heap_bytes": 4325648,
+          "jit_methods": 184,
+          "jit_ms": 135.745,
+          "main_ms": 341.265,
+          "sample_count": 3
+        }
+      }
+    },
+    "bigint": {
+      "status": "ok",
+      "compile_ms": 10.976124998705927,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 201.88974500342738,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 171.38740299560595,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 529.0555680039688,
+          "maxrss": 125710336,
+          "alloc_bytes": 125970056,
+          "gc0": 30,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 6.283,
+          "heap_bytes": 967008,
+          "jit_methods": 237,
+          "jit_ms": 242.992,
+          "main_ms": 333.453,
+          "sample_count": 3
+        }
+      }
+    },
+    "matmul": {
+      "status": "ok",
+      "compile_ms": 19.82790600595763,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 178.7628180027241,
+          "maxrss": 125710336,
+          "gc0": 12,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 144.63791000162018,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 484.98978100542445,
+          "maxrss": 125710336,
+          "alloc_bytes": 151242736,
+          "gc0": 34,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 20.268,
+          "heap_bytes": 7819536,
+          "jit_methods": 217,
+          "jit_ms": 206.491,
+          "main_ms": 292.902,
+          "sample_count": 3
+        }
+      }
+    },
+    "nbody": {
+      "status": "ok",
+      "compile_ms": 27.24964100343641,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 666.2389819975942,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 632.983568997588,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1459.796514995105,
+          "maxrss": 125710336,
+          "alloc_bytes": 682682840,
+          "gc0": 162,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 35.923,
+          "heap_bytes": 3583008,
+          "jit_methods": 229,
+          "jit_ms": 326.625,
+          "main_ms": 1275.781,
+          "sample_count": 3
+        }
+      }
+    },
+    "sieve": {
+      "status": "ok",
+      "compile_ms": 15.93712299654726,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 290.65374600031646,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 250.31153800227912,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 815.6898769957479,
+          "maxrss": 125710336,
+          "alloc_bytes": 140379720,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 177.329,
+          "heap_bytes": 36088528,
+          "jit_methods": 210,
+          "jit_ms": 199.087,
+          "main_ms": 601.884,
+          "sample_count": 3
+        }
+      }
+    },
+    "spectral_norm": {
+      "status": "ok",
+      "compile_ms": 18.283372999576386,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 178.6530440003844,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 147.87248500215355,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 365.55492400657386,
+          "maxrss": 125710336,
+          "alloc_bytes": 77229968,
+          "gc0": 17,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 4.992,
+          "heap_bytes": 4538192,
+          "jit_methods": 225,
+          "jit_ms": 216.55,
+          "main_ms": 175.172,
+          "sample_count": 3
+        }
+      }
+    },
+    "calls": {
+      "status": "ok",
+      "compile_ms": 12.404841996612959,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 437.5471219973406,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 399.78337299544364,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 550.9949560000678,
+          "maxrss": 125710336,
+          "alloc_bytes": 419538784,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 10.93,
+          "heap_bytes": 1592216,
+          "jit_methods": 202,
+          "jit_ms": 179.501,
+          "main_ms": 360.221,
+          "sample_count": 3
+        }
+      }
+    },
+    "dynamic": {
+      "status": "ok",
+      "compile_ms": 13.950207001471426,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 476.82643400185043,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 446.0952340014046,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 581.2788129987894,
+          "maxrss": 125710336,
+          "alloc_bytes": 243453432,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.174,
+          "heap_bytes": 7535600,
+          "jit_methods": 231,
+          "jit_ms": 206.884,
+          "main_ms": 394.717,
+          "sample_count": 3
+        },
+        "ryupy:0": {
+          "wall_ms": 937.4351340011344,
+          "maxrss": 125710336,
+          "alloc_bytes": 403447144,
+          "gc0": 95,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 12.216,
+          "heap_bytes": 4420528,
+          "jit_methods": 228,
+          "jit_ms": 199.209,
+          "main_ms": 742.021,
+          "sample_count": 3
+        }
+      }
+    },
+    "attrs": {
+      "status": "ok",
+      "compile_ms": 12.819900999602396,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 332.8540219954448,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 293.7259630052722,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 627.7913780068047,
+          "maxrss": 125710336,
+          "alloc_bytes": 176239272,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 8.416,
+          "heap_bytes": 7234752,
+          "jit_methods": 252,
+          "jit_ms": 287.849,
+          "main_ms": 416.353,
+          "sample_count": 3
+        }
+      }
+    },
+    "oop": {
+      "status": "ok",
+      "compile_ms": 14.074605001951568,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 233.74819900345756,
+          "maxrss": 125710336,
+          "gc0": 13,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 201.36567199369892,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 487.2529089989257,
+          "maxrss": 125710336,
+          "alloc_bytes": 104266592,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.761,
+          "heap_bytes": 6454808,
+          "jit_methods": 257,
+          "jit_ms": 257.243,
+          "main_ms": 313.417,
+          "sample_count": 3
+        }
+      }
+    },
+    "containers": {
+      "status": "ok",
+      "compile_ms": 43.59140100132208,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 129.54143699607812,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 100.6165879953187,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1254.6895919949748,
+          "maxrss": 154451968,
+          "alloc_bytes": 2534955904,
+          "gc0": 455,
+          "gc1": 27,
+          "gc2": 25,
+          "gc_pause_ms": 137.927,
+          "heap_bytes": 22070072,
+          "jit_methods": 208,
+          "jit_ms": 309.729,
+          "main_ms": 958.771,
+          "sample_count": 3
+        }
+      }
+    },
+    "dict_ops": {
+      "status": "ok",
+      "compile_ms": 19.36438299890142,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 172.1863719940302,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 140.0474789988948,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 474.89513799519045,
+          "maxrss": 125710336,
+          "alloc_bytes": 71667256,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 23.073,
+          "heap_bytes": 16008656,
+          "jit_methods": 227,
+          "jit_ms": 244.501,
+          "main_ms": 260.568,
+          "sample_count": 3
+        }
+      }
+    },
+    "list_ops": {
+      "status": "ok",
+      "compile_ms": 17.8317669997341,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 184.5463209974696,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 146.98573700297857,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 560.8254179969663,
+          "maxrss": 125710336,
+          "alloc_bytes": 122476448,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 111.694,
+          "heap_bytes": 39783472,
+          "jit_methods": 236,
+          "jit_ms": 234.068,
+          "main_ms": 369.043,
+          "sample_count": 3
+        }
+      }
+    },
+    "set_tuple": {
+      "status": "ok",
+      "compile_ms": 17.820055996708106,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 214.8253539999132,
+          "maxrss": 125710336,
+          "gc0": 129,
+          "gc1": 11,
+          "gc2": 1,
+          "main_ms": 184.6670989980339,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 533.2524130062666,
+          "maxrss": 125710336,
+          "alloc_bytes": 149344536,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 41.695,
+          "heap_bytes": 17969736,
+          "jit_methods": 240,
+          "jit_ms": 233.195,
+          "main_ms": 341.069,
+          "sample_count": 3
+        }
+      }
+    },
+    "str_concat": {
+      "status": "ok",
+      "compile_ms": 10.620201006531715,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 851.4082959954976,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 816.2321630006772,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 4855.623969997396,
+          "maxrss": 125710336,
+          "alloc_bytes": 20030993560,
+          "gc0": 2775,
+          "gc1": 2557,
+          "gc2": 2556,
+          "gc_pause_ms": 784.941,
+          "heap_bytes": 6099832,
+          "jit_methods": 208,
+          "jit_ms": 223.07,
+          "main_ms": 4632.482,
+          "sample_count": 3
+        }
+      }
+    },
+    "strings": {
+      "status": "ok",
+      "compile_ms": 13.756915999692865,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 205.9043240005849,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 167.23597700183745,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 533.3556719997432,
+          "maxrss": 125710336,
+          "alloc_bytes": 166502992,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 39.713,
+          "heap_bytes": 20539136,
+          "jit_methods": 248,
+          "jit_ms": 224.614,
+          "main_ms": 359.466,
+          "sample_count": 3
+        }
+      }
+    },
+    "nqueens": {
+      "status": "ok",
+      "compile_ms": 19.73505999922054,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 163.9351709964103,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 129.3454370024847,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 435.2206259936793,
+          "maxrss": 125710336,
+          "alloc_bytes": 3586552,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 3600648,
+          "jit_methods": 209,
+          "jit_ms": 220.85,
+          "main_ms": 218.12,
+          "sample_count": 3
+        }
+      }
+    },
+    "sorting": {
+      "status": "ok",
+      "compile_ms": 14.329968995298259,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 433.93327300145756,
+          "maxrss": 125710336,
+          "gc0": 142,
+          "gc1": 12,
+          "gc2": 1,
+          "main_ms": 373.8663510011975,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 797.4431920010829,
+          "maxrss": 125710336,
+          "alloc_bytes": 67368696,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 85.843,
+          "heap_bytes": 40998088,
+          "jit_methods": 229,
+          "jit_ms": 247.759,
+          "main_ms": 564.34,
+          "sample_count": 3
+        }
+      }
+    },
+    "exceptions": {
+      "status": "ok",
+      "compile_ms": 14.354450002429076,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 155.3212429935229,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 126.2246359983692,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 565.7756110012997,
+          "maxrss": 125710336,
+          "alloc_bytes": 98441696,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 4.688,
+          "heap_bytes": 6807112,
+          "jit_methods": 228,
+          "jit_ms": 215.608,
+          "main_ms": 366.929,
+          "sample_count": 3
+        }
+      }
+    },
+    "records": {
+      "status": "ok",
+      "compile_ms": 12.765444997057784,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 207.30657200329006,
+          "maxrss": 125710336,
+          "gc0": 90,
+          "gc1": 8,
+          "gc2": 0,
+          "main_ms": 153.33039600227494,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 839.3812869981048,
+          "maxrss": 125710336,
+          "alloc_bytes": 89322040,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 94.806,
+          "heap_bytes": 22653616,
+          "jit_methods": 303,
+          "jit_ms": 320.772,
+          "main_ms": 623.844,
+          "sample_count": 3
+        }
+      }
+    },
+    "closures": {
+      "status": "ok",
+      "compile_ms": 12.624647999473382,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 254.59686900285305,
+          "maxrss": 125710336,
+          "gc0": 77,
+          "gc1": 7,
+          "gc2": 0,
+          "main_ms": 214.2998429990257,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 520.859208998445,
+          "maxrss": 125710336,
+          "alloc_bytes": 109297936,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 12.622,
+          "heap_bytes": 13175816,
+          "jit_methods": 230,
+          "jit_ms": 224.737,
+          "main_ms": 287.462,
+          "sample_count": 3
+        }
+      }
+    },
+    "comprehensions": {
+      "status": "ready",
+      "compile_ms": 15.09150199854048,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 125.10116900375579,
+          "maxrss": 125710336,
+          "gc0": 219,
+          "gc1": 19,
+          "gc2": 1,
+          "main_ms": 96.94522000063444,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 623.9757270013797,
+          "maxrss": 125710336,
+          "alloc_bytes": 127808632,
+          "gc0": 19,
+          "gc1": 10,
+          "gc2": 6,
+          "gc_pause_ms": 169.689,
+          "heap_bytes": 19162224,
+          "jit_methods": 244,
+          "jit_ms": 214.917,
+          "main_ms": 440.234,
+          "sample_count": 3
+        }
+      }
+    },
+    "decorators": {
+      "status": "ready",
+      "compile_ms": 13.806069000565913,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 207.8853019993403,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 175.3673630009871,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 667.4722680036211,
+          "maxrss": 125710336,
+          "alloc_bytes": 383448648,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 13.655,
+          "heap_bytes": 5355072,
+          "jit_methods": 219,
+          "jit_ms": 176.249,
+          "main_ms": 504.707,
+          "sample_count": 3
+        }
+      }
+    },
+    "generators": {
+      "status": "ready",
+      "compile_ms": 10.729988003731705,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 289.1130610005348,
+          "maxrss": 125710336,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 259.55311200232245,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1239.4813009959762,
+          "maxrss": 125710336,
+          "alloc_bytes": 196234896,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 153.607,
+          "heap_bytes": 47588448,
+          "jit_methods": 242,
+          "jit_ms": 174.46,
+          "main_ms": 1089.733,
+          "sample_count": 3
+        }
+      }
+    }
+  },
+  "current-disabled": {
+    "hello": {
+      "status": "ok",
+      "compile_ms": 4.03557599929627,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 43.9841709958273,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 10.906736999459099,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 162.98778800410219,
+          "maxrss": 38313984,
+          "alloc_bytes": 394992,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 405456,
+          "jit_methods": 181,
+          "jit_ms": 120.116,
+          "main_ms": 11.058,
+          "sample_count": 3
+        }
+      }
+    },
+    "fib": {
+      "status": "ok",
+      "compile_ms": 8.246915997005999,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 647.6168139997753,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 610.9704330010572,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 370.61589800578076,
+          "maxrss": 38375424,
+          "alloc_bytes": 397176,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 405456,
+          "jit_methods": 186,
+          "jit_ms": 154.065,
+          "main_ms": 163.954,
+          "sample_count": 3
+        }
+      }
+    },
+    "mandelbrot": {
+      "status": "ok",
+      "compile_ms": 8.314051003253553,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 3052.836236995063,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 3013.977802998852,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 520.0195619981969,
+          "maxrss": 42713088,
+          "alloc_bytes": 8273920,
+          "gc0": 1,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0.873,
+          "heap_bytes": 4325712,
+          "jit_methods": 184,
+          "jit_ms": 138.59,
+          "main_ms": 346.874,
+          "sample_count": 3
+        }
+      }
+    },
+    "bigint": {
+      "status": "ok",
+      "compile_ms": 4.661696002585813,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 234.97293700347655,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 200.07187799637904,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 519.8661480026203,
+          "maxrss": 46227456,
+          "alloc_bytes": 124690120,
+          "gc0": 29,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 8.419,
+          "heap_bytes": 3884608,
+          "jit_methods": 233,
+          "jit_ms": 215.87,
+          "main_ms": 337.501,
+          "sample_count": 3
+        }
+      }
+    },
+    "matmul": {
+      "status": "ok",
+      "compile_ms": 5.6058389964164235,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 171.09264399914537,
+          "maxrss": 24915968,
+          "gc0": 12,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 139.48195699776988,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 697.9096490031225,
+          "maxrss": 49725440,
+          "alloc_bytes": 151242800,
+          "gc0": 34,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 26.302,
+          "heap_bytes": 7819576,
+          "jit_methods": 217,
+          "jit_ms": 245.739,
+          "main_ms": 510.68,
+          "sample_count": 3
+        }
+      }
+    },
+    "nbody": {
+      "status": "ok",
+      "compile_ms": 5.693081999197602,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 759.4542399965576,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 712.1085960025084,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1371.8763790020603,
+          "maxrss": 54661120,
+          "alloc_bytes": 682689096,
+          "gc0": 162,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 23.405,
+          "heap_bytes": 3594320,
+          "jit_methods": 229,
+          "jit_ms": 320.039,
+          "main_ms": 1187.129,
+          "sample_count": 3
+        }
+      }
+    },
+    "sieve": {
+      "status": "ok",
+      "compile_ms": 13.335446004930418,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 297.07221900025615,
+          "maxrss": 28712960,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 262.6298180039157,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 842.4322089995258,
+          "maxrss": 78168064,
+          "alloc_bytes": 140379784,
+          "gc0": 26,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 193.535,
+          "heap_bytes": 36088592,
+          "jit_methods": 210,
+          "jit_ms": 194.836,
+          "main_ms": 648.789,
+          "sample_count": 3
+        }
+      }
+    },
+    "spectral_norm": {
+      "status": "ok",
+      "compile_ms": 5.714946004445665,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 211.5137849978055,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 174.477909997222,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 314.04176400246797,
+          "maxrss": 49238016,
+          "alloc_bytes": 77223840,
+          "gc0": 17,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 4.163,
+          "heap_bytes": 4530080,
+          "jit_methods": 225,
+          "jit_ms": 187.661,
+          "main_ms": 143.926,
+          "sample_count": 3
+        }
+      }
+    },
+    "calls": {
+      "status": "ok",
+      "compile_ms": 5.205643996305298,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 399.5377050014213,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 370.31920500157867,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 559.7503870012588,
+          "maxrss": 45596672,
+          "alloc_bytes": 419538848,
+          "gc0": 100,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 11.657,
+          "heap_bytes": 1591352,
+          "jit_methods": 202,
+          "jit_ms": 186.074,
+          "main_ms": 378.057,
+          "sample_count": 3
+        }
+      }
+    },
+    "dynamic": {
+      "status": "ok",
+      "compile_ms": 5.2386370007297955,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 505.93490499886684,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 472.797691996675,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 618.2990110028186,
+          "maxrss": 45568000,
+          "alloc_bytes": 243447312,
+          "gc0": 56,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 7.637,
+          "heap_bytes": 7527448,
+          "jit_methods": 231,
+          "jit_ms": 220.123,
+          "main_ms": 411.373,
+          "sample_count": 3
+        },
+        "ryupy:0": {
+          "wall_ms": 957.7207440015627,
+          "maxrss": 45572096,
+          "alloc_bytes": 403447216,
+          "gc0": 95,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 16.421,
+          "heap_bytes": 4420608,
+          "jit_methods": 228,
+          "jit_ms": 192.62,
+          "main_ms": 767.407,
+          "sample_count": 3
+        }
+      }
+    },
+    "attrs": {
+      "status": "ok",
+      "compile_ms": 4.491175001021475,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 347.9980530028115,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 307.62787900312105,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 430.76493800617754,
+          "maxrss": 53411840,
+          "alloc_bytes": 176239336,
+          "gc0": 40,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.318,
+          "heap_bytes": 7234816,
+          "jit_methods": 252,
+          "jit_ms": 194.18,
+          "main_ms": 286.78,
+          "sample_count": 3
+        }
+      }
+    },
+    "oop": {
+      "status": "ok",
+      "compile_ms": 4.369403002783656,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 205.73589500418166,
+          "maxrss": 24915968,
+          "gc0": 13,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 177.48408199986443,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 464.61385000293376,
+          "maxrss": 51036160,
+          "alloc_bytes": 104260472,
+          "gc0": 23,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 5.98,
+          "heap_bytes": 6446696,
+          "jit_methods": 257,
+          "jit_ms": 232.356,
+          "main_ms": 295.947,
+          "sample_count": 3
+        }
+      }
+    },
+    "containers": {
+      "status": "ok",
+      "compile_ms": 4.139019998547155,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 113.93875800422393,
+          "maxrss": 31547392,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 87.17314699606504,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 845.4919150026399,
+          "maxrss": 135720960,
+          "alloc_bytes": 2534930656,
+          "gc0": 455,
+          "gc1": 27,
+          "gc2": 25,
+          "gc_pause_ms": 88.396,
+          "heap_bytes": 34351456,
+          "jit_methods": 208,
+          "jit_ms": 184.171,
+          "main_ms": 663.607,
+          "sample_count": 3
+        }
+      }
+    },
+    "dict_ops": {
+      "status": "ok",
+      "compile_ms": 7.745157003228087,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 176.47233799652895,
+          "maxrss": 26320896,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 139.3891099942266,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 378.60981300036656,
+          "maxrss": 66703360,
+          "alloc_bytes": 71673536,
+          "gc0": 14,
+          "gc1": 3,
+          "gc2": 2,
+          "gc_pause_ms": 16.598,
+          "heap_bytes": 16008760,
+          "jit_methods": 227,
+          "jit_ms": 191.28,
+          "main_ms": 224.507,
+          "sample_count": 3
+        }
+      }
+    },
+    "list_ops": {
+      "status": "ok",
+      "compile_ms": 4.384312000183854,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 181.02341100166086,
+          "maxrss": 36941824,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 148.28793999913614,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 532.0702859971789,
+          "maxrss": 101322752,
+          "alloc_bytes": 122470336,
+          "gc0": 18,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 104.021,
+          "heap_bytes": 39775328,
+          "jit_methods": 236,
+          "jit_ms": 221.662,
+          "main_ms": 351.501,
+          "sample_count": 3
+        }
+      }
+    },
+    "set_tuple": {
+      "status": "ok",
+      "compile_ms": 4.158779003773816,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 227.46814099809853,
+          "maxrss": 29614080,
+          "gc0": 129,
+          "gc1": 11,
+          "gc2": 1,
+          "main_ms": 191.70557200413896,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 544.7477729976526,
+          "maxrss": 76206080,
+          "alloc_bytes": 149350760,
+          "gc0": 32,
+          "gc1": 6,
+          "gc2": 3,
+          "gc_pause_ms": 38.414,
+          "heap_bytes": 17972824,
+          "jit_methods": 240,
+          "jit_ms": 216.112,
+          "main_ms": 349.782,
+          "sample_count": 3
+        }
+      }
+    },
+    "str_concat": {
+      "status": "ok",
+      "compile_ms": 4.324656998505816,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 783.1596920004813,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 747.1298329983256,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 3966.844274997129,
+          "maxrss": 62980096,
+          "alloc_bytes": 20031086912,
+          "gc0": 2747,
+          "gc1": 2529,
+          "gc2": 2528,
+          "gc_pause_ms": 557.455,
+          "heap_bytes": 6099872,
+          "jit_methods": 208,
+          "jit_ms": 171.371,
+          "main_ms": 3804.426,
+          "sample_count": 3
+        }
+      }
+    },
+    "strings": {
+      "status": "ok",
+      "compile_ms": 6.4060980002977885,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 177.48348800523672,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 142.95693500025664,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 526.8821920035407,
+          "maxrss": 69574656,
+          "alloc_bytes": 166503048,
+          "gc0": 33,
+          "gc1": 5,
+          "gc2": 2,
+          "gc_pause_ms": 39.619,
+          "heap_bytes": 20529744,
+          "jit_methods": 248,
+          "jit_ms": 222.912,
+          "main_ms": 360.748,
+          "sample_count": 3
+        }
+      }
+    },
+    "nqueens": {
+      "status": "ok",
+      "compile_ms": 6.460339995101094,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 185.38306900154566,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 145.57354299904546,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 343.274716004089,
+          "maxrss": 41443328,
+          "alloc_bytes": 3592816,
+          "gc0": 0,
+          "gc1": 0,
+          "gc2": 0,
+          "gc_pause_ms": 0,
+          "heap_bytes": 3600648,
+          "jit_methods": 209,
+          "jit_ms": 157.486,
+          "main_ms": 182.845,
+          "sample_count": 3
+        }
+      }
+    },
+    "sorting": {
+      "status": "ok",
+      "compile_ms": 4.511101004027296,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 328.706157997658,
+          "maxrss": 39174144,
+          "gc0": 142,
+          "gc1": 12,
+          "gc2": 1,
+          "main_ms": 281.2593240014394,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 709.055059000093,
+          "maxrss": 81698816,
+          "alloc_bytes": 67362576,
+          "gc0": 7,
+          "gc1": 5,
+          "gc2": 3,
+          "gc_pause_ms": 71.831,
+          "heap_bytes": 40995064,
+          "jit_methods": 229,
+          "jit_ms": 232.417,
+          "main_ms": 504.246,
+          "sample_count": 3
+        }
+      }
+    },
+    "exceptions": {
+      "status": "ok",
+      "compile_ms": 3.931504994397983,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 162.31371399771888,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 128.8582819979638,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 420.57922299864003,
+          "maxrss": 47456256,
+          "alloc_bytes": 98441760,
+          "gc0": 22,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 4.041,
+          "heap_bytes": 6807696,
+          "jit_methods": 228,
+          "jit_ms": 150.694,
+          "main_ms": 270.788,
+          "sample_count": 3
+        }
+      }
+    },
+    "records": {
+      "status": "ok",
+      "compile_ms": 6.686218002869282,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 235.08696000499185,
+          "maxrss": 31301632,
+          "gc0": 90,
+          "gc1": 8,
+          "gc2": 0,
+          "main_ms": 177.17471899959492,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 661.0210409999127,
+          "maxrss": 78061568,
+          "alloc_bytes": 89322144,
+          "gc0": 16,
+          "gc1": 7,
+          "gc2": 3,
+          "gc_pause_ms": 84.79,
+          "heap_bytes": 22653728,
+          "jit_methods": 303,
+          "jit_ms": 244.148,
+          "main_ms": 502.804,
+          "sample_count": 3
+        }
+      }
+    },
+    "closures": {
+      "status": "ok",
+      "compile_ms": 4.28708999970695,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 274.5774409995647,
+          "maxrss": 24915968,
+          "gc0": 77,
+          "gc1": 7,
+          "gc2": 0,
+          "main_ms": 224.62877700309036,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 340.21972499613184,
+          "maxrss": 49332224,
+          "alloc_bytes": 109304208,
+          "gc0": 23,
+          "gc1": 2,
+          "gc2": 1,
+          "gc_pause_ms": 8.23,
+          "heap_bytes": 13175832,
+          "jit_methods": 230,
+          "jit_ms": 151.422,
+          "main_ms": 198.04,
+          "sample_count": 3
+        }
+      }
+    },
+    "comprehensions": {
+      "status": "ready",
+      "compile_ms": 6.017624000378419,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 135.26792600168847,
+          "maxrss": 24915968,
+          "gc0": 219,
+          "gc1": 19,
+          "gc2": 1,
+          "main_ms": 107.17588000261458,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 523.6031180029386,
+          "maxrss": 71626752,
+          "alloc_bytes": 127802552,
+          "gc0": 19,
+          "gc1": 11,
+          "gc2": 6,
+          "gc_pause_ms": 150.759,
+          "heap_bytes": 19025560,
+          "jit_methods": 244,
+          "jit_ms": 170.76,
+          "main_ms": 373.832,
+          "sample_count": 3
+        }
+      }
+    },
+    "decorators": {
+      "status": "ready",
+      "compile_ms": 5.622849006613251,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 218.83598300337326,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 187.16360600228654,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 597.7544449997367,
+          "maxrss": 46354432,
+          "alloc_bytes": 383448712,
+          "gc0": 90,
+          "gc1": 1,
+          "gc2": 0,
+          "gc_pause_ms": 9.531,
+          "heap_bytes": 5355048,
+          "jit_methods": 219,
+          "jit_ms": 147.149,
+          "main_ms": 455.392,
+          "sample_count": 3
+        }
+      }
+    },
+    "generators": {
+      "status": "ready",
+      "compile_ms": 4.66311200580094,
+      "series": {
+        "cpython:default": {
+          "wall_ms": 294.35422900132835,
+          "maxrss": 24915968,
+          "gc0": 11,
+          "gc1": 1,
+          "gc2": 0,
+          "main_ms": 262.3743660005857,
+          "sample_count": 3
+        },
+        "ryupy:default": {
+          "wall_ms": 1147.5203830050305,
+          "maxrss": 97292288,
+          "alloc_bytes": 196228768,
+          "gc0": 37,
+          "gc1": 6,
+          "gc2": 2,
+          "gc_pause_ms": 141.07,
+          "heap_bytes": 47596736,
+          "jit_methods": 242,
+          "jit_ms": 163.433,
+          "main_ms": 995.512,
+          "sample_count": 3
+        }
+      }
+    }
+  }
+}

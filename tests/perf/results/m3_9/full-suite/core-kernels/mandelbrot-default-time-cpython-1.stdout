@@ -1,0 +1,7 @@
+{"name": "mandelbrot", "sample": 0, "kind": "kernel_time", "elapsed_ms": 2592.6210209945566}
+{"name": "mandelbrot", "sample": 1, "kind": "kernel_time", "elapsed_ms": 2604.723930999171}
+{"name": "mandelbrot", "sample": 2, "kind": "kernel_time", "elapsed_ms": 4133.835679000185}
+{"name": "mandelbrot", "sample": 3, "kind": "kernel_time", "elapsed_ms": 4440.348064003047}
+{"name": "mandelbrot", "sample": 4, "kind": "kernel_time", "elapsed_ms": 4016.016457993828}
+{"name": "mandelbrot", "sample": 5, "kind": "kernel_time", "elapsed_ms": 2884.065644997463}
+{"name": "mandelbrot", "sample": 6, "kind": "kernel_time", "elapsed_ms": 2660.744690998399}

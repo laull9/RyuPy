@@ -1,0 +1,1892 @@
+[
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 0,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 1,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 2,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 3,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 4,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 0,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 1,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 2,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 3,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 4,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 0,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 1,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 2,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 3,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 4,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 0,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 1,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 2,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 3,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 4,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 0,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 1,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 2,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 3,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 4,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 0,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 1,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 2,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 3,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 4,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 0,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 1,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 2,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 3,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 4,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 0,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 1,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 2,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 3,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 4,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 0,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 1,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 2,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 3,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "default",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 4,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_true",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "call_false",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 0,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 1,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 2,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 3,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_true",
+    "batch": 4,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 0,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 1,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 2,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 3,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "loop_false",
+    "batch": 4,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_int",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_bool",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 0,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 1,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 2,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 3,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 0,
+    "label": "unknown_overflow",
+    "batch": 4,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_true",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "call_false",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 0,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 1,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 2,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 3,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_true",
+    "batch": 4,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 0,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 1,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 2,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 3,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "loop_false",
+    "batch": 4,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_int",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_bool",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 0,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 1,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 2,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 3,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 1,
+    "label": "unknown_overflow",
+    "batch": 4,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_true",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "call_false",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 0,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 1,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 2,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 3,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_true",
+    "batch": 4,
+    "bytes": 478776,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9388
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 0,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 1,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 2,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 3,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "loop_false",
+    "batch": 4,
+    "bytes": 479328,
+    "iterations": 20000,
+    "bytes_per_iteration": 23.9664
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_int",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 0,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 1,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 2,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 3,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_bool",
+    "batch": 4,
+    "bytes": 64,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0032
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 0,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 1,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 2,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 3,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  },
+  {
+    "tier": "disabled",
+    "repeat": 2,
+    "label": "unknown_overflow",
+    "batch": 4,
+    "bytes": 3360032,
+    "iterations": 20000,
+    "bytes_per_iteration": 168.0016
+  }
+]

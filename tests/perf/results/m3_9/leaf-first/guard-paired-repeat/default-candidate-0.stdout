@@ -1,0 +1,48 @@
+semantics int True
+sample int 0.0001384880015393719 True
+sample int 0.00031452700204681605 True
+sample int 0.00011578599514905363 True
+sample int 0.00012735500058624893 True
+sample int 0.0003720989989233203 True
+sample int 0.00010916100291069597 True
+sample int 0.0006002619993523695 True
+semantics bool True
+sample bool 0.0024705280011403374 True
+sample bool 0.0025508719991194084 True
+sample bool 0.0031132160002016462 True
+sample bool 0.004283135996956844 True
+sample bool 0.003331979001814034 True
+sample bool 0.0030062510049901903 True
+sample bool 0.002467534002789762 True
+semantics float True
+sample float 0.0012926080016768537 True
+sample float 0.0016527070038137026 True
+sample float 0.001357799003017135 True
+sample float 0.0029352860001381487 True
+sample float 0.0014595499960705638 True
+sample float 0.0011998150002909824 True
+sample float 0.001349714002572 True
+semantics overflow True
+sample overflow 0.006909750998602249 True
+sample overflow 0.01235189099679701 True
+sample overflow 0.00783512999623781 True
+sample overflow 0.00737381699582329 True
+sample overflow 0.007670851002330892 True
+sample overflow 0.007287041000381578 True
+sample overflow 0.006631604002905078 True
+semantics custom True
+sample custom 0.009472992998780683 True
+sample custom 0.014669503005279694 True
+sample custom 0.009859307996521238 True
+sample custom 0.01930898000136949 True
+sample custom 0.011454036000941414 True
+sample custom 0.011053463000280317 True
+sample custom 0.008868673001416028 True
+semantics rebind True
+sample rebind 0.0031536669994238764 True
+sample rebind 0.0017967690000659786 True
+sample rebind 0.001347126999462489 True
+sample rebind 0.0012906240008305758 True
+sample rebind 0.0017495419961051084 True
+sample rebind 0.004191564003122039 True
+sample rebind 0.001054790998750832 True

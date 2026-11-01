@@ -1,0 +1,26 @@
+{
+  "default_baseline": {
+    "index_fast": 0.0016231889967457391,
+    "index_rebind": 0.0014634799954365008,
+    "constant_fast": 0.001035802997648716,
+    "constant_rebind": 0.0012051540034008212
+  },
+  "default_candidate": {
+    "index_fast": 0.0004834339997614734,
+    "index_rebind": 0.0016958179985522293,
+    "constant_fast": 9.960800525732338e-05,
+    "constant_rebind": 0.0013420929972198792
+  },
+  "disabled_baseline": {
+    "index_fast": 0.001959920999070164,
+    "index_rebind": 0.0008823070020298474,
+    "constant_fast": 0.0005833149989484809,
+    "constant_rebind": 0.0005945020020590164
+  },
+  "disabled_candidate": {
+    "index_fast": 0.000657027994748205,
+    "index_rebind": 0.0009502229950157925,
+    "constant_fast": 0.00011382099910406396,
+    "constant_rebind": 0.0006385390006471425
+  }
+}

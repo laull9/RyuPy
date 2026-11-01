@@ -1,0 +1,58 @@
+{
+  "name": "fib",
+  "tier": "default",
+  "mode": "resources",
+  "variant": "candidate",
+  "repeat": 0,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/fib/fib.dll",
+    "fib",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+    "resources",
+    "3",
+    "3"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 1228.6286329981522,
+  "maxrss": 45740032,
+  "samples": [
+    {
+      "kind": "kernel_resources",
+      "name": "fib",
+      "sample": 0,
+      "alloc_bytes": 0,
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 0,
+      "jit_ms": 0,
+      "jit_methods": 0
+    },
+    {
+      "kind": "kernel_resources",
+      "name": "fib",
+      "sample": 1,
+      "alloc_bytes": 0,
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 0,
+      "jit_ms": 0,
+      "jit_methods": 0
+    },
+    {
+      "kind": "kernel_resources",
+      "name": "fib",
+      "sample": 2,
+      "alloc_bytes": 48,
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0,
+      "gc_pause_ms": 0,
+      "jit_ms": 67.631,
+      "jit_methods": 66
+    }
+  ]
+}

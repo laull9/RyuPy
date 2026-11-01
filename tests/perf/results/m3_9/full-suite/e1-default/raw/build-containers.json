@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/containers.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/containers"
+  ],
+  "compile_ms": 9.987347999413032,
+  "exit_code": 0,
+  "dll_sha256": "7a9c43f164723026f6e5e1ace57690d394078ace6151da611cd88e737ccbc3b8"
+}

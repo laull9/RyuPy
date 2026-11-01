@@ -1,0 +1,366 @@
+[
+  {
+    "tier": "default",
+    "name": "hello",
+    "e1_period_cpython_main_ms": 9.536919998936355,
+    "current_period_cpython_main_ms": 12.293309002416208,
+    "ratio": 1.2890229763683947
+  },
+  {
+    "tier": "default",
+    "name": "fib",
+    "e1_period_cpython_main_ms": 663.4838440004387,
+    "current_period_cpython_main_ms": 666.8818299949635,
+    "ratio": 1.0051214298965243
+  },
+  {
+    "tier": "default",
+    "name": "mandelbrot",
+    "e1_period_cpython_main_ms": 2570.019755999965,
+    "current_period_cpython_main_ms": 2995.6538780024857,
+    "ratio": 1.1656151167744278
+  },
+  {
+    "tier": "default",
+    "name": "bigint",
+    "e1_period_cpython_main_ms": 177.50910500035388,
+    "current_period_cpython_main_ms": 193.09651399817085,
+    "ratio": 1.0878118843412898
+  },
+  {
+    "tier": "default",
+    "name": "matmul",
+    "e1_period_cpython_main_ms": 147.7890349997324,
+    "current_period_cpython_main_ms": 378.35693699889816,
+    "ratio": 2.560115078900023
+  },
+  {
+    "tier": "default",
+    "name": "nbody",
+    "e1_period_cpython_main_ms": 793.3647710015066,
+    "current_period_cpython_main_ms": 622.2321029999875,
+    "ratio": 0.784295100744782
+  },
+  {
+    "tier": "default",
+    "name": "sieve",
+    "e1_period_cpython_main_ms": 238.70685099973343,
+    "current_period_cpython_main_ms": 209.27694300189614,
+    "ratio": 0.8767110877857873
+  },
+  {
+    "tier": "default",
+    "name": "spectral_norm",
+    "e1_period_cpython_main_ms": 148.7610379990656,
+    "current_period_cpython_main_ms": 162.7885320049245,
+    "ratio": 1.0942954835119327
+  },
+  {
+    "tier": "default",
+    "name": "calls",
+    "e1_period_cpython_main_ms": 376.0557319983491,
+    "current_period_cpython_main_ms": 428.40822599828243,
+    "ratio": 1.1392147215034691
+  },
+  {
+    "tier": "default",
+    "name": "dynamic",
+    "e1_period_cpython_main_ms": 411.66703299677465,
+    "current_period_cpython_main_ms": 441.75322799856076,
+    "ratio": 1.0730838094631245
+  },
+  {
+    "tier": "default",
+    "name": "attrs",
+    "e1_period_cpython_main_ms": 291.61893900163705,
+    "current_period_cpython_main_ms": 268.7744240029133,
+    "ratio": 0.9216631297098454
+  },
+  {
+    "tier": "default",
+    "name": "oop",
+    "e1_period_cpython_main_ms": 170.0618749964633,
+    "current_period_cpython_main_ms": 236.55283900006907,
+    "ratio": 1.3909810120874448
+  },
+  {
+    "tier": "default",
+    "name": "containers",
+    "e1_period_cpython_main_ms": 87.71196900488576,
+    "current_period_cpython_main_ms": 91.08687000116333,
+    "ratio": 1.0384770862467994
+  },
+  {
+    "tier": "default",
+    "name": "dict_ops",
+    "e1_period_cpython_main_ms": 103.6639500016463,
+    "current_period_cpython_main_ms": 117.3544910052442,
+    "ratio": 1.132066557403808
+  },
+  {
+    "tier": "default",
+    "name": "list_ops",
+    "e1_period_cpython_main_ms": 161.45346999837784,
+    "current_period_cpython_main_ms": 147.94303700182354,
+    "ratio": 0.9163199589535608
+  },
+  {
+    "tier": "default",
+    "name": "set_tuple",
+    "e1_period_cpython_main_ms": 197.21915199625073,
+    "current_period_cpython_main_ms": 179.44003800221253,
+    "ratio": 0.9098509763677709
+  },
+  {
+    "tier": "default",
+    "name": "str_concat",
+    "e1_period_cpython_main_ms": 812.7431829998386,
+    "current_period_cpython_main_ms": 741.7173689973424,
+    "ratio": 0.9126097696195499
+  },
+  {
+    "tier": "default",
+    "name": "strings",
+    "e1_period_cpython_main_ms": 153.42948699981207,
+    "current_period_cpython_main_ms": 152.96907800075132,
+    "ratio": 0.9969992143748658
+  },
+  {
+    "tier": "default",
+    "name": "nqueens",
+    "e1_period_cpython_main_ms": 152.66767800494563,
+    "current_period_cpython_main_ms": 146.4677549956832,
+    "ratio": 0.9593894196185943
+  },
+  {
+    "tier": "default",
+    "name": "sorting",
+    "e1_period_cpython_main_ms": 388.37319999583997,
+    "current_period_cpython_main_ms": 349.76860899769235,
+    "ratio": 0.900599240631019
+  },
+  {
+    "tier": "default",
+    "name": "exceptions",
+    "e1_period_cpython_main_ms": 131.03864599543158,
+    "current_period_cpython_main_ms": 114.55118199955905,
+    "ratio": 0.8741786144795228
+  },
+  {
+    "tier": "default",
+    "name": "records",
+    "e1_period_cpython_main_ms": 170.57180399569916,
+    "current_period_cpython_main_ms": 200.1013379995129,
+    "ratio": 1.1731208400924125
+  },
+  {
+    "tier": "default",
+    "name": "closures",
+    "e1_period_cpython_main_ms": 212.3777200031327,
+    "current_period_cpython_main_ms": 177.1170659994823,
+    "ratio": 0.8339719721864879
+  },
+  {
+    "tier": "default",
+    "name": "comprehensions",
+    "e1_period_cpython_main_ms": 104.93734200281324,
+    "current_period_cpython_main_ms": 113.76007099897834,
+    "ratio": 1.0840761622867154
+  },
+  {
+    "tier": "default",
+    "name": "decorators",
+    "e1_period_cpython_main_ms": 176.00600099831354,
+    "current_period_cpython_main_ms": 169.7651440044865,
+    "ratio": 0.9645417942659419
+  },
+  {
+    "tier": "default",
+    "name": "generators",
+    "e1_period_cpython_main_ms": 277.4006420004298,
+    "current_period_cpython_main_ms": 289.2805439987569,
+    "ratio": 1.0428257912910983
+  },
+  {
+    "tier": "disabled",
+    "name": "hello",
+    "e1_period_cpython_main_ms": 11.713250001776032,
+    "current_period_cpython_main_ms": 10.906736999459099,
+    "ratio": 0.9311452413126464
+  },
+  {
+    "tier": "disabled",
+    "name": "fib",
+    "e1_period_cpython_main_ms": 691.1395130009623,
+    "current_period_cpython_main_ms": 610.9704330010572,
+    "ratio": 0.8840044904221914
+  },
+  {
+    "tier": "disabled",
+    "name": "mandelbrot",
+    "e1_period_cpython_main_ms": 2856.591898998886,
+    "current_period_cpython_main_ms": 3013.977802998852,
+    "ratio": 1.0550956907968279
+  },
+  {
+    "tier": "disabled",
+    "name": "bigint",
+    "e1_period_cpython_main_ms": 171.38740299560595,
+    "current_period_cpython_main_ms": 200.07187799637904,
+    "ratio": 1.1673662970522314
+  },
+  {
+    "tier": "disabled",
+    "name": "matmul",
+    "e1_period_cpython_main_ms": 144.63791000162018,
+    "current_period_cpython_main_ms": 139.48195699776988,
+    "ratio": 0.964352685932806
+  },
+  {
+    "tier": "disabled",
+    "name": "nbody",
+    "e1_period_cpython_main_ms": 632.983568997588,
+    "current_period_cpython_main_ms": 712.1085960025084,
+    "ratio": 1.1250032874158569
+  },
+  {
+    "tier": "disabled",
+    "name": "sieve",
+    "e1_period_cpython_main_ms": 250.31153800227912,
+    "current_period_cpython_main_ms": 262.6298180039157,
+    "ratio": 1.0492117946297963
+  },
+  {
+    "tier": "disabled",
+    "name": "spectral_norm",
+    "e1_period_cpython_main_ms": 147.87248500215355,
+    "current_period_cpython_main_ms": 174.477909997222,
+    "ratio": 1.1799214031919527
+  },
+  {
+    "tier": "disabled",
+    "name": "calls",
+    "e1_period_cpython_main_ms": 399.78337299544364,
+    "current_period_cpython_main_ms": 370.31920500157867,
+    "ratio": 0.9262996663090318
+  },
+  {
+    "tier": "disabled",
+    "name": "dynamic",
+    "e1_period_cpython_main_ms": 446.0952340014046,
+    "current_period_cpython_main_ms": 472.797691996675,
+    "ratio": 1.0598582005814174
+  },
+  {
+    "tier": "disabled",
+    "name": "attrs",
+    "e1_period_cpython_main_ms": 293.7259630052722,
+    "current_period_cpython_main_ms": 307.62787900312105,
+    "ratio": 1.0473295443671737
+  },
+  {
+    "tier": "disabled",
+    "name": "oop",
+    "e1_period_cpython_main_ms": 201.36567199369892,
+    "current_period_cpython_main_ms": 177.48408199986443,
+    "ratio": 0.8814018806811232
+  },
+  {
+    "tier": "disabled",
+    "name": "containers",
+    "e1_period_cpython_main_ms": 100.6165879953187,
+    "current_period_cpython_main_ms": 87.17314699606504,
+    "ratio": 0.8663894168238032
+  },
+  {
+    "tier": "disabled",
+    "name": "dict_ops",
+    "e1_period_cpython_main_ms": 140.0474789988948,
+    "current_period_cpython_main_ms": 139.3891099942266,
+    "ratio": 0.9952989585433851
+  },
+  {
+    "tier": "disabled",
+    "name": "list_ops",
+    "e1_period_cpython_main_ms": 146.98573700297857,
+    "current_period_cpython_main_ms": 148.28793999913614,
+    "ratio": 1.0088593833844652
+  },
+  {
+    "tier": "disabled",
+    "name": "set_tuple",
+    "e1_period_cpython_main_ms": 184.6670989980339,
+    "current_period_cpython_main_ms": 191.70557200413896,
+    "ratio": 1.0381143855310142
+  },
+  {
+    "tier": "disabled",
+    "name": "str_concat",
+    "e1_period_cpython_main_ms": 816.2321630006772,
+    "current_period_cpython_main_ms": 747.1298329983256,
+    "ratio": 0.9153398590073761
+  },
+  {
+    "tier": "disabled",
+    "name": "strings",
+    "e1_period_cpython_main_ms": 167.23597700183745,
+    "current_period_cpython_main_ms": 142.95693500025664,
+    "ratio": 0.8548216571765891
+  },
+  {
+    "tier": "disabled",
+    "name": "nqueens",
+    "e1_period_cpython_main_ms": 129.3454370024847,
+    "current_period_cpython_main_ms": 145.57354299904546,
+    "ratio": 1.1254633048728966
+  },
+  {
+    "tier": "disabled",
+    "name": "sorting",
+    "e1_period_cpython_main_ms": 373.8663510011975,
+    "current_period_cpython_main_ms": 281.2593240014394,
+    "ratio": 0.7522991123652595
+  },
+  {
+    "tier": "disabled",
+    "name": "exceptions",
+    "e1_period_cpython_main_ms": 126.2246359983692,
+    "current_period_cpython_main_ms": 128.8582819979638,
+    "ratio": 1.020864754164382
+  },
+  {
+    "tier": "disabled",
+    "name": "records",
+    "e1_period_cpython_main_ms": 153.33039600227494,
+    "current_period_cpython_main_ms": 177.17471899959492,
+    "ratio": 1.155509433347881
+  },
+  {
+    "tier": "disabled",
+    "name": "closures",
+    "e1_period_cpython_main_ms": 214.2998429990257,
+    "current_period_cpython_main_ms": 224.62877700309036,
+    "ratio": 1.048198514098359
+  },
+  {
+    "tier": "disabled",
+    "name": "comprehensions",
+    "e1_period_cpython_main_ms": 96.94522000063444,
+    "current_period_cpython_main_ms": 107.17588000261458,
+    "ratio": 1.1055303191009642
+  },
+  {
+    "tier": "disabled",
+    "name": "decorators",
+    "e1_period_cpython_main_ms": 175.3673630009871,
+    "current_period_cpython_main_ms": 187.16360600228654,
+    "ratio": 1.0672658971397833
+  },
+  {
+    "tier": "disabled",
+    "name": "generators",
+    "e1_period_cpython_main_ms": 259.55311200232245,
+    "current_period_cpython_main_ms": 262.3743660005857,
+    "ratio": 1.0108696596873707
+  }
+]

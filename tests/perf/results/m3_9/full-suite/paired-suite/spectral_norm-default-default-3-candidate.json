@@ -1,0 +1,27 @@
+{
+  "name": "spectral_norm",
+  "tier": "default",
+  "variant": "default",
+  "which": "candidate",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/spectral_norm/spectral_norm.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 251.51968999853125,
+  "maxrss": 45391872,
+  "stats": {
+    "main_ms": 147.665,
+    "alloc_bytes": 77224704,
+    "gc0": 17,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 4.016,
+    "jit_ms": 75.009,
+    "jit_methods": 386,
+    "heap_bytes": 4530504
+  }
+}

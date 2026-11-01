@@ -1,0 +1,1 @@
+{"wall_seconds": 0.01817144399683457, "command": ["/tmp/ryupy-m3_9-accumulator-baseline-e1c1ee1-B0aEmS/ryupy-baseline", "build", "tests/perf/dataclass_hot.py", "-o", "/tmp/ryupy-m3_9-accumulator-baseline-e1c1ee1-B0aEmS/artifact"]}

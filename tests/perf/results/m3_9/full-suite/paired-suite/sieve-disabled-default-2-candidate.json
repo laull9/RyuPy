@@ -1,0 +1,27 @@
+{
+  "name": "sieve",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "candidate",
+  "round": 2,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/sieve/sieve.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 1352.6893609960098,
+  "maxrss": 78413824,
+  "stats": {
+    "main_ms": 1102.84,
+    "alloc_bytes": 140385976,
+    "gc0": 26,
+    "gc1": 2,
+    "gc2": 1,
+    "gc_pause_ms": 205.387,
+    "jit_ms": 253.338,
+    "jit_methods": 210,
+    "heap_bytes": 36099888
+  }
+}

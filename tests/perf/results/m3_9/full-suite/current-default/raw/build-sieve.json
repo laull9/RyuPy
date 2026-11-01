@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/sieve.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/sieve"
+  ],
+  "compile_ms": 6.4896089970716275,
+  "exit_code": 0,
+  "dll_sha256": "09aa92ed40860f8b7abdb6cb95d960b512c0bf95e84d6769bf76f7c1c6cf1a32"
+}

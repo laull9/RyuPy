@@ -1,0 +1,7 @@
+{
+  "base_commit": "e1c1ee101fb8480e1b375b62a0f056978cfca8aa",
+  "patch_sha256": "bb107d3b8f4357c8a39e2a0c5b856a9b2e9540dcddb88f6d7ade96ddfdf475d6",
+  "scope": "当前 crates/runtime tracked + untracked 非pending源码；benchmark逐文件另存",
+  "baseline_cli": "e1c1ee1 保存 debug CLI，非本次重建",
+  "current_cli": "cargo build --release -p ryupy-cli；compile_ms不可与debug CLI归因比较"
+}

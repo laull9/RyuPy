@@ -1,0 +1,2402 @@
+[
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "default",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 0,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 1,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "baseline",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 0,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 1,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 2,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 3,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_fast",
+    "batch": 4,
+    "bytes": 950736,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.5368
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 0,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 1,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 2,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 3,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "index_rebind",
+    "batch": 4,
+    "bytes": 947688,
+    "iterations": 20000,
+    "bytes_per_iteration": 47.3844
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_fast",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 0,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 1,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 2,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 3,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  },
+  {
+    "tier": "disabled",
+    "variant": "candidate",
+    "repeat": 2,
+    "scenario": "constant_rebind",
+    "batch": 4,
+    "bytes": 0,
+    "iterations": 20000,
+    "bytes_per_iteration": 0.0
+  }
+]

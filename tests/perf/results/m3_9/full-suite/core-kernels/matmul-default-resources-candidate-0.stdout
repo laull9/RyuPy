@@ -1,0 +1,4 @@
+613423466.816
+{"kind":"kernel_resources","name":"matmul","sample":0,"alloc_bytes":144671448,"gc0":33,"gc1":1,"gc2":1,"gc_pause_ms":25.92,"jit_ms":6.0269,"jit_methods":1}
+{"kind":"kernel_resources","name":"matmul","sample":1,"alloc_bytes":144672120,"gc0":33,"gc1":1,"gc2":0,"gc_pause_ms":20.577,"jit_ms":14.2779,"jit_methods":16}
+{"kind":"kernel_resources","name":"matmul","sample":2,"alloc_bytes":144683832,"gc0":33,"gc1":0,"gc2":0,"gc_pause_ms":18.547,"jit_ms":96.8687,"jit_methods":99}

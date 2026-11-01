@@ -1,0 +1,25 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/sorting/sorting.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 770.1229980011703,
+  "maxrss": 125710336,
+  "stats": {
+    "main_ms": 568.732,
+    "alloc_bytes": 67368696,
+    "gc0": 7,
+    "gc1": 5,
+    "gc2": 3,
+    "gc_pause_ms": 79.533,
+    "jit_ms": 224.478,
+    "jit_methods": 229,
+    "heap_bytes": 41002984
+  },
+  "exit_code": 0,
+  "environment": {
+    "DOTNET_TieredCompilation": "0",
+    "PYTHONHASHSEED": "0"
+  }
+}

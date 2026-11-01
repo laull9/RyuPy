@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/dict_ops.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/dict_ops"
+  ],
+  "compile_ms": 7.745157003228087,
+  "exit_code": 0,
+  "dll_sha256": "2d3d20b798e75a3fb8ddfb994a7d44c6c07db82617e4f9c8461b14851e7b8e8e"
+}

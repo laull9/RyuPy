@@ -1,0 +1,3 @@
+832040
+2880067194370816120
+{"kind":"kernel_resources","name":"fib","sample":0,"alloc_bytes":0,"gc0":0,"gc1":0,"gc2":0,"gc_pause_ms":0,"jit_ms":0,"jit_methods":0}

@@ -1,0 +1,45 @@
+{
+  "name": "nbody",
+  "tier": "default",
+  "mode": "resources",
+  "variant": "cpython",
+  "repeat": 0,
+  "command": [
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core_cpython.py",
+    "/workspace/shared/RyuPy/tests/benchmarks/nbody.py",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+    "resources",
+    "3",
+    "3"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 4394.041153005674,
+  "maxrss": 17600512,
+  "samples": [
+    {
+      "name": "nbody",
+      "sample": 0,
+      "kind": "kernel_resources",
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0
+    },
+    {
+      "name": "nbody",
+      "sample": 1,
+      "kind": "kernel_resources",
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0
+    },
+    {
+      "name": "nbody",
+      "sample": 2,
+      "kind": "kernel_resources",
+      "gc0": 0,
+      "gc1": 0,
+      "gc2": 0
+    }
+  ]
+}

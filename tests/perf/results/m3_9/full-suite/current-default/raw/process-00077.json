@@ -1,0 +1,24 @@
+{
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/dynamic/dynamic.dll"
+  ],
+  "stats_env": "RYUPY_STATS",
+  "wall_ms": 658.802742997068,
+  "maxrss": 46206976,
+  "stats": {
+    "main_ms": 533.044,
+    "alloc_bytes": 243448168,
+    "gc0": 56,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 10.596,
+    "jit_ms": 119.835,
+    "jit_methods": 469,
+    "heap_bytes": 7527408
+  },
+  "exit_code": 0,
+  "environment": {
+    "PYTHONHASHSEED": "0"
+  }
+}

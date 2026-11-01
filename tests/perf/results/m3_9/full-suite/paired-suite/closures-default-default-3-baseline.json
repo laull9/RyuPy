@@ -1,0 +1,27 @@
+{
+  "name": "closures",
+  "tier": "default",
+  "variant": "default",
+  "which": "baseline",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/closures/closures.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 381.95443299628096,
+  "maxrss": 51986432,
+  "stats": {
+    "main_ms": 292.587,
+    "alloc_bytes": 109298784,
+    "gc0": 23,
+    "gc1": 2,
+    "gc2": 1,
+    "gc_pause_ms": 11.747,
+    "jit_ms": 78.558,
+    "jit_methods": 397,
+    "heap_bytes": 13174952
+  }
+}

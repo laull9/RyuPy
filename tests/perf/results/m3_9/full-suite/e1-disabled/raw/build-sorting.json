@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-e1-debug",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/sorting.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/sorting"
+  ],
+  "compile_ms": 14.329968995298259,
+  "exit_code": 0,
+  "dll_sha256": "fe92a338557bb53d315e93aa7384e54d60b59433a15005dccb1ce3c2b7ffb68d"
+}

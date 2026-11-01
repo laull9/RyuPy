@@ -1,0 +1,27 @@
+{
+  "name": "exceptions",
+  "tier": "default",
+  "variant": "default",
+  "which": "baseline",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/exceptions/exceptions.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 604.7142530005658,
+  "maxrss": 50348032,
+  "stats": {
+    "main_ms": 491.311,
+    "alloc_bytes": 98442552,
+    "gc0": 22,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 9.462,
+    "jit_ms": 214.027,
+    "jit_methods": 589,
+    "heap_bytes": 6807072
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "mandelbrot",
+  "tier": "default",
+  "mode": "time",
+  "variant": "candidate",
+  "repeat": 2,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/mandelbrot/mandelbrot.dll",
+    "mandelbrot",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/mandelbrot.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 2818.412984997849,
+  "maxrss": 50151424,
+  "samples": [
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 0,
+      "elapsed_ms": 213.2751
+    },
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 1,
+      "elapsed_ms": 213.5364
+    },
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 2,
+      "elapsed_ms": 224.7979
+    },
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 3,
+      "elapsed_ms": 219.5473
+    },
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 4,
+      "elapsed_ms": 222.9397
+    },
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 5,
+      "elapsed_ms": 229.6706
+    },
+    {
+      "kind": "kernel_time",
+      "name": "mandelbrot",
+      "sample": 6,
+      "elapsed_ms": 232.6247
+    }
+  ]
+}

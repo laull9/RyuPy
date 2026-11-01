@@ -1,0 +1,64 @@
+{
+  "name": "fib",
+  "tier": "disabled",
+  "mode": "time",
+  "variant": "candidate",
+  "repeat": 0,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core-harness/bin/Release/net10.0/core.dll",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/fib/fib.dll",
+    "fib",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/fib.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 2507.6021370041417,
+  "maxrss": 44302336,
+  "samples": [
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 0,
+      "elapsed_ms": 205.4144
+    },
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 1,
+      "elapsed_ms": 198.8973
+    },
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 2,
+      "elapsed_ms": 189.8154
+    },
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 3,
+      "elapsed_ms": 185.5496
+    },
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 4,
+      "elapsed_ms": 201.2042
+    },
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 5,
+      "elapsed_ms": 193.4431
+    },
+    {
+      "kind": "kernel_time",
+      "name": "fib",
+      "sample": 6,
+      "elapsed_ms": 187.5522
+    }
+  ]
+}

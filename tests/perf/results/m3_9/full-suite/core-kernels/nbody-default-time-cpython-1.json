@@ -1,0 +1,63 @@
+{
+  "name": "nbody",
+  "tier": "default",
+  "mode": "time",
+  "variant": "cpython",
+  "repeat": 1,
+  "command": [
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/preparation/core_cpython.py",
+    "/workspace/shared/RyuPy/tests/benchmarks/nbody.py",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/expected/nbody.stdout",
+    "time",
+    "3",
+    "7"
+  ],
+  "exit_code": 0,
+  "process_wall_ms": 10081.294809999235,
+  "maxrss": 17506304,
+  "samples": [
+    {
+      "name": "nbody",
+      "sample": 0,
+      "kind": "kernel_time",
+      "elapsed_ms": 724.6443550029653
+    },
+    {
+      "name": "nbody",
+      "sample": 1,
+      "kind": "kernel_time",
+      "elapsed_ms": 930.3072040056577
+    },
+    {
+      "name": "nbody",
+      "sample": 2,
+      "kind": "kernel_time",
+      "elapsed_ms": 670.2648470018175
+    },
+    {
+      "name": "nbody",
+      "sample": 3,
+      "kind": "kernel_time",
+      "elapsed_ms": 746.0988969978644
+    },
+    {
+      "name": "nbody",
+      "sample": 4,
+      "kind": "kernel_time",
+      "elapsed_ms": 1102.2295660004602
+    },
+    {
+      "name": "nbody",
+      "sample": 5,
+      "kind": "kernel_time",
+      "elapsed_ms": 772.1545579988742
+    },
+    {
+      "name": "nbody",
+      "sample": 6,
+      "kind": "kernel_time",
+      "elapsed_ms": 814.6237019973341
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/closures.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/closures"
+  ],
+  "compile_ms": 5.990584002574906,
+  "exit_code": 0,
+  "dll_sha256": "c29d5953c9377c93d061cdf7c678fae2f546741fce4211d1e37e4e686ed33bda"
+}

@@ -174,6 +174,7 @@ pub fn build_program(
             },
             param_meta,
             function_global,
+            specialization_identity_global: None,
             defaults_global,
             signature_global,
             env: None,

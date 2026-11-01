@@ -1,0 +1,1 @@
+{"wall_seconds": 0.1952567510015797, "command": ["cargo", "build", "-p", "ryupy-cli", "--bin", "ryupy"]}

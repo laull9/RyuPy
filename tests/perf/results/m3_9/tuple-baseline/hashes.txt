@@ -1,0 +1,4 @@
+e11d92e0be9fa24f9c357147d879ed697940b117a49d6676d019f34e70e11ed3  /tmp/ryupy-m3_9-tuple-baseline-KCoa1e/ryupy-baseline
+e1805135300d2e49fa48fb12898b68170ab1986121deed4002738d20f2b3cb4b  /tmp/ryupy-m3_9-tuple-baseline-KCoa1e/artifact/RyuPy.Runtime.dll
+0adf303b517139f43b97fa01267d7b97d93eda061f73b0425b726c278659d2f8  /tmp/ryupy-m3_9-tuple-baseline-KCoa1e/artifact/tuple_scalar.dll
+ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a  /tmp/ryupy-m3_9-tuple-baseline-KCoa1e/artifact/tuple_scalar.runtimeconfig.json

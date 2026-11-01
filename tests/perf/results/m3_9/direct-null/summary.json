@@ -1,0 +1,362 @@
+[
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "construction",
+    "baseline_seconds": 0.007032975001493469,
+    "cold_seconds": 0.008567094002501108,
+    "null_seconds": 0.007352915999945253,
+    "null_change_percent": 4.549155917429593
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "field_reads",
+    "baseline_seconds": 0.0024147799995262176,
+    "cold_seconds": 0.0026384629964013584,
+    "null_seconds": 0.003030829000636004,
+    "null_change_percent": 25.51159945132293
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "equality",
+    "baseline_seconds": 0.04691209999873536,
+    "cold_seconds": 0.0524729370008572,
+    "null_seconds": 0.05259496699727606,
+    "null_change_percent": 12.113861879331566
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "construction",
+    "baseline_seconds": 0.0051093929941998795,
+    "cold_seconds": 0.004467935999855399,
+    "null_seconds": 0.004889547002676409,
+    "null_change_percent": -4.302781010837043
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "field_reads",
+    "baseline_seconds": 0.0028959350020159036,
+    "cold_seconds": 0.0027808340018964373,
+    "null_seconds": 0.003116033003607299,
+    "null_change_percent": 7.600239695924871
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "equality",
+    "baseline_seconds": 0.020791470997210126,
+    "cold_seconds": 0.02073546300380258,
+    "null_seconds": 0.021123891005117912,
+    "null_change_percent": 1.5988287117943312
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "construction",
+    "baseline_seconds": 0.007068009996146429,
+    "cold_seconds": 0.006638680999458302,
+    "null_seconds": 0.008620617998531088,
+    "null_change_percent": 21.966692226399797
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "field_reads",
+    "baseline_seconds": 0.0025498789982520975,
+    "cold_seconds": 0.0026043640027637593,
+    "null_seconds": 0.0024989689991343766,
+    "null_change_percent": -1.9965652939852752
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "equality",
+    "baseline_seconds": 0.046803281002212316,
+    "cold_seconds": 0.03264742499595741,
+    "null_seconds": 0.04837334900366841,
+    "null_change_percent": 3.3546109756319886
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "construction",
+    "baseline_seconds": 0.004393921997689176,
+    "cold_seconds": 0.004286308998416644,
+    "null_seconds": 0.004462306998902932,
+    "null_change_percent": 1.5563544653209638
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "field_reads",
+    "baseline_seconds": 0.0026973700005328283,
+    "cold_seconds": 0.0026230060029774904,
+    "null_seconds": 0.003258270997321233,
+    "null_change_percent": 20.79436624110176
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "equality",
+    "baseline_seconds": 0.022711196004820522,
+    "cold_seconds": 0.018398840998997912,
+    "null_seconds": 0.019443513003352564,
+    "null_change_percent": -14.387982917211328
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "int_fast",
+    "baseline_seconds": 0.001630544000363443,
+    "cold_seconds": 0.0018070320002152584,
+    "null_seconds": 0.0018499249999877065,
+    "null_change_percent": 13.454466704079394
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "bool_fallback",
+    "baseline_seconds": 0.0037402489979285747,
+    "cold_seconds": 0.0036995740010752343,
+    "null_seconds": 0.004424171995196957,
+    "null_change_percent": 18.285493763841743
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "float_fallback",
+    "baseline_seconds": 0.003539414996339474,
+    "cold_seconds": 0.003949081001337618,
+    "null_seconds": 0.0033319880021736026,
+    "null_change_percent": -5.8604880857541675
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "radd_fallback",
+    "baseline_seconds": 0.010600632995192427,
+    "cold_seconds": 0.010560615999565925,
+    "null_seconds": 0.010836374000064097,
+    "null_change_percent": 2.2238389441326945
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "iadd_fallback",
+    "baseline_seconds": 0.013020917001995258,
+    "cold_seconds": 0.01674228499905439,
+    "null_seconds": 0.016167715002666228,
+    "null_change_percent": 24.16725335234662
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "overflow_alternating",
+    "baseline_seconds": 0.005926054996962193,
+    "cold_seconds": 0.013565616995037999,
+    "null_seconds": 0.006936537000001408,
+    "null_change_percent": 17.05151240677325
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "int_fast",
+    "baseline_seconds": 0.0009324159982497804,
+    "cold_seconds": 0.0008304680013679899,
+    "null_seconds": 0.0007611239998368546,
+    "null_change_percent": -18.370769992627167
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "bool_fallback",
+    "baseline_seconds": 0.0022611210006289184,
+    "cold_seconds": 0.0017912889961735345,
+    "null_seconds": 0.0015520540036959574,
+    "null_change_percent": -31.359091208994915
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "float_fallback",
+    "baseline_seconds": 0.001572740002302453,
+    "cold_seconds": 0.001938788998813834,
+    "null_seconds": 0.0016111349978018552,
+    "null_change_percent": 2.4412805322680864
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "radd_fallback",
+    "baseline_seconds": 0.003751709002244752,
+    "cold_seconds": 0.0036126310005784035,
+    "null_seconds": 0.003508263995172456,
+    "null_change_percent": -6.488909638957496
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "iadd_fallback",
+    "baseline_seconds": 0.003658281006210018,
+    "cold_seconds": 0.003768672999285627,
+    "null_seconds": 0.0036595319979824126,
+    "null_change_percent": 0.034196163998090334
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "overflow_alternating",
+    "baseline_seconds": 0.0033912690050783567,
+    "cold_seconds": 0.0032171839993679896,
+    "null_seconds": 0.0035626370008685626,
+    "null_change_percent": 5.053211512669331
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "int_fast",
+    "baseline_seconds": 0.0015926380001474172,
+    "cold_seconds": 0.0013821370012010448,
+    "null_seconds": 0.0019988200001535006,
+    "null_change_percent": 25.503724008122774
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "bool_fallback",
+    "baseline_seconds": 0.003736503000254743,
+    "cold_seconds": 0.0034111249988200143,
+    "null_seconds": 0.003984769995440729,
+    "null_change_percent": 6.644367612418889
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "float_fallback",
+    "baseline_seconds": 0.004313438003009651,
+    "cold_seconds": 0.004080965998582542,
+    "null_seconds": 0.005386004006140865,
+    "null_change_percent": 24.865687240267363
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "radd_fallback",
+    "baseline_seconds": 0.011578915000427514,
+    "cold_seconds": 0.009716564003610983,
+    "null_seconds": 0.011501808003231417,
+    "null_change_percent": -0.6659259282346452
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "iadd_fallback",
+    "baseline_seconds": 0.011850068003695924,
+    "cold_seconds": 0.010354600002756342,
+    "null_seconds": 0.015306344997952692,
+    "null_change_percent": 29.166727086956712
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "overflow_alternating",
+    "baseline_seconds": 0.0065039760011131875,
+    "cold_seconds": 0.005568253000092227,
+    "null_seconds": 0.01640461899660295,
+    "null_change_percent": 152.2244699825955
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "int_fast",
+    "baseline_seconds": 0.001460291001421865,
+    "cold_seconds": 0.0019035410005017184,
+    "null_seconds": 0.0006833009974798188,
+    "null_change_percent": -53.20788823498206
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "bool_fallback",
+    "baseline_seconds": 0.002252589001727756,
+    "cold_seconds": 0.0021590510004898533,
+    "null_seconds": 0.0013630789981107228,
+    "null_change_percent": -39.48833999166165
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "float_fallback",
+    "baseline_seconds": 0.0022337429982144386,
+    "cold_seconds": 0.00181136899482226,
+    "null_seconds": 0.0012723910040222108,
+    "null_change_percent": -43.037717184147525
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "radd_fallback",
+    "baseline_seconds": 0.004017431005195249,
+    "cold_seconds": 0.008240205002948642,
+    "null_seconds": 0.004346924994024448,
+    "null_change_percent": 8.201609147813738
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "iadd_fallback",
+    "baseline_seconds": 0.00437599400174804,
+    "cold_seconds": 0.006106346998421941,
+    "null_seconds": 0.004332876000262331,
+    "null_change_percent": -0.9853304522009165
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "overflow_alternating",
+    "baseline_seconds": 0.0036141140008112416,
+    "cold_seconds": 0.005465195994474925,
+    "null_seconds": 0.004063610002049245,
+    "null_change_percent": 12.437239144562318
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "workload": "range_int",
+    "baseline_seconds": 0.0023454799957107753,
+    "cold_seconds": 0.0020746399968629703,
+    "null_seconds": 0.0031310080012190156,
+    "null_change_percent": 33.49114070231896
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "workload": "range_int",
+    "baseline_seconds": 0.0022023700003046542,
+    "cold_seconds": 0.0025745530001586303,
+    "null_seconds": 0.003189677001500968,
+    "null_change_percent": 44.82929757759773
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "workload": "range_int",
+    "baseline_seconds": 0.0019111299989162944,
+    "cold_seconds": 0.0025045430011232384,
+    "null_seconds": 0.0019907700043404475,
+    "null_change_percent": 4.167168401381005
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "workload": "range_int",
+    "baseline_seconds": 0.001974742997845169,
+    "cold_seconds": 0.003104653995251283,
+    "null_seconds": 0.0032240080035990104,
+    "null_change_percent": 63.26215649920186
+  }
+]

@@ -1,0 +1,32 @@
+semantics index_fast 39998
+sample index_fast 0.00042076700628967956 39998
+sample index_fast 0.0005224449996603653 39998
+sample index_fast 0.00039725199894746765 39998
+sample index_fast 0.0014815419999649748 39998
+sample index_fast 0.0007555189949925989 39998
+sample index_fast 0.0012070949960616417 39998
+sample index_fast 0.0017874249970191158 39998
+semantics index_rebind 20000
+sample index_rebind 0.0017407310006092303 20000
+sample index_rebind 0.0015257179984473623 20000
+sample index_rebind 0.0017155159948742948 20000
+sample index_rebind 0.002054281998425722 20000
+sample index_rebind 0.0016934030063566752 20000
+sample index_rebind 0.005198919003305491 20000
+sample index_rebind 0.001464644999941811 20000
+semantics constant_fast 14
+sample constant_fast 9.593900176696479e-05 14
+sample constant_fast 9.857800614554435e-05 14
+sample constant_fast 9.820100240176544e-05 14
+sample constant_fast 9.781700646271929e-05 14
+sample constant_fast 9.209400013787672e-05 14
+sample constant_fast 9.802699787542224e-05 14
+sample constant_fast 0.00020019500516355038 14
+semantics constant_rebind 8
+sample constant_rebind 0.00101890999940224 8
+sample constant_rebind 0.0021787719961139373 8
+sample constant_rebind 0.0027409050017013215 8
+sample constant_rebind 0.0026222809974569827 8
+sample constant_rebind 0.001259356999071315 8
+sample constant_rebind 0.005913961002079304 8
+sample constant_rebind 0.0037039490052848123 8

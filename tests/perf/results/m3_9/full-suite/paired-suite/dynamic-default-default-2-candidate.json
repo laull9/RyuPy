@@ -1,0 +1,27 @@
+{
+  "name": "dynamic",
+  "tier": "default",
+  "variant": "default",
+  "which": "candidate",
+  "round": 2,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-default/bench/dynamic/dynamic.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 625.0301330001093,
+  "maxrss": 46256128,
+  "stats": {
+    "main_ms": 505.802,
+    "alloc_bytes": 243448168,
+    "gc0": 56,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 10.626,
+    "jit_ms": 115.003,
+    "jit_methods": 469,
+    "heap_bytes": 7527408
+  }
+}

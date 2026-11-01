@@ -4,8 +4,18 @@ use crate::{ExportGuard, LinkedProgram, MirType};
 /// 验证导出槽与绑定守卫。错误由 driver 在阶段边界报告，不留给后端索引 panic。
 pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
+    let anchors: rustc_hash::FxHashSet<_> = program
+        .functions
+        .iter()
+        .filter_map(|(_, f)| f.specialization_identity_global)
+        .collect();
     for (_, module) in program.modules.iter() {
         for export in &module.exports {
+            if anchors.contains(&export.value)
+                || matches!(export.guard, crate::ExportGuard::BoundFlag(g) if anchors.contains(&g))
+            {
+                errors.push(format!("模块 `{}` 不能导出只读特化身份锚点", module.name));
+            }
             let value = program.globals.iter().find(|(id, _)| *id == export.value);
             let Some((_, value)) = value else {
                 errors.push(format!(

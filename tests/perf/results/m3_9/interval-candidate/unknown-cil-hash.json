@@ -1,0 +1,10 @@
+{
+  "choose_unknown": {
+    "baseline": "a7b91d539886b5f20d47206b64f00272b4517594d0cf28aa83b21661106f7782",
+    "candidate": "facf1f3fcf810550bb81dd1fa29276763ea58319bd9c626d3a6ea88c762bbb86"
+  },
+  "unknown_loop": {
+    "baseline": "0514158708d3a5416d4a6540f96de9e0c1bd491b76433ea54e903e9c5499c138",
+    "candidate": "0514158708d3a5416d4a6540f96de9e0c1bd491b76433ea54e903e9c5499c138"
+  }
+}

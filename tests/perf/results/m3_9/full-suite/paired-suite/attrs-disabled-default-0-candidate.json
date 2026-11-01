@@ -1,0 +1,27 @@
+{
+  "name": "attrs",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "candidate",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/attrs/attrs.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 583.1773149984656,
+  "maxrss": 53563392,
+  "stats": {
+    "main_ms": 390.863,
+    "alloc_bytes": 176239336,
+    "gc0": 40,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 7.191,
+    "jit_ms": 271.943,
+    "jit_methods": 252,
+    "heap_bytes": 7234816
+  }
+}

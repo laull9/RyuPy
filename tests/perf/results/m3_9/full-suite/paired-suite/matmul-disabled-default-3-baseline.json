@@ -1,0 +1,27 @@
+{
+  "name": "matmul",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/matmul/matmul.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 686.8864050047705,
+  "maxrss": 49627136,
+  "stats": {
+    "main_ms": 494.717,
+    "alloc_bytes": 151242736,
+    "gc0": 34,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 36.821,
+    "jit_ms": 194.936,
+    "jit_methods": 217,
+    "heap_bytes": 7830976
+  }
+}

@@ -1,0 +1,48 @@
+semantics int_fast 20000 int 0 True
+sample int_fast 0.0012607480020960793 20000 int 0 True
+sample int_fast 0.0017792479993659072 20000 int 0 True
+sample int_fast 0.001194837997900322 20000 int 0 True
+sample int_fast 0.0012536540016299114 20000 int 0 True
+sample int_fast 0.0013843269989592955 20000 int 0 True
+sample int_fast 0.005155266997462604 20000 int 0 True
+sample int_fast 0.0009554630014463328 20000 int 0 True
+semantics bool_fallback 20000 int 0 True
+sample bool_fallback 0.0030559610022464767 20000 int 0 True
+sample bool_fallback 0.002776232002361212 20000 int 0 True
+sample bool_fallback 0.0032607280008960515 20000 int 0 True
+sample bool_fallback 0.004077370998857077 20000 int 0 True
+sample bool_fallback 0.003451443000813015 20000 int 0 True
+sample bool_fallback 0.0034004339977400377 20000 int 0 True
+sample bool_fallback 0.0030612439950346015 20000 int 0 True
+semantics float_fallback 10000.0 float 0 True
+sample float_fallback 0.0030767189964535646 10000.0 float 0 True
+sample float_fallback 0.0037682469992432743 10000.0 float 0 True
+sample float_fallback 0.0034619579964783043 10000.0 float 0 True
+sample float_fallback 0.002988920998177491 10000.0 float 0 True
+sample float_fallback 0.0032653609960107133 10000.0 float 0 True
+sample float_fallback 0.0042254989966750145 10000.0 float 0 True
+sample float_fallback 0.0037829830034752376 10000.0 float 0 True
+semantics radd_fallback 20000 int 20000 True
+sample radd_fallback 0.009339775999251287 20000 int 20000 True
+sample radd_fallback 0.009070726002391893 20000 int 20000 True
+sample radd_fallback 0.008851557002344634 20000 int 20000 True
+sample radd_fallback 0.009304546998464502 20000 int 20000 True
+sample radd_fallback 0.00895152299926849 20000 int 20000 True
+sample radd_fallback 0.008150216002832167 20000 int 20000 True
+sample radd_fallback 0.010252498999761883 20000 int 20000 True
+semantics iadd_fallback 20000 MutableAdd 20000 True
+sample iadd_fallback 0.010691593000956345 20000 MutableAdd 20000 True
+sample iadd_fallback 0.010683995998988394 20000 MutableAdd 20000 True
+sample iadd_fallback 0.00948536900250474 20000 MutableAdd 20000 True
+sample iadd_fallback 0.01150622300338 20000 MutableAdd 20000 True
+sample iadd_fallback 0.009996799999498762 20000 MutableAdd 20000 True
+sample iadd_fallback 0.011014461000740994 20000 MutableAdd 20000 True
+sample iadd_fallback 0.010368428003857844 20000 MutableAdd 20000 True
+semantics overflow_alternating 9223372036854775807 int 0 True
+sample overflow_alternating 0.005191525000554975 9223372036854775807 int 0 True
+sample overflow_alternating 0.007858822995331138 9223372036854775807 int 0 True
+sample overflow_alternating 0.005524111998965964 9223372036854775807 int 0 True
+sample overflow_alternating 0.005434386999695562 9223372036854775807 int 0 True
+sample overflow_alternating 0.005229253001743928 9223372036854775807 int 0 True
+sample overflow_alternating 0.005515138996997848 9223372036854775807 int 0 True
+sample overflow_alternating 0.005408374003309291 9223372036854775807 int 0 True

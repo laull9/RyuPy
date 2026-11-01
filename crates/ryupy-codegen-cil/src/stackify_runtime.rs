@@ -110,6 +110,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::Reraise => ins.push(Instruction::call(ctx.runtime_refs.reraise)),
         RuntimeFn::RaisePrepare => ins.push(Instruction::call(ctx.runtime_refs.raise_prepare)),
         RuntimeFn::MakeUnbound => ins.push(Instruction::call(ctx.runtime_refs.make_unbound)),
+        RuntimeFn::TraceCheckDepth => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_check_depth))
+        }
         RuntimeFn::TracePush => ins.push(Instruction::call(ctx.runtime_refs.trace_push)),
         RuntimeFn::TraceLine => ins.push(Instruction::call(ctx.runtime_refs.trace_line)),
         RuntimeFn::TracePopTo => ins.push(Instruction::call(ctx.runtime_refs.trace_pop_to)),

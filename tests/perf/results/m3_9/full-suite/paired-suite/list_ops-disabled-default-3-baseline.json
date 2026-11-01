@@ -1,0 +1,27 @@
+{
+  "name": "list_ops",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/list_ops/list_ops.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 668.4832099999767,
+  "maxrss": 101609472,
+  "stats": {
+    "main_ms": 489.223,
+    "alloc_bytes": 122476600,
+    "gc0": 18,
+    "gc1": 6,
+    "gc2": 3,
+    "gc_pause_ms": 109.018,
+    "jit_ms": 299.434,
+    "jit_methods": 236,
+    "heap_bytes": 39786544
+  }
+}

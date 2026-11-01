@@ -1,0 +1,3 @@
+{"name": "matmul", "sample": 0, "kind": "kernel_resources", "gc0": 0, "gc1": 0, "gc2": 0}
+{"name": "matmul", "sample": 1, "kind": "kernel_resources", "gc0": 0, "gc1": 0, "gc2": 0}
+{"name": "matmul", "sample": 2, "kind": "kernel_resources", "gc0": 0, "gc1": 0, "gc2": 0}

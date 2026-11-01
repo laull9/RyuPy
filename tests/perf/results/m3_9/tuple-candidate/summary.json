@@ -1,0 +1,110 @@
+[
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "swap",
+    "baseline_seconds": 0.004813785999431275,
+    "candidate_seconds": 4.302900197217241e-05,
+    "speedup": 111.87305721253847,
+    "change_percent": -99.10612972871549
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "read",
+    "baseline_seconds": 0.002332535994355567,
+    "candidate_seconds": 4.259499837644398e-05,
+    "speedup": 54.760795475121164,
+    "change_percent": -98.17387605252317
+  },
+  {
+    "batch": 1,
+    "tier": "default",
+    "label": "escape",
+    "baseline_seconds": 0.005061761999968439,
+    "candidate_seconds": 0.004726145998574793,
+    "speedup": 1.071012618208336,
+    "change_percent": -6.630418447088948
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "swap",
+    "baseline_seconds": 0.00196288699953584,
+    "candidate_seconds": 4.579099913826212e-05,
+    "speedup": 42.866219049055154,
+    "change_percent": -97.66716071026553
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "read",
+    "baseline_seconds": 0.0008047250012168661,
+    "candidate_seconds": 3.9031001506373286e-05,
+    "speedup": 20.617585256823716,
+    "change_percent": -95.14977148126968
+  },
+  {
+    "batch": 1,
+    "tier": "disabled",
+    "label": "escape",
+    "baseline_seconds": 0.001677800995821599,
+    "candidate_seconds": 0.0014436529963859357,
+    "speedup": 1.1621913299261202,
+    "change_percent": -13.955647899767975
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "swap",
+    "baseline_seconds": 0.003616688001784496,
+    "candidate_seconds": 4.34929970651865e-05,
+    "speedup": 83.15563989218474,
+    "change_percent": -98.79743574663541
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "read",
+    "baseline_seconds": 0.001807699998607859,
+    "candidate_seconds": 4.572599573293701e-05,
+    "speedup": 39.53331074878595,
+    "change_percent": -97.47048759372953
+  },
+  {
+    "batch": 2,
+    "tier": "default",
+    "label": "escape",
+    "baseline_seconds": 0.004058471000462305,
+    "candidate_seconds": 0.0046714689960936084,
+    "speedup": 0.8687783230191816,
+    "change_percent": 15.104161039008934
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "swap",
+    "baseline_seconds": 0.001386932002787944,
+    "candidate_seconds": 4.588100273394957e-05,
+    "speedup": 30.228894752591923,
+    "change_percent": -96.6919068388557
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "read",
+    "baseline_seconds": 0.0007990809972397983,
+    "candidate_seconds": 3.936400025850162e-05,
+    "speedup": 20.299791484408836,
+    "change_percent": -95.07384102556892
+  },
+  {
+    "batch": 2,
+    "tier": "disabled",
+    "label": "escape",
+    "baseline_seconds": 0.0016457149977213703,
+    "candidate_seconds": 0.0016777049968368374,
+    "speedup": 0.9809322859645877,
+    "change_percent": 1.9438359108205239
+  }
+]

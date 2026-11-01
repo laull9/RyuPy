@@ -1,0 +1,27 @@
+{
+  "name": "oop",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 1,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/oop/oop.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 480.95903400098905,
+  "maxrss": 50970624,
+  "stats": {
+    "main_ms": 286.891,
+    "alloc_bytes": 104266592,
+    "gc0": 23,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 7.181,
+    "jit_ms": 243.139,
+    "jit_methods": 257,
+    "heap_bytes": 6454808
+  }
+}

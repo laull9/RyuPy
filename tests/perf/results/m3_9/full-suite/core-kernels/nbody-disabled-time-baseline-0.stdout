@@ -1,0 +1,9 @@
+-0.169075164
+-0.169079859
+{"kind":"kernel_time","name":"nbody","sample":0,"elapsed_ms":1057.1771}
+{"kind":"kernel_time","name":"nbody","sample":1,"elapsed_ms":1128.476}
+{"kind":"kernel_time","name":"nbody","sample":2,"elapsed_ms":1134.5834}
+{"kind":"kernel_time","name":"nbody","sample":3,"elapsed_ms":1171.6999}
+{"kind":"kernel_time","name":"nbody","sample":4,"elapsed_ms":1049.6792}
+{"kind":"kernel_time","name":"nbody","sample":5,"elapsed_ms":1056.1411}
+{"kind":"kernel_time","name":"nbody","sample":6,"elapsed_ms":1046.9432}

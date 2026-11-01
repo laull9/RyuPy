@@ -1,0 +1,112 @@
+    .method public static [System.Runtime]System.Object m0_repeat([System.Runtime]System.Object, [System.Runtime]System.Object) cil managed
+    {
+        .locals init (
+            [0] [System.Runtime]System.Object,
+            [1] [System.Runtime]System.Object,
+            [2] long,
+            [3] [System.Runtime]System.Object,
+            [4] [System.Runtime]System.Object,
+            [5] long,
+            [6] long,
+            [7] long,
+            [8] long,
+            [9] long,
+            [10] bool,
+            [11] bool,
+            [12] bool,
+            [13] bool,
+            [14] bool,
+            [15] bool,
+            [16] bool,
+            [17] [System.Runtime]System.Object,
+            [18] [System.Runtime]System.Object,
+            [19] [System.Runtime]System.Object,
+            [20] [System.Runtime]System.Object
+        )
+        IL_0000: LoadString("leaf_guards.py")
+        IL_0001: LoadString("repeat")
+        IL_0002: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PushFrame(string, string))
+        IL_0003: StoreLocal(2)
+        IL_0004: LoadConstantInt32(11)
+        IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0006: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0007: StoreLocal(3)
+        IL_0008: LoadLocal(3)
+        IL_0009: StoreLocal(0)
+        IL_000a: LoadConstantInt32(12)
+        IL_000b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_000c: LoadStaticField(RyuPy.Generated.Module.__lit_3)
+        IL_000d: StoreLocal(4)
+        IL_000e: LoadLocal(4)
+        IL_000f: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
+        IL_0010: StoreLocal(5)
+        IL_0011: LoadArgument(0)
+        IL_0012: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyCast.ToInt64(object))
+        IL_0013: StoreLocal(6)
+        IL_0014: LoadLocal(5)
+        IL_0015: StoreLocal(7)
+        IL_0016: LoadLocal(6)
+        IL_0017: StoreLocal(8)
+        IL_0018: LoadConstantInt64(1)
+        IL_0019: StoreLocal(9)
+        IL_001a: Branch(27)
+        IL_001b: LoadLocal(9)
+        IL_001c: LoadConstantInt64(0)
+        IL_001d: CompareGreater(Signed)
+        IL_001e: StoreLocal(10)
+        IL_001f: LoadLocal(7)
+        IL_0020: LoadLocal(8)
+        IL_0021: CompareLess(Signed)
+        IL_0022: StoreLocal(11)
+        IL_0023: LoadLocal(7)
+        IL_0024: LoadLocal(8)
+        IL_0025: CompareGreater(Signed)
+        IL_0026: StoreLocal(12)
+        IL_0027: LoadLocal(10)
+        IL_0028: LoadLocal(11)
+        IL_0029: And
+        IL_002a: StoreLocal(13)
+        IL_002b: LoadLocal(10)
+        IL_002c: LoadConstantInt32(0)
+        IL_002d: CompareEqual
+        IL_002e: StoreLocal(14)
+        IL_002f: LoadLocal(14)
+        IL_0030: LoadLocal(12)
+        IL_0031: And
+        IL_0032: StoreLocal(15)
+        IL_0033: LoadLocal(13)
+        IL_0034: LoadLocal(15)
+        IL_0035: Or
+        IL_0036: StoreLocal(16)
+        IL_0037: LoadLocal(16)
+        IL_0038: BranchTruthy(58)
+        IL_0039: Branch(77)
+        IL_003a: LoadConstantInt32(13)
+        IL_003b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_003c: LoadStaticField(RyuPy.Generated.Module.m0___mv3_alias)
+        IL_003d: LoadString("alias")
+        IL_003e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyErrors.LoadName(object, string))
+        IL_003f: StoreLocal(18)
+        IL_0040: LoadConstantInt32(1)
+        IL_0041: LoadLocal(18)
+        IL_0042: LoadArgument(1)
+        IL_0043: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.CallValue1(int, object, object))
+        IL_0044: StoreLocal(19)
+        IL_0045: LoadLocal(19)
+        IL_0046: StoreLocal(0)
+        IL_0047: Branch(72)
+        IL_0048: LoadLocal(7)
+        IL_0049: LoadLocal(9)
+        IL_004a: AddOverflow(Signed)
+        IL_004b: StoreLocal(7)
+        IL_004c: Branch(27)
+        IL_004d: LoadConstantInt32(14)
+        IL_004e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_004f: LoadLocal(0)
+        IL_0050: StoreLocal(20)
+        IL_0051: Branch(82)
+        IL_0052: LoadLocal(2)
+        IL_0053: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0054: LoadLocal(20)
+        IL_0055: Return
+    }

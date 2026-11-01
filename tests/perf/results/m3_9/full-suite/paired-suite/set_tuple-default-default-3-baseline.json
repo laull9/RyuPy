@@ -1,0 +1,27 @@
+{
+  "name": "set_tuple",
+  "tier": "default",
+  "variant": "default",
+  "which": "baseline",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-default/bench/set_tuple/set_tuple.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 738.4940209958586,
+  "maxrss": 76656640,
+  "stats": {
+    "main_ms": 563.766,
+    "alloc_bytes": 149345376,
+    "gc0": 32,
+    "gc1": 6,
+    "gc2": 3,
+    "gc_pause_ms": 57.289,
+    "jit_ms": 147.991,
+    "jit_methods": 399,
+    "heap_bytes": 17888568
+  }
+}

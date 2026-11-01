@@ -1,0 +1,257 @@
+{
+  "jit": {
+    "jit-field-disabled.asm": [
+      {
+        "method_tier": "RyuPy.Generated.Module:m0_field_reads(System.Object,System.Object):System.Object (FullOpts)",
+        "bytes": 2141,
+        "accumulator_add_wrapper_calls": 0,
+        "accumulator_internal_value_calls": 2,
+        "accumulator_internal_store_calls": 2
+      }
+    ],
+    "jit-field-default.asm": [
+      {
+        "method_tier": "RyuPy.Generated.Module:m0_field_reads(System.Object,System.Object):System.Object (Instrumented Tier0)",
+        "bytes": 687,
+        "accumulator_add_wrapper_calls": 1,
+        "accumulator_internal_value_calls": 0,
+        "accumulator_internal_store_calls": 0
+      },
+      {
+        "method_tier": "RyuPy.Generated.Module:m0_field_reads(System.Object,System.Object):System.Object (Tier1-OSR)",
+        "bytes": 2981,
+        "accumulator_add_wrapper_calls": 0,
+        "accumulator_internal_value_calls": 0,
+        "accumulator_internal_store_calls": 0
+      }
+    ]
+  },
+  "allocation": {
+    "default": {
+      "processes": [
+        {
+          "rows": [
+            {
+              "batch": 0,
+              "ns_per_iteration": 12.169,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 1,
+              "ns_per_iteration": 11.966,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 2,
+              "ns_per_iteration": 11.611,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 3,
+              "ns_per_iteration": 19.92,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 4,
+              "ns_per_iteration": 16.203,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            }
+          ],
+          "median_ns": 12.169
+        },
+        {
+          "rows": [
+            {
+              "batch": 0,
+              "ns_per_iteration": 11.165,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 1,
+              "ns_per_iteration": 13.436,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 2,
+              "ns_per_iteration": 11.969,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 3,
+              "ns_per_iteration": 10.887,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 4,
+              "ns_per_iteration": 10.711,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            }
+          ],
+          "median_ns": 11.165
+        },
+        {
+          "rows": [
+            {
+              "batch": 0,
+              "ns_per_iteration": 19.895,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 1,
+              "ns_per_iteration": 15.057,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 2,
+              "ns_per_iteration": 12.2,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 3,
+              "ns_per_iteration": 11.157,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 4,
+              "ns_per_iteration": 11.49,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            }
+          ],
+          "median_ns": 12.2
+        }
+      ],
+      "median_ns": 12.169,
+      "distinct_total_bytes": [
+        360
+      ]
+    },
+    "disabled": {
+      "processes": [
+        {
+          "rows": [
+            {
+              "batch": 0,
+              "ns_per_iteration": 13.55,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 1,
+              "ns_per_iteration": 12.799,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 2,
+              "ns_per_iteration": 12.583,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 3,
+              "ns_per_iteration": 13.258,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 4,
+              "ns_per_iteration": 11.401,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            }
+          ],
+          "median_ns": 12.799
+        },
+        {
+          "rows": [
+            {
+              "batch": 0,
+              "ns_per_iteration": 11.122,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 1,
+              "ns_per_iteration": 11.833,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 2,
+              "ns_per_iteration": 12.787,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 3,
+              "ns_per_iteration": 13.389,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 4,
+              "ns_per_iteration": 10.495,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            }
+          ],
+          "median_ns": 11.833
+        },
+        {
+          "rows": [
+            {
+              "batch": 0,
+              "ns_per_iteration": 16.635,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 1,
+              "ns_per_iteration": 15.423,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 2,
+              "ns_per_iteration": 12.818,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 3,
+              "ns_per_iteration": 13.951,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            },
+            {
+              "batch": 4,
+              "ns_per_iteration": 11.871,
+              "bytes_per_iteration": 0.00036,
+              "total_bytes": 360
+            }
+          ],
+          "median_ns": 13.951
+        }
+      ],
+      "median_ns": 12.799,
+      "distinct_total_bytes": [
+        360
+      ]
+    }
+  }
+}

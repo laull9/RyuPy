@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/ryupy-current",
+    "build",
+    "/workspace/shared/RyuPy/tests/benchmarks/generators.py",
+    "-o",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/generators"
+  ],
+  "compile_ms": 4.66311200580094,
+  "exit_code": 0,
+  "dll_sha256": "9044f1249cfbbb1071c768c4ca76470dc2d6c931f7a5fe46bcab12bff120e6d7"
+}

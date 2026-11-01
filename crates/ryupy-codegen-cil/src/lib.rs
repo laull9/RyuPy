@@ -70,3 +70,9 @@ mod class_refs;
 mod module_binding_refs;
 
 mod typed_dict_refs;
+
+#[cfg(test)]
+mod exact_i64_tests;
+
+#[cfg(test)]
+mod function_identity_tests;

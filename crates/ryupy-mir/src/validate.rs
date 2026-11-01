@@ -16,6 +16,7 @@ use crate::mir::{
 
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
+    crate::validate_identities::validate(program, &mut errors);
     if !program.functions.iter().any(|(id, _)| id == program.entry) {
         errors.push(format!(
             "程序入口函数 {:?} 不在 functions arena 中",
@@ -55,6 +56,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
         }
 
         validate_regions(func, &mut errors);
+        crate::exact_types::validate(program, func, &mut errors);
 
         for &param in &func.params {
             if !func.body.locals.iter().any(|(id, _)| id == param) {
@@ -88,11 +90,14 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                         }
                         validate_rvalue(func, block_id, value, program, &mut errors);
                         class_namespace::validate_destination(func, *dest, value, &mut errors);
+                        runtime_calls::validate_destination(func, *dest, value, &mut errors);
                         if matches!(
                             value,
                             Rvalue::Call {
                                 callee: Callee::Runtime(
-                                    RuntimeFn::NumericAccumulatorAdd | RuntimeFn::CheckGlobalBound
+                                    RuntimeFn::NumericAccumulatorAdd
+                                        | RuntimeFn::CheckGlobalBound
+                                        | RuntimeFn::TraceCheckDepth
                                 ),
                                 ..
                             }
@@ -109,7 +114,8 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             rvalue,
                             Rvalue::Call {
                                 callee: Callee::Runtime(
-                                    RuntimeFn::ClassNamespaceContains
+                                    RuntimeFn::DynBinary
+                                        | RuntimeFn::ClassNamespaceContains
                                         | RuntimeFn::GeneratorInput
                                         | RuntimeFn::GeneratorRetry
                                         | RuntimeFn::PrintTarget
@@ -288,7 +294,11 @@ fn validate_regions(func: &crate::mir::Function, errors: &mut Vec<String>) {
     }
 }
 
-fn operand_type(program: &Program, func: &crate::mir::Function, op: &Operand) -> Option<MirType> {
+pub(crate) fn operand_type(
+    program: &Program,
+    func: &crate::mir::Function,
+    op: &Operand,
+) -> Option<MirType> {
     match op {
         Operand::Local(loc) => func
             .body
@@ -406,62 +416,7 @@ fn validate_rvalue(
         Rvalue::Unary { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Cast { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Call { callee, args } => {
-            // 输出与累加器专用ABI校验，防止参数错配生成栈不平衡的CIL。
-            if let Callee::Runtime(runtime) = callee {
-                let expected: Option<&[MirType]> = match runtime {
-                    RuntimeFn::PrintTarget => Some(&[]),
-                    RuntimeFn::CheckGlobalBound => Some(&[MirType::Bool, MirType::Str]),
-                    RuntimeFn::ClassNamespaceContains => Some(&[MirType::Dynamic, MirType::Str]),
-                    RuntimeFn::NumericAccumulatorCreate
-                    | RuntimeFn::NumericAccumulatorValue
-                    | RuntimeFn::TypedDictFinish
-                    | RuntimeFn::ValidateOrdinaryBase => Some(&[MirType::Dynamic]),
-                    RuntimeFn::TypedDictBegin => {
-                        Some(&[MirType::Str, MirType::Dynamic, MirType::Bool, MirType::Str])
-                    }
-                    RuntimeFn::NumericAccumulatorAdd => Some(&[MirType::Dynamic, MirType::Dynamic]),
-                    RuntimeFn::WriteI64 => Some(&[MirType::Dynamic, MirType::I64]),
-                    RuntimeFn::WriteF64 => Some(&[MirType::Dynamic, MirType::F64]),
-                    RuntimeFn::WriteBool => Some(&[MirType::Dynamic, MirType::Bool]),
-                    RuntimeFn::WriteStr => Some(&[MirType::Dynamic, MirType::Str]),
-                    RuntimeFn::WriteObject => Some(&[MirType::Dynamic, MirType::Dynamic]),
-                    RuntimeFn::WriteSep | RuntimeFn::WriteNewline => Some(&[MirType::Dynamic]),
-                    _ => None,
-                };
-                if let Some(expected) = expected
-                    && (args.len() != expected.len()
-                        || args.iter().zip(expected).any(|(arg, ty)| {
-                            operand_type(program, func, arg).is_some_and(|actual| &actual != ty)
-                        }))
-                {
-                    errors.push(format!(
-                        "函数 {} 的 {:?} 参数不符合{}",
-                        func.name,
-                        runtime,
-                        if matches!(
-                            runtime,
-                            RuntimeFn::NumericAccumulatorCreate
-                                | RuntimeFn::NumericAccumulatorAdd
-                                | RuntimeFn::NumericAccumulatorValue
-                        ) {
-                            "累加器ABI"
-                        } else if matches!(
-                            runtime,
-                            RuntimeFn::TypedDictBegin | RuntimeFn::TypedDictFinish
-                        ) {
-                            "TypedDict构建ABI"
-                        } else if matches!(runtime, RuntimeFn::CheckGlobalBound) {
-                            "模块绑定位ABI"
-                        } else if matches!(runtime, RuntimeFn::ClassNamespaceContains) {
-                            "类命名空间存在性ABI"
-                        } else if matches!(runtime, RuntimeFn::ValidateOrdinaryBase) {
-                            "普通基类守卫ABI"
-                        } else {
-                            "输出目标ABI"
-                        }
-                    ));
-                }
-            }
+            runtime_calls::validate_call(program, func, callee, args, errors);
             if let Callee::Fn(fn_id) = callee {
                 if let Some((_, target_fn)) = program.functions.iter().find(|(id, _)| id == fn_id) {
                     if args.len() != target_fn.params.len() {
@@ -501,7 +456,9 @@ fn validate_rvalue(
                 ));
             }
         }
-        Rvalue::Unbox { value, .. } => {
+        Rvalue::Unbox { value, .. }
+        | Rvalue::IsBoxedI64 { value }
+        | Rvalue::UnboxExactI64 { value } => {
             validate_operand(func, block_id, value, errors);
             if let Some(v_ty) = operand_type(program, func, value)
                 && v_ty != MirType::Dynamic
@@ -591,3 +548,6 @@ mod tests;
 
 #[path = "validate_class_namespace.rs"]
 mod class_namespace;
+
+#[path = "validate_runtime_calls.rs"]
+mod runtime_calls;

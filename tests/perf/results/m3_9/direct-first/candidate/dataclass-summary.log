@@ -1,0 +1,22 @@
+{
+  "default_baseline": {
+    "construction": 0.007301775993255433,
+    "field_reads": 0.0025037439991137944,
+    "equality": 0.04477063200465636
+  },
+  "default_candidate": {
+    "construction": 0.006524800002807751,
+    "field_reads": 0.002591219999885652,
+    "equality": 0.051401987999270204
+  },
+  "disabled_baseline": {
+    "construction": 0.005287343999953009,
+    "field_reads": 0.002836836996721104,
+    "equality": 0.023003235000942368
+  },
+  "disabled_candidate": {
+    "construction": 0.00469220700324513,
+    "field_reads": 0.002823450995492749,
+    "equality": 0.01997856399975717
+  }
+}

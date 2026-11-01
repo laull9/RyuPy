@@ -1,0 +1,24 @@
+semantics swap True
+sample swap 0.003939191999961622 True
+sample swap 0.005642919000820257 True
+sample swap 0.0032859310013009235 True
+sample swap 0.004379770995001309 True
+sample swap 0.0036939659985364415 True
+sample swap 0.0031939940017764457 True
+sample swap 0.002814820996718481 True
+semantics read True
+sample read 0.0017841740045696497 True
+sample read 0.0015510269950027578 True
+sample read 0.002348734997212887 True
+sample read 0.0025685669970698655 True
+sample read 0.0013385690035647713 True
+sample read 0.0019329860006109811 True
+sample read 0.0012488939973991364 True
+semantics escape True
+sample escape 0.00308180799765978 True
+sample escape 0.004058471000462305 True
+sample escape 0.002713808004045859 True
+sample escape 0.005901058997551445 True
+sample escape 0.011609807996137533 True
+sample escape 0.00432328500028234 True
+sample escape 0.0034416970011079684 True

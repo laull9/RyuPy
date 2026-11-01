@@ -1,0 +1,11 @@
+{
+  "artifact/RyuPy.Runtime.dll": "e1805135300d2e49fa48fb12898b68170ab1986121deed4002738d20f2b3cb4b",
+  "artifact/dataclass_hot.runtimeconfig.json": "ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a",
+  "artifact/dataclass_hot.dll": "50bb6d102969453b61f705b1f045135779f32e4b45754fe6700cf0c66a7ec031",
+  "guard-artifact/RyuPy.Runtime.dll": "e1805135300d2e49fa48fb12898b68170ab1986121deed4002738d20f2b3cb4b",
+  "guard-artifact/accumulator_guards.runtimeconfig.json": "ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a",
+  "guard-artifact/accumulator_guards.dll": "40475186c3a789f32f3bb29f70f6a75c45cce335ef290b15824a18c9e38efd0e",
+  "range-artifact/RyuPy.Runtime.dll": "e1805135300d2e49fa48fb12898b68170ab1986121deed4002738d20f2b3cb4b",
+  "range-artifact/accumulator_range.runtimeconfig.json": "ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a",
+  "range-artifact/accumulator_range.dll": "92c5a775380fe5b02f4a28730558e1a95e71c2d62dcee2c127969d6e2472c153"
+}

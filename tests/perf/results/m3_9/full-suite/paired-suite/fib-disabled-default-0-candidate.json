@@ -1,0 +1,27 @@
+{
+  "name": "fib",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "candidate",
+  "round": 0,
+  "recorded": false,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/current-disabled/bench/fib/fib.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 377.53461900138063,
+  "maxrss": 38350848,
+  "stats": {
+    "main_ms": 177.201,
+    "alloc_bytes": 397176,
+    "gc0": 0,
+    "gc1": 0,
+    "gc2": 0,
+    "gc_pause_ms": 0,
+    "jit_ms": 163.904,
+    "jit_methods": 186,
+    "heap_bytes": 405456
+  }
+}

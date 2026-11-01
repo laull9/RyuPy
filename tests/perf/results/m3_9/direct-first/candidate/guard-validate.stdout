@@ -1,0 +1,6 @@
+semantics int_fast 20 int 0 True
+semantics bool_fallback 20 int 0 True
+semantics float_fallback 10.0 float 0 True
+semantics radd_fallback 20 int 20 True
+semantics iadd_fallback 20 MutableAdd 20 True
+semantics overflow_alternating 9223372036854775807 int 0 True

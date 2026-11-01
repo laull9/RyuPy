@@ -1,0 +1,27 @@
+{
+  "name": "nbody",
+  "tier": "disabled",
+  "variant": "default",
+  "which": "baseline",
+  "round": 3,
+  "recorded": true,
+  "command": [
+    "dotnet",
+    "/tmp/ryupy-m3_9-full-suite-eGJqTT/e1-disabled/bench/nbody/nbody.dll"
+  ],
+  "exit_code": 0,
+  "status": "ok",
+  "wall_ms": 1373.861369000224,
+  "maxrss": 54648832,
+  "stats": {
+    "main_ms": 1174.593,
+    "alloc_bytes": 682689032,
+    "gc0": 162,
+    "gc1": 1,
+    "gc2": 0,
+    "gc_pause_ms": 25.518,
+    "jit_ms": 327.736,
+    "jit_methods": 229,
+    "heap_bytes": 3594352
+  }
+}
