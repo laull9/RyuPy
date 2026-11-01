@@ -49,6 +49,8 @@ pub struct LinkedProgram {
 /// 一个已编译模块在运行时需要的信息。
 #[derive(Debug)]
 pub struct ModuleDef {
+    /// 跨模块属性写入必须拒绝的静态异常导入别名。
+    pub protected_exports: Vec<String>,
     /// 点分绝对模块名；入口模块是 `__main__`。
     pub name: String,
     /// `__package__`。

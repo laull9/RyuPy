@@ -171,6 +171,8 @@ public sealed class PyGenerator : IPyIterator
         object? normalized = exception switch
         {
             PyBaseException error => error,
+            PyType { Name: "error" } => PyRegex.ConstructError([], [], []),
+            PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError([], [], []),
             PyType type when PyExceptionHierarchy.IsKnown(type.Name)
                 => PyExceptionTypes.Create(type.Name, string.Empty),
             PyClass cls when cls.IsSubclassOfBuiltin("BaseException") => cls.Invoke([], [], []),

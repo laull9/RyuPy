@@ -107,6 +107,20 @@ pub(crate) fn emit_module_accessors(
             ins.push(Instruction::call(refs.module_same_name));
             let skip = ins.len();
             ins.push(Instruction::BranchFalsy(0));
+            if module.protected_exports.contains(name) {
+                // 初始化 import 直接写静态槽，不经过本 setter；这里只拒绝外部重绑定，
+                // 避免已经静态化的 typed catch 与实际 Python 属性身份悄悄分离。
+                ins.push(Instruction::load_string("NotImplementedError"));
+                ins.push(Instruction::load_string(format!(
+                    "rebinding static exception import '{}.{}' is not supported",
+                    module.name, name
+                )));
+                ins.push(Instruction::call(refs.make_exception));
+                ins.push(Instruction::call(refs.raise_prepare));
+                ins.push(Instruction::Throw);
+                ins[skip] = Instruction::BranchFalsy(ins.len());
+                continue;
+            }
             ins.push(Instruction::LoadArgument(2));
             let ty = program.globals[*gid].ty.clone();
             match &ty {

@@ -1,0 +1,14 @@
+---
+source: crates/ryupy-driver/tests/m3_5.rs
+expression: "output.replace(path.to_str().unwrap(), \"exceptions.py\")"
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "exceptions.py"
+    import json as global.codec
+    from re import error as global.PatternError
+    try:
+        global.codec.loads("[")
+    except json.JSONDecodeError | re.error:
+        print("caught")

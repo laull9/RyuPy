@@ -91,7 +91,7 @@ public static partial class PyOps
         return wrap(Single(name, args));
     }
 
-    private static bool IsCallable(object? value) => value is
+    private static bool IsCallable(object? value) => value is PyType { Name: "JSONDecodeError" or "error" } || value is
         PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyNativeType or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
         or PyInstance;
     private static object? BuiltinGetAttr(object?[] args, string[] names)

@@ -22,6 +22,7 @@ mod comprehension_ast;
 mod comprehensions;
 mod control_flow;
 mod decorators;
+mod exception_imports;
 pub mod expr;
 mod generator_scan;
 mod hir;
@@ -37,7 +38,10 @@ mod scope;
 mod with;
 
 pub use hir::*;
-pub use lower::lower_module;
+pub use lower::{lower_module, lower_module_with_native_exceptions};
 
 #[cfg(test)]
 mod lower_tests;
+
+#[cfg(test)]
+mod exception_imports_tests;

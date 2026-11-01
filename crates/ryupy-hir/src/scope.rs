@@ -28,6 +28,8 @@ pub enum Resolution {
 /// 模块级名字表：第一遍收集所有顶层 `def` / `class`，因此函数之间可以前向引用。
 #[derive(Debug, Default)]
 pub struct GlobalScope {
+    /// driver 已确认的原生模块异常导入别名。
+    pub(crate) exception_imports: FxHashMap<Name, crate::exception_imports::ExceptionImport>,
     pub names: FxHashMap<Name, Resolution>,
     /// 装饰后的公开绑定读取模块变量，names只保留内部定义身份/静态基类信息。
     pub dynamic_names: FxHashSet<Name>,

@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.5：JSON 保留大整数和 Unicode，数学错误采用 Python 异常。
 import json
 import math

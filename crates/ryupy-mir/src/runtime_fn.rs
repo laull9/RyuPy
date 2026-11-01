@@ -1,9 +1,9 @@
 //! 运行时 ABI：内建异常名称与静态调用入口。新增入口须同步 codegen 引用及 C# 实现。
 
-/// 编译器认识的 Python 内建异常类型名。
+/// 编译器认识的 Python 内建及已注册原生模块异常类型名。
 ///
-/// 这张表是三方约定的单一来源：HIR 的名字解析、运行时的 `PyExceptionTypes`、
-/// codegen 的异常类型引用表都按它对齐。新增异常类型时三处必须同时修改。
+/// codegen 的异常类型引用表按此与运行时 CLR 类对齐。模块异常不能因此成为
+/// 全局内建名字；HIR 必须先验证导入身份，再使用这里的运行时类型名。
 pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "BaseException",
     "Exception",
@@ -39,6 +39,8 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "StopIteration",
     "StopAsyncIteration",
     "EOFError",
+    "json.JSONDecodeError",
+    "re.error",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。

@@ -79,18 +79,31 @@ pub struct Artifacts {
     pub native_exe: Option<PathBuf>,
 }
 
+/// 单模块产物与跨模块绑定契约，一同交给链接器。
+struct CompiledModule {
+    program: ryupy_mir::Program,
+    exports: Vec<(String, ryupy_mir::GlobalId)>,
+    protected_exports: Vec<String>,
+}
+
 /// 运行前端 + 中端，返回 MIR。任何阶段出错都在阶段边界停止。
 /// 编译一个模块到 MIR，并在阶段边界检查诊断。
 fn compile_module(
     sess: &mut Session,
     module: &modules::SourceModule,
-) -> Result<(ryupy_mir::Program, Vec<(String, ryupy_mir::GlobalId)>)> {
+    native_exceptions: &[&str],
+) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
     };
-    let (hir, diags) = ryupy_hir::lower_module(&module.parsed, &info, &module.text);
+    let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
+        &module.parsed,
+        &info,
+        &module.text,
+        native_exceptions,
+    );
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
 
@@ -106,7 +119,11 @@ fn compile_module(
     if let Err(errs) = ryupy_mir::validate::validate(&mir) {
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
-    Ok((mir, exports))
+    Ok(CompiledModule {
+        program: mir,
+        exports,
+        protected_exports: hir.protected_exports,
+    })
 }
 
 /// 编译整个模块图，返回合并后的程序。
@@ -116,12 +133,21 @@ fn compile_linked(
     search_paths: &[PathBuf],
 ) -> Result<ryupy_mir::LinkedProgram> {
     let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
+    let native_exceptions: Vec<&str> = ["json", "re"]
+        .into_iter()
+        .filter(|name| !sources.iter().any(|source| source.name == *name))
+        .collect();
     let mut units = Vec::new();
     for module in sources {
-        let (program, exports) = compile_module(sess, &module)?;
+        let CompiledModule {
+            program,
+            exports,
+            protected_exports,
+        } = compile_module(sess, &module, &native_exceptions)?;
         units.push((
             program,
             ryupy_mir::UnitMeta {
+                protected_exports,
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),
@@ -190,7 +216,13 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         package: module.package.clone(),
         file: module.file.clone(),
     };
-    let (hir, diags) = ryupy_hir::lower_module(&module.parsed, &info, &module.text);
+    let native_exceptions = modules::native_exception_modules(input);
+    let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
+        &module.parsed,
+        &info,
+        &module.text,
+        &native_exceptions,
+    );
     sess.diagnostics.extend(diags);
     if stage == Stage::Hir {
         return Ok(ryupy_hir::pretty::dump(&hir));
@@ -217,6 +249,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         vec![(
             mir,
             ryupy_mir::UnitMeta {
+                protected_exports: hir.protected_exports,
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),

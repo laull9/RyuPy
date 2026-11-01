@@ -34,11 +34,25 @@ pub fn lower_module(
     info: &ModuleInfo,
     source: &str,
 ) -> (Module, Vec<Diagnostic>) {
+    lower_module_with_native_exceptions(parsed, info, source, &[])
+}
+
+/// driver 提供未被本地源码遮蔽的原生模块名；HIR 不做文件系统探测。
+pub fn lower_module_with_native_exceptions(
+    parsed: &ParsedModule,
+    info: &ModuleInfo,
+    source: &str,
+    native_exceptions: &[&str],
+) -> (Module, Vec<Diagnostic>) {
     let mut diagnostics = Vec::new();
     let line_starts = compute_line_starts(source);
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope {
+        exception_imports: crate::exception_imports::collect(
+            &parsed.module.body,
+            native_exceptions,
+        ),
         dataclass_markers: crate::decorators::dataclass_markers(&parsed.module.body),
         ..GlobalScope::default()
     };
@@ -382,6 +396,9 @@ pub fn lower_module(
     }
 
     let module = Module {
+        protected_exports: crate::exception_imports::protected_names(
+            &global_scope.exception_imports,
+        ),
         file: parsed.file,
         source_name: info.file.clone(),
         info: info.clone(),

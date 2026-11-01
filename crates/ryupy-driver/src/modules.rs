@@ -6,7 +6,7 @@
 //!
 //! 搜索路径当前只有一条：**入口文件所在目录**（等价于 `sys.path[0]`）。命名空间包、
 //! 第三方 site-packages 与动态模块名留到后续里程碑；找不到的模块不阻止编译，
-//! 由运行时抛 `ModuleNotFoundError`。
+//! 由运行时尝试原生模块，仍不存在时抛 `ModuleNotFoundError`。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -71,7 +71,7 @@ pub fn load_program(
             }
         }
         let Some(path) = resolve_in(&roots, &name) else {
-            // 未找到：编译不过滤，运行时抛 ModuleNotFoundError。
+            // 未找到源码：留给原生模块注册表；运行时仍未知才抛 ModuleNotFoundError。
             continue;
         };
         let package = module_package(&name, &path);
@@ -147,6 +147,15 @@ fn module_package(name: &str, path: &Path) -> String {
     name.rsplit_once('.')
         .map(|(parent, _)| parent.to_owned())
         .unwrap_or_default()
+}
+
+/// dump 不遍历依赖源码，但异常静态身份仍必须遵循入口目录的源码优先规则。
+pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
+    let root = entry.parent().unwrap_or(Path::new(".")).to_path_buf();
+    ["json", "re"]
+        .into_iter()
+        .filter(|name| resolve_in(std::slice::from_ref(&root), name).is_none())
+        .collect()
 }
 
 #[cfg(test)]

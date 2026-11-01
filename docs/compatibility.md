@@ -8,6 +8,7 @@ CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 
 ord/chr基础内建已补直接调用，wcwidth首阻断从ord前移至map；progress从生成器with清理前移到未知Progress基类，两者均未计为项目通过。
 M3.3重跑attrs首阻断从类装饰器前移至Protocol基类，仍未计为项目通过。
 M3.4原生系统/流/路径子集见stdlib-system.md；binaryornot首阻断从open前移至locals，固定项目仍0/20，Windows实际运行未验收。
+M3.5新增math/time/json/re限定API与稳定模块异常导入，逐API范围见stdlib-numeric.md；固定项目复测仍0/20，tomli动态except表达式等阻断未解除。
 急切推导式解除若干前端阻塞，但项目仍需后续语法和 API，不将语法差分通过计入项目分子。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
 
