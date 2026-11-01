@@ -1,9 +1,10 @@
-//! 列表推导式的独立作用域与去糖。
+//! 列表、字典、集合推导式的独立作用域与去糖。
 //!
 //! 每次执行创建一个隐式函数，复用已有的共享 cell、动态调用与通用迭代。
 //! 最左 iterable 在外层立即转换成迭代器；隐藏参数把它送入推导式作用域。
 //! 循环和过滤器只创建 HIR 控制流，不在每个元素处重新创建函数或环境。
 
+use crate::comprehension_ast::{Comprehension, ComprehensionKind};
 use crate::hir::*;
 use crate::scope::FunctionScope;
 use ryupy_base::{Diagnostic, Ranged, Span, TextRange};
@@ -14,7 +15,7 @@ const ITERATOR: &str = ".0";
 
 /// 登记隐式参数与循环绑定；标识符中含点，用户源码不能与之冲突。
 pub(crate) fn prepare_scope(
-    comp: &ast::ExprListComp,
+    comp: Comprehension<'_>,
     params: &mut Vec<Param>,
     scope: &mut FunctionScope,
     body: &mut Body,
@@ -58,16 +59,24 @@ pub(crate) fn prepare_scope(
         }
     }
     let mut targets = Targets { scope, body };
-    for generator in &comp.generators {
+    for generator in comp.generators {
         targets.visit_expr(&generator.target);
     }
 }
 
 impl crate::expr::ExprLowerCtx<'_> {
-    pub(crate) fn lower_list_comprehension(&mut self, comp: &ast::ExprListComp) -> ExprKind {
+    pub(crate) fn lower_comprehension(&mut self, comp: Comprehension<'_>) -> ExprKind {
         let Some(first) = comp.generators.first() else {
             return ExprKind::Missing;
         };
+        if comp.kind == ComprehensionKind::Dict && comp.key.is_none() {
+            self.diagnostics.push(
+                Diagnostic::error(Span::new(self.file, comp.range), "暂不支持字典推导式解包")
+                    .with_code("E0100")
+                    .with_primary_label("字典推导式需要显式的 key: value"),
+            );
+            return ExprKind::Missing;
+        }
         if comp.generators.iter().any(|generator| generator.is_async) {
             self.diagnostics.push(
                 Diagnostic::error(Span::new(self.file, comp.range), "暂不支持异步推导式")
@@ -112,15 +121,20 @@ impl crate::expr::ExprLowerCtx<'_> {
 }
 
 impl crate::lower::StmtLowerCtx<'_> {
-    /// 将 `[elt for ... if ...]` 去糖为私有结果列表、嵌套循环和 return。
-    pub(crate) fn lower_list_comprehension_body(&mut self, comp: &ast::ExprListComp) {
+    /// 将急切推导式去糖为私有结果容器、嵌套循环和 return。
+    pub(crate) fn lower_comprehension_body(&mut self, comp: Comprehension<'_>) {
         let result = self.body.locals.alloc(Local {
             name: Name::from(".result"),
             annotation: None,
             is_param: false,
             range: comp.range,
         });
-        let empty = self.comp_expr(ExprKind::List(Vec::new()), comp.range);
+        let empty_kind = match comp.kind {
+            ComprehensionKind::List => ExprKind::List(Vec::new()),
+            ComprehensionKind::Dict => ExprKind::Dict(Vec::new()),
+            ComprehensionKind::Set => ExprKind::Set(Vec::new()),
+        };
+        let empty = self.comp_expr(empty_kind, comp.range);
         let init = self.comp_stmt(
             StmtKind::Assign {
                 target: AssignTarget::Local(result),
@@ -128,24 +142,7 @@ impl crate::lower::StmtLowerCtx<'_> {
             },
             comp.range,
         );
-        let base = self.comp_expr(ExprKind::Local(result), comp.range);
-        let append = self.comp_expr(
-            ExprKind::Attribute {
-                base,
-                name: Name::from("append"),
-            },
-            comp.range,
-        );
-        let elt = self.lower_expr(&comp.elt);
-        let call = self.comp_expr(
-            ExprKind::Call {
-                callee: append,
-                args: vec![CallArg::Positional(elt)],
-            },
-            comp.range,
-        );
-        let emit = self.comp_stmt(StmtKind::Expr(call), comp.range);
-        let mut body = vec![emit];
+        let mut body = self.comp_emit(comp, result);
         // 从内向外包装，运行期仍严格按源码的 for / if / 元素顺序求值。
         for (index, generator) in comp.generators.iter().enumerate().rev() {
             for condition in generator.ifs.iter().rev() {
@@ -213,6 +210,60 @@ impl crate::lower::StmtLowerCtx<'_> {
         self.body.root.push(init);
         self.body.root.extend(body);
         self.body.root.push(ret);
+    }
+
+    /// 字典必须先求 key 再求 value：普通下标赋值的规则恰好相反，
+    /// 因此先把 key 固定在隐藏局部中，再复用 Assign(Subscript)。
+    fn comp_emit(&mut self, comp: Comprehension<'_>, result: LocalId) -> Vec<StmtId> {
+        let base = self.comp_expr(ExprKind::Local(result), comp.range);
+        if let Some(key) = comp.key {
+            let key_local = self.body.locals.alloc(Local {
+                name: Name::from(".key"),
+                annotation: None,
+                is_param: false,
+                range: key.range(),
+            });
+            let key_value = self.lower_expr(key);
+            let save_key = self.comp_stmt(
+                StmtKind::Assign {
+                    target: AssignTarget::Local(key_local),
+                    value: key_value,
+                },
+                key.range(),
+            );
+            let index = self.comp_expr(ExprKind::Local(key_local), key.range());
+            let value = self.lower_expr(comp.elt);
+            let insert = self.comp_stmt(
+                StmtKind::Assign {
+                    target: AssignTarget::Subscript { base, index },
+                    value,
+                },
+                comp.range,
+            );
+            vec![save_key, insert]
+        } else {
+            let method = if comp.kind == ComprehensionKind::Set {
+                "add"
+            } else {
+                "append"
+            };
+            let callee = self.comp_expr(
+                ExprKind::Attribute {
+                    base,
+                    name: Name::from(method),
+                },
+                comp.range,
+            );
+            let elt = self.lower_expr(comp.elt);
+            let call = self.comp_expr(
+                ExprKind::Call {
+                    callee,
+                    args: vec![CallArg::Positional(elt)],
+                },
+                comp.range,
+            );
+            vec![self.comp_stmt(StmtKind::Expr(call), comp.range)]
+        }
     }
 
     fn comp_unpack(

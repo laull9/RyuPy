@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.1：推导式作用域、嵌套顺序、重复键与闭包绑定。
 value = "outer"
 print([(left, right) for left in range(3) for right in range(left) if right % 2 == 0])

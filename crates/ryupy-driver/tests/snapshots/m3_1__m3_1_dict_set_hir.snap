@@ -1,0 +1,59 @@
+---
+source: crates/ryupy-driver/tests/m3_1.rs
+expression: output
+---
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m3_1_comprehensions.py"
+    global.value = "outer"
+    print(<lambda <listcomp>>(iter(range(3))))
+    print(<lambda <listcomp>>(iter(range(3))), global.value)
+    print(<lambda <dictcomp>>(iter(range(4))))
+    print(sorted(<lambda <setcomp>>(iter(range(7)))))
+    global.functions = <lambda <listcomp>>(iter(range(3)))
+    print(<lambda <listcomp>>(iter(global.functions)))
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for left in .0:
+        for right in range(left):
+            if ((right % 2) Eq 0):
+                .result.append((left, right))
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for value in .0:
+        .result.append((value * 2))
+    return .result
+
+def [nested] <dictcomp>(.0):
+    .result = {}
+    for item in .0:
+        .key = (item % 2)
+        .result[.key] = item
+    return .result
+
+def [nested] <setcomp>(.0):
+    .result = {}
+    for item in .0:
+        .result.add((item % 3))
+    return .result
+
+def [nested] <listcomp>(.0):
+    # cells=[Name("item")], free=[]
+    .result = []
+    for item in .0:
+        .result.append(<lambda <lambda>>)
+    return .result
+
+def [nested] <lambda>():
+    # cells=[], free=[Name("item")]
+    return cell[0]
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for function in .0:
+        .result.append(function())
+    return .result

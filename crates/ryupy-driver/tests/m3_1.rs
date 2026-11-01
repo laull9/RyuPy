@@ -1,4 +1,4 @@
-//! M3.1 列表推导式：逐层检查独立作用域、共享捕获与明确拒绝的语法。
+//! M3.1 三类急切推导式：逐层检查独立作用域、共享捕获与明确拒绝的语法。
 
 use ryupy_driver::{Session, Stage, dump};
 
@@ -21,6 +21,11 @@ fn snapshot_m3_1_list() {
 #[test]
 fn snapshot_m3_1_unsupported() {
     let cases = [
+        ("集合海象表达式", "print({(y := x) for x in [1]})\n"),
+        ("字典海象表达式", "print({x: (y := x) for x in [1]})\n"),
+        ("字典异步推导式", "print({x: x async for x in []})\n"),
+        ("集合异步推导式", "print({x async for x in []})\n"),
+        ("生成器表达式", "print((x for x in [1]))\n"),
         ("海象表达式", "print([(y := x) for x in [1]])\n"),
         ("异步推导式", "print([x async for x in []])\n"),
         ("类体作用域", "class C:\n    values = [x for x in [1]]\n"),
@@ -46,5 +51,28 @@ fn snapshot_m3_1_unsupported() {
         ));
     }
     std::fs::remove_file(path).unwrap();
+    // 诊断绘图的行尾填充与语义无关，避免平台/渲染器产生空白差异。
+    let output = output
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
     insta::assert_snapshot!("m3_1_unsupported", output);
+}
+
+/// 锁定 dict key 的隐藏临时量与 set.add，不把字典赋值的 value-first 规则误套进推导式。
+#[test]
+fn snapshot_m3_1_dict_set() {
+    let root = ryupy_driver::runtime::workspace_root();
+    let case = root.join("tests/e2e/phase3/m3_1_comprehensions.py");
+    for (stage, name) in [
+        (Stage::Hir, "m3_1_dict_set_hir"),
+        (Stage::Types, "m3_1_dict_set_types"),
+        (Stage::Mir, "m3_1_dict_set_mir"),
+        (Stage::Cil, "m3_1_dict_set_cil"),
+    ] {
+        let mut session = Session::default();
+        let output = dump(&mut session, &case, stage).expect("三类推导式应完成所有编译阶段");
+        insta::assert_snapshot!(name, output);
+    }
 }

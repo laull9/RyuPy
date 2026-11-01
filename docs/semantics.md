@@ -49,8 +49,8 @@
 | 普通 / 星号（`a, *b, c = x`）解包赋值、`for x in 容器` | ✅ M2.3 | `RuntimeFn::UnpackCheck` 长度校验；`IterStart` / `IterNextOk` / `IterValue` 迭代协议 |
 | `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
-| 列表推导式（多层 for / if、解包、闭包） | ✅ M3.1 首个竖切 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
-| dict / set 推导式、生成器表达式、生成器、普通函数装饰器 | ❌ | Phase 3 M3.1–M3.3 后续竖切 |
+| list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
+| 生成器表达式、生成器、普通函数装饰器 | ❌ | Phase 3 M3.2–M3.3 后续竖切 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
@@ -176,7 +176,7 @@ CPython 一致的消息。
 
 | 46 | 闭包 late binding 与默认值 | 闭包读调用时的变量；默认值保留定义时的结果 | 复制捕获值会丢失共享修改 | M3.0：一个绑定对应一个 cell，多闭包共享，默认值在 def / lambda 位置求值 |
 | 47 | 空 cell 的异常 | 本地 cell 抛 `UnboundLocalError`，外层自由变量抛 `NameError` | null / 默认零值无法区分 | M3.0：cell 放未赋值哨兵；读取时按作用域选择异常，被捕获的 except 绑定在正常、返回、循环跳转和异常退出时都清空 cell |
-| 48 | 推导式作用域 | 目标不泄漏，闭包共享该次推导式的循环绑定 | 普通内联循环会覆盖外层变量 | M3.1 list 竖切使用独立隐式函数与共享 cell；见 §4.7 |
+| 48 | 推导式作用域 | 目标不泄漏，闭包共享该次推导式的循环绑定 | 普通内联循环会覆盖外层变量 | M3.1 三类急切推导式使用独立隐式函数与共享 cell；见 §4.7 |
 | 49 | `__iter__` 的返回值 | 必须是迭代器，不再调用返回值的 `__iter__` | 递归获取会重复副作用、误接收仅可迭代对象 | M3.1 修复 `PyIter.CreateFromObject`，无 `__next__` 立即抛 `TypeError` |
 
 ### 4.1 未捕获异常与退出码（M2.2）
@@ -300,7 +300,7 @@ nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E01
 类体 lambda、函数内 class、`del` 局部名和 cell 的反射接口仍未支持，不能据闭包用例推定可用。
 共享环境的容量和 GC 生命周期见 [ADR-0015](adr/0015-shared-closure-cells.md)。
 
-### 4.7 列表推导式（M3.1 首个竖切）
+### 4.7 list / dict / set 推导式（M3.1）
 
 最左 iterable 在外层求值并只取一次迭代器；循环目标、后续 iterable、if 与元素表达式属于
 独立隐式函数作用域。多层循环从左到右嵌套，每层条件按源码顺序短路，元素只在所有条件成立
@@ -308,7 +308,10 @@ nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E01
 
 推导式里的 lambda 共享该次推导式的循环 cell，保留 late binding；默认参数仍在创建 lambda
 时求值。不同次推导式各有独立 cell。嵌套推导式可捕获外层推导式或函数绑定。
-类体推导式、async for、海象表达式明确拒绝；dict/set 与生成器表达式仍待后续竖切。
+字典在每轮先求 key 再求 value，最后才进行哈希与插入；重复键保留首次位置但更新值。
+字典插入用单次索引查找，避免重复调用自定义键的 `__hash__`；覆盖已有键仍保留位置和结构版本。
+集合通过正常 add 协议去重，元素表达式仍逐次执行，不为去重跳过副作用。
+类体推导式、async for、海象表达式明确拒绝；生成器表达式仍待 M3.2 状态机，不能急切替代。
 设计与分配代价见 [ADR-0016](adr/0016-comprehension-scopes.md)，不宣称性能提升。
 
 此外，用户 `__iter__` 的返回值必须已具备迭代器协议，不再递归对其调用 `__iter__`；返回 list

@@ -1,0 +1,521 @@
+---
+source: crates/ryupy-driver/tests/m3_1.rs
+expression: output
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
+    let _32: dyn;
+    let _33: dyn;
+    let _34: dyn;
+    let _35: dyn;
+
+    bb0: {
+        g0 = None;
+        g1 = None;
+        g2 = None;
+        g3 = None;
+        g4 = None;
+        _0 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "m3_1_comprehensions.py");
+        g2 = _3;
+        // line 2
+        _4 = box<Str>(const "outer");
+        g3 = _4;
+        // line 3
+        _5 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _6 = box<I64>(const 3_i64);
+        _7 = RuntimeFn::DynBuiltin(const "range", [_6], [], []);
+        _8 = RuntimeFn::DynBuiltin(const "iter", [_7], [], []);
+        _9 = dyn.call(_5, [_8]);
+        RuntimeFn::WriteObject(_9);
+        RuntimeFn::WriteNewline();
+        // line 4
+        _10 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _11 = box<I64>(const 3_i64);
+        _12 = RuntimeFn::DynBuiltin(const "range", [_11], [], []);
+        _13 = RuntimeFn::DynBuiltin(const "iter", [_12], [], []);
+        _14 = dyn.call(_10, [_13]);
+        _15 = RuntimeFn::LoadName(global@3, const "value");
+        RuntimeFn::WriteObject(_14);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_15);
+        RuntimeFn::WriteNewline();
+        // line 5
+        _16 = MakeFunction(<dictcomp>; env=[]; defaults=[null]);
+        _17 = box<I64>(const 4_i64);
+        _18 = RuntimeFn::DynBuiltin(const "range", [_17], [], []);
+        _19 = RuntimeFn::DynBuiltin(const "iter", [_18], [], []);
+        _20 = dyn.call(_16, [_19]);
+        RuntimeFn::WriteObject(_20);
+        RuntimeFn::WriteNewline();
+        // line 6
+        _21 = MakeFunction(<setcomp>; env=[]; defaults=[null]);
+        _22 = box<I64>(const 7_i64);
+        _23 = RuntimeFn::DynBuiltin(const "range", [_22], [], []);
+        _24 = RuntimeFn::DynBuiltin(const "iter", [_23], [], []);
+        _25 = dyn.call(_21, [_24]);
+        _26 = RuntimeFn::DynBuiltin(const "sorted", [_25], [], []);
+        RuntimeFn::WriteObject(_26);
+        RuntimeFn::WriteNewline();
+        // line 7
+        _27 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _28 = box<I64>(const 3_i64);
+        _29 = RuntimeFn::DynBuiltin(const "range", [_28], [], []);
+        _30 = RuntimeFn::DynBuiltin(const "iter", [_29], [], []);
+        _31 = dyn.call(_27, [_30]);
+        g4 = _31;
+        // line 8
+        _32 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _33 = RuntimeFn::LoadName(global@4, const "functions");
+        _34 = RuntimeFn::DynBuiltin(const "iter", [_33], [], []);
+        _35 = dyn.call(_32, [_34]);
+        RuntimeFn::WriteObject(_35);
+        RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}
+
+fn <listcomp>(_0: dyn) -> dyn {
+    let _0: dyn; // .0
+    let _1: dyn; // left
+    let _2: dyn; // right
+    let _3: dyn; // .result
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: bool;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: bool;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: bool;
+    let _17: dyn;
+    let _18: bool;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
+        // line 3
+        _5 = MakeList([]);
+        _3 = _5;
+        // line 3
+        _6 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _7 = RuntimeFn::IterNextOk(_6);
+        branch _7 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _8 = RuntimeFn::IterValue(_6);
+        _1 = _8;
+        // line 3
+        _9 = RuntimeFn::DynBuiltin(const "range", [_1], [], []);
+        _10 = RuntimeFn::IterStart(_9);
+        goto -> bb6;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 3
+        _21 = _3;
+        goto -> bb15;
+    }
+    bb6: {
+        _11 = RuntimeFn::IterNextOk(_10);
+        branch _11 -> [then: bb7, else: bb1];
+    }
+    bb7: {
+        _12 = RuntimeFn::IterValue(_10);
+        _2 = _12;
+        // line 3
+        _13 = box<I64>(const 2_i64);
+        _14 = dyn.Mod(_2, _13);
+        _15 = box<I64>(const 0_i64);
+        _16 = dyn.cmp.Eq(_14, _15);
+        _17 = box<Bool>(_16);
+        _18 = RuntimeFn::DynTruthy(_17);
+        branch _18 -> [then: bb11, else: bb6];
+    }
+    bb8: {
+        unreachable;
+    }
+    bb9: {
+        unreachable;
+    }
+    bb10: {
+        unreachable;
+    }
+    bb11: {
+        // line 3
+        _19 = MakeTuple([_1, _2]);
+        _20 = dyn.method(_3, "append", [_19]);
+        goto -> bb6;
+    }
+    bb12: {
+        unreachable;
+    }
+    bb13: {
+        unreachable;
+    }
+    bb14: {
+        unreachable;
+    }
+    bb15: {
+        RuntimeFn::TracePopTo(_4);
+        return _21;
+    }
+}
+
+fn <listcomp>(_0: dyn) -> dyn {
+    let _0: dyn; // .0
+    let _1: dyn; // value
+    let _2: dyn; // .result
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: bool;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
+        // line 4
+        _4 = MakeList([]);
+        _2 = _4;
+        // line 4
+        _5 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _6 = RuntimeFn::IterNextOk(_5);
+        branch _6 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _7 = RuntimeFn::IterValue(_5);
+        _1 = _7;
+        // line 4
+        _8 = box<I64>(const 2_i64);
+        _9 = dyn.Mul(_1, _8);
+        _10 = dyn.method(_2, "append", [_9]);
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 4
+        _11 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_3);
+        return _11;
+    }
+}
+
+fn <dictcomp>(_0: dyn) -> dyn {
+    let _0: dyn; // .0
+    let _1: dyn; // item
+    let _2: dyn; // .result
+    let _3: dyn; // .key
+    let _4: i64;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: bool;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+
+    bb0: {
+        _4 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<dictcomp>");
+        // line 5
+        _5 = RuntimeFn::MakeDict();
+        _2 = _5;
+        // line 5
+        _6 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _7 = RuntimeFn::IterNextOk(_6);
+        branch _7 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _8 = RuntimeFn::IterValue(_6);
+        _1 = _8;
+        // line 5
+        _9 = box<I64>(const 2_i64);
+        _10 = dyn.Mod(_1, _9);
+        _3 = _10;
+        // line 5
+        RuntimeFn::SetItem(_2, _3, _1);
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 5
+        _11 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_4);
+        return _11;
+    }
+}
+
+fn <setcomp>(_0: dyn) -> dyn {
+    let _0: dyn; // .0
+    let _1: dyn; // item
+    let _2: dyn; // .result
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: bool;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<setcomp>");
+        // line 6
+        _4 = MakeSet([]);
+        _2 = _4;
+        // line 6
+        _5 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _6 = RuntimeFn::IterNextOk(_5);
+        branch _6 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _7 = RuntimeFn::IterValue(_5);
+        _1 = _7;
+        // line 6
+        _8 = box<I64>(const 3_i64);
+        _9 = dyn.Mod(_1, _8);
+        _10 = dyn.method(_2, "add", [_9]);
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 6
+        _11 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_3);
+        return _11;
+    }
+}
+
+fn <listcomp>(_0: dyn) -> dyn {
+    let _0: dyn; // .0
+    let _1: dyn; // item
+    let _2: dyn; // .result
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: bool;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::CellNew();
+        _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
+        // line 7
+        _4 = MakeList([]);
+        _2 = _4;
+        // line 7
+        _5 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _6 = RuntimeFn::IterNextOk(_5);
+        branch _6 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _7 = RuntimeFn::IterValue(_5);
+        RuntimeFn::CellSet(_1, _7);
+        // line 7
+        _8 = MakeFunction(<lambda>; env=[_1]; defaults=[]);
+        _9 = dyn.method(_2, "append", [_8]);
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 7
+        _10 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_3);
+        return _10;
+    }
+}
+
+fn <lambda>(_0: dyn) -> dyn {
+    let _0: dyn; // __env
+    let _1: i64;
+    let _2: dyn;
+    let _3: dyn;
+
+    bb0: {
+        _1 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<lambda>");
+        // line 7
+        _3 = RuntimeFn::CellGetFree(_0, const 0_i64, const "item");
+        _2 = _3;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_1);
+        return _2;
+    }
+}
+
+fn <listcomp>(_0: dyn) -> dyn {
+    let _0: dyn; // .0
+    let _1: dyn; // function
+    let _2: dyn; // .result
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: bool;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
+        // line 8
+        _4 = MakeList([]);
+        _2 = _4;
+        // line 8
+        _5 = RuntimeFn::IterStart(_0);
+        goto -> bb1;
+    }
+    bb1: {
+        _6 = RuntimeFn::IterNextOk(_5);
+        branch _6 -> [then: bb2, else: bb5];
+    }
+    bb2: {
+        _7 = RuntimeFn::IterValue(_5);
+        _1 = _7;
+        // line 8
+        _8 = dyn.call(_1, []);
+        _9 = dyn.method(_2, "append", [_8]);
+        goto -> bb1;
+    }
+    bb3: {
+        unreachable;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        // line 8
+        _10 = _2;
+        goto -> bb7;
+    }
+    bb6: {
+        unreachable;
+    }
+    bb7: {
+        RuntimeFn::TracePopTo(_3);
+        return _10;
+    }
+}
