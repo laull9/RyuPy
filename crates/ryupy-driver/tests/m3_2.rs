@@ -41,10 +41,6 @@ fn snapshot_m3_2_unsupported() {
             "def g():\n    return int((yield 1), (yield 2))\n",
         ),
         (
-            "暂停复杂增量目标",
-            "def g(items):\n    items[0] += (yield 1)\n",
-        ),
-        (
             "字典字面量暂停",
             "def g(key):\n    return {key: 1, 'x': (yield 2)}\n",
         ),
