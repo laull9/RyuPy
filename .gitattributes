@@ -1,5 +1,5 @@
 # 原始 JIT/CIL、历史补丁与生成汇总保留工具原字节及校验哈希；不规范化证据空白。
-# 此例外仅限 M3.9 归档产物，生产代码与手写文档仍检查空白。
+# 此例外仅限 M3.9 / M3.10 的指定归档产物，生产代码与手写文档仍检查空白。
 tests/perf/results/m3_9/**/*.asm -whitespace
 tests/perf/results/m3_9/**/*.cil -whitespace
 tests/perf/results/m3_9/**/*.diff -whitespace
@@ -8,3 +8,14 @@ tests/perf/results/m3_9/full-suite/core-jit/README.md -whitespace
 tests/perf/results/m3_9/full-suite/kernel-summary.md -whitespace
 tests/perf/results/m3_9/full-suite/paired-summary.md -whitespace
 tests/perf/results/m3_9/full-suite/suite-summary.md -whitespace
+
+# M3.10 同样保留原始工具证据及其哈希，不豁免手写报告/生产源码。
+tests/perf/results/m3_10/**/*.asm -whitespace
+tests/perf/results/m3_10/**/*.cil -whitespace
+tests/perf/results/m3_10/**/*.diff -whitespace
+tests/perf/results/m3_10/**/*.patch -whitespace
+tests/perf/results/m3_10/float-chain/candidate/summary.md -whitespace
+tests/perf/results/m3_10/float-loop/candidate/summary.md -whitespace
+tests/perf/results/m3_10/full-suite/summary.md -whitespace
+tests/perf/results/m3_10/union-prototype/jit-arithmetic.txt -whitespace
+tests/perf/results/m3_10/union-prototype/jit-calls.txt -whitespace

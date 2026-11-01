@@ -205,6 +205,8 @@ pub enum RegionKind {
 pub enum MirType {
     I64,
     F64,
+    /// 仅编译器私有局部使用的双通道浮点向量，不进入Python值ABI。
+    V128F64,
     Bool,
     Str,
     /// `None` / 无返回值，对应 CIL `void`（作为局部变量类型时不分配槽位）。
@@ -328,6 +330,32 @@ pub enum Rvalue {
     Unbox {
         value: Operand,
         to: MirType,
+    },
+    /// 运行平台是否支持硬件128位向量；只用于选择保留原顺序的快路。
+    IsVector128Supported,
+    /// 按低/高通道打包，不改变通道内部算术顺序。
+    VectorPackF64 {
+        low: Operand,
+        high: Operand,
+    },
+    /// 双通道独立运算；仅Add/Sub/Mul，不含归约或融合乘加。
+    VectorBinaryF64 {
+        op: BinOp,
+        lhs: Operand,
+        rhs: Operand,
+    },
+    /// 固定通道读取（0或1），结果仍为原生F64。
+    VectorLaneF64 {
+        value: Operand,
+        lane: u8,
+    },
+    /// 纯CLR精确boxed Double测试；不包含整数/bool或用户数值转换。
+    IsBoxedF64 {
+        value: Operand,
+    },
+    /// 已被精确Double事实证明的动态局部拆箱；不调用PyCast。
+    UnboxExactF64 {
+        value: Operand,
     },
     /// 纯CLR精确boxed Int64测试；不包含Python bool/大整数转换。
     IsBoxedI64 {

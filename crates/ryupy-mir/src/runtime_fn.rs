@@ -60,6 +60,14 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
+    /// 数值背板仍是真list；读预检不触发用户协议，最终新鲜F64可不先装箱。
+    NumericListCreate,
+    NumericListAppendF64,
+    NumericListPeekList,
+    NumericListCanReadF64,
+    NumericListReadF64,
+    /// 仅同一冻结(list,index)的CanRead真边且无潜在写入后调用。
+    NumericListReadCheckedF64,
     /// 无逃逸循环累加器：一次holder分配、受守卫数值累加、出口物化。
     NumericAccumulatorCreate,
     NumericAccumulatorAdd,

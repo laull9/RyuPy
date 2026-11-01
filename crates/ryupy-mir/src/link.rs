@@ -362,6 +362,26 @@ fn remap_rvalue(
             value: remap_operand(value, global_map),
             from: remap_type(from, class_map),
         },
+        Rvalue::IsVector128Supported => Rvalue::IsVector128Supported,
+        Rvalue::VectorPackF64 { low, high } => Rvalue::VectorPackF64 {
+            low: remap_operand(low, global_map),
+            high: remap_operand(high, global_map),
+        },
+        Rvalue::VectorBinaryF64 { op, lhs, rhs } => Rvalue::VectorBinaryF64 {
+            op: *op,
+            lhs: remap_operand(lhs, global_map),
+            rhs: remap_operand(rhs, global_map),
+        },
+        Rvalue::VectorLaneF64 { value, lane } => Rvalue::VectorLaneF64 {
+            value: remap_operand(value, global_map),
+            lane: *lane,
+        },
+        Rvalue::IsBoxedF64 { value } => Rvalue::IsBoxedF64 {
+            value: remap_operand(value, global_map),
+        },
+        Rvalue::UnboxExactF64 { value } => Rvalue::UnboxExactF64 {
+            value: remap_operand(value, global_map),
+        },
         Rvalue::IsBoxedI64 { value } => Rvalue::IsBoxedI64 {
             value: remap_operand(value, global_map),
         },

@@ -17,6 +17,12 @@ struct Cli {
     /// 实验：受守卫纯叶调用内联（默认关闭，不保证更快）
     #[arg(long, global = true)]
     experimental_leaf_inline: bool,
+    /// 诊断：保SLP守卫/物化，以标量运算作为packed SIMD的公平控制组
+    #[arg(long, global = true, conflicts_with = "experimental_packed_slp")]
+    diagnostic_scalar_slp: bool,
+    /// 实验：真正packed两lane SLP（相对同守卫标量未获净收益，默认关闭）
+    #[arg(long, global = true, conflicts_with = "diagnostic_scalar_slp")]
+    experimental_packed_slp: bool,
     #[command(subcommand)]
     command: Command,
 }
@@ -84,6 +90,8 @@ fn main() -> ExitCode {
     let mut sess = Session {
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
         experimental_leaf_inline: cli.experimental_leaf_inline,
+        diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
+        experimental_packed_slp: cli.experimental_packed_slp,
         ..Session::default()
     };
     let result = run(cli.command, &mut sess);
@@ -236,5 +244,58 @@ mod leaf_flag_tests {
             ])
             .is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod slp_flag_tests {
+    use super::*;
+
+    #[test]
+    fn scalar_slp_control_is_explicit_and_does_not_enable_other_experiments() {
+        for command in ["build", "run", "dump"] {
+            let default = Cli::try_parse_from(["ryupy", command, "input.py"]).unwrap();
+            assert!(!default.diagnostic_scalar_slp && !default.experimental_packed_slp);
+            let selected =
+                Cli::try_parse_from(["ryupy", command, "input.py", "--diagnostic-scalar-slp"])
+                    .unwrap();
+            assert!(selected.diagnostic_scalar_slp);
+            assert!(
+                !selected.experimental_direct_accumulator && !selected.experimental_leaf_inline
+            );
+        }
+        assert!(
+            Cli::try_parse_from([
+                "ryupy",
+                "--diagnostic-scalar-slp=unknown",
+                "build",
+                "input.py",
+            ])
+            .is_err()
+        );
+    }
+}
+
+#[cfg(test)]
+mod packed_slp_flag_tests {
+    use super::*;
+    #[test]
+    fn packed_slp_is_explicit_and_exclusive_with_scalar_control() {
+        for command in ["build", "run", "dump"] {
+            let selected =
+                Cli::try_parse_from(["ryupy", command, "input.py", "--experimental-packed-slp"])
+                    .unwrap();
+            assert!(selected.experimental_packed_slp && !selected.diagnostic_scalar_slp);
+            assert!(
+                Cli::try_parse_from([
+                    "ryupy",
+                    command,
+                    "input.py",
+                    "--experimental-packed-slp",
+                    "--diagnostic-scalar-slp",
+                ])
+                .is_err()
+            );
+        }
     }
 }

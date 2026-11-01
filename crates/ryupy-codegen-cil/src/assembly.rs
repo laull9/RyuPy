@@ -34,6 +34,10 @@ pub(crate) fn build_resolution(
     res.assembly = Some(Assembly::new(opts.assembly_name.clone()));
 
     let (mut runtime_refs, extras) = build_runtime_refs(&mut res);
+    // 纯标量程序不引入向量程序集/泛型引用，避免无关冷模块和快照扩大。
+    if crate::vector_refs::is_required(program) {
+        runtime_refs.vectors = Some(crate::vector_refs::VectorRefs::build(&mut res));
+    }
     let RefExtras {
         object_ref,
         object_ctor_ref,
@@ -63,7 +67,10 @@ pub(crate) fn build_resolution(
     //
     // 普通 class 不生成 CLR 类型：它由运行时 `PyClass` / `PyInstance` 承载。
     // 用户异常类必须生成 CLR 子类，CIL 的类型化 catch 才能按 Python 异常继承树匹配。
-    let mut class_types = ClassTypeMap::new(object_ref);
+    let mut class_types = ClassTypeMap::new(
+        object_ref,
+        runtime_refs.vectors.as_ref().map(|refs| refs.ty),
+    );
     let mut class_defs: Vec<(ryupy_mir::ClassDefId, TypeIndex)> = Vec::new();
     for (cls_id, cls) in program.classes.iter() {
         if !cls.is_dataclass {

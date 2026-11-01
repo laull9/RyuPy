@@ -1,0 +1,86 @@
+// 四core真实编译函数kernel，输入重建/输出校验不计时；与原main冷启动表分开。
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime;
+using System.Text.Json;
+using RyuPy.Runtime;
+
+string dll = Path.GetFullPath(args[0]), name = args[1], expected = File.ReadAllText(args[2]);
+string mode = args[3]; int warmups = int.Parse(args[4]), samples = int.Parse(args[5]);
+var assembly = Assembly.LoadFrom(dll);
+// 原main直接写原生标准流；外部runner逐字校验其stdout前缀，不能用Console.SetOut假装捕获。
+object? exit = assembly.EntryPoint!.Invoke(null, assembly.EntryPoint.GetParameters().Length == 0 ? null : [Array.Empty<string>()]);
+Builtins.Flush();
+if (exit is int code && code != 0) throw new Exception("原main退出失败");
+var type = assembly.GetType("RyuPy.Generated.Module")!;
+const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
+MethodInfo Method(string n) => type.GetMethod("m0_" + n, flags) ?? throw new Exception("缺真实编译方法:" + n);
+object? Invoke(string n, params object?[] values) => Method(n).Invoke(null, values);
+string Rounded(object? value, long digits) => PyRepr.Str(PyOps.CallValue(PyOps.BuiltinFunction("round"), [value, digits], [], []));
+string[] expectedLines = expected.TrimEnd('\r', '\n').Split('\n');
+Action reset = () => { }, work, verify;
+switch (name) {
+    case "fib": {
+        var rec = Method("fib_rec").CreateDelegate<Func<long, long>>();
+        var iter = Method("fib_iter").CreateDelegate<Func<long, long>>();
+        long recursive = 0, iterative = 0;
+        work = () => { recursive = rec(30); for (int i = 0; i < 200000; i++) iterative = iter(90); };
+        verify = () => { if (recursive != 832040 || iterative != 2880067194370816120L) throw new Exception("fib结果改变"); };
+        break;
+    }
+    case "mandelbrot": {
+        var mandel = Method("mandel").CreateDelegate<Func<double, double, long, long>>();
+        var pixels = new char[120 * 241];
+        work = () => {
+            for (int y = 0; y < 120; y++) {
+                for (int x = 0; x < 240; x++) pixels[y * 241 + x] = mandel(-0.8 + x * 0.0005, -0.1 + y * 0.001, 1000) == 1000 ? '#' : '.';
+                pixels[y * 241 + 240] = '\n';
+            }
+        };
+        verify = () => { if (new string(pixels) != expected) throw new Exception("mandel网格改变"); };
+        break;
+    }
+    case "matmul": {
+        var method = Method("matmul");
+        object? a = null, b = null, result = null;
+        object?[] input = [null, null, 100L];
+        reset = () => { a = Invoke("make_matrix", 100L, 1L); b = Invoke("make_matrix", 100L, 2L); result = a; input[1] = b; };
+        work = () => { for (int i = 0; i < 3; i++) { input[0] = result; result = method.Invoke(null, input); } };
+        verify = () => {
+            double total = 0;
+            foreach (object? row in ((PyList)result!).Items) foreach (object? value in ((PyList)row!).Items) total += (double)value!;
+            if (Rounded(total, 3) != expectedLines[^1]) throw new Exception("matmul校验和改变");
+        };
+        break;
+    }
+    case "nbody": {
+        var method = Method("advance");
+        object? bodies = null; object?[] input = [null, 0.01, 100000L];
+        reset = () => { bodies = Invoke("make_bodies"); Invoke("offset_momentum", bodies); input[0] = bodies;
+            if (Rounded(Invoke("energy", bodies), 9) != expectedLines[0]) throw new Exception("nbody初始能量改变"); };
+        work = () => method.Invoke(null, input);
+        verify = () => { if (Rounded(Invoke("energy", bodies), 9) != expectedLines[^1]) throw new Exception("nbody末能量改变"); };
+        break;
+    }
+    default: throw new Exception("未知core");
+}
+for (int i = 0; i < warmups; i++) { reset(); work(); verify(); }
+for (int sample = 0; sample < samples; sample++) {
+    reset();
+    if (mode == "time") {
+        var watch = Stopwatch.StartNew(); work(); watch.Stop(); verify();
+        Console.WriteLine(JsonSerializer.Serialize(new { kind = "kernel_time", name, sample, elapsed_ms = watch.Elapsed.TotalMilliseconds }));
+    } else if (mode == "resources") {
+        long alloc = GC.GetTotalAllocatedBytes(true), methods = JitInfo.GetCompiledMethodCount();
+        var jit = JitInfo.GetCompilationTime(); var pause = GC.GetTotalPauseDuration();
+        int gc0 = GC.CollectionCount(0), gc1 = GC.CollectionCount(1), gc2 = GC.CollectionCount(2);
+        work();
+        var result = new { kind = "kernel_resources", name, sample,
+            alloc_bytes = GC.GetTotalAllocatedBytes(true) - alloc,
+            gc0 = GC.CollectionCount(0) - gc0, gc1 = GC.CollectionCount(1) - gc1, gc2 = GC.CollectionCount(2) - gc2,
+            gc_pause_ms = (GC.GetTotalPauseDuration() - pause).TotalMilliseconds,
+            jit_ms = (JitInfo.GetCompilationTime() - jit).TotalMilliseconds,
+            jit_methods = JitInfo.GetCompiledMethodCount() - methods };
+        verify(); Console.WriteLine(JsonSerializer.Serialize(result));
+    } else throw new Exception("未知测量模式");
+}

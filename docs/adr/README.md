@@ -20,37 +20,32 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0013](0013-dynamic-hot-path-allocations.md) | 动态热路径去分配，保留装箱表示 | 已接受 |
 | [0014](0014-benchmark-suite-and-dynamic-hot-paths.md) | 基准体系与动态热路径第二轮优化 | 已接受 |
 | [0015](0015-shared-closure-cells.md) | 共享 cell 与函数实例环境 | 已接受 |
-
 | [0016](0016-comprehension-scopes.md) | 推导式先复用独立函数作用域 | 已接受（list 首个竖切） |
-
 | [0017](0017-generator-frame-state-machine.md) | 普通生成器先使用全局部堆帧状态机 | 已接受 |
-
 | [0018](0018-generator-return-lifetime.md) | 生成器终值由触发完成的操作立即消费 | 已接受 |
-
 | [0019](0019-generator-send-input.md) | send 使用显式帧输入槽与恢复接收局部 | 已接受 |
-
 | [0020](0020-prepared-suspending-calls.md) | 暂停调用先固定目标，保留普通调用热路径 | 已接受 |
-
 | [0021](0021-starred-container-construction.md) | 星号容器保持最终类型与流式集合插入 | 已接受（缓存hash复制待做） |
 | [0022](0022-augmented-target-freezing.md) | 增量赋值冻结目标与索引 | 已接受 |
 | [0023](0023-dict-literal-evaluation-order.md) | 字典字面量求值与哈希分批 | 已接受 |
 | [0024](0024-prepared-starred-arguments.md) | 暂停调用的位置星号准备 | 已接受 |
 | [0025](0025-unicode-builtins.md) | 项目驱动Unicode基础内建 | 已接受（直接调用） |
 | [0026](0026-generator-exception-resume.md) | 生成器逻辑异常恢复与委托清理 | 已接受 |
-
 | [0027](0027-definition-time-decorators.md) | 定义位置装饰器与混合dataclass表示 | 已接受 |
-
 | [0028](0028-system-streams-paths.md) | 系统、流与路径 API 的有限原生实现 | 已接受 |
 | [0029](0029-numeric-json-regex.md) | 数值、JSON 与正则 API 的有限原生实现 | 已接受 |
 | [0030](0030-tools-metadata-guarded-dataclasses.md) | 工具协议、元数据与守卫数据类优化 | 已接受 |
 | [0031](0031-project-tools.md) | 项目入口工具与协议的有限原生实现 | 已接受 |
 | [0032](0032-bounded-stdlib-and-compatibility-gate.md) | 有界标准库交付与独立项目兼容性门（用户批准重排） | 已接受 |
-
 | [0033](0033-direct-cil-guarded-accumulator.md) | 受守卫直接 CIL 累加槽 | 已验证；默认关闭、显式实验 |
 | [0034](0034-fresh-tuple-scalar-replacement.md) | 新鲜临时 tuple 的有界标量替换 | 已接受，限定规则默认启用 |
 | [0035](0035-guarded-leaf-call-specialization.md) | 有限纯叶调用的守卫特化 | 已验证，默认关闭、显式实验 |
-
-| [0036](0036-bounded-interval-unboxing.md) | 非 SSA 有限值域证明与自动拆箱 | 验证中 |
+| [0036](0036-bounded-interval-unboxing.md) | 非 SSA 有限值域证明与自动拆箱 | 有界默认、验收通过 |
+| [0037](0037-guarded-float-chain-scalarization.md) | 受守卫短浮点算术链的中间盒消除 | 有限默认，聚合门禁通过 |
+| [0038](0038-inner-float-loop-materialization.md) | 严格内层浮点累加与出口物化 | 有限默认，聚合门禁通过 |
+| [0039](0039-adaptive-numeric-list-island.md) | 自适应数值列表岛与身份安全物化 | 有限默认，三臂及门禁验收通过 |
+| [0040](0040-guarded-two-lane-float-slp.md) | 受守卫两lane独立浮点SLP | 已验证，无净收益，显式实验默认关 |
+| [0041](0041-proven-list-read-bounds.md) | 支配证明下省去重复列表逻辑范围检查 | 源码、实际JIT与聚合门禁通过 |
 
 ## 模板
 

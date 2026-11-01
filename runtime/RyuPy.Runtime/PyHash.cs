@@ -231,7 +231,9 @@ public static class PyHash
         }
         for (int i = 0; i < a.Count; i++)
         {
-            if (!Equal(a[i], b[i]))
+            // 容器比较先认同一元素对象；直接nan == nan仍由Equal保持False。
+            object? left = a[i], right = b[i];
+            if (!ReferenceEquals(left, right) && !Equal(left, right))
             {
                 return false;
             }

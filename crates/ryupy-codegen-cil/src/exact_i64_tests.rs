@@ -9,7 +9,7 @@ use ryupy_mir::{
     MirType, ModuleDef, Operand, RuntimeFn, Rvalue, Statement, Terminator,
 };
 
-fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
+pub(super) fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
     locals.alloc(LocalDecl {
         ty,
         name: None,
@@ -17,7 +17,7 @@ fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
     })
 }
 
-fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Function {
+pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Function {
     Function {
         name: name.into(),
         codegen_name: name.into(),
@@ -34,7 +34,11 @@ fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirType) -> Funct
     }
 }
 
-fn single_block(locals: Arena<LocalDecl>, stmts: Vec<Statement>, ret: Option<Operand>) -> Body {
+pub(super) fn single_block(
+    locals: Arena<LocalDecl>,
+    stmts: Vec<Statement>,
+    ret: Option<Operand>,
+) -> Body {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         stmts,
@@ -48,7 +52,7 @@ fn single_block(locals: Arena<LocalDecl>, stmts: Vec<Statement>, ret: Option<Ope
     }
 }
 
-fn program() -> LinkedProgram {
+pub(super) fn program() -> LinkedProgram {
     let mut functions = Arena::default();
     let init = functions.alloc(function(
         "__main__",

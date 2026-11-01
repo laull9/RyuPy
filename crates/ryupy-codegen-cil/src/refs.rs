@@ -46,35 +46,20 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let _flush_stdout =
         res.push_method_reference(method_ref! { static void @builtins_type::Flush() });
 
-    let pymath_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyMath in #ryupy_runtime });
-    let pymath_type: MethodType = BaseType::class(pymath_ref).into();
-
-    let floor_div_i64 = res
-        .push_method_reference(method_ref! { static long @pymath_type::FloorDivI64(long, long) });
-    let mod_i64 =
-        res.push_method_reference(method_ref! { static long @pymath_type::ModI64(long, long) });
-    let pow_i64 =
-        res.push_method_reference(method_ref! { static long @pymath_type::PowI64(long, long) });
-
-    let true_div_f64 = res.push_method_reference(
-        method_ref! { static double @pymath_type::TrueDivF64(double, double) },
-    );
-    let floor_div_f64 = res.push_method_reference(
-        method_ref! { static double @pymath_type::FloorDivF64(double, double) },
-    );
-    let mod_f64 = res
-        .push_method_reference(method_ref! { static double @pymath_type::ModF64(double, double) });
-    let pow_f64 = res
-        .push_method_reference(method_ref! { static double @pymath_type::PowF64(double, double) });
-    let f64_to_i64 =
-        res.push_method_reference(method_ref! { static long @pymath_type::F64ToI64(double) });
-    let abs_i64 = res.push_method_reference(method_ref! { static long @pymath_type::AbsI64(long) });
-    let abs_f64 =
-        res.push_method_reference(method_ref! { static double @pymath_type::AbsF64(double) });
-    let shl_i64 = res
-        .push_method_reference(method_ref! { static long @pymath_type::ShiftLeftI64(long, long) });
-    let shr_i64 = res
-        .push_method_reference(method_ref! { static long @pymath_type::ShiftRightI64(long, long) });
+    let crate::math_refs::MathRefs {
+        floor_div_i64,
+        mod_i64,
+        pow_i64,
+        true_div_f64,
+        floor_div_f64,
+        mod_f64,
+        pow_f64,
+        f64_to_i64,
+        abs_i64,
+        abs_f64,
+        shl_i64,
+        shr_i64,
+    } = crate::math_refs::MathRefs::build(res, ryupy_runtime);
 
     // ── 动态值 ABI（ADR-0010）──
     let pyops_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #ryupy_runtime });
@@ -451,6 +436,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         enum_create,
         classes: crate::class_refs::ClassRefs::build(res, ryupy_runtime),
         typed_dict: crate::typed_dict_refs::TypedDictRefs::build(res, ryupy_runtime),
+        vectors: None,
+        numeric_list: crate::numeric_list_refs::NumericListRefs::build(res, ryupy_runtime),
         enum_finalize,
         accumulator: crate::accumulator_refs::AccumulatorRefs::build(res, ryupy_runtime),
         system: crate::system_refs::SystemRefs::build(res, ryupy_runtime),

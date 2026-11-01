@@ -3,6 +3,10 @@
 - 状态：已被 [ADR-0010](0010-dynamic-value-representation.md) 取代（布局选择改为装箱 object）
 - 日期：2026-10-31
 
+> M3.10 更新（2026-11-01）：用户要求重新积极评估动态 union；历史选择与证据保留，
+> 不是永久禁止值表示或数值容器。合法16B/24B布局已独立测量，下一有界生产试点见
+> [ADR-0039](0039-adaptive-numeric-list-island.md)。通用 object ABI 当前仍保留，不能将试点冒称全ABI迁移。
+
 ## 背景
 
 旧版 roadmap 设计了一个 16 字节的 `PyValue`；下面保留问题示例，当前路线图已删除该布局：

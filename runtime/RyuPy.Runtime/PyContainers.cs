@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace RyuPy.Runtime;
@@ -121,28 +122,37 @@ public sealed class PySlice
 /// Python <c>list</c>：可变、有序、允许重复与异构元素。
 /// </summary>
 /// <remarks>
-/// 用 <see cref="List{T}"/> 直接承载 <c>object?</c> 元素——Python 的列表本来就是「任意对象的
-/// 引用序列」，这一点与 .NET 泛型容器天然契合，不需要额外包装每个元素。
-/// 共享引用语义因此也是自然的：两个变量指向同一个 <see cref="PyList"/> 实例。
+/// 普通构造保留8B object引用槽；仅编译器受控工厂可使用内部数值背板。
+/// 公开Items访问会永久物化原列表，保持复制/切片/迭代的共享对象身份。
+/// 两个Python变量仍指向同一PyList对象，不暴露内部数值槽。
 /// </remarks>
-public sealed class PyList
+public sealed partial class PyList
 {
-    /// <summary>元素序列。</summary>
-    public List<object?> Items { get; }
+    /// <summary>公开可变元素序列；访问时完整物化并永久退回object背板。</summary>
+    public List<object?> Items => _items ?? MaterializeAll();
 
     /// <summary>用元素序列构造。</summary>
     /// <param name="items">初始元素。</param>
-    public PyList(IEnumerable<object?> items) => Items = new List<object?>(items);
+    public PyList(IEnumerable<object?> items) => _items = new List<object?>(items);
 
     /// <summary>创建空列表。</summary>
-    public PyList() => Items = [];
+    public PyList() => _items = new List<object?>();
 
     /// <summary>元素个数。</summary>
-    public int Count => Items.Count;
+    public int Count => _items is { } items ? items.Count : _numeric!.Count;
 
     /// <summary>按 Python 下标规则取元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
-    public object? GetItem(long index) => Items[(int)Normalize(index)];
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public object? GetItem(long index)
+    {
+        var items = _items;
+        if (items is null) return ReadNumeric(index);
+        int count = items.Count;
+        long position = index < 0 ? index + count : index;
+        if ((ulong)position >= (ulong)count) return ListIndexError();
+        return items[(int)position];
+    }
 
     /// <summary>按 Python 下标规则写元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
@@ -247,7 +257,12 @@ public sealed class PyList
 
     /// <summary><c>append(x)</c>。</summary>
     /// <param name="value">追加的元素。</param>
-    public void Append(object? value) => Items.Add(value);
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Append(object? value)
+    {
+        if (_items is { } items) items.Add(value);
+        else AppendNumeric(value);
+    }
 
     /// <summary><c>extend(x)</c>。</summary>
     /// <param name="value">可迭代对象。</param>
@@ -300,7 +315,8 @@ public sealed class PyList
     {
         for (int i = 0; i < Items.Count; i++)
         {
-            if (PyHash.Equal(Items[i], value))
+            object? item = Items[i];
+            if (ReferenceEquals(item, value) || PyHash.Equal(item, value))
             {
                 return i;
             }
@@ -323,23 +339,44 @@ public sealed class PyList
 
     private long Normalize(long index)
     {
-        long normalized = index < 0 ? index + Items.Count : index;
-        if (normalized < 0 || normalized >= Items.Count)
+        long normalized = index < 0 ? index + Count : index;
+        if (normalized < 0 || normalized >= Count)
         {
             throw new PyIndexError("list index out of range");
         }
         return normalized;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static long ToIndex(object? key) => key switch
     {
-        bool b => b ? 1 : 0,
-        long l => l,
-        int i => i,
-        _ => throw new PyTypeError(
-            $"list indices must be integers or slices, not {PyRepr.TypeName(key)}"
-        ),
+        long integer => integer,
+        int integer => integer,
+        bool flag => flag ? 1L : 0L,
+        _ => ToIndexSlow(key),
     };
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static long ToIndexSlow(object? key)
+    {
+        object? original = key;
+        if (!PyInt.IsInt(key))
+        {
+            if (!PyObject.TryMethod(key, "__index__", [], out key))
+                throw new PyTypeError($"list indices must be integers or slices, not {PyRepr.TypeName(original)}");
+            if (key is bool)
+                throw new PyNotImplementedError("bool returned by __index__ in list indexing is not supported");
+            if (!PyInt.IsInt(key))
+                throw new PyTypeError($"__index__ returned non-int (type {PyRepr.TypeName(key)})");
+        }
+        if (PyInt.TryI64(key!, out long index)) return index;
+        var integer = PyInt.ToBigInteger(key!);
+        if (integer < long.MinValue || integer > long.MaxValue)
+            throw new PyIndexError($"cannot fit '{PyRepr.TypeName(original)}' into an index-sized integer");
+        // 协议只调用一次；调用方随后 Normalize，必须观察回调后的当前长度。
+        return (long)integer;
+    }
+
 }
 
 /// <summary>Python <c>set</c>：可变、无序、元素唯一。</summary>

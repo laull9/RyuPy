@@ -18,6 +18,12 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::NumericListCreate => Some(&[]),
+            RuntimeFn::NumericListAppendF64 => Some(&[MirType::Dynamic, MirType::F64]),
+            RuntimeFn::NumericListPeekList
+            | RuntimeFn::NumericListCanReadF64
+            | RuntimeFn::NumericListReadF64
+            | RuntimeFn::NumericListReadCheckedF64 => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::DynBinary => Some(&[MirType::I64, MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::PrintTarget | RuntimeFn::TraceCheckDepth => Some(&[]),
             RuntimeFn::CheckGlobalBound => Some(&[MirType::Bool, MirType::Str]),
@@ -60,6 +66,16 @@ pub(super) fn validate_call(
                     RuntimeFn::TypedDictBegin | RuntimeFn::TypedDictFinish
                 ) {
                     "TypedDict构建ABI"
+                } else if matches!(
+                    runtime,
+                    RuntimeFn::NumericListCreate
+                        | RuntimeFn::NumericListAppendF64
+                        | RuntimeFn::NumericListPeekList
+                        | RuntimeFn::NumericListCanReadF64
+                        | RuntimeFn::NumericListReadF64
+                        | RuntimeFn::NumericListReadCheckedF64
+                ) {
+                    "数值列表ABI"
                 } else if matches!(runtime, RuntimeFn::TraceCheckDepth) {
                     "递归深度检查ABI"
                 } else if matches!(runtime, RuntimeFn::DynBinary) {
@@ -92,6 +108,32 @@ pub(super) fn validate_destination(
     value: &Rvalue,
     errors: &mut Vec<String>,
 ) {
+    if let Rvalue::Call {
+        callee: Callee::Runtime(runtime),
+        ..
+    } = value
+    {
+        let expected = match runtime {
+            RuntimeFn::NumericListCreate
+            | RuntimeFn::NumericListAppendF64
+            | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
+            RuntimeFn::NumericListCanReadF64 => Some(MirType::Bool),
+            RuntimeFn::NumericListReadF64 | RuntimeFn::NumericListReadCheckedF64 => {
+                Some(MirType::F64)
+            }
+            _ => None,
+        };
+        if let Some(expected) = expected
+            && func
+                .body
+                .locals
+                .iter()
+                .find(|(id, _)| *id == dest)
+                .is_some_and(|(_, local)| local.ty != expected)
+        {
+            errors.push(format!("函数 `{}` 的数值列表ABI返回槽类型错误", func.name));
+        }
+    }
     if matches!(
         value,
         Rvalue::Call {

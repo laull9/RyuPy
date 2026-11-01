@@ -1,7 +1,7 @@
 //! MIR 优化 / 变换 Pass。
 //!
 //! 每个 Pass 是一个独立模块，实现 [`MirPass`]。约定：
-//! - Pass 结束后 MIR 必须仍能通过 [`crate::validate`]（debug 构建下自动检查）；
+//! - Pass 结束后 MIR 必须仍能通过 [`crate::validate`]（每个 Pass 后始终检查）；
 //! - 每个 Pass 配一组 insta 快照：输入 MIR → 输出 MIR。
 //!
 //! 计划中的 Pass：
@@ -10,9 +10,21 @@
 
 use crate::mir::{Function, Program};
 
-mod dead_values;
+pub(crate) mod dead_values;
 #[cfg(test)]
 mod dead_values_tests;
+mod float_chain;
+mod float_chain_expand;
+#[cfg(test)]
+mod float_chain_tests;
+mod float_loop;
+mod float_loop_expand;
+#[cfg(test)]
+mod float_loop_tests;
+mod float_slp;
+mod float_slp_expand;
+#[cfg(test)]
+mod float_slp_tests;
 mod interval_facts;
 mod interval_narrow;
 #[cfg(test)]
@@ -30,6 +42,8 @@ mod tuple_scalar;
 mod tuple_scalar_tests;
 
 pub use dead_values::DeadValues;
+pub use float_chain::FloatChain;
+pub use float_slp::FloatSlp;
 pub use interval_narrow::IntervalNarrow;
 pub use numeric_accumulator::{DirectNumericAccumulator, NumericAccumulator};
 pub use simplify_cfg::SimplifyCfg;
@@ -74,6 +88,17 @@ pub fn pipeline_with_options(
     experimental: bool,
     experimental_leaf_inline: bool,
 ) -> Vec<PipelinePass> {
+    pipeline_with_slp_options(experimental, experimental_leaf_inline, false, false)
+}
+
+/// SLP两臂均默认关闭：packed未比同守卫标量控制获得净收益，显式保留复现实验。
+/// 同时指定时标量控制优先；不改变全局硬件加速开关。
+pub fn pipeline_with_slp_options(
+    experimental: bool,
+    experimental_leaf_inline: bool,
+    scalar_slp: bool,
+    experimental_packed_slp: bool,
+) -> Vec<PipelinePass> {
     let mut passes: Vec<PipelinePass> = vec![
         PipelinePass::Function(Box::new(SimplifyCfg)),
         PipelinePass::Function(Box::new(DeadValues)),
@@ -86,6 +111,13 @@ pub fn pipeline_with_options(
     passes.push(PipelinePass::Function(Box::new(TupleScalar)));
     passes.push(PipelinePass::Function(Box::new(DeadValues)));
     passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));
+    // 配对测量未支持默认替换；两实验复用相同matcher与守卫，避免误归因收益。
+    if scalar_slp || experimental_packed_slp {
+        passes.push(PipelinePass::Function(Box::new(FloatSlp {
+            scalar: scalar_slp,
+        })));
+    }
+    passes.push(PipelinePass::Function(Box::new(FloatChain)));
     if experimental_leaf_inline {
         passes.push(PipelinePass::Program(Box::new(leaf_inline::LeafInline)));
     }
@@ -126,3 +158,9 @@ mod numeric_accumulator_tests;
 
 #[cfg(test)]
 mod leaf_inline_tests;
+
+mod numeric_list;
+mod numeric_list_analysis;
+mod numeric_list_expand;
+#[cfg(test)]
+mod numeric_list_tests;
