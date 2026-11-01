@@ -153,6 +153,9 @@ pub enum RuntimeFn {
     CallMethod,
     /// `PyOps.ListAppend(list, item)`：星号字面量的增量构建。
     ListAppend,
+    /// `PyOps.SetAdd(object, object)` / `SetExtend(object, object)`：按求值顺序修改集合。
+    SetAdd,
+    SetExtend,
     /// `PyOps.ListExtend(list, seq)`。
     ListExtend,
     /// `PyOps.UnpackCheck(long, long, bool)`：解包数量不符时抛 ValueError（bool 表示有星号）。

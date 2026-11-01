@@ -266,6 +266,10 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let format_value = res.push_method_reference(
         method_ref! { static string @pyops_type::FormatValue(object, string, int) },
     );
+    let set_add =
+        res.push_method_reference(method_ref! { static void @pyops_type::SetAdd(object, object) });
+    let set_extend = res
+        .push_method_reference(method_ref! { static void @pyops_type::SetExtend(object, object) });
     let list_append = res
         .push_method_reference(method_ref! { static void @pyops_type::ListAppend(object, object) });
     let list_extend = res
@@ -526,6 +530,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         star_arg,
         format_value,
         list_append,
+        set_add,
+        set_extend,
         list_extend,
         unpack_check,
         iter_start,

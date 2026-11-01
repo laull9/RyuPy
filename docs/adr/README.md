@@ -31,6 +31,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | [0020](0020-prepared-suspending-calls.md) | 暂停调用先固定目标，保留普通调用热路径 | 已接受 |
 
+| [0021](0021-starred-container-construction.md) | 星号容器保持最终类型与流式集合插入 | 已接受（缓存hash复制待做） |
+
 ## 模板
 
 ```markdown

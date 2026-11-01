@@ -395,7 +395,9 @@ throw/close 入口目前显式抛 NotImplementedError，不宣称完整生成器
 星号实参展开、哈希插入与目标保存的时序须在后续独立竖切完成，不能静默延后。
 可以先把 yield 的接收值赋给局部，再进行这些操作；不把该限制冒称完整表达式兼容。
 
-tuple / set 的星号展开含 yield 同样明确拒绝：现有展开临时列表尚需保留最终类型与集合哈希时序；普通列表星号展开不受此项限制。
+tuple / set 星号展开现支持暂停和普通路径：tuple从构建列表冻结为tuple；set首star前先求全部前缀元素再建set，后续逐元素插入。
+普通iterable的set展开交错next与hash，不先物化列表。若源本身是set/frozenset且包含用户实例/用户异常
+（含tuple/frozenset嵌套），缓存hash复制尚未实现，提前抛NotImplementedError而不重新运行用户hash。
 
 无星号的暂停调用现已在参数求值前绑定目标：函数/普通类对象保存到临时局部，方法立即取属性。
 property和缺属性错误在参数yield前发生；非callable属性在参数求完后才报TypeError。

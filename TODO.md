@@ -394,7 +394,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] `return value` / StopIteration.value：只有首次完成的 next 可见终值；for / list / next(default) 消费后不泄漏，None 与 args / 对象身份差分通过
 - [x] `send` 与表达式 yield：None启动、接收值、复合表达式跨暂停、lambda/default作用域、参数与重入 / 耗尽规则通过
 - [x] 无星号暂停调用先绑定目标：函数 / 普通类 / 普通及内建方法、property、缺属性时机与非callable延迟检查通过；prepared内建方法先校验arity再执行副作用
-- [ ] 补齐剩余表达式 yield 求值准备：星号实参展开、字典哈希、tuple/set星号容器类型、复杂增量目标、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；既有无 yield 的 starred tuple/set 也需修复临时 list 未转换最终类型的问题；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
+- [x] 星号tuple/set保持最终类型；tuple展开后冻结，set前缀求值/流式hash插入与跨暂停差分通过，修复既有返回临时list问题
+- [ ] 补齐剩余表达式 yield 求值准备：星号实参展开、字典哈希、复杂增量目标、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
+- [ ] set/frozenset源含用户对象的星号展开需复用源缓存hash；当前显式NotImplementedError，不重跑用户hash（`m3_2_set_cached_hash.py` pending）
 - [ ] `throw`、`close` 和 GeneratorExit；补齐关闭与异常注入协议（重入错误已实现）
 - [ ] `yield from` 委托传递 next / send / throw / close 与返回值；生成器表达式的普通惰性迭代已完成，完整协议随此项接续
 - [ ] yield 穿过 try / finally / with 时保留清理状态，关闭和异常展开不跳过退出；实现生成器内意外 StopIteration 的 Python 行为

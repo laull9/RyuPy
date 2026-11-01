@@ -78,6 +78,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
   恢复目标先取输入再清控制槽引用。表达式求值的已有临时量同样跨暂停保存。
   参数含暂停的无星号调用以 HIR PreparedCall 标记，MIR先固定callee / PrepareMethod结果再求args；
   运行时仅为这些调用创建内建方法绑定包装，普通CallMethod的PIC路径不额外分配。
+  `container_literals.rs`独立构建容器：star tuple最终冻结，star set保留前缀MakeSet和后续SetAdd/SetExtend顺序；
+  运行时SetExtend流式交错迭代与插入，不能用预物化list替代。
 
 ### 3.3 类型（旁表，不改 HIR）
 

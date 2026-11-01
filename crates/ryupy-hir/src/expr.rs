@@ -45,24 +45,6 @@ impl<'a> ExprLowerCtx<'a> {
     pub fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let range = expr.range();
         let kind = match expr {
-            ast::Expr::Tuple(tuple)
-                if tuple
-                    .elts
-                    .iter()
-                    .any(|item| matches!(item, ast::Expr::Starred(_)))
-                    && crate::generator_scan::contains_yield(expr) =>
-            {
-                self.unsupported_yield_unpack(range)
-            }
-            ast::Expr::Set(set)
-                if set
-                    .elts
-                    .iter()
-                    .any(|item| matches!(item, ast::Expr::Starred(_)))
-                    && crate::generator_scan::contains_yield(expr) =>
-            {
-                self.unsupported_yield_unpack(range)
-            }
             ast::Expr::Yield(value) => {
                 if self.allow_yield {
                     ExprKind::Yield(value.value.as_deref().map(|value| self.lower_expr(value)))
@@ -195,17 +177,6 @@ impl<'a> ExprLowerCtx<'a> {
         };
 
         self.body.exprs.alloc(Expr { kind, range })
-    }
-
-    fn unsupported_yield_unpack(&mut self, range: TextRange) -> ExprKind {
-        self.diagnostics.push(
-            Diagnostic::error(
-                Span::new(self.file, range),
-                "tuple/set 星号展开暂未支持跨暂停保持容器类型与哈希时序",
-            )
-            .with_code("E0100"),
-        );
-        ExprKind::Missing
     }
 
     /// 容器字面量的元素列表，保留 `*x` 星号标记。
