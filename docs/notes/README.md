@@ -58,6 +58,8 @@
 - [2026-11-01 M3.2 增量目标冻结](2026-11-01-m3.2-augmented-targets.md)
 - [2026-11-01 M3.2 字典求值顺序](2026-11-01-m3.2-dict-order.md)
 - [2026-11-01 M3.2 星号实参准备](2026-11-01-m3.2-starred-calls.md)
+- [2026-11-01 Unicode内建与wcwidth首阻断](2026-11-01-unicode-builtins.md)
+- [2026-11-01 M3.2 异常恢复与清理](2026-11-01-m3.2-generator-cleanup.md)
 
 ## 推荐阅读
 

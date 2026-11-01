@@ -65,15 +65,6 @@ fn snapshot_m3_2_unsupported() {
             "生成器表达式内部yield",
             "def f():\n    return ((yield x) for x in [1])\n",
         ),
-        ("yield from", "def f():\n    yield from []\n"),
-        (
-            "异常区域",
-            "def f():\n    try:\n        yield 1\n    finally:\n        print(2)\n",
-        ),
-        (
-            "资源区域",
-            "def f():\n    with resource:\n        yield 1\n",
-        ),
     ];
     let path = std::env::temp_dir().join("ryupy_test_generator_diagnostics.py");
     let mut output = String::new();

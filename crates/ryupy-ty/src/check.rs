@@ -237,7 +237,7 @@ fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
         ExprKind::Slice { start, stop, step } => {
             [*start, *stop, *step].into_iter().flatten().collect()
         }
-        ExprKind::Starred(inner) => vec![*inner],
+        ExprKind::Starred(inner) | ExprKind::YieldFrom(inner) => vec![*inner],
         ExprKind::Yield(value) => value.iter().copied().collect(),
         _ => Vec::new(),
     }
@@ -475,7 +475,8 @@ impl FunctionChecker<'_> {
             | ExprKind::Subscript { .. }
             | ExprKind::Slice { .. }
             | ExprKind::Starred(_)
-            | ExprKind::Yield(_) => {
+            | ExprKind::Yield(_)
+            | ExprKind::YieldFrom(_) => {
                 for child in expr_children(&expr.kind) {
                     self.check_expr(child);
                 }

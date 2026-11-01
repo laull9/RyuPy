@@ -67,7 +67,6 @@ public static partial class PyOps
     // 调用前统一检查，避免字典缺参访问数组越界，以及 clear/pop 等先修改再报错。
     internal static void ValidatePreparedArity(object receiver, string name, int count)
     {
-        if (receiver is PyGenerator && name is "throw" or "close") return;
         (int min, int max) = (receiver, name) switch
         {
             (PyList, "clear" or "reverse" or "copy" or "sort") => (0, 0),
@@ -87,8 +86,8 @@ public static partial class PyOps
             (string, "join" or "count" or "startswith" or "endswith") => (1, 1),
             (string, "replace") => (2, 3),
             (string, "find" or "rfind" or "index" or "rindex") => (1, 3),
-            (PyGenerator, "__iter__" or "__next__") => (0, 0),
-            (PyGenerator, "send") => (1, 1),
+            (PyGenerator, "__iter__" or "__next__" or "close") => (0, 0),
+            (PyGenerator, "send" or "throw") => (1, 1),
             _ => throw new PyRuntimeError("missing prepared method signature"),
         };
         if (count < min || count > max)

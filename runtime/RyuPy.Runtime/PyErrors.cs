@@ -26,13 +26,13 @@ namespace RyuPy.Runtime;
 /// 这类变量在函数入口被初始化成 <see cref="PyUnbound"/> 哨兵，而不是 CLR 默认值
 /// （<c>0</c> / <c>null</c>）——否则未赋值会被静默当成 <c>0</c> 或 <c>None</c>。
 /// </remarks>
-public static class PyErrors
+public static partial class PyErrors
 {
     [ThreadStatic]
-    private static PyBaseException? _current;
+    private static PyExceptionContext? _current;
 
     /// <summary>当前正在处理的异常；没有则为 <c>null</c>。</summary>
-    public static PyBaseException? Current => _current;
+    public static PyBaseException? Current => _current?.FindException();
 
     /// <summary>
     /// 抛出前的准备：若当前有异常在处理且不是自己，则把 <c>__context__</c> 指向它。
@@ -41,39 +41,41 @@ public static class PyErrors
     /// <returns>同一个异常对象，便于链式调用。</returns>
     public static PyBaseException Prepare(PyBaseException exception)
     {
+        PyBaseException? current = Current;
         if (
-            _current is not null
-            && !ReferenceEquals(_current, exception)
+            current is not null
+            && !ReferenceEquals(current, exception)
             && exception.Context is null
-            && !ReferenceEquals(exception.Cause, _current)
+            && !ReferenceEquals(exception.Cause, current)
         )
         {
-            exception.Context = _current;
+            exception.Context = current;
         }
         return exception;
     }
 
-    /// <summary>进入 <c>except</c> 体：把当前异常换成刚捕获的这个。</summary>
-    /// <param name="exception">捕获到的异常。</param>
-    /// <returns>进入之前的当前异常，退出时传回 <see cref="LeaveHandler"/>。</returns>
-    public static object? EnterHandler(object exception)
+    /// <summary>进入 except 体；内部传 None 时只取得 finally 清理所需的上下文快照。</summary>
+    /// <param name="exception">捕获到的异常；null 或 PyNone 表示只读取 token，不修改状态。</param>
+    /// <returns>进入之前的异常上下文 token，退出时传回 <see cref="LeaveHandler"/>。</returns>
+    public static object? EnterHandler(object? exception)
     {
+        if (exception is null or PyNone) return _current;
         if (exception is not PyBaseException caught)
         {
             throw new PyTypeError("exceptions must derive from BaseException");
         }
-        PyBaseException? previous = _current;
-        _current = caught;
+        PyExceptionContext? previous = _current;
+        _current = new PyExceptionContext(caught, previous);
         return previous;
     }
 
     /// <summary>离开 <c>except</c> 体：恢复上一层正在处理的异常。</summary>
     /// <param name="previous"><see cref="EnterHandler"/> 的返回值。</param>
-    public static void LeaveHandler(object? previous) => _current = previous as PyBaseException;
+    public static void LeaveHandler(object? previous) => _current = previous as PyExceptionContext;
 
     /// <summary>裸 <c>raise</c>：重抛当前异常；没有则抛 <c>RuntimeError</c>。</summary>
     public static object Reraise() =>
-        _current ?? throw new PyRuntimeError("No active exception to reraise");
+        Current ?? throw new PyRuntimeError("No active exception to reraise");
 
     /// <summary>
     /// 抛出前的准备：记录 traceback 栈帧、挂上隐式上下文，返回同一个异常对象。
@@ -105,6 +107,9 @@ public static class PyErrors
     /// <param name="arg">消息参数。</param>
     public static PyBaseException Make(string typeName, object? arg)
     {
+        // StopIteration 的首参是终值对象，不能先 str() 再丢失身份或提前执行用户代码。
+        // 当前单参 ABI 尚不区分无参和显式 None；二者沿用内部耗尽的空 args 约定。
+        if (typeName == "StopIteration") return new PyStopIteration(arg);
         string message = arg is null or PyNone ? string.Empty : PyRepr.Str(arg);
         return PyExceptionTypes.Create(typeName, message);
     }

@@ -23,8 +23,68 @@ impl ExprBuilder<'_> {
             value,
             resume,
             input: Some(input),
+            delegated: false,
         };
         *self.current_bb = resume;
         Operand::Local(input)
+    }
+}
+
+impl ExprBuilder<'_> {
+    /// yield-from是显式委托循环，终值与每次yield分开；异常转发由帧输入协议完成。
+    pub(crate) fn build_yield_from(&mut self, expression: ExprId) -> Operand {
+        use crate::mir::{Rvalue, Statement};
+        let source = self.build_expr(expression);
+        let ty = self.ty_of(expression);
+        let source = self.coerce(source, &ty, &MirType::Dynamic);
+        let delegate = self.runtime_call(
+            RuntimeFn::GeneratorDelegateStart,
+            vec![source],
+            MirType::Dynamic,
+        );
+        let step = self.blocks.alloc(BasicBlock {
+            stmts: vec![],
+            terminator: Terminator::Unreachable,
+        });
+        let yielded = self.blocks.alloc(BasicBlock {
+            stmts: vec![],
+            terminator: Terminator::Unreachable,
+        });
+        let finished = self.blocks.alloc(BasicBlock {
+            stmts: vec![],
+            terminator: Terminator::Unreachable,
+        });
+        self.blocks[*self.current_bb].terminator = Terminator::Goto(step);
+        *self.current_bb = step;
+        let more = self.alloc_temp(MirType::Bool);
+        self.push_stmt(Statement::Assign {
+            dest: more,
+            value: Rvalue::GeneratorDelegateStep {
+                delegate: delegate.clone(),
+            },
+        });
+        self.blocks[step].terminator = Terminator::Branch {
+            cond: Operand::Local(more),
+            then_: yielded,
+            else_: finished,
+        };
+        *self.current_bb = yielded;
+        let value = self.runtime_call(
+            RuntimeFn::GeneratorDelegateCurrent,
+            vec![delegate.clone()],
+            MirType::Dynamic,
+        );
+        self.blocks[yielded].terminator = Terminator::Suspend {
+            value,
+            resume: step,
+            input: None,
+            delegated: true,
+        };
+        *self.current_bb = finished;
+        self.runtime_call(
+            RuntimeFn::GeneratorDelegateResult,
+            vec![delegate],
+            MirType::Dynamic,
+        )
     }
 }

@@ -72,7 +72,12 @@ ryupy-e2e（仅测试）─► ryupy-driver
 - M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
   MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存全部局部到每实例 object[]；
   CIL 仅绑定静态恢复委托，`PyGenerator` 管理运行 / 终止、重入与每次恢复的 traceback。
-  当前拒绝生成器异常区域，尚未实现跨暂停清理状态。PC -1 的恢复返回值是终值；
+  `generator_exceptions.rs` 将原Region变为逻辑handler表，恢复函数只有单outer catch；
+  handler保存locals/异常/PC后返回内部Retry，正常yield/return以leave经过保护区外出口，不跳入CLR try中部。
+  无异常区域的生成器不增加outer catch；有区域每块更新active_block，异常路径才额外spill与线性匹配。
+  frame槽0为PC、1为send、2为注入异常、3为逻辑handler异常，locals从4开始；
+  委托Step由生成器降级补frame参数，运行时处理协议不持frame，CIL不理解Python委托语义。
+  PC -1 的恢复返回值是终值；
   普通迭代立即丢弃，仅首次完成的 next 将其放入 StopIteration，运行时不缓存终值。
   帧槽 0 为 PC，槽 1 为本次 send 输入，原 LocalId 从槽 2 起保存；Suspend 携可选接收局部，
   恢复目标先取输入再清控制槽引用。表达式求值的已有临时量同样跨暂停保存。

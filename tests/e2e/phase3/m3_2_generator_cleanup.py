@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.2：暂停期间保留 with / finally，关闭和意外 StopIteration 可观察。
 class Resource:
     def __enter__(self):

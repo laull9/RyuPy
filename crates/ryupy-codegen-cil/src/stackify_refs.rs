@@ -9,9 +9,12 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub(crate) delegation: crate::generator_refs::DelegateRefs,
     pub prepare_method: MethodRefIndex,
     pub generator_resume_ctor: MethodRefIndex,
     pub generator_ctor: MethodRefIndex,
+    pub generator_input: MethodRefIndex,
+    pub generator_retry: MethodRefIndex,
     pub write_i64: MethodRefIndex,
     pub write_f64: MethodRefIndex,
     pub write_bool: MethodRefIndex,

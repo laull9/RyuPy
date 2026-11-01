@@ -284,6 +284,7 @@ pub struct Expr {
 pub enum ExprKind {
     /// 暂停并在恢复后得到 send 的值；next 对应 None。
     Yield(Option<ExprId>),
+    YieldFrom(ExprId),
     /// 错误恢复占位：对应的错误已经报过，下游静默跳过。
     Missing,
     Literal(Literal),

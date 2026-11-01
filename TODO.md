@@ -362,6 +362,23 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 阶段目标：固定纯 Python 项目集至少 80% 原生通过。标准库按 [stdlib.md](docs/stdlib.md) 的 API 批次实施，C# 重写与适配按万行级工程安排；以下里程碑必须继续拆成单个 API / 行为的竖切。先解锁语言依赖，标准库基础 API 可穿插推进；桥接结果独立统计。
 
+### 项目驱动基础内建补齐
+
+- [x] `ord` / `chr` 直接调用：码点（含补充平面/孤立代理项）、单字节bytes/bytearray、`__index__`、范围与参数错误；wcwidth首阻断已从ord前移至map，项目仍未通过
+- [ ] 修复独立代理码点拼接被UTF16合并的表示缺口（D009），`m3_builtins_surrogate_pair.py`保留pending；非已接受性能偏差
+- [ ] 一等内建函数值与惰性`map`：补wcwidth/markdown首阻断，保持函数身份、参数绑定与逐项消费；ord/chr当前作为值报E0305，其他旧内建值缺口须一并审计
+
+### 通用兼容欠账
+
+以下问题是在M3.2逐切验证时额外发现并加入清单的通用容器/调用缺口，不属于初始M3.2协议与清理验收。
+规划校正：从M3.2移到这里保留未完成状态、诊断和pending，不缩减原始生成器验收或固定20项目分母。
+原用例文件名仍保留m3_2前缀以便追溯；绝不因迁移算作已支持。见本轮M3.2实现笔记及ADR-0020/21/23。
+
+- [ ] 大字典动态键分块缓存hash合并：超过17项非纯标量字面量键明确E0100，`m3_2_dict_chunk_hash.py`保留pending；不扩大本切存储设计
+- [ ] 补齐剩余表达式 yield 求值准备：双星号实参映射快照、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
+- [ ] set/frozenset源含用户对象的星号展开需复用源缓存hash；当前显式NotImplementedError，不重跑用户hash（`m3_2_set_cached_hash.py` pending）
+- [ ] 生成器方法零参super的owner/self上下文保存；当前仍E0100，普通方法支持不代表恢复委托可用
+
 ### M3.0 闭包、lambda 与 nonlocal
 
 > 依赖 Phase 2 函数对象 / 模块作用域。用例：`m3_0_closures.py`、`m3_0_scope_edges.py`、`m3_0_exception_cells.py`。
@@ -390,21 +407,20 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M3.0、M3.1 的作用域规则及 Phase 2 异常 / with。用例：`m3_2_generators.py`、`m3_2_generator_cleanup.py`。
 
-- [x] 普通 yield 首切：MIR 状态机、暂停 / 恢复、局部与共享 cell 保存、迭代 / 耗尽、重入防护及意外 StopIteration 转 RuntimeError（`m3_2_generator_basic.py`）；异常区域与完整协议仍待后续
+原始协议/清理验收不变；逐切额外发现的容器/调用欠账见上方「通用兼容欠账」，相关pending与拒绝边界继续保留。
+
+- [x] 普通 yield 首切：MIR 状态机、暂停 / 恢复、局部与共享 cell 保存、迭代 / 耗尽、重入防护及意外 StopIteration 转 RuntimeError（`m3_2_generator_basic.py`）；跨暂停异常清理在下列整里程碑验收
 - [x] `return value` / StopIteration.value：只有首次完成的 next 可见终值；for / list / next(default) 消费后不泄漏，None 与 args / 对象身份差分通过
 - [x] `send` 与表达式 yield：None启动、接收值、复合表达式跨暂停、lambda/default作用域、参数与重入 / 耗尽规则通过
 - [x] 无星号暂停调用先绑定目标：函数 / 普通类 / 普通及内建方法、property、缺属性时机与非callable延迟检查通过；prepared内建方法先校验arity再执行副作用
 - [x] 星号tuple/set保持最终类型；tuple展开后冻结，set前缀求值/流式hash插入与跨暂停差分通过，修复既有返回临时list问题
 - [x] 增量赋值保存原目标对象与索引，支持属性/下标跨yield恢复；普通RHS重绑定亦不改变写回位置，覆盖切片身份与写回失败后的原地副作用
 - [x] 字典字面量跨yield保存key/value并匹配固定CPython 3.12的hash时序：≤15对先全部求值后插入，16–17对逐对插入，更多项仅纯标量字面量键；含边界/失败顺序差分，`**`字典合并仍待做
-- [ ] 大字典动态键分块缓存hash合并：超过17项非纯标量字面量键明确E0100，`m3_2_dict_chunk_hash.py`保留pending；不扩大本切存储设计
 - [x] 暂停调用的`*`位置参数准备：混合位置项在各star处立即快照，唯一star位置源延至最终调用展开；复用ListExtend/StarArg，无新ABI，普通无暂停路径不变
-- [ ] 补齐剩余表达式 yield 求值准备：双星号实参映射快照、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
-- [ ] set/frozenset源含用户对象的星号展开需复用源缓存hash；当前显式NotImplementedError，不重跑用户hash（`m3_2_set_cached_hash.py` pending）
-- [ ] `throw`、`close` 和 GeneratorExit；补齐关闭与异常注入协议（重入错误已实现）
-- [ ] `yield from` 委托传递 next / send / throw / close 与返回值；生成器表达式的普通惰性迭代已完成，完整协议随此项接续
-- [ ] yield 穿过 try / finally / with 时保留清理状态，关闭和异常展开不跳过退出；实现生成器内意外 StopIteration 的 Python 行为
-- [ ] 验收：部分消费、嵌套委托、关闭、异常与资源释放通过；即时析构触发的关闭时机仍受 D001 限制
+- [x] 现代单参`throw`、`close` 和 GeneratorExit；新建/已闭合/重入/忽略关闭产出及异常状态差分与完整门禁通过；旧式throw(type,value,tb)明确拒绝并单列范围
+- [x] `yield from`委托next/send/throw/close与返回值、自定义iterator终值及属性错误差分与完整门禁通过
+- [x] yield 穿过 try / finally / with 时保留清理状态，关闭和异常展开不跳过退出；实现生成器内意外 StopIteration 的 Python 行为
+- [x] 验收：部分消费、嵌套委托、关闭、异常与资源释放通过；即时析构触发的关闭时机仍受 D001 限制
 
 ### M3.3 装饰器与可调用包装
 

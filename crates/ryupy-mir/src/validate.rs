@@ -8,7 +8,9 @@
 //! - [x] `Call` 实参个数与被调函数签名一致
 //! - [x] 异常区域的块区间连续、处理入口在区间之外、区域之间正确嵌套
 
-use crate::mir::{Callee, Constant, MirType, Operand, Program, Rvalue, Statement, Terminator};
+use crate::mir::{
+    Callee, Constant, MirType, Operand, Program, RuntimeFn, Rvalue, Statement, Terminator,
+};
 
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
@@ -90,6 +92,20 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                     }
                     Statement::Eval(rvalue) => {
                         validate_rvalue(func, block_id, rvalue, program, &mut errors);
+                        if matches!(
+                            rvalue,
+                            Rvalue::Call {
+                                callee: Callee::Runtime(
+                                    RuntimeFn::GeneratorInput | RuntimeFn::GeneratorRetry
+                                ),
+                                ..
+                            }
+                        ) {
+                            errors.push(format!(
+                                "函数 `{}` 的生成器控制调用返回值必须写入临时，不能遗留CIL求值栈",
+                                func.name
+                            ));
+                        }
                     }
                     Statement::SetField { obj, value, .. } => {
                         validate_operand(func, block_id, obj, &mut errors);
@@ -283,6 +299,10 @@ fn validate_rvalue(
 ) {
     match rvalue {
         Rvalue::Use(op) => validate_operand(func, block_id, op, errors),
+        Rvalue::GeneratorDelegateStep { delegate } => {
+            validate_operand(func, block_id, delegate, errors);
+            errors.push(format!("函数 `{}` 在后端前仍有未降级的委托推进", func.name));
+        }
         Rvalue::MakeGenerator { resume, frame } => {
             let target = program.functions.iter().find(|(id, _)| id == resume);
             if !target.is_some_and(|(_, target)| {
@@ -296,8 +316,11 @@ fn validate_rvalue(
             }) {
                 errors.push(format!("函数 `{}` 的生成器恢复入口非法", func.name));
             }
-            if frame.is_empty() {
-                errors.push(format!("函数 `{}` 的生成器帧缺少状态槽", func.name));
+            if frame.len() < 4 {
+                errors.push(format!(
+                    "函数 `{}` 的生成器帧缺少状态/输入/异常控制槽",
+                    func.name
+                ));
             }
             for value in frame {
                 validate_operand(func, block_id, value, errors);

@@ -1,7 +1,7 @@
 //! 普通生成器的独立 MIR 降级：Suspend CFG → 工厂函数 + 可恢复 CFG。
 //!
 //! 首版保存所有局部（包含循环迭代器、临时值与共享 cell 引用），不做存活性裁剪。
-//! 帧槽 0 是恢复块编号，槽 1 是本次 send 的值，槽 2 起按原 LocalId 保存装箱值。生成器运行时负责
+//! 帧槽 0 是恢复块编号，槽 1 是本次 send 的值，槽 2 是注入异常、槽 3 是待接异常，槽 4 起按原 LocalId 保存装箱值。生成器运行时负责
 //! running/closed 状态与每次恢复的 traceback 帧；此处只表达显式状态读写和控制流。
 
 use crate::mir::*;
@@ -27,7 +27,7 @@ fn empty_body() -> Body {
     }
 }
 
-fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
+pub(super) fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
     locals.alloc(LocalDecl {
         ty,
         name: None,
@@ -35,7 +35,7 @@ fn local(locals: &mut Arena<LocalDecl>, ty: MirType) -> LocalId {
     })
 }
 
-fn call(dest: LocalId, callee: RuntimeFn, args: Vec<Operand>) -> Statement {
+pub(super) fn call(dest: LocalId, callee: RuntimeFn, args: Vec<Operand>) -> Statement {
     Statement::Assign {
         dest,
         value: Rvalue::Call {
@@ -45,7 +45,7 @@ fn call(dest: LocalId, callee: RuntimeFn, args: Vec<Operand>) -> Statement {
     }
 }
 
-fn set_slot(frame: LocalId, index: usize, value: Operand) -> Statement {
+pub(super) fn set_slot(frame: LocalId, index: usize, value: Operand) -> Statement {
     Statement::Eval(Rvalue::Call {
         callee: Callee::Runtime(RuntimeFn::ArraySet),
         args: vec![
@@ -57,7 +57,7 @@ fn set_slot(frame: LocalId, index: usize, value: Operand) -> Statement {
 }
 
 /// 标量在跨暂停边时装箱；动态值（尤其 cell）仅保存引用，绝不能复制 cell 内容。
-fn boxed(
+pub(super) fn boxed(
     locals: &mut Arena<LocalDecl>,
     stmts: &mut Vec<Statement>,
     value: Operand,
@@ -95,7 +95,13 @@ fn lower_one(program: &mut Program, id: FnId) {
         });
     }
     let frame = local(&mut body.locals, MirType::Dynamic);
+    let exceptions = crate::generator_exceptions::Plan::take(&mut body);
     let mut resume_targets = vec![original_entry];
+    for handler in exceptions.handlers() {
+        if !resume_targets.contains(&handler) {
+            resume_targets.push(handler);
+        }
+    }
     let mut inputs = Vec::new();
 
     for (_, block) in body.blocks.iter_mut() {
@@ -115,14 +121,29 @@ fn lower_one(program: &mut Program, id: FnId) {
                 })
             )
         });
+        for statement in &mut block.stmts {
+            if let Statement::Assign { value, .. } | Statement::Eval(value) = statement
+                && let Rvalue::GeneratorDelegateStep { delegate } = value
+            {
+                // 委托步骤需要本实例控制槽，只有工厂/恢复拆分后才有 frame 参数。
+                *value = Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::GeneratorDelegateStep),
+                    args: vec![Operand::Local(frame), delegate.clone()],
+                };
+            }
+        }
         let term = std::mem::replace(&mut block.terminator, Terminator::Unreachable);
         block.terminator = match term {
             Terminator::Suspend {
                 value,
                 resume,
                 input,
+                delegated,
             } => {
-                inputs.push((resume, input));
+                // yield from 的恢复输入由委托步骤转发给子迭代器，不能提前消费/抛出。
+                if !delegated {
+                    inputs.push((resume, input));
+                }
                 if !resume_targets.contains(&resume) {
                     resume_targets.push(resume);
                 }
@@ -135,7 +156,7 @@ fn lower_one(program: &mut Program, id: FnId) {
                     );
                     block.stmts.push(set_slot(
                         frame,
-                        slot.into_raw().into_u32() as usize + 2,
+                        slot.into_raw().into_u32() as usize + 4,
                         value,
                     ));
                 }
@@ -164,19 +185,12 @@ fn lower_one(program: &mut Program, id: FnId) {
     }
 
     for (resume, input) in inputs {
-        let block = &mut body.blocks[resume];
-        let mut receive = Vec::new();
-        if let Some(dest) = input {
-            receive.push(call(
-                dest,
-                RuntimeFn::ArrayGet,
-                vec![Operand::Local(frame), Operand::Const(Constant::I64(1))],
-            ));
-        }
-        // 接收后清除帧控制槽的额外引用，实际使用由普通局部存活期决定。
-        receive.push(set_slot(frame, 1, Operand::Const(Constant::None)));
-        receive.append(&mut block.stmts);
-        block.stmts = receive;
+        // MIR 的 Eval 用于 void 调用；GeneratorInput 返回对象，语句型 yield 也要
+        // 接到丢弃临时槽位，不能把返回值遗留在 CIL 求值栈。
+        let dest = input.unwrap_or_else(|| local(&mut body.locals, MirType::Dynamic));
+        let receive = call(dest, RuntimeFn::GeneratorInput, vec![Operand::Local(frame)]);
+        // 即便语句型 yield 不接收值，也必须在原暂停点检查 throw / close 注入。
+        body.blocks[resume].stmts.insert(0, receive);
     }
 
     // 所有恢复入口先重新加载局部；初次调用的帧用类型合法的默认值填充未使用临时槽位。
@@ -192,7 +206,7 @@ fn lower_one(program: &mut Program, id: FnId) {
             RuntimeFn::ArrayGet,
             vec![
                 Operand::Local(frame),
-                Operand::Const(Constant::I64(slot.into_raw().into_u32() as i64 + 2)),
+                Operand::Const(Constant::I64(slot.into_raw().into_u32() as i64 + 4)),
             ],
         ));
         if dest != *slot {
@@ -243,6 +257,8 @@ fn lower_one(program: &mut Program, id: FnId) {
         terminator: Terminator::Goto(dispatch),
     });
 
+    exceptions.finish(&mut body, frame, &original);
+
     let name = function.name.clone();
     let source_file = function.source_file.clone();
     let codegen_name = format!(
@@ -272,7 +288,12 @@ fn lower_one(program: &mut Program, id: FnId) {
         Operand::Const(Constant::I64(original_entry.into_raw().into_u32() as i64)),
         &MirType::I64,
     );
-    let mut values = vec![initial, Operand::Const(Constant::None)];
+    let mut values = vec![
+        initial,
+        Operand::Const(Constant::None),
+        Operand::Const(Constant::None),
+        Operand::Const(Constant::None),
+    ];
     for (slot, ty) in &original {
         let value = if params.contains(slot) {
             Operand::Local(*slot)

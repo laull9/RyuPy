@@ -175,6 +175,24 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                     RuntimeFn::AbsF64 => ins.push(Instruction::call(ctx.runtime_refs.abs_f64)),
                     RuntimeFn::ShlI64 => ins.push(Instruction::call(ctx.runtime_refs.shl_i64)),
                     RuntimeFn::ShrI64 => ins.push(Instruction::call(ctx.runtime_refs.shr_i64)),
+                    RuntimeFn::GeneratorDelegateStart => {
+                        ins.push(Instruction::call(ctx.runtime_refs.delegation.start))
+                    }
+                    RuntimeFn::GeneratorDelegateStep => {
+                        ins.push(Instruction::call(ctx.runtime_refs.delegation.step))
+                    }
+                    RuntimeFn::GeneratorDelegateCurrent => {
+                        ins.push(Instruction::call(ctx.runtime_refs.delegation.current))
+                    }
+                    RuntimeFn::GeneratorDelegateResult => {
+                        ins.push(Instruction::call(ctx.runtime_refs.delegation.result))
+                    }
+                    RuntimeFn::GeneratorInput => {
+                        ins.push(Instruction::call(ctx.runtime_refs.generator_input))
+                    }
+                    RuntimeFn::GeneratorRetry => {
+                        ins.push(Instruction::call(ctx.runtime_refs.generator_retry))
+                    }
                     RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
                     RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
                     RuntimeFn::CellNew => ins.push(Instruction::call(ctx.runtime_refs.cell_new)),
@@ -452,6 +470,11 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             ins.push(Instruction::call(
                 ctx.runtime_refs.pic_call_method[args.len()],
             ));
+        }
+        Rvalue::GeneratorDelegateStep { .. } => {
+            // MIR验证器应先拒绝残留高层节点，后端不猜测Python委托语义。
+            ins.push(Instruction::LoadNull);
+            ins.push(Instruction::Throw);
         }
         Rvalue::MakeGenerator { resume, frame } => {
             let function = &ctx.functions[*resume];

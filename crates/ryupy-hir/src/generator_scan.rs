@@ -1,7 +1,7 @@
 //! 扫描当前函数的 yield 与首个生成器竖切边界；不进入嵌套函数/类/lambda 的函数体，默认值仍在当前作用域。
 //!
-//! 即使 yield 位于不可达分支，整个函数仍是生成器。异常区域跨暂停、
-//! yield from 留待后续竖切，不能静默按普通函数执行。
+//! 即使 yield 位于不可达分支，整个函数仍是生成器。异常区域由MIR逻辑handler表恢复，
+//! yield from 在委托竖切接续，不能静默按普通函数执行。
 
 use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
@@ -20,12 +20,6 @@ impl<'a> Visitor<'a> for Scan {
                 return;
             }
             ast::Stmt::ClassDef(_) => return,
-            ast::Stmt::Try(value) => self
-                .unsupported
-                .push((value.range, "生成器内 try 暂未支持跨暂停的异常状态")),
-            ast::Stmt::With(value) => self
-                .unsupported
-                .push((value.range, "生成器内 with 暂未支持跨暂停的资源清理")),
             _ => {}
         }
         walk_stmt(self, stmt);

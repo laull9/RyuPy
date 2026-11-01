@@ -3,8 +3,9 @@
 本文从 Phase 2 开始持续更新。项目集已于 M2.0 冻结（20 个纯 Python 项目，6 类用途），
 CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 已接入额外模块搜索根，
 项目源码可以解析；剩余阻塞逐项目列在下表，集中在内建类型继承、装饰器/元类、内建函数与文件 API。
-语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal，M3.1 增加 list / dict / set 推导式与惰性生成器表达式，M3.2 首切增加yield 状态机、生成器返回值与 send（完整协议及异常清理仍未完成）。
+语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal，M3.1 增加 list / dict / set 推导式与惰性生成器表达式，M3.2 已增加yield状态机、返回值、send、现代单参throw/close、yield-from与跨暂停异常清理；旧式throw参数和通用兼容欠账仍明确列出。
 2026-11-01 在 Linux x86_64 重跑固定项目集，仍为 0/20 原生通过；没有新增桥接路径。
+ord/chr基础内建已补直接调用，wcwidth首阻断从ord前移至map；progress从生成器with清理前移到未知Progress基类，两者均未计为项目通过。
 急切推导式解除若干前端阻塞，但项目仍需后续语法和 API，不将语法差分通过计入项目分子。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
 
@@ -60,11 +61,11 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 | texttable | 1.7.0 / PyPI | 列对齐 | 无 | 原生 / Linux x86_64 | unsupported：嵌套解包目标 | 2026-11-01 |
 | markdown | 3.5.2 / PyPI | 转换与扩展 | 无 | 原生 / Linux x86_64 | unsupported：内建 `map` 未接入 | 2026-11-01 |
 | chardet | 5.2.0 / PyPI | detect 结果字段 | 无 | 原生 / Linux x86_64 | unsupported：复杂类型表达式（`TypeVar` 等） | 2026-11-01 |
-| wcwidth | 0.2.13 / PyPI | 宽字符与组合字符 | 无 | 原生 / Linux x86_64 | unsupported：内建 `ord` 未接入 | 2026-11-01 |
+| wcwidth | 0.2.13 / PyPI | 宽字符与组合字符 | 无 | 原生 / Linux x86_64 | unsupported：内建 `map` 未接入（ord直接调用已补） | 2026-11-01 |
 | colorama | 0.4.6 / PyPI | ANSI 常量与 init | 无 | 原生 / Linux x86_64 | unsupported：内建 `dir` 未接入 | 2026-11-01 |
 | termcolor | 2.4.0 / PyPI | colored 属性组合 | 无 | 原生 / Linux x86_64 | unsupported：复杂类型表达式 | 2026-11-01 |
 | binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / Linux x86_64 | unsupported：内建 `open` 未接入（文件 API 在 M3.4） | 2026-11-01 |
-| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / Linux x86_64 | unsupported：生成器内 with 跨暂停清理未实现（见 `projects.jsonl`） | 2026-11-01 |
+| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / Linux x86_64 | unsupported：未知基类 `Progress`（生成器with清理首阻断已解除） | 2026-11-01 |
 
 分母 20，原生通过 0，**0%**。M2.9 不要求此时达到最终 80%：当前阻塞集中在
 **内建类型继承、动态基类、装饰器 / 元类、内建函数与文件 API**，属于 Phase 3 的语言与标准库工作。
@@ -98,6 +99,7 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 | D006 | Phase 1 签名标注与模块级变量限制 | M2.1 / M2.7 已解除；函数内导入与星号导入仍明确报错。测试：`m2_1_*`、`m2_7_modules`；`from x import *` 与函数内 `import` 在编译期报 `E0100` | 受限代码仍在编译期报错，不能据路线图认定已可用 |
 | D007 | Phase 1 除零、数值转换等错误暴露 .NET 异常，浮点除法缺少完整 Python 检查 | 已修：真除法 / `//` / `%` / `int(float)` 统一抛 Python 异常，未捕获时按 Python 形式退出（M2.2）；索引 / 属性错误已随 M2.3 / M2.5 接入 Python 异常。测试：`m2_2_exceptions`、`m2_3_*`、`errors/unhandled_zero_division` | 无已知剩余差异 |
 | D008 | `with` 的 `__enter__` / `__exit__` 使用普通属性查找，CPython 按类型槽查找 | M2.8 已知边界；类方法与常见上下文管理器无差异，`m2_8_with` 覆盖这些路径 | 不要在实例字典里遮蔽 `__enter__` / `__exit__`；需要类型槽精确语义时改用普通 `try` / `finally` |
+| D009 | 两个独立代理码点拼接后UTF-16表示将其当作一个补充码点 | 已知待修，非已接受性能偏差；`ord(chr(0xD800)+chr(0xDC00))`应TypeError却返回65536，独立pending `m3_builtins_surrogate_pair`，见ADR-0025 | 普通补充平面/单代理项支持；依赖独立相邻代理码点的程序不计兼容，后续统一处理字符串表示 |
 
 D001 接受生命周期模型差异，不自动接受任何 `__del__` / weakref 行为；实际开放 API 时仍需定义
 支持范围和测试。D003、D005、D006、D007 属于待修限制，不作为永久性能取舍。

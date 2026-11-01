@@ -52,7 +52,7 @@ lint: ## fmt 检查 + clippy（警告视为错误）
 	cargo clippy --workspace --all-targets -- -D warnings
 
 .PHONY: test
-test: python-baseline ## Python 基线 + 单元测试 + 快照测试（不含编译 e2e）
+test: runtime python-baseline ## Python 基线 + 单元测试 + 快照测试（不含编译 e2e）
 	dotnet test runtime/RyuPy.Runtime.Tests -nologo -v q
 	cargo test --workspace --exclude ryupy-e2e
 

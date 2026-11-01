@@ -236,6 +236,9 @@ public sealed class PyIter : IPyIterator
 public sealed class PyInstanceIterator : IPyIterator
 {
     private readonly PyInstance _instance;
+
+    // yield from 必须直接使用真实 __next__，保留适配器 MoveNext 会吞掉的终值。
+    internal PyInstance Instance => _instance;
     private object? _current;
     private bool _finished;
 
