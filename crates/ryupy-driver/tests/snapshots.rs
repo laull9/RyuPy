@@ -1,3 +1,5 @@
+//! 既有语言竖切的 IR 与诊断快照；宿主临时路径不属于语义断言。
+
 use ryupy_driver::{Session, Stage, dump};
 
 #[test]
@@ -333,7 +335,11 @@ fn snapshot_try_unsupported_handler_type() {
     let _ = std::fs::remove_file(&py_path);
 
     assert!(res.is_err(), "非类型名的 except 应被拒绝");
-    let rendered = sess.render_diagnostics(false);
+    // 仅规范化宿主临时目录，保留源码行列与完整诊断内容。
+    let rendered = sess.render_diagnostics(false).replace(
+        py_path.to_str().unwrap(),
+        py_path.file_name().unwrap().to_str().unwrap(),
+    );
     assert!(
         rendered.contains("E0100"),
         "期望 E0100 诊断，实际：{rendered}"
@@ -454,7 +460,11 @@ fn snapshot_multiple_inheritance_diagnostic() {
 
     let mut sess = Session::default();
     let _ = dump(&mut sess, &py_path, Stage::Hir);
-    let rendered = sess.render_diagnostics(false);
+    // 仅规范化宿主临时目录，保留源码行列与完整诊断内容。
+    let rendered = sess.render_diagnostics(false).replace(
+        py_path.to_str().unwrap(),
+        py_path.file_name().unwrap().to_str().unwrap(),
+    );
     let _ = std::fs::remove_file(&py_path);
 
     assert!(
@@ -501,7 +511,11 @@ fn snapshot_m2_8_async_with_diagnostic() {
     let _ = std::fs::remove_file(&py_path);
 
     assert!(res.is_err(), "async with 应被拒绝");
-    let rendered = sess.render_diagnostics(false);
+    // 仅规范化宿主临时目录，保留源码行列与完整诊断内容。
+    let rendered = sess.render_diagnostics(false).replace(
+        py_path.to_str().unwrap(),
+        py_path.file_name().unwrap().to_str().unwrap(),
+    );
     assert!(
         rendered.contains("E0100") && rendered.contains("async with"),
         "期望 async with 的 E0100 诊断，实际：{rendered}"

@@ -17,6 +17,7 @@ mod closures_decl;
 mod closures_find;
 mod closures_lower;
 mod closures_walk;
+mod comprehensions;
 mod control_flow;
 pub mod expr;
 mod hir;

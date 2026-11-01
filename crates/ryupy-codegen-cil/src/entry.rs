@@ -81,10 +81,13 @@ pub(crate) fn emit_entry_wrapper(
         Instruction::LoadLocal(0),
         Instruction::Return,
     ];
-    let mut method_body = body::Method::new(instructions);
+    // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
+    // 不能仅依赖转储文本的 .locals init 或某个平台偶然为零的栈内容。
+    let mut method_body = body::Method::with_locals(
+        vec![LocalVariable::new(MethodType::from(BaseType::Int32))],
+        instructions,
+    );
     method_body.header.maximum_stack_size = 8;
-    method_body.header.local_variables =
-        vec![LocalVariable::new(MethodType::from(BaseType::Int32))];
     method_body.data_sections = vec![body::DataSection::ExceptionHandlers(vec![
         body::Exception {
             kind: body::ExceptionKind::TypedException(system_exit_type),
@@ -157,7 +160,12 @@ pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, Codeg
 
         if let Some(body) = &method.body {
             if !body.header.local_variables.is_empty() {
-                out.push_str("        .locals init (\n");
+                let init = if body.header.initialize_locals {
+                    " init"
+                } else {
+                    ""
+                };
+                out.push_str(&format!("        .locals{init} (\n"));
                 for (i, loc) in body.header.local_variables.iter().enumerate() {
                     let comma = if i + 1 < body.header.local_variables.len() {
                         ","
