@@ -89,6 +89,9 @@ impl<'a> Visitor<'a> for DeclarationChecker<'_> {
                 }
             }
             ast::Stmt::FunctionDef(def) => {
+                for decorator in &def.decorator_list {
+                    self.visit_expr(&decorator.expression);
+                }
                 self.defaults(&def.parameters);
                 self.seen.insert(Name::from(def.name.as_str()));
             }

@@ -13,7 +13,7 @@
 use ryupy_base::{Diagnostic, Span, TextRange};
 use ryupy_hir::{Builtin, CallArg, ExprId, ExprKind, FuncId, Name, ParamKind};
 
-use crate::check::{FunctionChecker, type_ref_to_ty};
+use crate::check::{FunctionChecker, module_type_ref_to_ty};
 use crate::ty::{FuncMode, Ty};
 
 impl FunctionChecker<'_> {
@@ -229,7 +229,7 @@ impl FunctionChecker<'_> {
     /// 属性副作用都只有运行时才知道，因此这里直接返回 `Dynamic` 并让函数降级。
     fn check_class_call(&mut self, cls_id: ryupy_hir::ClassId, args: &[CallArg]) -> Ty {
         let cls = &self.module.classes[cls_id];
-        if !cls.is_dataclass {
+        if !cls.is_dataclass || cls.decorated_binding.is_some() {
             self.soft_demote = true;
             return Ty::Dynamic;
         }
@@ -246,7 +246,7 @@ impl FunctionChecker<'_> {
                 CallArg::Starred(_) | CallArg::DoubleStarred(_) => None,
             };
             let Some(field) = field else { continue };
-            let expected_ty = type_ref_to_ty(&field.annotation);
+            let expected_ty = module_type_ref_to_ty(self.module, &field.annotation);
             if expected_ty != Ty::Error
                 && arg_ty != Ty::Error
                 && expected_ty != arg_ty

@@ -284,6 +284,21 @@ fn dump_stmt(
             )
             .unwrap()
         }
+        StmtKind::DecoratedDef {
+            func,
+            target,
+            decorators,
+        } => {
+            for decorator in decorators {
+                writeln!(out, "{pad}@{}", dump_expr(module, body, *decorator)).unwrap();
+            }
+            writeln!(
+                out,
+                "{pad}{target:?} = decorated def {}",
+                module.functions[*func].name
+            )
+            .unwrap();
+        }
         StmtKind::ClassDef(id) => {
             let class = &module.classes[*id];
             let base = match class.base {
@@ -292,6 +307,9 @@ fn dump_stmt(
                     format!("({})", module.classes[base_id].name)
                 }
                 Some(crate::hir::ClassBase::Builtin(name)) => format!("({name})"),
+                Some(crate::hir::ClassBase::Expr(expr)) => {
+                    format!("({})", dump_expr(module, body, expr))
+                }
             };
             writeln!(out, "{pad}class {}{base}:", class.name).unwrap();
             for item in &class.body {
@@ -306,12 +324,16 @@ fn dump_stmt(
                         .unwrap();
                     }
                     crate::hir::ClassItemKind::Method { func, decorators } => {
-                        let decorators: Vec<&str> = decorators
+                        let decorators: Vec<String> = decorators
                             .iter()
                             .map(|d| match d {
-                                crate::hir::Decorator::Property => "@property",
-                                crate::hir::Decorator::StaticMethod => "@staticmethod",
-                                crate::hir::Decorator::ClassMethod => "@classmethod",
+                                crate::hir::Decorator::Property => "@property".into(),
+                                crate::hir::Decorator::StaticMethod => "@staticmethod".into(),
+                                crate::hir::Decorator::ClassMethod => "@classmethod".into(),
+                                crate::hir::Decorator::Dataclass => "@dataclass".into(),
+                                crate::hir::Decorator::Expr(expr) => {
+                                    format!("@{}", dump_expr(module, body, *expr))
+                                }
                             })
                             .collect();
                         for decorator in decorators {
@@ -389,6 +411,7 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
 fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::ClassLocal(name) => format!("class_namespace.{name}"),
         ExprKind::YieldFrom(value) => format!("yield from {}", dump_expr(module, body, *value)),
         ExprKind::Yield(value) => format!(
             "(yield {})",

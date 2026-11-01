@@ -108,11 +108,13 @@ public static class PyHash
             return true;
         }
         // 用户 `__eq__`：先试左侧，再试右侧（与 CPython 的富比较顺序一致）。
-        if (PyObject.TryMethod1(a, "__eq__", b, out object? leftResult))
+        if (PyObject.TryMethod1(a, "__eq__", b, out object? leftResult)
+            && leftResult is not PyNotImplemented)
         {
             return PyOps.Truthy(leftResult);
         }
-        if (PyObject.TryMethod1(b, "__eq__", a, out object? rightResult))
+        if (PyObject.TryMethod1(b, "__eq__", a, out object? rightResult)
+            && rightResult is not PyNotImplemented)
         {
             return PyOps.Truthy(rightResult);
         }

@@ -1,6 +1,5 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
-assertion_line: 364
 expression: cil
 ---
 .assembly ryupy_test_m2_3_containers

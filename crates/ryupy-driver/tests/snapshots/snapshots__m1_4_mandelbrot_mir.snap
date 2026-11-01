@@ -97,24 +97,28 @@ fn mandel(_0: f64, _1: f64, _2: i64) -> i64 {
 
 fn main() -> () {
     let _0: i64;
-    let _1: i64;
-    let _2: i64;
-    let _3: i64;
-    let _4: bool;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
     let _5: i64;
     let _6: i64;
     let _7: i64;
     let _8: bool;
-    let _9: f64;
-    let _10: f64;
-    let _11: f64;
-    let _12: f64;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: bool;
     let _13: f64;
     let _14: f64;
-    let _15: i64;
-    let _16: bool;
-    let _17: str;
-    let _18: str;
+    let _15: f64;
+    let _16: f64;
+    let _17: f64;
+    let _18: f64;
+    let _19: i64;
+    let _20: bool;
+    let _21: str;
+    let _22: str;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_4_mandelbrot.py", const "<module>");
@@ -125,28 +129,33 @@ fn main() -> () {
         // line 1
         g2 = const "m1_4_mandelbrot.py";
         // line 2
+        _1 = RuntimeFn::TypeObject(const "float");
+        _2 = RuntimeFn::TypeObject(const "float");
+        _3 = RuntimeFn::TypeObject(const "int");
+        _4 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@6, null, [const "cr", const "ci", const "max_iter", const "return"], [_1, _2, _3, _4]);
         // line 17
-        _1 = const -12_i64;
-        _2 = const 13_i64;
-        _3 = const 1_i64;
+        _5 = const -12_i64;
+        _6 = const 13_i64;
+        _7 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _4 = Lt(_1, _2);
-        branch _4 -> [then: bb2, else: bb14];
+        _8 = Lt(_5, _6);
+        branch _8 -> [then: bb2, else: bb14];
     }
     bb2: {
-        g3 = _1;
+        g3 = _5;
         // line 18
         g4 = const "";
         // line 19
-        _5 = const -39_i64;
-        _6 = const 21_i64;
-        _7 = const 1_i64;
+        _9 = const -39_i64;
+        _10 = const 21_i64;
+        _11 = const 1_i64;
         goto -> bb6;
     }
     bb3: {
-        _1 = Add(_1, _3);
+        _5 = Add(_5, _7);
         goto -> bb1;
     }
     bb4: {
@@ -156,24 +165,24 @@ fn main() -> () {
         unreachable;
     }
     bb6: {
-        _8 = Lt(_5, _6);
-        branch _8 -> [then: bb7, else: bb10];
+        _12 = Lt(_9, _10);
+        branch _12 -> [then: bb7, else: bb10];
     }
     bb7: {
-        g5 = _5;
+        g5 = _9;
         // line 20
-        _9 = Cast(I64ToF64, global@5);
-        _10 = Cast(I64ToF64, _9);
-        _11 = RuntimeFn::TrueDivF64(_10, const 20_f64);
-        _12 = Cast(I64ToF64, global@3);
-        _13 = Cast(I64ToF64, _12);
-        _14 = RuntimeFn::TrueDivF64(_13, const 10_f64);
-        _15 = mandel(_11, _14, const 200_i64);
-        _16 = Eq(_15, const 200_i64);
-        branch _16 -> [then: bb11, else: bb12];
+        _13 = Cast(I64ToF64, global@5);
+        _14 = Cast(I64ToF64, _13);
+        _15 = RuntimeFn::TrueDivF64(_14, const 20_f64);
+        _16 = Cast(I64ToF64, global@3);
+        _17 = Cast(I64ToF64, _16);
+        _18 = RuntimeFn::TrueDivF64(_17, const 10_f64);
+        _19 = mandel(_15, _18, const 200_i64);
+        _20 = Eq(_19, const 200_i64);
+        branch _20 -> [then: bb11, else: bb12];
     }
     bb8: {
-        _5 = Add(_5, _7);
+        _9 = Add(_9, _11);
         goto -> bb6;
     }
     bb9: {
@@ -187,14 +196,14 @@ fn main() -> () {
     }
     bb11: {
         // line 21
-        _17 = RuntimeFn::StrConcat(global@4, const "#");
-        g4 = _17;
+        _21 = RuntimeFn::StrConcat(global@4, const "#");
+        g4 = _21;
         goto -> bb8;
     }
     bb12: {
         // line 23
-        _18 = RuntimeFn::StrConcat(global@4, const ".");
-        g4 = _18;
+        _22 = RuntimeFn::StrConcat(global@4, const ".");
+        g4 = _22;
         goto -> bb8;
     }
     bb13: {

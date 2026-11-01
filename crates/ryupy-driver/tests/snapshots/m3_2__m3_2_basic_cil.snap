@@ -216,11 +216,11 @@ expression: "output.replace(path.to_str().unwrap(), \"generator.py\")"
             [5] [System.Runtime]System.Object,
             [6] [System.Runtime]System.Object
         )
-        IL_0000: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0000: LoadNull
         IL_0001: StoreStaticField(RyuPy.Generated.Module.m0___mv0___name__)
-        IL_0002: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0002: LoadNull
         IL_0003: StoreStaticField(RyuPy.Generated.Module.m0___mv1___package__)
-        IL_0004: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0004: LoadNull
         IL_0005: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
         IL_0006: LoadString("ryupy_test_generator_basic.py")
         IL_0007: LoadString("<module>")

@@ -52,7 +52,8 @@ public static class PyObject
         PyModule => PyType.Get("module"),
         PyClass => PyType.Get("type"),
         PyBaseException exception when exception.PythonClass is not null => exception.PythonClass,
-        PyBoundMethod or PyFunction => PyType.Get("method"),
+        PyBoundMethod => PyType.Get("method"),
+        PyFunction => PyType.Get("function"),
         PyProperty => PyType.Get("property"),
         _ => PyType.Get(PyRepr.TypeName(value)),
     };
@@ -68,6 +69,10 @@ public static class PyObject
         PySuper super => GetSuperAttr(super, name),
         PyType type => GetTypeAttr(type, name),
         PyBaseException exception => GetExceptionAttr(exception, name),
+        PyFunction function => function.GetMetadata(name),
+        PyBuiltinFunction function => function.GetMetadata(name),
+        PyBoundMethod method => GetAttr(method.Target, name),
+        PyProperty property => property.GetAccessor(name),
         _ => throw new PyAttributeError(
             $"'{PyRepr.TypeName(obj)}' object has no attribute '{name}'"
         ),
@@ -78,6 +83,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyFunction function:
+                function.SetMetadata(name, value);
+                return;
             case PyModule module:
                 module.SetAttr(name, value);
                 return;
@@ -102,6 +110,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyFunction function:
+                function.DeleteMetadata(name);
+                return;
             case PyClass cls:
                 if (!cls.DeleteAttr(name))
                 {
@@ -111,6 +122,16 @@ public static class PyObject
                 }
                 return;
             case PyInstance instance:
+                instance.Class.CheckDataclassWrite(name, deleting: true);
+                if (instance.Class.HasProperties
+                    && instance.Class.TryLookup(name, out PyClass propertyOwner, out object? descriptor)
+                    && descriptor is PyProperty property)
+                {
+                    if (property.Deleter is null)
+                        throw new PyAttributeError($"property '{name}' of '{instance.Class.Name}' object has no deleter");
+                    InvokeBound(property.Deleter, propertyOwner, instance, [], [], []);
+                    return;
+                }
                 if (instance.Class.TryGetInstanceSlot(name, out int slot) && instance.IsSlotSet(slot))
                 {
                     instance.ClearSlot(slot);
@@ -144,9 +165,18 @@ public static class PyObject
     {
         PyFunction fn => new PyBoundMethod(owner, self, fn),
         PyStaticMethod method => method.Value,
-        PyClassMethod method => new PyBoundMethod(owner, self, method.Value),
+        PyClassMethod method => new PyBoundMethod(owner, ClassMethodReceiver(owner, self), method.Value),
         PyProperty property => property,
         _ => raw,
+    };
+
+    // classmethod 绑定到访问者的实际类，不是定义方法的基类，也不是访问它的实例。
+    private static PyClass ClassMethodReceiver(PyClass owner, object? self) => self switch
+    {
+        PyClass cls => cls,
+        PyInstance instance => instance.Class,
+        PyBaseException { PythonClass: not null } exception => exception.PythonClass,
+        _ => owner,
     };
 
     /// <summary>调用一个绑定方法：把接收者作为第一个位置实参。</summary>
@@ -159,6 +189,7 @@ public static class PyObject
         object?[] kwValues
     )
     {
+        if (target is PyClassMethod) self = ClassMethodReceiver(owner, self);
         // 绝大多数方法不调用 `super()`，不需要维护上下文，直接调用。
         if (target is PyFunction plain && !plain.UsesSuper)
         {
@@ -406,6 +437,13 @@ public static class PyObject
 
     /// <summary>写实例属性；property setter 优先。</summary>
     private static void SetInstanceAttr(PyInstance instance, string name, object? value)
+    {
+        instance.Class.CheckDataclassWrite(name, deleting: false);
+        InitializeDataclassField(instance, name, value);
+    }
+
+    // 相当于生成 frozen __init__ 内的 object.__setattr__：只跳过冻结检查，仍保留 property 协议。
+    internal static void InitializeDataclassField(PyInstance instance, string name, object? value)
     {
         if (instance.Class.HasProperties
             && instance.Class.TryLookup(name, out PyClass owner, out object? raw)

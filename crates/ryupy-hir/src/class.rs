@@ -9,7 +9,7 @@
 //!    - `@property` / `@staticmethod` / `@classmethod` 保留为修饰器标记。
 //!
 //! 单继承只接受一个基类；基类可以是之前定义的普通类或内建异常类。多重继承、
-//! 元类、任意类装饰器与 `__getattribute__` 等暂缓能力都在这里明确报错，不静默降级。
+//! 元类与 `__getattribute__` 等暂缓能力都在这里明确报错，不静默降级。
 //!
 //! 类体属性的求值位置属于**模块入口函数**（Python 在 `class` 语句执行时求值），
 //! 因此属性表达式直接降级到 `main_body`，MIR 再把它们按源码顺序接到类定义处。
@@ -19,9 +19,7 @@ use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
 
 use crate::expr::ExprLowerCtx;
-use crate::hir::{
-    Body, Class, ClassBase, ClassItem, ClassItemKind, Decorator, ExprId, Field, FuncId, Name,
-};
+use crate::hir::{Body, Class, ClassBase, ClassItem, ClassItemKind, ExprId, Field, FuncId, Name};
 use crate::operator::lower_type_ref;
 use crate::scope::{FunctionScope, GlobalScope, Resolution};
 
@@ -45,14 +43,66 @@ pub fn parse_class_def(
     methods: &[MethodSlot],
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
+    nested_defaults: &mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
+    class_scopes: &mut FxHashMap<FuncId, rustc_hash::FxHashSet<Name>>,
     main_body: &mut Body,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<Class> {
     let class_name = Name::from(class_def.name.as_str());
 
-    let (is_dataclass, frozen) = parse_class_decorators(class_def, file, diags);
+    let (is_dataclass, frozen) =
+        crate::decorators::dataclass_flags(class_def, &globals.dataclass_markers, file, diags);
+    let decorators = crate::decorators::lower_list(
+        &class_def.decorator_list,
+        true,
+        None,
+        file,
+        globals,
+        module_vars,
+        nested_funcs,
+        nested_defaults,
+        main_body,
+        diags,
+    );
+    let decorated_binding = globals
+        .dynamic_names
+        .contains(&class_name)
+        .then(|| module_vars.get(&class_name).copied())
+        .flatten();
 
-    let base = parse_base(class_def, file, globals, classes, diags);
+    let base = match parse_base(class_def, file, globals, classes, diags) {
+        Some(ClassBase::User(id)) if classes[id].decorated_binding.is_some() => {
+            if classes[id].is_exception || classes[id].is_dataclass {
+                diags.push(
+                    Diagnostic::error(
+                        Span::new(file, class_def.range),
+                        "暂不支持以装饰后的异常类或dataclass作为基类",
+                    )
+                    .with_code("E0100"),
+                );
+                None
+            } else {
+                class_def
+                    .arguments
+                    .as_ref()
+                    .and_then(|args| args.args.first())
+                    .map(|expr| {
+                        ClassBase::Expr(lower_class_expr(
+                            None,
+                            file,
+                            globals,
+                            module_vars,
+                            nested_funcs,
+                            nested_defaults,
+                            main_body,
+                            diags,
+                            expr,
+                        ))
+                    })
+            }
+        }
+        base => base,
+    };
 
     // 基类如果是 dataclass：字段布局会变化，暂不支持继承数据类。
     if let Some(ClassBase::User(base_id)) = base
@@ -71,17 +121,27 @@ pub fn parse_class_def(
     let is_exception = match base {
         Some(ClassBase::Builtin(_)) => true,
         Some(ClassBase::User(base_id)) => classes[base_id].is_exception,
-        None => false,
+        None | Some(ClassBase::Expr(_)) => false,
     };
 
+    let mut class_names = rustc_hash::FxHashSet::default();
     let mut fields = Vec::new();
+    let mut declared_fields = Vec::new();
     let mut body = Vec::new();
-    let method_map: FxHashMap<&str, &MethodSlot> = methods
+    let method_map: FxHashMap<ryupy_base::TextRange, &MethodSlot> = methods
         .iter()
-        .map(|method| (method.name.as_str(), method))
+        .map(|method| (method.range, method))
         .collect();
 
     for stmt in &class_def.body {
+        if let ast::Stmt::AnnAssign(annotation) = stmt
+            && let ast::Expr::Name(name) = annotation.target.as_ref()
+        {
+            let name = Name::from(name.id.as_str());
+            if !declared_fields.contains(&name) {
+                declared_fields.push(name);
+            }
+        }
         match stmt {
             ast::Stmt::Pass(_) => {}
             ast::Stmt::AnnAssign(ann) if is_dataclass => {
@@ -139,10 +199,12 @@ pub fn parse_class_def(
                     continue;
                 };
                 let value = lower_class_expr(
+                    Some(&class_names),
                     file,
                     globals,
                     module_vars,
                     nested_funcs,
+                    nested_defaults,
                     main_body,
                     diags,
                     &assign.value,
@@ -162,10 +224,12 @@ pub fn parse_class_def(
                         continue;
                     };
                     let value = lower_class_expr(
+                        Some(&class_names),
                         file,
                         globals,
                         module_vars,
                         nested_funcs,
+                        nested_defaults,
                         main_body,
                         diags,
                         value_expr,
@@ -208,7 +272,7 @@ pub fn parse_class_def(
                     );
                     continue;
                 }
-                let Some(slot) = method_map.get(fn_def.name.as_str()) else {
+                let Some(slot) = method_map.get(&fn_def.range) else {
                     diags.push(
                         Diagnostic::error(
                             Span::new(file, fn_def.range()),
@@ -219,7 +283,19 @@ pub fn parse_class_def(
                     );
                     continue;
                 };
-                let decorators = parse_method_decorators(fn_def, file, diags);
+                class_scopes.insert(slot.func, class_names.clone());
+                let decorators = crate::decorators::lower_list(
+                    &fn_def.decorator_list,
+                    false,
+                    Some(&class_names),
+                    file,
+                    globals,
+                    module_vars,
+                    nested_funcs,
+                    nested_defaults,
+                    main_body,
+                    diags,
+                );
                 body.push(ClassItem {
                     kind: ClassItemKind::Method {
                         func: slot.func,
@@ -245,10 +321,12 @@ pub fn parse_class_def(
                     continue;
                 }
                 let value = lower_class_expr(
+                    Some(&class_names),
                     file,
                     globals,
                     module_vars,
                     nested_funcs,
+                    nested_defaults,
                     main_body,
                     diags,
                     &expr_stmt.value,
@@ -266,6 +344,24 @@ pub fn parse_class_def(
                 ));
             }
         }
+        match stmt {
+            ast::Stmt::Assign(assign) => {
+                for target in &assign.targets {
+                    if let ast::Expr::Name(name) = target {
+                        class_names.insert(Name::from(name.id.as_str()));
+                    }
+                }
+            }
+            ast::Stmt::AnnAssign(assign) if assign.value.is_some() => {
+                if let ast::Expr::Name(name) = assign.target.as_ref() {
+                    class_names.insert(Name::from(name.id.as_str()));
+                }
+            }
+            ast::Stmt::FunctionDef(def) => {
+                class_names.insert(Name::from(def.name.as_str()));
+            }
+            _ => {}
+        }
     }
 
     if !is_dataclass && fields.is_empty() {
@@ -276,64 +372,15 @@ pub fn parse_class_def(
         name: class_name,
         base,
         fields,
+        declared_fields,
         body,
         frozen,
         is_dataclass,
         is_exception,
         range: class_def.range(),
+        decorators,
+        decorated_binding,
     })
-}
-
-/// 识别类修饰器：目前只支持 `@dataclass` / `@dataclass(frozen=True)`。
-fn parse_class_decorators(
-    class_def: &ast::StmtClassDef,
-    file: FileId,
-    diags: &mut Vec<Diagnostic>,
-) -> (bool, bool) {
-    let mut is_dataclass = false;
-    let mut frozen = false;
-    for dec in &class_def.decorator_list {
-        match &dec.expression {
-            ast::Expr::Name(name) if name.id.as_str() == "dataclass" => {
-                is_dataclass = true;
-            }
-            ast::Expr::Call(call) => {
-                if let ast::Expr::Name(callee) = &*call.func
-                    && callee.id.as_str() == "dataclass"
-                {
-                    is_dataclass = true;
-                    for kw in &call.arguments.keywords {
-                        if let Some(arg_name) = &kw.arg
-                            && arg_name.as_str() == "frozen"
-                            && let ast::Expr::BooleanLiteral(b) = &kw.value
-                        {
-                            frozen = b.value;
-                        }
-                    }
-                    continue;
-                }
-                diags.push(
-                    Diagnostic::error(
-                        Span::new(file, dec.range),
-                        "类装饰器暂不支持（目前只有 @dataclass）",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("任意类装饰器属于暂缓能力"),
-                );
-            }
-            _ => {
-                diags.push(
-                    Diagnostic::error(
-                        Span::new(file, dec.range),
-                        "类装饰器暂不支持（目前只有 @dataclass）",
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("任意类装饰器属于暂缓能力"),
-                );
-            }
-        }
-    }
-    (is_dataclass, frozen)
 }
 
 /// 解析 `class X(Base):` 的基类。
@@ -420,65 +467,29 @@ fn parse_base(
     }
 }
 
-/// 方法上的修饰器：只支持 property / staticmethod / classmethod。
-fn parse_method_decorators(
-    fn_def: &ast::StmtFunctionDef,
-    file: FileId,
-    diags: &mut Vec<Diagnostic>,
-) -> Vec<Decorator> {
-    let mut out = Vec::new();
-    for dec in &fn_def.decorator_list {
-        let ast::Expr::Name(name) = &dec.expression else {
-            diags.push(
-                Diagnostic::error(
-                    Span::new(file, dec.range),
-                    "方法修饰器必须是 property / staticmethod / classmethod",
-                )
-                .with_code("E0100")
-                .with_primary_label("任意方法装饰器属于暂缓能力"),
-            );
-            continue;
-        };
-        match name.id.as_str() {
-            "property" => out.push(Decorator::Property),
-            "staticmethod" => out.push(Decorator::StaticMethod),
-            "classmethod" => out.push(Decorator::ClassMethod),
-            _ => diags.push(
-                Diagnostic::error(
-                    Span::new(file, dec.range),
-                    format!("暂不支持方法修饰器 `{}`", name.id),
-                )
-                .with_code("E0100")
-                .with_primary_label("目前只支持 property / staticmethod / classmethod"),
-            ),
-        }
-    }
-    out
-}
-
 /// 在模块作用域降级类体里的表达式。
-fn lower_class_expr(
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn lower_class_expr(
+    class_names: Option<&rustc_hash::FxHashSet<Name>>,
     file: FileId,
     globals: &GlobalScope,
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
+    nested_defaults: &mut FxHashMap<FuncId, Vec<Option<ExprId>>>,
     body: &mut Body,
     diags: &mut Vec<Diagnostic>,
     expr: &ast::Expr,
 ) -> ExprId {
     let scope = FunctionScope::default();
-    // 类体里不支持 lambda（lower_lambda 会报诊断），因此不需要真正的
-    // 嵌套默认值登记表；这里放一个空表满足签名。
-    let mut dummy_nested_defaults: FxHashMap<crate::hir::FuncId, Vec<Option<crate::hir::ExprId>>> =
-        FxHashMap::default();
     let mut ctx = ExprLowerCtx {
+        class_names,
         allow_yield: false,
         file,
         global_scope: globals,
         func_scope: &scope,
         module_vars,
         nested_funcs,
-        nested_defaults: &mut dummy_nested_defaults,
+        nested_defaults,
         body,
         diagnostics: diags,
     };

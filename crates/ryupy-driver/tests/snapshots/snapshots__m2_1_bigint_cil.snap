@@ -125,17 +125,17 @@ expression: cil
             [58] [System.Runtime]System.Object,
             [59] [System.Runtime]System.Object
         )
-        IL_0000: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0000: LoadNull
         IL_0001: StoreStaticField(RyuPy.Generated.Module.m0___mv0___name__)
-        IL_0002: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0002: LoadNull
         IL_0003: StoreStaticField(RyuPy.Generated.Module.m0___mv1___package__)
-        IL_0004: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0004: LoadNull
         IL_0005: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
-        IL_0006: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0006: LoadNull
         IL_0007: StoreStaticField(RyuPy.Generated.Module.m0___mv3_maximum)
-        IL_0008: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0008: LoadNull
         IL_0009: StoreStaticField(RyuPy.Generated.Module.m0___mv4_minimum)
-        IL_000a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_000a: LoadNull
         IL_000b: StoreStaticField(RyuPy.Generated.Module.m0___mv5_value)
         IL_000c: LoadString("m2_1_bigint.py")
         IL_000d: LoadString("<module>")

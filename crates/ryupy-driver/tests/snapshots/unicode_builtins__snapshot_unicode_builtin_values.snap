@@ -1,0 +1,54 @@
+---
+source: crates/ryupy-driver/tests/unicode_builtins.rs
+expression: "output.replace(path.to_str().unwrap(), \"unicode.py\")"
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+
+    bb0: {
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        _0 = RuntimeFn::TracePush(const "ryupy_test_unicode_builtin_value.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_test_unicode_builtin_value.py");
+        g2 = _3;
+        // line 1
+        _4 = RuntimeFn::BuiltinFunction(const "ord");
+        g3 = _4;
+        // line 2
+        _5 = RuntimeFn::BuiltinFunction(const "chr");
+        g4 = _5;
+        // line 3
+        _6 = RuntimeFn::LoadName(global@3, const "f");
+        _7 = RuntimeFn::LoadName(global@4, const "g");
+        _8 = box<I64>(const 65_i64);
+        _9 = dyn.call(_7, [_8]);
+        _10 = dyn.call(_6, [_9]);
+        RuntimeFn::WriteObject(_10);
+        RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

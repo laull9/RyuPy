@@ -249,11 +249,11 @@ fn main() -> () {
     region r9: [85, +1) catch ValueError handler->bb87
 
     bb0: {
-        g0 = None;
-        g1 = None;
-        g2 = None;
-        g3 = None;
-        g4 = None;
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
         _0 = RuntimeFn::TracePush(const "m2_2_finally.py", const "<module>");
         // line 1
         _1 = box<Str>(const "__main__");

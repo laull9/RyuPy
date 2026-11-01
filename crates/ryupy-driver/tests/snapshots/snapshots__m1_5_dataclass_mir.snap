@@ -66,20 +66,23 @@ fn main() -> () {
     let _0: i64;
     let _1: dyn;
     let _2: dyn;
-    let _3: Class(0);
-    let _4: i64;
-    let _5: i64;
-    let _6: i64;
-    let _7: bool;
-    let _8: dyn;
-    let _9: Class(0);
-    let _10: f64;
-    let _11: Class(1);
-    let _12: Class(1);
-    let _13: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: Class(0);
+    let _7: i64;
+    let _8: i64;
+    let _9: i64;
+    let _10: bool;
+    let _11: dyn;
+    let _12: Class(0);
+    let _13: f64;
+    let _14: Class(1);
+    let _15: Class(1);
+    let _16: i64;
 
     bb0: {
-        g7 = None;
+        g7 = null;
         _0 = RuntimeFn::TracePush(const "m1_5_dataclass.py", const "<module>");
         // line 1
         g2 = const "__main__";
@@ -90,33 +93,40 @@ fn main() -> () {
         // line 5
         _1 = RuntimeFn::MakeClass(const "Body", [], null);
         g0 = _1;
+        RuntimeFn::DeclareDataclass(_1, [const "x", const "v", const "m"], const false);
         // line 12
         _2 = RuntimeFn::MakeClass(const "Vec2", [], null);
         g1 = _2;
+        RuntimeFn::DeclareDataclass(_2, [const "x", const "y"], const true);
         // line 18
+        _3 = RuntimeFn::TypeObject(const "float");
+        _4 = RuntimeFn::DynNone();
+        RuntimeFn::FunctionMetadata(global@8, null, [const "b", const "dt", const "return"], [global@0, _3, _4]);
         // line 22
+        _5 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@11, null, [const "a", const "b", const "return"], [global@1, global@1, _5]);
         // line 26
-        _3 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
-        g5 = _3;
+        _6 = New(Class(0), [const 0_f64, const 2_f64, const 1_f64]);
+        g5 = _6;
         // line 27
-        _4 = const 0_i64;
-        _5 = const 10_i64;
-        _6 = const 1_i64;
+        _7 = const 0_i64;
+        _8 = const 10_i64;
+        _9 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _7 = Lt(_4, _5);
-        branch _7 -> [then: bb2, else: bb5];
+        _10 = Lt(_7, _8);
+        branch _10 -> [then: bb2, else: bb5];
     }
     bb2: {
-        g6 = _4;
+        g6 = _7;
         // line 28
         step(global@5, const 0.5_f64);
-        _8 = RuntimeFn::DynNone();
+        _11 = RuntimeFn::DynNone();
         goto -> bb3;
     }
     bb3: {
-        _4 = Add(_4, _6);
+        _7 = Add(_7, _9);
         goto -> bb1;
     }
     bb4: {
@@ -124,15 +134,15 @@ fn main() -> () {
     }
     bb5: {
         // line 29
-        _9 = global@5;
-        _10 = _9.0;
-        RuntimeFn::WriteF64(_10);
+        _12 = global@5;
+        _13 = _12.0;
+        RuntimeFn::WriteF64(_13);
         RuntimeFn::WriteNewline();
         // line 30
-        _11 = New(Class(1), [const 1_i64, const 2_i64]);
-        _12 = New(Class(1), [const 3_i64, const 4_i64]);
-        _13 = dot(_11, _12);
-        RuntimeFn::WriteI64(_13);
+        _14 = New(Class(1), [const 1_i64, const 2_i64]);
+        _15 = New(Class(1), [const 3_i64, const 4_i64]);
+        _16 = dot(_14, _15);
+        RuntimeFn::WriteI64(_16);
         RuntimeFn::WriteNewline();
         goto -> bb6;
     }

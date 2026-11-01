@@ -113,8 +113,12 @@ fn fib_iter(_0: i64) -> i64 {
 
 fn main() -> () {
     let _0: i64;
-    let _1: i64;
-    let _2: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: i64;
+    let _6: i64;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_3_fib.py", const "<module>");
@@ -125,14 +129,20 @@ fn main() -> () {
         // line 1
         g2 = const "m1_3_fib.py";
         // line 2
+        _1 = RuntimeFn::TypeObject(const "int");
+        _2 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@3, null, [const "n", const "return"], [_1, _2]);
         // line 8
+        _3 = RuntimeFn::TypeObject(const "int");
+        _4 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@6, null, [const "n", const "return"], [_3, _4]);
         // line 18
-        _1 = fib_rec(const 25_i64);
-        RuntimeFn::WriteI64(_1);
+        _5 = fib_rec(const 25_i64);
+        RuntimeFn::WriteI64(_5);
         RuntimeFn::WriteNewline();
         // line 19
-        _2 = fib_iter(const 90_i64);
-        RuntimeFn::WriteI64(_2);
+        _6 = fib_iter(const 90_i64);
+        RuntimeFn::WriteI64(_6);
         RuntimeFn::WriteNewline();
         goto -> bb1;
     }

@@ -510,6 +510,25 @@ impl StmtLowerCtx<'_> {
                 self.lower_nonlocal(n);
                 return None;
             }
+            ast::Stmt::ClassDef(class) if self.module_scope => {
+                let class_id = self
+                    .classes
+                    .iter()
+                    .find_map(|(id, registered)| (registered.range == class.range).then_some(id));
+                match class_id {
+                    Some(id) => StmtKind::ClassDef(id),
+                    None => {
+                        self.diagnostics.push(
+                            Diagnostic::error(
+                                Span::new(self.file, class.range),
+                                "模块类定义未预登记",
+                            )
+                            .with_code("E0101"),
+                        );
+                        return None;
+                    }
+                }
+            }
             ast::Stmt::FunctionDef(f) => {
                 return self.lower_nested_def(f);
             }

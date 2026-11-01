@@ -15,7 +15,7 @@
 //! 运行时通过委托创建它，从而保持 CLR 与 Python 继承树同构（`except ValueError`
 //! 才能直接映射成类型化 catch）。
 
-use ryupy_hir::{ClassBase, ClassItemKind, Decorator};
+use ryupy_hir::{ClassBase, ClassItemKind};
 
 use crate::build::FunctionBuilder;
 use crate::mir::{Callee, Constant, MirType, Operand, RuntimeFn, Rvalue, Statement};
@@ -32,6 +32,19 @@ impl FunctionBuilder<'_> {
         let is_exception = cls.is_exception;
         let items = cls.body.clone();
         let mir_cls = self.class_map[&cls_id];
+        let decorated_binding = cls.decorated_binding;
+        let frozen = cls.frozen;
+        let fields = cls
+            .declared_fields
+            .iter()
+            .map(|name| Operand::Const(Constant::Str(name.as_str().to_owned())))
+            .collect();
+        let decorators = if decorated_binding.is_some() {
+            cls.decorators.clone()
+        } else {
+            vec![]
+        };
+        let decorators = self.prepare_decorators(&decorators);
 
         // 1. 基类表达式先于类体求值（与 CPython 的 `__build_class__` 顺序一致）。
         let bases = match base {
@@ -47,6 +60,7 @@ impl FunctionBuilder<'_> {
                 );
                 vec![type_object]
             }
+            Some(ClassBase::Expr(expr)) => vec![self.freeze_expression(expr)],
             None => Vec::new(),
         };
 
@@ -77,6 +91,7 @@ impl FunctionBuilder<'_> {
         });
         let class_object = Operand::Local(dest);
 
+        let previous_namespace = self.class_namespace.replace(class_object.clone());
         // 3. 按源码顺序执行类体。
         for item in items {
             match item.kind {
@@ -90,29 +105,32 @@ impl FunctionBuilder<'_> {
                     let _ = self.expr_builder().build_expr(value);
                 }
                 ClassItemKind::Method { func, decorators } => {
-                    // 默认值在 `def` 执行时求值（类体位置），之后才创建函数对象。
-                    self.emit_function_defaults(func);
-                    let Some(&function_global) = self.fn_globals.get(&func) else {
-                        continue;
-                    };
-                    let mut value = Operand::Global(function_global);
-                    // 修饰器从下往上应用：`@property @staticmethod def f` 先 staticmethod。
-                    for decorator in decorators.iter().rev() {
-                        let kind = match decorator {
-                            Decorator::Property => 1i64,
-                            Decorator::StaticMethod => 2,
-                            Decorator::ClassMethod => 3,
-                        };
-                        value = self.expr_builder().runtime_call(
-                            RuntimeFn::Decorate,
-                            vec![Operand::Const(Constant::I64(kind)), value],
-                            MirType::Dynamic,
-                        );
-                    }
+                    // 装饰器先求值，再求默认值/创建原始函数，最后逆序应用。
+                    let prepared = self.prepare_decorators(&decorators);
+                    let value = self.create_function(func);
+                    let value = self.apply_decorators(value, prepared, false);
                     let method_name = self.hir.functions[func].name.as_str().to_owned();
                     self.emit_set_attr(class_object.clone(), &method_name, value);
                 }
             }
+        }
+        self.class_namespace = previous_namespace;
+        if !self.hir.classes[cls_id].declared_fields.is_empty() {
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::DeclareDataclass),
+                args: vec![
+                    class_object.clone(),
+                    Operand::Array(fields),
+                    Operand::Const(Constant::Bool(frozen)),
+                ],
+            }));
+        }
+        let value = self.apply_decorators(class_object, decorators, frozen);
+        if let Some(binding) = decorated_binding {
+            self.push_stmt(Statement::SetGlobal {
+                dest: self.module_vars[&binding],
+                value,
+            });
         }
     }
 

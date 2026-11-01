@@ -548,6 +548,7 @@ public static class PyExceptionTypes
         ["NameError"] = m => new PyNameError(m),
         ["UnboundLocalError"] = m => new PyUnboundLocalError(m),
         ["AttributeError"] = m => new PyAttributeError(m),
+        ["FrozenInstanceError"] = m => new PyFrozenInstanceError(m),
         ["RuntimeError"] = m => new PyRuntimeError(m),
         ["NotImplementedError"] = m => new PyNotImplementedError(m),
         ["RecursionError"] = m => new PyRecursionError(m),

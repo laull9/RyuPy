@@ -28,7 +28,7 @@ const MAX_ROUNDS: usize = 16;
 pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
     let mut modes: ArenaMap<ryupy_hir::FuncId, FuncMode> = ArenaMap::default();
     for (func_id, func) in module.functions.iter() {
-        modes.insert(func_id, initial_mode(func));
+        modes.insert(func_id, initial_mode(module, func));
     }
 
     // 模块级变量的槽位类型只依赖 HIR 结构，先算好供所有轮次复用。
@@ -109,12 +109,20 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
 }
 
 /// 标注齐全才可能走静态路径；模块入口没有标注，但从静态开始（Phase 1 行为）。
-fn initial_mode(func: &Function) -> FuncMode {
+fn initial_mode(module: &Module, func: &Function) -> FuncMode {
     // M3.0：闭包能力一律走动态路径——
     // - 含嵌套 def / lambda 的函数需要创建函数对象与 cell 装箱；
     // - 引用外层 cell（free 非空）的函数需要 env 参数与动态读取。
     // 两者都不影响未捕获函数保留静态快路径。
     if func.is_generator || func.closure.has_nested || !func.closure.free.is_empty() {
+        return FuncMode::Dynamic;
+    }
+    // 装饰后的类标注只指向公开动态值，不能据原 ClassId 生成静态布局。
+    if func.params.iter().filter_map(|p| p.annotation.as_ref())
+        .chain(func.ret.iter())
+        .chain(func.body.locals.iter().filter_map(|(_, l)| l.annotation.as_ref()))
+        .any(|ann| matches!(ann, TypeRef::Class(id) if module.classes[*id].decorated_binding.is_some()))
+    {
         return FuncMode::Dynamic;
     }
     if func.kind == FunctionKind::ModuleMain {
@@ -165,16 +173,28 @@ fn compute_sigs(
                     .map(|p| {
                         p.annotation
                             .as_ref()
-                            .map(type_ref_to_ty)
+                            .map(|ann| module_type_ref_to_ty(module, ann))
                             .unwrap_or(Ty::Dynamic)
                     })
                     .collect(),
-                ret: func.ret.as_ref().map(type_ref_to_ty).unwrap_or(Ty::Dynamic),
+                ret: func
+                    .ret
+                    .as_ref()
+                    .map(|ann| module_type_ref_to_ty(module, ann))
+                    .unwrap_or(Ty::Dynamic),
             }
         };
         sigs.insert(func_id, sig);
     }
     sigs
+}
+
+/// 类装饰器可替换类对象；原静态布局不再是可信类型事实。
+pub(crate) fn module_type_ref_to_ty(module: &Module, annotation: &TypeRef) -> Ty {
+    match annotation {
+        TypeRef::Class(id) if module.classes[*id].decorated_binding.is_some() => Ty::Dynamic,
+        _ => type_ref_to_ty(annotation),
+    }
 }
 
 struct StaticOutcome {
@@ -285,7 +305,7 @@ impl FunctionChecker<'_> {
             if !loc.is_param {
                 let v = self.infer.new_var();
                 if let Some(ann) = &loc.annotation {
-                    let ann_ty = type_ref_to_ty(ann);
+                    let ann_ty = module_type_ref_to_ty(self.module, ann);
                     let _ = self.infer.unify(&InferTy::Var(v), &InferTy::Known(ann_ty));
                 }
                 self.local_vars.insert(loc_id, InferTy::Var(v));
@@ -306,13 +326,28 @@ impl FunctionChecker<'_> {
             // 类体属性表达式也在模块作用域求值，必须补齐类型旁表，
             // 否则 MIR 会把它们当成都态值而丢失静态特化。
             for (_, class) in self.module.classes.iter() {
+                self.soft_demote |= class.decorated_binding.is_some();
+                for decorator in &class.decorators {
+                    if let ryupy_hir::Decorator::Expr(expr) = decorator {
+                        self.check_expr(*expr);
+                    }
+                }
+                if let Some(ryupy_hir::ClassBase::Expr(expr)) = &class.base {
+                    self.check_expr(*expr);
+                }
                 for item in &class.body {
                     match &item.kind {
                         ryupy_hir::ClassItemKind::Attr { value, .. }
                         | ryupy_hir::ClassItemKind::Expr(value) => {
                             self.check_expr(*value);
                         }
-                        ryupy_hir::ClassItemKind::Method { .. } => {}
+                        ryupy_hir::ClassItemKind::Method { decorators, .. } => {
+                            for decorator in decorators {
+                                if let ryupy_hir::Decorator::Expr(expr) = decorator {
+                                    self.check_expr(*expr);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -352,7 +387,7 @@ impl FunctionChecker<'_> {
             }
             ExprKind::ModuleVar(var) => self.module_vars.get(*var).cloned().unwrap_or(Ty::Dynamic),
             // 闭包自由变量与 lambda 对象都是动态值（M3.0）
-            ExprKind::Free(_) | ExprKind::Lambda(_) => Ty::Dynamic,
+            ExprKind::Free(_) | ExprKind::Lambda(_) | ExprKind::ClassLocal(_) => Ty::Dynamic,
             // 函数名作为值使用时是一等函数对象；调用位置由 check_call 单独处理。
             ExprKind::Func(id) => Ty::Func(*id),
             ExprKind::Builtin(builtin) => match builtin {
@@ -441,7 +476,9 @@ impl FunctionChecker<'_> {
                 }
             }
             ExprKind::Class(cls_id) => {
-                if self.module.classes[*cls_id].is_dataclass {
+                if self.module.classes[*cls_id].is_dataclass
+                    && self.module.classes[*cls_id].decorated_binding.is_none()
+                {
                     Ty::Class(*cls_id)
                 } else {
                     // 普通 class 的类对象与实例都是运行时 `PyClass` / `PyInstance`，

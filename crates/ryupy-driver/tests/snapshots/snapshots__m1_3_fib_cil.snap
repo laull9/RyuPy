@@ -1,6 +1,5 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
-assertion_line: 145
 expression: cil
 ---
 .assembly m1_3_fib
@@ -167,8 +166,12 @@ expression: cil
     {
         .locals init (
             [0] long,
-            [1] long,
-            [2] long
+            [1] [System.Runtime]System.Object,
+            [2] [System.Runtime]System.Object,
+            [3] [System.Runtime]System.Object,
+            [4] [System.Runtime]System.Object,
+            [5] long,
+            [6] long
         )
         IL_0000: LoadString("m1_3_fib.py")
         IL_0001: LoadString("<module>")
@@ -188,28 +191,86 @@ expression: cil
         IL_000f: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
         IL_0010: LoadConstantInt32(2)
         IL_0011: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_0012: LoadConstantInt32(8)
-        IL_0013: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_0014: LoadConstantInt32(18)
-        IL_0015: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_0016: LoadConstantInt64(25)
-        IL_0017: Call(static long RyuPy.Generated.Module.m0_fib_rec(long))
-        IL_0018: StoreLocal(1)
-        IL_0019: LoadLocal(1)
-        IL_001a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
-        IL_001b: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
-        IL_001c: LoadConstantInt32(19)
-        IL_001d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_001e: LoadConstantInt64(90)
-        IL_001f: Call(static long RyuPy.Generated.Module.m0_fib_iter(long))
-        IL_0020: StoreLocal(2)
-        IL_0021: LoadLocal(2)
-        IL_0022: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
-        IL_0023: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
-        IL_0024: Branch(37)
-        IL_0025: LoadLocal(0)
-        IL_0026: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
-        IL_0027: Return
+        IL_0012: LoadString("int")
+        IL_0013: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_0014: StoreLocal(1)
+        IL_0015: LoadString("int")
+        IL_0016: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_0017: StoreLocal(2)
+        IL_0018: LoadStaticField(RyuPy.Generated.Module.m0___fn_0)
+        IL_0019: LoadNull
+        IL_001a: LoadConstantInt32(2)
+        IL_001b: NewArray([System.Runtime]System.Object)
+        IL_001c: Duplicate
+        IL_001d: LoadConstantInt32(0)
+        IL_001e: LoadString("n")
+        IL_001f: StoreElement([System.Runtime]System.Object)
+        IL_0020: Duplicate
+        IL_0021: LoadConstantInt32(1)
+        IL_0022: LoadString("return")
+        IL_0023: StoreElement([System.Runtime]System.Object)
+        IL_0024: LoadConstantInt32(2)
+        IL_0025: NewArray([System.Runtime]System.Object)
+        IL_0026: Duplicate
+        IL_0027: LoadConstantInt32(0)
+        IL_0028: LoadLocal(1)
+        IL_0029: StoreElement([System.Runtime]System.Object)
+        IL_002a: Duplicate
+        IL_002b: LoadConstantInt32(1)
+        IL_002c: LoadLocal(2)
+        IL_002d: StoreElement([System.Runtime]System.Object)
+        IL_002e: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.FunctionMetadata(object, object, object[], object[]))
+        IL_002f: LoadConstantInt32(8)
+        IL_0030: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0031: LoadString("int")
+        IL_0032: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_0033: StoreLocal(3)
+        IL_0034: LoadString("int")
+        IL_0035: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.TypeObject(string))
+        IL_0036: StoreLocal(4)
+        IL_0037: LoadStaticField(RyuPy.Generated.Module.m0___fn_3)
+        IL_0038: LoadNull
+        IL_0039: LoadConstantInt32(2)
+        IL_003a: NewArray([System.Runtime]System.Object)
+        IL_003b: Duplicate
+        IL_003c: LoadConstantInt32(0)
+        IL_003d: LoadString("n")
+        IL_003e: StoreElement([System.Runtime]System.Object)
+        IL_003f: Duplicate
+        IL_0040: LoadConstantInt32(1)
+        IL_0041: LoadString("return")
+        IL_0042: StoreElement([System.Runtime]System.Object)
+        IL_0043: LoadConstantInt32(2)
+        IL_0044: NewArray([System.Runtime]System.Object)
+        IL_0045: Duplicate
+        IL_0046: LoadConstantInt32(0)
+        IL_0047: LoadLocal(3)
+        IL_0048: StoreElement([System.Runtime]System.Object)
+        IL_0049: Duplicate
+        IL_004a: LoadConstantInt32(1)
+        IL_004b: LoadLocal(4)
+        IL_004c: StoreElement([System.Runtime]System.Object)
+        IL_004d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.FunctionMetadata(object, object, object[], object[]))
+        IL_004e: LoadConstantInt32(18)
+        IL_004f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0050: LoadConstantInt64(25)
+        IL_0051: Call(static long RyuPy.Generated.Module.m0_fib_rec(long))
+        IL_0052: StoreLocal(5)
+        IL_0053: LoadLocal(5)
+        IL_0054: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_0055: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_0056: LoadConstantInt32(19)
+        IL_0057: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0058: LoadConstantInt64(90)
+        IL_0059: Call(static long RyuPy.Generated.Module.m0_fib_iter(long))
+        IL_005a: StoreLocal(6)
+        IL_005b: LoadLocal(6)
+        IL_005c: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteI64(long))
+        IL_005d: Call(static void [RyuPy.Runtime]RyuPy.Runtime.Builtins.WriteNewline())
+        IL_005e: Branch(95)
+        IL_005f: LoadLocal(0)
+        IL_0060: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0061: Return
     }
 
     .method public static int Main(string[]) cil managed

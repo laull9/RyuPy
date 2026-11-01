@@ -110,14 +110,14 @@ fn main() -> () {
     let _67: dyn;
 
     bb0: {
-        g0 = None;
-        g1 = None;
-        g2 = None;
-        g3 = None;
-        g4 = None;
-        g5 = None;
-        g6 = None;
-        g7 = None;
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
+        g6 = null;
+        g7 = null;
         _0 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<module>");
         // line 1
         _1 = box<Str>(const "__main__");

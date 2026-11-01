@@ -1,0 +1,25 @@
+---
+source: crates/ryupy-driver/tests/m3_3.rs
+expression: "output.replace(path.to_str().unwrap(), \"decorators.py\")"
+---
+def decorate(f):
+    return f
+
+def f(x: int=...) -> int:
+    return x
+
+def method(self):
+    return global.f(4)
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_test_m3_3_decorators.py"
+    defaults of decorate
+    @decorate
+    ModuleVar(Idx::<ModuleVar>(3)) = decorated def f
+    class C:
+        deco = decorate
+        @class_namespace.deco
+        def method(self, ...)
+    print(C().method())

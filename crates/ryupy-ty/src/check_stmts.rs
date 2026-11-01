@@ -7,11 +7,32 @@ use ryupy_base::{Diagnostic, Span};
 use ryupy_hir::{AssignTarget, ExprId, StmtKind};
 
 impl FunctionChecker<'_> {
+    /// 默认值与装饰器都属于定义位置的外层表达式 arena。
+    fn check_definition_defaults(&mut self, func: ryupy_hir::FuncId) {
+        for parameter in &self.module.functions[func].params {
+            if let Some(default) = parameter.default {
+                self.check_expr(default);
+            }
+        }
+    }
+
     pub(crate) fn check_stmt(&mut self, stmt_id: ryupy_hir::StmtId) {
         let stmt = &self.func.body.stmts[stmt_id];
         match &stmt.kind {
             // 嵌套 def：外层函数必为动态模式，正常不会走到这里；防御性降级。
-            StmtKind::NestedDef { .. } => self.soft_demote = true,
+            StmtKind::NestedDef { func, .. } => {
+                self.check_definition_defaults(*func);
+                self.soft_demote = true;
+            }
+            StmtKind::DecoratedDef {
+                func, decorators, ..
+            } => {
+                for &decorator in decorators {
+                    self.check_expr(decorator);
+                }
+                self.check_definition_defaults(*func);
+                self.soft_demote = true;
+            }
             StmtKind::Expr(e) => {
                 self.check_expr(*e);
             }

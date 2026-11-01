@@ -26,6 +26,7 @@ pub(crate) enum FnSource<'a> {
 /// 降级单个函数体所需的全部上下文（lower_module 的局部状态打包）。
 #[allow(clippy::too_many_arguments)]
 pub(crate) struct LowerArgs<'a, 'b> {
+    pub(crate) class_names: Option<&'a rustc_hash::FxHashSet<Name>>,
     pub(crate) file: FileId,
     pub(crate) package: &'a str,
     pub(crate) source: FnSource<'b>,
@@ -48,6 +49,7 @@ pub(crate) struct LowerArgs<'a, 'b> {
 /// 降级一个用户函数（顶层 def / 方法 / 嵌套 def / lambda）的函数体。
 pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     let LowerArgs {
+        class_names,
         file,
         package,
         source,
@@ -107,6 +109,13 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         func_scope.cells.insert(name.clone());
     }
 
+    let docstring = match body_stmts.first() {
+        Some(ast::Stmt::Expr(statement)) => match statement.value.as_ref() {
+            ast::Expr::StringLiteral(text) => Some(text.value.to_str().to_owned()),
+            _ => None,
+        },
+        _ => None,
+    };
     let mut params = Vec::new();
     // 默认值按「最终参数顺序」对齐：顶层函数在 main 作用域求值（共享同一份），
     // 嵌套函数在此记录对齐表、由 lower_nested_def 在外层 def 位置求值。
@@ -138,6 +147,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
             default.map(|expr| {
                 // 顶层函数：默认值在模块作用域求值（`def f(x=[])` 的列表在调用间共享）。
                 let id = crate::lower::lower_default_expr(
+                    class_names,
                     file,
                     global_scope,
                     module_vars,
@@ -345,6 +355,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         }
     }
 
+    functions[func_id].docstring = docstring;
     functions[func_id].is_generator = is_generator;
     functions[func_id].params = params;
     functions[func_id].ret = ret;

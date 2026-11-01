@@ -193,6 +193,11 @@ pub enum RuntimeFn {
     CellGetFree,
     /// `PyOps.TypeObject(string) -> object`：内建构造名作为值使用时的类型对象。
     TypeObject,
+    BuiltinFunction,
+    FunctionMetadata,
+    ClassNamespaceGet,
+    DeclareDataclass,
+    ApplyDataclass,
     /// `PyOps.ArgError(int, string) -> object`：绑定失败时抛 `TypeError`（永不返回）。
     ArgError,
     /// `PyOps.StarArg(object) -> object`：给 `*iterable` 实参打标记，由运行时展开。

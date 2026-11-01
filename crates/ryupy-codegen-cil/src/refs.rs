@@ -447,6 +447,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let (generator_resume_ctor, generator_ctor, generator_input, generator_retry) =
         crate::generator_refs::build(res, ryupy_runtime);
     let runtime_refs = RuntimeRefs {
+        function_objects: crate::function_refs::FunctionRefs::build(res, ryupy_runtime),
         delegation: crate::generator_refs::DelegateRefs::build(res, ryupy_runtime),
         prepare_method,
         generator_resume_ctor,

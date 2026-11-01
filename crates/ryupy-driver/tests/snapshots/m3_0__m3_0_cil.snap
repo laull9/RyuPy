@@ -201,21 +201,21 @@ expression: output
             [66] [System.Runtime]System.Object,
             [67] [System.Runtime]System.Object
         )
-        IL_0000: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0000: LoadNull
         IL_0001: StoreStaticField(RyuPy.Generated.Module.m0___mv0___name__)
-        IL_0002: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0002: LoadNull
         IL_0003: StoreStaticField(RyuPy.Generated.Module.m0___mv1___package__)
-        IL_0004: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0004: LoadNull
         IL_0005: StoreStaticField(RyuPy.Generated.Module.m0___mv2___file__)
-        IL_0006: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0006: LoadNull
         IL_0007: StoreStaticField(RyuPy.Generated.Module.m0___mv3_add)
-        IL_0008: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_0008: LoadNull
         IL_0009: StoreStaticField(RyuPy.Generated.Module.m0___mv4_read)
-        IL_000a: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_000a: LoadNull
         IL_000b: StoreStaticField(RyuPy.Generated.Module.m0___mv5_late)
-        IL_000c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_000c: LoadNull
         IL_000d: StoreStaticField(RyuPy.Generated.Module.m0___mv6_early)
-        IL_000e: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.None())
+        IL_000e: LoadNull
         IL_000f: StoreStaticField(RyuPy.Generated.Module.m0___mv7_index)
         IL_0010: LoadString("m3_0_closures.py")
         IL_0011: LoadString("<module>")

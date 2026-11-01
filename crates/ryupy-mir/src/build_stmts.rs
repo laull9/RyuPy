@@ -6,7 +6,7 @@
 //! 循环与 `try` 的具体构建分别在 `build_loops.rs` / `build_try.rs`。
 
 use ryupy_base::{Diagnostic, Span};
-use ryupy_hir::{AssignTarget, Binding, Builtin, ExprId, ExprKind, ModuleVarId, StmtId, StmtKind};
+use ryupy_hir::{AssignTarget, Builtin, ExprId, ExprKind, ModuleVarId, StmtId, StmtKind};
 use ryupy_ty::{Ty, type_ref_to_ty};
 
 use crate::build::{ARG_ERROR_UNEXPECTED_KEYWORD, FunctionBuilder, ty_to_mir};
@@ -292,43 +292,19 @@ impl FunctionBuilder<'_> {
             }
             StmtKind::FunctionDefaults(fn_id) => {
                 self.emit_function_defaults(*fn_id);
+                if let Some(&global) = self.fn_globals.get(fn_id) {
+                    self.emit_function_metadata(*fn_id, Operand::Global(global));
+                }
             }
             StmtKind::NestedDef { func, target } => {
-                // 嵌套 def（M3.0）：在这里创建函数对象并写入绑定名。
-                // 默认值此刻在外层作用域求值（每次执行 def 都重新求值）；
-                // 闭包环境由当前作用域的 cell / env 提供。
-                let env = self.expr_builder().build_closure_env(*func);
-                let mut defaults = Vec::new();
-                for param in &self.hir.functions[*func].params {
-                    if let Some(expr) = param.default {
-                        let ty = self.expr_builder().ty_of(expr);
-                        let op = self.expr_builder().build_expr(expr);
-                        let boxed = self.expr_builder().coerce(op, &ty, &MirType::Dynamic);
-                        defaults.push(boxed);
-                    } else {
-                        // 占位：binder 只按 HasDefault 读取对应下标。
-                        defaults.push(Operand::Const(Constant::Null));
-                    }
-                }
-                let value = self.alloc_temp(MirType::Dynamic);
-                self.push_stmt(Statement::Assign {
-                    dest: value,
-                    value: Rvalue::MakeFunction {
-                        func: self.fn_map[func],
-                        env,
-                        defaults,
-                    },
-                });
-                let binding = match target {
-                    AssignTarget::Local(local) => Binding::Local(*local),
-                    AssignTarget::ModuleVar(var) => Binding::ModuleVar(*var),
-                    AssignTarget::Free(idx) => Binding::Free(*idx),
-                    // def 名不可能是属性 / 下标 / 序列目标
-                    AssignTarget::Attribute { .. }
-                    | AssignTarget::Subscript { .. }
-                    | AssignTarget::Sequence(_) => return,
-                };
-                self.store_binding(binding, Operand::Local(value), &MirType::Dynamic);
+                self.build_decorated_def(*func, target, &[]);
+            }
+            StmtKind::DecoratedDef {
+                func,
+                target,
+                decorators,
+            } => {
+                self.build_decorated_def(*func, target, &decorators.clone());
             }
             StmtKind::ForRange {
                 var,

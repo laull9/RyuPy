@@ -366,7 +366,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 - [x] `ord` / `chr` 直接调用：码点（含补充平面/孤立代理项）、单字节bytes/bytearray、`__index__`、范围与参数错误；wcwidth首阻断已从ord前移至map，项目仍未通过
 - [ ] 修复独立代理码点拼接被UTF16合并的表示缺口（D009），`m3_builtins_surrogate_pair.py`保留pending；非已接受性能偏差
-- [ ] 一等内建函数值与惰性`map`：补wcwidth/markdown首阻断，保持函数身份、参数绑定与逐项消费；ord/chr当前作为值报E0305，其他旧内建值缺口须一并审计
+- [ ] 一等内建函数值与惰性`map`：补wcwidth/markdown首阻断，保持函数身份、参数绑定与逐项消费；一等函数值已随M3.3完成，惰性map仍未实现
 
 ### 通用兼容欠账
 
@@ -424,12 +424,12 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 ### M3.3 装饰器与可调用包装
 
-> 依赖 M3.0 / Phase 2 类与调用。用例：`m3_3_decorators.py`。
+> 依赖 M3.0 / Phase 2 类与调用。M3.3完整验收通过，见ADR-0027及`m3_3_*`差分；88 e2e/18 pending、177 C#、102 CPython基线，固定项目仍0/20。
 
-- [ ] 函数与类装饰器表达式求值、逆序应用、带参数装饰器；仅在定义时执行并绑定返回结果
-- [ ] 接通 callable 对象、闭包包装、方法绑定；保留 __name__ / __doc__ / __annotations__ 等已声明元数据的可用范围
-- [ ] 连接现有 dataclass 特殊降级与运行时装饰器路径，避免重复应用；property 等内建设计保持一致
-- [ ] 验收：多层顺序、副作用、替换 callable、异常与装饰方法通过，functools.wraps 在 M3.6 接续
+- [x] 函数与类装饰器表达式求值、逆序应用、带参数装饰器；仅在定义时执行并绑定返回结果
+- [x] 接通 callable 对象、闭包包装、方法绑定；保留 __name__ / __doc__ / __annotations__ 等已声明元数据的可用范围
+- [x] 连接现有 dataclass 特殊降级与运行时装饰器路径，避免重复应用；property 等内建设计保持一致
+- [x] 验收：多层顺序、副作用、替换 callable、异常与装饰方法通过，functools.wraps 在 M3.6 接续
 
 ### M3.4 标准库：系统、路径与文件
 

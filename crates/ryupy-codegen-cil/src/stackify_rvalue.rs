@@ -204,6 +204,21 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                     RuntimeFn::CallValue => {
                         ins.push(Instruction::call(ctx.runtime_refs.call_value))
                     }
+                    RuntimeFn::BuiltinFunction => {
+                        ins.push(Instruction::call(ctx.runtime_refs.function_objects.builtin))
+                    }
+                    RuntimeFn::ClassNamespaceGet => ins.push(Instruction::call(
+                        ctx.runtime_refs.function_objects.class_namespace_get,
+                    )),
+                    RuntimeFn::DeclareDataclass => ins.push(Instruction::call(
+                        ctx.runtime_refs.function_objects.declare_dataclass,
+                    )),
+                    RuntimeFn::ApplyDataclass => ins.push(Instruction::call(
+                        ctx.runtime_refs.function_objects.apply_dataclass,
+                    )),
+                    RuntimeFn::FunctionMetadata => ins.push(Instruction::call(
+                        ctx.runtime_refs.function_objects.metadata,
+                    )),
                     RuntimeFn::TypeObject => {
                         ins.push(Instruction::call(ctx.runtime_refs.type_object))
                     }

@@ -179,13 +179,18 @@ fn main() -> () {
     let _39: dyn;
     let _40: dyn;
     let _41: dyn;
+    let _42: dyn;
+    let _43: dyn;
+    let _44: dyn;
+    let _45: dyn;
+    let _46: dyn;
 
     bb0: {
-        g1 = None;
-        g2 = None;
-        g3 = None;
-        g4 = None;
-        g5 = None;
+        g1 = null;
+        g2 = null;
+        g3 = null;
+        g4 = null;
+        g5 = null;
         _0 = RuntimeFn::TracePush(const "m2_5_classes.py", const "<module>");
         // line 1
         _1 = box<Str>(const "__main__");
@@ -201,79 +206,84 @@ fn main() -> () {
         g0 = _4;
         _5 = box<Str>(const "box");
         RuntimeFn::SetAttr(_4, const "category", _5);
-        RuntimeFn::SetAttr(_4, const "__init__", global@6);
-        RuntimeFn::SetAttr(_4, const "add", global@9);
-        _6 = RuntimeFn::Decorate(const 1_i64, global@12);
-        RuntimeFn::SetAttr(_4, const "doubled", _6);
-        _7 = RuntimeFn::Decorate(const 2_i64, global@15);
-        RuntimeFn::SetAttr(_4, const "kind", _7);
-        _8 = RuntimeFn::Decorate(const 3_i64, global@18);
-        RuntimeFn::SetAttr(_4, const "named", _8);
+        _6 = MakeFunction(__init__; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_4, const "__init__", _6);
+        _7 = MakeFunction(add; env=[]; defaults=[null, null]);
+        RuntimeFn::SetAttr(_4, const "add", _7);
+        _8 = MakeFunction(doubled; env=[]; defaults=[null]);
+        _9 = RuntimeFn::Decorate(const 1_i64, _8);
+        RuntimeFn::SetAttr(_4, const "doubled", _9);
+        _10 = MakeFunction(kind; env=[]; defaults=[]);
+        _11 = RuntimeFn::Decorate(const 2_i64, _10);
+        RuntimeFn::SetAttr(_4, const "kind", _11);
+        _12 = MakeFunction(named; env=[]; defaults=[null]);
+        _13 = RuntimeFn::Decorate(const 3_i64, _12);
+        RuntimeFn::SetAttr(_4, const "named", _13);
         // line 25
-        _9 = box<I64>(const 3_i64);
-        _10 = dyn.call(global@0, [_9]);
-        g4 = _10;
+        _14 = box<I64>(const 3_i64);
+        _15 = dyn.call(global@0, [_14]);
+        g4 = _15;
         // line 26
-        _11 = RuntimeFn::LoadName(global@4, const "box");
-        _12 = RuntimeFn::DynGetAttr(_11, const "add");
-        g5 = _12;
-        // line 27
-        _13 = RuntimeFn::LoadName(global@5, const "method");
-        _14 = box<I64>(const 2_i64);
-        _15 = dyn.call(_13, [_14]);
         _16 = RuntimeFn::LoadName(global@4, const "box");
-        _17 = RuntimeFn::DynGetAttr(_16, const "doubled");
-        _18 = dyn.method(global@0, "kind", []);
-        _19 = dyn.method(global@0, "named", []);
-        RuntimeFn::WriteObject(_15);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_17);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_18);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_19);
-        RuntimeFn::WriteNewline();
-        // line 28
-        _20 = box<Str>(const "instance");
+        _17 = RuntimeFn::DynGetAttr(_16, const "add");
+        g5 = _17;
+        // line 27
+        _18 = RuntimeFn::LoadName(global@5, const "method");
+        _19 = box<I64>(const 2_i64);
+        _20 = dyn.call(_18, [_19]);
         _21 = RuntimeFn::LoadName(global@4, const "box");
-        RuntimeFn::SetAttr(_21, const "category", _20);
-        // line 29
-        _22 = RuntimeFn::LoadName(global@4, const "box");
-        _23 = RuntimeFn::DynGetAttr(_22, const "category");
-        _24 = RuntimeFn::DynGetAttr(global@0, const "category");
+        _22 = RuntimeFn::DynGetAttr(_21, const "doubled");
+        _23 = dyn.method(global@0, "kind", []);
+        _24 = dyn.method(global@0, "named", []);
+        RuntimeFn::WriteObject(_20);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_22);
+        RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_23);
         RuntimeFn::WriteSep();
         RuntimeFn::WriteObject(_24);
         RuntimeFn::WriteNewline();
-        // line 30
-        _25 = RuntimeFn::LoadName(global@4, const "box");
-        RuntimeFn::DelAttr(_25, const "category");
-        // line 31
+        // line 28
+        _25 = box<Str>(const "instance");
         _26 = RuntimeFn::LoadName(global@4, const "box");
-        _27 = RuntimeFn::DynGetAttr(_26, const "category");
-        _28 = RuntimeFn::LoadName(global@4, const "box");
-        _29 = box<Str>(const "missing");
-        _30 = RuntimeFn::DynBuiltin(const "hasattr", [_28, _29], [], []);
-        RuntimeFn::WriteObject(_27);
+        RuntimeFn::SetAttr(_26, const "category", _25);
+        // line 29
+        _27 = RuntimeFn::LoadName(global@4, const "box");
+        _28 = RuntimeFn::DynGetAttr(_27, const "category");
+        _29 = RuntimeFn::DynGetAttr(global@0, const "category");
+        RuntimeFn::WriteObject(_28);
         RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_30);
+        RuntimeFn::WriteObject(_29);
+        RuntimeFn::WriteNewline();
+        // line 30
+        _30 = RuntimeFn::LoadName(global@4, const "box");
+        RuntimeFn::DelAttr(_30, const "category");
+        // line 31
+        _31 = RuntimeFn::LoadName(global@4, const "box");
+        _32 = RuntimeFn::DynGetAttr(_31, const "category");
+        _33 = RuntimeFn::LoadName(global@4, const "box");
+        _34 = box<Str>(const "missing");
+        _35 = RuntimeFn::DynBuiltin(const "hasattr", [_33, _34], [], []);
+        RuntimeFn::WriteObject(_32);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_35);
         RuntimeFn::WriteNewline();
         // line 32
-        _31 = RuntimeFn::LoadName(global@4, const "box");
-        _32 = box<Str>(const "extra");
-        _33 = box<I64>(const 7_i64);
-        _34 = RuntimeFn::DynBuiltin(const "setattr", [_31, _32, _33], [], []);
+        _36 = RuntimeFn::LoadName(global@4, const "box");
+        _37 = box<Str>(const "extra");
+        _38 = box<I64>(const 7_i64);
+        _39 = RuntimeFn::DynBuiltin(const "setattr", [_36, _37, _38], [], []);
         // line 33
-        _35 = RuntimeFn::LoadName(global@4, const "box");
-        _36 = box<Str>(const "extra");
-        _37 = RuntimeFn::DynBuiltin(const "getattr", [_35, _36], [], []);
-        _38 = RuntimeFn::LoadName(global@4, const "box");
-        _39 = box<Str>(const "missing");
-        _40 = box<I64>(const 0_i64);
-        _41 = RuntimeFn::DynBuiltin(const "getattr", [_38, _39, _40], [], []);
-        RuntimeFn::WriteObject(_37);
+        _40 = RuntimeFn::LoadName(global@4, const "box");
+        _41 = box<Str>(const "extra");
+        _42 = RuntimeFn::DynBuiltin(const "getattr", [_40, _41], [], []);
+        _43 = RuntimeFn::LoadName(global@4, const "box");
+        _44 = box<Str>(const "missing");
+        _45 = box<I64>(const 0_i64);
+        _46 = RuntimeFn::DynBuiltin(const "getattr", [_43, _44, _45], [], []);
+        RuntimeFn::WriteObject(_42);
         RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_41);
+        RuntimeFn::WriteObject(_46);
         RuntimeFn::WriteNewline();
         goto -> bb1;
     }

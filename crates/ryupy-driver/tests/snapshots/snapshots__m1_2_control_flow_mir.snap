@@ -199,18 +199,25 @@ fn first_multiple(_0: i64, _1: i64) -> i64 {
 
 fn main() -> () {
     let _0: i64;
-    let _1: i64;
-    let _2: i64;
-    let _3: i64;
-    let _4: i64;
-    let _5: i64;
-    let _6: i64;
-    let _7: bool;
-    let _8: bool;
-    let _9: bool;
-    let _10: bool;
-    let _11: bool;
-    let _12: bool;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: i64;
+    let _9: i64;
+    let _10: i64;
+    let _11: i64;
+    let _12: i64;
+    let _13: i64;
+    let _14: bool;
+    let _15: bool;
+    let _16: bool;
+    let _17: bool;
+    let _18: bool;
+    let _19: bool;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_2_control_flow.py", const "<module>");
@@ -221,57 +228,67 @@ fn main() -> () {
         // line 1
         g2 = const "m1_2_control_flow.py";
         // line 2
+        _1 = RuntimeFn::TypeObject(const "int");
+        _2 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@4, null, [const "n", const "return"], [_1, _2]);
         // line 11
+        _3 = RuntimeFn::TypeObject(const "int");
+        _4 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@7, null, [const "n", const "return"], [_3, _4]);
         // line 22
+        _5 = RuntimeFn::TypeObject(const "int");
+        _6 = RuntimeFn::TypeObject(const "int");
+        _7 = RuntimeFn::TypeObject(const "int");
+        RuntimeFn::FunctionMetadata(global@10, null, [const "k", const "limit", const "return"], [_5, _6, _7]);
         // line 36
-        _1 = classify(const -5_i64);
-        _2 = classify(const 0_i64);
-        _3 = classify(const 7_i64);
-        RuntimeFn::WriteI64(_1);
+        _8 = classify(const -5_i64);
+        _9 = classify(const 0_i64);
+        _10 = classify(const 7_i64);
+        RuntimeFn::WriteI64(_8);
         RuntimeFn::WriteSep();
-        RuntimeFn::WriteI64(_2);
+        RuntimeFn::WriteI64(_9);
         RuntimeFn::WriteSep();
-        RuntimeFn::WriteI64(_3);
+        RuntimeFn::WriteI64(_10);
         RuntimeFn::WriteNewline();
         // line 37
-        _4 = collatz_steps(const 27_i64);
-        RuntimeFn::WriteI64(_4);
+        _11 = collatz_steps(const 27_i64);
+        RuntimeFn::WriteI64(_11);
         RuntimeFn::WriteNewline();
         // line 38
-        _5 = first_multiple(const 7_i64, const 100_i64);
-        RuntimeFn::WriteI64(_5);
+        _12 = first_multiple(const 7_i64, const 100_i64);
+        RuntimeFn::WriteI64(_12);
         RuntimeFn::WriteNewline();
         // line 39
-        _6 = first_multiple(const 7_i64, const 3_i64);
-        RuntimeFn::WriteI64(_6);
+        _13 = first_multiple(const 7_i64, const 3_i64);
+        RuntimeFn::WriteI64(_13);
         RuntimeFn::WriteNewline();
         // line 40
         g3 = const 5_i64;
         // line 41
-        _8 = Gt(global@3, const 0_i64);
-        _7 = _8;
-        branch _7 -> [then: bb1, else: bb2];
+        _15 = Gt(global@3, const 0_i64);
+        _14 = _15;
+        branch _14 -> [then: bb1, else: bb2];
     }
     bb1: {
-        _9 = Lt(global@3, const 10_i64);
-        _7 = _9;
+        _16 = Lt(global@3, const 10_i64);
+        _14 = _16;
         goto -> bb2;
     }
     bb2: {
-        RuntimeFn::WriteBool(_7);
+        RuntimeFn::WriteBool(_14);
         RuntimeFn::WriteNewline();
         // line 42
-        _11 = Lt(global@3, const 0_i64);
-        _10 = _11;
-        branch _10 -> [then: bb4, else: bb3];
+        _18 = Lt(global@3, const 0_i64);
+        _17 = _18;
+        branch _17 -> [then: bb4, else: bb3];
     }
     bb3: {
-        _12 = Eq(global@3, const 5_i64);
-        _10 = _12;
+        _19 = Eq(global@3, const 5_i64);
+        _17 = _19;
         goto -> bb4;
     }
     bb4: {
-        RuntimeFn::WriteBool(_10);
+        RuntimeFn::WriteBool(_17);
         RuntimeFn::WriteNewline();
         goto -> bb5;
     }

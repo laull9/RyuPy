@@ -3,9 +3,10 @@
 本文从 Phase 2 开始持续更新。项目集已于 M2.0 冻结（20 个纯 Python 项目，6 类用途），
 CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 已接入额外模块搜索根，
 项目源码可以解析；剩余阻塞逐项目列在下表，集中在内建类型继承、装饰器/元类、内建函数与文件 API。
-语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal，M3.1 增加 list / dict / set 推导式与惰性生成器表达式，M3.2 已增加yield状态机、返回值、send、现代单参throw/close、yield-from与跨暂停异常清理；旧式throw参数和通用兼容欠账仍明确列出。
+语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal，M3.1 增加 list / dict / set 推导式与惰性生成器表达式，M3.2 已增加yield状态机、返回值、send、现代单参throw/close、yield-from与跨暂停异常清理；旧式throw参数和通用兼容欠账仍明确列出。M3.3增加定义位置函数/类装饰器、可调用包装、函数元数据与混合dataclass动态表示。
 2026-11-01 在 Linux x86_64 重跑固定项目集，仍为 0/20 原生通过；没有新增桥接路径。
 ord/chr基础内建已补直接调用，wcwidth首阻断从ord前移至map；progress从生成器with清理前移到未知Progress基类，两者均未计为项目通过。
+M3.3重跑attrs首阻断从类装饰器前移至Protocol基类，仍未计为项目通过。
 急切推导式解除若干前端阻塞，但项目仍需后续语法和 API，不将语法差分通过计入项目分子。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
 
@@ -51,7 +52,7 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 | toml | 0.10.2 / PyPI | loads/dumps 往返 | 无 | 原生 / Linux x86_64 | unsupported：函数体内 `import` | 2026-11-01 |
 | tomli | 2.0.1 / PyPI | 数组表与错误位置 | 无 | 原生 / Linux x86_64 | unsupported：except 处理器类型表达式 | 2026-11-01 |
 | pyparsing | 3.1.2 / PyPI | 表达式与结果命名 | 无 | 原生 / Linux x86_64 | unsupported：`NamedTuple` 基类 / 动态基类 | 2026-11-01 |
-| attrs | 23.2.0 / PyPI | define/field/asdict（元类路径） | 无 | 原生 / Linux x86_64 | unsupported：类装饰器（仅支持 `@dataclass`） | 2026-11-01 |
+| attrs | 23.2.0 / PyPI | define/field/asdict（元类路径） | 无 | 原生 / Linux x86_64 | unsupported：未知基类 `Protocol`（类装饰器首阻断已解除） | 2026-11-01 |
 | networkx | 3.3 / PyPI | 建图、最短路、度序列 | 无 | 原生 / Linux x86_64 | unsupported：`from ... import *` | 2026-11-01 |
 | python-dateutil | 2.9.0.post0 / PyPI | parse 与 relativedelta | six==1.16.0 | 原生 / Linux x86_64 | unsupported：函数体内 `import` | 2026-11-01 |
 | click | 8.1.7 / PyPI | command/option/参数解析 | 无 | 原生 / Linux x86_64 | unsupported：属性表达式基类 | 2026-11-01 |

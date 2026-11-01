@@ -7,6 +7,9 @@ public sealed class PyBuiltinMethod
     private readonly string _name;
     private readonly PyBuiltinMethodCall _call;
 
+    /// <inheritdoc />
+    public override string ToString() => $"<built-in method {_name}>";
+
     internal PyBuiltinMethod(object receiver, string name, PyBuiltinMethodCall call)
     {
         _receiver = receiver;
@@ -35,7 +38,8 @@ public static partial class PyOps
     /// <param name="name">方法属性名。</param>
     public static object? PrepareMethod(object? receiver, string name)
     {
-        if (receiver is PyInstance or PyClass or PySuper or PyModule or PyBaseException or PyType)
+        if (receiver is PyInstance or PyClass or PySuper or PyModule or PyBaseException or PyType
+            or PyFunction or PyBoundMethod or PyBuiltinFunction or PyProperty)
             return PyObject.GetAttr(receiver, name);
 
         // 内建类型不可修改方法表。这里的存在性表必须与各类型 XxxMethod 分派同步；
@@ -88,6 +92,7 @@ public static partial class PyOps
             (string, "find" or "rfind" or "index" or "rindex") => (1, 3),
             (PyGenerator, "__iter__" or "__next__" or "close") => (0, 0),
             (PyGenerator, "send" or "throw") => (1, 1),
+            (PyProperty, "getter" or "setter" or "deleter") => (1, 1),
             _ => throw new PyRuntimeError("missing prepared method signature"),
         };
         if (count < min || count > max)

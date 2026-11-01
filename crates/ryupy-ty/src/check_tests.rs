@@ -172,3 +172,43 @@ fn huge_literal_demotes_function() {
         .expect("缺少模块入口");
     assert!(types.is_dynamic(main_id));
 }
+
+#[test]
+fn decorated_dataclass_annotations_do_not_reuse_static_layout() {
+    let (types, diagnostics) = check(
+        "from dataclasses import dataclass
+def identity(value):
+    return value
+@identity
+@dataclass(frozen=True)
+class Point:
+    x: int
+def mutate(p: Point) -> Point:
+    p.x = 2
+    return p
+",
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    // identity、mutate 与模块入口均动态；frozen检查留给最终对象。
+    assert!(types.modes.iter().all(|(_, mode)| mode.is_dynamic()));
+}
+
+#[test]
+fn pure_dataclass_annotations_keep_static_signature() {
+    let (types, diagnostics) = check(
+        "from dataclasses import dataclass
+@dataclass
+class Point:
+    x: int
+def read(p: Point) -> int:
+    return p.x
+",
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        types
+            .sigs
+            .iter()
+            .any(|(_, sig)| matches!(sig.params.as_slice(), [crate::Ty::Class(_)]))
+    );
+}

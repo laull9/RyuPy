@@ -355,10 +355,10 @@ public static class PyBinder
 /// 默认值数组在模块初始化时分配、由模块顶层代码填充，因此多次调用共享同一份默认值——
 /// 这正是 <c>def f(x=[])</c> 在 CPython 里的行为。
 /// </remarks>
-public sealed class PyFunction
+public sealed partial class PyFunction
 {
-    /// <summary>函数名。</summary>
-    public string Name { get; }
+    /// <summary>函数名；Python __name__ 写入由元数据入口校验。</summary>
+    public string Name { get; private set; }
     /// <summary>参数元数据。</summary>
     public PySignature Signature { get; }
     /// <summary>调用入口（生成代码里的 thunk）。</summary>
