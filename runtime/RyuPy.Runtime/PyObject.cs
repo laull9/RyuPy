@@ -447,6 +447,7 @@ public static class PyObject
         return name switch
         {
             "args" => new PyTuple(exception.Args),
+            "value" when exception is PyStopIteration stop => stop.Value ?? PyNone.Instance,
             "__cause__" => (object?)exception.Cause ?? PyNone.Instance,
             "__context__" => (object?)exception.Context ?? PyNone.Instance,
             "__class__" => (object?)exception.PythonClass ?? PyType.Get(exception.PyTypeName),

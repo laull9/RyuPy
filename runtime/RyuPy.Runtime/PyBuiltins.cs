@@ -493,6 +493,8 @@ public static partial class PyOps
         {
             throw new PyTypeError($"next expected 1 or 2 arguments, got {args.Length}");
         }
+        if (args[0] is PyGenerator generator)
+            return generator.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
         if (args[0] is PyInstance instance)
         {
             try

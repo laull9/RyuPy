@@ -10,7 +10,7 @@ public delegate object? PyResume(object frame);
 /// <remarks>
 /// 首槽为 boxed long 程序计数器，非负数表示可恢复，-1 表示完成。
 /// 其余槽由 MIR 状态机保存局部值或共享 cell 引用；不复制 cell 内容。
-/// 首切不提供 send、throw、close 和生成器返回值协议。
+/// 当前不提供 send、throw 和 close 协议。
 /// </remarks>
 public sealed class PyGenerator : IPyIterator
 {
@@ -35,8 +35,12 @@ public sealed class PyGenerator : IPyIterator
     }
 
     /// <summary>执行到下一个 yield 或完成；None 是合法产出，不是耗尽哨兵。</summary>
-    public bool MoveNext()
+    public bool MoveNext() => MoveNextCore(out _);
+
+    // 完成值只属于本次恢复；普通迭代直接丢弃，不能留给后续 next 领取。
+    private bool MoveNextCore(out object? returnValue)
     {
+        returnValue = null;
         if (_running) throw new PyValueError("generator already executing");
         if (_frame is null) return false;
         _running = true;
@@ -47,7 +51,12 @@ public sealed class PyGenerator : IPyIterator
             var frame = _frame;
             if (ReadState(frame) == -1) { Finish(); return false; }
             object? value = _resume!(frame);
-            if (ReadState(frame) == -1) { Finish(); return false; }
+            if (ReadState(frame) == -1)
+            {
+                returnValue = value;
+                Finish();
+                return false;
+            }
             _current = value;
             return true;
         }
@@ -80,6 +89,17 @@ public sealed class PyGenerator : IPyIterator
         }
     }
 
+    /// <summary>执行 Python next 协议，仅本次完成能观察生成器返回值。</summary>
+    /// <param name="defaultValue">耗尽时返回的默认值。</param>
+    /// <param name="hasDefault">是否提供默认值。</param>
+    public object? Next(object? defaultValue, bool hasDefault)
+    {
+        if (MoveNextCore(out object? returnValue)) return Current();
+        if (hasDefault) return defaultValue;
+        // 必须在恢复过程的异常转换区外抛出，正常完成不属于 PEP 479 错误。
+        throw new PyStopIteration(returnValue);
+    }
+
     /// <summary>读取最近一次成功恢复的产出。</summary>
     public object? Current() => _current;
 
@@ -95,8 +115,7 @@ public sealed class PyGenerator : IPyIterator
         if (args.Length != 0)
             throw new PyTypeError($"generator.{name}() takes no arguments ({args.Length} given)");
         if (name == "__iter__") return this;
-        if (MoveNext()) return Current();
-        throw new PyStopIteration(null);
+        return Next(null, false);
     }
 
     private static long ReadState(object?[] frame)

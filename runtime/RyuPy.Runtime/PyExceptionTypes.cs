@@ -455,12 +455,19 @@ public class PyStopIteration : PyException
     /// <summary><c>StopIteration.value</c>。</summary>
     public object? Value { get; }
 
+    /// <summary>仅在请求消息时格式化；完成生成器不可调用返回值的 __str__。</summary>
+    public override string PyMessage => Value is null ? "" : PyRepr.Str(Value);
+
+    /// <summary>CLR 消息读取同样使用延迟格式化，不缓存可变返回值。</summary>
+    public override string Message => PyMessage;
+
     /// <summary>构造 <c>StopIteration</c>，并保留返回值。</summary>
     /// <param name="value">返回值。</param>
     public PyStopIteration(object? value = null)
-        : base("StopIteration", value is null ? "" : PyRepr.Str(value))
+        : base("StopIteration", "", value is null or PyNone ? [] : [value])
     {
-        Value = value;
+        // 内部迭代完成使用此构造；None 代表无终值，tuple 等对象仍是一个参数。
+        Value = value is PyNone ? null : value;
     }
 }
 

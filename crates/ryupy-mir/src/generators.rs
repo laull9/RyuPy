@@ -142,7 +142,7 @@ fn lower_one(program: &mut Program, id: FnId) {
                 block.stmts.push(set_slot(frame, 0, state));
                 Terminator::Return(Some(value))
             }
-            Terminator::Return(_) => {
+            Terminator::Return(value) => {
                 let state = boxed(
                     &mut body.locals,
                     &mut block.stmts,
@@ -150,7 +150,8 @@ fn lower_one(program: &mut Program, id: FnId) {
                     &MirType::I64,
                 );
                 block.stmts.push(set_slot(frame, 0, state));
-                Terminator::Return(Some(Operand::Const(Constant::None)))
+                // 完成值只由触发本次结束的 next 消费；运行时依 PC 区分它和 yield。
+                Terminator::Return(Some(value.unwrap_or(Operand::Const(Constant::None))))
             }
             other => other,
         };

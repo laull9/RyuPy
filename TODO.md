@@ -391,7 +391,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 > 依赖 M3.0、M3.1 的作用域规则及 Phase 2 异常 / with。用例：`m3_2_generators.py`、`m3_2_generator_cleanup.py`。
 
 - [x] 普通 yield 首切：MIR 状态机、暂停 / 恢复、局部与共享 cell 保存、迭代 / 耗尽、重入防护及意外 StopIteration 转 RuntimeError（`m3_2_generator_basic.py`）；异常区域与完整协议仍待后续
-- [ ] `return value` / StopIteration.value、`send`、`throw`、`close` 和 GeneratorExit；明确关闭状态与重入错误
+- [x] `return value` / StopIteration.value：只有首次完成的 next 可见终值；for / list / next(default) 消费后不泄漏，None 与 args / 对象身份差分通过
+- [ ] `send`、`throw`、`close` 和 GeneratorExit；补齐关闭与异常注入协议（重入错误已实现）
 - [ ] `yield from` 委托传递 next / send / throw / close 与返回值；生成器表达式的普通惰性迭代已完成，完整协议随此项接续
 - [ ] yield 穿过 try / finally / with 时保留清理状态，关闭和异常展开不跳过退出；实现生成器内意外 StopIteration 的 Python 行为
 - [ ] 验收：部分消费、嵌套委托、关闭、异常与资源释放通过；即时析构触发的关闭时机仍受 D001 限制

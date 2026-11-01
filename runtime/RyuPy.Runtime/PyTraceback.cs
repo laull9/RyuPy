@@ -190,7 +190,17 @@ public static class PyTraceback
                 builder.Append(frame.Line).Append(", in ").Append(frame.Function).Append('\n');
             }
         }
-        builder.Append(exception.Render()).Append('\n');
+        string rendered;
+        try
+        {
+            rendered = exception.Render();
+        }
+        catch (PyBaseException)
+        {
+            // 报告异常时不能被用户 __str__ 再次打断；普通 str(exc) 仍传播原错误。
+            rendered = exception.PyTypeName + ": <exception str() failed>";
+        }
+        builder.Append(rendered).Append('\n');
     }
 
     /// <summary>把未捕获异常写到 stderr（格式与 CPython 一致）。</summary>

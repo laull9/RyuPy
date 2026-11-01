@@ -72,7 +72,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
 - M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
   MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存全部局部到每实例 object[]；
   CIL 仅绑定静态恢复委托，`PyGenerator` 管理运行 / 终止、重入与每次恢复的 traceback。
-  首切拒绝生成器异常区域，尚未实现跨暂停清理状态。
+  当前拒绝生成器异常区域，尚未实现跨暂停清理状态。PC -1 的恢复返回值是终值；
+  普通迭代立即丢弃，仅首次完成的 next 将其放入 StopIteration，运行时不缓存终值。
 
 ### 3.3 类型（旁表，不改 HIR）
 
