@@ -16,6 +16,7 @@ mod build_loops;
 mod build_stmts;
 mod build_try;
 mod call_builder;
+mod call_builtins;
 pub mod expr_builder;
 mod expr_ops;
 mod expr_values;

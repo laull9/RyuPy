@@ -14,7 +14,7 @@
 //! 为什么绑定错误不在编译期报：Python 的绑定失败是**运行时** `TypeError`，用户可以
 //! `try/except` 捕获。编译期只做“能不能走快路径”的判断，绝不因此拒绝程序。
 
-use ryupy_hir::{Builtin, CallArg, ExprId, ExprKind, FuncId, ParamKind};
+use ryupy_hir::{CallArg, ExprId, ExprKind, FuncId, ParamKind};
 use ryupy_ty::{Ty, type_ref_to_ty};
 
 use crate::build::ty_to_mir;
@@ -323,7 +323,7 @@ impl ExprBuilder<'_> {
     ///
     /// `*iterable` 用 `PyOps.StarArg` 打上标记，`**mapping` 用 `None` 作为关键字名；
     /// 展开发生在运行时（长度只有运行时才知道）。
-    fn build_call_arrays(
+    pub(crate) fn build_call_arrays(
         &mut self,
         args: &[CallArg],
     ) -> (Vec<Operand>, Vec<Operand>, Vec<Operand>) {
@@ -362,183 +362,6 @@ impl ExprBuilder<'_> {
             }
         }
         (positional, kw_names, kw_values)
-    }
-
-    // ───────────────────────── 内建函数 ─────────────────────────
-
-    fn build_builtin_call(&mut self, builtin: Builtin, args: &[CallArg], call_ty: &Ty) -> Operand {
-        let has_keyword = args
-            .iter()
-            .any(|arg| matches!(arg, CallArg::Keyword(..) | CallArg::DoubleStarred(_)));
-        match builtin {
-            Builtin::Print => self.call_builtin_by_name("print", args),
-            Builtin::Dynamic(name) => self.call_builtin_by_name(name, args),
-            Builtin::Int if !has_keyword => self.build_numeric_conversion(args, call_ty, true),
-            Builtin::Float if !has_keyword => self.build_numeric_conversion(args, call_ty, false),
-            Builtin::Abs if !has_keyword => self.build_abs(args),
-            Builtin::Str if !has_keyword => {
-                let Some(arg) = args.first() else {
-                    return Operand::Const(Constant::Str(String::new()));
-                };
-                let expr = arg.expr();
-                let arg_op = self.build_expr(expr);
-                let arg_ty = self.ty_of(expr);
-                let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
-                let ret_ty = if self.is_dynamic_context() {
-                    MirType::Dynamic
-                } else {
-                    MirType::Str
-                };
-                let dest = self.alloc_temp(ret_ty);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::DynStr),
-                        args: vec![op],
-                    },
-                });
-                Operand::Local(dest)
-            }
-            Builtin::Str => self.call_builtin_by_name("str", args),
-            Builtin::Type => {
-                let Some(arg) = args.first() else {
-                    return self.none_value();
-                };
-                let expr = arg.expr();
-                let arg_op = self.build_expr(expr);
-                let arg_ty = self.ty_of(expr);
-                let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
-                self.runtime_call(RuntimeFn::DynType, vec![op], MirType::Dynamic)
-            }
-            Builtin::Exception(name) => {
-                let mut args_ops = vec![Operand::Const(Constant::Str(name.to_owned()))];
-                if let Some(arg) = args.first() {
-                    let expr = arg.expr();
-                    let arg_op = self.build_expr(expr);
-                    let arg_ty = self.ty_of(expr);
-                    args_ops.push(self.coerce(arg_op, &arg_ty, &MirType::Dynamic));
-                } else {
-                    args_ops.push(self.runtime_call(
-                        RuntimeFn::DynNone,
-                        Vec::new(),
-                        MirType::Dynamic,
-                    ));
-                }
-                self.runtime_call(RuntimeFn::MakeException, args_ops, MirType::Dynamic)
-            }
-            // `int` / `float` / `abs` 带关键字属于非法调用，交给运行时统一报错
-            Builtin::Int | Builtin::Float | Builtin::Abs => {
-                let name = match builtin {
-                    Builtin::Int => "int",
-                    Builtin::Float => "float",
-                    _ => "abs",
-                };
-                self.call_builtin_by_name(name, args)
-            }
-        }
-    }
-
-    fn call_builtin_by_name(&mut self, name: &str, args: &[CallArg]) -> Operand {
-        let (positional, kw_names, kw_values) = self.build_call_arrays(args);
-        self.runtime_call(
-            RuntimeFn::DynBuiltin,
-            vec![
-                Operand::Const(Constant::Str(name.to_owned())),
-                Operand::Array(positional),
-                Operand::Array(kw_names),
-                Operand::Array(kw_values),
-            ],
-            MirType::Dynamic,
-        )
-    }
-
-    fn build_numeric_conversion(
-        &mut self,
-        args: &[CallArg],
-        call_ty: &Ty,
-        to_int: bool,
-    ) -> Operand {
-        let Some(arg) = args.first() else {
-            return if to_int {
-                Operand::Const(Constant::I64(0))
-            } else {
-                Operand::Const(Constant::F64(0.0))
-            };
-        };
-        let expr = arg.expr();
-        let arg_op = self.build_expr(expr);
-        let arg_ty = self.ty_of(expr);
-        if arg_ty.is_dynamic() {
-            let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
-            let rt_fn = if to_int {
-                RuntimeFn::DynToInt
-            } else {
-                RuntimeFn::DynToFloat
-            };
-            return self.runtime_call(rt_fn, vec![op], MirType::Dynamic);
-        }
-        let result_ty = ty_to_mir(call_ty);
-        match (to_int, arg_ty.clone()) {
-            (true, Ty::Int) => arg_op,
-            (true, Ty::Bool) => {
-                let dest = self.alloc_temp(MirType::I64);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Cast {
-                        kind: crate::mir::CastKind::BoolToI64,
-                        operand: arg_op,
-                    },
-                });
-                Operand::Local(dest)
-            }
-            (true, Ty::Float) => self.runtime_call(RuntimeFn::F64ToI64, vec![arg_op], MirType::I64),
-            (false, Ty::Float) => arg_op,
-            (false, Ty::Int | Ty::Bool) => {
-                let op = if arg_ty == Ty::Bool {
-                    let dest = self.alloc_temp(MirType::I64);
-                    self.push_stmt(Statement::Assign {
-                        dest,
-                        value: Rvalue::Cast {
-                            kind: crate::mir::CastKind::BoolToI64,
-                            operand: arg_op,
-                        },
-                    });
-                    Operand::Local(dest)
-                } else {
-                    arg_op
-                };
-                let dest = self.alloc_temp(MirType::F64);
-                self.push_stmt(Statement::Assign {
-                    dest,
-                    value: Rvalue::Cast {
-                        kind: crate::mir::CastKind::I64ToF64,
-                        operand: op,
-                    },
-                });
-                Operand::Local(dest)
-            }
-            _ => {
-                let _ = result_ty;
-                arg_op
-            }
-        }
-    }
-
-    fn build_abs(&mut self, args: &[CallArg]) -> Operand {
-        let Some(arg) = args.first() else {
-            return Operand::Const(Constant::I64(0));
-        };
-        let expr = arg.expr();
-        let arg_op = self.build_expr(expr);
-        let arg_ty = self.ty_of(expr);
-        if arg_ty.is_dynamic() {
-            let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
-            return self.runtime_call(RuntimeFn::DynAbs, vec![op], MirType::Dynamic);
-        }
-        match arg_ty {
-            Ty::Float => self.runtime_call(RuntimeFn::AbsF64, vec![arg_op], MirType::F64),
-            _ => self.runtime_call(RuntimeFn::AbsI64, vec![arg_op], MirType::I64),
-        }
     }
 
     // ───────────────────────── 方法调用 ─────────────────────────
