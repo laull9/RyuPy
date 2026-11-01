@@ -24,29 +24,46 @@ fn __init__(_0: dyn, _1: dyn) -> dyn {
 fn add(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // self
     let _1: dyn; // amount
-    let _2: i64;
-    let _3: dyn;
+    let _2: dyn; // __aug$2
+    let _3: i64;
     let _4: dyn;
-    let _5: dyn;
+    let _5: bool;
     let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
 
     bb0: {
-        _2 = RuntimeFn::TracePush(const "m2_5_classes.py", const "add");
+        _3 = RuntimeFn::TracePush(const "m2_5_classes.py", const "add");
         // line 9
-        _3 = RuntimeFn::DynGetAttr(_0, const "value");
-        _4 = dyn.Add.inplace(_3, _1);
-        RuntimeFn::SetAttr(_0, const "value", _4);
-        // line 10
-        _6 = RuntimeFn::DynGetAttr(_0, const "value");
-        _5 = _6;
-        goto -> bb2;
+        _4 = box<Bool>(const true);
+        _5 = RuntimeFn::DynTruthy(_4);
+        branch _5 -> [then: bb1, else: bb3];
     }
     bb1: {
-        unreachable;
+        // line 9
+        _2 = _0;
+        // line 9
+        _6 = RuntimeFn::DynGetAttr(_2, const "value");
+        _7 = dyn.Add.inplace(_6, _1);
+        RuntimeFn::SetAttr(_2, const "value", _7);
+        goto -> bb3;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_2);
-        return _5;
+        unreachable;
+    }
+    bb3: {
+        // line 10
+        _9 = RuntimeFn::DynGetAttr(_0, const "value");
+        _8 = _9;
+        goto -> bb5;
+    }
+    bb4: {
+        unreachable;
+    }
+    bb5: {
+        RuntimeFn::TracePopTo(_3);
+        return _8;
     }
 }
 

@@ -9,15 +9,17 @@
 //! 然后对同一个对象先读后写。直接把目标降级两次（一次读、一次写）会让带副作用的
 //! 子表达式执行两遍，例如 `data[next_index()] += 1` 会调用两次 `next_index()`。
 //!
-//! 因此非「简单」的子表达式（不是名字或字面量）先求值进隐藏局部：
+//! 因此除不可变字面量外的子表达式（包括名字）都先求值进隐藏局部：
 //!
 //! ```text
 //! data[idx()] += 1   ⇒   if True:
-//!                            __aug$3 = idx()
-//!                            data[__aug$3] = data[__aug$3] (+=) 1
+//!                            __aug$3 = data
+//!                            __aug$4 = idx()
+//!                            __aug$3[__aug$4] = __aug$3[__aug$4] (+=) 1
 //! ```
 //!
-//! 名字与字面量再读一次没有可观察的差别，保持原样，常见写法的 MIR 不变。
+//! 名字也可能在 RHS 副作用或 yield 暂停期间被重绑定；必须保存旧对象与旧下标。
+//! 只有不可变字面量可以安全重复降级；隐藏局部沿用生成器堆帧保存，不另建环境。
 //! 多条语句同 `with` 一样用恒真的 `if True:` 串起来，满足 `lower_stmt` 只返回一条语句的约定。
 
 use ryupy_base::{Diagnostic, Ranged, Span};
@@ -39,19 +41,6 @@ enum AugOperand<'a> {
 impl StmtLowerCtx<'_> {
     /// 降级一条增量赋值；需要隐藏局部时返回包裹它们的 `if True:`。
     pub(crate) fn lower_aug_assign(&mut self, aug_stmt: &ast::StmtAugAssign) -> Option<StmtId> {
-        if !matches!(aug_stmt.target.as_ref(), ast::Expr::Name(_))
-            && (crate::generator_scan::contains_yield(&aug_stmt.target)
-                || crate::generator_scan::contains_yield(&aug_stmt.value))
-        {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, aug_stmt.range),
-                    "属性或下标增量赋值暂未支持跨暂停保存目标",
-                )
-                .with_code("E0100"),
-            );
-            return None;
-        }
         let Some(op) = map_bin_op(aug_stmt.op) else {
             self.diagnostics.push(
                 Diagnostic::error(Span::new(self.file, aug_stmt.range), "暂不支持该增量运算符")
@@ -153,7 +142,7 @@ impl StmtLowerCtx<'_> {
         ))
     }
 
-    /// 名字 / 字面量可以重复降级；其它表达式先求值进隐藏局部。
+    /// 只有不可变字面量可以重复降级；名字与其它表达式先求值进隐藏局部。
     fn aug_operand<'a>(&mut self, expr: &'a ast::Expr, prefix: &mut Vec<StmtId>) -> AugOperand<'a> {
         if is_simple(expr) {
             return AugOperand::Simple(expr);
@@ -225,12 +214,11 @@ impl StmtLowerCtx<'_> {
     }
 }
 
-/// 重复求值没有可观察差别的表达式：名字（读局部 / 模块变量）与常量。
+/// 重复求值没有可观察差别的不可变常量；名字读取必须冻结当前绑定。
 fn is_simple(expr: &ast::Expr) -> bool {
     matches!(
         expr,
-        ast::Expr::Name(_)
-            | ast::Expr::NumberLiteral(_)
+        ast::Expr::NumberLiteral(_)
             | ast::Expr::StringLiteral(_)
             | ast::Expr::BooleanLiteral(_)
             | ast::Expr::NoneLiteral(_)

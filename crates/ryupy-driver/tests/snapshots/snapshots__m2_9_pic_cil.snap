@@ -1,6 +1,5 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
-assertion_line: 530
 expression: cil
 ---
 .assembly m2_9_pic
@@ -131,101 +130,137 @@ expression: cil
     .method public static [System.Runtime]System.Object m0_bump([System.Runtime]System.Object) cil managed
     {
         .locals init (
-            [0] long,
-            [1] [System.Runtime]System.Object,
+            [0] [System.Runtime]System.Object,
+            [1] long,
             [2] [System.Runtime]System.Object,
-            [3] [System.Runtime]System.Object,
+            [3] bool,
             [4] [System.Runtime]System.Object,
-            [5] [System.Runtime]System.Object
+            [5] [System.Runtime]System.Object,
+            [6] [System.Runtime]System.Object,
+            [7] [System.Runtime]System.Object,
+            [8] [System.Runtime]System.Object
         )
         IL_0000: LoadString("m2_9_pic.py")
         IL_0001: LoadString("bump")
         IL_0002: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PushFrame(string, string))
-        IL_0003: StoreLocal(0)
+        IL_0003: StoreLocal(1)
         IL_0004: LoadConstantInt32(25)
         IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_0006: LoadConstantInt32(2)
-        IL_0007: LoadArgument(0)
-        IL_0008: LoadString("value")
-        IL_0009: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
-        IL_000a: StoreLocal(1)
-        IL_000b: LoadStaticField(RyuPy.Generated.Module.__lit_7)
-        IL_000c: StoreLocal(2)
-        IL_000d: LoadConstantInt32(3)
-        IL_000e: LoadConstantInt32(257)
-        IL_000f: LoadLocal(1)
-        IL_0010: LoadLocal(2)
-        IL_0011: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
-        IL_0012: StoreLocal(3)
-        IL_0013: LoadConstantInt32(4)
-        IL_0014: LoadArgument(0)
-        IL_0015: LoadString("value")
-        IL_0016: LoadLocal(3)
-        IL_0017: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
-        IL_0018: LoadConstantInt32(26)
-        IL_0019: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_001a: LoadConstantInt32(5)
-        IL_001b: LoadArgument(0)
-        IL_001c: LoadString("value")
-        IL_001d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
-        IL_001e: StoreLocal(5)
-        IL_001f: LoadLocal(5)
-        IL_0020: StoreLocal(4)
-        IL_0021: Branch(34)
+        IL_0006: LoadStaticField(RyuPy.Generated.Module.__lit_1)
+        IL_0007: StoreLocal(2)
+        IL_0008: LoadLocal(2)
+        IL_0009: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Truthy(object))
+        IL_000a: StoreLocal(3)
+        IL_000b: LoadLocal(3)
+        IL_000c: BranchTruthy(14)
+        IL_000d: Branch(39)
+        IL_000e: LoadConstantInt32(25)
+        IL_000f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0010: LoadArgument(0)
+        IL_0011: StoreLocal(0)
+        IL_0012: LoadConstantInt32(25)
+        IL_0013: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0014: LoadConstantInt32(2)
+        IL_0015: LoadLocal(0)
+        IL_0016: LoadString("value")
+        IL_0017: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
+        IL_0018: StoreLocal(4)
+        IL_0019: LoadStaticField(RyuPy.Generated.Module.__lit_7)
+        IL_001a: StoreLocal(5)
+        IL_001b: LoadConstantInt32(3)
+        IL_001c: LoadConstantInt32(257)
+        IL_001d: LoadLocal(4)
+        IL_001e: LoadLocal(5)
+        IL_001f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+        IL_0020: StoreLocal(6)
+        IL_0021: LoadConstantInt32(4)
         IL_0022: LoadLocal(0)
-        IL_0023: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
-        IL_0024: LoadLocal(4)
-        IL_0025: Return
+        IL_0023: LoadString("value")
+        IL_0024: LoadLocal(6)
+        IL_0025: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_0026: Branch(39)
+        IL_0027: LoadConstantInt32(26)
+        IL_0028: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0029: LoadConstantInt32(5)
+        IL_002a: LoadArgument(0)
+        IL_002b: LoadString("value")
+        IL_002c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
+        IL_002d: StoreLocal(8)
+        IL_002e: LoadLocal(8)
+        IL_002f: StoreLocal(7)
+        IL_0030: Branch(49)
+        IL_0031: LoadLocal(1)
+        IL_0032: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0033: LoadLocal(7)
+        IL_0034: Return
     }
 
     .method public static [System.Runtime]System.Object m0_replacement([System.Runtime]System.Object) cil managed
     {
         .locals init (
-            [0] long,
-            [1] [System.Runtime]System.Object,
+            [0] [System.Runtime]System.Object,
+            [1] long,
             [2] [System.Runtime]System.Object,
-            [3] [System.Runtime]System.Object,
+            [3] bool,
             [4] [System.Runtime]System.Object,
-            [5] [System.Runtime]System.Object
+            [5] [System.Runtime]System.Object,
+            [6] [System.Runtime]System.Object,
+            [7] [System.Runtime]System.Object,
+            [8] [System.Runtime]System.Object
         )
         IL_0000: LoadString("m2_9_pic.py")
         IL_0001: LoadString("replacement")
         IL_0002: Call(static long [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PushFrame(string, string))
-        IL_0003: StoreLocal(0)
+        IL_0003: StoreLocal(1)
         IL_0004: LoadConstantInt32(36)
         IL_0005: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_0006: LoadConstantInt32(6)
-        IL_0007: LoadArgument(0)
-        IL_0008: LoadString("value")
-        IL_0009: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
-        IL_000a: StoreLocal(1)
-        IL_000b: LoadStaticField(RyuPy.Generated.Module.__lit_8)
-        IL_000c: StoreLocal(2)
-        IL_000d: LoadConstantInt32(7)
-        IL_000e: LoadConstantInt32(257)
-        IL_000f: LoadLocal(1)
-        IL_0010: LoadLocal(2)
-        IL_0011: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
-        IL_0012: StoreLocal(3)
-        IL_0013: LoadConstantInt32(8)
-        IL_0014: LoadArgument(0)
-        IL_0015: LoadString("value")
-        IL_0016: LoadLocal(3)
-        IL_0017: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
-        IL_0018: LoadConstantInt32(37)
-        IL_0019: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
-        IL_001a: LoadConstantInt32(9)
-        IL_001b: LoadArgument(0)
-        IL_001c: LoadString("value")
-        IL_001d: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
-        IL_001e: StoreLocal(5)
-        IL_001f: LoadLocal(5)
-        IL_0020: StoreLocal(4)
-        IL_0021: Branch(34)
+        IL_0006: LoadStaticField(RyuPy.Generated.Module.__lit_1)
+        IL_0007: StoreLocal(2)
+        IL_0008: LoadLocal(2)
+        IL_0009: Call(static bool [RyuPy.Runtime]RyuPy.Runtime.PyOps.Truthy(object))
+        IL_000a: StoreLocal(3)
+        IL_000b: LoadLocal(3)
+        IL_000c: BranchTruthy(14)
+        IL_000d: Branch(39)
+        IL_000e: LoadConstantInt32(36)
+        IL_000f: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0010: LoadArgument(0)
+        IL_0011: StoreLocal(0)
+        IL_0012: LoadConstantInt32(36)
+        IL_0013: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0014: LoadConstantInt32(6)
+        IL_0015: LoadLocal(0)
+        IL_0016: LoadString("value")
+        IL_0017: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
+        IL_0018: StoreLocal(4)
+        IL_0019: LoadStaticField(RyuPy.Generated.Module.__lit_8)
+        IL_001a: StoreLocal(5)
+        IL_001b: LoadConstantInt32(7)
+        IL_001c: LoadConstantInt32(257)
+        IL_001d: LoadLocal(4)
+        IL_001e: LoadLocal(5)
+        IL_001f: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.Binary(int, int, object, object))
+        IL_0020: StoreLocal(6)
+        IL_0021: LoadConstantInt32(8)
         IL_0022: LoadLocal(0)
-        IL_0023: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
-        IL_0024: LoadLocal(4)
-        IL_0025: Return
+        IL_0023: LoadString("value")
+        IL_0024: LoadLocal(6)
+        IL_0025: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
+        IL_0026: Branch(39)
+        IL_0027: LoadConstantInt32(37)
+        IL_0028: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.SetLine(int))
+        IL_0029: LoadConstantInt32(9)
+        IL_002a: LoadArgument(0)
+        IL_002b: LoadString("value")
+        IL_002c: Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyPic.GetAttr(int, object, string))
+        IL_002d: StoreLocal(8)
+        IL_002e: LoadLocal(8)
+        IL_002f: StoreLocal(7)
+        IL_0030: Branch(49)
+        IL_0031: LoadLocal(1)
+        IL_0032: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_0033: LoadLocal(7)
+        IL_0034: Return
     }
 
     .method public static [System.Runtime]System.Object m0_replacement_base() cil managed
