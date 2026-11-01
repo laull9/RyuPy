@@ -284,6 +284,8 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                     | RuntimeFn::ReprValue
                     | RuntimeFn::DynBuiltin
                     | RuntimeFn::PrepareMethod
+                    | RuntimeFn::SetAdd
+                    | RuntimeFn::SetExtend
                     | RuntimeFn::ListAppend
                     | RuntimeFn::ListExtend
                     | RuntimeFn::UnpackCheck

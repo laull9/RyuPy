@@ -40,8 +40,6 @@ fn snapshot_m3_2_unsupported() {
             "暂停多参内建构造",
             "def g():\n    return int((yield 1), (yield 2))\n",
         ),
-        ("暂停tuple星号", "def g():\n    return (*(yield 1),)\n"),
-        ("暂停set星号", "def g():\n    return {*(yield 1)}\n"),
         (
             "暂停复杂增量目标",
             "def g(items):\n    items[0] += (yield 1)\n",
@@ -178,5 +176,24 @@ fn snapshot_m3_2_prepared_dataclass_boundary() {
         .collect::<Vec<_>>()
         .join("\n");
     insta::assert_snapshot!("m3_2_prepared_dataclass", output);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn snapshot_m3_2_starred_containers() {
+    let path = std::env::temp_dir().join("ryupy_test_starred_containers.py");
+    std::fs::write(
+        &path,
+        "def values():\n    result = (0, *(yield 1))\n    return {0, *result, (yield 2)}\n",
+    )
+    .unwrap();
+    for (stage, name) in [
+        (Stage::Mir, "m3_2_starred_mir"),
+        (Stage::Cil, "m3_2_starred_cil"),
+    ] {
+        let mut session = Session::default();
+        let output = dump(&mut session, &path, stage).expect("星号容器应保持原类型和插入边界");
+        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+    }
     std::fs::remove_file(path).unwrap();
 }
