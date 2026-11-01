@@ -110,7 +110,7 @@ impl ExprBuilder<'_> {
         container
     }
 
-    /// 字典字面量：空字典 + 逐项写入。
+    /// 字典字面量：匹配固定 CPython 3.12 的小字典批量求值 / 大字典逐项插入。
     pub(crate) fn build_dict_literal(
         &mut self,
         pairs: &[(ExprId, ExprId)],
@@ -126,6 +126,11 @@ impl ExprBuilder<'_> {
             },
         });
         let dict = Operand::Local(dict_dest);
+        // CPython 的编译器栈预算为 30 个 key/value 槽；超过 15 对改用逐项 MAP_ADD。
+        // 小字典必须先完成所有表达式，才开始 hash / equality（包括中间发生 yield）。
+        // 大字典保持逐对求值插入，不把首次 hash 错误延后到全部表达式之后。
+        let grouped = pairs.len() <= 15;
+        let mut prepared = Vec::new();
         for &(key, value) in pairs {
             let key_op = self.build_expr(key);
             let key_ty = self.ty_of(key);
@@ -133,11 +138,22 @@ impl ExprBuilder<'_> {
             let val_op = self.build_expr(value);
             let val_ty = self.ty_of(value);
             let val_boxed = self.coerce(val_op, &val_ty, &MirType::Dynamic);
-            self.push_stmt(Statement::Eval(Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::SetItem),
-                args: vec![dict.clone(), key_boxed, val_boxed],
-            }));
+            if grouped {
+                prepared.push((key_boxed, val_boxed));
+            } else {
+                self.insert_dict_pair(&dict, key_boxed, val_boxed);
+            }
+        }
+        for (key, value) in prepared {
+            self.insert_dict_pair(&dict, key, value);
         }
         dict
+    }
+
+    fn insert_dict_pair(&mut self, dict: &Operand, key: Operand, value: Operand) {
+        self.push_stmt(Statement::Eval(Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::SetItem),
+            args: vec![dict.clone(), key, value],
+        }));
     }
 }
