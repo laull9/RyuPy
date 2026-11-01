@@ -1,0 +1,11 @@
+---
+source: crates/ryupy-driver/tests/m3_2.rs
+expression: output
+---
+[E0305] Error: dataclass 跨暂停构造尚未接入专用字段构造 ABI
+   ╭─[ generator.py:6:12 ]
+   │
+ 6 │     return P((yield 1))
+   │            ──────┬─────
+   │                  ╰───────
+───╯

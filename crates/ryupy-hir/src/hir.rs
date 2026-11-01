@@ -331,6 +331,11 @@ pub enum ExprKind {
         callee: ExprId,
         args: Vec<CallArg>,
     },
+    /// 实参会暂停：调用目标必须先绑定并保存。
+    PreparedCall {
+        callee: ExprId,
+        args: Vec<CallArg>,
+    },
     Attribute {
         base: ExprId,
         name: Name,

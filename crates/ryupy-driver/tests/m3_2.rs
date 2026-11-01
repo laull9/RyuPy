@@ -36,6 +36,10 @@ fn snapshot_m3_2_unsupported() {
             "class A:\n    def values(self):\n        yield super().value()\n",
         ),
         ("模块表达式yield", "value = (yield 1)\n"),
+        (
+            "暂停多参内建构造",
+            "def g():\n    return int((yield 1), (yield 2))\n",
+        ),
         ("暂停tuple星号", "def g():\n    return (*(yield 1),)\n"),
         ("暂停set星号", "def g():\n    return {*(yield 1)}\n"),
         (
@@ -46,7 +50,6 @@ fn snapshot_m3_2_unsupported() {
             "字典字面量暂停",
             "def g(key):\n    return {key: 1, 'x': (yield 2)}\n",
         ),
-        ("暂停调用方法", "def g(a):\n    yield a.f((yield 1))\n"),
         (
             "暂停调用展开",
             "def g(f, items):\n    f(*items, (yield 1))\n",
@@ -54,10 +57,6 @@ fn snapshot_m3_2_unsupported() {
         (
             "暂停关键字展开",
             "def g(f, items):\n    f(**items, x=(yield 1))\n",
-        ),
-        (
-            "暂停调用lambda默认值",
-            "def g(f):\n    f(lambda x=(yield 1): x)\n",
         ),
         (
             "字典key内部yield",
@@ -141,5 +140,43 @@ fn snapshot_m3_2_send() {
         let output = dump(&mut session, &path, stage).expect("yield表达式应有恢复接收槽");
         insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
     }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn snapshot_m3_2_prepared_call() {
+    let path = std::env::temp_dir().join("ryupy_test_prepared_call.py");
+    std::fs::write(
+        &path,
+        "def call(target):\n    yield target.method((yield 1))\n",
+    )
+    .unwrap();
+    for (stage, name) in [
+        (Stage::Mir, "m3_2_prepared_mir"),
+        (Stage::Cil, "m3_2_prepared_cil"),
+    ] {
+        let mut session = Session::default();
+        let output = dump(&mut session, &path, stage).expect("暂停调用须先绑定目标");
+        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn snapshot_m3_2_prepared_dataclass_boundary() {
+    let path = std::env::temp_dir().join("ryupy_test_prepared_dataclass.py");
+    std::fs::write(&path, "from dataclasses import dataclass\n@dataclass\nclass P:\n    x: int\ndef g():\n    return P((yield 1))\n").unwrap();
+    let mut session = Session::default();
+    assert!(dump(&mut session, &path, Stage::Mir).is_err());
+    assert!(session.diagnostics.iter().any(|d| d.code == Some("E0305")));
+    let output = session
+        .render_diagnostics(false)
+        .replace(path.to_str().unwrap(), "generator.py");
+    let output = output
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    insta::assert_snapshot!("m3_2_prepared_dataclass", output);
     std::fs::remove_file(path).unwrap();
 }

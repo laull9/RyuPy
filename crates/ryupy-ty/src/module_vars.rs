@@ -289,7 +289,7 @@ fn expr_hint(
             let b = expr_hint(module, body, *else_, hints)?;
             (a == b).then_some(a)
         }
-        ExprKind::Call { callee, .. } => {
+        ExprKind::Call { callee, .. } | ExprKind::PreparedCall { callee, .. } => {
             let ExprKind::Class(id) = &body.exprs[*callee].kind else {
                 return None;
             };

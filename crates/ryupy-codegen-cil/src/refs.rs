@@ -95,6 +95,9 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
 
     let pyops_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #ryupy_runtime });
     let pyops_type: MethodType = BaseType::class(pyops_ref).into();
+    let prepare_method = res.push_method_reference(
+        method_ref! { static object @pyops_type::PrepareMethod(object, string) },
+    );
     let dyn_binary = res.push_method_reference(
         method_ref! { static object @pyops_type::Binary(int, object, object) },
     );
@@ -439,6 +442,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     }
     let (generator_resume_ctor, generator_ctor) = crate::generator_refs::build(res, ryupy_runtime);
     let runtime_refs = RuntimeRefs {
+        prepare_method,
         generator_resume_ctor,
         generator_ctor,
         write_i64,

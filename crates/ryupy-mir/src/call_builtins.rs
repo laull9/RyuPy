@@ -88,7 +88,7 @@ impl ExprBuilder<'_> {
         }
     }
 
-    fn call_builtin_by_name(&mut self, name: &str, args: &[CallArg]) -> Operand {
+    pub(crate) fn call_builtin_by_name(&mut self, name: &str, args: &[CallArg]) -> Operand {
         let (positional, kw_names, kw_values) = self.build_call_arrays(args);
         self.runtime_call(
             RuntimeFn::DynBuiltin,

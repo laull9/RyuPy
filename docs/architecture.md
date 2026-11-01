@@ -76,6 +76,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
   普通迭代立即丢弃，仅首次完成的 next 将其放入 StopIteration，运行时不缓存终值。
   帧槽 0 为 PC，槽 1 为本次 send 输入，原 LocalId 从槽 2 起保存；Suspend 携可选接收局部，
   恢复目标先取输入再清控制槽引用。表达式求值的已有临时量同样跨暂停保存。
+  参数含暂停的无星号调用以 HIR PreparedCall 标记，MIR先固定callee / PrepareMethod结果再求args；
+  运行时仅为这些调用创建内建方法绑定包装，普通CallMethod的PIC路径不额外分配。
 
 ### 3.3 类型（旁表，不改 HIR）
 

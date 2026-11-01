@@ -265,6 +265,9 @@ impl<'a> ExprBuilder<'a> {
                 self.build_if_exp(*cond, *then_, *else_, expr_id)
             }
             ExprKind::Call { callee, args } => self.build_call(*callee, args, expr_id),
+            ExprKind::PreparedCall { callee, args } => {
+                self.build_prepared_call(*callee, args, expr_id)
+            }
             ExprKind::Attribute { base, name } => {
                 let base_op = self.build_expr(*base);
                 let base_ty = self.ty_of(*base);

@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub prepare_method: MethodRefIndex,
     pub generator_resume_ctor: MethodRefIndex,
     pub generator_ctor: MethodRefIndex,
     pub write_i64: MethodRefIndex,
@@ -163,6 +164,7 @@ pub struct RuntimeRefs {
 /// `RuntimeFn` → 方法引用。容器相关的调用与普通调用共用这张表。
 pub(crate) fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRefIndex {
     match callee {
+        RuntimeFn::PrepareMethod => refs.prepare_method,
         RuntimeFn::MakeList => refs.make_list,
         RuntimeFn::MakeTuple => refs.make_tuple,
         RuntimeFn::MakeSet => refs.make_set,
