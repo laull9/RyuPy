@@ -42,6 +42,8 @@ pub struct ExprBuilder<'a> {
     pub current_hir_fn: ryupy_hir::FuncId,
     /// 闭包环境形参（M3.0）：`Free` 读取时从这里取外层 cell。
     pub env: Option<MirLocalId>,
+    /// 类体读取只查当前类的原始命名空间，不绑定描述符。
+    pub class_namespace: Option<Operand>,
     pub locals: &'a mut Arena<LocalDecl>,
     pub blocks: &'a mut Arena<BasicBlock>,
     pub current_bb: &'a mut crate::mir::BlockId,
@@ -361,6 +363,16 @@ impl<'a> ExprBuilder<'a> {
                 Operand::Local(dest)
             }
             // 内建构造名作为值（`isinstance(x, int)`、`f = str`）：构造类型对象
+            ExprKind::ClassLocal(name) => self.runtime_call(
+                RuntimeFn::ClassNamespaceGet,
+                vec![
+                    self.class_namespace
+                        .clone()
+                        .unwrap_or(Operand::Const(Constant::Null)),
+                    Operand::Const(Constant::Str(name.as_str().to_owned())),
+                ],
+                MirType::Dynamic,
+            ),
             ExprKind::Builtin(builtin) => self.build_builtin_value(*builtin, expr_id),
             // 闭包自由变量（M3.0）：env[idx] 是外层 cell，读取带未赋值检查。
             ExprKind::Free(idx) => {
@@ -477,18 +489,7 @@ impl<'a> ExprBuilder<'a> {
     ///
     /// 构造函数（`int` / `str` / `list` …）在 Python 里是类型对象，`isinstance`
     /// 和赋值都依赖它。真正调用走 `build_call`，不会到这里。
-    fn build_builtin_value(&mut self, builtin: Builtin, expression: ExprId) -> Operand {
-        if matches!(builtin, Builtin::Dynamic("ord" | "chr")) {
-            let range = self.hir.functions[self.current_hir_fn].body.exprs[expression].range;
-            self.diagnostics.push(
-                ryupy_base::Diagnostic::error(
-                    ryupy_base::Span::new(self.hir.file, range),
-                    "ord/chr 当前仅支持直接调用，一等内建函数值尚未接入",
-                )
-                .with_code("E0305"),
-            );
-            return self.none_value();
-        }
+    fn build_builtin_value(&mut self, builtin: Builtin, _expression: ExprId) -> Operand {
         let name = match builtin {
             // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
             Builtin::Exception(type_name) => type_name,
@@ -504,10 +505,20 @@ impl<'a> ExprBuilder<'a> {
             Builtin::Dynamic("bytes") => "bytes",
             Builtin::Dynamic("bytearray") => "bytearray",
             Builtin::Dynamic("bool") => "bool",
-            _ => return self.none_value(),
+            Builtin::Print => return self.builtin_function_value("print"),
+            Builtin::Abs => return self.builtin_function_value("abs"),
+            Builtin::Dynamic(name) => return self.builtin_function_value(name),
         };
         self.runtime_call(
             RuntimeFn::TypeObject,
+            vec![Operand::Const(Constant::Str(name.to_owned()))],
+            MirType::Dynamic,
+        )
+    }
+
+    fn builtin_function_value(&mut self, name: &str) -> Operand {
+        self.runtime_call(
+            RuntimeFn::BuiltinFunction,
             vec![Operand::Const(Constant::Str(name.to_owned()))],
             MirType::Dynamic,
         )

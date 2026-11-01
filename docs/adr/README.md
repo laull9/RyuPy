@@ -38,6 +38,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0025](0025-unicode-builtins.md) | 项目驱动Unicode基础内建 | 已接受（直接调用） |
 | [0026](0026-generator-exception-resume.md) | 生成器逻辑异常恢复与委托清理 | 已接受 |
 
+| [0027](0027-definition-time-decorators.md) | 定义位置装饰器与混合dataclass表示 | 已接受 |
+
 ## 模板
 
 ```markdown

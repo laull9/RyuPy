@@ -326,7 +326,7 @@ public static partial class PyOps
     {
         var (args, kwNames, kwValues) = FlattenArgs(rawArgs, rawNames, rawValues);
         // 普通实例 / 类 / super 代理：走属性协议得到绑定方法，再统一调用。
-        if (obj is PyInstance or PyClass or PySuper or PyModule
+        if (obj is PyInstance or PyClass or PySuper or PyModule or PyFunction or PyBoundMethod or PyBuiltinFunction or PyProperty
             || (obj is PyBaseException exception && exception.PythonClass is not null))
         {
             object? attribute = PyObject.GetAttr(obj, name);

@@ -34,14 +34,11 @@ impl crate::lower::StmtLowerCtx<'_> {
     /// 绑定目标通常是外层函数的局部变量（被捕获时是 cell）；模块顶层的
     /// `if` / `for` 里的 def 绑定到模块变量。
     pub(crate) fn lower_nested_def(&mut self, fn_def: &ast::StmtFunctionDef) -> Option<StmtId> {
-        if fn_def.is_async || !fn_def.decorator_list.is_empty() {
+        if fn_def.is_async {
             self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, fn_def.range),
-                    "嵌套函数暂不支持 async 或装饰器",
-                )
-                .with_code("E0100")
-                .with_primary_label("异步与装饰器按后续里程碑接入"),
+                Diagnostic::error(Span::new(self.file, fn_def.range), "嵌套函数暂不支持 async")
+                    .with_code("E0100")
+                    .with_primary_label("异步按后续里程碑接入"),
             );
             return None;
         }
@@ -73,6 +70,12 @@ impl crate::lower::StmtLowerCtx<'_> {
                 return None;
             }
         };
+
+        let decorators: Vec<_> = fn_def
+            .decorator_list
+            .iter()
+            .map(|decorator| self.lower_expr(&decorator.expression))
+            .collect();
 
         // 参数默认值按最终参数顺序对齐（posonly → args → vararg → kwonly → kwarg），
         // 每次执行 def 都会在当前位置重新求值。
@@ -108,9 +111,17 @@ impl crate::lower::StmtLowerCtx<'_> {
 
         let line = self.line_of(fn_def.range.start().to_usize());
         let stmt_id = self.body.stmts.alloc(crate::hir::Stmt {
-            kind: StmtKind::NestedDef {
-                func: func_id,
-                target,
+            kind: if decorators.is_empty() {
+                StmtKind::NestedDef {
+                    func: func_id,
+                    target,
+                }
+            } else {
+                StmtKind::DecoratedDef {
+                    func: func_id,
+                    target,
+                    decorators,
+                }
             },
             range: fn_def.range,
             line,

@@ -52,7 +52,7 @@
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
 | 普通生成器 | 部分 | 语句 / 表达式 yield、send、if/for/while、return value、共享 cell、next/迭代/耗尽；完整协议待后续 |
 | 生成器表达式 | ✅ | 最左 iterable 立即取迭代器，元素 / 过滤 / 内层 iterable 惰性；协议限制同普通生成器 |
-| 普通函数装饰器 | ❌ | Phase 3 M3.3 后续竖切 |
+| 函数/类装饰器 | ✅ Phase 3 M3.3 | M3.3 定义位置求值/逆序应用、公开替换绑定；见 ADR-0027 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
@@ -61,7 +61,7 @@
 | f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；嵌套格式说明符暂不支持 |
 | 字符串方法 `split` / `join` / `strip` / `replace` / `find` 等 | ✅ M2.4 | `PyOps.CallMethod`；返回值下标按码点计算 |
 | 内建 `len` / `range` / `enumerate` / `zip` / `reversed` / `sum` / `min` / `max` / `any` / `all` / `round` / `sorted` / `isinstance` / `id` / `getattr` / `hasattr` | ✅ M2.4 | `PyOps.CallBuiltin`；`sorted` / `list.sort` 支持 `key` 与 `reverse`，排序稳定 |
-| 内建 `ord` / `chr` 直接调用 | ✅ Phase 3 项目驱动 | Unicode码点/单字节、chr整数与`__index__`，范围和参数错误；一等函数值暂报E0305 |
+| 内建 `ord` / `chr` 直接调用 | ✅ Phase 3 项目驱动 | Unicode码点/单字节、chr整数与`__index__`，范围和参数错误；一等内建函数值已接共享身份与动态调用（M3.3） |
 | `print` 的 `sep` / `end` | ✅ M2.4 | 静态路径直接写分隔符与结尾；`file` / `flush` 依赖 M3.4 |
 | 普通 class、单继承、方法、绑定方法、`property` / `staticmethod` / `classmethod` | ✅ M2.5 / M2.6 | 运行时 `PyClass` / `PyInstance`；类体在 `class` 语句位置顺序执行 |
 | 用户自定义异常（`class E(ValueError)`） | ✅ M2.6 | codegen 生成 CLR 子类；类型化 catch 与 Python 继承树同构 |
@@ -289,7 +289,7 @@ traceback 的
   没有 `__hash__` 时按身份哈希。
 - **身份**：普通对象始终是引用；`frozen=True` dataclass 也改为 .NET 引用类型，装箱 / 传参
   只复制引用，满足 ADR-0009 的默认身份要求。
-- **暂缓能力**：多重继承、元类、任意类装饰器、自定义 `__getattribute__` 在 HIR 报 `E0100`，
+- **暂缓能力**：多重继承、元类、自定义 `__getattribute__` 在 HIR 报 `E0100`，
   不静默降级。
 
 ### 4.6 闭包作用域（M3.0）
@@ -299,8 +299,9 @@ traceback 的
 模块变量不创建 cell。分支和循环里的 def 保留原来的执行位置，多个工厂调用各有独立 cell。
 
 声明与参数冲突、同时 global / nonlocal、先使用或赋值后声明、没有外层绑定以及模块级
-nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E0100`，按后续里程碑推进。
-类体 lambda、函数内 class、`del` 局部名和 cell 的反射接口仍未支持，不能据闭包用例推定可用。
+nonlocal 都报 `E0103`。嵌套 async def 报 `E0100`；嵌套 def 装饰器沿定义位置的外层作用域求值。
+类体lambda的默认值读取定义点类命名空间，body仍读取外层而不捕获类命名空间。
+函数内 class、`del` 局部名和 cell 的反射接口仍未支持，不能据闭包用例推定可用。
 共享环境的容量和 GC 生命周期见 [ADR-0015](adr/0015-shared-closure-cells.md)。
 
 ### 4.7 list / dict / set 推导式（M3.1）
@@ -423,3 +424,14 @@ property和缺属性错误在参数yield前发生；非callable属性在参数�
 ord/chr支持普通码点、补充平面和单独代理项；但两个独立代理项拼接后当前UTF-16表示会合并为代理对，
 `ord(chr(0xD800)+chr(0xDC00))`与CPython不一致。D009及`m3_builtins_surrogate_pair.py`记录为待修，
 不将它算作完整代理字符串兼容，也不作为已接受性能取舍。
+
+### 4.9 装饰器与元数据（M3.3）
+
+装饰器表达式按源码顺序先求值，随后默认值/函数创建或基类/类体执行，最后逆序应用；
+只有全部成功才替换公开绑定。跨模块读取同一最终结果，不能按原函数/类静态直达。
+函数 __name__/__doc__/__annotations__ 和用户属性字典可读写；包装不自动复制元数据。
+注解只承诺现有基础类型/用户类/None范围，完整反射和functools.wraps未完成。
+纯dataclass保持静态表示；混合装饰器dataclass为动态PyInstance，字段、frozen与身份
+遵守装饰顺序，默认值/factory和完整dataclasses字段对象仍留M3.6。property的
+getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细边界见
+[ADR-0027](adr/0027-definition-time-decorators.md)。

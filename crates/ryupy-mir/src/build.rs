@@ -27,7 +27,6 @@ use ryupy_hir::{LocalId as HirLocalId, Module, ModuleVarId};
 use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 
 use crate::build_flow::FinallyCtx;
-use crate::expr_builder::ExprBuilder;
 use crate::mir::{
     BasicBlock, BlockId, Callee, Constant, FnId, Function, GlobalDecl, LocalDecl,
     LocalId as MirLocalId, MirType, Operand, ParamKind, ParamMeta, Program, Region, RuntimeFn,
@@ -77,7 +76,7 @@ pub fn build_program(
             codegen_name: cls.name.as_str().to_string(),
             fields,
             is_value_type: false,
-            is_dataclass: cls.is_dataclass,
+            is_dataclass: cls.is_dataclass && cls.decorated_binding.is_none(),
             base: None,
             builtin_base: match cls.base {
                 Some(ryupy_hir::ClassBase::Builtin(name)) => Some(name.to_string()),
@@ -304,7 +303,7 @@ pub fn build_program(
             }
         }
 
-        // 模块入口开头把动态模块变量重置为 `None`：失败后重试等同于重新执行模块，
+        // 模块入口开头把动态模块变量重置为未绑定的 CLR null：失败后重试等同于重新执行模块，
         // 不应该读到上一次失败留下的值（CPython 会丢弃旧模块对象）。
         if hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain {
             for (var_id, _) in hir.vars.iter() {
@@ -316,7 +315,7 @@ pub fn build_program(
                 }
                 builder.push_stmt(Statement::SetGlobal {
                     dest: gid,
-                    value: Operand::Const(Constant::None),
+                    value: Operand::Const(Constant::Null),
                 });
             }
         }
@@ -369,6 +368,12 @@ pub fn build_program(
         }
     }
     for fn_id in &hir.top_functions {
+        if exports
+            .iter()
+            .any(|(name, _)| name == hir.functions[*fn_id].name.as_str())
+        {
+            continue;
+        }
         if let Some(&mir_id) = fn_map.get(fn_id)
             && let Some(gid) = program.functions[mir_id].function_global
         {
@@ -376,6 +381,12 @@ pub fn build_program(
         }
     }
     for cls_id in &hir.top_classes {
+        if exports
+            .iter()
+            .any(|(name, _)| name == hir.classes[*cls_id].name.as_str())
+        {
+            continue;
+        }
         if let Some(&gid) = hir_class_globals.get(cls_id) {
             exports.push((hir.classes[*cls_id].name.as_str().to_owned(), gid));
         }
@@ -493,6 +504,8 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) frame_depth: Option<MirLocalId>,
     /// 闭包环境形参（M3.0）：`Free` 读取 / `nonlocal` 写入都要经过它。
     pub(crate) env: Option<MirLocalId>,
+    /// 当前正在执行的类体原始命名空间。
+    pub(crate) class_namespace: Option<Operand>,
 }
 
 impl<'a> FunctionBuilder<'a> {
@@ -547,6 +560,7 @@ impl<'a> FunctionBuilder<'a> {
             ret_ty: ty_to_mir(&types.sigs[current_hir_fn].ret),
             frame_depth: None,
             env: None,
+            class_namespace: None,
         }
     }
 
@@ -571,29 +585,6 @@ impl<'a> FunctionBuilder<'a> {
     pub(crate) fn terminate_current(&mut self, term: Terminator) {
         if self.is_current_unterminated() {
             self.blocks[self.current_bb].terminator = term;
-        }
-    }
-
-    // ───────────────────── 帧记录 / 行号 / 统一返回 ─────────────────────
-    pub(crate) fn expr_builder(&mut self) -> ExprBuilder<'_> {
-        ExprBuilder {
-            hir: self.hir,
-            types: self.types,
-            fn_map: self.fn_map,
-            fn_globals: self.fn_globals,
-            fn_defaults: self.fn_defaults,
-            class_globals: self.hir_class_globals,
-            module_vars: self.module_vars,
-            globals: self.globals,
-            current_hir_fn: self.current_hir_fn,
-            env: self.env,
-            locals: &mut self.locals,
-            blocks: &mut self.blocks,
-            current_bb: &mut self.current_bb,
-            local_map: &self.local_map,
-            assigned_locals: &mut self.assigned_locals,
-            reported_unbound: &mut self.reported_unbound,
-            diagnostics: &mut self.diagnostics,
         }
     }
 }

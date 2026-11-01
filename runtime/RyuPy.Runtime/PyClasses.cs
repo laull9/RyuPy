@@ -24,7 +24,7 @@ namespace RyuPy.Runtime;
 /// 都会递增版本，下一次查找自动失效；缓存条目超过上限直接清空，避免长期运行下无限增长。
 /// 这与 semantics.md 陷阱 #22（方法 / 属性重绑定）对应。
 /// </remarks>
-public sealed class PyClass
+public sealed partial class PyClass
 {
     /// <summary>类名（`__name__` 与错误消息使用）。</summary>
     public string Name { get; }
@@ -353,7 +353,7 @@ public sealed class PyInstance
 }
 
 /// <summary>`@property` 描述符。</summary>
-public sealed class PyProperty
+public sealed partial class PyProperty
 {
     /// <summary>getter（可调用值）。</summary>
     public object? Getter { get; }
@@ -361,11 +361,7 @@ public sealed class PyProperty
     public object? Setter { get; }
 
     /// <summary>构造属性描述符。</summary>
-    public PyProperty(object? getter, object? setter = null)
-    {
-        Getter = getter;
-        Setter = setter;
-    }
+    public PyProperty(object? getter, object? setter = null) : this(getter, setter, null) { }
 
     /// <inheritdoc />
     public override string ToString() => "<property object>";
@@ -506,6 +502,10 @@ public static partial class PyOps
             }
         }
         cls.ExceptionFactory = factory as PyExceptionFactory;
+        // 装饰器可能把普通基类替换成异常类，但编译器尚未为该派生类生成 CLR 异常布局。
+        // 不能创建看似异常、实际只是 PyInstance 的对象，必须在类定义处明确拒绝。
+        if (cls.IsSubclassOfBuiltin("BaseException") && cls.ExceptionFactory is null)
+            throw new PyTypeError("dynamic exception inheritance requires a compiled exception factory");
         return cls;
     }
 

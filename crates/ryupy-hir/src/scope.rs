@@ -29,6 +29,10 @@ pub enum Resolution {
 #[derive(Debug, Default)]
 pub struct GlobalScope {
     pub names: FxHashMap<Name, Resolution>,
+    /// 装饰后的公开绑定读取模块变量，names只保留内部定义身份/静态基类信息。
+    pub dynamic_names: FxHashSet<Name>,
+    /// 定义位置已验证的 dataclasses 导入装饰器。
+    pub dataclass_markers: FxHashSet<TextRange>,
 }
 
 /// 单个函数的局部名字表。

@@ -39,13 +39,14 @@ pub(crate) fn collect_module_nested(
     let mut collector = ScopeCollector::default();
     for stmt in body {
         match stmt {
-            ast::Stmt::FunctionDef(def) => collector.visit_defaults(&def.parameters),
-            ast::Stmt::ClassDef(class) => {
-                for item in &class.body {
-                    if let ast::Stmt::FunctionDef(def) = item {
-                        collector.visit_defaults(&def.parameters);
-                    }
+            ast::Stmt::FunctionDef(def) => {
+                for decorator in &def.decorator_list {
+                    collector.visit_expr(&decorator.expression);
                 }
+                collector.visit_defaults(&def.parameters);
+            }
+            ast::Stmt::ClassDef(class) => {
+                collector.visit_class_expressions(class);
             }
             _ => collector.visit_stmt(stmt),
         }
@@ -154,6 +155,7 @@ fn register_discovered(
             range,
             closure: ClosureInfo::default(),
             is_generator: false,
+            docstring: None,
         });
         nested_funcs.insert(range, child);
         match node {
@@ -220,6 +222,27 @@ fn register_discovered(
 }
 
 impl ScopeCollector {
+    fn visit_class_expressions(&mut self, class: &ast::StmtClassDef) {
+        for decorator in &class.decorator_list {
+            self.visit_expr(&decorator.expression);
+        }
+        if let Some(arguments) = &class.arguments {
+            for base in &arguments.args {
+                self.visit_expr(base);
+            }
+        }
+        for item in &class.body {
+            if let ast::Stmt::FunctionDef(def) = item {
+                for decorator in &def.decorator_list {
+                    self.visit_expr(&decorator.expression);
+                }
+                self.visit_defaults(&def.parameters);
+            } else {
+                self.visit_stmt(item);
+            }
+        }
+    }
+
     fn push_assigned(&mut self, name: Name) {
         if !self.assigned.contains(&name) {
             self.assigned.push(name);
@@ -241,10 +264,16 @@ impl<'a> Visitor<'a> for ScopeCollector {
         match stmt {
             ast::Stmt::FunctionDef(def) => {
                 self.push_assigned(Name::from(def.name.as_str()));
+                for decorator in &def.decorator_list {
+                    self.visit_expr(&decorator.expression);
+                }
                 self.visit_defaults(&def.parameters);
                 self.nested.push(Nested::Def(def.clone()));
             }
-            ast::Stmt::ClassDef(class) => self.push_assigned(Name::from(class.name.as_str())),
+            ast::Stmt::ClassDef(class) => {
+                self.push_assigned(Name::from(class.name.as_str()));
+                self.visit_class_expressions(class);
+            }
             ast::Stmt::Global(global) => {
                 self.globals
                     .extend(global.names.iter().map(|n| Name::from(n.as_str())));

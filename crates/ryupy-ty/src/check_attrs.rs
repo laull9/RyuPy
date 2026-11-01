@@ -1,6 +1,6 @@
 //! dataclass 属性的静态读写检查，未知类型回到动态路径。
 
-use crate::check::{FunctionChecker, type_ref_to_ty};
+use crate::check::{FunctionChecker, module_type_ref_to_ty};
 use crate::ty::Ty;
 use ryupy_base::{Diagnostic, Span, TextRange};
 use ryupy_hir::{ExprId, Name};
@@ -15,8 +15,11 @@ impl FunctionChecker<'_> {
         match base_ty {
             Ty::Class(cls_id) => {
                 let cls = &self.module.classes[*cls_id];
+                if cls.decorated_binding.is_some() {
+                    return Ty::Dynamic;
+                }
                 if let Some(field) = cls.fields.iter().find(|f| f.name == *name) {
-                    type_ref_to_ty(&field.annotation)
+                    module_type_ref_to_ty(self.module, &field.annotation)
                 } else {
                     self.diagnostics.push(
                         Diagnostic::error(
@@ -55,6 +58,10 @@ impl FunctionChecker<'_> {
         match base_ty {
             Ty::Class(cls_id) => {
                 let cls = &self.module.classes[cls_id];
+                if cls.decorated_binding.is_some() {
+                    self.soft_demote = true;
+                    return;
+                }
                 if cls.frozen {
                     self.diagnostics.push(
                         Diagnostic::error(
@@ -68,7 +75,7 @@ impl FunctionChecker<'_> {
                         .with_primary_label("frozen dataclass 实例不可变"),
                     );
                 } else if let Some(field) = cls.fields.iter().find(|f| f.name == name) {
-                    let expected_ty = type_ref_to_ty(&field.annotation);
+                    let expected_ty = module_type_ref_to_ty(self.module, &field.annotation);
                     if expected_ty != Ty::Error
                         && val_ty != Ty::Error
                         && expected_ty != val_ty

@@ -89,7 +89,7 @@ public static partial class PyOps
     }
 
     private static bool IsCallable(object? value) => value is
-        PyFunction or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
+        PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
         or PyInstance;
     private static object? BuiltinGetAttr(object?[] args, string[] names)
     {

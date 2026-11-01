@@ -125,7 +125,7 @@ pub(crate) fn analyze_closures(
     );
 
     // 每个顶层 def / 方法是独立的函数作用域（父作用域 = 模块）。
-    for stmt in &parsed.module.body {
+    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
         match stmt {
             Stmt::FunctionDef(fn_def) => {
                 let func_id = top_level_func_by_range(functions, fn_def.range);

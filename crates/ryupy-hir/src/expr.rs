@@ -24,6 +24,8 @@ use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
 pub struct ExprLowerCtx<'a> {
+    /// 仅类体当前已绑定名称；方法/lambda函数体不继承该命名空间。
+    pub class_names: Option<&'a rustc_hash::FxHashSet<Name>>,
     /// 模块默认值和类体不能包含 yield；函数体/嵌套默认值可以。
     pub allow_yield: bool,
     pub file: FileId,
@@ -306,6 +308,9 @@ impl<'a> ExprLowerCtx<'a> {
 
     fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
         let name = Name::from(name_expr.id.as_str());
+        if self.class_names.is_some_and(|names| names.contains(&name)) {
+            return ExprKind::ClassLocal(name);
+        }
         // `global` 声明的名字优先落到模块命名空间（即使同名的局部变量预扫描过）。
         if self.func_scope.is_global(&name)
             && let Some(&var) = self.module_vars.get(&name)
@@ -316,6 +321,12 @@ impl<'a> ExprLowerCtx<'a> {
         // cell 读取在运行时有未赋值检查，返回装箱值。
         if let Some(&idx) = self.func_scope.free.get(&name) {
             return ExprKind::Free(idx);
+        }
+        if self.global_scope.dynamic_names.contains(&name)
+            && !self.func_scope.locals.contains_key(&name)
+            && let Some(&var) = self.module_vars.get(&name)
+        {
+            return ExprKind::ModuleVar(var);
         }
         // LEGB 查找顺序：Local → 顶层函数/类 → 模块变量 → Builtin。
         if let Some(&loc_id) = self.func_scope.locals.get(&name) {

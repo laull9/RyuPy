@@ -16,6 +16,9 @@ impl<'a> Visitor<'a> for Scan {
     fn visit_stmt(&mut self, stmt: &'a ast::Stmt) {
         match stmt {
             ast::Stmt::FunctionDef(def) => {
+                for decorator in &def.decorator_list {
+                    self.visit_expr(&decorator.expression);
+                }
                 visit_defaults(self, &def.parameters);
                 return;
             }

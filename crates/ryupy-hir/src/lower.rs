@@ -38,7 +38,17 @@ pub fn lower_module(
     let line_starts = compute_line_starts(source);
     let mut functions = Arena::default();
     let mut classes = Arena::default();
-    let mut global_scope = GlobalScope::default();
+    let mut global_scope = GlobalScope {
+        dataclass_markers: crate::decorators::dataclass_markers(&parsed.module.body),
+        ..GlobalScope::default()
+    };
+
+    crate::decorators::validate_mutable_markers(
+        &parsed.module.body,
+        &global_scope.dataclass_markers,
+        parsed.file,
+        &mut diagnostics,
+    );
 
     // 模块级变量与导入绑定（M2.7）：见 module_vars.rs。
     let (mut vars, module_var_ids) = crate::module_vars::collect_module_vars(parsed, info);
@@ -48,15 +58,40 @@ pub fn lower_module(
     // 类体的方法也是普通函数：这里先把它们全部分配 FuncId，函数体内可以互相前向
     // 引用（通过 `self.other()` 在运行时查找），也保证类体属性表达式与方法体在
     // 同一轮之后统一降级。
+    // 同名定义若包含装饰链，全部定义位置共用公开动态槽；失败时保留此前绑定。
+    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
+        match stmt {
+            ast::Stmt::FunctionDef(def) if !def.decorator_list.is_empty() => {
+                global_scope
+                    .dynamic_names
+                    .insert(Name::from(def.name.as_str()));
+            }
+            ast::Stmt::ClassDef(class)
+                if crate::decorators::has_runtime_class_decorators(
+                    class,
+                    &global_scope.dataclass_markers,
+                ) =>
+            {
+                global_scope
+                    .dynamic_names
+                    .insert(Name::from(class.name.as_str()));
+            }
+            _ => {}
+        }
+    }
+    let mut definition_functions = FxHashMap::default();
+    let mut definition_classes = FxHashMap::default();
     let mut raw_classes = Vec::new();
     let mut user_funcs: Vec<(&ast::StmtFunctionDef, crate::hir::FuncId)> = Vec::new();
     let mut top_classes: Vec<crate::hir::ClassId> = Vec::new();
     let mut top_functions: Vec<crate::hir::FuncId> = Vec::new();
-    for stmt in &parsed.module.body {
+    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
         match stmt {
             ast::Stmt::ClassDef(cls_def) => {
                 let name = Name::from(cls_def.name.as_str());
-                if global_scope.names.contains_key(&name) {
+                if global_scope.names.contains_key(&name)
+                    && !global_scope.dynamic_names.contains(&name)
+                {
                     diagnostics.push(
                         Diagnostic::error(
                             Span::new(parsed.file, cls_def.name.range()),
@@ -70,13 +105,27 @@ pub fn lower_module(
                     name: name.clone(),
                     base: None,
                     fields: Vec::new(),
+                    declared_fields: Vec::new(),
                     body: Vec::new(),
                     frozen: false,
                     is_dataclass: false,
                     is_exception: false,
                     range: cls_def.range(),
+                    decorators: Vec::new(),
+                    decorated_binding: global_scope
+                        .dynamic_names
+                        .contains(&name)
+                        .then(|| module_var_ids.get(&name).copied())
+                        .flatten(),
                 });
+                if crate::decorators::has_runtime_class_decorators(
+                    cls_def,
+                    &global_scope.dataclass_markers,
+                ) {
+                    global_scope.dynamic_names.insert(name.clone());
+                }
                 global_scope.names.insert(name, Resolution::Class(cls_id));
+                definition_classes.insert(cls_def.range, cls_id);
                 top_classes.push(cls_id);
 
                 let mut methods = Vec::new();
@@ -94,6 +143,7 @@ pub fn lower_module(
                         range: fn_def.range(),
                         closure: Default::default(),
                         is_generator: false,
+                        docstring: None,
                     });
                     methods.push(crate::class::MethodSlot {
                         name: method_name,
@@ -106,7 +156,9 @@ pub fn lower_module(
             }
             ast::Stmt::FunctionDef(fn_def) => {
                 let name = Name::from(fn_def.name.as_str());
-                if global_scope.names.contains_key(&name) {
+                if global_scope.names.contains_key(&name)
+                    && !global_scope.dynamic_names.contains(&name)
+                {
                     diagnostics.push(
                         Diagnostic::error(
                             Span::new(parsed.file, fn_def.name.range()),
@@ -125,8 +177,13 @@ pub fn lower_module(
                     range: fn_def.range(),
                     closure: Default::default(),
                     is_generator: false,
+                    docstring: None,
                 });
+                if !fn_def.decorator_list.is_empty() {
+                    global_scope.dynamic_names.insert(name.clone());
+                }
                 global_scope.names.insert(name, Resolution::Func(func_id));
+                definition_functions.insert(fn_def.range, func_id);
                 top_functions.push(func_id);
                 user_funcs.push((fn_def, func_id));
             }
@@ -144,6 +201,7 @@ pub fn lower_module(
         range: parsed.module.range,
         closure: Default::default(),
         is_generator: false,
+        docstring: None,
     });
 
     // M3.0：闭包作用域分析——发现嵌套 def / lambda 并计算 free / cell 变量。
@@ -156,6 +214,8 @@ pub fn lower_module(
 
     let mut main_body = Body::default();
 
+    let mut class_scopes = FxHashMap::default();
+
     // 解析所有类：基类必须已经解析过，因此这里保持源码顺序。
     // 类体属性表达式降级到 main_body，由 MIR 在 `class` 语句位置求值。
     for (cls_def, cls_id, methods) in raw_classes {
@@ -167,6 +227,8 @@ pub fn lower_module(
             &methods,
             &module_var_ids,
             &analysis.nested_funcs,
+            &mut nested_defaults,
+            &mut class_scopes,
             &mut main_body,
             &mut diagnostics,
         ) {
@@ -187,6 +249,7 @@ pub fn lower_module(
             package: &info.package,
             source,
             func_id,
+            class_names: class_scopes.get(&func_id),
             functions,
             global_scope: &global_scope,
             module_vars: &module_var_ids,
@@ -271,13 +334,30 @@ pub fn lower_module(
             // `def` 不产生普通语句，但它的默认值必须在**定义位置**求值
             ast::Stmt::FunctionDef(fn_def) => {
                 let name = Name::from(fn_def.name.as_str());
-                if let Some(Resolution::Func(func_id)) = global_scope.names.get(&name) {
-                    main_lower_ctx.lower_function_defaults(*func_id, fn_def.range());
+                if let Some(func_id) = definition_functions.get(&fn_def.range) {
+                    if !global_scope.dynamic_names.contains(&name) {
+                        main_lower_ctx.lower_function_defaults(*func_id, fn_def.range());
+                    } else if let Some(&var) = module_var_ids.get(&name) {
+                        let decorators = fn_def
+                            .decorator_list
+                            .iter()
+                            .map(|decorator| main_lower_ctx.lower_expr(&decorator.expression))
+                            .collect();
+                        let stmt = main_lower_ctx.body.stmts.alloc(Stmt {
+                            kind: StmtKind::DecoratedDef {
+                                func: *func_id,
+                                target: crate::hir::AssignTarget::ModuleVar(var),
+                                decorators,
+                            },
+                            range: fn_def.range(),
+                            line: main_lower_ctx.line_of(fn_def.range.start().to_usize()),
+                        });
+                        main_lower_ctx.body.root.push(stmt);
+                    }
                 }
             }
             ast::Stmt::ClassDef(cls_def) => {
-                let name = Name::from(cls_def.name.as_str());
-                if let Some(Resolution::Class(cls_id)) = global_scope.names.get(&name) {
+                if let Some(cls_id) = definition_classes.get(&cls_def.range) {
                     main_lower_ctx.lower_class_def(*cls_id, cls_def.range());
                 }
             }
@@ -350,6 +430,7 @@ pub(crate) struct StmtLowerCtx<'a> {
 /// 默认值里若还有 lambda（带参数默认值），同样登记进 `nested_defaults`。
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn lower_default_expr(
+    class_names: Option<&rustc_hash::FxHashSet<Name>>,
     file: FileId,
     global_scope: &GlobalScope,
     module_vars: &FxHashMap<Name, ModuleVarId>,
@@ -361,6 +442,7 @@ pub(crate) fn lower_default_expr(
 ) -> ExprId {
     let scope = FunctionScope::default();
     let mut ctx = ExprLowerCtx {
+        class_names,
         allow_yield: false,
         file,
         global_scope,
@@ -397,6 +479,7 @@ impl StmtLowerCtx<'_> {
     /// 语句降级复用：把下标位置（可能是切片）降级成表达式。
     pub(crate) fn lower_subscript_index(&mut self, slice: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
+            class_names: None,
             allow_yield: !self.module_scope,
             file: self.file,
             global_scope: self.global_scope,
@@ -412,6 +495,7 @@ impl StmtLowerCtx<'_> {
 
     pub(crate) fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {
+            class_names: None,
             allow_yield: !self.module_scope,
             file: self.file,
             global_scope: self.global_scope,

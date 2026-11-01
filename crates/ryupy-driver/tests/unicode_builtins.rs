@@ -1,4 +1,4 @@
-//! 项目驱动的 Unicode 内建：直接调用走统一运行时，一等值缺口明确诊断。
+//! 项目驱动的 Unicode 内建：直接调用与一等内建函数值共享运行时分派。
 use ryupy_driver::{Session, Stage, dump};
 
 #[test]
@@ -12,28 +12,11 @@ fn snapshot_unicode_builtins() {
 }
 
 #[test]
-fn snapshot_unicode_builtin_value_diagnostic() {
+fn snapshot_unicode_builtin_values() {
     let path = std::env::temp_dir().join("ryupy_test_unicode_builtin_value.py");
-    std::fs::write(&path, "f = ord\ng = chr\n").unwrap();
+    std::fs::write(&path, "f = ord\ng = chr\nprint(f(g(65)))\n").unwrap();
     let mut session = Session::default();
-    assert!(dump(&mut session, &path, Stage::Mir).is_err());
-    assert_eq!(
-        session
-            .diagnostics
-            .iter()
-            .filter(|d| d.code == Some("E0305"))
-            .count(),
-        2
-    );
-    let output = session
-        .render_diagnostics(false)
-        .replace(path.to_str().unwrap(), "unicode.py");
-    insta::assert_snapshot!(
-        output
-            .lines()
-            .map(str::trim_end)
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
+    let output = dump(&mut session, &path, Stage::Mir).expect("ord/chr作为可调用内建值");
+    insta::assert_snapshot!(output.replace(path.to_str().unwrap(), "unicode.py"));
     std::fs::remove_file(path).unwrap();
 }

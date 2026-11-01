@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.3：装饰器求值 / 应用顺序与替换 callable。
 def decorate(label):
     print("evaluate", label)
@@ -34,3 +33,35 @@ class Item:
 
 
 print(Item.label)
+
+# 可调用对象既可以作为装饰器，也可以作为装饰结果。
+class CallableWrapper:
+    def __init__(self, function):
+        self.function = function
+
+    def __call__(self, value):
+        return self.function(value) + 1
+
+
+@CallableWrapper
+def number(value):
+    return value * 2
+
+
+print(number(4))
+
+
+class DecoratorObject:
+    def __call__(self, function):
+        return CallableWrapper(function)
+
+
+decorator_object = DecoratorObject()
+
+
+@decorator_object
+def another(value):
+    return value + 2
+
+
+print(another(5))

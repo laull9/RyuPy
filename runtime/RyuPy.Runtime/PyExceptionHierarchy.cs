@@ -34,6 +34,7 @@ public static class PyExceptionHierarchy
         ["NameError"] = "Exception",
         ["UnboundLocalError"] = "NameError",
         ["AttributeError"] = "Exception",
+        ["FrozenInstanceError"] = "AttributeError",
         ["RuntimeError"] = "Exception",
         ["NotImplementedError"] = "RuntimeError",
         ["RecursionError"] = "RuntimeError",

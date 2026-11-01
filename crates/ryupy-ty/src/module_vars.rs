@@ -146,7 +146,12 @@ fn annotation_ty(module: &Module, var: &ryupy_hir::ModuleVar) -> Option<Ty> {
     let ty = crate::check::type_ref_to_ty(var.annotation.as_ref()?);
     // `TypeRef::Class` 只有 dataclass 有静态布局；普通类实例是动态值。
     let ty = match ty {
-        Ty::Class(id) if !module.classes[id].is_dataclass => Ty::Dynamic,
+        Ty::Class(id)
+            if !module.classes[id].is_dataclass
+                || module.classes[id].decorated_binding.is_some() =>
+        {
+            Ty::Dynamic
+        }
         other => other,
     };
     Some(ty)
@@ -293,7 +298,8 @@ fn expr_hint(
             let ExprKind::Class(id) = &body.exprs[*callee].kind else {
                 return None;
             };
-            module.classes[*id].is_dataclass.then_some(Ty::Class(*id))
+            (module.classes[*id].is_dataclass && module.classes[*id].decorated_binding.is_none())
+                .then_some(Ty::Class(*id))
         }
         _ => None,
     }

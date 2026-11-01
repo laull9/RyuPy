@@ -1,12 +1,12 @@
 # 标准库移植计划
 
-标准库在 Phase 3 单独交付，当前表内能力均待实现，Phase 1 的 dataclass 特殊降级除外。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
+标准库在 Phase 3 单独交付，当前表内能力均待实现，Phase 1 的 dataclass 特殊降级及 M3.3 混合装饰器必填字段路径除外（非完整 dataclasses 模块）。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
 
 ## 项目驱动的基础内建
 
 `ord` / `chr` 直接调用已原生实现，独立于下方待做模块表：ord接受单码点str和单字节bytes/bytearray，
 chr接受整数/bool与一次`__index__`转换；代理项可往返。严格拒绝错误参数和关键字，区分C int溢出与Unicode范围错误。
-一等内建函数值仍待接入，ord/chr作为值明确E0305。wcwidth真实入口首阻断已前移到map，并不表示项目通过。
+M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。wcwidth真实入口首阻断已前移到map，并不表示项目通过。
 
 ## 工作规模与实现路径
 

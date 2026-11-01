@@ -85,7 +85,11 @@ impl crate::expr::ExprLowerCtx<'_> {
             );
             return ExprKind::Missing;
         }
-        let Some(&func) = self.nested_funcs.get(&comp.range) else {
+        let function = self
+            .nested_funcs
+            .get(&comp.range)
+            .filter(|_| self.class_names.is_none());
+        let Some(&func) = function else {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, comp.range),

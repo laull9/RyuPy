@@ -98,6 +98,8 @@ pub struct Function {
     pub closure: ClosureInfo,
     /// 当前函数体含 yield（包括不可达分支），调用先返回生成器而非执行体。
     pub is_generator: bool,
+    /// 首条字符串语句的文档内容；没有文档时为 None。
+    pub docstring: Option<String>,
 }
 
 /// 一个函数作用域的闭包分析结果。
@@ -172,70 +174,7 @@ impl CallArg {
     }
 }
 
-/// 一个类定义。
-///
-/// 两类类共享同一结构：
-/// - `@dataclass`：`fields` 有内容，构造走静态 `NewObject`，类体只允许字段标注；
-/// - 普通 class（M2.5）：运行时由 `PyClass` / `PyInstance` 承载，类体按源码顺序
-///   求值属性并登记方法。
-#[derive(Debug)]
-pub struct Class {
-    pub name: Name,
-    /// 单继承的基类；`None` 表示 `object`。
-    pub base: Option<ClassBase>,
-    pub fields: Vec<Field>,
-    /// 类体按源码顺序执行：属性、方法、表达式语句。
-    pub body: Vec<ClassItem>,
-    /// `@dataclass(frozen=True)`：字段写入在编译期拒绝。
-    pub frozen: bool,
-    /// `@dataclass` 修饰的类。
-    pub is_dataclass: bool,
-    /// 是否为 `BaseException` 家族（内建或用户定义）——决定能否出现在 `except` 中。
-    pub is_exception: bool,
-    pub range: TextRange,
-}
-
-/// 单继承的基类表示。用户类指向已解析的 `ClassId`，内建基类保留异常类型名。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ClassBase {
-    User(ClassId),
-    Builtin(&'static str),
-}
-
-#[derive(Debug)]
-pub struct Field {
-    pub name: Name,
-    pub annotation: TypeRef,
-    pub range: TextRange,
-}
-
-/// 类体里的一项，保留源码顺序（Python 的类体是顺序执行的）。
-#[derive(Clone, Debug)]
-pub struct ClassItem {
-    pub kind: ClassItemKind,
-    pub range: TextRange,
-}
-
-#[derive(Clone, Debug)]
-pub enum ClassItemKind {
-    /// `name = value` / `name: T = value`：写入类命名空间。
-    Attr { name: Name, value: ExprId },
-    /// 方法定义；`@property` / `@staticmethod` / `@classmethod` 在运行时应用。
-    Method {
-        func: FuncId,
-        decorators: Vec<Decorator>,
-    },
-    /// 表达式语句（通常是 docstring 或类体里的副作用）。
-    Expr(ExprId),
-}
-
-/// `def` 上方支持的类内修饰器。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Decorator {
-    Property,
-    StaticMethod,
-    ClassMethod,
-}
+pub use crate::class_hir::*;
 
 /// 源码中写出来的类型标注（尚未检查）。
 #[derive(Clone, Debug, PartialEq)]
@@ -282,6 +221,8 @@ pub struct Expr {
 
 #[derive(Clone, Debug)]
 pub enum ExprKind {
+    /// 类体定义位置读取先前类命名空间绑定；不对descriptor做实例绑定。
+    ClassLocal(Name),
     /// 暂停并在恢复后得到 send 的值；next 对应 None。
     Yield(Option<ExprId>),
     YieldFrom(ExprId),
@@ -528,6 +469,13 @@ pub enum StmtKind {
     NestedDef {
         func: FuncId,
         target: AssignTarget,
+    },
+    /// 装饰定义：表达式属于定义位置的外层 body，源码顺序求值、逆序应用。
+    /// defaults / 原函数对象在装饰表达式之后创建，全部成功后才更新 target。
+    DecoratedDef {
+        func: FuncId,
+        target: AssignTarget,
+        decorators: Vec<ExprId>,
     },
     /// `raise [exc [from cause]]`；两者都为 `None` 表示裸重抛。
     Raise {

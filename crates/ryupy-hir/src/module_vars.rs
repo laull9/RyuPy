@@ -55,6 +55,25 @@ pub(crate) fn collect_module_vars(
     for (name, range) in collect_assigned_names(&parsed.module.body) {
         ensure_var(&name, range, None);
     }
+    // 装饰定义的公开结果可以是任意值，独立于原FuncId/ClassId占动态模块槽。
+    let mut decorated_names = Vec::new();
+    let dataclass_markers = crate::decorators::dataclass_markers(&parsed.module.body);
+    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
+        let name = match stmt {
+            ast::Stmt::FunctionDef(def) if !def.decorator_list.is_empty() => Some(&def.name),
+            ast::Stmt::ClassDef(class)
+                if crate::decorators::has_runtime_class_decorators(class, &dataclass_markers) =>
+            {
+                Some(&class.name)
+            }
+            _ => None,
+        };
+        if let Some(name) = name {
+            let name = Name::from(name.as_str());
+            ensure_var(&name, stmt.range(), None);
+            decorated_names.push(name);
+        }
+    }
     // 模块语句块里的 def 绑定到模块；直接顶层 def 继续使用已有函数槽位。
     for stmt in &parsed.module.body {
         if !matches!(stmt, ast::Stmt::FunctionDef(_) | ast::Stmt::ClassDef(_)) {
@@ -91,7 +110,7 @@ pub(crate) fn collect_module_vars(
         ensure_var(&name, parsed.module.range, None);
     }
     // 标记 `global` 声明的变量：它们的读写走动态路径。
-    for name in global_names {
+    for name in global_names.into_iter().chain(decorated_names) {
         if let Some(&var) = module_var_ids.get(&name) {
             vars[var].is_global = true;
         }
