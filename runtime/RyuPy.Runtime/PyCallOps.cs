@@ -64,6 +64,7 @@ public static partial class PyOps
         {
             PyFunction function => function.Invoke(args, names, values),
             PyBuiltinFunction function => function.Invoke(args, names, values),
+            PyNativeType type => type.Invoke(args, names, values),
             PyClass cls => cls.Invoke(args, names, values),
             PyBoundMethod method => method.Invoke(args, names, values),
             PyBuiltinMethod method => method.Invoke(args, names, values),

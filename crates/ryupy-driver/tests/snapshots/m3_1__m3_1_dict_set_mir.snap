@@ -39,6 +39,11 @@ fn main() -> () {
     let _33: dyn;
     let _34: dyn;
     let _35: dyn;
+    let _36: dyn;
+    let _37: dyn;
+    let _38: dyn;
+    let _39: dyn;
+    let _40: dyn;
 
     bb0: {
         g0 = null;
@@ -65,50 +70,55 @@ fn main() -> () {
         _7 = RuntimeFn::DynBuiltin(const "range", [_6], [], []);
         _8 = RuntimeFn::DynBuiltin(const "iter", [_7], [], []);
         _9 = dyn.call(_5, [_8]);
-        RuntimeFn::WriteObject(_9);
-        RuntimeFn::WriteNewline();
+        _10 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_10, _9);
+        RuntimeFn::WriteNewline(_10);
         // line 4
-        _10 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
-        _11 = box<I64>(const 3_i64);
-        _12 = RuntimeFn::DynBuiltin(const "range", [_11], [], []);
-        _13 = RuntimeFn::DynBuiltin(const "iter", [_12], [], []);
-        _14 = dyn.call(_10, [_13]);
-        _15 = RuntimeFn::LoadName(global@3, const "value");
-        RuntimeFn::WriteObject(_14);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_15);
-        RuntimeFn::WriteNewline();
+        _11 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _12 = box<I64>(const 3_i64);
+        _13 = RuntimeFn::DynBuiltin(const "range", [_12], [], []);
+        _14 = RuntimeFn::DynBuiltin(const "iter", [_13], [], []);
+        _15 = dyn.call(_11, [_14]);
+        _16 = RuntimeFn::LoadName(global@3, const "value");
+        _17 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_17, _15);
+        RuntimeFn::WriteSep(_17);
+        RuntimeFn::WriteObject(_17, _16);
+        RuntimeFn::WriteNewline(_17);
         // line 5
-        _16 = MakeFunction(<dictcomp>; env=[]; defaults=[null]);
-        _17 = box<I64>(const 4_i64);
-        _18 = RuntimeFn::DynBuiltin(const "range", [_17], [], []);
-        _19 = RuntimeFn::DynBuiltin(const "iter", [_18], [], []);
-        _20 = dyn.call(_16, [_19]);
-        RuntimeFn::WriteObject(_20);
-        RuntimeFn::WriteNewline();
+        _18 = MakeFunction(<dictcomp>; env=[]; defaults=[null]);
+        _19 = box<I64>(const 4_i64);
+        _20 = RuntimeFn::DynBuiltin(const "range", [_19], [], []);
+        _21 = RuntimeFn::DynBuiltin(const "iter", [_20], [], []);
+        _22 = dyn.call(_18, [_21]);
+        _23 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_23, _22);
+        RuntimeFn::WriteNewline(_23);
         // line 6
-        _21 = MakeFunction(<setcomp>; env=[]; defaults=[null]);
-        _22 = box<I64>(const 7_i64);
-        _23 = RuntimeFn::DynBuiltin(const "range", [_22], [], []);
-        _24 = RuntimeFn::DynBuiltin(const "iter", [_23], [], []);
-        _25 = dyn.call(_21, [_24]);
-        _26 = RuntimeFn::DynBuiltin(const "sorted", [_25], [], []);
-        RuntimeFn::WriteObject(_26);
-        RuntimeFn::WriteNewline();
+        _24 = MakeFunction(<setcomp>; env=[]; defaults=[null]);
+        _25 = box<I64>(const 7_i64);
+        _26 = RuntimeFn::DynBuiltin(const "range", [_25], [], []);
+        _27 = RuntimeFn::DynBuiltin(const "iter", [_26], [], []);
+        _28 = dyn.call(_24, [_27]);
+        _29 = RuntimeFn::DynBuiltin(const "sorted", [_28], [], []);
+        _30 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_30, _29);
+        RuntimeFn::WriteNewline(_30);
         // line 7
-        _27 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
-        _28 = box<I64>(const 3_i64);
-        _29 = RuntimeFn::DynBuiltin(const "range", [_28], [], []);
-        _30 = RuntimeFn::DynBuiltin(const "iter", [_29], [], []);
-        _31 = dyn.call(_27, [_30]);
-        g4 = _31;
-        // line 8
-        _32 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
-        _33 = RuntimeFn::LoadName(global@4, const "functions");
+        _31 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _32 = box<I64>(const 3_i64);
+        _33 = RuntimeFn::DynBuiltin(const "range", [_32], [], []);
         _34 = RuntimeFn::DynBuiltin(const "iter", [_33], [], []);
-        _35 = dyn.call(_32, [_34]);
-        RuntimeFn::WriteObject(_35);
-        RuntimeFn::WriteNewline();
+        _35 = dyn.call(_31, [_34]);
+        g4 = _35;
+        // line 8
+        _36 = MakeFunction(<listcomp>; env=[]; defaults=[null]);
+        _37 = RuntimeFn::LoadName(global@4, const "functions");
+        _38 = RuntimeFn::DynBuiltin(const "iter", [_37], [], []);
+        _39 = dyn.call(_36, [_38]);
+        _40 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_40, _39);
+        RuntimeFn::WriteNewline(_40);
         goto -> bb1;
     }
     bb1: {

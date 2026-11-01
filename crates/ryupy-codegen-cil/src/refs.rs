@@ -25,7 +25,6 @@ pub(crate) struct RefExtras {
     pub report_unhandled: MethodRefIndex,
     pub report_clr: MethodRefIndex,
     pub clr_exc_type: MethodType,
-    pub flush_stdout: MethodRefIndex,
 }
 
 /// 建立程序集引用与全部运行时方法引用，返回 `RuntimeRefs` 与零散需要的引用。
@@ -40,23 +39,11 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         res.push_type_reference(type_ref! { RyuPy.Runtime.Builtins in #ryupy_runtime });
     let builtins_type: MethodType = BaseType::class(builtins_ref).into();
 
-    let write_i64 =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteI64(long) });
-    let write_f64 =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteF64(double) });
-    let write_bool =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteBool(bool) });
-    let write_str =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteStr(string) });
-    let write_newline =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteNewline() });
-    let write_sep =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteSep() });
     let str_concat = res.push_method_reference(
         method_ref! { static string @builtins_type::StrConcat(string, string) },
     );
-    // stdout 带缓冲：入口包装器退出前必须显式刷新
-    let flush_stdout =
+    // 保留旧Flush ABI引用；入口改用FlushForExit，运行时报告等内部路径仍可直接刷新。
+    let _flush_stdout =
         res.push_method_reference(method_ref! { static void @builtins_type::Flush() });
 
     let pymath_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyMath in #ryupy_runtime });
@@ -90,9 +77,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         .push_method_reference(method_ref! { static long @pymath_type::ShiftRightI64(long, long) });
 
     // ── 动态值 ABI（ADR-0010）──
-    let write_object =
-        res.push_method_reference(method_ref! { static void @builtins_type::WriteObject(object) });
-
     let pyops_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #ryupy_runtime });
     let pyops_type: MethodType = BaseType::class(pyops_ref).into();
     let prepare_method = res.push_method_reference(
@@ -447,6 +431,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let (generator_resume_ctor, generator_ctor, generator_input, generator_retry) =
         crate::generator_refs::build(res, ryupy_runtime);
     let runtime_refs = RuntimeRefs {
+        system: crate::system_refs::SystemRefs::build(res, ryupy_runtime),
         function_objects: crate::function_refs::FunctionRefs::build(res, ryupy_runtime),
         delegation: crate::generator_refs::DelegateRefs::build(res, ryupy_runtime),
         prepare_method,
@@ -454,12 +439,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         generator_ctor,
         generator_input,
         generator_retry,
-        write_i64,
-        write_f64,
-        write_bool,
-        write_str,
-        write_newline,
-        write_sep,
         str_concat,
         floor_div_i64,
         mod_i64,
@@ -473,7 +452,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         abs_f64,
         shl_i64,
         shr_i64,
-        write_object,
         dyn_binary,
         dyn_compare,
         dyn_unary,
@@ -593,7 +571,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
             report_unhandled,
             report_clr,
             clr_exc_type,
-            flush_stdout,
         },
     )
 }

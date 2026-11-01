@@ -119,6 +119,7 @@ fn main() -> () {
     let _20: bool;
     let _21: str;
     let _22: str;
+    let _23: dyn;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_4_mandelbrot.py", const "<module>");
@@ -190,8 +191,9 @@ fn main() -> () {
     }
     bb10: {
         // line 24
-        RuntimeFn::WriteStr(global@4);
-        RuntimeFn::WriteNewline();
+        _23 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteStr(_23, global@4);
+        RuntimeFn::WriteNewline(_23);
         goto -> bb3;
     }
     bb11: {

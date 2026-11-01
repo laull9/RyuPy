@@ -28,6 +28,7 @@ fn main() -> () {
     let _4: dyn;
     let _5: dyn;
     let _6: dyn;
+    let _7: dyn;
 
     bb0: {
         g0 = null;
@@ -51,8 +52,9 @@ fn main() -> () {
         // line 6
         _5 = RuntimeFn::LoadName(global@3, const "iterator");
         _6 = RuntimeFn::DynBuiltin(const "next", [_5], [], []);
-        RuntimeFn::WriteObject(_6);
-        RuntimeFn::WriteNewline();
+        _7 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_7, _6);
+        RuntimeFn::WriteNewline(_7);
         goto -> bb1;
     }
     bb1: {

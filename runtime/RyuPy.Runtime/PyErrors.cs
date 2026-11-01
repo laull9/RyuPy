@@ -110,6 +110,7 @@ public static partial class PyErrors
         // StopIteration 的首参是终值对象，不能先 str() 再丢失身份或提前执行用户代码。
         // 当前单参 ABI 尚不区分无参和显式 None；二者沿用内部耗尽的空 args 约定。
         if (typeName == "StopIteration") return new PyStopIteration(arg);
+        if (typeName == "SystemExit") return new PySystemExit(arg);
         string message = arg is null or PyNone ? string.Empty : PyRepr.Str(arg);
         return PyExceptionTypes.Create(typeName, message);
     }

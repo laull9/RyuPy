@@ -435,3 +435,18 @@ ord/chr支持普通码点、补充平面和单独代理项；但两个独立代�
 遵守装饰顺序，默认值/factory和完整dataclasses字段对象仍留M3.6。property的
 getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细边界见
 [ADR-0027](adr/0027-definition-time-decorators.md)。
+
+### 系统、流与路径（M3.4）
+
+当前原生 API 与参数范围见 [stdlib-system.md](stdlib-system.md)，设计见 ADR-0028。
+标准流可替换；print 捕获单次目标，flush 的真值转换先于任何写入；input 只去末尾 LF。
+正常退出和 SystemExit 都尝试刷新当前 stdout/stderr；一个目标失败不跳过另一个，
+失败退出 120，不自动 close 用户重绑定流，不保证 CPython finalization 的重复刷新次数。
+文本 cookie、编码、换行和关闭后错误有差分；显式 with/close 清理不依赖 GC。
+sys.modules/path 为受控只读视图，不支持动态 import hook；环境与模块 keys/items 是快照。
+Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 词法拒绝测试分开记录。
+Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
+io.UnsupportedOperation 的双重异常层级未实现，当前能力错误为 OSError；完整文件描述符、
+编码错误策略、复杂 glob 等长尾保持明确未支持。文本逐码点实现优先语义，未声称性能提升。
+本轮发现既有正整数字面量仅支持到 u64::MAX，超过范围 E0100；int(十进制字符串) 可创建更大整数，
+不把后者的运行时 BigInteger 能力误写成任意大小源码整数字面量支持。

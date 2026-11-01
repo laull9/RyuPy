@@ -64,19 +64,19 @@ fn main() -> () {
     let _21: dyn;
     let _22: dyn;
     let _23: dyn;
-    let _24: i64;
+    let _24: dyn;
     let _25: i64;
     let _26: i64;
     let _27: i64;
     let _28: i64;
-    let _29: bool;
+    let _29: i64;
     let _30: bool;
     let _31: bool;
     let _32: bool;
     let _33: bool;
     let _34: bool;
     let _35: bool;
-    let _36: dyn;
+    let _36: bool;
     let _37: dyn;
     let _38: dyn;
     let _39: dyn;
@@ -108,6 +108,9 @@ fn main() -> () {
     let _65: dyn;
     let _66: dyn;
     let _67: dyn;
+    let _68: dyn;
+    let _69: dyn;
+    let _70: dyn;
 
     bb0: {
         g0 = null;
@@ -150,56 +153,57 @@ fn main() -> () {
         _17 = dyn.call(_15, [_16]);
         _18 = RuntimeFn::LoadName(global@4, const "read");
         _19 = dyn.call(_18, []);
-        RuntimeFn::WriteObject(_12);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_14);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_17);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_19);
-        RuntimeFn::WriteNewline();
+        _20 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_20, _12);
+        RuntimeFn::WriteSep(_20);
+        RuntimeFn::WriteObject(_20, _14);
+        RuntimeFn::WriteSep(_20);
+        RuntimeFn::WriteObject(_20, _17);
+        RuntimeFn::WriteSep(_20);
+        RuntimeFn::WriteObject(_20, _19);
+        RuntimeFn::WriteNewline(_20);
         // line 18
-        _20 = MakeList([]);
-        g5 = _20;
-        // line 19
         _21 = MakeList([]);
-        g6 = _21;
+        g5 = _21;
+        // line 19
+        _22 = MakeList([]);
+        g6 = _22;
         // line 20
-        _22 = box<I64>(const 0_i64);
-        _23 = box<I64>(const 3_i64);
-        _24 = unbox<I64>(_22);
+        _23 = box<I64>(const 0_i64);
+        _24 = box<I64>(const 3_i64);
         _25 = unbox<I64>(_23);
-        _26 = _24;
+        _26 = unbox<I64>(_24);
         _27 = _25;
-        _28 = const 1_i64;
+        _28 = _26;
+        _29 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _29 = Gt(_28, const 0_i64);
-        _30 = Lt(_26, _27);
-        _31 = Gt(_26, _27);
-        _32 = BitAnd(_29, _30);
-        _33 = Not(_29);
-        _34 = BitAnd(_33, _31);
-        _35 = BitOr(_32, _34);
-        branch _35 -> [then: bb2, else: bb5];
+        _30 = Gt(_29, const 0_i64);
+        _31 = Lt(_27, _28);
+        _32 = Gt(_27, _28);
+        _33 = BitAnd(_30, _31);
+        _34 = Not(_30);
+        _35 = BitAnd(_34, _32);
+        _36 = BitOr(_33, _35);
+        branch _36 -> [then: bb2, else: bb5];
     }
     bb2: {
-        _36 = box<I64>(_26);
-        g7 = _36;
+        _37 = box<I64>(_27);
+        g7 = _37;
         // line 21
-        _37 = RuntimeFn::LoadName(global@5, const "late");
-        _38 = MakeFunction(<lambda>; env=[]; defaults=[]);
-        _39 = dyn.method(_37, "append", [_38]);
+        _38 = RuntimeFn::LoadName(global@5, const "late");
+        _39 = MakeFunction(<lambda>; env=[]; defaults=[]);
+        _40 = dyn.method(_38, "append", [_39]);
         // line 22
-        _40 = RuntimeFn::LoadName(global@6, const "early");
-        _41 = RuntimeFn::LoadName(global@7, const "index");
-        _42 = MakeFunction(<lambda>; env=[]; defaults=[_41]);
-        _43 = dyn.method(_40, "append", [_42]);
+        _41 = RuntimeFn::LoadName(global@6, const "early");
+        _42 = RuntimeFn::LoadName(global@7, const "index");
+        _43 = MakeFunction(<lambda>; env=[]; defaults=[_42]);
+        _44 = dyn.method(_41, "append", [_43]);
         goto -> bb3;
     }
     bb3: {
-        _26 = Add(_26, _28);
+        _27 = Add(_27, _29);
         goto -> bb1;
     }
     bb4: {
@@ -207,43 +211,45 @@ fn main() -> () {
     }
     bb5: {
         // line 23
-        _44 = RuntimeFn::LoadName(global@5, const "late");
-        _45 = box<I64>(const 0_i64);
-        _46 = RuntimeFn::GetItem(_44, _45);
-        _47 = dyn.call(_46, []);
-        _48 = RuntimeFn::LoadName(global@5, const "late");
-        _49 = box<I64>(const 1_i64);
-        _50 = RuntimeFn::GetItem(_48, _49);
-        _51 = dyn.call(_50, []);
-        _52 = RuntimeFn::LoadName(global@5, const "late");
-        _53 = box<I64>(const 2_i64);
-        _54 = RuntimeFn::GetItem(_52, _53);
-        _55 = dyn.call(_54, []);
-        RuntimeFn::WriteObject(_47);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_51);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_55);
-        RuntimeFn::WriteNewline();
+        _45 = RuntimeFn::LoadName(global@5, const "late");
+        _46 = box<I64>(const 0_i64);
+        _47 = RuntimeFn::GetItem(_45, _46);
+        _48 = dyn.call(_47, []);
+        _49 = RuntimeFn::LoadName(global@5, const "late");
+        _50 = box<I64>(const 1_i64);
+        _51 = RuntimeFn::GetItem(_49, _50);
+        _52 = dyn.call(_51, []);
+        _53 = RuntimeFn::LoadName(global@5, const "late");
+        _54 = box<I64>(const 2_i64);
+        _55 = RuntimeFn::GetItem(_53, _54);
+        _56 = dyn.call(_55, []);
+        _57 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_57, _48);
+        RuntimeFn::WriteSep(_57);
+        RuntimeFn::WriteObject(_57, _52);
+        RuntimeFn::WriteSep(_57);
+        RuntimeFn::WriteObject(_57, _56);
+        RuntimeFn::WriteNewline(_57);
         // line 24
-        _56 = RuntimeFn::LoadName(global@6, const "early");
-        _57 = box<I64>(const 0_i64);
-        _58 = RuntimeFn::GetItem(_56, _57);
-        _59 = dyn.call(_58, []);
-        _60 = RuntimeFn::LoadName(global@6, const "early");
-        _61 = box<I64>(const 1_i64);
-        _62 = RuntimeFn::GetItem(_60, _61);
-        _63 = dyn.call(_62, []);
-        _64 = RuntimeFn::LoadName(global@6, const "early");
-        _65 = box<I64>(const 2_i64);
-        _66 = RuntimeFn::GetItem(_64, _65);
-        _67 = dyn.call(_66, []);
-        RuntimeFn::WriteObject(_59);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_63);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_67);
-        RuntimeFn::WriteNewline();
+        _58 = RuntimeFn::LoadName(global@6, const "early");
+        _59 = box<I64>(const 0_i64);
+        _60 = RuntimeFn::GetItem(_58, _59);
+        _61 = dyn.call(_60, []);
+        _62 = RuntimeFn::LoadName(global@6, const "early");
+        _63 = box<I64>(const 1_i64);
+        _64 = RuntimeFn::GetItem(_62, _63);
+        _65 = dyn.call(_64, []);
+        _66 = RuntimeFn::LoadName(global@6, const "early");
+        _67 = box<I64>(const 2_i64);
+        _68 = RuntimeFn::GetItem(_66, _67);
+        _69 = dyn.call(_68, []);
+        _70 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_70, _61);
+        RuntimeFn::WriteSep(_70);
+        RuntimeFn::WriteObject(_70, _65);
+        RuntimeFn::WriteSep(_70);
+        RuntimeFn::WriteObject(_70, _69);
+        RuntimeFn::WriteNewline(_70);
         goto -> bb6;
     }
     bb6: {

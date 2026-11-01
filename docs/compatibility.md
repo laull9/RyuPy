@@ -7,6 +7,7 @@ CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 
 2026-11-01 在 Linux x86_64 重跑固定项目集，仍为 0/20 原生通过；没有新增桥接路径。
 ord/chr基础内建已补直接调用，wcwidth首阻断从ord前移至map；progress从生成器with清理前移到未知Progress基类，两者均未计为项目通过。
 M3.3重跑attrs首阻断从类装饰器前移至Protocol基类，仍未计为项目通过。
+M3.4原生系统/流/路径子集见stdlib-system.md；binaryornot首阻断从open前移至locals，固定项目仍0/20，Windows实际运行未验收。
 急切推导式解除若干前端阻塞，但项目仍需后续语法和 API，不将语法差分通过计入项目分子。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
 
@@ -65,7 +66,7 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 | wcwidth | 0.2.13 / PyPI | 宽字符与组合字符 | 无 | 原生 / Linux x86_64 | unsupported：内建 `map` 未接入（ord直接调用已补） | 2026-11-01 |
 | colorama | 0.4.6 / PyPI | ANSI 常量与 init | 无 | 原生 / Linux x86_64 | unsupported：内建 `dir` 未接入 | 2026-11-01 |
 | termcolor | 2.4.0 / PyPI | colored 属性组合 | 无 | 原生 / Linux x86_64 | unsupported：复杂类型表达式 | 2026-11-01 |
-| binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / Linux x86_64 | unsupported：内建 `open` 未接入（文件 API 在 M3.4） | 2026-11-01 |
+| binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / Linux x86_64 | unsupported：未定义名称 `locals`（M3.4 已解除 open 首阻断） | 2026-11-01 |
 | progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / Linux x86_64 | unsupported：未知基类 `Progress`（生成器with清理首阻断已解除） | 2026-11-01 |
 
 分母 20，原生通过 0，**0%**。M2.9 不要求此时达到最终 80%：当前阻塞集中在

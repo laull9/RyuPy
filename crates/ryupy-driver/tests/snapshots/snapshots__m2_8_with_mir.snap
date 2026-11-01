@@ -33,41 +33,43 @@ fn __enter__(_0: dyn) -> dyn {
     let _2: dyn;
     let _3: dyn;
     let _4: dyn;
-    let _5: bool;
-    let _6: dyn;
+    let _5: dyn;
+    let _6: bool;
     let _7: dyn;
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
+    let _11: dyn;
 
     bb0: {
         _1 = RuntimeFn::TracePush(const "m2_8_with.py", const "__enter__");
         // line 9
         _2 = box<Str>(const "enter");
         _3 = RuntimeFn::DynGetAttr(_0, const "name");
-        RuntimeFn::WriteObject(_2);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_3);
-        RuntimeFn::WriteNewline();
+        _4 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_4, _2);
+        RuntimeFn::WriteSep(_4);
+        RuntimeFn::WriteObject(_4, _3);
+        RuntimeFn::WriteNewline(_4);
         // line 10
-        _4 = RuntimeFn::DynGetAttr(_0, const "fail");
-        _5 = RuntimeFn::DynTruthy(_4);
-        branch _5 -> [then: bb1, else: bb3];
+        _5 = RuntimeFn::DynGetAttr(_0, const "fail");
+        _6 = RuntimeFn::DynTruthy(_5);
+        branch _6 -> [then: bb1, else: bb3];
     }
     bb1: {
         // line 11
-        _6 = box<Str>(const "enter failed");
-        _7 = RuntimeFn::MakeException(const "ValueError", _6);
-        _8 = RuntimeFn::RaisePrepare(_7);
-        raise _8;
+        _7 = box<Str>(const "enter failed");
+        _8 = RuntimeFn::MakeException(const "ValueError", _7);
+        _9 = RuntimeFn::RaisePrepare(_8);
+        raise _9;
     }
     bb2: {
         unreachable;
     }
     bb3: {
         // line 12
-        _10 = RuntimeFn::DynGetAttr(_0, const "name");
-        _9 = _10;
+        _11 = RuntimeFn::DynGetAttr(_0, const "name");
+        _10 = _11;
         goto -> bb5;
     }
     bb4: {
@@ -75,7 +77,7 @@ fn __enter__(_0: dyn) -> dyn {
     }
     bb5: {
         RuntimeFn::TracePopTo(_1);
-        return _9;
+        return _10;
     }
 }
 
@@ -93,6 +95,7 @@ fn __exit__(_0: dyn, _1: dyn, _2: dyn, _3: dyn) -> dyn {
     let _10: dyn;
     let _11: dyn;
     let _12: dyn;
+    let _13: dyn;
 
     bb0: {
         _4 = RuntimeFn::TracePush(const "m2_8_with.py", const "__exit__");
@@ -113,15 +116,16 @@ fn __exit__(_0: dyn, _1: dyn, _2: dyn, _3: dyn) -> dyn {
         goto -> bb3;
     }
     bb3: {
-        RuntimeFn::WriteObject(_5);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_6);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_7);
-        RuntimeFn::WriteNewline();
+        _11 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_11, _5);
+        RuntimeFn::WriteSep(_11);
+        RuntimeFn::WriteObject(_11, _6);
+        RuntimeFn::WriteSep(_11);
+        RuntimeFn::WriteObject(_11, _7);
+        RuntimeFn::WriteNewline(_11);
         // line 16
-        _12 = RuntimeFn::DynGetAttr(_0, const "suppress");
-        _11 = _12;
+        _13 = RuntimeFn::DynGetAttr(_0, const "suppress");
+        _12 = _13;
         goto -> bb5;
     }
     bb4: {
@@ -129,7 +133,7 @@ fn __exit__(_0: dyn, _1: dyn, _2: dyn, _3: dyn) -> dyn {
     }
     bb5: {
         RuntimeFn::TracePopTo(_4);
-        return _11;
+        return _12;
     }
 }
 
@@ -157,34 +161,35 @@ fn early_return() -> dyn {
     let _20: dyn;
     let _21: dyn;
     let _22: dyn;
-    let _23: i64;
-    let _24: dyn;
+    let _23: dyn;
+    let _24: i64;
     let _25: dyn;
     let _26: dyn;
     let _27: dyn;
-    let _28: bool;
+    let _28: dyn;
     let _29: bool;
-    let _30: dyn;
-    let _31: bool;
-    let _32: dyn;
+    let _30: bool;
+    let _31: dyn;
+    let _32: bool;
     let _33: dyn;
-    let _34: bool;
+    let _34: dyn;
     let _35: bool;
-    let _36: dyn;
+    let _36: bool;
     let _37: dyn;
-    let _38: i64;
-    let _39: bool;
+    let _38: dyn;
+    let _39: i64;
     let _40: bool;
-    let _41: dyn;
-    let _42: bool;
-    let _43: dyn;
+    let _41: bool;
+    let _42: dyn;
+    let _43: bool;
     let _44: dyn;
     let _45: dyn;
     let _46: dyn;
-    let _47: bool;
+    let _47: dyn;
     let _48: bool;
     let _49: bool;
     let _50: bool;
+    let _51: bool;
 
     region r0: [8, +4) finally-guard handler->bb12
     region r1: [4, +17) finally-guard handler->bb21
@@ -219,18 +224,19 @@ fn early_return() -> dyn {
         unreachable;
     }
     bb3: {
-        _17 = RuntimeFn::DynNone();
+        _18 = RuntimeFn::DynNone();
         goto -> bb43;
     }
     bb4: {
         _14 = RuntimeFn::HandlerEnter(None);
         // line 31
         _16 = box<Str>(const "before return");
-        RuntimeFn::WriteObject(_16);
-        RuntimeFn::WriteNewline();
+        _17 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_17, _16);
+        RuntimeFn::WriteNewline(_17);
         // line 32
-        _18 = box<Str>(const "done");
-        _17 = _18;
+        _19 = box<Str>(const "done");
+        _18 = _19;
         _15 = const 2_i64;
         goto -> bb23;
     }
@@ -239,75 +245,75 @@ fn early_return() -> dyn {
     }
     bb6: {
         RuntimeFn::TracePopTo(_5);
-        _20 = RuntimeFn::HandlerEnter(_19);
-        _4 = _19;
+        _21 = RuntimeFn::HandlerEnter(_20);
+        _4 = _20;
         goto -> bb8;
     }
     bb7: {
-        _19 = caught_exception;
+        _20 = caught_exception;
         goto -> bb6;
     }
     bb8: {
-        _22 = RuntimeFn::HandlerEnter(None);
+        _23 = RuntimeFn::HandlerEnter(None);
         // line 30
-        _24 = box<Bool>(const true);
-        _3 = _24;
+        _25 = box<Bool>(const true);
+        _3 = _25;
         // line 30
-        _25 = RuntimeFn::DynType(_4);
-        _26 = RuntimeFn::DynNone();
-        _27 = dyn.call(_1, [_25, _4, _26]);
-        _28 = RuntimeFn::DynTruthy(_27);
-        _29 = Not(_28);
-        _30 = box<Bool>(_29);
-        _31 = RuntimeFn::DynTruthy(_30);
-        branch _31 -> [then: bb9, else: bb11];
+        _26 = RuntimeFn::DynType(_4);
+        _27 = RuntimeFn::DynNone();
+        _28 = dyn.call(_1, [_26, _4, _27]);
+        _29 = RuntimeFn::DynTruthy(_28);
+        _30 = Not(_29);
+        _31 = box<Bool>(_30);
+        _32 = RuntimeFn::DynTruthy(_31);
+        branch _32 -> [then: bb9, else: bb11];
     }
     bb9: {
         // line 30
-        _32 = RuntimeFn::Reraise();
-        raise _32;
+        _33 = RuntimeFn::Reraise();
+        raise _33;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _23 = const 0_i64;
+        _24 = const 0_i64;
         goto -> bb14;
     }
     bb12: {
-        _21 = caught_exception;
+        _22 = caught_exception;
         goto -> bb13;
     }
     bb13: {
         RuntimeFn::TracePopTo(_5);
-        _22 = RuntimeFn::HandlerEnter(_21);
-        _23 = const 1_i64;
+        _23 = RuntimeFn::HandlerEnter(_22);
+        _24 = const 1_i64;
         goto -> bb14;
     }
     bb14: {
-        _33 = RuntimeFn::MakeUnbound();
-        _4 = _33;
-        RuntimeFn::HandlerLeave(_20);
+        _34 = RuntimeFn::MakeUnbound();
+        _4 = _34;
+        RuntimeFn::HandlerLeave(_21);
         goto -> bb15;
     }
     bb15: {
-        _34 = Eq(_23, const 1_i64);
-        branch _34 -> [then: bb16, else: bb18];
+        _35 = Eq(_24, const 1_i64);
+        branch _35 -> [then: bb16, else: bb18];
     }
     bb16: {
-        RuntimeFn::HandlerLeave(_20);
-        raise _21;
+        RuntimeFn::HandlerLeave(_21);
+        raise _22;
     }
     bb17: {
         _15 = const 2_i64;
         goto -> bb23;
     }
     bb18: {
-        _35 = Eq(_23, const 2_i64);
-        branch _35 -> [then: bb17, else: bb19];
+        _36 = Eq(_24, const 2_i64);
+        branch _36 -> [then: bb17, else: bb19];
     }
     bb19: {
-        RuntimeFn::HandlerLeave(_20);
+        RuntimeFn::HandlerLeave(_21);
         goto -> bb20;
     }
     bb20: {
@@ -328,37 +334,37 @@ fn early_return() -> dyn {
         goto -> bb24;
     }
     bb24: {
-        _37 = RuntimeFn::HandlerEnter(None);
+        _38 = RuntimeFn::HandlerEnter(None);
         // line 30
-        _39 = RuntimeFn::DynTruthy(_3);
-        _40 = Not(_39);
-        _41 = box<Bool>(_40);
-        _42 = RuntimeFn::DynTruthy(_41);
-        branch _42 -> [then: bb25, else: bb27];
+        _40 = RuntimeFn::DynTruthy(_3);
+        _41 = Not(_40);
+        _42 = box<Bool>(_41);
+        _43 = RuntimeFn::DynTruthy(_42);
+        branch _43 -> [then: bb25, else: bb27];
     }
     bb25: {
         // line 30
-        _43 = RuntimeFn::DynNone();
         _44 = RuntimeFn::DynNone();
         _45 = RuntimeFn::DynNone();
-        _46 = dyn.call(_1, [_43, _44, _45]);
+        _46 = RuntimeFn::DynNone();
+        _47 = dyn.call(_1, [_44, _45, _46]);
         goto -> bb27;
     }
     bb26: {
         unreachable;
     }
     bb27: {
-        _38 = const 0_i64;
+        _39 = const 0_i64;
         goto -> bb30;
     }
     bb28: {
-        _36 = caught_exception;
+        _37 = caught_exception;
         goto -> bb29;
     }
     bb29: {
         RuntimeFn::TracePopTo(_5);
-        _37 = RuntimeFn::HandlerEnter(_36);
-        _38 = const 1_i64;
+        _38 = RuntimeFn::HandlerEnter(_37);
+        _39 = const 1_i64;
         goto -> bb30;
     }
     bb30: {
@@ -366,19 +372,19 @@ fn early_return() -> dyn {
         goto -> bb31;
     }
     bb31: {
-        _47 = Eq(_38, const 1_i64);
-        branch _47 -> [then: bb32, else: bb34];
+        _48 = Eq(_39, const 1_i64);
+        branch _48 -> [then: bb32, else: bb34];
     }
     bb32: {
         RuntimeFn::HandlerLeave(_14);
-        raise _36;
+        raise _37;
     }
     bb33: {
         unreachable;
     }
     bb34: {
-        _48 = Eq(_38, const 2_i64);
-        branch _48 -> [then: bb43, else: bb35];
+        _49 = Eq(_39, const 2_i64);
+        branch _49 -> [then: bb43, else: bb35];
     }
     bb35: {
         RuntimeFn::HandlerLeave(_14);
@@ -388,8 +394,8 @@ fn early_return() -> dyn {
         unreachable;
     }
     bb37: {
-        _49 = Eq(_15, const 1_i64);
-        branch _49 -> [then: bb38, else: bb40];
+        _50 = Eq(_15, const 1_i64);
+        branch _50 -> [then: bb38, else: bb40];
     }
     bb38: {
         RuntimeFn::HandlerLeave(_14);
@@ -399,8 +405,8 @@ fn early_return() -> dyn {
         unreachable;
     }
     bb40: {
-        _50 = Eq(_15, const 2_i64);
-        branch _50 -> [then: bb43, else: bb41];
+        _51 = Eq(_15, const 2_i64);
+        branch _51 -> [then: bb43, else: bb41];
     }
     bb41: {
         RuntimeFn::HandlerLeave(_14);
@@ -411,7 +417,7 @@ fn early_return() -> dyn {
     }
     bb43: {
         RuntimeFn::TracePopTo(_5);
-        return _17;
+        return _18;
     }
 }
 
@@ -530,77 +536,77 @@ fn main() -> () {
     let _67: dyn;
     let _68: dyn;
     let _69: dyn;
-    let _70: i64;
-    let _71: dyn;
+    let _70: dyn;
+    let _71: i64;
     let _72: dyn;
     let _73: dyn;
     let _74: dyn;
-    let _75: bool;
+    let _75: dyn;
     let _76: bool;
-    let _77: dyn;
-    let _78: bool;
-    let _79: dyn;
+    let _77: bool;
+    let _78: dyn;
+    let _79: bool;
     let _80: dyn;
-    let _81: bool;
+    let _81: dyn;
     let _82: bool;
-    let _83: dyn;
+    let _83: bool;
     let _84: dyn;
-    let _85: i64;
-    let _86: bool;
+    let _85: dyn;
+    let _86: i64;
     let _87: bool;
-    let _88: dyn;
-    let _89: bool;
-    let _90: dyn;
+    let _88: bool;
+    let _89: dyn;
+    let _90: bool;
     let _91: dyn;
     let _92: dyn;
     let _93: dyn;
-    let _94: bool;
+    let _94: dyn;
     let _95: bool;
     let _96: bool;
     let _97: bool;
-    let _98: dyn;
+    let _98: bool;
     let _99: dyn;
     let _100: dyn;
     let _101: dyn;
-    let _102: i64;
-    let _103: dyn;
+    let _102: dyn;
+    let _103: i64;
     let _104: dyn;
     let _105: dyn;
     let _106: dyn;
-    let _107: bool;
+    let _107: dyn;
     let _108: bool;
-    let _109: dyn;
-    let _110: bool;
-    let _111: dyn;
+    let _109: bool;
+    let _110: dyn;
+    let _111: bool;
     let _112: dyn;
-    let _113: bool;
+    let _113: dyn;
     let _114: bool;
-    let _115: dyn;
+    let _115: bool;
     let _116: dyn;
-    let _117: i64;
-    let _118: bool;
+    let _117: dyn;
+    let _118: i64;
     let _119: bool;
-    let _120: dyn;
-    let _121: bool;
-    let _122: dyn;
+    let _120: bool;
+    let _121: dyn;
+    let _122: bool;
     let _123: dyn;
     let _124: dyn;
     let _125: dyn;
-    let _126: bool;
+    let _126: dyn;
     let _127: bool;
     let _128: bool;
     let _129: bool;
-    let _130: dyn;
-    let _131: bool;
-    let _132: dyn;
+    let _130: bool;
+    let _131: dyn;
+    let _132: bool;
     let _133: dyn;
     let _134: dyn;
     let _135: dyn;
     let _136: dyn;
     let _137: dyn;
     let _138: dyn;
-    let _139: i64;
-    let _140: dyn;
+    let _139: dyn;
+    let _140: i64;
     let _141: dyn;
     let _142: dyn;
     let _143: dyn;
@@ -608,172 +614,172 @@ fn main() -> () {
     let _145: dyn;
     let _146: dyn;
     let _147: dyn;
-    let _148: i64;
-    let _149: dyn;
+    let _148: dyn;
+    let _149: i64;
     let _150: dyn;
     let _151: dyn;
     let _152: dyn;
     let _153: dyn;
-    let _154: i64;
+    let _154: dyn;
     let _155: dyn;
-    let _156: dyn;
+    let _156: i64;
     let _157: dyn;
     let _158: dyn;
-    let _159: bool;
-    let _160: bool;
-    let _161: dyn;
+    let _159: dyn;
+    let _160: dyn;
+    let _161: bool;
     let _162: bool;
     let _163: dyn;
-    let _164: dyn;
-    let _165: bool;
-    let _166: bool;
-    let _167: dyn;
-    let _168: dyn;
-    let _169: i64;
-    let _170: bool;
-    let _171: bool;
-    let _172: dyn;
+    let _164: bool;
+    let _165: dyn;
+    let _166: dyn;
+    let _167: bool;
+    let _168: bool;
+    let _169: dyn;
+    let _170: dyn;
+    let _171: i64;
+    let _172: bool;
     let _173: bool;
     let _174: dyn;
-    let _175: dyn;
+    let _175: bool;
     let _176: dyn;
     let _177: dyn;
-    let _178: bool;
-    let _179: bool;
+    let _178: dyn;
+    let _179: dyn;
     let _180: bool;
     let _181: bool;
-    let _182: dyn;
-    let _183: dyn;
+    let _182: bool;
+    let _183: bool;
     let _184: dyn;
     let _185: dyn;
-    let _186: i64;
+    let _186: dyn;
     let _187: dyn;
-    let _188: dyn;
+    let _188: i64;
     let _189: dyn;
     let _190: dyn;
-    let _191: bool;
-    let _192: bool;
-    let _193: dyn;
+    let _191: dyn;
+    let _192: dyn;
+    let _193: bool;
     let _194: bool;
     let _195: dyn;
-    let _196: dyn;
-    let _197: bool;
-    let _198: bool;
-    let _199: dyn;
-    let _200: dyn;
-    let _201: i64;
-    let _202: bool;
-    let _203: bool;
-    let _204: dyn;
+    let _196: bool;
+    let _197: dyn;
+    let _198: dyn;
+    let _199: bool;
+    let _200: bool;
+    let _201: dyn;
+    let _202: dyn;
+    let _203: i64;
+    let _204: bool;
     let _205: bool;
     let _206: dyn;
-    let _207: dyn;
+    let _207: bool;
     let _208: dyn;
     let _209: dyn;
-    let _210: bool;
-    let _211: bool;
+    let _210: dyn;
+    let _211: dyn;
     let _212: bool;
     let _213: bool;
-    let _214: dyn;
-    let _215: dyn;
+    let _214: bool;
+    let _215: bool;
     let _216: dyn;
     let _217: dyn;
-    let _218: i64;
+    let _218: dyn;
     let _219: dyn;
-    let _220: bool;
-    let _221: bool;
+    let _220: i64;
+    let _221: dyn;
     let _222: dyn;
-    let _223: dyn;
-    let _224: dyn;
-    let _225: i64;
-    let _226: i64;
-    let _227: i64;
-    let _228: i64;
+    let _223: bool;
+    let _224: bool;
+    let _225: dyn;
+    let _226: dyn;
+    let _227: dyn;
+    let _228: dyn;
     let _229: i64;
-    let _230: bool;
-    let _231: bool;
-    let _232: bool;
-    let _233: bool;
+    let _230: i64;
+    let _231: i64;
+    let _232: i64;
+    let _233: i64;
     let _234: bool;
     let _235: bool;
     let _236: bool;
-    let _237: dyn;
-    let _238: dyn;
+    let _237: bool;
+    let _238: bool;
     let _239: bool;
-    let _240: dyn;
+    let _240: bool;
     let _241: dyn;
     let _242: dyn;
-    let _243: dyn;
+    let _243: bool;
     let _244: dyn;
     let _245: dyn;
     let _246: dyn;
     let _247: dyn;
     let _248: dyn;
     let _249: dyn;
-    let _250: i64;
+    let _250: dyn;
     let _251: dyn;
     let _252: dyn;
-    let _253: bool;
-    let _254: dyn;
-    let _255: bool;
+    let _253: dyn;
+    let _254: i64;
+    let _255: dyn;
     let _256: dyn;
-    let _257: dyn;
-    let _258: bool;
-    let _259: dyn;
-    let _260: bool;
+    let _257: bool;
+    let _258: dyn;
+    let _259: bool;
+    let _260: dyn;
     let _261: dyn;
-    let _262: dyn;
+    let _262: bool;
     let _263: dyn;
-    let _264: dyn;
+    let _264: bool;
     let _265: dyn;
     let _266: dyn;
-    let _267: i64;
+    let _267: dyn;
     let _268: dyn;
     let _269: dyn;
     let _270: dyn;
     let _271: dyn;
-    let _272: bool;
-    let _273: bool;
+    let _272: i64;
+    let _273: dyn;
     let _274: dyn;
-    let _275: bool;
+    let _275: dyn;
     let _276: dyn;
-    let _277: dyn;
+    let _277: bool;
     let _278: bool;
-    let _279: bool;
+    let _279: dyn;
     let _280: bool;
-    let _281: bool;
+    let _281: dyn;
     let _282: dyn;
-    let _283: dyn;
-    let _284: i64;
+    let _283: bool;
+    let _284: bool;
     let _285: bool;
     let _286: bool;
     let _287: dyn;
-    let _288: bool;
-    let _289: dyn;
-    let _290: dyn;
-    let _291: dyn;
+    let _288: dyn;
+    let _289: i64;
+    let _290: bool;
+    let _291: bool;
     let _292: dyn;
     let _293: bool;
-    let _294: bool;
-    let _295: bool;
-    let _296: bool;
-    let _297: bool;
+    let _294: dyn;
+    let _295: dyn;
+    let _296: dyn;
+    let _297: dyn;
     let _298: bool;
     let _299: bool;
     let _300: bool;
-    let _301: dyn;
-    let _302: dyn;
-    let _303: dyn;
-    let _304: dyn;
-    let _305: dyn;
-    let _306: bool;
+    let _301: bool;
+    let _302: bool;
+    let _303: bool;
+    let _304: bool;
+    let _305: bool;
+    let _306: dyn;
     let _307: dyn;
     let _308: dyn;
     let _309: dyn;
     let _310: dyn;
     let _311: dyn;
-    let _312: dyn;
-    let _313: i64;
+    let _312: bool;
+    let _313: dyn;
     let _314: dyn;
     let _315: dyn;
     let _316: dyn;
@@ -784,47 +790,55 @@ fn main() -> () {
     let _321: dyn;
     let _322: dyn;
     let _323: dyn;
-    let _324: bool;
-    let _325: bool;
-    let _326: dyn;
-    let _327: bool;
+    let _324: dyn;
+    let _325: dyn;
+    let _326: i64;
+    let _327: dyn;
     let _328: dyn;
     let _329: dyn;
-    let _330: bool;
+    let _330: dyn;
     let _331: bool;
     let _332: bool;
-    let _333: bool;
-    let _334: dyn;
+    let _333: dyn;
+    let _334: bool;
     let _335: dyn;
-    let _336: i64;
+    let _336: dyn;
     let _337: bool;
     let _338: bool;
-    let _339: dyn;
+    let _339: bool;
     let _340: bool;
     let _341: dyn;
     let _342: dyn;
-    let _343: dyn;
-    let _344: dyn;
+    let _343: i64;
+    let _344: bool;
     let _345: bool;
-    let _346: bool;
+    let _346: dyn;
     let _347: bool;
-    let _348: bool;
-    let _349: bool;
-    let _350: bool;
-    let _351: bool;
+    let _348: dyn;
+    let _349: dyn;
+    let _350: dyn;
+    let _351: dyn;
     let _352: bool;
-    let _353: dyn;
-    let _354: dyn;
-    let _355: dyn;
-    let _356: dyn;
-    let _357: i64;
-    let _358: dyn;
-    let _359: dyn;
+    let _353: bool;
+    let _354: bool;
+    let _355: bool;
+    let _356: bool;
+    let _357: bool;
+    let _358: bool;
+    let _359: bool;
     let _360: dyn;
-    let _361: bool;
-    let _362: bool;
-    let _363: bool;
-    let _364: bool;
+    let _361: dyn;
+    let _362: dyn;
+    let _363: dyn;
+    let _364: i64;
+    let _365: dyn;
+    let _366: dyn;
+    let _367: dyn;
+    let _368: dyn;
+    let _369: bool;
+    let _370: bool;
+    let _371: bool;
+    let _372: bool;
 
     region r0: [8, +4) finally-guard handler->bb12
     region r1: [5, +16) finally-guard handler->bb21
@@ -940,87 +954,88 @@ fn main() -> () {
         // line 20
         _61 = box<Str>(const "body");
         _62 = RuntimeFn::LoadName(global@5, const "name");
-        RuntimeFn::WriteObject(_61);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_62);
-        RuntimeFn::WriteNewline();
+        _63 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_63, _61);
+        RuntimeFn::WriteSep(_63);
+        RuntimeFn::WriteObject(_63, _62);
+        RuntimeFn::WriteNewline(_63);
         // line 21
-        _63 = box<Str>(const "suppressed");
-        _64 = RuntimeFn::MakeException(const "ValueError", _63);
-        _65 = RuntimeFn::RaisePrepare(_64);
-        raise _65;
+        _64 = box<Str>(const "suppressed");
+        _65 = RuntimeFn::MakeException(const "ValueError", _64);
+        _66 = RuntimeFn::RaisePrepare(_65);
+        raise _66;
     }
     bb6: {
         RuntimeFn::TracePopTo(_30);
-        _67 = RuntimeFn::HandlerEnter(_66);
-        _8 = _66;
+        _68 = RuntimeFn::HandlerEnter(_67);
+        _8 = _67;
         goto -> bb8;
     }
     bb7: {
-        _66 = caught_exception;
+        _67 = caught_exception;
         goto -> bb6;
     }
     bb8: {
-        _69 = RuntimeFn::HandlerEnter(None);
+        _70 = RuntimeFn::HandlerEnter(None);
         // line 19
-        _71 = box<Bool>(const true);
-        _7 = _71;
+        _72 = box<Bool>(const true);
+        _7 = _72;
         // line 19
-        _72 = RuntimeFn::DynType(_8);
-        _73 = RuntimeFn::DynNone();
-        _74 = dyn.call(_5, [_72, _8, _73]);
-        _75 = RuntimeFn::DynTruthy(_74);
-        _76 = Not(_75);
-        _77 = box<Bool>(_76);
-        _78 = RuntimeFn::DynTruthy(_77);
-        branch _78 -> [then: bb9, else: bb11];
+        _73 = RuntimeFn::DynType(_8);
+        _74 = RuntimeFn::DynNone();
+        _75 = dyn.call(_5, [_73, _8, _74]);
+        _76 = RuntimeFn::DynTruthy(_75);
+        _77 = Not(_76);
+        _78 = box<Bool>(_77);
+        _79 = RuntimeFn::DynTruthy(_78);
+        branch _79 -> [then: bb9, else: bb11];
     }
     bb9: {
         // line 19
-        _79 = RuntimeFn::Reraise();
-        raise _79;
+        _80 = RuntimeFn::Reraise();
+        raise _80;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _70 = const 0_i64;
+        _71 = const 0_i64;
         goto -> bb14;
     }
     bb12: {
-        _68 = caught_exception;
+        _69 = caught_exception;
         goto -> bb13;
     }
     bb13: {
         RuntimeFn::TracePopTo(_30);
-        _69 = RuntimeFn::HandlerEnter(_68);
-        _70 = const 1_i64;
+        _70 = RuntimeFn::HandlerEnter(_69);
+        _71 = const 1_i64;
         goto -> bb14;
     }
     bb14: {
-        _80 = RuntimeFn::MakeUnbound();
-        _8 = _80;
-        RuntimeFn::HandlerLeave(_67);
+        _81 = RuntimeFn::MakeUnbound();
+        _8 = _81;
+        RuntimeFn::HandlerLeave(_68);
         goto -> bb15;
     }
     bb15: {
-        _81 = Eq(_70, const 1_i64);
-        branch _81 -> [then: bb16, else: bb18];
+        _82 = Eq(_71, const 1_i64);
+        branch _82 -> [then: bb16, else: bb18];
     }
     bb16: {
-        RuntimeFn::HandlerLeave(_67);
-        raise _68;
+        RuntimeFn::HandlerLeave(_68);
+        raise _69;
     }
     bb17: {
         _60 = const 2_i64;
         goto -> bb23;
     }
     bb18: {
-        _82 = Eq(_70, const 2_i64);
-        branch _82 -> [then: bb17, else: bb19];
+        _83 = Eq(_71, const 2_i64);
+        branch _83 -> [then: bb17, else: bb19];
     }
     bb19: {
-        RuntimeFn::HandlerLeave(_67);
+        RuntimeFn::HandlerLeave(_68);
         goto -> bb20;
     }
     bb20: {
@@ -1041,37 +1056,37 @@ fn main() -> () {
         goto -> bb24;
     }
     bb24: {
-        _84 = RuntimeFn::HandlerEnter(None);
+        _85 = RuntimeFn::HandlerEnter(None);
         // line 19
-        _86 = RuntimeFn::DynTruthy(_7);
-        _87 = Not(_86);
-        _88 = box<Bool>(_87);
-        _89 = RuntimeFn::DynTruthy(_88);
-        branch _89 -> [then: bb25, else: bb27];
+        _87 = RuntimeFn::DynTruthy(_7);
+        _88 = Not(_87);
+        _89 = box<Bool>(_88);
+        _90 = RuntimeFn::DynTruthy(_89);
+        branch _90 -> [then: bb25, else: bb27];
     }
     bb25: {
         // line 19
-        _90 = RuntimeFn::DynNone();
         _91 = RuntimeFn::DynNone();
         _92 = RuntimeFn::DynNone();
-        _93 = dyn.call(_5, [_90, _91, _92]);
+        _93 = RuntimeFn::DynNone();
+        _94 = dyn.call(_5, [_91, _92, _93]);
         goto -> bb27;
     }
     bb26: {
         unreachable;
     }
     bb27: {
-        _85 = const 0_i64;
+        _86 = const 0_i64;
         goto -> bb30;
     }
     bb28: {
-        _83 = caught_exception;
+        _84 = caught_exception;
         goto -> bb29;
     }
     bb29: {
         RuntimeFn::TracePopTo(_30);
-        _84 = RuntimeFn::HandlerEnter(_83);
-        _85 = const 1_i64;
+        _85 = RuntimeFn::HandlerEnter(_84);
+        _86 = const 1_i64;
         goto -> bb30;
     }
     bb30: {
@@ -1079,20 +1094,20 @@ fn main() -> () {
         goto -> bb31;
     }
     bb31: {
-        _94 = Eq(_85, const 1_i64);
-        branch _94 -> [then: bb32, else: bb34];
+        _95 = Eq(_86, const 1_i64);
+        branch _95 -> [then: bb32, else: bb34];
     }
     bb32: {
         RuntimeFn::HandlerLeave(_59);
-        raise _83;
+        raise _84;
     }
     bb33: {
         _51 = const 2_i64;
         goto -> bb60;
     }
     bb34: {
-        _95 = Eq(_85, const 2_i64);
-        branch _95 -> [then: bb33, else: bb35];
+        _96 = Eq(_86, const 2_i64);
+        branch _96 -> [then: bb33, else: bb35];
     }
     bb35: {
         RuntimeFn::HandlerLeave(_59);
@@ -1102,8 +1117,8 @@ fn main() -> () {
         unreachable;
     }
     bb37: {
-        _96 = Eq(_60, const 1_i64);
-        branch _96 -> [then: bb38, else: bb40];
+        _97 = Eq(_60, const 1_i64);
+        branch _97 -> [then: bb38, else: bb40];
     }
     bb38: {
         RuntimeFn::HandlerLeave(_59);
@@ -1114,8 +1129,8 @@ fn main() -> () {
         goto -> bb60;
     }
     bb40: {
-        _97 = Eq(_60, const 2_i64);
-        branch _97 -> [then: bb39, else: bb41];
+        _98 = Eq(_60, const 2_i64);
+        branch _98 -> [then: bb39, else: bb41];
     }
     bb41: {
         RuntimeFn::HandlerLeave(_59);
@@ -1127,75 +1142,75 @@ fn main() -> () {
     }
     bb43: {
         RuntimeFn::TracePopTo(_30);
-        _99 = RuntimeFn::HandlerEnter(_98);
-        _9 = _98;
+        _100 = RuntimeFn::HandlerEnter(_99);
+        _9 = _99;
         goto -> bb45;
     }
     bb44: {
-        _98 = caught_exception;
+        _99 = caught_exception;
         goto -> bb43;
     }
     bb45: {
-        _101 = RuntimeFn::HandlerEnter(None);
+        _102 = RuntimeFn::HandlerEnter(None);
         // line 19
-        _103 = box<Bool>(const true);
-        _3 = _103;
+        _104 = box<Bool>(const true);
+        _3 = _104;
         // line 19
-        _104 = RuntimeFn::DynType(_9);
-        _105 = RuntimeFn::DynNone();
-        _106 = dyn.call(_1, [_104, _9, _105]);
-        _107 = RuntimeFn::DynTruthy(_106);
-        _108 = Not(_107);
-        _109 = box<Bool>(_108);
-        _110 = RuntimeFn::DynTruthy(_109);
-        branch _110 -> [then: bb46, else: bb48];
+        _105 = RuntimeFn::DynType(_9);
+        _106 = RuntimeFn::DynNone();
+        _107 = dyn.call(_1, [_105, _9, _106]);
+        _108 = RuntimeFn::DynTruthy(_107);
+        _109 = Not(_108);
+        _110 = box<Bool>(_109);
+        _111 = RuntimeFn::DynTruthy(_110);
+        branch _111 -> [then: bb46, else: bb48];
     }
     bb46: {
         // line 19
-        _111 = RuntimeFn::Reraise();
-        raise _111;
+        _112 = RuntimeFn::Reraise();
+        raise _112;
     }
     bb47: {
         unreachable;
     }
     bb48: {
-        _102 = const 0_i64;
+        _103 = const 0_i64;
         goto -> bb51;
     }
     bb49: {
-        _100 = caught_exception;
+        _101 = caught_exception;
         goto -> bb50;
     }
     bb50: {
         RuntimeFn::TracePopTo(_30);
-        _101 = RuntimeFn::HandlerEnter(_100);
-        _102 = const 1_i64;
+        _102 = RuntimeFn::HandlerEnter(_101);
+        _103 = const 1_i64;
         goto -> bb51;
     }
     bb51: {
-        _112 = RuntimeFn::MakeUnbound();
-        _9 = _112;
-        RuntimeFn::HandlerLeave(_99);
+        _113 = RuntimeFn::MakeUnbound();
+        _9 = _113;
+        RuntimeFn::HandlerLeave(_100);
         goto -> bb52;
     }
     bb52: {
-        _113 = Eq(_102, const 1_i64);
-        branch _113 -> [then: bb53, else: bb55];
+        _114 = Eq(_103, const 1_i64);
+        branch _114 -> [then: bb53, else: bb55];
     }
     bb53: {
-        RuntimeFn::HandlerLeave(_99);
-        raise _100;
+        RuntimeFn::HandlerLeave(_100);
+        raise _101;
     }
     bb54: {
         _51 = const 2_i64;
         goto -> bb60;
     }
     bb55: {
-        _114 = Eq(_102, const 2_i64);
-        branch _114 -> [then: bb54, else: bb56];
+        _115 = Eq(_103, const 2_i64);
+        branch _115 -> [then: bb54, else: bb56];
     }
     bb56: {
-        RuntimeFn::HandlerLeave(_99);
+        RuntimeFn::HandlerLeave(_100);
         goto -> bb57;
     }
     bb57: {
@@ -1216,37 +1231,37 @@ fn main() -> () {
         goto -> bb61;
     }
     bb61: {
-        _116 = RuntimeFn::HandlerEnter(None);
+        _117 = RuntimeFn::HandlerEnter(None);
         // line 19
-        _118 = RuntimeFn::DynTruthy(_3);
-        _119 = Not(_118);
-        _120 = box<Bool>(_119);
-        _121 = RuntimeFn::DynTruthy(_120);
-        branch _121 -> [then: bb62, else: bb64];
+        _119 = RuntimeFn::DynTruthy(_3);
+        _120 = Not(_119);
+        _121 = box<Bool>(_120);
+        _122 = RuntimeFn::DynTruthy(_121);
+        branch _122 -> [then: bb62, else: bb64];
     }
     bb62: {
         // line 19
-        _122 = RuntimeFn::DynNone();
         _123 = RuntimeFn::DynNone();
         _124 = RuntimeFn::DynNone();
-        _125 = dyn.call(_1, [_122, _123, _124]);
+        _125 = RuntimeFn::DynNone();
+        _126 = dyn.call(_1, [_123, _124, _125]);
         goto -> bb64;
     }
     bb63: {
         unreachable;
     }
     bb64: {
-        _117 = const 0_i64;
+        _118 = const 0_i64;
         goto -> bb67;
     }
     bb65: {
-        _115 = caught_exception;
+        _116 = caught_exception;
         goto -> bb66;
     }
     bb66: {
         RuntimeFn::TracePopTo(_30);
-        _116 = RuntimeFn::HandlerEnter(_115);
-        _117 = const 1_i64;
+        _117 = RuntimeFn::HandlerEnter(_116);
+        _118 = const 1_i64;
         goto -> bb67;
     }
     bb67: {
@@ -1254,19 +1269,19 @@ fn main() -> () {
         goto -> bb68;
     }
     bb68: {
-        _126 = Eq(_117, const 1_i64);
-        branch _126 -> [then: bb69, else: bb71];
+        _127 = Eq(_118, const 1_i64);
+        branch _127 -> [then: bb69, else: bb71];
     }
     bb69: {
         RuntimeFn::HandlerLeave(_50);
-        raise _115;
+        raise _116;
     }
     bb70: {
         unreachable;
     }
     bb71: {
-        _127 = Eq(_117, const 2_i64);
-        branch _127 -> [then: bb314, else: bb72];
+        _128 = Eq(_118, const 2_i64);
+        branch _128 -> [then: bb314, else: bb72];
     }
     bb72: {
         RuntimeFn::HandlerLeave(_50);
@@ -1276,8 +1291,8 @@ fn main() -> () {
         unreachable;
     }
     bb74: {
-        _128 = Eq(_51, const 1_i64);
-        branch _128 -> [then: bb75, else: bb77];
+        _129 = Eq(_51, const 1_i64);
+        branch _129 -> [then: bb75, else: bb77];
     }
     bb75: {
         RuntimeFn::HandlerLeave(_50);
@@ -1287,8 +1302,8 @@ fn main() -> () {
         unreachable;
     }
     bb77: {
-        _129 = Eq(_51, const 2_i64);
-        branch _129 -> [then: bb314, else: bb78];
+        _130 = Eq(_51, const 2_i64);
+        branch _130 -> [then: bb314, else: bb78];
     }
     bb78: {
         RuntimeFn::HandlerLeave(_50);
@@ -1299,24 +1314,24 @@ fn main() -> () {
     }
     bb80: {
         // line 23
-        _130 = box<Bool>(const true);
-        _131 = RuntimeFn::DynTruthy(_130);
-        branch _131 -> [then: bb81, else: bb83];
+        _131 = box<Bool>(const true);
+        _132 = RuntimeFn::DynTruthy(_131);
+        branch _132 -> [then: bb81, else: bb83];
     }
     bb81: {
         // line 23
-        _132 = box<Str>(const "outer");
-        _133 = dyn.call(global@0, [_132]);
-        _10 = _133;
+        _133 = box<Str>(const "outer");
+        _134 = dyn.call(global@0, [_133]);
+        _10 = _134;
         // line 23
-        _134 = RuntimeFn::DynGetAttr(_10, const "__exit__");
-        _11 = _134;
+        _135 = RuntimeFn::DynGetAttr(_10, const "__exit__");
+        _11 = _135;
         // line 23
-        _135 = dyn.method(_10, "__enter__", []);
-        _12 = _135;
+        _136 = dyn.method(_10, "__enter__", []);
+        _12 = _136;
         // line 23
-        _136 = box<Bool>(const false);
-        _13 = _136;
+        _137 = box<Bool>(const false);
+        _13 = _137;
         // line 23
         goto -> bb84;
     }
@@ -1327,375 +1342,376 @@ fn main() -> () {
         goto -> bb172;
     }
     bb84: {
-        _138 = RuntimeFn::HandlerEnter(None);
+        _139 = RuntimeFn::HandlerEnter(None);
         // line 23
-        _140 = box<Str>(const "inner");
-        _141 = box<Bool>(const true);
-        _142 = RuntimeFn::CallValue(global@0, [_140], [const "fail"], [_141]);
-        _14 = _142;
+        _141 = box<Str>(const "inner");
+        _142 = box<Bool>(const true);
+        _143 = RuntimeFn::CallValue(global@0, [_141], [const "fail"], [_142]);
+        _14 = _143;
         // line 23
-        _143 = RuntimeFn::DynGetAttr(_14, const "__exit__");
-        _15 = _143;
+        _144 = RuntimeFn::DynGetAttr(_14, const "__exit__");
+        _15 = _144;
         // line 23
-        _144 = dyn.method(_14, "__enter__", []);
-        _16 = _144;
+        _145 = dyn.method(_14, "__enter__", []);
+        _16 = _145;
         // line 23
-        _145 = box<Bool>(const false);
-        _17 = _145;
+        _146 = box<Bool>(const false);
+        _17 = _146;
         // line 23
         goto -> bb85;
     }
     bb85: {
-        _147 = RuntimeFn::HandlerEnter(None);
+        _148 = RuntimeFn::HandlerEnter(None);
         // line 24
-        _149 = box<Str>(const "unreachable");
-        RuntimeFn::WriteObject(_149);
-        RuntimeFn::WriteNewline();
-        _148 = const 0_i64;
+        _150 = box<Str>(const "unreachable");
+        _151 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_151, _150);
+        RuntimeFn::WriteNewline(_151);
+        _149 = const 0_i64;
         goto -> bb103;
     }
     bb86: {
         RuntimeFn::TracePopTo(_30);
-        _151 = RuntimeFn::HandlerEnter(_150);
-        _18 = _150;
+        _153 = RuntimeFn::HandlerEnter(_152);
+        _18 = _152;
         goto -> bb88;
     }
     bb87: {
-        _150 = caught_exception;
+        _152 = caught_exception;
         goto -> bb86;
     }
     bb88: {
-        _153 = RuntimeFn::HandlerEnter(None);
+        _155 = RuntimeFn::HandlerEnter(None);
         // line 23
-        _155 = box<Bool>(const true);
-        _17 = _155;
+        _157 = box<Bool>(const true);
+        _17 = _157;
         // line 23
-        _156 = RuntimeFn::DynType(_18);
-        _157 = RuntimeFn::DynNone();
-        _158 = dyn.call(_15, [_156, _18, _157]);
-        _159 = RuntimeFn::DynTruthy(_158);
-        _160 = Not(_159);
-        _161 = box<Bool>(_160);
-        _162 = RuntimeFn::DynTruthy(_161);
-        branch _162 -> [then: bb89, else: bb91];
+        _158 = RuntimeFn::DynType(_18);
+        _159 = RuntimeFn::DynNone();
+        _160 = dyn.call(_15, [_158, _18, _159]);
+        _161 = RuntimeFn::DynTruthy(_160);
+        _162 = Not(_161);
+        _163 = box<Bool>(_162);
+        _164 = RuntimeFn::DynTruthy(_163);
+        branch _164 -> [then: bb89, else: bb91];
     }
     bb89: {
         // line 23
-        _163 = RuntimeFn::Reraise();
-        raise _163;
+        _165 = RuntimeFn::Reraise();
+        raise _165;
     }
     bb90: {
         unreachable;
     }
     bb91: {
-        _154 = const 0_i64;
+        _156 = const 0_i64;
         goto -> bb94;
     }
     bb92: {
-        _152 = caught_exception;
+        _154 = caught_exception;
         goto -> bb93;
     }
     bb93: {
         RuntimeFn::TracePopTo(_30);
-        _153 = RuntimeFn::HandlerEnter(_152);
-        _154 = const 1_i64;
+        _155 = RuntimeFn::HandlerEnter(_154);
+        _156 = const 1_i64;
         goto -> bb94;
     }
     bb94: {
-        _164 = RuntimeFn::MakeUnbound();
-        _18 = _164;
-        RuntimeFn::HandlerLeave(_151);
+        _166 = RuntimeFn::MakeUnbound();
+        _18 = _166;
+        RuntimeFn::HandlerLeave(_153);
         goto -> bb95;
     }
     bb95: {
-        _165 = Eq(_154, const 1_i64);
-        branch _165 -> [then: bb96, else: bb98];
+        _167 = Eq(_156, const 1_i64);
+        branch _167 -> [then: bb96, else: bb98];
     }
     bb96: {
-        RuntimeFn::HandlerLeave(_151);
-        raise _152;
+        RuntimeFn::HandlerLeave(_153);
+        raise _154;
     }
     bb97: {
-        _148 = const 2_i64;
+        _149 = const 2_i64;
         goto -> bb103;
     }
     bb98: {
-        _166 = Eq(_154, const 2_i64);
-        branch _166 -> [then: bb97, else: bb99];
+        _168 = Eq(_156, const 2_i64);
+        branch _168 -> [then: bb97, else: bb99];
     }
     bb99: {
-        RuntimeFn::HandlerLeave(_151);
+        RuntimeFn::HandlerLeave(_153);
         goto -> bb100;
     }
     bb100: {
-        _148 = const 0_i64;
+        _149 = const 0_i64;
         goto -> bb103;
     }
     bb101: {
-        _146 = caught_exception;
+        _147 = caught_exception;
         goto -> bb102;
     }
     bb102: {
         RuntimeFn::TracePopTo(_30);
-        _147 = RuntimeFn::HandlerEnter(_146);
-        _148 = const 1_i64;
+        _148 = RuntimeFn::HandlerEnter(_147);
+        _149 = const 1_i64;
         goto -> bb104;
     }
     bb103: {
         goto -> bb104;
     }
     bb104: {
-        _168 = RuntimeFn::HandlerEnter(None);
+        _170 = RuntimeFn::HandlerEnter(None);
         // line 23
-        _170 = RuntimeFn::DynTruthy(_17);
-        _171 = Not(_170);
-        _172 = box<Bool>(_171);
-        _173 = RuntimeFn::DynTruthy(_172);
-        branch _173 -> [then: bb105, else: bb107];
+        _172 = RuntimeFn::DynTruthy(_17);
+        _173 = Not(_172);
+        _174 = box<Bool>(_173);
+        _175 = RuntimeFn::DynTruthy(_174);
+        branch _175 -> [then: bb105, else: bb107];
     }
     bb105: {
         // line 23
-        _174 = RuntimeFn::DynNone();
-        _175 = RuntimeFn::DynNone();
         _176 = RuntimeFn::DynNone();
-        _177 = dyn.call(_15, [_174, _175, _176]);
+        _177 = RuntimeFn::DynNone();
+        _178 = RuntimeFn::DynNone();
+        _179 = dyn.call(_15, [_176, _177, _178]);
         goto -> bb107;
     }
     bb106: {
         unreachable;
     }
     bb107: {
-        _169 = const 0_i64;
+        _171 = const 0_i64;
         goto -> bb110;
     }
     bb108: {
-        _167 = caught_exception;
+        _169 = caught_exception;
         goto -> bb109;
     }
     bb109: {
         RuntimeFn::TracePopTo(_30);
-        _168 = RuntimeFn::HandlerEnter(_167);
-        _169 = const 1_i64;
+        _170 = RuntimeFn::HandlerEnter(_169);
+        _171 = const 1_i64;
         goto -> bb110;
     }
     bb110: {
-        RuntimeFn::HandlerLeave(_147);
+        RuntimeFn::HandlerLeave(_148);
         goto -> bb111;
     }
     bb111: {
-        _178 = Eq(_169, const 1_i64);
-        branch _178 -> [then: bb112, else: bb114];
+        _180 = Eq(_171, const 1_i64);
+        branch _180 -> [then: bb112, else: bb114];
     }
     bb112: {
-        RuntimeFn::HandlerLeave(_147);
-        raise _167;
+        RuntimeFn::HandlerLeave(_148);
+        raise _169;
     }
     bb113: {
-        _139 = const 2_i64;
+        _140 = const 2_i64;
         goto -> bb140;
     }
     bb114: {
-        _179 = Eq(_169, const 2_i64);
-        branch _179 -> [then: bb113, else: bb115];
+        _181 = Eq(_171, const 2_i64);
+        branch _181 -> [then: bb113, else: bb115];
     }
     bb115: {
-        RuntimeFn::HandlerLeave(_147);
+        RuntimeFn::HandlerLeave(_148);
         goto -> bb117;
     }
     bb116: {
         unreachable;
     }
     bb117: {
-        _180 = Eq(_148, const 1_i64);
-        branch _180 -> [then: bb118, else: bb120];
+        _182 = Eq(_149, const 1_i64);
+        branch _182 -> [then: bb118, else: bb120];
     }
     bb118: {
-        RuntimeFn::HandlerLeave(_147);
-        raise _146;
+        RuntimeFn::HandlerLeave(_148);
+        raise _147;
     }
     bb119: {
-        _139 = const 2_i64;
+        _140 = const 2_i64;
         goto -> bb140;
     }
     bb120: {
-        _181 = Eq(_148, const 2_i64);
-        branch _181 -> [then: bb119, else: bb121];
+        _183 = Eq(_149, const 2_i64);
+        branch _183 -> [then: bb119, else: bb121];
     }
     bb121: {
-        RuntimeFn::HandlerLeave(_147);
+        RuntimeFn::HandlerLeave(_148);
         goto -> bb122;
     }
     bb122: {
-        _139 = const 0_i64;
+        _140 = const 0_i64;
         goto -> bb140;
     }
     bb123: {
         RuntimeFn::TracePopTo(_30);
-        _183 = RuntimeFn::HandlerEnter(_182);
-        _19 = _182;
+        _185 = RuntimeFn::HandlerEnter(_184);
+        _19 = _184;
         goto -> bb125;
     }
     bb124: {
-        _182 = caught_exception;
+        _184 = caught_exception;
         goto -> bb123;
     }
     bb125: {
-        _185 = RuntimeFn::HandlerEnter(None);
+        _187 = RuntimeFn::HandlerEnter(None);
         // line 23
-        _187 = box<Bool>(const true);
-        _13 = _187;
+        _189 = box<Bool>(const true);
+        _13 = _189;
         // line 23
-        _188 = RuntimeFn::DynType(_19);
-        _189 = RuntimeFn::DynNone();
-        _190 = dyn.call(_11, [_188, _19, _189]);
-        _191 = RuntimeFn::DynTruthy(_190);
-        _192 = Not(_191);
-        _193 = box<Bool>(_192);
-        _194 = RuntimeFn::DynTruthy(_193);
-        branch _194 -> [then: bb126, else: bb128];
+        _190 = RuntimeFn::DynType(_19);
+        _191 = RuntimeFn::DynNone();
+        _192 = dyn.call(_11, [_190, _19, _191]);
+        _193 = RuntimeFn::DynTruthy(_192);
+        _194 = Not(_193);
+        _195 = box<Bool>(_194);
+        _196 = RuntimeFn::DynTruthy(_195);
+        branch _196 -> [then: bb126, else: bb128];
     }
     bb126: {
         // line 23
-        _195 = RuntimeFn::Reraise();
-        raise _195;
+        _197 = RuntimeFn::Reraise();
+        raise _197;
     }
     bb127: {
         unreachable;
     }
     bb128: {
-        _186 = const 0_i64;
+        _188 = const 0_i64;
         goto -> bb131;
     }
     bb129: {
-        _184 = caught_exception;
+        _186 = caught_exception;
         goto -> bb130;
     }
     bb130: {
         RuntimeFn::TracePopTo(_30);
-        _185 = RuntimeFn::HandlerEnter(_184);
-        _186 = const 1_i64;
+        _187 = RuntimeFn::HandlerEnter(_186);
+        _188 = const 1_i64;
         goto -> bb131;
     }
     bb131: {
-        _196 = RuntimeFn::MakeUnbound();
-        _19 = _196;
-        RuntimeFn::HandlerLeave(_183);
+        _198 = RuntimeFn::MakeUnbound();
+        _19 = _198;
+        RuntimeFn::HandlerLeave(_185);
         goto -> bb132;
     }
     bb132: {
-        _197 = Eq(_186, const 1_i64);
-        branch _197 -> [then: bb133, else: bb135];
+        _199 = Eq(_188, const 1_i64);
+        branch _199 -> [then: bb133, else: bb135];
     }
     bb133: {
-        RuntimeFn::HandlerLeave(_183);
-        raise _184;
+        RuntimeFn::HandlerLeave(_185);
+        raise _186;
     }
     bb134: {
-        _139 = const 2_i64;
+        _140 = const 2_i64;
         goto -> bb140;
     }
     bb135: {
-        _198 = Eq(_186, const 2_i64);
-        branch _198 -> [then: bb134, else: bb136];
+        _200 = Eq(_188, const 2_i64);
+        branch _200 -> [then: bb134, else: bb136];
     }
     bb136: {
-        RuntimeFn::HandlerLeave(_183);
+        RuntimeFn::HandlerLeave(_185);
         goto -> bb137;
     }
     bb137: {
-        _139 = const 0_i64;
+        _140 = const 0_i64;
         goto -> bb140;
     }
     bb138: {
-        _137 = caught_exception;
+        _138 = caught_exception;
         goto -> bb139;
     }
     bb139: {
         RuntimeFn::TracePopTo(_30);
-        _138 = RuntimeFn::HandlerEnter(_137);
-        _139 = const 1_i64;
+        _139 = RuntimeFn::HandlerEnter(_138);
+        _140 = const 1_i64;
         goto -> bb141;
     }
     bb140: {
         goto -> bb141;
     }
     bb141: {
-        _200 = RuntimeFn::HandlerEnter(None);
+        _202 = RuntimeFn::HandlerEnter(None);
         // line 23
-        _202 = RuntimeFn::DynTruthy(_13);
-        _203 = Not(_202);
-        _204 = box<Bool>(_203);
-        _205 = RuntimeFn::DynTruthy(_204);
-        branch _205 -> [then: bb142, else: bb144];
+        _204 = RuntimeFn::DynTruthy(_13);
+        _205 = Not(_204);
+        _206 = box<Bool>(_205);
+        _207 = RuntimeFn::DynTruthy(_206);
+        branch _207 -> [then: bb142, else: bb144];
     }
     bb142: {
         // line 23
-        _206 = RuntimeFn::DynNone();
-        _207 = RuntimeFn::DynNone();
         _208 = RuntimeFn::DynNone();
-        _209 = dyn.call(_11, [_206, _207, _208]);
+        _209 = RuntimeFn::DynNone();
+        _210 = RuntimeFn::DynNone();
+        _211 = dyn.call(_11, [_208, _209, _210]);
         goto -> bb144;
     }
     bb143: {
         unreachable;
     }
     bb144: {
-        _201 = const 0_i64;
+        _203 = const 0_i64;
         goto -> bb147;
     }
     bb145: {
-        _199 = caught_exception;
+        _201 = caught_exception;
         goto -> bb146;
     }
     bb146: {
         RuntimeFn::TracePopTo(_30);
-        _200 = RuntimeFn::HandlerEnter(_199);
-        _201 = const 1_i64;
+        _202 = RuntimeFn::HandlerEnter(_201);
+        _203 = const 1_i64;
         goto -> bb147;
     }
     bb147: {
-        RuntimeFn::HandlerLeave(_138);
+        RuntimeFn::HandlerLeave(_139);
         goto -> bb148;
     }
     bb148: {
-        _210 = Eq(_201, const 1_i64);
-        branch _210 -> [then: bb149, else: bb151];
+        _212 = Eq(_203, const 1_i64);
+        branch _212 -> [then: bb149, else: bb151];
     }
     bb149: {
-        RuntimeFn::HandlerLeave(_138);
-        raise _199;
+        RuntimeFn::HandlerLeave(_139);
+        raise _201;
     }
     bb150: {
         goto -> bb314;
     }
     bb151: {
-        _211 = Eq(_201, const 2_i64);
-        branch _211 -> [then: bb150, else: bb152];
+        _213 = Eq(_203, const 2_i64);
+        branch _213 -> [then: bb150, else: bb152];
     }
     bb152: {
-        RuntimeFn::HandlerLeave(_138);
+        RuntimeFn::HandlerLeave(_139);
         goto -> bb154;
     }
     bb153: {
         unreachable;
     }
     bb154: {
-        _212 = Eq(_139, const 1_i64);
-        branch _212 -> [then: bb155, else: bb157];
+        _214 = Eq(_140, const 1_i64);
+        branch _214 -> [then: bb155, else: bb157];
     }
     bb155: {
-        RuntimeFn::HandlerLeave(_138);
-        raise _137;
+        RuntimeFn::HandlerLeave(_139);
+        raise _138;
     }
     bb156: {
         goto -> bb314;
     }
     bb157: {
-        _213 = Eq(_139, const 2_i64);
-        branch _213 -> [then: bb156, else: bb158];
+        _215 = Eq(_140, const 2_i64);
+        branch _215 -> [then: bb156, else: bb158];
     }
     bb158: {
-        RuntimeFn::HandlerLeave(_138);
+        RuntimeFn::HandlerLeave(_139);
         goto -> bb83;
     }
     bb159: {
@@ -1703,53 +1719,54 @@ fn main() -> () {
     }
     bb160: {
         RuntimeFn::TracePopTo(_30);
-        _215 = RuntimeFn::HandlerEnter(_214);
+        _217 = RuntimeFn::HandlerEnter(_216);
         goto -> bb162;
     }
     bb161: {
-        _214 = caught_exception;
+        _216 = caught_exception;
         goto -> bb160;
     }
     bb162: {
-        _217 = RuntimeFn::HandlerEnter(None);
+        _219 = RuntimeFn::HandlerEnter(None);
         // line 26
-        _219 = box<Str>(const "enter failure caught");
-        RuntimeFn::WriteObject(_219);
-        RuntimeFn::WriteNewline();
-        _218 = const 0_i64;
+        _221 = box<Str>(const "enter failure caught");
+        _222 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_222, _221);
+        RuntimeFn::WriteNewline(_222);
+        _220 = const 0_i64;
         goto -> bb165;
     }
     bb163: {
-        _216 = caught_exception;
+        _218 = caught_exception;
         goto -> bb164;
     }
     bb164: {
         RuntimeFn::TracePopTo(_30);
-        _217 = RuntimeFn::HandlerEnter(_216);
-        _218 = const 1_i64;
+        _219 = RuntimeFn::HandlerEnter(_218);
+        _220 = const 1_i64;
         goto -> bb165;
     }
     bb165: {
-        RuntimeFn::HandlerLeave(_215);
+        RuntimeFn::HandlerLeave(_217);
         goto -> bb166;
     }
     bb166: {
-        _220 = Eq(_218, const 1_i64);
-        branch _220 -> [then: bb167, else: bb169];
+        _223 = Eq(_220, const 1_i64);
+        branch _223 -> [then: bb167, else: bb169];
     }
     bb167: {
-        RuntimeFn::HandlerLeave(_215);
-        raise _216;
+        RuntimeFn::HandlerLeave(_217);
+        raise _218;
     }
     bb168: {
         unreachable;
     }
     bb169: {
-        _221 = Eq(_218, const 2_i64);
-        branch _221 -> [then: bb314, else: bb170];
+        _224 = Eq(_220, const 2_i64);
+        branch _224 -> [then: bb314, else: bb170];
     }
     bb170: {
-        RuntimeFn::HandlerLeave(_215);
+        RuntimeFn::HandlerLeave(_217);
         goto -> bb172;
     }
     bb171: {
@@ -1758,39 +1775,40 @@ fn main() -> () {
     bb172: {
         // line 29
         // line 35
-        _222 = early_return();
-        RuntimeFn::WriteObject(_222);
-        RuntimeFn::WriteNewline();
+        _225 = early_return();
+        _226 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_226, _225);
+        RuntimeFn::WriteNewline(_226);
         // line 37
-        _223 = box<I64>(const 0_i64);
-        _224 = box<I64>(const 4_i64);
-        _225 = unbox<I64>(_223);
-        _226 = unbox<I64>(_224);
-        _227 = _225;
-        _228 = _226;
-        _229 = const 1_i64;
+        _227 = box<I64>(const 0_i64);
+        _228 = box<I64>(const 4_i64);
+        _229 = unbox<I64>(_227);
+        _230 = unbox<I64>(_228);
+        _231 = _229;
+        _232 = _230;
+        _233 = const 1_i64;
         goto -> bb173;
     }
     bb173: {
-        _230 = Gt(_229, const 0_i64);
-        _231 = Lt(_227, _228);
-        _232 = Gt(_227, _228);
-        _233 = BitAnd(_230, _231);
-        _234 = Not(_230);
-        _235 = BitAnd(_234, _232);
-        _236 = BitOr(_233, _235);
-        branch _236 -> [then: bb174, else: bb177];
+        _234 = Gt(_233, const 0_i64);
+        _235 = Lt(_231, _232);
+        _236 = Gt(_231, _232);
+        _237 = BitAnd(_234, _235);
+        _238 = Not(_234);
+        _239 = BitAnd(_238, _236);
+        _240 = BitOr(_237, _239);
+        branch _240 -> [then: bb174, else: bb177];
     }
     bb174: {
-        _237 = box<I64>(_227);
-        g6 = _237;
+        _241 = box<I64>(_231);
+        g6 = _241;
         // line 38
-        _238 = box<Bool>(const true);
-        _239 = RuntimeFn::DynTruthy(_238);
-        branch _239 -> [then: bb178, else: bb175];
+        _242 = box<Bool>(const true);
+        _243 = RuntimeFn::DynTruthy(_242);
+        branch _243 -> [then: bb178, else: bb175];
     }
     bb175: {
-        _227 = Add(_227, _229);
+        _231 = Add(_231, _233);
         goto -> bb173;
     }
     bb176: {
@@ -1798,36 +1816,37 @@ fn main() -> () {
     }
     bb177: {
         // line 44
-        _301 = box<Str>(const "loop done");
-        RuntimeFn::WriteObject(_301);
-        RuntimeFn::WriteNewline();
+        _306 = box<Str>(const "loop done");
+        _307 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_307, _306);
+        RuntimeFn::WriteNewline(_307);
         // line 47
-        _302 = RuntimeFn::MakeClass(const "BadExit", [], null);
-        g1 = _302;
-        _303 = MakeFunction(__enter__; env=[]; defaults=[null]);
-        RuntimeFn::SetAttr(_302, const "__enter__", _303);
-        _304 = MakeFunction(__exit__; env=[]; defaults=[null, null, null, null]);
-        RuntimeFn::SetAttr(_302, const "__exit__", _304);
+        _308 = RuntimeFn::MakeClass(const "BadExit", [], null);
+        g1 = _308;
+        _309 = MakeFunction(__enter__; env=[]; defaults=[null]);
+        RuntimeFn::SetAttr(_308, const "__enter__", _309);
+        _310 = MakeFunction(__exit__; env=[]; defaults=[null, null, null, null]);
+        RuntimeFn::SetAttr(_308, const "__exit__", _310);
         // line 55
         goto -> bb241;
     }
     bb178: {
         // line 38
-        _240 = box<Str>(const "loop");
-        _241 = RuntimeFn::LoadName(global@6, const "index");
-        _242 = RuntimeFn::DynStr(_241);
-        _243 = dyn.Add(_240, _242);
-        _244 = dyn.call(global@0, [_243]);
-        _20 = _244;
+        _244 = box<Str>(const "loop");
+        _245 = RuntimeFn::LoadName(global@6, const "index");
+        _246 = RuntimeFn::DynStr(_245);
+        _247 = dyn.Add(_244, _246);
+        _248 = dyn.call(global@0, [_247]);
+        _20 = _248;
         // line 38
-        _245 = RuntimeFn::DynGetAttr(_20, const "__exit__");
-        _21 = _245;
+        _249 = RuntimeFn::DynGetAttr(_20, const "__exit__");
+        _21 = _249;
         // line 38
-        _246 = dyn.method(_20, "__enter__", []);
-        _22 = _246;
+        _250 = dyn.method(_20, "__enter__", []);
+        _22 = _250;
         // line 38
-        _247 = box<Bool>(const false);
-        _23 = _247;
+        _251 = box<Bool>(const false);
+        _23 = _251;
         // line 38
         goto -> bb181;
     }
@@ -1838,18 +1857,18 @@ fn main() -> () {
         unreachable;
     }
     bb181: {
-        _249 = RuntimeFn::HandlerEnter(None);
+        _253 = RuntimeFn::HandlerEnter(None);
         // line 39
-        _251 = RuntimeFn::LoadName(global@6, const "index");
-        _252 = box<I64>(const 1_i64);
-        _253 = dyn.cmp.Eq(_251, _252);
-        _254 = box<Bool>(_253);
-        _255 = RuntimeFn::DynTruthy(_254);
-        branch _255 -> [then: bb182, else: bb184];
+        _255 = RuntimeFn::LoadName(global@6, const "index");
+        _256 = box<I64>(const 1_i64);
+        _257 = dyn.cmp.Eq(_255, _256);
+        _258 = box<Bool>(_257);
+        _259 = RuntimeFn::DynTruthy(_258);
+        branch _259 -> [then: bb182, else: bb184];
     }
     bb182: {
         // line 40
-        _250 = const 3_i64;
+        _254 = const 3_i64;
         goto -> bb213;
     }
     bb183: {
@@ -1857,19 +1876,19 @@ fn main() -> () {
     }
     bb184: {
         // line 41
-        _256 = RuntimeFn::LoadName(global@6, const "index");
-        _257 = box<I64>(const 3_i64);
-        _258 = dyn.cmp.Eq(_256, _257);
-        _259 = box<Bool>(_258);
-        _260 = RuntimeFn::DynTruthy(_259);
-        branch _260 -> [then: bb186, else: bb188];
+        _260 = RuntimeFn::LoadName(global@6, const "index");
+        _261 = box<I64>(const 3_i64);
+        _262 = dyn.cmp.Eq(_260, _261);
+        _263 = box<Bool>(_262);
+        _264 = RuntimeFn::DynTruthy(_263);
+        branch _264 -> [then: bb186, else: bb188];
     }
     bb185: {
         unreachable;
     }
     bb186: {
         // line 42
-        _250 = const 4_i64;
+        _254 = const 4_i64;
         goto -> bb213;
     }
     bb187: {
@@ -1877,13 +1896,14 @@ fn main() -> () {
     }
     bb188: {
         // line 43
-        _261 = box<Str>(const "loop body");
-        _262 = RuntimeFn::LoadName(global@6, const "index");
-        RuntimeFn::WriteObject(_261);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_262);
-        RuntimeFn::WriteNewline();
-        _250 = const 0_i64;
+        _265 = box<Str>(const "loop body");
+        _266 = RuntimeFn::LoadName(global@6, const "index");
+        _267 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_267, _265);
+        RuntimeFn::WriteSep(_267);
+        RuntimeFn::WriteObject(_267, _266);
+        RuntimeFn::WriteNewline(_267);
+        _254 = const 0_i64;
         goto -> bb213;
     }
     bb189: {
@@ -1891,91 +1911,91 @@ fn main() -> () {
     }
     bb190: {
         RuntimeFn::TracePopTo(_30);
-        _264 = RuntimeFn::HandlerEnter(_263);
-        _24 = _263;
+        _269 = RuntimeFn::HandlerEnter(_268);
+        _24 = _268;
         goto -> bb192;
     }
     bb191: {
-        _263 = caught_exception;
+        _268 = caught_exception;
         goto -> bb190;
     }
     bb192: {
-        _266 = RuntimeFn::HandlerEnter(None);
+        _271 = RuntimeFn::HandlerEnter(None);
         // line 38
-        _268 = box<Bool>(const true);
-        _23 = _268;
+        _273 = box<Bool>(const true);
+        _23 = _273;
         // line 38
-        _269 = RuntimeFn::DynType(_24);
-        _270 = RuntimeFn::DynNone();
-        _271 = dyn.call(_21, [_269, _24, _270]);
-        _272 = RuntimeFn::DynTruthy(_271);
-        _273 = Not(_272);
-        _274 = box<Bool>(_273);
-        _275 = RuntimeFn::DynTruthy(_274);
-        branch _275 -> [then: bb193, else: bb195];
+        _274 = RuntimeFn::DynType(_24);
+        _275 = RuntimeFn::DynNone();
+        _276 = dyn.call(_21, [_274, _24, _275]);
+        _277 = RuntimeFn::DynTruthy(_276);
+        _278 = Not(_277);
+        _279 = box<Bool>(_278);
+        _280 = RuntimeFn::DynTruthy(_279);
+        branch _280 -> [then: bb193, else: bb195];
     }
     bb193: {
         // line 38
-        _276 = RuntimeFn::Reraise();
-        raise _276;
+        _281 = RuntimeFn::Reraise();
+        raise _281;
     }
     bb194: {
         unreachable;
     }
     bb195: {
-        _267 = const 0_i64;
+        _272 = const 0_i64;
         goto -> bb198;
     }
     bb196: {
-        _265 = caught_exception;
+        _270 = caught_exception;
         goto -> bb197;
     }
     bb197: {
         RuntimeFn::TracePopTo(_30);
-        _266 = RuntimeFn::HandlerEnter(_265);
-        _267 = const 1_i64;
+        _271 = RuntimeFn::HandlerEnter(_270);
+        _272 = const 1_i64;
         goto -> bb198;
     }
     bb198: {
-        _277 = RuntimeFn::MakeUnbound();
-        _24 = _277;
-        RuntimeFn::HandlerLeave(_264);
+        _282 = RuntimeFn::MakeUnbound();
+        _24 = _282;
+        RuntimeFn::HandlerLeave(_269);
         goto -> bb199;
     }
     bb199: {
-        _278 = Eq(_267, const 1_i64);
-        branch _278 -> [then: bb200, else: bb204];
+        _283 = Eq(_272, const 1_i64);
+        branch _283 -> [then: bb200, else: bb204];
     }
     bb200: {
-        RuntimeFn::HandlerLeave(_264);
-        raise _265;
+        RuntimeFn::HandlerLeave(_269);
+        raise _270;
     }
     bb201: {
-        _250 = const 2_i64;
+        _254 = const 2_i64;
         goto -> bb213;
     }
     bb202: {
-        _250 = const 3_i64;
+        _254 = const 3_i64;
         goto -> bb213;
     }
     bb203: {
-        _250 = const 4_i64;
+        _254 = const 4_i64;
         goto -> bb213;
     }
     bb204: {
-        _279 = Eq(_267, const 2_i64);
-        branch _279 -> [then: bb201, else: bb205];
+        _284 = Eq(_272, const 2_i64);
+        branch _284 -> [then: bb201, else: bb205];
     }
     bb205: {
-        _280 = Eq(_267, const 3_i64);
-        branch _280 -> [then: bb202, else: bb206];
+        _285 = Eq(_272, const 3_i64);
+        branch _285 -> [then: bb202, else: bb206];
     }
     bb206: {
-        _281 = Eq(_267, const 4_i64);
-        branch _281 -> [then: bb203, else: bb207];
+        _286 = Eq(_272, const 4_i64);
+        branch _286 -> [then: bb203, else: bb207];
     }
     bb207: {
-        RuntimeFn::HandlerLeave(_264);
+        RuntimeFn::HandlerLeave(_269);
         goto -> bb210;
     }
     bb208: {
@@ -1985,67 +2005,67 @@ fn main() -> () {
         unreachable;
     }
     bb210: {
-        _250 = const 0_i64;
+        _254 = const 0_i64;
         goto -> bb213;
     }
     bb211: {
-        _248 = caught_exception;
+        _252 = caught_exception;
         goto -> bb212;
     }
     bb212: {
         RuntimeFn::TracePopTo(_30);
-        _249 = RuntimeFn::HandlerEnter(_248);
-        _250 = const 1_i64;
+        _253 = RuntimeFn::HandlerEnter(_252);
+        _254 = const 1_i64;
         goto -> bb214;
     }
     bb213: {
         goto -> bb214;
     }
     bb214: {
-        _283 = RuntimeFn::HandlerEnter(None);
+        _288 = RuntimeFn::HandlerEnter(None);
         // line 38
-        _285 = RuntimeFn::DynTruthy(_23);
-        _286 = Not(_285);
-        _287 = box<Bool>(_286);
-        _288 = RuntimeFn::DynTruthy(_287);
-        branch _288 -> [then: bb215, else: bb217];
+        _290 = RuntimeFn::DynTruthy(_23);
+        _291 = Not(_290);
+        _292 = box<Bool>(_291);
+        _293 = RuntimeFn::DynTruthy(_292);
+        branch _293 -> [then: bb215, else: bb217];
     }
     bb215: {
         // line 38
-        _289 = RuntimeFn::DynNone();
-        _290 = RuntimeFn::DynNone();
-        _291 = RuntimeFn::DynNone();
-        _292 = dyn.call(_21, [_289, _290, _291]);
+        _294 = RuntimeFn::DynNone();
+        _295 = RuntimeFn::DynNone();
+        _296 = RuntimeFn::DynNone();
+        _297 = dyn.call(_21, [_294, _295, _296]);
         goto -> bb217;
     }
     bb216: {
         unreachable;
     }
     bb217: {
-        _284 = const 0_i64;
+        _289 = const 0_i64;
         goto -> bb220;
     }
     bb218: {
-        _282 = caught_exception;
+        _287 = caught_exception;
         goto -> bb219;
     }
     bb219: {
         RuntimeFn::TracePopTo(_30);
-        _283 = RuntimeFn::HandlerEnter(_282);
-        _284 = const 1_i64;
+        _288 = RuntimeFn::HandlerEnter(_287);
+        _289 = const 1_i64;
         goto -> bb220;
     }
     bb220: {
-        RuntimeFn::HandlerLeave(_249);
+        RuntimeFn::HandlerLeave(_253);
         goto -> bb221;
     }
     bb221: {
-        _293 = Eq(_284, const 1_i64);
-        branch _293 -> [then: bb222, else: bb226];
+        _298 = Eq(_289, const 1_i64);
+        branch _298 -> [then: bb222, else: bb226];
     }
     bb222: {
-        RuntimeFn::HandlerLeave(_249);
-        raise _282;
+        RuntimeFn::HandlerLeave(_253);
+        raise _287;
     }
     bb223: {
         unreachable;
@@ -2057,31 +2077,31 @@ fn main() -> () {
         unreachable;
     }
     bb226: {
-        _294 = Eq(_284, const 2_i64);
-        branch _294 -> [then: bb314, else: bb227];
+        _299 = Eq(_289, const 2_i64);
+        branch _299 -> [then: bb314, else: bb227];
     }
     bb227: {
-        _295 = Eq(_284, const 3_i64);
-        branch _295 -> [then: bb175, else: bb228];
+        _300 = Eq(_289, const 3_i64);
+        branch _300 -> [then: bb175, else: bb228];
     }
     bb228: {
-        _296 = Eq(_284, const 4_i64);
-        branch _296 -> [then: bb177, else: bb229];
+        _301 = Eq(_289, const 4_i64);
+        branch _301 -> [then: bb177, else: bb229];
     }
     bb229: {
-        RuntimeFn::HandlerLeave(_249);
+        RuntimeFn::HandlerLeave(_253);
         goto -> bb231;
     }
     bb230: {
         unreachable;
     }
     bb231: {
-        _297 = Eq(_250, const 1_i64);
-        branch _297 -> [then: bb232, else: bb236];
+        _302 = Eq(_254, const 1_i64);
+        branch _302 -> [then: bb232, else: bb236];
     }
     bb232: {
-        RuntimeFn::HandlerLeave(_249);
-        raise _248;
+        RuntimeFn::HandlerLeave(_253);
+        raise _252;
     }
     bb233: {
         unreachable;
@@ -2093,19 +2113,19 @@ fn main() -> () {
         unreachable;
     }
     bb236: {
-        _298 = Eq(_250, const 2_i64);
-        branch _298 -> [then: bb314, else: bb237];
+        _303 = Eq(_254, const 2_i64);
+        branch _303 -> [then: bb314, else: bb237];
     }
     bb237: {
-        _299 = Eq(_250, const 3_i64);
-        branch _299 -> [then: bb175, else: bb238];
+        _304 = Eq(_254, const 3_i64);
+        branch _304 -> [then: bb175, else: bb238];
     }
     bb238: {
-        _300 = Eq(_250, const 4_i64);
-        branch _300 -> [then: bb177, else: bb239];
+        _305 = Eq(_254, const 4_i64);
+        branch _305 -> [then: bb177, else: bb239];
     }
     bb239: {
-        RuntimeFn::HandlerLeave(_249);
+        RuntimeFn::HandlerLeave(_253);
         goto -> bb175;
     }
     bb240: {
@@ -2113,23 +2133,23 @@ fn main() -> () {
     }
     bb241: {
         // line 56
-        _305 = box<Bool>(const true);
-        _306 = RuntimeFn::DynTruthy(_305);
-        branch _306 -> [then: bb242, else: bb244];
+        _311 = box<Bool>(const true);
+        _312 = RuntimeFn::DynTruthy(_311);
+        branch _312 -> [then: bb242, else: bb244];
     }
     bb242: {
         // line 56
-        _307 = dyn.call(global@1, []);
-        _25 = _307;
+        _313 = dyn.call(global@1, []);
+        _25 = _313;
         // line 56
-        _308 = RuntimeFn::DynGetAttr(_25, const "__exit__");
-        _26 = _308;
+        _314 = RuntimeFn::DynGetAttr(_25, const "__exit__");
+        _26 = _314;
         // line 56
-        _309 = dyn.method(_25, "__enter__", []);
-        _27 = _309;
+        _315 = dyn.method(_25, "__enter__", []);
+        _27 = _315;
         // line 56
-        _310 = box<Bool>(const false);
-        _28 = _310;
+        _316 = box<Bool>(const false);
+        _28 = _316;
         // line 56
         goto -> bb245;
     }
@@ -2140,101 +2160,102 @@ fn main() -> () {
         goto -> bb313;
     }
     bb245: {
-        _312 = RuntimeFn::HandlerEnter(None);
+        _318 = RuntimeFn::HandlerEnter(None);
         // line 57
-        _314 = box<Str>(const "bad body");
-        RuntimeFn::WriteObject(_314);
-        RuntimeFn::WriteNewline();
-        _313 = const 0_i64;
+        _320 = box<Str>(const "bad body");
+        _321 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_321, _320);
+        RuntimeFn::WriteNewline(_321);
+        _319 = const 0_i64;
         goto -> bb269;
     }
     bb246: {
         RuntimeFn::TracePopTo(_30);
-        _316 = RuntimeFn::HandlerEnter(_315);
-        _29 = _315;
+        _323 = RuntimeFn::HandlerEnter(_322);
+        _29 = _322;
         goto -> bb248;
     }
     bb247: {
-        _315 = caught_exception;
+        _322 = caught_exception;
         goto -> bb246;
     }
     bb248: {
-        _318 = RuntimeFn::HandlerEnter(None);
+        _325 = RuntimeFn::HandlerEnter(None);
         // line 56
-        _320 = box<Bool>(const true);
-        _28 = _320;
+        _327 = box<Bool>(const true);
+        _28 = _327;
         // line 56
-        _321 = RuntimeFn::DynType(_29);
-        _322 = RuntimeFn::DynNone();
-        _323 = dyn.call(_26, [_321, _29, _322]);
-        _324 = RuntimeFn::DynTruthy(_323);
-        _325 = Not(_324);
-        _326 = box<Bool>(_325);
-        _327 = RuntimeFn::DynTruthy(_326);
-        branch _327 -> [then: bb249, else: bb251];
+        _328 = RuntimeFn::DynType(_29);
+        _329 = RuntimeFn::DynNone();
+        _330 = dyn.call(_26, [_328, _29, _329]);
+        _331 = RuntimeFn::DynTruthy(_330);
+        _332 = Not(_331);
+        _333 = box<Bool>(_332);
+        _334 = RuntimeFn::DynTruthy(_333);
+        branch _334 -> [then: bb249, else: bb251];
     }
     bb249: {
         // line 56
-        _328 = RuntimeFn::Reraise();
-        raise _328;
+        _335 = RuntimeFn::Reraise();
+        raise _335;
     }
     bb250: {
         unreachable;
     }
     bb251: {
-        _319 = const 0_i64;
+        _326 = const 0_i64;
         goto -> bb254;
     }
     bb252: {
-        _317 = caught_exception;
+        _324 = caught_exception;
         goto -> bb253;
     }
     bb253: {
         RuntimeFn::TracePopTo(_30);
-        _318 = RuntimeFn::HandlerEnter(_317);
-        _319 = const 1_i64;
+        _325 = RuntimeFn::HandlerEnter(_324);
+        _326 = const 1_i64;
         goto -> bb254;
     }
     bb254: {
-        _329 = RuntimeFn::MakeUnbound();
-        _29 = _329;
-        RuntimeFn::HandlerLeave(_316);
+        _336 = RuntimeFn::MakeUnbound();
+        _29 = _336;
+        RuntimeFn::HandlerLeave(_323);
         goto -> bb255;
     }
     bb255: {
-        _330 = Eq(_319, const 1_i64);
-        branch _330 -> [then: bb256, else: bb260];
+        _337 = Eq(_326, const 1_i64);
+        branch _337 -> [then: bb256, else: bb260];
     }
     bb256: {
-        RuntimeFn::HandlerLeave(_316);
-        raise _317;
+        RuntimeFn::HandlerLeave(_323);
+        raise _324;
     }
     bb257: {
-        _313 = const 2_i64;
+        _319 = const 2_i64;
         goto -> bb269;
     }
     bb258: {
-        _313 = const 3_i64;
+        _319 = const 3_i64;
         goto -> bb269;
     }
     bb259: {
-        _313 = const 4_i64;
+        _319 = const 4_i64;
         goto -> bb269;
     }
     bb260: {
-        _331 = Eq(_319, const 2_i64);
-        branch _331 -> [then: bb257, else: bb261];
+        _338 = Eq(_326, const 2_i64);
+        branch _338 -> [then: bb257, else: bb261];
     }
     bb261: {
-        _332 = Eq(_319, const 3_i64);
-        branch _332 -> [then: bb258, else: bb262];
+        _339 = Eq(_326, const 3_i64);
+        branch _339 -> [then: bb258, else: bb262];
     }
     bb262: {
-        _333 = Eq(_319, const 4_i64);
-        branch _333 -> [then: bb259, else: bb263];
+        _340 = Eq(_326, const 4_i64);
+        branch _340 -> [then: bb259, else: bb263];
     }
     bb263: {
-        RuntimeFn::HandlerLeave(_316);
+        RuntimeFn::HandlerLeave(_323);
         goto -> bb266;
     }
     bb264: {
@@ -2244,67 +2265,67 @@ fn main() -> () {
         unreachable;
     }
     bb266: {
-        _313 = const 0_i64;
+        _319 = const 0_i64;
         goto -> bb269;
     }
     bb267: {
-        _311 = caught_exception;
+        _317 = caught_exception;
         goto -> bb268;
     }
     bb268: {
         RuntimeFn::TracePopTo(_30);
-        _312 = RuntimeFn::HandlerEnter(_311);
-        _313 = const 1_i64;
+        _318 = RuntimeFn::HandlerEnter(_317);
+        _319 = const 1_i64;
         goto -> bb270;
     }
     bb269: {
         goto -> bb270;
     }
     bb270: {
-        _335 = RuntimeFn::HandlerEnter(None);
+        _342 = RuntimeFn::HandlerEnter(None);
         // line 56
-        _337 = RuntimeFn::DynTruthy(_28);
-        _338 = Not(_337);
-        _339 = box<Bool>(_338);
-        _340 = RuntimeFn::DynTruthy(_339);
-        branch _340 -> [then: bb271, else: bb273];
+        _344 = RuntimeFn::DynTruthy(_28);
+        _345 = Not(_344);
+        _346 = box<Bool>(_345);
+        _347 = RuntimeFn::DynTruthy(_346);
+        branch _347 -> [then: bb271, else: bb273];
     }
     bb271: {
         // line 56
-        _341 = RuntimeFn::DynNone();
-        _342 = RuntimeFn::DynNone();
-        _343 = RuntimeFn::DynNone();
-        _344 = dyn.call(_26, [_341, _342, _343]);
+        _348 = RuntimeFn::DynNone();
+        _349 = RuntimeFn::DynNone();
+        _350 = RuntimeFn::DynNone();
+        _351 = dyn.call(_26, [_348, _349, _350]);
         goto -> bb273;
     }
     bb272: {
         unreachable;
     }
     bb273: {
-        _336 = const 0_i64;
+        _343 = const 0_i64;
         goto -> bb276;
     }
     bb274: {
-        _334 = caught_exception;
+        _341 = caught_exception;
         goto -> bb275;
     }
     bb275: {
         RuntimeFn::TracePopTo(_30);
-        _335 = RuntimeFn::HandlerEnter(_334);
-        _336 = const 1_i64;
+        _342 = RuntimeFn::HandlerEnter(_341);
+        _343 = const 1_i64;
         goto -> bb276;
     }
     bb276: {
-        RuntimeFn::HandlerLeave(_312);
+        RuntimeFn::HandlerLeave(_318);
         goto -> bb277;
     }
     bb277: {
-        _345 = Eq(_336, const 1_i64);
-        branch _345 -> [then: bb278, else: bb282];
+        _352 = Eq(_343, const 1_i64);
+        branch _352 -> [then: bb278, else: bb282];
     }
     bb278: {
-        RuntimeFn::HandlerLeave(_312);
-        raise _334;
+        RuntimeFn::HandlerLeave(_318);
+        raise _341;
     }
     bb279: {
         goto -> bb314;
@@ -2316,31 +2337,31 @@ fn main() -> () {
         goto -> bb177;
     }
     bb282: {
-        _346 = Eq(_336, const 2_i64);
-        branch _346 -> [then: bb279, else: bb283];
+        _353 = Eq(_343, const 2_i64);
+        branch _353 -> [then: bb279, else: bb283];
     }
     bb283: {
-        _347 = Eq(_336, const 3_i64);
-        branch _347 -> [then: bb280, else: bb284];
+        _354 = Eq(_343, const 3_i64);
+        branch _354 -> [then: bb280, else: bb284];
     }
     bb284: {
-        _348 = Eq(_336, const 4_i64);
-        branch _348 -> [then: bb281, else: bb285];
+        _355 = Eq(_343, const 4_i64);
+        branch _355 -> [then: bb281, else: bb285];
     }
     bb285: {
-        RuntimeFn::HandlerLeave(_312);
+        RuntimeFn::HandlerLeave(_318);
         goto -> bb287;
     }
     bb286: {
         unreachable;
     }
     bb287: {
-        _349 = Eq(_313, const 1_i64);
-        branch _349 -> [then: bb288, else: bb292];
+        _356 = Eq(_319, const 1_i64);
+        branch _356 -> [then: bb288, else: bb292];
     }
     bb288: {
-        RuntimeFn::HandlerLeave(_312);
-        raise _311;
+        RuntimeFn::HandlerLeave(_318);
+        raise _317;
     }
     bb289: {
         goto -> bb314;
@@ -2352,19 +2373,19 @@ fn main() -> () {
         goto -> bb177;
     }
     bb292: {
-        _350 = Eq(_313, const 2_i64);
-        branch _350 -> [then: bb289, else: bb293];
+        _357 = Eq(_319, const 2_i64);
+        branch _357 -> [then: bb289, else: bb293];
     }
     bb293: {
-        _351 = Eq(_313, const 3_i64);
-        branch _351 -> [then: bb290, else: bb294];
+        _358 = Eq(_319, const 3_i64);
+        branch _358 -> [then: bb290, else: bb294];
     }
     bb294: {
-        _352 = Eq(_313, const 4_i64);
-        branch _352 -> [then: bb291, else: bb295];
+        _359 = Eq(_319, const 4_i64);
+        branch _359 -> [then: bb291, else: bb295];
     }
     bb295: {
-        RuntimeFn::HandlerLeave(_312);
+        RuntimeFn::HandlerLeave(_318);
         goto -> bb244;
     }
     bb296: {
@@ -2372,49 +2393,50 @@ fn main() -> () {
     }
     bb297: {
         RuntimeFn::TracePopTo(_30);
-        _354 = RuntimeFn::HandlerEnter(_353);
-        g7 = _353;
+        _361 = RuntimeFn::HandlerEnter(_360);
+        g7 = _360;
         goto -> bb299;
     }
     bb298: {
-        _353 = caught_exception;
+        _360 = caught_exception;
         goto -> bb297;
     }
     bb299: {
-        _356 = RuntimeFn::HandlerEnter(None);
+        _363 = RuntimeFn::HandlerEnter(None);
         // line 59
-        _358 = box<Str>(const "exit failure");
-        _359 = RuntimeFn::LoadName(global@7, const "error");
-        RuntimeFn::WriteObject(_358);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_359);
-        RuntimeFn::WriteNewline();
-        _357 = const 0_i64;
+        _365 = box<Str>(const "exit failure");
+        _366 = RuntimeFn::LoadName(global@7, const "error");
+        _367 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_367, _365);
+        RuntimeFn::WriteSep(_367);
+        RuntimeFn::WriteObject(_367, _366);
+        RuntimeFn::WriteNewline(_367);
+        _364 = const 0_i64;
         goto -> bb302;
     }
     bb300: {
-        _355 = caught_exception;
+        _362 = caught_exception;
         goto -> bb301;
     }
     bb301: {
         RuntimeFn::TracePopTo(_30);
-        _356 = RuntimeFn::HandlerEnter(_355);
-        _357 = const 1_i64;
+        _363 = RuntimeFn::HandlerEnter(_362);
+        _364 = const 1_i64;
         goto -> bb302;
     }
     bb302: {
-        _360 = RuntimeFn::MakeUnbound();
-        g7 = _360;
-        RuntimeFn::HandlerLeave(_354);
+        _368 = RuntimeFn::MakeUnbound();
+        g7 = _368;
+        RuntimeFn::HandlerLeave(_361);
         goto -> bb303;
     }
     bb303: {
-        _361 = Eq(_357, const 1_i64);
-        branch _361 -> [then: bb304, else: bb308];
+        _369 = Eq(_364, const 1_i64);
+        branch _369 -> [then: bb304, else: bb308];
     }
     bb304: {
-        RuntimeFn::HandlerLeave(_354);
-        raise _355;
+        RuntimeFn::HandlerLeave(_361);
+        raise _362;
     }
     bb305: {
         unreachable;
@@ -2426,19 +2448,19 @@ fn main() -> () {
         unreachable;
     }
     bb308: {
-        _362 = Eq(_357, const 2_i64);
-        branch _362 -> [then: bb314, else: bb309];
+        _370 = Eq(_364, const 2_i64);
+        branch _370 -> [then: bb314, else: bb309];
     }
     bb309: {
-        _363 = Eq(_357, const 3_i64);
-        branch _363 -> [then: bb175, else: bb310];
+        _371 = Eq(_364, const 3_i64);
+        branch _371 -> [then: bb175, else: bb310];
     }
     bb310: {
-        _364 = Eq(_357, const 4_i64);
-        branch _364 -> [then: bb177, else: bb311];
+        _372 = Eq(_364, const 4_i64);
+        branch _372 -> [then: bb177, else: bb311];
     }
     bb311: {
-        RuntimeFn::HandlerLeave(_354);
+        RuntimeFn::HandlerLeave(_361);
         goto -> bb314;
     }
     bb312: {

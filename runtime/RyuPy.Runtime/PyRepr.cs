@@ -22,6 +22,7 @@ public static class PyRepr
     /// <summary>Python 类型名，用于错误消息（<c>'int' and 'str'</c>）。</summary>
     public static string TypeName(object? value) => value switch
     {
+        PyNativeObject native => native.TypeName,
         null => "NoneType",
         PyNone => "NoneType",
         PyUnbound => "NoneType",
@@ -43,7 +44,7 @@ public static class PyRepr
             PyDictViewKind.Values => "dict_values",
             _ => "dict_items",
         },
-        PyType => "type",
+        PyType or PyNativeType => "type",
         PyClass => "type",
         PyModule => "module",
         PyInstance instance => instance.Class.Name,
@@ -62,6 +63,7 @@ public static class PyRepr
     /// <summary><c>str(value)</c>。</summary>
     public static string Str(object? value) => value switch
     {
+        PyNativeObject native => native.PythonStr(),
         null => "None",
         PyNone => "None",
         PyUnbound => "<unbound>",
@@ -82,6 +84,7 @@ public static class PyRepr
         PySlice slice => slice.ToString(),
         PyDictView view => ReprView(view),
         PyType type => type.ToString(),
+        PyNativeType type => type.ToString(),
         PyClass cls => cls.ToString(),
         PyInstance instance => StrInstance(instance),
         PyModule module => module.ToString(),
@@ -102,6 +105,7 @@ public static class PyRepr
     /// </summary>
     public static string Repr(object? value) => value switch
     {
+        PyNativeObject native => native.PythonRepr(),
         string s => Quote(s),
         PyBaseException exception => ReprException(exception),
         PyTuple tuple => ReprTuple(tuple),

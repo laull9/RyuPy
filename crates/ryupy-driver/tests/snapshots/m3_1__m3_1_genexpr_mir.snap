@@ -15,6 +15,7 @@ fn main() -> () {
     let _9: dyn;
     let _10: dyn;
     let _11: dyn;
+    let _12: dyn;
 
     bb0: {
         g0 = null;
@@ -42,8 +43,9 @@ fn main() -> () {
         // line 2
         _10 = RuntimeFn::LoadName(global@3, const "values");
         _11 = RuntimeFn::DynBuiltin(const "list", [_10], [], []);
-        RuntimeFn::WriteObject(_11);
-        RuntimeFn::WriteNewline();
+        _12 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_12, _11);
+        RuntimeFn::WriteNewline(_12);
         goto -> bb1;
     }
     bb1: {

@@ -77,9 +77,11 @@ fn main() -> () {
     let _11: dyn;
     let _12: Class(0);
     let _13: f64;
-    let _14: Class(1);
+    let _14: dyn;
     let _15: Class(1);
-    let _16: i64;
+    let _16: Class(1);
+    let _17: i64;
+    let _18: dyn;
 
     bb0: {
         g7 = null;
@@ -136,14 +138,16 @@ fn main() -> () {
         // line 29
         _12 = global@5;
         _13 = _12.0;
-        RuntimeFn::WriteF64(_13);
-        RuntimeFn::WriteNewline();
+        _14 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_14, _13);
+        RuntimeFn::WriteNewline(_14);
         // line 30
-        _14 = New(Class(1), [const 1_i64, const 2_i64]);
-        _15 = New(Class(1), [const 3_i64, const 4_i64]);
-        _16 = dot(_14, _15);
-        RuntimeFn::WriteI64(_16);
-        RuntimeFn::WriteNewline();
+        _15 = New(Class(1), [const 1_i64, const 2_i64]);
+        _16 = New(Class(1), [const 3_i64, const 4_i64]);
+        _17 = dot(_15, _16);
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_18, _17);
+        RuntimeFn::WriteNewline(_18);
         goto -> bb6;
     }
     bb6: {

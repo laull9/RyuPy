@@ -33,10 +33,13 @@ public class PySystemExit : PyBaseException
     /// <summary>构造 <c>SystemExit</c>。</summary>
     /// <param name="code">退出码或消息。</param>
     public PySystemExit(object? code = null)
-        : base("SystemExit", code is null ? "" : PyRepr.Str(code))
+        : base("SystemExit", "", code is null ? [] : [code])
     {
         Code = code;
     }
+
+    /// <summary>异常消息只在显式格式化时读取，构造不调用用户str。</summary>
+    public override string PyMessage => Code is null ? "" : PyRepr.Str(Code);
 }
 
 /// <summary><c>KeyboardInterrupt</c>。</summary>
@@ -556,6 +559,8 @@ public static class PyExceptionTypes
         ["ImportError"] = m => new PyImportError(m),
         ["ModuleNotFoundError"] = m => new PyModuleNotFoundError(m),
         ["OSError"] = m => new PyOSError(m),
+        ["IsADirectoryError"] = m => new PyIsADirectoryError(m),
+        ["NotADirectoryError"] = m => new PyNotADirectoryError(m),
         ["FileNotFoundError"] = m => new PyFileNotFoundError(m),
         ["FileExistsError"] = m => new PyFileExistsError(m),
         ["PermissionError"] = m => new PyPermissionError(m),

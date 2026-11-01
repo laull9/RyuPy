@@ -50,6 +50,7 @@ public static partial class PyOps
         "lstrip" => StripText(text, args, left: true, right: false),
         "rstrip" => StripText(text, args, left: false, right: true),
         "split" => SplitText(text, args),
+        "splitlines" => SplitLines(text, args),
         "join" => JoinText(text, Single("join", args)),
         "replace" => ReplaceText(text, args),
         "find" => FindText(text, args, fromEnd: false, raiseIfMissing: false),
@@ -61,6 +62,25 @@ public static partial class PyOps
         "endswith" => text.EndsWith(AsText(Single("endswith", args)), StringComparison.Ordinal),
         _ => throw MissingAttribute("str", name),
     };
+
+    /// <summary>按Python定义的Unicode换行边界切分，末尾分隔符不额外产生空行。</summary>
+    private static object SplitLines(string text, object?[] args)
+    {
+        if (args.Length > 1) throw new PyTypeError("splitlines expected at most 1 argument");
+        bool keep = args.Length > 0 && Truthy(args[0]);
+        var result = new PyList();
+        int start = 0;
+        for (int index = 0; index < text.Length; index++)
+        {
+            if (text[index] is not ('\n' or '\r' or '\v' or '\f' or '\u001c' or '\u001d' or '\u001e' or '\u0085' or '\u2028' or '\u2029')) continue;
+            int end = index;
+            if (text[index] == '\r' && index + 1 < text.Length && text[index + 1] == '\n') index++;
+            result.Append(text[start..(keep ? index + 1 : end)]);
+            start = index + 1;
+        }
+        if (start < text.Length) result.Append(text[start..]);
+        return result;
+    }
 
     /// <summary>`str.strip([chars])`：缺省去掉空白，给定时去掉属于 chars 的字符。</summary>
     private static object StripText(string text, object?[] args, bool left, bool right)

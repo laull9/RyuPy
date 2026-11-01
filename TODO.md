@@ -431,15 +431,17 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 连接现有 dataclass 特殊降级与运行时装饰器路径，避免重复应用；property 等内建设计保持一致
 - [x] 验收：多层顺序、副作用、替换 callable、异常与装饰方法通过，functools.wraps 在 M3.6 接续
 
-### M3.4 标准库：系统、路径与文件
+### M3.4 标准库：系统、路径与文件 ✅
 
 > 依赖 Phase 2 模块 / bytes / with。每个模块再按 stdlib.md 列 API 开工。
 
-- [ ] `sys`：argv、标准流、exit、受控模块缓存视图，登记缺少的解释器内部接口
-- [ ] `io` 与 `open`：文本 / 二进制流、编码 / 换行、读写 / 定位 / 关闭，补权限与关闭后操作异常
-- [ ] `os` / `os.path`：环境变量、目录和常用路径函数；`pathlib`：常用 Path 构造、读写与遍历
-- [ ] 衔接 print(file=...)、模块定位与资源生命周期，分别验证 Windows / POSIX 承诺范围
-- [ ] 验收：逐 API 差分、临时目录中的文件副作用与 with 清理通过；更新标准库 API 表与相关项目入口结果
+- [x] `sys`：argv、标准流、exit、受控模块缓存视图，登记缺少的解释器内部接口
+- [x] `io` 与 `open`：文本 / 二进制流、编码 / 换行、读写 / 定位 / 关闭，补权限与关闭后操作异常
+- [x] `os` / `os.path`：环境变量、目录和常用路径函数；`pathlib`：常用 Path 构造、读写与遍历
+- [x] 衔接 print(file=...)、模块定位与资源生命周期，分别验证 Windows / POSIX 承诺范围
+- [x] 验收：逐 API 差分、临时目录中的文件副作用与 with 清理通过；更新标准库 API 表与相关项目入口结果
+
+> 聚合门禁：209 C#、98 编译 e2e / 16 ignored、110 CPython 基线；逐 API / 平台边界见 docs/stdlib-system.md 与 ADR-0028。固定项目仍原生 0/20，binaryornot 首阻断从 open 前移至 locals。
 
 ### M3.5 标准库：数值、JSON 与正则
 
@@ -556,6 +558,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 ---
 
 ## 待定 / 技术债
+
+- [ ] M3.4 长尾：io.UnsupportedOperation 双重异常层级、文件描述符/完整编码策略、Windows 实机与退出整数宽度；逐项范围见 docs/stdlib-system.md 和 ADR-0028
+- [ ] 超过 u64::MAX 的正整数字面量目前 E0100；运行时 int(str) 的 BigInteger 能力不能替代源码字面量支持（M3.4 错误退出测试发现）
 
 - [ ] `%` 字符串格式化（`"%d" % x`、`%(name)s`）：日志与老代码常用，当前抛 TypeError（semantics §4 #44）
 - [ ] 类体内引用同类刚定义的函数名（`v = property(getv, setv)`）报 E0106（semantics §4 #45）

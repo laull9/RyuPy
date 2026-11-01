@@ -96,13 +96,15 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             rvalue,
                             Rvalue::Call {
                                 callee: Callee::Runtime(
-                                    RuntimeFn::GeneratorInput | RuntimeFn::GeneratorRetry
+                                    RuntimeFn::GeneratorInput
+                                        | RuntimeFn::GeneratorRetry
+                                        | RuntimeFn::PrintTarget
                                 ),
                                 ..
                             }
                         ) {
                             errors.push(format!(
-                                "函数 `{}` 的生成器控制调用返回值必须写入临时，不能遗留CIL求值栈",
+                                "函数 `{}` 的运行时控制调用返回值必须写入临时，不能遗留CIL求值栈",
                                 func.name
                             ));
                         }
@@ -381,6 +383,30 @@ fn validate_rvalue(
         Rvalue::Unary { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Cast { operand, .. } => validate_operand(func, block_id, operand, errors),
         Rvalue::Call { callee, args } => {
+            // print专用ABI把目标作为首参；防止漏传后生成栈不平衡的CIL。
+            if let Callee::Runtime(runtime) = callee {
+                let expected: Option<&[MirType]> = match runtime {
+                    RuntimeFn::PrintTarget => Some(&[]),
+                    RuntimeFn::WriteI64 => Some(&[MirType::Dynamic, MirType::I64]),
+                    RuntimeFn::WriteF64 => Some(&[MirType::Dynamic, MirType::F64]),
+                    RuntimeFn::WriteBool => Some(&[MirType::Dynamic, MirType::Bool]),
+                    RuntimeFn::WriteStr => Some(&[MirType::Dynamic, MirType::Str]),
+                    RuntimeFn::WriteObject => Some(&[MirType::Dynamic, MirType::Dynamic]),
+                    RuntimeFn::WriteSep | RuntimeFn::WriteNewline => Some(&[MirType::Dynamic]),
+                    _ => None,
+                };
+                if let Some(expected) = expected
+                    && (args.len() != expected.len()
+                        || args.iter().zip(expected).any(|(arg, ty)| {
+                            operand_type(program, func, arg).is_some_and(|actual| &actual != ty)
+                        }))
+                {
+                    errors.push(format!(
+                        "函数 {} 的 {:?} 参数不符合输出目标ABI",
+                        func.name, runtime
+                    ));
+                }
+            }
             if let Callee::Fn(fn_id) = callee {
                 if let Some((_, target_fn)) = program.functions.iter().find(|(id, _)| id == fn_id) {
                     if args.len() != target_fn.params.len() {

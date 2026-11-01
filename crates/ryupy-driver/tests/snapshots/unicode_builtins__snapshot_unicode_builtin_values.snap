@@ -14,6 +14,7 @@ fn main() -> () {
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
+    let _11: dyn;
 
     bb0: {
         g0 = null;
@@ -43,8 +44,9 @@ fn main() -> () {
         _8 = box<I64>(const 65_i64);
         _9 = dyn.call(_7, [_8]);
         _10 = dyn.call(_6, [_9]);
-        RuntimeFn::WriteObject(_10);
-        RuntimeFn::WriteNewline();
+        _11 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_11, _10);
+        RuntimeFn::WriteNewline(_11);
         goto -> bb1;
     }
     bb1: {

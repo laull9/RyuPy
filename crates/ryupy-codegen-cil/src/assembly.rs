@@ -48,7 +48,6 @@ pub(crate) fn build_resolution(
         report_unhandled,
         report_clr,
         clr_exc_type,
-        flush_stdout,
     } = extras;
 
     let module_class = res.push_type_definition(TypeDefinition::new(
@@ -462,11 +461,15 @@ pub(crate) fn build_resolution(
             clr_exc_type,
             py_system_exit_type,
             set_file,
+            runtime_refs.system.initialize,
             system_exit_code,
-            flush_stdout,
+            runtime_refs.system.exit_flush,
             init_functions,
             init_class_factories,
             &program.modules[program.entry].file,
+            opts.entry_source_path
+                .as_deref()
+                .unwrap_or(&program.modules[program.entry].file),
         );
     }
 

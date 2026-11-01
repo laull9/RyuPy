@@ -1,6 +1,8 @@
 //! M3.0 的逐层快照与非法作用域声明诊断。运行结果由 Python 差分用例验收。
 
-use ryupy_driver::{Session, Stage, dump};
+use ryupy_driver::{Session, Stage};
+mod support;
+use support::dump;
 
 #[test]
 fn snapshot_m3_0_closures() {

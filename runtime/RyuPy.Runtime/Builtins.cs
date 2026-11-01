@@ -23,7 +23,7 @@ namespace RyuPy.Runtime;
 /// 代价是**必须显式刷新**：入口包装器在退出前调用 <see cref="Flush"/>，
 /// 未捕获异常路径也会先刷新 stdout 再写 stderr（否则缓冲区里的内容会丢失或乱序）。
 /// </remarks>
-public static class Builtins
+public static partial class Builtins
 {
     private const int OutputBufferSize = 64 * 1024;
 
@@ -37,33 +37,36 @@ public static class Builtins
         AutoFlush = false,
     };
 
+    /// <summary>默认标准输出包装复用此缓冲器，避免第二套缓冲造成顺序颠倒。</summary>
+    internal static TextWriter DefaultOutput => Out;
+
     /// <summary>把缓冲区内容写到标准输出。进程退出前与写错误报告前调用。</summary>
     public static void Flush() => Out.Flush();
 
     /// <summary>写出 <c>int</c>。</summary>
     public static void WriteI64(long value) =>
-        Out.Write(value.ToString(CultureInfo.InvariantCulture));
+        PySystem.WriteStdout(value.ToString(CultureInfo.InvariantCulture));
 
     /// <summary>写出 <c>float</c>，格式与 CPython <c>repr(float)</c> 一致。</summary>
-    public static void WriteF64(double value) => Out.Write(PyFormat.FloatRepr(value));
+    public static void WriteF64(double value) => PySystem.WriteStdout(PyFormat.FloatRepr(value));
 
     /// <summary>写出 <c>bool</c>：<c>True</c>/<c>False</c>。</summary>
-    public static void WriteBool(bool value) => Out.Write(value ? "True" : "False");
+    public static void WriteBool(bool value) => PySystem.WriteStdout(value ? "True" : "False");
 
     /// <summary>写出 <c>str</c>。</summary>
-    public static void WriteStr(string value) => Out.Write(value);
+    public static void WriteStr(string value) => PySystem.WriteStdout(value);
 
     /// <summary>
     /// 写出动态值：等价于 <c>print(str(value))</c>。动态路径（M2.1）里
     /// 编译期不知道具体类型，统一走这里。
     /// </summary>
-    public static void WriteObject(object? value) => Out.Write(PyRepr.Str(value));
+    public static void WriteObject(object? value) => PySystem.WriteStdout(PyRepr.Str(value));
 
     /// <summary><c>print</c> 参数之间的分隔符（默认 <c>sep=' '</c>）。</summary>
-    public static void WriteSep() => Out.Write(' ');
+    public static void WriteSep() => PySystem.WriteStdout(" ");
 
     /// <summary><c>print</c> 的结尾（默认 <c>end='\n'</c>）。</summary>
-    public static void WriteNewline() => Out.Write('\n');
+    public static void WriteNewline() => PySystem.WriteStdout("\n");
 
     /// <summary><c>str + str</c>。</summary>
     public static string StrConcat(string a, string b) => string.Concat(a, b);}

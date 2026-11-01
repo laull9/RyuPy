@@ -31,11 +31,12 @@ public static partial class PyOps
         PyByteArray array => array.Count > 0,
         PyDictView view => view.Count > 0,
         PyInstance instance => TruthyInstance(instance),
+        PyNativeObject native => TruthyInstance(native),
         _ => true,
     };
 
     /// <summary>普通实例的真值：`__bool__` → `__len__` → 真。</summary>
-    private static bool TruthyInstance(PyInstance instance)
+    private static bool TruthyInstance(object instance)
     {
         if (PyObject.TryMethod(instance, "__bool__", [], out object? custom))
         {

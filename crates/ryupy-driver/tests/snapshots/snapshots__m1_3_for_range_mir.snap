@@ -9,26 +9,31 @@ fn main() -> () {
     let _3: i64;
     let _4: bool;
     let _5: i64;
-    let _6: i64;
+    let _6: dyn;
     let _7: i64;
     let _8: i64;
-    let _9: bool;
-    let _10: i64;
-    let _11: i64;
+    let _9: i64;
+    let _10: bool;
+    let _11: dyn;
     let _12: i64;
-    let _13: bool;
+    let _13: i64;
     let _14: i64;
-    let _15: i64;
-    let _16: i64;
-    let _17: bool;
+    let _15: bool;
+    let _16: dyn;
+    let _17: i64;
     let _18: i64;
     let _19: i64;
-    let _20: i64;
-    let _21: bool;
+    let _20: bool;
+    let _21: dyn;
     let _22: i64;
-    let _23: bool;
-    let _24: bool;
-    let _25: i64;
+    let _23: i64;
+    let _24: i64;
+    let _25: bool;
+    let _26: i64;
+    let _27: bool;
+    let _28: bool;
+    let _29: i64;
+    let _30: dyn;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_3_for_range.py", const "<module>");
@@ -66,27 +71,29 @@ fn main() -> () {
     }
     bb5: {
         // line 5
-        RuntimeFn::WriteI64(global@3);
-        RuntimeFn::WriteNewline();
+        _6 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_6, global@3);
+        RuntimeFn::WriteNewline(_6);
         // line 7
-        _6 = const 2_i64;
-        _7 = const 5_i64;
-        _8 = const 1_i64;
+        _7 = const 2_i64;
+        _8 = const 5_i64;
+        _9 = const 1_i64;
         goto -> bb6;
     }
     bb6: {
-        _9 = Lt(_6, _7);
-        branch _9 -> [then: bb7, else: bb10];
+        _10 = Lt(_7, _8);
+        branch _10 -> [then: bb7, else: bb10];
     }
     bb7: {
-        g4 = _6;
+        g4 = _7;
         // line 8
-        RuntimeFn::WriteI64(global@4);
-        RuntimeFn::WriteNewline();
+        _11 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_11, global@4);
+        RuntimeFn::WriteNewline(_11);
         goto -> bb8;
     }
     bb8: {
-        _6 = Add(_6, _8);
+        _7 = Add(_7, _9);
         goto -> bb6;
     }
     bb9: {
@@ -94,24 +101,25 @@ fn main() -> () {
     }
     bb10: {
         // line 10
-        _10 = const 10_i64;
-        _11 = const 0_i64;
-        _12 = const -3_i64;
+        _12 = const 10_i64;
+        _13 = const 0_i64;
+        _14 = const -3_i64;
         goto -> bb11;
     }
     bb11: {
-        _13 = Gt(_10, _11);
-        branch _13 -> [then: bb12, else: bb15];
+        _15 = Gt(_12, _13);
+        branch _15 -> [then: bb12, else: bb15];
     }
     bb12: {
-        g4 = _10;
+        g4 = _12;
         // line 11
-        RuntimeFn::WriteI64(global@4);
-        RuntimeFn::WriteNewline();
+        _16 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_16, global@4);
+        RuntimeFn::WriteNewline(_16);
         goto -> bb13;
     }
     bb13: {
-        _10 = Add(_10, _12);
+        _12 = Add(_12, _14);
         goto -> bb11;
     }
     bb14: {
@@ -119,24 +127,25 @@ fn main() -> () {
     }
     bb15: {
         // line 13
-        _14 = const 5_i64;
-        _15 = const 5_i64;
-        _16 = const 1_i64;
+        _17 = const 5_i64;
+        _18 = const 5_i64;
+        _19 = const 1_i64;
         goto -> bb16;
     }
     bb16: {
-        _17 = Lt(_14, _15);
-        branch _17 -> [then: bb17, else: bb20];
+        _20 = Lt(_17, _18);
+        branch _20 -> [then: bb17, else: bb20];
     }
     bb17: {
-        g4 = _14;
+        g4 = _17;
         // line 14
-        RuntimeFn::WriteStr(const "never");
-        RuntimeFn::WriteNewline();
+        _21 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteStr(_21, const "never");
+        RuntimeFn::WriteNewline(_21);
         goto -> bb18;
     }
     bb18: {
-        _14 = Add(_14, _16);
+        _17 = Add(_17, _19);
         goto -> bb16;
     }
     bb19: {
@@ -146,24 +155,24 @@ fn main() -> () {
         // line 16
         g5 = const 0_i64;
         // line 17
-        _18 = const 0_i64;
-        _19 = const 100_i64;
-        _20 = const 1_i64;
+        _22 = const 0_i64;
+        _23 = const 100_i64;
+        _24 = const 1_i64;
         goto -> bb21;
     }
     bb21: {
-        _21 = Lt(_18, _19);
-        branch _21 -> [then: bb22, else: bb25];
+        _25 = Lt(_22, _23);
+        branch _25 -> [then: bb22, else: bb25];
     }
     bb22: {
-        g4 = _18;
+        g4 = _22;
         // line 18
-        _22 = RuntimeFn::ModI64(global@4, const 2_i64);
-        _23 = Eq(_22, const 0_i64);
-        branch _23 -> [then: bb26, else: bb28];
+        _26 = RuntimeFn::ModI64(global@4, const 2_i64);
+        _27 = Eq(_26, const 0_i64);
+        branch _27 -> [then: bb26, else: bb28];
     }
     bb23: {
-        _18 = Add(_18, _20);
+        _22 = Add(_22, _24);
         goto -> bb21;
     }
     bb24: {
@@ -171,8 +180,9 @@ fn main() -> () {
     }
     bb25: {
         // line 23
-        RuntimeFn::WriteI64(global@5);
-        RuntimeFn::WriteNewline();
+        _30 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_30, global@5);
+        RuntimeFn::WriteNewline(_30);
         goto -> bb32;
     }
     bb26: {
@@ -184,8 +194,8 @@ fn main() -> () {
     }
     bb28: {
         // line 20
-        _24 = Gt(global@4, const 20_i64);
-        branch _24 -> [then: bb29, else: bb31];
+        _28 = Gt(global@4, const 20_i64);
+        branch _28 -> [then: bb29, else: bb31];
     }
     bb29: {
         // line 21
@@ -196,8 +206,8 @@ fn main() -> () {
     }
     bb31: {
         // line 22
-        _25 = Add(global@5, global@4);
-        g5 = _25;
+        _29 = Add(global@5, global@4);
+        g5 = _29;
         goto -> bb23;
     }
     bb32: {

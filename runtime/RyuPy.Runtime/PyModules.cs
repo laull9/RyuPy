@@ -132,6 +132,18 @@ public static class PyModules
         Registry[name] = new Registration(package, file, init, get, set);
     }
 
+    /// <summary>登记原生模块属性；对象缓存与普通编译模块共享，属性写入保持实时可见。</summary>
+    public static void RegisterNative(string name, Dictionary<string, object?> attributes, Action<string, object?>? beforeSet = null)
+    {
+        Register(name, name.Contains('.') ? name[..name.LastIndexOf('.')] : "", "", () => { },
+            key => attributes.TryGetValue(key, out object? value) ? value
+                : throw new PyAttributeError($"module '{name}' has no attribute '{key}'"),
+            (_, key, value) => { beforeSet?.Invoke(key, value); attributes[key] = value; });
+    }
+
+    internal static Dictionary<string, PyModule> CacheSnapshot() => new(Cache, StringComparer.Ordinal);
+    internal static bool TryCached(string name, out PyModule? module) => Cache.TryGetValue(name, out module);
+
     /// <summary>导入模块；已缓存或正在初始化时直接返回现有对象。</summary>
     /// <remarks>
     /// 与 CPython 一致，点分模块先初始化父包（例如 <c>a.b.c</c> 依次初始化 <c>a</c>、

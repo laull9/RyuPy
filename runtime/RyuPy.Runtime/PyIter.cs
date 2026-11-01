@@ -90,6 +90,8 @@ public sealed class PyIter : IPyIterator
         PyBytes bytes => new PyIter(bytes, 0, null, null),
         PyByteArray array => new PyIter(array, 0, null, null),
         PyRange range => new PyRangeIter(range),
+        // 原生流的__iter__仍需检查关闭状态，不能被IPyIterator快路径绕过。
+        PyNativeObject native => CreateFromObject(native),
         // 迭代器本身可迭代：`iter(it)` 返回自身
         IPyIterator iterator => iterator,
         // 普通实例：调用一次 `__iter__`，验证返回对象的迭代器协议。
@@ -210,7 +212,7 @@ public sealed class PyIter : IPyIterator
 
     private static PyTypeError NotIterable(object? value) =>
         new($"'{PyRepr.TypeName(value)}' object is not iterable");
-    private static IPyIterator CreateFromObject(PyInstance instance)
+    private static IPyIterator CreateFromObject(object instance)
     {
         if (!PyObject.TryMethod(instance, "__iter__", [], out object? iterator))
         {

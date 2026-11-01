@@ -49,6 +49,7 @@ fn serialized_entry_initializes_exit_code() {
         &program,
         &crate::EmitOptions {
             assembly_name: "entry".into(),
+            entry_source_path: Some("/source/真实 entry.py".into()),
         },
     )
     .unwrap();
@@ -65,4 +66,40 @@ fn serialized_entry_initializes_exit_code() {
         "成功路径读取退出码之前必须初始化"
     );
     assert_eq!(body.header.local_variables.len(), 1);
+    assert!(
+        matches!(body.instructions[3], Instruction::LoadArgument(0)),
+        "入口必须传递真实 Main 参数，不重新解析宿主进程命令行"
+    );
+    assert!(body.instructions[0].show(&resolution).contains("entry.py"));
+    assert!(
+        body.instructions[2]
+            .show(&resolution)
+            .contains("/source/真实 entry.py")
+    );
+    let initialize = body.instructions[4].show(&resolution);
+    assert!(
+        initialize.contains("PySystem") && initialize.contains("Initialize"),
+        "{initialize}"
+    );
+    let body::DataSection::ExceptionHandlers(handlers) = &body.data_sections[0] else {
+        panic!("入口必须保留异常表");
+    };
+    assert_eq!(handlers.len(), 3);
+    for (handler, (offset, length)) in handlers.iter().zip([(9, 3), (12, 4), (16, 4)]) {
+        assert_eq!((handler.try_offset, handler.try_length), (2, 7));
+        assert_eq!(
+            (handler.handler_offset, handler.handler_length),
+            (offset, length)
+        );
+    }
+    assert!(matches!(body.instructions[20], Instruction::LoadLocal(0)));
+    assert!(
+        body.instructions[21]
+            .show(&resolution)
+            .contains("FlushForExit")
+    );
+    assert!(matches!(body.instructions[22], Instruction::Return));
+    for index in [8, 11, 15, 19] {
+        assert!(matches!(body.instructions[index], Instruction::Leave(20)));
+    }
 }

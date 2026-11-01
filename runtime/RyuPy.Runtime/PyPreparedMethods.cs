@@ -38,7 +38,7 @@ public static partial class PyOps
     /// <param name="name">方法属性名。</param>
     public static object? PrepareMethod(object? receiver, string name)
     {
-        if (receiver is PyInstance or PyClass or PySuper or PyModule or PyBaseException or PyType
+        if (receiver is PyNativeType or PyNativeObject or PyInstance or PyClass or PySuper or PyModule or PyBaseException or PyType
             or PyFunction or PyBoundMethod or PyBuiltinFunction or PyProperty)
             return PyObject.GetAttr(receiver, name);
 
@@ -56,7 +56,7 @@ public static partial class PyOps
             PyByteArray when name is "append" or "extend" or "decode" => PreparedByteArray,
             PyBytes when name is "decode" or "hex" => PreparedBytes,
             string when name is "encode" or "upper" or "lower" or "strip" or "lstrip"
-                or "rstrip" or "split" or "join" or "replace" or "find" or "rfind"
+                or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
                 or "index" or "rindex" or "count" or "startswith" or "endswith" => PreparedText,
             PyGenerator when name is "__iter__" or "__next__" or "send" or "throw" or "close"
                 => PreparedGenerator,
@@ -86,7 +86,7 @@ public static partial class PyOps
             (PyByteArray or PyBytes, "decode") => (0, 1),
             (PyBytes, "hex") => (0, 0),
             (string, "upper" or "lower") => (0, 0),
-            (string, "encode" or "strip" or "lstrip" or "rstrip" or "split") => (0, 1),
+            (string, "encode" or "strip" or "lstrip" or "rstrip" or "split" or "splitlines") => (0, 1),
             (string, "join" or "count" or "startswith" or "endswith") => (1, 1),
             (string, "replace") => (2, 3),
             (string, "find" or "rfind" or "index" or "rindex") => (1, 3),

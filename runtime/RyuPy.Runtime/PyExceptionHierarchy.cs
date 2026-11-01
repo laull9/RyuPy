@@ -42,6 +42,8 @@ public static class PyExceptionHierarchy
         ["ImportError"] = "Exception",
         ["ModuleNotFoundError"] = "ImportError",
         ["OSError"] = "Exception",
+        ["IsADirectoryError"] = "OSError",
+        ["NotADirectoryError"] = "OSError",
         ["FileNotFoundError"] = "OSError",
         ["FileExistsError"] = "OSError",
         ["PermissionError"] = "OSError",

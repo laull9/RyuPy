@@ -4,21 +4,34 @@ expression: mir
 ---
 fn main() -> () {
     let _0: i64;
-    let _1: f64;
+    let _1: dyn;
     let _2: f64;
-    let _3: f64;
-    let _4: f64;
-    let _5: f64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
     let _6: f64;
-    let _7: f64;
-    let _8: f64;
+    let _7: dyn;
+    let _8: dyn;
     let _9: f64;
     let _10: f64;
     let _11: f64;
-    let _12: f64;
-    let _13: i64;
-    let _14: i64;
-    let _15: f64;
+    let _12: dyn;
+    let _13: f64;
+    let _14: f64;
+    let _15: dyn;
+    let _16: f64;
+    let _17: f64;
+    let _18: dyn;
+    let _19: f64;
+    let _20: f64;
+    let _21: dyn;
+    let _22: f64;
+    let _23: dyn;
+    let _24: i64;
+    let _25: i64;
+    let _26: dyn;
+    let _27: f64;
+    let _28: dyn;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_4_floats.py", const "<module>");
@@ -29,61 +42,74 @@ fn main() -> () {
         // line 1
         g2 = const "m1_4_floats.py";
         // line 2
-        RuntimeFn::WriteF64(const 1_f64);
-        RuntimeFn::WriteNewline();
+        _1 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_1, const 1_f64);
+        RuntimeFn::WriteNewline(_1);
         // line 3
-        _1 = Add(const 0.1_f64, const 0.2_f64);
-        RuntimeFn::WriteF64(_1);
-        RuntimeFn::WriteNewline();
+        _2 = Add(const 0.1_f64, const 0.2_f64);
+        _3 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_3, _2);
+        RuntimeFn::WriteNewline(_3);
         // line 4
-        RuntimeFn::WriteF64(const 10000000000000000_f64);
-        RuntimeFn::WriteNewline();
+        _4 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_4, const 10000000000000000_f64);
+        RuntimeFn::WriteNewline(_4);
         // line 5
-        RuntimeFn::WriteF64(const 0.00001_f64);
-        RuntimeFn::WriteNewline();
+        _5 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_5, const 0.00001_f64);
+        RuntimeFn::WriteNewline(_5);
         // line 6
-        _2 = Mul(const 123456789_f64, const 1000_f64);
-        RuntimeFn::WriteF64(_2);
-        RuntimeFn::WriteNewline();
+        _6 = Mul(const 123456789_f64, const 1000_f64);
+        _7 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_7, _6);
+        RuntimeFn::WriteNewline(_7);
         // line 7
-        RuntimeFn::WriteF64(const -2.5_f64);
-        RuntimeFn::WriteNewline();
+        _8 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_8, const -2.5_f64);
+        RuntimeFn::WriteNewline(_8);
         // line 8
-        _3 = Cast(I64ToF64, const 3_i64);
-        _4 = Cast(I64ToF64, const 2_i64);
-        _5 = RuntimeFn::TrueDivF64(_3, _4);
-        RuntimeFn::WriteF64(_5);
-        RuntimeFn::WriteNewline();
-        // line 9
-        _6 = Cast(I64ToF64, const 1_i64);
-        _7 = Add(_6, const 0.5_f64);
-        RuntimeFn::WriteF64(_7);
-        RuntimeFn::WriteNewline();
-        // line 10
-        _8 = Cast(I64ToF64, const 2_i64);
-        _9 = RuntimeFn::FloorDivF64(const 7.5_f64, _8);
-        RuntimeFn::WriteF64(_9);
-        RuntimeFn::WriteNewline();
-        // line 11
+        _9 = Cast(I64ToF64, const 3_i64);
         _10 = Cast(I64ToF64, const 2_i64);
-        _11 = RuntimeFn::ModF64(const -7.5_f64, _10);
-        RuntimeFn::WriteF64(_11);
-        RuntimeFn::WriteNewline();
+        _11 = RuntimeFn::TrueDivF64(_9, _10);
+        _12 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_12, _11);
+        RuntimeFn::WriteNewline(_12);
+        // line 9
+        _13 = Cast(I64ToF64, const 1_i64);
+        _14 = Add(_13, const 0.5_f64);
+        _15 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_15, _14);
+        RuntimeFn::WriteNewline(_15);
+        // line 10
+        _16 = Cast(I64ToF64, const 2_i64);
+        _17 = RuntimeFn::FloorDivF64(const 7.5_f64, _16);
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_18, _17);
+        RuntimeFn::WriteNewline(_18);
+        // line 11
+        _19 = Cast(I64ToF64, const 2_i64);
+        _20 = RuntimeFn::ModF64(const -7.5_f64, _19);
+        _21 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_21, _20);
+        RuntimeFn::WriteNewline(_21);
         // line 12
-        _12 = RuntimeFn::PowF64(const 2_f64, const 0.5_f64);
-        RuntimeFn::WriteF64(_12);
-        RuntimeFn::WriteNewline();
+        _22 = RuntimeFn::PowF64(const 2_f64, const 0.5_f64);
+        _23 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_23, _22);
+        RuntimeFn::WriteNewline(_23);
         // line 13
-        _13 = RuntimeFn::F64ToI64(const 3.99_f64);
-        _14 = RuntimeFn::F64ToI64(const -3.99_f64);
-        RuntimeFn::WriteI64(_13);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteI64(_14);
-        RuntimeFn::WriteNewline();
+        _24 = RuntimeFn::F64ToI64(const 3.99_f64);
+        _25 = RuntimeFn::F64ToI64(const -3.99_f64);
+        _26 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_26, _24);
+        RuntimeFn::WriteSep(_26);
+        RuntimeFn::WriteI64(_26, _25);
+        RuntimeFn::WriteNewline(_26);
         // line 14
-        _15 = Cast(I64ToF64, const 3_i64);
-        RuntimeFn::WriteF64(_15);
-        RuntimeFn::WriteNewline();
+        _27 = Cast(I64ToF64, const 3_i64);
+        _28 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteF64(_28, _27);
+        RuntimeFn::WriteNewline(_28);
         goto -> bb1;
     }
     bb1: {

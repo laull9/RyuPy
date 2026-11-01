@@ -48,6 +48,8 @@ public static class PyObject
     /// <param name="value">任意 Python 值。</param>
     public static object TypeOf(object? value) => value switch
     {
+        PyNativeObject native => (object?)PyNativeType.LookupByName(native.TypeName) ?? PyType.Get(native.TypeName),
+        PyNativeType => PyType.Get("type"),
         PyInstance instance => instance.Class,
         PyModule => PyType.Get("module"),
         PyClass => PyType.Get("type"),
@@ -63,6 +65,8 @@ public static class PyObject
     /// <param name="name">属性名。</param>
     public static object? GetAttr(object? obj, string name) => obj switch
     {
+        PyNativeType native => native.GetAttr(name),
+        PyNativeObject native => native.GetAttr(name),
         PyModule module => module.GetAttr(name),
         PyInstance instance => GetInstanceAttr(instance, name),
         PyClass cls => GetClassAttr(cls, name),
@@ -83,6 +87,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyNativeObject native:
+                native.SetAttr(name, value);
+                return;
             case PyFunction function:
                 function.SetMetadata(name, value);
                 return;
@@ -110,6 +117,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyNativeObject native:
+                native.DelAttr(name);
+                return;
             case PyFunction function:
                 function.DeleteMetadata(name);
                 return;
@@ -260,7 +270,7 @@ public static class PyObject
     /// <summary>值是否可能带 Python 层方法（用户类实例、带 Python 类的异常）。</summary>
     /// <remarks>热路径先用它排除内建值，避免为 <see cref="TryMethod"/> 构造实参数组。</remarks>
     public static bool MayHaveMethods(object? value) =>
-        value is PyInstance || value is PyBaseException { PythonClass: not null };
+        value is PyInstance or PyNativeObject || value is PyBaseException { PythonClass: not null };
 
     /// <summary>单实参版本的 <see cref="TryMethod"/>：内建值直接返回 false，不分配实参数组。</summary>
     public static bool TryMethod1(object? self, string name, object? arg, out object? result)
@@ -284,6 +294,14 @@ public static class PyObject
         out object? result
     )
     {
+        if (self is PyNativeObject native)
+        {
+            object? method;
+            try { method = native.GetAttr(name); }
+            catch (PyAttributeError) { result = null; return false; }
+            result = PyOps.CallValue(method, args, [], []);
+            return true;
+        }
         if (self is PyInstance instance
             && instance.Class.TryLookup(name, out PyClass owner, out object? raw))
         {
@@ -486,6 +504,7 @@ public static class PyObject
         {
             "args" => new PyTuple(exception.Args),
             "value" when exception is PyStopIteration stop => stop.Value ?? PyNone.Instance,
+            "code" when exception is PySystemExit exit => exit.Code ?? PyNone.Instance,
             "__cause__" => (object?)exception.Cause ?? PyNone.Instance,
             "__context__" => (object?)exception.Context ?? PyNone.Instance,
             "__class__" => (object?)exception.PythonClass ?? PyType.Get(exception.PyTypeName),

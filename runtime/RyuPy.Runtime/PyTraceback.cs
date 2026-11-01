@@ -209,10 +209,15 @@ public static class PyTraceback
     {
         // stdout 是带缓冲的：若不先刷新，缓冲区里的输出会出现在 stderr 之后，
         // 甚至随进程退出顺序不同而丢失
-        Builtins.Flush();
-        TextWriter error = Console.Error;
-        error.Write(Format(exception));
-        error.Flush();
+        try { Builtins.Flush(); } catch (Exception) { /* 原始输出失效时仍尝试报告。 */ }
+        string formatted = Format(exception);
+        try { PySystem.Write(PySystem.Stderr, formatted); PySystem.Flush(PySystem.Stderr); }
+        catch (Exception)
+        {
+            // 用户替换的stderr可能失效，错误报告自身不能变成未处理CLR异常。
+            try { Console.Error.Write(formatted); Console.Error.Flush(); }
+            catch (Exception) { }
+        }
     }
 
     /// <summary>
@@ -252,7 +257,8 @@ public static class PyTraceback
     public static int SystemExitCode(PySystemExit exit)
     {
         // 与 CPython 一致：退出时先把 stdout 的缓冲写出去
-        Builtins.Flush();
+        try { Builtins.Flush(); }
+        catch (Exception error) { Report(error as PyBaseException ?? PyIO.FileSystemError(error)); return 120; }
         switch (exit.Code)
         {
             case null:
@@ -263,13 +269,24 @@ public static class PyTraceback
             case long l:
                 return unchecked((int)l);
             case System.Numerics.BigInteger big:
+                if (big < long.MinValue || big > long.MaxValue) {
+                    SafeExitError("OverflowError: Python int too large to convert to C long\n"); return -1;
+                }
                 return unchecked((int)(long)big);
             default:
-                Console.Error.Write(PyRepr.Str(exit.Code));
-                Console.Error.Write('\n');
-                Console.Error.Flush();
+                // 此时Python调用栈已经展开；新__str__失败只记录其自身调用帧。
+                Reset();
+                try { SafeExitError(PyRepr.Str(exit.Code) + "\n"); }
+                catch (PyBaseException error) { SafeExitError("\n"); Report(error); }
+                catch (Exception error) { SafeExitError("\n"); ReportClr(error); }
                 return 1;
         }
+    }
+
+    private static void SafeExitError(string text)
+    {
+        try { PySystem.Write(PySystem.Stderr, text); PySystem.Flush(PySystem.Stderr); }
+        catch (Exception) { try { Console.Error.Write(text); Console.Error.Flush(); } catch (Exception) { } }
     }
 
     /// <summary>清空帧栈；仅用于同一进程内反复执行多个模块的宿主场景（测试）。</summary>

@@ -97,6 +97,8 @@ public static partial class PyOps
         "getattr" => BuiltinGetAttr(args, kwNames),
         "hasattr" => BuiltinHasAttr(args, kwNames),
         "setattr" => BuiltinSetAttr(args, kwNames),
+        "open" => PyIO.Open(args, kwNames, kwValues),
+        "input" => BuiltinInput(args, kwNames),
         "print" => BuiltinPrint(args, kwNames, kwValues),
         "callable" => WithKeywords(
             name,
@@ -568,30 +570,4 @@ public static partial class PyOps
         return MatchesType(args[0], args[1]);
     }
 
-    // ───────────────────────── print ─────────────────────────
-
-    private static object? BuiltinPrint(
-        object?[] args,
-        string[] names,
-        object?[] values
-    )
-    {
-        RejectUnknownKeywords("print", names, "sep", "end");
-        string separator = KeywordValue(names, values, "sep") is { } sep
-            ? PyCast.ToStr(sep)
-            : " ";
-        string terminator = KeywordValue(names, values, "end") is { } end
-            ? PyCast.ToStr(end)
-            : "\n";
-        for (int i = 0; i < args.Length; i++)
-        {
-            if (i > 0)
-            {
-                Builtins.WriteStr(separator);
-            }
-            Builtins.WriteStr(PyRepr.Str(args[i]));
-        }
-        Builtins.WriteStr(terminator);
-        return PyNone.Instance;
-    }
 }

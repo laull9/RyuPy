@@ -5,6 +5,7 @@ expression: mir
 fn main() -> () {
     let _0: i64;
     let _1: i64;
+    let _2: dyn;
 
     bb0: {
         _0 = RuntimeFn::TracePush(const "m1_0_print_int.py", const "<module>");
@@ -16,8 +17,9 @@ fn main() -> () {
         g2 = const "m1_0_print_int.py";
         // line 2
         _1 = Add(const 1_i64, const 2_i64);
-        RuntimeFn::WriteI64(_1);
-        RuntimeFn::WriteNewline();
+        _2 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_2, _1);
+        RuntimeFn::WriteNewline(_2);
         goto -> bb1;
     }
     bb1: {

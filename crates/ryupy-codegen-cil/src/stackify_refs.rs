@@ -9,6 +9,7 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub(crate) system: crate::system_refs::SystemRefs,
     pub(crate) function_objects: crate::function_refs::FunctionRefs,
     pub(crate) delegation: crate::generator_refs::DelegateRefs,
     pub prepare_method: MethodRefIndex,
@@ -16,12 +17,6 @@ pub struct RuntimeRefs {
     pub generator_ctor: MethodRefIndex,
     pub generator_input: MethodRefIndex,
     pub generator_retry: MethodRefIndex,
-    pub write_i64: MethodRefIndex,
-    pub write_f64: MethodRefIndex,
-    pub write_bool: MethodRefIndex,
-    pub write_str: MethodRefIndex,
-    pub write_newline: MethodRefIndex,
-    pub write_sep: MethodRefIndex,
     pub str_concat: MethodRefIndex,
     pub floor_div_i64: MethodRefIndex,
     pub mod_i64: MethodRefIndex,
@@ -36,7 +31,6 @@ pub struct RuntimeRefs {
     pub shl_i64: MethodRefIndex,
     pub shr_i64: MethodRefIndex,
     // ── 动态值 ABI（ADR-0010）──
-    pub write_object: MethodRefIndex,
     pub dyn_binary: MethodRefIndex,
     pub dyn_compare: MethodRefIndex,
     pub dyn_unary: MethodRefIndex,

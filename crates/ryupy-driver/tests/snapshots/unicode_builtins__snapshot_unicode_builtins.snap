@@ -11,6 +11,7 @@ fn main() -> () {
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
+    let _8: dyn;
 
     bb0: {
         g0 = null;
@@ -31,10 +32,11 @@ fn main() -> () {
         _5 = RuntimeFn::DynBuiltin(const "ord", [_4], [], []);
         _6 = box<I64>(const 65_i64);
         _7 = RuntimeFn::DynBuiltin(const "chr", [_6], [], []);
-        RuntimeFn::WriteObject(_5);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_7);
-        RuntimeFn::WriteNewline();
+        _8 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_8, _5);
+        RuntimeFn::WriteSep(_8);
+        RuntimeFn::WriteObject(_8, _7);
+        RuntimeFn::WriteNewline(_8);
         goto -> bb1;
     }
     bb1: {

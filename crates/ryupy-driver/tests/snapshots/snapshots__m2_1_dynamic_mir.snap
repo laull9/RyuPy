@@ -91,12 +91,15 @@ fn main() -> () {
     let _22: dyn;
     let _23: dyn;
     let _24: dyn;
-    let _25: bool;
+    let _25: dyn;
     let _26: dyn;
-    let _27: dyn;
+    let _27: bool;
     let _28: dyn;
-    let _29: bool;
+    let _29: dyn;
     let _30: dyn;
+    let _31: bool;
+    let _32: dyn;
+    let _33: dyn;
 
     bb0: {
         g0 = null;
@@ -126,62 +129,65 @@ fn main() -> () {
         _8 = twice(_7);
         _9 = box<Str>(const "ha");
         _10 = twice(_9);
-        RuntimeFn::WriteObject(_8);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_10);
-        RuntimeFn::WriteNewline();
+        _11 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_11, _8);
+        RuntimeFn::WriteSep(_11);
+        RuntimeFn::WriteObject(_11, _10);
+        RuntimeFn::WriteNewline(_11);
         // line 14
-        _11 = box<Str>(const "changed");
-        g3 = _11;
+        _12 = box<Str>(const "changed");
+        g3 = _12;
         // line 15
-        _12 = RuntimeFn::LoadName(global@3, const "value");
-        _13 = box<Bool>(const true);
-        _14 = choose(_13);
-        _15 = box<Bool>(const false);
-        _16 = choose(_15);
-        RuntimeFn::WriteObject(_12);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_14);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_16);
-        RuntimeFn::WriteNewline();
+        _13 = RuntimeFn::LoadName(global@3, const "value");
+        _14 = box<Bool>(const true);
+        _15 = choose(_14);
+        _16 = box<Bool>(const false);
+        _17 = choose(_16);
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_18, _13);
+        RuntimeFn::WriteSep(_18);
+        RuntimeFn::WriteObject(_18, _15);
+        RuntimeFn::WriteSep(_18);
+        RuntimeFn::WriteObject(_18, _17);
+        RuntimeFn::WriteNewline(_18);
         // line 16
-        _17 = box<Bool>(const true);
-        _18 = box<I64>(const 2_i64);
-        _19 = dyn.Add(_17, _18);
+        _19 = box<Bool>(const true);
         _20 = box<I64>(const 2_i64);
-        _21 = box<F64>(const 0.5_f64);
-        _22 = dyn.Add(_20, _21);
-        _24 = box<I64>(const 0_i64);
-        _23 = _24;
-        _25 = RuntimeFn::DynTruthy(_23);
-        branch _25 -> [then: bb2, else: bb1];
+        _21 = dyn.Add(_19, _20);
+        _22 = box<I64>(const 2_i64);
+        _23 = box<F64>(const 0.5_f64);
+        _24 = dyn.Add(_22, _23);
+        _26 = box<I64>(const 0_i64);
+        _25 = _26;
+        _27 = RuntimeFn::DynTruthy(_25);
+        branch _27 -> [then: bb2, else: bb1];
     }
     bb1: {
-        _26 = box<Str>(const "fallback");
-        _23 = _26;
+        _28 = box<Str>(const "fallback");
+        _25 = _28;
         goto -> bb2;
     }
     bb2: {
-        _28 = box<Str>(const "left");
-        _27 = _28;
-        _29 = RuntimeFn::DynTruthy(_27);
-        branch _29 -> [then: bb3, else: bb4];
+        _30 = box<Str>(const "left");
+        _29 = _30;
+        _31 = RuntimeFn::DynTruthy(_29);
+        branch _31 -> [then: bb3, else: bb4];
     }
     bb3: {
-        _30 = box<I64>(const 7_i64);
-        _27 = _30;
+        _32 = box<I64>(const 7_i64);
+        _29 = _32;
         goto -> bb4;
     }
     bb4: {
-        RuntimeFn::WriteObject(_19);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_22);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_23);
-        RuntimeFn::WriteSep();
-        RuntimeFn::WriteObject(_27);
-        RuntimeFn::WriteNewline();
+        _33 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_33, _21);
+        RuntimeFn::WriteSep(_33);
+        RuntimeFn::WriteObject(_33, _24);
+        RuntimeFn::WriteSep(_33);
+        RuntimeFn::WriteObject(_33, _25);
+        RuntimeFn::WriteSep(_33);
+        RuntimeFn::WriteObject(_33, _29);
+        RuntimeFn::WriteNewline(_33);
         goto -> bb5;
     }
     bb5: {

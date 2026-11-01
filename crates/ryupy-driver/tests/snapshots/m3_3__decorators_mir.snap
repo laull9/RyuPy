@@ -87,6 +87,7 @@ fn main() -> () {
     let _15: dyn;
     let _16: dyn;
     let _17: dyn;
+    let _18: dyn;
 
     bb0: {
         g1 = null;
@@ -126,8 +127,9 @@ fn main() -> () {
         // line 11
         _16 = dyn.call(global@0, []);
         _17 = dyn.method(_16, "method", []);
-        RuntimeFn::WriteObject(_17);
-        RuntimeFn::WriteNewline();
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_18, _17);
+        RuntimeFn::WriteNewline(_18);
         goto -> bb1;
     }
     bb1: {

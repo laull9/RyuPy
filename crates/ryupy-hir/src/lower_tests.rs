@@ -128,3 +128,38 @@ for i in range(10):
     let for_stmt = &main_fn.body.stmts[*main_fn.body.root.last().unwrap()];
     assert!(matches!(for_stmt.kind, StmtKind::ForRange { .. }));
 }
+
+#[test]
+fn integer_literal_boundary_diagnostic_matches_u64_parser_limit() {
+    for (literal, accepted) in [
+        ("18446744073709551615", true),
+        ("18446744073709551616", false),
+        ("1267650600228229401496703205376", false),
+    ] {
+        let mut db = SourceDb::default();
+        let source = format!("print({literal})\n");
+        let file = db.add("integer.py", &source);
+        let (parsed, diagnostics) = ryupy_syntax::parse(file, &source);
+        assert!(diagnostics.is_empty());
+        let (_, diagnostics) = lower_module(
+            &parsed,
+            &ModuleInfo {
+                name: "__main__".into(),
+                package: String::new(),
+                file: "integer.py".into(),
+            },
+            &source,
+        );
+        if accepted {
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        } else {
+            let diagnostic = diagnostics
+                .iter()
+                .find(|diagnostic| diagnostic.code == Some("E0100"))
+                .expect("超限字面量必须明确诊断");
+            let rendered = ryupy_base::diagnostic::render(&db, diagnostic, false);
+            assert!(rendered.contains("64 位无符号整数"), "{rendered}");
+            assert!(!rendered.contains("128 位"));
+        }
+    }
+}

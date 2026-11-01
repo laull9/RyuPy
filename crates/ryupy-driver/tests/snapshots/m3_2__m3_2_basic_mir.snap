@@ -65,6 +65,7 @@ fn main() -> () {
     let _4: dyn;
     let _5: dyn;
     let _6: dyn;
+    let _7: dyn;
 
     bb0: {
         g0 = null;
@@ -85,8 +86,9 @@ fn main() -> () {
         _4 = box<I64>(const 2_i64);
         _5 = values(_4);
         _6 = RuntimeFn::DynBuiltin(const "list", [_5], [], []);
-        RuntimeFn::WriteObject(_6);
-        RuntimeFn::WriteNewline();
+        _7 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_7, _6);
+        RuntimeFn::WriteNewline(_7);
         goto -> bb1;
     }
     bb1: {

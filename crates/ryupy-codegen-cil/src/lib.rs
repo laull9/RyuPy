@@ -23,6 +23,7 @@ mod stackify;
 mod stackify_operands;
 mod stackify_refs;
 mod stackify_rvalue;
+mod system_refs;
 mod types;
 
 use ryupy_mir::LinkedProgram;
@@ -31,6 +32,8 @@ use ryupy_mir::LinkedProgram;
 pub struct EmitOptions {
     /// 程序集名，也是输出文件名（不带 `.dll`）。
     pub assembly_name: String,
+    /// 入口脚本原始路径，独立于 traceback 的短显示名；未提供时使用模块显示名。
+    pub entry_source_path: Option<String>,
 }
 
 #[derive(Debug, thiserror::Error)]

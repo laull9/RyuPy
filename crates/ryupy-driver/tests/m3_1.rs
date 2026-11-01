@@ -1,6 +1,8 @@
 //! M3.1 三类急切推导式：逐层检查独立作用域、共享捕获与明确拒绝的语法。
 
-use ryupy_driver::{Session, Stage, dump};
+use ryupy_driver::{Session, Stage};
+mod support;
+use support::dump;
 
 #[test]
 fn snapshot_m3_1_list() {
