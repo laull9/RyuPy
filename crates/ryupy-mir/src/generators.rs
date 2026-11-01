@@ -1,7 +1,7 @@
 //! 普通生成器的独立 MIR 降级：Suspend CFG → 工厂函数 + 可恢复 CFG。
 //!
 //! 首版保存所有局部（包含循环迭代器、临时值与共享 cell 引用），不做存活性裁剪。
-//! 帧槽 0 是恢复块编号，槽 1 起按原 LocalId 保存装箱值。生成器运行时负责
+//! 帧槽 0 是恢复块编号，槽 1 是本次 send 的值，槽 2 起按原 LocalId 保存装箱值。生成器运行时负责
 //! running/closed 状态与每次恢复的 traceback 帧；此处只表达显式状态读写和控制流。
 
 use crate::mir::*;
@@ -96,6 +96,7 @@ fn lower_one(program: &mut Program, id: FnId) {
     }
     let frame = local(&mut body.locals, MirType::Dynamic);
     let mut resume_targets = vec![original_entry];
+    let mut inputs = Vec::new();
 
     for (_, block) in body.blocks.iter_mut() {
         // 每次 next 的帧由运行时包住，不能在暂停后把旧深度恢复到新的调用者栈。
@@ -116,7 +117,12 @@ fn lower_one(program: &mut Program, id: FnId) {
         });
         let term = std::mem::replace(&mut block.terminator, Terminator::Unreachable);
         block.terminator = match term {
-            Terminator::Suspend { value, resume } => {
+            Terminator::Suspend {
+                value,
+                resume,
+                input,
+            } => {
+                inputs.push((resume, input));
                 if !resume_targets.contains(&resume) {
                     resume_targets.push(resume);
                 }
@@ -129,7 +135,7 @@ fn lower_one(program: &mut Program, id: FnId) {
                     );
                     block.stmts.push(set_slot(
                         frame,
-                        slot.into_raw().into_u32() as usize + 1,
+                        slot.into_raw().into_u32() as usize + 2,
                         value,
                     ));
                 }
@@ -157,6 +163,22 @@ fn lower_one(program: &mut Program, id: FnId) {
         };
     }
 
+    for (resume, input) in inputs {
+        let block = &mut body.blocks[resume];
+        let mut receive = Vec::new();
+        if let Some(dest) = input {
+            receive.push(call(
+                dest,
+                RuntimeFn::ArrayGet,
+                vec![Operand::Local(frame), Operand::Const(Constant::I64(1))],
+            ));
+        }
+        // 接收后清除帧控制槽的额外引用，实际使用由普通局部存活期决定。
+        receive.push(set_slot(frame, 1, Operand::Const(Constant::None)));
+        receive.append(&mut block.stmts);
+        block.stmts = receive;
+    }
+
     // 所有恢复入口先重新加载局部；初次调用的帧用类型合法的默认值填充未使用临时槽位。
     let mut restore = Vec::new();
     for (slot, ty) in &original {
@@ -170,7 +192,7 @@ fn lower_one(program: &mut Program, id: FnId) {
             RuntimeFn::ArrayGet,
             vec![
                 Operand::Local(frame),
-                Operand::Const(Constant::I64(slot.into_raw().into_u32() as i64 + 1)),
+                Operand::Const(Constant::I64(slot.into_raw().into_u32() as i64 + 2)),
             ],
         ));
         if dest != *slot {
@@ -250,7 +272,7 @@ fn lower_one(program: &mut Program, id: FnId) {
         Operand::Const(Constant::I64(original_entry.into_raw().into_u32() as i64)),
         &MirType::I64,
     );
-    let mut values = vec![initial];
+    let mut values = vec![initial, Operand::Const(Constant::None)];
     for (slot, ty) in &original {
         let value = if params.contains(slot) {
             Operand::Local(*slot)

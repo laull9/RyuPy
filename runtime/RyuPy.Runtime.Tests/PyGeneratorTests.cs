@@ -13,7 +13,7 @@ public class PyGeneratorTests
     public void ConstructionIsLazyAndNoneDoesNotMeanExhaustion()
     {
         int calls = 0;
-        object?[] frame = { 0L, new object() };
+        object?[] frame = { 0L, null, new object() };
         var generator = new PyGenerator(raw =>
         {
             calls++;
@@ -44,9 +44,9 @@ public class PyGeneratorTests
         {
             var frame = (object?[])raw;
             frame[0] = (long)frame[0]! + 1;
-            return PyOps.CellGet(frame[1]!, "value");
+            return PyOps.CellGet(frame[2]!, "value");
         };
-        object?[] firstFrame = { 0L, cell }, secondFrame = { 0L, cell };
+        object?[] firstFrame = { 0L, null, cell }, secondFrame = { 0L, null, cell };
         var first = new PyGenerator(resume, firstFrame, "test.py", "first");
         var second = new PyGenerator(resume, secondFrame, "test.py", "second");
         Assert.True(first.MoveNext());
@@ -67,7 +67,7 @@ public class PyGeneratorTests
         {
             PyTraceback.SetLine(17);
             throw new PyValueError("broken");
-        }, new object?[] { 0L }, "generator.py", "broken");
+        }, new object?[] { 0L, null }, "generator.py", "broken");
         var error = Assert.Throws<PyValueError>(() => generator.MoveNext());
         string text = PyTraceback.Format(error);
         Assert.Contains("generator.py", text);
@@ -84,7 +84,7 @@ public class PyGeneratorTests
             var frame = (object?[])raw;
             frame[0] = (long)frame[0]! == 0 ? 1L : -1L;
             return null;
-        }, new object?[] { 0L }, "generator.py", "pause");
+        }, new object?[] { 0L, null }, "generator.py", "pause");
         Assert.True(generator.MoveNext());
         Assert.Null(generator.Current());
         AssertNoFrames();
@@ -97,7 +97,7 @@ public class PyGeneratorTests
     {
         PyGenerator? generator = null;
         generator = new PyGenerator(_ => generator!.MoveNext(),
-            new object?[] { 0L }, "test.py", "recursive");
+            new object?[] { 0L, null }, "test.py", "recursive");
         var error = Assert.Throws<PyValueError>(() => generator.MoveNext());
         Assert.Equal("generator already executing", error.PyMessage);
         Assert.False(generator.MoveNext());
@@ -109,7 +109,7 @@ public class PyGeneratorTests
     {
         var stop = new PyStopIteration(7L);
         var generator = new PyGenerator(_ => throw stop,
-            new object?[] { 0L }, "test.py", "stop");
+            new object?[] { 0L, null }, "test.py", "stop");
         var error = Assert.Throws<PyRuntimeError>(() => generator.MoveNext());
         Assert.Equal("generator raised StopIteration", error.PyMessage);
         Assert.Same(stop, error.Cause);
@@ -126,12 +126,12 @@ public class PyGeneratorTests
         {
             ((object?[])raw)[0] = -1L;
             return null;
-        }, new object?[] { 0L }, "test.py", "empty");
+        }, new object?[] { 0L, null }, "test.py", "empty");
         Assert.Equal("generator", PyRepr.TypeName(generator));
         Assert.Same(generator, PyOps.CallMethod(generator, "__iter__", [], [], []));
         Assert.Throws<PyTypeError>(() => generator.CallMethod("__next__", [1L]));
         Assert.Throws<PyStopIteration>(() => generator.CallMethod("__next__", []));
-        foreach (string method in new[] { "send", "throw", "close" })
+        foreach (string method in new[] { "throw", "close" })
             Assert.Throws<PyNotImplementedError>(() => generator.CallMethod(method, []));
         Assert.Throws<PyAttributeError>(() => generator.CallMethod("missing", []));
     }
@@ -143,7 +143,7 @@ public class PyGeneratorTests
         Assert.Throws<PyRuntimeError>(() => invalid.MoveNext());
         Assert.False(invalid.MoveNext());
         var clr = new PyGenerator(_ => throw new InvalidOperationException("broken"),
-            new object?[] { 0L }, "test.py", "clr");
+            new object?[] { 0L, null }, "test.py", "clr");
         Assert.Throws<InvalidOperationException>(() => clr.MoveNext());
         Assert.False(clr.MoveNext());
         AssertNoFrames();
@@ -200,7 +200,7 @@ public class PyGeneratorTests
     public void DefaultDoesNotSwallowEscapingStopIterationFromBody()
     {
         var generator = new PyGenerator(_ => throw new PyStopIteration(42L),
-            new object?[] { 0L }, "test.py", "bad_stop");
+            new object?[] { 0L, null }, "test.py", "bad_stop");
         var error = Assert.Throws<PyRuntimeError>(() =>
             PyOps.CallBuiltin("next", [generator, 99L], [], []));
         Assert.Equal(42L, Assert.IsType<PyStopIteration>(error.Cause).Value);
@@ -256,7 +256,7 @@ public class PyGeneratorTests
     {
         ((object?[])raw)[0] = -1L;
         return value;
-    }, new object?[] { 0L }, "test.py", "return_value");
+    }, new object?[] { 0L, null }, "test.py", "return_value");
 
     private static void AssertEmptyStop(PyStopIteration stop)
     {

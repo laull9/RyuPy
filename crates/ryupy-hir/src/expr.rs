@@ -24,6 +24,8 @@ use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
 pub struct ExprLowerCtx<'a> {
+    /// 模块默认值和类体不能包含 yield；函数体/嵌套默认值可以。
+    pub allow_yield: bool,
     pub file: FileId,
     pub global_scope: &'a GlobalScope,
     pub func_scope: &'a FunctionScope,
@@ -43,6 +45,35 @@ impl<'a> ExprLowerCtx<'a> {
     pub fn lower_expr(&mut self, expr: &ast::Expr) -> ExprId {
         let range = expr.range();
         let kind = match expr {
+            ast::Expr::Tuple(tuple)
+                if tuple
+                    .elts
+                    .iter()
+                    .any(|item| matches!(item, ast::Expr::Starred(_)))
+                    && crate::generator_scan::contains_yield(expr) =>
+            {
+                self.unsupported_yield_unpack(range)
+            }
+            ast::Expr::Set(set)
+                if set
+                    .elts
+                    .iter()
+                    .any(|item| matches!(item, ast::Expr::Starred(_)))
+                    && crate::generator_scan::contains_yield(expr) =>
+            {
+                self.unsupported_yield_unpack(range)
+            }
+            ast::Expr::Yield(value) => {
+                if self.allow_yield {
+                    ExprKind::Yield(value.value.as_deref().map(|value| self.lower_expr(value)))
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(Span::new(self.file, range), "yield 只能出现在函数体内")
+                            .with_code("E0100"),
+                    );
+                    ExprKind::Missing
+                }
+            }
             ast::Expr::NumberLiteral(num) => match &num.value {
                 ast::Number::Int(int_val) => {
                     // 先试 i64 快路径；更大的值仍要进 HIR，由 ty 决定是否降级到动态执行
@@ -166,6 +197,17 @@ impl<'a> ExprLowerCtx<'a> {
         self.body.exprs.alloc(Expr { kind, range })
     }
 
+    fn unsupported_yield_unpack(&mut self, range: TextRange) -> ExprKind {
+        self.diagnostics.push(
+            Diagnostic::error(
+                Span::new(self.file, range),
+                "tuple/set 星号展开暂未支持跨暂停保持容器类型与哈希时序",
+            )
+            .with_code("E0100"),
+        );
+        ExprKind::Missing
+    }
+
     /// 容器字面量的元素列表，保留 `*x` 星号标记。
     fn lower_elements(&mut self, elements: &[ast::Expr]) -> Vec<ExprId> {
         elements.iter().map(|e| self.lower_expr(e)).collect()
@@ -173,6 +215,21 @@ impl<'a> ExprLowerCtx<'a> {
 
     /// `{k: v}` 字典字面量。`**other` 需要运行时合并，留到后续竖切。
     fn lower_dict(&mut self, dict: &ast::ExprDict) -> ExprKind {
+        if dict.items.iter().any(|item| {
+            item.key
+                .as_ref()
+                .is_some_and(crate::generator_scan::contains_yield)
+                || crate::generator_scan::contains_yield(&item.value)
+        }) {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, dict.range),
+                    "字典字面量内 yield 暂未支持跨暂停的哈希时序",
+                )
+                .with_code("E0100"),
+            );
+            return ExprKind::Missing;
+        }
         let mut pairs = Vec::new();
         for item in &dict.items {
             let Some(key) = &item.key else {
@@ -443,6 +500,17 @@ impl<'a> ExprLowerCtx<'a> {
     /// 绑定（谁对应哪个参数、默认值、重复绑定报错）属于语义层，放在 ty / MIR 处理，
     /// HIR 只负责忠实记录源码里写出来的形态。
     fn lower_call(&mut self, call: &ast::ExprCall) -> ExprKind {
+        if crate::generator_scan::call_suspends(call) {
+            self.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(self.file, call.arguments.range),
+                    "调用实参内 yield 暂未支持暂停前的方法绑定与实参展开",
+                )
+                .with_code("E0100")
+                .with_primary_label("先把 yield 的接收值赋给局部，再进行调用"),
+            );
+            return ExprKind::Missing;
+        }
         use crate::hir::CallArg;
 
         let callee = self.lower_expr(&call.func);

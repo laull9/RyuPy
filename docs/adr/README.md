@@ -27,6 +27,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | [0018](0018-generator-return-lifetime.md) | 生成器终值由触发完成的操作立即消费 | 已接受 |
 
+| [0019](0019-generator-send-input.md) | send 使用显式帧输入槽与恢复接收局部 | 已接受 |
+
 ## 模板
 
 ```markdown

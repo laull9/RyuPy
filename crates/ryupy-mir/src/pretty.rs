@@ -140,7 +140,7 @@ fn dump_basic_block(
 
     write!(out, "        ").unwrap();
     match &bb.terminator {
-        Terminator::Suspend { value, resume } => {
+        Terminator::Suspend { value, resume, .. } => {
             writeln!(
                 out,
                 "yield {} -> bb{};",

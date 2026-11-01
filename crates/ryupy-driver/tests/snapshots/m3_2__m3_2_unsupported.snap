@@ -38,13 +38,121 @@ lambda默认super
    │                     ╰── 当前普通 yield 首切不能保证此路径的暂停语义
 ───╯
 
-接收 send
-[E0100] Error: 暂不支持该表达式
-   ╭─[ generator.py:2:13 ]
+模块表达式yield
+[E0100] Error: yield 只能出现在函数体内
+   ╭─[ generator.py:1:10 ]
    │
- 2 │     value = yield 1
-   │             ───┬───
-   │                ╰───── Phase 1 暂不支持该语法
+ 1 │ value = (yield 1)
+   │          ───┬───
+   │             ╰─────
+───╯
+
+暂停tuple星号
+[E0100] Error: tuple/set 星号展开暂未支持跨暂停保持容器类型与哈希时序
+   ╭─[ generator.py:2:12 ]
+   │
+ 2 │     return (*(yield 1),)
+   │            ──────┬──────
+   │                  ╰────────
+───╯
+
+暂停set星号
+[E0100] Error: tuple/set 星号展开暂未支持跨暂停保持容器类型与哈希时序
+   ╭─[ generator.py:2:12 ]
+   │
+ 2 │     return {*(yield 1)}
+   │            ──────┬─────
+   │                  ╰───────
+───╯
+
+暂停复杂增量目标
+[E0100] Error: 属性或下标增量赋值暂未支持跨暂停保存目标
+   ╭─[ generator.py:2:5 ]
+   │
+ 2 │     items[0] += (yield 1)
+   │     ──────────┬──────────
+   │               ╰────────────
+───╯
+
+字典字面量暂停
+[E0100] Error: 字典字面量内 yield 暂未支持跨暂停的哈希时序
+   ╭─[ generator.py:2:12 ]
+   │
+ 2 │     return {key: 1, 'x': (yield 2)}
+   │            ────────────┬───────────
+   │                        ╰─────────────
+───╯
+
+暂停调用方法
+[E0100] Error: 调用实参内 yield 暂未支持暂停前的方法绑定与实参展开
+   ╭─[ generator.py:2:14 ]
+   │
+ 2 │     yield a.f((yield 1))
+   │              ─────┬─────
+   │                   ╰─────── 先把 yield 的接收值赋给局部，再进行调用
+───╯
+
+暂停调用展开
+[E0100] Error: 调用实参内 yield 暂未支持暂停前的方法绑定与实参展开
+   ╭─[ generator.py:2:6 ]
+   │
+ 2 │     f(*items, (yield 1))
+   │      ─────────┬─────────
+   │               ╰─────────── 先把 yield 的接收值赋给局部，再进行调用
+───╯
+
+暂停关键字展开
+[E0100] Error: 调用实参内 yield 暂未支持暂停前的方法绑定与实参展开
+   ╭─[ generator.py:2:6 ]
+   │
+ 2 │     f(**items, x=(yield 1))
+   │      ───────────┬──────────
+   │                 ╰──────────── 先把 yield 的接收值赋给局部，再进行调用
+───╯
+
+暂停调用lambda默认值
+[E0100] Error: 调用实参内 yield 暂未支持暂停前的方法绑定与实参展开
+   ╭─[ generator.py:2:6 ]
+   │
+ 2 │     f(lambda x=(yield 1): x)
+   │      ───────────┬───────────
+   │                 ╰───────────── 先把 yield 的接收值赋给局部，再进行调用
+───╯
+
+字典key内部yield
+[E0100] Error: 推导式内部不允许 yield
+   ╭─[ generator.py:2:14 ]
+   │
+ 2 │     return {(yield x): x for x in [1]}
+   │              ───┬───
+   │                 ╰─────
+───╯
+
+模块默认值yield
+[E0100] Error: yield 只能出现在函数体内
+   ╭─[ generator.py:1:10 ]
+   │
+ 1 │ def f(x=(yield 1)):
+   │          ───┬───
+   │             ╰─────
+───╯
+
+列表推导式内部yield
+[E0100] Error: 推导式内部不允许 yield
+   ╭─[ generator.py:2:14 ]
+   │
+ 2 │     return [(yield x) for x in [1]]
+   │              ───┬───
+   │                 ╰─────
+───╯
+
+生成器表达式内部yield
+[E0100] Error: 推导式内部不允许 yield
+   ╭─[ generator.py:2:14 ]
+   │
+ 2 │     return ((yield x) for x in [1])
+   │              ───┬───
+   │                 ╰─────
 ───╯
 
 yield from

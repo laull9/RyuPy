@@ -34,3 +34,5 @@ pub use mir::*;
 
 #[cfg(test)]
 mod generator_tests;
+
+mod yield_expr;

@@ -50,7 +50,7 @@
 | `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
-| 普通生成器 | 部分 | 语句 yield、if/for/while、return value、共享 cell、next/迭代/耗尽；完整协议待后续 |
+| 普通生成器 | 部分 | 语句 / 表达式 yield、send、if/for/while、return value、共享 cell、next/迭代/耗尽；完整协议待后续 |
 | 生成器表达式 | ✅ | 最左 iterable 立即取迭代器，元素 / 过滤 / 内层 iterable 惰性；协议限制同普通生成器 |
 | 普通函数装饰器 | ❌ | Phase 3 M3.3 后续竖切 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
@@ -315,7 +315,7 @@ nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E01
 集合通过正常 add 协议去重，元素表达式仍逐次执行，不为去重跳过副作用。
 类体推导式、async for、海象表达式明确拒绝。生成器表达式复用独立作用域与 M3.2 状态机：
 最左 iterable 立即求值并取得迭代器，其余 iterable、条件和元素延迟到 next；没有急切结果容器。
-生成器表达式内零参 super 暂拒绝，send/throw/close 等限制同普通生成器。
+生成器表达式内零参 super 暂拒绝；send 的值被其内部语句 yield 忽略，throw/close 等限制同普通生成器。
 设计与分配代价见 [ADR-0016](adr/0016-comprehension-scopes.md)，不宣称性能提升。
 
 此外，用户 `__iter__` 的返回值必须已具备迭代器协议，不再递归对其调用 `__iter__`；返回 list
@@ -379,10 +379,20 @@ M2.11 在不改变「动态值 = 装箱 object」的前提下消除了大部分�
 每次 next 恢复局部、临时量、循环迭代器和共享 cell 引用，yield None 与正常耗尽分离。
 完成或异常后永久耗尽并释放保存引用；重入抛 ValueError，意外逃逸的 StopIteration 转 RuntimeError 并保留原因。
 每次恢复独立登记 / 清理 traceback，暂停不会把调用栈留在线程状态里。
-当前支持语句 yield、普通控制流和 return value；生成器内零参 super、try/with、表达式型 yield、yield from 报 E0100。
+当前支持语句 / 表达式 yield、send、普通控制流和 return value；生成器内零参 super、try/with、yield from 报 E0100。
+表达式 yield 的结果为 send 实参，next / send(None) 接收 None；新建生成器拒绝非 None send 且不启动。
+闭合生成器 send 任意值均耗尽，重入仍抛 ValueError；send 恰好接受一个位置参数。
+lambda 中的 yield 也创建生成器；默认值在外层执行，复合表达式先前求值结果保存到帧。
+推导式内部不允许 yield；最左 iterable 属于外层，允许外层生成器在此暂停。
 完成值由触发首次结束的 next 以 StopIteration.value 暴露，args 保留非 None 终值作为单个原对象；
 异常构造不提前调用终值 __str__，仅实际格式化时读取最新内容。
 再次耗尽为 None / 空 args。for、list、next(default) 消费结束时不缓存终值，之后 next 不会再次领取。
 此处不表示一般 StopIteration(...) 构造已完整支持；通用异常构造 ABI 的无参 / 显式 None / 多参保真仍待补齐。
-send/throw/close 入口目前显式抛 NotImplementedError，不宣称完整生成器协议或清理语义。
+throw/close 入口目前显式抛 NotImplementedError，不宣称完整生成器协议或清理语义。
 状态机首版保存全部局部，存在装箱与数组读写代价，尚无性能收益测量，见 ADR-0017。
+
+当前还对调用实参内 yield、字典字面量内 yield、属性 / 下标增量赋值跨暂停报 E0100：
+方法绑定、星号实参展开、哈希插入与目标保存的时序须在后续独立竖切完成，不能静默延后。
+可以先把 yield 的接收值赋给局部，再进行这些操作；不把该限制冒称完整表达式兼容。
+
+tuple / set 的星号展开含 yield 同样明确拒绝：现有展开临时列表尚需保留最终类型与集合哈希时序；普通列表星号展开不受此项限制。

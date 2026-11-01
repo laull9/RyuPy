@@ -1,0 +1,15 @@
+---
+source: crates/ryupy-driver/tests/m3_2.rs
+expression: "output.replace(path.to_str().unwrap(), \"generator.py\")"
+---
+def echo():
+    value = (yield 1)
+    return value
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "ryupy_test_generator_send.py"
+    defaults of echo
+    global.iterator = echo()
+    print(next(global.iterator))

@@ -86,7 +86,11 @@ impl FunctionBuilder<'_> {
                     ),
                 };
                 let resume = self.new_block();
-                self.terminate_current(Terminator::Suspend { value, resume });
+                self.terminate_current(Terminator::Suspend {
+                    value,
+                    resume,
+                    input: None,
+                });
                 self.current_bb = resume;
             }
             StmtKind::Expr(expr_id) => {

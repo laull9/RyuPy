@@ -43,6 +43,7 @@ fn rejects_suspend_before_codegen() {
     let body = &mut program.functions[program.entry].body;
     body.blocks[body.entry].terminator = Terminator::Suspend {
         value: Operand::Const(Constant::None),
+        input: None,
         resume: body.entry,
     };
     assert!(crate::validate::validate(&program).is_err());

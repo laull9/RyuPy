@@ -168,6 +168,7 @@ impl<'a> ExprBuilder<'a> {
         let expr = &hir_body.exprs[expr_id];
         match &expr.kind {
             ExprKind::Literal(lit) => self.build_literal(lit),
+            ExprKind::Yield(value) => self.build_yield_expr(*value),
             ExprKind::ModuleVar(var) => {
                 let gid = self.module_vars[var];
                 let global_ty = self.globals[gid].ty.clone();

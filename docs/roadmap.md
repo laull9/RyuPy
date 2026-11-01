@@ -54,7 +54,7 @@
 
 ## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 
-当前 M3.1 生成器表达式已接入，M3.2 已有普通语句 yield、局部 / cell 保存、迭代耗尽和 return value 首切；完整协议与清理仍未完成。
+当前 M3.1 生成器表达式已接入，M3.2 已有普通语句 yield、局部 / cell 保存、迭代耗尽、return value、send 与表达式 yield 首切；完整协议与清理仍未完成。
 
 高级语法服务于实际库代码。闭包使用共享 cell 保留 late binding 和 `nonlocal` 写入；推导式保留独立作用域与求值顺序；生成器使用可持有堆引用的状态机，覆盖 `send` / `throw` / `close`、`yield from` 和暂停期间的 `finally`；装饰器按 Python 顺序执行并允许返回新的可调用对象。
 
