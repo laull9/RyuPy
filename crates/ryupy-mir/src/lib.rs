@@ -38,3 +38,5 @@ mod generator_tests;
 mod yield_expr;
 
 mod prepared_call;
+
+mod container_literals;
