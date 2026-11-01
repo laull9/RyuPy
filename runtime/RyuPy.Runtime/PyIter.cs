@@ -92,7 +92,7 @@ public sealed class PyIter : IPyIterator
         PyRange range => new PyRangeIter(range),
         // 迭代器本身可迭代：`iter(it)` 返回自身
         IPyIterator iterator => iterator,
-        // 普通实例：`__iter__` 返回迭代器；返回自身且定义 `__next__` 时包一层适配器。
+        // 普通实例：调用一次 `__iter__`，验证返回对象的迭代器协议。
         PyInstance instance => CreateFromObject(instance),
         _ => throw NotIterable(source),
     };
@@ -216,17 +216,23 @@ public sealed class PyIter : IPyIterator
         {
             throw NotIterable(instance);
         }
-        if (ReferenceEquals(iterator, instance))
+        // __iter__ 的结果必须已经是迭代器；不能再对结果调用 __iter__，
+        // 否则会重复用户副作用，甚至把返回列表的非法实现误当成合法。
+        if (iterator is IPyIterator ready)
         {
-            return new PyInstanceIterator(instance);
+            return ready;
         }
-        return Create(iterator);
+        if (iterator is PyInstance next && next.Class.TryLookup("__next__", out _, out _))
+        {
+            return new PyInstanceIterator(next);
+        }
+        throw new PyTypeError($"iter() returned non-iterator of type '{PyRepr.TypeName(iterator)}'");
     }
 
 }
 
 
-/// <summary>用户对象的 `__next__` 迭代器适配（`__iter__` 返回自身时使用）。</summary>
+/// <summary>用户对象的 `__next__` 迭代器适配（不再次调用 `__iter__`）。</summary>
 public sealed class PyInstanceIterator : IPyIterator
 {
     private readonly PyInstance _instance;

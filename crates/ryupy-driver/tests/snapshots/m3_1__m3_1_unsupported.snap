@@ -1,0 +1,30 @@
+---
+source: crates/ryupy-driver/tests/m3_1.rs
+expression: output
+---
+海象表达式
+[E0100] Error: 暂不支持该表达式
+   ╭─[ comprehensions.py:1:9 ]
+   │
+ 1 │ print([(y := x) for x in [1]])
+   │         ───┬──  
+   │            ╰──── Phase 1 暂不支持该语法
+───╯
+
+异步推导式
+[E0100] Error: 暂不支持异步推导式
+   ╭─[ comprehensions.py:1:7 ]
+   │
+ 1 │ print([x async for x in []])
+   │       ──────────┬──────────  
+   │                 ╰──────────── 不能把 async for 静默降级为同步迭代
+───╯
+
+类体作用域
+[E0100] Error: 推导式暂不支持出现在此位置
+   ╭─[ comprehensions.py:2:14 ]
+   │
+ 2 │     values = [x for x in [1]]
+   │              ────────┬───────  
+   │                      ╰───────── 类体推导式的作用域尚未接入
+───╯

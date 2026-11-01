@@ -49,7 +49,8 @@
 | 普通 / 星号（`a, *b, c = x`）解包赋值、`for x in 容器` | ✅ M2.3 | `RuntimeFn::UnpackCheck` 长度校验；`IterStart` / `IterNextOk` / `IterValue` 迭代协议 |
 | `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
-| 生成器、推导式、普通函数装饰器 | ❌ | Phase 3 M3.1–M3.3 |
+| 列表推导式（多层 for / if、解包、闭包） | ✅ M3.1 首个竖切 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
+| dict / set 推导式、生成器表达式、生成器、普通函数装饰器 | ❌ | Phase 3 M3.1–M3.3 后续竖切 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
@@ -159,7 +160,7 @@ CPython 一致的消息。
 | 30 | `for` 循环变量与 `range` 参数 | 循环变量可被循环体重写而不影响迭代；`range(...)` 参数只求值一次 | 用循环变量当计数器会破坏迭代 | 静态计数循环使用隐藏计数器：每轮开头才写用户变量，边界复制进局部变量 |
 | 31 | 排序稳定性 | `sorted` / `list.sort` 稳定；`reverse=True` 仍保持相等元素的原始顺序 | `List.Sort` 不稳定，且「排完再反转」会颠倒相等元素 | `PySort` 二分插入 + 自底向上归并（只用 `<`，见 #43）；降序通过反转「先后」判断实现 |
 | 32 | 空容器真值 | `[]`、`{}`、`""`、`set()` 为假 | 引用类型默认非空 | `PyOps.Truthy` 显式列出每种容器类型（含 dict 视图、bytes / bytearray） |
-| 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | `PyOps.UnpackCheck(length, required, hasStar)`：星号形态只检查下限，非星号形态必须精确相等 |
+| 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | `PyOps.UnpackCheck(length, required, hasStar)`：星号形态只检查下限，非星号形态必须精确相等；M3.1 修复星号目标始终获得新 list（不保留 tuple 切片类型） |
 | 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
 | 35 | 参数绑定错误 | 运行时 `TypeError`：缺少 / 过多 / 重复绑定 / 未知关键字 / 位置-only 当关键字 | — | `PyBinder` 按 CPython 规则绑定并生成相同措辞的消息；编译期只判断能否走静态快路径，**不**把绑定错误变成编译错误 |
 | 36 | 默认值求值时机 | 在 `def` 执行时于模块作用域求值、只求值一次；可变默认值跨调用共享 | — | 默认值在定义位置（`FunctionDefaults` 语句）写进模块静态数组；`def f(x=[])` 的所有调用共享同一个 list |
@@ -175,6 +176,8 @@ CPython 一致的消息。
 
 | 46 | 闭包 late binding 与默认值 | 闭包读调用时的变量；默认值保留定义时的结果 | 复制捕获值会丢失共享修改 | M3.0：一个绑定对应一个 cell，多闭包共享，默认值在 def / lambda 位置求值 |
 | 47 | 空 cell 的异常 | 本地 cell 抛 `UnboundLocalError`，外层自由变量抛 `NameError` | null / 默认零值无法区分 | M3.0：cell 放未赋值哨兵；读取时按作用域选择异常，被捕获的 except 绑定在正常、返回、循环跳转和异常退出时都清空 cell |
+| 48 | 推导式作用域 | 目标不泄漏，闭包共享该次推导式的循环绑定 | 普通内联循环会覆盖外层变量 | M3.1 list 竖切使用独立隐式函数与共享 cell；见 §4.7 |
+| 49 | `__iter__` 的返回值 | 必须是迭代器，不再调用返回值的 `__iter__` | 递归获取会重复副作用、误接收仅可迭代对象 | M3.1 修复 `PyIter.CreateFromObject`，无 `__next__` 立即抛 `TypeError` |
 
 ### 4.1 未捕获异常与退出码（M2.2）
 
@@ -297,6 +300,21 @@ nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E01
 类体 lambda、函数内 class、`del` 局部名和 cell 的反射接口仍未支持，不能据闭包用例推定可用。
 共享环境的容量和 GC 生命周期见 [ADR-0015](adr/0015-shared-closure-cells.md)。
 
+### 4.7 列表推导式（M3.1 首个竖切）
+
+最左 iterable 在外层求值并只取一次迭代器；循环目标、后续 iterable、if 与元素表达式属于
+独立隐式函数作用域。多层循环从左到右嵌套，每层条件按源码顺序短路，元素只在所有条件成立
+时求值。循环目标支持单个名字及已有的平坦序列解包，不泄漏到外层，异常退出也不覆盖外层同名值。
+
+推导式里的 lambda 共享该次推导式的循环 cell，保留 late binding；默认参数仍在创建 lambda
+时求值。不同次推导式各有独立 cell。嵌套推导式可捕获外层推导式或函数绑定。
+类体推导式、async for、海象表达式明确拒绝；dict/set 与生成器表达式仍待后续竖切。
+设计与分配代价见 [ADR-0016](adr/0016-comprehension-scopes.md)，不宣称性能提升。
+
+此外，用户 `__iter__` 的返回值必须已具备迭代器协议，不再递归对其调用 `__iter__`；返回 list
+等仅可迭代对象立即抛 `TypeError`。入口 Main 的真实 PE 方法头启用局部清零，保证成功退出 0，
+不依赖平台上未初始化栈内存的偶然内容。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。
@@ -342,7 +360,7 @@ Phase 2 优先动态核心、容器、普通类、异常、模块与 `with`；Ph
 
 保留求值顺序、异常传播、可变别名、普通对象身份和容器行为的优化可默认采用。低影响偏差经 ADR 接受并公开登记后，也可选高性能默认实现。固定宽度整数、可观察的值拷贝、浮点重排等影响常用结果的扩展由用户显式选择；这些扩展目前尚未实现。refcount 与 GC 时机属于已接受架构边界，不代表其它差异也可省略。
 
-动态运算 / 方法调用使用**有界 PIC**（[ADR-0012](adr/0012-bounded-dynamic-pic.md)）：每个调用点最多两条形状，全局站点数有上限；未命中完整走通用路径。类属性替换、实例属性增删会让方法缓存失效，模块属性不缓存。`RYUPY_PIC=0` 可整体关闭，用于 A/B 对照。
+动态运算 / 方法调用使用**有界 PIC**（[ADR-0012](adr/0012-bounded-dynamic-pic.md)）：每个调用点最多四条形状，全局站点数有上限；未命中完整走通用路径。类属性替换、实例属性增删会让方法缓存失效，模块属性不缓存。`RYUPY_PIC=0` 可整体关闭，用于 A/B 对照。
 
 M2.11 在不改变「动态值 = 装箱 object」的前提下消除了大部分固定分配（[ADR-0013](adr/0013-dynamic-hot-path-allocations.md)）：纯位置小参数调用复用调用点数组，thunk 对参数个数正确的调用直接取参，`long` 数值字面量装箱一次后进入静态字段，实例属性改为按类槽位存放并由属性 PIC 直接读写，方法不调用 `super()` 时跳过上下文维护。未命中仍然回到同一套通用路径。
 

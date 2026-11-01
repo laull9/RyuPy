@@ -215,6 +215,14 @@ pub fn lower_module(
             continue;
         };
         match node {
+            crate::closures_find::NestedAst::ListComp(comp) => {
+                lower_one(
+                    *func_id,
+                    FnSource::ListComp(comp),
+                    &mut functions,
+                    &mut diagnostics,
+                );
+            }
             crate::closures_find::NestedAst::Def(fn_def) => {
                 lower_one(
                     *func_id,

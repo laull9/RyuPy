@@ -5,7 +5,7 @@
 >
 > 标记：`[ ]` 待做 · `[~]` 进行中 · `[x]` 完成
 >
-> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），Phase 3 M3.0 闭包、lambda 与 nonlocal 已完成，下一步 M3.1 推导式作用域。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
+> 当前：Phase 1 已完成；Phase 2 的 M2.1–M2.12 全部完成（含模块、`with`、项目切片、PIC、动态热路径优化与基准体系），Phase 3 M3.0 闭包、lambda 与 nonlocal 已完成，正在推进 M3.1 推导式作用域（list 竖切先行）。目标为固定纯 Python 项目集至少 80% 原生通过，见 [兼容性清单](docs/compatibility.md)。下述里程碑包含多个竖切，每次按一个行为或 API 实施，不整阶段一次落地。
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
@@ -380,7 +380,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M3.0 / Phase 2 迭代协议。用例按 list / dict / set 推导式与生成器表达式分开，生成器表达式执行在 M3.2 完成。
 
-- [ ] list / dict / set 推导式，支持多层 for 与 if，独立作用域、闭包捕获和求值顺序
+- [~] list / dict / set 推导式，支持多层 for 与 if，独立作用域、闭包捕获和求值顺序
+  - [x] list：多层 for / if、平坦解包、独立作用域、共享 cell、最左 iterable 立即取迭代器（ADR-0016）
+  - [ ] dict / set：重复键、key-before-value 与集合去重分别验收
 - [ ] 生成器表达式先定义外层迭代对象的立即求值与后续惰性边界，衔接 M3.2 状态机
 - [ ] 验收：变量不泄漏、嵌套条件、副作用、重复键和异常顺序通过；海象运算符未支持时明确拒绝
 

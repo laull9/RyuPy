@@ -3,7 +3,7 @@
 //! 覆盖三类目标：
 //! - `obj[key] = value`：运行时 `PyOps.SetItem`；
 //! - `a, b = ...` / `first, *middle, last = ...`：先取长度校验，再逐位置取下标，
-//!   星号位置用切片一次性取中间部分；
+//!   星号位置用切片一次性取中间部分，再转为 Python 规定的新 list；
 //! - `del obj[key]`：运行时 `PyOps.DelItem`。
 //!
 //! 序列解包的长度校验放在**取元素之前**：CPython 对 `a, b = [1]` 抛
@@ -102,7 +102,24 @@ impl FunctionBuilder<'_> {
                 },
             });
             let slice = Operand::Local(slice_dest);
-            self.emit_get_item(seq.clone(), slice, binding);
+            let middle = self.expr_builder().runtime_call(
+                RuntimeFn::GetItem,
+                vec![seq.clone(), slice],
+                MirType::Dynamic,
+            );
+            // 切片保留原容器类型，但 Python 的星号目标无论来源是 tuple / str / list
+            // 都必须收到新 list，不能直接把切片写进目标。
+            let rest = self.expr_builder().runtime_call(
+                RuntimeFn::DynBuiltin,
+                vec![
+                    Operand::Const(Constant::Str("list".into())),
+                    Operand::Array(vec![middle]),
+                    Operand::Array(Vec::new()),
+                    Operand::Array(Vec::new()),
+                ],
+                MirType::Dynamic,
+            );
+            self.store_binding(binding, rest, &MirType::Dynamic);
         }
 
         // 后半部分：从长度倒推下标，避免再分配一个临时列表

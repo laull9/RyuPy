@@ -29,6 +29,7 @@ fn reshape(_0: dyn) -> dyn {
     let _23: dyn;
     let _24: dyn;
     let _25: dyn;
+    let _26: dyn;
 
     bb0: {
         _3 = RuntimeFn::TracePush(const "ryupy_test_m2_3_slice.py", const "reshape");
@@ -43,24 +44,25 @@ fn reshape(_0: dyn) -> dyn {
         _9 = RuntimeFn::DynNone();
         _10 = RuntimeFn::MakeSlice(_7, _8, _9);
         _11 = RuntimeFn::GetItem(_0, _10);
-        _2 = _11;
+        _12 = RuntimeFn::DynBuiltin(const "list", [_11], [], []);
+        _2 = _12;
         // line 3
-        _12 = box<I64>(const 8_i64);
-        _13 = box<I64>(const 9_i64);
-        _14 = MakeList([_12, _13]);
-        _15 = box<I64>(const 1_i64);
-        _16 = box<I64>(const 3_i64);
-        _17 = RuntimeFn::DynNone();
-        _18 = RuntimeFn::MakeSlice(_15, _16, _17);
-        RuntimeFn::SetItem(_0, _18, _14);
+        _13 = box<I64>(const 8_i64);
+        _14 = box<I64>(const 9_i64);
+        _15 = MakeList([_13, _14]);
+        _16 = box<I64>(const 1_i64);
+        _17 = box<I64>(const 3_i64);
+        _18 = RuntimeFn::DynNone();
+        _19 = RuntimeFn::MakeSlice(_16, _17, _18);
+        RuntimeFn::SetItem(_0, _19, _15);
         // line 4
-        _20 = RuntimeFn::DynNone();
         _21 = RuntimeFn::DynNone();
-        _22 = box<I64>(const 1_i64);
-        _23 = dyn.Neg(_22);
-        _24 = RuntimeFn::MakeSlice(_20, _21, _23);
-        _25 = RuntimeFn::GetItem(_0, _24);
-        _19 = _25;
+        _22 = RuntimeFn::DynNone();
+        _23 = box<I64>(const 1_i64);
+        _24 = dyn.Neg(_23);
+        _25 = RuntimeFn::MakeSlice(_21, _22, _24);
+        _26 = RuntimeFn::GetItem(_0, _25);
+        _20 = _26;
         goto -> bb2;
     }
     bb1: {
@@ -68,7 +70,7 @@ fn reshape(_0: dyn) -> dyn {
     }
     bb2: {
         RuntimeFn::TracePopTo(_3);
-        return _19;
+        return _20;
     }
 }
 

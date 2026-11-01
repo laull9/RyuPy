@@ -1,0 +1,144 @@
+---
+source: crates/ryupy-driver/tests/m3_1.rs
+expression: output
+---
+def build(seed):
+    # cells=[Name("seed")], free=[]
+    item = "外层"
+    late = <lambda <listcomp>>(iter(range(3)))
+    early = <lambda <listcomp>>(iter(range(3)))
+    nested = <lambda <listcomp>>(iter(range(3)))
+    print(item, nested)
+    return (late, early)
+
+def mark(tag, value):
+    global.log.append(tag)
+    return value
+
+def [main] main():
+    global.__name__ = "__main__"
+    global.__package__ = ""
+    global.__file__ = "m3_1_list_comprehensions.py"
+    global.items = [1, 2, 3]
+    print(<lambda <listcomp>>(iter(global.items)), global.items)
+    print(<lambda <listcomp>>(iter(range(4))))
+    defaults of build
+    global.late, global.early = build(10)
+    print(<lambda <listcomp>>(iter(global.late)), <lambda <listcomp>>(iter(global.early)))
+    print(<lambda <listcomp>>(iter([(1, 2), (3, 4)])))
+    global.log = []
+    defaults of mark
+    print(<lambda <listcomp>>(iter(mark("外层", [1, 2]))))
+    print(global.log)
+    global.x = "未改变"
+    try:
+        print(<lambda <listcomp>>(iter([2, 0, 1])))
+    except ZeroDivisionError:
+        print(global.x)
+    print(<lambda <listcomp>>(iter([])))
+    print(<lambda <listcomp>>(iter(<lambda <listcomp>>(iter([4, 5])))))
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for items in .0:
+        .result.append((items * 2))
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for x in .0:
+        if (x Gt 0):
+            for y in range(x):
+                if ((y % 2) Eq 0):
+                    .result.append((x, y))
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for f in .0:
+        .result.append(f())
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for f in .0:
+        .result.append(f())
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for .item4 in .0:
+        a, b = .item4
+        .result.append((a + b))
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for x in .0:
+        if mark("条件", (x Gt 0)):
+            for y in mark("内层", [3, 4]):
+                .result.append(mark("元素", (x + y)))
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for x in .0:
+        .result.append((10 // x))
+    return .result
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for missing in .0:
+        .result.append(missing)
+    return .result
+
+def [nested] <listcomp>(.0):
+    # cells=[Name("x")], free=[]
+    .result = []
+    for x in .0:
+        .result.append(<lambda <lambda>>)
+    return .result
+
+def [nested] <lambda>():
+    # cells=[], free=[Name("x")]
+    return cell[0]
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for f in .0:
+        .result.append(f())
+    return .result
+
+def [nested] <listcomp>(.0):
+    # cells=[Name("item")], free=[]
+    .result = []
+    for item in .0:
+        .result.append(<lambda <lambda>>)
+    return .result
+
+def [nested] <lambda>():
+    # cells=[], free=[Name("item")]
+    return cell[0]
+
+def [nested] <listcomp>(.0):
+    .result = []
+    for item in .0:
+        .result.append(<lambda <lambda>>)
+    return .result
+
+def [nested] <lambda>(item=...):
+    return item
+
+def [nested] <listcomp>(.0):
+    # cells=[Name("x")], free=[Name("seed")]
+    .result = []
+    for x in .0:
+        .result.append(<lambda <listcomp>>(iter(range(2))))
+    return .result
+
+def [nested] <listcomp>(.0):
+    # cells=[], free=[Name("seed"), Name("x")]
+    .result = []
+    for y in .0:
+        .result.append(((cell[0] + cell[1]) + y))
+    return .result

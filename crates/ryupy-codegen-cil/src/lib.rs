@@ -48,3 +48,6 @@ pub fn emit_assembly(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<
 pub fn dump_cil(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
     entry::dump(program, opts)
 }
+
+#[cfg(test)]
+mod entry_tests;

@@ -25,6 +25,7 @@ pub(crate) struct ScopeCollector {
 enum Nested {
     Def(ast::StmtFunctionDef),
     Lambda(ast::ExprLambda),
+    ListComp(ast::ExprListComp),
 }
 
 pub(crate) fn collect_module_nested(
@@ -133,6 +134,7 @@ fn register_discovered(
         let (name, range) = match &node {
             Nested::Def(def) => (Name::from(def.name.as_str()), def.range),
             Nested::Lambda(lambda) => (Name::from("<lambda>"), lambda.range),
+            Nested::ListComp(comp) => (Name::from("<listcomp>"), comp.range),
         };
         scopes[parent].nested.push(range);
         if matches!(node, Nested::Def(_)) {
@@ -149,6 +151,29 @@ fn register_discovered(
         });
         nested_funcs.insert(range, child);
         match node {
+            Nested::ListComp(comp) => {
+                let mut collector = ScopeCollector::default();
+                // 首个 iterable 在外层读取，其迭代器通过隐藏参数传入。
+                for (index, generator) in comp.generators.iter().enumerate() {
+                    collector.visit_expr(&generator.target);
+                    if index > 0 {
+                        collector.visit_expr(&generator.iter);
+                    }
+                    for condition in &generator.ifs {
+                        collector.visit_expr(condition);
+                    }
+                }
+                collector.visit_expr(&comp.elt);
+                let scope = push_scope(&mut collector, child, range, parent, scopes);
+                register_discovered(
+                    collector,
+                    scope,
+                    functions,
+                    scopes,
+                    nested_funcs,
+                    nested_def_names,
+                );
+            }
             Nested::Def(def) => walk_function_scope(
                 &def.body,
                 &def.parameters,
@@ -242,6 +267,12 @@ impl<'a> Visitor<'a> for ScopeCollector {
                 }
                 ast::ExprContext::Invalid => {}
             },
+            ast::Expr::ListComp(comp) => {
+                if let Some(first) = comp.generators.first() {
+                    self.visit_expr(&first.iter);
+                }
+                self.nested.push(Nested::ListComp(comp.clone()));
+            }
             ast::Expr::Lambda(lambda) => {
                 if let Some(parameters) = &lambda.parameters {
                     self.visit_defaults(parameters);

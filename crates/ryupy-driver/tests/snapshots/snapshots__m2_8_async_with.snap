@@ -3,7 +3,7 @@ source: crates/ryupy-driver/tests/snapshots.rs
 expression: rendered
 ---
 [E0100] Error: 暂不支持 `async with`
-   ╭─[ /var/folders/qm/62_zyfnn443fs89r1pvdk9mw0000gn/T/ryupy_test_async_with.py:2:5 ]
+   ╭─[ ryupy_test_async_with.py:2:5 ]
    │
  2 │ ╭─▶     async with manager:
  3 │ ├─▶         print(1)
