@@ -218,8 +218,8 @@ public class PyIOTests
                 {
                     Assert.Equal(true, Call(stream, "readable"));
                     Assert.Equal(false, Call(stream, "writable"));
-                    Assert.Throws<PyOSError>(() => Call(stream, "write", mode == "r" ? "x" : new PyBytes([120])));
-                    Assert.Throws<PyOSError>(() => Call(stream, "truncate", 0L));
+                    Assert.Throws<PyUnsupportedOperation>(() => Call(stream, "write", mode == "r" ? "x" : new PyBytes([120])));
+                    Assert.Throws<PyUnsupportedOperation>(() => Call(stream, "truncate", 0L));
                 }
                 finally { stream.Close(); }
             }

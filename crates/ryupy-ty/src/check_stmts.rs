@@ -76,9 +76,21 @@ impl FunctionChecker<'_> {
                     }
                     AssignTarget::Sequence(items) => {
                         for item in items {
-                            let binding = match item {
-                                ryupy_hir::SequenceItem::One(binding)
-                                | ryupy_hir::SequenceItem::Rest(binding) => *binding,
+                            let target = match item {
+                                ryupy_hir::SequenceItem::One(target)
+                                | ryupy_hir::SequenceItem::Rest(target) => target,
+                            };
+                            let binding = match target {
+                                ryupy_hir::SequenceTarget::Binding(binding) => *binding,
+                                ryupy_hir::SequenceTarget::Attribute { base, .. } => {
+                                    self.check_expr(*base);
+                                    continue;
+                                }
+                                ryupy_hir::SequenceTarget::Subscript { base, index } => {
+                                    self.check_expr(*base);
+                                    self.check_expr(*index);
+                                    continue;
+                                }
                             };
                             match binding {
                                 ryupy_hir::Binding::Free(_) => self.soft_demote = true,
@@ -215,8 +227,13 @@ impl FunctionChecker<'_> {
             // 默认值表达式的类型在 main 的检查开头统一处理（见 check_function）
             // 导入绑定都是动态值（模块对象 / 函数对象 / 任意属性），
             // 静态路径不展开；读到的类型统一是 Dynamic。
-            StmtKind::Import { .. } | StmtKind::ImportFrom { .. } => {
-                self.soft_demote = true;
+            StmtKind::Import { bind, .. } => {
+                self.check_import_binding(*bind);
+            }
+            StmtKind::ImportFrom { names, .. } => {
+                for (_, bind) in names {
+                    self.check_import_binding(*bind);
+                }
             }
             StmtKind::FunctionDefaults(_) => {}
             StmtKind::Delete(targets) => {
@@ -301,5 +318,13 @@ impl FunctionChecker<'_> {
     /// 真值判定接受一切类型（Python 里任何对象都有真值），因此不做检查。
     pub(crate) fn check_cond(&mut self, cond: ExprId) {
         let _ = self.check_expr(cond);
+    }
+    /// 导入值可以是模块或任意属性；只影响当前函数模式，不把它当静态变量类型承诺。
+    fn check_import_binding(&mut self, binding: ryupy_hir::Binding) {
+        self.soft_demote = true;
+        if let ryupy_hir::Binding::Local(local) = binding {
+            let infer = self.local_vars[local].clone();
+            self.infer.force(&infer, Ty::Dynamic);
+        }
     }
 }

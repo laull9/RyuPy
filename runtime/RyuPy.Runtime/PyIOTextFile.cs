@@ -107,7 +107,7 @@ public sealed class PyIOTextFile : PyIOStream
     protected override long SeekCore(long offset, long whence)
     {
         if (whence is < 0 or > 2) throw new PyValueError("invalid whence");
-        if (whence != 0 && offset != 0) throw new PyOSError("can't do nonzero cur-relative seeks");
+        if (whence != 0 && offset != 0) throw new PyUnsupportedOperation("can't do nonzero cur-relative seeks");
         if (offset < 0) throw new PyValueError("negative seek position");
         if (whence == 0 && !_cookies.Contains(offset))
             throw new PyNotImplementedError("text seek only accepts zero or a cookie returned by tell()");

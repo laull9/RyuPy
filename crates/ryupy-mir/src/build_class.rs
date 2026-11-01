@@ -34,6 +34,7 @@ impl FunctionBuilder<'_> {
         let mir_cls = self.class_map[&cls_id];
         let decorated_binding = cls.decorated_binding;
         let frozen = cls.frozen;
+        let enum_members = cls.enum_members.clone();
         let fields = cls
             .declared_fields
             .iter()
@@ -60,7 +61,21 @@ impl FunctionBuilder<'_> {
                 );
                 vec![type_object]
             }
-            Some(ClassBase::Expr(expr)) => vec![self.freeze_expression(expr)],
+            Some(
+                ClassBase::Expr(expr)
+                | ClassBase::Native { value: expr, .. }
+                | ClassBase::TypedDict { value: expr, .. },
+            ) => {
+                vec![self.freeze_expression(expr)]
+            }
+            Some(ClassBase::Runtime(expr)) => {
+                let value = self.freeze_expression(expr);
+                vec![self.expr_builder().runtime_call(
+                    RuntimeFn::ValidateOrdinaryBase,
+                    vec![value],
+                    MirType::Dynamic,
+                )]
+            }
             None => Vec::new(),
         };
 
@@ -74,15 +89,35 @@ impl FunctionBuilder<'_> {
             Operand::Const(Constant::Null)
         };
         let dest = self.alloc_temp(MirType::Dynamic);
-        self.push_stmt(Statement::Assign {
-            dest,
-            value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::MakeClass),
-                args: vec![
+        let (constructor, args) = if let Some(ClassBase::TypedDict { total, .. }) = base {
+            (
+                RuntimeFn::TypedDictBegin,
+                vec![
+                    Operand::Const(Constant::Str(name)),
+                    bases[0].clone(),
+                    Operand::Const(Constant::Bool(total)),
+                    Operand::Const(Constant::Str(self.hir.info.name.clone())),
+                ],
+            )
+        } else {
+            (
+                if enum_members.is_some() {
+                    RuntimeFn::EnumCreate
+                } else {
+                    RuntimeFn::MakeClass
+                },
+                vec![
                     Operand::Const(Constant::Str(name)),
                     Operand::Array(bases),
                     factory,
                 ],
+            )
+        };
+        self.push_stmt(Statement::Assign {
+            dest,
+            value: Rvalue::Call {
+                callee: Callee::Runtime(constructor),
+                args,
             },
         });
         self.push_stmt(Statement::SetGlobal {
@@ -92,18 +127,99 @@ impl FunctionBuilder<'_> {
         let class_object = Operand::Local(dest);
 
         let previous_namespace = self.class_namespace.replace(class_object.clone());
-        if items
-            .iter()
-            .any(|item| matches!(item.kind, ClassItemKind::Annotation { .. }))
-        {
+        if cls.has_annotations {
             let annotations =
                 self.expr_builder()
                     .runtime_call(RuntimeFn::MakeDict, vec![], MirType::Dynamic);
             self.emit_set_attr(class_object.clone(), "__annotations__", annotations);
         }
         // 3. 按源码顺序执行类体。
-        for item in items {
+        let conditional = items
+            .iter()
+            .any(|item| matches!(item.kind, ClassItemKind::If { .. }));
+        self.build_class_items(
+            &items,
+            class_object.clone(),
+            matches!(base, Some(ClassBase::TypedDict { .. })),
+        );
+        self.class_namespace = previous_namespace;
+        if !conditional
+            && !matches!(base, Some(ClassBase::TypedDict { .. }))
+            && !self.hir.classes[cls_id].declared_fields.is_empty()
+        {
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::DeclareDataclass),
+                args: vec![
+                    class_object.clone(),
+                    Operand::Array(fields),
+                    Operand::Const(Constant::Bool(frozen)),
+                ],
+            }));
+        }
+        let class_object = if let Some(names) = enum_members {
+            self.expr_builder().runtime_call(
+                RuntimeFn::EnumFinalize,
+                vec![
+                    class_object,
+                    Operand::Array(
+                        names
+                            .into_iter()
+                            .map(|name| Operand::Const(Constant::Str(name.as_str().to_owned())))
+                            .collect(),
+                    ),
+                ],
+                MirType::Dynamic,
+            )
+        } else {
+            class_object
+        };
+        let class_object = if matches!(base, Some(ClassBase::TypedDict { .. })) {
+            self.expr_builder().runtime_call(
+                RuntimeFn::TypedDictFinish,
+                vec![class_object],
+                MirType::Dynamic,
+            )
+        } else {
+            class_object
+        };
+        let value = self.apply_decorators(class_object, decorators, frozen);
+        if let Some(binding) = decorated_binding {
+            self.push_stmt(Statement::SetGlobal {
+                dest: self.module_vars[&binding],
+                value,
+            });
+        }
+    }
+
+    /// 类体 if 不创建作用域，只把实际分支接入当前方法的普通 CFG。
+    fn build_class_items(
+        &mut self,
+        items: &[ryupy_hir::ClassItem],
+        class_object: Operand,
+        typed_dict: bool,
+    ) {
+        for (index, item) in items.iter().cloned().enumerate() {
             match item.kind {
+                ClassItemKind::If { test, body, orelse } => {
+                    let raw = self.expr_builder().build_expr(test);
+                    let ty = self.expr_builder().ty_of(test);
+                    let cond = self.expr_builder().to_bool_operand(raw, &ty);
+                    let yes = self.new_block();
+                    let no = self.new_block();
+                    let join = self.new_block();
+                    self.terminate_current(crate::mir::Terminator::Branch {
+                        cond,
+                        then_: yes,
+                        else_: no,
+                    });
+                    self.current_bb = yes;
+                    self.build_class_items(&body, class_object.clone(), false);
+                    self.terminate_current(crate::mir::Terminator::Goto(join));
+                    self.current_bb = no;
+                    self.build_class_items(&orelse, class_object.clone(), false);
+                    self.terminate_current(crate::mir::Terminator::Goto(join));
+                    self.current_bb = join;
+                }
                 ClassItemKind::Annotation { name, value } => {
                     let value = self.freeze_expression(value);
                     let mapping = self.expr_builder().runtime_call(
@@ -130,7 +246,10 @@ impl FunctionBuilder<'_> {
                     self.emit_set_attr(class_object.clone(), name.as_str(), value);
                 }
                 ClassItemKind::Expr(value) => {
-                    let _ = self.expr_builder().build_expr(value);
+                    let value = self.expr_builder().build_expr(value);
+                    if index == 0 && typed_dict {
+                        self.emit_set_attr(class_object.clone(), "__doc__", value);
+                    }
                 }
                 ClassItemKind::Method { func, decorators } => {
                     // 装饰器先求值，再求默认值/创建原始函数，最后逆序应用。
@@ -141,24 +260,6 @@ impl FunctionBuilder<'_> {
                     self.emit_set_attr(class_object.clone(), &method_name, value);
                 }
             }
-        }
-        self.class_namespace = previous_namespace;
-        if !self.hir.classes[cls_id].declared_fields.is_empty() {
-            self.push_stmt(Statement::Eval(Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::DeclareDataclass),
-                args: vec![
-                    class_object.clone(),
-                    Operand::Array(fields),
-                    Operand::Const(Constant::Bool(frozen)),
-                ],
-            }));
-        }
-        let value = self.apply_decorators(class_object, decorators, frozen);
-        if let Some(binding) = decorated_binding {
-            self.push_stmt(Statement::SetGlobal {
-                dest: self.module_vars[&binding],
-                value,
-            });
         }
     }
 

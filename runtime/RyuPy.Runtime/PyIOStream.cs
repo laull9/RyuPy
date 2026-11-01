@@ -48,6 +48,7 @@ public abstract class PyIOStream : PyNativeObject, IPyIterator
     public override object? GetAttr(string name) => name switch
     {
         "closed" => Closed,
+        "fileno" when HasValue => Method(name, [], [], 0, _ => throw new PyUnsupportedOperation("fileno")),
         "read" => Method(name, ["size"], [-1L], 0, a => Read(a[0], false)),
         "readline" => Method(name, ["size"], [-1L], 0, a => Read(a[0], true)),
         "readlines" => Method(name, ["hint"], [-1L], 0, a => ReadLines(a[0])),
@@ -85,10 +86,10 @@ public abstract class PyIOStream : PyNativeObject, IPyIterator
     { if (Closed) throw new PyValueError("I/O operation on closed file."); }
     /// <summary>在执行具体操作前验证流状态和能力。</summary>
     protected void CheckRead()
-    { CheckOpen(); if (!CanRead) throw new PyOSError("not readable"); }
+    { CheckOpen(); if (!CanRead) throw new PyUnsupportedOperation("not readable"); }
     /// <summary>在执行具体操作前验证流状态和能力。</summary>
     protected void CheckWrite()
-    { CheckOpen(); if (!CanWrite) throw new PyOSError("not writable"); }
+    { CheckOpen(); if (!CanWrite) throw new PyUnsupportedOperation("not writable"); }
 
     private object Read(object? size, bool line)
     {

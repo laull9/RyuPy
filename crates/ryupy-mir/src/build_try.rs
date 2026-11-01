@@ -293,7 +293,27 @@ impl FunctionBuilder<'_> {
             // 不能让多条记录共用同一段 handler 指令：CLR 会把「try 与 handler 区间
             // 完全相同的两条记录」当成重复子句，直接判 InvalidProgramException。
             let type_names: Vec<String> = match &types {
-                Some(names) if !names.is_empty() => names.iter().map(|n| n.to_string()).collect(),
+                Some(names) if !names.is_empty() => {
+                    let builtin_value_error = !self
+                        .hir
+                        .classes
+                        .iter()
+                        .any(|(_, class)| class.name.as_str() == "ValueError");
+                    let mut expanded = Vec::new();
+                    for name in names {
+                        // 额外父边在原handler的位置展开，不能追加到所有handler之后改变first-match。
+                        if !expanded.contains(name) {
+                            expanded.push(name.clone());
+                        }
+                        if builtin_value_error
+                            && name == "ValueError"
+                            && !expanded.iter().any(|n| n == "io.UnsupportedOperation")
+                        {
+                            expanded.push("io.UnsupportedOperation".to_owned());
+                        }
+                    }
+                    expanded
+                }
                 _ => Vec::new(),
             };
             let mut trampolines = Vec::new();

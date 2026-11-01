@@ -96,7 +96,7 @@ public class PyBaseException : Exception
     public string Render()
     {
         // 延迟消息可能调用用户 __str__，一次报告只求值一次。
-        string message = PyMessage;
+        string message = PyRepr.Str(this);
         return message.Length == 0 ? PyTypeName : $"{PyTypeName}: {message}";
     }
 }

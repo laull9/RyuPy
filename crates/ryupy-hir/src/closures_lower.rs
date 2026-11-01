@@ -112,11 +112,14 @@ impl crate::lower::StmtLowerCtx<'_> {
         let mut annotations = Vec::new();
         for parameter in fn_def.parameters.iter() {
             if let Some(expr) = parameter.annotation() {
-                annotations.push((Name::from(parameter.name().as_str()), self.lower_expr(expr)));
+                annotations.push((
+                    Name::from(parameter.name().as_str()),
+                    self.lower_annotation(expr),
+                ));
             }
         }
         if let Some(expr) = &fn_def.returns {
-            annotations.push((Name::from("return"), self.lower_expr(expr)));
+            annotations.push((Name::from("return"), self.lower_annotation(expr)));
         }
         self.nested_defaults
             .annotations

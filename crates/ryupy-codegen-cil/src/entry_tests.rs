@@ -97,7 +97,7 @@ fn serialized_entry_initializes_exit_code() {
     assert!(
         body.instructions[21]
             .show(&resolution)
-            .contains("FlushForExit")
+            .contains("FinishExit")
     );
     assert!(matches!(body.instructions[22], Instruction::Return));
     for index in [8, 11, 15, 19] {

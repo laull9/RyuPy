@@ -6,6 +6,7 @@ public static partial class PyOps
 {
     private static bool MatchesType(object? value, object? type) => type switch
     {
+        PyTypedDictType => PyTypedDictType.RejectRuntimeCheck(),
         PyNativeType native => native.Accepts(value),
         PyClass cls => PyObject.IsInstance(value, cls),
         PyType pyType => MatchesBuiltin(value, pyType.Name),
@@ -21,6 +22,8 @@ public static partial class PyOps
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOfBuiltin(expected)
             : PyExceptionHierarchy.IsSubclass(exception.PyTypeName, expected),
+        PyTypedDictType => expected is "_TypedDictMeta" or "type" or "object",
+        PyEllipsis => expected is "ellipsis" or "object",
         IPyNativeMapping => expected is "dict" or "object",
         PyNativeObject native => PyNativeType.LookupByName(native.TypeName)?.IsSubclassOfBuiltin(expected)
             ?? string.Equals(native.TypeName, expected, StringComparison.Ordinal),
@@ -57,6 +60,11 @@ public static partial class PyOps
 
     private static bool IsSubclassOf(object? child, object? parent) => (child, parent) switch
     {
+        (_, PyTypedDictType) => PyTypedDictType.RejectRuntimeCheck(),
+        (PyTypedDictType, PyType { Name: "dict" or "object" }) => true,
+        (PyTypedDictType, _) => IsSubclassOf(PyType.Get("dict"), parent),
+        (PyType { Name: "_TypedDictMeta" }, PyType { Name: "type" or "object" }) => true,
+        (PyType { Name: "ellipsis" }, PyType { Name: "object" }) => true,
         (_, PyNativeType abc) when PyAbc.IsAbc(abc) => PyAbc.IsSubclass(child, abc),
         (PyNativeType derived, PyNativeType baseType) => derived.IsSubclassOf(baseType),
         (PyNativeType derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name),
@@ -96,7 +104,7 @@ public static partial class PyOps
     }
 
     private static bool IsCallable(object? value) => value is PyType type
-        && (IsBuiltinConstructor(type.Name) || type.Name is "JSONDecodeError" or "error") || value is
+        && (IsBuiltinConstructor(type.Name) || type.Name is "JSONDecodeError" or "error" or "UnsupportedOperation" or "ellipsis" or "_TypedDictMeta") || value is
         IPyNativeCallable or PyFunction or PyBuiltinFunction or PyBuiltinMethod or PyNativeType or PyClass or PyBoundMethod or PyStaticMethod or PyClassMethod
         or PyInstance;
     private static object? BuiltinGetAttr(object?[] args, string[] names)

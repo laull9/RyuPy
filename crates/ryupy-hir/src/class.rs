@@ -8,7 +8,7 @@
 //!    - `def` 变成方法函数（`self` 是普通参数）；
 //!    - `@property` / `@staticmethod` / `@classmethod` 保留为修饰器标记。
 //!
-//! 单继承只接受一个基类；基类可以是之前定义的普通类或内建异常类。多重继承、
+//! 单继承只接受一个基类：之前定义的普通类、内建异常类或身份已确认的原生TestCase。多重继承、
 //! 元类与 `__getattribute__` 等暂缓能力都在这里明确报错，不静默降级。
 //!
 //! 类体属性的求值位置属于**模块入口函数**（Python 在 `class` 语句执行时求值），
@@ -19,9 +19,8 @@ use ryupy_base::{Diagnostic, FileId, Ranged, Span};
 use ryupy_syntax::ast;
 
 use crate::expr::ExprLowerCtx;
-use crate::hir::{Body, Class, ClassBase, ClassItem, ClassItemKind, ExprId, Field, FuncId, Name};
-use crate::operator::lower_type_ref;
-use crate::scope::{FunctionScope, GlobalScope, Resolution};
+use crate::hir::{Body, Class, ClassBase, ExprId, Field, FuncId, Name};
+use crate::scope::{FunctionScope, GlobalScope};
 
 /// 类体里一条 `def` 的登记信息（第一遍收集时产生）。
 #[derive(Debug, Clone)]
@@ -44,7 +43,7 @@ pub fn parse_class_def(
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
     nested_funcs: &FxHashMap<ryupy_base::TextRange, crate::hir::FuncId>,
     nested_defaults: &mut crate::definition_metadata::DefinitionMetadata,
-    class_scopes: &mut FxHashMap<FuncId, rustc_hash::FxHashSet<Name>>,
+    class_scopes: &mut FxHashMap<FuncId, crate::class_scope::ClassScope>,
     main_body: &mut Body,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<Class> {
@@ -70,13 +69,66 @@ pub fn parse_class_def(
         .then(|| module_vars.get(&class_name).copied())
         .flatten();
 
-    let base = match parse_base(class_def, file, globals, classes, diags) {
+    // 原生基类仅对白名单身份放行，仍保留表达式求值；其它基类继续原有诊断。
+    let native = crate::native_bases::resolve(class_def, globals);
+    let parsed_base = if let Some(expr) = crate::typed_dict::candidate(class_def, globals) {
+        let total = crate::typed_dict::validate(class_def, is_dataclass, file, diags);
+        Some(ClassBase::TypedDict {
+            total,
+            value: lower_class_expr(
+                None,
+                file,
+                globals,
+                module_vars,
+                nested_funcs,
+                nested_defaults,
+                main_body,
+                diags,
+                expr,
+            ),
+        })
+    } else if let Some((kind, expr)) = native {
+        Some(ClassBase::Native {
+            kind,
+            value: lower_class_expr(
+                None,
+                file,
+                globals,
+                module_vars,
+                nested_funcs,
+                nested_defaults,
+                main_body,
+                diags,
+                expr,
+            ),
+        })
+    } else if let Some(name) = crate::native_bases::io_exception(class_def, globals) {
+        Some(ClassBase::Builtin(name))
+    } else if let Some(expr) = crate::runtime_bases::candidate(class_def, globals, module_vars) {
+        Some(ClassBase::Runtime(lower_class_expr(
+            None,
+            file,
+            globals,
+            module_vars,
+            nested_funcs,
+            nested_defaults,
+            main_body,
+            diags,
+            expr,
+        )))
+    } else {
+        crate::class_bases::parse_base(class_def, file, globals, classes, diags)
+    };
+    let base = match parsed_base {
         Some(ClassBase::User(id)) if classes[id].decorated_binding.is_some() => {
-            if classes[id].is_exception || classes[id].is_dataclass {
+            if classes[id].is_exception
+                || classes[id].is_dataclass
+                || classes[id].enum_members.is_some()
+            {
                 diags.push(
                     Diagnostic::error(
                         Span::new(file, class_def.range),
-                        "暂不支持以装饰后的异常类或dataclass作为基类",
+                        "暂不支持以装饰后的异常类、dataclass或已定义Enum作为基类",
                     )
                     .with_code("E0100"),
                 );
@@ -87,7 +139,7 @@ pub fn parse_class_def(
                     .as_ref()
                     .and_then(|args| args.args.first())
                     .map(|expr| {
-                        ClassBase::Expr(lower_class_expr(
+                        let value = lower_class_expr(
                             None,
                             file,
                             globals,
@@ -97,7 +149,12 @@ pub fn parse_class_def(
                             main_body,
                             diags,
                             expr,
-                        ))
+                        );
+                        if matches!(classes[id].base, Some(ClassBase::Runtime(_))) {
+                            ClassBase::Runtime(value)
+                        } else {
+                            ClassBase::Expr(value)
+                        }
                     })
             }
         }
@@ -118,231 +175,73 @@ pub fn parse_class_def(
         );
     }
 
+    let enum_members = matches!(
+        base,
+        Some(ClassBase::Native {
+            kind: crate::hir::NativeBase::Enum | crate::hir::NativeBase::Flag,
+            ..
+        })
+    )
+    .then(|| {
+        let flag = matches!(
+            base,
+            Some(ClassBase::Native {
+                kind: crate::hir::NativeBase::Flag,
+                ..
+            })
+        );
+        crate::enum_class::members(class_def, flag, file, diags)
+    });
+    if enum_members.is_some() && is_dataclass {
+        diags.push(
+            Diagnostic::error(
+                Span::new(file, class_def.range()),
+                "暂不支持dataclass与Enum组合，不静默套用普通数据类转换",
+            )
+            .with_code("E0100"),
+        );
+    }
     let is_exception = match base {
         Some(ClassBase::Builtin(_)) => true,
         Some(ClassBase::User(base_id)) => classes[base_id].is_exception,
-        None | Some(ClassBase::Expr(_)) => false,
+        None
+        | Some(
+            ClassBase::Expr(_)
+            | ClassBase::Runtime(_)
+            | ClassBase::Native { .. }
+            | ClassBase::TypedDict { .. },
+        ) => false,
     };
 
-    let mut class_names = rustc_hash::FxHashSet::default();
-    if class_def
-        .body
-        .iter()
-        .any(|stmt| matches!(stmt, ast::Stmt::AnnAssign(_)))
-    {
+    let mut class_names = crate::class_scope::ClassScope::default();
+    if crate::class_body::has_annotations(&class_def.body) {
         class_names.insert(Name::from("__annotations__"));
     }
     let mut fields: Vec<Field> = Vec::new();
     let mut declared_fields = Vec::new();
-    let mut body = Vec::new();
     let method_map: FxHashMap<ryupy_base::TextRange, &MethodSlot> = methods
         .iter()
         .map(|method| (method.range, method))
         .collect();
 
-    for stmt in &class_def.body {
-        if let ast::Stmt::AnnAssign(annotation) = stmt
-            && let ast::Expr::Name(name) = annotation.target.as_ref()
-        {
-            let name = Name::from(name.id.as_str());
-            if !declared_fields.contains(&name) {
-                declared_fields.push(name.clone());
-            }
-            // 保存原静态字段布局线索，默认执行仍走runtime_dataclass；后续特化须另证安全。
-            if is_dataclass {
-                let field = Field {
-                    name: name.clone(),
-                    annotation: lower_type_ref(&annotation.annotation, file, globals, diags),
-                    range: annotation.range(),
-                };
-                if let Some(previous) = fields.iter_mut().find(|field| field.name == name) {
-                    *previous = field;
-                } else {
-                    fields.push(field);
-                }
-            }
-        }
-        match stmt {
-            ast::Stmt::Pass(_) => {}
-            ast::Stmt::Assign(assign) => {
-                // 只支持 `name = value` 的类属性；其它目标（属性 / 下标 / 解包）暂缓。
-                if assign.targets.len() != 1 {
-                    diags.push(unsupported_class_statement(
-                        file,
-                        assign.range(),
-                        "链式赋值",
-                    ));
-                    continue;
-                }
-                let ast::Expr::Name(target) = &assign.targets[0] else {
-                    diags.push(unsupported_class_statement(
-                        file,
-                        assign.targets[0].range(),
-                        "只支持给类属性名字赋值",
-                    ));
-                    continue;
-                };
-                let value = lower_class_expr(
-                    Some(&class_names),
-                    file,
-                    globals,
-                    module_vars,
-                    nested_funcs,
-                    nested_defaults,
-                    main_body,
-                    diags,
-                    &assign.value,
-                );
-                body.push(ClassItem {
-                    kind: ClassItemKind::Attr {
-                        name: Name::from(target.id.as_str()),
-                        value,
-                    },
-                    range: assign.range(),
-                });
-            }
-            ast::Stmt::AnnAssign(ann) => {
-                if let ast::Expr::Name(target) = &*ann.target {
-                    if let Some(value_expr) = &ann.value {
-                        let value = lower_class_expr(
-                            Some(&class_names),
-                            file,
-                            globals,
-                            module_vars,
-                            nested_funcs,
-                            nested_defaults,
-                            main_body,
-                            diags,
-                            value_expr,
-                        );
-                        body.push(ClassItem {
-                            kind: ClassItemKind::Attr {
-                                name: Name::from(target.id.as_str()),
-                                value,
-                            },
-                            range: ann.range(),
-                        });
-                        // 右值先写入命名空间，标注表达式可立即引用该名字。
-                        class_names.insert(Name::from(target.id.as_str()));
-                    }
-                    let value = lower_class_expr(
-                        Some(&class_names),
-                        file,
-                        globals,
-                        module_vars,
-                        nested_funcs,
-                        nested_defaults,
-                        main_body,
-                        diags,
-                        &ann.annotation,
-                    );
-                    body.push(ClassItem {
-                        kind: ClassItemKind::Annotation {
-                            name: Name::from(target.id.as_str()),
-                            value,
-                        },
-                        range: ann.range(),
-                    });
-                } else {
-                    diags.push(unsupported_class_statement(
-                        file,
-                        ann.range(),
-                        "带标注的属性名必须是标识符",
-                    ));
-                }
-            }
-            ast::Stmt::FunctionDef(fn_def) => {
-                if fn_def.name.as_str() == "__getattribute__" {
-                    diags.push(
-                        Diagnostic::error(
-                            Span::new(file, fn_def.range()),
-                            "暂不支持自定义 __getattribute__",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("属性查找协议目前由运行时固定实现"),
-                    );
-                    continue;
-                }
-                let Some(slot) = method_map.get(&fn_def.range) else {
-                    diags.push(
-                        Diagnostic::error(
-                            Span::new(file, fn_def.range()),
-                            "内部错误：方法没有登记为函数",
-                        )
-                        .with_code("E0101")
-                        .with_primary_label("方法预扫描遗漏"),
-                    );
-                    continue;
-                };
-                class_scopes.insert(slot.func, class_names.clone());
-                let decorators = crate::decorators::lower_list(
-                    &fn_def.decorator_list,
-                    false,
-                    Some(&class_names),
-                    file,
-                    globals,
-                    module_vars,
-                    nested_funcs,
-                    nested_defaults,
-                    main_body,
-                    diags,
-                );
-                body.push(ClassItem {
-                    kind: ClassItemKind::Method {
-                        func: slot.func,
-                        decorators,
-                    },
-                    range: fn_def.range(),
-                });
-            }
-            ast::Stmt::Expr(expr_stmt) => {
-                // docstring：只保留为副作用表达式会无意义地求值字符串，直接跳过。
-                if matches!(&*expr_stmt.value, ast::Expr::StringLiteral(_)) {
-                    continue;
-                }
-                let value = lower_class_expr(
-                    Some(&class_names),
-                    file,
-                    globals,
-                    module_vars,
-                    nested_funcs,
-                    nested_defaults,
-                    main_body,
-                    diags,
-                    &expr_stmt.value,
-                );
-                body.push(ClassItem {
-                    kind: ClassItemKind::Expr(value),
-                    range: expr_stmt.range(),
-                });
-            }
-            _ => {
-                diags.push(unsupported_class_statement(
-                    file,
-                    stmt.range(),
-                    "类体内暂不支持该语句",
-                ));
-            }
-        }
-        match stmt {
-            ast::Stmt::Assign(assign) => {
-                for target in &assign.targets {
-                    if let ast::Expr::Name(name) = target {
-                        class_names.insert(Name::from(name.id.as_str()));
-                    }
-                }
-            }
-            ast::Stmt::AnnAssign(assign) if assign.value.is_some() => {
-                if let ast::Expr::Name(name) = assign.target.as_ref() {
-                    class_names.insert(Name::from(name.id.as_str()));
-                }
-            }
-            ast::Stmt::FunctionDef(def) => {
-                class_names.insert(Name::from(def.name.as_str()));
-            }
-            _ => {}
-        }
-    }
+    let body = crate::class_body::lower_items(
+        &class_def.body,
+        &mut class_names,
+        file,
+        globals,
+        base,
+        is_dataclass,
+        is_dataclass || enum_members.is_some() || matches!(base, Some(ClassBase::TypedDict { .. })),
+        &method_map,
+        module_vars,
+        nested_funcs,
+        nested_defaults,
+        class_scopes,
+        main_body,
+        diags,
+        &mut fields,
+        &mut declared_fields,
+    );
 
     if !is_dataclass && fields.is_empty() {
         // 普通类不要求字段，这里只是让 `fields` 的用途明确：仅 dataclass 使用。
@@ -353,7 +252,9 @@ pub fn parse_class_def(
         base,
         fields,
         declared_fields,
+        enum_members,
         body,
+        has_annotations: crate::class_body::has_annotations(&class_def.body),
         frozen,
         is_dataclass,
         runtime_dataclass: is_dataclass,
@@ -364,94 +265,10 @@ pub fn parse_class_def(
     })
 }
 
-/// 解析 `class X(Base):` 的基类。
-fn parse_base(
-    class_def: &ast::StmtClassDef,
-    file: FileId,
-    globals: &GlobalScope,
-    classes: &la_arena::Arena<Class>,
-    diags: &mut Vec<Diagnostic>,
-) -> Option<ClassBase> {
-    let Some(args) = &class_def.arguments else {
-        return None;
-    };
-    if !args.keywords.is_empty() {
-        diags.push(
-            Diagnostic::error(
-                Span::new(file, class_def.range()),
-                "不支持类关键字参数（元类等属于暂缓能力）",
-            )
-            .with_code("E0100")
-            .with_primary_label("不支持 metaclass / 其它类关键字"),
-        );
-        return None;
-    }
-    if args.args.len() > 1 {
-        diags.push(
-            Diagnostic::error(Span::new(file, class_def.range()), "暂不支持多重继承")
-                .with_code("E0100")
-                .with_primary_label("只支持一个基类"),
-        );
-        return None;
-    }
-    let base_expr = args.args.first()?;
-    let ast::Expr::Name(base_name) = base_expr else {
-        diags.push(
-            Diagnostic::error(
-                Span::new(file, base_expr.range()),
-                "基类必须是已定义的类名或内建异常类型",
-            )
-            .with_code("E0100")
-            .with_primary_label("不支持任意基类表达式"),
-        );
-        return None;
-    };
-    let name = Name::from(base_name.id.as_str());
-    if let Some(resolution) = globals.names.get(&name) {
-        return match resolution {
-            Resolution::Class(id) => {
-                // 基类必须在源码里已经定义：类体在 class 语句执行时求值，
-                // 前向引用在 CPython 里同样会 NameError。
-                let _ = &classes[*id];
-                Some(ClassBase::User(*id))
-            }
-            _ => {
-                diags.push(
-                    Diagnostic::error(
-                        Span::new(file, base_name.range),
-                        format!("`{name}` 不是可继承的类"),
-                    )
-                    .with_code("E0100")
-                    .with_primary_label("基类必须是类"),
-                );
-                None
-            }
-        };
-    }
-    // `class X(object)` 与不写基类等价；显式写出来是常见写法，不应被当成未知基类。
-    if base_name.id.as_str() == "object" {
-        return None;
-    }
-    match crate::scope::resolve_builtin(base_name.id.as_str()) {
-        Some(crate::hir::Builtin::Exception(type_name)) => Some(ClassBase::Builtin(type_name)),
-        _ => {
-            diags.push(
-                Diagnostic::error(
-                    Span::new(file, base_name.range),
-                    format!("未知基类 `{name}`"),
-                )
-                .with_code("E0100")
-                .with_primary_label("基类必须是用户类或内建异常类"),
-            );
-            None
-        }
-    }
-}
-
 /// 在模块作用域降级类体里的表达式。
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn lower_class_expr(
-    class_names: Option<&rustc_hash::FxHashSet<Name>>,
+    class_names: Option<&crate::class_scope::ClassScope>,
     file: FileId,
     globals: &GlobalScope,
     module_vars: &FxHashMap<Name, crate::hir::ModuleVarId>,
@@ -477,7 +294,7 @@ pub(crate) fn lower_class_expr(
     ctx.lower_expr(expr)
 }
 
-fn unsupported_class_statement(
+pub(crate) fn unsupported_class_statement(
     file: FileId,
     range: ryupy_base::TextRange,
     label: &str,

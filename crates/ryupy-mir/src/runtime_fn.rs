@@ -7,10 +7,22 @@
 pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "BaseException",
     "Exception",
+    "Warning",
+    "UserWarning",
+    "DeprecationWarning",
+    "PendingDeprecationWarning",
+    "RuntimeWarning",
+    "SyntaxWarning",
+    "FutureWarning",
+    "ImportWarning",
+    "UnicodeWarning",
+    "BytesWarning",
+    "ResourceWarning",
     "SystemExit",
     "KeyboardInterrupt",
     "GeneratorExit",
     "ArithmeticError",
+    "BufferError",
     "ZeroDivisionError",
     "OverflowError",
     "LookupError",
@@ -42,6 +54,7 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "json.JSONDecodeError",
     "dataclasses.FrozenInstanceError",
     "re.error",
+    "io.UnsupportedOperation",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
@@ -126,6 +139,8 @@ pub enum RuntimeFn {
     MakeUnbound,
     /// `PyErrors.LoadName(object, string) -> object`：读取可能未赋值的模块级名字。
     LoadName,
+    /// `PyOps.CheckGlobalBound(bool, string) -> void`：静态槽读取前检查绑定位。
+    CheckGlobalBound,
     /// `PyTraceback.PushFrame(string, string) -> long`：压入栈帧并返回深度。
     TracePush,
     /// `PyTraceback.SetLine(long)`：更新当前行号。
@@ -207,7 +222,21 @@ pub enum RuntimeFn {
     BuiltinFunction,
     FunctionMetadata,
     ClassNamespaceGet,
+    /// 当前类自身原始字典是否包含名字，不执行描述符或继承查找。
+    ClassNamespaceContains,
     DeclareDataclass,
+    /// 完成普通Enum成员规范化，成功后才允许公开类绑定。
+    EnumFinalize,
+    /// 只有HIR已验证的原生Enum基类走此构造入口，普通类创建不能绕过成员转换。
+    EnumCreate,
+    /// 创建TypedDict私有类体命名空间，并验证真实基值。
+    TypedDictBegin,
+    /// 合并TypedDict字段元数据，返回可公开的真实类型。
+    TypedDictFinish,
+    /// `PyRuntimeBases.Validate(object) -> object`：检查真实普通类与整个祖先链。
+    ValidateOrdinaryBase,
+    /// 大字典逐对插入：先拒绝非精确标量键，不调用用户hash/eq。
+    DictSetScalarKey,
     ApplyDataclass,
     /// `PyOps.ArgError(int, string) -> object`：绑定失败时抛 `TypeError`（永不返回）。
     ArgError,

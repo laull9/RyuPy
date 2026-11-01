@@ -29,6 +29,7 @@ impl<'a> ExprBuilder<'a> {
                     Operand::Const(Constant::I64(small))
                 }
             }
+            Literal::BigInt(value) => self.boxed_const(Constant::BigInt(value.to_string())),
             Literal::Float(v) => {
                 if self.is_dynamic_context() {
                     self.boxed_const(Constant::F64(*v))
@@ -75,7 +76,8 @@ impl<'a> ExprBuilder<'a> {
     /// 把一个常量装箱成动态值。
     pub(crate) fn boxed_const(&mut self, c: Constant) -> Operand {
         let from = match &c {
-            Constant::I64(_) | Constant::BigInt(_) => MirType::I64,
+            Constant::I64(_) => MirType::I64,
+            Constant::BigInt(_) => MirType::Dynamic,
             Constant::F64(_) => MirType::F64,
             Constant::Bool(_) => MirType::Bool,
             Constant::Str(_) => MirType::Str,

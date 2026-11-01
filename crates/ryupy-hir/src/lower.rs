@@ -45,10 +45,12 @@ pub fn lower_module_with_native_exceptions(
     native_exceptions: &[&str],
 ) -> (Module, Vec<Diagnostic>) {
     let mut diagnostics = Vec::new();
+    crate::future_imports::validate(&parsed.module.body, parsed.file, &mut diagnostics);
     let line_starts = compute_line_starts(source);
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope {
+        postponed_annotations: crate::future_imports::annotations(&parsed.module.body),
         exception_imports: crate::exception_imports::collect(
             &parsed.module.body,
             native_exceptions,
@@ -65,7 +67,9 @@ pub fn lower_module_with_native_exceptions(
     );
 
     // 模块级变量与导入绑定（M2.7）：见 module_vars.rs。
-    let (mut vars, module_var_ids) = crate::module_vars::collect_module_vars(parsed, info);
+    let (mut vars, mut module_var_ids) = crate::module_vars::collect_module_vars(parsed, info);
+
+    crate::typed_dict::register(parsed, info, native_exceptions, &mut global_scope);
 
     // 第一遍：收集所有顶层 class 与 def，支持前向引用。
     //
@@ -84,13 +88,37 @@ pub fn lower_module_with_native_exceptions(
                 if crate::decorators::has_runtime_class_decorators(
                     class,
                     &global_scope.dataclass_markers,
-                ) =>
+                ) || crate::runtime_bases::candidate(class, &global_scope, &module_var_ids)
+                    .is_some()
+                    || matches!(
+                        crate::native_bases::resolve(class, &global_scope),
+                        Some((
+                            crate::hir::NativeBase::Enum | crate::hir::NativeBase::Flag,
+                            _
+                        ))
+                    ) =>
             {
                 global_scope
                     .dynamic_names
                     .insert(Name::from(class.name.as_str()));
             }
             _ => {}
+        }
+    }
+    // 原生Enum即使没有装饰器，也只在完成成员转换之后发布到动态公开槽。
+    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
+        if let ast::Stmt::ClassDef(class) = stmt {
+            let name = Name::from(class.name.as_str());
+            if global_scope.dynamic_names.contains(&name) {
+                module_var_ids.entry(name.clone()).or_insert_with(|| {
+                    vars.alloc(ModuleVar {
+                        name,
+                        range: class.range(),
+                        annotation: None,
+                        is_global: true,
+                    })
+                });
+            }
         }
     }
     let mut definition_functions = FxHashMap::default();
@@ -119,7 +147,9 @@ pub fn lower_module_with_native_exceptions(
                     name: name.clone(),
                     base: None,
                     fields: Vec::new(),
+                    has_annotations: false,
                     declared_fields: Vec::new(),
+                    enum_members: None,
                     body: Vec::new(),
                     frozen: false,
                     is_dataclass: false,
@@ -144,10 +174,7 @@ pub fn lower_module_with_native_exceptions(
                 top_classes.push(cls_id);
 
                 let mut methods = Vec::new();
-                for item in &cls_def.body {
-                    let ast::Stmt::FunctionDef(fn_def) = item else {
-                        continue;
-                    };
+                for fn_def in crate::class_body::methods(&cls_def.body) {
                     let method_name = Name::from(fn_def.name.as_str());
                     let func_id = functions.alloc(crate::hir::Function {
                         name: method_name.clone(),
@@ -346,6 +373,11 @@ pub fn lower_module_with_native_exceptions(
     };
     // `__name__` / `__package__` / `__file__` 在模块代码执行前写入。
     main_lower_ctx.emit_special_module_vars(info, parsed.module.range);
+    if global_scope.postponed_annotations
+        && crate::annotation_stmts::has_module_annotations(&parsed.module.body)
+    {
+        main_lower_ctx.setup_annotations(parsed.module.range);
+    }
     for stmt in &parsed.module.body {
         match stmt {
             // `def` 不产生普通语句，但它的默认值必须在**定义位置**求值
@@ -402,7 +434,7 @@ pub fn lower_module_with_native_exceptions(
         functions[func_id].annotation_values = annotations;
     }
 
-    let module = Module {
+    let mut module = Module {
         protected_exports: crate::exception_imports::protected_names(
             &global_scope.exception_imports,
         ),
@@ -418,6 +450,7 @@ pub fn lower_module_with_native_exceptions(
         default_exprs: all_default_exprs,
     };
 
+    crate::unresolved_globals::resolve(&mut module);
     (module, diagnostics)
 }
 pub(crate) struct StmtLowerCtx<'a> {
@@ -454,7 +487,7 @@ pub(crate) struct StmtLowerCtx<'a> {
 /// 默认值里若还有 lambda（带参数默认值），同样登记进 `nested_defaults`。
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn lower_default_expr(
-    class_names: Option<&rustc_hash::FxHashSet<Name>>,
+    class_names: Option<&crate::class_scope::ClassScope>,
     file: FileId,
     global_scope: &GlobalScope,
     module_vars: &FxHashMap<Name, ModuleVarId>,

@@ -3,19 +3,19 @@
 //! 两件事放在这里：
 //! 1. **收集模块级变量**：顶层赋值、`global` 声明、导入绑定与 `__name__` 等特殊名字；
 //! 2. **降级导入语句**：`import a.b` / `from .x import y` 展开成带绝对模块名的
-//!    [`StmtKind::Import`] / [`StmtKind::ImportFrom`]，函数体内的导入明确报错。
+//!    [`StmtKind::Import`] / [`StmtKind::ImportFrom`]；导入语句本身见 imports_lower。
 //!
 //! 相对导入的绝对化只依赖 driver 给的 `__package__`，不读文件。
 
 use la_arena::Arena;
 use rustc_hash::FxHashMap;
-use ryupy_base::{Diagnostic, Ranged, Span};
+use ryupy_base::Ranged;
 use ryupy_syntax::ParsedModule;
 use ryupy_syntax::ast;
 
 use crate::hir::{
     AssignTarget, Binding, Expr, ExprKind, Literal, ModuleInfo, ModuleVar, ModuleVarId, Name, Stmt,
-    StmtId, StmtKind, TypeRef,
+    StmtKind, TypeRef,
 };
 use crate::imports;
 use crate::lower::StmtLowerCtx;
@@ -50,6 +50,11 @@ pub(crate) fn collect_module_vars(
             parsed.module.range,
             Some(TypeRef::Str),
         );
+    }
+    if crate::future_imports::annotations(&parsed.module.body)
+        && crate::annotation_stmts::has_module_annotations(&parsed.module.body)
+    {
+        ensure_var(&Name::from("__annotations__"), parsed.module.range, None);
     }
     // 顶层赋值（含 for 目标、except as 等）。
     for (name, range) in collect_assigned_names(&parsed.module.body) {
@@ -116,111 +121,16 @@ pub(crate) fn collect_module_vars(
         }
     }
 
+    if crate::future_imports::annotations(&parsed.module.body)
+        && let Some(&var) = module_var_ids.get(&Name::from("__annotations__"))
+    {
+        // 注解字典可被用户替换为自定义mapping，不能固定为静态dict布局。
+        vars[var].is_global = true;
+    }
     (vars, module_var_ids)
 }
 
 impl StmtLowerCtx<'_> {
-    /// 一条 import 可能绑定多个名字，因此可能展开成多条 HIR 语句。
-    pub(crate) fn lower_import_to_root(&mut self, stmt: &ast::Stmt) {
-        let mut out = Vec::new();
-        self.lower_import_into(stmt, &mut out);
-        self.body.root.extend(out);
-    }
-
-    pub(crate) fn lower_import_into(&mut self, stmt: &ast::Stmt, out: &mut Vec<StmtId>) {
-        if !self.module_scope {
-            self.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(self.file, stmt.range()),
-                    "函数体内暂不支持 import",
-                )
-                .with_code("E0100")
-                .with_primary_label("M2.7 只支持模块顶层的导入"),
-            );
-            return;
-        }
-        let line = self.line_of(stmt.range().start().to_usize());
-        match stmt {
-            ast::Stmt::Import(import) => {
-                for alias in &import.names {
-                    let module = alias.name.as_str().to_owned();
-                    let (bind_name, bind_root) = match &alias.asname {
-                        Some(name) => (name.as_str().to_owned(), false),
-                        None => (
-                            module.split('.').next().unwrap_or_default().to_owned(),
-                            module.contains('.'),
-                        ),
-                    };
-                    let Some(&bind) = self.module_vars.get(&Name::from(bind_name.as_str())) else {
-                        continue;
-                    };
-                    let id = self.body.stmts.alloc(Stmt {
-                        kind: StmtKind::Import {
-                            module,
-                            bind,
-                            bind_root,
-                        },
-                        range: alias.range,
-                        line,
-                    });
-                    out.push(id);
-                }
-            }
-            ast::Stmt::ImportFrom(from) => {
-                let level = from.level;
-                let Some(module) = imports::absolute_module(
-                    from.module.as_ref().map(|m| m.as_str()),
-                    level,
-                    self.package,
-                ) else {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, stmt.range()),
-                            "无法解析相对导入：超出顶层包",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("相对导入层级过深"),
-                    );
-                    return;
-                };
-                let mut names = Vec::new();
-                for alias in &from.names {
-                    let name = alias.name.as_str();
-                    if name == "*" {
-                        self.diagnostics.push(
-                            Diagnostic::error(
-                                Span::new(self.file, alias.range),
-                                "暂不支持 `from ... import *`",
-                            )
-                            .with_code("E0100")
-                            .with_primary_label("请显式列出要导入的名字"),
-                        );
-                        continue;
-                    }
-                    let bind_name = alias
-                        .asname
-                        .as_ref()
-                        .map(|a| a.as_str().to_owned())
-                        .unwrap_or_else(|| name.to_owned());
-                    let Some(&bind) = self.module_vars.get(&Name::from(bind_name.as_str())) else {
-                        continue;
-                    };
-                    names.push((name.to_owned(), bind));
-                }
-                if names.is_empty() {
-                    return;
-                }
-                let id = self.body.stmts.alloc(Stmt {
-                    kind: StmtKind::ImportFrom { module, names },
-                    range: stmt.range(),
-                    line,
-                });
-                out.push(id);
-            }
-            _ => {}
-        }
-    }
-
     /// 写入 `__name__` / `__package__` / `__file__`。
     pub(crate) fn emit_special_module_vars(
         &mut self,

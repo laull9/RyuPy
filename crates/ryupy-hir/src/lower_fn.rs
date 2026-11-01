@@ -14,7 +14,7 @@ use crate::hir::ModuleVarId;
 use crate::hir::{Body, ExprId, Function, Local, ModuleVar, Name, Param, Stmt, StmtKind};
 use crate::lower::StmtLowerCtx;
 use crate::operator::lower_type_ref;
-use crate::scope::{FunctionScope, GlobalScope, collect_assigned_names};
+use crate::scope::{FunctionScope, GlobalScope, collect_function_bindings};
 
 /// 一个待降级函数的 AST 来源：def 语句或 lambda 表达式。
 pub(crate) enum FnSource<'a> {
@@ -26,7 +26,7 @@ pub(crate) enum FnSource<'a> {
 /// 降级单个函数体所需的全部上下文（lower_module 的局部状态打包）。
 #[allow(clippy::too_many_arguments)]
 pub(crate) struct LowerArgs<'a, 'b> {
-    pub(crate) class_names: Option<&'a rustc_hash::FxHashSet<Name>>,
+    pub(crate) class_names: Option<&'a crate::class_scope::ClassScope>,
     pub(crate) file: FileId,
     pub(crate) package: &'a str,
     pub(crate) source: FnSource<'b>,
@@ -295,7 +295,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     // 预扫描本作用域绑定的局部变量（赋值即局部；嵌套 def 名也是局部）。
     // `nonlocal` 声明的名字跳过：它们指向外层 cell，不是本函数的局部。
     if !is_lambda {
-        let mut bound: Vec<(Name, ryupy_base::TextRange)> = collect_assigned_names(body_stmts);
+        let mut bound: Vec<(Name, ryupy_base::TextRange)> = collect_function_bindings(body_stmts);
         for name in crate::closures_find::collect_def_names(body_stmts) {
             bound.push((name.clone(), ryupy_base::TextRange::default()));
         }
@@ -321,7 +321,30 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         let mut annotations = Vec::new();
         for parameter in def.parameters.iter() {
             if let Some(expr) = parameter.annotation() {
-                let value = crate::lower::lower_default_expr(
+                let value = if global_scope.postponed_annotations {
+                    crate::annotation_format::lower(expr, file, main_body, diagnostics)
+                } else {
+                    crate::lower::lower_default_expr(
+                        class_names,
+                        file,
+                        global_scope,
+                        module_vars,
+                        &analysis.nested_funcs,
+                        nested_defaults,
+                        main_body,
+                        diagnostics,
+                        expr,
+                    )
+                };
+                all_default_exprs.push(value);
+                annotations.push((Name::from(parameter.name().as_str()), value));
+            }
+        }
+        if let Some(expr) = &def.returns {
+            let value = if global_scope.postponed_annotations {
+                crate::annotation_format::lower(expr, file, main_body, diagnostics)
+            } else {
+                crate::lower::lower_default_expr(
                     class_names,
                     file,
                     global_scope,
@@ -331,23 +354,8 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
                     main_body,
                     diagnostics,
                     expr,
-                );
-                all_default_exprs.push(value);
-                annotations.push((Name::from(parameter.name().as_str()), value));
-            }
-        }
-        if let Some(expr) = &def.returns {
-            let value = crate::lower::lower_default_expr(
-                class_names,
-                file,
-                global_scope,
-                module_vars,
-                &analysis.nested_funcs,
-                nested_defaults,
-                main_body,
-                diagnostics,
-                expr,
-            );
+                )
+            };
             all_default_exprs.push(value);
             annotations.push((Name::from("return"), value));
         }

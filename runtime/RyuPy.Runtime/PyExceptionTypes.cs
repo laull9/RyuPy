@@ -11,8 +11,9 @@ namespace RyuPy.Runtime;
 //
 // 1. `try/except` 的匹配由 CIL 的类型化 catch 子句完成（`catch PyValueError`），
 //    CLR 的异常捕获天然按「类型及其基类」匹配，正好对应 Python 的 `except` 语义。
-//    因此 **CLR 继承树必须与 Python 继承树同构**：`except ArithmeticError` 要能捕获
+//    通常 CLR 主继承树与 Python 单继承一致：`except ArithmeticError` 要能捕获
 //    `ZeroDivisionError`，那 `PyZeroDivisionError` 就必须真的派生自 `PyArithmeticError`。
+//    io.UnsupportedOperation 的额外 ValueError 父边由 MIR 在每个 ValueError handler 原位置展开额外 catch；不能只改 isinstance。
 // 2. 反过来，任何「CLR 里平级、Python 里是父子」的偷懒写法都会造成语义错误，
 //    而且是那种只在少数错误路径上才暴露的错误。
 //
@@ -559,6 +560,7 @@ public static class PyExceptionTypes
         ["ImportError"] = m => new PyImportError(m),
         ["ModuleNotFoundError"] = m => new PyModuleNotFoundError(m),
         ["OSError"] = m => new PyOSError(m),
+        ["UnsupportedOperation"] = m => m.Length == 0 ? new PyUnsupportedOperation() : new PyUnsupportedOperation(m),
         ["IsADirectoryError"] = m => new PyIsADirectoryError(m),
         ["NotADirectoryError"] = m => new PyNotADirectoryError(m),
         ["FileNotFoundError"] = m => new PyFileNotFoundError(m),
@@ -567,16 +569,19 @@ public static class PyExceptionTypes
         ["StopIteration"] = _ => new PyStopIteration(null),
         ["StopAsyncIteration"] = _ => new PyStopAsyncIteration(),
         ["EOFError"] = m => new PyEOFError(m),
+        ["BufferError"] = m => new PyBufferError(m),
     };
 
     /// <summary>该名字是否是已知的 Python 异常类型（供编译期诊断使用）。</summary>
     /// <param name="typeName">Python 类型名。</param>
-    public static bool IsKnown(string typeName) => Factories.ContainsKey(typeName);
+    public static bool IsKnown(string typeName) => Factories.ContainsKey(typeName)
+        || PyExceptionHierarchy.IsSubclass(typeName, "Warning");
 
     /// <summary>按类型名构造异常对象；未知名字退化成 <c>Exception</c> 家族。</summary>
     /// <param name="typeName">Python 类型名。</param>
     /// <param name="message">消息。</param>
     public static PyBaseException Create(string typeName, string message) =>
+        PyExceptionHierarchy.IsSubclass(typeName, "Warning") ? PyWarningTypes.Create(typeName, [message]) :
         Factories.TryGetValue(typeName, out var factory)
             ? factory(message)
             : new PyException(typeName, message);

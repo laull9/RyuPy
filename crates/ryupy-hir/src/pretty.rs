@@ -116,7 +116,7 @@ fn dump_stmt(
                 writeln!(
                     out,
                     "{pad}import {imported} as {}",
-                    binding_name(module, body, crate::hir::Binding::ModuleVar(*bind))
+                    binding_name(module, body, *bind)
                 )
                 .unwrap();
             }
@@ -128,8 +128,7 @@ fn dump_stmt(
             let items = names
                 .iter()
                 .map(|(name, bind)| {
-                    let bind_name =
-                        binding_name(module, body, crate::hir::Binding::ModuleVar(*bind));
+                    let bind_name = binding_name(module, body, *bind);
                     if *name == bind_name {
                         name.clone()
                     } else {
@@ -159,10 +158,10 @@ fn dump_stmt(
                     .iter()
                     .map(|item| match item {
                         crate::hir::SequenceItem::One(binding) => {
-                            binding_name(module, body, *binding)
+                            sequence_target_name(module, body, binding)
                         }
                         crate::hir::SequenceItem::Rest(binding) => {
-                            format!("*{}", binding_name(module, body, *binding))
+                            format!("*{}", sequence_target_name(module, body, binding))
                         }
                     })
                     .collect::<Vec<_>>()
@@ -307,54 +306,18 @@ fn dump_stmt(
                     format!("({})", module.classes[base_id].name)
                 }
                 Some(crate::hir::ClassBase::Builtin(name)) => format!("({name})"),
-                Some(crate::hir::ClassBase::Expr(expr)) => {
+                Some(crate::hir::ClassBase::TypedDict { value, total }) => {
+                    format!("(TypedDict {value:?}, total={total})")
+                }
+                Some(crate::hir::ClassBase::Native { kind, value }) => {
+                    format!("(native {kind:?}: {})", dump_expr(module, body, value))
+                }
+                Some(crate::hir::ClassBase::Expr(expr) | crate::hir::ClassBase::Runtime(expr)) => {
                     format!("({})", dump_expr(module, body, expr))
                 }
             };
             writeln!(out, "{pad}class {}{base}:", class.name).unwrap();
-            for item in &class.body {
-                match &item.kind {
-                    crate::hir::ClassItemKind::Annotation { name, value } => {
-                        writeln!(out, "{pad}    {name}: {}", dump_expr(module, body, *value))
-                            .unwrap();
-                    }
-                    crate::hir::ClassItemKind::Attr { name, value } => {
-                        writeln!(
-                            out,
-                            "{pad}    {} = {}",
-                            name,
-                            dump_expr(module, body, *value)
-                        )
-                        .unwrap();
-                    }
-                    crate::hir::ClassItemKind::Method { func, decorators } => {
-                        let decorators: Vec<String> = decorators
-                            .iter()
-                            .map(|d| match d {
-                                crate::hir::Decorator::Property => "@property".into(),
-                                crate::hir::Decorator::StaticMethod => "@staticmethod".into(),
-                                crate::hir::Decorator::ClassMethod => "@classmethod".into(),
-                                crate::hir::Decorator::Dataclass => "@dataclass".into(),
-                                crate::hir::Decorator::Expr(expr) => {
-                                    format!("@{}", dump_expr(module, body, *expr))
-                                }
-                            })
-                            .collect();
-                        for decorator in decorators {
-                            writeln!(out, "{pad}    {decorator}").unwrap();
-                        }
-                        writeln!(
-                            out,
-                            "{pad}    def {}(self, ...)",
-                            module.functions[*func].name
-                        )
-                        .unwrap();
-                    }
-                    crate::hir::ClassItemKind::Expr(value) => {
-                        writeln!(out, "{pad}    {}", dump_expr(module, body, *value)).unwrap();
-                    }
-                }
-            }
+            crate::pretty_class::dump_items(out, module, body, &class.body, &pad);
         }
         StmtKind::Break => writeln!(out, "{pad}break").unwrap(),
         StmtKind::Continue => writeln!(out, "{pad}continue").unwrap(),
@@ -412,9 +375,13 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
         .join(", ")
 }
 
-fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
+pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::ClassLookup { name, fallback } => format!(
+            "class_lookup({name}, {})",
+            dump_expr(module, body, *fallback)
+        ),
         ExprKind::ClassLocal(name) => format!("class_namespace.{name}"),
         ExprKind::YieldFrom(value) => format!("yield from {}", dump_expr(module, body, *value)),
         ExprKind::Yield(value) => format!(
@@ -423,9 +390,11 @@ fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
                 .map(|value| dump_expr(module, body, value))
                 .unwrap_or_else(|| "None".to_owned())
         ),
+        ExprKind::UnresolvedGlobal(name) => format!("<unresolved {name}>"),
         ExprKind::Missing => "<missing>".to_string(),
         ExprKind::Literal(lit) => match lit {
             Literal::Int(v) => v.to_string(),
+            Literal::BigInt(v) => v.to_string(),
             Literal::Float(v) => format!("{v:?}"),
             Literal::Bool(b) => (if *b { "True" } else { "False" }).to_string(),
             Literal::Str(s) => format!("{s:?}"),
@@ -569,5 +538,24 @@ fn dump_type_ref(ty: &TypeRef) -> &'static str {
         TypeRef::Class(_) => "class",
         TypeRef::Error => "<error>",
         TypeRef::Runtime => "<runtime>",
+    }
+}
+
+/// 解包叶目标只做格式化，不改变目标表达式的执行位置。
+fn sequence_target_name(
+    module: &Module,
+    body: &Body,
+    target: &crate::hir::SequenceTarget,
+) -> String {
+    match target {
+        crate::hir::SequenceTarget::Binding(binding) => binding_name(module, body, *binding),
+        crate::hir::SequenceTarget::Attribute { base, name } => {
+            format!("{}.{}", dump_expr(module, body, *base), name)
+        }
+        crate::hir::SequenceTarget::Subscript { base, index } => format!(
+            "{}[{}]",
+            dump_expr(module, body, *base),
+            dump_expr(module, body, *index)
+        ),
     }
 }

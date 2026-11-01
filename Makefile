@@ -136,3 +136,7 @@ run: runtime ## 编译并运行：make run FILE=x.py
 clean: ## 清理全部产物
 	cargo clean
 	rm -rf runtime/RyuPy.Runtime/bin runtime/RyuPy.Runtime/obj
+
+.PHONY: upstream
+upstream: runtime ## 固定上游移植用例差分（需已准备登记版本的项目源码）
+	"$(PYTHON)" tests/run_upstream.py

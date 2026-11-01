@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.7：TestCase 与结果统计，不输出含耗时的文本 runner。
 import unittest
 

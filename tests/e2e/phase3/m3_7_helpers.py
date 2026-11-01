@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.7：枚举、循环深拷贝、日期、可复现随机与字符串常量。
 import copy
 import random

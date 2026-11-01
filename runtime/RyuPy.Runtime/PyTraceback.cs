@@ -104,6 +104,18 @@ public static class PyTraceback
         return _depth;
     }
 
+    /// <summary>保存调用者帧深度；原生回调捕获异常后用 PopTo(depth + 1) 恢复，不创建虚假帧。</summary>
+    public static long CaptureDepth() => _depth;
+
+    /// <summary>警告冷路径读取调用位置；越过已编译帧时遵循 sys:1，不增加热路径分配。</summary>
+    public static PyStackFrame GetCallerLocation(long stacklevel)
+    {
+        long offset = Math.Max(1, stacklevel);
+        if (offset > _depth) return new PyStackFrame("sys", "", 1);
+        int index = _depth - (int)offset;
+        return new PyStackFrame(_files[index], _functions[index], _lines[index]);
+    }
+
     /// <summary>更新最内层帧的当前行号。</summary>
     /// <param name="line">行号（1 起）。</param>
     public static void SetLine(int line)
@@ -151,6 +163,14 @@ public static class PyTraceback
     {
         var builder = new StringBuilder();
         AppendChain(builder, exception, 0, new HashSet<PyBaseException>(ReferenceEqualityComparer.Instance));
+        return builder.ToString();
+    }
+
+    /// <summary>退出回调的不可传播异常只报告本体，不修改或展开原异常链。</summary>
+    public static string FormatSingle(PyBaseException exception)
+    {
+        var builder = new StringBuilder();
+        AppendSingle(builder, exception);
         return builder.ToString();
     }
 

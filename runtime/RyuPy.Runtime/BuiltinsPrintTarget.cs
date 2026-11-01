@@ -21,6 +21,16 @@ public static partial class Builtins
     public static void WriteSep(object? target) => PySystem.Write(target, " ");
     /// <summary>默认行尾。</summary>
     public static void WriteNewline(object? target) => PySystem.Write(target, "\n");
+    /// <summary>所有 Main 退出路径先执行显式退出回调，再刷新标准流；回调错误不替换原退出码。</summary>
+    public static int FinishExit(int exitCode)
+    {
+        // 主体异常已由 Main 报告；退出回调不能继承已经终止的主体栈或处理器上下文。
+        PyTraceback.Reset();
+        PyErrors.LeaveHandler(null);
+        PyAtexit.RunExitFunctions();
+        return FlushForExit(exitCode);
+    }
+
     /// <summary>所有退出路径刷新标准流；失败转Python报告和退出码120，不从Main泄漏CLR异常。</summary>
     public static int FlushForExit(int exitCode)
     {

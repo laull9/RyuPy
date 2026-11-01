@@ -38,6 +38,7 @@ pub struct ExprBuilder<'a> {
     /// HIR 模块变量 → 静态槽位。
     pub module_vars: &'a FxHashMap<ryupy_hir::ModuleVarId, crate::mir::GlobalId>,
     /// 全部静态槽位（读取槽位类型做装箱）。
+    pub module_bound_flags: &'a FxHashMap<crate::mir::GlobalId, crate::mir::GlobalId>,
     pub globals: &'a la_arena::Arena<crate::mir::GlobalDecl>,
     pub current_hir_fn: ryupy_hir::FuncId,
     /// 闭包环境形参（M3.0）：`Free` 读取时从这里取外层 cell。
@@ -190,6 +191,20 @@ impl<'a> ExprBuilder<'a> {
                     });
                     return Operand::Local(dest);
                 }
+                if let Some(&flag) = self.module_bound_flags.get(&gid) {
+                    let name = self.hir.vars[*var].name.as_str().to_owned();
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::CheckGlobalBound),
+                        args: vec![Operand::Global(flag), Operand::Const(Constant::Str(name))],
+                    }));
+                }
+                // 立即冻结本次读取；后续实参/子表达式的调用可改变同一模块槽。
+                let frozen = self.alloc_temp(global_ty.clone());
+                self.push_stmt(Statement::Assign {
+                    dest: frozen,
+                    value: Rvalue::Use(op),
+                });
+                let op = Operand::Local(frozen);
                 // 动态函数里的静态模块变量要装箱。
                 if self.types.is_dynamic(self.current_hir_fn) {
                     let dest = self.alloc_temp(MirType::Dynamic);
@@ -363,6 +378,9 @@ impl<'a> ExprBuilder<'a> {
                 Operand::Local(dest)
             }
             // 内建构造名作为值（`isinstance(x, int)`、`f = str`）：构造类型对象
+            ExprKind::ClassLookup { name, fallback } => {
+                self.build_class_lookup(name.as_str(), *fallback)
+            }
             ExprKind::ClassLocal(name) => self.runtime_call(
                 RuntimeFn::ClassNamespaceGet,
                 vec![

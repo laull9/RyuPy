@@ -14,7 +14,7 @@ use std::borrow::Cow;
 
 use dotnetdll::prelude::*;
 use rustc_hash::FxHashMap;
-use ryupy_mir::{FnId, LinkedProgram};
+use ryupy_mir::{ExportGuard, FnId, LinkedProgram};
 
 use crate::stackify::RuntimeRefs;
 use crate::types::ClassTypeMap;
@@ -57,16 +57,32 @@ pub(crate) fn emit_module_accessors(
             ),
         );
         let mut ins = Vec::new();
-        for (name, gid) in &module.exports {
+        for export in &module.exports {
+            let (name, gid) = (&export.name, &export.value);
             ins.push(Instruction::LoadArgument(0));
             ins.push(Instruction::load_string(name));
             ins.push(Instruction::call(refs.module_same_name));
             let skip = ins.len();
             ins.push(Instruction::BranchFalsy(0));
+            if let ExportGuard::BoundFlag(bound) = &export.guard {
+                // 检查由 MIR 导出协议明确指定；后端不根据字段类型或名字猜 Python 状态。
+                ins.push(Instruction::LoadStaticField {
+                    volatile: false,
+                    param0: FieldSource::Definition(refs.global_fields[bound]),
+                });
+                ins.push(Instruction::load_string(module.name.clone()));
+                ins.push(Instruction::load_string(name));
+                ins.push(Instruction::call(refs.bindings.check_module));
+            }
             ins.push(Instruction::LoadStaticField {
                 volatile: false,
                 param0: FieldSource::Definition(refs.global_fields[gid]),
             });
+            if matches!(export.guard, ExportGuard::ValueSentinel) {
+                ins.push(Instruction::load_string(module.name.clone()));
+                ins.push(Instruction::load_string(name));
+                ins.push(Instruction::call(refs.bindings.load_attribute));
+            }
             let ty = program.globals[*gid].ty.clone();
             crate::stackify::emit_box(&mut ins, &ty, refs, class_types);
             ins.push(Instruction::Return);
@@ -101,7 +117,8 @@ pub(crate) fn emit_module_accessors(
             ),
         );
         let mut ins = Vec::new();
-        for (name, gid) in &module.exports {
+        for export in &module.exports {
+            let (name, gid) = (&export.name, &export.value);
             ins.push(Instruction::LoadArgument(1));
             ins.push(Instruction::load_string(name));
             ins.push(Instruction::call(refs.module_same_name));
@@ -143,6 +160,14 @@ pub(crate) fn emit_module_accessors(
                 volatile: false,
                 param0: FieldSource::Definition(refs.global_fields[gid]),
             });
+            if let ExportGuard::BoundFlag(bound) = &export.guard {
+                // 值转换和存储均成功后才发布绑定；失败不能改变旧值/旧状态。
+                ins.push(Instruction::LoadConstantInt32(1));
+                ins.push(Instruction::StoreStaticField {
+                    volatile: false,
+                    param0: FieldSource::Definition(refs.global_fields[bound]),
+                });
+            }
             ins.push(Instruction::Return);
             let next = ins.len();
             ins[skip] = Instruction::BranchFalsy(next);

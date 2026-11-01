@@ -1,4 +1,5 @@
-//! 原生模块异常的有限静态身份：只接受 driver 确认无同名源码的直接导入。
+//! 原生模块的有限静态身份：异常与显式白名单基类共用稳定导入分析。
+//! 只接受 driver 确认无同名源码的直接导入，不按名字猜测第三方类语义。
 //! 别名必须在本模块中保持稳定；动态类型表达式留给明确诊断，不按属性拼写猜类型。
 
 use std::cell::Cell;
@@ -19,6 +20,30 @@ pub(crate) struct ExceptionImport {
 }
 
 impl ExceptionImport {
+    /// 与异常共用稳定导入身份分析；原生普通基类不参与CLR异常类型解析。
+    pub(crate) fn resolve_native_base(
+        &self,
+        member: Option<&str>,
+        position: TextSize,
+    ) -> Option<crate::hir::NativeBase> {
+        let member = match (&self.member, member) {
+            (Some(imported), None) => imported.as_str(),
+            (None, Some(member)) => member,
+            _ => return None,
+        };
+        let kind = match (self.module.as_str(), member) {
+            ("unittest", "TestCase") => crate::hir::NativeBase::UnittestTestCase,
+            ("enum", "Enum") => crate::hir::NativeBase::Enum,
+            ("enum", "Flag") => crate::hir::NativeBase::Flag,
+            _ => return None,
+        };
+        if position < self.available {
+            return None;
+        }
+        self.used.set(true);
+        Some(kind)
+    }
+
     pub(crate) fn resolve(&self, member: Option<&str>, position: TextSize) -> Option<&'static str> {
         if position < self.available {
             return None;
@@ -32,6 +57,7 @@ impl ExceptionImport {
             ("json", "JSONDecodeError") => Some("json.JSONDecodeError"),
             ("dataclasses", "FrozenInstanceError") => Some("dataclasses.FrozenInstanceError"),
             ("re", "error") => Some("re.error"),
+            ("io", "UnsupportedOperation") => Some("io.UnsupportedOperation"),
             _ => None,
         };
         if resolved.is_some() {
@@ -121,7 +147,7 @@ pub(crate) fn collect(stmts: &[ast::Stmt], native: &[&str]) -> FxHashMap<Name, E
     imports
 }
 
-/// 仅实际参与静态 handler 的导入别名需要保护；普通导入依旧可被外部改写。
+/// 仅实际参与静态handler或原生基类的导入别名需要保护；普通导入仍可被外部改写。
 pub(crate) fn protected_names(imports: &FxHashMap<Name, ExceptionImport>) -> Vec<String> {
     let mut names: Vec<_> = imports
         .iter()

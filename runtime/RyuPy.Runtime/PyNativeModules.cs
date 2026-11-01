@@ -27,7 +27,13 @@ public static class PyNativeModules
             ["TextIOWrapper"] = new PyNativeType("TextIOWrapper", "_io", null,
                 value => value is PyIOTextFile or PyStandardStream, "TextIOBase", "IOBase"),
             ["open"] = Forward("open", PyIO.Open),
+            ["UnsupportedOperation"] = PyType.Get("UnsupportedOperation"),
+        }, (key, _) =>
+        {
+            if (key == "UnsupportedOperation") throw new PyNotImplementedError("rebinding io.UnsupportedOperation is not supported");
         });
+        PyModules.RegisterNative("unicodedata", PyUnicodeData.CreateAttributes());
+        PyModules.RegisterNative("textwrap", PyTextWrap.CreateAttributes());
         PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
         PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
         PyModules.RegisterNative("json", PyJsonModule.CreateAttributes(), (key, _) =>
@@ -47,6 +53,25 @@ public static class PyNativeModules
         PyModules.RegisterNative("functools", PyFunctools.CreateAttributes());
         PyModules.RegisterNative("contextlib", PyContextLib.CreateAttributes());
         PyModules.RegisterNative("typing", PyTyping.CreateAttributes());
+        PyModules.RegisterNative("__future__", PyFuture.CreateAttributes());
+        PyModules.RegisterNative("logging", PyLogging.CreateAttributes());
+        PyModules.RegisterNative("argparse", PyArgparse.CreateAttributes());
+        PyModules.RegisterNative("copy", PyCopy.CreateAttributes());
+        PyModules.RegisterNative("datetime", PyDateTimeModule.CreateAttributes());
+        PyModules.RegisterNative("random", PyRandomModule.CreateAttributes());
+        PyModules.RegisterNative("string", PyStringModule.CreateAttributes());
+        PyModules.RegisterNative("enum", PyEnum.CreateAttributes(), (key, _) =>
+        {
+            if (key is "Enum" or "Flag")
+                throw new PyNotImplementedError($"rebinding enum.{key} is not supported");
+        });
+        PyModules.RegisterNative("atexit", PyAtexit.CreateAttributes());
+        PyModules.RegisterNative("warnings", PyWarnings.CreateAttributes(), PyWarnings.BeforeSet);
+        PyModules.RegisterNative("unittest", PyUnittest.CreateAttributes(), (key, _) =>
+        {
+            if (key == "TestCase")
+                throw new PyNotImplementedError("rebinding unittest.TestCase is not supported");
+        });
         PyModules.RegisterNative("dataclasses", PyDataclasses.CreateAttributes(), (key, _) =>
         {
             if (key == "FrozenInstanceError")

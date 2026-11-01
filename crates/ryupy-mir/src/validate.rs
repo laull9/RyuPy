@@ -8,6 +8,8 @@
 //! - [x] `Call` 实参个数与被调函数签名一致
 //! - [x] 异常区域的块区间连续、处理入口在区间之外、区域之间正确嵌套
 
+pub use crate::validate_exports::validate_linked_exports;
+
 use crate::mir::{
     Callee, Constant, MirType, Operand, Program, RuntimeFn, Rvalue, Statement, Terminator,
 };
@@ -85,15 +87,18 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             ));
                         }
                         validate_rvalue(func, block_id, value, program, &mut errors);
+                        class_namespace::validate_destination(func, *dest, value, &mut errors);
                         if matches!(
                             value,
                             Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                                callee: Callee::Runtime(
+                                    RuntimeFn::NumericAccumulatorAdd | RuntimeFn::CheckGlobalBound
+                                ),
                                 ..
                             }
                         ) {
                             errors.push(format!(
-                                "函数 `{}` 的累加器Add无返回值，不能写入局部",
+                                "函数 `{}` 的运行时调用无返回值，不能写入局部",
                                 func.name
                             ));
                         }
@@ -104,11 +109,15 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             rvalue,
                             Rvalue::Call {
                                 callee: Callee::Runtime(
-                                    RuntimeFn::GeneratorInput
+                                    RuntimeFn::ClassNamespaceContains
+                                        | RuntimeFn::GeneratorInput
                                         | RuntimeFn::GeneratorRetry
                                         | RuntimeFn::PrintTarget
                                         | RuntimeFn::NumericAccumulatorCreate
                                         | RuntimeFn::NumericAccumulatorValue
+                                        | RuntimeFn::ValidateOrdinaryBase
+                                        | RuntimeFn::TypedDictBegin
+                                        | RuntimeFn::TypedDictFinish
                                 ),
                                 ..
                             }
@@ -287,7 +296,11 @@ fn operand_type(program: &Program, func: &crate::mir::Function, op: &Operand) ->
             .iter()
             .find(|(id, _)| id == loc)
             .map(|(_, l)| l.ty.clone()),
-        Operand::Global(global) => Some(program.globals[*global].ty.clone()),
+        Operand::Global(global) => program
+            .globals
+            .iter()
+            .find(|(id, _)| id == global)
+            .map(|(_, decl)| decl.ty.clone()),
         // 数组的元素类型永远是 object；内联数组本身在求值栈上是 `object[]`，
         // 但在 MIR 里只作为运行时调用的参数使用，统一按 Dynamic 记。
         Operand::Array(_) => Some(MirType::Dynamic),
@@ -397,8 +410,14 @@ fn validate_rvalue(
             if let Callee::Runtime(runtime) = callee {
                 let expected: Option<&[MirType]> = match runtime {
                     RuntimeFn::PrintTarget => Some(&[]),
-                    RuntimeFn::NumericAccumulatorCreate | RuntimeFn::NumericAccumulatorValue => {
-                        Some(&[MirType::Dynamic])
+                    RuntimeFn::CheckGlobalBound => Some(&[MirType::Bool, MirType::Str]),
+                    RuntimeFn::ClassNamespaceContains => Some(&[MirType::Dynamic, MirType::Str]),
+                    RuntimeFn::NumericAccumulatorCreate
+                    | RuntimeFn::NumericAccumulatorValue
+                    | RuntimeFn::TypedDictFinish
+                    | RuntimeFn::ValidateOrdinaryBase => Some(&[MirType::Dynamic]),
+                    RuntimeFn::TypedDictBegin => {
+                        Some(&[MirType::Str, MirType::Dynamic, MirType::Bool, MirType::Str])
                     }
                     RuntimeFn::NumericAccumulatorAdd => Some(&[MirType::Dynamic, MirType::Dynamic]),
                     RuntimeFn::WriteI64 => Some(&[MirType::Dynamic, MirType::I64]),
@@ -426,6 +445,17 @@ fn validate_rvalue(
                                 | RuntimeFn::NumericAccumulatorValue
                         ) {
                             "累加器ABI"
+                        } else if matches!(
+                            runtime,
+                            RuntimeFn::TypedDictBegin | RuntimeFn::TypedDictFinish
+                        ) {
+                            "TypedDict构建ABI"
+                        } else if matches!(runtime, RuntimeFn::CheckGlobalBound) {
+                            "模块绑定位ABI"
+                        } else if matches!(runtime, RuntimeFn::ClassNamespaceContains) {
+                            "类命名空间存在性ABI"
+                        } else if matches!(runtime, RuntimeFn::ValidateOrdinaryBase) {
+                            "普通基类守卫ABI"
                         } else {
                             "输出目标ABI"
                         }
@@ -556,45 +586,8 @@ fn validate_operand(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::mir::{BasicBlock, Function, MirType, Terminator};
-    use la_arena::Arena;
+#[path = "validate_tests.rs"]
+mod tests;
 
-    #[test]
-    fn catches_unreachable_terminator() {
-        let mut functions = Arena::default();
-        let mut blocks = Arena::default();
-        let entry = blocks.alloc(BasicBlock {
-            stmts: Vec::new(),
-            terminator: Terminator::Unreachable,
-        });
-        let func = Function {
-            name: "main".to_string(),
-            codegen_name: "main".to_string(),
-            source_file: "t.py".to_string(),
-            params: Vec::new(),
-            ret: MirType::Unit,
-            body: crate::mir::Body {
-                locals: Arena::default(),
-                blocks,
-                entry,
-                regions: Vec::new(),
-            },
-            param_meta: Vec::new(),
-            function_global: None,
-            defaults_global: None,
-            signature_global: None,
-            env: None,
-        };
-        let entry_fn = functions.alloc(func);
-        let prog = Program {
-            functions,
-            classes: Arena::default(),
-            globals: Arena::default(),
-            entry: entry_fn,
-            source_name: "t.py".to_string(),
-        };
-        assert!(validate(&prog).is_err());
-    }
-}
+#[path = "validate_class_namespace.rs"]
+mod class_namespace;

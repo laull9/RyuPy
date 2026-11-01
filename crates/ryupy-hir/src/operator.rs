@@ -71,6 +71,9 @@ pub fn lower_type_ref(
     globals: &GlobalScope,
     _diags: &mut Vec<Diagnostic>,
 ) -> TypeRef {
+    if globals.postponed_annotations {
+        return TypeRef::Runtime;
+    }
     match expr {
         ast::Expr::Name(name) => match name.id.as_str() {
             "int" => TypeRef::Int,

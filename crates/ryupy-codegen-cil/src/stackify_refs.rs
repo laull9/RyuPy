@@ -9,6 +9,12 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    /// 普通Enum类体完成转换；Python规则由运行时处理。
+    pub enum_finalize: MethodRefIndex,
+    pub enum_create: MethodRefIndex,
+    pub(crate) classes: crate::class_refs::ClassRefs,
+    pub(crate) typed_dict: crate::typed_dict_refs::TypedDictRefs,
+    pub dict_set_scalar_key: MethodRefIndex,
     pub(crate) accumulator: crate::accumulator_refs::AccumulatorRefs,
     pub(crate) system: crate::system_refs::SystemRefs,
     pub(crate) function_objects: crate::function_refs::FunctionRefs,
@@ -69,8 +75,8 @@ pub struct RuntimeRefs {
     pub raise_prepare: MethodRefIndex,
     pub make_unbound: MethodRefIndex,
     pub load_checked: MethodRefIndex,
-    /// `PyErrors.LoadName(object, string)`：模块级名字的未赋值检查。
-    pub load_name: MethodRefIndex,
+    /// 模块名字与属性采用 MIR 显式声明的绑定检查，保留有类型槽。
+    pub(crate) bindings: crate::module_binding_refs::BindingRefs,
     pub dyn_str: MethodRefIndex,
     pub dyn_type: MethodRefIndex,
     pub trace_push: MethodRefIndex,
@@ -119,8 +125,8 @@ pub struct RuntimeRefs {
     pub exception_factory_ctor: MethodRefIndex,
     /// `PyBaseException.BindPythonClass(PyClass)`。
     pub bind_python_class: MethodRefIndex,
-    /// `PyErrors.UserExceptionMessage(object[]) -> string`。
-    pub user_exception_message: MethodRefIndex,
+    /// `PyErrors.UserExceptionMessageForBase(string, object[]) -> string`。
+    pub user_exception_message_for_base: MethodRefIndex,
     /// `System.Object` 的 `MethodType`：`object[]` 的元素类型。
     pub object_type: MethodType,
     // ── 一等函数与参数绑定（M2.1）──

@@ -28,8 +28,11 @@ public static partial class PyOps
 {
     private static readonly ConcurrentDictionary<string, PyBuiltinFunction> BuiltinFunctions = new();
 
-    /// <summary>读取按名称缓存的一等内建函数对象；不更改类型对象构造路径。</summary>
+    /// <summary>读取稳定的一等内建对象；map/memoryview保留真实类型身份，其余已登记函数继续使用函数缓存。</summary>
     /// <param name="name">编译器识别的内建函数名。</param>
-    public static object BuiltinFunction(string name) =>
-        BuiltinFunctions.GetOrAdd(name, static value => new PyBuiltinFunction(value));
+    public static object BuiltinFunction(string name) => name == "NotImplemented" ? PyNotImplemented.Instance
+        : name == "Ellipsis" ? PyEllipsis.Instance
+        : name == "map" ? PyMap.Type
+        : name == "memoryview" ? PyMemoryView.Type
+        : BuiltinFunctions.GetOrAdd(name, static value => new PyBuiltinFunction(value));
 }

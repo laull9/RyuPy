@@ -28,6 +28,12 @@ pub enum Resolution {
 /// 模块级名字表：第一遍收集所有顶层 `def` / `class`，因此函数之间可以前向引用。
 #[derive(Debug, Default)]
 pub struct GlobalScope {
+    /// TypedDict仅登记候选语法，真实根/父身份仍在执行定义时验证。
+    pub(crate) typed_dict_roots: FxHashSet<Name>,
+    pub(crate) typed_dict_modules: FxHashSet<Name>,
+    pub(crate) typed_dict_classes: FxHashSet<Name>,
+    /// future annotations：注解仅保存规范字符串，不参与名称求值与布局假设。
+    pub postponed_annotations: bool,
     /// driver 已确认的原生模块异常导入别名。
     pub(crate) exception_imports: FxHashMap<Name, crate::exception_imports::ExceptionImport>,
     pub names: FxHashMap<Name, Resolution>,
@@ -211,15 +217,75 @@ pub fn collect_assigned_names(body: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
     names
 }
 
+/// 函数词法绑定包含 import 别名；独立于模块赋值扫描，避免稳定导入被误判为重绑定。
+pub(crate) fn collect_function_bindings(stmts: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
+    use ryupy_syntax::ast::visitor::{Visitor, walk_stmt};
+    struct Imports(Vec<(Name, TextRange)>);
+    impl<'a> Visitor<'a> for Imports {
+        fn visit_stmt(&mut self, stmt: &'a ast::Stmt) {
+            let aliases = match stmt {
+                ast::Stmt::FunctionDef(_) | ast::Stmt::ClassDef(_) => return,
+                ast::Stmt::Import(import) => Some((&import.names, true)),
+                ast::Stmt::ImportFrom(import) => Some((&import.names, false)),
+                _ => None,
+            };
+            if let Some((aliases, root)) = aliases {
+                for alias in aliases {
+                    if alias.name.as_str() == "*" {
+                        continue;
+                    }
+                    let bound = alias.asname.as_ref().map_or_else(
+                        || {
+                            if root {
+                                alias.name.as_str().split('.').next().unwrap_or_default()
+                            } else {
+                                alias.name.as_str()
+                            }
+                        },
+                        |name| name.as_str(),
+                    );
+                    let name = Name::from(bound);
+                    if !self.0.iter().any(|(existing, _)| existing == &name) {
+                        self.0.push((name, alias.range));
+                    }
+                }
+            } else {
+                walk_stmt(self, stmt);
+            }
+        }
+    }
+    let mut imports = Imports(collect_assigned_names(stmts));
+    for stmt in stmts {
+        imports.visit_stmt(stmt);
+    }
+    imports.0
+}
+
 pub fn resolve_builtin(name: &str) -> Option<Builtin> {
+    // Python 3 的历史名称是 OSError 同一对象；统一规范名让构造、catch 和基类共用身份。
+    if matches!(name, "IOError" | "EnvironmentError") {
+        return Some(Builtin::Exception("OSError"));
+    }
     // 内建异常类：名字表与运行时 `PyExceptionTypes` 保持一致（两边都登记才算可用）。
     const EXCEPTIONS: &[&str] = &[
         "BaseException",
         "Exception",
+        "Warning",
+        "UserWarning",
+        "DeprecationWarning",
+        "PendingDeprecationWarning",
+        "RuntimeWarning",
+        "SyntaxWarning",
+        "FutureWarning",
+        "ImportWarning",
+        "UnicodeWarning",
+        "BytesWarning",
+        "ResourceWarning",
         "SystemExit",
         "KeyboardInterrupt",
         "GeneratorExit",
         "ArithmeticError",
+        "BufferError",
         "ZeroDivisionError",
         "OverflowError",
         "LookupError",
@@ -274,15 +340,20 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "frozenset" => Builtin::Dynamic("frozenset"),
         "bytes" => Builtin::Dynamic("bytes"),
         "bytearray" => Builtin::Dynamic("bytearray"),
+        "memoryview" => Builtin::Dynamic("memoryview"),
         "sorted" => Builtin::Dynamic("sorted"),
         "hash" => Builtin::Dynamic("hash"),
         "repr" => Builtin::Dynamic("repr"),
+        "dir" => Builtin::Dynamic("dir"),
+        "Ellipsis" => Builtin::Dynamic("Ellipsis"),
+        "NotImplemented" => Builtin::Dynamic("NotImplemented"),
         "bool" => Builtin::Dynamic("bool"),
         "iter" => Builtin::Dynamic("iter"),
         "next" => Builtin::Dynamic("next"),
         "range" => Builtin::Dynamic("range"),
         "enumerate" => Builtin::Dynamic("enumerate"),
         "zip" => Builtin::Dynamic("zip"),
+        "map" => Builtin::Dynamic("map"),
         "reversed" => Builtin::Dynamic("reversed"),
         "sum" => Builtin::Dynamic("sum"),
         "min" => Builtin::Dynamic("min"),

@@ -7,9 +7,13 @@
 use crate::mir::*;
 use la_arena::Arena;
 
-pub(crate) fn lower(program: &mut Program, generators: &[FnId]) {
+pub(crate) fn lower(
+    program: &mut Program,
+    generators: &[FnId],
+    exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+) {
     for &id in generators {
-        lower_one(program, id);
+        lower_one(program, id, exception_globals);
     }
 }
 
@@ -77,7 +81,11 @@ pub(super) fn boxed(
     Operand::Local(dest)
 }
 
-fn lower_one(program: &mut Program, id: FnId) {
+fn lower_one(
+    program: &mut Program,
+    id: FnId,
+    exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+) {
     let function = &mut program.functions[id];
     let mut body = std::mem::replace(&mut function.body, empty_body());
     let original: Vec<_> = body
@@ -257,7 +265,7 @@ fn lower_one(program: &mut Program, id: FnId) {
         terminator: Terminator::Goto(dispatch),
     });
 
-    exceptions.finish(&mut body, frame, &original);
+    exceptions.finish(&mut body, frame, &original, exception_globals);
 
     let name = function.name.clone();
     let source_file = function.source_file.clone();

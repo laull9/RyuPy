@@ -80,11 +80,11 @@ public static class PyAbc
     };
     private static bool Known(string protocol, string name)
     {
-        bool sequence = name is "list" or "tuple" or "str" or "bytes" or "bytearray" or "range" or "deque";
+        bool sequence = name is "list" or "tuple" or "str" or "bytes" or "bytearray" or "range" or "deque" or "version_info";
         bool mapping = name is "dict" or "defaultdict" or "Counter";
         bool set = name is "set" or "frozenset" or "dict_keys" or "dict_items";
         bool view = name is "dict_values" or "dict_keys" or "dict_items";
-        bool iterator = name is "generator" or "chain" or "islice" or "repeat" or "_deque_iterator" or "_deque_reverse_iterator";
+        bool iterator = name is "map" or "generator" or "chain" or "islice" or "repeat" or "_deque_iterator" or "_deque_reverse_iterator";
         return protocol switch
         {
             "Sequence" => sequence,

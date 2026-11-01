@@ -5,7 +5,7 @@
 //! import 的运行时调用都在这里。控制流语句的分派也在本文件，
 //! 循环与 `try` 的具体构建分别在 `build_loops.rs` / `build_try.rs`。
 
-use ryupy_hir::{AssignTarget, Builtin, ExprId, ExprKind, ModuleVarId, StmtId, StmtKind};
+use ryupy_hir::{AssignTarget, Binding, Builtin, ExprId, ExprKind, StmtId, StmtKind};
 use ryupy_ty::{Ty, type_ref_to_ty};
 
 use crate::build::{FunctionBuilder, ty_to_mir};
@@ -26,8 +26,7 @@ impl FunctionBuilder<'_> {
     }
 
     /// `import x` / `import a.b` / `import x as y`。
-    fn build_import(&mut self, module: &str, bind: ModuleVarId, bind_root: bool) {
-        let gid = self.module_vars[&bind];
+    fn build_import(&mut self, module: &str, bind: Binding, bind_root: bool) {
         let value = if bind_root {
             // `import a.b`：先把 a.b 初始化，再把顶层包 a 绑定到命名空间。
             let _ = self.import_value(module);
@@ -36,13 +35,12 @@ impl FunctionBuilder<'_> {
         } else {
             self.import_value(module)
         };
-        self.push_stmt(Statement::SetGlobal { dest: gid, value });
+        self.store_import_binding(bind, value);
     }
 
     /// `from m import a, b as c`：逐个取属性，缺属性时运行时尝试导入子模块。
-    fn build_import_from(&mut self, module: &str, names: &[(String, ModuleVarId)]) {
+    fn build_import_from(&mut self, module: &str, names: &[(String, Binding)]) {
         for (name, bind) in names {
-            let gid = self.module_vars[bind];
             let temp = self.alloc_temp(MirType::Dynamic);
             self.push_stmt(Statement::Assign {
                 dest: temp,
@@ -54,12 +52,22 @@ impl FunctionBuilder<'_> {
                     ],
                 },
             });
-            self.push_stmt(Statement::SetGlobal {
-                dest: gid,
-                value: Operand::Local(temp),
-            });
+            self.store_import_binding(*bind, Operand::Local(temp));
         }
     }
+    /// 导入调用可在写入前抛错，不能把成功路径的标记传播到 except 路径。
+    /// 先前已赋值的局部失败时保留旧值；新导入局部保守保留运行时未绑定检查。
+    fn store_import_binding(&mut self, binding: Binding, value: Operand) {
+        let fresh = match binding {
+            Binding::Local(local) if !self.assigned_locals.contains(&local) => Some(local),
+            _ => None,
+        };
+        self.store_binding(binding, value, &MirType::Dynamic);
+        if let Some(local) = fresh {
+            self.assigned_locals.remove(&local);
+        }
+    }
+
     pub(crate) fn build_stmt(&mut self, stmt_id: StmtId) {
         if !self.is_current_unterminated() {
             // 当前基本块已终结（例如前一条语句是 return/break/continue）。

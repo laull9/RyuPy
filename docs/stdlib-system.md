@@ -15,8 +15,9 @@
   文件描述符、`dir_fd`、自定义 opener、底层句柄和完整特殊文件协议不在本批范围。
 - 已映射常用 `FileNotFoundError`、`FileExistsError`、`PermissionError`、`IsADirectoryError`、`NotADirectoryError`、
   `OSError`、关闭后的 `ValueError` 及参数类型错误。宿主错误消息/errno/filename 等完整异常属性不保证逐字一致。
-- **`io.UnsupportedOperation` 层级尚未支持**：不可读/不可写及部分非法文本定位当前抛 `OSError`，
-  不能据此声称其同时继承 `OSError` / `ValueError` 的 CPython 异常类型已兼容。
+- **`io.UnsupportedOperation` 的有限双父适配已实现**：既有不可读/不可写能力错误、文本文件非零相对定位及内存流 `fileno()` 使用该类型；
+  `OSError` / `ValueError` 两父捕获与用户派生类已验收。`StringIO` 非零相对定位仍为普通 `OSError`。
+  仅支持无参/单参构造和稳定原生导入身份，不开放一般多重继承、动态 except 或完整文件描述符；见 [具体范围与成本](io-unsupported-operation.md)。
 
 ## `sys` 与进程入口
 
@@ -127,3 +128,22 @@
 - 二进制普通读取按块搬运，逐行读取到行尾停止；返回read/getvalue快照仍会分配与复制。
   目录迭代首次推进快照目录列表；glob对候选名做码点匹配。未提交吞吐加速测量，不声称快于CPython。
 - 固定项目需要依赖与真实入口全部通过才计入原生分子；本页API或单个语法用例通过不增加项目覆盖率。
+
+## M3.7：版本与实现标识（已验证子集）
+
+`sys.version_info` 为不可变的原生 tuple 派生协议对象，内容固定为
+`(3, 12, 13, 'final', 0)`，表示项目选定的 **Python 语言兼容目标**，不表示已经
+实现 Python 3.12.13 的全部能力。支持 major/minor/micro/releaselevel/serial、
+整型下标/切片、长度、迭代、与 tuple 的双向比较及相同哈希、tuple 祖先判定、
+结构化 repr。字段与下标不可写；不把它伪装成可变 list，也不承诺完整 structseq
+构造、元组算术或全部 tuple 方法。
+
+`sys.implementation.name` 明确为 `ryupy`；`sys.version` 为
+`3.12.13 (RyuPy; Python compatibility target)`。不伪造 CPython 构建信息、
+cache_tag 或原生 ABI。implementation 当前仅公开受控只读 name，不宣称完整
+SimpleNamespace 的可写字段/实现元数据协议。
+
+语言版本值通过固定 CPython 3.12.13 的 `m3_7_sys_version.py` 对照；实际实现
+名称和 version 字符串由 `PySystemVersionTests` 独立验收，不作假差分。
+该差分已通过，专测包含双向不支持比较的 TypeError；不把语言版本声明作为
+项目兼容率或全版本实现完成的证据。

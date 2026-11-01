@@ -72,7 +72,8 @@ pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
 
     // 兜底：仍然未知或声明为 global 的变量走动态路径。
     for (id, var) in module.vars.iter() {
-        if var.is_global || hints[id].is_none() {
+        // Ellipsis未绑定时回退真实单例，之后可被任意用户值遮蔽；槽不能固化为i64/str。
+        if var.name.as_str() == "Ellipsis" || var.is_global || hints[id].is_none() {
             hints.insert(id, Some(Ty::Dynamic));
         }
     }
@@ -219,7 +220,7 @@ fn collect_assignments(
     }
 }
 
-fn expr_hint(
+pub(crate) fn expr_hint(
     module: &Module,
     body: &ryupy_hir::Body,
     expr: ExprId,
@@ -234,6 +235,7 @@ fn expr_hint(
             // 超出 i64 的整数必须装箱（BigInteger），槽位类型按 Dynamic 处理。
             Literal::Int(v) if i64::try_from(*v).is_err() => Ty::Dynamic,
             Literal::Int(_) => Ty::Int,
+            Literal::BigInt(_) => Ty::Dynamic,
             Literal::Float(_) => Ty::Float,
             Literal::Bool(_) => Ty::Bool,
             Literal::Str(_) => Ty::Str,
@@ -313,5 +315,36 @@ fn numeric(a: &Ty, b: &Ty) -> Option<Ty> {
         (Ty::Int, Ty::Int) => Some(Ty::Int),
         (Ty::Int | Ty::Float, Ty::Int | Ty::Float) => Some(Ty::Float),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ellipsis_shadow_slot_can_hold_builtin_before_integer_assignment() {
+        let source = "print(Ellipsis)\nEllipsis = 1\nordinary = 1\n";
+        let mut db = ryupy_base::SourceDb::default();
+        let file = db.add("ellipsis.py", source);
+        let (parsed, errors) = ryupy_syntax::parse(file, source);
+        assert!(errors.is_empty());
+        let (module, errors) = ryupy_hir::lower_module(
+            &parsed,
+            &ryupy_hir::ModuleInfo {
+                name: "__main__".into(),
+                package: String::new(),
+                file: "ellipsis.py".into(),
+            },
+            source,
+        );
+        assert!(errors.is_empty());
+        let types = super::infer_module_var_types(&module);
+        for (id, var) in module.vars.iter() {
+            if var.name.as_str() == "Ellipsis" {
+                assert_eq!(types[id], crate::Ty::Dynamic);
+            }
+            if var.name.as_str() == "ordinary" {
+                assert_eq!(types[id], crate::Ty::Int);
+            }
+        }
     }
 }

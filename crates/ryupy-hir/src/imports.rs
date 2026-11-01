@@ -5,7 +5,7 @@
 //! HIR 只使用 driver 已经加载好的模块身份。
 //!
 //! 递归范围：模块顶层可能出现的 `if` / `for` / `while` / `try` / `with` 体。
-//! 函数体与类体内的导入不参与模块图（函数内 import 暂不支持，lowering 会报诊断）。
+//! 模块绑定扫描不进入独立作用域；driver 使用另一入口递归发现函数/方法依赖，但不执行它们。
 
 use ryupy_syntax::ast;
 
@@ -48,11 +48,18 @@ pub fn absolute_module(module: Option<&str>, level: u32, package: &str) -> Optio
 /// 收集模块级语句里的全部导入请求（按源码顺序重复出现）。
 pub fn collect_imports(stmts: &[ast::Stmt], package: &str) -> Vec<ImportRequest> {
     let mut out = Vec::new();
-    walk(stmts, package, &mut out);
+    walk(stmts, package, false, &mut out);
     out
 }
 
-fn walk(stmts: &[ast::Stmt], package: &str, out: &mut Vec<ImportRequest>) {
+/// driver 静态依赖图发现；包括尚未调用的函数/方法，但绝不表示提前执行导入。
+pub fn collect_all_imports(stmts: &[ast::Stmt], package: &str) -> Vec<ImportRequest> {
+    let mut out = Vec::new();
+    walk(stmts, package, true, &mut out);
+    out
+}
+
+fn walk(stmts: &[ast::Stmt], package: &str, nested: bool, out: &mut Vec<ImportRequest>) {
     for stmt in stmts {
         match stmt {
             ast::Stmt::Import(import) => {
@@ -99,29 +106,31 @@ fn walk(stmts: &[ast::Stmt], package: &str, out: &mut Vec<ImportRequest>) {
                 }
             }
             ast::Stmt::If(s) => {
-                walk(&s.body, package, out);
+                walk(&s.body, package, nested, out);
                 for clause in &s.elif_else_clauses {
-                    walk(&clause.body, package, out);
+                    walk(&clause.body, package, nested, out);
                 }
             }
             ast::Stmt::For(s) => {
-                walk(&s.body, package, out);
-                walk(&s.orelse, package, out);
+                walk(&s.body, package, nested, out);
+                walk(&s.orelse, package, nested, out);
             }
             ast::Stmt::While(s) => {
-                walk(&s.body, package, out);
-                walk(&s.orelse, package, out);
+                walk(&s.body, package, nested, out);
+                walk(&s.orelse, package, nested, out);
             }
             ast::Stmt::Try(s) => {
-                walk(&s.body, package, out);
+                walk(&s.body, package, nested, out);
                 for handler in &s.handlers {
                     let ast::ExceptHandler::ExceptHandler(h) = handler;
-                    walk(&h.body, package, out);
+                    walk(&h.body, package, nested, out);
                 }
-                walk(&s.orelse, package, out);
-                walk(&s.finalbody, package, out);
+                walk(&s.orelse, package, nested, out);
+                walk(&s.finalbody, package, nested, out);
             }
-            ast::Stmt::With(s) => walk(&s.body, package, out),
+            ast::Stmt::With(s) => walk(&s.body, package, nested, out),
+            ast::Stmt::FunctionDef(def) if nested => walk(&def.body, package, nested, out),
+            ast::Stmt::ClassDef(class) if nested => walk(&class.body, package, nested, out),
             _ => {}
         }
     }

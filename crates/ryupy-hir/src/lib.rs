@@ -9,9 +9,13 @@
 //! 数据布局采用 rust-analyzer 风格：每个函数体一组 arena，节点之间用 `Idx` 引用，
 //! 避免生命周期在各层之间传染。
 
+mod annotation_format;
+mod annotation_stmts;
 mod assign_target;
 mod aug_assign;
+mod chain_assign;
 pub mod class;
+mod class_bases;
 mod class_hir;
 mod closures;
 mod closures_decl;
@@ -23,8 +27,10 @@ mod comprehensions;
 mod control_flow;
 mod decorators;
 mod definition_metadata;
+mod enum_class;
 mod exception_imports;
 pub mod expr;
+mod future_imports;
 mod generator_scan;
 mod hir;
 pub mod imports;
@@ -33,9 +39,11 @@ mod lower_fn;
 mod lower_stmts;
 mod module_definitions;
 mod module_vars;
+mod native_bases;
 pub mod operator;
 pub mod pretty;
 mod scope;
+mod typed_dict;
 mod with;
 
 pub use hir::*;
@@ -46,3 +54,37 @@ mod lower_tests;
 
 #[cfg(test)]
 mod exception_imports_tests;
+
+#[cfg(test)]
+mod native_bases_tests;
+
+#[cfg(test)]
+mod enum_class_tests;
+
+#[cfg(test)]
+mod annotation_tests;
+
+mod sequence_target;
+
+mod runtime_bases;
+
+mod unresolved_globals;
+
+mod imports_lower;
+
+#[cfg(test)]
+mod function_import_tests;
+
+mod integer_literal;
+
+#[cfg(test)]
+mod typed_dict_tests;
+
+mod class_body;
+#[cfg(test)]
+mod class_if_tests;
+mod class_scope;
+mod pretty_class;
+
+#[cfg(test)]
+mod flag_tests;

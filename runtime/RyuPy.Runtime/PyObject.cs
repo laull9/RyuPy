@@ -27,7 +27,7 @@ public sealed class PyType
     public static PyType Get(string name) => Cache.GetOrAdd(name, static n => new PyType(n));
 
     /// <summary>与 CPython 一致的 <c>repr</c> 形式。</summary>
-    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : "")}{Name}'>";
+    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "_TypedDictMeta" ? "typing." : "")}{Name}'>";
 }
 
 /// <summary>
@@ -52,6 +52,7 @@ public static class PyObject
         PyNativeType => PyType.Get("type"),
         PyInstance instance => instance.Class,
         PyModule => PyType.Get("module"),
+        PyClass cls when cls.HasEnumMetadata => PyEnum.MetaType,
         PyClass => PyType.Get("type"),
         PyBaseException exception when exception.PythonClass is not null => exception.PythonClass,
         PyBoundMethod => PyType.Get("method"),
@@ -72,9 +73,13 @@ public static class PyObject
         PyClass cls => GetClassAttr(cls, name),
         PySuper super => GetSuperAttr(super, name),
         PyType type => GetTypeAttr(type, name),
+        PyNotImplemented when name == "__class__" => PyType.Get("NotImplementedType"),
         PyBaseException exception => GetExceptionAttr(exception, name),
         PyFunction function => function.GetMetadata(name),
         PyBuiltinFunction function => function.GetMetadata(name),
+        PyBuiltinMethod method => method.GetMetadata(name),
+        PyList or PyTuple or PyDict or PySet or PyFrozenSet or PyDictView or PyByteArray or PyBytes or string or PyGenerator
+            => PyOps.PrepareMethod(obj, name),
         PyBoundMethod method => GetAttr(method.Target, name),
         PyProperty property => property.GetAccessor(name),
         _ => throw new PyAttributeError(
@@ -136,6 +141,7 @@ public static class PyObject
                 }
                 return;
             case PyInstance instance:
+                PyEnum.GuardMemberMutation(instance, name);
                 instance.Class.CheckDataclassWrite(name, deleting: true);
                 if (instance.Class.HasProperties
                     && instance.Class.TryLookup(name, out PyClass propertyOwner, out object? descriptor)
@@ -352,6 +358,7 @@ public static class PyObject
     /// <summary>读取实例属性。</summary>
     private static object? GetInstanceAttr(PyInstance instance, string name)
     {
+        if (PyEnum.TryGetMemberAttr(instance, name, out object? enumValue)) return enumValue;
         // 1. 数据描述符（property）优先，即使实例字典里有同名值。
         //    没有描述符的类直接跳过这次类查找。
         if (instance.Class.HasProperties
@@ -395,6 +402,7 @@ public static class PyObject
     /// <summary>读取类对象上的属性。</summary>
     private static object? GetClassAttr(PyClass cls, string name)
     {
+        if (PyEnum.TryGetClassAttr(cls, name, out object? enumValue)) return enumValue;
         switch (name)
         {
             case "__name__":
@@ -462,6 +470,7 @@ public static class PyObject
     /// <summary>写实例属性；property setter 优先。</summary>
     private static void SetInstanceAttr(PyInstance instance, string name, object? value)
     {
+        PyEnum.GuardMemberMutation(instance, name);
         instance.Class.CheckDataclassWrite(name, deleting: false);
         InitializeDataclassField(instance, name, value);
     }
@@ -492,6 +501,8 @@ public static class PyObject
             "__name__" or "__qualname__" => type.Name,
             "__module__" when type.Name == "JSONDecodeError" => "json.decoder",
             "__module__" when type.Name == "error" => "re",
+            "__module__" when type.Name == "_TypedDictMeta" => "typing",
+            "__module__" when type.Name == "ellipsis" => "builtins",
             _ => throw new PyAttributeError($"type object '{type.Name}' has no attribute '{name}'"),
         };
 

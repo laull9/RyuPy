@@ -110,7 +110,7 @@ impl ExprBuilder<'_> {
         container
     }
 
-    /// 字典字面量：匹配固定 CPython 3.12 的小字典批量求值 / 大字典逐项插入。
+    /// 字典字面量：小字典批量求值，16–17项逐对；更大动态键由精确标量守卫限定。
     pub(crate) fn build_dict_literal(
         &mut self,
         pairs: &[(ExprId, ExprId)],
@@ -128,7 +128,22 @@ impl ExprBuilder<'_> {
         let dict = Operand::Local(dict_dest);
         // CPython 的编译器栈预算为 30 个 key/value 槽；超过 15 对改用逐项 MAP_ADD。
         // 小字典必须先完成所有表达式，才开始 hash / equality（包括中间发生 yield）。
-        // 大字典保持逐对求值插入，不把首次 hash 错误延后到全部表达式之后。
+        // >17项不模拟CPython临时分块：仅接受没有用户hash/eq的标量键。
+        // 全字面量键免守卫；其它情况每对key/value都求完后再由运行时检查真实值。
+        let guarded = pairs.len() > 17
+            && !pairs.iter().all(|(key, _)| {
+                matches!(
+                    self.hir.functions[self.current_hir_fn].body.exprs[*key].kind,
+                    ExprKind::Literal(
+                        ryupy_hir::Literal::Int(_)
+                            | ryupy_hir::Literal::BigInt(_)
+                            | ryupy_hir::Literal::Float(_)
+                            | ryupy_hir::Literal::Str(_)
+                            | ryupy_hir::Literal::Bool(_)
+                            | ryupy_hir::Literal::None
+                    )
+                )
+            });
         let grouped = pairs.len() <= 15;
         let mut prepared = Vec::new();
         for &(key, value) in pairs {
@@ -141,18 +156,22 @@ impl ExprBuilder<'_> {
             if grouped {
                 prepared.push((key_boxed, val_boxed));
             } else {
-                self.insert_dict_pair(&dict, key_boxed, val_boxed);
+                self.insert_dict_pair(&dict, key_boxed, val_boxed, guarded);
             }
         }
         for (key, value) in prepared {
-            self.insert_dict_pair(&dict, key, value);
+            self.insert_dict_pair(&dict, key, value, false);
         }
         dict
     }
 
-    fn insert_dict_pair(&mut self, dict: &Operand, key: Operand, value: Operand) {
+    fn insert_dict_pair(&mut self, dict: &Operand, key: Operand, value: Operand, guarded: bool) {
         self.push_stmt(Statement::Eval(Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::SetItem),
+            callee: Callee::Runtime(if guarded {
+                RuntimeFn::DictSetScalarKey
+            } else {
+                RuntimeFn::SetItem
+            }),
             args: vec![dict.clone(), key, value],
         }));
     }

@@ -110,6 +110,7 @@ public static partial class PyOps
     /// <param name="value">被查找的值。</param>
     public static bool Contains(object? container, object? value) => container switch
     {
+        PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Contains(cls, value),
         PyList list => list.Contains(value),
         PyTuple tuple => tuple.Contains(value),
         PyDict dict => dict.Contains(value),
@@ -131,6 +132,7 @@ public static partial class PyOps
     /// <param name="value">容器或字符串。</param>
     public static long Len(object? value) => value switch
     {
+        PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Length(cls),
         PyList list => list.Count,
         PyTuple tuple => tuple.Length,
         PyDict dict => dict.Count,
@@ -187,6 +189,7 @@ public static partial class PyOps
         PyByteArray array => MapBytes([.. array.Bytes]),
         PyRange range => DrainIterator(new PyRangeIter(range)),
         IPyIterator iterator => DrainIterator(iterator),
+        PyClass cls when PyEnum.IsEnumClass(cls) => DrainIterator(PyEnum.Iterate(cls)),
         _ when PyObject.TryMethod(value, "__iter__", [], out object? iterator) =>
             ToSequence(PyIter.Create(iterator)),
         _ => throw new PyTypeError($"'{PyRepr.TypeName(value)}' object is not iterable"),
@@ -314,6 +317,11 @@ public static partial class PyOps
         {
             object? attribute = PyObject.GetAttr(obj, name);
             return CallValue(attribute, args, kwNames, kwValues);
+        }
+        if (name == "__len__" && IsBuiltinSized(obj))
+        {
+            ValidatePreparedArity(obj!, name, args.Length);
+            return PreparedLength(obj!, name, args, kwNames, kwValues);
         }
         // 目前只有 list.sort 接受关键字；其余方法收到关键字立即报 TypeError，
         // 避免“多写了参数却被静默忽略”。

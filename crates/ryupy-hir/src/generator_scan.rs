@@ -10,6 +10,8 @@ use ryupy_syntax::ast::visitor::{Visitor, walk_expr, walk_stmt};
 #[derive(Default)]
 struct Scan {
     has_yield: bool,
+    // 局部注解不执行，但其中直接yield仍参与CPython的生成器符号判定。
+    ignored_annotation: bool,
     unsupported: Vec<(ryupy_base::TextRange, &'static str)>,
 }
 impl<'a> Visitor<'a> for Scan {
@@ -26,6 +28,17 @@ impl<'a> Visitor<'a> for Scan {
                 return;
             }
             ast::Stmt::ClassDef(_) => return,
+            ast::Stmt::AnnAssign(assign) => {
+                self.visit_expr(&assign.target);
+                if let Some(value) = &assign.value {
+                    self.visit_expr(value);
+                }
+                let previous = self.ignored_annotation;
+                self.ignored_annotation = true;
+                self.visit_expr(&assign.annotation);
+                self.ignored_annotation = previous;
+                return;
+            }
             _ => {}
         }
         walk_stmt(self, stmt);
@@ -42,7 +55,8 @@ impl<'a> Visitor<'a> for Scan {
             ast::Expr::Call(call)
                 if matches!(call.func.as_ref(), ast::Expr::Name(name) if name.id.as_str() == "super")
                     && call.arguments.args.is_empty()
-                    && call.arguments.keywords.is_empty() =>
+                    && call.arguments.keywords.is_empty()
+                    && !self.ignored_annotation =>
             {
                 self.unsupported.push((
                     call.arguments.range,

@@ -7,7 +7,7 @@ namespace RyuPy.Runtime;
 /// 内建异常的 Python 继承关系（`isinstance(e, Exception)` 用）。
 /// </summary>
 /// <remarks>
-/// CIL 的类型化 catch 直接使用 CLR 继承树；这里维护同一张表是为了在运行时回答
+/// CIL 的类型化 catch 使用 CLR 主继承树；UnsupportedOperation 的额外父边由 MIR 同步展开。这里在运行时回答
 /// “某个异常类型是否继承自另一个内建类型”，供 <c>isinstance</c> / <c>issubclass</c>
 /// 与用户异常链使用。新增内建异常时与 <see cref="PyExceptionTypes"/> 同步。
 /// </remarks>
@@ -17,6 +17,17 @@ public static class PyExceptionHierarchy
     {
         ["BaseException"] = null,
         ["Exception"] = "BaseException",
+        ["Warning"] = "Exception",
+        ["UserWarning"] = "Warning",
+        ["DeprecationWarning"] = "Warning",
+        ["PendingDeprecationWarning"] = "Warning",
+        ["RuntimeWarning"] = "Warning",
+        ["SyntaxWarning"] = "Warning",
+        ["FutureWarning"] = "Warning",
+        ["ImportWarning"] = "Warning",
+        ["UnicodeWarning"] = "Warning",
+        ["BytesWarning"] = "Warning",
+        ["ResourceWarning"] = "Warning",
         ["SystemExit"] = "BaseException",
         ["KeyboardInterrupt"] = "BaseException",
         ["GeneratorExit"] = "BaseException",
@@ -44,6 +55,7 @@ public static class PyExceptionHierarchy
         ["ImportError"] = "Exception",
         ["ModuleNotFoundError"] = "ImportError",
         ["OSError"] = "Exception",
+        ["UnsupportedOperation"] = "OSError",
         ["IsADirectoryError"] = "OSError",
         ["NotADirectoryError"] = "OSError",
         ["FileNotFoundError"] = "OSError",
@@ -52,6 +64,7 @@ public static class PyExceptionHierarchy
         ["StopIteration"] = "Exception",
         ["StopAsyncIteration"] = "Exception",
         ["EOFError"] = "Exception",
+        ["BufferError"] = "Exception",
     };
 
     /// <summary><paramref name="derived"/> 是否等于或继承自 <paramref name="baseName"/>。</summary>
@@ -60,6 +73,8 @@ public static class PyExceptionHierarchy
         string? current = derived;
         for (int guard = 0; current is not null && guard < 64; guard++)
         {
+            // CLR 无多继承；此额外边必须与 MIR 的 ValueError handler 展开共同维护。
+            if (current == "UnsupportedOperation" && baseName == "ValueError") return true;
             if (string.Equals(current, baseName, StringComparison.Ordinal))
             {
                 return true;

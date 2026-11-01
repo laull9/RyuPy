@@ -31,6 +31,7 @@ use ast::Stmt;
 
 /// 一个作用域在分析期间的中间数据。
 pub(crate) struct ScopeData {
+    pub(crate) postponed_annotations: bool,
     pub(crate) func_id: FuncId,
     /// 作用域种类：函数 / lambda 为 `false`，模块顶层为 `true`。
     pub(crate) is_module: bool,
@@ -103,6 +104,7 @@ pub(crate) fn analyze_closures(
     // 不收集 assigned / reads（模块变量由 module_vars 单独处理）。
     let main_scope = scopes.len();
     scopes.push(ScopeData {
+        postponed_annotations: crate::future_imports::annotations(&parsed.module.body),
         func_id: main_id,
         is_module: true,
         range: parsed.module.range,
@@ -142,10 +144,7 @@ pub(crate) fn analyze_closures(
                 );
             }
             Stmt::ClassDef(cls_def) => {
-                for item in &cls_def.body {
-                    let Stmt::FunctionDef(fn_def) = item else {
-                        continue;
-                    };
+                for fn_def in crate::class_body::methods(&cls_def.body) {
                     let func_id = top_level_func_by_range(functions, fn_def.range);
                     walk_function_scope(
                         &fn_def.body,

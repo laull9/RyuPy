@@ -39,11 +39,7 @@ use crate::mir::{
 pub fn build_program(
     hir: &Module,
     types: &ModuleTypes,
-) -> (
-    Program,
-    Vec<(String, crate::mir::GlobalId)>,
-    Vec<Diagnostic>,
-) {
+) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut globals = Arena::default();
@@ -130,6 +126,8 @@ pub fn build_program(
         module_var_tys.insert(var_id, ty);
     }
 
+    let module_bound_flags = crate::module_bindings::allocate(&mut globals, &module_var_ids);
+
     // 2. 预先为每个 HIR 函数分配 MIR FnId，并登记函数对象 / 默认值数组 / 签名所需的
     //    模块静态槽位。槽位在函数体构建之前分配，调用方才能在表达式里引用它们。
     let mut fn_map: FxHashMap<ryupy_hir::FuncId, FnId> = FxHashMap::default();
@@ -208,6 +206,7 @@ pub fn build_program(
             &hir_class_globals,
             &class_factories,
             &module_var_ids,
+            &module_bound_flags,
             &globals,
             hir_fn_id,
         );
@@ -359,39 +358,24 @@ pub fn build_program(
         .filter(|(_, f)| f.is_generator)
         .map(|(id, _)| fn_map[&id])
         .collect::<Vec<_>>();
-    crate::generators::lower(&mut program, &generators);
+    // 逻辑 handler 必须读取真实用户类对象，不能用同名内建 PyType 替代。
+    let exception_globals = hir
+        .classes
+        .iter()
+        .filter(|(_, cls)| cls.is_exception)
+        .map(|(id, cls)| (cls.name.as_str().to_owned(), hir_class_globals[&id]))
+        .collect();
+    crate::module_bindings::instrument(&mut program, &module_bound_flags);
+    crate::generators::lower(&mut program, &generators, &exception_globals);
 
-    // 模块导出表：模块变量 + 顶层函数 + 顶层类。
-    let mut exports: Vec<(String, crate::mir::GlobalId)> = Vec::new();
-    for (var_id, var) in hir.vars.iter() {
-        if let Some(&gid) = module_var_ids.get(&var_id) {
-            exports.push((var.name.as_str().to_owned(), gid));
-        }
-    }
-    for fn_id in &hir.top_functions {
-        if exports
-            .iter()
-            .any(|(name, _)| name == hir.functions[*fn_id].name.as_str())
-        {
-            continue;
-        }
-        if let Some(&mir_id) = fn_map.get(fn_id)
-            && let Some(gid) = program.functions[mir_id].function_global
-        {
-            exports.push((hir.functions[*fn_id].name.as_str().to_owned(), gid));
-        }
-    }
-    for cls_id in &hir.top_classes {
-        if exports
-            .iter()
-            .any(|(name, _)| name == hir.classes[*cls_id].name.as_str())
-        {
-            continue;
-        }
-        if let Some(&gid) = hir_class_globals.get(cls_id) {
-            exports.push((hir.classes[*cls_id].name.as_str().to_owned(), gid));
-        }
-    }
+    let exports = crate::module_bindings::exports(
+        hir,
+        &program,
+        &module_var_ids,
+        &module_bound_flags,
+        &fn_map,
+        &hir_class_globals,
+    );
 
     (program, exports, diagnostics)
 }
@@ -472,6 +456,7 @@ pub(crate) struct FunctionBuilder<'a> {
     /// HIR 模块变量 → 静态槽位。
     pub(crate) module_vars: &'a FxHashMap<ModuleVarId, crate::mir::GlobalId>,
     /// 全部静态槽位（读取槽位类型做装箱/拆箱）。
+    pub(crate) module_bound_flags: &'a FxHashMap<crate::mir::GlobalId, crate::mir::GlobalId>,
     pub(crate) globals: &'a Arena<GlobalDecl>,
     pub(crate) current_hir_fn: ryupy_hir::FuncId,
     pub(crate) locals: Arena<LocalDecl>,
@@ -521,6 +506,7 @@ impl<'a> FunctionBuilder<'a> {
         hir_class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
         class_factories: &'a FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId>,
         module_vars: &'a FxHashMap<ModuleVarId, crate::mir::GlobalId>,
+        module_bound_flags: &'a FxHashMap<crate::mir::GlobalId, crate::mir::GlobalId>,
         globals: &'a Arena<GlobalDecl>,
         current_hir_fn: ryupy_hir::FuncId,
     ) -> Self {
@@ -539,6 +525,7 @@ impl<'a> FunctionBuilder<'a> {
             hir_class_globals,
             class_factories,
             module_vars,
+            module_bound_flags,
             globals,
             current_hir_fn,
             locals: Arena::default(),
