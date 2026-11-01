@@ -278,9 +278,13 @@ impl TryIntoCtx<(), DynamicBuffer> for DataSection {
             Exceptions(es) => {
                 kind |= 0x1;
 
-                let should_be_fat = !es.iter().all(|e| {
-                    e.try_length < 256 && e.handler_length < 256 && e.try_offset < 65536 && e.handler_offset < 65536
-                });
+                // small 头的总长度也只有一字节：20 条是 244 字节，21 条是 256，
+                // 即使每条子句的偏移/长度都能装入 small，也必须升级 fat；否则长度
+                // 截断为 0，CLR 会丢失 catch，读取器还会在 length - 4 时下溢。
+                let should_be_fat = es.len() > (u8::MAX as usize - 4) / 12
+                    || !es.iter().all(|e| {
+                        e.try_length < 256 && e.handler_length < 256 && e.try_offset < 65536 && e.handler_offset < 65536
+                    });
 
                 (should_be_fat, (if should_be_fat { 24 } else { 12 } * es.len()) + 4)
             }

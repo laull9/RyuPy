@@ -62,7 +62,7 @@ impl FunctionBuilder<'_> {
         self.build_try_cleanup(body, handlers, orelse, finalbody, None);
     }
 
-    /// 捕获的 except 变量在任意退出路径都要清空。复用 finally 的展开通道，
+    /// except 变量与当前异常在任意退出路径都要清理。复用 finally 的展开通道，
     /// 让 return / break / continue / 再抛异常共用同一次 cell 清理与异常上下文恢复。
     fn build_try_cleanup(
         &mut self,
@@ -70,7 +70,7 @@ impl FunctionBuilder<'_> {
         handlers: &[HandlerId],
         orelse: &[StmtId],
         finalbody: &[StmtId],
-        cleanup: Option<(Binding, MirLocalId)>,
+        cleanup: Option<(Option<Binding>, MirLocalId)>,
     ) {
         let has_finally = !finalbody.is_empty() || cleanup.is_some();
 
@@ -87,6 +87,21 @@ impl FunctionBuilder<'_> {
         } else {
             None
         };
+        // 正常离开try也必须拥有有效的异常上下文token，不能读仅catch路径赋值的局部。
+        let saved_context = if has_finally {
+            let saved = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest: saved,
+                value: Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::HandlerEnter),
+                    args: vec![Operand::Const(Constant::None)],
+                },
+            });
+            Some(saved)
+        } else {
+            None
+        };
+        let parent_flow = self.flow_kind;
         let flow_kind = if has_finally {
             Some(self.flow_kind_local())
         } else {
@@ -137,7 +152,11 @@ impl FunctionBuilder<'_> {
             }
             let fell_through = self.is_current_unterminated();
             if fell_through {
-                self.route_normal(&mut handler_normals);
+                if has_finally {
+                    self.route_normal(&mut handler_normals);
+                } else {
+                    handler_normals.push(self.current_bb);
+                }
             }
             Some(bb)
         };
@@ -148,7 +167,11 @@ impl FunctionBuilder<'_> {
                 Some(else_bb) => self.blocks[bb].terminator = Terminator::Goto(else_bb),
                 None => {
                     self.current_bb = bb;
-                    self.route_normal(&mut handler_normals);
+                    if has_finally {
+                        self.route_normal(&mut handler_normals);
+                    } else {
+                        handler_normals.push(self.current_bb);
+                    }
                 }
             }
         }
@@ -171,7 +194,7 @@ impl FunctionBuilder<'_> {
             self.current_bb = guard_body;
             self.emit_frame_restore();
             // 登记当前异常：`finally` 里再抛出的异常要把这条挂成 __context__
-            let prev_current = self.alloc_temp(MirType::Dynamic);
+            let prev_current = saved_context.expect("finally上下文已保存");
             self.push_stmt(Statement::Assign {
                 dest: prev_current,
                 value: Rvalue::Call {
@@ -194,18 +217,24 @@ impl FunctionBuilder<'_> {
             // 进 finally 体之前把 ctx 摘掉：finally 体里的 return / break 属于外层作用域，
             // 若还留着这条 ctx，它们会又跳回 finally 体自己，形成死循环。
             let ctx = self.finally_stack.pop().expect("finally 上下文缺失");
+            // finally体的新return/break属于外层；本层待完成原因留在独立局部。
+            self.flow_kind = parent_flow;
 
             self.current_bb = finally_entry;
-            for &stmt in finalbody {
-                self.build_stmt(stmt);
+            if !finalbody.is_empty() {
+                // 用户finally中的return/break/异常也必须先恢复外层当前异常。
+                // 复用内部cleanup通道；空finalbody不递归建立包装。
+                self.build_try_cleanup(finalbody, &[], &[], &[], Some((None, prev_current)));
             }
             if let Some((binding, previous)) = cleanup {
-                let unbound = self.expr_builder().runtime_call(
-                    RuntimeFn::MakeUnbound,
-                    Vec::new(),
-                    MirType::Dynamic,
-                );
-                self.store_binding(binding, unbound, &MirType::Dynamic);
+                if let Some(binding) = binding {
+                    let unbound = self.expr_builder().runtime_call(
+                        RuntimeFn::MakeUnbound,
+                        Vec::new(),
+                        MirType::Dynamic,
+                    );
+                    self.store_binding(binding, unbound, &MirType::Dynamic);
+                }
                 self.push_stmt(Statement::Eval(Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::HandlerLeave),
                     args: vec![Operand::Local(previous)],
@@ -298,41 +327,17 @@ impl FunctionBuilder<'_> {
                 self.store_binding(binding, Operand::Local(exc), &MirType::Dynamic);
             }
 
-            // 3) 捕获绑定需要在所有退出路径清空。普通未捕获绑定仍走已有轻量路径。
-            let captured = match name {
-                Some(Binding::Local(local)) => self.locals[self.local_map[&local]].is_cell,
-                Some(Binding::Free(_)) => true,
-                _ => false,
-            };
-            if captured {
-                self.build_try_cleanup(
-                    &handler_body,
-                    &[],
-                    &[],
-                    &[],
-                    name.map(|binding| (binding, previous)),
-                );
-            } else {
-                for &stmt in &handler_body {
-                    self.build_stmt(stmt);
-                }
-            }
+            // 3) 所有except出口都恢复异常上下文并清空as绑定，不仅是被闭包捕获的变量。
+            // return/break/continue/再抛异常都经过同一内部finally清理通道。
+            self.build_try_cleanup(&handler_body, &[], &[], &[], Some((name, previous)));
 
-            // 4) 正常结束：清理绑定、恢复当前异常，再走出口
+            // 4) 清理完成的正常出口才接当前try之后，不能提前跳外层finally。
             if self.is_current_unterminated() {
-                if let Some(binding) = name {
-                    let unbound = self.expr_builder().runtime_call(
-                        RuntimeFn::MakeUnbound,
-                        Vec::new(),
-                        MirType::Dynamic,
-                    );
-                    self.store_binding(binding, unbound, &MirType::Dynamic);
+                if has_finally {
+                    self.route_normal(normals);
+                } else {
+                    normals.push(self.current_bb);
                 }
-                self.push_stmt(Statement::Eval(Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::HandlerLeave),
-                    args: vec![Operand::Local(previous)],
-                }));
-                self.route_normal(normals);
             }
 
             // 5) 每条 catch 记录各注册一个区域
@@ -361,7 +366,6 @@ impl FunctionBuilder<'_> {
 
         // has_finally 时 handler 的正常出口已进 finally 的 pending 列表，
         // 这里的 normals 只会收到「没有 finally」的情况。
-        let _ = has_finally;
     }
 
     /// 生成一个「取下异常对象 → 跳到分支体」的两指令处理入口。
@@ -437,6 +441,7 @@ impl FunctionBuilder<'_> {
 
         // 返回：穿过外层 finally 或直接去统一返回块
         self.current_bb = return_bb;
+        self.set_flow(FLOW_RETURN);
         if self.finally_stack.is_empty() {
             let bb = self.current_bb;
             self.epilogue_jumps.push(bb);

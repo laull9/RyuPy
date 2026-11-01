@@ -14,7 +14,7 @@ fn values() -> dyn {
     bb0: {
         _4 = box<I64>(const 0_i64);
         _5 = box<I64>(const 0_i64);
-        _6 = MakeGenerator(values, _4, None, _5, null, null, null);
+        _6 = MakeGenerator(values, _4, None, None, None, _5, null, null, null);
         return _6;
     }
 }
@@ -66,23 +66,24 @@ fn values(_4: dyn) -> dyn {
     let _7: dyn;
     let _8: dyn;
     let _9: dyn;
-    let _10: i64;
-    let _11: bool;
+    let _10: dyn;
+    let _11: i64;
+    let _12: bool;
 
     bb0: {
         // line 2
         _1 = box<I64>(const 1_i64);
         _5 = box<I64>(_0);
-        RuntimeFn::ArraySet(_4, const 2_i64, _5);
-        RuntimeFn::ArraySet(_4, const 3_i64, _1);
-        RuntimeFn::ArraySet(_4, const 4_i64, _2);
-        RuntimeFn::ArraySet(_4, const 5_i64, _3);
+        RuntimeFn::ArraySet(_4, const 4_i64, _5);
+        RuntimeFn::ArraySet(_4, const 5_i64, _1);
+        RuntimeFn::ArraySet(_4, const 6_i64, _2);
+        RuntimeFn::ArraySet(_4, const 7_i64, _3);
         _6 = box<I64>(const 1_i64);
         RuntimeFn::ArraySet(_4, const 0_i64, _6);
         return _1;
     }
     bb1: {
-        RuntimeFn::ArraySet(_4, const 1_i64, None);
+        _8 = RuntimeFn::GeneratorInput(_4);
         // line 3
         _3 = box<I64>(const 9_i64);
         _2 = _3;
@@ -97,17 +98,17 @@ fn values(_4: dyn) -> dyn {
         return _2;
     }
     bb4: {
-        _11 = Eq(_10, const 1_i64);
-        branch _11 -> [then: bb1, else: bb0];
+        _12 = Eq(_11, const 1_i64);
+        branch _12 -> [then: bb1, else: bb0];
     }
     bb5: {
-        _8 = RuntimeFn::ArrayGet(_4, const 2_i64);
-        _0 = unbox<I64>(_8);
-        _1 = RuntimeFn::ArrayGet(_4, const 3_i64);
-        _2 = RuntimeFn::ArrayGet(_4, const 4_i64);
-        _3 = RuntimeFn::ArrayGet(_4, const 5_i64);
-        _9 = RuntimeFn::ArrayGet(_4, const 0_i64);
-        _10 = unbox<I64>(_9);
+        _9 = RuntimeFn::ArrayGet(_4, const 4_i64);
+        _0 = unbox<I64>(_9);
+        _1 = RuntimeFn::ArrayGet(_4, const 5_i64);
+        _2 = RuntimeFn::ArrayGet(_4, const 6_i64);
+        _3 = RuntimeFn::ArrayGet(_4, const 7_i64);
+        _10 = RuntimeFn::ArrayGet(_4, const 0_i64);
+        _11 = unbox<I64>(_10);
         goto -> bb4;
     }
 }

@@ -56,6 +56,20 @@ impl<'a> ExprLowerCtx<'a> {
                     ExprKind::Missing
                 }
             }
+            ast::Expr::YieldFrom(value) => {
+                if self.allow_yield {
+                    ExprKind::YieldFrom(self.lower_expr(&value.value))
+                } else {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, range),
+                            "yield from 只能出现在函数体内",
+                        )
+                        .with_code("E0100"),
+                    );
+                    ExprKind::Missing
+                }
+            }
             ast::Expr::NumberLiteral(num) => match &num.value {
                 ast::Number::Int(int_val) => {
                     // 先试 i64 快路径；更大的值仍要进 HIR，由 ty 决定是否降级到动态执行

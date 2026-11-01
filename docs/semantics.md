@@ -61,6 +61,7 @@
 | f-string（字面量、`!r` / `!s` / `!a`、格式说明符） | ✅ M2.4 | `PyOps.FormatValue`；嵌套格式说明符暂不支持 |
 | 字符串方法 `split` / `join` / `strip` / `replace` / `find` 等 | ✅ M2.4 | `PyOps.CallMethod`；返回值下标按码点计算 |
 | 内建 `len` / `range` / `enumerate` / `zip` / `reversed` / `sum` / `min` / `max` / `any` / `all` / `round` / `sorted` / `isinstance` / `id` / `getattr` / `hasattr` | ✅ M2.4 | `PyOps.CallBuiltin`；`sorted` / `list.sort` 支持 `key` 与 `reverse`，排序稳定 |
+| 内建 `ord` / `chr` 直接调用 | ✅ Phase 3 项目驱动 | Unicode码点/单字节、chr整数与`__index__`，范围和参数错误；一等函数值暂报E0305 |
 | `print` 的 `sep` / `end` | ✅ M2.4 | 静态路径直接写分隔符与结尾；`file` / `flush` 依赖 M3.4 |
 | 普通 class、单继承、方法、绑定方法、`property` / `staticmethod` / `classmethod` | ✅ M2.5 / M2.6 | 运行时 `PyClass` / `PyInstance`；类体在 `class` 语句位置顺序执行 |
 | 用户自定义异常（`class E(ValueError)`） | ✅ M2.6 | codegen 生成 CLR 子类；类型化 catch 与 Python 继承树同构 |
@@ -373,13 +374,14 @@ M2.11 在不改变「动态值 = 装箱 object」的前提下消除了大部分�
 
 原生、桥接和带偏差结果分别登记。单个 e2e 用例只能证明其覆盖范围，不能证明常见项目或整个标准库已经可用。
 
-### 普通生成器首切（M3.2）
+### 生成器当前原生范围（M3.2）
 
 调用生成器函数只绑定参数并创建状态，不执行函数体；即使 yield 不可达也返回生成器。
 每次 next 恢复局部、临时量、循环迭代器和共享 cell 引用，yield None 与正常耗尽分离。
 完成或异常后永久耗尽并释放保存引用；重入抛 ValueError，意外逃逸的 StopIteration 转 RuntimeError 并保留原因。
 每次恢复独立登记 / 清理 traceback，暂停不会把调用栈留在线程状态里。
-当前支持语句 / 表达式 yield、send、普通控制流和 return value；生成器内零参 super、try/with、yield from 报 E0100。
+支持语句 / 表达式yield、send、return value、现代单参throw、close、yield from及try/except/finally/with跨暂停清理；
+生成器内零参super仍报E0100（尚未保存方法上下文），旧式throw(type,value,tb)明确TypeError。
 表达式 yield 的结果为 send 实参，next / send(None) 接收 None；新建生成器拒绝非 None send 且不启动。
 闭合生成器 send 任意值均耗尽，重入仍抛 ValueError；send 恰好接受一个位置参数。
 lambda 中的 yield 也创建生成器；默认值在外层执行，复合表达式先前求值结果保存到帧。
@@ -388,7 +390,11 @@ lambda 中的 yield 也创建生成器；默认值在外层执行，复合表达
 异常构造不提前调用终值 __str__，仅实际格式化时读取最新内容。
 再次耗尽为 None / 空 args。for、list、next(default) 消费结束时不缓存终值，之后 next 不会再次领取。
 此处不表示一般 StopIteration(...) 构造已完整支持；通用异常构造 ABI 的无参 / 显式 None / 多参保真仍待补齐。
-throw/close 入口目前显式抛 NotImplementedError，不宣称完整生成器协议或清理语义。
+现代throw接受异常实例或类型；新建throw不执行函数体，已关闭throw直接抛参数异常。close新建不执行body，
+暂停后注入GeneratorExit并运行清理；若仍yield则RuntimeError但保留新暂停点。自动GC触发close不承诺（D001）。
+yield from逐项转发next/send/throw/close，消费委托StopIteration.value；自定义迭代器终值不经MoveNext吞掉。
+显式StopIteration单参也保留原对象和延迟str；无参/显式None及多参构造差异仍单列待做。
+异常上下文用每生成器节点链保存，暂停后恢复调用者；普通运行时错误在Retry清栈前挂context并保存原traceback。
 状态机首版保存全部局部，存在装箱与数组读写代价，尚无性能收益测量，见 ADR-0017。
 
 属性 / 下标增量赋值现保存原对象、索引或切片，再读取旧值、求RHS、原地运算并写回；
@@ -411,3 +417,9 @@ property和缺属性错误在参数yield前发生；非callable属性在参数�
 内建方法绑定固定接收者和类型静态入口，参数恢复后先校验支持的arity再执行副作用；普通无暂停PIC路径不变。
 直接dataclass暂停构造因专用字段ABI尚未接入报E0305。int/float/str/type/异常及bool/bytes/bytearray的暂停构造
 目前仅接受单位置参数，super暂停调用仍拒绝，未宣称完整内建构造签名支持。
+
+### Unicode内建的表示边界
+
+ord/chr支持普通码点、补充平面和单独代理项；但两个独立代理项拼接后当前UTF-16表示会合并为代理对，
+`ord(chr(0xD800)+chr(0xDC00))`与CPython不一致。D009及`m3_builtins_surrogate_pair.py`记录为待修，
+不将它算作完整代理字符串兼容，也不作为已接受性能取舍。

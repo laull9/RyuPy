@@ -58,13 +58,14 @@ public class PyPreparedMethodTests
             calls++;
             ((object?[])raw)[0] = 1L;
             return 7L;
-        }, new object?[] { 0L, null }, "prepare.py", "values");
+        }, new object?[] { 0L, null, null, null }, "prepare.py", "values");
         object? send = PyOps.PrepareMethod(generator, "send");
         Assert.Equal(0, calls);
         Assert.Equal(7L, PyOps.CallValue(send, [PyNone.Instance], [], []));
         Assert.Equal(1, calls);
         object? close = PyOps.PrepareMethod(generator, "close");
-        Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(close, [], [], []));
+        // 此手写恢复入口没有处理注入异常，会再次 yield，close 必须拒绝并保留暂停。
+        Assert.Throws<PyRuntimeError>(() => PyOps.CallValue(close, [], [], []));
     }
 
     [Fact]
@@ -102,7 +103,7 @@ public class PyPreparedMethodTests
             (new PyByteArray([]), "append extend decode"),
             (new PyBytes([]), "decode hex"),
             ("", "encode upper lower strip lstrip rstrip split join replace find rfind index rindex count startswith endswith"),
-            (new PyGenerator(_ => throw new Exception("不得执行"), new object?[] { 0L, null },
+            (new PyGenerator(_ => throw new Exception("不得执行"), new object?[] { 0L, null, null, null },
                 "prepare.py", "never"), "__iter__ __next__ send throw close"),
         ];
         foreach (var (receiver, names) in cases)
@@ -111,7 +112,6 @@ public class PyPreparedMethodTests
             {
                 var method = Assert.IsType<PyBuiltinMethod>(PyOps.PrepareMethod(receiver, name));
                 // 每个已绑定入口都必须在执行副作用之前拒绝过量实参。
-                if (receiver is PyGenerator && name is "throw" or "close") continue;
                 Assert.Throws<PyTypeError>(() => method.Invoke(new object?[10], [], []));
             }
             Assert.Throws<PyAttributeError>(() => PyOps.PrepareMethod(receiver, "missing"));

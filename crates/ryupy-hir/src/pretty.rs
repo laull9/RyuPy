@@ -389,6 +389,7 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
 fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::YieldFrom(value) => format!("yield from {}", dump_expr(module, body, *value)),
         ExprKind::Yield(value) => format!(
             "(yield {})",
             value

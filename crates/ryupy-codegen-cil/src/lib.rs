@@ -52,3 +52,6 @@ pub fn dump_cil(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, C
 
 #[cfg(test)]
 mod entry_tests;
+
+#[cfg(test)]
+mod exception_table_tests;

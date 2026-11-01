@@ -51,9 +51,20 @@ public class PyKeyboardInterrupt : PyBaseException
 /// <summary><c>GeneratorExit</c>。</summary>
 public class PyGeneratorExit : PyBaseException
 {
-    /// <summary>构造 <c>GeneratorExit</c>。</summary>
-    public PyGeneratorExit()
-        : base("GeneratorExit", "") { }
+    /// <summary>构造无参数 <c>GeneratorExit</c>，保留已有无参 ABI。</summary>
+    public PyGeneratorExit() : this("") { }
+
+    /// <summary>构造带消息的 <c>GeneratorExit</c>。</summary>
+    /// <param name="message">异常消息。</param>
+    public PyGeneratorExit(string message)
+        : base("GeneratorExit", message) { }
+
+    /// <summary>供用户异常子类保留类型名、消息和完整参数。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">消息。</param>
+    /// <param name="args">位置参数。</param>
+    protected PyGeneratorExit(string typeName, string message, object?[] args)
+        : base(typeName, message, args) { }
 }
 
 /// <summary><c>ArithmeticError</c>。</summary>
@@ -522,6 +533,7 @@ public static class PyExceptionTypes
         ["Exception"] = m => new PyException("Exception", m),
         ["SystemExit"] = m => new PySystemExit(m),
         ["KeyboardInterrupt"] = m => new PyKeyboardInterrupt(m),
+        ["GeneratorExit"] = m => new PyGeneratorExit(m),
         ["ArithmeticError"] = m => new PyArithmeticError(m),
         ["ZeroDivisionError"] = m => new PyZeroDivisionError(m),
         ["OverflowError"] = m => new PyOverflowError(m),

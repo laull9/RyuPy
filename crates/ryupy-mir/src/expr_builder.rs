@@ -169,6 +169,7 @@ impl<'a> ExprBuilder<'a> {
         match &expr.kind {
             ExprKind::Literal(lit) => self.build_literal(lit),
             ExprKind::Yield(value) => self.build_yield_expr(*value),
+            ExprKind::YieldFrom(value) => self.build_yield_from(*value),
             ExprKind::ModuleVar(var) => {
                 let gid = self.module_vars[var];
                 let global_ty = self.globals[gid].ty.clone();
@@ -360,7 +361,7 @@ impl<'a> ExprBuilder<'a> {
                 Operand::Local(dest)
             }
             // 内建构造名作为值（`isinstance(x, int)`、`f = str`）：构造类型对象
-            ExprKind::Builtin(builtin) => self.build_builtin_value(*builtin),
+            ExprKind::Builtin(builtin) => self.build_builtin_value(*builtin, expr_id),
             // 闭包自由变量（M3.0）：env[idx] 是外层 cell，读取带未赋值检查。
             ExprKind::Free(idx) => {
                 let env = self.env_operand();
@@ -476,7 +477,18 @@ impl<'a> ExprBuilder<'a> {
     ///
     /// 构造函数（`int` / `str` / `list` …）在 Python 里是类型对象，`isinstance`
     /// 和赋值都依赖它。真正调用走 `build_call`，不会到这里。
-    fn build_builtin_value(&mut self, builtin: Builtin) -> Operand {
+    fn build_builtin_value(&mut self, builtin: Builtin, expression: ExprId) -> Operand {
+        if matches!(builtin, Builtin::Dynamic("ord" | "chr")) {
+            let range = self.hir.functions[self.current_hir_fn].body.exprs[expression].range;
+            self.diagnostics.push(
+                ryupy_base::Diagnostic::error(
+                    ryupy_base::Span::new(self.hir.file, range),
+                    "ord/chr 当前仅支持直接调用，一等内建函数值尚未接入",
+                )
+                .with_code("E0305"),
+            );
+            return self.none_value();
+        }
         let name = match builtin {
             // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
             Builtin::Exception(type_name) => type_name,

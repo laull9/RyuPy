@@ -1,0 +1,18 @@
+---
+source: crates/ryupy-driver/tests/unicode_builtins.rs
+expression: "output.lines().map(str::trim_end).collect::<Vec<_>>().join(\"\\n\")"
+---
+[E0305] Error: ord/chr 当前仅支持直接调用，一等内建函数值尚未接入
+   ╭─[ unicode.py:1:5 ]
+   │
+ 1 │ f = ord
+   │     ─┬─
+   │      ╰───
+───╯
+[E0305] Error: ord/chr 当前仅支持直接调用，一等内建函数值尚未接入
+   ╭─[ unicode.py:2:5 ]
+   │
+ 2 │ g = chr
+   │     ─┬─
+   │      ╰───
+───╯

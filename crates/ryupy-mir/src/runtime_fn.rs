@@ -9,6 +9,7 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "Exception",
     "SystemExit",
     "KeyboardInterrupt",
+    "GeneratorExit",
     "ArithmeticError",
     "ZeroDivisionError",
     "OverflowError",
@@ -170,6 +171,14 @@ pub enum RuntimeFn {
     ArraySet,
     /// `PyOps.ArrayGet(object, long) -> object`：读数组元素。
     ArrayGet,
+    /// 读取发送值或在真实yield恢复点抛注入异常。
+    GeneratorInput,
+    /// 内部异常分派完成，要求运行时重新进入resume而非暴露yield。
+    GeneratorRetry,
+    GeneratorDelegateStart,
+    GeneratorDelegateStep,
+    GeneratorDelegateCurrent,
+    GeneratorDelegateResult,
     /// `PyOps.CallValue(object, object[], object[], object[]) -> object`：调用一等函数对象。
     CallValue,
     // ── 闭包 cell（M3.0）──

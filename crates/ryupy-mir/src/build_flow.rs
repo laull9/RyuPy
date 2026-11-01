@@ -77,11 +77,8 @@ impl FunctionBuilder<'_> {
         self.push_stmt(Statement::Line(line));
     }
 
-    /// 分配（或复用）`finally` 状态变量。
+    /// 每层 finally 独立保存退出原因，不能让内层正常落下覆盖外层待完成return/异常。
     pub(crate) fn flow_kind_local(&mut self) -> MirLocalId {
-        if let Some(local) = self.flow_kind {
-            return local;
-        }
         let local = self.alloc_temp(MirType::I64);
         self.flow_kind = Some(local);
         local

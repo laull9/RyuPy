@@ -263,6 +263,10 @@ pub enum Constant {
 
 #[derive(Debug)]
 pub enum Rvalue {
+    /// 生成器降级前的委托推进；降级时补帧参数，返回是否产出。
+    GeneratorDelegateStep {
+        delegate: Operand,
+    },
     /// 创建持有帧与静态恢复委托的生成器，构造时不执行函数体。
     MakeGenerator {
         resume: FnId,
@@ -485,6 +489,8 @@ pub enum Terminator {
         resume: BlockId,
         /// 恢复后接收 send 的局部；语句型 yield 可忽略。
         input: Option<LocalId>,
+        /// 委托恢复由DelegateStep消费send/throw，不能预先GeneratorInput。
+        delegated: bool,
     },
     Goto(BlockId),
     Branch {

@@ -35,6 +35,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0022](0022-augmented-target-freezing.md) | 增量赋值冻结目标与索引 | 已接受 |
 | [0023](0023-dict-literal-evaluation-order.md) | 字典字面量求值与哈希分批 | 已接受 |
 | [0024](0024-prepared-starred-arguments.md) | 暂停调用的位置星号准备 | 已接受 |
+| [0025](0025-unicode-builtins.md) | 项目驱动Unicode基础内建 | 已接受（直接调用） |
+| [0026](0026-generator-exception-resume.md) | 生成器逻辑异常恢复与委托清理 | 已接受 |
 
 ## 模板
 

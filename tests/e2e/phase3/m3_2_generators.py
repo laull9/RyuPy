@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.2：send / throw / close、委托返回值与耗尽。
 def child():
     try:

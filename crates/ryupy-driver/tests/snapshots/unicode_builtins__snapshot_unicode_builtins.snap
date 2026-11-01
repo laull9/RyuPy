@@ -1,0 +1,44 @@
+---
+source: crates/ryupy-driver/tests/unicode_builtins.rs
+expression: "output.replace(path.to_str().unwrap(), \"unicode.py\")"
+---
+fn main() -> () {
+    let _0: i64;
+    let _1: dyn;
+    let _2: dyn;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+
+    bb0: {
+        g0 = None;
+        g1 = None;
+        g2 = None;
+        _0 = RuntimeFn::TracePush(const "ryupy_test_unicode_builtins.py", const "<module>");
+        // line 1
+        _1 = box<Str>(const "__main__");
+        g0 = _1;
+        // line 1
+        _2 = box<Str>(const "");
+        g1 = _2;
+        // line 1
+        _3 = box<Str>(const "ryupy_test_unicode_builtins.py");
+        g2 = _3;
+        // line 1
+        _4 = box<Str>(const "🎉");
+        _5 = RuntimeFn::DynBuiltin(const "ord", [_4], [], []);
+        _6 = box<I64>(const 65_i64);
+        _7 = RuntimeFn::DynBuiltin(const "chr", [_6], [], []);
+        RuntimeFn::WriteObject(_5);
+        RuntimeFn::WriteSep();
+        RuntimeFn::WriteObject(_7);
+        RuntimeFn::WriteNewline();
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}

@@ -252,8 +252,10 @@ fn remap_terminator(term: &Terminator, global_map: &FxHashMap<GlobalId, GlobalId
             value,
             resume,
             input,
+            delegated,
         } => Terminator::Suspend {
             input: *input,
+            delegated: *delegated,
             value: remap_operand(value, global_map),
             resume: *resume,
         },
@@ -374,6 +376,9 @@ fn remap_rvalue(
             obj: remap_operand(obj, global_map),
             name: name.clone(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
+        },
+        Rvalue::GeneratorDelegateStep { delegate } => Rvalue::GeneratorDelegateStep {
+            delegate: remap_operand(delegate, global_map),
         },
         Rvalue::MakeGenerator { resume, frame } => Rvalue::MakeGenerator {
             resume: fn_map[resume],

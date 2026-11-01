@@ -16,7 +16,7 @@ public class PyGeneratorSendTests
             Assert.Same(PyNone.Instance, frame[1]);
             frame[0] = 1L;
             return 42L;
-        }, new object?[] { 0L, null }, "send.py", "start");
+        }, new object?[] { 0L, null, null, null }, "send.py", "start");
         var error = Assert.Throws<PyTypeError>(() => generator.Send(12L));
         Assert.Equal("can't send non-None value to a just-started generator", error.PyMessage);
         Assert.Equal(0, calls);
@@ -27,7 +27,7 @@ public class PyGeneratorSendTests
     [Fact]
     public void SendPreservesIdentityAndNextSendsNone()
     {
-        object?[] frame = { 0L, null };
+        object?[] frame = { 0L, null, null, null };
         var generator = new PyGenerator(raw =>
         {
             var slots = (object?[])raw;
@@ -55,7 +55,7 @@ public class PyGeneratorSendTests
             if ((long)frame[0]! == 0) { frame[0] = 1L; return null; }
             frame[0] = -1L;
             return frame[1];
-        }, new object?[] { 0L, null }, "send.py", "finish");
+        }, new object?[] { 0L, null, null, null }, "send.py", "finish");
         Assert.True(generator.MoveNext());
         object value = new PyTuple([1L, 2L]);
         var stop = Assert.Throws<PyStopIteration>(() => generator.Send(value));
@@ -71,12 +71,12 @@ public class PyGeneratorSendTests
     {
         PyGenerator? recursive = null;
         recursive = new PyGenerator(_ => recursive!.Send(1L),
-            new object?[] { 0L, null }, "send.py", "recursive");
+            new object?[] { 0L, null, null, null }, "send.py", "recursive");
         var error = Assert.Throws<PyValueError>(() => recursive.Send(null));
         Assert.Equal("generator already executing", error.PyMessage);
         Assert.Throws<PyStopIteration>(() => recursive.Send(2L));
         var failure = new PyGenerator(_ => throw new PyValueError("failure"),
-            new object?[] { 0L, null }, "send.py", "failure");
+            new object?[] { 0L, null, null, null }, "send.py", "failure");
         Assert.Throws<PyValueError>(() => failure.Send(null));
         Assert.Throws<PyStopIteration>(() => failure.Send(3L));
     }
@@ -89,7 +89,7 @@ public class PyGeneratorSendTests
         {
             calls++;
             throw new PyStopIteration(5L);
-        }, new object?[] { 0L, null }, "send.py", "bad_stop");
+        }, new object?[] { 0L, null, null, null }, "send.py", "bad_stop");
         Assert.Throws<PyTypeError>(() => generator.CallMethod("send", []));
         Assert.Throws<PyTypeError>(() => generator.CallMethod("send", [null, null]));
         Assert.Equal(0, calls);

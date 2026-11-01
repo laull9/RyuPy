@@ -44,6 +44,7 @@ fn rejects_suspend_before_codegen() {
     body.blocks[body.entry].terminator = Terminator::Suspend {
         value: Operand::Const(Constant::None),
         input: None,
+        delegated: false,
         resume: body.entry,
     };
     assert!(crate::validate::validate(&program).is_err());

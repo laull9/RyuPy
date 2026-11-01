@@ -90,6 +90,7 @@ impl FunctionBuilder<'_> {
                     value,
                     resume,
                     input: None,
+                    delegated: false,
                 });
                 self.current_bb = resume;
             }

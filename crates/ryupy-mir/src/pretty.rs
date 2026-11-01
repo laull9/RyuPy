@@ -218,6 +218,9 @@ fn format_operand(op: &Operand) -> String {
 fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
     match rval {
         Rvalue::Use(op) => format_operand(op),
+        Rvalue::GeneratorDelegateStep { delegate } => {
+            format!("DelegateStep({})", format_operand(delegate))
+        }
         Rvalue::MakeGenerator { resume, frame } => format!(
             "MakeGenerator({}, {})",
             program.functions[*resume].name,

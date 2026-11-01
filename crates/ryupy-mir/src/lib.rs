@@ -20,6 +20,7 @@ mod call_builtins;
 pub mod expr_builder;
 mod expr_ops;
 mod expr_values;
+mod generator_exceptions;
 mod generators;
 pub mod link;
 mod mir;
