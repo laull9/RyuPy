@@ -398,7 +398,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 增量赋值保存原目标对象与索引，支持属性/下标跨yield恢复；普通RHS重绑定亦不改变写回位置，覆盖切片身份与写回失败后的原地副作用
 - [x] 字典字面量跨yield保存key/value并匹配固定CPython 3.12的hash时序：≤15对先全部求值后插入，16–17对逐对插入，更多项仅纯标量字面量键；含边界/失败顺序差分，`**`字典合并仍待做
 - [ ] 大字典动态键分块缓存hash合并：超过17项非纯标量字面量键明确E0100，`m3_2_dict_chunk_hash.py`保留pending；不扩大本切存储设计
-- [ ] 补齐剩余表达式 yield 求值准备：星号实参展开、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
+- [x] 暂停调用的`*`位置参数准备：混合位置项在各star处立即快照，唯一star位置源延至最终调用展开；复用ListExtend/StarArg，无新ABI，普通无暂停路径不变
+- [ ] 补齐剩余表达式 yield 求值准备：双星号实参映射快照、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
 - [ ] set/frozenset源含用户对象的星号展开需复用源缓存hash；当前显式NotImplementedError，不重跑用户hash（`m3_2_set_cached_hash.py` pending）
 - [ ] `throw`、`close` 和 GeneratorExit；补齐关闭与异常注入协议（重入错误已实现）
 - [ ] `yield from` 委托传递 next / send / throw / close 与返回值；生成器表达式的普通惰性迭代已完成，完整协议随此项接续

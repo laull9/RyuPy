@@ -1,0 +1,125 @@
+---
+source: crates/ryupy-driver/tests/m3_2.rs
+expression: "output.replace(path.to_str().unwrap(), \"generator.py\")"
+---
+fn g(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // f
+    let _1: dyn; // items
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+
+    bb0: {
+        _10 = box<I64>(const 0_i64);
+        _11 = box<I64>(const 0_i64);
+        _12 = MakeGenerator(g, _10, None, _0, _1, _11, null, null, null, null, null, null, null);
+        return _12;
+    }
+}
+
+fn main() -> () {
+    let _0: i64;
+
+    bb0: {
+        _0 = RuntimeFn::TracePush(const "ryupy_test_starred_call.py", const "<module>");
+        // line 1
+        g0 = const "__main__";
+        // line 1
+        g1 = const "";
+        // line 1
+        g2 = const "ryupy_test_starred_call.py";
+        // line 1
+        goto -> bb1;
+    }
+    bb1: {
+        RuntimeFn::TracePopTo(_0);
+        return;
+    }
+}
+
+fn g(_10: dyn) -> dyn {
+    let _0: dyn; // f
+    let _1: dyn; // items
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: i64;
+    let _17: bool;
+
+    bb0: {
+        // line 2
+        _4 = _0;
+        _5 = MakeList([]);
+        RuntimeFn::ListExtend(_5, _1);
+        _6 = RuntimeFn::StarArg(_5);
+        _7 = box<I64>(const 1_i64);
+        RuntimeFn::ArraySet(_10, const 2_i64, _0);
+        RuntimeFn::ArraySet(_10, const 3_i64, _1);
+        _11 = box<I64>(_2);
+        RuntimeFn::ArraySet(_10, const 4_i64, _11);
+        RuntimeFn::ArraySet(_10, const 5_i64, _3);
+        RuntimeFn::ArraySet(_10, const 6_i64, _4);
+        RuntimeFn::ArraySet(_10, const 7_i64, _5);
+        RuntimeFn::ArraySet(_10, const 8_i64, _6);
+        RuntimeFn::ArraySet(_10, const 9_i64, _7);
+        RuntimeFn::ArraySet(_10, const 10_i64, _8);
+        RuntimeFn::ArraySet(_10, const 11_i64, _9);
+        _12 = box<I64>(const 1_i64);
+        RuntimeFn::ArraySet(_10, const 0_i64, _12);
+        return _7;
+    }
+    bb1: {
+        _8 = RuntimeFn::ArrayGet(_10, const 1_i64);
+        RuntimeFn::ArraySet(_10, const 1_i64, None);
+        _9 = RuntimeFn::CallValue(_4, [_6, _8], [], []);
+        _3 = _9;
+        goto -> bb3;
+    }
+    bb2: {
+        unreachable;
+    }
+    bb3: {
+        _13 = box<I64>(const -1_i64);
+        RuntimeFn::ArraySet(_10, const 0_i64, _13);
+        return _3;
+    }
+    bb4: {
+        _17 = Eq(_16, const 1_i64);
+        branch _17 -> [then: bb1, else: bb0];
+    }
+    bb5: {
+        _0 = RuntimeFn::ArrayGet(_10, const 2_i64);
+        _1 = RuntimeFn::ArrayGet(_10, const 3_i64);
+        _14 = RuntimeFn::ArrayGet(_10, const 4_i64);
+        _2 = unbox<I64>(_14);
+        _3 = RuntimeFn::ArrayGet(_10, const 5_i64);
+        _4 = RuntimeFn::ArrayGet(_10, const 6_i64);
+        _5 = RuntimeFn::ArrayGet(_10, const 7_i64);
+        _6 = RuntimeFn::ArrayGet(_10, const 8_i64);
+        _7 = RuntimeFn::ArrayGet(_10, const 9_i64);
+        _8 = RuntimeFn::ArrayGet(_10, const 10_i64);
+        _9 = RuntimeFn::ArrayGet(_10, const 11_i64);
+        _15 = RuntimeFn::ArrayGet(_10, const 0_i64);
+        _16 = unbox<I64>(_15);
+        goto -> bb4;
+    }
+}

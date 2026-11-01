@@ -481,18 +481,11 @@ impl<'a> ExprLowerCtx<'a> {
     /// HIR 只负责忠实记录源码里写出来的形态。
     fn lower_call(&mut self, call: &ast::ExprCall) -> ExprKind {
         let suspends = crate::generator_scan::call_suspends(call);
-        if suspends
-            && (call
-                .arguments
-                .args
-                .iter()
-                .any(|arg| matches!(arg, ast::Expr::Starred(_)))
-                || call.arguments.keywords.iter().any(|arg| arg.arg.is_none()))
-        {
+        if suspends && call.arguments.keywords.iter().any(|arg| arg.arg.is_none()) {
             self.diagnostics.push(
                 Diagnostic::error(
                     Span::new(self.file, call.arguments.range),
-                    "调用星号实参暂未支持跨暂停的立即展开",
+                    "调用双星号实参暂未支持跨暂停的映射快照",
                 )
                 .with_code("E0100")
                 .with_primary_label("先把 yield 的接收值赋给局部，再进行调用"),
