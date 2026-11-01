@@ -1,4 +1,4 @@
-//! 列表、字典、集合推导式的独立作用域与去糖。
+//! 推导式与生成器表达式的独立作用域与去糖。
 //!
 //! 每次执行创建一个隐式函数，复用已有的共享 cell、动态调用与通用迭代。
 //! 最左 iterable 在外层立即转换成迭代器；隐藏参数把它送入推导式作用域。
@@ -121,28 +121,39 @@ impl crate::expr::ExprLowerCtx<'_> {
 }
 
 impl crate::lower::StmtLowerCtx<'_> {
-    /// 将急切推导式去糖为私有结果容器、嵌套循环和 return。
+    /// 急切推导式创建结果容器；生成器表达式只发 Yield，复用相同循环和过滤边界。
     pub(crate) fn lower_comprehension_body(&mut self, comp: Comprehension<'_>) {
-        let result = self.body.locals.alloc(Local {
-            name: Name::from(".result"),
-            annotation: None,
-            is_param: false,
-            range: comp.range,
-        });
         let empty_kind = match comp.kind {
-            ComprehensionKind::List => ExprKind::List(Vec::new()),
-            ComprehensionKind::Dict => ExprKind::Dict(Vec::new()),
-            ComprehensionKind::Set => ExprKind::Set(Vec::new()),
+            ComprehensionKind::List => Some(ExprKind::List(Vec::new())),
+            ComprehensionKind::Dict => Some(ExprKind::Dict(Vec::new())),
+            ComprehensionKind::Set => Some(ExprKind::Set(Vec::new())),
+            ComprehensionKind::Generator => None,
         };
-        let empty = self.comp_expr(empty_kind, comp.range);
-        let init = self.comp_stmt(
-            StmtKind::Assign {
-                target: AssignTarget::Local(result),
-                value: empty,
-            },
-            comp.range,
-        );
-        let mut body = self.comp_emit(comp, result);
+        let (mut body, result) = if let Some(empty_kind) = empty_kind {
+            let result = self.body.locals.alloc(Local {
+                name: Name::from(".result"),
+                annotation: None,
+                is_param: false,
+                range: comp.range,
+            });
+            let empty = self.comp_expr(empty_kind, comp.range);
+            let init = self.comp_stmt(
+                StmtKind::Assign {
+                    target: AssignTarget::Local(result),
+                    value: empty,
+                },
+                comp.range,
+            );
+            self.body.root.push(init);
+            (self.comp_emit(comp, result), Some(result))
+        } else {
+            // 生成器没有结果容器或隐藏结果槽，每次恢复只产出一个元素。
+            let value = self.lower_expr(comp.elt);
+            (
+                vec![self.comp_stmt(StmtKind::Yield(Some(value)), comp.range)],
+                None,
+            )
+        };
         // 从内向外包装，运行期仍严格按源码的 for / if / 元素顺序求值。
         for (index, generator) in comp.generators.iter().enumerate().rev() {
             for condition in generator.ifs.iter().rev() {
@@ -205,9 +216,8 @@ impl crate::lower::StmtLowerCtx<'_> {
                 generator.range,
             )];
         }
-        let value = self.comp_expr(ExprKind::Local(result), comp.range);
-        let ret = self.comp_stmt(StmtKind::Return(Some(value)), comp.range);
-        self.body.root.push(init);
+        let value = result.map(|result| self.comp_expr(ExprKind::Local(result), comp.range));
+        let ret = self.comp_stmt(StmtKind::Return(value), comp.range);
         self.body.root.extend(body);
         self.body.root.push(ret);
     }

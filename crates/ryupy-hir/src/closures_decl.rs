@@ -104,7 +104,10 @@ impl<'a> Visitor<'a> for DeclarationChecker<'_> {
             ast::Expr::Name(name) => {
                 self.seen.insert(Name::from(name.id.as_str()));
             }
-            ast::Expr::ListComp(_) | ast::Expr::DictComp(_) | ast::Expr::SetComp(_) => {
+            ast::Expr::ListComp(_)
+            | ast::Expr::DictComp(_)
+            | ast::Expr::SetComp(_)
+            | ast::Expr::Generator(_) => {
                 // 推导式自身的绑定不属于外层声明；只有最左 iterable 在这里执行。
                 if let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(expr)
                     && let Some(first) = comp.generators.first()

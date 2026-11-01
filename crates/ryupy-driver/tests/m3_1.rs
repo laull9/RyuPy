@@ -25,7 +25,13 @@ fn snapshot_m3_1_unsupported() {
         ("字典海象表达式", "print({x: (y := x) for x in [1]})\n"),
         ("字典异步推导式", "print({x: x async for x in []})\n"),
         ("集合异步推导式", "print({x async for x in []})\n"),
-        ("生成器表达式", "print((x for x in [1]))\n"),
+        ("生成器海象", "print(((y := x) for x in [1]))\n"),
+        ("生成器异步", "print((x async for x in []))\n"),
+        ("生成器零参super", "print((super() for x in [1]))\n"),
+        (
+            "生成器lambda默认super",
+            "print((lambda x=super(): x for i in [1]))\n",
+        ),
         ("海象表达式", "print([(y := x) for x in [1]])\n"),
         ("异步推导式", "print([x async for x in []])\n"),
         ("类体作用域", "class C:\n    values = [x for x in [1]]\n"),
@@ -75,4 +81,24 @@ fn snapshot_m3_1_dict_set() {
         let output = dump(&mut session, &case, stage).expect("三类推导式应完成所有编译阶段");
         insta::assert_snapshot!(name, output);
     }
+}
+
+#[test]
+fn snapshot_m3_1_generator_expression() {
+    let path = std::env::temp_dir().join("ryupy_test_generator_expression.py");
+    std::fs::write(
+        &path,
+        "values = (x * 2 for x in [1, 2] if x > 1)\nprint(list(values))\n",
+    )
+    .unwrap();
+    for (stage, name) in [
+        (Stage::Hir, "m3_1_genexpr_hir"),
+        (Stage::Mir, "m3_1_genexpr_mir"),
+        (Stage::Cil, "m3_1_genexpr_cil"),
+    ] {
+        let mut session = Session::default();
+        let output = dump(&mut session, &path, stage).expect("生成器表达式应完成降级");
+        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "genexpr.py"));
+    }
+    std::fs::remove_file(path).unwrap();
 }

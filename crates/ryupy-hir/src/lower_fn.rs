@@ -70,6 +70,13 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     }
     let is_generator = match &source {
         FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
+        FnSource::Comprehension(comp) => {
+            let generator = comp.kind == crate::comprehension_ast::ComprehensionKind::Generator;
+            if generator {
+                crate::generator_scan::validate_expression(file, *comp, diagnostics);
+            }
+            generator
+        }
         _ => false,
     };
     let is_lambda = matches!(source, FnSource::Lambda(_));

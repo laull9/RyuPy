@@ -51,7 +51,8 @@
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
 | 普通生成器 | 部分 | 语句 yield、if/for/while、裸 return、共享 cell、next/迭代/耗尽；完整协议待后续 |
-| 生成器表达式、普通函数装饰器 | ❌ | Phase 3 M3.2–M3.3 后续竖切 |
+| 生成器表达式 | ✅ | 最左 iterable 立即取迭代器，元素 / 过滤 / 内层 iterable 惰性；协议限制同普通生成器 |
+| 普通函数装饰器 | ❌ | Phase 3 M3.3 后续竖切 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
@@ -312,7 +313,9 @@ nonlocal 都报 `E0103`。嵌套 async def 与带装饰器的嵌套 def 报 `E01
 字典在每轮先求 key 再求 value，最后才进行哈希与插入；重复键保留首次位置但更新值。
 字典插入用单次索引查找，避免重复调用自定义键的 `__hash__`；覆盖已有键仍保留位置和结构版本。
 集合通过正常 add 协议去重，元素表达式仍逐次执行，不为去重跳过副作用。
-类体推导式、async for、海象表达式明确拒绝；生成器表达式仍待 M3.2 状态机，不能急切替代。
+类体推导式、async for、海象表达式明确拒绝。生成器表达式复用独立作用域与 M3.2 状态机：
+最左 iterable 立即求值并取得迭代器，其余 iterable、条件和元素延迟到 next；没有急切结果容器。
+生成器表达式内零参 super 暂拒绝，send/throw/close 等限制同普通生成器。
 设计与分配代价见 [ADR-0016](adr/0016-comprehension-scopes.md)，不宣称性能提升。
 
 此外，用户 `__iter__` 的返回值必须已具备迭代器协议，不再递归对其调用 `__iter__`；返回 list

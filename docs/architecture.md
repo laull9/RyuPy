@@ -66,7 +66,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
   `closures_decl.rs` 检查声明冲突；默认值属于定义位置的外层作用域，函数体单独降级。
 - M3.1 的 list / dict / set 推导式由 `comprehensions.rs` 去糖为独立嵌套函数，复用现有 HIR 节点与共享 cell；
   最左 iterable 在外层取得迭代器，以隐藏位置参数传入。`comprehension_ast.rs` 提供只读公共视图；
-  dict 的 key 单独保存临时量保证先于 value 求值，生成器表达式尚未接入。
+  dict 的 key 单独保存临时量保证先于 value 求值；生成器表达式生成 Yield 而非容器插入，
+  标记隐式函数为生成器并复用 M3.2 状态机，最左 iterable 的立即求值边界不变。
 
 - M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
   MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存全部局部到每实例 object[]；

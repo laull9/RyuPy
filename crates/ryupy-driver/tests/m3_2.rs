@@ -24,6 +24,14 @@ fn snapshot_m3_2_unsupported() {
     let cases = [
         ("模块 yield", "yield 1\n"),
         (
+            "lambda默认super",
+            "def g():\n    yield (lambda x=super(): x)\n",
+        ),
+        (
+            "嵌套函数默认super",
+            "def g():\n    def f(x=super()):\n        return x\n    yield f\n",
+        ),
+        (
             "零参 super",
             "class A:\n    def values(self):\n        yield super().value()\n",
         ),
