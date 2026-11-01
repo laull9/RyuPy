@@ -263,6 +263,11 @@ pub enum Constant {
 
 #[derive(Debug)]
 pub enum Rvalue {
+    /// 创建持有帧与静态恢复委托的生成器，构造时不执行函数体。
+    MakeGenerator {
+        resume: FnId,
+        frame: Vec<Operand>,
+    },
     Use(Operand),
     /// 原生无装箱运算，操作数类型必须相同（构建时已插入 `Cast`）。
     Binary {
@@ -474,6 +479,11 @@ pub use crate::runtime_fn::{EXCEPTION_TYPE_NAMES, RuntimeFn};
 
 #[derive(Debug)]
 pub enum Terminator {
+    /// 暂停边，仅在生成器降级前存在；恢复时从 resume 继续。
+    Suspend {
+        value: Operand,
+        resume: BlockId,
+    },
     Goto(BlockId),
     Branch {
         cond: Operand,

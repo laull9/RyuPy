@@ -157,6 +157,13 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                         ));
                     }
                 }
+                Terminator::Suspend { value, resume } => {
+                    validate_operand(func, block_id, value, &mut errors);
+                    errors.push(format!(
+                        "函数 `{}` 有尚未降级的暂停边 {:?}",
+                        func.name, resume
+                    ));
+                }
                 Terminator::Return(opt_val) => {
                     if is_reachable {
                         if let Some(val) = opt_val {
@@ -276,6 +283,29 @@ fn validate_rvalue(
 ) {
     match rvalue {
         Rvalue::Use(op) => validate_operand(func, block_id, op, errors),
+        Rvalue::MakeGenerator { resume, frame } => {
+            let target = program.functions.iter().find(|(id, _)| id == resume);
+            if !target.is_some_and(|(_, target)| {
+                target.params.len() == 1
+                    && target.ret == MirType::Dynamic
+                    && target
+                        .body
+                        .locals
+                        .iter()
+                        .any(|(id, p)| id == target.params[0] && p.ty == MirType::Dynamic)
+            }) {
+                errors.push(format!("函数 `{}` 的生成器恢复入口非法", func.name));
+            }
+            if frame.is_empty() {
+                errors.push(format!("函数 `{}` 的生成器帧缺少状态槽", func.name));
+            }
+            for value in frame {
+                validate_operand(func, block_id, value, errors);
+                if operand_type(program, func, value).is_some_and(|ty| ty != MirType::Dynamic) {
+                    errors.push(format!("函数 `{}` 的生成器帧必须保存装箱值", func.name));
+                }
+            }
+        }
         Rvalue::MakeFunction {
             func: target,
             env,

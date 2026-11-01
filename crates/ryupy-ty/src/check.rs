@@ -114,7 +114,7 @@ fn initial_mode(func: &Function) -> FuncMode {
     // - 含嵌套 def / lambda 的函数需要创建函数对象与 cell 装箱；
     // - 引用外层 cell（free 非空）的函数需要 env 参数与动态读取。
     // 两者都不影响未捕获函数保留静态快路径。
-    if func.closure.has_nested || !func.closure.free.is_empty() {
+    if func.is_generator || func.closure.has_nested || !func.closure.free.is_empty() {
         return FuncMode::Dynamic;
     }
     if func.kind == FunctionKind::ModuleMain {

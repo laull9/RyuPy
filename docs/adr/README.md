@@ -23,6 +23,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 | [0016](0016-comprehension-scopes.md) | 推导式先复用独立函数作用域 | 已接受（list 首个竖切） |
 
+| [0017](0017-generator-frame-state-machine.md) | 普通生成器先使用全局部堆帧状态机 | 已接受 |
+
 ## 模板
 
 ```markdown

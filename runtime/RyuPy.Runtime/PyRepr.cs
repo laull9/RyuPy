@@ -49,6 +49,7 @@ public static class PyRepr
         PyInstance instance => instance.Class.Name,
         PyBoundMethod => "method",
         PyFunction => "function",
+        PyGenerator => "generator",
         PyProperty => "property",
         PyStaticMethod or PyClassMethod => "builtin_function_or_method",
         PySuper => "super",

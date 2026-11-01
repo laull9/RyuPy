@@ -248,6 +248,10 @@ fn remap_stmt(
 
 fn remap_terminator(term: &Terminator, global_map: &FxHashMap<GlobalId, GlobalId>) -> Terminator {
     match term {
+        Terminator::Suspend { value, resume } => Terminator::Suspend {
+            value: remap_operand(value, global_map),
+            resume: *resume,
+        },
         Terminator::Goto(bb) => Terminator::Goto(*bb),
         Terminator::Branch { cond, then_, else_ } => Terminator::Branch {
             cond: remap_operand(cond, global_map),
@@ -365,6 +369,13 @@ fn remap_rvalue(
             obj: remap_operand(obj, global_map),
             name: name.clone(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
+        },
+        Rvalue::MakeGenerator { resume, frame } => Rvalue::MakeGenerator {
+            resume: fn_map[resume],
+            frame: frame
+                .iter()
+                .map(|op| remap_operand(op, global_map))
+                .collect(),
         },
         Rvalue::MakeFunction {
             func,

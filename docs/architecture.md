@@ -68,6 +68,11 @@ ryupy-e2e（仅测试）─► ryupy-driver
   最左 iterable 在外层取得迭代器，以隐藏位置参数传入。`comprehension_ast.rs` 提供只读公共视图；
   dict 的 key 单独保存临时量保证先于 value 求值，生成器表达式尚未接入。
 
+- M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
+  MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存全部局部到每实例 object[]；
+  CIL 仅绑定静态恢复委托，`PyGenerator` 管理运行 / 终止、重入与每次恢复的 traceback。
+  首切拒绝生成器异常区域，尚未实现跨暂停清理状态。
+
 ### 3.3 类型（旁表，不改 HIR）
 
 - `ModuleTypes { sigs: FuncId → FnSig, bodies: FuncId → TypeckResults }`，`TypeckResults` 记录每个 `ExprId` / `LocalId` 的 `Ty`。

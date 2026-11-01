@@ -354,6 +354,7 @@ public static partial class PyOps
             PyByteArray array => ByteArrayMethod(array, name, args),
             string text => StringMethod(text, name, args),
             PyBytes bytes => BytesMethod(bytes, name, args),
+            PyGenerator generator => generator.CallMethod(name, args),
             _ => throw new PyAttributeError(
                 $"'{PyRepr.TypeName(obj)}' object has no attribute '{name}'"
             ),

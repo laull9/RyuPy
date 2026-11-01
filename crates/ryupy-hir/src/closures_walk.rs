@@ -153,6 +153,7 @@ fn register_discovered(
             body: Default::default(),
             range,
             closure: ClosureInfo::default(),
+            is_generator: false,
         });
         nested_funcs.insert(range, child);
         match node {

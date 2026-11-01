@@ -1,0 +1,76 @@
+---
+source: crates/ryupy-driver/tests/m3_2.rs
+expression: output
+---
+模块 yield
+[E0100] Error: yield 只能出现在函数体内
+   ╭─[ generator.py:1:1 ]
+   │
+ 1 │ yield 1
+   │ ───┬───
+   │    ╰─────
+───╯
+
+零参 super
+[E0100] Error: 生成器内零参 super 暂未保存跨暂停的方法上下文
+   ╭─[ generator.py:3:20 ]
+   │
+ 3 │         yield super().value()
+   │                    ─┬
+   │                     ╰── 当前普通 yield 首切不能保证此路径的暂停语义
+───╯
+
+接收 send
+[E0100] Error: 暂不支持该表达式
+   ╭─[ generator.py:2:13 ]
+   │
+ 2 │     value = yield 1
+   │             ───┬───
+   │                ╰───── Phase 1 暂不支持该语法
+───╯
+
+yield from
+[E0100] Error: 暂不支持该表达式
+   ╭─[ generator.py:2:5 ]
+   │
+ 2 │     yield from []
+   │     ──────┬──────
+   │           ╰──────── Phase 1 暂不支持该语法
+───╯
+
+返回值
+[E0100] Error: 生成器 return value 留待返回值协议竖切
+   ╭─[ generator.py:3:5 ]
+   │
+ 3 │     return 2
+   │     ────┬───
+   │         ╰───── 当前普通 yield 首切不能保证此路径的暂停语义
+───╯
+
+异常区域
+[E0100] Error: 生成器内 try 暂未支持跨暂停的异常状态
+   ╭─[ generator.py:2:5 ]
+   │
+ 2 │ ╭─▶     try:
+   ┆ ┆
+ 5 │ ├─▶         print(2)
+   │ │
+   │ ╰────────────────────── 当前普通 yield 首切不能保证此路径的暂停语义
+───╯
+
+资源区域
+[E0100] Error: 生成器内 with 暂未支持跨暂停的资源清理
+   ╭─[ generator.py:2:5 ]
+   │
+ 2 │ ╭─▶     with resource:
+ 3 │ ├─▶         yield 1
+   │ │
+   │ ╰───────────────────── 当前普通 yield 首切不能保证此路径的暂停语义
+───╯
+[E0106] Error: 未定义的变量或名称 `resource`
+   ╭─[ generator.py:2:10 ]
+   │
+ 2 │     with resource:
+   │          ────┬───
+   │              ╰───── 未解析的名字
+───╯

@@ -9,6 +9,8 @@ use rustc_hash::FxHashMap;
 use ryupy_mir::{Constant as MirConstant, GlobalId, RuntimeFn};
 
 pub struct RuntimeRefs {
+    pub generator_resume_ctor: MethodRefIndex,
+    pub generator_ctor: MethodRefIndex,
     pub write_i64: MethodRefIndex,
     pub write_f64: MethodRefIndex,
     pub write_bool: MethodRefIndex,

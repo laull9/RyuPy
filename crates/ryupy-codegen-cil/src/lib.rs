@@ -13,6 +13,7 @@
 pub mod assembly;
 mod callables;
 mod entry;
+mod generator_refs;
 mod literals;
 mod modules;
 mod refs;

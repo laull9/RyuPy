@@ -345,13 +345,21 @@ pub fn build_program(
     }
 
     let entry = fn_map[&hir.main];
-    let program = Program {
+    let mut program = Program {
         functions,
         classes,
         globals,
         entry,
         source_name: hir.source_name.clone(),
     };
+
+    let generators = hir
+        .functions
+        .iter()
+        .filter(|(_, f)| f.is_generator)
+        .map(|(id, _)| fn_map[&id])
+        .collect::<Vec<_>>();
+    crate::generators::lower(&mut program, &generators);
 
     // 模块导出表：模块变量 + 顶层函数 + 顶层类。
     let mut exports: Vec<(String, crate::mir::GlobalId)> = Vec::new();

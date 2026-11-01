@@ -136,7 +136,7 @@ impl MirPass for SimplifyCfg {
             let bb = &func.body.blocks[bb_id];
             match &bb.terminator {
                 Terminator::Raise { .. } => {}
-                Terminator::Goto(target) => {
+                Terminator::Goto(target) | Terminator::Suspend { resume: target, .. } => {
                     if reachable.insert(*target) {
                         worklist.push(*target);
                     }
