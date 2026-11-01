@@ -72,6 +72,23 @@ impl FunctionBuilder<'_> {
         let line = stmt.line;
         self.emit_line(line);
         match &stmt.kind {
+            StmtKind::Yield(value) => {
+                let value = match value {
+                    Some(value) => {
+                        let ty = self.expr_builder().ty_of(*value);
+                        let value = self.expr_builder().build_expr(*value);
+                        self.expr_builder().coerce(value, &ty, &MirType::Dynamic)
+                    }
+                    None => self.expr_builder().runtime_call(
+                        RuntimeFn::DynNone,
+                        Vec::new(),
+                        MirType::Dynamic,
+                    ),
+                };
+                let resume = self.new_block();
+                self.terminate_current(Terminator::Suspend { value, resume });
+                self.current_bb = resume;
+            }
             StmtKind::Expr(expr_id) => {
                 self.build_expr_stmt(*expr_id);
             }

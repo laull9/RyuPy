@@ -22,6 +22,7 @@ pub(crate) fn rvalue_arg_count(value: &Rvalue) -> usize {
         Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.len(),
         // MakeFunction 的数组逐元素发射，加上构造函数的其余实参
         Rvalue::MakeFunction { env, defaults, .. } => env.len() + defaults.len() + 8,
+        Rvalue::MakeGenerator { frame, .. } => frame.len() + 5,
         _ => 0,
     }
 }
@@ -448,6 +449,20 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             ins.push(Instruction::call(
                 ctx.runtime_refs.pic_call_method[args.len()],
             ));
+        }
+        Rvalue::MakeGenerator { resume, frame } => {
+            let function = &ctx.functions[*resume];
+            ins.push(Instruction::LoadNull);
+            ins.push(Instruction::LoadMethodPointer(ctx.fn_map[resume].into()));
+            ins.push(Instruction::NewObject(UserMethod::Reference(
+                ctx.runtime_refs.generator_resume_ctor,
+            )));
+            lower_object_array(frame, ins, ctx);
+            ins.push(Instruction::load_string(function.source_file.clone()));
+            ins.push(Instruction::load_string(function.name.clone()));
+            ins.push(Instruction::NewObject(UserMethod::Reference(
+                ctx.runtime_refs.generator_ctor,
+            )));
         }
         Rvalue::MakeFunction {
             func,

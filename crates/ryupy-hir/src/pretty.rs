@@ -175,6 +175,12 @@ fn dump_stmt(
             )
             .unwrap();
         }
+        StmtKind::Yield(value) => {
+            let value = value
+                .map(|e| dump_expr(module, body, e))
+                .unwrap_or_else(|| "None".into());
+            writeln!(out, "{pad}yield {value}").unwrap();
+        }
         StmtKind::Return(opt_e) => {
             if let Some(e) = opt_e {
                 writeln!(out, "{pad}return {}", dump_expr(module, body, *e)).unwrap();

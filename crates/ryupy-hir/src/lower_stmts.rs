@@ -220,6 +220,24 @@ impl StmtLowerCtx<'_> {
 
     pub(crate) fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Option<StmtId> {
         let kind = match stmt {
+            ast::Stmt::Expr(expr_stmt)
+                if matches!(expr_stmt.value.as_ref(), ast::Expr::Yield(_)) =>
+            {
+                let ast::Expr::Yield(value) = expr_stmt.value.as_ref() else {
+                    return None;
+                };
+                if self.module_scope {
+                    self.diagnostics.push(
+                        Diagnostic::error(
+                            Span::new(self.file, value.range),
+                            "yield 只能出现在函数体内",
+                        )
+                        .with_code("E0100"),
+                    );
+                    return None;
+                }
+                StmtKind::Yield(value.value.as_deref().map(|value| self.lower_expr(value)))
+            }
             ast::Stmt::Expr(expr_stmt) => {
                 let expr_id = self.lower_expr(&expr_stmt.value);
                 StmtKind::Expr(expr_id)

@@ -20,6 +20,7 @@ mod call_builtins;
 pub mod expr_builder;
 mod expr_ops;
 mod expr_values;
+mod generators;
 pub mod link;
 mod mir;
 pub mod passes;
@@ -30,3 +31,6 @@ pub mod validate;
 pub use build::build_program;
 pub use link::{UnitMeta, link};
 pub use mir::*;
+
+#[cfg(test)]
+mod generator_tests;

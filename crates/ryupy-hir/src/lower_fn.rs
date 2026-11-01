@@ -68,6 +68,10 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     if let FnSource::Def(def) = &source {
         crate::closures_decl::validate_declarations(file, def, diagnostics);
     }
+    let is_generator = match &source {
+        FnSource::Def(def) => crate::generator_scan::analyze(file, &def.body, diagnostics),
+        _ => false,
+    };
     let is_lambda = matches!(source, FnSource::Lambda(_));
     let info = analysis.infos.get(&func_id).cloned().unwrap_or_default();
     // 嵌套函数（def / lambda）的默认值不在 main 作用域求值：
@@ -334,6 +338,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         }
     }
 
+    functions[func_id].is_generator = is_generator;
     functions[func_id].params = params;
     functions[func_id].ret = ret;
     functions[func_id].body = body;

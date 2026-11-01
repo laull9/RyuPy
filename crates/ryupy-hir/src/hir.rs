@@ -96,6 +96,8 @@ pub struct Function {
     /// 由 `closures.rs` 在 lowering 之前分析整个 AST 填写；对顶层函数
     /// `free` / `cells` 通常为空，`has_nested` 标记体内是否有嵌套 def / lambda。
     pub closure: ClosureInfo,
+    /// 当前函数体含 yield（包括不可达分支），调用先返回生成器而非执行体。
+    pub is_generator: bool,
 }
 
 /// 一个函数作用域的闭包分析结果。
@@ -472,6 +474,8 @@ pub enum StmtKind {
         value: ExprId,
     },
     Return(Option<ExprId>),
+    /// 语句型暂停；生成器表达式与 send 的结果值另行接入。
+    Yield(Option<ExprId>),
     If {
         cond: ExprId,
         then_: Vec<StmtId>,

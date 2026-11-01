@@ -3,7 +3,7 @@
 本文从 Phase 2 开始持续更新。项目集已于 M2.0 冻结（20 个纯 Python 项目，6 类用途），
 CPython 基线已逐项目记录；RyuPy 侧当前 **0/20 原生通过**。M2.9 已接入额外模块搜索根，
 项目源码可以解析；剩余阻塞逐项目列在下表，集中在内建类型继承、装饰器/元类、内建函数与文件 API。
-语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal，M3.1 增加 list / dict / set 推导式。
+语言层面 M2.1–M2.8 的动态值、容器、普通类、异常、模块与 `with` 均有差分用例通过；M3.0 增加闭包、lambda 与 nonlocal，M3.1 增加 list / dict / set 推导式，M3.2 首切增加普通 yield 状态机（完整协议及异常清理仍未完成）。
 2026-11-01 在 Linux x86_64 重跑固定项目集，仍为 0/20 原生通过；没有新增桥接路径。
 急切推导式解除若干前端阻塞，但项目仍需后续语法和 API，不将语法差分通过计入项目分子。
 语法现状见 [semantics.md](semantics.md)，标准库计划见 [stdlib.md](stdlib.md)。
@@ -64,7 +64,7 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 | colorama | 0.4.6 / PyPI | ANSI 常量与 init | 无 | 原生 / Linux x86_64 | unsupported：内建 `dir` 未接入 | 2026-11-01 |
 | termcolor | 2.4.0 / PyPI | colored 属性组合 | 无 | 原生 / Linux x86_64 | unsupported：复杂类型表达式 | 2026-11-01 |
 | binaryornot | 0.4.4 / PyPI | 文本/二进制判定 | chardet==5.2.0 | 原生 / Linux x86_64 | unsupported：内建 `open` 未接入（文件 API 在 M3.4） | 2026-11-01 |
-| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / Linux x86_64 | unsupported：暂不支持该表达式（见 `projects.jsonl`） | 2026-11-01 |
+| progress | 1.6 / PyPI | Bar 构造与计数 | 无 | 原生 / Linux x86_64 | unsupported：生成器内 with 跨暂停清理未实现（见 `projects.jsonl`） | 2026-11-01 |
 
 分母 20，原生通过 0，**0%**。M2.9 不要求此时达到最终 80%：当前阻塞集中在
 **内建类型继承、动态基类、装饰器 / 元类、内建函数与文件 API**，属于 Phase 3 的语言与标准库工作。

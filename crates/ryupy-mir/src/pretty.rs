@@ -140,6 +140,15 @@ fn dump_basic_block(
 
     write!(out, "        ").unwrap();
     match &bb.terminator {
+        Terminator::Suspend { value, resume } => {
+            writeln!(
+                out,
+                "yield {} -> bb{};",
+                format_operand(value),
+                resume.into_raw()
+            )
+            .unwrap();
+        }
         Terminator::Goto(target) => {
             writeln!(out, "goto -> bb{};", target.into_raw()).unwrap();
         }
@@ -209,6 +218,15 @@ fn format_operand(op: &Operand) -> String {
 fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
     match rval {
         Rvalue::Use(op) => format_operand(op),
+        Rvalue::MakeGenerator { resume, frame } => format!(
+            "MakeGenerator({}, {})",
+            program.functions[*resume].name,
+            frame
+                .iter()
+                .map(format_operand)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         Rvalue::MakeFunction {
             func,
             env,

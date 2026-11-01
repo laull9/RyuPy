@@ -21,6 +21,7 @@ mod comprehension_ast;
 mod comprehensions;
 mod control_flow;
 pub mod expr;
+mod generator_scan;
 mod hir;
 pub mod imports;
 pub mod lower;

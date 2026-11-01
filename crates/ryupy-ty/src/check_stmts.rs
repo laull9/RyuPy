@@ -86,6 +86,11 @@ impl FunctionChecker<'_> {
                     }
                 }
             }
+            StmtKind::Yield(value) => {
+                if let Some(value) = value {
+                    self.check_expr(*value);
+                }
+            }
             StmtKind::Return(opt_val) => {
                 let ret_ty = match opt_val {
                     Some(e) => self.check_expr(*e),

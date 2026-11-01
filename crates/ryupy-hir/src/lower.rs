@@ -93,6 +93,7 @@ pub fn lower_module(
                         body: Body::default(),
                         range: fn_def.range(),
                         closure: Default::default(),
+                        is_generator: false,
                     });
                     methods.push(crate::class::MethodSlot {
                         name: method_name,
@@ -123,6 +124,7 @@ pub fn lower_module(
                     body: Body::default(),
                     range: fn_def.range(),
                     closure: Default::default(),
+                    is_generator: false,
                 });
                 global_scope.names.insert(name, Resolution::Func(func_id));
                 top_functions.push(func_id);
@@ -141,6 +143,7 @@ pub fn lower_module(
         body: Body::default(),
         range: parsed.module.range,
         closure: Default::default(),
+        is_generator: false,
     });
 
     // M3.0：闭包作用域分析——发现嵌套 def / lambda 并计算 free / cell 变量。

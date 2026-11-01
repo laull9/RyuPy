@@ -50,7 +50,8 @@
 | `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
-| 生成器表达式、生成器、普通函数装饰器 | ❌ | Phase 3 M3.2–M3.3 后续竖切 |
+| 普通生成器 | 部分 | 语句 yield、if/for/while、裸 return、共享 cell、next/迭代/耗尽；完整协议待后续 |
+| 生成器表达式、普通函数装饰器 | ❌ | Phase 3 M3.2–M3.3 后续竖切 |
 | `async` / `await`、完整 asyncio、模式匹配 | ❌ | 暂缓，按项目阻塞评估 |
 | `raise exc` / `raise exc from cause` / 裸 `raise` | ✅ M2.2 | `Terminator::Raise` + `PyErrors.PrepareRaise` / `WithCause`；裸 `raise` 取运行时「当前异常」 |
 | `assert cond[, msg]` | ✅ M2.2 | 去糖为 `if not cond: raise AssertionError(msg)` |
@@ -368,3 +369,13 @@ Phase 2 优先动态核心、容器、普通类、异常、模块与 `with`；Ph
 M2.11 在不改变「动态值 = 装箱 object」的前提下消除了大部分固定分配（[ADR-0013](adr/0013-dynamic-hot-path-allocations.md)）：纯位置小参数调用复用调用点数组，thunk 对参数个数正确的调用直接取参，`long` 数值字面量装箱一次后进入静态字段，实例属性改为按类槽位存放并由属性 PIC 直接读写，方法不调用 `super()` 时跳过上下文维护。未命中仍然回到同一套通用路径。
 
 原生、桥接和带偏差结果分别登记。单个 e2e 用例只能证明其覆盖范围，不能证明常见项目或整个标准库已经可用。
+
+### 普通生成器首切（M3.2）
+
+调用生成器函数只绑定参数并创建状态，不执行函数体；即使 yield 不可达也返回生成器。
+每次 next 恢复局部、临时量、循环迭代器和共享 cell 引用，yield None 与正常耗尽分离。
+完成或异常后永久耗尽并释放保存引用；重入抛 ValueError，意外逃逸的 StopIteration 转 RuntimeError 并保留原因。
+每次恢复独立登记 / 清理 traceback，暂停不会把调用栈留在线程状态里。
+当前只支持语句 yield、普通控制流和裸 return；生成器内零参 super、try/with、return value、表达式型 yield、yield from 报 E0100。
+send/throw/close 入口目前显式抛 NotImplementedError，不宣称完整生成器协议或清理语义。
+状态机首版保存全部局部，存在装箱与数组读写代价，尚无性能收益测量，见 ADR-0017。

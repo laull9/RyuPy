@@ -178,7 +178,10 @@ pub fn lower_function(
                     worklist.push(*else_);
                 }
             }
-            Terminator::Return(_) | Terminator::Raise { .. } | Terminator::Unreachable => {}
+            Terminator::Return(_)
+            | Terminator::Raise { .. }
+            | Terminator::Suspend { .. }
+            | Terminator::Unreachable => {}
         }
     }
 
@@ -195,6 +198,12 @@ pub fn lower_function(
         thunks,
     };
 
+    // MIR 入口不必是 arena 的第一个块（生成器恢复分派追加在末尾）。
+    // 跳到明确的 entry，分支回填与异常表仍统一按最终指令下标计算。
+    if func.body.entry.into_raw().into_u32() != 0 {
+        instructions.push(Instruction::Branch(0));
+        pending_targets.push(PendingTarget::Branch(0, func.body.entry));
+    }
     for (block_id, block) in func.body.blocks.iter() {
         if !reachable.contains(&block_id) {
             continue;
@@ -268,6 +277,11 @@ pub fn lower_function(
 
         let block_end_marker = block_id;
         match &block.terminator {
+            Terminator::Suspend { .. } => {
+                // validate 必须在后端之前拒绝未降级暂停；不在后端补猜 Python 语义。
+                instructions.push(Instruction::LoadNull);
+                instructions.push(Instruction::Throw);
+            }
             Terminator::Return(None) => {
                 instructions.push(Instruction::Return);
             }
