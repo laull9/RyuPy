@@ -443,14 +443,16 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 聚合门禁：209 C#、98 编译 e2e / 16 ignored、110 CPython 基线；逐 API / 平台边界见 docs/stdlib-system.md 与 ADR-0028。固定项目仍原生 0/20，binaryornot 首阻断从 open 前移至 locals。
 
-### M3.5 标准库：数值、JSON 与正则
+### M3.5 标准库：数值、JSON 与正则 ✅
 
 > 依赖 M3.4 与 Phase 2 容器 / Unicode / 异常；模块之间按实际依赖推进。
 
-- [ ] `math` / `time`：按 API 实现定义域、溢出、NaN 与计时行为，不直接透传 .NET 异常
-- [ ] `json`：loads / dumps / load / dump 与常用参数，大整数、转义、键顺序、非法输入与位置
-- [ ] `re`：先建立 Python 与 .NET 模式差异测试，再实现受支持语法、flags、分组与 match / search / findall / sub；不支持构造明确拒绝或显式桥接
-- [ ] 验收：每个 API 有边界、错误类型和项目调用测试；不得把部分 API 通过写成完整模块兼容
+- [x] `math` / `time`：按 API 实现定义域、溢出、NaN 与计时行为，不直接透传 .NET 异常
+- [x] `json`：loads / dumps / load / dump 与常用参数，大整数、转义、键顺序、非法输入与位置
+- [x] `re`：先建立 Python 与 .NET 模式差异测试，再实现受支持语法、flags、分组与 match / search / findall / sub；不支持构造明确拒绝或显式桥接
+- [x] 验收：每个 API 有边界、错误类型和项目调用测试；不得把部分 API 通过写成完整模块兼容
+
+> 聚合门禁：241 C#、105 编译 e2e / 17 ignored、118 CPython 基线；stdlib-numeric.md 与 ADR-0029 逐 API 记录参数/语法/容量边界。固定项目仍原生 0/20，JSON高级选项与旧类绑定欠账保留独立pending。
 
 ### M3.6 标准库：容器工具、函数工具与类型元数据
 
@@ -558,6 +560,11 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 ---
 
 ## 待定 / 技术债
+
+- [ ] M3.5 JSON 自定义真值选项的惰性/短路副作用（当前bool/int/None以外明确拒绝）；m3_5_json_flag_objects.py保持pending
+
+- [ ] M3.5 JSON bytes 的 surrogatepass 孤立代理码点编码（当前严格解码明确报 UnicodeDecodeError）；独立 pending：m3_5_json_surrogate_bytes.py，见 ADR-0029
+- [ ] M2.6 模块中后定义 class 与前方同名 except-as 绑定顺序：m2_6_class_binding_order.py 保持 pending；M3.5 异常别名联调发现，不以改名测试冒充修复
 
 - [ ] M3.4 长尾：io.UnsupportedOperation 双重异常层级、文件描述符/完整编码策略、Windows 实机与退出整数宽度；逐项范围见 docs/stdlib-system.md 和 ADR-0028
 - [ ] 超过 u64::MAX 的正整数字面量目前 E0100；运行时 int(str) 的 BigInteger 能力不能替代源码字面量支持（M3.4 错误退出测试发现）

@@ -41,7 +41,13 @@ public static partial class PyOps
     public static object? ArrayGet(object array, long index) => ((object?[])array)[index];
 
     /// <summary>内建构造名作为值使用时的类型对象（供 <c>isinstance</c> 等）。</summary>
-    public static object TypeObject(string name) => PyType.Get(name);
+    public static object TypeObject(string name) => PyType.Get(name switch
+    {
+        // 编译器内部用限定名避免与同名用户异常类的CLR引用冲突。
+        "json.JSONDecodeError" => "JSONDecodeError",
+        "re.error" => "error",
+        _ => name,
+    });
 
     /// <summary>绑定失败：抛出带给定消息的 <c>TypeError</c>。</summary>
     /// <remarks>
@@ -62,6 +68,8 @@ public static partial class PyOps
         var (args, names, values) = FlattenArgs(rawArgs, rawNames, rawValues);
         return callable switch
         {
+            PyType { Name: "error" } => PyRegex.ConstructError(args, names, values),
+            PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError(args, names, values),
             PyFunction function => function.Invoke(args, names, values),
             PyBuiltinFunction function => function.Invoke(args, names, values),
             PyNativeType type => type.Invoke(args, names, values),

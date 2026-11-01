@@ -62,6 +62,8 @@ pub struct ModuleVar {
 
 #[derive(Debug)]
 pub struct Module {
+    /// 被静态模块异常 handler 使用的稳定导入别名；外部重绑定明确拒绝。
+    pub protected_exports: Vec<String>,
     pub file: FileId,
     /// 源文件名。traceback 的 `File "..."` 与诊断都要用它，由 driver 提供。
     pub source_name: String,

@@ -28,6 +28,18 @@ public static class PyNativeModules
                 value => value is PyIOTextFile or PyStandardStream, "TextIOBase", "IOBase"),
             ["open"] = Forward("open", PyIO.Open),
         });
+        PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
+        PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
+        PyModules.RegisterNative("json", PyJsonModule.CreateAttributes(), (key, _) =>
+        {
+            if (key == "JSONDecodeError")
+                throw new PyNotImplementedError("rebinding json.JSONDecodeError is not supported");
+        });
+        PyModules.RegisterNative("re", PyRegex.CreateAttributes(), (key, _) =>
+        {
+            if (key == "error")
+                throw new PyNotImplementedError("rebinding re.error is not supported");
+        });
         var os = PyOs.CreateAttributes();
         os["environ"] = new PyEnvironment();
         os["getenv"] = PyNativeFunctions.Create("getenv", ["key", "default"], [null, PyNone.Instance], 1,

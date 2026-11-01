@@ -1,4 +1,3 @@
-# ryupy: pending
 # M3.5：Python 命名组、替换反向引用、Unicode 与零宽匹配。
 import re
 

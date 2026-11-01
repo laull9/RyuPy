@@ -90,6 +90,12 @@ public static partial class PyErrors
                 exception = cls.Invoke([], [], [])
                     ?? throw new PyTypeError("exceptions must derive from BaseException");
                 break;
+            case PyType { Name: "error" }:
+                exception = PyRegex.ConstructError([], [], [])!;
+                break;
+            case PyType { Name: "JSONDecodeError" }:
+                exception = PyJsonModule.ConstructError([], [], []);
+                break;
             case PyType type when PyExceptionHierarchy.IsKnown(type.Name):
                 exception = PyExceptionTypes.Create(type.Name, string.Empty);
                 break;

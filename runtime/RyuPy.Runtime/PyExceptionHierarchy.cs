@@ -27,6 +27,8 @@ public static class PyExceptionHierarchy
         ["IndexError"] = "LookupError",
         ["KeyError"] = "LookupError",
         ["ValueError"] = "Exception",
+        ["JSONDecodeError"] = "ValueError",
+        ["error"] = "Exception",
         ["UnicodeError"] = "ValueError",
         ["UnicodeDecodeError"] = "UnicodeError",
         ["UnicodeEncodeError"] = "UnicodeError",

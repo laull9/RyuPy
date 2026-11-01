@@ -369,8 +369,9 @@ public static class PyRepr
         char quote = hasSingle && !hasDouble ? '"' : '\'';
         var builder = new StringBuilder(text.Length + 2);
         builder.Append(quote);
-        foreach (char ch in text)
+        for (int index = 0; index < text.Length; index++)
         {
+            char ch = text[index];
             switch (ch)
             {
                 case '\\':
@@ -386,6 +387,22 @@ public static class PyRepr
                     builder.Append("\\t");
                     break;
                 default:
+                    // Python repr转义所有不可打印类别，而不只转义换行；有效代理对作为一个码点判断。
+                    bool pair = char.IsHighSurrogate(ch) && index + 1 < text.Length && char.IsLowSurrogate(text[index + 1]);
+                    int code = pair ? char.ConvertToUtf32(ch, text[index + 1]) : ch;
+                    UnicodeCategory category = CharUnicodeInfo.GetUnicodeCategory(text, index);
+                    bool hidden = code != 32 && category is UnicodeCategory.Control or UnicodeCategory.Format
+                        or UnicodeCategory.Surrogate or UnicodeCategory.PrivateUse or UnicodeCategory.OtherNotAssigned
+                        or UnicodeCategory.SpaceSeparator or UnicodeCategory.LineSeparator or UnicodeCategory.ParagraphSeparator;
+                    if (hidden)
+                    {
+                        string prefix = code <= 255 ? "\\x" : code <= 65535 ? "\\u" : "\\U";
+                        string digits = code <= 255 ? "x2" : code <= 65535 ? "x4" : "x8";
+                        builder.Append(prefix).Append(code.ToString(digits, CultureInfo.InvariantCulture));
+                        if (pair) index++;
+                        break;
+                    }
+                    if (pair) { builder.Append(ch).Append(text[++index]); break; }
                     if (ch == quote)
                     {
                         builder.Append('\\');

@@ -54,7 +54,7 @@
 
 ## Phase 3：闭包、生成器、推导式、装饰器与标准库移植
 
-当前M3.1生成器表达式已接入；M3.2已实现yield/return/send、现代单参throw/close、yield-from及跨try/finally/with清理，整里程碑聚合验收与只读复审已通过。M3.3已完成定义位置装饰器、可调用包装与声明范围元数据，纯/混合dataclass表示分别验证。M3.4已完成声明范围的系统/路径/文件API（逐API与平台边界见stdlib-system.md）；下一整里程碑为M3.5数值/JSON/正则。通用容器/调用欠账保留独立未完成项，固定项目仍0/20。
+当前M3.1生成器表达式已接入；M3.2已实现yield/return/send、现代单参throw/close、yield-from及跨try/finally/with清理，整里程碑聚合验收与只读复审已通过。M3.3已完成定义位置装饰器、可调用包装与声明范围元数据，纯/混合dataclass表示分别验证。M3.4已完成声明范围的系统/路径/文件API（逐API与平台边界见stdlib-system.md）；M3.5已完成声明范围的math/time/json/re，下一整里程碑为M3.6容器工具/函数工具/类型元数据。通用容器/调用欠账保留独立未完成项，固定项目仍0/20。
 
 高级语法服务于实际库代码。闭包使用共享 cell 保留 late binding 和 `nonlocal` 写入；推导式保留独立作用域与求值顺序；生成器使用可持有堆引用的状态机，覆盖 `send` / `throw` / `close`、`yield from` 和暂停期间的 `finally`；装饰器按 Python 顺序执行并允许返回新的可调用对象。
 

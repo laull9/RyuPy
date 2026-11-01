@@ -412,7 +412,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     });
 
     // Python 异常类型名 → CLR 类型：CIL 的类型化 catch 按这些类型匹配。
-    // 命名约定是 `Py<PythonName>`（如 `PyValueError`），与运行时 `PyExceptionTypes` 一致。
+    // 通常为 `Py<PythonName>`；re.error 显式对应 PyRegexError，不能构造不存在的 Pyerror。
     let mut exception_types: FxHashMap<String, MethodType> = FxHashMap::default();
     let mut exception_type_refs: FxHashMap<String, TypeRefIndex> = FxHashMap::default();
     for type_name in ryupy_mir::EXCEPTION_TYPE_NAMES {
@@ -421,7 +421,11 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         } else {
             res.push_type_reference(ExternalTypeReference::new(
                 Some("RyuPy.Runtime".into()),
-                format!("Py{type_name}"),
+                match *type_name {
+                    "re.error" => "PyRegexError".to_owned(),
+                    "json.JSONDecodeError" => "PyJSONDecodeError".to_owned(),
+                    name => format!("Py{name}"),
+                },
                 ResolutionScope::Assembly(ryupy_runtime),
             ))
         };

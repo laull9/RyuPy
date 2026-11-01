@@ -27,7 +27,7 @@ public sealed class PyType
     public static PyType Get(string name) => Cache.GetOrAdd(name, static n => new PyType(n));
 
     /// <summary>与 CPython 一致的 <c>repr</c> 形式。</summary>
-    public override string ToString() => $"<class '{Name}'>";
+    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : "")}{Name}'>";
 }
 
 /// <summary>
@@ -484,6 +484,8 @@ public static class PyObject
         name switch
         {
             "__name__" or "__qualname__" => type.Name,
+            "__module__" when type.Name == "JSONDecodeError" => "json.decoder",
+            "__module__" when type.Name == "error" => "re",
             _ => throw new PyAttributeError($"type object '{type.Name}' has no attribute '{name}'"),
         };
 
@@ -502,6 +504,16 @@ public static class PyObject
         }
         return name switch
         {
+            "msg" when exception is PyRegexError regex => regex.MessageText,
+            "pattern" when exception is PyRegexError regex => regex.Pattern,
+            "pos" when exception is PyRegexError regex => regex.Position,
+            "lineno" when exception is PyRegexError regex => regex.LineNumber,
+            "colno" when exception is PyRegexError regex => regex.ColumnNumber,
+            "msg" when exception is PyJSONDecodeError json => json.Msg,
+            "doc" when exception is PyJSONDecodeError json => json.Doc,
+            "pos" when exception is PyJSONDecodeError json => json.Pos,
+            "lineno" when exception is PyJSONDecodeError json => json.LineNo,
+            "colno" when exception is PyJSONDecodeError json => json.ColNo,
             "args" => new PyTuple(exception.Args),
             "value" when exception is PyStopIteration stop => stop.Value ?? PyNone.Instance,
             "code" when exception is PySystemExit exit => exit.Code ?? PyNone.Instance,

@@ -124,7 +124,7 @@ impl StmtLowerCtx<'_> {
                         self.diagnostics.push(
                             Diagnostic::error(
                                 Span::new(self.file, type_expr.range()),
-                                "except 目前只支持内建异常类型名（用户自定义异常在 M2.6 接续）",
+                                "except 只支持静态异常类或稳定的原生模块异常导入；动态类型表达式暂不支持",
                             )
                             .with_code("E0100")
                             .with_primary_label("不支持该异常类型表达式"),
@@ -180,10 +180,34 @@ impl StmtLowerCtx<'_> {
 
     /// 把 `except` 的类型表达式解析成异常类型名列表。
     ///
-    /// 支持 `except E:` 与 `except (E1, E2):`，其中每个名字可以是内建异常类，
-    /// 也可以是**继承自 BaseException 的用户类**（M2.6）。返回空列表表示无法解析，
-    /// 调用方报诊断。
+    /// 接受内建/用户异常类，以及 driver 验证过的稳定原生模块异常导入。
+    /// 元组每一项都必须能静态解析；不能丢弃未知项后冒称整条 handler 已支持。
+    /// 返回空列表由调用方报诊断，不求值动态类型表达式。
     fn exception_type_names(&self, expr: &ast::Expr) -> Vec<String> {
+        let imported = match expr {
+            ast::Expr::Name(name) => Some((name, None)),
+            ast::Expr::Attribute(attr) => match attr.value.as_ref() {
+                ast::Expr::Name(name) => Some((name, Some(attr.attr.as_str()))),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some((name, member)) = imported {
+            let ident = Name::from(name.id.as_str());
+            let shadowed = !self.module_scope
+                && (self.func_scope.locals.contains_key(&ident)
+                    || self.func_scope.free.contains_key(&ident)
+                    || self.func_scope.nonlocals.contains(&ident));
+            if shadowed {
+                return Vec::new();
+            }
+            if let Some(binding) = self.global_scope.exception_imports.get(&ident) {
+                return binding
+                    .resolve(member, expr.range().start())
+                    .map(|name| vec![name.to_owned()])
+                    .unwrap_or_default();
+            }
+        }
         match expr {
             ast::Expr::Name(name) => {
                 let ident = Name::from(name.id.as_str());
@@ -210,7 +234,11 @@ impl StmtLowerCtx<'_> {
             ast::Expr::Tuple(tuple) => {
                 let mut out = Vec::new();
                 for elt in &tuple.elts {
-                    out.extend(self.exception_type_names(elt));
+                    let names = self.exception_type_names(elt);
+                    if names.is_empty() {
+                        return Vec::new();
+                    }
+                    out.extend(names);
                 }
                 out
             }
