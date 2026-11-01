@@ -9,7 +9,7 @@ use ryupy_syntax::ast::visitor::{Visitor, walk_expr, walk_stmt};
 pub(crate) enum NestedAst<'a> {
     Def(&'a ast::StmtFunctionDef),
     Lambda(&'a ast::ExprLambda),
-    ListComp(&'a ast::ExprListComp),
+    Comprehension(crate::comprehension_ast::Comprehension<'a>),
 }
 
 /// 使用语法树的完整遍历，覆盖 assert、raise、f-string 等表达式位置。
@@ -39,10 +39,10 @@ pub(crate) fn find_nested_ast(stmts: &[Stmt], range: TextRange) -> Option<Nested
                 && lambda.range == self.range
             {
                 self.found = Some(NestedAst::Lambda(lambda));
-            } else if let ast::Expr::ListComp(comp) = expr
+            } else if let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(expr)
                 && comp.range == self.range
             {
-                self.found = Some(NestedAst::ListComp(comp));
+                self.found = Some(NestedAst::Comprehension(comp));
             } else {
                 walk_expr(self, expr);
             }

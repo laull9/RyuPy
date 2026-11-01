@@ -20,7 +20,7 @@ use crate::scope::{FunctionScope, GlobalScope, collect_assigned_names};
 pub(crate) enum FnSource<'a> {
     Def(&'a ast::StmtFunctionDef),
     Lambda(&'a ast::ExprLambda),
-    ListComp(&'a ast::ExprListComp),
+    Comprehension(crate::comprehension_ast::Comprehension<'a>),
 }
 
 /// 降级单个函数体所需的全部上下文（lower_module 的局部状态打包）。
@@ -80,7 +80,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     // 读写也要分别落到模块命名空间 / 外层 cell。
     let body_stmts: &[ast::Stmt] = match &source {
         FnSource::Def(fn_def) => &fn_def.body,
-        FnSource::Lambda(_) | FnSource::ListComp(_) => &[],
+        FnSource::Lambda(_) | FnSource::Comprehension(_) => &[],
     };
     for name in crate::scope::collect_global_names(body_stmts) {
         func_scope.globals.insert(name);
@@ -151,8 +151,8 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     };
 
     match &source {
-        FnSource::ListComp(comp) => {
-            crate::comprehensions::prepare_scope(comp, &mut params, &mut func_scope, &mut body);
+        FnSource::Comprehension(comp) => {
+            crate::comprehensions::prepare_scope(*comp, &mut params, &mut func_scope, &mut body);
         }
         FnSource::Def(fn_def) => {
             for param_def in &fn_def.parameters.posonlyargs {
@@ -268,7 +268,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
             .returns
             .as_deref()
             .map(|e| lower_type_ref(e, file, global_scope, diagnostics)),
-        FnSource::Lambda(_) | FnSource::ListComp(_) => None,
+        FnSource::Lambda(_) | FnSource::Comprehension(_) => None,
     };
 
     // 预扫描本作用域绑定的局部变量（赋值即局部；嵌套 def 名也是局部）。
@@ -315,7 +315,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         line_starts,
     };
     match source {
-        FnSource::ListComp(comp) => lower_ctx.lower_list_comprehension_body(comp),
+        FnSource::Comprehension(comp) => lower_ctx.lower_comprehension_body(comp),
         FnSource::Def(fn_def) => {
             for stmt in &fn_def.body {
                 lower_ctx.lower_stmt_to_root(stmt);

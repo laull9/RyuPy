@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace RyuPy.Runtime;
 
@@ -123,16 +124,18 @@ public sealed class PyDict
     {
         RequireHashable(key);
         object actualKey = key ?? PyNone.Instance;
-        if (_index.TryGetValue(actualKey, out int slot))
+        // 一次查找同时完成「查找或登记」：先 TryGetValue 再写索引器会对新键
+        // 重复调用用户 __hash__ / __eq__，既多做工作也重复可观察副作用。
+        ref int slot = ref CollectionsMarshal.GetValueRefOrAddDefault(_index, actualKey, out bool exists);
+        if (exists)
         {
             // 覆盖已有键：位置不变、大小不变，因此不算「迭代期间修改」
             _values[slot] = value;
             return;
         }
-        int newSlot = _keys.Count;
+        slot = _keys.Count;
         _keys.Add(actualKey);
         _values.Add(value);
-        _index[actualKey] = newSlot;
         _used++;
         Version++;
         if (_tombstones >= MinTombstonesBeforeCompact && _tombstones * 2 > _keys.Count)

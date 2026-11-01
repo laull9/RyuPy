@@ -64,8 +64,9 @@ ryupy-e2e（仅测试）─► ryupy-driver
 
 - M3.0 先由 `closures_walk.rs` 建立函数作用域树，再由 `closures.rs` 沿父链解析 free / cell。
   `closures_decl.rs` 检查声明冲突；默认值属于定义位置的外层作用域，函数体单独降级。
-- M3.1 的列表推导式由 `comprehensions.rs` 去糖为独立嵌套函数，复用现有 HIR 节点与共享 cell；
-  最左 iterable 在外层取得迭代器，以隐藏位置参数传入。dict/set 与生成器表达式尚未接入。
+- M3.1 的 list / dict / set 推导式由 `comprehensions.rs` 去糖为独立嵌套函数，复用现有 HIR 节点与共享 cell；
+  最左 iterable 在外层取得迭代器，以隐藏位置参数传入。`comprehension_ast.rs` 提供只读公共视图；
+  dict 的 key 单独保存临时量保证先于 value 求值，生成器表达式尚未接入。
 
 ### 3.3 类型（旁表，不改 HIR）
 

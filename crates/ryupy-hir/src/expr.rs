@@ -126,7 +126,12 @@ impl<'a> ExprLowerCtx<'a> {
                 let name = Name::from(attr.attr.as_str());
                 ExprKind::Attribute { base, name }
             }
-            ast::Expr::ListComp(comp) => self.lower_list_comprehension(comp),
+            ast::Expr::ListComp(_) | ast::Expr::DictComp(_) | ast::Expr::SetComp(_) => {
+                match crate::comprehension_ast::Comprehension::from_expr(expr) {
+                    Some(comp) => self.lower_comprehension(comp),
+                    None => ExprKind::Missing,
+                }
+            }
             ast::Expr::List(list) => ExprKind::List(self.lower_elements(&list.elts)),
             ast::Expr::Tuple(tuple) => ExprKind::Tuple(self.lower_elements(&tuple.elts)),
             ast::Expr::Set(set) => ExprKind::Set(self.lower_elements(&set.elts)),
