@@ -13,25 +13,83 @@ use crate::mir::{Function, Program};
 mod dead_values;
 #[cfg(test)]
 mod dead_values_tests;
+mod interval_facts;
+mod interval_narrow;
+#[cfg(test)]
+mod interval_narrow_tests;
+mod leaf_inline;
+mod leaf_inline_expand;
+mod leaf_inline_summary;
 mod numeric_accumulator;
+mod numeric_accumulator_expand;
+mod numeric_accumulator_holder;
+mod numeric_accumulator_match;
 mod simplify_cfg;
+mod tuple_scalar;
+#[cfg(test)]
+mod tuple_scalar_tests;
 
 pub use dead_values::DeadValues;
-pub use numeric_accumulator::NumericAccumulator;
+pub use interval_narrow::IntervalNarrow;
+pub use numeric_accumulator::{DirectNumericAccumulator, NumericAccumulator};
 pub use simplify_cfg::SimplifyCfg;
+pub use tuple_scalar::TupleScalar;
 
 pub trait MirPass {
     fn name(&self) -> &'static str;
     fn run(&self, func: &mut Function);
 }
 
+/// 明确区分函数局部变换与需要跨函数摘要的程序变换。
+pub trait ProgramPass {
+    fn name(&self) -> &'static str;
+    fn run(&self, program: &mut Program);
+}
+
+pub enum PipelinePass {
+    Function(Box<dyn MirPass>),
+    Program(Box<dyn ProgramPass>),
+}
+impl PipelinePass {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Function(p) => p.name(),
+            Self::Program(p) => p.name(),
+        }
+    }
+}
+
 /// 默认 Pass 流水线。
-pub fn default_pipeline() -> Vec<Box<dyn MirPass>> {
-    vec![
-        Box::new(SimplifyCfg),
-        Box::new(DeadValues),
-        Box::new(NumericAccumulator),
-    ]
+pub fn default_pipeline() -> Vec<PipelinePass> {
+    pipeline_with_direct_accumulator(false)
+}
+
+/// 实验开关由调用者显式传入；同一严格matcher只选择一种表示，不叠加两个累加pass。
+pub fn pipeline_with_direct_accumulator(experimental: bool) -> Vec<PipelinePass> {
+    pipeline_with_options(experimental, false)
+}
+
+/// 两项实验独立选择；没有实测稳定收益的叶内联不进入默认流水线。
+pub fn pipeline_with_options(
+    experimental: bool,
+    experimental_leaf_inline: bool,
+) -> Vec<PipelinePass> {
+    let mut passes: Vec<PipelinePass> = vec![
+        PipelinePass::Function(Box::new(SimplifyCfg)),
+        PipelinePass::Function(Box::new(DeadValues)),
+    ];
+    if experimental {
+        passes.push(PipelinePass::Function(Box::new(DirectNumericAccumulator)));
+    } else {
+        passes.push(PipelinePass::Function(Box::new(NumericAccumulator)));
+    }
+    passes.push(PipelinePass::Function(Box::new(TupleScalar)));
+    passes.push(PipelinePass::Function(Box::new(DeadValues)));
+    passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));
+    if experimental_leaf_inline {
+        passes.push(PipelinePass::Program(Box::new(leaf_inline::LeafInline)));
+    }
+    passes
 }
 
 /// 依次运行 Pass，并在每个 Pass 之后校验 MIR。
@@ -42,10 +100,15 @@ pub fn default_pipeline() -> Vec<Box<dyn MirPass>> {
 /// 崩溃只会打印一条 Rust panic 与回溯，用户既拿不到稳定的错误信息，也无法把它
 /// 当作编译失败处理（例如在 CI 里收集全部问题）。这里返回错误，由 driver 转成
 /// 诊断 / <c>anyhow</c> 错误，维持「任何输入都不 panic」的约定。
-pub fn run_pipeline(program: &mut Program, passes: &[Box<dyn MirPass>]) -> Result<(), String> {
+pub fn run_pipeline(program: &mut Program, passes: &[PipelinePass]) -> Result<(), String> {
     for pass in passes {
-        for (_, func) in program.functions.iter_mut() {
-            pass.run(func);
+        match pass {
+            PipelinePass::Function(pass) => {
+                for (_, func) in program.functions.iter_mut() {
+                    pass.run(func);
+                }
+            }
+            PipelinePass::Program(pass) => pass.run(program),
         }
         if let Err(errs) = crate::validate::validate(program) {
             return Err(format!(
@@ -60,3 +123,6 @@ pub fn run_pipeline(program: &mut Program, passes: &[Box<dyn MirPass>]) -> Resul
 
 #[cfg(test)]
 mod numeric_accumulator_tests;
+
+#[cfg(test)]
+mod leaf_inline_tests;

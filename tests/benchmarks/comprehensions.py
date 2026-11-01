@@ -1,5 +1,4 @@
 # bench: category=phase3
-# bench: pending=M3.1
 # bench: desc=推导式：list / dict / set 推导、嵌套 for 与 if 过滤
 total = 0
 for _ in range(20):

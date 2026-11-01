@@ -1,5 +1,4 @@
 # bench: category=phase3
-# bench: pending=M3.3
 # bench: desc=装饰器包装函数的调用开销：计数包装与带参数装饰器
 def counted(fn):
     def wrapper(*args):

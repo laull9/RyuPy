@@ -46,6 +46,12 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0031](0031-project-tools.md) | 项目入口工具与协议的有限原生实现 | 已接受 |
 | [0032](0032-bounded-stdlib-and-compatibility-gate.md) | 有界标准库交付与独立项目兼容性门（用户批准重排） | 已接受 |
 
+| [0033](0033-direct-cil-guarded-accumulator.md) | 受守卫直接 CIL 累加槽 | 已验证；默认关闭、显式实验 |
+| [0034](0034-fresh-tuple-scalar-replacement.md) | 新鲜临时 tuple 的有界标量替换 | 已接受，限定规则默认启用 |
+| [0035](0035-guarded-leaf-call-specialization.md) | 有限纯叶调用的守卫特化 | 已验证，默认关闭、显式实验 |
+
+| [0036](0036-bounded-interval-unboxing.md) | 非 SSA 有限值域证明与自动拆箱 | 验证中 |
+
 ## 模板
 
 ```markdown

@@ -293,6 +293,8 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
         Rvalue::Box { value, from } => {
             format!("box<{:?}>({})", from, format_operand(value))
         }
+        Rvalue::IsBoxedI64 { value } => format!("is_boxed_i64({})", format_operand(value)),
+        Rvalue::UnboxExactI64 { value } => format!("unbox_exact_i64({})", format_operand(value)),
         Rvalue::Unbox { value, to } => {
             format!("unbox<{:?}>({})", to, format_operand(value))
         }

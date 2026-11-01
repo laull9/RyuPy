@@ -143,6 +143,8 @@ pub struct Function {
     pub param_meta: Vec<ParamMeta>,
     /// 该函数的 `PyFunction` 对象所在的模块静态槽位（`ModuleMain` 为 `None`）。
     pub function_global: Option<GlobalId>,
+    /// 特化身份锚点：初始化时保存原函数对象，不导出且禁止Python/MIR写入。
+    pub specialization_identity_global: Option<GlobalId>,
     /// 默认值数组（`object[]`）的槽位；没有默认值时为 `None`。
     pub defaults_global: Option<GlobalId>,
     /// `PySignature` 的槽位，供生成的调用入口（thunk）使用。
@@ -273,7 +275,7 @@ pub enum Constant {
     Str(String),
     /// 超出 i64 的整数字面量，以十进制字符串携带，构造时由运行时转 BigInteger。
     BigInt(String),
-    /// CIL `null` 引用（只在“必定不可达”的占位路径上使用）。
+    /// CIL `null` 引用：未绑定槽/内部缓存哨兵/占位；不是Python None单例。
     Null,
     /// Python `None`（运行时单例）。
     None,
@@ -326,6 +328,14 @@ pub enum Rvalue {
     Unbox {
         value: Operand,
         to: MirType,
+    },
+    /// 纯CLR精确boxed Int64测试；不包含Python bool/大整数转换。
+    IsBoxedI64 {
+        value: Operand,
+    },
+    /// 仅在迭代类型事实证明为boxed Int64的边上拆箱。
+    UnboxExactI64 {
+        value: Operand,
     },
     /// 动态二元运算：`PyPic.Binary(site, op, a, b)`。
     DynBinary {
@@ -460,6 +470,8 @@ impl DynOp {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BinOp {
     Add,
+    /// i64模2^64加法；溢出判定/动态回退必须由MIR显式构造。
+    WrappingAdd,
     Sub,
     Mul,
     Div,

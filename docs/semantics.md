@@ -174,7 +174,7 @@ CPython 一致的消息。
 | 41 | 增量赋值目标只求值一次 | `a[f()] += 1`、`g().x += 1` 中 `f` / `g` 只调用一次 | 读、写各降级一次会执行两遍 | M2.12：`aug_assign.rs` 把除不可变字面量外的子表达式（含名字）先求值进隐藏局部，冻结原对象/索引并跨暂停保存 |
 | 42 | `True` / `False` 与小整数的 `is` | `True` 是单例；[-5, 256] 的 int 被缓存，`x is 0` 为真 | 每次 `box` 都是新对象 | M2.12：bool 装箱复用单例、小整数装箱走缓存；`PyOps.Is` 对 bool 与 [-5, 256] 的 int 按值判定（不依赖装箱来源）。范围外的 int 仍按对象身份，与 CPython 一样不应依赖 |
 | 43 | 排序只用 `<` | `sorted` / `list.sort` 只调用 `__lt__`，不调用 `__eq__` | — | M2.12：`PySort` 改为只用「小于」的二分插入 + 归并；此前每次比较先 `==` 再 `<`，会多调用用户 `__eq__` |
-| 44 | `%` 字符串格式化（未支持） | `"%d-%s" % (1, "a")` | — | 当前抛 `TypeError: unsupported operand type(s) for %`；登记为待做（TODO 技术债），不静默生成近似结果 |
+| 44 | `%` 字符串格式化（有限子集） | `"%d-%s" % (1, "a")`、`"%(name)s" % mapping` | — | M3.7 支持无修饰 `%s/%r/%a/%d/%i/%u/%%` 与映射键，逐项求值；flags/宽度/precision/其它转换及 bytes 仍未支持，详见 [string-percent.md](string-percent.md) |
 | 45 | 类体内引用同类定义的函数名（未支持） | `v = property(getv, setv)` 可以读到类体里刚定义的 `getv` | — | 当前报 `E0106` 未定义名字；类体作用域的名字解析待补（TODO 技术债） |
 
 | 46 | 闭包 late binding 与默认值 | 闭包读调用时的变量；默认值保留定义时的结果 | 复制捕获值会丢失共享修改 | M3.0：一个绑定对应一个 cell，多闭包共享，默认值在 def / lambda 位置求值 |
@@ -544,3 +544,11 @@ Ellipsis 为真实单例，源码 `...` 不受用户重绑同名内建名字影�
 特殊Enum/TypedDict/显式dataclass条件仍诊断，详见 [类体条件](class-body-conditions.md)。
 已知Str的属性读取交已有动态协议，不再因静态接收者类型误拒split/upper等；当前
 函数粒度策略会降所属函数，不改变独立数值函数，详见 [字符串属性](string-attributes.md)。
+
+
+### 模块属性删除的既有边界
+
+编译模块的属性写入支持现有公开槽与动态属性；`del module.name` 尚无对应
+删除协议入口，当前抛 AttributeError。M3.9 叶调用特化验证用优化前保存 CLI
+与新候选确认同一缺口；完整删除后旧函数别名仍应可调用的期望保留在
+`tests/cases/optimization/leaf_identity_deletion`（pending），不计入特化正确性通过。

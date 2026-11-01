@@ -62,6 +62,7 @@ fn sample() -> (Function, [LocalId; 4]) {
             },
             param_meta: vec![],
             function_global: None,
+            specialization_identity_global: None,
             defaults_global: None,
             signature_global: None,
             env: None,

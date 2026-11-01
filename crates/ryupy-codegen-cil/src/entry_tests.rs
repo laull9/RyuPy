@@ -26,6 +26,7 @@ fn serialized_entry_initializes_exit_code() {
         },
         param_meta: Vec::new(),
         function_global: None,
+        specialization_identity_global: None,
         defaults_global: None,
         signature_global: None,
         env: None,

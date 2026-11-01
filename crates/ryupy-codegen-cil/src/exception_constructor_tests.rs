@@ -26,6 +26,7 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         },
         param_meta: Vec::new(),
         function_global: None,
+        specialization_identity_global: None,
         defaults_global: None,
         signature_global: None,
         env: None,

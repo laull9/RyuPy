@@ -1,0 +1,10 @@
+# 原始 JIT/CIL、历史补丁与生成汇总保留工具原字节及校验哈希；不规范化证据空白。
+# 此例外仅限 M3.9 归档产物，生产代码与手写文档仍检查空白。
+tests/perf/results/m3_9/**/*.asm -whitespace
+tests/perf/results/m3_9/**/*.cil -whitespace
+tests/perf/results/m3_9/**/*.diff -whitespace
+tests/perf/results/m3_9/**/*.patch -whitespace
+tests/perf/results/m3_9/full-suite/core-jit/README.md -whitespace
+tests/perf/results/m3_9/full-suite/kernel-summary.md -whitespace
+tests/perf/results/m3_9/full-suite/paired-summary.md -whitespace
+tests/perf/results/m3_9/full-suite/suite-summary.md -whitespace

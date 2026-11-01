@@ -4,6 +4,8 @@ using Xunit;
 namespace RyuPy.Runtime.Tests;
 
 /// <summary>真Flag的缓存身份、严格位域、单bit迭代和既有Enum无退化，不经过CLR枚举桥接。</summary>
+// 原生模块注册属于进程级状态，不能与其它初始化测试并行看到半登记的模块表。
+[Collection("生成器帧栈")]
 public class PyFlagTests
 {
     private static PyClass Flag(string name, params (string Name, object Value)[] items)

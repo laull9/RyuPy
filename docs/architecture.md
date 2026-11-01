@@ -103,8 +103,14 @@ ryupy-e2e（仅测试）─► ryupy-driver
 - 动态函数（M2.1）：局部变量与参数是 `MirType::Dynamic`；字面量先 `Box`，运算走
   `DynBinary` / `DynCompare` / `DynUnary` / `DynTruthy`；动态值进静态槽位时插 `Unbox`（`PyCast`）。
   `range` 在动态函数里仍是计数循环，边界拆箱成 i64。
-- `validate.rs` 是 MIR 的「类型系统」：codegen 之前必跑，Pass 之后 debug 构建下自动跑。
-- 优化以 `MirPass` 为单位，每个 Pass 独立、可单独快照测试。
+- `validate.rs` 是 MIR 的「类型系统」：codegen 之前必跑，每个流水线 Pass 后也验证，非法 IR 返回诊断而不是 panic。
+- 函数局部优化以 `MirPass` 为单位；跨函数叶摘要使用显式 `ProgramPass`，由 `PipelinePass` 区分调度。每个 Pass 独立、可单独快照测试，不在通用运行器中隐式追加变换。
+- M3.9 默认流水线保留 holder 累加器，随后对新鲜非逃逸 tuple 做同块标量替换，再清理失用纯值。
+  临时 tuple 最多 8 元素、每函数总尝试 32 次，元素在原构造点冻结；逃逸 / 身份观察 / EH / 暂停保留对象。
+  `exact_types.rs` 提供有限前向精确盒类型事实，验证实验直接拆箱的守卫；不把 bool 当 boxed Int64。
+  直接局部累加仅由显式编译会话 `--experimental-direct-accumulator` 选择，因配对吞吐未达默认门槛而关闭。
+  Python 快慢路与溢出判断仍在 MIR，后端仅发 CLR 精确类型 / 拆箱 / 回绕加法原语（ADR-0033 / 0034）。
+
 
 - M3.0 用 `MakeFunction` 显式携带环境 cell 与默认值；环境作为隐藏尾参数，Python 参数元数据
   不包含它。`CellNew` / `CellGet` / `CellGetFree` / `CellSet` 统一读写共享绑定。

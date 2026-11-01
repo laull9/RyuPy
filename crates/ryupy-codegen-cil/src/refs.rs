@@ -311,6 +311,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let trace_push = res.push_method_reference(
         method_ref! { static long @traceback_type::PushFrame(string, string) },
     );
+    let trace_check_depth =
+        res.push_method_reference(method_ref! { static void @traceback_type::CheckDepth() });
     let trace_line =
         res.push_method_reference(method_ref! { static void @traceback_type::SetLine(int) });
     let trace_pop_to =
@@ -508,6 +510,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         dyn_str,
         dyn_type,
         trace_push,
+        trace_check_depth,
         trace_line,
         trace_pop_to,
         exception_types,

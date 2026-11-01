@@ -339,6 +339,15 @@ pub(crate) fn emit_init_functions(
         ins.push(Instruction::NewObject(UserMethod::Reference(
             refs.py_function_ctor,
         )));
+        if let Some(identity_global) = func.specialization_identity_global {
+            // MIR 明示的私有身份锚点保留同一个原始对象；不再次构造，也不读取可变公开槽。
+            // 本初始化方法在任何用户模块入口执行前运行，后端不判断哪些函数值得特化。
+            ins.push(Instruction::Duplicate);
+            ins.push(Instruction::StoreStaticField {
+                volatile: false,
+                param0: field_of(Some(identity_global), refs).into(),
+            });
+        }
         ins.push(Instruction::StoreStaticField {
             volatile: false,
             param0: function_field.into(),

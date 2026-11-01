@@ -20,6 +20,7 @@ mod build_stmts;
 mod build_try;
 mod call_builder;
 mod call_builtins;
+mod exact_types;
 pub mod expr_builder;
 mod expr_ops;
 mod expr_values;
@@ -55,3 +56,5 @@ mod binding_validation_tests;
 mod validate_exports;
 
 mod class_lookup;
+
+mod validate_identities;

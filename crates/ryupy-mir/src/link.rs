@@ -87,6 +87,9 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                     })
                     .collect(),
                 function_global: func.function_global.map(|g| global_map[&g]),
+                specialization_identity_global: func
+                    .specialization_identity_global
+                    .map(|g| global_map[&g]),
                 defaults_global: func.defaults_global.map(|g| global_map[&g]),
                 signature_global: func.signature_global.map(|g| global_map[&g]),
                 env: func.env,
@@ -359,6 +362,12 @@ fn remap_rvalue(
             value: remap_operand(value, global_map),
             from: remap_type(from, class_map),
         },
+        Rvalue::IsBoxedI64 { value } => Rvalue::IsBoxedI64 {
+            value: remap_operand(value, global_map),
+        },
+        Rvalue::UnboxExactI64 { value } => Rvalue::UnboxExactI64 {
+            value: remap_operand(value, global_map),
+        },
         Rvalue::Unbox { value, to } => Rvalue::Unbox {
             value: remap_operand(value, global_map),
             to: remap_type(to, class_map),
@@ -467,6 +476,7 @@ impl Function {
             },
             param_meta: Vec::new(),
             function_global: None,
+            specialization_identity_global: None,
             defaults_global: None,
             signature_global: None,
             env: None,

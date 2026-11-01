@@ -96,6 +96,8 @@ pub(super) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
         | Rvalue::GetField { obj: value, .. }
         | Rvalue::Box { value, .. }
         | Rvalue::Unbox { value, .. }
+        | Rvalue::IsBoxedI64 { value }
+        | Rvalue::UnboxExactI64 { value }
         | Rvalue::DynTruthy { value }
         | Rvalue::Unary { operand: value, .. }
         | Rvalue::Cast { operand: value, .. }

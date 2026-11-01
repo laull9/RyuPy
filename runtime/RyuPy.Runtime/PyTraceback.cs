@@ -87,10 +87,7 @@ public static class PyTraceback
     /// <param name="function">函数名；模块顶层传 <c>&lt;module&gt;</c>。</param>
     public static long PushFrame(string file, string function)
     {
-        if (_depth >= RecursionLimit)
-        {
-            throw new PyRecursionError("maximum recursion depth exceeded");
-        }
+        CheckDepth();
         if (_depth == _functions.Length)
         {
             Array.Resize(ref _functions, _depth * 2);
@@ -102,6 +99,14 @@ public static class PyTraceback
         _lines[_depth] = 0;
         _depth++;
         return _depth;
+    }
+
+    /// <summary>验证下一次 Python 调用的深度，不压入帧；无可观察函数体的守卫内联仍必须保留此检查。</summary>
+    public static void CheckDepth()
+    {
+        // 与普通入口共享同一限额和错误，不能因省略叶函数帧而吞掉可捕获异常。
+        if (_depth >= RecursionLimit)
+            throw new PyRecursionError("maximum recursion depth exceeded");
     }
 
     /// <summary>保存调用者帧深度；原生回调捕获异常后用 PopTo(depth + 1) 恢复，不创建虚假帧。</summary>
