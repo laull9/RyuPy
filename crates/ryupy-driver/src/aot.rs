@@ -11,7 +11,9 @@ use anyhow::{Context, Result, bail};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 const RUNTIME_ASSEMBLY: &str = "RyuPy.Runtime";
-const RID: &str = "linux-x64";
+#[path = "aot_platform.rs"]
+mod platform;
+use platform::HostPlatform;
 
 /// 在 build 的任何产物写入之前调用。运行时保留名对 JIT 同样适用，避免 DLL 被覆盖。
 pub(crate) fn validate_before_build(input: &Path, aot: bool) -> Result<()> {
@@ -28,14 +30,7 @@ pub(crate) fn validate_before_build(input: &Path, aot: bool) -> Result<()> {
 }
 
 fn validate_platform() -> Result<()> {
-    if !cfg!(all(
-        target_os = "linux",
-        target_arch = "x86_64",
-        target_env = "gnu"
-    )) {
-        bail!("Native AOT 首切仅支持已验收的 Linux x64 glibc 宿主，不支持交叉发布");
-    }
-    Ok(())
+    HostPlatform::current().map(|_| ())
 }
 
 /// SDK 使用绝对 HintPath；先转义 MSBuild 特殊字符，再转义 XML，不经过 shell。
@@ -154,6 +149,7 @@ fn publish_owned(
     dll: &Path,
     runtime: &Path,
 ) -> Result<PathBuf> {
+    let platform = HostPlatform::current()?;
     let source = root.join("host");
     let publish = root.join("publish");
     std::fs::create_dir(&source)?;
@@ -167,7 +163,15 @@ fn publish_owned(
     let output = Command::new(crate::dotnet::dotnet_exe())
         .arg("publish")
         .arg(&project_path)
-        .args(["-c", "Release", "-r", RID, "--self-contained", "true", "-o"])
+        .args([
+            "-c",
+            "Release",
+            "-r",
+            platform.rid(),
+            "--self-contained",
+            "true",
+            "-o",
+        ])
         .arg(&publish)
         .args([
             "-p:ImportDirectoryBuildProps=false",
@@ -188,7 +192,7 @@ fn publish_owned(
     let checked = (|| -> Result<PathBuf> {
         std::fs::write(root.join("publish.stdout.log"), &output.stdout)?;
         std::fs::write(root.join("publish.stderr.log"), &output.stderr)?;
-        let executable = publish.join(host);
+        let executable = publish.join(platform.executable_name(host));
         let metadata = std::fs::symlink_metadata(&executable)
             .with_context(|| format!("SDK 成功但没有本次原生产物 {}", executable.display()))?;
         if !metadata.is_file() || metadata.len() == 0 {
@@ -201,6 +205,7 @@ fn publish_owned(
                 bail!("本次原生产物没有执行权限");
             }
         }
+        platform.validate_image(&executable)?;
         Ok(executable)
     })();
     checked.map_err(|error| {
