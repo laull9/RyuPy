@@ -1,4 +1,4 @@
-# AOT/JIT首组固定小配对（待正式测量）
+# AOT/JIT首组固定小配对（首组正式测量已完成）
 
 目标：观察同源三种执行路径成本后选择一个有证据的热点，不预设AOT更快、不自动改默认优化。
 仅Linux x64 glibc；5源码期望/哈希在perf_fixtures/expected.json，固定CPython3.12.13。
@@ -36,4 +36,4 @@ CI本job无并行构建/采样，不能保证共享宿主绝无外部噪声；�
 IR/native仅target及Actions工件；Git只放脚本、固定输入、精简结果与CI链接，不放raw运行日志。
 
 预检：4项runner/schema测试通过；首次lscpu因本地sysfs缺失退出，尚未采样，改读真实/proc/cpuinfo
-后九CP冷/热协议+15types/MIR/CIL dump通过，零SDK发布、零性能进程。正式81采样仍待CI。
+后九CP冷/热协议+15types/MIR/CIL dump通过，零SDK发布、零性能进程。随后固定CI41407684705已完整81进程通过；精简结果见[基线](../../docs/validation/aot-jit-baseline/README.md)，原始数据仅CI工件。
