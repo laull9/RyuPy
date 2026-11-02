@@ -62,17 +62,8 @@ pub fn run_dll_with(dll: &Path, opts: &RunOptions) -> Result<Output> {
         .with_context(|| format!("等待 dotnet 进程失败 {}", dll.display()))
 }
 
-/// Native AOT 发布。
-///
-/// 计划方案（ADR-0005）：ILCompiler 只接受「项目」作为输入，所以在产物目录下生成一个桩项目：
-///
-/// ```text
-/// <out>/aot/
-///   RyuPyHost.csproj   // PublishAot=true，<Reference> 指向 <name>.dll 与 RyuPy.Runtime.dll
-///   Program.cs         // static void Main(string[] a) => RyuPy.Generated.Module.Main(a);
-/// ```
-///
-/// 然后执行 `dotnet publish -c Release -r <rid>`，返回生成的原生可执行文件路径。
-pub fn publish_aot(_dll: &Path, _out_dir: &Path) -> Result<PathBuf> {
-    anyhow::bail!("Native AOT 尚未实现（M5.2，见 TODO.md）")
+/// Native AOT 发布：生成薄宿主并返回本次独立 publish 目录内的真实可执行文件。
+/// 宿主直接返回生成的 int Main(string[])，失败不返回或复用旧原生产物。
+pub fn publish_aot(dll: &Path, out_dir: &Path) -> Result<PathBuf> {
+    crate::aot::publish(dll, out_dir)
 }
