@@ -1,5 +1,6 @@
 """只读普通文件清单核对；不跟随链接，不宣称恶意并发目录替换安全。"""
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -50,6 +51,33 @@ def files_under(root):
     return result
 
 
+def stat_snapshot(info):
+    fields = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns', 'st_ctime_ns',
+              'st_birthtime_ns', 'st_mode', 'st_file_attributes')
+    return {key: getattr(info, key, None) for key in fields}
+
+
+def check_read_snapshots(before, opened, after_read, after, size, *, windows):
+    """Windows 3.12 path ctime 是创建时刻，fd ctime 是 ChangeTime，不能跨 API 比。"""
+    snapshots = tuple(stat_snapshot(info) for info in (before, opened, after_read, after))
+    cross = ('st_dev', 'st_ino', 'st_size', 'st_mtime_ns')
+    if windows:
+        cross += ('st_birthtime_ns',)
+    else:
+        cross += ('st_ctime_ns',)
+    stable = all(all(item[key] == snapshots[0][key] for key in cross)
+                 for item in snapshots[1:])
+    if windows:
+        stable = (stable and all(item['st_birthtime_ns'] is not None for item in snapshots)
+                  and snapshots[0]['st_ctime_ns'] == snapshots[3]['st_ctime_ns']
+                  and snapshots[1]['st_ctime_ns'] == snapshots[2]['st_ctime_ns'])
+    if not stable or size != before.st_size:
+        names = ('before_path', 'opened_fd', 'after_read_fd', 'after_path')
+        detail = dict(zip(names, snapshots))
+        detail['bytes_read'] = size
+        raise ManifestError('读取期间发布文件变化：' + json.dumps(detail, sort_keys=True))
+
+
 def digest(path):
     before = plain_stat(path)
     size, hashed = 0, hashlib.sha256()
@@ -60,10 +88,10 @@ def digest(path):
             hashed.update(block)
         after_read = os.fstat(stream.fileno())
     after = plain_stat(path)
-    def identity(info):
-        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns, info.st_ctime_ns)
-    if any(identity(info) != identity(before) for info in (opened, after_read, after)) or size != before.st_size:
-        raise ManifestError(f'读取期间发布文件变化：{path.name}')
+    try:
+        check_read_snapshots(before, opened, after_read, after, size, windows=os.name == 'nt')
+    except ManifestError as error:
+        raise ManifestError(f'{path.name}: {error}') from error
     return size, hashed.hexdigest()
 
 

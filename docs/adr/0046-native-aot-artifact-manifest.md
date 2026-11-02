@@ -94,3 +94,15 @@ sha2的默认std实现（MIT OR Apache-2.0），不手写JSON或SHA，也不新�
 再次翻译成CRCRLF，严格SDK记录解析器因此拒绝。仅将测试输入改为精确UTF-8字节
 写入，保原合法／非法断言与生产解析；本地8项重跑通过。该轮Windows未到构建／ILC，
 不把测试修正算作实际Windows原生发布通过；Mac／Linux独立运行结果另行记录。
+
+第二轮Windows已经完成真实ILC及清单输出，独立搬迁验证器却因跨lstat/fstat元数据
+比较失败而停止，尚未执行搬迁后的native。下载产物的exact-set/大小/SHA/PE头均能
+独立重核。固定[CPython路径stat实现](https://github.com/python/cpython/blob/v3.12.13/Modules/posixmodule.c#L2008-L2018)
+将Windows路径ctime映射为创建时间，而[handle stat实现](https://github.com/python/cpython/blob/v3.12.13/Python/fileutils.c#L1026-L1041)
+保留ChangeTime，不能跨这两API要求ctime相等。该轮未记录四份值，不能唯一断言
+实际失败只由此字段造成；但该比较约束本身确定错误。
+
+验证器窄修保跨API的dev/ino/size/mtime/birthtime（缺birthtime拒绝），并保路径前后
+与fd前后各自ctime相等；非Windows原约束不变，SHA/读取长度/reparse/exact-set不减。
+失败记录四快照，轻回归逐字段变更负例及Windows真实write/utime取证；不改生产Rust。
+本地11项中10通过、1项Windows实机用例明确跳过，真实Windows复验仍待CI。
