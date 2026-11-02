@@ -9,7 +9,6 @@ import re
 import shutil
 import subprocess
 import tempfile
-from xml.sax.saxutils import escape
 
 
 MODES = {"all": [], "argv": ["argv", "", "a b", "中文", "--flag"],
@@ -73,6 +72,25 @@ def executable(value):
     return str(Path(found).resolve())
 
 
+def published_native(stderr, output):
+    """只认本次成功 CLI 的唯一原生发布行，不从旧文件或 glob 猜产物。"""
+    generated = [line.removeprefix("已生成 ") for line in
+                 stderr.decode("utf-8", errors="strict").splitlines()
+                 if line.startswith("已生成 ")]
+    candidates = [Path(value) for value in generated if not value.endswith(".dll")]
+    if len(candidates) != 1:
+        raise AssertionError(f"CLI 未报告唯一 native 产物：{generated}")
+    native = candidates[0]
+    if not native.is_absolute() or not native.is_file():
+        raise AssertionError(f"CLI native 不是现存绝对文件：{native}")
+    resolved = native.resolve()
+    relative = resolved.relative_to(output.resolve())
+    if (len(relative.parts) != 3 or not relative.parts[0].startswith("ryupy-aot-")
+            or relative.parts[1] != "publish"):
+        raise AssertionError(f"native 不满足 driver 独占工作目录合同：{resolved}")
+    return resolved
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path)
@@ -96,7 +114,8 @@ def main():
                       "import sys; print(sys.implementation.name); print('.'.join(map(str,sys.version_info[:3])))"],
                       cwd=work, check=True)
     assert version.stdout.strip() == b"cpython\n3.12.13", "必须使用固定 CPython 3.12.13"
-    source, il, host = [work / name for name in ("input", "il", "host")]
+    source = work / "源码 & input with spaces"
+    il = work / "产物 & output with spaces"
     source.mkdir()
     for name in ("main.py", "state.py"):
         shutil.copy2(Path(__file__).parent / "fixtures" / name, source / name)
@@ -110,31 +129,20 @@ def main():
     if args.prepare_only:
         (work / "result.json").write_text('{"prepare_only": true, "python_jit": "passed"}')
         return
-    host.mkdir()
-    (host / "Program.cs").write_text(
-        "internal static class Program { public static int Main(string[] args) => "
-        "RyuPy.Generated.Module.Main(args); }\n")
-    # 真实静态引用，不加 broad roots；HintPath XML 转义支持特殊目录名。
-    references = "".join(f'<Reference Include="{name}"><HintPath>{escape(str(il / filename))}'
-                         '</HintPath></Reference>' for name, filename in
-                         [("main", "main.dll"), ("RyuPy.Runtime", "RyuPy.Runtime.dll")])
-    (host / "NativeHost.csproj").write_text(
-        '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>'
-        '<OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>'
-        '<AssemblyName>NativeHost</AssemblyName><PublishAot>true</PublishAot>'
-        '<TreatWarningsAsErrors>true</TreatWarningsAsErrors>'
-        '<IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>'
-        '<ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>'
-        '<TrimmerSingleWarn>false</TrimmerSingleWarn>'
-        '<EnableDefaultCompileItems>false</EnableDefaultCompileItems>'
-        '</PropertyGroup><ItemGroup><Compile Include="Program.cs"/>' + references + '</ItemGroup></Project>')
-    publish = work / "publish"
-    run.run("publish", [dotnet, "publish", str(host / "NativeHost.csproj"), "-c", "Release",
-                        "-r", args.rid, "-o", str(publish)], cwd=work, check=True, timeout=1800)
+    # 真正走公开 CLI/driver AOT 路径，不能退回测试脚本自造宿主。
+    published = run.run("publish", [ryupy, "build", str(source / "main.py"),
+                                  "--out-dir", str(il), "--aot"],
+                        cwd=work, env={**os.environ, "DOTNET": dotnet},
+                        check=True, timeout=1800)
+    native = published_native(published.stderr, il)
+    publish = native.parent
+    # driver 保留成功 SDK 原始双流；清理构建树前必须归档，不靠 CLI 摘要。
+    for name in ("publish.stdout.log", "publish.stderr.log"):
+        shutil.copy2(publish.parent / name, logs / ("driver-" + name))
     relocated = work / "relocated"
     relocated.mkdir()
-    binary = relocated / "NativeHost"
-    shutil.copy2(publish / "NativeHost", binary)
+    binary = relocated / native.name
+    shutil.copy2(native, binary)
     with binary.open("rb") as stream:
         assert stream.read(4) == b"\x7fELF", "发布产物必须是真实 ELF 原生文件"
     # Linux 系统库不打包；仅发布目录确有的本机共享库允许随程序搬迁。
@@ -145,7 +153,7 @@ def main():
     run.run("file", [executable("file"), str(binary)], cwd=work, check=True)
     run.run("ldd", [executable("ldd"), str(binary)], cwd=work, check=True)
     # 留日志和搬迁产物；删除的每个路径都由本轮脚本创建。
-    for directory in (source, il, host, publish):
+    for directory in (source, il):
         shutil.rmtree(directory)
     clean = {"PATH": "/usr/bin:/bin", "HOME": str(work), "LANG": "C.UTF-8"}
     for mode, values in MODES.items():
@@ -155,12 +163,12 @@ def main():
     # 容器只挂载搬迁产物；镜像不包含 SDK/runtime/Python，运行时禁网。
     script = ('for tool in dotnet python python3 python3.12; do '
               'if command -v "$tool" >/dev/null 2>&1; then exit 97; fi; done; '
-              'exec /app/NativeHost "$@"')
+              'binary=$1; shift; exec "$binary" "$@"')
     for mode, values in MODES.items():
         result = run.run(f"docker-{mode}", [docker, "run", "--rm", "--network", "none",
                          "--read-only", "--mount", f"type=bind,src={relocated},dst=/app,readonly",
                          "--workdir", "/app", "--entrypoint", "/bin/sh", IMAGE,
-                         "-c", script, "aot-smoke", *values], cwd=work, timeout=300)
+                         "-c", script, "aot-smoke", "/app/" + binary.name, *values], cwd=work, timeout=300)
         compare(jit[mode], result, mode)
     (work / "result.json").write_text(json.dumps({"python_jit_native_relocated": "passed",
                                                 "rid": args.rid, "image": IMAGE}, indent=2))

@@ -7,6 +7,7 @@
 //! .py ─parse→ AST ─lower→ HIR ─check→ HIR+Types ─build→ MIR ─passes→ MIR ─codegen→ .dll
 //! ```
 
+mod aot;
 pub mod dotnet;
 pub mod modules;
 pub mod runtime;
@@ -225,6 +226,7 @@ fn assembly_name(input: &Path) -> String {
 
 /// 编译一个 `.py` 文件为 `.dll`（可选再做 Native AOT）。
 pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
+    aot::validate_before_build(&opts.input, opts.aot)?;
     let linked = compile_linked(sess, &opts.input, &opts.search_paths)?;
 
     let name = assembly_name(&opts.input);

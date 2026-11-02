@@ -1,0 +1,1173 @@
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+    Checking ryupy-driver v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-driver)
+    Checking ryupy-e2e v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-e2e)
+    Checking ryupy-cli v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.97s
+dotnet build runtime/RyuPy.Runtime -c Release -nologo -v q
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.14
+"/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12" tests/run_python_baseline.py
+CPython 基线：Python 3.12.13；阶段：phase1, phase2, phase3
+基线：225 通过，0 失败；不代表 RyuPy 支持。
+dotnet test runtime/RyuPy.Runtime.Tests -nologo -v q
+Test run for /workspace/shared/RyuPy/runtime/RyuPy.Runtime.Tests/bin/Debug/net10.0/RyuPy.Runtime.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   434, Skipped:     0, Total:   434, Duration: 917 ms - RyuPy.Runtime.Tests.dll (net10.0)
+cargo test --workspace --exclude ryupy-e2e
+   Compiling ryupy-driver v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-driver)
+   Compiling ryupy-cli v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-cli)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.57s
+     Running unittests src/lib.rs (target/debug/deps/ryupy_base-009804ade0616e80)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/ryupy-1a8e8c453f53b1f4)
+
+running 5 tests
+test tests::direct_accumulator_flag_rejects_unrecognized_values ... ok
+test slp_flag_tests::scalar_slp_control_is_explicit_and_does_not_enable_other_experiments ... ok
+test packed_slp_flag_tests::packed_slp_is_explicit_and_exclusive_with_scalar_control ... ok
+test tests::direct_accumulator_is_explicit_for_every_command ... ok
+test leaf_flag_tests::leaf_inline_is_explicit_independent_and_composable ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/aot_failure.rs (target/debug/deps/aot_failure-83b2fc99d2d22116)
+
+running 2 tests
+test successful_sdk_without_new_native_cannot_reuse_old_artifact ... ok
+test failed_sdk_keeps_old_native_and_reports_both_streams ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running unittests src/lib.rs (target/debug/deps/ryupy_codegen_cil-d1c49f549ca50d12)
+
+running 11 tests
+test entry_tests::serialized_entry_initializes_exit_code ... ok
+test exact_i64_tests::serialized_direct_binary_converts_only_opcode_to_clr_int32 ... ok
+test exact_i64_tests::serialized_exact_i64_uses_clr_primitives_without_changing_legacy_operations ... ok
+test exception_constructor_tests::serialized_warning_constructor_defers_message_policy_to_runtime ... ok
+test exact_f64_tests::exact_double_guard_unbox_and_arithmetic_are_mechanical_clr_operations ... ok
+test function_identity_tests::original_function_identity_is_duplicated_before_module_execution ... ok
+test runtimeconfig::tests::mentions_framework ... ok
+test numeric_list_tests::numeric_list_abi_preserves_unboxed_double_and_object_results ... ok
+test assembly_refs_tests::serialized_assembly_references_have_target_identities_and_lazy_intrinsics ... ok
+test exception_table_tests::serialized_exception_table_keeps_twenty_and_twenty_one_clauses ... ok
+test vector_tests::vector128_methods_encode_generic_value_locals_and_method_specs ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running unittests src/lib.rs (target/debug/deps/ryupy_driver-4bfff6460984cb95)
+
+running 4 tests
+test aot::tests::owned_work_roots_and_host_identities_are_unique ... ok
+test aot::tests::host_project_is_explicit_strict_and_escapes_literal_paths ... ok
+test modules::tests::resolves_packages_and_modules ... ok
+test aot::tests::reserved_runtime_name_fails_before_any_build_write ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/atexit_exit.rs (target/debug/deps/atexit_exit-c8b49e15fc24aaad)
+
+running 1 test
+test atexit_runs_for_all_python_exit_paths_and_preserves_status ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+
+     Running tests/catch_traceback.rs (target/debug/deps/catch_traceback-ec2ccbca6269b051)
+
+running 1 test
+test caught_call_does_not_remove_the_catching_function_frame ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/chained_assignment.rs (target/debug/deps/chained_assignment-988e0f89d7f8ff2f)
+
+running 2 tests
+test class_chains_and_nested_unpacking_remain_explicitly_unsupported ... ok
+test snapshot_shared_value_and_suspended_target_order ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/class_if.rs (target/debug/deps/class_if-c86c22c4b5d67606)
+
+running 2 tests
+test snapshots_class_if_source_order_and_lazy_lookup ... ok
+test unsupported_builtin_fallback_is_only_rejected_when_executed ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/direct_accumulator.rs (target/debug/deps/direct_accumulator-c77221250267259e)
+
+running 4 tests
+test default_source_loop_still_uses_holder ... ok
+test source_loop_really_uses_guarded_i64_locals_instead_of_holder ... ok
+test fallback_preserves_original_radd_traceback_line ... ok
+test pinned_python_fixture_matches_holder_and_explicit_direct_mode ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests/exception_identity.rs (target/debug/deps/exception_identity-8afaea8681185de0)
+
+running 1 test
+test builtin_and_user_exception_names_do_not_share_global_cil_key ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/flag.rs (target/debug/deps/flag-45e02da7f47b97cc)
+
+running 1 test
+test snapshot_flag_keeps_integer_member_expressions_until_finalize ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/float_chain.rs (target/debug/deps/float_chain-48e54215a5fda616)
+
+running 3 tests
+test real_numeric_kernels_expose_guarded_float_chains ... ok
+test guard_failure_retains_original_user_protocol_traceback ... ok
+test float_chain_fixture_matches_pinned_python_after_real_specialization ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/float_loop.rs (target/debug/deps/float_loop-d67b54e897da7c96)
+
+running 3 tests
+test real_matrix_and_nested_fixture_use_cross_iteration_float_state ... ok
+test failed_protocol_observes_materialized_previous_sum_and_original_trace ... ok
+test loop_identity_reentry_and_protocol_fixture_match_pinned_python ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests/float_slp.rs (target/debug/deps/float_slp-a6083f790d7f5851)
+
+running 2 tests
+test fresh_independent_pairs_really_vectorize_but_aliases_do_not ... ok
+test packed_scalar_control_and_disabled_isa_match_pinned_python ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+     Running tests/float_slp_payload.rs (target/debug/deps/float_slp_payload-d00494b7bf361ed6)
+
+running 1 test
+test packed_lanes_preserve_scalar_payload_zero_and_operand_order ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.03s
+
+     Running tests/function_imports.rs (target/debug/deps/function_imports-b1ad86cacc75f814)
+
+running 1 test
+test snapshots_local_and_closure_import_binding ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/generator_traceback.rs (target/debug/deps/generator_traceback-26fe3fa601d18133)
+
+running 1 test
+test generator_retry_preserves_original_traceback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/integer_literals.rs (target/debug/deps/integer_literals-f65d7585bc7847db)
+
+running 2 tests
+test snapshot_big_defaults_do_not_demote_unrelated_small_integer_function ... ok
+test significant_decimal_capacity_is_explicit_for_every_radix ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/interval_narrow.rs (target/debug/deps/interval_narrow-c9615a5589a07b8a)
+
+running 2 tests
+test joined_constant_ranges_really_remove_dynamic_add ... ok
+test interval_identity_and_fallback_fixture_matches_pinned_python ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/io_unsupported.rs (target/debug/deps/io_unsupported-a70460cbdfc6baee)
+
+running 2 tests
+test stable_io_aliases_and_subclasses_lower_with_secondary_parent_handler ... ok
+test rebinding_or_local_io_source_does_not_gain_static_exception_identity ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/large_dict_guard.rs (target/debug/deps/large_dict_guard-8ab65a5e39015d25)
+
+running 1 test
+test unsupported_large_dictionary_key_does_not_call_user_hash_equal_or_repr ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/leaf_inline.rs (target/debug/deps/leaf_inline-90396bbd0ccba1ef)
+
+running 7 tests
+test default_pipeline_keeps_original_dynamic_alias_call ... ok
+test unknown_arguments_and_mixed_boolean_join_are_not_specialized ... ok
+test alias_call_has_guarded_inline_and_original_dynamic_fallback ... ok
+test both_experiments_preserve_exact_facts_and_real_result ... ok
+test identity_fallback_preserves_original_callable_error_frames ... ok
+test inlined_success_still_obeys_original_call_recursion_limit ... ok
+test public_rebinding_and_argument_side_effects_match_pinned_python ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/m3_0.rs (target/debug/deps/m3_0-e2ec5b71f955c291)
+
+running 2 tests
+test snapshot_m3_0_nonlocal_diagnostics ... ok
+test snapshot_m3_0_closures ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/m3_1.rs (target/debug/deps/m3_1-b6d96d3997bfb86a)
+
+running 4 tests
+test snapshot_m3_1_unsupported ... ok
+test snapshot_m3_1_generator_expression ... ok
+test snapshot_m3_1_dict_set ... ok
+test snapshot_m3_1_list ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/m3_2.rs (target/debug/deps/m3_2-e974d56fc08634c7)
+
+running 9 tests
+test snapshot_prepared_dataclass_runtime_support ... ok
+test snapshot_m3_2_unsupported ... ok
+test snapshot_m3_2_return_value ... ok
+test snapshot_m3_2_large_dictionary_dynamic_scalar_guard ... ok
+test snapshot_m3_2_starred_call ... ok
+test snapshot_m3_2_starred_containers ... ok
+test snapshot_m3_2_send ... ok
+test snapshot_m3_2_prepared_call ... ok
+test snapshot_m3_2_basic ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/m3_3.rs (target/debug/deps/m3_3-75f7e77adc882fde)
+
+running 1 test
+test snapshot_definition_decorators ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/m3_5.rs (target/debug/deps/m3_5-bab2fd69dd4b04c9)
+
+running 5 tests
+test local_source_named_re_is_not_treated_as_native_exception_module ... ok
+test snapshot_dynamic_exception_alias_diagnostics ... ok
+test local_source_named_json_is_not_treated_as_native_exception_module ... ok
+test snapshot_native_exception_aliases ... ok
+test protected_exception_alias_rebinding_is_explicit_and_other_exports_stay_mutable ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/m3_6.rs (target/debug/deps/m3_6-aebc6af5bfa5b1fc)
+
+running 3 tests
+test snapshot_numeric_accumulator_keeps_observed_aliases_dynamic ... ok
+test snapshot_dead_box_elimination_keeps_observed_and_captured_targets ... ok
+test dataclass_defaults_and_annotation_values_are_runtime_semantics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/m3_7.rs (target/debug/deps/m3_7-12442ff163c31ebc)
+
+running 8 tests
+test snapshot_future_capability_and_position_diagnostics ... ok
+test snapshot_enum_explicit_unsupported_boundaries ... ok
+test snapshot_map_dynamic_calls_and_first_class_value ... ok
+test snapshot_not_implemented_value_call_and_local_shadow ... ok
+test snapshot_dir_dynamic_call_and_first_class_value ... ok
+test native_testcase_identity_is_explicit_and_local_source_wins ... ok
+test snapshot_enum_members_finalize_before_public_binding ... ok
+test snapshot_warning_hierarchy_typedcatch_and_user_subclass ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/memoryview_traceback.rs (target/debug/deps/memoryview_traceback-6956bb669c7220ee)
+
+running 1 test
+test memoryview_conversion_preserves_only_live_traceback_frames ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests/numeric_list.rs (target/debug/deps/numeric_list-d688f1b0f1471fbd)
+
+running 2 tests
+test real_matrix_uses_identity_safe_numeric_producer_and_consumer ... ok
+test numeric_list_observation_and_fallback_match_pinned_python ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/percent_traceback.rs (target/debug/deps/percent_traceback-72d353d6feeb51cd)
+
+running 1 test
+test percent_integer_conversion_preserves_only_live_traceback_frames ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/runtime_bases.rs (target/debug/deps/runtime_bases-2b75447789ef2322)
+
+running 3 tests
+test snapshot_runtime_base_and_atomic_public_binding ... ok
+test rebound_enum_import_does_not_select_native_enum_lowering ... ok
+test unsupported_metaclass_is_rejected_before_body_without_rebinding ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/snapshots.rs (target/debug/deps/snapshots-101b6c9197a1dc20)
+
+running 25 tests
+test catches_unassigned_local_read ... ok
+test catches_range_zero_step ... ok
+test snapshot_dynamic_attribute_access ... ok
+test snapshot_m1_0 ... ok
+test snapshot_m1_1 ... ok
+test snapshot_m1_2_arith ... ok
+test snapshot_m1_3_for_range ... ok
+test snapshot_m1_4_mandelbrot ... ok
+test snapshot_m2_1_bigint ... ok
+test snapshot_m1_2_control_flow ... ok
+test snapshot_m1_4_floats ... ok
+test snapshot_m2_1_dynamic ... ok
+test snapshot_m2_3_slice_and_unpack ... ok
+test snapshot_m2_8_async_with_diagnostic ... ok
+test snapshot_m1_3_fib ... ok
+test snapshot_multiple_inheritance_diagnostic ... ok
+test snapshot_try_unsupported_handler_type ... ok
+test snapshot_m2_3_containers ... ok
+test snapshot_m2_6_user_errors_cil ... ok
+test snapshot_m1_5_dataclass ... ok
+test snapshot_m2_5_classes ... ok
+test snapshot_m2_9_pic_cil ... ok
+test snapshot_m2_2_try ... ok
+test fib_iter_100_overflows ... ok
+test snapshot_m2_8_with ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/system_entry.rs (target/debug/deps/system_entry-4e74d5b8e18d8d96)
+
+running 5 tests
+test absent_native_modules_remain_runtime_imports ... ok
+test print_target_is_captured_once_after_argument_evaluation ... ok
+test open_builtin_supports_direct_and_first_class_lowering ... ok
+test directory_error_types_have_hir_and_cil_bindings ... ok
+test actual_main_arguments_and_exit_status_are_preserved ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests/system_shutdown.rs (target/debug/deps/system_shutdown-05c5f59d9b67eab7)
+
+running 1 test
+test shutdown_flushes_redirected_file_and_reports_flush_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests/tuple_scalar.rs (target/debug/deps/tuple_scalar-c9cc3bd38b0ec06e)
+
+running 1 test
+test source_temporary_tuple_is_removed_but_escaping_tuple_survives ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/typed_dict.rs (target/debug/deps/typed_dict-04e010095f00699b)
+
+running 2 tests
+test snapshot_typed_dict_uses_private_shell_then_atomic_binding ... ok
+test rebound_root_and_unexecuted_import_do_not_fabricate_types ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/unbound_globals.rs (target/debug/deps/unbound_globals-4cc3e52844c31cd3)
+
+running 3 tests
+test bound_flags_reset_before_body_and_follow_value_store ... ok
+test static_global_load_checks_bound_and_freezes_typed_value ... ok
+test unbound_declared_unsupported_builtin_is_not_a_fake_unknown_name ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/unicode_builtins.rs (target/debug/deps/unicode_builtins-200678de52eda9b3)
+
+running 2 tests
+test snapshot_unicode_builtin_values ... ok
+test snapshot_unicode_builtins ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/unpack_targets.rs (target/debug/deps/unpack_targets-51f6825e36aa5523)
+
+running 2 tests
+test recursive_targets_remain_diagnostic ... ok
+test snapshot_unpack_before_ordered_leaf_stores ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/ryupy_hir-56592f3501edab8c)
+
+running 54 tests
+test annotation_format::tests::rejects_complex_forms_instead_of_evaluating_them ... ok
+test annotation_format::tests::normalizes_precedence_subscripts_and_quotes ... ok
+test annotation_stmts::tests::eager_module_target_annotation_remains_explicitly_unsupported ... ok
+test annotation_stmts::named_annotation_tests::ignored_named_expression_is_not_silently_treated_as_a_global_read ... ok
+test annotation_stmts::tests::ignored_yield_marks_generator_but_ignored_super_is_not_called ... ok
+test annotation_stmts::tests::local_target_annotations_are_not_lowered_as_runtime_expressions ... ok
+test annotation_tests::future_unknown_names_do_not_resolve_or_capture ... ok
+test annotation_tests::future_complex_annotation_remains_explicitly_rejected ... ok
+test class_if_tests::parenthesized_annotations_evaluate_without_declaring_fields ... ok
+test annotation_tests::module_setup_scans_dead_branches_but_excludes_local_annotations ... ok
+test class_if_tests::conditional_methods_have_distinct_ranges_and_defaults_keep_class_lookup ... ok
+test annotation_stmts::postponed_annotation_scope_tests::permits_independent_lambda_and_comprehension_scopes ... ok
+test decorators::tests::ordinary_class_annotation_metadata_preserves_first_declaration_order ... ok
+test decorators::tests::user_dataclass_name_is_an_ordinary_decorator ... ok
+test decorators::tests::callback_mutating_imported_marker_is_rejected ... ok
+test decorators::tests::marker_tracks_import_alias_and_definition_position ... ok
+test class_if_tests::unexecuted_annotations_initialize_namespace_and_special_classes_stay_explicit ... ok
+test annotation_stmts::postponed_annotation_scope_tests::rejects_current_annotation_scope_yield_and_named_expression ... ok
+test exception_imports_tests::imports_not_used_by_static_handlers_remain_mutable_exports ... ok
+test decorators::tests::unsupported_dataclass_options_are_diagnostics_not_ignored ... ok
+test enum_class_tests::native_enum_records_member_aliases_and_requires_delayed_public_binding ... ok
+test exception_imports_tests::driver_identity_is_required_and_unrelated_local_names_do_not_poison_imports ... ok
+test flag_tests::flag_aliases_keep_raw_member_order_and_delayed_binding ... ok
+test flag_tests::local_module_or_rebound_alias_never_selects_flag_protocol ... ok
+test exception_imports_tests::authentic_module_and_from_aliases_lower_to_runtime_names ... ok
+test exception_imports_tests::shadowing_rebinding_unknown_tuple_members_and_dynamic_types_are_rejected ... ok
+test enum_class_tests::dynamic_members_special_hooks_duplicate_names_and_enum_subclasses_are_rejected ... ok
+test flag_tests::unsupported_flag_members_and_class_options_are_explicit ... ok
+test function_import_tests::discovery_descends_functions_but_module_binding_scan_does_not ... ok
+test future_imports::tests::mandatory_features_allow_aliases_after_docstring ... ok
+test imports::tests::resolves_relative_modules ... ok
+test integer_literal::tests::invalid_input_is_a_result_not_a_panic ... ok
+test integer_literal::tests::radix_prefixes_separators_and_leading_zeros_are_normalized ... ok
+test future_imports::tests::semantic_switches_unknown_features_and_wrong_positions_are_rejected ... ok
+test function_import_tests::local_global_and_nonlocal_import_targets_preserve_binding ... ok
+test function_import_tests::function_exception_alias_and_star_remain_explicitly_rejected ... ok
+test lower_tests::integer_literals_above_u64_use_exact_big_integer_hir ... ok
+test lower_tests::lowers_for_range_loop ... ok
+test lower_tests::lowers_dataclass_definition_and_usage ... ok
+test scope::tests::collects_assigned_variables_across_blocks ... ok
+test lower_tests::lowers_function_definitions_and_forward_reference ... ok
+test native_bases_tests::direct_factory_base_is_still_explicitly_unsupported ... ok
+test lower_tests::lowers_if_elif_else_control_flow ... ok
+test native_bases_tests::stable_testcase_aliases_are_real_native_bases ... ok
+test integer_literal::tests::decimal_capacity_counts_significant_digits_not_separators_or_zeros ... ok
+test module_definitions::tests::module_try_class_is_registered_but_function_class_remains_rejected ... ok
+test typed_dict_tests::conditional_import_and_parent_choose_identity_guarded_protocol ... ok
+test typed_dict_tests::forward_syntax_candidates_never_lose_public_binding ... ok
+test typed_dict_tests::shadowed_source_module_does_not_get_typed_dict_protocol ... ok
+test unresolved_globals::tests::unknown_names_are_interned_once_without_local_or_annotation_exports ... ok
+test unresolved_globals::tests::unsupported_builtin_stays_diagnostic_but_user_binding_wins ... ok
+test native_bases_tests::missing_native_identity_uses_guarded_runtime_base_not_native_assumptions ... ok
+test typed_dict_tests::unsupported_class_features_are_diagnostics ... ok
+test integer_literal::tests::radix_capacity_is_exact_and_checked_during_conversion ... ok
+
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running unittests src/lib.rs (target/debug/deps/ryupy_mir-86220a58da7e43d5)
+
+running 93 tests
+test binding_validation_tests::linked_export_guards_reject_invalid_slots_and_types ... ok
+test binding_validation_tests::class_namespace_contains_checks_arguments_and_boolean_destination ... ok
+test exact_types::f64_tests::guarded_double_and_preserving_alias_are_valid ... ok
+test binding_validation_tests::bound_check_rejects_wrong_arity_types_and_assigned_void ... ok
+test exact_types::f64_tests::double_boxes_do_not_qualify_as_integer_leaf_arguments ... ok
+test exact_types::f64_tests::exact_double_requires_dynamic_input_f64_destination_and_no_dropped_value ... ok
+test exact_types::f64_tests::mixed_kind_join_and_backedge_invalidate_double_fact ... ok
+test exact_types::tests::boxing_bool_does_not_prove_exact_i64_and_wrong_destinations_fail ... ok
+test exact_types::f64_tests::integer_guard_and_writes_cannot_prove_double ... ok
+test exact_types::tests::cold_binary_cannot_discard_result_or_pass_unboxed_python_values ... ok
+test exact_types::tests::guarded_exact_unbox_is_valid_and_self_copy_keeps_exact_value ... ok
+test exact_types::tests::cold_binary_opcode_must_be_supported_compile_time_constant ... ok
+test exact_types::tests::rewritten_subject_condition_join_and_backedge_kill_proof ... ok
+test generator_exceptions::tests::delegated_resume_preserves_input_for_delegate_step ... ok
+test exact_types::tests::wrapping_add_requires_two_i64_operands ... ok
+test generator_exceptions::tests::statement_yield_discards_input_via_local_not_cil_stack ... ok
+test generator_exceptions::tests::exception_retry_has_single_physical_region_and_external_returns ... ok
+test list_read_tests::different_receiver_or_index_does_not_reuse_proof ... ok
+test list_read_tests::callback_clears_fact_and_old_bool_cannot_reestablish_it ... ok
+test list_read_tests::packed_call_cannot_bypass_trusted_abi_or_dominance ... ok
+test list_read_tests::global_write_unknown_call_bool_alias_and_eh_cannot_preserve_proof ... ok
+test generator_tests::rejects_invalid_resume_and_frame ... ok
+test list_read_tests::same_pair_guard_and_pure_reads_preserve_proof ... ok
+test list_read_tests::pair_and_condition_writes_invalidate_proof ... ok
+test generator_tests::rejects_suspend_before_codegen ... ok
+test list_read_tests::trusted_read_requires_f64_result_consumption_and_dynamic_pair ... ok
+test list_read_tests::writes_and_suspension_reject_trusted_read ... ok
+test list_read_tests::unguarded_diamond_and_mutating_backedge_reject ... ok
+test passes::dead_values_tests::returning_loop_target_preserves_all_definitions ... ok
+test passes::dead_values_tests::generator_frames_and_exception_metadata_are_conservative_roots ... ok
+test passes::dead_values_tests::closure_cell_write_and_nested_array_reads_preserve_boxed_value ... ok
+test passes::dead_values_tests::discarded_calls_unbox_arithmetic_and_field_access_still_execute ... ok
+test numeric_list_abi_tests::numeric_list_calls_validate_arguments_results_and_stack_consumption ... ok
+test passes::dead_values_tests::unread_loop_target_removes_box_chain_but_keeps_declarations_and_lines ... ok
+test passes::float_chain_tests::escaping_middle_and_redefined_or_aliased_destinations_reject_chain ... ok
+test passes::float_chain_tests::exception_closure_cell_generator_and_intermediate_inplace_are_rejected ... ok
+test passes::float_chain_tests::callbacks_lines_copies_and_cross_block_chains_are_not_fused ... ok
+test passes::float_chain_tests::guarded_chain_keeps_original_fallback_and_boxes_only_final_fast_result ... ok
+test passes::float_chain_tests::chain_input_and_function_size_budgets_preserve_original_operations ... ok
+test passes::float_chain_tests::failed_candidates_consume_attempt_budget ... ok
+test passes::float_loop_tests::observing_total_earlier_in_the_chain_and_escaping_final_temporary_are_rejected ... ok
+test passes::float_loop_tests::non_float_initial_value_and_missing_or_extra_resets_keep_short_chain_strategy ... ok
+test passes::float_loop_tests::no_loop_internal_block_may_be_the_function_entry ... ok
+test passes::float_loop_tests::extra_incoming_edges_breaks_and_accumulator_observation_prevent_loop_strategy ... ok
+test passes::float_loop_tests::outer_reentry_is_allowed_only_with_a_new_preheader_reset ... ok
+test passes::float_loop_tests::raw_state_has_only_boundary_boxes_and_keeps_original_dynamic_chain ... ok
+test passes::float_slp_tests::no_hardware_path_jumps_to_original_scalar_operations_without_vector_instructions ... ok
+test passes::float_slp_tests::ordered_dependency_topology_and_contiguous_regions_are_required ... ok
+test passes::float_loop_tests::no_more_than_four_loops_use_raw_state_in_one_function ... ok
+test passes::float_slp_tests::rejected_pairs_consume_attempt_budget_and_success_budget_is_four ... ok
+test passes::float_slp_tests::pipeline_keeps_both_slp_arms_explicit_and_scalar_takes_precedence ... ok
+test passes::float_slp_tests::shared_readonly_external_keeps_distinct_fresh_results ... ok
+test passes::float_slp_tests::paired_chain_has_isa_guard_two_final_boxes_and_optimizable_scalar_fallback ... ok
+test passes::float_slp_tests::scalar_control_arm_keeps_identical_guards_boxes_and_original_lane_order ... ok
+test passes::float_slp_tests::shared_output_observation_and_cross_lane_dependency_are_rejected ... ok
+test passes::float_slp_tests::unchanged_third_item_call_stays_after_both_lanes_and_before_container ... ok
+test passes::interval_narrow_tests::growing_backedge_widens_to_top ... ok
+test passes::interval_narrow_tests::bool_missing_and_overflow_branches_stay_dynamic ... ok
+test passes::interval_narrow_tests::over_budget_and_cell_inputs_are_unchanged ... ok
+test passes::interval_narrow_tests::hull_drives_automatic_unbox_without_changing_source_boxes ... ok
+test passes::interval_narrow_tests::transformed_join_passes_independent_exact_type_verifier ... ok
+test passes::interval_narrow_tests::unknown_native_local_or_call_result_does_not_invent_interval ... ok
+test passes::leaf_inline_tests::default_and_non_leaf_bodies_do_not_get_guessed ... ok
+test passes::leaf_inline_tests::guard_uses_new_immutable_anchor_and_keeps_original_call ... ok
+test passes::numeric_accumulator_tests::nonentry_preheader_entry_backedge_and_exit_bypass_reject ... ok
+test passes::leaf_inline_tests::unknown_or_boolean_arguments_keep_original_call_without_anchor ... ok
+test passes::numeric_accumulator_tests::default_pipeline_retains_holder_and_explicit_option_selects_direct ... ok
+test passes::leaf_inline_tests::recursion_check_is_only_on_success_and_has_void_zero_argument_abi ... ok
+test passes::numeric_accumulator_tests::observations_rhs_alias_cell_exception_and_generator_reject ... ok
+test passes::leaf_inline_tests::pipeline_experiments_are_independent_and_default_leaf_is_off ... ok
+test passes::leaf_inline_tests::identity_slots_cannot_be_written_reused_or_exported ... ok
+test passes::numeric_list_tests::excess_depth_and_partial_budget_never_rewrite_the_factory ... ok
+test passes::numeric_accumulator_tests::strict_loop_materializes_only_at_unique_exit ... ok
+test passes::numeric_list_tests::real_two_level_region_shares_arithmetic_and_preserves_original_read_fallback ... ok
+test passes::tuple_scalar_tests::cells_generators_closures_and_exception_regions_are_outside_first_slice ... ok
+test passes::numeric_list_tests::observed_loads_callback_boundaries_and_dependent_indices_reject_island ... ok
+test passes::numeric_list_tests::total_observation_or_non_append_sink_does_not_change_list_factory ... ok
+test passes::numeric_list_tests::unique_but_non_dominating_factory_is_not_a_proof_of_list_identity ... ok
+test passes::tuple_scalar_tests::freezes_all_elements_before_rebinding_and_selects_negative_index ... ok
+test passes::tuple_scalar_tests::failed_unpack_check_stays_in_place_after_constant_length ... ok
+test passes::leaf_inline_tests::per_function_budget_is_four_and_fallback_is_not_revisited ... ok
+test passes::tuple_scalar_tests::oversized_tuple_and_cross_block_read_are_not_rewritten ... ok
+test passes::tuple_scalar_tests::repeated_lengths_only_remove_checks_after_their_own_unique_definition ... ok
+test passes::tuple_scalar_tests::identity_alias_call_nested_array_and_return_escape_preserve_tuple ... ok
+test print_tests::print_target_result_cannot_remain_on_cil_stack ... ok
+test validate::tests::catches_unreachable_terminator ... ok
+test print_tests::print_write_requires_target_and_matching_primitive ... ok
+test passes::tuple_scalar_tests::unknown_out_of_bounds_late_and_reassigned_indices_preserve_tuple ... ok
+test vector_tests::guarded_private_vector_and_copy_pass ... ok
+test vector_tests::missing_guard_overwrite_and_unguarded_diamond_fail ... ok
+test vector_tests::private_vector_rejects_lane_opcode_pack_and_result_type_errors ... ok
+test vector_tests::vector_cannot_escape_through_box_call_array_return_or_parameter ... ok
+test passes::tuple_scalar_tests::attempt_budget_counts_failed_candidates_and_never_revisits_them ... ok
+
+test result: ok. 93 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (target/debug/deps/ryupy_syntax-6162b5edf04f5fad)
+
+running 2 tests
+test tests::reports_syntax_error ... ok
+test tests::parses_simple_function ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/ryupy_ty-9db47a1ead38892e)
+
+running 16 tests
+test check_tests::annotated_consistent_function_stays_static ... ok
+test check_tests::heterogeneous_assignment_demotes_function ... ok
+test check_tests::checks_dataclass_construction_and_field_access ... ok
+test check_tests::huge_literal_demotes_function ... ok
+test check_tests::frozen_writes_are_runtime_errors_not_compile_errors ... ok
+test check_tests::call_site_mismatch_demotes_callee ... ok
+test check_tests::pure_dataclass_annotations_use_runtime_signature_by_default ... ok
+test check_tests::decorated_dataclass_annotations_do_not_reuse_static_layout ... ok
+test check_tests::unannotated_function_is_dynamic_without_error ... ok
+test infer::tests::poison_with_error ... ok
+test infer::tests::unifies_vars_and_resolves ... ok
+test infer::tests::reports_mismatch ... ok
+test ops::tests::table_driven_binary_ops ... ok
+test ops::tests::table_driven_cmp_and_unary ... ok
+test module_vars::tests::ellipsis_shadow_slot_can_hold_builtin_before_integer_assignment ... ok
+test primitive_attribute_tests::primitive_attribute_fallback_keeps_unrelated_numeric_function_static ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_base
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_codegen_cil
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_driver
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_hir
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_mir
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_syntax
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests ryupy_ty
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+E2E_PYTHON_ONLY=1 cargo test -p ryupy-e2e -- --include-ignored --test-threads=1
+   Compiling ryupy-e2e v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-e2e)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running unittests src/lib.rs (target/debug/deps/ryupy_e2e-9d55634bccce95a4)
+
+running 7 tests
+test tests::escapes_json ... ok
+test tests::matches_error_expectations ... ok
+test tests::parses_case_dir_manifest ... ok
+test tests::parses_exception_declaration ... ok
+test tests::rejects_ambiguous_entry ... ok
+test tests::tokenizes_quoted_args ... ok
+test tests::unescapes_stdin ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/projects.rs (target/debug/deps/projects-b57d78d1ff513789)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/e2e.rs (target/debug/deps/e2e-451b18d1dc37bbca)
+
+running 225 tests
+test [  1/225] errors/generator_return_bad_str                ... ok
+test [  2/225] errors/missing_module                          ... ok
+test [  3/225] errors/system_exit_bad_str                     ... ok
+test [  4/225] errors/system_exit_big                         ... ok
+test [  5/225] errors/unhandled_assert                        ... ok
+test [  6/225] errors/unhandled_chain                         ... ok
+test [  7/225] errors/unhandled_raise_from                    ... ok
+test [  8/225] errors/unhandled_unpack_too_many               ... ok
+test [  9/225] errors/unhandled_zero_division                 ... ok
+test [ 10/225] errors/warning_custom_string                   ... ok
+test [ 11/225] errors/warning_failed_string                   ... ok
+test [ 12/225] harness/args_env_stdin                         ... ok
+test [ 13/225] harness/multifile                              ... ok
+test [ 14/225] harness/pipeline                               ... ok
+test [ 15/225] optimization/leaf_identity_deletion            ... ok
+test [ 16/225] optimization/leaf_identity_rebinding           ... ok
+test [ 17/225] phase1/m1_0_print_int                          ... ok
+test [ 18/225] phase1/m1_1_functions                          ... ok
+test [ 19/225] phase1/m1_2_arith                              ... ok
+test [ 20/225] phase1/m1_2_control_flow                       ... ok
+test [ 21/225] phase1/m1_3_fib                                ... ok
+test [ 22/225] phase1/m1_3_for_range                          ... ok
+test [ 23/225] phase1/m1_4_floats                             ... ok
+test [ 24/225] phase1/m1_4_mandelbrot                         ... ok
+test [ 25/225] phase1/m1_5_dataclass                          ... ok
+test [ 26/225] phase1/m1_6_range_var_and_shift                ... ok
+test [ 27/225] phase2/m2_10_dynamic_fixes                     ... ok
+test [ 28/225] phase2/m2_12_identity_sort_cache               ... ok
+test [ 29/225] phase2/m2_12_sequence_inplace                  ... ok
+test [ 30/225] phase2/m2_1_bigint                             ... ok
+test [ 31/225] phase2/m2_1_call_binding                       ... ok
+test [ 32/225] phase2/m2_1_calls                              ... ok
+test [ 33/225] phase2/m2_1_defaults_static                    ... ok
+test [ 34/225] phase2/m2_1_dynamic                            ... ok
+test [ 35/225] phase2/m2_1_dynamic_flow                       ... ok
+test [ 36/225] phase2/m2_2_exceptions                         ... ok
+test [ 37/225] phase2/m2_2_finally                            ... ok
+test [ 38/225] phase2/m2_2_recursion                          ... ok
+test [ 39/225] phase2/m2_2_success_exit                       ... ok
+test [ 40/225] phase2/m2_3_bytes                              ... ok
+test [ 41/225] phase2/m2_3_containers                         ... ok
+test [ 42/225] phase2/m2_3_hashing                            ... ok
+test [ 43/225] phase2/m2_3_slices                             ... ok
+test [ 44/225] phase2/m2_4_builtins                           ... ok
+test [ 45/225] phase2/m2_4_iteration                          ... ok
+test [ 46/225] phase2/m2_4_iteration_extra                    ... ok
+test [ 47/225] phase2/m2_4_strings                            ... ok
+test [ 48/225] phase2/m2_5_cache_invalidation                 ... ok
+test [ 49/225] phase2/m2_5_classes                            ... ok
+test [ 50/225] phase2/m2_5_identity                           ... ok
+test [ 51/225] phase2/m2_5_protocols                          ... ok
+test [ 52/225] phase2/m2_6_class_binding_order                ... ok
+test [ 53/225] phase2/m2_6_exception_chain                    ... ok
+test [ 54/225] phase2/m2_6_inheritance                        ... ok
+test [ 55/225] phase2/m2_6_user_errors                        ... ok
+test [ 56/225] phase2/m2_7_cycles                             ... ok
+test [ 57/225] phase2/m2_7_import_retry                       ... ok
+test [ 58/225] phase2/m2_7_modules                            ... ok
+test [ 59/225] phase2/m2_8_with                               ... ok
+test [ 60/225] phase2/m2_9_long_run                           ... ok
+test [ 61/225] phase2/m2_9_matrix_nbody                       ... ok
+test [ 62/225] phase2/m2_9_pic                                ... ok
+test [ 63/225] phase3/m3_0_closures                           ... ok
+test [ 64/225] phase3/m3_0_exception_cells                    ... ok
+test [ 65/225] phase3/m3_0_scope_edges                        ... ok
+test [ 66/225] phase3/m3_10_float_chain                       ... ok
+test [ 67/225] phase3/m3_10_float_loop                        ... ok
+test [ 68/225] phase3/m3_10_float_slp                         ... ok
+test [ 69/225] phase3/m3_10_numeric_list_island               ... ok
+test [ 70/225] phase3/m3_1_comprehensions                     ... ok
+test [ 71/225] phase3/m3_1_dict_comprehensions                ... ok
+test [ 72/225] phase3/m3_1_generator_expressions              ... ok
+test [ 73/225] phase3/m3_1_list_comprehensions                ... ok
+test [ 74/225] phase3/m3_1_list_iteration                     ... ok
+test [ 75/225] phase3/m3_1_set_comprehensions                 ... ok
+test [ 76/225] phase3/m3_2_augmented_targets                  ... ok
+test [ 77/225] phase3/m3_2_cleanup_edges                      ... ok
+test [ 78/225] phase3/m3_2_dict_chunk_hash                    ... ok
+test [ 79/225] phase3/m3_2_dict_literal_order                 ... ok
+test [ 80/225] phase3/m3_2_finally_context                    ... ok
+test [ 81/225] phase3/m3_2_generator_basic                    ... ok
+test [ 82/225] phase3/m3_2_generator_cleanup                  ... ok
+test [ 83/225] phase3/m3_2_generator_exceptions               ... ok
+test [ 84/225] phase3/m3_2_generator_return                   ... ok
+test [ 85/225] phase3/m3_2_generator_send                     ... ok
+test [ 86/225] phase3/m3_2_generators                         ... ok
+test [ 87/225] phase3/m3_2_nested_finally                     ... ok
+test [ 88/225] phase3/m3_2_prepared_calls                     ... ok
+test [ 89/225] phase3/m3_2_set_cached_hash                    ... ok
+test [ 90/225] phase3/m3_2_starred_calls                      ... ok
+test [ 91/225] phase3/m3_2_starred_containers                 ... ok
+test [ 92/225] phase3/m3_2_yield_from                         ... ok
+test [ 93/225] phase3/m3_3_binding_failures                   ... ok
+test [ 94/225] phase3/m3_3_class_scope                        ... ok
+test [ 95/225] phase3/m3_3_dataclass_protocol                 ... ok
+test [ 96/225] phase3/m3_3_decorated_classes                  ... ok
+test [ 97/225] phase3/m3_3_decorated_methods                  ... ok
+test [ 98/225] phase3/m3_3_decorator_exports                  ... ok
+test [ 99/225] phase3/m3_3_decorator_order                    ... ok
+test [100/225] phase3/m3_3_decorators                         ... ok
+test [101/225] phase3/m3_3_function_metadata                  ... ok
+test [102/225] phase3/m3_4_io_paths                           ... ok
+test [103/225] phase3/m3_4_io_types                           ... ok
+test [104/225] phase3/m3_4_native_types                       ... ok
+test [105/225] phase3/m3_4_paths                              ... ok
+test [106/225] phase3/m3_4_print_target                       ... ok
+test [107/225] phase3/m3_4_streams                            ... ok
+test [108/225] phase3/m3_4_system                             ... ok
+test [109/225] phase3/m3_5_exception_aliases                  ... ok
+test [110/225] phase3/m3_5_json                               ... ok
+test [111/225] phase3/m3_5_json_flag_objects                  ... ok
+test [112/225] phase3/m3_5_json_math                          ... ok
+test [113/225] phase3/m3_5_json_surrogate_bytes               ... ok
+test [114/225] phase3/m3_5_math_time                          ... ok
+test [115/225] phase3/m3_5_regex                              ... ok
+test [116/225] phase3/m3_5_regex_boundaries                   ... ok
+test [117/225] phase3/m3_5_regex_edges                        ... ok
+test [118/225] phase3/m3_6_abc                                ... ok
+test [119/225] phase3/m3_6_annotations                        ... ok
+test [120/225] phase3/m3_6_collection_recursion               ... ok
+test [121/225] phase3/m3_6_collections_iterators              ... ok
+test [122/225] phase3/m3_6_context_exception_state            ... ok
+test [123/225] phase3/m3_6_contextmanager                     ... ok
+test [124/225] phase3/m3_6_dataclass_defaults                 ... ok
+test [125/225] phase3/m3_6_dataclass_edges                    ... ok
+test [126/225] phase3/m3_6_dataclass_typing                   ... ok
+test [127/225] phase3/m3_6_dead_values                        ... ok
+test [128/225] phase3/m3_6_exception_suppression              ... ok
+test [129/225] phase3/m3_6_functools                          ... ok
+test [130/225] phase3/m3_6_hashable_pending                   ... ok
+test [131/225] phase3/m3_6_lru_cache                          ... ok
+test [132/225] phase3/m3_6_numeric_accumulator                ... ok
+test [133/225] phase3/m3_6_pow                                ... ok
+test [134/225] phase3/m3_6_tools                              ... ok
+test [135/225] phase3/m3_6_typing                             ... ok
+test [136/225] phase3/m3_7_abs_protocol                       ... ok
+test [137/225] phase3/m3_7_annotated_targets                  ... ok
+test [138/225] phase3/m3_7_argparse                           ... ok
+test [139/225] phase3/m3_7_atexit                             ... ok
+test [140/225] phase3/m3_7_atexit_mutation                    ... ok
+test [141/225] phase3/m3_7_big_integer_literals               ... ok
+test [142/225] phase3/m3_7_binary_affix                       ... ok
+test [143/225] phase3/m3_7_binary_affix_resize                ... ok
+test [144/225] phase3/m3_7_bound_builtin_methods              ... ok
+test [145/225] phase3/m3_7_builtin_length                     ... ok
+test [146/225] phase3/m3_7_builtin_shadow_fallback_pending    ... ok
+test [147/225] phase3/m3_7_chained_assignment                 ... ok
+test [148/225] phase3/m3_7_class_conditionals                 ... ok
+test [149/225] phase3/m3_7_class_if_lookup                    ... ok
+test [150/225] phase3/m3_7_class_if_nonsimple_annotations     ... ok
+test [151/225] phase3/m3_7_class_if_order                     ... ok
+test [152/225] phase3/m3_7_cli_logging                        ... ok
+test [153/225] phase3/m3_7_comparison_fallback                ... ok
+test [154/225] phase3/m3_7_copy_string                        ... ok
+test [155/225] phase3/m3_7_datetime                           ... ok
+test [156/225] phase3/m3_7_datetime_edges                     ... ok
+test [157/225] phase3/m3_7_dir                                ... ok
+test [158/225] phase3/m3_7_dir_full_pending                   ... ok
+test [159/225] phase3/m3_7_eager_annotated_targets            ... ok
+test [160/225] phase3/m3_7_ellipsis                           ... ok
+test [161/225] phase3/m3_7_ellipsis_integer_shadow            ... ok
+test [162/225] phase3/m3_7_enum                               ... ok
+test [163/225] phase3/m3_7_enum_dynamic_base_pending          ... ok
+test [164/225] phase3/m3_7_enum_runtime                       ... ok
+test [165/225] phase3/m3_7_exception_identity                 ... ok
+test [166/225] phase3/m3_7_flag                               ... ok
+test [167/225] phase3/m3_7_function_import_bindings           ... ok
+test [168/225] phase3/m3_7_function_imports                   ... ok
+test [169/225] phase3/m3_7_future                             ... ok
+test [170/225] phase3/m3_7_future_annotations                 ... ok
+test [171/225] phase3/m3_7_future_annotations_complex_pending ... ok
+test [172/225] phase3/m3_7_future_annotations_scope           ... ok
+test [173/225] phase3/m3_7_future_annotations_setup           ... ok
+test [174/225] phase3/m3_7_future_ignored_annotations         ... ok
+test [175/225] phase3/m3_7_helpers                            ... ok
+test [176/225] phase3/m3_7_integer_capacity                   ... ok
+test [177/225] phase3/m3_7_io_unsupported                     ... ok
+test [178/225] phase3/m3_7_io_unsupported_shadow              ... ok
+test [179/225] phase3/m3_7_large_dict_custom_pending          ... ok
+test [180/225] phase3/m3_7_large_scalar_dict                  ... ok
+test [181/225] phase3/m3_7_logging                            ... ok
+test [182/225] phase3/m3_7_logging_basic                      ... ok
+test [183/225] phase3/m3_7_logging_errors                     ... ok
+test [184/225] phase3/m3_7_map                                ... ok
+test [185/225] phase3/m3_7_memoryview                         ... ok
+test [186/225] phase3/m3_7_module_retry_bound                 ... ok
+test [187/225] phase3/m3_7_numeric_hash_keys                  ... ok
+test [188/225] phase3/m3_7_oserror_aliases                    ... ok
+test [189/225] phase3/m3_7_oserror_firstclass_pending         ... ok
+test [190/225] phase3/m3_7_percent_format                     ... ok
+test [191/225] phase3/m3_7_percent_mapping                    ... ok
+test [192/225] phase3/m3_7_primitive_attributes               ... ok
+test [193/225] phase3/m3_7_random                             ... ok
+test [194/225] phase3/m3_7_runtime_base_metaclass_pending     ... ok
+test [195/225] phase3/m3_7_runtime_bases                      ... ok
+test [196/225] phase3/m3_7_runtime_special_bases_pending      ... ok
+test [197/225] phase3/m3_7_static_global_bound                ... ok
+test [198/225] phase3/m3_7_string_capwords_pending            ... ok
+test [199/225] phase3/m3_7_sys_version                        ... ok
+test [200/225] phase3/m3_7_textwrap                           ... ok
+test [201/225] phase3/m3_7_type_checking                      ... ok
+test [202/225] phase3/m3_7_typed_dict                         ... ok
+test [203/225] phase3/m3_7_typed_dict_total                   ... ok
+test [204/225] phase3/m3_7_typing_generic                     ... ok
+test [205/225] phase3/m3_7_typing_generic_edges               ... ok
+test [206/225] phase3/m3_7_typing_literal                     ... ok
+test [207/225] phase3/m3_7_unbound_exports                    ... ok
+test [208/225] phase3/m3_7_unbound_globals                    ... ok
+test [209/225] phase3/m3_7_unicodedata                        ... ok
+test [210/225] phase3/m3_7_unittest                           ... ok
+test [211/225] phase3/m3_7_unittest_inheritance               ... ok
+test [212/225] phase3/m3_7_unittest_lifecycle                 ... ok
+test [213/225] phase3/m3_7_unpack_targets                     ... ok
+test [214/225] phase3/m3_7_warning_classes                    ... ok
+test [215/225] phase3/m3_7_warnings                           ... ok
+test [216/225] phase3/m3_8_bridge_api                         ... ok
+test [217/225] phase3/m3_9_direct_accumulator                 ... ok
+test [218/225] phase3/m3_9_interval_narrow                    ... ok
+test [219/225] phase3/m3_9_leaf_calls                         ... ok
+test [220/225] phase3/m3_9_optimization_guards                ... ok
+test [221/225] phase3/m3_9_tuple_scalar                       ... ok
+test [222/225] phase3/m3_builtins_ord_chr                     ... ok
+test [223/225] phase3/m3_builtins_surrogate_pair              ... ok
+test [224/225] phase3/m3_shared_nan_dict_pending              ... ok
+test [225/225] stdlib/warnings_once_modules                   ... ok
+
+test result: ok. 225 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.74s
+
+
+结果记录：225 通过，0 pending，0 可转正 → /workspace/shared/RyuPy/target/e2e/results.jsonl
+   Doc-tests ryupy_e2e
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+# --test-threads=1：让用例按名字顺序执行，输出带 [已跑/总数] 进度、不会乱序。
+cargo test -p ryupy-e2e -- --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/ryupy_e2e-9d55634bccce95a4)
+
+running 7 tests
+test tests::escapes_json ... ok
+test tests::matches_error_expectations ... ok
+test tests::parses_case_dir_manifest ... ok
+test tests::parses_exception_declaration ... ok
+test tests::rejects_ambiguous_entry ... ok
+test tests::tokenizes_quoted_args ... ok
+test tests::unescapes_stdin ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/projects.rs (target/debug/deps/projects-b57d78d1ff513789)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/e2e.rs (target/debug/deps/e2e-451b18d1dc37bbca)
+
+running 229 tests
+test [  1/229] errors/generator_return_bad_str                ... ok
+test [  2/229] errors/missing_module                          ... ok
+test [  3/229] errors/system_exit_bad_str                     ... ok
+test [  4/229] errors/system_exit_big                         ... ok
+test [  5/229] errors/unhandled_assert                        ... ok
+test [  6/229] errors/unhandled_chain                         ... ok
+test [  7/229] errors/unhandled_raise_from                    ... ok
+test [  8/229] errors/unhandled_unpack_too_many               ... ok
+test [  9/229] errors/unhandled_zero_division                 ... ok
+test [ 10/229] errors/warning_custom_string                   ... ok
+test [ 11/229] errors/warning_failed_string                   ... ok
+test [ 12/229] harness/args_env_stdin                         ... ok
+test [ 13/229] harness/multifile                              ... ok
+test [ 14/229] harness/pipeline                               ... ok
+test [ 15/229] optimization/leaf_identity_deletion            ... ignored
+test [ 16/229] optimization/leaf_identity_rebinding           ... ok
+test [ 17/229] phase1/m1_0_print_int                          ... ok
+test [ 18/229] phase1/m1_1_functions                          ... ok
+test [ 19/229] phase1/m1_2_arith                              ... ok
+test [ 20/229] phase1/m1_2_control_flow                       ... ok
+test [ 21/229] phase1/m1_3_fib                                ... ok
+test [ 22/229] phase1/m1_3_for_range                          ... ok
+test [ 23/229] phase1/m1_4_floats                             ... ok
+test [ 24/229] phase1/m1_4_mandelbrot                         ... ok
+test [ 25/229] phase1/m1_5_dataclass                          ... ok
+test [ 26/229] phase1/m1_6_range_var_and_shift                ... ok
+test [ 27/229] phase2/m2_10_dynamic_fixes                     ... ok
+test [ 28/229] phase2/m2_12_identity_sort_cache               ... ok
+test [ 29/229] phase2/m2_12_sequence_inplace                  ... ok
+test [ 30/229] phase2/m2_1_bigint                             ... ok
+test [ 31/229] phase2/m2_1_call_binding                       ... ok
+test [ 32/229] phase2/m2_1_calls                              ... ok
+test [ 33/229] phase2/m2_1_defaults_static                    ... ok
+test [ 34/229] phase2/m2_1_dynamic                            ... ok
+test [ 35/229] phase2/m2_1_dynamic_flow                       ... ok
+test [ 36/229] phase2/m2_2_exceptions                         ... ok
+test [ 37/229] phase2/m2_2_finally                            ... ok
+test [ 38/229] phase2/m2_2_recursion                          ... ok
+test [ 39/229] phase2/m2_2_success_exit                       ... ok
+test [ 40/229] phase2/m2_3_bytes                              ... ok
+test [ 41/229] phase2/m2_3_containers                         ... ok
+test [ 42/229] phase2/m2_3_hashing                            ... ok
+test [ 43/229] phase2/m2_3_slices                             ... ok
+test [ 44/229] phase2/m2_4_builtins                           ... ok
+test [ 45/229] phase2/m2_4_iteration                          ... ok
+test [ 46/229] phase2/m2_4_iteration_extra                    ... ok
+test [ 47/229] phase2/m2_4_strings                            ... ok
+test [ 48/229] phase2/m2_5_cache_invalidation                 ... ok
+test [ 49/229] phase2/m2_5_classes                            ... ok
+test [ 50/229] phase2/m2_5_identity                           ... ok
+test [ 51/229] phase2/m2_5_protocols                          ... ok
+test [ 52/229] phase2/m2_6_class_binding_order                ... ignored
+test [ 53/229] phase2/m2_6_exception_chain                    ... ok
+test [ 54/229] phase2/m2_6_inheritance                        ... ok
+test [ 55/229] phase2/m2_6_user_errors                        ... ok
+test [ 56/229] phase2/m2_7_cycles                             ... ok
+test [ 57/229] phase2/m2_7_import_retry                       ... ok
+test [ 58/229] phase2/m2_7_modules                            ... ok
+test [ 59/229] phase2/m2_8_with                               ... ok
+test [ 60/229] phase2/m2_9_long_run                           ... ok
+test [ 61/229] phase2/m2_9_matrix_nbody                       ... ok
+test [ 62/229] phase2/m2_9_pic                                ... ok
+test [ 63/229] phase3/m3_0_closures                           ... ok
+test [ 64/229] phase3/m3_0_exception_cells                    ... ok
+test [ 65/229] phase3/m3_0_scope_edges                        ... ok
+test [ 66/229] phase3/m3_10_float_chain                       ... ok
+test [ 67/229] phase3/m3_10_float_loop                        ... ok
+test [ 68/229] phase3/m3_10_float_slp                         ... ok
+test [ 69/229] phase3/m3_10_numeric_list_island               ... ok
+test [ 70/229] phase3/m3_1_comprehensions                     ... ok
+test [ 71/229] phase3/m3_1_dict_comprehensions                ... ok
+test [ 72/229] phase3/m3_1_generator_expressions              ... ok
+test [ 73/229] phase3/m3_1_list_comprehensions                ... ok
+test [ 74/229] phase3/m3_1_list_iteration                     ... ok
+test [ 75/229] phase3/m3_1_set_comprehensions                 ... ok
+test [ 76/229] phase3/m3_2_augmented_targets                  ... ok
+test [ 77/229] phase3/m3_2_cleanup_edges                      ... ok
+test [ 78/229] phase3/m3_2_dict_chunk_hash                    ... ignored
+test [ 79/229] phase3/m3_2_dict_literal_order                 ... ok
+test [ 80/229] phase3/m3_2_finally_context                    ... ok
+test [ 81/229] phase3/m3_2_generator_basic                    ... ok
+test [ 82/229] phase3/m3_2_generator_cleanup                  ... ok
+test [ 83/229] phase3/m3_2_generator_exceptions               ... ok
+test [ 84/229] phase3/m3_2_generator_return                   ... ok
+test [ 85/229] phase3/m3_2_generator_send                     ... ok
+test [ 86/229] phase3/m3_2_generators                         ... ok
+test [ 87/229] phase3/m3_2_nested_finally                     ... ok
+test [ 88/229] phase3/m3_2_prepared_calls                     ... ok
+test [ 89/229] phase3/m3_2_set_cached_hash                    ... ignored
+test [ 90/229] phase3/m3_2_starred_calls                      ... ok
+test [ 91/229] phase3/m3_2_starred_containers                 ... ok
+test [ 92/229] phase3/m3_2_yield_from                         ... ok
+test [ 93/229] phase3/m3_3_binding_failures                   ... ok
+test [ 94/229] phase3/m3_3_class_scope                        ... ok
+test [ 95/229] phase3/m3_3_dataclass_protocol                 ... ok
+test [ 96/229] phase3/m3_3_decorated_classes                  ... ok
+test [ 97/229] phase3/m3_3_decorated_methods                  ... ok
+test [ 98/229] phase3/m3_3_decorator_exports                  ... ok
+test [ 99/229] phase3/m3_3_decorator_order                    ... ok
+test [100/229] phase3/m3_3_decorators                         ... ok
+test [101/229] phase3/m3_3_function_metadata                  ... ok
+test [102/229] phase3/m3_4_io_paths                           ... ok
+test [103/229] phase3/m3_4_io_types                           ... ok
+test [104/229] phase3/m3_4_native_types                       ... ok
+test [105/229] phase3/m3_4_paths                              ... ok
+test [106/229] phase3/m3_4_print_target                       ... ok
+test [107/229] phase3/m3_4_streams                            ... ok
+test [108/229] phase3/m3_4_system                             ... ok
+test [109/229] phase3/m3_5_exception_aliases                  ... ok
+test [110/229] phase3/m3_5_json                               ... ok
+test [111/229] phase3/m3_5_json_flag_objects                  ... ignored
+test [112/229] phase3/m3_5_json_math                          ... ok
+test [113/229] phase3/m3_5_json_surrogate_bytes               ... ignored
+test [114/229] phase3/m3_5_math_time                          ... ok
+test [115/229] phase3/m3_5_regex                              ... ok
+test [116/229] phase3/m3_5_regex_boundaries                   ... ok
+test [117/229] phase3/m3_5_regex_edges                        ... ok
+test [118/229] phase3/m3_6_abc                                ... ok
+test [119/229] phase3/m3_6_annotations                        ... ok
+test [120/229] phase3/m3_6_collection_recursion               ... ok
+test [121/229] phase3/m3_6_collections_iterators              ... ok
+test [122/229] phase3/m3_6_context_exception_state            ... ok
+test [123/229] phase3/m3_6_contextmanager                     ... ok
+test [124/229] phase3/m3_6_dataclass_defaults                 ... ok
+test [125/229] phase3/m3_6_dataclass_edges                    ... ok
+test [126/229] phase3/m3_6_dataclass_typing                   ... ok
+test [127/229] phase3/m3_6_dead_values                        ... ok
+test [128/229] phase3/m3_6_exception_suppression              ... ok
+test [129/229] phase3/m3_6_functools                          ... ok
+test [130/229] phase3/m3_6_hashable_pending                   ... ignored
+test [131/229] phase3/m3_6_lru_cache                          ... ok
+test [132/229] phase3/m3_6_numeric_accumulator                ... ok
+test [133/229] phase3/m3_6_pow                                ... ok
+test [134/229] phase3/m3_6_tools                              ... ok
+test [135/229] phase3/m3_6_typing                             ... ok
+test [136/229] phase3/m3_7_abs_protocol                       ... ok
+test [137/229] phase3/m3_7_annotated_targets                  ... ok
+test [138/229] phase3/m3_7_argparse                           ... ok
+test [139/229] phase3/m3_7_atexit                             ... ok
+test [140/229] phase3/m3_7_atexit_mutation                    ... ok
+test [141/229] phase3/m3_7_big_integer_literals               ... ok
+test [142/229] phase3/m3_7_binary_affix                       ... ok
+test [143/229] phase3/m3_7_binary_affix_resize                ... ignored
+test [144/229] phase3/m3_7_bound_builtin_methods              ... ok
+test [145/229] phase3/m3_7_builtin_length                     ... ok
+test [146/229] phase3/m3_7_builtin_shadow_fallback_pending    ... ignored
+test [147/229] phase3/m3_7_chained_assignment                 ... ok
+test [148/229] phase3/m3_7_class_conditionals                 ... ignored
+test [149/229] phase3/m3_7_class_if_lookup                    ... ok
+test [150/229] phase3/m3_7_class_if_nonsimple_annotations     ... ok
+test [151/229] phase3/m3_7_class_if_order                     ... ok
+test [152/229] phase3/m3_7_cli_logging                        ... ok
+test [153/229] phase3/m3_7_comparison_fallback                ... ok
+test [154/229] phase3/m3_7_copy_string                        ... ok
+test [155/229] phase3/m3_7_datetime                           ... ok
+test [156/229] phase3/m3_7_datetime_edges                     ... ok
+test [157/229] phase3/m3_7_dir                                ... ok
+test [158/229] phase3/m3_7_dir_full_pending                   ... ignored
+test [159/229] phase3/m3_7_eager_annotated_targets            ... ignored
+test [160/229] phase3/m3_7_ellipsis                           ... ok
+test [161/229] phase3/m3_7_ellipsis_integer_shadow            ... ok
+test [162/229] phase3/m3_7_enum                               ... ok
+test [163/229] phase3/m3_7_enum_dynamic_base_pending          ... ignored
+test [164/229] phase3/m3_7_enum_runtime                       ... ok
+test [165/229] phase3/m3_7_exception_identity                 ... ok
+test [166/229] phase3/m3_7_flag                               ... ok
+test [167/229] phase3/m3_7_function_import_bindings           ... ok
+test [168/229] phase3/m3_7_function_imports                   ... ok
+test [169/229] phase3/m3_7_future                             ... ok
+test [170/229] phase3/m3_7_future_annotations                 ... ok
+test [171/229] phase3/m3_7_future_annotations_complex_pending ... ignored
+test [172/229] phase3/m3_7_future_annotations_scope           ... ok
+test [173/229] phase3/m3_7_future_annotations_setup           ... ok
+test [174/229] phase3/m3_7_future_ignored_annotations         ... ok
+test [175/229] phase3/m3_7_helpers                            ... ok
+test [176/229] phase3/m3_7_integer_capacity                   ... ok
+test [177/229] phase3/m3_7_io_unsupported                     ... ok
+test [178/229] phase3/m3_7_io_unsupported_shadow              ... ok
+test [179/229] phase3/m3_7_large_dict_custom_pending          ... ignored
+test [180/229] phase3/m3_7_large_scalar_dict                  ... ok
+test [181/229] phase3/m3_7_logging                            ... ok
+test [182/229] phase3/m3_7_logging_basic                      ... ok
+test [183/229] phase3/m3_7_logging_errors                     ... ok
+test [184/229] phase3/m3_7_map                                ... ok
+test [185/229] phase3/m3_7_memoryview                         ... ok
+test [186/229] phase3/m3_7_module_retry_bound                 ... ok
+test [187/229] phase3/m3_7_numeric_hash_keys                  ... ok
+test [188/229] phase3/m3_7_oserror_aliases                    ... ok
+test [189/229] phase3/m3_7_oserror_firstclass_pending         ... ignored
+test [190/229] phase3/m3_7_percent_format                     ... ok
+test [191/229] phase3/m3_7_percent_mapping                    ... ok
+test [192/229] phase3/m3_7_primitive_attributes               ... ok
+test [193/229] phase3/m3_7_random                             ... ok
+test [194/229] phase3/m3_7_runtime_base_metaclass_pending     ... ignored
+test [195/229] phase3/m3_7_runtime_bases                      ... ignored
+test [196/229] phase3/m3_7_runtime_special_bases_pending      ... ignored
+test [197/229] phase3/m3_7_static_global_bound                ... ok
+test [198/229] phase3/m3_7_string_capwords_pending            ... ignored
+test [199/229] phase3/m3_7_sys_version                        ... ok
+test [200/229] phase3/m3_7_textwrap                           ... ok
+test [201/229] phase3/m3_7_type_checking                      ... ok
+test [202/229] phase3/m3_7_typed_dict                         ... ignored
+test [203/229] phase3/m3_7_typed_dict_total                   ... ok
+test [204/229] phase3/m3_7_typing_generic                     ... ignored
+test [205/229] phase3/m3_7_typing_generic_edges               ... ignored
+test [206/229] phase3/m3_7_typing_literal                     ... ok
+test [207/229] phase3/m3_7_unbound_exports                    ... ok
+test [208/229] phase3/m3_7_unbound_globals                    ... ok
+test [209/229] phase3/m3_7_unicodedata                        ... ok
+test [210/229] phase3/m3_7_unittest                           ... ok
+test [211/229] phase3/m3_7_unittest_inheritance               ... ok
+test [212/229] phase3/m3_7_unittest_lifecycle                 ... ok
+test [213/229] phase3/m3_7_unpack_targets                     ... ok
+test [214/229] phase3/m3_7_warning_classes                    ... ok
+test [215/229] phase3/m3_7_warnings                           ... ok
+test [216/229] phase3/m3_8_bridge_api                         ... ignored
+test [217/229] phase3/m3_9_direct_accumulator                 ... ok
+test [218/229] phase3/m3_9_interval_narrow                    ... ok
+test [219/229] phase3/m3_9_leaf_calls                         ... ok
+test [220/229] phase3/m3_9_optimization_guards                ... ok
+test [221/229] phase3/m3_9_tuple_scalar                       ... ok
+test [222/229] phase3/m3_builtins_ord_chr                     ... ok
+test [223/229] phase3/m3_builtins_surrogate_pair              ... ignored
+test [224/229] phase3/m3_shared_nan_dict_pending              ... ignored
+test [225/229] phase4/m4_1_numpy_import                       ... ignored
+test [226/229] phase4/m4_1_numpy_objects                      ... ignored
+test [227/229] phase4/m4_2_sqlite3                            ... ignored
+test [228/229] phase4/m4_2_zlib                               ... ignored
+test [229/229] stdlib/warnings_once_modules                   ... ok
+
+test result: ok. 199 passed; 0 failed; 30 ignored; 0 measured; 0 filtered out; finished in 25.65s
+
+
+结果记录：199 通过，0 pending，0 可转正 → /workspace/shared/RyuPy/target/e2e/results.jsonl
+   Doc-tests ryupy_e2e
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

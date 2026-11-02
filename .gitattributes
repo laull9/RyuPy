@@ -22,3 +22,6 @@ tests/perf/results/m3_10/union-prototype/jit-calls.txt -whitespace
 
 # AOT前置身份修的原始完整门禁日志保留工具末尾空行，仅豁免此文件的EOF空白。
 docs/validation/aot-reference-identity/full-check.log whitespace=-blank-at-eof
+
+# CLI AOT完整门禁原始输出保留末尾空行。
+docs/validation/aot-driver-local/full-check.log whitespace=-blank-at-eof
