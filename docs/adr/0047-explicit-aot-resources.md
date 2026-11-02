@@ -1,6 +1,6 @@
 # ADR0047：显式随包数据与诊断分离的模块位置
 
-状态：已实现并通过本地门禁；真实三平台资源 NativeAOT 验收待 CI。
+状态：三平台显式资源 NativeAOT 有限验收通过；自动依赖收集、任意动态导入与单文件内嵌未实现。
 日期：2026-11-02。
 
 ## 背景
@@ -117,3 +117,7 @@ Linux 可延伸无 dotnet/Python 容器证明；Mac/Windows 仍须明确 SDK 已
 优先保留原生代码的静态编译能力；确需外置的资源统一位于 `_internal/resources/v1`，避免可执行文件旁散落数据。后续无法静态链接的原生依赖也以 `_internal` 为交付方向，但本切未实现第三方依赖自动收集、静态绑定或内存文件系统。不会为了单文件形式强加启动自解包。manifest 继续绑定实际外置文件及其 hash；本次路径变更发生在资源功能进入 main 之前。
 
 首轮 d65f99c 的 Linux/macOS 已完成资源 ILC 与成功模式搬迁，但缺数据负例暴露 IO 映射异常未附 Python 帧；Windows 则在 fixture SHA 校验阶段失败、尚未资源发布。后者当轮原字节未归档，新增 LF checkout 合同和诊断不等于证明唯一原因。两项修正保留原负例和逐字比较。
+
+## 最终有限验收
+
+源码 `e7c54d375d90ff63b8519552feb5fccd63f49609` 的 Linux x64 glibc、macOS arm64、Windows x64 MSVC 各一次资源发布与整树搬迁通过，成功双流及缺文件完整帧负例保原判据。完整门禁523 C#、228固定CP基线、202e2e+30ignored；详见[精简证据](../validation/aot-explicit-resources/README.md)。Mac/Windows仍是安装SDK的hosted runner，不冒无SDK干净目标机；没有新增性能结论。前述首轮及本地失败历史保留。

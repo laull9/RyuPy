@@ -1,6 +1,6 @@
 # 显式资源部署竖切
 
-状态：本地语义/结构门禁通过；真实三平台资源发布尚待 CI，不以此前无资源清单验收替代。
+状态：e7c54d3 的真实三平台显式资源发布、整树搬迁与负例已通过；[精简证据](../../docs/validation/aot-explicit-resources/README.md)记录实际范围与失败历史。
 合同见 [ADR0047](../../docs/adr/0047-explicit-aot-resources.md)。
 
 ## 使用与有限范围
@@ -79,3 +79,9 @@ Unicode 尾部保持原文；设备 namespace、需要非ASCII drive大小写比
 没有文件系统访问或新增缓存。专项69/69（新Windows词法50+位置17+IO2）通过。
 完整 make check exit0：523 C#、228固定CP基线、202 e2e+30ignored，fmt/clippy/Release
 通过；真 Windows 资源仍待复验，不修改原 fixture 或逐字比较规避能力缺口。
+
+最终 `e7c54d3` 的 Linux [41451385685](https://github.com/laull9/RyuPy/actions/runs/41451385685)
+及 macOS/Windows [41451385625](https://github.com/laull9/RyuPy/actions/runs/41451385625)
+均成功。每RID仅一次资源发布，原七配置/四模式继续通过；缺数据仍要求真实完整帧。
+上述“待复验”段落记录当轮状态，不表示最终仍待验。Mac/Windows无SDK干净目标机、
+自动数据/原生依赖收集与onefile仍未完成。

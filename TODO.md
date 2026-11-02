@@ -589,10 +589,10 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [x] [ADR0045](docs/adr/0045-native-module-attribute-factories.md)：13项fresh属性工厂启动实验评估完成，但未达事前门槛，生产回退；保留120进程负结果，不扩大范围追收益
 - [ ] N3：通用standalone目录清单、资源/原生依赖收集、许可/哈希/诊断和真实搬迁
   - [x] [ADR0046](docs/adr/0046-native-aot-artifact-manifest.md)：同次SDK/源码文本/实际CIL引用与发布文件hash清单、完整目录搬迁核验已通过三平台；不代表资源复制或动态依赖闭包
-  - [ ] [ADR0047](docs/adr/0047-explicit-aot-resources.md)：显式资源清单、JIT真实模块位置与AOT相对定位、ILC前数据快照及三平台整树搬迁（本地门禁通过，三平台资源CI待验）
+  - [x] [ADR0047](docs/adr/0047-explicit-aot-resources.md)：显式资源清单、JIT真实模块位置与AOT相对定位、ILC前数据快照及三平台 `_internal/resources/v1` 整树搬迁（有限验收；不等于自动依赖收集）
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
-- [ ] N5：目录交付成熟后独立评估onefile；解包/缓存/清理/资源寻址和性能另验
+- [ ] N5：静态能力优先，必要外置依赖集中 `_internal`；目录交付成熟后独立评估onefile，不为形式强加自解包，资源寻址/生命周期/性能另验
 - [ ] B：桥接AOT仍独立验收libpython/扩展/stdlib部署，不因N项通过勾完成
 
 - [x] driver 按 ADR-0005 方案 A 实现 `publish_aot`：Linux x64 glibc 有限首切已通过真实 CLI ILC 与无 dotnet/Python 容器搬迁（[证据](docs/validation/aot-driver-ci/README.md)）；Mac arm64/Windows x64 MSVC有限同宿主已扩验，未知平台、性能全矩阵与桥接不计完成，不直接调用 ilc
