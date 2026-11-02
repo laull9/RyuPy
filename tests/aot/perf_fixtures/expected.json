@@ -1,0 +1,32 @@
+{
+  "python": "CPython 3.12.13",
+  "warmups": 3,
+  "samples": 7,
+  "kernels": {
+    "matmul": {
+      "checksum": "64345.098",
+      "source_sha256": "4f5de92136943d94291b404bb2533d7733348b30bc3cd560826dfb540db1bd0a",
+      "cold_stdout": "result 64345.098\n"
+    },
+    "calls": {
+      "checksum": "20000500000",
+      "source_sha256": "5577a6a28829178a8548885df1c3d6f5e599afd78b0362872b37f60e7638c921",
+      "cold_stdout": "result 20000500000\n"
+    },
+    "dataclass": {
+      "checksum": "1249975000",
+      "source_sha256": "1aaf786c66f5b10d590e7e1d35eceb6da6b4b306983878cbc83685342faada59",
+      "cold_stdout": "result 1249975000\n"
+    },
+    "exceptions": {
+      "checksum": "(33326667, 3334)",
+      "source_sha256": "7687cb81ae83287cdc46bf10b3f950752b96bccd7114340eed8558ac22b91082",
+      "cold_stdout": "result (33326667, 3334)\n"
+    },
+    "hello": {
+      "checksum": "hello",
+      "source_sha256": "41585ec94d2096d3ed175f64737bd55412a57c14c4493882ef4ca0843d41b189",
+      "cold_stdout": "hello\n"
+    }
+  }
+}

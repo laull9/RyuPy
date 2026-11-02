@@ -5,7 +5,10 @@ on:
     branches: [wip/aot-jit-recovery]
     paths:
       - '.github/workflows/aot-smoke.yml'
-      - 'tests/aot/**'
+      - 'tests/aot/smoke.py'
+      - 'tests/aot/coverage.py'
+      - 'tests/aot/test_runner.py'
+      - 'tests/aot/fixtures/**'
       - 'crates/ryupy-codegen-cil/**'
       - 'crates/ryupy-driver/**'
       - 'runtime/RyuPy.Runtime/**'
