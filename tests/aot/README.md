@@ -1,0 +1,26 @@
+# 原生AOT真实探针（不是driver已实现声明）
+
+恢复基线M3.10。首个AssemblyRef身份修已完整门禁通过，但本地ILLink任务所需Unix IPC
+被执行沙箱禁止；不改SDK、不关闭trim，以正常GitHub Actions标准Linux runner验证真实ILC。
+
+`smoke.py --prepare-only --out target/aot-prepare`只运行固定3.12.13与真实JIT对照，
+不能计AOT通过。默认模式生成独立薄C#宿主，int Main返回真实生成入口值，dotnet publish
+开启AOT和裁剪警告阻断；没有全程序集root、反射执行或JIT回退。
+
+行为覆盖同一源码的模块槽/跨模块调用、kwargs/default、nonlocal闭包、生成器恢复与清理、
+argv空串/Unicode、SystemExit7和用户异常。成功流/退出码逐字对照；异常CP只规范化绝对
+路径和源码展示行，完整(frame文件名/行号/函数)+最后异常类型消息仍相等；原stderr归档。
+JIT与native的stderr不作该规范化，必须逐字一致。
+
+发布成功后仅复制真正native产物至新目录，移除本测试创建的源码、IL与桩项目，换CWD/净化
+环境运行；再在官方 `mcr.microsoft.com/dotnet/runtime-deps:10.0.14-noble` 容器中，
+确认没有dotnet/Python命令、仅挂载native目录且关闭网络后运行同样模式。宿主库依赖由
+file/ldd与镜像明确记录，不宣称完全静态或无需系统库。当前只验Linux x64，不冒其它平台。
+
+CI固定SDK10.0.403、Rust1.99.1、CPython3.12.13，日志/退出码和失败工件保留。
+首次远端执行尚待终态；脚本/工作流存在不表示已发布AOT产物。
+`ryupy build --aot` 的driver集成仍独立待实现，本探针不绕过其未完成状态。
+
+本地预检（2026-11-02）：三份Python文件语法检查通过；固定CPython3.12.13与修后JIT
+在all/argv/exit/error四模式全部匹配，prepare-only实际exit0。真实ILC与容器搬迁仍待CI，
+不以此预检替代NativeAOT运行。Rust action固定到1.99.1分支实际SHA，避免仅用滚动stable。

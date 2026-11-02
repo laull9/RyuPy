@@ -1,0 +1,49 @@
+name: Native AOT smoke
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-smoke.yml'
+      - 'tests/aot/**'
+      - 'crates/ryupy-codegen-cil/**'
+      - 'crates/ryupy-driver/**'
+      - 'runtime/RyuPy.Runtime/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.13'
+      - name: Native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+          docker pull mcr.microsoft.com/dotnet/runtime-deps:10.0.14-noble
+      - name: Build compiler and runtime
+        run: |
+          make runtime
+          cargo build -p ryupy-cli --locked
+      - name: Real ILC, behavior and runtime-free relocation
+        run: python tests/aot/smoke.py --out target/aot-smoke
+      - name: Preserve actual evidence, including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-aot-linux-x64-${{ github.sha }}
+          path: target/aot-smoke
+          if-no-files-found: warn
+          retention-days: 14
