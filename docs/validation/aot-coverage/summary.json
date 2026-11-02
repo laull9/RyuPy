@@ -1,0 +1,88 @@
+{
+  "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41405464604",
+  "source_commit": "a0bd9227f146294b566f64e179b25b49d9aa1c20",
+  "raw_result_sha256": "64a47434bfa5b5f622850a83595f4ba769dc59c031b85dbac54edbdf0649f61c",
+  "status": "passed",
+  "expected_configurations": 7,
+  "records": [
+    {
+      "case": "bigint",
+      "source": "phase2/m2_1_bigint.py",
+      "source_sha256": "caab6b2901319bffcc0830ca4f49a8e5e34b9272ffff2d893bccd6fc5cf9008b",
+      "flags": [],
+      "status": "passed",
+      "build_seconds": 8.603131493999996,
+      "native_bytes": 4572000,
+      "native_sha256": "04fe7e7fd9dc7fb14d1f89352d21327b3ce2c8adb7171ef9ea1bad7fa26eb4c8"
+    },
+    {
+      "case": "static-dataclass",
+      "source": "phase1/m1_5_dataclass.py",
+      "source_sha256": "3f34bfd54b49981987ba3b041995a42d51009b7bdb15a17e70d9e1e7418de039",
+      "flags": [],
+      "status": "passed",
+      "build_seconds": 8.455870642000008,
+      "native_bytes": 4584304,
+      "native_sha256": "427e89d3d30ade9fc2ee078a311f2eb7bc6cce560adb76114077380cacc5910c"
+    },
+    {
+      "case": "dynamic-dataclass",
+      "source": "phase3/m3_3_dataclass_protocol.py",
+      "source_sha256": "1695e92d98a86076d3ceb95f515b5b7af7c15c81e89069436b16a54df4492bac",
+      "flags": [],
+      "status": "passed",
+      "build_seconds": 8.495609013000006,
+      "native_bytes": 4596624,
+      "native_sha256": "64a0893a8a2b3b41af2e7b4b04ca89ca1227c0678811255c53c9d275a1491c02"
+    },
+    {
+      "case": "numeric-list",
+      "source": "phase3/m3_10_numeric_list_island.py",
+      "source_sha256": "15d72c9406e7211c28d504d7fa5b7473cf098430d2574f4617a7cb3713727a0e",
+      "flags": [],
+      "status": "passed",
+      "build_seconds": 8.509270189000006,
+      "native_bytes": 4633504,
+      "native_sha256": "0d18b0be4dd7b1aa1f658d1abcb0cbab85ef6044b706d217925f4c571ce92251"
+    },
+    {
+      "case": "slp-default",
+      "source": "phase3/m3_10_float_slp.py",
+      "source_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+      "flags": [],
+      "status": "passed",
+      "build_seconds": 8.494953345999988,
+      "native_bytes": 4641744,
+      "native_sha256": "972425a483b435f29f62273caeb063f738df945817357e02f07e999dc2a06222"
+    },
+    {
+      "case": "slp-packed",
+      "source": "phase3/m3_10_float_slp.py",
+      "source_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+      "flags": [
+        "--experimental-packed-slp"
+      ],
+      "status": "passed",
+      "build_seconds": 8.476410555000001,
+      "native_bytes": 4645840,
+      "native_sha256": "7985dfb1d2a307e3f2b9e9b64a5e1895ec1d3d81eed3d47cd26d5dd09f1983cb"
+    },
+    {
+      "case": "slp-scalar",
+      "source": "phase3/m3_10_float_slp.py",
+      "source_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+      "flags": [
+        "--diagnostic-scalar-slp"
+      ],
+      "status": "passed",
+      "build_seconds": 8.466792048000002,
+      "native_bytes": 4645840,
+      "native_sha256": "2a4588000b2e5b5b8a86a244dc10f9e8d08716311e0f1d40ebe0ff60bb2b2a75"
+    }
+  ],
+  "elapsed_seconds": 60.73709755600001,
+  "retained_artifact_bytes": 91970516,
+  "aot_isa_off": "not-tested",
+  "nan_payload_bits": "not-tested",
+  "timing_scope": "build-observation-only"
+}
