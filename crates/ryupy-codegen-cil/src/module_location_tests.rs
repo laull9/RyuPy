@@ -12,9 +12,9 @@ fn serialized_module_locations_keep_diagnostic_and_runtime_values_separate() {
             "/private/source/pkg/unit.py",
         ),
         (
-            ModuleLocation::ExecutableRelative("_ryupy_resources/v1/modules/pkg/unit.py".into()),
+            ModuleLocation::ExecutableRelative("_internal/resources/v1/modules/pkg/unit.py".into()),
             2,
-            "_ryupy_resources/v1/modules/pkg/unit.py",
+            "_internal/resources/v1/modules/pkg/unit.py",
         ),
     ] {
         let mut program = crate::exact_i64_tests::program();

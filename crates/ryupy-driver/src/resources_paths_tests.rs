@@ -26,7 +26,7 @@ fn portable_target_accepts_ascii_but_rejects_aliases_devices_and_unicode() {
     for valid in [
         "data.txt",
         "pkg/data file & value.txt",
-        "_ryupy_resources/v1/modules/pkg/data.bin",
+        "_internal/resources/v1/modules/pkg/data.bin",
         "COM10",
         "LPT0.txt",
     ] {

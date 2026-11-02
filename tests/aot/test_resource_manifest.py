@@ -16,8 +16,8 @@ def resource_fixture(root):
     data['schema_version'] = 2
     data['scope'].update(resources_included=True, declared_resources_complete=True)
     data['module_locations'] = [{'module_id':0, 'module_name':'__main__',
-        'kind':'executable_relative', 'relative_file':'_ryupy_resources/v1/entry/main.py'}]
-    relative = '_ryupy_resources/v1/entry/data.txt'
+        'kind':'executable_relative', 'relative_file':'_internal/resources/v1/entry/main.py'}]
+    relative = '_internal/resources/v1/entry/data.txt'
     path = root/relative
     path.parent.mkdir(parents=True)
     raw = '真实随包数据\n'.encode()
@@ -91,7 +91,7 @@ class ResourceManifestTests(unittest.TestCase):
                 lambda d: d['module_locations'][0].update(module_name='wrong'),
                 lambda d: d['module_locations'][0].update(kind='source_absolute'),
                 lambda d: d['module_locations'][0].update(relative_file='C:/private/main.py'),
-                lambda d: d['module_locations'][0].update(relative_file='_ryupy_resources/v1/other.py'),
+                lambda d: d['module_locations'][0].update(relative_file='_internal/resources/v1/other.py'),
                 lambda d: d['scope'].update(resources_included=False),
                 lambda d: d['scope'].update(declared_resources_complete=False),
                 lambda d: d['scope'].update(dynamic_dependency_closure_complete=True),

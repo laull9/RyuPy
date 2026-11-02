@@ -139,7 +139,10 @@ public static class PyIO
         catch (PyBaseException) { throw; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException
             or NotSupportedException or ObjectDisposedException or OverflowException)
-        { throw FileSystemError(error); }
+        {
+            // 宿主异常刚转换时尚无 Python 帧；在离开真实调用现场前补报告帧及活动异常上下文。
+            throw (PyBaseException)PyErrors.PrepareRaise(FileSystemError(error));
+        }
     }
     /// <summary>将宿主文件系统异常映射为 Python 异常，供路径模块共享。</summary>
     public static PyBaseException FileSystemError(Exception error) => error switch

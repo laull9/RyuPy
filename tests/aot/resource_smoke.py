@@ -21,6 +21,13 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def check_fixture_sha(path, relative, expected):
+    actual = sha(path)
+    if actual != expected:
+        raise AssertionError(f'fixture字节不一致：relative={relative!r}, '
+                             f'expected_sha256={expected}, actual_sha256={actual}')
+
+
 def expected_stdout(text):
     # fixture期望用LF存储；运行前按宿主生成期待字节，不归一化任何实际输出。
     assert '\r' not in text
@@ -102,7 +109,7 @@ def main():
         result['source_hashes'] = expected['source_hashes']
         for relative, digest in expected['source_hashes'].items():
             original = fixtures/relative
-            assert sha(original) == digest
+            check_fixture_sha(original, relative, digest)
             destination = source/relative; destination.parent.mkdir(parents=True,exist_ok=True)
             shutil.copy2(original,destination)
         main_file, data_file = source/'main.py', source/'greetings/data.txt'

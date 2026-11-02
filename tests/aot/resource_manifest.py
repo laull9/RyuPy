@@ -3,7 +3,7 @@ from pathlib import PurePosixPath
 import re
 from manifest_files import ManifestError, relative_path
 
-PREFIX = '_ryupy_resources/v1/'
+PREFIX = '_internal/resources/v1/'
 
 
 def require(value, message):

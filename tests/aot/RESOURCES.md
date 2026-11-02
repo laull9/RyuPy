@@ -20,7 +20,7 @@ Windows 不合并不同来源路径/拼写的同目标资源，即使 hardlink �
 验证来源记录/快照可供多个模块共享。不是对所有文件系统身份或恶意竞争的保证。
 
 JIT 实际 build 的 `__file__` 使用真实源码位置；数据之后修改可见。选择资源的 AOT
-模块位置为可执行文件旁 `_ryupy_resources/v1/...` 虚拟 .py 锚点，源码本身不存在。
+模块位置为可执行文件旁 `_internal/resources/v1/...` 虚拟 .py 锚点，源码本身不存在。
 ILC 前冻结数据到 owned staging，发布后不回原源目录读取；未选择的 AOT 模块仍保
 旧 basename 位置。外部 __file__ 写入与内部全局同槽，可保存 None/非字符串对象。
 诊断路径与普通 dump 不变；实际构建此全局槽为 Dynamic，成本不称零。
@@ -46,3 +46,21 @@ ILC 前冻结数据到 owned staging，发布后不回原源目录读取；未�
 JIT差分1项通过；Python20项中19通过、1项Windows实机测试明确跳过。完整make check
 为471项C#、228项固定CP基线、202项e2e加30ignored，fmt/clippy/Release通过。
 原始日志保本轮临时证据/CI artifact，不提交Git。三平台实际资源结果须另外登记。
+
+## 首轮 CI 与修正（尚待三平台复验）
+
+- `d65f99c` Linux [41446355544](https://github.com/laull9/RyuPy/actions/runs/41446355544)
+  与 macOS [41446355691](https://github.com/laull9/RyuPy/actions/runs/41446355691)
+  已完成真正资源 ILC、成功模式搬迁；缺数据时映射异常缺 Python 帧，负例正确失败。
+  现仅在 PyIO.Guard 的 CLR 异常映射抛出点 PrepareRaise，纯异常映射器不变。
+- 同轮 Windows 在 fixture 原字节 SHA 检查失败，资源 publish 尚未开始，与缺帧不是
+  同一根因。当轮原文件字节未归档，不能唯一归因换行；新增资源 fixture LF checkout
+  合同与相对文件/期望/实际 SHA 诊断，保原 hash 和严格输出比较。
+- 按用户静态优先、必要外置使用 `_internal` 的选择，未交付的部署前缀统一为
+  `_internal/resources/v1`。不强加自解包；第三方原生库自动收集/静态绑定仍未实现。
+- 布局替换首轮位置专项18/19，漏改分段 Path.Combine 期望已修；修后19/19（含新IO
+  两项），真实缺文件 JIT 回归1项、资源23项、Python资源11项均通过。完整门禁与
+  三平台真资源复验另登记，不将旧布局成功路径当作新布局已验。
+
+修后完整 `make check` exit0：473 C#、228固定CP基线、202 e2e+30ignored，
+fmt/clippy/Release通过；真资源负例与新布局仍待此次三平台CI。

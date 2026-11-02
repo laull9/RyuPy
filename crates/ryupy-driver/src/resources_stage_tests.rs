@@ -95,7 +95,7 @@ fn shared_lexical_source_freezes_once_for_two_consumer_modules() {
     let publish = temp.publish();
     staged.publish(&publish).unwrap();
     assert_eq!(
-        fs::read(publish.join("_ryupy_resources/v1/modules/pkg/data.txt")).unwrap(),
+        fs::read(publish.join("_internal/resources/v1/modules/pkg/data.txt")).unwrap(),
         b"frozen"
     );
     assert_sentinel(&publish);
@@ -154,7 +154,7 @@ fn later_source_mutation_does_not_replace_successfully_frozen_bytes() {
     let publish = temp.dir("中文 publish &");
     staged.publish(&publish).unwrap();
     assert_eq!(
-        fs::read(publish.join("_ryupy_resources/v1/entry/data.txt")).unwrap(),
+        fs::read(publish.join("_internal/resources/v1/entry/data.txt")).unwrap(),
         b"old bytes"
     );
     assert_eq!(
@@ -199,7 +199,7 @@ fn existing_publish_target_is_not_overwritten() {
         .stage(&temp.owned())
         .unwrap();
     let publish = temp.publish();
-    let parent = publish.join("_ryupy_resources/v1/entry");
+    let parent = publish.join("_internal/resources/v1/entry");
     fs::create_dir_all(&parent).unwrap();
     fs::write(parent.join("data.txt"), b"old").unwrap();
     assert!(staged.publish(&publish).is_err());
@@ -293,7 +293,7 @@ fn publish_symlink_ancestor_does_not_write_outside_owned_directory() {
         .unwrap();
     let publish = temp.publish();
     let outside = temp.dir("outside");
-    symlink(&outside, publish.join("_ryupy_resources")).unwrap();
+    symlink(&outside, publish.join("_internal")).unwrap();
     assert!(staged.publish(&publish).is_err());
     assert_eq!(fs::read_dir(&outside).unwrap().count(), 0);
     assert_sentinel(&publish);
@@ -379,7 +379,7 @@ fn location_only_request_has_schema_two_without_claiming_resource_bytes() {
     assert_eq!(value["module_locations"].as_array().unwrap().len(), 1);
     assert_eq!(
         value["module_locations"][0]["relative_file"],
-        "_ryupy_resources/v1/entry/main.py"
+        "_internal/resources/v1/entry/main.py"
     );
     assert_eq!(value["resources"], serde_json::json!([]));
     assert_eq!(value["scope"]["resources_included"], false);

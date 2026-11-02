@@ -24,7 +24,7 @@ public static class PyModuleLocations
         if (kind != 2) throw new PyRuntimeError("unknown compiled module location kind");
         // 普通 dotnet/JIT 进程不能拿 dotnet 宿主目录冒充 NativeAOT 应用目录。
         if (dynamicCodeSupported) throw new PyNotImplementedError("executable-relative module locations require NativeAOT");
-        if (value.Length > 1024 || !value.StartsWith("_ryupy_resources/v1/", StringComparison.Ordinal)
+        if (value.Length > 1024 || !value.StartsWith("_internal/resources/v1/", StringComparison.Ordinal)
             || value.Contains('\\') || value.Contains(':'))
             throw new PyRuntimeError("invalid executable-relative module location");
         foreach (string part in value.Split('/'))
