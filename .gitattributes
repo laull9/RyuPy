@@ -26,3 +26,7 @@ tests/aot/fixtures/*.py text eol=lf
 tests/aot/resource_fixtures/**/*.py text eol=lf
 tests/aot/resource_fixtures/**/*.txt text eol=lf
 tests/aot/resource_fixtures/**/*.json text eol=lf
+# 自有C ABI样例在三平台构建使用同一UTF-8源码字节。
+tests/aot/cabi_probe/*.c text eol=lf
+tests/aot/cabi_probe/*.py text eol=lf
+crates/ryupy-codegen-cil/examples/cabi_emit_probe.rs text eol=lf
