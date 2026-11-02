@@ -1,0 +1,52 @@
+name: Native AOT JIT bounded performance
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-perf.yml'
+      - 'tests/aot/perf.py'
+      - 'tests/aot/perf_runner.py'
+      - 'tests/aot/perf_schema.py'
+      - 'tests/aot/test_perf.py'
+      - 'tests/aot/perf_fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.13'
+      - name: Measurement process and schema regression
+        run: python tests/aot/test_perf.py
+      - name: Native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Build release compiler and runtime before measurement
+        run: |
+          make runtime
+          cargo build -p ryupy-cli --release --locked
+      - name: Fixed 81 process comparison (no adaptive sampling)
+        timeout-minutes: 32
+        run: python tests/aot/perf.py --cli target/release/ryupy --out target/aot-perf
+      - name: Preserve raw evidence outside source Git
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-jit-perf-linux-x64-${{ github.sha }}
+          path: target/aot-perf
+          if-no-files-found: warn
+          retention-days: 14
