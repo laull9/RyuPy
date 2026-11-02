@@ -19,8 +19,8 @@ public class PyModuleLocationsTests
         Assert.Same(source, PyModuleLocations.ResolveForPlatform(1, source, true, null));
         Assert.Equal("module.py", PyModuleLocations.ResolveForPlatform(0, "module.py", true, null));
         string executable = Path.GetFullPath("bundle/program");
-        string relative = "_ryupy_resources/v1/modules/pkg/module.py";
-        string expected = Path.Combine(Path.GetDirectoryName(executable)!, "_ryupy_resources", "v1", "modules", "pkg", "module.py");
+        string relative = "_internal/resources/v1/modules/pkg/module.py";
+        string expected = Path.Combine(Path.GetDirectoryName(executable)!, "_internal", "resources", "v1", "modules", "pkg", "module.py");
         Assert.Equal(expected, PyModuleLocations.ResolveForPlatform(2, relative, false, executable));
         Assert.Throws<PyNotImplementedError>(() => PyModuleLocations.ResolveForPlatform(2, relative, true, executable));
         Assert.Throws<PyNotImplementedError>(() => PyModuleLocations.ResolveForPlatform(2, relative, false, null));
@@ -29,19 +29,19 @@ public class PyModuleLocationsTests
 
     [Theory]
     [InlineData("/absolute")]
-    [InlineData("_ryupy_resources/v1/../secret")]
-    [InlineData("_ryupy_resources/v1/a//b")]
-    [InlineData("_ryupy_resources/v1/C:x")]
-    [InlineData("_ryupy_resources/v1/a\\b")]
-    [InlineData("_ryupy_resources/v1/a. ")]
-    [InlineData("_ryupy_resources/v1/中文.py")]
-    [InlineData("_ryupy_resources/v1/CON.py")]
-    [InlineData("_ryupy_resources/v1/nul")]
-    [InlineData("_ryupy_resources/v1/COM1.txt")]
-    [InlineData("_ryupy_resources/v1/LPT9")]
-    [InlineData("_ryupy_resources/v1/CONIN$")]
-    [InlineData("_ryupy_resources/v1/CONOUT$")]
-    [InlineData("_ryupy_resources/v1/CLOCK$")]
+    [InlineData("_internal/resources/v1/../secret")]
+    [InlineData("_internal/resources/v1/a//b")]
+    [InlineData("_internal/resources/v1/C:x")]
+    [InlineData("_internal/resources/v1/a\\b")]
+    [InlineData("_internal/resources/v1/a. ")]
+    [InlineData("_internal/resources/v1/中文.py")]
+    [InlineData("_internal/resources/v1/CON.py")]
+    [InlineData("_internal/resources/v1/nul")]
+    [InlineData("_internal/resources/v1/COM1.txt")]
+    [InlineData("_internal/resources/v1/LPT9")]
+    [InlineData("_internal/resources/v1/CONIN$")]
+    [InlineData("_internal/resources/v1/CONOUT$")]
+    [InlineData("_internal/resources/v1/CLOCK$")]
     public void ExecutableRelativeLocationRejectsUnsafeComponents(string value)
     {
         Assert.Throws<PyRuntimeError>(() => PyModuleLocations.ResolveForPlatform(2, value, false, Path.GetFullPath("app")));

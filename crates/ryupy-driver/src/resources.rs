@@ -12,7 +12,7 @@ mod paths;
 mod stage;
 use paths::{Kind, Targets};
 pub(crate) use stage::StagedResources;
-pub(super) const PREFIX: &str = "_ryupy_resources/v1/";
+pub(super) const PREFIX: &str = "_internal/resources/v1/";
 pub(super) const FILE_LIMIT: u64 = 16 * 1024 * 1024;
 pub(super) const TOTAL_LIMIT: u64 = 64 * 1024 * 1024;
 

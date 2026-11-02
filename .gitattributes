@@ -22,3 +22,7 @@ tests/perf/results/m3_10/union-prototype/jit-calls.txt -whitespace
 
 # AOT跨平台比较使用同一源码字节；不让Windows checkout自动改写fixture换行。
 tests/aot/fixtures/*.py text eol=lf
+# 显式资源验收的源码/数据/清单也固定LF；hash不随Windows checkout转换。
+tests/aot/resource_fixtures/**/*.py text eol=lf
+tests/aot/resource_fixtures/**/*.txt text eol=lf
+tests/aot/resource_fixtures/**/*.json text eol=lf

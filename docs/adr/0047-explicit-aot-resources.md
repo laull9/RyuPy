@@ -23,7 +23,7 @@ ADR0046 已建立同次发布清单，但资源复制与运行时定位仍未闭
 
 - JIT 实际 build 使用解析时的绝对源码位置，运行 cwd 不影响包旁数据读取；源码数据
   之后改变仍正常可见，不是快照。
-- 明确选中的真 AOT 模块使用可执行文件目录下 `_ryupy_resources/v1/<logical_source>`。
+- 明确选中的真 AOT 模块使用可执行文件目录下 `_internal/resources/v1/<logical_source>`。
   这是虚拟模块定位锚点，不部署 Python 源码；`open(__file__)` 不因此获得源码。
 - 未选中的 AOT 模块保持旧诊断 basename 定位，不回退编译机源目录。
 
@@ -111,3 +111,9 @@ Linux 可延伸无 dotnet/Python 容器证明；Mac/Windows 仍须明确 SDK 已
 20项中19通过/1项Windows实机检查明确跳过。完整门禁471 C#、228固定CP基线、
 202 e2e+30 ignored，fmt/clippy与Release通过，无快照迁移。真实AOT资源仍待原三
 平台每RID一次发布，详见[验证入口](../../tests/aot/RESOURCES.md)。
+
+## 静态优先与外置布局（2026-11-02 用户明确选择）
+
+优先保留原生代码的静态编译能力；确需外置的资源统一位于 `_internal/resources/v1`，避免可执行文件旁散落数据。后续无法静态链接的原生依赖也以 `_internal` 为交付方向，但本切未实现第三方依赖自动收集、静态绑定或内存文件系统。不会为了单文件形式强加启动自解包。manifest 继续绑定实际外置文件及其 hash；本次路径变更发生在资源功能进入 main 之前。
+
+首轮 d65f99c 的 Linux/macOS 已完成资源 ILC 与成功模式搬迁，但缺数据负例暴露 IO 映射异常未附 Python 帧；Windows 则在 fixture SHA 校验阶段失败、尚未资源发布。后者当轮原字节未归档，新增 LF checkout 合同和诊断不等于证明唯一原因。两项修正保留原负例和逐字比较。
