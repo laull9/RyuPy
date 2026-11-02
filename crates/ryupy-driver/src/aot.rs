@@ -14,6 +14,8 @@ const RUNTIME_ASSEMBLY: &str = "RyuPy.Runtime";
 #[path = "aot_platform.rs"]
 mod platform;
 use platform::HostPlatform;
+#[path = "aot_sdk_paths.rs"]
+mod sdk_paths;
 
 /// 在 build 的任何产物写入之前调用。运行时保留名对 JIT 同样适用，避免 DLL 被覆盖。
 pub(crate) fn validate_before_build(input: &Path, aot: bool) -> Result<()> {
@@ -155,14 +157,22 @@ fn publish_owned(
     std::fs::create_dir(&source)?;
     std::fs::create_dir(&publish)?;
     let project_path = source.join("Host.csproj");
-    std::fs::write(&project_path, project(host, input_name, dll, runtime)?)?;
+    let sdk_dll = sdk_paths::sdk_path(dll)?;
+    let sdk_runtime = sdk_paths::sdk_path(runtime)?;
+    std::fs::write(
+        &project_path,
+        project(host, input_name, &sdk_dll, &sdk_runtime)?,
+    )?;
     std::fs::write(
         source.join("Program.cs"),
         "internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n",
     )?;
+    let sdk_project = sdk_paths::sdk_path(&project_path)?;
+    let sdk_publish = sdk_paths::sdk_path(&publish)?;
+    let sdk_source = sdk_paths::sdk_path(&source)?;
     let output = Command::new(crate::dotnet::dotnet_exe())
         .arg("publish")
-        .arg(&project_path)
+        .arg(&sdk_project)
         .args([
             "-c",
             "Release",
@@ -172,12 +182,12 @@ fn publish_owned(
             "true",
             "-o",
         ])
-        .arg(&publish)
+        .arg(&sdk_publish)
         .args([
             "-p:ImportDirectoryBuildProps=false",
             "-p:ImportDirectoryBuildTargets=false",
         ])
-        .current_dir(&source)
+        .current_dir(&sdk_source)
         .output()
         .context("无法启动 Native AOT dotnet publish（可用 DOTNET 指定 SDK）")?;
     // 失败清理工作目录后，完整输出仍随错误交给 CLI/调用者归档。
