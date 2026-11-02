@@ -589,6 +589,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [x] [ADR0045](docs/adr/0045-native-module-attribute-factories.md)：13项fresh属性工厂启动实验评估完成，但未达事前门槛，生产回退；保留120进程负结果，不扩大范围追收益
 - [ ] N3：通用standalone目录清单、资源/原生依赖收集、许可/哈希/诊断和真实搬迁
   - [x] [ADR0046](docs/adr/0046-native-aot-artifact-manifest.md)：同次SDK/源码文本/实际CIL引用与发布文件hash清单、完整目录搬迁核验已通过三平台；不代表资源复制或动态依赖闭包
+  - [ ] [ADR0047](docs/adr/0047-explicit-aot-resources.md)：显式资源清单、JIT真实模块位置与AOT相对定位、ILC前数据快照及三平台整树搬迁（合同已审，隔离实现中）
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
 - [ ] N5：目录交付成熟后独立评估onefile；解包/缓存/清理/资源寻址和性能另验
