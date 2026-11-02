@@ -19,3 +19,6 @@ tests/perf/results/m3_10/float-loop/candidate/summary.md -whitespace
 tests/perf/results/m3_10/full-suite/summary.md -whitespace
 tests/perf/results/m3_10/union-prototype/jit-arithmetic.txt -whitespace
 tests/perf/results/m3_10/union-prototype/jit-calls.txt -whitespace
+
+# AOT跨平台比较使用同一源码字节；不让Windows checkout自动改写fixture换行。
+tests/aot/fixtures/*.py text eol=lf
