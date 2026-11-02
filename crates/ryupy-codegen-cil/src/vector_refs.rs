@@ -12,8 +12,7 @@ pub(crate) struct VectorRefs {
 }
 impl VectorRefs {
     pub(crate) fn build(res: &mut Resolution<'static>) -> Self {
-        let assembly = res
-            .push_assembly_reference(ExternalAssemblyReference::new("System.Runtime.Intrinsics"));
+        let assembly = res.push_assembly_reference(crate::assembly_refs::intrinsics());
         let ty = res
             .push_type_reference(type_ref! { System.Runtime.Intrinsics.Vector128<1> in #assembly });
         let owner =

@@ -12,6 +12,9 @@
 
 mod accumulator_refs;
 pub mod assembly;
+mod assembly_refs;
+#[cfg(test)]
+mod assembly_refs_tests;
 mod callables;
 mod entry;
 mod function_refs;

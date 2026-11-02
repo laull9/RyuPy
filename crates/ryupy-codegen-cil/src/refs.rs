@@ -29,12 +29,11 @@ pub(crate) struct RefExtras {
 
 /// 建立程序集引用与全部运行时方法引用，返回 `RuntimeRefs` 与零散需要的引用。
 pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs, RefExtras) {
-    let sys_runtime = res.push_assembly_reference(ExternalAssemblyReference::new("System.Runtime"));
+    let sys_runtime = res.push_assembly_reference(crate::assembly_refs::system_runtime());
     let object_ref = res.push_type_reference(type_ref! { System.Object in #sys_runtime });
     let object_ctor_ref = res.push_method_reference(method_ref! { void object::.ctor() });
 
-    let ryupy_runtime =
-        res.push_assembly_reference(ExternalAssemblyReference::new("RyuPy.Runtime"));
+    let ryupy_runtime = res.push_assembly_reference(crate::assembly_refs::ryupy_runtime());
     let builtins_ref =
         res.push_type_reference(type_ref! { RyuPy.Runtime.Builtins in #ryupy_runtime });
     let builtins_type: MethodType = BaseType::class(builtins_ref).into();
