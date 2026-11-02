@@ -310,8 +310,6 @@ public static partial class PyOps
         object?[] rawValues
     )
     {
-        if (TryCapturedModuleMethod(obj, out object? captured))
-            return CallValue(captured, rawArgs, rawNames, rawValues);
         var (args, kwNames, kwValues) = FlattenArgs(rawArgs, rawNames, rawValues);
         // 普通实例 / 类 / super 代理：走属性协议得到绑定方法，再统一调用。
         if (obj is PyNativeType or PyNativeObject or PyInstance or PyClass or PySuper or PyModule or PyFunction or PyBoundMethod or PyBuiltinFunction or PyProperty

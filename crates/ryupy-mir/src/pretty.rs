@@ -363,16 +363,28 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
                 .join(", ");
             format!("dyn.call({}, [{args_str}])", format_operand(callee))
         }
-        Rvalue::DynCallMethod { obj, name, args } => {
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            name,
+            args,
+        } => {
             let args_str = args
                 .iter()
                 .map(format_operand)
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!(
-                "dyn.method({}, \"{name}\", [{args_str}])",
-                format_operand(obj)
-            )
+            match captured {
+                Some(flag) => format!(
+                    "dyn.captured_method({}, {}, \"{name}\", [{args_str}])",
+                    format_operand(flag),
+                    format_operand(obj)
+                ),
+                None => format!(
+                    "dyn.method({}, \"{name}\", [{args_str}])",
+                    format_operand(obj)
+                ),
+            }
         }
         Rvalue::CatchException => "caught_exception".to_string(),
     }

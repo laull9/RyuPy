@@ -77,3 +77,8 @@ mod module_location_tests;
 
 #[cfg(test)]
 mod module_capture_tests;
+
+mod validate_module_pairs;
+
+#[cfg(test)]
+mod module_pair_tests;

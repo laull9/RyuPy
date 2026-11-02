@@ -42,20 +42,13 @@ pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option
         .stmts
         .iter()
         .position(|stmt| !matches!(stmt, Statement::Line(_)))?;
-    let capture = module_capture(&exit.stmts[first]);
-    let sink_position = if capture.is_some() {
-        first
-            + 1
-            + exit.stmts[first + 1..]
-                .iter()
-                .position(|stmt| !matches!(stmt, Statement::Line(_)))?
-    } else {
-        first
-    };
+    let prefix = module_capture(f, loop_plan.exit, first, &definitions);
+    let sink_position = prefix.as_ref().map(|p| p.sink).unwrap_or(first);
     let Statement::Assign {
         dest: sink_dest,
         value:
             Rvalue::DynCallMethod {
+                captured,
                 obj: Operand::Local(receiver),
                 name,
                 args,
@@ -71,30 +64,18 @@ pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option
     {
         return None;
     }
-    // capture只有在下面唯一MakeList支配证明成功后才可视作identity；未知对象绝不跳过。
-    let (receiver, receiver_usage) = if let Some((captured, source)) = capture {
-        if captured != *receiver
-            || captured == source
-            || definitions.get(&captured)?.as_slice() != [(loop_plan.exit, first)]
-            || f.params.contains(&captured)
-            || f.body.locals[captured].name.is_some()
+    // 两局部只在实际MakeList支配证明完成后才视作identity；未知接收者不借bool猜类型。
+    let (receiver, receiver_usage) = if let Some(prefix) = prefix {
+        if !matches!(captured, Some(Operand::Local(flag)) if *flag == prefix.flag)
+            || *receiver != prefix.target
         {
             return None;
         }
-        for (id, block) in f.body.blocks.iter() {
-            if terminator_reads(&block.terminator).contains(&captured) {
-                return None;
-            }
-            for (position, stmt) in block.stmts.iter().enumerate() {
-                if reads(stmt).contains(&captured)
-                    && (id, position) != (loop_plan.exit, sink_position)
-                {
-                    return None;
-                }
-            }
-        }
-        (source, (loop_plan.exit, first))
+        (prefix.source, (loop_plan.exit, first))
     } else {
+        if captured.is_some() {
+            return None;
+        }
         (*receiver, (loop_plan.exit, sink_position))
     };
     let last = chain.start + chain.steps.len() - 1;
@@ -216,23 +197,95 @@ pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option
         receiver,
     })
 }
-/// 只识别编译器实际插入的append捕获；不跳过其它可能抛错/回调的前缀。
-fn module_capture(statement: &Statement) -> Option<(LocalId, LocalId)> {
+/// 只接收紧邻的匿名冻结/判定/目标三元组；任一额外观察均拒绝岛优化。
+struct CapturePrefix {
+    source: LocalId,
+    flag: LocalId,
+    target: LocalId,
+    sink: usize,
+}
+fn module_capture(
+    f: &Function,
+    block: BlockId,
+    first: usize,
+    definitions: &Definitions,
+) -> Option<CapturePrefix> {
+    let statements = &f.body.blocks[block].stmts;
+    let positions: Vec<_> = statements
+        .iter()
+        .enumerate()
+        .skip(first)
+        .filter_map(|(i, s)| (!matches!(s, Statement::Line(_))).then_some(i))
+        .take(4)
+        .collect();
+    let [freeze, test, capture, sink] = positions.as_slice() else {
+        return None;
+    };
     let Statement::Assign {
-        dest,
-        value:
-            Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::CaptureModuleMethod),
-                args,
-            },
-    } = statement
+        dest: receiver,
+        value: Rvalue::Use(Operand::Local(source)),
+    } = &statements[*freeze]
     else {
         return None;
     };
-    let [Operand::Local(source), Operand::Const(Constant::Str(name))] = args.as_slice() else {
+    let Statement::Assign {
+        dest: flag,
+        value:
+            Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::IsModule),
+                args: flag_args,
+            },
+    } = &statements[*test]
+    else {
         return None;
     };
-    (name == "append").then_some((*dest, *source))
+    let Statement::Assign {
+        dest: target,
+        value:
+            Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::CaptureModuleTarget),
+                args: target_args,
+            },
+    } = &statements[*capture]
+    else {
+        return None;
+    };
+    if !matches!(flag_args.as_slice(), [Operand::Local(r)] if r == receiver)
+        || !matches!(target_args.as_slice(), [Operand::Local(r), Operand::Const(Constant::Str(name))] if r == receiver && name == "append")
+    {
+        return None;
+    }
+    for (local, position, ty, uses) in [
+        (*receiver, *freeze, MirType::Dynamic, vec![*test, *capture]),
+        (*flag, *test, MirType::Bool, vec![*sink]),
+        (*target, *capture, MirType::Dynamic, vec![*sink]),
+    ] {
+        if definitions.get(&local)?.as_slice() != [(block, position)]
+            || f.params.contains(&local)
+            || f.env == Some(local)
+            || f.body.locals[local].name.is_some()
+            || f.body.locals[local].is_cell
+            || f.body.locals[local].ty != ty
+        {
+            return None;
+        }
+        for (id, body) in f.body.blocks.iter() {
+            if terminator_reads(&body.terminator).contains(&local) {
+                return None;
+            }
+            for (position, statement) in body.stmts.iter().enumerate() {
+                if reads(statement).contains(&local) && (id != block || !uses.contains(&position)) {
+                    return None;
+                }
+            }
+        }
+    }
+    Some(CapturePrefix {
+        source: *source,
+        flag: *flag,
+        target: *target,
+        sink: *sink,
+    })
 }
 
 fn item(statement: &Statement) -> Option<(LocalId, LocalId, LocalId)> {

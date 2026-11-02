@@ -93,6 +93,7 @@ fn sample() -> Sample {
         Statement::Assign {
             dest: output,
             value: Rvalue::DynCallMethod {
+                captured: None,
                 obj: get(receiver),
                 name: "append".into(),
                 args: vec![get(total)],
@@ -336,30 +337,46 @@ fn excess_depth_and_partial_budget_never_rewrite_the_factory() {
 /// 捕获只对actualmodule有语义；本岛证明唯一MakeList来源后才允许将结果视为identity。
 #[test]
 fn module_capture_preserves_proven_list_island_and_rejects_unknown_or_escaped_target() {
-    for mode in 0..5 {
+    for mode in 0..8 {
         let mut sample = sample();
         let exit = sample.blocks[4];
         let captured = local(&mut sample.f);
+        let receiver = local(&mut sample.f);
+        let flag = local(&mut sample.f);
+        sample.f.body.locals[flag].ty = MirType::Bool;
         let source = if mode == 1 {
             sample.keys[0]
         } else {
             sample.receiver
         };
         let name = if mode == 2 { "other" } else { "append" };
-        sample.f.body.blocks[exit].stmts.insert(
-            1,
-            call(
-                captured,
-                RuntimeFn::CaptureModuleMethod,
-                vec![get(source), Operand::Const(Constant::Str(name.into()))],
-            ),
+        sample.f.body.blocks[exit].stmts.splice(
+            1..1,
+            [
+                Statement::Assign {
+                    dest: receiver,
+                    value: Rvalue::Use(get(source)),
+                },
+                call(flag, RuntimeFn::IsModule, vec![get(receiver)]),
+                call(
+                    captured,
+                    RuntimeFn::CaptureModuleTarget,
+                    vec![get(receiver), Operand::Const(Constant::Str(name.into()))],
+                ),
+            ],
         );
         if let Statement::Assign {
-            value: Rvalue::DynCallMethod { obj, .. },
+            value:
+                Rvalue::DynCallMethod {
+                    captured: condition,
+                    obj,
+                    ..
+                },
             ..
-        } = &mut sample.f.body.blocks[exit].stmts[2]
+        } = &mut sample.f.body.blocks[exit].stmts[4]
         {
             *obj = get(captured);
+            *condition = Some(get(flag));
         } else {
             panic!("fixture sink");
         }
@@ -375,6 +392,31 @@ fn module_capture_preserves_proven_list_island_and_rejects_unknown_or_escaped_ta
                 },
             );
         }
+        if mode == 5 {
+            sample.f.body.blocks[exit].stmts.insert(
+                4,
+                Statement::Assign {
+                    dest: flag,
+                    value: Rvalue::Use(Operand::Const(Constant::Bool(false))),
+                },
+            );
+        }
+        if mode == 6 {
+            sample.f.body.blocks[exit].terminator = Terminator::Branch {
+                cond: get(flag),
+                then_: exit,
+                else_: exit,
+            };
+        }
+        if mode == 7 {
+            if let Statement::Assign {
+                value: Rvalue::Call { args, .. },
+                ..
+            } = &mut sample.f.body.blocks[exit].stmts[3]
+            {
+                args[0] = get(source);
+            }
+        }
         FloatChain.run(&mut sample.f);
         assert_eq!(
             calls(&sample.f, RuntimeFn::NumericListCreate),
@@ -386,9 +428,9 @@ fn module_capture_preserves_proven_list_island_and_rejects_unknown_or_escaped_ta
             usize::from(mode == 0),
             "case {mode}"
         );
-        // 原ordinary路径保捕获；未知/逃逸的token也不被删掉冒充pure。
+        // 原ordinary路径保捕获；未知/逃逸的pair也不被删掉冒充pure。
         assert_eq!(
-            calls(&sample.f, RuntimeFn::CaptureModuleMethod),
+            calls(&sample.f, RuntimeFn::CaptureModuleTarget),
             1,
             "case {mode}"
         );

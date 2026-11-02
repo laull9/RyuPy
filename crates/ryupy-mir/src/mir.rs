@@ -412,6 +412,8 @@ pub enum Rvalue {
     },
     /// 动态方法位置调用：`obj.name(arg0, ...)`，没有关键字与展开实参。
     DynCallMethod {
+        /// 独立模块捕获标志；None保持原方法PIC。
+        captured: Option<Operand>,
         obj: Operand,
         name: String,
         args: Vec<Operand>,

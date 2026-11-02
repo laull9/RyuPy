@@ -385,17 +385,33 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                 ctx.runtime_refs.pic_call_value[args.len()],
             ));
         }
-        Rvalue::DynCallMethod { obj, name, args } => {
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            name,
+            args,
+        } => {
             let site = ctx.next_site();
             ins.push(Instruction::LoadConstantInt32(site));
+            if let Some(flag) = captured {
+                lower_operand(
+                    flag,
+                    ins,
+                    ctx.param_slots,
+                    ctx.local_slots,
+                    ctx.runtime_refs,
+                );
+            }
             lower_operand(obj, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             ins.push(Instruction::load_string(name.clone()));
             for arg in args {
                 lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
             }
-            ins.push(Instruction::call(
-                ctx.runtime_refs.pic_call_method[args.len()],
-            ));
+            ins.push(Instruction::call(if captured.is_some() {
+                ctx.runtime_refs.bindings.pic_captured_method[args.len()]
+            } else {
+                ctx.runtime_refs.pic_call_method[args.len()]
+            }));
         }
         Rvalue::GeneratorDelegateStep { .. } => {
             // MIR验证器应先拒绝残留高层节点，后端不猜测Python委托语义。

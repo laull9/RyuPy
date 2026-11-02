@@ -178,7 +178,9 @@ pub struct RuntimeRefs {
 pub(crate) fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRefIndex {
     match callee {
         RuntimeFn::PrepareMethod => refs.prepare_method,
-        RuntimeFn::CaptureModuleMethod => refs.bindings.capture_module_method,
+        RuntimeFn::CaptureModuleTarget => refs.bindings.capture_module_target,
+        RuntimeFn::IsModule => refs.bindings.is_module,
+        RuntimeFn::CallCapturedMethod => refs.bindings.call_captured_method,
         RuntimeFn::MakeList => refs.make_list,
         RuntimeFn::MakeTuple => refs.make_tuple,
         RuntimeFn::MakeSet => refs.make_set,

@@ -438,7 +438,15 @@ fn remap_rvalue(
             callee: remap_operand(callee, global_map),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
         },
-        Rvalue::DynCallMethod { obj, name, args } => Rvalue::DynCallMethod {
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            name,
+            args,
+        } => Rvalue::DynCallMethod {
+            captured: captured
+                .as_ref()
+                .map(|value| remap_operand(value, global_map)),
             obj: remap_operand(obj, global_map),
             name: name.clone(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),

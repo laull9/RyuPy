@@ -135,7 +135,15 @@ pub(crate) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
                 read_operand(argument, reads);
             }
         }
-        Rvalue::DynCallMethod { obj, args, .. } => {
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            args,
+            ..
+        } => {
+            if let Some(value) = captured {
+                read_operand(value, reads);
+            }
             read_operand(obj, reads);
             for argument in args {
                 read_operand(argument, reads);
