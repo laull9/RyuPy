@@ -1,5 +1,0 @@
-[
-  "/opt/hostedtoolcache/Python/3.12.13/x64/bin/python3.12",
-  "-c",
-  "import sys; print(sys.implementation.name); print('.'.join(map(str,sys.version_info[:3])))"
-]

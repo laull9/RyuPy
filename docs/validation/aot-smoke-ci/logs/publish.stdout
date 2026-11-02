@@ -1,5 +1,0 @@
-  Determining projects to restore...
-  Restored /home/runner/work/RyuPy/RyuPy/target/aot-smoke/aot-smoke-tk9im2un/host/NativeHost.csproj (in 1.92 sec).
-  NativeHost -> /home/runner/work/RyuPy/RyuPy/target/aot-smoke/aot-smoke-tk9im2un/host/bin/Release/net10.0/linux-x64/NativeHost.dll
-  Generating native code
-  NativeHost -> /home/runner/work/RyuPy/RyuPy/target/aot-smoke/aot-smoke-tk9im2un/publish/

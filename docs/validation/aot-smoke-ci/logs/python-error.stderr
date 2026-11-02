@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/home/runner/work/RyuPy/RyuPy/target/aot-smoke/aot-smoke-tk9im2un/input/main.py", line 45, in <module>
-    fail()
-  File "/home/runner/work/RyuPy/RyuPy/target/aot-smoke/aot-smoke-tk9im2un/input/main.py", line 12, in fail
-    raise SampleError("aot-user-error")
-SampleError: aot-user-error
