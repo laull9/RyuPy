@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import signal
 import shutil
 import subprocess
 import tempfile
@@ -37,14 +38,23 @@ class Runner:
         prefix = self.logs / label
         prefix.with_suffix(".command.json").write_text(
             json.dumps(command, ensure_ascii=False, indent=2), encoding="utf-8")
+        # 独占会话/进程组覆盖 CLI→dotnet→ILC；超时不能只杀最外层CLI。
+        process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE, start_new_session=True)
         try:
-            result = subprocess.run(command, cwd=cwd, env=env, capture_output=True,
-                                    timeout=timeout, check=False)
-        except subprocess.TimeoutExpired as error:
-            prefix.with_suffix(".stdout").write_bytes(error.stdout or b"")
-            prefix.with_suffix(".stderr").write_bytes(error.stderr or b"")
-            prefix.with_suffix(".status.json").write_text('{"timeout": true}')
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stdout, stderr = process.communicate()
+            prefix.with_suffix(".stdout").write_bytes(stdout)
+            prefix.with_suffix(".stderr").write_bytes(stderr)
+            prefix.with_suffix(".status.json").write_text(json.dumps({
+                "timeout": True, "exit": process.returncode, "killed_process_group": process.pid}))
             raise
+        result = subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
         prefix.with_suffix(".stdout").write_bytes(result.stdout)
         prefix.with_suffix(".stderr").write_bytes(result.stderr)
         prefix.with_suffix(".status.json").write_text(json.dumps({"exit": result.returncode}))
