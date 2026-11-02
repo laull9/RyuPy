@@ -25,6 +25,9 @@ mod float_slp;
 mod float_slp_expand;
 #[cfg(test)]
 mod float_slp_tests;
+mod integer_chain_expand;
+#[cfg(test)]
+mod integer_chain_tests;
 mod interval_facts;
 mod interval_narrow;
 #[cfg(test)]

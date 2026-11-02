@@ -303,3 +303,70 @@ fn serialized_direct_binary_converts_only_opcode_to_clr_int32() {
             .any(|ins| ins.show(&res).contains("PyPic"))
     );
 }
+
+#[test]
+fn serialized_i64_box_preserves_runtime_integer_cache_contract() {
+    // 短链只物化末结果；该Box必须沿整数缓存助手，不能悄换成CLR直接装箱。
+    let mut program = program();
+    let mut locals = Arena::default();
+    let input = local(&mut locals, MirType::I64);
+    let result = local(&mut locals, MirType::Dynamic);
+    program.functions.alloc(function(
+        "materialize_i64",
+        single_block(
+            locals,
+            vec![Statement::Assign {
+                dest: result,
+                value: Rvalue::Box {
+                    value: Operand::Local(input),
+                    from: MirType::I64,
+                },
+            }],
+            Some(Operand::Local(result)),
+        ),
+        vec![input],
+        MirType::Dynamic,
+    ));
+    let bytes = crate::emit_assembly(
+        &program,
+        &crate::EmitOptions {
+            assembly_name: "integer_materialization".into(),
+            entry_source_path: None,
+        },
+    )
+    .unwrap();
+    let res = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
+    let instructions = &res
+        .type_definitions
+        .iter()
+        .flat_map(|ty| &ty.methods)
+        .find(|method| method.name == "materialize_i64")
+        .unwrap()
+        .body
+        .as_ref()
+        .unwrap()
+        .instructions;
+    let calls: Vec<_> = instructions
+        .iter()
+        .enumerate()
+        .filter(|(_, instruction)| instruction.show(&res).contains("PyOps.BoxInt"))
+        .collect();
+    assert_eq!(calls.len(), 1);
+    let (index, call) = calls[0];
+    assert!(
+        call.show(&res)
+            .contains("static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.BoxInt(long)"),
+        "{}",
+        call.show(&res)
+    );
+    assert!(index > 0);
+    assert!(matches!(
+        instructions[index - 1],
+        Instruction::LoadArgument(0)
+    ));
+    assert!(
+        !instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::BoxValue(_)))
+    );
+}

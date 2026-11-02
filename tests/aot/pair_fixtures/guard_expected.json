@@ -1,0 +1,10 @@
+{
+  "python": "CPython 3.12.13",
+  "sha256": "7c3c717180dd1ac5c12318e2915cbe42c4a58ddee47e13c921d16fbc59254346",
+  "checksums": {
+    "float": "7.5",
+    "bool": "6",
+    "custom": "(True, 100000, 100000, False)",
+    "overflow": "9223372036854775807"
+  }
+}
