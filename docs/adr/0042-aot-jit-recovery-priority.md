@@ -22,9 +22,9 @@
 AOT及JIT完整有界验收，再另行恢复兼容与桥接工作。纯原生AOT不代表libpython/NumPy
 桥接AOT完成；后者保持独立未实现状态。
 
-## 首个AOT闭环（计划）
+## 首个AOT闭环（恢复时计划，随后进展见ADR0005/0043）
 
-实际driver的publish_aot仍明确拒绝，ADR0005桩项目方案尚未实施。
+恢复记录建立时driver的publish_aot仍明确拒绝；现已按ADR0005完成Linux有限首实现并真实CI通过，以下保留原计划，不代表当前仍未实现。
 先验证CLI/build→生成CIL→真实dotnet publish→原生产物→行为与退出码一致。
 桩入口必须保生成Main的实际返回值，不以void调用吞掉SystemExit/错误退出。
 
