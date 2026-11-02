@@ -50,7 +50,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0043](0043-aot-delivery-mainline.md) | AOT持续性能与交付主线 | 分阶段实施中 |
 | [0044](0044-guarded-integer-add-chain.md) | actual-I64短Add链消除中间盒 | 有限默认，配对及组合门禁通过 |
 | [0045](0045-native-module-attribute-factories.md) | 13项原生模块属性工厂延迟构造 | 固定配对未达采用门槛，生产已回退 |
-| [0046](0046-native-aot-artifact-manifest.md) | 同次AOT发布清单与实际生成引用报告 | 实现接线，待完整门禁与三平台验收 |
+| [0046](0046-native-aot-artifact-manifest.md) | 同次AOT发布清单与实际生成引用报告 | 有限三平台验收通过，资源与动态闭包未实现 |
 
 ## 模板
 
