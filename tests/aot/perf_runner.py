@@ -32,7 +32,7 @@ class Runner:
 
     def run(self, label, command, *, cwd, env, limit, stats=False):
         if time.monotonic() >= self.deadline:
-            raise TimeoutError('整组1800秒预算已耗尽')
+            raise TimeoutError('整组预算已耗尽')
         case = self.logs / label
         case.mkdir(exist_ok=False)
         command = [str(part) for part in command]

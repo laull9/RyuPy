@@ -1,0 +1,76 @@
+name: Native AOT bounded lazy module startup experiment
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-lazy-pair.yml'
+      - 'tests/aot/lazy_build.py'
+      - 'tests/aot/lazy_pair.py'
+      - 'tests/aot/lazy_schema.py'
+      - 'tests/aot/test_lazy_pair.py'
+      - 'tests/aot/lazy_fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          ref: ${{ github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: 972fac072c2dbdd42e250f633a9e21b3d09cbb62
+          path: baseline
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            baseline -> target
+            candidate -> target
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.13'
+      - name: Pure measurement and budget regressions
+        working-directory: candidate
+        run: |
+          python tests/aot/test_perf.py
+          python tests/aot/test_lazy_pair.py
+      - name: Native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Fixed tool builds and 120 cold processes under one deadline
+        timeout-minutes: 22
+        run: |
+          out="$PWD/candidate/target/aot-lazy-pair"
+          python candidate/tests/aot/lazy_build.py \
+            --baseline-root "$PWD/baseline" --candidate-root "$PWD/candidate" --out "$out"
+          python candidate/tests/aot/lazy_pair.py \
+            --baseline-root "$PWD/baseline" --baseline-cli "$PWD/baseline/target/release/ryupy" \
+            --candidate-root "$PWD/candidate" --candidate-cli "$PWD/candidate/target/release/ryupy" \
+            --python "$(command -v python)" --out "$out" --started-at "$(cat "$out/started-at")" \
+            --fixtures "$PWD/candidate/tests/aot/lazy_fixtures" \
+            --expected "$PWD/candidate/tests/aot/lazy_fixtures/expected.json"
+      - name: Preserve all raw evidence including failure outside source Git
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-lazy-pair-linux-x64-${{ github.sha }}
+          path: candidate/target/aot-lazy-pair
+          if-no-files-found: warn
+          retention-days: 14

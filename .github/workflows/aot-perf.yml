@@ -1,15 +1,7 @@
 name: Native AOT JIT bounded performance
 
 on:
-  push:
-    branches: [wip/aot-jit-recovery]
-    paths:
-      - '.github/workflows/aot-perf.yml'
-      - 'tests/aot/perf.py'
-      - 'tests/aot/perf_runner.py'
-      - 'tests/aot/perf_schema.py'
-      - 'tests/aot/test_perf.py'
-      - 'tests/aot/perf_fixtures/**'
+  # 已归档的81进程基线只手动运行；新候选使用各自预注册配对，不因共享工具维护追加采样。
   workflow_dispatch:
 
 permissions:
