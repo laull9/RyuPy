@@ -46,6 +46,9 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0039](0039-adaptive-numeric-list-island.md) | 自适应数值列表岛与身份安全物化 | 有限默认，三臂及门禁验收通过 |
 | [0040](0040-guarded-two-lane-float-slp.md) | 受守卫两lane独立浮点SLP | 已验证，无净收益，显式实验默认关 |
 | [0041](0041-proven-list-read-bounds.md) | 支配证明下省去重复列表逻辑范围检查 | 源码、实际JIT与聚合门禁通过 |
+| [0042](0042-aot-jit-recovery-priority.md) | 恢复后优先AOT/JIT与小步远端保存 | 用户已批准方向 |
+| [0043](0043-aot-delivery-mainline.md) | AOT持续性能与交付主线 | 分阶段实施中 |
+| [0044](0044-guarded-integer-add-chain.md) | actual-I64短Add链消除中间盒 | 合同已审，隔离实现待验 |
 
 ## 模板
 
