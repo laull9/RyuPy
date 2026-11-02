@@ -22,7 +22,7 @@ jobs:
           path: diagnostic
       - uses: actions/checkout@v4
         with:
-          ref: 457886017cd4d32911a09b09307d07c327b87192
+          ref: 027ed394cf388218ac48268025083c7ae762afcb
           path: product
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
       - uses: Swatinem/rust-cache@v2
@@ -53,12 +53,13 @@ jobs:
           "$PYTHON" diagnostic/tests/interactive/stdio_probe.py \
             --cli "$PWD/product/target/debug/ryupy" --python "$PYTHON" \
             --runtime-dir "$PWD/product/runtime/RyuPy.Runtime/bin/Release/net10.0" \
-            --out "$PWD/diagnostic/target/stdio-diagnostic"
+            --out "$PWD/diagnostic/target/stdio-diagnostic" \
+            --expected-ref 027ed394cf388218ac48268025083c7ae762afcb
       - name: Preserve raw terminal evidence without modifying terminal policy
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: macos-stdio-main4578860-${{ github.sha }}
+          name: macos-stdio-fixed-${{ github.sha }}
           path: diagnostic/target/stdio-diagnostic
           if-no-files-found: warn
           retention-days: 14

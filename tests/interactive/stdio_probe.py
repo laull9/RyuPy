@@ -182,7 +182,12 @@ def main():
     parser.add_argument('--python', required=True)
     parser.add_argument('--runtime-dir', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--expected-ref', default=BASELINE,
+                        help='待验独立checkout的完整40位Git SHA（默认原main基线）')
     args = parser.parse_args()
+    if len(args.expected_ref) != 40 or any(c not in '0123456789abcdefABCDEF' for c in args.expected_ref):
+        parser.error('--expected-ref必须是完整40位十六进制Git SHA')
+    args.expected_ref = args.expected_ref.lower()
     cli, python = tool(args.cli), tool(args.python)
     runtime = args.runtime_dir.resolve() / 'RyuPy.Runtime.dll'
     args.out.mkdir(parents=True, exist_ok=True)
@@ -190,7 +195,8 @@ def main():
     probe = Probe(work, {**os.environ, 'RYUPY_RUNTIME_DIR': str(runtime.parent)})
     records = []
     summary = {'scope': 'summary-derived candidates, NOT original user 1.py',
-               'expected_workflow_baseline': BASELINE, 'cli_sha256': sha(Path(cli)),
+               'diagnostic_harness_sha256': sha(Path(__file__)),
+               'expected_workflow_baseline': args.expected_ref, 'cli_sha256': sha(Path(cli)),
                'host': {'os': platform.system(), 'arch': platform.machine(),
                         'platform': platform.platform(), 'uname': platform.uname()._asdict()},
                'runtime_sha256': sha(runtime), 'records': records, 'status': 'failed'}
@@ -204,9 +210,9 @@ def main():
         if info[2]:
             raise RuntimeError('无法记录实际.NET信息')
         main_ref = probe.pipe('main-ref', ['git', '-C', str(Path(cli).parent), 'rev-parse', 'HEAD'])
-        if main_ref[2] or main_ref[0].decode().strip() != BASELINE:
-            raise ValueError('诊断必须使用冻结main4578860独立checkout')
         summary['actual_checkout_ref'] = main_ref[0].decode().strip()
+        if main_ref[2] or summary['actual_checkout_ref'] != args.expected_ref:
+            raise ValueError('诊断checkout与--expected-ref指定的冻结SHA不一致')
         sources = work / 'source'
         sources.mkdir()
         for name in FIXTURES:
