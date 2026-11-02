@@ -24,6 +24,8 @@ pub struct SourceModule {
     pub package: String,
     /// `__file__` / traceback 用的文件名。
     pub file: String,
+    /// 审计逻辑来源，与诊断file和真实部署位置分别建模；不包含源目录绝对路径。
+    pub logical_source: String,
     pub parsed: ParsedModule,
     pub text: String,
 }
@@ -51,7 +53,7 @@ pub fn load_program(
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
     // 入口模块：名字固定 `__main__`，不参与按名字查重。
-    let entry_source = read_module(sess, entry, "__main__", "")?;
+    let entry_source = read_module(sess, entry, "__main__", "", SourceKind::Entry)?;
     collect_requests(&entry_source.parsed, &entry_source.package, &mut queue);
     let entry_module = entry_source;
 
@@ -70,12 +72,12 @@ pub fn load_program(
                 }
             }
         }
-        let Some(path) = resolve_in(&roots, &name) else {
+        let Some((path, kind)) = resolve_in(&roots, &name) else {
             // 未找到源码：留给原生模块注册表；运行时仍未知才抛 ModuleNotFoundError。
             continue;
         };
         let package = module_package(&name, &path);
-        let source = read_module(sess, &path, &name, &package)?;
+        let source = read_module(sess, &path, &name, &package, kind)?;
         collect_requests(&source.parsed, &source.package, &mut queue);
         modules.insert(name, source);
     }
@@ -87,10 +89,23 @@ pub fn load_program(
 
 /// 入口模块的「单文件」来源（`dump` 用）：不做模块图搜索。
 pub fn load_single(sess: &mut Session, entry: &Path) -> Result<SourceModule> {
-    read_module(sess, entry, "__main__", "")
+    read_module(sess, entry, "__main__", "", SourceKind::Entry)
 }
 
-fn read_module(sess: &mut Session, path: &Path, name: &str, package: &str) -> Result<SourceModule> {
+#[derive(Clone, Copy)]
+enum SourceKind {
+    Entry,
+    ModuleFile,
+    Package,
+}
+
+fn read_module(
+    sess: &mut Session,
+    path: &Path,
+    name: &str,
+    package: &str,
+    kind: SourceKind,
+) -> Result<SourceModule> {
     let file = sess.load_file(path)?;
     let text = sess.sources.get(file).text.clone();
     let (parsed, diags) = ryupy_syntax::parse(file, &text);
@@ -102,6 +117,7 @@ fn read_module(sess: &mut Session, path: &Path, name: &str, package: &str) -> Re
     Ok(SourceModule {
         name: name.to_owned(),
         package: package.to_owned(),
+        logical_source: logical_source(name, &display, kind),
         file: display,
         parsed,
         text,
@@ -124,16 +140,16 @@ fn package_prefixes(name: &str) -> Vec<String> {
 }
 
 /// 在所有搜索根里找模块：每个根都优先 `<root>/a/b.py`，其次 `<root>/a/b/__init__.py`。
-fn resolve_in(roots: &[PathBuf], name: &str) -> Option<PathBuf> {
+fn resolve_in(roots: &[PathBuf], name: &str) -> Option<(PathBuf, SourceKind)> {
     let relative = name.replace('.', "/");
     for root in roots {
         let file = root.join(format!("{relative}.py"));
         if file.is_file() {
-            return Some(file);
+            return Some((file, SourceKind::ModuleFile));
         }
         let init = root.join(&relative).join("__init__.py");
         if init.is_file() {
-            return Some(init);
+            return Some((init, SourceKind::Package));
         }
     }
     None
@@ -176,5 +192,122 @@ mod tests {
         assert_eq!(module_package("a.b", Path::new("a/b/__init__.py")), "a.b");
         assert_eq!(module_package("x", Path::new("x.py")), "");
         assert_eq!(package_prefixes("a.b.c"), vec!["a", "a.b"]);
+    }
+}
+
+/// 按已解析的实际文件种类记录逻辑来源；不从点分模块名猜是否为包。
+fn logical_source(module: &str, file_name: &str, kind: SourceKind) -> String {
+    match kind {
+        SourceKind::Entry => format!("entry/{file_name}"),
+        SourceKind::ModuleFile => format!("modules/{}.py", module.replace('.', "/")),
+        SourceKind::Package => format!("modules/{}/__init__.py", module.replace('.', "/")),
+    }
+}
+
+#[cfg(test)]
+mod logical_source_tests {
+    use super::*;
+
+    #[test]
+    fn actual_package_kind_and_same_basename_stay_distinct() {
+        assert_eq!(
+            logical_source("__main__", "main.py", SourceKind::Entry),
+            "entry/main.py"
+        );
+        assert_eq!(
+            logical_source("left.common", "common.py", SourceKind::ModuleFile),
+            "modules/left/common.py"
+        );
+        assert_eq!(
+            logical_source("right.common", "common.py", SourceKind::ModuleFile),
+            "modules/right/common.py"
+        );
+        assert_eq!(
+            logical_source("left", "__init__.py", SourceKind::Package),
+            "modules/left/__init__.py"
+        );
+        assert_eq!(
+            logical_source("left", "left.py", SourceKind::ModuleFile),
+            "modules/left.py"
+        );
+    }
+    #[test]
+    fn loaded_sources_keep_actual_text_and_distinct_logical_names() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root =
+            std::env::temp_dir().join(format!("ryupy-logical-{}-{unique}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let result = (|| -> anyhow::Result<()> {
+            for package in ["left", "right"] {
+                std::fs::create_dir(root.join(package))?;
+                std::fs::write(root.join(package).join("__init__.py"), "")?;
+                std::fs::write(
+                    root.join(package).join("common.py"),
+                    format!("value = '{package}'\r\n"),
+                )?;
+            }
+            std::fs::write(
+                root.join("common.py"),
+                "import left.common\nimport right.common\n",
+            )?;
+            let (sources, entry) =
+                load_program(&mut Session::default(), &root.join("common.py"), &[])?;
+            assert_eq!(entry, 0);
+            let names: std::collections::BTreeSet<_> = sources
+                .iter()
+                .map(|source| source.logical_source.as_str())
+                .collect();
+            assert_eq!(names.len(), sources.len());
+            assert!(names.contains("entry/common.py"));
+            assert!(names.contains("modules/left/common.py"));
+            assert!(names.contains("modules/right/common.py"));
+            assert!(names.contains("modules/left/__init__.py"));
+            let original = sources
+                .iter()
+                .find(|source| source.name == "left.common")
+                .unwrap();
+            std::fs::write(root.join("left/common.py"), "changed = True\n")?;
+            assert_eq!(original.text.as_bytes(), b"value = 'left'\r\n");
+            assert!(
+                sources
+                    .iter()
+                    .all(|source| !source.logical_source.contains(root.to_str().unwrap()))
+            );
+            Ok(())
+        })();
+        std::fs::remove_dir_all(root).unwrap();
+        result.unwrap();
+    }
+    #[test]
+    fn importing_init_as_module_uses_actual_file_branch_not_package_guess() {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root =
+            std::env::temp_dir().join(format!("ryupy-init-kind-{}-{unique}", std::process::id()));
+        std::fs::create_dir(&root).unwrap();
+        let result = (|| -> anyhow::Result<()> {
+            std::fs::create_dir(root.join("pkg"))?;
+            std::fs::write(root.join("pkg/__init__.py"), "value = 1\n")?;
+            std::fs::write(root.join("main.py"), "import pkg\nimport pkg.__init__\n")?;
+            let (sources, _) = load_program(&mut Session::default(), &root.join("main.py"), &[])?;
+            let package = sources.iter().find(|source| source.name == "pkg").unwrap();
+            let module = sources
+                .iter()
+                .find(|source| source.name == "pkg.__init__")
+                .unwrap();
+            assert_eq!(package.logical_source, "modules/pkg/__init__.py");
+            assert_eq!(module.logical_source, "modules/pkg/__init__.py");
+            assert_ne!(package.name, module.name);
+            // 两个模块身份可对应同一真实源文件；不得虚构第二层__init__位置。
+            assert_eq!(package.text, module.text);
+            Ok(())
+        })();
+        std::fs::remove_dir_all(root).unwrap();
+        result.unwrap();
     }
 }

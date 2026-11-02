@@ -62,10 +62,13 @@ def relocate(native, relocated, rid):
     return binary, manifest
 
 
-def audit(run, relocated, rid, tools):
+def audit(run, relocated, rid, tools, *, binaries=None):
     records = []
     forbidden = ('hostfxr', 'hostpolicy', 'coreclr', 'clrcreateinstance', 'mscoree')
-    for index, path in enumerate(sorted(relocated.iterdir())):
+    # 新清单还包含JSON/符号；调用方显式传需审计的native/dynamic库集合。
+    selected = relocated.iterdir() if binaries is None else binaries
+    for index, path in enumerate(sorted(selected)):
+        native_format(path, rid, library=path.suffix.lower() in ('.dll', '.dylib'))
         if rid == 'osx-arm64':
             result = run.run(f'dependency-{index}', [tools['otool'], '-L', str(path)], cwd=relocated, check=True)
             commands = run.run(f'load-commands-{index}', [tools['otool'], '-l', str(path)], cwd=relocated, check=True)
@@ -81,11 +84,13 @@ def audit(run, relocated, rid, tools):
                 candidates = []
                 if dependency.startswith('@rpath/'):
                     for entry in rpaths:
-                        base = entry.replace('@loader_path', str(relocated)).replace('@executable_path', str(relocated))
+                        base = entry.replace('@loader_path', str(path.parent)).replace('@executable_path', str(relocated))
                         candidates.append(Path(base)/dependency[len('@rpath/'):])
                 else:
-                    candidates.append(Path(dependency.replace('@loader_path', str(relocated)).replace('@executable_path', str(relocated))))
-                if not any(candidate.is_file() and candidate.resolve().parent == relocated.resolve() for candidate in candidates):
+                    candidates.append(Path(dependency.replace('@loader_path', str(path.parent)).replace('@executable_path', str(relocated))))
+                def local_file(candidate):
+                    return candidate.is_file() and candidate.resolve().is_relative_to(relocated.resolve())
+                if not any(local_file(candidate) for candidate in candidates):
                     raise AssertionError(f'未闭合的非系统dylib依赖：{dependency}; rpaths={rpaths}')
         else:
             result = run.run(f'dependency-{index}', [tools['dumpbin'], '/DEPENDENTS', str(path)], cwd=relocated, check=True)

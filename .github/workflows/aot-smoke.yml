@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/aot-smoke.yml'
       - 'tests/aot/smoke.py'
+      - 'tests/aot/manifest_*.py'
+      - 'tests/aot/test_manifest_*.py'
       - 'tests/aot/coverage.py'
       - 'tests/aot/test_runner.py'
       - 'tests/aot/fixtures/**'
@@ -33,6 +35,8 @@ jobs:
           python-version: '3.12.13'
       - name: Runner timeout process-group regression
         run: python tests/aot/test_runner.py
+      - name: Manifest verifier regressions
+        run: python -m unittest discover -s tests/aot -p "test_manifest_*.py"
       - name: Native prerequisites
         run: |
           sudo apt-get update

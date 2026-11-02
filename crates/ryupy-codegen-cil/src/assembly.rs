@@ -29,6 +29,27 @@ pub(crate) fn build_resolution(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> (Resolution<'static>, TypeIndex) {
+    let (res, module, _) = build_resolution_core(program, opts, false);
+    (res, module)
+}
+
+pub(crate) fn build_resolution_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> (Resolution<'static>, TypeIndex, crate::EmissionReport) {
+    let (res, module, report) = build_resolution_core(program, opts, true);
+    (res, module, report.expect("requested emission report"))
+}
+
+fn build_resolution_core(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    report_requested: bool,
+) -> (
+    Resolution<'static>,
+    TypeIndex,
+    Option<crate::EmissionReport>,
+) {
     let dll_name = format!("{}.dll", opts.assembly_name);
     let mut res = Resolution::new(Module::new(dll_name));
     res.assembly = Some(Assembly::new(opts.assembly_name.clone()));
@@ -482,5 +503,16 @@ pub(crate) fn build_resolution(
         );
     }
 
-    (res, module_class)
+    let report = report_requested.then(|| {
+        crate::emission_report::collect(
+            &res,
+            program,
+            wrapper,
+            &fn_indices,
+            &thunks,
+            &exception_factories,
+            &accessors,
+        )
+    });
+    (res, module_class, report)
 }

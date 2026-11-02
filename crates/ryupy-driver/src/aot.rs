@@ -69,11 +69,28 @@ fn path_literal(path: &Path) -> Result<String> {
     Ok(literal(text))
 }
 
-fn project(host: &str, input_name: &str, dll: &Path, runtime: &Path) -> Result<String> {
+fn project(
+    host: &str,
+    input_name: &str,
+    dll: &Path,
+    runtime: &Path,
+    sdk_record: Option<&Path>,
+) -> Result<String> {
     let framework = ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR;
     let dll = path_literal(dll)?;
     let runtime = path_literal(runtime)?;
     let input_name = literal(input_name);
+    let sdk_target = if let Some(path) = sdk_record {
+        let path = path_literal(path)?;
+        format!(
+            r#"  <Target Name="RyuPyRecordSdkVersion" BeforeTargets="Publish">
+    <WriteLinesToFile File="{path}" Lines="$(NETCoreSdkVersion)" Overwrite="true" Encoding="UTF-8" />
+  </Target>
+"#
+        )
+    } else {
+        String::new()
+    };
     Ok(format!(
         r#"<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -90,7 +107,7 @@ fn project(host: &str, input_name: &str, dll: &Path, runtime: &Path) -> Result<S
     <Reference Include="{input_name}"><HintPath>{dll}</HintPath></Reference>
     <Reference Include="RyuPy.Runtime"><HintPath>{runtime}</HintPath></Reference>
   </ItemGroup>
-</Project>
+{sdk_target}</Project>
 "#
     ))
 }
@@ -118,6 +135,35 @@ fn owned_root(out: &Path, input_name: &str) -> Result<(PathBuf, String)> {
 }
 
 pub(crate) fn publish(dll: &Path, out: &Path) -> Result<PathBuf> {
+    Ok(publish_internal(dll, out, None)?.executable)
+}
+
+/// 本次编译入口必须携带真实报告；不能因上下文缺失而悄悄退回低层无清单成功。
+pub(crate) struct ManifestPublication {
+    pub executable: PathBuf,
+    pub manifest: PathBuf,
+}
+struct Publication {
+    executable: PathBuf,
+    manifest: Option<PathBuf>,
+}
+pub(crate) fn publish_with_manifest(
+    dll: &Path,
+    out: &Path,
+    context: &crate::manifest::ManifestContext,
+) -> Result<ManifestPublication> {
+    let result = publish_internal(dll, out, Some(context))?;
+    Ok(ManifestPublication {
+        executable: result.executable,
+        manifest: result.manifest.context("完整 AOT 发布缺少清单")?,
+    })
+}
+
+fn publish_internal(
+    dll: &Path,
+    out: &Path,
+    context: Option<&crate::manifest::ManifestContext>,
+) -> Result<Publication> {
     validate_platform()?;
     validate_before_build(dll, true)?;
     let dll = dll.canonicalize().context("AOT 输入 DLL 不存在")?;
@@ -131,10 +177,15 @@ pub(crate) fn publish(dll: &Path, out: &Path) -> Result<PathBuf> {
         .and_then(|name| name.to_str())
         .context("AOT 输入程序集名必须为 UTF-8")?;
     let (root, host) = owned_root(&out, input_name)?;
-    let result = publish_owned(&root, &host, input_name, &dll, &runtime);
+    let result = publish_owned(&root, &host, input_name, &dll, &runtime, context);
+    finish_owned(&root, result)
+}
+
+// 任何 SDK 后校验/清单失败都沿同一 owned 清理；不删除外部 out 或其它构建根。
+fn finish_owned<T>(root: &Path, result: Result<T>) -> Result<T> {
     match result {
         Ok(executable) => Ok(executable),
-        Err(error) => match std::fs::remove_dir_all(&root) {
+        Err(error) => match std::fs::remove_dir_all(root) {
             Ok(()) => Err(error),
             Err(cleanup) => Err(error.context(format!(
                 "同时无法清理本次 AOT 工作目录 {}：{cleanup}",
@@ -150,18 +201,37 @@ fn publish_owned(
     input_name: &str,
     dll: &Path,
     runtime: &Path,
-) -> Result<PathBuf> {
+    context: Option<&crate::manifest::ManifestContext>,
+) -> Result<Publication> {
     let platform = HostPlatform::current()?;
     let source = root.join("host");
     let publish = root.join("publish");
     std::fs::create_dir(&source)?;
     std::fs::create_dir(&publish)?;
     let project_path = source.join("Host.csproj");
+    let sdk_record = source.join("sdk.version");
+    crate::manifest_files::ensure_absent(&sdk_record)?;
+    // 尚不存在的文件不能直接 canonicalize；转换已创建父目录后拼固定安全文件名。
+    let sdk_source = sdk_paths::sdk_path(&source)?;
+    let sdk_record_path = sdk_source.join("sdk.version");
+    let input_digests = if let Some(context) = context {
+        let inputs = crate::manifest::input_digests(dll, runtime)?;
+        context.verify_managed_input(&inputs[0])?;
+        Some(inputs)
+    } else {
+        None
+    };
     let sdk_dll = sdk_paths::sdk_path(dll)?;
     let sdk_runtime = sdk_paths::sdk_path(runtime)?;
     std::fs::write(
         &project_path,
-        project(host, input_name, &sdk_dll, &sdk_runtime)?,
+        project(
+            host,
+            input_name,
+            &sdk_dll,
+            &sdk_runtime,
+            context.map(|_| sdk_record_path.as_path()),
+        )?,
     )?;
     std::fs::write(
         source.join("Program.cs"),
@@ -169,7 +239,6 @@ fn publish_owned(
     )?;
     let sdk_project = sdk_paths::sdk_path(&project_path)?;
     let sdk_publish = sdk_paths::sdk_path(&publish)?;
-    let sdk_source = sdk_paths::sdk_path(&source)?;
     let output = Command::new(crate::dotnet::dotnet_exe())
         .arg("publish")
         .arg(&sdk_project)
@@ -199,9 +268,19 @@ fn publish_owned(
             String::from_utf8_lossy(&output.stderr)
         );
     }
-    let checked = (|| -> Result<PathBuf> {
+    let checked = (|| -> Result<Publication> {
         std::fs::write(root.join("publish.stdout.log"), &output.stdout)?;
         std::fs::write(root.join("publish.stderr.log"), &output.stderr)?;
+        if context.is_some() {
+            anyhow::ensure!(
+                crate::manifest_files::plain_metadata(&publish)?.is_dir(),
+                "publish 目录无效"
+            );
+            anyhow::ensure!(
+                crate::manifest_files::plain_metadata(&source)?.is_dir(),
+                "SDK 记录目录无效"
+            );
+        }
         let executable = publish.join(platform.executable_name(host));
         let metadata = std::fs::symlink_metadata(&executable)
             .with_context(|| format!("SDK 成功但没有本次原生产物 {}", executable.display()))?;
@@ -215,8 +294,36 @@ fn publish_owned(
                 bail!("本次原生产物没有执行权限");
             }
         }
+        if context.is_some() {
+            crate::manifest_files::plain_metadata(&executable)?;
+        }
         platform.validate_image(&executable)?;
-        Ok(executable)
+        let manifest = if let Some(context) = context {
+            platform.validate_manifest_image(&executable)?;
+            let sdk_version = crate::manifest_sdk::read_version(&sdk_record)?;
+            let inputs = crate::manifest::input_digests(dll, runtime)?;
+            anyhow::ensure!(
+                input_digests.as_ref() == Some(&inputs),
+                "SDK 发布期间构建输入发生变化"
+            );
+            context.verify_managed_input(&inputs[0])?;
+            let artifacts = crate::manifest_files::collect(&publish, &executable)?;
+            let bytes = context.render(
+                platform.rid(),
+                platform.native_format(),
+                platform.architecture(),
+                &sdk_version,
+                &artifacts,
+                &inputs,
+            )?;
+            Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
+        } else {
+            None
+        };
+        Ok(Publication {
+            executable,
+            manifest,
+        })
     })();
     checked.map_err(|error| {
         error.context(format!(
