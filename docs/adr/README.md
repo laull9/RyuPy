@@ -48,7 +48,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0041](0041-proven-list-read-bounds.md) | 支配证明下省去重复列表逻辑范围检查 | 源码、实际JIT与聚合门禁通过 |
 | [0042](0042-aot-jit-recovery-priority.md) | 恢复后优先AOT/JIT与小步远端保存 | 用户已批准方向 |
 | [0043](0043-aot-delivery-mainline.md) | AOT持续性能与交付主线 | 分阶段实施中 |
-| [0044](0044-guarded-integer-add-chain.md) | actual-I64短Add链消除中间盒 | 合同已审，隔离实现待验 |
+| [0044](0044-guarded-integer-add-chain.md) | actual-I64短Add链消除中间盒 | 有限默认，配对及组合门禁通过 |
 
 ## 模板
 
