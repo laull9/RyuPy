@@ -1,0 +1,233 @@
+{
+  "scope": "summary-derived candidates, not user original 1.py; raw evidence in CI artifact (14 days)",
+  "ci": "https://github.com/laull9/RyuPy/actions/runs/41415466676",
+  "product": "027ed394cf388218ac48268025083c7ae762afcb",
+  "harness_commit": "0f9a311415adc6087af53a81a19975085cf01829",
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "platform": "macOS-26.6.2-arm64-arm-64bit"
+  },
+  "runtime_sha256": "3516421b13bf59f8f57cfd8fd359cb5667b47ff6e57eeb8e7f746931563a0227",
+  "cli_sha256": "b442f1e8f0eacf1412b1d7622f1468f6414059f63eda6948f37e15d977499322",
+  "harness_sha256": "1c758fa41a55319b3ad3aae5611e580fadb643e7ea85871101012084504c6393",
+  "raw_summary_sha256": "a170f5e71e1b364911e1b296685e2a9c9297228cc215a13110a4a1c095c33484",
+  "pairs": 30,
+  "application_processes": 60,
+  "all_exits_zero": true,
+  "behavior_differences": 0,
+  "raw_differences": 12,
+  "raw_difference_scope": "exactly one extra first x echo, immediate PTY only; not normalized raw pass",
+  "records": [
+    {
+      "case": "candidate-expected",
+      "transport": "pipe",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-expected-immediate-LF",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-expected-immediate-CR",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-expected-delayed-LF",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-expected-delayed-CR",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-reported",
+      "transport": "pipe",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-reported-immediate-LF",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-reported-immediate-CR",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-reported-delayed-LF",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "candidate-reported-delayed-CR",
+      "transport": "pty",
+      "source_sha256": "fba37d21e0ee863b9b3753978c6fb73bd3f41ce9215cf79932c972fc269a37a3",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-expected",
+      "transport": "pipe",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-expected-immediate-LF",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-expected-immediate-CR",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-expected-delayed-LF",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-expected-delayed-CR",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-reported",
+      "transport": "pipe",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-reported-immediate-LF",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-reported-immediate-CR",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-reported-delayed-LF",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "instrumented-reported-delayed-CR",
+      "transport": "pty",
+      "source_sha256": "07033e0984813d573e99214f3bf037ddf132ae4f2d26ebbf38469819b1b1a578",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-expected",
+      "transport": "pipe",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-expected-immediate-LF",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-expected-immediate-CR",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-expected-delayed-LF",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-expected-delayed-CR",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-reported",
+      "transport": "pipe",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-reported-immediate-LF",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-reported-immediate-CR",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": false,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-reported-delayed-LF",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": true,
+      "behavior_equal": true
+    },
+    {
+      "case": "input_branch-reported-delayed-CR",
+      "transport": "pty",
+      "source_sha256": "3147d1466d18c5b37b10cb2e81cdc8b531f666d892e3c3afe911f020b97719ba",
+      "raw_equal": true,
+      "behavior_equal": true
+    }
+  ]
+}
