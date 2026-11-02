@@ -38,6 +38,8 @@ impl std::fmt::Display for Name {
 /// 模块的身份信息，全部由 driver 提供（HIR 不读文件）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModuleInfo {
+    /// 仅实际构建开启：模块初始化从已注册对象获取冷解析的位置。
+    pub resolve_file_at_runtime: bool,
     /// 点分绝对模块名；入口文件固定为 `__main__`。
     pub name: String,
     /// `__package__`：包内的模块是所在包名，包的 `__init__.py` 是自身名字，入口为空串。
@@ -241,6 +243,8 @@ pub enum ExprKind {
     Missing,
     /// 降级期临时名称，模块完成前必须统一登记并替换为 ModuleVar。
     UnresolvedGlobal(Name),
+    /// 编译器生成的模块初始化读取，不是可遮蔽的Python调用。
+    ModuleFile(Name),
     Literal(Literal),
     Local(LocalId),
     /// 读取模块级变量（M2.7）。

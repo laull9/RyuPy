@@ -27,6 +27,7 @@ print(p.x)
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),
@@ -63,6 +64,7 @@ print(f(10))
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),
@@ -92,6 +94,7 @@ def classify(n: int) -> int:
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),
@@ -117,6 +120,7 @@ for i in range(10):
     let (hir, diags) = lower_module(
         &parsed,
         &ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),
@@ -146,6 +150,7 @@ fn integer_literals_above_u64_use_exact_big_integer_hir() {
         let (hir, diagnostics) = lower_module(
             &parsed,
             &ModuleInfo {
+                resolve_file_at_runtime: false,
                 name: "__main__".into(),
                 package: String::new(),
                 file: "integer.py".into(),

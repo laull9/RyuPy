@@ -150,6 +150,8 @@ pub struct RuntimeRefs {
     pub import_module: MethodRefIndex,
     pub import_attr: MethodRefIndex,
     pub module_register: MethodRefIndex,
+    pub module_register_located: MethodRefIndex,
+    pub module_file: MethodRefIndex,
     pub module_run_main: MethodRefIndex,
     pub module_same_name: MethodRefIndex,
     pub module_missing_attr: MethodRefIndex,

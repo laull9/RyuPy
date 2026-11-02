@@ -88,3 +88,6 @@ mod pretty_class;
 
 #[cfg(test)]
 mod flag_tests;
+
+#[cfg(test)]
+mod module_location_tests;

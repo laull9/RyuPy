@@ -37,6 +37,7 @@ public sealed class PyModule
     private readonly PyModuleInit init;
     private readonly PyModuleGet get;
     private readonly PyModuleSet set;
+    private readonly bool fileBackedByGlobal;
 
     /// <summary>未声明属性的动态字典（子模块、运行时挂载的属性）。</summary>
     internal Dictionary<string, object?> DynamicAttributes { get; } = new(StringComparer.Ordinal);
@@ -47,9 +48,11 @@ public sealed class PyModule
         string file,
         PyModuleInit init,
         PyModuleGet get,
-        PyModuleSet set
+        PyModuleSet set,
+        bool fileBackedByGlobal = false
     )
     {
+        this.fileBackedByGlobal = fileBackedByGlobal;
         Name = name;
         Package = package;
         File = file;
@@ -74,7 +77,8 @@ public sealed class PyModule
             case "__package__":
                 return Package;
             case "__file__":
-                return File;
+                // 编译器明确声明的槽是可写 Python 值；未绑定错误不能被初始路径吞掉。
+                return fileBackedByGlobal ? get(name) : File;
         }
         return get(name);
     }
@@ -106,11 +110,16 @@ public static partial class PyModules
         string file,
         PyModuleInit init,
         PyModuleGet get,
-        PyModuleSet set
+        PyModuleSet set,
+        string? resolvedFile = null,
+        bool fileBackedByGlobal = false
     )
     {
         public string Package { get; } = package;
+        // File 仅用于原诊断来源映射，不改 warnings 的既有 basename 合同。
         public string File { get; } = file;
+        public string ResolvedFile { get; } = resolvedFile ?? file;
+        public bool FileBackedByGlobal { get; } = fileBackedByGlobal;
         public PyModuleInit Init { get; } = init;
         public PyModuleGet Get { get; } = get;
         public PyModuleSet Set { get; } = set;
@@ -193,10 +202,11 @@ public static partial class PyModules
         var module = new PyModule(
             name,
             registration.Package,
-            registration.File,
+            registration.ResolvedFile,
             registration.Init,
             registration.Get,
-            registration.Set
+            registration.Set,
+            registration.FileBackedByGlobal
         );
         // 必须先登记再执行：循环导入的另一端需要看到「初始化中」的模块对象。
         Cache[name] = module;

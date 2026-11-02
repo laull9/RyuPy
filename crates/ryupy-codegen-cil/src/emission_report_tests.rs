@@ -179,6 +179,8 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
         MirType::Unit,
     ));
     program.modules.alloc(ModuleDef {
+        location: Default::default(),
+        file_backed_by_global: false,
         protected_exports: vec![],
         name: "other".into(),
         package: "".into(),

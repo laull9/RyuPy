@@ -49,6 +49,10 @@ pub struct LinkedProgram {
 /// 一个已编译模块在运行时需要的信息。
 #[derive(Debug)]
 pub struct ModuleDef {
+    /// 模块运行位置与诊断file分离，codegen不得从名字猜模式。
+    pub location: crate::ModuleLocation,
+    /// 公开__file__读写走初始化的真实模块槽，不在runtime重置初值。
+    pub file_backed_by_global: bool,
     /// 跨模块属性写入必须拒绝的静态异常导入别名。
     pub protected_exports: Vec<String>,
     /// 点分绝对模块名；入口模块是 `__main__`。

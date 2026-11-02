@@ -96,6 +96,8 @@ fn linked_export_guards_reject_invalid_slots_and_types() {
         vec![(
             input,
             UnitMeta {
+                location: Default::default(),
+                file_backed_by_global: false,
                 name: "test".into(),
                 package: "".into(),
                 file: "test.py".into(),

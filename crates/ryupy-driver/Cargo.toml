@@ -7,6 +7,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+# 仅构建期文件身份；Windows 同目标仍只放行同一已验证 lexical 记录。
+same-file = "1.0.6"
 ryupy-base.workspace = true
 ryupy-syntax.workspace = true
 ryupy-hir.workspace = true

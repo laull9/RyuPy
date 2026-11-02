@@ -1,6 +1,6 @@
 # ADR0047：显式随包数据与诊断分离的模块位置
 
-状态：合同已审，隔离实现中；未通过资源 NativeAOT 验收。
+状态：已实现并通过本地门禁；真实三平台资源 NativeAOT 验收待 CI。
 日期：2026-11-02。
 
 ## 背景
@@ -104,3 +104,10 @@ Linux 可延伸无 dotnet/Python 容器证明；Mac/Windows 仍须明确 SDK 已
 验证器使用 UCD15；两端不能假称同一完整 Unicode 冲突算法。为先闭合真实两模块
 搬迁，本轮经审查收窄到 ASCII 部署名字，不新增 Unicode 依赖/自写表，不用 driver
 自报折叠键替代独立核验。非 ASCII 资源目标的扩展单独排期，宿主中文路径仍验。
+
+## 首次本地实现验证
+
+位置 runtime17、driver资源23、编译层结构7和实际多模块JIT差分1均通过；独立Python
+20项中19通过/1项Windows实机检查明确跳过。完整门禁471 C#、228固定CP基线、
+202 e2e+30 ignored，fmt/clippy与Release通过，无快照迁移。真实AOT资源仍待原三
+平台每RID一次发布，详见[验证入口](../../tests/aot/RESOURCES.md)。

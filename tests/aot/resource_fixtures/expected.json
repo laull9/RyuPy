@@ -1,0 +1,42 @@
+{
+  "python": "CPython 3.12.13",
+  "source_hashes": {
+    "greetings/__init__.py": "d2f6f58db5299d2dbcfb6ca21b2c393c5532bb5a6e663c420c160fa5e396016d",
+    "greetings/data.txt": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+    "greetings/english.py": "a2db2bd2c42f03653ac791786f32adb96172519775cb2f5a4fb07318fd6e1316",
+    "greetings/french.py": "ee6fb0d0560ea593d8f8f6c32c7242d34a7b46bfc19ee3949ce2f7fa48e7dfce",
+    "main.py": "6a22b677257bf91015e102cc3df665b9ef0bad2fc11630a4a8e11a00438cb5c7",
+    "resources.json": "6b13f9eaf518f50b3827fad08c954dcd08ea6b48912365d2dd4136f050b4f3dc"
+  },
+  "original": {
+    "en": {
+      "stdout": "hello\nBundled greeting data: 你好\nTrue\nTrue\n",
+      "stderr": "",
+      "exit_code": 0
+    },
+    "fr": {
+      "stdout": "bonjour\nBundled greeting data: 你好\nTrue\nTrue\n",
+      "stderr": "",
+      "exit_code": 0
+    }
+  },
+  "modified": {
+    "en": {
+      "stdout": "hello\nChanged source data: 再见\nTrue\nTrue\n",
+      "stderr": "",
+      "exit_code": 0
+    },
+    "fr": {
+      "stdout": "bonjour\nChanged source data: 再见\nTrue\nTrue\n",
+      "stderr": "",
+      "exit_code": 0
+    }
+  },
+  "missing": {
+    "en": {
+      "stdout": "hello\n",
+      "exit_code": 1,
+      "exception_type": "FileNotFoundError"
+    }
+  }
+}

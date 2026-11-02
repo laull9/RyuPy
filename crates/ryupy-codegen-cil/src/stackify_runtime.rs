@@ -143,6 +143,7 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::CheckGlobalBound => {
             ins.push(Instruction::call(ctx.runtime_refs.bindings.check_name))
         }
+        RuntimeFn::ModuleFile => ins.push(Instruction::call(ctx.runtime_refs.module_file)),
         RuntimeFn::ImportModule => ins.push(Instruction::call(ctx.runtime_refs.import_module)),
         RuntimeFn::ImportAttr => ins.push(Instruction::call(ctx.runtime_refs.import_attr)),
         RuntimeFn::CallMethod => ins.push(Instruction::call(ctx.runtime_refs.call_method)),

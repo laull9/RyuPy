@@ -18,6 +18,7 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::ModuleFile => Some(&[MirType::Str]),
             RuntimeFn::NumericListCreate => Some(&[]),
             RuntimeFn::NumericListAppendF64 => Some(&[MirType::Dynamic, MirType::F64]),
             RuntimeFn::NumericListPeekList
@@ -86,6 +87,8 @@ pub(super) fn validate_call(
                     "类命名空间存在性ABI"
                 } else if matches!(runtime, RuntimeFn::ValidateOrdinaryBase) {
                     "普通基类守卫ABI"
+                } else if matches!(runtime, RuntimeFn::ModuleFile) {
+                    "模块位置ABI"
                 } else {
                     "输出目标ABI"
                 }
@@ -114,6 +117,7 @@ pub(super) fn validate_destination(
     } = value
     {
         let expected = match runtime {
+            RuntimeFn::ModuleFile => Some(MirType::Str),
             RuntimeFn::NumericListCreate
             | RuntimeFn::NumericListAppendF64
             | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
@@ -131,7 +135,7 @@ pub(super) fn validate_destination(
                 .find(|(id, _)| *id == dest)
                 .is_some_and(|(_, local)| local.ty != expected)
         {
-            errors.push(format!("函数 `{}` 的数值列表ABI返回槽类型错误", func.name));
+            errors.push(format!("函数 `{}` 的运行时ABI返回槽类型错误", func.name));
         }
     }
     if matches!(

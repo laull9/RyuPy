@@ -11,6 +11,9 @@ on:
       - 'tests/aot/coverage.py'
       - 'tests/aot/test_runner.py'
       - 'tests/aot/fixtures/**'
+      - 'tests/aot/resource_*.py'
+      - 'tests/aot/test_resource_*.py'
+      - 'tests/aot/resource_fixtures/**'
       - 'crates/ryupy-codegen-cil/**'
       - 'crates/ryupy-driver/**'
       - 'runtime/RyuPy.Runtime/**'
@@ -22,7 +25,7 @@ permissions:
 jobs:
   linux-x64:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
@@ -37,6 +40,8 @@ jobs:
         run: python tests/aot/test_runner.py
       - name: Manifest verifier regressions
         run: python -m unittest discover -s tests/aot -p "test_manifest_*.py"
+      - name: Explicit resource verifier regressions
+        run: python -m unittest discover -s tests/aot -p "test_resource_*.py"
       - name: Native prerequisites
         run: |
           sudo apt-get update
@@ -46,16 +51,31 @@ jobs:
         run: |
           make runtime
           cargo build -p ryupy-cli --locked
+      - name: Module location and resource safety regressions
+        run: |
+          dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests"
+          cargo test -p ryupy-driver --locked resources
       - name: Real ILC, behavior and runtime-free relocation
         run: python tests/aot/smoke.py --out target/aot-smoke
       - name: Fixed AOT trimming and explicit SLP coverage (7 publishes)
         timeout-minutes: 22
         run: python tests/aot/coverage.py --out target/aot-smoke/coverage
+      - name: One explicit resource bundle and runtime-free relocation
+        timeout-minutes: 12
+        run: python tests/aot/resource_smoke.py --out target/aot-resources --ryupy target/debug/ryupy --rid linux-x64
       - name: Preserve actual evidence, including failure
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: native-aot-linux-x64-${{ github.sha }}
           path: target/aot-smoke
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve explicit resource evidence including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-aot-resources-linux-x64-${{ github.sha }}
+          path: target/aot-resources
           if-no-files-found: warn
           retention-days: 14

@@ -12,6 +12,9 @@ on:
       - 'tests/aot/manifest_*.py'
       - 'tests/aot/test_manifest_*.py'
       - 'tests/aot/fixtures/**'
+      - 'tests/aot/resource_*.py'
+      - 'tests/aot/test_resource_*.py'
+      - 'tests/aot/resource_fixtures/**'
       - 'crates/ryupy-driver/**'
       - 'crates/ryupy-codegen-cil/**'
       - 'runtime/RyuPy.Runtime/**'
@@ -43,7 +46,7 @@ jobs:
             shell: pwsh
             cli: target/debug/ryupy.exe
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 55
     defaults:
       run:
         shell: ${{ matrix.shell }}
@@ -96,10 +99,18 @@ jobs:
       - name: Manifest verifier regressions (Windows)
         if: runner.os == 'Windows'
         run: '& $env:PYTHON -m unittest discover -s tests/aot -p "test_manifest_*.py"; exit $LASTEXITCODE'
+      - name: Explicit resource verifier regressions (macOS)
+        if: runner.os == 'macOS'
+        run: '"$PYTHON" -m unittest discover -s tests/aot -p "test_resource_*.py"'
+      - name: Explicit resource verifier regressions (Windows)
+        if: runner.os == 'Windows'
+        run: '& $env:PYTHON -m unittest discover -s tests/aot -p "test_resource_*.py"; exit $LASTEXITCODE'
       - name: Build actual host runtime
         run: dotnet build runtime/RyuPy.Runtime -c Release -t:Rebuild -nologo -v q
       - name: Standard stream platform semantics
         run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo -v normal --filter "FullyQualifiedName~PyStandardStreamOutputTests|FullyQualifiedName~PyStandardStreamNewlineTests"
+      - name: Module location semantics
+        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests"
       - name: Allow long dependency paths in disposable Windows Git
         if: runner.os == 'Windows'
         run: |
@@ -114,6 +125,8 @@ jobs:
         run: cargo test -p ryupy-driver --locked aot::sdk_paths::tests
       - name: Manifest schema and platform file safety regressions
         run: cargo test -p ryupy-driver --locked manifest
+      - name: Explicit resource file safety regressions
+        run: cargo test -p ryupy-driver --locked resources
       - name: Native publish and relocation (macOS)
         if: runner.os == 'macOS'
         timeout-minutes: 32
@@ -122,11 +135,27 @@ jobs:
         if: runner.os == 'Windows'
         timeout-minutes: 32
         run: '& $env:PYTHON tests/aot/platform_smoke.py --out target/aot-platforms --python $env:PYTHON --ryupy "${{ matrix.cli }}" --rid "${{ matrix.rid }}"; exit $LASTEXITCODE'
+      - name: One explicit resource bundle and relocation (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 12
+        run: '"$PYTHON" tests/aot/resource_smoke.py --out target/aot-resources --python "$PYTHON" --ryupy "${{ matrix.cli }}" --rid "${{ matrix.rid }}"'
+      - name: One explicit resource bundle and relocation (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 12
+        run: '& $env:PYTHON tests/aot/resource_smoke.py --out target/aot-resources --python $env:PYTHON --ryupy "${{ matrix.cli }}" --rid "${{ matrix.rid }}"; exit $LASTEXITCODE'
       - name: Preserve actual platform evidence including failure
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: native-aot-${{ matrix.rid }}-${{ github.sha }}
           path: target/aot-platforms
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Preserve explicit resource evidence including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-aot-resources-${{ matrix.rid }}-${{ github.sha }}
+          path: target/aot-resources
           if-no-files-found: warn
           retention-days: 14

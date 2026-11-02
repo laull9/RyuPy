@@ -27,3 +27,6 @@ pub use ty::*;
 mod check_tests;
 #[cfg(test)]
 mod primitive_attribute_tests;
+
+#[cfg(test)]
+mod module_location_tests;

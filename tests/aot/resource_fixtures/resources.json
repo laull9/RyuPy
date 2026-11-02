@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {"module": "greetings.english", "files": ["data.txt"]},
+    {"module": "greetings.french", "files": ["data.txt"]}
+  ]
+}

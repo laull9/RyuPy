@@ -265,8 +265,8 @@ fn actual_loader_text_has_independent_identity_for_equal_basenames() {
     }
     let entry = temp.0.join("same.py");
     std::fs::write(&entry, "import a.same\nimport b.same\n").unwrap();
-    let (_, summaries) =
-        crate::compile_linked(&mut crate::Session::default(), &entry, &[], true).unwrap();
+    let (_, summaries, _) =
+        crate::compile_linked(&mut crate::Session::default(), &entry, &[], true, None).unwrap();
     for (name, logical, text) in [
         (
             "__main__",

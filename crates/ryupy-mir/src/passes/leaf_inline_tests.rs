@@ -265,6 +265,8 @@ fn identity_slots_cannot_be_written_reused_or_exported() {
         vec![(
             p,
             crate::UnitMeta {
+                location: Default::default(),
+                file_backed_by_global: false,
                 name: "test".into(),
                 package: "".into(),
                 file: "test.py".into(),

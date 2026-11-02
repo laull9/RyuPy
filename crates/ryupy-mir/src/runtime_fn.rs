@@ -267,6 +267,8 @@ pub enum RuntimeFn {
     // ── 模块系统（M2.7）──
     /// `PyModules.Import(string) -> object`：导入并返回模块对象（带缓存与循环处理）。
     ImportModule,
+    /// 读取已缓存模块的初始运行位置；不会触发import或用户属性协议。
+    ModuleFile,
     /// `PyModules.ImportAttr(string, string) -> object`：`from m import name` 的取值。
     ImportAttr,
 }

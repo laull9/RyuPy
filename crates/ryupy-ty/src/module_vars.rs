@@ -73,7 +73,11 @@ pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
     // 兜底：仍然未知或声明为 global 的变量走动态路径。
     for (id, var) in module.vars.iter() {
         // Ellipsis未绑定时回退真实单例，之后可被任意用户值遮蔽；槽不能固化为i64/str。
-        if var.name.as_str() == "Ellipsis" || var.is_global || hints[id].is_none() {
+        if var.name.as_str() == "Ellipsis"
+            || (module.info.resolve_file_at_runtime && var.name.as_str() == "__file__")
+            || var.is_global
+            || hints[id].is_none()
+        {
             hints.insert(id, Some(Ty::Dynamic));
         }
     }
@@ -231,6 +235,7 @@ pub(crate) fn expr_hint(
         return None;
     }
     match &body.exprs[expr].kind {
+        ExprKind::ModuleFile(_) => Some(Ty::Str),
         ExprKind::Literal(lit) => Some(match lit {
             // 超出 i64 的整数必须装箱（BigInteger），槽位类型按 Dynamic 处理。
             Literal::Int(v) if i64::try_from(*v).is_err() => Ty::Dynamic,
@@ -330,6 +335,7 @@ mod tests {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                resolve_file_at_runtime: false,
                 name: "__main__".into(),
                 package: String::new(),
                 file: "ellipsis.py".into(),

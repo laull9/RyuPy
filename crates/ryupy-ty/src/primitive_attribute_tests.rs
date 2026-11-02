@@ -13,6 +13,7 @@ fn primitive_attribute_fallback_keeps_unrelated_numeric_function_static() {
     let (hir, diagnostics) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "attributes.py".into(),

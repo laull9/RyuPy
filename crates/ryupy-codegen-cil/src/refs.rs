@@ -373,6 +373,12 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let module_register = res.push_method_reference(method_ref! {
         static void @py_modules_type::Register(string, string, string, @module_init_type, @module_get_type, @module_set_type)
     });
+    let module_register_located = res.push_method_reference(method_ref! {
+        static void @py_modules_type::RegisterLocated(string, string, string, long, string, bool, @module_init_type, @module_get_type, @module_set_type)
+    });
+    let module_file = res.push_method_reference(method_ref! {
+        static string @py_modules_type::ModuleFile(string)
+    });
     let module_init_ctor =
         res.push_method_reference(method_ref! { void @module_init_type::.ctor(object, nint) });
     let module_get_ctor =
@@ -549,6 +555,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         import_module,
         import_attr,
         module_register,
+        module_register_located,
+        module_file,
         module_run_main,
         module_same_name,
         module_missing_attr,

@@ -23,6 +23,9 @@ use crate::mir::{
 /// 一个模块的元信息（由 driver 从模块图提供）。
 #[derive(Debug, Clone)]
 pub struct UnitMeta {
+    /// 实际build显式注入；普通dump使用LegacyDiagnostic。
+    pub location: crate::ModuleLocation,
+    pub file_backed_by_global: bool,
     /// 静态异常 handler 依赖的导入别名，不允许跨模块 setter 重绑定。
     pub protected_exports: Vec<String>,
     pub name: String,
@@ -195,6 +198,8 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             })
             .collect();
         module_ids.push(modules.alloc(ModuleDef {
+            location: meta.location,
+            file_backed_by_global: meta.file_backed_by_global,
             protected_exports: meta.protected_exports,
             name: meta.name,
             package: meta.package,
@@ -207,6 +212,8 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     let entry_module = module_ids.get(entry).copied().unwrap_or_else(|| {
         // 空程序（理论上不会出现）：补一个空入口模块，避免 panic。
         modules.alloc(ModuleDef {
+            location: Default::default(),
+            file_backed_by_global: false,
             protected_exports: Vec::new(),
             name: "__main__".to_owned(),
             package: String::new(),
