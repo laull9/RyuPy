@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """固定 Python/JIT/真实 NativeAOT 三臂验收；失败保留日志，仅删除本次自建目录。"""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import signal
 import shutil
 import subprocess
 import tempfile
+from manifest_verify import published_manifest, read_sdk_version, relocate_manifest, dependency_binaries
 
 
 MODES = {"all": [], "argv": ["argv", "", "a b", "中文", "--flag"],
@@ -149,19 +151,17 @@ def main():
     # driver 保留成功 SDK 原始双流；清理构建树前必须归档，不靠 CLI 摘要。
     for name in ("publish.stdout.log", "publish.stderr.log"):
         shutil.copy2(publish.parent / name, logs / ("driver-" + name))
+    manifest_file = published_manifest(published.stderr, native)
+    sdk_version = read_sdk_version(publish.parent / "host" / "sdk.version")
+    shutil.copy2(manifest_file, logs / "ryupy-artifact.json")
+    shutil.copy2(publish.parent / "host" / "sdk.version", logs / "sdk.version")
     relocated = work / "relocated"
-    relocated.mkdir()
-    binary = relocated / native.name
-    shutil.copy2(native, binary)
-    with binary.open("rb") as stream:
-        assert stream.read(4) == b"\x7fELF", "发布产物必须是真实 ELF 原生文件"
-    # Linux 系统库不打包；仅发布目录确有的本机共享库允许随程序搬迁。
-    for library in publish.glob("*.so*"):
-        if library.is_file():
-            shutil.copy2(library, relocated / library.name)
-    assert not list(relocated.glob("*.dll")) and not list(relocated.glob("*.json"))
+    binary, artifact_manifest = relocate_manifest(publish, native, relocated, args.rid, sdk_version)
+    # 原生+符号+清单完整搬迁；仅实际native/dynamic库候选交依赖工具，不审JSON/dbg。
+    binary_paths = dependency_binaries(relocated, artifact_manifest)
     run.run("file", [executable("file"), str(binary)], cwd=work, check=True)
-    run.run("ldd", [executable("ldd"), str(binary)], cwd=work, check=True)
+    for index, path in enumerate(binary_paths):
+        run.run("ldd-" + str(index), [executable("ldd"), str(path)], cwd=work, check=True)
     # 留日志和搬迁产物；删除的每个路径都由本轮脚本创建。
     for directory in (source, il):
         shutil.rmtree(directory)
@@ -181,7 +181,9 @@ def main():
                          "-c", script, "aot-smoke", "/app/" + binary.name, *values], cwd=work, timeout=300)
         compare(jit[mode], result, mode)
     (work / "result.json").write_text(json.dumps({"python_jit_native_relocated": "passed",
-                                                "rid": args.rid, "image": IMAGE}, indent=2))
+                                                "rid": args.rid, "image": IMAGE,
+                                                "manifest_sha256": hashlib.sha256((relocated / "ryupy-artifact.json").read_bytes()).hexdigest(),
+                                                "sdk_version": sdk_version}, indent=2))
 
 
 if __name__ == "__main__":

@@ -9,6 +9,9 @@
 
 mod aot;
 pub mod dotnet;
+mod manifest;
+mod manifest_files;
+mod manifest_sdk;
 pub mod modules;
 pub mod runtime;
 
@@ -87,6 +90,8 @@ pub struct BuildOptions {
 pub struct Artifacts {
     pub dll: PathBuf,
     pub native_exe: Option<PathBuf>,
+    /// 仅本次完整 Native AOT 编译成功后返回的可搬迁清单。
+    pub manifest: Option<PathBuf>,
 }
 
 /// 单模块产物与跨模块绑定契约，一同交给链接器。
@@ -149,7 +154,8 @@ fn compile_linked(
     sess: &mut Session,
     entry: &Path,
     search_paths: &[PathBuf],
-) -> Result<ryupy_mir::LinkedProgram> {
+    collect_manifest: bool,
+) -> Result<(ryupy_mir::LinkedProgram, Vec<manifest::SourceSummary>)> {
     let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
     let entry_file = sources[entry_index].parsed.file;
     let native_exceptions: Vec<&str> = [
@@ -165,7 +171,11 @@ fn compile_linked(
     .filter(|name| !sources.iter().any(|source| source.name == *name))
     .collect();
     let mut units = Vec::new();
-    for module in sources {
+    let mut summaries = Vec::new();
+    for (index, module) in sources.into_iter().enumerate() {
+        if collect_manifest {
+            summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, &module));
+        }
         let CompiledModule {
             program,
             exports,
@@ -184,7 +194,7 @@ fn compile_linked(
     }
     let linked = ryupy_mir::link(units, entry_index);
     check_linked_exports(sess, &linked, entry_file)?;
-    Ok(linked)
+    Ok((linked, summaries))
 }
 
 /// 链接后的导出 guard 也必须验证，避免错误字段 ID 或栈类型进入 codegen。
@@ -227,14 +237,26 @@ fn assembly_name(input: &Path) -> String {
 /// 编译一个 `.py` 文件为 `.dll`（可选再做 Native AOT）。
 pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     aot::validate_before_build(&opts.input, opts.aot)?;
-    let linked = compile_linked(sess, &opts.input, &opts.search_paths)?;
+    let (linked, sources) = compile_linked(sess, &opts.input, &opts.search_paths, opts.aot)?;
 
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: name.clone(),
         entry_source_path: Some(opts.input.to_string_lossy().into_owned()),
     };
-    let bytes = ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?;
+    let (bytes, context) = if opts.aot {
+        let emitted = ryupy_codegen_cil::emit_assembly_with_report(&linked, &emit_opts)?;
+        let context = manifest::ManifestContext::new(
+            emitted.report,
+            sources,
+            linked.entry.into_raw().into_u32(),
+            &emitted.bytes,
+            sess,
+        )?;
+        (emitted.bytes, Some(context))
+    } else {
+        (ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?, None)
+    };
 
     std::fs::create_dir_all(&opts.out_dir)?;
     let dll = opts.out_dir.join(format!("{name}.dll"));
@@ -245,12 +267,17 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     )?;
     runtime::copy_runtime_to(&opts.out_dir)?;
 
-    let native_exe = if opts.aot {
-        Some(dotnet::publish_aot(&dll, &opts.out_dir)?)
+    let (native_exe, manifest) = if let Some(context) = context {
+        let published = aot::publish_with_manifest(&dll, &opts.out_dir, &context)?;
+        (Some(published.executable), Some(published.manifest))
     } else {
-        None
+        (None, None)
     };
-    Ok(Artifacts { dll, native_exe })
+    Ok(Artifacts {
+        dll,
+        native_exe,
+        manifest,
+    })
 }
 
 /// 运行到指定阶段并返回该阶段 IR 的文本。

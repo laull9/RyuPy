@@ -42,11 +42,35 @@ impl HostPlatform {
         }
     }
 
+    /// 清单标记来自已选择的同宿主平台，不从文件扩展名猜测。
+    pub(super) fn native_format(self) -> &'static str {
+        match self {
+            Self::LinuxX64 => "ELF",
+            Self::MacArm64 => "Mach-O",
+            Self::WindowsX64 => "PE",
+        }
+    }
+    pub(super) fn architecture(self) -> &'static str {
+        match self {
+            Self::MacArm64 => "arm64",
+            Self::LinuxX64 | Self::WindowsX64 => "x64",
+        }
+    }
+
     pub(super) fn executable_name(self, host: &str) -> String {
         match self {
             Self::WindowsX64 => format!("{host}.exe"),
             _ => host.to_owned(),
         }
+    }
+
+    /// 高层清单对声明 ELF 的必要头检查；不宣称程序可执行性或动态依赖已闭合。
+    pub(super) fn validate_manifest_image(self, path: &Path) -> Result<()> {
+        if self != Self::LinuxX64 {
+            return self.validate_image(path);
+        }
+        let mut file = std::fs::File::open(path).context("无法读取本次 ELF 产物")?;
+        validate_elf_header(&mut file)
     }
 
     pub(super) fn validate_image(self, path: &Path) -> Result<()> {
@@ -152,3 +176,25 @@ fn u32_at(bytes: &[u8], offset: usize) -> u32 {
 #[cfg(test)]
 #[path = "aot_platform_tests.rs"]
 mod tests;
+
+// 保留 legacy Linux 发布旧合同；只有高层 manifest 用此有界 ELF64 校验。
+fn validate_elf_header(reader: &mut impl Read) -> Result<()> {
+    let mut header = [0_u8; 64];
+    reader
+        .read_exact(&mut header)
+        .context("ELF64 文件头被截断")?;
+    ensure!(
+        &header[..4] == b"\x7fELF" && header[4] == 2 && header[5] == 1 && header[6] == 1,
+        "清单产物不是 little-endian ELF64"
+    );
+    ensure!(
+        matches!(u16_at(&header, 16), 2 | 3),
+        "ELF 产物不是 ET_EXEC/ET_DYN"
+    );
+    ensure!(
+        u16_at(&header, 18) == 62 && u32_at(&header, 20) == 1,
+        "ELF 产物不是 x86_64/version1"
+    );
+    ensure!(u16_at(&header, 52) == 64, "ELF64 文件头大小无效");
+    Ok(())
+}

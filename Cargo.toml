@@ -31,6 +31,9 @@ dotnetdll = "0.3.0"
 clap = { version = "4.6", features = ["derive"] }
 anyhow = "1"
 thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
 
 # ---- 测试 ----
 insta = "1.49"

@@ -149,3 +149,36 @@ fn legacy_linux_header_policy_does_not_gain_unreviewed_restrictions() {
     assert!(check(HostPlatform::LinuxX64, &[]).is_ok());
     // 文件非空/普通文件/执行位仍在publish中检查；Linux ELF另由真实smoke审计。
 }
+
+#[test]
+fn manifest_elf_header_is_bounded_and_checks_class_endian_machine_and_kind() {
+    let mut bytes = vec![0_u8; 64];
+    bytes[..4].copy_from_slice(b"\x7fELF");
+    bytes[4] = 2;
+    bytes[5] = 1;
+    bytes[6] = 1;
+    put16(&mut bytes, 16, 3);
+    put16(&mut bytes, 18, 62);
+    put32(&mut bytes, 20, 1);
+    put16(&mut bytes, 52, 64);
+    assert!(validate_elf_header(&mut Cursor::new(&bytes)).is_ok());
+    put16(&mut bytes, 16, 2);
+    assert!(validate_elf_header(&mut Cursor::new(&bytes)).is_ok());
+    for length in 0..64 {
+        assert!(validate_elf_header(&mut Cursor::new(&bytes[..length])).is_err());
+    }
+    for (offset, value) in [
+        (0, 0),
+        (4, 1),
+        (5, 2),
+        (6, 0),
+        (16, 1),
+        (18, 183),
+        (20, 0),
+        (52, 0),
+    ] {
+        let mut wrong = bytes.clone();
+        wrong[offset] = value;
+        assert!(validate_elf_header(&mut Cursor::new(wrong)).is_err());
+    }
+}

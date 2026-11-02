@@ -134,6 +134,9 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             if let Some(exe) = artifacts.native_exe {
                 eprintln!("已生成 {}", exe.display());
             }
+            if let Some(manifest) = artifacts.manifest {
+                eprintln!("AOT 清单：{}", manifest.display());
+            }
             Ok(ExitCode::SUCCESS)
         }
         Command::Run {

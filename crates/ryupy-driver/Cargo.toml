@@ -14,6 +14,9 @@ ryupy-ty.workspace = true
 ryupy-mir.workspace = true
 ryupy-codegen-cil.workspace = true
 anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

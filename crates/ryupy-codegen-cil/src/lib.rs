@@ -16,7 +16,13 @@ mod assembly_refs;
 #[cfg(test)]
 mod assembly_refs_tests;
 mod callables;
+mod emission_report;
 mod entry;
+pub use emission_report::{
+    DelegateReference, EmissionArtifact, EmissionReport, MethodDescriptor, ModuleEmission,
+};
+#[cfg(test)]
+mod emission_report_tests;
 mod function_refs;
 mod generator_refs;
 mod literals;
@@ -52,6 +58,21 @@ pub enum CodegenError {
 /// 生成程序集字节。
 pub fn emit_assembly(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
     entry::emit(program, opts)
+}
+
+/// 返回同一次Resolution的字节和实际委托引用报告；不新增发射根或运行时注册。
+pub fn emit_assembly_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> Result<EmissionArtifact, CodegenError> {
+    let (res, _, report) = assembly::build_resolution_with_report(program, opts);
+    let bytes = res
+        .write(dotnetdll::prelude::WriteOptions {
+            is_32_bit: true,
+            is_executable: false,
+        })
+        .map_err(|error| CodegenError::Write(error.to_string()))?;
+    Ok(EmissionArtifact { bytes, report })
 }
 
 /// 生成可读的 CIL 文本（供 `ryupy dump --emit cil` 与快照测试）。

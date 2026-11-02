@@ -13,7 +13,8 @@ import tempfile
 import time
 from smoke import MODES, compare, executable, published_native
 from platform_runner import Runner
-from platform_support import host, relocate, audit, clean_environment
+from platform_support import host, audit, clean_environment
+from manifest_verify import published_manifest, read_sdk_version, relocate_manifest, dependency_binaries
 
 
 def rustc_executable():
@@ -127,9 +128,17 @@ def main():
         for name in ('publish.stdout.log', 'publish.stderr.log'):
             shutil.copy2(native.parent.parent/name, logs/('driver-'+name))
         relocated = work/'搬迁 & native with spaces'
-        binary, manifest = relocate(native, relocated, args.rid)
-        result['deployment_manifest'] = manifest
-        result['dependencies'] = audit(run, relocated, args.rid, tools)
+        manifest_file = published_manifest(published.stderr, native)
+        sdk_version = read_sdk_version(native.parent.parent/'host'/'sdk.version')
+        shutil.copy2(manifest_file, logs/'ryupy-artifact.json')
+        shutil.copy2(native.parent.parent/'host'/'sdk.version', logs/'sdk.version')
+        binary, artifact_manifest = relocate_manifest(native.parent, native, relocated, args.rid, sdk_version)
+        result['deployment_manifest'] = [{'name':item['relative_path'], 'bytes':item['size'], 'sha256':item['sha256']}
+                                         for item in artifact_manifest['artifacts']]
+        result['artifact_manifest_sha256'] = hashlib.sha256((relocated/'ryupy-artifact.json').read_bytes()).hexdigest()
+        result['publish_sdk_version'] = sdk_version
+        result['dependencies'] = audit(run, relocated, args.rid, tools,
+                                       binaries=dependency_binaries(relocated, artifact_manifest))
         # 所有被删目录均本轮创建；不可删除工具链、checkout或用户out父目录。
         for directory in (source, il):
             if directory.is_symlink() or directory.resolve().parent != work.resolve():

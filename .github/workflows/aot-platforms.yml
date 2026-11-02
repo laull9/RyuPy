@@ -9,6 +9,8 @@ on:
       - 'tests/aot/windows_job.py'
       - 'tests/aot/test_platform_runner.py'
       - 'tests/aot/smoke.py'
+      - 'tests/aot/manifest_*.py'
+      - 'tests/aot/test_manifest_*.py'
       - 'tests/aot/fixtures/**'
       - 'crates/ryupy-driver/**'
       - 'crates/ryupy-codegen-cil/**'
@@ -88,6 +90,12 @@ jobs:
       - name: Runner lifecycle regression (Windows)
         if: runner.os == 'Windows'
         run: '& $env:PYTHON tests/aot/test_platform_runner.py; exit $LASTEXITCODE'
+      - name: Manifest verifier regressions (macOS)
+        if: runner.os == 'macOS'
+        run: '"$PYTHON" -m unittest discover -s tests/aot -p "test_manifest_*.py"'
+      - name: Manifest verifier regressions (Windows)
+        if: runner.os == 'Windows'
+        run: '& $env:PYTHON -m unittest discover -s tests/aot -p "test_manifest_*.py"; exit $LASTEXITCODE'
       - name: Build actual host runtime
         run: dotnet build runtime/RyuPy.Runtime -c Release -t:Rebuild -nologo -v q
       - name: Standard stream platform semantics
@@ -104,6 +112,8 @@ jobs:
         run: cargo build -p ryupy-cli --locked
       - name: SDK path identity regression
         run: cargo test -p ryupy-driver --locked aot::sdk_paths::tests
+      - name: Manifest schema and platform file safety regressions
+        run: cargo test -p ryupy-driver --locked manifest
       - name: Native publish and relocation (macOS)
         if: runner.os == 'macOS'
         timeout-minutes: 32

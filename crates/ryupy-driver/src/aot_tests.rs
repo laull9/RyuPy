@@ -8,6 +8,7 @@ fn host_project_is_explicit_strict_and_escapes_literal_paths() {
         "user",
         Path::new("/tmp/中文 & <x>/$(name);%.dll"),
         Path::new("/tmp/RyuPy.Runtime.dll"),
+        None,
     )
     .unwrap();
     assert!(text.contains("<EnableDefaultCompileItems>false</EnableDefaultCompileItems>"));
@@ -81,4 +82,41 @@ fn owned_work_roots_and_host_identities_are_unique() {
     assert!(first.is_absolute());
     std::fs::remove_dir_all(first).unwrap();
     std::fs::remove_dir_all(second).unwrap();
+}
+
+#[test]
+fn sdk_version_target_uses_same_publish_and_escaped_owned_path() {
+    let text = project(
+        "RyuPyAotHost_test",
+        "user",
+        Path::new("/tmp/user.dll"),
+        Path::new("/tmp/RyuPy.Runtime.dll"),
+        Some(Path::new("/tmp/a&b/$(private);%/sdk.version")),
+    )
+    .unwrap();
+    assert!(text.contains("BeforeTargets=\"Publish\""));
+    assert!(text.contains("Lines=\"$(NETCoreSdkVersion)\""));
+    assert!(text.contains("Overwrite=\"true\""));
+    assert!(text.contains("/tmp/a&amp;b/%24%28private%29%3B%25/sdk.version"));
+    let legacy = project(
+        "host",
+        "user",
+        Path::new("a.dll"),
+        Path::new("runtime.dll"),
+        None,
+    )
+    .unwrap();
+    assert!(!legacy.contains("RyuPyRecordSdkVersion"));
+}
+
+#[test]
+fn failed_post_publish_validation_cleans_only_its_owned_root() {
+    let (root, _) = owned_root(&std::env::temp_dir(), "input").unwrap();
+    let (sibling, _) = owned_root(&std::env::temp_dir(), "input").unwrap();
+    std::fs::write(sibling.join("kept"), b"other build").unwrap();
+    let missing_version = crate::manifest_sdk::read_version(&root.join("sdk.version"));
+    assert!(finish_owned(&root, missing_version).is_err());
+    assert!(!root.exists());
+    assert_eq!(std::fs::read(sibling.join("kept")).unwrap(), b"other build");
+    std::fs::remove_dir_all(sibling).unwrap();
 }

@@ -9,6 +9,7 @@ import platform
 import shutil
 import tempfile
 import time
+from manifest_verify import published_manifest, read_sdk_version, verify_manifest
 
 from smoke import Runner, executable, published_native
 
@@ -102,6 +103,11 @@ def main():
                               cwd=work, env={**os.environ, "DOTNET": dotnet}, check=True, limit=180)
             record["build_seconds"] = time.monotonic() - before
             native = published_native(published.stderr, output)
+            manifest_file = published_manifest(published.stderr, native)
+            sdk_version = read_sdk_version(native.parent.parent / "host" / "sdk.version")
+            verify_manifest(native.parent, native, "linux-x64", sdk_version)
+            record["manifest_sha256"] = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
+            record["publish_sdk_version"] = sdk_version
             for name in ("publish.stdout.log", "publish.stderr.log"):
                 shutil.copy2(native.parent.parent / name, logs / (label + "-" + name))
             with native.open("rb") as stream:
