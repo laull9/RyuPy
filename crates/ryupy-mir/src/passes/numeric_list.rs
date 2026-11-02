@@ -38,10 +38,20 @@ impl Plan {
 pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option<Plan> {
     let definitions = definitions(f);
     let exit = &f.body.blocks[loop_plan.exit];
-    let sink_position = exit
+    let first = exit
         .stmts
         .iter()
         .position(|stmt| !matches!(stmt, Statement::Line(_)))?;
+    let capture = module_capture(&exit.stmts[first]);
+    let sink_position = if capture.is_some() {
+        first
+            + 1
+            + exit.stmts[first + 1..]
+                .iter()
+                .position(|stmt| !matches!(stmt, Statement::Line(_)))?
+    } else {
+        first
+    };
     let Statement::Assign {
         dest: sink_dest,
         value:
@@ -61,6 +71,32 @@ pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option
     {
         return None;
     }
+    // capture只有在下面唯一MakeList支配证明成功后才可视作identity；未知对象绝不跳过。
+    let (receiver, receiver_usage) = if let Some((captured, source)) = capture {
+        if captured != *receiver
+            || captured == source
+            || definitions.get(&captured)?.as_slice() != [(loop_plan.exit, first)]
+            || f.params.contains(&captured)
+            || f.body.locals[captured].name.is_some()
+        {
+            return None;
+        }
+        for (id, block) in f.body.blocks.iter() {
+            if terminator_reads(&block.terminator).contains(&captured) {
+                return None;
+            }
+            for (position, stmt) in block.stmts.iter().enumerate() {
+                if reads(stmt).contains(&captured)
+                    && (id, position) != (loop_plan.exit, sink_position)
+                {
+                    return None;
+                }
+            }
+        }
+        (source, (loop_plan.exit, first))
+    } else {
+        (*receiver, (loop_plan.exit, sink_position))
+    };
     let last = chain.start + chain.steps.len() - 1;
     // 累加槽只允许链末 lhs 与唯一 append；临时/帧/容器中的隐藏观察同样拒绝。
     for (id, body) in f.body.blocks.iter() {
@@ -77,13 +113,7 @@ pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option
         }
     }
     let dominators = dominators(f);
-    let factory = factory(
-        f,
-        &definitions,
-        &dominators,
-        *receiver,
-        (loop_plan.exit, sink_position),
-    )?;
+    let factory = factory(f, &definitions, &dominators, receiver, receiver_usage)?;
     // 工厂不能只在循环某一轮执行；必须先于每次preheader及其出口。
     if !dominates(
         &dominators,
@@ -183,9 +213,28 @@ pub(super) fn candidate(f: &Function, chain: &Chain, loop_plan: &Loop) -> Option
         loads,
         sink_position,
         sink_dest: *sink_dest,
-        receiver: *receiver,
+        receiver,
     })
 }
+/// 只识别编译器实际插入的append捕获；不跳过其它可能抛错/回调的前缀。
+fn module_capture(statement: &Statement) -> Option<(LocalId, LocalId)> {
+    let Statement::Assign {
+        dest,
+        value:
+            Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::CaptureModuleMethod),
+                args,
+            },
+    } = statement
+    else {
+        return None;
+    };
+    let [Operand::Local(source), Operand::Const(Constant::Str(name))] = args.as_slice() else {
+        return None;
+    };
+    (name == "append").then_some((*dest, *source))
+}
+
 fn item(statement: &Statement) -> Option<(LocalId, LocalId, LocalId)> {
     let Statement::Assign {
         dest,

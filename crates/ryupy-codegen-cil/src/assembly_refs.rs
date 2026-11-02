@@ -27,6 +27,14 @@ pub(crate) fn system_runtime() -> ExternalAssemblyReference<'static> {
     )
 }
 
+/// DllNotFoundException的正式facade；不把CoreLib实现位置当作引用程序集合同。
+pub(crate) fn interop_services() -> ExternalAssemblyReference<'static> {
+    framework(
+        "System.Runtime.InteropServices",
+        &[0xb0, 0x3f, 0x5f, 0x7f, 0x11, 0xd5, 0x0a, 0x3a],
+    )
+}
+
 pub(crate) fn intrinsics() -> ExternalAssemblyReference<'static> {
     framework(
         "System.Runtime.Intrinsics",

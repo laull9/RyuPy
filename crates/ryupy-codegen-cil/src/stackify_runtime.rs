@@ -162,6 +162,7 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         | RuntimeFn::IsSame
         | RuntimeFn::ReprValue
         | RuntimeFn::DynBuiltin
+        | RuntimeFn::CaptureModuleMethod
         | RuntimeFn::PrepareMethod
         | RuntimeFn::SetAdd
         | RuntimeFn::SetExtend

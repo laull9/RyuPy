@@ -195,6 +195,10 @@ pub(crate) fn append_module_registration(
     fn_indices: &FxHashMap<FnId, MethodIndex>,
     init_functions: MethodIndex,
     accessors: &ModuleAccessors,
+    binding_context: Option<(
+        &[crate::fixed_bindings::FixedI32Binding],
+        &crate::fixed_binding_refs::BindingRefs,
+    )>,
 ) {
     let Some(method) = res[init_functions].body.as_mut() else {
         return;
@@ -203,16 +207,22 @@ pub(crate) fn append_module_registration(
     if matches!(instructions.last(), Some(Instruction::Return)) {
         instructions.pop();
     }
-    for (index, (_, module)) in program.modules.iter().enumerate() {
+    for (index, (module_id, module)) in program.modules.iter().enumerate() {
+        let declared = binding_context.is_some_and(|(bindings, _)| {
+            bindings.iter().any(|binding| binding.module == module_id)
+        });
         instructions.push(Instruction::load_string(module.name.clone()));
-        instructions.push(Instruction::load_string(module.package.clone()));
-        instructions.push(Instruction::load_string(module.file.clone()));
+        if !declared {
+            instructions.push(Instruction::load_string(module.package.clone()));
+            instructions.push(Instruction::load_string(module.file.clone()));
+        }
         // 实际构建显式启用定位及公开槽；旧dump保原Register指令。
-        let located = module.file_backed_by_global
-            || !matches!(
-                &module.location,
-                ryupy_mir::ModuleLocation::LegacyDiagnostic
-            );
+        let located = !declared
+            && (module.file_backed_by_global
+                || !matches!(
+                    &module.location,
+                    ryupy_mir::ModuleLocation::LegacyDiagnostic
+                ));
         if located {
             let (kind, value) = match &module.location {
                 ryupy_mir::ModuleLocation::LegacyDiagnostic => (0, ""),
@@ -236,7 +246,12 @@ pub(crate) fn append_module_registration(
             )));
             instructions.push(Instruction::NewObject(UserMethod::Reference(ctor)));
         }
-        instructions.push(Instruction::call(if located {
+        instructions.push(Instruction::call(if declared {
+            binding_context
+                .expect("validated binding references")
+                .1
+                .register
+        } else if located {
             refs.module_register_located
         } else {
             refs.module_register

@@ -282,6 +282,17 @@ impl ExprBuilder<'_> {
     /// 纯位置、参数不超过 3 个时改用 [`Rvalue::DynCallValue`]：codegen 会走
     /// `PyPic.CallValueN`，运行时复用调用点上的参数数组。
     pub(crate) fn call_value(&mut self, callable: Operand, args: &[CallArg]) -> Operand {
+        // 一等全局对象必须先读取，实参回调可能重绑槽；不改变源码Func的静态直调路径。
+        let callable = if matches!(callable, Operand::Global(_)) {
+            let saved = self.alloc_temp(MirType::Dynamic);
+            self.push_stmt(Statement::Assign {
+                dest: saved,
+                value: Rvalue::Use(callable),
+            });
+            Operand::Local(saved)
+        } else {
+            callable
+        };
         if is_small_positional_call(args) {
             let values: Vec<Operand> = args
                 .iter()
@@ -409,6 +420,12 @@ impl ExprBuilder<'_> {
         let obj_op = self.build_expr(base);
         let obj_ty = self.ty_of(base);
         let obj = self.coerce(obj_op, &obj_ty, &MirType::Dynamic);
+        // 只actual PyModule在这里读取属性并保存token；其它receiver保原对象/PIC协议。
+        let obj = self.runtime_call(
+            RuntimeFn::CaptureModuleMethod,
+            vec![obj, Operand::Const(Constant::Str(name.clone()))],
+            MirType::Dynamic,
+        );
         if is_small_positional_call(args) {
             let values: Vec<Operand> = args
                 .iter()

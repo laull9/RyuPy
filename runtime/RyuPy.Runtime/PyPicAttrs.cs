@@ -205,6 +205,8 @@ public static partial class PyPic
     /// </remarks>
     private static object? CallMethodFallback(int site, object? obj, string name, object?[] args)
     {
+        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
+            return PyOps.CallValue(captured, args, [], []);
         if (!Enabled || (uint)site >= MaxSites || obj is not PySuper super)
         {
             return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());

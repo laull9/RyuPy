@@ -29,7 +29,7 @@ pub(crate) fn build_resolution(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> (Resolution<'static>, TypeIndex) {
-    let (res, module, _) = build_resolution_core(program, opts, false);
+    let (res, module, _) = build_resolution_core(program, opts, false, &[]);
     (res, module)
 }
 
@@ -37,14 +37,25 @@ pub(crate) fn build_resolution_with_report(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> (Resolution<'static>, TypeIndex, crate::EmissionReport) {
-    let (res, module, report) = build_resolution_core(program, opts, true);
+    let (res, module, report) = build_resolution_core(program, opts, true, &[]);
     (res, module, report.expect("requested emission report"))
+}
+
+/// 调用者必须先验证sidecar；普通发射仍传空集合且不建立固定绑定引用。
+pub(crate) fn build_resolution_with_bindings(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    bindings: &[crate::fixed_bindings::FixedI32Binding],
+) -> (Resolution<'static>, TypeIndex) {
+    let (res, module, _) = build_resolution_core(program, opts, false, bindings);
+    (res, module)
 }
 
 fn build_resolution_core(
     program: &LinkedProgram,
     opts: &EmitOptions,
     report_requested: bool,
+    bindings: &[crate::fixed_bindings::FixedI32Binding],
 ) -> (
     Resolution<'static>,
     TypeIndex,
@@ -66,7 +77,7 @@ fn build_resolution_core(
         py_exc_ref,
         py_exc_type,
         exception_type_refs,
-        sys_runtime: _,
+        sys_runtime,
         ryupy_runtime,
         set_file,
         traceback_type,
@@ -74,6 +85,10 @@ fn build_resolution_core(
         report_clr,
         clr_exc_type,
     } = extras;
+
+    let binding_refs = (!bindings.is_empty()).then(|| {
+        crate::fixed_binding_refs::BindingRefs::build(&mut res, sys_runtime, ryupy_runtime)
+    });
 
     let module_class = res.push_type_definition(TypeDefinition::new(
         Some("RyuPy.Generated".into()),
@@ -427,12 +442,42 @@ fn build_resolution_core(
         &fn_indices,
         init_functions,
         &accessors,
+        binding_refs.as_ref().map(|refs| (bindings, refs)),
     );
+
+    // 所有原生注册已由入口System.Initialize完成；检查置于任何生成初始化写之前。
+    if let Some(refs) = &binding_refs {
+        let mut prefix = Vec::new();
+        for binding in bindings {
+            prefix.push(Instruction::load_string(
+                program.modules[binding.module].name.clone(),
+            ));
+            prefix.push(Instruction::call(refs.ensure));
+        }
+        if let Some(body) = res[init_functions].body.as_mut() {
+            body.instructions.splice(0..0, prefix);
+        }
+    }
 
     // 第二遍：逐函数编译并填充 body。动态运算 / 调用的 PIC 编号在整程序内递增分配。
     let site_counter = std::cell::Cell::new(0u32);
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
+        if let Some(binding) = bindings.iter().find(|binding| binding.initializer == fn_id) {
+            // 已验证记录选择专用body，不按生成名称覆盖普通函数。
+            let body = crate::fixed_binding_emit::initializer(
+                &mut res,
+                module_class,
+                program,
+                binding,
+                binding_refs
+                    .as_ref()
+                    .expect("validated nonempty binding references"),
+                &runtime_refs,
+            );
+            res[method_idx].body = Some(body);
+            continue;
+        }
         let compiled = lower_function(
             func,
             &program.functions,

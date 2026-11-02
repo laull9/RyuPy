@@ -19,6 +19,7 @@ pub(super) fn validate_call(
         }
         let expected: Option<&[MirType]> = match runtime {
             RuntimeFn::ModuleFile => Some(&[MirType::Str]),
+            RuntimeFn::CaptureModuleMethod => Some(&[MirType::Dynamic, MirType::Str]),
             RuntimeFn::NumericListCreate => Some(&[]),
             RuntimeFn::NumericListAppendF64 => Some(&[MirType::Dynamic, MirType::F64]),
             RuntimeFn::NumericListPeekList
@@ -118,7 +119,8 @@ pub(super) fn validate_destination(
     {
         let expected = match runtime {
             RuntimeFn::ModuleFile => Some(MirType::Str),
-            RuntimeFn::NumericListCreate
+            RuntimeFn::CaptureModuleMethod
+            | RuntimeFn::NumericListCreate
             | RuntimeFn::NumericListAppendF64
             | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
             RuntimeFn::NumericListCanReadF64 => Some(MirType::Bool),

@@ -74,3 +74,6 @@ mod validate_list_reads;
 
 #[cfg(test)]
 mod module_location_tests;
+
+#[cfg(test)]
+mod module_capture_tests;

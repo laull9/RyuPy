@@ -44,7 +44,7 @@
 runtime helper/注册 partial/专用 factory 与 resolver 专项 **15/15、0 skip**，Release 构建通过。
 首次编译仅 CS1591（新公开类缺 XML summary），补一行文档后原专项通过；未删断言。
 这些测试证明冷 API/注册/严格转换/错误准备，不证明生成 Python 入口或真实 C 调用。
-编译侧真实 PE/动态身份与私有 driver 回归仍在隔离；公开声明、冻结 native 输入、
+编译侧已接线私有内存声明与真实 PE/driver 回归；公开声明、冻结 native 输入、
 manifest 扩展、JIT `_internal` 搬迁和 AOT 同链路尚未完成。旧无 binding 路径不新增调用。
 
 既有真实 C ABI CI 只有微型 emitter + C 库，不用它替代新 Python 边界验收。
@@ -52,3 +52,42 @@ manifest 扩展、JIT `_internal` 搬迁和 AOT 同链路尚未完成。旧无 b
 
 冷组件独立完整门禁已 exit0：538 C# / 228 固定CP基线 / 202 e2e + 30 ignored。
 本次仍仅WIP组件验收，未将Python绑定父目标勾为完成。
+
+
+## A 编译接线与发现的调用顺序问题（当前 WIP）
+
+固定 wrapper 的真实 PE 检查为5项；故意缺失的库通过真实生成 DLL 验证三项私有 driver，
+覆盖模块身份/重绑、参数边界、注册冲突和真实末异常类型/调用帧。这不代表成功调用 C 或 B 部署完成。
+首轮 PE 结构绿后，真实 loader 暴露 DllNotFoundException 的引用来源错误：它应引用
+System.Runtime.InteropServices 10（另两类型仍 System.Runtime），已按实际 reference pack
+和 facade metadata 修正并新增身份测试；不直接绑定 CoreLib。初版临时目录在并行时碰撞，
+以 PID/时间/原子序号独占创建修复；帧测试同时加强末 Type/Overflow/ImportError 检查，
+不沿用早先只看帧的假阳性。
+
+实参回调重绑模块函数还暴露原方法调用先求参数、后查属性的错误。当前有限修复对实际
+PyModule（包括 alias/形参）在参数前捕获属性值，私有 token 在 PIC 缓存前分流。
+缺属性先于参数报错；非可调用值仍在参数之后报错。非模块保原接收者/PIC，不按绑定名特判；
+Global 动态 callee 显式快照。此为正确性修复，不宣称免费：普通路径增加类型 guard，模块路径
+有 token 与参数数组成本；已有精确列表证明才消除捕获，真实 matmul MIR/CIL 的
+NumericList Create/ReadCheckedF64/AppendF64 仍命中。另行固定36热进程的成本观测尚未执行。
+
+普通三模块 CP 差分首跑前64行相同，末尾源码 def 的重绑后身份读取仍有旧静态 Func 债。
+完整原正期望保留为 `static_identity_pending.py` 及独立 ignored driver；core 仅不包含该末行。
+普通实例 descriptor 的提前 lookup 也未在本切修复，不能称通用调用顺序/静态函数重绑全闭合。
+新增运行时5专项已通过且零 warning；MIR3项/PE1项结构检查、原 binding driver3项已通过。
+完整组合门禁首轮停在新增注册函数8参的 clippy检查，现合并可选绑定上下文为7参，未禁警告；
+后续完整组合门禁已执行，成本/三平台 CI 仍待，不把局部专项当终态。
+
+组合门禁第二轮已过543 C#与228 CP，停在旧MIR/CIL快照；独立原e2e随后202通过/30 ignored。
+21份快照只在保存旧版并独立审核后迁移：去新增捕获/全局快照及局部编号差异，重映射
+branch/Leave/Switch/EH端点后全部结构相等；with的MIR 7函数/33区域及CIL20方法/36EH均保。
+生成全部候选时使用的 INSTA_FORCE_PASS/INSTA_UPDATE 仅用于取证，不计门禁通过；
+迁移后正式完整门禁明确移除这两个变量。旧业务源与断言未删除。
+
+成本固定合同见 [MODULE_CALL_COST](../MODULE_CALL_COST.md)，新工作流仅精确工具/fixture路径
+自动触发与手动运行，不把共享runtime每次变化当无限追加测量授权。
+
+
+最终本地正常完整门禁第三轮 exit0：**543 C# / 228固定CP基线 / 202 e2e +30 ignored**；
+普通模块driver另1 passed/1静态身份旧债ignored。正式命令无INSTA强制或更新变量，
+8项配对工具轻测通过。此为WIP私有声明/有限调用语义验收，公开B部署与固定36成本结果仍未完成。

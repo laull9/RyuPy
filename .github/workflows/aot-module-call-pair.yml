@@ -1,0 +1,78 @@
+name: Native AOT bounded module call correctness cost
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-module-call-pair.yml'
+      - 'tests/aot/module_call_*.py'
+      - 'tests/aot/test_module_call_pair.py'
+      - 'tests/aot/test_module_call_ir.py'
+      - 'tests/aot/module_call_fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          ref: ${{ github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: 8b15b29b8b9e67086f386f62d22e6d4314b0a9d1
+          path: baseline
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            baseline -> target
+            candidate -> target
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.13'
+      - name: Pure measurement and structure regressions
+        working-directory: candidate
+        run: |
+          python tests/aot/test_perf.py
+          python tests/aot/test_module_call_pair.py
+          python tests/aot/test_module_call_ir.py
+      - name: Native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Fixed compiler builds, IR checks and 36 hot processes
+        timeout-minutes: 22
+        run: |
+          out="$PWD/candidate/target/aot-module-call-pair"
+          python candidate/tests/aot/module_call_build.py \
+            --baseline-root "$PWD/baseline" --candidate-root "$PWD/candidate" \
+            --candidate-revision "${{ github.sha }}" --out "$out"
+          python candidate/tests/aot/module_call_pair.py \
+            --baseline-root "$PWD/baseline" --baseline-cli "$PWD/baseline/target/release/ryupy" \
+            --candidate-root "$PWD/candidate" --candidate-cli "$PWD/candidate/target/release/ryupy" \
+            --candidate-revision "${{ github.sha }}" --compiler-summary "$out/compiler-summary.json" \
+            --python "$(command -v python)" --out "$out" --started-at "$(cat "$out/started-at")" \
+            --fixtures "$PWD/candidate/tests/aot/module_call_fixtures" \
+            --expected "$PWD/candidate/tests/aot/module_call_fixtures/expected.json"
+      - name: Preserve all raw evidence including failure outside source Git
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-module-call-pair-linux-x64-${{ github.sha }}
+          path: candidate/target/aot-module-call-pair
+          if-no-files-found: warn
+          retention-days: 14

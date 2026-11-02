@@ -1,0 +1,138 @@
+//! 固定两参数C整数绑定的显式发射记录；不从源码名称推断、不增加用户FFI语法。
+use dotnetdll::prelude::*;
+use ryupy_mir::{ExportGuard, FnId, GlobalId, LinkedProgram, MirType, ModuleId};
+
+use crate::{CodegenError, EmitOptions};
+
+/// 编译器内部实验入口的数据；三个ID必须对应同一真实模块、初始化函数和动态导出。
+#[derive(Debug, Clone)]
+pub struct FixedI32Binding {
+    pub module: ModuleId,
+    pub initializer: FnId,
+    pub export: GlobalId,
+    pub module_ref: String,
+    pub entry_point: String,
+}
+
+/// 首切只接受单个顶层模块/导出。所有检查发生在构造Resolution之前。
+pub(crate) fn validate(
+    program: &LinkedProgram,
+    bindings: &[FixedI32Binding],
+) -> Result<(), CodegenError> {
+    let bad = |text: &str| CodegenError::Unsupported(format!("fixed C binding: {text}"));
+    if bindings.len() > 1 {
+        return Err(bad("only one binding is supported"));
+    }
+    for binding in bindings {
+        let module = program
+            .modules
+            .iter()
+            .find_map(|(id, value)| (id == binding.module).then_some(value))
+            .ok_or_else(|| bad("missing module"))?;
+        let init = program
+            .functions
+            .iter()
+            .find_map(|(id, value)| (id == binding.initializer).then_some(value))
+            .ok_or_else(|| bad("missing initializer"))?;
+        let global = program
+            .globals
+            .iter()
+            .find_map(|(id, value)| (id == binding.export).then_some(value))
+            .ok_or_else(|| bad("missing export global"))?;
+        let identifier = |value: &str| {
+            !value.is_empty()
+                && value.bytes().enumerate().all(|(i, c)| {
+                    c == b'_' || c.is_ascii_alphabetic() || (i > 0 && c.is_ascii_digit())
+                })
+        };
+        if !identifier(&module.name) || module.name == "__main__" || !module.package.is_empty() {
+            return Err(bad("expected a non-entry top-level module"));
+        }
+        if !identifier(&binding.module_ref) || !identifier(&binding.entry_point) {
+            return Err(bad("library and symbol must be fixed ASCII identifiers"));
+        }
+        if module.init != binding.initializer
+            || program.entry == binding.module
+            || global.ty != MirType::Dynamic
+            || module.exports.len() != 1
+            || module.exports[0].value != binding.export
+            || !identifier(&module.exports[0].name)
+            || matches!(
+                module.exports[0].name.as_str(),
+                "__file__" | "__name__" | "__package__"
+            )
+            || !matches!(module.exports[0].guard, ExportGuard::ValueSentinel)
+            || !module.protected_exports.is_empty()
+            || !module.file.is_empty()
+            || !matches!(module.location, ryupy_mir::ModuleLocation::LegacyDiagnostic)
+        {
+            return Err(bad("module/export protocol mismatch"));
+        }
+        if !init.params.is_empty()
+            || init.ret != MirType::Unit
+            || !init.param_meta.is_empty()
+            || init.env.is_some()
+            || init.function_global.is_some()
+            || init.signature_global.is_some()
+            || init.defaults_global.is_some()
+            || init.specialization_identity_global.is_some()
+        {
+            return Err(bad("initializer cannot be a Python function"));
+        }
+        // 专用initializer只能替换空的Return占位，不能静默丢掉任意用户MIR。
+        if !init.body.locals.is_empty()
+            || !init.body.regions.is_empty()
+            || init.body.blocks.len() != 1
+            || !init.body.blocks.iter().any(|(id, block)| {
+                id == init.body.entry
+                    && block.stmts.is_empty()
+                    && matches!(block.terminator, ryupy_mir::Terminator::Return(None))
+            })
+        {
+            return Err(bad("initializer must be an empty return placeholder"));
+        }
+        if program.functions.iter().any(|(id, function)| {
+            id != binding.initializer
+                && [
+                    function.function_global,
+                    function.defaults_global,
+                    function.signature_global,
+                    function.specialization_identity_global,
+                ]
+                .contains(&Some(binding.export))
+        }) {
+            return Err(bad("export global is reserved by another function"));
+        }
+        for (id, other) in program.modules.iter() {
+            if id != binding.module
+                && (other.name == module.name
+                    || other.name.starts_with(&format!("{}.", module.name))
+                    || module.name.starts_with(&format!("{}.", other.name)))
+            {
+                return Err(bad("source module name conflict"));
+            }
+            if id != binding.module
+                && (other.init == binding.initializer
+                    || other.exports.iter().any(|e| e.value == binding.export))
+            {
+                return Err(bad("initializer/export belongs to another module"));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// 仅显式传入记录才发射绑定；旧emit/dump入口没有记录，不建立额外引用。
+pub fn emit(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    bindings: &[FixedI32Binding],
+) -> Result<Vec<u8>, CodegenError> {
+    validate(program, bindings)?;
+    let (res, _) = crate::assembly::build_resolution_with_bindings(program, opts, bindings);
+    res.write(WriteOptions {
+        is_32_bit: true,
+        is_executable: false,
+    })
+    .map_err(|error| CodegenError::Write(error.to_string()))
+}

@@ -332,3 +332,65 @@ fn excess_depth_and_partial_budget_never_rewrite_the_factory() {
             Statement::Assign{dest,value:Rvalue::CallWithArgs{callee:RuntimeFn::MakeList,..}} if *dest==s.root))));
     }
 }
+
+/// 捕获只对actualmodule有语义；本岛证明唯一MakeList来源后才允许将结果视为identity。
+#[test]
+fn module_capture_preserves_proven_list_island_and_rejects_unknown_or_escaped_target() {
+    for mode in 0..5 {
+        let mut sample = sample();
+        let exit = sample.blocks[4];
+        let captured = local(&mut sample.f);
+        let source = if mode == 1 {
+            sample.keys[0]
+        } else {
+            sample.receiver
+        };
+        let name = if mode == 2 { "other" } else { "append" };
+        sample.f.body.blocks[exit].stmts.insert(
+            1,
+            call(
+                captured,
+                RuntimeFn::CaptureModuleMethod,
+                vec![get(source), Operand::Const(Constant::Str(name.into()))],
+            ),
+        );
+        if let Statement::Assign {
+            value: Rvalue::DynCallMethod { obj, .. },
+            ..
+        } = &mut sample.f.body.blocks[exit].stmts[2]
+        {
+            *obj = get(captured);
+        } else {
+            panic!("fixture sink");
+        }
+        if mode == 3 {
+            sample.f.body.blocks[exit].terminator = Terminator::Return(Some(get(captured)));
+        }
+        if mode == 4 {
+            sample.f.body.blocks[exit].stmts.insert(
+                1,
+                Statement::Assign {
+                    dest: captured,
+                    value: Rvalue::Use(get(source)),
+                },
+            );
+        }
+        FloatChain.run(&mut sample.f);
+        assert_eq!(
+            calls(&sample.f, RuntimeFn::NumericListCreate),
+            usize::from(mode == 0),
+            "case {mode}"
+        );
+        assert_eq!(
+            calls(&sample.f, RuntimeFn::NumericListAppendF64),
+            usize::from(mode == 0),
+            "case {mode}"
+        );
+        // 原ordinary路径保捕获；未知/逃逸的token也不被删掉冒充pure。
+        assert_eq!(
+            calls(&sample.f, RuntimeFn::CaptureModuleMethod),
+            1,
+            "case {mode}"
+        );
+    }
+}
