@@ -56,7 +56,7 @@ public static class PyOsPath
     /// <summary>按宿主路径分隔符合并；后续绝对片段替换之前片段，空尾片段保留分隔符。</summary>
     public static string Join(object?[] parts)
     {
-        EnsureLexicalPlatform(OperatingSystem.IsWindows());
+        if (OperatingSystem.IsWindows()) return PyWindowsPath.Join(parts);
         if (parts.Length == 0) throw new PyTypeError("join() missing required argument: 'a'");
         string result = Text(parts[0]);
         for (int index = 1; index < parts.Length; index++)
@@ -84,7 +84,7 @@ public static class PyOsPath
     /// <summary>去掉末端名称与冗余末端分隔符，保留根。</summary>
     public static string DirName(string path)
     {
-        EnsureLexicalPlatform(OperatingSystem.IsWindows());
+        if (OperatingSystem.IsWindows()) return PyWindowsPath.DirName(path);
         int index = path.Length - 1;
         while (index >= 0 && !Separator(path[index])) index--;
         string head = path[..(index + 1)];

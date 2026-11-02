@@ -453,7 +453,7 @@ getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细
 失败退出 120，不自动 close 用户重绑定流，不保证 CPython finalization 的重复刷新次数。
 文本 cookie、编码、换行和关闭后错误有差分；显式 with/close 清理不依赖 GC。
 sys.modules/path 为受控只读视图，不支持动态 import hook；环境与模块 keys/items 是快照。
-Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 词法拒绝测试分开记录。
+Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；设备命名空间、需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
 Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
 io.UnsupportedOperation 已通过 CLR 主树、Python 额外父边及原位 typed catch 展开，支持
 OSError/ValueError 两父捕获；无参/单参构造、既有流能力错误和内存流 fileno 的准确范围见

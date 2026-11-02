@@ -53,7 +53,7 @@ jobs:
           cargo build -p ryupy-cli --locked
       - name: Module location and resource safety regressions
         run: |
-          dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests"
+          dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests|FullyQualifiedName~PyIOErrorFramesTests|FullyQualifiedName~PyWindowsPathTests"
           cargo test -p ryupy-driver --locked resources
       - name: Real ILC, behavior and runtime-free relocation
         run: python tests/aot/smoke.py --out target/aot-smoke

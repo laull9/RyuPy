@@ -110,7 +110,7 @@ jobs:
       - name: Standard stream platform semantics
         run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo -v normal --filter "FullyQualifiedName~PyStandardStreamOutputTests|FullyQualifiedName~PyStandardStreamNewlineTests"
       - name: Module location semantics
-        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests"
+        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests|FullyQualifiedName~PyIOErrorFramesTests|FullyQualifiedName~PyWindowsPathTests"
       - name: Allow long dependency paths in disposable Windows Git
         if: runner.os == 'Windows'
         run: |

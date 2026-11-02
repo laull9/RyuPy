@@ -64,3 +64,18 @@ JIT差分1项通过；Python20项中19通过、1项Windows实机测试明确跳�
 
 修后完整 `make check` exit0：473 C#、228固定CP基线、202 e2e+30ignored，
 fmt/clippy/Release通过；真资源负例与新布局仍待此次三平台CI。
+
+## 第二轮 Windows 路径缺口
+
+`9d5ee8c` 的 Linux [41449174939](https://github.com/laull9/RyuPy/actions/runs/41449174939)
+和 macOS [41449174847](https://github.com/laull9/RyuPy/actions/runs/41449174847)
+资源完整通过，包含新 `_internal` 布局及缺数据完整帧负例；Windows 已过 fixture SHA
+和普通编译，但 JIT 首次 dirname 被旧 Windows 词法门禁拒绝，资源 publish 仍为0。
+
+本次仅新增 Windows `os.path.dirname/join` 冷分支，对照固定 CPython3.12.13 ntpath：
+盘符相对、根片段、同盘后参拼写、UNC、混分隔符与逐项 PathLike 转换顺序。普通
+Unicode 尾部保持原文；设备 namespace、需要非ASCII drive大小写比较明确拒绝。
+其余 Windows 词法 API 保原门禁，不调用 Path.Combine 冒充 Python 语义。dirname 为线性扫描，join 逐项扫描并拼接/分配结果，不声称多参数总输入线性；
+没有文件系统访问或新增缓存。专项69/69（新Windows词法50+位置17+IO2）通过。
+完整 make check exit0：523 C#、228固定CP基线、202 e2e+30ignored，fmt/clippy/Release
+通过；真 Windows 资源仍待复验，不修改原 fixture 或逐字比较规避能力缺口。
