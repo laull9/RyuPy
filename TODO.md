@@ -584,6 +584,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 - [ ] N1：固定小矩阵覆盖裁剪后动态协议、BigInt、容器退化、ISA分支，严格原期望
 - [ ] N2：固定规模JIT默认/禁tier/AOT冷/热配对，记录分配/GC/内存/体积/构建成本，再按证据优化代码生成
+  - [x] 首轮5源码/三臂81进程固定基线，保留分配负结果及3独立进程边界（[证据](docs/validation/aot-jit-baseline/README.md)）
+  - [ ] [ADR0044](docs/adr/0044-guarded-integer-add-chain.md)：actual-I64短Add链语义/结构门禁及同runner成本配对；未预批准默认开启
 - [ ] N3：通用standalone目录清单、资源/原生依赖收集、许可/哈希/诊断和真实搬迁
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
 - [ ] N5：目录交付成熟后独立评估onefile；解包/缓存/清理/资源寻址和性能另验
