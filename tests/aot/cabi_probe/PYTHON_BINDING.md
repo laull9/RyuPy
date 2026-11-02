@@ -69,14 +69,14 @@ PyModule（包括 alias/形参）在参数前捕获属性值，私有 token 在 
 缺属性先于参数报错；非可调用值仍在参数之后报错。非模块保原接收者/PIC，不按绑定名特判；
 Global 动态 callee 显式快照。此为正确性修复，不宣称免费：普通路径增加类型 guard，模块路径
 有 token 与参数数组成本；已有精确列表证明才消除捕获，真实 matmul MIR/CIL 的
-NumericList Create/ReadCheckedF64/AppendF64 仍命中。另行固定36热进程的成本观测尚未执行。
+NumericList Create/ReadCheckedF64/AppendF64 仍命中。固定36热进程成本观测随后完成，见末段负结果。
 
 普通三模块 CP 差分首跑前64行相同，末尾源码 def 的重绑后身份读取仍有旧静态 Func 债。
 完整原正期望保留为 `static_identity_pending.py` 及独立 ignored driver；core 仅不包含该末行。
 普通实例 descriptor 的提前 lookup 也未在本切修复，不能称通用调用顺序/静态函数重绑全闭合。
 新增运行时5专项已通过且零 warning；MIR3项/PE1项结构检查、原 binding driver3项已通过。
 完整组合门禁首轮停在新增注册函数8参的 clippy检查，现合并可选绑定上下文为7参，未禁警告；
-后续完整组合门禁已执行，成本/三平台 CI 仍待，不把局部专项当终态。
+后续完整组合门禁及成本/三平台 CI 已执行，见末段；不把局部专项当终态。
 
 组合门禁第二轮已过543 C#与228 CP，停在旧MIR/CIL快照；独立原e2e随后202通过/30 ignored。
 21份快照只在保存旧版并独立审核后迁移：去新增捕获/全局快照及局部编号差异，重映射
@@ -90,4 +90,9 @@ branch/Leave/Switch/EH端点后全部结构相等；with的MIR 7函数/33区域�
 
 最终本地正常完整门禁第三轮 exit0：**543 C# / 228固定CP基线 / 202 e2e +30 ignored**；
 普通模块driver另1 passed/1静态身份旧债ignored。正式命令无INSTA强制或更新变量，
-8项配对工具轻测通过。此为WIP私有声明/有限调用语义验收，公开B部署与固定36成本结果仍未完成。
+8项配对工具轻测通过。此为WIP私有声明/有限调用语义验收，公开B部署仍未完成，固定36结果见下文。
+
+
+91efcfd的固定36成本与原Linux/Windows/macOS/CABI回归已真实完成；[成本证据](../../../docs/validation/aot-module-call-cost/README.md)
+保留matmul JIT变慢和模块调用分配翻倍的五个诊断旗，不以CI绿宣称无回归。
+当前仍未main推广；下一表示小切先去token，未知callable独立数组不能为跑分快而复用。
