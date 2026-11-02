@@ -1,0 +1,3 @@
+  Determining projects to restore...
+  Restored /tmp/ryupy-aot-probe/host/RyuPy.NativeHost.csproj (in 18.9 sec).
+/tmp/ryupy-aot-probe/host/Program.cs(1,97): error CS0012: The type 'Object' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Runtime, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null'. [/tmp/ryupy-aot-probe/host/RyuPy.NativeHost.csproj]

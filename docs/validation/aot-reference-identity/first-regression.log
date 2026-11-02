@@ -1,0 +1,48 @@
+   Compiling ryupy-codegen-cil v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-codegen-cil)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running unittests src/lib.rs (target/debug/deps/ryupy_codegen_cil-d65b9c8a54c48aeb)
+
+running 11 tests
+test exception_constructor_tests::serialized_warning_constructor_defers_message_policy_to_runtime ... ok
+test runtimeconfig::tests::mentions_framework ... ok
+test entry_tests::serialized_entry_initializes_exit_code ... ok
+test exact_i64_tests::serialized_exact_i64_uses_clr_primitives_without_changing_legacy_operations ... ok
+test exact_i64_tests::serialized_direct_binary_converts_only_opcode_to_clr_int32 ... ok
+test exact_f64_tests::exact_double_guard_unbox_and_arithmetic_are_mechanical_clr_operations ... ok
+test function_identity_tests::original_function_identity_is_duplicated_before_module_execution ... ok
+test numeric_list_tests::numeric_list_abi_preserves_unboxed_double_and_object_results ... ok
+test assembly_refs_tests::serialized_assembly_references_have_target_identities_and_lazy_intrinsics ... ok
+test exception_table_tests::serialized_exception_table_keeps_twenty_and_twenty_one_clauses ... ok
+test vector_tests::vector128_methods_encode_generic_value_locals_and_method_specs ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests ryupy_codegen_cil
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Compiling ryupy-driver v0.0.1 (/workspace/shared/RyuPy/crates/ryupy-driver)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests/float_slp.rs (target/debug/deps/float_slp-d194dcc827e8cf74)
+
+running 2 tests
+test packed_scalar_control_and_disabled_isa_match_pinned_python ... FAILED
+test fresh_independent_pairs_really_vectorize_but_aliases_do_not ... ok
+
+failures:
+
+---- packed_scalar_control_and_disabled_isa_match_pinned_python stdout ----
+
+thread 'packed_scalar_control_and_disabled_isa_match_pinned_python' (396) panicked at crates/ryupy-driver/tests/float_slp.rs:63:5:
+assertion failed: String::from_utf8_lossy(&version.stdout).contains(pinned.trim())
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    packed_scalar_control_and_disabled_isa_match_pinned_python
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p ryupy-driver --test float_slp`

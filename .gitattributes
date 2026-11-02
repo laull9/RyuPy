@@ -19,3 +19,6 @@ tests/perf/results/m3_10/float-loop/candidate/summary.md -whitespace
 tests/perf/results/m3_10/full-suite/summary.md -whitespace
 tests/perf/results/m3_10/union-prototype/jit-arithmetic.txt -whitespace
 tests/perf/results/m3_10/union-prototype/jit-calls.txt -whitespace
+
+# AOT前置身份修的原始完整门禁日志保留工具末尾空行，仅豁免此文件的EOF空白。
+docs/validation/aot-reference-identity/full-check.log whitespace=-blank-at-eof
