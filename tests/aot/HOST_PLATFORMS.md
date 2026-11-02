@@ -68,3 +68,10 @@ CI41420306758的Windows job在Visual C++环境选择阶段失败，尚未进入J
 
 上述工具修后，本机永久轻测4通过/4平台专属跳过，真实本地rustc代理返回预期Rust host；
 Windows shell及两平台迁移仍须新的真实CI，不以Linux轻测替代。
+
+第二轮CI41421244429：macOS实际ILC与搬迁四模式成功（精简证据另归档）；Windows
+已过VS选择、真实Job轻测和runtime构建，但Cargo检出固定ruff依赖时遇264字符路径
+而失败，未进入产品CLI/ILC。仅在一次性Windows runner的用户Git配置启用并读回
+`core.longpaths=true`；不修改系统注册表、安全策略、锁定依赖或凭据。依据
+[Cargo官方问题记录](https://github.com/rust-lang/cargo/issues/13141)，不以缩删依赖
+源码或静默跳过文件绕过。修后Windows结果仍待实际CI。
