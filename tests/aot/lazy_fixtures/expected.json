@@ -1,0 +1,21 @@
+{
+  "python": "CPython 3.12.13",
+  "fixtures": {
+    "hello": {
+      "source_sha256": "41585ec94d2096d3ed175f64737bd55412a57c14c4493882ef4ca0843d41b189",
+      "stdout": "hello\n"
+    },
+    "import_typing": {
+      "source_sha256": "000d4ff16574d1e8e45999d0c74e062677ba179ef7c9cd47695faeaa9710dbd6",
+      "stdout": "True\nTrue True\nFalse\n"
+    },
+    "import_re": {
+      "source_sha256": "f26deff047f1525ae1113623b8136f976713f5e02248140ecd44c91bc518851e",
+      "stdout": "aaa\nTrue\nTrue\n"
+    },
+    "rebind": {
+      "source_sha256": "d7484479a54fe0c2ac375f1a72fb1e23da02de8ef0dcd3f9ce8ed5c4c2586cf4",
+      "stdout": "True\nlazy-module-marker\n3.0\nTrue\n"
+    }
+  }
+}

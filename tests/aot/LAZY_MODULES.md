@@ -1,14 +1,14 @@
-# 原生模块属性延迟构造：冻结测量合同（已批准，待语义门禁与源码审）
+# 原生模块属性延迟构造：冻结测量合同（已批准，候选语义通过、性能待验）
 
-2026-11-02。当前仅合同，无生产改动、构建或采样。固定baseline 972fac072c2dbdd42e250f633a9e21b3d09cbb62，candidate为独立语义门禁通过后的固定SHA。两checkout/CLI/runtime隔离，同一Linux x64 glibc普通CI runner串行。Windows/macOS真实性能不由此推断，不阻平台验证。
+2026-11-02。候选已实现且语义门禁通过，未执行性能采样、未批准默认采用。固定baseline 972fac072c2dbdd42e250f633a9e21b3d09cbb62，candidate为独立语义门禁通过后的固定SHA。两checkout/CLI/runtime隔离，同一Linux x64 glibc普通CI runner串行。Windows/macOS真实性能不由此推断，不阻平台验证。
 
 ## 成本路径与实现边界
 
-实际源码PyNativeModules.cs有28处RegisterNative：io/unicodedata/textwrap/math/time/json/re/collections/collections.abc/itertools/functools/contextlib/typing/__future__/logging/argparse/copy/datetime/random/string/enum/atexit/warnings/unittest/dataclasses/os/os.path/pathlib。另PySystem注册sys，不混入28计数。入口Initialize无条件调用Register，CreateAttributes构造字典、函数、签名，typing/unicodedata Lazy亦被求值。collections.abc/os.path已有主动Import。
+baseline源码PyNativeModules.cs有28处RegisterNative：io/unicodedata/textwrap/math/time/json/re/collections/collections.abc/itertools/functools/contextlib/typing/__future__/logging/argparse/copy/datetime/random/string/enum/atexit/warnings/unittest/dataclasses/os/os.path/pathlib。另PySystem注册sys，不混入28计数。入口Initialize无条件调用Register，CreateAttributes构造字典、函数、签名，typing/unicodedata Lazy亦被求值。collections.abc/os.path已有主动Import。
 
-候选仅13项fresh-table factory-on-first-import，其余16项（含sys、所有静态Lazy）保持eager时点；已审定13名单：math/time/json/re/functools/contextlib/logging/argparse/copy/datetime/string/warnings/dataclasses；实现源码审通过前不进入生产。typing/unicodedata Lazy提前求值是baseline事实，不是本候选改动；typing负载是未改非目标对照。总29=28+sys，并非29个CreateAttributes。
+候选仅13项fresh-table factory-on-first-import，其余16项（含sys、所有静态Lazy）保持eager时点；已审定13名单：math/time/json/re/functools/contextlib/logging/argparse/copy/datetime/string/warnings/dataclasses；实现源码已必要审，限WIP候选。typing/unicodedata Lazy提前求值是baseline事实，不是本候选改动；typing负载是未改非目标对照。总29=28+sys，并非29个CreateAttributes。
 
-候选规则：仍登记所有动态可达名字，不按fixture裁剪；首次导入实际构造，重复导入/重绑共享同表。运行时owner负责依赖、失败重试、初始化中状态、父属性与sys.modules兼容门禁。不得为了启动数值删除既有主动导入。延迟factory仍根引用所有实现，不预承诺native体积下降；统计体积仅验证不利增长。
+候选规则：仍登记所有动态可达名字，不按fixture裁剪；首次导入实际构造，重复导入/重绑共享同表。运行时实现方负责依赖、失败重试、初始化中状态、父属性与sys.modules兼容门禁。不得为了启动数值删除既有主动导入。延迟factory仍根引用所有实现，不预承诺native体积下降；统计体积仅验证不利增长。
 
 ## 固定四负载（无热循环、无内部计时）
 
@@ -59,3 +59,14 @@
 ## 工具预算接线
 
 CI在首CLI构建前写唯一started-at epoch；工具必收该时间，不重置1200s。两CLI各180s亦受剩余总预算。工具启动若预算已耗尽立即失败，不开启应用build。语义门禁在独立阶段，不能与计时区并行。
+
+## 候选准入记录
+
+6项factory C#专项、两独立进程完整公开API/导入顺序差分通过；完整make check退出0：
+460 C#/228固定CP/202 e2e+30 ignored，无快照更新。4旧采样器+5新工具轻测通过，
+未启动正式性能进程。每个Registration增加2引用槽，实际lazy导入增加attempt对象和
+3个委托，成功getter/setter增加未完成表判定；这些成本不能被少建表的直觉掩盖。
+
+原81进程基线workflow现在仅workflow_dispatch，原步骤/矩阵/证据全保；共享采样器
+错误消息改通用预算描述不再意外追加81。它不是持续自动性能门禁；当前候选仅按
+独立预注册120工作流自动验证，AOT七配置和平台语义回归另行执行。
