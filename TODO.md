@@ -586,6 +586,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] N2：固定规模JIT默认/禁tier/AOT冷/热配对，记录分配/GC/内存/体积/构建成本，再按证据优化代码生成
   - [x] 首轮5源码/三臂81进程固定基线，保留分配负结果及3独立进程边界（[证据](docs/validation/aot-jit-baseline/README.md)）
   - [x] [ADR0044](docs/adr/0044-guarded-integer-add-chain.md)：actual-I64短Add链有限默认；180进程同runner配对与合并后445/226/200+30门禁、AOT七配置通过，保留失败路径及冷启动负结果
+  - [ ] [ADR0045](docs/adr/0045-native-module-attribute-factories.md)：13项fresh属性工厂启动实验；固定120冷进程与副作用门禁，未验收益/不先默认采用
 - [ ] N3：通用standalone目录清单、资源/原生依赖收集、许可/哈希/诊断和真实搬迁
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
