@@ -580,7 +580,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 ### M5.2 Native AOT 与交付（承接旧 M1.6）
 
-- [ ] driver 按 ADR-0005 方案 A 实现 `publish_aot`，验证后定稿 ADR；不直接调用 ilc
+- [x] driver 按 ADR-0005 方案 A 实现 `publish_aot`：Linux x64 glibc 有限首切已通过真实 CLI ILC 与无 dotnet/Python 容器搬迁（[证据](docs/validation/aot-driver-ci/README.md)）；其它平台、性能全矩阵与桥接不计完成，不直接调用 ilc
 - [ ] `ryupy build --aot` 端到端可用，分平台记录工具链、构建时间、体积、启动与行为
 - [ ] 原生产物在免装 Python / .NET 的目标环境验证；桥接产物另验 libpython / 标准库 / 扩展依赖，禁止声称零外部依赖
 - [ ] 验证异常、模块注册和静态可达元数据在裁剪后仍正确；发布命令与实际 CLI 一致
