@@ -16,6 +16,14 @@ from platform_runner import Runner
 from platform_support import host, relocate, audit, clean_environment
 
 
+def rustc_executable():
+    # rustup按调用basename分派；resolve会把rustc链接变成rustup-init并执行错工具。
+    found = shutil.which('rustc')
+    if not found:
+        raise FileNotFoundError('未找到执行工具：rustc')
+    return os.path.abspath(found)
+
+
 def published_platform_native(stderr, output, rid):
     if rid != 'win-x64':
         return published_native(stderr, output)
@@ -76,7 +84,7 @@ def main():
         expected_arch = 'arm64' if args.rid == 'osx-arm64' else 'x64'
         if not architectures or any(value != expected_arch for value in architectures) or rids != [args.rid]:
             raise AssertionError(f'.NET实际架构/RID不符：{architectures}, {rids}')
-        rust = run.run('rustc-version', [executable('rustc'), '-vV'], cwd=work, env=env, check=True, timeout=30)
+        rust = run.run('rustc-version', [rustc_executable(), '-vV'], cwd=work, env=env, check=True, timeout=30)
         rust_hosts = re.findall(r'^host: (\S+)\s*$', rust.stdout.decode('utf-8'), re.M)
         expected_host = 'aarch64-apple-darwin' if args.rid == 'osx-arm64' else 'x86_64-pc-windows-msvc'
         if rust_hosts != [expected_host]:

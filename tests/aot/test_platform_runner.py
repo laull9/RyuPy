@@ -14,6 +14,24 @@ from platform_runner import Runner
 from test_runner import RunnerTimeoutTests  # 保留既有Linux组杀回归，不重复复制。
 
 
+class RustcPathTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == 'posix', '真实POSIX rustup符号链接路径')
+    def test_keeps_rustc_symlink_basename_for_rustup_dispatch(self):
+        from platform_smoke import rustc_executable
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root/'rustup-init'
+            target.write_text('not executed')
+            target.chmod(0o755)
+            link = root/'rustc'
+            link.symlink_to(target.name)
+            with mock.patch.dict(os.environ, {'PATH': str(root)}):
+                resolved_tool = rustc_executable()
+            self.assertEqual(resolved_tool, os.path.abspath(link))
+            self.assertTrue(Path(resolved_tool).is_symlink())
+            self.assertNotEqual(resolved_tool, str(link.resolve()))
+
+
 class DeadlineTests(unittest.TestCase):
     def test_remaining_budget_shrinks_and_exhaustion_never_starts(self):
         # 不需SDK/子进程；父Runner只记录调用，证明预算不是每步骤重置。

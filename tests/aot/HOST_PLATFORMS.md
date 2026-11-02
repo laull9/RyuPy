@@ -53,3 +53,18 @@ POSIX使用独占进程组。Windows先挂起子进程，再加入非继承、�
 记录实际OS/架构、SDK/Rust/CP版本、CLI/runtime/source/native哈希、完整SDK双流、
 每应用状态及依赖。任一实际失败即保存失败，不换期望或静默跳过。原始工件只保CI
 artifact（14天），Git只归档精简结果和限制，不提交日志或二进制。
+
+## 首轮工具前置失败
+
+CI41420306758的Windows job在Visual C++环境选择阶段失败，尚未进入Job轻测、
+编译或ILC：PowerShell向cmd转发嵌套引号，使带空格的VsDevCmd路径被错误解析。
+修正仅改该步骤为原生cmd调用，并用固定Python以UTF-8导出同一白名单环境；不修改
+产品或跳过工具链校验。macOS该轮独立结果另记，不把此Windows失败称平台已验。
+
+同轮macOS的生命周期轻测、runtime与CLI构建成功，但新工具元数据检查在应用编译前
+失败：将`rustc`代理symlink按真实路径解析成`rustup-init`，改变了argv0分派，取得的是
+安装器版本而非Rust host。窄修保留已找到工具的调用名，不取消实际Rust host/SDK架构
+校验。两平台首轮均未执行ILC，不记作NativeAOT通过；既有Linux七配置同轮成功。
+
+上述工具修后，本机永久轻测4通过/4平台专属跳过，真实本地rustc代理返回预期Rust host；
+Windows shell及两平台迁移仍须新的真实CI，不以Linux轻测替代。
