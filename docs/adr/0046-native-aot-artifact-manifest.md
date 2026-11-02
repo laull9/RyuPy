@@ -89,3 +89,8 @@ sha2的默认std实现（MIT OR Apache-2.0），不手写JSON或SHA，也不新�
 首轮仅新测试的两个Constant名称因双glob歧义编译失败，限定为ryupy_mir::Constant后
 原断言全部通过；生产语义未为测试放宽。SDK记录目标与真实原生清单仍待原三平台CI，
 本地单元假文件只验证失败边界，不代替ILC及搬迁运行。
+
+首轮三平台CI的Windows在发布前轻测试失败：测试以文本模式写显式CRLF，Windows
+再次翻译成CRCRLF，严格SDK记录解析器因此拒绝。仅将测试输入改为精确UTF-8字节
+写入，保原合法／非法断言与生产解析；本地8项重跑通过。该轮Windows未到构建／ILC，
+不把测试修正算作实际Windows原生发布通过；Mac／Linux独立运行结果另行记录。

@@ -99,10 +99,11 @@ class ManifestVerifyTests(unittest.TestCase):
                 verify_manifest(root,root/'program','linux-x64','10.0.403')
             record=Path(directory)/'sdk.version'
             for value in ('10.0.403','10.0.403\n','\ufeff10.0.403\r\n','10.0.100-preview.1\n'):
-                record.write_text(value,encoding='utf-8')
+                # 固定输入字节，不让Windows文本写入把显式CRLF二次翻译。
+                record.write_bytes(value.encode('utf-8'))
                 self.assertEqual(read_sdk_version(record),value.lstrip('\ufeff').rstrip('\r\n'))
             for value in ('', '10.0.403\nextra', ' 10.0.403', '10.0.403\n\n'):
-                record.write_text(value)
+                record.write_bytes(value.encode('utf-8'))
                 with self.assertRaises(ManifestError):read_sdk_version(record)
 
 
