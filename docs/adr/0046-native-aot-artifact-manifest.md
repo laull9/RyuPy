@@ -1,6 +1,6 @@
 # ADR0046：NativeAOT 发布清单与实际生成引用报告
 
-状态：源码与本地专项／完整门禁通过；真实三平台 CI 尚待验收，未标记交付完成。
+状态：本地门禁与真实三平台有限验收通过；产物/行为证据独立复核，仍不代表完整N3。
 日期：2026-11-02。
 
 ## 目的与非目的
@@ -105,4 +105,13 @@ sha2的默认std实现（MIT OR Apache-2.0），不手写JSON或SHA，也不新�
 验证器窄修保跨API的dev/ino/size/mtime/birthtime（缺birthtime拒绝），并保路径前后
 与fd前后各自ctime相等；非Windows原约束不变，SHA/读取长度/reparse/exact-set不减。
 失败记录四快照，轻回归逐字段变更负例及Windows真实write/utime取证；不改生产Rust。
-本地11项中10通过、1项Windows实机用例明确跳过，真实Windows复验仍待CI。
+本地11项中10通过、1项Windows实机用例明确跳过，当时真实Windows复验仍待CI，后续终态见下节。
+
+## 最终有限验收
+
+实际提交eca6283的Linux CI41437645315和Mac／Windows CI41437645313均通过；
+真实SDK版本、完整publish文件集合／大小／SHA、原四模式及Linux七配置均已独立核验。
+Windows实际运行3项SDK路径、10项manifest筛选与11项Python轻测（其中1项POSIX跳过）；
+新增Windows小文件的四份ctime恰相同，不声称该例证明旧失败唯一由ctime造成。
+完整结果和两个失败轮次见[精简证据](../validation/aot-artifact-manifest/README.md)。
+本切不复制资源、不实现运行时动态模块加载或C ABI绑定，不把N3父目标勾为完成。

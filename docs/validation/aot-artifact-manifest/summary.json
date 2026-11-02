@@ -1,0 +1,1606 @@
+{
+ "schema_version": 1,
+ "candidate_revision": "eca62838ac976546caa4f58418c2f01808392727",
+ "runs": [
+  {
+   "ci_run_id": 41437645315,
+   "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41437645315",
+   "platform": "linux-x64",
+   "status": "passed",
+   "independent_review": "passed",
+   "smoke_result_sha256": "b335948330f9fce15c567338051d62f00ec5358cbc8986e397f0661bf049e69e",
+   "coverage_result_sha256": "b6935d45c82cc8adec8019291f6d2de1a25f826a3a30a40e2eb5b7a3c2e05531"
+  },
+  {
+   "ci_run_id": 41437645313,
+   "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41437645313",
+   "platform": "osx-arm64",
+   "status": "passed",
+   "independent_review": "verified_by_independent_review",
+   "result_sha256": "5fc262d580b5a727a452df531417e0f6eda326c7279b06606c9b1f6bf4920392"
+  },
+  {
+   "ci_run_id": 41437645313,
+   "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41437645313",
+   "platform": "win-x64",
+   "status": "passed",
+   "independent_review": "verified_by_independent_review",
+   "result_sha256": "327ecaeb382402067a8da24ef974ba26709b75f23ef2345ea118585c3937c9a5"
+  }
+ ],
+ "historical_failures": [
+  {
+   "revision": "3ff7744ba4e6d7462e46932f124056128bc476a8",
+   "platform": "win-x64",
+   "reason": "SDK version test fixture text writing introduced platform newline translation; corrected to exact byte fixture",
+   "resolution_revision": "0b7528b",
+   "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41435814924",
+   "driver_runtime_changed": false,
+   "verification_tool_changed": false,
+   "test_fixture_changed": true
+  },
+  {
+   "revision": "0b7528b",
+   "platform": "win-x64",
+   "reason": "Windows after real ILC: verifier cross-lstat/fstat ctime five-tuple constraint failed; historical four values not recorded, no uniquely proven cause",
+   "resolution_revision": "eca62838ac976546caa4f58418c2f01808392727",
+   "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41436488887",
+   "driver_runtime_changed": false,
+   "verification_tool_changed": true,
+   "test_fixture_changed": true
+  }
+ ],
+ "configurations": [
+  {
+   "label": "bigint",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "fd90c48101f3edce975d9b50923a1381aacb1fcad3fda81db4697d275e9cdc1c",
+   "sources": [
+    {
+     "compiled_text_sha256": "caab6b2901319bffcc0830ca4f49a8e5e34b9272ffff2d893bccd6fc5cf9008b",
+     "logical_source": "entry/m2_1_bigint.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "92048cfc7000971ea2328a87eb45a9c401fc173fcee30ea7ade34cfd13672def",
+     "size": 9216
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_3662_1793619217662080416_0",
+     "role": "native_executable",
+     "sha256": "76a5248a2fafce618ff157b9f7706aeb27e8b8ed064cdaf7303091410e3a2de9",
+     "size": 4572000
+    },
+    {
+     "relative_path": "RyuPyAotHost_3662_1793619217662080416_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "5ff7a76e15be7dfca1d5fd4a7abc82740cfb7b7d063f3352a9cf81137c96d843",
+     "size": 7901656
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 3,
+    "by_role": {
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "a320b50b5440870120cf0f784dca65f517fadebfb9b026606d21c88dbe84f90d",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "a320b50b5440870120cf0f784dca65f517fadebfb9b026606d21c88dbe84f90d",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "a320b50b5440870120cf0f784dca65f517fadebfb9b026606d21c88dbe84f90d",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "bbb65078bcc0b6381320dd51ba8ed5e1d60807188c544413ed543d5d0f9f6cca",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "static-dataclass",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "205d2a01d608e25e766da947322e9c611c3829e441b2ed9abae13a53e6203c4d",
+   "sources": [
+    {
+     "compiled_text_sha256": "3f34bfd54b49981987ba3b041995a42d51009b7bdb15a17e70d9e1e7418de039",
+     "logical_source": "entry/m1_5_dataclass.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "49538597979459dbc859d5ff3ea001bfc48eca4cb6a97a08a853379787dc9c9e",
+     "size": 11264
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_3755_1793619224013525474_0",
+     "role": "native_executable",
+     "sha256": "70d2253ebcc58a38214843e7a99b7cbbeb3d7193488692cf56ed00c3f9110144",
+     "size": 4584304
+    },
+    {
+     "relative_path": "RyuPyAotHost_3755_1793619224013525474_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "e720495465442260fea85128b3c8b8e5b92f25033c86bb9ce64d0821a18af1e1",
+     "size": 7905144
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 5,
+    "by_role": {
+     "callable_thunk": 2,
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "433225f384508361eccea4430ef41f1037f3e647f0aa84c05c2961aae3e5ed42",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "433225f384508361eccea4430ef41f1037f3e647f0aa84c05c2961aae3e5ed42",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "433225f384508361eccea4430ef41f1037f3e647f0aa84c05c2961aae3e5ed42",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "d480cf3da5ec803700ce76c01ea4857c6e605f354b28c190806c581f77a38ba7",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "dynamic-dataclass",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "d17f8de1697eb183d691dd6227bc2c37be0bc685e5723ccb80d3f37d41db5823",
+   "sources": [
+    {
+     "compiled_text_sha256": "1695e92d98a86076d3ceb95f515b5b7af7c15c81e89069436b16a54df4492bac",
+     "logical_source": "entry/m3_3_dataclass_protocol.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "4aa6b74a73e8c15fb86c76944075a7a063eba796be55daf012c5c5d30d4a66ba",
+     "size": 13312
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_3850_1793619229951842334_0",
+     "role": "native_executable",
+     "sha256": "e7e2bafe6bf03197578d2b3cb1511ecf07b3177bf72c046919141688948450b3",
+     "size": 4596624
+    },
+    {
+     "relative_path": "RyuPyAotHost_3850_1793619229951842334_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "25d1348fab83c748d56c9cb8b68436adf5dafc54bd63cfcf32f29e294d4d69b2",
+     "size": 7910440
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 11,
+    "by_role": {
+     "callable_thunk": 8,
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "23940c32fe5ea024b6e893c9a07660f5beffc806be65f696620d2b7c2a5e09c8",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "23940c32fe5ea024b6e893c9a07660f5beffc806be65f696620d2b7c2a5e09c8",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "23940c32fe5ea024b6e893c9a07660f5beffc806be65f696620d2b7c2a5e09c8",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "0a94354a3208e342bb1cb55cc92104fdfc4679c8ce0340c23db1b3d3a663ebcf",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "numeric-list",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "abf7c78b1794350792e55f12fdfef30cdafc75076f133903e51d64c962a358eb",
+   "sources": [
+    {
+     "compiled_text_sha256": "15d72c9406e7211c28d504d7fa5b7473cf098430d2574f4617a7cb3713727a0e",
+     "logical_source": "entry/m3_10_numeric_list_island.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "79a67bdb1adb2625b30584bd0ca731126a3f98d5221b42b0d8ddaeec418a3dc8",
+     "size": 23040
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_3945_1793619236015549891_0",
+     "role": "native_executable",
+     "sha256": "c44c13e90d47061169424140a12dd89216df48835b06d1c897dcec1bb512f41e",
+     "size": 4633504
+    },
+    {
+     "relative_path": "RyuPyAotHost_3945_1793619236015549891_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "abb923f093fae845904da085f97a0f2fac71b2542bb25802cc2bc5aa738a8b13",
+     "size": 7919088
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 16,
+    "by_role": {
+     "callable_thunk": 13,
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "6881265f3702a689d0842faaaaf644af7af33addbdfd5bc93118cab4b2349c0c",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "6881265f3702a689d0842faaaaf644af7af33addbdfd5bc93118cab4b2349c0c",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "6881265f3702a689d0842faaaaf644af7af33addbdfd5bc93118cab4b2349c0c",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "2447499182172483038a57ddfe4b1450576af0168db2384c7deb121b6ae1e7c6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "slp-default",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "664c30cb9f4f1e0c4f127a45e0b64ed2fab49f7d9168727f7971427c63708c7b",
+   "sources": [
+    {
+     "compiled_text_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+     "logical_source": "entry/m3_10_float_slp.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "28d38f23f87c7dd3d09452933b6ffdc7a53dd7132aeb796eb7fd6b680864d351",
+     "size": 24064
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_4039_1793619242039522821_0",
+     "role": "native_executable",
+     "sha256": "bda9a8a1ff5cdb781fe0fd2434bd90fb0731a1a3798ffdfb05bfbecf057a8e86",
+     "size": 4641744
+    },
+    {
+     "relative_path": "RyuPyAotHost_4039_1793619242039522821_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "2f4d4b8066c63feaee90aba9e9babfc6119f44dcf43aba06a07664c1535db7c4",
+     "size": 7914968
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 19,
+    "by_role": {
+     "callable_thunk": 16,
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "d7e40d8dadf920d41a80557c8300d0b25b60a2350fddf9531b5fd798047b329c",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "slp-packed",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": true
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "9b7af0f4ec7ae2fa0d32fd76b197e4ca815bcdf878066ea9b027402937699bbd",
+   "sources": [
+    {
+     "compiled_text_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+     "logical_source": "entry/m3_10_float_slp.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "16e067360db2ece70365c03ccdf35f5d1352f1a52141bb637be35f1183a66899",
+     "size": 27648
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_4133_1793619248013414629_0",
+     "role": "native_executable",
+     "sha256": "35b8d01664a74241d427009cacc4334a6caa536950c1a158af5e75d27f97e5d6",
+     "size": 4645840
+    },
+    {
+     "relative_path": "RyuPyAotHost_4133_1793619248013414629_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "a990ca66b1ac6329e02cee3f116d39458a745b79aa1056ed53a4e2030fbc6a51",
+     "size": 7915056
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 19,
+    "by_role": {
+     "callable_thunk": 16,
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "17ddc575872671e5b68023cb1777f12ffcb4f7d4658cb3e9856e7fec43ddb1c1",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "slp-scalar",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": true,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "1fff2a3afa66e374c380266e6aae37a38a2c9969cf86ccfd1728e4588125996e",
+   "sources": [
+    {
+     "compiled_text_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+     "logical_source": "entry/m3_10_float_slp.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "616be9c092868c1c961cda1f4913d3974dba851a3a678ecfa2a9e4d675837f3e",
+     "size": 27136
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "all bytes rehashed against published manifest",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_4226_1793619254436641820_0",
+     "role": "native_executable",
+     "sha256": "00e23e145265434b03491ad7d71eac8fecfc09fc90c2daae91c80c6b8f9cc70b",
+     "size": 4645840
+    },
+    {
+     "relative_path": "RyuPyAotHost_4226_1793619254436641820_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "797fcb9304c9e7caef2fb5c37959978baefdf566f6146b9abab5233e7532b144",
+     "size": 7915136
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 19,
+    "by_role": {
+     "callable_thunk": 16,
+     "module_getter": 1,
+     "module_init": 1,
+     "module_setter": 1
+    }
+   },
+   "modules": {
+    "count": 1,
+    "names": [
+     "__main__"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "default",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "2c61d6da523b718d14d2beff7d3550c2e34818ba39209e5692f10f9c4ff02fd6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "three Host.csproj properties true, no TrimmerRootAssembly"
+   },
+   "relocation": {
+    "tested": false,
+    "scope": "coverage native runs from publish; relocation tested separately in smoke"
+   }
+  },
+  {
+   "label": "smoke",
+   "verification": "passed",
+   "target": {
+    "architecture": "x64",
+    "native_format": "ELF",
+    "rid": "linux-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "410d3a6111ef9590d651b9623ba0f086dfaa7bfaa36c5131f50c48add0cfb347",
+   "sources": [
+    {
+     "compiled_text_sha256": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+     "logical_source": "entry/main.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    },
+    {
+     "compiled_text_sha256": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17",
+     "logical_source": "modules/state.py",
+     "module_id": 1,
+     "module_name": "state",
+     "package": ""
+    }
+   ],
+   "source_verification": "git revision source text SHA rechecked",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "225a75ec64ae54cc1ffa417a8465a9d24d8cc0f74f110e7015dbf5f6d29f36a1",
+     "size": 21504
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "b3b82b47e758d73d5fbcce139863760329531bac9727212295790f73dd314ac7",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "recorded_only_deleted_after_relocation",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_3248_1793619206283189816_0",
+     "role": "native_executable",
+     "sha256": "d021270634f10d2ea5e2bc96e8df53f3b115e5480c62225c185d2f3a8320f7db",
+     "size": 4629472
+    },
+    {
+     "relative_path": "RyuPyAotHost_3248_1793619206283189816_0.dbg",
+     "role": "unclassified_sidecar",
+     "sha256": "9455692432c50ea4f89f2f97c4f748514407d8f4f49ec4df793108328c01e724",
+     "size": 7925680
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 14,
+    "by_role": {
+     "callable_thunk": 6,
+     "exception_factory": 1,
+     "generator_resume": 1,
+     "module_getter": 2,
+     "module_init": 2,
+     "module_setter": 2
+    }
+   },
+   "modules": {
+    "count": 2,
+    "names": [
+     "__main__",
+     "state"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "all",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "docker": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "argv",
+     "comparison": "argv0 may differ; remaining args preserved",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "docker": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "exit",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "docker": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "error",
+     "comparison": "traceback frames/line/function/final error",
+     "arms": {
+      "python": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "d5a417e5819b36e4eb8ec77d9e63a74efbb2a354a3a7d33ec5afa7d0cdd5d1ec"
+      },
+      "jit": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+      },
+      "native": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+      },
+      "docker": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "1aa6ff94f8c18040149e8d4caa0bc7eecd9049c6bf024b537d0c18860adc9943",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false,
+    "warnings_as_errors": "same-revision driver source and successful strict publish; original Host.csproj removed"
+   },
+   "relocation": {
+    "tested": true,
+    "full_directory_verified": true,
+    "source_and_managed_trees_removed": true,
+    "environment": "SDK-installed Linux host plus runtime-deps:10.0.14-noble container; network none/read-only mount; dotnet/Python absence checked"
+   }
+  },
+  {
+   "label": "smoke",
+   "verification": "verified_by_independent_review",
+   "target": {
+    "architecture": "arm64",
+    "native_format": "Mach-O",
+    "rid": "osx-arm64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "71772f094e25b3eba569ca71c9666386609fc9e37e5b5887c62aa428b29ed760",
+   "sources": [
+    {
+     "compiled_text_sha256": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+     "logical_source": "entry/main.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    },
+    {
+     "compiled_text_sha256": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17",
+     "logical_source": "modules/state.py",
+     "module_id": 1,
+     "module_name": "state",
+     "package": ""
+    }
+   ],
+   "source_verification": "verified_by_independent_review against final source fixture",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "f532509eea64cfd26e8e0c561448d2f308ba726b0040c1ec2265e8d20177e66f",
+     "size": 22016
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "bcbb870b844c0830b490d406d918a125c2957f1d75700cb88a46fc29e3ab37b3",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "recorded_only_deleted_after_relocation",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_7550_1793619269086163000_0",
+     "role": "native_executable",
+     "sha256": "528a7af990d1bec5899c27b8c106c31e87e23d81e33d2d6d0873d857ac1c79b4",
+     "size": 4438808
+    },
+    {
+     "relative_path": "RyuPyAotHost_7550_1793619269086163000_0.dSYM/Contents/Info.plist",
+     "role": "unclassified_sidecar",
+     "sha256": "0c4e931806b020abcb0e06e2b0a820ed106371ce0e778882fc590c83c37126b0",
+     "size": 668
+    },
+    {
+     "relative_path": "RyuPyAotHost_7550_1793619269086163000_0.dSYM/Contents/Resources/DWARF/RyuPyAotHost_7550_1793619269086163000_0",
+     "role": "unclassified_sidecar",
+     "sha256": "c880e1cb032cbb312eea57c22891adeddf0dcee1d2774c34401b8369156633bf",
+     "size": 14068861
+    },
+    {
+     "relative_path": "RyuPyAotHost_7550_1793619269086163000_0.dSYM/Contents/Resources/Relocations/aarch64/RyuPyAotHost_7550_1793619269086163000_0.yml",
+     "role": "unclassified_sidecar",
+     "sha256": "2df6381eb5c5e7568d2639a4b4c06b2999a86f28c44ca331f7e2270b1c982f12",
+     "size": 2894518
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 14,
+    "by_role": {
+     "callable_thunk": 6,
+     "exception_factory": 1,
+     "generator_resume": 1,
+     "module_getter": 2,
+     "module_init": 2,
+     "module_setter": 2
+    }
+   },
+   "modules": {
+    "count": 2,
+    "names": [
+     "__main__",
+     "state"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "all",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "argv",
+     "comparison": "argv0 may differ; remaining args preserved",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "exit",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 7,
+       "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "error",
+     "comparison": "traceback frames/line/function/final error",
+     "arms": {
+      "python": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "855e65c6bbe8197ea890a5e3103cc619dddac2c5ace54fa9a2fa6ac68fde72ab"
+      },
+      "jit": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+      },
+      "native": {
+       "exit": 1,
+       "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+       "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "53081c491eb1634e55bbfe8895392716376bbad95093d20aa7b1a8b780af75d6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8",
+    "diagnostic_scan": false
+   },
+   "relocation": {
+    "tested": true,
+    "reported_passed": true,
+    "full_directory_verified": true,
+    "source_and_managed_trees_removed": true,
+    "clean_machine_without_runtime_tested": false,
+    "environment": "relocated native on SDK-installed hosted runner, restricted environment"
+   },
+   "host_result_hashes": {
+    "cli_sha256": "0043b76b0f25bcc14d543f47d4090c35fadde32bec382c67aa90e1d2991e0311",
+    "il_sha256": "8b99bad8d0069359e5a21e6ada48d89edd20d632ebb891f49739fb0c4b940122",
+    "runtime_sha256": "bcbb870b844c0830b490d406d918a125c2957f1d75700cb88a46fc29e3ab37b3",
+    "aot_il_sha256": "f532509eea64cfd26e8e0c561448d2f308ba726b0040c1ec2265e8d20177e66f",
+    "aot_runtime_sha256": "bcbb870b844c0830b490d406d918a125c2957f1d75700cb88a46fc29e3ab37b3"
+   }
+  },
+  {
+   "label": "smoke",
+   "verification": "verified_by_independent_review",
+   "target": {
+    "architecture": "x64",
+    "native_format": "PE",
+    "rid": "win-x64"
+   },
+   "toolchain": {
+    "sdk_version": "10.0.403",
+    "target_framework_major": 10
+   },
+   "compiler": {
+    "build_revision": null,
+    "codegen_report_version": 1,
+    "options": {
+     "diagnostic_scalar_slp": false,
+     "experimental_direct_accumulator": false,
+     "experimental_leaf_inline": false,
+     "experimental_packed_slp": false
+    },
+    "package_version": "0.0.1"
+   },
+   "entry": {
+    "managed_entry": {
+     "name": "Main",
+     "owner": "RyuPy.Generated.Module",
+     "signature": "static int (string[])"
+    },
+    "module_id": 0
+   },
+   "manifest_sha256": "4306815af06cbc7fd3dfc0a6467106eb465a886b2cab1358e88c56941d94c04f",
+   "sources": [
+    {
+     "compiled_text_sha256": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+     "logical_source": "entry/main.py",
+     "module_id": 0,
+     "module_name": "__main__",
+     "package": ""
+    },
+    {
+     "compiled_text_sha256": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17",
+     "logical_source": "modules/state.py",
+     "module_id": 1,
+     "module_name": "state",
+     "package": ""
+    }
+   ],
+   "source_verification": "verified_by_independent_review against final source fixture",
+   "build_inputs": [
+    {
+     "relative_path": "managed-entry.dll",
+     "role": "compiled_managed_input",
+     "sha256": "d6b8ae4b0db5254f4319797754137828f9bab79b2281c3950bbe030154284608",
+     "size": 21504
+    },
+    {
+     "relative_path": "RyuPy.Runtime.dll",
+     "role": "runtime_managed_input",
+     "sha256": "135eea932997433d6752f11c8cb189c7f1f17ffce3c36e1dad6cb98495898bf0",
+     "size": 586240
+    }
+   ],
+   "build_input_verification": "recorded_only_deleted_after_relocation",
+   "artifacts": [
+    {
+     "relative_path": "RyuPyAotHost_2752_1793619334432640500_0.exe",
+     "role": "native_executable",
+     "sha256": "1e33dcdcf699d9db86ffd62460d9cb6395d8e79a5dbc514094e1c02b98a7a625",
+     "size": 4584960
+    },
+    {
+     "relative_path": "RyuPyAotHost_2752_1793619334432640500_0.pdb",
+     "role": "unclassified_sidecar",
+     "sha256": "9c288f3851e8dbde61e4346dcc46278a5e48f15cddd221302b5faf95cc5f2cf9",
+     "size": 18444288
+    }
+   ],
+   "emitted_cil_references": {
+    "total": 14,
+    "by_role": {
+     "callable_thunk": 6,
+     "exception_factory": 1,
+     "generator_resume": 1,
+     "module_getter": 2,
+     "module_init": 2,
+     "module_setter": 2
+    }
+   },
+   "modules": {
+    "count": 2,
+    "names": [
+     "__main__",
+     "state"
+    ]
+   },
+   "scope": {
+    "dynamic_dependency_closure_complete": false,
+    "manifest_self_hash_included": false,
+    "native_retention_proven": false,
+    "resources_included": false
+   },
+   "behavior": [
+    {
+     "mode": "all",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "6b412bdba0ff18710f58e89e3641732fdc730ea6b2ea52a5aad4d0a6fd63569e",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "6b412bdba0ff18710f58e89e3641732fdc730ea6b2ea52a5aad4d0a6fd63569e",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "6b412bdba0ff18710f58e89e3641732fdc730ea6b2ea52a5aad4d0a6fd63569e",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "argv",
+     "comparison": "argv0 may differ; remaining args preserved",
+     "arms": {
+      "python": {
+       "exit": 0,
+       "stdout_sha256": "d47d297532997541da187ff4808d295e155fd45462bf4943d8bd8dea6ff8e11a",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 0,
+       "stdout_sha256": "d47d297532997541da187ff4808d295e155fd45462bf4943d8bd8dea6ff8e11a",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 0,
+       "stdout_sha256": "d47d297532997541da187ff4808d295e155fd45462bf4943d8bd8dea6ff8e11a",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "exit",
+     "comparison": "exact stdout/stderr/exit",
+     "arms": {
+      "python": {
+       "exit": 7,
+       "stdout_sha256": "946d9ad21ae0368717f2532ecbff4058ac246f5a2b9feb776e40754d2dfba93e",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit": {
+       "exit": 7,
+       "stdout_sha256": "946d9ad21ae0368717f2532ecbff4058ac246f5a2b9feb776e40754d2dfba93e",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "native": {
+       "exit": 7,
+       "stdout_sha256": "946d9ad21ae0368717f2532ecbff4058ac246f5a2b9feb776e40754d2dfba93e",
+       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+     }
+    },
+    {
+     "mode": "error",
+     "comparison": "traceback frames/line/function/final error",
+     "arms": {
+      "python": {
+       "exit": 1,
+       "stdout_sha256": "6537f7c047b99b425c67d45fc8b52652171cdf769718898c26f4200bbffc4889",
+       "stderr_sha256": "20d8379b5b9ba333439d8e3a51787f89add8ac06405fa5b9e1f423df2458f8db"
+      },
+      "jit": {
+       "exit": 1,
+       "stdout_sha256": "6537f7c047b99b425c67d45fc8b52652171cdf769718898c26f4200bbffc4889",
+       "stderr_sha256": "6ff7c5962fbefc2fef2f584b59de68929552f3d292258079481b1cfa140b7050"
+      },
+      "native": {
+       "exit": 1,
+       "stdout_sha256": "6537f7c047b99b425c67d45fc8b52652171cdf769718898c26f4200bbffc4889",
+       "stderr_sha256": "6ff7c5962fbefc2fef2f584b59de68929552f3d292258079481b1cfa140b7050"
+      }
+     }
+    }
+   ],
+   "strict_publish": {
+    "stdout_sha256": "d3661efdde0912c94dd83ebde3afc463334dbd88fa473d5f33ee78fd359d67a0",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "sdk_version_record_sha256": "d6c9bf6f645d88912e7fefa9b18115b9a0eb5d5f23913f305d0bd915e0d08de6",
+    "diagnostic_scan": false
+   },
+   "relocation": {
+    "tested": true,
+    "reported_passed": true,
+    "full_directory_verified": true,
+    "source_and_managed_trees_removed": true,
+    "clean_machine_without_runtime_tested": false,
+    "environment": "relocated native on SDK-installed hosted runner, restricted environment"
+   },
+   "host_result_hashes": {
+    "cli_sha256": "e855f8b5a8fb5886667ff1f7c468440e10177eeb7f36ea0d2bb6860e87edd440",
+    "il_sha256": "5653b3331a9ede0245113258dfaf09a7c8668dc439fa56d5b65f2236f0becc2c",
+    "runtime_sha256": "135eea932997433d6752f11c8cb189c7f1f17ffce3c36e1dad6cb98495898bf0",
+    "aot_il_sha256": "d6b8ae4b0db5254f4319797754137828f9bab79b2281c3950bbe030154284608",
+    "aot_runtime_sha256": "135eea932997433d6752f11c8cb189c7f1f17ffce3c36e1dad6cb98495898bf0"
+   }
+  }
+ ],
+ "limitations": [
+  "CIL emitted ldftn references, not ILC native retention or complete dynamic dependency closure",
+  "resources are not included; manifest excludes its own hash",
+  "ISA-off execution and NaN payload-bit compatibility not tested",
+  "Mac/Windows relocation is on SDK-installed hosted runners; not a clean-runtime-free machine test",
+  "Linux smoke additionally runs runtime-deps-only container without dotnet/Python tools",
+  "Smoke source/build trees intentionally removed; managed input hashes recorded only, not independently rehashed after removal",
+  "compiler.build_revision remains actual null; CI candidate revision is separate evidence"
+ ]
+}
