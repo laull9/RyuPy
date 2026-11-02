@@ -71,6 +71,8 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        location: Default::default(),
+        file_backed_by_global: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),

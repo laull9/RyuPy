@@ -28,6 +28,8 @@ mod generator_exceptions;
 mod generators;
 pub mod link;
 mod mir;
+mod module_location;
+pub use module_location::ModuleLocation;
 pub mod passes;
 pub mod pretty;
 mod runtime_fn;
@@ -69,3 +71,6 @@ mod vector_tests;
 #[cfg(test)]
 mod list_read_tests;
 mod validate_list_reads;
+
+#[cfg(test)]
+mod module_location_tests;

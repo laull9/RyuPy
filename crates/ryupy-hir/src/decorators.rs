@@ -258,6 +258,7 @@ mod tests {
         crate::lower_module(
             &parsed,
             &crate::ModuleInfo {
+                resolve_file_at_runtime: false,
                 name: "__main__".into(),
                 package: String::new(),
                 file: "decorators.py".into(),

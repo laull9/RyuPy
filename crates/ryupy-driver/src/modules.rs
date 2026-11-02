@@ -18,6 +18,8 @@ use crate::Session;
 
 /// 一个已解析的源模块。
 pub struct SourceModule {
+    /// 本次resolver选中的绝对lexical路径；不是canonical安全身份证明。
+    pub resolved_source_path: PathBuf,
     /// 点分绝对模块名；入口是 `__main__`。
     pub name: String,
     /// `__package__`。
@@ -114,7 +116,13 @@ fn read_module(
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.display().to_string());
+    let resolved_source_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()?.join(path)
+    };
     Ok(SourceModule {
+        resolved_source_path,
         name: name.to_owned(),
         package: package.to_owned(),
         logical_source: logical_source(name, &display, kind),
@@ -271,6 +279,8 @@ mod logical_source_tests {
                 .unwrap();
             std::fs::write(root.join("left/common.py"), "changed = True\n")?;
             assert_eq!(original.text.as_bytes(), b"value = 'left'\r\n");
+            assert!(original.resolved_source_path.is_absolute());
+            assert_eq!(original.resolved_source_path, root.join("left/common.py"));
             assert!(
                 sources
                     .iter()
@@ -301,6 +311,8 @@ mod logical_source_tests {
                 .find(|source| source.name == "pkg.__init__")
                 .unwrap();
             assert_eq!(package.logical_source, "modules/pkg/__init__.py");
+            assert_eq!(package.resolved_source_path, module.resolved_source_path);
+            assert_eq!(package.resolved_source_path, root.join("pkg/__init__.py"));
             assert_eq!(module.logical_source, "modules/pkg/__init__.py");
             assert_ne!(package.name, module.name);
             // 两个模块身份可对应同一真实源文件；不得虚构第二层__init__位置。

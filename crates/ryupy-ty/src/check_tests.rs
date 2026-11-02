@@ -29,6 +29,7 @@ p.x = 3.0
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),
@@ -62,6 +63,7 @@ v.x = 10
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),
@@ -86,6 +88,7 @@ fn check(src: &str) -> (crate::ModuleTypes, Vec<ryupy_base::Diagnostic>) {
     let (hir, diags) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
             file: "t.py".into(),

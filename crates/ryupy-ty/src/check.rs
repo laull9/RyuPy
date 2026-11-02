@@ -391,6 +391,7 @@ impl FunctionChecker<'_> {
     pub(crate) fn check_expr(&mut self, expr_id: ExprId) -> Ty {
         let expr = &self.func.body.exprs[expr_id];
         let ty = match &expr.kind {
+            ExprKind::ModuleFile(_) => Ty::Str,
             ExprKind::Literal(lit) => match lit {
                 Literal::Int(v) => {
                     if i64::try_from(*v).is_err() {

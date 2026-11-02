@@ -37,6 +37,9 @@ enum Command {
         out_dir: Option<PathBuf>,
         #[arg(long)]
         aot: bool,
+        /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
+        #[arg(long, requires = "aot")]
+        resources: Option<PathBuf>,
         /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
         #[arg(short = 'I', long = "search-path")]
         search_paths: Vec<PathBuf>,
@@ -118,10 +121,11 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             input,
             out_dir,
             aot,
+            resources,
             search_paths,
         } => {
             let out_dir = out_dir.unwrap_or_else(|| default_out_dir(&input));
-            let artifacts = ryupy_driver::build(
+            let artifacts = ryupy_driver::build_with_resources(
                 sess,
                 &BuildOptions {
                     input,
@@ -129,6 +133,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     aot,
                     search_paths,
                 },
+                resources.as_deref(),
             )?;
             eprintln!("已生成 {}", artifacts.dll.display());
             if let Some(exe) = artifacts.native_exe {

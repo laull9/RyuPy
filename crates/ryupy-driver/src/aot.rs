@@ -135,7 +135,7 @@ fn owned_root(out: &Path, input_name: &str) -> Result<(PathBuf, String)> {
 }
 
 pub(crate) fn publish(dll: &Path, out: &Path) -> Result<PathBuf> {
-    Ok(publish_internal(dll, out, None)?.executable)
+    Ok(publish_internal(dll, out, None, None)?.executable)
 }
 
 /// 本次编译入口必须携带真实报告；不能因上下文缺失而悄悄退回低层无清单成功。
@@ -151,8 +151,9 @@ pub(crate) fn publish_with_manifest(
     dll: &Path,
     out: &Path,
     context: &crate::manifest::ManifestContext,
+    resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<ManifestPublication> {
-    let result = publish_internal(dll, out, Some(context))?;
+    let result = publish_internal(dll, out, Some(context), resources)?;
     Ok(ManifestPublication {
         executable: result.executable,
         manifest: result.manifest.context("完整 AOT 发布缺少清单")?,
@@ -163,6 +164,7 @@ fn publish_internal(
     dll: &Path,
     out: &Path,
     context: Option<&crate::manifest::ManifestContext>,
+    resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<Publication> {
     validate_platform()?;
     validate_before_build(dll, true)?;
@@ -177,7 +179,7 @@ fn publish_internal(
         .and_then(|name| name.to_str())
         .context("AOT 输入程序集名必须为 UTF-8")?;
     let (root, host) = owned_root(&out, input_name)?;
-    let result = publish_owned(&root, &host, input_name, &dll, &runtime, context);
+    let result = publish_owned(&root, &host, input_name, &dll, &runtime, context, resources);
     finish_owned(&root, result)
 }
 
@@ -202,8 +204,11 @@ fn publish_owned(
     dll: &Path,
     runtime: &Path,
     context: Option<&crate::manifest::ManifestContext>,
+    resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<Publication> {
     let platform = HostPlatform::current()?;
+    // 冻结失败仍由 finish_owned 清理；SDK 只能看到已经完成的资源快照。
+    let staged = resources.map(|plan| plan.stage(root)).transpose()?;
     let source = root.join("host");
     let publish = root.join("publish");
     std::fs::create_dir(&source)?;
@@ -307,7 +312,13 @@ fn publish_owned(
                 "SDK 发布期间构建输入发生变化"
             );
             context.verify_managed_input(&inputs[0])?;
-            let artifacts = crate::manifest_files::collect(&publish, &executable)?;
+            if let Some(staged) = &staged {
+                staged.publish(&publish)?;
+            }
+            let mut artifacts = crate::manifest_files::collect(&publish, &executable)?;
+            if let Some(staged) = &staged {
+                staged.mark_artifacts(&mut artifacts)?;
+            }
             let bytes = context.render(
                 platform.rid(),
                 platform.native_format(),
@@ -316,6 +327,11 @@ fn publish_owned(
                 &artifacts,
                 &inputs,
             )?;
+            let bytes = if let Some(staged) = &staged {
+                crate::resources::extend_manifest(&bytes, staged)?
+            } else {
+                bytes
+            };
             Some(crate::manifest_files::write_atomic(&publish, &bytes)?)
         } else {
             None

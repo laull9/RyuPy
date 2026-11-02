@@ -33,6 +33,8 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        location: Default::default(),
+        file_backed_by_global: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),

@@ -13,6 +13,7 @@ mod manifest;
 mod manifest_files;
 mod manifest_sdk;
 pub mod modules;
+mod resources;
 pub mod runtime;
 
 use std::path::{Path, PathBuf};
@@ -112,6 +113,7 @@ fn compile_module(
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
+        resolve_file_at_runtime: true,
     };
     let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
         &module.parsed,
@@ -155,8 +157,16 @@ fn compile_linked(
     entry: &Path,
     search_paths: &[PathBuf],
     collect_manifest: bool,
-) -> Result<(ryupy_mir::LinkedProgram, Vec<manifest::SourceSummary>)> {
+    resource_request: Option<&Path>,
+) -> Result<(
+    ryupy_mir::LinkedProgram,
+    Vec<manifest::SourceSummary>,
+    Option<resources::ResourcePlan>,
+)> {
     let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
+    let resource_plan = resource_request
+        .map(|path| resources::ResourcePlan::read(path, &sources))
+        .transpose()?;
     let entry_file = sources[entry_index].parsed.file;
     let native_exceptions: Vec<&str> = [
         "json",
@@ -188,13 +198,30 @@ fn compile_linked(
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),
+                location: if !collect_manifest {
+                    ryupy_mir::ModuleLocation::SourceAbsolute(
+                        module
+                            .resolved_source_path
+                            .to_str()
+                            .context("模块源码绝对路径必须可表示为 UTF-8")?
+                            .to_owned(),
+                    )
+                } else if let Some(relative) = resource_plan
+                    .as_ref()
+                    .and_then(|plan| plan.module_location(index as u32))
+                {
+                    ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
+                } else {
+                    ryupy_mir::ModuleLocation::LegacyDiagnostic
+                },
+                file_backed_by_global: true,
                 exports,
             },
         ));
     }
     let linked = ryupy_mir::link(units, entry_index);
     check_linked_exports(sess, &linked, entry_file)?;
-    Ok((linked, summaries))
+    Ok((linked, summaries, resource_plan))
 }
 
 /// 链接后的导出 guard 也必须验证，避免错误字段 ID 或栈类型进入 codegen。
@@ -236,8 +263,27 @@ fn assembly_name(input: &Path) -> String {
 
 /// 编译一个 `.py` 文件为 `.dll`（可选再做 Native AOT）。
 pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
+    build_with_resources(sess, opts, None)
+}
+
+/// 显式资源仅用于本次 AOT 编译；旧 build/低层 DLL 发布不伪造资源来源。
+pub fn build_with_resources(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    resource_request: Option<&Path>,
+) -> Result<Artifacts> {
+    anyhow::ensure!(
+        resource_request.is_none() || opts.aot,
+        "--resources 仅可与 --aot 同用"
+    );
     aot::validate_before_build(&opts.input, opts.aot)?;
-    let (linked, sources) = compile_linked(sess, &opts.input, &opts.search_paths, opts.aot)?;
+    let (linked, sources, resource_plan) = compile_linked(
+        sess,
+        &opts.input,
+        &opts.search_paths,
+        opts.aot,
+        resource_request,
+    )?;
 
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
@@ -268,7 +314,8 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     runtime::copy_runtime_to(&opts.out_dir)?;
 
     let (native_exe, manifest) = if let Some(context) = context {
-        let published = aot::publish_with_manifest(&dll, &opts.out_dir, &context)?;
+        let published =
+            aot::publish_with_manifest(&dll, &opts.out_dir, &context, resource_plan.as_ref())?;
         (Some(published.executable), Some(published.manifest))
     } else {
         (None, None)
@@ -295,6 +342,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
+        resolve_file_at_runtime: false,
     };
     let native_exceptions = modules::native_exception_modules(input);
     let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
@@ -341,6 +389,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),
+                location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
+                file_backed_by_global: false,
                 exports,
             },
         )],

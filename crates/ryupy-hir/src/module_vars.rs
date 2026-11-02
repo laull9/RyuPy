@@ -148,7 +148,11 @@ impl StmtLowerCtx<'_> {
                 continue;
             };
             let value = self.body.exprs.alloc(Expr {
-                kind: ExprKind::Literal(Literal::Str(value.into())),
+                kind: if name.as_str() == "__file__" && info.resolve_file_at_runtime {
+                    ExprKind::ModuleFile(Name::from(info.name.as_str()))
+                } else {
+                    ExprKind::Literal(Literal::Str(value.into()))
+                },
                 range,
             });
             let id = self.body.stmts.alloc(Stmt {

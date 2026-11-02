@@ -1,4 +1,4 @@
-"""schema1发布清单核验；元数据校验不等于ILC保根/动态依赖闭包证明。"""
+"""schema1/2发布清单核验；元数据校验不等于ILC保根/动态依赖闭包证明。"""
 import argparse
 import json
 from pathlib import Path
@@ -57,8 +57,11 @@ def no_duplicate_keys(pairs):
 
 
 def validate_schema(data, expected_rid, expected_sdk):
-    shape(data, 'schema_version kind compiler target toolchain entry sources modules emitted_delegate_references build_inputs artifacts scope')
-    require(type(data['schema_version']) is int and data['schema_version'] == 1, '未知schema')
+    require(isinstance(data, dict), '清单必须是对象')
+    version = data.get('schema_version')
+    require(type(version) is int and version in (1, 2), '未知schema')
+    keys = 'schema_version kind compiler target toolchain entry sources modules emitted_delegate_references build_inputs artifacts scope'
+    shape(data, keys + (' module_locations resources' if version == 2 else ''))
     require(data['kind'] == 'ryupy-native-aot-artifact', '错误清单kind')
     compiler = data['compiler']
     shape(compiler, 'package_version build_revision codegen_report_version options')
@@ -77,8 +80,12 @@ def validate_schema(data, expected_rid, expected_sdk):
     require(isinstance(sdk, str) and bool(re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*)?', sdk)), 'SDK版本非法')
     require(sdk == expected_sdk, '清单SDK与本次真实publish记录不符')
     require(type(data['toolchain']['target_framework_major']) is int and data['toolchain']['target_framework_major'] == 10, '非当前net10合同')
-    shape(data['scope'], ' '.join(sorted(SCOPE)))
-    require(all(v is False for v in data['scope'].values()), '错误宣称闭包/资源/原生保留或自hash')
+    scope_keys = SCOPE | ({'declared_resources_complete'} if version == 2 else set())
+    shape(data['scope'], ' '.join(sorted(scope_keys)))
+    require(all(data['scope'][key] is False for key in SCOPE - {'resources_included'}),
+            '错误宣称闭包/原生保留或自hash')
+    if version == 1:
+        require(data['scope']['resources_included'] is False, 'schema1不含声明资源')
     for name in ('sources', 'modules', 'emitted_delegate_references', 'build_inputs', 'artifacts'):
         require(isinstance(data[name], list), f'{name}必须是数组')
     require(bool(data['sources']), '没有源码模块')
@@ -134,8 +141,12 @@ def validate_schema(data, expected_rid, expected_sdk):
     require({(x['relative_path'], x['role']) for x in data['build_inputs']} ==
             {('managed-entry.dll','compiled_managed_input'), ('RyuPy.Runtime.dll','runtime_managed_input')}
             and len(data['build_inputs']) == 2, '托管输入名称/角色不符')
-    require(all(x['role'] in ('native_executable', 'unclassified_sidecar') for x in data['artifacts']), '未知发布角色')
+    roles = {'native_executable', 'unclassified_sidecar'} | ({'declared_resource'} if version == 2 else set())
+    require(all(x['role'] in roles for x in data['artifacts']), '未知发布角色')
     require(sum(x['role'] == 'native_executable' for x in data['artifacts']) == 1, '需要唯一native')
+    if version == 2:
+        from resource_manifest import validate_resources
+        validate_resources(data)
 
 
 def image_header(path, rid):
@@ -210,7 +221,8 @@ def dependency_binaries(root, data):
     paths = []
     for item in data['artifacts']:
         name = item['relative_path']
-        if item['role'] == 'native_executable' or re.search(r'(?:\.so(?:\.[0-9]+)*|\.dylib|\.dll)$', name, re.I):
+        if item['role'] == 'native_executable' or (item['role'] == 'unclassified_sidecar'
+                and re.search(r'(?:\.so(?:\.[0-9]+)*|\.dylib|\.dll)$', name, re.I)):
             paths.append(Path(root)/name)
     return paths
 

@@ -207,6 +207,24 @@ pub(crate) fn append_module_registration(
         instructions.push(Instruction::load_string(module.name.clone()));
         instructions.push(Instruction::load_string(module.package.clone()));
         instructions.push(Instruction::load_string(module.file.clone()));
+        // 实际构建显式启用定位及公开槽；旧dump保原Register指令。
+        let located = module.file_backed_by_global
+            || !matches!(
+                &module.location,
+                ryupy_mir::ModuleLocation::LegacyDiagnostic
+            );
+        if located {
+            let (kind, value) = match &module.location {
+                ryupy_mir::ModuleLocation::LegacyDiagnostic => (0, ""),
+                ryupy_mir::ModuleLocation::SourceAbsolute(value) => (1, value.as_str()),
+                ryupy_mir::ModuleLocation::ExecutableRelative(value) => (2, value.as_str()),
+            };
+            instructions.push(Instruction::LoadConstantInt64(kind));
+            instructions.push(Instruction::load_string(value));
+            instructions.push(Instruction::LoadConstantInt32(i32::from(
+                module.file_backed_by_global,
+            )));
+        }
         for (method, ctor) in [
             (fn_indices[&module.init], refs.module_init_ctor),
             (accessors.getters[index], refs.module_get_ctor),
@@ -218,7 +236,11 @@ pub(crate) fn append_module_registration(
             )));
             instructions.push(Instruction::NewObject(UserMethod::Reference(ctor)));
         }
-        instructions.push(Instruction::call(refs.module_register));
+        instructions.push(Instruction::call(if located {
+            refs.module_register_located
+        } else {
+            refs.module_register
+        }));
     }
     instructions.push(Instruction::Return);
     method.header.maximum_stack_size = 32;

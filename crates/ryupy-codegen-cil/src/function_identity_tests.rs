@@ -61,6 +61,8 @@ fn original_function_identity_is_duplicated_before_module_execution() {
     functions.alloc(target);
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        location: Default::default(),
+        file_backed_by_global: false,
         protected_exports: vec![],
         name: "__main__".into(),
         package: String::new(),

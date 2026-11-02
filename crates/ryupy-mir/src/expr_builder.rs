@@ -170,6 +170,21 @@ impl<'a> ExprBuilder<'a> {
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let expr = &hir_body.exprs[expr_id];
         match &expr.kind {
+            ExprKind::ModuleFile(name) => {
+                let dest = self.alloc_temp(MirType::Str);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ModuleFile),
+                        args: vec![Operand::Const(Constant::Str(name.as_str().into()))],
+                    },
+                });
+                if self.is_dynamic_context() {
+                    self.coerce(Operand::Local(dest), &Ty::Str, &MirType::Dynamic)
+                } else {
+                    Operand::Local(dest)
+                }
+            }
             ExprKind::Literal(lit) => self.build_literal(lit),
             ExprKind::Yield(value) => self.build_yield_expr(*value),
             ExprKind::YieldFrom(value) => self.build_yield_from(*value),

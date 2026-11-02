@@ -112,3 +112,6 @@ mod numeric_list_tests;
 mod vector_refs;
 #[cfg(test)]
 mod vector_tests;
+
+#[cfg(test)]
+mod module_location_tests;

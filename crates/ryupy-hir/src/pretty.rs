@@ -391,6 +391,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .unwrap_or_else(|| "None".to_owned())
         ),
         ExprKind::UnresolvedGlobal(name) => format!("<unresolved {name}>"),
+        ExprKind::ModuleFile(name) => format!("module_file({name})"),
         ExprKind::Missing => "<missing>".to_string(),
         ExprKind::Literal(lit) => match lit {
             Literal::Int(v) => v.to_string(),
