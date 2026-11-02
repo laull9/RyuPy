@@ -1,9 +1,9 @@
 # macOS / Windows 同宿主 NativeAOT 首切
 
-状态：WIP首实现；Linux本地6项新平台纯测试及3项旧AOT专项通过，完整门禁
-445 C#/226固定CP/200 e2e+30 ignored通过，无快照更新。工具轻测本机3通过/4平台专属跳过，
-不把跳过计成功。真实macOS/Windows ILC/
-迁移尚未验收，不据RID开关宣布支持。
+状态：固定双平台真实发布/搬迁已通过，源7443c78，CI41425715952两job成功；
+Linux七配置同提交通过。完整本机门禁454 C#/226固定CP/200 e2e+30 ignored通过。
+[最终精简证据](../../docs/validation/aot-host-platforms/README.md)保实际范围与失败历史；
+SDK仍安装的hosted runner不冒无运行时干净目标机。
 本切不改变 runtime ABI、生成程序入口或裁剪保根规则，不重新展开兼容性长尾。
 
 ## 固定平台与交付

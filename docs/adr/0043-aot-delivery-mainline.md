@@ -1,6 +1,6 @@
 # ADR0043：AOT作为持续性能与交付主线
 
-状态：用户已批准方向；除已归档Linux CLI首切外，下列分阶段能力为计划。
+状态：用户已批准方向；已归档的有限子项与未完成阶段分开记录。
 日期：2026-11-02。
 
 ## 用户目标与当前事实
@@ -11,8 +11,7 @@
 
 当前已验：M3.10生成CIL、静态桩、Linux x64 glibc公开CLI --aot、裁剪警告阻断、
 模块/闭包/生成器/用户异常/argv/退出码及无dotnet/Python容器搬迁。见ADR0005及
-[真实CLI证据](../validation/aot-driver-ci/README.md)。其它平台、完整资源打包与性能
-结论尚未验收；仍依赖已披露的Linux系统库。
+[真实CLI证据](../validation/aot-driver-ci/README.md)。macOS arm64/Windows x64 MSVC同宿主发布搬迁亦通过[有限平台验收](../validation/aot-host-platforms/README.md)，但未完成两平台无SDK/Python干净目标机验证。固定性能基线及I64短Add链见ADR0044，不外推其它负载；完整资源打包仍未实现，产物依赖已披露系统库。
 
 ## 对标的是交付能力，不是声称兼容等同
 
@@ -25,11 +24,11 @@
 
 | 子项 | 实际验收条件 | 当前状态 |
 | --- | --- | --- |
-| N0 原生发布 | 真CLI→ILC→搬迁；原args/exit/错误；无托管运行时 | Linux x64 glibc有限通过 |
-| N1 裁剪安全覆盖 | 既有动态类/属性/函数、BigInt、容器退化及ISA分支正负差分；缺根明确诊断 | 待扩固定小矩阵 |
-| N2 性能与代码生成 | 同源同规模JIT/AOT cold/hot、分配/GC/内存/体积/构建成本；实际代码证据 | 待配对基线与有界热点优化 |
+| N0 原生发布 | 真CLI→ILC→搬迁；原args/exit/错误；无托管运行时 | Linux x64 glibc、Mac arm64、Windows x64 MSVC有限同宿主通过 |
+| N1 裁剪安全覆盖 | 既有动态类/属性/函数、BigInt、容器退化及ISA分支正负差分；缺根明确诊断 | 七配置固定差分通过；ISA-off/更多协议仍待 |
+| N2 性能与代码生成 | 同源同规模JIT/AOT cold/hot、分配/GC/内存/体积/构建成本；实际代码证据 | 81基线与180配对、I64有限默认通过；持续热点独立验收 |
 | N3 standalone目录 | 明确输出清单与依赖、包资源选择/哈希/许可、可搬迁相对布局、失败原子性 | 待实现，当前仅native publish目录 |
-| N4 平台交付 | 各OS/架构/ABI的真实工具链与干净目标环境CI，未知组合拒绝 | 仅Linux x64 glibc已验 |
+| N4 平台交付 | 各OS/架构/ABI的真实工具链与干净目标环境CI，未知组合拒绝 | Linux容器已验；Mac/Windows真ILC搬迁通过，干净目标机仍待 |
 | N5 onefile | 在目录发布成熟后另验启动/解包/缓存/清理/并发/资源寻址与体积 | 独立未来项，不先假嵌入 |
 | B 桥接AOT | libpython/扩展/stdlib依赖、生命周期与跨边界诊断独立验收 | 未实现，不混入N项 |
 

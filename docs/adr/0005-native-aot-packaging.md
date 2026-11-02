@@ -1,6 +1,6 @@
 # ADR-0005：Native AOT 打包方式
 
-- 状态：方案 A 有限首实现已通过真实 CLI 实测（Linux x64 glibc；不代表整 AOT 里程碑完成）
+- 状态：方案 A 有限首实现已通过真实 CLI 实测（Linux x64 glibc、macOS arm64与Windows x64 MSVC有限同宿主；不代表整 AOT 里程碑完成）
 - 日期：2026-10-31
 
 ## 背景
@@ -45,7 +45,7 @@ internal static class Program
 
 ## 倾向
 
-采用 A 的有限首实现。现有 CI 已验证独立薄宿主的真实 ILC 与运行时无 dotnet 的容器行为；随后真实 CLI CI41402483694亦通过，独立证据见 `../validation/aot-driver-ci/README.md`，不是把前者当作CLI结果。只支持本机 Linux x64 glibc，固定 `linux-x64`，其它平台与交叉发布明确拒绝。
+采用 A 的有限首实现。现有 CI 已验证独立薄宿主的真实 ILC 与运行时无 dotnet 的容器行为；随后真实 CLI CI41402483694亦通过，独立证据见 `../validation/aot-driver-ci/README.md`，不是把前者当作CLI结果。后续7443c78已验证macOS arm64和Windows x64 MSVC同宿主CLI/ILC/搬迁，见[平台证据](../validation/aot-host-platforms/README.md)。只允许三个明确host/RID，未知组合与交叉发布拒绝；Mac/Windows仍待无SDK/Python干净目标机验证。
 
 ## 后果
 
@@ -61,4 +61,4 @@ internal static class Program
 - 成功 SDK stdout/stderr 按原始 bytes 保存到根目录 `publish.stdout.log` / `publish.stderr.log`。日志写入或产物校验失败也算失败；不能只有 SDK exit0 就返回成功。
 - 失败诊断包含 SDK 退出状态以及两流的完整 **UTF-8 lossy 文本**，不是原始 bytes 无损归档；CLI/CI 负责保存该诊断。失败清理仅本次独占创建的根，清理失败附加报告，不返回旧 native 路径。
 - `RyuPy.Runtime` 为所有构建的程序集保留名（忽略 ASCII 大小写），必须在任何产物写入前拒绝，防止用户 DLL 与部署运行时相互覆盖；其它旧文件不得因该拒绝改变。
-- 不改 JIT 语义、浮点规则或 globalization；不宣称跨平台、桥接 AOT 或完整性能优化已实现。
+- 不改 JIT 语义、浮点规则或 globalization；不宣称任意平台、桥接 AOT 或完整性能优化已实现。

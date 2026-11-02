@@ -31,7 +31,7 @@
 | Phase 4 | 以 NumPy 为首的非纯 Python 模块可引入性 | 在明确的 Python / 扩展 / 平台组合上完成导入、基本调用与错误传播 |
 | Phase 5 | 兼容性清单、显式记录的偏差、交付工具链 | 发布可运行项目清单、失败原因和部署依赖；独立验证 Native AOT |
 
-旧 M1.6 的 Native AOT 已转入 M5.2；Linux x64 glibc有限CLI发布与搬迁已验收，资源/平台/性能与桥接各子项仍继续；矩阵乘法和 N-Body 留到有容器后补齐。调整阶段归属不代表这些任务已经完成。
+旧 M1.6 的 Native AOT 已转入 M5.2；Linux x64 glibc及macOS arm64/Windows x64 MSVC有限同宿主CLI发布与搬迁已验收（[平台证据](validation/aot-host-platforms/README.md)）；Mac/Windows无SDK干净目标机、资源/更多平台/性能与桥接各子项仍继续；矩阵乘法和 N-Body 留到有容器后补齐。调整阶段归属不代表这些任务已经完成。
 
 ## Phase 2：动态核心、容器、普通 class、异常、模块系统
 
