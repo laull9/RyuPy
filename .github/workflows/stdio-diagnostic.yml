@@ -1,0 +1,64 @@
+name: macOS fixed interactive stdin diagnostic
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/stdio-diagnostic.yml'
+      - 'tests/interactive/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-stdio:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: diagnostic
+      - uses: actions/checkout@v4
+        with:
+          ref: 457886017cd4d32911a09b09307d07c327b87192
+          path: product
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: product -> target
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.4'
+          enable-cache: false
+      - name: Fixed CPython and independently rebuilt main product
+        working-directory: product
+        env:
+          MSBUILDDISABLENODEREUSE: '1'
+          DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+          UseSharedCompilation: 'false'
+        run: |
+          uv python install 3.12.13
+          echo "PYTHON=$(uv python find 3.12.13)" >> "$GITHUB_ENV"
+          dotnet build runtime/RyuPy.Runtime -c Release -t:Rebuild -nologo -v q
+          cargo clean -p ryupy-cli
+          cargo build -p ryupy-cli --locked
+      - name: Fixed pipe and prompt-driven PTY comparison (not the user original file)
+        timeout-minutes: 3
+        run: |
+          "$PYTHON" diagnostic/tests/interactive/stdio_probe.py \
+            --cli "$PWD/product/target/debug/ryupy" --python "$PYTHON" \
+            --runtime-dir "$PWD/product/runtime/RyuPy.Runtime/bin/Release/net10.0" \
+            --out "$PWD/diagnostic/target/stdio-diagnostic"
+      - name: Preserve raw terminal evidence without modifying terminal policy
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-stdio-main4578860-${{ github.sha }}
+          path: diagnostic/target/stdio-diagnostic
+          if-no-files-found: warn
+          retention-days: 14
