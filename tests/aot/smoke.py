@@ -11,6 +11,7 @@ import signal
 import shutil
 import subprocess
 import tempfile
+import time
 from manifest_verify import published_manifest, read_sdk_version, relocate_manifest, dependency_binaries
 
 
@@ -104,6 +105,9 @@ def published_native(stderr, output):
 
 
 def main():
+    from single_file import prepare_single_file, verify_single_file
+    # 局部导入避免platform_runner继承本模块Runner形成顶层循环；不改共享默认预算。
+    from platform_runner import Runner as DeadlineRunner
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--python", default="python3.12")
@@ -120,7 +124,7 @@ def main():
     logs = work / "logs"
     logs.mkdir()
     print(f"本轮产物与日志：{work}", flush=True)
-    run = Runner(logs)
+    run = DeadlineRunner(logs, deadline=time.monotonic() + 30 * 60)
     python, dotnet, ryupy = map(executable, [args.python, args.dotnet, args.ryupy])
     version = run.run("python-version", [python, "-c",
                       "import sys; print(sys.implementation.name); print('.'.join(map(str,sys.version_info[:3])))"],
@@ -180,10 +184,36 @@ def main():
                          "--workdir", "/app", "--entrypoint", "/bin/sh", IMAGE,
                          "-c", script, "aot-smoke", "/app/" + binary.name, *values], cwd=work, timeout=300)
         compare(jit[mode], result, mode)
+    # 容器只挂裸exe目录；完整搬迁产物仍归档但不在此容器可见树中。
+    assert artifact_manifest['schema_version'] == 1
+    assert artifact_manifest['scope']['resources_included'] is False
+    expected_hash = next(item['sha256'] for item in artifact_manifest['artifacts']
+                         if item['role'] == 'native_executable')
+    single, single_record = prepare_single_file(binary, work, (source, il), expected_hash)
+    single_record['mode_exits'] = {}
+    single_record['status'] = 'failed'
+    single_record['scope'] = 'only executable mounted in runtime-deps container'
+    single_record['clean_machine_without_runtime_tested'] = True
+    try:
+        for mode, values in MODES.items():
+            actual = run.run(f"single-docker-{mode}", [docker, "run", "--rm", "--network", "none",
+                "--read-only", "--mount", f"type=bind,src={single.parent},dst=/app,readonly",
+                "--workdir", "/app", "--entrypoint", "/bin/sh", IMAGE,
+                "-c", script, "aot-single", "/app/" + single.name, *values], cwd=work, timeout=30)
+            compare(jit[mode], actual, mode)
+            single_record['mode_exits'][mode] = actual.returncode
+        single_record['after_run'] = verify_single_file(single, expected_hash)
+        single_record['status'] = 'passed'
+    except BaseException as error:
+        single_record.update(status='failed', failure=repr(error))
+        raise
+    finally:
+        (work/'single-executable-result.json').write_text(json.dumps(single_record, indent=2))
     (work / "result.json").write_text(json.dumps({"python_jit_native_relocated": "passed",
                                                 "rid": args.rid, "image": IMAGE,
                                                 "manifest_sha256": hashlib.sha256((relocated / "ryupy-artifact.json").read_bytes()).hexdigest(),
-                                                "sdk_version": sdk_version}, indent=2))
+                                                "sdk_version": sdk_version,
+                                                "single_executable": single_record}, indent=2))
 
 
 if __name__ == "__main__":
