@@ -75,3 +75,14 @@ Windows shell及两平台迁移仍须新的真实CI，不以Linux轻测替代。
 `core.longpaths=true`；不修改系统注册表、安全策略、锁定依赖或凭据。依据
 [Cargo官方问题记录](https://github.com/rust-lang/cargo/issues/13141)，不以缩删依赖
 源码或静默跳过文件绕过。修后Windows结果仍待实际CI。
+
+第三轮CI41422305992：macOS再次通过；Windows已构建CLI并运行CP/JIT，首次产品
+差异是默认标准文本输出：CP104B含11个CRLF，JIT93B仅LF，内容/顺序完全相同。
+不归一化比较器；修复限定PyStandardStream的Windows每LF翻译，并加原码点计数、
+CRLF/孤CR、一次write、原Format/替换流边界专测；两平台在ILC前执行这组及旧CR输入回归。
+该失败仍未到Windows ILC。fixture仅按路径固定LF checkout保证源码hash，不改期望。
+显式RUSTUP_TOOLCHAIN=1.99.1锁后续真实工具选择，不改写此前Mac实际1.98证据。
+
+标准输出窄修本机20项专项通过，完整make check退出0：454 C#/226固定CP/200 e2e
++30 ignored，fmt/clippy/Rust门禁通过，无快照更新。Windows策略纯测试不替代实际
+Windows默认流验证，下一CI仍按原CP/JIT/native逐字比较与真实ILC验收。

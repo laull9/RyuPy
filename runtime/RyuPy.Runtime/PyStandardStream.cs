@@ -25,7 +25,16 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     {
         CheckOpen();
         if (_writer is null) throw new PyUnsupportedOperation("not writable");
-        PyIO.Guard(() => { _writer.Write(text); return PyNone.Instance; });
+        PyIO.Guard(() => { _writer.Write(TranslateOutput(text, OperatingSystem.IsWindows())); return PyNone.Instance; });
+    }
+
+    /// <summary>标准输出 newline=None 的宿主策略；纯函数参数允许在 Unix 验证 Windows 分支。</summary>
+    /// <remarks>每个 LF 都翻译，包括已有 CRLF；不读取 TextWriter.NewLine，也不改用户替换的输出对象。</remarks>
+    public static string TranslateOutput(string text, bool windows)
+    {
+        // Unix 常见路径与 Windows 无 LF 路径原样返回，不分配新文本。
+        if (!windows || text.IndexOf('\n') < 0) return text;
+        return text.Replace("\n", "\r\n", StringComparison.Ordinal);
     }
 
     /// <summary>显式刷新输出。</summary>

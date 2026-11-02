@@ -11,7 +11,7 @@ namespace RyuPy.Runtime;
 /// </summary>
 /// <remarks>
 /// <c>print(a, b)</c> 被编译为 <c>WriteI64(a); WriteSep(); WriteF64(b); WriteNewline();</c>。
-/// 输出统一使用 <c>\n</c>（而非平台相关的 <c>Environment.NewLine</c>），保证与 CPython 逐字节一致。
+/// 输出逻辑换行 <c>\n</c>，由标准文本流执行宿主平台翻译；用户替换的输出流仍按其 write 协议接收原文本。
 ///
 /// # 为什么要自己缓冲
 ///
