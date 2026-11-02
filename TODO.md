@@ -588,10 +588,11 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [x] [ADR0044](docs/adr/0044-guarded-integer-add-chain.md)：actual-I64短Add链有限默认；180进程同runner配对与合并后445/226/200+30门禁、AOT七配置通过，保留失败路径及冷启动负结果
 - [ ] N3：通用standalone目录清单、资源/原生依赖收集、许可/哈希/诊断和真实搬迁
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
+  - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
 - [ ] N5：目录交付成熟后独立评估onefile；解包/缓存/清理/资源寻址和性能另验
 - [ ] B：桥接AOT仍独立验收libpython/扩展/stdlib部署，不因N项通过勾完成
 
-- [x] driver 按 ADR-0005 方案 A 实现 `publish_aot`：Linux x64 glibc 有限首切已通过真实 CLI ILC 与无 dotnet/Python 容器搬迁（[证据](docs/validation/aot-driver-ci/README.md)）；其它平台、性能全矩阵与桥接不计完成，不直接调用 ilc
+- [x] driver 按 ADR-0005 方案 A 实现 `publish_aot`：Linux x64 glibc 有限首切已通过真实 CLI ILC 与无 dotnet/Python 容器搬迁（[证据](docs/validation/aot-driver-ci/README.md)）；Mac arm64/Windows x64 MSVC有限同宿主已扩验，未知平台、性能全矩阵与桥接不计完成，不直接调用 ilc
 - [ ] `ryupy build --aot` 端到端可用，分平台记录工具链、构建时间、体积、启动与行为
 - [ ] 原生产物在免装 Python / .NET 的目标环境验证；桥接产物另验 libpython / 标准库 / 扩展依赖，禁止声称零外部依赖
 - [ ] 验证异常、模块注册和静态可达元数据在裁剪后仍正确；发布命令与实际 CLI 一致

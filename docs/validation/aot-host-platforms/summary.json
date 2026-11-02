@@ -1,0 +1,197 @@
+{
+  "source_commit": "7443c78c6f11143de80023963e738ea4b10d0581",
+  "ci_run_id": 41425715952,
+  "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41425715952",
+  "limits": [
+    "仅四个固定smoke模式，不作为广泛兼容性或性能证据。",
+    "搬迁原生程序在仍装SDK的hosted runner运行，不声称无运行时干净目标机。",
+    "原生依赖采用静态审计，不穷尽排除任意动态加载。",
+    "不涵盖macOS签名/公证/发行或跨OS版本与架构。"
+  ],
+  "platforms": {
+    "osx-arm64": {
+      "rid": "osx-arm64",
+      "host": {
+        "os": "Darwin",
+        "arch": "arm64",
+        "platform": "macOS-14.8.9-arm64-arm-64bit",
+        "image_os": "macos14",
+        "image_version": "20260831.0302.1"
+      },
+      "status": "passed",
+      "clean_machine_without_runtime_tested": false,
+      "scope": "relocated native on SDK-installed hosted runner, restricted environment",
+      "toolchain_architecture": {
+        "dotnet_architectures": [
+          "arm64"
+        ],
+        "dotnet_rids": [
+          "osx-arm64"
+        ],
+        "rust_host": "aarch64-apple-darwin"
+      },
+      "cli_sha256": "42a8cb61d3ed4b84cda17dec98c147a96d7e98b52d8f09bebc346c079a4cc19f",
+      "source_hashes": {
+        "main.py": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+        "state.py": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17"
+      },
+      "il_sha256": "84241306e4840388fd3a4534e0ab2b68947f4306ba388fdf83b1af6c17ac30be",
+      "runtime_sha256": "714f183edacd063b3e12a7c48b58ef58f08f277ab2c0c67ba3fcb8b082c6ef79",
+      "aot_il_sha256": "84241306e4840388fd3a4534e0ab2b68947f4306ba388fdf83b1af6c17ac30be",
+      "aot_runtime_sha256": "714f183edacd063b3e12a7c48b58ef58f08f277ab2c0c67ba3fcb8b082c6ef79",
+      "deployment_manifest": [
+        {
+          "name": "RyuPyAotHost_5968_1793613934667708000_0",
+          "bytes": 4438808,
+          "sha256": "e5b984df01006122264c108485d39351142be22577885b892e6b07d75c44e348"
+        }
+      ],
+      "dependencies": [
+        {
+          "file": "RyuPyAotHost_5968_1793613934667708000_0",
+          "dependencies": [
+            "/usr/lib/libSystem.B.dylib",
+            "/usr/lib/libobjc.A.dylib",
+            "/usr/lib/swift/libswiftCore.dylib",
+            "/usr/lib/swift/libswiftFoundation.dylib",
+            "/usr/lib/libicucore.A.dylib",
+            "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+            "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+            "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+            "/System/Library/Frameworks/Network.framework/Versions/A/Network",
+            "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+            "/System/Library/Frameworks/GSS.framework/Versions/A/GSS"
+          ]
+        }
+      ],
+      "owned_build_inputs_removed": true,
+      "python_jit_native_relocated": "passed",
+      "raw_result_sha256": "ca20fad442e9642237060d9938b130d714b14f0de0a2809a0ec0f86a32390033",
+      "artifact_name": "native-aot-osx-arm64-7443c78c6f11143de80023963e738ea4b10d0581",
+      "actual_tool_versions": {
+        "cpython": [
+          "cpython",
+          "3.12.13"
+        ],
+        "dotnet_sdk": "10.0.403",
+        "dotnet_host": "10.0.14",
+        "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "rust_host": "aarch64-apple-darwin",
+        "xcode": "Xcode 15.4",
+        "clang": "Apple clang version 15.0.0 (clang-1500.3.9.4)"
+      },
+      "mode_exit_states": {
+        "python": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "jit": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "native": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        }
+      }
+    },
+    "win-x64": {
+      "rid": "win-x64",
+      "host": {
+        "os": "Windows",
+        "arch": "amd64",
+        "platform": "Windows-2022Server-10.0.20348-SP0",
+        "image_os": "win22",
+        "image_version": "20261026.347.1"
+      },
+      "status": "passed",
+      "clean_machine_without_runtime_tested": false,
+      "scope": "relocated native on SDK-installed hosted runner, restricted environment",
+      "toolchain_architecture": {
+        "dotnet_architectures": [
+          "x64"
+        ],
+        "dotnet_rids": [
+          "win-x64"
+        ],
+        "rust_host": "x86_64-pc-windows-msvc"
+      },
+      "cli_sha256": "bfc99cfc4abca6132e7f99e673ff71a1d14d9fc0370eb7aa69b495310aef74a3",
+      "source_hashes": {
+        "main.py": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+        "state.py": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17"
+      },
+      "il_sha256": "8ba9a12d3a20150bd8c42bd059af52c9279e4c316c9cb2ca2811719c0b4f1eb1",
+      "runtime_sha256": "bfd572be44a12b2d724a55057bf90464df75928cae37ff0eca4c50231fa9ac44",
+      "aot_il_sha256": "e0e0da151864d8eed779853007a19b88a2edc5d065d2911d5c28b688c72cd8cc",
+      "aot_runtime_sha256": "bfd572be44a12b2d724a55057bf90464df75928cae37ff0eca4c50231fa9ac44",
+      "deployment_manifest": [
+        {
+          "name": "RyuPyAotHost_7516_1793614090327285300_0.exe",
+          "bytes": 4584960,
+          "sha256": "9a945e420f48fa7b17f24339706916d7ee424bca97c45f05f1d071fe8ad00ed4"
+        }
+      ],
+      "dependencies": [
+        {
+          "file": "RyuPyAotHost_7516_1793614090327285300_0.exe",
+          "dependencies": [
+            "ADVAPI32.dll",
+            "bcrypt.dll",
+            "KERNEL32.dll",
+            "ole32.dll",
+            "USER32.dll",
+            "api-ms-win-crt-math-l1-1-0.dll",
+            "api-ms-win-crt-heap-l1-1-0.dll",
+            "api-ms-win-crt-string-l1-1-0.dll",
+            "api-ms-win-crt-convert-l1-1-0.dll",
+            "api-ms-win-crt-stdio-l1-1-0.dll",
+            "api-ms-win-crt-runtime-l1-1-0.dll",
+            "api-ms-win-crt-locale-l1-1-0.dll"
+          ]
+        }
+      ],
+      "owned_build_inputs_removed": true,
+      "python_jit_native_relocated": "passed",
+      "raw_result_sha256": "6b42add7cc37afc2fba3376f317659aecdc490584632fe084a9028ee0714c327",
+      "artifact_name": "native-aot-win-x64-7443c78c6f11143de80023963e738ea4b10d0581",
+      "actual_tool_versions": {
+        "cpython": [
+          "cpython",
+          "3.12.13"
+        ],
+        "dotnet_sdk": "10.0.403",
+        "dotnet_host": "10.0.14",
+        "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "rust_host": "x86_64-pc-windows-msvc",
+        "dumpbin": "Microsoft (R) COFF/PE Dumper Version 14.44.35229.0"
+      },
+      "mode_exit_states": {
+        "python": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "jit": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "native": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        }
+      }
+    }
+  }
+}
