@@ -1,4 +1,4 @@
-# 固定裁剪语义与SLP策略覆盖（待真实CI）
+# 固定裁剪语义与SLP策略覆盖（首次真实CI通过）
 
 本组是ADR0043 N1增量，不是性能验收。保留原完整e2e源码与固定CPython3.12.13期望：
 
@@ -20,5 +20,5 @@ AOT ISA-off与NaN payload位级矩阵尚未验，不能用JIT环境变量假证�
 
 每项保源码与native哈希、大小和构建墙钟（仅观测，不冒性能收益）；成功后只删该项自有
 host/bin、obj缓存，保项目/Program/CIL/runtime/native与SDK日志。失败保诊断树，原始记录
-仅在本地target及Actions工件，不新增Git raw logs。当前本地只有语法、超时自测及smoke
-prepare-only通过，7ILC真实结果待CI。
+仅在本地target及Actions工件，不新增Git raw logs。本地语法、超时自测及smoke
+prepare-only通过后，真实CI41405464604七配置全通过，见[摘要](../../docs/validation/aot-coverage/README.md)。
