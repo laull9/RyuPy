@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/aot-smoke.yml'
       - 'tests/aot/smoke.py'
+      - 'tests/aot/single_file.py'
+      - 'tests/aot/test_single_file.py'
       - 'tests/aot/manifest_*.py'
       - 'tests/aot/test_manifest_*.py'
       - 'tests/aot/coverage.py'
@@ -42,6 +44,8 @@ jobs:
         run: python -m unittest discover -s tests/aot -p "test_manifest_*.py"
       - name: Explicit resource verifier regressions
         run: python -m unittest discover -s tests/aot -p "test_resource_*.py"
+      - name: Single executable copy and identity regressions
+        run: python -m unittest discover -s tests/aot -p "test_single_file.py"
       - name: Native prerequisites
         run: |
           sudo apt-get update
@@ -56,6 +60,7 @@ jobs:
           dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests|FullyQualifiedName~PyIOErrorFramesTests|FullyQualifiedName~PyWindowsPathTests"
           cargo test -p ryupy-driver --locked resources
       - name: Real ILC, behavior and runtime-free relocation
+        timeout-minutes: 32
         run: python tests/aot/smoke.py --out target/aot-smoke
       - name: Fixed AOT trimming and explicit SLP coverage (7 publishes)
         timeout-minutes: 22

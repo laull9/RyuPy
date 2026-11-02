@@ -13,6 +13,7 @@ import tempfile
 import time
 from smoke import MODES, compare, executable, published_native
 from platform_runner import Runner
+from single_file import prepare_single_file, verify_single_file
 from platform_support import host, audit, clean_environment
 from manifest_verify import published_manifest, read_sdk_version, relocate_manifest, dependency_binaries
 
@@ -151,6 +152,24 @@ def main():
         for mode, values in MODES.items():
             actual = run.run(f'native-{mode}', [str(binary), *values], cwd=relocated, env=clean, timeout=30)
             compare(jit[mode], actual, mode)
+        # 复用同一次ILC，只测无相邻manifest/debug/native DLL的独立exe目录。
+        assert artifact_manifest['schema_version'] == 1
+        assert artifact_manifest['scope']['resources_included'] is False
+        expected_hash = next(item['sha256'] for item in artifact_manifest['artifacts']
+                             if item['role'] == 'native_executable')
+        single, single_record = prepare_single_file(binary, work, (source, il), expected_hash)
+        single_record['mode_exits'] = {}
+        single_record['status'] = 'failed'
+        single_record['scope'] = 'no adjacent sidecars; SDK-installed host remains accessible'
+        single_record['clean_machine_without_runtime_tested'] = False
+        result['single_executable'] = single_record
+        for mode, values in MODES.items():
+            actual = run.run(f'single-native-{mode}', [str(single), *values],
+                             cwd=single.parent, env=clean, timeout=30)
+            compare(jit[mode], actual, mode)
+            single_record['mode_exits'][mode] = actual.returncode
+        single_record['after_run'] = verify_single_file(single, expected_hash)
+        single_record['status'] = 'passed'
         result['status'] = 'passed'
         result['python_jit_native_relocated'] = 'passed'
     except BaseException as error:
