@@ -28,6 +28,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12.13'
+      - name: Runner timeout process-group regression
+        run: python tests/aot/test_runner.py
       - name: Native prerequisites
         run: |
           sudo apt-get update
@@ -39,6 +41,9 @@ jobs:
           cargo build -p ryupy-cli --locked
       - name: Real ILC, behavior and runtime-free relocation
         run: python tests/aot/smoke.py --out target/aot-smoke
+      - name: Fixed AOT trimming and explicit SLP coverage (7 publishes)
+        timeout-minutes: 22
+        run: python tests/aot/coverage.py --out target/aot-smoke/coverage
       - name: Preserve actual evidence, including failure
         if: always()
         uses: actions/upload-artifact@v4
