@@ -38,6 +38,18 @@ Intrinsics仍仅向量程序建立。真实emit→parse PE测试检查版本/tok
 fmt/clippy/全部Rust单元与driver快照也通过。11个codegen测试含新PE身份测试；
 SLP packed/scalar/ISA-off与2000项位模式payload专项共3个driver测试原断言通过。
 真实生成DLL输出3。首SLP专项因调用时未选固定Python而使用环境3.12.14，版本断言失败；
-`first-regression.log`保留，修复仅设置PYTHON到已安装3.12.13，没有改源码/断言。
+`first-regression.log`在下方Git历史保留，修复仅设置PYTHON到已安装3.12.13，没有改源码/断言。
 
 上述是程序集身份修的语义/JIT门禁，不是AOT发布或性能提升验收。
+
+## 原始记录归档
+
+当前目录仅保留人工摘要、已有结果JSON及验证工具（如有），不再跟踪运行日志。
+本文提到的原始日志/命令/状态/逐项结果可从提交 `16cf490dc6678763d695c9d54708b70e7dabeff5` 的
+[`docs/validation/aot-reference-identity/`](https://github.com/laull9/RyuPy/tree/16cf490dc6678763d695c9d54708b70e7dabeff5/docs/validation/aot-reference-identity) 恢复；例如：
+
+```bash
+git show 16cf490dc6678763d695c9d54708b70e7dabeff5:docs/validation/aot-reference-identity/after-host-compile.log
+```
+
+后续运行产物应写入忽略的 `target/`，CI链接保留用于定位运行；Actions工件当前仅保留14天，不能视为永久归档。

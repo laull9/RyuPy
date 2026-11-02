@@ -17,3 +17,11 @@ __pycache__/
 
 # 抓取的项目源码（tests/fetch_projects.py 生成，锁定信息在 tests/projects/lock.tsv）
 /third_party/projects/
+
+# AOT运行记录保留于Git历史/CI；新运行输出写入target，不混入摘要目录。
+/docs/validation/aot-driver-ci/logs/
+/docs/validation/aot-smoke-ci/logs/
+/docs/validation/aot-driver-local/full-check.log
+/docs/validation/aot-driver-local/e2e.jsonl
+/docs/validation/aot-reference-identity/*.log
+/docs/validation/aot-reference-identity/e2e.jsonl
