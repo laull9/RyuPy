@@ -1,0 +1,1081 @@
+{
+  "schema_version": 1,
+  "source_commit": "e7c54d375d90ff63b8519552feb5fccd63f49609",
+  "status": "有限三平台显式资源验收通过",
+  "linux": {
+    "schema_version": 1,
+    "revision": "e7c54d375d90ff63b8519552feb5fccd63f49609",
+    "run_id": 41451385685,
+    "run_url": "https://github.com/laull9/RyuPy/actions/runs/41451385685",
+    "review": "independent_readonly_verified",
+    "platform": "linux-x64",
+    "resource": {
+      "revision": "e7c54d375d90ff63b8519552feb5fccd63f49609",
+      "ci_run": 41451385685,
+      "rid": "linux-x64",
+      "review": "passed",
+      "result_sha256": "38aa75ac831b9df23312a46029f68fa9412ade849072fe45ea5c52977f169a0f",
+      "manifest_sha256": "276caba6df29f54cbfe4c28e031eea765740477fa1a70e5b8294952c5591b52c",
+      "native_sha256": "d8400a97466934d4dcf4c8c769604bbd85d09d5d91eb967e6e1a853e9ef0ab31",
+      "sdk_version": "10.0.403",
+      "artifacts": [
+        {
+          "relative_path": "RyuPyAotHost_5323_1793625478114061941_0",
+          "role": "native_executable",
+          "sha256": "d8400a97466934d4dcf4c8c769604bbd85d09d5d91eb967e6e1a853e9ef0ab31",
+          "size": 4608976
+        },
+        {
+          "relative_path": "RyuPyAotHost_5323_1793625478114061941_0.dbg",
+          "role": "unclassified_sidecar",
+          "sha256": "65e9d52d8e6be1295eb0aad284f1b84df580ed509e6c9613cda20349ba4d20a6",
+          "size": 7914744
+        },
+        {
+          "relative_path": "_internal/resources/v1/modules/greetings/data.txt",
+          "role": "declared_resource",
+          "sha256": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+          "size": 30
+        }
+      ],
+      "resources": [
+        {
+          "consumer_module_ids": [
+            2,
+            3
+          ],
+          "relative_path": "_internal/resources/v1/modules/greetings/data.txt",
+          "sha256": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+          "size": 30
+        }
+      ],
+      "module_locations": [
+        {
+          "kind": "executable_relative",
+          "module_id": 2,
+          "module_name": "greetings.english",
+          "relative_file": "_internal/resources/v1/modules/greetings/english.py"
+        },
+        {
+          "kind": "executable_relative",
+          "module_id": 3,
+          "module_name": "greetings.french",
+          "relative_file": "_internal/resources/v1/modules/greetings/french.py"
+        }
+      ],
+      "scope": {
+        "declared_resources_complete": true,
+        "dynamic_dependency_closure_complete": false,
+        "manifest_self_hash_included": false,
+        "native_retention_proven": false,
+        "resources_included": true
+      },
+      "source_hashes": {
+        "greetings/__init__.py": "d2f6f58db5299d2dbcfb6ca21b2c393c5532bb5a6e663c420c160fa5e396016d",
+        "greetings/data.txt": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+        "greetings/english.py": "a2db2bd2c42f03653ac791786f32adb96172519775cb2f5a4fb07318fd6e1316",
+        "greetings/french.py": "ee6fb0d0560ea593d8f8f6c32c7242d34a7b46bfc19ee3949ce2f7fa48e7dfce",
+        "main.py": "6a22b677257bf91015e102cc3df665b9ef0bad2fc11630a4a8e11a00438cb5c7",
+        "resources.json": "6b13f9eaf518f50b3827fad08c954dcd08ea6b48912365d2dd4136f050b4f3dc"
+      },
+      "build_inputs": [
+        {
+          "relative_path": "managed-entry.dll",
+          "role": "compiled_managed_input",
+          "sha256": "ddae87e2171897138a5f01734c284900b338c4c1ff661092dda2ce363eb8a7d9",
+          "size": 17920
+        },
+        {
+          "relative_path": "RyuPy.Runtime.dll",
+          "role": "runtime_managed_input",
+          "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+          "size": 590336
+        }
+      ],
+      "build_input_verification": "recorded_only_deleted_after_relocation; matches result hashes",
+      "missing_frames": [
+        [
+          "main.py",
+          11,
+          "<module>"
+        ],
+        [
+          "english.py",
+          14,
+          "load_text"
+        ]
+      ],
+      "missing_type": "FileNotFoundError",
+      "behaviors": {
+        "python-original-fr": {
+          "exit": 0,
+          "stdout_sha256": "b9b23fd6a44ea46a975b9d787c0427e550fe93ff9c3a07c4c19a7a3c0cf94c00",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "python-original-en": {
+          "exit": 0,
+          "stdout_sha256": "a072d260a52394a8786da0b0e035097dcf8798c7a40d57cf91754cd62de9d8b8",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "python-modified-fr": {
+          "exit": 0,
+          "stdout_sha256": "e1f11e1646c442a7d5caa40f8da217b146e78ac0e2edfbacea526d4fb4799f5c",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "python-modified-en": {
+          "exit": 0,
+          "stdout_sha256": "232397a38f432799107e9a7343dfbd0afd6e3e2d14c5afb61645d8d26d040cfe",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "python-missing": {
+          "exit": 1,
+          "stdout_sha256": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+          "stderr_sha256": "b65fd4292adcdb2cc381c7dc018b1be13f5adf3d41ad731f1fd66a43b91421d7"
+        },
+        "native-missing": {
+          "exit": 1,
+          "stdout_sha256": "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+          "stderr_sha256": "4dbf588f3fc07cb6cdfeab2c6490c6701a130ab5eb970e90769c557dc06382e4"
+        },
+        "native-fr": {
+          "exit": 0,
+          "stdout_sha256": "b9b23fd6a44ea46a975b9d787c0427e550fe93ff9c3a07c4c19a7a3c0cf94c00",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "native-en": {
+          "exit": 0,
+          "stdout_sha256": "a072d260a52394a8786da0b0e035097dcf8798c7a40d57cf91754cd62de9d8b8",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "jit-original-fr": {
+          "exit": 0,
+          "stdout_sha256": "b9b23fd6a44ea46a975b9d787c0427e550fe93ff9c3a07c4c19a7a3c0cf94c00",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "jit-original-en": {
+          "exit": 0,
+          "stdout_sha256": "a072d260a52394a8786da0b0e035097dcf8798c7a40d57cf91754cd62de9d8b8",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "jit-modified-fr": {
+          "exit": 0,
+          "stdout_sha256": "e1f11e1646c442a7d5caa40f8da217b146e78ac0e2edfbacea526d4fb4799f5c",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "jit-modified-en": {
+          "exit": 0,
+          "stdout_sha256": "232397a38f432799107e9a7343dfbd0afd6e3e2d14c5afb61645d8d26d040cfe",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-fr": {
+          "exit": 0,
+          "stdout_sha256": "b9b23fd6a44ea46a975b9d787c0427e550fe93ff9c3a07c4c19a7a3c0cf94c00",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-en": {
+          "exit": 0,
+          "stdout_sha256": "a072d260a52394a8786da0b0e035097dcf8798c7a40d57cf91754cd62de9d8b8",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "limitations": [
+        "Linux only; no Windows success claimed",
+        "No ILC native-retention or full dynamic/resources closure claim",
+        "AOT source changed after publish then removed: snapshot persistence; pre-ILC mutation is separate unit evidence",
+        "Original eight manifest behaviors passed again; native byte identity across revisions is not claimed"
+      ]
+    },
+    "unchanged_contract_configurations": [
+      {
+        "case": "bigint",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "76b1e771fd0c4f7e6d4332c6a6ac9770be46c637baafd74f48b4b28f2a0af6c9",
+        "sources": [
+          {
+            "compiled_text_sha256": "caab6b2901319bffcc0830ca4f49a8e5e34b9272ffff2d893bccd6fc5cf9008b",
+            "logical_source": "entry/m2_1_bigint.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "92d4d558d44321915792f42c3a75650431958c0076d0cad6680fd09df08ae241",
+            "size": 9216
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_4590_1793625425459466558_0",
+            "role": "native_executable",
+            "sha256": "4cf41024275b823320baa1a4332af98e3736ee445f3e78d5c85090ae8ce451e3",
+            "size": 4576096
+          },
+          {
+            "relative_path": "RyuPyAotHost_4590_1793625425459466558_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "8df987a3ed70fa395af56ec6019db4b04dd627b96c1d7cb39cf52f5a75fb19c0",
+            "size": 7904432
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 3,
+        "behaviors": {
+          "python-m2_1_bigint": {
+            "exit": 0,
+            "stdout_sha256": "a320b50b5440870120cf0f784dca65f517fadebfb9b026606d21c88dbe84f90d",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-bigint": {
+            "exit": 0,
+            "stdout_sha256": "a320b50b5440870120cf0f784dca65f517fadebfb9b026606d21c88dbe84f90d",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-bigint": {
+            "exit": 0,
+            "stdout_sha256": "a320b50b5440870120cf0f784dca65f517fadebfb9b026606d21c88dbe84f90d",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "static-dataclass",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "14e77e8666d6f46c433eb3ddccb3ba2cc7d120de9fc25c68987cd449211dc7a5",
+        "sources": [
+          {
+            "compiled_text_sha256": "3f34bfd54b49981987ba3b041995a42d51009b7bdb15a17e70d9e1e7418de039",
+            "logical_source": "entry/m1_5_dataclass.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "c2e45313b66630d03fd7655c7d9c2b1b4f89a384ee483739bfd9c5c6888b1f3c",
+            "size": 11264
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_4686_1793625432788147981_0",
+            "role": "native_executable",
+            "sha256": "4a62d37001b3bd2fab1cd85428c8bf5f46317998ba2c15027eedf6fee196f265",
+            "size": 4588400
+          },
+          {
+            "relative_path": "RyuPyAotHost_4686_1793625432788147981_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "8ad2ea84400f60d652ecafc3d4b4eaca4eed4805460696bc3724893654cfda7f",
+            "size": 7908232
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 5,
+        "behaviors": {
+          "python-m1_5_dataclass": {
+            "exit": 0,
+            "stdout_sha256": "433225f384508361eccea4430ef41f1037f3e647f0aa84c05c2961aae3e5ed42",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-static-dataclass": {
+            "exit": 0,
+            "stdout_sha256": "433225f384508361eccea4430ef41f1037f3e647f0aa84c05c2961aae3e5ed42",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-static-dataclass": {
+            "exit": 0,
+            "stdout_sha256": "433225f384508361eccea4430ef41f1037f3e647f0aa84c05c2961aae3e5ed42",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "dynamic-dataclass",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "f1d32a47ee65ed945549e794417f87e8008c7852a86d29a4523083179e1acffb",
+        "sources": [
+          {
+            "compiled_text_sha256": "1695e92d98a86076d3ceb95f515b5b7af7c15c81e89069436b16a54df4492bac",
+            "logical_source": "entry/m3_3_dataclass_protocol.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "676ebf0b52cbde16d09944e123195668130addb68df79347134b015880274630",
+            "size": 13312
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_4782_1793625440087550847_0",
+            "role": "native_executable",
+            "sha256": "f21f340689c7e40364561a3f6f8e64688a272dd91670fb7f7a778b4f80d0e5d5",
+            "size": 4596624
+          },
+          {
+            "relative_path": "RyuPyAotHost_4782_1793625440087550847_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "da368b41fd5d3870738c725a5e270a7292ec28e1ce7eb885517ab0d2bbf690ee",
+            "size": 7913376
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 11,
+        "behaviors": {
+          "python-m3_3_dataclass_protocol": {
+            "exit": 0,
+            "stdout_sha256": "23940c32fe5ea024b6e893c9a07660f5beffc806be65f696620d2b7c2a5e09c8",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-dynamic-dataclass": {
+            "exit": 0,
+            "stdout_sha256": "23940c32fe5ea024b6e893c9a07660f5beffc806be65f696620d2b7c2a5e09c8",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-dynamic-dataclass": {
+            "exit": 0,
+            "stdout_sha256": "23940c32fe5ea024b6e893c9a07660f5beffc806be65f696620d2b7c2a5e09c8",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "numeric-list",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "02b7ad3cbd10585afce426cb6c48ca70d8fef0ab1b642f2541afb1f3201d5352",
+        "sources": [
+          {
+            "compiled_text_sha256": "15d72c9406e7211c28d504d7fa5b7473cf098430d2574f4617a7cb3713727a0e",
+            "logical_source": "entry/m3_10_numeric_list_island.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "241c0027496fcef2818df895331f119532710a214b24deca37787719959cfa86",
+            "size": 23552
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_4878_1793625447449268914_0",
+            "role": "native_executable",
+            "sha256": "45584417a969e7893755d2fd8b8a8c225c07517e3938a41f0efbc2e33d221545",
+            "size": 4633504
+          },
+          {
+            "relative_path": "RyuPyAotHost_4878_1793625447449268914_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "9ab964117721e551d4b1a77cc0eb2a700888f5d769171d6104815a4f06fb7b7a",
+            "size": 7921616
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 16,
+        "behaviors": {
+          "python-m3_10_numeric_list_island": {
+            "exit": 0,
+            "stdout_sha256": "6881265f3702a689d0842faaaaf644af7af33addbdfd5bc93118cab4b2349c0c",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-numeric-list": {
+            "exit": 0,
+            "stdout_sha256": "6881265f3702a689d0842faaaaf644af7af33addbdfd5bc93118cab4b2349c0c",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-numeric-list": {
+            "exit": 0,
+            "stdout_sha256": "6881265f3702a689d0842faaaaf644af7af33addbdfd5bc93118cab4b2349c0c",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "slp-default",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "ed29949e1b05e70e43bf3681452cba5ad9bdae4f45e5e7bd396822fec481972a",
+        "sources": [
+          {
+            "compiled_text_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+            "logical_source": "entry/m3_10_float_slp.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "2c5edd5f1946ffdaec631f55495267b60e023688641e448ab751ba494d310ffc",
+            "size": 24064
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_4973_1793625454990791652_0",
+            "role": "native_executable",
+            "sha256": "1b4f52218cb5b2f048400d7efc2912992cf2324b53e69dc5ad402fedd843e0f4",
+            "size": 4649936
+          },
+          {
+            "relative_path": "RyuPyAotHost_4973_1793625454990791652_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "b24e45377485908d5923cc7ec40fc628347c7887fe6770414e88c83c94ef8270",
+            "size": 7917720
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 19,
+        "behaviors": {
+          "python-m3_10_float_slp": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-slp-default": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-slp-default": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "slp-packed",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "3aa2ce3d1cc0384143ba7f551758d367f41cabc8bd71081665a91e663a60d3bf",
+        "sources": [
+          {
+            "compiled_text_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+            "logical_source": "entry/m3_10_float_slp.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "69c5c4ebf876b51381e01a75eee9b33fa7fe9c77bffdf054f22c4d26cd2eb043",
+            "size": 27648
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_5068_1793625462572269439_0",
+            "role": "native_executable",
+            "sha256": "0ef63c32dedade4b9ac83d27920b1fdb38ba2dd6f946b9d89faf909061b2a255",
+            "size": 4649936
+          },
+          {
+            "relative_path": "RyuPyAotHost_5068_1793625462572269439_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "dd685a0dd5330f896095542d2b8ca9cd418a0c996c9fc8ecbad298c41d40b97e",
+            "size": 7917952
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 19,
+        "behaviors": {
+          "python-m3_10_float_slp": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-slp-packed": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-slp-packed": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "slp-scalar",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "493e33aaaf67f72cf795f01d7699a3308a87419a119cd91a3eb0475a9bb67761",
+        "sources": [
+          {
+            "compiled_text_sha256": "a6d1532f3ac5b9fd84bb4d91314bb731e1d37b074268bd146f125167d3d2941b",
+            "logical_source": "entry/m3_10_float_slp.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "4266418b1fb9699735189a31ce4b555cb98b617ae126fcd44e967937be47e88a",
+            "size": 27136
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "actual_archived_files_rehashed",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_5162_1793625470056314258_0",
+            "role": "native_executable",
+            "sha256": "0db30fbd7b92af896980da16c1352eca3905f03d354e5d34855dbd3d6bc0f1e1",
+            "size": 4649936
+          },
+          {
+            "relative_path": "RyuPyAotHost_5162_1793625470056314258_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "61404438982cfb3e66f7697194788235c7e8f16dec66cce34d3403174f885da7",
+            "size": 7917968
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 19,
+        "behaviors": {
+          "python-m3_10_float_slp": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-slp-scalar": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-slp-scalar": {
+            "exit": 0,
+            "stdout_sha256": "fabcbe5ebd26b798eb51ce73bde7b5b29fc4e7dc797f206cf014024eeece3741",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "relocation_tested": false
+      },
+      {
+        "case": "smoke",
+        "schema_version": 1,
+        "sdk_version": "10.0.403",
+        "manifest_sha256": "dd45b9b256d888eb17900d6d0326dd636e2d3456eac59ecaf0c45c797bd0aad7",
+        "sources": [
+          {
+            "compiled_text_sha256": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+            "logical_source": "entry/main.py",
+            "module_id": 0,
+            "module_name": "__main__",
+            "package": ""
+          },
+          {
+            "compiled_text_sha256": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17",
+            "logical_source": "modules/state.py",
+            "module_id": 1,
+            "module_name": "state",
+            "package": ""
+          }
+        ],
+        "build_inputs": [
+          {
+            "relative_path": "managed-entry.dll",
+            "role": "compiled_managed_input",
+            "sha256": "5401789a05b2ed09f06498726fe0b3057eeb344aab8cd8c071e16e04f4b42647",
+            "size": 22016
+          },
+          {
+            "relative_path": "RyuPy.Runtime.dll",
+            "role": "runtime_managed_input",
+            "sha256": "c6032445461093c292a21bc984a34db2d423263a0ffab7e3008672839c1d4328",
+            "size": 590336
+          }
+        ],
+        "build_input_verification": "recorded_only_deleted_after_relocation",
+        "artifacts": [
+          {
+            "relative_path": "RyuPyAotHost_4171_1793625410587554862_0",
+            "role": "native_executable",
+            "sha256": "2207f58e30a1af485db03764cb512240ee41a3606bc1fc4822f2bccf482773a4",
+            "size": 4633568
+          },
+          {
+            "relative_path": "RyuPyAotHost_4171_1793625410587554862_0.dbg",
+            "role": "unclassified_sidecar",
+            "sha256": "b71309f82906c3f4e9699121d986115f31ee2454b84cdbc4eddecdb343ad2e4f",
+            "size": 7928448
+          }
+        ],
+        "scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "emitted_cil_reference_count": 14,
+        "behaviors": {
+          "python-all": {
+            "exit": 0,
+            "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "python-argv": {
+            "exit": 0,
+            "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "python-exit": {
+            "exit": 7,
+            "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "python-error": {
+            "exit": 1,
+            "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+            "stderr_sha256": "e347842ae22c0468a0f455d80b03f5306441664a1680a89dcc87f25fa3ce5668"
+          },
+          "jit-all": {
+            "exit": 0,
+            "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-argv": {
+            "exit": 0,
+            "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-exit": {
+            "exit": 7,
+            "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-error": {
+            "exit": 1,
+            "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+            "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+          },
+          "native-all": {
+            "exit": 0,
+            "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-argv": {
+            "exit": 0,
+            "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-exit": {
+            "exit": 7,
+            "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "native-error": {
+            "exit": 1,
+            "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+            "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+          },
+          "docker-all": {
+            "exit": 0,
+            "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "docker-argv": {
+            "exit": 0,
+            "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "docker-exit": {
+            "exit": 7,
+            "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "docker-error": {
+            "exit": 1,
+            "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+            "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+          }
+        },
+        "relocation_tested": true,
+        "comparison": "argv0 permitted to differ; error compares complete Python frame signature and exception, not byte-identical stderr; other output/exit exact"
+      }
+    ],
+    "coverage_result_sha256": "bfc8e812d861dbd82a4183c7c14914f3b9892f03ed49e26bb1ecf3615984db50",
+    "smoke_result_sha256": "6d72e2a1e8ad760e1dac4af69bda10476697fa6eaf3cec1bcdff0dab14a3fd04",
+    "retained_boundaries": {
+      "aot_isa_off": "not-tested",
+      "nan_payload_bits": "not-tested",
+      "windows_or_macos_results_included": false
+    },
+    "limitations": [
+      "Original-eight unchanged contract does not mean binary hash identity across compiler revisions.",
+      "Resource schema2 declares only requested files; it is not all dynamic dependency/resource closure or native retention proof.",
+      "Resource native+data directory was relocated; no resource embedding/single-file packaging claim.",
+      "Linux container checks absence of SDK/runtime commands; Windows/macOS are separate reviews."
+    ]
+  },
+  "macos_windows": {
+    "source_commit": "e7c54d375d90ff63b8519552feb5fccd63f49609",
+    "ci_run": 41451385625,
+    "hosts": [
+      {
+        "status": "passed",
+        "rid": "win-x64",
+        "host": {
+          "os": "Windows",
+          "arch": "amd64",
+          "platform": "Windows-2022Server-10.0.20348-SP0",
+          "image_os": "win22",
+          "image_version": "20261026.347.1"
+        },
+        "clean_machine_without_runtime_tested": false,
+        "publish_count": 1,
+        "toolchain_architecture": {
+          "dotnet_architectures": [
+            "x64"
+          ],
+          "dotnet_rids": [
+            "win-x64"
+          ],
+          "rust_host": "x86_64-pc-windows-msvc"
+        },
+        "cli_sha256": "94ab90ede67cc29416118b9b10fa839bedd8598dbbf738708a4ccdc7775e9053",
+        "source_hashes": {
+          "greetings/__init__.py": "d2f6f58db5299d2dbcfb6ca21b2c393c5532bb5a6e663c420c160fa5e396016d",
+          "greetings/data.txt": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+          "greetings/english.py": "a2db2bd2c42f03653ac791786f32adb96172519775cb2f5a4fb07318fd6e1316",
+          "greetings/french.py": "ee6fb0d0560ea593d8f8f6c32c7242d34a7b46bfc19ee3949ce2f7fa48e7dfce",
+          "main.py": "6a22b677257bf91015e102cc3df665b9ef0bad2fc11630a4a8e11a00438cb5c7",
+          "resources.json": "6b13f9eaf518f50b3827fad08c954dcd08ea6b48912365d2dd4136f050b4f3dc"
+        },
+        "jit_il_sha256": "862641d1a0b646c8ae6fcbb4ec6c0f9f816a3d3ddbae0a2d5701ec337873915f",
+        "runtime_sha256": "1cceb7b7900aeeddc0ac6a741c25dc1b43ac5a7c2de3db905e9eb8eded1a7d9b",
+        "aot_il_sha256": "5398bf05a723280fb0258d99bca835acc4706fb4306170a6ca716870f9a890a8",
+        "dependencies": [
+          {
+            "file": "RyuPyAotHost_7132_1793625538744262100_0.exe",
+            "dependencies": [
+              "ADVAPI32.dll",
+              "bcrypt.dll",
+              "KERNEL32.dll",
+              "ole32.dll",
+              "USER32.dll",
+              "api-ms-win-crt-math-l1-1-0.dll",
+              "api-ms-win-crt-heap-l1-1-0.dll",
+              "api-ms-win-crt-string-l1-1-0.dll",
+              "api-ms-win-crt-convert-l1-1-0.dll",
+              "api-ms-win-crt-stdio-l1-1-0.dll",
+              "api-ms-win-crt-runtime-l1-1-0.dll",
+              "api-ms-win-crt-locale-l1-1-0.dll"
+            ]
+          }
+        ],
+        "manifest_sha256": "3f8e775a333d43bdc2de547b480656c948f4fa6799ab7115504aeb38f7a91ba1",
+        "native_sha256": "08facc051125b323a4f308902307743c54f0dcf022861c4a43d38278182d588f",
+        "sdk_version": "10.0.403",
+        "resources": [
+          {
+            "consumer_module_ids": [
+              2,
+              3
+            ],
+            "relative_path": "_internal/resources/v1/modules/greetings/data.txt",
+            "sha256": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+            "size": 30
+          }
+        ],
+        "owned_build_inputs_removed": true,
+        "raw_result_sha256": "af445a72b16098b800005f2a66bbb87c2fd88442fe1c83f7e932436315512c64",
+        "native_size": 4564480,
+        "artifact_count": 3,
+        "scope": {
+          "declared_resources_complete": true,
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": true
+        },
+        "module_locations": [
+          {
+            "kind": "executable_relative",
+            "module_id": 2,
+            "module_name": "greetings.english",
+            "relative_file": "_internal/resources/v1/modules/greetings/english.py"
+          },
+          {
+            "kind": "executable_relative",
+            "module_id": 3,
+            "module_name": "greetings.french",
+            "relative_file": "_internal/resources/v1/modules/greetings/french.py"
+          }
+        ],
+        "behavior_exits": {
+          "python-original-fr": 0,
+          "python-original-en": 0,
+          "python-modified-fr": 0,
+          "python-modified-en": 0,
+          "python-missing": 1,
+          "native-missing": 1,
+          "native-fr": 0,
+          "native-en": 0,
+          "jit-original-fr": 0,
+          "jit-original-en": 0,
+          "jit-modified-fr": 0,
+          "jit-modified-en": 0
+        },
+        "independently_verified": true,
+        "missing_traceback_frames": [
+          [
+            "main.py",
+            11,
+            "<module>"
+          ],
+          [
+            "english.py",
+            14,
+            "load_text"
+          ]
+        ],
+        "platform_test_count_status": "official Windows job 125297168595: 69 passed / 0 failed / 0 skipped",
+        "platform_tests_passed": 69
+      },
+      {
+        "status": "passed",
+        "rid": "osx-arm64",
+        "host": {
+          "os": "Darwin",
+          "arch": "arm64",
+          "platform": "macOS-14.8.9-arm64-arm-64bit",
+          "image_os": "macos14",
+          "image_version": "20260831.0302.1"
+        },
+        "clean_machine_without_runtime_tested": false,
+        "publish_count": 1,
+        "toolchain_architecture": {
+          "dotnet_architectures": [
+            "arm64"
+          ],
+          "dotnet_rids": [
+            "osx-arm64"
+          ],
+          "rust_host": "aarch64-apple-darwin"
+        },
+        "cli_sha256": "bc94dce1eeaea29d98715d6cc85863f6840ec96747537c5b179c14987fdf0dea",
+        "source_hashes": {
+          "greetings/__init__.py": "d2f6f58db5299d2dbcfb6ca21b2c393c5532bb5a6e663c420c160fa5e396016d",
+          "greetings/data.txt": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+          "greetings/english.py": "a2db2bd2c42f03653ac791786f32adb96172519775cb2f5a4fb07318fd6e1316",
+          "greetings/french.py": "ee6fb0d0560ea593d8f8f6c32c7242d34a7b46bfc19ee3949ce2f7fa48e7dfce",
+          "main.py": "6a22b677257bf91015e102cc3df665b9ef0bad2fc11630a4a8e11a00438cb5c7",
+          "resources.json": "6b13f9eaf518f50b3827fad08c954dcd08ea6b48912365d2dd4136f050b4f3dc"
+        },
+        "jit_il_sha256": "2f8166cdc670f68948753eb09934a981a0b662fb42d99d3921f64dd772af4760",
+        "runtime_sha256": "bcb82109a80818c1bb8832d79aa29cc3f3e2a439c6974fa8c89f1f6693f43079",
+        "aot_il_sha256": "bdb38b5bf0994a4543bc3493b31edc1fefb2760c7ccb5eaeabbaf5ea7d27c121",
+        "dependencies": [
+          {
+            "file": "RyuPyAotHost_4935_1793625424480198000_0",
+            "dependencies": [
+              "/usr/lib/libSystem.B.dylib",
+              "/usr/lib/libobjc.A.dylib",
+              "/usr/lib/swift/libswiftCore.dylib",
+              "/usr/lib/swift/libswiftFoundation.dylib",
+              "/usr/lib/libicucore.A.dylib",
+              "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+              "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+              "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+              "/System/Library/Frameworks/Network.framework/Versions/A/Network",
+              "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+              "/System/Library/Frameworks/GSS.framework/Versions/A/GSS"
+            ]
+          }
+        ],
+        "manifest_sha256": "59bffcd07a176005dd224a70981394bfdd996abfaaabe5324b4e9fae8c8bc00b",
+        "native_sha256": "f7ea40ec8a0d108fc9833be7c95e8699b125fd4a1d603a15435401f75921a9b3",
+        "sdk_version": "10.0.403",
+        "resources": [
+          {
+            "consumer_module_ids": [
+              2,
+              3
+            ],
+            "relative_path": "_internal/resources/v1/modules/greetings/data.txt",
+            "sha256": "a51c549690f164a16a295953787e7e4f6c1197338e18d72008a1f68ef6ead4e2",
+            "size": 30
+          }
+        ],
+        "owned_build_inputs_removed": true,
+        "raw_result_sha256": "39cdea9ef23afc2be534b4c1cca84c7488c74a4e8396c826fc0f16ca166e5c43",
+        "native_size": 4405704,
+        "artifact_count": 5,
+        "scope": {
+          "declared_resources_complete": true,
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": true
+        },
+        "module_locations": [
+          {
+            "kind": "executable_relative",
+            "module_id": 2,
+            "module_name": "greetings.english",
+            "relative_file": "_internal/resources/v1/modules/greetings/english.py"
+          },
+          {
+            "kind": "executable_relative",
+            "module_id": 3,
+            "module_name": "greetings.french",
+            "relative_file": "_internal/resources/v1/modules/greetings/french.py"
+          }
+        ],
+        "behavior_exits": {
+          "python-original-fr": 0,
+          "python-original-en": 0,
+          "python-modified-fr": 0,
+          "python-modified-en": 0,
+          "python-missing": 1,
+          "native-missing": 1,
+          "native-fr": 0,
+          "native-en": 0,
+          "jit-original-fr": 0,
+          "jit-original-en": 0,
+          "jit-modified-fr": 0,
+          "jit-modified-en": 0
+        },
+        "independently_verified": true,
+        "missing_traceback_frames": [
+          [
+            "main.py",
+            11,
+            "<module>"
+          ],
+          [
+            "english.py",
+            14,
+            "load_text"
+          ]
+        ],
+        "platform_test_count_status": "awaiting official job log"
+      }
+    ]
+  },
+  "limitations": [
+    "Mac/Windows仍安装SDK；未验证无SDK干净目标机",
+    "显式声明资源不是任意动态导入/原生依赖闭包",
+    "CLI/托管输入已删除者仅保记录，不冒重hash",
+    "无新增性能采样；未做裸exe/onefile验收"
+  ]
+}

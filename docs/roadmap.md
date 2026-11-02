@@ -31,7 +31,7 @@
 | Phase 4 | 以 NumPy 为首的非纯 Python 模块可引入性 | 在明确的 Python / 扩展 / 平台组合上完成导入、基本调用与错误传播 |
 | Phase 5 | 兼容性清单、显式记录的偏差、交付工具链 | 发布可运行项目清单、失败原因和部署依赖；独立验证 Native AOT |
 
-旧 M1.6 的 Native AOT 已转入 M5.2；Linux x64 glibc及macOS arm64/Windows x64 MSVC有限同宿主CLI发布与搬迁已验收（[平台证据](validation/aot-host-platforms/README.md)）；Mac/Windows无SDK干净目标机、资源/更多平台/性能与桥接各子项仍继续；矩阵乘法和 N-Body 留到有容器后补齐。调整阶段归属不代表这些任务已经完成。
+旧 M1.6 的 Native AOT 已转入 M5.2；Linux x64 glibc及macOS arm64/Windows x64 MSVC有限同宿主CLI发布与搬迁已验收（[平台证据](validation/aot-host-platforms/README.md)）；Mac/Windows无SDK干净目标机、自动资源/原生依赖收集、更多平台/性能与桥接各子项仍继续；矩阵乘法和 N-Body 留到有容器后补齐。调整阶段归属不代表这些任务已经完成。
 
 ## Phase 2：动态核心、容器、普通 class、异常、模块系统
 
@@ -109,7 +109,7 @@ M3.9两类有证据规则默认启用、两类实验默认关闭；整套默认m
 
 Native AOT 工具链按 ADR-0005 的桩项目方案落地，分别验收原生与桥接产物。无 libpython 的产物可以免装 Python；桥接产物仍依赖对应解释器、标准库和扩展。AOT 构建需要 SDK 与目标平台工具链，不承诺任意平台交叉发布或固定二进制大小。
 
-[ADR0046](adr/0046-native-aot-artifact-manifest.md)的同次SDK／生成引用／产物哈希清单与三平台完整目录搬迁已有限验收。资源选择、模块部署位置和原生依赖绑定仍是后续独立切，不由清单存在推断动态闭包已齐。
+[ADR0046](adr/0046-native-aot-artifact-manifest.md)的同次SDK／生成引用／产物哈希清单与三平台完整目录搬迁已有限验收。[ADR0047](adr/0047-explicit-aot-resources.md)已完成显式资源选择、真实模块位置与三平台 `_internal/resources/v1` 整树搬迁。原生依赖绑定/自动收集仍是后续独立切，不由清单存在推断动态闭包已齐。遵用户静态优先方向，必要外置依赖集中 `_internal`，不为单文件形式强加自解包。
 
 ## 前瞻优化
 
