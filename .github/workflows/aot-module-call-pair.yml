@@ -57,7 +57,7 @@ jobs:
       - name: Fixed compiler builds, IR checks and 36 hot processes
         timeout-minutes: 22
         run: |
-          out="$PWD/candidate/target/aot-module-call-pair"
+          out="$RUNNER_TEMP/aot-module-call-pair-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           python candidate/tests/aot/module_call_build.py \
             --baseline-root "$PWD/baseline" --candidate-root "$PWD/candidate" \
             --candidate-revision "${{ github.sha }}" --out "$out"
@@ -73,6 +73,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aot-module-call-pair-linux-x64-${{ github.sha }}
-          path: candidate/target/aot-module-call-pair
+          path: ${{ runner.temp }}/aot-module-call-pair-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           retention-days: 14

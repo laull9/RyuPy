@@ -40,3 +40,10 @@ hash与CI链接，不承诺raw永久保留，不提交临时日志。
 候选结构门槛改为同receiver的IsModule与CaptureModuleTarget及真实captured调用，
 并核局部未重写、typed Append块无这两个helper；普通PIC移除token检测由独立runtime源码/测试锁。
 当前本地完整门禁及11项工具测试通过，新的性能组尚未启动；32B每调用剩余成本只是结构估计，不是新实测。
+
+
+双值首轮CI41485668721在创建compiler-logs时遭遇既有目录，在任何CLI构建、IR检查或
+36进程前即停止；不算性能结果。固定target输出路径可随Rust缓存恢复旧工件，因此后续
+改为RUNNER_TEMP下由run ID和attempt限定的独立目录，上传完全同路径；不清旧树、不复用
+旧统计、不关闭独占创建，也不重置同次20分钟预算。失败artifact可能含旧缓存证据，
+不能按本轮SHA冒认已完成采样。原生产/输入/阈值/矩阵不变。
