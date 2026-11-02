@@ -10,6 +10,7 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     private readonly TextWriter? _writer;
     private readonly string _name;
     private bool _closed;
+    private bool _skipLineFeed;
     private object? _current;
 
     /// <summary>创建输入或输出包装。</summary>
@@ -41,9 +42,16 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
         while (size != 0)
         {
             int next = _reader.Read();
+            // CR 已足以结束当前行；仅下次确需读取时吞一个可选 LF，避免 Peek 等待下一行。
+            // Read 抛错时保留未决状态；非 LF 后继仍在本轮处理，不能误吞。
+            if (_skipLineFeed)
+            {
+                _skipLineFeed = false;
+                if (next == '\n') continue;
+            }
             if (next < 0) break;
             // 标准输入按通用换行和Unicode码点计数，不暴露UTF-16半个代理项。
-            if (next == '\r') { if (_reader.Peek() == '\n') _reader.Read(); next = '\n'; }
+            if (next == '\r') { _skipLineFeed = true; next = '\n'; }
             output.Append((char)next);
             if (char.IsHighSurrogate((char)next) && _reader.Peek() >= 0 && char.IsLowSurrogate((char)_reader.Peek()))
                 output.Append((char)_reader.Read());
