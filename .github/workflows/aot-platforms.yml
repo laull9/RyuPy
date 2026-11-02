@@ -102,6 +102,8 @@ jobs:
           Write-Output "core.longpaths=$actual"
       - name: Build actual host compiler
         run: cargo build -p ryupy-cli --locked
+      - name: SDK path identity regression
+        run: cargo test -p ryupy-driver --locked aot::sdk_paths::tests
       - name: Native publish and relocation (macOS)
         if: runner.os == 'macOS'
         timeout-minutes: 32

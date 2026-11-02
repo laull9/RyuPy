@@ -86,3 +86,20 @@ CRLF/孤CR、一次write、原Format/替换流边界专测；两平台在ILC前�
 标准输出窄修本机20项专项通过，完整make check退出0：454 C#/226固定CP/200 e2e
 +30 ignored，fmt/clippy/Rust门禁通过，无快照更新。Windows策略纯测试不替代实际
 Windows默认流验证，下一CI仍按原CP/JIT/native逐字比较与真实ILC验收。
+
+第四轮CI41424104080（331c8c7）：macOS再次真实发布/搬迁成功，Linux七配置另行通过；
+Windows20项标准流回归通过，CP/JIT四模式严格字节比较通过，两平台fixture源码SHA一致。
+首次进入Windows SDK发布，Restore成功后MSBuild通配Import报MSB4019：Rust生成的
+`\\?\D:\...`绝对路径中的问号被按MSBuild字面值转义，无法找到`Host.csproj.*.props`。
+本轮仍未执行ILC，不把Restore成功当AOT通过。下一窄修仅处理SDK外部路径表示，
+内部canonical归属/清理、特殊字符目录、逐字比较与真实搬迁验收不变。
+
+SDK路径窄修在五处外部边界把已存在canonical Disk/UNC转换为普通绝对表示，并再次
+canonical回查必须相同；内部owned目录、清理及返回产物仍使用原路径。拒device/volume、
+危险组件与达到260 UTF-16单位的输入路径，不盲删前缀或更改长路径系统策略。
+这个输入上限不保证SDK内部更深obj路径无其他工具限制。Windows三项实际身份/词法测试
+在同一job执行，Unix一项保原路径；UNC未在网络共享实跑，不称完整UNC交付已验。
+
+路径修本机10项driver专项通过，完整make check退出0：454 C#/226固定CP/200 e2e
++30 ignored，无快照更新。新增三项Windows路径测试及真实SDK发布仍待同平台CI；
+Unix保留路径测试与完整本机门禁不能替代Windows路径语义验证。
