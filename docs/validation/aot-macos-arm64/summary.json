@@ -1,0 +1,99 @@
+{
+  "rid": "osx-arm64",
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "platform": "macOS-14.8.9-arm64-arm-64bit",
+    "image_os": "macos14",
+    "image_version": "20260831.0302.1"
+  },
+  "status": "passed",
+  "clean_machine_without_runtime_tested": false,
+  "scope": "relocated native on SDK-installed hosted runner, restricted environment",
+  "toolchain_architecture": {
+    "dotnet_architectures": [
+      "arm64"
+    ],
+    "dotnet_rids": [
+      "osx-arm64"
+    ],
+    "rust_host": "aarch64-apple-darwin"
+  },
+  "cli_sha256": "cb34adaabf6f03cee356d493e4bd938e425f37a372dec2029a160acbd8d4bc20",
+  "source_hashes": {
+    "main.py": "682ad6cba92e5a94245406a71c7372da84c1c4f0966c6e1023888218207ad97c",
+    "state.py": "a4bb74116e2da6b8e3f28cab4b2a84fd6b1e6d2a254adce75e727144d233bb17"
+  },
+  "il_sha256": "af392e35a59c5d9b86ac4ee31c36311b8d972635743e07b0eb0e7fab315fdc27",
+  "runtime_sha256": "4575dc23d288d1151ac7ac2d664b1d52b6f9594f3f704da39d3a2f70dfdde15c",
+  "aot_il_sha256": "ae1d71033273e541bc80cecb43b174d1b6d01cae254651d1b4aff266927806cc",
+  "aot_runtime_sha256": "4575dc23d288d1151ac7ac2d664b1d52b6f9594f3f704da39d3a2f70dfdde15c",
+  "deployment_manifest": [
+    {
+      "name": "RyuPyAotHost_8345_1793611953361557000_0",
+      "bytes": 4438808,
+      "sha256": "46c76cece214d86f71ccf4b388e983adc5d8d077d397eac6f5d6255e14faa745"
+    }
+  ],
+  "dependencies": [
+    {
+      "file": "RyuPyAotHost_8345_1793611953361557000_0",
+      "dependencies": [
+        "/usr/lib/libSystem.B.dylib",
+        "/usr/lib/libobjc.A.dylib",
+        "/usr/lib/swift/libswiftCore.dylib",
+        "/usr/lib/swift/libswiftFoundation.dylib",
+        "/usr/lib/libicucore.A.dylib",
+        "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+        "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+        "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+        "/System/Library/Frameworks/Network.framework/Versions/A/Network",
+        "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+        "/System/Library/Frameworks/GSS.framework/Versions/A/GSS"
+      ]
+    }
+  ],
+  "owned_build_inputs_removed": true,
+  "python_jit_native_relocated": "passed",
+  "artifact_result_sha256": "d7a0fd97b755cb5901995dd96b18bcfc5535020e65e50b97865fdec162a99f94",
+  "source_commit": "22941abf99c2aad550da0282e74dd5b0f004bf5e",
+  "workflow_run": 41421244429,
+  "macos_job": 125197027121,
+  "workflow_overall_status": "failure: Windows dependency checkout, macOS job passed",
+  "rustc_actual": "1.98.0 (88d9e12ae 2026-08-18)",
+  "dotnet_sdk_actual": "10.0.403",
+  "dotnet_runtime_actual": "10.0.14",
+  "python_actual": "CPython 3.12.13",
+  "xcode_actual": "15.4",
+  "applications": {
+    "all": {
+      "python": 0,
+      "jit": 0,
+      "native_relocated": 0,
+      "stdout_equal": true,
+      "jit_native_stderr_equal": true
+    },
+    "argv": {
+      "python": 0,
+      "jit": 0,
+      "native_relocated": 0,
+      "stdout_equal": true,
+      "jit_native_stderr_equal": true
+    },
+    "exit": {
+      "python": 7,
+      "jit": 7,
+      "native_relocated": 7,
+      "stdout_equal": true,
+      "jit_native_stderr_equal": true
+    },
+    "error": {
+      "python": 1,
+      "jit": 1,
+      "native_relocated": 1,
+      "stdout_equal": true,
+      "jit_native_stderr_equal": true
+    }
+  },
+  "restricted_environment": "PATH points to an empty owned directory; no inherited DOTNET_ROOT/PYTHONPATH; SDK remains installed on host"
+}
