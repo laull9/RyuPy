@@ -1,15 +1,7 @@
 name: Native AOT bounded lazy module startup experiment
 
 on:
-  push:
-    branches: [wip/aot-jit-recovery]
-    paths:
-      - '.github/workflows/aot-lazy-pair.yml'
-      - 'tests/aot/lazy_build.py'
-      - 'tests/aot/lazy_pair.py'
-      - 'tests/aot/lazy_schema.py'
-      - 'tests/aot/test_lazy_pair.py'
-      - 'tests/aot/lazy_fixtures/**'
+  # 固定实验已完整完成且未达采用门槛；保留手动入口，不自动追样本。
   workflow_dispatch:
 
 permissions:

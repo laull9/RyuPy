@@ -34,14 +34,14 @@ public static class PyNativeModules
         });
         PyModules.RegisterNative("unicodedata", PyUnicodeData.CreateAttributes());
         PyModules.RegisterNative("textwrap", PyTextWrap.CreateAttributes());
-        PyModules.RegisterNativeFactory("math", PyMathModule.CreateAttributes);
-        PyModules.RegisterNativeFactory("time", PyTimeModule.CreateAttributes);
-        PyModules.RegisterNativeFactory("json", PyJsonModule.CreateAttributes, (key, _) =>
+        PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
+        PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
+        PyModules.RegisterNative("json", PyJsonModule.CreateAttributes(), (key, _) =>
         {
             if (key == "JSONDecodeError")
                 throw new PyNotImplementedError("rebinding json.JSONDecodeError is not supported");
         });
-        PyModules.RegisterNativeFactory("re", PyRegex.CreateAttributes, (key, _) =>
+        PyModules.RegisterNative("re", PyRegex.CreateAttributes(), (key, _) =>
         {
             if (key == "error")
                 throw new PyNotImplementedError("rebinding re.error is not supported");
@@ -50,29 +50,29 @@ public static class PyNativeModules
         PyModules.RegisterNative("collections.abc", PyAbc.CreateAttributes());
         PyModules.Import("collections.abc");
         PyModules.RegisterNative("itertools", PyItertools.CreateAttributes());
-        PyModules.RegisterNativeFactory("functools", PyFunctools.CreateAttributes);
-        PyModules.RegisterNativeFactory("contextlib", PyContextLib.CreateAttributes);
+        PyModules.RegisterNative("functools", PyFunctools.CreateAttributes());
+        PyModules.RegisterNative("contextlib", PyContextLib.CreateAttributes());
         PyModules.RegisterNative("typing", PyTyping.CreateAttributes());
         PyModules.RegisterNative("__future__", PyFuture.CreateAttributes());
-        PyModules.RegisterNativeFactory("logging", PyLogging.CreateAttributes);
-        PyModules.RegisterNativeFactory("argparse", PyArgparse.CreateAttributes);
-        PyModules.RegisterNativeFactory("copy", PyCopy.CreateAttributes);
-        PyModules.RegisterNativeFactory("datetime", PyDateTimeModule.CreateAttributes);
+        PyModules.RegisterNative("logging", PyLogging.CreateAttributes());
+        PyModules.RegisterNative("argparse", PyArgparse.CreateAttributes());
+        PyModules.RegisterNative("copy", PyCopy.CreateAttributes());
+        PyModules.RegisterNative("datetime", PyDateTimeModule.CreateAttributes());
         PyModules.RegisterNative("random", PyRandomModule.CreateAttributes());
-        PyModules.RegisterNativeFactory("string", PyStringModule.CreateAttributes);
+        PyModules.RegisterNative("string", PyStringModule.CreateAttributes());
         PyModules.RegisterNative("enum", PyEnum.CreateAttributes(), (key, _) =>
         {
             if (key is "Enum" or "Flag")
                 throw new PyNotImplementedError($"rebinding enum.{key} is not supported");
         });
         PyModules.RegisterNative("atexit", PyAtexit.CreateAttributes());
-        PyModules.RegisterNativeFactory("warnings", PyWarnings.CreateAttributes, PyWarnings.BeforeSet);
+        PyModules.RegisterNative("warnings", PyWarnings.CreateAttributes(), PyWarnings.BeforeSet);
         PyModules.RegisterNative("unittest", PyUnittest.CreateAttributes(), (key, _) =>
         {
             if (key == "TestCase")
                 throw new PyNotImplementedError("rebinding unittest.TestCase is not supported");
         });
-        PyModules.RegisterNativeFactory("dataclasses", PyDataclasses.CreateAttributes, (key, _) =>
+        PyModules.RegisterNative("dataclasses", PyDataclasses.CreateAttributes(), (key, _) =>
         {
             if (key == "FrozenInstanceError")
                 throw new PyNotImplementedError("rebinding dataclasses.FrozenInstanceError is not supported");

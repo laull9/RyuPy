@@ -49,7 +49,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0042](0042-aot-jit-recovery-priority.md) | 恢复后优先AOT/JIT与小步远端保存 | 用户已批准方向 |
 | [0043](0043-aot-delivery-mainline.md) | AOT持续性能与交付主线 | 分阶段实施中 |
 | [0044](0044-guarded-integer-add-chain.md) | actual-I64短Add链消除中间盒 | 有限默认，配对及组合门禁通过 |
-| [0045](0045-native-module-attribute-factories.md) | 13项原生模块属性工厂延迟构造 | 实验合同已定，未验收益/未默认采用 |
+| [0045](0045-native-module-attribute-factories.md) | 13项原生模块属性工厂延迟构造 | 固定配对未达采用门槛，生产已回退 |
 
 ## 模板
 
