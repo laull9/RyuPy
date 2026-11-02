@@ -1,0 +1,111 @@
+name: Native AOT host platforms
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-platforms.yml'
+      - 'tests/aot/platform_*.py'
+      - 'tests/aot/windows_job.py'
+      - 'tests/aot/test_platform_runner.py'
+      - 'tests/aot/smoke.py'
+      - 'tests/aot/fixtures/**'
+      - 'crates/ryupy-driver/**'
+      - 'crates/ryupy-codegen-cil/**'
+      - 'runtime/RyuPy.Runtime/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+  PYTHONUTF8: '1'
+
+jobs:
+  native-host:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            rid: osx-arm64
+            shell: bash
+            cli: target/debug/ryupy
+          - os: windows-2022
+            rid: win-x64
+            shell: pwsh
+            cli: target/debug/ryupy.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.4'
+          enable-cache: false
+      - name: Pinned Python (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          uv python install 3.12.13
+          echo "PYTHON=$(uv python find 3.12.13 --managed-python)" >> "$GITHUB_ENV"
+      - name: Pinned Python (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv python install 3.12.13
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = uv python find 3.12.13 --managed-python
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Select installed x64 Visual C++ tools
+        if: runner.os == 'Windows'
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $vs) { throw 'Required Visual C++ x64 tools not installed' }
+          $devcmd = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          $variables = & $env:ComSpec /s /c "`"`"$devcmd`" -no_logo -arch=x64 -host_arch=x64 && set`""
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($line in $variables) {
+            if ($line -match '^(PATH|INCLUDE|LIB|LIBPATH|VCINSTALLDIR|VCToolsInstallDir|WindowsSdkDir|WindowsSDKVersion|UCRTVersion|UniversalCRTSdkDir)=(.*)$') {
+              "$($Matches[1])=$($Matches[2])" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            }
+          }
+      - name: Runner lifecycle regression (macOS)
+        if: runner.os == 'macOS'
+        run: '"$PYTHON" tests/aot/test_platform_runner.py'
+      - name: Runner lifecycle regression (Windows)
+        if: runner.os == 'Windows'
+        run: '& $env:PYTHON tests/aot/test_platform_runner.py; exit $LASTEXITCODE'
+      - name: Build actual host runtime
+        run: dotnet build runtime/RyuPy.Runtime -c Release -t:Rebuild -nologo -v q
+      - name: Build actual host compiler
+        run: cargo build -p ryupy-cli --locked
+      - name: Native publish and relocation (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 32
+        run: '"$PYTHON" tests/aot/platform_smoke.py --out target/aot-platforms --python "$PYTHON" --ryupy "${{ matrix.cli }}" --rid "${{ matrix.rid }}"'
+      - name: Native publish and relocation (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 32
+        run: '& $env:PYTHON tests/aot/platform_smoke.py --out target/aot-platforms --python $env:PYTHON --ryupy "${{ matrix.cli }}" --rid "${{ matrix.rid }}"; exit $LASTEXITCODE'
+      - name: Preserve actual platform evidence including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-aot-${{ matrix.rid }}-${{ github.sha }}
+          path: target/aot-platforms
+          if-no-files-found: warn
+          retention-days: 14
