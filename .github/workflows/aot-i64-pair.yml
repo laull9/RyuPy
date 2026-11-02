@@ -1,0 +1,77 @@
+name: Native AOT I64 bounded paired experiment
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-i64-pair.yml'
+      - 'tests/aot/pair.py'
+      - 'tests/aot/pair_schema.py'
+      - 'tests/aot/test_pair.py'
+      - 'tests/aot/pair_fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: candidate
+          ref: ${{ github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          ref: 457886017cd4d32911a09b09307d07c327b87192
+          path: baseline
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            baseline -> target
+            candidate -> target
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.13'
+      - name: Measurement process and paired schema regressions
+        working-directory: candidate
+        run: |
+          python tests/aot/test_perf.py
+          python tests/aot/test_pair.py
+      - name: Native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Build isolated baseline and candidate tools before measurement
+        env:
+          MSBUILDDISABLENODEREUSE: "1"
+          DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: "1"
+          UseSharedCompilation: "false"
+        run: |
+          for tree in baseline candidate; do
+            (cd "$tree" && git diff --exit-code && \
+              dotnet build runtime/RyuPy.Runtime -c Release -t:Rebuild -nologo -v q && \
+              cargo clean -p ryupy-cli --release && \
+              cargo build -p ryupy-cli --release --locked)
+          done
+      - name: Fixed 180 processes (no adaptive sampling or retries)
+        timeout-minutes: 32
+        run: |
+          python candidate/tests/aot/pair.py \
+            --baseline-root "$PWD/baseline" --baseline-cli "$PWD/baseline/target/release/ryupy" \
+            --candidate-root "$PWD/candidate" --candidate-cli "$PWD/candidate/target/release/ryupy" \
+            --python "$(command -v python)" --out "$PWD/candidate/target/aot-i64-pair"
+      - name: Preserve complete raw evidence outside source Git
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-i64-pair-linux-x64-${{ github.sha }}
+          path: candidate/target/aot-i64-pair
+          if-no-files-found: warn
+          retention-days: 14

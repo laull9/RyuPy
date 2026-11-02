@@ -6,7 +6,7 @@ use super::float_chain::Plan;
 use crate::mir::*;
 use rustc_hash::FxHashMap;
 
-pub(super) fn expand(function: &mut Function, plan: Plan) {
+pub(super) fn expand(function: &mut Function, plan: Plan, integer: bool) {
     let Some(final_dest) = plan.steps.last().map(|step| step.dest) else {
         return;
     };
@@ -36,7 +36,7 @@ pub(super) fn expand(function: &mut Function, plan: Plan) {
             },
         ));
         raw.insert(*input, value);
-        frozen.push(snapshot);
+        frozen.push((*input, snapshot));
     }
     for step in &plan.steps {
         let result = local(function, MirType::F64);
@@ -58,8 +58,21 @@ pub(super) fn expand(function: &mut Function, plan: Plan) {
         },
     ));
     let mut success = block(function, fast, Terminator::Goto(continuation));
+    // 不额外增加F64成功路径的守卫；仅原失败边尝试有界I64，所有失败共用原动态段。
+    let fallback = if integer {
+        super::integer_chain_expand::expand(
+            function,
+            &plan,
+            &frozen,
+            fallback,
+            continuation,
+            final_dest,
+        )
+    } else {
+        fallback
+    };
     // 每个 exact unbox 均由所有输入的真分支支配；不靠运行时转换或静态注解冒充证明。
-    for snapshot in frozen.into_iter().rev() {
+    for (_, snapshot) in frozen.into_iter().rev() {
         let condition = local(function, MirType::Bool);
         success = block(
             function,

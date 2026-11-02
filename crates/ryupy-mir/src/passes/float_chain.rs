@@ -55,6 +55,7 @@ impl MirPass for FloatChain {
             }
         }
         let mut loop_successes = 0;
+        let mut integer_successes = 0;
         for dest in candidates {
             let definitions = definitions(function);
             let Some(positions) = definitions.get(&dest) else {
@@ -77,7 +78,11 @@ impl MirPass for FloatChain {
             {
                 continue;
             }
-            super::float_chain_expand::expand(function, plan);
+            // WIP候选：额外I64臂受独立预算；拒绝时仍保留原F64优化。
+            let integer =
+                integer_successes < 4 && super::integer_chain_expand::fits(function, &plan);
+            super::float_chain_expand::expand(function, plan, integer);
+            integer_successes += usize::from(integer);
         }
     }
 }
