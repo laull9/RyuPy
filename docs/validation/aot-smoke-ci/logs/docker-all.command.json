@@ -1,0 +1,18 @@
+[
+  "/usr/bin/docker",
+  "run",
+  "--rm",
+  "--network",
+  "none",
+  "--read-only",
+  "--mount",
+  "type=bind,src=/home/runner/work/RyuPy/RyuPy/target/aot-smoke/aot-smoke-tk9im2un/relocated,dst=/app,readonly",
+  "--workdir",
+  "/app",
+  "--entrypoint",
+  "/bin/sh",
+  "mcr.microsoft.com/dotnet/runtime-deps:10.0.14-noble",
+  "-c",
+  "for tool in dotnet python python3 python3.12; do if command -v \"$tool\" >/dev/null 2>&1; then exit 97; fi; done; exec /app/NativeHost \"$@\"",
+  "aot-smoke"
+]
