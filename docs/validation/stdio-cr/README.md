@@ -1,6 +1,6 @@
 # 标准输入 CR 行末不再预读下一行
 
-状态：独立main基线修复，局部与完整门禁已通过；修后真实macOS PTY尚待固定CI。
+状态：独立main基线修复，局部/完整门禁及修后真实macOS管道/PTY固定矩阵已通过。
 这不是I64性能候选，也不声称用户原始1.py已完整复现或修复。
 
 ## 缺陷证据
@@ -25,4 +25,14 @@ mac runner为26.6.2/arm64，不代表用户具体硬件；原1.py仍未取得。
 11项确定性C#专项通过：禁止CR后Peek/越界读、CRLF/CRCRLF、非LF后继、size0/有限size、
 EOF、读取异常恢复、迭代及input提示flush。独立main树完整make check退出0：
 445 C#、225固定CP基线、199 e2e通过/30 ignored，fmt/clippy/Rust门禁通过，无快照更新。
-修后将用同源、同输入、同预算的macOS管道/PTY诊断验证，不更改期望来掩盖错误。
+修后使用同源、同输入、同预算的macOS管道/PTY诊断验证，未更改期望。
+
+## 修后实际平台结果
+
+[修后macOS CI41415466676](https://github.com/laull9/RyuPy/actions/runs/41415466676)
+使用产品`027ed394cf388218ac48268025083c7ae762afcb`独立重建；Darwin arm64/macOS26.6.2，
+30对子/60应用进程全部exit0，管道/逐提示PTY控制流差异为0，CR不再停等。
+12个立即投喂PTY仅多一次首x回显，100ms延迟及所有pipe原始字节一致；不称raw全部通过。
+Linux同固定矩阵亦得到上述结果。精简[摘要](summary.json)保版本/源hash及每对状态，
+原始stdin/转录/status留该CI artifact（14天）。仍未获得用户原1.py，不承诺原例所有症状
+均已确认；已修复的是双平台真实复现、具有确定性回归锁的CR预读阻塞。
