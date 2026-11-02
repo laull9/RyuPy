@@ -104,20 +104,16 @@ public static partial class PyModules
     private sealed class Registration(
         string package,
         string file,
-        PyModuleInit? init,
-        PyModuleGet? get,
-        PyModuleSet? set,
-        Func<Dictionary<string, object?>>? nativeFactory = null,
-        Action<string, object?>? beforeSet = null
+        PyModuleInit init,
+        PyModuleGet get,
+        PyModuleSet set
     )
     {
         public string Package { get; } = package;
         public string File { get; } = file;
-        public PyModuleInit? Init { get; } = init;
-        public PyModuleGet? Get { get; } = get;
-        public PyModuleSet? Set { get; } = set;
-        public Func<Dictionary<string, object?>>? NativeFactory { get; } = nativeFactory;
-        public Action<string, object?>? BeforeSet { get; } = beforeSet;
+        public PyModuleInit Init { get; } = init;
+        public PyModuleGet Get { get; } = get;
+        public PyModuleSet Set { get; } = set;
     }
 
     private static readonly Dictionary<string, Registration> Registry = new(StringComparer.Ordinal);
@@ -194,16 +190,13 @@ public static partial class PyModules
             throw new PyModuleNotFoundError($"No module named '{name}'");
         }
 
-        // 原生延迟表的闭包属于本次 attempt，失败后泄漏的旧 module 不会读到重试的新表。
-        var module = registration.NativeFactory is { } factory
-            ? PyNativeModuleAttempt.Create(name, registration.Package, factory, registration.BeforeSet)
-            : new PyModule(
+        var module = new PyModule(
             name,
             registration.Package,
             registration.File,
-            registration.Init!,
-            registration.Get!,
-            registration.Set!
+            registration.Init,
+            registration.Get,
+            registration.Set
         );
         // 必须先登记再执行：循环导入的另一端需要看到「初始化中」的模块对象。
         Cache[name] = module;
