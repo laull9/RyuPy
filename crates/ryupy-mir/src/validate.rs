@@ -117,6 +117,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             Rvalue::Call {
                                 callee: Callee::Runtime(
                                     RuntimeFn::ModuleFile
+                                        | RuntimeFn::CaptureModuleMethod
                                         | RuntimeFn::DynBinary
                                         | RuntimeFn::ClassNamespaceContains
                                         | RuntimeFn::GeneratorInput
@@ -520,10 +521,13 @@ fn validate_rvalue(
             prefix,
             args,
         } => {
-            if *callee == RuntimeFn::ModuleFile {
+            if matches!(
+                callee,
+                RuntimeFn::ModuleFile | RuntimeFn::CaptureModuleMethod
+            ) {
                 errors.push(format!(
-                    "函数 `{}` 的ModuleFile只允许固定Call ABI",
-                    func.name
+                    "函数 `{}` 的{:?}只允许固定Call ABI",
+                    func.name, callee
                 ));
             }
             for op in prefix.iter().chain(args.iter()) {

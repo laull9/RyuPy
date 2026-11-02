@@ -115,3 +115,14 @@ mod vector_tests;
 
 #[cfg(test)]
 mod module_location_tests;
+
+// 编译器Rust实验接口：显式记录，不是Python/CLI公开声明协议。
+mod fixed_binding_emit;
+mod fixed_binding_refs;
+#[cfg(test)]
+mod fixed_binding_tests;
+#[doc(hidden)]
+pub mod fixed_bindings;
+
+#[cfg(test)]
+mod module_capture_tests;

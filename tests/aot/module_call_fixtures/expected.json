@@ -1,0 +1,17 @@
+{
+  "python": "3.12.13",
+  "warmups": 3,
+  "samples": 7,
+  "fixtures": {
+    "matmul": {
+      "source_sha256": "4f5de92136943d94291b404bb2533d7733348b30bc3cd560826dfb540db1bd0a",
+      "checksum": "64345.098",
+      "calibration_stdout_sha256": "06149041493d13e57452828a13447d9cae714c4a9ad4021fdf1ecbf1d83c6067"
+    },
+    "math_module": {
+      "source_sha256": "5892052c0dd3fa70deb9a29dbcfe7d9008c5e466b63d3afb459110d5ce792a73",
+      "checksum": "200000",
+      "calibration_stdout_sha256": "f674b3dfec43a34764652c94ce88a75dcc15551a5486d431e1da30941dfb9133"
+    }
+  }
+}

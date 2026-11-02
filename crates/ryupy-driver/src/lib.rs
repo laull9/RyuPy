@@ -403,3 +403,6 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     };
     Ok(ryupy_codegen_cil::dump_cil(&linked, &emit_opts)?)
 }
+
+#[cfg(test)]
+mod fixed_binding_tests;

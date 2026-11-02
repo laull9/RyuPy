@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_6.rs
+assertion_line: 39
 expression: output
 ---
 fn accumulate(_0: dyn, _1: dyn) -> dyn {
@@ -113,6 +114,7 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
     let _24: dyn;
     let _25: dyn;
     let _26: dyn;
+    let _27: dyn;
 
     bb0: {
         _5 = RuntimeFn::TracePush(const "ryupy_m3_6_numeric_accumulator.py", const "observed");
@@ -145,11 +147,12 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
         _21 = box<I64>(_11);
         _4 = _21;
         // line 10
-        _22 = dyn.method(_3, "append", [_2]);
+        _22 = RuntimeFn::CaptureModuleMethod(_3, const "append");
+        _23 = dyn.method(_22, "append", [_2]);
         // line 11
-        _23 = RuntimeFn::GetItem(_1, _4);
-        _24 = dyn.Add.inplace(_2, _23);
-        _2 = _24;
+        _24 = RuntimeFn::GetItem(_1, _4);
+        _25 = dyn.Add.inplace(_2, _24);
+        _2 = _25;
         goto -> bb3;
     }
     bb3: {
@@ -161,8 +164,8 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
     }
     bb5: {
         // line 12
-        _26 = MakeTuple([_2, _3]);
-        _25 = _26;
+        _27 = MakeTuple([_2, _3]);
+        _26 = _27;
         goto -> bb7;
     }
     bb6: {
@@ -170,7 +173,7 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
     }
     bb7: {
         RuntimeFn::TracePopTo(_5);
-        return _25;
+        return _26;
     }
 }
 

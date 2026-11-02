@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_1.rs
+assertion_line: 84
 expression: output
 ---
 fn main() -> () {
@@ -150,6 +151,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     let _19: dyn;
     let _20: dyn;
     let _21: dyn;
+    let _22: dyn;
 
     bb0: {
         _4 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
@@ -180,7 +182,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb5: {
         // line 3
-        _21 = _3;
+        _22 = _3;
         goto -> bb15;
     }
     bb6: {
@@ -210,8 +212,9 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb11: {
         // line 3
-        _19 = MakeTuple([_1, _2]);
-        _20 = dyn.method(_3, "append", [_19]);
+        _19 = RuntimeFn::CaptureModuleMethod(_3, const "append");
+        _20 = MakeTuple([_1, _2]);
+        _21 = dyn.method(_19, "append", [_20]);
         goto -> bb6;
     }
     bb12: {
@@ -225,7 +228,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb15: {
         RuntimeFn::TracePopTo(_4);
-        return _21;
+        return _22;
     }
 }
 
@@ -242,6 +245,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     let _9: dyn;
     let _10: dyn;
     let _11: dyn;
+    let _12: dyn;
 
     bb0: {
         _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
@@ -260,9 +264,10 @@ fn <listcomp>(_0: dyn) -> dyn {
         _7 = RuntimeFn::IterValue(_5);
         _1 = _7;
         // line 4
-        _8 = box<I64>(const 2_i64);
-        _9 = dyn.Mul(_1, _8);
-        _10 = dyn.method(_2, "append", [_9]);
+        _8 = RuntimeFn::CaptureModuleMethod(_2, const "append");
+        _9 = box<I64>(const 2_i64);
+        _10 = dyn.Mul(_1, _9);
+        _11 = dyn.method(_8, "append", [_10]);
         goto -> bb1;
     }
     bb3: {
@@ -273,7 +278,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb5: {
         // line 4
-        _11 = _2;
+        _12 = _2;
         goto -> bb7;
     }
     bb6: {
@@ -281,7 +286,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb7: {
         RuntimeFn::TracePopTo(_3);
-        return _11;
+        return _12;
     }
 }
 
@@ -356,6 +361,7 @@ fn <setcomp>(_0: dyn) -> dyn {
     let _9: dyn;
     let _10: dyn;
     let _11: dyn;
+    let _12: dyn;
 
     bb0: {
         _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<setcomp>");
@@ -374,9 +380,10 @@ fn <setcomp>(_0: dyn) -> dyn {
         _7 = RuntimeFn::IterValue(_5);
         _1 = _7;
         // line 6
-        _8 = box<I64>(const 3_i64);
-        _9 = dyn.Mod(_1, _8);
-        _10 = dyn.method(_2, "add", [_9]);
+        _8 = RuntimeFn::CaptureModuleMethod(_2, const "add");
+        _9 = box<I64>(const 3_i64);
+        _10 = dyn.Mod(_1, _9);
+        _11 = dyn.method(_8, "add", [_10]);
         goto -> bb1;
     }
     bb3: {
@@ -387,7 +394,7 @@ fn <setcomp>(_0: dyn) -> dyn {
     }
     bb5: {
         // line 6
-        _11 = _2;
+        _12 = _2;
         goto -> bb7;
     }
     bb6: {
@@ -395,7 +402,7 @@ fn <setcomp>(_0: dyn) -> dyn {
     }
     bb7: {
         RuntimeFn::TracePopTo(_3);
-        return _11;
+        return _12;
     }
 }
 
@@ -411,6 +418,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
+    let _11: dyn;
 
     bb0: {
         _1 = RuntimeFn::CellNew();
@@ -430,8 +438,9 @@ fn <listcomp>(_0: dyn) -> dyn {
         _7 = RuntimeFn::IterValue(_5);
         RuntimeFn::CellSet(_1, _7);
         // line 7
-        _8 = MakeFunction(<lambda>; env=[_1]; defaults=[]);
-        _9 = dyn.method(_2, "append", [_8]);
+        _8 = RuntimeFn::CaptureModuleMethod(_2, const "append");
+        _9 = MakeFunction(<lambda>; env=[_1]; defaults=[]);
+        _10 = dyn.method(_8, "append", [_9]);
         goto -> bb1;
     }
     bb3: {
@@ -442,7 +451,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb5: {
         // line 7
-        _10 = _2;
+        _11 = _2;
         goto -> bb7;
     }
     bb6: {
@@ -450,7 +459,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb7: {
         RuntimeFn::TracePopTo(_3);
-        return _10;
+        return _11;
     }
 }
 
@@ -488,6 +497,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
+    let _11: dyn;
 
     bb0: {
         _3 = RuntimeFn::TracePush(const "m3_1_comprehensions.py", const "<listcomp>");
@@ -506,8 +516,9 @@ fn <listcomp>(_0: dyn) -> dyn {
         _7 = RuntimeFn::IterValue(_5);
         _1 = _7;
         // line 8
-        _8 = dyn.call(_1, []);
-        _9 = dyn.method(_2, "append", [_8]);
+        _8 = RuntimeFn::CaptureModuleMethod(_2, const "append");
+        _9 = dyn.call(_1, []);
+        _10 = dyn.method(_8, "append", [_9]);
         goto -> bb1;
     }
     bb3: {
@@ -518,7 +529,7 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb5: {
         // line 8
-        _10 = _2;
+        _11 = _2;
         goto -> bb7;
     }
     bb6: {
@@ -526,6 +537,6 @@ fn <listcomp>(_0: dyn) -> dyn {
     }
     bb7: {
         RuntimeFn::TracePopTo(_3);
-        return _10;
+        return _11;
     }
 }

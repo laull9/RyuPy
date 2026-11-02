@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_3.rs
+assertion_line: 14
 expression: "output.replace(path.to_str().unwrap(), \"decorators.py\")"
 ---
 fn decorate(_0: dyn) -> dyn {
@@ -90,6 +91,8 @@ fn main() -> () {
     let _18: dyn;
     let _19: dyn;
     let _20: dyn;
+    let _21: dyn;
+    let _22: dyn;
 
     bb0: {
         g1 = null;
@@ -129,11 +132,13 @@ fn main() -> () {
         _17 = RuntimeFn::CallValue(_15, [_16], [], []);
         RuntimeFn::SetAttr(_13, const "method", _17);
         // line 11
-        _18 = dyn.call(global@0, []);
-        _19 = dyn.method(_18, "method", []);
-        _20 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_20, _19);
-        RuntimeFn::WriteNewline(_20);
+        _18 = global@0;
+        _19 = dyn.call(_18, []);
+        _20 = RuntimeFn::CaptureModuleMethod(_19, const "method");
+        _21 = dyn.method(_20, "method", []);
+        _22 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_22, _21);
+        RuntimeFn::WriteNewline(_22);
         goto -> bb1;
     }
     bb1: {

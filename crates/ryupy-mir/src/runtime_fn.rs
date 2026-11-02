@@ -141,6 +141,8 @@ pub enum RuntimeFn {
     DynGetAttr,
     /// `PyOps.PrepareMethod(object, string) -> object`：实参暂停前绑定方法。
     PrepareMethod,
+    /// 实参前冻结actual module属性；非模块接收者原样返回，既有方法PIC保持。
+    CaptureModuleMethod,
     /// `PyErrors.Load(object, string) -> object`：读取可能未赋值的局部变量。
     LoadChecked,
     /// `PyErrors.Unbound() -> object`：把变量标记为未赋值。

@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_5.rs
+assertion_line: 17
 expression: "output.replace(path.to_str().unwrap(), \"exceptions.py\")"
 ---
 fn main() -> () {
@@ -13,16 +14,17 @@ fn main() -> () {
     let _7: dyn;
     let _8: dyn;
     let _9: dyn;
-    let _10: i64;
-    let _11: dyn;
+    let _10: dyn;
+    let _11: i64;
     let _12: dyn;
     let _13: dyn;
-    let _14: i64;
-    let _15: dyn;
+    let _14: dyn;
+    let _15: i64;
     let _16: dyn;
-    let _17: i64;
-    let _18: bool;
+    let _17: dyn;
+    let _18: i64;
     let _19: bool;
+    let _20: bool;
 
     region r0: [5, +1) finally-guard handler->bb6
     region r1: [1, +1) catch json.JSONDecodeError handler->bb3
@@ -56,66 +58,67 @@ fn main() -> () {
     bb1: {
         // line 4
         _6 = RuntimeFn::LoadName(global@3, const "codec");
-        _7 = box<Str>(const "[");
-        _8 = dyn.method(_6, "loads", [_7]);
+        _7 = RuntimeFn::CaptureModuleMethod(_6, const "loads");
+        _8 = box<Str>(const "[");
+        _9 = dyn.method(_7, "loads", [_8]);
         goto -> bb15;
     }
     bb2: {
-        _10 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_10);
-        _11 = RuntimeFn::HandlerEnter(_9);
+        _11 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_11);
+        _12 = RuntimeFn::HandlerEnter(_10);
         goto -> bb5;
     }
     bb3: {
-        _9 = caught_exception;
+        _10 = caught_exception;
         goto -> bb2;
     }
     bb4: {
-        _9 = caught_exception;
+        _10 = caught_exception;
         goto -> bb2;
     }
     bb5: {
-        _13 = RuntimeFn::HandlerEnter(None);
+        _14 = RuntimeFn::HandlerEnter(None);
         // line 6
-        _15 = box<Str>(const "caught");
-        _16 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_16, _15);
-        RuntimeFn::WriteNewline(_16);
-        _14 = const 0_i64;
+        _16 = box<Str>(const "caught");
+        _17 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_17, _16);
+        RuntimeFn::WriteNewline(_17);
+        _15 = const 0_i64;
         goto -> bb8;
     }
     bb6: {
-        _12 = caught_exception;
+        _13 = caught_exception;
         goto -> bb7;
     }
     bb7: {
-        _17 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_17);
-        _13 = RuntimeFn::HandlerEnter(_12);
-        _14 = const 1_i64;
+        _18 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_18);
+        _14 = RuntimeFn::HandlerEnter(_13);
+        _15 = const 1_i64;
         goto -> bb8;
     }
     bb8: {
-        RuntimeFn::HandlerLeave(_11);
+        RuntimeFn::HandlerLeave(_12);
         goto -> bb9;
     }
     bb9: {
-        _18 = Eq(_14, const 1_i64);
-        branch _18 -> [then: bb10, else: bb12];
+        _19 = Eq(_15, const 1_i64);
+        branch _19 -> [then: bb10, else: bb12];
     }
     bb10: {
-        RuntimeFn::HandlerLeave(_11);
-        raise _12;
+        RuntimeFn::HandlerLeave(_12);
+        raise _13;
     }
     bb11: {
         unreachable;
     }
     bb12: {
-        _19 = Eq(_14, const 2_i64);
-        branch _19 -> [then: bb16, else: bb13];
+        _20 = Eq(_15, const 2_i64);
+        branch _20 -> [then: bb16, else: bb13];
     }
     bb13: {
-        RuntimeFn::HandlerLeave(_11);
+        RuntimeFn::HandlerLeave(_12);
         goto -> bb16;
     }
     bb14: {
