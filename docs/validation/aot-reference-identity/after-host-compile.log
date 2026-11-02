@@ -1,5 +1,0 @@
-  Determining projects to restore...
-  All projects are up-to-date for restore.
-  RyuPy.NativeHost -> /tmp/ryupy-aot-probe/host/bin/Release/net10.0/linux-x64/RyuPy.NativeHost.dll
-/workspace/shared/toolchains/nuget-packages/microsoft.net.illink.tasks/10.0.14/build/Microsoft.NET.ILLink.targets(325,5): error MSB4216: Could not run the "ComputeManagedAssemblies" task because MSBuild could not create or connect to a task host with runtime "NET" and architecture "x64".  Please ensure that (1) the requested runtime and/or architecture are available on the machine, and (2) that the required executable "/workspace/shared/toolchains/dotnet/sdk/10.0.403/MSBuild" exists and can be run. [/tmp/ryupy-aot-probe/host/RyuPy.NativeHost.csproj]
-/workspace/shared/toolchains/nuget-packages/microsoft.net.illink.tasks/10.0.14/build/Microsoft.NET.ILLink.targets(326,7): error MSB4027: The "ComputeManagedAssemblies" task generated invalid items from the "ManagedAssemblies" output parameter. This object is no longer valid because the MetadataLoadContext that created it has been disposed. [/tmp/ryupy-aot-probe/host/RyuPy.NativeHost.csproj]
