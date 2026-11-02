@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import sys
 import tempfile
@@ -27,6 +28,21 @@ def tool(name):
         raise FileNotFoundError(name)
     # cargo 常是 rustup 代理：保留 argv[0]，不解析符号链接。
     return os.path.abspath(value)
+
+
+def librarian_version(returncode, stdout, stderr):
+    """lib /? 的已实证帮助退出码不等于编译失败；必须有真实数字版本横幅。"""
+    assert returncode in (0, 1100), 'unexpected lib help exit code'
+    match = re.search(rb'Microsoft \(R\) Library Manager Version ([0-9]+(?:\.[0-9]+)+)', stdout + stderr)
+    assert match, 'missing Microsoft Library Manager version banner'
+    return match.group(1).decode('ascii')
+
+
+def xcode_version(stdout):
+    """记录所选 Xcode 工具链版本，不把它冒充 ar 自身版本号。"""
+    text = stdout.decode('utf-8', errors='strict').strip()
+    assert re.fullmatch(r'Xcode [0-9]+(?:\.[0-9]+)*\r?\nBuild version [A-Za-z0-9]+', text), 'invalid Xcode version evidence'
+    return text
 
 
 def archive_objects(path, rid):
@@ -111,7 +127,8 @@ def main():
             # cl 无输入通常返回 2；保留真实退出码及双流，不能把缺输入当编译失败。
             version = run.run('cc-version', [cc], cwd=work, timeout=30)
             assert version.returncode in (0, 2) and b'Compiler Version' in version.stdout + version.stderr
-            command('archive-tool-version', [librarian, '/?'], timeout=30)
+            version = run.run('archive-tool-version', [librarian, '/?'], cwd=work, timeout=30)
+            records['archive_tool_version'] = librarian_version(version.returncode, version.stdout, version.stderr)
             command('c-static-object', [cc, '/nologo', '/utf-8', '/O2', '/MT', '/c', c, '/Fo'+str(obj)])
             command('c-static-archive', [librarian, '/NOLOGO', '/OUT:'+str(archive), obj])
             command('c-shared', [cc, '/nologo', '/utf-8', '/O2', '/MT', '/DRYUPY_SHARED', '/LD', c,
@@ -123,7 +140,15 @@ def main():
         else:
             cc, librarian, symbols = tool('cc'), tool('ar'), tool('nm')
             command('cc-version', [cc, '--version'], timeout=30)
-            command('archive-tool-version', [librarian, '-V' if args.rid == 'osx-arm64' else '--version'], timeout=30)
+            if args.rid == 'osx-arm64':
+                selected = command('archive-tool-path', [tool('xcrun'), '--find', 'ar'], timeout=30)
+                librarian = selected.stdout.decode('utf-8', errors='strict').strip()
+                assert Path(librarian).is_absolute() and Path(librarian).is_file() and '\n' not in librarian
+                version = command('xcode-version', [tool('xcodebuild'), '-version'], timeout=30)
+                records['archive_toolchain'] = {'xcode': xcode_version(version.stdout),
+                    'ar_path': librarian, 'ar_file': digest(Path(librarian))}
+            else:
+                command('archive-tool-version', [librarian, '--version'], timeout=30)
             command('c-static-object', [cc, '-O2', '-c', c, '-o', obj])
             command('c-static-archive', [librarian, 'rcs', archive, obj])
             kind = '-dynamiclib' if args.rid == 'osx-arm64' else '-shared'

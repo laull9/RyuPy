@@ -2,7 +2,7 @@
 from pathlib import Path
 import tempfile
 import unittest
-from probe import archive_objects, EXPECTED
+from probe import archive_objects, EXPECTED, librarian_version, xcode_version
 
 
 def member(name, payload):
@@ -44,6 +44,22 @@ class ArchiveTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 self.check(data, 'win-x64')
         self.assertEqual(EXPECTED.splitlines(), [b'0', b'3', b'4294967294', b'-4294967296', b'-1'])
+
+
+class VersionEvidenceTests(unittest.TestCase):
+    def test_windows_observed_help_exit_requires_real_banner(self):
+        banner = b'Microsoft (R) Library Manager Version 14.44.35222.0\r\n'
+        for code in (0, 1100):
+            self.assertEqual(librarian_version(code, banner, b''), '14.44.35222.0')
+        for code, output in [(1, banner), (1100, b'usage only'), (0, b'Library Manager Version unknown')]:
+            with self.assertRaises(AssertionError):
+                librarian_version(code, output, b'')
+
+    def test_xcode_evidence_not_guessed_ar_version(self):
+        self.assertEqual(xcode_version(b'Xcode 16.4\nBuild version 16F6\n'), 'Xcode 16.4\nBuild version 16F6')
+        for output in (b'usage: ar -r', b'Xcode 16.4', b'Xcode unknown\nBuild version 16F6'):
+            with self.assertRaises(AssertionError):
+                xcode_version(output)
 
 
 if __name__ == '__main__':
