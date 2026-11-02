@@ -18,9 +18,8 @@ JIT与native的stderr不作该规范化，必须逐字一致。
 file/ldd与镜像明确记录，不宣称完全静态或无需系统库。当前只验Linux x64，不冒其它平台。
 
 CI固定SDK10.0.403、Rust1.99.1、CPython3.12.13，日志/退出码和失败工件保留。
-首次远端执行尚待终态；脚本/工作流存在不表示已发布AOT产物。
+首次远端执行已通过，原始证据见 `../../docs/validation/aot-smoke-ci/README.md`。
 `ryupy build --aot` 的driver集成仍独立待实现，本探针不绕过其未完成状态。
 
 本地预检（2026-11-02）：三份Python文件语法检查通过；固定CPython3.12.13与修后JIT
-在all/argv/exit/error四模式全部匹配，prepare-only实际exit0。真实ILC与容器搬迁仍待CI，
-不以此预检替代NativeAOT运行。Rust action固定到1.99.1分支实际SHA，避免仅用滚动stable。
+在all/argv/exit/error四模式全部匹配，prepare-only实际exit0。随后真实CI也通过；预检本身不替代NativeAOT运行。Rust action固定到1.99.1分支实际SHA，避免仅用滚动stable。
