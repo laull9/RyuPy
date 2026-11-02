@@ -11,7 +11,7 @@
 
 当前已验：M3.10生成CIL、静态桩、Linux x64 glibc公开CLI --aot、裁剪警告阻断、
 模块/闭包/生成器/用户异常/argv/退出码及无dotnet/Python容器搬迁。见ADR0005及
-[真实CLI证据](../validation/aot-driver-ci/README.md)。macOS arm64/Windows x64 MSVC同宿主发布搬迁亦通过[有限平台验收](../validation/aot-host-platforms/README.md)，但未完成两平台无SDK/Python干净目标机验证。固定性能基线及I64短Add链见ADR0044，不外推其它负载；完整资源打包仍未实现，产物依赖已披露系统库。
+[真实CLI证据](../validation/aot-driver-ci/README.md)。macOS arm64/Windows x64 MSVC同宿主发布搬迁亦通过[有限平台验收](../validation/aot-host-platforms/README.md)，但未完成两平台无SDK/Python干净目标机验证。固定性能基线及I64短Add链见ADR0044，不外推其它负载；显式资源快照及 `_internal` 搬迁已有限通过，自动依赖收集仍未实现，产物依赖已披露系统库。
 
 ## 对标的是交付能力，不是声称兼容等同
 
@@ -27,9 +27,9 @@
 | N0 原生发布 | 真CLI→ILC→搬迁；原args/exit/错误；无托管运行时 | Linux x64 glibc、Mac arm64、Windows x64 MSVC有限同宿主通过 |
 | N1 裁剪安全覆盖 | 既有动态类/属性/函数、BigInt、容器退化及ISA分支正负差分；缺根明确诊断 | 七配置固定差分通过；ISA-off/更多协议仍待 |
 | N2 性能与代码生成 | 同源同规模JIT/AOT cold/hot、分配/GC/内存/体积/构建成本；实际代码证据 | 81基线与180配对、I64有限默认通过；持续热点独立验收 |
-| N3 standalone目录 | 明确输出清单与依赖、包资源选择/哈希/许可、可搬迁相对布局、失败原子性 | 实际发布清单与三平台完整目录核验通过；资源选择/部署、原生依赖闭包仍待 |
+| N3 standalone目录 | 明确输出清单与依赖、包资源选择/哈希/许可、可搬迁相对布局、失败原子性 | 实际发布清单、显式资源三平台搬迁通过；固定C ABI静态机制已验，公共绑定与原生依赖闭包仍待 |
 | N4 平台交付 | 各OS/架构/ABI的真实工具链与干净目标环境CI，未知组合拒绝 | Linux容器已验；Mac/Windows真ILC搬迁通过，干净目标机仍待 |
-| N5 onefile | 在目录发布成熟后另验启动/解包/缓存/清理/并发/资源寻址与体积 | 独立未来项，不先假嵌入 |
+| N5 onefile | 在目录发布成熟后另验启动/解包/缓存/清理/并发/资源寻址与体积 | 无资源仅exe三平台已验；资源/原生依赖静态优先，必要时外置_internal，不强加自解包 |
 | B 桥接AOT | libpython/扩展/stdlib依赖、生命周期与跨边界诊断独立验收 | 未实现，不混入N项 |
 
 N3资源不是任意磁盘复制：显式构建输入绑定真实解析包/模块，清单列选取规则与来源，
@@ -59,3 +59,7 @@ accessor和protocol-dispatch生成入口。可由编译器发CIL或生成桩，�
 
 小而已验证的改动及时推送main；隔离未验工作及时WIP备份。阶段计划不勾成实现，
 AOT持续主线与日常交付并行，不等待“所有动态性/所有平台优化完”才发布可用增量。
+
+固定 `(i32,i32)->i64` 的真实 PInvoke/JIT共享库/AOT静态 archive 三平台机制证明见
+[有限证据](../validation/aot-fixed-cabi/README.md)。它只证明后端表达与链接路径，
+不等于公共 Python FFI 或 CPython 扩展兼容；下一公开边界须另验参数/错误/部署合同。

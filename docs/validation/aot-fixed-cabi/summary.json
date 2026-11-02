@@ -1,0 +1,429 @@
+{
+  "schema_version": 1,
+  "status": "verified_fixed_c_abi_mechanism_three_hosts",
+  "commit": "b89cc70e76e40e9faef50d877841c4839968a887",
+  "ci": {
+    "run_id": 41460349000,
+    "url": "https://github.com/laull9/RyuPy/actions/runs/41460349000",
+    "conclusion": "success",
+    "jobs_record_sha256": "c15669b44573d094a5193155e33edb47c5402768f75b83f6752e286f00c350d1",
+    "jobs": [
+      {
+        "name": "fixed-cabi (ubuntu-24.04, linux-x64, bash)",
+        "id": 125327471101,
+        "conclusion": "success"
+      },
+      {
+        "name": "fixed-cabi (windows-2022, win-x64, pwsh)",
+        "id": 125327471257,
+        "conclusion": "success"
+      },
+      {
+        "name": "fixed-cabi (macos-14, osx-arm64, bash)",
+        "id": 125327471419,
+        "conclusion": "success"
+      }
+    ]
+  },
+  "scope": {
+    "fixed_signature": "cdecl (i32,i32)->i64",
+    "module_ref": "ryupy_cabi_probe",
+    "entry_point": "ryupy_demo_add_i32",
+    "public_python_ffi": false,
+    "cpython_extension_abi": false,
+    "generic_resolver": false,
+    "aot_shared_tested": false
+  },
+  "cases": [
+    {
+      "arguments": [
+        0,
+        0
+      ],
+      "expected_i64": 0
+    },
+    {
+      "arguments": [
+        -1,
+        4
+      ],
+      "expected_i64": 3
+    },
+    {
+      "arguments": [
+        2147483647,
+        2147483647
+      ],
+      "expected_i64": 4294967294
+    },
+    {
+      "arguments": [
+        -2147483648,
+        -2147483648
+      ],
+      "expected_i64": -4294967296
+    },
+    {
+      "arguments": [
+        -2147483648,
+        2147483647
+      ],
+      "expected_i64": -1
+    }
+  ],
+  "platforms": [
+    {
+      "rid": "linux-x64",
+      "audit_status": "independently_verified_by_two_reviewers",
+      "raw_result_sha256": "05aabbd8ed38409d559a3d05d0a8381a3b845390579902f47ef72572f80a125b",
+      "source": {
+        "commit": "b89cc70e76e40e9faef50d877841c4839968a887",
+        "c_sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812",
+        "harness_sha256": "c6a755a0c55e0be570cfec2e4bb0dcb0de384a8b464a051676ee3af548860f0e",
+        "emitter_sha256": "5d1251797cc047f358baf92067edb888b11d915e825b544c71643ebbbf0ef968"
+      },
+      "tools": {
+        "sdk_version": "10.0.403",
+        "compiler_version": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "archiver_version": "GNU ar (GNU Binutils for Ubuntu) 2.42",
+        "xcode_toolchain_version": null,
+        "mac_ar_sha256": null,
+        "version_logs_sha256": {
+          "cc-version.stdout": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+          "cc-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cc-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "archive-tool-version.stdout": "7ac005d69683d0de20ba048eade500afe576c8e0e802f903f4e1a31428942755",
+          "archive-tool-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "archive-tool-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "sdk-version.stdout": "00922204861c9366b1259b84337ee228d58ec876604bb149e82c077108ce3be2",
+          "sdk-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sdk-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5"
+        }
+      },
+      "pe_evidence": {
+        "level": "emitter actual PE readback before deletion; archived log only, not independent final DLL reparse",
+        "dll_recorded_sha256": "14b90780b6553ae9f0938a1195e92f735da3f3cb094fefd25fe2bf9773653655",
+        "runtimeconfig_recorded_sha256": "ed2598932801a65dafc6157c366f098e4951a2e9789d4384ac7e61c5e52b69af",
+        "readback_log_sha256": "d2aa1226999a006fe1de12393128e42aa9ac05572aed4d3b16a2dcac921a0630",
+        "readback_verified": true,
+        "cdecl": true,
+        "preserve_sig": true,
+        "exact_entrypoint": true,
+        "static_main_calls": 5
+      },
+      "static_input": {
+        "archive_sha256": "da804a471e7a2698df18c563fbb87a4e96988e7e666463236590252ec2a0fcdc",
+        "archive_bytes": 1388,
+        "archive_independently_rehashed": true,
+        "object_count": 1,
+        "object_members": [
+          {
+            "member": "probe.o/",
+            "bytes": 1232,
+            "sha256": "ddb72b51918eb57d8f58d9559737c717cc58d663d2ca6df8759898a66b07f61f"
+          }
+        ],
+        "symbol_log_sha256": "6b5c6de3955fa2e05bdd8778c0c673ffda09f8fe45d53dd70ca8b6c7c552dfc6",
+        "export_symbol_in_archive": true,
+        "short_import_object_rejected": true
+      },
+      "jit_shared": {
+        "same_emitted_dll": true,
+        "shared_recorded_sha256": "c3c17626e870679d96aa051e185f0153d9bcf2eaafb08972fc78b8c1b8029f55",
+        "shared_symbols_log_sha256": "7916803382cf8b8c67cb9f9374fc8206c93eca8c98d6a27e5b5d53f92bcc8fe8",
+        "exit": 0,
+        "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "aot_link": {
+        "direct_pinvoke_module": "ryupy_cabi_probe",
+        "native_library": "owned static archive",
+        "only_static_main_reachability": true,
+        "broad_root_added": false,
+        "sdk_ilc_generation_observed": true,
+        "sdk_stdout_sha256": "8f053a4139831e307f97bc69641f7fe387f22cbf73650ca12c25c65b272631aa",
+        "sdk_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "relocated_native": {
+        "sha256": "ea6c4886d9842b30b34def5ace70116bff3883b8c10377de5c2681882ef02e18",
+        "bytes": 3721552,
+        "independently_rehashed": true,
+        "input_source_shared_il_deleted": true,
+        "empty_search_path": true,
+        "exit": 0,
+        "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": [
+          "libm.so.6",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ],
+        "dependency_log_sha256": "7c8975621f5f8bec6e0187fbcd3120702d11e8daaa8e4aa1b231241fdf3c6300",
+        "native_symbols_log_sha256": "f4709c167f4f698b38dc86a61d6169a221fa808fee7df70791b26e290e20dbed",
+        "probe_shared_dependency_absent": true
+      },
+      "c_reference": {
+        "exit": 0,
+        "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "budget": {
+        "limit_seconds": 1800,
+        "observed_elapsed_seconds": 39.95262658199999,
+        "reference_runs": 1,
+        "jit_runs": 1,
+        "aot_static_runs": 1,
+        "aot_publishes": 1,
+        "performance_measurement": false
+      }
+    },
+    {
+      "rid": "osx-arm64",
+      "audit_status": "independently_verified_by_two_reviewers",
+      "raw_result_sha256": "9b761cee8075970e3828db61a5a4319f372708cfbdb3af66b75f7790196421e1",
+      "source": {
+        "commit": "b89cc70e76e40e9faef50d877841c4839968a887",
+        "c_sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812",
+        "harness_sha256": "c6a755a0c55e0be570cfec2e4bb0dcb0de384a8b464a051676ee3af548860f0e",
+        "emitter_sha256": "5d1251797cc047f358baf92067edb888b11d915e825b544c71643ebbbf0ef968"
+      },
+      "tools": {
+        "sdk_version": "10.0.403",
+        "compiler_version": "Apple clang version 15.0.0 (clang-1500.3.9.4)",
+        "archiver_version": null,
+        "xcode_toolchain_version": "Xcode 15.4\nBuild version 15F31d",
+        "mac_ar_sha256": "75137a9fb368334d947ac413de0a7fa70c568e1b770f874a74eedcbf45c910cc",
+        "version_logs_sha256": {
+          "cc-version.stdout": "2c3bedf24ed4d3b95969cc62be8b6762873e35cab5a72367f7dd14567188166d",
+          "cc-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cc-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "xcode-version.stdout": "9b259e3b42e374dcfcbcfc0e2b41730e3c57e98f019df45d42174d6a3b8e6977",
+          "xcode-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "xcode-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "archive-tool-path.stdout": "4b9a07f82e2e3d2529551ba13331a7194ceccb4a42110a5b2bc702dce166df3a",
+          "archive-tool-path.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "archive-tool-path.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "sdk-version.stdout": "00922204861c9366b1259b84337ee228d58ec876604bb149e82c077108ce3be2",
+          "sdk-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sdk-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5"
+        }
+      },
+      "pe_evidence": {
+        "level": "emitter actual PE readback before deletion; archived log only, not independent final DLL reparse",
+        "dll_recorded_sha256": "d4811bd285ec65f414b3c0a151b442c86de71e57f5a84d12353f4707bae9a36e",
+        "runtimeconfig_recorded_sha256": "ed2598932801a65dafc6157c366f098e4951a2e9789d4384ac7e61c5e52b69af",
+        "readback_log_sha256": "d2aa1226999a006fe1de12393128e42aa9ac05572aed4d3b16a2dcac921a0630",
+        "readback_verified": true,
+        "cdecl": true,
+        "preserve_sig": true,
+        "exact_entrypoint": true,
+        "static_main_calls": 5
+      },
+      "static_input": {
+        "archive_sha256": "0ca73ca66c24b68cab6925d6ed97f4d50a909fbceaf2d6253400a142342065fb",
+        "archive_bytes": 736,
+        "archive_independently_rehashed": true,
+        "object_count": 1,
+        "object_members": [
+          {
+            "member": "probe.o",
+            "bytes": 536,
+            "sha256": "846dca96fd925a5c90cd18bae4c712920e2e59965f38f12dc6ebef87f56d8bca"
+          }
+        ],
+        "symbol_log_sha256": "31553e0afc63920b167fe51e4cd569cb5e24d5252d9748b64c0aae66130cc12d",
+        "export_symbol_in_archive": true,
+        "short_import_object_rejected": true
+      },
+      "jit_shared": {
+        "same_emitted_dll": true,
+        "shared_recorded_sha256": "9fe1610c8fe56be01aee97a2aa19da798492ac23dd08ab7af4925b5dbd794fe6",
+        "shared_symbols_log_sha256": "1adba862e2b1c1ffb51b9d4f895a1862124e95b4bf2a04427b80325ba7d74e1a",
+        "exit": 0,
+        "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "aot_link": {
+        "direct_pinvoke_module": "ryupy_cabi_probe",
+        "native_library": "owned static archive",
+        "only_static_main_reachability": true,
+        "broad_root_added": false,
+        "sdk_ilc_generation_observed": true,
+        "sdk_stdout_sha256": "83f47eef8829364c6f1b678ab354969fbfd202dc80204ae1ffdab1fd46584313",
+        "sdk_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "relocated_native": {
+        "sha256": "af59f8878c867aa8185264cb4e3f4830f08fd4bc2a2a048b23af360d979b5f5d",
+        "bytes": 3214608,
+        "independently_rehashed": true,
+        "input_source_shared_il_deleted": true,
+        "empty_search_path": true,
+        "exit": 0,
+        "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": [
+          "/usr/lib/libSystem.B.dylib",
+          "/usr/lib/libobjc.A.dylib",
+          "/usr/lib/swift/libswiftCore.dylib",
+          "/usr/lib/swift/libswiftFoundation.dylib",
+          "/usr/lib/libicucore.A.dylib",
+          "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+          "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+          "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+          "/System/Library/Frameworks/Network.framework/Versions/A/Network",
+          "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+          "/System/Library/Frameworks/GSS.framework/Versions/A/GSS"
+        ],
+        "dependency_log_sha256": "801c9eb7507740a55601c55a0ceb608d4325f5c62e048bbc372e88caa8f55ed9",
+        "native_symbols_log_sha256": "0c77f9ceeb668abb43755d4c865b684e7380e35cc76e710a65f25c1eb441e4ef",
+        "probe_shared_dependency_absent": true
+      },
+      "c_reference": {
+        "exit": 0,
+        "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "budget": {
+        "limit_seconds": 1800,
+        "observed_elapsed_seconds": 75.720199417,
+        "reference_runs": 1,
+        "jit_runs": 1,
+        "aot_static_runs": 1,
+        "aot_publishes": 1,
+        "performance_measurement": false
+      }
+    },
+    {
+      "rid": "win-x64",
+      "audit_status": "independently_verified_by_two_reviewers",
+      "raw_result_sha256": "3a15494f7f51068536668ead9b96402cd9dade2104d1b09ab9f29e9ecba42738",
+      "source": {
+        "commit": "b89cc70e76e40e9faef50d877841c4839968a887",
+        "c_sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812",
+        "harness_sha256": "c6a755a0c55e0be570cfec2e4bb0dcb0de384a8b464a051676ee3af548860f0e",
+        "emitter_sha256": "5d1251797cc047f358baf92067edb888b11d915e825b544c71643ebbbf0ef968"
+      },
+      "tools": {
+        "sdk_version": "10.0.403",
+        "compiler_version": "Microsoft (R) C/C++ Optimizing Compiler Version 19.44.35229 for x64",
+        "archiver_version": "Microsoft (R) Library Manager Version 14.44.35229.0",
+        "xcode_toolchain_version": null,
+        "mac_ar_sha256": null,
+        "version_logs_sha256": {
+          "cc-version.stdout": "ed6ca56a976bc0dd695904a59a423f36064632694b947125ff73cb68f125f840",
+          "cc-version.stderr": "8e29834a4f5a5cbf82a6436414d68d51c3bdeb68d2dff0023409cdedc21e862c",
+          "cc-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "archive-tool-version.stdout": "c1cbfbe541bca1978c7a6d3771c8239955ee0902e6c819698c958c0d103571a4",
+          "archive-tool-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "archive-tool-version.status.json": "a724e57306a73a79d555fffdc23ce3051f6c6eaedc9798d095296909e64faf5a",
+          "sdk-version.stdout": "e4e6a678725873a4192c048849cd64d852983991bfcb210a40c3b80cc8fcf2eb",
+          "sdk-version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sdk-version.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5"
+        }
+      },
+      "pe_evidence": {
+        "level": "emitter actual PE readback before deletion; archived log only, not independent final DLL reparse",
+        "dll_recorded_sha256": "60dbf93ccd2d308fa5f4a4d633722db1f541f42a01bb252ec4d3af4bf74520e6",
+        "runtimeconfig_recorded_sha256": "ed2598932801a65dafc6157c366f098e4951a2e9789d4384ac7e61c5e52b69af",
+        "readback_log_sha256": "d2aa1226999a006fe1de12393128e42aa9ac05572aed4d3b16a2dcac921a0630",
+        "readback_verified": true,
+        "cdecl": true,
+        "preserve_sig": true,
+        "exact_entrypoint": true,
+        "static_main_calls": 5
+      },
+      "static_input": {
+        "archive_sha256": "e425971520e4f20e227d67e63d55e1177722e16c300e3626365fe83718ae19d4",
+        "archive_bytes": 1050,
+        "archive_independently_rehashed": true,
+        "object_count": 1,
+        "object_members": [
+          {
+            "member": "/0",
+            "bytes": 664,
+            "sha256": "54d52546b4c5e862fb5c9760ab43bae15bd4cfead2bcd58f2c9ecaf265649672"
+          }
+        ],
+        "symbol_log_sha256": "2b2fc6839bce1cecb7d92b7ab3516127cb33565c60f76fd75c95fc65b13eff87",
+        "export_symbol_in_archive": true,
+        "short_import_object_rejected": true
+      },
+      "jit_shared": {
+        "same_emitted_dll": true,
+        "shared_recorded_sha256": "07eb0745c74603f2e46ee51501f554db4efb13f4f7c48875f7f612b0918d865b",
+        "shared_symbols_log_sha256": "e2a0d43b3e571f83ab8211b99b6f463663230effafb2612384323e2cb5f31cba",
+        "exit": 0,
+        "stdout_sha256": "1bc548fe6ed4c50099bd5d1e92c5fe558e05f41aa8bc0f1abada0c613b6fb036",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "aot_link": {
+        "direct_pinvoke_module": "ryupy_cabi_probe",
+        "native_library": "owned static archive",
+        "only_static_main_reachability": true,
+        "broad_root_added": false,
+        "sdk_ilc_generation_observed": true,
+        "sdk_stdout_sha256": "be4077cc874d8eb911f7a0295606a7e0d41b2911237e2f02d0f68b25905d1da4",
+        "sdk_stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "relocated_native": {
+        "sha256": "5bf75125a1f8f6f3a46bdda543f5769b3a873d704f222c4198a488e608d03fe4",
+        "bytes": 1108992,
+        "independently_rehashed": true,
+        "input_source_shared_il_deleted": true,
+        "empty_search_path": true,
+        "exit": 0,
+        "stdout_sha256": "1bc548fe6ed4c50099bd5d1e92c5fe558e05f41aa8bc0f1abada0c613b6fb036",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "dependencies": [
+          "ADVAPI32.dll",
+          "bcrypt.dll",
+          "KERNEL32.dll",
+          "ole32.dll",
+          "api-ms-win-crt-heap-l1-1-0.dll",
+          "api-ms-win-crt-math-l1-1-0.dll",
+          "api-ms-win-crt-string-l1-1-0.dll",
+          "api-ms-win-crt-convert-l1-1-0.dll",
+          "api-ms-win-crt-stdio-l1-1-0.dll",
+          "api-ms-win-crt-runtime-l1-1-0.dll",
+          "api-ms-win-crt-locale-l1-1-0.dll"
+        ],
+        "dependency_log_sha256": "00fcbe80ddb187dacdc2391fdc207401bae4f60369b7be751e7f5e6c58e25c2f",
+        "native_symbols_log_sha256": "8f28d9a0f4e31295cb43b7d3b6476d02b4f1a4d0efc1072fe8b14070a8075bc5",
+        "probe_shared_dependency_absent": true
+      },
+      "c_reference": {
+        "exit": 0,
+        "stdout_sha256": "1bc548fe6ed4c50099bd5d1e92c5fe558e05f41aa8bc0f1abada0c613b6fb036",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "budget": {
+        "limit_seconds": 1800,
+        "observed_elapsed_seconds": 112.04699999999997,
+        "reference_runs": 1,
+        "jit_runs": 1,
+        "aot_static_runs": 1,
+        "aot_publishes": 1,
+        "performance_measurement": false
+      }
+    }
+  ],
+  "limitations": [
+    "No public Python syntax/module/CLI binding, CPython C API or arbitrary wheel support.",
+    "SDK exists on CI host; stripped environment and removed inputs do not prove a clean no-SDK machine.",
+    "Static probe archive plus native execution/dependency evidence does not mean all system libraries are statically linked.",
+    "Final native export visibility is not required; archive T symbol alone is not execution proof.",
+    "Original emitted DLL/shared library are deleted: their hashes are recorded inputs; PE reparse evidence is emitter readback log, not a post-download independent parse.",
+    "Archive header checks reject short import objects; they are not a general arbitrary archive certification.",
+    "Tool absolute paths and raw logs remain CI artifacts, not this compact summary."
+  ],
+  "history": [
+    {
+      "run_id": 41458855288,
+      "commit": "9ea96b39f82cdc2d51080f644a8fb16a8eab94c5",
+      "linux": "C reference/JIT shared/AOT static relocation passed",
+      "macos": "ar -V exit 1 usage before C compilation",
+      "windows": "lib /? exit 1100 with version banner before C compilation",
+      "repair": "Version evidence only; unchanged native execution matrix."
+    }
+  ]
+}
