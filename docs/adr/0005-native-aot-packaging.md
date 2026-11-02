@@ -1,6 +1,6 @@
 # ADR-0005：Native AOT 打包方式
 
-- 状态：方案 A 有限首实现待 CLI 实测（Linux x64 glibc；不代表整 AOT 里程碑完成）
+- 状态：方案 A 有限首实现已通过真实 CLI 实测（Linux x64 glibc；不代表整 AOT 里程碑完成）
 - 日期：2026-10-31
 
 ## 背景
@@ -45,7 +45,7 @@ internal static class Program
 
 ## 倾向
 
-采用 A 的有限首实现。现有 CI 已验证独立薄宿主的真实 ILC 与运行时无 dotnet 的容器行为；本次接入 driver/CLI 仍待专项实测，不能把前者当作 CLI 已通过。只支持本机 Linux x64 glibc，固定 `linux-x64`，其它平台与交叉发布明确拒绝。
+采用 A 的有限首实现。现有 CI 已验证独立薄宿主的真实 ILC 与运行时无 dotnet 的容器行为；随后真实 CLI CI41402483694亦通过，独立证据见 `../validation/aot-driver-ci/README.md`，不是把前者当作CLI结果。只支持本机 Linux x64 glibc，固定 `linux-x64`，其它平台与交叉发布明确拒绝。
 
 ## 后果
 

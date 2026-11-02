@@ -19,9 +19,9 @@ file/ldd与镜像明确记录，不宣称完全静态或无需系统库。当前
 
 CI固定SDK10.0.403、Rust1.99.1、CPython3.12.13，日志/退出码和失败工件保留。
 首次远端执行已通过，原始证据见 `../../docs/validation/aot-smoke-ci/README.md`。
-此前通过的是独立薄桩探针；当前driver已接入，CLI实际ILC/搬迁仍待本次CI，不能沿用旧探针结果冒通过。
+此前独立薄桩探针与随后CLI CI41402483694均已分别通过；CLI证据见 `../../docs/validation/aot-driver-ci/README.md`，不沿用旧探针冒结果。
 
 本地预检（2026-11-02）：三份Python文件语法检查通过；固定CPython3.12.13与修后JIT
 在all/argv/exit/error四模式全部匹配，prepare-only实际exit0。随后真实CI也通过；预检本身不替代NativeAOT运行。Rust action固定到1.99.1分支实际SHA，避免仅用滚动stable。
 
-CLI接线本地门禁（2026-11-02）：3项driver结构/保留名与2项真实CLI失败隔离专项通过；完整make check为434 C#、225固定基线、199 e2e+30 ignored。两失败测试用同轮Cargo构建CLI与子进程DOTNET，只模拟非0/无新产物失败，不以假文件计AOT成功。成功SDK原始双流先复制归档再删除本轮构建目录；真实含空格、中文、&路径交远端CLI ILC验证。
+CLI接线本地门禁（2026-11-02）：3项driver结构/保留名与2项真实CLI失败隔离专项通过；完整make check为434 C#、225固定基线、199 e2e+30 ignored。两失败测试用同轮Cargo构建CLI与子进程DOTNET，只模拟非0/无新产物失败，不以假文件计AOT成功。成功SDK原始双流先复制归档再删除本轮构建目录；真实含空格、中文、&路径已通过远端CLI ILC及容器搬迁验证。
