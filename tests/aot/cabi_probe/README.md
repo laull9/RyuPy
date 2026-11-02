@@ -1,4 +1,4 @@
-# 固定 C ABI 三平台机制原型（Linux已证，Mac/Win复验中）
+# 固定 C ABI 三平台机制原型（三平台有限实证）
 
 仅自有 `(i32,i32)->i64`；无 Python binding、模块/CLI/schema、通用 resolver、wheel、CPython C API。
 
@@ -14,7 +14,7 @@
 - 每 host 从 harness 首命令总 1800 秒；每工具/C/emitter 构建 180 秒，唯一 AOT publish 600 秒，执行 30 秒，都受剩余总预算。
 - 复用现 platform_runner：POSIX 进程组、Windows Job，超时杀子树且回收；无重试/补样本。
 - 一次 C reference + 一次 JIT shared + 一次删除输入后的 AOT static native。无性能测量，无 AOT shared 第二 publish。
-- cargo 保 argv0 代理名，不 resolve 到 rustup；Windows 需 workflow 已建立 MSVC 开发环境。独立workflow已接线；首轮Linux真实native通过，Mac/Win前置修复后待复验。
+- cargo 保 argv0 代理名，不 resolve 到 rustup；Windows 需 workflow 已建立 MSVC 开发环境。独立workflow已接线；三平台最终真实native通过，见末尾证据。
 - C 源三次构建同一字节：static 无 dllexport、shared 有导出宏、reference 有 main 宏。Windows /MT，`.lib` 真 lib.exe archive 不拿 `/LD` 产生的 importlib 代替。
 
 ## 证据与搬迁
@@ -28,7 +28,7 @@
 
 ## 待核事项与失败规则
 - emitter 已冻结为 workspace example：`cargo build --locked -p ryupy-codegen-cil --example cabi_emit_probe --target-dir <owned>`，只用原 Cargo.lock/vendor，无第二依赖图；产物 `debug/examples/cabi_emit_probe[.exe]`。
-- 发射器真实PE readback专项1/1与独立生成通过；首轮Linux已有C参考/JIT共享库/ILC静态库执行证据，Mac/Win尚待；metadata本身不等于native调用成功。
+- 发射器真实PE readback专项1/1与独立生成通过；最终三平台已有C参考/JIT共享库/ILC静态库执行证据；metadata本身不等于native调用成功。
 - 任一 metadata/readback、archive、输出、ILC、平台工具、超时失败保原日志/result，不切换实现、不补测、不扩大 root。
 
 ## 冻结前收口
@@ -64,6 +64,8 @@ macOS `ar -V` 返回 1 且仅 usage；Windows `lib /?` 返回 1100，但有完�
 SHA/大小及 `xcodebuild -version` 工具链版本，不虚构 ar 版本选项；Windows 仅允许
 `lib /?` 的 0/已实证 1100，且严格要求带数字版本的 Microsoft Library Manager 横幅。
 其它退出码或缺横幅仍失败。Linux 版本命令不变；新增两项纯判据测试，无额外 native 运行。
-修复后的 macOS/Windows 实际机制结果仍待同矩阵复验，不以纯测试替代。
+修复后的 macOS/Windows 已由同矩阵真实复验通过，不以纯测试替代。
 
 窄修本地纯工具验收为7/7通过；没有为此重复全语言门禁或性能采样。
+
+最终三平台有限结论及首轮失败见[精简证据](../../../docs/validation/aot-fixed-cabi/README.md)。
