@@ -110,11 +110,13 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
     let _20: bool;
     let _21: dyn;
     let _22: dyn;
-    let _23: dyn;
+    let _23: bool;
     let _24: dyn;
     let _25: dyn;
     let _26: dyn;
     let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
 
     bb0: {
         _5 = RuntimeFn::TracePush(const "ryupy_m3_6_numeric_accumulator.py", const "observed");
@@ -147,12 +149,14 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
         _21 = box<I64>(_11);
         _4 = _21;
         // line 10
-        _22 = RuntimeFn::CaptureModuleMethod(_3, const "append");
-        _23 = dyn.method(_22, "append", [_2]);
+        _22 = _3;
+        _23 = RuntimeFn::IsModule(_22);
+        _24 = RuntimeFn::CaptureModuleTarget(_22, const "append");
+        _25 = dyn.captured_method(_23, _24, "append", [_2]);
         // line 11
-        _24 = RuntimeFn::GetItem(_1, _4);
-        _25 = dyn.Add.inplace(_2, _24);
-        _2 = _25;
+        _26 = RuntimeFn::GetItem(_1, _4);
+        _27 = dyn.Add.inplace(_2, _26);
+        _2 = _27;
         goto -> bb3;
     }
     bb3: {
@@ -164,8 +168,8 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
     }
     bb5: {
         // line 12
-        _27 = MakeTuple([_2, _3]);
-        _26 = _27;
+        _29 = MakeTuple([_2, _3]);
+        _28 = _29;
         goto -> bb7;
     }
     bb6: {
@@ -173,7 +177,7 @@ fn observed(_0: dyn, _1: dyn) -> dyn {
     }
     bb7: {
         RuntimeFn::TracePopTo(_5);
-        return _26;
+        return _28;
     }
 }
 

@@ -35,8 +35,6 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：0 个位置实参。</summary>
     public static object? CallMethod0(int site, object? obj, string name)
     {
-        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
-            return PyOps.CallValue(captured, [], [], []);
         if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
         {
             long classVersion = PyClass.GlobalVersion;
@@ -55,8 +53,6 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：1 个位置实参。</summary>
     public static object? CallMethod1(int site, object? obj, string name, object? a0)
     {
-        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
-            return PyOps.CallValue(captured, [a0], [], []);
         if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
         {
             long classVersion = PyClass.GlobalVersion;
@@ -79,8 +75,6 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：2 个位置实参。</summary>
     public static object? CallMethod2(int site, object? obj, string name, object? a0, object? a1)
     {
-        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
-            return PyOps.CallValue(captured, [a0, a1], [], []);
         if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
         {
             long classVersion = PyClass.GlobalVersion;
@@ -113,8 +107,6 @@ public static partial class PyPic
         object? a2
     )
     {
-        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
-            return PyOps.CallValue(captured, [a0, a1, a2], [], []);
         if (Enabled && (uint)site < MaxSites && obj is PyInstance instance)
         {
             long classVersion = PyClass.GlobalVersion;
@@ -208,8 +200,6 @@ public static partial class PyPic
 
     private static object? CallMethodFast(int site, object? obj, string name, object?[] args)
     {
-        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
-            return PyOps.CallValue(captured, args, [], []);
         if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance)
         {
             return CallMethodFallback(site, obj, name, args);
@@ -265,8 +255,6 @@ public static partial class PyPic
         object?[] rawValues
     )
     {
-        if (PyOps.TryCapturedModuleMethod(obj, out object? captured))
-            return PyOps.CallValue(captured, rawArgs, rawNames, rawValues);
         if (!Enabled
             || (uint)site >= MaxSites
             || PyOps.NeedsFlatten(rawArgs, rawNames)

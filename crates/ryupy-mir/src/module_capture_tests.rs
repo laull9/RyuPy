@@ -4,7 +4,7 @@ use crate::{
     Statement, Terminator,
 };
 use la_arena::Arena;
-fn program(statement: Statement) -> Program {
+pub(crate) fn program(statement: Statement) -> Program {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         stmts: vec![statement],
@@ -54,13 +54,13 @@ fn valid(args: Vec<Operand>, ret: MirType, eval: bool, array_call: bool) -> bool
     func.body.locals[dest].ty = ret;
     let value = if array_call {
         Rvalue::CallWithArgs {
-            callee: RuntimeFn::CaptureModuleMethod,
+            callee: RuntimeFn::CaptureModuleTarget,
             prefix: args,
             args: vec![],
         }
     } else {
         Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::CaptureModuleMethod),
+            callee: Callee::Runtime(RuntimeFn::CaptureModuleTarget),
             args,
         }
     };
@@ -73,7 +73,7 @@ fn valid(args: Vec<Operand>, ret: MirType, eval: bool, array_call: bool) -> bool
 }
 
 #[test]
-fn capture_module_method_abi_rejects_bad_arguments_results_and_array_forms() {
+fn capture_module_target_abi_rejects_bad_arguments_results_and_array_forms() {
     let args = vec![
         Operand::Const(Constant::Null),
         Operand::Const(Constant::Str("method".into())),
@@ -104,7 +104,7 @@ fn unused_capture_is_effectful_and_survives_dead_values() {
     function.body.blocks[function.body.entry].stmts = vec![Statement::Assign {
         dest,
         value: Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::CaptureModuleMethod),
+            callee: Callee::Runtime(RuntimeFn::CaptureModuleTarget),
             args: vec![
                 Operand::Const(Constant::Null),
                 Operand::Const(Constant::Str("missing".into())),

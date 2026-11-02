@@ -12,19 +12,21 @@ fn main() -> () {
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
-    let _8: dyn;
+    let _8: bool;
     let _9: dyn;
     let _10: dyn;
-    let _11: i64;
+    let _11: dyn;
     let _12: dyn;
-    let _13: dyn;
+    let _13: i64;
     let _14: dyn;
-    let _15: i64;
+    let _15: dyn;
     let _16: dyn;
-    let _17: dyn;
-    let _18: i64;
-    let _19: bool;
-    let _20: bool;
+    let _17: i64;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: i64;
+    let _21: bool;
+    let _22: bool;
 
     region r0: [5, +1) finally-guard handler->bb6
     region r1: [1, +1) catch json.JSONDecodeError handler->bb3
@@ -58,67 +60,69 @@ fn main() -> () {
     bb1: {
         // line 4
         _6 = RuntimeFn::LoadName(global@3, const "codec");
-        _7 = RuntimeFn::CaptureModuleMethod(_6, const "loads");
-        _8 = box<Str>(const "[");
-        _9 = dyn.method(_7, "loads", [_8]);
+        _7 = _6;
+        _8 = RuntimeFn::IsModule(_7);
+        _9 = RuntimeFn::CaptureModuleTarget(_7, const "loads");
+        _10 = box<Str>(const "[");
+        _11 = dyn.captured_method(_8, _9, "loads", [_10]);
         goto -> bb15;
     }
     bb2: {
-        _11 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_11);
-        _12 = RuntimeFn::HandlerEnter(_10);
+        _13 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_13);
+        _14 = RuntimeFn::HandlerEnter(_12);
         goto -> bb5;
     }
     bb3: {
-        _10 = caught_exception;
+        _12 = caught_exception;
         goto -> bb2;
     }
     bb4: {
-        _10 = caught_exception;
+        _12 = caught_exception;
         goto -> bb2;
     }
     bb5: {
-        _14 = RuntimeFn::HandlerEnter(None);
+        _16 = RuntimeFn::HandlerEnter(None);
         // line 6
-        _16 = box<Str>(const "caught");
-        _17 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_17, _16);
-        RuntimeFn::WriteNewline(_17);
-        _15 = const 0_i64;
+        _18 = box<Str>(const "caught");
+        _19 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_19, _18);
+        RuntimeFn::WriteNewline(_19);
+        _17 = const 0_i64;
         goto -> bb8;
     }
     bb6: {
-        _13 = caught_exception;
+        _15 = caught_exception;
         goto -> bb7;
     }
     bb7: {
-        _18 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_18);
-        _14 = RuntimeFn::HandlerEnter(_13);
-        _15 = const 1_i64;
+        _20 = Add(_0, const 1_i64);
+        RuntimeFn::TracePopTo(_20);
+        _16 = RuntimeFn::HandlerEnter(_15);
+        _17 = const 1_i64;
         goto -> bb8;
     }
     bb8: {
-        RuntimeFn::HandlerLeave(_12);
+        RuntimeFn::HandlerLeave(_14);
         goto -> bb9;
     }
     bb9: {
-        _19 = Eq(_15, const 1_i64);
-        branch _19 -> [then: bb10, else: bb12];
+        _21 = Eq(_17, const 1_i64);
+        branch _21 -> [then: bb10, else: bb12];
     }
     bb10: {
-        RuntimeFn::HandlerLeave(_12);
-        raise _13;
+        RuntimeFn::HandlerLeave(_14);
+        raise _15;
     }
     bb11: {
         unreachable;
     }
     bb12: {
-        _20 = Eq(_15, const 2_i64);
-        branch _20 -> [then: bb16, else: bb13];
+        _22 = Eq(_17, const 2_i64);
+        branch _22 -> [then: bb16, else: bb13];
     }
     bb13: {
-        RuntimeFn::HandlerLeave(_12);
+        RuntimeFn::HandlerLeave(_14);
         goto -> bb16;
     }
     bb14: {

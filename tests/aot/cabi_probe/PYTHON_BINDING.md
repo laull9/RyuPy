@@ -64,7 +64,7 @@ System.Runtime.InteropServices 10（另两类型仍 System.Runtime），已按�
 以 PID/时间/原子序号独占创建修复；帧测试同时加强末 Type/Overflow/ImportError 检查，
 不沿用早先只看帧的假阳性。
 
-实参回调重绑模块函数还暴露原方法调用先求参数、后查属性的错误。当前有限修复对实际
+实参回调重绑模块函数还暴露原方法调用先求参数、后查属性的错误。91efcfd 的有限修复对实际
 PyModule（包括 alias/形参）在参数前捕获属性值，私有 token 在 PIC 缓存前分流。
 缺属性先于参数报错；非可调用值仍在参数之后报错。非模块保原接收者/PIC，不按绑定名特判；
 Global 动态 callee 显式快照。此为正确性修复，不宣称免费：普通路径增加类型 guard，模块路径
@@ -96,3 +96,26 @@ branch/Leave/Switch/EH端点后全部结构相等；with的MIR 7函数/33区域�
 91efcfd的固定36成本与原Linux/Windows/macOS/CABI回归已真实完成；[成本证据](../../../docs/validation/aot-module-call-cost/README.md)
 保留matmul JIT变慢和模块调用分配翻倍的五个诊断旗，不以CI绿宣称无回归。
 当前仍未main推广；下一表示小切先去token，未知callable独立数组不能为跑分快而复用。
+
+
+## 双值表示候选（本地完整门禁通过，新成本待验）
+
+当前候选以匿名 receiver 快照、独立 Bool 与 Dynamic 目标代替私有 token；没有新增 CFG。
+每个调用相对旧 token 最多增加2个局部和2条语句。实际模块 GetAttr 仍先于参数，缺属性与
+不可调用值的报错顺序不变；非模块走原 PIC。独立标志不从 None/list 等目标值猜测。
+未知 callable 的固定参数数组仍每次新建，避免函数体保留数组或重入时被共享 scratch 覆写。
+这只移除 token 表示，不能据此预称分配或吞吐已改善。
+
+局部来源验证采用写入杀事实、合流交集及 EH 空入口，锁 receiver/flag/target 同源且未重写；
+生成器入口 reload 后必须重新建立证明，不改变生成器布局。NumericList 保持原工厂支配与
+匿名局部唯一读写证明，仅已证明 typed 分支同时省略两个 helper。新增生成器真实差分覆盖
+恢复后捕获及参数 yield 暂停期间重绑；原 core 和完整静态身份长尾正期望未修改。
+
+实际专项：运行时8/8、MIR pair5/5、capture3/3、NumericList7/7（后两筛选有重叠）、
+PE1/1、真实结构driver2/2、普通/生成器CP差分2/2、私有binding3/3；静态身份旧债仍1 ignored。
+首次Rust编译发现切片/未绑定变量、Operand比较及测试限定符拼写问题，机械窄修后通过，
+未放宽断言。完整正常门禁第二轮 exit0：546 C# / 228固定CP基线 / 202 e2e +30 ignored，
+fmt/clippy/Release均通过；配对工具11项通过。首轮停在预期旧快照，18份迁移独立规范审核
+保81处捕获语义、目标/实参、CFG/EH与方法数量，生成候选仅取证，最终命令明确移除
+INSTA_FORCE_PASS/INSTA_UPDATE。旧PIC结构断言仅迁移到精确captured入口并保原site快照。
+不把旧91ef成本当本候选结果，新36性能组仍未启动。

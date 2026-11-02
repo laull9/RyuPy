@@ -8,21 +8,25 @@ fn __str__(_0: dyn) -> dyn {
     let _1: i64;
     let _2: dyn;
     let _3: dyn;
-    let _4: dyn;
+    let _4: bool;
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
+    let _8: dyn;
+    let _9: dyn;
 
     bb0: {
         _1 = RuntimeFn::TracePush(const "m3_7_warning_classes.py", const "__str__");
         // line 33
         _2 = RuntimeFn::LoadName(global@11, const "log");
-        _3 = RuntimeFn::CaptureModuleMethod(_2, const "append");
-        _4 = box<Str>(const "str");
-        _5 = dyn.method(_3, "append", [_4]);
+        _3 = _2;
+        _4 = RuntimeFn::IsModule(_3);
+        _5 = RuntimeFn::CaptureModuleTarget(_3, const "append");
+        _6 = box<Str>(const "str");
+        _7 = dyn.captured_method(_4, _5, "append", [_6]);
         // line 34
-        _7 = box<Str>(const "message-value");
-        _6 = _7;
+        _9 = box<Str>(const "message-value");
+        _8 = _9;
         goto -> bb2;
     }
     bb1: {
@@ -30,7 +34,7 @@ fn __str__(_0: dyn) -> dyn {
     }
     bb2: {
         RuntimeFn::TracePopTo(_1);
-        return _6;
+        return _8;
     }
 }
 

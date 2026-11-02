@@ -420,9 +420,16 @@ impl ExprBuilder<'_> {
         let obj_op = self.build_expr(base);
         let obj_ty = self.ty_of(base);
         let obj = self.coerce(obj_op, &obj_ty, &MirType::Dynamic);
-        // 只actual PyModule在这里读取属性并保存token；其它receiver保原对象/PIC协议。
+        // 接收者先快照，再生成独立标志/目标；实参回调不能重写这两个匿名局部。
+        let receiver = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(Statement::Assign {
+            dest: receiver,
+            value: Rvalue::Use(obj),
+        });
+        let obj = Operand::Local(receiver);
+        let captured = self.runtime_call(RuntimeFn::IsModule, vec![obj.clone()], MirType::Bool);
         let obj = self.runtime_call(
-            RuntimeFn::CaptureModuleMethod,
+            RuntimeFn::CaptureModuleTarget,
             vec![obj, Operand::Const(Constant::Str(name.clone()))],
             MirType::Dynamic,
         );
@@ -440,6 +447,7 @@ impl ExprBuilder<'_> {
             self.push_stmt(Statement::Assign {
                 dest,
                 value: Rvalue::DynCallMethod {
+                    captured: Some(captured),
                     obj,
                     name,
                     args: values,
@@ -452,8 +460,9 @@ impl ExprBuilder<'_> {
         self.push_stmt(Statement::Assign {
             dest,
             value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::CallMethod),
+                callee: Callee::Runtime(RuntimeFn::CallCapturedMethod),
                 args: vec![
+                    captured,
                     obj,
                     Operand::Const(Constant::Str(name)),
                     Operand::Array(positional),

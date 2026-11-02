@@ -91,8 +91,10 @@ fn main() -> () {
     let _18: dyn;
     let _19: dyn;
     let _20: dyn;
-    let _21: dyn;
+    let _21: bool;
     let _22: dyn;
+    let _23: dyn;
+    let _24: dyn;
 
     bb0: {
         g1 = null;
@@ -134,11 +136,13 @@ fn main() -> () {
         // line 11
         _18 = global@0;
         _19 = dyn.call(_18, []);
-        _20 = RuntimeFn::CaptureModuleMethod(_19, const "method");
-        _21 = dyn.method(_20, "method", []);
-        _22 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_22, _21);
-        RuntimeFn::WriteNewline(_22);
+        _20 = _19;
+        _21 = RuntimeFn::IsModule(_20);
+        _22 = RuntimeFn::CaptureModuleTarget(_20, const "method");
+        _23 = dyn.captured_method(_21, _22, "method", []);
+        _24 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_24, _23);
+        RuntimeFn::WriteNewline(_24);
         goto -> bb1;
     }
     bb1: {

@@ -27,7 +27,7 @@ const SOURCES: &[(&str, &str)] = &[
     ),
 ];
 
-fn compare_module_calls(include_static_identity: bool) {
+fn compare_module_calls(replacement: Option<&str>) {
     let workspace = ryupy_driver::runtime::workspace_root();
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
     let version = Command::new(&python)
@@ -52,12 +52,8 @@ fn compare_module_calls(include_static_identity: bool) {
     for (name, text) in SOURCES {
         std::fs::write(root.0.join(name), text).unwrap();
     }
-    if include_static_identity {
-        std::fs::write(
-            root.0.join("main.py"),
-            include_str!("../../../tests/fixtures/module_call_capture/static_identity_pending.py"),
-        )
-        .unwrap();
+    if let Some(source) = replacement {
+        std::fs::write(root.0.join("main.py"), source).unwrap();
     }
     let input = root.0.join("main.py");
     let expected = Command::new(&python)
@@ -96,11 +92,20 @@ fn compare_module_calls(include_static_identity: bool) {
 
 #[test]
 fn ordinary_module_calls_preserve_captured_values_before_argument_callbacks() {
-    compare_module_calls(false);
+    compare_module_calls(None);
 }
 
 #[test]
 #[ignore = "已知旧债：源码def静态Func读取在全局重绑后仍取原函数；完整CP正期望保留"]
 fn static_function_identity_after_rebinding_matches_python() {
-    compare_module_calls(true);
+    compare_module_calls(Some(include_str!(
+        "../../../tests/fixtures/module_call_capture/static_identity_pending.py"
+    )));
+}
+
+#[test]
+fn generator_resume_preserves_module_target_across_argument_rebinding() {
+    compare_module_calls(Some(include_str!(
+        "../../../tests/fixtures/module_call_capture/generator.py"
+    )));
 }

@@ -14,7 +14,7 @@
 `module_call_schema.py`。J/T使用同版本AOT输入DLL。默认JIT短预热不等于Tier1稳态。
 
 采样前实际两CLI对同一冻结源产生MIR/CIL，锁NumericList Create/两次Read/Append数量、
-候选typed Append块无capture而fallback保留，math候选token真实流入sqrt调用。
+候选typed Append块无capture而fallback保留，91ef首次候选token真实流入sqrt调用。
 这是特定源结构门槛，不是全编译器优化正确性证明。静态 Func 重绑身份和实例descriptor旧债
 另存正期望，不宣称通用调用体系完成。
 
@@ -29,3 +29,14 @@ AOT JIT计数解释为N/A。构建时间含restore/cache影响，不比较纯编
 工作流只由本实验工具/fixture/workflow改动自动触发，另保手动入口；不因每次runtime改动
 无限追加36进程。raw evidence仅Actions artifact，retention14天；库中只持久精简结果、
 hash与CI链接，不承诺raw永久保留，不提交临时日志。
+
+
+## 后续双值候选：保持原固定配对合同
+
+首次36与五个负旗永久保留上述精简证据，不用不同job相减推断去token收益。
+本地双值候选以Bool+Dynamic保留目标冻结，去除token对象，但未知callable独立参数数组仍保留。
+在实际结构/语义通过后，仅用同一baseline `8b15b29b8b9e67086f386f62d22e6d4314b0a9d1`
+对新候选重做原36/8应用/1200秒；不增加91ef第三组，不改变fixture/输出/诊断旗。
+候选结构门槛改为同receiver的IsModule与CaptureModuleTarget及真实captured调用，
+并核局部未重写、typed Append块无这两个helper；普通PIC移除token检测由独立runtime源码/测试锁。
+当前本地完整门禁及11项工具测试通过，新的性能组尚未启动；32B每调用剩余成本只是结构估计，不是新实测。

@@ -18,6 +18,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
     crate::validate_identities::validate(program, &mut errors);
     crate::validate_vectors::validate(program, &mut errors);
+    crate::validate_module_pairs::validate(program, &mut errors);
     crate::validate_list_reads::validate(program, &mut errors);
     if !program.functions.iter().any(|(id, _)| id == program.entry) {
         errors.push(format!(
@@ -117,7 +118,9 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                             Rvalue::Call {
                                 callee: Callee::Runtime(
                                     RuntimeFn::ModuleFile
-                                        | RuntimeFn::CaptureModuleMethod
+                                        | RuntimeFn::CaptureModuleTarget
+                                        | RuntimeFn::IsModule
+                                        | RuntimeFn::CallCapturedMethod
                                         | RuntimeFn::DynBinary
                                         | RuntimeFn::ClassNamespaceContains
                                         | RuntimeFn::GeneratorInput
@@ -521,10 +524,8 @@ fn validate_rvalue(
             prefix,
             args,
         } => {
-            if matches!(
-                callee,
-                RuntimeFn::ModuleFile | RuntimeFn::CaptureModuleMethod
-            ) {
+            if *callee == RuntimeFn::ModuleFile || crate::validate_module_pairs::fixed_abi(*callee)
+            {
                 errors.push(format!(
                     "函数 `{}` 的{:?}只允许固定Call ABI",
                     func.name, callee
@@ -540,7 +541,15 @@ fn validate_rvalue(
                 validate_operand(func, block_id, arg, errors);
             }
         }
-        Rvalue::DynCallMethod { obj, args, .. } => {
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            args,
+            ..
+        } => {
+            if let Some(flag) = captured {
+                validate_operand(func, block_id, flag, errors);
+            }
             validate_operand(func, block_id, obj, errors);
             for arg in args {
                 validate_operand(func, block_id, arg, errors);

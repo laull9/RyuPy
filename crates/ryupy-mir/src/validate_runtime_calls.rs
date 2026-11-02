@@ -19,7 +19,16 @@ pub(super) fn validate_call(
         }
         let expected: Option<&[MirType]> = match runtime {
             RuntimeFn::ModuleFile => Some(&[MirType::Str]),
-            RuntimeFn::CaptureModuleMethod => Some(&[MirType::Dynamic, MirType::Str]),
+            RuntimeFn::CaptureModuleTarget => Some(&[MirType::Dynamic, MirType::Str]),
+            RuntimeFn::IsModule => Some(&[MirType::Dynamic]),
+            RuntimeFn::CallCapturedMethod => Some(&[
+                MirType::Bool,
+                MirType::Dynamic,
+                MirType::Str,
+                MirType::Dynamic,
+                MirType::Dynamic,
+                MirType::Dynamic,
+            ]),
             RuntimeFn::NumericListCreate => Some(&[]),
             RuntimeFn::NumericListAppendF64 => Some(&[MirType::Dynamic, MirType::F64]),
             RuntimeFn::NumericListPeekList
@@ -46,6 +55,24 @@ pub(super) fn validate_call(
             RuntimeFn::WriteSep | RuntimeFn::WriteNewline => Some(&[MirType::Dynamic]),
             _ => None,
         };
+        if *runtime == RuntimeFn::CallCapturedMethod
+            && !matches!(
+                args,
+                [
+                    _,
+                    _,
+                    _,
+                    Operand::Array(_),
+                    Operand::Array(_),
+                    Operand::Array(_)
+                ]
+            )
+        {
+            errors.push(format!(
+                "函数 `{}` 的捕获调用必须传三个显式参数数组",
+                func.name
+            ));
+        }
         if let Some(expected) = expected
             && (args.len() != expected.len()
                 || args.iter().zip(expected).any(|(arg, ty)| {
@@ -119,11 +146,12 @@ pub(super) fn validate_destination(
     {
         let expected = match runtime {
             RuntimeFn::ModuleFile => Some(MirType::Str),
-            RuntimeFn::CaptureModuleMethod
+            RuntimeFn::CaptureModuleTarget
+            | RuntimeFn::CallCapturedMethod
             | RuntimeFn::NumericListCreate
             | RuntimeFn::NumericListAppendF64
             | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
-            RuntimeFn::NumericListCanReadF64 => Some(MirType::Bool),
+            RuntimeFn::IsModule | RuntimeFn::NumericListCanReadF64 => Some(MirType::Bool),
             RuntimeFn::NumericListReadF64 | RuntimeFn::NumericListReadCheckedF64 => {
                 Some(MirType::F64)
             }

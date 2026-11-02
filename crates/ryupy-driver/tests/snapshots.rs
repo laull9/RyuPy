@@ -527,7 +527,7 @@ fn snapshot_m2_8_async_with_diagnostic() {
 
 /// M2.9：动态运算 / 调用的 PIC 调用点编号与运行时入口。
 ///
-/// 这里锁住三件事：每个 `DynBinary` 有独立 site 编号、`CallValue` / `CallMethod`
+/// 这里锁住三件事：每个 `DynBinary` 有独立 site 编号、`CallValue` / 捕获方法分流
 /// 把 site 作为第一个实参、CIL 引用的是 `PyPic` 而不是通用 `PyOps` 入口。
 #[test]
 fn snapshot_m2_9_pic_cil() {
@@ -539,9 +539,12 @@ fn snapshot_m2_9_pic_cil() {
 
     assert!(cil.contains("PyPic.Binary"), "期望二元运算走 PIC：{cil}");
     assert!(
-        cil.contains("PyPic.CallMethod"),
-        "期望方法调用走 PIC：{cil}"
+        cil.contains("PyPic.CallCapturedMethod0(int, bool, object, string)"),
+        "期望捕获方法调用保留带site的PIC分流入口：{cil}"
     );
+    assert!(cil.contains("PyOps.IsModule(object)"));
+    assert!(cil.contains("PyOps.CaptureModuleTarget(object, string)"));
+    assert!(!cil.contains("CaptureModuleMethod"));
     assert!(cil.contains("PyPic.CallValue"), "期望动态调用走 PIC：{cil}");
     insta::assert_snapshot!("m2_9_pic_cil", cil);
 }
