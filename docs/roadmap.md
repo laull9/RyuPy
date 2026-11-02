@@ -109,7 +109,7 @@ M3.9两类有证据规则默认启用、两类实验默认关闭；整套默认m
 
 Native AOT 工具链按 ADR-0005 的桩项目方案落地，分别验收原生与桥接产物。无 libpython 的产物可以免装 Python；桥接产物仍依赖对应解释器、标准库和扩展。AOT 构建需要 SDK 与目标平台工具链，不承诺任意平台交叉发布或固定二进制大小。
 
-[ADR0046](adr/0046-native-aot-artifact-manifest.md)的同次SDK／生成引用／产物哈希清单与三平台完整目录搬迁已有限验收。[ADR0047](adr/0047-explicit-aot-resources.md)已完成显式资源选择、真实模块位置与三平台 `_internal/resources/v1` 整树搬迁。原生依赖绑定/自动收集仍是后续独立切，不由清单存在推断动态闭包已齐。遵用户静态优先方向，必要外置依赖集中 `_internal`，不为单文件形式强加自解包。
+[ADR0046](adr/0046-native-aot-artifact-manifest.md)的同次SDK／生成引用／产物哈希清单与三平台完整目录搬迁已有限验收。[ADR0047](adr/0047-explicit-aot-resources.md)已完成显式资源选择、真实模块位置与三平台 `_internal/resources/v1` 整树搬迁。原生依赖绑定/自动收集仍是后续独立切，不由清单存在推断动态闭包已齐。遵用户静态优先方向，必要外置依赖集中 `_internal`，不为单文件形式强加自解包。已有无资源案例的[仅exe搬迁验证](validation/aot-single-executable/README.md)通过三平台；资源bundle、任意项目onefile与Mac/Windows无SDK干净机仍单列，不由此冒称完成。
 
 ## 前瞻优化
 

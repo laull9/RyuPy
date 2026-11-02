@@ -1,0 +1,189 @@
+{
+  "source_commit": "a2560009c666a4be1256afe1d830abd60fa8cfc3",
+  "runs": {
+    "linux": 41454408111,
+    "hosts": 41454408061
+  },
+  "platforms": [
+    {
+      "rid": "linux-x64",
+      "raw_result_sha256": "d2acc93111b936267410a1274f761777da9190612c4f533a5422155be5c508f4",
+      "manifest_sha256": "3bd14ba989a01eab617a8bcdcde66b0c596f3a64dac51697dadcf7417e70b268",
+      "sdk_version": "10.0.403",
+      "single_executable": {
+        "sha256": "4073bd71dec642f4bbcbd1d83cca6c2dacf446e70387795cfa9036185ef4921e",
+        "bytes": 4633568,
+        "files": [
+          "RyuPyAotHost_4387_1793626674078181025_0"
+        ],
+        "owned_source_and_il_absent": true,
+        "mode_exits": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "status": "passed",
+        "scope": "only executable mounted in runtime-deps container",
+        "clean_machine_without_runtime_tested": true,
+        "after_run": {
+          "sha256": "4073bd71dec642f4bbcbd1d83cca6c2dacf446e70387795cfa9036185ef4921e",
+          "bytes": 4633568,
+          "files": [
+            "RyuPyAotHost_4387_1793626674078181025_0"
+          ]
+        }
+      },
+      "modes": {
+        "all": {
+          "exit": 0,
+          "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "argv": {
+          "exit": 0,
+          "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "exit": 7,
+          "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "error": {
+          "exit": 1,
+          "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+          "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+        }
+      },
+      "independently_verified": true,
+      "image": "mcr.microsoft.com/dotnet/runtime-deps:10.0.14-noble"
+    },
+    {
+      "rid": "osx-arm64",
+      "raw_result_sha256": "09a62a365fefc49e7ffc722d674f4a3946ec4b3b808d3acfc853dc0473fb7144",
+      "manifest_sha256": "0494e2bb69def907057afaeda2f08c26591ea0dbd3d38e6d77c4a9f6580efe88",
+      "sdk_version": "10.0.403",
+      "single_executable": {
+        "sha256": "0aa496125b361798d1ea7ebf3780972be015af3b9182e27e22a41f60fbd96590",
+        "bytes": 4455320,
+        "files": [
+          "RyuPyAotHost_4178_1793626718367864000_0"
+        ],
+        "owned_source_and_il_absent": true,
+        "mode_exits": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "status": "passed",
+        "scope": "no adjacent sidecars; SDK-installed host remains accessible",
+        "clean_machine_without_runtime_tested": false,
+        "after_run": {
+          "sha256": "0aa496125b361798d1ea7ebf3780972be015af3b9182e27e22a41f60fbd96590",
+          "bytes": 4455320,
+          "files": [
+            "RyuPyAotHost_4178_1793626718367864000_0"
+          ]
+        }
+      },
+      "modes": {
+        "all": {
+          "exit": 0,
+          "stdout_sha256": "38bc93110226c2ae1ba7dc4665256da4c73bf8acd38173c738dc40d9a10af084",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "argv": {
+          "exit": 0,
+          "stdout_sha256": "4384a2f53717b9e98066faf96d43b61052a05a9c46a12154b072ed9d7b9fe23f",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "exit": 7,
+          "stdout_sha256": "0348d7c87547cf5b9564e1b74bdb63091f12c55f40a557e653f43497ac8e6455",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "error": {
+          "exit": 1,
+          "stdout_sha256": "efe6bbd2d77d81292180aa1996696b6fcf194dfc8659f86e6e794996d870ec0c",
+          "stderr_sha256": "3a73d8e740e1c6f07f5080a711896be1dd9e509d02e80372aa197a354b91d917"
+        }
+      },
+      "independently_verified": true,
+      "host": {
+        "os": "Darwin",
+        "arch": "arm64",
+        "platform": "macOS-14.8.9-arm64-arm-64bit",
+        "image_os": "macos14",
+        "image_version": "20260831.0302.1"
+      }
+    },
+    {
+      "rid": "win-x64",
+      "raw_result_sha256": "af94f79e93df894fda6befd32f5401d3f7763a767de3207cbdb4fe0851630eb0",
+      "manifest_sha256": "c39bf0f9541fd74976795a9b7302347f2fb9c91400a93d6c958dbfff45b5dc74",
+      "sdk_version": "10.0.403",
+      "single_executable": {
+        "sha256": "b2112d08fdd87f4e77c45168e4470ddeecb6a792b14a5efdc642523b0597a65d",
+        "bytes": 4591104,
+        "files": [
+          "RyuPyAotHost_4072_1793626769850233800_0.exe"
+        ],
+        "owned_source_and_il_absent": true,
+        "mode_exits": {
+          "all": 0,
+          "argv": 0,
+          "exit": 7,
+          "error": 1
+        },
+        "status": "passed",
+        "scope": "no adjacent sidecars; SDK-installed host remains accessible",
+        "clean_machine_without_runtime_tested": false,
+        "after_run": {
+          "sha256": "b2112d08fdd87f4e77c45168e4470ddeecb6a792b14a5efdc642523b0597a65d",
+          "bytes": 4591104,
+          "files": [
+            "RyuPyAotHost_4072_1793626769850233800_0.exe"
+          ]
+        }
+      },
+      "modes": {
+        "all": {
+          "exit": 0,
+          "stdout_sha256": "6b412bdba0ff18710f58e89e3641732fdc730ea6b2ea52a5aad4d0a6fd63569e",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "argv": {
+          "exit": 0,
+          "stdout_sha256": "d47d297532997541da187ff4808d295e155fd45462bf4943d8bd8dea6ff8e11a",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "exit": 7,
+          "stdout_sha256": "946d9ad21ae0368717f2532ecbff4058ac246f5a2b9feb776e40754d2dfba93e",
+          "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "error": {
+          "exit": 1,
+          "stdout_sha256": "6537f7c047b99b425c67d45fc8b52652171cdf769718898c26f4200bbffc4889",
+          "stderr_sha256": "6ff7c5962fbefc2fef2f584b59de68929552f3d292258079481b1cfa140b7050"
+        }
+      },
+      "independently_verified": true,
+      "host": {
+        "os": "Windows",
+        "arch": "amd64",
+        "platform": "Windows-2022Server-10.0.20348-SP0",
+        "image_os": "win22",
+        "image_version": "20261026.347.1"
+      }
+    }
+  ],
+  "limitations": [
+    "无资源 schema1 smoke 专用，不是任意项目单文件保证",
+    "仍依赖系统库；Mac/Windows SDK和其它宿主目录可见，非干净机",
+    "完整清单与符号证据保留于另目录；显式资源仍要求完整资源树",
+    "无新增ILC或性能采样"
+  ]
+}

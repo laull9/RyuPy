@@ -1,6 +1,6 @@
 # 同次发布的仅可执行文件验证
 
-状态：验证工具已实现，三平台真实结果待 CI；不是新增 NativeAOT bundler 或资源单文件支持。
+状态：a256000 三平台真实仅exe四模式验收通过；[证据](../../docs/validation/aot-single-executable/README.md)。不是新增 NativeAOT bundler 或资源单文件支持。
 
 只对已有无资源 schema1 smoke 产物，从同一次 ILC 的已验证发布树复制 native 到全新
 `single-executable` 目录，不复制 manifest、调试符号、托管DLL或资源。复制前后及运行
@@ -20,3 +20,7 @@
 
 `test_single_file.py`只测试复制、所有权、SHA、单文件集合、旧目录哨兵、tamper与symlink；
 测试普通bytes不作为可执行证明。真实结果只由上述三平台CI产生，原始日志留artifact。
+
+本轮 Linux 41454408111 / Mac和Windows 41454408061 完整CI成功；每平台四新增模式
+均0/0/7/1且同原双流/异常判据，复制前后/运行后SHA和单文件集合一致。此前完整发布
+及资源检查继续通过，没有额外ILC或性能样本。
