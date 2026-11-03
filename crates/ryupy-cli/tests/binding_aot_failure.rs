@@ -115,7 +115,7 @@ exit {code}
         .filter(|name| name.to_string_lossy().starts_with("ryupy-aot-"))
         .collect();
     assert_eq!(roots, vec![std::ffi::OsString::from("ryupy-aot-old")]);
-    // 低层仍清理失败绑定根，外层build保留owner与完整失败诊断；没有半成功dist。
+    // 高层owned失败树保留SDK诊断，低层/JIT清理合同不变；没有半成功dist。
     let build = out.join("sample_alias.build");
     assert!(build.join("ryupy-build-owner.json").is_file());
     let attempts: Vec<_> = fs::read_dir(&build)
@@ -130,12 +130,20 @@ exit {code}
         .collect();
     assert_eq!(attempts.len(), 1);
     assert!(attempts[0].join("build-error.log").is_file());
-    assert!(!fs::read_dir(&attempts[0]).unwrap().any(|e| {
-        e.unwrap()
-            .file_name()
-            .to_string_lossy()
-            .starts_with("ryupy-binding-")
-    }));
+    let binding = attempts[0].join("ryupy-binding-0");
+    let sdk = binding.join("bundle/ryupy-aot-0");
+    assert!(binding.join("bundle/sample_alias.dll").is_file());
+    assert!(sdk.join("host/Host.csproj").is_file());
+    assert!(
+        fs::read_to_string(sdk.join("publish.stdout.log"))
+            .unwrap()
+            .contains("sdk-stdout-marker")
+    );
+    assert!(
+        fs::read_to_string(sdk.join("publish.stderr.log"))
+            .unwrap()
+            .contains("sdk-stderr-marker")
+    );
     assert!(!out.join("sample_alias.dist").exists());
     assert!(!out.join("sample_alias.dll").exists());
     assert!(!fs::read_dir(&out).unwrap().any(|e| {

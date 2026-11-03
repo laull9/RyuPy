@@ -59,3 +59,28 @@ macOS 另增加一次用户指定的原 `tests/e2e/phase3/m3_6_abc.py` 功能验
 四个本批流程仅对工具自身的证据根启用隐藏文件上传，不上传仓库根、home、全局SDK/NuGet缓存或凭据。这样保留SDK生成的隐藏 `AssemblyAttributes.cs`，避免沿用旧轮该文件仅runner记录的缺项。owner本身为非隐藏 `ryupy-build-owner.json`。coverage原有主动删中间缓存策略不变，其记录不冒删除后可完整恢复原build ledger；其他有意删改的负例副本也不冒原树。
 
 hello另将本次唯一fresh `.build/.dist` 普通树复制到证据根 `owned-bundle`，保隐藏项、空目录、条目mode与owner原字节；复制前后size/SHA/mode全核，副本清单及managed/runtime输入再核，原1800秒期限不变。失败仅在唯一安全fresh树且仍有预算时尽力归档，归档失败不遮原make错误。owner哈希用于原构建证据，不表示其绝对source绑定在复制后可再次构建；根mode不在既有ledger范围。此增量固定3.12.13共6项纯mock通过，未新增任何应用执行。
+
+## 首轮真实验收（6faa，保留失败）
+
+候选 `6faa3a68adb2168b32fe6f66eeb787b1493f851c` 的四流程共9个job已终止：8个成功，Windows固定原生绑定的发布失败。因此不称整批验收全部通过，也未合main或追加旧36。对应run：Linux41598273421、host41598273396、binding41598273362、construction41598273429。
+
+用户指定的原ABC示例在macOS真实无`-o`构建通过：原源码SHA `81e0141c247e4aed3e9aefe8babc828e49d97f3f98d7c531b576fa16a2f4d23a`，源码旁 `.build/.dist` 和 `m3_6_abc` 入口；CP1/publish1/搬迁native1/JIT0，原双流逐字相同。原根改名后运行，owner及完整build/dist、隐藏SDK中间文件均独立重哈希；SDK仍安装，不称无SDK宿主或macOS12实机。
+
+Ubuntu真实 `make bench-aot BENCH=hello` 管线成功；唯一AOT后端保存记录、原1warm5参数、5个计时点及原runner输出一致状态已核。CP/native各6仍是固定实现推导而非独立进程追踪。完整owned-bundle共234普通文件逐size/SHA核验，owner、managed/runtime/native/source和隐藏SDK文件一致；真实ILC完成，stderr空。此为接口功能验收，不以该hello窗口发布性能结论；跨后端同名save字节保护仍是mock回归证据。
+
+Mac/Windows普通和资源包的原行为、完整异常帧、稳定原生名称与搬迁清单已独立核；它们沿原harness主动删除输入树，因此不冒build owner完整重核。构造三host保留的全输入树/owner均已核，同AOT DLL的JIT2/native2原双流与原positive/boundary完整帧一致。Linux/Mac固定绑定原10/9应用、声明/静态archive/完整schema3及保留owner树核验通过。原有功能范围和SDK/系统库依赖限制未扩大。
+
+Windows绑定首失败为SDK已输出 `Generating native code` 后的 `LINK LNK1104`，无法打开 `obj\\Release\\net10.0\\win-x64\\native\\link.rsp`。原清理已删除该SDK树，不能证明当时rsp文件存在或把路径长度称唯一已证原因。依据原日志，本轮host路径221个UTF16单元、推算rsp265；旧同平台成功记录host168、推算rsp212，新布局层增加53。保留此失败，再评估仅高层owned attempt内缩短重复唯一私有目录及Windows SDK中间路径预检；不改系统长路径设置、不吞LINK错误、不以不变候选重跑隐藏问题。
+
+
+## Windows 绑定恢复候选（本地已验，远端待授权）
+
+仅高层布局创建的私有 `OwnedAttempt` 能申请较短的固定内部 binding/SDK 子目录；创建仍排他，既有目录、链接、逃逸和本轮attempt之外的边界拒绝。公开 JIT bundle 与低层随机 SDK 工作目录合同不变，用户可见 `.build/.dist` 和稳定原生名称不变。
+
+Windows 在 SDK 前按实际 host 名、RID、framework 计算七种已观察到的 SDK 中间/输出路径，按 UTF16 单元检查小于260；超限提示使用更短的 `--out-dir`，不改系统设置。这是 SDK10.0.403 已知路径的有限预检，不保证未来所有 SDK 文件，也不把首轮失败的路径长度推断升级为唯一原因。
+
+仅持有高层 `OwnedAttempt` 的失败发布保留 SDK 工作树，在判断退出状态前保存原始 stdout/stderr；父布局将失败 attempt 纳入 ledger，旧成功 dist 不动。低层/JIT 原失败清理不变。这样后续失败可保留实际 rsp 现场，而不是用重复执行推测。
+
+本轮本地 driver 库测试82项、CLI假SDK生命周期5项通过；其中布局15项及独立路径3项均已单独验证，fmt和strict clippy通过。测试覆盖实际host后缀/UTF16边界、短目录已有项和逃逸拒绝、高层失败留证及旧dist/错误码保持；不代表真实Windows LINK已恢复。
+
+绑定工作流此前没有监听共享 driver 依赖，现补 `aot*.rs`、`binding*.rs` 和 `lib.rs` 三条实际依赖路径，保原三平台矩阵、预算和断言。拟恢复批次仅原Linux/host与绑定三平台共6个job、18次发布，构造首轮三平台通过结果保留；尚未启动，须另获本轮执行确认。固定36、main及系统配置不变。

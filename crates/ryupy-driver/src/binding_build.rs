@@ -1,4 +1,4 @@
-//! 固定声明的独占部署；先验证再写，失败清理本轮根，不改无绑定旧布局或既有包。
+//! 固定声明独占部署：先验证再写，高层AOT保失败树、其余清理本轮根，不改旧包。
 use crate::{
     Artifacts, BuildOptions, Session,
     native_binding::{BindingPlan, Platform},
@@ -17,6 +17,23 @@ pub(crate) fn build(
     sess: &mut Session,
     opts: &BuildOptions,
     declaration: &Path,
+) -> Result<Artifacts> {
+    build_internal(sess, opts, declaration, None)
+}
+pub(crate) fn build_in_attempt(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    declaration: &Path,
+    owned: &crate::aot_layout::OwnedAttempt,
+) -> Result<Artifacts> {
+    ensure!(opts.aot, "短绑定工作根只供高层AOT");
+    build_internal(sess, opts, declaration, Some(owned))
+}
+fn build_internal(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    declaration: &Path,
+    owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<Artifacts> {
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
     let plan = BindingPlan::read(declaration, Platform::current()?, opts.aot)?;
@@ -53,7 +70,11 @@ pub(crate) fn build(
         &plan,
     )?;
     std::fs::create_dir_all(&opts.out_dir)?;
-    let root = owned_root(&opts.out_dir)?;
+    let root = if let Some(attempt) = owned {
+        attempt.create_child(&opts.out_dir, "ryupy-binding-0")?
+    } else {
+        owned_root(&opts.out_dir)?
+    };
     let result = (|| -> Result<Artifacts> {
         let bundle = root.join("bundle");
         std::fs::create_dir(&bundle)?;
@@ -66,7 +87,7 @@ pub(crate) fn build(
         crate::runtime::copy_runtime_to(&bundle)?;
         let runtime = bundle.join("RyuPy.Runtime.dll");
         if opts.aot {
-            let p = crate::aot::publish_binding(&dll, &bundle, &context, &plan)?;
+            let p = crate::aot::publish_binding(&dll, &bundle, &context, &plan, owned)?;
             return Ok(Artifacts {
                 dll,
                 native_exe: Some(p.executable),
@@ -104,6 +125,7 @@ pub(crate) fn build(
     })();
     match result {
         Ok(v) => Ok(v),
+        Err(error) if owned.is_some() => Err(error),
         Err(error) => match std::fs::remove_dir_all(&root) {
             Ok(()) => Err(error),
             Err(cleanup) => Err(error.context(format!("同时无法清理本轮绑定根：{cleanup}"))),
