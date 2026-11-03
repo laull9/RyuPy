@@ -1,8 +1,8 @@
 # 普通单继承构造：有限 NativeAOT 验收
 
-当前已接线并通过固定解释器纯 runner 轻测，未执行本专项 JIT/NativeAOT、未推广 main。
+当前已接线并通过固定解释器纯 runner 轻测。首轮Linux真实发布后JIT边界失败，原生应用尚未执行；修复后的本机普通JIT预检通过，正式三平台复验仍待，未推广main。
 初版 d03e7149 的一次 CPython 3.12.13 positive 本机校准已通过（独立前置，不算正式三 host group）。
-随后仅补强Data边界的generated-init快路断言，positive段1–294逐字未变；新全源由正式group的唯一CP参考核验，不追加本机校准。
+随后dd9077源仅补强Data边界的generated-init快路断言，positive段1–294逐字未变；该版在首轮Linux正式组完成唯一CP参考。后续imports布局修另做一次明确开发CP校准，见末节，不混为正式组计数。
 旧 smoke、七配置 ILC、C# 与 driver 专项不能代替本 fixture 的原生执行。
 
 ## 固定范围
@@ -29,10 +29,10 @@
 ## 两模式及冻结证据
 
 唯一源 `construction_fixtures/construction.py` SHA256：
-`dd9077fd43bb744b0098f95990ccd6721aa9ab71a03e4baa7edf0bbeb96aa0b3`。
+`ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e`。
 
 positive覆盖sentinel身份、own函数new隐式静态化、继承super、foreign/None跳init、cached每次init、返回Child选实际init、new中late init、参数顺序和异常context。
-完整成功marker之后故意调用caller，由new抛ValueError。精确exit1，完整帧294 `<module>` →292 `caller` →289 `__new__`；末行 `ValueError: new-body`。
+完整成功marker之后故意调用caller，由new抛ValueError。精确exit1，完整帧297 `<module>` →295 `caller` →292 `__new__`；末行 `ValueError: new-body`。
 
 ryupy-boundaries覆盖ordinary own new删除/late root reset的可观察原子拒绝、special自定义new受控拒绝。
 Enum在late赋值处拒绝；Data/Error/TestCase的拒绝点为构造，不冒充同一点，也不修改共享TestCase。
@@ -62,3 +62,32 @@ source和out-il仅改名到build-evidence，原路径确实失效；证据仍可
 
 result.json记录每阶段、命令、尝试计数、source/CLI/runtime/IL/native/manifest哈希、原路径失效、各副本前后核验、参考及四应用原双流hash和完整帧。失败保failed_stage/首次错误/未执行项，不清场重跑。
 只有三host全部本专项成功，才可记有限fixture真实NativeAOT通过；不增加项目分子、不关闭matmul旧性能负项、不声称任意descriptor/metaclass支持或main已准入。
+
+
+## 首轮Mac/Windows轻测失败与窄修
+
+源`99ac4356e241445887223b5aad02693a68e6a535`的首轮macOS job在纯runner轻测20/21时停止，
+尚未进入正式CP参考、runtime/CLI准备或ILC。路径测试误将canonical `/private/var/...`
+与同一文件的 `/var/...` 按文字比较；仅改测试为`samefile`，并用`..`别名及同字节不同文件负例锁身份。
+同轮Windows亦在这一身份断言失败：canonical `C:/Users/runneradmin/...` 与实际同文件的
+8.3 `C:/Users/RUNNER~1/...` 文字不同；21项为19通过、1失败、1平台skip，同样未进入正式组。
+两host的正式CP/publish/应用计数均为0。这项路径窄修仅改测试，不改runner判据或raw比较策略，首失败原日志均保留。
+Linux发生下述独立故障；测试修复或本机轻测通过不代表两host真实NativeAOT通过。
+
+## 首轮Linux布局失败与有界恢复预检
+
+[首轮run41582182887](https://github.com/laull9/RyuPy/actions/runs/41582182887) 的Linux组在103.115秒停止：
+runtime1、CLI1、public AOT publish1、CP positive1、JIT应用2；native应用0。
+真实ILC及同DLL JIT positive通过，随后boundary只输出ordinary-mutation-atomic-ok，报
+`NotImplementedError: runtime bases currently require an ordinary user class; special classes and metaclass protocols are not supported`。
+不把发布成功当新fixture原生执行通过，也不把JIT边界失败改成预期成功。
+
+原fixture将dataclass/Enum/TestCase imports放在elif内；现HIR只认可无条件模块顶层的稳定special身份，
+Enum/TestCase因而走Runtime base并被既有特殊布局限制拒绝。原已验driver采用无条件顶层imports。
+本次仅把三条imports移到模块顶层，所有断言、marker和两模式均保留，不扩大生产动态基类支持；
+这一条件导入special-base限制仍存在。新源码/正例行号如上，boundary422/420不变。
+
+新ed97c274源完成一次明确的本机恢复预检：CPython3.12.13 positive1、公开普通JIT build1、JIT两模式各1，
+均首次通过固定marker、exit1与完整帧；复用已构建runtime，无额外ILC/native或性能采样。
+这不是正式组同AOT DLL的执行证据；首次d03e校准、首轮dd9077正式组和本次ed97开发预检分别记录。
+后续正式三RID仍各一次AOT发布、CP1与四应用；无不变候选重试，既有首次失败不删除。

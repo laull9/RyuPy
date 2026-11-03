@@ -200,12 +200,20 @@ class FilesTests(unittest.TestCase):
 
     def test_unique_same_publish_managed_path(self):
         source, _ = self.bundle()
-        native = source/'ryupy-aot-unique/publish/host'; native.parent.mkdir(parents=True); native.write_bytes(b'path-test')
+        # 故意保留..路径别名，Linux也覆盖Mac /var→/private/var的同实体合同。
+        native = source/'..'/source.name/'ryupy-aot-unique/publish/host'
+        native.parent.mkdir(parents=True); native.write_bytes(b'path-test')
         manifest = native.parent/'ryupy-artifact.json'; manifest.write_bytes(b'{}')
         raw = f'已生成 {source}/construction.dll\n已生成 {native}\nAOT 清单：{manifest}\n'.encode()
         complete = subprocess.CompletedProcess([], 0, b'', raw)
         entry, dll = harness.published_inputs(complete, source, 'linux-x64')
-        self.assertEqual(entry, native); self.assertEqual(dll, source/'construction.dll')
+        self.assertTrue(entry.samefile(native))
+        self.assertTrue(dll.samefile(source/'construction.dll'))
+        wrong = source/'not-construction.dll'
+        wrong.write_bytes((source/'construction.dll').read_bytes())
+        mismatched = subprocess.CompletedProcess([], 0, b'', raw.replace(
+            f'已生成 {source}/construction.dll'.encode(), f'已生成 {wrong}'.encode()))
+        with self.assertRaises(AssertionError): harness.published_inputs(mismatched, source, 'linux-x64')
         complete.stderr += f'已生成 {source}/construction.dll\n'.encode()
         with self.assertRaises(AssertionError): harness.published_inputs(complete, source, 'linux-x64')
 
