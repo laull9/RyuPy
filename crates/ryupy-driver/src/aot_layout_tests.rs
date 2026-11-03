@@ -73,7 +73,7 @@ fn fake(opts: &BuildOptions, data: &[u8], schema: u64) -> Result<Artifacts> {
 #[test]
 fn first_and_repeat_publish_preserve_old_work_and_exact_final_name() {
     let c = Case::new();
-    let first = build(&c.opts, |o| fake(o, b"first", 1)).unwrap();
+    let first = build(&c.opts, |o, _owned| fake(o, b"first", 1)).unwrap();
     let old_dll = first.dll.clone();
     let native = first.native_exe.unwrap();
     assert_eq!(native.parent().unwrap(), c.dist());
@@ -85,7 +85,7 @@ fn first_and_repeat_publish_preserve_old_work_and_exact_final_name() {
             "入口 & app"
         }
     );
-    let second = build(&c.opts, |o| fake(o, b"second", 1)).unwrap();
+    let second = build(&c.opts, |o, _owned| fake(o, b"second", 1)).unwrap();
     assert_eq!(
         std::fs::read(second.native_exe.unwrap()).unwrap(),
         b"second"
@@ -109,37 +109,37 @@ fn first_and_repeat_publish_preserve_old_work_and_exact_final_name() {
 #[test]
 fn failure_retains_old_dist_and_records_owned_attempt() {
     let c = Case::new();
-    build(&c.opts, |o| fake(o, b"old", 1)).unwrap();
+    build(&c.opts, |o, _owned| fake(o, b"old", 1)).unwrap();
     let before = files::snapshot(&c.dist(), false).unwrap();
     assert!(
-        build(&c.opts, |o| {
+        build(&c.opts, |o, _owned| {
             std::fs::write(o.out_dir.join("failure.log"), b"failure")?;
             anyhow::bail!("fake SDK failed")
         })
         .is_err()
     );
     assert_eq!(before, files::snapshot(&c.dist(), false).unwrap());
-    build(&c.opts, |o| fake(o, b"next", 1)).unwrap();
+    build(&c.opts, |o, _owned| fake(o, b"next", 1)).unwrap();
 }
 #[test]
 fn unowned_build_and_dist_are_not_adopted() {
     let c = Case::new();
     std::fs::create_dir_all(c.dist()).unwrap();
     std::fs::write(c.dist().join("sentinel"), b"mine").unwrap();
-    assert!(build(&c.opts, |_| panic!("must not compile")).is_err());
+    assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
     assert!(c.dist().join("sentinel").exists());
     let d = Case::new();
     std::fs::create_dir_all(d.build()).unwrap();
-    assert!(build(&d.opts, |_| panic!("must not compile")).is_err());
+    assert!(build(&d.opts, |_, _owned| panic!("must not compile")).is_err());
 }
 #[test]
 fn modified_build_or_dist_rejects_before_compile() {
     for in_build in [true, false] {
         let c = Case::new();
-        build(&c.opts, |o| fake(o, b"one", 1)).unwrap();
+        build(&c.opts, |o, _owned| fake(o, b"one", 1)).unwrap();
         let root = if in_build { c.build() } else { c.dist() };
         std::fs::write(root.join("foreign"), b"foreign").unwrap();
-        assert!(build(&c.opts, |_| panic!("must not compile")).is_err());
+        assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
         assert!(root.join("foreign").is_file());
     }
 }
@@ -149,14 +149,14 @@ fn concurrent_lock_is_never_removed_or_reused() {
     std::fs::create_dir_all(&c.opts.out_dir).unwrap();
     let lock = c.opts.out_dir.join("入口 & app.build.lock");
     std::fs::create_dir(&lock).unwrap();
-    assert!(build(&c.opts, |_| panic!("must not compile")).is_err());
+    assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
     assert!(lock.is_dir());
 }
 #[test]
 fn all_manifest_schemas_and_resource_subtree_survive() {
     for schema in 1..=3 {
         let c = Case::new();
-        let a = build(&c.opts, |o| fake(o, b"native", schema)).unwrap();
+        let a = build(&c.opts, |o, _owned| fake(o, b"native", schema)).unwrap();
         let value = files::verify_manifest(a.manifest.unwrap().parent().unwrap()).unwrap();
         assert_eq!(value["schema_version"], schema);
         assert_eq!(value["keep_unknown"]["values"], json!([1, 2]));
@@ -175,10 +175,10 @@ fn all_manifest_schemas_and_resource_subtree_survive() {
 #[test]
 fn rename_collision_and_bad_manifest_preserve_prior_dist() {
     let c = Case::new();
-    build(&c.opts, |o| fake(o, b"good", 1)).unwrap();
+    build(&c.opts, |o, _owned| fake(o, b"good", 1)).unwrap();
     let before = files::snapshot(&c.dist(), false).unwrap();
     assert!(
-        build(&c.opts, |o| {
+        build(&c.opts, |o, _owned| {
             let a = fake(o, b"bad", 1)?;
             let root = a.manifest.as_ref().unwrap().parent().unwrap();
             let name = if cfg!(windows) {
@@ -199,14 +199,14 @@ fn portable_names_reject_before_output_creation() {
         let mut c = Case::new();
         c.opts.input = c.root.join(name);
         // 名称拒绝必须早于源文件读取和任何输出写入。
-        assert!(build(&c.opts, |_| panic!("must not compile")).is_err());
+        assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
         assert!(!c.opts.out_dir.exists());
     }
 }
 #[test]
 fn owner_duplicate_fields_and_unknown_version_are_rejected() {
     let c = Case::new();
-    build(&c.opts, |o| fake(o, b"one", 1)).unwrap();
+    build(&c.opts, |o, _owned| fake(o, b"one", 1)).unwrap();
     let path = c.build().join(files::OWNER);
     let bytes = std::fs::read_to_string(&path).unwrap();
     std::fs::write(
@@ -214,7 +214,7 @@ fn owner_duplicate_fields_and_unknown_version_are_rejected() {
         bytes.replacen("\"version\": 1", "\"version\": 1, \"version\": 1", 1),
     )
     .unwrap();
-    assert!(build(&c.opts, |_| panic!("must not compile")).is_err());
+    assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
 }
 #[cfg(unix)]
 #[test]
@@ -225,7 +225,7 @@ fn boundary_links_are_rejected_but_root_alias_is_resolved() {
     let external = c.root.join("external");
     std::fs::create_dir(&external).unwrap();
     symlink(&external, c.build()).unwrap();
-    assert!(build(&c.opts, |_| panic!("must not compile")).is_err());
+    assert!(build(&c.opts, |_, _owned| panic!("must not compile")).is_err());
     assert!(external.is_dir());
     let mut d = Case::new();
     let real = d.root.join("real");
@@ -233,14 +233,14 @@ fn boundary_links_are_rejected_but_root_alias_is_resolved() {
     let alias = d.root.join("alias");
     symlink(&real, &alias).unwrap();
     d.opts.out_dir = alias;
-    let a = build(&d.opts, |o| fake(o, b"one", 1)).unwrap();
+    let a = build(&d.opts, |o, _owned| fake(o, b"one", 1)).unwrap();
     assert!(a.native_exe.unwrap().starts_with(real));
 }
 
 #[test]
 fn actual_rename_failure_restores_previous_dist_bytes() {
     let c = Case::new();
-    build(&c.opts, |o| fake(o, b"old-and-good", 1)).unwrap();
+    build(&c.opts, |o, _owned| fake(o, b"old-and-good", 1)).unwrap();
     let before = files::snapshot(&c.dist(), false).unwrap();
     let backup = c.build().join("rollback-test-backup");
     let missing = c.build().join("deliberately-absent-candidate");
@@ -253,7 +253,7 @@ fn actual_rename_failure_restores_previous_dist_bytes() {
 fn reserved_assembly_name_is_rejected_before_root_creation() {
     let mut c = Case::new();
     c.opts.input = c.root.join("RyuPy.Runtime.py");
-    let error = build(&c.opts, |_| panic!("must not compile")).unwrap_err();
+    let error = build(&c.opts, |_, _owned| panic!("must not compile")).unwrap_err();
     assert!(error.to_string().contains("保留名"));
     assert!(!c.opts.out_dir.exists());
 }
@@ -261,7 +261,7 @@ fn reserved_assembly_name_is_rejected_before_root_creation() {
 #[test]
 fn resource_native_unicode_is_not_unicode_resource_permission() {
     let c = Case::new();
-    let a = build(&c.opts, |o| fake(o, b"good", 2)).unwrap();
+    let a = build(&c.opts, |o, _owned| fake(o, b"good", 2)).unwrap();
     let root = a.native_exe.as_ref().unwrap().parent().unwrap();
     assert!(
         a.native_exe
@@ -274,7 +274,7 @@ fn resource_native_unicode_is_not_unicode_resource_permission() {
             .contains("入口")
     );
     let before = files::snapshot(root, false).unwrap();
-    let error=build(&c.opts,|o|{
+    let error=build(&c.opts,|o,_owned|{
         let a=fake(o,b"bad",2)?;let root=a.native_exe.as_ref().unwrap().parent().unwrap();
         let path="_internal/resources/v1/中文.txt";std::fs::write(root.join(path),b"x")?;
         let mp=a.manifest.as_ref().unwrap();let mut value:serde_json::Value=serde_json::from_slice(&std::fs::read(mp)?)?;
@@ -298,4 +298,39 @@ fn resource_native_escaping_and_ascii_aliases_are_rejected() {
     assert!(files::relocate(root, old, "../escape").is_err());
     assert!(files::relocate(root, old, "_INTERNAL").is_err());
     assert_eq!(before, files::snapshot(root, false).unwrap());
+}
+
+#[test]
+fn owned_short_roots_reject_conflicts_and_escaping_without_cleanup() {
+    let c = Case::new();
+    build(&c.opts, |opts, owned| {
+        let binding = owned.create_child(&opts.out_dir, "ryupy-binding-0")?;
+        std::fs::write(binding.join("sentinel"), b"keep")?;
+        assert!(
+            owned
+                .create_child(&opts.out_dir, "ryupy-binding-0")
+                .is_err()
+        );
+        assert_eq!(std::fs::read(binding.join("sentinel"))?, b"keep");
+        let bundle = binding.join("bundle");
+        std::fs::create_dir(&bundle)?;
+        let sdk = owned.create_child(&bundle, "ryupy-aot-0")?;
+        assert!(owned.create_child(&bundle, "ryupy-aot-0").is_err());
+        assert!(sdk.is_dir());
+        assert!(owned.create_child(&c.root, "ryupy-aot-0").is_err());
+        assert!(
+            owned
+                .create_child(&opts.out_dir.join(".."), "ryupy-aot-0")
+                .is_err()
+        );
+        #[cfg(unix)]
+        {
+            let link = opts.out_dir.join("linked");
+            std::os::unix::fs::symlink(&c.root, &link)?;
+            assert!(owned.create_child(&link, "ryupy-aot-0").is_err());
+            std::fs::remove_file(link)?;
+        }
+        fake(opts, b"native", 1)
+    })
+    .unwrap();
 }

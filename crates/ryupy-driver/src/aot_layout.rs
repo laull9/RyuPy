@@ -18,6 +18,43 @@ struct Owner {
     build: Vec<files::Node>,
     dist: Option<Vec<files::Node>>,
 }
+/// 仅外层排他创建attempt后可构造；调用者不能靠目录名字伪造资格。
+pub(crate) struct OwnedAttempt {
+    root: PathBuf,
+}
+impl OwnedAttempt {
+    pub(crate) fn create_child(&self, parent: &Path, name: &str) -> Result<PathBuf> {
+        ensure!(
+            matches!(name, "ryupy-binding-0" | "ryupy-aot-0"),
+            "非法固定工作根"
+        );
+        let relative = parent
+            .strip_prefix(&self.root)
+            .context("工作父目录不属于本轮attempt")?;
+        ensure!(
+            relative
+                .components()
+                .all(|c| matches!(c, std::path::Component::Normal(_))),
+            "工作路径含相对逃逸组件"
+        );
+        let mut checked = self.root.clone();
+        ensure!(
+            manifest_files::plain_metadata(&checked)?.is_dir(),
+            "attempt不是普通目录"
+        );
+        for component in relative.components() {
+            checked.push(component);
+            ensure!(
+                manifest_files::plain_metadata(&checked)?.is_dir(),
+                "工作祖先不是普通目录"
+            );
+        }
+        let path = parent.join(name);
+        // 只有成功create_dir后才拥有清理权；已有目录/链接不能接管。
+        std::fs::create_dir(&path).context("本轮短工作根已存在或无法独占创建，拒绝复用")?;
+        Ok(path)
+    }
+}
 struct Lock(PathBuf);
 impl Drop for Lock {
     fn drop(&mut self) {
@@ -28,7 +65,7 @@ impl Drop for Lock {
 /// aot=true的out_dir是两棵目录的共同ROOT；闭包仅见本轮独占attempt。
 pub(crate) fn build(
     opts: &BuildOptions,
-    compile: impl FnOnce(&BuildOptions) -> Result<Artifacts>,
+    compile: impl FnOnce(&BuildOptions, &OwnedAttempt) -> Result<Artifacts>,
 ) -> Result<Artifacts> {
     ensure!(opts.aot, "布局事务只用于AOT");
     crate::aot::validate_before_build(&opts.input, true)?;
@@ -80,7 +117,10 @@ pub(crate) fn build(
     let attempt = unique_attempt(&build)?;
     let mut inner = opts.clone();
     inner.out_dir = attempt.clone();
-    let result = compile(&inner)
+    let owned = OwnedAttempt {
+        root: attempt.clone(),
+    };
+    let result = compile(&inner, &owned)
         .and_then(|artifacts| install(&attempt, &dist, &stem, &owner.dist, artifacts));
     match result {
         Ok(artifacts) => {

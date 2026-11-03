@@ -5,6 +5,9 @@ on:
     branches: [wip/aot-jit-recovery]
     paths:
       - '.github/workflows/aot-python-binding.yml'
+      - 'crates/ryupy-driver/src/aot*.rs'
+      - 'crates/ryupy-driver/src/binding*.rs'
+      - 'crates/ryupy-driver/src/lib.rs'
       - 'tests/aot/binding_*.py'
       - 'tests/aot/test_binding_*.py'
       - 'tests/aot/binding_fixtures/**'

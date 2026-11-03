@@ -1,6 +1,6 @@
 //! Native AOT 的薄宿主发布：只编排 SDK 与自有目录，不解释 Python 或生成运行时反射。
 //!
-//! 每次成功保留独立工作根及 publish 目录；失败只删除本次独占创建的工作根。
+//! 每次成功保留独立工作根；高层OwnedAttempt保失败诊断树，低层失败只删本轮根。
 //! 所有诊断保留 SDK 退出码及完整输出，不能把上次的原生产物冒充本次成功。
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -16,6 +16,8 @@ mod platform;
 use platform::HostPlatform;
 #[path = "aot_sdk_paths.rs"]
 mod sdk_paths;
+#[path = "aot_work_paths.rs"]
+mod work_paths;
 
 /// 在 build 的任何产物写入之前调用。运行时保留名对 JIT 同样适用，避免 DLL 被覆盖。
 pub(crate) fn validate_before_build(input: &Path, aot: bool) -> Result<()> {
@@ -134,8 +136,26 @@ fn owned_root(out: &Path, input_name: &str) -> Result<(PathBuf, String)> {
     bail!("无法在有限重试内创建独占 AOT 工作目录")
 }
 
+// 唯一性已由外层attempt提供；只缩目录，不改变程序集身份生成和保留名避让。
+fn short_owned_root(
+    out: &Path,
+    input_name: &str,
+    owned: &crate::aot_layout::OwnedAttempt,
+) -> Result<(PathBuf, String)> {
+    let time = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
+    for _ in 0..64 {
+        let serial = NEXT.fetch_add(1, Ordering::Relaxed);
+        let host = format!("RyuPyAotHost_{}_{time}_{serial}", std::process::id());
+        if host.eq_ignore_ascii_case(input_name) || host.eq_ignore_ascii_case(RUNTIME_ASSEMBLY) {
+            continue;
+        }
+        return Ok((owned.create_child(out, "ryupy-aot-0")?, host));
+    }
+    bail!("无法选择不冲突的AOT宿主程序集名")
+}
+
 pub(crate) fn publish(dll: &Path, out: &Path) -> Result<PathBuf> {
-    Ok(publish_internal(dll, out, None, None)?.executable)
+    Ok(publish_internal(dll, out, None, None, None)?.executable)
 }
 
 /// 本次编译入口必须携带真实报告；不能因上下文缺失而悄悄退回低层无清单成功。
@@ -152,8 +172,15 @@ pub(crate) fn publish_with_manifest(
     out: &Path,
     context: &crate::manifest::ManifestContext,
     resources: Option<&crate::resources::ResourcePlan>,
+    owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<ManifestPublication> {
-    let result = publish_internal(dll, out, Some(AotManifest::Ordinary(context)), resources)?;
+    let result = publish_internal(
+        dll,
+        out,
+        Some(AotManifest::Ordinary(context)),
+        resources,
+        owned,
+    )?;
     Ok(ManifestPublication {
         executable: result.executable,
         manifest: result.manifest.context("完整 AOT 发布缺少清单")?,
@@ -204,8 +231,15 @@ pub(crate) fn publish_binding(
     out: &Path,
     context: &crate::native_binding_manifest::BindingManifest,
     plan: &crate::native_binding::BindingPlan,
+    owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<ManifestPublication> {
-    let result = publish_internal(dll, out, Some(AotManifest::Binding(context, plan)), None)?;
+    let result = publish_internal(
+        dll,
+        out,
+        Some(AotManifest::Binding(context, plan)),
+        None,
+        owned,
+    )?;
     Ok(ManifestPublication {
         executable: result.executable,
         manifest: result.manifest.context("绑定AOT缺少清单")?,
@@ -217,6 +251,7 @@ fn publish_internal(
     out: &Path,
     context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
+    owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<Publication> {
     validate_platform()?;
     validate_before_build(dll, true)?;
@@ -230,12 +265,20 @@ fn publish_internal(
         .file_stem()
         .and_then(|name| name.to_str())
         .context("AOT 输入程序集名必须为 UTF-8")?;
-    let (root, host) = owned_root(&out, input_name)?;
+    let (root, host) = if let Some(attempt) = owned {
+        short_owned_root(&out, input_name, attempt)?
+    } else {
+        owned_root(&out, input_name)?
+    };
     let result = publish_owned(&root, &host, input_name, &dll, &runtime, context, resources);
-    finish_owned(&root, result)
+    if owned.is_some() {
+        result
+    } else {
+        finish_owned(&root, result)
+    }
 }
 
-// 任何 SDK 后校验/清单失败都沿同一 owned 清理；不删除外部 out 或其它构建根。
+// 低层SDK/清单失败只清理本轮根；高层失败不调用此函数，由外层ledger记录。
 fn finish_owned<T>(root: &Path, result: Result<T>) -> Result<T> {
     match result {
         Ok(executable) => Ok(executable),
@@ -259,7 +302,7 @@ fn publish_owned(
     resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<Publication> {
     let platform = HostPlatform::current()?;
-    // 冻结失败仍由 finish_owned 清理；SDK 只能看到已经完成的资源快照。
+    // SDK只见已完成资源快照；冻结失败由外层按高层留证/低层清理策略处理。
     let staged = resources.map(|plan| plan.stage(root)).transpose()?;
     let archive = match context {
         Some(AotManifest::Binding(_, plan)) => {
@@ -276,6 +319,7 @@ fn publish_owned(
     crate::manifest_files::ensure_absent(&sdk_record)?;
     // 尚不存在的文件不能直接 canonicalize；转换已创建父目录后拼固定安全文件名。
     let sdk_source = sdk_paths::sdk_path(&source)?;
+    work_paths::preflight(&sdk_source, host, platform.rid())?;
     let sdk_record_path = sdk_source.join("sdk.version");
     let input_digests = if let Some(context) = context {
         let inputs = crate::manifest::input_digests(dll, runtime)?;
@@ -326,7 +370,21 @@ fn publish_owned(
         .current_dir(&sdk_source)
         .output()
         .context("无法启动 Native AOT dotnet publish（可用 DOTNET 指定 SDK）")?;
-    // 失败清理工作目录后，完整输出仍随错误交给 CLI/调用者归档。
+    // 高层owned attempt保留失败树；低层仍沿finish_owned清理。两路先保存同次SDK双流。
+    (|| -> Result<()> {
+        std::fs::write(root.join("publish.stdout.log"), &output.stdout)?;
+        std::fs::write(root.join("publish.stderr.log"), &output.stderr)?;
+        Ok(())
+    })()
+    .with_context(|| {
+        format!(
+            "无法归档SDK输出（{}）\nstdout:\n{}\nstderr:\n{}",
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )
+    })?;
+    // 完整输出总随错误交给CLI；低层即使删除工作根也不丢这份诊断。
     if !output.status.success() {
         bail!(
             "Native AOT dotnet publish 失败（{}）\nstdout:\n{}\nstderr:\n{}",
@@ -336,8 +394,6 @@ fn publish_owned(
         );
     }
     let checked = (|| -> Result<Publication> {
-        std::fs::write(root.join("publish.stdout.log"), &output.stdout)?;
-        std::fs::write(root.join("publish.stderr.log"), &output.stderr)?;
         if context.is_some() {
             anyhow::ensure!(
                 crate::manifest_files::plain_metadata(&publish)?.is_dir(),

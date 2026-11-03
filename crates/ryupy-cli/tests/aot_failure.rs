@@ -120,6 +120,18 @@ exit {code}
     assert_eq!(attempts.len(), 1);
     assert!(attempts[0].join("sample_alias.dll").is_file());
     assert!(attempts[0].join("build-error.log").is_file());
+    let sdk = attempts[0].join("ryupy-aot-0");
+    assert!(sdk.join("host/Host.csproj").is_file());
+    assert!(
+        fs::read_to_string(sdk.join("publish.stdout.log"))
+            .unwrap()
+            .contains("sdk-stdout-marker")
+    );
+    assert!(
+        fs::read_to_string(sdk.join("publish.stderr.log"))
+            .unwrap()
+            .contains("sdk-stderr-marker")
+    );
     assert!(!out.join("sample_alias.dist").exists());
     assert!(
         !source_dir.join("__pycache__").exists(),

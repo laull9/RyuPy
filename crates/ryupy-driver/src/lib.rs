@@ -305,7 +305,9 @@ pub fn build_configured(
     );
     if let Some(path) = binding {
         return if opts.aot {
-            aot_layout::build(opts, |inner| binding_build::build(sess, inner, path))
+            aot_layout::build(opts, |inner, owned| {
+                binding_build::build_in_attempt(sess, inner, path, owned)
+            })
         } else {
             binding_build::build(sess, opts, path)
         };
@@ -324,17 +326,18 @@ pub fn build_with_resources(
         "--resources 仅可与 --aot 同用"
     );
     if opts.aot {
-        return aot_layout::build(opts, |inner| {
-            build_with_resources_inner(sess, inner, resource_request)
+        return aot_layout::build(opts, |inner, owned| {
+            build_with_resources_inner(sess, inner, resource_request, Some(owned))
         });
     }
-    build_with_resources_inner(sess, opts, resource_request)
+    build_with_resources_inner(sess, opts, resource_request, None)
 }
 
 fn build_with_resources_inner(
     sess: &mut Session,
     opts: &BuildOptions,
     resource_request: Option<&Path>,
+    owned: Option<&aot_layout::OwnedAttempt>,
 ) -> Result<Artifacts> {
     aot::validate_before_build(&opts.input, opts.aot)?;
     let (linked, sources, resource_plan) = compile_linked(
@@ -374,8 +377,13 @@ fn build_with_resources_inner(
     runtime::copy_runtime_to(&opts.out_dir)?;
 
     let (native_exe, manifest) = if let Some(context) = context {
-        let published =
-            aot::publish_with_manifest(&dll, &opts.out_dir, &context, resource_plan.as_ref())?;
+        let published = aot::publish_with_manifest(
+            &dll,
+            &opts.out_dir,
+            &context,
+            resource_plan.as_ref(),
+            owned,
+        )?;
         (Some(published.executable), Some(published.manifest))
     } else {
         (None, None)
