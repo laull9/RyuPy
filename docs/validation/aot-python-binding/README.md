@@ -60,3 +60,18 @@ Linux 明确设置 LD_LIBRARY_PATH；macOS 仅记录请求 DYLD_LIBRARY_PATH，�
 [41560771096](https://github.com/laull9/RyuPy/actions/runs/41560771096)、
 [41560771139](https://github.com/laull9/RyuPy/actions/runs/41560771139)。
 原始日志、构建二进制仅在 CI artifact；本目录仅保精简结论与哈希。
+
+## 后续 macOS 自有测试输入目标修复
+
+提交 `ab40df68918a08897093caa331f64f4adf99b814` 仅对自有 C fixture 的五条编译/链接命令
+设置 minimum 12.0，生产driver与用户archive不改。
+[绑定复验41563083923](https://github.com/laull9/RyuPy/actions/runs/41563083923)与
+[既有机制41563083954](https://github.com/laull9/RyuPy/actions/runs/41563083954)均三host success。
+Mac原9应用、完整错误帧、清单/源/产物hash与实际ILC已重新独立核验；
+直接解析原始Mach-O load commands，独立object、archive成员、裸native均为
+`LC_BUILD_VERSION / macOS / minimum12.0.0 / SDK14.5.0`。同次SDK双流中的原14→12警告消失，
+不是仅看编译命令参数。详见[精简记录](macos-target.json)。
+
+实际宿主仍为macOS14.8.9，未运行macOS12机器；该修复不宣称任意用户静态库满足相同最低版本。
+前述771警告保留为历史真实结果，不回写成从未发生。Linux/Windows与旧机制本轮确认的是
+官方job成功，不冒重新逐原始artifact核全套。未新增性能样本，原成本负项仍开放。

@@ -129,6 +129,12 @@ jobs:
           Write-Output "core.longpaths=$actual"
       - name: Build actual host compiler
         run: cargo build -p ryupy-cli --locked
+      - name: Default-site Quitter runtime semantics
+        timeout-minutes: 3
+        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PySiteQuittersTests"
+      - name: Default-site Quitter actual Python differential
+        timeout-minutes: 3
+        run: cargo test -p ryupy-driver --locked --test quitter
       - name: SDK path identity regression
         run: cargo test -p ryupy-driver --locked aot::sdk_paths::tests
       - name: Manifest schema and platform file safety regressions

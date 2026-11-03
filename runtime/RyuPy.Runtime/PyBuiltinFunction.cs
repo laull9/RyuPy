@@ -34,5 +34,6 @@ public static partial class PyOps
         : name == "Ellipsis" ? PyEllipsis.Instance
         : name == "map" ? PyMap.Type
         : name == "memoryview" ? PyMemoryView.Type
+        : name is "exit" or "quit" ? PySiteQuitters.Get(name)
         : BuiltinFunctions.GetOrAdd(name, static value => new PyBuiltinFunction(value));
 }

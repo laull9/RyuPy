@@ -29,6 +29,12 @@ public sealed partial class PyClass
     /// <summary>类名（`__name__` 与错误消息使用）。</summary>
     public string Name { get; }
 
+    /// <summary>显式原生 Python 类的定义模块；null 保持普通类既有元数据行为。</summary>
+    internal string? NativeDefinitionModule { get; init; }
+
+    internal object? NativeModuleValue => Attributes.TryGetValue("__module__", out object? value)
+        ? value : NativeDefinitionModule;
+
     /// <summary>枚举类冷元数据标记；普通类热路径不查询弱表。</summary>
     internal bool HasEnumMetadata { get; set; }
 
@@ -120,6 +126,8 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        if (NativeDefinitionModule is not null && name == "__module__")
+            throw new PyTypeError($"cannot delete '__module__' attribute of type '{Name}'");
         PyEnum.GuardClassMutation(this, name);
         if (!Attributes.Remove(name))
         {
@@ -292,7 +300,9 @@ public sealed partial class PyClass
     }
 
     /// <summary>与 CPython 一致的 <c>&lt;class 'Name'&gt;</c> 形式。</summary>
-    public override string ToString() => $"<class '{Name}'>";
+    public override string ToString() => NativeDefinitionModule is not null
+        && NativeModuleValue is string module && module != "builtins"
+        ? $"<class '{module}.{Name}'>" : $"<class '{Name}'>";
 }
 
 /// <summary>普通类实例：类引用 + 实例属性字典（保持插入顺序）。</summary>

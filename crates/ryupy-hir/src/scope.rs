@@ -354,6 +354,8 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "enumerate" => Builtin::Dynamic("enumerate"),
         "zip" => Builtin::Dynamic("zip"),
         "map" => Builtin::Dynamic("map"),
+        "exit" => Builtin::Dynamic("exit"),
+        "quit" => Builtin::Dynamic("quit"),
         "reversed" => Builtin::Dynamic("reversed"),
         "sum" => Builtin::Dynamic("sum"),
         "min" => Builtin::Dynamic("min"),

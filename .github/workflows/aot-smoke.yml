@@ -59,6 +59,12 @@ jobs:
         run: |
           dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PyModuleLocationsTests|FullyQualifiedName~PyIOErrorFramesTests|FullyQualifiedName~PyWindowsPathTests"
           cargo test -p ryupy-driver --locked resources
+      - name: Default-site Quitter runtime semantics
+        timeout-minutes: 3
+        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PySiteQuittersTests"
+      - name: Default-site Quitter actual Python differential
+        timeout-minutes: 3
+        run: cargo test -p ryupy-driver --locked --test quitter
       - name: Real ILC, behavior and runtime-free relocation
         timeout-minutes: 32
         run: python tests/aot/smoke.py --out target/aot-smoke

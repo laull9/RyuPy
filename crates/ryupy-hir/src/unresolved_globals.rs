@@ -46,14 +46,12 @@ pub(crate) fn unsupported_builtin(name: &str) -> bool {
             | "divmod"
             | "eval"
             | "exec"
-            | "exit"
             | "filter"
             | "globals"
             | "help"
             | "license"
             | "locals"
             | "memoryview"
-            | "quit"
             | "reversed"
             | "vars"
             | "BaseExceptionGroup"
@@ -140,5 +138,33 @@ mod tests {
         }
         let (_, diagnostics) = lower("def locals():\n    return 1\nprint(locals())\n");
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
+    #[test]
+    fn site_quitters_are_dynamic_builtins_but_user_bindings_win() {
+        let (module, diagnostics) = lower("saved = exit\nother = quit\nexit(code=None)\nquit()\n");
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        for name in ["exit", "quit"] {
+            assert!(module.functions.iter().any(|(_, f)| f.body.exprs.iter().any(|(_, e)|
+                matches!(&e.kind, ExprKind::Builtin(crate::Builtin::Dynamic(value)) if *value == name))));
+        }
+        for source in [
+            "def f(exit, quit):\n    return exit(quit)\n",
+            "exit = 7\nquit = 8\nprint(exit, quit)\n",
+            "def f():\n    exit = 7\n    quit = 8\n    return exit + quit\n",
+        ] {
+            let (module, diagnostics) = lower(source);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            assert!(
+                module
+                    .functions
+                    .iter()
+                    .all(|(_, f)| f.body.exprs.iter().all(|(_, e)| !matches!(
+                        &e.kind,
+                        ExprKind::Builtin(crate::Builtin::Dynamic("exit" | "quit"))
+                    )))
+            );
+        }
+        let (_, diagnostics) = lower("help()\n");
+        assert!(diagnostics.iter().any(|d| d.code == Some("E0100")));
     }
 }

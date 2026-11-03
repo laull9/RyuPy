@@ -142,3 +142,9 @@ CPython 实现细节。RyuPy 因此保留 GC 差异，同时继续实现普通�
 
 Python 运行时不强制函数与变量的类型标注，Phase 2 特化不能自行增加这种限制。
 [Python 3.12 typing](https://docs.python.org/3.12/library/typing.html)
+
+### 默认启动辅助对象的独立候选
+
+2026-11-03：`exit` / `quit` 的默认 site-enabled 有限实现专项已通过，见
+[ADR-0048](adr/0048-default-site-quitters.md)。本轮未重新运行 pyfiglet 或整个项目集，
+上表历史入口结果与5/20分母不改；不把已解除某个名称缺口等同项目整体通过。
