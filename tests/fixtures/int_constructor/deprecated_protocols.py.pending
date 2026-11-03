@@ -1,0 +1,28 @@
+# CPython 3.12 正期望保留；本切Ryu对这些协议/缓冲路径明确NotImplementedError。
+# 不纳通过计数，不删除warning，不把bool协议返回偷偷当普通精确int。
+import warnings
+class BoolInt:
+    def __int__(self):
+        return True
+class BoolIndex:
+    def __index__(self):
+        return False
+class Truncated:
+    def __trunc__(self):
+        return 23
+for name, value, expected in [('bool-int', BoolInt(), 1), ('bool-index', BoolIndex(), 0), ('trunc', Truncated(), 23)]:
+    with warnings.catch_warnings(record=True) as seen:
+        warnings.simplefilter('always')
+        result = int(value)
+    assert result == expected and type(result) is int
+    assert len(seen) == 1 and seen[0].category is DeprecationWarning
+    print(name, result, seen[0].category.__name__, str(seen[0].message))
+view = memoryview(b'123')
+assert int(view) == 123
+print('memoryview', int(view))
+try:
+    int(view, 10)
+except TypeError as error:
+    print('explicit-base', type(error).__name__, str(error))
+else:
+    raise AssertionError('explicit base must reject memoryview')

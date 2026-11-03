@@ -1,0 +1,7 @@
+# 无捕获转换错误必须保调用者与正在处理的上下文。
+def convert():
+    try:
+        raise ValueError('original')
+    except ValueError:
+        return int('10', 1)
+convert()

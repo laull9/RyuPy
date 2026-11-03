@@ -75,24 +75,14 @@ public static partial class PyOps
             kwNames,
             () => args.Length == 0 ? false : Truthy(args[0])
         ),
-        "int" => WithKeywords(
-            name,
-            args,
-            kwNames,
-            () => args.Length == 0 ? (object)0L : ToIntValue(args[0]!)
-        ),
+        "int" => PyIntConstructor.Invoke(args, kwNames, kwValues),
         "float" => WithKeywords(
             name,
             args,
             kwNames,
             () => args.Length == 0 ? 0.0 : ToFloatValue(args[0]!)
         ),
-        "abs" => WithKeywords(
-            name,
-            args,
-            kwNames,
-            () => AbsValue(Single(name, args)!)
-        ),
+        "abs" => BuiltinAbs(args, kwNames),
         "iter" => WithKeywords(name, args, kwNames, () => PyIter.Create(Single(name, args))),
         "next" => BuiltinNext(args, kwNames),
         "id" => WithKeywords(name, args, kwNames, () => Identity(Single(name, args))),

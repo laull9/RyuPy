@@ -23,9 +23,12 @@ impl ExprBuilder<'_> {
         match builtin {
             Builtin::Print => self.call_builtin_by_name("print", args),
             Builtin::Dynamic(name) => self.call_builtin_by_name(name, args),
-            Builtin::Int if !has_keyword => self.build_numeric_conversion(args, call_ty, true),
+            // 只有固定单位置数值转换可用快路；其它形态必须求完所有实参再绑定。
+            Builtin::Int if matches!(args, [CallArg::Positional(_)]) => {
+                self.build_numeric_conversion(args, call_ty, true)
+            }
             Builtin::Float if !has_keyword => self.build_numeric_conversion(args, call_ty, false),
-            Builtin::Abs if !has_keyword => self.build_abs(args),
+            Builtin::Abs if matches!(args, [CallArg::Positional(_)]) => self.build_abs(args),
             Builtin::Str if !has_keyword => {
                 let Some(arg) = args.first() else {
                     return Operand::Const(Constant::Str(String::new()));
@@ -76,7 +79,7 @@ impl ExprBuilder<'_> {
                 }
                 self.runtime_call(RuntimeFn::MakeException, args_ops, MirType::Dynamic)
             }
-            // `int` / `float` / `abs` 带关键字属于非法调用，交给运行时统一报错
+            // 非快路的int形态及其它构造器的关键字调用，完整求值后交运行时绑定。
             Builtin::Int | Builtin::Float | Builtin::Abs => {
                 let name = match builtin {
                     Builtin::Int => "int",

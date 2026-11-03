@@ -1,0 +1,7 @@
+# 完整CP正期望：展开失败发生在BuiltinAbs之前；本切不修通用展开帧。
+def convert():
+    return abs(*3)
+try:
+    raise ValueError('original')
+except ValueError:
+    convert()

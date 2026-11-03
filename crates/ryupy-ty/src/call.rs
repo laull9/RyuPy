@@ -32,7 +32,13 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Builtin(Builtin::Int) => {
                 self.results.exprs.insert(callee, Ty::None);
-                self.check_unary_builtin(args, range, "int", Ty::Int)
+                if matches!(args, [CallArg::Positional(_)]) {
+                    self.check_unary_builtin(args, range, "int", Ty::Int)
+                } else {
+                    // 真实int绑定支持零参/base；展开或多参不得沿unary结果强制i64槽。
+                    self.soft_demote = true;
+                    Ty::Dynamic
+                }
             }
             ExprKind::Builtin(Builtin::Float) => {
                 self.results.exprs.insert(callee, Ty::None);
@@ -40,7 +46,13 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Builtin(Builtin::Abs) => {
                 self.results.exprs.insert(callee, Ty::None);
-                self.check_abs_builtin(args, range)
+                if matches!(args, [CallArg::Positional(_)]) {
+                    self.check_abs_builtin(args, range)
+                } else {
+                    // 非固定单位置形态必须完整求值并在运行时报告绑定错误。
+                    self.soft_demote = true;
+                    Ty::Dynamic
+                }
             }
             ExprKind::Builtin(Builtin::Str) => {
                 self.results.exprs.insert(callee, Ty::None);
