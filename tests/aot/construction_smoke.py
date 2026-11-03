@@ -23,7 +23,7 @@ SDK = '10.0.403'
 RUST = '1.99.1'
 MODES = ('positive', 'ryupy-boundaries')
 # 与唯一fixture一起审定；不能从当次程序输出生成期望。
-FIXTURE_SHA256 = 'dd9077fd43bb744b0098f95990ccd6721aa9ab71a03e4baa7edf0bbeb96aa0b3'
+FIXTURE_SHA256 = 'ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e'
 EXPECTED = {'positive': {'stdout': 'sentinel-ok\n'
                         'allocation-ok\n'
                         'binding-ok\n'
@@ -35,9 +35,9 @@ EXPECTED = {'positive': {'stdout': 'sentinel-ok\n'
                         'errors-ok\n'
                         'positive-assertions-ok\n',
               'exit': 1,
-              'frames': [['construction.py', 294, '<module>'],
-                         ['construction.py', 292, 'caller'],
-                         ['construction.py', 289, '__new__']],
+              'frames': [['construction.py', 297, '<module>'],
+                         ['construction.py', 295, 'caller'],
+                         ['construction.py', 292, '__new__']],
               'exception': 'ValueError: new-body'},
  'ryupy-boundaries': {'stdout': 'ordinary-mutation-atomic-ok\n'
                                 'special-layout-guard-ok\n'

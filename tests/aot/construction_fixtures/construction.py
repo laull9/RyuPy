@@ -2,6 +2,9 @@
 # 只打印固定 marker；末尾保留真实模块/调用者帧，不输出地址或环境目录。
 # 本文件行号及 LF 源字节属于验收合同，改动后必须重新审定固定期望。
 import sys
+from dataclasses import dataclass
+from enum import Enum
+from unittest import TestCase
 
 if len(sys.argv) != 2:
     raise ValueError('expected exactly one construction mode')
@@ -295,9 +298,6 @@ if mode == 'positive':
 
 elif mode == 'ryupy-boundaries':
     # 此模式不跑 CP 参考；合法但尚不支持的槽历史明确拒绝。
-    from dataclasses import dataclass
-    from enum import Enum
-    from unittest import TestCase
 
     ordinary_log = []
 
