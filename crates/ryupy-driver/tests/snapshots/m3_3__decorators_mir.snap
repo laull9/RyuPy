@@ -133,6 +133,7 @@ fn main() -> () {
         _16 = MakeFunction(method; env=[]; defaults=[null]);
         _17 = RuntimeFn::CallValue(_15, [_16], [], []);
         RuntimeFn::SetAttr(_13, const "method", _17);
+        RuntimeFn::FinalizeOrdinaryClass(_13);
         // line 11
         _18 = global@0;
         _19 = dyn.call(_18, []);

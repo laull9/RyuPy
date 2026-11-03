@@ -968,6 +968,7 @@ fn main() -> () {
         RuntimeFn::SetAttr(_34, const "__enter__", _40);
         _41 = MakeFunction(__exit__; env=[]; defaults=[null, null, null, null]);
         RuntimeFn::SetAttr(_34, const "__exit__", _41);
+        RuntimeFn::FinalizeOrdinaryClass(_34);
         // line 19
         _42 = box<Bool>(const true);
         _43 = RuntimeFn::DynTruthy(_42);
@@ -1931,6 +1932,7 @@ fn main() -> () {
         RuntimeFn::SetAttr(_350, const "__enter__", _351);
         _352 = MakeFunction(__exit__; env=[]; defaults=[null, null, null, null]);
         RuntimeFn::SetAttr(_350, const "__exit__", _352);
+        RuntimeFn::FinalizeOrdinaryClass(_350);
         // line 55
         goto -> bb242;
     }

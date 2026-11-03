@@ -82,3 +82,6 @@ mod validate_module_pairs;
 
 #[cfg(test)]
 mod module_pair_tests;
+
+#[cfg(test)]
+mod ordinary_class_finalize_tests;

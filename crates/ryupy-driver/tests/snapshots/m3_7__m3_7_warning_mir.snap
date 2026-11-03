@@ -582,6 +582,7 @@ fn main() -> () {
         g2 = _112;
         _113 = MakeFunction(__str__; env=[]; defaults=[null]);
         RuntimeFn::SetAttr(_112, const "__str__", _113);
+        RuntimeFn::FinalizeOrdinaryClass(_112);
         // line 35
         _114 = RuntimeFn::MakeClass(const "DerivedWarning", [global@1], global@3);
         g4 = _114;
@@ -622,6 +623,7 @@ fn main() -> () {
         g5 = _133;
         _134 = MakeFunction(__str__; env=[]; defaults=[null]);
         RuntimeFn::SetAttr(_133, const "__str__", _134);
+        RuntimeFn::FinalizeOrdinaryClass(_133);
         // line 45
         _135 = global@1;
         _136 = global@5;

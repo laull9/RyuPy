@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_2.rs
+assertion_line: 151
 expression: output
 ---
 fn g() -> dyn {
@@ -63,6 +64,7 @@ fn main() -> () {
         _8 = _7;
         _9 = RuntimeFn::ClassNamespaceGet(_5, const "__annotations__");
         RuntimeFn::SetItem(_9, const "x", _8);
+        RuntimeFn::FinalizeOrdinaryClass(_5);
         RuntimeFn::DeclareDataclass(_5, [const "x"], const false);
         _10 = RuntimeFn::ApplyDataclass(_5, const false);
         g4 = _10;

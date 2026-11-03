@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/class_if.rs
+assertion_line: 17
 expression: output
 ---
 .assembly ryupy_class_if_snapshot
@@ -246,10 +247,12 @@ expression: output
         IL_0093: LoadString("after")
         IL_0094: LoadLocal(16)
         IL_0095: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyPic.SetAttr(int, object, string, object))
-        IL_0096: Branch(151)
-        IL_0097: LoadLocal(0)
-        IL_0098: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
-        IL_0099: Return
+        IL_0096: LoadLocal(5)
+        IL_0097: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyOps.FinalizeOrdinaryClass(object))
+        IL_0098: Branch(153)
+        IL_0099: LoadLocal(0)
+        IL_009a: Call(static void [RyuPy.Runtime]RyuPy.Runtime.PyTraceback.PopTo(long))
+        IL_009b: Return
     }
 
     .method public static int Main(string[]) cil managed

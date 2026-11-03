@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_6.rs
+assertion_line: 18
 expression: "output.replace(path.to_str().unwrap(), \"metadata.py\")"
 ---
 fn identity(_0: dyn) -> dyn {
@@ -118,6 +119,7 @@ fn main() -> () {
         _18 = _17;
         _19 = RuntimeFn::ClassNamespaceGet(_8, const "__annotations__");
         RuntimeFn::SetItem(_19, const "items", _18);
+        RuntimeFn::FinalizeOrdinaryClass(_8);
         RuntimeFn::DeclareDataclass(_8, [const "value", const "items"], const true);
         _20 = RuntimeFn::ApplyDataclass(_8, const true);
         g4 = _20;

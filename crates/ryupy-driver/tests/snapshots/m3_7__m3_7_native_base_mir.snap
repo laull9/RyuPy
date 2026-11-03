@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/m3_7.rs
+assertion_line: 66
 expression: output
 ---
 fn setUp(_0: dyn) -> dyn {
@@ -68,11 +69,13 @@ fn main() -> () {
         g0 = _9;
         _10 = MakeFunction(setUp; env=[]; defaults=[null]);
         RuntimeFn::SetAttr(_9, const "setUp", _10);
+        RuntimeFn::FinalizeOrdinaryClass(_9);
         // line 6
         _11 = RuntimeFn::LoadName(global@6, const "Base");
         _12 = _11;
         _13 = RuntimeFn::MakeClass(const "Second", [_12], null);
         g1 = _13;
+        RuntimeFn::FinalizeOrdinaryClass(_13);
         goto -> bb1;
     }
     bb1: {

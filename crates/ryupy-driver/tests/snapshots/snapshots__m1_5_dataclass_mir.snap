@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
+assertion_line: 211
 expression: mir
 ---
 fn step(_0: dyn, _1: dyn) -> dyn {
@@ -261,6 +262,7 @@ fn main() -> () {
         _14 = _13;
         _15 = RuntimeFn::ClassNamespaceGet(_5, const "__annotations__");
         RuntimeFn::SetItem(_15, const "m", _14);
+        RuntimeFn::FinalizeOrdinaryClass(_5);
         RuntimeFn::DeclareDataclass(_5, [const "x", const "v", const "m"], const false);
         _16 = RuntimeFn::ApplyDataclass(_5, const false);
         g7 = _16;
@@ -277,6 +279,7 @@ fn main() -> () {
         _23 = _22;
         _24 = RuntimeFn::ClassNamespaceGet(_17, const "__annotations__");
         RuntimeFn::SetItem(_24, const "y", _23);
+        RuntimeFn::FinalizeOrdinaryClass(_17);
         RuntimeFn::DeclareDataclass(_17, [const "x", const "y"], const true);
         _25 = RuntimeFn::ApplyDataclass(_17, const true);
         g8 = _25;

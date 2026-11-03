@@ -1,0 +1,29 @@
+import sys
+assert sys.version_info[:3]==(3,12,13)
+def show(label,f):
+ try: print(label,'OK',f())
+ except BaseException as e:print(label,type(e).__name__,str(e))
+def raw(cls,*a):return object.__new__(cls)
+class Declared:
+ def __new__(cls,*a):return super().__new__(cls)
+class Assigned:pass
+Assigned.__new__=raw
+for C in [Declared,Assigned]:
+ x=object.__new__(C)
+ show(C.__name__+' dictionary',lambda C=C:type(C.__dict__['__new__']).__name__)
+ show(C.__name__+' attr',lambda C=C:(type(C.__new__).__name__,type(x.__new__).__name__))
+ show(C.__name__+' class-call',lambda C=C:type(C(1)).__name__)
+ show(C.__name__+' direct-class',lambda C=C:type(C.__new__(C)).__name__)
+ show(C.__name__+' direct-instance',lambda C=C:type(x.__new__(C)).__name__)
+for mode in ['initial','func','root','delete']:
+ class C:pass
+ if mode!='initial':C.__new__=raw
+ if mode=='root':C.__new__=object.__new__
+ if mode=='delete':del C.__new__
+ show('new-'+mode+' class extra',lambda:type(C(1)).__name__)
+ show('new-'+mode+' objectnew extra',lambda:type(object.__new__(C,1)).__name__)
+ show('new-'+mode+' objectinit extra',lambda:object.__init__(object.__new__(C),1))
+class Base:
+ def __new__(cls,*a):return super().__new__(cls)
+class Child(Base):pass
+show('inherited-zero-super',lambda:type(Child(1)).__name__)

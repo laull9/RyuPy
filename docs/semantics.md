@@ -566,3 +566,11 @@ Ellipsis 为真实单例，源码 `...` 不受用户重绑同名内建名字影�
 现有构造入口（尚未分派用户__new__）。显式object.__new__(用户类)仍明确不支持。全局比较ABI的bool返回
 及!=取反旧债保留完整CP正期待为ignored，不因sentinel基础比较通过宣称任意富比较完成。
 详见[ADR-0049](adr/0049-base-object-identity.md)，验收状态以该文档实际记录为准。
+
+
+### 普通构造协议候选与槽历史限制
+
+ADR0049的object基础实例已独立验收；后续[ADR0050](adr/0050-ordinary-construction-protocol.md)
+候选才处理普通单继承new/init，不能把A历史拒绝当B最终行为。候选按实际返回类选择init，
+foreign返回跳过；special布局customnew、finalized类own new删除/late根槽重设明确拒，
+不模拟CP槽生命周期。完整合法CP历史正例留pending；全局富比较bool ABI旧债仍未修。

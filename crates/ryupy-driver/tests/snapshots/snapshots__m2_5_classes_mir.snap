@@ -231,6 +231,7 @@ fn main() -> () {
         _12 = MakeFunction(named; env=[]; defaults=[null]);
         _13 = RuntimeFn::Decorate(const 3_i64, _12);
         RuntimeFn::SetAttr(_4, const "named", _13);
+        RuntimeFn::FinalizeOrdinaryClass(_4);
         // line 25
         _14 = global@0;
         _15 = box<I64>(const 3_i64);

@@ -12,9 +12,12 @@ internal static class PyBaseObjectMethods
         or "__eq__" or "__ne__" or "__repr__" or "__str__" or "__hash__";
     internal static object Unbound(string name) => Methods.GetOrAdd(name, static n => new Method(n, null));
     internal static object Bind(PyBaseObject value, string name) => new Method(name, value);
+    internal static object BindConstruction(object value, string name) => new Method(name, value);
+    internal static bool IsRootNew(object? value) => ReferenceEquals(value, Unbound("__new__"));
+    internal static bool IsRootInit(object? value) => ReferenceEquals(value, Unbound("__init__"));
 
     // 独立原生可调用槽，不冒 PyFunction，也不走普通方法 PIC 的可变实例字典。
-    private sealed class Method(string name, PyBaseObject? receiver) : PyNativeObject, IPyNativeCallable
+    private sealed class Method(string name, object? receiver) : PyNativeObject, IPyNativeCallable
     {
         public override string TypeName => receiver is not null ? "method-wrapper"
             : name == "__new__" ? "builtin_function_or_method" : "wrapper_descriptor";
@@ -43,8 +46,11 @@ internal static class PyBaseObjectMethods
             if (name == "__init__")
             {
                 if (extra == 0 && names.Length == 0) return PyNone.Instance;
-                if (self is PyInstance)
-                    throw new PyNotImplementedError("object.__init__ with derived-class arguments is not supported yet");
+                if (self is PyInstance instance)
+                {
+                    instance.Class.CheckRootInitArguments(extra, names.Length);
+                    return PyNone.Instance;
+                }
                 throw new PyTypeError("object.__init__() takes exactly one argument (the instance to initialize)");
             }
             int required = name is "__eq__" or "__ne__" ? 1 : 0;
@@ -67,8 +73,8 @@ internal static class PyBaseObjectMethods
         {
             if (args.Length == 0) throw new PyTypeError("object.__new__(): not enough arguments");
             object? cls = args[0];
-            if (cls is PyClass)
-                throw new PyNotImplementedError("object.__new__ for user classes is not supported yet");
+            if (cls is PyClass userClass)
+                return userClass.AllocateFromObject(args.Length - 1, names.Length);
             if (!ReferenceEquals(cls, PyBaseObject.Type))
             {
                 if (cls is PyType or PyNativeType)

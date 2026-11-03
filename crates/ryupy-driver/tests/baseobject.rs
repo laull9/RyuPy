@@ -110,22 +110,25 @@ fn baseobject_argument_error_keeps_evaluation_and_caller_frames() {
     }
 }
 #[test]
-fn baseobject_derived_new_is_explicitly_pending_not_fake_allocation() {
-    let (_, actual) = execute(
+fn baseobject_derived_new_allocates_real_instance_without_initializing() {
+    let (expected, actual) = execute(
         include_str!("../../../tests/fixtures/baseobject/derived_new_boundary.py"),
         "derived_new_boundary.py",
-        false,
+        true,
+    );
+    let expected = expected.unwrap();
+    assert!(
+        expected.status.success(),
+        "{}",
+        String::from_utf8_lossy(&expected.stderr)
     );
     assert!(
         actual.status.success(),
         "{}",
         String::from_utf8_lossy(&actual.stderr)
     );
-    assert_eq!(
-        String::from_utf8_lossy(&actual.stdout).trim(),
-        "derived-new-pending"
-    );
-    assert!(actual.stderr.is_empty());
+    assert_eq!(actual.stdout, expected.stdout);
+    assert_eq!(actual.stderr, expected.stderr);
 }
 
 // 完整CP正期望不删改；现Compare/Eq返回bool且Ne取反，不能保任意富比较对象。

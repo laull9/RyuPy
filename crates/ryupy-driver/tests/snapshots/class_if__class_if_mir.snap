@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/class_if.rs
+assertion_line: 17
 expression: output
 ---
 fn method(_0: dyn, _1: dyn) -> dyn {
@@ -122,6 +123,7 @@ fn main() -> () {
     }
     bb6: {
         RuntimeFn::SetAttr(_5, const "after", _16);
+        RuntimeFn::FinalizeOrdinaryClass(_5);
         goto -> bb7;
     }
     bb7: {

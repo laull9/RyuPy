@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/runtime_bases.rs
+assertion_line: 18
 expression: output
 ---
 fn main() -> () {
@@ -43,6 +44,7 @@ fn main() -> () {
         _7 = RuntimeFn::ValidateOrdinaryBase(_6);
         _8 = RuntimeFn::MakeClass(const "Child", [_7], null);
         g0 = _8;
+        RuntimeFn::FinalizeOrdinaryClass(_8);
         g6 = _8;
         // line 4
         _9 = RuntimeFn::LoadName(global@6, const "Child");
@@ -50,6 +52,7 @@ fn main() -> () {
         _11 = RuntimeFn::ValidateOrdinaryBase(_10);
         _12 = RuntimeFn::MakeClass(const "Grandchild", [_11], null);
         g1 = _12;
+        RuntimeFn::FinalizeOrdinaryClass(_12);
         g7 = _12;
         goto -> bb1;
     }

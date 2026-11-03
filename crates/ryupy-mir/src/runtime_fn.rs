@@ -241,6 +241,8 @@ pub enum RuntimeFn {
     /// 当前类自身原始字典是否包含名字，不执行描述符或继承查找。
     ClassNamespaceContains,
     DeclareDataclass,
+    /// 普通类最终own namespace冷处理；固定(object)->void。
+    FinalizeOrdinaryClass,
     /// 完成普通Enum成员规范化，成功后才允许公开类绑定。
     EnumFinalize,
     /// 只有HIR已验证的原生Enum基类走此构造入口，普通类创建不能绕过成员转换。

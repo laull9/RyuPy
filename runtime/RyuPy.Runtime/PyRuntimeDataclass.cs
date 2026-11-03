@@ -178,6 +178,7 @@ public static partial class PyOps
         foreach (var field in declarations) fieldMap.Set(field.Name!, field);
         cls.SetAttr("__dataclass_fields__", fieldMap);
         cls.DataclassActive = true;
+        cls.ConstructionLayoutChanged();
         return cls;
     }
 
