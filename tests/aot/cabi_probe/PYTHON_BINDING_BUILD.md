@@ -73,3 +73,14 @@ CLI失败生命周期2/2与严格clippy也已本次通过；正常完整门禁 e
 macOS archive14/链接target12警告与系统依赖边界保留，不宣称零警告或支持macOS12。
 恢复的[原36成本](../../../docs/validation/aot-module-call-pair-cost/README.md)仍保禁tier matmul约23%回退
 与模块调用约32MB增量，未追加性能组，也未把小修称为性能问题已解决。
+
+## 后续本地候选：自有测试库最低版本对齐
+
+本轮 macOS archive 14.0 / NativeAOT 链接目标 12.0 的警告保留在上述证据中。
+下一候选仅给自有 C fixture 的五条编译/链接命令显式设置
+`-mmacosx-version-min=12.0`，与固定 ILCompiler 10.0.14 的默认 `AppleMinOSVersion`
+一致；ar 打包、Linux/Windows命令及生产driver不改变，不重新编译用户提供的 archive。
+来源：[固定 runtime target 文件](https://github.com/dotnet/runtime/blob/v10.0.14/src/coreclr/nativeaot/BuildIntegration/Microsoft.NETCore.Native.Unix.targets)。
+这不是公开 macOS12 运行支持声明；本机 CPython 3.12.13 的 13 项纯工具测试已通过，
+没有执行新的 C/ILC/应用或性能测量。真实 object minimum、warning 消失与原输出仍待后续实际Mac验证；
+SDK目标变化时需重新核对测试常量，不能把任意第三方库自动降版本。

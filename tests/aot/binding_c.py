@@ -37,11 +37,14 @@ def build_c(run, source, output, rid, records):
             records['archive_version'] = xcode_version(command('xcode-version', [tool('xcodebuild'), '-version'], 30).stdout)
         else:
             command('archive-version', [ar, '--version'], 30)
-        command('c-object', [cc, '-O2', '-c', source, '-o', obj])
+        # 对齐 .NET 10 NativeAOT AppleMinOSVersion 默认值，仅约束自有测试输入。
+        deployment = ['-mmacosx-version-min=12.0'] if rid == 'osx-arm64' else []
+        if deployment: records['fixture_macos_deployment_target'] = '12.0'
+        command('c-object', [cc, *deployment, '-O2', '-c', source, '-o', obj])
         command('c-archive', [ar, 'rcs', archive, obj])
-        command('c-reference-build', [cc, '-O2', '-DRYUPY_REFERENCE', source, '-o', reference])
+        command('c-reference-build', [cc, *deployment, '-O2', '-DRYUPY_REFERENCE', source, '-o', reference])
         def shared_build(label, c, dest, defines):
-            command(label, [cc, '-O2', '-fPIC', '-DRYUPY_SHARED', *defines,
+            command(label, [cc, *deployment, '-O2', '-fPIC', '-DRYUPY_SHARED', *defines,
                 '-dynamiclib' if rid == 'osx-arm64' else '-shared', c, '-o', dest])
         shared_build('c-shared', source, shared, [])
         shared_build('c-missing-symbol', source, missing, ['-Dryupy_demo_add_i32=ryupy_other_i32'])
