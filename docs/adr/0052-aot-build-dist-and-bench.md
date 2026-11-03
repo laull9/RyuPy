@@ -97,3 +97,14 @@ Linux/Mac绑定10/9项行为及各自owner树通过；普通/资源Mac与Windows
 原ABC在Mac再次实际无`-o`构建并搬迁运行，保持正确的 `.build/.dist` 与入口名；新hello实际 `make bench-aot` 唯一管线成功，保存AOT后端和原1warm5，完整234文件归档已核。CP/native各6次仍依据固定runner推导，不冒独立逐进程追踪或全基准性能结论。新结果与官方run链接见 [恢复验收记录](../validation/aot-layout-recovery/README.md)。
 
 这是已验证WIP源码，不自动替换旧 `releases/` 二进制，也未合main或创建正式发布。使用新功能须从此源码重建CLI。历史matmul禁tier约14.723%回退仍开放，不由布局修复关闭。
+
+
+## 合入main后的普通CI路径断言修复
+
+经明确确认，已验代码及上述记录在 `94bb8e6e35271452d3ab16ed370d99abc394e626` 正常快进到main；未创建正式Release。此前“WIP/未main”为各验收阶段的历史状态。
+
+普通CI [41605821572](https://github.com/laull9/RyuPy/actions/runs/41605821572) 的Ubuntu通过，Mac在driver库测试80/82后失败，未进入其e2e。两处断言用原临时路径文本比较生产返回的canonical路径，实际是 `/private/var` 与 `/var` 别名差异；不是本轮真实ILC/原生程序失败。该Mac日志实际Rust为1.99.1、.NET SDK10.0.403/runtime10.0.14；工作流仍使用浮动stable/10.0.x，不声称已固定未来版本。Mac原日志SHA256为 `f67f0f313124b46eb94b263fbee64a6b6be7482e78bdeaea1ce7c3c980c2169b`，首失败保留。
+
+修复仅规范化已经存在的预期dist/native目标，不规范化或改变实际返回值；真实alias输入、边界symlink拒绝、精确basename、重复发布旧内容及执行mode断言均保留。原prefix断言进一步改为完整native路径相等。没有生产代码或文件安全策略变化，不因宿主别名而放宽边界。恢复验证仅普通main CI，不追加原生组或固定36；本地及远端终态分别记录，不把代码审查当运行通过。
+
+修后本地布局专项15/15通过；正常 `make check` exit0，587项C#、228项CP基线、202项e2e加30项ignored，以及fmt、strict clippy和workspace测试通过。未新增真实SDK发布或基准样本，新的Mac普通CI仍待验证。

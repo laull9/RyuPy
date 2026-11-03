@@ -76,7 +76,8 @@ fn first_and_repeat_publish_preserve_old_work_and_exact_final_name() {
     let first = build(&c.opts, |o, _owned| fake(o, b"first", 1)).unwrap();
     let old_dll = first.dll.clone();
     let native = first.native_exe.unwrap();
-    assert_eq!(native.parent().unwrap(), c.dist());
+    // ROOT 可经系统临时目录别名进入；只规范化已存在的预期目标。
+    assert_eq!(native.parent().unwrap(), c.dist().canonicalize().unwrap());
     assert_eq!(
         native.file_name().unwrap().to_str().unwrap(),
         if cfg!(windows) {
@@ -234,7 +235,13 @@ fn boundary_links_are_rejected_but_root_alias_is_resolved() {
     symlink(&real, &alias).unwrap();
     d.opts.out_dir = alias;
     let a = build(&d.opts, |o, _owned| fake(o, b"one", 1)).unwrap();
-    assert!(a.native_exe.unwrap().starts_with(real));
+    // 保留 alias 输入，校验真实目标的完整路径而非只比较前缀。
+    assert_eq!(
+        a.native_exe.unwrap(),
+        real.join("入口 & app.dist/入口 & app")
+            .canonicalize()
+            .unwrap()
+    );
 }
 
 #[test]
