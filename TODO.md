@@ -593,7 +593,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [x] [ADR0046](docs/adr/0046-native-aot-artifact-manifest.md)：同次SDK/源码文本/实际CIL引用与发布文件hash清单、完整目录搬迁核验已通过三平台；不代表资源复制或动态依赖闭包
   - [x] [ADR0047](docs/adr/0047-explicit-aot-resources.md)：显式资源清单、JIT真实模块位置与AOT相对定位、ILC前数据快照及三平台 `_internal/resources/v1` 整树搬迁（有限验收；不等于自动依赖收集）
   - [x] 固定C ABI机制原型：真实PInvoke发射/读回、JIT共享库与AOT静态archive搬迁三平台通过（[证据](docs/validation/aot-fixed-cabi/README.md)）；未实现公共Python绑定/任意wheel
-  - [ ] [固定C ABI Python入口](tests/aot/cabi_probe/PYTHON_BINDING.md)：真实生成模块/一等函数、严格参数/错误/重绑，显式JIT shared与AOT static部署；15冷runtime专项不等于公开功能完成
+  - [ ] [固定C ABI Python入口](tests/aot/cabi_probe/PYTHON_BINDING.md)：真实生成模块/一等函数、严格参数/错误/重绑，显式JIT shared与AOT static部署；恢复版构建/部署候选重新验收中，旧本地提交不可读，不继承旧验收（[合同](tests/aot/cabi_probe/PYTHON_BINDING_BUILD.md)）
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
 - [ ] N5：静态能力优先，必要外置依赖集中 `_internal`；目录交付成熟后独立评估onefile，不为形式强加自解包，资源寻址/生命周期/性能另验

@@ -60,6 +60,11 @@ pub(crate) fn collect(
     thunks: &FxHashMap<FnId, MethodIndex>,
     factories: &FxHashMap<ClassDefId, MethodIndex>,
     accessors: &crate::modules::ModuleAccessors,
+    bindings: &[(
+        &crate::fixed_bindings::FixedI32Binding,
+        MethodIndex,
+        MethodIndex,
+    )],
 ) -> EmissionReport {
     let identities: FxHashMap<_, _> = res
         .enumerate_type_definitions()
@@ -166,6 +171,18 @@ pub(crate) fn collect(
                 module: None,
                 function: None,
                 class: Some(class.into_raw().into_u32()),
+            },
+        );
+    }
+    // 仅按本次发射保存的真实方法索引标注，不根据生成名称推断角色。
+    for (binding, wrapper, _) in bindings {
+        roles.insert(
+            *wrapper,
+            Role {
+                name: "declared_native_body",
+                module: Some(binding.module.into_raw().into_u32()),
+                function: None,
+                class: None,
             },
         );
     }

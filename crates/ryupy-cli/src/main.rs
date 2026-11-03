@@ -40,6 +40,9 @@ enum Command {
         /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
         #[arg(long, requires = "aot")]
         resources: Option<PathBuf>,
+        /// 显式固定签名 C ABI 声明，首切不能与资源组合
+        #[arg(long, conflicts_with = "resources")]
+        native_binding: Option<PathBuf>,
         /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
         #[arg(short = 'I', long = "search-path")]
         search_paths: Vec<PathBuf>,
@@ -122,10 +125,11 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             out_dir,
             aot,
             resources,
+            native_binding,
             search_paths,
         } => {
             let out_dir = out_dir.unwrap_or_else(|| default_out_dir(&input));
-            let artifacts = ryupy_driver::build_with_resources(
+            let artifacts = ryupy_driver::build_configured(
                 sess,
                 &BuildOptions {
                     input,
@@ -134,13 +138,18 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     search_paths,
                 },
                 resources.as_deref(),
+                native_binding.as_deref(),
             )?;
             eprintln!("已生成 {}", artifacts.dll.display());
             if let Some(exe) = artifacts.native_exe {
                 eprintln!("已生成 {}", exe.display());
             }
             if let Some(manifest) = artifacts.manifest {
-                eprintln!("AOT 清单：{}", manifest.display());
+                eprintln!(
+                    "{}：{}",
+                    if aot { "AOT 清单" } else { "产物清单" },
+                    manifest.display()
+                );
             }
             Ok(ExitCode::SUCCESS)
         }

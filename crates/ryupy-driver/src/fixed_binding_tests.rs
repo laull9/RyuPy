@@ -93,21 +93,39 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
     }
 }
 fn execute(source: &str, module: &str) -> std::process::Output {
+    execute_configured(source, module, None)
+}
+fn execute_configured(
+    source: &str,
+    module: &str,
+    relative_file: Option<&str>,
+) -> std::process::Output {
     let root = root();
     let input = root.0.join("boundary.py");
     std::fs::write(&input, source).unwrap();
     let mut session = Session::default();
     let (mut program, _, _) = compile_linked(&mut session, &input, &[], false, None).unwrap();
     let binding = declare(&mut program, module);
-    let bytes = fixed_bindings::emit(
-        &program,
-        &ryupy_codegen_cil::EmitOptions {
-            assembly_name: "FixedBoundary".into(),
-            entry_source_path: Some(input.to_str().unwrap().into()),
-        },
-        &[binding],
-    )
-    .unwrap();
+    let options = ryupy_codegen_cil::EmitOptions {
+        assembly_name: "FixedBoundary".into(),
+        entry_source_path: Some(input.to_str().unwrap().into()),
+    };
+    let bytes = if let Some(relative_file) = relative_file {
+        // B故意不部署库，冷Register不能提前探库而阻断正常模块导入。
+        assert!(!root.0.join(relative_file).exists());
+        fixed_bindings::emit_with_report(
+            &program,
+            &options,
+            &[binding],
+            &fixed_bindings::BindingDeployment {
+                relative_file: relative_file.into(),
+            },
+        )
+        .unwrap()
+        .bytes
+    } else {
+        fixed_bindings::emit(&program, &options, &[binding]).unwrap()
+    };
     let dll = root.0.join("FixedBoundary.dll");
     std::fs::write(&dll, bytes).unwrap();
     std::fs::write(
@@ -175,5 +193,43 @@ fn fixed_binding_binder_and_conversion_errors_keep_caller_frame() {
         assert!(!stderr.contains("Unhandled exception"), "{stderr}");
         assert!(!stderr.contains("BindingBody"), "{stderr}");
         assert!(stderr.contains(&format!("\n{kind}:")), "{stderr}");
+    }
+}
+
+// 仅关闭真实CLR facade/resolver冷入口装载缺口，不称C调用成功或AOT发布完成。
+#[test]
+fn fixed_binding_b_resolver_loads_before_body_and_missing_library_keeps_caller() {
+    let relative_file = if cfg!(target_os = "windows") {
+        "_internal/native/v1/b0/library.dll"
+    } else if cfg!(target_os = "macos") {
+        "_internal/native/v1/b0/library.dylib"
+    } else {
+        "_internal/native/v1/b0/library.so"
+    };
+    let source = concat!(
+        "import declared_demo\n",
+        "from declared_demo import add as saved\n",
+        "assert saved is declared_demo.add\n",
+        "print('registered-module-identity')\n",
+        "def caller():\n",
+        "    saved(0, 0)\n",
+        "caller()\n",
+    );
+    let result = execute_configured(source, "declared_demo", Some(relative_file));
+    assert_eq!(result.status.code(), Some(1));
+    assert_eq!(result.stdout, expected("registered-module-identity\n"));
+    let stderr = String::from_utf8_lossy(&result.stderr);
+    assert!(stderr.contains("line 7, in <module>"), "{stderr}");
+    assert!(stderr.contains("line 6, in caller"), "{stderr}");
+    assert!(stderr.contains("ImportError: cannot load declared native library 'ryupy_deliberately_absent_binding_A' symbol 'ryupy_demo_add_i32'"), "{stderr}");
+    for forbidden in [
+        "Unhandled exception",
+        "TypeLoadException",
+        "Could not load type",
+        "MissingMethodException",
+        "BindingBody",
+        "_internal/native",
+    ] {
+        assert!(!stderr.contains(forbidden), "{stderr}");
     }
 }

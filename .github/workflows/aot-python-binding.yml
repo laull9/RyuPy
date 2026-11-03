@@ -1,0 +1,130 @@
+name: Fixed Python C ABI binding
+
+on:
+  push:
+    branches: [wip/aot-jit-recovery]
+    paths:
+      - '.github/workflows/aot-python-binding.yml'
+      - 'tests/aot/binding_*.py'
+      - 'tests/aot/test_binding_*.py'
+      - 'tests/aot/binding_fixtures/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+  DOTNET_CLI_UI_LANGUAGE: en-US
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+  RUSTUP_TOOLCHAIN: '1.99.1'
+
+jobs:
+  python-binding:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+            shell: bash
+          - os: macos-14
+            rid: osx-arm64
+            shell: bash
+          - os: windows-2022
+            rid: win-x64
+            shell: pwsh
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.4'
+          enable-cache: false
+      - name: Pinned Python (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          uv python install 3.12.13
+          echo "PYTHON=$(uv python find 3.12.13 --managed-python)" >> "$GITHUB_ENV"
+      - name: Pinned Python (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          uv python install 3.12.13
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = uv python find 3.12.13 --managed-python
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Select installed x64 Visual C++ tools
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          @echo off
+          set "RYUPY_VSROOT="
+          for /f "usebackq delims=" %%I in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "RYUPY_VSROOT=%%I"
+          if not defined RYUPY_VSROOT exit /b 1
+          call "%RYUPY_VSROOT%\Common7\Tools\VsDevCmd.bat" -no_logo -arch=x64 -host_arch=x64
+          if errorlevel 1 exit /b %errorlevel%
+          "%PYTHON%" -c "import os; keys={'path','include','lib','libpath','vcinstalldir','vctoolsinstalldir','windowssdkdir','windowssdkversion','ucrtversion','universalcrtsdkdir'}; f=open(os.environ['GITHUB_ENV'],'a',encoding='utf-8'); f.writelines(k+'='+v+'\n' for k,v in os.environ.items() if k.lower() in keys); f.close()"
+      - name: Allow long dependency paths in disposable Windows Git
+        if: runner.os == 'Windows'
+        run: |
+          git config --global core.longpaths true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $actual = git config --global --get core.longpaths
+          if ($LASTEXITCODE -ne 0 -or $actual -ne 'true') { throw 'Git long-path support was not enabled' }
+          Write-Output "core.longpaths=$actual"
+      - name: Native prerequisites (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Build runtime and CLI (POSIX)
+        if: runner.os != 'Windows'
+        timeout-minutes: 10
+        run: |
+          dotnet build runtime/RyuPy.Runtime/RyuPy.Runtime.csproj -c Release
+          cargo build -p ryupy-cli --release
+      - name: Build runtime and CLI (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 10
+        run: |
+          dotnet build runtime/RyuPy.Runtime/RyuPy.Runtime.csproj -c Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build -p ryupy-cli --release
+          exit $LASTEXITCODE
+      - name: Pure binding tool regressions (POSIX)
+        if: runner.os != 'Windows'
+        run: '"$PYTHON" -m unittest discover -s tests/aot -p "test_binding_*.py"'
+      - name: Pure binding tool regressions (Windows)
+        if: runner.os == 'Windows'
+        run: '& $env:PYTHON -m unittest discover -s tests/aot -p "test_binding_*.py"; exit $LASTEXITCODE'
+      - name: One Python JIT and static AOT binding (POSIX)
+        if: runner.os != 'Windows'
+        timeout-minutes: 32
+        run: '"$PYTHON" tests/aot/binding_smoke.py --out "$RUNNER_TEMP/aot-python-binding-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --python "$PYTHON" --ryupy target/release/ryupy --rid "${{ matrix.rid }}"'
+      - name: One Python JIT and static AOT binding (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 32
+        run: '& $env:PYTHON tests/aot/binding_smoke.py --out "$env:RUNNER_TEMP/aot-python-binding-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT" --python $env:PYTHON --ryupy target/release/ryupy.exe --rid "${{ matrix.rid }}"; exit $LASTEXITCODE'
+      - name: Preserve binding evidence including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-binding-${{ matrix.rid }}-${{ github.sha }}
+          path: ${{ runner.temp }}/aot-python-binding-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14

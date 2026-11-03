@@ -12,7 +12,7 @@ fn options() -> crate::EmitOptions {
     }
 }
 
-fn fixture() -> (LinkedProgram, FixedI32Binding) {
+pub(crate) fn fixture() -> (LinkedProgram, FixedI32Binding) {
     let mut program = crate::exact_i64_tests::program();
     let initializer = program.functions.alloc(crate::exact_i64_tests::function(
         "__declared_init",

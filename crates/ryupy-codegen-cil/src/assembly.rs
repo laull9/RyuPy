@@ -29,26 +29,38 @@ pub(crate) fn build_resolution(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> (Resolution<'static>, TypeIndex) {
-    let (res, module, _) = build_resolution_core(program, opts, false, &[]);
+    let (res, module, _, _) = build_resolution_core(program, opts, false, &[], None);
     (res, module)
 }
-
 pub(crate) fn build_resolution_with_report(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> (Resolution<'static>, TypeIndex, crate::EmissionReport) {
-    let (res, module, report) = build_resolution_core(program, opts, true, &[]);
+    let (res, module, report, _) = build_resolution_core(program, opts, true, &[], None);
     (res, module, report.expect("requested emission report"))
 }
-
 /// 调用者必须先验证sidecar；普通发射仍传空集合且不建立固定绑定引用。
 pub(crate) fn build_resolution_with_bindings(
     program: &LinkedProgram,
     opts: &EmitOptions,
     bindings: &[crate::fixed_bindings::FixedI32Binding],
 ) -> (Resolution<'static>, TypeIndex) {
-    let (res, module, _) = build_resolution_core(program, opts, false, bindings);
+    let (res, module, _, _) = build_resolution_core(program, opts, false, bindings, None);
     (res, module)
+}
+pub(crate) fn build_binding_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    bindings: &[crate::fixed_bindings::FixedI32Binding],
+    deployment: &crate::fixed_bindings::BindingDeployment,
+) -> (
+    Resolution<'static>,
+    crate::EmissionReport,
+    Vec<crate::fixed_bindings::BindingEmission>,
+) {
+    let (res, _, report, records) =
+        build_resolution_core(program, opts, true, bindings, Some(deployment));
+    (res, report.expect("requested binding report"), records)
 }
 
 fn build_resolution_core(
@@ -56,10 +68,12 @@ fn build_resolution_core(
     opts: &EmitOptions,
     report_requested: bool,
     bindings: &[crate::fixed_bindings::FixedI32Binding],
+    deployment: Option<&crate::fixed_bindings::BindingDeployment>,
 ) -> (
     Resolution<'static>,
     TypeIndex,
     Option<crate::EmissionReport>,
+    Vec<crate::fixed_bindings::BindingEmission>,
 ) {
     let dll_name = format!("{}.dll", opts.assembly_name);
     let mut res = Resolution::new(Module::new(dll_name));
@@ -454,6 +468,16 @@ fn build_resolution_core(
             ));
             prefix.push(Instruction::call(refs.ensure));
         }
+        if let Some(deployment) = deployment {
+            prefix.extend(crate::fixed_binding_deployment::registration(
+                &mut res,
+                module_class,
+                sys_runtime,
+                ryupy_runtime,
+                &bindings[0],
+                deployment,
+            ));
+        }
         if let Some(body) = res[init_functions].body.as_mut() {
             body.instructions.splice(0..0, prefix);
         }
@@ -461,11 +485,12 @@ fn build_resolution_core(
 
     // 第二遍：逐函数编译并填充 body。动态运算 / 调用的 PIC 编号在整程序内递增分配。
     let site_counter = std::cell::Cell::new(0u32);
+    let mut binding_methods = Vec::new();
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
         if let Some(binding) = bindings.iter().find(|binding| binding.initializer == fn_id) {
             // 已验证记录选择专用body，不按生成名称覆盖普通函数。
-            let body = crate::fixed_binding_emit::initializer(
+            let (body, wrapper, native) = crate::fixed_binding_emit::initializer(
                 &mut res,
                 module_class,
                 program,
@@ -476,6 +501,9 @@ fn build_resolution_core(
                 &runtime_refs,
             );
             res[method_idx].body = Some(body);
+            if report_requested {
+                binding_methods.push((binding, wrapper, native));
+            }
             continue;
         }
         let compiled = lower_function(
@@ -557,7 +585,13 @@ fn build_resolution_core(
             &thunks,
             &exception_factories,
             &accessors,
+            &binding_methods,
         )
     });
-    (res, module_class, report)
+    let records = if report_requested {
+        crate::fixed_binding_deployment::describe(&res, &binding_methods)
+    } else {
+        Vec::new()
+    };
+    (res, module_class, report, records)
 }
