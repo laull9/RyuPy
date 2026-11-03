@@ -107,6 +107,9 @@ public static partial class PyOps
         "int" or "float" or "str" or "bool" or "list" or "tuple" or "dict" or "set" or "frozenset"
         or "bytes" or "bytearray" or "type" or "object";
 
+    // 固定一参快速调用仍允许公共helper收到内部star标记，必须回原展开路径。
+    internal static bool IsStarredArgument(object? value) => value is StarredArg;
+
     /// <summary>位置实参里是否含 <c>*iterable</c>。</summary>
     private static bool HasStarred(object?[] rawArgs)
     {

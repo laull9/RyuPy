@@ -35,7 +35,7 @@ public static class PyMathModule
     };
 
     private static PyFunction One(string name, Func<object?, object?> operation) =>
-        PyNativeFunctions.Create(name, ["x"], [null], 1, a => operation(a[0]), ["posonly"]);
+        PyNativeFunctions.CreateUnary(name, operation);
     private static PyFunction Unary(string name, Func<double, double> operation) =>
         One(name, value => operation(PyMathConversion.Real(value)));
     private static double Domain(double value, Func<double, double> operation, bool invalid)

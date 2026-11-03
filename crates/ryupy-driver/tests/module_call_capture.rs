@@ -147,3 +147,11 @@ fn generator_resume_preserves_module_target_across_argument_rebinding() {
         "../../../tests/fixtures/module_call_capture/generator.py"
     )));
 }
+
+#[test]
+fn captured_math_unary_preserves_identity_conversion_and_binder_fallbacks() {
+    // 实际默认优化构建与固定CP逐字差分；不通过手工runtime调用冒充源码覆盖。
+    compare_module_calls(Some(include_str!(
+        "../../../tests/fixtures/module_call_capture/math_unary.py"
+    )));
+}
