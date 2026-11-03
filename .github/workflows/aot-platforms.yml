@@ -113,6 +113,14 @@ jobs:
       - name: Single executable regressions (Windows)
         if: runner.os == 'Windows'
         run: '& $env:PYTHON -m unittest discover -s tests/aot -p "test_single_file.py"; exit $LASTEXITCODE'
+      - name: AOT layout parser regressions (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          "$PYTHON" tests/aot/test_aot_layout.py
+          "$PYTHON" tests/aot/test_default_layout_smoke.py
+      - name: AOT layout parser regressions (Windows)
+        if: runner.os == 'Windows'
+        run: '& $env:PYTHON tests/aot/test_aot_layout.py; exit $LASTEXITCODE'
       - name: Build actual host runtime
         run: dotnet build runtime/RyuPy.Runtime -c Release -t:Rebuild -nologo -v q
       - name: Standard stream platform semantics
@@ -157,6 +165,19 @@ jobs:
         if: runner.os == 'Windows'
         timeout-minutes: 12
         run: '& $env:PYTHON tests/aot/resource_smoke.py --out target/aot-resources --python $env:PYTHON --ryupy "${{ matrix.cli }}" --rid "${{ matrix.rid }}"; exit $LASTEXITCODE'
+      - name: Original ABC example with default build and dist (macOS)
+        if: runner.os == 'macOS'
+        timeout-minutes: 16
+        run: '"$PYTHON" tests/aot/default_layout_smoke.py --out "$RUNNER_TEMP/aot-default-layout-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --python "$PYTHON" --ryupy target/debug/ryupy'
+      - name: Preserve default-layout example evidence (macOS)
+        if: always() && runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-default-layout-osx-arm64-${{ github.sha }}
+          path: ${{ runner.temp }}/aot-default-layout-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
       - name: Preserve actual platform evidence including failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -165,6 +186,7 @@ jobs:
           path: target/aot-platforms
           if-no-files-found: warn
           retention-days: 14
+          include-hidden-files: true
       - name: Preserve explicit resource evidence including failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -173,3 +195,4 @@ jobs:
           path: target/aot-resources
           if-no-files-found: warn
           retention-days: 14
+          include-hidden-files: true

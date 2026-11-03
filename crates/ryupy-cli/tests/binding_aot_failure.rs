@@ -115,7 +115,28 @@ exit {code}
         .filter(|name| name.to_string_lossy().starts_with("ryupy-aot-"))
         .collect();
     assert_eq!(roots, vec![std::ffi::OsString::from("ryupy-aot-old")]);
-    // 失败清理本轮绑定根，不留下半成功托管包；旧包保持不变。
+    // 低层仍清理失败绑定根，外层build保留owner与完整失败诊断；没有半成功dist。
+    let build = out.join("sample_alias.build");
+    assert!(build.join("ryupy-build-owner.json").is_file());
+    let attempts: Vec<_> = fs::read_dir(&build)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("attempt-")
+        })
+        .collect();
+    assert_eq!(attempts.len(), 1);
+    assert!(attempts[0].join("build-error.log").is_file());
+    assert!(!fs::read_dir(&attempts[0]).unwrap().any(|e| {
+        e.unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("ryupy-binding-")
+    }));
+    assert!(!out.join("sample_alias.dist").exists());
     assert!(!out.join("sample_alias.dll").exists());
     assert!(!fs::read_dir(&out).unwrap().any(|e| {
         e.unwrap()

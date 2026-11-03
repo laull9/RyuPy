@@ -1,6 +1,6 @@
 # ADR-0051：受控原生一参函数的无数组调用候选
 
-状态：本地WIP，专项和完整正常门禁通过，最终候选原生/成本验收待；未main。
+状态：WIP，完整门禁与三平台回归通过；唯一最终成本组已独立核验，matmul禁tier回退仍开放；未main。
 
 ## 原因与范围
 
@@ -18,7 +18,7 @@ PyNativeFunctions的私有sealed holder保readonly operation/signature/Body/Owne
 
 操作只调用一次，转换、异常及原上下文行为不新增catch/Prepare；帧专项只证明scalar/array parity，不宣称补齐math原本未提供的caller帧。holder取代原closure但增加自身owner/body引用，初始化成本不预称零；结果装箱等仍存在。
 
-## 实际本地验证与剩余门禁
+## 本地验证阶段记录（远端验证前）
 
 源码独立审通过后首次C#专项16/16（新8与原捕获8，无skip）；Release runtime重建后真实默认优化driver4通过/1原static-def身份ignored，其中新增1个83行fixture与固定CPython3.12.13原双流逐字相同。
 覆盖13函数值/类型、保存与导出别名、求参重绑、一次转换/重入、同名用户函数、原数组逃逸、复制Body、不可信目标、metadata改名、错元数/关键字/StarArg和false列表PIC。原完整ignored正期待未改。
@@ -26,3 +26,11 @@ PyNativeFunctions的私有sealed holder保readonly operation/signature/Body/Owne
 首次完整正常make check终态exit0：587 C#、228 CP基线、202 e2e通过加30 ignored，fmt/clippy/workspace通过；未使用快照批量接受或FORCE，无快照变更。未运行新的性能组或NativeAOT；最终候选若获批准才沿原baseline8b15、固定两源/三臂/36进程/20分钟一次同机配对，所有点/负项保留。不能用结构上不再创建该数组代替实际性能及AOT证据。
 
 既有Linux/host两套workflow仅在原3分钟C#专项filter追加新类的8项测试，原33保留，期望41；现module_call_capture target自然包含新增1差分。原job/publish矩阵和timeout不变，尚未新远端执行，不以接线当通过。
+
+## 冻结候选远端验证与最终成本
+
+候选c342的Linux41585742217及Mac/Windows41585742232组合CI通过；官方三日志独立核到各41项C#、15项driver通过及2个原ignored。新增真实math unary差分三平台均通过，原native/platform/resource步骤完成；这项日志审不冒全部新native工件再次逐字审计。
+
+[唯一最终固定36组](../validation/aot-module-call-final-cost/README.md)由工作流专用cbec触发，实际测c342对原8b15；全部原始点与唯一负旗保留。math三臂整进程分配近本轮基线，禁tier与AOT热时长分别减少19.731%和12.730%；默认JIT固定窗口减少51.423%，但有明显tier变化，不能称稳态收益。matmul默认JIT/AOT变化为+2.091%/+0.040%，禁tier仍+14.723%并触发原诊断旗，故不宣称性能问题全部关闭。产物约增0.63%，不称瘦身；不跨旧job相减归因。
+
+未合main、不追加测量；触发工作流保留明确pin，不能为恢复旧写法再推送该路径而意外重复36组。

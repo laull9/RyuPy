@@ -144,11 +144,13 @@ ryupy-e2e（仅测试）─► ryupy-driver
 ## 5. 产物布局
 
 ```text
-<源目录>/__pycache__/<name>/  # ryupy build 默认输出目录（与 CPython 的 .pyc 同位）
+<源目录>/__pycache__/<name>/  # JIT 默认输出目录（与 CPython 的 .pyc 同位）
 ├── <name>.dll                # 生成的程序集
 ├── <name>.runtimeconfig.json # 让 `dotnet <name>.dll` 找到共享框架
-├── RyuPy.Runtime.dll         # 从 runtime/…/bin/Release/net10.0/ 复制
-└── aot/                      # 计划于 M5.2 实现：桩项目与原生可执行文件（ADR-0005）
+└── RyuPy.Runtime.dll         # 从 runtime/…/bin/Release/net10.0/ 复制
+
+<源目录>/<name>.build/        # 高层 AOT 独占 attempt、托管输入与 SDK 中间产物
+<源目录>/<name>.dist/         # AOT 交付：<name>（Windows .exe）、所需文件与清单
 
 target/e2e/<case>/            # e2e 测试的产物，便于失败后手工检查
 
@@ -156,6 +158,8 @@ releases/                     # make build 的发行包（宿主平台，不进�
 ├── ryupy-<版本>-<平台>/       # bin/ryupy + runtime/RyuPy.Runtime.dll
 └── ryupy-<版本>-<平台>.tar.gz
 ```
+
+AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不变。所有权、失败恢复及新基准后端边界见 [ADR-0052](adr/0052-aot-build-dist-and-bench.md)。
 
 ## 6. 测试策略
 

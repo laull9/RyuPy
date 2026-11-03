@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """恢复版固定绑定验收：每host一JIT/一静态AOT，独立副本负例，不采样性能。"""
+from aot_layout import reported_aot
 import argparse
 import hashlib
 import json
@@ -117,7 +118,8 @@ def main():
         result['runtime'] = next(x for x in jit_manifest['artifacts'] if x['role']=='runtime_managed')
         result['aot_publish_count'] += 1
         built = command('aot-publish', [ryupy,'build',entry,'--out-dir',aot_out,'--native-binding',declaration_file,'--aot'], env=env, timeout=600)
-        native = published(built.stderr,aot_out,True); aot_root = native.parent.parent
+        layout = reported_aot(built.stderr,aot_out,entry.stem,args.rid)
+        native = layout.native; aot_root = layout.sdk_root
         for name in ('publish.stdout.log','publish.stderr.log'): shutil.copy2(aot_root/name,logs/('driver-'+name))
         assert b'Generating native code' in (logs/'driver-publish.stdout.log').read_bytes(), '无真实ILC日志'
         sdk = read_sdk_version(aot_root/'host/sdk.version'); shutil.copy2(aot_root/'host/sdk.version',logs/'sdk.version')

@@ -170,3 +170,8 @@ pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<
 #[cfg(test)]
 #[path = "resources_stage_tests.rs"]
 mod stage_tests;
+
+/// 布局重定位只给唯一顶层native文件Unicode例外；其它发布项复用原ASCII资源策略。
+pub(crate) fn validate_layout_artifact_path(path: &str) -> Result<()> {
+    paths::portable(path)
+}

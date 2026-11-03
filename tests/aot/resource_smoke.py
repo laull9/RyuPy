@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """每宿主一次资源AOT发布；固定源码，无后端专用Python分支。"""
+from aot_layout import reported_aot
 import argparse
 import hashlib
 import json
@@ -136,15 +137,16 @@ def main():
         result['publish_count'] += 1
         published = run.run('publish',[ryupy,'build',str(main_file),'--out-dir',str(il),'--aot',
             '--resources',str(source/'resources.json')],cwd=work,env=env,check=True,timeout=300)
-        native = published_platform_native(published.stderr,il,args.rid)
+        layout = reported_aot(published.stderr,il,'main',args.rid)
+        native = layout.native
         manifest_file = published_manifest(published.stderr,native)
-        sdk = read_sdk_version(native.parent.parent/'host/sdk.version')
-        result['aot_il_sha256'] = sha(il/'main.dll')
-        assert sha(il/'RyuPy.Runtime.dll') == result['runtime_sha256']
+        sdk = read_sdk_version(layout.host/'sdk.version')
+        result['aot_il_sha256'] = sha(layout.managed)
+        assert sha(layout.managed.parent/'RyuPy.Runtime.dll') == result['runtime_sha256']
         for name in ('publish.stdout.log','publish.stderr.log'):
-            shutil.copy2(native.parent.parent/name,logs/('driver-'+name))
+            shutil.copy2(layout.sdk_root/name,logs/('driver-'+name))
         shutil.copy2(manifest_file,logs/'ryupy-artifact.json')
-        shutil.copy2(native.parent.parent/'host/sdk.version',logs/'sdk.version')
+        shutil.copy2(layout.host/'sdk.version',logs/'sdk.version')
         relocated = work/'搬迁 & bundle'
         binary, manifest = relocate_manifest(native.parent,native,relocated,args.rid,sdk)
         assert manifest['schema_version'] == 2 and len(manifest['resources']) == 1

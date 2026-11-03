@@ -201,18 +201,24 @@ class FilesTests(unittest.TestCase):
     def test_unique_same_publish_managed_path(self):
         source, _ = self.bundle()
         # 故意保留..路径别名，Linux也覆盖Mac /var→/private/var的同实体合同。
-        native = source/'..'/source.name/'ryupy-aot-unique/publish/host'
+        managed_dir = source/'construction.build/attempt-1'
+        managed_dir.mkdir(parents=True)
+        for name in ('construction.dll','construction.runtimeconfig.json','RyuPy.Runtime.dll'):
+            shutil.copy2(source/name, managed_dir/name)
+        sdk = managed_dir/'ryupy-aot-unique'
+        (sdk/'host').mkdir(parents=True); (sdk/'publish').mkdir()
+        native = source/'..'/source.name/'construction.dist/construction'
         native.parent.mkdir(parents=True); native.write_bytes(b'path-test')
         manifest = native.parent/'ryupy-artifact.json'; manifest.write_bytes(b'{}')
-        raw = f'已生成 {source}/construction.dll\n已生成 {native}\nAOT 清单：{manifest}\n'.encode()
+        raw = f'已生成 {managed_dir}/construction.dll\n已生成 {native}\nAOT 清单：{manifest}\n'.encode()
         complete = subprocess.CompletedProcess([], 0, b'', raw)
         entry, dll = harness.published_inputs(complete, source, 'linux-x64')
         self.assertTrue(entry.samefile(native))
-        self.assertTrue(dll.samefile(source/'construction.dll'))
+        self.assertTrue(dll.samefile(managed_dir/'construction.dll'))
         wrong = source/'not-construction.dll'
         wrong.write_bytes((source/'construction.dll').read_bytes())
         mismatched = subprocess.CompletedProcess([], 0, b'', raw.replace(
-            f'已生成 {source}/construction.dll'.encode(), f'已生成 {wrong}'.encode()))
+            f'已生成 {managed_dir}/construction.dll'.encode(), f'已生成 {wrong}'.encode()))
         with self.assertRaises(AssertionError): harness.published_inputs(mismatched, source, 'linux-x64')
         complete.stderr += f'已生成 {source}/construction.dll\n'.encode()
         with self.assertRaises(AssertionError): harness.published_inputs(complete, source, 'linux-x64')
@@ -249,19 +255,21 @@ class MainFlowTests(unittest.TestCase):
                 cli = repo/'target/debug/ryupy'; cli.parent.mkdir(parents=True); cli.write_bytes(b'cli')
             elif label == 'aot-publish':
                 il = Path(command[command.index('--out-dir')+1]); il.mkdir()
+                managed_dir = il/'construction.build/attempt-1'; managed_dir.mkdir(parents=True)
                 for name, content in [('construction.dll', b'il'), ('construction.runtimeconfig.json', b'config'), ('RyuPy.Runtime.dll', b'runtime')]:
-                    (il/name).write_bytes(content)
-                aot = il/'ryupy-aot-unique'; native = aot/'publish/host'
+                    (managed_dir/name).write_bytes(content)
+                aot = managed_dir/'ryupy-aot-unique'; native = il/'construction.dist/construction'
+                (aot/'publish').mkdir(parents=True)
                 native.parent.mkdir(parents=True); native.write_bytes(b'native-not-executed')
                 (aot/'host').mkdir(); (aot/'host/sdk.version').write_text(harness.SDK+'\n')
                 (aot/'publish.stdout.log').write_bytes(b'Generating native code\n'); (aot/'publish.stderr.log').write_bytes(b'')
                 (native.parent/'ryupy-artifact.json').write_bytes(b'{}')
                 data.update(schema_version=1, compiler={'options': {'test_flag': False}},
                     sources=[{'module_name': '__main__', 'compiled_text_sha256': source_sha}],
-                    build_inputs=[{'relative_path': name, **harness.file_record(il/file)} for name,file in
+                    build_inputs=[{'relative_path': name, **harness.file_record(managed_dir/file)} for name,file in
                         [('managed-entry.dll','construction.dll'), ('RyuPy.Runtime.dll','RyuPy.Runtime.dll')]])
                 return subprocess.CompletedProcess(command, 0, b'',
-                    f'已生成 {il}/construction.dll\n已生成 {native}\nAOT 清单：{native.parent}/ryupy-artifact.json\n'.encode())
+                    f'已生成 {managed_dir}/construction.dll\n已生成 {native}\nAOT 清单：{native.parent}/ryupy-artifact.json\n'.encode())
             elif label.startswith(('jit-', 'native-')):
                 # 这里只返回人工固定结果，绝不执行假文件或fixture。
                 self.assertEqual(kwargs['cwd'], Path(command[-2]).parent)

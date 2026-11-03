@@ -46,6 +46,11 @@ jobs:
         run: python -m unittest discover -s tests/aot -p "test_resource_*.py"
       - name: Single executable copy and identity regressions
         run: python -m unittest discover -s tests/aot -p "test_single_file.py"
+      - name: AOT layout and benchmark pure regressions
+        run: |
+          python tests/aot/test_aot_layout.py
+          python tests/test_bench_aot.py
+          python tests/aot/test_bench_smoke.py
       - name: Native prerequisites
         run: |
           sudo apt-get update
@@ -74,6 +79,18 @@ jobs:
       - name: One explicit resource bundle and runtime-free relocation
         timeout-minutes: 12
         run: python tests/aot/resource_smoke.py --out target/aot-resources --ryupy target/debug/ryupy --rid linux-x64
+      - name: One public make bench-aot hello pipeline
+        timeout-minutes: 32
+        run: python tests/aot/bench_smoke.py --out "$RUNNER_TEMP/aot-bench-smoke-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" --target target
+      - name: Preserve public AOT benchmark command evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-bench-hello-linux-x64-${{ github.sha }}
+          path: ${{ runner.temp }}/aot-bench-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
       - name: Preserve actual evidence, including failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -82,6 +99,7 @@ jobs:
           path: target/aot-smoke
           if-no-files-found: warn
           retention-days: 14
+          include-hidden-files: true
       - name: Preserve explicit resource evidence including failure
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,3 +108,4 @@ jobs:
           path: target/aot-resources
           if-no-files-found: warn
           retention-days: 14
+          include-hidden-files: true

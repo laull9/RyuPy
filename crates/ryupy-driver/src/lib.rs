@@ -8,6 +8,7 @@
 //! ```
 
 mod aot;
+mod aot_layout;
 mod binding_build;
 pub mod dotnet;
 mod manifest;
@@ -82,7 +83,7 @@ pub enum Stage {
 #[derive(Debug, Clone)]
 pub struct BuildOptions {
     pub input: PathBuf,
-    /// 产物目录，CLI 默认 `<源目录>/__pycache__/<stem>/`（见 `ryupy-cli`）。
+    /// JIT为产物目录；AOT为 `<stem>.build/.dist` 的共同ROOT（CLI默认源目录）。
     pub out_dir: PathBuf,
     pub aot: bool,
     /// 额外的模块搜索根（等价于 `sys.path` 的其它条目）；入口文件所在目录始终排在最前。
@@ -303,7 +304,11 @@ pub fn build_configured(
         "首切不支持 --resources 与 --native-binding 同用"
     );
     if let Some(path) = binding {
-        return binding_build::build(sess, opts, path);
+        return if opts.aot {
+            aot_layout::build(opts, |inner| binding_build::build(sess, inner, path))
+        } else {
+            binding_build::build(sess, opts, path)
+        };
     }
     build_with_resources(sess, opts, resources)
 }
@@ -318,6 +323,19 @@ pub fn build_with_resources(
         resource_request.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
     );
+    if opts.aot {
+        return aot_layout::build(opts, |inner| {
+            build_with_resources_inner(sess, inner, resource_request)
+        });
+    }
+    build_with_resources_inner(sess, opts, resource_request)
+}
+
+fn build_with_resources_inner(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    resource_request: Option<&Path>,
+) -> Result<Artifacts> {
     aot::validate_before_build(&opts.input, opts.aot)?;
     let (linked, sources, resource_plan) = compile_linked(
         sess,

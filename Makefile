@@ -97,6 +97,10 @@ ARGS ?=
 bench: runtime ## 性能基准：CPython vs RyuPy（BENCH=名字/类别过滤，ARGS=额外参数）
 	"$(PYTHON)" tests/run_benchmarks.py --detail $(ARGS) $(BENCH)
 
+.PHONY: bench-aot
+bench-aot: runtime ## NativeAOT基准：每例含ILC构建，直接运行原生可执行文件
+	"$(PYTHON)" tests/run_benchmarks.py --detail --aot $(ARGS) $(BENCH)
+
 .PHONY: bench-quick
 bench-quick: runtime ## 快速基准：1 次热身 + 3 次计时，适合改动后的粗测
 	"$(PYTHON)" tests/run_benchmarks.py --quick $(ARGS) $(BENCH)

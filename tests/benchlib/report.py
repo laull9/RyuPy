@@ -62,7 +62,7 @@ def fmt_mb(value: float | None) -> str:
 
 
 def speedup(result: Result) -> float | None:
-    if not result.cpython or not result.ryupy:
+    if result.status not in ("ok", "ready") or not result.cpython or not result.ryupy:
         return None
     base = median(result.cpython.wall_ms)
     ours = median(result.ryupy.wall_ms)
@@ -104,7 +104,7 @@ def time_table(results: list[Result]) -> list[str]:
         )
         for label, series in result.variants.items():
             variant = median(series.wall_ms)
-            ratio = cpy / variant if cpy and variant else None
+            ratio = cpy / variant if result.status in ("ok", "ready") and cpy and variant else None
             lines.append(
                 f"| ↳ {label} | | {fmt_ms(cpy)} | {fmt_ms(variant)} "
                 f"| {'—' if ratio is None else f'{ratio:.2f}x'} | {fmt_ms(median(series.main_ms))} | | |"
@@ -114,7 +114,7 @@ def time_table(results: list[Result]) -> list[str]:
 
 def resource_table(results: list[Result]) -> list[str]:
     lines = [
-        "| 基准 | RyuPy 分配 MB | GC 0/1/2 | GC 暂停 ms | JIT ms（方法数） | 峰值内存 MB CPython / RyuPy | 编译 ms |",
+        "| 基准 | RyuPy 分配 MiB | GC 0/1/2 | GC 暂停 ms | JIT ms（方法数） | 峰值内存 MiB CPython / RyuPy | 编译 ms |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for result in results:
@@ -122,7 +122,7 @@ def resource_table(results: list[Result]) -> list[str]:
             continue
         stats = result.ryupy.stats
         gcs = "/".join(str(int(stats.get(k, 0))) for k in ("gc0", "gc1", "gc2"))
-        jit = f"{stats.get('jit_ms', 0):.0f}（{int(stats.get('jit_methods', 0))}）"
+        jit = "N/A（NativeAOT）" if result.backend == "aot" else f"{stats.get('jit_ms', 0):.0f}（{int(stats.get('jit_methods', 0))}）"
         cpy_rss = median(result.cpython.maxrss) if result.cpython else None
         lines.append(
             f"| {result.bench.name} | {fmt_mb(stats.get('alloc_bytes'))} | {gcs} "
@@ -154,7 +154,7 @@ def startup_line(results: list[Result]) -> list[str]:
         if result.bench.is_startup and result.cpython and result.ryupy:
             return [
                 f"启动成本（{result.bench.name}，墙钟中位数）：CPython {fmt_ms(median(result.cpython.wall_ms))} ms，"
-                f"RyuPy {fmt_ms(median(result.ryupy.wall_ms))} ms；「执行 ms」是进程内计时，不含这部分启动成本。"
+                f"RyuPy {fmt_ms(median(result.ryupy.wall_ms))} ms；「执行 ms」从MarkMainStart至统计点，含模块执行/JIT/GC，不含此前host/注册，不能直接减去hello墙钟。"
             ]
     return []
 
@@ -166,7 +166,7 @@ def _command_output(command: list[str]) -> str:
         return "unknown"
 
 
-def environment(root: Path, python: str, runs: int, warmup: int) -> dict:
+def environment(root: Path, python: str, runs: int, warmup: int, backend: str = "jit") -> dict:
     cpu = platform.processor() or platform.machine()
     if sys.platform == "darwin":
         cpu = _command_output(["sysctl", "-n", "machdep.cpu.brand_string"])
@@ -181,13 +181,18 @@ def environment(root: Path, python: str, runs: int, warmup: int) -> dict:
         + ("+dirty" if dirty and dirty != "unknown" else ""),
         "runs": runs,
         "warmup": warmup,
+        "backend": backend,
+        "jit_metrics_applicable": backend == "jit",
+        "resource_aggregation": "last_timed_process",
     }
 
 
 def environment_lines(env: dict) -> list[str]:
     return [
         f"口径：{env['cpu']}，{env['platform']}；CPython {env['python']}，.NET {env['dotnet']}，"
-        f"提交 {env['commit']}；{env['warmup']} 次热身 + {env['runs']} 次计时取中位数（墙钟含进程启动）。"
+        f"后端 {env.get('backend', 'jit')}；提交 {env['commit']}；{env['warmup']} 次热身 + {env['runs']} 次计时取中位数（各次为新进程，墙钟含启动）。",
+        "执行ms为MarkMainStart至统计点，含模块执行/JIT/GC、不含此前host/注册；资源分配/GC/JIT取最后计时进程，RSS取各进程峰值中位数；MiB=2^20字节。",
+        "编译ms是整次build耗时，NativeAOT包含ILC；AOT原stats保留，但JIT指标不适用。"
     ]
 
 
@@ -199,6 +204,7 @@ def save(path: Path, env: dict, results: list[Result]) -> None:
                 "name": result.bench.name,
                 "category": result.bench.category,
                 "status": result.status,
+                "backend": result.backend,
                 "compile_ms": result.compile_ms,
                 "cpython": result.cpython.to_json() if result.cpython else None,
                 "ryupy": result.ryupy.to_json() if result.ryupy else None,
@@ -214,18 +220,29 @@ def load(path: Path) -> tuple[dict, dict[str, dict]]:
     return payload["environment"], {item["name"]: item for item in payload["results"]}
 
 
+def validate_backend(backend: str, baseline_env: dict, baseline: dict[str, dict]) -> None:
+    """旧结果无backend字段按历史JIT解释；不同后端禁止产生性能比较。"""
+    old = baseline_env.get("backend", "jit")
+    if old not in ("jit", "aot") or old != backend:
+        raise ValueError(f"不能比较不同backend：基线{old}，当前{backend}")
+    if any(item.get("backend", old) != old for item in baseline.values()):
+        raise ValueError("基线结果backend与environment不一致")
+
+
 def compare_table(results: list[Result], baseline_env: dict, baseline: dict[str, dict]) -> list[str]:
     """与历史结果对比 RyuPy 墙钟与分配量；变化超过 ±5% 才标记方向。"""
+    for result in results:
+        validate_backend(result.backend, baseline_env, baseline)
     lines = [
-        f"对比基线：提交 {baseline_env.get('commit')}（{baseline_env.get('date')}）",
+        f"对比基线（{baseline_env.get('backend', 'jit')}，旧缺字段按JIT）：提交 {baseline_env.get('commit')}（{baseline_env.get('date')}）",
         "",
-        "| 基准 | 基线 RyuPy ms | 当前 RyuPy ms | 变化 | 基线分配 MB | 当前分配 MB |",
+        "| 基准 | 基线 RyuPy ms | 当前 RyuPy ms | 变化 | 基线分配 MiB | 当前分配 MiB |",
         "| --- | ---: | ---: | ---: | ---: | ---: |",
     ]
     ratios = []
     for result in results:
         old = baseline.get(result.bench.name)
-        if not result.ryupy or not old or not old.get("ryupy"):
+        if result.status not in ("ok", "ready") or not old or old.get("status") not in ("ok", "ready") or not result.ryupy or not old.get("ryupy"):
             continue
         old_series = Series.from_json(old["ryupy"])
         before = median(old_series.wall_ms)
