@@ -1,0 +1,1339 @@
+{
+  "source_commit": "7713113175d15f0bea9f64e22d05f88f107e657f",
+  "source_tree": "a2b99e547b2f56a87fb4f935fe2c1deab4392321",
+  "equivalent_local_commit": "1ea1a3c9a96819ca202b74361c360a760f177dd9",
+  "ci_run": 41560771202,
+  "linux": {
+    "status": "independent_readonly_audit_passed",
+    "ci_run": 41560771202,
+    "source_commit": "7713113175d15f0bea9f64e22d05f88f107e657f",
+    "artifact_zip_sha256": "02c5686024ea8f52092ced813e30700d9dfdba1f0701fd72e04314cf003bea3b",
+    "result_sha256": "e0055309223d4da637507f110c02b437a9d9df564e8b61ba7651d11470ed7a64",
+    "rid": "linux-x64",
+    "host": {
+      "os": "Linux",
+      "arch": "x86_64",
+      "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+      "image_os": "ubuntu24",
+      "image_version": "20261026.354.1"
+    },
+    "sdk_version": "10.0.403",
+    "python_version": "3.12.13 (main, Aug  7 2026, 02:25:39) [Clang 22.1.3 ]",
+    "jit_builds": 1,
+    "aot_publishes": 1,
+    "application_exits": {
+      "jit-normal": 0,
+      "aot-normal": 0,
+      "jit-missing": 1,
+      "jit-missing-dynamicfalse": 1,
+      "jit-missing-symbol": 1,
+      "jit-bad-format": 1,
+      "jit-new-good": 0,
+      "jit-type": 1,
+      "aot-type": 1,
+      "aot-clean-container": 0
+    },
+    "elapsed_seconds": 17.964647085000024,
+    "budget_seconds": 1800,
+    "verified_intact_manifests": [
+      {
+        "relative_manifest": "搬迁 & native/ryupy-artifact.json",
+        "sha256": "5874bd7c1e2c652f6a08ea55e188a85f4b1173ce33c3ced0ac72cc668c847f13",
+        "linkage": "aot_static"
+      },
+      {
+        "relative_manifest": "搬迁 & jit/ryupy-artifact.json",
+        "sha256": "42bd3bc59d4b93d0dd6480e83d88a8be5ff7e47088fa841007da5d20e7aa809b",
+        "linkage": "jit_shared"
+      },
+      {
+        "relative_manifest": "jit-new-good/ryupy-artifact.json",
+        "sha256": "42bd3bc59d4b93d0dd6480e83d88a8be5ff7e47088fa841007da5d20e7aa809b",
+        "linkage": "jit_shared"
+      },
+      {
+        "relative_manifest": "build-evidence/jit-output/ryupy-binding-5366-1793669877130569944-0/bundle/ryupy-artifact.json",
+        "sha256": "42bd3bc59d4b93d0dd6480e83d88a8be5ff7e47088fa841007da5d20e7aa809b",
+        "linkage": "jit_shared"
+      },
+      {
+        "relative_manifest": "build-evidence/aot-output/ryupy-binding-5367-1793669877141590920-0/bundle/ryupy-aot-5367_1793669877141964840_0/publish/ryupy-artifact.json",
+        "sha256": "5874bd7c1e2c652f6a08ea55e188a85f4b1173ce33c3ced0ac72cc668c847f13",
+        "linkage": "aot_static"
+      }
+    ],
+    "tampered_bundles_rejected": [
+      "jit-missing",
+      "jit-missing-dynamicfalse",
+      "jit-missing-symbol",
+      "jit-bad-format"
+    ],
+    "native_sha256": "222039f5f1cb77fc4afbaf98deee38485ac8804d2363ea455943c5d4eb4af637",
+    "native_size": 4633952,
+    "needed_libraries": [
+      "libm.so.6",
+      "libc.so.6",
+      "ld-linux-x86-64.so.2"
+    ],
+    "clean_container_no_sdk_tested": true,
+    "limits": [
+      "Fixed cdecl i32,i32 -> i64 binding only; no arbitrary wheel or ABI claim.",
+      "CP reference validates arithmetic only, not importing a fake native Python module.",
+      "Original build evidence was renamed and retained; Linux container mounted only bare executable directory.",
+      "Fresh good-process success is not an in-process loader-cache recovery claim.",
+      "Audit reads retained evidence and hashes; no application, compiler, network download or rebuild executed.",
+      "Reported CI source provenance and ZIP digest supplied by parent; ZIP not re-downloaded."
+    ],
+    "applications": {
+      "jit-normal": {
+        "exit": 0,
+        "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "aot-normal": {
+        "exit": 0,
+        "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit-missing": {
+        "exit": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+        "failure": {
+          "frames": [
+            [
+              "binding_app.py",
+              15,
+              "<module>"
+            ],
+            [
+              "binding_app.py",
+              11,
+              "fail_call"
+            ]
+          ],
+          "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+        }
+      },
+      "jit-missing-dynamicfalse": {
+        "exit": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+        "failure": {
+          "frames": [
+            [
+              "binding_app.py",
+              15,
+              "<module>"
+            ],
+            [
+              "binding_app.py",
+              11,
+              "fail_call"
+            ]
+          ],
+          "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+        }
+      },
+      "jit-missing-symbol": {
+        "exit": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+        "failure": {
+          "frames": [
+            [
+              "binding_app.py",
+              15,
+              "<module>"
+            ],
+            [
+              "binding_app.py",
+              11,
+              "fail_call"
+            ]
+          ],
+          "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+        }
+      },
+      "jit-bad-format": {
+        "exit": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+        "failure": {
+          "frames": [
+            [
+              "binding_app.py",
+              15,
+              "<module>"
+            ],
+            [
+              "binding_app.py",
+              11,
+              "fail_call"
+            ]
+          ],
+          "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+        }
+      },
+      "jit-new-good": {
+        "exit": 0,
+        "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "jit-type": {
+        "exit": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "5206d9a00a98b048fc6167c1249d493f86a429dabebfb23024fd2a755fb5e89f",
+        "failure": {
+          "frames": [
+            [
+              "binding_app.py",
+              15,
+              "<module>"
+            ],
+            [
+              "binding_app.py",
+              9,
+              "fail_call"
+            ]
+          ],
+          "exception": "TypeError: add() argument 'left' must be an actual integer, not bool or a converted value"
+        }
+      },
+      "aot-type": {
+        "exit": 1,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "5206d9a00a98b048fc6167c1249d493f86a429dabebfb23024fd2a755fb5e89f",
+        "failure": {
+          "frames": [
+            [
+              "binding_app.py",
+              15,
+              "<module>"
+            ],
+            [
+              "binding_app.py",
+              9,
+              "fail_call"
+            ]
+          ],
+          "exception": "TypeError: add() argument 'left' must be an actual integer, not bool or a converted value"
+        }
+      },
+      "aot-clean-container": {
+        "exit": 0,
+        "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "references": {
+      "python_exit": 0,
+      "c_exit": 0,
+      "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201"
+    },
+    "cli": {
+      "size": 7940864,
+      "sha256": "b8e04ad646a4c4407ea9ef7eb3df6ad661e78fe22277fdc3171965289c4d1261"
+    },
+    "source_files": {
+      "probe.c": {
+        "size": 741,
+        "sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812"
+      },
+      "numeric_reference.py": {
+        "size": 228,
+        "sha256": "e18e31a6dfe19c12fa8fe1247483a6acceec56d6a65f0aa9eaec81fe45986895"
+      },
+      "binding_app.py": {
+        "size": 1957,
+        "sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb"
+      }
+    },
+    "c_inputs": {
+      "source": {
+        "name": "probe.c",
+        "bytes": 741,
+        "sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812"
+      },
+      "decoy_source": {
+        "name": "decoy.c",
+        "bytes": 727,
+        "sha256": "c4daacf37abaeb5c53fca7d8add0be2f049ec769c95c1ae0cb8711dd355c0868"
+      },
+      "archive": {
+        "name": "libprobe_static.a",
+        "bytes": 1388,
+        "sha256": "da804a471e7a2698df18c563fbb87a4e96988e7e666463236590252ec2a0fcdc"
+      },
+      "shared": {
+        "name": "libryupy_cabi_probe.so",
+        "bytes": 15120,
+        "sha256": "c3c17626e870679d96aa051e185f0153d9bcf2eaafb08972fc78b8c1b8029f55"
+      },
+      "missing_symbol": {
+        "name": "missing-libryupy_cabi_probe.so",
+        "bytes": 15120,
+        "sha256": "2c9a0aa9fffc7fe0eb0687800edcf137574f59c92f5629343495dff760df3726"
+      },
+      "decoy": {
+        "name": "decoy-libryupy_cabi_probe.so",
+        "bytes": 15120,
+        "sha256": "7eb4e837714923e0010806a86f7eb3a99f1a1b0a80a66e42aa41d0078ff307de"
+      }
+    },
+    "archive_objects": [
+      {
+        "member": "probe.o/",
+        "bytes": 1232,
+        "sha256": "ddb72b51918eb57d8f58d9559737c717cc58d663d2ca6df8759898a66b07f61f"
+      }
+    ],
+    "runtime": {
+      "relative_path": "RyuPy.Runtime.dll",
+      "role": "runtime_managed",
+      "sha256": "a7359a7cce110b87abc4d4537c30ca1c4aa9a626027a51e2f5c3fefdf2c7dba5",
+      "size": 596480
+    },
+    "manifests": {
+      "jit": {
+        "size": 15621,
+        "sha256": "42bd3bc59d4b93d0dd6480e83d88a8be5ff7e47088fa841007da5d20e7aa809b"
+      },
+      "aot": {
+        "size": 15249,
+        "sha256": "5874bd7c1e2c652f6a08ea55e188a85f4b1173ce33c3ced0ac72cc668c847f13"
+      }
+    },
+    "bare_native": {
+      "sha256": "222039f5f1cb77fc4afbaf98deee38485ac8804d2363ea455943c5d4eb4af637",
+      "bytes": 4633952,
+      "files": [
+        "RyuPyAotHost_5367_1793669877141964840_0"
+      ],
+      "owned_source_and_il_absent": true
+    },
+    "bare_after": {
+      "sha256": "222039f5f1cb77fc4afbaf98deee38485ac8804d2363ea455943c5d4eb4af637",
+      "bytes": 4633952,
+      "files": [
+        "RyuPyAotHost_5367_1793669877141964840_0"
+      ]
+    },
+    "tamper_rejected": {
+      "jit-missing": {
+        "error": "发布普通文件集合不同：missing=['_internal/native/v1/b0/library.so'], extra=[]",
+        "path": "_internal/native/v1/b0/library.so",
+        "expected": {
+          "size": 15120,
+          "sha256": "c3c17626e870679d96aa051e185f0153d9bcf2eaafb08972fc78b8c1b8029f55"
+        },
+        "actual": null
+      },
+      "jit-missing-dynamicfalse": {
+        "error": "发布普通文件集合不同：missing=['_internal/native/v1/b0/library.so'], extra=[]",
+        "path": "_internal/native/v1/b0/library.so",
+        "expected": {
+          "size": 15120,
+          "sha256": "c3c17626e870679d96aa051e185f0153d9bcf2eaafb08972fc78b8c1b8029f55"
+        },
+        "actual": null
+      },
+      "jit-missing-symbol": {
+        "error": "发布文件字节不符：_internal/native/v1/b0/library.so",
+        "path": "_internal/native/v1/b0/library.so",
+        "expected": {
+          "size": 15120,
+          "sha256": "c3c17626e870679d96aa051e185f0153d9bcf2eaafb08972fc78b8c1b8029f55"
+        },
+        "actual": {
+          "size": 15120,
+          "sha256": "2c9a0aa9fffc7fe0eb0687800edcf137574f59c92f5629343495dff760df3726"
+        }
+      },
+      "jit-bad-format": {
+        "error": "发布文件字节不符：_internal/native/v1/b0/library.so",
+        "path": "_internal/native/v1/b0/library.so",
+        "expected": {
+          "size": 15120,
+          "sha256": "c3c17626e870679d96aa051e185f0153d9bcf2eaafb08972fc78b8c1b8029f55"
+        },
+        "actual": {
+          "size": 21,
+          "sha256": "5646959f060f4f51da3d5309bc9356675c8b8d9a94ac8fe3e6727a05a4a52690"
+        }
+      }
+    },
+    "decoy_environment": {
+      "jit-missing": {
+        "variable": "LD_LIBRARY_PATH",
+        "mac_dyld_visibility_proven": false,
+        "scope": "child env requested; no additional load probe"
+      },
+      "jit-missing-dynamicfalse": {
+        "variable": "LD_LIBRARY_PATH",
+        "mac_dyld_visibility_proven": false,
+        "scope": "child env requested; no additional load probe"
+      }
+    },
+    "sdk_publish_logs": {
+      "stdout": {
+        "size": 744,
+        "sha256": "9ba51a9707e0edfc4da574fbf4ad0f36e24099ea0daaced7cf178499cbc33db0"
+      },
+      "stderr": {
+        "size": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "macos_windows": {
+    "source_commit": "7713113175d15f0bea9f64e22d05f88f107e657f",
+    "ci_run": 41560771202,
+    "hosts": {
+      "osx-arm64": {
+        "status": "independently-reviewed",
+        "raw_result_sha256": "1c1dee5a6f528ae70afc99ab1522c04743a84743e94aefb23bc674057bdfcbe0",
+        "host": {
+          "os": "Darwin",
+          "arch": "arm64",
+          "platform": "macOS-14.8.9-arm64-arm-64bit",
+          "image_os": "macos14",
+          "image_version": "20260831.0302.1"
+        },
+        "sdk_version": "10.0.403",
+        "elapsed_seconds": 13.144935207999993,
+        "budget_seconds": 1800,
+        "jit_build_count": 1,
+        "aot_publish_count": 1,
+        "applications": {
+          "jit-normal": {
+            "exit": 0,
+            "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "aot-normal": {
+            "exit": 0,
+            "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-missing": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-missing-dynamicfalse": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-missing-symbol": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-bad-format": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "e50c81cd296638d520452abb0cf069a2cd9a4ee575dee6692c9d429cc27ced39",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-new-good": {
+            "exit": 0,
+            "stdout_sha256": "1cafacbb9d9fad73f3551ed8a98a3f7066cbdcea69f387f4d1db326b03f71571",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-type": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "5206d9a00a98b048fc6167c1249d493f86a429dabebfb23024fd2a755fb5e89f",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  9,
+                  "fail_call"
+                ]
+              ],
+              "exception": "TypeError: add() argument 'left' must be an actual integer, not bool or a converted value"
+            }
+          },
+          "aot-type": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "5206d9a00a98b048fc6167c1249d493f86a429dabebfb23024fd2a755fb5e89f",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  9,
+                  "fail_call"
+                ]
+              ],
+              "exception": "TypeError: add() argument 'left' must be an actual integer, not bool or a converted value"
+            }
+          }
+        },
+        "references": {
+          "python_exit": 0,
+          "c_exit": 0,
+          "stdout_sha256": "998773fd9cfb5de0cbc475d490c4ba877e82192d2e226a0c8c53db1a98182201"
+        },
+        "source_files": {
+          "binding_app.py": {
+            "size": 1957,
+            "sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb"
+          },
+          "numeric_reference.py": {
+            "size": 228,
+            "sha256": "e18e31a6dfe19c12fa8fe1247483a6acceec56d6a65f0aa9eaec81fe45986895"
+          },
+          "probe.c": {
+            "size": 741,
+            "sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812"
+          }
+        },
+        "cli_recorded_only": {
+          "size": 6759696,
+          "sha256": "4f0e3b5f3e05930e7b4c72af17a276c769b75b9f38d2fd25606aef0550c157c8"
+        },
+        "runtime": {
+          "relative_path": "RyuPy.Runtime.dll",
+          "role": "runtime_managed",
+          "sha256": "3903a76d16964ac87559ca20a946a5887cb0bb664eb7ef4b94e93e712e44b02f",
+          "size": 596480
+        },
+        "c_inputs": {
+          "source": {
+            "name": "probe.c",
+            "bytes": 741,
+            "sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812"
+          },
+          "decoy_source": {
+            "name": "decoy.c",
+            "bytes": 727,
+            "sha256": "c4daacf37abaeb5c53fca7d8add0be2f049ec769c95c1ae0cb8711dd355c0868"
+          },
+          "archive": {
+            "name": "libprobe_static.a",
+            "bytes": 736,
+            "sha256": "520145a7e15f8bae156adb3c987adfd4e3b34e11bf52fed40d583a3f18505357"
+          },
+          "shared": {
+            "name": "libryupy_cabi_probe.dylib",
+            "bytes": 16824,
+            "sha256": "0f0b750258cfa86ac27274faf471218a357bef938e10fe3a0e1e98eba87a5d2e"
+          },
+          "missing_symbol": {
+            "name": "missing-libryupy_cabi_probe.dylib",
+            "bytes": 16832,
+            "sha256": "bc851c23e24173d635973b89dfc96c8ff53e20548d4c89c5648ea4dac5f09d41"
+          },
+          "decoy": {
+            "name": "decoy-libryupy_cabi_probe.dylib",
+            "bytes": 16832,
+            "sha256": "4df3e46eed9bea96cf799f3346698e4e7f77050ad48955d234964b1948b2d363"
+          }
+        },
+        "archive_objects": [
+          {
+            "member": "probe.o",
+            "bytes": 536,
+            "sha256": "846dca96fd925a5c90cd18bae4c712920e2e59965f38f12dc6ebef87f56d8bca"
+          }
+        ],
+        "dependencies": [
+          {
+            "file": "RyuPyAotHost_6341_1793669882146092000_0",
+            "dependencies": [
+              "/usr/lib/libSystem.B.dylib",
+              "/usr/lib/libobjc.A.dylib",
+              "/usr/lib/swift/libswiftCore.dylib",
+              "/usr/lib/swift/libswiftFoundation.dylib",
+              "/usr/lib/libicucore.A.dylib",
+              "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+              "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+              "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+              "/System/Library/Frameworks/Network.framework/Versions/A/Network",
+              "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+              "/System/Library/Frameworks/GSS.framework/Versions/A/GSS"
+            ]
+          }
+        ],
+        "bare_native": {
+          "sha256": "e21c4e86a4ab6d58a01ba926b8c0577bd803081547e7a70d17f16ce940f3d969",
+          "bytes": 4438824,
+          "files": [
+            "RyuPyAotHost_6341_1793669882146092000_0"
+          ],
+          "owned_source_and_il_absent": true
+        },
+        "bare_after": {
+          "sha256": "e21c4e86a4ab6d58a01ba926b8c0577bd803081547e7a70d17f16ce940f3d969",
+          "bytes": 4438824,
+          "files": [
+            "RyuPyAotHost_6341_1793669882146092000_0"
+          ]
+        },
+        "manifests": {
+          "jit": {
+            "sha256": "ab2bce6de21ff8e919aba7f05a94f5a8105cdf50d30f240bd9f2454b4397ee6e",
+            "bytes": 15632,
+            "schema_version": 3,
+            "native_bindings": [
+              {
+                "binding_id": "b0",
+                "body": {
+                  "name": "__fixed_i32_body",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static object (object[])"
+                },
+                "declaration_sha256": "3165067015894103fe4b6919ba7fc1d9402f9d625be90ccc16c46069d8e61af1",
+                "export": "add",
+                "export_id": 30,
+                "initializer_id": 7,
+                "library": "ryupy_cabi_probe",
+                "linkage": "jit_shared",
+                "module": "declared_demo",
+                "module_id": 1,
+                "native": {
+                  "name": "__fixed_i32_native",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static long (int, int)"
+                },
+                "pinvoke": {
+                  "calling_convention": "Cdecl",
+                  "character_set": "NotSpecified",
+                  "has_body": false,
+                  "is_static": true,
+                  "no_mangle": true,
+                  "preserve_sig": true,
+                  "supports_last_error": false
+                },
+                "relative_file": "_internal/native/v1/b0/library.dylib",
+                "signature": "cdecl_i32_i32_i64",
+                "symbol": "ryupy_demo_add_i32"
+              }
+            ],
+            "sources": [
+              {
+                "compiled_text_sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb",
+                "logical_source": "entry/binding_app.py",
+                "module_id": 0,
+                "module_name": "__main__",
+                "package": ""
+              }
+            ],
+            "build_inputs": [
+              {
+                "relative_path": "managed-entry.dll",
+                "role": "compiled_managed_input",
+                "sha256": "6f2f25d87f951c9a2dc866960ddfa1d34446f66ed138966106c04a58d404e49b",
+                "size": 21504
+              },
+              {
+                "relative_path": "RyuPy.Runtime.dll",
+                "role": "runtime_managed_input",
+                "sha256": "3903a76d16964ac87559ca20a946a5887cb0bb664eb7ef4b94e93e712e44b02f",
+                "size": 596480
+              },
+              {
+                "relative_path": "selected-native-input",
+                "role": "native_shared",
+                "sha256": "0f0b750258cfa86ac27274faf471218a357bef938e10fe3a0e1e98eba87a5d2e",
+                "size": 16824
+              }
+            ],
+            "artifacts": [
+              {
+                "relative_path": "RyuPy.Runtime.dll",
+                "role": "runtime_managed",
+                "sha256": "3903a76d16964ac87559ca20a946a5887cb0bb664eb7ef4b94e93e712e44b02f",
+                "size": 596480
+              },
+              {
+                "relative_path": "_internal/native/v1/b0/library.dylib",
+                "role": "native_shared",
+                "sha256": "0f0b750258cfa86ac27274faf471218a357bef938e10fe3a0e1e98eba87a5d2e",
+                "size": 16824
+              },
+              {
+                "relative_path": "binding_app.dll",
+                "role": "managed_entry",
+                "sha256": "6f2f25d87f951c9a2dc866960ddfa1d34446f66ed138966106c04a58d404e49b",
+                "size": 21504
+              },
+              {
+                "relative_path": "binding_app.runtimeconfig.json",
+                "role": "runtimeconfig",
+                "sha256": "ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a",
+                "size": 142
+              }
+            ],
+            "scope": {
+              "dynamic_dependency_closure_complete": false,
+              "manifest_self_hash_included": false,
+              "native_retention_proven": false,
+              "resources_included": false
+            }
+          },
+          "aot": {
+            "sha256": "e16db0b69154c9bafc9ef216706c666b24985510710e84a309af45be10fdb68f",
+            "bytes": 15875,
+            "schema_version": 3,
+            "native_bindings": [
+              {
+                "binding_id": "b0",
+                "body": {
+                  "name": "__fixed_i32_body",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static object (object[])"
+                },
+                "declaration_sha256": "3165067015894103fe4b6919ba7fc1d9402f9d625be90ccc16c46069d8e61af1",
+                "export": "add",
+                "export_id": 30,
+                "initializer_id": 7,
+                "library": "ryupy_cabi_probe",
+                "linkage": "aot_static",
+                "module": "declared_demo",
+                "module_id": 1,
+                "native": {
+                  "name": "__fixed_i32_native",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static long (int, int)"
+                },
+                "pinvoke": {
+                  "calling_convention": "Cdecl",
+                  "character_set": "NotSpecified",
+                  "has_body": false,
+                  "is_static": true,
+                  "no_mangle": true,
+                  "preserve_sig": true,
+                  "supports_last_error": false
+                },
+                "relative_file": null,
+                "signature": "cdecl_i32_i32_i64",
+                "symbol": "ryupy_demo_add_i32"
+              }
+            ],
+            "sources": [
+              {
+                "compiled_text_sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb",
+                "logical_source": "entry/binding_app.py",
+                "module_id": 0,
+                "module_name": "__main__",
+                "package": ""
+              }
+            ],
+            "build_inputs": [
+              {
+                "relative_path": "managed-entry.dll",
+                "role": "compiled_managed_input",
+                "sha256": "f9ecee3c336c1606260c4e55ef399f4c3609e47122421bde272adc472508d2fe",
+                "size": 21504
+              },
+              {
+                "relative_path": "RyuPy.Runtime.dll",
+                "role": "runtime_managed_input",
+                "sha256": "3903a76d16964ac87559ca20a946a5887cb0bb664eb7ef4b94e93e712e44b02f",
+                "size": 596480
+              },
+              {
+                "relative_path": "selected-native-input",
+                "role": "native_static_archive",
+                "sha256": "520145a7e15f8bae156adb3c987adfd4e3b34e11bf52fed40d583a3f18505357",
+                "size": 736
+              }
+            ],
+            "artifacts": [
+              {
+                "relative_path": "RyuPyAotHost_6341_1793669882146092000_0",
+                "role": "native_executable",
+                "sha256": "e21c4e86a4ab6d58a01ba926b8c0577bd803081547e7a70d17f16ce940f3d969",
+                "size": 4438824
+              },
+              {
+                "relative_path": "RyuPyAotHost_6341_1793669882146092000_0.dSYM/Contents/Info.plist",
+                "role": "unclassified_sidecar",
+                "sha256": "83c8fef5ec9e2d088ac99548ebdc5bae444ecfccc46c0a61df67c823c0b787aa",
+                "size": 668
+              },
+              {
+                "relative_path": "RyuPyAotHost_6341_1793669882146092000_0.dSYM/Contents/Resources/DWARF/RyuPyAotHost_6341_1793669882146092000_0",
+                "role": "unclassified_sidecar",
+                "sha256": "f3e397c35fee3a73d9dbba8ec589fada2659872baec5610aedc2face4ae5f72b",
+                "size": 14101246
+              },
+              {
+                "relative_path": "RyuPyAotHost_6341_1793669882146092000_0.dSYM/Contents/Resources/Relocations/aarch64/RyuPyAotHost_6341_1793669882146092000_0.yml",
+                "role": "unclassified_sidecar",
+                "sha256": "91c39736fbab63a0464215015ea3a9c01fb0e8d772aaddaae1f72fa11072fb83",
+                "size": 2898892
+              }
+            ],
+            "scope": {
+              "dynamic_dependency_closure_complete": false,
+              "manifest_self_hash_included": false,
+              "native_retention_proven": false,
+              "resources_included": false
+            }
+          }
+        },
+        "warnings": [
+          "原生 archive 对象目标 macOS14.0，链接目标12.0，ld 有版本不一致警告；仅实测14.8.9宿主，不证明macOS12可运行。"
+        ],
+        "clean_machine_without_runtime_tested": false,
+        "mac_dyld_visibility_proven": false,
+        "audit": "原始9应用双流/退出与全帧、C/CP数值、全部schema3文件集合与hash、archive对象与SDK静态输入、真实ILC、源码原路径失效及单exe均重核。",
+        "sdk_publish_logs": {
+          "driver-publish.stdout.log": {
+            "bytes": 1046,
+            "sha256": "95419ef006bda7504a4cd4eed9902fdc5ce39ef23d2677c1b34c030e8ee0f234"
+          },
+          "driver-publish.stderr.log": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "deployment_warning_exact_suffix": "was built for newer macOS version (14.0) than being linked (12.0)"
+      },
+      "win-x64": {
+        "status": "independently-reviewed",
+        "raw_result_sha256": "b5a85badb826236992affee90d811b6c5cddea551213d87dc5bb7865e82e8704",
+        "host": {
+          "os": "Windows",
+          "arch": "amd64",
+          "platform": "Windows-2022Server-10.0.20348-SP0",
+          "image_os": "win22",
+          "image_version": "20261026.347.1"
+        },
+        "sdk_version": "10.0.403",
+        "elapsed_seconds": 29.610000000000014,
+        "budget_seconds": 1800,
+        "jit_build_count": 1,
+        "aot_publish_count": 1,
+        "applications": {
+          "jit-normal": {
+            "exit": 0,
+            "stdout_sha256": "01cf4ed702bd8108f41528e38ce3d8df11816a1e0d2c409bff5f840094b9cf31",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "aot-normal": {
+            "exit": 0,
+            "stdout_sha256": "01cf4ed702bd8108f41528e38ce3d8df11816a1e0d2c409bff5f840094b9cf31",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-missing": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "d77a0aad3df58a0ac8b6efa9f20b1ab4ccc817a04733f4ba66f13a878d70a8b2",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-missing-dynamicfalse": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "d77a0aad3df58a0ac8b6efa9f20b1ab4ccc817a04733f4ba66f13a878d70a8b2",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-missing-symbol": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "d77a0aad3df58a0ac8b6efa9f20b1ab4ccc817a04733f4ba66f13a878d70a8b2",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-bad-format": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "d77a0aad3df58a0ac8b6efa9f20b1ab4ccc817a04733f4ba66f13a878d70a8b2",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  11,
+                  "fail_call"
+                ]
+              ],
+              "exception": "ImportError: cannot load declared native library 'ryupy_cabi_probe' symbol 'ryupy_demo_add_i32'"
+            }
+          },
+          "jit-new-good": {
+            "exit": 0,
+            "stdout_sha256": "01cf4ed702bd8108f41528e38ce3d8df11816a1e0d2c409bff5f840094b9cf31",
+            "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "jit-type": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "8fd6885ca07cf921e7d58250d0c6c8f2c437b22e42a4a48c92c30255c99b38d7",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  9,
+                  "fail_call"
+                ]
+              ],
+              "exception": "TypeError: add() argument 'left' must be an actual integer, not bool or a converted value"
+            }
+          },
+          "aot-type": {
+            "exit": 1,
+            "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stderr_sha256": "8fd6885ca07cf921e7d58250d0c6c8f2c437b22e42a4a48c92c30255c99b38d7",
+            "failure": {
+              "frames": [
+                [
+                  "binding_app.py",
+                  15,
+                  "<module>"
+                ],
+                [
+                  "binding_app.py",
+                  9,
+                  "fail_call"
+                ]
+              ],
+              "exception": "TypeError: add() argument 'left' must be an actual integer, not bool or a converted value"
+            }
+          }
+        },
+        "references": {
+          "python_exit": 0,
+          "c_exit": 0,
+          "stdout_sha256": "1bc548fe6ed4c50099bd5d1e92c5fe558e05f41aa8bc0f1abada0c613b6fb036"
+        },
+        "source_files": {
+          "binding_app.py": {
+            "size": 1957,
+            "sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb"
+          },
+          "numeric_reference.py": {
+            "size": 228,
+            "sha256": "e18e31a6dfe19c12fa8fe1247483a6acceec56d6a65f0aa9eaec81fe45986895"
+          },
+          "probe.c": {
+            "size": 741,
+            "sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812"
+          }
+        },
+        "cli_recorded_only": {
+          "size": 7044096,
+          "sha256": "00d0ca0c39ae36a1285396bc13dfa17831175e7e9241e31f9cb629b6f82e49eb"
+        },
+        "runtime": {
+          "relative_path": "RyuPy.Runtime.dll",
+          "role": "runtime_managed",
+          "sha256": "d93abbf4b87b629748c85e8072f97923e1c6e18add3aa9adf5e8766fa2ecf5b4",
+          "size": 596480
+        },
+        "c_inputs": {
+          "source": {
+            "name": "probe.c",
+            "bytes": 741,
+            "sha256": "6e0e5a7f02a5a3a3c92ce8526f8597b589168575710632df37e2140bc2938812"
+          },
+          "decoy_source": {
+            "name": "decoy.c",
+            "bytes": 727,
+            "sha256": "c4daacf37abaeb5c53fca7d8add0be2f049ec769c95c1ae0cb8711dd355c0868"
+          },
+          "archive": {
+            "name": "probe_static.lib",
+            "bytes": 1080,
+            "sha256": "190fd881f30a5761d4a4efd0da0d4cd8ab08a6fa809fea272e8a2ab5de5a5cb9"
+          },
+          "shared": {
+            "name": "ryupy_cabi_probe.dll",
+            "bytes": 102912,
+            "sha256": "851e4362a31c31c5c2baa33e641c0a05d0d72d2dbdbcd93dad8575fbb43549ea"
+          },
+          "missing_symbol": {
+            "name": "missing-ryupy_cabi_probe.dll",
+            "bytes": 102912,
+            "sha256": "efd5985667c45c2d7928865f62ceb66893a88e0238e90fa1ea88629dbd0bddf8"
+          },
+          "decoy": {
+            "name": "decoy-ryupy_cabi_probe.dll",
+            "bytes": 102912,
+            "sha256": "44a66ed11bf2d478890660ffeb2254fcd869b4769feb4c08c23ed77538ec174a"
+          }
+        },
+        "archive_objects": [
+          {
+            "member": "/0",
+            "bytes": 680,
+            "sha256": "cf5f6831687e1e3ad508aaaf78559a9fe823f45d4e38990a9c34f73fe1bb83eb"
+          }
+        ],
+        "dependencies": [
+          {
+            "file": "RyuPyAotHost_6560_1793669959006485500_0.exe",
+            "dependencies": [
+              "ADVAPI32.dll",
+              "bcrypt.dll",
+              "KERNEL32.dll",
+              "ole32.dll",
+              "USER32.dll",
+              "api-ms-win-crt-math-l1-1-0.dll",
+              "api-ms-win-crt-heap-l1-1-0.dll",
+              "api-ms-win-crt-string-l1-1-0.dll",
+              "api-ms-win-crt-convert-l1-1-0.dll",
+              "api-ms-win-crt-stdio-l1-1-0.dll",
+              "api-ms-win-crt-runtime-l1-1-0.dll",
+              "api-ms-win-crt-locale-l1-1-0.dll"
+            ]
+          }
+        ],
+        "bare_native": {
+          "sha256": "60e95c514766604ca05825b18b0ef875eebe31106c051671c4fd12e09b11105c",
+          "bytes": 4591104,
+          "files": [
+            "RyuPyAotHost_6560_1793669959006485500_0.exe"
+          ],
+          "owned_source_and_il_absent": true
+        },
+        "bare_after": {
+          "sha256": "60e95c514766604ca05825b18b0ef875eebe31106c051671c4fd12e09b11105c",
+          "bytes": 4591104,
+          "files": [
+            "RyuPyAotHost_6560_1793669959006485500_0.exe"
+          ]
+        },
+        "manifests": {
+          "jit": {
+            "sha256": "666593060b85e432ad88853bcb63bc7f8aeb1d9c15e7efd118b2449cd2f9532d",
+            "bytes": 15622,
+            "schema_version": 3,
+            "native_bindings": [
+              {
+                "binding_id": "b0",
+                "body": {
+                  "name": "__fixed_i32_body",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static object (object[])"
+                },
+                "declaration_sha256": "a6aaca4d6087032c31ee051c02b75264a939575dd2ea31dd0c8b89ed24ea5e53",
+                "export": "add",
+                "export_id": 30,
+                "initializer_id": 7,
+                "library": "ryupy_cabi_probe",
+                "linkage": "jit_shared",
+                "module": "declared_demo",
+                "module_id": 1,
+                "native": {
+                  "name": "__fixed_i32_native",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static long (int, int)"
+                },
+                "pinvoke": {
+                  "calling_convention": "Cdecl",
+                  "character_set": "NotSpecified",
+                  "has_body": false,
+                  "is_static": true,
+                  "no_mangle": true,
+                  "preserve_sig": true,
+                  "supports_last_error": false
+                },
+                "relative_file": "_internal/native/v1/b0/library.dll",
+                "signature": "cdecl_i32_i32_i64",
+                "symbol": "ryupy_demo_add_i32"
+              }
+            ],
+            "sources": [
+              {
+                "compiled_text_sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb",
+                "logical_source": "entry/binding_app.py",
+                "module_id": 0,
+                "module_name": "__main__",
+                "package": ""
+              }
+            ],
+            "build_inputs": [
+              {
+                "relative_path": "managed-entry.dll",
+                "role": "compiled_managed_input",
+                "sha256": "de2d48ff9136ab94781134882572539e665fb9c2d5c23168a1edd3a0d7304a89",
+                "size": 21504
+              },
+              {
+                "relative_path": "RyuPy.Runtime.dll",
+                "role": "runtime_managed_input",
+                "sha256": "d93abbf4b87b629748c85e8072f97923e1c6e18add3aa9adf5e8766fa2ecf5b4",
+                "size": 596480
+              },
+              {
+                "relative_path": "selected-native-input",
+                "role": "native_shared",
+                "sha256": "851e4362a31c31c5c2baa33e641c0a05d0d72d2dbdbcd93dad8575fbb43549ea",
+                "size": 102912
+              }
+            ],
+            "artifacts": [
+              {
+                "relative_path": "RyuPy.Runtime.dll",
+                "role": "runtime_managed",
+                "sha256": "d93abbf4b87b629748c85e8072f97923e1c6e18add3aa9adf5e8766fa2ecf5b4",
+                "size": 596480
+              },
+              {
+                "relative_path": "_internal/native/v1/b0/library.dll",
+                "role": "native_shared",
+                "sha256": "851e4362a31c31c5c2baa33e641c0a05d0d72d2dbdbcd93dad8575fbb43549ea",
+                "size": 102912
+              },
+              {
+                "relative_path": "binding_app.dll",
+                "role": "managed_entry",
+                "sha256": "de2d48ff9136ab94781134882572539e665fb9c2d5c23168a1edd3a0d7304a89",
+                "size": 21504
+              },
+              {
+                "relative_path": "binding_app.runtimeconfig.json",
+                "role": "runtimeconfig",
+                "sha256": "ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a",
+                "size": 142
+              }
+            ],
+            "scope": {
+              "dynamic_dependency_closure_complete": false,
+              "manifest_self_hash_included": false,
+              "native_retention_proven": false,
+              "resources_included": false
+            }
+          },
+          "aot": {
+            "sha256": "9cdf4f34fcf7d5e8c65742efbf394a4af1e501d8151d951329d60be61501cd94",
+            "bytes": 15251,
+            "schema_version": 3,
+            "native_bindings": [
+              {
+                "binding_id": "b0",
+                "body": {
+                  "name": "__fixed_i32_body",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static object (object[])"
+                },
+                "declaration_sha256": "a6aaca4d6087032c31ee051c02b75264a939575dd2ea31dd0c8b89ed24ea5e53",
+                "export": "add",
+                "export_id": 30,
+                "initializer_id": 7,
+                "library": "ryupy_cabi_probe",
+                "linkage": "aot_static",
+                "module": "declared_demo",
+                "module_id": 1,
+                "native": {
+                  "name": "__fixed_i32_native",
+                  "owner": "RyuPy.Generated.Module",
+                  "signature": "static long (int, int)"
+                },
+                "pinvoke": {
+                  "calling_convention": "Cdecl",
+                  "character_set": "NotSpecified",
+                  "has_body": false,
+                  "is_static": true,
+                  "no_mangle": true,
+                  "preserve_sig": true,
+                  "supports_last_error": false
+                },
+                "relative_file": null,
+                "signature": "cdecl_i32_i32_i64",
+                "symbol": "ryupy_demo_add_i32"
+              }
+            ],
+            "sources": [
+              {
+                "compiled_text_sha256": "5f45cfa8c28b757b024c834f01d47fbfb2a1c7617e7123cf3d870906cc748fdb",
+                "logical_source": "entry/binding_app.py",
+                "module_id": 0,
+                "module_name": "__main__",
+                "package": ""
+              }
+            ],
+            "build_inputs": [
+              {
+                "relative_path": "managed-entry.dll",
+                "role": "compiled_managed_input",
+                "sha256": "50a533564277fd8c60ef856b6d80b04863347b369614f3588f5412464de76cda",
+                "size": 21504
+              },
+              {
+                "relative_path": "RyuPy.Runtime.dll",
+                "role": "runtime_managed_input",
+                "sha256": "d93abbf4b87b629748c85e8072f97923e1c6e18add3aa9adf5e8766fa2ecf5b4",
+                "size": 596480
+              },
+              {
+                "relative_path": "selected-native-input",
+                "role": "native_static_archive",
+                "sha256": "190fd881f30a5761d4a4efd0da0d4cd8ab08a6fa809fea272e8a2ab5de5a5cb9",
+                "size": 1080
+              }
+            ],
+            "artifacts": [
+              {
+                "relative_path": "RyuPyAotHost_6560_1793669959006485500_0.exe",
+                "role": "native_executable",
+                "sha256": "60e95c514766604ca05825b18b0ef875eebe31106c051671c4fd12e09b11105c",
+                "size": 4591104
+              },
+              {
+                "relative_path": "RyuPyAotHost_6560_1793669959006485500_0.pdb",
+                "role": "unclassified_sidecar",
+                "sha256": "5c21fb0ab20338c2358c056992a9adab7778d43dda2b63b5bbb9a7da05a611fe",
+                "size": 18501632
+              }
+            ],
+            "scope": {
+              "dynamic_dependency_closure_complete": false,
+              "manifest_self_hash_included": false,
+              "native_retention_proven": false,
+              "resources_included": false
+            }
+          }
+        },
+        "warnings": [],
+        "clean_machine_without_runtime_tested": false,
+        "mac_dyld_visibility_proven": false,
+        "audit": "原始9应用双流/退出与全帧、C/CP数值、全部schema3文件集合与hash、archive对象与SDK静态输入、真实ILC、源码原路径失效及单exe均重核。",
+        "sdk_publish_logs": {
+          "driver-publish.stdout.log": {
+            "bytes": 709,
+            "sha256": "46c17812567901f06d62190674a6f201194fa7de2bc2b36b55022849b69bee36"
+          },
+          "driver-publish.stderr.log": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        }
+      }
+    },
+    "limits": [
+      "只验证受信自有固定 cdecl (i32,i32)->i64；不代表 CPython ABI/任意 wheel。",
+      "Mac/Windows SDK仍安装；原源码及构建根改名保留，未声称证据不可访问。",
+      "CLI 本体未随 artifact 保留，CLI SHA 仅为执行记录，未独立重哈希。",
+      "没有性能采样；Mac DYLD_LIBRARY_PATH 仅记录传入，实际可搜索可见性未证明。"
+    ]
+  },
+  "status": "bounded-three-platform-validation-passed-wip-not-main",
+  "performance": "No new measurements; prior matmul tier-off regression and module-call allocation cost remain open."
+}

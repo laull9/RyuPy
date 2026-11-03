@@ -67,6 +67,9 @@ CLI失败生命周期2/2与严格clippy也已本次通过；正常完整门禁 e
 上述结构/失败测试本身不等于实际C或ILC。
 本轮另外执行一次本机Linux自有C shared编译、公开CLI JIT构建与固定core应用：
 五边界数值、全部严格参数/求值/alias/重绑标记原字节通过，独立schema3核实际源/input/产物集合SHA通过。
-这是新环境真实功能预检，不是继承旧结果；未做ILC、搬迁或性能采样，三平台仍待CI。
+这是当时的新环境真实功能预检，不是继承旧结果；它本身未做ILC、搬迁或性能采样。
+随后同 tree 的远端 `7713113` 已通过三平台固定 JIT/shared 与 AOT/static 搬迁及错误验证，
+详见[本轮证据](../../../docs/validation/aot-python-binding/README.md)。仍为 WIP，未 main 推广；
+macOS archive14/链接target12警告与系统依赖边界保留，不宣称零警告或支持macOS12。
 恢复的[原36成本](../../../docs/validation/aot-module-call-pair-cost/README.md)仍保禁tier matmul约23%回退
 与模块调用约32MB增量，未追加性能组，也未把小修称为性能问题已解决。
