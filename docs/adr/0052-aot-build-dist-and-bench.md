@@ -38,7 +38,7 @@ wall 包含进程启动；main 从运行时 MarkMainStart 到统计点，含入�
 
 活跃普通/平台/资源/绑定/构造/coverage 工具迁移到新报告路径；原判据和预算不变。冻结的 module-call 固定36及历史 perf/pair/lazy 工具和匹配工作流不改；这些历史脚本仍绑定旧布局，不宣称可直接用于新高层输出。最终36历史结论和 matmul 禁 tier 回退仍开放，不由本布局或新 bench 接口关闭。
 
-## 最小真实命令管线（接线待运行）
+## 最小真实命令管线（首次远端前记录）
 
 本机未发现 clang 或 ILCompiler 缓存，不盲目启动本地发布。计划在原 Ubuntu AOT smoke 环境增加一次 `make bench-aot BENCH=hello ARGS='--save <本次唯一名>'`，只用原 hello 源，保默认1次热身+5次计时，即依据固定 runner 推导 CP/native 各6次；不冒独立逐进程追踪。额外仅1次 hello AOT构建，不能当全基准组或 M5 性能复现。
 
@@ -46,7 +46,7 @@ wall 包含进程启动；main 从运行时 MarkMainStart 到统计点，含入�
 
 已有三平台布局/资源/绑定/构造回归保原预算与判据；新增布局解析纯测接入现Linux/host环境，不新增基准平台矩阵。生成的 `*.build/`、`*.dist/`、`*.build.lock/` 仅按目录加入本仓库ignore，已核无现存tracked目录冲突；不自动删除任何目录或忽略源码/JSON。
 
-## 原始 ABC 示例的默认目录验证（接线待运行）
+## 原始 ABC 示例的默认目录验证（首次远端前记录）
 
 macOS 另增加一次用户指定的原 `tests/e2e/phase3/m3_6_abc.py` 功能验证。原字节复制到独占目录，保留 basename；实际公开 CLI 使用 `build --aot` 且不传 `-o`。预期源码旁 `m3_6_abc.build/`、`m3_6_abc.dist/` 与正确命名入口。固定 SDK10.0.403，单次 CP3.12.13参考、单次 AOT发布、单次完整 dist 搬迁后 native执行，0次JIT；原始双流逐字比较，并核完整清单及输入/产物哈希。
 
@@ -73,7 +73,7 @@ Mac/Windows普通和资源包的原行为、完整异常帧、稳定原生名称
 Windows绑定首失败为SDK已输出 `Generating native code` 后的 `LINK LNK1104`，无法打开 `obj\\Release\\net10.0\\win-x64\\native\\link.rsp`。原清理已删除该SDK树，不能证明当时rsp文件存在或把路径长度称唯一已证原因。依据原日志，本轮host路径221个UTF16单元、推算rsp265；旧同平台成功记录host168、推算rsp212，新布局层增加53。保留此失败，再评估仅高层owned attempt内缩短重复唯一私有目录及Windows SDK中间路径预检；不改系统长路径设置、不吞LINK错误、不以不变候选重跑隐藏问题。
 
 
-## Windows 绑定恢复候选（本地已验，远端待授权）
+## Windows 绑定恢复候选（恢复远端前记录）
 
 仅高层布局创建的私有 `OwnedAttempt` 能申请较短的固定内部 binding/SDK 子目录；创建仍排他，既有目录、链接、逃逸和本轮attempt之外的边界拒绝。公开 JIT bundle 与低层随机 SDK 工作目录合同不变，用户可见 `.build/.dist` 和稳定原生名称不变。
 
@@ -84,3 +84,16 @@ Windows 在 SDK 前按实际 host 名、RID、framework 计算七种已观察到
 本轮本地 driver 库测试82项、CLI假SDK生命周期5项通过；其中布局15项及独立路径3项均已单独验证，fmt和strict clippy通过。测试覆盖实际host后缀/UTF16边界、短目录已有项和逃逸拒绝、高层失败留证及旧dist/错误码保持；不代表真实Windows LINK已恢复。
 
 绑定工作流此前没有监听共享 driver 依赖，现补 `aot*.rs`、`binding*.rs` 和 `lib.rs` 三条实际依赖路径，保原三平台矩阵、预算和断言。拟恢复批次仅原Linux/host与绑定三平台共6个job、18次发布，构造首轮三平台通过结果保留；尚未启动，须另获本轮执行确认。固定36、main及系统配置不变。
+
+
+## 恢复验收完成（ec6，2026-11-03）
+
+恢复候选 `ec6ff3b0a265523cef80f242e52b83cfe24853fa` 的三个工作流、6个job、18次发布均完成，通过后逐包独立核验；没有重跑构造专项或固定36。原 `6faa` Windows失败保留，不用本轮成功宣称它的唯一根因已被证明。恢复前正常 `make check` 亦exit0：587项C#、228项CP基线、202项e2e加30项ignored，以及fmt、strict clippy和workspace测试通过。
+
+Windows绑定真实ILC与9项应用通过，SDK stderr为空；归档中实际 `link.rsp` 为215个UTF16单元、最长已列 `.sourcelink` 为257，七种预检路径均小于260且文件可重核。完整build owner的232文件/18目录与dist3文件、隐藏SDK项、schema3、静态archive均重新核验。JIT与AOT分别构建，分别验证输入与搬迁副本，不能称两者是同一managed DLL。
+
+Linux/Mac绑定10/9项行为及各自owner树通过；普通/资源Mac与Windows四包、Linux原smoke/7coverage/资源判据均通过。旧工具主动删除的源与缓存仍只保输入记录，不冒完整owner可复建。SDK仍安装及系统依赖、ZIP权限仅记录等限制不变。
+
+原ABC在Mac再次实际无`-o`构建并搬迁运行，保持正确的 `.build/.dist` 与入口名；新hello实际 `make bench-aot` 唯一管线成功，保存AOT后端和原1warm5，完整234文件归档已核。CP/native各6次仍依据固定runner推导，不冒独立逐进程追踪或全基准性能结论。新结果与官方run链接见 [恢复验收记录](../validation/aot-layout-recovery/README.md)。
+
+这是已验证WIP源码，不自动替换旧 `releases/` 二进制，也未合main或创建正式发布。使用新功能须从此源码重建CLI。历史matmul禁tier约14.723%回退仍开放，不由布局修复关闭。

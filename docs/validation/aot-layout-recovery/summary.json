@@ -1,0 +1,286 @@
+{
+  "candidate": "ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+  "tree": "f8954afb0112d998992f77e411500d5466e16702",
+  "jobs": 6,
+  "native_publishes": 18,
+  "artifacts": [
+    {
+      "id": 13215296812,
+      "name": "python-binding-osx-arm64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 64301843,
+      "sha256": "bc327ab950ec9ff41c0bd2265c569cbabb2ff22f6185482c86ef5536fac1f3bd",
+      "run_id": 41602253634,
+      "expires_at": "2026-11-17T08:20:14Z"
+    },
+    {
+      "id": 13214792369,
+      "name": "python-binding-win-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 71950896,
+      "sha256": "9c7cf3d6cd41a9de89dd654f6bb0f6a9e5ada7505b815b3b6c0746c0b50c67f9",
+      "run_id": 41602253634,
+      "expires_at": "2026-11-17T08:20:39Z"
+    },
+    {
+      "id": 13214606659,
+      "name": "python-binding-linux-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 69802885,
+      "sha256": "feeaf66394cefd89d55229ebc0fdf6d34e93aad09b16146f272b10285e237676",
+      "run_id": 41602253634,
+      "expires_at": "2026-11-17T08:19:15Z"
+    },
+    {
+      "id": 13215805296,
+      "name": "aot-default-layout-osx-arm64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 60099018,
+      "sha256": "14008247c6f08f235850c38587ab9aebd12d9811a58f9967af82d8f0554e6754",
+      "run_id": 41602253692,
+      "expires_at": "2026-11-17T08:21:21Z"
+    },
+    {
+      "id": 13215790387,
+      "name": "native-aot-osx-arm64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 7619758,
+      "sha256": "1602b615a90ab29d2b857ac44fcc7861b09854c33f3fd8a4facdabdfc64aa8dd",
+      "run_id": 41602253692,
+      "expires_at": "2026-11-17T08:21:26Z"
+    },
+    {
+      "id": 13215142366,
+      "name": "native-aot-win-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 8482001,
+      "sha256": "e8cee13b766c18b0bbb2bcd22112d38ee30e4e2d556aad59818058d5d02f1949",
+      "run_id": 41602253692,
+      "expires_at": "2026-11-17T08:22:21Z"
+    },
+    {
+      "id": 13215127278,
+      "name": "native-aot-resources-win-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 12691334,
+      "sha256": "2046b1e85a3b3afead0fdc1c7b062b3d2fa7bce90babaed452b7b4aea5ed375d",
+      "run_id": 41602253692,
+      "expires_at": "2026-11-17T08:22:23Z"
+    },
+    {
+      "id": 13214434573,
+      "name": "native-aot-resources-osx-arm64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 10973395,
+      "sha256": "48aa4686ca294075b6a27d59546c5bfacf20543f702049758c831a9b6997dab3",
+      "run_id": 41602253692,
+      "expires_at": "2026-11-17T08:21:28Z"
+    },
+    {
+      "id": 13214967211,
+      "name": "aot-bench-hello-linux-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 59303011,
+      "sha256": "c70162a936bcebe76116e01c7b96e3b09784ec0c81c31e31c930bcce7e88f859",
+      "run_id": 41602253595,
+      "expires_at": "2026-11-17T08:23:51Z"
+    },
+    {
+      "id": 13214523532,
+      "name": "native-aot-linux-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 93348606,
+      "sha256": "073d85d25635b908a37d04fcdaa9aa466958bb62884e68f445a0c2384dbd1acc",
+      "run_id": 41602253595,
+      "expires_at": "2026-11-17T08:23:56Z"
+    },
+    {
+      "id": 13214472790,
+      "name": "native-aot-resources-linux-x64-ec6ff3b0a265523cef80f242e52b83cfe24853fa",
+      "bytes": 11881085,
+      "sha256": "facb276554a3127244e0dd05f68d66b505f22f142d4ddf7a4ce7c3b5aca705cc",
+      "run_id": 41602253595,
+      "expires_at": "2026-11-17T08:24:03Z"
+    }
+  ],
+  "mac_original_abc": {
+    "source": {
+      "size": 1672,
+      "sha256": "81e0141c247e4aed3e9aefe8babc828e49d97f3f98d7c531b576fa16a2f4d23a"
+    },
+    "build_inputs": {
+      "managed-entry.dll": {
+        "size": 16896,
+        "sha256": "7afb8a386f4689719b66f8d6308c68fae188e414a0410bc4ab4fac8832e79595"
+      },
+      "RyuPy.Runtime.dll": {
+        "size": 613376,
+        "sha256": "40d5b1b0578e85997ef99b49b6235340b3182c015d2293f17cf4c08c1dd59fcc"
+      }
+    },
+    "manifest": {
+      "size": 14545,
+      "sha256": "b6c20a3ab4ffc58f145fe0d7f3fb666378d0a2bcc79cbe99ec6df7187ba0d982"
+    },
+    "native": {
+      "size": 4422328,
+      "sha256": "ee4962081b0ae6532799d0c72978a0f88e19ebcf9501c6279252aa6434dc0ade"
+    },
+    "counts": {
+      "publish_count": 1,
+      "reference_count": 1,
+      "native_count": 1,
+      "jit_count": 0
+    },
+    "owner_sha256": "becd7b806a62f9b075d5ae4e10f47acc46644b10cce610c234190c9c9df149fe"
+  },
+  "linux_hello": {
+    "source": [
+      {
+        "compiled_text_sha256": "41585ec94d2096d3ed175f64737bd55412a57c14c4493882ef4ca0843d41b189",
+        "logical_source": "entry/hello.py",
+        "module_id": 0,
+        "module_name": "__main__",
+        "package": ""
+      }
+    ],
+    "build_inputs": [
+      {
+        "relative_path": "managed-entry.dll",
+        "role": "compiled_managed_input",
+        "sha256": "6050b657b45efc52ac21164c15b96967701bb8709cbb754f1cbc309d14188fdf",
+        "size": 7680
+      },
+      {
+        "relative_path": "RyuPy.Runtime.dll",
+        "role": "runtime_managed_input",
+        "sha256": "d53da41537b1d4c163da82118301706f50f7a0b1bd9a04b4a9561b7a821e0722",
+        "size": 613376
+      }
+    ],
+    "native_artifacts": [
+      {
+        "relative_path": "RyuPyAotHost_8858_1793694221244709228_0.dbg",
+        "role": "unclassified_sidecar",
+        "sha256": "4d090d52fb32fb10e17d7e20e4c687fbbe63cae7caca82ab564335226bd9e557",
+        "size": 7929968
+      },
+      {
+        "relative_path": "hello",
+        "role": "native_executable",
+        "sha256": "9915c9f168cd29a63813232ac3da63ee3bceea456e0722f6bcbe6399a808793d",
+        "size": 4568128
+      }
+    ]
+  },
+  "windows_binding": {
+    "build_inputs": {
+      "aot": {
+        "managed-entry.dll": {
+          "size": 21504,
+          "sha256": "bf12d11555b94b6c73767f5ab767671b0a51d148901ec6be9acabb309fea6208"
+        },
+        "RyuPy.Runtime.dll": {
+          "size": 613376,
+          "sha256": "4d5e0b3a39d339281a2ec3faaa7ef6460bef3cf6f5fbce9bb801fd757be463f0"
+        },
+        "selected-native-input": {
+          "size": 1080,
+          "sha256": "d560ac9ea1fd7be9aa3b1626deaebf204b99529fc9d3fc0f743b918cc8daf629"
+        }
+      },
+      "jit": {
+        "managed-entry.dll": {
+          "size": 21504,
+          "sha256": "6141042e94ee63891331e08c7b8fddb92ad9c797d746d150eba9176639da4ade"
+        },
+        "RyuPy.Runtime.dll": {
+          "size": 613376,
+          "sha256": "4d5e0b3a39d339281a2ec3faaa7ef6460bef3cf6f5fbce9bb801fd757be463f0"
+        },
+        "selected-native-input": {
+          "size": 102912,
+          "sha256": "047384aaf7deda46b067c2ec4cec0259eb24af20e94cd5b0e9621d55098af2bd"
+        }
+      }
+    },
+    "manifests": {
+      "jit": {
+        "size": 15622,
+        "sha256": "03bc0877050b9a9e384dc46e82b0ea3e2d18831718d5d703793729cb4581fda3"
+      },
+      "aot": {
+        "size": 15223,
+        "sha256": "a22fa35ad54a7dee75bc960685dc964e16743aa9409bfbe1a94fff09ce78f69d"
+      }
+    },
+    "native": {
+      "size": 4622848,
+      "sha256": "823c0e6f2bcf53947073bfc74bb0e517fb4c3504f3f4399cc45799fd9f6f9d52"
+    },
+    "owner_sha256": "3bbc2c8092d54e84523b19a36a4dc05f0ff4426f7593f0e7b755f2143b49c968",
+    "known_sdk_paths_verified": [
+      {
+        "relative_to_host": "bin/Release/net10.0/win-x64/createdump.exe",
+        "utf16_units": 214,
+        "size": 71552,
+        "sha256": "da50d230f70332385b86c44f9dc3f571b60340f8b603bc0e2f201b5a19240acd"
+      },
+      {
+        "relative_to_host": "bin/Release/net10.0/win-x64/RyuPyAotHost_7388_1793694019901843900_0.pdb",
+        "utf16_units": 243,
+        "size": 10844,
+        "sha256": "a3528b16bf6f663a9b355c74a2d8675092a4330966be2d5eac09e809fb2d6f48"
+      },
+      {
+        "relative_to_host": "bin/Release/net10.0/win-x64/native/RyuPyAotHost_7388_1793694019901843900_0.exe",
+        "utf16_units": 250,
+        "size": 4622848,
+        "sha256": "823c0e6f2bcf53947073bfc74bb0e517fb4c3504f3f4399cc45799fd9f6f9d52"
+      },
+      {
+        "relative_to_host": "bin/Release/net10.0/win-x64/native/RyuPyAotHost_7388_1793694019901843900_0.pdb",
+        "utf16_units": 250,
+        "size": 18583552,
+        "sha256": "8345785d728ce40e7b12414c23b8ba66bf0b2c93ab0cc494fd6d686396fced31"
+      },
+      {
+        "relative_to_host": "obj/Release/net10.0/win-x64/RyuPyAotHost_7388_1793694019901843900_0.pdb",
+        "utf16_units": 243,
+        "size": 10844,
+        "sha256": "a3528b16bf6f663a9b355c74a2d8675092a4330966be2d5eac09e809fb2d6f48"
+      },
+      {
+        "relative_to_host": "obj/Release/net10.0/win-x64/native/RyuPyAotHost_7388_1793694019901843900_0.obj",
+        "utf16_units": 250,
+        "size": 21437880,
+        "sha256": "e4ebaebd72e6d37bab19bfc7a9495905e04e45d1b55fe50cbd8960cb3adb5667"
+      },
+      {
+        "relative_to_host": "obj/Release/net10.0/win-x64/native/RyuPyAotHost_7388_1793694019901843900_0.ilc.rsp",
+        "utf16_units": 254,
+        "size": 32943,
+        "sha256": "feb376f3020a84346a1dbf5f845605f8c38ddb2ba71959e6e4bf54ec4441d5c5"
+      },
+      {
+        "relative_to_host": "obj/Release/net10.0/win-x64/native/RyuPyAotHost_7388_1793694019901843900_0.def",
+        "utf16_units": 250,
+        "size": 43,
+        "sha256": "fc7e494b95675837fa7753c8f5d48207013b0ab85d3e38130a370f6c6887ef0c"
+      },
+      {
+        "relative_to_host": "obj/Release/net10.0/win-x64/native/link.rsp",
+        "utf16_units": 215,
+        "size": 3300,
+        "sha256": "2d24f1b9ba648da39d5c00025c542b717ab1feaa0f83294543e67b4323b5bca3"
+      },
+      {
+        "relative_to_host": "obj/Release/net10.0/win-x64/native/RyuPyAotHost_7388_1793694019901843900_0.sourcelink",
+        "utf16_units": 257,
+        "size": 247035,
+        "sha256": "cac27eb4e7f47e235807a073239d11baa7e8868df83b3ce3f1386412c8a3fe01"
+      }
+    ]
+  },
+  "limitations": [
+    "SDK-installed hosts and system dependencies remain; no macOS12 runtime claim.",
+    "JIT and AOT binding builds are separate; each input/copy independently hashed.",
+    "Old ordinary/resource/coverage harness deletes some source/managed/cache; no complete rebuild ledger claim for those trees.",
+    "ZIP mode is not independently observed original execution permission.",
+    "Copied owner is evidence, not portable source ownership.",
+    "CLI original binary hash is recorded-only where binary absent.",
+    "Hello six CP and six native launches inferred from unchanged runner and successful output checks, not independent process trace; no performance conclusion.",
+    "Initial6faa Windows LINK failure retained; new success does not uniquely establish old failure cause.",
+    "Only WIP verified; main/release unchanged; historical matmul tieroff14.723percent regression remains."
+  ]
+}
