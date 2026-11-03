@@ -33,3 +33,6 @@ crates/ryupy-codegen-cil/examples/cabi_emit_probe.rs text eol=lf
 
 # 固定绑定源跨平台保持同一字节，输出换行由真实标准流决定。
 tests/aot/binding_fixtures/*.py text eol=lf
+
+# 普通构造 NativeAOT 固定源的跨平台原字节合同。
+tests/aot/construction_fixtures/*.py text eol=lf

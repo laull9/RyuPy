@@ -1,7 +1,7 @@
 # ADR-0050：普通单继承类的有限 new/init 协议
 
 - 日期：2026-11-03
-- 状态：本地候选；冷编译接点、真实driver专项与完整正常门禁通过，三平台语义专项已过；首轮Mac组合在旧测试helper失败，窄修待远端。
+- 状态：本地候选；冷编译接点、真实driver专项与完整正常门禁通过，三平台语义专项已过；首轮Mac旧测试helper失败已窄修，修后同候选三平台组合通过；本切fixture原生执行尚待。
 
 ## 目标与边界
 
@@ -85,3 +85,22 @@ module_call_capture的两个活跃测试共用同类helper，同批预防修复�
 - Linux：`4f4ccd45ab1499e52671ff457495a22267c7c162d0c0e45bc979a26b25a00d04`
 - Mac：`df796deb3c0523f38737e52b93414132ab1b1ed597ce404f53b7e45968e44afe`
 - Windows：`78db8380569c56fef287fd6c2b6cdf770d6b22d6bcfda8091c14ee8a60ae1a72`
+
+## 修后同候选三平台组合验收
+
+测试辅助修复候选 `61df8f18cab838936899d614d29c9737b35690f6` 的
+[Linux run](https://github.com/laull9/RyuPy/actions/runs/41579121639) 与
+[Mac/Windows run](https://github.com/laull9/RyuPy/actions/runs/41579121643) 已实际完成且全部job成功。
+每host原两专项步骤实际33 C#通过、driver14通过加2个原ignored：Quitter4、object A3、
+普通构造B4、模块捕获3；两新增固定timestamp并发回归均实际执行。
+两个ignored仍是完整任意返回富比较及源码static-def重绑身份正期待，不计通过。
+首d510 Mac碰撞及2/3失败保留；修后不是重跑未改候选来隐藏偶发失败。
+
+三官方日志SHA256：
+- Linux：`86839dc494e305b685154141d6a6348b030102045f62689e01cb4bf7a6b4347e`
+- Mac：`162b26ced0efe3fa9109bf454f5c4b9b6bcfb738c0ffb676b0d4ff863827d1d7`
+- Windows：`e1eafe0f2b933984539e9f2c15cb79ad15e6436f4a7ea8e2274aa94f1f2596e3`
+
+该结果证明有限C#/真实JIT差分和组合回归；尚未将本切构造fixture编译后原生执行。
+后续先补这个有界NativeAOT缺口并评估既有通用调用成本，不继续无限增加未准入兼容功能。
+WIP仍未main，不宣布已关闭旧性能负项或增加固定项目通过分子。
