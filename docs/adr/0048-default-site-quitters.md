@@ -45,3 +45,16 @@ RyuPy 当前没有 no-site 启动开关，本切只对齐默认模式的两个�
 正常完整 `make check` 已 exit0：556 C#、228 固定 CP 基线、202 e2e + 30 ignored；
 未新跑任何固定项目、Quitter AOT产物或性能矩阵。
 历史 pyfiglet 的 exit 首阻断只是排期线索，不能把两个名字实现计为 pyfiglet 原生通过。
+
+## 首次远端验证与旧测试目录碰撞
+
+`fea9057` 的 Linux/macOS/Windows 官方日志均确认本切10项C#与3项真实driver通过。
+[host run41566102499](https://github.com/laull9/RyuPy/actions/runs/41566102499) 的 macOS job
+随后在旧资源安全测试 `resources_paths_tests.rs` 独占创建目录时遇到 AlreadyExists，
+22/23通过，尚未执行该job后续ILC；Windows、Linux和旧C ABI机制其他job通过。
+不将整个host run标绿，也不把此旧测试helper失败说成Quitter语义通过全部回归。
+
+原helper只用PID+timestamp，现最窄增加进程内AtomicU64序号，保独占create_dir且创建成功后
+才获得清理权；不删除或复用预存目录。新增固定相同timestamp的8线程同步回归，全部guard
+同时存活至唯一/存在断言后。仅测试文件改变，生产资源行为与预期输出不改；
+本地原资源专项加新例24/24通过，真实macOS修后回归仍待。
