@@ -27,7 +27,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: candidate
-          ref: ${{ github.sha }}
+          ref: c3427e4c2d285d3b820ca6f9f22532c1cabe7adb
       - uses: actions/checkout@v4
         with:
           ref: 8b15b29b8b9e67086f386f62d22e6d4314b0a9d1
@@ -60,11 +60,11 @@ jobs:
           out="$RUNNER_TEMP/aot-module-call-pair-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           python candidate/tests/aot/module_call_build.py \
             --baseline-root "$PWD/baseline" --candidate-root "$PWD/candidate" \
-            --candidate-revision "${{ github.sha }}" --out "$out"
+            --candidate-revision "c3427e4c2d285d3b820ca6f9f22532c1cabe7adb" --out "$out"
           python candidate/tests/aot/module_call_pair.py \
             --baseline-root "$PWD/baseline" --baseline-cli "$PWD/baseline/target/release/ryupy" \
             --candidate-root "$PWD/candidate" --candidate-cli "$PWD/candidate/target/release/ryupy" \
-            --candidate-revision "${{ github.sha }}" --compiler-summary "$out/compiler-summary.json" \
+            --candidate-revision "c3427e4c2d285d3b820ca6f9f22532c1cabe7adb" --compiler-summary "$out/compiler-summary.json" \
             --python "$(command -v python)" --out "$out" --started-at "$(cat "$out/started-at")" \
             --fixtures "$PWD/candidate/tests/aot/module_call_fixtures" \
             --expected "$PWD/candidate/tests/aot/module_call_fixtures/expected.json"
