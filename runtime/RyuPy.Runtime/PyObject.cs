@@ -48,6 +48,8 @@ public static class PyObject
     /// <param name="value">任意 Python 值。</param>
     public static object TypeOf(object? value) => value switch
     {
+        // 裸object身份不受原生类型短名注册表影响。
+        PyBaseObject => PyBaseObject.Type,
         PyNativeObject native => (object?)PyNativeType.LookupByName(native.TypeName) ?? PyType.Get(native.TypeName),
         PyNativeType => PyType.Get("type"),
         PyInstance instance => instance.Class,
@@ -92,6 +94,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyType type when ReferenceEquals(type, PyBaseObject.Type):
+                PyBaseObject.RejectTypeMutation(name);
+                return;
             case PyNativeObject native:
                 native.SetAttr(name, value);
                 return;
@@ -126,6 +131,9 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyType type when ReferenceEquals(type, PyBaseObject.Type):
+                PyBaseObject.RejectTypeMutation(name);
+                return;
             case PyNativeObject native:
                 native.DelAttr(name);
                 return;
@@ -419,7 +427,10 @@ public static class PyObject
                 {
                     return new PyTuple([PyType.Get(builtin)]);
                 }
-                return new PyTuple([]);
+                return new PyTuple([PyBaseObject.Type]);
+            case "__base__":
+                return (object?)cls.BaseClass ?? (cls.BuiltinBase is { } baseName
+                    ? PyType.Get(baseName) : PyBaseObject.Type);
             case "__dict__":
                 {
                     var dict = new PyDict();
@@ -496,7 +507,7 @@ public static class PyObject
     }
 
     private static object? GetTypeAttr(PyType type, string name) =>
-        name switch
+        ReferenceEquals(type, PyBaseObject.Type) ? PyBaseObject.TypeAttribute(name) : name switch
         {
             "__name__" or "__qualname__" => type.Name,
             "__module__" when type.Name == "JSONDecodeError" => "json.decoder",

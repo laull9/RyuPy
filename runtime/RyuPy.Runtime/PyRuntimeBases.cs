@@ -10,6 +10,8 @@ public static class PyRuntimeBases
     /// <returns>通过验证的原类对象。</returns>
     public static object Validate(object? value)
     {
+        // 只许可真实驻留object，不放开任意内建布局或按名称假冒的类。
+        if (ReferenceEquals(value, PyBaseObject.Type)) return PyBaseObject.Type;
         if (value is not PyClass cls)
             throw Unsupported();
         // 仅定义时遍历；不向实例构造、属性访问等热路径增加守卫。

@@ -52,7 +52,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0045](0045-native-module-attribute-factories.md) | 13项原生模块属性工厂延迟构造 | 固定配对未达采用门槛，生产已回退 |
 | [0046](0046-native-aot-artifact-manifest.md) | 同次AOT发布清单与实际生成引用报告 | 有限三平台验收通过，资源与动态闭包未实现 |
 | [0047](0047-explicit-aot-resources.md) | 显式随包数据与模块运行位置 | 三平台显式资源有限验收；自动依赖收集未实现 |
-| [0048](0048-default-site-quitters.md) | 默认 site 的真实 exit / quit | 本地专项与完整门禁通过；远端待验，非完整 site |
+| [0048](0048-default-site-quitters.md) | 默认 site 的真实 exit / quit | 三平台专项与组合CI通过；WIP未main，非完整 site |
+| [0049](0049-base-object-identity.md) | 真实 object 基础实例与身份 | 本地候选；派生构造与富比较旧债独立保留 |
 
 ## 模板
 

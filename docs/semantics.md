@@ -558,3 +558,11 @@ Ellipsis 为真实单例，源码 `...` 不受用户重绑同名内建名字影�
 删除协议入口，当前抛 AttributeError。M3.9 叶调用特化验证用优化前保存 CLI
 与新候选确认同一缺口；完整删除后旧函数别名仍应可调用的期望保留在
 `tests/cases/optimization/leaf_identity_deletion`（pending），不计入特化正确性通过。
+
+
+### object 基础实例与既有富比较边界
+
+本地候选只补真实canonical object及无字典基础实例、有限单继承根关系；不改变普通类
+现有构造入口（尚未分派用户__new__）。显式object.__new__(用户类)仍明确不支持。全局比较ABI的bool返回
+及!=取反旧债保留完整CP正期待为ignored，不因sentinel基础比较通过宣称任意富比较完成。
+详见[ADR-0049](adr/0049-base-object-identity.md)，验收状态以该文档实际记录为准。

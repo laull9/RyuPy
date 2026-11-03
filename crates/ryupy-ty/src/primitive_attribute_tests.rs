@@ -51,3 +51,41 @@ fn primitive_attribute_fallback_keeps_unrelated_numeric_function_static() {
             .all(|(_, ty)| !ty.is_dynamic())
     );
 }
+
+#[test]
+fn object_local_alias_demotes_only_its_function() {
+    let source = "def alias(n: int) -> int:\n    ctor = object\n    value = ctor()\n    return n\n\ndef numeric(n: int) -> int:\n    return n + 1\n";
+    let mut db = SourceDb::default();
+    let file = db.add("object_alias.py", source);
+    let (parsed, diagnostics) = parse(file, source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (hir, diagnostics) = lower_module(
+        &parsed,
+        &ryupy_hir::ModuleInfo {
+            resolve_file_at_runtime: false,
+            name: "__main__".into(),
+            package: String::new(),
+            file: "object_alias.py".into(),
+        },
+        source,
+    );
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let (types, diagnostics) = crate::check_module(&hir);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    for (name, expected) in [
+        ("alias", crate::ty::FuncMode::Dynamic),
+        ("numeric", crate::ty::FuncMode::Static),
+    ] {
+        let id = hir
+            .functions
+            .iter()
+            .find(|(_, f)| f.name.as_str() == name)
+            .unwrap()
+            .0;
+        assert_eq!(types.mode(id), expected);
+        if name == "numeric" {
+            assert_eq!(types.sigs[id].params, vec![crate::ty::Ty::Int]);
+            assert_eq!(types.sigs[id].ret, crate::ty::Ty::Int);
+        }
+    }
+}

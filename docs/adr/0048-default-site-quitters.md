@@ -1,7 +1,7 @@
 # ADR-0048：默认 site 启动的有限 Quitter 对象
 
 - 日期：2026-11-03
-- 状态：本地候选，专项及完整门禁通过；远端仍待验证，不是项目兼容门完成。
+- 状态：WIP 候选，本地完整门禁及三平台专项/组合 CI 通过；未合 main，不是项目兼容门完成。
 
 ## 背景与边界
 
@@ -22,7 +22,7 @@ RyuPy 当前没有 no-site 启动开关，本切只对齐默认模式的两个�
 - 类定义模块使用仅该原生类设置的内部元数据标记，保 `_sitebuiltins` 身份及动态
   `__module__` 覆盖/删除行为。既有 `PyClass(string)` CLR 构造 ABI、普通类默认路径不变。
 - Windows EOF 提示取 `Ctrl-Z plus Return`，其它平台取 `Ctrl-D (i.e. EOF)`。
-  这是固定 CP13 `site.py` 的平台规则；本机 Linux 结果不冒 Windows 实机验证。
+  这是固定 CP13 `site.py` 的平台规则；本轮另有 Windows runner 专项实证，不外推其它平台。
 
 ## 成本与不承诺项
 
@@ -57,4 +57,25 @@ RyuPy 当前没有 no-site 启动开关，本切只对齐默认模式的两个�
 原helper只用PID+timestamp，现最窄增加进程内AtomicU64序号，保独占create_dir且创建成功后
 才获得清理权；不删除或复用预存目录。新增固定相同timestamp的8线程同步回归，全部guard
 同时存活至唯一/存在断言后。仅测试文件改变，生产资源行为与预期输出不改；
-本地原资源专项加新例24/24通过，真实macOS修后回归仍待。
+本地原资源专项加新例24/24通过；真实修后结果如下。
+
+
+## 修后同候选远端终态
+
+`1cf7c9cd48143302f7c3f2c124e270cbcd45d311` 的
+[Linux run41567547097](https://github.com/laull9/RyuPy/actions/runs/41567547097) 和
+[macOS/Windows run41567547112](https://github.com/laull9/RyuPy/actions/runs/41567547112)
+全部 success。独立逐官方 job 日志核对：三平台各10项Quitter C#（零skip）与3项driver通过；
+资源安全 Linux/macOS 各24项、Windows 21项通过（平台条件使计数不同），三者均实际执行
+`fixed_timestamp_parallel_roots_are_distinct_and_live_together`。原fea碰撞失败历史保留。
+
+官方原日志仅作为CI artifact/本地审计，不入Git；完整SHA256如下，绑定这次实际输出：
+
+| 平台 | job | 原日志 SHA256 |
+| --- | --- | --- |
+| Linux | 125692608387 | `0d5e718feffcfad80aaeeb02157e8caa0be2921b53479f6034f2b3519a220714` |
+| macOS | 125692608198 | `1316afac7c146bcd637ec0f7428960f8574573fc6237a14ba32daafddc28bfa4` |
+| Windows | 125692608437 | `50603d4b7acc86808797550b1a795a0b2f760819c24755fd3c710b4dfd42a0a8` |
+
+组合CI运行原AOT覆盖，不等于新Quitter fixture已发布为原生AOT执行；本切仍不增加项目通过
+分子、不重跑性能、不关闭既有模块调用分配与matmul禁tier成本负项，且尚未推广main。
