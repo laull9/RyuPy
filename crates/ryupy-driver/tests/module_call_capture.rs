@@ -2,6 +2,9 @@
 use ryupy_driver::{BuildOptions, Session};
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
 struct OwnedRoot(PathBuf);
 impl Drop for OwnedRoot {
@@ -10,6 +13,50 @@ impl Drop for OwnedRoot {
             let _ = std::fs::remove_dir_all(&self.0);
         }
     }
+}
+
+fn root() -> OwnedRoot {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    root_with_stamp(stamp)
+}
+
+fn root_with_stamp(stamp: u128) -> OwnedRoot {
+    // 原子值只分配进程内唯一序号，不承担线程间同步。
+    let sequence = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
+    let path = std::env::temp_dir().join(format!(
+        "ryupy-module-capture-{}-{stamp}-{sequence}",
+        std::process::id()
+    ));
+    // 只有独占创建成功才取得清理权；预存目录不删除、不复用。
+    std::fs::create_dir(&path).unwrap();
+    OwnedRoot(path)
+}
+
+#[test]
+fn fixed_timestamp_parallel_roots_are_distinct_and_live_together() {
+    let barrier = std::sync::Barrier::new(8);
+    let roots = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let barrier = &barrier;
+                scope.spawn(move || {
+                    barrier.wait();
+                    root_with_stamp(123456789)
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    let paths: std::collections::HashSet<_> = roots.iter().map(|root| &root.0).collect();
+    assert_eq!(paths.len(), 8);
+    assert!(roots.iter().all(|root| root.0.is_dir()));
+    // 所有guard同时保留至断言结束，不能靠先删旧目录制造唯一性。
 }
 
 const SOURCES: &[(&str, &str)] = &[
@@ -39,16 +86,7 @@ fn compare_module_calls(replacement: Option<&str>) {
         String::from_utf8_lossy(&version.stdout).trim(),
         pinned.trim()
     );
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "ryupy-module-capture-{}-{unique}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&path).unwrap();
-    let root = OwnedRoot(path);
+    let root = root();
     for (name, text) in SOURCES {
         std::fs::write(root.0.join(name), text).unwrap();
     }
