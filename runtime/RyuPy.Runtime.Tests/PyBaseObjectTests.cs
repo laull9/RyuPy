@@ -133,7 +133,12 @@ public sealed class PyBaseObjectTests
         Assert.Same(PyNotImplemented.Instance, PyPic.CallMethod2(0, Root, "__eq__", a, b));
         Assert.IsType<PyBaseObject>(PyPic.CallMethod1(0, Root, "__new__", Root));
         Assert.Throws<PyTypeError>(() => PyPic.CallMethod0(0, Root, "__new__"));
-        Assert.Throws<PyNotImplementedError>(() => PyOps.CallMethod(Root, "__new__", [new PyClass("Plain")], [], []));
+        var plain = new PyClass("Plain"); int initCalls = 0;
+        plain.SetAttr("__init__", PyNativeFunctions.Create("__init__", ["self"], [null], 1,
+            _ => { initCalls++; return PyNone.Instance; }));
+        Assert.Same(plain, Assert.IsType<PyInstance>(PyOps.CallMethod(Root, "__new__", [plain], [], [])).Class);
+        Assert.Same(plain, Assert.IsType<PyInstance>(PyPic.CallMethod1(0, Root, "__new__", plain)).Class);
+        Assert.Equal(0, initCalls);
         Assert.Throws<PyTypeError>(() => PyOps.CallMethod(Root, "__new__", [Root], ["extra"], [1L]));
         // 其它PyType仍走原能力边界，不能因object接线顺便开放所有type方法。
         Assert.Throws<PyAttributeError>(() => PyOps.CallMethod(PyType.Get("list"), "__new__", [], [], []));
@@ -152,7 +157,12 @@ public sealed class PyBaseObjectTests
         Assert.Throws<PyTypeError>(() => Method(Root, "__new__", Root, 1L));
         Assert.Throws<PyTypeError>(() => Method(Root, "__init__", a, 1L));
         var plain = new PyClass("Plain");
-        Assert.Throws<PyNotImplementedError>(() => Method(Root, "__new__", plain));
+        Assert.Same(plain, Assert.IsType<PyInstance>(Method(Root, "__new__", plain)).Class);
+        int calls = 0; var withInit = new PyClass("WithInit");
+        withInit.SetAttr("__init__", PyNativeFunctions.Create("__init__", ["self"], [null], 1,
+            _ => { calls++; return PyNone.Instance; }));
+        Assert.Same(withInit, Assert.IsType<PyInstance>(Method(Root, "__new__", withInit)).Class);
+        Assert.Equal(0, calls);
         Assert.IsType<PyInstance>(plain.Invoke([], [], []));
         Assert.Throws<PyTypeError>(() => plain.Invoke([1L], [], []));
     }

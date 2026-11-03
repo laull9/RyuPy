@@ -143,6 +143,17 @@ impl FunctionBuilder<'_> {
             matches!(base, Some(ClassBase::TypedDict { .. })),
         );
         self.class_namespace = previous_namespace;
+        // 类体最终namespace完成后才处理隐式new绑定；类decorator仍在其后。
+        // 专用Enum/TypedDict/异常构造协议不走普通类终结；dataclass装饰前仍普通。
+        if !is_exception
+            && enum_members.is_none()
+            && !matches!(base, Some(ClassBase::TypedDict { .. }))
+        {
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::FinalizeOrdinaryClass),
+                args: vec![class_object.clone()],
+            }));
+        }
         if !conditional
             && !matches!(base, Some(ClassBase::TypedDict { .. }))
             && !self.hir.classes[cls_id].declared_fields.is_empty()

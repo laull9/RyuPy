@@ -524,7 +524,10 @@ fn validate_rvalue(
             prefix,
             args,
         } => {
-            if *callee == RuntimeFn::ModuleFile || crate::validate_module_pairs::fixed_abi(*callee)
+            if matches!(
+                callee,
+                RuntimeFn::ModuleFile | RuntimeFn::FinalizeOrdinaryClass
+            ) || crate::validate_module_pairs::fixed_abi(*callee)
             {
                 errors.push(format!(
                     "函数 `{}` 的{:?}只允许固定Call ABI",

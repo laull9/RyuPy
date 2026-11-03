@@ -130,3 +130,6 @@ mod module_capture_tests;
 mod fixed_binding_deployment;
 #[cfg(test)]
 mod fixed_binding_deployment_tests;
+
+#[cfg(test)]
+mod ordinary_class_finalize_tests;

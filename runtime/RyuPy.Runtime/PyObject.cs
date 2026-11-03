@@ -59,6 +59,8 @@ public static class PyObject
         PyBaseException exception when exception.PythonClass is not null => exception.PythonClass,
         PyBoundMethod => PyType.Get("method"),
         PyFunction => PyType.Get("function"),
+        PyStaticMethod => PyType.Get("staticmethod"),
+        PyClassMethod => PyType.Get("classmethod"),
         PyProperty => PyType.Get("property"),
         _ => PyType.Get(PyRepr.TypeName(value)),
     };
@@ -390,6 +392,7 @@ public static class PyObject
         {
             return Bind(raw, owner, instance);
         }
+        if (instance.Class.TryRootConstructionAttribute(name, instance, out object? rootMethod)) return rootMethod;
         // 4. `__getattr__` 兜底
         if (instance.Class.TryLookup("__getattr__", out PyClass getattrOwner, out object? getattr))
         {
@@ -443,6 +446,7 @@ public static class PyObject
         }
         if (!cls.TryLookup(name, out PyClass owner, out object? raw))
         {
+            if (cls.TryRootConstructionAttribute(name, null, out object? rootMethod)) return rootMethod;
             throw new PyAttributeError(
                 $"type object '{cls.Name}' has no attribute '{name}'"
             );
@@ -473,6 +477,7 @@ public static class PyObject
                 return Bind(raw, current, super.Self);
             }
         }
+        if (super.Owner.TryRootConstructionAttribute(name, super.Self, out object? rootMethod)) return rootMethod;
         throw new PyAttributeError(
             $"'super' object has no attribute '{name}'"
         );

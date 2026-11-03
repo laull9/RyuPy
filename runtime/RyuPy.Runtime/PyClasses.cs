@@ -119,6 +119,7 @@ public sealed partial class PyClass
     public void SetAttr(string name, object? value)
     {
         PyEnum.GuardClassMutation(this, name);
+        GuardConstructionSet(name, value);
         Attributes[name] = value;
         Touch();
     }
@@ -129,6 +130,7 @@ public sealed partial class PyClass
         if (NativeDefinitionModule is not null && name == "__module__")
             throw new PyTypeError($"cannot delete '__module__' attribute of type '{Name}'");
         PyEnum.GuardClassMutation(this, name);
+        GuardConstructionDelete(name);
         if (!Attributes.Remove(name))
         {
             return false;
@@ -267,6 +269,8 @@ public sealed partial class PyClass
     /// <summary>创建实例并执行 `__init__`。</summary>
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues)
     {
+        // 装饰后的布局/祖先late new变化按现版本重新核，必须早于fastplan分配。
+        ConstructionSlots slots = GuardSpecialNew();
         if (HasEnumMetadata) return PyEnum.Construct(this, args, kwNames, kwValues);
         if (ExceptionFactory is not null)
         {
@@ -286,17 +290,9 @@ public sealed partial class PyClass
 
         if (TryConstructDataclass(args, kwNames, out PyInstance? fastInstance)) return fastInstance;
 
-        var instance = new PyInstance(this);
-        if (TryLookup("__init__", out PyClass initOwner, out object? initMethod))
-        {
-            // 关键字实参由 `PyFunction` 的参数绑定负责，与普通函数调用一致。
-            PyObject.InvokeBound(initMethod, initOwner, instance, args, kwNames, kwValues);
-        }
-        else if (args.Length > 0 || kwNames.Length > 0)
-        {
-            throw new PyTypeError($"{Name}() takes no arguments");
-        }
-        return instance;
+        try { return slots.Special ? ConstructLegacySpecial(slots, args, kwNames, kwValues)
+            : ConstructOrdinary(slots, args, kwNames, kwValues); }
+        catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
     }
 
     /// <summary>与 CPython 一致的 <c>&lt;class 'Name'&gt;</c> 形式。</summary>

@@ -1,7 +1,7 @@
 # ADR-0049：真实 object 基础实例与身份
 
 - 日期：2026-11-03
-- 状态：本地候选，隔离源码审通过；真实专项及正常完整门禁通过，远端三平台仍待，不是完整构造协议。
+- 状态：本地候选，隔离源码审通过；真实专项及正常完整门禁通过，三平台组合CI通过；WIP未main，不是完整构造协议。
 
 ## 背景与有限交付
 
@@ -48,6 +48,25 @@ Enum别名重绑object后“不支持基类”。这项已实现能力使旧拒�
 替代检验。另两元类/快照案例原样保留，专项3/3通过；正常完整门禁重新运行exit0：567 C#、228固定CP基线、202 e2e+30 ignored；首失败不删。
 
 既有三平台workflow只扩原两3分钟专项step，保Quitter原filter/driver，并追加baseobject；
-不新增job、ILC发布或性能样本，远端尚待本批推送与实际结果。
+不新增job、ILC发布或性能样本，远端终态见下节。
 
-本轮不增加固定项目通过分子，不做新性能矩阵，不宣称原生AOT或三平台验收已完成。
+本轮不增加固定项目通过分子，不做新性能矩阵，不宣称本切object fixture已完成原生AOT执行或完整派生构造协议验收。
+
+
+## 本轮三平台远端验收
+
+WIP `3af534fa2f616ddae8181065a9f0fc35fb77e27d` 的
+[Linux 41571009274](https://github.com/laull9/RyuPy/actions/runs/41571009274) 与
+[macOS/Windows 41571009260](https://github.com/laull9/RyuPy/actions/runs/41571009260)
+全部 success。三个官方 job 日志均实际21项C#（原Quitter10+本切11，零skip），
+baseobject driver3通过+1已知富比较ignored，以及原Quitter driver3通过。
+原完整正例及ignored原因没有删除，不将未执行case算成功。
+
+| 平台 | job | 原日志 SHA256 |
+| --- | --- | --- |
+| Linux | 125703631686 | `06c9faf42a66de7a83f1f585be928e45fed6206854a87cf758540c624f29df59` |
+| macOS | 125703632446 | `17fd0a6c6bab8cdd155058c0c3fbda2d2f98e3d16fb6b103710a1c9f1ffac086` |
+| Windows | 125703632121 | `00769e6e582ccb57c1c29b6e58f9b16c4e4574cbe71ddfae1f12b7e4e7f260fd` |
+
+这里只归档精简计数/边界，原日志不入Git。组合CI复用原AOT覆盖，不等于本切object fixture
+已作原生AOT执行；未新跑固定项目或性能。main尚未推广，既有matmul/模块调用成本仍开放。

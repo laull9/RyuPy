@@ -18,6 +18,7 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::FinalizeOrdinaryClass => Some(&[MirType::Dynamic]),
             RuntimeFn::ModuleFile => Some(&[MirType::Str]),
             RuntimeFn::CaptureModuleTarget => Some(&[MirType::Dynamic, MirType::Str]),
             RuntimeFn::IsModule => Some(&[MirType::Dynamic]),
@@ -139,6 +140,18 @@ pub(super) fn validate_destination(
     value: &Rvalue,
     errors: &mut Vec<String>,
 ) {
+    if matches!(
+        value,
+        Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::FinalizeOrdinaryClass),
+            ..
+        }
+    ) {
+        errors.push(format!(
+            "函数 `{}` 的普通类终结ABI返回void，只允许Eval",
+            func.name
+        ));
+    }
     if let Rvalue::Call {
         callee: Callee::Runtime(runtime),
         ..

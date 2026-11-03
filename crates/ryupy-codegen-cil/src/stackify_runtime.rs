@@ -97,6 +97,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         }
         RuntimeFn::EnumCreate => ins.push(Instruction::call(ctx.runtime_refs.enum_create)),
         RuntimeFn::EnumFinalize => ins.push(Instruction::call(ctx.runtime_refs.enum_finalize)),
+        RuntimeFn::FinalizeOrdinaryClass => ins.push(Instruction::call(
+            ctx.runtime_refs.function_objects.finalize_ordinary_class,
+        )),
         RuntimeFn::DeclareDataclass => ins.push(Instruction::call(
             ctx.runtime_refs.function_objects.declare_dataclass,
         )),
