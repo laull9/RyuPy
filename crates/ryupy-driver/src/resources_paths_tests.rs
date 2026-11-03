@@ -1,6 +1,9 @@
 //! 资源目标的ASCII政策与真实宿主路径分开验证；不把字符串检查冒充文件身份验证。
 use super::{Kind, Targets, checked_source, portable};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
 struct OwnedRoot(PathBuf);
 impl Drop for OwnedRoot {
@@ -13,12 +16,42 @@ fn root() -> OwnedRoot {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
+    root_with_stamp(stamp)
+}
+
+fn root_with_stamp(stamp: u128) -> OwnedRoot {
+    let sequence = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(
-        "ryupy-resources-中文 & host-{}-{stamp}",
+        "ryupy-resources-中文 & host-{}-{stamp}-{sequence}",
         std::process::id()
     ));
+    // 只有独占创建成功才取得清理权；预存目录不删除、不复用。
     std::fs::create_dir(&path).unwrap();
     OwnedRoot(path)
+}
+
+#[test]
+fn fixed_timestamp_parallel_roots_are_distinct_and_live_together() {
+    let barrier = std::sync::Barrier::new(8);
+    let roots = std::thread::scope(|scope| {
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let barrier = &barrier;
+                scope.spawn(move || {
+                    barrier.wait();
+                    root_with_stamp(123456789)
+                })
+            })
+            .collect();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    let paths: std::collections::HashSet<_> = roots.iter().map(|root| &root.0).collect();
+    assert_eq!(paths.len(), 8);
+    assert!(roots.iter().all(|root| root.0.is_dir()));
+    // 所有guard同时保留至断言结束，不能靠先删旧目录制造唯一性。
 }
 
 #[test]
