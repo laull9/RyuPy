@@ -136,3 +136,72 @@ pub fn emit(
     })
     .map_err(|error| CodegenError::Write(error.to_string()))
 }
+
+/// 构建层选择的固定部署相对名，不含宿主输入路径或JIT/AOT能力猜测。
+#[derive(Debug, Clone)]
+pub struct BindingDeployment {
+    pub relative_file: String,
+}
+
+/// 同次Resolution的显式绑定身份与实际PInvoke元数据；不承诺原生依赖闭包。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BindingEmission {
+    pub binding_id: String,
+    pub module_id: u32,
+    pub initializer_id: u32,
+    pub export_id: u32,
+    pub body: crate::MethodDescriptor,
+    pub native: crate::MethodDescriptor,
+    pub library: String,
+    pub symbol: String,
+    pub calling_convention: String,
+    pub character_set: String,
+    pub no_mangle: bool,
+    pub supports_last_error: bool,
+    pub preserve_sig: bool,
+    pub is_static: bool,
+    pub has_body: bool,
+}
+
+#[derive(Debug)]
+pub struct BindingEmissionArtifact {
+    pub bytes: Vec<u8>,
+    pub report: crate::EmissionReport,
+    pub bindings: Vec<BindingEmission>,
+}
+
+/// B构建入口先验证全部记录，再一次发射并从该Resolution收集报告。
+/// 旧A与无绑定入口不建立resolver引用、不支付报告扫描成本。
+pub fn emit_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    bindings: &[FixedI32Binding],
+    deployment: &BindingDeployment,
+) -> Result<BindingEmissionArtifact, CodegenError> {
+    validate(program, bindings)?;
+    if bindings.len() != 1
+        || !matches!(
+            deployment.relative_file.as_str(),
+            "_internal/native/v1/b0/library.so"
+                | "_internal/native/v1/b0/library.dylib"
+                | "_internal/native/v1/b0/library.dll"
+        )
+    {
+        return Err(CodegenError::Unsupported(
+            "fixed C binding: expected one binding and a controlled deployment path".into(),
+        ));
+    }
+    let (res, report, records) =
+        crate::assembly::build_binding_report(program, opts, bindings, deployment);
+    let bytes = res
+        .write(WriteOptions {
+            is_32_bit: true,
+            is_executable: false,
+        })
+        .map_err(|error| CodegenError::Write(error.to_string()))?;
+    Ok(BindingEmissionArtifact {
+        bytes,
+        report,
+        bindings: records,
+    })
+}

@@ -13,7 +13,7 @@ pub(crate) fn initializer(
     binding: &FixedI32Binding,
     refs: &BindingRefs,
     runtime: &RuntimeRefs,
-) -> body::Method {
+) -> (body::Method, MethodIndex, MethodIndex) {
     let export_name = &program.modules[binding.module].exports[0].name;
     let scope = res.push_module_reference(ExternalModuleReference::new(binding.module_ref.clone()));
     let mut import = PInvoke::new(scope, binding.entry_point.clone());
@@ -113,5 +113,5 @@ pub(crate) fn initializer(
         Instruction::Return,
     ]);
     init.header.maximum_stack_size = 3;
-    init
+    (init, wrapper, native)
 }

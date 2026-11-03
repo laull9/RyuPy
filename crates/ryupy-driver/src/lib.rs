@@ -8,11 +8,14 @@
 //! ```
 
 mod aot;
+mod binding_build;
 pub mod dotnet;
 mod manifest;
 mod manifest_files;
 mod manifest_sdk;
 pub mod modules;
+mod native_binding;
+mod native_binding_manifest;
 mod resources;
 pub mod runtime;
 
@@ -163,6 +166,28 @@ fn compile_linked(
     Vec<manifest::SourceSummary>,
     Option<resources::ResourcePlan>,
 )> {
+    compile_linked_locations(
+        sess,
+        entry,
+        search_paths,
+        collect_manifest,
+        resource_request,
+        collect_manifest,
+    )
+}
+// JIT 也收真实来源摘要，但不能因此把 __file__ 位置误切成 AOT 路径。
+fn compile_linked_locations(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+    collect_manifest: bool,
+    resource_request: Option<&Path>,
+    aot_locations: bool,
+) -> Result<(
+    ryupy_mir::LinkedProgram,
+    Vec<manifest::SourceSummary>,
+    Option<resources::ResourcePlan>,
+)> {
     let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
     let resource_plan = resource_request
         .map(|path| resources::ResourcePlan::read(path, &sources))
@@ -198,7 +223,7 @@ fn compile_linked(
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),
-                location: if !collect_manifest {
+                location: if !aot_locations {
                     ryupy_mir::ModuleLocation::SourceAbsolute(
                         module
                             .resolved_source_path
@@ -264,6 +289,23 @@ fn assembly_name(input: &Path) -> String {
 /// 编译一个 `.py` 文件为 `.dll`（可选再做 Native AOT）。
 pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     build_with_resources(sess, opts, None)
+}
+
+/// 首切资源与绑定互斥，在任何输出写入前拒绝组合。
+pub fn build_configured(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    resources: Option<&Path>,
+    binding: Option<&Path>,
+) -> Result<Artifacts> {
+    anyhow::ensure!(
+        resources.is_none() || binding.is_none(),
+        "首切不支持 --resources 与 --native-binding 同用"
+    );
+    if let Some(path) = binding {
+        return binding_build::build(sess, opts, path);
+    }
+    build_with_resources(sess, opts, resources)
 }
 
 /// 显式资源仅用于本次 AOT 编译；旧 build/低层 DLL 发布不伪造资源来源。

@@ -8,8 +8,14 @@ public static partial class PyOps
     /// <summary>模块属性在实参前读取原对象；其他接收者保持身份，不分配包装。</summary>
     public static object? CaptureModuleTarget(object? receiver, string name)
     {
-        if (receiver is not PyModule) return receiver;
-        try { return PyObject.GetAttr(receiver, name); }
+        if (receiver is not PyModule module) return receiver;
+        return CaptureActualModuleTarget(module, name);
+    }
+
+    // 冷模块查找独立承担异常准备，使非模块身份路径不含 EH；不强制内联。
+    private static object? CaptureActualModuleTarget(PyModule module, string name)
+    {
+        try { return PyObject.GetAttr(module, name); }
         catch (PyBaseException error)
         {
             PyErrors.PrepareRaise(error);

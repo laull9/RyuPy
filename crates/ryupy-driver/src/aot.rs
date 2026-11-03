@@ -153,17 +153,69 @@ pub(crate) fn publish_with_manifest(
     context: &crate::manifest::ManifestContext,
     resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<ManifestPublication> {
-    let result = publish_internal(dll, out, Some(context), resources)?;
+    let result = publish_internal(dll, out, Some(AotManifest::Ordinary(context)), resources)?;
     Ok(ManifestPublication {
         executable: result.executable,
         manifest: result.manifest.context("完整 AOT 发布缺少清单")?,
     })
 }
 
+#[derive(Clone, Copy)]
+enum AotManifest<'a> {
+    Ordinary(&'a crate::manifest::ManifestContext),
+    Binding(
+        &'a crate::native_binding_manifest::BindingManifest,
+        &'a crate::native_binding::BindingPlan,
+    ),
+}
+impl AotManifest<'_> {
+    fn verify_managed_input(self, input: &crate::manifest_files::FileDigest) -> Result<()> {
+        match self {
+            Self::Ordinary(c) => c.verify_managed_input(input),
+            Self::Binding(c, _) => c.verify_managed_input(input),
+        }
+    }
+    fn render(
+        self,
+        platform: HostPlatform,
+        sdk: &str,
+        artifacts: &[crate::manifest_files::FileDigest],
+        inputs: &[crate::manifest_files::FileDigest],
+    ) -> Result<Vec<u8>> {
+        match self {
+            Self::Ordinary(c) => c.render(
+                platform.rid(),
+                platform.native_format(),
+                platform.architecture(),
+                sdk,
+                artifacts,
+                inputs,
+            ),
+            Self::Binding(c, plan) => {
+                let mut inputs = inputs.to_vec();
+                inputs.push(plan.input.digest.clone());
+                c.render(plan, Some(sdk), artifacts, &inputs)
+            }
+        }
+    }
+}
+pub(crate) fn publish_binding(
+    dll: &Path,
+    out: &Path,
+    context: &crate::native_binding_manifest::BindingManifest,
+    plan: &crate::native_binding::BindingPlan,
+) -> Result<ManifestPublication> {
+    let result = publish_internal(dll, out, Some(AotManifest::Binding(context, plan)), None)?;
+    Ok(ManifestPublication {
+        executable: result.executable,
+        manifest: result.manifest.context("绑定AOT缺少清单")?,
+    })
+}
+
 fn publish_internal(
     dll: &Path,
     out: &Path,
-    context: Option<&crate::manifest::ManifestContext>,
+    context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<Publication> {
     validate_platform()?;
@@ -203,12 +255,18 @@ fn publish_owned(
     input_name: &str,
     dll: &Path,
     runtime: &Path,
-    context: Option<&crate::manifest::ManifestContext>,
+    context: Option<AotManifest<'_>>,
     resources: Option<&crate::resources::ResourcePlan>,
 ) -> Result<Publication> {
     let platform = HostPlatform::current()?;
     // 冻结失败仍由 finish_owned 清理；SDK 只能看到已经完成的资源快照。
     let staged = resources.map(|plan| plan.stage(root)).transpose()?;
+    let archive = match context {
+        Some(AotManifest::Binding(_, plan)) => {
+            Some(plan.input.freeze(&root.join("binding-static.a"))?)
+        }
+        _ => None,
+    };
     let source = root.join("host");
     let publish = root.join("publish");
     std::fs::create_dir(&source)?;
@@ -228,16 +286,20 @@ fn publish_owned(
     };
     let sdk_dll = sdk_paths::sdk_path(dll)?;
     let sdk_runtime = sdk_paths::sdk_path(runtime)?;
-    std::fs::write(
-        &project_path,
-        project(
-            host,
-            input_name,
-            &sdk_dll,
-            &sdk_runtime,
-            context.map(|_| sdk_record_path.as_path()),
-        )?,
+    let mut project_text = project(
+        host,
+        input_name,
+        &sdk_dll,
+        &sdk_runtime,
+        context.map(|_| sdk_record_path.as_path()),
     )?;
+    if let (Some(AotManifest::Binding(_, plan)), Some(archive)) = (context, &archive) {
+        let path = path_literal(&sdk_paths::sdk_path(&archive.path)?)?;
+        let exact = literal(&format!("{}!{}", plan.library, plan.symbol));
+        // 仅精确单库/单符号，不加入 broad roots，不复制 shared 补救静态链接。
+        project_text=project_text.replace("</Project>",&format!("  <ItemGroup><DirectPInvoke Include=\"{exact}\" /><NativeLibrary Include=\"{path}\" /></ItemGroup>\n</Project>"));
+    }
+    std::fs::write(&project_path, project_text)?;
     std::fs::write(
         source.join("Program.cs"),
         "internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n",
@@ -319,14 +381,10 @@ fn publish_owned(
             if let Some(staged) = &staged {
                 staged.mark_artifacts(&mut artifacts)?;
             }
-            let bytes = context.render(
-                platform.rid(),
-                platform.native_format(),
-                platform.architecture(),
-                &sdk_version,
-                &artifacts,
-                &inputs,
-            )?;
+            if let Some(archive) = &archive {
+                archive.verify()?;
+            }
+            let bytes = context.render(platform, &sdk_version, &artifacts, &inputs)?;
             let bytes = if let Some(staged) = &staged {
                 crate::resources::extend_manifest(&bytes, staged)?
             } else {

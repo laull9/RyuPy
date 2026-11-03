@@ -279,6 +279,7 @@ fn unknown_pointer_is_reported_explicitly_instead_of_silently_omitted() {
             getters: vec![],
             setters: vec![],
         },
+        &[],
     );
     assert_eq!(report.delegate_references.len(), 1);
     assert_eq!(report.delegate_references[0].role, "unclassified");

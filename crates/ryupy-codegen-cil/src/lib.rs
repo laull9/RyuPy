@@ -126,3 +126,7 @@ pub mod fixed_bindings;
 
 #[cfg(test)]
 mod module_capture_tests;
+
+mod fixed_binding_deployment;
+#[cfg(test)]
+mod fixed_binding_deployment_tests;
