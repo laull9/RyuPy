@@ -409,7 +409,7 @@ public static class PyObject
             case "__qualname__":
                 return cls.Name;
             case "__module__":
-                return "__main__";
+                return cls.NativeDefinitionModule is null ? "__main__" : cls.NativeModuleValue;
             case "__bases__":
                 if (cls.BaseClass is not null)
                 {

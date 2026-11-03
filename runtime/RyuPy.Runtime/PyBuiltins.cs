@@ -24,6 +24,7 @@ public static partial class PyOps
         object?[] kwValues
     ) => name switch
     {
+        "exit" or "quit" => CallValue(PySiteQuitters.Get(name), args, kwNames, kwValues),
         "len" => BuiltinLen(args, kwNames),
         "pow" => PyPowerBuiltin.Invoke(args, kwNames, kwValues),
         "ord" => WithKeywords(name, args, kwNames, () => UnicodeOrd(Single(name, args))),

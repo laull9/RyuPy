@@ -82,5 +82,8 @@ macOS archive14/链接target12警告与系统依赖边界保留，不宣称零�
 一致；ar 打包、Linux/Windows命令及生产driver不改变，不重新编译用户提供的 archive。
 来源：[固定 runtime target 文件](https://github.com/dotnet/runtime/blob/v10.0.14/src/coreclr/nativeaot/BuildIntegration/Microsoft.NETCore.Native.Unix.targets)。
 这不是公开 macOS12 运行支持声明；本机 CPython 3.12.13 的 13 项纯工具测试已通过，
-没有执行新的 C/ILC/应用或性能测量。真实 object minimum、warning 消失与原输出仍待后续实际Mac验证；
+该纯测试阶段没有执行新的 C/ILC/应用或性能测量。随后 ab40df6 的固定CI已实际验证
+Mac object/archive/native minimum均12.0、原warning消失且原9应用保持；
+详见[后续记录](../../../docs/validation/aot-python-binding/README.md#后续-macos-自有测试输入目标修复)。
+实际宿主仍14.8.9，未新增性能测量；
 SDK目标变化时需重新核对测试常量，不能把任意第三方库自动降版本。
