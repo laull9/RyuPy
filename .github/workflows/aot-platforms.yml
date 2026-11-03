@@ -131,7 +131,7 @@ jobs:
         run: cargo build -p ryupy-cli --locked
       - name: Quitter, baseobject and ordinary construction runtime semantics
         timeout-minutes: 3
-        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PySiteQuittersTests|FullyQualifiedName~PyBaseObjectTests|FullyQualifiedName~PyOrdinaryConstructionTests"
+        run: dotnet test runtime/RyuPy.Runtime.Tests -c Release -nologo --filter "FullyQualifiedName~PySiteQuittersTests|FullyQualifiedName~PyBaseObjectTests|FullyQualifiedName~PyOrdinaryConstructionTests|FullyQualifiedName~PyNativeUnaryTests"
       - name: Quitter, baseobject and ordinary construction actual Python differential
         timeout-minutes: 3
         run: cargo test -p ryupy-driver --locked --test quitter --test baseobject --test object_construction --test module_call_capture

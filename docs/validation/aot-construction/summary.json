@@ -1,0 +1,901 @@
+{
+  "revision": "8bdb496f4e87cf5ececd134aaf4718d51fdb3033",
+  "run_id": 41583520724,
+  "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41583520724",
+  "linux": {
+    "rid": "linux-x64",
+    "revision": "8bdb496f4e87cf5ececd134aaf4718d51fdb3033",
+    "host": {
+      "os": "Linux",
+      "arch": "x86_64",
+      "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
+      "image_os": "ubuntu24",
+      "image_version": "20261026.354.1"
+    },
+    "counts": {
+      "runtime": 1,
+      "compiler": 1,
+      "publish": 1,
+      "reference": 1,
+      "applications": 4
+    },
+    "elapsed_seconds": 59.961137956,
+    "budget_seconds": 1800,
+    "phases": {
+      "preflight": {
+        "seconds": 1.0873150370000033,
+        "limit_seconds": 120
+      },
+      "reference": {
+        "seconds": 0.025152331999997557,
+        "limit_seconds": 30
+      },
+      "runtime": {
+        "seconds": 9.110496503999997,
+        "limit_seconds": 180
+      },
+      "compiler": {
+        "seconds": 39.658460634,
+        "limit_seconds": 600
+      },
+      "publish": {
+        "seconds": 9.396414652999994,
+        "limit_seconds": 600
+      },
+      "relocation": {
+        "seconds": 0.31879691400000354,
+        "limit_seconds": 120
+      },
+      "applications": {
+        "seconds": 0.3637596579999922,
+        "limit_seconds": 120
+      }
+    },
+    "fixture": {
+      "size": 12335,
+      "sha256": "ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e"
+    },
+    "harness": {
+      "size": 26185,
+      "sha256": "1b311f539439924b92c561c466643526e4dd17af648e75898fd77e0abb267167"
+    },
+    "runtime": {
+      "size": 612864,
+      "sha256": "132bfd606f879e5c7df9fb54cbf35a66cd0f6c666024044f0044d75223f27872"
+    },
+    "cli": {
+      "size": 116093184,
+      "sha256": "decbf4ba9221739f337187ec54fd28149167709a7bffac2dea4ac367f861f4c2"
+    },
+    "sdk": {
+      "version": "10.0.403",
+      "size": 12,
+      "sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8"
+    },
+    "build_inputs": {
+      "managed-entry.dll": {
+        "size": 67584,
+        "sha256": "3f79d0f822d5a4145e79126206b43820f572768ad26ace209d16921b9a2538ad"
+      },
+      "RyuPy.Runtime.dll": {
+        "size": 612864,
+        "sha256": "132bfd606f879e5c7df9fb54cbf35a66cd0f6c666024044f0044d75223f27872"
+      }
+    },
+    "native_manifest": {
+      "size": 64741,
+      "sha256": "80dd7aad39d37580fceb0512e42abaa27943cd0e7368e5a646e8accf4a16cbd0"
+    },
+    "native_archive_files": {
+      "RyuPyAotHost_4883_1793683410656536714_0": {
+        "size": 4732256,
+        "sha256": "cf0d59e716a121d345263751441cfdb0596615775847465239df0dee8b27da8a"
+      },
+      "RyuPyAotHost_4883_1793683410656536714_0.dbg": {
+        "size": 7991360,
+        "sha256": "86f6846c186ab69f80f699cd6560bfc97e1cd1fcacb904f8066f915953a7e7e3"
+      },
+      "ryupy-artifact.json": {
+        "size": 64741,
+        "sha256": "80dd7aad39d37580fceb0512e42abaa27943cd0e7368e5a646e8accf4a16cbd0"
+      }
+    },
+    "dependencies": [
+      {
+        "file": "RyuPyAotHost_4883_1793683410656536714_0",
+        "needed": [
+          "libm.so.6",
+          "libc.so.6",
+          "ld-linux-x86-64.so.2"
+        ]
+      }
+    ],
+    "reference": {
+      "exit": 1,
+      "stdout_sha256": "74851eb404bfd883b706a0c4838e1d1dab9f735f66006a704d09c99b40d844c9",
+      "stderr_sha256": "50e0a112f175cb561d5d92abe72d21f48efcf18f5dd879430ef9360466f6aa1d",
+      "signature": {
+        "frames": [
+          [
+            "construction.py",
+            297,
+            "<module>"
+          ],
+          [
+            "construction.py",
+            295,
+            "caller"
+          ],
+          [
+            "construction.py",
+            292,
+            "__new__"
+          ]
+        ],
+        "exception": "ValueError: new-body"
+      }
+    },
+    "applications": {
+      "jit-positive": {
+        "status": "finished",
+        "exit": 1,
+        "stdout_sha256": "74851eb404bfd883b706a0c4838e1d1dab9f735f66006a704d09c99b40d844c9",
+        "stderr_sha256": "6e4df4bc6390126e4fa8d13b5f3673b86b7b1426a4c005b80c0434e0d4f36237",
+        "signature": {
+          "frames": [
+            [
+              "construction.py",
+              297,
+              "<module>"
+            ],
+            [
+              "construction.py",
+              295,
+              "caller"
+            ],
+            [
+              "construction.py",
+              292,
+              "__new__"
+            ]
+          ],
+          "exception": "ValueError: new-body"
+        }
+      },
+      "jit-ryupy-boundaries": {
+        "status": "finished",
+        "exit": 1,
+        "stdout_sha256": "e1e7683cecbf7682bca0dcb00084379198312737770f6e7539c5d8c9678a81de",
+        "stderr_sha256": "1d70562f43c982732d7a70640119a1fd147521c02b4f50f6ea1934dd68782cf2",
+        "signature": {
+          "frames": [
+            [
+              "construction.py",
+              422,
+              "<module>"
+            ],
+            [
+              "construction.py",
+              420,
+              "boundary_caller"
+            ]
+          ],
+          "exception": "NotImplementedError: deleting finalized __new__ is not supported"
+        }
+      },
+      "native-positive": {
+        "status": "finished",
+        "exit": 1,
+        "stdout_sha256": "74851eb404bfd883b706a0c4838e1d1dab9f735f66006a704d09c99b40d844c9",
+        "stderr_sha256": "6e4df4bc6390126e4fa8d13b5f3673b86b7b1426a4c005b80c0434e0d4f36237",
+        "signature": {
+          "frames": [
+            [
+              "construction.py",
+              297,
+              "<module>"
+            ],
+            [
+              "construction.py",
+              295,
+              "caller"
+            ],
+            [
+              "construction.py",
+              292,
+              "__new__"
+            ]
+          ],
+          "exception": "ValueError: new-body"
+        }
+      },
+      "native-ryupy-boundaries": {
+        "status": "finished",
+        "exit": 1,
+        "stdout_sha256": "e1e7683cecbf7682bca0dcb00084379198312737770f6e7539c5d8c9678a81de",
+        "stderr_sha256": "1d70562f43c982732d7a70640119a1fd147521c02b4f50f6ea1934dd68782cf2",
+        "signature": {
+          "frames": [
+            [
+              "construction.py",
+              422,
+              "<module>"
+            ],
+            [
+              "construction.py",
+              420,
+              "boundary_caller"
+            ]
+          ],
+          "exception": "NotImplementedError: deleting finalized __new__ is not supported"
+        }
+      }
+    },
+    "scope": "same AOT DLL JIT and full-tree relocated native on SDK-installed host",
+    "source_tree_action": "renamed",
+    "original_build_paths_absent": true,
+    "build_evidence_retained": true,
+    "clean_machine_without_runtime_tested": false,
+    "retained_intermediate_files_not_uploaded": [
+      {
+        "relative_path": "ryupy-aot-4883_1793683410656536714_0/host/obj/Release/net10.0/linux-x64/.NETCoreApp,Version=v10.0.AssemblyAttributes.cs",
+        "size": 196,
+        "sha256": "f79c1ad9a9fc76110b3655f5bfb5ff4e3168e9addceff05b937c0796f0ec34eb",
+        "verification": "runner-recorded only; hidden SDK intermediate omitted by artifact upload"
+      }
+    ],
+    "schema_version": 1,
+    "run_id": 41583520724,
+    "ci_url": "https://github.com/laull9/RyuPy/actions/runs/41583520724",
+    "audit_status": "independently_verified",
+    "result_sha256": "82feeacbc97a8f5f291050eae7eda8993377dc606fc697b6619b164fa0458de4",
+    "zip_sha256_recorded": "98aff0c4ab6ae8f839195be1276c6033258ff439c5ba5488cf5d05cd909dbb6c",
+    "manifest_scope": {
+      "dynamic_dependency_closure_complete": false,
+      "manifest_self_hash_included": false,
+      "native_retention_proven": false,
+      "resources_included": false
+    },
+    "copies_verified": [
+      "jit-positive",
+      "native-positive",
+      "jit-ryupy-boundaries",
+      "native-ryupy-boundaries"
+    ],
+    "limitations": [
+      "SDK remains installed; not a clean-machine or performance test.",
+      "Source and original IL roots were renamed into retained evidence, not deleted.",
+      "One hidden SDK-generated AssemblyAttributes.cs retained by runner is omitted by artifact upload; its hash is recorded-only, other retained files independently checked.",
+      "CLI binary is not retained: hash is original runner record, not independently rehashed.",
+      "Only finite fixture and schema1 emitted-CIL report; not arbitrary class semantics or complete ILC reachability.",
+      "First99ac Linux publish/JIT-boundary failure is historical; no native execution there, never reused as final evidence."
+    ]
+  },
+  "macos_windows": {
+    "run_id": 41583520724,
+    "revision": "8bdb496f4e87cf5ececd134aaf4718d51fdb3033",
+    "review": "read-only downloaded artifact audit; no application/SDK execution",
+    "hosts": [
+      {
+        "revision": "8bdb496f4e87cf5ececd134aaf4718d51fdb3033",
+        "rid": "osx-arm64",
+        "host": {
+          "os": "Darwin",
+          "arch": "arm64",
+          "platform": "macOS-14.8.9-arm64-arm-64bit",
+          "image_os": "macos14",
+          "image_version": "20260831.0302.1"
+        },
+        "counts": {
+          "runtime": 1,
+          "compiler": 1,
+          "publish": 1,
+          "reference": 1,
+          "applications": 4
+        },
+        "budget_seconds": 1800,
+        "elapsed_seconds": 89.49614012500001,
+        "phases": {
+          "preflight": {
+            "seconds": 1.9232007919999887,
+            "limit_seconds": 120
+          },
+          "reference": {
+            "seconds": 0.042056500000057895,
+            "limit_seconds": 30
+          },
+          "runtime": {
+            "seconds": 8.18670212500001,
+            "limit_seconds": 180
+          },
+          "compiler": {
+            "seconds": 64.009102084,
+            "limit_seconds": 600
+          },
+          "publish": {
+            "seconds": 13.925909792000084,
+            "limit_seconds": 600
+          },
+          "relocation": {
+            "seconds": 0.9358884169998873,
+            "limit_seconds": 120
+          },
+          "applications": {
+            "seconds": 0.47215224999990824,
+            "limit_seconds": 120
+          }
+        },
+        "fixture": {
+          "size": 12335,
+          "sha256": "ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e"
+        },
+        "harness": {
+          "size": 26185,
+          "sha256": "1b311f539439924b92c561c466643526e4dd17af648e75898fd77e0abb267167"
+        },
+        "runtime": {
+          "size": 612864,
+          "sha256": "84a7b065d11a95dd43c5281a255c14df3828aed931bd495a5060ae83e4bcf130"
+        },
+        "cli": {
+          "size": 25538504,
+          "sha256": "6dc21ec71b8ea89bb7c9d06a74e4f0c4e047bfb0d5b6dec15b1476617dea2dc2"
+        },
+        "sdk": {
+          "version": "10.0.403",
+          "size": 12,
+          "sha256": "b9b34ba26ede49415b6891aff33a9296bf2818017b2ec696c467a86456b09ff8"
+        },
+        "build_inputs": {
+          "managed-entry.dll": {
+            "size": 67584,
+            "sha256": "ca666312e65afb47a3d308a413f58c0fe31dc8a7433d4a664e63df09d9e384f2"
+          },
+          "RyuPy.Runtime.dll": {
+            "size": 612864,
+            "sha256": "84a7b065d11a95dd43c5281a255c14df3828aed931bd495a5060ae83e4bcf130"
+          }
+        },
+        "native_manifest": {
+          "size": 65374,
+          "sha256": "57e43f15bbc362db6654177e92a25e0f7ffc842a1aca6c918b51fb7368211e9f"
+        },
+        "applications": {
+          "jit-positive": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "74851eb404bfd883b706a0c4838e1d1dab9f735f66006a704d09c99b40d844c9",
+            "stderr_sha256": "6e4df4bc6390126e4fa8d13b5f3673b86b7b1426a4c005b80c0434e0d4f36237",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  297,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  295,
+                  "caller"
+                ],
+                [
+                  "construction.py",
+                  292,
+                  "__new__"
+                ]
+              ],
+              "exception": "ValueError: new-body"
+            }
+          },
+          "jit-ryupy-boundaries": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "e1e7683cecbf7682bca0dcb00084379198312737770f6e7539c5d8c9678a81de",
+            "stderr_sha256": "1d70562f43c982732d7a70640119a1fd147521c02b4f50f6ea1934dd68782cf2",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  422,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  420,
+                  "boundary_caller"
+                ]
+              ],
+              "exception": "NotImplementedError: deleting finalized __new__ is not supported"
+            }
+          },
+          "native-positive": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "74851eb404bfd883b706a0c4838e1d1dab9f735f66006a704d09c99b40d844c9",
+            "stderr_sha256": "6e4df4bc6390126e4fa8d13b5f3673b86b7b1426a4c005b80c0434e0d4f36237",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  297,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  295,
+                  "caller"
+                ],
+                [
+                  "construction.py",
+                  292,
+                  "__new__"
+                ]
+              ],
+              "exception": "ValueError: new-body"
+            }
+          },
+          "native-ryupy-boundaries": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "e1e7683cecbf7682bca0dcb00084379198312737770f6e7539c5d8c9678a81de",
+            "stderr_sha256": "1d70562f43c982732d7a70640119a1fd147521c02b4f50f6ea1934dd68782cf2",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  422,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  420,
+                  "boundary_caller"
+                ]
+              ],
+              "exception": "NotImplementedError: deleting finalized __new__ is not supported"
+            }
+          }
+        },
+        "reference": {
+          "exit": 1,
+          "stdout_sha256": "74851eb404bfd883b706a0c4838e1d1dab9f735f66006a704d09c99b40d844c9",
+          "stderr_sha256": "0d4208def8a2757ebda0e3eea67b367486cc7448ae40fc727b25c405c92d9dee",
+          "signature": {
+            "frames": [
+              [
+                "construction.py",
+                297,
+                "<module>"
+              ],
+              [
+                "construction.py",
+                295,
+                "caller"
+              ],
+              [
+                "construction.py",
+                292,
+                "__new__"
+              ]
+            ],
+            "exception": "ValueError: new-body"
+          }
+        },
+        "dependencies": [
+          {
+            "file": "RyuPyAotHost_13523_1793683455506780000_0",
+            "dependencies": [
+              "/usr/lib/libSystem.B.dylib",
+              "/usr/lib/libobjc.A.dylib",
+              "/usr/lib/swift/libswiftCore.dylib",
+              "/usr/lib/swift/libswiftFoundation.dylib",
+              "/usr/lib/libicucore.A.dylib",
+              "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation",
+              "/System/Library/Frameworks/CryptoKit.framework/Versions/A/CryptoKit",
+              "/System/Library/Frameworks/Foundation.framework/Versions/C/Foundation",
+              "/System/Library/Frameworks/Network.framework/Versions/A/Network",
+              "/System/Library/Frameworks/Security.framework/Versions/A/Security",
+              "/System/Library/Frameworks/GSS.framework/Versions/A/GSS"
+            ]
+          }
+        ],
+        "original_build_paths_absent": true,
+        "build_evidence_retained": true,
+        "source_tree_action": "renamed",
+        "clean_machine_without_runtime_tested": false,
+        "status": "independently-reviewed-passed",
+        "result_sha256": "3602b20150483669f0b54be78f06596ed668471208192610f255edfd037c8163",
+        "native": {
+          "size": 4538136,
+          "sha256": "c99da97d7469d03084121ccaadf53673f44a33a5d95a4f0f9d7f1264938dab9e"
+        },
+        "native_package": {
+          "RyuPyAotHost_13523_1793683455506780000_0": {
+            "size": 4538136,
+            "sha256": "c99da97d7469d03084121ccaadf53673f44a33a5d95a4f0f9d7f1264938dab9e"
+          },
+          "RyuPyAotHost_13523_1793683455506780000_0.dSYM/Contents/Info.plist": {
+            "size": 669,
+            "sha256": "bffa14b2d521afee69c0559d86fce8756dace55706d41686bcbba3d429d4c208"
+          },
+          "RyuPyAotHost_13523_1793683455506780000_0.dSYM/Contents/Resources/DWARF/RyuPyAotHost_13523_1793683455506780000_0": {
+            "size": 14165232,
+            "sha256": "2d8a31cc9ac4f8b523af61a86e27f2974b70e5bc44af02d0014a3123d62fc1c8"
+          },
+          "RyuPyAotHost_13523_1793683455506780000_0.dSYM/Contents/Resources/Relocations/aarch64/RyuPyAotHost_13523_1793683455506780000_0.yml": {
+            "size": 2939571,
+            "sha256": "cbf4af9e89b6cfcd62f3a5b587bd46cb5f093eed0cceff880cdbe78a10dbb531"
+          },
+          "ryupy-artifact.json": {
+            "size": 65374,
+            "sha256": "57e43f15bbc362db6654177e92a25e0f7ffc842a1aca6c918b51fb7368211e9f"
+          }
+        },
+        "sdk_logs": {
+          "publish.stdout.log": {
+            "size": 595,
+            "sha256": "6d3cbbf868e3bbd22a7a60b52cf1b0680bf38cb2cf0b1e8ce79e2357c4c58630"
+          },
+          "publish.stderr.log": {
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "sdk_warning_lines": [],
+        "verification": {
+          "all_four_copies_exactset_hash": true,
+          "both_jit_match_original_aot_input": true,
+          "all_retained_files_rehashed": false,
+          "retained_artifact_omissions": [
+            "ryupy-aot-13523_1793683455506780000_0/host/obj/Release/net10.0/osx-arm64/.NETCoreApp,Version=v10.0.AssemblyAttributes.cs"
+          ],
+          "same_mode_jit_native_raw_equal": true,
+          "fixed_complete_frames_and_markers": true,
+          "actual_ilc_log": true
+        },
+        "limits": [
+          "SDK remains installed; not a clean machine test",
+          "source and original IL renamed and retained, not deleted",
+          "CLI executable hash recorded by runner; CLI itself not in artifact for independent rehash",
+          "phase timings are not performance samples",
+          "original first-run failures remain historical evidence",
+          "One hidden SDK-generated intermediate source was omitted by artifact upload; remaining retained files independently rehashed, full original inventory only recorded by runner"
+        ],
+        "manifest_scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "compiler": {
+          "build_revision": null,
+          "codegen_report_version": 1,
+          "options": {
+            "diagnostic_scalar_slp": false,
+            "experimental_direct_accumulator": false,
+            "experimental_leaf_inline": false,
+            "experimental_packed_slp": false
+          },
+          "package_version": "0.0.1"
+        },
+        "audit_log_sha256": {
+          "load-commands-0.stdout": "d16c6ea1464865323539fc40545b9de1aaae790c6f0b722ef84096aa7c7b2c5d",
+          "load-commands-0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "load-commands-0.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "load-commands-0.command.json": "a51bf66cdb0bf706c60c7de5a356c28743ad1469deec87902b2e85df8fcdfe07",
+          "dependency-0.stdout": "9448b2d1396ce1d9872a866154abf208f26741a14cfd1fd6e7c014f0a41ea138",
+          "dependency-0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "dependency-0.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "dependency-0.command.json": "f17dd47bb5341c449f31102c9ac1c58c583578a6b05985a36d9ea0c75484dbe7"
+        }
+      },
+      {
+        "revision": "8bdb496f4e87cf5ececd134aaf4718d51fdb3033",
+        "rid": "win-x64",
+        "host": {
+          "os": "Windows",
+          "arch": "amd64",
+          "platform": "Windows-2022Server-10.0.20348-SP0",
+          "image_os": "win22",
+          "image_version": "20261026.347.1"
+        },
+        "counts": {
+          "runtime": 1,
+          "compiler": 1,
+          "publish": 1,
+          "reference": 1,
+          "applications": 4
+        },
+        "budget_seconds": 1800,
+        "elapsed_seconds": 172.5,
+        "phases": {
+          "preflight": {
+            "seconds": 7.046999999999997,
+            "limit_seconds": 120
+          },
+          "reference": {
+            "seconds": 0.07800000000000296,
+            "limit_seconds": 30
+          },
+          "runtime": {
+            "seconds": 21.51600000000002,
+            "limit_seconds": 180
+          },
+          "compiler": {
+            "seconds": 117.469,
+            "limit_seconds": 600
+          },
+          "publish": {
+            "seconds": 24.5,
+            "limit_seconds": 600
+          },
+          "relocation": {
+            "seconds": 0.9060000000000059,
+            "limit_seconds": 120
+          },
+          "applications": {
+            "seconds": 0.9839999999999804,
+            "limit_seconds": 120
+          }
+        },
+        "fixture": {
+          "size": 12335,
+          "sha256": "ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e"
+        },
+        "harness": {
+          "size": 26628,
+          "sha256": "4c60209c75f36e77feca7822ae2ed42ea8fec2c4a9a665cd78f444f3873e9bf2"
+        },
+        "runtime": {
+          "size": 612864,
+          "sha256": "1016910e7053b7d72b812074b43ae1e97076bb666fe88ed4dd80b2b4d15b491a"
+        },
+        "cli": {
+          "size": 12161024,
+          "sha256": "ad63bc2d374ea7696d4bf5bcd526fad4e95a485269fd2bcd59f2071071448c53"
+        },
+        "sdk": {
+          "version": "10.0.403",
+          "size": 13,
+          "sha256": "d6c9bf6f645d88912e7fefa9b18115b9a0eb5d5f23913f305d0bd915e0d08de6"
+        },
+        "build_inputs": {
+          "managed-entry.dll": {
+            "size": 67584,
+            "sha256": "b284f9857b53bbed29528c068b751eb1ae2449d960ada906487449bba8e5385b"
+          },
+          "RyuPy.Runtime.dll": {
+            "size": 612864,
+            "sha256": "1016910e7053b7d72b812074b43ae1e97076bb666fe88ed4dd80b2b4d15b491a"
+          }
+        },
+        "native_manifest": {
+          "size": 64743,
+          "sha256": "e5ed7d9d55c7242dc9638d4754a05b49781206f91f641258e37f7de49bfee165"
+        },
+        "applications": {
+          "jit-positive": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "de786a351f540a8720397fc7ce14be32730f0578841f4e163cb82227101d7703",
+            "stderr_sha256": "eb35ff69bac3e967f1279fa443b1512156107795534f5c1d16347258b6b3a381",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  297,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  295,
+                  "caller"
+                ],
+                [
+                  "construction.py",
+                  292,
+                  "__new__"
+                ]
+              ],
+              "exception": "ValueError: new-body"
+            }
+          },
+          "jit-ryupy-boundaries": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "55f70dd01386be82ba8083b528bc50f9e448b1df0be549eca68524c1635ddb7d",
+            "stderr_sha256": "c40dbc8d4b88e30aeeb0cbe3833d7fa9e0a2fd4a2af19c65cb4468612c0f84a1",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  422,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  420,
+                  "boundary_caller"
+                ]
+              ],
+              "exception": "NotImplementedError: deleting finalized __new__ is not supported"
+            }
+          },
+          "native-positive": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "de786a351f540a8720397fc7ce14be32730f0578841f4e163cb82227101d7703",
+            "stderr_sha256": "eb35ff69bac3e967f1279fa443b1512156107795534f5c1d16347258b6b3a381",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  297,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  295,
+                  "caller"
+                ],
+                [
+                  "construction.py",
+                  292,
+                  "__new__"
+                ]
+              ],
+              "exception": "ValueError: new-body"
+            }
+          },
+          "native-ryupy-boundaries": {
+            "status": "finished",
+            "exit": 1,
+            "stdout_sha256": "55f70dd01386be82ba8083b528bc50f9e448b1df0be549eca68524c1635ddb7d",
+            "stderr_sha256": "c40dbc8d4b88e30aeeb0cbe3833d7fa9e0a2fd4a2af19c65cb4468612c0f84a1",
+            "signature": {
+              "frames": [
+                [
+                  "construction.py",
+                  422,
+                  "<module>"
+                ],
+                [
+                  "construction.py",
+                  420,
+                  "boundary_caller"
+                ]
+              ],
+              "exception": "NotImplementedError: deleting finalized __new__ is not supported"
+            }
+          }
+        },
+        "reference": {
+          "exit": 1,
+          "stdout_sha256": "de786a351f540a8720397fc7ce14be32730f0578841f4e163cb82227101d7703",
+          "stderr_sha256": "87118bc0bcf56918f761919cc561820be4e10fad5b83612db4a3e8116b8862e4",
+          "signature": {
+            "frames": [
+              [
+                "construction.py",
+                297,
+                "<module>"
+              ],
+              [
+                "construction.py",
+                295,
+                "caller"
+              ],
+              [
+                "construction.py",
+                292,
+                "__new__"
+              ]
+            ],
+            "exception": "ValueError: new-body"
+          }
+        },
+        "dependencies": [
+          {
+            "file": "RyuPyAotHost_6532_1793683536413236500_0.exe",
+            "dependencies": [
+              "ADVAPI32.dll",
+              "bcrypt.dll",
+              "KERNEL32.dll",
+              "ole32.dll",
+              "USER32.dll",
+              "api-ms-win-crt-math-l1-1-0.dll",
+              "api-ms-win-crt-heap-l1-1-0.dll",
+              "api-ms-win-crt-string-l1-1-0.dll",
+              "api-ms-win-crt-convert-l1-1-0.dll",
+              "api-ms-win-crt-stdio-l1-1-0.dll",
+              "api-ms-win-crt-runtime-l1-1-0.dll",
+              "api-ms-win-crt-locale-l1-1-0.dll"
+            ]
+          }
+        ],
+        "original_build_paths_absent": true,
+        "build_evidence_retained": true,
+        "source_tree_action": "renamed",
+        "clean_machine_without_runtime_tested": false,
+        "status": "independently-reviewed-passed",
+        "result_sha256": "6b751d943e8ed334da2108512098d36f9835c3f61ef7758cd2fa548385e0928f",
+        "native": {
+          "size": 4692480,
+          "sha256": "6188c1d5db0f81cb8b32d81946eb86b467cbb4ba6db4c97c0524702d81cccbf3"
+        },
+        "native_package": {
+          "RyuPyAotHost_6532_1793683536413236500_0.exe": {
+            "size": 4692480,
+            "sha256": "6188c1d5db0f81cb8b32d81946eb86b467cbb4ba6db4c97c0524702d81cccbf3"
+          },
+          "RyuPyAotHost_6532_1793683536413236500_0.pdb": {
+            "size": 18583552,
+            "sha256": "aec5dec884c755c439f847b2c616b8e036cbe6db80e77b37abaa2f1dfbac8aea"
+          },
+          "ryupy-artifact.json": {
+            "size": 64743,
+            "sha256": "e5ed7d9d55c7242dc9638d4754a05b49781206f91f641258e37f7de49bfee165"
+          }
+        },
+        "sdk_logs": {
+          "publish.stdout.log": {
+            "size": 552,
+            "sha256": "15d878fc675e92ea17b60e71c0b5866dc431c454fadc81e58a2006fa85e6c13b"
+          },
+          "publish.stderr.log": {
+            "size": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        "sdk_warning_lines": [],
+        "verification": {
+          "all_four_copies_exactset_hash": true,
+          "both_jit_match_original_aot_input": true,
+          "all_retained_files_rehashed": false,
+          "retained_artifact_omissions": [
+            "ryupy-aot-6532_1793683536413236500_0/host/obj/Release/net10.0/win-x64/.NETCoreApp,Version=v10.0.AssemblyAttributes.cs"
+          ],
+          "same_mode_jit_native_raw_equal": true,
+          "fixed_complete_frames_and_markers": true,
+          "actual_ilc_log": true
+        },
+        "limits": [
+          "SDK remains installed; not a clean machine test",
+          "source and original IL renamed and retained, not deleted",
+          "CLI executable hash recorded by runner; CLI itself not in artifact for independent rehash",
+          "phase timings are not performance samples",
+          "original first-run failures remain historical evidence",
+          "One hidden SDK-generated intermediate source was omitted by artifact upload; remaining retained files independently rehashed, full original inventory only recorded by runner"
+        ],
+        "manifest_scope": {
+          "dynamic_dependency_closure_complete": false,
+          "manifest_self_hash_included": false,
+          "native_retention_proven": false,
+          "resources_included": false
+        },
+        "compiler": {
+          "build_revision": null,
+          "codegen_report_version": 1,
+          "options": {
+            "diagnostic_scalar_slp": false,
+            "experimental_direct_accumulator": false,
+            "experimental_leaf_inline": false,
+            "experimental_packed_slp": false
+          },
+          "package_version": "0.0.1"
+        },
+        "audit_log_sha256": {
+          "imports-0.stdout": "147040af6aa59cdce3ce136f8912fb5173ec3cb9c3b33ee24149950c6d655f63",
+          "imports-0.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "imports-0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "imports-0.command.json": "b36edf7a2c9e5ea5ff92d4bcaebda53f20928f19ba8dd8798f343bdf7a4aa538",
+          "dependency-0.stdout": "b1d5ad59e2945117c2f1e36d4e6aaed9cf6e846a9a02998e890ab55b1ec0e1ff",
+          "dependency-0.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "dependency-0.status.json": "bfdedf06596faa2042b0fedd9653ec1023d2e96ed56dc40b607985bc8438c1d5",
+          "dependency-0.command.json": "9812128d992ee6ca8524190c72bcdf10cbf7c362d0cd810963e0ace5679451bd"
+        }
+      }
+    ],
+    "jobs_json_sha256": "acdc37434fbe113a547fb6915ce1295ec63230905fe2509e1dc8b64e82aca66d"
+  }
+}

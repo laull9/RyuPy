@@ -104,3 +104,7 @@ module_call_capture的两个活跃测试共用同类helper，同批预防修复�
 该结果证明有限C#/真实JIT差分和组合回归；尚未将本切构造fixture编译后原生执行。
 后续先补这个有界NativeAOT缺口并评估既有通用调用成本，不继续无限增加未准入兼容功能。
 WIP仍未main，不宣布已关闭旧性能负项或增加固定项目通过分子。
+
+## 有限构造fixture原生验证闭环
+
+候选8bdb496在固定Linux x64、macOS arm64、Windows x64各一次真实NativeAOT发布，复用同AOT输入DLL跑JIT两模式与搬迁native两模式，最终ed97源CP positive各一次；原双流、完整帧及manifest/输入/副本hash均独立核验通过。详见[精简证据](../validation/aot-construction/README.md)。首99ac轻测及条件导入fixture失败不删除；SDK安装与归档隐藏中间源限制如实保留。此前本节有限原生fixture缺口关闭，不等于全类协议/项目通过，旧调用成本与WIP/main准入仍待独立决策。

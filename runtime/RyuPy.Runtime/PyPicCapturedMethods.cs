@@ -7,9 +7,14 @@ public static partial class PyPic
     public static object? CallCapturedMethod0(int site, bool captured, object? target, string name) =>
         captured ? PyOps.CallValue(target, [], [], []) : CallMethod0(site, target, name);
 
-    /// <summary>单参捕获调用，独立实参数组保护重入及返回后逃逸。</summary>
-    public static object? CallCapturedMethod1(int site, bool captured, object? target, string name, object? a0) =>
-        captured ? PyOps.CallValue(target, [a0], [], []) : CallMethod1(site, target, name, a0);
+    /// <summary>单参捕获只对受控native标量入口免数组；任意Body保独立数组与重入。</summary>
+    public static object? CallCapturedMethod1(int site, bool captured, object? target, string name, object? a0)
+    {
+        if (!captured) return CallMethod1(site, target, name, a0);
+        if (!PyOps.IsStarredArgument(a0) && PyNativeFunctions.TryInvokeUnary(target, a0, out object? result))
+            return result;
+        return PyOps.CallValue(target, [a0], [], []);
+    }
 
     /// <summary>双参捕获调用，不能缓存为某个包装类型的统一目标。</summary>
     public static object? CallCapturedMethod2(int site, bool captured, object? target, string name, object? a0, object? a1) =>

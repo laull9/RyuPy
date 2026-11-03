@@ -1,6 +1,6 @@
 # 普通单继承构造：有限 NativeAOT 验收
 
-当前已接线并通过固定解释器纯 runner 轻测。首轮Linux真实发布后JIT边界失败，原生应用尚未执行；修复后的本机普通JIT预检通过，正式三平台复验仍待，未推广main。
+当前修复候选8bdb496的正式三平台复验及独立工件核验已通过，有限构造fixture已真实原生执行；未推广main。首轮失败和开发预检继续单列，不复用为最终证据。
 初版 d03e7149 的一次 CPython 3.12.13 positive 本机校准已通过（独立前置，不算正式三 host group）。
 随后dd9077源仅补强Data边界的generated-init快路断言，positive段1–294逐字未变；该版在首轮Linux正式组完成唯一CP参考。后续imports布局修另做一次明确开发CP校准，见末节，不混为正式组计数。
 旧 smoke、七配置 ILC、C# 与 driver 专项不能代替本 fixture 的原生执行。
@@ -91,3 +91,7 @@ Enum/TestCase因而走Runtime base并被既有特殊布局限制拒绝。原已�
 均首次通过固定marker、exit1与完整帧；复用已构建runtime，无额外ILC/native或性能采样。
 这不是正式组同AOT DLL的执行证据；首次d03e校准、首轮dd9077正式组和本次ed97开发预检分别记录。
 后续正式三RID仍各一次AOT发布、CP1与四应用；无不变候选重试，既有首次失败不删除。
+
+## 修后正式三平台结果
+
+8bdb496的[run41583520724](https://github.com/laull9/RyuPy/actions/runs/41583520724)三job成功，实际每host1publish/CP1/JIT2/native2。完整双流、帧、同DLL、manifest及搬迁哈希已独立核，见[精简证据](../../docs/validation/aot-construction/README.md)。每host隐藏SDK中间源未上传仅recorded、CLI仅记录hash，核心发布与运行副本完整。SDK仍装、源改名而非删除、旧性能负项与main限制保持。
