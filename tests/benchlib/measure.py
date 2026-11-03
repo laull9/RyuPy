@@ -3,9 +3,9 @@
 # 测量口径
 
 - **墙钟（wall）**：`Popen` 到 `os.wait4` 返回的耗时，包含解释器 / .NET 宿主启动、JIT 与执行；
-- **执行（main）**：进程内统计，只计入口脚本执行。RyuPy 由 `RYUPY_STATS` 写出
+- **执行（main）**：进程内统计，从MarkMainStart计至统计点，含模块执行/JIT/GC，不含此前host/注册。RyuPy 由 `RYUPY_STATS` 写出
   （`runtime/RyuPy.Runtime/PyStats.cs`），CPython 由 `cpython_harness.py` 写出；
-  `wall - main` 近似为启动成本；
+  不是墙钟减去hello，也不声称纯算法时间；
 - **峰值内存**：`wait4` 返回的子进程 `ru_maxrss`（macOS 单位是字节，Linux 是 KiB，此处统一为字节）；
 - **分配 / GC / JIT**：仅 RyuPy 有精确的托管分配量与 JIT 耗时，CPython 只记录 GC 次数。
 
@@ -79,6 +79,7 @@ class Result:
     # "ok" / "mismatch" / "build-failed" / "run-failed" / "pending" / "ready"
     status: str = "ok"
     note: str = ""
+    backend: str = "jit"
 
 
 def target_dir(root: Path) -> Path:
@@ -102,12 +103,22 @@ def build_cli(root: Path, target: Path) -> Path:
     return cli
 
 
-def build_case(root: Path, cli: Path, bench: Benchmark, target: Path) -> tuple[Path | None, float, str]:
-    """编译一个基准；返回 (dll, 编译耗时 ms, 失败时的诊断摘要)。"""
+def build_case(root: Path, cli: Path, bench: Benchmark, target: Path, *, backend: str = "jit") -> tuple[Path | None, float, str]:
+    """返回本次DLL或已核原生入口；耗时为整次build（AOT含ILC），不计入进程采样。"""
+    if backend not in ("jit", "aot"):
+        raise ValueError("未知基准backend")
     out_dir = target / "bench" / bench.name
+    if backend == "aot":
+        # 每次使用全新自有根；构建失败绝不执行上次遗留dist。
+        parent = target / "bench" / "aot"
+        parent.mkdir(parents=True, exist_ok=True)
+        out_dir = Path(tempfile.mkdtemp(prefix=bench.name + "-", dir=parent))
+    command = [str(cli), "build", str(bench.path), "-o", str(out_dir)]
+    if backend == "aot":
+        command.append("--aot")
     start = time.perf_counter()
     result = subprocess.run(
-        [str(cli), "build", str(bench.path), "-o", str(out_dir)],
+        command,
         cwd=root,
         capture_output=True,
         text=True,
@@ -116,7 +127,16 @@ def build_case(root: Path, cli: Path, bench: Benchmark, target: Path) -> tuple[P
     if result.returncode != 0:
         first = next((line for line in result.stderr.splitlines() if line.strip()), "")
         return None, elapsed, first.strip()
-    return out_dir / f"{bench.name}.dll", elapsed, ""
+    if backend == "aot":
+        from .artifact import verified_native
+        try:
+            return verified_native(out_dir, bench, result.stderr), elapsed, ""
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            return None, elapsed, "AOT发布验证失败：" + str(error)
+    dll = out_dir / f"{bench.name}.dll"
+    if not dll.is_file():
+        return None, elapsed, "成功构建未产生DLL"
+    return dll, elapsed, ""
 
 
 def _normalize_rss(raw: int) -> int:
@@ -168,6 +188,7 @@ class Plan:
     runs: int
     with_cpython: bool
     include_pending: bool
+    backend: str = "jit"
 
 
 def _base_env() -> dict[str, str]:
@@ -180,19 +201,19 @@ def _base_env() -> dict[str, str]:
 
 
 def measure_bench(plan: Plan, cli: Path, target: Path, bench: Benchmark) -> Result:
-    result = Result(bench)
+    result = Result(bench, backend=plan.backend)
     if bench.pending and not plan.include_pending:
         result.status = "pending"
         return result
 
     env = _base_env()
     cpython_cmd = [plan.python, "-B", str(HARNESS), str(bench.path)]
-    dll, compile_ms, error = build_case(plan.root, cli, bench, target)
+    dll, compile_ms, error = build_case(plan.root, cli, bench, target, backend=plan.backend)
     result.compile_ms = compile_ms
     if dll is None:
         result.status = "pending" if bench.pending else "build-failed"
         result.note = error
-    ryupy_cmd = ["dotnet", str(dll)] if dll else None
+    ryupy_cmd = ([str(dll)] if plan.backend == "aot" else ["dotnet", str(dll)]) if dll else None
     variant_envs = {v.label: {**env, **v.env} for v in bench.variants}
 
     if plan.with_cpython or bench.pending:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """真实同宿主NativeAOT迁移验收；mac/windows不冒无SDK干净机器证明。"""
+from aot_layout import reported_aot
 import argparse
 import hashlib
 import json
@@ -121,18 +122,19 @@ def main():
             compare(reference, jit[mode], mode, python=True)
         published = run.run('publish', [ryupy, 'build', str(source/'main.py'), '--out-dir', str(il), '--aot'],
                             cwd=work, env=env, check=True, timeout=1800)
-        native = published_platform_native(published.stderr, il, args.rid)
-        result['aot_il_sha256'] = hashlib.sha256((il/'main.dll').read_bytes()).hexdigest()
-        result['aot_runtime_sha256'] = hashlib.sha256((il/'RyuPy.Runtime.dll').read_bytes()).hexdigest()
-        if hashlib.sha256((il/'RyuPy.Runtime.dll').read_bytes()).hexdigest() != result['runtime_sha256']:
+        layout = reported_aot(published.stderr, il, 'main', args.rid)
+        native = layout.native
+        result['aot_il_sha256'] = hashlib.sha256(layout.managed.read_bytes()).hexdigest()
+        result['aot_runtime_sha256'] = hashlib.sha256((layout.managed.parent/'RyuPy.Runtime.dll').read_bytes()).hexdigest()
+        if hashlib.sha256((layout.managed.parent/'RyuPy.Runtime.dll').read_bytes()).hexdigest() != result['runtime_sha256']:
             raise AssertionError('AOT与JIT runtime字节不同')
         for name in ('publish.stdout.log', 'publish.stderr.log'):
-            shutil.copy2(native.parent.parent/name, logs/('driver-'+name))
+            shutil.copy2(layout.sdk_root/name, logs/('driver-'+name))
         relocated = work/'搬迁 & native with spaces'
         manifest_file = published_manifest(published.stderr, native)
-        sdk_version = read_sdk_version(native.parent.parent/'host'/'sdk.version')
+        sdk_version = read_sdk_version(layout.host/'sdk.version')
         shutil.copy2(manifest_file, logs/'ryupy-artifact.json')
-        shutil.copy2(native.parent.parent/'host'/'sdk.version', logs/'sdk.version')
+        shutil.copy2(layout.host/'sdk.version', logs/'sdk.version')
         binary, artifact_manifest = relocate_manifest(native.parent, native, relocated, args.rid, sdk_version)
         result['deployment_manifest'] = [{'name':item['relative_path'], 'bytes':item['size'], 'sha256':item['sha256']}
                                          for item in artifact_manifest['artifacts']]

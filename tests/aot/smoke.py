@@ -106,6 +106,7 @@ def published_native(stderr, output):
 
 def main():
     from single_file import prepare_single_file, verify_single_file
+    from aot_layout import reported_aot
     # 局部导入避免platform_runner继承本模块Runner形成顶层循环；不改共享默认预算。
     from platform_runner import Runner as DeadlineRunner
     parser = argparse.ArgumentParser(description=__doc__)
@@ -150,15 +151,16 @@ def main():
                                   "--out-dir", str(il), "--aot"],
                         cwd=work, env={**os.environ, "DOTNET": dotnet},
                         check=True, timeout=1800)
-    native = published_native(published.stderr, il)
+    layout = reported_aot(published.stderr, il, "main", args.rid)
+    native = layout.native
     publish = native.parent
     # driver 保留成功 SDK 原始双流；清理构建树前必须归档，不靠 CLI 摘要。
     for name in ("publish.stdout.log", "publish.stderr.log"):
-        shutil.copy2(publish.parent / name, logs / ("driver-" + name))
+        shutil.copy2(layout.sdk_root / name, logs / ("driver-" + name))
     manifest_file = published_manifest(published.stderr, native)
-    sdk_version = read_sdk_version(publish.parent / "host" / "sdk.version")
+    sdk_version = read_sdk_version(layout.host / "sdk.version")
     shutil.copy2(manifest_file, logs / "ryupy-artifact.json")
-    shutil.copy2(publish.parent / "host" / "sdk.version", logs / "sdk.version")
+    shutil.copy2(layout.host / "sdk.version", logs / "sdk.version")
     relocated = work / "relocated"
     binary, artifact_manifest = relocate_manifest(publish, native, relocated, args.rid, sdk_version)
     # 原生+符号+清单完整搬迁；仅实际native/dynamic库候选交依赖工具，不审JSON/dbg。

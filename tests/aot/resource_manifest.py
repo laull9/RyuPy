@@ -23,14 +23,25 @@ def portable(value):
 
 
 def path_key(path):
-    return path.lower()  # portable已要求ASCII，不冒跨Unicode数据版本的全量caseless核验。
+    return path.translate(str.maketrans('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'))
+
+
+def native_basename(value):
+    # 唯一顶层native例外，不给资源路径Unicode权限；与Rust validate_name保持一致。
+    relative_path(value)
+    require('/' not in value and not value.endswith((' ', '.')), 'native必须是安全顶层分量')
+    require(not any(c in '<>"|?*' for c in value), 'native非portable字符')
+    stem = path_key(value.split('.')[0].rstrip(' '))
+    require(not re.fullmatch(r'con|prn|aux|nul|conin\$|conout\$|clock\$|com[1-9¹²³]|lpt[1-9¹²³]', stem), 'native设备名')
+    require(path_key(value) not in ('_internal', 'ryupy-artifact.json', '.ryupy-artifact.json.tmp'), 'native保留名')
+    return value
 
 
 def check_targets(artifacts, anchors):
     # 文件和隐式父目录同一表；保留原写法，禁止ASCII大小写别名。
     table = {}
-    def insert(path, kind):
-        parts = portable(path).split('/')
+    def insert(path, kind, native=False):
+        parts = (native_basename(path) if native else portable(path)).split('/')
         for count in range(1, len(parts)+1):
             original = '/'.join(parts[:count])
             current_kind = kind if count == len(parts) else 'directory'
@@ -43,8 +54,9 @@ def check_targets(artifacts, anchors):
                 table[key] = (original, current_kind)
     for path in anchors:
         insert(path, 'anchor')
+    require(sum(entry.get('role') == 'native_executable' for entry in artifacts) <= 1, '重复native角色')
     for entry in artifacts:
-        insert(entry['relative_path'], 'file')
+        insert(entry['relative_path'], 'file', entry.get('role') == 'native_executable')
     insert('ryupy-artifact.json', 'file')
     insert('.ryupy-artifact.json.tmp', 'file')
 

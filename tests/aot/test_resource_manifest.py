@@ -44,6 +44,38 @@ class ResourceManifestTests(unittest.TestCase):
             self.assertTrue((binary.parent/'symbols/program.dbg').is_file())
             self.assertEqual(dependency_binaries(binary.parent, data), [binary])
 
+    def test_unicode_root_native_with_ascii_resources_relocates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)/'publish'; data = resource_fixture(root)
+            (root/'program').rename(root/'中文入口')
+            native = next(x for x in data['artifacts'] if x['role']=='native_executable')
+            native['relative_path'] = '中文入口'; save(root,data)
+            binary,moved = relocate_manifest(root,root/'中文入口',Path(directory)/'moved','linux-x64','10.0.403')
+            self.assertEqual(binary.name,'中文入口')
+            self.assertEqual(moved,data)
+            self.assertTrue((binary.parent/data['resources'][0]['relative_path']).is_file())
+
+    def test_native_unicode_exception_does_not_expand_other_names(self):
+        native = {'relative_path':'中文入口','role':'native_executable'}
+        for path in ('中文资源.txt','symbols/中文.dbg','_internal/resources/v1/中文.txt'):
+            with self.subTest(path=path), self.assertRaises(ManifestError):
+                check_targets([native,{'relative_path':path,'role':'unclassified_sidecar'}],[])
+        for path in ('../escape','dir/入口','入口\\x','入口:bad','入口.', '入口 ',
+                     'CON .txt','com¹.exe','LPT²','_INTERNAL','RYUPY-artifact.json',
+                     '.ryupy-artifact.json.tmp','入口\x85'):
+            with self.subTest(native=path), self.assertRaises(ManifestError):
+                check_targets([{'relative_path':path,'role':'native_executable'}],[])
+        with self.assertRaises(ManifestError):
+            check_targets([native],['_internal/resources/v1/中文.py'])
+        with self.assertRaises(ManifestError):
+            check_targets([native,dict(native)],[])
+        with self.assertRaises(ManifestError):
+            check_targets([{'relative_path':'Program','role':'native_executable'},
+                           {'relative_path':'program','role':'unclassified_sidecar'}],[])
+        # Unicode字符不作casefold；明确只折叠ASCII，避免暗造跨平台Unicode等价承诺。
+        from resource_manifest import path_key
+        self.assertEqual(path_key('AİK'), 'aİK')
+
     def test_missing_extra_and_same_size_tampering_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)/'publish'; data = resource_fixture(root)

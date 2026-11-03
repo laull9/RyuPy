@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """固定五源码/七配置的 AOT 裁剪语义门禁；时长仅构建观测，不是性能结论。"""
+from aot_layout import reported_aot
 import argparse
 import hashlib
 import json
@@ -32,9 +33,9 @@ def tree_bytes(root):
                if path.is_file() and not path.is_symlink())
 
 
-def trim_build_cache(output, native):
+def trim_build_cache(output, sdk_root):
     """仅成功配置自有 host/bin、host/obj 可删，项目/源码/IL/native/日志全保。"""
-    host = native.parent.parent / "host"
+    host = sdk_root / "host"
     removed = []
     for name in ("bin", "obj"):
         cache = host / name
@@ -102,14 +103,15 @@ def main():
                               [ryupy, *flags, "build", str(source), "--out-dir", str(output), "--aot"],
                               cwd=work, env={**os.environ, "DOTNET": dotnet}, check=True, limit=180)
             record["build_seconds"] = time.monotonic() - before
-            native = published_native(published.stderr, output)
+            layout = reported_aot(published.stderr, output, source.stem, "linux-x64")
+            native = layout.native
             manifest_file = published_manifest(published.stderr, native)
-            sdk_version = read_sdk_version(native.parent.parent / "host" / "sdk.version")
+            sdk_version = read_sdk_version(layout.host / "sdk.version")
             verify_manifest(native.parent, native, "linux-x64", sdk_version)
             record["manifest_sha256"] = hashlib.sha256(manifest_file.read_bytes()).hexdigest()
             record["publish_sdk_version"] = sdk_version
             for name in ("publish.stdout.log", "publish.stderr.log"):
-                shutil.copy2(native.parent.parent / name, logs / (label + "-" + name))
+                shutil.copy2(layout.sdk_root / name, logs / (label + "-" + name))
             with native.open("rb") as stream:
                 if stream.read(4) != b"\x7fELF":
                     raise AssertionError(f"{label}: 产物不是 ELF")
@@ -117,7 +119,7 @@ def main():
             record["native_sha256"] = hashlib.sha256(native.read_bytes()).hexdigest()
             record["native_path"] = str(native)
             # 同配置实际CIL和native各一次；容器搬迁由前置smoke四mode负责。
-            jit = timed("jit-" + label, [dotnet, str(output / (source.stem + ".dll"))], cwd=work)
+            jit = timed("jit-" + label, [dotnet, str(layout.managed)], cwd=work)
             actual = timed("native-" + label, [str(native)], cwd=work,
                            env={"PATH": "/usr/bin:/bin", "HOME": str(work), "LANG": "C.UTF-8"})
             for kind, result in (("jit", jit), ("native", actual)):
@@ -125,7 +127,7 @@ def main():
                         or result.stderr != baseline.stderr):
                     raise AssertionError(f"{label}/{kind}: stdout/stderr/exit 与固定 CP 不同")
             record["artifact_bytes_before_trim"] = tree_bytes(output)
-            record["removed_build_cache"] = trim_build_cache(output, native)
+            record["removed_build_cache"] = trim_build_cache(output, layout.sdk_root)
             record["artifact_bytes_after_trim"] = tree_bytes(output)
             record["status"] = "passed"
         status = "passed"

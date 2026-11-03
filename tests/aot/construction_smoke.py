@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """普通构造有限验收：一次公开AOT、同DLL两JIT/两native；准备也计入总预算。"""
+from aot_layout import reported_aot
 import argparse
 from contextlib import contextmanager
 import hashlib
@@ -166,17 +167,11 @@ class Budget:
 
 
 def published_inputs(output, il, rid):
-    native = published_platform_native(output.stderr, il, rid)
-    published_manifest(output.stderr, native)
-    paths = [Path(line.removeprefix('已生成 ')) for line in output.stderr.decode('utf-8').splitlines()
-             if line.startswith('已生成 ')]
-    managed = [p for p in paths if p.suffix.lower() == '.dll']
-    require(len(paths) == 2 and len(managed) == 1, 'CLI需要唯一managed和native行')
-    dll = il/'construction.dll'
-    require(managed[0].is_absolute() and managed[0].samefile(dll), 'CLI托管入口不是同次DLL')
-    for p in (dll, il/'construction.runtimeconfig.json', il/'RyuPy.Runtime.dll'):
+    layout = reported_aot(output.stderr, il, 'construction', rid)
+    for p in (layout.managed, layout.managed.parent/'construction.runtimeconfig.json',
+              layout.managed.parent/'RyuPy.Runtime.dll'):
         plain_stat(p)
-    return native, dll
+    return layout.native, layout.managed
 
 
 def verify_inputs(data, il, runtime):
@@ -358,7 +353,9 @@ def main(argv=None):
             published = budget.command('aot-publish', [cli, 'build', source/'construction.py', '--out-dir', il, '--aot'], cwd=work, env=env, timeout=600)
             native, dll = published_inputs(published, il, args.rid)
         with budget.phase('relocation'):
-            aot_root = native.parent.parent
+            layout = reported_aot(published.stderr, il, 'construction', args.rid)
+            aot_root = layout.sdk_root
+            managed_dir = dll.parent
             for name in ('publish.stdout.log', 'publish.stderr.log'):
                 shutil.copy2(aot_root/name, logs/('driver-' + name))
             require(b'Generating native code' in (logs/'driver-publish.stdout.log').read_bytes(), '无本次真实ILC日志')
@@ -368,8 +365,8 @@ def main(argv=None):
             shutil.copy2(aot_root/'host/sdk.version', logs/'sdk.version')
             result['sdk'] = {'version': sdk, **file_record(logs/'sdk.version')}
             data = verify_manifest(native.parent, native, args.rid, sdk)
-            result['build_inputs'] = verify_inputs(data, il, runtime)
-            jit_files = {name: file_record(il/name) for name in ('construction.dll', 'construction.runtimeconfig.json', 'RyuPy.Runtime.dll')}
+            result['build_inputs'] = verify_inputs(data, managed_dir, runtime)
+            jit_files = {name: file_record(managed_dir/name) for name in ('construction.dll', 'construction.runtimeconfig.json', 'RyuPy.Runtime.dll')}
             archive, _ = relocate_manifest(native.parent, native, work/'native-archive', args.rid, sdk)
             result['native_manifest'] = file_record(archive.parent/MANIFEST_NAME)
             result['native_archive_files'] = inventory(archive.parent, budget.check)
@@ -380,17 +377,18 @@ def main(argv=None):
             for mode in MODES:
                 for kind in ('jit', 'native'):
                     label = kind + '-' + mode; directory = runs/label
-                    entry = (copy_jit(il, directory, jit_files, budget.check) if kind == 'jit' else
+                    entry = (copy_jit(managed_dir, directory, jit_files, budget.check) if kind == 'jit' else
                              relocate_manifest(archive.parent, archive, directory, args.rid, sdk)[0])
                     copies[label] = entry
                     result['copies'][label] = {'before': inventory(directory, budget.check)}
                     budget.check()
             plain_stat(aot_root, directory=True)
-            require(os.path.samefile(aot_root.parent, il), '原AOT根不再属于本次out-il')
+            require(os.path.samefile(layout.build.parent, il) and os.path.samefile(layout.dist.parent, il),
+                    'build/dist不再属于本次out-il')
             evidence = work/'build-evidence'; evidence.mkdir()
             result['retained'] = [retain_owned(p, work, evidence, budget) for p in (source, il)]
             # Windows CLI可带\\?\前缀；父归属已用samefile核过，勿用字符串relative_to。
-            original_native = evidence/'out-il'/aot_root.name/'publish'/native.name
+            original_native = evidence/il.name/layout.dist.name/native.name
             result.update(original_build_paths_absent=True, build_evidence_retained=True, source_tree_action='renamed')
             clean = clean_environment(work); result['native_environment'] = clean
             jit_env = {**clean, 'DOTNET_CLI_UI_LANGUAGE': 'en-US', 'DOTNET_NOLOGO': '1', 'DOTNET_CLI_TELEMETRY_OPTOUT': '1'}

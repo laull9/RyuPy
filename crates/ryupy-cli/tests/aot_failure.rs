@@ -15,7 +15,7 @@ fn cli() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_ryupy"))
 }
 
-fn verify_failure(code: i32) {
+fn verify_failure(code: i32, default_output: bool) {
     // create_dir 独占创建；断言失败保留本轮证据，成功仅清理自己创建的根。
     let root = std::env::temp_dir().join(format!(
         "ryupy-aot-failure-{}-{}",
@@ -23,15 +23,21 @@ fn verify_failure(code: i32) {
         NEXT.fetch_add(1, Ordering::Relaxed)
     ));
     fs::create_dir(&root).unwrap();
-    let out = root.join("输出 & with spaces");
-    fs::create_dir(&out).unwrap();
+    let source_dir = root.join("源码 & with spaces");
+    fs::create_dir(&source_dir).unwrap();
+    let out = if default_output {
+        source_dir.clone()
+    } else {
+        root.join("输出 & with spaces")
+    };
+    fs::create_dir_all(&out).unwrap();
     let old = out.join("ryupy-aot-old");
     fs::create_dir(&old).unwrap();
     fs::create_dir(old.join("publish")).unwrap();
     let sentinel = old.join("publish/OldNative");
     fs::write(&sentinel, b"old-native-must-survive\0").unwrap();
     fs::write(out.join("unrelated.txt"), b"user-owned-sentinel").unwrap();
-    let input = root.join("sample_alias.py");
+    let input = source_dir.join("sample_alias.py");
     fs::write(&input, "print('compile only')\n").unwrap();
     let fake = root.join("fake-sdk.sh");
     fs::write(
@@ -49,14 +55,22 @@ exit {code}
     )
     .unwrap();
     fs::set_permissions(&fake, fs::Permissions::from_mode(0o700)).unwrap();
-    let output = Command::new(cli())
-        .args([
+    let mut command = Command::new(cli());
+    if default_output {
+        // 复现用户无-o调用，并覆盖input.parent为空时应以当前源目录作为ROOT。
+        command
+            .current_dir(&source_dir)
+            .args(["build", "sample_alias.py", "--aot"]);
+    } else {
+        command.args([
             "build",
             input.to_str().unwrap(),
             "--out-dir",
             out.to_str().unwrap(),
             "--aot",
-        ])
+        ]);
+    }
+    let output = command
         .env("DOTNET", &fake)
         .env("AOT_ARGS", root.join("args.txt"))
         .env("AOT_PROJECT", root.join("project.xml"))
@@ -90,7 +104,28 @@ exit {code}
         .collect();
     assert_eq!(roots, vec![std::ffi::OsString::from("ryupy-aot-old")]);
     // 编译真实程序集保留输入stem；发布失败不等于把JIT输出宣称native。
-    assert!(out.join("sample_alias.dll").is_file());
+    assert!(!out.join("sample_alias.dll").exists());
+    let build = out.join("sample_alias.build");
+    assert!(build.join("ryupy-build-owner.json").is_file());
+    let attempts: Vec<_> = fs::read_dir(&build)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .unwrap()
+                .to_string_lossy()
+                .starts_with("attempt-")
+        })
+        .collect();
+    assert_eq!(attempts.len(), 1);
+    assert!(attempts[0].join("sample_alias.dll").is_file());
+    assert!(attempts[0].join("build-error.log").is_file());
+    assert!(!out.join("sample_alias.dist").exists());
+    assert!(
+        !source_dir.join("__pycache__").exists(),
+        "AOT默认布局不得写JIT缓存"
+    );
+    assert!(!out.join("sample_alias.build.lock").exists());
     let args = fs::read_to_string(root.join("args.txt")).unwrap();
     let args: Vec<_> = args.lines().collect();
     assert_eq!(args.first(), Some(&"publish"));
@@ -121,10 +156,15 @@ fn cleanup_owned(root: &Path) {
 
 #[test]
 fn failed_sdk_keeps_old_native_and_reports_both_streams() {
-    verify_failure(23);
+    verify_failure(23, false);
 }
 
 #[test]
 fn successful_sdk_without_new_native_cannot_reuse_old_artifact() {
-    verify_failure(0);
+    verify_failure(0, false);
+}
+
+#[test]
+fn default_aot_without_out_dir_uses_source_build_not_jit_cache() {
+    verify_failure(23, true);
 }

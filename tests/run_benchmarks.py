@@ -51,8 +51,13 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--compare", metavar="NAME", help="与已保存的 NAME.json（或路径）对比")
     parser.add_argument("--detail", action="store_true", help="额外输出资源表（分配 / GC / JIT / 内存）")
     parser.add_argument("--list", action="store_true", help="只列出基准清单")
+    parser.add_argument("--aot", action="store_true", help="NativeAOT：每例ILC构建后直接运行原生程序（POSIX）")
     parser.add_argument("--profile", action="store_true", help="对选中的基准做 dotnet-trace 采样剖析")
     args = parser.parse_args(argv)
+    if args.aot and args.profile:
+        parser.error("--aot 与 --profile 不兼容；当前profile只支持JIT")
+    if args.runs < 1 or args.warmup < 0:
+        parser.error("runs必须为正数，warmup不能为负")
     if args.quick:
         args.runs, args.warmup = 3, 1
     return args
@@ -90,8 +95,37 @@ def main(argv: list[str]) -> int:
         print("\n".join(report.describe(benches)))
         return 0
 
+    if args.aot:
+        from benchlib.artifact import host_rid
+        try:
+            host_rid()
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
     python = os.environ.get("PYTHON", sys.executable)
     target = measure.target_dir(ROOT)
+    backend = "aot" if args.aot else "jit"
+    baseline_env, baseline = None, None
+    if args.compare:
+        baseline_file = results_path(target, args.compare)
+        try:
+            baseline_env, baseline = report.load(baseline_file)
+            report.validate_backend(backend, baseline_env, baseline)
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f"基线不可比较：{error}", file=sys.stderr)
+            return 2
+    # 显式命名保存也须隔离后端；旧无字段结果按历史JIT解释，不静默覆盖。
+    if args.save:
+        saved_file = results_path(target, args.save)
+        if saved_file.exists():
+            try:
+                saved_env, saved_results = report.load(saved_file)
+                if not isinstance(saved_env, dict):
+                    raise ValueError("保存目标environment不是对象")
+                report.validate_backend(backend, saved_env, saved_results)
+            except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+                print(f"保存目标不可覆盖：{error}", file=sys.stderr)
+                return 2
     cli = measure.build_cli(ROOT, target)
     if args.profile:
         return run_profiles(cli, target, benches)
@@ -102,6 +136,7 @@ def main(argv: list[str]) -> int:
         runs=args.runs,
         with_cpython=not args.no_cpython,
         include_pending=args.include_pending,
+        backend=backend,
     )
     # 先跑启动基准（suite 排序保证 startup 在最前），让后续表格能引用启动成本
     results = []
@@ -109,22 +144,17 @@ def main(argv: list[str]) -> int:
         print(f"[{index}/{len(benches)}] {bench.name} ...", flush=True, file=sys.stderr)
         results.append(measure.measure_bench(plan, cli, target, bench))
 
-    env = report.environment(ROOT, python, args.runs, args.warmup)
+    env = report.environment(ROOT, python, args.runs, args.warmup, backend)
     lines = [""] + report.time_table(results) + [""]
     lines += report.summary(results) + report.startup_line(results)
     lines += report.environment_lines(env)
     if args.detail:
         lines += ["", *report.resource_table(results)]
     if args.compare:
-        baseline_file = results_path(target, args.compare)
-        if not baseline_file.exists():
-            print(f"找不到基线结果：{baseline_file}", file=sys.stderr)
-            return 2
-        baseline_env, baseline = report.load(baseline_file)
         lines += ["", *report.compare_table(results, baseline_env, baseline)]
     print("\n".join(lines))
 
-    report.save(results_path(target, "latest"), env, results)
+    report.save(results_path(target, "latest-aot" if args.aot else "latest"), env, results)
     if args.save:
         saved = results_path(target, args.save)
         report.save(saved, env, results)

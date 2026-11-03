@@ -1,0 +1,61 @@
+# ADR-0052：AOT 构建目录、交付目录与基准后端
+
+状态：WIP；源码必要审与纯工具专项通过，布局 Rust 专项14项、5项假 SDK 生命周期通过，完整正常门禁通过；未执行新原生发布或基准，未 main。
+
+## 用户入口
+
+GNU make 不接受自定义 `--aot` 参数。提供 `make bench-aot`，等价 `make bench ARGS='--aot'`；底层 `tests/run_benchmarks.py --aot`。不替换系统 make，也不修改任何基准源或规模。
+
+高层 `ryupy build --aot path/name.py` 默认生成 `path/name.build/` 和 `path/name.dist/`。显式 `--out-dir ROOT` 对 AOT 表示共同根，得到 `ROOT/name.build/` 与 `ROOT/name.dist/`。普通 JIT 默认 `__pycache__/name/` 及显式输出语义不变。
+
+`.build` 保存每次独占 attempt 的托管程序集、运行时、SDK host、日志及中间输入；`.dist` 保存最终原生程序 `name`（Windows 为 `name.exe`）、必要外置内容、符号旁件和 `ryupy-artifact.json`。内部 host 仍用唯一程序集名称，不能与被引用的 `name.dll` 撞名。最终改名后重算清单相对路径、哈希和完整文件集合；不删符号或猜测依赖闭包。资源继续位于 `_internal`。唯一根级 native 文件名允许安全 Unicode，保留原先合法中文入口；非 native 旁件、资源与 selected anchors 仍保持原 ASCII 合同，不放宽资源目标命名。
+
+低层 NativeAOT publish API 保留随机独占工作树，只有高层构建使用此布局。CLI 报告实际 managed/native/manifest 路径；验收工具据本次报告查证，不从历史目录任取可执行文件。
+
+## 所有权与失败
+
+同目标独占锁拒绝并发。build 内版本化 owner 绑定源路径与 stem，完整 ledger 记录根内文件/目录、大小、哈希和条目权限（不含 build/dist 根本身的 mode）；既有 build/dist 未拥有、被修改、增加内容或存在链接时拒绝接管，不删除用户文件。用户选择的 ROOT 先规范化，内部边界拒绝 symlink/reparse。
+
+候选在本次 attempt 内准备、核验，再将旧 dist 移为备份并安装新 dist。安装失败恢复旧版本；只有最终内容与 owner 提交成功才返回成功。两次 rename 不是跨平台原子交换：正常离开释放本轮锁；崩溃遗留或已存在锁不自动接管/清除。回滚或元数据提交失败保留现场并明确失败，后续以 owner 不一致拒绝继续，不自动猜测状态。
+
+首切保留历史 attempt/backup，因此校验成本随历史总字节线性增长。元数据上限32MiB，单文件8GiB、完整树64GiB、100000条目、深度64；实际有限读取与变更检查，超限明确失败而非自动删缓存。可选择新的输出根。验收工具主动删中间缓存后的树不再宣称可通过原 ledger 复用。
+
+## 基准口径
+
+AOT 每例在全新输出根编译，必须通过本次清单、输入哈希、原生头和执行权限核验；只直接执行 `.dist` 原生入口。编译失败不读取旧产物，也不回退 dotnet/JIT。`compile_ms` 包含完整构建和 ILC，不是纯 CIL 或纯 ILC 时间；构建在 wall/main 采样之外。
+
+保存和报告明确 `jit` / `aot` 后端，默认拒绝跨后端 baseline 比较，显式 `--save` 同名目标若已有不同后端或无效结果，也在 CLI/用例构建前拒绝且保留原字节；同后端保持原覆盖行为，不新承诺并发原子写；无后端字段的旧结果只按历史 JIT 解释。原1次热身、5个新进程计时、执行顺序和输出校验不变。失败或输出不匹配的记录不进入有效加速比/几何平均。
+
+wall 包含进程启动；main 从运行时 MarkMainStart 到统计点，含入口执行及该段 JIT/GC。资源列仍来自最后计时进程，wall/main/RSS 保留原中位数聚合；标为 MiB 而非含混 MB。AOT 仅 JIT 专属列展示 N/A，原 stats 保留，分配/GC/main 不隐藏。默认 JIT 固定窗口不等于 Tier1 稳态。
+
+当前基准 runner 使用 POSIX wait4，仅声明 Linux x64/macOS arm64 AOT 模式；包装发布本身仍须三平台验证。`--aot --profile` 在 runner 构建 CLI/用例前拒绝，make 的 runtime prerequisite 仍可能先运行。无新增 Windows benchmark 或 AOT profiler 承诺。
+
+## 验证与历史边界
+
+本轮正常 `make check` 终态 exit0：fmt/clippy、587项C#、228项CP基线、workspace、202项e2e通过加30项ignored。未用快照批量接受或FORCE。此门禁不代表新布局真实NativeAOT或基准运行完成。
+
+新布局解析及构造薄工具在固定 CPython3.12.13 下26项纯测试通过；bench首8项纯 mock 测试通过，补保存保护后固定13共10项通过，均未执行真实 SDK publish、native 或性能样本。原4项 CLI 假 SDK 生命周期及新增无 `-o` 的相对路径用例合计5/5通过，验证源码旁 `.build`、失败无 `.dist`、不写 JIT 缓存。布局首次 cargo 因集成漏复制3个新模块在编译前失败，补齐后原12/12通过，Unicode native 与非 Unicode 资源隔离增量后14/14通过，独立 Python 清单核验9/9通过（均固定3.12.13工具，Windows分支尚待真实宿主）；保留失败记录，不计为测试通过。
+
+活跃普通/平台/资源/绑定/构造/coverage 工具迁移到新报告路径；原判据和预算不变。冻结的 module-call 固定36及历史 perf/pair/lazy 工具和匹配工作流不改；这些历史脚本仍绑定旧布局，不宣称可直接用于新高层输出。最终36历史结论和 matmul 禁 tier 回退仍开放，不由本布局或新 bench 接口关闭。
+
+## 最小真实命令管线（接线待运行）
+
+本机未发现 clang 或 ILCompiler 缓存，不盲目启动本地发布。计划在原 Ubuntu AOT smoke 环境增加一次 `make bench-aot BENCH=hello ARGS='--save <本次唯一名>'`，只用原 hello 源，保默认1次热身+5次计时，即依据固定 runner 推导 CP/native 各6次；不冒独立逐进程追踪。额外仅1次 hello AOT构建，不能当全基准组或 M5 性能复现。
+
+现有 Runner 对整个 make 进程组强制1800秒总期限（包括 runtime、Release CLI、ILC 和采样），外层step32分钟，原Linux整job45分钟仍是更外层上限，前序步骤可能缩短本步可用窗口，不保证完整1800秒；没有单应用30秒或单publish600秒限额，不改原wait4计时器。保存make原双流、原saved JSON、唯一fresh bundle关联及清单/输入哈希，检查backend、warmup/runs、唯一hello成功与5个计时点；不重跑输出，也不导出速度结论。4项纯mock在固定3.12.13通过，真实流程仍待授权远端执行。
+
+已有三平台布局/资源/绑定/构造回归保原预算与判据；新增布局解析纯测接入现Linux/host环境，不新增基准平台矩阵。生成的 `*.build/`、`*.dist/`、`*.build.lock/` 仅按目录加入本仓库ignore，已核无现存tracked目录冲突；不自动删除任何目录或忽略源码/JSON。
+
+## 原始 ABC 示例的默认目录验证（接线待运行）
+
+macOS 另增加一次用户指定的原 `tests/e2e/phase3/m3_6_abc.py` 功能验证。原字节复制到独占目录，保留 basename；实际公开 CLI 使用 `build --aot` 且不传 `-o`。预期源码旁 `m3_6_abc.build/`、`m3_6_abc.dist/` 与正确命名入口。固定 SDK10.0.403，单次 CP3.12.13参考、单次 AOT发布、单次完整 dist 搬迁后 native执行，0次JIT；原始双流逐字比较，并核完整清单及输入/产物哈希。
+
+原 source/build/dist 根整体改名留证后才执行搬迁副本，不删除证据；SDK仍安装，不称干净机器或 macOS12实机验证。统一900秒总期限，publish最多600秒、参考及native各最多30秒，末尾核验也受总期限约束；step16分钟及原host job55分钟是外层上限，前序步骤可能缩短窗口。固定3.12.13下3项纯测试通过，真实应用与发布尚未运行。
+
+本批预定四个现有工作流共9个job、21次发布：Linux原9次加hello1次，Mac/Windows原合计4次加Mac原ABC1次，绑定三平台3次，构造三平台3次。原覆盖不删减；固定36与历史性能工作流不触发。hello只验证公开基准管线，ABC只验证原示例默认布局，不据此发布全基准性能结论。
+
+## 原始证据归档完整性
+
+四个本批流程仅对工具自身的证据根启用隐藏文件上传，不上传仓库根、home、全局SDK/NuGet缓存或凭据。这样保留SDK生成的隐藏 `AssemblyAttributes.cs`，避免沿用旧轮该文件仅runner记录的缺项。owner本身为非隐藏 `ryupy-build-owner.json`。coverage原有主动删中间缓存策略不变，其记录不冒删除后可完整恢复原build ledger；其他有意删改的负例副本也不冒原树。
+
+hello另将本次唯一fresh `.build/.dist` 普通树复制到证据根 `owned-bundle`，保隐藏项、空目录、条目mode与owner原字节；复制前后size/SHA/mode全核，副本清单及managed/runtime输入再核，原1800秒期限不变。失败仅在唯一安全fresh树且仍有预算时尽力归档，归档失败不遮原make错误。owner哈希用于原构建证据，不表示其绝对source绑定在复制后可再次构建；根mode不在既有ledger范围。此增量固定3.12.13共6项纯mock通过，未新增任何应用执行。

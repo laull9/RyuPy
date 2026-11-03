@@ -32,7 +32,7 @@ enum Command {
     /// 编译为 .dll（加 --aot 生成原生可执行文件）
     Build {
         input: PathBuf,
-        /// 产物目录，默认 <源文件目录>/__pycache__/<文件名>/
+        /// 输出根；AOT默认源目录下<文件名>.build/.dist，JIT默认__pycache__/<文件名>/
         #[arg(short, long)]
         out_dir: Option<PathBuf>,
         #[arg(long)]
@@ -128,7 +128,17 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             native_binding,
             search_paths,
         } => {
-            let out_dir = out_dir.unwrap_or_else(|| default_out_dir(&input));
+            let out_dir = out_dir.unwrap_or_else(|| {
+                if aot {
+                    input
+                        .parent()
+                        .filter(|p| !p.as_os_str().is_empty())
+                        .unwrap_or_else(|| std::path::Path::new("."))
+                        .to_path_buf()
+                } else {
+                    default_out_dir(&input)
+                }
+            });
             let artifacts = ryupy_driver::build_configured(
                 sess,
                 &BuildOptions {

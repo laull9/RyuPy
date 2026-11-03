@@ -110,7 +110,7 @@ pub(crate) fn build(
         },
     }
 }
-fn validate_name(name: &str) -> Result<()> {
+pub(crate) fn validate_name(name: &str) -> Result<()> {
     ensure!(
         !name.is_empty()
             && !name.ends_with([' ', '.'])

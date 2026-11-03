@@ -25,3 +25,8 @@ __pycache__/
 /docs/validation/aot-driver-local/e2e.jsonl
 /docs/validation/aot-reference-identity/*.log
 /docs/validation/aot-reference-identity/e2e.jsonl
+
+# 高层 NativeAOT 生成目录及独占构建锁（不忽略源码/清单文件本身）。
+*.build/
+*.dist/
+*.build.lock/
