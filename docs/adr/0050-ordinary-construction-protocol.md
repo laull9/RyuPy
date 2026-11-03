@@ -1,7 +1,7 @@
 # ADR-0050：普通单继承类的有限 new/init 协议
 
 - 日期：2026-11-03
-- 状态：本地候选；冷编译接点、真实driver专项与完整正常门禁通过，远端尚待。
+- 状态：本地候选；冷编译接点、真实driver专项与完整正常门禁通过，三平台语义专项已过；首轮Mac组合在旧测试helper失败，窄修待远端。
 
 ## 目标与边界
 
@@ -64,3 +64,24 @@ DC激活以及真实TestCase自有两层链的祖先late-new，未修改共享Te
 fmt/clippy及workspace测试通过，未使用INSTA FORCE/UPDATE；原失败日志保留。
 
 本轮不增加项目通过分子、不新跑性能或原生B专项；远端复验范围后续单列。
+
+## 首轮三平台专项与测试目录修复
+
+候选 `d510f0c` 的 [Linux](https://github.com/laull9/RyuPy/actions/runs/41578330555)
+与 [Mac/Windows](https://github.com/laull9/RyuPy/actions/runs/41578330527) 官方日志均确认
+33项C#（Quitter10、object A11、本切12）及本切4个真实driver通过；A仍3通过加完整富比较
+1 ignored。Linux/Windows整job成功；Mac随后旧Quitter只有2/3通过，caller测试在
+`quitter.rs`独占create_dir报AlreadyExists，尚未进入后续ILC，不将该job称全绿。
+
+原Quitter root仅PID+timestamp，缺同进程序号。本次只测试helper改PID+timestamp+AtomicU64，
+create成功后才获得清理权；保独占创建、panic现场及原Python期望。只读盘点发现
+module_call_capture的两个活跃测试共用同类helper，同批预防修复，但不称本轮已发生该故障。
+其余三个单次使用的同类root不扩改；不引通用临时文件框架或生产变更。
+两helper各加固定timestamp+8线程barrier回归，保全部目录同时存活到唯一/存在断言之后。
+本机实际Quitter4/4、module_call_capture3通过加1原static-def身份ignored；远端修后仍待。
+本切fixture尚未做原生AOT执行；既有组合publish不能替代该项，不增加项目或性能结论。
+
+原日志SHA256（不将原日志入库）：
+- Linux：`4f4ccd45ab1499e52671ff457495a22267c7c162d0c0e45bc979a26b25a00d04`
+- Mac：`df796deb3c0523f38737e52b93414132ab1b1ed597ce404f53b7e45968e44afe`
+- Windows：`78db8380569c56fef287fd6c2b6cdf770d6b22d6bcfda8091c14ee8a60ae1a72`
