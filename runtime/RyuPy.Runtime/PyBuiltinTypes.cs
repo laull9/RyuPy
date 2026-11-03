@@ -7,6 +7,8 @@ public static partial class PyOps
     private static bool MatchesType(object? value, object? type) => type switch
     {
         PyTypedDictType => PyTypedDictType.RejectRuntimeCheck(),
+        // 到这里第二参数已经是合法的真实根类型；tuple短路仍由调用方逐项执行。
+        PyType root when ReferenceEquals(root, PyBaseObject.Type) => true,
         PyNativeType native => native.Accepts(value),
         PyClass cls => PyObject.IsInstance(value, cls),
         PyType pyType => MatchesBuiltin(value, pyType.Name),
@@ -61,6 +63,8 @@ public static partial class PyOps
     private static bool IsSubclassOf(object? child, object? parent) => (child, parent) switch
     {
         (_, PyTypedDictType) => PyTypedDictType.RejectRuntimeCheck(),
+        (PyClass or PyType or PyNativeType or PyTypedDictType, PyType root)
+            when ReferenceEquals(root, PyBaseObject.Type) => true,
         (PyTypedDictType, PyType { Name: "dict" or "object" }) => true,
         (PyTypedDictType, _) => IsSubclassOf(PyType.Get("dict"), parent),
         (PyType { Name: "_TypedDictMeta" }, PyType { Name: "type" or "object" }) => true,

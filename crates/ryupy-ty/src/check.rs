@@ -424,7 +424,8 @@ impl FunctionChecker<'_> {
             ExprKind::Func(id) => Ty::Func(*id),
             ExprKind::Builtin(builtin) => match builtin {
                 ryupy_hir::Builtin::Str => Ty::Str,
-                ryupy_hir::Builtin::Type => Ty::Dynamic,
+                // object作为值是可调用的驻留类型；不能把局部alias推导成None。
+                ryupy_hir::Builtin::Type | ryupy_hir::Builtin::Dynamic("object") => Ty::Dynamic,
                 _ => Ty::None,
             },
             ExprKind::Binary { op, lhs, rhs, .. } => {

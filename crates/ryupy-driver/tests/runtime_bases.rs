@@ -50,12 +50,12 @@ fn unsupported_metaclass_is_rejected_before_body_without_rebinding() {
 
 #[test]
 fn rebound_enum_import_does_not_select_native_enum_lowering() {
-    // 旧HIR诊断案例迁移为实际运行时拒绝：重绑后绝不能继续按Enum成员转换。
+    // canonical object已支持：保原Enum别名重绑，实际类必须是普通根派生而非Enum成员转换。
     let root =
         ryupy_driver::runtime::workspace_root().join("target/test_runtime_base_rebound_enum");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
-    std::fs::write(&input, "from enum import Enum as Base\nBase = object\nC = 'old'\ntry:\n    class C(Base):\n        A = 1\nexcept NotImplementedError:\n    print(C)\n").unwrap();
+    std::fs::write(&input, "from enum import Enum as Base\nBase = object\nC = 'old'\nclass C(Base):\n    A = 1\nassert type(C.A) is int and C.A == 1\nassert not hasattr(C.A, 'name')\nassert C.__bases__ == (object,)\nassert issubclass(C, object)\ninstance = C()\nassert type(instance) is C and isinstance(instance, object)\nassert instance.A == 1\nprint('ordinary-object-base', C.A)\n").unwrap();
     let mut session = Session::default();
     let artifact = ryupy_driver::build(
         &mut session,
@@ -75,5 +75,8 @@ fn rebound_enum_import_does_not_select_native_enum_lowering() {
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(result.stderr.is_empty());
-    assert_eq!(String::from_utf8_lossy(&result.stdout), "old\n");
+    assert_eq!(
+        String::from_utf8_lossy(&result.stdout),
+        "ordinary-object-base 1\n"
+    );
 }

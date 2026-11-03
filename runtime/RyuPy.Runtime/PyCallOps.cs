@@ -105,7 +105,7 @@ public static partial class PyOps
     /// <summary>作为值传递的受支持内建构造器；dataclass工厂等不能把list类型误判为不可调用。</summary>
     internal static bool IsBuiltinConstructor(string name) => name is
         "int" or "float" or "str" or "bool" or "list" or "tuple" or "dict" or "set" or "frozenset"
-        or "bytes" or "bytearray" or "type";
+        or "bytes" or "bytearray" or "type" or "object";
 
     /// <summary>位置实参里是否含 <c>*iterable</c>。</summary>
     private static bool HasStarred(object?[] rawArgs)
