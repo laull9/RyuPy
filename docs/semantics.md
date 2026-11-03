@@ -562,15 +562,40 @@ Ellipsis 为真实单例，源码 `...` 不受用户重绑同名内建名字影�
 
 ### object 基础实例与既有富比较边界
 
-本地候选只补真实canonical object及无字典基础实例、有限单继承根关系；不改变普通类
-现有构造入口（尚未分派用户__new__）。显式object.__new__(用户类)仍明确不支持。全局比较ABI的bool返回
+ADR0049历史首切只补真实canonical object及无字典基础实例、有限单继承根关系；当时尚未分派用户__new__，显式object.__new__(用户类)也未实现。后续ADR0050的有限普通构造已随打包批次进入main，当前行为以下段为准。全局比较ABI的bool返回
 及!=取反旧债保留完整CP正期待为ignored，不因sentinel基础比较通过宣称任意富比较完成。
 详见[ADR-0049](adr/0049-base-object-identity.md)，验收状态以该文档实际记录为准。
 
 
-### 普通构造协议候选与槽历史限制
+### 普通构造协议与槽历史限制
 
 ADR0049的object基础实例已独立验收；后续[ADR0050](adr/0050-ordinary-construction-protocol.md)
-候选才处理普通单继承new/init，不能把A历史拒绝当B最终行为。候选按实际返回类选择init，
+已处理普通单继承new/init并进入main，不能把A历史拒绝当B最终行为。按实际返回类选择init，
 foreign返回跳过；special布局customnew、finalized类own new删除/late根槽重设明确拒，
 不模拟CP槽生命周期。完整合法CP历史正例留pending；全局富比较bool ABI旧债仍未修。
+
+
+### int 构造签名与文本进制（本地候选）
+
+`int()`、单参数数值转换、str/bytes/bytearray文本及显式base共用实际绑定和严格解析。
+除固定单普通位置数值参数外，参数全部按普通调用求值/展开后检查，不丢base或错误调用的副作用。
+支持base0或2至36、前缀/符号/严格下划线、Unicode十进制数字；bytes不作UTF8数字转换。
+显式base的`__index__`先于读取文本，普通对象无base先`__int__`再`__index__`。
+非2幂进制固定4300位，尚无sys阈值设置；2幂线性位打包，无额外人工bit上限。
+
+弃用`__trunc__`、协议返回bool所需warning和无base memoryview解析仍明确NotImplementedError，
+[原CP正例](../tests/fixtures/int_constructor/deprecated_protocols.py.pending)保留，不计通过。
+直接bool及base=False不属于上述弃用路径。完整int子类/构造元数据、其它构造器签名不在本切。
+静态float转I64宽度旧边界未扩大，详见[ADR0053](adr/0053-int-constructor-binding.md)。
+
+错误链测试另暴露旧异常快照差异：函数内部抛出并就地捕获的异常可能提前带入尚未传播的外层caller帧。
+[完整原CP期望](../tests/fixtures/int_constructor/nested_context_frames.py.pending)保留；本切不修改全局traceback。
+int的模块级context→函数调用错误仍逐项核完整帧和链顺序，不能以新case通过冒称该旧差异已修。
+
+
+### abs 调用形态（本地候选）
+
+只有固定一个普通位置参数保原数值转换快路；零参、多参、关键字及星号完整求值/展开后绑定。
+成功绑定才调用一次`__abs__`，返回任意对象身份不改；abs自身绑定及badoperand错误记录调用现场。
+通用调用层未加EH或name检查，无效星号展开的既有现场边界保完整pending，不冒全调用栈修复。
+详见[ADR0054](adr/0054-abs-call-binding.md)，不是新项目或性能结果。

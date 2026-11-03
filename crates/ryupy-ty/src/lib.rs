@@ -30,3 +30,9 @@ mod primitive_attribute_tests;
 
 #[cfg(test)]
 mod module_location_tests;
+
+#[cfg(test)]
+mod int_constructor_tests;
+
+#[cfg(test)]
+mod abs_constructor_tests;

@@ -535,9 +535,11 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 > 后续候选影响面与成本见 [项目阻断排序](docs/project-backlog.md)，不是本轮自动新增scope。
 > 由 M3.7 原无限补阻塞要求与 M3.10 原兼容验收拆出；用户批准的是排期与验收分离，不是减少项目、改变成功标准或宣布已完成。当前仍 5/20。M3.8 桥接仍未完成，M3.9 已独立完成首批验证；二者都不能替代本兼容门。
 
-- [~] 普通单继承真实 `__new__` / `__init__`：本地门禁/三平台语义与有限fixture NativeAOT已验，WIP未main；保专用布局与罕见槽历史冷拒绝，不扩元类/多继承、不计项目通过（[ADR-0050](docs/adr/0050-ordinary-construction-protocol.md)）
-- [~] 真实 `object()` 基础实例/身份与sentinel：本地完整门禁与三平台专项/组合CI通过，WIP未main；派生构造协议和任意返回富比较旧债独立，不计项目通过（[ADR-0049](docs/adr/0049-base-object-identity.md)）
-- [~] 默认 site 的真实 `exit` / `quit` Quitter：参数/关闭stdin/异常上下文/一等身份与重绑专项及完整门禁通过，三平台专项及组合回归通过（旧测试目录碰撞已窄修并保失败历史），仍为WIP未main，不计项目通过（[ADR-0048](docs/adr/0048-default-site-quitters.md)）
+- [~] 普通单继承真实 `__new__` / `__init__`：本地门禁/三平台语义与有限fixture NativeAOT已验，已随打包批次进入main；保专用布局与罕见槽历史冷拒绝，不扩元类/多继承、不计项目通过（[ADR-0050](docs/adr/0050-ordinary-construction-protocol.md)）
+- [~] 真实 `object()` 基础实例/身份与sentinel：本地完整门禁与三平台专项/组合CI通过，已随打包批次进入main；派生构造协议和任意返回富比较旧债独立，不计项目通过（[ADR-0049](docs/adr/0049-base-object-identity.md)）
+- [~] 默认 site 的真实 `exit` / `quit` Quitter：参数/关闭stdin/异常上下文/一等身份与重绑专项及完整门禁通过，三平台专项及组合回归通过（旧测试目录碰撞已窄修并保失败历史），已随打包批次进入main，不计项目通过（[ADR-0048](docs/adr/0048-default-site-quitters.md)）
+- [~] `int()` / 显式进制构造的真实参数绑定与求值顺序：671a48c最小差分证实第二参数及副作用被旧conversion遗漏；本地有限签名/严格文本解析、16项runtime、3项真实driver和完整门禁已通过，待远端验收，不计项目通过（[ADR-0053](docs/adr/0053-int-constructor-binding.md)）。
+- [~] `abs` 完整实参求值与严格单参绑定：保原数值快路，修额外参数/星号被遗漏的现有错误，8项runtime、3项真实driver及完整门禁已通过，待远端验收（[ADR-0054](docs/adr/0054-abs-call-binding.md)）。
 - [ ] 冻结分母不变，至少 80% 项目原生通过预定入口与上游测试范围；若未达标，继续按失败阻塞排序实现
 - [ ] 另列桥接、带偏差、部分通过与不支持结果，注明平台、Python / .NET 版本、传递依赖和验证日期
 - [ ] 更新逐 API 标准库清单，所有未通过项有具体失败原因；不把 import 成功等同功能通过

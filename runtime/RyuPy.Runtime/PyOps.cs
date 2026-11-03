@@ -372,10 +372,8 @@ public static partial class PyOps
         bool b => b ? 1L : 0L,
         long or int or BigInteger => PyInt.Normalize(PyInt.ToBigInteger(value)),
         double d => PyInt.Normalize(TruncateToInteger(d, "float")),
-        string s => PyInt.Normalize(PyInt.ParseDecimal(s)),
-        _ => throw new PyTypeError(
-            $"int() argument must be a string, a bytes-like object or a real number, not '{PyRepr.TypeName(value)}'"
-        ),
+        string s => PyIntText.Parse(s, 10),
+        _ => PyIntConstructor.ConvertObject(value),
     };
 
     /// <summary><c>float(x)</c>，结果为动态值。</summary>
@@ -402,7 +400,8 @@ public static partial class PyOps
             return Math.Abs(d);
         }
         if (PyObject.TryMethod(value, "__abs__", [], out object? result)) return result ?? PyNone.Instance;
-        throw new PyTypeError($"bad operand type for abs(): '{PyRepr.TypeName(value)}'");
+        throw (PyBaseException)PyErrors.PrepareRaise(
+            new PyTypeError($"bad operand type for abs(): '{PyRepr.TypeName(value)}'"));
     }
 
     /// <summary>整数 / 布尔转 <c>double</c>；超出 <c>double</c> 范围时报 <c>OverflowError</c>。</summary>
