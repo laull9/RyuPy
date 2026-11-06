@@ -60,9 +60,12 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
     blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
     (
         Function {
+            module_state: None,
+            module_state_source: None,
             name: "sum".into(),
             codegen_name: "sum".into(),
             source_file: "sum.py".into(),
+            definition: None,
             params: vec![rhs],
             ret: MirType::Dynamic,
             body: Body {
@@ -77,6 +80,7 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
             defaults_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [entry, header, body, latch, exit],
         [total, temp, rhs],

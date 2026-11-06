@@ -2,30 +2,39 @@
 
 use dotnetdll::prelude::*;
 
-pub(crate) fn build(
-    res: &mut Resolution<'static>,
-    runtime: AssemblyRefIndex,
-) -> (
-    MethodRefIndex,
-    MethodRefIndex,
-    MethodRefIndex,
-    MethodRefIndex,
-) {
-    let resume = res.push_type_reference(type_ref! { RyuPy.Runtime.PyResume in #runtime });
-    let generator = res.push_type_reference(type_ref! { RyuPy.Runtime.PyGenerator in #runtime });
-    let resume: MethodType = BaseType::class(resume).into();
-    let generator: MethodType = BaseType::class(generator).into();
-    let delegate_ctor =
-        res.push_method_reference(method_ref! { void @resume::.ctor(object, nint) });
-    let generator_ctor = res.push_method_reference(method_ref! {
-        void @generator::.ctor(@resume, object[], string, string)
-    });
-    let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
-    let ops: MethodType = BaseType::class(ops).into();
-    let input =
-        res.push_method_reference(method_ref! { static object @ops::GeneratorInput(object) });
-    let retry = res.push_method_reference(method_ref! { static object @ops::GeneratorRetry() });
-    (delegate_ctor, generator_ctor, input, retry)
+pub(crate) struct GeneratorRefs {
+    pub resume_ctor: MethodRefIndex,
+    pub ctor: MethodRefIndex,
+    pub ctor_with_origin: MethodRefIndex,
+    pub input: MethodRefIndex,
+    pub retry: MethodRefIndex,
+}
+
+impl GeneratorRefs {
+    pub(crate) fn build(res: &mut Resolution<'static>, runtime: AssemblyRefIndex) -> Self {
+        let resume = res.push_type_reference(type_ref! { RyuPy.Runtime.PyResume in #runtime });
+        let generator =
+            res.push_type_reference(type_ref! { RyuPy.Runtime.PyGenerator in #runtime });
+        let resume: MethodType = BaseType::class(resume).into();
+        let generator: MethodType = BaseType::class(generator).into();
+        let ops = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #runtime });
+        let ops: MethodType = BaseType::class(ops).into();
+        Self {
+            resume_ctor: res
+                .push_method_reference(method_ref! { void @resume::.ctor(object, nint) }),
+            // 无来源的手工MIR保留既有四参ABI，真实工厂显式传同一个owner引用。
+            ctor: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object[], string, string)
+            }),
+            ctor_with_origin: res.push_method_reference(method_ref! {
+                void @generator::.ctor(@resume, object[], string, string, object)
+            }),
+            input: res.push_method_reference(method_ref! {
+                static object @ops::GeneratorInput(object)
+            }),
+            retry: res.push_method_reference(method_ref! { static object @ops::GeneratorRetry() }),
+        }
+    }
 }
 
 /// yield-from的四个静态协议入口，不在后端解释委托语义。

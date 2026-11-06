@@ -39,9 +39,12 @@ fn sample() -> (Function, [LocalId; 5]) {
     });
     (
         Function {
+            module_state: None,
+            module_state_source: None,
             name: "float_chain".into(),
             codegen_name: "float_chain".into(),
             source_file: "float_chain.py".into(),
+            definition: None,
             params: vec![a, b, c],
             ret: MirType::Dynamic,
             body: Body {
@@ -56,6 +59,7 @@ fn sample() -> (Function, [LocalId; 5]) {
             specialization_identity_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [a, b, c, middle, result],
     )

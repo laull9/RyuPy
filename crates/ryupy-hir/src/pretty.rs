@@ -333,9 +333,13 @@ fn dump_stmt(
             }
             for &handler_id in handlers {
                 let handler = &body.handlers[handler_id];
-                let header = match &handler.types {
-                    None => "except:".to_string(),
-                    Some(types) => format!("except {}:", types.join(" | ")),
+                let header = if let Some(target) = handler.type_expr {
+                    format!("except dynamic {}:", dump_expr(module, body, target))
+                } else {
+                    match &handler.types {
+                        None => "except:".to_string(),
+                        Some(types) => format!("except {}:", types.join(" | ")),
+                    }
                 };
                 match handler.name {
                     Some(binding) => writeln!(
@@ -391,6 +395,7 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .unwrap_or_else(|| "None".to_owned())
         ),
         ExprKind::UnresolvedGlobal(name) => format!("<unresolved {name}>"),
+        ExprKind::ModuleMetadata(module, name) => format!("module_metadata({module}, {name})"),
         ExprKind::ModuleFile(name) => format!("module_file({name})"),
         ExprKind::Missing => "<missing>".to_string(),
         ExprKind::Literal(lit) => match lit {

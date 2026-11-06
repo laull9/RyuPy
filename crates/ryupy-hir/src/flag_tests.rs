@@ -8,6 +8,7 @@ fn lower(source: &str, native: &[&str]) -> (crate::Module, Vec<ryupy_base::Diagn
     lower_module_with_native_exceptions(
         &parsed,
         &ModuleInfo {
+            instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),

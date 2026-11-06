@@ -22,7 +22,7 @@ public sealed partial class PyClass
         for (PyClass? current = this; current is not null; current = current.BaseClass)
         {
             if (!seen.Add(current)) throw new PyNotImplementedError("cyclic class layouts are not supported");
-            special |= current.BuiltinBase is not null || current.ExceptionFactory is not null
+            special |= current.HasStringLayout || current.HasListLayout || current.HasDictLayout || current.BuiltinBase is not null || current.ExceptionFactory is not null
                 || current.HasEnumMetadata || current.DataclassActive || current.IsNativeRuntimeClass;
         }
         bool hasNew = TryLookup("__new__", out PyClass newOwner, out object? newMethod);
@@ -41,13 +41,22 @@ public sealed partial class PyClass
     private ConstructionSlots GuardSpecialNew()
     {
         ConstructionSlots slots = Construction();
-        if (slots.Special && slots.CustomNew)
-            throw (PyBaseException)PyErrors.PrepareRaise(new PyNotImplementedError("custom __new__ for special class layouts is not supported"));
+        // 实际类调用早于dataclass快计划；晚改绑的根new不能由快计划绕过。
+        if (slots.NewOwner?.IsTypingGenericRoot == true) PyTypingGeneric.GuardProtocol("__new__");
+        if (slots.Special)
+        {
+            if (slots.CustomNew)
+                throw (PyBaseException)PyErrors.PrepareRaise(new PyNotImplementedError("custom __new__ for special class layouts is not supported"));
+            // 私壳无其它布局早返，必经此special分支；普通调用不新加独立入口判断。
+            if (IsNativeRuntimeClass) PyTypingNamedTupleShell.RejectPending(this);
+        }
         return slots;
     }
 
     internal void RequireOrdinaryAllocation()
     {
+        if (NamedTupleLayout is not null)
+            throw new PyTypeError($"object.__new__({Name}) is not safe, use {Name}.__new__()");
         if (Construction().Special)
             throw new PyNotImplementedError("object allocation currently requires an ordinary user class");
     }
@@ -99,6 +108,7 @@ public sealed partial class PyClass
     private static void InvokeInit(PyInstance instance, ConstructionSlots slots,
         object?[] args, string[] names, object?[] values)
     {
+        if (slots.InitOwner?.IsTypingGenericRoot == true) PyTypingGeneric.GuardProtocol("__init__");
         EnsureSupportedSlot(slots.Init, "__init__");
         object? result = PyObject.InvokeBound(slots.Init, slots.InitOwner!, instance, args, names, values);
         if (result is not null and not PyNone)
@@ -107,6 +117,17 @@ public sealed partial class PyClass
 
     internal PyInstance AllocateFromObject(int extra, int keywords)
     {
+        if (IsTypingGenericRoot)
+        {
+            if (extra != 0 || keywords != 0)
+                throw PyTypingGeneric.Error(new PyTypeError("typing.Generic() takes no arguments"));
+            return new PyInstance(this);
+        }
+        if (HasStringLayout || HasListLayout || HasDictLayout)
+            throw new PyTypeError($"object.__new__({Name}) is not safe, use {Name}.__new__()");
+        // 显式 object.__new__ 不经 Invoke，未完成 IO 族仍不能由此提前分配。
+        RequireTypingIoReady();
+        RequireTypingGenericReady();
         RequireOrdinaryAllocation();
         ConstructionSlots slots = Construction();
         if (extra != 0 || keywords != 0)

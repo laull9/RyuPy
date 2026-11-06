@@ -37,7 +37,7 @@ public static partial class PyPic
         // property getter 条目：非 null 时忽略 Slot
         public PyFunction? Getter;
         public PyClass? GetterOwner;
-        // 类属性值条目：IsClassValue 时 Slot 是同名实例槽位（-1 表示没有），命中先查遮蔽
+        // 类值条目：Slot是可遮蔽的同名槽位；根__class__固定为-1，不接受实例字段遮蔽。
         public bool IsClassValue;
         public object? ClassValue;
     }
@@ -93,7 +93,14 @@ public static partial class PyPic
     {
         PyClass cls = instance.Class;
         var entry = new AttrEntry { Valid = 1, Class = cls, ClassVersion = classVersion };
-        if (cls.HasProperties
+        if (name == "__class__" && !cls.TryLookup(name, out _, out _))
+        {
+            // 复用现有类值命中分支；不增加热路分支，类链变化沿用全局版本失效。
+            entry.IsClassValue = true;
+            entry.ClassValue = cls;
+            entry.Slot = -1;
+        }
+        else if (cls.HasProperties
             && cls.TryLookup(name, out PyClass owner, out object? raw)
             && raw is PyProperty property)
         {
@@ -209,6 +216,8 @@ public static partial class PyPic
         {
             return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
         }
+        PyLexicalSuper.GuardAttribute(name);
+        if (name == "__class__") return PyOps.CallMethod(obj, name, args, [], []);
         long classVersion = PyClass.GlobalVersion;
         ref SuperEntry entry = ref SuperEntries[site];
         if (entry.Valid == 0
@@ -244,10 +253,14 @@ public static partial class PyPic
         out PyFunction? target
     )
     {
+        if (start.IsTypingGenericFamily && name is "__init_subclass__" or "__class_getitem__")
+            throw PyTypingGeneric.Unsupported($"explicit Generic super {name} binding is not supported");
         for (PyClass? current = start.BaseClass; current is not null; current = current.BaseClass)
         {
             if (current.Attributes.TryGetValue(name, out object? raw))
             {
+                if (current.IsTypingGenericRoot && name.StartsWith("__", System.StringComparison.Ordinal))
+                    throw PyTypingGeneric.Unsupported($"changed Generic super protocol {name} is not supported");
                 owner = current;
                 target = raw as PyFunction;
                 return target is not null;

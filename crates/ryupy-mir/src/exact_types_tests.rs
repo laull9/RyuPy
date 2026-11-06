@@ -50,9 +50,12 @@ pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
     };
     let mut functions = Arena::default();
     let func = functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: "exact".into(),
         codegen_name: "exact".into(),
         source_file: "exact.py".into(),
+        definition: None,
         params: vec![subject],
         ret: MirType::I64,
         body: Body {
@@ -67,6 +70,7 @@ pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     (
         Program {

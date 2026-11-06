@@ -54,7 +54,8 @@ impl ManifestContext {
             options: json!({"experimental_direct_accumulator": session.experimental_direct_accumulator,
                 "experimental_leaf_inline": session.experimental_leaf_inline,
                 "diagnostic_scalar_slp": session.diagnostic_scalar_slp,
-                "experimental_packed_slp": session.experimental_packed_slp}),
+                "experimental_packed_slp": session.experimental_packed_slp,
+                "instance_modules": session.instance_modules}),
         };
         context.validate()?;
         Ok(context)
@@ -89,7 +90,10 @@ impl ManifestContext {
                 module.module_name == source.module_name,
                 "codegen 模块身份与编译文本不符"
             );
-            for method in [&module.init, &module.getter, &module.setter] {
+            for method in std::iter::once(&module.init)
+                .chain(module.getter.iter())
+                .chain(module.setter.iter())
+            {
                 check_method(method)?;
             }
         }
@@ -155,7 +159,7 @@ impl ManifestContext {
         }
         let modules: Vec<Value> = self.report.modules.iter().map(|module| json!({
             "id":module.module_id,"name":module.module_name,"init":method(&module.init),
-            "getter":method(&module.getter),"setter":method(&module.setter),"exports":module.exports
+            "getter":module.getter.as_ref().map(method),"setter":module.setter.as_ref().map(method),"exports":module.exports
         })).collect();
         let references: Vec<Value> = self.report.delegate_references.iter().map(|reference| json!({
             "site":{"source_method":method(&reference.source),"instruction":reference.instruction},

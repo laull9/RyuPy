@@ -28,17 +28,25 @@ pub enum Resolution {
 /// 模块级名字表：第一遍收集所有顶层 `def` / `class`，因此函数之间可以前向引用。
 #[derive(Debug, Default)]
 pub struct GlobalScope {
+    /// 真实名字从当前模块实例命名空间读取，内建也不可静态直达。
+    pub instance_globals: bool,
     /// TypedDict仅登记候选语法，真实根/父身份仍在执行定义时验证。
     pub(crate) typed_dict_roots: FxHashSet<Name>,
     pub(crate) typed_dict_modules: FxHashSet<Name>,
     pub(crate) typed_dict_classes: FxHashSet<Name>,
     /// future annotations：注解仅保存规范字符串，不参与名称求值与布局假设。
     pub postponed_annotations: bool,
+    /// driver认证的原生模块集合；只传身份，不把函数别名提升为模块导出。
+    pub(crate) native_exception_modules: FxHashSet<String>,
     /// driver 已确认的原生模块异常导入别名。
     pub(crate) exception_imports: FxHashMap<Name, crate::exception_imports::ExceptionImport>,
     pub names: FxHashMap<Name, Resolution>,
     /// 装饰后的公开绑定读取模块变量，names只保留内部定义身份/静态基类信息。
     pub dynamic_names: FxHashSet<Name>,
+    /// 当前模块及函数global删除集合，在任何定义体降级之前建立。
+    pub deleted_names: FxHashSet<Name>,
+    /// 仅因删除才公开的类名不顺便放开旧重复类/混合定义禁域。
+    pub delete_only_definitions: FxHashSet<Name>,
     /// 定义位置已验证的 dataclasses 导入装饰器。
     pub dataclass_markers: FxHashSet<TextRange>,
 }
@@ -46,6 +54,9 @@ pub struct GlobalScope {
 /// 单个函数的局部名字表。
 #[derive(Debug, Default)]
 pub struct FunctionScope {
+    /// 当前函数直属稳定导入；每函数独立，不传播free/cell身份或保护模块导出。
+    pub(crate) exception_imports:
+        FxHashMap<Name, crate::function_exception_imports::LocalExceptionImport>,
     pub locals: FxHashMap<Name, LocalId>,
     /// 该函数里 `global` 声明的名字：它们不是局部变量，赋值/读取都落到模块命名空间。
     pub globals: FxHashSet<Name>,
@@ -155,6 +166,14 @@ pub fn collect_assigned_names(body: &[ast::Stmt]) -> Vec<(Name, TextRange)> {
                 ast::Stmt::Assign(s) => {
                     for target in &s.targets {
                         collect_expr(target, names, seen);
+                    }
+                }
+                ast::Stmt::Delete(s) => {
+                    // 仅裸名字构成局部绑定；属性与下标的base仍是普通读取。
+                    for target in &s.targets {
+                        if let ast::Expr::Name(_) = target {
+                            collect_expr(target, names, seen);
+                        }
                     }
                 }
                 ast::Stmt::AnnAssign(s) => {
@@ -340,10 +359,12 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "frozenset" => Builtin::Dynamic("frozenset"),
         "bytes" => Builtin::Dynamic("bytes"),
         "bytearray" => Builtin::Dynamic("bytearray"),
+        "slice" => Builtin::Dynamic("slice"),
         "memoryview" => Builtin::Dynamic("memoryview"),
         "sorted" => Builtin::Dynamic("sorted"),
         "hash" => Builtin::Dynamic("hash"),
         "repr" => Builtin::Dynamic("repr"),
+        "format" => Builtin::Dynamic("format"),
         "dir" => Builtin::Dynamic("dir"),
         "Ellipsis" => Builtin::Dynamic("Ellipsis"),
         "NotImplemented" => Builtin::Dynamic("NotImplemented"),
@@ -372,6 +393,8 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "id" => Builtin::Dynamic("id"),
         "getattr" => Builtin::Dynamic("getattr"),
         "setattr" => Builtin::Dynamic("setattr"),
+        "delattr" => Builtin::Dynamic("delattr"),
+        "locals" => Builtin::Dynamic("locals"),
         "hasattr" => Builtin::Dynamic("hasattr"),
         "callable" => Builtin::Dynamic("callable"),
         _ => return None,

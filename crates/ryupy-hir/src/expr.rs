@@ -343,6 +343,13 @@ impl<'a> ExprLowerCtx<'a> {
         {
             return ExprKind::ModuleVar(var);
         }
+        if self.global_scope.instance_globals && !self.func_scope.locals.contains_key(&name) {
+            // 包括内建在内的所有源码名字，都服从当前实例的读写与回退。
+            return self.module_vars.get(&name).map_or_else(
+                || ExprKind::UnresolvedGlobal(name.clone()),
+                |&var| ExprKind::ModuleVar(var),
+            );
+        }
         // LEGB 查找顺序：Local → 顶层函数/类 → 模块变量 → Builtin。
         if let Some(&loc_id) = self.func_scope.locals.get(&name) {
             ExprKind::Local(loc_id)

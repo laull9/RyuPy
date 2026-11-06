@@ -3,7 +3,7 @@ using System.Numerics;
 
 namespace RyuPy.Runtime;
 
-/// <summary>Literal的有限值集合：仅实际标量，类型敏感去重，不执行用户相等或哈希协议。</summary>
+/// <summary>Literal的有限值集合：实际标量与真实TypeVar，类型敏感去重，不执行用户相等或哈希协议。</summary>
 internal static class PyTypingLiteral
 {
     internal static object?[] Normalize(object?[] args)
@@ -26,8 +26,8 @@ internal static class PyTypingLiteral
 
     private static string Kind(object? value) => value switch
     {
-        null or PyNone => "None", bool => "bool", long or int or BigInteger => "int", string => "str",
-        _ => throw new PyNotImplementedError("Literal supports only None, bool, int and str values; Enum values are not supported"),
+        null or PyNone => "None", bool => "bool", long or int or BigInteger => "int", string => "str", PyTypingTypeVar => "TypeVar",
+        _ => throw new PyNotImplementedError("Literal supports only None, bool, int, str and TypeVar values; Enum values are not supported"),
     };
 
     internal static bool Equal(object? left, object? right)
@@ -39,6 +39,7 @@ internal static class PyTypingLiteral
             "None" => true,
             "bool" => (bool)left! == (bool)right!,
             "int" => PyInt.ToBigInteger(left!) == PyInt.ToBigInteger(right!),
+            "TypeVar" => ReferenceEquals(left, right),
             _ => (string)left! == (string)right!,
         };
     }

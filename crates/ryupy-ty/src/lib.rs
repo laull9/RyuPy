@@ -16,8 +16,11 @@ mod check_attrs;
 mod check_stmts;
 mod default_modes;
 mod infer;
+mod module_metadata;
 mod module_vars;
+mod opaque;
 pub mod ops;
+mod runtime_function_modes;
 mod ty;
 
 pub use check::{check_module, type_ref_to_ty};
@@ -36,3 +39,28 @@ mod int_constructor_tests;
 
 #[cfg(test)]
 mod abs_constructor_tests;
+
+#[cfg(test)]
+mod float_constructor_tests;
+
+#[cfg(test)]
+mod opaque_tests;
+
+#[cfg(test)]
+mod str_object_call_tests;
+
+#[cfg(test)]
+mod module_function_binding_tests;
+
+#[cfg(test)]
+mod dynamic_except_tests;
+
+#[cfg(test)]
+mod function_locals_tests;
+
+mod initial_mode;
+#[cfg(test)]
+mod instance_globals_tests;
+
+#[cfg(test)]
+mod module_delete_tests;

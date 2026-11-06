@@ -54,9 +54,12 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
     });
     (
         Function {
+            module_state: None,
+            module_state_source: None,
             name: "tuple_probe".into(),
             codegen_name: "tuple_probe".into(),
             source_file: "tuple_probe.py".into(),
+            definition: None,
             params: vec![left, right],
             ret: MirType::Dynamic,
             body: Body {
@@ -71,6 +74,7 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
             defaults_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [left, right, tuple, key, result, length],
     )

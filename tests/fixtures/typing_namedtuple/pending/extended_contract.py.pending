@@ -1,0 +1,50 @@
+# 未执行CP/JIT；真实CP正例，未注册active，不以NI为通过。
+import collections
+import typing
+
+Root = typing.NamedTuple
+original_factory = collections.namedtuple
+trace = []
+try:
+    def delegated(name, fields, *, defaults, module):
+        trace.append(name)
+        return original_factory(name, fields, defaults=defaults, module=module)
+    collections.namedtuple = delegated
+    Delegated = Root('Delegated', [('x', int)])
+    assert Delegated(1) == (1,) and trace == ['Delegated']
+finally:
+    collections.namedtuple = original_factory
+
+trace = []
+class Annotation:
+    def __eq__(self, other):
+        trace.append('eq')
+        return False
+annotation = Annotation()
+Checked = Root('Checked', [('x', annotation)])
+assert Checked.__annotations__['x'] is annotation and len(trace) == 8
+class Text(str):
+    pass
+Strings = Root('Strings', [('x', Text('Missing'))])
+assert isinstance(Strings.__annotations__['x'], typing.ForwardRef)
+
+entries = Root.__mro_entries__((Root,))
+assert len(entries) == 1 and isinstance(entries[0], type)
+class Callable(Root):
+    x: int
+    def __call__(self, y):
+        return self.x + y
+assert Callable(2)(3) == 5
+class Child(Callable):
+    y: str
+assert Child._fields == ('x',) and Child(4)(1) == 5
+
+T = typing.TypeVar('T')
+class GenericRecord(Root, typing.Generic[T]):
+    x: T
+assert GenericRecord[int](2).x == 2
+class Resolvable(Root):
+    x: 'int'
+assert typing.get_type_hints(Resolvable) == {'x': int}
+assert isinstance(typing.ForwardRef('f()').__forward_code__, type(compile('1', '<pending>', 'eval')))
+print('pending-cp-positive', True)

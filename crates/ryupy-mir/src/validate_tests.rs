@@ -12,9 +12,12 @@ fn catches_unreachable_terminator() {
         terminator: Terminator::Unreachable,
     });
     let func = Function {
+        module_state: None,
+        module_state_source: None,
         name: "main".to_string(),
         codegen_name: "main".to_string(),
         source_file: "t.py".to_string(),
+        definition: None,
         params: Vec::new(),
         ret: MirType::Unit,
         body: crate::mir::Body {
@@ -29,6 +32,7 @@ fn catches_unreachable_terminator() {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     };
     let entry_fn = functions.alloc(func);
     let prog = Program {
@@ -40,3 +44,6 @@ fn catches_unreachable_terminator() {
     };
     assert!(validate(&prog).is_err());
 }
+
+#[path = "validate_local_lookup_tests.rs"]
+mod local_lookup_tests;

@@ -1,0 +1,218 @@
+"""F2/R1：bytearray 替换/expand 的准备顺序、快照错误与活读；新组合由本应用首次 CP-first 核定。"""
+import re
+
+
+def subject(kind, content):
+    if kind == 'exact':
+        return content, None
+    owner = bytearray(content)
+    if kind == 'array':
+        return owner, owner
+    return memoryview(owner), owner
+
+
+def cleanup(value, owner):
+    if isinstance(value, memoryview):
+        value.release()
+    if owner is not None:
+        owner.append(33)
+
+
+def call_sub(route, pattern, replacement, value, count=0):
+    if route == 'pattern':
+        return pattern.sub(replacement, value, count)
+    if route == 'saved':
+        saved = pattern.sub
+        return saved(replacement, value, count=count)
+    return re.sub(pattern, replacement, value, count=count)
+
+
+p = re.compile(b'(?P<first>a)(b)?')
+cases = [(b'$1', b'$1 $1'), (br'\g<first>-\2-\g<0>', b'a-b-ab a--a'), (b'', b' ')]
+for kind in ('exact', 'array', 'view'):
+    for route in ('pattern', 'saved', 'module'):
+        results = []
+        for content, expected in cases:
+            value, owner = subject(kind, b'ab a')
+            replacement = bytearray(content)
+            result = call_sub(route, p, replacement, value)
+            assert result == expected and type(result) is bytes and result is not replacement
+            del replacement[:]
+            replacement.extend(b'changed')
+            replacement.append(33)
+            assert result == expected
+            cleanup(value, owner)
+            results.append(result)
+        print('F2.inputs-' + kind + '-' + route, results)
+
+# subn 与保存方法保 count/无匹配；空结果不声称与任意字面 b'' 同身份。
+p = re.compile(b'(a)')
+replacement = bytearray(br'<\1>')
+saved_subn = p.subn
+saved_module_subn = re.subn
+assert p.subn(replacement, b'a a', count=1) == (b'<a> a', 1)
+assert saved_subn(replacement, bytearray(b'a a'), -1) == (b'a a', 0)
+assert saved_module_subn(p, replacement, b'a a') == (b'<a> <a>', 2)
+unchanged = bytes([122, 122])
+assert p.sub(replacement, unchanged) is unchanged
+replacement.append(33)
+print('F2.counts', p.subn(bytearray(b'X'), b'a a', 1), unchanged)
+
+# 同一可变对象每调用重新读取，含反斜杠与 literal 分支双向切换。
+pair = re.compile(b'(a)(b)')
+replacement = bytearray(br'<\1>')
+first = pair.sub(replacement, b'ab')
+replacement[2] = ord('2')
+second = pair.sub(replacement, b'ab')
+for byte_index, byte_value in enumerate(b'XYZ!'):
+    replacement[byte_index] = byte_value
+third = pair.sub(replacement, b'ab')
+for byte_index, byte_value in enumerate(br'<\1>'):
+    replacement[byte_index] = byte_value
+fourth = pair.sub(replacement, b'ab')
+assert [first, second, third, fourth] == [b'<a>', b'<b>', b'XYZ!', b'<a>']
+replacement.append(33)
+print('F2.same-object', [first, second, third, fourth])
+
+# expand 总是准备 bytes 快照；原有 Match 的固定 span 仍从可变 source 活读。
+for kind in ('exact', 'array', 'view'):
+    value, owner = subject(kind, b'ab')
+    match = pair.fullmatch(value)
+    saved_expand = match.expand
+    results = []
+    for content, expected in [(br'\2-\1-\g<0>', b'b-a-ab'), (b'X', b'X'), (b'', b'')]:
+        replacement = bytearray(content)
+        direct = match.expand(replacement)
+        saved = saved_expand(replacement)
+        assert direct == saved == expected and type(direct) is bytes and type(saved) is bytes
+        assert direct is not replacement and saved is not replacement
+        del replacement[:]
+        replacement.extend(b'changed')
+        replacement.append(33)
+        assert direct == expected and saved == expected
+        results.append(direct)
+    cleanup(value, owner)
+    print('F2.expand-' + kind, results)
+optional = re.compile(b'(a)?b').fullmatch(b'b')
+assert optional.expand(bytearray(br'<\1>')) == b'<>'
+print('F2.expand-missing', optional.expand(bytearray(br'<\1>')))
+owner = bytearray(b'ab')
+match = pair.fullmatch(owner)
+replacement = bytearray(br'\1-\2')
+first = match.expand(replacement)
+owner[0] = ord('x')
+second = match.expand(replacement)
+del owner[1:]
+third = match.expand(replacement)
+owner.append(ord('z'))
+fourth = match.expand(replacement)
+assert [first, second, third, fourth] == [b'a-b', b'x-b', b'x-', b'x-z']
+replacement.append(33)
+owner.append(33)
+print('F2.expand-live', [first, second, third, fourth])
+
+# 原 O.invalid.array 的四种优先级与完整 metadata；每次新错误且快照不随原 array 变化。
+def invalid_template(label, source, count, expand=False):
+    replacement = bytearray(br'\9')
+    try:
+        if expand:
+            p.match(b'a').expand(replacement)
+        else:
+            p.sub(replacement, source, count)
+    except re.error as error:
+        assert error.msg == 'invalid group reference 9'
+        assert str(error) == 'invalid group reference 9 at position 1'
+        assert error.pos == 1 and error.lineno == 1 and error.colno == 2
+        assert type(error.pattern) is bytes and error.pattern == br'\9'
+        assert error.pattern is not replacement and error.__context__ is None
+        assert error.args == ('invalid group reference 9 at position 1',)
+        replacement[0] = ord('X')
+        replacement[1] = ord('X')
+        replacement.append(33)
+        assert error.pattern == br'\9' and error.msg == 'invalid group reference 9'
+        print(label, type(error).__name__, error.msg, error.pattern, error.pos,
+              error.lineno, error.colno, error.args)
+    else:
+        raise AssertionError('invalid template accepted')
+
+
+for name, source, count in [('match', b'a', 0), ('nomatch', b'z', 0),
+                            ('negative', b'a', -1), ('badsubject', 3, 0)]:
+    invalid_template('F2.invalid-' + name, source, count)
+invalid_template('F2.invalid-expand', None, 0, True)
+
+# count 协议必须在读取 replacement 前运行，并且只运行一次。
+events = []
+replacement = bytearray(br'\1')
+class ChangeCount:
+    def __index__(self):
+        events.append('count')
+        replacement[1] = ord('2')
+        return 1
+result = pair.sub(replacement, b'ab', ChangeCount())
+assert result == b'b' and events == ['count']
+replacement.append(33)
+print('F2.count-mutates', result, events)
+
+events = []
+replacement = bytearray(b'X')
+class GrowCount:
+    def __index__(self):
+        events.append('count')
+        replacement.extend(b'YZ')
+        return 1
+result = p.sub(replacement, b'aa', GrowCount())
+assert result == b'XYZa' and events == ['count']
+replacement.append(33)
+print('F2.count-grows', result, events)
+
+events = []
+marker = LookupError('count-before-template')
+replacement = bytearray(br'\9')
+class FailCount:
+    def __index__(self):
+        events.append('count')
+        raise marker
+try:
+    p.sub(replacement, 3, FailCount())
+except LookupError as error:
+    assert error is marker and events == ['count']
+    replacement.append(33)
+    print('F2.count-error', type(error).__name__, str(error), error is marker, events)
+else:
+    raise AssertionError('count exception lost')
+
+# count 释放 source 后仍先校验非法模板；准备失败不留下 source/replacement 导出。
+events = []
+owner = bytearray(b'a')
+view = memoryview(owner)
+class ReleaseCount:
+    def __index__(self):
+        events.append('count')
+        view.release()
+        return -1
+invalid_template('F2.released-source-order', view, ReleaseCount())
+assert events == ['count']
+owner.append(33)
+print('F2.released-source-clean', events, owner)
+
+# literal replacement 与 subject 为同一对象或同 owner view，不延长准备 lease。
+for name in ('array', 'view'):
+    owner = bytearray(b'aa')
+    value = owner if name == 'array' else memoryview(owner)
+    result = re.sub(b'a', owner, value)
+    assert result == b'aaaa' and type(result) is bytes and result is not owner
+    cleanup(value, owner)
+    assert result == b'aaaa'
+    print('F2.alias-' + name, result, owner)
+
+# 已有 exact 与 text 结果域不迁移；view 模板与全局 bytes 驻留正例另保 pending。
+returned = bytes([88, 89, 90])
+assert p.sub(returned, b'a') is returned
+assert p.sub(b'X', unchanged) is unchanged
+assert pair.sub(br'<\2>', b'ab') == b'<b>'
+assert pair.fullmatch(b'ab').expand(br'<\1>') == b'<a>'
+assert re.sub('(a)', r'<\1>', 'a a') == '<a> <a>'
+assert re.fullmatch('(a)', 'a').expand(r'<\1>') == '<a>'
+print('F2.exact-text-controls', returned, unchanged, pair.sub(br'<\2>', b'ab'))
+print('F2.inputs-complete')

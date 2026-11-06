@@ -1,0 +1,34 @@
+# ryupy: pending
+# CP 真实正例：clear 后恢复同 size 仍扫描新成员；当前有限实现明确 NI，不伪改期望。
+# 事实来自 reference.cpython.stdout 58-65；本提取文件尚未独立执行。
+def exhausted(iterator):
+    try:
+        next(iterator)
+    except StopIteration:
+        return True
+    return False
+
+
+values = {1}
+iterator = iter(values)
+values.clear()
+values.add(2)
+assert next(iterator) == 2
+assert exhausted(iterator)
+
+values = {1}
+iterator = iter(values)
+assert next(iterator) == 1
+values.clear()
+values.add(2)
+assert next(iterator) == 2
+assert exhausted(iterator)
+
+values = {1, 2}
+iterator = iter(values)
+values.clear()
+values.add(1)
+values.add(2)
+assert sorted([next(iterator), next(iterator)]) == [1, 2]
+assert exhausted(iterator)
+print('SAME_SIZE_CLEAR_REFILL_COMPLETED')

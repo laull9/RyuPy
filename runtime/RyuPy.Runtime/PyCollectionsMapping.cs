@@ -52,6 +52,9 @@ public abstract class PyCollectionsMapping : PyNativeObject, IPyNativeMapping
     /// <summary>逐项提交来源，不能先耗尽整个生成器再更新映射。</summary>
     internal void UpdateFrom(object? source)
     {
+        if (source is PyMappingProxy proxy) { PyMappingProxyConsumers.CopyInto(Dictionary, proxy); return; }
+        // 默认 dict 派生的 iter 槽已受守卫，来源复制走根存储而非 keys 覆盖。
+        if (source is PyDictInstance) { PyDictProtocols.CallUpdate(Dictionary, [source], [], []); return; }
         PyDict? mapping = source as PyDict ?? (source as IPyNativeMapping)?.Dictionary;
         if (mapping is not null)
         {
@@ -96,6 +99,7 @@ public abstract class PyCollectionsMapping : PyNativeObject, IPyNativeMapping
     private object MapEqual(object? other)
     {
         using var recursion = PyCollectionsComparison.Enter();
+        if (other is PyDictInstance) return PyDictProtocols.Compare("__eq__", Dictionary, other);
         PyDict? mapping = other as PyDict ?? (other as IPyNativeMapping)?.Dictionary;
         return mapping is null ? PyNotImplemented.Instance : PyHash.Equal(Dictionary, mapping);
     }

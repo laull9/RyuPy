@@ -117,9 +117,12 @@ pub(crate) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
             read_operand(lhs, reads);
             read_operand(rhs, reads);
         }
-        Rvalue::Call { args, .. }
-        | Rvalue::NewObject { args, .. }
-        | Rvalue::MakeGenerator { frame: args, .. } => {
+        Rvalue::MakeGenerator { frame, origin, .. } => {
+            for value in frame.iter().chain(origin.iter()) {
+                read_operand(value, reads);
+            }
+        }
+        Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => {
             for argument in args {
                 read_operand(argument, reads);
             }
@@ -127,6 +130,13 @@ pub(crate) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
         Rvalue::CallWithArgs { prefix, args, .. } => {
             for argument in prefix.iter().chain(args) {
                 read_operand(argument, reads);
+            }
+        }
+        Rvalue::InstanceZeroCall { callee, frame } => {
+            read_operand(callee, reads);
+            reads.extend(frame.first_parameter);
+            if let crate::SuperClassSource::Lexical { environment, .. } = frame.class {
+                reads.insert(environment);
             }
         }
         Rvalue::DynCallValue { callee, args } => {
@@ -149,8 +159,13 @@ pub(crate) fn read_value(value: &Rvalue, reads: &mut FxHashSet<LocalId>) {
                 read_operand(argument, reads);
             }
         }
-        Rvalue::MakeFunction { env, defaults, .. } => {
-            for argument in env.iter().chain(defaults) {
+        Rvalue::MakeFunction {
+            env,
+            defaults,
+            instance_context,
+            ..
+        } => {
+            for argument in env.iter().chain(defaults).chain(instance_context.iter()) {
                 read_operand(argument, reads);
             }
         }

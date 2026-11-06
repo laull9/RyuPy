@@ -11,6 +11,9 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
+    /// 显式启用已发现源码模块的真实实例全局；不会自动包含模块（可重复）
+    #[arg(long = "instance-module", global = true)]
+    instance_modules: Vec<String>,
     /// 实验：将受守卫循环累加展开成直接 CIL（不保证更快；默认使用 holder）
     #[arg(long, global = true)]
     experimental_direct_accumulator: bool,
@@ -32,6 +35,9 @@ enum Command {
     /// 编译为 .dll（加 --aot 生成原生可执行文件）
     Build {
         input: PathBuf,
+        /// 诊断：逐阶段写 stderr（编译至产物写出，不含 AOT publish；默认关闭）
+        #[arg(long, conflicts_with = "native_binding")]
+        diagnostic_stages: bool,
         /// 输出根；AOT默认源目录下<文件名>.build/.dist，JIT默认__pycache__/<文件名>/
         #[arg(short, long)]
         out_dir: Option<PathBuf>,
@@ -46,13 +52,22 @@ enum Command {
         /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
         #[arg(short = 'I', long = "search-path")]
         search_paths: Vec<PathBuf>,
+        /// 显式包含ASCII点分源码模块（可重复；仍按import惰性初始化，不复制资源）
+        #[arg(long = "include-module")]
+        include_modules: Vec<String>,
     },
     /// 编译并立即用 dotnet 运行
     Run {
         input: PathBuf,
+        /// 诊断：逐阶段写 stderr（仅编译，不含 dotnet 运行；默认关闭）
+        #[arg(long)]
+        diagnostic_stages: bool,
         /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
         #[arg(short = 'I', long = "search-path")]
         search_paths: Vec<PathBuf>,
+        /// 显式包含ASCII点分源码模块（可重复；仍按import惰性初始化，不复制资源）
+        #[arg(long = "include-module")]
+        include_modules: Vec<String>,
     },
     /// 打印某一阶段的中间表示
     Dump {
@@ -94,6 +109,7 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let mut sess = Session {
+        instance_modules: cli.instance_modules,
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
         experimental_leaf_inline: cli.experimental_leaf_inline,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,
@@ -122,12 +138,16 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
     match command {
         Command::Build {
             input,
+            diagnostic_stages,
             out_dir,
             aot,
             resources,
             native_binding,
             search_paths,
+            include_modules,
         } => {
+            sess.diagnostic_stages = diagnostic_stages;
+            sess.include_modules = include_modules;
             let out_dir = out_dir.unwrap_or_else(|| {
                 if aot {
                     input
@@ -165,8 +185,12 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
         }
         Command::Run {
             input,
+            diagnostic_stages,
             search_paths,
+            include_modules,
         } => {
+            sess.diagnostic_stages = diagnostic_stages;
+            sess.include_modules = include_modules;
             let out_dir = default_out_dir(&input);
             let artifacts = ryupy_driver::build(
                 sess,
@@ -324,5 +348,81 @@ mod packed_slp_flag_tests {
                 .is_err()
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod include_module_tests {
+    use super::*;
+    #[test]
+    fn include_module_is_repeatable_for_build_and_run() {
+        for command in ["build", "run"] {
+            let cli = Cli::try_parse_from([
+                "ryupy",
+                command,
+                "main.py",
+                "--include-module",
+                "pkg.fonts",
+                "--include-module",
+                "other",
+            ])
+            .unwrap();
+            let names = match cli.command {
+                Command::Build {
+                    include_modules, ..
+                }
+                | Command::Run {
+                    include_modules, ..
+                } => include_modules,
+                _ => panic!("build/run expected"),
+            };
+            assert_eq!(names, ["pkg.fonts", "other"]);
+        }
+    }
+    #[test]
+    fn include_does_not_enable_dump_or_jit_resource_copy() {
+        assert!(
+            Cli::try_parse_from(["ryupy", "dump", "main.py", "--include-module", "pkg"]).is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "ryupy",
+                "build",
+                "main.py",
+                "--include-module",
+                "pkg",
+                "--resources",
+                "data.json"
+            ])
+            .is_err()
+        );
+    }
+}
+
+#[cfg(test)]
+mod instance_module_tests {
+    use super::*;
+    #[test]
+    fn instance_module_is_explicit_repeatable_and_separate_from_include() {
+        let cli = Cli::try_parse_from([
+            "ryupy",
+            "run",
+            "main.py",
+            "--instance-module",
+            "a",
+            "--instance-module",
+            "b",
+            "--include-module",
+            "c",
+        ])
+        .unwrap();
+        assert_eq!(cli.instance_modules, ["a", "b"]);
+        let Command::Run {
+            include_modules, ..
+        } = cli.command
+        else {
+            panic!("run");
+        };
+        assert_eq!(include_modules, ["c"]);
     }
 }

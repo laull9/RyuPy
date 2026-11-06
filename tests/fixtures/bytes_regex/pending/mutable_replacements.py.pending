@@ -1,0 +1,15 @@
+"""CP真实正例：mutable模板与callback返回在其实际消费点读取；首切NI不冒CP错误。"""
+import re
+
+shared = bytearray(b'X')
+seen = []
+def replace(match):
+    seen.append(bytes(shared))
+    shared[0] = 65 + len(seen)
+    return shared
+assert re.sub(b'a', replace, b'aa') == b'CC'
+assert seen == [b'X', b'B'] and shared == bytearray(b'C')
+assert re.sub(b'a', bytearray(b'X'), b'a') == b'X'
+assert re.sub(b'(a)', bytearray(br'<\1>'), b'a') == b'<a>'
+assert type(re.escape(bytearray(b'a b'))) is bytes
+print('pending.mutable-replacements', seen, shared, re.escape(bytearray(b'a b')))

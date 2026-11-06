@@ -17,6 +17,8 @@ public sealed class PyCounter : PyCollectionsMapping
     internal void Accumulate(object? source, bool subtract)
     {
         if (source is null or PyNone || IsAbsent(source)) return;
+        if (source is PyMappingProxy proxy) { PyMappingProxyConsumers.Accumulate(Dictionary, proxy, subtract); return; }
+        if (source is PyDictInstance derived) { PyMappingProxyConsumers.AccumulateSubclass(Dictionary, derived, subtract); return; }
         PyDict? mapping = source as PyDict ?? (source as IPyNativeMapping)?.Dictionary;
         if (mapping is not null)
         {
@@ -102,6 +104,7 @@ public sealed class PyCounter : PyCollectionsMapping
     }
     private object InPlace(object? other, string operation)
     {
+        if (other is PyDictInstance) throw PyDictLayout.Own(new PyNotImplementedError("Counter inplace operators with dict subclasses are not supported"));
         PyDict? mapping = other as PyDict ?? (other as IPyNativeMapping)?.Dictionary;
         if (mapping is null) return PyNotImplemented.Instance;
         // 每项立即写回；中途异常必须保留已经完成的更新，不能用临时结果冒充事务。

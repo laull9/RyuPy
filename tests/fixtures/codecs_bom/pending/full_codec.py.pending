@@ -1,0 +1,7 @@
+# ryupy: pending
+# CPython 真正支持的正例；不将有限 BOM 模块冒充完整 registry/encode/decode。
+import codecs
+assert codecs.encode('中文', 'utf-8') == b'\xe4\xb8\xad\xe6\x96\x87'
+assert codecs.decode(b'\xe4\xb8\xad\xe6\x96\x87', 'utf-8') == '中文'
+assert codecs.lookup('utf-8').name == 'utf-8'
+print('codecs-full-positive', True)

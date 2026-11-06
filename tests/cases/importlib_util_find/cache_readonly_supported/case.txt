@@ -1,0 +1,3 @@
+entry = entry.py
+# 完整源冻结 PE 差分已通过，不再 pending。
+# 独立完整有限用例：只读 sys.modules，不代表 cache_contract 转正。

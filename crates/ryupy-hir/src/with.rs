@@ -180,6 +180,8 @@ impl StmtLowerCtx<'_> {
 
         let handler = self.body.handlers.alloc(Handler {
             types: Some(vec!["BaseException".to_owned()]),
+            type_expr: None,
+            type_line: 0,
             name: Some(Binding::Local(exc)),
             body: handler_body,
             range,

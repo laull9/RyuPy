@@ -1,0 +1,17 @@
+# 既有D009：相邻独立代理码点拼接会丢失来源；不能以正常astral半对守卫宣称已修。
+separate = chr(0xD83D) + chr(0xDE00)
+scalar = chr(0x1F600)
+high = chr(0xD83D)
+low = chr(0xDE00)
+for method in ('partition', 'rpartition'):
+    root = getattr(str, method)
+    first = root(separate, scalar)
+    second = root(scalar, separate)
+    third = root(separate, high)
+    assert first == ((separate, '', '') if method == 'partition' else ('', '', separate))
+    assert second == ((scalar, '', '') if method == 'partition' else ('', '', scalar))
+    assert third == ('', high, low)
+    print(method + '-separate-vs-astral', first)
+    print(method + '-astral-vs-separate', second)
+    print(method + '-separate-high', third)
+print('separate-surrogates-pending-ok')

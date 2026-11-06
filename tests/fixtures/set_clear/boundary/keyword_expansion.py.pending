@@ -1,0 +1,55 @@
+# ryupy: pending
+# 通用 ** 展开旧债：重复/非字符串关键词与任意 mapping 协议；不归 set.clear 绑定器修复。
+# 精确 CP 事实来自参考 10-11、20-21、26 行；本提取源码尚未独立执行。
+events = []
+
+
+def touch(label, value):
+    events.append(label)
+    return value
+
+
+for saved in [False, True]:
+    for mode in ['duplicate', 'nonstring']:
+        values = {10, 20}
+        events.clear()
+        try:
+            if saved:
+                method = values.clear
+                if mode == 'duplicate':
+                    method(bad=touch('keyword', 1), **touch('mapping', {'bad': 2}))
+                else:
+                    method(*touch('star', [0]), **touch('mapping', {1: 2}))
+            elif mode == 'duplicate':
+                values.clear(bad=touch('keyword', 1), **touch('mapping', {'bad': 2}))
+            else:
+                values.clear(*touch('star', [0]), **touch('mapping', {1: 2}))
+        except TypeError as error:
+            if mode == 'duplicate':
+                assert str(error) == "set.clear() got multiple values for keyword argument 'bad'"
+                assert events == ['keyword', 'mapping']
+            else:
+                assert str(error) == 'keywords must be strings'
+                assert events == ['star', 'mapping']
+        else:
+            raise AssertionError('必须在绑定前拒绝非法展开')
+        assert sorted(values) == [10, 20]
+
+
+class BrokenMapping:
+    def keys(self):
+        events.append('mapping keys')
+        raise LookupError('mapping failed')
+
+
+values = {10, 20}
+events.clear()
+try:
+    values.clear(touch('arg0', 0), **touch('mapping expression', BrokenMapping()))
+except LookupError as error:
+    assert str(error) == 'mapping failed'
+    assert events == ['arg0', 'mapping expression', 'mapping keys']
+else:
+    raise AssertionError('必须调用任意 mapping 的 keys')
+assert sorted(values) == [10, 20]
+print('KEYWORD_EXPANSION_COMPLETED')

@@ -13,7 +13,8 @@ internal sealed class PyLoggingRecord
         string message = PyRepr.Str(Message);
         if (Arguments.Length == 0) return message;
         object arguments = Arguments.Length == 1 && Arguments[0] is PyDict dict && dict.Count != 0
-            ? dict : new PyTuple(Arguments);
+            ? dict : Arguments.Length == 1 && Arguments[0] is PyDictInstance derived && derived.Payload.Count != 0
+                ? derived : new PyTuple(Arguments);
         return PyLoggingPercent.Format(message, arguments);
     }
 }

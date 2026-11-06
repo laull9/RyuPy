@@ -1,0 +1,31 @@
+# ryupy: pending
+# 真实CP参考已证实strict int子类返回成功且警告；此standalone尚未执行，不把拒绝写成CP期望。
+import warnings
+
+
+class IntSubclass(int):
+    def __index__(self):
+        raise AssertionError('int subclass override must not run')
+
+
+class Index:
+    def __init__(self, result):
+        self.result = result
+
+    def __index__(self):
+        return self.result
+
+
+for action in ['always', 'error']:
+    for result in [True, IntSubclass(1)]:
+        values = [10, 20]
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter(action)
+            try:
+                popped = values.pop(Index(result))
+                print(action, type(result).__name__, 'returned', popped, values)
+            except Exception as error:
+                print(action, type(result).__name__, type(error).__name__, str(error), values)
+            print([(type(item.message).__name__, str(item.message)) for item in caught])
+values = [10, 20]
+print('actual int subclass', values.pop(IntSubclass(1)), values)

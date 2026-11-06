@@ -11,6 +11,7 @@ mod aot;
 mod aot_layout;
 mod binding_build;
 pub mod dotnet;
+mod instance_modules;
 mod manifest;
 mod manifest_files;
 mod manifest_sdk;
@@ -19,6 +20,7 @@ mod native_binding;
 mod native_binding_manifest;
 mod resources;
 pub mod runtime;
+mod stage_trace;
 
 use std::path::{Path, PathBuf};
 
@@ -28,6 +30,12 @@ use ryupy_base::{Diagnostics, FileId, SourceDb};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
+    pub instance_modules: Vec<String>,
+    /// 显式输出普通构建的编译阶段标记；默认关闭，不改变运行时 ABI。
+    pub diagnostic_stages: bool,
+    /// 本次编译显式包含的源码模块；只加入依赖图，仍在import时初始化。
+    pub include_modules: Vec<String>,
     pub sources: SourceDb,
     pub diagnostics: Diagnostics,
     /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
@@ -112,13 +120,16 @@ fn compile_module(
     sess: &mut Session,
     module: &modules::SourceModule,
     native_exceptions: &[&str],
+    trace: &stage_trace::StageTrace,
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
+        instance_globals: sess.instance_modules.contains(&module.name),
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
         resolve_file_at_runtime: true,
     };
+    trace.mark("begin", "hir", &module.name);
     let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
         &module.parsed,
         &info,
@@ -127,27 +138,42 @@ fn compile_module(
     );
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
+    trace.mark("end", "hir", &module.name);
 
+    trace.mark("begin", "type-check", &module.name);
     let (types, diags) = ryupy_ty::check_module(&hir);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
+    trace.mark("end", "type-check", &module.name);
 
+    trace.mark("begin", "mir-build", &module.name);
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(
-        &mut mir,
-        &ryupy_mir::passes::pipeline_with_slp_options(
-            sess.experimental_direct_accumulator,
-            sess.experimental_leaf_inline,
-            sess.diagnostic_scalar_slp,
-            sess.experimental_packed_slp,
-        ),
-    )
+    trace.mark("end", "mir-build", &module.name);
+    trace.mark("begin", "pipeline", &module.name);
+    let passes = ryupy_mir::passes::pipeline_with_slp_options(
+        sess.experimental_direct_accumulator,
+        sess.experimental_leaf_inline,
+        sess.diagnostic_scalar_slp,
+        sess.experimental_packed_slp,
+    );
+    if sess.diagnostic_stages {
+        ryupy_mir::passes::run_pipeline_observed(
+            &mut mir,
+            &passes,
+            &mut stage_trace::PassTrace::new(trace, &module.name),
+        )
+    } else {
+        ryupy_mir::passes::run_pipeline(&mut mir, &passes)
+    }
     .map_err(|e| anyhow::anyhow!(e))?;
+    trace.mark("end", "pipeline", &module.name);
+    trace.mark("begin", "final-validate", &module.name);
     if let Err(errs) = ryupy_mir::validate::validate(&mir) {
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
+    trace.mark("end", "final-validate", &module.name);
     Ok(CompiledModule {
         program: mir,
         exports,
@@ -156,6 +182,7 @@ fn compile_module(
 }
 
 /// 编译整个模块图，返回合并后的程序。
+#[cfg(test)]
 fn compile_linked(
     sess: &mut Session,
     entry: &Path,
@@ -189,13 +216,47 @@ fn compile_linked_locations(
     Vec<manifest::SourceSummary>,
     Option<resources::ResourcePlan>,
 )> {
-    let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
+    let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
+    compile_linked_traced(
+        sess,
+        entry,
+        search_paths,
+        collect_manifest,
+        resource_request,
+        aot_locations,
+        &trace,
+    )
+}
+
+fn compile_linked_traced(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+    collect_manifest: bool,
+    resource_request: Option<&Path>,
+    aot_locations: bool,
+    trace: &stage_trace::StageTrace,
+) -> Result<(
+    ryupy_mir::LinkedProgram,
+    Vec<manifest::SourceSummary>,
+    Option<resources::ResourcePlan>,
+)> {
+    let include_modules = sess.include_modules.clone();
+    trace.mark("begin", "graph-load", "-");
+    let (sources, entry_index) =
+        modules::load_program_including(sess, entry, search_paths, &include_modules)?;
+    // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
+    trace.mark("end", "graph-load", "-");
+    instance_modules::validate_selection(sess, &sources, entry_index, aot_locations)?;
     let resource_plan = resource_request
         .map(|path| resources::ResourcePlan::read(path, &sources))
         .transpose()?;
     let entry_file = sources[entry_index].parsed.file;
     let native_exceptions: Vec<&str> = [
         "json",
+        "zipfile",
+        "optparse",
+        "getopt",
         "re",
         "dataclasses",
         "unittest",
@@ -216,10 +277,15 @@ fn compile_linked_locations(
             program,
             exports,
             protected_exports,
-        } = compile_module(sess, &module, &native_exceptions)?;
+        } = compile_module(sess, &module, &native_exceptions, trace)?;
         units.push((
             program,
             ryupy_mir::UnitMeta {
+                execution: if sess.instance_modules.contains(&module.name) {
+                    ryupy_mir::ModuleExecutionKind::InstanceGlobals
+                } else {
+                    ryupy_mir::ModuleExecutionKind::LegacySingleton
+                },
                 protected_exports,
                 name: module.name.clone(),
                 package: module.package.clone(),
@@ -241,12 +307,17 @@ fn compile_linked_locations(
                     ryupy_mir::ModuleLocation::LegacyDiagnostic
                 },
                 file_backed_by_global: true,
+                is_package: module.kind == modules::SourceKind::Package,
                 exports,
             },
         ));
     }
+    trace.mark("begin", "link", "-");
     let linked = ryupy_mir::link(units, entry_index);
+    trace.mark("end", "link", "-");
+    trace.mark("begin", "export-check", "-");
     check_linked_exports(sess, &linked, entry_file)?;
+    trace.mark("end", "export-check", "-");
     Ok((linked, summaries, resource_plan))
 }
 
@@ -339,13 +410,16 @@ fn build_with_resources_inner(
     resource_request: Option<&Path>,
     owned: Option<&aot_layout::OwnedAttempt>,
 ) -> Result<Artifacts> {
+    let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     aot::validate_before_build(&opts.input, opts.aot)?;
-    let (linked, sources, resource_plan) = compile_linked(
+    let (linked, sources, resource_plan) = compile_linked_traced(
         sess,
         &opts.input,
         &opts.search_paths,
         opts.aot,
         resource_request,
+        opts.aot,
+        &trace,
     )?;
 
     let name = assembly_name(&opts.input);
@@ -353,6 +427,7 @@ fn build_with_resources_inner(
         assembly_name: name.clone(),
         entry_source_path: Some(opts.input.to_string_lossy().into_owned()),
     };
+    trace.mark("begin", "emit", "-");
     let (bytes, context) = if opts.aot {
         let emitted = ryupy_codegen_cil::emit_assembly_with_report(&linked, &emit_opts)?;
         let context = manifest::ManifestContext::new(
@@ -367,6 +442,8 @@ fn build_with_resources_inner(
         (ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?, None)
     };
 
+    trace.mark("end", "emit", "-");
+    trace.mark("begin", "output-write", "-");
     std::fs::create_dir_all(&opts.out_dir)?;
     let dll = opts.out_dir.join(format!("{name}.dll"));
     std::fs::write(&dll, bytes)?;
@@ -375,6 +452,7 @@ fn build_with_resources_inner(
         ryupy_codegen_cil::runtimeconfig::render(),
     )?;
     runtime::copy_runtime_to(&opts.out_dir)?;
+    trace.mark("end", "output-write", "-");
 
     let (native_exe, manifest) = if let Some(context) = context {
         let published = aot::publish_with_manifest(
@@ -401,12 +479,30 @@ fn build_with_resources_inner(
 /// 其他模块的内容只会以 `Import` 节点出现。
 pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     let module = modules::load_single(sess, input)?;
+    let mut invalid_selection = false;
+    for name in &sess.instance_modules {
+        if name != &module.name {
+            invalid_selection = true;
+            sess.diagnostics.push(
+                ryupy_base::Diagnostic::error(
+                    ryupy_base::Span::new(module.parsed.file, ryupy_base::TextRange::default()),
+                    format!("实例模块 `{name}` 不在dump的单模块图中"),
+                )
+                .with_code("E0100"),
+            );
+        }
+    }
+    // 仅新增选择错误前置失败；AST仍允许展示带解析诊断的结果。
+    if invalid_selection {
+        return Err(HasErrors.into());
+    }
     if stage == Stage::Ast {
         return Ok(format!("{:#?}", module.parsed.module));
     }
     stop_if_errors(sess)?;
 
     let info = ryupy_hir::ModuleInfo {
+        instance_globals: sess.instance_modules.contains(&module.name),
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
@@ -453,12 +549,18 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         vec![(
             mir,
             ryupy_mir::UnitMeta {
+                execution: if sess.instance_modules.contains(&module.name) {
+                    ryupy_mir::ModuleExecutionKind::InstanceGlobals
+                } else {
+                    ryupy_mir::ModuleExecutionKind::LegacySingleton
+                },
                 protected_exports: hir.protected_exports,
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
                 file_backed_by_global: false,
+                is_package: false,
                 exports,
             },
         )],
@@ -474,3 +576,6 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
 
 #[cfg(test)]
 mod fixed_binding_tests;
+
+#[cfg(test)]
+mod instance_module_tests;

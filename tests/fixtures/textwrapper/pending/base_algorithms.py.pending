@@ -1,0 +1,22 @@
+# ryupy: pending
+"""五个已采CP成功边界；基类NI不等于CP错误，覆写可自行实现，不注册应用。"""
+from textwrap import TextWrapper
+
+assert TextWrapper(12, fix_sentence_endings=True).wrap('one. Two. end') == ['one.  Two.', 'end']
+assert TextWrapper(7, max_lines=1).wrap('one two three') == ['[...]']
+assert TextWrapper(1.5).wrap('a') == ['a']
+
+
+class Splitter:
+    def split(self, text):
+        return [text, '', 'suffix']
+
+
+wrapper = TextWrapper(30)
+wrapper.wordsep_re = Splitter()
+assert wrapper._split('ab') == ['ab', 'suffix']
+assert wrapper.wrap('ab') == ['absuffix']
+wrapper = TextWrapper(30, expand_tabs=False)
+wrapper.unicode_whitespace_trans = {ord('a'): 'ZZ'}
+assert wrapper._munge_whitespace('a\tb') == 'ZZ\tb'
+assert wrapper.wrap('a\tb') == ['ZZ\tb']

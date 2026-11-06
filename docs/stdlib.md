@@ -8,6 +8,15 @@
 chr接受整数/bool与一次`__index__`转换；代理项可往返。严格拒绝错误参数和关键字，区分C int溢出与Unicode范围错误。
 M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。这只描述基础内建；后续map等竖切已使wcwidth固定入口及九项指定上游场景通过，不代表整个标准库完成。
 
+## 后续项目驱动的有限适配
+
+本地候选 `shutil` 仅公开真实 `copyfileobj` 和可重绑 `COPY_BUFSIZE`：复用普通read/write流协议，
+不自动关闭/刷新，不提供copy/copyfile/copymode/rmtree等路径复制。10项C#与4项实际CP/JIT
+差分及完整门禁通过，尚未发布；当前不增加项目通过数。范围及首失败见[ADR0058](adr/0058-shutil-copyfileobj.md)。
+
+本地候选 `zipfile` 仅提供真实 `is_zipfile` 尾记录识别与 `BadZipFile` 异常；
+不提供ZipFile/解压，不以True代表完整归档有效性。本地专项与完整门禁通过、未发布，见[ADR0059](adr/0059-zipfile-tail-identification.md)。
+
 ## 工作规模与实现路径
 
 C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连同测试按万行级工程规划。这是排期量级判断，实际规模要在 API 盘点后复核。每个模块都要独立列 API、依赖、边界和验证，不能用一个总复选框代替。
@@ -56,3 +65,24 @@ C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连�
 - 将模块登记到 Phase 2 的模块解析与运行时注册表，缺失 API 明确报错。
 - 跑对应项目入口与固定测试，列出传递依赖；导入成功不能替代这些测试。
 - 原生与桥接分开更新兼容性矩阵；新增差异进入 semantics.md 与 compatibility.md。
+
+本地开发候选 `optparse` 提供有限真实OptionParser/Option/Values、六异常、常用单值解析及默认帮助；
+不含OptionGroup/custom formatter/callback等完整长尾，当前差分6/6与完整门禁本地已验，尚未发布。
+范围见[ADR0060](adr/0060-optparse-common-options.md)，不能据导入成功增加项目通过数。
+
+本地候选 `getopt.getopt` 已提供有限真实短/长选项解析和GetoptError/error身份；当前21项C#、5项CP/JIT差分及正常完整门禁920C#/228CP/202e2e+30原ignored已验。仅确切list/tuple与str输入域，不含GNU或完整自定义协议，不据此增加项目通过数。见[ADR0075](adr/0075-getopt-local-exception-imports.md)。
+
+### TypeVar 有限基础
+
+真实 TypeVar 身份、核心属性、variance 及现有 typing 组合参数元数据见
+[ADR0110](adr/0110-typevar-foundation.md)。NamedTuple/TypedDict 注解保变量原身份。
+这不是 Generic 参数化继承、完整 typing 反射或 Markdown 入口通过；动态 bound helper、
+变量替换和超域 ForwardRef 语法继续明确未实现。
+
+### importlib.util 逐 API 有限支持
+
+当前只提供真实find_spec(name, package=None)，不以模块名登记代替API实现。
+已编译源模块/包的发现与当前缓存读取见[发现合同](importlib-util.md)；固定版本CP事实、
+完整源差分与门禁范围见[ADR0122](adr/0122-importlib-util-find-spec.md)。
+module_from_spec、create_module、exec_module、可写sys.modules、自定义finder和
+完整html.parser尚未实现。未发现域不能证明不存在，明确NI而不是假None。

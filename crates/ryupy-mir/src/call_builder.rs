@@ -77,22 +77,19 @@ impl ExprBuilder<'_> {
         // 名字绑定规则），参数与返回值在 MIR 签名里都是 `dyn`，实参装箱后直接 `call`，
         // 省掉实参数组、PIC、`PyFunction.Invoke` 与 thunk。只有 `*` / `**` 或编译期绑定
         // 不成立时才走运行时 binder。
-        if has_star {
-            let Some(global) = self.fn_globals.get(&fn_id).copied() else {
-                return self.none_value();
-            };
-            let result = self.call_value(Operand::Global(global), args);
-            return self.coerce(result, &Ty::Dynamic, &ty_to_mir(call_ty));
+        let dynamic = self.types.mode(fn_id) == ryupy_ty::FuncMode::Dynamic;
+        if has_star || (dynamic && !self.fn_sources.contains_key(&fn_id)) {
+            return self.call_published_function(fn_id, args, call_ty);
         }
-
         let Some(plan) = self.plan_binding(fn_id, args) else {
-            // 绑定会失败：交给运行时，得到带准确消息的 TypeError
-            let global = self.fn_globals[&fn_id];
-            let result = self.call_value(Operand::Global(global), args);
-            return self.coerce(result, &Ty::Dynamic, &ty_to_mir(call_ty));
+            return self.call_published_function(fn_id, args, call_ty);
         };
-
-        let call_args = self.build_static_arguments(fn_id, args, &plan);
+        // 冻结的是实际函数引用；参数副作用之后仍从此对象取defaults和Module。
+        let origin = self.capture_direct_origin(fn_id);
+        let mut call_args = self.build_static_arguments(fn_id, args, &plan, origin.as_ref());
+        if let Some(origin) = origin {
+            call_args.push(origin);
+        }
         let mir_fn = self.fn_map[&fn_id];
         let ret_ty = self.types.sigs[fn_id].ret.clone();
         let call = Rvalue::Call {
@@ -196,6 +193,7 @@ impl ExprBuilder<'_> {
         fn_id: FuncId,
         args: &[CallArg],
         plan: &BindPlan,
+        origin: Option<&Operand>,
     ) -> Vec<Operand> {
         // 先按源码顺序求值全部实参（Python 的求值顺序），再分配
         let mut values: Vec<(Operand, Ty)> = Vec::with_capacity(args.len());
@@ -227,7 +225,16 @@ impl ExprBuilder<'_> {
             }
         }
 
-        let defaults_global = self.fn_defaults.get(&fn_id).copied().flatten();
+        let needs_defaults = func
+            .params
+            .iter()
+            .enumerate()
+            .any(|(index, param)| param.default.is_some() && plan.assigned[index].is_none());
+        let defaults = if needs_defaults {
+            self.direct_function_defaults(fn_id, origin)
+        } else {
+            None
+        };
         let mut call_args = Vec::with_capacity(func.params.len());
         for (index, param) in func.params.iter().enumerate() {
             match param.kind {
@@ -254,12 +261,12 @@ impl ExprBuilder<'_> {
                     if let Some(arg_index) = plan.assigned[index] {
                         let (op, ty) = values[arg_index].clone();
                         call_args.push(self.coerce(op, &ty, &expected));
-                    } else if let Some(global) = defaults_global {
-                        // 默认值在模块初始化时写进静态数组，这里只读取（保持对象身份）
+                    } else if let Some(defaults) = &defaults {
+                        // 默认值数组仅由成功定义发布，读取保持其中对象身份。
                         let raw = self.runtime_call(
                             RuntimeFn::ArrayGet,
                             vec![
-                                Operand::Global(global),
+                                defaults.clone(),
                                 Operand::Const(Constant::I64(index as i64)),
                             ],
                             MirType::Dynamic,
@@ -293,6 +300,9 @@ impl ExprBuilder<'_> {
         } else {
             callable
         };
+        if args.is_empty() && self.supports_zero_call_frame() {
+            return self.call_zero_with_frame(callable);
+        }
         if is_small_positional_call(args) {
             let values: Vec<Operand> = args
                 .iter()

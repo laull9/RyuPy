@@ -1,0 +1,136 @@
+# ryupy: pending
+# 边界协议应用：顺序、短路、同站点重入和原异常关系；不重复窗口或绑定矩阵。
+events = []
+
+
+class Index:
+    def __init__(self, label, value=0, error=None, cause=None):
+        self.label = label
+        self.value = value
+        self.error = error
+        self.cause = cause
+
+    def __index__(self):
+        events.append(self.label)
+        if self.error is not None:
+            if self.cause is not None:
+                raise self.error from self.cause
+            raise self.error
+        return self.value
+
+
+assert 'abc'.startswith('b', Index('start', 1), Index('end', 2))
+assert events == ['start', 'end']
+print('order', events)
+events.clear()
+shared = Index('shared', 1)
+assert 'abc'.startswith('', shared, shared)
+assert events == ['shared', 'shared']
+events.clear()
+assert not 'abc'.endswith((), Index('start', 0), Index('end', 3))
+assert events == ['start', 'end']
+print('empty-tuple', events)
+
+
+def affix(prefix, start, end):
+    return 'abc'.startswith(prefix, start, end)
+
+
+class Reenter:
+    def __index__(self):
+        events.append('outer-start')
+        result = affix('x', 0, 1)
+        events.append(('inner', result))
+        return 0
+
+
+events.clear()
+assert affix('a', Reenter(), Index('outer-end', 3))
+assert events == ['outer-start', ('inner', False), 'outer-end']
+print('reentry', events)
+
+# 参数引用必须冻结，但end槽直到实际轮到end才查找，不能随引用一起提前绑定。
+class End:
+    def __index__(self):
+        events.append('old-end')
+        return 0
+
+
+def changed_end(self):
+    events.append('new-end')
+    return 3
+
+
+class ChangeEnd:
+    def __index__(self):
+        events.append('change-start')
+        End.__index__ = changed_end
+        return 0
+
+
+events.clear()
+assert affix('a', ChangeEnd(), End())
+assert events == ['change-start', 'new-end']
+print('late-slot', events)
+
+
+class Poison:
+    def __str__(self):
+        raise AssertionError('不能转换非法候选')
+
+
+start_error = ValueError('start-body')
+end_error = LookupError('end-body')
+for which in (0, 1):
+    events.clear()
+    selected = start_error if which == 0 else end_error
+    try:
+        if which == 0:
+            affix(Poison(), Index('start', error=selected), Index('end', 3))
+        else:
+            affix(Poison(), Index('start', 0), Index('end', error=selected))
+    except (ValueError, LookupError) as caught:
+        assert caught is selected
+    else:
+        raise AssertionError('用户index应失败')
+    assert events == (['start'] if which == 0 else ['start', 'end'])
+    print('user-error', which, events)
+
+
+def invalid(label, call, message, expected_events):
+    events.clear()
+    try:
+        call()
+    except TypeError as error:
+        assert str(error) == message
+        assert events == expected_events
+        print(label, str(error), events)
+    else:
+        raise AssertionError('非法索引/候选应失败')
+
+
+invalid('bad-return', lambda: affix('a', Index('start', '0'), Index('end', 3)),
+        '__index__ returned non-int (type str)', ['start'])
+invalid('no-index', lambda: affix('a', 0.0, Index('end', 3)),
+        'slice indices must be integers or None or have an __index__ method', [])
+invalid('bad-candidate', lambda: affix(Poison(), Index('start', 9), Index('end', -9)),
+        'startswith first arg must be str or a tuple of str, not Poison', ['start', 'end'])
+
+user_error = ValueError('identity-body')
+cause = KeyError('identity-cause')
+ambient = RuntimeError('identity-ambient')
+events.clear()
+try:
+    raise ambient
+except RuntimeError:
+    try:
+        affix('a', Index('start', error=user_error, cause=cause), Index('end', 3))
+    except ValueError as caught:
+        identity = (caught is user_error, caught.__context__ is ambient,
+                    caught.__cause__ is cause, caught.__suppress_context__)
+        assert identity == (True, True, True, True)
+    else:
+        raise AssertionError('原异常应穿过helper')
+assert events == ['start']
+print('identity', identity, events)
+print('text-affix-protocol-ok')

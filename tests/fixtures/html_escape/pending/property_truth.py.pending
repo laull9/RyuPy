@@ -1,0 +1,35 @@
+# ryupy: pending
+# CP特殊真值槽也执行property描述符；旧运行时InvokeBound域不能改写为CP错误期望。
+from html import escape
+
+
+class BoolProperty:
+    @property
+    def __bool__(self):
+        events.append('get-bool')
+        return truth
+
+
+class LenProperty:
+    @property
+    def __len__(self):
+        events.append('get-len')
+        return length
+
+
+def truth():
+    events.append('bool')
+    return False
+
+
+def length():
+    events.append('len')
+    return 0
+
+
+for quote, expected in [(BoolProperty(), ['get-bool', 'bool']),
+                         (LenProperty(), ['get-len', 'len'])]:
+    events = []
+    assert escape('&"', quote) == '&amp;"'
+    assert events == expected
+    print(events)

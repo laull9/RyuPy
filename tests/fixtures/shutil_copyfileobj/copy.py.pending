@@ -1,0 +1,8 @@
+# ryupy: pending
+# shutil.copy is a distinct public API, not copyfileobj or the fixed render call.
+import shutil
+with open('copy-source.txt', 'w', encoding='utf-8') as stream:
+    stream.write('copy-me\n')
+print(shutil.copy('copy-source.txt', 'copy-target.txt'))
+with open('copy-target.txt', 'r', encoding='utf-8') as stream:
+    print(stream.read(), end='')

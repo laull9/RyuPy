@@ -16,7 +16,7 @@ public static class PyCollections
         var deque = new PyNativeType("deque", "collections", (args, names, values) => PyOps.CallValue(dequeFactory, args, names, values), value => value is PyDeque);
         var defaults = new PyNativeType("defaultdict", "collections", DefaultDict, value => value is PyDefaultDict, "dict");
         var counter = new PyNativeType("Counter", "collections", Counter, value => value is PyCounter, "dict");
-        return new(StringComparer.Ordinal) { ["deque"] = deque, ["defaultdict"] = defaults, ["Counter"] = counter };
+        return new(StringComparer.Ordinal) { ["deque"] = deque, ["defaultdict"] = defaults, ["Counter"] = counter, ["namedtuple"] = PyNamedTupleExport.Instance };
     }
     private static object DefaultDict(object?[] args, string[] names, object?[] values)
     {

@@ -29,8 +29,8 @@ use ryupy_ty::{ModuleTypes, Ty, type_ref_to_ty};
 use crate::build_flow::FinallyCtx;
 use crate::mir::{
     BasicBlock, BlockId, Callee, Constant, FnId, Function, GlobalDecl, LocalDecl,
-    LocalId as MirLocalId, MirType, Operand, ParamKind, ParamMeta, Program, Region, RuntimeFn,
-    Rvalue, Statement, Terminator,
+    LocalId as MirLocalId, MirType, Operand, Program, Region, RuntimeFn, Rvalue, Statement,
+    Terminator,
 };
 
 /// 编译一个模块，返回（模块程序，模块导出表，诊断）。
@@ -63,11 +63,13 @@ pub fn build_program(
             .collect();
         let factory_global = cls.is_exception.then(|| {
             globals.alloc(GlobalDecl {
+                storage: crate::GlobalStorage::LegacyStatic,
                 name: format!("__exc_factory_{}", hir_cls_id.into_raw().into_u32()),
                 ty: MirType::Dynamic,
             })
         });
         let mir_id = classes.alloc(crate::mir::ClassDef {
+            class_cell: None,
             name: cls.name.as_str().to_string(),
             codegen_name: cls.name.as_str().to_string(),
             fields,
@@ -82,12 +84,15 @@ pub fn build_program(
             is_exception: cls.is_exception,
             factory_global,
         });
-        let class_global = globals.alloc(GlobalDecl {
-            name: format!("__class_{}", hir_cls_id.into_raw().into_u32()),
-            ty: MirType::Dynamic,
-        });
         class_map.insert(hir_cls_id, mir_id);
-        hir_class_globals.insert(hir_cls_id, class_global);
+        if !hir.info.instance_globals {
+            let global = globals.alloc(GlobalDecl {
+                storage: crate::GlobalStorage::LegacyStatic,
+                name: format!("__class_{}", hir_cls_id.into_raw().into_u32()),
+                ty: MirType::Dynamic,
+            });
+            hir_class_globals.insert(hir_cls_id, global);
+        }
     }
     // 基类映射放在第二遍：此时所有 ClassDefId 都已分配。
     for (hir_cls_id, cls) in hir.classes.iter() {
@@ -119,6 +124,13 @@ pub fn build_program(
             ty => ty,
         };
         let gid = globals.alloc(GlobalDecl {
+            storage: if hir.info.instance_globals {
+                crate::GlobalStorage::InstancePublic {
+                    name: var.name.to_string(),
+                }
+            } else {
+                crate::GlobalStorage::LegacyStatic
+            },
             name: format!("__mv{}_{}", var_id.into_raw().into_u32(), var.name),
             ty: ty.clone(),
         });
@@ -132,12 +144,15 @@ pub fn build_program(
     //    模块静态槽位。槽位在函数体构建之前分配，调用方才能在表达式里引用它们。
     let mut fn_map: FxHashMap<ryupy_hir::FuncId, FnId> = FxHashMap::default();
     let mut global_seq = 0usize;
+    let mut fn_sources = FxHashMap::default();
+    let plain_defs = crate::dynamic_origin_build::plain_definitions(hir);
     for (hir_fn_id, hir_fn) in hir.functions.iter() {
         let ret_ty = ty_to_mir(&types.sigs[hir_fn_id].ret);
-        let param_meta = build_param_meta(hir, types, hir_fn_id);
+        let param_meta = crate::build_params::build_param_meta(hir, types, hir_fn_id);
 
         let mut alloc_global = |globals: &mut Arena<GlobalDecl>, prefix: &str| {
             let id = globals.alloc(GlobalDecl {
+                storage: crate::GlobalStorage::LegacyStatic,
                 name: format!("{prefix}_{global_seq}"),
                 ty: MirType::Dynamic,
             });
@@ -146,7 +161,8 @@ pub fn build_program(
         };
 
         let is_main = hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain;
-        let is_top_user = hir_fn.kind == ryupy_hir::FunctionKind::User;
+        let is_top_user =
+            !hir.info.instance_globals && hir_fn.kind == ryupy_hir::FunctionKind::User;
         let function_global = is_top_user.then(|| alloc_global(&mut globals, "__fn"));
         // 每个顶层用户函数都分配默认值数组：thunk 的绑定入口需要一个固定长度的数组，
         // 没有默认值的槽位留空即可（PySignature.HasDefault 为 false 时不会被读取）。
@@ -154,6 +170,12 @@ pub fn build_program(
         // 签名是所有实例共享的元数据：嵌套函数（M3.0）没有函数对象槽位，
         // 但 MakeFunction 在 def 位置创建 PyFunction 时同样需要签名。
         let signature_global = (!is_main).then(|| alloc_global(&mut globals, "__sig"));
+        if !hir.info.instance_globals
+            && types.mode(hir_fn_id) == ryupy_ty::FuncMode::Dynamic
+            && plain_defs.contains(&hir_fn_id)
+        {
+            fn_sources.insert(hir_fn_id, alloc_global(&mut globals, "__origin"));
+        }
 
         let codegen_name = if is_main {
             "__module_main".to_string()
@@ -161,9 +183,18 @@ pub fn build_program(
             hir_fn.name.as_str().to_string()
         };
         let mir_fn = Function {
+            module_state: None,
+            module_state_source: None,
             name: hir_fn.name.as_str().to_string(),
             codegen_name,
             source_file: hir.info.file.clone(),
+            definition: hir_fn
+                .definition
+                .as_ref()
+                .map(|info| crate::DefinitionInfo {
+                    lexical_qualname: info.lexical_qualname.clone(),
+                    firstlineno: info.firstlineno,
+                }),
             params: Vec::new(),
             ret: ret_ty,
             body: crate::mir::Body {
@@ -178,6 +209,7 @@ pub fn build_program(
             defaults_global,
             signature_global,
             env: None,
+            dynamic_origin: None,
         };
         let mir_fn_id = functions.alloc(mir_fn);
         fn_map.insert(hir_fn_id, mir_fn_id);
@@ -203,6 +235,7 @@ pub fn build_program(
             &fn_map,
             &fn_globals,
             &fn_defaults,
+            &fn_sources,
             &class_map,
             &hir_class_globals,
             &class_factories,
@@ -266,6 +299,9 @@ pub fn build_program(
             params.push(env_local);
         }
 
+        builder.add_module_state(&mut params);
+        builder.add_dynamic_owner(&mut params);
+
         // 函数入口：为每个 cell 局部分配 cell 对象。参数 cell 先把实参装箱进
         // 临时量（此刻参数槽位还是原始实参），再让槽位指向新 cell。
         // 闭包函数一律是动态模式，参数槽位都是装箱值，无需再 Box。
@@ -306,7 +342,7 @@ pub fn build_program(
 
         // 模块入口开头把动态模块变量重置为未绑定的 CLR null：失败后重试等同于重新执行模块，
         // 不应该读到上一次失败留下的值（CPython 会丢弃旧模块对象）。
-        if hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain {
+        if hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain && !hir.info.instance_globals {
             for (var_id, _) in hir.vars.iter() {
                 let Some(&gid) = module_var_ids.get(&var_id) else {
                     continue;
@@ -334,8 +370,24 @@ pub fn build_program(
         diagnostics.extend(builder.diagnostics);
 
         let entry = builder.entry;
+        functions[mir_fn_id].module_state = builder.module_state;
+        functions[mir_fn_id].module_state_source = builder.module_state.map(|_| {
+            crate::InstanceStateSource::parameter(
+                hir_fn.kind == ryupy_hir::FunctionKind::ModuleMain,
+            )
+        });
         functions[mir_fn_id].params = params;
         functions[mir_fn_id].env = builder.env;
+        functions[mir_fn_id].dynamic_origin =
+            builder
+                .dynamic_owner
+                .map(|owner| crate::mir::DynamicFunctionOrigin {
+                    owner,
+                    source_global: fn_sources.get(&hir_fn_id).copied(),
+                });
+        for (class, definition) in std::mem::take(&mut builder.class_cells) {
+            classes[class].class_cell = Some(definition);
+        }
         functions[mir_fn_id].body = crate::mir::Body {
             locals: builder.locals,
             blocks: builder.blocks,
@@ -392,48 +444,11 @@ pub fn ty_to_mir(ty: &Ty) -> MirType {
         Ty::Str => MirType::Str,
         Ty::None => MirType::Unit,
         Ty::Class(id) => MirType::Class(la_arena::Idx::from_raw(id.into_raw())),
-        Ty::Dynamic => MirType::Dynamic,
+        Ty::Dynamic | Ty::OpaqueStr => MirType::Dynamic,
         // 函数对象与毒化类型都不该走到 codegen；用 Dynamic 兜底而不是 Unit，
         // 避免把「有值」错当成 void。
         Ty::Func(_) | Ty::Error => MirType::Dynamic,
     }
-}
-
-/// 从 HIR 参数与类型签名构造 MIR 参数元数据。
-///
-/// `*args` / `**kwargs` 的槽位在运行时是 tuple / dict，即使写了标注也不能当成普通值，
-/// 因此强制为 `Dynamic`。
-fn build_param_meta(
-    hir: &Module,
-    types: &ModuleTypes,
-    hir_fn_id: ryupy_hir::FuncId,
-) -> Vec<ParamMeta> {
-    let hir_fn = &hir.functions[hir_fn_id];
-    let sig = &types.sigs[hir_fn_id];
-    hir_fn
-        .params
-        .iter()
-        .enumerate()
-        .map(|(index, param)| {
-            let kind = match param.kind {
-                ryupy_hir::ParamKind::PositionalOnly => ParamKind::PositionalOnly,
-                ryupy_hir::ParamKind::PositionalOrKeyword => ParamKind::PositionalOrKeyword,
-                ryupy_hir::ParamKind::VarPositional => ParamKind::VarPositional,
-                ryupy_hir::ParamKind::KeywordOnly => ParamKind::KeywordOnly,
-                ryupy_hir::ParamKind::VarKeyword => ParamKind::VarKeyword,
-            };
-            let ty = match kind {
-                ParamKind::VarPositional | ParamKind::VarKeyword => MirType::Dynamic,
-                _ => ty_to_mir(sig.params.get(index).unwrap_or(&Ty::Dynamic)),
-            };
-            ParamMeta {
-                name: hir_fn.body.locals[param.local].name.to_string(),
-                kind,
-                has_default: param.default.is_some(),
-                ty,
-            }
-        })
-        .collect()
 }
 
 /// 单个函数的 MIR 构建器。
@@ -441,6 +456,7 @@ fn build_param_meta(
 /// 字段对外开放到 crate 内，是为了把「循环」「异常区域」这些小节的构建逻辑拆到
 /// 独立文件（`build_loops.rs` / `build_try.rs`），避免单文件过长。
 pub(crate) struct FunctionBuilder<'a> {
+    pub(crate) module_state: Option<MirLocalId>,
     pub(crate) hir: &'a Module,
     pub(crate) types: &'a ModuleTypes,
     pub(crate) fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
@@ -448,6 +464,8 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     /// 每个函数默认值数组的静态槽位（没有默认值为 `None`）。
     pub(crate) fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
+    /// 只由普通def成功发布、与对应code一致的私有实例槽。
+    pub(crate) fn_sources: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     /// HIR 类 → MIR 类定义。
     pub(crate) class_map: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::ClassDefId>,
     /// HIR 类 → 类对象静态槽位（表达式构建直接使用）。
@@ -465,6 +483,7 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) entry: BlockId,
     pub(crate) current_bb: BlockId,
     pub(crate) local_map: FxHashMap<HirLocalId, MirLocalId>,
+    pub(crate) function_locals_cache: Option<MirLocalId>,
     pub(crate) assigned_locals: FxHashSet<HirLocalId>,
     pub(crate) reported_unbound: FxHashSet<HirLocalId>,
     pub(crate) loop_stack: Vec<(BlockId, BlockId)>, // (continue_bb, break_bb)
@@ -491,68 +510,15 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) frame_depth: Option<MirLocalId>,
     /// 闭包环境形参（M3.0）：`Free` 读取 / `nonlocal` 写入都要经过它。
     pub(crate) env: Option<MirLocalId>,
+    pub(crate) dynamic_owner: Option<MirLocalId>,
     /// 当前正在执行的类体原始命名空间。
     pub(crate) class_namespace: Option<Operand>,
+    /// 当前类体定义点的 cell，与 namespace 对象、module context 分开。
+    pub(crate) class_cell: Option<(ryupy_hir::ClassId, Operand)>,
+    pub(crate) class_cells: Vec<(crate::ClassDefId, crate::ClassCellDefinition)>,
 }
 
-impl<'a> FunctionBuilder<'a> {
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        hir: &'a Module,
-        types: &'a ModuleTypes,
-        fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
-        fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
-        fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
-        class_map: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::ClassDefId>,
-        hir_class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
-        class_factories: &'a FxHashMap<crate::mir::ClassDefId, crate::mir::GlobalId>,
-        module_vars: &'a FxHashMap<ModuleVarId, crate::mir::GlobalId>,
-        module_bound_flags: &'a FxHashMap<crate::mir::GlobalId, crate::mir::GlobalId>,
-        globals: &'a Arena<GlobalDecl>,
-        current_hir_fn: ryupy_hir::FuncId,
-    ) -> Self {
-        let mut blocks = Arena::default();
-        let entry = blocks.alloc(BasicBlock {
-            stmts: Vec::new(),
-            terminator: Terminator::Unreachable,
-        });
-        Self {
-            hir,
-            types,
-            fn_map,
-            fn_globals,
-            fn_defaults,
-            class_map,
-            hir_class_globals,
-            class_factories,
-            module_vars,
-            module_bound_flags,
-            globals,
-            current_hir_fn,
-            locals: Arena::default(),
-            blocks,
-            entry,
-            current_bb: entry,
-            local_map: FxHashMap::default(),
-            assigned_locals: FxHashSet::default(),
-            reported_unbound: FxHashSet::default(),
-            loop_stack: Vec::new(),
-            diagnostics: Vec::new(),
-            regions: Vec::new(),
-            protected_stack: Vec::new(),
-            finally_stack: Vec::new(),
-            flow_kind: None,
-            retval: None,
-            actions: Vec::new(),
-            epilogue: None,
-            epilogue_jumps: Vec::new(),
-            ret_ty: ty_to_mir(&types.sigs[current_hir_fn].ret),
-            frame_depth: None,
-            env: None,
-            class_namespace: None,
-        }
-    }
-
+impl FunctionBuilder<'_> {
     pub(crate) fn new_block(&mut self) -> BlockId {
         self.blocks.alloc(BasicBlock {
             stmts: Vec::new(),

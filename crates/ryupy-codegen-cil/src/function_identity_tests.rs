@@ -1,8 +1,9 @@
-//! 特化身份锚点的真实 PE 回归：构造一次函数对象、双存同一引用、先于模块入口初始化。
+//! 特化身份锚点的真实PE回归：只在定义执行点创建函数，锚点保存同一原始实例。
 use dotnetdll::prelude::*;
 use la_arena::Arena;
 use ryupy_mir::{
-    BasicBlock, Body, Function, GlobalDecl, LinkedProgram, MirType, ModuleDef, Terminator,
+    BasicBlock, Body, Function, GlobalDecl, LinkedProgram, LocalDecl, MirType, ModuleDef, Operand,
+    Rvalue, Statement, Terminator,
 };
 
 fn empty_function(name: &str) -> Function {
@@ -15,6 +16,7 @@ fn empty_function(name: &str) -> Function {
         name: name.into(),
         codegen_name: name.into(),
         source_file: "identity.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: Body {
@@ -29,25 +31,32 @@ fn empty_function(name: &str) -> Function {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        module_state_source: None,
     }
 }
 
 #[test]
-fn original_function_identity_is_duplicated_before_module_execution() {
+fn original_function_identity_is_duplicated_at_definition() {
     let mut globals = Arena::default();
     let public = globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "original_function".into(),
         ty: MirType::Dynamic,
     });
     let defaults = globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "original_defaults".into(),
         ty: MirType::Dynamic,
     });
     let signature = globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "original_signature".into(),
         ty: MirType::Dynamic,
     });
     let identity = globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "private_identity_anchor".into(),
         ty: MirType::Dynamic,
     });
@@ -58,11 +67,34 @@ fn original_function_identity_is_duplicated_before_module_execution() {
     target.defaults_global = Some(defaults);
     target.signature_global = Some(signature);
     target.specialization_identity_global = Some(identity);
-    functions.alloc(target);
+    let target = functions.alloc(target);
+    let body = &mut functions[init].body;
+    let created = body.locals.alloc(LocalDecl {
+        ty: MirType::Dynamic,
+        name: None,
+        is_cell: false,
+    });
+    body.blocks[body.entry].stmts = vec![
+        Statement::Assign {
+            dest: created,
+            value: Rvalue::MakeFunction {
+                instance_context: None,
+                func: target,
+                env: vec![],
+                defaults: vec![],
+            },
+        },
+        Statement::SetGlobal {
+            dest: public,
+            value: Operand::Local(created),
+        },
+    ];
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: vec![],
         name: "__main__".into(),
         package: String::new(),
@@ -100,10 +132,25 @@ fn original_function_identity_is_duplicated_before_module_execution() {
         anchor.accessibility,
         MemberAccessibility::Access(Accessibility::Private)
     ));
-    let body = &generated
+    let initialization = &generated
         .methods
         .iter()
         .find(|method| method.name == "__init_functions")
+        .unwrap()
+        .body
+        .as_ref()
+        .unwrap()
+        .instructions;
+    assert!(
+        initialization.iter().all(|ins| {
+            !matches!(ins, Instruction::NewObject(_)) || !ins.show(&res).contains("PyFunction.")
+        }),
+        "签名初始化不能提前构造Python函数身份"
+    );
+    let body = &generated
+        .methods
+        .iter()
+        .find(|method| method.name == "module_entry")
         .unwrap()
         .body
         .as_ref()
@@ -125,15 +172,14 @@ fn original_function_identity_is_duplicated_before_module_execution() {
             .show(&res)
             .contains("private_identity_anchor")
     );
-    assert!(matches!(
-        body[constructor + 3],
-        Instruction::StoreStaticField { .. }
-    ));
-    assert!(
-        body[constructor + 3]
-            .show(&res)
-            .contains("original_function")
-    );
+    let publication = body
+        .iter()
+        .position(|ins| {
+            matches!(ins, Instruction::StoreStaticField { .. })
+                && ins.show(&res).contains("original_function")
+        })
+        .unwrap();
+    assert!(publication > constructor + 2);
     assert_eq!(
         body.iter()
             .filter(|ins| matches!(ins, Instruction::NewObject(_))
@@ -142,7 +188,7 @@ fn original_function_identity_is_duplicated_before_module_execution() {
         1,
         "锚点必须共享原对象，不能另建一个可调用对象"
     );
-    // 所有方法中只有初始化器写这个私有槽，模块属性入口没有暴露它。
+    // 所有方法中只有MakeFunction机械写这个私有槽，模块属性入口没有暴露它。
     let anchor_writes = generated
         .methods
         .iter()
@@ -154,22 +200,4 @@ fn original_function_identity_is_duplicated_before_module_execution() {
         })
         .count();
     assert_eq!(anchor_writes, 1);
-    let main = &generated
-        .methods
-        .iter()
-        .find(|method| method.name == "Main")
-        .unwrap()
-        .body
-        .as_ref()
-        .unwrap()
-        .instructions;
-    let initialization = main
-        .iter()
-        .position(|ins| ins.show(&res).contains("__init_functions"))
-        .unwrap();
-    let run = main
-        .iter()
-        .position(|ins| ins.show(&res).contains("__run_main"))
-        .unwrap();
-    assert!(initialization < run, "用户模块入口前必须已固定原函数身份");
 }

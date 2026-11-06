@@ -1078,6 +1078,7 @@ dependencies = [
  "rustc-hash",
  "ryupy-base",
  "ryupy-hir",
+ "ryupy-syntax",
  "ryupy-ty",
 ]
 

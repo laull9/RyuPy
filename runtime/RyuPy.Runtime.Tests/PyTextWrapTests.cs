@@ -104,7 +104,7 @@ public class PyTextWrapTests
     {
         Assert.Throws<PyNotImplementedError>(() => Invoke("wrap", ["abc"], ["fix_sentence_endings"], [true]));
         Assert.Throws<PyNotImplementedError>(() => Invoke("wrap", ["abc"], ["max_lines"], [1L]));
-        Assert.Throws<PyNotImplementedError>(() => Invoke("wrap", ["abc"], ["placeholder"], ["..."]));
+        Assert.Equal(new object?[] { "abc" }, Assert.IsType<PyList>(Invoke("wrap", ["abc"], ["placeholder"], ["..."])).Items);
         Assert.Throws<PyNotImplementedError>(() => Invoke("wrap", ["abc", 1.5]));
     }
 }

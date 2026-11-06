@@ -62,18 +62,45 @@ fn discovery_descends_functions_but_module_binding_scan_does_not() {
     );
 }
 #[test]
-fn function_exception_alias_and_star_remain_explicitly_rejected() {
+fn function_exception_aliases_keep_local_identity_and_star_stays_rejected() {
     for source in [
         "def f():\n    from io import UnsupportedOperation as Error\n    try:\n        pass\n    except Error:\n        pass\n",
         "def f():\n    from io import UnsupportedOperation as ValueError\n    try:\n        pass\n    except ValueError:\n        pass\n",
         "def f():\n    from math import *\n",
     ] {
-        let (_, diagnostics) = lower(source);
+        let (module, diagnostics) = lower(source);
+        if source.contains("import *") {
+            assert!(
+                diagnostics.iter().any(|d| d.code == Some("E0100")),
+                "{diagnostics:?}"
+            );
+            continue;
+        }
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(module.protected_exports.is_empty());
+        let function = module
+            .functions
+            .iter()
+            .find(|(_, f)| f.name.as_str() == "f")
+            .unwrap()
+            .1;
+        assert_eq!(function.body.handlers.len(), 1);
+        let handler = function.body.handlers.iter().next().unwrap().1;
         assert!(
-            diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.code == Some("E0100")),
-            "{diagnostics:?}"
+            handler.types.is_none(),
+            "无driver native证明不可借builtin/模块typed身份"
         );
+        let ExprKind::Local(id) = function.body.exprs[handler.type_expr.expect("不能变bare")].kind
+        else {
+            panic!("函数导入异常目标必须保真实local绑定");
+        };
+        let expected = if source.contains("as ValueError") {
+            "ValueError"
+        } else {
+            "Error"
+        };
+        assert_eq!(function.body.locals[id].name.as_str(), expected);
+        assert!(function.body.stmts.iter().any(|(_, stmt)| matches!(&stmt.kind,
+            StmtKind::ImportFrom { names, .. } if names.iter().any(|(_, binding)| matches!(binding, Binding::Local(target) if *target == id)))), "handler必须读取实际ImportFrom绑定槽");
     }
 }

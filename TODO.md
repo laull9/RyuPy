@@ -186,8 +186,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 > 依赖 M2.1 / M2.2。用例按 list、tuple、dict、set、bytes 分开。
 
-- [x] list / tuple：字面量、构造、嵌套、下标、负索引、切片、赋值 / 删除、append / extend / pop 与普通 / 星号解包
-      （`PyList` / `PyTuple`；星号解包由 `UnpackCheck` 校验长度后按下标取值，其余部分用 `PySlice` 一次切出）
+- [x] list / tuple：字面量、构造、嵌套容器、下标、负索引、切片、赋值 / 删除、append / extend / pop 与平坦普通 / 星号序列解包
+      （`PyList` / `PyTuple`；直接无展开tuple/list字面量的星号解包仍由 `UnpackCheck` 校验长度后按下标与 `PySlice` 取值，中段为新 list；一般 iterator 星号有限验收见 ADR0068，专项及完整门禁通过；嵌套目标仍报 E0100）
 - [x] dict：保持插入顺序，增删查改、get / items / keys / values / update；定义视图与迭代中修改行为
       （`PyDict` 用「键 → 槽位下标 + 平行键值数组 + 墓碑」，删除 O(1)；`Version` 只在增删时递增，覆盖已有键不递增；视图是「活的」，迭代器按槽位推进并校验版本）
 - [x] set / frozenset：构造、成员判断、常用集合运算；统一可哈希判定与相等 / 哈希规则，覆盖 `True`、`1`、`1.0` 作键
@@ -195,7 +195,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 可变容器保留共享引用；递归 repr / equality 的支持边界明确，循环引用不能导致无界运行
       （赋值只复制引用；`PyRepr` 用「正在处理」集合保护，自引用打印 `[[...]]`）
 - [x] bytes / bytearray：字面量、索引、切片、常用转换与可变写入；为文件和编码 API 提供对象模型
-      （`PyBytes` / `PyByteArray`；bytearray 支持下标 / 切片赋值与删除，并与 bytes 按内容相等）
+      （`PyBytes` / `PyByteArray`；旧行误称 bytearray 切片赋值已支持，实际仅单元素赋值及切片删除；切片赋值有限候选见 ADR0098，不能据本行推定完整右值协议；bytes 按内容相等）
 - [x] 验收：空 / 异构 / 嵌套容器、共享别名、切片边界、不可哈希键和迭代失效做 CPython 差分
       （`m2_3_containers` / `m2_3_slices` / `m2_3_bytes` / `m2_3_hashing` 已转正；顺带解锁 M2.2 遗留的索引 / 键错误映射）
 - [x] 额外修正：`print` 实参改为先全部求值再统一输出；`PyHash` 的 int / float 比较改走精确比较
@@ -211,6 +211,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 字符串常用 split / join / strip / lstrip / rstrip / replace / find / rfind / index / count / startswith / endswith 和编码转换
 - [x] f-string 与常用格式化、repr / str / bool；`print` 的 `sep` / `end` 已接入，`file` / `flush` 依赖 M3.4 的文件流
       （`PyOps.FormatValue`：宽度 / 对齐 / 补零 / 精度 / 进制 / 百分比，未知规格抛 `ValueError`）
+- [~] 公共 `format(value, spec='', /)` 分域实现：阶段2真实类型槽/对象返回身份及有限文本、整数规格已接线；新27项C#、4项源差分通过（异常链保首败并窄迁），正常完整门禁877C#/228CP/202e2e+30原ignored通过。显式浮点g/G随后新增22项C#，连原27项共49及1项297调用差分通过，正常完整门禁899C#/228CP/202e2e+30原ignored通过；f/e/%/无typeprecision、复杂合法规格、显式根方法及旧f-string统一仍未完成；见ADR0073/0074，不计项目通过。
 - [x] `len`、`range`、`enumerate`、`zip`、`reversed`、`sum`、`min/max`、`any/all`、round、稳定 `sorted` / list.sort，含 key 与 reverse
       （`PySort.SortBy`：key 只计算一次，降序仍稳定；`round` 按 double 的精确二进制值做银行家舍入）
 - [x] `type` / `isinstance`、`is` / `is not`、id / hash、`getattr` / `setattr` / `hasattr` 等对象内建登记统一协议；`setattr` 的属性协议随 M2.5 普通 class 接入
@@ -258,6 +259,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] driver：文件解析、模块搜索路径、依赖图和源码注册；hir 接收已加载的模块身份与符号，不自行读文件
 - [x] 支持 `import x`、`import x as y`、`from x import y`、别名、普通包 `__init__.py` 与包内相对导入；星号导入明确拒绝（`E0100`）
 - [x] 模块命名空间、函数读写模块变量、`global`、`__name__` / `__file__` / `__package__`、`__main__` 入口，区分 import 与 from 的绑定行为
+- [x] 有本地写入证据或重复def的模块函数公开绑定有限本地验收：真实定义位置发布，callee先于参数冻结，旧alias/defaults独立；HIR4/ty2、新3应用及原star/capture两例通过，结构1项及正常完整门禁（818 C# / 228 CP / 202 e2e＋30原ignored）通过（ADR0069）。只选有限函数集合，保无碰撞热路；受影响模块槽Dynamic成本明确，不冒全LEGB或无本地证据的外部猴子补丁。
 - [x] runtime：模块缓存，导入前登记部分初始化对象；重复导入只初始化一次，循环导入按访问时状态工作；失败移除失败模块条目且保留已成功依赖
 - [x] 首批只加载已编译项目模块；未登记的模块名报 `ModuleNotFoundError`；自定义 import hook、namespace package、热重载暂缓
 - [x] 后端生成各模块初始化入口与全局槽位，不在编译时执行模块副作用；模块属性读写走生成的 getter / setter
@@ -302,8 +304,11 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
       （槽位 + 墓碑 + 紧凑化；视图迭代直接在槽位上走，不复制快照）
 - [x] 静态 `for range` 改用隐藏计数器，`range` 参数只求值一次
       （循环体改写循环变量不会缩短循环；边界变量被改写不影响迭代次数）
-- [x] 解包数量校验同时检查「不足」与「过多」，星号形态按下限检查
-      （`UnpackCheck(length, required, hasStar)`；`a, b = [1, 2, 3]` 抛 `ValueError`）
+- [x] 既有序列解包数量校验同时检查「不足」与「过多」，星号形态按下限检查
+      （`UnpackCheck(length, required, hasStar)`；`a, b = [1, 2, 3]` 抛 `ValueError`；本条不代表一般 iterator 解包已验收）
+- [x] 非星号一般 iterator 解包有限修复验收
+      （`UnpackSequence(source, required)` 最多读取 N+1 项，不调用源的 len / length_hint；普通实例仅无 `__iter__` 时允许整数 `__getitem__` 后备。本层值先冻结再按序写目标，保直接无展开 tuple/list 字面量与既有 tuple_scalar 结构；12 项运行时及4项driver（3 CP/JIT应用差分＋1 MIR结构）及正常完整门禁通过（776 C# / 228 CP / 202 e2e＋30原ignored；ADR-0064），不扩一般星号 iterator 或嵌套目标）
+- [x] 通用星号 iterator 解包有限本地验收：真实双 iter、首 iterator 的 len/length_hint、getitem 后备、全槽冻结及暂停恢复已接线；16项runtime、2项ABI、4项driver（3应用+1结构）及正常完整门禁（818 C# / 228 CP / 202 e2e＋30原ignored）通过。保exact字面量及非星号结构；4096仅容量预留，资源失败时点差异见ADR0068，不扩嵌套目标。
 - [x] 静态 i64 溢出统一转成 Python `OverflowError`
       （`PyMath` 显式转换 `//` / `%` / `abs` / `**` / `int(float)`；入口包装器兜底 catch CLR 异常，不打印 .NET 调用栈；ADR-0004 现状、compatibility D003）
 - [x] 移位语义修正：`1 << 100` 不再被 CIL 取模成 `1 << 36`；`>>` 支持移位量 ≥ 64
@@ -379,10 +384,11 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 原用例文件名仍保留m3_2前缀以便追溯；绝不因迁移算作已支持。见本轮M3.2实现笔记及ADR-0020/21/23。
 
 - [ ] 大字典用户键分块缓存hash合并：M3.7将超过17项动态纯标量键改为每pair真实值守卫；tuple/bytes/用户对象在hash/eq前NotImplementedError。`m3_2_dict_chunk_hash.py`继续pending，不以守卫路径冒称用户键兼容
-- [ ] 补齐剩余表达式 yield 求值准备：双星号实参映射快照、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法也需统一arity校验，避免旧路径忽略额外参数
+- [ ] 补齐剩余表达式 yield 求值准备：双星号实参映射快照、dataclass专用构造及内建完整构造签名；当前未实现位置明确诊断；普通无暂停内建方法仍需逐项统一arity校验；list clear/pop/reverse/copy 已接线窄修（ADR0070），14项C#、3项真实应用及1项结构和完整门禁已通过，其余方法不借此勾完
+- [~] list.pop 宽索引与一次 `__index__` 协议：先 long 判界后窄化，转换先于空表并观察回调后长度；三个真实应用、新7项C#及1项结构和完整门禁通过，见 ADR0071。警告型返回值/int子类仍有限边界。
 - [ ] set/frozenset源含用户对象的星号展开需复用源缓存hash；当前显式NotImplementedError，不重跑用户hash（`m3_2_set_cached_hash.py` pending）
 - [ ] 生成器方法零参super的owner/self上下文保存；当前仍E0100，普通方法支持不代表恢复委托可用
-- [ ] M3.6 额外发现：普通类创建时的隐式 `__hash__ = None` 槽及继承/动态重绑规则；`collections.abc.Hashable` 暂不导出，原正向与新增反例保留 `m3_6_hashable_pending.py`，不以启发式判断冒充兼容。
+- [~] 普通类 hash 槽有限修复：创建时 own eq/缺 own hash 物化 None，继承/动态重绑、根 hash 显式绑定、空容器 None 准入及 dataclass 联动已接线，16项C#与4项真实差分及完整门禁通过；见 ADR0066。`collections.abc.Hashable` 仍不导出，`m3_6_hashable_pending.py` 保留；后续 ADR0072 已接线用户hash返回归约及必要整数/double等值闭包，新11项C#、3项真实应用及完整门禁通过；空表有效键副作用仍独立 pending，不冒完整协议。
 
 ### M3.0 闭包、lambda 与 nonlocal
 
@@ -455,6 +461,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] `math` / `time`：按 API 实现定义域、溢出、NaN 与计时行为，不直接透传 .NET 异常
 - [x] `json`：loads / dumps / load / dump 与常用参数，大整数、转义、键顺序、非法输入与位置
 - [x] `re`：先建立 Python 与 .NET 模式差异测试，再实现受支持语法、flags、分组与 match / search / findall / sub；不支持构造明确拒绝或显式桥接
+- [x] `re` exact PyBytes 域：分阶段闭合现有匹配、捕获、替换及 escape API；公共链已接，40 项专项与四组真实应用通过，完整门禁通过（1059 C# / 228 CP / 202 e2e + 30 ignored）。可变 buffer、split/scanner 及旧复杂语法保留后续范围，不计项目通过（ADR-0080）。
 - [x] 验收：每个 API 有边界、错误类型和项目调用测试；不得把部分 API 通过写成完整模块兼容
 
 > 聚合门禁：241 C#、105 编译 e2e / 17 ignored、118 CPython 基线；stdlib-numeric.md 与 ADR-0029 逐 API 记录参数/语法/容量边界。固定项目仍原生 0/20，JSON高级选项与旧类绑定欠账保留独立pending。
@@ -465,6 +472,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 > 完成原始验收与限定 API：297 C#、122 编译 e2e / 16 ignored、134 CPython 基线；构造守卫、死装箱消除与受守卫累加槽均经实际编译 A/B 和身份/回退差分。见 ADR-0030、三张 API 表及性能记录；固定项目仍 0/20，Hashable 等欠账保留。
 
 - [x] `collections` / `collections.abc`：deque / defaultdict / Counter 与项目所需协议，支持范围独立登记
+- [~] `collections.namedtuple` 有限真实类型：工厂、只读字段、tuple协议与helpers已接线，50项C#及5组真实CP/JIT首次通过；正常完整门禁首次通过（982项C#、228CP基线、202e2e+30原ignored）。默认module仅真实Dynamic/模块来源，Static未知NI；Unicode/NFKC、可变类/继承/copy/复杂反射及跨类名字intern身份等保边界。后续固定tabulate候选仍因缺html失败，不更新历史项目分子（ADR0077）。
 - [x] `itertools`：chain / islice / repeat 起步，逐个补项目所需迭代工具并测试消费边界
 - [x] `functools`：partial / reduce / wraps / lru_cache；验证包装元数据、参数绑定、强引用规则与有界缓存
 - [x] `dataclasses`：字段默认值 / factory、repr / eq / frozen；保持身份规则与 Phase 1 回归，复杂继承参数另列
@@ -538,8 +546,22 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [~] 普通单继承真实 `__new__` / `__init__`：本地门禁/三平台语义与有限fixture NativeAOT已验，已随打包批次进入main；保专用布局与罕见槽历史冷拒绝，不扩元类/多继承、不计项目通过（[ADR-0050](docs/adr/0050-ordinary-construction-protocol.md)）
 - [~] 真实 `object()` 基础实例/身份与sentinel：本地完整门禁与三平台专项/组合CI通过，已随打包批次进入main；派生构造协议和任意返回富比较旧债独立，不计项目通过（[ADR-0049](docs/adr/0049-base-object-identity.md)）
 - [~] 默认 site 的真实 `exit` / `quit` Quitter：参数/关闭stdin/异常上下文/一等身份与重绑专项及完整门禁通过，三平台专项及组合回归通过（旧测试目录碰撞已窄修并保失败历史），已随打包批次进入main，不计项目通过（[ADR-0048](docs/adr/0048-default-site-quitters.md)）
-- [~] `int()` / 显式进制构造的真实参数绑定与求值顺序：671a48c最小差分证实第二参数及副作用被旧conversion遗漏；本地有限签名/严格文本解析、16项runtime、3项真实driver和完整门禁已通过，待远端验收，不计项目通过（[ADR-0053](docs/adr/0053-int-constructor-binding.md)）。
-- [~] `abs` 完整实参求值与严格单参绑定：保原数值快路，修额外参数/星号被遗漏的现有错误，8项runtime、3项真实driver及完整门禁已通过，待远端验收（[ADR-0054](docs/adr/0054-abs-call-binding.md)）。
+- [~] `int()` / 显式进制构造的真实参数绑定与求值顺序：671a48c最小差分证实第二参数及副作用被旧conversion遗漏；本地有限签名/严格文本解析、16项runtime、3项真实driver和完整门禁已通过，已进入main且Ubuntu/macOS普通CI通过，不计项目通过（[ADR-0053](docs/adr/0053-int-constructor-binding.md)）。
+- [~] `abs` 完整实参求值与严格单参绑定：保原数值快路，修额外参数/星号被遗漏的现有错误，8项runtime、3项真实driver及完整门禁已通过，已进入main且Ubuntu/macOS普通CI通过（[ADR-0054](docs/adr/0054-abs-call-binding.md)）。
+- [~] `float` 完整参数绑定与有限冷协议/文本转换：原额外参数及副作用被遗漏已修，保单数值快路，16项runtime、3项真实driver及完整门禁已通过，待远端验收（[ADR-0055](docs/adr/0055-float-constructor-binding.md)）。
+- [~] `bool` 严格绑定与普通实例共享真值长度校验：不改数值/容器热分支，负长度和索引长度语义12项runtime/3项真实driver与完整门禁通过，待远端验收（[ADR-0056](docs/adr/0056-bool-binding-and-length-truth.md)）。
+- [~] `len` 冷长度结果与bool共享校验：保exact容器/primitive热路，补结果对象一次`__index__`、负长度与上界错误、len自身绑定/缺槽现场；源审及新10＋旧bool12项runtime、新len3＋旧bool3项driver及首次完整门禁通过（786C#/228CP/202e2e＋30原ignored），未发布，不改变通用展开或项目分子（[ADR-0065](docs/adr/0065-len-result-protocol.md)）。
+- [~] 显式 `--include-module` 与文件包 `importlib.resources.files(anchor)`：真实包身份/初始化及JIT源定位，AOT仅声明资源根；12项runtime、4项driver和loader/CLI/PE专项及完整门禁通过，待远端验收，不宣称pyfiglet或完整importlib通过（[ADR-0057](docs/adr/0057-explicit-package-resources.md)）。
+- [~] `shutil.copyfileobj` 通用流复制：真实原生模块与当前 `COPY_BUFSIZE`，严格绑定、缓存方法和逐块协议；10项runtime与4项driver及完整门禁通过，待远端验收，不等于 `copy` 或整个模块支持（[ADR-0058](docs/adr/0058-shutil-copyfileobj.md)）。
+- [~] `str` 注解的对象身份（C0先行阶段）：参数/返回/公开槽透传保对象，未知消费保守动态回退，独立数值/精确字符串结构保留；专项及完整门禁本地已验、未发布，不代表字符串子类布局或pyfiglet通过（[ADR-0062](docs/adr/0062-opaque-str-annotations.md)）。
+- [~] `str` 子类有限布局/核心协议/常用方法：真实实例、类发布与公共转换身份，首专项 runtime 36/36、RuntimeBases 6/6、driver 4/4（1 MIR + 3 CP/JIT）本地通过；完整门禁本地通过、未发布，不计项目/AOT/性能通过。自定义new/未纳魔术槽/解码及UTF16排序旧债保明确边界与原CP pending（[ADR-0063](docs/adr/0063-string-subclass-layout.md)、[语义边界](docs/semantics.md#字符串子类有限布局与公共协议)）。
+- [~] `optparse` 常用单值选项解析：真实OptionParser/Option/Values、六异常与默认帮助；47项专项C#与真实差分6/6、完整门禁本地已验，不冒完整模块或pyfiglet通过（[ADR-0060](docs/adr/0060-optparse-common-options.md)）。
+- [~] 有限动态 `except`：真实模块/函数Name、属性链与tuple在异常后求值，身份匹配/清理及静态数值路径专项通过；原2/4应用失败修复后4/4、结构1/1，正常完整门禁1466C#/228CP/202e2e+30原ignored通过。Call/Subscript、动态生成器及删除旧边界明确保留，未发布、不冒tomli通过（[ADR0085](docs/adr/0085-dynamic-except-dispatch.md)）。
+- [~] `types.MappingProxyType` 有限真实只读活代理：31项代理专项+3项旧Enum、四项CP/JIT应用及结构1项、首次完整门禁1497C#/228CP/202e2e+30原ignored已通过；保合法range/复杂比较及消费者边界，未发布、不冒tomli通过（[ADR0086](docs/adr/0086-mapping-proxy.md)）。
+- [~] `typing.IO/BinaryIO/TextIO` 有限真实名义类：29运行时专项、四项CP/JIT应用分别通过；根空slots、普通派生、完整方法绑定和当前模块来源已接线，首次正常完整门禁已通过。泛型/完整反射与普通框架旧债保留，不冒tomli通过（[ADR0087](docs/adr/0087-typing-io-runtime.md)）。
+- [~] `typing.NamedTuple` 有限真实函数/类语法：复用tuple布局、双遍字段与真实来源、默认值/注解/普通方法和property；160项相关runtime、5项CP/JIT应用＋1结构及HIR6项首次通过；旧Quitter期待窄迁后第二次正常完整门禁1607C#/228CP/202e2e＋30原ignored通过。泛型/生成类派生/复杂注解和descriptor等合法域保pending，未发布、不冒tomli通过（[ADR0088](docs/adr/0088-typing-namedtuple.md)）。
+- [~] `getopt` 有限真实解析、GetoptError/error及函数局部稳定原生异常身份：21项C#、PE1、HIR1+4、5项源差分及正常完整门禁920C#/228CP/202e2e+30原ignored已验；一般协议/GNU/用户派生仍未支持，不冒tabulate通过（[ADR0075](docs/adr/0075-getopt-local-exception-imports.md)）。
+- [~] `zipfile.is_zipfile` 尾记录识别与真实 `BadZipFile`：EOCD/ZIP64、流位置/所有权及异常协议有限切本地已验、未发布，不含ZipFile/解压，不计项目通过（[ADR-0059](docs/adr/0059-zipfile-tail-identification.md)）。
 - [ ] 冻结分母不变，至少 80% 项目原生通过预定入口与上游测试范围；若未达标，继续按失败阻塞排序实现
 - [ ] 另列桥接、带偏差、部分通过与不支持结果，注明平台、Python / .NET 版本、传递依赖和验证日期
 - [ ] 更新逐 API 标准库清单，所有未通过项有具体失败原因；不把 import 成功等同功能通过
@@ -630,13 +652,14 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 超过 u64::MAX 的字面量已接入有界正规化与常量池（4300有效十进制位）；四进制/默认值/容量差分及 M3.7 checkpoint3 聚合门禁通过（M3.4 错误退出测试发现），范围与代价见 docs/integer-literals.md
 
 - [ ] `%` 字符串格式化的剩余 flags/宽度/precision/其它转换与 bytes 格式；M3.7 已支持无修饰标量和映射 `%s/%r/%a/%d/%i/%u/%%`，不再将整个能力标成未支持（docs/string-percent.md、semantics §4 #44）
-- [ ] 类体内引用同类刚定义的函数名（`v = property(getv, setv)`）报 E0106（semantics §4 #45）
+- [x] 类体内引用同类刚定义的函数名：既有 raw namespace 路线经专用 CP/JIT 差分确认，`v = property(getv, setv)`、别名、定义时 defaults/decorator 与方法全局作用域通过；纠正旧 E0106 记录，不计新增生产能力（semantics §4 #45、ADR0067）。
 - [ ] `MemoryError` 类型缺失：超大序列重复暂用 OverflowError 代替
 - [ ] 动态路径剩余差距（ADR-0014「仍落后」）：异常抛捕（CLR 异常成本）、`str +=` 累加（不可变 string）、
       容器下标 / 迭代的类型分派、5 个以上实参的方法调用
 - [x] M3.0 涉及的超长文件已按职责拆分：`codegen-cil/assembly.rs` / `stackify.rs`、`mir/build.rs` / `expr_builder.rs` / `mir.rs`、`hir/lower.rs` / `hir.rs`、`ty/check.rs`；保留介绍与注释
 - [x] 既有超长 `mir/call_builder.rs`、`e2e/lib.rs` 已随对应功能拆分到 600 行内；后续扩展仍须先检查职责和行数
 - [x] 函数对象的 `__name__` / `__doc__` / `__annotations__` 已接入声明范围，供 wraps 等使用
+- [x] 函数 `__module__` 真实成员、定义时捕获与有限 Dynamic 调用来源：本地专项与完整门禁已通过，尚未公开发布；Static 未知来源明确拒绝；后续namedtuple消费者按ADR0077独立验收，不以此来源前置计标准库完成（ADR0076）。
 - [ ] 函数对象的 `__defaults__` / `__closure__` 完整反射仍未接入
 - [x] `Builtins` 改为带缓冲的 writer（64 KiB），入口包装器退出前 `Flush`；错误报告前先刷新 stdout
 - [ ] `Name` 改为字符串驻留（等 profile 证明有必要）
@@ -645,3 +668,134 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [x] 浮点除零与 floor div / mod 数值边界统一抛 Python 异常（M2.2），并有差分用例
 - [x] Phase 1 类型标注约束与 frozen dataclass 值拷贝已解除：M2.1 标注只作优化线索，M2.5 起 frozen dataclass 保留对象身份
 - [ ] CLI 的 run 分支当前直接启动 dotnet 子进程；后续收回 driver，保持 architecture.md §2 的编排边界，本次只同步文档和测试
+
+- [~] `html.escape` 有限真实协议：完整绑定、逐步动态replace与延后quote、exact字符串冷/热分路已接线，12项runtime与3应用CP/JIT通过，正常完整门禁994C#/228CP/202e2e+30原ignored已验；unescape/entities/parser及既有高阶协议边界保pending（ADR0078）。
+
+- [~] `itertools.zip_longest` 真实惰性多槽状态、局部sequence/迭代协议及稳定type已接线；内部/公开与StopIteration必要ABI前置累计25项、3应用CP/JIT已过（首Z2失败保留），正常完整门禁1019C#/228CP/202e2e+30原ignored通过。非Stop错误整体终止、不物化输入，pickle/任意descriptor/派生保边界（ADR0079）。
+
+- [~] `re` 条件组有限候选：闭合ASCII编号/名字、数字前向及两支解析已接；283运行时专项、3真实CP/JIT应用与正常完整门禁通过。开放capture等边界、后端差异与成本见ADR0082，不计项目增长。
+
+- [~] `textwrap.TextWrapper` 普通可继承类与动态hook候选：74运行时专项通过，四应用分别通过（首轮2/4保留），完整门禁1411C#/228CP/202e2e+30原ignored通过；严格根快路保旧区间引擎，根高级算法及对象框架旧边界明确保留，见ADR0083。
+
+- [~] `str.format` 通用模板候选：增量字段、命名/位置/自动编号、属性索引、转换、动态规格与对象身份已接内部引擎；累计47项通过，四应用分别通过（首轮2/4保留），正常门禁1458C#/228CP/202e2e+30原ignored通过。沿既有值格式域，不冒format_map/Formatter/f-string统一；见ADR0084。
+
+- [~] `str.startswith/endswith` 窗口、tuple、类型级index与真实str子类提前方法捕获候选：新增23运行时及34旧回归通过，四应用与一结构及正常完整门禁1630C#/228CP/202e2e+30原ignored通过（首3/5保留）；保exact单参路径及明确capture/码点扫描成本，不冒tomli通过（ADR0089）。
+
+- [~] 精确set.clear原地协议与有限迭代size/sticky/finished修正候选：源码已审，47运行时专项与3应用+1结构首次通过，正常完整门禁1647C#/228CP/202e2e+30原ignored通过；同size clear/refill明确NI+CP正例pending，不冒完整set或tomli通过（ADR0090）。
+
+- [~] `codecs` BOM 通用常量族：十四名/五对象、端序与别名/重绑定已接线，首次四项运行时与两项CP/JIT差分通过，正常完整门禁1651C#/228CP/202e2e+30原ignored通过；编码器、registry、增量和流接口另切，不能以导入成功称完整模块或 chardet 通过（ADR0095）。
+
+- [~] bytes正则可变subject阶段A：bytearray与现有连续B/c memoryview的eager匹配及Match活读已接候选，65运行时专项与3应用通过、正常完整门禁1666C#/228CP/202e2e+30原ignored通过；mutable sub/subn的384专项和3应用通过，正常完整门禁1702C#/228CP/202e2e+30原ignored通过；finditer已接候选且401专项/3应用通过、正常完整门禁1719C#/228CP/202e2e+30原ignored通过；replacement阶段F已接有限候选，429专项通过、应用首2/3后模板单独1/1通过（合计三unique），首次完整门禁1747C#/228CP/202e2e+30原ignored通过；view模板仍NI，exact扫描保原路径，共有对象/锁成本明确（ADR0096）。
+
+- [~] bytes/bytearray八项ASCII分类候选：有限扫描/绑定/root与保存方法已接线，23项专项及三应用已通过，正常完整门禁1680C#/228CP/202e2e+30原ignored通过；不含派生布局/Unicode分类，保共享入口成本（ADR0097）。
+
+- [~] bytearray 切片赋值有限候选：bytes/bytearray/现有连续 B/c view 与精确 list/tuple/range、普通与扩展写/空删除、一轮/两轮索引及原位尾段移动已接源码；首次24项C#通过，应用首2/3（无关slice构造器编译阻断）后基础窄迁单独1/1通过，原regex首败源逐字复验通过；首次正常完整门禁1771C#/228CP/202e2e+30原ignored通过。通用 iterable 与复杂 descriptor 保明确边界，不冒整个 API 或项目通过（ADR0098）。
+
+- [~] 内建 slice 公开有限类型：修复ADR0098原构造器失败源；真实类型/构造/只读字段、任意精度indices、有限比较/hash已接候选，21项C#、三unique应用（有效首2/3后定向1/1）和MIR结构通过，首次正常完整门禁1792C#/228CP/202e2e+30原ignored通过。复杂比较/descriptor与旧容器内部切片边界不冒全兼容（ADR0099）。
+
+- [~] builtin delattr 有限公开入口：复用slice与typing.IO两份原编译失败源；真实保存函数/严格绑定、普通属性与property及共享删除guard已接候选，最终23项C#、三unique公开应用和结构通过；首门禁旧IO守卫1项回归修后，第二正常完整门禁1815C#/228CP/202e2e+30原ignored通过。模块、custom hook、一般descriptor与完整元数据保NI；不继续静默绕过未知删除协议（ADR0100）。
+
+- [~] 普通函数直接locals有限候选：依据binaryornot0.4.4当前原入口check.py:23真实E0100，保同调用共享dict/逐源码槽同步及未绑定删除；闭包、generator、间接/模块/类调用与复杂展开明确拒绝。专用字典结构重入guard和动态局部del已接，25C#、三unique应用、7边界及第三次正常完整门禁1840C#/228CP/202e2e+30原ignored通过；前两轮旧拒绝断言迁移保原证据，原binaryornot入口编译已过、JIT首错转为bytes.translate，未计项目通过（ADR0101）。
+
+- [~] bytes/bytearray.translate有限buffer候选：通用256表/删除、bytes无变化self/bytearray fresh、保存/root/PIC与连续B/c view已接；220项独立CP观察、18C#专项及三unique应用通过。严格参数验证后None+空delete的bytes窄快路已接，最终真实CIL两轮72例及第三次正常完整门禁1858C#/228CP/202e2e+30原ignored通过，f3ba26b原binaryornot固定Linux JIT入口CP/compile/JIT各一次通过；重复**关键字旧公共展开差异保pending，用户buffer/宽格式/子类不冒全兼容（ADR0102）。
+
+- [~] 精确list必要基础协议：依据177cd406的docopt原入口list/dict基类阻断，先独立修空切片、负步删除、index缺失、extend/+=流式与hint/失败前缀、耗尽游标；原CP三应用3/3、旧Ryu0/3、首修3/3，最终原源及转正各3/3，正常完整门禁1877C#/228CP/202e2e+30原ignored通过；same-CIL ABBA证实exact来源去全量快照，保小range约10.5%回退与大range噪声。真实派生应用只保CP草稿，不计docopt通过（ADR0103）。
+
+- [~] 真实list单继承有限布局：独立wrapper/payload、构造/root描述符/默认协议与消费者已接，原CP3/3、旧compile0/3、最终六unique CP/JIT应用通过、原三转正复过；独立review四反例保留，三修复严格对齐，一项明确NI；全C#1927通过；真实CIL三轮ABBA去大热路回退，最终小操作仍约2–14%额外与共享CPU波动，分配不增；正常完整门禁1927C#/228CP/202e2e+30原ignored通过。custom核心magic、sort回调、宽slice等明确NI，79a04f7原docopt窗口已实测仅余dict基类E0100、未启动JIT，不计项目通过（ADR0104）。
+
+- [~] 精确dict必要更新基础：原docopt真实dict派生前先拆四项已证缺陷，候选流式pairs/mapping优先/零一位置加kwargs；scalar新协议与旧raw自定义键边界分开，六应用CP/JIT与独立4源及1942C#通过；两轮真实CIL去大固定退化，但大pairs仍慢约9–21%、部分省分配，正常完整门禁1942C#/228CP/202e2e+30原ignored通过。真实dict布局与存储hash问题未开放，不计docopt通过（ADR0105）。
+
+- [~] 真实dict单继承有限布局：依据docopt原dict基类阻断，独立wrapper/payload、根描述符/默认协议/活视图与主要消费者候选已接；scalar键与核心槽覆盖/同尺寸结构变异等明确边界。六主应用初轮4过2败，既有显式super与view-set范围已保原失败后拆pending，v3六主及转正CP/JIT均6/6通过；独立审查foreign view ne与bool/string碰撞已保原失败后修复，2004C#通过，递归保护也已核。两配置同CIL性能已核，32旧路径B/op不增，保默认JIT转换及固定配置iter-first约26%等不利样本；正常完整门禁2004C#/228CP/202e2e+30原ignored通过；c0786d1原docopt编译通过但JIT首败re.split缺属性，仍不计项目通过，见ADR0106。
+
+- [~] 通用re.split：依据docopt新鲜首错，str/exact bytes及连续B/c buffer、双入口绑定、ssize_t/捕获None/零宽重试/确定释放已接；首三主1过2败保原流，旧view/GC边界拆pending后v3三主及转正通过，独审支持域与动态代理源通过。29新C#及正常完整门禁2033C#/234CP/205e2e通过，33ignored=原30+三新边界；同CIL两配置1080性能样本保全部不利值。稳定e066238矩阵默认9/20、字体选项另10/20已核；bd06269原docopt编译成功、JIT转为str.partition缺属性，仍不计项目通过，见ADR0107。
+
+- [~] 通用str.partition/rpartition：原docopt缺属性首错驱动，局部绑定、首末Ordinal/代理对端点与receiver/sep身份已接；三主及独审30观察首轮/撤冗余后均严格通过，12新C#及正常完整门禁2045C#/240CP/208e2e通过，36ignored=原33+三新边界。3060真实性能样本保全部不利，21旧路径B/op不增，但rfind根/find预备等回退仍未排除；56aa6c6原docopt编译成功，JIT转为Argument缺__class__，仍不计项目通过，见ADR0108。
+
+
+- [x] 通用默认__class__有限读取：真实普通实例/类及PyType元类固定点已接，保用户覆盖/字段优先级且PIC热命中不增分支；11新C#、三主CP/JIT及独立PIC开关探针通过，正常完整门禁2056C#/246CP/211e2e通过，39ignored=原36+三新边界。干净e0a9ac1原docopt0.6.2入口唯一CP/compile/JIT通过；不泛化完整库/全矩阵。300真实性能样本保全部不利，旧type/覆盖路径回退未排除；动态换类、一般反射及真实布局用户覆盖仍未实现，见ADR0109。
+- [ ] 字符串公共旧路径性能风险复核：ADR0108保留两候选2304样本与单次ALC756样本；原rfind根/find预备等大回退无法可靠归因，同版本也明显波动。后续独立优化须保全部旧证据，不以正常门禁或新API分配不增代替风险关闭。
+
+- [ ] 普通属性公共路径性能复核：ADR0109 的300样本中type两对约+7.8%/+14.1%，覆盖getter/method及循环有不利值；无法可靠归因，不以PIC热命中未变或分配不增代替无回退结论。
+
+- [x] 真实TypeVar有限基础：真变量身份、构造次序、固定特殊槽及既有alias参数元数据已接；五主CP/JIT、16新C#及独审旁路通过，正常完整门禁2072C#/258CP/216e2e通过，46ignored=原39+七边界。280真实性能样本保全部不利与分配，旧路径时间回退未归因、新变量hash仍有包装成本。Generic保持下一切，不计Markdown通过，见ADR0110。
+
+- [ ] TypeVar及原生特殊协议性能复核：ADR0110默认ABBA280样本保留全部不利，旧10路径分配中位数不变但多个时间回退未归因；新变量hash仍144/208B，需在不读instance extra且保反射/身份的前提下优化，不以功能门禁代替性能结论。
+
+- [~] 真实Generic类与参数化基类：原Markdown3.5.2在TypeVar功能提交aa0c54e仍以Generic[_T]基类E0100编译失败，JIT未启动；同提交原docopt仍通过。TypeVar基础已单独通过。下一步保class/alias真实身份、orig_bases/parameters、类体副作用次序及失败，不擦为object，不以导入或单API成功计项目通过。
+
+- [x] Generic根与TypeVar-only alias独立切：六主CP/JIT及12新C#、独审和正常完整门禁2084C#/273CP/222e2e通过，55ignored=原46+九边界；真类根空布局、参数tuple身份、专用LRU与导出消费次序已验。440性能样本保全部不利，旧构造默认约+6.2%风险未关闭，八旧路径分配不增。参数化基类尚未开放，不计Markdown通过，见ADR0111。
+
+- [x] Generic参数化单基类有限切：真实alias解析、普通family布局、body后orig/parameters与相位守卫已接；五新主及G1原派生边界严格通过，14新C#和独审通过。正常完整门禁2098C#/284CP/228e2e通过，60ignored=旧55减一旧转正加六边界；480性能样本保全部不利，默认custom_new约+1.99%、旧G1风险未关闭，八旧路径分配不增。用户类再订阅/完整hook仍分切；干净a97c720原docopt入口仍通过，Markdown编译首次通过但JIT首错ClassVar导入缺失，仍不计Markdown通过，见ADR0112。
+
+- [x] typing.ClassVar通用有限语义：真实SpecialForm根与有限参数alias、缓存及消费者相位已按CP3.12接入，完整门禁通过；项目与未知域、性能边界分开记录，见ADR0117。
+
+- [x] ClassVar前置SpecialForm有限基础：Optional/Union共用raw key 128项LRU、真实冷Union导出消费、稳定alias args和根类型metadata候选已接；八主CP/compile/JIT及16新C#、独审通过，六条完整未知域/旧缺陷保pending。560样本全部保留，热Union/Optional省320/352B，冷Optional多848B且时间回退；正常完整门禁2114C#/298CP/236e2e通过、66ignored=旧60+六边界。干净0713ed8原docopt仍通过；Markdown CP/编译通过但JIT仍首错ClassVar缺失，不增加项目分子，见ADR0113。
+
+- [ ] SpecialForm冷缓存与反射性能复核：ADR0113唯一ABBA保留Optional冷+35.77%/+87.34%、1232→2080B，以及get_args/type(Union)与旧路径不利值；需保真共享容量、原始键、helper相位与身份，避免以热路径获益掩盖冷成本。
+
+- [x] ClassVar 前置普通 typing 原始缓存：十一普通根共用 raw receiver/parameter 128 LRU，冷建不再归一化驻留；八主 CP/compile/JIT、16新C#与162旧typing专项及独审通过。720样本保留全部不利，List/Dict热省152/128B，但冷与旧路径仍有回退；正常完整门禁2130C#/315CP/244e2e通过、75ignored保旧66加九边界。Tuple/Callable真实缓存留后切，C1未验收回归/WIP独立保留，干净b5e6279原docopt仍通过，Markdown CP/编译过而JIT仍ClassVar缺失；不计ClassVar或Markdown完成，见ADR0114。
+
+- [ ] 普通 typing 缓存冷成本与旧路径性能复核：ADR0114保留默认/禁tier Dict冷+11.44%/+48.55%、默认listgetitem+77.16%和禁tier普通构造+17.26%等；不删离散负样本，不因热路径获益或分配不增宣称无回退。
+
+- [x] typing.Tuple独立原始缓存：真实128项raw LRU、空cold与尾Ellipsis相位及多前缀已接，八主CP/compile/JIT、18新C#与178旧typing及独审通过；十二完整边界pending。880样本保全不利，热省152/128B、尾Ellipsis冷省1184B，但普通Tuple冷禁tier+26.27%及旧路径风险保留；正常完整门禁2148C#/335CP/252e2e通过、87ignored保旧75加十二边界。Callable仍下一切，ClassVar未恢复；干净2ee56fe原docopt仍过，Markdown CP/编译过而JIT仍ClassVar缺失，不计Markdown通过，见ADR0115。
+
+- [ ] Tuple原始缓存冷成本与旧路径性能复核：ADR0115普通Tuple冷禁tier+26.27%、默认type(Union)+13.35%、禁tierTypeVar hash+15.98%等全部保留；不因热/尾Ellipsis冷收益关闭F0/F1a旧成本。
+
+- [x] typing.Callable独立原始缓存：外层exact形状/list快照、inner128项raw LRU及result先检查/args仅转换已接；十一主、18新C#与198旧typing/metadata及独审通过，十五完整边界pending。1200性能样本保全部不利，热省8B但冷增120B、禁tier冷+18.14%、父关系issubclass回退；正常完整门禁2166C#/361CP/263e2e通过、102ignored保旧87加十五边界；干净68220e7原docopt仍过，Markdown CP/编译过而JIT仍ClassVar缺失，ClassVar未恢复、不增加项目分子，见ADR0116。
+
+- [ ] Callable冷缓存与公开类型关系性能复核：ADR0116冷+120B、禁tier冷+18.14%、issubclass默认/禁tier+29.10%/+22.82%、默认args读取+33.70%及旧路径不利样本全部保留；需守住外层list快照、真实raw键与父关系，不以热收益关闭风险。
+
+- [x] typing.ClassVar重新接入：真实根/alias及当前导出消费、共享原始LRU与各消费者相位已接；24完整CP/JIT、38目标C#及426旧回归、六独审源通过。1340性能样本已封存，TypedDict四字段冷建稳定+512B及时间回退明确保留；正常完整门禁2202C#/390CP/287e2e通过、107ignored；干净eed648d原docopt仍通过、Markdown首错前移itertools.count缺失但仍失败；不以功能门禁宣称性能无回退，见ADR0117。
+
+- [ ] ClassVar消费者性能复核：ADR0117四字段TypedDict分配2912→3424B，默认/禁tier时间+18.20%/+78.57%；保全原始样本，在不跳过当前导出或用户比较语义的前提下另切优化，不关闭其它旧路径风险。
+
+- [x] 通用itertools.count有限exact数值语义：真实类型/惰性状态、任意精度整数与逐次浮点相加已按CP接入并通过完整门禁；未知数值、派生、反射和性能边界另记ADR0118。
+
+- [x] 通用itertools.count有限数值惰性候选：exact bool/int/float、任意精度与逐次浮点累加、稳定真实类型/保存根和局部绑定已接。首24C#/四主通过后独审发现纯kwargs超量错误字样，保真红灯后修复，B2的24C#/五主和独审通过；三个完整边界保pending。唯一440性能样本保全部不利，正常完整门禁2226C#/398CP/292e2e通过、110ignored；干净ed7bdb2原docopt仍过、Markdown转为typing.overload缺失仍失败，见ADR0118。
+
+- [ ] 迭代器公开路径性能复核：ADR0118禁tier repeat +15.61%、chain +6.27%与单进程默认zip_longest/禁tier native type不利值全部保留；七共同路径分配不增不代表无回退，count新API仅绝对成本，TypedDict+512B旧风险仍开放。
+
+- [x] 通用typing.overload有限三API：真实稳定函数/dummy、按当前module/qualname/真实首行的有序强引用registry及wrapper接线已实现；六完整公开源、23新C#与独审通过，正常门禁2258C#/426CP/305e2e通过、125ignored保旧115加十边界。唯一420性能样本保六项旧路径时间不利及首次Main新增3312/3056B；干净cf2e28e原docopt仍过、Markdown CP/编译过而JIT首错importlib.util缺失，仍不计Markdown通过，见ADR0120。
+
+- [x] overload前置真实函数定义来源：共享签名冷登记真实词法名/首行，精确字符串__qualname__可改且不被普通字典遮蔽；七完整CP/JIT及独审、正常门禁2235C#/410CP/299e2e通过、115ignored。25份预期CIL逐字归一化/CP来源核后更新；全部失败保留。740性能样本保13项不利与冷分配，干净ab7c65d原docopt仍通过、Markdown首错仍缺overload；不计Markdown通过，见ADR0119。
+
+- [ ] 函数定义来源冷成本与旧路径时间复核：ADR0119默认/禁tier首次限定名写约152/88B，冷初始化有新增成本；默认双规模104.44B/定义仅本组均值，禁tier受单样本额外98352B影响不可作微成本。13个共同路径时间不利全部保留，最高禁tier双compiler生成器创建+19.71%，不因分配不增而关闭风险。
+
+- [ ] overload冷初始化与公共方法性能复核：ADR0120禁tier keyword +11.15%等六项不利、首次Main默认/禁tier +3312/+3056B，以及wrapper公共分派新增检查风险均保留；新API命中800B/miss688B仅为真实生成路径绝对成本，不以分配稳定或default负值关闭风险。
+
+- [x] 真实有限 ModuleSpec 与普通源模块同槽元数据：真实 PyClass/PyInstance、parent/has_location/cached、有限 repr/eq/不可哈希及显式包标记已接；B3 的52项定向 C#、五份完整源同 PE 配新 runtime 的逐字 CP golden 验证通过，两项独审描述符/空format修复已闭环。B4 已用 RegisterSourceLocated 显式区分新槽能力、保旧十参 ABI；20 C#/8 codegen 定向及同旧 PE 配 B4 复验通过，B3 原错完整保留；B4正常完整门禁已过（2281 C#/790 Rust/433基线/433 cases selftest/310编译e2e、127 ignored）；B4真实CIL发现普通global意外Object化并阻断P3，B5类型层窄修定向29types/2真实PE已过，B5最终门禁2281 C#/791Rust/433基线/433cases/310e2e、127ignored已过，B5真实PE/CIL已复核恢复88原字段与全部原读写/前言；唯一16进程/336暖样本/16冷Main性能矩阵完成并保留全部不利；干净889ba9a7原docopt入口通过、Markdown仍缺importlib.util，不计Markdown通过，见 [ADR0121](docs/adr/0121-module-spec.md)。
+
+- [ ] ModuleSpec 后续模块实例边界：旧失败模块对象共享静态槽的别名隔离、模块/全局 del 与删除后 builtins 回退、SourceFileLoader/native/__main__ 混合元数据及自定义 eq 非 bool 结果保持独立边界；两份完整边界源 pending 不删减，不以四字段快照替代完整实例全局。
+
+- [x] 通用importlib.util.find_spec有限发现：真实稳定函数、当前缓存spec原身份、相对名、父包真实初始化和fresh源spec/loader已实现；不执行目标、不写缓存、不挂父属性。54项定向、八份完整公开源及2312C#/791Rust/450CP/318e2e门禁通过，136 ignored、九份完整边界保留。真实CIL独审和唯一12进程/264暖样本完成，原docopt继续通过、Markdown推进到native发现域NI，不冒称实例执行。详见[ADR0122](docs/adr/0122-importlib-util-find-spec.md)。
+
+- [ ] find_spec性能后续：共同PE换runtime首次Main +2008B；禁tier dynamic_defaults +41.34%/+17.77%、plain_def_create +39.17%/+4.80%，default资源−26.01%/+48.44%及所有原样本保留。仅完成测量，尚未归因或证明无回退，见[完整性能报告](docs/importlib-util-performance.md)。
+
+- [x] 真实模块实例基础B1：显式选择源码模块，唯一globals与显式执行context，普通失败import重试新实例；最终真实PE 28+18项、两完整正例及2337C#/817Rust/453CP/320e2e完整门禁通过，137ignored。默认PE仅时间戳不同，runtime97项变化已归因；唯一12进程/204暖样本完成，coldMain+344B及全部不利保留，尚未证明无回退。注解/环境原源pending、函数类与公开loader未开，不计Markdown通过，见[ADR0123](docs/adr/0123-module-instance-foundation.md)。
+
+- [x] 真实模块实例归属B2：显式owner与六份完整正例、最终77+64项真实PE及正常完整门禁2355C#/836Rust/461CP/326e2e通过，139ignored；七MIR红测修复，急切推导式/直接build_class保pending。默认两对PE仅时间戳差异，runtime7改+16新正文全部归因；20进程384样本完成，明显默认不利未关闭，一次16进程同版本/JIT诊断未得可靠可修因果。未开放Python loader，不计Markdown通过，见[ADR0124](docs/adr/0124-module-definition-owners.md)。
+
+- [ ] B2默认性能风险：method_calls +237.02%/+129.65%、module_bare +26.96%/+97.46%及全部不利保留；同版本对照明显漂移、插桩JIT层级不同，但不能反推原P3原因。一次有界诊断后停止，尚无可靠可修结构证据；不以暖分配/ABI/CIL相同或新实例收益关闭风险，见[完整报告](docs/module-owners-performance.md)。
+
+- [ ] 模块实例性能后续：default静态调用、普通def/closure创建、资源路径两对不利，禁tier plain_def_create第二对+55.25%而第一对−9.25%；首次Main+344B。明确注册/异常布局与共享调用增量，但未做因果归因或关闭历史回退，见[完整报告](docs/module-instances-performance.md)。
+
+- [ ] 原Markdown发现域前置：B2原入口仍在find_spec('html.parser')明确NI。已核native html只有escape，不存在真实html.parser；不添加假metadata/loader。固定 CP3.12.13 未改四文件窄闭包的旧 del re 首错经通用模块删除解除；6502e10 后单次 compile 新首错为 html/parser.py:21:25 的 re.compile 环境名字守卫，另有 super 等共 21 条 E0100。原 Markdown 同 PE 校正 JIT 仍是旧 find_spec NI，公开执行未到达，不计项目通过。
+
+- [x] 公开编译模块实例执行首切：module_from_spec/create_module/exec_module接真实唯一globals、原spec/path和loader捕获代码，支持None非包与跨代码目标。6完整正例、2423 C#/900 Rust/533 CP/358 e2e通过，179 ignored；9新增完整边界保留，默认Markdown未过（ADR0129）。
+- [ ] 公开loader长尾与成本：自定义spec/loader、namespace、ModuleType、静态目标/源码、资源clone/动态磁盘源与模块属性新分支/冷能力成本未完成；不把公开创建或通用importlib导入当全兼容。
+- [ ] html.parser有限lookbehind：原四源窄配置已真实执行公开loader，下一错误为parser.py:42的re unsupported lookbehind；默认Markdown仍native find_spec NI，分别推进，不改原库源码或假造metadata。
+
+- [ ] ModuleSpec 性能后续：共同源首次Main Bold +7288B、Bnew +17648B冷分配；旧PE仅换runtime的default resources.files +28.89%/+25.01%尚未归因，Bnew module_external禁tier +12.62%/+1.31%及其它不利配对全部保留。按[完整性能报告](docs/module-spec-performance.md)另切定位，不以Bnew资源收益或新API成本抵消既有风险。
+
+- [x] 通用模块裸名/global删除：typed绑定位、动态公开绑定与真实实例删键已接；8完整正例、最终82核心及正常2377C#/861Rust/476CP/334e2e门禁通过，146ignored。7完整边界保留；三对无del PE仅时间戳变化，真实四种typed删除CIL通过。唯一20进程288样本完成，默认大幅不利未关闭，见[ADR0125](docs/adr/0125-module-name-deletion.md)。
+
+- [ ] 模块删除性能风险：default module_bare +4.002%/+185.153%、dynamic_defaults +23.124%/+2.126%、generator +22.518%/+14.675%及其它不利保留；规范CIL/分配相同不能解释时间差，按唯一有界窗口停止，未归因。首次新builtin fallback整段3,103,080B也单列，见[完整报告](docs/module-deletion-performance.md)。
+
+- [~] 实例模块环境名字准确准入：compile/exec/eval 属性标识符已与真实裸名区分；4e0bf96 后未改四文件闭包19条属性误报消失，只剩 parser.py:128/141 两处super E0100。动态代码/其它环境协议仍未开放，继续真实class cell与super，不伪造loader；原21条旧失败仍保留。S1最终已清除余下两处super诊断，原窄闭包compile0、JIT下一阻塞为module_from_spec缺失；默认原Markdown仍find_spec NI。
+
+- [x] 实例代码同名属性最小准入：compile/exec/eval 的属性标识符与环境裸名分开；17 项 HIR 专项、独立窄完整程序最终 PE/JIT 及正常2377 C#/866 Rust/479 CP/335 e2e通过，148 ignored。原两完整源仍因旧点调用顺序/缺失builtins模块失败并保留pending，runtime/MIR/CIL源码未改（ADR0126）。
+- [ ] 通用动态点调用求值顺序：ordinary_attributes 完整源实际在 property 查找/实参顺序断言失败；后续精确 list 缺失属性顺序尚未执行。须兼顾提前捕获与现有 PIC 快路，不能靠扩大捕获后忽略分配/时间成本。
+- [x] S1 限域真实实例零参 super：普通非生成器零参值调用使用真实类free cell与当前首参，shadow回原PIC；9新正例及旧S0super1例转正，16新边界保pending。最新2409 C#/900 Rust/518 CP/352 e2e及真实PE24通过；原窄闭包编译清除两处super阻塞、JIT到module_from_spec缺失，默认Markdown仍未过。见ADR0128。
+- [ ] S1性能风险：一次14进程/144样本保留9条不利，default普通实例零参+6.071%、closure+6.971%，tieroff类body+10.579%、module_bare+10.136%；旧S0风险不关闭，未归因，不以相同分配或局部CIL修正声称零成本（lexical-super-performance.md）。
+
+- [x] S0 实例词法类 cell：7份完整正例、真实PE32项及2381 C#/887 Rust/493 CP/342 e2e通过，155 ignored；7份边界保留pending。24步准备与唯一10进程/144样本观测完成；默认method_calls +310.450%等不利、冷反射额外CIL及未解析审计范围保留，不宣称无回退，不开super或假loader（ADR0127、class-cell-performance.md）。

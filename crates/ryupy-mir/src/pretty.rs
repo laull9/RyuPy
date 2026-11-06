@@ -222,16 +222,25 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
         Rvalue::GeneratorDelegateStep { delegate } => {
             format!("DelegateStep({})", format_operand(delegate))
         }
-        Rvalue::MakeGenerator { resume, frame } => format!(
-            "MakeGenerator({}, {})",
+        Rvalue::MakeGenerator {
+            resume,
+            frame,
+            origin,
+        } => format!(
+            "MakeGenerator({}, {}, origin={})",
             program.functions[*resume].name,
             frame
                 .iter()
                 .map(format_operand)
                 .collect::<Vec<_>>()
-                .join(", ")
+                .join(", "),
+            origin
+                .as_ref()
+                .map(format_operand)
+                .unwrap_or_else(|| "unknown".to_owned())
         ),
         Rvalue::MakeFunction {
+            instance_context,
             func,
             env,
             defaults,
@@ -252,7 +261,11 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
                 .map(format_operand)
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("MakeFunction({name}; env=[{env_str}]; defaults=[{defaults_str}])")
+            let context = instance_context
+                .as_ref()
+                .map(|op| format!("; context={}", format_operand(op)))
+                .unwrap_or_default();
+            format!("MakeFunction({name}; env=[{env_str}]; defaults=[{defaults_str}]{context})")
         }
         Rvalue::Binary { op, lhs, rhs } => {
             format!("{:?}({}, {})", op, format_operand(lhs), format_operand(rhs))
@@ -354,6 +367,9 @@ fn format_rvalue(rval: &Rvalue, program: &Program) -> String {
                 .join(", ");
             let sep = if prefix_str.is_empty() { "" } else { ", " };
             format!("{callee:?}({prefix_str}{sep}[{args_str}])")
+        }
+        Rvalue::InstanceZeroCall { callee, frame } => {
+            format!("instance.zero_call({}, {frame:?})", format_operand(callee))
         }
         Rvalue::DynCallValue { callee, args } => {
             let args_str = args

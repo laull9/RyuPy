@@ -118,8 +118,14 @@ public sealed partial class PyClass
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
+        PyNamedTupleLayout.GuardMutation(this);
         PyEnum.GuardClassMutation(this, name);
         GuardConstructionSet(name, value);
+        GuardStringMutation(name, value, deleting: false);
+        GuardListMutation(name, value, deleting: false);
+        GuardDictMutation(name, value, deleting: false);
+        GuardTypingIoMutation(name, deleting: false);
+        PyTypingGenericMetadata.MutateClass(this, name);
         Attributes[name] = value;
         Touch();
     }
@@ -127,10 +133,16 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        PyNamedTupleLayout.GuardMutation(this);
+        GuardTypingIoMutation(name, deleting: true);
+        PyTypingGenericMetadata.MutateClass(this, name);
         if (NativeDefinitionModule is not null && name == "__module__")
             throw new PyTypeError($"cannot delete '__module__' attribute of type '{Name}'");
         PyEnum.GuardClassMutation(this, name);
         GuardConstructionDelete(name);
+        GuardStringMutation(name, null, deleting: true);
+        GuardListMutation(name, null, deleting: true);
+        GuardDictMutation(name, null, deleting: true);
         if (!Attributes.Remove(name))
         {
             return false;
@@ -175,6 +187,8 @@ public sealed partial class PyClass
     /// </summary>
     public int GetOrAddInstanceSlot(string name)
     {
+        if (IsTypingGenericRoot) PyTypingGenericMetadata.MutateInstance(this, name, deleting: false);
+        GuardTypingIoInstanceSlot(name);
         _instanceSlots ??= new Dictionary<string, int>(StringComparer.Ordinal);
         if (_instanceSlots.TryGetValue(name, out int slot))
         {
@@ -269,7 +283,14 @@ public sealed partial class PyClass
     /// <summary>创建实例并执行 `__init__`。</summary>
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues)
     {
+        if (IsTypingGenericRoot) return PyTypingGeneric.Construct(args, kwNames);
+        RequireTypingIoReady();
+        RequireTypingGenericReady();
+        if (NamedTupleLayout is not null) return PyNamedTupleLayout.Construct(this, args, kwNames, kwValues);
         // 装饰后的布局/祖先late new变化按现版本重新核，必须早于fastplan分配。
+        if (HasStringLayout) return PyStringLayout.Construct(this, args, kwNames, kwValues);
+        if (HasListLayout) return PyListLayout.Construct(this, args, kwNames, kwValues);
+        if (HasDictLayout) return PyDictLayout.Construct(this, args, kwNames, kwValues);
         ConstructionSlots slots = GuardSpecialNew();
         if (HasEnumMetadata) return PyEnum.Construct(this, args, kwNames, kwValues);
         if (ExceptionFactory is not null)
@@ -296,13 +317,18 @@ public sealed partial class PyClass
     }
 
     /// <summary>与 CPython 一致的 <c>&lt;class 'Name'&gt;</c> 形式。</summary>
-    public override string ToString() => NativeDefinitionModule is not null
+    public override string ToString() => IsTypingGenericRoot ? PyTypingGenericMetadata.ClassRepr(this)
+        : IsTypingIoFamily ? PyTypingIo.ClassRepr(this)
+        : NamedTupleLayout is not null ? PyNamedTupleLayout.ClassRepr(this)
+        : HasListLayout ? PyListLayout.ClassRepr(this)
+        : HasDictLayout ? PyDictLayout.ClassRepr(this)
+        : NativeDefinitionModule is not null
         && NativeModuleValue is string module && module != "builtins"
         ? $"<class '{module}.{Name}'>" : $"<class '{Name}'>";
 }
 
 /// <summary>普通类实例：类引用 + 实例属性字典（保持插入顺序）。</summary>
-public sealed class PyInstance
+public class PyInstance
 {
     /// <summary>所属类。</summary>
     public PyClass Class { get; }
@@ -367,8 +393,9 @@ public sealed class PyInstance
     }
 
     /// <summary>默认 `repr` 的地址部分；用运行时身份代替真实地址（D002）。</summary>
-    public string DefaultRepr() =>
-        $"<{Class.Name} object at 0x{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this):x}>";
+    public string DefaultRepr() => Class.IsTypingGenericRoot ? PyTypingGenericMetadata.InstanceRepr(this)
+        : Class.IsTypingIoFamily ? PyTypingIo.InstanceRepr(this)
+        : $"<{Class.Name} object at 0x{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this):x}>";
 
     /// <inheritdoc />
     public override string ToString() => PyRepr.Str(this);
@@ -490,62 +517,3 @@ public static class PyMethodContext
 /// <param name="cls">Python 类对象。</param>
 /// <param name="args">构造实参。</param>
 public delegate PyBaseException PyExceptionFactory(PyClass cls, object?[] args);
-
-/// <summary>类与属性协议的运行时入口（codegen 只依赖这几个方法）。</summary>
-public static partial class PyOps
-{
-    /// <summary>创建类对象。</summary>
-    /// <param name="name">类名。</param>
-    /// <param name="bases">基类列表（0 或 1 个）。</param>
-    /// <param name="factory">用户异常类的 CLR 工厂；普通类为 <c>null</c>。</param>
-    public static object MakeClass(string name, object?[] bases, object? factory)
-    {
-        var cls = new PyClass(name);
-        if (bases.Length > 1)
-        {
-            throw new PyTypeError("多重继承暂不支持");
-        }
-        if (bases.Length == 1)
-        {
-            switch (bases[0])
-            {
-                case PyClass baseClass:
-                    if (baseClass.HasEnumMetadata)
-                        throw new PyNotImplementedError("dynamic Enum inheritance requires a compiled Enum factory");
-                    cls.BaseClass = baseClass;
-                    break;
-                case PyType type when type.Name == "object":
-                    break;
-                case PyType type:
-                    cls.BuiltinBase = type.Name;
-                    break;
-                default:
-                    throw new PyTypeError(
-                        $"class base must be a class, not '{PyRepr.TypeName(bases[0])}'"
-                    );
-            }
-        }
-        cls.ExceptionFactory = factory as PyExceptionFactory;
-        // 装饰器可能把普通基类替换成异常类，但编译器尚未为该派生类生成 CLR 异常布局。
-        // 不能创建看似异常、实际只是 PyInstance 的对象，必须在类定义处明确拒绝。
-        if (cls.IsSubclassOfBuiltin("BaseException") && cls.ExceptionFactory is null)
-            throw new PyTypeError("dynamic exception inheritance requires a compiled exception factory");
-        return cls;
-    }
-
-    /// <summary><c>obj.attr = value</c>。</summary>
-    public static void SetAttr(object? obj, string name, object? value) =>
-        PyObject.SetAttr(obj, name, value);
-
-    /// <summary><c>del obj.attr</c>。</summary>
-    public static void DelAttr(object? obj, string name) => PyObject.DelAttr(obj, name);
-
-    /// <summary>应用类内修饰器：1 = property，2 = staticmethod，3 = classmethod。</summary>
-    public static object Decorate(int kind, object? value) => kind switch
-    {
-        1 => new PyProperty(value),
-        2 => new PyStaticMethod(value),
-        3 => new PyClassMethod(value),
-        _ => throw new PyRuntimeError($"unknown decorator kind {kind}"),
-    };
-}

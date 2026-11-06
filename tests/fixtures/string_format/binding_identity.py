@@ -1,0 +1,112 @@
+# ryupy: pending
+# 保存模板队列：三条调用路、正常星号、真实子类和writer终端身份。
+template = '{0}:{name}'
+saved = template.format
+assert saved.__self__ is template
+assert saved.__name__ == 'format'
+assert saved.__qualname__ == 'str.format'
+assert str.format.__objclass__ is str
+assert template.format('x', name='y') == 'x:y'
+assert saved('x', name='y') == 'x:y'
+assert str.format(template, 'x', name='y') == 'x:y'
+assert template.format(*['x'], **{'name': 'y'}) == 'x:y'
+assert saved(*('x',), **{'name': 'y'}) == 'x:y'
+assert str.format(*[template, 'x'], **{'name': 'y'}) == 'x:y'
+def apply(callback, args, kwargs):
+    return callback(*args, **kwargs)
+assert apply(saved, ('x',), {'name': 'y'}) == 'x:y'
+for callback, message in (
+    (lambda: str.format(), 'unbound method str.format() needs an argument'),
+    (lambda: str.format(self='x'), 'unbound method str.format() needs an argument'),
+    (lambda: str.format(42, self='x'), "descriptor 'format' for 'str' objects doesn't apply to a 'int' object"),
+):
+    try:
+        callback()
+    except TypeError as error:
+        assert str(error) == message
+    else:
+        raise AssertionError('root binder accepted invalid receiver')
+
+events = []
+class Template(str):
+    def __str__(self):
+        raise AssertionError('template str')
+    def __repr__(self):
+        raise AssertionError('template repr')
+    def root_format(self, *args, **kwargs):
+        return super().format(*args, **kwargs)
+sub = Template('{0}:{name}')
+saved_sub = sub.format
+assert saved_sub.__self__ is sub
+assert sub.format('x', name='y') == 'x:y'
+assert str.format(sub, 'x', name='y') == 'x:y'
+Template.format = lambda self, *args, **kw: 'override'
+assert sub.format() == 'override'
+assert saved_sub('x', name='y') == 'x:y'
+assert str.format(sub, 'x', name='y') == 'x:y'
+assert sub.root_format('x', name='y') == 'x:y'
+sub.format = lambda *args, **kw: 'instance'
+assert sub.format() == 'instance'
+assert saved_sub('x', name='y') == 'x:y'
+
+class S(str):
+    pass
+class Returns:
+    def __init__(self, result):
+        self.result = result
+    def __format__(self, spec):
+        return self.result
+    def __str__(self):
+        return self.result
+    def __repr__(self):
+        return self.result
+exact_template = ''.join(['ab', 'cd'])
+assert exact_template.format() is exact_template
+sub_template = S('abc')
+assert sub_template.format() is sub_template
+empty_template = S('')
+assert type(empty_template.format()) is str
+assert empty_template.format() is not empty_template
+for result in (''.join(['val', 'ue']), S('value')):
+    value = Returns(result)
+    assert '{0}'.format(value) is result
+    for text, expected in (('x{0}', 'xvalue'), ('{0}x', 'valuex'), ('{0}{0}', 'valuevalue'), ('{{}}{0}', '{}value')):
+        out = text.format(value)
+        assert type(out) is str
+        assert out == expected
+        assert out is not result
+    for text in ('{0!s}', '{0!r}', '{0!a}'):
+        out = text.format(value)
+        assert type(out) is str
+        assert out == 'value'
+        if type(result) is str:
+            assert out is result
+        else:
+            assert out is not result
+# 以下空片排列来自固定CP writer源码补证，首次本源CP验证。
+result = S('value')
+empty = Returns('')
+value = Returns(result)
+assert '{0}{1}'.format(empty, value) is result
+assert '{0}{0}{1}'.format(empty, value) is result
+for text, args in (('{0}{1}', (value, empty)), ('{0}{1}{0}', (empty, value))):
+    out = text.format(*args)
+    assert type(out) is str
+    assert out == 'value'
+    assert out is not result
+out = '{0}'.format(Returns(S('')))
+assert type(out) is str
+assert out == ''
+assert '{0}{0}'.format(empty) is empty.result
+
+# 同一应用保无关exact方法及静态整数循环，不额外增加第五个源。
+assert ' ab '.strip() == 'ab'
+assert ','.join(['a', 'b']) == 'a,b'
+assert 'aba'.replace('a', 'x') == 'xbx'
+def numeric(n: int) -> int:
+    total: int = 0
+    for i in range(n):
+        total += i
+    return total
+assert numeric(5) == 10
+print('string-format-binding-identity-ok')

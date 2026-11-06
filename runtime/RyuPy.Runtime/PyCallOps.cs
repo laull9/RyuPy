@@ -45,8 +45,16 @@ public static partial class PyOps
     {
         // 编译器内部用限定名避免与同名用户异常类的CLR引用冲突。
         "json.JSONDecodeError" => "JSONDecodeError",
+        "zipfile.BadZipFile" => "BadZipFile",
+        "getopt.GetoptError" or "getopt.error" => "GetoptError",
         "io.UnsupportedOperation" => "UnsupportedOperation",
         "re.error" => "error",
+        "optparse.OptParseError" => "OptParseError",
+        "optparse.OptionError" => "OptionError",
+        "optparse.OptionConflictError" => "OptionConflictError",
+        "optparse.OptionValueError" => "OptionValueError",
+        "optparse.BadOptionError" => "BadOptionError",
+        "optparse.AmbiguousOptionError" => "AmbiguousOptionError",
         "dataclasses.FrozenInstanceError" => "FrozenInstanceError",
         _ => name,
     });
@@ -79,6 +87,11 @@ public static partial class PyOps
             PyType { Name: "error" } => PyRegex.ConstructError(args, names, values),
             PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError(args, names, values),
             PyType { Name: "UnsupportedOperation" } => PyUnsupportedOperation.Construct(args, names),
+            PyType { Name: "BadZipFile" } => PyBadZipFile.Construct(args, names),
+            PyType { Name: "GetoptError" } => PyGetoptError.Construct(args, names, values),
+            PyType type when PyOptParseExceptions.IsType(type.Name) => PyOptParseExceptions.Construct(type.Name, args, names, values),
+            // 专门异常构造协议优先；普通真实类型对象复用异常工厂，不制造包装callable。
+            PyType type when PyExceptionTypes.IsKnown(type.Name) => PyExceptionConstructors.Create(type.Name, args, names),
             IPyNativeCallable native => native.Invoke(args, names, values),
             PyFunction function => function.Invoke(args, names, values),
             PyBuiltinFunction function => function.Invoke(args, names, values),
@@ -105,7 +118,7 @@ public static partial class PyOps
     /// <summary>作为值传递的受支持内建构造器；dataclass工厂等不能把list类型误判为不可调用。</summary>
     internal static bool IsBuiltinConstructor(string name) => name is
         "int" or "float" or "str" or "bool" or "list" or "tuple" or "dict" or "set" or "frozenset"
-        or "bytes" or "bytearray" or "type" or "object";
+        or "bytes" or "bytearray" or "slice" or "type" or "object";
 
     // 固定一参快速调用仍允许公共helper收到内部star标记，必须回原展开路径。
     internal static bool IsStarredArgument(object? value) => value is StarredArg;
@@ -154,6 +167,8 @@ public static partial class PyOps
             }
             return (rawArgs, plainNames, rawValues);
         }
+        // 既有快返回之后才检查；仅 CLR 身份检查，不运行任何 Python 协议。
+        bool proxyKeywords = PyMappingProxyConsumers.HasProxy(rawNames, rawValues);
         var args = new List<object?>(rawArgs.Length);
         foreach (object? arg in rawArgs)
         {
@@ -170,6 +185,12 @@ public static partial class PyOps
             }
         }
 
+        if (proxyKeywords)
+        {
+            var keywords = PyMappingProxyConsumers.Keywords(rawNames, rawValues);
+            return ([.. args], keywords.Names, keywords.Values);
+        }
+
         var names = new List<string>(rawNames.Length);
         var values = new List<object?>(rawValues.Length);
         for (int i = 0; i < rawNames.Length; i++)
@@ -180,6 +201,8 @@ public static partial class PyOps
             {
                 // `**mapping`：接受字典及原生 dict 子类；任意 Mapping 协议仍单独验收。
                 PyDict? mapping = value as PyDict ?? (value as IPyNativeMapping)?.Dictionary;
+                // 核心iter覆盖在类完成/late守卫处拒绝；真实dict来源沿根存储而非业务keys覆盖。
+                if (value is PyDictInstance derived) mapping = derived.Payload;
                 if (mapping is null)
                 {
                     throw new PyTypeError(
@@ -215,6 +238,7 @@ public static partial class PyOps
         object?[] values
     )
     {
+        instance.Class.GuardInheritedGenericProtocol("__call__");
         if (instance.Class.TryLookup("__call__", out PyClass owner, out object? call))
         {
             return PyObject.InvokeBound(call, owner, instance, args, names, values);

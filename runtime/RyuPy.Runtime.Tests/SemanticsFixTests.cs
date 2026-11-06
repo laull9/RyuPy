@@ -6,11 +6,11 @@ namespace RyuPy.Runtime.Tests;
 
 /// <summary>
 /// 正确性修正的回归测试：覆盖空容器真值、字符串码点、字典版本语义、
-/// 稳定排序、解包数量校验与集合迭代快照。
+/// 稳定排序、解包数量校验与集合迭代大小变化。
 /// </summary>
 /// <remarks>
-/// 期望值全部以 CPython 3.12 的实际行为为准；集合迭代中修改是 CPython 的未定义行为，
-/// 这里测试的是 RyuPy 已登记的确定性快照策略（见 docs/semantics.md §4.3）。
+/// 集合大小变化按 CPython 3.12 的实际行为报错；同大小变异仍有单独登记的支持边界，
+/// 不把集合变异一概称为未定义（见 docs/semantics.md §4.3）。
 /// </remarks>
 public class SemanticsFixTests
 {
@@ -105,20 +105,16 @@ public class SemanticsFixTests
     }
 
     [Fact]
-    public void SetIterationUsesSnapshotEvenWhenGrown()
+    public void SetIterationRejectsGrowthInsteadOfReplayingSnapshot()
     {
         var set = new PySet([1L, 2L, 3L]);
         var iter = PyIter.Create(set);
         Assert.True(iter.MoveNext());
         set.Add(4L);
 
-        int seen = 1;
-        while (iter.MoveNext())
-        {
-            seen++;
-        }
-        // 快照只有最初的三个元素；新增元素不会让迭代越界
-        Assert.Equal(3, seen);
+        // 旧测试仅保护快照越界，却错误接受大小变化；迁移为 CPython 的明确错误。
+        var error = Assert.Throws<PyRuntimeError>(() => iter.MoveNext());
+        Assert.Equal("Set changed size during iteration", error.PyMessage);
     }
 
     [Fact]

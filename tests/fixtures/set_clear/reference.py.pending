@@ -1,0 +1,366 @@
+# set.clear 的有限 CP 事实参考：只输出实际结果，不断言尚未采集的语义。
+# 父任务只运行一次固定 CP3.12.13；不导入项目、不调用子进程、不测性能。
+# 普通成员排序只消除集合展示顺序；迭代 next 的返回顺序原样保留。
+import sys
+
+if sys.implementation.name != 'cpython' or sys.version_info[:3] != (3, 12, 13):
+    raise RuntimeError('必须使用固定 CPython 3.12.13')
+print('REFERENCE_VERSION', sys.implementation.name, sys.version_info[:3])
+events = []
+
+
+def touch(label, value):
+    events.append(label)
+    return value
+
+
+def report(label, operation, scope='active'):
+    values = {10, 20}
+    alias = values
+    events.clear()
+    try:
+        result = operation(values)
+        print(scope, label, 'returned', result, sorted(values),
+              alias is values, sorted(alias), events)
+    except Exception as error:
+        print(scope, label, type(error).__name__, str(error), sorted(values),
+              alias is values, sorted(alias), events)
+
+
+def direct_empty(values):
+    return values.clear()
+
+
+def direct_one(values):
+    return values.clear(touch('arg0', 0))
+
+
+def direct_two(values):
+    return values.clear(touch('arg0', 0), touch('arg1', 1))
+
+
+def direct_keyword(values):
+    return values.clear(bad=touch('keyword', 2))
+
+
+def direct_mixed(values):
+    return values.clear(touch('arg0', 0), bad=touch('keyword', 2))
+
+
+def direct_empty_expansion(values):
+    return values.clear(*touch('star', []), **touch('mapping', {}))
+
+
+def direct_star(values):
+    return values.clear(*touch('star', [0, 1]))
+
+
+def direct_star_keyword(values):
+    return values.clear(*touch('star', [0]), **touch('mapping', {'bad': 2}))
+
+
+def direct_duplicate(values):
+    return values.clear(bad=touch('keyword', 1), **touch('mapping', {'bad': 2}))
+
+
+def direct_nonstring(values):
+    return values.clear(*touch('star', [0]), **touch('mapping', {1: 2}))
+
+
+for label, operation in [('direct zero', direct_empty), ('direct one', direct_one),
+                         ('direct two', direct_two), ('direct keyword', direct_keyword),
+                         ('direct mixed', direct_mixed),
+                         ('direct empty expansions', direct_empty_expansion),
+                         ('direct star', direct_star),
+                         ('direct star keyword', direct_star_keyword),
+                         ('direct duplicate keyword', direct_duplicate),
+                         ('direct nonstring keyword', direct_nonstring)]:
+    report(label, operation)
+
+# 保存方法必须固定原集合，失败不修改集合；空展开允许真正调用。
+for mode in ['zero', 'one', 'two', 'keyword', 'mixed', 'empty expansions',
+             'star', 'star keyword', 'duplicate keyword', 'nonstring keyword']:
+    values = {10, 20}
+    alias = values
+    events.clear()
+    method = values.clear
+    try:
+        if mode == 'zero':
+            result = method()
+        elif mode == 'one':
+            result = method(touch('arg0', 0))
+        elif mode == 'two':
+            result = method(touch('arg0', 0), touch('arg1', 1))
+        elif mode == 'keyword':
+            result = method(bad=touch('keyword', 2))
+        elif mode == 'mixed':
+            result = method(touch('arg0', 0), bad=touch('keyword', 2))
+        elif mode == 'empty expansions':
+            result = method(*touch('star', []), **touch('mapping', {}))
+        elif mode == 'star':
+            result = method(*touch('star', [0, 1]))
+        elif mode == 'star keyword':
+            result = method(*touch('star', [0]), **touch('mapping', {'bad': 2}))
+        elif mode == 'duplicate keyword':
+            result = method(bad=touch('keyword', 1), **touch('mapping', {'bad': 2}))
+        else:
+            result = method(*touch('star', [0]), **touch('mapping', {1: 2}))
+        print('active saved', mode, 'returned', result, sorted(values),
+              alias is values, sorted(alias), events)
+    except Exception as error:
+        print('active saved', mode, type(error).__name__, str(error),
+              sorted(values), alias is values, sorted(alias), events)
+
+# 参数求值异常保留原异常身份；参数自身的修改不得被失败调用撤销或追加 clear。
+callback_error = LookupError('argument failed')
+
+
+def fail_argument(values):
+    events.append('argument mutates')
+    values.add(30)
+    raise callback_error
+
+
+for saved in [False, True]:
+    values = {10, 20}
+    events.clear()
+    try:
+        if saved:
+            method = values.clear
+            method(fail_argument(values), bad=touch('unreached keyword', 2))
+        else:
+            values.clear(fail_argument(values), bad=touch('unreached keyword', 2))
+    except Exception as error:
+        print('active argument failure', saved, type(error).__name__, str(error),
+              error is callback_error, sorted(values), events)
+
+
+def mutate(values):
+    events.append('argument mutates')
+    values.add(30)
+    return 0
+
+
+def mutation_then_binding_error(values):
+    return values.clear(mutate(values), bad=touch('keyword', 2))
+
+
+report('argument mutation binding error', mutation_then_binding_error)
+
+# 唯一 star 的展开异常与 keyword 求值顺序由 CP 原流决定，不猜优先级。
+class BrokenStar:
+    def __iter__(self):
+        events.append('star iter')
+        raise LookupError('star failed')
+
+
+class BrokenMapping:
+    def keys(self):
+        events.append('mapping keys')
+        raise LookupError('mapping failed')
+
+
+def broken_star(values):
+    return values.clear(*touch('star expression', BrokenStar()),
+                        bad=touch('keyword', 2))
+
+
+def broken_mapping(values):
+    return values.clear(touch('arg0', 0),
+                        **touch('mapping expression', BrokenMapping()))
+
+
+report('star expansion failure', broken_star)
+report('mapping expansion failure', broken_mapping)
+
+# 接收者先求值；参数重绑名称不改变原接收者，保存方法也不跟随名称重绑。
+first = {10, 20}
+second = {30, 40}
+target = first
+
+
+def receiver():
+    events.append('receiver')
+    return target
+
+
+def rebind():
+    global target
+    events.append('argument rebinds')
+    target = second
+    return 0
+
+
+events.clear()
+try:
+    receiver().clear(rebind())
+except Exception as error:
+    print('active receiver order', type(error).__name__, str(error),
+          sorted(first), sorted(second), target is second, events)
+method = first.clear
+first_alias = first
+first = second
+print('active saved receiver', method(), sorted(first_alias), sorted(first),
+      first is second, first_alias is second)
+print('active repeated empty', method(), method(), sorted(first_alias))
+
+# 非空、空集合均原地清空；不依赖地址或 set 显示顺序。
+for initial in [[], [1], [1, 2, 3]]:
+    values = set(initial)
+    alias = values
+    method = values.clear
+    result = method()
+    print('active identity', initial, result is None, values is alias,
+          len(values), len(alias), method() is None)
+
+# 清空存量用户键不重新调用 hash/equality；强引用保留键，排除析构时机。
+class Key:
+    def __hash__(self):
+        events.append('hash')
+        if self.fail:
+            raise LookupError('hash must not run during clear')
+        return 17
+
+    def __eq__(self, other):
+        events.append('equal')
+        raise LookupError('equality must not run during clear')
+
+
+for saved in [False, True]:
+    key = Key()
+    key.fail = False
+    values = {key}
+    alias = values
+    key.fail = True
+    events.clear()
+    try:
+        if saved:
+            method = values.clear
+            result = method()
+        else:
+            result = values.clear()
+        print('active user key no callbacks', saved, result is None,
+              len(values), values is alias, events)
+    except Exception as error:
+        print('active user key no callbacks', saved, type(error).__name__,
+              str(error), len(values), values is alias, events)
+
+# 每次 next 独立打印，保留错误重复、修复 size 后错误是否粘住、耗尽是否粘住。
+def step(label, iterator, scope='active'):
+    try:
+        value = next(iterator)
+        print(scope, label, 'returned', value)
+    except Exception as error:
+        print(scope, label, type(error).__name__, str(error))
+
+
+values = {1, 2}
+iterator = iter(values)
+print('active untouched clear', values.clear())
+step('untouched after clear', iterator)
+step('untouched repeated error', iterator)
+values.add(1)
+values.add(2)
+step('untouched size restored after error', iterator)
+
+values = {1, 2}
+iterator = iter(values)
+step('partial before clear', iterator)
+print('active partial clear', values.clear())
+step('partial after clear', iterator)
+values.add(1)
+values.add(2)
+step('partial size restored after error', iterator)
+
+values = {1}
+iterator = iter(values)
+step('last value consumed', iterator)
+values.clear()
+step('last consumed but not exhausted', iterator)
+step('last consumed repeated error', iterator)
+
+values = {1}
+iterator = iter(values)
+step('exhaust before value', iterator)
+step('exhaust confirmed', iterator)
+values.clear()
+values.add(2)
+step('exhaust after clear and add', iterator)
+step('exhaust repeated', iterator)
+
+values = set()
+iterator = iter(values)
+print('active empty clear', values.clear())
+step('empty after clear', iterator)
+values.add(1)
+step('empty exhausted after add', iterator)
+values = set()
+iterator = iter(values)
+values.clear()
+values.add(1)
+step('empty unprobed clear and add', iterator)
+step('empty unprobed repeated error', iterator)
+
+# 失败的 clear 不改变集合/活迭代器；两个值原样读出，集合顺序单独作为边界。
+values = {1}
+iterator = iter(values)
+try:
+    values.clear(0)
+except Exception as error:
+    print('active failed clear iterator', type(error).__name__, str(error), sorted(values))
+step('failed clear still live', iterator)
+step('failed clear now exhausted', iterator)
+
+# 同 size 重加可能依赖 CP 槽位扫描；先保 CP 事实，不许静默当 snapshot 已兼容。
+values = {1}
+iterator = iter(values)
+values.clear()
+values.add(2)
+step('same size before first next', iterator, 'boundary')
+step('same size before first exhausted', iterator, 'boundary')
+values = {1}
+iterator = iter(values)
+step('same size partial before', iterator, 'boundary')
+values.clear()
+values.add(2)
+step('same size partial after', iterator, 'boundary')
+step('same size partial exhausted', iterator, 'boundary')
+values = {1, 2}
+iterator = iter(values)
+values.clear()
+values.add(1)
+values.add(2)
+step('same size same members first', iterator, 'boundary')
+step('same size same members second', iterator, 'boundary')
+step('same size same members exhausted', iterator, 'boundary')
+
+# 根描述符、set 子类不扩通用框架；仅采 CP 域外事实，后续应用分母排除。
+report('root descriptor zero', lambda values: set.clear(values), 'boundary')
+report('root descriptor extra', lambda values: set.clear(values, touch('arg0', 0)), 'boundary')
+report('root descriptor keyword',
+       lambda values: set.clear(values, bad=touch('keyword', 2)), 'boundary')
+report('root descriptor missing receiver', lambda values: set.clear(), 'boundary')
+report('root descriptor wrong receiver', lambda values: set.clear([]), 'boundary')
+
+
+class Child(set):
+    pass
+
+
+values = Child([10, 20])
+alias = values
+method = values.clear
+print('boundary inherited subclass', method(), len(values), values is alias)
+
+
+class Override(set):
+    def clear(self):
+        events.append('override clear')
+        return 'override result'
+
+
+values = Override([10, 20])
+events.clear()
+print('boundary subclass override', values.clear(), sorted(values), events)
+print('boundary subclass root bypass', set.clear(values), len(values), events)
+print('REFERENCE_COMPLETED')

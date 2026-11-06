@@ -11,24 +11,49 @@
 pub mod build;
 mod build_assign;
 mod build_class;
+mod build_context;
+mod class_cells;
+pub use class_cells::{ClassCellCapture, ClassCellDefinition, ClassCellEnvSource};
+mod lexical_super;
+#[cfg(test)]
+mod lexical_super_tests;
+pub use lexical_super::{SuperClassSource, ZeroCallFrame};
 mod build_decorators;
+mod build_dynamic_try;
 mod build_expr_context;
 mod build_flow;
 mod build_loops;
+mod build_params;
 mod build_print;
 mod build_stmts;
 mod build_try;
 mod call_builder;
 mod call_builtins;
+mod call_function_origin;
+mod closure_env;
+mod dynamic_origin_build;
 mod exact_types;
 pub mod expr_builder;
 mod expr_ops;
 mod expr_values;
+mod function_locals;
+mod function_module;
+#[cfg(test)]
+mod function_module_tests;
 mod generator_exceptions;
 mod generators;
 pub mod link;
 mod mir;
+mod module_execution;
 mod module_location;
+mod operations;
+mod validate_lexical_super;
+mod validate_regions;
+pub use module_execution::{GlobalStorage, InstanceStateSource, ModuleExecutionKind};
+mod instance_module;
+mod validate_class_cell_uses;
+mod validate_class_cells;
+mod validate_instance_module;
 pub use module_location::ModuleLocation;
 pub mod passes;
 pub mod pretty;
@@ -52,6 +77,8 @@ mod container_literals;
 mod print_tests;
 
 mod module_bindings;
+mod module_delete;
+mod module_names;
 
 #[cfg(test)]
 mod binding_validation_tests;
@@ -59,6 +86,7 @@ mod validate_exports;
 
 mod class_lookup;
 
+mod validate_dynamic_origin;
 mod validate_identities;
 
 #[cfg(test)]
@@ -74,6 +102,7 @@ mod validate_list_reads;
 
 #[cfg(test)]
 mod module_location_tests;
+mod module_metadata;
 
 #[cfg(test)]
 mod module_capture_tests;
@@ -85,3 +114,29 @@ mod module_pair_tests;
 
 #[cfg(test)]
 mod ordinary_class_finalize_tests;
+
+#[cfg(test)]
+mod unpack_ex_abi_tests;
+
+#[cfg(test)]
+mod dynamic_origin_tests;
+
+#[cfg(test)]
+mod function_locals_tests;
+
+mod function_definition;
+pub use function_definition::DefinitionInfo;
+#[cfg(test)]
+mod function_definition_tests;
+
+#[cfg(test)]
+mod instance_module_tests;
+
+#[cfg(test)]
+mod module_delete_tests;
+
+#[cfg(test)]
+mod module_delete_abi_tests;
+
+#[cfg(test)]
+mod class_cell_tests;

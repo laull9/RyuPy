@@ -21,10 +21,11 @@ fn snapshots_class_if_source_order_and_lazy_lookup() {
 
 #[test]
 fn unsupported_builtin_fallback_is_only_rejected_when_executed() {
+    // locals已有真实builtin值；本测试仍以未实现globals验证惰性fallback，不改断言。
     let root = ryupy_driver::runtime::workspace_root().join("target/test_class_if_fallback");
     std::fs::create_dir_all(&root).unwrap();
     let input = root.join("main.py");
-    std::fs::write(&input, "flag=True\nclass Present:\n    if flag:\n        locals='bound'\n    value=locals\nprint(Present.value)\nflag=False\ntry:\n    class Absent:\n        if flag:\n            locals='bound'\n        value=locals\nexcept NotImplementedError:\n    print('明确拒绝未实现内建回退')\n").unwrap();
+    std::fs::write(&input, "flag=True\nclass Present:\n    if flag:\n        globals='bound'\n    value=globals\nprint(Present.value)\nflag=False\ntry:\n    class Absent:\n        if flag:\n            globals='bound'\n        value=globals\nexcept NotImplementedError:\n    print('明确拒绝未实现内建回退')\n").unwrap();
     let artifact = ryupy_driver::build(
         &mut Session::default(),
         &ryupy_driver::BuildOptions {

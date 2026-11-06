@@ -1,0 +1,18 @@
+# ryupy: pending
+# CP真实原生类型子类和公开类侧迭代descriptor；不把未支持布局改成NI正例。
+from itertools import zip_longest
+
+
+class Child(zip_longest):
+    pass
+
+
+value = Child([1, 2], [], fillvalue='F')
+assert type(value) is Child and isinstance(value, zip_longest)
+value.tag = 'child'
+assert value.tag == 'child'
+assert zip_longest.__iter__(value) is value
+assert zip_longest.__next__(value) == (1, 'F')
+assert next(value) == (2, 'F')
+assert next(value, 'END') == 'END'
+print(type(value).__name__, value.tag)

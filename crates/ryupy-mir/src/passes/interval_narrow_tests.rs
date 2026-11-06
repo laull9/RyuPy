@@ -37,9 +37,12 @@ fn sample() -> (Function, LocalId, BlockId) {
         terminator: Terminator::Unreachable,
     });
     let mut f = Function {
+        module_state: None,
+        module_state_source: None,
         name: "join".into(),
         codegen_name: "join".into(),
         source_file: "join.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
@@ -54,6 +57,7 @@ fn sample() -> (Function, LocalId, BlockId) {
         defaults_global: None,
         signature_global: Some(Idx::from_raw(RawIdx::from_u32(0))),
         env: None,
+        dynamic_origin: None,
     };
     let value = local(&mut f, MirType::Dynamic);
     let two = local(&mut f, MirType::Dynamic);
@@ -194,6 +198,7 @@ fn transformed_join_passes_independent_exact_type_verifier() {
     let entry = functions.alloc(f);
     let mut globals = Arena::default();
     globals.alloc(GlobalDecl {
+        storage: crate::GlobalStorage::LegacyStatic,
         name: "signature".into(),
         ty: MirType::Dynamic,
     });

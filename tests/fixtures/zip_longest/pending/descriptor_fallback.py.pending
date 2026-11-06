@@ -1,0 +1,28 @@
+# ryupy: pending
+# 任意__get__描述符的iter绑定抛错可回退getitem；保已实测CP成功，不改为NI期望。
+from itertools import zip_longest
+
+
+class IterDescriptor:
+    def __get__(self, instance, owner):
+        events.append('iter-get')
+        raise RuntimeError('lookup-marker')
+
+
+class Sequence:
+    __iter__ = IterDescriptor()
+
+    def __getitem__(self, index):
+        assert 0 <= index < 4
+        events.append(index)
+        if index < 2:
+            return index + 10
+        raise IndexError('end')
+
+
+events = []
+z = zip_longest(Sequence())
+assert events == ['iter-get']
+assert list(z) == [(10,), (11,)]
+assert events == ['iter-get', 0, 1, 2]
+print(events)

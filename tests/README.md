@@ -21,6 +21,7 @@
 entry = entry.py                 # 默认 entry.py，或缺省时唯一的 .py
 pending = true                   # 未实现，RyuPy 侧跳过
 args = --name value "a b"        # 命令行参数（支持引号与反斜杠转义）
+instance_module = example       # 可重复非空；仅选择图内模块的RyuPy实例能力，CPython忽略
 env = KEY=VALUE                  # 可重复
 stdin = 12\n34                   # 支持 \n \t \r \\ \" 转义
 cwd = work                       # case（默认：隔离工作目录）| 相对用例目录

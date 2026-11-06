@@ -54,6 +54,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         name: "__main__".into(),
         codegen_name: "eh_capacity".into(),
         source_file: "eh.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: Body {
@@ -68,11 +69,16 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        module_state_source: None,
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),

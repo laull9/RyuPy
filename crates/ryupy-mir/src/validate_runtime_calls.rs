@@ -2,6 +2,37 @@
 use crate::mir::*;
 use crate::validate::operand_type;
 
+/// 这些运行时方法只有固定Call签名，不能通过CallWithArgs追加数组改变ABI。
+pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
+    matches!(
+        callee,
+        RuntimeFn::InstanceClassGuard
+            | RuntimeFn::InstanceClassCellGuard
+            | RuntimeFn::InstanceImportGuard
+            | RuntimeFn::InstanceLoadName
+            | RuntimeFn::InstanceStoreName
+            | RuntimeFn::InstanceDeleteName
+            | RuntimeFn::CheckModuleDelete
+            | RuntimeFn::CheckModuleDeleteValue
+            | RuntimeFn::LoadDeletedModuleName
+            | RuntimeFn::InstanceMakeClass
+            | RuntimeFn::InstanceExecutionSource
+            | RuntimeFn::InstanceCaptureDefinitionContext
+            | RuntimeFn::InstanceDefinitionModule
+            | RuntimeFn::ModuleFile
+            | RuntimeFn::ModuleMetadata
+            | RuntimeFn::FunctionLocalsValidate
+            | RuntimeFn::FunctionLocalsEnsure
+            | RuntimeFn::FunctionLocalsSync
+            | RuntimeFn::FinalizeOrdinaryClass
+            | RuntimeFn::FunctionModule
+            | RuntimeFn::FunctionDefaults
+            | RuntimeFn::TracePushWithOrigin
+            | RuntimeFn::ModuleExecutionSource
+            | RuntimeFn::UnpackEx
+    ) || crate::validate_module_pairs::fixed_abi(callee)
+}
+
 pub(super) fn validate_call(
     program: &Program,
     func: &Function,
@@ -18,8 +49,41 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::InstanceMakeClass => {
+                Some(&[MirType::Dynamic, MirType::Str, MirType::Dynamic])
+            }
+            RuntimeFn::InstanceClassGuard | RuntimeFn::InstanceClassCellGuard => {
+                Some(&[MirType::Dynamic])
+            }
+            RuntimeFn::InstanceLoadName => Some(&[MirType::Dynamic, MirType::Str]),
+            RuntimeFn::InstanceDeleteName
+            | RuntimeFn::CheckModuleDeleteValue
+            | RuntimeFn::LoadDeletedModuleName => Some(&[MirType::Dynamic, MirType::Str]),
+            RuntimeFn::CheckModuleDelete => Some(&[MirType::Bool, MirType::Str]),
+            RuntimeFn::InstanceStoreName => {
+                Some(&[MirType::Dynamic, MirType::Str, MirType::Dynamic])
+            }
+            RuntimeFn::InstanceImportGuard
+            | RuntimeFn::InstanceExecutionSource
+            | RuntimeFn::InstanceCaptureDefinitionContext
+            | RuntimeFn::InstanceDefinitionModule => Some(&[MirType::Dynamic]),
+            RuntimeFn::FunctionLocalsValidate => {
+                Some(&[MirType::Dynamic, MirType::Dynamic, MirType::Dynamic])
+            }
+            RuntimeFn::FunctionLocalsEnsure => Some(&[MirType::Dynamic]),
+            RuntimeFn::FunctionLocalsSync => {
+                Some(&[MirType::Dynamic, MirType::Str, MirType::Dynamic])
+            }
+            RuntimeFn::ExceptionMatch => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::UnpackEx => Some(&[MirType::Dynamic, MirType::I64, MirType::I64]),
             RuntimeFn::FinalizeOrdinaryClass => Some(&[MirType::Dynamic]),
+            RuntimeFn::FunctionModule => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::FunctionDefaults | RuntimeFn::ModuleExecutionSource => {
+                Some(&[MirType::Dynamic])
+            }
+            RuntimeFn::TracePushWithOrigin => Some(&[MirType::Str, MirType::Str, MirType::Dynamic]),
             RuntimeFn::ModuleFile => Some(&[MirType::Str]),
+            RuntimeFn::ModuleMetadata => Some(&[MirType::Str, MirType::Str]),
             RuntimeFn::CaptureModuleTarget => Some(&[MirType::Dynamic, MirType::Str]),
             RuntimeFn::IsModule => Some(&[MirType::Dynamic]),
             RuntimeFn::CallCapturedMethod => Some(&[
@@ -56,6 +120,17 @@ pub(super) fn validate_call(
             RuntimeFn::WriteSep | RuntimeFn::WriteNewline => Some(&[MirType::Dynamic]),
             _ => None,
         };
+        if *runtime == RuntimeFn::FunctionLocalsValidate
+            && !matches!(
+                args,
+                [Operand::Array(_), Operand::Array(_), Operand::Array(_)]
+            )
+        {
+            errors.push(format!(
+                "函数 `{}` 的locals绑定ABI必须接收三个object数组",
+                func.name
+            ));
+        }
         if *runtime == RuntimeFn::CallCapturedMethod
             && !matches!(
                 args,
@@ -110,14 +185,23 @@ pub(super) fn validate_call(
                     "递归深度检查ABI"
                 } else if matches!(runtime, RuntimeFn::DynBinary) {
                     "通用二元运算ABI"
-                } else if matches!(runtime, RuntimeFn::CheckGlobalBound) {
+                } else if matches!(
+                    runtime,
+                    RuntimeFn::CheckGlobalBound
+                        | RuntimeFn::CheckModuleDelete
+                        | RuntimeFn::CheckModuleDeleteValue
+                        | RuntimeFn::LoadDeletedModuleName
+                        | RuntimeFn::InstanceDeleteName
+                ) {
                     "模块绑定位ABI"
                 } else if matches!(runtime, RuntimeFn::ClassNamespaceContains) {
                     "类命名空间存在性ABI"
                 } else if matches!(runtime, RuntimeFn::ValidateOrdinaryBase) {
                     "普通基类守卫ABI"
-                } else if matches!(runtime, RuntimeFn::ModuleFile) {
+                } else if matches!(runtime, RuntimeFn::ModuleFile | RuntimeFn::ModuleMetadata) {
                     "模块位置ABI"
+                } else if matches!(runtime, RuntimeFn::UnpackEx) {
+                    "星号解包ABI"
                 } else {
                     "输出目标ABI"
                 }
@@ -143,12 +227,24 @@ pub(super) fn validate_destination(
     if matches!(
         value,
         Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::FinalizeOrdinaryClass),
+            callee: Callee::Runtime(
+                RuntimeFn::InstanceClassGuard
+                    | RuntimeFn::InstanceClassCellGuard
+                    | RuntimeFn::InstanceImportGuard
+                    | RuntimeFn::InstanceStoreName
+                    | RuntimeFn::InstanceDeleteName
+                    | RuntimeFn::CheckModuleDelete
+                    | RuntimeFn::CheckModuleDeleteValue
+                    | RuntimeFn::FinalizeOrdinaryClass
+                    | RuntimeFn::FunctionModule
+                    | RuntimeFn::FunctionLocalsValidate
+                    | RuntimeFn::FunctionLocalsSync
+            ),
             ..
         }
     ) {
         errors.push(format!(
-            "函数 `{}` 的普通类终结ABI返回void，只允许Eval",
+            "函数 `{}` 的运行时ABI返回void，只允许Eval",
             func.name
         ));
     }
@@ -159,12 +255,26 @@ pub(super) fn validate_destination(
     {
         let expected = match runtime {
             RuntimeFn::ModuleFile => Some(MirType::Str),
-            RuntimeFn::CaptureModuleTarget
+            RuntimeFn::TracePushWithOrigin => Some(MirType::I64),
+            RuntimeFn::InstanceLoadName
+            | RuntimeFn::LoadDeletedModuleName
+            | RuntimeFn::InstanceMakeClass
+            | RuntimeFn::InstanceExecutionSource
+            | RuntimeFn::InstanceCaptureDefinitionContext
+            | RuntimeFn::InstanceDefinitionModule
+            | RuntimeFn::ModuleMetadata
+            | RuntimeFn::FunctionLocalsEnsure
+            | RuntimeFn::CaptureModuleTarget
+            | RuntimeFn::FunctionDefaults
+            | RuntimeFn::ModuleExecutionSource
+            | RuntimeFn::UnpackEx
             | RuntimeFn::CallCapturedMethod
             | RuntimeFn::NumericListCreate
             | RuntimeFn::NumericListAppendF64
             | RuntimeFn::NumericListPeekList => Some(MirType::Dynamic),
-            RuntimeFn::IsModule | RuntimeFn::NumericListCanReadF64 => Some(MirType::Bool),
+            RuntimeFn::IsModule | RuntimeFn::NumericListCanReadF64 | RuntimeFn::ExceptionMatch => {
+                Some(MirType::Bool)
+            }
             RuntimeFn::NumericListReadF64 | RuntimeFn::NumericListReadCheckedF64 => {
                 Some(MirType::F64)
             }
@@ -196,6 +306,56 @@ pub(super) fn validate_destination(
     {
         errors.push(format!(
             "函数 `{}` 的通用二元运算必须保存动态结果",
+            func.name
+        ));
+    }
+}
+
+/// 运行时返回值必须消费；这是既有 Eval 规则的等价归拢，仅新增星号入口。
+pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<String>) {
+    if matches!(
+        value,
+        Rvalue::Call {
+            callee: Callee::Runtime(
+                RuntimeFn::InstanceMakeClass
+                    | RuntimeFn::InstanceLoadName
+                    | RuntimeFn::LoadDeletedModuleName
+                    | RuntimeFn::InstanceExecutionSource
+                    | RuntimeFn::InstanceCaptureDefinitionContext
+                    | RuntimeFn::InstanceDefinitionModule
+                    | RuntimeFn::FunctionLocalsEnsure
+                    | RuntimeFn::ModuleFile
+                    | RuntimeFn::ModuleMetadata
+                    | RuntimeFn::TracePushWithOrigin
+                    | RuntimeFn::FunctionDefaults
+                    | RuntimeFn::ModuleExecutionSource
+                    | RuntimeFn::CaptureModuleTarget
+                    | RuntimeFn::IsModule
+                    | RuntimeFn::CallCapturedMethod
+                    | RuntimeFn::DynBinary
+                    | RuntimeFn::ClassNamespaceContains
+                    | RuntimeFn::GeneratorInput
+                    | RuntimeFn::GeneratorRetry
+                    | RuntimeFn::PrintTarget
+                    | RuntimeFn::NumericListCreate
+                    | RuntimeFn::NumericListAppendF64
+                    | RuntimeFn::NumericListPeekList
+                    | RuntimeFn::NumericListCanReadF64
+                    | RuntimeFn::NumericListReadCheckedF64
+                    | RuntimeFn::NumericListReadF64
+                    | RuntimeFn::NumericAccumulatorCreate
+                    | RuntimeFn::NumericAccumulatorValue
+                    | RuntimeFn::ValidateOrdinaryBase
+                    | RuntimeFn::TypedDictBegin
+                    | RuntimeFn::TypedDictFinish
+                    | RuntimeFn::UnpackEx
+                    | RuntimeFn::ExceptionMatch
+            ),
+            ..
+        }
+    ) {
+        errors.push(format!(
+            "函数 `{}` 的运行时控制调用返回值必须写入临时，不能遗留CIL求值栈",
             func.name
         ));
     }

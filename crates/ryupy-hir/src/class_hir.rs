@@ -11,6 +11,8 @@ use ryupy_base::TextRange;
 ///   求值属性并登记方法。
 #[derive(Debug)]
 pub struct Class {
+    /// 本次类定义需要独立的隐式 __class__ cell；普通 namespace 同名项与它无关。
+    pub has_class_cell: bool,
     pub name: Name,
     /// 单继承的基类；`None` 表示 `object`。
     pub base: Option<ClassBase>,

@@ -30,6 +30,7 @@ def parse_manifest(path):
         "entry": None,
         "pending": False,
         "args": [],
+        "instance_modules": [],
         "env": {},
         "stdin": None,
         "cwd": None,
@@ -47,6 +48,11 @@ def parse_manifest(path):
             spec["entry"] = path.parent / value
         elif key == "pending":
             spec["pending"] = value in {"true", "yes"}
+        elif key == "instance_module":
+            # 只选择RyuPy构建能力；CPython执行不使用此列表。与Rust保持非空、可重复合同。
+            if not value:
+                raise AssertionError(f"{path} instance_module 不能为空")
+            spec["instance_modules"].append(value)
         elif key == "args":
             spec["args"] = shlex.split(value)
         elif key == "env":

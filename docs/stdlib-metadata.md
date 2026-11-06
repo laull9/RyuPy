@@ -1,6 +1,6 @@
-# 数据类与定义位置注解：原生 API 边界
+# 数据类、注解与模块元数据：原生 API 边界
 
-本文记录 M3.6 的实际实现，不代表完整 `dataclasses`、`typing` 或反射兼容。
+本文按 API 记录数据类、typing 与模块元数据的实现和验证边界，不代表完整库或反射兼容。
 性能取舍与测量由本里程碑 ADR 单独记录；不能把此前缺少生成方法的静态表示速度当作语义等价基线。
 
 ## dataclasses
@@ -47,7 +47,7 @@
 - 生成 eq 只比较同一实际类；先分别读取左右全部比较字段，再按 tuple 相等语义比较，
   字段 getter 与用户 `__eq__` 的副作用顺序不能由快路径改变。
 - 普通可变数据类默认不可哈希；frozen 类的生成 hash 使用参与比较的字段 tuple，
-  字段本身不可哈希时保留错误。显式用户 hash 保留。
+  字段本身不可哈希时保留错误。显式用户 hash 保留。ADR0066 的有限候选在 field 占位处理后、生成 eq 前分类 own hash：None 与 own eq 同时存在按非显式处理；None 而无 own eq 仍保留。专项与完整门禁状态见该 ADR。
 - frozen 阻止实例赋值与删除，包括新属性；生成初始化使用专用初始化入口，
   不把“冻结”误实现成值复制，也不冻结字段引用的容器内容。
 - 普通方法替换必须立即生效；构造快路径必须在守卫失败后回到通用语义，不能绕过属性或用户方法。
@@ -81,9 +81,9 @@
 | API | 当前支持 | 明确边界 |
 | --- | --- | --- |
 | `Any`、`TYPE_CHECKING` | 稳定元数据对象；运行时 `TYPE_CHECKING=False` | 不执行静态检查器 |
-| `List/Dict/Tuple/Set/FrozenSet` | 类型参数、`get_origin/get_args`、结构相等与哈希 | 不允许通过这些 typing 别名构造容器；变长 `Tuple[T, ...]` 未支持 |
+| `List/Dict/Tuple/Set/FrozenSet` | 类型参数、`get_origin/get_args`、结构相等与哈希；Tuple原始缓存及有限尾Ellipsis见ADR0115 | 不允许通过这些 typing 别名构造容器；完整动态参数协议仍pending |
 | `Optional/Union` | None 归一化、嵌套展平、重复项合并、Union 相等不依赖参数顺序 | 仅元数据；参数化别名用于 `isinstance/issubclass` 明确拒绝，包括尚未实现的 Union 特例 |
-| `Callable[[参数类型...], 返回类型]` | 明确参数列表；`get_args` 返回新参数列表与返回类型 | `Callable[..., T]`、ParamSpec 未支持 |
+| `Callable[参数表达式, 返回类型]` | exact list/tuple及有限scalar参数转换、独立原始缓存与真实alias父关系见ADR0116；`get_args` 返回新参数列表与返回类型 | `Callable[..., T]`、ParamSpec、动态helper与完整派生协议未支持 |
 | `Iterable/Iterator/Sequence/Mapping/MutableMapping/Collection/Container` | 参数元数据，origin 使用实际 `collections.abc` 对象 | 不借此增加泛型继承与 ABC 注册能力 |
 | `get_origin/get_args/cast` | 未参数化形式无 args；cast 原样返回对象保留身份 | 不解析字符串前向引用，不执行类型转换 |
 | `list[T]/dict[K,V]` 等原生容器别名 | 元数据与调用底层构造器 | 不验证所装元素类型；完整 GenericAlias 反射接口未实现 |
@@ -92,8 +92,8 @@
 最多缓存 128 个别名，以先进先出淘汰限制强引用数量；缓存命中保留同一对象身份，
 不承诺淘汰后的再次订阅身份不变。Union 的结构相等和哈希不依赖缓存命中。
 
-`TypeVar/ForwardRef/Protocol/NamedTuple`、前向引用求值、完整泛型推导与反射仍未实现；
-不会用普通 object 或 dataclass 假装实现 Protocol / NamedTuple。
+`TypeVar/Protocol`、公开完整 `ForwardRef`、前向引用求值、完整泛型推导与反射仍未实现；
+`NamedTuple` 的真实有限范围见下节，不用普通 object 或 dataclass 假装 tuple 类型。
 参数注解不是运行时类型合同，错误类型的实参不会仅因为注解而新增拒绝。
 
 ## 本里程碑补齐的一等内建值
@@ -133,3 +133,71 @@ M3.6 增加 MIR `DeadValues` pass，在生成器降级与控制流简化之后�
 时间 / 分配测量与完整门禁共同决定，不以独立 helper 微测替代端到端证据。
 `m3_6_numeric_accumulator.py`、MIR 正反结构测试和 driver 快照覆盖动态类型转换、两向溢出、
 用户 radd / iadd、属性副作用、零轮身份、循环内观察拒绝与异常区回退。
+
+## typing IO 三类（有限已验范围）
+
+| API/观察 | 本轮支持 | 边界 |
+| --- | --- | --- |
+| IO、BinaryIO、TextIO | 三个稳定真实类，名义类型关系、零参构造、普通无slots单继承后代 | 不是真实文件流，不补Generic/AnyStr框架 |
+| 根方法与property | 28函数、8property；完整绑定、合法调用返回None、只读getter、普通覆盖/super | 不以“abstract”拒绝构造，不按参数注解做运行时转换 |
+| 裸根布局 | 无实例字典/槽；property setter优先，普通后代字段可写 | 后代own slots、dataclass及未实现类hook明确边界 |
+| 名称/模块 | typing根来源；普通模块级后代定义时读取真实当前__name__，公开重绑保身份 | 不猜未知Static来源；函数内类仍原E0100 |
+| 有限元数据 | BinaryIO/TextIO及支持普通后代的真实直接bases、根函数绑定身份、未参数化get_origin/get_args | IO[...]、完整MRO/参数传播/函数反射等CP合法正例pending；BinaryIO/TextIO订阅按CP报TypeError |
+
+29运行时专项和四项CP/JIT应用分别通过；首次正常完整门禁已通过，尚未发布。应用首次3/4的delattr编译旧缺口和公共专项首次28/29的宿主初始化遗漏均保留，未修改生产编译器绕过。范围、性能成本及证据见 [ADR0087](adr/0087-typing-io-runtime.md)。
+
+
+## typing.NamedTuple（有限候选）
+
+| 接口 | 已实现域 | 明确边界 |
+|---|---|---|
+| 功能式根 | 真实PyFunction、位置参数/字段kwargs、两遍fields、真实caller来源 | exact名字及有限pair/注解；替换collections工厂NI，不忽略替换 |
+| 类语法 | 单父真实根、最终字段/尾默认、注解与new共享、成功后发布 | Generic、生成类派生、魔术覆盖及late类修改NI |
+| tuple行为 | 复用真实tuple身份/索引/迭代/比较/hash及现helpers | 不扩全部tuple子类反射 |
+| 普通成员 | 普通方法/static/classmethod、property读写删、首docstring | 字段只读、无实例dict；未知可变descriptor常量NI |
+| 注解字符串 | 内部真实未求值ForwardRef，身份/元数据/eq/hash与有限ASCII识别 | 不公开完整构造/求值；复杂合法表达式、Unicode等NI，200层界限不冒CP同类异常 |
+
+160项相关runtime（含既有namedtuple50/IO29）、5项完整原流CP/JIT应用＋1结构及HIR6项首次通过；旧Quitter期待窄迁后第二次正常完整门禁1607C#/228CP/202e2e＋30原ignored通过。
+所有MakeClass路径的定义期module/qualname冷初始化为共有语义修正，不改Static数值ABI；IO晚修改仍拒绝。
+来源未知、删除/自定义builtins、class module=None、复杂合法域及旧反射差异保[ADR0088](adr/0088-typing-namedtuple.md)与pending，未发布、不冒tomli或完整typing通过。
+
+## typing.overload 三联 API（有限原生）
+
+| API | 已验证的有限行为 | 明确边界 |
+| --- | --- | --- |
+| overload(func) | 真实函数、一次 __func__ 解包、当前 module/qualname/真实首行注册，保原参数强引用及统一 dummy | 公开 code、自定义属性/映射/hash/eq/helper 未支持，不猜来源 |
+| get_overloads(func) | 当前 registry 的命中列表快照、miss 新空 list、bound method 及当前属性 | 未知合法动态域明确 NI；快照及元素身份不被 clear 改写 |
+| clear_overloads() | 清当前公开 registry 原对象，不 hash 旧键、不消费工厂 | 不代表任意 mapping.clear 协议已支持 |
+
+真实 registry 为两层 defaultdict 和最内 dict，同首行覆盖不移位；持续强引用函数，
+无容量上限/自动逐出，删除/覆盖/clear 后按普通引用规则释放。弱键版本验证缓存不
+延长旧桶寿命。六份完整公开源、23新C#及正常完整门禁通过；十份新增和两份复用旧
+边界保持完整 pending。改写 API __qualname__ 后错误前缀、partial repr 已证差异
+不算兼容。范围、完整失败和420性能样本见 [ADR0120](adr/0120-typing-overload.md)。
+
+
+## importlib.machinery.ModuleSpec 与普通源模块元数据（有限已验范围）
+
+| API/观察 | 已接入的有限行为 | 明确边界 |
+| --- | --- | --- |
+| ModuleSpec(name, loader, *, origin, loader_state, is_package) | 稳定真实 PyClass/PyInstance；先绑定再消费真值，字段保原引用，包列表独立 | 不是字典空桩；不因此开放 util 创建/执行、动态发现或任意 loader |
+| parent / has_location / cached | 包按 locations 是否 None 判断；真值成功后赋值；惰性缓存保身份和描述符重复读取 | 缓存路径限固定 CP3.12、optimize=0、无 pycache_prefix；自定义 origin 协议在消费点明确 NI，跨平台未验 |
+| repr / eq / hash | 逐属性消费；locations/动态类名走空 format；有限字段比较和 AttributeError 边界；不可哈希 | 直接字段自定义 eq 非 bool 结果与未知原生比较对象未接，sealed object() 仅保身份比较 |
+| 普通已定位模块元数据 | resolver 显式包标记；四新动态槽入口初始化，裸名字/外部属性同槽；spec/loader/file/cached/path 初始引用关系真实 | 普通函数与全局仍沿既有静态 ABI；新 RegisterSourceLocated 显式声明新槽能力，旧十参入口保原合同，不从位置登记猜新槽 |
+| CompiledModuleLoader / resources.files | 真来源描述类型；资源入口核本次 spec/loader 身份及 spec 来源字段 | 不伪装 SourceFileLoader，无 create_module/exec_module/get_source；不宣称验证 loader 任意字段改写 |
+
+成功重复 import 复用模块/spec，不重跑元数据前言；失败移除缓存，重试新建 spec。
+旧失败对象仍连共享静态槽，独立实例全局与旧别名隔离尚未接。模块/全局删除及
+builtins 回退、SourceFileLoader/native/__main__ 混合元数据、可写 sys.modules 与
+完整 html.parser 继续保边界，不能把 spec 存在当作完整 importlib 支持。
+
+B3 阶段 52 项定向 C# 及五份完整源同 PE 配 B3 runtime 的实际 JIT/CP golden 比对
+通过，两份完整边界分别保留 SourceFileLoader 缺失与全局 del 的 E0100，后者未运行。
+B4 新登记入口20项 C#/8项codegen定向通过，原样旧PE配B4 runtime复验通过且保原错；
+B4 正常完整门禁2281 C#/790 Rust/433基线/433 cases selftest/310编译e2e通过，127 ignored保留；
+B4真实CIL审计发现普通global意外Object化，P3未放行；B5已作类型层窄修，
+B5最终门禁2281C#/791Rust/433基线/433cases/310e2e、127ignored已过，
+B5真实PE/CIL复核已关闭普通global退化，唯一性能矩阵已完成并保全部不利，详见[性能报告](module-spec-performance.md)；
+干净889ba9a7原docopt入口通过，Markdown仍在JIT缺importlib.util，不计Markdown通过。
+详细合同、阶段身份、失败保留及验收窗口见 [ADR0121](adr/0121-module-spec.md) 和
+[ModuleSpec](module-spec.md)，历史性能风险不因此关闭。

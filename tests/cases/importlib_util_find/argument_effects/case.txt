@@ -1,0 +1,3 @@
+entry = entry.py
+# 完整源冻结 PE 差分已通过，不再 pending。
+# 已按原完整程序核对 CP golden；没有缩减断言。

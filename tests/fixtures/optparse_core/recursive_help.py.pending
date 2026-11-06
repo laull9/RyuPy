@@ -1,0 +1,13 @@
+# CP允许的同解析器帮助重入；本首切明确未实现，不伪装布局状态完全等价。
+from optparse import OptionParser
+parser = OptionParser(prog='demo', add_help_option=False)
+parser.add_option('-x', help='%default')
+class Default:
+    def __str__(self):
+        parser.set_default('x', 'inside')
+        assert 'inside' in parser.format_help()
+        return 'outside'
+parser.set_default('x', Default())
+assert 'outside' in parser.format_help()
+assert 'inside' in parser.format_help()
+print('recursive-help')

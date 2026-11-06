@@ -36,6 +36,7 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
             .any(|(_, m)| m.name == name || m.name.starts_with(&format!("{name}.")))
     );
     let export = program.globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "declared_add".into(),
         ty: MirType::Dynamic,
     });
@@ -54,9 +55,12 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
         terminator: Terminator::Return(None),
     });
     let initializer = program.functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: name.into(),
         codegen_name: "__declared_binding_init".into(),
         source_file: String::new(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: {
@@ -69,10 +73,13 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     let module = program.modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: true,
+        is_package: false,
         protected_exports: vec![],
         name: name.into(),
         package: String::new(),

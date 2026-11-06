@@ -470,8 +470,8 @@ public class PyStopIteration : PyException
     /// <summary><c>StopIteration.value</c>。</summary>
     public object? Value { get; }
 
-    /// <summary>仅在请求消息时格式化；完成生成器不可调用返回值的 __str__。</summary>
-    public override string PyMessage => Value is null ? "" : PyRepr.Str(Value);
+    /// <summary>仅在请求消息时按完整 args 格式化；完成生成器不可调用返回值的 __str__。</summary>
+    public override string PyMessage => PyErrors.UserExceptionMessage(Args);
 
     /// <summary>CLR 消息读取同样使用延迟格式化，不缓存可变返回值。</summary>
     public override string Message => PyMessage;
@@ -484,6 +484,14 @@ public class PyStopIteration : PyException
         // 内部迭代完成使用此构造；None 代表无终值，tuple 等对象仍是一个参数。
         Value = value is PyNone ? null : value;
     }
+
+    /// <summary>供生成的用户子类保留真实名字与全部参数，不提前格式化。</summary>
+    /// <param name="typeName">Python 类型名。</param>
+    /// <param name="message">保留派生构造 ABI；消息由原始参数延迟生成。</param>
+    /// <param name="args">位置参数；独占浅拷贝，元素身份不变。</param>
+    protected PyStopIteration(string typeName, string message, object?[] args)
+        : base(typeName, "", (object?[])args.Clone())
+        => Value = Args.Length == 0 ? null : Args[0];
 }
 
 /// <summary><c>StopAsyncIteration</c>。</summary>
@@ -535,6 +543,7 @@ public static class PyExceptionTypes
     {
         ["BaseException"] = m => new PyBaseException("BaseException", m),
         ["Exception"] = m => new PyException("Exception", m),
+        ["BadZipFile"] = m => m.Length == 0 ? new PyBadZipFile() : new PyBadZipFile(m),
         ["SystemExit"] = m => new PySystemExit(m),
         ["KeyboardInterrupt"] = m => new PyKeyboardInterrupt(m),
         ["GeneratorExit"] = m => new PyGeneratorExit(m),
@@ -574,13 +583,15 @@ public static class PyExceptionTypes
 
     /// <summary>该名字是否是已知的 Python 异常类型（供编译期诊断使用）。</summary>
     /// <param name="typeName">Python 类型名。</param>
-    public static bool IsKnown(string typeName) => Factories.ContainsKey(typeName)
+    public static bool IsKnown(string typeName) => typeName == "GetoptError" || PyOptParseExceptions.IsType(typeName) || Factories.ContainsKey(typeName)
         || PyExceptionHierarchy.IsSubclass(typeName, "Warning");
 
     /// <summary>按类型名构造异常对象；未知名字退化成 <c>Exception</c> 家族。</summary>
     /// <param name="typeName">Python 类型名。</param>
     /// <param name="message">消息。</param>
     public static PyBaseException Create(string typeName, string message) =>
+        typeName == "GetoptError" ? new PyGetoptError(message, "") :
+        PyOptParseExceptions.IsType(typeName) ? PyOptParseExceptions.FromMessage(typeName, message) :
         PyExceptionHierarchy.IsSubclass(typeName, "Warning") ? PyWarningTypes.Create(typeName, [message]) :
         Factories.TryGetValue(typeName, out var factory)
             ? factory(message)

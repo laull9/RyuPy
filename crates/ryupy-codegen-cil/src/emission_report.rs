@@ -14,8 +14,8 @@ pub struct ModuleEmission {
     pub module_id: u32,
     pub module_name: String,
     pub init: MethodDescriptor,
-    pub getter: MethodDescriptor,
-    pub setter: MethodDescriptor,
+    pub getter: Option<MethodDescriptor>,
+    pub setter: Option<MethodDescriptor>,
     pub exports: Vec<String>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -92,10 +92,13 @@ pub(crate) fn collect(
         let getter = accessors.getters[position];
         let setter = accessors.setters[position];
         for (method, role) in [
-            (init, "module_init"),
+            (Some(init), "module_init"),
             (getter, "module_getter"),
             (setter, "module_setter"),
         ] {
+            let Some(method) = method else {
+                continue;
+            };
             roles.insert(
                 method,
                 Role {
@@ -116,8 +119,8 @@ pub(crate) fn collect(
             module_id: number,
             module_name: module.name.clone(),
             init: identities[&init].clone(),
-            getter: identities[&getter].clone(),
-            setter: identities[&setter].clone(),
+            getter: getter.map(|index| identities[&index].clone()),
+            setter: setter.map(|index| identities[&index].clone()),
             exports,
         });
     }

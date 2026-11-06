@@ -18,6 +18,8 @@ public sealed class PyGenerator : IPyIterator
     private object?[]? _frame;
     private readonly string _source;
     private readonly string _name;
+    // 保存真实源函数，不快照module值；结束时清除，暂停时仍需保留身份。
+    private object? _origin;
     private object? _current;
     private bool _running;
     private bool _started;
@@ -30,11 +32,16 @@ public sealed class PyGenerator : IPyIterator
     /// <param name="source">源码文件名。</param>
     /// <param name="name">Python 函数名。</param>
     public PyGenerator(PyResume resume, object?[] frame, string source, string name)
+        : this(resume, frame, source, name, null) { }
+
+    /// <summary>编译函数创建的生成器保存实际来源；旧构造器保持明确未知来源。</summary>
+    public PyGenerator(PyResume resume, object?[] frame, string source, string name, object? origin)
     {
         _resume = resume;
         _frame = frame;
         _source = source;
         _name = name;
+        _origin = origin;
         _context = _contextRoot;
     }
 
@@ -58,7 +65,8 @@ public sealed class PyGenerator : IPyIterator
         PyErrors.ContextNode = _context;
         try
         {
-            depth = PyTraceback.PushFrame(_source, _name);
+            depth = _origin is null ? PyTraceback.PushFrame(_source, _name)
+                : PyTraceback.PushFrameWithOrigin(_source, _name, _origin);
             var frame = _frame;
             if (ReadState(frame) == -1) { Finish(); return false; }
             frame[1] = sentValue ?? PyNone.Instance;
@@ -172,7 +180,10 @@ public sealed class PyGenerator : IPyIterator
         {
             PyBaseException error => error,
             PyType { Name: "error" } => PyRegex.ConstructError([], [], []),
+            PyType { Name: "GetoptError" } => PyGetoptError.Construct([], [], []),
             PyType { Name: "JSONDecodeError" } => PyJsonModule.ConstructError([], [], []),
+            PyType type when PyOptParseExceptions.IsType(type.Name)
+                => PyOptParseExceptions.Construct(type.Name, [], [], []),
             PyType type when PyExceptionHierarchy.IsKnown(type.Name)
                 => PyExceptionTypes.Create(type.Name, string.Empty),
             PyClass cls when cls.IsSubclassOfBuiltin("BaseException") => cls.Invoke([], [], []),
@@ -227,6 +238,7 @@ public sealed class PyGenerator : IPyIterator
         if (_frame is not null) Array.Clear(_frame);
         _frame = null;
         _resume = null;
+        _origin = null;
         _current = null;
         _context = _contextRoot;
     }

@@ -10,6 +10,11 @@
 
 use crate::mir::{Function, Program};
 
+mod observer;
+pub use observer::{PipelineEvent, PipelineObserver, PipelinePhase, PipelineStep};
+#[cfg(test)]
+mod observer_tests;
+
 pub(crate) mod dead_values;
 #[cfg(test)]
 mod dead_values_tests;
@@ -136,7 +141,27 @@ pub fn pipeline_with_slp_options(
 /// 当作编译失败处理（例如在 CI 里收集全部问题）。这里返回错误，由 driver 转成
 /// 诊断 / <c>anyhow</c> 错误，维持「任何输入都不 panic」的约定。
 pub fn run_pipeline(program: &mut Program, passes: &[PipelinePass]) -> Result<(), String> {
-    for pass in passes {
+    run_pipeline_observed(program, passes, &mut observer::NoopObserver)
+}
+
+/// 只通知不可变诊断元数据；观察者不参与变换、校验或错误决策。
+pub fn run_pipeline_observed<O: PipelineObserver>(
+    program: &mut Program,
+    passes: &[PipelinePass],
+    observer: &mut O,
+) -> Result<(), String> {
+    for (index, pass) in passes.iter().enumerate() {
+        let mut notify = |phase, step| {
+            if O::ENABLED {
+                observer.observe(PipelineEvent {
+                    ordinal: index + 1,
+                    pass_name: pass.name(),
+                    phase,
+                    step,
+                });
+            }
+        };
+        notify(PipelinePhase::Run, PipelineStep::Begin);
         match pass {
             PipelinePass::Function(pass) => {
                 for (_, func) in program.functions.iter_mut() {
@@ -145,6 +170,8 @@ pub fn run_pipeline(program: &mut Program, passes: &[PipelinePass]) -> Result<()
             }
             PipelinePass::Program(pass) => pass.run(program),
         }
+        notify(PipelinePhase::Run, PipelineStep::End);
+        notify(PipelinePhase::Validate, PipelineStep::Begin);
         if let Err(errs) = crate::validate::validate(program) {
             return Err(format!(
                 "内部错误：Pass `{}` 产出了非法 MIR:\n{}",
@@ -152,6 +179,7 @@ pub fn run_pipeline(program: &mut Program, passes: &[PipelinePass]) -> Result<()
                 errs.join("\n")
             ));
         }
+        notify(PipelinePhase::Validate, PipelineStep::End);
     }
     Ok(())
 }

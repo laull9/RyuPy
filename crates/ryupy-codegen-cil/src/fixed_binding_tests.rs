@@ -21,12 +21,15 @@ pub(crate) fn fixture() -> (LinkedProgram, FixedI32Binding) {
         MirType::Unit,
     ));
     let export = program.globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "declared_add".into(),
         ty: MirType::Dynamic,
     });
     let module = program.modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: true,
+        is_package: false,
         protected_exports: vec![],
         name: "native_math".into(),
         package: String::new(),

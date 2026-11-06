@@ -181,6 +181,7 @@ fn owned_root(out: &Path) -> Result<PathBuf> {
 }
 fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Binding {
     let export = p.globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: format!("{}_{}", plan.module, plan.export),
         ty: MirType::Dynamic,
     });
@@ -195,9 +196,12 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
         terminator: Terminator::Return(None),
     });
     let initializer = p.functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: plan.module.clone(),
         codegen_name: "__declared_binding_init".into(),
         source_file: String::new(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body,
@@ -207,10 +211,13 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     let module = p.modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: true,
+        is_package: false,
         protected_exports: vec![],
         name: plan.module.clone(),
         package: String::new(),

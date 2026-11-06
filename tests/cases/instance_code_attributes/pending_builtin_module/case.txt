@@ -1,0 +1,4 @@
+# 真实 builtins 模块与动态代码协议尚未实现，保留完整调用与后续断言。
+entry = entry.py
+instance_module = subject
+pending = true

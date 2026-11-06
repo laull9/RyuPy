@@ -13,6 +13,7 @@ pub(crate) fn allocate(
     for value in values {
         if globals[value].ty != MirType::Dynamic {
             let flag = globals.alloc(GlobalDecl {
+                storage: crate::GlobalStorage::LegacyStatic,
                 name: format!("__bound_{}", value.into_raw().into_u32()),
                 ty: MirType::Bool,
             });
@@ -68,6 +69,9 @@ pub(crate) fn exports(
     classes: &FxHashMap<ryupy_hir::ClassId, GlobalId>,
 ) -> Vec<ModuleExport> {
     let mut exports = Vec::new();
+    if hir.info.instance_globals {
+        return exports;
+    }
     for (id, var) in hir.vars.iter() {
         if let Some(&value) = module_vars.get(&id) {
             let guard = flags

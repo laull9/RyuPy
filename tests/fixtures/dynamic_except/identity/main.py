@@ -1,0 +1,84 @@
+# 动态 except：真实跨源码身份、重导出、异常时重绑和缺失属性读取。
+import left
+import right
+import facade
+
+print("identity.reexport", facade.Error is left.Error)
+original = left.Error("left")
+try:
+    raise original
+except right.Error:
+    print("WRONG.same-name")
+except facade.Error as caught:
+    print("identity.cross-source", caught is original)
+
+left.Error.__module__ = "same_public_module"
+right.Error.__module__ = "same_public_module"
+try:
+    raise original
+except right.Error:
+    print("WRONG.module-name")
+except facade.Error as caught:
+    print("identity.module-mutation", caught is original)
+
+child = left.Child("child")
+try:
+    raise child
+except facade.Error as caught:
+    print("identity.subclass", caught is child)
+
+def rebind():
+    facade.Error = right.Error
+
+replacement = right.Error("right")
+try:
+    rebind()
+    raise replacement
+except facade.Error as caught:
+    print("identity.rebound", caught is replacement)
+
+old = left.Error("old")
+try:
+    raise old
+except facade.Error:
+    print("WRONG.stale-export")
+except left.Error as caught:
+    print("identity.old-nonmatch", caught is old)
+
+try:
+    try:
+        raise original
+    except facade.MissingError:
+        print("WRONG.missing-export")
+    except AttributeError:
+        print("WRONG.catches-lookup")
+except AttributeError as caught:
+    print("identity.missing-export", caught.__context__ is original)
+
+def local_target():
+    target = right.Error
+    target = left.Error
+    value = left.Child("local")
+    try:
+        raise value
+    except target as caught:
+        print("identity.local", caught is value)
+
+local_target()
+base = BaseException
+exit_value = SystemExit(7)
+try:
+    raise exit_value
+except base as caught:
+    print("identity.base-exception", caught is exit_value, caught.code)
+class ExportHolder:
+    def __init__(self, module):
+        self.export = module
+
+holder = ExportHolder(left)
+try:
+    raise child
+except holder.export.Error as caught:
+    print("identity.attribute-chain", caught is child)
+
+print("identity.complete", True)

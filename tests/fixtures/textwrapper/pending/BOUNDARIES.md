@@ -1,0 +1,22 @@
+# TextWrapper未支持边界与取证限制
+
+前三个.py.pending不注册、不执行、不计通过，保唯一参考的7条真实CP期待：
+base_algorithms五条为fix_sentence_endings、max_lines、float width、自定义splitter/translation成功；
+function_defaults一条为真实函数默认值读写影响绑定；class_metadata一条为普通派生类删除
+__module__的完整TypeError及原值不变。原CP记录与pending标记不改，不能把目标NI伪写成CP结果。
+
+call_base_expression额外保首次T1 CP已通过的Call基类表达式正例；现HIR只接模块槽Name/Attribute，
+不接get_base()直接作为基类。active先BaseAlias=get_base()再class Child(BaseAlias)，
+保一次求值、真实类身份、super与全部断言。此通用语法旧债不改变原参考71+7分类。
+
+基类有限NI的消费点/Prepared现场由runtime focused单独验证，不增加第五个应用。
+子类覆写可处理相关输入的真实成功例仍在T3；未消费的tabsize/placeholder不得提前拒绝。
+非真实list/custom chunk、复杂descriptor、超本地整数范围沿最终合同拒绝，不冒全协议。
+未实现的wordsep_re/wordsep_simple_re/sentence_end_re/unicode_whitespace_trans不导出假对象。
+
+参考用vars采属性字典，而当前通用vars及普通实例__dict__尚缺。active改用12字段逐项
+getattr/identity和property setter事件观测真实值与半写状态，init源码顺序另经核对；
+这不是新增vars/实例字典支持，不删除原CP取证。
+
+快路仅是可行资格设计：四应用结果相等不证明分配/时间或实际路径。旧模块矩阵、optparse全文、
+正常gate与既有护栏由父另行验证；没有新的benchmark、无界枚举或项目通过声明。

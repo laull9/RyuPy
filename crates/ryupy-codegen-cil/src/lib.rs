@@ -21,12 +21,24 @@ mod entry;
 pub use emission_report::{
     DelegateReference, EmissionArtifact, EmissionReport, MethodDescriptor, ModuleEmission,
 };
+mod class_cell_refs;
+#[cfg(test)]
+mod class_cell_tests;
+#[cfg(test)]
+mod dynamic_origin_tests;
 #[cfg(test)]
 mod emission_report_tests;
 mod function_refs;
 mod generator_refs;
+mod instance_refs;
+mod lexical_super;
+#[cfg(test)]
+mod lexical_super_tests;
 mod literals;
+mod locals_refs;
 mod modules;
+mod origin_refs;
+mod owned_function_refs;
 mod refs;
 pub mod runtimeconfig;
 mod stackify;
@@ -36,6 +48,7 @@ mod stackify_runtime;
 mod stackify_rvalue;
 mod system_refs;
 mod types;
+mod unpack_refs;
 
 use ryupy_mir::LinkedProgram;
 
@@ -91,7 +104,12 @@ mod exception_constructor_tests;
 
 mod class_refs;
 
+mod exception_refs;
 mod module_binding_refs;
+mod module_deletion_refs;
+#[cfg(test)]
+mod module_deletion_tests;
+mod program_refs;
 
 mod typed_dict_refs;
 
@@ -115,6 +133,8 @@ mod vector_tests;
 
 #[cfg(test)]
 mod module_location_tests;
+#[cfg(test)]
+mod module_resource_tests;
 
 // 编译器Rust实验接口：显式记录，不是Python/CLI公开声明协议。
 mod fixed_binding_emit;
@@ -133,3 +153,26 @@ mod fixed_binding_deployment_tests;
 
 #[cfg(test)]
 mod ordinary_class_finalize_tests;
+
+#[cfg(test)]
+mod bad_zipfile_tests;
+
+#[cfg(test)]
+mod getopt_exception_tests;
+#[cfg(test)]
+mod optparse_exception_tests;
+
+#[cfg(test)]
+mod dynamic_except_tests;
+
+#[cfg(test)]
+mod function_locals_tests;
+
+#[cfg(test)]
+mod function_definition_tests;
+
+#[cfg(test)]
+mod instance_tests;
+
+#[cfg(test)]
+mod owned_function_tests;

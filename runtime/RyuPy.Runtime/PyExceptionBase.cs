@@ -19,10 +19,18 @@ public class PyBaseException : Exception
     public string PyTypeName { get; }
 
     /// <summary>Python 侧消息（<c>str(exc)</c> 的内容）。</summary>
-    public virtual string PyMessage { get; }
+    public virtual string PyMessage => positionalConstruction
+        ? PyTypeName == "KeyError" && Args.Length == 1 ? PyRepr.Repr(Args[0]) : PyErrors.UserExceptionMessage(Args)
+        : initialMessage;
+
+    private readonly string initialMessage;
+    private bool positionalConstruction;
+
+    /// <summary>位置构造冷路延迟格式化；既有内部消息构造保持原CLR消息行为。</summary>
+    public override string Message => positionalConstruction ? PyMessage : base.Message;
 
     /// <summary><c>exc.args</c>：构造时的位置参数。</summary>
-    public object?[] Args { get; }
+    public object?[] Args { get; private set; }
 
     /// <summary><c>raise ... from ...</c> 的显式原因（<c>__cause__</c>）。</summary>
     public PyBaseException? Cause { get; private set; }
@@ -62,10 +70,17 @@ public class PyBaseException : Exception
         : base(message, cause)
     {
         PyTypeName = typeName;
-        PyMessage = message;
+        initialMessage = message;
         Args = args ?? (message.Length == 0 ? [] : [message]);
         Cause = cause;
         SuppressContextFlag = cause is not null;
+    }
+
+    // 仅真实PyType调用工厂使用；保CLR子类身份，原始参数浅拷贝且不提前运行用户str/repr。
+    internal void InitializePositionalArguments(object?[] args)
+    {
+        Args = (object?[])args.Clone();
+        positionalConstruction = true;
     }
 
     /// <summary>供生成的用户异常子类使用：指定类型名、消息与位置参数。</summary>
@@ -97,7 +112,8 @@ public class PyBaseException : Exception
     {
         // 延迟消息可能调用用户 __str__，一次报告只求值一次。
         string message = PyRepr.Str(this);
-        return message.Length == 0 ? PyTypeName : $"{PyTypeName}: {message}";
+        string name = PyNativeExceptionDisplay.Name(this);
+        return message.Length == 0 ? name : $"{name}: {message}";
     }
 }
 

@@ -1,6 +1,6 @@
 # ADR-0054：abs 完整求值与单参数绑定
 
-- 状态：本地完整门禁通过，未远端验收
+- 状态：已进入 main，Ubuntu/macOS 普通 CI 通过
 - 基线：int修复提交 `0f52ec5037edbe7094c96d55485ac0c591d14862`
 
 ## 已有错误
@@ -20,3 +20,8 @@ abs专属冷helper只对Single/关键字绑定错误记录caller/context，用�
 ## 验证
 
 固定CP13核心及错误链参考已保存；ty/MIR结构专项各1项通过，验证完整副作用顺序与单参数Int/Float静态快路。runtime 8/8、真实driver 3/3均首次运行通过，覆盖完整输出、8行异常链投影与MIR结构。正常完整门禁首次通过：611项C#、228项CP基线、202项e2e通过与30项ignored，workspace、fmt和strict clippy均通过，未更新快照。重新构建CLI后，最初多参复现与CP原始stdout逐字相同，均先输出extra-evaluated再输出arity-rejected，stderr为空。未将pending算作通过，未运行新的原生或性能组。
+
+
+## 普通 CI 远端验收
+
+2026-11-03，int 与 abs 合批经用户批准进入 main `d4d8243a34bc8466eefb6995edfde42f3bf87eb5`；连接器生成的提交元数据不同，但树与本地已验候选完全相同。[普通 CI 41620972640](https://github.com/laull9/RyuPy/actions/runs/41620972640) 的 Ubuntu/macOS 两项均成功。两份官方日志分别确认 611 项 C#、228 项 CP 基线、202 项 e2e 通过及 30 项 ignored，int/abs 各 3 项真实 driver 均通过。未新增原生、项目矩阵或性能测量，原 pending 与 matmul 禁分层回归仍保留。

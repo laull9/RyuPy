@@ -42,9 +42,12 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 5]) {
     };
     let mut functions = Arena::default();
     let main = functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: "checked_read".into(),
         codegen_name: "checked_read".into(),
         source_file: "checked.py".into(),
+        definition: None,
         params: vec![list, index, other],
         ret: MirType::F64,
         body: Body {
@@ -59,6 +62,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 5]) {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     (
         Program {
@@ -234,6 +238,7 @@ fn global_write_unknown_call_bool_alias_and_eh_cannot_preserve_proof() {
         let (mut p, [entry, yes, no], [list, _, _, condition, _]) = sample();
         if case == 0 {
             let global = p.globals.alloc(GlobalDecl {
+                storage: crate::GlobalStorage::LegacyStatic,
                 name: "changed".into(),
                 ty: MirType::Dynamic,
             });

@@ -22,6 +22,7 @@ pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirTyp
         name: name.into(),
         codegen_name: name.into(),
         source_file: "exact_i64.py".into(),
+        definition: None,
         params,
         ret,
         body,
@@ -31,6 +32,9 @@ pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirTyp
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        module_state_source: None,
     }
 }
 
@@ -170,8 +174,10 @@ pub(super) fn program() -> LinkedProgram {
     ));
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),

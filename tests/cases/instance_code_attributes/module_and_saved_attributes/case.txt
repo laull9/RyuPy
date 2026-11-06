@@ -1,0 +1,3 @@
+# 完整固定 CP 与候选真实 PE/JIT 逐字通过；不替代普通属性顺序的完整 pending 源。
+entry = entry.py
+instance_module = subject
