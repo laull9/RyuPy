@@ -56,21 +56,21 @@ fn serialized_module_locations_keep_diagnostic_and_runtime_values_separate() {
         let code = &registration.body.as_ref().unwrap().instructions;
         let call = code
             .iter()
-            .position(|ins| ins.show(&res).contains("PyModules.RegisterLocated"))
+            .position(|ins| ins.show(&res).contains("PyModules.RegisterSourceLocated"))
             .unwrap();
         // 三组ldnull/ldftn/newobj共九条指令；显式flag/位置/kind在其之前。
-        assert!(matches!(code[call - 10], Instruction::LoadConstantInt32(1)));
+        assert!(matches!(code[call - 11], Instruction::LoadConstantInt32(1)));
         assert!(
-            matches!(code[call - 12], Instruction::LoadConstantInt64(kind) if kind == expected_kind)
+            matches!(code[call - 13], Instruction::LoadConstantInt64(kind) if kind == expected_kind)
         );
-        assert!(code[call - 11].show(&res).contains(value));
-        assert!(code[call - 13].show(&res).contains("unit.py"));
+        assert!(code[call - 12].show(&res).contains(value));
+        assert!(code[call - 14].show(&res).contains("unit.py"));
         let located_ref = res
             .method_references
             .iter()
-            .find(|method| method.name == "RegisterLocated")
+            .find(|method| method.name == "RegisterSourceLocated")
             .unwrap();
-        assert_eq!(located_ref.signature.parameters.len(), 9);
+        assert_eq!(located_ref.signature.parameters.len(), 10);
         assert_eq!(
             located_ref.signature.parameters[3],
             Parameter::value(BaseType::Int64.into())
@@ -116,7 +116,7 @@ fn legacy_dump_and_registration_do_not_invent_runtime_paths() {
     )
     .unwrap();
     assert!(dump.contains("PyModules.Register("));
-    assert!(!dump.contains("PyModules.RegisterLocated("));
+    assert!(!dump.contains("PyModules.RegisterSourceLocated("));
     assert!(!dump.contains("PyModules.ModuleFile("));
 }
 
@@ -124,6 +124,7 @@ fn legacy_dump_and_registration_do_not_invent_runtime_paths() {
 fn public_file_dynamic_setter_stores_original_object_without_string_conversion() {
     let mut program = crate::exact_i64_tests::program();
     let file = program.globals.alloc(ryupy_mir::GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: "file_slot".into(),
         ty: MirType::Dynamic,
     });
@@ -167,5 +168,64 @@ fn public_file_dynamic_setter_stores_original_object_without_string_conversion()
         !instructions
             .iter()
             .any(|ins| ins.show(&res).contains("PyCast"))
+    );
+}
+
+#[test]
+fn module_metadata_pe_uses_two_strings_and_an_object_result() {
+    let mut program = crate::exact_i64_tests::program();
+    let module = &program.modules[program.entry];
+    let name = module.name.clone();
+    let init = &mut program.functions[module.init];
+    let dest = crate::exact_i64_tests::local(&mut init.body.locals, MirType::Dynamic);
+    for attribute in ["__spec__", "__loader__", "__cached__", "__path__"] {
+        init.body.blocks[init.body.entry].stmts.insert(
+            0,
+            Statement::Assign {
+                dest,
+                value: Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::ModuleMetadata),
+                    args: vec![
+                        Operand::Const(Constant::Str(name.clone())),
+                        Operand::Const(Constant::Str(attribute.into())),
+                    ],
+                },
+            },
+        );
+    }
+    let bytes = crate::emit_assembly(
+        &program,
+        &crate::EmitOptions {
+            assembly_name: "module_metadata".into(),
+            entry_source_path: None,
+        },
+    )
+    .unwrap();
+    let res = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
+    let reference = res
+        .method_references
+        .iter()
+        .find(|m| m.name == "ModuleMetadata")
+        .unwrap();
+    assert_eq!(
+        reference.signature.parameters,
+        vec![
+            Parameter::value(BaseType::String.into()),
+            Parameter::value(BaseType::String.into()),
+        ]
+    );
+    assert_eq!(
+        reference.signature.return_type,
+        ReturnType::value(BaseType::Object.into())
+    );
+    assert_eq!(
+        res.type_definitions
+            .iter()
+            .flat_map(|t| &t.methods)
+            .filter_map(|m| m.body.as_ref())
+            .flat_map(|b| &b.instructions)
+            .filter(|i| i.show(&res).contains("PyModules.ModuleMetadata("))
+            .count(),
+        4
     );
 }

@@ -1,0 +1,225 @@
+3.12.13 (main, Aug  7 2026, 02:25:39) [Clang 22.1.3 ]
+{"case": "bytes.missing", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytes.none", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.identity", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.inverse", "ok": "b'\\x9e\\xff\\x9d\\x00\\x9e\\x9e'"}
+{"case": "bytes.delete", "ok": "b'\\x00b'"}
+{"case": "bytes.delete_kw", "ok": "b'\\x00b\\xff'"}
+{"case": "bytes.delete_original", "ok": "b'\\xff\\x9d\\x00'"}
+{"case": "bytes.delete_duplicates", "ok": "b'\\x00b\\xff'"}
+{"case": "bytes.table_kw", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytes.table_kw_with_pos", "error": "TypeError", "message": "'table' is an invalid keyword argument for translate()"}
+{"case": "bytes.delete_only", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytes.extra", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytes.unknown", "error": "TypeError", "message": "'oops' is an invalid keyword argument for translate()"}
+{"case": "bytes.extra_unknown", "error": "TypeError", "message": "translate() takes at most 2 arguments (4 given)"}
+{"case": "bytes.duplicate", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytes.badtable_baddelete", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.badtype_baddelete", "error": "TypeError", "message": "a bytes-like object is required, not 'int'"}
+{"case": "bytes.none_delete_none", "error": "TypeError", "message": "a bytes-like object is required, not 'NoneType'"}
+{"case": "bytes.badtable_unknown", "error": "TypeError", "message": "'oops' is an invalid keyword argument for translate()"}
+{"case": "bytes.identity..none", "ok": "('bytes', '', True, True)"}
+{"case": "bytes.identity..id", "ok": "('bytes', '', True, True)"}
+{"case": "bytes.identity..absent", "ok": "('bytes', '', True, True)"}
+{"case": "bytes.identity..deleteall", "ok": "('bytes', '', True, True)"}
+{"case": "bytes.identity..inverse", "ok": "('bytes', '', True, True)"}
+{"case": "bytes.identity.61.none", "ok": "('bytes', '61', True, False)"}
+{"case": "bytes.identity.61.id", "ok": "('bytes', '61', True, False)"}
+{"case": "bytes.identity.61.absent", "ok": "('bytes', '61', True, False)"}
+{"case": "bytes.identity.61.deleteall", "ok": "('bytes', '', False, True)"}
+{"case": "bytes.identity.61.inverse", "ok": "('bytes', '9e', False, False)"}
+{"case": "bytes.identity.616263.none", "ok": "('bytes', '616263', True, False)"}
+{"case": "bytes.identity.616263.id", "ok": "('bytes', '616263', True, False)"}
+{"case": "bytes.identity.616263.absent", "ok": "('bytes', '616263', True, False)"}
+{"case": "bytes.identity.616263.deleteall", "ok": "('bytes', '', False, True)"}
+{"case": "bytes.identity.616263.inverse", "ok": "('bytes', '9e9d9c', False, False)"}
+{"case": "bytes.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.none", "ok": "('bytes', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff', True, False)"}
+{"case": "bytes.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.id", "ok": "('bytes', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff', True, False)"}
+{"case": "bytes.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.absent", "ok": "('bytes', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff', False, False)"}
+{"case": "bytes.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.deleteall", "ok": "('bytes', '', False, True)"}
+{"case": "bytes.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.inverse", "ok": "('bytes', 'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a999897969594939291908f8e8d8c8b8a898887868584838281807f7e7d7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f5e5d5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100', False, False)"}
+{"case": "bytes.buffer.table.bytes", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.buffer.table.bytearray", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.buffer.table.viewB", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.buffer.table.viewc", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.buffer.table.viewH", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.buffer.table.view2D", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.buffer.table.strided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytes.buffer.table.emptystrided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytes.buffer.table.arrayH", "ok": "b'\\x00\\x00\\x00\\x00\\x00\\x00'"}
+{"case": "bytes.buffer.table.text", "error": "TypeError", "message": "a bytes-like object is required, not 'str'"}
+{"case": "bytes.buffer.table.list", "error": "TypeError", "message": "a bytes-like object is required, not 'list'"}
+{"case": "bytes.buffer.table.int", "error": "TypeError", "message": "a bytes-like object is required, not 'int'"}
+{"case": "bytes.buffer.table.released", "error": "ValueError", "message": "operation forbidden on released memoryview object"}
+{"case": "bytes.buffer.delete.bytes", "ok": "b''"}
+{"case": "bytes.buffer.delete.bytearray", "ok": "b''"}
+{"case": "bytes.buffer.delete.viewB", "ok": "b''"}
+{"case": "bytes.buffer.delete.viewc", "ok": "b''"}
+{"case": "bytes.buffer.delete.viewH", "ok": "b''"}
+{"case": "bytes.buffer.delete.view2D", "ok": "b''"}
+{"case": "bytes.buffer.delete.strided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytes.buffer.delete.emptystrided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytes.buffer.delete.arrayH", "ok": "b'ab\\xffaa'"}
+{"case": "bytes.buffer.delete.text", "error": "TypeError", "message": "a bytes-like object is required, not 'str'"}
+{"case": "bytes.buffer.delete.list", "error": "TypeError", "message": "a bytes-like object is required, not 'list'"}
+{"case": "bytes.buffer.delete.int", "error": "TypeError", "message": "a bytes-like object is required, not 'int'"}
+{"case": "bytes.buffer.delete.released", "error": "ValueError", "message": "operation forbidden on released memoryview object"}
+{"case": "bytes.length.0.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.0.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.1.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.1.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.255.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.255.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.256.emptyTrue", "ok": "b''"}
+{"case": "bytes.length.256.emptyFalse", "ok": "b'\\x00\\x00\\x00'"}
+{"case": "bytes.length.257.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.length.257.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytes.root.missing", "error": "TypeError", "message": "unbound method bytes.translate() needs an argument"}
+{"case": "bytes.root.badself", "error": "TypeError", "message": "descriptor 'translate' for 'bytes' objects doesn't apply to a 'int' object"}
+{"case": "bytes.root.cross", "error": "TypeError", "message": "descriptor 'translate' for 'bytes' objects doesn't apply to a 'bytearray' object"}
+{"case": "bytes.root.badself_extra", "error": "TypeError", "message": "descriptor 'translate' for 'bytes' objects doesn't apply to a 'int' object"}
+{"case": "bytes.root.goodself_missing", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytes.root.goodself", "ok": "b'a\\x00b\\xffaa'"}
+{"case": "bytes.root.self_kw", "error": "TypeError", "message": "unbound method bytes.translate() needs an argument"}
+{"case": "bytes.source_table_alias", "ok": "b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\x7f\\x80\\x81\\x82\\x83\\x84\\x85\\x86\\x87\\x88\\x89\\x8a\\x8b\\x8c\\x8d\\x8e\\x8f\\x90\\x91\\x92\\x93\\x94\\x95\\x96\\x97\\x98\\x99\\x9a\\x9b\\x9c\\x9d\\x9e\\x9f\\xa0\\xa1\\xa2\\xa3\\xa4\\xa5\\xa6\\xa7\\xa8\\xa9\\xaa\\xab\\xac\\xad\\xae\\xaf\\xb0\\xb1\\xb2\\xb3\\xb4\\xb5\\xb6\\xb7\\xb8\\xb9\\xba\\xbb\\xbc\\xbd\\xbe\\xbf\\xc0\\xc1\\xc2\\xc3\\xc4\\xc5\\xc6\\xc7\\xc8\\xc9\\xca\\xcb\\xcc\\xcd\\xce\\xcf\\xd0\\xd1\\xd2\\xd3\\xd4\\xd5\\xd6\\xd7\\xd8\\xd9\\xda\\xdb\\xdc\\xdd\\xde\\xdf\\xe0\\xe1\\xe2\\xe3\\xe4\\xe5\\xe6\\xe7\\xe8\\xe9\\xea\\xeb\\xec\\xed\\xee\\xef\\xf0\\xf1\\xf2\\xf3\\xf4\\xf5\\xf6\\xf7\\xf8\\xf9\\xfa\\xfb\\xfc\\xfd\\xfe\\xff'"}
+{"case": "bytes.source_delete_alias", "ok": "b''"}
+{"case": "bytes.all_alias", "ok": "b''"}
+{"case": "bytearray.missing", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytearray.none", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.identity", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.inverse", "ok": "bytearray(b'\\x9e\\xff\\x9d\\x00\\x9e\\x9e')"}
+{"case": "bytearray.delete", "ok": "bytearray(b'\\x00b')"}
+{"case": "bytearray.delete_kw", "ok": "bytearray(b'\\x00b\\xff')"}
+{"case": "bytearray.delete_original", "ok": "bytearray(b'\\xff\\x9d\\x00')"}
+{"case": "bytearray.delete_duplicates", "ok": "bytearray(b'\\x00b\\xff')"}
+{"case": "bytearray.table_kw", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytearray.table_kw_with_pos", "error": "TypeError", "message": "'table' is an invalid keyword argument for translate()"}
+{"case": "bytearray.delete_only", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytearray.extra", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytearray.unknown", "error": "TypeError", "message": "'oops' is an invalid keyword argument for translate()"}
+{"case": "bytearray.extra_unknown", "error": "TypeError", "message": "translate() takes at most 2 arguments (4 given)"}
+{"case": "bytearray.duplicate", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytearray.badtable_baddelete", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.badtype_baddelete", "error": "TypeError", "message": "a bytes-like object is required, not 'int'"}
+{"case": "bytearray.none_delete_none", "error": "TypeError", "message": "a bytes-like object is required, not 'NoneType'"}
+{"case": "bytearray.badtable_unknown", "error": "TypeError", "message": "'oops' is an invalid keyword argument for translate()"}
+{"case": "bytearray.identity..none", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity..id", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity..absent", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity..deleteall", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity..inverse", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity.61.none", "ok": "('bytearray', '61', False, False)"}
+{"case": "bytearray.identity.61.id", "ok": "('bytearray', '61', False, False)"}
+{"case": "bytearray.identity.61.absent", "ok": "('bytearray', '61', False, False)"}
+{"case": "bytearray.identity.61.deleteall", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity.61.inverse", "ok": "('bytearray', '9e', False, False)"}
+{"case": "bytearray.identity.616263.none", "ok": "('bytearray', '616263', False, False)"}
+{"case": "bytearray.identity.616263.id", "ok": "('bytearray', '616263', False, False)"}
+{"case": "bytearray.identity.616263.absent", "ok": "('bytearray', '616263', False, False)"}
+{"case": "bytearray.identity.616263.deleteall", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity.616263.inverse", "ok": "('bytearray', '9e9d9c', False, False)"}
+{"case": "bytearray.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.none", "ok": "('bytearray', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff', False, False)"}
+{"case": "bytearray.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.id", "ok": "('bytearray', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff', False, False)"}
+{"case": "bytearray.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.absent", "ok": "('bytearray', '000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff', False, False)"}
+{"case": "bytearray.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.deleteall", "ok": "('bytearray', '', False, False)"}
+{"case": "bytearray.identity.000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff.inverse", "ok": "('bytearray', 'fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0dfdedddcdbdad9d8d7d6d5d4d3d2d1d0cfcecdcccbcac9c8c7c6c5c4c3c2c1c0bfbebdbcbbbab9b8b7b6b5b4b3b2b1b0afaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a999897969594939291908f8e8d8c8b8a898887868584838281807f7e7d7c7b7a797877767574737271706f6e6d6c6b6a696867666564636261605f5e5d5c5b5a595857565554535251504f4e4d4c4b4a494847464544434241403f3e3d3c3b3a393837363534333231302f2e2d2c2b2a292827262524232221201f1e1d1c1b1a191817161514131211100f0e0d0c0b0a09080706050403020100', False, False)"}
+{"case": "bytearray.buffer.table.bytes", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.buffer.table.bytearray", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.buffer.table.viewB", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.buffer.table.viewc", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.buffer.table.viewH", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.buffer.table.view2D", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.buffer.table.strided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytearray.buffer.table.emptystrided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytearray.buffer.table.arrayH", "ok": "bytearray(b'\\x00\\x00\\x00\\x00\\x00\\x00')"}
+{"case": "bytearray.buffer.table.text", "error": "TypeError", "message": "a bytes-like object is required, not 'str'"}
+{"case": "bytearray.buffer.table.list", "error": "TypeError", "message": "a bytes-like object is required, not 'list'"}
+{"case": "bytearray.buffer.table.int", "error": "TypeError", "message": "a bytes-like object is required, not 'int'"}
+{"case": "bytearray.buffer.table.released", "error": "ValueError", "message": "operation forbidden on released memoryview object"}
+{"case": "bytearray.buffer.delete.bytes", "ok": "bytearray(b'')"}
+{"case": "bytearray.buffer.delete.bytearray", "ok": "bytearray(b'')"}
+{"case": "bytearray.buffer.delete.viewB", "ok": "bytearray(b'')"}
+{"case": "bytearray.buffer.delete.viewc", "ok": "bytearray(b'')"}
+{"case": "bytearray.buffer.delete.viewH", "ok": "bytearray(b'')"}
+{"case": "bytearray.buffer.delete.view2D", "ok": "bytearray(b'')"}
+{"case": "bytearray.buffer.delete.strided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytearray.buffer.delete.emptystrided", "error": "BufferError", "message": "memoryview: underlying buffer is not C-contiguous"}
+{"case": "bytearray.buffer.delete.arrayH", "ok": "bytearray(b'ab\\xffaa')"}
+{"case": "bytearray.buffer.delete.text", "error": "TypeError", "message": "a bytes-like object is required, not 'str'"}
+{"case": "bytearray.buffer.delete.list", "error": "TypeError", "message": "a bytes-like object is required, not 'list'"}
+{"case": "bytearray.buffer.delete.int", "error": "TypeError", "message": "a bytes-like object is required, not 'int'"}
+{"case": "bytearray.buffer.delete.released", "error": "ValueError", "message": "operation forbidden on released memoryview object"}
+{"case": "bytearray.length.0.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.0.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.1.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.1.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.255.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.255.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.256.emptyTrue", "ok": "bytearray(b'')"}
+{"case": "bytearray.length.256.emptyFalse", "ok": "bytearray(b'\\x00\\x00\\x00')"}
+{"case": "bytearray.length.257.emptyTrue", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.length.257.emptyFalse", "error": "ValueError", "message": "translation table must be 256 characters long"}
+{"case": "bytearray.root.missing", "error": "TypeError", "message": "unbound method bytearray.translate() needs an argument"}
+{"case": "bytearray.root.badself", "error": "TypeError", "message": "descriptor 'translate' for 'bytearray' objects doesn't apply to a 'int' object"}
+{"case": "bytearray.root.cross", "error": "TypeError", "message": "descriptor 'translate' for 'bytearray' objects doesn't apply to a 'bytes' object"}
+{"case": "bytearray.root.badself_extra", "error": "TypeError", "message": "descriptor 'translate' for 'bytearray' objects doesn't apply to a 'int' object"}
+{"case": "bytearray.root.goodself_missing", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytearray.root.goodself", "ok": "bytearray(b'a\\x00b\\xffaa')"}
+{"case": "bytearray.root.self_kw", "error": "TypeError", "message": "unbound method bytearray.translate() needs an argument"}
+{"case": "bytearray.source_table_alias", "ok": "bytearray(b'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\n\\x0b\\x0c\\r\\x0e\\x0f\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1a\\x1b\\x1c\\x1d\\x1e\\x1f !\"#$%&\\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\\x7f\\x80\\x81\\x82\\x83\\x84\\x85\\x86\\x87\\x88\\x89\\x8a\\x8b\\x8c\\x8d\\x8e\\x8f\\x90\\x91\\x92\\x93\\x94\\x95\\x96\\x97\\x98\\x99\\x9a\\x9b\\x9c\\x9d\\x9e\\x9f\\xa0\\xa1\\xa2\\xa3\\xa4\\xa5\\xa6\\xa7\\xa8\\xa9\\xaa\\xab\\xac\\xad\\xae\\xaf\\xb0\\xb1\\xb2\\xb3\\xb4\\xb5\\xb6\\xb7\\xb8\\xb9\\xba\\xbb\\xbc\\xbd\\xbe\\xbf\\xc0\\xc1\\xc2\\xc3\\xc4\\xc5\\xc6\\xc7\\xc8\\xc9\\xca\\xcb\\xcc\\xcd\\xce\\xcf\\xd0\\xd1\\xd2\\xd3\\xd4\\xd5\\xd6\\xd7\\xd8\\xd9\\xda\\xdb\\xdc\\xdd\\xde\\xdf\\xe0\\xe1\\xe2\\xe3\\xe4\\xe5\\xe6\\xe7\\xe8\\xe9\\xea\\xeb\\xec\\xed\\xee\\xef\\xf0\\xf1\\xf2\\xf3\\xf4\\xf5\\xf6\\xf7\\xf8\\xf9\\xfa\\xfb\\xfc\\xfd\\xfe\\xff')"}
+{"case": "bytearray.source_delete_alias", "ok": "bytearray(b'')"}
+{"case": "bytearray.all_alias", "ok": "bytearray(b'')"}
+{"case": "bytearray.bound_live", "ok": "bytearray(b'yz')"}
+{"case": "bytearray.table_delete_view_alias", "ok": "bytearray(b'')"}
+{"case": "bytearray.alias_export_released", "ok": "(None, 257)"}
+{"case": "bytes.callback.normal", "ok": "(('ok', '6263', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytes.callback.badtable", "ok": "(('ValueError', 'translation table must be 256 characters long', '61626361'), [('get', 'table', 0), ('release', 'table')])"}
+{"case": "bytes.callback.baddelete", "ok": "(('TypeError', \"a bytes-like object is required, not 'Noise'\", '61626361'), [('get', 'table', 0), ('release', 'table')])"}
+{"case": "bytes.callback.noise", "ok": "(('TypeError', \"a bytes-like object is required, not 'Noise'\", '61626361'), [])"}
+{"case": "bytes.callback.resize_acquire", "ok": "(('AttributeError', \"'bytes' object has no attribute 'extend'\", '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table')])"}
+{"case": "bytes.callback.mutate_acquire", "ok": "(('TypeError', \"'bytes' object does not support item assignment\", '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table')])"}
+{"case": "bytes.callback.table_mutate_acquire", "ok": "(('ok', '5a63', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"unraisable": "AttributeError", "message": "'bytes' object has no attribute 'extend'"}
+{"case": "bytes.callback.release_resize", "ok": "(('ok', '6263', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"unraisable": "RuntimeError", "message": "release boom"}
+{"case": "bytes.callback.release_raise", "ok": "(('ok', '6263', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytes.callback.acquire_raise", "ok": "(('RuntimeError', 'acquire boom', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table')])"}
+{"case": "bytearray.callback.normal", "ok": "(('ok', '6263', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytearray.callback.badtable", "ok": "(('ValueError', 'translation table must be 256 characters long', '61626361'), [('get', 'table', 0), ('release', 'table')])"}
+{"case": "bytearray.callback.baddelete", "ok": "(('TypeError', \"a bytes-like object is required, not 'Noise'\", '61626361'), [('get', 'table', 0), ('release', 'table')])"}
+{"case": "bytearray.callback.noise", "ok": "(('TypeError', \"a bytes-like object is required, not 'Noise'\", '61626361'), [])"}
+{"case": "bytearray.callback.resize_acquire", "ok": "(('ok', '62637a', '616263617a'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytearray.callback.mutate_acquire", "ok": "(('ok', '7a6263', '7a626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytearray.callback.table_mutate_acquire", "ok": "(('ok', '5a63', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytearray.callback.release_resize", "ok": "(('ok', '6263', '616263617a'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"unraisable": "RuntimeError", "message": "release boom"}
+{"case": "bytearray.callback.release_raise", "ok": "(('ok', '6263', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table'), ('release', 'delete')])"}
+{"case": "bytearray.callback.acquire_raise", "ok": "(('RuntimeError', 'acquire boom', '61626361'), [('get', 'table', 0), ('get', 'delete', 0), ('release', 'table')])"}
+{"case": "BS.source.none", "ok": "('bytes', b'abc', False, [])"}
+{"case": "BS.source.id", "ok": "('bytes', b'abc', False, [])"}
+{"case": "BA.source.none", "ok": "('bytearray', bytearray(b'abc'), False, [])"}
+{"case": "BA.source.id", "ok": "('bytearray', bytearray(b'abc'), False, [])"}
+{"case": "bytes.subbuffer.BS", "ok": "(b'bc', [])"}
+{"case": "bytes.subbuffer.BA", "ok": "(b'bc', [])"}
+{"case": "bytearray.subbuffer.BS", "ok": "(bytearray(b'bc'), [])"}
+{"case": "bytearray.subbuffer.BA", "ok": "(bytearray(b'bc'), [])"}
+{"case": "bytes.binding_extra.zero_manykw", "error": "TypeError", "message": "translate() takes at most 2 keyword arguments (3 given)"}
+{"case": "bytes.binding_extra.two_unknown", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytes.binding_extra.missing_unknown", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytes.binding_extra.one_two_kw", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytes.lifecycle.success", "ok": "(('ok', '6263'), 257)"}
+{"case": "bytes.lifecycle.badtable", "ok": "(('ValueError', 'translation table must be 256 characters long'), 2)"}
+{"case": "bytes.lifecycle.baddelete", "ok": "(('TypeError', \"a bytes-like object is required, not 'int'\"), 257)"}
+{"case": "bytes.lifecycle.deaddelete", "ok": "(('ValueError', 'operation forbidden on released memoryview object'), 257)"}
+{"case": "bytearray.binding_extra.zero_manykw", "error": "TypeError", "message": "translate() takes at most 2 keyword arguments (3 given)"}
+{"case": "bytearray.binding_extra.two_unknown", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytearray.binding_extra.missing_unknown", "error": "TypeError", "message": "translate() takes at least 1 positional argument (0 given)"}
+{"case": "bytearray.binding_extra.one_two_kw", "error": "TypeError", "message": "translate() takes at most 2 arguments (3 given)"}
+{"case": "bytearray.lifecycle.success", "ok": "(('ok', '6263'), 257)"}
+{"case": "bytearray.lifecycle.badtable", "ok": "(('ValueError', 'translation table must be 256 characters long'), 2)"}
+{"case": "bytearray.lifecycle.baddelete", "ok": "(('TypeError', \"a bytes-like object is required, not 'int'\"), 257)"}
+{"case": "bytearray.lifecycle.deaddelete", "ok": "(('ValueError', 'operation forbidden on released memoryview object'), 257)"}
+{"case": "export_observation.release_view", "ok": "(b'bc', [('get', 'delete', 0), ('BufferError', 'memoryview has 1 exported buffer'), ('release', 'delete')], 257)"}
+{"case": "export_observation.resize_table", "ok": "(b'bc', [('get', 'delete', 0), ('BufferError', 'Existing exports of data: object cannot be re-sized'), ('release', 'delete')], 257)"}
+{"case": "bound_no_retained_export", "ok": "(bytearray(b'abcd'), bytearray(b'abcde'))"}
+CASES 220

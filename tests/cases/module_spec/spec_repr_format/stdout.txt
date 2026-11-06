@@ -1,0 +1,5 @@
+locations_result ModuleSpec(name='example', loader=None, submodule_search_locations=formatted-locations)
+locations_trace ['locations-format:']
+name_result FormattedName(name='view', loader=None)
+name_trace ['name-format:']
+complete spec_repr_format

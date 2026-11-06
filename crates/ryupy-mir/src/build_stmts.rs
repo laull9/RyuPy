@@ -112,11 +112,13 @@ impl FunctionBuilder<'_> {
                 let module = module.clone();
                 let bind = *bind;
                 let bind_root = *bind_root;
+                self.guard_instance_import();
                 self.build_import(&module, bind, bind_root);
             }
             StmtKind::ImportFrom { module, names } => {
                 let module = module.clone();
                 let names = names.clone();
+                self.guard_instance_import();
                 self.build_import_from(&module, &names);
             }
             StmtKind::Assign { target, value } => match target {
@@ -157,10 +159,21 @@ impl FunctionBuilder<'_> {
                             }));
                         }
                         AssignTarget::ModuleVar(var) => {
-                            let gid = self.module_vars[var];
-                            let to = self.globals[gid].ty.clone();
-                            let value = self.expr_builder().coerce(val_op, &val_ty, &to);
-                            self.push_stmt(Statement::SetGlobal { dest: gid, value });
+                            if self.module_state.is_some() {
+                                let value =
+                                    self.expr_builder()
+                                        .coerce(val_op, &val_ty, &MirType::Dynamic);
+                                self.store_binding(
+                                    Binding::ModuleVar(*var),
+                                    value,
+                                    &MirType::Dynamic,
+                                );
+                            } else {
+                                let gid = self.module_vars[var];
+                                let to = self.globals[gid].ty.clone();
+                                let value = self.expr_builder().coerce(val_op, &val_ty, &to);
+                                self.push_stmt(Statement::SetGlobal { dest: gid, value });
+                            }
                         }
                         AssignTarget::Attribute { base, name } => {
                             let base_ty = self.expr_builder().ty_of(*base);
@@ -312,9 +325,31 @@ impl FunctionBuilder<'_> {
                 self.route_jump(continue_bb);
             }
             StmtKind::FunctionDefaults(fn_id) => {
-                self.emit_function_defaults(*fn_id);
+                // 普通顶层def也在执行点创建新对象；保留静态名称/调用模式，不借装饰节点降级。
+                let value = self.create_function(*fn_id);
                 if let Some(&global) = self.fn_globals.get(fn_id) {
-                    self.emit_function_metadata(*fn_id, Operand::Global(global));
+                    // 只有定义完成后才替换直调默认值；失败的新定义不能污染旧公开函数。
+                    if let Some(defaults) = self.fn_defaults.get(fn_id).copied().flatten() {
+                        let fresh = self.expr_builder().runtime_call(
+                            RuntimeFn::FunctionDefaults,
+                            vec![value.clone()],
+                            MirType::Dynamic,
+                        );
+                        self.push_stmt(Statement::SetGlobal {
+                            dest: defaults,
+                            value: fresh,
+                        });
+                    }
+                    if let Some(&source) = self.fn_sources.get(fn_id) {
+                        self.push_stmt(Statement::SetGlobal {
+                            dest: source,
+                            value: value.clone(),
+                        });
+                    }
+                    self.push_stmt(Statement::SetGlobal {
+                        dest: global,
+                        value,
+                    });
                 }
             }
             StmtKind::NestedDef { func, target } => {

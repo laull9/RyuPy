@@ -1,0 +1,44 @@
+cleanup.clear-before True
+flow.body return 0 True True
+flow.deleted return 0
+flow.restored return 0 True
+flow.result return returned
+flow.body break 0 True True
+flow.deleted break 0
+flow.restored break 0 True
+flow.result break finished
+flow.body continue 0 True True
+flow.deleted continue 0
+flow.restored continue 0 True
+flow.body continue 1 True True
+flow.deleted continue 1
+flow.restored continue 1 True
+flow.result continue finished
+flow.body fallthrough 0 True True
+flow.deleted fallthrough 0
+flow.restored fallthrough 0 True
+flow.body fallthrough 1 True True
+flow.deleted fallthrough 1
+flow.restored fallthrough 1 True
+flow.result fallthrough finished
+cleanup.clear-after True
+ambient.before True
+flow.body return 0 True True
+flow.deleted return 0
+flow.restored return 0 True
+ambient.result returned
+ambient.after True
+ambient.clear True
+body.context True True
+body.clear True
+unmatched.finally True
+unmatched.same True
+unmatched.clear True
+finally.override finally
+else.escaped True
+suppression.fields True True True True
+nested.lookup True
+nested.marker True True True
+nested.ambient-restored True
+nested.clear True
+cleanup.complete True

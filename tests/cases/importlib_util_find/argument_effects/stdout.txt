@@ -1,0 +1,8 @@
+expressions_before_binding TypeError find_spec() takes from 1 to 2 positional arguments but 3 were given
+left_to_right_no_body True
+duplicate_values_evaluated TypeError find_spec() got multiple values for argument 'name'
+duplicate_no_body True
+unknown_value_evaluated TypeError find_spec() got an unexpected keyword argument 'unknown'
+unknown_no_body True
+successful_evaluation_order True
+absolute_no_package_truth True

@@ -1,0 +1,22 @@
+repr ModuleSpec(name='p.m', loader=None, origin='source.py', submodule_search_locations=[])
+equal_ignores_state True
+equal_location True
+equal_foreign True
+unhashable True
+extra_attribute True
+deleted_extra True
+parent_readonly True
+parent_no_delete True
+cached_no_delete True
+location_no_delete True
+deleted_name True
+deleted_name_parent True
+restored_name True
+source_loader_type _frozen_importlib_external SourceFileLoader
+source_loader_identity True
+source_loader_methods True True True
+builtin_spec ModuleSpec built-in False None
+builtin_loader True
+builtin_file False False
+main_metadata None None None
+complete spec_boundaries

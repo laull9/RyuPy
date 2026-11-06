@@ -1,0 +1,5 @@
+P1.custom.no.coercion
+P1.reflected.add
+P1.add.result.not.revalidated
+P1.error.retry.same.state
+P1.stop.does.not.close

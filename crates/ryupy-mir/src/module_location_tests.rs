@@ -12,9 +12,12 @@ fn program(statement: Statement) -> Program {
     });
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: "main".into(),
         codegen_name: "main".into(),
         source_file: "print.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: Body {
@@ -37,6 +40,7 @@ fn program(statement: Statement) -> Program {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     Program {
         functions,
@@ -47,20 +51,26 @@ fn program(statement: Statement) -> Program {
     }
 }
 
-fn valid(args: Vec<Operand>, ret: MirType, eval: bool, array_call: bool) -> bool {
+fn valid_for(
+    runtime: RuntimeFn,
+    args: Vec<Operand>,
+    ret: MirType,
+    eval: bool,
+    array_call: bool,
+) -> bool {
     let mut input = program(Statement::Line(1));
     let func = &mut input.functions[input.entry];
     let dest = func.body.locals.iter().next().unwrap().0;
     func.body.locals[dest].ty = ret;
     let value = if array_call {
         Rvalue::CallWithArgs {
-            callee: RuntimeFn::ModuleFile,
+            callee: runtime,
             prefix: args,
             args: vec![],
         }
     } else {
         Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::ModuleFile),
+            callee: Callee::Runtime(runtime),
             args,
         }
     };
@@ -70,6 +80,10 @@ fn valid(args: Vec<Operand>, ret: MirType, eval: bool, array_call: bool) -> bool
         Statement::Assign { dest, value }
     };
     crate::validate::validate(&input).is_ok()
+}
+
+fn valid(args: Vec<Operand>, ret: MirType, eval: bool, array_call: bool) -> bool {
+    valid_for(RuntimeFn::ModuleFile, args, ret, eval, array_call)
 }
 
 #[test]
@@ -90,4 +104,42 @@ fn module_file_fixed_abi_is_closed_in_all_statement_shapes() {
     assert!(!valid(vec![arg.clone()], MirType::Str, true, false));
     assert!(!valid(vec![arg.clone()], MirType::Str, false, true));
     assert!(!valid(vec![arg], MirType::Str, true, true));
+}
+
+#[test]
+fn module_metadata_fixed_abi_requires_two_strings_and_dynamic_result() {
+    let arg = Operand::Const(Constant::Str("pkg.unit".into()));
+    let valid =
+        |args, ret, eval, array| valid_for(RuntimeFn::ModuleMetadata, args, ret, eval, array);
+    assert!(valid(
+        vec![arg.clone(), arg.clone()],
+        MirType::Dynamic,
+        false,
+        false
+    ));
+    for args in [
+        vec![],
+        vec![arg.clone()],
+        vec![arg.clone(), Operand::Const(Constant::Null)],
+    ] {
+        assert!(!valid(args, MirType::Dynamic, false, false));
+    }
+    assert!(!valid(
+        vec![arg.clone(), arg.clone()],
+        MirType::Str,
+        false,
+        false
+    ));
+    assert!(!valid(
+        vec![arg.clone(), arg.clone()],
+        MirType::Dynamic,
+        true,
+        false
+    ));
+    assert!(!valid(
+        vec![arg.clone(), arg],
+        MirType::Dynamic,
+        false,
+        true
+    ));
 }

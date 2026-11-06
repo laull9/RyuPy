@@ -20,7 +20,11 @@ public static class PyItertools
         var repeat = Type("repeat", PyNativeFunctions.Create("repeat", ["object", "times"], [null, Omitted], 1,
             args => new PyRepeatIterator(args[0], ReferenceEquals(args[1], Omitted) ? null : Index(args[1]))));
         var islice = Type("islice", PyNativeFunctions.CreateVariadic("islice", Slice));
-        return new(StringComparer.Ordinal) { ["chain"] = chain, ["repeat"] = repeat, ["islice"] = islice };
+        return new(StringComparer.Ordinal)
+        {
+            ["chain"] = chain, ["repeat"] = repeat, ["islice"] = islice, ["zip_longest"] = PyZipLongest.Type,
+            ["count"] = PyCount.Type,
+        };
     }
     private static PyNativeType Type(string name, PyFunction factory) => new(name, "itertools",
         (args, keys, values) => PyOps.CallValue(factory, args, keys, values),

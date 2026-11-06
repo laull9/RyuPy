@@ -1,0 +1,5 @@
+module callee missing NameError name 'work' is not defined
+module constructor missing NameError name 'Base' is not defined
+module base missing NameError name 'Base' is not defined
+module saved aliases and rebinding True
+module definition phases ['argument', 'new class body']

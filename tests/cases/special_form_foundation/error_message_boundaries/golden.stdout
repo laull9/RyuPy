@@ -1,0 +1,8 @@
+string-key string indices must be integers, not 'tuple'
+string-key string indices must be integers, not 'str'
+string-key string indices must be integers, not 'float'
+string-key string indices must be integers, not 'NoneType'
+string-key string indices must be integers, not 'list'
+optional-key typing.Optional requires a single type. Got ('😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.
+optional-key typing.Optional requires a single type. Got ('\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\ud800\u.
+optional-key typing.Optional requires a single type. Got ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.

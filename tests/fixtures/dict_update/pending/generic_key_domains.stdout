@@ -1,0 +1,6 @@
+generic-user-key {Key(): 1} ['key.hash']
+generic-mapping-user-key {Key(): 2} ['mapping.keys', 'mapping.getitem', 'key.hash']
+generic-tuple-bytes {('tuple', 1): 3, b'bytes': 4}
+existing-raw-user-key {Key(): 5} []
+generic-custom-target {Key(): 5, 'scalar': 6} []
+generic-reentrant-key-insert {Key(): 7, 'scalar': 8} ['key.hash']

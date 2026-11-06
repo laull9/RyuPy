@@ -1,0 +1,4 @@
+same-hit ['hash:a']
+equal-hit ['hash:a', 'eq:a']
+hash-fallback ['type-error-hash', 'type-error-hash'] typing.List[Unhashable()]
+hash-propagation hash marker ['value-error-hash']

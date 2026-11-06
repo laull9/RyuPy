@@ -79,36 +79,44 @@
   无吞吐加速测量，不承诺快于CPython。
 
 
-## re：经过语法翻译的有限字符串正则
+## re：经过语法翻译的有限 text / bytes 正则
 
-入口为 `PyRegex.CreateAttributes`，并非直接透传 `.NET Regex`。本节的支持范围只覆盖字符串模式与字符串输入，不代表完整 `re` 模块。
+入口为 `PyRegex.CreateAttributes`，并非直接透传 `.NET Regex`。支持现有 text 域及 exact PyBytes 的有限 API，不代表完整 `re` 模块。
+
+不可变 bytes 扩展见 [ADR-0080](adr/0080-bytes-regex.md)：40 项运行时专项及四个真实 CP/JIT 应用首次通过，正常完整门禁已通过。
+bytearray/memoryview 的实时内容与租约、split/scanner 及原有复杂语法不冒当前支持；bytearray 作为 pattern 则按缓存哈希规则报 TypeError。
+共享 Pattern/Match 增加字段、判域及缓存键成本；bytes 编译未命中时模式 Latin1 编码两次，每次 subject 操作编码一次 O(n)，局部捕获通常复制、全片复用原对象。尚无性能测量结论。
 
 | API | 当前支持 | 边界 |
 | --- | --- | --- |
-| `compile(pattern, flags=0)` | str 或已有 Pattern；相同模式/flags 命中有界缓存 | 对已有 Pattern 另传非零flags报ValueError；bytes/bytearray明确NotImplementedError |
+| `compile(pattern, flags=0)` | str、exact PyBytes 或已有 Pattern；缓存区分域、内容和 flags | 已有 Pattern 另传非零 flags 报 ValueError；bytearray pattern 报 unhashable TypeError，memoryview pattern 明确 NI |
 | `match/search/fullmatch(pattern, string, flags=0)` | 返回 Match 或 None；match限定起点，fullmatch限定整个范围 | 不把带末尾换行的`a$`搜索结果误作fullmatch |
-| `findall/finditer(pattern, string, flags=0)` | 无捕获返回完整匹配；单捕获返回字符串；多个捕获返回tuple；finditer惰性 | findall未参与捕获使用空串；Match.group未参与捕获使用None |
-| `sub/subn(pattern, repl, string, count=0, flags=0)` | 字符串模板或回调；subn保留次数；负count不替换 | 回调返回None表示空替换，其它非str返回TypeError；模板即使无匹配也先验证 |
-| `escape(pattern)` / `purge()` | 按Python需转义字符处理str；清空编译缓存 | 不实现bytes escape |
-| `Pattern.match/search/fullmatch/findall/finditer(string, pos=0, endpos=...)` | pos/endpos按码点裁切，锚点仍相对原输入起点；范围外整数夹紧到输入长度 | 当前显式整数参数需可转有符号32位；不支持任意大pos/endpos |
+| `findall/finditer(pattern, string, flags=0)` | 无捕获返回完整匹配；单捕获返回同域 str/bytes；多个捕获返回tuple；finditer惰性 | findall未参与捕获使用同域空 str/bytes；Match.group未参与捕获使用None |
+| `sub/subn(pattern, repl, string, count=0, flags=0)` | 模板或回调；subn保留次数；负count不替换 | 模板即使无匹配也先验证；bytes 模板自身 join 与最终 bytes join 分开，回调 None 省略片段，bytes 域普通坏返回在最终 join 报错；text 保原即时校验 |
+| `escape(pattern)` / `purge()` | 按Python需转义字符处理str/exactbytes；清空共享编译缓存 | 可变 buffer / view 的 escape 明确 NI |
+| `Pattern.match/search/fullmatch/findall/finditer(string, pos=0, endpos=...)` | text 按码点、bytes 按字节裁切；锚点相对原输入起点，范围按输入长度夹紧 | text 保原32位限制；bytes pos/end/count 先转换有符号64位，超范围 OverflowError，之后才夹紧 |
 | `Pattern.sub/subn(repl, string, count=0)` | 与模块入口使用同一替换实现 | 不额外接受flags |
 | `Pattern.pattern/flags/groups` | 原模式、整数flags、捕获组数量 | groupindex只读映射尚未实现，明确NotImplementedError；不提供完整Pattern对象协议 |
-| `Match.group(*groups)/groups(default=None)/groupdict(default=None)` | 编号或命名组；默认缺失值；组号保持Python源码顺序 | group仅位置参数；不采用.NET命名组后置编号 |
-| `Match.start/end/span(group=0)` / `expand(template)` | 码点位置、未参与组为-1、独立Python模板展开 | start/end/span的group为仅位置参数 |
-| `Match.re/string/pos/endpos` | 原Pattern/字符串与本次搜索范围 | lastindex/lastgroup、下标与完整Match协议暂未开放 |
-| `error(msg, pattern=None, pos=None)` | 真正Exception子类；保留msg/pattern/pos/lineno/colno和args；可用于原生模块typed handler | 无位置不提前格式化msg；有位置要求msg和pattern为str、pos为受支持整数 |
+| `Match.group(*groups)/groups(default=None)/groupdict(default=None)` | 编号或命名组；默认缺失值；组号保持Python源码顺序 | group仅位置参数；bytes 超大组号报 IndexError，text 保原整数转换限制；不采用.NET命名组后置编号 |
+| `Match.start/end/span(group=0)` / `expand(template)` | text 码点/bytes 字节位置、未参与组为-1；bytes expand 保模板自身域；text 保原 str 模板域 | start/end/span的group为仅位置参数 |
+| `Match.re/string/pos/endpos` | 原Pattern/原subject对象与本次搜索范围 | lastindex/lastgroup、下标与完整Match协议暂未开放 |
+| `error(msg, pattern=None, pos=None)` | 真正Exception子类；保留msg/pattern/pos/lineno/colno和args；可用于原生模块typed handler | 无位置不提前格式化msg；bytes pattern 保原对象、负/大 pos 与两次边界转换；text 原有转换限制保留 |
 
 ### 语法与 flags
 
 - 支持字面量、字符类/否定类/范围、点号、交替、普通捕获、`(?P<name>...)`、非捕获组、正/负前瞻、常用贪婪/懒惰量词（含`{,n}`）、`^/$/\A/\Z`与`\b/\B`。
-- 支持`\w/\W/\d/\D/\s/\S`，常用控制字符、十六进制与Unicode转义；模式中的已闭合编号/命名反向引用只在非IGNORECASE模式开放。字符类中的非零八进制转义当前明确拒绝。
+- 支持`\w/\W/\d/\D/\s/\S`，常用控制字符、十六进制与 text Unicode 转义；模式中的已闭合编号/命名反向引用只在非IGNORECASE模式开放。字符类中的非零八进制转义当前明确拒绝。
 - 字符串替换独立解析`\1`、`\g<name>`、`\g<0>`与控制/八进制转义；美元符号始终是普通文本，不借用.NET替换语法。
 - 公开`I/IGNORECASE`、`M/MULTILINE`、`S/DOTALL`、`X/VERBOSE`、`A/ASCII`、`U/UNICODE`、`NOFLAG`的整数值，可按位组合；尚无完整RegexFlag/IntFlag对象。支持模式开头的全局flags。
-- `LOCALE`用于str模式按Python报ValueError；ASCII与UNICODE同时出现报ValueError。其它未开放flags、scoped flags、后顾、条件组、原子组、占有量词、非ASCII组名、命名Unicode转义、IGNORECASE反向引用明确NotImplementedError。
-- 无效语法抛真实`re.error`；不把`.NET (?<name>...)`、`\p{...}`等方言当作Python合法模式。常见位置由原模式码点计算；未逐条承诺所有错误消息与CPython完全一致。
+- `LOCALE`用于str模式按Python报ValueError；ASCII与UNICODE同时出现报ValueError。其它未开放flags、scoped flags、后顾、开放捕获条件、原子组、占有量词、text 非ASCII组名、text 命名Unicode转义、IGNORECASE反向引用明确NotImplementedError。
+- bytes 默认字符分类及 IGNORECASE 按 ASCII，公开 flags 不隐式加 ASCII/UNICODE；外部 UNICODE 与 ASCII|LOCALE 组合报 ValueError，合法 LOCALE 尚未实现。bytes 的 `\u/\U/\N` 和非 ASCII 组名报真实 re.error，str 模板非 ASCII 组名仍有 NI 边界。
+- 条件组候选支持已闭合捕获的ASCII编号/名字及数字前向引用，空支/省略no、嵌套和源码组号保持；开放自身/祖先捕获仍NI。text非ASCII条件token、超过4300位ASCII数字条件明确NI，不能冒完整错误兼容；专项、3应用及正常完整门禁已过（ADR0082）。
+- 无效语法抛真实`re.error`；不把`.NET (?<name>...)`、`\p{...}`等方言当作Python合法模式。常见位置按 text 码点/bytes 字节计算；未逐条承诺所有错误消息与CPython完全一致。
 - 未列出的模块入口（例如split/scanner）、对象方法与元数据不冒称已兼容。
 
 ### Unicode、空匹配与表示边界
+
+以下 Unicode 描述限定 text 域；bytes 使用一对一 Latin1 后端且不建立码点映射。
 
 `\w`采用Python字母/数字/下划线集合而非.NET的组合附标/连接符集合，`\s`包括Python支持的U+001C等控制字符。IGNORECASE按固定等价组扩展字面量/范围，但不改写字符类别本身；覆盖İ/ı/ſ/K与U+0345边界。ASCII模式使用ASCII类别与大小写关系。
 
@@ -118,6 +126,7 @@
 
 ### 容量、性能与数据来源
 
+- bytes 最终替换先验证全部片段类型，再对真实 Array.MaxLength 之外容量明确 NI；与 CP 资源异常有差异，不捕获 OOM 重试或设任意更小上限。
 - 编译对象缓存最多64项FIFO；非空重试与fullmatch辅助执行器按需创建，不无条件编译三份模式。
 - 用户模式上限16384个UTF16单元，翻译主体上限200000字符，超限抛NotImplementedError；组嵌套深度上限256，超限抛RecursionError，防止宿主不可捕获栈溢出。
 - 每次宿主Regex.Match超过2秒抛RuntimeError。这不是整个findall/sub操作的总时间上限，也不是CPython无内建匹配超时行为；属于显式资源保护边界。
@@ -128,3 +137,5 @@
 ### 验收证据
 
 `m3_5_regex.py`保持原验收内容；`m3_5_regex_edges.py`覆盖Unicode、组序、替换与空匹配；`m3_5_regex_boundaries.py`覆盖类别/flags矩阵、码点范围、回调None及error构造。`PyRegexTests`另验证显式拒绝、无匹配时模板验证与资源保护。差分基线固定CPython3.12.13，门禁结果以当前测试日志为准。
+
+不可变 bytes 新增 `PyRegexBytesCoreTests`、`PyRegexBytesReplacementTests`、`PyRegexBytesPublicTests` 共40项，`bytes_regex` 四个真实应用共85标签及完整用户异常链首次通过；可变输入/旧语法正例仍为未注册 pending，首次完整门禁通过，终态见 ADR-0080。

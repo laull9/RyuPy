@@ -1,3 +1,4 @@
+// 容器公共动态入口与方法分派；保留内部查找哨兵，list.index 公共失败单独转 Python 异常。
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -58,11 +59,18 @@ public static partial class PyOps
             case PyList list:
                 list.SetItem(key!, value);
                 return;
+            case PyListInstance list:
+                PyListProtocols.SetItem(list, key, value);
+                return;
+            case PyDictInstance dict:
+                PyDictProtocols.SetItem(dict, key, value);
+                return;
             case PyDict dict:
                 dict.Set(key, value);
                 return;
-            case PyByteArray array when key is not PySlice:
-                array.SetItem(ToIndex(key, "bytearray"), value);
+            case PyByteArray array:
+                if (key is PySlice slice) array.SetSlice(slice, value);
+                else array.SetItem(ToIndex(key, "bytearray"), value);
                 return;
             case string:
             case PyTuple:
@@ -85,6 +93,12 @@ public static partial class PyOps
         {
             case PyList list:
                 list.DelItem(key!);
+                return;
+            case PyListInstance list:
+                PyListProtocols.DeleteItem(list, key);
+                return;
+            case PyDictInstance dict:
+                PyDictProtocols.DeleteItem(dict, key);
                 return;
             case PyDict dict:
                 dict.Delete(key);
@@ -114,10 +128,15 @@ public static partial class PyOps
         PyList list => list.Contains(value),
         PyTuple tuple => tuple.Contains(value),
         PyDict dict => dict.Contains(value),
+        PyDictView { UseLayoutProtocol: true } view => PyDictViewProtocols.Contains(view, value),
         PyDictView view => view.Contains(value),
         PySet set => set.Contains(value),
-        PyFrozenSet frozen => frozen.Items.Contains(value ?? PyNone.Instance),
-        string text => value is string needle && text.Contains(needle, StringComparison.Ordinal),
+        PyFrozenSet frozen => frozen.Contains(value),
+        string text => value is string needle ? text.Contains(needle, StringComparison.Ordinal)
+            : value is PyStringInstance sub && text.Contains(sub.Value, StringComparison.Ordinal),
+        PyListInstance list => PyListProtocols.Contains(list, value),
+        PyDictInstance dict => PyDictProtocols.Contains(dict, value),
+        PyStringInstance text => PyStringProtocols.Contains(text, value),
         PyBytes bytes => ContainsBytes(bytes.Span, value),
         PyByteArray array => ContainsBytes([.. array.Bytes], value),
         _ when PyObject.TryMethod1(container, "__contains__", value, out object? found) =>
@@ -140,13 +159,16 @@ public static partial class PyOps
         PySet set => set.Count,
         PyFrozenSet frozen => frozen.Count,
         string text => PyText.Length(text),
+        PyListInstance list => PyListProtocols.Len(list),
+        PyDictInstance dict => PyDictProtocols.Len(dict),
+        PyStringInstance text => PyText.Length(text.Value),
         PyBytes bytes => bytes.Count,
         PyByteArray array => array.Count,
         _ when PyObject.TryMethod(value, "__len__", [], out object? length) =>
-            PyCast.ToInt64(length),
-        _ => throw new PyTypeError(
+            LengthResult(length, "len()"),
+        _ => throw LengthError(new PyTypeError(
             $"object of type '{PyRepr.TypeName(value)}' has no len()"
-        ),
+        )),
     };
 
     /// <summary><c>a is b</c>：引用身份比较。</summary>
@@ -181,14 +203,20 @@ public static partial class PyOps
         PyList list => [.. list.Items],
         PyTuple tuple => tuple.Items,
         PyDict dict => KeysOf(dict),
+        PyDictView { UseLayoutProtocol: true } view => PyDictViewProtocols.ToArray(view),
         PyDictView view => view.ToArray(),
         PySet set => [.. set.Items],
         PyFrozenSet frozen => [.. frozen.Items],
         string text => Chars(text),
+        PyListInstance list => DrainIterator(PyListProtocols.Iter(list)),
+        PyDictInstance dict => DrainIterator(PyDictProtocols.Iter(dict)),
+        PyStringInstance text => Chars(text.Value),
         PyBytes bytes => MapBytes(bytes.Span),
         PyByteArray array => MapBytes([.. array.Bytes]),
         PyRange range => DrainIterator(new PyRangeIter(range)),
         IPyIterator iterator => DrainIterator(iterator),
+        // proxy 公开返回 raw iterator；不能让旧 fallback 对它重复调用 __iter__。
+        PyMappingProxy proxy => PyMappingProxyIteration.Materialize(proxy),
         PyClass cls when PyEnum.IsEnumClass(cls) => DrainIterator(PyEnum.Iterate(cls)),
         _ when PyObject.TryMethod(value, "__iter__", [], out object? iterator) =>
             ToSequence(PyIter.Create(iterator)),
@@ -294,80 +322,26 @@ public static partial class PyOps
         }
     }
 
-    // ───────────────────────── 方法调用 ─────────────────────────
-
-    /// <summary>方法调用：<c>obj.name(args)</c>。</summary>
-    /// <param name="obj">接收者。</param>
-    /// <param name="name">方法名。</param>
-    /// <param name="rawArgs">位置实参（可能含 <c>*iterable</c> 标记）。</param>
-    /// <param name="rawNames">关键字名；值为 <c>None</c> 表示 <c>**mapping</c>。</param>
-    /// <param name="rawValues">关键字值。</param>
-    public static object? CallMethod(
-        object? obj,
-        string name,
-        object?[] rawArgs,
-        object?[] rawNames,
-        object?[] rawValues
-    )
-    {
-        var (args, kwNames, kwValues) = FlattenArgs(rawArgs, rawNames, rawValues);
-        // 普通实例 / 类 / super 代理：走属性协议得到绑定方法，再统一调用。
-        if (obj is PyNativeType or PyNativeObject or PyInstance or PyClass or PySuper or PyModule or PyFunction or PyBoundMethod or PyBuiltinFunction or PyProperty
-            || (obj is PyType type && ReferenceEquals(type, PyBaseObject.Type))
-            || (obj is PyBaseException exception && exception.PythonClass is not null))
-        {
-            object? attribute = PyObject.GetAttr(obj, name);
-            return CallValue(attribute, args, kwNames, kwValues);
-        }
-        if (name == "__len__" && IsBuiltinSized(obj))
-        {
-            ValidatePreparedArity(obj!, name, args.Length);
-            return PreparedLength(obj!, name, args, kwNames, kwValues);
-        }
-        // 目前只有 list.sort 接受关键字；其余方法收到关键字立即报 TypeError，
-        // 避免“多写了参数却被静默忽略”。
-        if (kwNames.Length > 0)
-        {
-            if (obj is PyList list && name == "sort")
-            {
-                return SortList(list, args, kwNames, kwValues);
-            }
-            throw new PyTypeError(
-                $"'{PyRepr.TypeName(obj)}'.{name}() got an unexpected keyword argument "
-                    + $"'{kwNames[0]}'"
-            );
-        }
-        return obj switch
-        {
-            PyList list => ListMethod(list, name, args),
-            PyTuple tuple => TupleMethod(tuple, name, args),
-            PyDict dict => DictMethod(dict, name, args),
-            PySet set => SetMethod(set, name, args),
-            PyByteArray array => ByteArrayMethod(array, name, args),
-            string text => StringMethod(text, name, args),
-            PyBytes bytes => BytesMethod(bytes, name, args),
-            PyGenerator generator => generator.CallMethod(name, args),
-            _ => throw new PyAttributeError(
-                $"'{PyRepr.TypeName(obj)}' object has no attribute '{name}'"
-            ),
-        };
-    }
-
     private static object? ListMethod(PyList list, string name, object?[] args) => name switch
     {
         "append" => Append(list, args),
         "extend" => Extend(list, args),
         "insert" => Insert(list, args),
-        "pop" => args.Length == 0 ? list.Pop() : list.Pop(ToIndex(args[0], "pop")),
         "remove" => RemoveItem(list, args),
-        "index" => list.IndexOf(Single("index", args)),
+        "index" => ListIndex(list, Single("index", args)),
         "count" => CountItem(list, args),
-        "clear" => Void(list.Clear),
-        "reverse" => Void(list.Reverse),
-        "copy" => list.Copy(),
+        "clear" or "pop" or "reverse" or "copy" => CallListCheckedMethod(list, name, args, EmptyNames),
         "sort" => SortList(list, args, [], []),
         _ => throw MissingAttribute("list", name),
     };
+
+    private static long ListIndex(PyList list, object? value)
+    {
+        long index = list.IndexOf(value);
+        if (index >= 0) return index;
+        // repr 仍是用户可观察的回调；只为本层新建的缺项错误准备现场。
+        throw (PyBaseException)PyErrors.PrepareRaise(new PyValueError($"{PyRepr.Repr(value)} is not in list"));
+    }
 
     private static object? Append(PyList list, object?[] args)
     {
@@ -480,7 +454,7 @@ public static partial class PyOps
         "keys" => new PyDictView(dict, PyDictViewKind.Keys),
         "values" => new PyDictView(dict, PyDictViewKind.Values),
         "items" => new PyDictView(dict, PyDictViewKind.Items),
-        "update" => Update(dict, args),
+        "update" => CallDictUpdate(dict, args, [], []),
         "pop" => dict.Pop(args[0], args.Length > 1, args.Length > 1 ? args[1] : PyNone.Instance),
         "setdefault" => dict.SetDefault(args[0], args.Length > 1 ? args[1] : PyNone.Instance),
         "clear" => Void(dict.Clear),
@@ -488,14 +462,9 @@ public static partial class PyOps
         _ => throw MissingAttribute("dict", name),
     };
 
-    private static object? Update(PyDict dict, object?[] args)
-    {
-        dict.Update(Single("update", args));
-        return PyNone.Instance;
-    }
-
     private static object? SetMethod(PySet set, string name, object?[] args) => name switch
     {
+        "clear" => CallSetClear(set, args, []),
         "add" => AddToSet(set, args),
         "remove" => RemoveFromSet(set, args),
         "discard" => DiscardFromSet(set, args),
@@ -551,7 +520,9 @@ public static partial class PyOps
         int i => i,
         BigInteger big when big >= long.MinValue && big <= long.MaxValue => (long)big,
         _ => throw new PyTypeError(
-            $"{context} indices must be integers or slices, not {PyRepr.TypeName(value)}"
+            // str 与 bytes/list 的原生错误格式不同；只改失败分支，不动整数和切片路径。
+            context == "string" ? $"string indices must be integers, not '{PyRepr.TypeName(value)}'"
+                : $"{context} indices must be integers or slices, not {PyRepr.TypeName(value)}"
         ),
     };
 

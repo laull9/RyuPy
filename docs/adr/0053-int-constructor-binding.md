@@ -1,6 +1,6 @@
 # ADR-0053：int 构造参数绑定与进制文本解析
 
-- 状态：本地专项及完整门禁通过，远端未验
+- 状态：已进入 main，Ubuntu/macOS 普通 CI 通过
 - 基线：main `671a48cdcb40d6ba2300c49073fa10139cc18ffa`
 - 范围：已有常用内建构造的正确性；不新增原生发布或性能实验
 
@@ -37,4 +37,9 @@ int/str子类布局、int.__new__、完整warnings系统不在本切。返回boo
 首次runtime编译因两个新public类型缺XML summary触发CS1591，未进入测试；仅补类说明后重编，原失败记录保留。
 
 
-专项终态：runtime16/16、ty1/1、MIR结构1/1通过。首次真实driver2/3，主结果差分正确，但旧内部caught异常的快照多带module帧。迁移时误复制旧冻结稿又得到同一2/3；未将该次当新修复证据。随后按已审独立补丁把原context置于模块级，int错误仍在被调用函数内，完整8行链与固定CP相等，driver3/3通过。原源码逐字保留为nested_context_frames.py.pending，不削投影或改变traceback。完整正常make check终态exit0：fmt、strict clippy、603项C#、228项CP基线、workspace及202项e2e通过/30项原ignored。未设置FORCE或批量接受快照；本轮无快照改动。尚未新增远端、NativeAOT或性能结果。
+专项终态：runtime16/16、ty1/1、MIR结构1/1通过。首次真实driver2/3，主结果差分正确，但旧内部caught异常的快照多带module帧。迁移时误复制旧冻结稿又得到同一2/3；未将该次当新修复证据。随后按已审独立补丁把原context置于模块级，int错误仍在被调用函数内，完整8行链与固定CP相等，driver3/3通过。原源码逐字保留为nested_context_frames.py.pending，不削投影或改变traceback。完整正常make check终态exit0：fmt、strict clippy、603项C#、228项CP基线、workspace及202项e2e通过/30项原ignored。未设置FORCE或批量接受快照；本轮无快照改动。该本地验收阶段尚未新增远端、NativeAOT或性能结果；后续普通CI见下节。
+
+
+## 普通 CI 远端验收
+
+2026-11-03，int 与 abs 合批经用户批准进入 main `d4d8243a34bc8466eefb6995edfde42f3bf87eb5`；连接器生成的提交元数据不同，但树与本地已验候选完全相同。[普通 CI 41620972640](https://github.com/laull9/RyuPy/actions/runs/41620972640) 的 Ubuntu/macOS 两项均成功。两份官方日志分别确认 611 项 C#、228 项 CP 基线、202 项 e2e 通过及 30 项 ignored，int/abs 各 3 项真实 driver 均通过。未新增原生、项目矩阵或性能测量，原 pending 与 matmul 禁分层回归仍保留。

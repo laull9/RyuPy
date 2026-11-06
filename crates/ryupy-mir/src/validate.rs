@@ -1,4 +1,4 @@
-//! MIR 合法性检查。codegen 之前必跑，Pass 之后在 debug 构建下也跑。
+//! MIR 合法性检查。codegen 之前必跑，流水线中每个 Pass 之后始终运行。
 //!
 //! 检查项：
 //! - [x] 不存在 `Terminator::Unreachable` 占位
@@ -11,12 +11,21 @@
 pub use crate::validate_exports::validate_linked_exports;
 
 use crate::mir::{
-    Callee, Constant, MirType, Operand, Program, RuntimeFn, Rvalue, Statement, Terminator,
+    Callee, Constant, LocalDecl, LocalId, MirType, Operand, Program, RuntimeFn, Rvalue, Statement,
+    Terminator,
 };
+
+use crate::validate_instance_module::validate_operand;
+use crate::validate_regions::validate_regions;
 
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
+    crate::validate_instance_module::validate(program, &mut errors);
+    crate::validate_class_cells::validate(program, &mut errors);
+    crate::validate_lexical_super::validate(program, &mut errors);
     crate::validate_identities::validate(program, &mut errors);
+    crate::function_definition::validate(program, &mut errors);
+    crate::validate_dynamic_origin::validate(program, &mut errors);
     crate::validate_vectors::validate(program, &mut errors);
     crate::validate_module_pairs::validate(program, &mut errors);
     crate::validate_list_reads::validate(program, &mut errors);
@@ -62,7 +71,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
         crate::exact_types::validate(program, func, &mut errors);
 
         for &param in &func.params {
-            if !func.body.locals.iter().any(|(id, _)| id == param) {
+            if local_decl(&func.body.locals, param).is_none() {
                 errors.push(format!(
                     "函数 `{}` 的参数 {:?} 不在 locals arena 中",
                     func.name, param
@@ -85,7 +94,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
             for stmt in &block.stmts {
                 match stmt {
                     Statement::Assign { dest, value } => {
-                        if !func.body.locals.iter().any(|(id, _)| id == *dest) {
+                        if local_decl(&func.body.locals, *dest).is_none() {
                             errors.push(format!(
                                 "函数 `{}` 基本块 {:?} 中的赋值目标 {:?} 不在 locals arena 中",
                                 func.name, block_id, dest
@@ -113,52 +122,27 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                     }
                     Statement::Eval(rvalue) => {
                         validate_rvalue(func, block_id, rvalue, program, &mut errors);
-                        if matches!(
-                            rvalue,
-                            Rvalue::Call {
-                                callee: Callee::Runtime(
-                                    RuntimeFn::ModuleFile
-                                        | RuntimeFn::CaptureModuleTarget
-                                        | RuntimeFn::IsModule
-                                        | RuntimeFn::CallCapturedMethod
-                                        | RuntimeFn::DynBinary
-                                        | RuntimeFn::ClassNamespaceContains
-                                        | RuntimeFn::GeneratorInput
-                                        | RuntimeFn::GeneratorRetry
-                                        | RuntimeFn::PrintTarget
-                                        | RuntimeFn::NumericListCreate
-                                        | RuntimeFn::NumericListAppendF64
-                                        | RuntimeFn::NumericListPeekList
-                                        | RuntimeFn::NumericListCanReadF64
-                                        | RuntimeFn::NumericListReadCheckedF64
-                                        | RuntimeFn::NumericListReadF64
-                                        | RuntimeFn::NumericAccumulatorCreate
-                                        | RuntimeFn::NumericAccumulatorValue
-                                        | RuntimeFn::ValidateOrdinaryBase
-                                        | RuntimeFn::TypedDictBegin
-                                        | RuntimeFn::TypedDictFinish
-                                ),
-                                ..
-                            }
-                        ) {
-                            errors.push(format!(
-                                "函数 `{}` 的运行时控制调用返回值必须写入临时，不能遗留CIL求值栈",
-                                func.name
-                            ));
-                        }
+                        runtime_calls::validate_eval(func, rvalue, &mut errors);
                     }
                     Statement::SetField { obj, value, .. } => {
-                        validate_operand(func, block_id, obj, &mut errors);
-                        validate_operand(func, block_id, value, &mut errors);
+                        validate_operand(program, func, block_id, obj, &mut errors);
+                        validate_operand(program, func, block_id, value, &mut errors);
                     }
                     Statement::SetGlobal { dest, value } => {
+                        validate_operand(
+                            program,
+                            func,
+                            block_id,
+                            &Operand::Global(*dest),
+                            &mut errors,
+                        );
                         if !program.globals.iter().any(|(id, _)| id == *dest) {
                             errors.push(format!(
                                 "函数 `{}` 基本块 {:?} 写入了不存在的全局槽位 {:?}",
                                 func.name, block_id, dest
                             ));
                         }
-                        validate_operand(func, block_id, value, &mut errors);
+                        validate_operand(program, func, block_id, value, &mut errors);
                     }
                     // 只是给 traceback 记录行号，没有操作数
                     Statement::Line(_) => {}
@@ -168,10 +152,10 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
             match &block.terminator {
                 Terminator::Raise { value, cause } => {
                     if let Some(v) = value {
-                        validate_operand(func, block_id, v, &mut errors);
+                        validate_operand(program, func, block_id, v, &mut errors);
                     }
                     if let Some(c) = cause {
-                        validate_operand(func, block_id, c, &mut errors);
+                        validate_operand(program, func, block_id, c, &mut errors);
                     }
                 }
                 Terminator::Unreachable => {
@@ -191,7 +175,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                     }
                 }
                 Terminator::Branch { cond, then_, else_ } => {
-                    validate_operand(func, block_id, cond, &mut errors);
+                    validate_operand(program, func, block_id, cond, &mut errors);
                     if let Some(cond_ty) = operand_type(program, func, cond) {
                         if cond_ty != MirType::Bool {
                             errors.push(format!(
@@ -214,7 +198,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                     }
                 }
                 Terminator::Suspend { value, resume, .. } => {
-                    validate_operand(func, block_id, value, &mut errors);
+                    validate_operand(program, func, block_id, value, &mut errors);
                     errors.push(format!(
                         "函数 `{}` 有尚未降级的暂停边 {:?}",
                         func.name, resume
@@ -223,7 +207,7 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
                 Terminator::Return(opt_val) => {
                     if is_reachable {
                         if let Some(val) = opt_val {
-                            validate_operand(func, block_id, val, &mut errors);
+                            validate_operand(program, func, block_id, val, &mut errors);
                             if let Some(val_ty) = operand_type(program, func, val) {
                                 if val_ty != func.ret {
                                     errors.push(format!(
@@ -251,59 +235,12 @@ pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     }
 }
 
-/// 校验异常区域：区间连续、处理入口在区间外、嵌套关系正确。
-///
-/// codegen 直接按「块下标区间」换算 CIL 异常表的指令区间，所以区间必须严格连续；
-/// 一旦嵌套顺序错了（例如内层区域越过了外层边界），生成的异常表会被 CLR 判为非法，
-/// 而这种错误在 IL 里非常难查，必须在验证阶段拦下来。
-fn validate_regions(func: &crate::mir::Function, errors: &mut Vec<String>) {
-    let block_count = func.body.blocks.len();
-    let mut spans: Vec<(usize, usize)> = Vec::new();
-    for region in &func.body.regions {
-        let start = region.try_start.into_raw().into_u32() as usize;
-        let end = start + region.try_len;
-        if end > block_count {
-            errors.push(format!(
-                "函数 `{}` 的异常区域越界：块区间 [{start}, {end}) 超出 {} 个块",
-                func.name, block_count
-            ));
-            continue;
-        }
-        if region.try_len == 0 {
-            errors.push(format!("函数 `{}` 的异常区域块数为 0", func.name));
-        }
-        let handler = region.handler.into_raw().into_u32() as usize;
-        if (start..end).contains(&handler) {
-            errors.push(format!(
-                "函数 `{}` 的异常处理入口块 {:?} 落在受保护区间 [{start}, {end}) 内",
-                func.name, region.handler
-            ));
-        }
-        if !func.body.blocks.iter().any(|(id, _)| id == region.handler) {
-            errors.push(format!(
-                "函数 `{}` 的异常处理入口块 {:?} 不在 blocks arena 中",
-                func.name, region.handler
-            ));
-        }
-        spans.push((start, end));
-    }
-    // 区域之间必须嵌套或不相交。
-    // 起始块相同是正常情况（try 体的第一条语句既是内层 catch 的起点，也是外层 finally 通道的起点），
-    // 所以排序时把较长（外层）的区间排在前面。
-    spans.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
-    for i in 0..spans.len() {
-        for j in (i + 1)..spans.len() {
-            let (s1, e1) = spans[i];
-            let (s2, e2) = spans[j];
-            let nested = s2 >= s1 && e2 <= e1;
-            let disjoint = e1 <= s2;
-            if !nested && !disjoint {
-                errors.push(format!(
-                    "函数 `{}` 的异常区域 [{s1}, {e1}) 与 [{s2}, {e2}) 交叉，CIL 不允许这种嵌套",
-                    func.name
-                ));
-            }
-        }
+/// la-arena 0.3.1 的 ID 只有稠密下标；先检查范围，保留非法 ID 的 None 语义。
+pub(crate) fn local_decl(locals: &la_arena::Arena<LocalDecl>, id: LocalId) -> Option<&LocalDecl> {
+    if (id.into_raw().into_u32() as usize) < locals.len() {
+        Some(&locals[id])
+    } else {
+        None
     }
 }
 
@@ -313,12 +250,7 @@ pub(crate) fn operand_type(
     op: &Operand,
 ) -> Option<MirType> {
     match op {
-        Operand::Local(loc) => func
-            .body
-            .locals
-            .iter()
-            .find(|(id, _)| id == loc)
-            .map(|(_, l)| l.ty.clone()),
+        Operand::Local(loc) => local_decl(&func.body.locals, *loc).map(|l| l.ty.clone()),
         Operand::Global(global) => program
             .globals
             .iter()
@@ -346,21 +278,31 @@ fn validate_rvalue(
     errors: &mut Vec<String>,
 ) {
     match rvalue {
-        Rvalue::Use(op) => validate_operand(func, block_id, op, errors),
+        Rvalue::Use(op) => validate_operand(program, func, block_id, op, errors),
         Rvalue::GeneratorDelegateStep { delegate } => {
-            validate_operand(func, block_id, delegate, errors);
+            validate_operand(program, func, block_id, delegate, errors);
             errors.push(format!("函数 `{}` 在后端前仍有未降级的委托推进", func.name));
         }
-        Rvalue::MakeGenerator { resume, frame } => {
+        Rvalue::MakeGenerator {
+            resume,
+            frame,
+            origin,
+        } => {
+            if let Some(origin) = origin {
+                validate_operand(program, func, block_id, origin, errors);
+                if operand_type(program, func, origin) != Some(MirType::Dynamic) {
+                    errors.push(format!(
+                        "函数 `{}` 的生成器owner必须是Dynamic引用",
+                        func.name
+                    ));
+                }
+            }
             let target = program.functions.iter().find(|(id, _)| id == resume);
             if !target.is_some_and(|(_, target)| {
                 target.params.len() == 1
                     && target.ret == MirType::Dynamic
-                    && target
-                        .body
-                        .locals
-                        .iter()
-                        .any(|(id, p)| id == target.params[0] && p.ty == MirType::Dynamic)
+                    && local_decl(&target.body.locals, target.params[0])
+                        .is_some_and(|p| p.ty == MirType::Dynamic)
             }) {
                 errors.push(format!("函数 `{}` 的生成器恢复入口非法", func.name));
             }
@@ -371,13 +313,14 @@ fn validate_rvalue(
                 ));
             }
             for value in frame {
-                validate_operand(func, block_id, value, errors);
+                validate_operand(program, func, block_id, value, errors);
                 if operand_type(program, func, value).is_some_and(|ty| ty != MirType::Dynamic) {
                     errors.push(format!("函数 `{}` 的生成器帧必须保存装箱值", func.name));
                 }
             }
         }
         Rvalue::MakeFunction {
+            instance_context,
             func: target,
             env,
             defaults,
@@ -387,6 +330,10 @@ fn validate_rvalue(
                 if defaults.len() != nested.param_meta.len()
                     || env.is_empty() == nested.env.is_some()
                     || nested.signature_global.is_none()
+                    || instance_context.is_some() != nested.module_state.is_some()
+                    || (instance_context.is_some()
+                        && nested.module_state_source
+                            != Some(crate::InstanceStateSource::FunctionParameter))
                 {
                     errors.push(format!(
                         "函数 `{}` 创建 `{}` 时默认值、环境或签名不一致",
@@ -399,8 +346,12 @@ fn validate_rvalue(
                     func.name, target
                 ));
             }
-            for op in env.iter().chain(defaults.iter()) {
-                validate_operand(func, block_id, op, errors);
+            for op in env
+                .iter()
+                .chain(defaults.iter())
+                .chain(instance_context.iter())
+            {
+                validate_operand(program, func, block_id, op, errors);
                 if let Some(ty) = operand_type(program, func, op)
                     && ty != MirType::Dynamic
                 {
@@ -412,8 +363,8 @@ fn validate_rvalue(
             }
         }
         Rvalue::Binary { op: _, lhs, rhs } => {
-            validate_operand(func, block_id, lhs, errors);
-            validate_operand(func, block_id, rhs, errors);
+            validate_operand(program, func, block_id, lhs, errors);
+            validate_operand(program, func, block_id, rhs, errors);
             if let (Some(l_ty), Some(r_ty)) = (
                 operand_type(program, func, lhs),
                 operand_type(program, func, rhs),
@@ -426,12 +377,22 @@ fn validate_rvalue(
                 }
             }
         }
-        Rvalue::Unary { operand, .. } => validate_operand(func, block_id, operand, errors),
-        Rvalue::Cast { operand, .. } => validate_operand(func, block_id, operand, errors),
+        Rvalue::Unary { operand, .. } => validate_operand(program, func, block_id, operand, errors),
+        Rvalue::Cast { operand, .. } => validate_operand(program, func, block_id, operand, errors),
         Rvalue::Call { callee, args } => {
             runtime_calls::validate_call(program, func, callee, args, errors);
             if let Callee::Fn(fn_id) = callee {
                 if let Some((_, target_fn)) = program.functions.iter().find(|(id, _)| id == fn_id) {
+                    crate::validate_instance_module::validate_direct_call(func, target_fn, errors);
+                    if target_fn.dynamic_origin.is_some()
+                        && args.last().and_then(|arg| operand_type(program, func, arg))
+                            != Some(MirType::Dynamic)
+                    {
+                        errors.push(format!(
+                            "函数 `{}` 调用 `{}` 缺少Dynamic尾owner",
+                            func.name, target_fn.name
+                        ));
+                    }
                     if args.len() != target_fn.params.len() {
                         errors.push(format!(
                             "函数 `{}` 调用 `{}` 实参个数不匹配：期望 {}，得到 {}",
@@ -449,26 +410,26 @@ fn validate_rvalue(
                 }
             }
             for arg in args {
-                validate_operand(func, block_id, arg, errors);
+                validate_operand(program, func, block_id, arg, errors);
             }
         }
         Rvalue::IsVector128Supported => {}
         Rvalue::VectorPackF64 { low, high } => {
-            validate_operand(func, block_id, low, errors);
-            validate_operand(func, block_id, high, errors);
+            validate_operand(program, func, block_id, low, errors);
+            validate_operand(program, func, block_id, high, errors);
         }
         Rvalue::VectorBinaryF64 { lhs, rhs, .. } => {
-            validate_operand(func, block_id, lhs, errors);
-            validate_operand(func, block_id, rhs, errors);
+            validate_operand(program, func, block_id, lhs, errors);
+            validate_operand(program, func, block_id, rhs, errors);
         }
         Rvalue::NewObject { args, .. } => {
             for arg in args {
-                validate_operand(func, block_id, arg, errors);
+                validate_operand(program, func, block_id, arg, errors);
             }
         }
-        Rvalue::GetField { obj, .. } => validate_operand(func, block_id, obj, errors),
+        Rvalue::GetField { obj, .. } => validate_operand(program, func, block_id, obj, errors),
         Rvalue::Box { value, from } => {
-            validate_operand(func, block_id, value, errors);
+            validate_operand(program, func, block_id, value, errors);
             if let Some(v_ty) = operand_type(program, func, value)
                 && &v_ty != from
             {
@@ -478,13 +439,15 @@ fn validate_rvalue(
                 ));
             }
         }
-        Rvalue::VectorLaneF64 { value, .. } => validate_operand(func, block_id, value, errors),
+        Rvalue::VectorLaneF64 { value, .. } => {
+            validate_operand(program, func, block_id, value, errors)
+        }
         Rvalue::Unbox { value, .. }
         | Rvalue::IsBoxedF64 { value }
         | Rvalue::UnboxExactF64 { value }
         | Rvalue::IsBoxedI64 { value }
         | Rvalue::UnboxExactI64 { value } => {
-            validate_operand(func, block_id, value, errors);
+            validate_operand(program, func, block_id, value, errors);
             if let Some(v_ty) = operand_type(program, func, value)
                 && v_ty != MirType::Dynamic
             {
@@ -495,8 +458,8 @@ fn validate_rvalue(
             }
         }
         Rvalue::DynBinary { lhs, rhs, .. } | Rvalue::DynCompare { lhs, rhs, .. } => {
-            validate_operand(func, block_id, lhs, errors);
-            validate_operand(func, block_id, rhs, errors);
+            validate_operand(program, func, block_id, lhs, errors);
+            validate_operand(program, func, block_id, rhs, errors);
             for op in [lhs, rhs] {
                 if let Some(ty) = operand_type(program, func, op)
                     && ty != MirType::Dynamic
@@ -509,7 +472,7 @@ fn validate_rvalue(
             }
         }
         Rvalue::DynUnary { operand, .. } => {
-            validate_operand(func, block_id, operand, errors);
+            validate_operand(program, func, block_id, operand, errors);
             if let Some(ty) = operand_type(program, func, operand)
                 && ty != MirType::Dynamic
             {
@@ -524,24 +487,23 @@ fn validate_rvalue(
             prefix,
             args,
         } => {
-            if matches!(
-                callee,
-                RuntimeFn::ModuleFile | RuntimeFn::FinalizeOrdinaryClass
-            ) || crate::validate_module_pairs::fixed_abi(*callee)
-            {
+            if runtime_calls::fixed_abi(*callee) {
                 errors.push(format!(
                     "函数 `{}` 的{:?}只允许固定Call ABI",
                     func.name, callee
                 ));
             }
             for op in prefix.iter().chain(args.iter()) {
-                validate_operand(func, block_id, op, errors);
+                validate_operand(program, func, block_id, op, errors);
             }
         }
+        Rvalue::InstanceZeroCall { callee, .. } => {
+            validate_operand(program, func, block_id, callee, errors);
+        }
         Rvalue::DynCallValue { callee, args } => {
-            validate_operand(func, block_id, callee, errors);
+            validate_operand(program, func, block_id, callee, errors);
             for arg in args {
-                validate_operand(func, block_id, arg, errors);
+                validate_operand(program, func, block_id, arg, errors);
             }
         }
         Rvalue::DynCallMethod {
@@ -551,16 +513,16 @@ fn validate_rvalue(
             ..
         } => {
             if let Some(flag) = captured {
-                validate_operand(func, block_id, flag, errors);
+                validate_operand(program, func, block_id, flag, errors);
             }
-            validate_operand(func, block_id, obj, errors);
+            validate_operand(program, func, block_id, obj, errors);
             for arg in args {
-                validate_operand(func, block_id, arg, errors);
+                validate_operand(program, func, block_id, arg, errors);
             }
         }
         Rvalue::CatchException => {}
         Rvalue::DynTruthy { value } => {
-            validate_operand(func, block_id, value, errors);
+            validate_operand(program, func, block_id, value, errors);
             if let Some(ty) = operand_type(program, func, value)
                 && ty != MirType::Dynamic
             {
@@ -569,22 +531,6 @@ fn validate_rvalue(
                     func.name, block_id, ty
                 ));
             }
-        }
-    }
-}
-
-fn validate_operand(
-    func: &crate::mir::Function,
-    block_id: crate::mir::BlockId,
-    op: &Operand,
-    errors: &mut Vec<String>,
-) {
-    if let Operand::Local(loc) = op {
-        if !func.body.locals.iter().any(|(id, _)| id == *loc) {
-            errors.push(format!(
-                "函数 `{}` 基本块 {:?} 引用的局部变量 {:?} 不在 locals arena 中",
-                func.name, block_id, loc
-            ));
         }
     }
 }

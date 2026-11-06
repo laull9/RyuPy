@@ -1,0 +1,7 @@
+list-subclass.named-overrides [2, 13] [('child', 3), ('append', 3), ('pop', 0), 'copy'] Logged:[2, 13] items=2
+list-subclass.live-lookup replacement original [1]
+list-subclass.property-root-bypass ['property', 'property'] [7]
+list-subclass.self-alias [3, 4, 3, 4, 3, 4, 3, 4] True
+list-subclass.init-order ['self', 'source', ('iter-sees', [])] [8, 9]
+list-subclass.partial-mutation ['iter-fails', 'yield-first', 'iteration-fails', 'yield-first', 'iteration-fails'] [7, 7] True
+list-subclass.capture-before-yield [] [30, 40]

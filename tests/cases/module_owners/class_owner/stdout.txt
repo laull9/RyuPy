@@ -1,0 +1,1 @@
+class namespace and method globals are distinct

@@ -1,0 +1,5 @@
+list-replace b'aAZdef'
+list-append b'aABZdef'
+list-clear b'aAdef'
+list-shrink b'aAdef'
+normalization/deletion translated algorithm cases: 22932

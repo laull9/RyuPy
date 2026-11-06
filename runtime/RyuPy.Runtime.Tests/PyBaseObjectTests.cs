@@ -140,8 +140,13 @@ public sealed class PyBaseObjectTests
         Assert.Same(plain, Assert.IsType<PyInstance>(PyPic.CallMethod1(0, Root, "__new__", plain)).Class);
         Assert.Equal(0, initCalls);
         Assert.Throws<PyTypeError>(() => PyOps.CallMethod(Root, "__new__", [Root], ["extra"], [1L]));
-        // 其它PyType仍走原能力边界，不能因object接线顺便开放所有type方法。
-        Assert.Throws<PyAttributeError>(() => PyOps.CallMethod(PyType.Get("list"), "__new__", [], [], []));
+        // ADR0104开放真实list allocator：缺cls由其binder报错，其它未接根类型仍拒绝。
+        var listError = Assert.Throws<PyTypeError>(() => PyOps.CallMethod(PyType.Get("list"), "__new__", [], [], []));
+        Assert.Equal("list.__new__(): not enough arguments", listError.Message);
+        // ADR0106加入dict根allocator，缺cls现在是真实签名错误；tuple仍未准入。
+        var dictError = Assert.Throws<PyTypeError>(() => PyOps.CallMethod(PyType.Get("dict"), "__new__", [], [], []));
+        Assert.Equal("dict.__new__(): not enough arguments", dictError.Message);
+        Assert.Throws<PyAttributeError>(() => PyOps.CallMethod(PyType.Get("tuple"), "__new__", [], [], []));
     }
 
     [Fact]
@@ -201,7 +206,10 @@ public sealed class PyBaseObjectTests
         var direct = (PyClass)PyOps.MakeClass("Direct", [PyRuntimeBases.Validate(Root)], null);
         var child = (PyClass)PyOps.MakeClass("Child", [direct], null);
         Assert.Same(Root, PyRuntimeBases.Validate(Root));
-        Assert.Throws<PyNotImplementedError>(() => PyRuntimeBases.Validate(PyType.Get("list")));
+        // list/dict均按canonical身份准入，仍不把任意内建布局当普通基类。
+        Assert.Same(PyType.Get("list"), PyRuntimeBases.Validate(PyType.Get("list")));
+        Assert.Same(PyType.Get("dict"), PyRuntimeBases.Validate(PyType.Get("dict")));
+        Assert.Throws<PyNotImplementedError>(() => PyRuntimeBases.Validate(PyType.Get("tuple")));
         Assert.Same(Root, Assert.Single(Assert.IsType<PyTuple>(PyObject.GetAttr(plain, "__bases__")).Items));
         Assert.Same(Root, Assert.Single(Assert.IsType<PyTuple>(PyObject.GetAttr(direct, "__bases__")).Items));
         Assert.Same(direct, Assert.Single(Assert.IsType<PyTuple>(PyObject.GetAttr(child, "__bases__")).Items));

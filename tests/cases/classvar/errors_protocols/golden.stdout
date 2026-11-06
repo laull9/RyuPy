@@ -1,0 +1,39 @@
+tuple TypeError typing.ClassVar accepts only single type. Got ().
+tuple TypeError typing.ClassVar accepts only single type. Got (<class 'int'>,).
+tuple TypeError typing.ClassVar accepts only single type. Got (<class 'int'>, <class 'str'>).
+tuple TypeError typing.ClassVar accepts only single type. Got ((<class 'int'>,),).
+tuple-unicode-repr-limit TypeError typing.ClassVar accepts only single type. Got ('😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀.
+invalid-type-argument TypeError Plain typing.ClassVar is not valid as type argument
+invalid-type-argument TypeError typing.ClassVar[int] is not valid as type argument
+invalid-type-argument TypeError Plain <class 'typing.Generic'> is not valid as type argument
+invalid-type-argument TypeError typing.Generic[~T] is not valid as type argument
+invalid-type-argument TypeError Plain typing.Union is not valid as type argument
+invalid-type-argument TypeError Plain typing.Optional is not valid as type argument
+invalid-type-argument TypeError Plain typing.Literal is not valid as type argument
+root-missing AttributeError __origin__
+root-missing AttributeError __args__
+root-missing AttributeError __parameters__
+call TypeError Cannot instantiate typing.ClassVar
+call-args TypeError Cannot instantiate typing.ClassVar
+instance TypeError typing.ClassVar cannot be used with isinstance()
+subclass TypeError typing.ClassVar cannot be used with issubclass()
+mro-entries TypeError Cannot subclass typing.ClassVar
+instance-tuple-reached TypeError typing.ClassVar cannot be used with isinstance()
+subclass-tuple-reached TypeError typing.ClassVar cannot be used with issubclass()
+class-before-body Cannot subclass typing.ClassVar []
+call TypeError Cannot instantiate typing.ClassVar
+call-args TypeError Cannot instantiate typing.ClassVar
+instance TypeError Subscripted generics cannot be used with class and instance checks
+subclass TypeError Subscripted generics cannot be used with class and instance checks
+mro-entries TypeError Cannot subclass typing.ClassVar[int]
+instance-tuple-reached TypeError Subscripted generics cannot be used with class and instance checks
+subclass-tuple-reached TypeError Subscripted generics cannot be used with class and instance checks
+class-before-body Cannot subclass typing.ClassVar[int] []
+closed-resubscribe TypeError typing.ClassVar[int] is not a generic class
+typing-list-rejects TypeError typing.ClassVar[int] is not valid as type argument
+union-rejects TypeError typing.ClassVar[int] is not valid as type argument
+optional-rejects TypeError typing.ClassVar[int] is not valid as type argument
+native-nesting list[typing.ClassVar[int]]
+typevar-bound-root TypeError Plain typing.ClassVar is not valid as type argument
+typevar-bound-alias TypeError typing.ClassVar[int] is not valid as type argument
+namedtuple-annotation TypeError typing.ClassVar[int] is not valid as type argument

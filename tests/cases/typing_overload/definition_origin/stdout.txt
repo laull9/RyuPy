@@ -1,0 +1,10 @@
+11 True
+RenamedClass Container.method Container.factory.<locals>.inner
+18 23
+True
+decorated decorated renamed target
+_overload_dummy True
+target alternate True
+TypeError __qualname__ must be set to a string object
+TypeError __qualname__ must be set to a string object
+None

@@ -1,0 +1,8 @@
+list-subclass.default-and-types [1, 2] [1, 2] mutable
+list-subclass.custom-init work True True
+list-subclass.root-allocation NamedItems []
+list-subclass.methods [1, 2, 4, 5] True
+list-subclass.fresh-base-results [[9], [9]] True
+list-subclass.core-protocols [21, 51] [51, 21]
+list-subclass.in-place-identity [] True
+list-subclass.foreign-reflection ['radd', 'rmul', 'index'] [1, 2, 1, 2]

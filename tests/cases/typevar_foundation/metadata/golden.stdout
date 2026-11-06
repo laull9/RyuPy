@@ -1,0 +1,20 @@
+identity True
+metadata True
+write __name__ readonly attribute
+delete __name__ readonly attribute
+write __bound__ attribute '__bound__' of 'typing.TypeVar' objects is not writable
+delete __bound__ attribute '__bound__' of 'typing.TypeVar' objects is not writable
+write __constraints__ attribute '__constraints__' of 'typing.TypeVar' objects is not writable
+delete __constraints__ attribute '__constraints__' of 'typing.TypeVar' objects is not writable
+write __covariant__ readonly attribute
+delete __covariant__ readonly attribute
+write __contravariant__ readonly attribute
+delete __contravariant__ readonly attribute
+write __infer_variance__ readonly attribute
+delete __infer_variance__ readonly attribute
+mutation True
+caller-module True
+class-write __class__ assignment only supported for mutable types or ModuleType subclasses
+class-write __class__ assignment only supported for mutable types or ModuleType subclasses
+class-delete can't delete __class__ attribute
+function-module True

@@ -1,0 +1,7 @@
+callable-result-first Plain typing.ClassVar is not valid as type argument
+callable-result-first Plain typing.ClassVar is not valid as type argument
+callable-result-first Plain typing.ClassVar is not valid as type argument
+callable-result-first typing.ClassVar[int] is not valid as type argument
+callable-result-first typing.ClassVar[int] is not valid as type argument
+callable-result-first typing.ClassVar[int] is not valid as type argument
+callable-canonical-args-only True

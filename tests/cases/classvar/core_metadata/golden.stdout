@@ -1,0 +1,18 @@
+root <class 'typing._SpecialForm'> typing.ClassVar
+alias typing.ClassVar[int] ()
+alias typing.ClassVar[str] ()
+alias typing.ClassVar[bytes] ()
+alias typing.ClassVar[NoneType] ()
+alias typing.ClassVar[__main__.Plain] ()
+alias typing.ClassVar[typing.Any] ()
+alias typing.ClassVar[~T] (~T,)
+alias typing.ClassVar[typing.List[~T]] (~T,)
+alias typing.ClassVar[list[~T]] (~T,)
+alias typing.ClassVar[typing.Dict[str, ~T]] (~T,)
+alias typing.ClassVar[dict[str, ~T]] (~T,)
+alias typing.ClassVar[typing.Union[~T, ~U]] (~T, ~U)
+alias typing.ClassVar[typing.Optional[~T]] (~T,)
+alias typing.ClassVar[typing.Literal[1]] ()
+alias typing.ClassVar[typing.Callable[[~T, ~U], ~T]] (~T, ~U)
+alias typing.ClassVar[tuple[~T, ~T, ~U]] (~T, ~U)
+raw-none-and-parameters True

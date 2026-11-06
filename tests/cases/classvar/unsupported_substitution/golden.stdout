@@ -1,0 +1,3 @@
+substitution typing.ClassVar[int] typing.ClassVar[tuple[int, ~U]] typing.ClassVar[tuple[int, str]]
+arity Too few arguments for typing.ClassVar[~T]; actual 0, expected 1
+arity Too many arguments for typing.ClassVar[~T]; actual 2, expected 1

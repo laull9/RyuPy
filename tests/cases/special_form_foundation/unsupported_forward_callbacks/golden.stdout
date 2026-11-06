@@ -1,0 +1,3 @@
+forward typing.Optional[ForwardRef('Thing')]
+callback-hit ['hash']
+legal-number typing.Optional[42]

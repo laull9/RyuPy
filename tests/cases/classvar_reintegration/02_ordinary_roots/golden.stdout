@@ -1,0 +1,34 @@
+List validation-before-arity Plain typing.ClassVar is not valid as type argument
+List validation-before-arity typing.ClassVar[int] is not valid as type argument
+List classvar-none-cold-success
+Dict validation-before-arity Plain typing.ClassVar is not valid as type argument
+Dict validation-before-arity typing.ClassVar[int] is not valid as type argument
+Dict classvar-none-cold-success
+Set validation-before-arity Plain typing.ClassVar is not valid as type argument
+Set validation-before-arity typing.ClassVar[int] is not valid as type argument
+Set classvar-none-cold-success
+FrozenSet validation-before-arity Plain typing.ClassVar is not valid as type argument
+FrozenSet validation-before-arity typing.ClassVar[int] is not valid as type argument
+FrozenSet classvar-none-cold-success
+Iterable validation-before-arity Plain typing.ClassVar is not valid as type argument
+Iterable validation-before-arity typing.ClassVar[int] is not valid as type argument
+Iterable classvar-none-cold-success
+Iterator validation-before-arity Plain typing.ClassVar is not valid as type argument
+Iterator validation-before-arity typing.ClassVar[int] is not valid as type argument
+Iterator classvar-none-cold-success
+Sequence validation-before-arity Plain typing.ClassVar is not valid as type argument
+Sequence validation-before-arity typing.ClassVar[int] is not valid as type argument
+Sequence classvar-none-cold-success
+Mapping validation-before-arity Plain typing.ClassVar is not valid as type argument
+Mapping validation-before-arity typing.ClassVar[int] is not valid as type argument
+Mapping classvar-none-cold-success
+MutableMapping validation-before-arity Plain typing.ClassVar is not valid as type argument
+MutableMapping validation-before-arity typing.ClassVar[int] is not valid as type argument
+MutableMapping classvar-none-cold-success
+Collection validation-before-arity Plain typing.ClassVar is not valid as type argument
+Collection validation-before-arity typing.ClassVar[int] is not valid as type argument
+Collection classvar-none-cold-success
+Container validation-before-arity Plain typing.ClassVar is not valid as type argument
+Container validation-before-arity typing.ClassVar[int] is not valid as type argument
+Container classvar-none-cold-success
+ordinary-roots 11

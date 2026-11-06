@@ -49,6 +49,7 @@ except ValueError:
         let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
         assert!(diagnostics.is_empty());
         let info = crate::ModuleInfo {
+            instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),

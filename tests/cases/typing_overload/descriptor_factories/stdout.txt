@@ -1,0 +1,8 @@
+Factory:7 Factory:ok parse:9 parse:yes
+['classmethod', 'function'] ['staticmethod', 'function']
+True True True True
+Factory.make Factory.parse
+cm stub function stub sm stub plain stub
+True True
+True
+None [] []

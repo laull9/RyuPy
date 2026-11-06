@@ -1,0 +1,7 @@
+initial_found True
+path_rebind_observed True
+path_restore_no_negative_cache True
+path_mutation_observed True
+path_mutation_restore True
+no_parent_attachment True
+cached_target_ignores_path_change True

@@ -1,0 +1,15 @@
+function_identity True
+container_call True
+star_call True
+missing_name TypeError find_spec() missing 1 required positional argument: 'name'
+only_package TypeError find_spec() missing 1 required positional argument: 'name'
+too_many_positional TypeError find_spec() takes from 1 to 2 positional arguments but 3 were given
+duplicate_name TypeError find_spec() got multiple values for argument 'name'
+duplicate_package TypeError find_spec() got multiple values for argument 'package'
+unknown_keyword TypeError find_spec() got an unexpected keyword argument 'unknown'
+name_int AttributeError 'int' object has no attribute 'startswith'
+name_none AttributeError 'NoneType' object has no attribute 'startswith'
+name_bytes TypeError startswith first arg must be bytes or a tuple of bytes, not str
+relative_package_int AttributeError 'int' object has no attribute 'rsplit'
+relative_package_none ImportError no package specified for '.child' (required for relative module names)
+absolute_ignores_package True

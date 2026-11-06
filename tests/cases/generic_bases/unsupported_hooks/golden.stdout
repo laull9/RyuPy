@@ -1,0 +1,24 @@
+parent-body
+parent-ready
+child-body
+set-name Child field False False True
+hook-before Child False (~T,)
+hook-after Child ()
+child-ready
+direct-body
+set-name Direct field True True True
+direct-ready (~T,)
+bad-descriptor-body
+bad-set-name Old field
+descriptor-failure ValueError descriptor wins NoneType None old
+skipped-body
+skip-super Skipped False
+skipped False (~T,)
+hook-failure-body
+failure-hook
+hook-failure ValueError hook wins old
+replacement-stored
+replacement-body
+replacement-hook Replaced False
+replacement-result False
+restored True

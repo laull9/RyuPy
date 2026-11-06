@@ -1,0 +1,5 @@
+Tuple[t0, t1, ...]: each t must be a type. Got ().
+Tuple[t0, t1, ...]: each t must be a type. Got (<class 'int'>,).
+Tuple[t, ...]: t must be a type. Got (<class 'int'>,).
+Plain typing.Union is not valid as type argument
+Plain <class 'typing.Generic'> is not valid as type argument

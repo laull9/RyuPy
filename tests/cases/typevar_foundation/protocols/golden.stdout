@@ -1,0 +1,10 @@
+identity-protocols True
+call TypeError 'typing.TypeVar' object is not callable
+getitem TypeError 'typing.TypeVar' object is not subscriptable
+iter TypeError 'typing.TypeVar' object is not iterable
+int TypeError int() argument must be a string, a bytes-like object or a real number, not 'typing.TypeVar'
+trunc TypeError type typing.TypeVar doesn't define __trunc__ method
+len TypeError object of type 'typing.TypeVar' has no len()
+float TypeError float() argument must be a string or a real number, not 'typing.TypeVar'
+isinstance TypeError isinstance() arg 2 must be a type, a tuple of types, or a union
+no-implicit-events []

@@ -1,0 +1,6 @@
+string_subclass_protocol True
+startswith_once_absolute True
+package_protocol True
+package_hook_order True
+package_truth_error RuntimeError package truth failed
+truth_error_phase True

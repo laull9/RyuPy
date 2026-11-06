@@ -1,0 +1,71 @@
+partition-identity-str-str-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+partition-identity-str-str-miss ['a dynamic untouched payload 42', '', ''] ['str', 'str', 'str'] [True, False, False] [False, False, False]
+partition-identity-str-str-whole ['', 'separator_dynamic_42', ''] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+partition-identity-str-str-empty ['', '', ''] ['str', 'str', 'str'] [True, True, True] [False, False, False]
+partition-identity-str-Text-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+partition-identity-str-Text-miss ['a dynamic untouched payload 42', '', ''] ['str', 'str', 'str'] [True, False, False] [False, False, False]
+partition-identity-str-Text-whole ['', 'separator_dynamic_42', ''] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+partition-identity-str-Text-empty ['', '', ''] ['str', 'str', 'str'] [True, True, True] [False, False, False]
+partition-identity-Text-str-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+partition-identity-Text-str-miss ['a dynamic untouched payload 42', '', ''] ['Text', 'str', 'str'] [True, False, False] [False, False, False]
+partition-identity-Text-str-whole ['', 'separator_dynamic_42', ''] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+partition-identity-Text-str-empty ['', '', ''] ['Text', 'str', 'str'] [True, False, False] [False, False, False]
+partition-identity-Text-Text-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+partition-identity-Text-Text-miss ['a dynamic untouched payload 42', '', ''] ['Text', 'str', 'str'] [True, False, False] [False, False, False]
+partition-identity-Text-Text-whole ['', 'separator_dynamic_42', ''] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+partition-identity-Text-Text-empty ['', '', ''] ['Text', 'str', 'str'] [True, False, False] [False, False, False]
+partition-same-object True Text
+rpartition-identity-str-str-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-str-str-miss ['', '', 'a dynamic untouched payload 42'] ['str', 'str', 'str'] [False, False, True] [False, False, False]
+rpartition-identity-str-str-whole ['', 'separator_dynamic_42', ''] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-str-str-empty ['', '', ''] ['str', 'str', 'str'] [True, True, True] [False, False, False]
+rpartition-identity-str-Text-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-str-Text-miss ['', '', 'a dynamic untouched payload 42'] ['str', 'str', 'str'] [False, False, True] [False, False, False]
+rpartition-identity-str-Text-whole ['', 'separator_dynamic_42', ''] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-str-Text-empty ['', '', ''] ['str', 'str', 'str'] [True, True, True] [False, False, False]
+rpartition-identity-Text-str-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-Text-str-miss ['', '', 'a dynamic untouched payload 42'] ['str', 'str', 'Text'] [False, False, True] [False, False, False]
+rpartition-identity-Text-str-whole ['', 'separator_dynamic_42', ''] ['str', 'str', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-Text-str-empty ['', '', ''] ['str', 'str', 'Text'] [False, False, True] [False, False, False]
+rpartition-identity-Text-Text-hit ['left', 'separator_dynamic_42', 'right'] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-Text-Text-miss ['', '', 'a dynamic untouched payload 42'] ['str', 'str', 'Text'] [False, False, True] [False, False, False]
+rpartition-identity-Text-Text-whole ['', 'separator_dynamic_42', ''] ['str', 'Text', 'str'] [False, False, False] [False, True, False]
+rpartition-identity-Text-Text-empty ['', '', ''] ['str', 'str', 'Text'] [False, False, True] [False, False, False]
+rpartition-same-object True Text
+partition-unicode-astral ('a', '😀', 'b😀c')
+rpartition-unicode-astral ('a😀b', '😀', 'c')
+partition-unicode-combining ('é', 'é', '')
+rpartition-unicode-combining ('é', 'é', '')
+partition-unicode-no-normalization ('é', '', '')
+rpartition-unicode-no-normalization ('', '', 'é')
+partition-unicode-high-half ('a😀b', '', '')
+rpartition-unicode-high-half ('', '', 'a😀b')
+partition-unicode-low-half ('a😀b', '', '')
+rpartition-unicode-low-half ('', '', 'a😀b')
+partition-unicode-isolated-high ('a', '\ud83d', 'b')
+rpartition-unicode-isolated-high ('a', '\ud83d', 'b')
+partition-unicode-isolated-low ('a', '\ude00', 'b')
+rpartition-unicode-isolated-low ('a', '\ude00', 'b')
+partition-unicode-skip-first-high ('😀x', '\ud83d', 'z')
+rpartition-unicode-skip-first-high ('😀x', '\ud83d', 'z')
+partition-unicode-skip-last-high ('', '\ud83d', 'x😀')
+rpartition-unicode-skip-last-high ('', '\ud83d', 'x😀')
+partition-unicode-skip-first-low ('😀x', '\ude00', 'z')
+rpartition-unicode-skip-first-low ('😀x', '\ude00', 'z')
+partition-unicode-skip-last-low ('', '\ude00', 'x😀')
+rpartition-unicode-skip-last-low ('', '\ude00', 'x😀')
+partition-unicode-end-half ('a😀b', '', '')
+rpartition-unicode-end-half ('', '', 'a😀b')
+partition-unicode-start-half ('a😀b', '', '')
+rpartition-unicode-start-half ('', '', 'a😀b')
+partition-unicode-skip-end-half ('a😀', 'a\ud83d', '!')
+rpartition-unicode-skip-end-half ('a😀', 'a\ud83d', '!')
+partition-unicode-skip-start-half ('', '\ude00b', 'x😀b')
+rpartition-unicode-skip-start-half ('', '\ude00b', 'x😀b')
+partition-unicode-overlap-after-invalid ('😀', '\ude00\ude00', '')
+rpartition-unicode-overlap-after-invalid ('😀', '\ude00\ude00', '')
+partition-unicode-overlap-before-invalid ('', '\ud83d\ud83d', '😀')
+rpartition-unicode-overlap-before-invalid ('', '\ud83d\ud83d', '😀')
+partition-unicode-maximum ('x', '\U0010ffff', 'y')
+rpartition-unicode-maximum ('x', '\U0010ffff', 'y')
+identity-unicode-ok

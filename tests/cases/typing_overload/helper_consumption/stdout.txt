@@ -1,0 +1,9 @@
+True ['getattr:__func__']
+[] True
+[] []
+('replaced', 1) ['list']
+True ['getitem:__main__', 'getitem:one', 'setitem:8']
+True ['contains:__main__', 'getitem:__main__', 'contains:one', 'getitem:one', 'values']
+None ['clear']
+1
+None

@@ -1,0 +1,7 @@
+partition-separate-vs-astral ('\ud83d\ude00', '', '')
+partition-astral-vs-separate ('😀', '', '')
+partition-separate-high ('', '\ud83d', '\ude00')
+rpartition-separate-vs-astral ('', '', '\ud83d\ude00')
+rpartition-astral-vs-separate ('', '', '😀')
+rpartition-separate-high ('', '\ud83d', '\ude00')
+separate-surrogates-pending-ok

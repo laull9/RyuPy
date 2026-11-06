@@ -1,0 +1,22 @@
+body-orig False False
+decorator inner True True
+decorator outer True True
+events ['eval-outer', 'eval-inner', 'receiver', 'key', 'body', 'apply-inner', 'apply-outer']
+identity True True True
+mro True True
+metadata True True __main__
+origin None ()
+new Box 7
+init Box False
+instance True True True 7 9
+dict {'value': 7, 'extra': 9} False
+child-body False False
+child () False True
+child-mro True
+new Child 8
+init Child False
+child-instance True True 8
+grandchild () True
+saved True True
+foreign 17
+own True True

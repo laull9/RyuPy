@@ -4,9 +4,9 @@ assertion_line: 11
 expression: output
 ---
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -17,16 +17,18 @@ fn main() -> () {
     let _10: dyn;
     let _11: dyn;
     let _12: dyn;
-    let _13: i64;
+    let _13: dyn;
     let _14: dyn;
-    let _15: dyn;
+    let _15: i64;
     let _16: dyn;
-    let _17: i64;
+    let _17: dyn;
     let _18: dyn;
-    let _19: dyn;
-    let _20: i64;
-    let _21: bool;
-    let _22: bool;
+    let _19: i64;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: i64;
+    let _23: bool;
+    let _24: bool;
 
     region r0: [5, +1) finally-guard handler->bb6
     region r1: [1, +1) catch ValueError handler->bb3
@@ -38,93 +40,95 @@ fn main() -> () {
         g4 = null;
         g5 = null;
         g6 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_io_unsupported_static.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_io_unsupported_static.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g2 = _1;
+        _3 = box<Str>(const "__main__");
+        g2 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g3 = _2;
+        _4 = box<Str>(const "");
+        g3 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_io_unsupported_static.py");
-        g4 = _3;
+        _5 = box<Str>(const "ryupy_io_unsupported_static.py");
+        g4 = _5;
         // line 1
-        _4 = RuntimeFn::ImportModule(const "io");
-        g5 = _4;
+        _6 = RuntimeFn::ImportModule(const "io");
+        g5 = _6;
         // line 2
-        _5 = RuntimeFn::ImportAttr(const "io", const "UnsupportedOperation");
-        g6 = _5;
+        _7 = RuntimeFn::ImportAttr(const "io", const "UnsupportedOperation");
+        g6 = _7;
         // line 3
-        _6 = RuntimeFn::TypeObject(const "io.UnsupportedOperation");
-        _7 = RuntimeFn::MakeClass(const "Child", [_6], global@0);
-        g1 = _7;
+        _8 = RuntimeFn::TypeObject(const "io.UnsupportedOperation");
+        _9 = RuntimeFn::MakeClass(const "Child", [_8], global@0);
+        g1 = _9;
         // line 5
         goto -> bb1;
     }
     bb1: {
         // line 6
-        _8 = global@1;
-        _9 = box<Str>(const "x");
-        _10 = dyn.call(_8, [_9]);
-        _11 = RuntimeFn::RaisePrepare(_10);
-        raise _11;
+        _10 = global@1;
+        _11 = box<Str>(const "x");
+        _12 = dyn.call(_10, [_11]);
+        _13 = RuntimeFn::RaisePrepare(_12);
+        raise _13;
     }
     bb2: {
-        _13 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_13);
-        _14 = RuntimeFn::HandlerEnter(_12);
+        _15 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_15);
+        _16 = RuntimeFn::HandlerEnter(_14);
         goto -> bb5;
     }
     bb3: {
-        _12 = caught_exception;
+        _14 = caught_exception;
         goto -> bb2;
     }
     bb4: {
-        _12 = caught_exception;
+        _14 = caught_exception;
         goto -> bb2;
     }
     bb5: {
-        _16 = RuntimeFn::HandlerEnter(None);
+        _18 = RuntimeFn::HandlerEnter(None);
         // line 8
-        _18 = box<Str>(const "caught");
-        _19 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_19, _18);
-        RuntimeFn::WriteNewline(_19);
-        _17 = const 0_i64;
+        _20 = box<Str>(const "caught");
+        _21 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_21, _20);
+        RuntimeFn::WriteNewline(_21);
+        _19 = const 0_i64;
         goto -> bb8;
     }
     bb6: {
-        _15 = caught_exception;
+        _17 = caught_exception;
         goto -> bb7;
     }
     bb7: {
-        _20 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_20);
-        _16 = RuntimeFn::HandlerEnter(_15);
-        _17 = const 1_i64;
+        _22 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_22);
+        _18 = RuntimeFn::HandlerEnter(_17);
+        _19 = const 1_i64;
         goto -> bb8;
     }
     bb8: {
-        RuntimeFn::HandlerLeave(_14);
+        RuntimeFn::HandlerLeave(_16);
         goto -> bb9;
     }
     bb9: {
-        _21 = Eq(_17, const 1_i64);
-        branch _21 -> [then: bb10, else: bb12];
+        _23 = Eq(_19, const 1_i64);
+        branch _23 -> [then: bb10, else: bb12];
     }
     bb10: {
-        RuntimeFn::HandlerLeave(_14);
-        raise _15;
+        RuntimeFn::HandlerLeave(_16);
+        raise _17;
     }
     bb11: {
         unreachable;
     }
     bb12: {
-        _22 = Eq(_17, const 2_i64);
-        branch _22 -> [then: bb16, else: bb13];
+        _24 = Eq(_19, const 2_i64);
+        branch _24 -> [then: bb16, else: bb13];
     }
     bb13: {
-        RuntimeFn::HandlerLeave(_14);
+        RuntimeFn::HandlerLeave(_16);
         goto -> bb16;
     }
     bb14: {
@@ -134,7 +138,7 @@ fn main() -> () {
         unreachable;
     }
     bb16: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

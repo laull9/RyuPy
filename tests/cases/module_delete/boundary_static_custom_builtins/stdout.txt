@@ -1,0 +1,2 @@
+custom builtin cannot be deleted NameError name 'len' is not defined
+frame and function builtin owners 2 3

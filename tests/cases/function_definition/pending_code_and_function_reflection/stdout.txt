@@ -1,0 +1,6 @@
+True 2
+second True
+2 True True
+(1,) None None
+first second
+first None

@@ -1,0 +1,115 @@
+{
+  "base_head": "58b8595cd37d4b22458bfdb7d23a988e08317638",
+  "date": "2026-11-05",
+  "platform": "Linux x86_64",
+  "runtime_focused": {
+    "initial_passed": 18,
+    "expanded_first": {
+      "passed": 21,
+      "failed": 2,
+      "failure": "宿主namedtuple来源setup及class.__dict__身份断言"
+    },
+    "test_only_retry_passed": 2,
+    "after_io_guard_passed": 24,
+    "new_unique_tests": 23
+  },
+  "applications": {
+    "first": {
+      "passed": 2,
+      "failed": 1
+    },
+    "failure": "新应用未绑定模块delattr的builtin fallback仍NI；两旧pending通过",
+    "focused_retry_passed": 1,
+    "unique_passed": 3,
+    "structure_passed": 1,
+    "cp_fixture_failures_preserved": 2
+  },
+  "make_check": {
+    "first_exit": 2,
+    "first_csharp_passed": 1814,
+    "first_csharp_failed": 1,
+    "first_log_sha256": "1bd89a51c20bb718f9e6a9180450d4ad26a5d14c7b1e01d75a21c0327de43414",
+    "first_failure": "IO派生__module__原TypeError被新NI覆盖，生产守卫修正，原测试不改",
+    "final_exit": 0,
+    "csharp_passed": 1815,
+    "cpython_baseline_passed": 228,
+    "e2e_passed": 202,
+    "e2e_ignored": 30,
+    "log_sha256": "13bd3f9487fee86a66ecdf804639a328a2d9f3cd613b97206e1bd59e74736865"
+  },
+  "allocation_evidence": [
+    {
+      "path": "ryupy-delattr-allocation-100-639294386623261043-251c3de0fdec4e5db7ffb38614fff4a2/results.json",
+      "sha256": "7d5687016633d07259a850012d9a2b60808922270b8da3ec7d27e096c3b9ecb3",
+      "results": {
+        "warmup_calls_per_route": 1000,
+        "measured_calls_per_route": 1000,
+        "operation": "每次先SetAttr再delete；公开路线还验证返回None，全部路线验证属性已删除",
+        "reused_inputs": "同一目标实例、属性名item、预装箱值7、两实参数组、空关键字数组及保存的builtin；初始化、输出、断言和留证均在测量外",
+        "allocated_bytes": {
+          "direct": 32000,
+          "saved": 32000,
+          "shared_control": 0
+        },
+        "allocation_threshold": "无阈值；不把组合路线分配归因于单个删除步骤"
+      }
+    },
+    {
+      "path": "ryupy-delattr-allocation-392-639294387139193408-d39b1d3bdeec46d7b944cba97519bad4/results.json",
+      "sha256": "7d5687016633d07259a850012d9a2b60808922270b8da3ec7d27e096c3b9ecb3",
+      "results": {
+        "warmup_calls_per_route": 1000,
+        "measured_calls_per_route": 1000,
+        "operation": "每次先SetAttr再delete；公开路线还验证返回None，全部路线验证属性已删除",
+        "reused_inputs": "同一目标实例、属性名item、预装箱值7、两实参数组、空关键字数组及保存的builtin；初始化、输出、断言和留证均在测量外",
+        "allocated_bytes": {
+          "direct": 32000,
+          "saved": 32000,
+          "shared_control": 0
+        },
+        "allocation_threshold": "无阈值；不把组合路线分配归因于单个删除步骤"
+      }
+    },
+    {
+      "path": "ryupy-delattr-allocation-811-639294385821217311-3792d6e25ccd40199b3355f297c42548/results.json",
+      "sha256": "7d5687016633d07259a850012d9a2b60808922270b8da3ec7d27e096c3b9ecb3",
+      "results": {
+        "warmup_calls_per_route": 1000,
+        "measured_calls_per_route": 1000,
+        "operation": "每次先SetAttr再delete；公开路线还验证返回None，全部路线验证属性已删除",
+        "reused_inputs": "同一目标实例、属性名item、预装箱值7、两实参数组、空关键字数组及保存的builtin；初始化、输出、断言和留证均在测量外",
+        "allocated_bytes": {
+          "direct": 32000,
+          "saved": 32000,
+          "shared_control": 0
+        },
+        "allocation_threshold": "无阈值；不把组合路线分配归因于单个删除步骤"
+      }
+    }
+  ],
+  "production_and_tests_sha256": {
+    "crates/ryupy-driver/tests/delattr.rs": "d93e28400278e8237cfe153ae1afb37c9d2080140d98d870d7e1bfdbbf5898ca",
+    "crates/ryupy-driver/tests/delattr_structure.rs": "7770298016cecd292e07ad827f6d5991e0dae9bc0139bf650377261fcd65cb26",
+    "crates/ryupy-driver/tests/delattr_support/mod.rs": "6622ace9368173311ca135088830f279e251f113a82abfac13ee878387ef1c41",
+    "crates/ryupy-driver/tests/delattr_support/trace.rs": "dc0f49b90b6bb97a8c8e7b4c27d938820ca2739f60b344eb496a04d22b5c722c",
+    "crates/ryupy-hir/src/scope.rs": "c70af1078bb86c9c8ed7388bb56cb6d9a80c55f8cbd7855337f4530b47bb7566",
+    "docs/validation/delattr/reference.py": "6f07bae8efec85db2bd1b0713c5c9005df96a80e5a12f5a203ee9e81b003b05e",
+    "runtime/RyuPy.Runtime.Tests/PyDelAttrTests.cs": "14579f802778f8f55fcde5d2fe6960f82ac8bae068e1c9acd19e14e4769fe974",
+    "runtime/RyuPy.Runtime/PyAttributeDeletion.cs": "5dfe9907a87232680ee653eb83fc7d5df3c5c812bb72fff7c57a8f8ccfa16523",
+    "runtime/RyuPy.Runtime/PyBuiltins.cs": "7f35870efd0ab68f093218b2d3c2be1ab066b443a34ef6df9df38da4316f86b6",
+    "runtime/RyuPy.Runtime/PyNamedTupleField.cs": "2fb74105464f35af027db02dee3d548f50924aef6dbb5832e2c8930d7a91a787",
+    "runtime/RyuPy.Runtime/PyNativeProtocols.cs": "5efea82334673e65acabd674c6414205b9d68707cc4d507665083bc532a48cbc",
+    "runtime/RyuPy.Runtime/PyObject.cs": "759e48000ff49b610dc850194071f7fb3537d49dab1ff0496be9e68ec04c202a",
+    "tests/fixtures/delattr/pending/global_builtin_fallback.py.pending": "1350316b12ec849c9342d7a14408e12669297b1b3c73f657471faea764462c7b",
+    "tests/fixtures/delattr/public_contract.py": "53dec35268ca6d7f1bc621ed7a789d96ef78151710721af85be7080cb6199493"
+  },
+  "scope_exclusions": [
+    "完整删除hook/descriptor/模块同步/反射",
+    "完整builtin unbound fallback",
+    "动态property名称框架",
+    "固定项目矩阵或已过入口重跑",
+    "NativeAOT",
+    "吞吐/跨平台性能基准",
+    "远端推送"
+  ]
+}

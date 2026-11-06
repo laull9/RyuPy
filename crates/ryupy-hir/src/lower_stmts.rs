@@ -11,7 +11,7 @@
 use ryupy_base::{Diagnostic, Ranged, Span};
 use ryupy_syntax::ast;
 
-use crate::hir::{AssignTarget, Binding, Builtin, Expr, ExprKind, Name, Stmt, StmtId, StmtKind};
+use crate::hir::{AssignTarget, Binding, Expr, ExprKind, Name, Stmt, StmtId, StmtKind};
 use crate::lower::StmtLowerCtx;
 
 impl StmtLowerCtx<'_> {
@@ -54,25 +54,37 @@ impl StmtLowerCtx<'_> {
 
         let body = self.lower_suite(&try_stmt.body);
 
+        // 两遍处理：只有整条链需要动态匹配时才降级目标表达式。
+        // 首轮不登记静态导入used，避免mixed链误冻结模块导出。
+        let dynamic_chain = try_stmt.handlers.iter().any(|handler| {
+            let ast::ExceptHandler::ExceptHandler(except) = handler;
+            except
+                .type_
+                .as_ref()
+                .is_some_and(|target| self.exception_type_names(target, false).is_empty())
+        });
         let mut handlers = Vec::new();
         for handler in &try_stmt.handlers {
             let ast::ExceptHandler::ExceptHandler(except) = handler;
+            let mut dynamic_target = None;
             let types = match &except.type_ {
                 None => None,
-                Some(type_expr) => {
-                    let names = self.exception_type_names(type_expr);
-                    if names.is_empty() {
+                Some(type_expr) if dynamic_chain => {
+                    if crate::exception_targets::supported_target(type_expr) {
+                        dynamic_target = Some(self.lower_expr(type_expr));
+                    } else {
                         self.diagnostics.push(
                             Diagnostic::error(
                                 Span::new(self.file, type_expr.range()),
-                                "except 只支持静态异常类或稳定的原生模块异常导入；动态类型表达式暂不支持",
+                                "动态 except 目标仅支持名称、名称起点的属性链及无展开元组",
                             )
                             .with_code("E0100")
                             .with_primary_label("不支持该异常类型表达式"),
                         );
                     }
-                    Some(names)
+                    None
                 }
+                Some(type_expr) => Some(self.exception_type_names(type_expr, true)),
             };
 
             let name = except.name.as_ref().and_then(|ident| {
@@ -97,6 +109,8 @@ impl StmtLowerCtx<'_> {
 
             let id = self.body.handlers.alloc(crate::hir::Handler {
                 types,
+                type_expr: dynamic_target,
+                type_line: self.line_of(except.range.start().to_usize()),
                 name,
                 body: handler_body,
                 range: except.range,
@@ -117,74 +131,6 @@ impl StmtLowerCtx<'_> {
             range: try_stmt.range,
             line: self.line_of(try_stmt.range.start().to_usize()),
         })
-    }
-
-    /// 把 `except` 的类型表达式解析成异常类型名列表。
-    ///
-    /// 接受内建/用户异常类，以及 driver 验证过的稳定原生模块异常导入。
-    /// 元组每一项都必须能静态解析；不能丢弃未知项后冒称整条 handler 已支持。
-    /// 返回空列表由调用方报诊断，不求值动态类型表达式。
-    fn exception_type_names(&self, expr: &ast::Expr) -> Vec<String> {
-        let imported = match expr {
-            ast::Expr::Name(name) => Some((name, None)),
-            ast::Expr::Attribute(attr) => match attr.value.as_ref() {
-                ast::Expr::Name(name) => Some((name, Some(attr.attr.as_str()))),
-                _ => None,
-            },
-            _ => None,
-        };
-        if let Some((name, member)) = imported {
-            let ident = Name::from(name.id.as_str());
-            let shadowed = !self.module_scope
-                && (self.func_scope.locals.contains_key(&ident)
-                    || self.func_scope.free.contains_key(&ident)
-                    || self.func_scope.nonlocals.contains(&ident));
-            if shadowed {
-                return Vec::new();
-            }
-            if let Some(binding) = self.global_scope.exception_imports.get(&ident) {
-                return binding
-                    .resolve(member, expr.range().start())
-                    .map(|name| vec![name.to_owned()])
-                    .unwrap_or_default();
-            }
-        }
-        match expr {
-            ast::Expr::Name(name) => {
-                let ident = Name::from(name.id.as_str());
-                match self.global_scope.names.get(&ident) {
-                    // 用户类：必须位于 BaseException 家族，否则 `except X` 在 CPython
-                    // 里是 TypeError，这里作为暂不支持的能力明确拒绝。
-                    Some(crate::scope::Resolution::Class(cls_id)) => {
-                        let cls = &self.classes[*cls_id];
-                        if cls.is_exception {
-                            vec![cls.name.as_str().to_owned()]
-                        } else {
-                            Vec::new()
-                        }
-                    }
-                    Some(_) => Vec::new(),
-                    None => match crate::scope::resolve_builtin(name.id.as_str()) {
-                        Some(Builtin::Exception(type_name)) => {
-                            vec![type_name.to_owned()]
-                        }
-                        _ => Vec::new(),
-                    },
-                }
-            }
-            ast::Expr::Tuple(tuple) => {
-                let mut out = Vec::new();
-                for elt in &tuple.elts {
-                    let names = self.exception_type_names(elt);
-                    if names.is_empty() {
-                        return Vec::new();
-                    }
-                    out.extend(names);
-                }
-                out
-            }
-            _ => Vec::new(),
-        }
     }
 
     pub(crate) fn lower_stmt(&mut self, stmt: &ast::Stmt) -> Option<StmtId> {
@@ -356,7 +302,46 @@ impl StmtLowerCtx<'_> {
                 let mut targets = Vec::new();
                 for target in &del_stmt.targets {
                     match target {
-                        // 删除名字需要模块命名空间（M2.7），这里只处理容器下标与属性。
+                        ast::Expr::Name(name)
+                            if self.module_scope
+                                || self.func_scope.is_global(&Name::from(name.id.as_str())) =>
+                        {
+                            // DELETE_NAME/GLOBAL只定位绑定，不能走普通名称读取的builtin/定义捷径。
+                            if let Some(&var) = self.module_vars.get(&Name::from(name.id.as_str()))
+                            {
+                                targets.push(self.body.exprs.alloc(Expr {
+                                    kind: ExprKind::ModuleVar(var),
+                                    range: name.range,
+                                }));
+                            } else {
+                                self.diagnostics.push(
+                                    Diagnostic::error(
+                                        Span::new(self.file, name.range),
+                                        "模块删除目标未预登记",
+                                    )
+                                    .with_code("E0101"),
+                                );
+                            }
+                        }
+                        // 普通函数裸局部删除仅复用原始槽；闭包与复杂目标仍拒绝。
+                        ast::Expr::Name(name)
+                            if !self.module_scope
+                                && self.body.function_locals.is_some()
+                                && !self
+                                    .func_scope
+                                    .cells
+                                    .contains(&Name::from(name.id.as_str()))
+                                && self
+                                    .func_scope
+                                    .locals
+                                    .contains_key(&Name::from(name.id.as_str())) =>
+                        {
+                            let local = self.func_scope.locals[&Name::from(name.id.as_str())];
+                            targets.push(self.body.exprs.alloc(Expr {
+                                kind: ExprKind::Local(local),
+                                range: name.range,
+                            }));
+                        }
                         ast::Expr::Subscript(sub) => {
                             let base = self.lower_expr(&sub.value);
                             let index = self.lower_subscript_index(&sub.slice);
@@ -382,7 +367,9 @@ impl StmtLowerCtx<'_> {
                                     "暂不支持该 del 目标",
                                 )
                                 .with_code("E0100")
-                                .with_primary_label("目前只支持 del obj[...] 与 del obj.attr"),
+                                .with_primary_label(
+                                    "仅支持模块/global绑定、普通函数动态局部及属性/下标删除",
+                                ),
                             );
                         }
                     }

@@ -1,0 +1,4 @@
+stable True True True True
+mro-list True False
+inherited True True
+allocation True True 11 12

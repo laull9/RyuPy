@@ -1,0 +1,4 @@
+instance deleted NameError name 'value' is not defined
+instance deleted NameError name 'value' is not defined
+instance builtin protected NameError name 'len' is not defined
+instance real dictionary deletion and recovery ['new']

@@ -1,11 +1,12 @@
 ---
 source: crates/ryupy-driver/tests/m3_1.rs
+assertion_line: 103
 expression: "output.replace(path.to_str().unwrap(), \"genexpr.py\")"
 ---
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -16,56 +17,63 @@ fn main() -> () {
     let _10: dyn;
     let _11: dyn;
     let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
 
     bb0: {
         g0 = null;
         g1 = null;
         g2 = null;
         g3 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_test_generator_expression.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_test_generator_expression.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g0 = _1;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g1 = _2;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_test_generator_expression.py");
-        g2 = _3;
+        _5 = box<Str>(const "ryupy_test_generator_expression.py");
+        g2 = _5;
         // line 1
-        _4 = MakeFunction(<genexpr>; env=[]; defaults=[null]);
-        _5 = box<I64>(const 1_i64);
-        _6 = box<I64>(const 2_i64);
-        _7 = MakeList([_5, _6]);
-        _8 = RuntimeFn::DynBuiltin(const "iter", [_7], [], []);
-        _9 = dyn.call(_4, [_8]);
-        g3 = _9;
+        _6 = global@0;
+        _7 = MakeFunction(<genexpr>; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = box<I64>(const 1_i64);
+        _9 = box<I64>(const 2_i64);
+        _10 = MakeList([_8, _9]);
+        _11 = RuntimeFn::DynBuiltin(const "iter", [_10], [], []);
+        _12 = dyn.call(_7, [_11]);
+        g3 = _12;
         // line 2
-        _10 = RuntimeFn::LoadName(global@3, const "values");
-        _11 = RuntimeFn::DynBuiltin(const "list", [_10], [], []);
-        _12 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_12, _11);
-        RuntimeFn::WriteNewline(_12);
+        _13 = RuntimeFn::LoadName(global@3, const "values");
+        _14 = RuntimeFn::DynBuiltin(const "list", [_13], [], []);
+        _15 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_15, _14);
+        RuntimeFn::WriteNewline(_15);
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }
 
-fn <genexpr>(_0: dyn) -> dyn {
+fn <genexpr>(_0: dyn, _2: dyn) -> dyn {
     let _0: dyn; // .0
     let _1: dyn; // x
-    let _2: i64;
-    let _3: dyn;
-    let _4: bool;
-    let _5: dyn;
+    let _2: dyn; // __function_owner
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
     let _6: dyn;
-    let _7: bool;
-    let _8: dyn;
-    let _9: bool;
-    let _10: dyn;
+    let _7: dyn;
+    let _8: bool;
+    let _9: dyn;
+    let _10: bool;
     let _11: dyn;
     let _12: dyn;
     let _13: dyn;
@@ -74,30 +82,31 @@ fn <genexpr>(_0: dyn) -> dyn {
     let _16: dyn;
     let _17: dyn;
     let _18: dyn;
+    let _19: dyn;
 
     bb0: {
-        _13 = box<I64>(const 0_i64);
         _14 = box<I64>(const 0_i64);
-        _15 = box<Bool>(const false);
+        _15 = box<I64>(const 0_i64);
         _16 = box<Bool>(const false);
         _17 = box<Bool>(const false);
-        _18 = MakeGenerator(<genexpr>, _13, None, None, None, _0, null, _14, null, _15, null, null, _16, null, _17, null, null, null);
-        return _18;
+        _18 = box<Bool>(const false);
+        _19 = MakeGenerator(<genexpr>, _14, None, None, None, _0, null, _2, _15, null, _16, null, null, _17, null, _18, null, null, null, origin=_2);
+        return _19;
     }
 }
 
-fn <genexpr>(_13: dyn) -> dyn {
+fn <genexpr>(_14: dyn) -> dyn {
     let _0: dyn; // .0
     let _1: dyn; // x
-    let _2: i64;
-    let _3: dyn;
-    let _4: bool;
-    let _5: dyn;
+    let _2: dyn; // __function_owner
+    let _3: i64;
+    let _4: dyn;
+    let _5: bool;
     let _6: dyn;
-    let _7: bool;
-    let _8: dyn;
-    let _9: bool;
-    let _10: dyn;
+    let _7: dyn;
+    let _8: bool;
+    let _9: dyn;
+    let _10: bool;
     let _11: dyn;
     let _12: dyn;
     let _13: dyn;
@@ -113,27 +122,28 @@ fn <genexpr>(_13: dyn) -> dyn {
     let _23: dyn;
     let _24: dyn;
     let _25: dyn;
-    let _26: i64;
-    let _27: bool;
+    let _26: dyn;
+    let _27: i64;
+    let _28: bool;
 
     bb0: {
         // line 1
-        _3 = RuntimeFn::IterStart(_0);
+        _4 = RuntimeFn::IterStart(_0);
         goto -> bb1;
     }
     bb1: {
-        _4 = RuntimeFn::IterNextOk(_3);
-        branch _4 -> [then: bb2, else: bb5];
+        _5 = RuntimeFn::IterNextOk(_4);
+        branch _5 -> [then: bb2, else: bb5];
     }
     bb2: {
-        _5 = RuntimeFn::IterValue(_3);
-        _1 = _5;
+        _6 = RuntimeFn::IterValue(_4);
+        _1 = _6;
         // line 1
-        _6 = box<I64>(const 1_i64);
-        _7 = dyn.cmp.Gt(_1, _6);
-        _8 = box<Bool>(_7);
-        _9 = RuntimeFn::DynTruthy(_8);
-        branch _9 -> [then: bb6, else: bb1];
+        _7 = box<I64>(const 1_i64);
+        _8 = dyn.cmp.Gt(_1, _7);
+        _9 = box<Bool>(_8);
+        _10 = RuntimeFn::DynTruthy(_9);
+        branch _10 -> [then: bb6, else: bb1];
     }
     bb3: {
         unreachable;
@@ -143,33 +153,34 @@ fn <genexpr>(_13: dyn) -> dyn {
     }
     bb5: {
         // line 1
-        _12 = const 0_i64;
+        _13 = const 0_i64;
         goto -> bb11;
     }
     bb6: {
         // line 1
-        _10 = box<I64>(const 2_i64);
-        _11 = dyn.Mul(_1, _10);
-        RuntimeFn::ArraySet(_13, const 4_i64, _0);
-        RuntimeFn::ArraySet(_13, const 5_i64, _1);
-        _14 = box<I64>(_2);
-        RuntimeFn::ArraySet(_13, const 6_i64, _14);
-        RuntimeFn::ArraySet(_13, const 7_i64, _3);
-        _15 = box<Bool>(_4);
-        RuntimeFn::ArraySet(_13, const 8_i64, _15);
-        RuntimeFn::ArraySet(_13, const 9_i64, _5);
-        RuntimeFn::ArraySet(_13, const 10_i64, _6);
-        _16 = box<Bool>(_7);
-        RuntimeFn::ArraySet(_13, const 11_i64, _16);
-        RuntimeFn::ArraySet(_13, const 12_i64, _8);
-        _17 = box<Bool>(_9);
-        RuntimeFn::ArraySet(_13, const 13_i64, _17);
-        RuntimeFn::ArraySet(_13, const 14_i64, _10);
-        RuntimeFn::ArraySet(_13, const 15_i64, _11);
-        RuntimeFn::ArraySet(_13, const 16_i64, _12);
-        _18 = box<I64>(const 9_i64);
-        RuntimeFn::ArraySet(_13, const 0_i64, _18);
-        return _11;
+        _11 = box<I64>(const 2_i64);
+        _12 = dyn.Mul(_1, _11);
+        RuntimeFn::ArraySet(_14, const 4_i64, _0);
+        RuntimeFn::ArraySet(_14, const 5_i64, _1);
+        RuntimeFn::ArraySet(_14, const 6_i64, _2);
+        _15 = box<I64>(_3);
+        RuntimeFn::ArraySet(_14, const 7_i64, _15);
+        RuntimeFn::ArraySet(_14, const 8_i64, _4);
+        _16 = box<Bool>(_5);
+        RuntimeFn::ArraySet(_14, const 9_i64, _16);
+        RuntimeFn::ArraySet(_14, const 10_i64, _6);
+        RuntimeFn::ArraySet(_14, const 11_i64, _7);
+        _17 = box<Bool>(_8);
+        RuntimeFn::ArraySet(_14, const 12_i64, _17);
+        RuntimeFn::ArraySet(_14, const 13_i64, _9);
+        _18 = box<Bool>(_10);
+        RuntimeFn::ArraySet(_14, const 14_i64, _18);
+        RuntimeFn::ArraySet(_14, const 15_i64, _11);
+        RuntimeFn::ArraySet(_14, const 16_i64, _12);
+        RuntimeFn::ArraySet(_14, const 17_i64, _13);
+        _19 = box<I64>(const 9_i64);
+        RuntimeFn::ArraySet(_14, const 0_i64, _19);
+        return _12;
     }
     bb7: {
         unreachable;
@@ -178,41 +189,42 @@ fn <genexpr>(_13: dyn) -> dyn {
         unreachable;
     }
     bb9: {
-        _20 = RuntimeFn::GeneratorInput(_13);
+        _21 = RuntimeFn::GeneratorInput(_14);
         goto -> bb1;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _19 = box<I64>(const -1_i64);
-        RuntimeFn::ArraySet(_13, const 0_i64, _19);
-        return _12;
+        _20 = box<I64>(const -1_i64);
+        RuntimeFn::ArraySet(_14, const 0_i64, _20);
+        return _13;
     }
     bb12: {
-        _27 = Eq(_26, const 9_i64);
-        branch _27 -> [then: bb9, else: bb0];
+        _28 = Eq(_27, const 9_i64);
+        branch _28 -> [then: bb9, else: bb0];
     }
     bb13: {
-        _0 = RuntimeFn::ArrayGet(_13, const 4_i64);
-        _1 = RuntimeFn::ArrayGet(_13, const 5_i64);
-        _21 = RuntimeFn::ArrayGet(_13, const 6_i64);
-        _2 = unbox<I64>(_21);
-        _3 = RuntimeFn::ArrayGet(_13, const 7_i64);
-        _22 = RuntimeFn::ArrayGet(_13, const 8_i64);
-        _4 = unbox<Bool>(_22);
-        _5 = RuntimeFn::ArrayGet(_13, const 9_i64);
-        _6 = RuntimeFn::ArrayGet(_13, const 10_i64);
-        _23 = RuntimeFn::ArrayGet(_13, const 11_i64);
-        _7 = unbox<Bool>(_23);
-        _8 = RuntimeFn::ArrayGet(_13, const 12_i64);
-        _24 = RuntimeFn::ArrayGet(_13, const 13_i64);
-        _9 = unbox<Bool>(_24);
-        _10 = RuntimeFn::ArrayGet(_13, const 14_i64);
-        _11 = RuntimeFn::ArrayGet(_13, const 15_i64);
-        _12 = RuntimeFn::ArrayGet(_13, const 16_i64);
-        _25 = RuntimeFn::ArrayGet(_13, const 0_i64);
-        _26 = unbox<I64>(_25);
+        _0 = RuntimeFn::ArrayGet(_14, const 4_i64);
+        _1 = RuntimeFn::ArrayGet(_14, const 5_i64);
+        _2 = RuntimeFn::ArrayGet(_14, const 6_i64);
+        _22 = RuntimeFn::ArrayGet(_14, const 7_i64);
+        _3 = unbox<I64>(_22);
+        _4 = RuntimeFn::ArrayGet(_14, const 8_i64);
+        _23 = RuntimeFn::ArrayGet(_14, const 9_i64);
+        _5 = unbox<Bool>(_23);
+        _6 = RuntimeFn::ArrayGet(_14, const 10_i64);
+        _7 = RuntimeFn::ArrayGet(_14, const 11_i64);
+        _24 = RuntimeFn::ArrayGet(_14, const 12_i64);
+        _8 = unbox<Bool>(_24);
+        _9 = RuntimeFn::ArrayGet(_14, const 13_i64);
+        _25 = RuntimeFn::ArrayGet(_14, const 14_i64);
+        _10 = unbox<Bool>(_25);
+        _11 = RuntimeFn::ArrayGet(_14, const 15_i64);
+        _12 = RuntimeFn::ArrayGet(_14, const 16_i64);
+        _13 = RuntimeFn::ArrayGet(_14, const 17_i64);
+        _26 = RuntimeFn::ArrayGet(_14, const 0_i64);
+        _27 = unbox<I64>(_26);
         goto -> bb12;
     }
 }

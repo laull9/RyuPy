@@ -8,13 +8,19 @@ public static partial class PyOps
     /// <param name="key">下标或键。</param>
     public static object? GetItem(object? obj, object? key) => obj switch
     {
+        PyClass { IsTypingGenericRoot: true } => PyTypingGeneric.Subscribe(key),
+        PyClass { IsTypingGenericFamily: true } => throw PyTypingGeneric.Unsupported("user Generic class subscription is not supported yet"),
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.GetItem(cls, key),
+        PyClass cls when cls.IsTypingIoFamily => PyTypingIo.Subscribe(cls),
         PyType type when type.Name is "list" or "dict" or "tuple" or "set" or "frozenset" => PyTyping.SubscribeNative(type, key),
         PyNativeType type when PyAbc.IsAbc(type) => PyTyping.SubscribeNative(type, key),
         PyList list => list.GetItem(key!),
         PyTuple tuple => tuple.GetItem(key!),
         PyDict dict => dict.Get(key),
         string text => GetString(text, key),
+        PyListInstance list => PyListProtocols.Item(list, key),
+        PyDictInstance dict => PyDictProtocols.Item(dict, key),
+        PyStringInstance text => PyStringProtocols.Item(text, key),
         PyBytes bytes => key is PySlice slice ? bytes.GetSlice(slice) : bytes.GetItem(ToIndex(key, "bytes")),
         PyByteArray array => key is PySlice slice2
             ? array.GetSlice(slice2)

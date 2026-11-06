@@ -21,8 +21,8 @@ use crate::types::ClassTypeMap;
 
 /// 每个模块的对象属性读写入口。
 pub(crate) struct ModuleAccessors {
-    pub(crate) getters: Vec<MethodIndex>,
-    pub(crate) setters: Vec<MethodIndex>,
+    pub(crate) getters: Vec<Option<MethodIndex>>,
+    pub(crate) setters: Vec<Option<MethodIndex>>,
 }
 
 /// 生成 `__mod_get_<i>(string) -> object` 与 `__mod_set_<i>(PyModule, string, object)`。
@@ -43,6 +43,11 @@ pub(crate) fn emit_module_accessors(
     let mut setters = Vec::new();
 
     for (index, (_, module)) in program.modules.iter().enumerate() {
+        if module.execution == ryupy_mir::ModuleExecutionKind::InstanceGlobals {
+            getters.push(None);
+            setters.push(None);
+            continue;
+        }
         let getter = res.push_method(
             module_class,
             Method::new(
@@ -97,7 +102,7 @@ pub(crate) fn emit_module_accessors(
         let mut body = body::Method::new(ins);
         body.header.maximum_stack_size = 8;
         res[getter].body = Some(body);
-        getters.push(getter);
+        getters.push(Some(getter));
 
         let setter = res.push_method(
             module_class,
@@ -181,7 +186,7 @@ pub(crate) fn emit_module_accessors(
         let mut body = body::Method::new(ins);
         body.header.maximum_stack_size = 8;
         res[setter].body = Some(body);
-        setters.push(setter);
+        setters.push(Some(setter));
     }
 
     ModuleAccessors { getters, setters }
@@ -208,6 +213,15 @@ pub(crate) fn append_module_registration(
         instructions.pop();
     }
     for (index, (module_id, module)) in program.modules.iter().enumerate() {
+        if module.execution == ryupy_mir::ModuleExecutionKind::InstanceGlobals {
+            crate::instance_refs::append_registration(
+                instructions,
+                module,
+                fn_indices[&module.init],
+                refs.instances.as_ref().expect("instance module references"),
+            );
+            continue;
+        }
         let declared = binding_context.is_some_and(|(bindings, _)| {
             bindings.iter().any(|binding| binding.module == module_id)
         });
@@ -235,10 +249,20 @@ pub(crate) fn append_module_registration(
                 module.file_backed_by_global,
             )));
         }
+        // 所有真实定位模块显式传递resolver身份，非包也不得由路径反推。
+        if located {
+            instructions.push(Instruction::LoadConstantInt32(i32::from(module.is_package)));
+        }
         for (method, ctor) in [
             (fn_indices[&module.init], refs.module_init_ctor),
-            (accessors.getters[index], refs.module_get_ctor),
-            (accessors.setters[index], refs.module_set_ctor),
+            (
+                accessors.getters[index].expect("legacy getter"),
+                refs.module_get_ctor,
+            ),
+            (
+                accessors.setters[index].expect("legacy setter"),
+                refs.module_set_ctor,
+            ),
         ] {
             instructions.push(Instruction::LoadNull);
             instructions.push(Instruction::LoadMethodPointer(MethodSource::User(
@@ -252,7 +276,7 @@ pub(crate) fn append_module_registration(
                 .1
                 .register
         } else if located {
-            refs.module_register_located
+            refs.module_register_source_located
         } else {
             refs.module_register
         }));

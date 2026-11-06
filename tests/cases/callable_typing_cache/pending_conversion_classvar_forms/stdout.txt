@@ -1,0 +1,21 @@
+args-accepted typing.ClassVar[int] ()
+args-accepted typing.Generic[~T] ('~T',)
+args-accepted <class 'typing.Generic'> ()
+args-accepted typing.Union ()
+args-accepted typing.Optional ()
+args-accepted typing.Literal ()
+args-accepted () ()
+args-accepted 42 ()
+args-accepted True ()
+result-error typing.ClassVar[int] is not valid as type argument
+result-error typing.Generic[~T] is not valid as type argument
+result-error Plain <class 'typing.Generic'> is not valid as type argument
+result-error Plain typing.Union is not valid as type argument
+result-error Callable[args, result]: result must be a type. Got ().
+forward-ref result typing.Callable[[NoneType, ForwardRef('T')], NoneType]
+deferred-form typing.Callable[~P, int] ('~P',)
+deferred-form typing.Callable[typing.Concatenate[~T, ~P], str] ('~T', '~P')
+deferred-form typing.Callable[[typing.Unpack[Ts]], int] ('Ts',)
+deferred-form typing.Callable[..., int] ()
+deferred-form typing.Callable[..., int] ()
+conversion is not type-check: ok

@@ -1,0 +1,2 @@
+scope=boundary valid index protocol TypeError pop indices must be integers or slices, not Index [10, 20] []
+scope=boundary wide index must not wrap returned 10 [20] []

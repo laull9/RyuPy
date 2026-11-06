@@ -1,0 +1,1 @@
+four distinct 128 typed=False pools; true touch; failure no insert; bidirectional isolation; eviction fresh: ok

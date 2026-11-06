@@ -1,0 +1,7 @@
+range module shadow [7] [7]
+range module deleted [0, 1] [0, 1]
+range function rebound [12, 22] [13, 23]
+range global deleted [0, 1, 2] [0, 1, 2]
+range delete builtin NameError name 'range' is not defined
+range lambda rebound [32, 42] [33, 43]
+range aliases and builtin restored [0] [2, 3, 9]

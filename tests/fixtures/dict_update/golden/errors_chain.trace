@@ -1,0 +1,15 @@
+Traceback (most recent call last):
+File errors_chain.py, line 22, in <module>
+ValueError: dict-update-cause
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+File errors_chain.py, line 26, in <module>
+RuntimeError: dict-update-ambient
+During handling of the above exception, another exception occurred:
+Traceback (most recent call last):
+File errors_chain.py, line 32, in <module>
+File errors_chain.py, line 19, in outer
+File errors_chain.py, line 16, in middle
+File errors_chain.py, line 13, in inner
+File errors_chain.py, line 10, in pairs
+LookupError: dict-update-source

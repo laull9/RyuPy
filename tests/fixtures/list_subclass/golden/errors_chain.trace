@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+File errors_chain.py, line 61, in <module>
+ValueError: list-subclass-cause
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+File errors_chain.py, line 65, in <module>
+RuntimeError: list-subclass-ambient
+During handling of the above exception, another exception occurred:
+Traceback (most recent call last):
+File errors_chain.py, line 68, in <module>
+File errors_chain.py, line 58, in outer
+File errors_chain.py, line 56, in middle
+File errors_chain.py, line 54, in inner
+TypeError: 'str' object cannot be interpreted as an integer

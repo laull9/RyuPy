@@ -1,0 +1,3 @@
+cold-result-error typing.List[int] is not valid as type argument
+ordinary-cold-error typing.List[int] is not valid as type argument
+ClassVar rebind: warm list/tuple shared; scalar args cold allowed; equal result key hits; cold result rejected: ok

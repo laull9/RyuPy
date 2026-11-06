@@ -29,7 +29,7 @@ namespace RyuPy.Runtime;
 /// 退出码 1，与 CPython 相同。<c>SystemExit</c> 单独处理：<c>sys.exit(3)</c> 应当返回 3
 /// 而不是打印 traceback。
 /// </remarks>
-public static class PyTraceback
+public static partial class PyTraceback
 {
     private const string Header = "Traceback (most recent call last):";
     private const string CauseSeparator =
@@ -85,7 +85,10 @@ public static class PyTraceback
     /// <summary>压入一帧，返回该帧的深度（1 起）。</summary>
     /// <param name="file">该帧所属源文件；多模块程序用逐帧文件名。</param>
     /// <param name="function">函数名；模块顶层传 <c>&lt;module&gt;</c>。</param>
-    public static long PushFrame(string file, string function)
+    public static long PushFrame(string file, string function) => PushFrameCore(file, function, null);
+
+    // 原入口也写null，确保未知/纯静态帧不会借用上一层或旧深度的函数来源。
+    private static long PushFrameCore(string file, string function, object? origin)
     {
         CheckDepth();
         if (_depth == _functions.Length)
@@ -93,10 +96,12 @@ public static class PyTraceback
             Array.Resize(ref _functions, _depth * 2);
             Array.Resize(ref _files, _depth * 2);
             Array.Resize(ref _lines, _depth * 2);
+            Array.Resize(ref _origins, _depth * 2);
         }
         _functions[_depth] = function;
         _files[_depth] = file;
         _lines[_depth] = 0;
+        _origins[_depth] = origin;
         _depth++;
         return _depth;
     }
@@ -139,6 +144,7 @@ public static class PyTraceback
     {
         if (depth >= 1 && depth <= _depth)
         {
+            Array.Clear(_origins, (int)depth - 1, _depth - (int)depth + 1);
             _depth = (int)depth - 1;
         }
     }
@@ -227,7 +233,7 @@ public static class PyTraceback
         catch (PyBaseException)
         {
             // 报告异常时不能被用户 __str__ 再次打断；普通 str(exc) 仍传播原错误。
-            rendered = exception.PyTypeName + ": <exception str() failed>";
+            rendered = PyNativeExceptionDisplay.Name(exception) + ": <exception str() failed>";
         }
         builder.Append(rendered).Append('\n');
     }
@@ -319,5 +325,9 @@ public static class PyTraceback
     }
 
     /// <summary>清空帧栈；仅用于同一进程内反复执行多个模块的宿主场景（测试）。</summary>
-    public static void Reset() => _depth = 0;
+    public static void Reset()
+    {
+        Array.Clear(_origins, 0, _depth);
+        _depth = 0;
+    }
 }

@@ -1,0 +1,4 @@
+yield-first
+yield-invalid {'old': 0, 'first': 1}
+caught dictionary update sequence element #1 has length 1; 2 is required
+after {'old': 0, 'first': 1}

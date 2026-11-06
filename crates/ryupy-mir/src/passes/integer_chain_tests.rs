@@ -28,9 +28,12 @@ fn sample(steps: usize) -> (Function, LocalId) {
         terminator: Terminator::Unreachable,
     });
     let mut f = Function {
+        module_state: None,
+        module_state_source: None,
         name: "integer_chain".into(),
         codegen_name: "integer_chain".into(),
         source_file: "chain.py".into(),
+        definition: None,
         params: Vec::new(),
         ret: MirType::Dynamic,
         body: Body {
@@ -45,6 +48,7 @@ fn sample(steps: usize) -> (Function, LocalId) {
         defaults_global: None,
         signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
         env: None,
+        dynamic_origin: None,
     };
     let inputs: Vec<_> = (0..=steps)
         .map(|_| local(&mut f, MirType::Dynamic))
@@ -80,6 +84,7 @@ fn validate(f: Function) {
     let entry = functions.alloc(f);
     let mut globals = Arena::default();
     globals.alloc(GlobalDecl {
+        storage: crate::GlobalStorage::LegacyStatic,
         name: "signature".into(),
         ty: MirType::Dynamic,
     });

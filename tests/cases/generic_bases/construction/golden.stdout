@@ -1,0 +1,2 @@
+construction [('new', 'Box', 7), ('init', 'Box', 7), ('new', 'Child', 8), ('init', 'Child', 8)]
+identity-fields-methods True

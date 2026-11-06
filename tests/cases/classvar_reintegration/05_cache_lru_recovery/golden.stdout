@@ -1,0 +1,16 @@
+ordinary capacity-128-real-touch
+ordinary failed-140-distinct-do-not-evict-recovery
+ordinary evicted-warm-becomes-cold
+tuple capacity-128-real-touch
+tuple failed-140-distinct-do-not-evict-recovery
+tuple evicted-warm-becomes-cold
+callable capacity-128-real-touch
+callable failed-140-distinct-do-not-evict-recovery
+callable evicted-warm-becomes-cold
+special capacity-128-real-touch
+special failed-140-distinct-do-not-evict-recovery
+special evicted-warm-becomes-cold
+ordinary isolated
+tuple isolated
+callable isolated
+special isolated

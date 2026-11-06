@@ -1,0 +1,16 @@
+True 2
+[]
+True
+TypeError unhashable type: 'list'
+TypeError unhashable type: 'list'
+None 2
+[]
+None
+2 True True
+['other', 'original']
+True
+None
+True
+True
+True True
+None

@@ -1,0 +1,1 @@
+callable pool bidirectional isolation: ok

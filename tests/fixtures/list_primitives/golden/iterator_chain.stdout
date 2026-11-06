@@ -1,0 +1,5 @@
+list-primitives.iterator-append-and-exhaust [10, 20, 31, 40, 50]
+list-primitives.iterator-live-delete [7, 8, 9, 10]
+list-primitives.iterator-initially-empty [1, 2] [3]
+list-primitives.chain
+list-primitives.chain-prefix [10, 20]

@@ -72,11 +72,19 @@ public static class PyTypedDict
         foreach ((object? key, object? value) in fields.Entries())
         {
             if (key is not string field) throw new PyTypeError("TypedDict field names must be strings");
+            PyTypingGeneric.GuardExport(PyTyping.CreateAttributes());
+            // 字段表达式已全部求值；先读取当前禁止集合，再按真实顶层 alias 分类。
+            // native alias 不比较其 origin，也不递归拒绝它内部保存的 ClassVar。
+            object? classVar = PyTypingClassVar.ReadExport();
+            PyTypingGeneric.ValidateTypeArgument(value);
+            PyTypingClassVar.ValidateAlias(value, classVar);
+            if (value is PyTypingForm { Name: "ClassVar" })
+                throw PyTypingClassVar.Error(new PyTypeError("Plain typing.ClassVar is not valid as type argument"));
             // 不伪造ForwardRef，也不将尚未实现的Required/NotRequired误按total分类。
             if (value is string || value is PyTypingAlias { Name: "Required" or "NotRequired" }
                 || value is PyTypingForm { Name: "Required" or "NotRequired" })
                 throw new PyNotImplementedError("TypedDict forward references and field qualifiers are not supported yet");
-            if (value is not (null or PyNone or PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType))
+            if (value is not (null or PyNone or PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType or PyTypingTypeVar))
                 throw new PyNotImplementedError("TypedDict currently supports concrete type annotations");
             annotations.Set(field, value is null or PyNone ? PyType.Get("NoneType") : value);
             required.Remove(field);

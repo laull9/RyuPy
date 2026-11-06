@@ -1,0 +1,7 @@
+alpha gamma
+2 2 True
+['Index.find', 'Index.find']
+None None
+True
+__main__ Index.find
+None []

@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
+assertion_line: 145
 expression: mir
 ---
 fn fib_rec(_0: i64) -> i64 {
@@ -111,60 +112,85 @@ fn fib_iter(_0: i64) -> i64 {
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
     let _8: dyn;
-    let _9: i64;
+    let _9: dyn;
     let _10: dyn;
-    let _11: i64;
+    let _11: dyn;
     let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: i64;
+    let _21: dyn;
+    let _22: i64;
+    let _23: dyn;
 
     bb0: {
-        g3 = const false;
-        g4 = const false;
-        g5 = const false;
-        _0 = RuntimeFn::TracePush(const "m1_3_fib.py", const "<module>");
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "m1_3_fib.py", const "<module>", _1);
         // line 1
-        g0 = const "__main__";
-        g3 = const true;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        g1 = const "";
-        g4 = const true;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        g2 = const "m1_3_fib.py";
-        g5 = const true;
+        _5 = box<Str>(const "m1_3_fib.py");
+        g2 = _5;
         // line 2
-        _1 = RuntimeFn::TypeObject(const "int");
-        _2 = _1;
-        _3 = RuntimeFn::TypeObject(const "int");
-        _4 = _3;
-        RuntimeFn::FunctionMetadata(global@6, null, [const "n", const "return"], [_2, _4]);
+        _6 = RuntimeFn::TypeObject(const "int");
+        _7 = _6;
+        _8 = RuntimeFn::TypeObject(const "int");
+        _9 = _8;
+        _10 = global@0;
+        _11 = MakeFunction(fib_rec; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_11, _10);
+        RuntimeFn::FunctionMetadata(_11, null, [const "n", const "return"], [_7, _9]);
+        _12 = RuntimeFn::FunctionDefaults(_11);
+        g4 = _12;
+        g3 = _11;
         // line 8
-        _5 = RuntimeFn::TypeObject(const "int");
-        _6 = _5;
-        _7 = RuntimeFn::TypeObject(const "int");
-        _8 = _7;
-        RuntimeFn::FunctionMetadata(global@9, null, [const "n", const "return"], [_6, _8]);
+        _13 = RuntimeFn::TypeObject(const "int");
+        _14 = _13;
+        _15 = RuntimeFn::TypeObject(const "int");
+        _16 = _15;
+        _17 = global@0;
+        _18 = MakeFunction(fib_iter; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_18, _17);
+        RuntimeFn::FunctionMetadata(_18, null, [const "n", const "return"], [_14, _16]);
+        _19 = RuntimeFn::FunctionDefaults(_18);
+        g7 = _19;
+        g6 = _18;
         // line 18
-        _9 = fib_rec(const 25_i64);
-        _10 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteI64(_10, _9);
-        RuntimeFn::WriteNewline(_10);
+        _20 = fib_rec(const 25_i64);
+        _21 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_21, _20);
+        RuntimeFn::WriteNewline(_21);
         // line 19
-        _11 = fib_iter(const 90_i64);
-        _12 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteI64(_12, _11);
-        RuntimeFn::WriteNewline(_12);
+        _22 = fib_iter(const 90_i64);
+        _23 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_23, _22);
+        RuntimeFn::WriteNewline(_23);
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

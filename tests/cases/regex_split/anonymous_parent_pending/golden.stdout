@@ -1,0 +1,4 @@
+snapshot-slice [b'a', b',', None, b'b', b',', None, b'c'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-slice b'Z,b,c!?'
+snapshot-char [b'a', b',', None, b'b', b',', None, b'c!'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-char b'Z,b,c!?'

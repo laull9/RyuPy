@@ -1,0 +1,6 @@
+list-primitives.contiguous-delete [0, 8, 9] True
+list-primitives.negative-step-delete [] True
+list-primitives.empty-window ['a', 'b', 'c', 'd', 'x', 'y', 'q', 'e', 'z'] True
+list-primitives.slice-self-and-size [1, 10, 1, 20, 3, 30] True
+list-primitives.index-missing ValueError 99 is not in list [10, 20, 10]
+list-primitives.index-empty ValueError 'gone' is not in list

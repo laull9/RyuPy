@@ -80,10 +80,7 @@ fn build_resolution_core(
     res.assembly = Some(Assembly::new(opts.assembly_name.clone()));
 
     let (mut runtime_refs, extras) = build_runtime_refs(&mut res);
-    // 纯标量程序不引入向量程序集/泛型引用，避免无关冷模块和快照扩大。
-    if crate::vector_refs::is_required(program) {
-        runtime_refs.vectors = Some(crate::vector_refs::VectorRefs::build(&mut res));
-    }
+    crate::program_refs::initialize(&mut res, program, extras.ryupy_runtime, &mut runtime_refs);
     let RefExtras {
         object_ref,
         object_ctor_ref,
@@ -425,21 +422,15 @@ fn build_resolution_core(
         thunk_index += 1;
     }
 
-    // 模块初始化：构造函数对象、默认值数组与签名。
-    let init_functions = crate::callables::emit_init_functions(
+    // 模块初始化只预建签名；Python函数身份在真实定义执行点构造。
+    let init_functions = crate::owned_function_refs::initialize(
         &mut res,
         module_class,
         program,
-        &runtime_refs,
+        &mut runtime_refs,
         &thunks,
+        init_literals,
     );
-    // 字面量池必须先初始化，模块代码与函数默认值才可能读取它。
-    if let Some(body) = res[init_functions].body.as_mut() {
-        body.instructions
-            .insert(0, Instruction::call(init_literals));
-        body.header.maximum_stack_size = body.header.maximum_stack_size.max(8);
-    }
-
     // 模块对象的属性读写入口 + 注册表。注册追加到 `__init_functions` 末尾，
     // 此时函数对象与类工厂都已就绪。
     let accessors = crate::modules::emit_module_accessors(

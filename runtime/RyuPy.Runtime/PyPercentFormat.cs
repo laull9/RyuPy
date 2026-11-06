@@ -135,7 +135,7 @@ public static class PyPercentFormat
     {
         // 字符串和tuple不作为mapping参数；空tuple仍通过实际零参数计数自然成功。
         // 已知原生布局逐项登记，绝不通过调用用户getitem或遍历对象来探测。
-        if (value is PyDict or IPyNativeMapping or PyList or PyBytes or PyByteArray or PyRange or PyMemoryView) return true;
+        if (value is PyDict or PyDictInstance or IPyNativeMapping or PyList or PyBytes or PyByteArray or PyRange or PyMemoryView) return true;
         if (value is PyInstance instance) return instance.Class.TryLookup("__getitem__", out _, out _);
         if (value is PyBaseException exception && exception.PythonClass is not null)
             return exception.PythonClass.TryLookup("__getitem__", out _, out _);

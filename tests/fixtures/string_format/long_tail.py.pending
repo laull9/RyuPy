@@ -1,0 +1,22 @@
+# ryupy: pending
+# 不被四应用driver引用，不执行。保正CP期望，不能把NI改成语言答案。
+# SF三转换已经唯一178参考E-return2确认；当前str子类特殊槽守卫未开放。
+events = []
+class SF(str):
+    def __format__(self, spec):
+        events.append(('SF-format', spec))
+        return 'SF<' + spec + '>'
+class Returns:
+    def __str__(self):
+        return SF('ascii')
+    def __repr__(self):
+        return SF('ascii')
+for text in ('{0!s}', '{0!r}', '{0!a}'):
+    assert text.format(Returns()) == 'SF<>'
+assert events == [('SF-format', ''), ('SF-format', ''), ('SF-format', '')]
+# 以下属既有值规格边界，不是本次178新增实测，不计模板支持域。
+assert '{0:.2f}'.format(1.25) == '1.25'
+assert '{0:,d}'.format(1234) == '1,234'
+# format_map/string.Formatter、任意descriptor/未知native默认协议、
+# 显式object/str.__format__、nested-caught EH和具体已证共享CALL失败另行验收。
+# 正常*tuple/*list/**dict已在binding_identity.py，不能被此pending笼统排除。

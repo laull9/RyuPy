@@ -1,0 +1,52 @@
+# 合法CP正期待单独pending：不计四应用、不运行、不得改成CP应抛NotImplementedError。
+import warnings
+
+
+class BoolIndex:
+    def __index__(self):
+        return True
+
+
+class IntChild(int):
+    pass
+
+
+class ChildIndex:
+    def __index__(self):
+        return IntChild(1)
+
+
+for index in (BoolIndex(), ChildIndex()):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        assert 'abc'.startswith('b', index) is True
+    assert len(caught) == 1
+    assert caught[0].category is DeprecationWarning
+
+
+class TupleChild(tuple):
+    def __iter__(self):
+        raise AssertionError('应按tuple原存储读取')
+
+    def __getitem__(self, key):
+        raise AssertionError('应按tuple原存储读取')
+
+
+assert 'abc'.startswith(TupleChild(('a', object())))
+events = []
+
+
+class Descriptor:
+    def __get__(self, instance, owner):
+        events.append('get')
+        return lambda: 1
+
+
+class DescriptorIndex:
+    __index__ = Descriptor()
+
+
+assert 'abc'.startswith('b', DescriptorIndex())
+assert events == ['get']
+# 这里只是独立相邻代理码点D009；正常emoji对孤代理候选False已列入活跃应用。
+assert '\ud83d\ude00'.startswith('\ude00', 1, 2)

@@ -7,14 +7,35 @@ pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String
     let anchors: rustc_hash::FxHashSet<_> = program
         .functions
         .iter()
-        .filter_map(|(_, f)| f.specialization_identity_global)
+        .flat_map(|(_, f)| {
+            [
+                f.specialization_identity_global,
+                f.dynamic_origin.and_then(|o| o.source_global),
+            ]
+        })
+        .flatten()
         .collect();
     for (_, module) in program.modules.iter() {
+        let instance = module.execution == crate::ModuleExecutionKind::InstanceGlobals;
+        let state = program
+            .functions
+            .iter()
+            .find(|(id, _)| *id == module.init)
+            .and_then(|(_, function)| function.module_state);
+        if instance != state.is_some() || (instance && !module.exports.is_empty()) {
+            errors.push(format!(
+                "模块 `{}` 的实例执行能力、state与静态导出不一致",
+                module.name
+            ));
+        }
         for export in &module.exports {
             if anchors.contains(&export.value)
                 || matches!(export.guard, crate::ExportGuard::BoundFlag(g) if anchors.contains(&g))
             {
-                errors.push(format!("模块 `{}` 不能导出只读特化身份锚点", module.name));
+                errors.push(format!(
+                    "模块 `{}` 不能导出私有函数身份/来源槽",
+                    module.name
+                ));
             }
             let value = program.globals.iter().find(|(id, _)| *id == export.value);
             let Some((_, value)) = value else {
@@ -24,6 +45,9 @@ pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String
                 ));
                 continue;
             };
+            if !matches!(value.storage, crate::GlobalStorage::LegacyStatic) {
+                errors.push(format!("模块 `{}` 不得静态导出实例字典名称", module.name));
+            }
             match export.guard {
                 ExportGuard::None => {}
                 ExportGuard::ValueSentinel if value.ty != MirType::Dynamic => {

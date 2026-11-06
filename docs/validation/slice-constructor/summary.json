@@ -1,0 +1,106 @@
+{
+  "base_head": "6db679ca3a81117c6ae08917988804d4b149f762",
+  "date": "2026-11-05",
+  "platform": "Linux x86_64",
+  "runtime_focused": {
+    "initial": {
+      "passed": 14,
+      "failed": 0
+    },
+    "expanded": {
+      "passed": 16,
+      "failed": 2
+    },
+    "guarded": {
+      "passed": 21,
+      "failed": 0
+    },
+    "base_guard_retry": {
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "applications": {
+    "stale_runtime_attempt": {
+      "passed": 1,
+      "failed": 2,
+      "valid_candidate_evidence": false
+    },
+    "first_current_release": {
+      "passed": 2,
+      "failed": 1
+    },
+    "construct_retry": {
+      "passed": 1,
+      "failed": 0
+    },
+    "unique_passed": 3,
+    "structure_passed": 1,
+    "failures_preserved": [
+      "旧Release误跑",
+      "delattr名称未实现，原源pending，仅迁显式del属性",
+      "PyRuntimeBases.Validate前置守卫，生产修复后定向重验"
+    ]
+  },
+  "make_check": {
+    "exit": 0,
+    "csharp_passed": 1792,
+    "cpython_baseline_passed": 228,
+    "e2e_passed": 202,
+    "e2e_ignored": 30,
+    "log_sha256": "ddf3714906126f0968454472fc871d704e3c7d87ae34b44bf6090a9266d9d113"
+  },
+  "production_and_tests_sha256": {
+    "crates/ryupy-driver/tests/slice_constructor.rs": "8e7869d89ceea7e2fdc1a3081d17ae819dc1c56e6e6feedf6a34a33470ca9fa9",
+    "crates/ryupy-driver/tests/slice_constructor_structure.rs": "3d89283c7031d77f4fabc417cc0e5016b0c6dfd9e6f2c93623afd1e82f510460",
+    "crates/ryupy-driver/tests/slice_constructor_support/mod.rs": "5fbbe586640cddd9e75c5a8052e4645eba811af3ac674fed7c7b012ecc95509d",
+    "crates/ryupy-driver/tests/slice_constructor_support/trace.rs": "14f727b5ca7def8fe489011a9f3784b23ee40c005e944645d1012cd10f9edba7",
+    "crates/ryupy-hir/src/runtime_bases.rs": "ecf41c3b741ded19463c14d4e122d5b305136c8cdb0b8743114deaa59a60173a",
+    "crates/ryupy-hir/src/scope.rs": "0478a397f31f7ecb613d56c68826fc04ea558f957f2eb78b64fab17157547f45",
+    "crates/ryupy-mir/src/expr_builder.rs": "b43548892a65b9c1efdf11db001c5467032cd703924ba6f2135fb520b39e1c21",
+    "docs/validation/slice-constructor/reference.py": "8ad011c9f65e1235c07a20d1966a299a9a37db0562ae0120deee7314cf2bb81c",
+    "runtime/RyuPy.Runtime.Tests/PySlicePublicTests.cs": "11e09c0ef31ec8d02f26ae14c412aed2595b69b5b68f8c91b9d65bf10e725d45",
+    "runtime/RyuPy.Runtime/PyBuiltinFunction.cs": "3c1b1f06d207804d1c5cca4ca27ff84e05e2cead50b51dffe952fb86f83d5dfa",
+    "runtime/RyuPy.Runtime/PyBuiltinTypes.cs": "2a35d526227f0ca59edca7b1925bc9044eca97bce186db26674b10cc528a5c43",
+    "runtime/RyuPy.Runtime/PyBuiltins.cs": "ac7d84bbd0eca7688c47f37727784e6eb41305d7e5f7434e5fc92be40dee7381",
+    "runtime/RyuPy.Runtime/PyCallOps.cs": "642fff3dbcf2d859b55d0edbd952af565a4205bf6be11f3c6b00808c8d7198c9",
+    "runtime/RyuPy.Runtime/PyClasses.cs": "f8f97c31a79172ad5e29bf6da576ce8dd5f3c763bb5d749eb47eb1c2fc781634",
+    "runtime/RyuPy.Runtime/PyCollectionMethodCall.cs": "07dc4e38d0ed0a3572595ad9b1eca87cd3f73273309a5ea5471b4d2a10af4f2b",
+    "runtime/RyuPy.Runtime/PyContainers.cs": "c2c385d7b40da11ef0c929a971202fcec041872ae61c8e430798b27f0791da25",
+    "runtime/RyuPy.Runtime/PyHash.cs": "4ac415838a2d8bfeda1aef011762f44db344433cb9de6c65cdece8704dbf0050",
+    "runtime/RyuPy.Runtime/PyObject.cs": "ec17baac2af7bf69d37aba04fb793e6c99ace759189842968fbd6ae9b24719a8",
+    "runtime/RyuPy.Runtime/PyObjectExceptions.cs": "b529fb0c5f887e58d5cb8e93dd094a235316fe00cf82627f4ec11af5cf1dabe4",
+    "runtime/RyuPy.Runtime/PyOps.cs": "9e34578b3ec316ae021ca6debaf120a775b4ae3be7ce0b64433f887116a04505",
+    "runtime/RyuPy.Runtime/PyPreparedMethods.cs": "e8a17227d9efe26753c3bb2fdef784e1140cdd71ddcbf2edd19697411289db1d",
+    "runtime/RyuPy.Runtime/PyRuntimeBases.cs": "71c62a35f48a6177f3438e050336d74e40a9dc6428d36a17bdb390668ab4ab0c",
+    "runtime/RyuPy.Runtime/PySliceMembers.cs": "2446ba5174f2a93df6c9b91cd89699ef2830c2afc786ff04c4ad0cac279a19cb",
+    "runtime/RyuPy.Runtime/PySliceProtocols.cs": "b66288fb9f1f476bc653f72e2b8f0bfe9de4d897df7236313ece426f6765f25f",
+    "runtime/RyuPy.Runtime/PySlicePublic.cs": "3ba764261cf12b518bed3239460778b5d8f837ab4fdc8921941e6701e07c619b",
+    "tests/fixtures/slice_constructor/compare_callbacks.py": "52598d2632587e9e795b4d57ceab9400a204c60c5333c9d16f6d338a20abcf8e",
+    "tests/fixtures/slice_constructor/construct_indices.py": "b4562d067856e19492d703ee2db357dac220ad9d9dae5f7011ccf5bfe459c983",
+    "tests/fixtures/slice_constructor/pending/construct_indices_delattr.py.pending": "758b02ccb591159016d3b789a206002a2e1fc58eb1be81bf857e1394607b88ae",
+    "tests/fixtures/slice_constructor/pending/rich_comparison_descriptor.py.pending": "ca85e9197f059f81c06169e6251a635c069ce4dd4819ed873b56efa921fb16de"
+  },
+  "validation_logs_sha256": {
+    "check.log": "ddf3714906126f0968454472fc871d704e3c7d87ae34b44bf6090a9266d9d113",
+    "csharp-base-alias.log": "f74a1a9a4c7ae956bf2cd0904145e71eb5a02eeeef60372c49b829015fd66c6b",
+    "csharp-public-expanded.log": "9b5945a4890322bd58ea82f6c4c2f236bacae84f5ec9ee901bb09af9a9648cc8",
+    "csharp-public-first.log": "f02bd14d253f1d6c0555580bc76fbc2df24188225d3bba0c67be3dd9651d3e15",
+    "csharp-public-guarded.log": "50e552513c129928fc600a99afafa1b7f308e1cd3a6ffed90cf5e8df69c1a7aa",
+    "driver-construct-alias.log": "bb1be8d1e1ea0d8812534e77439e9b8db18904ad6e86244ba6a030cf62f3926a",
+    "driver-public-current.log": "2d214ca704b05fb8193500c1542c5221368d881b8e918ba9507eec0ad3add4de",
+    "driver-public-first.log": "09870bf4a90c3c9f7ff95b9685ce3c70659d47346efae7f9702785dfcd50d9d9",
+    "driver-structure-first.log": "c9cc6c49db4eccc856fba8b3b8b06ba1420814e8aef90252b75adb0d599441ce",
+    "release-runtime-alias.log": "5eeb8e3604cbb4729549d9d0c4edcfba869fc5358e20be5d080ac2752c722033",
+    "release-runtime-current.log": "e9452dbe89c45fce3d5ec08688014e8f5132e9b684c22c5c217f4cf947e806f2",
+    "runtime-build.log": "b895b440a8d6b1be83e192bc37d58ef4143641bb99a677dbbaead458c552c68f"
+  },
+  "scope_exclusions": [
+    "完整slice比较/descriptor/reflection",
+    "其它容器内部切片债务",
+    "固定项目矩阵/chardet重跑",
+    "NativeAOT",
+    "性能/吞吐基准",
+    "远端推送"
+  ]
+}

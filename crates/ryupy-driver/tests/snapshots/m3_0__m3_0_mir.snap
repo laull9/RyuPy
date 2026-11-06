@@ -3,50 +3,57 @@ source: crates/ryupy-driver/tests/m3_0.rs
 assertion_line: 19
 expression: output
 ---
-fn counter() -> dyn {
+fn counter(_3: dyn) -> dyn {
     let _0: dyn; // value
     let _1: dyn; // add
     let _2: dyn; // read
-    let _3: i64;
-    let _4: dyn;
+    let _3: dyn; // __function_owner
+    let _4: i64;
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
     let _8: dyn;
+    let _9: dyn;
+    let _10: dyn;
+    let _11: dyn;
 
     bb0: {
         _0 = RuntimeFn::CellNew();
-        _3 = RuntimeFn::TracePush(const "m3_0_closures.py", const "counter");
+        _4 = RuntimeFn::TracePushWithOrigin(const "m3_0_closures.py", const "counter", _3);
         // line 3
-        _4 = box<I64>(const 0_i64);
-        RuntimeFn::CellSet(_0, _4);
+        _5 = box<I64>(const 0_i64);
+        RuntimeFn::CellSet(_0, _5);
         // line 5
-        _5 = MakeFunction(add; env=[_0]; defaults=[null]);
-        _1 = _5;
+        _6 = global@0;
+        _7 = MakeFunction(add; env=[_0]; defaults=[null]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _1 = _7;
         // line 10
-        _6 = MakeFunction(read; env=[_0]; defaults=[]);
-        _2 = _6;
+        _8 = global@0;
+        _9 = MakeFunction(read; env=[_0]; defaults=[]);
+        RuntimeFn::FunctionModule(_9, _8);
+        _2 = _9;
         // line 13
-        _8 = MakeTuple([_1, _2]);
-        _7 = _8;
+        _11 = MakeTuple([_1, _2]);
+        _10 = _11;
         goto -> bb2;
     }
     bb1: {
         unreachable;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_3);
-        return _7;
+        RuntimeFn::TracePopTo(_4);
+        return _10;
     }
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
-    let _5: i64;
+    let _5: dyn;
     let _6: dyn;
     let _7: dyn;
     let _8: dyn;
@@ -66,24 +73,24 @@ fn main() -> () {
     let _22: dyn;
     let _23: dyn;
     let _24: dyn;
-    let _25: i64;
-    let _26: i64;
-    let _27: i64;
-    let _28: i64;
-    let _29: i64;
-    let _30: bool;
-    let _31: bool;
-    let _32: bool;
-    let _33: bool;
-    let _34: bool;
-    let _35: bool;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: i64;
+    let _32: i64;
+    let _33: i64;
+    let _34: i64;
+    let _35: i64;
     let _36: bool;
-    let _37: dyn;
-    let _38: dyn;
-    let _39: dyn;
+    let _37: bool;
+    let _38: bool;
+    let _39: bool;
     let _40: bool;
-    let _41: dyn;
-    let _42: dyn;
+    let _41: bool;
+    let _42: bool;
     let _43: dyn;
     let _44: dyn;
     let _45: dyn;
@@ -94,7 +101,7 @@ fn main() -> () {
     let _50: dyn;
     let _51: dyn;
     let _52: dyn;
-    let _53: dyn;
+    let _53: bool;
     let _54: dyn;
     let _55: dyn;
     let _56: dyn;
@@ -118,6 +125,15 @@ fn main() -> () {
     let _74: dyn;
     let _75: dyn;
     let _76: dyn;
+    let _77: dyn;
+    let _78: dyn;
+    let _79: dyn;
+    let _80: dyn;
+    let _81: dyn;
+    let _82: dyn;
+    let _83: dyn;
+    let _84: dyn;
+    let _85: dyn;
 
     bb0: {
         g0 = null;
@@ -128,95 +144,109 @@ fn main() -> () {
         g5 = null;
         g6 = null;
         g7 = null;
-        _0 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_0_closures.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g0 = _1;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g1 = _2;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        _3 = box<Str>(const "m3_0_closures.py");
-        g2 = _3;
+        _5 = box<Str>(const "m3_0_closures.py");
+        g2 = _5;
         // line 2
+        _6 = global@0;
+        _7 = MakeFunction(counter; env=[]; defaults=[]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = RuntimeFn::FunctionDefaults(_7);
+        g9 = _8;
+        g11 = _7;
+        g8 = _7;
         // line 16
-        _4 = counter();
-        _5 = RuntimeFn::Len(_4);
-        RuntimeFn::UnpackCheck(_5, const 2_i64, const false);
-        _6 = box<I64>(const 0_i64);
-        _7 = RuntimeFn::GetItem(_4, _6);
-        _8 = box<I64>(const 1_i64);
-        _9 = RuntimeFn::GetItem(_4, _8);
-        g3 = _7;
-        g4 = _9;
+        _9 = RuntimeFn::LoadName(global@11, const "counter");
+        _10 = counter(_9);
+        _11 = RuntimeFn::UnpackSequence(_10, const 2_i64);
+        _12 = box<I64>(const 0_i64);
+        _13 = RuntimeFn::GetItem(_11, _12);
+        _14 = box<I64>(const 1_i64);
+        _15 = RuntimeFn::GetItem(_11, _14);
+        g3 = _13;
+        g4 = _15;
         // line 17
-        _10 = RuntimeFn::LoadName(global@3, const "add");
-        _11 = box<I64>(const 2_i64);
-        _12 = dyn.call(_10, [_11]);
-        _13 = RuntimeFn::LoadName(global@4, const "read");
-        _14 = dyn.call(_13, []);
-        _15 = RuntimeFn::LoadName(global@3, const "add");
-        _16 = box<I64>(const 3_i64);
-        _17 = dyn.call(_15, [_16]);
-        _18 = RuntimeFn::LoadName(global@4, const "read");
-        _19 = dyn.call(_18, []);
-        _20 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_20, _12);
-        RuntimeFn::WriteSep(_20);
-        RuntimeFn::WriteObject(_20, _14);
-        RuntimeFn::WriteSep(_20);
-        RuntimeFn::WriteObject(_20, _17);
-        RuntimeFn::WriteSep(_20);
-        RuntimeFn::WriteObject(_20, _19);
-        RuntimeFn::WriteNewline(_20);
+        _16 = RuntimeFn::LoadName(global@3, const "add");
+        _17 = box<I64>(const 2_i64);
+        _18 = dyn.call(_16, [_17]);
+        _19 = RuntimeFn::LoadName(global@4, const "read");
+        _20 = dyn.call(_19, []);
+        _21 = RuntimeFn::LoadName(global@3, const "add");
+        _22 = box<I64>(const 3_i64);
+        _23 = dyn.call(_21, [_22]);
+        _24 = RuntimeFn::LoadName(global@4, const "read");
+        _25 = dyn.call(_24, []);
+        _26 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_26, _18);
+        RuntimeFn::WriteSep(_26);
+        RuntimeFn::WriteObject(_26, _20);
+        RuntimeFn::WriteSep(_26);
+        RuntimeFn::WriteObject(_26, _23);
+        RuntimeFn::WriteSep(_26);
+        RuntimeFn::WriteObject(_26, _25);
+        RuntimeFn::WriteNewline(_26);
         // line 18
-        _21 = MakeList([]);
-        g5 = _21;
+        _27 = MakeList([]);
+        g5 = _27;
         // line 19
-        _22 = MakeList([]);
-        g6 = _22;
+        _28 = MakeList([]);
+        g6 = _28;
         // line 20
-        _23 = box<I64>(const 0_i64);
-        _24 = box<I64>(const 3_i64);
-        _25 = unbox<I64>(_23);
-        _26 = unbox<I64>(_24);
-        _27 = _25;
-        _28 = _26;
-        _29 = const 1_i64;
+        _29 = box<I64>(const 0_i64);
+        _30 = box<I64>(const 3_i64);
+        _31 = unbox<I64>(_29);
+        _32 = unbox<I64>(_30);
+        _33 = _31;
+        _34 = _32;
+        _35 = const 1_i64;
         goto -> bb1;
     }
     bb1: {
-        _30 = Gt(_29, const 0_i64);
-        _31 = Lt(_27, _28);
-        _32 = Gt(_27, _28);
-        _33 = BitAnd(_30, _31);
-        _34 = Not(_30);
-        _35 = BitAnd(_34, _32);
-        _36 = BitOr(_33, _35);
-        branch _36 -> [then: bb2, else: bb5];
+        _36 = Gt(_35, const 0_i64);
+        _37 = Lt(_33, _34);
+        _38 = Gt(_33, _34);
+        _39 = BitAnd(_36, _37);
+        _40 = Not(_36);
+        _41 = BitAnd(_40, _38);
+        _42 = BitOr(_39, _41);
+        branch _42 -> [then: bb2, else: bb5];
     }
     bb2: {
-        _37 = box<I64>(_27);
-        g7 = _37;
+        _43 = box<I64>(_33);
+        g7 = _43;
         // line 21
-        _38 = RuntimeFn::LoadName(global@5, const "late");
-        _39 = _38;
-        _40 = RuntimeFn::IsModule(_39);
-        _41 = RuntimeFn::CaptureModuleTarget(_39, const "append");
-        _42 = MakeFunction(<lambda>; env=[]; defaults=[]);
-        _43 = dyn.captured_method(_40, _41, "append", [_42]);
-        // line 22
-        _44 = RuntimeFn::LoadName(global@6, const "early");
+        _44 = RuntimeFn::LoadName(global@5, const "late");
         _45 = _44;
         _46 = RuntimeFn::IsModule(_45);
         _47 = RuntimeFn::CaptureModuleTarget(_45, const "append");
-        _48 = RuntimeFn::LoadName(global@7, const "index");
-        _49 = MakeFunction(<lambda>; env=[]; defaults=[_48]);
+        _48 = global@0;
+        _49 = MakeFunction(<lambda>; env=[]; defaults=[]);
+        RuntimeFn::FunctionModule(_49, _48);
         _50 = dyn.captured_method(_46, _47, "append", [_49]);
+        // line 22
+        _51 = RuntimeFn::LoadName(global@6, const "early");
+        _52 = _51;
+        _53 = RuntimeFn::IsModule(_52);
+        _54 = RuntimeFn::CaptureModuleTarget(_52, const "append");
+        _55 = RuntimeFn::LoadName(global@7, const "index");
+        _56 = _55;
+        _57 = global@0;
+        _58 = MakeFunction(<lambda>; env=[]; defaults=[_56]);
+        RuntimeFn::FunctionModule(_58, _57);
+        _59 = dyn.captured_method(_53, _54, "append", [_58]);
         goto -> bb3;
     }
     bb3: {
-        _27 = Add(_27, _29);
+        _33 = Add(_33, _35);
         goto -> bb1;
     }
     bb4: {
@@ -224,135 +254,63 @@ fn main() -> () {
     }
     bb5: {
         // line 23
-        _51 = RuntimeFn::LoadName(global@5, const "late");
-        _52 = box<I64>(const 0_i64);
-        _53 = RuntimeFn::GetItem(_51, _52);
-        _54 = dyn.call(_53, []);
-        _55 = RuntimeFn::LoadName(global@5, const "late");
-        _56 = box<I64>(const 1_i64);
-        _57 = RuntimeFn::GetItem(_55, _56);
-        _58 = dyn.call(_57, []);
-        _59 = RuntimeFn::LoadName(global@5, const "late");
-        _60 = box<I64>(const 2_i64);
-        _61 = RuntimeFn::GetItem(_59, _60);
-        _62 = dyn.call(_61, []);
-        _63 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_63, _54);
-        RuntimeFn::WriteSep(_63);
-        RuntimeFn::WriteObject(_63, _58);
-        RuntimeFn::WriteSep(_63);
-        RuntimeFn::WriteObject(_63, _62);
-        RuntimeFn::WriteNewline(_63);
-        // line 24
-        _64 = RuntimeFn::LoadName(global@6, const "early");
-        _65 = box<I64>(const 0_i64);
+        _60 = RuntimeFn::LoadName(global@5, const "late");
+        _61 = box<I64>(const 0_i64);
+        _62 = RuntimeFn::GetItem(_60, _61);
+        _63 = dyn.call(_62, []);
+        _64 = RuntimeFn::LoadName(global@5, const "late");
+        _65 = box<I64>(const 1_i64);
         _66 = RuntimeFn::GetItem(_64, _65);
         _67 = dyn.call(_66, []);
-        _68 = RuntimeFn::LoadName(global@6, const "early");
-        _69 = box<I64>(const 1_i64);
+        _68 = RuntimeFn::LoadName(global@5, const "late");
+        _69 = box<I64>(const 2_i64);
         _70 = RuntimeFn::GetItem(_68, _69);
         _71 = dyn.call(_70, []);
-        _72 = RuntimeFn::LoadName(global@6, const "early");
-        _73 = box<I64>(const 2_i64);
-        _74 = RuntimeFn::GetItem(_72, _73);
-        _75 = dyn.call(_74, []);
-        _76 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_76, _67);
-        RuntimeFn::WriteSep(_76);
-        RuntimeFn::WriteObject(_76, _71);
-        RuntimeFn::WriteSep(_76);
-        RuntimeFn::WriteObject(_76, _75);
-        RuntimeFn::WriteNewline(_76);
+        _72 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_72, _63);
+        RuntimeFn::WriteSep(_72);
+        RuntimeFn::WriteObject(_72, _67);
+        RuntimeFn::WriteSep(_72);
+        RuntimeFn::WriteObject(_72, _71);
+        RuntimeFn::WriteNewline(_72);
+        // line 24
+        _73 = RuntimeFn::LoadName(global@6, const "early");
+        _74 = box<I64>(const 0_i64);
+        _75 = RuntimeFn::GetItem(_73, _74);
+        _76 = dyn.call(_75, []);
+        _77 = RuntimeFn::LoadName(global@6, const "early");
+        _78 = box<I64>(const 1_i64);
+        _79 = RuntimeFn::GetItem(_77, _78);
+        _80 = dyn.call(_79, []);
+        _81 = RuntimeFn::LoadName(global@6, const "early");
+        _82 = box<I64>(const 2_i64);
+        _83 = RuntimeFn::GetItem(_81, _82);
+        _84 = dyn.call(_83, []);
+        _85 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_85, _76);
+        RuntimeFn::WriteSep(_85);
+        RuntimeFn::WriteObject(_85, _80);
+        RuntimeFn::WriteSep(_85);
+        RuntimeFn::WriteObject(_85, _84);
+        RuntimeFn::WriteNewline(_85);
         goto -> bb6;
     }
     bb6: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }
 
-fn <lambda>() -> dyn {
-    let _0: i64;
-    let _1: dyn;
-    let _2: dyn;
-
-    bb0: {
-        _0 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<lambda>");
-        // line 21
-        _2 = RuntimeFn::LoadName(global@7, const "index");
-        _1 = _2;
-        goto -> bb2;
-    }
-    bb1: {
-        unreachable;
-    }
-    bb2: {
-        RuntimeFn::TracePopTo(_0);
-        return _1;
-    }
-}
-
 fn <lambda>(_0: dyn) -> dyn {
-    let _0: dyn; // value
-    let _1: i64;
-    let _2: dyn;
-
-    bb0: {
-        _1 = RuntimeFn::TracePush(const "m3_0_closures.py", const "<lambda>");
-        // line 22
-        _2 = _0;
-        goto -> bb2;
-    }
-    bb1: {
-        unreachable;
-    }
-    bb2: {
-        RuntimeFn::TracePopTo(_1);
-        return _2;
-    }
-}
-
-fn add(_0: dyn, _1: dyn) -> dyn {
-    let _0: dyn; // amount
-    let _1: dyn; // __env
-    let _2: i64;
-    let _3: dyn;
-    let _4: dyn;
-    let _5: dyn;
-    let _6: dyn;
-    let _7: dyn;
-
-    bb0: {
-        _2 = RuntimeFn::TracePush(const "m3_0_closures.py", const "add");
-        // line 7
-        _3 = RuntimeFn::CellGetFree(_1, const 0_i64, const "value");
-        _4 = dyn.Add.inplace(_3, _0);
-        _5 = RuntimeFn::ArrayGet(_1, const 0_i64);
-        RuntimeFn::CellSet(_5, _4);
-        // line 8
-        _7 = RuntimeFn::CellGetFree(_1, const 0_i64, const "value");
-        _6 = _7;
-        goto -> bb2;
-    }
-    bb1: {
-        unreachable;
-    }
-    bb2: {
-        RuntimeFn::TracePopTo(_2);
-        return _6;
-    }
-}
-
-fn read(_0: dyn) -> dyn {
-    let _0: dyn; // __env
+    let _0: dyn; // __function_owner
     let _1: i64;
     let _2: dyn;
     let _3: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "m3_0_closures.py", const "read");
-        // line 11
-        _3 = RuntimeFn::CellGetFree(_0, const 0_i64, const "value");
+        _1 = RuntimeFn::TracePushWithOrigin(const "m3_0_closures.py", const "<lambda>", _0);
+        // line 21
+        _3 = RuntimeFn::LoadName(global@7, const "index");
         _2 = _3;
         goto -> bb2;
     }
@@ -362,5 +320,81 @@ fn read(_0: dyn) -> dyn {
     bb2: {
         RuntimeFn::TracePopTo(_1);
         return _2;
+    }
+}
+
+fn <lambda>(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // value
+    let _1: dyn; // __function_owner
+    let _2: i64;
+    let _3: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_0_closures.py", const "<lambda>", _1);
+        // line 22
+        _3 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
+fn add(_0: dyn, _1: dyn, _2: dyn) -> dyn {
+    let _0: dyn; // amount
+    let _1: dyn; // __env
+    let _2: dyn; // __function_owner
+    let _3: i64;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
+
+    bb0: {
+        _3 = RuntimeFn::TracePushWithOrigin(const "m3_0_closures.py", const "add", _2);
+        // line 7
+        _4 = RuntimeFn::CellGetFree(_1, const 0_i64, const "value");
+        _5 = dyn.Add.inplace(_4, _0);
+        _6 = RuntimeFn::ArrayGet(_1, const 0_i64);
+        RuntimeFn::CellSet(_6, _5);
+        // line 8
+        _8 = RuntimeFn::CellGetFree(_1, const 0_i64, const "value");
+        _7 = _8;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_3);
+        return _7;
+    }
+}
+
+fn read(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // __env
+    let _1: dyn; // __function_owner
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_0_closures.py", const "read", _1);
+        // line 11
+        _4 = RuntimeFn::CellGetFree(_0, const 0_i64, const "value");
+        _3 = _4;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
     }
 }

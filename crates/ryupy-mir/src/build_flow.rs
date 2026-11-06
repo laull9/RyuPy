@@ -44,15 +44,23 @@ impl FunctionBuilder<'_> {
         } else {
             func.name.as_str().to_string()
         };
+        let origin = self.frame_origin();
+        let mut args = vec![
+            Operand::Const(Constant::Str(self.hir.info.file.clone())),
+            Operand::Const(Constant::Str(fn_name)),
+        ];
+        let runtime = if let Some(origin) = origin {
+            args.push(origin);
+            RuntimeFn::TracePushWithOrigin
+        } else {
+            RuntimeFn::TracePush
+        };
         let depth = self.alloc_temp(MirType::I64);
         self.push_stmt(Statement::Assign {
             dest: depth,
             value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::TracePush),
-                args: vec![
-                    Operand::Const(Constant::Str(self.hir.info.file.clone())),
-                    Operand::Const(Constant::Str(fn_name)),
-                ],
+                callee: Callee::Runtime(runtime),
+                args,
             },
         });
         self.frame_depth = Some(depth);
@@ -210,35 +218,6 @@ impl FunctionBuilder<'_> {
         self.start_dead_block();
     }
 
-    /// 在定义位置求值一个函数的参数默认值，写进它的默认值数组。
-    ///
-    /// 默认值数组由 codegen 的 `__init_functions` 预先分配，这里只填元素，
-    /// 因此 `PyFunction` 持有的是同一份数组，多次调用共享可变默认值。
-    pub(crate) fn emit_function_defaults(&mut self, fn_id: ryupy_hir::FuncId) {
-        let Some(defaults_global) = self.fn_defaults.get(&fn_id).copied().flatten() else {
-            return;
-        };
-        let defaults: Vec<(usize, ExprId)> = self.hir.functions[fn_id]
-            .params
-            .iter()
-            .enumerate()
-            .filter_map(|(index, param)| param.default.map(|expr| (index, expr)))
-            .collect();
-        for (index, expr) in defaults {
-            let op = self.expr_builder().build_expr(expr);
-            let ty = self.expr_builder().ty_of(expr);
-            let value = self.expr_builder().coerce(op, &ty, &MirType::Dynamic);
-            self.push_stmt(Statement::Eval(Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::ArraySet),
-                args: vec![
-                    Operand::Global(defaults_global),
-                    Operand::Const(Constant::I64(index as i64)),
-                    value,
-                ],
-            }));
-        }
-    }
-
     /// 返回槽位；返回类型是 `None` 时不需要槽位。
     pub(crate) fn retval_local(&mut self) -> Option<MirLocalId> {
         if matches!(self.ret_ty, MirType::Unit) {
@@ -322,6 +301,18 @@ impl FunctionBuilder<'_> {
                 self.assign_local(local, value, from);
             }
             Binding::ModuleVar(var) => {
+                if let Some(state) = self.module_state {
+                    let value = self.coerce_mir(value, from, &MirType::Dynamic);
+                    self.push_stmt(Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::InstanceStoreName),
+                        args: vec![
+                            Operand::Local(state),
+                            Operand::Const(Constant::Str(self.hir.vars[var].name.to_string())),
+                            value,
+                        ],
+                    }));
+                    return;
+                }
                 let gid = self.module_vars[&var];
                 let to = self.globals[gid].ty.clone();
                 let value = self.coerce_mir(value, from, &to);

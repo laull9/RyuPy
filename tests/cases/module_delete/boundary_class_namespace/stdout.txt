@@ -1,0 +1,2 @@
+class deletion missing local NameError name 'token' is not defined
+class fallback and error phase ['before']

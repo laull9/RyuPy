@@ -1,0 +1,1 @@
+Callable subtype identity; ordinary reverse false: ok

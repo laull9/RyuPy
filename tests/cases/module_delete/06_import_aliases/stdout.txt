@@ -1,0 +1,3 @@
+deleted import binding NameError name 'imported' is not defined
+deleted import binding NameError name 'imported_work' is not defined
+import identity survives delete and reimport 10

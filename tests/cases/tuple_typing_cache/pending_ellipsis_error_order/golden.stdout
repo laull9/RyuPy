@@ -1,0 +1,2 @@
+Tuple[t0, t1, ...]: each t must be a type. Got (). [('Ellipsis', 'Tuple[t0, t1, ...]: each t must be a type.'), ('()', 'Tuple[t0, t1, ...]: each t must be a type.'), ('Ellipsis', 'Tuple[t0, t1, ...]: each t must be a type.'), ('()', 'Tuple[t0, t1, ...]: each t must be a type.')]
+Tuple[t, ...]: t must be a type. Got (). [('Ellipsis', 'Tuple[t, ...]: t must be a type.'), ('()', 'Tuple[t, ...]: t must be a type.'), ('Ellipsis', 'Tuple[t, ...]: t must be a type.'), ('()', 'Tuple[t, ...]: t must be a type.')]

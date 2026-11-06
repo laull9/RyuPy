@@ -1,0 +1,5 @@
+TypeError __code__ must be set to a code object
+7 15
+18 18
+decorated decorated <lambda>.<locals>.<lambda>
+changed short 5 [6]

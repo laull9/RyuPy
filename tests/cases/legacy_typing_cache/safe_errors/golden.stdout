@@ -1,0 +1,17 @@
+Too few arguments for typing.List; actual 0, expected 1
+Too few arguments for typing.List; actual 0, expected 1
+Too many arguments for typing.List; actual 2, expected 1
+Too many arguments for typing.List; actual 2, expected 1
+Too few arguments for typing.Dict; actual 1, expected 2
+Too few arguments for typing.Dict; actual 1, expected 2
+Too many arguments for typing.Dict; actual 3, expected 2
+Too many arguments for typing.Dict; actual 3, expected 2
+Parameters to generic types must be types. Got (<class 'int'>,).
+Parameters to generic types must be types. Got (<class 'int'>,).
+Plain typing.Union is not valid as type argument
+Plain typing.Union is not valid as type argument
+Plain <class 'typing.Generic'> is not valid as type argument
+Plain <class 'typing.Generic'> is not valid as type argument
+Plain <class 'typing.Generic'> is not valid as type argument
+Plain <class 'typing.Generic'> is not valid as type argument
+safe-errors-repeat True

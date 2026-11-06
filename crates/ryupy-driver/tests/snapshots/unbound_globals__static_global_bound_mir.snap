@@ -1,5 +1,6 @@
 ---
 source: crates/ryupy-driver/tests/unbound_globals.rs
+assertion_line: 16
 expression: output
 ---
 fn read_number() -> i64 {
@@ -10,7 +11,7 @@ fn read_number() -> i64 {
     bb0: {
         _0 = RuntimeFn::TracePush(const "m3_7_static_global_bound.py", const "read_number");
         // line 3
-        RuntimeFn::CheckGlobalBound(global@7, const "number");
+        RuntimeFn::CheckGlobalBound(global@4, const "number");
         _2 = global@3;
         _1 = _2;
         goto -> bb2;
@@ -25,104 +26,120 @@ fn read_number() -> i64 {
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
-    let _3: i64;
+    let _2: i64;
+    let _3: dyn;
     let _4: dyn;
-    let _5: i64;
+    let _5: dyn;
     let _6: dyn;
     let _7: dyn;
     let _8: dyn;
-    let _9: i64;
+    let _9: dyn;
     let _10: dyn;
     let _11: i64;
-    let _12: bool;
-    let _13: bool;
-    let _14: i64;
+    let _12: dyn;
+    let _13: i64;
+    let _14: dyn;
     let _15: dyn;
+    let _16: dyn;
+    let _17: i64;
+    let _18: dyn;
+    let _19: i64;
+    let _20: bool;
+    let _21: bool;
+    let _22: i64;
+    let _23: dyn;
 
     region r0: [4, +1) finally-guard handler->bb5
     region r1: [1, +1) catch NameError handler->bb3
 
     bb0: {
         g4 = const false;
-        g5 = const false;
-        g6 = const false;
-        g7 = const false;
-        _0 = RuntimeFn::TracePush(const "m3_7_static_global_bound.py", const "<module>");
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_7_static_global_bound.py", const "<module>", _1);
         // line 1
-        g0 = const "__main__";
-        g4 = const true;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        g1 = const "";
-        g5 = const true;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        g2 = const "m3_7_static_global_bound.py";
-        g6 = const true;
+        _5 = box<Str>(const "m3_7_static_global_bound.py");
+        g2 = _5;
         // line 2
-        _1 = RuntimeFn::TypeObject(const "int");
-        _2 = _1;
-        RuntimeFn::FunctionMetadata(global@8, null, [const "return"], [_2]);
+        _6 = RuntimeFn::TypeObject(const "int");
+        _7 = _6;
+        _8 = global@0;
+        _9 = MakeFunction(read_number; env=[]; defaults=[]);
+        RuntimeFn::FunctionModule(_9, _8);
+        RuntimeFn::FunctionMetadata(_9, null, [const "return"], [_7]);
+        _10 = RuntimeFn::FunctionDefaults(_9);
+        g6 = _10;
+        g5 = _9;
         // line 5
         goto -> bb1;
     }
     bb1: {
         // line 6
-        _3 = read_number();
+        _11 = read_number();
         goto -> bb14;
     }
     bb2: {
-        _5 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_5);
-        _6 = RuntimeFn::HandlerEnter(_4);
+        _13 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_13);
+        _14 = RuntimeFn::HandlerEnter(_12);
         goto -> bb4;
     }
     bb3: {
-        _4 = caught_exception;
+        _12 = caught_exception;
         goto -> bb2;
     }
     bb4: {
-        _8 = RuntimeFn::HandlerEnter(None);
+        _16 = RuntimeFn::HandlerEnter(None);
         // line 8
-        _10 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteStr(_10, const "静态整数未绑定");
-        RuntimeFn::WriteNewline(_10);
-        _9 = const 0_i64;
+        _18 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteStr(_18, const "静态整数未绑定");
+        RuntimeFn::WriteNewline(_18);
+        _17 = const 0_i64;
         goto -> bb7;
     }
     bb5: {
-        _7 = caught_exception;
+        _15 = caught_exception;
         goto -> bb6;
     }
     bb6: {
-        _11 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_11);
-        _8 = RuntimeFn::HandlerEnter(_7);
-        _9 = const 1_i64;
+        _19 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_19);
+        _16 = RuntimeFn::HandlerEnter(_15);
+        _17 = const 1_i64;
         goto -> bb7;
     }
     bb7: {
-        RuntimeFn::HandlerLeave(_6);
+        RuntimeFn::HandlerLeave(_14);
         goto -> bb8;
     }
     bb8: {
-        _12 = Eq(_9, const 1_i64);
-        branch _12 -> [then: bb9, else: bb11];
+        _20 = Eq(_17, const 1_i64);
+        branch _20 -> [then: bb9, else: bb11];
     }
     bb9: {
-        RuntimeFn::HandlerLeave(_6);
-        raise _7;
+        RuntimeFn::HandlerLeave(_14);
+        raise _15;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _13 = Eq(_9, const 2_i64);
-        branch _13 -> [then: bb15, else: bb12];
+        _21 = Eq(_17, const 2_i64);
+        branch _21 -> [then: bb15, else: bb12];
     }
     bb12: {
-        RuntimeFn::HandlerLeave(_6);
+        RuntimeFn::HandlerLeave(_14);
         goto -> bb14;
     }
     bb13: {
@@ -131,16 +148,16 @@ fn main() -> () {
     bb14: {
         // line 9
         g3 = const 42_i64;
-        g7 = const true;
+        g4 = const true;
         // line 10
-        _14 = read_number();
-        _15 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteI64(_15, _14);
-        RuntimeFn::WriteNewline(_15);
+        _22 = read_number();
+        _23 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteI64(_23, _22);
+        RuntimeFn::WriteNewline(_23);
         goto -> bb15;
     }
     bb15: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

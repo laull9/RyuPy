@@ -4,20 +4,22 @@
 //! - driver 读文件、决定搜索路径、把导入名解析成源文件；
 //! - HIR 只接收「模块身份」并做纯语法层面的相对导入绝对化，不读文件。
 //!
-//! 搜索路径当前只有一条：**入口文件所在目录**（等价于 `sys.path[0]`）。命名空间包、
-//! 第三方 site-packages 与动态模块名留到后续里程碑；找不到的模块不阻止编译，
-//! 由运行时尝试原生模块，仍不存在时抛 `ModuleNotFoundError`。
+//! 搜索路径为入口目录及显式search_paths，不自动扫描site-packages。普通AST导入未找到
+//! 源码时仍交原生注册表；显式include必须找到源码及普通父包，否则构建失败。
+//! include只建立依赖图，初始化仍发生在真实import时；不推断字符串调用或复制资源。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use ryupy_syntax::ParsedModule;
 
 use crate::Session;
 
 /// 一个已解析的源模块。
 pub struct SourceModule {
+    /// 由实际resolver分支保留；同路径可有Package与ModuleFile两种身份。
+    pub kind: SourceKind,
     /// 本次resolver选中的绝对lexical路径；不是canonical安全身份证明。
     pub resolved_source_path: PathBuf,
     /// 点分绝对模块名；入口是 `__main__`。
@@ -41,6 +43,16 @@ pub fn load_program(
     entry: &Path,
     search_paths: &[PathBuf],
 ) -> Result<(Vec<SourceModule>, usize)> {
+    load_program_including(sess, entry, search_paths, &[])
+}
+
+/// 将显式源码模块声明纳入同一依赖图；不执行模块，不复制资源。
+pub fn load_program_including(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+    include_modules: &[String],
+) -> Result<(Vec<SourceModule>, usize)> {
     let root = entry
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -50,8 +62,9 @@ pub fn load_program(
         .chain(search_paths.iter().cloned())
         .collect();
 
+    let required = explicit_includes(&roots, include_modules)?;
     let mut modules: BTreeMap<String, SourceModule> = BTreeMap::new();
-    let mut queue: Vec<String> = Vec::new();
+    let mut queue: Vec<String> = required.iter().cloned().collect();
     let mut seen: BTreeSet<String> = BTreeSet::new();
 
     // 入口模块：名字固定 `__main__`，不参与按名字查重。
@@ -75,9 +88,21 @@ pub fn load_program(
             }
         }
         let Some((path, kind)) = resolve_in(&roots, &name) else {
+            // 显式声明不得悄悄退回native；也覆盖预检后文件消失。
+            ensure!(!required.contains(&name), "显式包含模块未找到源码：{name}");
             // 未找到源码：留给原生模块注册表；运行时仍未知才抛 ModuleNotFoundError。
             continue;
         };
+        if include_modules.iter().any(|declared| {
+            declared
+                .strip_prefix(&name)
+                .is_some_and(|tail| tail.starts_with('.'))
+        }) {
+            ensure!(
+                kind == SourceKind::Package,
+                "显式包含模块的父路径不是普通包：{name}"
+            );
+        }
         let package = module_package(&name, &path);
         let source = read_module(sess, &path, &name, &package, kind)?;
         collect_requests(&source.parsed, &source.package, &mut queue);
@@ -94,8 +119,8 @@ pub fn load_single(sess: &mut Session, entry: &Path) -> Result<SourceModule> {
     read_module(sess, entry, "__main__", "", SourceKind::Entry)
 }
 
-#[derive(Clone, Copy)]
-enum SourceKind {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceKind {
     Entry,
     ModuleFile,
     Package,
@@ -122,6 +147,7 @@ fn read_module(
         std::env::current_dir()?.join(path)
     };
     Ok(SourceModule {
+        kind,
         resolved_source_path,
         name: name.to_owned(),
         package: package.to_owned(),
@@ -178,6 +204,9 @@ pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
     let root = entry.parent().unwrap_or(Path::new(".")).to_path_buf();
     [
         "json",
+        "zipfile",
+        "optparse",
+        "getopt",
         "re",
         "dataclasses",
         "unittest",
@@ -323,3 +352,38 @@ mod logical_source_tests {
         result.unwrap();
     }
 }
+
+/// 新公开选项限定ASCII点分标识符；普通AST导入不经过此限制。
+fn explicit_includes(roots: &[PathBuf], names: &[String]) -> Result<BTreeSet<String>> {
+    let mut required = BTreeSet::new();
+    for name in names {
+        ensure!(
+            name.split('.').next() != Some("__main__")
+                && name.split('.').all(|part| {
+                    let mut bytes = part.bytes();
+                    bytes
+                        .next()
+                        .is_some_and(|b| b.is_ascii_alphabetic() || b == b'_')
+                        && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                }),
+            "--include-module 需要ASCII点分绝对模块名（不接受路径）：{name:?}"
+        );
+        for prefix in package_prefixes(name) {
+            ensure!(
+                matches!(resolve_in(roots, &prefix), Some((_, SourceKind::Package))),
+                "显式包含模块 {name} 的父包未找到或不是普通包：{prefix}"
+            );
+            required.insert(prefix);
+        }
+        ensure!(
+            resolve_in(roots, name).is_some(),
+            "显式包含模块未找到源码：{name}"
+        );
+        required.insert(name.clone());
+    }
+    Ok(required)
+}
+
+#[cfg(test)]
+#[path = "modules_include_tests.rs"]
+mod include_tests;

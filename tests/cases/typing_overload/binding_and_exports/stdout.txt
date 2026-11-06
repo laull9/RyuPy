@@ -1,0 +1,30 @@
+empty overload TypeError overload() missing 1 required positional argument: 'func'
+two overload TypeError overload() takes 1 positional argument but 2 were given
+keyword overload dummy
+bad overload TypeError overload() got an unexpected keyword argument 'bad'
+duplicate overload TypeError overload() got multiple values for argument 'func'
+too many plus unknown TypeError overload() got an unexpected keyword argument 'bad'
+too many plus duplicate TypeError overload() got multiple values for argument 'func'
+empty get TypeError get_overloads() missing 1 required positional argument: 'func'
+two get TypeError get_overloads() takes 1 positional argument but 2 were given
+keyword get 1
+bad get TypeError get_overloads() got an unexpected keyword argument 'bad'
+clear positional TypeError clear_overloads() takes 0 positional arguments but 1 was given
+clear keyword TypeError clear_overloads() got an unexpected keyword argument 'bad'
+clear both TypeError clear_overloads() got an unexpected keyword argument 'bad'
+nonfunction NoneType True
+nonfunction int True
+nonfunction str True
+nonfunction list True
+nonfunction dict True
+nonfunction builtin_function_or_method True
+nonfunction type True
+get none AttributeError 'NoneType' object has no attribute '__module__'
+get len []
+dummy no arguments NotImplementedError You should not call an overloaded function. A series of @overload-decorated functions outside a stub module should always be followed by an implementation that is not @overload-ed.
+dummy any arguments NotImplementedError You should not call an overloaded function. A series of @overload-decorated functions outside a stub module should always be followed by an implementation that is not @overload-ed.
+True
+True None
+True True
+True
+None

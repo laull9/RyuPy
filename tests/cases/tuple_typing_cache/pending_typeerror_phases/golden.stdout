@@ -1,0 +1,3 @@
+body-typeerror-retries-once ['check', 'check']
+other-error-not-retried ['check']
+hash-typeerror-uncached-once ['hash', 'hash']

@@ -1,0 +1,3 @@
+dict-subclass.mapping-consumers local:9000 {"host": "local", "port": 9000}
+dict-subclass.json-policy-cycle {"public": 2} {'owner': {...}}
+dict-subclass.dataclass-default {'job': 1} {}

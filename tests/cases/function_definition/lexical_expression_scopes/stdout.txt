@@ -1,0 +1,12 @@
+Scope.<lambda>
+Scope.method
+Scope.<lambda>
+outer.<locals>.<lambda>
+outer.<locals>.<lambda>
+outer.<locals>.<lambda>
+outer.<locals>.<lambda>
+outer.<locals>.<genexpr>.<lambda>
+outer.<locals>.<genexpr>.<lambda>
+outer.<locals>.<lambda>
+outer.<locals>.<genexpr>.<lambda>
+['list', 'key', 'value', 'set', 'generator', 'nested', 'outer iterable', 'inner iterable']

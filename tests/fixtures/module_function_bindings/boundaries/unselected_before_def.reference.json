@@ -1,0 +1,1 @@
+{"case": "single_unselected_def_before_read", "result": [[["expected unbound", "name 'untouched' is not defined"]], "created later"], "scope": "boundary"}

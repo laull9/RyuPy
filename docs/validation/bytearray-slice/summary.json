@@ -1,0 +1,48 @@
+{
+  "base_head": "d27e40e0fbf5d634917021008fc7a8ffe18e0232",
+  "date": "2026-11-05",
+  "platform": "Linux x86_64",
+  "runtime_focused": {
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0
+  },
+  "applications": {
+    "unique_passed": 3,
+    "first_passed": 2,
+    "first_total": 3,
+    "focused_retry_passed": 1,
+    "failure": "basics 编译 E0100：slice() 构造器未实现，未启动JIT；仅改成显式切片语法后复验"
+  },
+  "make_check": {
+    "exit": 0,
+    "csharp_passed": 1771,
+    "cpython_baseline_passed": 228,
+    "e2e_passed": 202,
+    "e2e_ignored": 30,
+    "log_sha256": "68cd91f1179ac8801fc24657455df939fd1ca1eefaaee12c94d760f1100858ca"
+  },
+  "allocation_probe": {
+    "calls_after_warmup_per_source": 1000,
+    "sources": [
+      "bytes",
+      "different bytearray"
+    ],
+    "managed_bytes_allocated_each": 0,
+    "scope": "同长写且重用既有slice与源，不是吞吐测试"
+  },
+  "production_and_tests_sha256": {
+    "runtime/RyuPy.Runtime/PyByteArraySlice.cs": "8f0fffc5ba6bf812aa3f4cc48eda989e801fb9de25dc7966cc2ef049bd612b3c",
+    "runtime/RyuPy.Runtime/PyBytes.cs": "0d0449feaf87409bfc923e292d208c26eb8e696a5fa45f47a14c6c1626d812e1",
+    "runtime/RyuPy.Runtime/PyCollectionOps.cs": "02d0c2e02c3878d3c1d9d85c425f49bfad07d5acbf749640e6aeb84278e9f851",
+    "runtime/RyuPy.Runtime.Tests/PyByteArraySliceTests.cs": "cbf9b2ba13226b5cb2a5d8f07b9b481b657df33f4f8200599b7d9eade0951245",
+    "crates/ryupy-driver/tests/bytearray_slice.rs": "56bf2a6b04cd14c5a9a1f558179013b6f30afed3f7ebad15e2f364d87935cbf4"
+  },
+  "not_run": [
+    "fixed project entry",
+    "project matrix",
+    "NativeAOT",
+    "throughput benchmark"
+  ],
+  "published": false
+}

@@ -1,0 +1,8 @@
+initial_absence True
+parent_body_order True
+parent_attached_own_import True
+finder_after_parent_returns_fresh True
+finder_not_second_cache_lookup True
+new_call_reads_current_cache True
+next_call_none_spec ValueError fs_eager.child.__spec__ is None
+no_reexecution True

@@ -1,3 +1,4 @@
+// 动态单基类验证：保留原类或Generic alias身份，复杂布局与未知元类协议仍明确拒绝。
 using System.Collections.Generic;
 
 namespace RyuPy.Runtime;
@@ -5,13 +6,24 @@ namespace RyuPy.Runtime;
 /// <summary>普通动态基类的能力守卫；不推断跨模块ClassId，不实现任意元类协议。</summary>
 public static class PyRuntimeBases
 {
-    /// <summary>验证真实普通类及完整祖先链，原样返回同一类对象。</summary>
+    /// <summary>验证真实普通类及完整祖先链，或保留已知Generic alias交给MakeClass解析。</summary>
     /// <param name="value">在类定义处仅求值一次的基类值。</param>
     /// <returns>通过验证的原类对象。</returns>
     public static object Validate(object? value)
     {
+        if (value is PyTypingForm { Name: "ClassVar" } or PyTypingAlias { Name: "ClassVar" })
+            return PyTypingClassVar.RejectBase(value);
+        if (value is PyTypingGenericAlias) return value;
+        if (PyTypingNamedTuple.IsRoot(value)) return value!;
+        // 真实原生proxy不可继承；同名用户类不受影响，错误保调用者现场。
+        if (ReferenceEquals(value, PyMappingProxy.Type))
+            throw PyMappingProxy.Error(new PyTypeError("type 'mappingproxy' is not an acceptable base type"));
+        if (ReferenceEquals(value, PySlice.Type))
+            throw PySlice.PublicError(new PyTypeError("type 'slice' is not an acceptable base type"));
         // 只许可真实驻留object，不放开任意内建布局或按名称假冒的类。
         if (ReferenceEquals(value, PyBaseObject.Type)) return PyBaseObject.Type;
+        if (ReferenceEquals(value, PyType.Get("str")) || ReferenceEquals(value, PyType.Get("list"))
+            || ReferenceEquals(value, PyType.Get("dict"))) return value!;
         if (value is not PyClass cls)
             throw Unsupported();
         // 仅定义时遍历；不向实例构造、属性访问等热路径增加守卫。
@@ -19,6 +31,11 @@ public static class PyRuntimeBases
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
         for (PyClass? current = cls; current is not null; current = current.BaseClass)
         {
+            current.RequireTypingGenericReady();
+            PyNamedTupleLayout.GuardBase(current);
+            if (current.HasStringLayout) current.RequireStringReady();
+            if (current.HasListLayout) current.RequireListReady();
+            if (current.HasDictLayout) current.RequireDictReady();
             if (!seen.Add(current) || current.BuiltinBase is not null
                 || current.ExceptionFactory is not null || current.HasEnumMetadata
                 || current.DataclassActive || current.IsNativeRuntimeClass)
@@ -27,8 +44,9 @@ public static class PyRuntimeBases
         return cls;
     }
 
-    private static PyNotImplementedError Unsupported() => new(
-        "runtime bases currently require an ordinary user class; special classes and metaclass protocols are not supported");
+    // 只准备本守卫新建的异常；成功路径不增加调用，保原能力边界与消息。
+    private static PyNotImplementedError Unsupported() => (PyNotImplementedError)PyErrors.PrepareRaise(new PyNotImplementedError(
+        "runtime bases currently require an ordinary user class; special classes and metaclass protocols are not supported"));
 }
 
 public sealed partial class PyClass

@@ -1,0 +1,4 @@
+lru-not-fifo True
+optional-two-entries True
+shared-pool True
+literal-independent True

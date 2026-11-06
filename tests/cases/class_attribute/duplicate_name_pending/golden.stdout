@@ -1,0 +1,7 @@
+default-Plain True
+default-Child True
+default-Grandchild True
+same-name True
+before-fallback True
+roots True
+version-invalidation True

@@ -1,0 +1,43 @@
+# ryupy: pending
+# 保留已有范围外的CP正确期待：hash整数归约、返回类型错误和空表有效键副作用。
+# 本文件不进入当前四项driver；此前参考已观测这些行为，本文件本身尚未执行。
+class ReturnHash:
+    def __hash__(self):
+        return self.value
+
+returned = ReturnHash()
+# -1必须规范化为-2；不能只和hash(-1)比较，否则两个旧错误可能互相掩盖。
+returned.value = -1
+assert hash(returned) == -2
+print('negative-one', hash(returned))
+
+# 固定64位CP参考中的超i64整数按整数hash归约，不能直接拆为Int64并抛溢出。
+returned.value = 2 ** 100
+assert hash(returned) == 549755813888
+assert hash(returned) == hash(returned.value)
+print('large-integer', hash(returned))
+
+returned.value = 1.5
+try:
+    hash(returned)
+except TypeError as error:
+    assert str(error) == '__hash__ method should return an integer'
+    print('noninteger', str(error))
+else:
+    raise AssertionError('noninteger hash result must fail')
+
+# 空CLR容器可能省略comparer；CP即使空表也必须调用有效用户hash恰好一次。
+events = []
+class Key:
+    def __hash__(self):
+        events.append('hash')
+        return 1
+
+key = Key()
+assert key not in {}
+assert events == ['hash']
+print('empty-dict', events)
+events.clear()
+assert key not in set()
+assert events == ['hash']
+print('empty-set', events)

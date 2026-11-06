@@ -1,0 +1,2 @@
+builtin is not deletable global NameError name 'len' is not defined
+builtin fallback and typed shadow 2 [0, 1, 2]

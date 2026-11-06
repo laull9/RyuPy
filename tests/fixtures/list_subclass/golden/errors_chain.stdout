@@ -1,0 +1,23 @@
+list-subclass.error constructor-many TypeError list expected at most 1 argument, got 2
+list-subclass.error constructor-keyword TypeError list() takes no keyword arguments
+list-subclass.error init-many TypeError list expected at most 1 argument, got 2
+list-subclass.error init-keyword-first TypeError list() takes no keyword arguments
+list-subclass.error init-not-iterable TypeError 'int' object is not iterable
+list-subclass.error pop-empty IndexError pop from empty list
+list-subclass.error pop-index-before-empty TypeError 'NoneType' object cannot be interpreted as an integer
+list-subclass.error pop-many TypeError pop expected at most 1 argument, got 2
+list-subclass.error pop-keyword TypeError list.pop() takes no keyword arguments
+list-subclass.error clear-many TypeError list.clear() takes no arguments (1 given)
+list-subclass.error copy-keyword TypeError list.copy() takes no keyword arguments
+list-subclass.error root-copy-receiver TypeError descriptor 'copy' for 'list' objects doesn't apply to a 'int' object
+list-subclass.error root-len-receiver TypeError descriptor '__len__' requires a 'list' object but received a 'int'
+list-subclass.error root-init-receiver TypeError descriptor '__init__' requires a 'list' object but received a 'int'
+list-subclass.error root-new-non-type TypeError list.__new__(X): X is not a type object (int)
+list-subclass.error root-new-wrong-type TypeError list.__new__(int): int is not a subtype of list
+list-subclass.error index-type TypeError list indices must be integers or slices, not str
+list-subclass.error index-outside IndexError list index out of range
+list-subclass.error unhashable TypeError unhashable type: 'Plain'
+list-subclass.error evaluate-before-binding TypeError list.pop() takes no keyword arguments
+list-subclass.error evaluate-before-init-binding TypeError list() takes no keyword arguments
+list-subclass.error-evaluation ['self', 'source', 'keyword'] [10, 20]
+list-subclass.chain

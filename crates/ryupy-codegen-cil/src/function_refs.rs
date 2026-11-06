@@ -4,6 +4,8 @@ use dotnetdll::prelude::*;
 pub(crate) struct FunctionRefs {
     pub builtin: MethodRefIndex,
     pub metadata: MethodRefIndex,
+    pub definition: MethodRefIndex,
+    pub module: MethodRefIndex,
     pub class_namespace_get: MethodRefIndex,
     pub declare_dataclass: MethodRefIndex,
     pub finalize_ordinary_class: MethodRefIndex,
@@ -19,7 +21,9 @@ impl FunctionRefs {
             declare_dataclass: res.push_method_reference(method_ref! { static void @ops::DeclareDataclass(object, object[], bool) }),
             apply_dataclass: res.push_method_reference(method_ref! { static object @ops::ApplyDataclass(object, bool) }),
             builtin: res.push_method_reference(method_ref! { static object @ops::BuiltinFunction(string) }),
+            definition: res.push_method_reference(method_ref! { static void @ops::FunctionDefinition(object, string, long) }),
             metadata: res.push_method_reference(method_ref! { static void @ops::FunctionMetadata(object, object, object[], object[]) }),
+            module: res.push_method_reference(method_ref! { static void @ops::FunctionModule(object, object) }),
         }
     }
 }

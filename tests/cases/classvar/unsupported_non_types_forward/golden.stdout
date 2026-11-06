@@ -1,0 +1,10 @@
+equal-scalar-raw-cache typing.ClassVar[1]
+legal-non-type typing.ClassVar[42]
+legal-non-type typing.ClassVar[2.5]
+legal-non-type typing.ClassVar[...]
+legal-non-type typing.ClassVar[[<class 'int'>]]
+legal-non-type typing.ClassVar[{'x': <class 'str'>}]
+unhashable-not-cached typing.ClassVar[[<class 'int'>]] typing.ClassVar[[<class 'int'>]]
+user-hash-even-warm ['hash', 'hash'] typing.ClassVar[Key()]
+forward typing.ClassVar[ForwardRef('Thing')] True False
+invalid-forward Forward reference must be an expression -- got '!'

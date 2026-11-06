@@ -3,56 +3,58 @@ source: crates/ryupy-driver/tests/m3_7.rs
 assertion_line: 94
 expression: output
 ---
-fn __str__(_0: dyn) -> dyn {
+fn __str__(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // self
-    let _1: i64;
-    let _2: dyn;
+    let _1: dyn; // __function_owner
+    let _2: i64;
     let _3: dyn;
-    let _4: bool;
-    let _5: dyn;
+    let _4: dyn;
+    let _5: bool;
     let _6: dyn;
     let _7: dyn;
     let _8: dyn;
     let _9: dyn;
+    let _10: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "m3_7_warning_classes.py", const "__str__");
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_7_warning_classes.py", const "__str__", _1);
         // line 33
-        _2 = RuntimeFn::LoadName(global@11, const "log");
-        _3 = _2;
-        _4 = RuntimeFn::IsModule(_3);
-        _5 = RuntimeFn::CaptureModuleTarget(_3, const "append");
-        _6 = box<Str>(const "str");
-        _7 = dyn.captured_method(_4, _5, "append", [_6]);
+        _3 = RuntimeFn::LoadName(global@11, const "log");
+        _4 = _3;
+        _5 = RuntimeFn::IsModule(_4);
+        _6 = RuntimeFn::CaptureModuleTarget(_4, const "append");
+        _7 = box<Str>(const "str");
+        _8 = dyn.captured_method(_5, _6, "append", [_7]);
         // line 34
-        _9 = box<Str>(const "message-value");
-        _8 = _9;
+        _10 = box<Str>(const "message-value");
+        _9 = _10;
         goto -> bb2;
     }
     bb1: {
         unreachable;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_1);
-        return _8;
+        RuntimeFn::TracePopTo(_2);
+        return _9;
     }
 }
 
-fn __str__(_0: dyn) -> dyn {
+fn __str__(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // self
-    let _1: i64;
-    let _2: dyn;
+    let _1: dyn; // __function_owner
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
+    let _6: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "m3_7_warning_classes.py", const "__str__");
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_7_warning_classes.py", const "__str__", _1);
         // line 44
-        _2 = box<Str>(const "format");
-        _3 = RuntimeFn::MakeException(const "ValueError", _2);
-        _4 = RuntimeFn::RaisePrepare(_3);
-        raise _4;
+        _3 = box<Str>(const "format");
+        _4 = RuntimeFn::MakeException(const "ValueError", _3);
+        _5 = RuntimeFn::RaisePrepare(_4);
+        raise _5;
     }
     bb1: {
         unreachable;
@@ -60,9 +62,9 @@ fn __str__(_0: dyn) -> dyn {
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -77,9 +79,9 @@ fn main() -> () {
     let _14: dyn;
     let _15: dyn;
     let _16: dyn;
-    let _17: bool;
+    let _17: dyn;
     let _18: dyn;
-    let _19: dyn;
+    let _19: bool;
     let _20: dyn;
     let _21: dyn;
     let _22: dyn;
@@ -100,66 +102,66 @@ fn main() -> () {
     let _37: dyn;
     let _38: dyn;
     let _39: dyn;
-    let _40: i64;
+    let _40: dyn;
     let _41: dyn;
-    let _42: dyn;
+    let _42: i64;
     let _43: dyn;
-    let _44: i64;
+    let _44: dyn;
     let _45: dyn;
-    let _46: dyn;
+    let _46: i64;
     let _47: dyn;
     let _48: dyn;
     let _49: dyn;
     let _50: dyn;
-    let _51: i64;
+    let _51: dyn;
     let _52: dyn;
-    let _53: bool;
-    let _54: bool;
-    let _55: dyn;
-    let _56: dyn;
+    let _53: i64;
+    let _54: dyn;
+    let _55: bool;
+    let _56: bool;
     let _57: dyn;
     let _58: dyn;
-    let _59: i64;
+    let _59: dyn;
     let _60: dyn;
-    let _61: dyn;
+    let _61: i64;
     let _62: dyn;
-    let _63: i64;
+    let _63: dyn;
     let _64: dyn;
-    let _65: dyn;
+    let _65: i64;
     let _66: dyn;
     let _67: dyn;
     let _68: dyn;
     let _69: dyn;
-    let _70: i64;
+    let _70: dyn;
     let _71: dyn;
-    let _72: bool;
-    let _73: bool;
-    let _74: dyn;
-    let _75: dyn;
+    let _72: i64;
+    let _73: dyn;
+    let _74: bool;
+    let _75: bool;
     let _76: dyn;
     let _77: dyn;
     let _78: dyn;
     let _79: dyn;
     let _80: dyn;
-    let _81: i64;
+    let _81: dyn;
     let _82: dyn;
-    let _83: dyn;
+    let _83: i64;
     let _84: dyn;
-    let _85: i64;
+    let _85: dyn;
     let _86: dyn;
-    let _87: dyn;
+    let _87: i64;
     let _88: dyn;
     let _89: dyn;
     let _90: dyn;
     let _91: dyn;
     let _92: dyn;
     let _93: dyn;
-    let _94: i64;
+    let _94: dyn;
     let _95: dyn;
-    let _96: bool;
-    let _97: bool;
-    let _98: dyn;
-    let _99: dyn;
+    let _96: i64;
+    let _97: dyn;
+    let _98: bool;
+    let _99: bool;
     let _100: dyn;
     let _101: dyn;
     let _102: dyn;
@@ -186,10 +188,10 @@ fn main() -> () {
     let _123: dyn;
     let _124: dyn;
     let _125: dyn;
-    let _126: bool;
+    let _126: dyn;
     let _127: dyn;
     let _128: dyn;
-    let _129: dyn;
+    let _129: bool;
     let _130: dyn;
     let _131: dyn;
     let _132: dyn;
@@ -206,7 +208,7 @@ fn main() -> () {
     let _143: dyn;
     let _144: dyn;
     let _145: dyn;
-    let _146: i64;
+    let _146: dyn;
     let _147: dyn;
     let _148: dyn;
     let _149: dyn;
@@ -216,8 +218,12 @@ fn main() -> () {
     let _153: dyn;
     let _154: i64;
     let _155: dyn;
-    let _156: bool;
-    let _157: bool;
+    let _156: dyn;
+    let _157: dyn;
+    let _158: i64;
+    let _159: dyn;
+    let _160: bool;
+    let _161: bool;
 
     region r0: [9, +1) finally-guard handler->bb10
     region r1: [6, +1) catch UserWarning handler->bb8
@@ -239,69 +245,71 @@ fn main() -> () {
         g12 = null;
         g13 = null;
         g14 = null;
-        _0 = RuntimeFn::TracePush(const "m3_7_warning_classes.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "m3_7_warning_classes.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g6 = _1;
+        _3 = box<Str>(const "__main__");
+        g6 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g7 = _2;
+        _4 = box<Str>(const "");
+        g7 = _4;
         // line 1
-        _3 = box<Str>(const "m3_7_warning_classes.py");
-        g8 = _3;
+        _5 = box<Str>(const "m3_7_warning_classes.py");
+        g8 = _5;
         // line 2
-        _4 = RuntimeFn::TypeObject(const "Warning");
-        _5 = RuntimeFn::TypeObject(const "UserWarning");
-        _6 = RuntimeFn::TypeObject(const "DeprecationWarning");
-        _7 = RuntimeFn::TypeObject(const "PendingDeprecationWarning");
-        _8 = RuntimeFn::TypeObject(const "RuntimeWarning");
-        _9 = RuntimeFn::TypeObject(const "SyntaxWarning");
-        _10 = RuntimeFn::TypeObject(const "FutureWarning");
-        _11 = RuntimeFn::TypeObject(const "ImportWarning");
-        _12 = RuntimeFn::TypeObject(const "UnicodeWarning");
-        _13 = RuntimeFn::TypeObject(const "BytesWarning");
-        _14 = RuntimeFn::TypeObject(const "ResourceWarning");
-        _15 = MakeList([_4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14]);
-        _16 = RuntimeFn::IterStart(_15);
+        _6 = RuntimeFn::TypeObject(const "Warning");
+        _7 = RuntimeFn::TypeObject(const "UserWarning");
+        _8 = RuntimeFn::TypeObject(const "DeprecationWarning");
+        _9 = RuntimeFn::TypeObject(const "PendingDeprecationWarning");
+        _10 = RuntimeFn::TypeObject(const "RuntimeWarning");
+        _11 = RuntimeFn::TypeObject(const "SyntaxWarning");
+        _12 = RuntimeFn::TypeObject(const "FutureWarning");
+        _13 = RuntimeFn::TypeObject(const "ImportWarning");
+        _14 = RuntimeFn::TypeObject(const "UnicodeWarning");
+        _15 = RuntimeFn::TypeObject(const "BytesWarning");
+        _16 = RuntimeFn::TypeObject(const "ResourceWarning");
+        _17 = MakeList([_6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16]);
+        _18 = RuntimeFn::IterStart(_17);
         goto -> bb1;
     }
     bb1: {
-        _17 = RuntimeFn::IterNextOk(_16);
-        branch _17 -> [then: bb2, else: bb5];
+        _19 = RuntimeFn::IterNextOk(_18);
+        branch _19 -> [then: bb2, else: bb5];
     }
     bb2: {
-        _18 = RuntimeFn::IterValue(_16);
-        g9 = _18;
+        _20 = RuntimeFn::IterValue(_18);
+        g9 = _20;
         // line 5
-        _19 = RuntimeFn::LoadName(global@9, const "category");
-        _20 = box<Str>(const "message");
-        _21 = dyn.call(_19, [_20]);
-        g10 = _21;
+        _21 = RuntimeFn::LoadName(global@9, const "category");
+        _22 = box<Str>(const "message");
+        _23 = dyn.call(_21, [_22]);
+        g10 = _23;
         // line 6
-        _22 = RuntimeFn::LoadName(global@10, const "value");
-        _23 = RuntimeFn::DynType(_22);
-        _24 = RuntimeFn::DynGetAttr(_23, const "__name__");
-        _25 = RuntimeFn::LoadName(global@10, const "value");
-        _26 = RuntimeFn::DynStr(_25);
+        _24 = RuntimeFn::LoadName(global@10, const "value");
+        _25 = RuntimeFn::DynType(_24);
+        _26 = RuntimeFn::DynGetAttr(_25, const "__name__");
         _27 = RuntimeFn::LoadName(global@10, const "value");
-        _28 = RuntimeFn::DynGetAttr(_27, const "args");
+        _28 = RuntimeFn::DynBuiltin(const "str", [_27], [], []);
         _29 = RuntimeFn::LoadName(global@10, const "value");
-        _30 = RuntimeFn::TypeObject(const "Warning");
-        _31 = RuntimeFn::DynBuiltin(const "isinstance", [_29, _30], [], []);
-        _32 = RuntimeFn::LoadName(global@10, const "value");
-        _33 = RuntimeFn::TypeObject(const "Exception");
-        _34 = RuntimeFn::DynBuiltin(const "isinstance", [_32, _33], [], []);
-        _35 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_35, _24);
-        RuntimeFn::WriteSep(_35);
-        RuntimeFn::WriteObject(_35, _26);
-        RuntimeFn::WriteSep(_35);
-        RuntimeFn::WriteObject(_35, _28);
-        RuntimeFn::WriteSep(_35);
-        RuntimeFn::WriteObject(_35, _31);
-        RuntimeFn::WriteSep(_35);
-        RuntimeFn::WriteObject(_35, _34);
-        RuntimeFn::WriteNewline(_35);
+        _30 = RuntimeFn::DynGetAttr(_29, const "args");
+        _31 = RuntimeFn::LoadName(global@10, const "value");
+        _32 = RuntimeFn::TypeObject(const "Warning");
+        _33 = RuntimeFn::DynBuiltin(const "isinstance", [_31, _32], [], []);
+        _34 = RuntimeFn::LoadName(global@10, const "value");
+        _35 = RuntimeFn::TypeObject(const "Exception");
+        _36 = RuntimeFn::DynBuiltin(const "isinstance", [_34, _35], [], []);
+        _37 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_37, _26);
+        RuntimeFn::WriteSep(_37);
+        RuntimeFn::WriteObject(_37, _28);
+        RuntimeFn::WriteSep(_37);
+        RuntimeFn::WriteObject(_37, _30);
+        RuntimeFn::WriteSep(_37);
+        RuntimeFn::WriteObject(_37, _33);
+        RuntimeFn::WriteSep(_37);
+        RuntimeFn::WriteObject(_37, _36);
+        RuntimeFn::WriteNewline(_37);
         goto -> bb1;
     }
     bb3: {
@@ -316,72 +324,72 @@ fn main() -> () {
     }
     bb6: {
         // line 9
-        _36 = box<Str>(const "typed");
-        _37 = RuntimeFn::MakeException(const "UserWarning", _36);
-        _38 = RuntimeFn::RaisePrepare(_37);
-        raise _38;
+        _38 = box<Str>(const "typed");
+        _39 = RuntimeFn::MakeException(const "UserWarning", _38);
+        _40 = RuntimeFn::RaisePrepare(_39);
+        raise _40;
     }
     bb7: {
-        _40 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_40);
-        _41 = RuntimeFn::HandlerEnter(_39);
-        g10 = _39;
+        _42 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_42);
+        _43 = RuntimeFn::HandlerEnter(_41);
+        g10 = _41;
         goto -> bb9;
     }
     bb8: {
-        _39 = caught_exception;
+        _41 = caught_exception;
         goto -> bb7;
     }
     bb9: {
-        _43 = RuntimeFn::HandlerEnter(None);
+        _45 = RuntimeFn::HandlerEnter(None);
         // line 11
-        _45 = RuntimeFn::LoadName(global@10, const "value");
-        _46 = RuntimeFn::DynType(_45);
-        _47 = RuntimeFn::DynGetAttr(_46, const "__name__");
-        _48 = RuntimeFn::LoadName(global@10, const "value");
-        _49 = RuntimeFn::DynStr(_48);
-        _50 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_50, _47);
-        RuntimeFn::WriteSep(_50);
-        RuntimeFn::WriteObject(_50, _49);
-        RuntimeFn::WriteNewline(_50);
-        _44 = const 0_i64;
+        _47 = RuntimeFn::LoadName(global@10, const "value");
+        _48 = RuntimeFn::DynType(_47);
+        _49 = RuntimeFn::DynGetAttr(_48, const "__name__");
+        _50 = RuntimeFn::LoadName(global@10, const "value");
+        _51 = RuntimeFn::DynBuiltin(const "str", [_50], [], []);
+        _52 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_52, _49);
+        RuntimeFn::WriteSep(_52);
+        RuntimeFn::WriteObject(_52, _51);
+        RuntimeFn::WriteNewline(_52);
+        _46 = const 0_i64;
         goto -> bb12;
     }
     bb10: {
-        _42 = caught_exception;
+        _44 = caught_exception;
         goto -> bb11;
     }
     bb11: {
-        _51 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_51);
-        _43 = RuntimeFn::HandlerEnter(_42);
-        _44 = const 1_i64;
+        _53 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_53);
+        _45 = RuntimeFn::HandlerEnter(_44);
+        _46 = const 1_i64;
         goto -> bb12;
     }
     bb12: {
-        _52 = RuntimeFn::MakeUnbound();
-        g10 = _52;
-        RuntimeFn::HandlerLeave(_41);
+        _54 = RuntimeFn::MakeUnbound();
+        g10 = _54;
+        RuntimeFn::HandlerLeave(_43);
         goto -> bb13;
     }
     bb13: {
-        _53 = Eq(_44, const 1_i64);
-        branch _53 -> [then: bb14, else: bb16];
+        _55 = Eq(_46, const 1_i64);
+        branch _55 -> [then: bb14, else: bb16];
     }
     bb14: {
-        RuntimeFn::HandlerLeave(_41);
-        raise _42;
+        RuntimeFn::HandlerLeave(_43);
+        raise _44;
     }
     bb15: {
         unreachable;
     }
     bb16: {
-        _54 = Eq(_44, const 2_i64);
-        branch _54 -> [then: bb63, else: bb17];
+        _56 = Eq(_46, const 2_i64);
+        branch _56 -> [then: bb63, else: bb17];
     }
     bb17: {
-        RuntimeFn::HandlerLeave(_41);
+        RuntimeFn::HandlerLeave(_43);
         goto -> bb19;
     }
     bb18: {
@@ -393,72 +401,72 @@ fn main() -> () {
     }
     bb20: {
         // line 14
-        _55 = box<Str>(const "resource");
-        _56 = RuntimeFn::MakeException(const "ResourceWarning", _55);
-        _57 = RuntimeFn::RaisePrepare(_56);
-        raise _57;
+        _57 = box<Str>(const "resource");
+        _58 = RuntimeFn::MakeException(const "ResourceWarning", _57);
+        _59 = RuntimeFn::RaisePrepare(_58);
+        raise _59;
     }
     bb21: {
-        _59 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_59);
-        _60 = RuntimeFn::HandlerEnter(_58);
-        g10 = _58;
+        _61 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_61);
+        _62 = RuntimeFn::HandlerEnter(_60);
+        g10 = _60;
         goto -> bb23;
     }
     bb22: {
-        _58 = caught_exception;
+        _60 = caught_exception;
         goto -> bb21;
     }
     bb23: {
-        _62 = RuntimeFn::HandlerEnter(None);
+        _64 = RuntimeFn::HandlerEnter(None);
         // line 16
-        _64 = RuntimeFn::LoadName(global@10, const "value");
-        _65 = RuntimeFn::DynType(_64);
-        _66 = RuntimeFn::DynGetAttr(_65, const "__name__");
-        _67 = RuntimeFn::LoadName(global@10, const "value");
-        _68 = RuntimeFn::DynStr(_67);
-        _69 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_69, _66);
-        RuntimeFn::WriteSep(_69);
-        RuntimeFn::WriteObject(_69, _68);
-        RuntimeFn::WriteNewline(_69);
-        _63 = const 0_i64;
+        _66 = RuntimeFn::LoadName(global@10, const "value");
+        _67 = RuntimeFn::DynType(_66);
+        _68 = RuntimeFn::DynGetAttr(_67, const "__name__");
+        _69 = RuntimeFn::LoadName(global@10, const "value");
+        _70 = RuntimeFn::DynBuiltin(const "str", [_69], [], []);
+        _71 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_71, _68);
+        RuntimeFn::WriteSep(_71);
+        RuntimeFn::WriteObject(_71, _70);
+        RuntimeFn::WriteNewline(_71);
+        _65 = const 0_i64;
         goto -> bb26;
     }
     bb24: {
-        _61 = caught_exception;
+        _63 = caught_exception;
         goto -> bb25;
     }
     bb25: {
-        _70 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_70);
-        _62 = RuntimeFn::HandlerEnter(_61);
-        _63 = const 1_i64;
+        _72 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_72);
+        _64 = RuntimeFn::HandlerEnter(_63);
+        _65 = const 1_i64;
         goto -> bb26;
     }
     bb26: {
-        _71 = RuntimeFn::MakeUnbound();
-        g10 = _71;
-        RuntimeFn::HandlerLeave(_60);
+        _73 = RuntimeFn::MakeUnbound();
+        g10 = _73;
+        RuntimeFn::HandlerLeave(_62);
         goto -> bb27;
     }
     bb27: {
-        _72 = Eq(_63, const 1_i64);
-        branch _72 -> [then: bb28, else: bb30];
+        _74 = Eq(_65, const 1_i64);
+        branch _74 -> [then: bb28, else: bb30];
     }
     bb28: {
-        RuntimeFn::HandlerLeave(_60);
-        raise _61;
+        RuntimeFn::HandlerLeave(_62);
+        raise _63;
     }
     bb29: {
         unreachable;
     }
     bb30: {
-        _73 = Eq(_63, const 2_i64);
-        branch _73 -> [then: bb63, else: bb31];
+        _75 = Eq(_65, const 2_i64);
+        branch _75 -> [then: bb63, else: bb31];
     }
     bb31: {
-        RuntimeFn::HandlerLeave(_60);
+        RuntimeFn::HandlerLeave(_62);
         goto -> bb33;
     }
     bb32: {
@@ -466,85 +474,85 @@ fn main() -> () {
     }
     bb33: {
         // line 18
-        _74 = RuntimeFn::TypeObject(const "UserWarning");
-        _75 = RuntimeFn::MakeClass(const "ProjectWarning", [_74], global@0);
-        g1 = _75;
+        _76 = RuntimeFn::TypeObject(const "UserWarning");
+        _77 = RuntimeFn::MakeClass(const "ProjectWarning", [_76], global@0);
+        g1 = _77;
         // line 21
         goto -> bb34;
     }
     bb34: {
         // line 22
-        _76 = global@1;
-        _77 = box<Str>(const "project");
-        _78 = dyn.call(_76, [_77]);
-        _79 = RuntimeFn::RaisePrepare(_78);
-        raise _79;
+        _78 = global@1;
+        _79 = box<Str>(const "project");
+        _80 = dyn.call(_78, [_79]);
+        _81 = RuntimeFn::RaisePrepare(_80);
+        raise _81;
     }
     bb35: {
-        _81 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_81);
-        _82 = RuntimeFn::HandlerEnter(_80);
-        g10 = _80;
+        _83 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_83);
+        _84 = RuntimeFn::HandlerEnter(_82);
+        g10 = _82;
         goto -> bb37;
     }
     bb36: {
-        _80 = caught_exception;
+        _82 = caught_exception;
         goto -> bb35;
     }
     bb37: {
-        _84 = RuntimeFn::HandlerEnter(None);
+        _86 = RuntimeFn::HandlerEnter(None);
         // line 24
-        _86 = RuntimeFn::LoadName(global@10, const "value");
-        _87 = RuntimeFn::DynType(_86);
-        _88 = RuntimeFn::DynGetAttr(_87, const "__name__");
-        _89 = RuntimeFn::LoadName(global@10, const "value");
-        _90 = RuntimeFn::DynStr(_89);
+        _88 = RuntimeFn::LoadName(global@10, const "value");
+        _89 = RuntimeFn::DynType(_88);
+        _90 = RuntimeFn::DynGetAttr(_89, const "__name__");
         _91 = RuntimeFn::LoadName(global@10, const "value");
-        _92 = RuntimeFn::DynBuiltin(const "isinstance", [_91, global@1], [], []);
-        _93 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_93, _88);
-        RuntimeFn::WriteSep(_93);
-        RuntimeFn::WriteObject(_93, _90);
-        RuntimeFn::WriteSep(_93);
-        RuntimeFn::WriteObject(_93, _92);
-        RuntimeFn::WriteNewline(_93);
-        _85 = const 0_i64;
+        _92 = RuntimeFn::DynBuiltin(const "str", [_91], [], []);
+        _93 = RuntimeFn::LoadName(global@10, const "value");
+        _94 = RuntimeFn::DynBuiltin(const "isinstance", [_93, global@1], [], []);
+        _95 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_95, _90);
+        RuntimeFn::WriteSep(_95);
+        RuntimeFn::WriteObject(_95, _92);
+        RuntimeFn::WriteSep(_95);
+        RuntimeFn::WriteObject(_95, _94);
+        RuntimeFn::WriteNewline(_95);
+        _87 = const 0_i64;
         goto -> bb40;
     }
     bb38: {
-        _83 = caught_exception;
+        _85 = caught_exception;
         goto -> bb39;
     }
     bb39: {
-        _94 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_94);
-        _84 = RuntimeFn::HandlerEnter(_83);
-        _85 = const 1_i64;
+        _96 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_96);
+        _86 = RuntimeFn::HandlerEnter(_85);
+        _87 = const 1_i64;
         goto -> bb40;
     }
     bb40: {
-        _95 = RuntimeFn::MakeUnbound();
-        g10 = _95;
-        RuntimeFn::HandlerLeave(_82);
+        _97 = RuntimeFn::MakeUnbound();
+        g10 = _97;
+        RuntimeFn::HandlerLeave(_84);
         goto -> bb41;
     }
     bb41: {
-        _96 = Eq(_85, const 1_i64);
-        branch _96 -> [then: bb42, else: bb44];
+        _98 = Eq(_87, const 1_i64);
+        branch _98 -> [then: bb42, else: bb44];
     }
     bb42: {
-        RuntimeFn::HandlerLeave(_82);
-        raise _83;
+        RuntimeFn::HandlerLeave(_84);
+        raise _85;
     }
     bb43: {
         unreachable;
     }
     bb44: {
-        _97 = Eq(_85, const 2_i64);
-        branch _97 -> [then: bb63, else: bb45];
+        _99 = Eq(_87, const 2_i64);
+        branch _99 -> [then: bb63, else: bb45];
     }
     bb45: {
-        RuntimeFn::HandlerLeave(_82);
+        RuntimeFn::HandlerLeave(_84);
         goto -> bb47;
     }
     bb46: {
@@ -552,160 +560,164 @@ fn main() -> () {
     }
     bb47: {
         // line 26
-        _98 = RuntimeFn::TypeObject(const "UserWarning");
-        _99 = RuntimeFn::DynBuiltin(const "issubclass", [global@1, _98], [], []);
         _100 = RuntimeFn::TypeObject(const "UserWarning");
-        _101 = RuntimeFn::TypeObject(const "Warning");
-        _102 = RuntimeFn::DynBuiltin(const "issubclass", [_100, _101], [], []);
-        _103 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_103, _99);
-        RuntimeFn::WriteSep(_103);
-        RuntimeFn::WriteObject(_103, _102);
-        RuntimeFn::WriteNewline(_103);
+        _101 = RuntimeFn::DynBuiltin(const "issubclass", [global@1, _100], [], []);
+        _102 = RuntimeFn::TypeObject(const "UserWarning");
+        _103 = RuntimeFn::TypeObject(const "Warning");
+        _104 = RuntimeFn::DynBuiltin(const "issubclass", [_102, _103], [], []);
+        _105 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_105, _101);
+        RuntimeFn::WriteSep(_105);
+        RuntimeFn::WriteObject(_105, _104);
+        RuntimeFn::WriteNewline(_105);
         // line 27
-        _104 = RuntimeFn::TypeObject(const "Warning");
-        _105 = RuntimeFn::TypeObject(const "Exception");
-        _106 = RuntimeFn::DynBuiltin(const "issubclass", [_104, _105], [], []);
-        _107 = RuntimeFn::TypeObject(const "UnicodeWarning");
-        _108 = RuntimeFn::TypeObject(const "UnicodeError");
-        _109 = RuntimeFn::DynBuiltin(const "issubclass", [_107, _108], [], []);
-        _110 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_110, _106);
-        RuntimeFn::WriteSep(_110);
-        RuntimeFn::WriteObject(_110, _109);
-        RuntimeFn::WriteNewline(_110);
+        _106 = RuntimeFn::TypeObject(const "Warning");
+        _107 = RuntimeFn::TypeObject(const "Exception");
+        _108 = RuntimeFn::DynBuiltin(const "issubclass", [_106, _107], [], []);
+        _109 = RuntimeFn::TypeObject(const "UnicodeWarning");
+        _110 = RuntimeFn::TypeObject(const "UnicodeError");
+        _111 = RuntimeFn::DynBuiltin(const "issubclass", [_109, _110], [], []);
+        _112 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_112, _108);
+        RuntimeFn::WriteSep(_112);
+        RuntimeFn::WriteObject(_112, _111);
+        RuntimeFn::WriteNewline(_112);
         // line 30
-        _111 = MakeList([]);
-        g11 = _111;
+        _113 = MakeList([]);
+        g11 = _113;
         // line 31
-        _112 = RuntimeFn::MakeClass(const "Message", [], null);
-        g2 = _112;
-        _113 = MakeFunction(__str__; env=[]; defaults=[null]);
-        RuntimeFn::SetAttr(_112, const "__str__", _113);
-        RuntimeFn::FinalizeOrdinaryClass(_112);
+        _114 = RuntimeFn::MakeClass(const "Message", [], null);
+        g2 = _114;
+        _115 = global@6;
+        _116 = MakeFunction(__str__; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_116, _115);
+        RuntimeFn::SetAttr(_114, const "__str__", _116);
+        RuntimeFn::FinalizeOrdinaryClass(_114);
         // line 35
-        _114 = RuntimeFn::MakeClass(const "DerivedWarning", [global@1], global@3);
-        g4 = _114;
+        _117 = RuntimeFn::MakeClass(const "DerivedWarning", [global@1], global@3);
+        g4 = _117;
         // line 37
-        _115 = global@2;
-        _116 = dyn.call(_115, []);
-        g12 = _116;
+        _118 = global@2;
+        _119 = dyn.call(_118, []);
+        g12 = _119;
         // line 38
-        _117 = global@4;
-        _118 = RuntimeFn::LoadName(global@12, const "message");
-        _119 = dyn.call(_117, [_118]);
-        g13 = _119;
+        _120 = global@4;
+        _121 = RuntimeFn::LoadName(global@12, const "message");
+        _122 = dyn.call(_120, [_121]);
+        g13 = _122;
         // line 39
-        _120 = RuntimeFn::LoadName(global@11, const "log");
-        _121 = RuntimeFn::LoadName(global@13, const "warning");
-        _122 = RuntimeFn::DynGetAttr(_121, const "args");
-        _123 = box<I64>(const 0_i64);
-        _124 = RuntimeFn::GetItem(_122, _123);
-        _125 = RuntimeFn::LoadName(global@12, const "message");
-        _126 = RuntimeFn::IsSame(_124, _125);
-        _127 = box<Bool>(_126);
-        _128 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_128, _120);
-        RuntimeFn::WriteSep(_128);
-        RuntimeFn::WriteObject(_128, _127);
-        RuntimeFn::WriteNewline(_128);
+        _123 = RuntimeFn::LoadName(global@11, const "log");
+        _124 = RuntimeFn::LoadName(global@13, const "warning");
+        _125 = RuntimeFn::DynGetAttr(_124, const "args");
+        _126 = box<I64>(const 0_i64);
+        _127 = RuntimeFn::GetItem(_125, _126);
+        _128 = RuntimeFn::LoadName(global@12, const "message");
+        _129 = RuntimeFn::IsSame(_127, _128);
+        _130 = box<Bool>(_129);
+        _131 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_131, _123);
+        RuntimeFn::WriteSep(_131);
+        RuntimeFn::WriteObject(_131, _130);
+        RuntimeFn::WriteNewline(_131);
         // line 40
-        _129 = RuntimeFn::LoadName(global@13, const "warning");
-        _130 = RuntimeFn::DynStr(_129);
-        _131 = RuntimeFn::LoadName(global@11, const "log");
-        _132 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_132, _130);
-        RuntimeFn::WriteSep(_132);
-        RuntimeFn::WriteObject(_132, _131);
-        RuntimeFn::WriteNewline(_132);
+        _132 = RuntimeFn::LoadName(global@13, const "warning");
+        _133 = RuntimeFn::DynBuiltin(const "str", [_132], [], []);
+        _134 = RuntimeFn::LoadName(global@11, const "log");
+        _135 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_135, _133);
+        RuntimeFn::WriteSep(_135);
+        RuntimeFn::WriteObject(_135, _134);
+        RuntimeFn::WriteNewline(_135);
         // line 42
-        _133 = RuntimeFn::MakeClass(const "BadMessage", [], null);
-        g5 = _133;
-        _134 = MakeFunction(__str__; env=[]; defaults=[null]);
-        RuntimeFn::SetAttr(_133, const "__str__", _134);
-        RuntimeFn::FinalizeOrdinaryClass(_133);
+        _136 = RuntimeFn::MakeClass(const "BadMessage", [], null);
+        g5 = _136;
+        _137 = global@6;
+        _138 = MakeFunction(__str__; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_138, _137);
+        RuntimeFn::SetAttr(_136, const "__str__", _138);
+        RuntimeFn::FinalizeOrdinaryClass(_136);
         // line 45
-        _135 = global@1;
-        _136 = global@5;
-        _137 = dyn.call(_136, []);
-        _138 = dyn.call(_135, [_137]);
-        g13 = _138;
+        _139 = global@1;
+        _140 = global@5;
+        _141 = dyn.call(_140, []);
+        _142 = dyn.call(_139, [_141]);
+        g13 = _142;
         // line 46
-        _139 = RuntimeFn::LoadName(global@13, const "warning");
-        _140 = RuntimeFn::DynType(_139);
-        _141 = RuntimeFn::DynGetAttr(_140, const "__name__");
-        _142 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_142, _141);
-        RuntimeFn::WriteNewline(_142);
+        _143 = RuntimeFn::LoadName(global@13, const "warning");
+        _144 = RuntimeFn::DynType(_143);
+        _145 = RuntimeFn::DynGetAttr(_144, const "__name__");
+        _146 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_146, _145);
+        RuntimeFn::WriteNewline(_146);
         // line 47
         goto -> bb48;
     }
     bb48: {
         // line 48
-        _143 = RuntimeFn::LoadName(global@13, const "warning");
-        _144 = RuntimeFn::DynStr(_143);
+        _147 = RuntimeFn::LoadName(global@13, const "warning");
+        _148 = RuntimeFn::DynBuiltin(const "str", [_147], [], []);
         goto -> bb62;
     }
     bb49: {
-        _146 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_146);
-        _147 = RuntimeFn::HandlerEnter(_145);
-        g14 = _145;
+        _150 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_150);
+        _151 = RuntimeFn::HandlerEnter(_149);
+        g14 = _149;
         goto -> bb52;
     }
     bb50: {
-        _145 = caught_exception;
+        _149 = caught_exception;
         goto -> bb49;
     }
     bb51: {
-        _145 = caught_exception;
+        _149 = caught_exception;
         goto -> bb49;
     }
     bb52: {
-        _149 = RuntimeFn::HandlerEnter(None);
+        _153 = RuntimeFn::HandlerEnter(None);
         // line 50
-        _151 = RuntimeFn::LoadName(global@14, const "error");
-        _152 = RuntimeFn::DynStr(_151);
-        _153 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_153, _152);
-        RuntimeFn::WriteNewline(_153);
-        _150 = const 0_i64;
+        _155 = RuntimeFn::LoadName(global@14, const "error");
+        _156 = RuntimeFn::DynBuiltin(const "str", [_155], [], []);
+        _157 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_157, _156);
+        RuntimeFn::WriteNewline(_157);
+        _154 = const 0_i64;
         goto -> bb55;
     }
     bb53: {
-        _148 = caught_exception;
+        _152 = caught_exception;
         goto -> bb54;
     }
     bb54: {
-        _154 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_154);
-        _149 = RuntimeFn::HandlerEnter(_148);
-        _150 = const 1_i64;
+        _158 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_158);
+        _153 = RuntimeFn::HandlerEnter(_152);
+        _154 = const 1_i64;
         goto -> bb55;
     }
     bb55: {
-        _155 = RuntimeFn::MakeUnbound();
-        g14 = _155;
-        RuntimeFn::HandlerLeave(_147);
+        _159 = RuntimeFn::MakeUnbound();
+        g14 = _159;
+        RuntimeFn::HandlerLeave(_151);
         goto -> bb56;
     }
     bb56: {
-        _156 = Eq(_150, const 1_i64);
-        branch _156 -> [then: bb57, else: bb59];
+        _160 = Eq(_154, const 1_i64);
+        branch _160 -> [then: bb57, else: bb59];
     }
     bb57: {
-        RuntimeFn::HandlerLeave(_147);
-        raise _148;
+        RuntimeFn::HandlerLeave(_151);
+        raise _152;
     }
     bb58: {
         unreachable;
     }
     bb59: {
-        _157 = Eq(_150, const 2_i64);
-        branch _157 -> [then: bb63, else: bb60];
+        _161 = Eq(_154, const 2_i64);
+        branch _161 -> [then: bb63, else: bb60];
     }
     bb60: {
-        RuntimeFn::HandlerLeave(_147);
+        RuntimeFn::HandlerLeave(_151);
         goto -> bb63;
     }
     bb61: {
@@ -715,7 +727,7 @@ fn main() -> () {
         goto -> bb63;
     }
     bb63: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

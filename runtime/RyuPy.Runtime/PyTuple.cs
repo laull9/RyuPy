@@ -7,11 +7,11 @@ namespace RyuPy.Runtime;
 /// Python <c>tuple</c>：不可变序列。
 /// </summary>
 /// <remarks>
-/// 现在只服务于 <c>exc.args</c> 与后续容器功能的最小子集（<c>len</c> / 下标 / <c>repr</c>）。
-/// M2.3 会在这里补齐切片、解包、相等性与哈希；届时元素存储仍是 <c>object?[]</c>，
-/// 因为「元组里什么都能放」正是 Python 元组的语义。
+/// 元素存储保持 <c>object?[]</c>；长度、索引及存储入口保持非虚方法。
+/// 允许内部namedtuple使用专用派生载体，普通tuple不增加类引用字段。
+/// 解除sealed会扩大CLR类型匹配范围并可能改变JIT决策，不代表零成本。
 /// </remarks>
-public sealed class PyTuple
+public class PyTuple
 {
     /// <summary>元素数组。</summary>
     public object?[] Items { get; }

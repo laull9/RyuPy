@@ -23,9 +23,7 @@ use crate::mir::{Callee, Constant, MirType, Operand, RuntimeFn, Rvalue, Statemen
 impl FunctionBuilder<'_> {
     /// 构建一条 `class` 语句。
     pub(crate) fn build_class_def(&mut self, cls_id: ryupy_hir::ClassId) {
-        let Some(&class_global) = self.hir_class_globals.get(&cls_id) else {
-            return;
-        };
+        let class_global = self.hir_class_globals.get(&cls_id).copied();
         let cls = &self.hir.classes[cls_id];
         let name = cls.name.as_str().to_owned();
         let base = cls.base;
@@ -46,6 +44,14 @@ impl FunctionBuilder<'_> {
             vec![]
         };
         let decorators = self.prepare_decorators(&decorators);
+        // LOAD_BUILD_CLASS先于类体MAKE_FUNCTION，二者都先于bases副作用。
+        if let Some(state) = self.module_state {
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::InstanceClassGuard),
+                args: vec![Operand::Local(state)],
+            }));
+        }
+        let class_context = self.expr_builder().capture_definition_context();
 
         // 1. 基类表达式先于类体求值（与 CPython 的 `__build_class__` 顺序一致）。
         let bases = match base {
@@ -89,7 +95,16 @@ impl FunctionBuilder<'_> {
             Operand::Const(Constant::Null)
         };
         let dest = self.alloc_temp(MirType::Dynamic);
-        let (constructor, args) = if let Some(ClassBase::TypedDict { total, .. }) = base {
+        let (constructor, args) = if let Some(context) = &class_context {
+            (
+                RuntimeFn::InstanceMakeClass,
+                vec![
+                    context.clone(),
+                    Operand::Const(Constant::Str(name)),
+                    Operand::Array(bases),
+                ],
+            )
+        } else if let Some(ClassBase::TypedDict { total, .. }) = base {
             (
                 RuntimeFn::TypedDictBegin,
                 vec![
@@ -120,13 +135,24 @@ impl FunctionBuilder<'_> {
                 args,
             },
         });
-        self.push_stmt(Statement::SetGlobal {
-            dest: class_global,
-            value: Operand::Local(dest),
-        });
+        if let Some(global) = class_global {
+            self.push_stmt(Statement::SetGlobal {
+                dest: global,
+                value: Operand::Local(dest),
+            });
+        }
         let class_object = Operand::Local(dest);
+        let class_cell = self.begin_class_cell(cls_id, dest);
 
+        let previous_state = self.module_state;
+        if let Some(Operand::Local(context)) = class_context {
+            self.module_state = Some(context);
+        }
         let previous_namespace = self.class_namespace.replace(class_object.clone());
+        let previous_cell = std::mem::replace(
+            &mut self.class_cell,
+            class_cell.map(|cell| (cls_id, Operand::Local(cell))),
+        );
         if cls.has_annotations {
             let annotations =
                 self.expr_builder()
@@ -143,6 +169,8 @@ impl FunctionBuilder<'_> {
             matches!(base, Some(ClassBase::TypedDict { .. })),
         );
         self.class_namespace = previous_namespace;
+        self.class_cell = previous_cell;
+        self.module_state = previous_state;
         // 类体最终namespace完成后才处理隐式new绑定；类decorator仍在其后。
         // 专用Enum/TypedDict/异常构造协议不走普通类终结；dataclass装饰前仍普通。
         if !is_exception
@@ -152,6 +180,17 @@ impl FunctionBuilder<'_> {
             self.push_stmt(Statement::Eval(Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::FinalizeOrdinaryClass),
                 args: vec![class_object.clone()],
+            }));
+        }
+        // 类体和普通类终结均成功后才填入原类；任何 class decorator 都在此之后。
+        if let Some(cell) = class_cell {
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::InstanceClassCellGuard),
+                args: vec![class_object.clone()],
+            }));
+            self.push_stmt(Statement::Eval(Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::CellSet),
+                args: vec![Operand::Local(cell), class_object.clone()],
             }));
         }
         if !conditional
@@ -194,11 +233,22 @@ impl FunctionBuilder<'_> {
             class_object
         };
         let value = self.apply_decorators(class_object, decorators, frozen);
+        // 记录实际发布接点，不用函数Return猜类创建成功；异常路径仍可带空cell逃逸。
+        if let (Some(cell), Operand::Local(published)) = (class_cell, &value)
+            && let Some((_, plan)) = self
+                .class_cells
+                .iter_mut()
+                .find(|(_, plan)| plan.cell == cell)
+        {
+            plan.completion = self.current_bb;
+            plan.published_class = *published;
+        }
         if let Some(binding) = decorated_binding {
-            self.push_stmt(Statement::SetGlobal {
-                dest: self.module_vars[&binding],
+            self.store_binding(
+                ryupy_hir::Binding::ModuleVar(binding),
                 value,
-            });
+                &MirType::Dynamic,
+            );
         }
     }
 

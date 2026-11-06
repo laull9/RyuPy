@@ -1,0 +1,7 @@
+# ryupy: pending
+# 保留CP码点顺序正期望；现统一UTF16排序属于旧边界，非子类已支持宣称。
+class Text(str):
+    pass
+class Other(str):
+    pass
+assert Text('\uE000') < Other('😀') and str.__lt__(Text('\uE000'), '😀')

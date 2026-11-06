@@ -27,7 +27,13 @@ public static class PyAbc
     public static bool IsSubclass(object? child, PyNativeType parent)
     {
         if (!IsAbc(parent)) return false;
+        if (ReferenceEquals(child, PyMappingProxy.Type)) return ReadOnlyMapping(parent.Name);
         if (child is PyNativeType native && IsAbc(native)) return Inherits(native.Name, parent.Name);
+        if (child is PyClass { NamedTupleLayout: not null }) return Known(parent.Name, "tuple");
+        if (child is PyClass { HasListLayout: true } listClass)
+            return Known(parent.Name, "list") || Structural(parent.Name, member => HasClassMember(listClass, member));
+        if (child is PyClass { HasDictLayout: true } dictClass)
+            return Known(parent.Name, "dict") || Structural(parent.Name, member => HasClassMember(dictClass, member));
         if (child is PyClass cls) return Structural(parent.Name, member => HasClassMember(cls, member));
         string? name = child switch { PyType builtin => builtin.Name, PyNativeType type => type.Name, _ => null };
         if (name is null) throw new PyTypeError("issubclass() arg 1 must be a class");
@@ -46,6 +52,12 @@ public static class PyAbc
     });
     private static bool Accepts(string protocol, object? value)
     {
+        if (value is PyMappingProxy) return ReadOnlyMapping(protocol);
+        if (value is PyNamedTupleInstance) return Known(protocol, "tuple");
+        if (value is PyListInstance list)
+            return Known(protocol, "list") || Structural(protocol, name => HasClassMember(list.Class, name));
+        if (value is PyDictInstance dict)
+            return Known(protocol, "dict") || Structural(protocol, name => HasClassMember(dict.Class, name));
         if (value is PyInstance instance) return Structural(protocol, name => HasClassMember(instance.Class, name));
         if (value is PyBaseException exception && exception.PythonClass is not null)
             return Structural(protocol, name => HasClassMember(exception.PythonClass, name));
@@ -61,11 +73,16 @@ public static class PyAbc
         if (protocol == "Callable") return PyOps.Truthy(PyOps.CallBuiltin("callable", [value], [], []));
         return Known(protocol, value is PyRange ? "range" : PyRepr.TypeName(value));
     }
-    private static bool HasClassMember(PyClass cls, string name) => cls.TryLookup(name, out _, out object? member) && member is not null and not PyNone;
+    private static bool HasClassMember(PyClass cls, string name)
+    {
+        if (cls.TryLookup(name, out _, out object? member)) return member is not null and not PyNone;
+        // list根槽不写入用户类字典；结构检查也须见到继承的iter等有效槽，hash=None不算。
+        return name != "__hash__" && (cls.HasListLayout && PyListDescriptors.IsAttribute(name)
+            || cls.HasDictLayout && PyDictDescriptors.IsAttribute(name));
+    }
     private static bool HasNativeMember(PyNativeObject value, string name)
     {
-        try { return value.GetAttr(name) is not null and not PyNone; }
-        catch (PyAttributeError) { return false; }
+        return PyObject.TryGetNativeSpecial(value, name, out object? member) && member is not null and not PyNone;
     }
     private static bool Structural(string protocol, Func<string, bool> has) => protocol switch
     {
@@ -78,6 +95,10 @@ public static class PyAbc
         "Callable" => has("__call__"),
         _ => false,
     };
+    // 仅真实载体/稳定type进入，不靠同名native对象冒充映射。
+    private static bool ReadOnlyMapping(string protocol) =>
+        protocol is "Mapping" or "Iterable" or "Sized" or "Container" or "Collection";
+
     private static bool Known(string protocol, string name)
     {
         bool sequence = name is "list" or "tuple" or "str" or "bytes" or "bytearray" or "range" or "deque" or "version_info";

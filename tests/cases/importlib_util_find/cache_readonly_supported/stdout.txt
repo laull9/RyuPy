@@ -1,0 +1,13 @@
+cached_original True
+module_cache_readonly True
+cached_no_revalidation True
+arbitrary_spec_identity True
+arbitrary_spec_alias True
+false_spec_is_not_none True
+false_spec_is_not_none True
+false_spec_is_not_none True
+false_spec_is_not_none True
+false_spec_is_not_none True
+none_spec ValueError fs_cached.__spec__ is None
+restored_original True
+cache_object_unchanged True

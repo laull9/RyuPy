@@ -278,8 +278,10 @@ fn module_pair_optional_operand_is_read_and_survives_link_clone() {
         vec![(
             p,
             crate::link::UnitMeta {
+                execution: crate::ModuleExecutionKind::LegacySingleton,
                 location: crate::ModuleLocation::LegacyDiagnostic,
                 file_backed_by_global: false,
+                is_package: false,
                 protected_exports: vec![],
                 name: "__main__".into(),
                 package: String::new(),

@@ -1,0 +1,4 @@
+首次直接exec RuntimeError fixture failed cause None
+缓存后直接exec RuntimeError fixture failed cause None
+普通import失败 RuntimeError fixture failed cause None
+直接exec不管理缓存；普通import清失败缓存 True

@@ -38,6 +38,9 @@ public static partial class PyOps
     public static void DeclareDataclass(object cls, object?[] fieldNames, bool frozen)
     {
         if (cls is not PyClass target) throw new PyTypeError("dataclass declaration requires a class");
+        if (target.NamedTupleLayout is { IsTyped: true }) return;
+        if (target.IsNativeRuntimeClass) PyTypingNamedTupleShell.RejectPending(target);
+        PyNamedTupleLayout.GuardMutation(target);
         var fields = new string[fieldNames.Length];
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (int index = 0; index < fields.Length; index++)
@@ -56,6 +59,12 @@ public static partial class PyOps
     public static object ApplyDataclass(object current, bool frozen)
     {
         if (current is not PyClass cls) throw new PyTypeError("dataclass decorator requires a class");
+        // 普通带注解的类仍可 Declare；真正装饰前拒绝，不能留下字段或快计划半变更。
+        if (cls.IsTypingIoFamily) throw PyTypingIo.Unsupported("dataclass on typing IO classes is not supported");
+        PyNamedTupleLayout.GuardMutation(cls);
+        if (cls.HasStringLayout) throw new PyNotImplementedError("dataclass on str subclass is not supported");
+        if (cls.HasListLayout) throw new PyNotImplementedError("dataclass on list subclass is not supported");
+        if (cls.HasDictLayout) throw new PyNotImplementedError("dataclass on dict subclass is not supported");
         if (cls.DataclassActive) throw new PyNotImplementedError("reapplying dataclass is not supported yet");
         if (cls.BaseClass is not null || cls.BuiltinBase is not null)
             throw new PyNotImplementedError("runtime dataclass inheritance is not supported yet");
@@ -87,11 +96,16 @@ public static partial class PyOps
             if (metadata.Init && hasDefault && !optional)
                 throw new PyTypeError($"non-default argument '{field}' follows default argument");
             hasDefault |= metadata.Init && optional;
-            if (metadata.Default is PyList or PyDict or PySet or PyByteArray or PyDeque or IPyNativeMapping
+            // 真实list派生的根hash为None；不借类名字或普通用户hash策略猜测可变布局。
+            if (metadata.Default is PyList or PyListInstance or PyDict or PyDictInstance or PySet or PyByteArray or PyDeque or IPyNativeMapping
                 || metadata.Default is PyInstance instanceDefault
                 && instanceDefault.Class.TryLookup("__hash__", out _, out var hash)
                 && hash is null or PyNone)
-                throw new PyValueError($"mutable default for field {field} is not allowed: use default_factory");
+                throw new PyValueError(metadata.Default is PyListInstance listDefault
+                    ? $"mutable default {PyListLayout.ClassRepr(listDefault.Class)} for field {field} is not allowed: use default_factory"
+                    : metadata.Default is PyDictInstance dictDefault
+                    ? $"mutable default {PyDictLayout.ClassRepr(dictDefault.Class)} for field {field} is not allowed: use default_factory"
+                    : $"mutable default for field {field} is not allowed: use default_factory");
             // field()声明本身不是实例默认值；公开类属性只保留真实default。
             if (value is PyDataclassField)
             {
@@ -99,6 +113,10 @@ public static partial class PyOps
                 else cls.SetAttr(field, metadata.Default);
             }
         }
+        // CP先移除/替换field声明，再于生成eq之前快照own hash/eq。
+        // None+own eq（即使None显式写入）视作隐式hash；不能把field占位当显式hash保留。
+        bool hasExplicitHash = cls.Attributes.TryGetValue("__hash__", out object? declaredHash)
+            && !((declaredHash is null or PyNone) && cls.Attributes.ContainsKey("__eq__"));
         // 装饰器选项属于此次应用，不能因下层替换了类而丢失或借用替换类的旧选项。
         cls.DataclassFrozen = frozen;
         if (!cls.Attributes.ContainsKey("__init__"))
@@ -163,8 +181,8 @@ public static partial class PyOps
                     right[index] = PyObject.GetAttr(other, compareFields[index]);
                 return PyHash.Equal(new PyTuple(left), new PyTuple(right));
             }));
-        if (!cls.Attributes.ContainsKey("__hash__") && !frozen) cls.SetAttr("__hash__", PyNone.Instance);
-        if (!cls.Attributes.ContainsKey("__hash__"))
+        if (!hasExplicitHash && !frozen) cls.SetAttr("__hash__", PyNone.Instance);
+        if (!hasExplicitHash && frozen)
             cls.SetAttr("__hash__", DataclassMethod(cls.Name + ".__hash__", ["self"], bound =>
             {
                 if (!cls.DataclassFrozen) throw new PyTypeError($"unhashable type: '{cls.Name}'");

@@ -1,0 +1,6 @@
+{"case": "root_data_descriptor_beats_field", "values": [true, true, "instance field"], "events": []}
+{"case": "class_shadow_allows_field", "values": ["instance field", true, true, "class value"], "events": []}
+{"case": "field_beats_nondata_method", "values": ["instance field", true], "events": []}
+{"case": "property_beats_field", "values": ["property", true, "instance field"], "events": ["getter"]}
+{"case": "getter_missing_beats_field", "values": ["AttributeError", "property '__class__' of 'NoGetter' object has no getter"], "events": []}
+{"case": "nearest_ordinary_not_base_property", "values": ["instance field", true], "events": []}

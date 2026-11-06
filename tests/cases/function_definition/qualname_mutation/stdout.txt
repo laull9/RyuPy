@@ -1,0 +1,8 @@
+short-name 名字.函数 10
+{}
+('TypeError', '__qualname__ must be set to a string object')
+('TypeError', '__qualname__ must be set to a string object')
+('TypeError', '__qualname__ must be set to a string object')
+('TypeError', '__qualname__ must be set to a string object')
+('TypeError', '__qualname__ must be set to a string object')
+('TypeError', '__qualname__ must be set to a string object')

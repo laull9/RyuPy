@@ -448,9 +448,12 @@ mod tests {
         };
         let mut functions = Arena::default();
         let id = functions.alloc(Function {
+            module_state: None,
+            module_state_source: None,
             name: "test".into(),
             codegen_name: "test".into(),
             source_file: "test.py".into(),
+            definition: None,
             params: vec![],
             ret: MirType::Dynamic,
             body: Body {
@@ -465,6 +468,7 @@ mod tests {
             defaults_global: None,
             signature_global: None,
             env: None,
+            dynamic_origin: None,
         });
         let mut program = Program {
             functions,
@@ -530,9 +534,12 @@ mod tests {
         };
         let mut functions = Arena::default();
         let id = functions.alloc(Function {
+            module_state: None,
+            module_state_source: None,
             name: "test".into(),
             codegen_name: "test".into(),
             source_file: "test.py".into(),
+            definition: None,
             params: vec![],
             ret: MirType::Dynamic,
             body: Body {
@@ -547,6 +554,7 @@ mod tests {
             defaults_global: None,
             signature_global: None,
             env: None,
+            dynamic_origin: None,
         });
         let mut program = Program {
             functions,

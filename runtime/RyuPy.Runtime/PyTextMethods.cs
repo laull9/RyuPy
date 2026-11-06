@@ -17,9 +17,11 @@ public static partial class PyOps
     private static object? ByteArrayMethod(PyByteArray array, string name, object?[] args) => name switch
     {
         "startswith" or "endswith" => PyBinaryAffix.Match(array, name, args),
+        "translate" => PyBinaryTranslate.Invoke(array, args, [], []),
         "append" => AppendByte(array, args),
         "extend" => ExtendByteArray(array, args),
         "decode" => PyEncoding.Decode([.. array.Bytes], args.Length > 0 ? AsText(args[0]) : "utf-8"),
+        _ when PyBinaryClassification.Has(name) => PyBinaryClassification.Invoke(array, name, args.Length, 0),
         _ => throw MissingAttribute("bytearray", name),
     };
 
@@ -39,7 +41,9 @@ public static partial class PyOps
     {
         "decode" => bytes.Decode(args.Length > 0 ? AsText(args[0]) : "utf-8"),
         "hex" => Convert.ToHexString(bytes.Bytes).ToLowerInvariant(),
+        "translate" => PyBinaryTranslate.Invoke(bytes, args, [], []),
         "startswith" or "endswith" => PyBinaryAffix.Match(bytes, name, args),
+        _ when PyBinaryClassification.Has(name) => PyBinaryClassification.Invoke(bytes, name, args.Length, 0),
         _ => throw MissingAttribute("bytes", name),
     };
 
@@ -60,8 +64,7 @@ public static partial class PyOps
         "index" => FindText(text, args, fromEnd: false, raiseIfMissing: true),
         "rindex" => FindText(text, args, fromEnd: true, raiseIfMissing: true),
         "count" => CountText(text, args),
-        "startswith" => text.StartsWith(AsText(Single("startswith", args)), StringComparison.Ordinal),
-        "endswith" => text.EndsWith(AsText(Single("endswith", args)), StringComparison.Ordinal),
+        "startswith" or "endswith" => PyTextAffix.Match(text, name, args, [], qualified: false),
         _ => throw MissingAttribute("str", name),
     };
 
@@ -224,13 +227,13 @@ public static partial class PyOps
         for (int i = 0; i < items.Length; i++)
         {
             parts[i] = items[i] is string s
-                ? s
+                ? s : items[i] is PyStringInstance subtext ? subtext.Value
                 : throw new PyTypeError("sequence item: expected str instance");
         }
         return string.Join(separator, parts);
     }
 
     private static string AsText(object? value) =>
-        value as string
-        ?? throw new PyTypeError($"expected str, got '{PyRepr.TypeName(value)}'");
+        value is string text ? text : value is PyStringInstance subtext ? subtext.Value
+        : throw new PyTypeError($"expected str, got '{PyRepr.TypeName(value)}'");
 }

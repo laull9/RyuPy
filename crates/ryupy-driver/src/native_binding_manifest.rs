@@ -140,7 +140,7 @@ impl BindingManifest {
                 "JIT缺少冻结shared"
             );
         }
-        let modules:Vec<Value>=self.report.modules.iter().map(|m|json!({"id":m.module_id,"name":m.module_name,"init":method(&m.init),"getter":method(&m.getter),"setter":method(&m.setter),"exports":m.exports,"origin":if m.module_id==self.binding.module_id{json!({"kind":"declared_native_binding","binding_id":"b0","declaration_sha256":plan.declaration_sha256})}else{json!({"kind":"compiled_source","source_module_id":m.module_id})}})).collect();
+        let modules:Vec<Value>=self.report.modules.iter().map(|m|json!({"id":m.module_id,"name":m.module_name,"init":method(&m.init),"getter":m.getter.as_ref().map(method),"setter":m.setter.as_ref().map(method),"exports":m.exports,"origin":if m.module_id==self.binding.module_id{json!({"kind":"declared_native_binding","binding_id":"b0","declaration_sha256":plan.declaration_sha256})}else{json!({"kind":"compiled_source","source_module_id":m.module_id})}})).collect();
         let refs:Vec<Value>=self.report.delegate_references.iter().map(|r|json!({"site":{"source_method":method(&r.source),"instruction":r.instruction},"target":r.target.as_ref().map(method),"target_display":r.target_display,"role":r.role,"module_id":r.module_id,"function_id":r.function_id,"class_id":r.class_id})).collect();
         let b = &self.binding;
         let value = json!({"schema_version":3,"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},

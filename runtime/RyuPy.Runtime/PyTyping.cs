@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace RyuPy.Runtime;
 
 /// <summary>typing的有限运行时元数据：保留注解对象，不执行类型检查、前向引用求值或完整泛型推导。</summary>
-public static class PyTyping
+public static partial class PyTyping
 {
     private static readonly Dictionary<string, PyTypingForm> Forms = new(StringComparer.Ordinal);
     private static readonly Lazy<Dictionary<string, object?>> Attributes = new(Build);
@@ -19,20 +19,45 @@ public static class PyTyping
     {
         var result = new Dictionary<string, object?>
         {
-            ["TYPE_CHECKING"] = false, ["TypedDict"] = PyTypedDict.Factory,
+            ["Generic"] = PyTypingGeneric.Root, ["TYPE_CHECKING"] = false, ["TypedDict"] = PyTypedDict.Factory, ["TypeVar"] = PyTypingTypeVar.Type,
             ["is_typeddict"] = PyNativeFunctions.Create("is_typeddict", ["tp"], [null], 1,
                 args => PyTypedDict.IsTypedDict(args[0])),
         };
-        foreach (string name in new[] { "Any", "Optional", "Union", "Literal", "List", "Dict", "Tuple", "Set", "FrozenSet", "Callable", "Iterable", "Iterator", "Sequence", "Mapping", "MutableMapping", "Collection", "Container" })
+        foreach (string name in new[] { "Any", "Optional", "Union", "ClassVar", "Literal", "List", "Dict", "Tuple", "Set", "FrozenSet", "Callable", "Iterable", "Iterator", "Sequence", "Mapping", "MutableMapping", "Collection", "Container" })
         {
             var form = new PyTypingForm(name); Forms[name] = form; result[name] = form;
         }
         result["get_origin"] = PyNativeFunctions.Create("get_origin", ["tp"], [null], 1,
-            args => args[0] is PyTypingAlias alias ? alias.Origin : args[0] is PyTypingForm form && form.Name is not ("Union" or "Literal") ? Origin(form.Name) : PyNone.Instance);
+            args => GetOrigin(args[0]));
         result["get_args"] = PyNativeFunctions.Create("get_args", ["tp"], [null], 1,
-            args => args[0] is PyTypingAlias alias ? alias.PublicArguments() : new PyTuple([]));
+            args => GetArguments(args[0]));
         result["cast"] = PyNativeFunctions.Create("cast", ["typ", "val"], [null, null], 2, args => args[1]);
+        // 工厂先完成整个 IO 族；模块惰性表只在三根均可用后一次发布真实身份。
+        foreach (string name in new[] { "IO", "BinaryIO", "TextIO" }) result[name] = PyTypingIo.Root(name);
+        result["NamedTuple"] = PyTypingNamedTuple.Root;
+        PyTypingOverload.Install(result);
         return result;
+    }
+
+    // alias 分支在读取 Generic 全局之前早返；普通类型查询才消费当前导出。
+    private static object GetOrigin(object? value)
+    {
+        GuardHelper("_AnnotatedAlias"); GuardHelper("_BaseGenericAlias");
+        GuardHelper("GenericAlias"); GuardHelper("ParamSpecArgs"); GuardHelper("ParamSpecKwargs");
+        if (value is PyTypingGenericAlias) return PyTypingGeneric.Root;
+        if (value is PyTypingAlias alias) return alias.Origin;
+        if (value is PyTypingForm form && form.Name is not ("Any" or "Optional" or "Union" or "ClassVar" or "Literal")) return Origin(form.Name);
+        PyTypingGeneric.GuardExport(Attributes.Value);
+        if (PyTypingGeneric.IsRoot(value)) return PyTypingGeneric.Root;
+        GuardHelper("types");
+        return PyNone.Instance;
+    }
+
+    // 冷建类协议读取原始身份；公开模块字典可写，不能用其当前值冒充canonical。
+    internal static PyTypingForm OriginalForm(string name)
+    {
+        _ = Attributes.Value;
+        return Forms[name];
     }
 
     internal static object Origin(string name) => name switch
@@ -46,61 +71,23 @@ public static class PyTyping
         _ => throw new PyNotImplementedError("unsupported typing form"),
     };
 
-    internal static object Subscribe(string name, object? parameter)
+    internal static object Subscribe(PyTypingForm form, object? parameter)
     {
+        string name = form.Name;
+        if (name is "Optional" or "Union" or "ClassVar") return PyTypingSpecialFormCache.Subscribe(form, parameter);
+        if (form.IsOrdinaryGeneric) return OrdinaryCache.Subscribe(form, parameter);
+        if (name == "Tuple") return TupleCache.Subscribe(form, parameter);
+        if (name == "Callable") return CallableSubscribe(form, parameter);
         _ = Attributes.Value;
         if (name == "Any") throw new PyTypeError("type 'Any' is not subscriptable");
         object?[] args = parameter is PyTuple tuple ? tuple.Items : [parameter];
         if (name == "Literal") return Intern(name, name, Forms[name], PyTypingLiteral.Normalize(args));
-        if (name == "Optional")
-        {
-            if (args.Length != 1) throw new PyTypeError("typing.Optional requires a single type");
-            return Union([TypeArgument(args[0]), PyType.Get("NoneType")], "Optional");
-        }
-        if (name == "Union")
-        {
-            if (args.Length == 0) throw new PyTypeError("Cannot take a Union of no types.");
-            var values = new object?[args.Length];
-            for (int i = 0; i < args.Length; i++) values[i] = TypeArgument(args[i]);
-            return Union(values, "Union");
-        }
-        if (name == "Callable")
-        {
-            if (args.Length != 2 || args[0] is not PyList parameters)
-                throw new PyNotImplementedError("Callable currently requires an explicit list of argument types");
-            var callArgs = new object?[parameters.Count + 1];
-            for (int i = 0; i < parameters.Count; i++) callArgs[i] = TypeArgument(parameters.Items[i]);
-            callArgs[^1] = TypeArgument(args[1]);
-            return Intern(name, name, Origin(name), callArgs);
-        }
-        if (name == "Tuple" && Array.Exists(args, value => value is PyEllipsis))
-        {
-            if (args.Length != 2 || args[1] is not PyEllipsis)
-                throw new PyNotImplementedError("typing.Tuple currently supports Ellipsis only as Tuple[T, ...]");
-            return Intern(name, name, Origin(name), [TypeArgument(args[0]), PyEllipsis.Instance]);
-        }
-        int required = name is "Dict" or "Mapping" or "MutableMapping" ? 2 : name == "Tuple" ? -1 : 1;
+        int required = name is "Dict" or "Mapping" or "MutableMapping" ? 2 : 1;
         if (required >= 0 && args.Length != required)
             throw new PyTypeError($"typing.{name} requires {required} type argument(s)");
         var normalized = new object?[args.Length];
         for (int i = 0; i < args.Length; i++) normalized[i] = TypeArgument(args[i]);
         return Intern(name, name, Origin(name), normalized);
-    }
-
-    private static object Union(object?[] args, string cacheName)
-    {
-        var result = new List<object?>();
-        foreach (object? arg in args)
-        {
-            object?[] inner = arg is PyTypingAlias { Name: "Union" } union ? union.Arguments : [arg];
-            foreach (object? item in inner)
-            {
-                bool duplicate = false;
-                foreach (object? existing in result) if (PyHash.Equal(existing, item)) { duplicate = true; break; }
-                if (!duplicate) result.Add(item);
-            }
-        }
-        return result.Count == 1 ? result[0]! : Intern(cacheName, "Union", Forms["Union"], result.ToArray());
     }
 
     /// <summary>内建容器/ABC的有限PEP585订阅；元数据不能当作isinstance类型。</summary>
@@ -130,11 +117,18 @@ public static class PyTyping
         }
     }
 
-    private static object TypeArgument(object? value) => value switch
+    private static object TypeArgument(object? value)
+    {
+        PyTypingGeneric.GuardExport(Attributes.Value);
+        PyTypingGeneric.ValidateTypeArgument(value);
+        return TypeArgumentCore(value);
+    }
+
+    private static object TypeArgumentCore(object? value) => value switch
     {
         null or PyNone => PyType.Get("NoneType"),
         PyTypingForm { Name: "Optional" or "Union" or "Literal" } => throw new PyTypeError("Plain special form is not valid as a type argument"),
-        PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType => value,
+        PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType or PyTypingTypeVar => value,
         string => throw new PyNotImplementedError("typing forward references are not supported yet"),
         _ => throw new PyTypeError("Parameters to generic types must be types."),
     };
@@ -144,9 +138,10 @@ public static class PyTyping
         PyEllipsis => "...",
         PyTypedDictType typed => typed.Module + "." + typed.Name,
         PyType type => type.Name,
-        PyClass cls => "__main__." + cls.Name,
+        PyClass cls => cls.IsTypingIoFamily ? PyTypingIo.Display(cls) : "__main__." + cls.Name,
         PyNativeType type => type.Module + "." + type.Name,
         PyTypingAlias alias => alias.PythonRepr(), PyTypingForm form => form.PythonRepr(),
+        PyTypingTypeVar variable => variable.PythonRepr(),
         _ => PyRepr.Repr(value),
     };
 }
@@ -156,18 +151,44 @@ public sealed class PyTypingForm(string name) : PyNativeObject, IPyNativeCallabl
 {
     /// <summary>公开形式名称。</summary>
     public string Name { get; } = name;
+    // 只有这些根继承同一个 _SpecialGenericAlias 订阅入口；Tuple/Callable 各有覆盖。
+    internal bool IsOrdinaryGeneric { get; } = name is "List" or "Dict" or "Set" or "FrozenSet"
+        or "Iterable" or "Iterator" or "Sequence" or "Mapping" or "MutableMapping" or "Collection" or "Container";
     /// <inheritdoc />
-    public override string TypeName => "_SpecialForm";
+    public override string TypeName => Name switch
+    {
+        "Any" => "_AnyMeta", "Literal" => "_LiteralSpecialForm",
+        "Optional" or "Union" or "ClassVar" => "_SpecialForm", "Tuple" => "_TupleType",
+        "Callable" => "_CallableType", _ => "_SpecialGenericAlias",
+    };
     /// <inheritdoc />
     public override object? GetAttr(string name) => name switch
     {
-        "__name__" => Name, "__module__" => "typing",
-        "__getitem__" => PyNativeFunctions.Create("__getitem__", ["parameters"], [null], 1, args => PyTyping.Subscribe(Name, args[0])),
+        "__class__" => PyObject.TypeOf(this),
+        "__name__" or "__qualname__" => Name, "__module__" => "typing",
+        "__getitem__" => PyNativeFunctions.Create("__getitem__", ["parameters"], [null], 1, args => PyTyping.Subscribe(this, args[0])),
+        "__mro_entries__" when Name == "ClassVar" => PyNativeFunctions.Create(name, ["bases"], [null], 1,
+            _ => PyTypingClassVar.RejectBase(this)),
+        // 两个静态委托不捕获 name，避免所有普通 GetAttr 调用被提升为闭包分配。
+        "__instancecheck__" when Name == "ClassVar" => PyNativeFunctions.Create(name, ["cls"], [null], 1,
+            static _ => PyTypingClassVar.RejectRootCheck(subclass: false)),
+        "__subclasscheck__" when Name == "ClassVar" => PyNativeFunctions.Create(name, ["cls"], [null], 1,
+            static _ => PyTypingClassVar.RejectRootCheck(subclass: true)),
+        "__call__" when Name == "ClassVar" => PyTypingClassVar.CallMethod(this),
+        "_name" or "_getitem" or "__dict__" => throw new PyNotImplementedError("typing root internal slot reflection is not supported"),
+        _ when Name == "ClassVar" => throw new PyAttributeError(name),
         _ => throw Missing(name),
     };
     /// <inheritdoc />
+    public override void SetAttr(string name, object? value) =>
+        throw new PyNotImplementedError("typing root attribute mutation is not supported");
+    /// <inheritdoc />
+    public override void DelAttr(string name) =>
+        throw new PyNotImplementedError("typing root attribute deletion is not supported");
+    /// <inheritdoc />
     public object? Invoke(object?[] args, string[] names, object?[] values) =>
-        throw new PyTypeError($"Type {Name} cannot be instantiated");
+        throw (Name == "ClassVar" ? PyTypingClassVar.Error(new PyTypeError("Cannot instantiate typing.ClassVar"))
+            : new PyTypeError($"Type {Name} cannot be instantiated"));
     /// <inheritdoc />
     public override string PythonRepr() => "typing." + Name;
 }

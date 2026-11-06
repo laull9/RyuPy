@@ -1,0 +1,1 @@
+eager comprehensions inherit the frame; generator expression captures globals

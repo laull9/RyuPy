@@ -53,6 +53,8 @@ public class PyExceptionSuppressionTests
         var factory = PyNativeFunctions.Create("empty", [], [], 0,
             _ => new PyGenerator(raw => { ((object?[])raw)[0] = -1L; return null; },
                 [0L, PyNone.Instance, null, null], "test.py", "empty"));
+        // 此合成Python函数的真实限定名已知；不伪造未提供的代码首行。
+        PyObject.SetAttr(factory, "__qualname__", "empty");
         object? decorated = PyOps.CallValue(PyContextLib.CreateAttributes()["contextmanager"], [factory], [], []);
         object? manager = PyOps.CallValue(decorated, [], [], []);
         var error = Assert.Throws<PyRuntimeError>(() =>

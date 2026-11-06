@@ -321,7 +321,7 @@ pub(crate) fn lower_items(
                 });
             }
             ast::Stmt::Expr(expr_stmt) => {
-                // 普通类沿用既有docstring路径；TypedDict由私有壳保留元数据。
+                // 外层首docstring已单独降低；这里字符串只是无副作用Expr。TypedDict保原协议。
                 if matches!(&*expr_stmt.value, ast::Expr::StringLiteral(_))
                     && !matches!(base, Some(ClassBase::TypedDict { .. }))
                 {

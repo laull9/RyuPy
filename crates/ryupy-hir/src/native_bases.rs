@@ -28,7 +28,7 @@ pub(crate) fn resolve<'a>(
     Some((kind, expr))
 }
 
-/// 唯一额外开放的模块异常基类；仍要求driver确认的稳定io导入，不接受任意属性类。
+/// 有限模块异常基类；仍要求driver确认的稳定原生导入，不接受任意属性类。
 pub(crate) fn io_exception(
     class: &ast::StmtClassDef,
     globals: &GlobalScope,
@@ -50,5 +50,30 @@ pub(crate) fn io_exception(
         .exception_imports
         .get(&Name::from(name))?
         .resolve(member, expr.range().start())
-        .filter(|name| *name == "io.UnsupportedOperation")
+        .filter(|name| matches!(*name, "io.UnsupportedOperation" | "zipfile.BadZipFile"))
+}
+
+/// 原生自定义初始化异常尚无用户派生ABI；仅拒已证身份，不按类名猜测。
+pub(crate) fn unsupported_custom_exception_base(
+    class: &ast::StmtClassDef,
+    globals: &GlobalScope,
+) -> bool {
+    let Some(args) = &class.arguments else {
+        return false;
+    };
+    args.args.iter().any(|expr| {
+        let (name, member) = match expr {
+            ast::Expr::Name(name) => (name.id.as_str(), None),
+            ast::Expr::Attribute(attr) => match attr.value.as_ref() {
+                ast::Expr::Name(name) => (name.id.as_str(), Some(attr.attr.as_str())),
+                _ => return false,
+            },
+            _ => return false,
+        };
+        globals
+            .exception_imports
+            .get(&Name::from(name))
+            .and_then(|binding| binding.resolve(member, expr.range().start()))
+            .is_some_and(|name| name.starts_with("optparse.") || name == "getopt.GetoptError")
+    })
 }

@@ -1,0 +1,74 @@
+REFERENCE_VERSION cpython (3, 12, 13)
+active direct zero returned None [] True [] []
+active direct one TypeError set.clear() takes no arguments (1 given) [10, 20] True [10, 20] ['arg0']
+active direct two TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['arg0', 'arg1']
+active direct keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['keyword']
+active direct mixed TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['arg0', 'keyword']
+active direct empty expansions returned None [] True [] ['star', 'mapping']
+active direct star TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['star']
+active direct star keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['star', 'mapping']
+active direct duplicate keyword TypeError set.clear() got multiple values for keyword argument 'bad' [10, 20] True [10, 20] ['keyword', 'mapping']
+active direct nonstring keyword TypeError keywords must be strings [10, 20] True [10, 20] ['star', 'mapping']
+active saved zero returned None [] True [] []
+active saved one TypeError set.clear() takes no arguments (1 given) [10, 20] True [10, 20] ['arg0']
+active saved two TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['arg0', 'arg1']
+active saved keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['keyword']
+active saved mixed TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['arg0', 'keyword']
+active saved empty expansions returned None [] True [] ['star', 'mapping']
+active saved star TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['star']
+active saved star keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['star', 'mapping']
+active saved duplicate keyword TypeError set.clear() got multiple values for keyword argument 'bad' [10, 20] True [10, 20] ['keyword', 'mapping']
+active saved nonstring keyword TypeError keywords must be strings [10, 20] True [10, 20] ['star', 'mapping']
+active argument failure False LookupError argument failed True [10, 20, 30] ['argument mutates']
+active argument failure True LookupError argument failed True [10, 20, 30] ['argument mutates']
+active argument mutation binding error TypeError set.clear() takes no keyword arguments [10, 20, 30] True [10, 20, 30] ['argument mutates', 'keyword']
+active star expansion failure LookupError star failed [10, 20] True [10, 20] ['star expression', 'keyword', 'star iter']
+active mapping expansion failure LookupError mapping failed [10, 20] True [10, 20] ['arg0', 'mapping expression', 'mapping keys']
+active receiver order TypeError set.clear() takes no arguments (1 given) [10, 20] [30, 40] True ['receiver', 'argument rebinds']
+active saved receiver None [] [30, 40] True False
+active repeated empty None None []
+active identity [] True True 0 0 True
+active identity [1] True True 0 0 True
+active identity [1, 2, 3] True True 0 0 True
+active user key no callbacks False True 0 True []
+active user key no callbacks True True 0 True []
+active untouched clear None
+active untouched after clear RuntimeError Set changed size during iteration
+active untouched repeated error RuntimeError Set changed size during iteration
+active untouched size restored after error RuntimeError Set changed size during iteration
+active partial before clear returned 1
+active partial clear None
+active partial after clear RuntimeError Set changed size during iteration
+active partial size restored after error RuntimeError Set changed size during iteration
+active last value consumed returned 1
+active last consumed but not exhausted RuntimeError Set changed size during iteration
+active last consumed repeated error RuntimeError Set changed size during iteration
+active exhaust before value returned 1
+active exhaust confirmed StopIteration 
+active exhaust after clear and add StopIteration 
+active exhaust repeated StopIteration 
+active empty clear None
+active empty after clear StopIteration 
+active empty exhausted after add StopIteration 
+active empty unprobed clear and add RuntimeError Set changed size during iteration
+active empty unprobed repeated error RuntimeError Set changed size during iteration
+active failed clear iterator TypeError set.clear() takes no arguments (1 given) [1]
+active failed clear still live returned 1
+active failed clear now exhausted StopIteration 
+boundary same size before first next returned 2
+boundary same size before first exhausted StopIteration 
+boundary same size partial before returned 1
+boundary same size partial after returned 2
+boundary same size partial exhausted StopIteration 
+boundary same size same members first returned 1
+boundary same size same members second returned 2
+boundary same size same members exhausted StopIteration 
+boundary root descriptor zero returned None [] True [] []
+boundary root descriptor extra TypeError set.clear() takes no arguments (1 given) [10, 20] True [10, 20] ['arg0']
+boundary root descriptor keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['keyword']
+boundary root descriptor missing receiver TypeError unbound method set.clear() needs an argument [10, 20] True [10, 20] []
+boundary root descriptor wrong receiver TypeError descriptor 'clear' for 'set' objects doesn't apply to a 'list' object [10, 20] True [10, 20] []
+boundary inherited subclass None 0 True
+boundary subclass override override result [10, 20] ['override clear']
+boundary subclass root bypass None 0 ['override clear']
+REFERENCE_COMPLETED

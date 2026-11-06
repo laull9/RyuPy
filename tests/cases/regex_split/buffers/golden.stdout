@@ -1,0 +1,18 @@
+snapshot-bytearray [b'a', b',', None, b'b', b',', None, b'c!'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-bytearray b'Z,b,c!?'
+snapshot-readonly [b'a', b',', None, b'b', b',', None, b'c!'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-readonly b'Z,b,c!?'
+snapshot-view [b'a', b',', None, b'b', b',', None, b'c!'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-view b'Z,b,c!?'
+snapshot-slice [b'a', b',', None, b'b', b',', None, b'c'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-slice b'Z,b,c!?'
+snapshot-char [b'a', b',', None, b'b', b',', None, b'c!'] ['bytes', 'bytes', 'NoneType', 'bytes', 'bytes', 'NoneType', 'bytes']
+resize-char b'Z,b,c!?'
+copy bytearray 0 [b'abc']
+copy bytearray -1 [b'abc']
+copy memoryview 0 [b'abc']
+copy memoryview -1 [b'abc']
+before-scan [b'a:b!'] b'a:b!?' ['index']
+released-before-scan TypeError expected string or bytes-like object, got 'memoryview' ['index', 'release']
+domain-error TypeError cannot use a string pattern on a bytes-like object
+error-release b'a,b,c!'

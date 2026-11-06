@@ -1,0 +1,15 @@
+bare-body
+bare-error Cannot inherit from plain Generic
+raising-body
+body-error body wins
+metadata-body
+metadata-error Cannot inherit from plain Generic
+metadata-body
+metadata-error argument of type 'NoneType' is not iterable
+metadata-body
+metadata-error argument of type 'int' is not iterable
+metadata-body
+metadata-error Cannot inherit from Generic[...] multiple times.
+child-body
+child-error Cannot inherit from plain Generic
+old-binding-empty old True

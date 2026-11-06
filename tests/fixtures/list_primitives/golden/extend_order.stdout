@@ -1,0 +1,24 @@
+list-primitives.extend-success extend len [1, 11, 12] ['source.iter', 'source.len', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-success extend len-typeerror [1, 11, 12] ['source.iter', 'source.len', 'source.hint', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-success extend hint [1, 11, 12] ['source.iter', 'source.hint', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-success extend not-implemented [1, 11, 12] ['source.iter', 'source.hint', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-error extend iter-error [1, 91] ['source.iter'] source-iter-failed
+list-primitives.extend-error extend len-error [1, 92] ['source.iter', 'source.len'] source-len-failed
+list-primitives.extend-error extend negative-len [1] ['source.iter', 'source.len'] __len__() should return >= 0
+list-primitives.extend-error extend hint-error [1, 93] ['source.iter', 'source.hint'] source-hint-failed
+list-primitives.extend-error extend negative-hint [1] ['source.iter', 'source.hint'] __length_hint__() should return >= 0
+list-primitives.extend-error extend invalid-hint [1] ['source.iter', 'source.hint'] __length_hint__ must be an integer, not str
+list-primitives.extend-error extend next-error [1, 11, 12] ['source.iter', 'source.len', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])] source-next-failed
+list-primitives.extend-success iadd len [1, 11, 12] ['source.iter', 'source.len', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-success iadd len-typeerror [1, 11, 12] ['source.iter', 'source.len', 'source.hint', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-success iadd hint [1, 11, 12] ['source.iter', 'source.hint', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-success iadd not-implemented [1, 11, 12] ['source.iter', 'source.hint', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])]
+list-primitives.extend-error iadd iter-error [1, 91] ['source.iter'] source-iter-failed
+list-primitives.extend-error iadd len-error [1, 92] ['source.iter', 'source.len'] source-len-failed
+list-primitives.extend-error iadd negative-len [1] ['source.iter', 'source.len'] __len__() should return >= 0
+list-primitives.extend-error iadd hint-error [1, 93] ['source.iter', 'source.hint'] source-hint-failed
+list-primitives.extend-error iadd negative-hint [1] ['source.iter', 'source.hint'] __length_hint__() should return >= 0
+list-primitives.extend-error iadd invalid-hint [1] ['source.iter', 'source.hint'] __length_hint__ must be an integer, not str
+list-primitives.extend-error iadd next-error [1, 11, 12] ['source.iter', 'source.len', ('next', 0, [1]), ('next', 1, [1, 11]), ('next', 2, [1, 11, 12])] source-next-failed
+list-primitives.self-alias [1, 2, 1, 2, 1, 2, 1, 2] [] True
+list-primitives.common-sources [0, 1, 2, 'a', 'b', 3, 4]

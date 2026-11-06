@@ -1,11 +1,12 @@
 ---
 source: crates/ryupy-driver/tests/typed_dict.rs
+assertion_line: 21
 expression: output
 ---
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -16,6 +17,8 @@ fn main() -> () {
     let _10: dyn;
     let _11: dyn;
     let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
 
     bb0: {
         g1 = null;
@@ -23,36 +26,38 @@ fn main() -> () {
         g3 = null;
         g4 = null;
         g5 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_typed_dict_snapshot.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_typed_dict_snapshot.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g1 = _1;
+        _3 = box<Str>(const "__main__");
+        g1 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g2 = _2;
+        _4 = box<Str>(const "");
+        g2 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_typed_dict_snapshot.py");
-        g3 = _3;
+        _5 = box<Str>(const "ryupy_typed_dict_snapshot.py");
+        g3 = _5;
         // line 1
-        _4 = RuntimeFn::ImportAttr(const "typing", const "TypedDict");
-        g4 = _4;
+        _6 = RuntimeFn::ImportAttr(const "typing", const "TypedDict");
+        g4 = _6;
         // line 2
-        _5 = RuntimeFn::LoadName(global@4, const "TypedDict");
-        _6 = _5;
-        _7 = RuntimeFn::TypedDictBegin(const "Record", _6, const false, const "__main__");
-        g0 = _7;
-        _8 = RuntimeFn::MakeDict();
-        RuntimeFn::SetAttr(_7, const "__annotations__", _8);
-        _9 = RuntimeFn::TypeObject(const "int");
-        _10 = _9;
-        _11 = RuntimeFn::ClassNamespaceGet(_7, const "__annotations__");
-        RuntimeFn::SetItem(_11, const "x", _10);
-        _12 = RuntimeFn::TypedDictFinish(_7);
-        g5 = _12;
+        _7 = RuntimeFn::LoadName(global@4, const "TypedDict");
+        _8 = _7;
+        _9 = RuntimeFn::TypedDictBegin(const "Record", _8, const false, const "__main__");
+        g0 = _9;
+        _10 = RuntimeFn::MakeDict();
+        RuntimeFn::SetAttr(_9, const "__annotations__", _10);
+        _11 = RuntimeFn::TypeObject(const "int");
+        _12 = _11;
+        _13 = RuntimeFn::ClassNamespaceGet(_9, const "__annotations__");
+        RuntimeFn::SetItem(_13, const "x", _12);
+        _14 = RuntimeFn::TypedDictFinish(_9);
+        g5 = _14;
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

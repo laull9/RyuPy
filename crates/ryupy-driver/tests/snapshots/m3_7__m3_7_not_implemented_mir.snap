@@ -1,37 +1,19 @@
 ---
 source: crates/ryupy-driver/tests/m3_7.rs
+assertion_line: 178
 expression: output
 ---
-fn result() -> dyn {
-    let _0: i64;
-    let _1: dyn;
-    let _2: dyn;
-
-    bb0: {
-        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_not_implemented.py", const "result");
-        // line 2
-        _2 = RuntimeFn::BuiltinFunction(const "NotImplemented");
-        _1 = _2;
-        goto -> bb2;
-    }
-    bb1: {
-        unreachable;
-    }
-    bb2: {
-        RuntimeFn::TracePopTo(_0);
-        return _1;
-    }
-}
-
-fn shadow(_0: dyn) -> dyn {
-    let _0: dyn; // NotImplemented
+fn result(_0: dyn) -> dyn {
+    let _0: dyn; // __function_owner
     let _1: i64;
     let _2: dyn;
+    let _3: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "ryupy_m3_7_not_implemented.py", const "shadow");
-        // line 4
-        _2 = _0;
+        _1 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_7_not_implemented.py", const "result", _0);
+        // line 2
+        _3 = RuntimeFn::BuiltinFunction(const "NotImplemented");
+        _2 = _3;
         goto -> bb2;
     }
     bb1: {
@@ -43,10 +25,31 @@ fn shadow(_0: dyn) -> dyn {
     }
 }
 
+fn shadow(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // NotImplemented
+    let _1: dyn; // __function_owner
+    let _2: i64;
+    let _3: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_7_not_implemented.py", const "shadow", _1);
+        // line 4
+        _3 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -56,16 +59,26 @@ fn main() -> () {
     let _9: dyn;
     let _10: dyn;
     let _11: dyn;
-    let _12: i64;
+    let _12: dyn;
     let _13: dyn;
     let _14: dyn;
     let _15: dyn;
-    let _16: i64;
+    let _16: dyn;
     let _17: dyn;
     let _18: dyn;
-    let _19: i64;
-    let _20: bool;
-    let _21: bool;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
+    let _22: i64;
+    let _23: dyn;
+    let _24: dyn;
+    let _25: dyn;
+    let _26: i64;
+    let _27: dyn;
+    let _28: dyn;
+    let _29: i64;
+    let _30: bool;
+    let _31: bool;
 
     region r0: [4, +1) finally-guard handler->bb5
     region r1: [1, +1) catch TypeError handler->bb3
@@ -75,93 +88,111 @@ fn main() -> () {
         g1 = null;
         g2 = null;
         g3 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_not_implemented.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_7_not_implemented.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g0 = _1;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g1 = _2;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_m3_7_not_implemented.py");
-        g2 = _3;
+        _5 = box<Str>(const "ryupy_m3_7_not_implemented.py");
+        g2 = _5;
         // line 1
+        _6 = global@0;
+        _7 = MakeFunction(result; env=[]; defaults=[]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = RuntimeFn::FunctionDefaults(_7);
+        g5 = _8;
+        g7 = _7;
+        g4 = _7;
         // line 3
+        _9 = global@0;
+        _10 = MakeFunction(shadow; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_10, _9);
+        _11 = RuntimeFn::FunctionDefaults(_10);
+        g9 = _11;
+        g11 = _10;
+        g8 = _10;
         // line 5
-        _4 = RuntimeFn::BuiltinFunction(const "NotImplemented");
-        g3 = _4;
+        _12 = RuntimeFn::BuiltinFunction(const "NotImplemented");
+        g3 = _12;
         // line 6
-        _5 = RuntimeFn::LoadName(global@3, const "value");
-        _6 = result();
-        _7 = box<I64>(const 3_i64);
-        _8 = shadow(_7);
-        _9 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_9, _5);
-        RuntimeFn::WriteSep(_9);
-        RuntimeFn::WriteObject(_9, _6);
-        RuntimeFn::WriteSep(_9);
-        RuntimeFn::WriteObject(_9, _8);
-        RuntimeFn::WriteNewline(_9);
+        _13 = RuntimeFn::LoadName(global@3, const "value");
+        _14 = RuntimeFn::LoadName(global@7, const "result");
+        _15 = result(_14);
+        _16 = RuntimeFn::LoadName(global@11, const "shadow");
+        _17 = box<I64>(const 3_i64);
+        _18 = shadow(_17, _16);
+        _19 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_19, _13);
+        RuntimeFn::WriteSep(_19);
+        RuntimeFn::WriteObject(_19, _15);
+        RuntimeFn::WriteSep(_19);
+        RuntimeFn::WriteObject(_19, _18);
+        RuntimeFn::WriteNewline(_19);
         // line 7
         goto -> bb1;
     }
     bb1: {
         // line 8
-        _10 = RuntimeFn::DynBuiltin(const "NotImplemented", [], [], []);
+        _20 = RuntimeFn::DynBuiltin(const "NotImplemented", [], [], []);
         goto -> bb14;
     }
     bb2: {
-        _12 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_12);
-        _13 = RuntimeFn::HandlerEnter(_11);
+        _22 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_22);
+        _23 = RuntimeFn::HandlerEnter(_21);
         goto -> bb4;
     }
     bb3: {
-        _11 = caught_exception;
+        _21 = caught_exception;
         goto -> bb2;
     }
     bb4: {
-        _15 = RuntimeFn::HandlerEnter(None);
+        _25 = RuntimeFn::HandlerEnter(None);
         // line 10
-        _17 = box<Str>(const "not callable");
-        _18 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_18, _17);
-        RuntimeFn::WriteNewline(_18);
-        _16 = const 0_i64;
+        _27 = box<Str>(const "not callable");
+        _28 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_28, _27);
+        RuntimeFn::WriteNewline(_28);
+        _26 = const 0_i64;
         goto -> bb7;
     }
     bb5: {
-        _14 = caught_exception;
+        _24 = caught_exception;
         goto -> bb6;
     }
     bb6: {
-        _19 = Add(_0, const 1_i64);
-        RuntimeFn::TracePopTo(_19);
-        _15 = RuntimeFn::HandlerEnter(_14);
-        _16 = const 1_i64;
+        _29 = Add(_2, const 1_i64);
+        RuntimeFn::TracePopTo(_29);
+        _25 = RuntimeFn::HandlerEnter(_24);
+        _26 = const 1_i64;
         goto -> bb7;
     }
     bb7: {
-        RuntimeFn::HandlerLeave(_13);
+        RuntimeFn::HandlerLeave(_23);
         goto -> bb8;
     }
     bb8: {
-        _20 = Eq(_16, const 1_i64);
-        branch _20 -> [then: bb9, else: bb11];
+        _30 = Eq(_26, const 1_i64);
+        branch _30 -> [then: bb9, else: bb11];
     }
     bb9: {
-        RuntimeFn::HandlerLeave(_13);
-        raise _14;
+        RuntimeFn::HandlerLeave(_23);
+        raise _24;
     }
     bb10: {
         unreachable;
     }
     bb11: {
-        _21 = Eq(_16, const 2_i64);
-        branch _21 -> [then: bb15, else: bb12];
+        _31 = Eq(_26, const 2_i64);
+        branch _31 -> [then: bb15, else: bb12];
     }
     bb12: {
-        RuntimeFn::HandlerLeave(_13);
+        RuntimeFn::HandlerLeave(_23);
         goto -> bb15;
     }
     bb13: {
@@ -171,7 +202,7 @@ fn main() -> () {
         goto -> bb15;
     }
     bb15: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

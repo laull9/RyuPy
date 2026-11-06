@@ -1,0 +1,10 @@
+equivalent_names True
+upward_without_inner_import True
+dot_returns_parent True
+two_dots_return_parent True
+no_package ImportError no package specified for '.child' (required for relative module names)
+empty_package ImportError no package specified for '.child' (required for relative module names)
+beyond_top ImportError attempted relative import beyond top-level package
+only_dots_beyond_top ImportError attempted relative import beyond top-level package
+errors_no_child_execution True
+real_child_import True

@@ -1,0 +1,4 @@
+empty cold ['convert']
+nonempty cold ['convert', 'convert', 'convert']
+result tuple error Callable[args, result]: result must be a type. Got ().
+failed result conversion count 2

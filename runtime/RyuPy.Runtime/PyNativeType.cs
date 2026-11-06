@@ -40,6 +40,11 @@ public sealed class PyNativeType
     /// <summary>读取类型名或显式登记的类方法。</summary>
     public object? GetAttr(string name) => name switch
     {
+        "__class__" when ReferenceEquals(this, PyLexicalSuper.Type) => PyType.Get("type"),
+        "__new__" or "__init__" or "__get__" or "__mro__" or "mro" or "__dict__" or "__bases__" or "__base__"
+            or "__thisclass__" or "__self__" or "__self_class__"
+            when ReferenceEquals(this, PyLexicalSuper.Type)
+            => throw new PyNotImplementedError($"super type reflection '{name}' is not supported"),
         "__name__" or "__qualname__" => Name, "__module__" => Module,
         _ => _attributes.TryGetValue(name, out object? value) ? value
             : throw new PyAttributeError($"type object '{Name}' has no attribute '{name}'"),
@@ -47,5 +52,6 @@ public sealed class PyNativeType
     /// <summary>注册原生类方法；不是Python层任意属性修改入口。</summary>
     public void SetAttr(string name, object? value) => _attributes[name] = value;
     /// <inheritdoc />
-    public override string ToString() => $"<class '{Module}.{Name}'>";
+    public override string ToString() => Module == "builtins"
+        ? $"<class '{Name}'>" : $"<class '{Module}.{Name}'>";
 }

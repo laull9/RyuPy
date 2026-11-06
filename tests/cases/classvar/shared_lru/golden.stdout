@@ -1,0 +1,6 @@
+classvar-union-lru True
+classvar-evicts-union True
+optional-two-entries-evict-classvar True
+optional-hot-does-not-touch-inner True
+none-raw-keys-two-entries True
+literal-separate-pool True

@@ -1,0 +1,8 @@
+# ryupy: pending
+# 从首次原流独立提取的宽long索引边界；本standalone尚未运行。
+values = [10, 20]
+try:
+    result = values.pop(4294967296)
+    print('scope=boundary wide index must not wrap returned', result, values, [])
+except Exception as error:
+    print('scope=boundary wide index must not wrap', type(error).__name__, str(error), values, [])

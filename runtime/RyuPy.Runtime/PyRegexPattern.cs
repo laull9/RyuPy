@@ -7,25 +7,27 @@ using System.Text.RegularExpressions;
 namespace RyuPy.Runtime;
 
 /// <summary>已验证的Python模式；.NET仅执行翻译结果，匹配迭代及公开索引保持Python语义。</summary>
-public sealed class PyRegexPattern : PyNativeObject
+public sealed partial class PyRegexPattern : PyNativeObject
 {
     private readonly Regex _search;
     // 仅在需要全匹配或空匹配重试时构造辅助执行器，避免每次compile无条件解析三份。
     private readonly Lazy<Regex> _nonempty, _full;
     internal string Pattern { get; }
+    internal PyBytes? BytePattern { get; }
     internal int Flags { get; }
     internal int Groups { get; }
     internal Dictionary<string, int> Names { get; }
     /// <inheritdoc />
     public override string TypeName => "Pattern";
-    internal PyRegexPattern(string pattern, int flags)
+    internal PyRegexPattern(string pattern, int flags) : this(pattern, flags, null) { }
+    private PyRegexPattern(string pattern, int flags, PyBytes? bytePattern)
     {
-        Pattern = pattern;
+        Pattern = pattern; BytePattern = bytePattern;
         if (pattern.Length > 16384) throw new PyNotImplementedError("re: pattern length exceeds supported resource limit");
-        var parser = new PyRegexParser(pattern, flags);
+        var parser = new PyRegexParser(pattern, flags, bytePattern);
         string boundary = "(?!(?<=[\\uD800-\\uDBFF])[\\uDC00-\\uDFFF])";
         string translated = boundary + "(?:" + parser.Translate() + ")" + boundary;
-        Flags = parser.Flags | ((parser.Flags & 256) == 0 ? 32 : 0); Groups = parser.Groups; Names = parser.Names;
+        Flags = parser.Flags | (bytePattern is null && (parser.Flags & 256) == 0 ? 32 : 0); Groups = parser.Groups; Names = parser.Names;
         RegexOptions options = RegexOptions.CultureInvariant | ((Flags & 8) != 0 ? RegexOptions.Multiline : RegexOptions.None);
         try
         {
@@ -33,13 +35,24 @@ public sealed class PyRegexPattern : PyNativeObject
             _nonempty = new Lazy<Regex>(() => new Regex("\\G(?:" + translated + ")(?!\\G)", options, TimeSpan.FromSeconds(2)));
             _full = new Lazy<Regex>(() => new Regex("\\G(?:" + translated + ")\\z", options, TimeSpan.FromSeconds(2)));
         }
-        catch (ArgumentException) { throw new PyRegexError("invalid regular expression", pattern, 0); }
+        catch (ArgumentException)
+        {
+            throw bytePattern is null ? new PyRegexError("invalid regular expression", pattern, 0)
+                : new PyRegexError("invalid regular expression", bytePattern, 0);
+        }
     }
     /// <inheritdoc />
     public override object? GetAttr(string name) => name switch
     {
-        "pattern" => Pattern, "flags" => (long)Flags, "groups" => (long)Groups,
+        "pattern" => (object?)BytePattern ?? Pattern, "flags" => (long)Flags, "groups" => (long)Groups,
+        "split" => PyRegexSplit.Pattern(this),
         "groupindex" => throw new PyNotImplementedError("re.Pattern.groupindex read-only mapping is not supported"),
+        "match" or "search" or "fullmatch" or "findall" or "finditer" when BytePattern is not null =>
+            PyRegex.Function(name, ["string", "pos", "endpos"], [null, 0L, long.MaxValue], 1,
+                args => ApplyBytesInput(name, args[0], args[1], args[2])),
+        "sub" or "subn" when BytePattern is not null =>
+            PyRegex.Function(name, ["repl", "string", "count"], [null, null, 0L], 2,
+                args => SubstituteBytesInput(args[0], args[1], args[2], name == "subn")),
         "match" or "search" or "fullmatch" or "findall" or "finditer" =>
             PyRegex.Function(name, ["string", "pos", "endpos"], [null, 0L, (long)int.MaxValue], 1,
                 args => Apply(name, PyRegex.Text(args[0]), PyRegex.Number(args[1]), PyRegex.Number(args[2]))),
@@ -107,7 +120,7 @@ public sealed class PyRegexPattern : PyNativeObject
         return tuple ? new PyTuple([output.ToString(), (long)changed]) : output.ToString();
     }
     /// <inheritdoc />
-    public override string PythonRepr() => "re.compile(" + PyRepr.Repr(Pattern) + ")";
+    public override string PythonRepr() => BytePattern is null ? "re.compile(" + PyRepr.Repr(Pattern) + ")" : BytesRepr();
 }
 
 /// <summary>惰性finditer；每次MoveNext只推进到一个匹配，复用共享输入码点表。</summary>

@@ -1,0 +1,13 @@
+fixed-slots True
+right-reflection ['right']
+missing-call TypeError 'typing.TypeVar' object is not callable
+missing-getitem TypeError 'typing.TypeVar' object is not subscriptable
+missing-iter TypeError 'typing.TypeVar' object is not iterable
+missing-length TypeError object of type 'typing.TypeVar' has no len()
+list-extend TypeError 'typing.TypeVar' object is not iterable
+namedtuple-make TypeError 'typing.TypeVar' object is not iterable
+namedtuple-defaults TypeError 'typing.TypeVar' object is not iterable
+star-unpack TypeError cannot unpack non-iterable typing.TypeVar object
+exact-unpack TypeError cannot unpack non-iterable typing.TypeVar object
+no-poison-events []
+write-delete-key True

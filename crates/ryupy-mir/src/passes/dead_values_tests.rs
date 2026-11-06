@@ -49,9 +49,12 @@ fn sample() -> (Function, [LocalId; 4]) {
     });
     (
         Function {
+            module_state: None,
+            module_state_source: None,
             name: "dead".into(),
             codegen_name: "dead".into(),
             source_file: "dead.py".into(),
+            definition: None,
             params: vec![],
             ret: MirType::Unit,
             body: Body {
@@ -66,6 +69,7 @@ fn sample() -> (Function, [LocalId; 4]) {
             defaults_global: None,
             signature_global: None,
             env: None,
+            dynamic_origin: None,
         },
         [counter, boxed, target, unused],
     )
@@ -167,6 +171,7 @@ fn generator_frames_and_exception_metadata_are_conservative_roots() {
             value: Rvalue::MakeGenerator {
                 resume: FnId::from_raw(la_arena::RawIdx::from(0)),
                 frame: vec![Operand::Local(target)],
+                origin: None,
             },
         });
     DeadValues.run(&mut function);

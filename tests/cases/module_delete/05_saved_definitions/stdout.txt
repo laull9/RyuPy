@@ -1,0 +1,4 @@
+deleted definition NameError name 'work' is not defined
+deleted definition NameError name 'work' is not defined
+deleted definition NameError name 'Base' is not defined
+saved definitions and rebound dispatch True

@@ -115,3 +115,10 @@
 - `PyContextManagerTests.cs`：产出次数、异常身份、PEP479、装饰器重建、非法 yield 后清理、异常上下文与外层恢复。
 - `m3_6_functools.py`、`m3_6_lru_cache.py`、`m3_6_contextmanager.py`、`m3_6_context_exception_state.py`：先 pending，再执行 CPython 基线和真实差分。
 - 原始综合 `m3_6_tools.py` 的转正依赖同里程碑的 collections/itertools 等，不因单个子模块通过而提前改变期望。
+
+
+## itertools.zip_longest（本地验收通过，未发布）
+
+构造先验证fillvalue再左到右取iter；next逐槽立即取值，耗尽槽永久填同一fill对象，最后活跃槽耗尽结束，不返回全fill行。其它输入错误原样传播且整个zip永久结束，不回滚已消费元素。每行新tuple/局部数组，不全量缓存，也不承诺CP引用计数复用的分配成本相同。
+
+局部普通实例支持类型槽/property与缺iter时getitem，清理槽取得错误后的fallback与真正方法正文异常分开；不更改全PyIter。真实type/iter身份及模块重绑不影响已有对象，fillvalue反射/pickle、用户派生与任意自定义descriptor未完整支持，正例保pending。内部/公共与StopIteration必要ABI前置累计25项及3应用CP/JIT已过，保Z2首失败与修后复验，正常完整门禁1019C#/228CP/202e2e+30原ignored已过，详见[ADR0079](adr/0079-zip-longest.md)。

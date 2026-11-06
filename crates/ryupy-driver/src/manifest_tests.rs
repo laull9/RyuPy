@@ -39,8 +39,8 @@ fn context() -> ManifestContext {
             module_id: 0,
             module_name: "__main__".to_owned(),
             init: init.clone(),
-            getter: descriptor("get_actual"),
-            setter: descriptor("set_actual"),
+            getter: Some(descriptor("get_actual")),
+            setter: Some(descriptor("set_actual")),
             exports: vec!["中文\"name".to_owned()],
         }],
         delegate_references: vec![DelegateReference {

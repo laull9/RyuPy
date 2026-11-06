@@ -119,7 +119,9 @@ fn lower_one(
                 stmt,
                 Statement::Assign {
                     value: Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::TracePush),
+                        callee: Callee::Runtime(
+                            RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin
+                        ),
                         ..
                     },
                     ..
@@ -275,10 +277,21 @@ fn lower_one(
         id.into_raw().into_u32()
     );
     let params = function.params.clone();
+    let origin = function
+        .dynamic_origin
+        .map(|source| Operand::Local(source.owner));
+    let module_state = function.module_state;
+    let closure_environment = function.env;
     let resume = program.functions.alloc(Function {
+        module_state,
+        module_state_source: module_state.map(|state| crate::InstanceStateSource::GeneratorFrame {
+            frame,
+            slot: state.into_raw().into_u32() as usize + 4,
+        }),
         name,
         codegen_name,
         source_file,
+        definition: None,
         params: vec![frame],
         ret: MirType::Dynamic,
         body,
@@ -288,7 +301,16 @@ fn lower_one(
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
+
+    crate::class_cells::register_resume(
+        &mut program.classes,
+        id,
+        resume,
+        closure_environment,
+        frame,
+    );
 
     let stmts = &mut factory.blocks[factory.entry].stmts;
     let initial = boxed(
@@ -329,6 +351,7 @@ fn lower_one(
         value: Rvalue::MakeGenerator {
             resume,
             frame: values,
+            origin,
         },
     });
     factory.blocks[factory.entry].terminator = Terminator::Return(Some(Operand::Local(result)));

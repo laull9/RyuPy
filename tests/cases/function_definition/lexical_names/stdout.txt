@@ -1,0 +1,11 @@
+plain
+<lambda>
+<lambda>.<locals>.<lambda>
+make_transform.<locals>.transform
+Container.method
+Container.factory.<locals>.inner
+stream
+Container.stream
+make_stream.<locals>.nested_stream
+RenamedClass 5 12 12
+[4, 8] [4, 5] [7, 8]

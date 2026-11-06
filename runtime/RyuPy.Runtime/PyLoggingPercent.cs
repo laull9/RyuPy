@@ -20,8 +20,13 @@ internal static class PyLoggingPercent
                 int end = format.IndexOf(')', i + 1);
                 if (end < 0) throw new PyValueError("incomplete format key");
                 string key = format[(i + 1)..end]; mapping = true;
-                if (arguments is not PyDict dict) throw new PyTypeError("format requires a mapping");
-                value = dict.Get(key); i = end + 1;
+                value = arguments switch
+                {
+                    PyDict dict => dict.Get(key),
+                    PyDictInstance dict => PyDictProtocols.Item(dict, key),
+                    _ => throw new PyTypeError("format requires a mapping"),
+                };
+                i = end + 1;
                 if (i == format.Length) throw new PyValueError("incomplete format");
             }
             else
@@ -36,7 +41,7 @@ internal static class PyLoggingPercent
                 _ => throw new PyNotImplementedError("logging percent format supports only %s, %r, %d and %%"),
             });
         }
-        if (!mapping && used != values.Length && arguments is not PyDict) throw new PyTypeError("not all arguments converted during string formatting");
+        if (!mapping && used != values.Length && arguments is not (PyDict or PyDictInstance)) throw new PyTypeError("not all arguments converted during string formatting");
         return output.ToString();
     }
     private static string Decimal(object? value)

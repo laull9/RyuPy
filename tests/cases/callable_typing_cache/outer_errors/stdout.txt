@@ -1,0 +1,1 @@
+non-tuple and non-two lengths: exact TypeError before helper: ok

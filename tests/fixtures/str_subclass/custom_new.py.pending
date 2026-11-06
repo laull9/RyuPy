@@ -1,0 +1,11 @@
+# CP合法正期待；本阶段受限字符串子类custom __new__尚未开放，不计通过。
+class Custom(str):
+    def __new__(cls, value):
+        result = str.__new__(cls, value)
+        result.created = True
+        return result
+value = Custom('text')
+assert type(value) is Custom
+assert value == 'text'
+assert value.created is True
+print('custom-str-new')

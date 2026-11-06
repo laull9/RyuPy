@@ -1,0 +1,4 @@
+trailing-prefix-order [('check', "<class 'int'>", 'Tuple[t, ...]: t must be a type.'), ('check', "<class 'str'>", 'Tuple[t, ...]: t must be a type.'), ('collect', ("<class 'int'>", "<class 'str'>", "<class 'typing._TypingEllipsis'>"))]
+empty-order [('collect', ())]
+single-ellipsis-order [('check', 'Ellipsis', 'Tuple[t0, t1, ...]: each t must be a type.'), ('collect', ('Ellipsis',))]
+trailing-sentinel-read-after-prefix-check True

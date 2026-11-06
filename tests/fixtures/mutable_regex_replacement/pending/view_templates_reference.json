@@ -1,0 +1,523 @@
+[
+  {
+    "label": "V.view_B.literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "5858",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.view_B.template",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_B.expand",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_B.expand_literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_c.literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "5858",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.view_c.template",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_c.expand",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_c.expand_literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_slice.literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "5858",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.view_slice.template",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_slice.expand",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.view_slice.expand_literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "context": [],
+      "error": "ValueError",
+      "message": "cannot hash writable memoryview object"
+    }
+  },
+  {
+    "label": "V.readonly_B.literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "5858",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_B.template",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "3c613e3c613e",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_B.expand",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "3c613e",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_B.expand_literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "58",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_c.literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "5858",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_c.template",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "3c613e3c613e",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_c.expand",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "3c613e",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "V.readonly_c.expand_literal",
+    "value": {
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "ok": {
+        "hex": "58",
+        "type": "bytes"
+      },
+      "same_input": false
+    }
+  },
+  {
+    "label": "O.invalid.view_B",
+    "value": {
+      "badsubject": {
+        "context": [],
+        "error": "ValueError",
+        "message": "cannot hash writable memoryview object"
+      },
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "match": {
+        "context": [],
+        "error": "ValueError",
+        "message": "cannot hash writable memoryview object"
+      },
+      "negative": {
+        "context": [],
+        "error": "ValueError",
+        "message": "cannot hash writable memoryview object"
+      },
+      "nomatch": {
+        "context": [],
+        "error": "ValueError",
+        "message": "cannot hash writable memoryview object"
+      }
+    }
+  },
+  {
+    "label": "O.invalid.readonly_B",
+    "value": {
+      "badsubject": {
+        "context": [],
+        "error": "AttributeError",
+        "message": "'memoryview' object has no attribute 'count'"
+      },
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "match": {
+        "context": [],
+        "error": "AttributeError",
+        "message": "'memoryview' object has no attribute 'count'"
+      },
+      "negative": {
+        "context": [],
+        "error": "AttributeError",
+        "message": "'memoryview' object has no attribute 'count'"
+      },
+      "nomatch": {
+        "context": [],
+        "error": "AttributeError",
+        "message": "'memoryview' object has no attribute 'count'"
+      }
+    }
+  },
+  {
+    "label": "O.released_literal.view_B",
+    "value": {
+      "badsubject": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      "cleanup": {
+        "release": {
+          "ok": null
+        },
+        "resize": {
+          "ok": null
+        }
+      },
+      "match": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      "negative": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      "nomatch": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      }
+    }
+  },
+  {
+    "label": "O.released_literal.readonly_B",
+    "value": {
+      "badsubject": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      "cleanup": {
+        "release": {
+          "ok": null
+        }
+      },
+      "match": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      "negative": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      "nomatch": {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      }
+    }
+  },
+  {
+    "label": "O.count_releases_literal",
+    "value": [
+      {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      },
+      [
+        "count"
+      ]
+    ]
+  },
+  {
+    "label": "K.released_after_warm.readonly_B",
+    "value": [
+      {
+        "ok": {
+          "hex": "3c613e",
+          "type": "bytes"
+        },
+        "same_input": false
+      },
+      {
+        "ok": {
+          "hex": "3c613e",
+          "type": "bytes"
+        },
+        "same_input": false
+      },
+      {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      }
+    ]
+  },
+  {
+    "label": "K.released_after_warm.readonly_c",
+    "value": [
+      {
+        "ok": {
+          "hex": "3c613e",
+          "type": "bytes"
+        },
+        "same_input": false
+      },
+      {
+        "ok": {
+          "hex": "3c613e",
+          "type": "bytes"
+        },
+        "same_input": false
+      },
+      {
+        "context": [],
+        "error": "ValueError",
+        "message": "operation forbidden on released memoryview object"
+      }
+    ]
+  },
+  {
+    "label": "K.released_before_hash.view_B",
+    "value": {
+      "context": [],
+      "error": "ValueError",
+      "message": "operation forbidden on released memoryview object"
+    }
+  },
+  {
+    "label": "K.released_before_hash.readonly_B",
+    "value": {
+      "context": [],
+      "error": "ValueError",
+      "message": "operation forbidden on released memoryview object"
+    }
+  }
+]

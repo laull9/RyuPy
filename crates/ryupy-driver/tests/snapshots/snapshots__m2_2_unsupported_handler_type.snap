@@ -1,8 +1,9 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
+assertion_line: 349
 expression: rendered
 ---
-[E0100] Error: except 只支持静态异常类或稳定的原生模块异常导入；动态类型表达式暂不支持
+[E0100] Error: 动态 except 目标仅支持名称、名称起点的属性链及无展开元组
    ╭─[ ryupy_test_bad_except.py:3:8 ]
    │
  3 │ except 1:

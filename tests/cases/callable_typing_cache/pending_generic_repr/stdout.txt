@@ -1,0 +1,1 @@
+Generic argument conversion, collector and full repr: ok

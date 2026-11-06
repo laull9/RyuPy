@@ -1,0 +1,1 @@
+eager ['rhs', 'first', 'second'] {'first': typing.ClassVar[int], 'second': typing.ClassVar[int]} 3 9

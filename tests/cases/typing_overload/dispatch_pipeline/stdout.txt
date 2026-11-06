@@ -1,0 +1,11 @@
+['value=12', 'value=x', 'value=None']
+True True
+2 True True
+integer stub text stub
+encode encode __main__
+True 整数声明。
+[]
+NotImplementedError You should not call an overloaded function. A series of @overload-decorated functions outside a stub module should always be followed by an implementation that is not @overload-ed.
+False True
+2
+None [] 2

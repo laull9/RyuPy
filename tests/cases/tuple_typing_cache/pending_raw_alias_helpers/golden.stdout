@@ -1,0 +1,2 @@
+warm-key-hash-still-consumed ['literal-hash']
+warm-key-eq-typeerror-then-body isinstance() arg 2 must be a type, a tuple of types, or a union

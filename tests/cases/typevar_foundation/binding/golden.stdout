@@ -1,0 +1,24 @@
+references True
+missing-name TypeError typevar() missing required argument 'name' (pos 1)
+bad-name TypeError typevar() argument 'name' must be str, not int
+duplicate-name TypeError invalid keyword argument for typevar()
+unknown-keyword TypeError 'other' is an invalid keyword argument for typevar()
+single-constraint TypeError A single constraint is not allowed
+single-before-conflict TypeError A single constraint is not allowed
+constraint-conflict TypeError Constraints cannot be combined with bound=...
+bound-before-single TypeError Bound must be a type. Got (<class 'int'>, <class 'str'>).
+bound-before-conflict TypeError Bound must be a type. Got (<class 'int'>, <class 'str'>).
+flags-before-bound ValueError Bivariant types are not supported.
+infer-conflict ValueError Variance cannot be specified with infer_variance.
+tuple-bound TypeError Bound must be a type. Got (<class 'int'>, <class 'str'>).
+flag-order ['co', 'contra', 'infer']
+all-flags ValueError Bivariant types are not supported.
+conflict-events ['co', 'contra', 'infer']
+name-before-flags TypeError typevar() argument 'name' must be str, not int
+keyword-before-flags TypeError 'unexpected' is an invalid keyword argument for typevar()
+raising-flag ValueError flag exploded
+nonbool-flag TypeError __bool__ should return bool, returned int
+flag-errors ['bad']
+bad-name-unknown TypeError 'spam' is an invalid keyword argument for typevar()
+missing-unknown TypeError typevar() missing required argument 'name' (pos 1)
+duplicate-name-unknown TypeError 'spam' is an invalid keyword argument for typevar()

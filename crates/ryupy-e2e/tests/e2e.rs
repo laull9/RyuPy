@@ -141,7 +141,10 @@ fn run_case(root: &Path, case: &CaseSpec, python_only: bool) -> Result<(), Faile
     }
 
     // 2. 实际结果：RyuPy 编译 + dotnet 运行
-    let mut sess = Session::default();
+    let mut sess = Session {
+        instance_modules: case.instance_modules.clone(),
+        ..Session::default()
+    };
     let opts = BuildOptions {
         input: case.entry.clone(),
         out_dir: out_dir.clone(),

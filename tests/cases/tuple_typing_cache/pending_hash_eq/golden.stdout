@@ -1,0 +1,3 @@
+same-hit ['hash:a']
+equal-hit ['hash:a', 'eq:a']
+hash-valueerror hash marker

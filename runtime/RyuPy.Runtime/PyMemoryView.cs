@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace RyuPy.Runtime;
@@ -26,6 +27,8 @@ public sealed class PyMemoryView : PyNativeObject, IPyBufferView
     private readonly string _format;
     private int _released;
     private long? _hash;
+    private readonly object _lifecycle = new();
+    private int _regexExports;
 
     private PyMemoryView(object owner, int offset, int length, string format)
     {
@@ -198,6 +201,15 @@ public sealed class PyMemoryView : PyNativeObject, IPyBufferView
             throw (PyBaseException)PyErrors.PrepareRaise(replacement);
         }
     }
+    // 仅供已知无Python回调的同步buffer消费者；不跨回调/await保存span或缓存可变内容。
+    // 沿当前连续B/c布局读取原始字节，released仍经同一Owner检查，不借regex错误转换。
+    internal ReadOnlySpan<byte> ReadSynchronousBuffer()
+    {
+        object owner = Owner();
+        return owner is PyBytes bytes ? bytes.Span.Slice(_offset, _length)
+            : CollectionsMarshal.AsSpan(((PyByteArray)owner).Bytes).Slice(_offset, _length);
+    }
+
     /// <inheritdoc />
     public byte[] CopyBuffer()
     {
@@ -258,16 +270,50 @@ public sealed class PyMemoryView : PyNativeObject, IPyBufferView
         _hash = value;
         return value;
     }
-    /// <summary>幂等释放只撤销当前view的导出；孩子直接持exporter，不依赖父view。</summary>
+    // 正则导出的是具体view而非独立孩子；lease另持owner租约，避免finalizer顺序依赖。
+    internal PyRegexBufferLease AcquireRegexExport()
+    {
+        lock (_lifecycle)
+        {
+            object owner = Owner();
+            var lease = new PyRegexBufferLease(owner, this, _offset, _length);
+            // 全部检查/对象分配已完成；以下计数激活均不调用用户代码，也不再分配。
+            _regexExports++;
+            lease.Activate();
+            return lease;
+        }
+    }
+    internal void ReleaseRegexExport()
+    {
+        lock (_lifecycle) { _regexExports--; }
+    }
+    /// <summary>幂等释放；活动regex导出阻止当前view释放，孩子仍保独立exporter租约。</summary>
     public void Release()
     {
-        if (Interlocked.Exchange(ref _released, 1) != 0) return;
-        object? owner = _owner; _owner = null;
-        if (owner is PyByteArray array) array.ReleaseExport();
+        ReleaseOwnedBuffer(finalizing: false);
         GC.SuppressFinalize(this);
     }
+    // finalizer只能撤本view原租约，不走公开guard；每个regex lease仍独立保护owner。
+    // 内部入口也供确定性所有权专项模拟两种收尾顺序，不能据此宣称GC时机一致。
+    internal void ReleaseOwnedBuffer(bool finalizing)
+    {
+        // gate的字段初始化也可能分配失败；构造正文尚未取owner/增加导出，部分对象无资源可撤。
+        object? lifecycle = _lifecycle;
+        if (lifecycle is null) return;
+        object? owner;
+        lock (lifecycle)
+        {
+            if (_released != 0) return;
+            if (!finalizing && _regexExports > 0)
+                throw (PyBaseException)PyErrors.PrepareRaise(new PyBufferError(
+                    $"memoryview has {_regexExports} exported buffer{(_regexExports == 1 ? "" : "s")}"));
+            Volatile.Write(ref _released, 1);
+            owner = _owner; _owner = null;
+        }
+        if (owner is PyByteArray array) array.ReleaseExport();
+    }
     /// <summary>无人再引用的租约最终回收；不调用用户代码，不保证CPython引用计数的立即释放时机。</summary>
-    ~PyMemoryView() { Release(); }
+    ~PyMemoryView() { ReleaseOwnedBuffer(finalizing: true); }
     /// <inheritdoc />
     public override string PythonRepr() => $"<{(Volatile.Read(ref _released) != 0 ? "released " : "")}memory at 0x{RuntimeHelpers.GetHashCode(this):x}>";
     /// <summary>迭代器只保存view和下标；已耗尽后不因view释放重新报错。</summary>

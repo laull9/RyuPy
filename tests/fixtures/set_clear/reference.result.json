@@ -1,0 +1,16 @@
+{
+  "summary": true,
+  "note": "执行结果摘要，非原始 result.json；原件保留在私有验证归档，不公开执行路径。",
+  "implementation": "cpython",
+  "version": "3.12.13",
+  "exit": 0,
+  "timeout": false,
+  "elapsed": 0.03213083199807443,
+  "python_sha256": "021044895e95be79dc2f110367607e684119afbc8ce75f6f0eec94844e0acec7",
+  "script_sha256": "62d0d7d51311cde077c86bb32b26b5359e59a0ffd5aeacf6f59aef28c537baeb",
+  "stdout_sha256": "c56e0958e02054dd8848b6afaca30ea7be8cb6ebdcd5b76eaf9f8d89ef2f9a24",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "term_seconds": 28,
+  "kill_grace_seconds": 2,
+  "runner_sha256": "f5df5a09293b611e3193d4cd6a492cad71d65c07e2cb0b8534ae5fb866ba8e95"
+}

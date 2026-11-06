@@ -12,9 +12,12 @@ pub(crate) fn program(statement: Statement) -> Program {
     });
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: "main".into(),
         codegen_name: "main".into(),
         source_file: "print.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: Body {
@@ -37,6 +40,7 @@ pub(crate) fn program(statement: Statement) -> Program {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     Program {
         functions,

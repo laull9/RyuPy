@@ -1,0 +1,13 @@
+# 外层上下文在模块建立，不重复使用异常跨上下文。
+def fail():
+    import getopt
+    try:
+        getopt.getopt(['--bad'], '', ['alpha'])
+    except getopt.GetoptError as error:
+        raise RuntimeError('outer-wrapper') from error
+
+
+try:
+    raise ValueError('outer-context')
+except ValueError:
+    fail()

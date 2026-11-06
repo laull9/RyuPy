@@ -1,12 +1,13 @@
 ---
 source: crates/ryupy-driver/tests/m3_2.rs
+assertion_line: 220
 expression: result
 ---
 大字典首项动态键
-fn g(_0: dyn) -> dyn {
+fn g(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // k
-    let _1: i64;
-    let _2: dyn;
+    let _1: dyn; // __function_owner
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -47,45 +48,63 @@ fn g(_0: dyn) -> dyn {
     let _40: dyn;
     let _41: dyn;
     let _42: dyn;
+    let _43: dyn;
 
     bb0: {
-        _40 = box<I64>(const 0_i64);
         _41 = box<I64>(const 0_i64);
-        _42 = MakeGenerator(g, _40, None, None, None, _0, _41, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
-        return _42;
+        _42 = box<I64>(const 0_i64);
+        _43 = MakeGenerator(g, _41, None, None, None, _0, _1, _42, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, origin=_1);
+        return _43;
     }
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
+    let _1: dyn;
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
 
     bb0: {
-        g3 = const false;
-        g4 = const false;
-        g5 = const false;
-        _0 = RuntimeFn::TracePush(const "ryupy_m3_2_large_scalar_guard.py", const "<module>");
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_2_large_scalar_guard.py", const "<module>", _1);
         // line 1
-        g0 = const "__main__";
-        g3 = const true;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        g1 = const "";
-        g4 = const true;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        g2 = const "ryupy_m3_2_large_scalar_guard.py";
-        g5 = const true;
+        _5 = box<Str>(const "ryupy_m3_2_large_scalar_guard.py");
+        g2 = _5;
         // line 1
+        _6 = global@0;
+        _7 = MakeFunction(g; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = RuntimeFn::FunctionDefaults(_7);
+        g4 = _8;
+        g6 = _7;
+        g3 = _7;
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }
 
-fn g(_40: dyn) -> dyn {
+fn g(_41: dyn) -> dyn {
     let _0: dyn; // k
-    let _1: i64;
-    let _2: dyn;
+    let _1: dyn; // __function_owner
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -129,180 +148,183 @@ fn g(_40: dyn) -> dyn {
     let _43: dyn;
     let _44: dyn;
     let _45: dyn;
-    let _46: i64;
-    let _47: bool;
+    let _46: dyn;
+    let _47: i64;
+    let _48: bool;
 
     bb0: {
         // line 2
-        _3 = RuntimeFn::MakeDict();
-        _4 = box<I64>(const 0_i64);
-        RuntimeFn::DictSetScalarKey(_3, _0, _4);
-        _5 = box<I64>(const 1_i64);
+        _4 = RuntimeFn::MakeDict();
+        _5 = box<I64>(const 0_i64);
+        RuntimeFn::DictSetScalarKey(_4, _0, _5);
         _6 = box<I64>(const 1_i64);
-        RuntimeFn::DictSetScalarKey(_3, _5, _6);
-        _7 = box<I64>(const 2_i64);
+        _7 = box<I64>(const 1_i64);
+        RuntimeFn::DictSetScalarKey(_4, _6, _7);
         _8 = box<I64>(const 2_i64);
-        RuntimeFn::DictSetScalarKey(_3, _7, _8);
-        _9 = box<I64>(const 3_i64);
+        _9 = box<I64>(const 2_i64);
+        RuntimeFn::DictSetScalarKey(_4, _8, _9);
         _10 = box<I64>(const 3_i64);
-        RuntimeFn::DictSetScalarKey(_3, _9, _10);
-        _11 = box<I64>(const 4_i64);
+        _11 = box<I64>(const 3_i64);
+        RuntimeFn::DictSetScalarKey(_4, _10, _11);
         _12 = box<I64>(const 4_i64);
-        RuntimeFn::DictSetScalarKey(_3, _11, _12);
-        _13 = box<I64>(const 5_i64);
+        _13 = box<I64>(const 4_i64);
+        RuntimeFn::DictSetScalarKey(_4, _12, _13);
         _14 = box<I64>(const 5_i64);
-        RuntimeFn::DictSetScalarKey(_3, _13, _14);
-        _15 = box<I64>(const 6_i64);
+        _15 = box<I64>(const 5_i64);
+        RuntimeFn::DictSetScalarKey(_4, _14, _15);
         _16 = box<I64>(const 6_i64);
-        RuntimeFn::DictSetScalarKey(_3, _15, _16);
-        _17 = box<I64>(const 7_i64);
+        _17 = box<I64>(const 6_i64);
+        RuntimeFn::DictSetScalarKey(_4, _16, _17);
         _18 = box<I64>(const 7_i64);
-        RuntimeFn::DictSetScalarKey(_3, _17, _18);
-        _19 = box<I64>(const 8_i64);
+        _19 = box<I64>(const 7_i64);
+        RuntimeFn::DictSetScalarKey(_4, _18, _19);
         _20 = box<I64>(const 8_i64);
-        RuntimeFn::DictSetScalarKey(_3, _19, _20);
-        _21 = box<I64>(const 9_i64);
+        _21 = box<I64>(const 8_i64);
+        RuntimeFn::DictSetScalarKey(_4, _20, _21);
         _22 = box<I64>(const 9_i64);
-        RuntimeFn::DictSetScalarKey(_3, _21, _22);
-        _23 = box<I64>(const 10_i64);
+        _23 = box<I64>(const 9_i64);
+        RuntimeFn::DictSetScalarKey(_4, _22, _23);
         _24 = box<I64>(const 10_i64);
-        RuntimeFn::DictSetScalarKey(_3, _23, _24);
-        _25 = box<I64>(const 11_i64);
+        _25 = box<I64>(const 10_i64);
+        RuntimeFn::DictSetScalarKey(_4, _24, _25);
         _26 = box<I64>(const 11_i64);
-        RuntimeFn::DictSetScalarKey(_3, _25, _26);
-        _27 = box<I64>(const 12_i64);
+        _27 = box<I64>(const 11_i64);
+        RuntimeFn::DictSetScalarKey(_4, _26, _27);
         _28 = box<I64>(const 12_i64);
-        RuntimeFn::DictSetScalarKey(_3, _27, _28);
-        _29 = box<I64>(const 13_i64);
+        _29 = box<I64>(const 12_i64);
+        RuntimeFn::DictSetScalarKey(_4, _28, _29);
         _30 = box<I64>(const 13_i64);
-        RuntimeFn::DictSetScalarKey(_3, _29, _30);
-        _31 = box<I64>(const 14_i64);
+        _31 = box<I64>(const 13_i64);
+        RuntimeFn::DictSetScalarKey(_4, _30, _31);
         _32 = box<I64>(const 14_i64);
-        RuntimeFn::DictSetScalarKey(_3, _31, _32);
-        _33 = box<I64>(const 15_i64);
+        _33 = box<I64>(const 14_i64);
+        RuntimeFn::DictSetScalarKey(_4, _32, _33);
         _34 = box<I64>(const 15_i64);
-        RuntimeFn::DictSetScalarKey(_3, _33, _34);
-        _35 = box<I64>(const 16_i64);
+        _35 = box<I64>(const 15_i64);
+        RuntimeFn::DictSetScalarKey(_4, _34, _35);
         _36 = box<I64>(const 16_i64);
-        RuntimeFn::DictSetScalarKey(_3, _35, _36);
-        _37 = box<I64>(const 17_i64);
-        _38 = box<I64>(const 1_i64);
-        RuntimeFn::ArraySet(_40, const 4_i64, _0);
-        _41 = box<I64>(_1);
-        RuntimeFn::ArraySet(_40, const 5_i64, _41);
-        RuntimeFn::ArraySet(_40, const 6_i64, _2);
-        RuntimeFn::ArraySet(_40, const 7_i64, _3);
-        RuntimeFn::ArraySet(_40, const 8_i64, _4);
-        RuntimeFn::ArraySet(_40, const 9_i64, _5);
-        RuntimeFn::ArraySet(_40, const 10_i64, _6);
-        RuntimeFn::ArraySet(_40, const 11_i64, _7);
-        RuntimeFn::ArraySet(_40, const 12_i64, _8);
-        RuntimeFn::ArraySet(_40, const 13_i64, _9);
-        RuntimeFn::ArraySet(_40, const 14_i64, _10);
-        RuntimeFn::ArraySet(_40, const 15_i64, _11);
-        RuntimeFn::ArraySet(_40, const 16_i64, _12);
-        RuntimeFn::ArraySet(_40, const 17_i64, _13);
-        RuntimeFn::ArraySet(_40, const 18_i64, _14);
-        RuntimeFn::ArraySet(_40, const 19_i64, _15);
-        RuntimeFn::ArraySet(_40, const 20_i64, _16);
-        RuntimeFn::ArraySet(_40, const 21_i64, _17);
-        RuntimeFn::ArraySet(_40, const 22_i64, _18);
-        RuntimeFn::ArraySet(_40, const 23_i64, _19);
-        RuntimeFn::ArraySet(_40, const 24_i64, _20);
-        RuntimeFn::ArraySet(_40, const 25_i64, _21);
-        RuntimeFn::ArraySet(_40, const 26_i64, _22);
-        RuntimeFn::ArraySet(_40, const 27_i64, _23);
-        RuntimeFn::ArraySet(_40, const 28_i64, _24);
-        RuntimeFn::ArraySet(_40, const 29_i64, _25);
-        RuntimeFn::ArraySet(_40, const 30_i64, _26);
-        RuntimeFn::ArraySet(_40, const 31_i64, _27);
-        RuntimeFn::ArraySet(_40, const 32_i64, _28);
-        RuntimeFn::ArraySet(_40, const 33_i64, _29);
-        RuntimeFn::ArraySet(_40, const 34_i64, _30);
-        RuntimeFn::ArraySet(_40, const 35_i64, _31);
-        RuntimeFn::ArraySet(_40, const 36_i64, _32);
-        RuntimeFn::ArraySet(_40, const 37_i64, _33);
-        RuntimeFn::ArraySet(_40, const 38_i64, _34);
-        RuntimeFn::ArraySet(_40, const 39_i64, _35);
-        RuntimeFn::ArraySet(_40, const 40_i64, _36);
-        RuntimeFn::ArraySet(_40, const 41_i64, _37);
-        RuntimeFn::ArraySet(_40, const 42_i64, _38);
-        RuntimeFn::ArraySet(_40, const 43_i64, _39);
-        _42 = box<I64>(const 1_i64);
-        RuntimeFn::ArraySet(_40, const 0_i64, _42);
-        return _38;
+        _37 = box<I64>(const 16_i64);
+        RuntimeFn::DictSetScalarKey(_4, _36, _37);
+        _38 = box<I64>(const 17_i64);
+        _39 = box<I64>(const 1_i64);
+        RuntimeFn::ArraySet(_41, const 4_i64, _0);
+        RuntimeFn::ArraySet(_41, const 5_i64, _1);
+        _42 = box<I64>(_2);
+        RuntimeFn::ArraySet(_41, const 6_i64, _42);
+        RuntimeFn::ArraySet(_41, const 7_i64, _3);
+        RuntimeFn::ArraySet(_41, const 8_i64, _4);
+        RuntimeFn::ArraySet(_41, const 9_i64, _5);
+        RuntimeFn::ArraySet(_41, const 10_i64, _6);
+        RuntimeFn::ArraySet(_41, const 11_i64, _7);
+        RuntimeFn::ArraySet(_41, const 12_i64, _8);
+        RuntimeFn::ArraySet(_41, const 13_i64, _9);
+        RuntimeFn::ArraySet(_41, const 14_i64, _10);
+        RuntimeFn::ArraySet(_41, const 15_i64, _11);
+        RuntimeFn::ArraySet(_41, const 16_i64, _12);
+        RuntimeFn::ArraySet(_41, const 17_i64, _13);
+        RuntimeFn::ArraySet(_41, const 18_i64, _14);
+        RuntimeFn::ArraySet(_41, const 19_i64, _15);
+        RuntimeFn::ArraySet(_41, const 20_i64, _16);
+        RuntimeFn::ArraySet(_41, const 21_i64, _17);
+        RuntimeFn::ArraySet(_41, const 22_i64, _18);
+        RuntimeFn::ArraySet(_41, const 23_i64, _19);
+        RuntimeFn::ArraySet(_41, const 24_i64, _20);
+        RuntimeFn::ArraySet(_41, const 25_i64, _21);
+        RuntimeFn::ArraySet(_41, const 26_i64, _22);
+        RuntimeFn::ArraySet(_41, const 27_i64, _23);
+        RuntimeFn::ArraySet(_41, const 28_i64, _24);
+        RuntimeFn::ArraySet(_41, const 29_i64, _25);
+        RuntimeFn::ArraySet(_41, const 30_i64, _26);
+        RuntimeFn::ArraySet(_41, const 31_i64, _27);
+        RuntimeFn::ArraySet(_41, const 32_i64, _28);
+        RuntimeFn::ArraySet(_41, const 33_i64, _29);
+        RuntimeFn::ArraySet(_41, const 34_i64, _30);
+        RuntimeFn::ArraySet(_41, const 35_i64, _31);
+        RuntimeFn::ArraySet(_41, const 36_i64, _32);
+        RuntimeFn::ArraySet(_41, const 37_i64, _33);
+        RuntimeFn::ArraySet(_41, const 38_i64, _34);
+        RuntimeFn::ArraySet(_41, const 39_i64, _35);
+        RuntimeFn::ArraySet(_41, const 40_i64, _36);
+        RuntimeFn::ArraySet(_41, const 41_i64, _37);
+        RuntimeFn::ArraySet(_41, const 42_i64, _38);
+        RuntimeFn::ArraySet(_41, const 43_i64, _39);
+        RuntimeFn::ArraySet(_41, const 44_i64, _40);
+        _43 = box<I64>(const 1_i64);
+        RuntimeFn::ArraySet(_41, const 0_i64, _43);
+        return _39;
     }
     bb1: {
-        _39 = RuntimeFn::GeneratorInput(_40);
-        RuntimeFn::DictSetScalarKey(_3, _37, _39);
-        _2 = _3;
+        _40 = RuntimeFn::GeneratorInput(_41);
+        RuntimeFn::DictSetScalarKey(_4, _38, _40);
+        _3 = _4;
         goto -> bb3;
     }
     bb2: {
         unreachable;
     }
     bb3: {
-        _43 = box<I64>(const -1_i64);
-        RuntimeFn::ArraySet(_40, const 0_i64, _43);
-        return _2;
+        _44 = box<I64>(const -1_i64);
+        RuntimeFn::ArraySet(_41, const 0_i64, _44);
+        return _3;
     }
     bb4: {
-        _47 = Eq(_46, const 1_i64);
-        branch _47 -> [then: bb1, else: bb0];
+        _48 = Eq(_47, const 1_i64);
+        branch _48 -> [then: bb1, else: bb0];
     }
     bb5: {
-        _0 = RuntimeFn::ArrayGet(_40, const 4_i64);
-        _44 = RuntimeFn::ArrayGet(_40, const 5_i64);
-        _1 = unbox<I64>(_44);
-        _2 = RuntimeFn::ArrayGet(_40, const 6_i64);
-        _3 = RuntimeFn::ArrayGet(_40, const 7_i64);
-        _4 = RuntimeFn::ArrayGet(_40, const 8_i64);
-        _5 = RuntimeFn::ArrayGet(_40, const 9_i64);
-        _6 = RuntimeFn::ArrayGet(_40, const 10_i64);
-        _7 = RuntimeFn::ArrayGet(_40, const 11_i64);
-        _8 = RuntimeFn::ArrayGet(_40, const 12_i64);
-        _9 = RuntimeFn::ArrayGet(_40, const 13_i64);
-        _10 = RuntimeFn::ArrayGet(_40, const 14_i64);
-        _11 = RuntimeFn::ArrayGet(_40, const 15_i64);
-        _12 = RuntimeFn::ArrayGet(_40, const 16_i64);
-        _13 = RuntimeFn::ArrayGet(_40, const 17_i64);
-        _14 = RuntimeFn::ArrayGet(_40, const 18_i64);
-        _15 = RuntimeFn::ArrayGet(_40, const 19_i64);
-        _16 = RuntimeFn::ArrayGet(_40, const 20_i64);
-        _17 = RuntimeFn::ArrayGet(_40, const 21_i64);
-        _18 = RuntimeFn::ArrayGet(_40, const 22_i64);
-        _19 = RuntimeFn::ArrayGet(_40, const 23_i64);
-        _20 = RuntimeFn::ArrayGet(_40, const 24_i64);
-        _21 = RuntimeFn::ArrayGet(_40, const 25_i64);
-        _22 = RuntimeFn::ArrayGet(_40, const 26_i64);
-        _23 = RuntimeFn::ArrayGet(_40, const 27_i64);
-        _24 = RuntimeFn::ArrayGet(_40, const 28_i64);
-        _25 = RuntimeFn::ArrayGet(_40, const 29_i64);
-        _26 = RuntimeFn::ArrayGet(_40, const 30_i64);
-        _27 = RuntimeFn::ArrayGet(_40, const 31_i64);
-        _28 = RuntimeFn::ArrayGet(_40, const 32_i64);
-        _29 = RuntimeFn::ArrayGet(_40, const 33_i64);
-        _30 = RuntimeFn::ArrayGet(_40, const 34_i64);
-        _31 = RuntimeFn::ArrayGet(_40, const 35_i64);
-        _32 = RuntimeFn::ArrayGet(_40, const 36_i64);
-        _33 = RuntimeFn::ArrayGet(_40, const 37_i64);
-        _34 = RuntimeFn::ArrayGet(_40, const 38_i64);
-        _35 = RuntimeFn::ArrayGet(_40, const 39_i64);
-        _36 = RuntimeFn::ArrayGet(_40, const 40_i64);
-        _37 = RuntimeFn::ArrayGet(_40, const 41_i64);
-        _38 = RuntimeFn::ArrayGet(_40, const 42_i64);
-        _39 = RuntimeFn::ArrayGet(_40, const 43_i64);
-        _45 = RuntimeFn::ArrayGet(_40, const 0_i64);
-        _46 = unbox<I64>(_45);
+        _0 = RuntimeFn::ArrayGet(_41, const 4_i64);
+        _1 = RuntimeFn::ArrayGet(_41, const 5_i64);
+        _45 = RuntimeFn::ArrayGet(_41, const 6_i64);
+        _2 = unbox<I64>(_45);
+        _3 = RuntimeFn::ArrayGet(_41, const 7_i64);
+        _4 = RuntimeFn::ArrayGet(_41, const 8_i64);
+        _5 = RuntimeFn::ArrayGet(_41, const 9_i64);
+        _6 = RuntimeFn::ArrayGet(_41, const 10_i64);
+        _7 = RuntimeFn::ArrayGet(_41, const 11_i64);
+        _8 = RuntimeFn::ArrayGet(_41, const 12_i64);
+        _9 = RuntimeFn::ArrayGet(_41, const 13_i64);
+        _10 = RuntimeFn::ArrayGet(_41, const 14_i64);
+        _11 = RuntimeFn::ArrayGet(_41, const 15_i64);
+        _12 = RuntimeFn::ArrayGet(_41, const 16_i64);
+        _13 = RuntimeFn::ArrayGet(_41, const 17_i64);
+        _14 = RuntimeFn::ArrayGet(_41, const 18_i64);
+        _15 = RuntimeFn::ArrayGet(_41, const 19_i64);
+        _16 = RuntimeFn::ArrayGet(_41, const 20_i64);
+        _17 = RuntimeFn::ArrayGet(_41, const 21_i64);
+        _18 = RuntimeFn::ArrayGet(_41, const 22_i64);
+        _19 = RuntimeFn::ArrayGet(_41, const 23_i64);
+        _20 = RuntimeFn::ArrayGet(_41, const 24_i64);
+        _21 = RuntimeFn::ArrayGet(_41, const 25_i64);
+        _22 = RuntimeFn::ArrayGet(_41, const 26_i64);
+        _23 = RuntimeFn::ArrayGet(_41, const 27_i64);
+        _24 = RuntimeFn::ArrayGet(_41, const 28_i64);
+        _25 = RuntimeFn::ArrayGet(_41, const 29_i64);
+        _26 = RuntimeFn::ArrayGet(_41, const 30_i64);
+        _27 = RuntimeFn::ArrayGet(_41, const 31_i64);
+        _28 = RuntimeFn::ArrayGet(_41, const 32_i64);
+        _29 = RuntimeFn::ArrayGet(_41, const 33_i64);
+        _30 = RuntimeFn::ArrayGet(_41, const 34_i64);
+        _31 = RuntimeFn::ArrayGet(_41, const 35_i64);
+        _32 = RuntimeFn::ArrayGet(_41, const 36_i64);
+        _33 = RuntimeFn::ArrayGet(_41, const 37_i64);
+        _34 = RuntimeFn::ArrayGet(_41, const 38_i64);
+        _35 = RuntimeFn::ArrayGet(_41, const 39_i64);
+        _36 = RuntimeFn::ArrayGet(_41, const 40_i64);
+        _37 = RuntimeFn::ArrayGet(_41, const 41_i64);
+        _38 = RuntimeFn::ArrayGet(_41, const 42_i64);
+        _39 = RuntimeFn::ArrayGet(_41, const 43_i64);
+        _40 = RuntimeFn::ArrayGet(_41, const 44_i64);
+        _46 = RuntimeFn::ArrayGet(_41, const 0_i64);
+        _47 = unbox<I64>(_46);
         goto -> bb4;
     }
 }
 
 大字典尾项动态键
-fn g(_0: dyn) -> dyn {
+fn g(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // k
-    let _1: i64;
-    let _2: dyn;
+    let _1: dyn; // __function_owner
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -339,98 +361,116 @@ fn g(_0: dyn) -> dyn {
     let _36: dyn;
     let _37: dyn;
     let _38: dyn;
+    let _39: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "ryupy_m3_2_large_scalar_guard.py", const "g");
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_2_large_scalar_guard.py", const "g", _1);
         // line 2
-        _3 = RuntimeFn::MakeDict();
-        _4 = box<I64>(const 0_i64);
+        _4 = RuntimeFn::MakeDict();
         _5 = box<I64>(const 0_i64);
-        RuntimeFn::DictSetScalarKey(_3, _4, _5);
-        _6 = box<I64>(const 1_i64);
+        _6 = box<I64>(const 0_i64);
+        RuntimeFn::DictSetScalarKey(_4, _5, _6);
         _7 = box<I64>(const 1_i64);
-        RuntimeFn::DictSetScalarKey(_3, _6, _7);
-        _8 = box<I64>(const 2_i64);
+        _8 = box<I64>(const 1_i64);
+        RuntimeFn::DictSetScalarKey(_4, _7, _8);
         _9 = box<I64>(const 2_i64);
-        RuntimeFn::DictSetScalarKey(_3, _8, _9);
-        _10 = box<I64>(const 3_i64);
+        _10 = box<I64>(const 2_i64);
+        RuntimeFn::DictSetScalarKey(_4, _9, _10);
         _11 = box<I64>(const 3_i64);
-        RuntimeFn::DictSetScalarKey(_3, _10, _11);
-        _12 = box<I64>(const 4_i64);
+        _12 = box<I64>(const 3_i64);
+        RuntimeFn::DictSetScalarKey(_4, _11, _12);
         _13 = box<I64>(const 4_i64);
-        RuntimeFn::DictSetScalarKey(_3, _12, _13);
-        _14 = box<I64>(const 5_i64);
+        _14 = box<I64>(const 4_i64);
+        RuntimeFn::DictSetScalarKey(_4, _13, _14);
         _15 = box<I64>(const 5_i64);
-        RuntimeFn::DictSetScalarKey(_3, _14, _15);
-        _16 = box<I64>(const 6_i64);
+        _16 = box<I64>(const 5_i64);
+        RuntimeFn::DictSetScalarKey(_4, _15, _16);
         _17 = box<I64>(const 6_i64);
-        RuntimeFn::DictSetScalarKey(_3, _16, _17);
-        _18 = box<I64>(const 7_i64);
+        _18 = box<I64>(const 6_i64);
+        RuntimeFn::DictSetScalarKey(_4, _17, _18);
         _19 = box<I64>(const 7_i64);
-        RuntimeFn::DictSetScalarKey(_3, _18, _19);
-        _20 = box<I64>(const 8_i64);
+        _20 = box<I64>(const 7_i64);
+        RuntimeFn::DictSetScalarKey(_4, _19, _20);
         _21 = box<I64>(const 8_i64);
-        RuntimeFn::DictSetScalarKey(_3, _20, _21);
-        _22 = box<I64>(const 9_i64);
+        _22 = box<I64>(const 8_i64);
+        RuntimeFn::DictSetScalarKey(_4, _21, _22);
         _23 = box<I64>(const 9_i64);
-        RuntimeFn::DictSetScalarKey(_3, _22, _23);
-        _24 = box<I64>(const 10_i64);
+        _24 = box<I64>(const 9_i64);
+        RuntimeFn::DictSetScalarKey(_4, _23, _24);
         _25 = box<I64>(const 10_i64);
-        RuntimeFn::DictSetScalarKey(_3, _24, _25);
-        _26 = box<I64>(const 11_i64);
+        _26 = box<I64>(const 10_i64);
+        RuntimeFn::DictSetScalarKey(_4, _25, _26);
         _27 = box<I64>(const 11_i64);
-        RuntimeFn::DictSetScalarKey(_3, _26, _27);
-        _28 = box<I64>(const 12_i64);
+        _28 = box<I64>(const 11_i64);
+        RuntimeFn::DictSetScalarKey(_4, _27, _28);
         _29 = box<I64>(const 12_i64);
-        RuntimeFn::DictSetScalarKey(_3, _28, _29);
-        _30 = box<I64>(const 13_i64);
+        _30 = box<I64>(const 12_i64);
+        RuntimeFn::DictSetScalarKey(_4, _29, _30);
         _31 = box<I64>(const 13_i64);
-        RuntimeFn::DictSetScalarKey(_3, _30, _31);
-        _32 = box<I64>(const 14_i64);
+        _32 = box<I64>(const 13_i64);
+        RuntimeFn::DictSetScalarKey(_4, _31, _32);
         _33 = box<I64>(const 14_i64);
-        RuntimeFn::DictSetScalarKey(_3, _32, _33);
-        _34 = box<I64>(const 15_i64);
+        _34 = box<I64>(const 14_i64);
+        RuntimeFn::DictSetScalarKey(_4, _33, _34);
         _35 = box<I64>(const 15_i64);
-        RuntimeFn::DictSetScalarKey(_3, _34, _35);
-        _36 = box<I64>(const 16_i64);
+        _36 = box<I64>(const 15_i64);
+        RuntimeFn::DictSetScalarKey(_4, _35, _36);
         _37 = box<I64>(const 16_i64);
-        RuntimeFn::DictSetScalarKey(_3, _36, _37);
-        _38 = box<I64>(const 17_i64);
-        RuntimeFn::DictSetScalarKey(_3, _0, _38);
-        _2 = _3;
+        _38 = box<I64>(const 16_i64);
+        RuntimeFn::DictSetScalarKey(_4, _37, _38);
+        _39 = box<I64>(const 17_i64);
+        RuntimeFn::DictSetScalarKey(_4, _0, _39);
+        _3 = _4;
         goto -> bb2;
     }
     bb1: {
         unreachable;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_1);
-        return _2;
+        RuntimeFn::TracePopTo(_2);
+        return _3;
     }
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
+    let _1: dyn;
+    let _2: i64;
+    let _3: dyn;
+    let _4: dyn;
+    let _5: dyn;
+    let _6: dyn;
+    let _7: dyn;
+    let _8: dyn;
 
     bb0: {
-        g3 = const false;
-        g4 = const false;
-        g5 = const false;
-        _0 = RuntimeFn::TracePush(const "ryupy_m3_2_large_scalar_guard.py", const "<module>");
+        g0 = null;
+        g1 = null;
+        g2 = null;
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_2_large_scalar_guard.py", const "<module>", _1);
         // line 1
-        g0 = const "__main__";
-        g3 = const true;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        g1 = const "";
-        g4 = const true;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        g2 = const "ryupy_m3_2_large_scalar_guard.py";
-        g5 = const true;
+        _5 = box<Str>(const "ryupy_m3_2_large_scalar_guard.py");
+        g2 = _5;
         // line 1
+        _6 = global@0;
+        _7 = MakeFunction(g; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = RuntimeFn::FunctionDefaults(_7);
+        g4 = _8;
+        g6 = _7;
+        g3 = _7;
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

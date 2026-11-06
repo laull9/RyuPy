@@ -2,20 +2,31 @@ namespace RyuPy.Runtime;
 
 public static partial class PyOps
 {
-    /// <summary>捕获标志由独立Bool局部保存，不能从属性值的类型反推。</summary>
-    public static bool IsModule(object? receiver) => receiver is PyModule;
-
-    /// <summary>模块属性在实参前读取原对象；其他接收者保持身份，不分配包装。</summary>
-    public static object? CaptureModuleTarget(object? receiver, string name)
+    /// <summary>历史ABI名称保留；模块、生成tuple类/实例和真实str子类实例须在实参前取属性。</summary>
+    public static bool IsModule(object? receiver)
     {
-        if (receiver is not PyModule module) return receiver;
-        return CaptureActualModuleTarget(module, name);
+        // PyList为sealed精确载体；普通list不需捕获，避免逐个探测新增冷布局。
+        if (receiver is PyList or PyDict) return false;
+        return receiver is PyModule or PyNamedTupleInstance or PyStringInstance or PyListInstance or PyDictInstance
+            || receiver is PyClass { NamedTupleLayout: not null } or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
+            or PySuper { Owner.HasListLayout: true } or PySuper { Owner.HasDictLayout: true } || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict")));
     }
 
-    // 冷模块查找独立承担异常准备，使非模块身份路径不含 EH；不强制内联。
-    private static object? CaptureActualModuleTarget(PyModule module, string name)
+    /// <summary>有界接收者在实参前读取原对象；其他接收者保持身份，不分配包装。</summary>
+    public static object? CaptureModuleTarget(object? receiver, string name)
     {
-        try { return PyObject.GetAttr(module, name); }
+        if (!IsModule(receiver)) return receiver;
+        // 字符串子类property/__getattr__的用户正文不广catch；查找自身的错误在自造点准备。
+        if (receiver is PyStringInstance or PyListInstance or PyDictInstance or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
+            or PySuper { Owner.HasListLayout: true } or PySuper { Owner.HasDictLayout: true } || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict"))))
+            return PyObject.GetAttr(receiver, name);
+        return CaptureActualModuleTarget(receiver!, name);
+    }
+
+    // 冷属性查找独立承担异常准备，使普通接收者身份路径不含EH；不强制内联。
+    private static object? CaptureActualModuleTarget(object receiver, string name)
+    {
+        try { return PyObject.GetAttr(receiver, name); }
         catch (PyBaseException error)
         {
             PyErrors.PrepareRaise(error);

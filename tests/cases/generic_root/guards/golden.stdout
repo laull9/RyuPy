@@ -1,0 +1,7 @@
+bound Plain <class 'typing.Generic'> is not valid as type argument
+functional Plain <class 'typing.Generic'> is not valid as type argument
+class Plain <class 'typing.Generic'> is not valid as type argument
+bound typing.Generic[~T] is not valid as type argument
+functional typing.Generic[~T] is not valid as type argument
+class typing.Generic[~T] is not valid as type argument
+guards True

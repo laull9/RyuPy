@@ -11,9 +11,12 @@ fn program() -> Program {
     });
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
+        module_state: None,
+        module_state_source: None,
         name: "生成器测试".into(),
         codegen_name: "test".into(),
         source_file: "test.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
@@ -28,6 +31,7 @@ fn program() -> Program {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     Program {
         functions,
@@ -61,6 +65,7 @@ fn rejects_invalid_resume_and_frame() {
         .push(Statement::Eval(Rvalue::MakeGenerator {
             resume: entry,
             frame: vec![Operand::Const(Constant::I64(0))],
+            origin: None,
         }));
     assert!(crate::validate::validate(&program).is_err());
 }

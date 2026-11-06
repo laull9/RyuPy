@@ -1,0 +1,67 @@
+{
+  "baseline": "bb6b59078ae8030a11d7da661d42389db8c215e6",
+  "source_sha256": "fdc2771a9ee446987dbcb456feff6f0d3d8f53ae0d35ab54f534e692c80df342",
+  "python_version": "3.12.13 (main, Aug  7 2026, 02:25:39) [Clang 22.1.3 ]",
+  "tools": {
+    "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12": "021044895e95be79dc2f110367607e684119afbc8ce75f6f0eec94844e0acec7",
+    "/workspace/shared/ryupy-build-target/debug/ryupy": "3af5ba30a8742f7a193ddd410cb972863ad295eec8de701f8910351b70175eab",
+    "/workspace/shared/toolchains/dotnet/dotnet": "634efbf2414144d140d6f59d167342c8b3b53b4c34346ed786dd0470ddc9a3cb"
+  },
+  "stages": {
+    "cpython": {
+      "command": [
+        "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+        "-B",
+        "/workspace/shared/ryupy-list-method-bindings-baseline/run/repro.py"
+      ],
+      "executions": 1,
+      "exit": 0,
+      "timeout": false,
+      "timeout_budget_seconds": 28,
+      "elapsed_seconds": 0.01627450300111377,
+      "stdout_sha256": "da50652979e937a7cef90b8f41520dc290c30a705f73c2a9f361d120963ffe98",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "build": {
+      "command": [
+        "/workspace/shared/ryupy-build-target/debug/ryupy",
+        "build",
+        "/workspace/shared/ryupy-list-method-bindings-baseline/run/repro.py",
+        "--out-dir",
+        "/workspace/shared/ryupy-list-method-bindings-baseline/run/out"
+      ],
+      "executions": 1,
+      "exit": 0,
+      "timeout": false,
+      "timeout_budget_seconds": 90,
+      "elapsed_seconds": 0.11452972100050829,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "3762fabb68013553e7661f33e48823ee1d2bc784838ad863bb4b2f1a70791ddd"
+    },
+    "ryupy": {
+      "command": [
+        "/workspace/shared/toolchains/dotnet/dotnet",
+        "/workspace/shared/ryupy-list-method-bindings-baseline/run/out/repro.dll"
+      ],
+      "executions": 1,
+      "exit": 0,
+      "timeout": false,
+      "timeout_budget_seconds": 28,
+      "elapsed_seconds": 0.11430162800024846,
+      "stdout_sha256": "ce554a9b1ed7e7e98b99ac3288cfa230ef2e3d08b36e3060165133fe80457f8c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "diagnostic_only": true,
+  "active_groups": 34,
+  "boundary_groups": 2,
+  "overall_timeout": false,
+  "elapsed_seconds": 0.4714163179996831,
+  "artifacts": {
+    "out/RyuPy.Runtime.dll": "ea69019b86ae4e93fd9be4b12856bc1f456ab3fe8128a008db11dda78e59c0e1",
+    "out/repro.dll": "a1d123a30a7f6cc1c78482f98d356267ad3b26e73e7ba646db92999a5d72dcdf",
+    "out/repro.runtimeconfig.json": "ab20c6e50056e26fa0a23247870ac66dc23688ff3e4187399a8dfe436657fe0a"
+  },
+  "raw_equal": false,
+  "outcome": "baseline-difference"
+}

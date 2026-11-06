@@ -1,0 +1,12 @@
+True True
+True True
+0
+0
+['builtins'] True
+True ['len'] {}
+[]
+True
+True 1
+None {}
+KeyError '__main__'
+['builtins'] None defaultdict(..., {})

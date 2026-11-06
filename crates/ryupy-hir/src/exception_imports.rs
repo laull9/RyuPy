@@ -20,6 +20,16 @@ pub(crate) struct ExceptionImport {
 }
 
 impl ExceptionImport {
+    /// 模块和函数候选共享已认证模块/member映射，但不共享别名作用域。
+    pub(crate) fn new(module: String, member: Option<String>, available: TextSize) -> Self {
+        Self {
+            module,
+            member,
+            available,
+            used: Cell::new(false),
+        }
+    }
+
     /// 与异常共用稳定导入身份分析；原生普通基类不参与CLR异常类型解析。
     pub(crate) fn resolve_native_base(
         &self,
@@ -45,6 +55,15 @@ impl ExceptionImport {
     }
 
     pub(crate) fn resolve(&self, member: Option<&str>, position: TextSize) -> Option<&'static str> {
+        let resolved = self.peek(member, position);
+        if resolved.is_some() {
+            self.used.set(true);
+        }
+        resolved
+    }
+
+    /// 首轮异常分派判定不把mixed链的模块导出误冻结。
+    pub(crate) fn peek(&self, member: Option<&str>, position: TextSize) -> Option<&'static str> {
         if position < self.available {
             return None;
         }
@@ -53,17 +72,21 @@ impl ExceptionImport {
             (None, Some(member)) => member,
             _ => return None,
         };
-        let resolved = match (self.module.as_str(), member) {
+        match (self.module.as_str(), member) {
             ("json", "JSONDecodeError") => Some("json.JSONDecodeError"),
+            ("zipfile", "BadZipFile") => Some("zipfile.BadZipFile"),
+            ("getopt", "GetoptError" | "error") => Some("getopt.GetoptError"),
+            ("optparse", "OptParseError") => Some("optparse.OptParseError"),
+            ("optparse", "OptionError") => Some("optparse.OptionError"),
+            ("optparse", "OptionConflictError") => Some("optparse.OptionConflictError"),
+            ("optparse", "OptionValueError") => Some("optparse.OptionValueError"),
+            ("optparse", "BadOptionError") => Some("optparse.BadOptionError"),
+            ("optparse", "AmbiguousOptionError") => Some("optparse.AmbiguousOptionError"),
             ("dataclasses", "FrozenInstanceError") => Some("dataclasses.FrozenInstanceError"),
             ("re", "error") => Some("re.error"),
             ("io", "UnsupportedOperation") => Some("io.UnsupportedOperation"),
             _ => None,
-        };
-        if resolved.is_some() {
-            self.used.set(true);
         }
-        resolved
     }
 }
 

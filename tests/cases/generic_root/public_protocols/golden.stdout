@@ -1,0 +1,13 @@
+tuple-identity True True
+alias-identity True True False True
+int TypeError int() argument must be a string, a bytes-like object or a real number, not 'typing.Generic'
+float TypeError float() argument must be a string or a real number, not 'typing.Generic'
+iter TypeError 'typing.Generic' object is not iterable
+missing-Generic AttributeError 'typing.Generic' object has no attribute 'Generic'
+extra 12 12 12
+module <class 'changed.Generic'> changed.Generic[~T] <changed.Generic
+module <class 'typing.Generic'> None.Generic[~T] <typing.Generic
+module <class 'typing.Generic'> 42.Generic[~T] <typing.Generic
+module <class 'typing.Generic'> ['module'].Generic[~T] <typing.Generic
+module <class 'typing.Generic'> Generic[~T] <typing.Generic
+snapshot typing

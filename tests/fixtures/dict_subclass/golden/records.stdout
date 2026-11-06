@@ -1,0 +1,4 @@
+dict-subclass.records ['price', 'count', 'tags', 'state'] 21 warehouse
+dict-subclass.reinit [('price', 7), ('count', 4), ('tags', ['original']), ('state', 'ready')] True
+dict-subclass.prefix ['price', 'count', 'tags', 'state', 'committed'] ['first', 'fail']
+dict-subclass.copy-union-methods {} warehouse

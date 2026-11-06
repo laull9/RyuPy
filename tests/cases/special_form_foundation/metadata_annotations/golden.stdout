@@ -1,0 +1,6 @@
+type <class 'typing._SpecialForm'>
+type <class 'typing._SpecialForm'>
+type <class 'typing._LiteralSpecialForm'>
+type <class 'typing._SpecialGenericAlias'>
+type <class 'typing._AnyMeta'>
+metadata-eager True

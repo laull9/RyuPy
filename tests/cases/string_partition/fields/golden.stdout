@@ -1,0 +1,15 @@
+config (('TOKEN', '=', 'alpha=beta'), ('TOKEN=alpha', '=', 'beta')) True True
+option (('--mode', '=', 'fast'), ('--mode', '=', 'fast')) True True
+extension (('archive', '.', 'tar.gz'), ('archive.tar', '.', 'gz')) True True
+missing (('README', '', ''), ('', '', 'README')) True True
+repeated (('aa', '::', 'bb::cc'), ('aa::bb', '::', 'cc')) True True
+overlap (('', 'aba', 'ba'), ('ab', 'aba', '')) True True
+overlap-even (('', 'aa', 'aa'), ('aa', 'aa', '')) True True
+adjacent (('', '::', '::'), ('::', '::', '')) True True
+leading (('', '::', 'tail'), ('', '::', 'tail')) True True
+trailing (('head', '::', ''), ('head', '::', '')) True True
+whole (('', '::', ''), ('', '::', '')) True True
+empty-source (('', '', ''), ('', '', '')) True True
+long-separator (('abc', '', ''), ('', '', 'abc')) True True
+nul (('a', '\x00', 'b\x00c'), ('a\x00b', '\x00', 'c')) True True
+fields-ok

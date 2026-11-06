@@ -1,0 +1,3 @@
+deleted typed global NameError name 'counter' is not defined
+deleted None binding NameError name 'nullable' is not defined
+module reassignment 16 None

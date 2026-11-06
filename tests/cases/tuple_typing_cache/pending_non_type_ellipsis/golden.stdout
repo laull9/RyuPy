@@ -1,0 +1,11 @@
+typing.Tuple[...]
+typing.Tuple[...]
+typing.Tuple[..., int]
+typing.Tuple[..., ...]
+typing.Tuple[int, ..., str]
+typing.Tuple[7]
+typing.Tuple[True]
+typing.Tuple[ForwardRef('ForwardName')]
+typing.Tuple[[<class 'int'>]]
+typing.Tuple[{'x': <class 'int'>}]
+unhashable-body-success-no-insert True

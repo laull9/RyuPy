@@ -1,0 +1,14 @@
+tuple-mask typing.Callable[[int], str] (<class 'int'>, <class 'str'>) _CallableGenericAlias
+events ['outer.class', 'outer.len', 'outer.iter']
+class-error TypeError outer class marker
+events ['class.error']
+length-error TypeError outer length marker
+events ['outer.class', 'len.error']
+iteration-error TypeError outer iteration marker
+events ['outer.class', 'outer.len', 'iter.error']
+wrong-length TypeError Callable must be used as Callable[[arg, ...], result].
+events ['outer.class', 'len.one']
+list-mask typing.Callable[[int], str] (<class 'int'>, <class 'str'>) _CallableGenericAlias
+events ['args.class', 'args.iter', 'args.len']
+inheritance True True
+reverse False False

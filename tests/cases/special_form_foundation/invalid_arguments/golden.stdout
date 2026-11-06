@@ -1,0 +1,7 @@
+optional-tuple typing.Optional requires a single type. Got ().
+optional-tuple typing.Optional requires a single type. Got (<class 'int'>,).
+optional-tuple typing.Optional requires a single type. Got (<class 'int'>, <class 'str'>).
+union-empty Cannot take a Union of no types.
+union-nested-tuple Union[arg, ...]: each arg must be a type. Got (<class 'int'>,).
+optional-root Plain typing.Union is not valid as type argument
+union-root Plain typing.Optional is not valid as type argument

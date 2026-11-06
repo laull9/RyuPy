@@ -1,0 +1,17 @@
+pair True
+custom-orig-body
+orig-eq True
+orig-parameters
+custom-orig-result (~U,)
+iterable-body
+orig-iter
+orig-iter
+orig-iter
+iterable-result (~T,)
+failed-body
+failed before finalize
+collect-stored
+collect-body
+collect-replacement True
+collect-result True
+export-body

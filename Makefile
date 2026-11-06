@@ -58,6 +58,7 @@ test: runtime python-baseline ## Python 基线 + 单元测试 + 快照测试（�
 
 .PHONY: python-baseline
 python-baseline: ## 自检 Phase 1–3 的 CPython 用例与预期错误退出
+	"$(PYTHON)" -B tests/test_case_manifest.py
 	"$(PYTHON)" tests/run_python_baseline.py
 
 .PHONY: python-extensions

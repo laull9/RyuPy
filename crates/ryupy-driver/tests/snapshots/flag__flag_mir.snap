@@ -1,11 +1,12 @@
 ---
 source: crates/ryupy-driver/tests/flag.rs
+assertion_line: 20
 expression: output
 ---
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -17,6 +18,8 @@ fn main() -> () {
     let _11: dyn;
     let _12: dyn;
     let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
 
     bb0: {
         g1 = null;
@@ -24,38 +27,40 @@ fn main() -> () {
         g3 = null;
         g4 = null;
         g5 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_flag_snapshot.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_flag_snapshot.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g1 = _1;
+        _3 = box<Str>(const "__main__");
+        g1 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g2 = _2;
+        _4 = box<Str>(const "");
+        g2 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_flag_snapshot.py");
-        g3 = _3;
+        _5 = box<Str>(const "ryupy_flag_snapshot.py");
+        g3 = _5;
         // line 1
-        _4 = RuntimeFn::ImportAttr(const "enum", const "Flag");
-        g4 = _4;
+        _6 = RuntimeFn::ImportAttr(const "enum", const "Flag");
+        g4 = _6;
         // line 2
-        _5 = RuntimeFn::LoadName(global@4, const "Flag");
-        _6 = _5;
-        _7 = RuntimeFn::EnumCreate(const "Bits", [_6], null);
-        g0 = _7;
-        _8 = box<I64>(const 1_i64);
-        RuntimeFn::SetAttr(_7, const "A", _8);
-        _9 = box<I64>(const 2_i64);
-        RuntimeFn::SetAttr(_7, const "B", _9);
-        _10 = RuntimeFn::ClassNamespaceGet(_7, const "A");
-        _11 = RuntimeFn::ClassNamespaceGet(_7, const "B");
-        _12 = dyn.BitOr(_10, _11);
-        RuntimeFn::SetAttr(_7, const "BOTH", _12);
-        _13 = RuntimeFn::EnumFinalize(_7, [const "A", const "B", const "BOTH"]);
-        g5 = _13;
+        _7 = RuntimeFn::LoadName(global@4, const "Flag");
+        _8 = _7;
+        _9 = RuntimeFn::EnumCreate(const "Bits", [_8], null);
+        g0 = _9;
+        _10 = box<I64>(const 1_i64);
+        RuntimeFn::SetAttr(_9, const "A", _10);
+        _11 = box<I64>(const 2_i64);
+        RuntimeFn::SetAttr(_9, const "B", _11);
+        _12 = RuntimeFn::ClassNamespaceGet(_9, const "A");
+        _13 = RuntimeFn::ClassNamespaceGet(_9, const "B");
+        _14 = dyn.BitOr(_12, _13);
+        RuntimeFn::SetAttr(_9, const "BOTH", _14);
+        _15 = RuntimeFn::EnumFinalize(_9, [const "A", const "B", const "BOTH"]);
+        g5 = _15;
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

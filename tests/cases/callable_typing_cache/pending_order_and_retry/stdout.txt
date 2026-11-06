@@ -1,0 +1,4 @@
+cold ['list.iter', 'check:float', 'convert:float', 'convert:int', 'convert:str', 'copy_with', 'collect']
+warm ['list.iter']
+body-retry ['list.iter', 'check-fail', 'check-fail']
+outer-no-retry ['outer-fail']

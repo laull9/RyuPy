@@ -1,0 +1,5 @@
+12 multiline
+<lambda> <lambda>.<locals>.<lambda>
+promoted 24 global
+_overload_dummy True
+None

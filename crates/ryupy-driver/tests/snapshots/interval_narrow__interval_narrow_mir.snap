@@ -1,119 +1,122 @@
 ---
 source: crates/ryupy-driver/tests/interval_narrow.rs
+assertion_line: 38
 expression: mir
 ---
-fn choose(_0: dyn) -> dyn {
+fn choose(_0: dyn, _4: dyn) -> dyn {
     let _0: dyn; // flag
     let _1: dyn; // value
     let _2: dyn; // original
     let _3: dyn; // result
-    let _4: i64;
-    let _5: bool;
-    let _6: dyn;
+    let _4: dyn; // __function_owner
+    let _5: i64;
+    let _6: bool;
     let _7: dyn;
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
-    let _11: bool;
-    let _12: dyn;
+    let _11: dyn;
+    let _12: bool;
     let _13: dyn;
-    let _14: i64;
+    let _14: dyn;
     let _15: i64;
     let _16: i64;
+    let _17: i64;
 
     bb0: {
-        _4 = RuntimeFn::TracePush(const "ryupy_interval_narrow.py", const "choose");
+        _5 = RuntimeFn::TracePushWithOrigin(const "ryupy_interval_narrow.py", const "choose", _4);
         // line 2
-        _5 = RuntimeFn::DynTruthy(_0);
-        branch _5 -> [then: bb1, else: bb2];
+        _6 = RuntimeFn::DynTruthy(_0);
+        branch _6 -> [then: bb1, else: bb2];
     }
     bb1: {
         // line 3
-        _6 = box<I64>(const 1000_i64);
-        _1 = _6;
+        _7 = box<I64>(const 1000_i64);
+        _1 = _7;
         goto -> bb3;
     }
     bb2: {
         // line 5
-        _7 = box<I64>(const 1007_i64);
-        _1 = _7;
+        _8 = box<I64>(const 1007_i64);
+        _1 = _8;
         goto -> bb3;
     }
     bb3: {
         // line 6
         _2 = _1;
         // line 7
-        _8 = box<I64>(const 0_i64);
-        _14 = unbox_exact_i64(_1);
-        _15 = unbox_exact_i64(_8);
-        _16 = Add(_14, _15);
-        _9 = box<I64>(_16);
-        _3 = _9;
+        _9 = box<I64>(const 0_i64);
+        _15 = unbox_exact_i64(_1);
+        _16 = unbox_exact_i64(_9);
+        _17 = Add(_15, _16);
+        _10 = box<I64>(_17);
+        _3 = _10;
         // line 8
-        _11 = RuntimeFn::IsSame(_3, _2);
-        _12 = box<Bool>(_11);
-        _13 = MakeTuple([_3, _12]);
-        _10 = _13;
+        _12 = RuntimeFn::IsSame(_3, _2);
+        _13 = box<Bool>(_12);
+        _14 = MakeTuple([_3, _13]);
+        _11 = _14;
         goto -> bb5;
     }
     bb4: {
         unreachable;
     }
     bb5: {
-        RuntimeFn::TracePopTo(_4);
-        return _10;
+        RuntimeFn::TracePopTo(_5);
+        return _11;
     }
 }
 
-fn mixed(_0: dyn) -> dyn {
+fn mixed(_0: dyn, _2: dyn) -> dyn {
     let _0: dyn; // flag
     let _1: dyn; // value
-    let _2: i64;
-    let _3: bool;
-    let _4: dyn;
+    let _2: dyn; // __function_owner
+    let _3: i64;
+    let _4: bool;
     let _5: dyn;
     let _6: dyn;
     let _7: dyn;
     let _8: dyn;
+    let _9: dyn;
 
     bb0: {
-        _2 = RuntimeFn::TracePush(const "ryupy_interval_narrow.py", const "mixed");
+        _3 = RuntimeFn::TracePushWithOrigin(const "ryupy_interval_narrow.py", const "mixed", _2);
         // line 11
-        _3 = RuntimeFn::DynTruthy(_0);
-        branch _3 -> [then: bb1, else: bb2];
+        _4 = RuntimeFn::DynTruthy(_0);
+        branch _4 -> [then: bb1, else: bb2];
     }
     bb1: {
         // line 12
-        _4 = box<I64>(const 3_i64);
-        _1 = _4;
+        _5 = box<I64>(const 3_i64);
+        _1 = _5;
         goto -> bb3;
     }
     bb2: {
         // line 14
-        _5 = box<Bool>(const true);
-        _1 = _5;
+        _6 = box<Bool>(const true);
+        _1 = _6;
         goto -> bb3;
     }
     bb3: {
         // line 15
-        _7 = box<I64>(const 2_i64);
-        _8 = dyn.Add(_1, _7);
-        _6 = _8;
+        _8 = box<I64>(const 2_i64);
+        _9 = dyn.Add(_1, _8);
+        _7 = _9;
         goto -> bb5;
     }
     bb4: {
         unreachable;
     }
     bb5: {
-        RuntimeFn::TracePopTo(_2);
-        return _6;
+        RuntimeFn::TracePopTo(_3);
+        return _7;
     }
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -122,41 +125,71 @@ fn main() -> () {
     let _8: dyn;
     let _9: dyn;
     let _10: dyn;
+    let _11: dyn;
+    let _12: dyn;
+    let _13: dyn;
+    let _14: dyn;
+    let _15: dyn;
+    let _16: dyn;
+    let _17: dyn;
+    let _18: dyn;
+    let _19: dyn;
+    let _20: dyn;
+    let _21: dyn;
 
     bb0: {
         g0 = null;
         g1 = null;
         g2 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_interval_narrow.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_interval_narrow.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g0 = _1;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g1 = _2;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_interval_narrow.py");
-        g2 = _3;
+        _5 = box<Str>(const "ryupy_interval_narrow.py");
+        g2 = _5;
         // line 1
+        _6 = global@0;
+        _7 = MakeFunction(choose; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = RuntimeFn::FunctionDefaults(_7);
+        g4 = _8;
+        g6 = _7;
+        g3 = _7;
         // line 10
+        _9 = global@0;
+        _10 = MakeFunction(mixed; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_10, _9);
+        _11 = RuntimeFn::FunctionDefaults(_10);
+        g8 = _11;
+        g10 = _10;
+        g7 = _10;
         // line 16
-        _4 = box<Bool>(const true);
-        _5 = choose(_4);
-        _6 = box<Bool>(const false);
-        _7 = choose(_6);
-        _8 = box<Bool>(const false);
-        _9 = mixed(_8);
-        _10 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_10, _5);
-        RuntimeFn::WriteSep(_10);
-        RuntimeFn::WriteObject(_10, _7);
-        RuntimeFn::WriteSep(_10);
-        RuntimeFn::WriteObject(_10, _9);
-        RuntimeFn::WriteNewline(_10);
+        _12 = RuntimeFn::LoadName(global@6, const "choose");
+        _13 = box<Bool>(const true);
+        _14 = choose(_13, _12);
+        _15 = RuntimeFn::LoadName(global@6, const "choose");
+        _16 = box<Bool>(const false);
+        _17 = choose(_16, _15);
+        _18 = RuntimeFn::LoadName(global@10, const "mixed");
+        _19 = box<Bool>(const false);
+        _20 = mixed(_19, _18);
+        _21 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_21, _14);
+        RuntimeFn::WriteSep(_21);
+        RuntimeFn::WriteObject(_21, _17);
+        RuntimeFn::WriteSep(_21);
+        RuntimeFn::WriteObject(_21, _20);
+        RuntimeFn::WriteNewline(_21);
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

@@ -1,0 +1,4 @@
+custom-cold ['outer.len', 'outer.iter', 'args.hash', 'args.iter']
+custom-warm ['outer.len', 'outer.iter', 'args.hash']
+unhashable-inner accepted and uncached: ok
+constructor-consumption ['metadata']

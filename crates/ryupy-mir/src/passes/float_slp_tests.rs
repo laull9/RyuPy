@@ -45,9 +45,12 @@ fn sample() -> (Function, [LocalId; 11]) {
     });
     (
         Function {
+            module_state: None,
+            module_state_source: None,
             name: "slp".into(),
             codegen_name: "slp".into(),
             source_file: "slp.py".into(),
+            definition: None,
             params: vec![a, b, c, d, e, f],
             ret: MirType::Dynamic,
             body: Body {
@@ -62,6 +65,7 @@ fn sample() -> (Function, [LocalId; 11]) {
             specialization_identity_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [a, b, c, d, e, f, l0, l1, r0, r1, sink],
     )

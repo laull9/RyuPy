@@ -1,0 +1,5 @@
+entry = definitions.py
+pending = true
+expect_exit = 0
+expect_stdout = exact
+timeout = 30

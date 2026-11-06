@@ -1,0 +1,4 @@
+list-new-tuple typing.List[int] is not valid as type argument
+dict-none-type typing.List[int] is not valid as type argument
+tuple-new-tuple typing.List[int] is not valid as type argument
+raw-keys-none-equivalence-recovery True

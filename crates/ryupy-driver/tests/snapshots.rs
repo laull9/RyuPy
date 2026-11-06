@@ -326,7 +326,7 @@ fn snapshot_m2_2_try() {
     insta::assert_snapshot!("m2_2_try_cil", cil);
 }
 
-/// 错误输入：`except` 的类型必须是内建异常类型名，其它表达式要明确拒绝。
+/// 错误输入：有限动态except只新增Name/Name起点Attribute/tuple；数字字面量仍明确拒绝。
 #[test]
 fn snapshot_try_unsupported_handler_type() {
     let py_path = std::env::temp_dir().join("ryupy_test_bad_except.py");
@@ -390,7 +390,10 @@ fn snapshot_m2_3_slice_and_unpack() {
     let _ = std::fs::remove_file(&py_path);
 
     assert!(mir.contains("SetItem"), "期望切片赋值走运行时调用：{mir}");
-    assert!(mir.contains("UnpackCheck"), "期望星号解包有长度校验：{mir}");
+    assert!(
+        mir.contains("UnpackEx"),
+        "期望星号解包走完整迭代准备：{mir}"
+    );
     insta::assert_snapshot!("m2_3_slice_unpack_mir", mir);
 }
 

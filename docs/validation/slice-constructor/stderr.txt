@@ -1,0 +1,2 @@
+/workspace/shared/ryupy-slice-constructor-reference/reference.py:24: DeprecationWarning: __index__ returned non-int (type bool).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.
+  log.clear(); probe('indices order '+repr((length,step,start,stop)), lambda: slice(Index('start',start),Index('stop',stop),Index('step',step)).indices(Index('length',length))); print('log',log)

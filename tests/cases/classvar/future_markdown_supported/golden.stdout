@@ -1,0 +1,1 @@
+future-markdown ['rhs'] {'output_formats': 'ClassVar[dict[str, Callable[[Element], str]]]', 'value': 'ClassVar[int]'} 7 8

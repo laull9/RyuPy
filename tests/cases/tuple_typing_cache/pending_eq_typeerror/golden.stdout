@@ -1,0 +1,3 @@
+eq-typeerror-body-fallback ['hash:b', 'eq:a:b']
+fallback-result-not-cached ['hash:b', 'eq:a:b']
+original-entry-remains ['hash:a']

@@ -1,11 +1,12 @@
 ---
 source: crates/ryupy-driver/tests/snapshots.rs
+assertion_line: 304
 expression: mir
 ---
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -54,9 +55,9 @@ fn main() -> () {
     let _48: dyn;
     let _49: dyn;
     let _50: dyn;
-    let _51: bool;
+    let _51: dyn;
     let _52: dyn;
-    let _53: dyn;
+    let _53: bool;
     let _54: dyn;
     let _55: dyn;
     let _56: dyn;
@@ -69,6 +70,8 @@ fn main() -> () {
     let _63: dyn;
     let _64: dyn;
     let _65: dyn;
+    let _66: dyn;
+    let _67: dyn;
 
     bb0: {
         g0 = null;
@@ -77,122 +80,124 @@ fn main() -> () {
         g3 = null;
         g4 = null;
         g5 = null;
-        _0 = RuntimeFn::TracePush(const "m2_1_bigint.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "m2_1_bigint.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g0 = _1;
+        _3 = box<Str>(const "__main__");
+        g0 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g1 = _2;
+        _4 = box<Str>(const "");
+        g1 = _4;
         // line 1
-        _3 = box<Str>(const "m2_1_bigint.py");
-        g2 = _3;
+        _5 = box<Str>(const "m2_1_bigint.py");
+        g2 = _5;
         // line 2
-        _4 = box<I64>(const 9223372036854775807_i64);
-        g3 = _4;
+        _6 = box<I64>(const 9223372036854775807_i64);
+        g3 = _6;
         // line 3
-        _5 = RuntimeFn::DynFromDecimal(const "9223372036854775808");
-        _6 = dyn.Neg(_5);
-        g4 = _6;
+        _7 = RuntimeFn::DynFromDecimal(const "9223372036854775808");
+        _8 = dyn.Neg(_7);
+        g4 = _8;
         // line 4
-        _7 = RuntimeFn::LoadName(global@3, const "maximum");
-        _8 = box<I64>(const 1_i64);
-        _9 = dyn.Add(_7, _8);
-        _10 = RuntimeFn::LoadName(global@4, const "minimum");
-        _11 = box<I64>(const 1_i64);
-        _12 = dyn.Sub(_10, _11);
-        _13 = RuntimeFn::LoadName(global@4, const "minimum");
-        _14 = dyn.Neg(_13);
+        _9 = RuntimeFn::LoadName(global@3, const "maximum");
+        _10 = box<I64>(const 1_i64);
+        _11 = dyn.Add(_9, _10);
+        _12 = RuntimeFn::LoadName(global@4, const "minimum");
+        _13 = box<I64>(const 1_i64);
+        _14 = dyn.Sub(_12, _13);
         _15 = RuntimeFn::LoadName(global@4, const "minimum");
-        _16 = RuntimeFn::DynAbs(_15);
-        _17 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_17, _9);
-        RuntimeFn::WriteSep(_17);
-        RuntimeFn::WriteObject(_17, _12);
-        RuntimeFn::WriteSep(_17);
-        RuntimeFn::WriteObject(_17, _14);
-        RuntimeFn::WriteSep(_17);
-        RuntimeFn::WriteObject(_17, _16);
-        RuntimeFn::WriteNewline(_17);
+        _16 = dyn.Neg(_15);
+        _17 = RuntimeFn::LoadName(global@4, const "minimum");
+        _18 = RuntimeFn::DynAbs(_17);
+        _19 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_19, _11);
+        RuntimeFn::WriteSep(_19);
+        RuntimeFn::WriteObject(_19, _14);
+        RuntimeFn::WriteSep(_19);
+        RuntimeFn::WriteObject(_19, _16);
+        RuntimeFn::WriteSep(_19);
+        RuntimeFn::WriteObject(_19, _18);
+        RuntimeFn::WriteNewline(_19);
         // line 5
-        _18 = box<I64>(const 10_i64);
-        _19 = box<I64>(const 40_i64);
-        _20 = dyn.Pow(_18, _19);
-        _21 = box<I64>(const 1_i64);
-        _22 = box<I64>(const 100_i64);
-        _23 = dyn.LShift(_21, _22);
-        _24 = box<I64>(const 70_i64);
-        _25 = dyn.RShift(_23, _24);
-        _26 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_26, _20);
-        RuntimeFn::WriteSep(_26);
-        RuntimeFn::WriteObject(_26, _25);
-        RuntimeFn::WriteNewline(_26);
+        _20 = box<I64>(const 10_i64);
+        _21 = box<I64>(const 40_i64);
+        _22 = dyn.Pow(_20, _21);
+        _23 = box<I64>(const 1_i64);
+        _24 = box<I64>(const 100_i64);
+        _25 = dyn.LShift(_23, _24);
+        _26 = box<I64>(const 70_i64);
+        _27 = dyn.RShift(_25, _26);
+        _28 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_28, _22);
+        RuntimeFn::WriteSep(_28);
+        RuntimeFn::WriteObject(_28, _27);
+        RuntimeFn::WriteNewline(_28);
         // line 6
-        _27 = RuntimeFn::LoadName(global@4, const "minimum");
-        _28 = box<I64>(const 1_i64);
-        _29 = dyn.Neg(_28);
-        _30 = dyn.FloorDiv(_27, _29);
-        _31 = RuntimeFn::LoadName(global@4, const "minimum");
-        _32 = box<I64>(const 1_i64);
-        _33 = dyn.Neg(_32);
-        _34 = dyn.Mod(_31, _33);
-        _35 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_35, _30);
-        RuntimeFn::WriteSep(_35);
-        RuntimeFn::WriteObject(_35, _34);
-        RuntimeFn::WriteNewline(_35);
+        _29 = RuntimeFn::LoadName(global@4, const "minimum");
+        _30 = box<I64>(const 1_i64);
+        _31 = dyn.Neg(_30);
+        _32 = dyn.FloorDiv(_29, _31);
+        _33 = RuntimeFn::LoadName(global@4, const "minimum");
+        _34 = box<I64>(const 1_i64);
+        _35 = dyn.Neg(_34);
+        _36 = dyn.Mod(_33, _35);
+        _37 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_37, _32);
+        RuntimeFn::WriteSep(_37);
+        RuntimeFn::WriteObject(_37, _36);
+        RuntimeFn::WriteNewline(_37);
         // line 7
-        _36 = box<I64>(const 10_i64);
-        _37 = box<I64>(const 30_i64);
-        _38 = dyn.Pow(_36, _37);
-        _39 = dyn.Neg(_38);
-        _40 = box<I64>(const 7_i64);
-        _41 = dyn.FloorDiv(_39, _40);
-        _42 = box<I64>(const 10_i64);
-        _43 = box<I64>(const 30_i64);
-        _44 = dyn.Pow(_42, _43);
-        _45 = dyn.Neg(_44);
-        _46 = box<I64>(const 7_i64);
-        _47 = dyn.Mod(_45, _46);
-        _48 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_48, _41);
-        RuntimeFn::WriteSep(_48);
-        RuntimeFn::WriteObject(_48, _47);
-        RuntimeFn::WriteNewline(_48);
+        _38 = box<I64>(const 10_i64);
+        _39 = box<I64>(const 30_i64);
+        _40 = dyn.Pow(_38, _39);
+        _41 = dyn.Neg(_40);
+        _42 = box<I64>(const 7_i64);
+        _43 = dyn.FloorDiv(_41, _42);
+        _44 = box<I64>(const 10_i64);
+        _45 = box<I64>(const 30_i64);
+        _46 = dyn.Pow(_44, _45);
+        _47 = dyn.Neg(_46);
+        _48 = box<I64>(const 7_i64);
+        _49 = dyn.Mod(_47, _48);
+        _50 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_50, _43);
+        RuntimeFn::WriteSep(_50);
+        RuntimeFn::WriteObject(_50, _49);
+        RuntimeFn::WriteNewline(_50);
         // line 8
-        _49 = box<I64>(const 9007199254740993_i64);
-        _50 = box<F64>(const 9007199254740992_f64);
-        _51 = dyn.cmp.Eq(_49, _50);
-        _52 = box<Bool>(_51);
-        _53 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_53, _52);
-        RuntimeFn::WriteNewline(_53);
+        _51 = box<I64>(const 9007199254740993_i64);
+        _52 = box<F64>(const 9007199254740992_f64);
+        _53 = dyn.cmp.Eq(_51, _52);
+        _54 = box<Bool>(_53);
+        _55 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_55, _54);
+        RuntimeFn::WriteNewline(_55);
         // line 9
-        _54 = RuntimeFn::LoadName(global@3, const "maximum");
-        g5 = _54;
+        _56 = RuntimeFn::LoadName(global@3, const "maximum");
+        g5 = _56;
         // line 10
-        _55 = RuntimeFn::LoadName(global@5, const "value");
-        _56 = box<I64>(const 1_i64);
-        _57 = dyn.Add.inplace(_55, _56);
-        g5 = _57;
+        _57 = RuntimeFn::LoadName(global@5, const "value");
+        _58 = box<I64>(const 1_i64);
+        _59 = dyn.Add.inplace(_57, _58);
+        g5 = _59;
         // line 11
-        _58 = RuntimeFn::LoadName(global@5, const "value");
-        _59 = box<I64>(const 3_i64);
-        _60 = dyn.Mul(_58, _59);
-        _61 = box<I64>(const 2_i64);
-        _62 = dyn.Sub(_60, _61);
-        _63 = box<Str>(const "123456789012345678901234567890");
-        _64 = RuntimeFn::DynToInt(_63);
-        _65 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_65, _62);
-        RuntimeFn::WriteSep(_65);
-        RuntimeFn::WriteObject(_65, _64);
-        RuntimeFn::WriteNewline(_65);
+        _60 = RuntimeFn::LoadName(global@5, const "value");
+        _61 = box<I64>(const 3_i64);
+        _62 = dyn.Mul(_60, _61);
+        _63 = box<I64>(const 2_i64);
+        _64 = dyn.Sub(_62, _63);
+        _65 = box<Str>(const "123456789012345678901234567890");
+        _66 = RuntimeFn::DynToInt(_65);
+        _67 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_67, _64);
+        RuntimeFn::WriteSep(_67);
+        RuntimeFn::WriteObject(_67, _66);
+        RuntimeFn::WriteNewline(_67);
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

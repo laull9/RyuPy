@@ -1,0 +1,25 @@
+True True
+renamed_overload Container.changed_overload alternate.module
+True True
+overload missing TypeError Container.changed_overload() missing 1 required positional argument: 'func'
+overload unknown TypeError Container.changed_overload() got an unexpected keyword argument 'bad'
+overload duplicate TypeError Container.changed_overload() got multiple values for argument 'func'
+overload excess TypeError Container.changed_overload() takes 1 positional argument but 2 were given
+overload excess unknown TypeError Container.changed_overload() got an unexpected keyword argument 'bad'
+True True
+renamed_get Container.changed_get alternate.module
+True
+get missing TypeError Container.changed_get() missing 1 required positional argument: 'func'
+get unknown TypeError Container.changed_get() got an unexpected keyword argument 'bad'
+get duplicate TypeError Container.changed_get() got multiple values for argument 'func'
+get excess TypeError Container.changed_get() takes 1 positional argument but 2 were given
+get excess duplicate TypeError Container.changed_get() got multiple values for argument 'func'
+True True
+renamed_clear Container.changed_clear alternate.module
+None []
+clear unknown TypeError Container.changed_clear() got an unexpected keyword argument 'bad'
+clear excess TypeError Container.changed_clear() takes 0 positional arguments but 1 was given
+clear excess unknown TypeError Container.changed_clear() got an unexpected keyword argument 'bad'
+overload overload typing
+get_overloads get_overloads typing
+clear_overloads clear_overloads typing

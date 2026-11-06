@@ -1,0 +1,2 @@
+indirect-generic typing.ClassVar[list[typing.Generic[~T]]] (~T,)
+final-rejected typing.Final[int] is not valid as type argument

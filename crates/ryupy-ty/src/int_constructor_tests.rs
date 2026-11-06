@@ -14,6 +14,7 @@ fn int_constructor_shapes_do_not_discard_arguments_or_demote_numeric_fast_path()
             name: "__main__".into(),
             package: String::new(),
             file: "int_shapes.py".into(),
+            instance_globals: false,
             resolve_file_at_runtime: false,
         },
         source,

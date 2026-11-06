@@ -1,0 +1,212 @@
+# 固定CPython3.12.13与bb6b590的最小原流复现；本文件无版本探测，runner负责固定工具。
+# 全部有限调用，不assert旧错误，不投影消息；每案保原返回/异常、容器和事件。
+events = []
+
+
+def touch(label, value):
+    events.append(label)
+    return value
+
+
+def report(label, operation, scope='active'):
+    values = [10, 20]
+    events.clear()
+    try:
+        result = operation(values)
+        print('scope=' + scope, label, 'returned', result, values, events)
+    except Exception as error:
+        print('scope=' + scope, label, type(error).__name__, str(error), values, events)
+
+
+def clear_constant(values):
+    return values.clear(0)
+
+
+def reverse_constant(values):
+    return values.reverse(0)
+
+
+def copy_constant(values):
+    return values.copy(0)
+
+
+def pop_constant(values):
+    return values.pop(0, 1)
+
+
+for label, operation in [('constant clear', clear_constant), ('constant reverse', reverse_constant),
+                         ('constant copy', copy_constant), ('constant pop', pop_constant)]:
+    report(label, operation)
+
+
+def clear_extra(values):
+    return values.clear(touch('arg', 0))
+
+
+def reverse_extra(values):
+    return values.reverse(touch('arg', 0))
+
+
+def copy_extra(values):
+    return values.copy(touch('arg', 0))
+
+
+def pop_extra(values):
+    return values.pop(touch('index argument', 0), touch('extra argument', 1))
+
+
+def clear_mixed(values):
+    return values.clear(touch('arg', 0), bad=touch('keyword', 1))
+
+
+def reverse_mixed(values):
+    return values.reverse(touch('arg', 0), bad=touch('keyword', 1))
+
+
+def copy_mixed(values):
+    return values.copy(touch('arg', 0), bad=touch('keyword', 1))
+
+
+def pop_mixed(values):
+    return values.pop(touch('index argument', 0), touch('extra argument', 1), bad=touch('keyword', 2))
+
+
+def clear_keyword(values):
+    return values.clear(bad=touch('keyword', 1))
+
+
+def reverse_keyword(values):
+    return values.reverse(bad=touch('keyword', 1))
+
+
+def copy_keyword(values):
+    return values.copy(bad=touch('keyword', 1))
+
+
+def pop_keyword(values):
+    return values.pop(bad=touch('keyword', 1))
+
+
+for label, operation in [('direct clear', clear_extra), ('direct reverse', reverse_extra),
+                         ('direct copy', copy_extra), ('direct pop', pop_extra),
+                         ('mixed clear', clear_mixed), ('mixed reverse', reverse_mixed),
+                         ('mixed copy', copy_mixed), ('mixed pop', pop_mixed),
+                         ('keyword clear', clear_keyword), ('keyword reverse', reverse_keyword),
+                         ('keyword copy', copy_keyword), ('keyword pop', pop_keyword)]:
+    report(label, operation)
+
+# 保存绑定方法使用同一固定对象，覆盖既有先arity后keyword的另一入口。
+for name in ['clear', 'reverse', 'copy', 'pop']:
+    for mixed in [False, True]:
+        values = [10, 20]
+        events.clear()
+        method = getattr(values, name)
+        try:
+            if name == 'pop':
+                if mixed:
+                    result = method(touch('arg0', 0), touch('arg1', 1), bad=touch('keyword', 2))
+                else:
+                    result = method(touch('arg0', 0), touch('arg1', 1))
+            elif mixed:
+                result = method(touch('arg0', 0), bad=touch('keyword', 2))
+            else:
+                result = method(touch('arg0', 0))
+            print('scope=active saved', name, mixed, 'returned', result, values, events)
+        except Exception as error:
+            print('scope=active saved', name, mixed, type(error).__name__, str(error), values, events)
+
+
+def star_clear(values):
+    return values.clear(*[touch('star argument', 0)])
+
+
+def star_mixed_pop(values):
+    return values.pop(*[touch('star0', 0), touch('star1', 1)], **{'bad': touch('keyword', 2)})
+
+
+report('star clear', star_clear)
+report('star mixed pop', star_mixed_pop)
+
+# 空关键字展开不能被当作“存在关键字”拒绝；有效整数pop/清空/反转/复制仍成功。
+for name in ['clear', 'reverse', 'copy', 'pop']:
+    values = [10, 20]
+    method = getattr(values, name)
+    result = method(**{})
+    print('scope=active empty keywords', name, result, values, result is values)
+
+
+class Index:
+    def __index__(self):
+        events.append('INDEX CALLED')
+        return 0
+
+
+def pop_index_extra(values):
+    return values.pop(touch('index argument', Index()), touch('extra argument', 1))
+
+
+def pop_index_valid(values):
+    return values.pop(Index())
+
+
+def pop_wide_index(values):
+    return values.pop(4294967296)
+
+
+def pop_bool_index(values):
+    return values.pop(True)
+
+
+report('no index on arity error', pop_index_extra)
+# 两个合法输入的正确结果保留独立boundary，不纳本切绑定组通过率，也不修通用ToIndex。
+report('valid index protocol', pop_index_valid, 'boundary')
+report('wide index must not wrap', pop_wide_index, 'boundary')
+report('valid bool index', pop_bool_index)
+
+# 接收者先取值，所有实参副作用先发生，错误不得再修改原接收者。
+first = [10, 20]
+second = [30, 40]
+target = first
+
+def receiver():
+    events.append('receiver')
+    return target
+
+
+def change_receiver():
+    global target
+    events.append('argument rebinds receiver')
+    target = second
+    return 0
+
+
+events.clear()
+try:
+    receiver().clear(change_receiver())
+except Exception as error:
+    print('scope=active receiver order', type(error).__name__, str(error), first, second, target is second, events)
+else:
+    print('scope=active receiver order', 'returned', first, second, target is second, events)
+
+
+class Holder:
+    def __init__(self, value):
+        self.value = value
+
+
+def paused(holder):
+    return holder.value.pop(touch('before yield', 0), (yield 'paused'), bad=touch('after yield', 2))
+
+
+first = [10, 20]
+second = [30, 40]
+holder = Holder(first)
+events.clear()
+iterator = paused(holder)
+print('scope=active yield first', next(iterator), first, events)
+holder.value = second
+try:
+    iterator.send(1)
+except Exception as error:
+    print('scope=active yield resumed', type(error).__name__, str(error), first, second, events)
+print('REPRO_COMPLETED')

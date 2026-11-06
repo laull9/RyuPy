@@ -1,0 +1,4 @@
+empty free cell NameError cannot access free variable 'value' where it is not associated with a value in enclosing scope
+empty free cell NameError cannot access free variable 'value' where it is not associated with a value in enclosing scope
+empty local cell UnboundLocalError cannot access local variable 'value' where it is not associated with a value
+cell restore remains live ['restored']

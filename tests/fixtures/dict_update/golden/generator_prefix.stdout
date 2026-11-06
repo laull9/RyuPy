@@ -1,0 +1,4 @@
+yield-first
+before-raise {'old': 0, 'first': 1}
+caught source-failed
+after {'old': 0, 'first': 1}

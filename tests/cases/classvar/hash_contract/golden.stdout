@@ -1,0 +1,6 @@
+int True
+none True
+variable True
+nested True
+none-equal-hash True True
+distinct-raw-identity False

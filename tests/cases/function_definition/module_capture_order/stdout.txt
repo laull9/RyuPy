@@ -1,0 +1,9 @@
+decorator-outer
+decorator-inner
+default
+keyword-default
+annotation-value
+annotation-return
+('decorator-inner', 'annotation-return', 'configured')
+('decorator-outer', 'annotation-return', 'configured')
+configured ['ordinary', 'value'] 7

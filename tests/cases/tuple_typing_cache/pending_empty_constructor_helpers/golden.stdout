@@ -1,0 +1,5 @@
+_GenericAlias rebind TypeError 'NoneType' object is not callable
+_GenericAlias delete NameError name '_GenericAlias' is not defined
+_collect_parameters rebind TypeError 'NoneType' object is not callable
+_collect_parameters delete NameError name '_collect_parameters' is not defined
+empty-cold-consumes-constructor-and-collector True

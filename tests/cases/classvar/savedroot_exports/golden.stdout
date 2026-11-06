@@ -1,0 +1,6 @@
+restored-cold-rejection typing.ClassVar[bytes] is not valid as type argument
+saved-root typing.ClassVar[str] typing.ClassVar[typing.ClassVar[int]]
+deleted-cold name 'ClassVar' is not defined
+restored-export True
+rebound-origin-rejection typing.List[~ReboundList] is not valid as type argument
+native-origin-not-type-check True

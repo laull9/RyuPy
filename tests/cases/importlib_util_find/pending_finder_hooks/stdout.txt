@@ -1,0 +1,7 @@
+finder_return_identity True
+finder_order_and_arguments True
+finder_does_not_cache True
+finder_error_propagates RuntimeError finder failed
+finder_error_not_cached True
+cache_bypasses_hooks True
+none_bypasses_hooks True

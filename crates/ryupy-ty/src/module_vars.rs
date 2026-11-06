@@ -20,10 +20,26 @@ use crate::ty::Ty;
 
 /// 估算每个模块级变量的槽位类型。
 pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
+    if module.info.instance_globals {
+        // 在读取注解/赋值提示之前决定，避免不动点与默认值分析看到过期静态类型。
+        return module
+            .vars
+            .iter()
+            .map(|(id, _)| (id, Ty::Dynamic))
+            .collect();
+    }
     // 每个变量的原始提示（`None` 表示暂时无法确定）。
     let mut hints: ArenaMap<ModuleVarId, Option<Ty>> = ArenaMap::default();
     for (id, var) in module.vars.iter() {
-        hints.insert(id, annotation_ty(module, var));
+        // 可删除的builtin遮蔽名在首次传播前就必须能容纳真实builtin对象。
+        hints.insert(
+            id,
+            if ryupy_hir::uses_deleted_builtin_fallback(var) {
+                Some(Ty::Dynamic)
+            } else {
+                annotation_ty(module, var)
+            },
+        );
     }
 
     // 收集模块顶层的赋值：变量 → 右值表达式。
@@ -33,7 +49,7 @@ pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
     // `for i in range(...)` 的模块级循环变量一定是 int；先写入提示，
     // 避免被「无法从赋值推断」兜底成 Dynamic 而让静态槽位装箱。
     for var in collect_range_vars(module) {
-        if !module.vars[var].is_global && hints[var].as_ref() != Some(&Ty::Dynamic) {
+        if !module.vars[var].is_global && !matches!(hints[var], Some(Ty::Dynamic | Ty::OpaqueStr)) {
             hints.insert(var, Some(Ty::Int));
         }
     }
@@ -44,7 +60,7 @@ pub fn infer_module_var_types(module: &Module) -> ArenaMap<ModuleVarId, Ty> {
     for _ in 0..rounds {
         let mut changed = false;
         for &(var, value) in &assignments {
-            if module.vars[var].is_global {
+            if module.vars[var].is_global || hints[var] == Some(Ty::OpaqueStr) {
                 continue;
             }
             let Some(hint) = expr_hint(module, body, value, &hints) else {
@@ -236,6 +252,7 @@ pub(crate) fn expr_hint(
     }
     match &body.exprs[expr].kind {
         ExprKind::ModuleFile(_) => Some(Ty::Str),
+        ExprKind::ModuleMetadata(_, _) => Some(Ty::Dynamic),
         ExprKind::Literal(lit) => Some(match lit {
             // 超出 i64 的整数必须装箱（BigInteger），槽位类型按 Dynamic 处理。
             Literal::Int(v) if i64::try_from(*v).is_err() => Ty::Dynamic,
@@ -335,6 +352,7 @@ mod tests {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                instance_globals: false,
                 resolve_file_at_runtime: false,
                 name: "__main__".into(),
                 package: String::new(),

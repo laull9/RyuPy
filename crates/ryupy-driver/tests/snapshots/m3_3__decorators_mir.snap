@@ -3,76 +3,79 @@ source: crates/ryupy-driver/tests/m3_3.rs
 assertion_line: 14
 expression: "output.replace(path.to_str().unwrap(), \"decorators.py\")"
 ---
-fn decorate(_0: dyn) -> dyn {
+fn decorate(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // f
-    let _1: i64;
-    let _2: dyn;
-
-    bb0: {
-        _1 = RuntimeFn::TracePush(const "ryupy_test_m3_3_decorators.py", const "decorate");
-        // line 2
-        _2 = _0;
-        goto -> bb2;
-    }
-    bb1: {
-        unreachable;
-    }
-    bb2: {
-        RuntimeFn::TracePopTo(_1);
-        return _2;
-    }
-}
-
-fn f(_0: i64) -> i64 {
-    let _0: i64; // x
-    let _1: i64;
+    let _1: dyn; // __function_owner
     let _2: i64;
+    let _3: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "ryupy_test_m3_3_decorators.py", const "f");
-        // line 5
-        _2 = _0;
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_test_m3_3_decorators.py", const "decorate", _1);
+        // line 2
+        _3 = _0;
         goto -> bb2;
     }
     bb1: {
         unreachable;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_1);
-        return _2;
+        RuntimeFn::TracePopTo(_2);
+        return _3;
     }
 }
 
-fn method(_0: dyn) -> dyn {
+fn f(_0: dyn, _1: dyn) -> dyn {
+    let _0: dyn; // x
+    let _1: dyn; // __function_owner
+    let _2: i64;
+    let _3: dyn;
+
+    bb0: {
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_test_m3_3_decorators.py", const "f", _1);
+        // line 5
+        _3 = _0;
+        goto -> bb2;
+    }
+    bb1: {
+        unreachable;
+    }
+    bb2: {
+        RuntimeFn::TracePopTo(_2);
+        return _3;
+    }
+}
+
+fn method(_0: dyn, _1: dyn) -> dyn {
     let _0: dyn; // self
-    let _1: i64;
-    let _2: dyn;
+    let _1: dyn; // __function_owner
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
+    let _6: dyn;
 
     bb0: {
-        _1 = RuntimeFn::TracePush(const "ryupy_test_m3_3_decorators.py", const "method");
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_test_m3_3_decorators.py", const "method", _1);
         // line 10
-        _3 = RuntimeFn::LoadName(global@4, const "f");
-        _4 = box<I64>(const 4_i64);
-        _5 = dyn.call(_3, [_4]);
-        _2 = _5;
+        _4 = RuntimeFn::LoadName(global@4, const "f");
+        _5 = box<I64>(const 4_i64);
+        _6 = dyn.call(_4, [_5]);
+        _3 = _6;
         goto -> bb2;
     }
     bb1: {
         unreachable;
     }
     bb2: {
-        RuntimeFn::TracePopTo(_1);
-        return _2;
+        RuntimeFn::TracePopTo(_2);
+        return _3;
     }
 }
 
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -91,63 +94,83 @@ fn main() -> () {
     let _18: dyn;
     let _19: dyn;
     let _20: dyn;
-    let _21: bool;
+    let _21: dyn;
     let _22: dyn;
     let _23: dyn;
     let _24: dyn;
+    let _25: dyn;
+    let _26: dyn;
+    let _27: dyn;
+    let _28: bool;
+    let _29: dyn;
+    let _30: dyn;
+    let _31: dyn;
 
     bb0: {
         g1 = null;
         g2 = null;
         g3 = null;
         g4 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_test_m3_3_decorators.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_test_m3_3_decorators.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g1 = _1;
+        _3 = box<Str>(const "__main__");
+        g1 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g2 = _2;
+        _4 = box<Str>(const "");
+        g2 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_test_m3_3_decorators.py");
-        g3 = _3;
+        _5 = box<Str>(const "ryupy_test_m3_3_decorators.py");
+        g3 = _5;
         // line 1
+        _6 = global@1;
+        _7 = MakeFunction(decorate; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_7, _6);
+        _8 = RuntimeFn::FunctionDefaults(_7);
+        g6 = _8;
+        g8 = _7;
+        g5 = _7;
         // line 3
-        _4 = global@5;
-        _5 = box<I64>(const 3_i64);
-        _6 = _5;
-        _7 = MakeFunction(f; env=[]; defaults=[_6]);
-        _8 = RuntimeFn::TypeObject(const "int");
-        _9 = _8;
-        _10 = RuntimeFn::TypeObject(const "int");
+        _9 = global@5;
+        _10 = box<I64>(const 3_i64);
         _11 = _10;
-        RuntimeFn::FunctionMetadata(_7, null, [const "x", const "return"], [_9, _11]);
-        _12 = RuntimeFn::CallValue(_4, [_7], [], []);
-        g4 = _12;
-        // line 6
-        _13 = RuntimeFn::MakeClass(const "C", [], null);
-        g0 = _13;
-        RuntimeFn::SetAttr(_13, const "deco", global@5);
-        _14 = RuntimeFn::ClassNamespaceGet(_13, const "deco");
+        _12 = RuntimeFn::TypeObject(const "int");
+        _13 = _12;
+        _14 = RuntimeFn::TypeObject(const "int");
         _15 = _14;
-        _16 = MakeFunction(method; env=[]; defaults=[null]);
-        _17 = RuntimeFn::CallValue(_15, [_16], [], []);
-        RuntimeFn::SetAttr(_13, const "method", _17);
-        RuntimeFn::FinalizeOrdinaryClass(_13);
+        _16 = global@1;
+        _17 = MakeFunction(f; env=[]; defaults=[_11]);
+        RuntimeFn::FunctionModule(_17, _16);
+        RuntimeFn::FunctionMetadata(_17, null, [const "x", const "return"], [_13, _15]);
+        _18 = RuntimeFn::CallValue(_9, [_17], [], []);
+        g4 = _18;
+        // line 6
+        _19 = RuntimeFn::MakeClass(const "C", [], null);
+        g0 = _19;
+        RuntimeFn::SetAttr(_19, const "deco", global@5);
+        _20 = RuntimeFn::ClassNamespaceGet(_19, const "deco");
+        _21 = _20;
+        _22 = global@1;
+        _23 = MakeFunction(method; env=[]; defaults=[null]);
+        RuntimeFn::FunctionModule(_23, _22);
+        _24 = RuntimeFn::CallValue(_21, [_23], [], []);
+        RuntimeFn::SetAttr(_19, const "method", _24);
+        RuntimeFn::FinalizeOrdinaryClass(_19);
         // line 11
-        _18 = global@0;
-        _19 = dyn.call(_18, []);
-        _20 = _19;
-        _21 = RuntimeFn::IsModule(_20);
-        _22 = RuntimeFn::CaptureModuleTarget(_20, const "method");
-        _23 = dyn.captured_method(_21, _22, "method", []);
-        _24 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_24, _23);
-        RuntimeFn::WriteNewline(_24);
+        _25 = global@0;
+        _26 = dyn.call(_25, []);
+        _27 = _26;
+        _28 = RuntimeFn::IsModule(_27);
+        _29 = RuntimeFn::CaptureModuleTarget(_27, const "method");
+        _30 = dyn.captured_method(_28, _29, "method", []);
+        _31 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_31, _30);
+        RuntimeFn::WriteNewline(_31);
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

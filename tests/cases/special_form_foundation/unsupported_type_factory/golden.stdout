@@ -1,0 +1,5 @@
+inner-touch True
+outer-miss-inner-hit True
+both-evicted False
+callable True False 3 2
+types typing _SpecialForm _LiteralSpecialForm _CallableType

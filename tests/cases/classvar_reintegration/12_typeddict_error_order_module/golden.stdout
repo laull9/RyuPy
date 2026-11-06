@@ -1,0 +1,13 @@
+functional Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+functional typing.ClassVar[int] is not valid as type argument before,subject,after old-binding
+class Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+class typing.ClassVar[int] is not valid as type argument before,subject,after old-binding
+functional Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+functional typing.List[int] is not valid as type argument before,subject,after old-binding
+class Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+class typing.List[int] is not valid as type argument before,subject,after old-binding
+functional Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+class Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+functional Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+class Plain typing.ClassVar is not valid as type argument before,subject,after old-binding
+typeddict-errors 12

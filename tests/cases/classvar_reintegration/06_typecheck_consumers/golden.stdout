@@ -1,0 +1,81 @@
+canonical optional root TypeError Plain typing.ClassVar is not valid as type argument
+canonical optional cv TypeError typing.ClassVar[~Fresh] is not valid as type argument
+canonical optional list ok
+canonical optional plain ok
+canonical optional native ok
+canonical union root TypeError Plain typing.ClassVar is not valid as type argument
+canonical union cv TypeError typing.ClassVar[~Fresh] is not valid as type argument
+canonical union list ok
+canonical union plain ok
+canonical union native ok
+canonical bound root TypeError Plain typing.ClassVar is not valid as type argument
+canonical bound cv TypeError typing.ClassVar[~Fresh] is not valid as type argument
+canonical bound list ok
+canonical bound plain ok
+canonical bound native ok
+canonical namedtuple root TypeError Plain typing.ClassVar is not valid as type argument
+canonical namedtuple cv TypeError typing.ClassVar[~Fresh] is not valid as type argument
+canonical namedtuple list ok
+canonical namedtuple plain ok
+canonical namedtuple native ok
+list optional root TypeError Plain typing.ClassVar is not valid as type argument
+list optional cv ok
+list optional list TypeError typing.List[~Fresh] is not valid as type argument
+list optional plain ok
+list optional native ok
+list union root TypeError Plain typing.ClassVar is not valid as type argument
+list union cv ok
+list union list TypeError typing.List[~Fresh] is not valid as type argument
+list union plain ok
+list union native ok
+list bound root TypeError Plain typing.ClassVar is not valid as type argument
+list bound cv ok
+list bound list TypeError typing.List[~Fresh] is not valid as type argument
+list bound plain ok
+list bound native ok
+list namedtuple root TypeError Plain typing.ClassVar is not valid as type argument
+list namedtuple cv ok
+list namedtuple list TypeError typing.List[~Fresh] is not valid as type argument
+list namedtuple plain ok
+list namedtuple native ok
+string optional root TypeError Plain typing.ClassVar is not valid as type argument
+string optional cv ok
+string optional list ok
+string optional plain ok
+string optional native ok
+string union root TypeError Plain typing.ClassVar is not valid as type argument
+string union cv ok
+string union list ok
+string union plain ok
+string union native ok
+string bound root TypeError Plain typing.ClassVar is not valid as type argument
+string bound cv ok
+string bound list ok
+string bound plain ok
+string bound native ok
+string namedtuple root TypeError Plain typing.ClassVar is not valid as type argument
+string namedtuple cv ok
+string namedtuple list ok
+string namedtuple plain ok
+string namedtuple native ok
+none optional root TypeError Plain typing.ClassVar is not valid as type argument
+none optional cv ok
+none optional list ok
+none optional plain ok
+none optional native ok
+none union root TypeError Plain typing.ClassVar is not valid as type argument
+none union cv ok
+none union list ok
+none union plain ok
+none union native ok
+none bound root TypeError Plain typing.ClassVar is not valid as type argument
+none bound cv ok
+none bound list ok
+none bound plain ok
+none bound native ok
+none namedtuple root TypeError Plain typing.ClassVar is not valid as type argument
+none namedtuple cv ok
+none namedtuple list ok
+none namedtuple plain ok
+none namedtuple native ok
+typecheck-consumers 80 constraints-preserved

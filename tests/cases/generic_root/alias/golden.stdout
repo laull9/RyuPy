@@ -1,0 +1,1 @@
+alias typing.Generic[~T] typing.Generic[~T, ~U] True

@@ -1,0 +1,6 @@
+plain-and-none True
+property-each-read 24
+method-binding True
+static-binding True
+class-binding True
+nearest-item True

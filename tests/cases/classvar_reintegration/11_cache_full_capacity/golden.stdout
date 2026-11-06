@@ -1,0 +1,4 @@
+List 320-failures-retain-all-128;first-success-evicts-one True
+Tuple 320-failures-retain-all-128;first-success-evicts-one True
+Callable 320-failures-retain-all-128;first-success-evicts-one True
+Union 320-failures-retain-all-128;first-success-evicts-one True

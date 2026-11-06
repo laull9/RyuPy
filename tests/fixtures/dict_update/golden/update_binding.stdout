@@ -1,0 +1,5 @@
+empty None
+kwargs None
+arity-error update expected at most 1 argument, got 2
+after {'old': 0, 'first': 1}
+constructor {'a': 1, 'b': 2}

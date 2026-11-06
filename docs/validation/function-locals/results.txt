@@ -1,0 +1,60 @@
+python 3.12.13
+initial-order ['a', 'b', 'k', 'args', 'kwargs']
+assignment-not-yet False
+stale False
+same True True False 1
+no-writeback 1 1
+refresh 1 1 7 ['b', 'k', 'args', 'kwargs', 'd', 'x', 'extra', 'a', 'e']
+deleted False
+unbound False
+reinsert-order ['k', 'args', 'kwargs', 'd', 'extra', 'a', 'e', 'b', 'later']
+except-bound True
+except-stale True
+except-refreshed False
+object-alias [1] True
+replace-no-writeback [1]
+replace-refreshed True
+recursive-distinct False 1 0
+collision-events [('eq', 'x')]
+collision-keys [<Key>, 'd', 'key'] 3 True
+collision-error ValueError eq failed
+call pos TypeError locals() takes no arguments (1 given)
+call kw TypeError locals() takes no keyword arguments
+call both TypeError locals() takes no keyword arguments
+call star0 ok
+call star1 TypeError locals() takes no arguments (1 given)
+call dstar0 ok
+call dstar1 TypeError locals() takes no keyword arguments
+call nonstring TypeError keywords must be strings
+call duplicate TypeError locals() got multiple values for keyword argument 'x'
+call noniter TypeError locals() argument after * must be an iterable, not int
+call nonmap TypeError locals() argument after ** must be a mapping, not int
+kw-eval
+star-iter
+star-len
+call-effects-error TypeError locals() takes no keyword arguments
+alias-scope ['alias', 'x']
+closure-cell ['inner', 'x']
+closure-free ['x'] 5
+comprehension [['x', 'y']]
+generator-stale 1
+generator-same True 2
+class-scope ['__module__', '__qualname__', 'a']
+module-scope True
+partial-events [('during', 2, 'absent')]
+partial-result 999 4 2 4
+reentrant-events [('reentrant', True, 2, 4)]
+reentrant-final 2 4
+interrupted-sync 2 False
+unbound-spoof False True
+clear-restore ['x', 'd'] True
+local-table-varnames ('dead', 'read', 'd')
+local-table True False False
+failed-call-no-sync 1 False
+arg-before-check 1
+keyword-before-check
+evaluated-call-error locals() takes no keyword arguments 1
+shadow custom
+delete-error KeyError suppressed 2 True [('delete-eq', 'unbound')]
+delete-error ValueError ValueError from equality 2 False [('delete-eq', 'unbound')]
+delete-success ['d'] [('delete-ok-eq', 'unbound')]

@@ -1,0 +1,11 @@
+True 2
+[]
+True
+TypeError unhashable type: 'list'
+TypeError unhashable type: 'list'
+None 2
+[]
+None
+2 True True
+True
+None

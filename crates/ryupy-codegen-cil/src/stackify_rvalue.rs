@@ -19,10 +19,13 @@ use crate::stackify_refs::{boxed_literal_key, emit_box, runtime_method};
 /// 嵌套调用的额外深度已经包含在各自的实参计数里，这里不重复累加。
 pub(crate) fn rvalue_arg_count(value: &Rvalue) -> usize {
     match value {
+        Rvalue::InstanceZeroCall { .. } => 6,
         Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.len(),
         // MakeFunction 的数组逐元素发射，加上构造函数的其余实参
         Rvalue::MakeFunction { env, defaults, .. } => env.len() + defaults.len() + 8,
-        Rvalue::MakeGenerator { frame, .. } => frame.len() + 5,
+        Rvalue::MakeGenerator { frame, origin, .. } => {
+            frame.len() + 5 + usize::from(origin.is_some())
+        }
         _ => 0,
     }
 }
@@ -368,6 +371,9 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             );
             ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy));
         }
+        Rvalue::InstanceZeroCall { callee, frame } => {
+            crate::lexical_super::emit(callee, frame, ins, ctx);
+        }
         Rvalue::DynCallValue { callee, args } => {
             let site = ctx.next_site();
             ins.push(Instruction::LoadConstantInt32(site));
@@ -418,21 +424,37 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             ins.push(Instruction::LoadNull);
             ins.push(Instruction::Throw);
         }
-        Rvalue::MakeGenerator { resume, frame } => {
+        Rvalue::MakeGenerator {
+            resume,
+            frame,
+            origin,
+        } => {
             let function = &ctx.functions[*resume];
             ins.push(Instruction::LoadNull);
             ins.push(Instruction::LoadMethodPointer(ctx.fn_map[resume].into()));
             ins.push(Instruction::NewObject(UserMethod::Reference(
-                ctx.runtime_refs.generator_resume_ctor,
+                ctx.runtime_refs.generators.resume_ctor,
             )));
             lower_object_array(frame, ins, ctx);
             ins.push(Instruction::load_string(function.source_file.clone()));
             ins.push(Instruction::load_string(function.name.clone()));
-            ins.push(Instruction::NewObject(UserMethod::Reference(
-                ctx.runtime_refs.generator_ctor,
-            )));
+            let ctor = if let Some(origin) = origin {
+                // 只传工厂已冻结的实际函数引用，不提前读取或复制其Module属性。
+                lower_operand(
+                    origin,
+                    ins,
+                    ctx.param_slots,
+                    ctx.local_slots,
+                    ctx.runtime_refs,
+                );
+                ctx.runtime_refs.generators.ctor_with_origin
+            } else {
+                ctx.runtime_refs.generators.ctor
+            };
+            ins.push(Instruction::NewObject(UserMethod::Reference(ctor)));
         }
         Rvalue::MakeFunction {
+            instance_context,
             func,
             env,
             defaults,
@@ -444,21 +466,42 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
                 Some(global) => ctx.runtime_refs.global_fields[&global],
                 None => panic!("嵌套函数 {} 缺少签名槽位", nested.name),
             };
+            if let Some(context) = instance_context {
+                lower_operand(
+                    context,
+                    ins,
+                    ctx.param_slots,
+                    ctx.local_slots,
+                    ctx.runtime_refs,
+                );
+            }
             ins.push(Instruction::load_string(nested.name.clone()));
             ins.push(Instruction::LoadStaticField {
                 volatile: false,
                 param0: FieldSource::Definition(signature_field),
             });
-            ins.push(Instruction::LoadNull);
-            let thunk = ctx
-                .thunks
-                .get(func)
-                .copied()
-                .unwrap_or_else(|| panic!("函数 {} 缺少 thunk", nested.name));
-            ins.push(Instruction::LoadMethodPointer(thunk.into()));
-            ins.push(Instruction::NewObject(UserMethod::Reference(
-                ctx.runtime_refs.py_call_ctor,
-            )));
+            if instance_context.is_some() {
+                let owned = ctx
+                    .runtime_refs
+                    .owned_functions
+                    .as_ref()
+                    .expect("已验证实例函数ABI");
+                ins.push(Instruction::LoadStaticField {
+                    volatile: false,
+                    param0: owned.delegates[func].into(),
+                });
+            } else {
+                ins.push(Instruction::LoadNull);
+                let thunk = ctx
+                    .thunks
+                    .get(func)
+                    .copied()
+                    .unwrap_or_else(|| panic!("函数 {} 缺少 thunk", nested.name));
+                ins.push(Instruction::LoadMethodPointer(thunk.into()));
+                ins.push(Instruction::NewObject(UserMethod::Reference(
+                    ctx.runtime_refs.py_call_ctor,
+                )));
+            }
             lower_object_array(defaults, ins, ctx);
             ins.push(Instruction::LoadConstantInt32(
                 if crate::callables::function_uses_super(nested) {
@@ -472,9 +515,27 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             } else {
                 lower_object_array(env, ins, ctx);
             }
-            ins.push(Instruction::NewObject(UserMethod::Reference(
-                ctx.runtime_refs.py_function_ctor_env,
-            )));
+            if instance_context.is_some() {
+                ins.push(Instruction::call(
+                    ctx.runtime_refs
+                        .owned_functions
+                        .as_ref()
+                        .expect("已验证实例函数ABI")
+                        .create,
+                ));
+            } else {
+                ins.push(Instruction::NewObject(UserMethod::Reference(
+                    ctx.runtime_refs.py_function_ctor_env,
+                )));
+            }
+            if let Some(identity) = nested.specialization_identity_global {
+                // 私有特化锚点只指向本次实际创建的原对象，不读取或覆盖公开函数/defaults槽。
+                ins.push(Instruction::Duplicate);
+                ins.push(Instruction::StoreStaticField {
+                    volatile: false,
+                    param0: ctx.runtime_refs.global_fields[&identity].into(),
+                });
+            }
         }
         Rvalue::CallWithArgs {
             callee,

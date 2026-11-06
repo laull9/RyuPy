@@ -10,11 +10,13 @@ use ryupy_syntax::ast;
 use ryupy_syntax::ast::visitor::{Visitor, walk_expr, walk_stmt};
 
 use crate::closures::ScopeData;
-use crate::hir::{ClosureInfo, FuncId, Function, FunctionKind, Name};
+use crate::hir::{ClassId, ClosureInfo, FuncId, Function, FunctionKind, Name};
 
 #[derive(Default)]
 pub(crate) struct ScopeCollector {
     postponed_annotations: bool,
+    /// 实例类的用户 body 另以特殊定义作用域收集，decorator/base 仍归外层。
+    skip_class_body: bool,
     assigned: Vec<Name>,
     globals: FxHashSet<Name>,
     nonlocals: Vec<(Name, TextRange)>,
@@ -32,6 +34,7 @@ enum Nested {
 pub(crate) fn collect_module_nested(
     body: &[ast::Stmt],
     parent: usize,
+    instance_class_cells: bool,
     functions: &mut Arena<Function>,
     scopes: &mut Vec<ScopeData>,
     nested_funcs: &mut FxHashMap<TextRange, FuncId>,
@@ -39,6 +42,7 @@ pub(crate) fn collect_module_nested(
 ) {
     let mut collector = ScopeCollector {
         postponed_annotations: scopes[parent].postponed_annotations,
+        skip_class_body: instance_class_cells,
         ..ScopeCollector::default()
     };
     for stmt in body {
@@ -68,6 +72,52 @@ pub(crate) fn collect_module_nested(
         nested_funcs,
         nested_def_names,
     );
+}
+
+/// 类体只提供特殊 __class__ 绑定；普通属性和类体裸名不能成为方法的 enclosing locals。
+/// 方法默认值/装饰表达式中的 lambda 与类体 lambda 在此登记，class decorator/base 不在此。
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn walk_class_scope(
+    class: &ast::StmtClassDef,
+    class_id: ClassId,
+    parent: usize,
+    functions: &mut Arena<Function>,
+    scopes: &mut Vec<ScopeData>,
+    nested_funcs: &mut FxHashMap<TextRange, FuncId>,
+    nested_def_names: &mut FxHashMap<TextRange, Name>,
+) -> usize {
+    let mut collector = ScopeCollector {
+        postponed_annotations: scopes[parent].postponed_annotations,
+        skip_class_body: true,
+        ..ScopeCollector::default()
+    };
+    collector.visit_class_items(&class.body);
+    let scope = scopes.len();
+    scopes.push(ScopeData {
+        postponed_annotations: collector.postponed_annotations,
+        func_id: scopes[parent].func_id,
+        is_module: false,
+        class: Some(class_id),
+        class_cell: None,
+        range: class.range,
+        parent: Some(parent),
+        assigned: vec![Name::from("__class__")],
+        globals: FxHashSet::default(),
+        nonlocals: Vec::new(),
+        reads: Vec::new(),
+        nested: Vec::new(),
+        free: Vec::new(),
+        cells: Vec::new(),
+    });
+    register_discovered(
+        collector,
+        scope,
+        functions,
+        scopes,
+        nested_funcs,
+        nested_def_names,
+    );
+    scope
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -123,6 +173,8 @@ fn push_scope(
         postponed_annotations: collector.postponed_annotations,
         func_id,
         is_module: false,
+        class: None,
+        class_cell: None,
         range,
         parent: Some(parent),
         assigned: std::mem::take(&mut collector.assigned),
@@ -160,6 +212,7 @@ fn register_discovered(
             nested_def_names.insert(range, name.clone());
         }
         let child = functions.alloc(Function {
+            definition: None,
             name,
             kind: FunctionKind::Nested,
             params: Vec::new(),
@@ -251,7 +304,9 @@ impl ScopeCollector {
                 self.visit_expr(base);
             }
         }
-        self.visit_class_items(&class.body);
+        if !self.skip_class_body {
+            self.visit_class_items(&class.body);
+        }
     }
 
     // 条件内的方法依旧是已登记的类方法，不再当模块嵌套函数重复分配。

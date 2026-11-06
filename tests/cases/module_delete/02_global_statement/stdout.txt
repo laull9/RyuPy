@@ -1,0 +1,6 @@
+global missing NameError name 'value' is not defined
+global missing NameError name 'value' is not defined
+global restore and error phase ['before', 'after', 'before', 'before', 'after']
+global partial or absent NameError name 'never_defined' is not defined
+global partial or absent NameError name 'missing_middle' is not defined
+global partial state ['right']

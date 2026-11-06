@@ -1,0 +1,5 @@
+keys
+getitem first
+getitem second
+caught mapping-failed
+after {'old': 0, 'first': 1}

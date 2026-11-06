@@ -1,0 +1,11 @@
+# ryupy: pending
+# 完整归档写入与解压是独立API，不属于is_zipfile签名探测。
+from zipfile import ZipFile
+with ZipFile('actual.zip', 'w') as archive:
+    archive.writestr('folder/data.txt', 'payload')
+with ZipFile('actual.zip', 'r') as archive:
+    print(archive.namelist())
+    print(archive.read('folder/data.txt'))
+    archive.extract('folder/data.txt', 'extracted')
+with open('extracted/folder/data.txt', 'r', encoding='utf-8') as stream:
+    print(stream.read())

@@ -1,0 +1,1 @@
+genexpr captures before outer iterable and defers element execution

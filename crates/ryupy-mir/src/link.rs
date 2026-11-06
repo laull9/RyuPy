@@ -23,9 +23,12 @@ use crate::mir::{
 /// 一个模块的元信息（由 driver 从模块图提供）。
 #[derive(Debug, Clone)]
 pub struct UnitMeta {
+    pub execution: crate::ModuleExecutionKind,
     /// 实际build显式注入；普通dump使用LegacyDiagnostic。
     pub location: crate::ModuleLocation,
     pub file_backed_by_global: bool,
+    /// 实际源码解析分支证明的包身份，不从文件名或公开属性推断。
+    pub is_package: bool,
     /// 静态异常 handler 依赖的导入别名，不允许跨模块 setter 重绑定。
     pub protected_exports: Vec<String>,
     pub name: String,
@@ -60,6 +63,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             global_map.insert(
                 old,
                 globals.alloc(GlobalDecl {
+                    storage: decl.storage.clone(),
                     name: format!("{prefix}{}", decl.name),
                     ty: remap_type(&decl.ty, &class_map),
                 }),
@@ -68,9 +72,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
         let mut fn_map: FxHashMap<FnId, FnId> = FxHashMap::default();
         for (old, func) in program.functions.iter() {
             let new_id = functions.alloc(Function {
+                module_state: func.module_state,
+                module_state_source: func.module_state_source,
                 name: func.name.clone(),
                 codegen_name: format!("{prefix}{}", func.codegen_name),
                 source_file: func.source_file.clone(),
+                definition: func.definition.clone(),
                 params: func.params.clone(),
                 ret: remap_type(&func.ret, &class_map),
                 body: Body {
@@ -96,6 +103,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 defaults_global: func.defaults_global.map(|g| global_map[&g]),
                 signature_global: func.signature_global.map(|g| global_map[&g]),
                 env: func.env,
+                dynamic_origin: func.dynamic_origin.map(|origin| {
+                    crate::mir::DynamicFunctionOrigin {
+                        owner: origin.owner,
+                        source_global: origin.source_global.map(|g| global_map[&g]),
+                    }
+                }),
             });
             fn_map.insert(old, new_id);
         }
@@ -104,6 +117,10 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
         for (old, cls) in program.classes.iter() {
             let new_id = class_map[&old];
             classes[new_id] = ClassDef {
+                class_cell: cls
+                    .class_cell
+                    .as_ref()
+                    .map(|cell| remap_class_cell(cell, &fn_map)),
                 name: cls.name.clone(),
                 codegen_name: format!("{prefix}{}", cls.codegen_name),
                 fields: cls
@@ -198,8 +215,10 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             })
             .collect();
         module_ids.push(modules.alloc(ModuleDef {
+            execution: meta.execution,
             location: meta.location,
             file_backed_by_global: meta.file_backed_by_global,
+            is_package: meta.is_package,
             protected_exports: meta.protected_exports,
             name: meta.name,
             package: meta.package,
@@ -212,8 +231,10 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     let entry_module = module_ids.get(entry).copied().unwrap_or_else(|| {
         // 空程序（理论上不会出现）：补一个空入口模块，避免 panic。
         modules.alloc(ModuleDef {
+            execution: crate::ModuleExecutionKind::LegacySingleton,
             location: Default::default(),
             file_backed_by_global: false,
+            is_package: false,
             protected_exports: Vec::new(),
             name: "__main__".to_owned(),
             package: String::new(),
@@ -434,6 +455,10 @@ fn remap_rvalue(
                 .collect(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
         },
+        Rvalue::InstanceZeroCall { callee, frame } => Rvalue::InstanceZeroCall {
+            callee: remap_operand(callee, global_map),
+            frame: *frame,
+        },
         Rvalue::DynCallValue { callee, args } => Rvalue::DynCallValue {
             callee: remap_operand(callee, global_map),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
@@ -454,18 +479,27 @@ fn remap_rvalue(
         Rvalue::GeneratorDelegateStep { delegate } => Rvalue::GeneratorDelegateStep {
             delegate: remap_operand(delegate, global_map),
         },
-        Rvalue::MakeGenerator { resume, frame } => Rvalue::MakeGenerator {
+        Rvalue::MakeGenerator {
+            resume,
+            frame,
+            origin,
+        } => Rvalue::MakeGenerator {
             resume: fn_map[resume],
+            origin: origin.as_ref().map(|op| remap_operand(op, global_map)),
             frame: frame
                 .iter()
                 .map(|op| remap_operand(op, global_map))
                 .collect(),
         },
         Rvalue::MakeFunction {
+            instance_context,
             func,
             env,
             defaults,
         } => Rvalue::MakeFunction {
+            instance_context: instance_context
+                .as_ref()
+                .map(|op| remap_operand(op, global_map)),
             func: fn_map[func],
             env: env.iter().map(|a| remap_operand(a, global_map)).collect(),
             defaults: defaults
@@ -477,10 +511,27 @@ fn remap_rvalue(
     }
 }
 
+/// 类 cell 的函数身份随模块合并重映射，局部和块仍属于同一实际 owner。
+fn remap_class_cell(
+    cell: &crate::ClassCellDefinition,
+    functions: &FxHashMap<FnId, FnId>,
+) -> crate::ClassCellDefinition {
+    let mut mapped = cell.clone();
+    mapped.owner = functions[&cell.owner];
+    for capture in &mut mapped.captures {
+        capture.function = functions[&capture.function];
+        if let crate::ClassCellEnvSource::GeneratorFrame { factory, .. } = &mut capture.source {
+            *factory = functions[factory];
+        }
+    }
+    mapped
+}
+
 impl ClassDef {
     /// link 阶段先占位，随后整体覆盖。
     fn placeholder() -> Self {
         Self {
+            class_cell: None,
             name: String::new(),
             codegen_name: String::new(),
             fields: Vec::new(),
@@ -498,9 +549,12 @@ impl Function {
     /// 空程序兜底用；正常流程不会使用。
     fn placeholder() -> Self {
         Self {
+            module_state: None,
+            module_state_source: None,
             name: String::new(),
             codegen_name: String::new(),
             source_file: String::new(),
+            definition: None,
             params: Vec::new(),
             ret: MirType::Unit,
             body: Body {
@@ -515,6 +569,7 @@ impl Function {
             defaults_global: None,
             signature_global: None,
             env: None,
+            dynamic_origin: None,
         }
     }
 }

@@ -1,0 +1,1 @@
+real function globals and definition capture

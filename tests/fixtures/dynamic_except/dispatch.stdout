@@ -1,0 +1,41 @@
+normal.body True
+normal.else True
+ordered.finally normal
+read.first True
+selected.first True
+ordered.finally first
+read.first True
+read.second True
+selected.second True
+ordered.finally second
+read.first True
+ordered.finally error
+escaped.lookup True True
+read.first True
+ordered.finally invalid
+escaped.invalid True True
+read.first True
+ordered.finally reraise
+escaped.reraise True
+tuple.direct match True
+tuple.parent match True
+tuple.valid match True
+tuple.empty fallback True
+tuple.match-invalid invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.invalid-match invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.nonmatch-invalid invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.nested invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.match-nested invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.instance invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.ordinary invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.none invalid True catching classes that do not inherit from BaseException is not allowed
+tuple.tuple-instance invalid True catching classes that do not inherit from BaseException is not allowed
+read.first True
+read.invalid True
+tuple.operands True
+read.first True
+mixed.static-tail True
+lookup.later-unbound True
+lookup.body-unbound True
+lookup.handler-body-unbound True
+dispatch.complete True

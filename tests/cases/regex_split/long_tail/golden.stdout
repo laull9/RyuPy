@@ -1,0 +1,8 @@
+wide-buffer [b'a', b'b', b'']
+wide-buffer [b'a', b'b', b'']
+inherited-index ['a', 'b,c']
+bool-warning __index__ returned non-int (type bool).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.
+flags-long-tail TypeError unsupported operand type(s) for &: 'NoneType' and 'RegexFlag'
+flags-long-tail TypeError unsupported operand type(s) for &: 'Base' and 'RegexFlag'
+pattern-int TypeError first argument must be string or compiled pattern []
+pattern-memoryview TypeError first argument must be string or compiled pattern []

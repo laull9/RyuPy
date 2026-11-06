@@ -29,7 +29,13 @@ mod decorators;
 mod definition_metadata;
 mod enum_class;
 mod exception_imports;
+mod exception_targets;
 pub mod expr;
+mod function_definition;
+mod function_exception_imports;
+pub use function_definition::DefinitionInfo;
+#[cfg(test)]
+mod function_definition_tests;
 mod future_imports;
 mod generator_scan;
 mod hir;
@@ -37,12 +43,16 @@ pub mod imports;
 pub mod lower;
 mod lower_fn;
 mod lower_stmts;
+mod module_definition_bindings;
+mod module_deletions;
+pub use module_deletions::uses_deleted_builtin_fallback;
 mod module_definitions;
 mod module_vars;
 mod native_bases;
 pub mod operator;
 pub mod pretty;
 mod scope;
+mod source_lines;
 mod typed_dict;
 mod with;
 
@@ -73,6 +83,8 @@ mod unresolved_globals;
 mod imports_lower;
 
 #[cfg(test)]
+mod function_exception_import_tests;
+#[cfg(test)]
 mod function_import_tests;
 
 mod integer_literal;
@@ -91,3 +103,30 @@ mod flag_tests;
 
 #[cfg(test)]
 mod module_location_tests;
+
+#[cfg(test)]
+mod string_class_publication_tests;
+
+#[cfg(test)]
+mod module_function_binding_tests;
+
+#[cfg(test)]
+mod dynamic_except_tests;
+
+mod function_locals;
+
+#[cfg(test)]
+mod function_locals_tests;
+
+#[cfg(test)]
+mod instance_globals_tests;
+
+mod instance_globals;
+
+#[cfg(test)]
+mod module_delete_tests;
+
+#[cfg(test)]
+mod class_cell_tests;
+#[cfg(test)]
+mod lexical_super_tests;

@@ -1,0 +1,8 @@
+legal-value typing.List[ForwardRef('Thing')] True True ()
+legal-value typing.List[42] True True ()
+legal-value typing.List[True] True True ()
+legal-value typing.List[2.5] True True ()
+legal-value typing.List[...] True True ()
+legal-value typing.List[[<class 'int'>]] False True ()
+legal-value typing.List[{'x': <class 'int'>}] False True ()
+legal-value typing.List[{<class 'int'>}] False True ()

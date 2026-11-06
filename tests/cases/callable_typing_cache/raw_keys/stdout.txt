@@ -1,0 +1,1 @@
+list/tuple shared; scalar distinct; raw None distinct; empty shared; input list snapshot: ok

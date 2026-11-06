@@ -30,7 +30,9 @@ chardet 5.2.0 `charsetprober.py:122` 使用 `memoryview(buf).cast('c')`，以字
 且不得继续消费该元素之后的生成器副作用。append 的整数转换也先于导出锁。
 现有 resize 接点为 PyByteArray Append/Extend/DelItem 与 PySequenceOps 的 +=、*=；
 `Bytes` 公开 List 的所有现有内部写入口已统一守卫，不能只保护新 memoryview 方法。
-现有未支持的 bytearray.clear、bytearray 切片赋值和 memoryview 切片赋值不计作本切通过能力。
+本切当时未支持的 bytearray.clear、bytearray 切片赋值和 memoryview 切片赋值不计作该历史通过能力。
+后续 bytearray 切片赋值有限候选见 [ADR0098](adr/0098-bytearray-slice-assignment.md)，
+不因此开放 memoryview 切片赋值或其它 buffer 布局。
 
 ## 寿命与性能取舍
 
@@ -64,3 +66,14 @@ chardet 实际复测仍 unsupported：`codingstatemachinedict.py:10` 的 `TypedD
 bytearray 保留用户 `__index__` 异常；memoryview 的 B 元素转换按固定基线替换 TypeError、
 ValueError、OverflowError，并清除被吞转换回调的traceback帧，其它异常原样传播。
 `__index__` 返回 bool 的弃用警告路径暂明确 NotImplementedError，不静默吞警告。
+
+## 正则 subject 阶段A候选
+
+bytes pattern 的 eager match/search/fullmatch/findall 可变subject候选复用已有B/c连续视图布局，
+不引入多维、宽格式或非连续构造。扫描导出针对原view，和其父/兄弟的独立租约分开；活动导出时
+公开release拒绝并保持状态，最终清理不能抛该错误。regex lease另持exporter保护，不依赖CLR最终化顺序。
+返回Match只存原subject及组标记，不长期导出；释放view后.string/span仍有意义，参与group读取按regex协议
+报TypeError，未参与组保default。原文档的普通view释放ValueError合同不因此被全局改写。
+
+65专项与3应用通过，正常完整门禁1666C#/228CP/202e2e+30原ignored通过；mutable finditer/sub尚未开放。所有view增加生命周期锁对象、计数字段和release同步，
+仅regex导出另有计数成本，不能宣称零性能影响。精确范围及异常/收尾验收见ADR0096。

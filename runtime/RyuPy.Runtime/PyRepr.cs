@@ -17,7 +17,7 @@ namespace RyuPy.Runtime;
 /// <c>bool</c> 再判断数值——<c>bool</c> 在 CLR 里不继承 <c>long</c>，但 Python 里
 /// <c>True == 1</c> 成立，这一差别只在比较与算术里显式处理。
 /// </remarks>
-public static class PyRepr
+public static partial class PyRepr
 {
     /// <summary>Python 类型名，用于错误消息（<c>'int' and 'str'</c>）。</summary>
     public static string TypeName(object? value) => value switch
@@ -31,6 +31,7 @@ public static class PyRepr
         long or int or BigInteger => "int",
         double or float => "float",
         string => "str",
+        PyNamedTupleInstance instance => instance.Class.Name,
         PyTuple => "tuple",
         PyList => "list",
         PyDict => "dict",
@@ -49,7 +50,7 @@ public static class PyRepr
         PyType or PyNativeType => "type",
         PyClass => "type",
         PyModule => "module",
-        PyInstance instance => instance.Class.Name,
+        PyInstance instance => instance.Class.IsTypingGenericRoot ? "typing.Generic" : instance.Class.Name,
         PyBoundMethod => "method",
         PyFunction => "function",
         PyBuiltinMethod { IsMethodWrapper: true } => "method-wrapper",
@@ -77,6 +78,7 @@ public static class PyRepr
         string s => s,
         // str(异常) 是消息本身，不含类型名（与 CPython 一致）
         PyBaseException exception => StrException(exception),
+        PyNamedTupleInstance instance => PyNamedTupleLayout.Repr(instance),
         PyTuple tuple => ReprTuple(tuple),
         PyList list => ReprList(list),
         PyDict dict => ReprDict(dict),
@@ -111,6 +113,7 @@ public static class PyRepr
         PyNativeObject native => native.PythonRepr(),
         string s => Quote(s),
         PyBaseException exception => ReprException(exception),
+        PyNamedTupleInstance instance => PyNamedTupleLayout.Repr(instance),
         PyTuple tuple => ReprTuple(tuple),
         PyList list => ReprList(list),
         PyDict dict => ReprDict(dict),
@@ -138,44 +141,14 @@ public static class PyRepr
     };
 
     /// <summary>用户异常覆盖的 __str__ 与普通实例一样可观察；默认仍延迟读取原 args 消息。</summary>
-    private static string StrException(PyBaseException exception)
-    {
-        if (PyObject.TryMethod(exception, "__str__", [], out object? custom))
-            return RequireString(custom, "__str__", exception.PyTypeName);
-        return exception.PyMessage;
-    }
+    private static string StrException(PyBaseException exception) =>
+        PyStringLayout.RequireRaw(StrExceptionObject(exception));
 
-    /// <summary>实例的 <c>str()</c>：优先 `__str__`，其次 `__repr__`，最后默认形式。</summary>
-    private static string StrInstance(PyInstance instance)
-    {
-        if (PyEnum.IsMember(instance)) return PyEnum.MemberRepr(instance, false);
-        if (PyObject.TryMethod(instance, "__str__", [], out object? custom))
-        {
-            return RequireString(custom, "__str__", instance.Class.Name);
-        }
-        if (PyObject.TryMethod(instance, "__repr__", [], out object? repr))
-        {
-            return RequireString(repr, "__repr__", instance.Class.Name);
-        }
-        return instance.DefaultRepr();
-    }
+    private static string StrInstance(PyInstance instance) =>
+        PyStringLayout.RequireRaw(StrInstanceObject(instance));
 
-    /// <summary>实例的 <c>repr()</c>：只认 `__repr__`。</summary>
-    private static string ReprInstance(PyInstance instance)
-    {
-        if (PyEnum.IsMember(instance)) return PyEnum.MemberRepr(instance, true);
-        if (PyObject.TryMethod(instance, "__repr__", [], out object? repr))
-        {
-            return RequireString(repr, "__repr__", instance.Class.Name);
-        }
-        return instance.DefaultRepr();
-    }
-
-    private static string RequireString(object? value, string method, string className) =>
-        value as string
-        ?? throw new PyTypeError(
-            $"__{method.Trim('_')}__ returned non-string (type {TypeName(value)})"
-        );
+    private static string ReprInstance(PyInstance instance) =>
+        PyStringLayout.RequireRaw(ReprInstanceObject(instance));
 
     /// <summary>
     /// 容器的嵌套 <c>repr</c> 深度上限。
@@ -269,8 +242,11 @@ public static class PyRepr
     }
 
     /// <summary>列表的 <c>repr</c>。</summary>
-    private static string ReprList(PyList list) =>
-        WithCycleGuard(list, "[...]", () =>
+    private static string ReprList(PyList list) => ListRaw(list, list);
+
+    // 真实派生实例以公开对象守卫，不能用不可见payload造成递归多展开。
+    internal static string ListRaw(object owner, PyList list) =>
+        WithCycleGuard(owner, "[...]", () =>
         {
             var builder = new StringBuilder("[");
             for (int i = 0; i < list.Items.Count; i++)
@@ -286,8 +262,11 @@ public static class PyRepr
         });
 
     /// <summary>字典的 <c>repr</c>：保持插入顺序。</summary>
-    private static string ReprDict(PyDict dict) =>
-        WithCycleGuard(dict, "{...}", () =>
+    private static string ReprDict(PyDict dict) => DictRaw(dict, dict);
+
+    // 派生字典按公开owner跟踪递归，内部payload不成为第二个可见对象。
+    internal static string DictRaw(object owner, PyDict dict) =>
+        WithCycleGuard(owner, "{...}", () =>
         {
             var builder = new StringBuilder("{");
             bool first = true;

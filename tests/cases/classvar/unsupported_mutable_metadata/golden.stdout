@@ -1,0 +1,3 @@
+independent-slots typing.ClassVar[str] (~T,)
+mutable-origin list[str] custom_module
+mutable-root-name typing.Renamed

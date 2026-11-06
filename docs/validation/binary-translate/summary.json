@@ -1,0 +1,25 @@
+{
+  "python": "3.12.13",
+  "observations": 220,
+  "observations_are_not_ryupy_pass_count": true,
+  "source_sha256": "45b167d26d6f9ee71ad00b9e35c331b91c3402cfbaa0d5a51486005076c6415d",
+  "stdout_sha256": "c70e8d8bc1e28cb1d4e83ea7a436a1664f4dc56e2fa3b2a104eba6e38897b760",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "cp_reference_exit": 0,
+  "public_applications": [
+    "table_delete_identity",
+    "binding_alias_capture",
+    "errors_chain"
+  ],
+  "runtime_tests": 18,
+  "pending": "duplicate_keyword.py.pending records six existing generic keyword-expansion differences",
+  "full_gate": {
+    "normal_make_check_attempt": 3,
+    "exit": 0,
+    "csharp_pass": 1858,
+    "cpython_baseline_pass": 228,
+    "e2e_pass": 202,
+    "existing_ignored": 30,
+    "sha256": "743b88fa07500813c9d9cfd6d815fa1cd03a281919f0e62f12e35dc5389c59cc"
+  }
+}

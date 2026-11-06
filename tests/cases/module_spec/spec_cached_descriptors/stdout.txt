@@ -1,0 +1,6 @@
+first_result /virtual/__pycache__/second.cpython-312.pyc
+first_trace ['cached-get', 'origin-get', 'origin-get', 'cached-set', 'cached-get']
+sticky_identity True
+sticky_trace ['cached-get', 'cached-get']
+disabled_trace ['cached-get', 'origin-get', 'cached-get']
+complete spec_cached_descriptors

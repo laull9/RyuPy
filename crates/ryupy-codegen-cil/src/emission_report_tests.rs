@@ -6,6 +6,7 @@ use ryupy_mir::*;
 
 fn global(program: &mut LinkedProgram, name: &str) -> GlobalId {
     program.globals.alloc(GlobalDecl {
+        storage: ryupy_mir::GlobalStorage::LegacyStatic,
         name: name.into(),
         ty: MirType::Dynamic,
     })
@@ -153,12 +154,24 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
         MirType::Dynamic,
     ));
     let body = &mut program.functions[init].body;
+    let defined_top = local(&mut body.locals, MirType::Dynamic);
     let closure = local(&mut body.locals, MirType::Dynamic);
     let generator = local(&mut body.locals, MirType::Dynamic);
     body.blocks[body.entry].stmts.extend([
+        // 普通def已经在执行点创建，不再依赖__init_functions预构造来产生委托根。
+        Statement::Assign {
+            dest: defined_top,
+            value: Rvalue::MakeFunction {
+                instance_context: None,
+                func: top,
+                env: vec![],
+                defaults: vec![],
+            },
+        },
         Statement::Assign {
             dest: closure,
             value: Rvalue::MakeFunction {
+                instance_context: None,
                 func: nested,
                 env: vec![],
                 defaults: vec![],
@@ -169,6 +182,7 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
             value: Rvalue::MakeGenerator {
                 resume,
                 frame: vec![],
+                origin: None,
             },
         },
     ]);
@@ -179,8 +193,10 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
         MirType::Unit,
     ));
     program.modules.alloc(ModuleDef {
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: vec![],
         name: "other".into(),
         package: "".into(),
@@ -191,6 +207,7 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
     for registered in [true, false] {
         let factory_global = registered.then(|| global(&mut program, "actual_factory"));
         program.classes.alloc(ClassDef {
+            class_cell: None,
             name: "SameException".into(),
             codegen_name: format!("Exception{registered}"),
             fields: vec![],

@@ -1,0 +1,13 @@
+# 该清单说明唯一参考原流的行级抽取；完整原文件保留不覆盖。
+reference_source_sha256=62d0d7d51311cde077c86bb32b26b5359e59a0ffd5aeacf6f59aef28c537baeb
+reference_stdout_sha256=c56e0958e02054dd8848b6afaca30ea7be8cb6ebdcd5b76eaf9f8d89ef2f9a24
+bindings.reference.stdout=2-9,12-19,30-34
+# 依次为 direct八组、saved八组、三种初值身份、direct/saved用户键。
+evaluation.reference.stdout=22-25,27-29,35-57
+# 依次为参数异常/修改/star失败、接收者重绑/保存/重复空、23行iterator状态。
+pending_keyword_expansion=10-11,20-21,26
+pending_same_size_clear=58-65
+pending_root_and_subclass=66-73
+metadata_only=1,74
+# bindings_and_identity.py 与 evaluation_and_iterators.py 准备时尚未独立执行，随后首次CP/JIT通过。
+# error_chain.py 不来自上述参考行；随后首次CP-first核完整冻结链，再与JIT全文投影比对通过。

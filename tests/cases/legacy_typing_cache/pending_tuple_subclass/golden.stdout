@@ -1,0 +1,2 @@
+tuple-subclass-cold ['hash', 'iter'] typing.List[~T]
+tuple-subclass-hot ['hash']

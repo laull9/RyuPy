@@ -278,6 +278,21 @@ impl FunctionBuilder<'_> {
         normals: &mut Vec<BlockId>,
         regions: &mut Vec<Region>,
     ) {
+        if handlers.iter().any(|id| {
+            self.hir.functions[self.current_hir_fn].body.handlers[*id]
+                .type_expr
+                .is_some()
+        }) {
+            self.build_dynamic_handlers(
+                handlers,
+                start_bb,
+                inner_end,
+                has_finally,
+                normals,
+                regions,
+            );
+            return;
+        }
         let inner_start = self.block_index(start_bb);
         for &handler_id in handlers {
             let (types, name, handler_body) = {

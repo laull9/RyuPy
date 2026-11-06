@@ -1,0 +1,8 @@
+True True
+original original __main__ 原说明。
+True True
+original original changed
+True
+1 True
+True 8
+None

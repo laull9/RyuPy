@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+File iterator_chain.py, line 69, in <module>
+ValueError: list-primitives-cause
+The above exception was the direct cause of the following exception:
+Traceback (most recent call last):
+File iterator_chain.py, line 73, in <module>
+RuntimeError: list-primitives-ambient
+During handling of the above exception, another exception occurred:
+Traceback (most recent call last):
+File iterator_chain.py, line 76, in <module>
+File iterator_chain.py, line 66, in outer
+File iterator_chain.py, line 64, in inner
+File iterator_chain.py, line 60, in __next__
+TypeError: list-primitives-next

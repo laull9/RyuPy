@@ -1,4 +1,6 @@
 //! MIR 数据结构定义。
+pub use crate::operations::{BinOp, CastKind, DynOp, UnaryOp};
+use crate::{GlobalStorage, ModuleExecutionKind};
 
 use la_arena::{Arena, Idx};
 
@@ -15,6 +17,8 @@ pub type ModuleId = Idx<ModuleDef>;
 /// 引用（`def f(x=[])` 的列表要在调用间共享）。M2.7 的模块变量会复用同一套机制。
 #[derive(Debug)]
 pub struct GlobalDecl {
+    /// 存储身份来自前端能力，不由名字前缀推断。
+    pub storage: GlobalStorage,
     pub name: String,
     pub ty: MirType,
 }
@@ -49,10 +53,13 @@ pub struct LinkedProgram {
 /// 一个已编译模块在运行时需要的信息。
 #[derive(Debug)]
 pub struct ModuleDef {
+    pub execution: ModuleExecutionKind,
     /// 模块运行位置与诊断file分离，codegen不得从名字猜模式。
     pub location: crate::ModuleLocation,
     /// 公开__file__读写走初始化的真实模块槽，不在runtime重置初值。
     pub file_backed_by_global: bool,
+    /// 实际源码解析分支证明的包身份，不从文件名或公开属性推断。
+    pub is_package: bool,
     /// 跨模块属性写入必须拒绝的静态异常导入别名。
     pub protected_exports: Vec<String>,
     /// 点分绝对模块名；入口模块是 `__main__`。
@@ -85,6 +92,8 @@ pub struct ModuleExport {
 
 #[derive(Debug)]
 pub struct ClassDef {
+    /// 仅实例类隐式词法 cell 的来源计划；代码后端不据名字重建此身份。
+    pub class_cell: Option<crate::ClassCellDefinition>,
     /// Python 可见的类名。
     pub name: String,
     /// 生成的 CLR 类型名（多模块合并时加前缀，避免同名类冲突）。
@@ -128,8 +137,21 @@ pub struct ParamMeta {
     pub ty: MirType,
 }
 
+/// Dynamic core 的真实函数引用；私有槽仅用于普通定义的静态已知直调。
+#[derive(Debug, Clone, Copy)]
+pub struct DynamicFunctionOrigin {
+    pub owner: LocalId,
+    pub source_global: Option<GlobalId>,
+}
+
 #[derive(Debug)]
 pub struct Function {
+    /// 实例入口的显式state参数；Python参数元数据不包含此槽。
+    pub module_state: Option<LocalId>,
+    /// 环境local的可信来源，与module_state同时存在。
+    pub module_state_source: Option<crate::InstanceStateSource>,
+    /// 不可变 Python 定义来源；后端不得从方法符号推测。
+    pub definition: Option<crate::DefinitionInfo>,
     /// Python 可见的函数名（`PyFunction.__name__`）。
     pub name: String,
     /// 生成到程序集里的唯一方法名（多模块合并时由 link 加前缀）。
@@ -147,7 +169,7 @@ pub struct Function {
     pub param_meta: Vec<ParamMeta>,
     /// 该函数的 `PyFunction` 对象所在的模块静态槽位（`ModuleMain` 为 `None`）。
     pub function_global: Option<GlobalId>,
-    /// 特化身份锚点：初始化时保存原函数对象，不导出且禁止Python/MIR写入。
+    /// 特化身份锚点：MakeFunction保存本次原函数对象，不导出且禁止普通Python/MIR写入。
     pub specialization_identity_global: Option<GlobalId>,
     /// 默认值数组（`object[]`）的槽位；没有默认值时为 `None`。
     pub defaults_global: Option<GlobalId>,
@@ -156,6 +178,8 @@ pub struct Function {
     /// 闭包环境形参（M3.0）：引用外层 cell 的函数多一个 `object[]` 参数，
     /// 每个元素是外层作用域的一个 cell（`object[1]`）。非闭包为 `None`。
     pub env: Option<LocalId>,
+    /// 已收敛为Dynamic的Python函数才有尾owner；不属于Python参数元数据。
+    pub dynamic_origin: Option<DynamicFunctionOrigin>,
 }
 
 #[derive(Debug)]
@@ -297,6 +321,8 @@ pub enum Rvalue {
     MakeGenerator {
         resume: FnId,
         frame: Vec<Operand>,
+        /// 保存函数对象引用，恢复时读取其当前Module，不能快照Module值。
+        origin: Option<Operand>,
     },
     Use(Operand),
     /// 原生无装箱运算，操作数类型必须相同（构建时已插入 `Cast`）。
@@ -401,6 +427,11 @@ pub enum Rvalue {
         prefix: Vec<Operand>,
         args: Vec<Operand>,
     },
+    /// 实例普通函数的零实参值调用；惰性 frame 来源仅供真实 canonical super 消费。
+    InstanceZeroCall {
+        callee: Operand,
+        frame: crate::ZeroCallFrame,
+    },
     /// 动态位置调用：`callee(arg0, arg1, ...)`，没有关键字、`*`、`**`。
     ///
     /// 参数个数在编译期已知且较少（≤ 3），codegen 可以走 `PyPic.CallValueN`，
@@ -424,6 +455,8 @@ pub enum Rvalue {
     /// 嵌套函数 / lambda 都由它创建：每次执行 def / lambda 表达式都会产生新的
     /// 函数对象，默认值也重新求值（与 CPython 一致）。
     MakeFunction {
+        /// 已在真实定义位置捕获的环境；旧函数为None。
+        instance_context: Option<Operand>,
         /// 被创建的函数。
         func: FnId,
         /// 闭包环境：被创建函数 `ClosureInfo::free` 顺序的 cell 对象。
@@ -436,105 +469,6 @@ pub enum Rvalue {
     /// CIL 在把控制权交给 catch 子句时会把异常对象压栈，所以这条 rvalue 本身不发射
     /// 任何取值指令，只承接 `stloc`——它必须出现在处理入口块的**第一条**语句。
     CatchException,
-}
-
-/// 动态运算的操作码。数值必须与 C# 侧 `PyOps` 的常量一致（ADR-0010 的 ABI）。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DynOp {
-    Add,
-    Sub,
-    Mul,
-    TrueDiv,
-    FloorDiv,
-    Mod,
-    Pow,
-    BitAnd,
-    BitOr,
-    BitXor,
-    LShift,
-    RShift,
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-    Neg,
-    Pos,
-    Not,
-    Invert,
-}
-
-impl DynOp {
-    /// 增量赋值的操作码标记位：`code() | INPLACE_FLAG`。**与 `PyOps.InPlaceFlag` 同步。**
-    pub const INPLACE_FLAG: i32 = 0x100;
-
-    /// 运行时操作码编号。**修改必须与 `runtime/RyuPy.Runtime/PyOps.cs` 同步。**
-    pub fn code(self) -> i32 {
-        match self {
-            DynOp::Add => 1,
-            DynOp::Sub => 2,
-            DynOp::Mul => 3,
-            DynOp::TrueDiv => 4,
-            DynOp::FloorDiv => 5,
-            DynOp::Mod => 6,
-            DynOp::Pow => 7,
-            DynOp::BitAnd => 8,
-            DynOp::BitOr => 9,
-            DynOp::BitXor => 10,
-            DynOp::LShift => 11,
-            DynOp::RShift => 12,
-            // 比较与一元运算的编号各自从 1 开始，由调用的运行时方法区分
-            DynOp::Eq => 1,
-            DynOp::Ne => 2,
-            DynOp::Lt => 3,
-            DynOp::Le => 4,
-            DynOp::Gt => 5,
-            DynOp::Ge => 6,
-            DynOp::Neg => 1,
-            DynOp::Pos => 2,
-            DynOp::Not => 3,
-            DynOp::Invert => 4,
-        }
-    }
-}
-
-/// 已经是 CIL 层面的语义：`Div` 对整数是向零截断。Python 的 `//` 和 `%` 在构建 MIR 时
-/// 就已改写成 [`RuntimeFn`] 调用，不会出现在这里。
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BinOp {
-    Add,
-    /// i64模2^64加法；溢出判定/动态回退必须由MIR显式构造。
-    WrappingAdd,
-    Sub,
-    Mul,
-    Div,
-    BitAnd,
-    BitOr,
-    BitXor,
-    Shl,
-    Shr,
-    Eq,
-    Ne,
-    Lt,
-    Le,
-    Gt,
-    Ge,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum UnaryOp {
-    Neg,
-    Not,
-    BitNot,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CastKind {
-    I64ToF64,
-    /// `int(x)`：向零截断，NaN/Inf 需抛 Python 异常（由运行时处理）。
-    F64ToI64,
-    BoolToI64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,0 +1,58 @@
+3.12.13 (main, Aug  7 2026, 02:25:39) [Clang 22.1.3 ]
+arity0 TypeError delattr expected 2 arguments, got 0
+arity/type 1 C TypeError delattr expected 2 arguments, got 1
+arity/type 3 int TypeError delattr expected 2 arguments, got 3
+arity/type 2 int TypeError attribute name must be string, not 'int'
+arity/type 2 NoneType TypeError attribute name must be string, not 'NoneType'
+arity/type 2 bytes TypeError attribute name must be string, not 'bytes'
+keyword 0 TypeError delattr() takes no keyword arguments
+keyword 1 TypeError delattr() takes no keyword arguments
+keyword 2 TypeError delattr() takes no keyword arguments
+keyword 2 TypeError delattr() takes no keyword arguments
+keyword 3 TypeError delattr() takes no keyword arguments
+str subclass ordinary RuntimeError HASH
+override arg S True
+override return/raw name RETURN None
+override exception ValueError custom
+instance hook ignored ValueError custom
+deleter
+property delete RETURN None
+property no deleter AttributeError property 'x' of 'Q' object has no deleter
+inherited instance AttributeError 'A' object has no attribute 'x'
+inherited class AttributeError type object 'A' has no attribute 'x'
+class own RETURN None
+class fallback 1
+missing RETURN None
+empty name RETURN None
+nonidentifier RETURN None
+module own RETURN None
+module missing AttributeError 'module' object has no attribute 'x'
+module dict AttributeError readonly attribute
+function x RETURN None
+function x AttributeError 'function' object has no attribute 'x'
+function __module__ RETURN None
+function __module__ RETURN None
+function __doc__ RETURN None
+function __annotations__ RETURN None
+function __name__ TypeError __name__ must be set to a string object
+function __qualname__ TypeError __qualname__ must be set to a string object
+function __dict__ TypeError cannot delete __dict__
+function __defaults__ RETURN None
+function __kwdefaults__ RETURN None
+function __code__ TypeError __code__ must be set to a code object
+function __globals__ AttributeError readonly attribute
+function __closure__ AttributeError readonly attribute
+function after None None {}
+readonly object x AttributeError 'object' object has no attribute 'x'
+readonly int x AttributeError 'int' object has no attribute 'x'
+readonly list append AttributeError 'list' object attribute 'append' is read-only
+readonly type x TypeError cannot set 'x' attribute of immutable type 'int'
+readonly slice start AttributeError readonly attribute
+frozen FrozenInstanceError cannot delete field 'x'
+descriptor delete
+descriptor RETURN None
+descriptor set only AttributeError __delete__
+slot RETURN None
+slot missing AttributeError x
+meta override
+metaclass RETURN None

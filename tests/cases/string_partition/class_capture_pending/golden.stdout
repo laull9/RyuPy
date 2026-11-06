@@ -1,0 +1,7 @@
+partition class-inherited ('a', ':', 'b:c') ['argument']
+partition class-override old-result ['argument', 'old']
+partition super-override old-result ['argument', 'old']
+rpartition class-inherited ('a:b', ':', 'c') ['argument']
+rpartition class-override old-result ['argument', 'old']
+rpartition super-override old-result ['argument', 'old']
+class-capture-probe-ok

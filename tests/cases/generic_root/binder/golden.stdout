@@ -1,0 +1,17 @@
+empty TypeError Parameter list to Generic[...] cannot be empty
+int TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+none TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+number TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+text TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+list TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+nested TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+duplicate TypeError Parameters to Generic[...] must all be unique
+mixed TypeError Parameters to Generic[...] must all be type variables or parameter specification variables.
+root-pos TypeError typing.Generic() takes no arguments
+root-kw TypeError typing.Generic() takes no arguments
+alias-pos TypeError typing.Generic() takes no arguments
+alias-kw TypeError typing.Generic() takes no arguments
+resubscribe TypeError Cannot subscript already-subscripted typing.Generic[~T]
+isinstance TypeError Subscripted generics cannot be used with class and instance checks
+issubclass TypeError Subscripted generics cannot be used with class and instance checks
+first-alias TypeError issubclass() arg 1 must be a class

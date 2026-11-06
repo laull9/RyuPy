@@ -1,0 +1,6 @@
+middle failure NameError name 'absent' is not defined
+first stays deleted
+duplicate failure NameError name 'repeat' is not defined
+builtin middle failure NameError name 'len' is not defined
+prefix stays deleted
+nested target list completes

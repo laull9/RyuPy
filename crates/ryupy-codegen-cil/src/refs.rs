@@ -32,12 +32,10 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let sys_runtime = res.push_assembly_reference(crate::assembly_refs::system_runtime());
     let object_ref = res.push_type_reference(type_ref! { System.Object in #sys_runtime });
     let object_ctor_ref = res.push_method_reference(method_ref! { void object::.ctor() });
-
     let ryupy_runtime = res.push_assembly_reference(crate::assembly_refs::ryupy_runtime());
     let builtins_ref =
         res.push_type_reference(type_ref! { RyuPy.Runtime.Builtins in #ryupy_runtime });
     let builtins_type: MethodType = BaseType::class(builtins_ref).into();
-
     let str_concat = res.push_method_reference(
         method_ref! { static string @builtins_type::StrConcat(string, string) },
     );
@@ -171,6 +169,9 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         .push_method_reference(method_ref! { static object @pyerrors_type::EnterHandler(object) });
     let handler_leave =
         res.push_method_reference(method_ref! { static void @pyerrors_type::LeaveHandler(object) });
+    let exception_match = res.push_method_reference(
+        method_ref! { static bool @pyerrors_type::MatchDynamicException(object, object) },
+    );
     let reraise =
         res.push_method_reference(method_ref! { static object @pyerrors_type::Reraise() });
     let raise_prepare = res
@@ -239,9 +240,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         .push_method_reference(method_ref! { static void @pyops_type::ListAppend(object, object) });
     let list_extend = res
         .push_method_reference(method_ref! { static void @pyops_type::ListExtend(object, object) });
-    let unpack_check = res.push_method_reference(
-        method_ref! { static void @pyops_type::UnpackCheck(long, long, bool) },
-    );
+    let (unpack_check, unpack_sequence, unpack_ex) =
+        crate::unpack_refs::build(res, pyops_type.clone());
     let iter_start =
         res.push_method_reference(method_ref! { static object @pyops_type::IterStart(object) });
     let iter_next_ok =
@@ -373,8 +373,11 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let module_register = res.push_method_reference(method_ref! {
         static void @py_modules_type::Register(string, string, string, @module_init_type, @module_get_type, @module_set_type)
     });
-    let module_register_located = res.push_method_reference(method_ref! {
-        static void @py_modules_type::RegisterLocated(string, string, string, long, string, bool, @module_init_type, @module_get_type, @module_set_type)
+    let module_metadata = res.push_method_reference(method_ref! {
+        static object @py_modules_type::ModuleMetadata(string, string)
+    });
+    let module_register_source_located = res.push_method_reference(method_ref! {
+        static void @py_modules_type::RegisterSourceLocated(string, string, string, long, string, bool, bool, @module_init_type, @module_get_type, @module_set_type)
     });
     let module_file = res.push_method_reference(method_ref! {
         static string @py_modules_type::ModuleFile(string)
@@ -400,31 +403,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         static object @pyops_type::CellGetFree(object, long, string)
     });
 
-    // Python 异常类型名 → CLR 类型：CIL 的类型化 catch 按这些类型匹配。
-    // 通常为 `Py<PythonName>`；re.error 显式对应 PyRegexError，不能构造不存在的 Pyerror。
-    let mut exception_types: FxHashMap<String, MethodType> = FxHashMap::default();
-    let mut exception_type_refs: FxHashMap<String, TypeRefIndex> = FxHashMap::default();
-    for type_name in ryupy_mir::EXCEPTION_TYPE_NAMES {
-        let type_ref = if *type_name == "BaseException" {
-            py_exc_ref
-        } else {
-            res.push_type_reference(ExternalTypeReference::new(
-                Some("RyuPy.Runtime".into()),
-                match *type_name {
-                    "re.error" => "PyRegexError".to_owned(),
-                    "io.UnsupportedOperation" => "PyUnsupportedOperation".to_owned(),
-                    "json.JSONDecodeError" => "PyJSONDecodeError".to_owned(),
-                    "dataclasses.FrozenInstanceError" => "PyFrozenInstanceError".to_owned(),
-                    name => format!("Py{name}"),
-                },
-                ResolutionScope::Assembly(ryupy_runtime),
-            ))
-        };
-        exception_types.insert((*type_name).to_string(), BaseType::class(type_ref).into());
-        exception_type_refs.insert((*type_name).to_string(), type_ref);
-    }
-    let (generator_resume_ctor, generator_ctor, generator_input, generator_retry) =
-        crate::generator_refs::build(res, ryupy_runtime);
+    let (exception_types, exception_type_refs) =
+        crate::exception_refs::build(res, ryupy_runtime, py_exc_ref);
     let enum_type = res.push_type_reference(type_ref! { RyuPy.Runtime.PyEnum in #ryupy_runtime });
     let enum_type: MethodType = BaseType::class(enum_type).into();
     let enum_finalize = res.push_method_reference(
@@ -437,6 +417,11 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         method_ref! { static void @pyops_type::DictSetScalarKey(object, object, object) },
     );
     let runtime_refs = RuntimeRefs {
+        deletions: None,
+        instances: None,
+        class_cell_guard: None,
+        zero_call_frame: None,
+        owned_functions: None,
         dict_set_scalar_key,
         enum_create,
         classes: crate::class_refs::ClassRefs::build(res, ryupy_runtime),
@@ -448,11 +433,9 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         system: crate::system_refs::SystemRefs::build(res, ryupy_runtime),
         function_objects: crate::function_refs::FunctionRefs::build(res, ryupy_runtime),
         delegation: crate::generator_refs::DelegateRefs::build(res, ryupy_runtime),
+        generators: crate::generator_refs::GeneratorRefs::build(res, ryupy_runtime),
+        origins: crate::origin_refs::OriginRefs::build(res, traceback_type.clone()),
         prepare_method,
-        generator_resume_ctor,
-        generator_ctor,
-        generator_input,
-        generator_retry,
         str_concat,
         floor_div_i64,
         mod_i64,
@@ -494,6 +477,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         with_cause,
         handler_enter,
         handler_leave,
+        exception_match,
         reraise,
         raise_prepare,
         make_unbound,
@@ -520,6 +504,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         is_same,
         repr_value,
         call_builtin,
+        function_locals: crate::locals_refs::build(res, &pyops_type),
         call_method,
         array_get,
         array_set,
@@ -532,6 +517,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         set_extend,
         list_extend,
         unpack_check,
+        unpack_sequence,
+        unpack_ex,
         iter_start,
         iter_next_ok,
         iter_value,
@@ -547,7 +534,6 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         global_fields: FxHashMap::default(),
         signature_create,
         bind_args,
-        py_function_ctor,
         py_call_ctor,
         py_function_type: py_function_type.clone(),
         py_function_get_defaults,
@@ -555,7 +541,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         import_module,
         import_attr,
         module_register,
-        module_register_located,
+        module_metadata,
+        module_register_source_located,
         module_file,
         module_run_main,
         module_same_name,

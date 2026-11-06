@@ -18,13 +18,20 @@ enum Value {
 
 pub(super) fn summarize(id: FnId, f: &Function) -> Option<Leaf> {
     let global = f.function_global?;
-    if !(1..=2).contains(&f.params.len())
+    let count = f.param_meta.len();
+    let owner = f.dynamic_origin.map(|origin| origin.owner);
+    if f.params.len() != count + usize::from(owner.is_some())
+        || owner.is_some_and(|owner| f.params.last() != Some(&owner))
+    {
+        return None;
+    }
+    let params = &f.params[..count];
+    if !(1..=2).contains(&count)
         || f.ret != MirType::Dynamic
         || f.env.is_some()
         || !f.body.regions.is_empty()
         || f.defaults_global.is_none()
         || f.signature_global.is_none()
-        || f.param_meta.len() != f.params.len()
         || f.param_meta.iter().any(|p| {
             p.has_default
                 || !matches!(
@@ -39,8 +46,7 @@ pub(super) fn summarize(id: FnId, f: &Function) -> Option<Leaf> {
     {
         return None;
     }
-    let mut values: FxHashMap<_, _> = f
-        .params
+    let mut values: FxHashMap<_, _> = params
         .iter()
         .enumerate()
         .map(|(i, p)| (*p, Value::Param(i)))
@@ -61,21 +67,25 @@ pub(super) fn summarize(id: FnId, f: &Function) -> Option<Leaf> {
             if statements > 32 {
                 return None;
             }
+            if matches!(stmt, Statement::Assign {dest, ..} if Some(*dest) == owner) {
+                return None;
+            }
             match stmt {
                 Statement::Line(_) if !popped => {}
                 Statement::Assign {
                     dest,
                     value:
                         Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::TracePush),
+                            callee:
+                                Callee::Runtime(
+                                    runtime @ (RuntimeFn::TracePush
+                                    | RuntimeFn::TracePushWithOrigin),
+                                ),
                             args,
                         },
                 } if trace.is_none()
                     && addition.is_none()
-                    && args.len() == 2
-                    && args
-                        .iter()
-                        .all(|a| matches!(a, Operand::Const(Constant::Str(_)))) =>
+                    && trace_arguments(*runtime, args, owner) =>
                 {
                     // TracePush也写局部：不能沿用该槽之前的参数/求和值事实。
                     values.remove(dest);
@@ -126,12 +136,36 @@ pub(super) fn summarize(id: FnId, f: &Function) -> Option<Leaf> {
                 return Some(Leaf {
                     function: id,
                     global,
-                    arity: f.params.len(),
+                    arity: count,
                     left,
                     right,
                 });
             }
             _ => return None,
         }
+    }
+}
+
+/// 仅识别入口记录的精确ABI，不把任意owner或未知调用当成可省略的trace。
+fn trace_arguments(runtime: RuntimeFn, args: &[Operand], owner: Option<LocalId>) -> bool {
+    match (runtime, args, owner) {
+        (
+            RuntimeFn::TracePush,
+            [
+                Operand::Const(Constant::Str(_)),
+                Operand::Const(Constant::Str(_)),
+            ],
+            None,
+        ) => true,
+        (
+            RuntimeFn::TracePushWithOrigin,
+            [
+                Operand::Const(Constant::Str(_)),
+                Operand::Const(Constant::Str(_)),
+                Operand::Local(value),
+            ],
+            Some(owner),
+        ) => *value == owner,
+        _ => false,
     }
 }

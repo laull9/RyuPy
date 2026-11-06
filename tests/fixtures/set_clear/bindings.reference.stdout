@@ -1,0 +1,21 @@
+active direct zero returned None [] True [] []
+active direct one TypeError set.clear() takes no arguments (1 given) [10, 20] True [10, 20] ['arg0']
+active direct two TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['arg0', 'arg1']
+active direct keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['keyword']
+active direct mixed TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['arg0', 'keyword']
+active direct empty expansions returned None [] True [] ['star', 'mapping']
+active direct star TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['star']
+active direct star keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['star', 'mapping']
+active saved zero returned None [] True [] []
+active saved one TypeError set.clear() takes no arguments (1 given) [10, 20] True [10, 20] ['arg0']
+active saved two TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['arg0', 'arg1']
+active saved keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['keyword']
+active saved mixed TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['arg0', 'keyword']
+active saved empty expansions returned None [] True [] ['star', 'mapping']
+active saved star TypeError set.clear() takes no arguments (2 given) [10, 20] True [10, 20] ['star']
+active saved star keyword TypeError set.clear() takes no keyword arguments [10, 20] True [10, 20] ['star', 'mapping']
+active identity [] True True 0 0 True
+active identity [1] True True 0 0 True
+active identity [1, 2, 3] True True 0 0 True
+active user key no callbacks False True 0 True []
+active user key no callbacks True True 0 True []

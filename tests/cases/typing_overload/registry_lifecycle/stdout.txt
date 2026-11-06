@@ -1,0 +1,13 @@
+old:3 new:4 2 2
+True True True
+old:int new:int factory.<locals>.convert
+True
+True
+True
+renamed
+[]
+True
+1 2
+True
+[]
+None 2 [] []

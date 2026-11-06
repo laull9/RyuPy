@@ -1,0 +1,6 @@
+tuple-prefix-error Plain typing.ClassVar is not valid as type argument
+tuple-prefix-error typing.ClassVar[int] is not valid as type argument
+tuple-prefix-error Plain typing.ClassVar is not valid as type argument
+tuple-prefix-error typing.ClassVar[int] is not valid as type argument
+tuple-prefix-error typing.ClassVar[int] is not valid as type argument
+tuple-empty-prefix-none True

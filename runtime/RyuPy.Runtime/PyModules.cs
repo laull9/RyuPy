@@ -16,9 +16,8 @@ public delegate void PyModuleSet(PyModule module, string name, object? value);
 /// Python 模块对象（M2.7）。
 /// </summary>
 /// <remarks>
-/// 模块变量在生成的程序集里是**静态槽位**，读写通过编译期生成的 getter / setter 委托完成，
-/// 因此模块内部代码保持静态类型，外部访问看到的仍是 Python 值。
-/// 未在模块里声明的属性（例如自动挂上去的子模块）放在动态字典里。
+/// legacy模块变量通过编译期getter/setter访问静态槽，未声明属性保留动态字典。
+/// 显式实例模块复用委托接口，全部公开属性只进入自身唯一PyDict；不复制静态槽。
 /// </remarks>
 public sealed class PyModule
 {
@@ -38,6 +37,11 @@ public sealed class PyModule
     private readonly PyModuleGet get;
     private readonly PyModuleSet set;
     private readonly bool fileBackedByGlobal;
+    private readonly bool legacyResourceMetadata;
+    // 真正字典存储独立于来源元数据；公开新模块不伪造Metadata来启用槽语义。
+    private readonly bool instanceGlobals;
+
+    internal PyModuleMetadata? Metadata { get; set; }
 
     /// <summary>未声明属性的动态字典（子模块、运行时挂载的属性）。</summary>
     internal Dictionary<string, object?> DynamicAttributes { get; } = new(StringComparer.Ordinal);
@@ -49,10 +53,14 @@ public sealed class PyModule
         PyModuleInit init,
         PyModuleGet get,
         PyModuleSet set,
-        bool fileBackedByGlobal = false
+        bool fileBackedByGlobal = false,
+        bool legacyResourceMetadata = false,
+        bool instanceGlobals = false
     )
     {
+        this.instanceGlobals = instanceGlobals;
         this.fileBackedByGlobal = fileBackedByGlobal;
+        this.legacyResourceMetadata = legacyResourceMetadata;
         Name = name;
         Package = package;
         File = file;
@@ -66,16 +74,28 @@ public sealed class PyModule
     /// <summary>读取模块属性：动态字典 → 特殊名字 → 编译期槽位。</summary>
     public object? GetAttr(string name)
     {
+        if (instanceGlobals) return get(name);
         if (DynamicAttributes.TryGetValue(name, out var dynamicValue))
         {
             return dynamicValue;
         }
+        if (PyModuleMetadata.IsName(name))
+        {
+            // 旧十参资源ABI没有元数据槽；保持缺属性和getter副作用，不冒领新能力。
+            if (legacyResourceMetadata) return get(name);
+            // 真实编译槽即使未绑定也不回退初始快照，外部读写与模块内部保持同一状态。
+            if (fileBackedByGlobal && Metadata is not null) return get(name);
+            try { return get(name); }
+            catch (PyAttributeError) when (Metadata is not null) { return Metadata.Attribute(name); }
+            catch (PyAttributeError) when (name is "__spec__" or "__loader__")
+            { throw new PyNotImplementedError("module spec/loader metadata requires an explicitly registered source module"); }
+        }
         switch (name)
         {
             case "__name__":
-                return Name;
+                return fileBackedByGlobal && Metadata is not null ? get(name) : Name;
             case "__package__":
-                return Package;
+                return fileBackedByGlobal && Metadata is not null ? get(name) : Package;
             case "__file__":
                 // 编译器明确声明的槽是可写 Python 值；未绑定错误不能被初始路径吞掉。
                 return fileBackedByGlobal ? get(name) : File;
@@ -112,9 +132,15 @@ public static partial class PyModules
         PyModuleGet get,
         PyModuleSet set,
         string? resolvedFile = null,
-        bool fileBackedByGlobal = false
+        bool fileBackedByGlobal = false,
+        ResourceLocation? resourceLocation = null,
+        bool metadataEnabled = false,
+        PyCompiledModuleCode? instanceCode = null
     )
     {
+        public ResourceLocation? ResourceLocation { get; } = resourceLocation;
+        public bool MetadataEnabled { get; } = metadataEnabled;
+        public PyCompiledModuleCode? InstanceCode { get; } = instanceCode;
         public string Package { get; } = package;
         // File 仅用于原诊断来源映射，不改 warnings 的既有 basename 合同。
         public string File { get; } = file;
@@ -127,6 +153,16 @@ public static partial class PyModules
 
     private static readonly Dictionary<string, Registration> Registry = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, PyModule> Cache = new(StringComparer.Ordinal);
+
+    /// <summary>类定义冷路读取已注册模块的真实全局槽，不导入、不借缓存模块的固定 Name。</summary>
+    internal static bool TryGetClassDefinitionModule(string key, out object? value)
+    {
+        value = null;
+        if (!Registry.TryGetValue(key, out var registration)) return false;
+        // 任意值均保原引用；真实 getter 错误不能被当作未知来源吞掉。
+        value = registration.Get("__name__");
+        return true;
+    }
 
     /// <summary>从帧文件标识查唯一模块；当前编译器可能只存 basename，歧义不能猜测。</summary>
     public static string? ModuleForFile(string file)
@@ -199,16 +235,21 @@ public static partial class PyModules
             throw new PyModuleNotFoundError($"No module named '{name}'");
         }
 
-        var module = new PyModule(
+        var module = registration.InstanceCode is { } code ? PyModuleInstances.Create(code) : new PyModule(
             name,
             registration.Package,
             registration.ResolvedFile,
             registration.Init,
             registration.Get,
             registration.Set,
-            registration.FileBackedByGlobal
+            registration.FileBackedByGlobal,
+            registration.ResourceLocation is not null && !registration.MetadataEnabled
         );
+        if (registration.InstanceCode is null && registration.MetadataEnabled && registration.ResourceLocation is { Kind: 1 or 2 } source)
+            module.Metadata = new PyModuleMetadata(name, registration.ResolvedFile, source.IsPackage);
         // 必须先登记再执行：循环导入的另一端需要看到「初始化中」的模块对象。
+        if (registration.ResourceLocation is { } resourceLocation)
+            ResourceLocations.Add(module, resourceLocation);
         Cache[name] = module;
         module.State = 1;
         try
@@ -219,7 +260,7 @@ public static partial class PyModules
         catch
         {
             // 失败模块不能留在缓存里；已经成功导入的依赖保留。
-            Cache.Remove(name);
+            if (Cache.TryGetValue(name, out var current) && ReferenceEquals(current, module)) Cache.Remove(name);
             throw;
         }
 
@@ -268,7 +309,10 @@ public static partial class PyModules
     public static void MissingAttr(string module, string name) =>
         throw new PyAttributeError($"module '{module}' has no attribute '{name}'");
 
-    /// <summary>把未声明的模块属性写进动态字典。</summary>
-    public static void SetDynamic(PyModule module, string name, object? value) =>
-        module.DynamicAttributes[name] = value;
+    /// <summary>legacy未声明属性写动态字典；实例模块仍写唯一globals。</summary>
+    public static void SetDynamic(PyModule module, string name, object? value)
+    {
+        if (PyModuleInstances.IsInstance(module)) module.SetAttr(name, value);
+        else module.DynamicAttributes[name] = value;
+    }
 }

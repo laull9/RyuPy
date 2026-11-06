@@ -32,6 +32,10 @@ make help      # 全部命令
 
 新 AOT 基准直接执行交付目录中的原生程序，编译/ILC 不计入运行采样；保存结果标明后端，默认不混比 JIT/AOT。当前基准 runner 仅支持 POSIX，`--aot --profile` 不支持。完整限制与本轮验证状态见 [ADR-0052](docs/adr/0052-aot-build-dist-and-bench.md)。
 
+## 显式包含文件包（本地候选）
+
+`ryupy build app.py -I vendor --include-module package.assets` 将字符串形式引用的真实源码包纳入编译图；`run`也支持重复该选项。初始化仍在实际导入时发生，包含不自动复制数据。有限 `importlib.resources.files(anchor)` 可读取已登记文件包：JIT使用真实源根，AOT仍须通过现有 `--resources` 显式部署数据。非包/default caller/其它loader等边界见[ADR-0057](docs/adr/0057-explicit-package-resources.md)，不代表完整importlib或第三方项目通过。
+
 ## 目录
 
 ```text

@@ -1,0 +1,2 @@
+scope=boundary valid index protocol returned 10 [20] ['INDEX CALLED']
+scope=boundary wide index must not wrap IndexError pop index out of range [10, 20] []

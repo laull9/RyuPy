@@ -1,11 +1,12 @@
 ---
 source: crates/ryupy-driver/tests/m3_7.rs
+assertion_line: 124
 expression: output
 ---
 fn main() -> () {
-    let _0: i64;
+    let _0: dyn;
     let _1: dyn;
-    let _2: dyn;
+    let _2: i64;
     let _3: dyn;
     let _4: dyn;
     let _5: dyn;
@@ -20,9 +21,11 @@ fn main() -> () {
     let _14: dyn;
     let _15: dyn;
     let _16: dyn;
-    let _17: bool;
+    let _17: dyn;
     let _18: dyn;
-    let _19: dyn;
+    let _19: bool;
+    let _20: dyn;
+    let _21: dyn;
 
     bb0: {
         g1 = null;
@@ -30,47 +33,49 @@ fn main() -> () {
         g3 = null;
         g4 = null;
         g5 = null;
-        _0 = RuntimeFn::TracePush(const "ryupy_m3_7_enum.py", const "<module>");
+        _0 = box<Str>(const "__main__");
+        _1 = RuntimeFn::ModuleExecutionSource(_0);
+        _2 = RuntimeFn::TracePushWithOrigin(const "ryupy_m3_7_enum.py", const "<module>", _1);
         // line 1
-        _1 = box<Str>(const "__main__");
-        g1 = _1;
+        _3 = box<Str>(const "__main__");
+        g1 = _3;
         // line 1
-        _2 = box<Str>(const "");
-        g2 = _2;
+        _4 = box<Str>(const "");
+        g2 = _4;
         // line 1
-        _3 = box<Str>(const "ryupy_m3_7_enum.py");
-        g3 = _3;
+        _5 = box<Str>(const "ryupy_m3_7_enum.py");
+        g3 = _5;
         // line 1
-        _4 = RuntimeFn::ImportAttr(const "enum", const "Enum");
-        g4 = _4;
+        _6 = RuntimeFn::ImportAttr(const "enum", const "Enum");
+        g4 = _6;
         // line 2
-        _5 = RuntimeFn::LoadName(global@4, const "Enum");
-        _6 = _5;
-        _7 = RuntimeFn::EnumCreate(const "Color", [_6], null);
-        g0 = _7;
-        _8 = box<I64>(const 1_i64);
-        RuntimeFn::SetAttr(_7, const "RED", _8);
-        _9 = RuntimeFn::ClassNamespaceGet(_7, const "RED");
-        RuntimeFn::SetAttr(_7, const "ALIAS", _9);
-        _10 = box<I64>(const 2_i64);
-        RuntimeFn::SetAttr(_7, const "BLUE", _10);
-        _11 = RuntimeFn::EnumFinalize(_7, [const "RED", const "ALIAS", const "BLUE"]);
-        g5 = _11;
+        _7 = RuntimeFn::LoadName(global@4, const "Enum");
+        _8 = _7;
+        _9 = RuntimeFn::EnumCreate(const "Color", [_8], null);
+        g0 = _9;
+        _10 = box<I64>(const 1_i64);
+        RuntimeFn::SetAttr(_9, const "RED", _10);
+        _11 = RuntimeFn::ClassNamespaceGet(_9, const "RED");
+        RuntimeFn::SetAttr(_9, const "ALIAS", _11);
+        _12 = box<I64>(const 2_i64);
+        RuntimeFn::SetAttr(_9, const "BLUE", _12);
+        _13 = RuntimeFn::EnumFinalize(_9, [const "RED", const "ALIAS", const "BLUE"]);
+        g5 = _13;
         // line 6
-        _12 = RuntimeFn::LoadName(global@5, const "Color");
-        _13 = box<I64>(const 1_i64);
-        _14 = dyn.call(_12, [_13]);
-        _15 = RuntimeFn::LoadName(global@5, const "Color");
-        _16 = RuntimeFn::DynGetAttr(_15, const "RED");
-        _17 = RuntimeFn::IsSame(_14, _16);
-        _18 = box<Bool>(_17);
-        _19 = RuntimeFn::PrintTarget();
-        RuntimeFn::WriteObject(_19, _18);
-        RuntimeFn::WriteNewline(_19);
+        _14 = RuntimeFn::LoadName(global@5, const "Color");
+        _15 = box<I64>(const 1_i64);
+        _16 = dyn.call(_14, [_15]);
+        _17 = RuntimeFn::LoadName(global@5, const "Color");
+        _18 = RuntimeFn::DynGetAttr(_17, const "RED");
+        _19 = RuntimeFn::IsSame(_16, _18);
+        _20 = box<Bool>(_19);
+        _21 = RuntimeFn::PrintTarget();
+        RuntimeFn::WriteObject(_21, _20);
+        RuntimeFn::WriteNewline(_21);
         goto -> bb1;
     }
     bb1: {
-        RuntimeFn::TracePopTo(_0);
+        RuntimeFn::TracePopTo(_2);
         return;
     }
 }

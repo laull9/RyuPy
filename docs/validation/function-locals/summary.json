@@ -1,0 +1,66 @@
+{
+  "python": "3.12.13",
+  "dotnet_sdk": "10.0.403",
+  "reference_sha256": "c3bad092c19c3db5dd7a6f8a2adb82e7ad655fa3cd4f448c013d74987daf93e1",
+  "reference_stdout_sha256": "25b4be8f61c2724ab55190746c55629c754819d7c539fff799299705d12bd4ab",
+  "runtime_facts": 25,
+  "unique_cp_jit_applications": 3,
+  "first_application_result": "1/3; two unsupported bare-local del compile failures preserved; unchanged sources passed after production support",
+  "boundary_tests": 7,
+  "runtime_warm_refresh_bytes_per_1000": 0,
+  "generated_loop_measurement": {
+    "records": [
+      {
+        "route": "generated_control",
+        "warmup_invocations": 100,
+        "measured_invocations": 100,
+        "loop_iterations_per_invocation": 1000,
+        "allocated_bytes": 44800
+      },
+      {
+        "route": "generated_locals",
+        "warmup_invocations": 100,
+        "measured_invocations": 100,
+        "loop_iterations_per_invocation": 1000,
+        "allocated_bytes": 1855200
+      }
+    ],
+    "scope": "真实生成CIL、直接委托调用，含每次调用新dict/循环装箱与共有运行时；不含反射调用/初始化/输入装箱，不能把差额归为单个helper，不是吞吐基准"
+  },
+  "gate": {
+    "attempt": 3,
+    "exit": 0,
+    "csharp": 1840,
+    "cpython": 228,
+    "e2e_passed": 202,
+    "e2e_ignored": 30,
+    "log_sha256": "77671360df1937194b3566766ae018c2d63f68aebad206b66c60eb46c4af4663"
+  },
+  "project_initial_head": "8fa7023cf491b69c66327554bb9be719bdfd2263",
+  "project_initial_result": "CP matches golden; compile E0100 locals at check.py23; JIT not run",
+  "legacy_getopt_cases": 6,
+  "gate_attempts_before_final": [
+    {
+      "attempt": 1,
+      "result": "stopped at class_if old unsupported-locals sentinel; CP confirms new value retrieval",
+      "runtime_passed": 1840
+    },
+    {
+      "attempt": 2,
+      "result": "stopped at getopt_core old bare-local-del rejection; unchanged source promoted to dynamic-target check",
+      "runtime_passed": 1840
+    }
+  ],
+  "project_final": {
+    "candidate": "c1ed0158f7465496f8c8294216877b1a9c160cd2",
+    "tree": "2d5711b413b6d92534a3b8b41322a4145d49aaa4",
+    "cpython_exit": 0,
+    "compile_exit": 0,
+    "jit_exit": 1,
+    "stdout": "",
+    "stderr": "AttributeError: 'bytes' object has no attribute 'translate'\n",
+    "result_sha256": "485ace5584cdc0a292a6c03574a5aa4b19df7eb1278c3f3d7ed04b32ea77fbc4",
+    "source_and_entry_unchanged": true,
+    "native_pass": false
+  }
+}
