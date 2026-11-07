@@ -1,6 +1,12 @@
 # Legacy入口验证Instance caller本身的构造/预捕获；不是完整原fixture的Instance替代证明。
 import caller
 import model
+import other_model
+
+assert model.OriginalMiddle is model.Middle
+assert model.OriginalMiddle is not other_model.Middle
+assert model.OriginalMiddle.__name__ == 'Middle'
+assert other_model.Middle.__name__ == 'Middle'
 
 assert caller.canonical() is super
 x = model.Leaf('x')
@@ -16,7 +22,7 @@ assert p.value == 'x' and p.cls() is model.Leaf and p.static() == 'static'
 x.read = 'shadow'
 assert caller.invoke_read(p) == 'root:x'
 try:
-    caller.construct(model.Middle, x)
+    caller.construct(other_model.Middle, x)
 except TypeError as error:
     assert str(error) == 'super(type, obj): obj must be an instance or subtype of type'
 else:

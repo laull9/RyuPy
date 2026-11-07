@@ -3,7 +3,8 @@ import json
 import os
 import run as h
 from instance_pe import envelope, unchanged
-from super_contract import CALLER_FUNCTIONS, audit_caller, check_test_count
+from super_contract import (CALLER_FUNCTIONS, CALLER_SOURCES, audit_caller, audit_bindings,
+                            check_caller_plan, check_caller_sources, check_test_count)
 
 EXPECTED_CALLER = b'instance caller explicit super construction capture; legacy model\n'
 
@@ -35,6 +36,7 @@ def run_caller(python, runtime_sha):
     from explicit_super_gate import strict
     source = h.HERE / 'super_caller'
     h.save('ast.json', audit_caller(source / 'caller.py'))
+    h.save('bindings.json', audit_bindings(source))
     strict('cp', [python, '-B', source / 'entry.py'], expected=EXPECTED_CALLER)
     structure = h.OUT / 'structure'
     if structure.exists():
@@ -45,9 +47,7 @@ def run_caller(python, runtime_sha):
                     '--', '--ignored', '--nocapture'], env=env, timeout=900)
     check_test_count((h.OUT / 'driver.stdout').read_text(), name)
     plan = json.loads((structure / 'plan.json').read_text())
-    selected = [m for m in plan['modules'] if m['execution'] == 'InstanceGlobals']
-    if len(selected) != 1 or selected[0]['module'] != 'caller' or not selected[0]['compiled']:
-        raise RuntimeError('小caller没有真实编译为Instance')
+    check_caller_plan(plan)
     if (structure / 'diagnostics.txt').read_bytes():
         raise RuntimeError('driver存在诊断')
     if h.sha(structure / 'RyuPy.Runtime.dll') != runtime_sha:
@@ -65,10 +65,8 @@ def run_caller(python, runtime_sha):
     if expected['selected'] != ['caller'] or expected['owner_count'] != 5:
         raise RuntimeError('caller owner全集不符')
     # 源身份由同次driver SourceSummary给出，再对当前原文件复核，不接受只报PE哈希。
-    sources = {s['module_name']: s for s in expected['sources']}
-    for module, filename in [('__main__', 'entry.py'), ('caller', 'caller.py'), ('model', 'model.py')]:
-        if sources[module]['compiled_text_sha256'] != h.sha(source / filename):
-            raise RuntimeError('driver源码身份不符：' + module)
+    check_caller_sources(expected['sources'], {module: h.sha(source / filename)
+                                             for module, filename in CALLER_SOURCES.items()})
     rows, state = encode_role_inputs(roles, role_data)
     (structure / 'roles.tsv').write_text(rows)
     (structure / 'init-state.txt').write_text(state)
