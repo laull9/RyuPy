@@ -79,15 +79,8 @@ fn instance_selection_rejects_aot_without_resource_before_codegen() {
         ..Default::default()
     };
     assert!(
-        compile_linked_locations(
-            &mut session,
-            &tree.0.join("main.py"),
-            &[],
-            true,
-            None,
-            true
-        )
-        .is_err()
+        compile_linked_locations(&mut session, &tree.0.join("main.py"), &[], true, None, true)
+            .is_err()
     );
     assert!(session.render_diagnostics(false).contains("需要资源清单"));
 }
