@@ -27,3 +27,11 @@ CI固定SDK10.0.403、Rust1.99.1、CPython3.12.13，日志/退出码和失败工
 CLI接线本地门禁（2026-11-02）：3项driver结构/保留名与2项真实CLI失败隔离专项通过；完整make check为434 C#、225固定基线、199 e2e+30 ignored。两失败测试用同轮Cargo构建CLI与子进程DOTNET，只模拟非0/无新产物失败，不以假文件计AOT成功。成功SDK原始双流先复制归档再删除本轮构建目录；真实含空格、中文、&路径已通过远端CLI ILC及容器搬迁验证。
 
 当前schema1/2/3消费者的严格字段及历史格式边界见[清单消费者合同](MANIFEST_CONSUMERS.md)。
+
+容器验收先独立执行 `docker pull`，再以只含 Id、RepoDigests、OS、architecture 的
+inspect 原流验证 Linux/amd64 和目标 repository digest，记录 `logs/docker-image.json`。
+这是本次可变 tag 到内容身份的映射，不声称 tag 永远固定。所有容器运行使用该同一
+image ID 与 `--pull=never`，准备失败直接停止；pull 进度不能混入应用双流。
+resource、普通 smoke 和 binding 共用此准备合同，原程序 stdout/stderr/exit 比较不放宽。
+此前 v4 的 resource 两语种搬移通过仍有效；Docker-en 虽 exit0/stdout 相符但 stderr
+含首次拉取进度，故该旧次整体失败，不能回写为完整 clean-machine 通过。

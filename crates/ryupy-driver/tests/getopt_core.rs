@@ -69,7 +69,10 @@ fn execute(
     let stdlib = PathBuf::from(lines[1]);
     assert!(stdlib.is_absolute() && stdlib.is_file());
     let library_bytes = std::fs::read(&stdlib).unwrap();
-    assert_eq!(format!("{:x}", Sha256::digest(&library_bytes)), LIBRARY_SHA256);
+    assert_eq!(
+        format!("{:x}", Sha256::digest(&library_bytes)),
+        LIBRARY_SHA256
+    );
     std::fs::write(root.0.join("library.sha256"), LIBRARY_SHA256).unwrap();
     let input = root.0.join(filename);
     std::fs::write(&input, source).unwrap();
