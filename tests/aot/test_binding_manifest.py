@@ -31,12 +31,14 @@ def sample(root):
         'pinvoke':{'calling_convention':'Cdecl','character_set':'NotSpecified','no_mangle':True,
             'supports_last_error':False,'preserve_sig':True,'is_static':True,'has_body':False}}
     modules = [{'id':i,'name':name,'init':method('Init'+str(i)),'getter':method('Get'+str(i)),
-        'setter':method('Set'+str(i)),'exports':exports,'origin':origin}
+        'setter':method('Set'+str(i)),'exports':exports,'origin':origin,'environment_reason':'existing-contract'}
         for i,name,exports,origin in [(0,'__main__',[],{'kind':'compiled_source','source_module_id':0}),
         (1,'declared_demo',['add'],{'kind':'declared_native_binding','binding_id':'b0','declaration_sha256':'a'*64})]]
     data = {'schema_version':3,'kind':'ryupy-managed-binding-artifact',
         'compiler':{'package_version':'0.1.0','build_revision':None,'codegen_report_version':1,
-            'options':dict.fromkeys(('experimental_direct_accumulator','experimental_leaf_inline','diagnostic_scalar_slp','experimental_packed_slp'),False)},
+            'options':{'experimental_direct_accumulator':False, 'experimental_foreach_accumulator':False,
+            'experimental_leaf_inline':False, 'diagnostic_scalar_slp':False, 'experimental_packed_slp':False,
+            'instance_modules':[], 'module_environment_policy':'explicit-only'}},
         'target':{'rid':'linux-x64','native_format':'ELF','architecture':'x64'},
         'toolchain':{'sdk_version':None,'target_framework_major':10},
         'entry':{'module_id':0,'managed_entry':method('Main','static int (string[])')},
