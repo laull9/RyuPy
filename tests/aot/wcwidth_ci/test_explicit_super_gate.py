@@ -3,10 +3,28 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from explicit_super_gate import check_plan, check_native
+from explicit_super_gate import check_plan, check_native, compile_command
 
 
 class ExplicitSuperGateTests(unittest.TestCase):
+    def test_both_compile_modes_request_actual_diagnostic_report(self):
+        cli, entry, output = Path('ryupy'), Path('entry.py'), Path('jit')
+        common = ['build', entry, '--diagnostic-stages', '--out-dir', output]
+        self.assertEqual(compile_command(cli, entry, output, False), [cli] + common)
+        self.assertEqual(compile_command(cli, entry, output, True),
+                         [cli, '--instance-module', 'subject'] + common)
+
+    def test_missing_or_invalid_report_never_becomes_an_expected_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'module-environment.json'
+            for instance in [False, True]:
+                with self.assertRaises(FileNotFoundError):
+                    check_plan(path, instance)
+            path.write_text('not json')
+            for instance in [False, True]:
+                with self.assertRaises(json.JSONDecodeError):
+                    check_plan(path, instance)
+
     def test_plan_rejects_silent_fallback(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'plan.json'
