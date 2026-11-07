@@ -33,6 +33,15 @@ jobs:
         run: |
           mkdir -p target/wcwidth-aot-evidence
           python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 发布前格式硬门
+        timeout-minutes: 3
+        run: |
+          status=0
+          cargo fmt --all --check > target/wcwidth-aot-evidence/preflight-fmt.stdout 2> target/wcwidth-aot-evidence/preflight-fmt.stderr || status=$?
+          printf '%s\n' "$status" > target/wcwidth-aot-evidence/preflight-fmt.exit
+          cat target/wcwidth-aot-evidence/preflight-fmt.stdout
+          cat target/wcwidth-aot-evidence/preflight-fmt.stderr >&2
+          exit "$status"
       - name: 检查 hosted Linux 原生编译依赖
         run: |
           command -v clang

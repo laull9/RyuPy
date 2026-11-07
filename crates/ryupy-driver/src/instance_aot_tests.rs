@@ -150,7 +150,10 @@ fn explicit_aot_rejects_graph_and_ast_boundaries_before_compilation() {
         assert!(diagnostics.contains("E0100") && diagnostics.contains("不支持原生绑定"));
     }
     // 前置守卫均核完后才构造非法 AST，不把上一策略的源改写带入下一守卫。
-    tree.write("pkg/subject.py", "from . import helper\ndef f():\n    def inner():\n        return 1\n    return inner\n");
+    tree.write(
+        "pkg/subject.py",
+        "from . import helper\ndef f():\n    def inner():\n        return 1\n    return inner\n",
+    );
     for policy in [
         ModuleEnvironmentPolicy::ExplicitOnly,
         ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
