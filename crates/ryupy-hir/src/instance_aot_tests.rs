@@ -27,9 +27,7 @@ fn explicit_aot_scans_dead_code_defaults_and_decorators() {
         "def outer():\n    def inner(x=(yield 1)):\n        return x\n",
         "def outer():\n    @(yield 1)\n    def inner():\n        return 1\n",
         "x: int = 1\n",
-        "type Alias = int\n",
         "async def f():\n    pass\n",
-        "def generic[T](x):\n    return x\n",
         "x = [v for v in []]\n",
         "x = globals()\n",
         "def f():\n    x = 1\n    del x\n",
@@ -48,6 +46,27 @@ fn explicit_aot_scans_dead_code_defaults_and_decorators() {
                 format!("def valid():\n    pass\n{boundary}")
             };
             assert!(!assess(&source).is_empty(), "{source}");
+        }
+    }
+    // parser 默认目标仍为3.11；两项3.12语法单独核版本诊断及完整AST，
+    // 再断言 AOT 语义拒绝，不能把 E0002 当成 E0100 通过。
+    for (boundary, type_alias) in [
+        ("type Alias = int\n", true),
+        ("def generic[T](x):\n    return x\n", false),
+    ] {
+        for dead in [false, true] {
+            let source = if dead {
+                format!(
+                    "def valid():\n    pass\nif False:\n{}",
+                    boundary
+                        .lines()
+                        .map(|line| format!("    {line}\n"))
+                        .collect::<String>()
+                )
+            } else {
+                format!("def valid():\n    pass\n{boundary}")
+            };
+            assert_python312_boundary(&source, dead, type_alias);
         }
     }
     assert!(!assess("x = 1\n").is_empty());
@@ -122,4 +141,35 @@ fn explicit_aot_lambda_negative_domain_is_position_independent() {
     }
     assert!(!assess("def make(x):\n    return lambda: x\n").is_empty());
     assert!(!assess("f = lambda x: x\n").is_empty());
+}
+
+/// 仅供这两个已知3.12节点：保留生产parser的3.11拒绝，也核实返回的AST形状。
+fn assert_python312_boundary(source: &str, dead: bool, type_alias: bool) {
+    use ryupy_syntax::ast::Stmt;
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("python312_boundary.py", source);
+    let (parsed, errors) = ryupy_syntax::parse(file, source);
+    assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+    assert_eq!(errors[0].code, Some("E0002"));
+    assert!(errors[0].message.contains("Python 3.11"));
+    assert!(errors[0].message.contains("Python 3.12"));
+    let statement = &parsed.module.body[1];
+    let statement = if dead {
+        let Stmt::If(branch) = statement else {
+            panic!("版本负例必须保留完整不可达分支AST");
+        };
+        &branch.body[0]
+    } else {
+        statement
+    };
+    let expected = if type_alias {
+        assert!(matches!(statement, Stmt::TypeAlias(_)));
+        "注解与类型别名"
+    } else {
+        assert!(matches!(statement, Stmt::FunctionDef(def) if def.type_params.is_some()));
+        "PEP695 泛型函数"
+    };
+    let errors = crate::validate_instance_aot(&parsed);
+    assert!(errors.iter().all(|error| error.code == Some("E0100")));
+    assert!(errors.iter().any(|error| error.message.contains(expected)));
 }

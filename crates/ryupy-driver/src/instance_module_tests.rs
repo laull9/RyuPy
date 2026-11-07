@@ -74,24 +74,22 @@ fn instance_selection_rejects_aot_without_resource_before_codegen() {
     let tree = Tree::new();
     tree.write("main.py", "import other\n");
     tree.write("other.py", "x = 1\n");
-    for resource in [None::<PathBuf>] {
-        let mut session = Session {
-            instance_modules: vec!["other".into()],
-            ..Default::default()
-        };
-        assert!(
-            compile_linked_locations(
-                &mut session,
-                &tree.0.join("main.py"),
-                &[],
-                true,
-                resource.as_deref(),
-                true
-            )
-            .is_err()
-        );
-        assert!(session.render_diagnostics(false).contains("需要资源清单"));
-    }
+    let mut session = Session {
+        instance_modules: vec!["other".into()],
+        ..Default::default()
+    };
+    assert!(
+        compile_linked_locations(
+            &mut session,
+            &tree.0.join("main.py"),
+            &[],
+            true,
+            None,
+            true
+        )
+        .is_err()
+    );
+    assert!(session.render_diagnostics(false).contains("需要资源清单"));
 }
 #[test]
 fn instance_dump_rejects_missing_single_module_target() {

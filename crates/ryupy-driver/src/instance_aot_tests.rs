@@ -131,19 +131,35 @@ fn explicit_aot_rejects_graph_and_ast_boundaries_before_compilation() {
         assert!(session.module_environment_report.is_empty());
         assert!(session.render_diagnostics(false).contains("E0100"));
     }
+    // 资源与绑定守卫各用全新会话；先在未改写的合法源码上核两种策略。
+    for policy in [
+        ModuleEnvironmentPolicy::ExplicitOnly,
+        ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
+    ] {
+        let mut missing_resources = session(policy);
+        assert!(tree.compile(&mut missing_resources, None).is_err());
+        assert!(missing_resources.module_environment_report.is_empty());
+        let diagnostics = missing_resources.render_diagnostics(false);
+        assert!(diagnostics.contains("E0100") && diagnostics.contains("需要资源清单"));
+
+        let mut fixed_binding = session(policy);
+        fixed_binding.fixed_binding_build = true;
+        assert!(tree.compile(&mut fixed_binding, Some(&resource)).is_err());
+        assert!(fixed_binding.module_environment_report.is_empty());
+        let diagnostics = fixed_binding.render_diagnostics(false);
+        assert!(diagnostics.contains("E0100") && diagnostics.contains("不支持原生绑定"));
+    }
+    // 前置守卫均核完后才构造非法 AST，不把上一策略的源改写带入下一守卫。
+    tree.write("pkg/subject.py", "from . import helper\ndef f():\n    def inner():\n        return 1\n    return inner\n");
     for policy in [
         ModuleEnvironmentPolicy::ExplicitOnly,
         ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
     ] {
         let mut session = session(policy);
-        assert!(tree.compile(&mut session, None).is_err());
-        session.fixed_binding_build = true;
-        assert!(tree.compile(&mut session, Some(&resource)).is_err());
-        tree.write("pkg/subject.py", "from . import helper\ndef f():\n    def inner():\n        return 1\n    return inner\n");
-        let mut session = super::instance_aot_tests::session(policy);
         assert!(tree.compile(&mut session, Some(&resource)).is_err());
         assert!(session.module_environment_report.is_empty());
-        assert!(session.render_diagnostics(false).contains("嵌套 def"));
+        let diagnostics = session.render_diagnostics(false);
+        assert!(diagnostics.contains("E0100") && diagnostics.contains("嵌套 def"));
     }
 }
 
