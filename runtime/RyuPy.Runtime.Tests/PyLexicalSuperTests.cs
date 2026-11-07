@@ -153,26 +153,26 @@ public sealed class PyLexicalSuperTests
     }
 
     [Fact]
-    public void NoFrameFactoryRejectsZeroExplicitAndKeywordCalls()
+    public void NoFrameZeroCallsStayUnsupportedAndExplicitCallsValidateArguments()
     {
         Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(PyLexicalSuper.Type, [], [], []));
-        Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(PyLexicalSuper.Type, [1L], [], []));
-        Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(PyLexicalSuper.Type, [1L, 2L], [], []));
-        Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(PyLexicalSuper.Type, [], ["x"], [1L]));
+        Assert.Throws<PyTypeError>(() => PyOps.CallValue(PyLexicalSuper.Type, [1L], [], []));
+        Assert.Throws<PyTypeError>(() => PyOps.CallValue(PyLexicalSuper.Type, [1L, 2L], [], []));
+        Assert.Throws<PyTypeError>(() => PyOps.CallValue(PyLexicalSuper.Type, [], ["x"], [1L]));
         Assert.Throws<PyNotImplementedError>(() => PyOps.CallValue(new PyStaticMethod(PyLexicalSuper.Type), [], [], []));
-        Assert.Throws<PyNotImplementedError>(() => PyOps.CallBuiltin("super", [1L, 2L], [], []));
+        Assert.Throws<PyTypeError>(() => PyOps.CallBuiltin("super", [1L, 2L], [], []));
     }
 
     [Fact]
     public void LegacyBuiltinRejectsKeywordsBeforeExplicitArgumentsAndTls()
     {
-        // 与原WithKeywords一致：先报首个关键词，再判显式实参，不提前进入TLS。
+        // 保关键词先于arity/类型的相位，文案统一到CP；绝不提前进入TLS。
         object?[][] arguments = [[], [1L], [1L, 2L]];
         foreach (object?[] args in arguments)
-            Assert.Equal("super() got an unexpected keyword argument 'x'", Assert.Throws<PyTypeError>(() =>
+            Assert.Equal("super() takes no keyword arguments", Assert.Throws<PyTypeError>(() =>
                 PyOps.CallBuiltin("super", args, ["x", "y"], [3L, 4L])).Message);
         foreach (object?[] args in arguments[1..])
-            Assert.Equal("explicit super arguments are not supported", Assert.Throws<PyNotImplementedError>(() =>
+            Assert.Equal("super() argument 1 must be a type, not int", Assert.Throws<PyTypeError>(() =>
                 PyOps.CallBuiltin("super", args, [], [])).Message);
     }
 

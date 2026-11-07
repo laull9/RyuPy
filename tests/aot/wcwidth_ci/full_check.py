@@ -1,6 +1,7 @@
 """同job串行完整门禁；默认和pilot由独立job隔离构建目录，不混工具。"""
 import os
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 import run as h
 
@@ -29,10 +30,20 @@ def main():
     h.run('metadata-cp-oracle', [python, '-B', h.HERE / 'metadata_oracle.py'], env=env)
     h.run('make-plan', ['make', '-n', 'check', 'CARGO_FEATURES=' + feature], env=env)
     h.run('make-check', args, env=env, timeout=4800)
+    # 正常完整门已运行PIC默认配置；另开进程核直接runtime PIC禁用，不以0测试冒通过。
+    pic_results = h.OUT / 'explicit-super-pic-off'
+    h.run('explicit-super-pic-off', [os.environ['DOTNET'], 'test', 'runtime/RyuPy.Runtime.Tests',
+        '--no-build', '--filter', 'FullyQualifiedName~PyExplicitSuperTests',
+        '--logger', 'trx;LogFileName=results.trx', '--results-directory', pic_results],
+        env=dict(env, RYUPY_PIC='0'), timeout=300)
+    counters = ET.parse(pic_results / 'results.trx').find('.//{*}Counters')
+    if counters is None or int(counters.attrib['passed']) < 1 or int(counters.attrib['failed']) != 0:
+        raise RuntimeError('显式super禁用PIC未得到实际测试通过结果')
     h.run('aot-script-tests', [sys.executable, '-B', '-m', 'unittest', 'discover',
         '-s', 'tests/aot', '-p', 'test_*.py'], timeout=300)
     h.run('instance-aot-script-tests', [python, '-B', h.HERE / 'test_instance_gate.py'], env=env)
     h.run('instance-pe-script-tests', [python, '-B', h.HERE / 'test_instance_pe.py'], env=env)
+    h.run('explicit-super-script-tests', [python, '-B', h.HERE / 'test_explicit_super_gate.py'], env=env)
     h.run('archive-tests', [sys.executable, '-B', h.HERE / 'test_evidence.py'])
     h.run('project-plan-tests', [sys.executable, '-B', h.HERE / 'test_project_plans.py'])
     h.run('interpreter-routing-tests', [python, '-B', h.HERE / 'test_full_check.py'], env=env)

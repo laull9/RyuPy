@@ -1,24 +1,31 @@
+// 有界方法目标预捕获；保留旧PE的历史ABI名，不将判据解释为Python模块类型判断。
 namespace RyuPy.Runtime;
 
 public static partial class PyOps
 {
-    /// <summary>历史ABI名称保留；模块、生成tuple类/实例和真实str子类实例须在实参前取属性。</summary>
-    public static bool IsModule(object? receiver)
+    /// <summary>历史捕获判据ABI；名称并非Python模块类型测试。</summary>
+    public static bool IsModule(object? receiver) => RequiresEarlyMethodCapture(receiver);
+
+    /// <summary>哪些接收者必须在实参前固定属性目标；不扩普通实例的既有调用域。</summary>
+    public static bool RequiresEarlyMethodCapture(object? receiver)
     {
         // PyList为sealed精确载体；普通list不需捕获，避免逐个探测新增冷布局。
         if (receiver is PyList or PyDict) return false;
-        return receiver is PyModule or PyNamedTupleInstance or PyStringInstance or PyListInstance or PyDictInstance
+        return receiver is PyModule or PySuper or PyNamedTupleInstance or PyStringInstance or PyListInstance or PyDictInstance
             || receiver is PyClass { NamedTupleLayout: not null } or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
-            or PySuper { Owner.HasListLayout: true } or PySuper { Owner.HasDictLayout: true } || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict")));
+            || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict")));
     }
 
-    /// <summary>有界接收者在实参前读取原对象；其他接收者保持身份，不分配包装。</summary>
-    public static object? CaptureModuleTarget(object? receiver, string name)
+    /// <summary>旧PE的目标捕获ABI；转交意义明确的通用有界入口。</summary>
+    public static object? CaptureModuleTarget(object? receiver, string name) => CaptureMethodTarget(receiver, name);
+
+    /// <summary>有界接收者在实参前读取属性；其他接收者保持身份，不分配包装。</summary>
+    public static object? CaptureMethodTarget(object? receiver, string name)
     {
-        if (!IsModule(receiver)) return receiver;
+        if (!RequiresEarlyMethodCapture(receiver)) return receiver;
         // 字符串子类property/__getattr__的用户正文不广catch；查找自身的错误在自造点准备。
-        if (receiver is PyStringInstance or PyListInstance or PyDictInstance or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
-            or PySuper { Owner.HasListLayout: true } or PySuper { Owner.HasDictLayout: true } || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict"))))
+        if (receiver is PySuper or PyStringInstance or PyListInstance or PyDictInstance or PyClass { HasListLayout: true } or PyClass { HasDictLayout: true }
+            || receiver is PyType type && (ReferenceEquals(type, PyType.Get("list")) || ReferenceEquals(type, PyType.Get("dict"))))
             return PyObject.GetAttr(receiver, name);
         return CaptureActualModuleTarget(receiver!, name);
     }

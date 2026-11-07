@@ -1311,3 +1311,12 @@ move先truth再查当前Count；空目标精确标量及四空builtin走已验�
 新显式来源注册但位置kind0时，spec/loader/cached初值为None，普通path未绑定、包path为空list；
 它们仍是真实可变全局槽，不提供文件资源/finder来源能力。与CPython文件源码模块不同，
 无来源finder仍NI；旧ABI不扩域。合同、边界与待执行门禁见[ADR0138](adr/0138-locationless-aot-module-metadata.md)。
+
+### 显式二参super候选（待hosted验收）
+
+普通PyClass与真实相关PyInstance的显式二参构造已接通共享候选入口；不得再忽略参数
+或按TLS推断。普通PySuper属性目标必须先于实参捕获，含getter错误和ancestor方法变更。
+旧PE IsModule是历史捕获判据alias，不是Python模块判断。源码super可能多分配bound
+method并绕原super PIC，未测性能。合法未实现的未绑定/class/native/代理descriptor/MRO
+形式保持NI，通用类重绑与复杂star顺序不随本切完成。测试仍pending，当前9/8/3基线
+不得预先改写。详见[ADR0140](adr/0140-explicit-super-bound-instances.md)。

@@ -822,3 +822,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] 普通非生成器Name except读取真实词法环境，独立验收。
 - [ ] 前置通过后再显式迁移原wcwidth计算模块，包/表保旧族，不增加原项目分母成绩。
 - [~] 显式普通实例Name/bare异常链：真实LEGB/捕获builtins、来源化MIR与as清理（ADR-0137）；显式local/cell/free del仍负例，完整门禁待验。
+
+### 663基线后的兼容性竖切：显式super
+
+- [~] 普通单继承实例显式二参super与实参前属性捕获（ADR0140）；候选已实现、CP用例有效，
+  待hosted默认/Instance JIT、完整门禁/20项目progress恢复及Legacy Native实际验收。
+  原九保护与既有Instance Native/Legacy/resource能力不变；不提前勾完成或改默认开关。
