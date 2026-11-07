@@ -22,15 +22,17 @@ fn generator_dynamic_public_fixtures_compile_and_emit_under_both_policies() {
                 module_environment_policy: policy,
                 ..Default::default()
             };
-            let (linked, _, _) =
-                compile_linked(&mut session, &fixture(entry), &[], false, None)
-                    .unwrap_or_else(|error| {
-                        panic!("{entry}: {error}: {}", session.render_diagnostics(false))
-                    });
+            let (linked, _, _) = compile_linked(&mut session, &fixture(entry), &[], false, None)
+                .unwrap_or_else(|error| {
+                    panic!("{entry}: {error}: {}", session.render_diagnostics(false))
+                });
             assert!(!session.module_environment_report.is_empty());
-            assert!(session.module_environment_report.iter().all(|module| {
-                module.execution == "LegacySingleton" && module.compiled
-            }));
+            assert!(
+                session
+                    .module_environment_report
+                    .iter()
+                    .all(|module| { module.execution == "LegacySingleton" && module.compiled })
+            );
             let options = ryupy_codegen_cil::EmitOptions {
                 assembly_name: "generator_dynamic_fixture".into(),
                 entry_source_path: Some(fixture(entry).to_string_lossy().into_owned()),

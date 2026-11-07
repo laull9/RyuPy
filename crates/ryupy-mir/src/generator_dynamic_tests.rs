@@ -79,22 +79,31 @@ fn assert_frame_roundtrip(function: &Function, id: LocalId) {
             match statement {
                 Statement::Assign {
                     dest,
-                    value: Rvalue::Box { value: Operand::Local(source), .. },
+                    value:
+                        Rvalue::Box {
+                            value: Operand::Local(source),
+                            ..
+                        },
                 } if *source == id => boxes.push(*dest),
                 Statement::Eval(Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::ArraySet),
                     args,
-                }) if matches!(args.as_slice(), [Operand::Local(owner), Operand::Const(Constant::I64(slot)), _] if *owner == frame && *slot == index) => {
-                    assert!(matches!(&args[2], Operand::Local(value) if *value == id || boxes.contains(value)));
+                }) if matches!(args.as_slice(), [Operand::Local(owner), Operand::Const(Constant::I64(slot)), _] if *owner == frame && *slot == index) =>
+                {
+                    assert!(
+                        matches!(&args[2], Operand::Local(value) if *value == id || boxes.contains(value))
+                    );
                     assert!(saved.insert(block_id), "同槽重复保存");
                 }
                 Statement::Assign {
                     dest,
-                    value: Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::ArrayGet),
-                        args,
-                    },
-                } if matches!(args.as_slice(), [Operand::Local(owner), Operand::Const(Constant::I64(slot))] if *owner == frame && *slot == index) => {
+                    value:
+                        Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::ArrayGet),
+                            args,
+                        },
+                } if matches!(args.as_slice(), [Operand::Local(owner), Operand::Const(Constant::I64(slot))] if *owner == frame && *slot == index) =>
+                {
                     if *dest == id {
                         assert!(restored.insert(block_id));
                     }
@@ -102,7 +111,11 @@ fn assert_frame_roundtrip(function: &Function, id: LocalId) {
                 }
                 Statement::Assign {
                     dest,
-                    value: Rvalue::Unbox { value: Operand::Local(source), .. },
+                    value:
+                        Rvalue::Unbox {
+                            value: Operand::Local(source),
+                            ..
+                        },
                 } if *dest == id && loads.contains(source) => {
                     assert!(restored.insert(block_id));
                 }
@@ -118,7 +131,10 @@ fn assert_frame_roundtrip(function: &Function, id: LocalId) {
         )).then_some(block_id)
     }).collect();
     assert_eq!(spill_blocks.len(), 3, "固定源两yield和Retry的三个spill块");
-    assert_eq!(saved, spill_blocks, "局部{id:?}每条暂停/Retry边都保存槽{index}");
+    assert_eq!(
+        saved, spill_blocks,
+        "局部{id:?}每条暂停/Retry边都保存槽{index}"
+    );
     assert_eq!(restored, BTreeSet::from([function.body.entry]));
 }
 
@@ -151,7 +167,10 @@ fn real_dynamic_temporaries_and_second_selection_survive_suspend() {
             .collect()
     };
     let initial = assigned_integer(-1);
-    let selected: Vec<_> = initial.intersection(&assigned_integer(1)).copied().collect();
+    let selected: Vec<_> = initial
+        .intersection(&assigned_integer(1))
+        .copied()
+        .collect();
     assert_eq!(selected.len(), 1, "selected必须有真实-1和第二handler索引1");
     let selected = selected[0];
     assert_eq!(resume.body.locals[selected].ty, MirType::I64);
@@ -169,38 +188,55 @@ fn real_dynamic_temporaries_and_second_selection_survive_suspend() {
         assert_frame_roundtrip(resume, id);
     }
     assert_eq!(runtime_values(resume, RuntimeFn::ExceptionMatch).len(), 2);
-    assert!(resume.body.blocks.iter().all(|(_, block)| {
-        !matches!(block.terminator, Terminator::Suspend { .. })
-    }));
+    assert!(
+        resume
+            .body
+            .blocks
+            .iter()
+            .all(|(_, block)| { !matches!(block.terminator, Terminator::Suspend { .. }) })
+    );
 }
 
 #[test]
 fn current_control_structures_do_not_enter_dynamic_generator_dispatch() {
     for (source, has_eh) in [
         ("def gen():\n    yield 1\n", false),
-        ("def gen():\n    try:\n        yield 1\n    except ValueError:\n        yield 2\n", true),
+        (
+            "def gen():\n    try:\n        yield 1\n    except ValueError:\n        yield 2\n",
+            true,
+        ),
     ] {
         let program = compile(source);
         let (resume, _) = generated(&program);
         assert!(runtime_values(resume, RuntimeFn::ExceptionMatch).is_empty());
         assert_eq!(!resume.body.regions.is_empty(), has_eh);
-        assert_eq!(!runtime_values(resume, RuntimeFn::GeneratorRetry).is_empty(), has_eh);
+        assert_eq!(
+            !runtime_values(resume, RuntimeFn::GeneratorRetry).is_empty(),
+            has_eh
+        );
     }
-    let program = compile("def ordinary(kind):\n    try:\n        raise ValueError('x')\n    except kind:\n        return 1\n");
+    let program = compile(
+        "def ordinary(kind):\n    try:\n        raise ValueError('x')\n    except kind:\n        return 1\n",
+    );
     assert!(program.functions.iter().all(|(_, function)| {
         assignments(function)
             .iter()
             .all(|(_, value)| !matches!(value, Rvalue::MakeGenerator { .. }))
     }));
-    assert!(program.functions.iter().any(|(_, function)| {
-        !runtime_values(function, RuntimeFn::ExceptionMatch).is_empty()
-    }));
+    assert!(
+        program.functions.iter().any(|(_, function)| {
+            !runtime_values(function, RuntimeFn::ExceptionMatch).is_empty()
+        })
+    );
 }
 
 // 只读取既有逻辑EH的常量区间树，不解释Python或一般MIR。
 fn logical_destination(function: &Function, active: i64) -> Option<i64> {
     let active_local = match function.body.blocks[function.body.entry].stmts.first() {
-        Some(Statement::Assign { dest, value: Rvalue::Use(Operand::Const(Constant::I64(-1))) }) => *dest,
+        Some(Statement::Assign {
+            dest,
+            value: Rvalue::Use(Operand::Const(Constant::I64(-1))),
+        }) => *dest,
         _ => panic!("恢复入口active哨兵"),
     };
     let pc_local = retry_pc(function);
@@ -212,18 +248,22 @@ fn logical_destination(function: &Function, active: i64) -> Option<i64> {
             match statement {
                 Statement::Assign {
                     dest,
-                    value: Rvalue::Binary {
-                        op,
-                        lhs: Operand::Local(lhs),
-                        rhs: Operand::Const(Constant::I64(bound)),
-                    },
+                    value:
+                        Rvalue::Binary {
+                            op,
+                            lhs: Operand::Local(lhs),
+                            rhs: Operand::Const(Constant::I64(bound)),
+                        },
                 } => {
                     assert_eq!(*lhs, active_local, "区间比较必须读实际active局部");
-                    branch = Some((*dest, match op {
-                        BinOp::Lt => active < *bound,
-                        BinOp::Ge => active >= *bound,
-                        _ => panic!("逻辑EH只允许既有区间比较"),
-                    }));
+                    branch = Some((
+                        *dest,
+                        match op {
+                            BinOp::Lt => active < *bound,
+                            BinOp::Ge => active >= *bound,
+                            _ => panic!("逻辑EH只允许既有区间比较"),
+                        },
+                    ));
                 }
                 Statement::Assign {
                     dest,
@@ -237,7 +277,11 @@ fn logical_destination(function: &Function, active: i64) -> Option<i64> {
         }
         current = match block.terminator {
             Terminator::Goto(target) => target,
-            Terminator::Branch { ref cond, then_, else_ } => {
+            Terminator::Branch {
+                ref cond,
+                then_,
+                else_,
+            } => {
                 let (id, value) = branch.expect("区间条件");
                 assert_eq!(local(cond), id, "分支必须消费该区间比较");
                 if value { then_ } else { else_ }
@@ -253,8 +297,18 @@ fn retry_pc(function: &Function) -> LocalId {
     assert_eq!(runtime_values(function, RuntimeFn::GeneratorRetry).len(), 1);
     let frame = function.params[0];
     for (_, block) in function.body.blocks.iter() {
-        let has_retry = block.stmts.iter().any(|statement| matches!(statement,
-            Statement::Assign { value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::GeneratorRetry), .. }, .. }));
+        let has_retry = block.stmts.iter().any(|statement| {
+            matches!(
+                statement,
+                Statement::Assign {
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::GeneratorRetry),
+                        ..
+                    },
+                    ..
+                }
+            )
+        });
         if !has_retry {
             continue;
         }
@@ -264,11 +318,21 @@ fn retry_pc(function: &Function) -> LocalId {
                 => Some(local(&args[2])),
             _ => None,
         }).expect("Retry实际PC槽写入");
-        return block.stmts.iter().find_map(|statement| match statement {
-            Statement::Assign { dest, value: Rvalue::Box { value: Operand::Local(source), .. } }
-                if *dest == boxed => Some(*source),
-            _ => None,
-        }).expect("Retry实际PC装箱源");
+        return block
+            .stmts
+            .iter()
+            .find_map(|statement| match statement {
+                Statement::Assign {
+                    dest,
+                    value:
+                        Rvalue::Box {
+                            value: Operand::Local(source),
+                            ..
+                        },
+                } if *dest == boxed => Some(*source),
+                _ => None,
+            })
+            .expect("Retry实际PC装箱源");
     }
     panic!("必须有唯一Retry保存路径");
 }
@@ -291,10 +355,18 @@ fn reachable_has_match(function: &Function, entry: BlockId) -> bool {
             continue;
         }
         let block = &function.body.blocks[id];
-        if block.stmts.iter().any(|statement| matches!(statement,
-            Statement::Assign { value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::ExceptionMatch), .. }, .. }))
-        {
+        if block.stmts.iter().any(|statement| {
+            matches!(
+                statement,
+                Statement::Assign {
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ExceptionMatch),
+                        ..
+                    },
+                    ..
+                }
+            )
+        }) {
             return true;
         }
         match block.terminator {
@@ -311,16 +383,36 @@ fn getter_failure_routes_to_cleanup_not_the_sibling_chain() {
     let source = "def gen(target):\n    try:\n        try:\n            yield 1\n            raise ValueError('original')\n        except target.error as caught:\n            yield caught\n        except TypeError:\n            yield 'wrong sibling'\n    finally:\n        print('outside finally')\n";
     let program = compile(source);
     let (resume, _) = generated(&program);
-    let getter = resume.body.blocks.iter().find(|(_, block)| {
-        block.stmts.iter().any(|statement| matches!(statement,
-            Statement::Assign { value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::DynGetAttr), .. }, .. }))
-    }).expect("真实属性目标");
+    let getter = resume
+        .body
+        .blocks
+        .iter()
+        .find(|(_, block)| {
+            block.stmts.iter().any(|statement| {
+                matches!(
+                    statement,
+                    Statement::Assign {
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::DynGetAttr),
+                            ..
+                        },
+                        ..
+                    }
+                )
+            })
+        })
+        .expect("真实属性目标");
     let destination = logical_destination(resume, active_label(getter.1).unwrap()).unwrap();
-    let (guard, _) = resume.body.blocks.iter()
+    let (guard, _) = resume
+        .body
+        .blocks
+        .iter()
         .find(|(_, block)| active_label(block) == Some(destination))
         .expect("逻辑PC必须映回原handler块");
-    assert!(!reachable_has_match(resume, guard), "目标失败不能重进同级匹配");
+    assert!(
+        !reachable_has_match(resume, guard),
+        "目标失败不能重进同级匹配"
+    );
     let try_raise = resume.body.blocks.iter().find(|(_, block)| {
         matches!(block.terminator, Terminator::Raise { .. })
             && active_label(block).is_some_and(|label| label >= 0)

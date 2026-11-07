@@ -66,9 +66,9 @@ pub use link::{UnitMeta, link};
 pub use mir::*;
 
 #[cfg(test)]
-mod generator_tests;
-#[cfg(test)]
 mod generator_dynamic_tests;
+#[cfg(test)]
+mod generator_tests;
 
 mod yield_expr;
 
