@@ -11,7 +11,8 @@ import re
 import shutil
 import tempfile
 import time
-from smoke import executable, IMAGE
+from smoke import executable
+from docker_image import prepare_image
 from platform_runner import Runner
 from platform_support import host, audit, clean_environment
 from platform_smoke import published_platform_native, rustc_executable
@@ -181,13 +182,15 @@ def main():
             actual = run.run(f'native-{mode}',[str(binary),mode],cwd=unrelated,env=clean,timeout=30)
             equal(references[mode],actual)
         if args.rid == 'linux-x64':
+            docker = executable('docker')
+            image = prepare_image(run, docker, work)
             script = ('for tool in dotnet python python3 python3.12; do '
                 'if command -v "$tool" >/dev/null 2>&1; then exit 97; fi; done; '
                 'binary=$1; shift; exec "$binary" "$@"')
             for mode in ('en','fr'):
-                actual = run.run(f'docker-{mode}',[executable('docker'),'run','--rm','--network','none',
+                actual = run.run(f'docker-{mode}',[docker,'run','--pull=never','--rm','--network','none',
                     '--read-only','--mount',f'type=bind,src={relocated},dst=/app,readonly',
-                    '--workdir','/tmp','--entrypoint','/bin/sh',IMAGE,'-c',script,'resource-smoke',
+                    '--workdir','/tmp','--entrypoint','/bin/sh',image,'-c',script,'resource-smoke',
                     '/app/'+binary.name,mode],cwd=work,timeout=30)
                 equal(references[mode],actual)
             result['clean_machine_without_runtime_tested'] = True
