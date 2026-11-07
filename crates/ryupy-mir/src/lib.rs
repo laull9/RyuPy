@@ -67,6 +67,8 @@ pub use mir::*;
 
 #[cfg(test)]
 mod generator_tests;
+#[cfg(test)]
+mod generator_dynamic_tests;
 
 mod yield_expr;
 

@@ -417,10 +417,12 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     }
 
     // 只检查当前函数arena；嵌套函数另有body，不能让子生成器误伤普通外层。
-    // 原静态generator保持旧成功域，动态匹配跨暂停暂不开放。
+    // 仅Legacy源码动态链复用MIR逻辑异常路由；实例来源合同仍不允许GeneratorFrame。
     if is_generator {
         for (_, handler) in body.handlers.iter() {
-            if handler.type_expr.is_some()
+            let legacy_dynamic = !global_scope.instance_globals
+                && handler.semantics == crate::HandlerSemantics::SourceDynamic;
+            if (handler.type_expr.is_some() && !legacy_dynamic)
                 || handler.semantics == crate::HandlerSemantics::InstanceNameDynamic
             {
                 diagnostics.push(

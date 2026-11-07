@@ -1,0 +1,4 @@
+entry = entry.py
+pending = true
+expect_exit = nonzero
+expect_exception = TypeError

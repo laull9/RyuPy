@@ -828,3 +828,9 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [~] 普通单继承实例显式二参super与实参前属性捕获（ADR0140）；候选已实现、CP用例有效，
   待hosted默认/Instance JIT、完整门禁/20项目progress恢复及Legacy Native实际验收。
   原九保护与既有Instance Native/Legacy/resource能力不变；不提前勾完成或改默认开关。
+
+### Legacy生成器动态异常合同
+
+- [~] 只开放Legacy SourceDynamic generator，复用动态handler CFG和现状态机；六组CP
+  合同/独立observer/错误帧前置已有效，产品MIR、真实PE、完整20和Native待hosted验证。
+  Instance守卫不放宽，不声称历史结构或性能相等，详见ADR0141。

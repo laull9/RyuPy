@@ -553,3 +553,6 @@ mod foreach_current_tests;
 
 #[cfg(test)]
 mod explicit_super_fixture_tests;
+
+#[cfg(test)]
+mod generator_dynamic_fixture_tests;

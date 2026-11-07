@@ -1320,3 +1320,10 @@ move先truth再查当前Count；空目标精确标量及四空builtin走已验�
 method并绕原super PIC，未测性能。合法未实现的未绑定/class/native/代理descriptor/MRO
 形式保持NI，通用类重绑与复杂star顺序不随本切完成。测试仍pending，当前9/8/3基线
 不得预先改写。详见[ADR0140](adr/0140-explicit-super-bound-instances.md)。
+
+### Legacy生成器动态except（ADR0141候选）
+
+HIR仅新增Legacy SourceDynamic的生成器准入，沿既有Name/属性链/无展开tuple目标；
+目标求值、as及异常上下文由原动态CFG与生成器状态机组合。六组完整CP合同与普通observer
+前置有效；产品编译/JIT/Native尚待hosted验收，暂不登记为已支持。Instance动态生成器、
+except*与其它复杂目标继续拒绝，默认模块集合和Native自动Legacy不变。

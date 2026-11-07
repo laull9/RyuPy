@@ -143,10 +143,22 @@ fn unsupported_target_shapes_remain_explicit_diagnostics() {
 }
 
 #[test]
-fn only_new_dynamic_generator_domain_is_rejected() {
+fn legacy_dynamic_generator_keeps_real_target_and_nested_scope() {
     let dynamic = "def gen(kind):\n    try:\n        yield 1\n    except kind:\n        pass\n";
-    let (_, diagnostics) = lower(dynamic, &[]);
-    assert!(diagnostics.iter().any(|d| d.code == Some("E0100")));
+    let (module, diagnostics) = lower(dynamic, &[]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let generator = module
+        .functions
+        .iter()
+        .find(|(_, f)| f.name.as_str() == "gen")
+        .unwrap()
+        .1;
+    assert!(generator.is_generator);
+    assert!(generator.body.handlers.iter().all(|(_, handler)| {
+        handler.semantics == crate::HandlerSemantics::SourceDynamic
+            && handler.type_expr.is_some()
+            && handler.types.is_none()
+    }));
     let static_generator = "def outer(kind):\n    def gen():\n        try:\n            yield 1\n        except ValueError:\n            pass\n    try:\n        pass\n    except kind:\n        pass\n    return gen\n";
     let (module, diagnostics) = lower(static_generator, &[]);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -171,4 +183,22 @@ fn only_new_dynamic_generator_domain_is_rejected() {
             .iter()
             .all(|(_, h)| h.type_expr.is_none())
     );
+}
+
+#[test]
+fn instance_generator_still_rejects_dynamic_name_without_unrelated_class_or_del() {
+    let source = "def gen(kind):\n    try:\n        yield 1\n    except kind:\n        yield 2\n";
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("instance_generator.py", source);
+    let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
+    assert!(diagnostics.is_empty());
+    let mut info = ModuleInfo {
+        instance_globals: true,
+        ..Default::default()
+    };
+    info.instance_capabilities.ordinary_name_handlers = true;
+    let (_, diagnostics) = crate::lower_module(&parsed, &info, source);
+    assert!(diagnostics.iter().any(|d| {
+        d.code == Some("E0100") && d.message.contains("生成器或类体源码except handler")
+    }));
 }

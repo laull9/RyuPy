@@ -44,6 +44,7 @@ def main():
     h.run('instance-aot-script-tests', [python, '-B', h.HERE / 'test_instance_gate.py'], env=env)
     h.run('instance-pe-script-tests', [python, '-B', h.HERE / 'test_instance_pe.py'], env=env)
     h.run('explicit-super-script-tests', [python, '-B', h.HERE / 'test_explicit_super_gate.py'], env=env)
+    h.run('generator-dynamic-script-tests', [python, '-B', h.HERE / 'test_generator_dynamic_gate.py'], env=env)
     h.run('super-contract-script-tests', [python, '-B', h.HERE / 'test_super_contract.py'], env=env)
     h.run('archive-tests', [sys.executable, '-B', h.HERE / 'test_evidence.py'])
     h.run('project-plan-tests', [sys.executable, '-B', h.HERE / 'test_project_plans.py'])

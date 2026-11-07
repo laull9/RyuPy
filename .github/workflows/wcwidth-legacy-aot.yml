@@ -60,6 +60,9 @@ jobs:
       - name: 既有Kind1 JIT与Kind2资源AOT及搬移
         if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'
+      - name: Legacy动态生成器独立前置与综合Native合同
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/generator_dynamic_gate.py'
       - name: 保留成功或首次失败证据
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 官方 v4，2026-11-07 核验
@@ -69,6 +72,7 @@ jobs:
             target/wcwidth-aot-evidence
             target/instance-aot-evidence
             target/explicit-super-evidence
+            target/generator-dynamic-evidence
             target/resource-ci-evidence/**/logs/**
             target/resource-ci-evidence/**/result.json
           if-no-files-found: warn

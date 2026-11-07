@@ -736,3 +736,10 @@ extra未改，compile0/JIT1、stdout空，首错从缺OrderedDict推进为57B的
 固定progress1.6原源与原CP入口已核，但产品恢复尚待hosted完整20项实际结果。原九保护
 ID不改；同轮完整矩阵另约束progress与promotion，不预先给第十保护项。Instance class
 AOT仍拒绝、自动默认Legacy不变；新增Legacy super Native合同不等于项目全AOT。
+
+### Legacy动态生成器异常候选（2026-11-07）
+
+以同已验源码树的20项目10/8/2为基线，选择click与networkx真实源码共有的动态except
+与yield组合边界。当前只有CP合同前置与候选代码，未运行新产品矩阵；不增加原生分子。
+networkx同机制函数未被固定入口调用，click终端分支也不能由greet入口代替执行证明。
+范围与验收见[ADR0141](adr/0141-legacy-generator-dynamic-handlers.md)。
