@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "module": "wcwidth",
+      "files": []
+    },
+    {
+      "module": "wcwidth.wcwidth",
+      "files": []
+    },
+    {
+      "module": "wcwidth.table_vs16",
+      "files": []
+    },
+    {
+      "module": "wcwidth.table_wide",
+      "files": []
+    },
+    {
+      "module": "wcwidth.table_zero",
+      "files": []
+    },
+    {
+      "module": "wcwidth.unicode_versions",
+      "files": []
+    },
+    {
+      "module": "lambda_subject",
+      "files": []
+    },
+    {
+      "module": "cycle_left",
+      "files": []
+    },
+    {
+      "module": "owner_contract",
+      "files": []
+    },
+    {
+      "module": "reentry_subject",
+      "files": []
+    },
+    {
+      "module": "retry_subject",
+      "files": []
+    },
+    {
+      "module": "lifecycle_state",
+      "files": []
+    },
+    {
+      "module": "cycle_right",
+      "files": []
+    },
+    {
+      "module": "failure_contract",
+      "files": []
+    },
+    {
+      "module": "lambda_contract",
+      "files": []
+    },
+    {
+      "module": "lifecycle_contract",
+      "files": []
+    }
+  ]
+}

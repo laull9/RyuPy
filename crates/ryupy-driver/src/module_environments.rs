@@ -45,14 +45,25 @@ impl ModuleEnvironmentPlan {
 }
 
 pub(crate) fn plan(session: &Session, source: &SourceModule, aot: bool) -> ModuleEnvironmentPlan {
-    if session.instance_modules.contains(&source.name) {
+    plan_validated(session, source, aot, usize::MAX, None)
+}
+
+pub(crate) fn plan_validated(
+    session: &Session,
+    source: &SourceModule,
+    aot: bool,
+    index: usize,
+    validated: Option<&crate::instance_modules::ValidatedAot>,
+) -> ModuleEnvironmentPlan {
+    let admitted = !aot || validated.is_some_and(|v| v.selects(index));
+    if session.instance_modules.contains(&source.name) && admitted {
         return ModuleEnvironmentPlan {
             capabilities: ryupy_base::InstanceCapabilities {
                 ordinary_name_handlers: source.kind == SourceKind::ModuleFile
-                    && !aot
+                    && admitted
                     && !session.fixed_binding_build,
                 relative_from_import: source.kind == SourceKind::ModuleFile
-                    && !aot
+                    && admitted
                     && !session.fixed_binding_build,
             },
             execution: ModuleExecutionKind::InstanceGlobals,

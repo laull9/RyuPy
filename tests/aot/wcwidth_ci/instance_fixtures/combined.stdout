@@ -1,0 +1,20 @@
+package-original 2 4
+owners-and-caches {'maxsize': 1000, 'typed': False} {'maxsize': 128, 'typed': False} {'maxsize': 8, 'typed': False}
+helper-miss 1 0 2
+while-owner 2 0 4
+old-hit 1
+old-miss-after-reexec 2 4 2 0
+shared-table-mutation 0
+captured-before-reexec 1
+captured-after-reexec 1 -1
+owner-contract-complete
+failure third-decorator
+escaped-miss 1 2
+older-hit 2
+older-miss 1
+escaped-after-success 2 2
+failure-owner-complete
+lambda owners binder effects ok
+cycle same instance ok
+initialization reentry ok
+ordinary import retry fresh instance ok
