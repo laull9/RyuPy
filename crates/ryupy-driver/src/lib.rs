@@ -533,6 +533,8 @@ fn build_with_resources_inner(
 mod fixed_binding_tests;
 
 #[cfg(test)]
+mod instance_aot_evidence_tests;
+#[cfg(test)]
 mod instance_aot_tests;
 #[cfg(test)]
 mod instance_module_tests;

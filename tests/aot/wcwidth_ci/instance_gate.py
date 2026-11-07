@@ -119,6 +119,9 @@ def main():
                RYUPY_INSTANCE_AOT_STRUCTURE_OUT=str(h.OUT / 'structure'))
     h.run('rustfmt-check', ['cargo', 'fmt', '--all', '--check'], env=env, timeout=120)
     guards = [
+        ('ryupy-codegen-cil', 'instance_pe_', [
+            'instance_pe_duplicate_core_roundtrip_and_wrong_targets',
+            'instance_pe_envelope_rejects_stale_truncated_and_trailing_inputs']),
         ('ryupy-hir', 'instance_aot', [
             'explicit_aot_accepts_relative_and_name_handlers',
             'explicit_aot_scans_dead_code_defaults_and_decorators',
@@ -140,6 +143,17 @@ def main():
     # 真实上游 AST、实际 driver 合同和 PE 发射必须在任何本阶段 publish 前成功。
     tested('real-source-pe-gate', ['cargo', 'test', '--locked', '-p', 'ryupy-driver',
         'explicit_aot_real_source_and_pe_gate', '--', '--ignored', '--nocapture'], ['explicit_aot_real_source_and_pe_gate'], env=env, timeout=900)
+    # 独立 codegen 层实际解析 PE；driver 的 CIL 文本只作诊断。
+    from instance_pe import envelope, unchanged
+    structure = h.OUT / 'structure'
+    identity = {}
+    for case in ['original', 'combined']:
+        identity.update(envelope(structure, case, os.environ['GITHUB_SHA']))
+    h.save('actual-pe-inputs.json', identity)
+    tested('actual-pe-gate', ['cargo', 'test', '--locked', '-p', 'ryupy-codegen-cil',
+        'explicit_instance_actual_pe_gate', '--', '--ignored', '--nocapture'],
+        ['explicit_instance_actual_pe_gate'], env=env, timeout=900)
+    unchanged(structure, identity)
     image = prepare_image(DockerRunner(), 'docker', h.WORK)
     original_out = h.OUT
     for name in ['original', 'combined']:

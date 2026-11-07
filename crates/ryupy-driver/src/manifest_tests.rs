@@ -35,6 +35,8 @@ fn context() -> ManifestContext {
     let report = EmissionReport {
         schema_version: 1,
         entry: descriptor("Main"),
+        entry_slot: 0,
+        function_definitions: vec![],
         modules: vec![ModuleEmission {
             environment_reason: "existing-contract".into(),
             module_id: 0,
@@ -46,8 +48,10 @@ fn context() -> ManifestContext {
         }],
         delegate_references: vec![DelegateReference {
             source: descriptor("register_actual"),
+            source_slot: 1,
             instruction: 12,
             target: Some(init),
+            target_slot: Some(2),
             target_display: "actual init".to_owned(),
             role: "module_init".to_owned(),
             module_id: Some(0),
@@ -325,4 +329,18 @@ fn junction_directory_is_rejected_without_hashing_outside_publish() {
     assert!(status.success());
     assert!(files::collect(&temp.0, &native).is_err());
     std::fs::remove_dir(junction).unwrap();
+}
+
+#[test]
+fn report_versions_preserve_old_projection_and_reject_unknown() {
+    for version in [1, 2] {
+        let mut context = context();
+        context.report.schema_version = version;
+        assert!(context.validate().is_ok());
+    }
+    for version in [0, 3, u32::MAX] {
+        let mut context = context();
+        context.report.schema_version = version;
+        assert!(context.validate().is_err());
+    }
 }

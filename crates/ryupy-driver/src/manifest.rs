@@ -64,7 +64,7 @@ impl ManifestContext {
     }
 
     fn validate(&self) -> Result<()> {
-        ensure!(self.report.schema_version == 1, "不支持的 codegen 报告版本");
+        validate_report_version(self.report.schema_version)?;
         ensure!(
             !self.sources.is_empty() && self.report.modules.len() == self.sources.len(),
             "报告与实际源模块数量不符"
@@ -207,6 +207,12 @@ pub(crate) fn input_digests(dll: &Path, runtime: &Path) -> Result<Vec<FileDigest
         manifest_files::digest_file(dll, "managed-entry.dll", "compiled_managed_input")?,
         manifest_files::digest_file(runtime, "RyuPy.Runtime.dll", "runtime_managed_input")?,
     ])
+}
+
+/// 报告 v2 仅增加观察定位字段；原部署投影接受 v1/v2，未知版本仍拒绝。
+pub(crate) fn validate_report_version(version: u32) -> Result<()> {
+    ensure!(matches!(version, 1 | 2), "不支持的 codegen 报告版本");
+    Ok(())
 }
 
 #[cfg(test)]
