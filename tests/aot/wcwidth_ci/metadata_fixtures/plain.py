@@ -18,12 +18,24 @@ def delete():
 
 value = 7
 
-# 四个槽都必须走生成的删除/读取路径；不只测运行时手写委托。
-def read_rest():
-    return __loader__, __cached__, __path__
+# 每个槽独立读取，避免第一个未支持fallback掩盖其它名字的结果。
+def read_loader():
+    return __loader__
 
-def delete_rest():
-    global __loader__, __cached__, __path__
+def read_cached():
+    return __cached__
+
+def read_path():
+    return __path__
+
+def delete_loader():
+    global __loader__
     del __loader__
+
+def delete_cached():
+    global __cached__
     del __cached__
+
+def delete_path():
+    global __path__
     del __path__

@@ -47,3 +47,20 @@ Native门禁有限聚合：hello无资源最小入口、main的kind0普通/包/�
 恢复固定20份官方源、SHA校验并调用现P0 preserve
 门禁，显式传冻结runtime，核20份实际plan和原11条自动选择（仅4条compiled）。只保护九项，不把progress显式super已知失败或其它unsupported
 算通过，不据此宣称20项目AOT、更多API兼容或性能改善。所有新门禁实际结果另行登记。
+
+## 首轮候选实际CI与测试合同校正
+
+993候选等价远端27b544的run42363138011中，hello无资源Native发布、运行及搬移已通过；
+聚合main发布成功，但删除spec后裸读触发既有builtin元数据NI，原wcwidth及resource_smoke尚未执行。
+新fixture原只捕获NameError错误：原module-deletion合同已明确spec/loader builtin回退未实现，
+并非kind0前言再度缺初值。CP3.12.13删除后spec/loader裸读分别回builtins的实际对象，
+cached/path裸读才NameError；四者外部属性均AttributeError。不能把内部NI改成假NameError。
+
+后续候选仅修测试：四槽独立读/删/外部缺属性/重绑恢复；spec/loader断言既有精确NI边界，
+cached/path各自NameError，不让loader先失败遮蔽后两者。独立CP oracle保正确builtin身份期望，
+不将NI边界检查混成CP兼容成功。三个runtime产品文件和编译器与993逐字不变。
+
+同轮Cargo-default/pilot完整检查均在ForEach的固定Python版本门失败。该专测读取
+RYUPY_FOREACH_PYTHON而不是PYTHON；后续CI将两个变量都显式指向已核固定解释器，
+记录实际子进程argv/version与解释器SHA，并归档ForEach原流，不放宽版本门或跳过测试。
+这些修正仍待下一轮实际CI，不回写993失败为通过。

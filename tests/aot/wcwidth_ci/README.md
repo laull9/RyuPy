@@ -53,3 +53,19 @@ runner明确编入ryupy-driver/ordinary-dynamic-module-pilot，Session保持默�
 
 本地只运行Python语法/证据helper自测、固定CP oracle与make -n；禁止借本地socket权限失败
 变更SDK/安全配置。完整make check、C#、实际Native及固定20矩阵必须以本次CI结果为准。
+
+## 993失败后的最小测试/CI校正
+
+run42363138011：hello Native及搬移通过；main在删除spec后的builtin回退NI失败，
+wcwidth和资源smoke未执行；两个完整检查在ForEach的固定Python版本门失败。历史证据保留。
+新fixture分开四槽：外部删除均AttributeError；内部spec/loader保既有精确NI边界，
+cached/path分别NameError，随后逐槽重绑恢复。metadata_oracle.py独立验证CP的真实builtin
+spec/loader身份，明确NI不是该CP行为已实现。
+
+full_check同时将PYTHON、RYUPY_FOREACH_PYTHON指向启动它的已验证CP3.12.13，
+mode.json仅记这两个环境值及解释器SHA；commands.json和python-child-version双流记实际
+预检argv/version。ForEach测试自身python-version/dotnet-version及各case原流、状态与计划
+按白名单纳artifact，不上传DLL、PE、完整环境或缓存。版本门和完整make check保持原样。
+Rust测试解释器选择审计：常规driver/e2e测试读取PYTHON，ForEach单独读取
+RYUPY_FOREACH_PYTHON；Python基线脚本使用pinned_python.resolve优先PYTHON。
+AOT脚本单测由当前sys.executable运行，资源smoke继续显式--python，P0继续显式固定解释器。
