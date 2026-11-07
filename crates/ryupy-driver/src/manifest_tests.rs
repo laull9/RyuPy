@@ -36,6 +36,7 @@ fn context() -> ManifestContext {
         schema_version: 1,
         entry: descriptor("Main"),
         modules: vec![ModuleEmission {
+            environment_reason: "existing-contract".into(),
             module_id: 0,
             module_name: "__main__".to_owned(),
             init: init.clone(),

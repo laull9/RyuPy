@@ -4,6 +4,7 @@ use crate::{ExportGuard, LinkedProgram, MirType};
 /// 验证导出槽与绑定守卫。错误由 driver 在阶段边界报告，不留给后端索引 panic。
 pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
+    crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
     let anchors: rustc_hash::FxHashSet<_> = program
         .functions
         .iter()
@@ -16,6 +17,23 @@ pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String
         .flatten()
         .collect();
     for (_, module) in program.modules.iter() {
+        if program
+            .functions
+            .iter()
+            .find(|(id, _)| *id == module.init)
+            .is_none_or(|(_, f)| f.instance_capabilities != module.instance_capabilities)
+        {
+            errors.push(format!("模块 `{}` 的计划能力与实际入口不一致", module.name));
+        }
+        if (module.instance_capabilities.relative_from_import
+            || module.instance_capabilities.ordinary_name_handlers)
+            && module.execution != crate::ModuleExecutionKind::InstanceGlobals
+        {
+            errors.push(format!(
+                "模块 `{}` 的实例扩展能力不能属于Legacy",
+                module.name
+            ));
+        }
         let instance = module.execution == crate::ModuleExecutionKind::InstanceGlobals;
         let state = program
             .functions

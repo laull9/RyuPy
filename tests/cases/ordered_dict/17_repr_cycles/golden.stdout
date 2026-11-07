@@ -1,0 +1,7 @@
+empty OrderedDict() OrderedDict()
+filled OrderedDict({'quoted': "a'b", None: 1, True: [2, 3], 2.5: 'value'}) OrderedDict({'quoted': "a'b", None: 1, True: [2, 3], 2.5: 'value'})
+moved OrderedDict({None: 1, True: [2, 3], 2.5: 'value', 'quoted': "a'b"})
+self OrderedDict({'self': ...}) OrderedDict({'self': ...})
+nested_cycle OrderedDict({'a': [...], 'b': [...]})
+repeat_repr OrderedDict({'self': ...}) OrderedDict({'ok': 1})
+DONE repr_cycles

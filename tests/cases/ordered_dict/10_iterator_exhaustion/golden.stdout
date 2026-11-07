@@ -1,0 +1,41 @@
+initial_empty direct False ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded direct False ('OK', 'a')
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain ['b', 'a']
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty direct True ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded direct True ('OK', 'a')
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain ['a', 'b']
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty keys False ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded keys False ('OK', 'a')
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain ['b', 'a']
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty keys True ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded keys True ('OK', 'a')
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain ['a', 'b']
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty values False ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded values False ('OK', 1)
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain [2, 1]
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty values True ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded values True ('OK', 1)
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain [1, 2]
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty items False ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded items False ('OK', ('a', 1))
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain [('b', 2), ('a', 1)]
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+initial_empty items True ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+last_yielded items True ('OK', ('a', 1))
+no_next_key ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+drain [('a', 1), ('b', 2)]
+already_exhausted ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+DONE iterator_exhaustion

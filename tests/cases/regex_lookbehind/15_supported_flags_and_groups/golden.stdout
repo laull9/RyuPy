@@ -1,0 +1,23 @@
+False ignorecase [(1, 2), (4, 5)] ['b', 'B']
+False ascii [(1, 2), (4, 5), (7, 8)] ['x', 'x', 'x']
+False dotall [(1, 2), (3, 4)] ['x', 'x']
+False without-dotall [(1, 2)] ['x']
+False verbose [(1, 2), (4, 5)] ['x', 'x']
+False classes [(1, 2), (3, 4), (5, 6)] ['X', 'X', 'X']
+False escape [(2, 3), (6, 7)] ['c', 'C']
+False negative [(4, 5), (6, 7)] ['x', 'X']
+capture False ('ab', 'a', 'b', None) ('a', 'b', '-') {'pre': 'a', 'tail': '-'} [(0, 2), (0, 1), (1, 2), (-1, -1)] <a:b:>
+capture False ('abc', 'a', 'b', 'c') ('a', 'b', 'c') {'pre': 'a', 'tail': 'c'} [(3, 6), (3, 4), (4, 5), (5, 6)] <a:b:c>
+replacement False <a:b:> <a:b:c> [((0, 2), ('a', 'b', None)), ((3, 6), ('a', 'b', 'c'))] ('<a:b:> abc', 1)
+True ignorecase [(1, 2), (4, 5)] [b'b', b'B']
+True ascii [(1, 2), (4, 5), (7, 8)] [b'x', b'x', b'x']
+True dotall [(1, 2), (3, 4)] [b'x', b'x']
+True without-dotall [(1, 2)] [b'x']
+True verbose [(1, 2), (4, 5)] [b'x', b'x']
+True classes [(1, 2), (3, 4), (5, 6)] [b'X', b'X', b'X']
+True escape [(2, 3), (6, 7)] [b'c', b'C']
+True negative [(4, 5), (6, 7)] [b'x', b'X']
+capture True (b'ab', b'a', b'b', None) (b'a', b'b', b'-') {'pre': b'a', 'tail': b'-'} [(0, 2), (0, 1), (1, 2), (-1, -1)] b'<a:b:>'
+capture True (b'abc', b'a', b'b', b'c') (b'a', b'b', b'c') {'pre': b'a', 'tail': b'c'} [(3, 6), (3, 4), (4, 5), (5, 6)] b'<a:b:c>'
+replacement True b'<a:b:> <a:b:c>' [((0, 2), (b'a', b'b', None)), ((3, 6), (b'a', b'b', b'c'))] (b'<a:b:> abc', 1)
+unicode-ascii ['x', 'x', 'x'] ['x', 'x']

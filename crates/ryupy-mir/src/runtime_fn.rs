@@ -82,6 +82,9 @@ pub enum RuntimeFn {
     InstanceMakeClass,
     /// 每次真实import消费前检查该frame捕获的导入函数。
     InstanceImportGuard,
+    /// 两阶段运行期相对导入；仅显式实例能力可调用。
+    InstanceRelativeImport,
+    InstanceRelativeImportAttr,
     /// 数值背板仍是真list；读预检不触发用户协议，最终新鲜F64可不先装箱。
     NumericListCreate,
     NumericListAppendF64,

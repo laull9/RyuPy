@@ -1,0 +1,6 @@
+truth False True
+warnings ['DeprecationWarning', 'DeprecationWarning']
+message Testing an element's truth value will always return True in future versions.  Use specific 'len(elem)' or 'elem is not None' test instead.
+locations True 1
+as-error DeprecationWarning Testing an element's truth value will always return True in future versions.  Use specific 'len(elem)' or 'elem is not None' test instead.
+unchanged 0 1

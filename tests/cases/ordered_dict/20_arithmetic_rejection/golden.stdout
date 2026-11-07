@@ -1,0 +1,9 @@
+add TypeError unsupported operand type(s) for +: 'collections.OrderedDict' and 'collections.OrderedDict' ("unsupported operand type(s) for +: 'collections.OrderedDict' and 'collections.OrderedDict'",)
+unchanged add True True [('b', 2), ('a', 1)] [('b', 2), ('a', 1)]
+sub TypeError unsupported operand type(s) for -: 'collections.OrderedDict' and 'collections.OrderedDict' ("unsupported operand type(s) for -: 'collections.OrderedDict' and 'collections.OrderedDict'",)
+unchanged sub True True [('b', 2), ('a', 1)] [('b', 2), ('a', 1)]
+radd TypeError unsupported operand type(s) for +: 'int' and 'collections.OrderedDict' ("unsupported operand type(s) for +: 'int' and 'collections.OrderedDict'",)
+unchanged radd True True [('b', 2), ('a', 1)] [('b', 2), ('a', 1)]
+rsub TypeError unsupported operand type(s) for -: 'int' and 'collections.OrderedDict' ("unsupported operand type(s) for -: 'int' and 'collections.OrderedDict'",)
+unchanged rsub True True [('b', 2), ('a', 1)] [('b', 2), ('a', 1)]
+DONE arithmetic_rejection

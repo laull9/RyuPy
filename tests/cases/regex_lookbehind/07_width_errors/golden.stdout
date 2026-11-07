@@ -1,0 +1,16 @@
+'(?<=a*)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+'(?<!a+)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+'(?<=a?)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+'(?<=a{1,2})b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+'(?<=a|bc)d' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+'(a+)(?<=\\1)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+'(?<=(a)\\1)b' error ('cannot refer to group defined in the same lookbehind subpattern at position 9',) cannot refer to group defined in the same lookbehind subpattern '(?<=(a)\\1)b' 9 1 10 cannot refer to group defined in the same lookbehind subpattern at position 9
+'(?<=\\1)(a)' error ('invalid group reference 1 at position 5',) invalid group reference 1 '(?<=\\1)(a)' 5 1 6 invalid group reference 1 at position 5
+'(?<=a' error ('missing ), unterminated subpattern at position 0',) missing ), unterminated subpattern '(?<=a' 0 1 1 missing ), unterminated subpattern at position 0
+'(?<=\\q)a' error ('bad escape \\q at position 4',) bad escape \q '(?<=\\q)a' 4 1 5 bad escape \q at position 4
+'(?x)\n(?<=a|bc)d' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+b'(?<=a*)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None look-behind requires fixed-width pattern
+valid (?<=a{0})b [(2, 3), (5, 6)]
+valid (?<=a{2,2})b [(2, 3)]
+valid (?<=ab|cd)e [(8, 9)]
+valid (?<=(?=a))a [(0, 1), (1, 2), (4, 5)]

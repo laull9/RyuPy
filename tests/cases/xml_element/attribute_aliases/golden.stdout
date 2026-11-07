@@ -1,0 +1,4 @@
+constructor ['first', 'replace', 'outside'] ['first', 'replace', 'final'] [('first', ['shared']), ('replace', 'new'), ('final', 'last')]
+attrib-alias True [('active', ['shared']), ('from-node', 'visible'), ('from-alias', 'visible')]
+raw-fields True True True
+child child ['a', 'b'] False True

@@ -41,6 +41,7 @@ public sealed class PyOptparseValues : PyNativeObject
     {
         if (name == "__dict__")
         {
+            if (value is PyOrderedDict) throw PyOrderedDict.Unsupported("optparse Values metadata storage");
             Attributes = value as PyDict ?? throw PyOptparse.Own(new PyTypeError("__dict__ must be set to a dictionary")); return;
         }
         // 原生隐式槽尚无独立实例槽隔离，不能接受后错误改变内建身份/比较。

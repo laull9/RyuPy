@@ -1,0 +1,28 @@
+type True True <class 'collections.OrderedDict'> collections OrderedDict
+ancestry (<class 'dict'>,) (<class 'collections.OrderedDict'>, <class 'dict'>, <class 'object'>) True True
+abc True True
+initial OrderedDict({'b': [], 'a': 20, 'c': 3}) ['b', 'a', 'c'] [('b', []), ('a', 20), ('c', 3)] True
+numeric_keys [(True, 'float'), (None, 'none')]
+overwrite_order ['b', 'a', 'c']
+moved ['a', 'c', 'b'] [('a', 20), ('c', 3), ('b', [])] True True
+reinit [('a', 21), ('c', 3), ('b', []), ('z', []), ('end', 9)] [('a', 21), ('c', 3), ('b', []), ('z', []), ('end', 9)] True
+reinsert [('a', 21), ('b', []), ('z', []), ('end', 9), ('c', 30)]
+reverse ['c', 'end', 'z', 'b', 'a'] ['c', 'end', 'z', 'b', 'a'] [30, 9, [], [], 21] [('c', 30), ('end', 9), ('z', []), ('b', []), ('a', 21)]
+views odict_keys odict_values odict_items
+equality False True True True True False
+foreign_eq NotImplemented NotImplemented False True
+view_equality True True False
+same_values_view True
+ordering ERROR TypeError '<' not supported between instances of 'collections.OrderedDict' and 'collections.OrderedDict' ("'<' not supported between instances of 'collections.OrderedDict' and 'collections.OrderedDict'",)
+hash ERROR TypeError unhashable type: 'collections.OrderedDict' ("unhashable type: 'collections.OrderedDict'",)
+copy True True True True
+copy_independent ['a', 'b', 'z', 'end', 'c'] ['a', 'b', 'z', 'end', 'c']
+attributes True {'tag': []} False
+fromkeys ['b', 'a'] True True
+dict_conversion True ['a', 'b', 'z', 'end', 'c'] True
+union True [('a', 8), ('b', 2), ('c', 3)] True [('z', 0), ('a', 1), ('b', 2)]
+iunion True [('a', 1), ('b', 9), ('d', 4)]
+alias_origin True (<class 'str'>, <class 'int'>) True
+recursive_repr OrderedDict({'self': ...})
+root_dict_observation ['b', 'a', 'z', 'end', 'c'] ['a', 'b', 'z', 'end', 'c'] True
+DONE 01_core

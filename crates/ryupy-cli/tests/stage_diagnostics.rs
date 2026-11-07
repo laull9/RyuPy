@@ -239,3 +239,29 @@ fn assert_pass_markers(output: &Output) {
     }
     assert_eq!(actual, expected);
 }
+
+#[test]
+fn stage_diagnostics_audit_write_failure_does_not_change_build() {
+    let fixture = Fixture::new("print(1)\n");
+    // 已有同名目录使审计write确定失败，不依赖宿主chmod或管理员权限。
+    fs::create_dir_all(fixture.0.join("out/module-environment.json")).unwrap();
+    let plain = fixture.build(false);
+    let traced = fixture.build(true);
+    assert!(plain.status.success());
+    assert!(
+        traced.status.success(),
+        "{}",
+        String::from_utf8_lossy(&traced.stderr)
+    );
+    assert_eq!(plain.stdout, traced.stdout);
+    assert_eq!(
+        String::from_utf8_lossy(&plain.stderr),
+        without_markers(&traced)
+    );
+    assert!(fixture.0.join("out/main.dll").is_file());
+    assert!(fixture.0.join("out/module-environment.json").is_dir());
+    assert_eq!(
+        fs::read(fixture.0.join("out/RyuPy.Runtime.dll")).unwrap(),
+        b"compile-only-copy-sentinel"
+    );
+}

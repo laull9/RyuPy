@@ -1,0 +1,23 @@
+width '(?<=a*)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width '(?<!a+)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width '(?<=a?)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width '(?<=a{1,2})b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width '(?<=a|bc)d' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width '(?x)\n(?<=a|bc)d' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width '😀(?<=a|bc)d' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width b'(?<=a*)b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width b'(?<!a{1,2})b' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+width b'(?<=a|bc)d' error ('look-behind requires fixed-width pattern',) look-behind requires fixed-width pattern None None None None
+syntax '(?<=a*)b[' error ('unterminated character set at position 8',) unterminated character set '(?<=a*)b[' 8 1 9 unterminated character set at position 8
+syntax '(?<!a+)b\\q' error ('bad escape \\q at position 8',) bad escape \q '(?<!a+)b\\q' 8 1 9 bad escape \q at position 8
+syntax '(?<=a|bc)d(' error ('missing ), unterminated subpattern at position 10',) missing ), unterminated subpattern '(?<=a|bc)d(' 10 1 11 missing ), unterminated subpattern at position 10
+syntax '(?<=a)b)' error ('unbalanced parenthesis at position 7',) unbalanced parenthesis '(?<=a)b)' 7 1 8 unbalanced parenthesis at position 7
+syntax '😀(?<=a*)[' error ('unterminated character set at position 8',) unterminated character set '😀(?<=a*)[' 8 1 9 unterminated character set at position 8
+syntax '(?x)\n(?<=a*)\n[' error ('unterminated character set at position 13 (line 3, column 1)',) unterminated character set '(?x)\n(?<=a*)\n[' 13 3 1 unterminated character set at position 13 (line 3, column 1)
+syntax '(?x)\n😀(?<=a*)\n\\q' error ('bad escape \\q at position 14 (line 3, column 1)',) bad escape \q '(?x)\n😀(?<=a*)\n\\q' 14 3 1 bad escape \q at position 14 (line 3, column 1)
+syntax b'(?<=a*)b[' error ('unterminated character set at position 8',) unterminated character set b'(?<=a*)b[' 8 1 9 unterminated character set at position 8
+syntax b'(?<!a+)b\\q' error ('bad escape \\q at position 8',) bad escape \q b'(?<!a+)b\\q' 8 1 9 bad escape \q at position 8
+syntax b'(?x)\n(?<=a*)\n[' error ('unterminated character set at position 13 (line 3, column 1)',) unterminated character set b'(?x)\n(?<=a*)\n[' 13 3 1 unterminated character set at position 13 (line 3, column 1)
+valid (?<=a{0})b [(2, 3), (5, 6)]
+valid (?<=a{2,2})b [(2, 3)]
+valid (?<=ab|cd)e [(8, 9)]

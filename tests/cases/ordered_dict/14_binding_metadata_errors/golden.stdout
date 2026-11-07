@@ -1,0 +1,70 @@
+type_metadata True True True
+metadata __init__ __init__ OrderedDict.__init__ <class 'collections.OrderedDict'> __init__ OrderedDict.__init__ True False
+metadata __len__ __len__ dict.__len__ <class 'dict'> __len__ dict.__len__ True False
+metadata __iter__ __iter__ OrderedDict.__iter__ <class 'collections.OrderedDict'> __iter__ OrderedDict.__iter__ True False
+metadata __reversed__ __reversed__ OrderedDict.__reversed__ <class 'collections.OrderedDict'> __reversed__ OrderedDict.__reversed__ True False
+metadata __getitem__ __getitem__ dict.__getitem__ <class 'dict'> __getitem__ OrderedDict.__getitem__ True False
+metadata __setitem__ __setitem__ OrderedDict.__setitem__ <class 'collections.OrderedDict'> __setitem__ OrderedDict.__setitem__ True False
+metadata __delitem__ __delitem__ OrderedDict.__delitem__ <class 'collections.OrderedDict'> __delitem__ OrderedDict.__delitem__ True False
+metadata __contains__ __contains__ dict.__contains__ <class 'dict'> __contains__ OrderedDict.__contains__ True False
+metadata __eq__ __eq__ OrderedDict.__eq__ <class 'collections.OrderedDict'> __eq__ OrderedDict.__eq__ True False
+metadata __ne__ __ne__ OrderedDict.__ne__ <class 'collections.OrderedDict'> __ne__ OrderedDict.__ne__ True False
+metadata get get dict.get <class 'dict'> get OrderedDict.get True False
+metadata pop pop OrderedDict.pop <class 'collections.OrderedDict'> pop OrderedDict.pop True False
+metadata setdefault setdefault OrderedDict.setdefault <class 'collections.OrderedDict'> setdefault OrderedDict.setdefault True False
+metadata update update OrderedDict.update <class 'collections.OrderedDict'> update OrderedDict.update True False
+metadata clear clear OrderedDict.clear <class 'collections.OrderedDict'> clear OrderedDict.clear True False
+metadata copy copy OrderedDict.copy <class 'collections.OrderedDict'> copy OrderedDict.copy True False
+metadata keys keys OrderedDict.keys <class 'collections.OrderedDict'> keys OrderedDict.keys True False
+metadata values values OrderedDict.values <class 'collections.OrderedDict'> values OrderedDict.values True False
+metadata items items OrderedDict.items <class 'collections.OrderedDict'> items OrderedDict.items True False
+metadata move_to_end move_to_end OrderedDict.move_to_end <class 'collections.OrderedDict'> move_to_end OrderedDict.move_to_end True False
+metadata popitem popitem OrderedDict.popitem <class 'collections.OrderedDict'> popitem OrderedDict.popitem True False
+metadata fromkeys fromkeys OrderedDict.fromkeys None fromkeys OrderedDict.fromkeys False True
+construct_many ERROR TypeError expected at most 1 arguments, got 2 ('expected at most 1 arguments, got 2',)
+init_many ERROR TypeError expected at most 1 arguments, got 2 ('expected at most 1 arguments, got 2',)
+update_many ERROR TypeError update() takes at most 1 positional argument (2 given) ('update() takes at most 1 positional argument (2 given)',)
+move_missing ERROR TypeError move_to_end() missing required argument 'key' (pos 1) ("move_to_end() missing required argument 'key' (pos 1)",)
+move_many ERROR TypeError move_to_end() takes at most 2 arguments (3 given) ('move_to_end() takes at most 2 arguments (3 given)',)
+move_badkw ERROR TypeError 'other' is an invalid keyword argument for move_to_end() ("'other' is an invalid keyword argument for move_to_end()",)
+move_duplicate ERROR TypeError argument for move_to_end() given by name ('key') and position (1) ("argument for move_to_end() given by name ('key') and position (1)",)
+move_missing_badkw ERROR TypeError move_to_end() missing required argument 'key' (pos 1) ("move_to_end() missing required argument 'key' (pos 1)",)
+popitem_many ERROR TypeError popitem() takes at most 1 argument (2 given) ('popitem() takes at most 1 argument (2 given)',)
+popitem_badkw ERROR TypeError 'other' is an invalid keyword argument for popitem() ("'other' is an invalid keyword argument for popitem()",)
+popitem_duplicate ERROR TypeError popitem() takes at most 1 argument (2 given) ('popitem() takes at most 1 argument (2 given)',)
+get_missing ERROR TypeError get expected at least 1 argument, got 0 ('get expected at least 1 argument, got 0',)
+get_many ERROR TypeError get expected at most 2 arguments, got 3 ('get expected at most 2 arguments, got 3',)
+get_keyword ERROR TypeError dict.get() takes no keyword arguments ('dict.get() takes no keyword arguments',)
+pop_missing ERROR TypeError pop() missing required argument 'key' (pos 1) ("pop() missing required argument 'key' (pos 1)",)
+pop_many ERROR TypeError pop() takes at most 2 arguments (3 given) ('pop() takes at most 2 arguments (3 given)',)
+pop_badkw ERROR TypeError 'other' is an invalid keyword argument for pop() ("'other' is an invalid keyword argument for pop()",)
+setdefault_missing ERROR TypeError setdefault() missing required argument 'key' (pos 1) ("setdefault() missing required argument 'key' (pos 1)",)
+setdefault_many ERROR TypeError setdefault() takes at most 2 arguments (3 given) ('setdefault() takes at most 2 arguments (3 given)',)
+keys_many ERROR TypeError OrderedDict.keys() takes no arguments (1 given) ('OrderedDict.keys() takes no arguments (1 given)',)
+values_keyword ERROR TypeError OrderedDict.values() takes no keyword arguments ('OrderedDict.values() takes no keyword arguments',)
+items_many ERROR TypeError OrderedDict.items() takes no arguments (1 given) ('OrderedDict.items() takes no arguments (1 given)',)
+clear_many ERROR TypeError OrderedDict.clear() takes no arguments (1 given) ('OrderedDict.clear() takes no arguments (1 given)',)
+copy_keyword ERROR TypeError OrderedDict.copy() takes no keyword arguments ('OrderedDict.copy() takes no keyword arguments',)
+fromkeys_missing ERROR TypeError fromkeys() missing required argument 'iterable' (pos 1) ("fromkeys() missing required argument 'iterable' (pos 1)",)
+fromkeys_many ERROR TypeError fromkeys() takes at most 2 arguments (3 given) ('fromkeys() takes at most 2 arguments (3 given)',)
+fromkeys_badkw ERROR TypeError 'other' is an invalid keyword argument for fromkeys() ("'other' is an invalid keyword argument for fromkeys()",)
+len_many ERROR TypeError expected 0 arguments, got 1 ('expected 0 arguments, got 1',)
+item_missing ERROR TypeError dict.__getitem__() takes exactly one argument (0 given) ('dict.__getitem__() takes exactly one argument (0 given)',)
+item_keyword ERROR TypeError dict.__getitem__() takes no keyword arguments ('dict.__getitem__() takes no keyword arguments',)
+set_missing ERROR TypeError  expected 2 arguments, got 1 (' expected 2 arguments, got 1',)
+del_missing ERROR TypeError expected 1 argument, got 0 ('expected 1 argument, got 0',)
+contains_missing ERROR TypeError dict.__contains__() takes exactly one argument (0 given) ('dict.__contains__() takes exactly one argument (0 given)',)
+eq_missing ERROR TypeError expected 1 argument, got 0 ('expected 1 argument, got 0',)
+ne_many ERROR TypeError expected 1 argument, got 2 ('expected 1 argument, got 2',)
+iter_many ERROR TypeError expected 0 arguments, got 1 ('expected 0 arguments, got 1',)
+reversed_many ERROR TypeError OrderedDict.__reversed__() takes no arguments (1 given) ('OrderedDict.__reversed__() takes no arguments (1 given)',)
+root_move_receiver ERROR TypeError descriptor 'move_to_end' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object ("descriptor 'move_to_end' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object",)
+root_pop_receiver ERROR TypeError descriptor 'pop' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object ("descriptor 'pop' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object",)
+root_keys_receiver ERROR TypeError descriptor 'keys' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object ("descriptor 'keys' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object",)
+root_set_receiver ERROR TypeError descriptor '__setitem__' requires a 'collections.OrderedDict' object but received a 'dict' ("descriptor '__setitem__' requires a 'collections.OrderedDict' object but received a 'dict'",)
+pop_keywords 1
+setdefault_keywords 7
+fromkeys_keywords [('a', 9), ('b', 9)]
+update_keywords_are_data [('self', 1), ('iterable', 2)]
+unchanged [('a', 1), ('b', 2)]
+DONE binding_metadata_errors

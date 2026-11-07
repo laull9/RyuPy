@@ -1,0 +1,20 @@
+order_layers [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+dict_init [('b', 2), ('c', 3), ('a', 1)]
+dict_copy [('b', 2), ('c', 3), ('a', 1)]
+dict_update [('b', 2), ('c', 3), ('a', 1)]
+kwargs [('b', 2), ('c', 3), ('a', 1)]
+json {"b": 2, "c": 3, "a": 1}
+counter [('b', 2), ('c', 3), ('a', 1)]
+defaultdict [('b', 2), ('c', 3), ('a', 1)]
+mappingproxy [('b', 2), ('c', 3), ('a', 1)] [('b', 2), ('c', 3), ('a', 1)]
+views_mapping [('b', 2), ('c', 3), ('a', 1)]
+independent_copy ['c', 'a', 'b'] ['b', 'c', 'a'] True
+root_set_existing None [('b', 2), ('c', 3), ('a', 10)]
+root_get 10 10 3
+ordinary_method_shadow shadowed
+saved_method None ['c', 'a', 'b']
+explicit_attributes 999 ['wrong'] wrong
+implicit_slots 3 ['c', 'a', 'b'] 10
+method_restored True
+fromkeys_alias True
+DONE 05_consumers_attributes

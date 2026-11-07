@@ -1,0 +1,13 @@
+layers ['b', 'c', 'a'] ['a', 'b', 'c'] [[], 2, 3] [('a', []), ('b', 2), ('c', 3)]
+raw_cursors ['a', 'b', 'c'] ['c', 'b', 'a']
+raw_view_types dict_keys dict_values dict_items
+raw_reverse_views ['c', 'b', 'a'] [3, 2, []] [('c', 3), ('b', 2), ('a', [])]
+root_read 3 True True True 8
+dict_constructor True [('b', 2), ('c', 3), ('a', [])] True
+dict_copy True [('b', 2), ('c', 3), ('a', [])] True
+dict_update [('z', 0), ('b', 2), ('c', 3), ('a', [])]
+kwargs [('b', 2), ('c', 3), ('a', [])]
+live_layers [('a', []), ('b', 20), ('c', 30)] [('b', 20), ('a', []), ('c', 30)]
+root_equality True False False True
+root_foreign True True
+DONE dict_consumers_root_reads

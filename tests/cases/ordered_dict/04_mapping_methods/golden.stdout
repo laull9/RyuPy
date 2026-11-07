@@ -1,0 +1,24 @@
+lookup 1 None True True True 2 True
+setdefault_existing 1 ['a', 'b']
+setdefault_new True True
+pop 2 True [('a', 1), ('c', [])]
+missing_pop ERROR KeyError 'missing' ('missing',)
+missing_item ERROR KeyError 'missing' ('missing',)
+missing_delete ERROR KeyError 'missing' ('missing',)
+clear None [] 0 False
+same_view_after_clear [('after', [])] True
+False_item ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_get ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_contains ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_pop ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_setdefault ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_move ERROR KeyError [] ([],)
+False_delete ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_item ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_get ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_contains ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_pop ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_setdefault ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_move ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_delete ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+DONE mapping_methods

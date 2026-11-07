@@ -34,6 +34,7 @@ pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirTyp
         env: None,
         dynamic_origin: None,
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
     }
 }
@@ -49,6 +50,7 @@ pub(super) fn single_block(
         terminator: Terminator::Return(ret),
     });
     Body {
+        source_handler_contracts: Vec::new(),
         locals,
         blocks,
         entry,
@@ -99,6 +101,7 @@ pub(super) fn program() -> LinkedProgram {
     functions.alloc(function(
         "guarded_exact",
         Body {
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,
@@ -174,7 +177,9 @@ pub(super) fn program() -> LinkedProgram {
     ));
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
         is_package: false,

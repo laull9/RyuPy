@@ -43,6 +43,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 5]) {
     let mut functions = Arena::default();
     let main = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "checked_read".into(),
         codegen_name: "checked_read".into(),
@@ -51,6 +52,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 5]) {
         params: vec![list, index, other],
         ret: MirType::F64,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,
@@ -275,6 +277,7 @@ fn global_write_unknown_call_bool_alias_and_eh_cannot_preserve_proof() {
             };
         } else {
             p.functions[p.entry].body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

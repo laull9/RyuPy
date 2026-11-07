@@ -42,6 +42,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         blocks[handler].terminator = Terminator::Goto(after);
         previous = Some(after);
         regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::CatchAll,
             try_start: protected,
             try_len: 1,
@@ -58,6 +59,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry: first.unwrap(),
@@ -71,11 +73,14 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         env: None,
         dynamic_origin: None,
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
         is_package: false,

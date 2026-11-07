@@ -1,0 +1,4 @@
+first cache-hit trace ['first:_initializing', 'truth:false']
+second cache-hit trace ['first:_initializing', 'truth:false', 'next:_initializing', 'truth:true']
+third cache-hit trace ['first:_initializing', 'truth:false', 'next:_initializing', 'truth:true', 'next:_initializing', 'truth:true']
+cache hit preserves live spec observations and module identity True

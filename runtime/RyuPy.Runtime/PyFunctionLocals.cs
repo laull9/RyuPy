@@ -55,6 +55,11 @@ public static partial class PyOps
         for (int i = 0; i < names.Length; i++)
         {
             if (names[i] is not null and not PyNone) { Add(names[i]); continue; }
+            if (values[i] is PyOrderedDict ordered)
+            {
+                foreach (var (key, _) in ordered.Entries()) Add(key);
+                continue;
+            }
             PyDict? mapping = values[i] as PyDict ?? (values[i] as IPyNativeMapping)?.Dictionary;
             if (mapping is null)
             {

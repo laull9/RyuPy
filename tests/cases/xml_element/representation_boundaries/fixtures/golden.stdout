@@ -1,0 +1,8 @@
+element Element True True
+tree ElementTree True True
+children iterator True True
+preorder _element_iterator True True
+children-after-next iterator True True
+preorder-after-next _element_iterator True True
+qname {urn:sample}item <QName '{urn:sample}item'> True
+qname-mutated changed <QName 'changed'>

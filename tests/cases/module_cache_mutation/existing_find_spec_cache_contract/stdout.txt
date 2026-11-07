@@ -1,0 +1,18 @@
+cached_original True
+cached_no_revalidation True
+arbitrary_spec_identity True
+arbitrary_spec_alias True
+false_spec_is_not_none True
+false_spec_is_not_none True
+false_spec_is_not_none True
+false_spec_is_not_none True
+false_spec_is_not_none True
+none_spec ValueError fs_cached.__spec__ is None
+missing_spec ValueError fs_cached.__spec__ is not set
+missing_spec_no_explicit_cause True
+cached_none True
+none_blocks_import ModuleNotFoundError import of fs_cached halted; None in sys.modules
+cache_precedes_parent True
+relative_error_uses_input ValueError .child.__spec__ is None
+relative_none_cache True
+restored True

@@ -31,6 +31,12 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::InstanceDefinitionModule => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).definition_module,
         )),
+        RuntimeFn::InstanceRelativeImport => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).relative_import,
+        )),
+        RuntimeFn::InstanceRelativeImportAttr => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).relative_attribute,
+        )),
         RuntimeFn::InstanceImportGuard => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).import_guard,
         )),

@@ -1,0 +1,49 @@
+order False True True True False False
+explicit False True True False
+foreign_builtin True True False True
+value_eq la ra
+value_eq lb rb
+values_before_order_eq False
+value_eq la ra
+value_eq lb rb
+values_before_order_ne True
+identity_shortcut True
+value_result
+value_truth
+value_truth_protocol True
+foreign_eq
+independent_eq True
+foreign_ne
+independent_ne True
+ordering TypeError '<' not supported between instances of 'collections.OrderedDict' and 'collections.OrderedDict'
+raw_same_public_order ['b', 'c', 'a'] ['b', 'c', 'a']
+value_eq La Ra
+value_eq Lb Rb
+value_eq Lc Rc
+raw_same_eq True
+raw_different_public_order ['b', 'c', 'a'] ['c', 'a', 'b']
+value_eq La Ra
+value_eq Lb Rb
+value_eq Lc Rc
+raw_different_eq False
+value_eq La Ra
+value_eq Lb Rb
+value_eq Lc Rc
+raw_different_ne True
+value_eq La Da
+value_eq Lb Db
+value_eq Lc Dc
+od_left_plain True
+value_eq La Da
+value_eq Lb Db
+value_eq Lc Dc
+plain_left_od True
+value_eq La Da
+value_eq Lb Db
+value_eq Lc Dc
+od_left_plain_ne False
+value_eq La Da
+value_eq Lb Db
+value_eq Lc Dc
+plain_left_od_ne False
+DONE equality

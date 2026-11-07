@@ -45,7 +45,11 @@ pub fn lower_module_with_native_exceptions(
     native_exceptions: &[&str],
 ) -> (Module, Vec<Diagnostic>) {
     if info.instance_globals {
-        let diagnostics = crate::instance_globals::validate(&parsed.module.body, parsed.file);
+        let diagnostics = crate::instance_globals::validate(
+            &parsed.module.body,
+            parsed.file,
+            info.instance_capabilities,
+        );
         if !diagnostics.is_empty() {
             // 预检失败不继续降级：保留结构完整的空模块供诊断调用方使用。
             let mut empty = ParsedModule {

@@ -124,7 +124,12 @@ fn dump_stmt(
         StmtKind::ImportFrom {
             module: imported,
             names,
+            relative,
         } => {
+            let imported = relative
+                .as_ref()
+                .map(|(level, name)| format!("{}{name}", ".".repeat(*level as usize)))
+                .unwrap_or_else(|| imported.clone());
             let items = names
                 .iter()
                 .map(|(name, bind)| {

@@ -420,7 +420,9 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
     // 原静态generator保持旧成功域，动态匹配跨暂停暂不开放。
     if is_generator {
         for (_, handler) in body.handlers.iter() {
-            if handler.type_expr.is_some() {
+            if handler.type_expr.is_some()
+                || handler.semantics == crate::HandlerSemantics::InstanceNameDynamic
+            {
                 diagnostics.push(
                     Diagnostic::error(
                         Span::new(file, handler.range),

@@ -1,0 +1,7 @@
+tree root {'id': '1', 'outside': 'shared after start'} alpha&
+children [('child', 'inner<', 'tail>'), ('empty', None, 'last')]
+identity True True True
+empty-end IndexError pop from empty stack
+extra-end IndexError pop from empty stack
+second-root ParseError multiple elements on top level
+close-state None True

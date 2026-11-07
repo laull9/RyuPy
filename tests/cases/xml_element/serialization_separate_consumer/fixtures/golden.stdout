@@ -1,0 +1,7 @@
+xml '<root z="&amp;&lt;&gt;&quot;&#10;&#13;&#09;" a="\'">&amp;amp;&lt;&gt;中文😀<empty />TAIL&amp;</root>OUT&lt;'
+xml-long '<root z="&amp;&lt;&gt;&quot;&#10;&#13;&#09;" a="\'">&amp;amp;&lt;&gt;中文😀<empty></empty>TAIL&amp;</root>OUT&lt;'
+default-bytes b'<root z="&amp;&lt;&gt;&quot;&#10;&#13;&#09;" a="\'">&amp;amp;&lt;&gt;&#20013;&#25991;&#128512;<empty />TAIL&amp;</root>OUT&lt;'
+html '<section><script>if (a < b && c > d) {}</script><br>&lt;&amp;&gt;</section>'
+text 'if (a < b && c > d) {}<&>'
+special '<root><!--note--><?target data?></root>'
+namespace '<ns0:root xmlns:ns0="urn:test" ns0:key="value" />'

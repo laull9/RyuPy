@@ -1,0 +1,4 @@
+all-keywords TypeError wrapper __setitem__() takes no keyword arguments ('wrapper __setitem__() takes no keyword arguments',)
+keyword-value TypeError wrapper __setitem__() takes no keyword arguments ('wrapper __setitem__() takes no keyword arguments',)
+unknown-keyword TypeError wrapper __setitem__() takes no keyword arguments ('wrapper __setitem__() takes no keyword arguments',)
+exact setter errors retain cache/source identity True

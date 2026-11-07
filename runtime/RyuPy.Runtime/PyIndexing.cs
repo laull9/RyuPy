@@ -13,6 +13,7 @@ public static partial class PyOps
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.GetItem(cls, key),
         PyClass cls when cls.IsTypingIoFamily => PyTypingIo.Subscribe(cls),
         PyType type when type.Name is "list" or "dict" or "tuple" or "set" or "frozenset" => PyTyping.SubscribeNative(type, key),
+        PyNativeType type when ReferenceEquals(type, PyOrderedDict.Type) => throw PyOrderedDict.Unsupported("type subscription"),
         PyNativeType type when PyAbc.IsAbc(type) => PyTyping.SubscribeNative(type, key),
         PyList list => list.GetItem(key!),
         PyTuple tuple => tuple.GetItem(key!),

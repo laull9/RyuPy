@@ -26,7 +26,9 @@ pub(crate) fn fixture() -> (LinkedProgram, FixedI32Binding) {
         ty: MirType::Dynamic,
     });
     let module = program.modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: true,
         is_package: false,

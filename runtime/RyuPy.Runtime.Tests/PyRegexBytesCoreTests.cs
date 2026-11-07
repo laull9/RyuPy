@@ -210,7 +210,7 @@ public sealed class PyRegexBytesCoreTests
     public void ExistingSyntaxLimitsRemainExplicitAndTextMatchingIsUnchanged()
     {
         Assert.Equal(B("aa").Bytes, Assert.IsType<PyBytes>(Call(Match(Compile(@"(a)\1"), B("aa")), "group")).Bytes);
-        foreach (string expression in new[] { @"(a)\1", "(?i:a)", "(?<=a)b", "a++" })
+        foreach (string expression in new[] { @"(a)\1", "(?i:a)", "(?<=(a))b", "a++" })
             Assert.Throws<PyNotImplementedError>(() => Compile(expression, expression == @"(a)\1" ? 2 : 0));
         var text = PyRegex.Compile("[a-z]+", 2L);
         Assert.Equal(34L, text.GetAttr("flags"));

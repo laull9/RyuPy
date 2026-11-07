@@ -1,0 +1,18 @@
+start direct False odict_iterator True ('OK', 'a')
+continue ('OK', 'b') ('OK', 'c') ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start direct True odict_iterator True ('OK', 'c')
+continue ('OK', 'b') ('OK', 'a') ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start keys False odict_iterator True ('OK', 'a')
+continue ('OK', 'b') ('OK', 'c') ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start keys True odict_iterator True ('OK', 'c')
+continue ('OK', 'b') ('OK', 'a') ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start values False odict_iterator True ('OK', 1)
+continue ('OK', 20) ('OK', 3) ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start values True odict_iterator True ('OK', 3)
+continue ('OK', 20) ('OK', 1) ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start items False odict_iterator True ('OK', ('a', 1))
+continue ('OK', ('b', 20)) ('OK', ('c', 3)) ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+start items True odict_iterator True ('OK', ('c', 3))
+continue ('OK', ('b', 20)) ('OK', ('a', 1)) ('ERROR', 'StopIteration', '') ('ERROR', 'StopIteration', '')
+independent a b a b
+DONE iterator_noop_overwrite

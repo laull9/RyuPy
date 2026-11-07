@@ -76,6 +76,7 @@ pub(super) fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
     (
         Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "float_loop".into(),
             codegen_name: "float_loop".into(),
@@ -84,6 +85,7 @@ pub(super) fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
             params: vec![a, b],
             ret: MirType::Dynamic,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry: pre,

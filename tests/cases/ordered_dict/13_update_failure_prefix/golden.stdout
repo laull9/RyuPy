@@ -1,0 +1,10 @@
+yield_a
+after_a [('seed', 0), ('a', 1)]
+pair_failure True True None [('seed', 0), ('a', 1)]
+getitem a [('seed', 0)]
+getitem b [('seed', 0), ('a', 10)]
+mapping_failure True None None [('seed', 0), ('a', 10), ('callback', 3)]
+binding_first construct_many expected at most 1 arguments, got 2 [('seed', 0), ('a', 10), ('callback', 3)]
+binding_first update_many update() takes at most 1 positional argument (2 given) [('seed', 0), ('a', 10), ('callback', 3)]
+binding_first init_many expected at most 1 arguments, got 2 [('seed', 0), ('a', 10), ('callback', 3)]
+DONE update_failure_prefix

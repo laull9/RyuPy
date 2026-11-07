@@ -46,6 +46,7 @@ fn sample() -> (Function, [LocalId; 11]) {
     (
         Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "slp".into(),
             codegen_name: "slp".into(),
@@ -54,6 +55,7 @@ fn sample() -> (Function, [LocalId; 11]) {
             params: vec![a, b, c, d, e, f],
             ret: MirType::Dynamic,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,

@@ -50,6 +50,7 @@ fn sample() -> (Function, [LocalId; 4]) {
     (
         Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "dead".into(),
             codegen_name: "dead".into(),
@@ -58,6 +59,7 @@ fn sample() -> (Function, [LocalId; 4]) {
             params: vec![],
             ret: MirType::Unit,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -155,6 +157,7 @@ fn discarded_calls_unbox_arithmetic_and_field_access_still_execute() {
 fn generator_frames_and_exception_metadata_are_conservative_roots() {
     let (mut function, [_, boxed, _, _]) = sample();
     function.body.regions.push(Region {
+        source_handler_chain: None,
         kind: RegionKind::CatchAll,
         try_start: function.body.entry,
         try_len: 1,

@@ -153,7 +153,9 @@ pub(super) fn cil(
         vec![(
             program,
             ryupy_mir::UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
                 file_backed_by_global: false,
                 is_package: false,

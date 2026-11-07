@@ -1,0 +1,3 @@
+preorder ['root', 'branch', 'renamed', 'branch', 'added', 'too-late']
+filtered ['branch', 'branch']
+sticky stopped stopped

@@ -7,11 +7,16 @@
 //! .py ─parse→ AST ─lower→ HIR ─check→ HIR+Types ─build→ MIR ─passes→ MIR ─codegen→ .dll
 //! ```
 
+mod accumulator_options;
 mod aot;
 mod aot_layout;
 mod binding_build;
 pub mod dotnet;
+mod dump;
+pub use dump::dump;
 mod instance_modules;
+mod module_environments;
+pub use module_environments::{ModuleEnvironmentDecision, ModuleEnvironmentPolicy};
 mod manifest;
 mod manifest_files;
 mod manifest_sdk;
@@ -32,6 +37,13 @@ use ryupy_base::{Diagnostics, FileId, SourceDb};
 pub struct Session {
     /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
     pub instance_modules: Vec<String>,
+    /// 编译会话的隔离候选策略；无公开CLI开关，也不改变运行时模式数。
+    pub module_environment_policy: ModuleEnvironmentPolicy,
+    /// 当前实际源码图的编译计划；compiled区分已完成编译与首错后未执行者。
+    pub module_environment_report: Vec<ModuleEnvironmentDecision>,
+    /// 固定绑定编排期间禁止自动迁移，结束后恢复；显式能力仍按原边界。
+    #[doc(hidden)]
+    pub fixed_binding_build: bool,
     /// 显式输出普通构建的编译阶段标记；默认关闭，不改变运行时 ABI。
     pub diagnostic_stages: bool,
     /// 本次编译显式包含的源码模块；只加入依赖图，仍在import时初始化。
@@ -41,6 +53,9 @@ pub struct Session {
     /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
     /// 仅控制本次会话的 MIR 流水线，不从进程环境隐式读取，也不改变语言语义。
     pub experimental_direct_accumulator: bool,
+    /// 显式实验：仅在实际自动选择的普通动态实例模块启用严格ForEach holder。
+    /// 默认关闭，不提供公共CLI模式，也不影响显式实例模块与旧ForRange累加器。
+    pub experimental_foreach_accumulator: bool,
     /// 实验：精确Int64实参的受守卫纯叶内联；guard失败性能未达默认门槛。
     pub experimental_leaf_inline: bool,
     /// 仅诊断：SLP保相同守卫/物化，但使用直接标量运算，隔离packed本身的收益。
@@ -120,10 +135,12 @@ fn compile_module(
     sess: &mut Session,
     module: &modules::SourceModule,
     native_exceptions: &[&str],
+    plan: &module_environments::ModuleEnvironmentPlan,
     trace: &stage_trace::StageTrace,
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
-        instance_globals: sess.instance_modules.contains(&module.name),
+        instance_globals: plan.instance_globals(),
+        instance_capabilities: plan.capabilities,
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
@@ -138,6 +155,9 @@ fn compile_module(
     );
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
+    if plan.automatic && !hir.protected_exports.is_empty() {
+        bail!("内部错误：实例计划仍依赖静态异常导出保护");
+    }
     trace.mark("end", "hir", &module.name);
 
     trace.mark("begin", "type-check", &module.name);
@@ -152,12 +172,7 @@ fn compile_module(
     stop_if_errors(sess)?;
     trace.mark("end", "mir-build", &module.name);
     trace.mark("begin", "pipeline", &module.name);
-    let passes = ryupy_mir::passes::pipeline_with_slp_options(
-        sess.experimental_direct_accumulator,
-        sess.experimental_leaf_inline,
-        sess.diagnostic_scalar_slp,
-        sess.experimental_packed_slp,
-    );
+    let passes = accumulator_options::pipeline(sess, plan)?;
     if sess.diagnostic_stages {
         ryupy_mir::passes::run_pipeline_observed(
             &mut mir,
@@ -241,6 +256,8 @@ fn compile_linked_traced(
     Vec<manifest::SourceSummary>,
     Option<resources::ResourcePlan>,
 )> {
+    accumulator_options::validate(sess)?;
+    sess.module_environment_report.clear();
     let include_modules = sess.include_modules.clone();
     trace.mark("begin", "graph-load", "-");
     let (sources, entry_index) =
@@ -269,7 +286,12 @@ fn compile_linked_traced(
     .collect();
     let mut units = Vec::new();
     let mut summaries = Vec::new();
-    for (index, module) in sources.into_iter().enumerate() {
+    let plans: Vec<_> = sources
+        .iter()
+        .map(|source| module_environments::plan(sess, source, aot_locations))
+        .collect();
+    module_environments::record(sess, &sources, &plans);
+    for (index, (module, plan)) in sources.into_iter().zip(plans).enumerate() {
         if collect_manifest {
             summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, &module));
         }
@@ -277,15 +299,14 @@ fn compile_linked_traced(
             program,
             exports,
             protected_exports,
-        } = compile_module(sess, &module, &native_exceptions, trace)?;
+        } = compile_module(sess, &module, &native_exceptions, &plan, trace)?;
+        sess.module_environment_report[index].compiled = true;
         units.push((
             program,
             ryupy_mir::UnitMeta {
-                execution: if sess.instance_modules.contains(&module.name) {
-                    ryupy_mir::ModuleExecutionKind::InstanceGlobals
-                } else {
-                    ryupy_mir::ModuleExecutionKind::LegacySingleton
-                },
+                instance_capabilities: plan.capabilities,
+                execution: plan.execution,
+                environment_reason: plan.reason.clone(),
                 protected_exports,
                 name: module.name.clone(),
                 package: module.package.clone(),
@@ -370,6 +391,7 @@ pub fn build_configured(
     resources: Option<&Path>,
     binding: Option<&Path>,
 ) -> Result<Artifacts> {
+    accumulator_options::validate(sess)?;
     anyhow::ensure!(
         resources.is_none() || binding.is_none(),
         "首切不支持 --resources 与 --native-binding 同用"
@@ -392,6 +414,7 @@ pub fn build_with_resources(
     opts: &BuildOptions,
     resource_request: Option<&Path>,
 ) -> Result<Artifacts> {
+    accumulator_options::validate(sess)?;
     anyhow::ensure!(
         resource_request.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
@@ -451,6 +474,13 @@ fn build_with_resources_inner(
         opts.out_dir.join(format!("{name}.runtimeconfig.json")),
         ryupy_codegen_cil::runtimeconfig::render(),
     )?;
+    if sess.diagnostic_stages
+        && let Ok(report) = sess.module_environment_report_json()
+    {
+        // 审计只是观察：同名目录、权限或写盘失败不能改变原编译及runtime复制结果。
+        // 普通JIT交付没有manifest，原stderr阶段协议也不插入新记录。
+        let _ = std::fs::write(opts.out_dir.join("module-environment.json"), report);
+    }
     runtime::copy_runtime_to(&opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 
@@ -473,109 +503,20 @@ fn build_with_resources_inner(
     })
 }
 
-/// 运行到指定阶段并返回该阶段 IR 的文本。
-///
-/// `dump` 只处理入口模块本身（不做模块图搜索）：查看单个文件的 HIR / MIR 时，
-/// 其他模块的内容只会以 `Import` 节点出现。
-pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
-    let module = modules::load_single(sess, input)?;
-    let mut invalid_selection = false;
-    for name in &sess.instance_modules {
-        if name != &module.name {
-            invalid_selection = true;
-            sess.diagnostics.push(
-                ryupy_base::Diagnostic::error(
-                    ryupy_base::Span::new(module.parsed.file, ryupy_base::TextRange::default()),
-                    format!("实例模块 `{name}` 不在dump的单模块图中"),
-                )
-                .with_code("E0100"),
-            );
-        }
-    }
-    // 仅新增选择错误前置失败；AST仍允许展示带解析诊断的结果。
-    if invalid_selection {
-        return Err(HasErrors.into());
-    }
-    if stage == Stage::Ast {
-        return Ok(format!("{:#?}", module.parsed.module));
-    }
-    stop_if_errors(sess)?;
-
-    let info = ryupy_hir::ModuleInfo {
-        instance_globals: sess.instance_modules.contains(&module.name),
-        name: module.name.clone(),
-        package: module.package.clone(),
-        file: module.file.clone(),
-        resolve_file_at_runtime: false,
-    };
-    let native_exceptions = modules::native_exception_modules(input);
-    let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
-        &module.parsed,
-        &info,
-        &module.text,
-        &native_exceptions,
-    );
-    sess.diagnostics.extend(diags);
-    if stage == Stage::Hir {
-        return Ok(ryupy_hir::pretty::dump(&hir));
-    }
-    stop_if_errors(sess)?;
-
-    let (types, diags) = ryupy_ty::check_module(&hir);
-    sess.diagnostics.extend(diags);
-    if stage == Stage::Types {
-        return Ok(types.dump());
-    }
-    stop_if_errors(sess)?;
-
-    let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
-    sess.diagnostics.extend(diags);
-    stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(
-        &mut mir,
-        &ryupy_mir::passes::pipeline_with_slp_options(
-            sess.experimental_direct_accumulator,
-            sess.experimental_leaf_inline,
-            sess.diagnostic_scalar_slp,
-            sess.experimental_packed_slp,
-        ),
-    )
-    .map_err(|e| anyhow::anyhow!(e))?;
-    if stage == Stage::Mir {
-        return Ok(ryupy_mir::pretty::dump(&mir));
-    }
-
-    let linked = ryupy_mir::link(
-        vec![(
-            mir,
-            ryupy_mir::UnitMeta {
-                execution: if sess.instance_modules.contains(&module.name) {
-                    ryupy_mir::ModuleExecutionKind::InstanceGlobals
-                } else {
-                    ryupy_mir::ModuleExecutionKind::LegacySingleton
-                },
-                protected_exports: hir.protected_exports,
-                name: module.name.clone(),
-                package: module.package.clone(),
-                file: module.file.clone(),
-                location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
-                is_package: false,
-                exports,
-            },
-        )],
-        0,
-    );
-    check_linked_exports(sess, &linked, module.parsed.file)?;
-    let emit_opts = ryupy_codegen_cil::EmitOptions {
-        assembly_name: assembly_name(input),
-        entry_source_path: Some(input.to_string_lossy().into_owned()),
-    };
-    Ok(ryupy_codegen_cil::dump_cil(&linked, &emit_opts)?)
-}
-
 #[cfg(test)]
 mod fixed_binding_tests;
 
 #[cfg(test)]
 mod instance_module_tests;
+
+#[cfg(test)]
+mod ordinary_dynamic_tests;
+
+#[cfg(test)]
+mod foreach_accumulator_tests;
+
+#[cfg(test)]
+mod foreach_fixture_tests;
+
+#[cfg(test)]
+mod foreach_current_tests;

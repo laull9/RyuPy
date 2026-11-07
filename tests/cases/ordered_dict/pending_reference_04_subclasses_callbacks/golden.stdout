@@ -1,0 +1,61 @@
+child_init 1 ['z']
+child_set a 1
+child_set b 2
+child_set z 3
+child_type True True True Child({'a': 1, 'b': 2, 'z': 3})
+child_set b 20
+child_set d 4
+child_set e 5
+child_pop 1
+child_popitem ('b', 20)
+child_after [('z', 3), ('e', 5), ('d', 4)]
+child_missing absent
+child_missing_result missing:absent None False
+child_init 0 []
+child_set z 3
+child_set e 5
+child_set d 4
+method_copy True [('z', 3), ('e', 5), ('d', 4)] True False
+child_init 0 []
+child_set z 3
+child_set e 5
+child_set d 4
+copy_copy True [('z', 3), ('e', 5), ('d', 4)] True True
+child_init 0 []
+child_set x 8
+child_set y 8
+fromkeys True [('x', 8), ('y', 8)] True False
+child_init 1 []
+child_set z 3
+child_set e 5
+child_set d 4
+child_set x 9
+union True [('z', 3), ('e', 5), ('d', 4), ('x', 9)] True False
+child_init 1 []
+child_set x 9
+child_set z 3
+child_set e 5
+child_set d 4
+reflected_union True [('x', 9), ('z', 3), ('e', 5), ('d', 4)] True False
+direct_root_set
+direct_root_update
+child_set root_update 8
+direct_dict_set
+raw_observation 6 True 9 ['z', 'd', 'e', 'root', 'root_update', 'raw'] ['z', 'e', 'd', 'root', 'root_update']
+source_keys
+source_get b
+source_get a
+source_to_od [('b', 20), ('a', 10)]
+source_keys
+source_get b
+source_get a
+source_to_dict [('b', 20), ('a', 10)]
+value_eq la ra
+value_eq lb rb
+mapping_before_order False
+identity_shortcut True
+foreign_eq
+foreign_expression_eq eq-result
+foreign_ne
+foreign_expression_ne ne-result
+DONE 04_subclasses_callbacks

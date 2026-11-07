@@ -12,6 +12,7 @@ fn program() -> Program {
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "生成器测试".into(),
         codegen_name: "test".into(),
@@ -20,6 +21,7 @@ fn program() -> Program {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,

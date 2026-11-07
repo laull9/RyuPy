@@ -1,0 +1,4 @@
+source-markers user-xml user-etree user-elementtree
+aliases True True True True
+side-effects ['xml', 'xml.etree', 'xml.etree.ElementTree']
+user-function user-marker:value

@@ -1,0 +1,79 @@
+view_type odict_keys True True
+view_abc Iterable True True
+view_abc Iterator False False
+view_abc Sized True True
+view_abc Container True True
+view_abc Collection True True
+view_abc Set True True
+cursor_type False odict_iterator True True True
+cursor_abc Iterable True True
+cursor_abc Iterator True True
+cursor_abc Sized False False
+cursor_abc Container False False
+cursor_abc Collection False False
+cursor_abc Set False False
+cursor_unconsumed ['b', 'a']
+cursor_type True odict_iterator True True True
+cursor_abc Iterable True True
+cursor_abc Iterator True True
+cursor_abc Sized False False
+cursor_abc Container False False
+cursor_abc Collection False False
+cursor_abc Set False False
+cursor_unconsumed ['a', 'b']
+view_type odict_values True True
+view_abc Iterable True True
+view_abc Iterator False False
+view_abc Sized True True
+view_abc Container True True
+view_abc Collection True True
+view_abc Set False False
+cursor_type False odict_iterator True True True
+cursor_abc Iterable True True
+cursor_abc Iterator True True
+cursor_abc Sized False False
+cursor_abc Container False False
+cursor_abc Collection False False
+cursor_abc Set False False
+cursor_unconsumed [2, 1]
+cursor_type True odict_iterator True True True
+cursor_abc Iterable True True
+cursor_abc Iterator True True
+cursor_abc Sized False False
+cursor_abc Container False False
+cursor_abc Collection False False
+cursor_abc Set False False
+cursor_unconsumed [1, 2]
+view_type odict_items True True
+view_abc Iterable True True
+view_abc Iterator False False
+view_abc Sized True True
+view_abc Container True True
+view_abc Collection True True
+view_abc Set True True
+cursor_type False odict_iterator True True True
+cursor_abc Iterable True True
+cursor_abc Iterator True True
+cursor_abc Sized False False
+cursor_abc Container False False
+cursor_abc Collection False False
+cursor_abc Set False False
+cursor_unconsumed [('b', 2), ('a', 1)]
+cursor_type True odict_iterator True True True
+cursor_abc Iterable True True
+cursor_abc Iterator True True
+cursor_abc Sized False False
+cursor_abc Container False False
+cursor_abc Collection False False
+cursor_abc Set False False
+cursor_unconsumed [('a', 1), ('b', 2)]
+same_explicit True False
+distinct_explicit same_owner_new_view NotImplemented NotImplemented True True
+distinct_expression same_owner_new_view False True False True
+distinct_explicit other_owner NotImplemented NotImplemented True True
+distinct_expression other_owner False True False True
+distinct_explicit foreign NotImplemented NotImplemented True True
+distinct_expression foreign False True False True
+same_expression True False True False
+live_after_compare [20, 1] [20, 1] [2, 1] [('b', 20), ('a', 1)]
+DONE view_abc_values_eq

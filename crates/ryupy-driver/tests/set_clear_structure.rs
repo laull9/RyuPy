@@ -193,7 +193,9 @@ fn set_clear_keeps_real_direct_saved_and_expanded_call_paths() {
         vec![(
             program,
             ryupy_mir::UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
                 file_backed_by_global: false,
                 is_package: false,

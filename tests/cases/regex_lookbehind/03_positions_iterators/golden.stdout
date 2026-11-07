@@ -1,0 +1,148 @@
+(?<=a)b match -2 99 None
+(?<=a)b search -2 99 ((1, 2), 'b', 0, 5)
+(?<=a)b fullmatch -2 99 None
+iter -2 99 [((1, 2), 'b'), ((4, 5), 'b')]
+(?<=a)b match 0 0 None
+(?<=a)b search 0 0 None
+(?<=a)b fullmatch 0 0 None
+iter 0 0 []
+(?<=a)b match 0 5 None
+(?<=a)b search 0 5 ((1, 2), 'b', 0, 5)
+(?<=a)b fullmatch 0 5 None
+iter 0 5 [((1, 2), 'b'), ((4, 5), 'b')]
+(?<=a)b match 1 2 ((1, 2), 'b', 1, 2)
+(?<=a)b search 1 2 ((1, 2), 'b', 1, 2)
+(?<=a)b fullmatch 1 2 ((1, 2), 'b', 1, 2)
+iter 1 2 [((1, 2), 'b')]
+(?<=a)b match 2 4 None
+(?<=a)b search 2 4 None
+(?<=a)b fullmatch 2 4 None
+iter 2 4 []
+(?<=a)b match 4 5 ((4, 5), 'b', 4, 5)
+(?<=a)b search 4 5 ((4, 5), 'b', 4, 5)
+(?<=a)b fullmatch 4 5 ((4, 5), 'b', 4, 5)
+iter 4 5 [((4, 5), 'b')]
+(?<=a)b match 5 5 None
+(?<=a)b search 5 5 None
+(?<=a)b fullmatch 5 5 None
+iter 5 5 []
+(?<=a)b match 9 10 None
+(?<=a)b search 9 10 None
+(?<=a)b fullmatch 9 10 None
+iter 9 10 []
+(?<=a)b match 3 1 None
+(?<=a)b search 3 1 None
+(?<=a)b fullmatch 3 1 None
+iter 3 1 []
+module ['b', 'b'] [(1, 2), (4, 5)]
+(?<!a)b match -2 99 ((0, 1), 'b', 0, 5)
+(?<!a)b search -2 99 ((0, 1), 'b', 0, 5)
+(?<!a)b fullmatch -2 99 None
+iter -2 99 [((0, 1), 'b'), ((1, 2), 'b'), ((4, 5), 'b')]
+(?<!a)b match 0 0 None
+(?<!a)b search 0 0 None
+(?<!a)b fullmatch 0 0 None
+iter 0 0 []
+(?<!a)b match 0 5 ((0, 1), 'b', 0, 5)
+(?<!a)b search 0 5 ((0, 1), 'b', 0, 5)
+(?<!a)b fullmatch 0 5 None
+iter 0 5 [((0, 1), 'b'), ((1, 2), 'b'), ((4, 5), 'b')]
+(?<!a)b match 1 2 ((1, 2), 'b', 1, 2)
+(?<!a)b search 1 2 ((1, 2), 'b', 1, 2)
+(?<!a)b fullmatch 1 2 ((1, 2), 'b', 1, 2)
+iter 1 2 [((1, 2), 'b')]
+(?<!a)b match 2 4 None
+(?<!a)b search 2 4 None
+(?<!a)b fullmatch 2 4 None
+iter 2 4 []
+(?<!a)b match 4 5 ((4, 5), 'b', 4, 5)
+(?<!a)b search 4 5 ((4, 5), 'b', 4, 5)
+(?<!a)b fullmatch 4 5 ((4, 5), 'b', 4, 5)
+iter 4 5 [((4, 5), 'b')]
+(?<!a)b match 5 5 None
+(?<!a)b search 5 5 None
+(?<!a)b fullmatch 5 5 None
+iter 5 5 []
+(?<!a)b match 9 10 None
+(?<!a)b search 9 10 None
+(?<!a)b fullmatch 9 10 None
+iter 9 10 []
+(?<!a)b match 3 1 None
+(?<!a)b search 3 1 None
+(?<!a)b fullmatch 3 1 None
+iter 3 1 []
+module ['b', 'b', 'b'] [(0, 1), (1, 2), (4, 5)]
+(?<=a) match -2 99 None
+(?<=a) search -2 99 ((1, 1), '', 0, 3)
+(?<=a) fullmatch -2 99 None
+iter -2 99 [((1, 1), ''), ((2, 2), ''), ((3, 3), '')]
+(?<=a) match 0 0 None
+(?<=a) search 0 0 None
+(?<=a) fullmatch 0 0 None
+iter 0 0 []
+(?<=a) match 0 5 None
+(?<=a) search 0 5 ((1, 1), '', 0, 3)
+(?<=a) fullmatch 0 5 None
+iter 0 5 [((1, 1), ''), ((2, 2), ''), ((3, 3), '')]
+(?<=a) match 1 2 ((1, 1), '', 1, 2)
+(?<=a) search 1 2 ((1, 1), '', 1, 2)
+(?<=a) fullmatch 1 2 None
+iter 1 2 [((1, 1), ''), ((2, 2), '')]
+(?<=a) match 2 4 ((2, 2), '', 2, 3)
+(?<=a) search 2 4 ((2, 2), '', 2, 3)
+(?<=a) fullmatch 2 4 None
+iter 2 4 [((2, 2), ''), ((3, 3), '')]
+(?<=a) match 4 5 ((3, 3), '', 3, 3)
+(?<=a) search 4 5 ((3, 3), '', 3, 3)
+(?<=a) fullmatch 4 5 ((3, 3), '', 3, 3)
+iter 4 5 [((3, 3), '')]
+(?<=a) match 5 5 ((3, 3), '', 3, 3)
+(?<=a) search 5 5 ((3, 3), '', 3, 3)
+(?<=a) fullmatch 5 5 ((3, 3), '', 3, 3)
+iter 5 5 [((3, 3), '')]
+(?<=a) match 9 10 ((3, 3), '', 3, 3)
+(?<=a) search 9 10 ((3, 3), '', 3, 3)
+(?<=a) fullmatch 9 10 ((3, 3), '', 3, 3)
+iter 9 10 [((3, 3), '')]
+(?<=a) match 3 1 None
+(?<=a) search 3 1 None
+(?<=a) fullmatch 3 1 None
+iter 3 1 []
+module ['', '', ''] [(1, 1), (2, 2), (3, 3)]
+(?<=a)|b match -2 99 None
+(?<=a)|b search -2 99 ((1, 1), '', 0, 5)
+(?<=a)|b fullmatch -2 99 None
+iter -2 99 [((1, 1), ''), ((1, 2), 'b'), ((3, 3), ''), ((3, 4), 'b'), ((5, 5), '')]
+(?<=a)|b match 0 0 None
+(?<=a)|b search 0 0 None
+(?<=a)|b fullmatch 0 0 None
+iter 0 0 []
+(?<=a)|b match 0 5 None
+(?<=a)|b search 0 5 ((1, 1), '', 0, 5)
+(?<=a)|b fullmatch 0 5 None
+iter 0 5 [((1, 1), ''), ((1, 2), 'b'), ((3, 3), ''), ((3, 4), 'b'), ((5, 5), '')]
+(?<=a)|b match 1 2 ((1, 1), '', 1, 2)
+(?<=a)|b search 1 2 ((1, 1), '', 1, 2)
+(?<=a)|b fullmatch 1 2 ((1, 2), 'b', 1, 2)
+iter 1 2 [((1, 1), ''), ((1, 2), 'b')]
+(?<=a)|b match 2 4 None
+(?<=a)|b search 2 4 ((3, 3), '', 2, 4)
+(?<=a)|b fullmatch 2 4 None
+iter 2 4 [((3, 3), ''), ((3, 4), 'b')]
+(?<=a)|b match 4 5 None
+(?<=a)|b search 4 5 ((5, 5), '', 4, 5)
+(?<=a)|b fullmatch 4 5 None
+iter 4 5 [((5, 5), '')]
+(?<=a)|b match 5 5 ((5, 5), '', 5, 5)
+(?<=a)|b search 5 5 ((5, 5), '', 5, 5)
+(?<=a)|b fullmatch 5 5 ((5, 5), '', 5, 5)
+iter 5 5 [((5, 5), '')]
+(?<=a)|b match 9 10 ((5, 5), '', 5, 5)
+(?<=a)|b search 9 10 ((5, 5), '', 5, 5)
+(?<=a)|b fullmatch 9 10 ((5, 5), '', 5, 5)
+iter 9 10 [((5, 5), '')]
+(?<=a)|b match 3 1 None
+(?<=a)|b search 3 1 None
+(?<=a)|b fullmatch 3 1 None
+iter 3 1 []
+module ['', 'b', '', 'b', ''] [(1, 1), (1, 2), (3, 3), (3, 4), (5, 5)]

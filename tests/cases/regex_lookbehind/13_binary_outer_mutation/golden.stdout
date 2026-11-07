@@ -1,0 +1,16 @@
+bytes b'(?<=a)(b)' [((1, 2), (b'b',), True, True)]
+bytes b'(?<!a)(b)' [((4, 5), (b'b',), True, True), ((7, 8), (b'b',), True, True)]
+bytes b'(?<=[a\\xff])(b)' [((1, 2), (b'b',), True, True), ((7, 8), (b'b',), True, True)]
+bytes b'(?<=\\w)(b)' [((1, 2), (b'b',), True, True), ((4, 5), (b'b',), True, True)]
+bytearray b'(?<=a)(b)' [((1, 2), (b'b',), True, True)]
+bytearray b'(?<!a)(b)' [((4, 5), (b'b',), True, True), ((7, 8), (b'b',), True, True)]
+bytearray b'(?<=[a\\xff])(b)' [((1, 2), (b'b',), True, True), ((7, 8), (b'b',), True, True)]
+bytearray b'(?<=\\w)(b)' [((1, 2), (b'b',), True, True), ((4, 5), (b'b',), True, True)]
+before b'b' (b'b',) ((1, 2), (1, 2)) True
+after b'c' (b'c',) ((1, 2), (1, 2)) True
+remove-later (1, 2) []
+create-later (1, 2) [(4, 5)]
+callback b'aB aB' [((1, 2), b'b'), ((4, 5), b'b')]
+split [b'a', b'b', b' a', b'b', b'']
+TypeError cannot use a string pattern on a bytes-like object
+TypeError cannot use a bytes pattern on a string-like object

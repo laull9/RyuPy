@@ -1,0 +1,6 @@
+dict-subclass-copy [] {'a': 'value'}
+dict-subclass-alias True [('getitem', 'b')]
+key-copy-events []
+key-consumption-events ['hash', 'hash', 'hash', 'hash']
+bad-index TypeError __index__ returned non-int (type str)
+index-events [('index', 1), ('bad', 2)] ['child', 'late']

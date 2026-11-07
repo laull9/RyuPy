@@ -1,0 +1,10 @@
+context-changed (1, 2) (b'b',) [(1, 2), (4, 5)]
+old-match-live (b'c', b'c') 1 2 True
+context-restored (4, 5) []
+positive-remove (1, 2) [] []
+positive-create (1, 2) [(4, 5)] [(b'b',)]
+negative-remove (1, 2) [] []
+negative-create (1, 2) [(4, 5)] [(b'b',)]
+bytes (b'aB aB', 2) [((1, 2), (b'b', b'b'), 1, 2), ((4, 5), (b'b', b'b'), 4, 5)] [b'a', b'b', b' a', b'b', b''] (b'a<b> ab', 1)
+bytearray (b'aB aB', 2) [((1, 2), (b'b', b'b'), 1, 2), ((4, 5), (b'b', b'b'), 4, 5)] [b'a', b'b', b' a', b'b', b''] (b'a<b> ab', 1)
+no-callback-and-start [] (b'b',)

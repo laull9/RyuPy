@@ -30,6 +30,7 @@ fn optparse_six_handlers_reference_actual_runtime_exception_types() {
         body.blocks[protected].terminator = Terminator::Goto(after);
         body.blocks[handler].terminator = Terminator::Goto(after);
         body.regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::Catch {
                 type_names: vec![format!("optparse.{name}")],
             },

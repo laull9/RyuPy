@@ -29,6 +29,7 @@ public static partial class PyObject
     private static object? GetExceptionAttr(PyBaseException exception, string name)
     {
         if (name == "__suppress_context__") return exception.SuppressContextFlag;
+        if (name == "name" && exception is PyImportError importError) return ReadImportErrorName(importError);
         // 用户异常类上定义的方法 / 属性优先（`e.describe()` 之类）。
         if (exception.PythonClass is not null
             && exception.PythonClass.TryLookup(name, out PyClass owner, out object? raw))

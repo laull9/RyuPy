@@ -1,0 +1,18 @@
+missing-tag TypeError Element() takes at least 1 argument (0 given)
+extra-positional TypeError Element() takes at most 2 arguments (3 given)
+attrib-list TypeError Element() argument 2 must be dict, not list
+subelement-parent TypeError SubElement() argument 1 must be xml.etree.ElementTree.Element, not None
+subelement-attrib TypeError SubElement() argument 3 must be dict, not list
+append-bad TypeError append() argument 1 must be xml.etree.ElementTree.Element, not str
+insert-bad-child TypeError insert() argument 2 must be xml.etree.ElementTree.Element, not str
+insert-bad-index TypeError 'str' object cannot be interpreted as an integer
+index-high IndexError child index out of range
+index-low IndexError child index out of range
+index-string TypeError element indices must be integers
+slice-zero ValueError slice step cannot be zero
+get-no-key TypeError get() missing required argument 'key' (pos 1)
+set-no-value TypeError set expected 2 arguments, got 1
+items-extra TypeError Element.items() takes no arguments (1 given)
+keys-extra TypeError Element.keys() takes no arguments (1 given)
+assign-attrib TypeError attrib must be dict, not NoneType
+final-state root {'safe': 'value'} ['child']

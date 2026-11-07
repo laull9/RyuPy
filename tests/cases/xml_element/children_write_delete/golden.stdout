@@ -1,0 +1,6 @@
+assigned ['x', 'b', 'x', 'x', 'x', 'a'] True
+deleted ['x', 'x'] ['a', 'x', 'c', 'd', 'a']
+slice-size ValueError attempt to assign sequence of size 2 to extended slice of size 1
+slice-child TypeError expected an Element, not "str"
+index-range IndexError child assignment index out of range
+final 0 True

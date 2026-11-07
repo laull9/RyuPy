@@ -52,6 +52,7 @@ public abstract class PyCollectionsMapping : PyNativeObject, IPyNativeMapping
     /// <summary>逐项提交来源，不能先耗尽整个生成器再更新映射。</summary>
     internal void UpdateFrom(object? source)
     {
+        if (source is PyOrderedDict) throw PyOrderedDict.Unsupported("defaultdict update");
         if (source is PyMappingProxy proxy) { PyMappingProxyConsumers.CopyInto(Dictionary, proxy); return; }
         // 默认 dict 派生的 iter 槽已受守卫，来源复制走根存储而非 keys 覆盖。
         if (source is PyDictInstance) { PyDictProtocols.CallUpdate(Dictionary, [source], [], []); return; }

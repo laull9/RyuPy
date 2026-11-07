@@ -27,6 +27,12 @@ public static class PyAbc
     public static bool IsSubclass(object? child, PyNativeType parent)
     {
         if (!IsAbc(parent)) return false;
+        // OD视图/游标的type()由驻留内建type表示，类级ABC不执行实例协议或按用户类名猜测。
+        if (ReferenceEquals(child, PyType.Get("odict_keys"))) return Known(parent.Name, "dict_keys");
+        if (ReferenceEquals(child, PyType.Get("odict_values"))) return Known(parent.Name, "dict_values");
+        if (ReferenceEquals(child, PyType.Get("odict_items"))) return Known(parent.Name, "dict_items");
+        if (ReferenceEquals(child, PyType.Get("odict_iterator"))) return Inherits("Iterator", parent.Name);
+        if (ReferenceEquals(child, PyOrderedDict.Type)) return Known(parent.Name, "dict");
         if (ReferenceEquals(child, PyMappingProxy.Type)) return ReadOnlyMapping(parent.Name);
         if (child is PyNativeType native && IsAbc(native)) return Inherits(native.Name, parent.Name);
         if (child is PyClass { NamedTupleLayout: not null }) return Known(parent.Name, "tuple");
@@ -52,6 +58,9 @@ public static class PyAbc
     });
     private static bool Accepts(string protocol, object? value)
     {
+        if (value is PyOrderedDict) return Known(protocol, "dict");
+        if (value is PyOrderedDictView odView) return Known(protocol, odView.Kind switch
+        { PyDictViewKind.Keys => "dict_keys", PyDictViewKind.Values => "dict_values", _ => "dict_items" });
         if (value is PyMappingProxy) return ReadOnlyMapping(protocol);
         if (value is PyNamedTupleInstance) return Known(protocol, "tuple");
         if (value is PyListInstance list)

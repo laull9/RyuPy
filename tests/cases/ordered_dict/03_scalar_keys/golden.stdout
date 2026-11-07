@@ -1,0 +1,6 @@
+folded [(True, 'float'), (None, []), ('1', 'str'), (False, 'zero'), (-2, 'neg'), (2.5, 'fraction')] 6 True
+equal_move [None, '1', False, -2, 2.5, True] True
+reinsert_type float [(None, []), ('1', 'str'), (False, 'zero'), (-2, 'neg'), (2.5, 'fraction'), (1.0, 'new')]
+large [(9007199254740993, 'integer'), (9007199254740992.0, 'float'), (1267650600228229401496703205376, 'big'), (None, [])] integer float big True
+string_key True [('long-key', 2)]
+DONE scalar_keys

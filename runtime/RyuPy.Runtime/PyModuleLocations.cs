@@ -54,6 +54,7 @@ public static partial class PyModules
     public static void RegisterLocated(string name, string package, string diagnosticFile, long locationKind,
         string locationValue, bool fileBackedByGlobal, PyModuleInit init, PyModuleGet get, PyModuleSet set)
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         string resolved = PyModuleLocations.Resolve(locationKind, locationKind == 0 ? diagnosticFile : locationValue);
         Registry[name] = new Registration(package, diagnosticFile, init, get, set, resolved, fileBackedByGlobal);
     }

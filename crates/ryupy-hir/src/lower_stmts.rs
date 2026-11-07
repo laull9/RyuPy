@@ -56,13 +56,22 @@ impl StmtLowerCtx<'_> {
 
         // 两遍处理：只有整条链需要动态匹配时才降级目标表达式。
         // 首轮不登记静态导入used，避免mixed链误冻结模块导出。
-        let dynamic_chain = try_stmt.handlers.iter().any(|handler| {
-            let ast::ExceptHandler::ExceptHandler(except) = handler;
-            except
-                .type_
-                .as_ref()
-                .is_some_and(|target| self.exception_type_names(target, false).is_empty())
-        });
+        let instance_chain = self.global_scope.instance_globals;
+        let dynamic_chain = instance_chain
+            || try_stmt.handlers.iter().any(|handler| {
+                let ast::ExceptHandler::ExceptHandler(except) = handler;
+                except
+                    .type_
+                    .as_ref()
+                    .is_some_and(|target| self.exception_type_names(target, false).is_empty())
+            });
+        let semantics = if instance_chain {
+            crate::HandlerSemantics::InstanceNameDynamic
+        } else if dynamic_chain {
+            crate::HandlerSemantics::SourceDynamic
+        } else {
+            crate::HandlerSemantics::SourceStatic
+        };
         let mut handlers = Vec::new();
         for handler in &try_stmt.handlers {
             let ast::ExceptHandler::ExceptHandler(except) = handler;
@@ -108,6 +117,7 @@ impl StmtLowerCtx<'_> {
             self.handler_depth -= 1;
 
             let id = self.body.handlers.alloc(crate::hir::Handler {
+                semantics,
                 types,
                 type_expr: dynamic_target,
                 type_line: self.line_of(except.range.start().to_usize()),

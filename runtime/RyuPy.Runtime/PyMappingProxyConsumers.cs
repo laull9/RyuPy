@@ -6,14 +6,14 @@ namespace RyuPy.Runtime;
 
 /// <summary>
 /// mappingproxy 新增消费者的有限冷路径：复制按 keys/下标，Counter 按 items，关键字按合并顺序。
-/// 不扩大普通 Mapping 准入，不改变无 proxy 路径；自定义键的 hash/eq 次数尚未闭合，消费时明确拒绝。
+/// 不扩大普通 Mapping 准入，不改变无 proxy/OrderedDict 路径；自定义键的 hash/eq 次数尚未闭合，消费时明确拒绝。
 /// </summary>
 internal static class PyMappingProxyConsumers
 {
-    internal static bool HasProxy(object?[] names, object?[] values)
+    internal static bool NeedsKeywordMerge(object?[] names, object?[] values)
     {
         for (int i = 0; i < names.Length; i++)
-            if ((names[i] is null or PyNone) && values[i] is PyMappingProxy) return true;
+            if ((names[i] is null or PyNone) && values[i] is PyMappingProxy or PyOrderedDict) return true;
         return false;
     }
 
@@ -112,7 +112,7 @@ internal static class PyMappingProxyConsumers
         }
     }
 
-    /// <summary>仅 proxy 参与时合并所有关键字组；保 object 键到末尾，再检查字符串要求。</summary>
+    /// <summary>proxy 或 OrderedDict 参与时合并所有关键字组；保 object 键到末尾，再检查字符串要求。</summary>
     internal static (string[] Names, object?[] Values) Keywords(object?[] names, object?[] values)
     {
         var merged = new PyDict();
@@ -136,6 +136,11 @@ internal static class PyMappingProxyConsumers
                     object? value = PyMappingProxyProtocol.Item(proxy.Mapping, sourceKey);
                     merged.Set(key, value);
                 }
+                continue;
+            }
+            if (values[i] is PyOrderedDict ordered)
+            {
+                foreach (var (key, value) in ordered.Entries()) Add(merged, key, value);
                 continue;
             }
             PyDict? dictionary = values[i] as PyDict ?? (values[i] as PyDictInstance)?.Payload

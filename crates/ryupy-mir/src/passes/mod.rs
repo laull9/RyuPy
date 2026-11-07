@@ -30,6 +30,10 @@ mod float_slp;
 mod float_slp_expand;
 #[cfg(test)]
 mod float_slp_tests;
+mod foreach_numeric_accumulator;
+mod foreach_numeric_accumulator_analysis;
+#[cfg(test)]
+mod foreach_numeric_accumulator_tests;
 mod integer_chain_expand;
 #[cfg(test)]
 mod integer_chain_tests;
@@ -52,6 +56,7 @@ mod tuple_scalar_tests;
 pub use dead_values::DeadValues;
 pub use float_chain::FloatChain;
 pub use float_slp::FloatSlp;
+pub use foreach_numeric_accumulator::ForEachNumericAccumulator;
 pub use interval_narrow::IntervalNarrow;
 pub use numeric_accumulator::{DirectNumericAccumulator, NumericAccumulator};
 pub use simplify_cfg::SimplifyCfg;
@@ -107,10 +112,29 @@ pub fn pipeline_with_slp_options(
     scalar_slp: bool,
     experimental_packed_slp: bool,
 ) -> Vec<PipelinePass> {
-    let mut passes: Vec<PipelinePass> = vec![
-        PipelinePass::Function(Box::new(SimplifyCfg)),
-        PipelinePass::Function(Box::new(DeadValues)),
-    ];
+    pipeline_with_foreach_options(
+        experimental,
+        experimental_leaf_inline,
+        scalar_slp,
+        experimental_packed_slp,
+        false,
+    )
+}
+
+/// 独立ForEach实验只由真实模块计划开启；旧入口保持默认关闭。
+/// driver先显式拒绝direct冲突；底层另保守禁止两者叠加。
+pub fn pipeline_with_foreach_options(
+    experimental: bool,
+    experimental_leaf_inline: bool,
+    scalar_slp: bool,
+    experimental_packed_slp: bool,
+    experimental_foreach_accumulator: bool,
+) -> Vec<PipelinePass> {
+    let mut passes: Vec<PipelinePass> = vec![PipelinePass::Function(Box::new(SimplifyCfg))];
+    if experimental_foreach_accumulator && !experimental {
+        passes.push(PipelinePass::Function(Box::new(ForEachNumericAccumulator)));
+    }
+    passes.push(PipelinePass::Function(Box::new(DeadValues)));
     if experimental {
         passes.push(PipelinePass::Function(Box::new(DirectNumericAccumulator)));
     } else {

@@ -1,0 +1,3 @@
+children 6 ['first', 'shared', 'middle', 'shared', 'before-last', 'last']
+aliases True True visible through every reference
+slice ['first', 'shared', 'middle', 'shared'] True

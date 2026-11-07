@@ -13,6 +13,7 @@ fn sample_function() -> Function {
     });
     Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "main".into(),
         codegen_name: "main".into(),
@@ -21,6 +22,7 @@ fn sample_function() -> Function {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,

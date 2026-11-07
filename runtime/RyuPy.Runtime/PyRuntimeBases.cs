@@ -24,6 +24,7 @@ public static class PyRuntimeBases
         if (ReferenceEquals(value, PyBaseObject.Type)) return PyBaseObject.Type;
         if (ReferenceEquals(value, PyType.Get("str")) || ReferenceEquals(value, PyType.Get("list"))
             || ReferenceEquals(value, PyType.Get("dict"))) return value!;
+        if (ReferenceEquals(value, PyOrderedDict.Type)) throw PyOrderedDict.Unsupported("inheritance");
         if (value is not PyClass cls)
             throw Unsupported();
         // 仅定义时遍历；不向实例构造、属性访问等热路径增加守卫。

@@ -1,0 +1,5 @@
+saved setter and container aliases positional returns True
+all keywords reject without cache or marker residue True
+keyword value rejects without cache or marker residue True
+unknown keyword rejects without cache or marker residue True
+setter bindings preserve source/cache/default import identity True

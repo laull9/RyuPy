@@ -53,7 +53,7 @@ public static class PyImportlibUtil
         string fullname = original.StartsWith(".", StringComparison.Ordinal) ? Resolve(original, package) : original;
         if (PyModules.TryCached(fullname, out PyModule? module))
         {
-            // 当前只读sys.modules不允许Python写None；仍保留None缓存读取的自然语义。
+            // 受限sys.modules别名不允许Python写None；仍保留None缓存读取的自然语义。
             if (module is null) return PyNone.Instance;
             object? spec;
             try { spec = module.GetAttr("__spec__"); }

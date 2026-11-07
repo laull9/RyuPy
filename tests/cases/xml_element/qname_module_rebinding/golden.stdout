@@ -1,0 +1,3 @@
+eq-keyword True
+ne-keyword TypeError wrapper __ne__() takes no keyword arguments
+rebound-eq TypeError isinstance() arg 2 must be a type, a tuple of types, or a union

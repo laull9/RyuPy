@@ -1,0 +1,8 @@
+type True True True True
+name OrderedDict OrderedDict collections <class 'collections.OrderedDict'>
+ancestry (<class 'dict'>,) (<class 'collections.OrderedDict'>, <class 'dict'>, <class 'object'>)
+subclass True True True True
+instance True True True
+empty 0 False OrderedDict() []
+hash TypeError unhashable type: 'collections.OrderedDict' ("unhashable type: 'collections.OrderedDict'",)
+DONE type_identity

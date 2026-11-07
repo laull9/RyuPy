@@ -29,7 +29,7 @@
 | 标准流方法 | `read(size=-1)`、`readline(size=-1)`、`write(str)`、`flush/close`、能力查询、`isatty`、迭代、`with` | 输入按码点与通用换行读取；关闭标记阻止后续 I/O，不主动销毁进程拥有的底层流；不支持定位 | `PySystemTests`、系统目录用例 |
 | 标准流属性 | `name/mode/encoding/errors/closed` | 当前声明 UTF-8 / strict；不是完整 locale 配置接口 | 运行时测试及使用路径 |
 | `exit(status=None)` | 抛 `SystemExit`，保留原对象 `.code`；整型/非整型退出与错误报告由统一入口处理 | 不在构造异常时提前 `str(code)`；退出刷新失败受入口错误边界管理 | 系统目录用例、`system_exit_big`、`system_exit_bad_str`、入口测试 |
-| `modules` | 受控实时缓存查询：下标、`in/len/iter`、`get/keys/values/items` | 不是可写 dict；修改/删除条目及替换 `sys.modules` 明确拒绝。集合方法返回快照列表，不承诺 dict-view 行为 | 系统目录用例；缓存与导入回归 |
+| `modules` | 受控实时缓存查询：下标、`in/len/iter`、`get/keys/values/items` | 仅ADR0131的空闲顶层真实模块新别名可写；已有键替换/删除及整体替换拒绝，不是真dict。集合方法仍返回快照列表 | 系统目录用例；缓存与导入回归 |
 | `path` | 入口目录的只读 tuple 视图 | 替换明确拒绝；不允许借它动态改变编译模块图/导入搜索，不等价 CPython 的可变搜索列表 | 系统边界检查 |
 | `platform/byteorder/maxsize` | 宿主平台名、字节序和本实现的最大有符号索引提示 | 不提供 `version_info`、解释器帧/引用计数、import hook 等内部接口 | 模块属性实现；未列属性报 `AttributeError` |
 
@@ -147,3 +147,6 @@ SimpleNamespace 的可写字段/实现元数据协议。
 名称和 version 字符串由 `PySystemVersionTests` 独立验收，不作假差分。
 该差分已通过，专测包含双向不支持比较的 TypeError；不把语言版本声明作为
 项目兼容率或全版本实现完成的证据。
+
+
+受限新模块别名的键域、注册/初始化守卫、原身份与完整pending见[ADR0131](adr/0131-module-cache-aliases.md)和[验收报告](module-cache-alias-slice.md)。

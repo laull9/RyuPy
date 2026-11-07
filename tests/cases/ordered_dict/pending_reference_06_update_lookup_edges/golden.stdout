@@ -1,0 +1,49 @@
+pair_iter
+pair_next x
+pair_next 1
+pair_next 2
+long_pair ERROR ValueError too many values to unpack (expected 2) ('too many values to unpack (expected 2)',)
+short_pair ERROR ValueError need more than 1 value to unpack ('need more than 1 value to unpack',)
+noniter_pair ERROR TypeError 'int' object is not iterable ("'int' object is not iterable",)
+keys_call_failed
+keys_call_error ERROR AttributeError keys invocation failed ('keys invocation failed',)
+mutable_get a
+mutable_get b
+mutable_get c
+mutable_keys OK OrderedDict({'a': 'a', 'b': 'b', 'c': 'c'})
+False_item ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_get ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_contains ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_pop ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_setdefault ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+False_move ERROR KeyError [] ([],)
+False_delete ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_item ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_get ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_contains ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_pop ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_setdefault ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_move ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+True_delete ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+bad_truth
+move_empty_badtruth True RuntimeError truth failure
+bad_truth
+move_unhashable_badtruth True RuntimeError truth failure
+bad_truth
+pop_empty_badtruth True RuntimeError truth failure
+invalid_keyword_badtruth False TypeError move_to_end() takes at most 2 arguments (3 given)
+truth_mutation ['a', 'b', 'c']
+truth_before_pop ('c', 3) ['a', 'b']
+key_hash first
+key_hash equal
+key_eq first equal
+key_eq first equal
+key_hash first
+key_hash first
+key_hash first
+same_key_identity True ['new']
+key_hash equal
+key_eq first equal
+key_hash first
+after_equal_move True
+DONE 06_update_lookup_edges

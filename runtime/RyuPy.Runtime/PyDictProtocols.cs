@@ -71,7 +71,9 @@ internal static class PyDictProtocols
     internal static object Compare(string slot, object self, object? other)
     {
         PyDict left = PyDictLayout.RequireRaw(self);
-        if (!PyDictLayout.TryGet(other, out PyDict right) || slot is not ("__eq__" or "__ne__"))
+        PyDict? right = other is PyOrderedDict ordered ? ordered.Raw
+            : PyDictLayout.TryGet(other, out PyDict payload) ? payload : null;
+        if (right is null || slot is not ("__eq__" or "__ne__"))
             return PyNotImplemented.Instance;
         if (ReferenceEquals(left, right)) return slot == "__eq__";
         if (left.Count != right.Count) return slot == "__ne__";
@@ -111,8 +113,12 @@ internal static class PyDictProtocols
             case "__setitem__": SetItem(self, args[0], args[1]); return PyNone.Instance;
             case "__delitem__": DeleteItem(self, args[0]); return PyNone.Instance;
             case "__contains__": return Contains(self, args[0]);
-            case "__ior__": CallUpdate(self, args, [], []); return self;
+            case "__ior__":
+                // 根签名已由描述符验证；OD union 暂缓必须在目标写入或来源枚举之前拒绝。
+                if (args[0] is PyOrderedDict) throw PyOrderedDict.Unsupported("dict.__ior__ source");
+                CallUpdate(self, args, [], []); return self;
             case "__or__": case "__ror__":
+                if (args[0] is PyOrderedDict) throw PyOrderedDict.Unsupported("dict." + name + " operand");
                 if (!PyDictLayout.TryGet(args[0], out PyDict other)) return PyNotImplemented.Instance;
                 PyDict first = name == "__or__" ? PyDictLayout.RequireRaw(self) : other;
                 PyDict second = name == "__or__" ? other : PyDictLayout.RequireRaw(self);

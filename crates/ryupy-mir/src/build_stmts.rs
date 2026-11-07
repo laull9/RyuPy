@@ -57,7 +57,7 @@ impl FunctionBuilder<'_> {
     }
     /// 导入调用可在写入前抛错，不能把成功路径的标记传播到 except 路径。
     /// 先前已赋值的局部失败时保留旧值；新导入局部保守保留运行时未绑定检查。
-    fn store_import_binding(&mut self, binding: Binding, value: Operand) {
+    pub(crate) fn store_import_binding(&mut self, binding: Binding, value: Operand) {
         let fresh = match binding {
             Binding::Local(local) if !self.assigned_locals.contains(&local) => Some(local),
             _ => None,
@@ -115,11 +115,19 @@ impl FunctionBuilder<'_> {
                 self.guard_instance_import();
                 self.build_import(&module, bind, bind_root);
             }
-            StmtKind::ImportFrom { module, names } => {
+            StmtKind::ImportFrom {
+                module,
+                relative,
+                names,
+            } => {
                 let module = module.clone();
                 let names = names.clone();
-                self.guard_instance_import();
-                self.build_import_from(&module, &names);
+                if let Some((level, raw)) = relative {
+                    self.build_relative_import(*level, raw, &names);
+                } else {
+                    self.guard_instance_import();
+                    self.build_import_from(&module, &names);
+                }
             }
             StmtKind::Assign { target, value } => match target {
                 AssignTarget::Subscript { base, index } => {

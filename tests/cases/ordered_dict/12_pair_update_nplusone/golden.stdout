@@ -1,0 +1,34 @@
+pair_iter 0
+pair_error 0 ValueError need more than 0 values to unpack ('need more than 0 values to unpack',)
+state 0 [('seed', 0), ('prefix', 8)]
+pair_iter 1
+pair_next x
+pair_error 1 ValueError need more than 1 value to unpack ('need more than 1 value to unpack',)
+state 1 [('seed', 0), ('prefix', 8)]
+pair_iter 2
+pair_next x
+pair_next 1
+state 2 [('seed', 0), ('prefix', 8), ('x', 1), ('tail', 9)]
+pair_iter 3
+pair_next x
+pair_next 1
+pair_next 2
+pair_error 3 ValueError too many values to unpack (expected 2) ('too many values to unpack (expected 2)',)
+state 3 [('seed', 0), ('prefix', 8)]
+pair_iter 4
+pair_next x
+pair_next 1
+pair_next 2
+pair_error 4 ValueError too many values to unpack (expected 2) ('too many values to unpack (expected 2)',)
+state 4 [('seed', 0), ('prefix', 8)]
+literal_error 1 TypeError 'int' object is not iterable ("'int' object is not iterable",)
+literal_error () ValueError need more than 0 values to unpack ('need more than 0 values to unpack',)
+literal_error ('x',) ValueError need more than 1 value to unpack ('need more than 1 value to unpack',)
+literal_error ('x', 1, 2) ValueError too many values to unpack (expected 2) ('too many values to unpack (expected 2)',)
+literal_pair 'ab' [('a', 'b')]
+inner_iter
+inner_identity True inner custom type error None None
+outer_prefix
+outer_bad
+outer_failure too many values to unpack (expected 2) [('ok', 1)]
+DONE pair_update_nplusone

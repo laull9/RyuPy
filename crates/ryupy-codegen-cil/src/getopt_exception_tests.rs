@@ -24,6 +24,7 @@ fn getopt_handler_references_actual_runtime_exception_type() {
         body.blocks[protected].terminator = Terminator::Goto(after);
         body.blocks[handler].terminator = Terminator::Goto(after);
         body.regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::Catch {
                 type_names: vec![format!("getopt.{name}")],
             },

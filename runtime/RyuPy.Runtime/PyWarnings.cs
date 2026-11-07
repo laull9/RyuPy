@@ -52,6 +52,14 @@ public static class PyWarnings
         return true;
     }
 
+    // Element 的真值沿同一过滤/记录/异常与调用位置合同，不忽略 CP3.12 可见弃用警告。
+    internal static bool BooleanElement(int children)
+    {
+        Warn("Testing an element's truth value will always return True in future versions.  Use specific 'len(elem)' or 'elem is not None' test instead.",
+            PyType.Get("DeprecationWarning"), 1, null);
+        return children != 0;
+    }
+
     private static void Warn(object? message, object? category, long stacklevel, object? source)
     {
         if (source is not (null or PyNone))

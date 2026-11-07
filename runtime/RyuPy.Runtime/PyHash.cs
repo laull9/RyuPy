@@ -66,6 +66,8 @@ public static partial class PyHash
         PyDictView { UseLayoutProtocol: true } view when view.Kind != PyDictViewKind.Values
             => throw PyDictLayout.Own(new PyTypeError($"unhashable type: '{PyRepr.TypeName(view)}'")),
         PyDictInstance dict => throw PyDictLayout.Own(new PyTypeError($"unhashable type: '{dict.Class.Name}'")),
+        PyOrderedDict => throw Unhashable("collections.OrderedDict"),
+        PyOrderedDictView odView when odView.Kind != PyDictViewKind.Values => throw Unhashable(odView.TypeName),
         IPyNativeMapping or PyDeque => throw Unhashable(PyRepr.TypeName(value)),
         PySet => throw Unhashable("set"),
         PyByteArray => throw Unhashable("bytearray"),
@@ -89,7 +91,8 @@ public static partial class PyHash
     /// <summary>该值能否作为字典键 / 集合元素。</summary>
     /// <param name="value">任意值。</param>
     public static bool IsHashable(object? value) =>
-        value is not (PyList or PyListInstance or PyDict or PyDictInstance or PySet or PyByteArray or IPyNativeMapping or PyDeque)
+        value is not (PyList or PyListInstance or PyDict or PyDictInstance or PySet or PyByteArray or IPyNativeMapping or PyDeque or PyOrderedDict)
+        && value is not PyOrderedDictView { Kind: not PyDictViewKind.Values }
         && value is not PyDictView { UseLayoutProtocol: true, Kind: not PyDictViewKind.Values };
 
     /// <summary>Python 的 <c>==</c>。</summary>
@@ -124,6 +127,8 @@ public static partial class PyHash
             if (a is PyInstance sameInstance) sameInstance.Class.GuardInheritedGenericProtocol("__eq__");
             return true;
         }
+        if (a is PyOrderedDict or PyOrderedDictView || b is PyOrderedDict or PyOrderedDictView)
+            return PyOrderedDictComparison.Expression(PyOps.Eq, a, b, expression: false);
         if (a is PyDictView { UseLayoutProtocol: true } || b is PyDictView { UseLayoutProtocol: true })
             return PyDictViewComparisonDispatch.Compare(PyOps.Eq, a, b, expression: false);
         PySlice.GuardMixedComparison(a, b);

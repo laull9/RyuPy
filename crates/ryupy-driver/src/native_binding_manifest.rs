@@ -91,7 +91,7 @@ impl BindingManifest {
             entry,
             managed_sha256: manifest_files::hash_bytes(bytes),
             managed_size: bytes.len() as u64,
-            options: json!({"experimental_direct_accumulator":session.experimental_direct_accumulator,"experimental_leaf_inline":session.experimental_leaf_inline,"diagnostic_scalar_slp":session.diagnostic_scalar_slp,"experimental_packed_slp":session.experimental_packed_slp}),
+            options: json!({"experimental_direct_accumulator":session.experimental_direct_accumulator,"experimental_foreach_accumulator":session.experimental_foreach_accumulator,"experimental_leaf_inline":session.experimental_leaf_inline,"diagnostic_scalar_slp":session.diagnostic_scalar_slp,"experimental_packed_slp":session.experimental_packed_slp,"instance_modules":session.instance_modules,"module_environment_policy":session.module_environment_policy.identity()}),
         })
     }
     pub(crate) fn verify_managed_input(&self, input: &FileDigest) -> Result<()> {
@@ -140,7 +140,7 @@ impl BindingManifest {
                 "JIT缺少冻结shared"
             );
         }
-        let modules:Vec<Value>=self.report.modules.iter().map(|m|json!({"id":m.module_id,"name":m.module_name,"init":method(&m.init),"getter":m.getter.as_ref().map(method),"setter":m.setter.as_ref().map(method),"exports":m.exports,"origin":if m.module_id==self.binding.module_id{json!({"kind":"declared_native_binding","binding_id":"b0","declaration_sha256":plan.declaration_sha256})}else{json!({"kind":"compiled_source","source_module_id":m.module_id})}})).collect();
+        let modules:Vec<Value>=self.report.modules.iter().map(|m|json!({"id":m.module_id,"name":m.module_name,"environment_reason":m.environment_reason,"init":method(&m.init),"getter":m.getter.as_ref().map(method),"setter":m.setter.as_ref().map(method),"exports":m.exports,"origin":if m.module_id==self.binding.module_id{json!({"kind":"declared_native_binding","binding_id":"b0","declaration_sha256":plan.declaration_sha256})}else{json!({"kind":"compiled_source","source_module_id":m.module_id})}})).collect();
         let refs:Vec<Value>=self.report.delegate_references.iter().map(|r|json!({"site":{"source_method":method(&r.source),"instruction":r.instruction},"target":r.target.as_ref().map(method),"target_display":r.target_display,"role":r.role,"module_id":r.module_id,"function_id":r.function_id,"class_id":r.class_id})).collect();
         let b = &self.binding;
         let value = json!({"schema_version":3,"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},

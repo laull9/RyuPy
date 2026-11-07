@@ -1,0 +1,60 @@
+move_True OK None
+state [('b', 2), ('a', 1)]
+pop_True OK ('a', 1)
+move_False OK None
+state [('a', 1), ('b', 2)]
+pop_False OK ('a', 1)
+move_1 OK None
+state [('b', 2), ('a', 1)]
+pop_1 OK ('a', 1)
+move_0 OK None
+state [('a', 1), ('b', 2)]
+pop_0 OK ('a', 1)
+move_None OK None
+state [('a', 1), ('b', 2)]
+pop_None OK ('a', 1)
+move_[] OK None
+state [('a', 1), ('b', 2)]
+pop_[] OK ('a', 1)
+move_[1] OK None
+state [('b', 2), ('a', 1)]
+pop_[1] OK ('a', 1)
+move_kwargs_{'key': 'a'} OK None
+move_kwargs_{'key': 'a', 'last': False} OK None
+move_kwargs_{'last': False} ERROR TypeError move_to_end() missing required argument 'key' (pos 1) ("move_to_end() missing required argument 'key' (pos 1)",)
+move_kwargs_{'other': 1} ERROR TypeError move_to_end() missing required argument 'key' (pos 1) ("move_to_end() missing required argument 'key' (pos 1)",)
+truth move-missing
+move_missing ERROR KeyError 'missing' ('missing',)
+truth move-existing
+move_existing OK None
+truth pop-empty
+pop_empty ERROR KeyError 'dictionary is empty' ('dictionary is empty',)
+truth pop-existing
+pop_existing OK ('a', 1)
+move_unhashable ERROR KeyError [] ([],)
+pop_unhashable_empty ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+pop_unhashable_filled ERROR TypeError unhashable type: 'list' ("unhashable type: 'list'",)
+empty_popitem ERROR KeyError 'dictionary is empty' ('dictionary is empty',)
+move_many ERROR TypeError move_to_end() takes at most 2 arguments (3 given) ('move_to_end() takes at most 2 arguments (3 given)',)
+popitem_many ERROR TypeError popitem() takes at most 1 argument (2 given) ('popitem() takes at most 1 argument (2 given)',)
+root_receiver ERROR TypeError descriptor 'move_to_end' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object ("descriptor 'move_to_end' for 'collections.OrderedDict' objects doesn't apply to a 'dict' object",)
+constructor_many ERROR TypeError expected at most 1 arguments, got 2 ('expected at most 1 arguments, got 2',)
+update_many ERROR TypeError update() takes at most 1 positional argument (2 given) ('update() takes at most 1 positional argument (2 given)',)
+source_yield_a
+source_after_a [('seed', 0), ('a', 1)]
+update_error True None None [('seed', 0), ('a', 1)]
+pair0
+pair1
+malformed ERROR ValueError too many values to unpack (expected 2) ('too many values to unpack (expected 2)',)
+malformed_prefix [('ok', 1)]
+mapping_keys
+keys_iter
+mapping_get a
+keys_after_a
+mapping_get b
+keys_after_b
+mapping_result [('a', 'A'), ('b', 'B'), ('z', 'Z')]
+inner_iter
+inner_type_error ERROR TypeError inner type failure ('inner type failure',)
+keys_attribute_error OK OrderedDict({'fallback': 1})
+DONE 03_bind_update_errors

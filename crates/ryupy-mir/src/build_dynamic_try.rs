@@ -20,11 +20,36 @@ impl FunctionBuilder<'_> {
         regions: &mut Vec<Region>,
     ) {
         // 只有HIR两遍降级后的整条dynamic链可进入这里，typed目标不能误作bare。
-        debug_assert!(handlers.iter().all(|id| {
+        if handlers.iter().any(|id| {
             self.hir.functions[self.current_hir_fn].body.handlers[*id]
                 .types
-                .is_none()
-        }));
+                .is_some()
+        }) {
+            self.diagnostics.push(
+                ryupy_base::Diagnostic::error(
+                    ryupy_base::Span::new(
+                        self.hir.file,
+                        self.hir.functions[self.current_hir_fn].body.handlers[handlers[0]].range,
+                    ),
+                    "动态异常链不能带静态类型目标",
+                )
+                .with_code("E0305"),
+            );
+            return;
+        }
+        let source_chain = if self.hir.functions[self.current_hir_fn].body.handlers[handlers[0]]
+            .semantics
+            == ryupy_hir::HandlerSemantics::InstanceNameDynamic
+        {
+            let id = self.source_handler_contracts.len();
+            self.source_handler_contracts
+                .push(crate::SourceHandlerContract {
+                    try_start: start_bb,
+                });
+            Some(id)
+        } else {
+            None
+        };
         let original = self.alloc_temp(MirType::Dynamic);
         let entry = self.new_block();
         self.current_bb = entry;
@@ -171,6 +196,7 @@ impl FunctionBuilder<'_> {
         self.emit_frame_restore();
         self.set_flow(FLOW_EXCEPTION);
         self.regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::FinallyGuard,
             try_start: dispatch_start,
             try_len: dispatch_end - dispatch_index,
@@ -198,6 +224,7 @@ impl FunctionBuilder<'_> {
         }
         // CatchAll在codegen中明确绑定PyBaseException，并不吞CLR内部故障。
         regions.push(Region {
+            source_handler_chain: source_chain,
             kind: RegionKind::CatchAll,
             try_start: start_bb,
             try_len: inner_end - self.block_index(start_bb),
@@ -218,6 +245,20 @@ impl FunctionBuilder<'_> {
                 else_: next,
             });
             self.current_bb = yes;
+            if let (Some(state), Binding::ModuleVar(var)) = (self.module_state, binding) {
+                // CP隐式清理先赋None再删除；正文已del也不改变此路径的成功语义。
+                self.store_binding(binding, Operand::Const(Constant::None), &MirType::Dynamic);
+                self.push_stmt(Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::InstanceDeleteName),
+                    args: vec![
+                        Operand::Local(state),
+                        Operand::Const(Constant::Str(self.hir.vars[var].name.to_string())),
+                    ],
+                }));
+                self.terminate_current(Terminator::Goto(next));
+                self.current_bb = next;
+                continue;
+            }
             let unbound = self.expr_builder().runtime_call(
                 RuntimeFn::MakeUnbound,
                 Vec::new(),

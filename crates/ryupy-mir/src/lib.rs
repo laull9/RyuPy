@@ -25,6 +25,7 @@ mod build_flow;
 mod build_loops;
 mod build_params;
 mod build_print;
+mod build_relative_import;
 mod build_stmts;
 mod build_try;
 mod call_builder;
@@ -140,3 +141,11 @@ mod module_delete_abi_tests;
 
 #[cfg(test)]
 mod class_cell_tests;
+
+#[cfg(test)]
+mod relative_import_tests;
+
+mod source_handler_contract;
+pub use source_handler_contract::SourceHandlerContract;
+#[cfg(test)]
+mod instance_handler_tests;

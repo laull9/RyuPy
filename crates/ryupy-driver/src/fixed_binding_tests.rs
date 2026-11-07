@@ -42,6 +42,7 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
     });
     // 先创建空Body再分配其真实入口；不新增arena依赖。
     let mut body = Body {
+        source_handler_contracts: Vec::new(),
         locals: Default::default(),
         blocks: Default::default(),
         entry: program.functions[program.modules[program.entry].init]
@@ -56,6 +57,7 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
     });
     let initializer = program.functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: name.into(),
         codegen_name: "__declared_binding_init".into(),
@@ -76,7 +78,9 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
         dynamic_origin: None,
     });
     let module = program.modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: true,
         is_package: false,

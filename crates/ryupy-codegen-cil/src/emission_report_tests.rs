@@ -193,7 +193,9 @@ fn modules_nested_functions_generators_and_registered_factories_match_real_pe() 
         MirType::Unit,
     ));
     program.modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
         is_package: false,

@@ -22,6 +22,8 @@ public static partial class PyRepr
     /// <summary>Python 类型名，用于错误消息（<c>'int' and 'str'</c>）。</summary>
     public static string TypeName(object? value) => value switch
     {
+        // 错误显示采用CP的tp_name；载体TypeName仍短名，保类型登记/元数据身份。
+        PyOrderedDict => "collections.OrderedDict",
         PyNativeObject native => native.TypeName,
         null => "NoneType",
         PyNone => "NoneType",

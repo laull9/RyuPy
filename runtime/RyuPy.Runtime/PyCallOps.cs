@@ -167,8 +167,8 @@ public static partial class PyOps
             }
             return (rawArgs, plainNames, rawValues);
         }
-        // 既有快返回之后才检查；仅 CLR 身份检查，不运行任何 Python 协议。
-        bool proxyKeywords = PyMappingProxyConsumers.HasProxy(rawNames, rawValues);
+        // 既有快返回之后才检查；OD/proxy 在进入 binder 前查重，普通 dict 仍走原路径。
+        bool mergeKeywords = PyMappingProxyConsumers.NeedsKeywordMerge(rawNames, rawValues);
         var args = new List<object?>(rawArgs.Length);
         foreach (object? arg in rawArgs)
         {
@@ -185,7 +185,7 @@ public static partial class PyOps
             }
         }
 
-        if (proxyKeywords)
+        if (mergeKeywords)
         {
             var keywords = PyMappingProxyConsumers.Keywords(rawNames, rawValues);
             return ([.. args], keywords.Names, keywords.Values);

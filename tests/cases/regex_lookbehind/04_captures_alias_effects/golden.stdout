@@ -1,0 +1,18 @@
+(?<=(a))b (1, 2) ('a',) {} ((1, 2), (0, 1)) 1 None True True True
+spans [(1, 2), (0, 1)]
+expand <b>
+(?<=(?P<left>a))(?P<right>b) (1, 2) ('a', 'b') {'left': 'a', 'right': 'b'} ((1, 2), (0, 1), (1, 2)) 2 right True True True
+spans [(1, 2), (0, 1), (1, 2)]
+expand <b>
+(?<!(a))b (1, 2) (None,) {} ((1, 2), (-1, -1)) None None True True True
+spans [(1, 2), (-1, -1)]
+expand <b>
+(?:(?<=(a))c|b) (1, 2) (None,) {} ((1, 2), (-1, -1)) None None True True True
+spans [(1, 2), (-1, -1)]
+expand <b>
+(?<=(a)(b))c (2, 3) ('a', 'b') {} ((2, 3), (0, 1), (1, 2)) 2 None True True True
+spans [(2, 3), (0, 1), (1, 2)]
+expand <c>
+bound (1, 2) aA aA [((1, 2), (0, 1), 'a'), ((4, 5), (3, 4), 'a')]
+subn ('a<a> ab', 1)
+split ['a', 'a', ' a', 'a', '']

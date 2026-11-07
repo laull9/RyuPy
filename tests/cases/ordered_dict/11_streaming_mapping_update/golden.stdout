@@ -1,0 +1,21 @@
+mapping_keys
+keys_iter [('seed', 0)]
+mapping_get a [('seed', 0)]
+keys_after_a [('seed', 0), ('callback', 5), ('a', 'A')]
+mapping_get b [('seed', 0), ('callback', 5), ('a', 'A')]
+keys_after_b [('seed', 0), ('callback', 5), ('a', 'A'), ('b', 'B')]
+update_return None
+result [('seed', 0), ('callback', 5), ('a', 'A'), ('b', 'B'), ('tail', 'T')]
+live_keys
+live_get x
+live_get y
+live_get z
+live_result [('x', 'x'), ('y', 'y'), ('z', 'z')]
+keys_attribute
+fallback_pairs
+fallback [('fallback', 7)]
+keys_call
+call_failure True keys call error None None
+od_source [('b', 2), ('c', 3), ('a', 1)]
+od_update [('seed', 0), ('callback', 5), ('a', 1), ('b', 2), ('tail', 'T'), ('c', 3)]
+DONE streaming_mapping_update

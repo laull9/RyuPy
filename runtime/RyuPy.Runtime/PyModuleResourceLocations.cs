@@ -26,6 +26,7 @@ public static partial class PyModules
         string locationValue, bool fileBackedByGlobal, bool isPackage, PyModuleInit init, PyModuleGet get, PyModuleSet set,
         bool metadataEnabled)
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         string resolved = PyModuleLocations.Resolve(locationKind, locationKind == 0 ? diagnosticFile : locationValue);
         Registry[name] = new Registration(package, diagnosticFile, init, get, set, resolved, fileBackedByGlobal,
             new ResourceLocation(isPackage, locationKind, resolved), metadataEnabled);

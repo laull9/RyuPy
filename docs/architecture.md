@@ -112,6 +112,11 @@ ryupy-e2e（仅测试）─► ryupy-driver
   Python 快慢路与溢出判断仍在 MIR，后端仅发 CLR 精确类型 / 拆箱 / 回绕加法原语（ADR-0033 / 0034）。
 
 
+- 自动普通动态模块的ForEach累加实验由Session显式选择，默认关闭。新独立matcher在
+  SimplifyCfg后、首次DeadValues前验证通用迭代四角色与唯一返回，复用既有holder ABI。
+  build/dump共用实际automatic/InstanceGlobals计划守卫，不扩P1族、不猜range名称，
+  不修改旧五块ForRange matcher；frame观察边界和重建验收隔离见[ADR-0135](adr/0135-foreach-local-accumulator.md)。
+
 - M3.0 用 `MakeFunction` 显式携带环境 cell 与默认值；环境作为隐藏尾参数，Python 参数元数据
   不包含它。`CellNew` / `CellGet` / `CellGetFree` / `CellSet` 统一读写共享绑定。
 

@@ -1,0 +1,10 @@
+types odict_keys odict_values odict_items
+repr odict_keys(['a', 'b', 'c']) odict_values([1, 2, 3]) odict_items([('a', 1), ('b', 2), ('c', 3)])
+lengths 3 3 3
+membership True True True False
+live ['b', 'c', 'a'] [20, 3, 1] [('b', 20), ('c', 3), ('a', 1)]
+reverse ['a', 'c', 'b'] ['a', 'c', 'b'] [1, 3, 20] [('a', 1), ('c', 3), ('b', 20)]
+view_eq True True False True False
+cleared [] [] []
+refill ['z'] [9] [('z', 9)]
+DONE live_views

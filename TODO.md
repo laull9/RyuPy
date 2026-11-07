@@ -783,7 +783,15 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 - [x] 公开编译模块实例执行首切：module_from_spec/create_module/exec_module接真实唯一globals、原spec/path和loader捕获代码，支持None非包与跨代码目标。6完整正例、2423 C#/900 Rust/533 CP/358 e2e通过，179 ignored；9新增完整边界保留，默认Markdown未过（ADR0129）。
 - [ ] 公开loader长尾与成本：自定义spec/loader、namespace、ModuleType、静态目标/源码、资源clone/动态磁盘源与模块属性新分支/冷能力成本未完成；不把公开创建或通用importlib导入当全兼容。
-- [ ] html.parser有限lookbehind：原四源窄配置已真实执行公开loader，下一错误为parser.py:42的re unsupported lookbehind；默认Markdown仍native find_spec NI，分别推进，不改原库源码或假造metadata。
+- [x] html.parser有限lookbehind首切：通用无内部捕获的固定码点宽后顾，保完整原模式；2474 C#/900 Rust/549 CP/365 e2e通过，188 ignored。7新完整正例、9新完整pending，默认Markdown未过，见ADR0130。
+- [ ] lookbehind长尾与成本：内部捕获/引用/条件/嵌套断言/显式边界、CP极大数精确异常、D009和parser冷成本未完成；不把有限后顾当完整re兼容。
+- [x] sys.modules新模块别名首切：受限空闲顶层名挂真实模块，保唯一globals与原来源，不改Import ABI；2519 C#/900 Rust/578 CP/370 e2e通过，212 ignored，5新完整正例与24新pending，见ADR0131。
+- [ ] 完整可写sys.modules及成本：替换/删除/None/任意值、生命周期收尾、父包/fromlist、真dict、动态spec协议与精确setter错误仍开放，新增冷路成本未采样。
+- [x] XML Element有限原生对象首切：真实对象/字段/子节点/迭代、ElementTree/getroot、Comment/PI/QName，22完整场景9正13pending；2538 C#/900 Rust/600 CP/379 e2e通过、225 ignored，见ADR0132。
+- [ ] XML后续与成本：真实TreeBuilder、序列化/解析、写删children、clear/extend/remove、完整协议与repr、warnings basename旧债；现有分配/keys扫描和历史性能风险未关闭。
+- [x] 精确原生OrderedDict首切：独立双序载体、标量键、streaming更新、重排/游标/比较、dict只读根及公开序消费者；最终003隔离2577 C#与31完整合同22严格通过/9pending，原13异常setter债不改、独立19 raise-from通过。正常门禁2577 C#/900 Rust/631 CP/401 e2e通过、234 ignored；本切验收不等于远端发布，见[ADR0133](docs/adr/0133-ordered-dict-core.md)。
+- [ ] OrderedDict普通路径性能风险：唯一默认ABBA的getitem两对+15.279%/+7.239%、setitem+5.629%/+5.546%；contains首对+29.626%，equality第二对+36.812%，反向与全部样本保留。无分配/GC/OD自身吞吐数据，未归因、不宣称无回退，不关闭S1/B2等历史风险，见[完整报告](docs/ordered-dict-performance.md)。
+- [ ] OrderedDict长尾与下一项目首错：Python派生/属性、非标量键、dict根写入、union/GenericAlias、完整视图/复制等继续pending；原窄Markdown已越过OD至缺typing.NoReturn，仍未通过，默认find_spec NI独立。下一切先核NoReturn真实语义，不以导入占位或删除extra替代。
 
 - [ ] ModuleSpec 性能后续：共同源首次Main Bold +7288B、Bnew +17648B冷分配；旧PE仅换runtime的default resources.files +28.89%/+25.01%尚未归因，Bnew module_external禁tier +12.62%/+1.31%及其它不利配对全部保留。按[完整性能报告](docs/module-spec-performance.md)另切定位，不以Bnew资源收益或新API成本抵消既有风险。
 
@@ -799,3 +807,18 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] S1性能风险：一次14进程/144样本保留9条不利，default普通实例零参+6.071%、closure+6.971%，tieroff类body+10.579%、module_bare+10.136%；旧S0风险不关闭，未归因，不以相同分配或局部CIL修正声称零成本（lexical-super-performance.md）。
 
 - [x] S0 实例词法类 cell：7份完整正例、真实PE32项及2381 C#/887 Rust/493 CP/342 e2e通过，155 ignored；7份边界保留pending。24步准备与唯一10进程/144样本观测完成；默认method_calls +310.450%等不利、冷反射额外CIL及未解析审计范围保留，不宣称无回退，不开super或假loader（ADR0127、class-cell-performance.md）。
+
+- [~] P1普通动态模块环境隔离试点：HIR充分条件与一次编译计划复用InstanceGlobals，实际计划/发射原因可审计，完整CP/PE与旧显式边界持久回归；默认关闭feature。最终make check/完整20与性能证据独立记录，progress/AOT晋升条件未解除，见ADR0134。
+
+## 2026-11-07：a485后的ForEach实验重建
+
+- [~] 从持久恢复的a485重建默认关闭的严格ForEach局部holder；保持P1原模块族和旧运行时。
+  新focused MIR/driver、独立CP与PE、完整make check、固定20同P1新flag off/on均须重新运行；
+  历史f064计数不作为本轮结果。独立私有备份、完整Git bundle与最终验收记录待完成。
+
+### 普通模块环境后续竖切
+
+- [~] 显式普通实例相对from-import：结构化能力、运行期metadata与完整fromlist合同（ADR-0136）；自动集合不变，完整门禁待验。
+- [ ] 普通非生成器Name except读取真实词法环境，独立验收。
+- [ ] 前置通过后再显式迁移原wcwidth计算模块，包/表保旧族，不增加原项目分母成绩。
+- [~] 显式普通实例Name/bare异常链：真实LEGB/捕获builtins、来源化MIR与as清理（ADR-0137）；显式local/cell/free del仍负例，完整门禁待验。

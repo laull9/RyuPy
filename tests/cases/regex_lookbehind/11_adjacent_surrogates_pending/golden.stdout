@@ -1,0 +1,38 @@
+distinct 2 1 False [55357, 56832] [128512]
+pair dot [(2, 3)]
+pos 0 None
+pos 1 None
+pos 2 (2, 3)
+pos 3 None
+pair two [(2, 3)]
+pos 0 None
+pos 1 None
+pos 2 (2, 3)
+pos 3 None
+pair pair-literal [(2, 3)]
+pos 0 None
+pos 1 None
+pos 2 (2, 3)
+pos 3 None
+pair astral-literal []
+pos 0 None
+pos 1 None
+pos 2 None
+pos 3 None
+astral dot [(1, 2)]
+pos 0 None
+pos 1 (1, 2)
+pos 2 None
+astral two []
+pos 0 None
+pos 1 None
+pos 2 None
+astral pair-literal []
+pos 0 None
+pos 1 None
+pos 2 None
+astral astral-literal [(1, 2)]
+pos 0 None
+pos 1 (1, 2)
+pos 2 None
+width look-behind requires fixed-width pattern None None None None

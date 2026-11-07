@@ -1,0 +1,3 @@
+sentinels True True note <&> target data <&>
+qname {urn:sample}item changed True payload
+html-empty ['area', 'base', 'basefont', 'br', 'col', 'embed', 'frame', 'hr', 'img', 'input', 'isindex', 'link', 'meta', 'param', 'source', 'track', 'wbr'] True

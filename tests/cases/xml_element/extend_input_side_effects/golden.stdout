@@ -1,0 +1,6 @@
+type-error TypeError expected an Element, not "str"
+eager-events [('yield-first', 0), ('yield-invalid', 0), ('yield-last', 0), ('finished', 0)]
+valid-prefix ['first']
+source-error RuntimeError source stopped
+source-events [('yield', 1), ('raise', 1)] ['kept']
+success ['first', 'last', 'first'] True

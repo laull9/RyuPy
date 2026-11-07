@@ -1,0 +1,15 @@
+eq-keyword True
+eq-empty TypeError QName.__eq__() missing 1 required positional argument: 'other'
+eq-extra TypeError QName.__eq__() takes 2 positional arguments but 3 were given
+eq-self TypeError QName.__eq__() got multiple values for argument 'self'
+ne-keyword TypeError wrapper __ne__() takes no keyword arguments
+ne-empty TypeError expected 1 argument, got 0
+ne-extra TypeError expected 1 argument, got 2
+str-extra TypeError QName.__str__() takes 1 positional argument but 2 were given
+hash-extra TypeError QName.__hash__() takes 1 positional argument but 2 were given
+tree-extra TypeError ElementTree.getroot() takes 1 positional argument but 2 were given
+tree-self TypeError ElementTree.getroot() got multiple values for argument 'self'
+qname-empty TypeError QName.__init__() missing 1 required positional argument: 'text_or_uri'
+qname-extra TypeError QName.__init__() takes from 2 to 3 positional arguments but 4 were given
+tree-init-extra TypeError ElementTree.__init__() takes from 1 to 3 positional arguments but 4 were given
+root True

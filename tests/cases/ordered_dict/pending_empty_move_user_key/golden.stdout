@@ -1,0 +1,8 @@
+scalar KeyError True 0 ['truth']
+empty-list KeyError True 0 ['truth']
+user-key KeyError True 0 ['truth']
+list-user-key KeyError True 0 ['truth']
+tuple-key KeyError False 0 ['truth']
+bytes-key KeyError True 0 ['truth']
+raising-repr KeyError True 0 ['truth']
+truth-clears-user-key KeyError True 0 ['truth']

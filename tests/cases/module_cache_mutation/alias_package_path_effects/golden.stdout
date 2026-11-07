@@ -1,0 +1,3 @@
+alias child lookup trace ['parent', 'path:iter', 'child:mc_path_package_alias.child']
+source child lookup trace ['parent', 'path:iter', 'child:mc_path_package_alias.child', 'path:iter', 'child:mc_pkg.child']
+alias child cache/parent binding/path effects remain distinct True

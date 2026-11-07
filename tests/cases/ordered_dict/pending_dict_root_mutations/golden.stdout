@@ -1,0 +1,46 @@
+before set_existing [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result None 3 [('a', 10), ('b', 2), ('c', 3)]
+public_keys OK ['b', 'c', 'a']
+public_items OK [('b', 2), ('c', 3), ('a', 10)]
+public_repr OK "OrderedDict({'b': 2, 'c': 3, 'a': 10})"
+before set_new [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result None 4 [('a', 1), ('b', 2), ('c', 3), ('raw', 9)]
+public_keys OK ['b', 'c', 'a']
+public_items OK [('b', 2), ('c', 3), ('a', 1)]
+public_repr OK "OrderedDict({'b': 2, 'c': 3, 'a': 1})"
+before delete [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result None 2 [('a', 1), ('c', 3)]
+public_keys ERROR KeyError 'b' ('b',)
+public_items ERROR KeyError 'b' ('b',)
+public_repr ERROR KeyError 'b' ('b',)
+before update [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result None 4 [('a', 10), ('b', 2), ('c', 3), ('raw', 9)]
+public_keys OK ['b', 'c', 'a']
+public_items OK [('b', 2), ('c', 3), ('a', 10)]
+public_repr OK "OrderedDict({'b': 2, 'c': 3, 'a': 10})"
+before clear [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result None 0 []
+public_keys OK ['b']
+public_items ERROR KeyError 'b' ('b',)
+public_repr OK 'OrderedDict()'
+before pop [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result 2 2 [('a', 1), ('c', 3)]
+public_keys ERROR KeyError 'b' ('b',)
+public_items ERROR KeyError 'b' ('b',)
+public_repr ERROR KeyError 'b' ('b',)
+before popitem [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result ('c', 3) 2 [('a', 1), ('b', 2)]
+public_keys OK ['b', 'c', 'a']
+public_items ERROR KeyError 'c' ('c',)
+public_repr ERROR KeyError 'c' ('c',)
+before setdefault [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result 9 4 [('a', 1), ('b', 2), ('c', 3), ('raw', 9)]
+public_keys OK ['b', 'c', 'a']
+public_items OK [('b', 2), ('c', 3), ('a', 1)]
+public_repr OK "OrderedDict({'b': 2, 'c': 3, 'a': 1})"
+before init [('b', 2), ('c', 3), ('a', 1)] [('a', 1), ('b', 2), ('c', 3)]
+root_result None 4 [('a', 10), ('b', 2), ('c', 3), ('raw', 9)]
+public_keys OK ['b', 'c', 'a']
+public_items OK [('b', 2), ('c', 3), ('a', 10)]
+public_repr OK "OrderedDict({'b': 2, 'c': 3, 'a': 10})"
+DONE pending_dict_root_mutations

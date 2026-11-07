@@ -1,0 +1,6 @@
+non-str-consumption TypeError __str__ returned non-string (type Value)
+delegated ['hash', ('eq', 'str'), ('eq', 'str'), ('lt', 'int'), ('eq', 'Value')]
+construction {value}local 7 7
+str-list TypeError __str__ returned non-string (type list)
+hash-list TypeError unhashable type: 'list'
+restored restored

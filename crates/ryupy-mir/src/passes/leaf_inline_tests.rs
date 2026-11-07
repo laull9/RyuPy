@@ -30,6 +30,7 @@ fn empty(name: &str) -> Function {
     });
     Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: name.into(),
         codegen_name: name.into(),
@@ -38,6 +39,7 @@ fn empty(name: &str) -> Function {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -270,7 +272,9 @@ fn identity_slots_cannot_be_written_reused_or_exported() {
         vec![(
             p,
             crate::UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: crate::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: Default::default(),
                 file_backed_by_global: false,
                 is_package: false,

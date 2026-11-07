@@ -1,0 +1,7 @@
+initial [('b', []), ('a', 20), ('c', 3)] True True
+moved ['a', 'c', 'b'] [('a', 20), ('c', 3), ('b', [])] True True
+reinit [('a', 21), ('c', 3), ('b', []), ('z', []), ('end', 9)] [('a', 21), ('c', 3), ('b', []), ('z', []), ('end', 9)] True
+self_update [('a', 21), ('c', 3), ('b', []), ('z', []), ('end', 9)] 5
+reinsert [('a', 21), ('b', ['shared']), ('z', ['shared']), ('end', 9), ('c', 30)] True True
+keyword_data [('iterable', 1), ('self', 2)]
+DONE construct_reinit_alias

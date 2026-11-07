@@ -1,0 +1,31 @@
+missing-tag TypeError Element() takes at least 1 argument (0 given)
+extra-positional TypeError Element() takes at most 2 arguments (3 given)
+attrib-list TypeError Element() argument 2 must be dict, not list
+subelement-parent TypeError SubElement() argument 1 must be xml.etree.ElementTree.Element, not None
+subelement-attrib TypeError SubElement() argument 3 must be dict, not list
+append-bad TypeError append() argument 1 must be xml.etree.ElementTree.Element, not str
+insert-bad-child TypeError insert() argument 2 must be xml.etree.ElementTree.Element, not str
+insert-bad-index TypeError 'str' object cannot be interpreted as an integer
+index-high IndexError child index out of range
+index-low IndexError child index out of range
+index-string TypeError element indices must be integers
+slice-zero ValueError slice step cannot be zero
+get-no-key TypeError get() missing required argument 'key' (pos 1)
+set-no-value TypeError set expected 2 arguments, got 1
+items-extra TypeError Element.items() takes no arguments (1 given)
+keys-extra TypeError Element.keys() takes no arguments (1 given)
+assign-attrib TypeError attrib must be dict, not NoneType
+final-state root {'safe': 'value'} ['child']
+element-keywords named [('a', 'extra'), ('text', 'attribute')] None
+subelement-keywords-are-attributes child [('a', 'new'), ('tag', 'attribute-tag'), ('attrib', 'attribute-value')]
+element-keywords-by-position {'tag': 'again'} {'original': 'value', 'attrib': {'nested': 'value'}}
+element-keyword-tag-not-binding TypeError Element() takes at least 1 argument (0 given)
+element-no-tag-with-attrib TypeError Element() takes at least 1 argument (0 given)
+element-bad-attrib-before-extra TypeError Element() argument 2 must be dict, not None
+element-overarity-before-attrib TypeError Element() takes at most 2 arguments (3 given)
+subelement-keyword-parent-tag TypeError SubElement() takes at least 2 arguments (0 given)
+subelement-keyword-tag TypeError SubElement() takes at least 2 arguments (1 given)
+subelement-overarity-before-parent TypeError SubElement() takes at most 3 arguments (4 given)
+subelement-parent-before-attrib TypeError SubElement() argument 1 must be xml.etree.ElementTree.Element, not None
+subelement-attrib-none TypeError SubElement() argument 3 must be dict, not None
+binding-final-state 1 True True

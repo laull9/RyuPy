@@ -44,6 +44,7 @@ fn exact_double_guard_unbox_and_arithmetic_are_mechanical_clr_operations() {
     program.functions.alloc(function(
         "guarded_double",
         Body {
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,

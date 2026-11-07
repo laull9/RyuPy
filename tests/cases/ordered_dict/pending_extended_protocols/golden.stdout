@@ -1,0 +1,14 @@
+extended_key tuple value True [(('tuple', 1), 'value')]
+extended_key_move None [(('tuple', 1), 'value')]
+extended_key bytes value True [(b'bytes', 'value')]
+extended_key_move None [(b'bytes', 'value')]
+keys_set ['b'] ['a', 'b', 'c'] ['a'] ['a', 'c']
+items_set [('b', 2)] [('a', 1), ('b', 2), ('c', 3)]
+cross_set_equality True True
+view_mapping mappingproxy [('a', 1), ('b', 2)]
+view_mapping_live [('b', 2), ('a', 1)]
+weakref True
+copy_module True True [('b', 2), ('a', 1)] True
+deepcopy_cycle True True True True
+pickle_roundtrip True True [('b', 2), ('a', 1)] True True
+DONE pending_extended_protocols

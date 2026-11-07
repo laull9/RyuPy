@@ -1,0 +1,4 @@
+callback-error ValueError factory stopped
+binding replacement body target body True
+events [('make', True), ('make', True), ('raise', True)]
+restored True True True

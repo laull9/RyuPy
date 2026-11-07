@@ -1,0 +1,28 @@
+truth insert ['a', 'b']
+truth_after ['a', 'b', 'new']
+pop_callback insert ('new', 9) ['a', 'b']
+truth clear ['a', 'b']
+truth_after []
+pop_callback clear KeyError 'dictionary is empty' []
+truth rotate ['a', 'b']
+truth_after ['b', 'a']
+pop_callback rotate ('a', 1) ['b']
+truth insert []
+truth_after ['new']
+pop_empty_insert ('new', 9) []
+truth remove ['a', 'b']
+truth_after ['b']
+move_removed 'a' ['b']
+truth insert ['a']
+truth_after ['a', 'new']
+move_added None ['new', 'a']
+bad_truth
+move_empty True RuntimeError truth failure None None
+bad_truth
+move_unhashable True RuntimeError truth failure None None
+bad_truth
+pop_empty True RuntimeError truth failure None None
+invalid_keyword False TypeError move_to_end() takes at most 2 arguments (3 given) None None
+last_len
+len_truth ('a', 1) ['b']
+DONE last_truth_callbacks

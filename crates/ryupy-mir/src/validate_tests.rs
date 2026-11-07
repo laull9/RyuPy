@@ -13,6 +13,7 @@ fn catches_unreachable_terminator() {
     });
     let func = Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "main".to_string(),
         codegen_name: "main".to_string(),
@@ -21,6 +22,7 @@ fn catches_unreachable_terminator() {
         params: Vec::new(),
         ret: MirType::Unit,
         body: crate::mir::Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,

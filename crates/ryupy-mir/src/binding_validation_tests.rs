@@ -11,6 +11,7 @@ fn program(statement: Statement) -> Program {
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "main".into(),
         codegen_name: "main".into(),
@@ -19,6 +20,7 @@ fn program(statement: Statement) -> Program {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -100,7 +102,9 @@ fn linked_export_guards_reject_invalid_slots_and_types() {
         vec![(
             input,
             UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: crate::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: Default::default(),
                 file_backed_by_global: false,
                 is_package: false,

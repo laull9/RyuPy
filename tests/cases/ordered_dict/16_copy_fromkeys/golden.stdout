@@ -1,0 +1,10 @@
+copy_initial True True True ['b', 'c', 'a'] True
+copy_independent [('c', ['visible']), ('a', ['visible']), ('b', 2), ('new', 9)] [('b', 2), ('c', ['visible']), ('a', ['visible'])] True
+fromkeys True [('b', ['visible']), ('a', ['visible'])] True True
+fromkeys_default [('z', None), ('x', None)]
+fromkeys_alias [('x', ['visible']), ('y', ['visible'])] ['b', 'c', 'a']
+numeric_fromkeys [(True, ['visible']), (0, ['visible']), (None, ['visible'])]
+fromkeys_yield_a
+fromkeys_yield_b
+streaming_fromkeys [('a', 7), ('b', 7)]
+DONE copy_fromkeys
