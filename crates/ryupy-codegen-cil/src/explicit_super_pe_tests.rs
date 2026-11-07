@@ -63,8 +63,14 @@ fn verify_core(res: &Resolution<'_>, instructions: &[Instruction], role: &str, s
             if role != "canonical" {
                 let invoke = once(res, instructions, "PyPic.CallValue2(");
                 let slot = stored(instructions, load);
-                assert_eq!(instructions[invoke - 2], Instruction::LoadArgument(slots[1]));
-                assert_eq!(instructions[invoke - 1], Instruction::LoadArgument(slots[2]));
+                assert_eq!(
+                    instructions[invoke - 2],
+                    Instruction::LoadArgument(slots[1])
+                );
+                assert_eq!(
+                    instructions[invoke - 1],
+                    Instruction::LoadArgument(slots[2])
+                );
                 assert!(load < invoke);
                 // 固定二参ABI为site/callee/arg0/arg1，无装箱或动态star形状。
                 assert!(matches!(instructions[invoke - 3], Instruction::LoadLocal(s) if s == slot));
@@ -82,7 +88,10 @@ fn verify_core(res: &Resolution<'_>, instructions: &[Instruction], role: &str, s
             } else {
                 "read"
             };
-            assert_eq!(instructions[capture - 1], Instruction::load_string(attribute));
+            assert_eq!(
+                instructions[capture - 1],
+                Instruction::load_string(attribute)
+            );
             let method = if role == "invoke_callback" {
                 "PyPic.CallCapturedMethod1("
             } else {
@@ -96,10 +105,12 @@ fn verify_core(res: &Resolution<'_>, instructions: &[Instruction], role: &str, s
             assert!(!instructions[flag + 2..invoke].iter().any(|instruction| {
                 matches!(instruction, Instruction::StoreLocal(slot) if *slot == flag_slot)
             }));
-            assert!(!instructions[capture + 2..invoke].iter().any(|instruction| {
-                matches!(instruction, Instruction::StoreLocal(slot)
+            assert!(
+                !instructions[capture + 2..invoke].iter().any(|instruction| {
+                    matches!(instruction, Instruction::StoreLocal(slot)
                     if *slot == flag_slot || *slot == target_slot)
-            }));
+                })
+            );
             // 只核固定ABI连续后缀；callback的其它frame局部不混入该对目标。
             let width = if role == "invoke_callback" { 4 } else { 3 };
             assert!(
@@ -113,11 +124,18 @@ fn verify_core(res: &Resolution<'_>, instructions: &[Instruction], role: &str, s
                 let callback = once(res, instructions, "PyOps.CallZeroWithFrame(");
                 assert!(capture < callback && callback < invoke);
                 // 零参frame ABI：site/callee/environment/index/first/kind。
-                assert_eq!(instructions[callback - 5], Instruction::LoadArgument(slots[2]));
+                assert_eq!(
+                    instructions[callback - 5],
+                    Instruction::LoadArgument(slots[2])
+                );
                 let result = stored(instructions, callback);
-                assert!(!instructions[callback + 2..invoke].iter().any(|instruction| {
-                    matches!(instruction, Instruction::StoreLocal(slot) if *slot == result)
-                }));
+                assert!(
+                    !instructions[callback + 2..invoke]
+                        .iter()
+                        .any(|instruction| {
+                            matches!(instruction, Instruction::StoreLocal(slot) if *slot == result)
+                        })
+                );
                 assert!(
                     matches!(instructions[invoke - 1], Instruction::LoadLocal(s) if s == result)
                 );

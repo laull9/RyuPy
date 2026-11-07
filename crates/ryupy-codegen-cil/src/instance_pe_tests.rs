@@ -194,7 +194,11 @@ impl<'a> Decoder<'a> {
         })
     }
 }
-pub(super) fn decode<'a>(bytes: &'a [u8], commit: &str, case: &str) -> Result<(Expected, &'a [u8]), String> {
+pub(super) fn decode<'a>(
+    bytes: &'a [u8],
+    commit: &str,
+    case: &str,
+) -> Result<(Expected, &'a [u8]), String> {
     if bytes.len() > 64 * 1024 * 1024 {
         return Err("envelope 过大".into());
     }
