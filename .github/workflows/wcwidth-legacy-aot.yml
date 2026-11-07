@@ -52,6 +52,8 @@ jobs:
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
       - name: 显式Instance资格与PE前置、两Native产物及隔离搬迁
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/instance_gate.py'
+      - name: 显式super双模式JIT、Legacy Native及隔离搬迁
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/explicit_super_gate.py'
       - name: 既有Kind1 JIT与Kind2资源AOT及搬移
         run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'
       - name: 保留成功或首次失败证据
@@ -62,6 +64,7 @@ jobs:
           path: |
             target/wcwidth-aot-evidence
             target/instance-aot-evidence
+            target/explicit-super-evidence
             target/resource-ci-evidence/**/logs/**
             target/resource-ci-evidence/**/result.json
           if-no-files-found: warn

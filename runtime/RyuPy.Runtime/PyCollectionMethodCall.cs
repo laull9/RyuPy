@@ -19,6 +19,9 @@ public static partial class PyOps
         object?[] rawValues
     )
     {
+        // 公共runtime调用已取得参数值，仍须先读super属性，再展开其star参数。
+        if (obj is PySuper)
+            return CallValue(CaptureMethodTarget(obj, name), rawArgs, rawNames, rawValues);
         // 生成类的字段可遮蔽tuple方法；缺属性须先于star展开失败，不能先FlattenArgs。
         // 精确list保留原FlattenArgs与checkedmethod路径，不探测派生布局冷分支。
         if (obj is not PyList && (obj is PyListInstance or PyClass { HasListLayout: true } or PySuper { Owner.HasListLayout: true }

@@ -13,18 +13,15 @@ public static class PyLexicalSuper
     private static object? ConstructWithoutFrame(object?[] args, string[] names, object?[] values)
     {
         if (args.Length != 0 || names.Length != 0)
-            throw new PyNotImplementedError("explicit super arguments and keywords are not supported");
+            return PyExplicitSuper.Construct(args, names);
         throw new PyNotImplementedError("zero-argument super requires an explicit lexical call frame");
     }
 
-    // 保留旧PE零参ABI与关键词优先错误；直接分派，避免零参路径创建捕获委托。
-    // 仅收紧原先被忽略的位置实参，不是实现显式super构造。
+    // 保留旧PE零参ABI/TLS；显式参数与一等类型走同一冷合同，不创建捕获委托。
     internal static object LegacyConstruct(object?[] args, string[] kwNames)
     {
-        if (kwNames.Length != 0)
-            throw new PyTypeError($"super() got an unexpected keyword argument '{kwNames[0]}'");
-        if (args.Length != 0)
-            throw new PyNotImplementedError("explicit super arguments are not supported");
+        if (args.Length != 0 || kwNames.Length != 0)
+            return PyExplicitSuper.Construct(args, kwNames);
         return PyMethodContext.MakeSuper();
     }
 

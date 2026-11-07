@@ -26,6 +26,26 @@ def audit_plans(result, expected):
     return plans
 
 
+def require_progress_promotion(result):
+    """同轮完整矩阵的独立约束，不重跑、不改状态标签或默认模块选择。"""
+    summary = json.loads((result / 'summary.json').read_text())
+    rows = json.loads((result / 'matrix.json').read_text())
+    if (not summary.get('valid') or summary.get('denominator') != 20
+            or summary.get('cp_passed') != 20 or not summary.get('preserve_pass')
+            or not summary.get('promotion_pass') or summary.get('protected_lost')
+            or summary.get('historical_regressions_open')):
+        raise RuntimeError('同轮完整20项未满足保九及progress恢复门')
+    if len(rows) != 20 or len({row['id'] for row in rows}) != 20:
+        raise RuntimeError('晋升约束拒绝半矩阵/重复ID')
+    progress = [row for row in rows if row['id'] == 'progress']
+    if len(progress) != 1 or progress[0]['status'] != 'native':
+        raise RuntimeError('本轮真实progress入口尚未native')
+    return {'run_id': summary['run_id'], 'same_matrix': True,
+            'summary_sha256': h.sha(result / 'summary.json'),
+            'matrix_sha256': h.sha(result / 'matrix.json'),
+            'promotion_pass': True, 'defaults_changed': False}
+
+
 def main():
     h.OUT = h.REPO / 'target/project-ci-evidence'
     h.OUT.mkdir(parents=True, exist_ok=True)
@@ -64,6 +84,7 @@ def main():
         raise RuntimeError('实际run.json未引用冻结工具或未完成')
     expected = json.loads((h.HERE / 'project-pilot-plans.json').read_text())
     plans = audit_plans(result, expected)
+    h.save('progress-promotion.json', require_progress_promotion(result))
     h.save('plan-audit.json', {'run_id': actual['run_id'], 'run_json_sha256': h.sha(result / 'run.json'),
         'contract_sha256': h.sha(h.HERE / 'project-pilot-plans.json'), 'plans': plans})
     if any(h.sha(Path(p)) != digest for p, digest in tools.items()):

@@ -729,3 +729,10 @@ extra未改，compile0/JIT1、stdout空，首错从缺OrderedDict推进为57B的
 +36.812%，迭代大幅下降仍受旧进程漂移限制。没有性能无回退结论，S1/B2等历史风险
 不关闭。详见[合同与验收](ordered-dict-core-slice.md)、[性能原报告](ordered-dict-performance.md)
 及[ADR0133](adr/0133-ordered-dict-core.md)。
+
+## 2026-11-07 显式super候选，尚未晋升
+
+下一竖切为普通单继承实例显式二参super及属性目标求值相位，见[ADR0140](adr/0140-explicit-super-bound-instances.md)。
+固定progress1.6原源与原CP入口已核，但产品恢复尚待hosted完整20项实际结果。原九保护
+ID不改；同轮完整矩阵另约束progress与promotion，不预先给第十保护项。Instance class
+AOT仍拒绝、自动默认Legacy不变；新增Legacy super Native合同不等于项目全AOT。

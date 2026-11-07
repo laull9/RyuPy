@@ -168,9 +168,9 @@ pub enum RuntimeFn {
     DynGetAttr,
     /// `PyOps.PrepareMethod(object, string) -> object`：实参暂停前绑定方法。
     PrepareMethod,
-    /// 实参前冻结actual module属性；非模块接收者原样返回，既有方法PIC保持。
+    /// 历史ABI：有界接收者在实参前冻结属性目标，其余原样返回。
     CaptureModuleTarget,
-    /// actual PyModule判定；无用户回调。
+    /// 历史ABI：RequiresEarlyMethodCapture判据；不是Python模块类型判断，无用户回调。
     IsModule,
     /// 显式捕获标志与目标的数组调用；参数数组不可共享。
     CallCapturedMethod,
