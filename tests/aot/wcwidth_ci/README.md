@@ -69,3 +69,11 @@ mode.json仅记这两个环境值及解释器SHA；commands.json和python-child-
 Rust测试解释器选择审计：常规driver/e2e测试读取PYTHON，ForEach单独读取
 RYUPY_FOREACH_PYTHON；Python基线脚本使用pinned_python.resolve优先PYTHON。
 AOT脚本单测由当前sys.executable运行，资源smoke继续显式--python，P0继续显式固定解释器。
+
+## 真实v3结果后的消费者一致性修正
+
+run42364073965的hello/main/wcwidth Native首跑和搬移成功保留；资源发布成功后被旧清单
+消费者拒绝，两个fullcheck被getopt旧安装绝对路径断言阻断。当前候选只统一测试消费者
+七options字段及module.environment_reason，并修getopt测试为固定CP版本/官方源码SHA/
+真实绝对库路径。生产runtime/编译器不改，未知字段拒绝与原完整门禁不减少。
+历史清单拒绝边界及所有共享消费者见[合同](../MANIFEST_CONSUMERS.md)。

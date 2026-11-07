@@ -25,12 +25,14 @@ def manifest_fixture(root):
         return {'relative_path':name, 'role':role, 'size':len(data), 'sha256':hashlib.sha256(data).hexdigest()}
     data = {'schema_version':1, 'kind':'ryupy-native-aot-artifact',
       'compiler':{'package_version':'0.0.1','build_revision':None,'codegen_report_version':1,
-        'options':dict.fromkeys(['experimental_direct_accumulator','experimental_leaf_inline','diagnostic_scalar_slp','experimental_packed_slp'],False)},
+        'options':{'experimental_direct_accumulator':False, 'experimental_foreach_accumulator':False,
+            'experimental_leaf_inline':False, 'diagnostic_scalar_slp':False, 'experimental_packed_slp':False,
+            'instance_modules':[], 'module_environment_policy':'explicit-only'}},
       'target':{'rid':'linux-x64','native_format':'ELF','architecture':'x64'},
       'toolchain':{'sdk_version':'10.0.403','target_framework_major':10},
       'entry':{'module_id':0,'managed_entry':method},
       'sources':[{'module_id':0,'module_name':'__main__','package':'','logical_source':'entry/main.py','compiled_text_sha256':digest}],
-      'modules':[{'id':0,'name':'__main__','init':method,'getter':method,'setter':method,'exports':['run']}],
+      'modules':[{'id':0,'name':'__main__','init':method,'getter':method,'setter':method,'exports':['run'],'environment_reason':'existing-contract'}],
       'emitted_delegate_references':[{'site':{'source_method':method,'instruction':2},'target':method,
         'target_display':'Generated.Main','role':'module_init','module_id':0,'function_id':None,'class_id':None}],
       'build_inputs':[{'relative_path':name,'role':role,'size':1,'sha256':digest} for name,role in

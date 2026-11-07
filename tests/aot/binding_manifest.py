@@ -1,5 +1,6 @@
 """恢复版schema3独立核验，按本轮driver实体；非ABI安全/保根/依赖闭包证明。"""
 import json
+from manifest_options import validate_options
 from pathlib import Path
 import re
 import shutil
@@ -27,8 +28,7 @@ def validate_schema(data, rid, linkage, sdk):
     text(compiler['package_version']); revision = compiler['build_revision']
     require(revision is None or isinstance(revision,str) and re.fullmatch('[0-9a-f]{40}',revision), 'revision错误')
     require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version']==1, 'report版本错误')
-    shape(compiler['options'],'experimental_direct_accumulator experimental_leaf_inline diagnostic_scalar_slp experimental_packed_slp')
-    require(all(type(v) is bool for v in compiler['options'].values()), '非bool选项')
+    validate_options(compiler['options'])
     shape(data['toolchain'],'sdk_version target_framework_major')
     require(type(data['toolchain']['target_framework_major']) is int and data['toolchain']['target_framework_major']==10, '非net10')
     require(data['toolchain']['sdk_version']==sdk, 'SDK不等于同次记录')
@@ -68,7 +68,8 @@ def validate_schema(data, rid, linkage, sdk):
     require(all(not n.startswith(b['module']+'.') and not b['module'].startswith(n+'.') for n in names), '源码父子冲突')
     modules = {}
     for m in data['modules']:
-        shape(m,'id name init getter setter exports origin'); integer(m['id'])
+        shape(m,'id name init getter setter exports origin environment_reason'); integer(m['id'])
+        text(m['environment_reason'])
         require(m['id'] not in modules, '重复模块ID')
         for key in ('init','getter','setter'): method(m[key])
         require(isinstance(m['exports'],list) and all(isinstance(x,str) for x in m['exports']), 'exports错误')

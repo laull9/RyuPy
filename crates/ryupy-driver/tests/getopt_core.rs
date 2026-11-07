@@ -1,5 +1,6 @@
 //! 有限getopt真实默认编译差分：原双流留证，静态拒绝另标，完整链仅精确投影已知库帧。
 use ryupy_driver::{BuildOptions, Session};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -7,7 +8,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 mod dynamic_support;
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
-const LIBRARY: &str = "/workspace/shared/toolchains/data/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/getopt.py";
+// 固定官方CPython3.12.13源码身份；安装位置可变，字节与精确库帧不可变。
+const LIBRARY_SHA256: &str = "0ce875700c8798193b8e2748f7a27fc542cc4d525a1e6fc403767450ec92be99";
 struct Root(PathBuf);
 impl Root {
     fn new(label: &str) -> Self {
@@ -50,7 +52,7 @@ fn execute(
     code: i32,
     helper: bool,
     chain_oracle: Option<ChainOracle<'_>>,
-) -> (Root, Output, Output, PathBuf) {
+) -> (Root, Output, Output, PathBuf, PathBuf) {
     let root = Root::new(filename);
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
     let probe = Command::new(&python).args(["-B", "-c", "import sys, getopt; assert sys.implementation.name == 'cpython'; print('.'.join(map(str, sys.version_info[:3]))); print(getopt.__file__)"]).output().unwrap();
@@ -62,7 +64,13 @@ fn execute(
         ryupy_driver::runtime::workspace_root().join("tests/pinned-python.txt"),
     )
     .unwrap();
-    assert_eq!(lines, [pinned.trim(), LIBRARY]);
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0], pinned.trim());
+    let stdlib = PathBuf::from(lines[1]);
+    assert!(stdlib.is_absolute() && stdlib.is_file());
+    let library_bytes = std::fs::read(&stdlib).unwrap();
+    assert_eq!(format!("{:x}", Sha256::digest(&library_bytes)), LIBRARY_SHA256);
+    std::fs::write(root.0.join("library.sha256"), LIBRARY_SHA256).unwrap();
     let input = root.0.join(filename);
     std::fs::write(&input, source).unwrap();
     if helper {
@@ -93,7 +101,7 @@ fn execute(
     );
     // 未捕获错误必须先确认CP完整链，而非任意exit1都允许进入编译/JIT。
     if let Some((library, fixed)) = chain_oracle {
-        let (projected, removed) = projection(&expected, &input, source, library, true);
+        let (projected, removed) = projection(&expected, &input, source, library, true, &stdlib);
         std::fs::write(root.0.join("python.projection"), projected.join("\n")).unwrap();
         std::fs::write(root.0.join("python.removed-frames"), removed.join("\n")).unwrap();
         assert_eq!(projected, fixed);
@@ -130,10 +138,10 @@ fn execute(
         "{}",
         String::from_utf8_lossy(&actual.stderr)
     );
-    (root, expected, actual, input)
+    (root, expected, actual, input, stdlib)
 }
 fn raw(source: &str, name: &str, helper: bool) {
-    let (_root, cp, jit, _) = execute(source, name, 0, helper, None);
+    let (_root, cp, jit, _, _) = execute(source, name, 0, helper, None);
     assert!(cp.stderr.is_empty());
     assert_eq!(jit.stdout, cp.stdout);
     assert_eq!(jit.stderr, cp.stderr);
@@ -186,7 +194,7 @@ fn local_identity_no_hoist_and_rejected_shadowing() {
     }
     // 原全局删除源码逐字保留为正例；未调用f，CP/JIT均应成功且双流为空。
     // execute使用独立目录，不向后续source_shadow的原生导入判定注入额外源码。
-    let (_deletion_root, cp, jit, _) = execute(
+    let (_deletion_root, cp, jit, _, _) = execute(
         "def f():\n    global Error\n    del Error\n",
         "global_delete.py",
         0,
@@ -261,6 +269,7 @@ fn projection(
     source: &str,
     library: &[(&str, &str)],
     python: bool,
+    stdlib: &Path,
 ) -> (Vec<String>, Vec<String>) {
     let text = String::from_utf8(output.stderr.clone()).unwrap();
     assert!(!text.contains("Unhandled exception"), "{text}");
@@ -276,7 +285,7 @@ fn projection(
             let (path, position) = rest.rsplit_once("\", line ").unwrap();
             let (number, _) = position.split_once(", in ").unwrap();
             let number: usize = number.parse().unwrap();
-            let library_frame = python && path == LIBRARY;
+            let library_frame = python && path == stdlib.to_str().unwrap();
             let expected_source;
             if library_frame {
                 let (fixed_position, fixed_source) = library.get(removed.len()).expect("额外库帧");
@@ -327,10 +336,11 @@ fn projection(
     (result, removed)
 }
 fn chain(source: &str, filename: &str, library: &[(&str, &str)], fixed: &[&str]) {
-    let (root, cp, jit, input) = execute(source, filename, 1, false, Some((library, fixed)));
+    let (root, cp, jit, input, stdlib) =
+        execute(source, filename, 1, false, Some((library, fixed)));
     assert_eq!(jit.stdout, cp.stdout);
-    let (expected, removed) = projection(&cp, &input, source, library, true);
-    let (actual, native_removed) = projection(&jit, &input, source, library, false);
+    let (expected, removed) = projection(&cp, &input, source, library, true, &stdlib);
+    let (actual, native_removed) = projection(&jit, &input, source, library, false, &stdlib);
     std::fs::write(root.0.join("python.projection"), expected.join("\n")).unwrap();
     std::fs::write(root.0.join("jit.projection"), actual.join("\n")).unwrap();
     std::fs::write(root.0.join("python.removed-frames"), removed.join("\n")).unwrap();

@@ -1,6 +1,7 @@
 """schema1/2发布清单核验；元数据校验不等于ILC保根/动态依赖闭包证明。"""
 import argparse
 import json
+from manifest_options import validate_options
 from pathlib import Path
 import re
 import shutil
@@ -69,8 +70,7 @@ def validate_schema(data, expected_rid, expected_sdk):
     require(compiler['build_revision'] is None or
             isinstance(compiler['build_revision'], str) and bool(re.fullmatch('[0-9a-f]{40}', compiler['build_revision'])), '不可靠revision')
     require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] == 1, '未知codegen报告')
-    shape(compiler['options'], 'experimental_direct_accumulator experimental_leaf_inline diagnostic_scalar_slp experimental_packed_slp')
-    require(all(type(v) is bool for v in compiler['options'].values()), '优化开关不是bool')
+    validate_options(compiler['options'])
     shape(data['target'], 'rid native_format architecture')
     require(expected_rid in TARGETS, '未知期望RID')
     fmt, arch = TARGETS[expected_rid]
@@ -106,7 +106,8 @@ def validate_schema(data, expected_rid, expected_sdk):
     require(set(sources) == set(range(len(sources))), '模块编号不连续')
     modules = {}
     for module in data['modules']:
-        shape(module, 'id name init getter setter exports')
+        shape(module, 'id name init getter setter exports environment_reason')
+        text(module['environment_reason'])
         integer(module['id'])
         require(module['id'] in sources and module['id'] not in modules, '模块缺失/重复')
         require(module['name'] == sources[module['id']]['module_name'], '报告/来源模块不一致')
