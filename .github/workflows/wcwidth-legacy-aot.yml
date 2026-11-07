@@ -49,12 +49,16 @@ jobs:
           command -v ldd
           dpkg-query -W zlib1g-dev
       - name: 原四调用、真实 publish、ELF 与搬移
+        id: legacy
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
       - name: 显式Instance资格与PE前置、两Native产物及隔离搬迁
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/instance_gate.py'
-      - name: 显式super双模式JIT、Legacy Native及隔离搬迁
+      - name: 显式super三分合同与独立Legacy Native及隔离搬迁
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/explicit_super_gate.py'
       - name: 既有Kind1 JIT与Kind2资源AOT及搬移
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'
       - name: 保留成功或首次失败证据
         if: always()

@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from explicit_super_gate import check_plan, check_native, compile_command
+from explicit_super_gate import check_plan, check_native, compile_command, aggregate
 
 
 class ExplicitSuperGateTests(unittest.TestCase):
@@ -37,6 +37,23 @@ class ExplicitSuperGateTests(unittest.TestCase):
             check_plan(path, True)
             with self.assertRaises(RuntimeError):
                 check_plan(path, False)
+
+    def test_aggregate_requires_all_four_distinct_propositions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, status in [('default', 'passed'), ('instance-negative', 'unsupported_expected'),
+                                 ('instance-caller', 'passed'), ('native', 'passed')]:
+                with self.assertRaises(FileNotFoundError):
+                    aggregate(root)
+                (root / name).mkdir()
+                (root / name / 'result.json').write_text(json.dumps({'passed': True, 'status': status}))
+            self.assertEqual(len(aggregate(root)), 4)
+            (root / 'instance-negative/result.json').write_text(json.dumps({'passed': True, 'status': 'passed'}))
+            with self.assertRaises(RuntimeError):
+                aggregate(root)
+            (root / 'instance-negative/result.json').write_text(json.dumps({'passed': False, 'status': 'unsupported_expected'}))
+            with self.assertRaises(RuntimeError):
+                aggregate(root)
 
     def test_native_rejects_instance_and_python_source(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -30,7 +30,7 @@ pub(super) struct Expected {
     pub modules: Vec<Root>,
 }
 
-fn locate(res: &Resolution<'_>, expected: &Locator) -> Result<MethodIndex, String> {
+pub(super) fn locate(res: &Resolution<'_>, expected: &Locator) -> Result<MethodIndex, String> {
     if expected.owner != "RyuPy.Generated.Module" {
         return Err("超出普通方法保序边界".into());
     }
@@ -194,7 +194,7 @@ impl<'a> Decoder<'a> {
         })
     }
 }
-fn decode<'a>(bytes: &'a [u8], commit: &str, case: &str) -> Result<(Expected, &'a [u8]), String> {
+pub(super) fn decode<'a>(bytes: &'a [u8], commit: &str, case: &str) -> Result<(Expected, &'a [u8]), String> {
     if bytes.len() > 64 * 1024 * 1024 {
         return Err("envelope 过大".into());
     }

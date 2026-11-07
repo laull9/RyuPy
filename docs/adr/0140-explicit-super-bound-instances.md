@@ -60,8 +60,30 @@ CaptureModuleTarget作为PE兼容alias保留；旧名字早已不是Python模块
 
 ## 验证计划及当前状态
 
-新增同源完整default/Instance case仍pending。固定CP原流成功只证明测试有效；候选
-hosted脚本显式编译/JIT两份case，并分别用PIC on/off运行，不把pending跳过当通过。
+原同源完整default/Instance case仍pending且四个.py字节固定。第二轮hosted中原
+Legacy完整case的CLI JIT双PIC通过，但完整Instance在第58/96行的属性del被既有
+E0100预检拒绝。因此撤回“完整同源程序在两模式都成功”的验收目标，不扩大Instance
+模块语法，也不删除两处反例。改成四个全部必需、独立保存结果的证明：
+
+1. 原完整Legacy case的CLI计划及JIT双PIC正例。
+2. 原完整Instance case的CP正例和真实CLI编译负例：只能有两处精确E0100，
+   输出目录必须全新且无产物。结果为unsupported_expected，不计Instance正向通过。
+3. 独立小caller模块正例：caller自己执行canonical alias/direct二参构造及
+   proxy.call(callback())；类定义、删除/重绑回调和异常捕获在Legacy模型/入口。
+   生产driver测试入口从同次linked/report发射同一待执行PE，按真实module_id/FnId/
+   slot关联core及初始化根；独立MIR期望和实际PE局部数据流检查后，再双PIC运行。
+   此PE不是CLI产物，不代表完整原程序或progress的Instance支持。
+4. 原完整Legacy case的Native发布、归档、执行、搬迁与隔离运行，不依赖第2/3项成功。
+
+小caller AST以五个固定函数及窄语法白名单盘点；实际HIR验证仍是独立生产driver步骤。
+两个Rust门必须具名且恰好执行一个测试，缺环境不能提前返回。PE/报告/源码/runtime/
+角色映射绑定身份，执行前后校验。结构检查只接受五个函数的既有连续ABI窄形状，
+从MIR真实参数定位context、start/receiver与callback；init必须把super读取结果写alias。
+针对实际PE的内存指令副本施加局部来源/flag/target/result反例，不能用通用envelope
+反例代替。此检查不是通用CIL分析框架，结构优化改变时须重新评估，不自动放宽。同轮全部阶段缺失、失败或未运行均使总门失败；
+失败不阻止其它独立阶段留证。resource仍强制且不再被super阶段失败遮蔽。
+以上新增接线仍是待hosted候选；本地仅运行固定CP及纯脚本自测。
+
 C#合同覆盖两构造入口、同名不同身份、完整特殊链、未绑定NI、getter不提前执行、
 保存方法、同站点交替receiver及祖先变更。原词法零参/TLS隔离测试保留。
 

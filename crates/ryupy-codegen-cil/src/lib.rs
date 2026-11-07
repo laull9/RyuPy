@@ -183,3 +183,6 @@ mod instance_pe_tests;
 
 #[cfg(test)]
 mod instance_pe_roundtrip_tests;
+
+#[cfg(test)]
+mod explicit_super_pe_tests;
