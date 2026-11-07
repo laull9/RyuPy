@@ -28,10 +28,9 @@ impl BindingManifest {
     ) -> Result<Self> {
         ensure!(bindings.len() == 1, "绑定报告必须恰有一个生成模块");
         let binding = bindings.remove(0);
+        crate::manifest::validate_report_version(report.schema_version)?;
         ensure!(
-            report.schema_version == 1
-                && report.modules.len() == sources.len() + 1
-                && entry < (sources.len() as u32),
+            report.modules.len() == sources.len() + 1 && entry < (sources.len() as u32),
             "绑定报告/源码数量或入口不符"
         );
         ensure!(
@@ -144,7 +143,7 @@ impl BindingManifest {
         let refs:Vec<Value>=self.report.delegate_references.iter().map(|r|json!({"site":{"source_method":method(&r.source),"instruction":r.instruction},"target":r.target.as_ref().map(method),"target_display":r.target_display,"role":r.role,"module_id":r.module_id,"function_id":r.function_id,"class_id":r.class_id})).collect();
         let b = &self.binding;
         let value = json!({"schema_version":3,"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},
- "compiler":{"package_version":env!("CARGO_PKG_VERSION"),"build_revision":Value::Null,"codegen_report_version":1,"options":self.options},"target":{"rid":plan.platform.rid(),"native_format":plan.platform.native_format(),"architecture":plan.platform.architecture()},"toolchain":{"sdk_version":sdk,"target_framework_major":ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR},
+ "compiler":{"package_version":env!("CARGO_PKG_VERSION"),"build_revision":Value::Null,"codegen_report_version":self.report.schema_version,"options":self.options},"target":{"rid":plan.platform.rid(),"native_format":plan.platform.native_format(),"architecture":plan.platform.architecture()},"toolchain":{"sdk_version":sdk,"target_framework_major":ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR},
  "entry":{"module_id":self.entry,"managed_entry":method(&self.report.entry)},"sources":self.sources,"modules":modules,"emitted_delegate_references":refs,
  "native_bindings":[{"binding_id":"b0","module_id":b.module_id,"module":plan.module,"export":plan.export,"signature":SIGNATURE,"library":b.library,"symbol":b.symbol,"declaration_sha256":plan.declaration_sha256,"linkage":if plan.aot{"aot_static"}else{"jit_shared"},"relative_file":if plan.aot{None}else{Some(plan.platform.relative_file())},"initializer_id":b.initializer_id,"export_id":b.export_id,"body":method(&b.body),"native":method(&b.native),"pinvoke":{"calling_convention":b.calling_convention,"character_set":b.character_set,"no_mangle":b.no_mangle,"supports_last_error":b.supports_last_error,"preserve_sig":b.preserve_sig,"is_static":b.is_static,"has_body":b.has_body}}],
  "build_inputs":inputs,"artifacts":artifacts,"scope":{"dynamic_dependency_closure_complete":false,"resources_included":false,"native_retention_proven":false,"manifest_self_hash_included":false}});

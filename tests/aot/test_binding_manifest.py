@@ -63,6 +63,17 @@ class BindingManifestTests(unittest.TestCase):
     def write(self): (self.root/'ryupy-artifact.json').write_text(json.dumps(self.data),encoding='utf-8')
     def verify(self): return verify(self.root,self.root/'app.dll','linux-x64','jit_shared',None,self.expected)
 
+    def test_report_versions_keep_v1_and_v2_and_reject_unknown(self):
+        for version in (1, 2):
+            self.data['compiler']['codegen_report_version'] = version
+            self.write()
+            self.verify()
+        for version in (0, 3, True, '2'):
+            self.data['compiler']['codegen_report_version'] = version
+            self.write()
+            with self.assertRaises(ManifestError):
+                self.verify()
+
     def test_valid_exact_bundle_relocates_all_files(self):
         self.verify()
         entry,data = relocate(self.root,self.root/'app.dll',Path(self.temp.name)/'moved','linux-x64','jit_shared',None,self.expected)

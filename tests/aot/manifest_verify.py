@@ -69,7 +69,7 @@ def validate_schema(data, expected_rid, expected_sdk):
     text(compiler['package_version'])
     require(compiler['build_revision'] is None or
             isinstance(compiler['build_revision'], str) and bool(re.fullmatch('[0-9a-f]{40}', compiler['build_revision'])), '不可靠revision')
-    require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] == 1, '未知codegen报告')
+    require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] in (1, 2), '未知codegen报告')
     validate_options(compiler['options'])
     shape(data['target'], 'rid native_format architecture')
     require(expected_rid in TARGETS, '未知期望RID')

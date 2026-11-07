@@ -19,7 +19,8 @@ mod callables;
 mod emission_report;
 mod entry;
 pub use emission_report::{
-    DelegateReference, EmissionArtifact, EmissionReport, MethodDescriptor, ModuleEmission,
+    DelegateReference, EmissionArtifact, EmissionReport, FunctionEmission, MethodDescriptor,
+    ModuleEmission,
 };
 mod class_cell_refs;
 #[cfg(test)]
@@ -176,3 +177,9 @@ mod instance_tests;
 
 #[cfg(test)]
 mod owned_function_tests;
+
+#[cfg(test)]
+mod instance_pe_tests;
+
+#[cfg(test)]
+mod instance_pe_roundtrip_tests;

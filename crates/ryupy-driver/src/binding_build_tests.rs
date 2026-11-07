@@ -54,6 +54,7 @@ fn jit_bundle_owned_and_actual_source_schema() {
     assert!(first.native_exe.is_none());
     let v: Value = serde_json::from_slice(&original).unwrap();
     assert_eq!(v["schema_version"], 3);
+    assert_eq!(v["compiler"]["codegen_report_version"], 2);
     assert_eq!(v["sources"].as_array().unwrap().len(), 1);
     assert_eq!(v["modules"].as_array().unwrap().len(), 2);
     assert_eq!(v["modules"][1]["origin"]["kind"], "declared_native_binding");

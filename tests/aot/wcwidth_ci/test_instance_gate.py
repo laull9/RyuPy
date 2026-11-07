@@ -74,6 +74,11 @@ class InstanceGateTests(unittest.TestCase):
         source = Path(gate.__file__).read_text()
         self.assertLess(source.index("tested('real-source-pe-gate'"),
                         source.index("for name in ['original', 'combined']"))
+        self.assertLess(source.index("tested('real-source-pe-gate'"),
+                        source.index("tested('actual-pe-gate'"))
+        self.assertLess(source.index("tested('actual-pe-gate'"),
+                        source.index("for name in ['original', 'combined']"))
+        self.assertIn("unchanged(structure, identity)", source)
         for required in ["'--pull=never'", "'--read-only'", "'none'", "preserve_dist(dist, h.OUT)"]:
             self.assertIn(required, source)
 

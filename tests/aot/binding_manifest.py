@@ -27,7 +27,7 @@ def validate_schema(data, rid, linkage, sdk):
     compiler = data['compiler']; shape(compiler,'package_version build_revision codegen_report_version options')
     text(compiler['package_version']); revision = compiler['build_revision']
     require(revision is None or isinstance(revision,str) and re.fullmatch('[0-9a-f]{40}',revision), 'revision错误')
-    require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version']==1, 'report版本错误')
+    require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] in (1, 2), 'report版本错误')
     validate_options(compiler['options'])
     shape(data['toolchain'],'sdk_version target_framework_major')
     require(type(data['toolchain']['target_framework_major']) is int and data['toolchain']['target_framework_major']==10, '非net10')

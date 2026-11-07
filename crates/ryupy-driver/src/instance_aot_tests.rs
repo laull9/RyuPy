@@ -207,15 +207,30 @@ fn explicit_aot_real_source_and_pe_gate() {
             );
         }
         let resource = fixtures.join(format!("{name}-resources.json"));
-        let (linked, _, _) = compile_linked_locations(
+        let compiled = compile_linked_locations(
             &mut session,
             &entry,
             std::slice::from_ref(&source),
             true,
             Some(&resource),
             true,
+        );
+        std::fs::write(
+            output.join(format!("{name}-diagnostics.txt")),
+            session.render_diagnostics(false),
         )
-        .unwrap_or_else(|e| panic!("{e}: {}", session.render_diagnostics(false)));
+        .unwrap();
+        std::fs::write(
+            output.join(format!("{name}-plan.json")),
+            session.module_environment_report_json().unwrap(),
+        )
+        .unwrap();
+        let (linked, sources, _) = compiled.unwrap();
+        std::fs::write(
+            output.join(format!("{name}-linked-mir.txt")),
+            format!("{linked:#?}"),
+        )
+        .unwrap();
         for selected in &session.instance_modules {
             assert!(
                 linked
@@ -230,37 +245,22 @@ fn explicit_aot_real_source_and_pe_gate() {
             entry_source_path: None,
         };
         let emitted = ryupy_codegen_cil::emit_assembly_with_report(&linked, &options).unwrap();
+        std::fs::write(output.join(format!("{name}.dll")), &emitted.bytes).unwrap();
+        std::fs::write(
+            output.join(format!("{name}-emission.txt")),
+            format!("{:#?}", emitted.report),
+        )
+        .unwrap();
         let cil = ryupy_codegen_cil::dump_cil(&linked, &options).unwrap();
-        // 报告来自本次真实 PE；每个 owner 函数都有初始化时的静态 ldftn 根。
-        for (id, function) in linked.functions.iter() {
-            if function.module_state_source
-                == Some(ryupy_mir::InstanceStateSource::FunctionParameter)
-            {
-                assert!(
-                    emitted.report.delegate_references.iter().any(|reference| {
-                        reference.function_id == Some(id.into_raw().into_u32())
-                            && reference.source.name == "__init_functions"
-                            && reference.target.is_some()
-                    }),
-                    "缺少静态 owner thunk 根：{}",
-                    function.codegen_name
-                );
-                let thunk_name = format!(" __thunk_{}(", id.into_raw().into_u32());
-                let thunk = cil
-                    .split("    .method ")
-                    .find(|body| {
-                        body.lines()
-                            .next()
-                            .is_some_and(|header| header.contains(&thunk_name))
-                    })
-                    .expect("实际 CIL 必须包含该 owner thunk");
-                assert!(
-                    thunk.lines().any(|line| line.contains("call ")
-                        && line.contains(&format!("{}(", function.codegen_name))),
-                    "owner thunk 必须静态调用目标 core"
-                );
-            }
-        }
+        std::fs::write(output.join(format!("{name}.cil")), cil).unwrap();
+        super::instance_aot_evidence_tests::save(
+            &output,
+            name,
+            &linked,
+            &session.instance_modules,
+            &sources,
+            &emitted,
+        );
         for (_, module) in linked.modules.iter() {
             if module.name != "__main__" {
                 assert!(matches!(
@@ -325,23 +325,6 @@ fn explicit_aot_real_source_and_pe_gate() {
             }
         }
         assert_eq!(lambda_count, if combined { 6 } else { 1 });
-        std::fs::write(output.join(format!("{name}.dll")), emitted.bytes).unwrap();
-        std::fs::write(output.join(format!("{name}.cil")), cil).unwrap();
-        std::fs::write(
-            output.join(format!("{name}-linked-mir.txt")),
-            format!("{linked:#?}"),
-        )
-        .unwrap();
-        std::fs::write(
-            output.join(format!("{name}-emission.txt")),
-            format!("{:#?}", emitted.report),
-        )
-        .unwrap();
-        std::fs::write(
-            output.join(format!("{name}-plan.json")),
-            session.module_environment_report_json().unwrap(),
-        )
-        .unwrap();
     }
 }
 

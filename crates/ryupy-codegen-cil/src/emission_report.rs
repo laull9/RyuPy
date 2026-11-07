@@ -9,6 +9,13 @@ pub struct MethodDescriptor {
     pub name: String,
     pub signature: String,
 }
+/// core 来自实际 functions 映射；slot 是所属类型的普通方法序号，不是 FnId。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FunctionEmission {
+    pub function_id: u32,
+    pub core: MethodDescriptor,
+    pub core_slot: u32,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModuleEmission {
     pub module_id: u32,
@@ -22,8 +29,10 @@ pub struct ModuleEmission {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DelegateReference {
     pub source: MethodDescriptor,
+    pub source_slot: u32,
     pub instruction: u32,
     pub target: Option<MethodDescriptor>,
+    pub target_slot: Option<u32>,
     pub target_display: String,
     pub role: String,
     pub module_id: Option<u32>,
@@ -34,6 +43,8 @@ pub struct DelegateReference {
 pub struct EmissionReport {
     pub schema_version: u32,
     pub entry: MethodDescriptor,
+    pub entry_slot: u32,
+    pub function_definitions: Vec<FunctionEmission>,
     pub modules: Vec<ModuleEmission>,
     pub delegate_references: Vec<DelegateReference>,
 }
@@ -85,6 +96,24 @@ pub(crate) fn collect(
             })
         })
         .collect();
+    // 只观察实际 MethodIndex；序列化后普通方法保序的边界由独立 PE 门核验。
+    let slots: FxHashMap<_, _> = res
+        .enumerate_type_definitions()
+        .flat_map(|(owner, _)| {
+            res.enumerate_methods(owner)
+                .enumerate()
+                .map(|(slot, (index, _))| (index, slot as u32))
+        })
+        .collect();
+    let mut function_definitions: Vec<_> = functions
+        .iter()
+        .map(|(id, index)| FunctionEmission {
+            function_id: id.into_raw().into_u32(),
+            core: identities[index].clone(),
+            core_slot: slots[index],
+        })
+        .collect();
+    function_definitions.sort_by_key(|function| function.function_id);
     let mut roles = FxHashMap::default();
     let mut modules = Vec::new();
     for (position, (id, module)) in program.modules.iter().enumerate() {
@@ -208,8 +237,10 @@ pub(crate) fn collect(
                 let role = definition.and_then(|method| roles.get(&method));
                 delegate_references.push(DelegateReference {
                     source: identities[&source].clone(),
+                    source_slot: slots[&source],
                     instruction: instruction as u32,
                     target: definition.map(|method| identities[&method].clone()),
+                    target_slot: definition.map(|method| slots[&method]),
                     target_display: target.show(res),
                     role: role.map_or("unclassified", |role| role.name).to_owned(),
                     module_id: role.and_then(|role| role.module),
@@ -221,8 +252,10 @@ pub(crate) fn collect(
     }
     delegate_references.sort_by(|a, b| (&a.source, a.instruction).cmp(&(&b.source, b.instruction)));
     EmissionReport {
-        schema_version: 1,
+        schema_version: 2,
         entry: identities[&entry].clone(),
+        entry_slot: slots[&entry],
+        function_definitions,
         modules,
         delegate_references,
     }

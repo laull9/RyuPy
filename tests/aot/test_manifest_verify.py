@@ -44,6 +44,20 @@ def manifest_fixture(root):
 
 
 class ManifestVerifyTests(unittest.TestCase):
+    def test_report_versions_keep_v1_and_v2_and_reject_unknown(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'publish'
+            data = manifest_fixture(root)
+            for version in (1, 2):
+                data['compiler']['codegen_report_version'] = version
+                (root / MANIFEST_NAME).write_text(json.dumps(data))
+                verify_manifest(root, root / 'program', 'linux-x64', '10.0.403')
+            for version in (0, 3, True, '2'):
+                data['compiler']['codegen_report_version'] = version
+                (root / MANIFEST_NAME).write_text(json.dumps(data))
+                with self.assertRaises(ManifestError):
+                    verify_manifest(root, root / 'program', 'linux-x64', '10.0.403')
+
     def test_complete_relocation_keeps_symbols_and_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)/'publish'
