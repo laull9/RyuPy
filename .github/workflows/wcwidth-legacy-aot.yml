@@ -91,6 +91,14 @@ jobs:
           name: full-check-${{ matrix.mode }}-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/full-check-evidence
+            target/foreach-new-run/**/*.bin
+            target/foreach-new-run/**/status.json
+            target/foreach-new-run/**/summary.json
+            target/foreach-new-run/**/result.json
+            target/foreach-new-run/**/manifest.json
+            target/foreach-new-run/**/diagnostics.txt
+            target/foreach-new-run/**/compile-meta.json
+            target/foreach-new-run/**/module-plan.json
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
   projects:

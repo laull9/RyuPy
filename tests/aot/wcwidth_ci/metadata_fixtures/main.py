@@ -12,30 +12,55 @@ marker = [1]
 plain.__spec__ = marker
 assert plain.check() is marker
 plain.delete()
-assert not hasattr(plain, "__spec__")
 try:
     plain.check()
+except NotImplementedError as error:
+    assert str(error) == "builtin fallback for unbound module name '__spec__' is not supported"
+else:
+    raise AssertionError("spec builtin boundary")
+plain.__loader__ = marker
+assert plain.read_loader() is marker
+plain.delete_loader()
+try:
+    plain.read_loader()
+except NotImplementedError as error:
+    assert str(error) == "builtin fallback for unbound module name '__loader__' is not supported"
+else:
+    raise AssertionError("loader builtin boundary")
+plain.__cached__ = marker
+assert plain.read_cached() is marker
+plain.delete_cached()
+try:
+    plain.read_cached()
 except NameError:
     pass
 else:
-    raise AssertionError("deleted slot fallback")
+    raise AssertionError("cached name must be missing")
+plain.__path__ = marker
+assert plain.read_path() is marker
+plain.delete_path()
+try:
+    plain.read_path()
+except NameError:
+    pass
+else:
+    raise AssertionError("path name must be missing")
+# 外部属性读取不查builtins；四个槽都必须缺失，不回退初值。
+for name in ["__spec__", "__loader__", "__cached__", "__path__"]:
+    try:
+        getattr(plain, name)
+    except AttributeError:
+        pass
+    else:
+        raise AssertionError("deleted attribute fallback")
+plain.__spec__ = marker
 plain.__loader__ = marker
 plain.__cached__ = marker
 plain.__path__ = marker
-values = plain.read_rest()
-assert values[0] is marker
-assert values[1] is marker
-assert values[2] is marker
-plain.delete_rest()
-assert not hasattr(plain, "__loader__")
-assert not hasattr(plain, "__cached__")
-assert not hasattr(plain, "__path__")
-try:
-    plain.read_rest()
-except NameError:
-    pass
-else:
-    raise AssertionError("deleted metadata fallback")
+assert plain.check() is marker
+assert plain.read_loader() is marker
+assert plain.read_cached() is marker
+assert plain.read_path() is marker
 try:
     import pkg
 except ValueError:
