@@ -36,9 +36,7 @@ fn locate(res: &Resolution<'_>, expected: &Locator) -> Result<MethodIndex, Strin
     }
     let owners: Vec<_> = res
         .enumerate_type_definitions()
-        .filter(|(_, ty)| {
-            ty.namespace.as_deref() == Some("RyuPy.Generated") && ty.name == "Module"
-        })
+        .filter(|(_, ty)| ty.namespace.as_deref() == Some("RyuPy.Generated") && ty.name == "Module")
         .collect();
     if owners.len() != 1 || !owners[0].1.properties.is_empty() || !owners[0].1.events.is_empty() {
         return Err("生成类型不唯一或含 property/event".into());
@@ -100,7 +98,12 @@ pub(super) fn verify(bytes: &[u8], expected: &Expected) -> Result<(), String> {
             return Err("函数初始化器不唯一".into());
         }
         let mut calls = 0;
-        for instruction in &res[thunk].body.as_ref().ok_or("thunk 没有 body")?.instructions {
+        for instruction in &res[thunk]
+            .body
+            .as_ref()
+            .ok_or("thunk 没有 body")?
+            .instructions
+        {
             if let Instruction::Call {
                 param0: MethodSource::User(UserMethod::Definition(actual)),
                 ..

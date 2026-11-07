@@ -39,7 +39,11 @@ fn example() -> (Vec<u8>, Expected) {
         let owner = local(&mut locals, MirType::Dynamic);
         let mut value = function(
             "same_lambda",
-            single_block(locals, vec![], Some(Operand::Const(ryupy_mir::Constant::Null))),
+            single_block(
+                locals,
+                vec![],
+                Some(Operand::Const(ryupy_mir::Constant::Null)),
+            ),
             vec![context, owner],
             MirType::Dynamic,
         );
@@ -215,5 +219,8 @@ fn instance_pe_duplicate_core_roundtrip_and_wrong_targets() {
         })
         .unwrap();
     Resolution::parse(&missing_body, ReadOptions::default()).unwrap();
-    assert_eq!(verify(&missing_body, &expected).unwrap_err(), "方法没有 body");
+    assert_eq!(
+        verify(&missing_body, &expected).unwrap_err(),
+        "方法没有 body"
+    );
 }
