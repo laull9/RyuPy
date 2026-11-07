@@ -14,6 +14,14 @@ EXPECTED = b'explicit super identity binding mutation phases\n'
 FIXTURES = h.REPO / 'tests/cases/explicit_super'
 
 
+def compile_command(cli, entry, output, instance):
+    """CLI的JIT计划是显式诊断产物；两种模式都请求真实报告，不生成替代报告。"""
+    args = [cli]
+    if instance:
+        args += ['--instance-module', 'subject']
+    return args + ['build', entry, '--diagnostic-stages', '--out-dir', output]
+
+
 def strict(name, args, **kwargs):
     h.run(name, args, **kwargs)
     if (h.OUT / (name + '.stderr')).read_bytes():
@@ -73,10 +81,7 @@ def main():
         entry = root / 'entry.py'
         strict('cp', [python, '-B', entry], expected=EXPECTED)
         output = h.OUT / 'jit'
-        args = [cli]
-        if mode == 'instance':
-            args += ['--instance-module', 'subject']
-        h.run('compile', args + ['build', entry, '--out-dir', output], timeout=300)
+        h.run('compile', compile_command(cli, entry, output, mode == 'instance'), timeout=300)
         h.save('plan.json', check_plan(output / 'module-environment.json', mode == 'instance'))
         if h.sha(output / 'RyuPy.Runtime.dll') != identity[1]:
             raise RuntimeError('JIT实际runtime身份改变')
