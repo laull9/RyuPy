@@ -121,8 +121,15 @@ pub(crate) fn validate_aot(
             // 或普通文件父路径误当已注册包。每个源码祖先必须是真实 Package。
             let mut parent = source.name.as_str();
             while let Some((prefix, _)) = parent.rsplit_once('.') {
-                if !sources.iter().any(|m| m.name == prefix && m.kind == SourceKind::Package) {
-                    reject(sess, source, &format!("包祖先 `{prefix}` 缺少真实 Package 来源"))?;
+                if !sources
+                    .iter()
+                    .any(|m| m.name == prefix && m.kind == SourceKind::Package)
+                {
+                    reject(
+                        sess,
+                        source,
+                        &format!("包祖先 `{prefix}` 缺少真实 Package 来源"),
+                    )?;
                 }
                 parent = prefix;
             }
@@ -130,7 +137,11 @@ pub(crate) fn validate_aot(
                 .and_then(|p| p.module_location(index as u32))
                 .is_none()
             {
-                reject(sess, source, "源码闭包缺少 ExecutableRelative 资源元数据锚点")?;
+                reject(
+                    sess,
+                    source,
+                    "源码闭包缺少 ExecutableRelative 资源元数据锚点",
+                )?;
             }
             validated.required.push(index);
         }

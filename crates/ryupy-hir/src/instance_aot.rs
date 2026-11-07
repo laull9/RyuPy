@@ -62,7 +62,10 @@ impl<'a> Visitor<'a> for Scan {
             _ => {}
         }
         // 默认值、装饰器和不可达分支同样递归；不使用运行期可达性放宽域。
-        let scope = matches!(statement, ast::Stmt::FunctionDef(_) | ast::Stmt::ClassDef(_));
+        let scope = matches!(
+            statement,
+            ast::Stmt::FunctionDef(_) | ast::Stmt::ClassDef(_)
+        );
         self.depth += usize::from(scope);
         walk_stmt(self, statement);
         self.depth -= usize::from(scope);

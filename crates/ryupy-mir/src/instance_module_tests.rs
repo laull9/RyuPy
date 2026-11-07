@@ -452,22 +452,39 @@ fn aot_parameter_closed_lambdas_keep_owner_without_environment() {
         "def make():\n    return lambda value: value.encode()\ndef zero():\n    return lambda: 1\ndef many():\n    return lambda f, x, /, y, *, z: f(x, y, z=z)\n",
     );
     assert!(validate::validate(&program).is_ok());
-    let made: Vec<_> = program.functions.iter()
+    let made: Vec<_> = program
+        .functions
+        .iter()
         .flat_map(|(_, f)| f.body.blocks.iter())
         .flat_map(|(_, b)| &b.stmts)
         .filter_map(|s| match s {
-            Statement::Assign { value: Rvalue::MakeFunction {
-                func, env, defaults, instance_context,
-            }, .. } => Some((func, env, defaults, instance_context)),
+            Statement::Assign {
+                value:
+                    Rvalue::MakeFunction {
+                        func,
+                        env,
+                        defaults,
+                        instance_context,
+                    },
+                ..
+            } => Some((func, env, defaults, instance_context)),
             _ => None,
-        }).collect();
+        })
+        .collect();
     assert_eq!(made.len(), 6);
     for (func, env, defaults, context) in made {
         assert!(env.is_empty());
         assert!(context.is_some());
-        assert!(defaults.iter().all(|v| matches!(v, Operand::Const(Constant::Null))));
+        assert!(
+            defaults
+                .iter()
+                .all(|v| matches!(v, Operand::Const(Constant::Null)))
+        );
         let function = &program.functions[*func];
-        assert_eq!(function.module_state_source, Some(InstanceStateSource::FunctionParameter));
+        assert_eq!(
+            function.module_state_source,
+            Some(InstanceStateSource::FunctionParameter)
+        );
         assert!(function.function_global.is_none());
         assert!(function.defaults_global.is_none());
     }
