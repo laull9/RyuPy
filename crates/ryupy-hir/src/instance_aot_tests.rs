@@ -37,8 +37,13 @@ fn explicit_aot_scans_dead_code_defaults_and_decorators() {
     ] {
         for dead in [false, true] {
             let source = if dead {
-                format!("def valid():\n    pass\nif False:\n{}", boundary.lines()
-                    .map(|line| format!("    {line}\n")).collect::<String>())
+                format!(
+                    "def valid():\n    pass\nif False:\n{}",
+                    boundary
+                        .lines()
+                        .map(|line| format!("    {line}\n"))
+                        .collect::<String>()
+                )
             } else {
                 format!("def valid():\n    pass\n{boundary}")
             };
@@ -51,9 +56,15 @@ fn explicit_aot_scans_dead_code_defaults_and_decorators() {
 #[test]
 fn explicit_aot_lambda_positive_domain_has_no_cells_or_free_names() {
     for expression in [
-        "lambda: None", "lambda: 1", "lambda: 1.5", "lambda: True",
-        "lambda: 'text'", "lambda: b'bytes'", "lambda value: value.encode()",
-        "lambda value, /: value.encode()", "lambda *, value: value.encode()",
+        "lambda: None",
+        "lambda: 1",
+        "lambda: 1.5",
+        "lambda: True",
+        "lambda: 'text'",
+        "lambda: b'bytes'",
+        "lambda value: value.encode()",
+        "lambda value, /: value.encode()",
+        "lambda *, value: value.encode()",
         "lambda f, x, /, y, *, z: f(x, y, z=z)",
     ] {
         let source = format!("def make():\n    return {expression}\n");
@@ -62,9 +73,14 @@ fn explicit_aot_lambda_positive_domain_has_no_cells_or_free_names() {
         let file = db.add("lambda.py", &source);
         let (parsed, errors) = ryupy_syntax::parse(file, &source);
         assert!(errors.is_empty());
-        let (hir, errors) = crate::lower_module(&parsed, &crate::ModuleInfo {
-            instance_globals: true, ..Default::default()
-        }, &source);
+        let (hir, errors) = crate::lower_module(
+            &parsed,
+            &crate::ModuleInfo {
+                instance_globals: true,
+                ..Default::default()
+            },
+            &source,
+        );
         assert!(errors.is_empty(), "{errors:?}");
         for (_, function) in hir.functions.iter() {
             assert!(function.closure.free.is_empty(), "{source}");
@@ -76,12 +92,24 @@ fn explicit_aot_lambda_positive_domain_has_no_cells_or_free_names() {
 #[test]
 fn explicit_aot_lambda_negative_domain_is_position_independent() {
     for expression in [
-        "lambda x: outside", "lambda x: len(x)", "lambda x=1: x",
-        "lambda *args: args", "lambda **kwargs: kwargs", "lambda x: lambda: x",
-        "lambda x: (x := 1)", "lambda x: (yield x)", "lambda x: [v for v in x]",
-        "lambda f, x: f(*x)", "lambda f, x: f(**x)", "lambda x: x + 1",
-        "lambda x: [x]", "lambda x: f'{x}'", "lambda: 1j", "lambda: ...",
-        "lambda x: x.__class__", "lambda globals: globals()",
+        "lambda x: outside",
+        "lambda x: len(x)",
+        "lambda x=1: x",
+        "lambda *args: args",
+        "lambda **kwargs: kwargs",
+        "lambda x: lambda: x",
+        "lambda x: (x := 1)",
+        "lambda x: (yield x)",
+        "lambda x: [v for v in x]",
+        "lambda f, x: f(*x)",
+        "lambda f, x: f(**x)",
+        "lambda x: x + 1",
+        "lambda x: [x]",
+        "lambda x: f'{x}'",
+        "lambda: 1j",
+        "lambda: ...",
+        "lambda x: x.__class__",
+        "lambda globals: globals()",
     ] {
         for source in [
             format!("def make():\n    return {expression}\n"),

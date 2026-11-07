@@ -10,8 +10,11 @@ pub(super) fn eligible(lambda: &ast::ExprLambda) -> bool {
         if parameters.iter().any(|p| p.annotation().is_some()) {
             return false;
         }
-        for parameter in parameters.posonlyargs.iter()
-            .chain(&parameters.args).chain(&parameters.kwonlyargs)
+        for parameter in parameters
+            .posonlyargs
+            .iter()
+            .chain(&parameters.args)
+            .chain(&parameters.kwonlyargs)
         {
             if parameter.default.is_some() {
                 return false;
@@ -30,17 +33,21 @@ fn body(expression: &ast::Expr, names: &[&str]) -> bool {
         ast::Expr::NumberLiteral(number) => {
             matches!(number.value, ast::Number::Int(_) | ast::Number::Float(_))
         }
-        ast::Expr::StringLiteral(_) | ast::Expr::BytesLiteral(_)
-        | ast::Expr::BooleanLiteral(_) | ast::Expr::NoneLiteral(_) => true,
+        ast::Expr::StringLiteral(_)
+        | ast::Expr::BytesLiteral(_)
+        | ast::Expr::BooleanLiteral(_)
+        | ast::Expr::NoneLiteral(_) => true,
         ast::Expr::Attribute(attribute) => {
             attribute.ctx == ast::ExprContext::Load && body(&attribute.value, names)
         }
         ast::Expr::Call(call) => {
             body(&call.func, names)
                 && call.arguments.args.iter().all(|arg| body(arg, names))
-                && call.arguments.keywords.iter().all(|keyword| {
-                    keyword.arg.is_some() && body(&keyword.value, names)
-                })
+                && call
+                    .arguments
+                    .keywords
+                    .iter()
+                    .all(|keyword| keyword.arg.is_some() && body(&keyword.value, names))
         }
         // 未知节点默认拒绝，尤其展开、闭包、运算、容器和插值字符串。
         _ => false,
