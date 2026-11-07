@@ -264,10 +264,23 @@ fn compile_linked_traced(
         modules::load_program_including(sess, entry, search_paths, &include_modules)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
-    instance_modules::validate_selection(sess, &sources, entry_index, aot_locations)?;
+    instance_modules::validate_selection(
+        sess,
+        &sources,
+        entry_index,
+        aot_locations,
+        resource_request.is_some(),
+    )?;
     let resource_plan = resource_request
         .map(|path| resources::ResourcePlan::read(path, &sources))
         .transpose()?;
+    let validated_aot = instance_modules::validate_aot(
+        sess,
+        &sources,
+        entry_index,
+        aot_locations,
+        resource_plan.as_ref(),
+    )?;
     let entry_file = sources[entry_index].parsed.file;
     let native_exceptions: Vec<&str> = [
         "json",
@@ -288,7 +301,16 @@ fn compile_linked_traced(
     let mut summaries = Vec::new();
     let plans: Vec<_> = sources
         .iter()
-        .map(|source| module_environments::plan(sess, source, aot_locations))
+        .enumerate()
+        .map(|(index, source)| {
+            module_environments::plan_validated(
+                sess,
+                source,
+                aot_locations,
+                index,
+                validated_aot.as_ref(),
+            )
+        })
         .collect();
     module_environments::record(sess, &sources, &plans);
     for (index, (module, plan)) in sources.into_iter().zip(plans).enumerate() {
@@ -301,6 +323,25 @@ fn compile_linked_traced(
             protected_exports,
         } = compile_module(sess, &module, &native_exceptions, &plan, trace)?;
         sess.module_environment_report[index].compiled = true;
+        let location = if !aot_locations {
+            ryupy_mir::ModuleLocation::SourceAbsolute(
+                module
+                    .resolved_source_path
+                    .to_str()
+                    .context("模块源码绝对路径必须可表示为 UTF-8")?
+                    .to_owned(),
+            )
+        } else if let Some(relative) = resource_plan
+            .as_ref()
+            .and_then(|plan| plan.module_location(index as u32))
+        {
+            ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
+        } else {
+            ryupy_mir::ModuleLocation::LegacyDiagnostic
+        };
+        if let Some(validated) = &validated_aot {
+            validated.validate_location(sess, index, &module, &location)?;
+        }
         units.push((
             program,
             ryupy_mir::UnitMeta {
@@ -311,22 +352,7 @@ fn compile_linked_traced(
                 name: module.name.clone(),
                 package: module.package.clone(),
                 file: module.file.clone(),
-                location: if !aot_locations {
-                    ryupy_mir::ModuleLocation::SourceAbsolute(
-                        module
-                            .resolved_source_path
-                            .to_str()
-                            .context("模块源码绝对路径必须可表示为 UTF-8")?
-                            .to_owned(),
-                    )
-                } else if let Some(relative) = resource_plan
-                    .as_ref()
-                    .and_then(|plan| plan.module_location(index as u32))
-                {
-                    ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
-                } else {
-                    ryupy_mir::ModuleLocation::LegacyDiagnostic
-                },
+                location,
                 file_backed_by_global: true,
                 is_package: module.kind == modules::SourceKind::Package,
                 exports,
@@ -508,6 +534,8 @@ mod fixed_binding_tests;
 
 #[cfg(test)]
 mod instance_module_tests;
+#[cfg(test)]
+mod instance_aot_tests;
 
 #[cfg(test)]
 mod ordinary_dynamic_tests;

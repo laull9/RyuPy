@@ -124,6 +124,11 @@ mod function_locals_tests;
 mod instance_globals_tests;
 
 mod instance_globals;
+mod instance_aot;
+mod instance_aot_lambda;
+#[cfg(test)]
+mod instance_aot_tests;
+pub use instance_aot::validate_instance_aot;
 mod ordinary_dynamic;
 pub use ordinary_dynamic::{OrdinaryDynamicEligibility, ordinary_dynamic_eligibility};
 #[cfg(test)]

@@ -70,11 +70,11 @@ fn instance_selection_preserves_unselected_static_abi() {
 }
 
 #[test]
-fn instance_selection_rejects_aot_before_resource_or_codegen() {
+fn instance_selection_rejects_aot_without_resource_before_codegen() {
     let tree = Tree::new();
     tree.write("main.py", "import other\n");
     tree.write("other.py", "x = 1\n");
-    for resource in [None, Some(tree.0.join("nonexistent-resource.json"))] {
+    for resource in [None::<PathBuf>] {
         let mut session = Session {
             instance_modules: vec!["other".into()],
             ..Default::default()
@@ -90,7 +90,7 @@ fn instance_selection_rejects_aot_before_resource_or_codegen() {
             )
             .is_err()
         );
-        assert!(session.render_diagnostics(false).contains("仅支持JIT"));
+        assert!(session.render_diagnostics(false).contains("需要资源清单"));
     }
 }
 #[test]
@@ -117,7 +117,7 @@ fn instance_selection_preserves_preexisting_parse_diagnostics() {
             session.instance_modules.push(module.name.clone());
         }
         let before = session.render_diagnostics(false);
-        assert!(instance_modules::validate_selection(&mut session, &[module], 0, false).is_ok());
+        assert!(instance_modules::validate_selection(&mut session, &[module], 0, false, false).is_ok());
         assert_eq!(session.render_diagnostics(false), before);
     }
 }

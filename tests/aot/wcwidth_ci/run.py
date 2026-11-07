@@ -80,6 +80,8 @@ def main():
          'mode': 'all-Legacy; no --instance-module',
          'accepted_source_commit': '290905691e204f655dd03a02b194fc226a96322d',
          'ci_commit': os.environ['GITHUB_SHA'], 'python': sys.version,
+         'python_sha256': sha(Path(sys.executable).resolve()),
+         'python_path': str(Path(sys.executable).resolve()),
          'python_flags': str(sys.flags),
          'semantic_environment': {k: os.environ.get(k) for k in
              ['UNICODE_VERSION', 'LC_ALL', 'TZ', 'PYTHONHASHSEED']},

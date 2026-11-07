@@ -1,4 +1,4 @@
-# 无来源模块合同回归：完整检查、逐ID默认JIT保护、有限Native发布；不扩大Instance AOT域。
+# 保留 Legacy 门禁；显式 Instance AOT 独立资格/PE门和两产物，不扩大自动选择。
 name: wcwidth 原四调用 Legacy NativeAOT
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
   baseline:
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 120
     defaults:
       run:
         shell: bash
@@ -41,6 +41,8 @@ jobs:
           dpkg-query -W zlib1g-dev
       - name: 原四调用、真实 publish、ELF 与搬移
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
+      - name: 显式Instance资格与PE前置、两Native产物及隔离搬迁
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/instance_gate.py'
       - name: 既有Kind1 JIT与Kind2资源AOT及搬移
         run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'
       - name: 保留成功或首次失败证据
@@ -50,6 +52,7 @@ jobs:
           name: wcwidth-legacy-aot-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/wcwidth-aot-evidence
+            target/instance-aot-evidence
             target/resource-ci-evidence/**/logs/**
             target/resource-ci-evidence/**/result.json
           if-no-files-found: warn
