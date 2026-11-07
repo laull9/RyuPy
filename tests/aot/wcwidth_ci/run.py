@@ -8,8 +8,12 @@ import shutil
 import signal
 import subprocess
 import sys
-import tarfile
 import traceback
+
+# 共用AOT证据工具，不加载项目源码或修改目标进程的模块搜索路径。
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from native_evidence import preserve_dist, snapshot
+import metadata_gate
 
 REPO = Path(__file__).resolve().parents[3]
 HERE = Path(__file__).resolve().parent
@@ -95,30 +99,34 @@ def main():
         '--features', 'ryupy-driver/ordinary-dynamic-module-pilot'], timeout=1200)
     cli = REPO / 'target/debug/ryupy'
     runtime = REPO / 'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll'
-    save('compiler-identity.json', {'cli_sha256': sha(cli), 'runtime_sha256': sha(runtime),
+    frozen_hashes = (sha(cli), sha(runtime))
+    save('compiler-identity.json', {'cli_sha256': frozen_hashes[0], 'runtime_sha256': frozen_hashes[1],
          'feature': 'ryupy-driver/ordinary-dynamic-module-pilot', 'configuration': 'debug'})
+    metadata_gate.execute(sys.modules[__name__], cli, runtime)
     run('native-build', [cli, 'build', entry, '--aot', '-I', source], timeout=1200)
     dist = WORK / '01_original.dist'
     exe = dist / '01_original'
     if exe.read_bytes()[:4] != b'\x7fELF':
         raise RuntimeError('不是 ELF 原生产物')
+    if not (dist / 'ryupy-artifact.json').is_file():
+        raise RuntimeError('缺失原生交付manifest')
+    before = preserve_dist(dist, OUT)
     run('file', ['file', exe])
     run('elf-header', ['readelf', '-h', exe])
     run('elf-dynamic', ['readelf', '-d', exe])
     run('dependencies', ['ldd', exe])
     run('native-run', [exe], expected=EXPECTED)
-    before = {str(p.relative_to(dist)): sha(p) for p in dist.rglob('*') if p.is_file()}
     relocated = Path(os.environ['RUNNER_TEMP']) / 'wcwidth-relocated-dist'
     shutil.move(str(dist), relocated)
     run('relocated-run', [relocated / exe.name], cwd=relocated, expected=EXPECTED)
     run('relocated-dependencies', ['ldd', relocated / exe.name])
-    with tarfile.open(OUT / 'native-dist.tar.gz', 'w:gz') as archive:
-        archive.add(relocated, arcname='01_original.dist')
-    after = {str(p.relative_to(relocated)): sha(p) for p in relocated.rglob('*') if p.is_file()}
+    after, _ = snapshot(relocated)
     if before != after or dist.exists():
         raise RuntimeError('搬移身份或旧路径状态不符')
     save('relocation.json', {'before': before, 'after': after, 'original_dist_exists': dist.exists(),
          'relocated_path': str(relocated), 'note': '仅同一 Linux 主机搬移，不代表绝对无系统动态依赖'})
+    if frozen_hashes != (sha(cli), sha(runtime)):
+        raise RuntimeError('运行中CLI或runtime被改写')
     save('result.json', {'passed': True, 'scope': '仅 wcwidth 0.2.13 原四调用 all-Legacy NativeAOT'})
 
 

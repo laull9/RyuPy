@@ -27,6 +27,24 @@
     "filename": "rust-std-1.99.1-x86_64-unknown-linux-gnu.tar.xz"
   },
   {
+    "kind": "rust",
+    "component": "rustfmt-preview",
+    "version": "1.99.1",
+    "url": "https://static.rust-lang.org/dist/2026-10-15/rustfmt-1.99.1-x86_64-unknown-linux-gnu.tar.xz",
+    "algorithm": "sha256",
+    "digest": "e3b36c4c7ec3486c059d8067ff48787676612007123aad7a4e8ec12c48ee9ba2",
+    "filename": "rustfmt-1.99.1-x86_64-unknown-linux-gnu.tar.xz"
+  },
+  {
+    "kind": "rust",
+    "component": "clippy-preview",
+    "version": "1.99.1",
+    "url": "https://static.rust-lang.org/dist/2026-10-15/clippy-1.99.1-x86_64-unknown-linux-gnu.tar.xz",
+    "algorithm": "sha256",
+    "digest": "458339712a058e52cc4522ff9ef8b59cd1ea1340312216cd94194c464a3f6dc5",
+    "filename": "clippy-1.99.1-x86_64-unknown-linux-gnu.tar.xz"
+  },
+  {
     "kind": "dotnet",
     "version": "10.0.403",
     "runtime": "10.0.14",

@@ -1,4 +1,4 @@
-# 单入口验收，不修改引擎、默认模式或 AOT guards；不代表固定项目集复测。
+# 无来源模块合同回归：完整检查、逐ID默认JIT保护、有限Native发布；不扩大Instance AOT域。
 name: wcwidth 原四调用 Legacy NativeAOT
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
   baseline:
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -41,11 +41,88 @@ jobs:
           dpkg-query -W zlib1g-dev
       - name: 原四调用、真实 publish、ELF 与搬移
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
+      - name: 既有Kind1 JIT与Kind2资源AOT及搬移
+        run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'
       - name: 保留成功或首次失败证据
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # 官方 v4，2026-11-07 核验
         with:
           name: wcwidth-legacy-aot-${{ github.sha }}-${{ github.run_attempt }}
-          path: target/wcwidth-aot-evidence
+          path: |
+            target/wcwidth-aot-evidence
+            target/resource-ci-evidence/**/logs/**
+            target/resource-ci-evidence/**/result.json
           if-no-files-found: warn
+          retention-days: 3
+  full-check:
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [default, pilot]
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定官方工具
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 完整make check及脚本门禁
+        env:
+          CHECK_MODE: ${{ matrix.mode }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/full_check.py'
+      - name: 保存完整检查原流
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: full-check-${{ matrix.mode }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/full-check-evidence
+            target/wcwidth-aot-evidence/prepare.log
+          retention-days: 3
+  projects:
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 80
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定官方工具
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 固定20项pilot编译配置默认JIT逐ID保护
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/project_gate.py'
+      - name: 保存项目证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: project-preserve-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/project-ci-evidence
+            target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
