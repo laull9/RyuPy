@@ -64,3 +64,115 @@ def check_test_count(text, name):
         raise RuntimeError('缺少指定实际测试成功记录：' + name)
     if 'test result: ok. 1 passed; 0 failed; 0 ignored;' not in text:
         raise RuntimeError('具名门必须恰好执行一个测试')
+
+
+CALLER_SOURCES = {'__main__': 'entry.py', 'caller': 'caller.py',
+                  'model': 'model.py', 'other_model': 'other_model.py'}
+
+
+def check_caller_plan(plan):
+    modules = plan['modules']
+    if len(modules) != 4 or {m['module'] for m in modules} != set(CALLER_SOURCES):
+        raise RuntimeError('必须恰好编译四个固定源模块')
+    for module in modules:
+        expected = 'InstanceGlobals' if module['module'] == 'caller' else 'LegacySingleton'
+        if module['compiled'] is not True or module['execution'] != expected:
+            raise RuntimeError('caller真实Instance及其余Legacy编译合同不符')
+
+
+def check_caller_sources(sources, expected_hashes):
+    if len(sources) != 4 or {s['module_name'] for s in sources} != set(CALLER_SOURCES):
+        raise RuntimeError('同次driver必须记录完整四源身份')
+    if set(expected_hashes) != set(CALLER_SOURCES):
+        raise RuntimeError('当前四源哈希不完整')
+    for source in sources:
+        if source['compiled_text_sha256'] != expected_hashes[source['module_name']]:
+            raise RuntimeError('driver编译文本不等于固定源：' + source['module_name'])
+
+
+def audit_bindings(root):
+    """仅盘点固定四源的词法作用域；不模拟完整HIR或承诺未执行的编译会成功。"""
+    class Scope(ast.NodeVisitor):
+        def __init__(self, name, kind):
+            self.name, self.kind = name, kind
+            self.bindings, self.children, self.mutations, self.reads = {}, [], [], set()
+
+        def bind(self, name, kind, line):
+            self.bindings.setdefault(name, []).append({'kind': kind, 'line': line})
+
+        def visit_Name(self, node):
+            if isinstance(node.ctx, ast.Load):
+                self.reads.add(node.id)
+            else:
+                self.bind(node.id, type(node.ctx).__name__, node.lineno)
+
+        def visit_Attribute(self, node):
+            if isinstance(node.ctx, (ast.Store, ast.Del)):
+                self.mutations.append({'target': ast.unparse(node), 'line': node.lineno,
+                                       'kind': type(node.ctx).__name__})
+            self.generic_visit(node)
+
+        def visit_Import(self, node):
+            for alias in node.names:
+                self.bind(alias.asname or alias.name.split('.')[0], 'import', node.lineno)
+
+        def visit_ExceptHandler(self, node):
+            if node.name:
+                self.bind(node.name, 'exception-target', node.lineno)
+            self.generic_visit(node)
+
+        def visit_FunctionDef(self, node):
+            if self.kind == 'function':
+                raise RuntimeError('固定模型不应新增嵌套def')
+            self.bind(node.name, 'function', node.lineno)
+            child = Scope(self.name + '.' + node.name, 'function')
+            for arg in node.args.posonlyargs + node.args.args + node.args.kwonlyargs:
+                child.bind(arg.arg, 'parameter', node.lineno)
+            for statement in node.body:
+                child.visit(statement)
+            self.children.append(child.result())
+
+        def visit_ClassDef(self, node):
+            if self.kind != 'module' or node.keywords or node.decorator_list or len(node.bases) > 1:
+                raise RuntimeError('固定模型只允许模块级普通单继承类')
+            if any(not isinstance(base, ast.Name) for base in node.bases):
+                raise RuntimeError('固定模型基类必须是先定义Name')
+            for base in node.bases:
+                if not any(b['kind'] == 'class' for b in self.bindings.get(base.id, [])):
+                    raise RuntimeError('固定模型基类必须先定义')
+            self.bind(node.name, 'class', node.lineno)
+            child = Scope(self.name + '.' + node.name, 'class')
+            for statement in node.body:
+                child.visit(statement)
+            result = child.result()
+            result['bases'] = [base.id for base in node.bases]
+            self.children.append(result)
+
+        def result(self):
+            for name, bindings in self.bindings.items():
+                definitions = [b for b in bindings if b['kind'] in {'class', 'function'}]
+                if definitions and len(bindings) != 1:
+                    raise RuntimeError('固定模型定义碰撞：' + self.name + '.' + name)
+            return {'scope': self.name, 'kind': self.kind, 'bindings': self.bindings,
+                    'reads': sorted(self.reads), 'attribute_mutations': self.mutations,
+                    'children': self.children}
+
+    results = {}
+    forbidden = (ast.AsyncFunctionDef, ast.Await, ast.Yield, ast.YieldFrom, ast.AnnAssign,
+                 ast.TypeAlias, ast.Global, ast.Nonlocal, ast.ListComp, ast.SetComp,
+                 ast.DictComp, ast.GeneratorExp, ast.Lambda, ast.ImportFrom)
+    for module, filename in CALLER_SOURCES.items():
+        tree = ast.parse((root / filename).read_text(), filename=filename)
+        for node in ast.walk(tree):
+            if isinstance(node, forbidden) or getattr(node, 'type_params', None):
+                raise RuntimeError('固定模型超出已盘点语法域')
+            if isinstance(node, ast.FunctionDef):
+                if node.returns or any(arg.annotation for arg in node.args.args):
+                    raise RuntimeError('固定模型不应新增参数或返回注解')
+                if any(not isinstance(d, ast.Name) or d.id not in {'property', 'classmethod', 'staticmethod'}
+                       for d in node.decorator_list):
+                    raise RuntimeError('固定模型不应新增自定义decorator')
+        scope = Scope(module, 'module')
+        scope.visit(tree)
+        results[module] = scope.result()
+    return {'scope': '完整词法绑定盘点；不是实际HIR编译证明', 'modules': results}

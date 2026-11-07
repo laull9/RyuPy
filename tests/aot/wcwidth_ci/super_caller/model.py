@@ -29,12 +29,8 @@ class Leaf(Middle):
         self.tag = tag
 
 
-# 同名不等同身份；保存旧类后重新定义不涉及动态MRO变更。
+# 正向类身份别名；同名异身份反例在独立Legacy模块，不重定义类。
 OriginalMiddle = Middle
-
-
-class Middle:
-    pass
 
 
 def old(self, value):
