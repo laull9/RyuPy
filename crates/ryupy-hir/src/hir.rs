@@ -40,6 +40,7 @@ impl std::fmt::Display for Name {
 pub struct ModuleInfo {
     /// 模块真实名字绑定到每个模块对象独立的运行时命名空间。
     pub instance_globals: bool,
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
     /// 仅实际构建开启：前言从本次导入对象获取冷位置与四个元数据初值。
     pub resolve_file_at_runtime: bool,
     /// 点分绝对模块名；入口文件固定为 `__main__`。
@@ -529,6 +530,8 @@ pub enum StmtKind {
     },
     /// `from x import a, b as c`（M2.7）。星号导入明确拒绝，由 lower 报诊断。
     ImportFrom {
+        /// 实例执行保留原始相对信息，静态发现不决定运行期包。
+        relative: Option<(u32, String)>,
         /// 绝对模块名。
         module: String,
         /// 依次绑定：导入方看到的名字 → 目标模块里的名字。
@@ -550,6 +553,8 @@ pub enum StmtKind {
 /// `except` 分支。独立分配在 [`Body::handlers`] 里，`Try` 只持有 ID。
 #[derive(Debug)]
 pub struct Handler {
+    /// 来源与分派显式保存，裸链不能从type_expr存在性推断。
+    pub semantics: crate::HandlerSemantics,
     /// 匹配的异常类型名；`None` 表示裸 `except:`。
     ///
     /// 之所以在 HIR 就把 `except ValueError` 解析成名字而不是保留表达式：

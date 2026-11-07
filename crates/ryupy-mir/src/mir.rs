@@ -53,7 +53,10 @@ pub struct LinkedProgram {
 /// 一个已编译模块在运行时需要的信息。
 #[derive(Debug)]
 pub struct ModuleDef {
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
     pub execution: ModuleExecutionKind,
+    /// 编译计划的审计原因；不作为运行时语义开关。
+    pub environment_reason: String,
     /// 模块运行位置与诊断file分离，codegen不得从名字猜模式。
     pub location: crate::ModuleLocation,
     /// 公开__file__读写走初始化的真实模块槽，不在runtime重置初值。
@@ -150,6 +153,7 @@ pub struct Function {
     pub module_state: Option<LocalId>,
     /// 环境local的可信来源，与module_state同时存在。
     pub module_state_source: Option<crate::InstanceStateSource>,
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
     /// 不可变 Python 定义来源；后端不得从方法符号推测。
     pub definition: Option<crate::DefinitionInfo>,
     /// Python 可见的函数名（`PyFunction.__name__`）。
@@ -184,6 +188,8 @@ pub struct Function {
 
 #[derive(Debug)]
 pub struct Body {
+    /// 源码实例异常链要求；独立于EH形状，pure bare也不能遗失。
+    pub source_handler_contracts: Vec<crate::SourceHandlerContract>,
     pub locals: Arena<LocalDecl>,
     pub blocks: Arena<BasicBlock>,
     pub entry: BlockId,
@@ -198,6 +204,8 @@ pub struct Body {
 /// 首尾两条指令的位置。
 #[derive(Debug)]
 pub struct Region {
+    /// 本函数源码异常链ID；仅实际分派外层区域携带，with/cleanup没有。
+    pub source_handler_chain: Option<usize>,
     pub kind: RegionKind,
     /// 受保护区间首块。
     pub try_start: BlockId,

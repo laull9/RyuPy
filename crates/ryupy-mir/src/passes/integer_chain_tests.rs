@@ -29,6 +29,7 @@ fn sample(steps: usize) -> (Function, LocalId) {
     });
     let mut f = Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "integer_chain".into(),
         codegen_name: "integer_chain".into(),
@@ -37,6 +38,7 @@ fn sample(steps: usize) -> (Function, LocalId) {
         params: Vec::new(),
         ret: MirType::Dynamic,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -377,6 +379,7 @@ fn add_chain_observers_callbacks_and_unsupported_frames_keep_original_path() {
             5 => f.env = Some(f.params[0]),
             6 => f.body.locals[f.params[0]].is_cell = true,
             7 => f.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

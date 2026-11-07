@@ -8,6 +8,11 @@ PYTHON_VERSION := $(shell cat tests/pinned-python.txt 2>/dev/null)
 PYTHON ?= $(shell uv python find $(PYTHON_VERSION) 2>/dev/null || echo python3)
 export PYTHON
 
+# 编译期隔离候选贯穿下列直接Cargo recipe；间接bench脚本不消费此变量。
+# 指定check/projects门禁保持原CLI与项目mode；性能另用确切冻结工具。
+CARGO_FEATURES ?=
+CARGO_FEATURE_ARGS = $(if $(strip $(CARGO_FEATURES)),--features $(CARGO_FEATURES))
+
 # 发行包命名：只产出宿主平台产物，不假装支持交叉编译。
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 HOST_OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -25,7 +30,7 @@ runtime: ## 构建 C# 运行时 RyuPy.Runtime（Release）
 
 .PHONY: build
 build: runtime ## 打发行包：Release CLI + 运行时 → releases/ryupy-<版本>-<平台>.tar.gz
-	cargo build --release -p ryupy-cli
+	cargo build $(CARGO_FEATURE_ARGS) --release -p ryupy-cli
 	@set -eu; \
 	target_dir=$$(cargo metadata --format-version 1 --no-deps | "$(PYTHON)" -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])'); \
 	rm -rf "$(RELEASE_DIR)"; \
@@ -49,16 +54,17 @@ fmt: ## 格式化 Rust 代码
 .PHONY: lint
 lint: ## fmt 检查 + clippy（警告视为错误）
 	cargo fmt --all --check
-	cargo clippy --workspace --all-targets -- -D warnings
+	cargo clippy $(CARGO_FEATURE_ARGS) --workspace --all-targets -- -D warnings
 
 .PHONY: test
 test: runtime python-baseline ## Python 基线 + 单元测试 + 快照测试（不含编译 e2e）
 	dotnet test runtime/RyuPy.Runtime.Tests -nologo -v q
-	cargo test --workspace --exclude ryupy-e2e
+	cargo test $(CARGO_FEATURE_ARGS) --workspace --exclude ryupy-e2e
 
 .PHONY: python-baseline
 python-baseline: ## 自检 Phase 1–3 的 CPython 用例与预期错误退出
 	"$(PYTHON)" -B tests/test_case_manifest.py
+	"$(PYTHON)" -B tests/test_project_gate.py
 	"$(PYTHON)" tests/run_python_baseline.py
 
 .PHONY: python-extensions
@@ -68,15 +74,15 @@ python-extensions: ## 自检 Phase 4 扩展基线（需已安装 NumPy、sqlite3
 .PHONY: e2e
 e2e: runtime ## 端到端差分测试（跳过 pending 用例）
 	# --test-threads=1：让用例按名字顺序执行，输出带 [已跑/总数] 进度、不会乱序。
-	cargo test -p ryupy-e2e -- --test-threads=1
+	cargo test $(CARGO_FEATURE_ARGS) -p ryupy-e2e -- --test-threads=1
 
 .PHONY: e2e-all
 e2e-all: runtime ## 端到端测试，包括 pending 用例（查看进度用）
-	-cargo test -p ryupy-e2e -- --include-ignored --test-threads=1
+	-cargo test $(CARGO_FEATURE_ARGS) -p ryupy-e2e -- --include-ignored --test-threads=1
 
 .PHONY: cases-selftest
 cases-selftest: ## 只自检用例与框架：多文件/参数/环境/输入/错误路径（不编译 RyuPy）
-	E2E_PYTHON_ONLY=1 cargo test -p ryupy-e2e -- --include-ignored --test-threads=1
+	E2E_PYTHON_ONLY=1 cargo test $(CARGO_FEATURE_ARGS) -p ryupy-e2e -- --include-ignored --test-threads=1
 
 .PHONY: projects-fetch
 projects-fetch: ## 抓取固定项目集的 sdist 源码（需要联网，源码不进版本库）
@@ -88,7 +94,23 @@ projects-baseline: ## 用固定 CPython 记录项目入口的基线答案
 
 .PHONY: projects
 projects: runtime ## 项目级运行：编译并运行项目入口，对照 CPython 基线
-	cargo run -q -p ryupy-e2e --bin projects
+	cargo run $(CARGO_FEATURE_ARGS) -q -p ryupy-e2e --bin projects
+
+# 项目门禁需要预先准备的锁定原源，不下载、不改基线。每次独立运行完整20项。
+PROJECTS_STORE ?= $(CURDIR)/third_party/projects
+PROJECTS_OUTPUT ?=
+
+.PHONY: projects-runner projects-preserve projects-promote
+projects-runner: runtime
+	cargo build $(CARGO_FEATURE_ARGS) -p ryupy-e2e --bin projects
+
+projects-preserve: projects-runner ## 完整20项默认JIT，逐项保护当前九项（不是默认晋升）
+	@set -eu; target_dir=$$(cargo metadata --format-version 1 --no-deps | "$(PYTHON)" -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])'); \
+	"$(PYTHON)" -B tests/run_projects_gate.py --gate preserve --runner "$$target_dir/debug/projects" --source-store "$(abspath $(PROJECTS_STORE))" $(if $(PROJECTS_OUTPUT),--output "$(abspath $(PROJECTS_OUTPUT))")
+
+projects-promote: projects-runner ## 完整20项默认JIT，保九项并要求历史progress回归恢复
+	@set -eu; target_dir=$$(cargo metadata --format-version 1 --no-deps | "$(PYTHON)" -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])'); \
+	"$(PYTHON)" -B tests/run_projects_gate.py --gate promote --runner "$$target_dir/debug/projects" --source-store "$(abspath $(PROJECTS_STORE))" $(if $(PROJECTS_OUTPUT),--output "$(abspath $(PROJECTS_OUTPUT))")
 
 # 基准参数：make bench BENCH="dynamic strings" ARGS="--save before"
 BENCH ?=
@@ -131,11 +153,11 @@ snap: ## 交互式审阅 insta 快照（需 cargo install cargo-insta）
 
 .PHONY: dump
 dump: ## 打印中间表示：make dump FILE=x.py EMIT=ast|hir|types|mir|cil
-	cargo run -q -p ryupy-cli -- dump $(FILE) --emit $(EMIT)
+	cargo run $(CARGO_FEATURE_ARGS) -q -p ryupy-cli -- dump $(FILE) --emit $(EMIT)
 
 .PHONY: run
 run: runtime ## 编译并运行：make run FILE=x.py
-	cargo run -q -p ryupy-cli -- run $(FILE)
+	cargo run $(CARGO_FEATURE_ARGS) -q -p ryupy-cli -- run $(FILE)
 
 .PHONY: clean
 clean: ## 清理全部产物

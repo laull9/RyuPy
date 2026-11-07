@@ -8,6 +8,8 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
         callee,
         RuntimeFn::InstanceClassGuard
             | RuntimeFn::InstanceClassCellGuard
+            | RuntimeFn::InstanceRelativeImport
+            | RuntimeFn::InstanceRelativeImportAttr
             | RuntimeFn::InstanceImportGuard
             | RuntimeFn::InstanceLoadName
             | RuntimeFn::InstanceStoreName
@@ -49,6 +51,15 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            RuntimeFn::InstanceRelativeImport => Some(&[
+                MirType::Dynamic,
+                MirType::Str,
+                MirType::I64,
+                MirType::Dynamic,
+            ]),
+            RuntimeFn::InstanceRelativeImportAttr => {
+                Some(&[MirType::Dynamic, MirType::Dynamic, MirType::Str])
+            }
             RuntimeFn::InstanceMakeClass => {
                 Some(&[MirType::Dynamic, MirType::Str, MirType::Dynamic])
             }
@@ -256,7 +267,9 @@ pub(super) fn validate_destination(
         let expected = match runtime {
             RuntimeFn::ModuleFile => Some(MirType::Str),
             RuntimeFn::TracePushWithOrigin => Some(MirType::I64),
-            RuntimeFn::InstanceLoadName
+            RuntimeFn::InstanceRelativeImport
+            | RuntimeFn::InstanceRelativeImportAttr
+            | RuntimeFn::InstanceLoadName
             | RuntimeFn::LoadDeletedModuleName
             | RuntimeFn::InstanceMakeClass
             | RuntimeFn::InstanceExecutionSource

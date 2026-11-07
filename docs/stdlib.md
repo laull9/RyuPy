@@ -81,8 +81,26 @@ C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连�
 
 ### importlib.util 逐 API 有限支持
 
-当前只提供真实find_spec(name, package=None)，不以模块名登记代替API实现。
+提供有限真实find_spec(name, package=None)与已编译源码能力的module_from_spec/create_module/exec_module，不以模块名登记代替API实现。
 已编译源模块/包的发现与当前缓存读取见[发现合同](importlib-util.md)；固定版本CP事实、
 完整源差分与门禁范围见[ADR0122](adr/0122-importlib-util-find-spec.md)。
-module_from_spec、create_module、exec_module、可写sys.modules、自定义finder和
-完整html.parser尚未实现。未发现域不能证明不存在，明确NI而不是假None。
+公开编译loader首切见[ADR0129](adr/0129-public-module-from-spec.md)；sys.modules只准入[受限新模块别名](module-cache-alias-slice.md)。完整可写缓存、自定义finder和完整html.parser仍未完成。未发现域不能证明不存在，明确NI而不是假None。
+
+
+### xml.etree.ElementTree有限对象
+
+Element/SubElement、原值字段与attrib、append/insert/get/set/keys/items、整数/读slice、
+活children和有限iter；ElementTree/getroot、Comment/ProcessingInstruction/PI、精确文本
+QName及共享HTML_EMPTY已逐API验收。参考默认C加速对象，不是纯Python回退。
+TreeBuilder、tostring/XMLParser/ElementPath、clear/extend/remove和写删children仍未做；
+全反射与warning文件名也未对齐。范围/完整pending见[XML首切](xml-element-core-slice.md)。
+
+### collections.OrderedDict有限精确类型
+
+有限首切提供真实类型、标量键、双顺序、流式更新、move_to_end/popitem、
+活视图及正反游标、有限相等与浅copy/fromkeys。dict只读根和公开序消费者分别接线，
+根写入及未接通消费者明确NI；派生/用户hash键/union等不随导入开放。
+31完整合同22严格通过、9pending；正常make check通过2577 C#/900 Rust/631 CP/
+401 e2e、234 ignored，不等于远端发布。Markdown窄配置转缺NoReturn仍未过，默认
+find_spec NI独立。范围见[容器API表](stdlib-collections.md)和[合同与验收](ordered-dict-core-slice.md)，
+成本见[性能原报告](ordered-dict-performance.md)。

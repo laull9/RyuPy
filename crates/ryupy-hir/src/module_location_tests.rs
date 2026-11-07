@@ -10,6 +10,7 @@ fn lower(enabled: bool) -> Module {
     let (module, errors) = lower_module(
         &parsed,
         &ModuleInfo {
+            instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: enabled,
             name: "pkg.unit".into(),

@@ -20,6 +20,7 @@ use crate::validate_regions::validate_regions;
 
 pub fn validate(program: &Program) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
+    crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
     crate::validate_instance_module::validate(program, &mut errors);
     crate::validate_class_cells::validate(program, &mut errors);
     crate::validate_lexical_super::validate(program, &mut errors);

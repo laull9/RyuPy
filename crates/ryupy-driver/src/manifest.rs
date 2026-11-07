@@ -52,10 +52,12 @@ impl ManifestContext {
             managed_sha256: manifest_files::hash_bytes(managed),
             managed_size: managed.len() as u64,
             options: json!({"experimental_direct_accumulator": session.experimental_direct_accumulator,
+                "experimental_foreach_accumulator": session.experimental_foreach_accumulator,
                 "experimental_leaf_inline": session.experimental_leaf_inline,
                 "diagnostic_scalar_slp": session.diagnostic_scalar_slp,
                 "experimental_packed_slp": session.experimental_packed_slp,
-                "instance_modules": session.instance_modules}),
+                "instance_modules": session.instance_modules,
+                "module_environment_policy": session.module_environment_policy.identity()}),
         };
         context.validate()?;
         Ok(context)
@@ -159,6 +161,7 @@ impl ManifestContext {
         }
         let modules: Vec<Value> = self.report.modules.iter().map(|module| json!({
             "id":module.module_id,"name":module.module_name,"init":method(&module.init),
+            "environment_reason":module.environment_reason,
             "getter":module.getter.as_ref().map(method),"setter":module.setter.as_ref().map(method),"exports":module.exports
         })).collect();
         let references: Vec<Value> = self.report.delegate_references.iter().map(|reference| json!({

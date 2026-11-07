@@ -1,3 +1,4 @@
+// 模块对象与普通导入机制；受限缓存别名的校验和来源记录隔离在 CacheAliases 冷路。
 using System;
 using System.Collections.Generic;
 
@@ -188,6 +189,7 @@ public static partial class PyModules
         PyModuleSet set
     )
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         Registry[name] = new Registration(package, file, init, get, set);
     }
 
@@ -232,6 +234,7 @@ public static partial class PyModules
 
         if (!Registry.TryGetValue(name, out var registration))
         {
+            RejectCacheAliasDescendant(name);
             throw new PyModuleNotFoundError($"No module named '{name}'");
         }
 
@@ -280,8 +283,14 @@ public static partial class PyModules
         {
             return module.GetAttr(name);
         }
-        catch (PyAttributeError)
+        catch (PyAttributeError missing)
         {
+            if (CacheAliasNames?.Contains(moduleName) == true)
+            {
+                // 已有属性仍走原对象；未知子模块域先拒绝，保留 getter 缺属性与外层异常链。
+                PyErrors.Prepare(missing);
+                throw CacheAliasUnsupported("missing attributes cannot fall back to alias submodules", missing);
+            }
             var submodule = moduleName + "." + name;
             if (Registry.ContainsKey(submodule))
             {

@@ -30,6 +30,8 @@ mod definition_metadata;
 mod enum_class;
 mod exception_imports;
 mod exception_targets;
+mod handler_semantics;
+pub use handler_semantics::HandlerSemantics;
 pub mod expr;
 mod function_definition;
 mod function_exception_imports;
@@ -122,6 +124,10 @@ mod function_locals_tests;
 mod instance_globals_tests;
 
 mod instance_globals;
+mod ordinary_dynamic;
+pub use ordinary_dynamic::{OrdinaryDynamicEligibility, ordinary_dynamic_eligibility};
+#[cfg(test)]
+mod ordinary_dynamic_tests;
 
 #[cfg(test)]
 mod module_delete_tests;

@@ -610,7 +610,7 @@ getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细
 正常退出和 SystemExit 都尝试刷新当前 stdout/stderr；一个目标失败不跳过另一个，
 失败退出 120，不自动 close 用户重绑定流，不保证 CPython finalization 的重复刷新次数。
 文本 cookie、编码、换行和关闭后错误有差分；显式 with/close 清理不依赖 GC。
-sys.modules/path 为受控只读视图，不支持动态 import hook；环境与模块 keys/items 是快照。
+sys.path为受控只读视图；sys.modules仅准入ADR0131的受限新模块别名，不是可写dict。不支持动态import hook；环境与模块keys/items仍为快照。
 Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；设备命名空间、需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
 Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
 io.UnsupportedOperation 已通过 CLR 主树、Python 额外父边及原位 typed catch 展开，支持
@@ -1233,3 +1233,75 @@ exec_module用loader捕获的代码和目标唯一globals，不按可写名字�
 源码必须显式instance模式。自定义spec/loader、namespace、静态目标/来源执行、ModuleType
 及动态磁盘源、资源clone仍未开放。已保存bound method不等同于后来新属性查找。
 完整合同与语义边界见[ADR0129](adr/0129-public-module-from-spec.md)。
+
+
+### 固定码点宽度后顾首切（ADR0130）
+
+后顾正文限既有字符原子、非捕获组合与定宽重复/分支，不含内部捕获、引用、条件、嵌套
+断言、显式anchor/boundary。宽度是Python码点/字节，UTF16可变长度不影响定宽判断。
+变宽在受支持语法解析完成后按源码序报re.error，pattern/pos/lineno/colno均None。
+单项计数与最终宽度超过int.MaxValue明确NI；正文累计零乘可归零，单项超大计数仍NI。
+D009表示差异、复杂后顾、极大数精确错误与Match额外元数据不因此完成。
+
+未知字母escape的text偏移修正至反斜线并局部准备错误；新宽度错误同样准备。有限min>max
+在共同token处先于deferred宽度检查；不是所有旧text错误现场/消息的整体修复。
+完整合同与保留失败见[ADR0130](adr/0130-fixed-width-lookbehind.md)。
+
+
+### sys.modules 受限新模块别名（ADR0131）
+
+精确非空无点str新键可挂真实模块原引用；已有缓存/注册/包前缀冲突与State1拒绝。
+State0允许，不执行正文或补builtins，不改原name/spec/loader/globals和函数owner。
+五注册写路逆向守卫，alias未知子域及缺属性回退冷NI。setter仅位置参数，关键字不写入。
+完整替换/删除/None/任意对象、真dict、生命周期和动态spec._initializing副作用仍pending。
+posonly精确错误消息仍有binder差异。见[完整合同](module-cache-alias-slice.md)。
+
+
+### XML Element有限对象（ADR0132）
+
+Element/SubElement保原值、构造attrib浅复制/赋值共享、重复children身份；keys/items为
+list快照。append/insert、len、内建整数/读slice、活children及有限前序支持，没有公开
+__iter__；环可建但遍历消费时NI，超过10000深度NI。QName仅精确文本，改变模块绑定
+写前NI；域外repr/str不回占位字符串。bool真实发警告，旧filename basename差异与
+完整警告例继续pending。TreeBuilder/序列化/解析及长尾均未完成，见[完整合同](xml-element-core-slice.md)。
+
+### 精确原生OrderedDict有限首切（ADR0133）
+
+独立native真类型及dict祖先，只开放精确标量键；raw PyDict保插入序，OD链保重排序。
+覆盖不移动，re-init不清空，copy独立链共享值，fromkeys保同一default引用。活视图
+及正反游标先判无next-key终止；真实结构修改仅首次RuntimeError后永久耗尽，覆盖
+和端点no-op move不失效。dict只读根看raw，dict.copy及dict构造/update/**看公开序；
+根写入与union先绑定再写前NI，不误称receiver非dict或静默改双存储。
+
+update按mapping逐next/getitem/提交，pairs只N+1解包，不求hint；错误保前缀与原异常，
+kwargs在位置源成功后写。OD比较先raw内容再链序，保plain dict反向子类型优先与兄弟
+派生左侧方向；eq/ne独立，foreign非bool表达式、结构重入及完整派生/用户键域暂缓。
+
+move先truth再查当前Count；空目标精确标量及四空builtin走已验缺键合同，未知key
+在hash/eq/repr前NI，不算CP等价。仅move缺None的KeyError.args为空，未改全局异常。
+原13异常cause setter完整失败保pending，独立19 raise-from链与09/病例22的None相位
+完整通过，不用新例替换原失败。细节见[完整合同](ordered-dict-core-slice.md)。
+
+普通dict比较/hash/消费者新增OD识别有真实成本，不能以PyDict存储未改宣称零回退；
+唯一轻量窗口与全部不利见[性能记录](ordered-dict-performance.md)。正常完整门禁已过，
+不等于远端已发布；最终DLL与具体交付边界见合同页。
+
+### 普通动态模块隔离试点（ADR0134）
+
+默认关闭的编译期feature允许一族普通非包非入口源码模块复用已有真实实例环境。全文通过
+实例预检、无class、至少一个def且全部def无完整静态签名或含变长参数才选择；未选者保旧ABI。
+普通import和同源compiled loader共享唯一dict及定义owner，不增加缓存。该候选不是已发布
+默认，不包括AOT/typed优化/显式super恢复。`function.__defaults__`反射仍是完整保留边界。
+具体选择、持久合同及不同门禁见[ADR0134](adr/0134-ordinary-dynamic-module-pilot.md)。
+
+### 显式普通实例相对from-import候选
+
+显式普通模块相对导入使用执行目标的真实package/spec，分完整fromlist预处理和逐项绑定两阶段。
+旧自动P1不扩域。精确metadata、注册来源、未知finder/path/警告协议的支持与明确NI边界见
+[ADR-0136](adr/0136-instance-relative-from-import.md)。目前是候选，完整门禁及真实项目迁移需分别验收。
+
+### 显式普通实例Name/bare异常链候选
+
+源码异常目标按原词法绑定延迟读取，真实globals及定义捕获builtins不被冻结成静态类型。
+实例as清理删除真实dict键；局部/cell/free隐式清理保未绑定语义。显式local/cell/free del
+仍预检拒绝，generator/类体源码handler未开放，合成with沿旧路径。见[ADR-0137](adr/0137-instance-name-exception-handlers.md)。

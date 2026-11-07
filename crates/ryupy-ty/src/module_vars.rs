@@ -352,6 +352,7 @@ mod tests {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                instance_capabilities: Default::default(),
                 instance_globals: false,
                 resolve_file_at_runtime: false,
                 name: "__main__".into(),

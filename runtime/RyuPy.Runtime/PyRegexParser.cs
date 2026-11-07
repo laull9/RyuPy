@@ -6,7 +6,7 @@ using System.Text;
 namespace RyuPy.Runtime;
 
 /// <summary>Python正则的有限语法解析器：所有字符集合自行翻译，禁止.NET扩展语法穿透。</summary>
-internal sealed class PyRegexParser
+internal sealed partial class PyRegexParser
 {
     private readonly string _pattern;
     private readonly PyBytes? _bytesPattern;
@@ -44,10 +44,13 @@ internal sealed class PyRegexParser
             foreach (var reference in _forwardConditionals)
                 if (reference.Group > Groups)
                     throw ErrorAt("invalid group reference " + reference.Group, reference.Position);
+        ValidateLookbehinds();
         return result;
     }
     private string Sequence(bool grouped, int groupStart = 0, bool conditionalBranch = false)
     {
+        // 宽度容器仅在后顾正文分配；普通表达式仍沿既有翻译路径。
+        var width = _inLookbehind ? new WidthSequence() : null;
         var output = new StringBuilder(); bool quantified = false, hasAtom = false;
         while (_position < _pattern.Length)
         {
@@ -63,17 +66,19 @@ internal sealed class PyRegexParser
                 if (!grouped) throw ErrorAt("unbalanced parenthesis", _position);
                 // 条件分支由外层消费分隔符；普通组的原有消费方式不变。
                 if (!conditionalBranch) _position++;
+                if (width is not null) _groupWidth = width.Finish();
                 return output.ToString();
             }
             if (value == '|' && conditionalBranch) return output.ToString();
             _position++;
-            if (value == '|') { output.Append('|'); hasAtom = quantified = false; continue; }
+            if (value == '|') { width?.Alternate(); output.Append('|'); hasAtom = quantified = false; continue; }
             if (value is '*' or '+' or '?' || value == '{' && IsQuantifier(out _))
             {
                 if (!hasAtom) throw Error("nothing to repeat");
                 if (quantified) throw Error("multiple repeat");
                 string quantifier = value.ToString();
-                if (value == '{') { IsQuantifier(out int end); string bounds = _pattern[_position..end]; quantifier = "{" + (bounds.StartsWith(',') ? "0" : "") + bounds + "}"; _position = end + 1; }
+                if (value == '{') { IsQuantifier(out int end); string bounds = _pattern[_position..end]; ValidateRepeatRange(bounds, _position); quantifier = "{" + (bounds.StartsWith(',') ? "0" : "") + bounds + "}"; _position = end + 1; }
+                if (width is not null) RepeatWidth(width, quantifier);
                 output.Append(quantifier); quantified = true;
                 if (_position < _pattern.Length && _pattern[_position] == '?') { output.Append('?'); _position++; }
                 if (_position < _pattern.Length && _pattern[_position] == '+') throw Unsupported("possessive quantifier");
@@ -82,18 +87,19 @@ internal sealed class PyRegexParser
             quantified = false; hasAtom = true;
             switch (value)
             {
-                case '(' : output.Append(Group()); break;
-                case '[' : output.Append(CharacterClass().Emit()); break;
-                case '.' : output.Append(((Flags & 16) != 0 ? new PyRegexSet().Add(0, 0x10ffff) : new PyRegexSet().Add(10, 10).Negate()).Emit()); break;
-                case '^': case '$': output.Append(value); hasAtom = false; break;
+                case '(' : output.Append(Group()); width?.Atom(_groupWidth); break;
+                case '[' : output.Append(CharacterClass().Emit()); width?.Atom(Width.One); break;
+                case '.' : output.Append(((Flags & 16) != 0 ? new PyRegexSet().Add(0, 0x10ffff) : new PyRegexSet().Add(10, 10).Negate()).Emit()); width?.Atom(Width.One); break;
+                case '^': case '$': RejectLookbehindNode("anchor or boundary"); output.Append(value); hasAtom = false; break;
                 case '\\':
                     bool assertion = _position < _pattern.Length && "AZbB".Contains(_pattern[_position]);
-                    output.Append(EscapeOutside()); if (assertion) hasAtom = false; break;
-                default: output.Append(Literal(ReadCodePoint(value)).Emit()); break;
+                    output.Append(EscapeOutside()); width?.Atom(Width.One); if (assertion) hasAtom = false; break;
+                default: output.Append(Literal(ReadCodePoint(value)).Emit()); width?.Atom(Width.One); break;
             }
         }
         if (output.Length > 200_000) throw Unsupported("translated pattern size limit");
         if (grouped) throw ErrorAt("missing ), unterminated subpattern", groupStart);
+        if (width is not null) _groupWidth = width.Finish();
         return output.ToString();
     }
     private bool IsQuantifier(out int end)
@@ -114,19 +120,21 @@ internal sealed class PyRegexParser
         {
             _position++;
             if (Consume(':')) prefix = "?:";
-            else if (Consume('=')) prefix = "?=";
-            else if (Consume('!')) prefix = "?!";
-            else if (Consume('(')) return ConditionalGroup(start);
+            else if (Consume('=')) { RejectLookbehindNode("nested assertion"); prefix = "?="; }
+            else if (Consume('!')) { RejectLookbehindNode("nested assertion"); prefix = "?!"; }
+            else if (Consume('(')) { RejectLookbehindNode("conditional"); return ConditionalGroup(start); }
             else if (Consume('P'))
             {
                 if (Consume('<'))
                 {
+                    RejectLookbehindNode("capture");
                     string name = ReadUntil('>'); ValidateName(name);
                     if (Names.ContainsKey(name)) throw Error("redefinition of group name");
                     number = ++Groups; Names[name] = number; prefix = "?<ryu" + number + ">";
                 }
                 else if (Consume('='))
                 {
+                    RejectLookbehindNode("backreference");
                     string name = ReadUntil(')');
                     if (!Names.TryGetValue(name, out int group) || !_closed.Contains(group)) throw Error("unknown group name");
                     if (Ignore) throw Unsupported("case-insensitive backreference");
@@ -135,7 +143,7 @@ internal sealed class PyRegexParser
                 else throw Error("unknown extension ?P");
             }
             else if (_position + 1 < _pattern.Length && _pattern[_position] == '<' && _pattern[_position + 1] is '=' or '!')
-                throw Unsupported("lookbehind");
+                return Lookbehind(start);
             else if (_position < _pattern.Length && (_pattern[_position] is '>' or '#' or '-' || AllFlags(_pattern[_position].ToString())))
             {
                 if (_bytesPattern is not null && AllFlags(_pattern[_position].ToString()))
@@ -148,7 +156,7 @@ internal sealed class PyRegexParser
             }
             else throw Error("unknown extension");
         }
-        else { number = ++Groups; prefix = "?<ryu" + number + ">"; }
+        else { RejectLookbehindNode("capture"); number = ++Groups; prefix = "?<ryu" + number + ">"; }
         if (++_depth > 256) throw new PyRecursionError("re: supported group nesting limit exceeded (256)");
         string inner;
         try { inner = Sequence(true, start); } finally { _depth--; }
@@ -240,6 +248,7 @@ internal sealed class PyRegexParser
     {
         if (_position >= _pattern.Length) throw Error("bad escape (end of pattern)");
         char value = _pattern[_position++];
+        if (value is 'A' or 'Z' or 'b' or 'B') RejectLookbehindNode("anchor or boundary");
         if (value is 'A' or 'Z') return value == 'A' ? "\\A" : "\\z";
         if (value is 'b' or 'B')
         {
@@ -255,6 +264,7 @@ internal sealed class PyRegexParser
                 if (octal > 255) throw Error("octal escape outside range 0-0o377");
                 return Literal(octal).Emit();
             }
+            RejectLookbehindNode("backreference");
             int group = value - '0';
             if (_position < _pattern.Length && char.IsAsciiDigit(_pattern[_position])) group = group * 10 + _pattern[_position++] - '0';
             if (!_closed.Contains(group)) throw Error("invalid group reference");
@@ -310,7 +320,7 @@ internal sealed class PyRegexParser
             _ => value,
         };
         if (char.IsAsciiLetter(value) && !"nrtfvabxuU".Contains(value))
-            throw _bytesPattern is null ? Error("bad escape \\" + value) : ErrorAt("bad escape \\" + value, _position - 2);
+            throw (PyRegexError)PyErrors.PrepareRaise(ErrorAt("bad escape \\" + value, _position - 2));
         if (inClass && value >= '1' && value <= '7') throw Unsupported("octal character class escape");
         return inClass ? new PyRegexSet().Add(point, point) : Literal(point);
     }

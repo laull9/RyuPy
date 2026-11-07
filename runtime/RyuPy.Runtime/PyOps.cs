@@ -301,6 +301,8 @@ public static partial class PyOps
         if ((a is PyStringInstance || b is PyStringInstance)
             && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
             return CompareOrdered(op, Math.Sign(string.CompareOrdinal(subleft, subright)));
+        if (op is Eq or Ne && (a is PyOrderedDict or PyOrderedDictView || b is PyOrderedDict or PyOrderedDictView))
+            return PyOrderedDictComparison.Expression(op, a, b);
         if (a is PyDictView { UseLayoutProtocol: true } || b is PyDictView { UseLayoutProtocol: true })
             return PyDictViewComparisonDispatch.Compare(op, a, b, expression: true);
         if (op is Eq or Ne && (a is PyDictInstance || b is PyDictInstance))

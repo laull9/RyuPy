@@ -11,6 +11,7 @@ fn float_constructor_shapes_do_not_discard_arguments_or_demote_numeric_fast_path
     let (hir, diagnostics) = ryupy_hir::lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            instance_capabilities: Default::default(),
             name: "__main__".into(),
             package: String::new(),
             file: "float_shapes.py".into(),

@@ -36,6 +36,8 @@ public sealed partial class PyFunction
     {
         PyTypingIo.GuardFunctionMutation(this, name);
         // 元数据字段仍存精确字典；不能剥离派生owner后伪装保存了原对象身份。
+        if (value is PyOrderedDict && name is "__annotations__" or "__dict__")
+            throw PyOrderedDict.Unsupported("function metadata storage");
         if (value is PyDictInstance && name is "__annotations__" or "__dict__")
             throw PyDictLayout.Own(new PyNotImplementedError("function metadata with dict subclass storage is not supported"));
         switch (name)

@@ -17,6 +17,7 @@ fn program() -> Program {
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         definition: Some(DefinitionInfo {
             lexical_qualname: "Owner.factory.<locals>.child".into(),
@@ -28,6 +29,7 @@ fn program() -> Program {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -54,7 +56,9 @@ fn program() -> Program {
 fn function_definition_link_preserves_python_source_without_prefix() {
     let program = program();
     let meta = UnitMeta {
+        instance_capabilities: Default::default(),
         execution: crate::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
         is_package: false,

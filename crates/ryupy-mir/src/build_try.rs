@@ -204,6 +204,7 @@ impl FunctionBuilder<'_> {
             });
             self.set_flow(FLOW_EXCEPTION);
             self.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::FinallyGuard,
                 try_start: start_bb,
                 try_len: outer_end - start_index,
@@ -278,11 +279,35 @@ impl FunctionBuilder<'_> {
         normals: &mut Vec<BlockId>,
         regions: &mut Vec<Region>,
     ) {
+        let semantics = handlers
+            .first()
+            .map(|id| self.hir.functions[self.current_hir_fn].body.handlers[*id].semantics);
         if handlers.iter().any(|id| {
-            self.hir.functions[self.current_hir_fn].body.handlers[*id]
-                .type_expr
-                .is_some()
+            let handler = &self.hir.functions[self.current_hir_fn].body.handlers[*id];
+            Some(handler.semantics) != semantics
+                || (self.module_state.is_some()
+                    && matches!(
+                        handler.semantics,
+                        ryupy_hir::HandlerSemantics::SourceStatic
+                            | ryupy_hir::HandlerSemantics::SourceDynamic
+                    ))
+                || (!handler.semantics.is_dynamic() && handler.type_expr.is_some())
+                || (self.module_state.is_none()
+                    && handler.semantics == ryupy_hir::HandlerSemantics::InstanceNameDynamic)
         }) {
+            self.diagnostics.push(
+                ryupy_base::Diagnostic::error(
+                    ryupy_base::Span::new(
+                        self.hir.file,
+                        self.hir.functions[self.current_hir_fn].body.handlers[handlers[0]].range,
+                    ),
+                    "异常链的来源或分派不一致",
+                )
+                .with_code("E0305"),
+            );
+            return;
+        }
+        if semantics.is_some_and(ryupy_hir::HandlerSemantics::is_dynamic) {
             self.build_dynamic_handlers(
                 handlers,
                 start_bb,
@@ -378,6 +403,7 @@ impl FunctionBuilder<'_> {
             // 5) 每条 catch 记录各注册一个区域
             if type_names.is_empty() {
                 regions.push(Region {
+                    source_handler_chain: None,
                     kind: RegionKind::CatchAll,
                     try_start: start_bb,
                     try_len: inner_end - inner_start,
@@ -387,6 +413,7 @@ impl FunctionBuilder<'_> {
             } else {
                 for (i, type_name) in type_names.into_iter().enumerate() {
                     regions.push(Region {
+                        source_handler_chain: None,
                         kind: RegionKind::Catch {
                             type_names: vec![type_name],
                         },

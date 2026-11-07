@@ -97,7 +97,7 @@ public static partial class PyOps
                 throw new PyTypeError($"non-default argument '{field}' follows default argument");
             hasDefault |= metadata.Init && optional;
             // 真实list派生的根hash为None；不借类名字或普通用户hash策略猜测可变布局。
-            if (metadata.Default is PyList or PyListInstance or PyDict or PyDictInstance or PySet or PyByteArray or PyDeque or IPyNativeMapping
+            if (metadata.Default is PyOrderedDict or PyList or PyListInstance or PyDict or PyDictInstance or PySet or PyByteArray or PyDeque or IPyNativeMapping
                 || metadata.Default is PyInstance instanceDefault
                 && instanceDefault.Class.TryLookup("__hash__", out _, out var hash)
                 && hash is null or PyNone)

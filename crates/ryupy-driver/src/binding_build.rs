@@ -37,14 +37,17 @@ fn build_internal(
 ) -> Result<Artifacts> {
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
     let plan = BindingPlan::read(declaration, Platform::current()?, opts.aot)?;
-    let (mut program, sources, _) = crate::compile_linked_locations(
+    let previous = std::mem::replace(&mut sess.fixed_binding_build, true);
+    let compiled = crate::compile_linked_locations(
         sess,
         &opts.input,
         &opts.search_paths,
         true,
         None,
         opts.aot,
-    )?;
+    );
+    sess.fixed_binding_build = previous;
+    let (mut program, sources, _) = compiled?;
     plan.check_modules(&program)?;
     let binding = declare(&mut program, &plan);
     let name = crate::assembly_name(&opts.input);
@@ -186,6 +189,7 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
         ty: MirType::Dynamic,
     });
     let mut body = Body {
+        source_handler_contracts: Vec::new(),
         locals: Default::default(),
         blocks: Default::default(),
         entry: p.functions[p.modules[p.entry].init].body.entry,
@@ -197,6 +201,7 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
     });
     let initializer = p.functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: plan.module.clone(),
         codegen_name: "__declared_binding_init".into(),
@@ -214,7 +219,9 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
         dynamic_origin: None,
     });
     let module = p.modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: true,
         is_package: false,

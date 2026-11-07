@@ -32,6 +32,8 @@ public static partial class PyOps
         {
             switch (baseValue)
             {
+                case PyNativeType native when ReferenceEquals(native, PyOrderedDict.Type):
+                    throw PyOrderedDict.Unsupported("inheritance");
                 case PyNativeType native when ReferenceEquals(native, PyLexicalSuper.Type):
                     throw new PyNotImplementedError("super type inheritance is not supported");
                 case PyClass baseClass:

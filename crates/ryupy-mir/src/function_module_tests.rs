@@ -36,6 +36,7 @@ fn valid(runtime: RuntimeFn, args: Vec<Operand>, ret: MirType, eval: bool, array
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "module_abi".into(),
         codegen_name: "module_abi".into(),
@@ -44,6 +45,7 @@ fn valid(runtime: RuntimeFn, args: Vec<Operand>, ret: MirType, eval: bool, array
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,

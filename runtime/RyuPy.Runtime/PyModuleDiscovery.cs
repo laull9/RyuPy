@@ -7,6 +7,8 @@ public static partial class PyModules
 {
     internal static object DiscoverSpec(string fullname)
     {
+        // 别名后代未纳入闭世界 finder；在父 __path__ getter 或其它用户协议之前明确拒绝。
+        RejectCacheAliasDescendant(fullname);
         PyModule? parent = null;
         object? parentPath = null;
         int dot = fullname.LastIndexOf('.');

@@ -13,6 +13,7 @@ pub struct MethodDescriptor {
 pub struct ModuleEmission {
     pub module_id: u32,
     pub module_name: String,
+    pub environment_reason: String,
     pub init: MethodDescriptor,
     pub getter: Option<MethodDescriptor>,
     pub setter: Option<MethodDescriptor>,
@@ -118,6 +119,7 @@ pub(crate) fn collect(
         modules.push(ModuleEmission {
             module_id: number,
             module_name: module.name.clone(),
+            environment_reason: module.environment_reason.clone(),
             init: identities[&init].clone(),
             getter: getter.map(|index| identities[&index].clone()),
             setter: setter.map(|index| identities[&index].clone()),

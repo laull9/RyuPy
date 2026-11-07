@@ -2,6 +2,8 @@
 
 > **2026-11-02恢复与排期历史记录**：当时代码恢复自已推送M3.10（`a788d86`），其已归档项目能力为5/20。此前未推送M3.11源码随临时工作区丢失，历史10/20及725项C#测试不能当作当前checkout能力。用户已暂停16/20前置，优先原生AOT/JIT，并批准小步提交推送与独立WIP远端备份。详见[ADR0042](adr/0042-aot-jit-recovery-priority.md)；原兼容目标未达成、不勾完成。
 
+**2026-11-06架构复核基线**：db866ead 默认完整20入口为9 native / 8 unsupported / 3 failed，CP20项原stdout均等于原golden。当前九项为tomli/docopt/tabulate/texttable/chardet/wcwidth/colorama/termcolor/binaryornot；历史已通过的progress现因显式super失败，仍是默认晋升阻断，不能以新增docopt抵消。新增[按ID门禁](../tests/projects.md#p0按项目-id-的保留与默认晋升门禁)区分保九项与默认晋升，不改原选集/入口/golden；pyfiglet显式字体另计、Markdown窄源另计，20项AOT未运行。下文不同日期的矩阵继续作为历史记录。
+
 **2026-11-05同一稳定提交的新完整矩阵**：`e066238929318cf51607a8dbad056be224a43f29` 默认配置9/20入口通过、9项编译未支持、2项运行失败，无跳过/超时。pyfiglet加已有显式字体模块选项另验通过，带该配置可覆盖10/20入口；不能称默认10/20或完整库兼容。CP20项、原源/入口/golden、冻结工具和全原流已独立核验，没有混入未提交re.split。逐项版本、失败与方法见[本轮完整报告](project-matrix-2026-11-05.md)。下文5/20及单入口窗口继续作为有日期的历史记录保留。
 
 **2026-11-05后续单入口窗口**：干净`56aa6c62ba284d2ea46eb9b3dd5f6964ac604299`的原docopt0.6.2入口CP/编译成功，JIT仍失败，新首错为Argument缺少__class__；原stderr无栈，源码114行仅作静态定位。通用partition/rpartition及2045C#/240CP/208e2e门禁通过不计作项目通过，36ignored与未排除的旧路径性能回退另记[ADR0108](adr/0108-string-partition.md)。此窗口未重跑其它19项目，顶部完整矩阵口径不变。
@@ -683,3 +685,47 @@ instance模式；真实dict、原spec/path、跨代码目标、None非包和重�
 原docopt过，默认Markdown仍find_spec NI；四源窄配置已执行html.parser，下一错误为第42行
 re不支持lookbehind。不计新的默认项目通过数，不冒整个importlib或html.parser兼容。
 新冷能力/模块属性分支成本未采样，旧性能风险不关闭。见[验收记录](module-from-spec-slice.md)。
+
+
+## 2026-11-06 固定码点宽度后顾首切
+
+无内部捕获/引用/条件/嵌套断言/显式边界的固定宽度正负后顾已限域验收。全门禁2474 C#、
+900 Rust、549 CP、365 e2e通过，188 ignored；7新完整正例、9新完整pending。
+原docopt仍过，默认Markdown仍find_spec NI；四源窄配置已过原html.parser三份完整后顾
+模式，下一阻塞为sys.modules写入。默认项目通过数未增加，未重跑20项目全矩阵。
+成本未采样，复杂后顾/极大数/D009与所有旧性能风险仍开放。见[验收](regex-lookbehind-slice.md)。
+
+
+## 2026-11-06 受限模块别名挂接
+
+sys.modules支持空闲顶层非注册名到真实模块的新别名，不支持完整可写缓存。
+2519 C#/900 Rust/578 CP/370 e2e通过，212 ignored；5新完整正例、24新完整pending。
+默认Markdown仍find_spec NI，四源窄配置推进到缺xml；原docopt保持通过，未更新20项目矩阵。
+动态spec、精确setter错误、真dict与性能风险保留，见[验收报告](module-cache-alias-slice.md)。
+
+
+## 2026-11-06 XML Element对象首切
+
+真实有限Element/ElementTree、QName、Comment/PI和共享HTML_EMPTY验收；2538 C#、
+900 Rust、600 CP、379 e2e通过，225 ignored；新增22完整场景9正13pending。
+原docopt保持通过，默认Markdown仍find_spec NI；四源窄配置推进至缺OrderedDict，
+不更新20项目矩阵或计作Markdown通过。完整XML、警告文件名、repr域及成本边界见
+[验收报告](xml-element-core-slice.md)和[ADR0132](adr/0132-xml-element-core.md)。
+
+## 2026-11-06 精确原生OrderedDict有限首切
+
+基于21748729的最终candidate-003提供有限精确OD、双顺序、标量键、流式更新、
+活视图/游标与有限dict根/消费者接线；不是dict别名或完整collections。隔离全C#
+2577/2577通过，31完整CP合同真实PE实测22严格通过、9保pending；正常make check
+最终通过2577 C#/900 Rust/631 CP/401 e2e、234 ignored，不等于远端发布。
+原13在既有异常cause setter处失败不改源，独立19的真实
+raise-from链完整通过；未知空key的NI不是CP等价。
+
+最终canonical Release原docopt16B仍过；默认Markdown保375B旧find_spec NI。四源窄配置原两段及
+extra未改，compile0/JIT1、stdout空，首错从缺OrderedDict推进为57B的缺typing.NoReturn，
+仍不计项目通过。复用冻结CP参考，未重跑20项目矩阵，不改历史同提交分母或分子。
+
+唯一默认ABBA保120正式及48暖样本；getitem/setitem两对同向不利，equality第二对
++36.812%，迭代大幅下降仍受旧进程漂移限制。没有性能无回退结论，S1/B2等历史风险
+不关闭。详见[合同与验收](ordered-dict-core-slice.md)、[性能原报告](ordered-dict-performance.md)
+及[ADR0133](adr/0133-ordered-dict-core.md)。

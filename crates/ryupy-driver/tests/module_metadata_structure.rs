@@ -11,6 +11,7 @@ fn synthetic_metadata_preserves_final_ordinary_global_types() {
     let (hir, errors) = ryupy_hir::lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            instance_capabilities: Default::default(),
             instance_globals: false,
             name: "unit".into(),
             package: "".into(),
@@ -49,7 +50,9 @@ fn synthetic_metadata_preserves_final_ordinary_global_types() {
         vec![(
             program,
             ryupy_mir::UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::SourceAbsolute("/source/unit.py".into()),
                 file_backed_by_global: true,
                 is_package: false,
@@ -81,6 +84,7 @@ fn module_metadata_real_slots_survive_lowering_and_pe_emission() {
     let (parsed, errors) = ryupy_syntax::parse(file, source);
     assert!(errors.is_empty(), "{errors:?}");
     let info = ryupy_hir::ModuleInfo {
+        instance_capabilities: Default::default(),
         instance_globals: false,
         name: "pkg.unit".into(),
         package: "pkg".into(),
@@ -132,7 +136,9 @@ fn module_metadata_real_slots_survive_lowering_and_pe_emission() {
         vec![(
             program,
             ryupy_mir::UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::SourceAbsolute("/source/pkg/unit.py".into()),
                 file_backed_by_global: true,
                 is_package: false,

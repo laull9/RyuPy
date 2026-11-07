@@ -278,7 +278,9 @@ fn module_pair_optional_operand_is_read_and_survives_link_clone() {
         vec![(
             p,
             crate::link::UnitMeta {
+                instance_capabilities: Default::default(),
                 execution: crate::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: crate::ModuleLocation::LegacyDiagnostic,
                 file_backed_by_global: false,
                 is_package: false,

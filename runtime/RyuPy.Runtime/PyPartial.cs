@@ -40,6 +40,7 @@ public sealed class PyPartial : PyNativeObject, IPyNativeCallable
     public override void SetAttr(string name, object? value)
     {
         if (name is "func" or "args" or "keywords") throw new PyAttributeError("readonly attribute");
+        if (name == "__dict__" && value is PyOrderedDict) throw PyOrderedDict.Unsupported("partial metadata storage");
         if (name == "__dict__") _attributes = value as PyDict ?? throw new PyTypeError("__dict__ must be a dictionary");
         else (_attributes ??= new PyDict()).Set(name, value);
     }

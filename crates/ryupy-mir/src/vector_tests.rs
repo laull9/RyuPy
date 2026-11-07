@@ -62,6 +62,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 4]) {
     let mut functions = Arena::default();
     let main = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "vector_test".into(),
         codegen_name: "vector_test".into(),
@@ -70,6 +71,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 4]) {
         params: vec![],
         ret: MirType::F64,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,

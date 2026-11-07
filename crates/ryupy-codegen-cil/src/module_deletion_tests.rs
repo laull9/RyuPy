@@ -24,7 +24,9 @@ fn plain_program() -> LinkedProgram {
     ));
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
         is_package: false,

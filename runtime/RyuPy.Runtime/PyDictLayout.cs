@@ -40,6 +40,7 @@ internal static class PyDictLayout
     {
         if (args.Length == 0) throw Own(new PyTypeError("dict.__new__(): not enough arguments"));
         object? target = args[0];
+        if (ReferenceEquals(target, PyOrderedDict.Type)) throw PyOrderedDict.Unsupported("dict.__new__");
         if (ReferenceEquals(target, PyType.Get("dict"))) return new PyDict();
         if (target is PyClass cls && IsClass(cls))
         {

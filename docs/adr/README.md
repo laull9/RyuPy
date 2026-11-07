@@ -55,6 +55,7 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0048](0048-default-site-quitters.md) | 默认 site 的真实 exit / quit | 三平台专项与组合CI通过；WIP未main，非完整 site |
 | [0049](0049-base-object-identity.md) | 真实 object 基础实例与身份 | 三平台有限专项通过；派生构造与富比较旧债独立保留 |
 | [0050](0050-ordinary-construction-protocol.md) | 普通单继承的有限 new/init | 本地候选；专用布局与槽历史限制明确 |
+| [0133](0133-ordered-dict-core.md) | 精确原生OrderedDict的双顺序与有限消费者 | 有限首切及完整门禁通过；性能风险开放，不等于远端发布 |
 
 ## 模板
 

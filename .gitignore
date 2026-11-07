@@ -30,3 +30,12 @@ __pycache__/
 *.build/
 *.dist/
 *.build.lock/
+
+# 性能实验可再生的编译 IR / JIT 转储不进版本库；测试输入和已审阅 insta 期望仍保留。
+/tests/perf/results/**/*.mir
+/tests/perf/results/**/*.cil
+/tests/perf/results/**/*.types
+/tests/perf/results/**/*.asm
+/tests/perf/results/**/*.asm.diff
+/tests/perf/results/m3_10/union-prototype/jit-arithmetic.txt
+/tests/perf/results/m3_10/union-prototype/jit-calls.txt

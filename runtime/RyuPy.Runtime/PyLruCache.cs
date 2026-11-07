@@ -65,6 +65,7 @@ public sealed class PyLruCache : PyNativeObject, IPyNativeCallable, IPyNativeDes
     /// <inheritdoc/>
     public override void SetAttr(string name, object? value)
     {
+        if (name == "__dict__" && value is PyOrderedDict) throw PyOrderedDict.Unsupported("lru_cache metadata storage");
         if (name == "__dict__") _attributes = value as PyDict ?? throw new PyTypeError("__dict__ must be a dictionary");
         else _attributes.Set(name, value);
     }

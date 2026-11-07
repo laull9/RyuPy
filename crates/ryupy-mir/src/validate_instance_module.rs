@@ -3,6 +3,29 @@ use crate::*;
 pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
     for (id, function) in program.functions.iter() {
         let contexts = trusted_contexts(function);
+        if function.module_state.is_some()
+            && program
+                .functions
+                .iter()
+                .find(|(id, _)| *id == program.entry)
+                .is_none_or(|(_, entry)| {
+                    function.instance_capabilities != entry.instance_capabilities
+                })
+        {
+            errors.push(format!(
+                "函数 `{}` 的实例能力与模块入口不一致",
+                function.name
+            ));
+        }
+        if (function.instance_capabilities.relative_from_import
+            || function.instance_capabilities.ordinary_name_handlers)
+            && function.module_state.is_none()
+        {
+            errors.push(format!(
+                "函数 `{}` 的实例扩展能力缺少实例环境",
+                function.name
+            ));
+        }
         let valid = match (function.module_state, function.module_state_source) {
             (None, None) => true,
             (Some(state), Some(source)) => {
@@ -78,6 +101,19 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                 }
                 if let Statement::Assign { value, .. } | Statement::Eval(value) = stmt {
                     validate_frame_write(function, value, block_id, statement_index, errors);
+                    if matches!(
+                        value,
+                        Rvalue::Call {
+                            callee: Callee::Runtime(
+                                RuntimeFn::InstanceRelativeImport
+                                    | RuntimeFn::InstanceRelativeImportAttr
+                            ),
+                            ..
+                        }
+                    ) && !function.instance_capabilities.relative_from_import
+                    {
+                        errors.push(format!("函数 `{}` 缺少相对导入能力", function.name));
+                    }
                     if let Rvalue::Call {
                         callee: Callee::Runtime(runtime),
                         args,
@@ -86,6 +122,8 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                             runtime,
                             RuntimeFn::InstanceClassGuard
                                 | RuntimeFn::InstanceMakeClass
+                                | RuntimeFn::InstanceRelativeImport
+                                | RuntimeFn::InstanceRelativeImportAttr
                                 | RuntimeFn::InstanceImportGuard
                                 | RuntimeFn::InstanceLoadName
                                 | RuntimeFn::InstanceStoreName

@@ -80,6 +80,7 @@ internal sealed class PyJsonWriter
                 // 循环检测仍使用公开owner，默认槽不可覆盖时可逐项读取真实背板。
                 PyListInstance list => Sequence(list.Payload.Items, depth),
                 PyTuple tuple => Sequence(tuple.Items, depth),
+                PyOrderedDict => throw PyOrderedDict.Unsupported("JSON encoding"),
                 PyDict dict => Object(dict, depth),
                 PyDictInstance dict => SubclassObject(dict, depth),
                 IPyNativeMapping mapping => Object(mapping.Dictionary, depth),

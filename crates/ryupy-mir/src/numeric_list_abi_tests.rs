@@ -13,6 +13,7 @@ fn program(statement: Statement) -> Program {
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "main".into(),
         codegen_name: "main".into(),
@@ -21,6 +22,7 @@ fn program(statement: Statement) -> Program {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: {
                 let mut locals = Arena::default();
                 locals.alloc(crate::LocalDecl {

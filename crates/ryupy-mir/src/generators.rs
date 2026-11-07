@@ -24,6 +24,7 @@ fn empty_body() -> Body {
         terminator: Terminator::Return(None),
     });
     Body {
+        source_handler_contracts: Vec::new(),
         locals: Arena::default(),
         blocks,
         entry,
@@ -280,10 +281,12 @@ fn lower_one(
     let origin = function
         .dynamic_origin
         .map(|source| Operand::Local(source.owner));
+    let capabilities = function.instance_capabilities;
     let module_state = function.module_state;
     let closure_environment = function.env;
     let resume = program.functions.alloc(Function {
         module_state,
+        instance_capabilities: capabilities,
         module_state_source: module_state.map(|state| crate::InstanceStateSource::GeneratorFrame {
             frame,
             slot: state.into_raw().into_u32() as usize + 4,

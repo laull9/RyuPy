@@ -184,6 +184,7 @@ pub fn build_program(
         };
         let mir_fn = Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: hir_fn.name.as_str().to_string(),
             codegen_name,
@@ -198,6 +199,7 @@ pub fn build_program(
             params: Vec::new(),
             ret: ret_ty,
             body: crate::mir::Body {
+                source_handler_contracts: Vec::new(),
                 locals: Arena::default(),
                 blocks: Arena::default(),
                 entry: la_arena::Idx::from_raw(0.into()),
@@ -370,6 +372,7 @@ pub fn build_program(
         diagnostics.extend(builder.diagnostics);
 
         let entry = builder.entry;
+        functions[mir_fn_id].instance_capabilities = hir.info.instance_capabilities;
         functions[mir_fn_id].module_state = builder.module_state;
         functions[mir_fn_id].module_state_source = builder.module_state.map(|_| {
             crate::InstanceStateSource::parameter(
@@ -389,6 +392,7 @@ pub fn build_program(
             classes[class].class_cell = Some(definition);
         }
         functions[mir_fn_id].body = crate::mir::Body {
+            source_handler_contracts: std::mem::take(&mut builder.source_handler_contracts),
             locals: builder.locals,
             blocks: builder.blocks,
             entry,
@@ -490,6 +494,7 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) diagnostics: Vec<Diagnostic>,
     /// 已构建的异常区域。
     pub(crate) regions: Vec<Region>,
+    pub(crate) source_handler_contracts: Vec<crate::SourceHandlerContract>,
     /// 当前嵌套的受保护区域起点（块下标），最内层在末尾。
     pub(crate) protected_stack: Vec<usize>,
     /// 当前正在构建的 finally 上下文，最内层在末尾。

@@ -108,11 +108,17 @@ bytearray/memoryview 的实时内容与租约、split/scanner 及原有复杂语
 - 支持`\w/\W/\d/\D/\s/\S`，常用控制字符、十六进制与 text Unicode 转义；模式中的已闭合编号/命名反向引用只在非IGNORECASE模式开放。字符类中的非零八进制转义当前明确拒绝。
 - 字符串替换独立解析`\1`、`\g<name>`、`\g<0>`与控制/八进制转义；美元符号始终是普通文本，不借用.NET替换语法。
 - 公开`I/IGNORECASE`、`M/MULTILINE`、`S/DOTALL`、`X/VERBOSE`、`A/ASCII`、`U/UNICODE`、`NOFLAG`的整数值，可按位组合；尚无完整RegexFlag/IntFlag对象。支持模式开头的全局flags。
-- `LOCALE`用于str模式按Python报ValueError；ASCII与UNICODE同时出现报ValueError。其它未开放flags、scoped flags、后顾、开放捕获条件、原子组、占有量词、text 非ASCII组名、text 命名Unicode转义、IGNORECASE反向引用明确NotImplementedError。
+- `LOCALE`用于str模式按Python报ValueError；ASCII与UNICODE同时出现报ValueError。其它未开放flags、scoped flags、复杂后顾、开放捕获条件、原子组、占有量词、text 非ASCII组名、text 命名Unicode转义、IGNORECASE反向引用明确NotImplementedError。
 - bytes 默认字符分类及 IGNORECASE 按 ASCII，公开 flags 不隐式加 ASCII/UNICODE；外部 UNICODE 与 ASCII|LOCALE 组合报 ValueError，合法 LOCALE 尚未实现。bytes 的 `\u/\U/\N` 和非 ASCII 组名报真实 re.error，str 模板非 ASCII 组名仍有 NI 边界。
 - 条件组候选支持已闭合捕获的ASCII编号/名字及数字前向引用，空支/省略no、嵌套和源码组号保持；开放自身/祖先捕获仍NI。text非ASCII条件token、超过4300位ASCII数字条件明确NI，不能冒完整错误兼容；专项、3应用及正常完整门禁已过（ADR0082）。
 - 无效语法抛真实`re.error`；不把`.NET (?<name>...)`、`\p{...}`等方言当作Python合法模式。常见位置按 text 码点/bytes 字节计算；未逐条承诺所有错误消息与CPython完全一致。
 - 未列出的模块入口（例如split/scanner）、对象方法与元数据不冒称已兼容。
+
+### 固定码点宽度后顾（ADR0130）
+
+- 正负后顾支持无内部捕获/引用/条件/嵌套断言/显式anchor或boundary的字符正文，含非捕获组、等宽分支、固定重复与全局既有flags；宽度按Python码点/字节，外围原有语法保留。
+- 变宽在受支持语法解析后报无pattern/位置属性的re.error。单个计数或最终宽度超过int.MaxValue为NI资源边界，D009与CP极大数精确错误保持pending。
+- 新未知字母escape定位与有限min>max优先级修正、全部原始失败、生产PE和项目结果见[验收记录](regex-lookbehind-slice.md)。不冒完整lookbehind或性能无回退。
 
 ### Unicode、空匹配与表示边界
 

@@ -10,6 +10,7 @@ fn runtime_module_file_is_dynamic_without_demoting_unrelated_module_slots() {
         let (module, errors) = ryupy_hir::lower_module(
             &parsed,
             &ryupy_hir::ModuleInfo {
+                instance_capabilities: Default::default(),
                 instance_globals: false,
                 resolve_file_at_runtime: enabled,
                 name: "pkg.unit".into(),

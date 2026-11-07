@@ -10,6 +10,7 @@ fn check(source: &str) -> (ryupy_hir::Module, crate::ModuleTypes) {
     let (hir, errors) = ryupy_hir::lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            instance_capabilities: Default::default(),
             name: "__main__".into(),
             package: String::new(),
             file: "opaque.py".into(),

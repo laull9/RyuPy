@@ -163,6 +163,7 @@ impl Plan {
             Terminator::Goto(dispatch),
         );
         body.regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::CatchAll,
             try_start: block_id(0),
             try_len: protected_len,
@@ -332,6 +333,7 @@ mod tests {
     #[test]
     fn exception_retry_has_single_physical_region_and_external_returns() {
         let mut body = Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks: Arena::default(),
             entry: block_id(0),
@@ -366,6 +368,7 @@ mod tests {
             Terminator::Return(Some(Operand::Local(caught))),
         );
         body.regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::Catch {
                 type_names: vec!["ValueError".into()],
             },
@@ -449,6 +452,7 @@ mod tests {
         let mut functions = Arena::default();
         let id = functions.alloc(Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "test".into(),
             codegen_name: "test".into(),
@@ -457,6 +461,7 @@ mod tests {
             params: vec![],
             ret: MirType::Dynamic,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals: Arena::default(),
                 blocks,
                 entry,
@@ -535,6 +540,7 @@ mod tests {
         let mut functions = Arena::default();
         let id = functions.alloc(Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "test".into(),
             codegen_name: "test".into(),
@@ -543,6 +549,7 @@ mod tests {
             params: vec![],
             ret: MirType::Dynamic,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,

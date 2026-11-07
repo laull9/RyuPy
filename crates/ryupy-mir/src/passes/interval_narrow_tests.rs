@@ -38,6 +38,7 @@ fn sample() -> (Function, LocalId, BlockId) {
     });
     let mut f = Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: "join".into(),
         codegen_name: "join".into(),
@@ -46,6 +47,7 @@ fn sample() -> (Function, LocalId, BlockId) {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,

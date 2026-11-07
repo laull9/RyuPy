@@ -95,7 +95,10 @@ public sealed class PyIter : IPyIterator
         PyRange range => new PyRangeIter(range),
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Iterate(cls),
         // 原生流的__iter__仍需检查关闭状态，不能被IPyIterator快路径绕过。
-        PyNativeObject native => CreateFromObject(native),
+        // C Element 没有公开 __iter__ 槽；仅 native 迭代分支适配其序列游标，
+        // 不把它错误登记成 collections.abc.Iterable，也不改变普通容器热路。
+        PyNativeObject native => native is PyXmlElement element
+            ? new PyXmlChildrenIterator(element) : CreateFromObject(native),
         // 迭代器本身可迭代：`iter(it)` 返回自身
         IPyIterator iterator => iterator,
         // 普通实例：调用一次 `__iter__`，验证返回对象的迭代器协议。

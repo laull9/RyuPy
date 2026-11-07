@@ -55,6 +55,7 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
     (
         Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "tuple_probe".into(),
             codegen_name: "tuple_probe".into(),
@@ -63,6 +64,7 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
             params: vec![left, right],
             ret: MirType::Dynamic,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -250,6 +252,7 @@ fn cells_generators_closures_and_exception_regions_are_outside_first_slice() {
                 }
             }
             _ => function.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

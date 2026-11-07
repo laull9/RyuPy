@@ -64,3 +64,6 @@ mod instance_globals_tests;
 
 #[cfg(test)]
 mod module_delete_tests;
+
+#[cfg(test)]
+mod ordinary_dynamic_tests;

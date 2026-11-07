@@ -10,6 +10,8 @@ pub(crate) struct InstanceRefs {
     pub store_name: MethodRefIndex,
     pub execution_source: MethodRefIndex,
     pub import_guard: MethodRefIndex,
+    pub relative_import: MethodRefIndex,
+    pub relative_attribute: MethodRefIndex,
     pub execute_ctor: MethodRefIndex,
     pub register: MethodRefIndex,
 }
@@ -32,6 +34,8 @@ impl InstanceRefs {
             load_name: res.push_method_reference(method_ref! { static object @instances::LoadName(object, string) }),
             store_name: res.push_method_reference(method_ref! { static void @instances::StoreName(object, string, object) }),
             execution_source: res.push_method_reference(method_ref! { static object @instances::ExecutionSource(object) }),
+            relative_import: res.push_method_reference(method_ref! { static object @instances::RelativeImport(object, string, long, object[]) }),
+            relative_attribute: res.push_method_reference(method_ref! { static object @instances::RelativeImportAttr(object, object, string) }),
             import_guard: res.push_method_reference(method_ref! { static void @instances::ImportGuard(object) }),
             execute_ctor: res.push_method_reference(method_ref! { void @execute::.ctor(object, nint) }),
             register: res.push_method_reference(method_ref! { static void @modules::RegisterInstanceSourceLocated(string, string, string, long, string, bool, @execute) }),

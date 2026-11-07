@@ -23,7 +23,10 @@ use crate::mir::{
 /// 一个模块的元信息（由 driver 从模块图提供）。
 #[derive(Debug, Clone)]
 pub struct UnitMeta {
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
     pub execution: crate::ModuleExecutionKind,
+    /// 编译计划的审计原因；不作为运行时语义开关。
+    pub environment_reason: String,
     /// 实际build显式注入；普通dump使用LegacyDiagnostic。
     pub location: crate::ModuleLocation,
     pub file_backed_by_global: bool,
@@ -73,6 +76,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
         for (old, func) in program.functions.iter() {
             let new_id = functions.alloc(Function {
                 module_state: func.module_state,
+                instance_capabilities: func.instance_capabilities,
                 module_state_source: func.module_state_source,
                 name: func.name.clone(),
                 codegen_name: format!("{prefix}{}", func.codegen_name),
@@ -81,6 +85,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 params: func.params.clone(),
                 ret: remap_type(&func.ret, &class_map),
                 body: Body {
+                    source_handler_contracts: Vec::new(),
                     locals: Arena::default(),
                     blocks: Arena::default(),
                     entry: la_arena::Idx::from_raw(0.into()),
@@ -149,6 +154,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 });
             }
             let body = Body {
+                source_handler_contracts: func.body.source_handler_contracts.clone(),
                 locals,
                 blocks: remap_blocks(&func.body.blocks, &fn_map, &class_map, &global_map),
                 entry: func.body.entry,
@@ -157,6 +163,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                     .regions
                     .iter()
                     .map(|region| crate::mir::Region {
+                        source_handler_chain: region.source_handler_chain,
                         kind: match &region.kind {
                             crate::mir::RegionKind::Catch { type_names } => {
                                 crate::mir::RegionKind::Catch {
@@ -215,7 +222,9 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             })
             .collect();
         module_ids.push(modules.alloc(ModuleDef {
+            instance_capabilities: meta.instance_capabilities,
             execution: meta.execution,
+            environment_reason: meta.environment_reason,
             location: meta.location,
             file_backed_by_global: meta.file_backed_by_global,
             is_package: meta.is_package,
@@ -231,7 +240,9 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     let entry_module = module_ids.get(entry).copied().unwrap_or_else(|| {
         // 空程序（理论上不会出现）：补一个空入口模块，避免 panic。
         modules.alloc(ModuleDef {
+            instance_capabilities: Default::default(),
             execution: crate::ModuleExecutionKind::LegacySingleton,
+            environment_reason: "existing-contract".into(),
             location: Default::default(),
             file_backed_by_global: false,
             is_package: false,
@@ -550,6 +561,7 @@ impl Function {
     fn placeholder() -> Self {
         Self {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: String::new(),
             codegen_name: String::new(),
@@ -558,6 +570,7 @@ impl Function {
             params: Vec::new(),
             ret: MirType::Unit,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals: Arena::default(),
                 blocks: Arena::default(),
                 entry: la_arena::Idx::from_raw(0.into()),

@@ -50,6 +50,8 @@ internal static class PyDictDescriptors
                     : $"descriptor '{name}' of '{Owner}' object needs an argument");
             object? self = receiver ?? args[0];
             // object.__str__ 接受任意对象，但只调用 repr，不调用用户 str。
+            if (self is PyOrderedDict ordered)
+                return PyOrderedDictConsumers.Root(ordered, name, receiver is null ? args[1..] : args, names, values);
             if (name != "__str__" && !PyDictLayout.TryGet(self, out _))
                 throw Error(IsMethod(name)
                     ? $"descriptor '{name}' for 'dict' objects doesn't apply to a '{PyRepr.TypeName(self)}' object"

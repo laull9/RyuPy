@@ -4,33 +4,59 @@ use ryupy_base::{Diagnostic, FileId, Ranged, Span, TextRange};
 use ryupy_syntax::ast;
 use ryupy_syntax::ast::visitor::{Visitor, walk_except_handler, walk_expr, walk_stmt};
 
-pub(crate) fn validate(body: &[ast::Stmt], file: FileId) -> Vec<Diagnostic> {
+pub(crate) fn validate(
+    body: &[ast::Stmt],
+    file: FileId,
+    capabilities: ryupy_base::InstanceCapabilities,
+) -> Vec<Diagnostic> {
     let mut check = Check {
-        file,
-        diagnostics: Vec::new(),
+        requirements: Vec::new(),
         scope: Default::default(),
+        generator: false,
     };
     for statement in body {
         check.visit_stmt(statement);
     }
-    check.diagnostics
+    check
+        .requirements
+        .into_iter()
+        .filter_map(|(range, requirement)| {
+            let feature = match requirement {
+                Requirement::OrdinaryNameHandler if capabilities.ordinary_name_handlers => {
+                    return None;
+                }
+                Requirement::OrdinaryNameHandler => "普通Name/bare except handler".to_owned(),
+                Requirement::RelativeFrom if capabilities.relative_from_import => return None,
+                Requirement::RelativeFrom => "相对导入".to_owned(),
+                Requirement::Unsupported(feature) => feature,
+            };
+            Some(
+                Diagnostic::error(
+                    Span::new(file, range),
+                    format!("实例模块首切暂不支持{feature}"),
+                )
+                .with_code("E0100"),
+            )
+        })
+        .collect()
+}
+
+enum Requirement {
+    OrdinaryNameHandler,
+    RelativeFrom,
+    Unsupported(String),
 }
 
 struct Check {
-    file: FileId,
-    diagnostics: Vec<Diagnostic>,
+    requirements: Vec<(TextRange, Requirement)>,
     scope: crate::module_deletions::DeleteScope,
+    generator: bool,
 }
 
 impl Check {
     fn reject(&mut self, range: TextRange, feature: &str) {
-        self.diagnostics.push(
-            Diagnostic::error(
-                Span::new(self.file, range),
-                format!("实例模块首切暂不支持{feature}"),
-            )
-            .with_code("E0100"),
-        );
+        self.requirements
+            .push((range, Requirement::Unsupported(feature.to_owned())));
     }
 
     fn name(&mut self, name: &str, range: TextRange) {
@@ -52,6 +78,14 @@ impl Check {
 
 impl<'a> Visitor<'a> for Check {
     fn visit_stmt(&mut self, statement: &'a ast::Stmt) {
+        let previous_generator = self.generator;
+        match statement {
+            ast::Stmt::FunctionDef(def) => {
+                self.generator = crate::generator_scan::contains_yield(&def.body)
+            }
+            ast::Stmt::ClassDef(_) => self.generator = false,
+            _ => {}
+        }
         let saved = crate::module_deletions::DeleteScope::enter(statement)
             .map(|scope| std::mem::replace(&mut self.scope, scope));
         match statement {
@@ -75,9 +109,9 @@ impl<'a> Visitor<'a> for Check {
                     }
                 }
             }
-            ast::Stmt::ImportFrom(import) if import.level != 0 => {
-                self.reject(statement.range(), "相对导入")
-            }
+            ast::Stmt::ImportFrom(import) if import.level != 0 => self
+                .requirements
+                .push((statement.range(), Requirement::RelativeFrom)),
             ast::Stmt::Global(global) => {
                 for name in &global.names {
                     self.name(name.as_str(), name.range());
@@ -102,6 +136,7 @@ impl<'a> Visitor<'a> for Check {
         }
         // 即使整个语句被拒绝，仍扫描所有子节点，统一报告隐藏的非法结构。
         walk_stmt(self, statement);
+        self.generator = previous_generator;
         if let Some(scope) = saved {
             self.scope = scope;
         }
@@ -138,7 +173,19 @@ impl<'a> Visitor<'a> for Check {
     }
 
     fn visit_except_handler(&mut self, handler: &'a ast::ExceptHandler) {
-        self.reject(handler.range(), "except handler");
+        let ast::ExceptHandler::ExceptHandler(except) = handler;
+        if self.generator || matches!(self.scope, crate::module_deletions::DeleteScope::Class) {
+            self.reject(handler.range(), "生成器或类体源码except handler");
+        } else if except
+            .type_
+            .as_ref()
+            .is_some_and(|target| !matches!(target.as_ref(), ast::Expr::Name(_)))
+        {
+            self.reject(handler.range(), "非Name/bare except目标");
+        } else {
+            self.requirements
+                .push((handler.range(), Requirement::OrdinaryNameHandler));
+        }
         walk_except_handler(self, handler);
     }
 

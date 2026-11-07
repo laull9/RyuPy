@@ -20,6 +20,7 @@ fn empty_function(name: &str) -> Function {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -33,6 +34,7 @@ fn empty_function(name: &str) -> Function {
         env: None,
         dynamic_origin: None,
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
     }
 }
@@ -91,7 +93,9 @@ fn original_function_identity_is_duplicated_at_definition() {
     ];
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
         execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
         is_package: false,

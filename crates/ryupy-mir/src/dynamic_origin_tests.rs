@@ -10,6 +10,7 @@ fn empty(name: &str) -> Function {
     });
     Function {
         module_state: None,
+        instance_capabilities: Default::default(),
         module_state_source: None,
         name: name.into(),
         codegen_name: name.into(),
@@ -18,6 +19,7 @@ fn empty(name: &str) -> Function {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,

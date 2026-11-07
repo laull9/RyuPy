@@ -13,6 +13,7 @@ fn primitive_attribute_fallback_keeps_unrelated_numeric_function_static() {
     let (hir, diagnostics) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
@@ -63,6 +64,7 @@ fn object_local_alias_demotes_only_its_function() {
     let (hir, diagnostics) = lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
+            instance_capabilities: Default::default(),
             instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),

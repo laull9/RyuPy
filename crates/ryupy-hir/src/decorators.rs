@@ -261,6 +261,7 @@ mod tests {
         crate::lower_module(
             &parsed,
             &crate::ModuleInfo {
+                instance_capabilities: Default::default(),
                 instance_globals: false,
                 resolve_file_at_runtime: false,
                 name: "__main__".into(),

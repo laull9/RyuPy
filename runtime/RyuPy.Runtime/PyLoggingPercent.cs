@@ -6,6 +6,8 @@ internal static class PyLoggingPercent
 {
     internal static string Format(string format, object? arguments)
     {
+        // 有限日志格式器尚未验收 OD 映射，不能误报为非映射或调用后再失败。
+        if (arguments is PyOrderedDict) throw PyOrderedDict.Unsupported("logging percent mapping");
         var output = new StringBuilder(); int used = 0;
         object?[] values = arguments is PyTuple tuple ? tuple.Items : [arguments];
         bool mapping = false;

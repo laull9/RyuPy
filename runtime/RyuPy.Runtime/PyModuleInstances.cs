@@ -136,6 +136,7 @@ public static partial class PyModules
     public static void RegisterInstanceSourceLocated(string name, string package, string diagnosticFile,
         long locationKind, string locationValue, bool isPackage, PyModuleExecute execute)
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         if (locationKind is not (1 or 2)) throw new PyNotImplementedError("instance modules require an explicit source location");
         string resolved = PyModuleLocations.Resolve(locationKind, locationValue);
         var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute);

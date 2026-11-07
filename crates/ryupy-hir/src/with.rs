@@ -179,6 +179,7 @@ impl StmtLowerCtx<'_> {
         handler_body.push(suppress_check);
 
         let handler = self.body.handlers.alloc(Handler {
+            semantics: crate::HandlerSemantics::SynthesizedWith,
             types: Some(vec!["BaseException".to_owned()]),
             type_expr: None,
             type_line: 0,

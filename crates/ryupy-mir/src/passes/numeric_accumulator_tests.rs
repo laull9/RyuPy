@@ -61,6 +61,7 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
     (
         Function {
             module_state: None,
+            instance_capabilities: Default::default(),
             module_state_source: None,
             name: "sum".into(),
             codegen_name: "sum".into(),
@@ -69,6 +70,7 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
             params: vec![rhs],
             ret: MirType::Dynamic,
             body: Body {
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -210,6 +212,7 @@ fn observations_rhs_alias_cell_exception_and_generator_reject() {
             }
             2 => f.body.locals[total].is_cell = true,
             3 => f.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

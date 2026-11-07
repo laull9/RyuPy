@@ -21,6 +21,7 @@ public static partial class PyOps
 
     internal static void DictUpdateSource(PyDict target, object? source)
     {
+        if (source is PyOrderedDict ordered) { PyOrderedDictConsumers.CopyInto(target, ordered); return; }
         // 已有 proxy 的窄域及错误合同保持独立；不能借此次扩展扩大它的自定义键支持。
         if (source is PyMappingProxy proxy) { PyMappingProxyConsumers.CopyInto(target, proxy); return; }
         PyDict? raw = source as PyDict ?? (source as IPyNativeMapping)?.Dictionary;
