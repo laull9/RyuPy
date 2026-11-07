@@ -51,8 +51,8 @@ public static partial class PyModules
 
     private static object? DiscoveryParentPath(PyModule parent, string parentName, string fullname, bool importing)
     {
-        // native/旧ABI未承诺包元数据；缺__path__不能据此谎报其为真实非包。
-        if (parent.Metadata is null)
+        // native/旧ABI/无位置初值未承诺来源能力；缺path不能据此谎报真实非包。
+        if (parent.Metadata is not { HasSourceLocation: true })
             throw DiscoveryUnsupported("native or legacy parents without source metadata");
         try { return parent.GetAttr("__path__"); }
         catch (PyAttributeError missing)

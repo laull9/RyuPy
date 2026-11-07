@@ -1,0 +1,144 @@
+{
+  "description": "同配置保护：Session默认JIT，编入pilot；11条选择中仅4条compiled，不能称11模块已执行。",
+  "compiled_feature": true,
+  "session_policy": "ordinary-dynamic-module-pilot",
+  "source_run_id": "225a76baffc7484b947a159373abadf1",
+  "source_plan_sha256": {
+    "attrs": "66bcf7229fc5557c3cc616f7ff2f6e319ed6dc23e8550e27f6b1174041e2e227",
+    "binaryornot": "40b927a6beaf18cd542877b70ffc9c467efddfa2acf82484d854541182a15d41",
+    "chardet": "6e2fd95a05f61e2af2816c4f63e1f4b674df5a27a1d78e5014a9856c9f7fcc00",
+    "click": "4ab9653afc1c098a5017eddc4682e980bf0b88e626b8918c3d16c7dd6de4ead8",
+    "colorama": "87997c0f06baec47213aa20a5455db935636b5a75af53dfe45de07e739680146",
+    "docopt": "69039e6541062a588c048d18ba1ad91de265a30eb4bb8bef0e494fb5ef226267",
+    "markdown": "7eaf5e72ae35b4b49bc3fa04d9ae134fca701c5ba588eb50be9b82917337b60d",
+    "networkx": "7f520728ed0cf3c46581250f995126fbc6edf180d307958884036839588d92dd",
+    "progress": "0944c3c051597a7c63186a3000b9733eef4bedc34f388028d114fadb1b821687",
+    "pyfiglet": "7849c7836b590970532720b2ed28f7a564157f6fe6e907ae68279d7bba77ac18",
+    "pyparsing": "84e5edf482c0d872b87f6cbfbabccf50c7e6dbe2c699304f288e0ccaf1535b66",
+    "python-dateutil": "317f31aa1665253431082c7c059e2463ca2e5f989575e9098d948e23ed62eb7f",
+    "six": "bd83647be4f0ec5f8f3711f8b3c6794c1d4e77ff55914d72c8a7d592075d1e04",
+    "sortedcontainers": "61db2ba4246f40896f08f5cd89df747e867ce5ea7c88da3978ad4d289f4447f0",
+    "tabulate": "e089f090b9b00044d81ad9250731f9e406ae8786f3d7dc1e206d73353f7e24bc",
+    "termcolor": "a00f0731ca9bd3ca3773fd1377fb26b0fdebc90f2b35c9efb15dcfd7dd145eaa",
+    "texttable": "4bf8144a56d7380611c39893e30f9f50e8eadcb34302cd8f12e73ed030cfae7a",
+    "toml": "c0ddb38b9c0f0f376841831593c8fe197f4d22e4c8b41546003557ab842f350f",
+    "tomli": "0e1cdfb5cb7994bfb7f173d8d36ac4db8be0308340e925b4f2c024f0a0914701",
+    "wcwidth": "733d57f72c14e214bf2ca6b584d4fb31cb76cbfa59f38dd7d6baed38428b738a"
+  },
+  "selected": {
+    "attrs": [
+      {
+        "compiled": true,
+        "execution": "InstanceGlobals",
+        "module": "attr._config",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:2-functions",
+        "relative_from_import": false
+      }
+    ],
+    "binaryornot": [],
+    "chardet": [],
+    "click": [],
+    "colorama": [],
+    "docopt": [],
+    "markdown": [
+      {
+        "compiled": true,
+        "execution": "InstanceGlobals",
+        "module": "markdown.__meta__",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:1-functions",
+        "relative_from_import": false
+      }
+    ],
+    "networkx": [
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "networkx.algorithms.lowest_common_ancestors",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:4-functions",
+        "relative_from_import": false
+      },
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "networkx.algorithms.tree.recognition",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:4-functions",
+        "relative_from_import": false
+      },
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "networkx.linalg.bethehessianmatrix",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:1-functions",
+        "relative_from_import": false
+      },
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "networkx.linalg.laplacianmatrix",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:6-functions",
+        "relative_from_import": false
+      },
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "networkx.linalg.modularitymatrix",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:2-functions",
+        "relative_from_import": false
+      },
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "networkx.linalg.spectrum",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:5-functions",
+        "relative_from_import": false
+      }
+    ],
+    "progress": [
+      {
+        "compiled": true,
+        "execution": "InstanceGlobals",
+        "module": "progress.colors",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:1-functions",
+        "relative_from_import": false
+      }
+    ],
+    "pyfiglet": [],
+    "pyparsing": [],
+    "python-dateutil": [
+      {
+        "compiled": false,
+        "execution": "InstanceGlobals",
+        "module": "dateutil.easter",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:1-functions",
+        "relative_from_import": false
+      }
+    ],
+    "six": [],
+    "sortedcontainers": [],
+    "tabulate": [],
+    "termcolor": [],
+    "texttable": [],
+    "toml": [],
+    "tomli": [],
+    "wcwidth": [
+      {
+        "compiled": true,
+        "execution": "InstanceGlobals",
+        "module": "wcwidth.unicode_versions",
+        "ordinary_name_handlers": false,
+        "reason": "ordinary-dynamic-pilot:1-functions",
+        "relative_from_import": false
+      }
+    ]
+  }
+}

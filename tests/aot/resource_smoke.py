@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """每宿主一次资源AOT发布；固定源码，无后端专用Python分支。"""
 from aot_layout import reported_aot
+from native_evidence import preserve_dist
 import argparse
 import hashlib
 import json
@@ -140,6 +141,8 @@ def main():
         layout = reported_aot(published.stderr,il,'main',args.rid)
         native = layout.native
         manifest_file = published_manifest(published.stderr,native)
+        # 第一次原生运行之前保存完整交付物；后续失败仍能重放本次发布。
+        preserve_dist(native.parent, logs)
         sdk = read_sdk_version(layout.host/'sdk.version')
         result['aot_il_sha256'] = sha(layout.managed)
         assert sha(layout.managed.parent/'RyuPy.Runtime.dll') == result['runtime_sha256']

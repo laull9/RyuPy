@@ -248,8 +248,10 @@ public static partial class PyModules
             registration.FileBackedByGlobal,
             registration.ResourceLocation is not null && !registration.MetadataEnabled
         );
-        if (registration.InstanceCode is null && registration.MetadataEnabled && registration.ResourceLocation is { Kind: 1 or 2 } source)
-            module.Metadata = new PyModuleMetadata(name, registration.ResolvedFile, source.IsPackage);
+        if (registration.InstanceCode is null && registration.MetadataEnabled && registration.ResourceLocation is { } source)
+            module.Metadata = source.Kind == 0
+                ? PyModuleMetadata.WithoutLocation(name, source.IsPackage)
+                : new PyModuleMetadata(name, registration.ResolvedFile, source.IsPackage);
         // 必须先登记再执行：循环导入的另一端需要看到「初始化中」的模块对象。
         if (registration.ResourceLocation is { } resourceLocation)
             ResourceLocations.Add(module, resourceLocation);

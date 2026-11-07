@@ -1305,3 +1305,9 @@ move先truth再查当前Count；空目标精确标量及四空builtin走已验�
 源码异常目标按原词法绑定延迟读取，真实globals及定义捕获builtins不被冻结成静态类型。
 实例as清理删除真实dict键；局部/cell/free隐式清理保未绑定语义。显式local/cell/free del
 仍预检拒绝，generator/类体源码handler未开放，合成with沿旧路径。见[ADR-0137](adr/0137-instance-name-exception-handlers.md)。
+
+### 无资源AOT模块元数据候选
+
+新显式来源注册但位置kind0时，spec/loader/cached初值为None，普通path未绑定、包path为空list；
+它们仍是真实可变全局槽，不提供文件资源/finder来源能力。与CPython文件源码模块不同，
+无来源finder仍NI；旧ABI不扩域。合同、边界与待执行门禁见[ADR0138](adr/0138-locationless-aot-module-metadata.md)。

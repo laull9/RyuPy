@@ -9,6 +9,7 @@ internal sealed class PyModuleMetadata
 {
     private readonly Dictionary<string, object?> values = new(StringComparer.Ordinal);
     internal readonly PyInstance? Spec;
+    internal bool HasSourceLocation { get; }
     private readonly object? loader;
     private readonly string name;
     private readonly string origin;
@@ -18,7 +19,7 @@ internal sealed class PyModuleMetadata
 
     internal PyModuleMetadata(string name, string origin, bool isPackage, PyCompiledModuleCode? code = null)
     {
-        this.name = name; this.origin = origin;
+        this.name = name; this.origin = origin; HasSourceLocation = true;
         if (name == "__main__")
         {
             values["__spec__"] = PyNone.Instance; values["__loader__"] = PyNone.Instance;
@@ -36,6 +37,19 @@ internal sealed class PyModuleMetadata
         }
         values["__path__"] = locations ?? (object)PyUnbound.Instance;
     }
+
+    // 无资源AOT只有诊断文件名，不得从它构造来源规格或文件系统搜索路径。
+    // 此初值对象不授予资源/finder能力；真实槽前言仍是唯一公开可变状态。
+    private PyModuleMetadata(string name, bool isPackage)
+    {
+        this.name = name; origin = "";
+        values["__spec__"] = PyNone.Instance;
+        values["__loader__"] = PyNone.Instance;
+        values["__cached__"] = PyNone.Instance;
+        values["__path__"] = isPackage && name != "__main__" ? new PyList([]) : PyUnbound.Instance;
+    }
+
+    internal static PyModuleMetadata WithoutLocation(string name, bool isPackage) => new(name, isPackage);
 
     // 查询只新建真实规格，不建立模块/缓存，也不执行目标或改变父包属性。
     internal static PyInstance CreateSpec(string name, string origin, bool isPackage, PyCompiledModuleCode? code = null)
