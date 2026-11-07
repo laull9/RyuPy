@@ -25,7 +25,11 @@ fn parameter(function: &ryupy_mir::Function, name: &str) -> ryupy_mir::LocalId {
 }
 
 fn slot(function: &ryupy_mir::Function, id: ryupy_mir::LocalId) -> usize {
-    function.params.iter().position(|value| *value == id).unwrap()
+    function
+        .params
+        .iter()
+        .position(|value| *value == id)
+        .unwrap()
 }
 
 fn named(args: &[Operand], index: usize, expected: &str) -> bool {
