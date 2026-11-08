@@ -3,8 +3,71 @@ using Xunit;
 
 namespace RyuPy.Runtime.Tests;
 
+[Collection("生成器帧栈")]
 public class PyExceptionSuppressionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FormatChainBoundariesAreExactAndDoNotMutateExceptions(bool withFrames)
+    {
+        var context = new PyValueError("implicit");
+        var cause = new PyRuntimeError("explicit");
+        var error = new PyTypeError("final") { Context = context };
+        if (withFrames)
+        {
+            context.Frames = [new("context.py", "previous", 3)];
+            cause.Frames = [new("cause.py", "reason", 5)];
+            error.Frames = [new("current.py", "inner", 9), new("current.py", "outer", 7)];
+        }
+        string contextText = (withFrames
+            ? "Traceback (most recent call last):\n  File \"context.py\", line 3, in previous\n" : "")
+            + "ValueError: implicit\n";
+        string causeText = (withFrames
+            ? "Traceback (most recent call last):\n  File \"cause.py\", line 5, in reason\n" : "")
+            + "RuntimeError: explicit\n";
+        string currentText = (withFrames
+            ? "Traceback (most recent call last):\n  File \"current.py\", line 7, in outer\n  File \"current.py\", line 9, in inner\n" : "")
+            + "TypeError: final\n";
+        // 固定 CPython separator 合同，不从被测 Format 或常量反造期望。
+        string implicitText = contextText
+            + "\nDuring handling of the above exception, another exception occurred:\n\n" + currentText;
+        string explicitText = causeText
+            + "\nThe above exception was the direct cause of the following exception:\n\n" + currentText;
+        PyBaseException[] errors = [context, cause, error];
+        void Check(string expected)
+        {
+            var before = errors.Select(e => (Error: e, Frames: e.Frames, Copy: e.Frames.ToArray(),
+                e.Cause, e.Context, e.SuppressContextFlag)).ToArray();
+            Assert.Equal(expected, PyTraceback.Format(error));
+            Assert.Equal(currentText, PyTraceback.FormatSingle(error));
+            foreach (var item in before)
+            {
+                Assert.Same(item.Frames, item.Error.Frames);
+                Assert.Equal(item.Copy, item.Error.Frames);
+                Assert.Same(item.Cause, item.Error.Cause);
+                Assert.Same(item.Context, item.Error.Context);
+                Assert.Equal(item.SuppressContextFlag, item.Error.SuppressContextFlag);
+            }
+        }
+        Check(implicitText);
+        error.WithCause(cause);
+        error.SuppressContextFlag = false; // cause 即使与可显示 context 并存也优先。
+        Check(explicitText);
+        error.WithCause(null);
+        Check(currentText);
+        error.SuppressContextFlag = false;
+        Check(implicitText);
+        error.WithCause(error);
+        Check(currentText);
+        error.WithCause(null);
+        error.SuppressContextFlag = false;
+        context.Context = error; // 双对象环只呈现每个实例一次，不多添分隔。
+        Check(implicitText);
+        error.Context = null;
+        Check(currentText);
+    }
+
     [Fact]
     public void ExplicitCauseMutatesOriginalInstanceWithoutLosingSubclassOrAttributes()
     {

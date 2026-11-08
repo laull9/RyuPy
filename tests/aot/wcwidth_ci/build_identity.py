@@ -35,6 +35,12 @@ def runtimes(repo):
             'driver-e2e': file_identity(repo / 'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll')}
 
 
+def managed_test_files(repo):
+    directory = repo / 'runtime/RyuPy.Runtime.Tests/bin/Debug/net10.0'
+    return {name: dict(file_identity(directory / name), bytes=(directory / name).stat().st_size)
+            for name in ('RyuPy.Runtime.dll', 'RyuPy.Runtime.Tests.dll')}
+
+
 def write(output, value, exclusive=False):
     with (output / 'build-identity.json').open('x' if exclusive else 'w') as stream:
         stream.write(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
@@ -54,6 +60,20 @@ def before_tests(repo, output):
     if data['state'] != 'before-make-check':
         raise RuntimeError('runtime测试前身份禁止重复/错序采集')
     data['runtimes_before_tests'] = runtimes(repo)
+    data['managed_files_before_tests'] = managed_test_files(repo)
+    saved = output / 'managed-test-inputs'
+    saved.mkdir()
+    # 只复制本轮已构建的两个Debug输入，不另建程序集或启动诊断进程。
+    for name, identity in data['managed_files_before_tests'].items():
+        raw = Path(identity['path']).read_bytes()
+        if len(raw) != identity['bytes'] or hashlib.sha256(raw).hexdigest() != identity['sha256']:
+            raise RuntimeError('复制前Debug输入改变：' + name)
+        with (saved / name).open('xb') as stream:
+            stream.write(raw)
+    data['managed_files_saved'] = {name: dict(file_identity(saved / name), bytes=(saved / name).stat().st_size)
+                                 for name in data['managed_files_before_tests']}
+    if managed_test_files(repo) != data['managed_files_before_tests']:
+        raise RuntimeError('复制期间Debug输入改变')
     data['state'] = 'before-existing-dotnet-test'
     write(output, data)
 
@@ -66,6 +86,10 @@ def after(repo, output):
     data['state'] = 'make-check-finished'
     try:
         data['runtimes_after_tests'] = runtimes(repo)
+        data['managed_files_after_tests'] = managed_test_files(repo)
+        data['managed_files_saved_after_tests'] = {
+            name: dict(file_identity(item['path']), bytes=Path(item['path']).stat().st_size)
+            for name, item in data.get('managed_files_saved', {}).items()}
     except OSError as error:
         data['runtime_after_error'] = str(error)
     write(output, data)
@@ -73,6 +97,10 @@ def after(repo, output):
         raise RuntimeError('fullcheck源码/实际工具在运行中改变')
     if 'runtimes_before_tests' not in data or data.get('runtimes_after_tests') != data['runtimes_before_tests']:
         raise RuntimeError('fullcheck两个role的runtime未完整采集或前后改变')
+    if 'managed_files_before_tests' not in data or data.get('managed_files_after_tests') != data['managed_files_before_tests']:
+        raise RuntimeError('fullcheck实际Debug Runtime/Tests输入未完整采集或前后改变')
+    if data.get('managed_files_saved_after_tests') != data.get('managed_files_saved'):
+        raise RuntimeError('fullcheck保存的Debug Runtime/Tests副本在测试期间改变')
 
 
 if __name__ == '__main__':

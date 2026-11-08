@@ -395,21 +395,40 @@ class ContractTests(unittest.TestCase):
                     for name in ('managed-tests', 'driver-e2e')}
         with self.temporary() as directory:
             output = Path(directory)
+            fixture_repo = output / 'repo'
+            binaries = fixture_repo / 'runtime/RyuPy.Runtime.Tests/bin/Debug/net10.0'
+            binaries.mkdir(parents=True)
+            for name in ('RyuPy.Runtime.dll', 'RyuPy.Runtime.Tests.dll'):
+                (binaries / name).write_bytes(('synthetic-not-executed-' + name).encode())
             with patch.object(module, 'candidate_identity', return_value=candidate), \
                  patch.object(module, 'tool_identities', return_value=tools), \
                  patch.object(module, 'runtimes', return_value=runtimes), \
                  patch.dict(module.os.environ, {'GITHUB_SHA': 'head'}):
-                module.before(REPO, output, 'default', '')
-                module.before_tests(REPO, output)
+                module.before(fixture_repo, output, 'default', '')
+                module.before_tests(fixture_repo, output)
                 with self.assertRaises(RuntimeError):
-                    module.before_tests(REPO, output)
-                module.after(REPO, output)
+                    module.before_tests(fixture_repo, output)
+                module.after(fixture_repo, output)
                 result = json.loads((output / 'build-identity.json').read_text())
                 self.assertEqual(result['runtimes_before_tests'], result['runtimes_after_tests'])
                 self.assertEqual(result['candidate_before'], result['candidate_after'])
+                self.assertEqual(result['managed_files_before_tests'], result['managed_files_after_tests'])
+                self.assertEqual(result['managed_files_saved'], result['managed_files_saved_after_tests'])
+                for name, identity in result['managed_files_saved'].items():
+                    self.assertEqual(Path(identity['path']).read_bytes(), (binaries / name).read_bytes())
+                    self.assertEqual(identity['sha256'], result['managed_files_before_tests'][name]['sha256'])
+                    self.assertEqual(identity['bytes'], (binaries / name).stat().st_size)
                 with patch.object(module, 'candidate_identity', return_value=dict(candidate, head='changed')):
                     with self.assertRaises(RuntimeError):
-                        module.after(REPO, output)
+                        module.after(fixture_repo, output)
+                (binaries / 'RyuPy.Runtime.Tests.dll').write_bytes(b'changed-after-tests')
+                with self.assertRaisesRegex(RuntimeError, 'Debug Runtime/Tests输入'):
+                    module.after(fixture_repo, output)
+                saved_tests = output / 'managed-test-inputs/RyuPy.Runtime.Tests.dll'
+                (binaries / saved_tests.name).write_bytes(saved_tests.read_bytes())
+                saved_tests.write_bytes(b'changed-copy')
+                with self.assertRaisesRegex(RuntimeError, '保存的Debug Runtime/Tests副本'):
+                    module.after(fixture_repo, output)
 
     def test_hot_oracle_is_real_exit_zero_and_never_a_rejection(self):
         reference = c.hot_oracle(HERE / 'goldens')

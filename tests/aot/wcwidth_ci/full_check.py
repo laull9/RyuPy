@@ -16,6 +16,7 @@ def main():
     # e2e/driver大多数测试读取PYTHON；ForEach专测独立读取RYUPY_FOREACH_PYTHON。
     env = dict(os.environ, PYTHON=str(python), RYUPY_FOREACH_PYTHON=str(python),
                FULL_CHECK_EVIDENCE=str(h.OUT),
+               RYUPY_TRACE_EVIDENCE_DIR=str(h.OUT / 'debug-pe'),
                DOTNET_TEST_ARGS='--logger \"trx;LogFileName=dotnet-test.trx\" --results-directory ' + str(h.OUT))
     mode = os.environ['CHECK_MODE']
     if mode not in ('default', 'pilot'):

@@ -33,9 +33,9 @@ public static partial class PyTraceback
 {
     private const string Header = "Traceback (most recent call last):";
     private const string CauseSeparator =
-        "\nThe above exception was the direct cause of the following exception:\n";
+        "\nThe above exception was the direct cause of the following exception:\n\n";
     private const string ContextSeparator =
-        "\nDuring handling of the above exception, another exception occurred:\n";
+        "\nDuring handling of the above exception, another exception occurred:\n\n";
 
     /// <summary>帧栈的初始容量；超过时成倍增长。</summary>
     private const int InitialFrameCapacity = 128;

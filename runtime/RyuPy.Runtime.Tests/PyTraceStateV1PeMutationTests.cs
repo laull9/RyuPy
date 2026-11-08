@@ -11,7 +11,7 @@ public partial class PyTraceStateArtifactTests
     public void ActualPeRejectsReceiveInjectedIntoFramesProjection()
     {
         string candidate = Candidate();
-        Assert.Empty(ScanV1(candidate).Violations);
+        AssertCandidatePe(candidate, "candidate-pe-before-frames-mutation.json");
         byte[] bytes = File.ReadAllBytes(candidate);
         using var stream = new MemoryStream(bytes, writable: false);
         using var pe = new PEReader(stream); var metadata = pe.GetMetadataReader(); var names = new Signatures();
@@ -42,7 +42,8 @@ public partial class PyTraceStateArtifactTests
     [Fact]
     public void ActualPeRejectsAllMissChangedToConsume()
     {
-        string candidate = Candidate(); Assert.Empty(ScanV1(candidate).Violations);
+        string candidate = Candidate();
+        AssertCandidatePe(candidate, "candidate-pe-before-all-miss-mutation.json");
         byte[] bytes = File.ReadAllBytes(candidate);
         using var stream = new MemoryStream(bytes, writable: false);
         using var pe = new PEReader(stream); var metadata = pe.GetMetadataReader(); var names = new Signatures();

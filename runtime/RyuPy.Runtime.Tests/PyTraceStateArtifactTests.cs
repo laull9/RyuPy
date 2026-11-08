@@ -28,6 +28,26 @@ public class TraceBaselineFactAttribute : FactAttribute
 
 public partial class PyTraceStateArtifactTests
 {
+    private sealed record LoadedImage(string Role, string Path, long Bytes, string Sha256,
+        string? CopiedPath, string? CopiedSha256);
+
+    private static LoadedImage[] LoadedImages()
+    {
+        LoadedImage Image(string role, Assembly assembly)
+        {
+            string path = assembly.Location;
+            byte[] bytes = File.ReadAllBytes(path);
+            // 只有原 fullcheck 在 build 后保存这两个输入；独立 S1 不冒用 Debug 副本。
+            string? fullcheck = Environment.GetEnvironmentVariable("FULL_CHECK_EVIDENCE");
+            string? copied = fullcheck is null ? null
+                : System.IO.Path.Combine(fullcheck, "managed-test-inputs", System.IO.Path.GetFileName(path));
+            string? copiedSha256 = copied is null ? null
+                : Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(copied)));
+            return new(role, path, bytes.LongLength, Convert.ToHexString(SHA256.HashData(bytes)), copied, copiedSha256);
+        }
+        return [Image("runtime", typeof(PyTraceState).Assembly), Image("tests", typeof(PyTraceStateArtifactTests).Assembly)];
+    }
+
     private static string Candidate()
     {
         string loaded = typeof(PyTraceState).Assembly.Location;
@@ -49,14 +69,28 @@ public partial class PyTraceStateArtifactTests
     [Fact]
     public void ProducedAssemblyHasOnlyApprovedV1BridgesAndNoCoreInitializers()
     {
-        string candidate = Candidate();
+        AssertCandidatePe(Candidate(), "candidate-pe.json");
+    }
+
+    private static void AssertCandidatePe(string candidate, string evidenceFile)
+    {
+        // 与原测试同进程的实际已加载程序集；独立留证文件避免三个前置互相覆盖。
+        var loadedBefore = LoadedImages();
         var audit = ScanV1(candidate);
+        var loadedAfter = LoadedImages();
+        string candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate)));
         // 先保存完整失败明细，不能让 Assert 丢掉本次实际引用证据。
-        Evidence("candidate-pe.json", new { candidate,
-            sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
+        Evidence(evidenceFile, new { candidate,
+            sha256 = candidateSha256,
+            loadedBefore, loadedAfter, phase = "original-candidate", mutationStarted = false,
             audit.CoreTypes, audit.Bodies, audit.Operands, audit.Edges, audit.Violations,
             scope = "V1成员级PE边界/初始化；非全runtime形式化、默认行为或产品JIT/AOT验收" });
-        Assert.Empty(audit.Violations);
+        Assert.Equal(loadedBefore, loadedAfter);
+        Assert.Equal(loadedAfter[0].Sha256, candidateSha256);
+        foreach (var image in loadedAfter)
+            if (image.CopiedPath is not null) Assert.Equal(image.Sha256, image.CopiedSha256);
+        // 谓词仍是完整 Violations 为空；不用集合格式化的省略号代替真实失败字符串。
+        Assert.True(audit.Violations.Length == 0, "原始候选 PE 违规：\n" + string.Join("\n", audit.Violations));
     }
 
     [TraceBaselineFact]
