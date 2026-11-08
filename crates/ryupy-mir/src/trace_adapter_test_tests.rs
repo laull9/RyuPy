@@ -81,7 +81,13 @@ fn trace_adapter_abi_rejects_wrong_arguments_results_and_array_calls() {
         } else {
             vec![object.clone(), depth.clone()]
         };
-        assert!(valid(runtime, args.clone(), MirType::Dynamic, !source, false));
+        assert!(valid(
+            runtime,
+            args.clone(),
+            MirType::Dynamic,
+            !source,
+            false
+        ));
         assert!(!valid(runtime, vec![], MirType::Dynamic, !source, false));
         assert!(!valid(
             runtime,
@@ -90,8 +96,20 @@ fn trace_adapter_abi_rejects_wrong_arguments_results_and_array_calls() {
             !source,
             false
         ));
-        assert!(!valid(runtime, args.clone(), MirType::Dynamic, !source, true));
-        assert!(!valid(runtime, args.clone(), MirType::Dynamic, source, false));
+        assert!(!valid(
+            runtime,
+            args.clone(),
+            MirType::Dynamic,
+            !source,
+            true
+        ));
+        assert!(!valid(
+            runtime,
+            args.clone(),
+            MirType::Dynamic,
+            source,
+            false
+        ));
         if source {
             assert!(!valid(runtime, args, MirType::I64, false, false));
         } else {
@@ -143,10 +161,22 @@ fn trace_adapter_real_typed_cfg_receives_before_pop_with_exact_caught_local() {
     let source = include_str!("../../../tests/fixtures/trace_adapter_s2/explicit_inner.py");
     let (program, diagnostics) = compile(source);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    // 先保存实际typed MIR及每个入口的归属，再做断言；CI --nocapture保留失败现场。
+    println!("S2a actual typed MIR/CFG:\n{}", crate::pretty::dump(&program));
+    for (function_id, function) in program.functions.iter() {
+        for (index, region) in function.body.regions.iter().enumerate() {
+            let catch = &function.body.blocks[region.handler];
+            println!(
+                "region function={function_id:?} index={index} kind={:?} trampoline={:?} caught={:?} target={:?}",
+                region.kind, region.handler, region.exc_local, catch.terminator
+            );
+        }
+    }
     assert!(validate::validate(&program).is_ok());
-    let mut handles = 0;
-    let mut forwards = 0;
-    for (_, function) in program.functions.iter() {
+    let mut receivers = std::collections::BTreeMap::new();
+    let mut value_error_entries = Vec::new();
+    let mut unsupported_entries = Vec::new();
+    for (function_id, function) in program.functions.iter() {
         for region in &function.body.regions {
             let catch = &function.body.blocks[region.handler];
             let caught = region.exc_local.expect("接收区域必须持真实异常局部");
@@ -154,32 +184,56 @@ fn trace_adapter_real_typed_cfg_receives_before_pop_with_exact_caught_local() {
                 s,
                 Statement::Assign { dest, value: Rvalue::CatchException } if *dest == caught
             )));
-            let Terminator::Goto(body) = catch.terminator else {
+            let Terminator::Goto(body_id) = catch.terminator else {
                 panic!("预期真实catch入口跳到接收体")
             };
-            let body = &function.body.blocks[body];
+            let body = &function.body.blocks[body_id];
             let expected = if matches!(region.kind, RegionKind::FinallyGuard) {
-                forwards += 1;
                 RuntimeFn::TraceAdapterForward
             } else {
-                handles += 1;
                 RuntimeFn::TraceAdapterHandle
             };
-            let (receive_index, depth) = body
+            let calls: Vec<_> = body
                 .stmts
                 .iter()
                 .enumerate()
-                .find_map(|(i, s)| match runtime(s) {
-                    Some((actual, args)) if actual == expected => {
-                        assert!(matches!(&args[0], Operand::Local(id) if *id == caught));
-                        let Operand::Local(depth) = args[1] else {
-                            panic!("必须使用真实入口深度")
-                        };
-                        Some((i, depth))
-                    }
+                .filter_map(|(i, s)| match runtime(s) {
+                    Some((actual, args))
+                        if matches!(
+                            actual,
+                            RuntimeFn::TraceAdapterHandle | RuntimeFn::TraceAdapterForward
+                        ) => Some((i, actual, args)),
                     _ => None,
                 })
-                .expect("真实catch必须接到适配器");
+                .collect();
+            println!(
+                "receiver function={function_id:?} body={body_id:?} trampoline={:?} calls={calls:?}",
+                region.handler
+            );
+            assert_eq!(calls.len(), 1, "每个真实body恰好一次接收");
+            let (receive_index, actual, args) = calls[0];
+            assert_eq!(actual, expected);
+            assert!(matches!(&args[0], Operand::Local(id) if *id == caught));
+            let Operand::Local(depth) = args[1] else {
+                panic!("必须使用真实入口深度")
+            };
+            let key = (
+                function_id.into_raw().into_u32(),
+                body_id.into_raw().into_u32(),
+            );
+            let receiver = (actual, caught, depth);
+            if let Some(previous) = receivers.insert(key, receiver) {
+                assert_eq!(previous, receiver, "汇合入口必须共用同一异常槽和真实深度");
+            }
+            if let RegionKind::Catch { type_names } = &region.kind {
+                let entry = (key, region.handler, caught, depth);
+                if type_names.len() == 1 && type_names[0] == "ValueError" {
+                    value_error_entries.push(entry);
+                }
+                if type_names.len() == 1 && type_names[0] == "io.UnsupportedOperation" {
+                    unsupported_entries.push(entry);
+                }
+            }
             let pop_index = body
                 .stmts
                 .iter()
@@ -207,6 +261,25 @@ fn trace_adapter_real_typed_cfg_receives_before_pop_with_exact_caught_local() {
             );
         }
     }
+    println!("unique receivers={receivers:?}");
+    println!(
+        "ValueError entries={value_error_entries:?}; io.UnsupportedOperation entries={unsupported_entries:?}"
+    );
+    assert_eq!(value_error_entries.len(), 1);
+    assert_eq!(unsupported_entries.len(), 1);
+    let (value_body, value_entry, value_caught, value_depth) = value_error_entries[0];
+    let (io_body, io_entry, io_caught, io_depth) = unsupported_entries[0];
+    assert_ne!(value_entry, io_entry, "typed EH必须保持独立trampoline");
+    assert_eq!(value_body, io_body, "两个typed入口必须汇合到同一接收body");
+    assert_eq!((value_caught, value_depth), (io_caught, io_depth));
+    let handles = receivers
+        .values()
+        .filter(|(kind, _, _)| *kind == RuntimeFn::TraceAdapterHandle)
+        .count();
+    let forwards = receivers
+        .values()
+        .filter(|(kind, _, _)| *kind == RuntimeFn::TraceAdapterForward)
+        .count();
     assert_eq!(handles, 2);
     assert_eq!(forwards, 2);
 }

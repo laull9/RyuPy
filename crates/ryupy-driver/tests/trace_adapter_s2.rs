@@ -4,8 +4,8 @@ use ryupy_driver::{Session, Stage};
 
 #[test]
 fn trace_adapter_s2_real_driver_stages_and_rejections() {
-    let root =
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/trace_adapter_s2");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/trace_adapter_s2");
     for name in ["explicit_inner", "explicit_module", "recursive", "reused"] {
         for stage in [Stage::Hir, Stage::Types, Stage::Mir, Stage::Cil] {
             let mut session = Session::default();

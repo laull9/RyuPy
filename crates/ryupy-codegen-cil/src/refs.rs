@@ -182,7 +182,9 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
             res.push_type_reference(type_ref! { RyuPy.Runtime.PyTraceAdapter in #ryupy_runtime });
         let adapter: MethodType = BaseType::class(adapter).into();
         (
-            res.push_method_reference(method_ref! { static object @adapter::PrepareExplicit(object) }),
+            res.push_method_reference(
+                method_ref! { static object @adapter::PrepareExplicit(object) },
+            ),
             res.push_method_reference(method_ref! { static void @adapter::Handle(object, long) }),
             res.push_method_reference(method_ref! { static void @adapter::Forward(object, long) }),
         )
