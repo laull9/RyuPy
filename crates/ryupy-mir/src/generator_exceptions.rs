@@ -172,14 +172,18 @@ impl Plan {
                     value: Rvalue::CatchException,
                 },
                 // 普通运行时错误也必须在Retry弹callee帧前记录traceback/当前异常。
-                if product { Statement::Eval(Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::TraceV1GeneratorCatch),
-                    args: vec![Operand::Local(caught)],
-                }) } else { call(
-                    caught,
-                    RuntimeFn::RaisePrepare,
-                    vec![Operand::Local(caught)],
-                ) },
+                if product {
+                    Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::TraceV1GeneratorCatch),
+                        args: vec![Operand::Local(caught)],
+                    })
+                } else {
+                    call(
+                        caught,
+                        RuntimeFn::RaisePrepare,
+                        vec![Operand::Local(caught)],
+                    )
+                },
             ],
             Terminator::Goto(dispatch),
         );

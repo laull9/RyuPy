@@ -48,8 +48,8 @@ mod stackify_refs;
 mod stackify_runtime;
 mod stackify_rvalue;
 mod system_refs;
-mod types;
 mod trace_product_refs;
+mod types;
 mod unpack_refs;
 
 use ryupy_mir::LinkedProgram;

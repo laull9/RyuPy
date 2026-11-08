@@ -62,7 +62,13 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     stop_if_errors(sess)?;
 
     let (mir, exports, proof) = if sess.trace_product_v1 {
-        let compiled = trace_product::compile(sess, &hir, &types, &plan, &stage_trace::StageTrace::new(false))?;
+        let compiled = trace_product::compile(
+            sess,
+            &hir,
+            &types,
+            &plan,
+            &stage_trace::StageTrace::new(false),
+        )?;
         (compiled.program, compiled.exports, compiled.trace_proof)
     } else {
         let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
@@ -77,7 +83,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
     }
 
     let linked = trace_product::link(
-        sess, module.parsed.file,
+        sess,
+        module.parsed.file,
         vec![(
             mir,
             ryupy_mir::UnitMeta {
@@ -94,7 +101,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
                 exports,
             },
         )],
-        0, proof.into_iter().collect(),
+        0,
+        proof.into_iter().collect(),
     )?;
     check_linked_exports(sess, &linked, module.parsed.file)?;
     let emit_opts = ryupy_codegen_cil::EmitOptions {

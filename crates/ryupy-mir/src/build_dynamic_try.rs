@@ -62,13 +62,15 @@ impl FunctionBuilder<'_> {
         self.current_bb = enter;
         let park = self.emit_product_park(original);
         // 尚未弹callee帧，先保原异常现场及ambient context；源raise已准备的对象不替换。
-        if !self.trace_product { self.push_stmt(Statement::Assign {
-            dest: original,
-            value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::RaisePrepare),
-                args: vec![Operand::Local(original)],
-            },
-        }); }
+        if !self.trace_product {
+            self.push_stmt(Statement::Assign {
+                dest: original,
+                value: Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::RaisePrepare),
+                    args: vec![Operand::Local(original)],
+                },
+            });
+        }
         self.emit_frame_restore();
         let ambient = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
@@ -191,13 +193,15 @@ impl FunctionBuilder<'_> {
         self.current_bb = guard_body;
         self.emit_product_consume(park, RuntimeFn::TraceV1Abort);
         self.emit_product_receive(escaped, true);
-        if !self.trace_product { self.push_stmt(Statement::Assign {
-            dest: escaped,
-            value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::RaisePrepare),
-                args: vec![Operand::Local(escaped)],
-            },
-        }); }
+        if !self.trace_product {
+            self.push_stmt(Statement::Assign {
+                dest: escaped,
+                value: Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::RaisePrepare),
+                    args: vec![Operand::Local(escaped)],
+                },
+            });
+        }
         self.emit_frame_restore();
         self.set_flow(FLOW_EXCEPTION);
         self.regions.push(Region {

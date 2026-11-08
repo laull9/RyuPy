@@ -23,14 +23,22 @@ pub(super) struct FunctionIdentity {
 impl FunctionIdentity {
     pub fn capture(function: &Function) -> Self {
         Self {
-            module_state: function.module_state, module_state_source: function.module_state_source,
-            capabilities: function.instance_capabilities, definition: function.definition.clone(),
-            name: function.name.clone(), codegen_name: function.codegen_name.clone(),
-            source_file: function.source_file.clone(), params: function.params.clone(), ret: function.ret.clone(),
-            metadata: function.param_meta.clone(), function_global: function.function_global,
+            module_state: function.module_state,
+            module_state_source: function.module_state_source,
+            capabilities: function.instance_capabilities,
+            definition: function.definition.clone(),
+            name: function.name.clone(),
+            codegen_name: function.codegen_name.clone(),
+            source_file: function.source_file.clone(),
+            params: function.params.clone(),
+            ret: function.ret.clone(),
+            metadata: function.param_meta.clone(),
+            function_global: function.function_global,
             specialization_global: function.specialization_identity_global,
-            defaults_global: function.defaults_global, signature_global: function.signature_global,
-            environment: function.env, origin: function.dynamic_origin,
+            defaults_global: function.defaults_global,
+            signature_global: function.signature_global,
+            environment: function.env,
+            origin: function.dynamic_origin,
         }
     }
 }
@@ -46,11 +54,28 @@ pub(super) struct FunctionImage {
 }
 impl FunctionImage {
     pub fn capture(function: &Function) -> Self {
-        Self { identity: FunctionIdentity::capture(function),
-            locals: function.body.locals.iter().map(|(_, value)| value.clone()).collect(),
-            blocks: function.body.blocks.iter().map(|(_, value)| value.clone()).collect(),
-            entry: function.body.entry, regions: function.body.regions.clone(),
-            source_handlers: function.body.source_handler_contracts.iter().map(|value| value.try_start).collect(),
+        Self {
+            identity: FunctionIdentity::capture(function),
+            locals: function
+                .body
+                .locals
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect(),
+            blocks: function
+                .body
+                .blocks
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect(),
+            entry: function.body.entry,
+            regions: function.body.regions.clone(),
+            source_handlers: function
+                .body
+                .source_handler_contracts
+                .iter()
+                .map(|value| value.try_start)
+                .collect(),
         }
     }
 }

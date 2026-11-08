@@ -129,7 +129,11 @@ pub fn emit(
     bindings: &[FixedI32Binding],
 ) -> Result<Vec<u8>, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
-    if program.trace_product.is_some() { return Err(CodegenError::Unsupported("trace V1不接受外部原生绑定".into())); }
+    if program.trace_product.is_some() {
+        return Err(CodegenError::Unsupported(
+            "trace V1不接受外部原生绑定".into(),
+        ));
+    }
     validate(program, bindings)?;
     let (res, _) = crate::assembly::build_resolution_with_bindings(program, opts, bindings);
     res.write(WriteOptions {
@@ -181,7 +185,11 @@ pub fn emit_with_report(
     deployment: &BindingDeployment,
 ) -> Result<BindingEmissionArtifact, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
-    if program.trace_product.is_some() { return Err(CodegenError::Unsupported("trace V1不接受外部原生绑定".into())); }
+    if program.trace_product.is_some() {
+        return Err(CodegenError::Unsupported(
+            "trace V1不接受外部原生绑定".into(),
+        ));
+    }
     validate(program, bindings)?;
     if bindings.len() != 1
         || !matches!(

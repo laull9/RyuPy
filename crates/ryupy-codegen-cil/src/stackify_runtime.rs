@@ -194,11 +194,21 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
             ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_forward));
         }
         RuntimeFn::RaisePrepare => ins.push(Instruction::call(ctx.runtime_refs.raise_prepare)),
-        RuntimeFn::TraceV1Explicit | RuntimeFn::TraceV1Park | RuntimeFn::TraceV1Match
-        | RuntimeFn::TraceV1Abort | RuntimeFn::TraceV1AllMiss | RuntimeFn::TraceV1Handle
-        | RuntimeFn::TraceV1Forward | RuntimeFn::TraceV1GeneratorCatch | RuntimeFn::TraceV1GeneratorDepth
-            => ins.push(Instruction::call(ctx.runtime_refs.trace_product.as_ref()
-                .expect("已验证的产品 trace 引用").get(*rt_fn))),
+        RuntimeFn::TraceV1Explicit
+        | RuntimeFn::TraceV1Park
+        | RuntimeFn::TraceV1Match
+        | RuntimeFn::TraceV1Abort
+        | RuntimeFn::TraceV1AllMiss
+        | RuntimeFn::TraceV1Handle
+        | RuntimeFn::TraceV1Forward
+        | RuntimeFn::TraceV1GeneratorCatch
+        | RuntimeFn::TraceV1GeneratorDepth => ins.push(Instruction::call(
+            ctx.runtime_refs
+                .trace_product
+                .as_ref()
+                .expect("已验证的产品 trace 引用")
+                .get(*rt_fn),
+        )),
         RuntimeFn::MakeUnbound => ins.push(Instruction::call(ctx.runtime_refs.make_unbound)),
         RuntimeFn::TraceCheckDepth => {
             ins.push(Instruction::call(ctx.runtime_refs.trace_check_depth))

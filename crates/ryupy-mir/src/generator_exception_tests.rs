@@ -56,6 +56,7 @@ fn exception_retry_has_single_physical_region_and_external_returns() {
         frame,
         &[(caught, MirType::Dynamic), (input, MirType::Dynamic)],
         &Default::default(),
+        false,
     );
     assert_eq!(body.entry, block_id(0));
     assert_eq!(body.regions.len(), 1);

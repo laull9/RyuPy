@@ -106,13 +106,23 @@ fn lower_one(
         .map(|(id, decl)| (id, decl.ty.clone()))
         .collect();
     let original_entry = body.entry;
-    let depths: Vec<_> = body.blocks.iter().flat_map(|(_, block)| &block.stmts)
+    let depths: Vec<_> = body
+        .blocks
+        .iter()
+        .flat_map(|(_, block)| &block.stmts)
         .filter_map(|stmt| match stmt {
-            Statement::Assign { dest, value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin), ..
-            }} => Some(*dest),
+            Statement::Assign {
+                dest,
+                value:
+                    Rvalue::Call {
+                        callee:
+                            Callee::Runtime(RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin),
+                        ..
+                    },
+            } => Some(*dest),
             _ => None,
-        }).collect();
+        })
+        .collect();
     let mut factory = empty_body();
     for (_, decl) in body.locals.iter() {
         factory.locals.alloc(LocalDecl {

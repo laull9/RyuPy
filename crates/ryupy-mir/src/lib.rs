@@ -43,30 +43,30 @@ mod function_module;
 #[cfg(test)]
 mod function_module_tests;
 mod generator_exceptions;
-mod generators;
 pub mod generator_product;
 mod generator_product_cursor;
 mod generator_product_effects;
+mod generator_product_high;
 mod generator_product_identity;
 mod generator_product_link;
 mod generator_product_routes;
 mod generator_product_snapshot;
 mod generator_product_structure;
-mod generator_product_values;
-mod generator_product_high;
-mod generator_product_trace;
-#[cfg(test)]
-mod generator_product_tests;
 #[cfg(test)]
 mod generator_product_structure_tests;
+#[cfg(test)]
+mod generator_product_tests;
+mod generator_product_trace;
+mod generator_product_values;
+mod generators;
 
-mod trace_product_abi;
 pub mod link;
 mod link_placeholders;
 mod mir;
 mod module_execution;
 mod module_location;
 mod operations;
+mod trace_product_abi;
 mod validate_lexical_super;
 mod validate_regions;
 pub use module_execution::{GlobalStorage, InstanceStateSource, ModuleExecutionKind};

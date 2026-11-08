@@ -179,13 +179,19 @@ pub fn run_pipeline_observed<O: PipelineObserver>(
 
 /// 延迟生成器产品在每个 pass 后运行高层验证，最终 lowering 后仍必须运行严格验证。
 pub fn run_pipeline_high<O: PipelineObserver>(
-    program: &mut Program, passes: &[PipelinePass], observer: &mut O, generators: &[crate::FnId],
+    program: &mut Program,
+    passes: &[PipelinePass],
+    observer: &mut O,
+    generators: &[crate::FnId],
 ) -> Result<(), String> {
     run_pipeline_stage(program, passes, observer, Some(generators))
 }
 
 fn run_pipeline_stage<O: PipelineObserver>(
-    program: &mut Program, passes: &[PipelinePass], observer: &mut O, generators: Option<&[crate::FnId]>,
+    program: &mut Program,
+    passes: &[PipelinePass],
+    observer: &mut O,
+    generators: Option<&[crate::FnId]>,
 ) -> Result<(), String> {
     for (index, pass) in passes.iter().enumerate() {
         let mut notify = |phase, step| {

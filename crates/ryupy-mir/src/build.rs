@@ -443,7 +443,11 @@ pub(crate) fn build_program_mode(
 
     crate::module_bindings::instrument(&mut program, &module_bound_flags);
     let generator_layouts = crate::generator_product::finish_build(
-        &mut program, hir, &fn_map, &hir_class_globals, deferred,
+        &mut program,
+        hir,
+        &fn_map,
+        &hir_class_globals,
+        deferred,
     );
 
     let exports = crate::module_bindings::exports(

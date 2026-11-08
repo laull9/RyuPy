@@ -8,28 +8,72 @@ pub(crate) struct TraceProductRefs {
 }
 
 impl TraceProductRefs {
-    pub fn for_program(res: &mut Resolution<'static>, program: &LinkedProgram,
-        runtime: AssemblyRefIndex) -> Option<Self> {
-        if program.trace_product.is_none() { return None; }
+    pub fn for_program(
+        res: &mut Resolution<'static>,
+        program: &LinkedProgram,
+        runtime: AssemblyRefIndex,
+    ) -> Option<Self> {
+        if program.trace_product.is_none() {
+            return None;
+        }
         let ty = res.push_type_reference(type_ref! { RyuPy.Runtime.PyTraceProduct in #runtime });
         let ty: MethodType = BaseType::class(ty).into();
         Some(Self {
             enter: res.push_method_reference(method_ref! { static void @ty::Enter(long) }),
             calls: vec![
-                (RuntimeFn::TraceV1Explicit, res.push_method_reference(method_ref! { static object @ty::Explicit(object) })),
-                (RuntimeFn::TraceV1Park, res.push_method_reference(method_ref! { static object @ty::Park(object, long) })),
-                (RuntimeFn::TraceV1Match, res.push_method_reference(method_ref! { static void @ty::Match(object) })),
-                (RuntimeFn::TraceV1Abort, res.push_method_reference(method_ref! { static void @ty::Abort(object) })),
-                (RuntimeFn::TraceV1AllMiss, res.push_method_reference(method_ref! { static void @ty::AllMiss(object) })),
-                (RuntimeFn::TraceV1Handle, res.push_method_reference(method_ref! { static void @ty::Handle(object, long) })),
-                (RuntimeFn::TraceV1Forward, res.push_method_reference(method_ref! { static void @ty::Forward(object, long) })),
-                (RuntimeFn::TraceV1GeneratorCatch, res.push_method_reference(method_ref! { static void @ty::GeneratorCatch(object) })),
-                (RuntimeFn::TraceV1GeneratorDepth, res.push_method_reference(method_ref! { static long @ty::GeneratorDepth() })),
+                (
+                    RuntimeFn::TraceV1Explicit,
+                    res.push_method_reference(method_ref! { static object @ty::Explicit(object) }),
+                ),
+                (
+                    RuntimeFn::TraceV1Park,
+                    res.push_method_reference(
+                        method_ref! { static object @ty::Park(object, long) },
+                    ),
+                ),
+                (
+                    RuntimeFn::TraceV1Match,
+                    res.push_method_reference(method_ref! { static void @ty::Match(object) }),
+                ),
+                (
+                    RuntimeFn::TraceV1Abort,
+                    res.push_method_reference(method_ref! { static void @ty::Abort(object) }),
+                ),
+                (
+                    RuntimeFn::TraceV1AllMiss,
+                    res.push_method_reference(method_ref! { static void @ty::AllMiss(object) }),
+                ),
+                (
+                    RuntimeFn::TraceV1Handle,
+                    res.push_method_reference(
+                        method_ref! { static void @ty::Handle(object, long) },
+                    ),
+                ),
+                (
+                    RuntimeFn::TraceV1Forward,
+                    res.push_method_reference(
+                        method_ref! { static void @ty::Forward(object, long) },
+                    ),
+                ),
+                (
+                    RuntimeFn::TraceV1GeneratorCatch,
+                    res.push_method_reference(
+                        method_ref! { static void @ty::GeneratorCatch(object) },
+                    ),
+                ),
+                (
+                    RuntimeFn::TraceV1GeneratorDepth,
+                    res.push_method_reference(method_ref! { static long @ty::GeneratorDepth() }),
+                ),
             ],
         })
     }
 
     pub fn get(&self, runtime: RuntimeFn) -> MethodRefIndex {
-        self.calls.iter().find(|(kind, _)| *kind == runtime).expect("已验证的产品 trace ABI").1
+        self.calls
+            .iter()
+            .find(|(kind, _)| *kind == runtime)
+            .expect("已验证的产品 trace ABI")
+            .1
     }
 }

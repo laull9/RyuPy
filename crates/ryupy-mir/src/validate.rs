@@ -27,7 +27,10 @@ pub fn validate_high(program: &Program, generators: &[crate::FnId]) -> Result<()
     validate_stage(program, Some(generators))
 }
 
-fn validate_stage(program: &Program, generators: Option<&[crate::FnId]>) -> Result<(), Vec<String>> {
+fn validate_stage(
+    program: &Program,
+    generators: Option<&[crate::FnId]>,
+) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
     crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
     crate::validate_instance_module::validate(program, &mut errors);
@@ -59,7 +62,9 @@ fn validate_stage(program: &Program, generators: Option<&[crate::FnId]>) -> Resu
         reachable.insert(func.body.entry);
         if high {
             for region in &func.body.regions {
-                if reachable.insert(region.handler) { worklist.push(region.handler); }
+                if reachable.insert(region.handler) {
+                    worklist.push(region.handler);
+                }
             }
         }
         while let Some(bb_id) = worklist.pop() {
@@ -213,15 +218,30 @@ fn validate_stage(program: &Program, generators: Option<&[crate::FnId]>) -> Resu
                         ));
                     }
                 }
-                Terminator::Suspend { value, resume, input, delegated } => {
+                Terminator::Suspend {
+                    value,
+                    resume,
+                    input,
+                    delegated,
+                } => {
                     validate_operand(program, func, block_id, value, &mut errors);
                     if !high {
-                        errors.push(format!("函数 `{}` 有尚未降级的暂停边 {:?}", func.name, resume));
-                    } else if *delegated || !func.body.blocks.iter().any(|(id, _)| id == *resume)
+                        errors.push(format!(
+                            "函数 `{}` 有尚未降级的暂停边 {:?}",
+                            func.name, resume
+                        ));
+                    } else if *delegated
+                        || !func.body.blocks.iter().any(|(id, _)| id == *resume)
                         || operand_type(program, func, value) != Some(MirType::Dynamic)
-                        || input.is_some_and(|id| local_decl(&func.body.locals, id)
-                            .is_none_or(|decl| decl.ty != MirType::Dynamic)) {
-                        errors.push(format!("函数 `{}` 的高层暂停目标/值/输入非法或包含未准入委托", func.name));
+                        || input.is_some_and(|id| {
+                            local_decl(&func.body.locals, id)
+                                .is_none_or(|decl| decl.ty != MirType::Dynamic)
+                        })
+                    {
+                        errors.push(format!(
+                            "函数 `{}` 的高层暂停目标/值/输入非法或包含未准入委托",
+                            func.name
+                        ));
                     }
                 }
                 Terminator::Return(opt_val) => {

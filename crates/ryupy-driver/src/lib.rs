@@ -170,7 +170,9 @@ fn compile_module(
     stop_if_errors(sess)?;
     trace.mark("end", "type-check", &module.name);
 
-    if sess.trace_product_v1 { return trace_product::compile(sess, &hir, &types, plan, trace); }
+    if sess.trace_product_v1 {
+        return trace_product::compile(sess, &hir, &types, plan, trace);
+    }
     trace.mark("begin", "mir-build", &module.name);
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
@@ -270,7 +272,13 @@ fn compile_linked_traced(
         modules::load_program_including(sess, entry, search_paths, &include_modules)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
-    trace_product::graph(sess, sources[entry_index].parsed.file, sources.len(), entry_index, resource_request.is_some())?;
+    trace_product::graph(
+        sess,
+        sources[entry_index].parsed.file,
+        sources.len(),
+        entry_index,
+        resource_request.is_some(),
+    )?;
     instance_modules::validate_selection(
         sess,
         &sources,
@@ -331,7 +339,9 @@ fn compile_linked_traced(
             exports,
             protected_exports,
         } = compile_module(sess, &module, &native_exceptions, &plan, trace)?;
-        if let Some(proof) = trace_proof { trace_proofs.push(proof); }
+        if let Some(proof) = trace_proof {
+            trace_proofs.push(proof);
+        }
         sess.module_environment_report[index].compiled = true;
         let location = if !aot_locations {
             ryupy_mir::ModuleLocation::SourceAbsolute(

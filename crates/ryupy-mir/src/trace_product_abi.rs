@@ -6,8 +6,10 @@ pub(crate) fn signature(runtime: RuntimeFn) -> Option<(&'static [MirType], MirTy
     Some(match runtime {
         RuntimeFn::TraceV1Explicit => (&[Dynamic], Dynamic),
         RuntimeFn::TraceV1Park => (&[Dynamic, I64], Dynamic),
-        RuntimeFn::TraceV1Match | RuntimeFn::TraceV1Abort | RuntimeFn::TraceV1AllMiss
-            | RuntimeFn::TraceV1GeneratorCatch => (&[Dynamic], Unit),
+        RuntimeFn::TraceV1Match
+        | RuntimeFn::TraceV1Abort
+        | RuntimeFn::TraceV1AllMiss
+        | RuntimeFn::TraceV1GeneratorCatch => (&[Dynamic], Unit),
         RuntimeFn::TraceV1Handle | RuntimeFn::TraceV1Forward => (&[Dynamic, I64], Unit),
         RuntimeFn::TraceV1GeneratorDepth => (&[], I64),
         _ => return None,

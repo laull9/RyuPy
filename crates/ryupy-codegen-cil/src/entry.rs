@@ -95,11 +95,18 @@ pub(crate) fn emit_entry_wrapper(
     // 旧产品不插入指令，不移动其原EH；V1同步平移全部leave与handler窗口。
     let shift = if let Some(enter) = trace_product {
         for instruction in &mut instructions {
-            if let Instruction::Leave(target) = instruction { *target += 2; }
+            if let Instruction::Leave(target) = instruction {
+                *target += 2;
+            }
         }
-        instructions.splice(5..5, [Instruction::LoadConstantInt64(1), Instruction::call(enter)]);
+        instructions.splice(
+            5..5,
+            [Instruction::LoadConstantInt64(1), Instruction::call(enter)],
+        );
         2
-    } else { 0 };
+    } else {
+        0
+    };
     // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
     // 不能仅依赖转储文本的 .locals init 或某个平台偶然为零的栈内容。
     let mut method_body = body::Method::with_locals(

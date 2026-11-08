@@ -4,7 +4,9 @@ use crate::validate::operand_type;
 
 /// 这些运行时方法只有固定Call签名，不能通过CallWithArgs追加数组改变ABI。
 pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
-    if crate::trace_product_abi::signature(callee).is_some() { return true; }
+    if crate::trace_product_abi::signature(callee).is_some() {
+        return true;
+    }
     #[cfg(feature = "trace-adapter-test")]
     if matches!(
         callee,
@@ -55,9 +57,16 @@ pub(super) fn validate_call(
     // 输出与累加器专用ABI校验，防止参数错配生成栈不平衡的CIL。
     if let Callee::Runtime(runtime) = callee {
         if let Some((expected, _)) = crate::trace_product_abi::signature(*runtime) {
-            if args.len() != expected.len() || args.iter().zip(expected)
-                .any(|(arg, ty)| operand_type(program, func, arg).as_ref() != Some(ty)) {
-                errors.push(format!("函数 `{}` 的产品 trace ABI 实参类型/数量错误", func.name));
+            if args.len() != expected.len()
+                || args
+                    .iter()
+                    .zip(expected)
+                    .any(|(arg, ty)| operand_type(program, func, arg).as_ref() != Some(ty))
+            {
+                errors.push(format!(
+                    "函数 `{}` 的产品 trace ABI 实参类型/数量错误",
+                    func.name
+                ));
             }
             return;
         }
@@ -288,8 +297,10 @@ pub(super) fn validate_destination(
     } = value
     {
         if let Some((_, expected)) = crate::trace_product_abi::signature(*runtime) {
-            if expected == MirType::Unit || crate::validate::local_decl(&func.body.locals, dest)
-                .is_none_or(|decl| decl.ty != expected) {
+            if expected == MirType::Unit
+                || crate::validate::local_decl(&func.body.locals, dest)
+                    .is_none_or(|decl| decl.ty != expected)
+            {
                 errors.push(format!("函数 `{}` 的产品 trace ABI 返回槽非法", func.name));
             }
             return;
@@ -368,10 +379,17 @@ pub(super) fn validate_destination(
 
 /// 运行时返回值必须消费；这是既有 Eval 规则的等价归拢，仅新增星号入口。
 pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<String>) {
-    if let Rvalue::Call { callee: Callee::Runtime(runtime), .. } = value
+    if let Rvalue::Call {
+        callee: Callee::Runtime(runtime),
+        ..
+    } = value
         && let Some((_, result)) = crate::trace_product_abi::signature(*runtime)
-        && result != MirType::Unit {
-        errors.push(format!("函数 `{}` 的产品 trace ABI 返回值必须消费", func.name));
+        && result != MirType::Unit
+    {
+        errors.push(format!(
+            "函数 `{}` 的产品 trace ABI 返回值必须消费",
+            func.name
+        ));
     }
     #[cfg(feature = "trace-adapter-test")]
     if matches!(
