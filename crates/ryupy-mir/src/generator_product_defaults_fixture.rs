@@ -37,8 +37,11 @@ impl Fixture {
             .blocks
             .iter()
             .find_map(|(id, block)| {
-                block.stmts.iter().enumerate().find_map(|(at, statement)| {
-                    match statement {
+                block
+                    .stmts
+                    .iter()
+                    .enumerate()
+                    .find_map(|(at, statement)| match statement {
                         Statement::Assign {
                             dest,
                             value:
@@ -53,8 +56,7 @@ impl Fixture {
                             Some((id, at, *dest, *receiver))
                         }
                         _ => None,
-                    }
-                })
+                    })
             })
             .unwrap();
         let (producer, target) = module.body.blocks[block]

@@ -97,6 +97,16 @@ EXPECTED = {
         "opaque_defaults_reject_other_consumers_and_control_escape",
         "zero_multi_renamed_and_aliased_functions_link_but_defaults_stay_outside",
     ],
+    "product-initialization": [
+        "actual_prefix_preserves_resets_opaque_path_and_optional_metadata",
+        "missing_wrong_duplicate_and_late_role_publications_are_rejected",
+        "helper_keys_modules_source_and_opaque_values_cannot_be_forged_or_escape",
+        "role_guards_declarations_alias_exports_and_bad_ids_are_errors",
+        "explicit_reads_definition_freezes_and_implicit_class_reads_require_publication",
+        "entry_bypass_eh_cycles_and_internal_initializer_calls_are_rejected",
+        "lowering_seal_preserves_all_non_generators_and_global_export_premises",
+        "linked_registration_capability_and_real_maps_are_checked_before_certification",
+    ],
     "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
     "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],
 }
@@ -140,8 +150,9 @@ MIR_MODULES = {
     "product-edge-witness": "generator_product_edge_witness::tests",
     "product-edges": "generator_product_edges::tests",
     "product-defaults": "generator_product_defaults_tests",
+    "product-initialization": "generator_product_initialization_tests",
 }
-PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges", "product-defaults")
+PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges", "product-defaults", "product-initialization")
 REQUIRED = {
     "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
     "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",

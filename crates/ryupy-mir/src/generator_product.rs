@@ -102,10 +102,28 @@ pub fn compile<O: crate::passes::PipelineObserver>(
         return Err(format!("高层构建诊断：{diagnostics:?}"));
     }
     crate::validate::validate_high(&program, &plan.functions).map_err(|e| e.join("\n"))?;
+    let initialization = crate::generator_product_initialization::Initialization::expected(
+        hir,
+        &origins,
+        &program,
+        &exports,
+    )?;
     let contract = crate::generator_product_trace::Contract::capture(&program, &plan.functions)?;
     crate::passes::run_pipeline_high(&mut program, passes, observer, &plan.functions)?;
     contract.verify(&program, &plan.functions)?;
-    crate::generator_product_high::inspect(&program, &facts, &origins, &plan.functions, &exports)?;
+    crate::generator_product_high::inspect(
+        &program,
+        &facts,
+        &origins,
+        &plan.functions,
+        &exports,
+        &initialization,
+    )?;
+    let unchanged = crate::generator_product_identity::UnchangedHigh::capture(
+        &program,
+        &exports,
+        &plan.functions,
+    );
     let sources: Vec<_> = plan
         .functions
         .iter()
@@ -113,6 +131,7 @@ pub fn compile<O: crate::passes::PipelineObserver>(
         .collect();
     // 不读取返回的GeneratorLayout作为证明。检查器只看上面的实际高层与下面的实际输出。
     crate::generators::lower_with_trace(&mut program, &plan.functions, &plan.exceptions, true);
+    unchanged.verify(&program, &exports)?;
     crate::validate::validate(&program).map_err(|e| e.join("\n"))?;
     let mut resumes = rustc_hash::FxHashSet::default();
     for source in &sources {
@@ -128,7 +147,7 @@ pub fn compile<O: crate::passes::PipelineObserver>(
     if program.functions.len() != origins.functions.len() + sources.len() {
         return Err("末端lowering增加了未知函数".into());
     }
-    let proof = Proof::capture(&program, &exports);
+    let proof = Proof::capture(&program, &exports, initialization);
     Ok((program, exports, proof))
 }
 

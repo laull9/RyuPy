@@ -230,9 +230,10 @@ class Preflight(unittest.TestCase):
             "product-edge-witness": ("generator_product_edge_witness_tests.rs", 7),
             "product-edges": ("generator_product_edges_tests.rs", 6),
             "product-defaults": ("generator_product_defaults_tests.rs", 7),
+            "product-initialization": ("generator_product_initialization_tests.rs", 8),
         }
         self.assertEqual(set(files), set(gate.PRODUCT_GROUPS))
-        self.assertEqual(sum(count for _, count in files.values()), 31)
+        self.assertEqual(sum(count for _, count in files.values()), 39)
         for group, (filename, count) in files.items():
             source = (gate.ROOT / "crates/ryupy-mir/src" / filename).read_text()
             names = gate.re.findall(r"#\[test\]\s*fn (\w+)\(", source)

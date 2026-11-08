@@ -11,6 +11,7 @@ pub(super) fn inspect(
     origins: &LoweringOrigins,
     generators: &[FnId],
     exports: &[ModuleExport],
+    initialization: &crate::generator_product_initialization::Initialization,
 ) -> Result<(), String> {
     if !facts.converged || !facts.refusals.is_empty() {
         return Err(format!(
@@ -45,6 +46,7 @@ pub(super) fn inspect(
             return Err("产品域不接受Instance全局".into());
         }
     }
+    initialization.inspect(program, exports)?;
     let defaults = crate::generator_product_defaults::Defaults::inspect(program, exports)?;
     let mut resolver = Resolver {
         program,
@@ -199,94 +201,6 @@ pub(super) fn inspect(
                 }
                 Terminator::Goto(_) | Terminator::Unreachable => {}
                 _ => return Err("高层含bare/cause/send/委托或未闭合退出能力".into()),
-            }
-        }
-    }
-    check_module_root(&resolver, exports)
-}
-
-fn check_module_root(resolver: &Resolver<'_>, exports: &[ModuleExport]) -> Result<(), String> {
-    let program = resolver.program;
-    let matches: Vec<_> = exports
-        .iter()
-        .filter(|export| export.name == "__name__")
-        .collect();
-    let [name] = matches.as_slice() else {
-        return Err("实际模块getter缺少唯一__name__导出".into());
-    };
-    if resolver.operand(program.entry, &Operand::Global(name.value))?
-        != [Value::Text("__main__".into())]
-    {
-        return Err("实际get('__name__')不再读取本模块固定初始化值".into());
-    }
-    // class的隐含get('__name__')发生在已完成的真实写入之后。按实际CFG计算支配，非源码顺序猜测。
-    let function = &program.functions[program.entry];
-    let mut predecessors: FxHashMap<BlockId, Vec<BlockId>> = FxHashMap::default();
-    for (id, block) in function.body.blocks.iter() {
-        let targets = match block.terminator {
-            Terminator::Goto(target) => vec![target],
-            Terminator::Branch { then_, else_, .. } => vec![then_, else_],
-            _ => vec![],
-        };
-        for target in targets {
-            predecessors.entry(target).or_default().push(id);
-        }
-    }
-    fn before(
-        body: &Body,
-        predecessors: &FxHashMap<BlockId, Vec<BlockId>>,
-        at: BlockId,
-        limit: usize,
-        global: GlobalId,
-        path: &mut Vec<BlockId>,
-    ) -> bool {
-        if body.blocks[at].stmts[..limit]
-            .iter()
-            .any(|s| matches!(s, Statement::SetGlobal { dest, .. } if *dest == global))
-        {
-            return true;
-        }
-        if at == body.entry || path.contains(&at) {
-            return false;
-        }
-        path.push(at);
-        let result = predecessors.get(&at).is_some_and(|parents| {
-            !parents.is_empty()
-                && parents.iter().all(|parent| {
-                    before(
-                        body,
-                        predecessors,
-                        *parent,
-                        body.blocks[*parent].stmts.len(),
-                        global,
-                        path,
-                    )
-                })
-        });
-        path.pop();
-        result
-    }
-    for (id, block) in function.body.blocks.iter() {
-        for (position, statement) in block.stmts.iter().enumerate() {
-            if matches!(
-                statement,
-                Statement::Assign {
-                    value: Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::MakeClass),
-                        ..
-                    },
-                    ..
-                }
-            ) && (!before(
-                &function.body,
-                &predecessors,
-                id,
-                position,
-                name.value,
-                &mut vec![],
-            ) || matches!(name.guard, ExportGuard::BoundFlag(flag) if !before(&function.body, &predecessors, id, position, flag, &mut vec![])))
-            {
-                return Err("class隐含get('__name__')先于实际模块槽发布".into());
             }
         }
     }

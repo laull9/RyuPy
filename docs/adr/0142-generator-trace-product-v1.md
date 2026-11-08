@@ -68,3 +68,25 @@ FunctionModule 冷写，到 FunctionDefaults getter，再以不透明能力发�
 复核最坏为该固定上限的平方，不逐getter扫描整个程序，也不引入跨块或Retry固定点。
 集中变异测试直接进入此合同并断言具体错误，另保留原A/B/HOT、C/D和完整产品验收门；
 新增测试名单或源码检查不代表真实编译、JIT或NativeAOT已通过。
+
+### 模块前言的有限初始化事务
+
+显式V1在实际入口同块分别核 CLR Null reset、真实 producer 和唯一发布，不改变普通
+Global 的全写入 union。name/package 是确定身份；file 与按输入实际存在的 metadata
+只认证 helper/key、纯 Use/Box 链和复制到对应槽，保留 PyUnbound/PyNone/CLR Null 的区别。
+不存在的可选 metadata 不强加生成；输入已经要求的 store 不能删掉后当作可选。
+
+所有角色写入、显式读取、FunctionModule 的真实冻结点及 MakeClass 隐含读取都被检查。
+模块仅准确定 Goto→Return 直链，无 EH 绕入/回入；MIR 内部直接调用或包装实际初始化
+FnId 均拒绝，正常外部 Main 调用不在此禁止范围。只支持实际 Dynamic/ValueSentinel
+身份槽，不扩大 typed guard、任意元数据使用或跨函数初始化分析。未知 effect、覆盖、
+额外写入、前言临时值外逃和坏身份正常拒绝。
+
+高层核完后，所有原非generator函数的实际 FnId/image 与 GlobalDecl/exports/class
+跨末端lower逐项不变；生成器仍走原 Source/模板/PC/Retry 证明。初始化需求随 Proof
+进入真实 link，先核 UnitMeta 的 Source 注册及实际公开file槽能力，再核实际 init/角色
+映射；LegacyDiagnostic 不能配合关闭file槽退回旧 Register。JIT SourceAbsolute、
+AOT ExecutableRelative 和无资源 LegacyDiagnostic+Source 注册仍按各自合同处理。
+
+这是源码候选，不是已运行的产品结果。集中反例直接进入新合同，真实基底先过才变异；
+旧31项及4项具名实验隔离不变，新增8项全名接入原前置，仍需同源真实产品与完整项目验收。

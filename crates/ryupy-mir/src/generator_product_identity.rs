@@ -79,3 +79,54 @@ impl FunctionImage {
         }
     }
 }
+
+/// 高层已核的模块/普通函数/property在lower期间必须逐字段不变。
+/// 生成器由独立Source/模板证明负责；这里只保实际旧FnId，不把新增resume当原函数。
+pub(super) struct UnchangedHigh {
+    functions: Vec<(FnId, FunctionImage)>,
+    globals: Vec<GlobalDecl>,
+    classes: Vec<ClassDef>,
+    exports: Vec<ModuleExport>,
+    entry: FnId,
+    source_name: String,
+}
+impl UnchangedHigh {
+    pub fn capture(program: &Program, exports: &[ModuleExport], generators: &[FnId]) -> Self {
+        let generators: rustc_hash::FxHashSet<_> = generators.iter().copied().collect();
+        Self {
+            functions: program
+                .functions
+                .iter()
+                .filter(|(id, _)| !generators.contains(id))
+                .map(|(id, function)| (id, FunctionImage::capture(function)))
+                .collect(),
+            globals: program.globals.iter().map(|(_, value)| value.clone()).collect(),
+            classes: program
+                .classes
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect(),
+            exports: exports.to_vec(),
+            entry: program.entry,
+            source_name: program.source_name.clone(),
+        }
+    }
+    pub fn verify(&self, program: &Program, exports: &[ModuleExport]) -> Result<(), String> {
+        for (id, image) in &self.functions {
+            if id.into_raw().into_u32() as usize >= program.functions.len()
+                || FunctionImage::capture(&program.functions[*id]) != *image
+            {
+                return Err("模块初始化封存：lower改变非生成器实际FnId/image".into());
+            }
+        }
+        if self.entry != program.entry
+            || self.source_name != program.source_name
+            || self.exports != exports
+            || self.globals != program.globals.iter().map(|(_, g)| g.clone()).collect::<Vec<_>>()
+            || self.classes != program.classes.iter().map(|(_, c)| c.clone()).collect::<Vec<_>>()
+        {
+            return Err("模块初始化封存：lower改变根身份/GlobalDecl/exports/class".into());
+        }
+        Ok(())
+    }
+}

@@ -117,8 +117,7 @@ impl<'a> Index<'a> {
             }
             let Statement::Assign {
                 value: definition, ..
-            } =
-                &self.program.functions[function].body.blocks[at].stmts[position]
+            } = &self.program.functions[function].body.blocks[at].stmts[position]
             else {
                 return Err(error("receiver缺少实际赋值"));
             };
@@ -164,10 +163,15 @@ pub(super) fn make_function(program: &Program, value: &Rvalue) -> Result<FnId, S
         || target.module_state_source.is_some()
         || target.params.len() != target.param_meta.len() + hidden
         || defaults.len() != target.param_meta.len()
-        || defaults.iter().any(|v| *v != Operand::Const(Constant::Null))
+        || defaults
+            .iter()
+            .any(|v| *v != Operand::Const(Constant::Null))
         || target.param_meta.iter().any(|p| {
             p.has_default
-                || !matches!(p.kind, ParamKind::PositionalOnly | ParamKind::PositionalOrKeyword)
+                || !matches!(
+                    p.kind,
+                    ParamKind::PositionalOnly | ParamKind::PositionalOrKeyword
+                )
         })
     {
         return Err(error("构造不是精确Python参数数的全CLR Null无默认槽"));

@@ -144,7 +144,9 @@ fn receiver_requires_real_same_block_instance_not_labels_null_or_overwrite() {
     let at = f.getter;
     let getter = f.stmts()[at].clone();
     let entry = f.program.functions[f.target].body.entry;
-    f.program.functions[f.target].body.blocks[entry].stmts.push(getter);
+    f.program.functions[f.target].body.blocks[entry]
+        .stmts
+        .push(getter);
     f.reject("getter不在模块def冷发布入口");
 }
 
@@ -259,14 +261,13 @@ fn cold_chain_rejects_unknown_steps_and_wrong_module_receiver() {
     f.reject("同块别名链超过128上界");
     let source = "def generate():\n    \"metadata stays outside\"\n    yield 'ready'\nit = generate()\nnext(it)\n";
     let (hir, types) = frontend(source);
-    let error = generator_product::compile(
-        &hir,
-        &types,
-        &passes::default_pipeline(),
-        &mut Observer,
-    )
-    .expect_err("FunctionMetadata仍不准入");
-    assert!(error.contains("producer与getter之间有未认证操作"), "{error}");
+    let error =
+        generator_product::compile(&hir, &types, &passes::default_pipeline(), &mut Observer)
+            .expect_err("FunctionMetadata仍不准入");
+    assert!(
+        error.contains("producer与getter之间有未认证操作"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -398,7 +399,9 @@ fn opaque_defaults_reject_other_consumers_and_control_escape() {
                 f.program.entry,
                 Some(f.result),
                 RuntimeFn::FunctionDefaults,
-                &[vec![crate::generator_product_values::Value::Function(f.target)]],
+                &[vec![crate::generator_product_values::Value::Function(
+                    f.target
+                )]],
             )
             .is_err()
     );

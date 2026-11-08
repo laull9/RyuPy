@@ -13,9 +13,14 @@ pub struct Proof {
     exports: Vec<ModuleExport>,
     entry: FnId,
     source_name: String,
+    initialization: crate::generator_product_initialization::Initialization,
 }
 impl Proof {
-    pub(super) fn capture(program: &Program, exports: &[ModuleExport]) -> Self {
+    pub(super) fn capture(
+        program: &Program,
+        exports: &[ModuleExport],
+        initialization: crate::generator_product_initialization::Initialization,
+    ) -> Self {
         Self {
             functions: program
                 .functions
@@ -27,6 +32,7 @@ impl Proof {
             exports: exports.to_vec(),
             entry: program.entry,
             source_name: program.source_name.clone(),
+            initialization,
         }
     }
     fn verify(&self, program: &Program, exports: &[ModuleExport]) -> Result<(), String> {
@@ -124,6 +130,7 @@ pub(super) fn link(
     let (program, meta) = units.pop().ok_or("缺少实际模块")?;
     let mut proof = proofs.pop().ok_or("缺少实际模块证明")?;
     proof.verify(&program, &meta.exports)?;
+    proof.initialization.meta(&meta)?;
     if meta.execution != ModuleExecutionKind::LegacySingleton
         || meta.instance_capabilities != Default::default()
         || meta.name != "__main__"
@@ -138,6 +145,7 @@ pub(super) fn link(
     let [map] = maps.as_slice() else {
         return Err("实际link映射数量错误".into());
     };
+    proof.initialization.linked(&linked, map)?;
     if map.functions.len() != proof.functions.len()
         || map.globals.len() != proof.globals.len()
         || map

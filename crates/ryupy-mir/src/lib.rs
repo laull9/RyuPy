@@ -53,6 +53,9 @@ mod generator_product_edges;
 mod generator_product_effects;
 mod generator_product_high;
 mod generator_product_identity;
+mod generator_product_initialization;
+#[cfg(test)]
+mod generator_product_initialization_tests;
 mod generator_product_link;
 mod generator_product_routes;
 mod generator_product_snapshot;
