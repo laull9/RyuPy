@@ -33,6 +33,8 @@ EXPECTED = {
         "stale_copy_and_post_spill_local_write_are_rejected",
         "clearing_pending_caught_without_read_is_rejected",
         "caught_read_into_wrong_handler_local_is_rejected",
+        "repeated_actual_match_block_converges_without_epoch_growth",
+        "old_copy_never_revives_after_repeated_current_writes",
     ],
     "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
     "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],

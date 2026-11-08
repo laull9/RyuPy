@@ -13,9 +13,11 @@ fn contains(value: &Operand, frame: LocalId) -> bool {
 
 /// 沿当前基本块中先前的装箱/复制逐项回溯，不能引用未来写或同名临时。
 fn saved_operand(value: &Operand, stmts: &[Statement], expected: LocalId, budget: usize) -> bool {
-    if budget == 0 { return false; }
+    if budget == 0 {
+        return false;
+    }
     let Operand::Local(id) = value else {
-        return false
+        return false;
     };
     if *id == expected {
         return true;
@@ -43,13 +45,25 @@ pub(super) fn check(
     let frame = origin.frame_parameter;
     let mut handlers = Vec::new();
     for route in &layout.exception_routes {
-        let target = layout.pc_targets.iter().find(|(pc, _)| *pc == route.handler_pc)
-            .map(|(_, block)| *block).ok_or("caught handler 缺失最终 PC 映射")?;
-        if !handlers.contains(&target) { handlers.push(target); }
+        let target = layout
+            .pc_targets
+            .iter()
+            .find(|(pc, _)| *pc == route.handler_pc)
+            .map(|(_, block)| *block)
+            .ok_or("caught handler 缺失最终 PC 映射")?;
+        if !handlers.contains(&target) {
+            handlers.push(target);
+        }
     }
     if handlers.len() != layout.catch_reads.len()
-        || handlers.iter().any(|handler|
-            layout.catch_reads.iter().filter(|(block, _, _)| block == handler).count() != 1)
+        || handlers.iter().any(|handler| {
+            layout
+                .catch_reads
+                .iter()
+                .filter(|(block, _, _)| block == handler)
+                .count()
+                != 1
+        })
     {
         return Err("caught 读取旁证没有逐一绑定逻辑 handler".into());
     }
@@ -78,10 +92,17 @@ pub(super) fn check(
                 return Err("CatchException 不在真实物理 handler 首句".into());
             }
             let args = inputs(value)?;
-            if let Rvalue::Call { callee: Callee::Runtime(runtime), args } = value
+            if let Rvalue::Call {
+                callee: Callee::Runtime(runtime),
+                args,
+            } = value
                 && matches!(runtime, RuntimeFn::ArrayGet | RuntimeFn::ArraySet)
             {
-                let expected_len = if *runtime == RuntimeFn::ArrayGet { 2 } else { 3 };
+                let expected_len = if *runtime == RuntimeFn::ArrayGet {
+                    2
+                } else {
+                    3
+                };
                 if args.len() != expected_len
                     || !matches!(args[0], Operand::Local(id) if id == frame)
                 {
@@ -117,7 +138,9 @@ pub(super) fn check(
                     }
                 }
                 if slot >= 4 {
-                    let local = *layout.saved_locals.get(slot as usize - 4)
+                    let local = *layout
+                        .saved_locals
+                        .get(slot as usize - 4)
                         .ok_or("缺失保存局部旁证")?;
                     if index(local) + 4 != slot as usize {
                         return Err("保存局部槽旁证不连续".into());
@@ -134,11 +157,17 @@ pub(super) fn check(
                             return Err("恢复槽读取没有目标".into());
                         };
                         if *dest != local {
-                            let Some(Statement::Assign { dest: output,
-                                value: Rvalue::Unbox { value: Operand::Local(input), .. } })
-                                = block.stmts.get(position + 1) else {
-                                    return Err("恢复槽缺少紧邻拆箱".into());
-                                };
+                            let Some(Statement::Assign {
+                                dest: output,
+                                value:
+                                    Rvalue::Unbox {
+                                        value: Operand::Local(input),
+                                        ..
+                                    },
+                            }) = block.stmts.get(position + 1)
+                            else {
+                                return Err("恢复槽缺少紧邻拆箱".into());
+                            };
                             if *output != local || input != dest {
                                 return Err("恢复槽拆箱目标错误".into());
                             }
@@ -156,7 +185,8 @@ pub(super) fn check(
             } else if args.iter().any(|arg| contains(arg, frame)) {
                 if !matches!(value, Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::GeneratorInput), args
-                } if args.len() == 1 && matches!(args[0], Operand::Local(id) if id == frame)) {
+                } if args.len() == 1 && matches!(args[0], Operand::Local(id) if id == frame))
+                {
                     return Err("frame 逃逸、别名或未登记 helper".into());
                 }
                 obligations += 1;
@@ -174,7 +204,10 @@ pub(super) fn check(
         }
     }
     if catch_reads.len() != layout.catch_reads.len()
-        || layout.catch_reads.iter().any(|site| !catch_reads.contains(site))
+        || layout
+            .catch_reads
+            .iter()
+            .any(|site| !catch_reads.contains(site))
     {
         return Err("登记的 caught 读取缺失或被替换".into());
     }

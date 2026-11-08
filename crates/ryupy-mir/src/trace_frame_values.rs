@@ -42,21 +42,30 @@ pub(super) fn operand(value: &Operand, locals: &[Value]) -> Result<Value, String
 /// 穷举有限输入形式；新增 MIR 形式必须显式审查，不能由通配分支默许。
 pub(super) fn inputs(value: &Rvalue) -> Result<Vec<&Operand>, String> {
     Ok(match value {
-        Rvalue::Use(value) | Rvalue::Box { value, .. } | Rvalue::Unbox { value, .. }
+        Rvalue::Use(value)
+        | Rvalue::Box { value, .. }
+        | Rvalue::Unbox { value, .. }
         | Rvalue::DynTruthy { value } => vec![value],
-        Rvalue::Binary { lhs, rhs, .. } | Rvalue::DynBinary { lhs, rhs, .. }
+        Rvalue::Binary { lhs, rhs, .. }
+        | Rvalue::DynBinary { lhs, rhs, .. }
         | Rvalue::DynCompare { lhs, rhs, .. } => vec![lhs, rhs],
-        Rvalue::Unary { operand, .. } | Rvalue::Cast { operand, .. }
+        Rvalue::Unary { operand, .. }
+        | Rvalue::Cast { operand, .. }
         | Rvalue::DynUnary { operand, .. } => vec![operand],
         Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.iter().collect(),
         Rvalue::GetField { obj, .. } => vec![obj],
         Rvalue::CallWithArgs { prefix, args, .. } => prefix.iter().chain(args).collect(),
-        Rvalue::DynCallValue { callee, args } => {
-            std::iter::once(callee).chain(args).collect()
-        }
-        Rvalue::DynCallMethod { captured, obj, args, .. } => {
-            captured.iter().chain(std::iter::once(obj)).chain(args).collect()
-        }
+        Rvalue::DynCallValue { callee, args } => std::iter::once(callee).chain(args).collect(),
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            args,
+            ..
+        } => captured
+            .iter()
+            .chain(std::iter::once(obj))
+            .chain(args)
+            .collect(),
         Rvalue::CatchException => vec![],
         _ => return Err("frame 子证明未登记的 MIR operation".into()),
     })

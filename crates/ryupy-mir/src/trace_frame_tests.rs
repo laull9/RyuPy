@@ -1,6 +1,6 @@
 //! 原 frames 的真实 build 输出与同构损坏；不执行 Python 或产品，不颁总证书。
-use crate::*;
 use crate::trace_lowering::LoweringOrigins;
+use crate::*;
 
 const SOURCE: &str = include_str!("../../../tests/cases/generator_dynamic/frames/entry.py");
 
@@ -21,24 +21,44 @@ fn build(source: &str) -> (Program, LoweringOrigins) {
 }
 
 fn rejected(program: &Program, origins: &LoweringOrigins) {
-    assert!(trace_frame::inspect(program, &origins.generators[0],
-        &origins.generator_layouts[0]).is_err());
+    assert!(
+        trace_frame::inspect(
+            program,
+            &origins.generators[0],
+            &origins.generator_layouts[0]
+        )
+        .is_err()
+    );
 }
 
 fn rejected_because(program: &Program, origins: &LoweringOrigins, reason: &str) {
-    assert!(validate::validate(program).is_ok(), "负例必须是结构有效 MIR");
-    let error = trace_frame::inspect(program, &origins.generators[0],
-        &origins.generator_layouts[0]).expect_err("有效 MIR 仍必须命中特定 frame 规则");
+    assert!(
+        validate::validate(program).is_ok(),
+        "负例必须是结构有效 MIR"
+    );
+    let error = trace_frame::inspect(
+        program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    )
+    .expect_err("有效 MIR 仍必须命中特定 frame 规则");
     assert!(error.contains(reason), "错误原因不符：{error}");
 }
 
 #[test]
 fn original_frames_has_pc_partitioned_retry_frame_obligations() {
     let (program, origins) = build(SOURCE);
-    let result = trace_frame::inspect(&program, &origins.generators[0],
-        &origins.generator_layouts[0]).expect("原 frames 的私有 frame 义务应闭合");
-    println!("frame obligations: accesses={} states={} caught_reads={} retry_edges={}",
-        result.frame_accesses, result.explored_states, result.exception_reads, result.retry_edges);
+    let result = trace_frame::inspect(
+        &program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    )
+    .expect("原 frames 的私有 frame 义务应闭合");
+    println!(
+        "frame obligations: accesses={} states={} caught_reads={} retry_edges={}",
+        result.frame_accesses, result.explored_states, result.exception_reads, result.retry_edges
+    );
+    println!("original diagnostics: {:?}", result.diagnostics);
     assert!(result.frame_accesses > 0);
     assert!(result.exception_reads > 0);
     assert!(result.retry_edges > 0);
@@ -49,20 +69,45 @@ fn original_frames_has_pc_partitioned_retry_frame_obligations() {
 
 #[test]
 fn renamed_generator_and_factory_alias_keep_frame_proof() {
-    let source = SOURCE.replace("Target", "Receiver").replace("generate", "produce")
-        .replace("it = produce(Receiver())", "factory = produce\nit = factory(Receiver())");
+    let source = SOURCE
+        .replace("Target", "Receiver")
+        .replace("generate", "produce")
+        .replace(
+            "it = produce(Receiver())",
+            "factory = produce\nit = factory(Receiver())",
+        );
     let (program, origins) = build(&source);
-    assert!(trace_frame::inspect(&program, &origins.generators[0],
-        &origins.generator_layouts[0]).is_ok());
+    let result = trace_frame::inspect(
+        &program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    )
+    .expect("重命名/alias 正例必须闭合，失败保留实际热点");
+    println!("renamed diagnostics: {:?}", result.diagnostics);
 }
 
 fn retry_block(body: &mut Body) -> &mut BasicBlock {
-    body.blocks.iter_mut().find_map(|(_, block)| {
-        block.stmts.iter().any(|stmt| matches!(stmt,
-            Statement::Assign { value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::GeneratorRetry), .. }, .. }
-        )).then_some(block)
-    }).expect("真实 lowering 应含 Retry")
+    body.blocks
+        .iter_mut()
+        .find_map(|(_, block)| {
+            block
+                .stmts
+                .iter()
+                .any(|stmt| {
+                    matches!(
+                        stmt,
+                        Statement::Assign {
+                            value: Rvalue::Call {
+                                callee: Callee::Runtime(RuntimeFn::GeneratorRetry),
+                                ..
+                            },
+                            ..
+                        }
+                    )
+                })
+                .then_some(block)
+        })
+        .expect("真实 lowering 应含 Retry")
 }
 
 #[test]
@@ -72,8 +117,11 @@ fn retry_with_unknown_pc_is_rejected() {
     let mut changed = false;
     for stmt in &mut block.stmts {
         if let Statement::Eval(Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::ArraySet), args,
-        }) = stmt && matches!(args[1], Operand::Const(Constant::I64(0))) {
+            callee: Callee::Runtime(RuntimeFn::ArraySet),
+            args,
+        }) = stmt
+            && matches!(args[1], Operand::Const(Constant::I64(0)))
+        {
             args[2] = Operand::Const(Constant::I64(999999));
             changed = true;
         }
@@ -87,9 +135,11 @@ fn retry_without_caught_write_is_rejected() {
     let (mut program, origins) = build(SOURCE);
     let block = retry_block(&mut program.functions[origins.generators[0].resume].body);
     let before = block.stmts.len();
-    block.stmts.retain(|stmt| !matches!(stmt,
+    block.stmts.retain(|stmt| {
+        !matches!(stmt,
         Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
-            if matches!(args[1], Operand::Const(Constant::I64(3)))));
+            if matches!(args[1], Operand::Const(Constant::I64(3))))
+    });
     assert_eq!(block.stmts.len() + 1, before);
     rejected(&program, &origins);
 }
@@ -103,11 +153,21 @@ fn wrong_restore_slot_and_frame_alias_are_rejected() {
         let block = &mut body.blocks[body.entry];
         let mut changed = false;
         for stmt in &mut block.stmts {
-            if let Statement::Assign { dest, value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::ArrayGet), args,
-            }} = stmt && matches!(args[1], Operand::Const(Constant::I64(4))) {
-                if alias { args[0] = Operand::Local(*dest); }
-                else { args[1] = Operand::Const(Constant::I64(5)); }
+            if let Statement::Assign {
+                dest,
+                value:
+                    Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ArrayGet),
+                        args,
+                    },
+            } = stmt
+                && matches!(args[1], Operand::Const(Constant::I64(4)))
+            {
+                if alias {
+                    args[0] = Operand::Local(*dest);
+                } else {
+                    args[1] = Operand::Const(Constant::I64(5));
+                }
                 changed = true;
                 break;
             }
@@ -122,9 +182,11 @@ fn missing_spill_and_wrong_dispatch_map_are_rejected() {
     let (mut program, mut origins) = build(SOURCE);
     let block = retry_block(&mut program.functions[origins.generators[0].resume].body);
     let before = block.stmts.len();
-    block.stmts.retain(|stmt| !matches!(stmt,
+    block.stmts.retain(|stmt| {
+        !matches!(stmt,
         Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
-            if matches!(args[1], Operand::Const(Constant::I64(4)))));
+            if matches!(args[1], Operand::Const(Constant::I64(4))))
+    });
     assert_eq!(block.stmts.len() + 1, before);
     rejected(&program, &origins);
     let (program, fresh) = build(SOURCE);
@@ -166,9 +228,14 @@ fn stale_copy_and_post_spill_local_write_are_rejected() {
         });
         let slot = source.into_raw().into_u32() as i64 + 4;
         let block = retry_block(body);
-        let position = block.stmts.iter().position(|stmt| matches!(stmt,
+        let position = block
+            .stmts
+            .iter()
+            .position(|stmt| {
+                matches!(stmt,
             Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
-                if matches!(args[1], Operand::Const(Constant::I64(value)) if value == slot)))
+                if matches!(args[1], Operand::Const(Constant::I64(value)) if value == slot))
+            })
             .expect("真实 Retry 保存普通参数");
         let overwrite = Statement::Assign {
             dest: source,
@@ -180,10 +247,13 @@ fn stale_copy_and_post_spill_local_write_are_rejected() {
             };
             args[2] = Operand::Local(temporary);
             block.stmts.insert(position, overwrite);
-            block.stmts.insert(position, Statement::Assign {
-                dest: temporary,
-                value: Rvalue::Use(Operand::Local(source)),
-            });
+            block.stmts.insert(
+                position,
+                Statement::Assign {
+                    dest: temporary,
+                    value: Rvalue::Use(Operand::Local(source)),
+                },
+            );
         } else {
             block.stmts.insert(position + 1, overwrite);
         }
@@ -208,7 +278,9 @@ fn clearing_pending_caught_without_read_is_rejected() {
                 break;
             }
         }
-        if changed { break; }
+        if changed {
+            break;
+        }
     }
     assert!(changed);
     rejected_because(&program, &origins, "caught");
@@ -230,4 +302,87 @@ fn caught_read_into_wrong_handler_local_is_rejected() {
     };
     *dest = wrong;
     rejected_because(&program, &origins, "caught");
+}
+
+#[test]
+fn repeated_actual_match_block_converges_without_epoch_growth() {
+    let (mut program, origins) = build(SOURCE);
+    let body = &mut program.functions[origins.generators[0].resume].body;
+    let (id, block) = body
+        .blocks
+        .iter_mut()
+        .find(|(_, block)| {
+            block.stmts.iter().any(|stmt| {
+                matches!(
+                    stmt,
+                    Statement::Assign {
+                        value: Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::ExceptionMatch),
+                            ..
+                        },
+                        ..
+                    }
+                )
+            })
+        })
+        .expect("原 frames 必须存在真实 matcher");
+    let Terminator::Branch { else_, .. } = &mut block.terminator else {
+        panic!("真实 matcher 必须条件分支");
+    };
+    // 同一保护区内回接，保留另一个出口；原指令、异常边、slot与旁证均不改。
+    *else_ = id;
+    assert!(validate::validate(&program).is_ok());
+    let result = trace_frame::inspect(
+        &program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    )
+    .expect("真实 MIR 同一静态写复访须在原预算内收敛");
+    println!("loop diagnostics: {:?}", result.diagnostics);
+    assert!(result.diagnostics.self_edges > 0);
+    assert!(result.diagnostics.duplicate_states > 0);
+    assert!(result.diagnostics.value_cells <= trace_frame::VALUE_CELL_BUDGET);
+}
+
+#[test]
+fn old_copy_never_revives_after_repeated_current_writes() {
+    for writes in [2, 4, 8] {
+        let (mut program, origins) = build(SOURCE);
+        let origin = &origins.generators[0];
+        let source = program.functions[origin.factory].params[0];
+        let body = &mut program.functions[origin.resume].body;
+        let temporary = body.locals.alloc(LocalDecl {
+            ty: MirType::Dynamic,
+            name: None,
+            is_cell: false,
+        });
+        let slot = source.into_raw().into_u32() as i64 + 4;
+        let block = retry_block(body);
+        let position = block
+            .stmts
+            .iter()
+            .position(|stmt| {
+                matches!(stmt,
+            Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ArraySet), args })
+                if matches!(args[1], Operand::Const(Constant::I64(value)) if value == slot))
+            })
+            .expect("真实 Retry 必须保存参数");
+        let Statement::Eval(Rvalue::Call { args, .. }) = &mut block.stmts[position] else {
+            unreachable!();
+        };
+        args[2] = Operand::Local(temporary);
+        let mut prefix = vec![Statement::Assign {
+            dest: temporary,
+            value: Rvalue::Use(Operand::Local(source)),
+        }];
+        for _ in 0..writes {
+            prefix.push(Statement::Assign {
+                dest: source,
+                value: Rvalue::Use(Operand::Const(Constant::None)),
+            });
+        }
+        block.stmts.splice(position..position, prefix);
+        // 即使偶数次写回同一抽象Value，也不能让旧copy因小epoch碰撞恢复资格。
+        rejected_because(&program, &origins, "版本");
+    }
 }

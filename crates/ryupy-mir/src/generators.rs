@@ -277,7 +277,10 @@ fn lower_one(
     let (block_map, catch_reads) =
         exceptions.finish(&mut body, frame, &original, exception_globals);
 
-    let physical_region = body.regions.first().map(|region| (region.try_len, region.handler));
+    let physical_region = body
+        .regions
+        .first()
+        .map(|region| (region.try_len, region.handler));
     let name = function.name.clone();
     let source_file = function.source_file.clone();
     let codegen_name = format!(
@@ -373,14 +376,20 @@ fn lower_one(
         initial_pc: original_entry.into_raw().into_u32() as i64,
         pc_targets: resume_targets
             .into_iter()
-            .map(|old| (old.into_raw().into_u32() as i64,
-                block_map[old.into_raw().into_u32() as usize]))
+            .map(|old| {
+                (
+                    old.into_raw().into_u32() as i64,
+                    block_map[old.into_raw().into_u32() as usize],
+                )
+            })
             .collect(),
         original_blocks: block_map[..original_block_count].to_vec(),
         exception_routes,
         catch_reads,
-        exit_pcs: exit_pcs.into_iter().map(|(block, pc)|
-            (block_map[block.into_raw().into_u32() as usize], pc)).collect(),
+        exit_pcs: exit_pcs
+            .into_iter()
+            .map(|(block, pc)| (block_map[block.into_raw().into_u32() as usize], pc))
+            .collect(),
         physical_region,
         saved_locals: original.into_iter().map(|(local, _)| local).collect(),
     }

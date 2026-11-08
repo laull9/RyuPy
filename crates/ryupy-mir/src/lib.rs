@@ -171,6 +171,6 @@ mod trace_lowering_tests;
 
 pub mod trace_frame;
 mod trace_frame_shape;
-mod trace_frame_values;
 #[cfg(test)]
 mod trace_frame_tests;
+mod trace_frame_values;

@@ -34,12 +34,18 @@ impl Plan {
     }
 
     pub(super) fn frame_routes(&self) -> Vec<crate::trace_lowering::FrameCatchRoute> {
-        self.regions.iter().map(|region| crate::trace_lowering::FrameCatchRoute {
-            start: number(region.try_start),
-            length: region.try_len,
-            handler_pc: number(region.handler),
-            unconditional: matches!(region.kind, RegionKind::CatchAll | RegionKind::FinallyGuard),
-        }).collect()
+        self.regions
+            .iter()
+            .map(|region| crate::trace_lowering::FrameCatchRoute {
+                start: number(region.try_start),
+                length: region.try_len,
+                handler_pc: number(region.handler),
+                unconditional: matches!(
+                    region.kind,
+                    RegionKind::CatchAll | RegionKind::FinallyGuard
+                ),
+            })
+            .collect()
     }
 
     pub(super) fn finish(

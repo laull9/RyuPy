@@ -3,19 +3,36 @@ use super::*;
 use crate::trace_frame_values::{compare, inputs};
 
 pub(super) fn may_throw(value: &Rvalue) -> bool {
-    !matches!(value, Rvalue::Use(_) | Rvalue::Box { .. }
-        | Rvalue::Binary { op: BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge, .. }
-        | Rvalue::CatchException | Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::ArrayGet | RuntimeFn::ArraySet
-                | RuntimeFn::GeneratorRetry), .. })
+    !matches!(
+        value,
+        Rvalue::Use(_)
+            | Rvalue::Box { .. }
+            | Rvalue::Binary {
+                op: BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge,
+                ..
+            }
+            | Rvalue::CatchException
+            | Rvalue::Call {
+                callee: Callee::Runtime(
+                    RuntimeFn::ArrayGet | RuntimeFn::ArraySet | RuntimeFn::GeneratorRetry
+                ),
+                ..
+            }
+    )
 }
 
 pub(super) fn evaluate(
-    value: &Rvalue, state: &mut State, layout: &GeneratorLayout, reads: &mut usize,
+    value: &Rvalue,
+    state: &mut State,
+    layout: &GeneratorLayout,
+    reads: &mut usize,
 ) -> Result<Value, String> {
     let args = inputs(value)?;
     // shape 检查禁止别名与逃逸；这里仍逐状态检查，不依赖 LocalId 的终身身份。
-    let values = args.iter().map(|arg| operand(arg, &state.locals)).collect::<Result<Vec<_>, _>>()?;
+    let values = args
+        .iter()
+        .map(|arg| operand(arg, &state.locals))
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(match value {
         Rvalue::Use(_) | Rvalue::Box { .. } | Rvalue::Unbox { .. } => values[0].clone(),
         Rvalue::Binary { op, .. } => compare(*op, values[0].clone(), values[1].clone()),
@@ -26,7 +43,10 @@ pub(super) fn evaluate(
             state.physical_catch = false;
             Value::Exception
         }
-        Rvalue::Call { callee: Callee::Runtime(runtime), args } => match runtime {
+        Rvalue::Call {
+            callee: Callee::Runtime(runtime),
+            args,
+        } => match runtime {
             RuntimeFn::ArrayGet | RuntimeFn::ArraySet => {
                 if values.first() != Some(&Value::Frame) {
                     return Err("frame 实参身份失效".into());
@@ -39,17 +59,20 @@ pub(super) fn evaluate(
                     let written = values.get(2).ok_or("缺失槽写值")?;
                     if slot >= 4 {
                         let local = *layout.saved_locals.get(slot - 4).ok_or("缺失槽局部")?;
-                        let version = state.versions[index(local)];
-                        if !source_lineage(&args[2], state).contains(&(local, version)) {
+                        if !relations::sources(&args[2], state).contains(&local) {
                             return Err("spill 复制来源不是当前局部定义版本".into());
                         }
-                        state.stored_versions[slot] = Some(version);
+                        state.stored_current[slot] = true;
                     }
                     if slot == 3 {
                         state.pending = match (&state.pending, written) {
                             (Pending::Read, Value::None) => Pending::Empty,
                             (Pending::Empty, Value::Exception) => Pending::AwaitingRead,
-                            _ => return Err("caught 槽必须先读取再清空，不能丢弃或覆盖 pending".into()),
+                            _ => {
+                                return Err(
+                                    "caught 槽必须先读取再清空，不能丢弃或覆盖 pending".into()
+                                );
+                            }
                         };
                     }
                     *state.slots.get_mut(slot).ok_or("槽越界")? = written.clone();
@@ -58,7 +81,9 @@ pub(super) fn evaluate(
                 } else {
                     let target = state.slots.get(slot).ok_or("槽越界")?;
                     if slot == 3 {
-                        if *target != Value::StoredException || state.pending != Pending::AwaitingRead {
+                        if *target != Value::StoredException
+                            || state.pending != Pending::AwaitingRead
+                        {
                             return Err("handler 读取了非异常槽 3".into());
                         }
                         state.pending = Pending::Read;
@@ -74,8 +99,14 @@ pub(super) fn evaluate(
                 }
                 Value::None
             }
-            RuntimeFn::RaisePrepare if matches!(values.first(),
-                Some(Value::Exception | Value::StoredException)) => values[0].clone(),
+            RuntimeFn::RaisePrepare
+                if matches!(
+                    values.first(),
+                    Some(Value::Exception | Value::StoredException)
+                ) =>
+            {
+                values[0].clone()
+            }
             _ => Value::Opaque,
         },
         _ => Value::Opaque,
@@ -83,13 +114,17 @@ pub(super) fn evaluate(
 }
 
 pub(super) fn initial_slots(
-    factory: &Function, origin: &GeneratorOrigin, layout: &GeneratorLayout,
+    factory: &Function,
+    origin: &GeneratorOrigin,
+    layout: &GeneratorLayout,
 ) -> Result<Vec<Value>, String> {
     if factory.body.blocks.len() != 1 {
         return Err("factory 不是有限直线模板".into());
     }
     let mut locals = vec![Value::Uninitialized; factory.body.locals.len()];
-    for parameter in &factory.params { locals[index(*parameter)] = Value::Parameter(index(*parameter)); }
+    for parameter in &factory.params {
+        locals[index(*parameter)] = Value::Parameter(index(*parameter));
+    }
     let block = &factory.body.blocks[factory.body.entry];
     let mut found = None;
     for statement in &block.stmts {
@@ -107,18 +142,32 @@ pub(super) fn initial_slots(
                 if *resume != origin.resume || found.is_some() {
                     return Err("factory resume 不匹配".into());
                 }
-                let slots = frame.iter().map(|v| operand(v, &locals)).collect::<Result<Vec<_>, _>>()?;
+                let slots = frame
+                    .iter()
+                    .map(|v| operand(v, &locals))
+                    .collect::<Result<Vec<_>, _>>()?;
                 if slots.len() != layout.saved_locals.len() + 4
                     || slots.len() != origin.initial_slots.len()
-                    || slots[..4] != [Value::Integer(layout.initial_pc), Value::None, Value::None, Value::None]
-                { return Err("factory 初始控制槽不匹配".into()); }
+                    || slots[..4]
+                        != [
+                            Value::Integer(layout.initial_pc),
+                            Value::None,
+                            Value::None,
+                            Value::None,
+                        ]
+                {
+                    return Err("factory 初始控制槽不匹配".into());
+                }
                 for parameter in &factory.params {
-                    if slots.get(index(*parameter) + 4) != Some(&Value::Parameter(index(*parameter))) {
+                    if slots.get(index(*parameter) + 4)
+                        != Some(&Value::Parameter(index(*parameter)))
+                    {
                         return Err("factory 普通或隐藏参数槽被替换".into());
                     }
                 }
                 found = Some(slots);
-                if !matches!(&block.terminator, Terminator::Return(Some(Operand::Local(id))) if id == dest) {
+                if !matches!(&block.terminator, Terminator::Return(Some(Operand::Local(id))) if id == dest)
+                {
                     return Err("factory 没有返回真实生成器".into());
                 }
             }
@@ -131,14 +180,8 @@ pub(super) fn initial_slots(
 /// 当前物理 catch 与前一轮已保存的异常不能混同。
 pub(super) fn age_exceptions(values: &mut [Value]) {
     for value in values {
-        if *value == Value::Exception { *value = Value::StoredException; }
-    }
-}
-
-/// 复制捕获当时定义版本；同静态指令再次写入也必须产生新版本。
-pub(super) fn source_lineage(value: &Operand, state: &State) -> Vec<(LocalId, u32)> {
-    match value {
-        Operand::Local(id) => state.lineage[index(*id)].clone(),
-        _ => Vec::new(),
+        if *value == Value::Exception {
+            *value = Value::StoredException;
+        }
     }
 }

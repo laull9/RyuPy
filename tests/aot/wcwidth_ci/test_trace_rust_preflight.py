@@ -146,7 +146,7 @@ class Preflight(unittest.TestCase):
         import re
         source = (gate.ROOT / "crates/ryupy-mir/src/trace_frame_tests.rs").read_text()
         names = re.findall(r"#\[test\]\s*fn (\w+)\(", source)
-        self.assertEqual(len(names), 10)
+        self.assertEqual(len(names), 12)
         self.assertEqual(set(names), set(gate.EXPECTED["frame"]))
         guard = (gate.ROOT / "crates/ryupy-driver/tests/dynamic_except_structure.rs").read_text()
         self.assertEqual(re.findall(r"#\[test\]\s*fn (\w+)\(", guard), gate.EXPECTED["guard-default"])
