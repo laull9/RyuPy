@@ -68,7 +68,7 @@ fn unsupported_regex_keeps_exact_user_call_lines_and_original_context() {
     // 当前driver的hir.info.file明确使用basename；锁真实输出，不变更生产路径插桩。
     let file = "unsupported_context.py";
     let expected = format!(
-        "Traceback (most recent call last):\n  File \"{file}\", line 14, in <module>\nValueError: outer context\n\nDuring handling of the above exception, another exception occurred:\nTraceback (most recent call last):\n  File \"{file}\", line 16, in <module>\n  File \"{file}\", line 10, in outer\n  File \"{file}\", line 6, in leaf\nNotImplementedError: re: unsupported lookbehind, atomic, conditional, comment or scoped flags\n"
+        "Traceback (most recent call last):\n  File \"{file}\", line 14, in <module>\nValueError: outer context\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"{file}\", line 16, in <module>\n  File \"{file}\", line 10, in outer\n  File \"{file}\", line 6, in leaf\nNotImplementedError: re: unsupported lookbehind, atomic, conditional, comment or scoped flags\n"
     );
     std::fs::write(root.join("expected.stderr"), &expected).unwrap();
     assert_eq!(output.status.code(), Some(1));

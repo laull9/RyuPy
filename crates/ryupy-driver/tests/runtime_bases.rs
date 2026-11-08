@@ -142,6 +142,6 @@ fn unsupported_runtime_base_reports_class_line_and_complete_context() {
         "old ['base']\n"
     };
     assert_eq!(actual.stdout, stdout.as_bytes());
-    let stderr = "Traceback (most recent call last):\n  File \"runtime_base_frames.py\", line 8, in <module>\nValueError: outer\n\nDuring handling of the above exception, another exception occurred:\nTraceback (most recent call last):\n  File \"runtime_base_frames.py\", line 11, in <module>\nNotImplementedError: runtime bases currently require an ordinary user class; special classes and metaclass protocols are not supported\n";
+    let stderr = "Traceback (most recent call last):\n  File \"runtime_base_frames.py\", line 8, in <module>\nValueError: outer\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"runtime_base_frames.py\", line 11, in <module>\nNotImplementedError: runtime bases currently require an ordinary user class; special classes and metaclass protocols are not supported\n";
     assert_eq!(actual.stderr, stderr.as_bytes());
 }
