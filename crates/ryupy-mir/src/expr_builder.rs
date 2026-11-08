@@ -28,6 +28,7 @@ use crate::mir::{
 };
 
 pub struct ExprBuilder<'a> {
+    pub trace_expressions: Option<&'a mut Vec<crate::trace_lowering::ExpressionOrigin>>,
     pub module_state: Option<MirLocalId>,
     pub hir: &'a Module,
     pub types: &'a ModuleTypes,
@@ -106,6 +107,19 @@ impl<'a> ExprBuilder<'a> {
     }
 
     pub fn build_expr(&mut self, expr_id: ExprId) -> Operand {
+        let result = self.build_expr_inner(expr_id);
+        if let Some(origins) = self.trace_expressions.as_deref_mut() {
+            origins.push(crate::trace_lowering::ExpressionOrigin {
+                expression: expr_id,
+                block: *self.current_bb,
+                source_statement_cursor: self.blocks[*self.current_bb].stmts.len(),
+                result: result.clone(),
+            });
+        }
+        result
+    }
+
+    fn build_expr_inner(&mut self, expr_id: ExprId) -> Operand {
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let expr = &hir_body.exprs[expr_id];
         match &expr.kind {

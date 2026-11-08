@@ -40,6 +40,14 @@ pub fn build_program(
     hir: &Module,
     types: &ModuleTypes,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
+    build_program_with_origins(hir, types, None)
+}
+
+pub(crate) fn build_program_with_origins(
+    hir: &Module,
+    types: &ModuleTypes,
+    mut origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
+) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut globals = Arena::default();
@@ -249,6 +257,9 @@ pub fn build_program(
             hir_fn_id,
         );
 
+        if origins.is_some() {
+            builder.trace_expressions = Some(Vec::new());
+        }
         // 建立 HIR 局部变量 → MIR 局部变量映射。
         // 被 nested 函数捕获的名字（cell，M3.0）在槽位里存 `object[1]`，
         // 必须用 Dynamic 表示；读写都经过运行时 cell 协议。
@@ -393,6 +404,12 @@ pub fn build_program(
         for (class, definition) in std::mem::take(&mut builder.class_cells) {
             classes[class].class_cell = Some(definition);
         }
+        if let Some(origins) = origins.as_deref_mut() {
+            origins.bodies.insert(hir_fn_id, crate::trace_lowering::FunctionOrigin {
+                locals: builder.local_map.clone(),
+                expressions: builder.trace_expressions.take().unwrap_or_default(),
+            });
+        }
         functions[mir_fn_id].body = crate::mir::Body {
             source_handler_contracts: std::mem::take(&mut builder.source_handler_contracts),
             locals: builder.locals,
@@ -436,6 +453,12 @@ pub fn build_program(
         &hir_class_globals,
     );
 
+    if let Some(origins) = origins {
+        origins.functions = fn_map;
+        origins.classes = hir_class_globals;
+        origins.globals = module_var_ids;
+        origins.collect_generators(&program);
+    }
     (program, exports, diagnostics)
 }
 
@@ -462,6 +485,7 @@ pub fn ty_to_mir(ty: &Ty) -> MirType {
 /// 字段对外开放到 crate 内，是为了把「循环」「异常区域」这些小节的构建逻辑拆到
 /// 独立文件（`build_loops.rs` / `build_try.rs`），避免单文件过长。
 pub(crate) struct FunctionBuilder<'a> {
+    pub(crate) trace_expressions: Option<Vec<crate::trace_lowering::ExpressionOrigin>>,
     pub(crate) module_state: Option<MirLocalId>,
     pub(crate) hir: &'a Module,
     pub(crate) types: &'a ModuleTypes,

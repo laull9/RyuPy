@@ -45,6 +45,14 @@ pub struct UnitMeta {
 ///
 /// `entry` 是入口模块在 `units` 里的下标（`__main__`）。
 pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
+    link_with_origins(units, entry, None)
+}
+
+pub(crate) fn link_with_origins(
+    units: Vec<(Program, UnitMeta)>,
+    entry: usize,
+    mut origins: Option<&mut Vec<crate::trace_lowering::LinkRemap>>,
+) -> LinkedProgram {
     let mut functions: Arena<Function> = Arena::default();
     let mut classes: Arena<ClassDef> = Arena::default();
     let mut globals: Arena<GlobalDecl> = Arena::default();
@@ -206,6 +214,9 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             }
         }
 
+        if let Some(origins) = origins.as_deref_mut() {
+            origins.push(crate::trace_lowering::LinkRemap::new(&fn_map, &global_map));
+        }
         // 4. 模块导出表。
         let exports = meta
             .exports
@@ -536,53 +547,4 @@ fn remap_class_cell(
         }
     }
     mapped
-}
-
-impl ClassDef {
-    /// link 阶段先占位，随后整体覆盖。
-    fn placeholder() -> Self {
-        Self {
-            class_cell: None,
-            name: String::new(),
-            codegen_name: String::new(),
-            fields: Vec::new(),
-            is_value_type: false,
-            is_dataclass: false,
-            base: None,
-            builtin_base: None,
-            is_exception: false,
-            factory_global: None,
-        }
-    }
-}
-
-impl Function {
-    /// 空程序兜底用；正常流程不会使用。
-    fn placeholder() -> Self {
-        Self {
-            module_state: None,
-            instance_capabilities: Default::default(),
-            module_state_source: None,
-            name: String::new(),
-            codegen_name: String::new(),
-            source_file: String::new(),
-            definition: None,
-            params: Vec::new(),
-            ret: MirType::Unit,
-            body: Body {
-                source_handler_contracts: Vec::new(),
-                locals: Arena::default(),
-                blocks: Arena::default(),
-                entry: la_arena::Idx::from_raw(0.into()),
-                regions: Vec::new(),
-            },
-            param_meta: Vec::new(),
-            function_global: None,
-            specialization_identity_global: None,
-            defaults_global: None,
-            signature_global: None,
-            env: None,
-            dynamic_origin: None,
-        }
-    }
 }

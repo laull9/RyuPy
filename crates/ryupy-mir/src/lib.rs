@@ -44,6 +44,7 @@ mod function_module_tests;
 mod generator_exceptions;
 mod generators;
 pub mod link;
+mod link_placeholders;
 mod mir;
 mod module_execution;
 mod module_location;
@@ -156,3 +157,14 @@ mod instance_handler_tests;
 mod trace_adapter_test;
 #[cfg(all(test, feature = "trace-adapter-test"))]
 mod trace_adapter_test_tests;
+
+pub mod trace_domain;
+mod trace_domain_check;
+mod trace_domain_transfer;
+#[cfg(test)]
+mod trace_domain_tests;
+
+pub mod trace_lowering;
+pub mod trace_final_audit;
+#[cfg(test)]
+mod trace_lowering_tests;

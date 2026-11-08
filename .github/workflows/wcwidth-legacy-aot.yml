@@ -179,6 +179,7 @@ jobs:
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
   trace-adapter-s2:
+    needs: trace-rust-preflight
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -223,5 +224,45 @@ jobs:
             target/trace-adapter-s2/probe-runtime/bin
             target/trace-adapter-s2/default-runtime/bin
             target/wcwidth-aot-evidence/prepare.log
+          if-no-files-found: error
+          retention-days: 3
+
+  trace-rust-preflight:
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Rust前置采集与结果聚合器自测
+        run: python3 -B -m unittest discover -s tests/aot/wcwidth_ci -p test_trace_rust_preflight.py
+      - name: 仅准备固定SHA的官方Rust组件
+        run: |
+          mkdir -p target/trace-rust-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py", "--rust-only"]' > target/trace-rust-prepare/prepare.argv.json
+          pwd > target/trace-rust-prepare/prepare.cwd
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py --rust-only > target/trace-rust-prepare/prepare.stdout 2> target/trace-rust-prepare/prepare.stderr || status=$?
+          printf '%s\n' "$status" > target/trace-rust-prepare/prepare.exit
+          cat target/trace-rust-prepare/prepare.stdout
+          cat target/trace-rust-prepare/prepare.stderr >&2
+          exit "$status"
+      - name: 格式、MIR编译及七项定向Rust测试（无产品执行）
+        run: python3 -B tests/aot/wcwidth_ci/trace_rust_preflight.py
+      - name: 保留首次Rust检查原流与精确身份
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trace-rust-preflight-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/trace-rust-preflight
+            target/trace-rust-prepare
+            ${{ runner.temp }}/wcwidth-rust-tools/download-identity.json
           if-no-files-found: error
           retention-days: 3

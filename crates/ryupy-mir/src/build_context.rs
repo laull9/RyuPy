@@ -28,6 +28,7 @@ impl<'a> FunctionBuilder<'a> {
             terminator: Terminator::Unreachable,
         });
         Self {
+            trace_expressions: None,
             module_state: None,
             hir,
             types,
