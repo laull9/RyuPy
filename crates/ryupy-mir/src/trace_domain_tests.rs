@@ -40,17 +40,28 @@ fn original_frames_has_closed_value_and_error_flow() {
 
 #[test]
 fn source_names_and_module_aliases_do_not_grant_capabilities() {
-    let renamed = ORIGINAL.replace("Target", "Container").replace("generate", "produce")
-        .replace("error", "problem").replace("target failed", "different text");
+    let renamed = ORIGINAL
+        .replace("Target", "Container")
+        .replace("generate", "produce")
+        .replace("error", "problem")
+        .replace("target failed", "different text");
     accepted_facts(&renamed);
-    let aliases = ORIGINAL.replace("it = generate(Target())", "g = generate\nc = Target\nn = next\np = print\nit = g(c())")
-        .replace("print(next(it))", "p(n(it))").replace("\nnext(it)", "\nn(it)");
+    let aliases = ORIGINAL
+        .replace(
+            "it = generate(Target())",
+            "g = generate\nc = Target\nn = next\np = print\nit = g(c())",
+        )
+        .replace("print(next(it))", "p(n(it))")
+        .replace("\nnext(it)", "\nn(it)");
     accepted_facts(&aliases);
 }
 
 #[test]
 fn ordinary_parameter_and_return_wrappers_preserve_generator_identity() {
-    let source = ORIGINAL.replace("it = generate(Target())", "def wrap(f, value):\n    return f(value)\n\nit = wrap(generate, Target())");
+    let source = ORIGINAL.replace(
+        "it = generate(Target())",
+        "def wrap(f, value):\n    return f(value)\n\nit = wrap(generate, Target())",
+    );
     accepted_facts(&source);
 }
 
@@ -74,7 +85,10 @@ fn unknown_shadow_and_non_generator_inputs_are_rejected() {
         ORIGINAL.replace("next(it)", "next(Target())"),
         ORIGINAL.replace("target.error", "target.missing"),
         ORIGINAL.replace("@property", "@unknown"),
-        ORIGINAL.replace("it = generate(Target())", "next = Target\nit = generate(Target())"),
+        ORIGINAL.replace(
+            "it = generate(Target())",
+            "next = Target\nit = generate(Target())",
+        ),
     ] {
         let result = facts(&source, true);
         assert!(!result.refusals.is_empty());

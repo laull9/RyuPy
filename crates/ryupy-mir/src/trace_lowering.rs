@@ -44,7 +44,10 @@ impl LoweringOrigins {
         for (factory, function) in program.functions.iter() {
             for (_, block) in function.body.blocks.iter() {
                 for statement in &block.stmts {
-                    if let Statement::Assign { value: Rvalue::MakeGenerator { resume, frame, .. }, .. } = statement
+                    if let Statement::Assign {
+                        value: Rvalue::MakeGenerator { resume, frame, .. },
+                        ..
+                    } = statement
                         && let Some(frame_parameter) = program.functions[*resume].params.first()
                     {
                         self.generators.push(GeneratorOrigin {
@@ -64,9 +67,15 @@ impl LoweringOrigins {
 pub fn build_for_audit(
     hir: &ryupy_hir::Module,
     types: &ryupy_ty::ModuleTypes,
-) -> (Program, Vec<crate::ModuleExport>, Vec<ryupy_base::Diagnostic>, LoweringOrigins) {
+) -> (
+    Program,
+    Vec<crate::ModuleExport>,
+    Vec<ryupy_base::Diagnostic>,
+    LoweringOrigins,
+) {
     let mut origins = LoweringOrigins::default();
-    let (program, exports, diagnostics) = crate::build::build_program_with_origins(hir, types, Some(&mut origins));
+    let (program, exports, diagnostics) =
+        crate::build::build_program_with_origins(hir, types, Some(&mut origins));
     (program, exports, diagnostics, origins)
 }
 
@@ -78,8 +87,14 @@ pub struct LinkRemap {
 }
 
 impl LinkRemap {
-    pub(crate) fn new(functions: &FxHashMap<FnId, FnId>, globals: &FxHashMap<GlobalId, GlobalId>) -> Self {
-        Self { functions: functions.clone(), globals: globals.clone() }
+    pub(crate) fn new(
+        functions: &FxHashMap<FnId, FnId>,
+        globals: &FxHashMap<GlobalId, GlobalId>,
+    ) -> Self {
+        Self {
+            functions: functions.clone(),
+            globals: globals.clone(),
+        }
     }
 }
 

@@ -160,11 +160,11 @@ mod trace_adapter_test_tests;
 
 pub mod trace_domain;
 mod trace_domain_check;
-mod trace_domain_transfer;
 #[cfg(test)]
 mod trace_domain_tests;
+mod trace_domain_transfer;
 
-pub mod trace_lowering;
 pub mod trace_final_audit;
+pub mod trace_lowering;
 #[cfg(test)]
 mod trace_lowering_tests;

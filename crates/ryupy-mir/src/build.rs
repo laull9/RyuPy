@@ -405,10 +405,13 @@ pub(crate) fn build_program_with_origins(
             classes[class].class_cell = Some(definition);
         }
         if let Some(origins) = origins.as_deref_mut() {
-            origins.bodies.insert(hir_fn_id, crate::trace_lowering::FunctionOrigin {
-                locals: builder.local_map.clone(),
-                expressions: builder.trace_expressions.take().unwrap_or_default(),
-            });
+            origins.bodies.insert(
+                hir_fn_id,
+                crate::trace_lowering::FunctionOrigin {
+                    locals: builder.local_map.clone(),
+                    expressions: builder.trace_expressions.take().unwrap_or_default(),
+                },
+            );
         }
         functions[mir_fn_id].body = crate::mir::Body {
             source_handler_contracts: std::mem::take(&mut builder.source_handler_contracts),

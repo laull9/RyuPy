@@ -2,8 +2,8 @@
 //!
 //! 此结果只是 HIR 事实，不是生产协议证书。只有后续对最终 MIR 的来源、
 //! 实参、恢复槽和运行时失败边全部验证后才能签发证书；本模块不选择协议。
-use ryupy_hir::{ClassId, ExprId, FuncId, LocalId, ModuleVarId};
 use rustc_hash::FxHashMap;
+use ryupy_hir::{ClassId, ExprId, FuncId, LocalId, ModuleVarId};
 use std::collections::BTreeSet;
 
 /// 每个候选集合的硬上限。溢出只变为未知，不能截断后继续证明。
@@ -58,11 +58,17 @@ impl Values {
     }
 
     pub(crate) fn one(atom: Atom) -> Self {
-        Self { atoms: vec![atom], unknown: false }
+        Self {
+            atoms: vec![atom],
+            unknown: false,
+        }
     }
 
     pub(crate) fn unknown() -> Self {
-        Self { atoms: Vec::new(), unknown: true }
+        Self {
+            atoms: Vec::new(),
+            unknown: true,
+        }
     }
 
     /// 返回是否真正增长；未知传播后不保留可被误当作完整集合的前缀。

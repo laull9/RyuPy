@@ -20,10 +20,15 @@ fn audit_build_and_link_preserve_real_generator_and_parameter_origins() {
     assert_eq!(origins.generators.len(), 1);
     let generator = &origins.generators[0];
     assert_ne!(generator.factory, generator.resume);
-    assert_eq!(program.functions[generator.resume].params, vec![generator.frame_parameter]);
+    assert_eq!(
+        program.functions[generator.resume].params,
+        vec![generator.frame_parameter]
+    );
     for parameter in &program.functions[generator.factory].params {
         let slot = parameter.into_raw().into_u32() as usize + 4;
-        assert!(matches!(generator.initial_slots[slot], Operand::Local(local) if local == *parameter));
+        assert!(
+            matches!(generator.initial_slots[slot], Operand::Local(local) if local == *parameter)
+        );
     }
     let meta = UnitMeta {
         instance_capabilities: Default::default(),
@@ -40,9 +45,22 @@ fn audit_build_and_link_preserve_real_generator_and_parameter_origins() {
     };
     let (linked, maps) = trace_lowering::link_for_audit(vec![(program, meta)], 0);
     let audit = trace_final_audit::inspect(&linked, &origins, &maps);
-    assert!(audit.mapping_errors.is_empty(), "{:?}", audit.mapping_errors);
+    assert!(
+        audit.mapping_errors.is_empty(),
+        "{:?}",
+        audit.mapping_errors
+    );
     assert!(!audit.operations.is_empty());
-    assert!(audit.operations.iter().any(|site| matches!(site.operation, Rvalue::MakeGenerator { .. })));
+    assert!(
+        audit
+            .operations
+            .iter()
+            .any(|site| matches!(site.operation, Rvalue::MakeGenerator { .. }))
+    );
     // 缺失link来源必须拒绝审计，而不能借单模块下标碰巧相等放行。
-    assert!(!trace_final_audit::inspect(&linked, &origins, &[]).mapping_errors.is_empty());
+    assert!(
+        !trace_final_audit::inspect(&linked, &origins, &[])
+            .mapping_errors
+            .is_empty()
+    );
 }
