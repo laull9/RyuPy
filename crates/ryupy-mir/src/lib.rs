@@ -45,6 +45,7 @@ mod function_module_tests;
 mod generator_exceptions;
 pub mod generator_product;
 mod generator_product_cursor;
+mod generator_product_edge_witness;
 mod generator_product_effects;
 mod generator_product_high;
 mod generator_product_identity;

@@ -1,5 +1,6 @@
 //! 高层 trace 操作守恒合同。先核真实 Push/Pop/owner，再固定源码构建的 effect 序列及 EH；
 //! pass 只能删除纯死值与收拢空跳转，不能凭 RuntimeFn 名字擦掉额外源操作后宣称等价。
+use crate::generator_product_edge_witness::EdgeWitness;
 use crate::generator_product_identity::FunctionIdentity;
 use crate::*;
 use rustc_hash::FxHashSet;
@@ -10,6 +11,8 @@ pub(super) struct Contract {
     locals: Vec<Vec<LocalDecl>>,
     edges: Vec<Vec<Option<Terminator>>>,
     regions: Vec<Vec<Region>>,
+    // 只用于首个边拒绝的说明；capture时保存原图，不影响任何比较或准入条件。
+    edge_witnesses: Vec<Vec<EdgeWitness>>,
 }
 fn effect(statement: &Statement) -> bool {
     !matches!(
@@ -85,6 +88,7 @@ impl Contract {
             locals: vec![],
             edges: vec![],
             regions: vec![],
+            edge_witnesses: vec![],
         };
         for (id, function) in program.functions.iter() {
             check_stack(program, id, generators.contains(&id))?;
@@ -127,6 +131,14 @@ impl Contract {
                     .collect(),
             );
             result.regions.push(function.body.regions.clone());
+            result.edge_witnesses.push(
+                function
+                    .body
+                    .blocks
+                    .iter()
+                    .map(|(_, block)| EdgeWitness::capture(&function.body, &block.terminator))
+                    .collect(),
+            );
         }
         Ok(result)
     }
@@ -134,8 +146,8 @@ impl Contract {
         if self.identities.len() != program.functions.len() {
             return Err("pass改写了真实函数身份集合".into());
         }
-        for (index, (id, function)) in program.functions.iter().enumerate() {
-            check_stack(program, id, generators.contains(&id))?;
+        for (index, (function_id, function)) in program.functions.iter().enumerate() {
+            check_stack(program, function_id, generators.contains(&function_id))?;
             if self.identities[index] != FunctionIdentity::capture(function)
                 || self.regions[index] != function.body.regions
                 || self.edges[index].len() != function.body.blocks.len()
@@ -165,7 +177,14 @@ impl Contract {
                     }
                     preserve(&self.statements[index][ordinal], actual, &reads)?;
                     if edge(&function.body, &block.terminator)? != edge(&function.body, expected)? {
-                        return Err("pass改变了实际源effect/行号/控制边".into());
+                        return Err(crate::generator_product_edge_witness::failure(
+                            function_id,
+                            id,
+                            &self.edge_witnesses[index][ordinal],
+                            &function.body,
+                            expected,
+                            &block.terminator,
+                        ));
                     }
                 } else if live.contains(&id) || !actual.is_empty() {
                     return Err("pass激活了原本不可达的源码操作".into());
