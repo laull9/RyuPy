@@ -223,15 +223,16 @@ class Preflight(unittest.TestCase):
             good = output(group)
             self.assertFalse(gate.tests_complete(good.replace("ignored, known experimental failure", "ok", 1), group, universe(group)))
 
-    def test_all_four_product_groups_match_current_source_names_without_ignores(self):
+    def test_all_product_groups_match_current_source_names_without_ignores(self):
         files = {
             "product": ("generator_product_tests.rs", 7),
             "product-structure": ("generator_product_structure_tests.rs", 4),
             "product-edge-witness": ("generator_product_edge_witness_tests.rs", 7),
             "product-edges": ("generator_product_edges_tests.rs", 6),
+            "product-defaults": ("generator_product_defaults_tests.rs", 7),
         }
         self.assertEqual(set(files), set(gate.PRODUCT_GROUPS))
-        self.assertEqual(sum(count for _, count in files.values()), 24)
+        self.assertEqual(sum(count for _, count in files.values()), 31)
         for group, (filename, count) in files.items():
             source = (gate.ROOT / "crates/ryupy-mir/src" / filename).read_text()
             names = gate.re.findall(r"#\[test\]\s*fn (\w+)\(", source)

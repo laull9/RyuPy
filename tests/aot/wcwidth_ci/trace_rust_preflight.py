@@ -88,6 +88,15 @@ EXPECTED = {
         "invalid_targets_regions_and_exclusive_end_are_errors_not_panics",
         "folding_then_bypassing_an_original_empty_branch_remains_rejected",
     ],
+    "product-defaults": [
+        "actual_null_slots_and_local_aliases_preserve_python_arity_not_owner",
+        "receiver_requires_real_same_block_instance_not_labels_null_or_overwrite",
+        "construction_checks_actual_ids_metadata_null_slots_and_hidden_owner",
+        "cold_chain_rejects_unknown_steps_and_wrong_module_receiver",
+        "private_slot_role_export_wrong_id_and_duplicate_publication_reject",
+        "opaque_defaults_reject_other_consumers_and_control_escape",
+        "zero_multi_renamed_and_aliased_functions_link_but_defaults_stay_outside",
+    ],
     "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
     "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],
 }
@@ -130,8 +139,9 @@ MIR_MODULES = {
     "product-structure": "generator_product_structure_tests",
     "product-edge-witness": "generator_product_edge_witness::tests",
     "product-edges": "generator_product_edges::tests",
+    "product-defaults": "generator_product_defaults_tests",
 }
-PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges")
+PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges", "product-defaults")
 REQUIRED = {
     "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
     "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",

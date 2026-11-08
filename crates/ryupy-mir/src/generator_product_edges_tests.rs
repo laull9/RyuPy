@@ -201,7 +201,11 @@ fn original_and_final_empty_cycles_are_rejected_even_after_an_anchor() {
         source.regions = bad.regions.clone();
         let edges = Edges::capture(&source).unwrap();
         assert!(check(&bad).is_err());
-        assert!(edges.normalize(&bad, &bad.blocks[id(0)].terminator).is_err());
+        assert!(
+            edges
+                .normalize(&bad, &bad.blocks[id(0)].terminator)
+                .is_err()
+        );
     }
     let mut nonempty_loop = body();
     nonempty_loop.blocks[id(3)].terminator = Terminator::Goto(id(3));

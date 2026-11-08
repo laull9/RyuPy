@@ -1,7 +1,7 @@
 //! 空桥修复正例与失败见证反例；原诊断的合法桥误拒断言/原流已外置冻结保留。
 use super::*;
-use crate::generator_product_trace::Contract;
 use crate::generator_product_tests::frontend;
+use crate::generator_product_trace::Contract;
 use crate::passes::MirPass;
 use crate::*;
 use la_arena::Arena;
@@ -141,22 +141,28 @@ fn dead_values_keep_original_nonempty_anchor_but_bypassing_it_rejects() {
         let mut program = graph();
         let function = &mut program.functions[program.entry];
         let dest = function.body.locals.alloc(LocalDecl {
-            ty: if boxed { MirType::Dynamic } else { MirType::I64 },
+            ty: if boxed {
+                MirType::Dynamic
+            } else {
+                MirType::I64
+            },
             name: None,
             is_cell: false,
         });
         let value = Operand::Const(Constant::I64(7));
-        function.body.blocks[block(1)].stmts.push(Statement::Assign {
-            dest,
-            value: if boxed {
-                Rvalue::Box {
-                    value,
-                    from: MirType::I64,
-                }
-            } else {
-                Rvalue::Use(value)
-            },
-        });
+        function.body.blocks[block(1)]
+            .stmts
+            .push(Statement::Assign {
+                dest,
+                value: if boxed {
+                    Rvalue::Box {
+                        value,
+                        from: MirType::I64,
+                    }
+                } else {
+                    Rvalue::Use(value)
+                },
+            });
         validate::validate_high(&program, &[]).unwrap();
         let contract = Contract::capture(&program, &[]).unwrap();
         let function = &mut program.functions[program.entry];

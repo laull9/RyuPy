@@ -13,6 +13,7 @@ pub(super) enum Value {
     None,
     Null,
     Function(FnId),
+    FunctionDefaults(FnId),
     Class(GlobalId),
     Instance(GlobalId),
     Generator(FnId),
@@ -130,6 +131,7 @@ pub(super) struct Resolver<'a> {
     pub program: &'a Program,
     pub bounds: &'a Bounds,
     pub generators: &'a [FnId],
+    pub defaults: &'a crate::generator_product_defaults::Defaults,
     pub properties: FxHashMap<(GlobalId, String), FnId>,
 }
 
@@ -198,6 +200,9 @@ impl Resolver<'_> {
                 values
             }
             Operand::Global(global) => {
+                if self.defaults.private_slot(*global) {
+                    return Err("FunctionDefaults合同：私有槽不能作为高层值读取".into());
+                }
                 let mut values = Vec::new();
                 for (owner, definition) in self.program.functions.iter() {
                     for (_, block) in definition.body.blocks.iter() {
@@ -238,19 +243,15 @@ impl Resolver<'_> {
         match value {
             Rvalue::Use(value) | Rvalue::Box { value, .. } => self.resolve(function, value, path),
             Rvalue::CatchException => Ok(vec![Value::Error]),
-            Rvalue::MakeFunction {
-                instance_context: None,
-                func,
-                env,
-                defaults,
-            } if env.is_empty()
-                && defaults
-                    .iter()
-                    .all(|v| matches!(v, Operand::Const(Constant::Null)))
-                && defaults.len() == self.program.functions[*func].param_meta.len() =>
-            {
-                Ok(vec![Value::Function(*func)])
-            }
+            Rvalue::MakeFunction { .. } => Ok(vec![Value::Function(
+                crate::generator_product_defaults::make_function(self.program, value)?,
+            )]),
+            Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::FunctionDefaults),
+                ..
+            } => Ok(vec![Value::FunctionDefaults(
+                self.defaults.getter(function, dest)?,
+            )]),
             Rvalue::Call {
                 callee: Callee::Fn(target),
                 args,

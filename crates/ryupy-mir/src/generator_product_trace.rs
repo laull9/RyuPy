@@ -146,7 +146,11 @@ impl Contract {
                         continue;
                     }
                     preserve(&self.statements[index][ordinal], actual, &reads)?;
-                    if !self.canonical_edges[index].matches(&function.body, id, &block.terminator)? {
+                    if !self.canonical_edges[index].matches(
+                        &function.body,
+                        id,
+                        &block.terminator,
+                    )? {
                         return Err(crate::generator_product_edge_witness::failure(
                             function_id,
                             id,

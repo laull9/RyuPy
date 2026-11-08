@@ -55,9 +55,8 @@ fn target(
         {
             check_id(body, next)?;
             if canonical.is_none()
-                && anchors.is_some_and(|anchors| {
-                    anchors.contains(&id) || !same_regions(body, id, next)
-                })
+                && anchors
+                    .is_some_and(|anchors| anchors.contains(&id) || !same_regions(body, id, next))
             {
                 canonical = Some(id);
             }

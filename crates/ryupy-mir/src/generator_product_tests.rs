@@ -50,7 +50,7 @@ fn metadata(exports: Vec<ModuleExport>) -> UnitMeta {
         exports,
     }
 }
-fn linked(source: &str) -> LinkedProgram {
+pub(super) fn linked(source: &str) -> LinkedProgram {
     let (program, exports, proof) = product(source).expect("产品实际编译");
     generator_product::link(vec![(program, metadata(exports))], 0, vec![proof])
         .expect("真实link验证")

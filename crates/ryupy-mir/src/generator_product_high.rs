@@ -45,10 +45,12 @@ pub(super) fn inspect(
             return Err("产品域不接受Instance全局".into());
         }
     }
+    let defaults = crate::generator_product_defaults::Defaults::inspect(program, exports)?;
     let mut resolver = Resolver {
         program,
         bounds: &bounds,
         generators,
+        defaults: &defaults,
         properties: FxHashMap::default(),
     };
     // 先从真实SetAttr闭合property表。只允许模块一次写入，不能以HIR名称代替实际receiver/getter。
