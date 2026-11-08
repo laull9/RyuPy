@@ -53,6 +53,28 @@ public sealed class PyTraceStateV1ArtifactContractTests
         Assert.True(C.AllowsGeneratorStackUse(depth, "callvirt", C.Method("Stack<Int64>", "Peek", "!0", true)));
         Assert.False(C.AllowsGeneratorStackUse(depth, "callvirt", C.Method("Stack<Int64>", "Clear", "Void", true)));
         Assert.False(C.AllowsGeneratorStackUse(depth, "ldftn", C.Method("Stack<Int64>", "Peek", "!0", true)));
+
+        // 三个具体方法可将已有值物化为局部；这不授予其它方法、包装类型或 IL 操作权限。
+        var materialized = new[]
+        {
+            new C.Edge("PyTraceback", C.Method("PyTraceback", "ProductBoundary", "TraceBoundary", false, "TraceEpoch", "Int64"), "local", "TraceBoundary"),
+            new C.Edge("PyTraceProduct", C.Method("PyTraceProduct", "Park", "Object", false, "Object", "Int64"), "local", "TraceProductBinding"),
+            new C.Edge("PyTraceProduct", C.Method("PyTraceProduct", "Bind", "TraceProductBinding", false, "PyBaseException"), "local", "TraceProductBinding")
+        };
+        foreach (var local in materialized)
+        {
+            Assert.True(contract.Allows(local));
+            Assert.False(contract.Allows(local with { Source = C.Method(local.Owner, "Unlisted", "Void") }));
+            Assert.False(contract.Allows(local with { Owner = "PyTraceProduct", Source = C.Method("PyTraceProduct", "AllMiss", "Void", false, "Object") }));
+            Assert.False(contract.Allows(local with { Source = local.Source.Replace("[0;0;", "[32;0;", StringComparison.Ordinal) }));
+            Assert.False(contract.Allows(local with { Target = "TraceBirthGrant" }));
+            Assert.False(contract.Allows(local with { Target = local.Target + "[]" }));
+            Assert.False(contract.Allows(local with { Target = local.Target + "&" }));
+            Assert.False(contract.Allows(local with { Kind = "field" }));
+            Assert.False(contract.Allows(local with { Kind = "catch" }));
+            Assert.False(contract.Allows(local with { Kind = "IL", Target = "box " + local.Target }));
+            Assert.False(contract.Allows(local with { Kind = "IL", Target = "ldftn " + C.Method("PyTraceState", "Receive", "TraceResult", true, "TraceReceive") }));
+        }
     }
 
     [Fact]

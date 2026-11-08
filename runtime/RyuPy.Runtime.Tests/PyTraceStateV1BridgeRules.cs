@@ -36,7 +36,7 @@ internal sealed partial class PyTraceStateV1ArtifactContract
         Rule(P("Exit", "Void"), ["TraceProductScope"], Call(scope), Read(flights), Read(parks), Read(generators), Call(setActive));
 
         // 只有两个源操作发布 binding；Bind 单独有 new owner 权限，构造异常没有。
-        Rule(bind, [], Read(binding), Call(existing), Call(scope), Read(authority),
+        Rule(bind, ["TraceProductBinding"], Read(binding), Call(existing), Call(scope), Read(authority),
             New(I("PyTraceState", ".ctor", "Void", "PyTraceContextAuthority")), New(newBinding));
         Rule(existing, ["TraceProductBinding"], Read(binding), Virtual(boundScope), Call(scope));
         Rule(P("Explicit", "Object", "Object"), ["TraceProductBinding", "TraceSnapshot"],
@@ -49,7 +49,7 @@ internal sealed partial class PyTraceStateV1ArtifactContract
             Call(I("Nullable<TraceRequest>", "get_HasValue", "Boolean")), Call(I("Nullable<TraceRequest>", "GetValueOrDefault", "!0")),
             Call(Getter("TraceRequest", "Number", "Int64")), New(I("TraceRequest", ".ctor", "Void", "PyTraceState", "TraceEpoch", "Int64")));
 
-        Rule(P("Park", "Object", "Object", "Int64"), ["TraceSnapshot", "TraceBoundary", "TraceResult", "TraceDispatchPark"],
+        Rule(P("Park", "Object", "Object", "Int64"), ["TraceProductBinding", "TraceSnapshot", "TraceBoundary", "TraceResult", "TraceDispatchPark"],
             Call(existing), Virtual(owner), Virtual(snapshot), Virtual(epoch), Call(boundary),
             Virtual(I("PyTraceState", "DispatchPark", "TraceResult", "TraceBoundary", "TraceDispatchPark&")), Call(apply));
         string consume = P("Consume", "Void", "Object", "Boolean");
@@ -110,7 +110,7 @@ internal sealed partial class PyTraceStateV1ArtifactContract
             Call(P("get_Active", "TraceProductScope")), Read(activation), Write(activation));
         Rule(S("PyTraceback", "ProductScene", "TraceFrame[]"), ["TraceFrame[]"], enabled, "newarr TraceFrame",
             New(I("TraceFrame", ".ctor", "Void", "Int64", "String", "String", "Int32")), "stelem TraceFrame");
-        Rule(S("PyTraceback", "ProductBoundary", "TraceBoundary", "TraceEpoch", "Int64"), [],
+        Rule(S("PyTraceback", "ProductBoundary", "TraceBoundary", "TraceEpoch", "Int64"), ["TraceBoundary"],
             New(I("TraceBoundary", ".ctor", "Void", "TraceEpoch", "Int32", "Int64")));
         Rule(S("PyTraceback", "Attach", "Void", "Object"), [], enabled);
         Rule(S("PyTraceback", "CheckDepth", "Void"), [], FreshCall("PyRecursionError"));
