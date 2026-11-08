@@ -48,12 +48,18 @@ fn rejected_because(program: &Program, origins: &LoweringOrigins, reason: &str) 
 #[test]
 fn original_frames_has_pc_partitioned_retry_frame_obligations() {
     let (program, origins) = build(SOURCE);
-    let result = trace_frame::inspect(
+    trace_frame::observer::start(
         &program,
         &origins.generators[0],
         &origins.generator_layouts[0],
-    )
-    .expect("原 frames 的私有 frame 义务应闭合");
+    );
+    let analysis = trace_frame::inspect(
+        &program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    );
+    trace_frame::observer::finish(&analysis);
+    let result = analysis.expect("原 frames 的私有 frame 义务应闭合");
     println!(
         "frame obligations: accesses={} states={} caught_reads={} retry_edges={}",
         result.frame_accesses, result.explored_states, result.exception_reads, result.retry_edges

@@ -110,13 +110,19 @@ pub(super) fn check(root: &Path) {
     assert_eq!(factory_id, origins.functions[&generator_id]);
     assert_eq!(factory.name, "unsupported");
     let local_map = &origins.bodies[&generator_id].locals;
-    let python_params: Vec<_> = generator.params.iter().map(|p| local_map[&p.local]).collect();
+    let python_params: Vec<_> = generator
+        .params
+        .iter()
+        .map(|p| local_map[&p.local])
+        .collect();
     let target = local_map[&generator.params[0].local];
     assert_eq!(factory.param_meta.len(), generator.params.len());
     let metadata = &factory.param_meta[0];
     assert_eq!(
         metadata.name,
-        generator.body.locals[generator.params[0].local].name.as_str()
+        generator.body.locals[generator.params[0].local]
+            .name
+            .as_str()
     );
     assert_eq!(metadata.kind, ryupy_mir::ParamKind::PositionalOrKeyword);
     assert!(!metadata.has_default);

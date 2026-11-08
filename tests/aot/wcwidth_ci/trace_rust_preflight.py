@@ -10,6 +10,8 @@ import subprocess
 import sys
 import time
 
+import trace_frame_observation
+
 ROOT = Path(__file__).resolve().parents[3]
 OUTPUT = ROOT / "target/trace-rust-preflight"
 EXPECTED = {
@@ -35,6 +37,12 @@ EXPECTED = {
         "caught_read_into_wrong_handler_local_is_rejected",
         "repeated_actual_match_block_converges_without_epoch_growth",
         "old_copy_never_revives_after_repeated_current_writes",
+    ],
+    "observer": [
+        "bounded_encoding_checks_actual_bytes_and_errors",
+        "failed_export_is_separate_from_analysis_result",
+        "actual_inspection_is_unchanged_when_observation_stops",
+        "record_and_event_limits_keep_decodable_prefixes",
     ],
     "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
     "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],
@@ -67,7 +75,7 @@ def capture(directory, label, argv, cwd, timeout=900):
     return code
 
 
-MIR_MODULES = {"domain": "trace_domain_tests", "lowering": "trace_lowering_tests", "frame": "trace_frame_tests"}
+MIR_MODULES = {"domain": "trace_domain_tests", "lowering": "trace_lowering_tests", "frame": "trace_frame_tests", "observer": "trace_frame::observer::tests"}
 REQUIRED = {
     "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
     "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",
@@ -184,7 +192,13 @@ def main():
         if codes.get("mir-list") == 0:
             argv = ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", module,
                     "--", "--color", "never", "--test-threads=1", "--show-output"]
-            run(group, argv, 600)
+            if group == "frame":
+                os.environ["RYUPY_FRAME_OBSERVATION"] = str((OUTPUT / "frame-observation").resolve())
+            try:
+                run(group, argv, 600)
+            finally:
+                if group == "frame":
+                    os.environ.pop("RYUPY_FRAME_OBSERVATION", None)
         else:
             skip(group, "MIR test compilation/list failed")
     # 两模式分别check和启动新的test进程；默认失败不吞pilot反馈，反之亦然。
@@ -206,7 +220,11 @@ def main():
     ):
         codes[label] = capture(OUTPUT, label, argv, ROOT, timeout=60)
     outputs = {name: (OUTPUT / f"{name}.stdout").read_text(errors="replace") for name in codes if codes[name] is not None}
+    observation = trace_frame_observation.collect(ROOT, OUTPUT, outputs.get("git-head", ""), outputs.get("git-tree", ""))
     report = aggregate(codes, outputs)
+    if not observation["complete"]:
+        report["failures"].append("frame-observation: incomplete or failed; no automatic rerun")
+        report["success"] = False
     expected_head = os.environ.get("GITHUB_SHA")
     if not expected_head or outputs.get("git-head", "").strip() != expected_head:
         report["failures"].append("git-head: missing or mismatched GITHUB_SHA")

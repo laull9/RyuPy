@@ -10,6 +10,9 @@ use crate::*;
 use eval::{age_exceptions, evaluate, initial_slots, may_throw};
 #[path = "trace_frame_relations.rs"]
 mod relations;
+#[cfg(test)]
+#[path = "trace_frame_observer.rs"]
+pub(crate) mod observer;
 
 pub const STATE_BUDGET: usize = 32768;
 pub const STEP_BUDGET: usize = 524288;
@@ -72,8 +75,10 @@ pub fn inspect<'a>(
     layout: &GeneratorLayout,
 ) -> Result<FrameObligations<'a>, String> {
     let mut diagnostics = FrameDiagnostics::default();
-    inspect_with_diagnostics(program, origin, layout, &mut diagnostics)
-        .map_err(|error| format!("{error}; diagnostics={diagnostics:?}"))
+    let result = inspect_with_diagnostics(program, origin, layout, &mut diagnostics);
+    #[cfg(test)]
+    observer::analysis(&diagnostics);
+    result.map_err(|error| format!("{error}; diagnostics={diagnostics:?}"))
 }
 
 pub fn inspect_with_diagnostics<'a>(
@@ -180,7 +185,10 @@ pub fn inspect_with_diagnostics<'a>(
         if steps > STEP_BUDGET || visited.len() >= STATE_BUDGET {
             return Err("frame 状态或迭代预算耗尽".into());
         }
-        if !visited.insert(state.clone()) {
+        let inserted = visited.insert(state.clone());
+        #[cfg(test)]
+        observer::record(&state, inserted);
+        if !inserted {
             diagnostics.duplicate_states += 1;
             continue;
         }
@@ -244,7 +252,8 @@ pub fn inspect_with_diagnostics<'a>(
                 if *then_ == state.block && matches!(condition, Value::Bool(true) | Value::Opaque) {
                     diagnostics.self_edges += 1;
                 }
-                if *else_ == state.block && matches!(condition, Value::Bool(false) | Value::Opaque) {
+                if *else_ == state.block && matches!(condition, Value::Bool(false) | Value::Opaque)
+                {
                     diagnostics.self_edges += 1;
                 }
                 match condition {

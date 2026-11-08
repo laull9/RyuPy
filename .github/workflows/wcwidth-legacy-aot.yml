@@ -241,7 +241,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Rust前置采集与结果聚合器自测
-        run: python3 -B -m unittest discover -s tests/aot/wcwidth_ci -p test_trace_rust_preflight.py
+        run: python3 -B -m unittest discover -s tests/aot/wcwidth_ci -p 'test_trace*.py'
       - name: 仅准备固定SHA的官方Rust组件
         run: |
           mkdir -p target/trace-rust-prepare
