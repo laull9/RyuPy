@@ -35,7 +35,7 @@ internal static class GeneratedPeChecksTests
             MemberReferenceHandle Member(EntityHandle owner, Target target) => builder.AddMemberReference(owner,
                 builder.GetOrAddString(target.Name), builder.GetOrAddBlob(Convert.FromHexString(target.Signature)));
             var explicitRef = Member(adapter, Explicit);
-            var handleRef = Member(adapter, Handle);
+            var handleRef = Member(adapter, GeneratedPeChecks.Handle);
             var localsRef = Member(ops, Locals);
             var genericRef = builder.AddMemberReference(adapter, builder.GetOrAddString("GenericOnlyForDecoder"),
                 builder.GetOrAddBlob(new byte[] { 0x10, 1, 0, 1 })); // static generic<T> void()
