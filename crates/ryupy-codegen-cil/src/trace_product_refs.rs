@@ -13,9 +13,7 @@ impl TraceProductRefs {
         program: &LinkedProgram,
         runtime: AssemblyRefIndex,
     ) -> Option<Self> {
-        if program.trace_product.is_none() {
-            return None;
-        }
+        program.trace_product.as_ref()?;
         let ty = res.push_type_reference(type_ref! { RyuPy.Runtime.PyTraceProduct in #runtime });
         let ty: MethodType = BaseType::class(ty).into();
         Some(Self {

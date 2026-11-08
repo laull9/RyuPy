@@ -152,6 +152,80 @@ class ContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             gate.Runner(json.loads((HERE / 'contract.template.json').read_text()))
 
+    def sdk_runner(self):
+        gate.load_reused(REPO)
+        runner = gate.Runner.__new__(gate.Runner)
+        runner.manifest = gate.importlib.import_module('manifest_verify')
+        runner.config = {'sdk_version': '10.0.403', 'rid': 'linux-x64'}
+        return runner
+
+    def test_publish_sdk_record_uses_strict_reader_before_manifest(self):
+        for raw in (b'10.0.403', b'10.0.403\n', b'10.0.403\r\n',
+                    b'\xef\xbb\xbf10.0.403\n', b'\xef\xbb\xbf10.0.403\r\n'):
+            with self.subTest(raw=raw), self.temporary() as directory:
+                root = Path(directory)
+                record = root / 'sdk.version'
+                record.write_bytes(raw)
+                runner = self.sdk_runner()
+                # 真实调用点与真实reader；仅在后续清单核验处停止，不执行SDK或Native。
+                with patch.object(runner.manifest, 'read_sdk_version',
+                                  wraps=runner.manifest.read_sdk_version) as reader, \
+                     patch.object(runner.manifest, 'verify_manifest',
+                                  side_effect=RuntimeError('后续清单停点')) as verify:
+                    with self.assertRaisesRegex(RuntimeError, '后续清单停点'):
+                        runner.publish_inputs(root, root, root / 'entry.py', root / 'dist', 'unused')
+                    reader.assert_called_once_with(record)
+                    verify.assert_called_once_with(root / 'dist', root / 'dist/entry',
+                                                   'linux-x64', '10.0.403')
+
+    def test_publish_sdk_invalid_record_never_reaches_manifest(self):
+        cases = [('错版本', b'10.0.402\n'), ('空值', b''), ('空行', b'\n'),
+                 ('多行', b'10.0.403\nextra'), ('重复终止行', b'10.0.403\n\n'),
+                 ('前空格', b' 10.0.403\n'), ('后空格', b'10.0.403 \n'),
+                 ('裸CR', b'10.0.403\r'), ('非法版本', b'10.0\n'),
+                 ('重复BOM', b'\xef\xbb\xbf\xef\xbb\xbf10.0.403\n'),
+                 ('非法UTF8', b'\xff10.0.403\n'), ('过大', b'1' * 257)]
+        for label, raw in cases:
+            with self.subTest(label=label), self.temporary() as directory:
+                root = Path(directory)
+                record = root / 'sdk.version'
+                record.write_bytes(raw)
+                runner = self.sdk_runner()
+                with patch.object(runner.manifest, 'read_sdk_version',
+                                  wraps=runner.manifest.read_sdk_version) as reader, \
+                     patch.object(runner.manifest, 'verify_manifest') as verify:
+                    with self.assertRaises(ValueError):
+                        runner.publish_inputs(root, root, root / 'entry.py', root / 'dist', 'unused')
+                    reader.assert_called_once_with(record)
+                    verify.assert_not_called()
+
+    def test_publish_sdk_requires_one_plain_record(self):
+        for kind in ('missing', 'multiple', 'directory', 'symlink'):
+            with self.subTest(kind=kind), self.temporary() as directory:
+                root = Path(directory)
+                record = root / 'sdk.version'
+                if kind == 'multiple':
+                    record.write_bytes(b'10.0.403\n')
+                    (root / 'another').mkdir()
+                    (root / 'another/sdk.version').write_bytes(b'10.0.403\n')
+                elif kind == 'directory':
+                    record.mkdir()
+                elif kind == 'symlink':
+                    target = root / 'actual-version'
+                    target.write_bytes(b'10.0.403\n')
+                    record.symlink_to(target)
+                runner = self.sdk_runner()
+                with patch.object(runner.manifest, 'read_sdk_version',
+                                  wraps=runner.manifest.read_sdk_version) as reader, \
+                     patch.object(runner.manifest, 'verify_manifest') as verify:
+                    with self.assertRaises(ValueError):
+                        runner.publish_inputs(root, root, root / 'entry.py', root / 'dist', 'unused')
+                    if kind in ('missing', 'multiple'):
+                        reader.assert_not_called()
+                    else:
+                        reader.assert_called_once_with(record)
+                    verify.assert_not_called()
+
     def test_failed_native_execution_still_has_full_archive(self):
         _, native = gate.load_reused(REPO)
         with self.temporary() as directory:

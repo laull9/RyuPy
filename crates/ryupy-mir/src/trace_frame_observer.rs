@@ -180,10 +180,12 @@ impl Observation {
     }
 }
 
+type TestSequence = Vec<(i64, u32, usize, bool)>;
+
 thread_local! {
     static ACTIVE: RefCell<Option<Observation>> = const { RefCell::new(None) };
     // 仅非干扰自测开启的有界位置序列，不写artifact也不进入State。
-    static TEST_SEQUENCE: RefCell<Option<Vec<(i64, u32, usize, bool)>>> = const { RefCell::new(None) };
+    static TEST_SEQUENCE: RefCell<Option<TestSequence>> = const { RefCell::new(None) };
 }
 
 pub(super) fn record(state: &State, inserted: bool) {

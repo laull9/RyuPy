@@ -118,7 +118,8 @@ class Runner:
 
     def publish_inputs(self, root, stage, entry, dist, source_sha):
         versions = list(root.rglob('sdk.version'))
-        c.require(len(versions) == 1 and versions[0].read_text().strip() == self.config['sdk_version'],
+        c.require(len(versions) == 1
+                  and self.manifest.read_sdk_version(versions[0]) == self.config['sdk_version'],
                   '实际publish SDK记录缺失/不唯一/不符')
         manifest = self.manifest.verify_manifest(dist, dist / 'entry', self.config['rid'], self.config['sdk_version'])
         inputs = {v['role']: v for v in manifest['build_inputs']}
