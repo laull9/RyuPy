@@ -50,8 +50,11 @@ public class PyBaseException : Exception
     /// </summary>
     public PyBaseException? Context { get; set; }
 
-    /// <summary>抛出点的栈帧快照，最内层在前；由 <see cref="PyTraceback"/> 在抛出时填写。</summary>
+    // 仅 Legacy 路径存储抛出点的栈帧快照。
     private PyStackFrame[] _legacyFrames = [];
+    /// <summary>
+    /// 栈帧列表，最内层在前；Legacy 返回抛出点快照，V1 由绑定 owner 的历史派生。
+    /// </summary>
     public PyStackFrame[] Frames
     {
         get
