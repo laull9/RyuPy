@@ -162,7 +162,10 @@ fn trace_adapter_real_typed_cfg_receives_before_pop_with_exact_caught_local() {
     let (program, diagnostics) = compile(source);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     // 先保存实际typed MIR及每个入口的归属，再做断言；CI --nocapture保留失败现场。
-    println!("S2a actual typed MIR/CFG:\n{}", crate::pretty::dump(&program));
+    println!(
+        "S2a actual typed MIR/CFG:\n{}",
+        crate::pretty::dump(&program)
+    );
     for (function_id, function) in program.functions.iter() {
         for (index, region) in function.body.regions.iter().enumerate() {
             let catch = &function.body.blocks[region.handler];
@@ -202,7 +205,10 @@ fn trace_adapter_real_typed_cfg_receives_before_pop_with_exact_caught_local() {
                         if matches!(
                             actual,
                             RuntimeFn::TraceAdapterHandle | RuntimeFn::TraceAdapterForward
-                        ) => Some((i, actual, args)),
+                        ) =>
+                    {
+                        Some((i, actual, args))
+                    }
                     _ => None,
                 })
                 .collect();
