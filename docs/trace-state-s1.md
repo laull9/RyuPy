@@ -77,3 +77,37 @@ JSON。它必须提供旧/新产物路径，验证测试加载 DLL 字节相同�
 本次源码交付阶段尚未运行 .NET/Rust 构建或任何产品测试。静态 Python 语法/清单核对不能代替编译。
 实际执行结果必须由后续固定提交 hosted CI 给出。既有严格 traceback 和旧 driver 负向期望失败
 仍单列；固定 20 项 10/8/2、十项历史通过与七个 Native 门口径均不改变，accepted 仍为 fb0553。
+
+## 显式 trace V1 的阶段合同迁移（源码候选，尚未运行）
+
+前文是已冻结的 S1 未接线合同与历史范围，保留不改。CI 42495950218 的原 23 案例
+21 过、2 失败仍是原始结果，不因本节改变。产品接线后，不再把“全部非 Core 零引用”和
+“零新增公开成员”当产品阶段的假设，也不删除它们所保护的边界：
+
+- 固定历史源码/树、同次 SDK、独立 Release 构建及候选 DLL 字节一致检查不变。
+  原 1659 条公开/保护记录逐字段保留，新增只能是 PyTraceProduct 类型与
+  Enter/Exit/Explicit/Park/Handle/Forward/Abort/Match/AllMiss/GeneratorDepth/GeneratorCatch
+  的 11 个精确公开静态签名。任何其他增删改或重复记录失败，不自动更新 baseline。
+- 原 17 Core 全 internal 且无静态初始化；新增 Binding/Scope/DispatchPark 也检查 internal、
+  sealed、精确字段形状和无初始化。两个 record 只准具体字段对应的机械成员，不通配合成方法。
+- 真实 PE 继续检查签名、局部、泛型约束、catch、IL 引用。手写合同按源成员完整签名、目标身份
+  和操作分别约束 Frames 投影、源/接收、scope/activation 与具体 NativeFresh producer。
+  新方法、新边和字段地址/委托绕路不自动获准；token/offset 仅用于定位，不作为合同身份。
+- 少数明确方法另检查 Active/binding/counter 的唯一写入口、固定 kind/bool/root 常量、
+  Generators 不外逃且只有规定容器操作、真实恢复 finally 与 FinishExit 相对顺序。
+  这不是完整 CFG/堆证明；行为与真实产品门仍独立。
+- 新六个生命周期案例的 fixture 不自动 Enter。核默认无隐性绑定、Frames 最新 owner 历史的
+  隔离反序投影、活动域/既有 binding 拒写、合法 Enter、未完成 Exit 拒绝/正常退出清理，以及
+  真实 PyGenerator 的 Retry 同 activation / 下一次恢复新 activation。
+- 五个判定器反例和两个只读 PE 字节变异案例分别核列表判定器与真实 operand；变异 DLL
+  永远不加载或执行。完整观察 dump 不入 Git，合同不是从候选输出自动生成的 expected。
+
+专用 S1 仍只接收正常 runtime，不把 TRACE_ADAPTER_TEST probe 当产品。现有 S2 专门筛选独立，
+不能为使 probe 满足产品 Enter 合同而放宽 V1。`trace_state_s1.py` 明确列出原内核案例、改名后的
+结构门及新增案例，实际 discovery/TRX 必须全部执行、零失败/跳过；运行前的静态名清单不计通过。
+失败时先保留 PE 引用/ABI 增删明细再断言，不能丢掉失败原件。
+
+本迁移只改变测试/验证器/文档，不改生产 runtime 或默认域。default A/B 控制仍仅编译和验 PE，
+没有新增未经 accepted 原件支持的默认 oracle。真实 A/B/hot JIT/NativeAOT、PIC1/0 对固定 CP
+双流和 exit、C/D 编译前拒绝、default/pilot 完整门、固定20逐 ID/原十项保护仍分别必需。
+本节不是任何新编译/运行结果，也不改变 accepted fb0553。

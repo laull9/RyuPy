@@ -56,6 +56,38 @@ EXPECTED = {
         "actual_inspection_is_unchanged_when_observation_stops",
         "record_and_event_limits_keep_decodable_prefixes",
     ],
+    "product": [
+        "original_a_b_and_same_site_property_compile_through_final_link",
+        "original_constructor_field_inputs_are_whole_product_rejections",
+        "high_and_low_validation_are_distinct_and_dead_yield_keeps_real_generator_identity",
+        "unknown_capability_system_exit_bare_and_protocol_injection_are_rejected",
+        "explicit_or_possible_none_exception_argument_rejects_through_aliases",
+        "sealed_link_rejects_changed_actual_source_global_owner_and_abi",
+        "absent_certificate_cannot_enable_v1_and_prelink_proof_cannot_cover_new_code",
+    ],
+    "product-structure": [
+        "actual_low_template_rejects_slot_pc_retry_handler_line_and_extra_source_mutations",
+        "actual_factory_owner_and_fresh_box_are_checked_not_just_slot_count",
+        "template_box_cannot_overwrite_original_dynamic_parameter",
+        "high_contract_rejects_extra_push_and_pure_control_overwrite",
+    ],
+    "product-edge-witness": [
+        "cleared_empty_bridge_is_accepted_using_capture_time_canonical_edge",
+        "real_redirect_still_rejects_and_is_not_described_as_erased_bridge",
+        "witness_bounds_chains_utf8_and_redacts_literal_contents",
+        "dead_values_keep_original_nonempty_anchor_but_bypassing_it_rejects",
+        "contract_rejects_bad_ids_before_stack_walk_and_arena_deletion",
+        "bypassing_an_original_line_or_trace_effect_is_rejected",
+        "simplify_cfg_clears_both_ordered_empty_branch_bridges",
+    ],
+    "product-edges": [
+        "ordered_branch_targets_condition_and_direct_constant_fold_are_checked",
+        "suspend_raw_fields_reject_new_empty_resume_prefix_and_other_changes",
+        "full_region_membership_and_handler_boundaries_are_not_erased",
+        "original_and_final_empty_cycles_are_rejected_even_after_an_anchor",
+        "invalid_targets_regions_and_exclusive_end_are_errors_not_panics",
+        "folding_then_bypassing_an_original_empty_branch_remains_rejected",
+    ],
     "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
     "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],
 }
@@ -87,7 +119,19 @@ def capture(directory, label, argv, cwd, timeout=900):
     return code
 
 
-MIR_MODULES = {"domain": "trace_domain_tests", "lowering": "trace_lowering_tests", "frame": "trace_frame_tests", "observer": "trace_frame::observer::tests", "dataflow": "trace_frame_dataflow::tests", "mechanical": "trace_frame_dataflow::mechanical_tests"}
+MIR_MODULES = {
+    "domain": "trace_domain_tests",
+    "lowering": "trace_lowering_tests",
+    "frame": "trace_frame_tests",
+    "observer": "trace_frame::observer::tests",
+    "dataflow": "trace_frame_dataflow::tests",
+    "mechanical": "trace_frame_dataflow::mechanical_tests",
+    "product": "generator_product_tests",
+    "product-structure": "generator_product_structure_tests",
+    "product-edge-witness": "generator_product_edge_witness::tests",
+    "product-edges": "generator_product_edges::tests",
+}
+PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges")
 REQUIRED = {
     "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
     "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",
@@ -120,6 +164,13 @@ def listed_tests(text):
     if len(totals) != 1 or tuple(map(int, totals[0])) != (len(names), 0) or len(set(names)) != len(names):
         return None
     return set(names)
+
+
+def product_filter(group, available):
+    """先核真实list中substring会选中的完整集合，避免多跑/漏跑固定产品测试。"""
+    pattern = MIR_MODULES[group] + "::"
+    selected = {name for name in available if pattern in name} if available is not None else None
+    return pattern if selected == expected_names(group) else None
 
 
 def tests_complete(text, group, available):
@@ -218,9 +269,14 @@ def main():
         run("mir-list", ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", "--", "--list", "--color", "never"], 600)
     else:
         skip("mir-list", "MIR check failed")
+    available = listed_tests((OUTPUT / "mir-list.stdout").read_text()) if codes.get("mir-list") == 0 else None
     for group, module in MIR_MODULES.items():
         if codes.get("mir-list") == 0:
-            argv = ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", module,
+            pattern = product_filter(group, available) if group in PRODUCT_GROUPS else module
+            if pattern is None:
+                skip(group, "actual MIR list does not match the fixed product test group")
+                continue
+            argv = ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", pattern,
                     "--", "--color", "never", "--test-threads=1", "--show-output"]
             run(group, argv, 600)
         else:

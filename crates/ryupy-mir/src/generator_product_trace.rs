@@ -1,6 +1,7 @@
 //! 高层 trace 操作守恒合同。先核真实 Push/Pop/owner，再固定源码构建的 effect 序列及 EH；
 //! pass 只能删除纯死值与收拢空跳转，不能凭 RuntimeFn 名字擦掉额外源操作后宣称等价。
 use crate::generator_product_edge_witness::EdgeWitness;
+use crate::generator_product_edges::Edges;
 use crate::generator_product_identity::FunctionIdentity;
 use crate::*;
 use rustc_hash::FxHashSet;
@@ -10,6 +11,8 @@ pub(super) struct Contract {
     statements: Vec<Vec<Vec<Statement>>>,
     locals: Vec<Vec<LocalDecl>>,
     edges: Vec<Vec<Option<Terminator>>>,
+    // 原图typed规范边与固定源锚；raw边只保留用于可达性登记和失败说明。
+    canonical_edges: Vec<Edges>,
     regions: Vec<Vec<Region>>,
     // 只用于首个边拒绝的说明；capture时保存原图，不影响任何比较或准入条件。
     edge_witnesses: Vec<Vec<EdgeWitness>>,
@@ -44,42 +47,6 @@ pub(super) fn reachable(body: &Body) -> FxHashSet<BlockId> {
     }
     seen
 }
-fn target(body: &Body, mut id: BlockId) -> Result<BlockId, String> {
-    let mut seen = FxHashSet::default();
-    loop {
-        if !seen.insert(id) {
-            return Err("高层空跳转形成环".into());
-        }
-        let block = &body.blocks[id];
-        if block.stmts.is_empty()
-            && let Terminator::Goto(next) = block.terminator
-        {
-            id = next;
-        } else {
-            return Ok(id);
-        }
-    }
-}
-fn edge(body: &Body, terminator: &Terminator) -> Result<Terminator, String> {
-    let mut result = terminator.clone();
-    if let Terminator::Branch {
-        cond: Operand::Const(Constant::Bool(value)),
-        then_,
-        else_,
-    } = result
-    {
-        result = Terminator::Goto(if value { then_ } else { else_ });
-    }
-    match &mut result {
-        Terminator::Goto(to) | Terminator::Suspend { resume: to, .. } => *to = target(body, *to)?,
-        Terminator::Branch { then_, else_, .. } => {
-            *then_ = target(body, *then_)?;
-            *else_ = target(body, *else_)?;
-        }
-        _ => {}
-    }
-    Ok(result)
-}
 impl Contract {
     pub fn capture(program: &Program, generators: &[FnId]) -> Result<Self, String> {
         let mut result = Self {
@@ -87,10 +54,12 @@ impl Contract {
             statements: vec![],
             locals: vec![],
             edges: vec![],
+            canonical_edges: vec![],
             regions: vec![],
             edge_witnesses: vec![],
         };
         for (id, function) in program.functions.iter() {
+            result.canonical_edges.push(Edges::capture(&function.body)?);
             check_stack(program, id, generators.contains(&id))?;
             let live = reachable(&function.body);
             result.identities.push(FunctionIdentity::capture(function));
@@ -147,6 +116,7 @@ impl Contract {
             return Err("pass改写了真实函数身份集合".into());
         }
         for (index, (function_id, function)) in program.functions.iter().enumerate() {
+            crate::generator_product_edges::check(&function.body)?;
             check_stack(program, function_id, generators.contains(&function_id))?;
             if self.identities[index] != FunctionIdentity::capture(function)
                 || self.regions[index] != function.body.regions
@@ -176,7 +146,7 @@ impl Contract {
                         continue;
                     }
                     preserve(&self.statements[index][ordinal], actual, &reads)?;
-                    if edge(&function.body, &block.terminator)? != edge(&function.body, expected)? {
+                    if !self.canonical_edges[index].matches(&function.body, id, &block.terminator)? {
                         return Err(crate::generator_product_edge_witness::failure(
                             function_id,
                             id,
@@ -241,11 +211,7 @@ fn reads(body: &Body) -> FxHashSet<LocalId> {
                 reads.extend(input);
             }
             Terminator::Branch { cond, .. } => read_operand(cond, &mut reads),
-            Terminator::Return(value) => {
-                if let Some(value) = value {
-                    read_operand(value, &mut reads);
-                }
-            }
+            Terminator::Return(Some(value)) => read_operand(value, &mut reads),
             Terminator::Raise { value, cause } => {
                 for value in value.iter().chain(cause) {
                     read_operand(value, &mut reads);

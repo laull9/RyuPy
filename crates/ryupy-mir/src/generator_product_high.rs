@@ -275,18 +275,16 @@ fn check_module_root(resolver: &Resolver<'_>, exports: &[ModuleExport]) -> Resul
                     },
                     ..
                 }
-            ) {
-                if !before(
-                    &function.body,
-                    &predecessors,
-                    id,
-                    position,
-                    name.value,
-                    &mut vec![],
-                ) || matches!(name.guard, ExportGuard::BoundFlag(flag) if !before(&function.body, &predecessors, id, position, flag, &mut vec![]))
-                {
-                    return Err("class隐含get('__name__')先于实际模块槽发布".into());
-                }
+            ) && (!before(
+                &function.body,
+                &predecessors,
+                id,
+                position,
+                name.value,
+                &mut vec![],
+            ) || matches!(name.guard, ExportGuard::BoundFlag(flag) if !before(&function.body, &predecessors, id, position, flag, &mut vec![])))
+            {
+                return Err("class隐含get('__name__')先于实际模块槽发布".into());
             }
         }
     }

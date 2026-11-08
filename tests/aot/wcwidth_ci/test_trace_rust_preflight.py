@@ -223,6 +223,63 @@ class Preflight(unittest.TestCase):
             good = output(group)
             self.assertFalse(gate.tests_complete(good.replace("ignored, known experimental failure", "ok", 1), group, universe(group)))
 
+    def test_all_four_product_groups_match_current_source_names_without_ignores(self):
+        files = {
+            "product": ("generator_product_tests.rs", 7),
+            "product-structure": ("generator_product_structure_tests.rs", 4),
+            "product-edge-witness": ("generator_product_edge_witness_tests.rs", 7),
+            "product-edges": ("generator_product_edges_tests.rs", 6),
+        }
+        self.assertEqual(set(files), set(gate.PRODUCT_GROUPS))
+        self.assertEqual(sum(count for _, count in files.values()), 24)
+        for group, (filename, count) in files.items():
+            source = (gate.ROOT / "crates/ryupy-mir/src" / filename).read_text()
+            names = gate.re.findall(r"#\[test\]\s*fn (\w+)\(", source)
+            self.assertEqual(len(names), count)
+            self.assertEqual(set(names), set(gate.EXPECTED[group]))
+            self.assertNotIn("#[ignore", source)
+            self.assertFalse(gate.isolated_names(group))
+            self.assertIn(group, gate.REQUIRED)
+
+    def test_actual_list_must_select_exact_product_names_before_running(self):
+        for group in gate.PRODUCT_GROUPS:
+            available = universe(group)
+            pattern = gate.MIR_MODULES[group] + "::"
+            self.assertEqual(gate.product_filter(group, available), pattern)
+            self.assertIsNone(gate.product_filter(group, None))
+            self.assertIsNone(gate.product_filter(group, available - {next(iter(gate.expected_names(group)))}))
+            self.assertIsNone(gate.product_filter(group, available | {pattern + "unexpected"}))
+            # cargo筛选是substring；嵌套同名模块也必须在运行前拒绝。
+            self.assertIsNone(gate.product_filter(group, available | {"other::" + pattern + "unexpected"}))
+            good = output(group)
+            self.assertFalse(gate.tests_complete(good.replace(" ... ok", " ... ignored", 1), group, available))
+
+    def test_product_groups_use_fixed_filters_and_missing_list_never_runs_group(self):
+        for bad_list in (False, True):
+            with self.subTest(bad_list=bad_list), tempfile.TemporaryDirectory() as temporary:
+                directory = Path(temporary) / "evidence"
+                calls = {}
+                def fake_capture(out, label, argv, cwd, timeout=900):
+                    calls[label] = argv
+                    text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                    if label == "mir-list" and bad_list:
+                        names = universe("domain") - {next(iter(gate.expected_names("product-edges")))}
+                        text = "\n".join(f"{name}: test" for name in sorted(names)) + f"\n{len(names)} tests, 0 benchmarks\n"
+                    if label in ("git-head", "git-head-after"):
+                        text = "fixed-head\n"
+                    (out / f"{label}.stdout").write_text(text)
+                    return 0
+                with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head"}), patch("builtins.print"):
+                    self.assertEqual(gate.main(), int(bad_list))
+                for group in gate.PRODUCT_GROUPS:
+                    if bad_list and group == "product-edges":
+                        self.assertNotIn(group, calls)
+                        self.assertTrue((directory / (group + ".skipped.json")).exists())
+                    else:
+                        self.assertIn(gate.MIR_MODULES[group] + "::", calls[group])
+                        self.assertNotIn("--ignored", calls[group])
+                self.assertIn("git-head-after", calls)
+
     def test_total_budget_skips_work_but_keeps_final_identity(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary) / "evidence"

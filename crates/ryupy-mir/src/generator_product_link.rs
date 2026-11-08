@@ -283,15 +283,16 @@ fn rvalue(value: &mut Rvalue, map: &LinkRemap) -> Result<(), String> {
 fn remap_function(function: &mut FunctionImage, map: &LinkRemap) -> Result<(), String> {
     let identity = &mut function.identity;
     identity.codegen_name = format!("m0_{}", identity.codegen_name);
-    for value in [
+    for id in [
         &mut identity.function_global,
         &mut identity.specialization_global,
         &mut identity.defaults_global,
         &mut identity.signature_global,
-    ] {
-        if let Some(id) = value {
-            *id = mapped(&map.globals, *id)?;
-        }
+    ]
+    .into_iter()
+    .flatten()
+    {
+        *id = mapped(&map.globals, *id)?;
     }
     if let Some(origin) = &mut identity.origin
         && let Some(id) = &mut origin.source_global

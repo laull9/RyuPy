@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""有限 S1 专用门：真实 Release C# 测试/PE/旧 ABI，保留每步原流和精确 TRX。"""
+"""有限 S1/V1 合同门：保留原内核和历史 ABI，新增精确桥接/生命周期；不代替产品验收。"""
 import collections
 import hashlib
 import json
@@ -14,24 +14,57 @@ OUT = ROOT / "target/trace-state-s1-evidence"
 BASE = ROOT / "target/trace-s1-baseline"
 BASE_REVISION = "bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8"
 BASE_TREE = "aff0fc2cf409551b5287c638cefe131a1ddd0e1f"
-EXPECTED = {
-    "ExclusiveForwardThenInclusiveHandlePrependsOnlyTraversedFramesToLatestHistory": 1,
-    "FailedFreshBeginDoesNotConsumeBirthGrantAndLegalRetrySucceeds": 1,
-    "ExplicitPermanentlyRevokesBirthEvenWhenCommittedHistoryIsEmpty": 2,
-    "FirstEmptyForwardIsLegalButNewSequenceCannotResubmitTheBoundary": 4,
-    "ReceiveRejectsInvalidModeCombinationsWithoutPublishing": 1,
-    "RootHandlesOnlyRealCallbackFramesAndNeverInfersFreshFromEmptyHistory": 2,
-    "ClosingReceiveDiscardsOuterPendingWithoutRestoringHistory": 2,
-    "OnlyLatestReceiveReplaysAndNewRequestInvalidatesTheReceipt": 1,
-    "InvalidInputsLeaveEveryStateFieldAndGrantUntouched": 1,
-    "SceneAndSnapshotsAreDefensiveAndSameNamedActivationsRemainDistinct": 1,
-    "TwoOwnersJoinOneEpochWithoutConsumingItsIdentity": 2,
-    "IssuingNewEpochLeavesOldFlightReceivableAndOtherOwnerCanRotateFirst": 1,
-    "PermitRejectsForgeryWrongOwnerStaleVersionAndSupersededTarget": 1,
-    "FailedBeginKeepsAnAlreadyIssuedPermitValid": 1,
-    "ProducedAssemblyHasNoOldTypeReferencesToCoreAndNoNewInitializers": 1,
-    "ProducedAssemblyPreservesEveryBaselinePublicSignature": 1,
+# 完整方法身份与固定 InlineData 展开名来自实际 xUnit discovery/TRX 格式。
+# 同一 Theory 的短方法名可重复，但每个参数案例的 display name/definition id 必须唯一。
+FACT = ("",)
+PLAN = {
+    "PyTraceStateTests": {
+        "ExclusiveForwardThenInclusiveHandlePrependsOnlyTraversedFramesToLatestHistory": FACT,
+        "FailedFreshBeginDoesNotConsumeBirthGrantAndLegalRetrySucceeds": FACT,
+        "ExplicitPermanentlyRevokesBirthEvenWhenCommittedHistoryIsEmpty": ("(callback: False)", "(callback: True)"),
+        "FirstEmptyForwardIsLegalButNewSequenceCannotResubmitTheBoundary": (
+            "(root: False, suppress: False)", "(root: True, suppress: False)",
+            "(root: False, suppress: True)", "(root: True, suppress: True)"),
+        "ReceiveRejectsInvalidModeCombinationsWithoutPublishing": FACT,
+        "RootHandlesOnlyRealCallbackFramesAndNeverInfersFreshFromEmptyHistory": ("(callback: False)", "(callback: True)"),
+        "ClosingReceiveDiscardsOuterPendingWithoutRestoringHistory": ("(kindValue: 2)", "(kindValue: 1)"),
+        "OnlyLatestReceiveReplaysAndNewRequestInvalidatesTheReceipt": FACT,
+        "InvalidInputsLeaveEveryStateFieldAndGrantUntouched": FACT,
+        "SceneAndSnapshotsAreDefensiveAndSameNamedActivationsRemainDistinct": FACT,
+    },
+    "PyTraceStateEpochTests": {
+        "TwoOwnersJoinOneEpochWithoutConsumingItsIdentity": ("(reverse: False)", "(reverse: True)"),
+        "IssuingNewEpochLeavesOldFlightReceivableAndOtherOwnerCanRotateFirst": FACT,
+        "PermitRejectsForgeryWrongOwnerStaleVersionAndSupersededTarget": FACT,
+        "FailedBeginKeepsAnAlreadyIssuedPermitValid": FACT,
+    },
+    "PyTraceStateArtifactTests": {
+        "ProducedAssemblyHasOnlyApprovedV1BridgesAndNoCoreInitializers": FACT,
+        "ProducedAssemblyPreservesEveryBaselinePublicSignature": FACT,
+        "ActualPeRejectsReceiveInjectedIntoFramesProjection": FACT,
+        "ActualPeRejectsAllMissChangedToConsume": FACT,
+    },
+    "PyTraceStateV1ArtifactContractTests": {
+        "PublicIncrementContainsOnlyTheTwelveApprovedRecords": FACT,
+        "AbiRejectsMissingChangedExtraAndDuplicateRecords": FACT,
+        "BridgeRulesRejectUnknownSourcesTargetsSignaturesAndOpcodes": FACT,
+        "CarrierTemplatesRejectExtraFieldsAndUnlistedMechanicalMembers": FACT,
+        "TraceTypeMatchingDoesNotTreatNamePrefixesAsIdentity": FACT,
+    },
+    "PyTraceStateV1LifecycleTests": {
+        "DefaultRuntimeNeverBindsTraceWithoutEnter": FACT,
+        "FramesAreDetachedReverseProjectionOfLatestOwnerHistory": FACT,
+        "FramesSetterRejectsActiveOrPreviouslyBoundHistory": FACT,
+        "EnterIsOnlyDomainStartAndRejectsInvalidRoots": FACT,
+        "ExitRejectsReachableUnfinishedStateAndFinishExitClearsScope": FACT,
+        "RealGeneratorRetryKeepsActivationAndNextResumeAllocatesNew": FACT,
+    },
 }
+EXPECTED = {"RyuPy.Runtime.Tests." + cls + "." + method: len(cases)
+            for cls, methods in PLAN.items() for method, cases in methods.items()}
+CASE_METHOD = {"RyuPy.Runtime.Tests." + cls + "." + method + case: "RyuPy.Runtime.Tests." + cls + "." + method
+               for cls, methods in PLAN.items() for method, cases in methods.items() for case in cases}
+
 
 
 def write(name, value):
@@ -48,25 +81,105 @@ def run(label, command, env):
         raise RuntimeError(f"{label}失败；保留原stdout/stderr，不自动重试。")
 
 
-def verify_trx(path):
+def verify_discovery(path):
+    """实际列表若只给方法，只宣告方法集合；展开案例始终由后续 TRX 独立核验。"""
+    lines = Path(path).read_text().splitlines()
+    headers = [i for i, line in enumerate(lines) if line.strip() == "The following Tests are available:"]
+    violations, names = [], []
+    if len(headers) != 1:
+        violations.append("discovery 必须有唯一实际测试列表头。")
+    else:
+        for line in lines[headers[0] + 1:]:
+            if not line.strip():
+                continue
+            if not line.startswith("    "):
+                violations.append("discovery 列表出现未知行：" + line)
+            names.append(line.strip())
+    if len(set(names)) != len(names):
+        violations.append("discovery 出现重复测试身份。")
+    if set(names) == set(CASE_METHOD) and len(names) == len(CASE_METHOD):
+        mode = "expanded_cases"
+    elif set(names) == set(EXPECTED) and len(names) == len(EXPECTED):
+        mode = "methods_only"
+    else:
+        mode = "invalid"
+        violations.append("discovery 不是精确的完整方法集合或完整展开案例集合。")
+    report = {"mode": mode, "names": names, "observed_count": len(names),
+              "expected_methods": len(EXPECTED), "expected_cases": len(CASE_METHOD), "violations": violations}
+    write("discovered-tests.json", report)
+    if violations:
+        raise RuntimeError("S1 discovery 身份不符；见 discovered-tests.json。")
+    return report
+
+
+def verify_trx(path, discovery):
     tree = ET.parse(path)
     ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
-    definitions = {}
-    for unit in tree.findall(".//t:TestDefinitions/t:UnitTest", ns):
-        method = unit.find("t:TestMethod", ns)
-        if method is None:
-            raise RuntimeError("TRX 缺少 TestMethod。")
-        definitions[unit.attrib["id"]] = method.attrib["name"]
-    results = tree.findall(".//t:Results/t:UnitTestResult", ns)
-    records = [{"name": row.attrib["testName"], "method": definitions[row.attrib["testId"]],
-                "outcome": row.attrib["outcome"]} for row in results]
-    write("executed-tests.json", records)
+    definitions, definition_cases, definition_executions = {}, set(), set()
+    violations, records = [], []
+    units = tree.findall(".//t:TestDefinitions/t:UnitTest", ns)
+    for unit in units:
+        methods = unit.findall("t:TestMethod", ns)
+        executions = unit.findall("t:Execution", ns)
+        if len(methods) != 1 or len(executions) != 1:
+            violations.append("UnitTest 必须恰有一个 TestMethod 和 Execution。")
+            continue
+        method = methods[0]
+        test_id, name = unit.get("id", ""), unit.get("name", "")
+        execution_id = executions[0].get("id", "")
+        cls, short_name = method.get("className", ""), method.get("name", "")
+        full_name = cls + "." + short_name
+        if not test_id.strip() or test_id in definitions:
+            violations.append("空或重复 UnitTest id：" + test_id)
+            continue  # 不能用后一个定义覆盖前一个。
+        if not execution_id.strip() or execution_id in definition_executions:
+            violations.append("空或重复 definition Execution id：" + execution_id)
+        if not name or name in definition_cases:
+            violations.append("空或重复 UnitTest 案例名：" + name)
+        if not cls or not short_name or full_name not in EXPECTED or CASE_METHOD.get(name) != full_name:
+            violations.append("UnitTest 完整方法/案例映射不符：" + full_name + " / " + name)
+        definitions[test_id] = {"method": full_name, "name": name, "execution_id": execution_id}
+        definition_cases.add(name)
+        definition_executions.add(execution_id)
+    if definition_cases != set(CASE_METHOD) or len(units) != len(CASE_METHOD):
+        violations.append("TRX definition 必须精确覆盖全部展开案例。")
+    seen_tests, seen_executions, seen_cases = set(), set(), set()
+    for row in tree.findall(".//t:Results/t:UnitTestResult", ns):
+        test_id, execution_id, name = row.get("testId", ""), row.get("executionId", ""), row.get("testName", "")
+        definition = definitions.get(test_id)
+        if not test_id.strip() or test_id in seen_tests:
+            violations.append("空或重复 result testId：" + test_id)
+        if not execution_id.strip() or execution_id in seen_executions:
+            violations.append("空或重复 result executionId：" + execution_id)
+        if not name or name in seen_cases:
+            violations.append("空或重复 result 案例名：" + name)
+        if definition is None or name != definition["name"] or execution_id != definition["execution_id"]:
+            violations.append("result 与 definition 的 id/name/execution 映射不符：" + test_id)
+        records.append({"test_id": test_id, "execution_id": execution_id, "name": name,
+                        "method": definition["method"] if definition else None, "outcome": row.get("outcome", "")})
+        seen_tests.add(test_id); seen_executions.add(execution_id); seen_cases.add(name)
+    if seen_tests != set(definitions) or seen_cases != set(CASE_METHOD):
+        violations.append("TRX result 必须与 definition 一对一并覆盖全部展开案例。")
     counts = collections.Counter(row["method"] for row in records)
     if dict(counts) != EXPECTED or not records or any(row["outcome"] != "Passed" for row in records):
-        raise RuntimeError("S1 必须精确执行全部预期案例，非零、零失败、零跳过；见 executed-tests.json。")
-    counters = tree.find(".//t:ResultSummary/t:Counters", ns)
-    if counters is None or int(counters.attrib["total"]) != len(records) or int(counters.attrib["passed"]) != len(records):
-        raise RuntimeError("TRX 汇总计数不符。")
+        violations.append("S1 必须精确执行全部完整方法的预期案例，零失败/跳过。")
+    discovered = set(discovery.get("names", []))
+    if discovery.get("violations") or (discovery.get("mode") == "expanded_cases" and discovered != seen_cases) or (
+            discovery.get("mode") == "methods_only" and discovered != set(counts)) or discovery.get("mode") not in ("expanded_cases", "methods_only"):
+        violations.append("TRX 与本次已验证 discovery 的完整身份不一致。")
+    counter_rows = tree.findall(".//t:ResultSummary/t:Counters", ns)
+    try:
+        counters = counter_rows[0].attrib if len(counter_rows) == 1 else {}
+        if any(int(counters.get(key, "-1")) != len(records) for key in ("total", "executed", "passed")) or any(
+                int(value) != 0 for key, value in counters.items() if key not in ("total", "executed", "passed")):
+            violations.append("TRX 汇总必须与全部实际执行且通过的记录一致。")
+    except ValueError:
+        violations.append("TRX 汇总含非法计数。")
+    write("executed-tests.json", records)
+    write("trx-validation.json", {"definitions": list(definitions.values()), "method_counts": dict(counts),
+          "expected_methods": len(EXPECTED), "expected_cases": len(CASE_METHOD), "violations": violations})
+    if violations:
+        raise RuntimeError("S1 TRX 完整身份/执行结果不符；见 trx-validation.json。")
     return records
 
 
@@ -109,19 +222,20 @@ def main():
               "--artifacts-path", str(candidate_artifacts), "--no-build", "--no-restore", "-nologo",
               "--filter", "FullyQualifiedName~PyTraceState"]
     run("discover", common + ["--list-tests"], env)
+    discovery = verify_discovery(OUT / "discover.stdout")
     # 非零 test runner 也先保留原流；如有 TRX，仍解析并保存执行明细。
     error = None
     try:
         run("tests", common + ["--logger", "trx;LogFileName=trace-state-s1.trx", "--results-directory", str(OUT / "trx")], env)
     except RuntimeError as exc:
         error = exc
-    records = verify_trx(OUT / "trx/trace-state-s1.trx")
+    records = verify_trx(OUT / "trx/trace-state-s1.trx", discovery)
     if error is not None:
         raise error
     for required in ("candidate-pe.json", "baseline-abi.json"):
         if not (OUT / required).is_file():
             raise RuntimeError(f"缺少真实PE证据：{required}")
-    write("result.json", {"status": "passed", "executed": len(records), "scope": "S1 内核/PE/公开ABI；非traceback修复或旧项目全绿"})
+    write("result.json", {"status": "passed", "executed": len(records), "scope": "S1/V1合同：原内核、精确ABI/桥接、有限生命周期；非真实产品JIT/AOT或旧项目全绿"})
 
 
 if __name__ == "__main__":

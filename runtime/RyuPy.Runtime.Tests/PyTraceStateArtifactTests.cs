@@ -26,18 +26,8 @@ public class TraceBaselineFactAttribute : FactAttribute
     }
 }
 
-public class PyTraceStateArtifactTests
+public partial class PyTraceStateArtifactTests
 {
-    private static readonly HashSet<string> Core = new(StringComparer.Ordinal)
-    {
-        "RyuPy.Runtime.PyTraceState", "RyuPy.Runtime.PyTraceContextAuthority", "RyuPy.Runtime.TraceEpoch",
-        "RyuPy.Runtime.TraceRotatePermit", "RyuPy.Runtime.TraceReject", "RyuPy.Runtime.TraceChange",
-        "RyuPy.Runtime.TraceResult", "RyuPy.Runtime.TraceBeginKind", "RyuPy.Runtime.TraceReceiveKind",
-        "RyuPy.Runtime.TraceInclusion", "RyuPy.Runtime.TraceFrame", "RyuPy.Runtime.TraceRequest",
-        "RyuPy.Runtime.TraceBoundary", "RyuPy.Runtime.TraceReceive", "RyuPy.Runtime.TraceReceipt",
-        "RyuPy.Runtime.TraceSnapshot", "RyuPy.Runtime.TraceBirthGrant"
-    };
-
     private static string Candidate()
     {
         string loaded = typeof(PyTraceState).Assembly.Location;
@@ -57,74 +47,16 @@ public class PyTraceStateArtifactTests
     }
 
     [Fact]
-    public void ProducedAssemblyHasNoOldTypeReferencesToCoreAndNoNewInitializers()
+    public void ProducedAssemblyHasOnlyApprovedV1BridgesAndNoCoreInitializers()
     {
         string candidate = Candidate();
-        using var stream = File.OpenRead(candidate);
-        using var pe = new PEReader(stream);
-        var metadata = pe.GetMetadataReader();
-        var signatures = new Signatures();
-        var found = new HashSet<string>(StringComparer.Ordinal);
-        var violations = new List<string>();
-        int bodies = 0, operands = 0;
-        foreach (var handle in metadata.TypeDefinitions)
-        {
-            var type = metadata.GetTypeDefinition(handle);
-            string name = signatures.GetTypeFromDefinition(metadata, handle, 0);
-            bool core = Core.Contains(name);
-            if (core)
-            {
-                found.Add(name);
-                Assert.Equal(TypeAttributes.NotPublic, type.Attributes & TypeAttributes.VisibilityMask);
-            }
-            void Check(string reference)
-            {
-                if (!core && Core.Any(reference.Contains)) violations.Add(name + " → " + reference);
-            }
-            Check(Resolve(metadata, type.BaseType, signatures));
-            foreach (var item in type.GetInterfaceImplementations())
-                Check(Resolve(metadata, metadata.GetInterfaceImplementation(item).Interface, signatures));
-            foreach (var item in type.GetCustomAttributes())
-                Check(Resolve(metadata, metadata.GetCustomAttribute(item).Constructor, signatures));
-            foreach (var item in type.GetGenericParameters())
-                foreach (var constraint in metadata.GetGenericParameter(item).GetConstraints())
-                    Check(Resolve(metadata, metadata.GetGenericParameterConstraint(constraint).Type, signatures));
-            foreach (var item in type.GetFields()) Check(metadata.GetFieldDefinition(item).DecodeSignature(signatures, null));
-            foreach (var item in type.GetProperties()) Check(Format(metadata.GetPropertyDefinition(item).DecodeSignature(signatures, null)));
-            foreach (var item in type.GetEvents()) Check(Resolve(metadata, metadata.GetEventDefinition(item).Type, signatures));
-            foreach (var item in type.GetMethods())
-            {
-                var method = metadata.GetMethodDefinition(item);
-                string methodName = metadata.GetString(method.Name);
-                if (core) Assert.NotEqual(".cctor", methodName);
-                Check(Format(method.DecodeSignature(signatures, null)));
-                foreach (var parameter in method.GetGenericParameters())
-                    foreach (var constraint in metadata.GetGenericParameter(parameter).GetConstraints())
-                        Check(Resolve(metadata, metadata.GetGenericParameterConstraint(constraint).Type, signatures));
-                foreach (var attribute in method.GetCustomAttributes())
-                {
-                    string reference = Resolve(metadata, metadata.GetCustomAttribute(attribute).Constructor, signatures);
-                    Check(reference);
-                    if (core) Assert.DoesNotContain("ModuleInitializerAttribute", reference);
-                }
-                if (method.RelativeVirtualAddress == 0) continue;
-                bodies++;
-                var body = pe.GetMethodBody(method.RelativeVirtualAddress);
-                if (!body.LocalSignature.IsNil) Check(Resolve(metadata, body.LocalSignature, signatures));
-                foreach (var region in body.ExceptionRegions)
-                    if (region.Kind == ExceptionRegionKind.Catch) Check(Resolve(metadata, region.CatchType, signatures));
-                foreach (var token in Tokens(body.GetILBytes()!))
-                {
-                    operands++;
-                    Check(Resolve(metadata, MetadataTokens.EntityHandle(token), signatures));
-                }
-            }
-        }
-        Assert.Equal(Core.OrderBy(x => x), found.OrderBy(x => x));
-        Assert.Empty(violations);
-        Evidence("candidate-pe.json", new { candidate, sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            coreTypes = found.OrderBy(x => x), bodies, operands, violations,
-            scope = "元数据签名/类型/泛型约束/方法体token/局部/异常区域；不证明反射字符串、外部程序集、成本或激活语义" });
+        var audit = ScanV1(candidate);
+        // 先保存完整失败明细，不能让 Assert 丢掉本次实际引用证据。
+        Evidence("candidate-pe.json", new { candidate,
+            sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
+            audit.CoreTypes, audit.Bodies, audit.Operands, audit.Edges, audit.Violations,
+            scope = "V1成员级PE边界/初始化；非全runtime形式化、默认行为或产品JIT/AOT验收" });
+        Assert.Empty(audit.Violations);
     }
 
     [TraceBaselineFact]
@@ -137,11 +69,15 @@ public class PyTraceStateArtifactTests
         var before = PublicAbi(baseline!);
         var after = PublicAbi(candidate);
         Assert.NotEmpty(before);
-        Assert.Equal(before, after);
+        var expected = before.Concat(PyTraceStateV1ArtifactContract.PublicAdditions()).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
+            candidateSignatures = after.Length, expectedAdditions = PyTraceStateV1ArtifactContract.PublicAdditions(),
+            removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
+            expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "公开/保护类型与成员的签名、可见性/修饰符、泛型约束；非完整二进制兼容或性能证明" });
+            scope = "旧1659逐字段保留，仅允许12条V1增量；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+        Assert.True(PyTraceStateV1ArtifactContract.PreservesAbi(before, after), "历史ABI或精确V1增量不符；见baseline-abi.json。");
     }
 
     private static string[] PublicAbi(string path)
@@ -168,7 +104,7 @@ public class PyTraceStateArtifactTests
         string Generics(GenericParameterHandleCollection items) => string.Join(";", items.Select(item =>
         {
             var p = reader.GetGenericParameter(item);
-            return p.Index + ":" + p.Attributes + ":" + string.Join(",", p.GetConstraints().Select(c =>
+            return p.Index + ":" + (int)p.Attributes + ":" + string.Join(",", p.GetConstraints().Select(c =>
                 Resolve(reader, reader.GetGenericParameterConstraint(c).Type, provider)).OrderBy(x => x));
         }));
         foreach (var handle in reader.TypeDefinitions)
@@ -176,14 +112,14 @@ public class PyTraceStateArtifactTests
             if (!PublicType(handle)) continue;
             var type = reader.GetTypeDefinition(handle);
             string name = provider.GetTypeFromDefinition(reader, handle, 0);
-            result.Add("T:" + name + ":" + type.Attributes + ":" + Resolve(reader, type.BaseType, provider) + ":" + Generics(type.GetGenericParameters()));
+            result.Add("T:" + name + ":" + (int)type.Attributes + ":" + Resolve(reader, type.BaseType, provider) + ":" + Generics(type.GetGenericParameters()));
             foreach (var item in type.GetInterfaceImplementations())
                 result.Add("I:" + name + ":" + Resolve(reader, reader.GetInterfaceImplementation(item).Interface, provider));
             foreach (var item in type.GetMethods())
             {
                 if (!PublicMethod(item)) continue;
                 var m = reader.GetMethodDefinition(item);
-                result.Add("M:" + name + ":" + reader.GetString(m.Name) + ":" + m.Attributes + ":" +
+                result.Add("M:" + name + ":" + reader.GetString(m.Name) + ":" + (int)m.Attributes + ":" +
                     Format(m.DecodeSignature(provider, null)) + ":" + Generics(m.GetGenericParameters()));
             }
             foreach (var item in type.GetFields())
@@ -191,27 +127,26 @@ public class PyTraceStateArtifactTests
                 var f = reader.GetFieldDefinition(item);
                 var access = f.Attributes & FieldAttributes.FieldAccessMask;
                 if (access is FieldAttributes.Public or FieldAttributes.Family or FieldAttributes.FamORAssem)
-                    result.Add("F:" + name + ":" + reader.GetString(f.Name) + ":" + f.Attributes + ":" + f.DecodeSignature(provider, null));
+                    result.Add("F:" + name + ":" + reader.GetString(f.Name) + ":" + (int)f.Attributes + ":" + f.DecodeSignature(provider, null));
             }
             foreach (var item in type.GetProperties())
             {
                 var p = reader.GetPropertyDefinition(item); var a = p.GetAccessors();
                 if (PublicMethod(a.Getter) || PublicMethod(a.Setter) || a.Others.Any(PublicMethod))
-                    result.Add("P:" + name + ":" + reader.GetString(p.Name) + ":" + p.Attributes + ":" + Format(p.DecodeSignature(provider, null)));
+                    result.Add("P:" + name + ":" + reader.GetString(p.Name) + ":" + (int)p.Attributes + ":" + Format(p.DecodeSignature(provider, null)));
             }
             foreach (var item in type.GetEvents())
             {
                 var e = reader.GetEventDefinition(item); var a = e.GetAccessors();
                 if (PublicMethod(a.Adder) || PublicMethod(a.Remover) || PublicMethod(a.Raiser) || a.Others.Any(PublicMethod))
-                    result.Add("E:" + name + ":" + reader.GetString(e.Name) + ":" + e.Attributes + ":" + Resolve(reader, e.Type, provider));
+                    result.Add("E:" + name + ":" + reader.GetString(e.Name) + ":" + (int)e.Attributes + ":" + Resolve(reader, e.Type, provider));
             }
         }
         return result.OrderBy(x => x, StringComparer.Ordinal).ToArray();
     }
 
     private static string Format(MethodSignature<string> s) =>
-        s.Header.RawValue + ":" + s.GenericParameterCount + ":" + s.RequiredParameterCount + ":" +
-        s.ReturnType + "(" + string.Join(",", s.ParameterTypes) + ")";
+        $"[{s.Header.RawValue};{s.GenericParameterCount};{s.RequiredParameterCount}]({string.Join(',', s.ParameterTypes)})->{s.ReturnType}";
 
     private static string Resolve(MetadataReader r, EntityHandle h, Signatures p)
     {
@@ -223,14 +158,14 @@ public class PyTraceStateArtifactTests
             case HandleKind.TypeSpecification: return p.GetTypeFromSpecification(r, null, (TypeSpecificationHandle)h, 0);
             case HandleKind.MethodDefinition:
                 var m = r.GetMethodDefinition((MethodDefinitionHandle)h);
-                return Resolve(r, m.GetDeclaringType(), p) + "." + r.GetString(m.Name) + Format(m.DecodeSignature(p, null));
+                return Resolve(r, m.GetDeclaringType(), p) + "::" + r.GetString(m.Name) + Format(m.DecodeSignature(p, null));
             case HandleKind.FieldDefinition:
                 var f = r.GetFieldDefinition((FieldDefinitionHandle)h);
-                return Resolve(r, f.GetDeclaringType(), p) + "." + r.GetString(f.Name) + ":" + f.DecodeSignature(p, null);
+                return Resolve(r, f.GetDeclaringType(), p) + "::" + r.GetString(f.Name) + ":" + f.DecodeSignature(p, null);
             case HandleKind.MemberReference:
                 var member = r.GetMemberReference((MemberReferenceHandle)h);
-                return Resolve(r, member.Parent, p) + "." + r.GetString(member.Name) + ":" +
-                    (member.GetKind() == MemberReferenceKind.Method ? Format(member.DecodeMethodSignature(p, null)) : member.DecodeFieldSignature(p, null));
+                return Resolve(r, member.Parent, p) + "::" + r.GetString(member.Name) +
+                    (member.GetKind() == MemberReferenceKind.Method ? Format(member.DecodeMethodSignature(p, null)) : ":" + member.DecodeFieldSignature(p, null));
             case HandleKind.MethodSpecification:
                 var spec = r.GetMethodSpecification((MethodSpecificationHandle)h);
                 return Resolve(r, spec.Method, p) + "<" + string.Join(",", spec.DecodeSignature(p, null)) + ">";
@@ -248,34 +183,6 @@ public class PyTraceStateArtifactTests
         .GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(OpCode))
         .Select(f => (OpCode)f.GetValue(null)!).GroupBy(op => unchecked((ushort)op.Value))
         .ToDictionary(group => group.Key, group => group.First());
-
-    private static IEnumerable<int> Tokens(byte[] il)
-    {
-        int i = 0;
-        while (i < il.Length)
-        {
-            ushort code = il[i++];
-            if (code == 0xfe) code = (ushort)(0xfe00 | il[i++]);
-            var operand = Opcodes[code].OperandType;
-            int size;
-            switch (operand)
-            {
-                case OperandType.InlineNone: size = 0; break;
-                case OperandType.ShortInlineBrTarget: case OperandType.ShortInlineI: case OperandType.ShortInlineVar: size = 1; break;
-                case OperandType.InlineVar: size = 2; break;
-                case OperandType.InlineI8: case OperandType.InlineR: size = 8; break;
-                case OperandType.InlineSwitch: size = checked(4 + 4 * BitConverter.ToInt32(il, i)); break;
-                case OperandType.InlineField: case OperandType.InlineMethod: case OperandType.InlineSig:
-                case OperandType.InlineTok: case OperandType.InlineType:
-                    yield return BitConverter.ToInt32(il, i); size = 4; break;
-                case OperandType.InlineBrTarget: case OperandType.InlineI: case OperandType.ShortInlineR:
-                case OperandType.InlineString: size = 4; break;
-                default: throw new InvalidDataException("未覆盖的 IL operand: " + operand);
-            }
-            i = checked(i + size);
-            if (i > il.Length) throw new InvalidDataException("IL operand 超出方法体。");
-        }
-    }
 
     private sealed class Signatures : ISignatureTypeProvider<string, object?>
     {
