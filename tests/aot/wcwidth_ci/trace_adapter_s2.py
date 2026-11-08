@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import signal
+import time
 import sys
 import xml.etree.ElementTree as ET
 
@@ -18,18 +20,45 @@ def write(name, data):
     (OUT / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
 
 
-def run(label, argv, env, expected=0):
-    write(label + ".command.json", {"argv": [str(x) for x in argv], "cwd": str(ROOT),
+DEADLINE = None
+
+
+def run(label, argv, env=None, expected=0, timeout=900, cwd=ROOT):
+    env = os.environ.copy() if env is None else env
+    remaining = timeout if DEADLINE is None else min(timeout, DEADLINE - time.monotonic())
+    write(label + ".command.json", {"argv": [str(x) for x in argv], "cwd": str(cwd), "timeout_seconds": max(0, remaining),
           "CARGO_TARGET_DIR": env.get("CARGO_TARGET_DIR"), "RYUPY_RUNTIME_DIR": env.get("RYUPY_RUNTIME_DIR")})
+    if remaining <= 0:
+        write(label + ".exit.json", {"returncode": None, "timeout": True, "not_started": True})
+        raise TimeoutError("总阶段预算用尽: " + label)
     with (OUT / (label + ".stdout")).open("wb") as stdout, (OUT / (label + ".stderr")).open("wb") as stderr:
-        result = subprocess.run(argv, cwd=ROOT, env=env, stdout=stdout, stderr=stderr, check=False)
-    write(label + ".exit.json", {"returncode": result.returncode})
+        try:
+            process = subprocess.Popen(argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr, start_new_session=True)
+        except OSError as error:
+            write(label + ".exit.json", {"returncode": None, "not_started": True, "launch_error": str(error)})
+            raise
+        timed_out = False
+        try:
+            process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait()
+    result = subprocess.CompletedProcess(argv, process.returncode,
+        (OUT / (label + ".stdout")).read_bytes(), (OUT / (label + ".stderr")).read_bytes())
+    write(label + ".exit.json", {"returncode": result.returncode, "timeout": timed_out})
+    if timed_out:
+        raise TimeoutError(label + "达到冻结预算，不重试")
     print(f"{label}: exit={result.returncode}", flush=True)
     if expected is None:
         if result.returncode == 0:
             raise RuntimeError(f"{label}必须明确拒绝")
     elif result.returncode != expected:
         raise RuntimeError(f"{label}失败，见原流；不重试、不改oracle")
+    return result
 
 
 def unique(folder, pattern):
@@ -45,6 +74,8 @@ def digest(path):
 
 
 def main():
+    global DEADLINE
+    DEADLINE = time.monotonic() + 55 * 60
     OUT.mkdir(parents=True, exist_ok=False)
     env = os.environ.copy()
     dotnet = env.get("DOTNET", "dotnet")
@@ -112,30 +143,39 @@ def main():
         raise RuntimeError("真实driver阶段测试未执行")
     default_cli = OUT / "cargo-default/debug/ryupy"
     probe_cli = OUT / "cargo/debug/ryupy"
-    run("default-fixture", [default_cli, "build", FIXTURES / "explicit_inner.py", "--out-dir", OUT / "default-generated"], normal_env)
+    run("default-fixture", [default_cli, "build", FIXTURES / "explicit_inner.py", "--out-dir", OUT / "default-generated"], normal_env, timeout=120)
     default_generated = OUT / "default-generated/explicit_inner.dll"
+    generated_inputs = {}
     for name in CASES:
         generated = OUT / "generated" / name
-        run(name + "-compile", [probe_cli, "build", FIXTURES / (name + ".py"), "--out-dir", generated], probe_env)
+        run(name + "-compile", [probe_cli, "build", FIXTURES / (name + ".py"), "--out-dir", generated], probe_env, timeout=120)
         dll = generated / (name + ".dll")
         for stage in ("hir", "types", "mir", "cil"):
-            run(name + "-" + stage, [probe_cli, "dump", FIXTURES / (name + ".py"), "--emit", stage], probe_env)
+            run(name + "-" + stage, [probe_cli, "dump", FIXTURES / (name + ".py"), "--emit", stage], probe_env, timeout=120)
+        generated_inputs[name] = dll
+    # 六份真实输入先冻结，之后才构建任何Host，避免边生成边改变身份。
+    write("generated-identities.json", {name: digest(path) for name, path in generated_inputs.items()})
+    for name, dll in generated_inputs.items():
         host_artifacts = OUT / "hosts" / name
         run(name + "-host-build", [dotnet, "build", ROOT / "tests/trace_adapter_s2_host/TraceAdapterHost.csproj",
             "-c", "Release", "--artifacts-path", host_artifacts,
-            "-p:ProbeRuntime=" + str(probe_dll), "-p:ProbeGenerated=" + str(dll), "-nologo"], probe_env)
+            "-p:ProbeRuntime=" + str(probe_dll), "-p:ProbeGenerated=" + str(dll), "-nologo"], probe_env, timeout=180)
         host = unique(host_artifacts / "bin/TraceAdapterHost", "**/TraceAdapterHost.dll")
-        run(name + "-jit", [dotnet, host, FIXTURES / (name + ".expected.json"), OUT / "observed" / name,
-            probe_dll, dll, default_dll, default_generated], probe_env)
+        run(name + "-jit", [dotnet, host, name, OUT / "observed" / name,
+            probe_dll, dll, default_dll, default_generated], probe_env, timeout=60)
         actual = json.loads((OUT / "observed" / name / "actual.json").read_text())
+        if (OUT / (name + "-jit.stderr")).read_bytes():
+            raise RuntimeError("JIT正向stderr非空: " + name)
         if actual != json.loads((FIXTURES / (name + ".expected.json")).read_text()):
             raise RuntimeError("真实host结果与冻结CP不符: " + name)
     for name in ("bare_reject", "cause_reject", "generator_reject", "nested_handler_reject"):
-        run(name, [probe_cli, "build", FIXTURES / (name + ".py"), "--out-dir", OUT / "rejected" / name], probe_env, expected=None)
+        run(name, [probe_cli, "build", FIXTURES / (name + ".py"), "--out-dir", OUT / "rejected" / name], probe_env, expected=None, timeout=120)
         if "S2a probe" not in (OUT / (name + ".stderr")).read_text():
             raise RuntimeError("拒绝不是预期S2a准入诊断")
+    from trace_adapter_native_s2 import preflight
+    preflight(dotnet, probe_dll, generated_inputs, probe_env, sys.modules[__name__])
     write("artifacts.json", [digest(p) for p in (default_cli, probe_cli, default_dll, probe_dll, default_generated)])
-    write("result.json", {"status": "passed", "cases": list(CASES), "scope": "S2a test-only JIT/CFG/ABI; production closed; original generator failure not repaired; Native not run"})
+    write("result.json", {"status": "passed", "cases": list(CASES), "scope": "S2a test-only six JIT/CFG/ABI and three Native-configuration managed Builds; production closed; original generator failure not repaired; Native execution not run"})
 
 
 if __name__ == "__main__":

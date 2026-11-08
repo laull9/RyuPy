@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   baseline:
+    needs: trace-adapter-s2
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -78,6 +79,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
   full-check:
+    needs: trace-adapter-s2
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
     timeout-minutes: 100
@@ -143,6 +145,7 @@ jobs:
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
   projects:
+    needs: trace-adapter-s2
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
     timeout-minutes: 80
@@ -178,7 +181,7 @@ jobs:
   trace-adapter-s2:
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: '1'
       DOTNET_NOLOGO: '1'
@@ -194,8 +197,12 @@ jobs:
         run: |
           mkdir -p target/wcwidth-aot-evidence
           python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
-      - name: 独立S2a真实source与catch JIT纵切
+      - name: 六JIT及三Native配置轻量Build与检查器预门
+        id: managed_preflight
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_adapter_s2.py'
+      - name: 三例专用静态入口NativeAOT及搬迁最小环境
+        if: ${{ success() && steps.managed_preflight.outcome == 'success' }}
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_adapter_native_s2.py'
       - name: 保留S2a实际原流和隔离产物
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -207,6 +214,8 @@ jobs:
             target/trace-adapter-s2/*.stderr
             target/trace-adapter-s2/trx
             target/trace-adapter-s2/trx-native
+            target/trace-adapter-s2/native-preflight
+            target/trace-adapter-native-s2
             target/trace-adapter-s2/observed
             target/trace-adapter-s2/generated
             target/trace-adapter-s2/default-generated
