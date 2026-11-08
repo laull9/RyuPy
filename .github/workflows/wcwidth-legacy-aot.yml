@@ -103,10 +103,27 @@ jobs:
         run: |
           mkdir -p target/wcwidth-aot-evidence
           python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 取固定旧运行时用于S1 ABI比对
+        if: matrix.mode == 'default'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: bd5d7dbe1f09bd3ba649e9b1c1928845784e4fe8
+          path: target/trace-s1-baseline
+          persist-credentials: false
+      - name: 独立S1事务和真实PE门
+        if: matrix.mode == 'default'
+        id: trace_s1
+        continue-on-error: true
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_state_s1.py'
       - name: 完整make check及脚本门禁
         env:
           CHECK_MODE: ${{ matrix.mode }}
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/full_check.py'
+      - name: 强制S1专用门结果
+        if: always() && matrix.mode == 'default'
+        env:
+          TRACE_S1_OUTCOME: ${{ steps.trace_s1.outcome }}
+        run: test "$TRACE_S1_OUTCOME" = success
       - name: 保存完整检查原流
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -114,6 +131,7 @@ jobs:
           name: full-check-${{ matrix.mode }}-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/full-check-evidence
+            target/trace-state-s1-evidence
             target/foreach-new-run/**/*.bin
             target/foreach-new-run/**/status.json
             target/foreach-new-run/**/summary.json
