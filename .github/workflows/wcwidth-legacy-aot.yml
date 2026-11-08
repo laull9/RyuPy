@@ -206,6 +206,7 @@ jobs:
             target/trace-adapter-s2/*.stdout
             target/trace-adapter-s2/*.stderr
             target/trace-adapter-s2/trx
+            target/trace-adapter-s2/trx-native
             target/trace-adapter-s2/observed
             target/trace-adapter-s2/generated
             target/trace-adapter-s2/default-generated

@@ -27,7 +27,7 @@ internal static class Program
         };
     }
 
-    private static void InspectPe(string path, bool probe, bool runtime, bool native = false)
+    private static void InspectPe(string path, bool probe, bool runtime)
     {
         using var stream = File.OpenRead(path);
         using var pe = new PEReader(stream);
@@ -36,12 +36,7 @@ internal static class Program
             ? metadata.TypeDefinitions.Any(h => metadata.GetString(metadata.GetTypeDefinition(h).Name) == "PyTraceAdapter")
             : metadata.TypeReferences.Any(h => metadata.GetString(metadata.GetTypeReference(h).Name) == "PyTraceAdapter");
         Require(adapter == probe, "实际PE的probe标志/引用与隔离合同不符: " + path);
-        if (probe && !runtime)
-        {
-            var members = metadata.MemberReferences.Select(h => metadata.GetString(metadata.GetMemberReference(h).Name)).ToArray();
-            Require(members.Contains(native ? "FunctionLocalsValidate" : "PrepareExplicit") && members.Contains("Handle"), "生成PE没有本case真实source/receive调用");
-            if (native) Require(!members.Contains("PrepareExplicit"), "native正例不能塞入无关Explicit");
-        }
+
     }
 
     private static void Reject(Action action)
@@ -98,10 +93,13 @@ internal static class Program
     {
         // argv: expected、evidence、probe runtime、generated、default runtime、default generated。
         Require(args.Length == 6, "需要六个冻结产物参数");
+        Directory.CreateDirectory(args[1]);
+        GeneratedPeChecks.Inspect(args[3], Path.Combine(args[1], "generated-pe.json"), NativeChecks.IsNative(args[0]));
+        GeneratedPeChecksTests.Run(Path.Combine(args[1], "generated-pe-selftests.json"));
         InspectPe(args[2], true, true);
         NativeChecks.InspectRuntime(args[2], true);
         NativeChecks.InspectRuntime(args[4], false);
-        InspectPe(args[3], true, false, NativeChecks.IsNative(args[0]));
+        InspectPe(args[3], true, false);
         InspectPe(args[4], false, true);
         InspectPe(args[5], false, false);
         Require(File.ReadAllBytes(typeof(PyBaseException).Assembly.Location).SequenceEqual(File.ReadAllBytes(args[2])), "实际加载runtime不是本轮probe字节");
