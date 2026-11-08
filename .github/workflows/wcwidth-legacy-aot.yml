@@ -253,7 +253,7 @@ jobs:
           cat target/trace-rust-prepare/prepare.stdout
           cat target/trace-rust-prepare/prepare.stderr >&2
           exit "$status"
-      - name: 格式、MIR编译及七项定向Rust测试（无产品执行）
+      - name: 格式、MIR资格与default/pilot结构Rust测试（无产品执行）
         run: python3 -B tests/aot/wcwidth_ci/trace_rust_preflight.py
       - name: 保留首次Rust检查原流与精确身份
         if: always()

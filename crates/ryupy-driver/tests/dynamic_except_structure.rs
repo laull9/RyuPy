@@ -6,6 +6,9 @@ use ryupy_mir::{
 };
 use std::collections::HashSet;
 
+#[path = "dynamic_except_support/generator_contract.rs"]
+mod generator_contract;
+
 fn index(id: BlockId) -> usize {
     u32::from(id.into_raw()) as usize
 }
@@ -412,25 +415,12 @@ fn bounded_dynamic_except_regions_and_identity_flow() {
             .iter()
             .any(|r| matches!(r.kind, RegionKind::CatchAll))
     );
-    for (name, source, supported) in [
-        (
-            "ni_generator",
-            include_str!("../../../tests/fixtures/dynamic_except_structure/ni_generator.py"),
-            false,
-        ),
-        (
-            "ni_call",
-            include_str!("../../../tests/fixtures/dynamic_except_structure/ni_call.py"),
-            false,
-        ),
-        (
-            "nested_static_generator",
-            include_str!(
-                "../../../tests/fixtures/dynamic_except_structure/nested_static_generator.py"
-            ),
-            true,
-        ),
-    ] {
+    generator_contract::check(&root);
+    {
+        let name = "nested_static_generator";
+        let source = include_str!(
+            "../../../tests/fixtures/dynamic_except_structure/nested_static_generator.py"
+        );
         let input = root.join(format!("{name}.py"));
         std::fs::write(&input, source).unwrap();
         let mut session = ryupy_driver::Session::default();
@@ -440,13 +430,8 @@ fn bounded_dynamic_except_regions_and_identity_flow() {
             format!("{:?}", session.diagnostics),
         )
         .unwrap();
-        if supported {
-            let mir = result.unwrap();
-            assert!(!session.diagnostics.has_errors());
-            std::fs::write(root.join(format!("{name}.mir")), mir).unwrap();
-        } else {
-            assert!(result.is_err() && session.diagnostics.has_errors());
-            assert!(session.diagnostics.iter().any(|d| d.code == Some("E0100")));
-        }
+        let mir = result.unwrap();
+        assert!(!session.diagnostics.has_errors());
+        std::fs::write(root.join(format!("{name}.mir")), mir).unwrap();
     }
 }

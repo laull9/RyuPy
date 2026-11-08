@@ -8,6 +8,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 
 ROOT = Path(__file__).resolve().parents[3]
 OUTPUT = ROOT / "target/trace-rust-preflight"
@@ -21,6 +22,20 @@ EXPECTED = {
         "budget_overflow_is_absorbing_and_bottom_is_distinct",
     ],
     "lowering": ["audit_build_and_link_preserve_real_generator_and_parameter_origins"],
+    "frame": [
+        "original_frames_has_pc_partitioned_retry_frame_obligations",
+        "renamed_generator_and_factory_alias_keep_frame_proof",
+        "retry_with_unknown_pc_is_rejected",
+        "retry_without_caught_write_is_rejected",
+        "wrong_restore_slot_and_frame_alias_are_rejected",
+        "missing_spill_and_wrong_dispatch_map_are_rejected",
+        "factory_result_overwrite_after_make_generator_is_rejected",
+        "stale_copy_and_post_spill_local_write_are_rejected",
+        "clearing_pending_caught_without_read_is_rejected",
+        "caught_read_into_wrong_handler_local_is_rejected",
+    ],
+    "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
+    "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],
 }
 
 
@@ -50,26 +65,54 @@ def capture(directory, label, argv, cwd, timeout=900):
     return code
 
 
-def tests_complete(text, group):
-    """不仅要求退出0，还核验每个完整测试身份、数量以及无ignored/filtered伪通过。"""
-    module = "trace_domain_tests" if group == "domain" else "trace_lowering_tests"
-    expected = {f"{module}::{name}" for name in EXPECTED[group]}
+MIR_MODULES = {"domain": "trace_domain_tests", "lowering": "trace_lowering_tests", "frame": "trace_frame_tests"}
+REQUIRED = {
+    "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
+    "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",
+    "check-guard-default", "check-guard-pilot", *EXPECTED,
+}
+WORK_BUDGET_SECONDS = 1800
+
+
+def expected_names(group):
+    prefix = MIR_MODULES[group] + "::" if group in MIR_MODULES else ""
+    return {prefix + name for name in EXPECTED[group]}
+
+
+def listed_tests(text):
+    """真实libtest清单决定filtered数量，不从源码grep或旧CI猜总测试数。"""
+    names = re.findall(r"^(\S+): test$", text, re.MULTILINE)
+    totals = re.findall(r"^(\d+) tests?, (\d+) benchmarks?$", text, re.MULTILINE)
+    if len(totals) != 1 or tuple(map(int, totals[0])) != (len(names), 0) or len(set(names)) != len(names):
+        return None
+    return set(names)
+
+
+def tests_complete(text, group, available):
+    """单个test进程的完整身份、running/结果/filtered均精确匹配，零测试拒绝。"""
+    expected = expected_names(group)
     observed = re.findall(r"^test (\S+) \.\.\. ok$", text, re.MULTILINE)
+    running = re.findall(r"^running (\d+) tests?$", text, re.MULTILINE)
     summaries = re.findall(
-        r"^test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; \d+ filtered out;",
+        r"^test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; (\d+) measured; (\d+) filtered out;",
         text, re.MULTILINE,
     )
     return (
-        len(observed) == len(expected) and set(observed) == expected
-        and any(tuple(map(int, counts)) == (len(expected), 0, 0, 0) for counts in summaries)
+        available is not None and expected <= available
+        and len(observed) == len(expected) and set(observed) == expected
+        and running == [str(len(expected))] and len(summaries) == 1
+        and tuple(map(int, summaries[0])) == (len(expected), 0, 0, 0, len(available) - len(expected))
     )
 
 
 def aggregate(codes, outputs):
-    required = {"cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status", "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "domain", "lowering"}
-    failures = sorted(name for name in required if codes.get(name) != 0)
+    failures = sorted(name for name in REQUIRED if codes.get(name) != 0)
+    available = listed_tests(outputs.get("mir-list", ""))
+    if available is None:
+        failures.append("mir-list: incomplete test list")
     for group in EXPECTED:
-        if codes.get(group) == 0 and not tests_complete(outputs.get(group, ""), group):
+        universe = available if group in MIR_MODULES else expected_names(group)
+        if codes.get(group) == 0 and not tests_complete(outputs.get(group, ""), group, universe):
             failures.append(f"{group}: incomplete test identities/counts")
     # checkout必须是实际提交；脏工作树不允许冒充该git identity的受测源码。
     if codes.get("git-status") == 0 and outputs.get("git-status", "").strip():
@@ -101,6 +144,22 @@ def main():
     }, indent=2) + "\n")
     verify_tools(OUTPUT)
     codes = {}
+    deadline = time.monotonic() + WORK_BUDGET_SECONDS
+    (OUTPUT / "budget.json").write_text(json.dumps({
+        "work_seconds": WORK_BUDGET_SECONDS, "final_identity_seconds": 180,
+    }) + "\n")
+
+    def skip(label, reason):
+        codes[label] = None
+        (OUTPUT / f"{label}.skipped.json").write_text(json.dumps({"reason": reason}) + "\n")
+
+    def run(label, argv, timeout):
+        remaining = int(deadline - time.monotonic())
+        if remaining <= 0:
+            skip(label, "bounded preflight work budget exhausted")
+        else:
+            codes[label] = capture(OUTPUT, label, argv, ROOT, timeout=min(timeout, remaining))
+
     stages = [
         ("cargo-version", ["cargo", "--version"]),
         ("rustc-version", ["rustc", "-Vv"]),
@@ -113,15 +172,31 @@ def main():
     ]
     for label, argv in stages:
         timeout = 900 if label == "check" else 180 if label == "fmt" else 60
-        codes[label] = capture(OUTPUT, label, argv, ROOT, timeout=timeout)
-    # 格式检查失败仍执行check；编译成功则两组测试都执行，第一组失败不吞第二组反馈。
-    for group, module in (("domain", "trace_domain_tests"), ("lowering", "trace_lowering_tests")):
-        if codes["check"] == 0:
-            argv = ["cargo", "test", "-p", "ryupy-mir", "--locked", module, "--", "--color", "never", "--test-threads=1"]
-            codes[group] = capture(OUTPUT, group, argv, ROOT, timeout=600)
+        run(label, argv, timeout)
+    # 先真实枚举已编译library测试，精确核filtered；失败不能伪造成空清单成功。
+    if codes["check"] == 0:
+        run("mir-list", ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", "--", "--list", "--color", "never"], 600)
+    else:
+        skip("mir-list", "MIR check failed")
+    for group, module in MIR_MODULES.items():
+        if codes.get("mir-list") == 0:
+            argv = ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", module,
+                    "--", "--color", "never", "--test-threads=1", "--show-output"]
+            run(group, argv, 600)
         else:
-            codes[group] = None
-            (OUTPUT / f"{group}.skipped.json").write_text(json.dumps({"reason": "cargo check failed", "check_exit": codes["check"]}) + "\n")
+            skip(group, "MIR test compilation/list failed")
+    # 两模式分别check和启动新的test进程；默认失败不吞pilot反馈，反之亦然。
+    for group in ("guard-default", "guard-pilot"):
+        options = ["-p", "ryupy-driver", "--test", "dynamic_except_structure", "--locked", "--no-default-features"]
+        if group == "guard-pilot":
+            options += ["--features", "ryupy-driver/ordinary-dynamic-module-pilot"]
+        check = "check-" + group
+        run(check, ["cargo", "check", *options], 600)
+        if codes[check] == 0:
+            run(group, ["cargo", "test", *options, EXPECTED[group][0], "--", "--exact",
+                        "--color", "never", "--test-threads=1", "--show-output"], 600)
+        else:
+            skip(group, "matching driver check failed or budget exhausted")
     for label, argv in (
         ("git-head-after", ["git", "rev-parse", "HEAD"]),
         ("git-tree-after", ["git", "rev-parse", "HEAD^{tree}"]),

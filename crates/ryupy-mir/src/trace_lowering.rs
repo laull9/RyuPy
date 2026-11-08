@@ -29,6 +29,32 @@ pub struct GeneratorOrigin {
     pub initial_slots: Vec<Operand>,
 }
 
+/// 由降级实际重排产生；PC 是旧标签，目标是最终块，二者不能互换。
+/// 此记录不是证明，检查器必须重走最终 dispatch 和逐槽读写。
+#[derive(Clone, Debug)]
+pub struct GeneratorLayout {
+    pub factory: FnId,
+    pub resume: FnId,
+    pub initial_pc: i64,
+    pub pc_targets: Vec<(i64, BlockId)>,
+    pub saved_locals: Vec<LocalId>,
+    pub original_blocks: Vec<BlockId>,
+    pub exception_routes: Vec<FrameCatchRoute>,
+    pub exit_pcs: Vec<(BlockId, i64)>,
+    pub physical_region: Option<(usize, BlockId)>,
+    /// 实际 CatchException 替换点；完成重排后的块、语句序号与原异常目标。
+    pub catch_reads: Vec<(BlockId, usize, LocalId)>,
+}
+
+/// 逻辑 EH 的原始区间，顺序与 lowering 的内层优先选择一致。
+#[derive(Clone, Debug)]
+pub struct FrameCatchRoute {
+    pub start: i64,
+    pub length: usize,
+    pub handler_pc: i64,
+    pub unconditional: bool,
+}
+
 /// 尚未验证的旁证，不是证书。passes 可能使 block/result 失效，最终审计必须重验。
 #[derive(Debug, Default)]
 pub struct LoweringOrigins {
@@ -37,6 +63,7 @@ pub struct LoweringOrigins {
     pub globals: FxHashMap<ryupy_hir::ModuleVarId, GlobalId>,
     pub bodies: FxHashMap<ryupy_hir::FuncId, FunctionOrigin>,
     pub generators: Vec<GeneratorOrigin>,
+    pub generator_layouts: Vec<GeneratorLayout>,
 }
 
 impl LoweringOrigins {

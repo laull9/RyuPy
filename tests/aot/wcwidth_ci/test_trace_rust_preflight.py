@@ -10,12 +10,27 @@ import trace_rust_preflight as gate
 import prepare
 
 
+def universe(group):
+    if group not in gate.MIR_MODULES:
+        return gate.expected_names(group)
+    return set().union(*(gate.expected_names(name) for name in gate.MIR_MODULES), {"other::test"})
+
+
+def listing():
+    names = universe("domain")
+    return "\n".join(f"{name}: test" for name in sorted(names)) + f"\n{len(names)} tests, 0 benchmarks\n"
+
+
 def output(group):
-    module = "trace_domain_tests" if group == "domain" else "trace_lowering_tests"
-    names = gate.EXPECTED[group]
-    return "\n".join(f"test {module}::{name} ... ok" for name in names) + (
-        f"\ntest result: ok. {len(names)} passed; 0 failed; 0 ignored; 0 measured; 99 filtered out; finished in 0.01s\n"
+    names = gate.expected_names(group)
+    filtered = len(universe(group)) - len(names)
+    return f"running {len(names)} tests\n" + "\n".join(f"test {name} ... ok" for name in sorted(names)) + (
+        f"\ntest result: ok. {len(names)} passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out; finished in 0.01s\n"
     )
+
+
+def outputs():
+    return {"mir-list": listing(), **{group: output(group) for group in gate.EXPECTED}}
 
 
 class Preflight(unittest.TestCase):
@@ -38,23 +53,23 @@ class Preflight(unittest.TestCase):
     def test_exact_names_and_counts_are_required(self):
         for group in gate.EXPECTED:
             good = output(group)
-            self.assertTrue(gate.tests_complete(good, group))
-            self.assertFalse(gate.tests_complete("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out;", group))
-            self.assertFalse(gate.tests_complete(good.replace(" ... ok", " ... ignored", 1), group))
-            self.assertFalse(gate.tests_complete(good.replace("test trace_", "test fake_trace_", 1), group))
-            self.assertFalse(gate.tests_complete(good + good, group))
+            self.assertTrue(gate.tests_complete(good, group, universe(group)))
+            self.assertFalse(gate.tests_complete("test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 99 filtered out;", group, universe(group)))
+            self.assertFalse(gate.tests_complete(good.replace(" ... ok", " ... ignored", 1), group, universe(group)))
+            self.assertFalse(gate.tests_complete(good.replace(sorted(gate.expected_names(group))[0], "fake_name", 1), group, universe(group)))
+            self.assertFalse(gate.tests_complete(good + good, group, universe(group)))
 
     def test_aggregation_never_hides_fmt_compile_or_skipped_failure(self):
-        labels = ("cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status", "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "domain", "lowering")
+        labels = gate.REQUIRED
         codes = dict.fromkeys(labels, 0)
-        outputs = {group: output(group) for group in gate.EXPECTED}
-        self.assertTrue(gate.aggregate(codes, outputs)["success"])
+        evidence = outputs()
+        self.assertTrue(gate.aggregate(codes, evidence)["success"])
         for label in labels:
             with self.subTest(label=label):
                 failed = dict(codes, **{label: None if label in gate.EXPECTED else 1})
-                self.assertFalse(gate.aggregate(failed, outputs)["success"])
-        self.assertFalse(gate.aggregate(codes, dict(outputs, domain=""))["success"])
-        self.assertFalse(gate.aggregate(codes, dict(outputs, **{"git-status": " M file.rs\n"}))["success"])
+                self.assertFalse(gate.aggregate(failed, evidence)["success"])
+        self.assertFalse(gate.aggregate(codes, dict(evidence, domain=""))["success"])
+        self.assertFalse(gate.aggregate(codes, dict(evidence, **{"git-status": " M file.rs\n"}))["success"])
 
     def test_fmt_failure_still_compiles_and_runs_both_groups(self):
         for check_exit in (0, 1):
@@ -64,7 +79,7 @@ class Preflight(unittest.TestCase):
 
                 def fake_capture(out, label, argv, cwd, timeout=900):
                     called.append(label)
-                    text = output(label) if label in gate.EXPECTED else ""
+                    text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
                     if label in ("git-head", "git-head-after"):
                         text = "fixed-head\n"
                     (out / f"{label}.stdout").write_text(text)
@@ -75,6 +90,9 @@ class Preflight(unittest.TestCase):
                 self.assertLess(called.index("fmt"), called.index("check"))
                 self.assertEqual("domain" in called, check_exit == 0)
                 self.assertEqual("lowering" in called, check_exit == 0)
+                self.assertEqual("frame" in called, check_exit == 0)
+                self.assertIn("guard-default", called)
+                self.assertIn("guard-pilot", called)
                 report = json.loads((directory / "result.json").read_text())
                 self.assertIn("fmt", report["failures"])
                 if check_exit:
@@ -108,11 +126,73 @@ class Preflight(unittest.TestCase):
                     gate.verify_tools(root)
 
     def test_changed_git_identity_is_rejected(self):
-        labels = ("cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status", "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "domain", "lowering")
+        labels = gate.REQUIRED
         codes = dict.fromkeys(labels, 0)
-        outputs = {group: output(group) for group in gate.EXPECTED}
-        outputs.update({"git-head": "old", "git-head-after": "new"})
-        self.assertFalse(gate.aggregate(codes, outputs)["success"])
+        evidence = outputs()
+        evidence.update({"git-head": "old", "git-head-after": "new"})
+        self.assertFalse(gate.aggregate(codes, evidence)["success"])
+
+    def test_lists_filtered_and_running_counts_are_strict(self):
+        self.assertEqual(gate.listed_tests(listing()), universe("domain"))
+        self.assertIsNone(gate.listed_tests(listing() + listing()))
+        self.assertIsNone(gate.listed_tests(listing().replace("0 benchmarks", "1 benchmarks")))
+        for group in gate.EXPECTED:
+            good = output(group)
+            self.assertFalse(gate.tests_complete(gate.re.sub(r"\d+ filtered out", "999999 filtered out", good), group, universe(group)))
+            self.assertFalse(gate.tests_complete(good.replace("running ", "running 0", 1), group, universe(group)))
+            self.assertFalse(gate.tests_complete(good, group, None))
+
+    def test_frame_names_match_all_actual_definitions(self):
+        import re
+        source = (gate.ROOT / "crates/ryupy-mir/src/trace_frame_tests.rs").read_text()
+        names = re.findall(r"#\[test\]\s*fn (\w+)\(", source)
+        self.assertEqual(len(names), 10)
+        self.assertEqual(set(names), set(gate.EXPECTED["frame"]))
+        guard = (gate.ROOT / "crates/ryupy-driver/tests/dynamic_except_structure.rs").read_text()
+        self.assertEqual(re.findall(r"#\[test\]\s*fn (\w+)\(", guard), gate.EXPECTED["guard-default"])
+
+    def test_driver_modes_are_independent_locked_exact_processes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "evidence"
+            calls = {}
+
+            def fake_capture(out, label, argv, cwd, timeout=900):
+                calls[label] = argv
+                text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                if label in ("git-head", "git-head-after"):
+                    text = "fixed-head\n"
+                (out / f"{label}.stdout").write_text(text)
+                return 1 if label == "check-guard-default" else 0
+
+            with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head"}), patch("builtins.print"):
+                self.assertEqual(gate.main(), 1)
+            self.assertNotIn("guard-default", calls)
+            self.assertIn("guard-pilot", calls)
+            self.assertIn("--locked", calls["check-guard-default"])
+            self.assertNotIn("--features", calls["check-guard-default"])
+            for label in ("check-guard-pilot", "guard-pilot"):
+                self.assertIn("ryupy-driver/ordinary-dynamic-module-pilot", calls[label])
+                self.assertIn("--no-default-features", calls[label])
+                self.assertIn("--locked", calls[label])
+            self.assertIn("--exact", calls["guard-pilot"])
+            self.assertIn("--show-output", calls["frame"])
+
+    def test_total_budget_skips_work_but_keeps_final_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "evidence"
+            called = []
+
+            def fake_capture(out, label, argv, cwd, timeout=900):
+                called.append(label)
+                (out / f"{label}.stdout").write_text("")
+                return 0
+
+            clock = iter([0] + [gate.WORK_BUDGET_SECONDS + 1] * 100)
+            with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.object(gate.time, "monotonic", side_effect=lambda: next(clock)), patch("builtins.print"):
+                self.assertEqual(gate.main(), 1)
+            self.assertEqual(called, ["git-head-after", "git-tree-after", "git-status-after"])
+            self.assertTrue((directory / "check.skipped.json").exists())
+            self.assertTrue((directory / "guard-pilot.skipped.json").exists())
 
 
 if __name__ == "__main__":

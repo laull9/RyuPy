@@ -11,10 +11,11 @@ pub(crate) fn lower(
     program: &mut Program,
     generators: &[FnId],
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
-) {
-    for &id in generators {
-        lower_one(program, id, exception_globals);
-    }
+) -> Vec<crate::trace_lowering::GeneratorLayout> {
+    generators
+        .iter()
+        .map(|&id| lower_one(program, id, exception_globals))
+        .collect()
 }
 
 fn empty_body() -> Body {
@@ -86,7 +87,7 @@ fn lower_one(
     program: &mut Program,
     id: FnId,
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
-) {
+) -> crate::trace_lowering::GeneratorLayout {
     let function = &mut program.functions[id];
     let mut body = std::mem::replace(&mut function.body, empty_body());
     let original: Vec<_> = body
@@ -104,7 +105,10 @@ fn lower_one(
         });
     }
     let frame = local(&mut body.locals, MirType::Dynamic);
+    let original_block_count = body.blocks.len();
     let exceptions = crate::generator_exceptions::Plan::take(&mut body);
+    let exception_routes = exceptions.frame_routes();
+    let mut exit_pcs = Vec::new();
     let mut resume_targets = vec![original_entry];
     for handler in exceptions.handlers() {
         if !resume_targets.contains(&handler) {
@@ -113,7 +117,7 @@ fn lower_one(
     }
     let mut inputs = Vec::new();
 
-    for (_, block) in body.blocks.iter_mut() {
+    for (block_id, block) in body.blocks.iter_mut() {
         // 每次 next 的帧由运行时包住，不能在暂停后把旧深度恢复到新的调用者栈。
         block.stmts.retain(|stmt| {
             !matches!(
@@ -151,6 +155,7 @@ fn lower_one(
                 input,
                 delegated,
             } => {
+                exit_pcs.push((block_id, resume.into_raw().into_u32() as i64));
                 // yield from 的恢复输入由委托步骤转发给子迭代器，不能提前消费/抛出。
                 if !delegated {
                     inputs.push((resume, input));
@@ -181,6 +186,7 @@ fn lower_one(
                 Terminator::Return(Some(value))
             }
             Terminator::Return(value) => {
+                exit_pcs.push((block_id, -1));
                 let state = boxed(
                     &mut body.locals,
                     &mut block.stmts,
@@ -268,8 +274,10 @@ fn lower_one(
         terminator: Terminator::Goto(dispatch),
     });
 
-    exceptions.finish(&mut body, frame, &original, exception_globals);
+    let (block_map, catch_reads) =
+        exceptions.finish(&mut body, frame, &original, exception_globals);
 
+    let physical_region = body.regions.first().map(|region| (region.try_len, region.handler));
     let name = function.name.clone();
     let source_file = function.source_file.clone();
     let codegen_name = format!(
@@ -359,4 +367,21 @@ fn lower_one(
     });
     factory.blocks[factory.entry].terminator = Terminator::Return(Some(Operand::Local(result)));
     program.functions[id].body = factory;
+    crate::trace_lowering::GeneratorLayout {
+        factory: id,
+        resume,
+        initial_pc: original_entry.into_raw().into_u32() as i64,
+        pc_targets: resume_targets
+            .into_iter()
+            .map(|old| (old.into_raw().into_u32() as i64,
+                block_map[old.into_raw().into_u32() as usize]))
+            .collect(),
+        original_blocks: block_map[..original_block_count].to_vec(),
+        exception_routes,
+        catch_reads,
+        exit_pcs: exit_pcs.into_iter().map(|(block, pc)|
+            (block_map[block.into_raw().into_u32() as usize], pc)).collect(),
+        physical_region,
+        saved_locals: original.into_iter().map(|(local, _)| local).collect(),
+    }
 }

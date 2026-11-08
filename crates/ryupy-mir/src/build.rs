@@ -445,7 +445,8 @@ pub(crate) fn build_program_with_origins(
         .map(|(id, cls)| (cls.name.as_str().to_owned(), hir_class_globals[&id]))
         .collect();
     crate::module_bindings::instrument(&mut program, &module_bound_flags);
-    crate::generators::lower(&mut program, &generators, &exception_globals);
+    let generator_layouts =
+        crate::generators::lower(&mut program, &generators, &exception_globals);
 
     let exports = crate::module_bindings::exports(
         hir,
@@ -461,6 +462,7 @@ pub(crate) fn build_program_with_origins(
         origins.classes = hir_class_globals;
         origins.globals = module_var_ids;
         origins.collect_generators(&program);
+        origins.generator_layouts = generator_layouts;
     }
     (program, exports, diagnostics)
 }
