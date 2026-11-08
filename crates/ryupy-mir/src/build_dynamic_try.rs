@@ -60,14 +60,15 @@ impl FunctionBuilder<'_> {
         let enter = self.new_block();
         self.terminate_current(Terminator::Goto(enter));
         self.current_bb = enter;
+        let park = self.emit_product_park(original);
         // 尚未弹callee帧，先保原异常现场及ambient context；源raise已准备的对象不替换。
-        self.push_stmt(Statement::Assign {
+        if !self.trace_product { self.push_stmt(Statement::Assign {
             dest: original,
             value: Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::RaisePrepare),
                 args: vec![Operand::Local(original)],
             },
-        });
+        }); }
         self.emit_frame_restore();
         let ambient = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
@@ -139,6 +140,7 @@ impl FunctionBuilder<'_> {
                 has_bare = true;
                 None
             };
+            self.emit_product_consume(park, RuntimeFn::TraceV1Match);
             if let Some(binding) = binding {
                 self.store_binding(binding, Operand::Local(original), &MirType::Dynamic);
                 // 若绑定本身失败，不清一个尚未成功绑定的名称。
@@ -161,6 +163,7 @@ impl FunctionBuilder<'_> {
             }
         }
         if !has_bare {
+            self.emit_product_consume(park, RuntimeFn::TraceV1AllMiss);
             // 无匹配不是一个新raise：保存原对象和异常动作后直接去清理，不进guard重复准备。
             self.push_stmt(Statement::Assign {
                 dest: escaped,
@@ -186,13 +189,15 @@ impl FunctionBuilder<'_> {
         let guard_body = self.new_block();
         self.terminate_current(Terminator::Goto(guard_body));
         self.current_bb = guard_body;
-        self.push_stmt(Statement::Assign {
+        self.emit_product_consume(park, RuntimeFn::TraceV1Abort);
+        self.emit_product_receive(escaped, true);
+        if !self.trace_product { self.push_stmt(Statement::Assign {
             dest: escaped,
             value: Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::RaisePrepare),
                 args: vec![Operand::Local(escaped)],
             },
-        });
+        }); }
         self.emit_frame_restore();
         self.set_flow(FLOW_EXCEPTION);
         self.regions.push(Region {

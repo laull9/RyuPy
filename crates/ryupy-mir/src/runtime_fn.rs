@@ -160,6 +160,16 @@ pub enum RuntimeFn {
     Reraise,
     /// `PyErrors.PrepareRaise(object) -> object`：抛前准备（挂上下文 + 记栈帧）。
     RaisePrepare,
+    /// 产品 V1 的源/动态分派/接收 ABI；整产物准入之前不得发射。
+    TraceV1Explicit,
+    TraceV1Park,
+    TraceV1Match,
+    TraceV1Abort,
+    TraceV1AllMiss,
+    TraceV1Handle,
+    TraceV1Forward,
+    TraceV1GeneratorCatch,
+    TraceV1GeneratorDepth,
     /// 隔离S2a源raise入口：归一化后发行真实Explicit请求。
     #[cfg(feature = "trace-adapter-test")]
     TraceAdapterExplicit,

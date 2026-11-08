@@ -564,6 +564,7 @@ fn build_resolution_core(
             opts.entry_source_path
                 .as_deref()
                 .unwrap_or(&program.modules[program.entry].file),
+            runtime_refs.trace_product.as_ref().map(|refs| refs.enter),
         );
     }
 

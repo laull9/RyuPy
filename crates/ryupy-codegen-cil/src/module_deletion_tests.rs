@@ -38,6 +38,7 @@ fn plain_program() -> LinkedProgram {
         exports: vec![],
     });
     LinkedProgram {
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

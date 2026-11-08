@@ -68,8 +68,7 @@ fn mappings(body: &Body, layout: &GeneratorLayout) {
             .position(|id| *id == block)
             .and_then(|old| {
                 layout.exception_routes.iter().find(|route| {
-                    old as i64 >= route.start
-                        && (old as i64) < route.start + route.length as i64
+                    old as i64 >= route.start && (old as i64) < route.start + route.length as i64
                 })
             })
             .map(|route| route.handler_pc);
@@ -92,7 +91,10 @@ fn mappings(body: &Body, layout: &GeneratorLayout) {
 
 #[test]
 fn actual_layout_indices_match_first_match_linear_oracle() {
-    for source in [SOURCE.to_string(), SOURCE.replace("generate", "renamed_factory")] {
+    for source in [
+        SOURCE.to_string(),
+        SOURCE.replace("generate", "renamed_factory"),
+    ] {
         let (program, origins) = build(&source);
         assert!(validate::validate(&program).is_ok());
         let origin = &origins.generators[0];

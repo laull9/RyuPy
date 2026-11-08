@@ -8,6 +8,7 @@ pub(crate) fn initialize(
     runtime: AssemblyRefIndex,
     refs: &mut crate::stackify_refs::RuntimeRefs,
 ) {
+    refs.trace_product = crate::trace_product_refs::TraceProductRefs::for_program(res, program, runtime);
     refs.instances = crate::instance_refs::for_program(res, program, runtime);
     refs.owned_functions =
         crate::owned_function_refs::OwnedFunctionRefs::for_program(res, program, runtime);

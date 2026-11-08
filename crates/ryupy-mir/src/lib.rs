@@ -25,6 +25,7 @@ mod build_flow;
 mod build_loops;
 mod build_params;
 mod build_print;
+mod build_product_trace;
 mod build_relative_import;
 mod build_stmts;
 mod build_try;
@@ -43,6 +44,23 @@ mod function_module;
 mod function_module_tests;
 mod generator_exceptions;
 mod generators;
+pub mod generator_product;
+mod generator_product_cursor;
+mod generator_product_effects;
+mod generator_product_identity;
+mod generator_product_link;
+mod generator_product_routes;
+mod generator_product_snapshot;
+mod generator_product_structure;
+mod generator_product_values;
+mod generator_product_high;
+mod generator_product_trace;
+#[cfg(test)]
+mod generator_product_tests;
+#[cfg(test)]
+mod generator_product_structure_tests;
+
+mod trace_product_abi;
 pub mod link;
 mod link_placeholders;
 mod mir;

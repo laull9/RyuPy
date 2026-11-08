@@ -51,8 +51,7 @@ impl LayoutIndex {
             if let Some(old) = original {
                 for route in &layout.exception_routes {
                     budget.work(1)?;
-                    if old as i64 >= route.start
-                        && (old as i64) < route.start + route.length as i64
+                    if old as i64 >= route.start && (old as i64) < route.start + route.length as i64
                     {
                         retry = Some(route.handler_pc);
                         break;

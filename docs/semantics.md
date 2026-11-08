@@ -1327,3 +1327,11 @@ HIR仅新增Legacy SourceDynamic的生成器准入，沿既有Name/属性链/无
 目标求值、as及异常上下文由原动态CFG与生成器状态机组合。六组完整CP合同与普通observer
 前置有效；产品编译/JIT/Native尚待hosted验收，暂不登记为已支持。Instance动态生成器、
 except*与其它复杂目标继续拒绝，默认模块集合和Native自动Legacy不变。
+
+### 显式 trace V1 产品候选（ADR0142，未验收）
+
+`--trace-product-v1` 仅尝试单源码 Legacy 的封闭普通 next/property/标量域。所有能力检查在发射前完成；未知 callee、外逃、字段/构造器、Instance、源 bare、send/throw/close/yield-from、SystemExit/PEP479 整产物拒绝，不切局部旧实现。默认旧域保持。
+
+异常单参构造若通过参数/返回/别名可能取得None，同样在产品HIR合同拒绝；现有无参/显式None的旧ABI歧义未作全面修复，零参及直接raise已准入类型仍单独保留。
+
+内部 all-miss continuation 与源码显式 raise 分开，Retry 保持同 activation；异常 Frames 在 V1 中只能从唯一 owner 历史派生。原 A/B、原 C/D 及唯一同站点热输入的真实产品验收尚未执行，不能将结构/事务测试或离线门禁自测登记为语言能力。见 [ADR0142](adr/0142-generator-trace-product-v1.md)。

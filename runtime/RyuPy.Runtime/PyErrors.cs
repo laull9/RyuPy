@@ -192,9 +192,9 @@ public static partial class PyErrors
     {
         if (value is null or PyUnbound)
         {
-            throw new PyUnboundLocalError(
+            throw PyTraceProduct.NativeFresh(new PyUnboundLocalError(
                 $"cannot access local variable '{name}' where it is not associated with a value"
-            );
+            ));
         }
         return value;
     }

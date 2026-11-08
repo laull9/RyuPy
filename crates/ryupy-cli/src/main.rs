@@ -11,6 +11,9 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
+    /// 受控生成器trace V1：仅闭合单源码产品，域外整产物编译拒绝（默认关闭）
+    #[arg(long, global = true)]
+    trace_product_v1: bool,
     /// 显式启用已发现源码模块的真实实例全局；不会自动包含模块（可重复）
     #[arg(long = "instance-module", global = true)]
     instance_modules: Vec<String>,
@@ -109,6 +112,7 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let mut sess = Session {
+        trace_product_v1: cli.trace_product_v1,
         instance_modules: cli.instance_modules,
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
         experimental_leaf_inline: cli.experimental_leaf_inline,

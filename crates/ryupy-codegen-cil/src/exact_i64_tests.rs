@@ -191,6 +191,7 @@ pub(super) fn program() -> LinkedProgram {
         exports: Vec::new(),
     });
     LinkedProgram {
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

@@ -67,6 +67,7 @@ public sealed class PyGenerator : IPyIterator
         {
             depth = _origin is null ? PyTraceback.PushFrame(_source, _name)
                 : PyTraceback.PushFrameWithOrigin(_source, _name, _origin);
+            if (PyTraceProduct.Enabled) PyTraceProduct.EnterGenerator(depth);
             var frame = _frame;
             if (ReadState(frame) == -1) { Finish(); return false; }
             frame[1] = sentValue ?? PyNone.Instance;
@@ -109,7 +110,11 @@ public sealed class PyGenerator : IPyIterator
         catch (PyBaseException error)
         {
             // 未进入逻辑handler的运行时错误也要保留当下上下文，之后才恢复caller。
-            PyErrors.PrepareRaise(error);
+            if (PyTraceProduct.Enabled)
+            {
+                if (depth != 0) PyTraceProduct.EscapeGenerator(error, depth);
+            }
+            else PyErrors.PrepareRaise(error);
             Finish();
             throw;
         }
@@ -121,6 +126,7 @@ public sealed class PyGenerator : IPyIterator
         }
         finally
         {
+            if (depth != 0 && PyTraceProduct.Enabled) PyTraceProduct.LeaveGenerator(depth);
             if (depth != 0) PyTraceback.PopTo(depth);
             _context = _frame is null ? _contextRoot : PyErrors.ContextNode;
             _contextRoot.Parent = null;
@@ -137,7 +143,7 @@ public sealed class PyGenerator : IPyIterator
         if (MoveNextCore(PyNone.Instance, out object? returnValue)) return Current();
         if (hasDefault) return defaultValue;
         // 必须在恢复过程的异常转换区外抛出，正常完成不属于 PEP 479 错误。
-        throw new PyStopIteration(returnValue);
+        throw PyTraceProduct.NativeFresh(new PyStopIteration(returnValue));
     }
 
     /// <summary>向暂停的 yield 表达式发送值，恢复到下一次产出或完成。</summary>

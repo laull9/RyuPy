@@ -1,0 +1,34 @@
+{
+  "frozen": false,
+  "repo": ".",
+  "commit": null,
+  "tree": null,
+  "flag": "--trace-product-v1",
+  "abi": 1,
+  "pic_modes": [
+    "1",
+    "0"
+  ],
+  "cli": {
+    "path": null,
+    "sha256": null
+  },
+  "runtime": {
+    "path": null,
+    "sha256": null
+  },
+  "dotnet": {
+    "path": null,
+    "sha256": null
+  },
+  "decoder": {
+    "path": null,
+    "sha256": null
+  },
+  "output": null,
+  "work": null,
+  "rid": "linux-x64",
+  "sdk_version": null,
+  "compiler_evidence": null,
+  "goldens": "tests/validation/generator_product/goldens"
+}

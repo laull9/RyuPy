@@ -101,6 +101,7 @@ public static partial class PyTraceback
 #if TRACE_ADAPTER_TEST
         AdapterPush(_depth);
 #endif
+        ProductPush(_depth);
         _functions[_depth] = function;
         _files[_depth] = file;
         _lines[_depth] = 0;
@@ -114,7 +115,7 @@ public static partial class PyTraceback
     {
         // 与普通入口共享同一限额和错误，不能因省略叶函数帧而吞掉可捕获异常。
         if (_depth >= RecursionLimit)
-            throw new PyRecursionError("maximum recursion depth exceeded");
+            throw PyTraceProduct.NativeFresh(new PyRecursionError("maximum recursion depth exceeded"));
     }
 
     /// <summary>保存调用者帧深度；原生回调捕获异常后用 PopTo(depth + 1) 恢复，不创建虚假帧。</summary>
@@ -159,6 +160,8 @@ public static partial class PyTraceback
     /// <param name="exception">即将抛出的异常。</param>
     public static void Attach(object exception)
     {
+        if (PyTraceProduct.Enabled)
+            throw new InvalidOperationException("legacy Attach is forbidden inside trace V1");
         if (exception is not PyBaseException ex || ex.Frames.Length > 0)
         {
             return;
@@ -236,8 +239,9 @@ public static partial class PyTraceback
         {
             rendered = exception.Render();
         }
-        catch (PyBaseException)
+        catch (PyBaseException error)
         {
+            PyTraceProduct.Suppress(error);
             // 报告异常时不能被用户 __str__ 再次打断；普通 str(exc) 仍传播原错误。
             rendered = PyNativeExceptionDisplay.Name(exception) + ": <exception str() failed>";
         }
@@ -248,13 +252,15 @@ public static partial class PyTraceback
     /// <param name="exception">未被捕获的异常。</param>
     public static void Report(PyBaseException exception)
     {
+        PyTraceProduct.Terminal(exception);
         // stdout 是带缓冲的：若不先刷新，缓冲区里的输出会出现在 stderr 之后，
         // 甚至随进程退出顺序不同而丢失
-        try { Builtins.Flush(); } catch (Exception) { /* 原始输出失效时仍尝试报告。 */ }
+        try { Builtins.Flush(); } catch (Exception error) { PyTraceProduct.Suppress(error); }
         string formatted = Format(exception);
         try { PySystem.Write(PySystem.Stderr, formatted); PySystem.Flush(PySystem.Stderr); }
-        catch (Exception)
+        catch (Exception error)
         {
+            PyTraceProduct.Suppress(error);
             // 用户替换的stderr可能失效，错误报告自身不能变成未处理CLR异常。
             try { Console.Error.Write(formatted); Console.Error.Flush(); }
             catch (Exception) { }
@@ -286,7 +292,8 @@ public static partial class PyTraceback
             ),
             _ => new PyRuntimeError(exception.Message),
         };
-        Attach(mapped);
+        if (PyTraceProduct.Enabled) PyTraceProduct.NativeFresh(mapped);
+        else Attach(mapped);
         Report(mapped);
     }
 

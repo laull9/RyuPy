@@ -26,6 +26,7 @@ mod native_binding_manifest;
 mod resources;
 pub mod runtime;
 mod stage_trace;
+mod trace_product;
 
 use std::path::{Path, PathBuf};
 
@@ -35,6 +36,8 @@ use ryupy_base::{Diagnostics, FileId, SourceDb};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 显式受控生成器trace V1；整产物闭包拒绝，不扩大默认产品域。
+    pub trace_product_v1: bool,
     /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
     pub instance_modules: Vec<String>,
     /// 编译会话的隔离候选策略；无公开CLI开关，也不改变运行时模式数。
@@ -124,6 +127,7 @@ pub struct Artifacts {
 
 /// 单模块产物与跨模块绑定契约，一同交给链接器。
 struct CompiledModule {
+    trace_proof: Option<ryupy_mir::generator_product::Proof>,
     program: ryupy_mir::Program,
     exports: Vec<ryupy_mir::ModuleExport>,
     protected_exports: Vec<String>,
@@ -166,6 +170,7 @@ fn compile_module(
     stop_if_errors(sess)?;
     trace.mark("end", "type-check", &module.name);
 
+    if sess.trace_product_v1 { return trace_product::compile(sess, &hir, &types, plan, trace); }
     trace.mark("begin", "mir-build", &module.name);
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
@@ -190,6 +195,7 @@ fn compile_module(
     }
     trace.mark("end", "final-validate", &module.name);
     Ok(CompiledModule {
+        trace_proof: None,
         program: mir,
         exports,
         protected_exports: hir.protected_exports,
@@ -264,6 +270,7 @@ fn compile_linked_traced(
         modules::load_program_including(sess, entry, search_paths, &include_modules)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
+    trace_product::graph(sess, sources[entry_index].parsed.file, sources.len(), entry_index, resource_request.is_some())?;
     instance_modules::validate_selection(
         sess,
         &sources,
@@ -298,6 +305,7 @@ fn compile_linked_traced(
     .filter(|name| !sources.iter().any(|source| source.name == *name))
     .collect();
     let mut units = Vec::new();
+    let mut trace_proofs = Vec::new();
     let mut summaries = Vec::new();
     let plans: Vec<_> = sources
         .iter()
@@ -318,10 +326,12 @@ fn compile_linked_traced(
             summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, &module));
         }
         let CompiledModule {
+            trace_proof,
             program,
             exports,
             protected_exports,
         } = compile_module(sess, &module, &native_exceptions, &plan, trace)?;
+        if let Some(proof) = trace_proof { trace_proofs.push(proof); }
         sess.module_environment_report[index].compiled = true;
         let location = if !aot_locations {
             ryupy_mir::ModuleLocation::SourceAbsolute(
@@ -360,7 +370,7 @@ fn compile_linked_traced(
         ));
     }
     trace.mark("begin", "link", "-");
-    let linked = ryupy_mir::link(units, entry_index);
+    let linked = trace_product::link(sess, entry_file, units, entry_index, trace_proofs)?;
     trace.mark("end", "link", "-");
     trace.mark("begin", "export-check", "-");
     check_linked_exports(sess, &linked, entry_file)?;
@@ -556,3 +566,6 @@ mod explicit_super_fixture_tests;
 
 #[cfg(test)]
 mod generator_dynamic_fixture_tests;
+
+#[cfg(test)]
+mod generator_product_tests;

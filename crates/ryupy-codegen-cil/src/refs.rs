@@ -430,6 +430,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         method_ref! { static void @pyops_type::DictSetScalarKey(object, object, object) },
     );
     let runtime_refs = RuntimeRefs {
+        trace_product: None,
         deletions: None,
         instances: None,
         class_cell_guard: None,

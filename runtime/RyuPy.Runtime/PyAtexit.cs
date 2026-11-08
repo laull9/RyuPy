@@ -8,6 +8,7 @@ public static class PyAtexit
 {
     private sealed record Entry(object? Function, object?[] Args, string[] Names, object?[] Values);
     private static readonly List<Entry?> Entries = new();
+    internal static bool HasCallbacks => Entries.Exists(entry => entry is not null);
     private static readonly Lazy<Dictionary<string, object?>> Attributes = new(Build);
     /// <summary>原生模块单例；不注册额外CLR ProcessExit事件，避免重复执行。</summary>
     public static Dictionary<string, object?> CreateAttributes() => Attributes.Value;

@@ -53,6 +53,7 @@ fn serialized_entry_initializes_exit_code() {
         exports: Vec::new(),
     });
     let program = LinkedProgram {
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

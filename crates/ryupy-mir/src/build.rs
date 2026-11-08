@@ -46,7 +46,16 @@ pub fn build_program(
 pub(crate) fn build_program_with_origins(
     hir: &Module,
     types: &ModuleTypes,
+    origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
+) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
+    build_program_mode(hir, types, origins, None)
+}
+
+pub(crate) fn build_program_mode(
+    hir: &Module,
+    types: &ModuleTypes,
     mut origins: Option<&mut crate::trace_lowering::LoweringOrigins>,
+    deferred: Option<&mut crate::generator_product::DeferredGenerators>,
 ) -> (Program, Vec<crate::mir::ModuleExport>, Vec<Diagnostic>) {
     let mut functions = Arena::default();
     let mut classes = Arena::default();
@@ -260,6 +269,7 @@ pub(crate) fn build_program_with_origins(
         if origins.is_some() {
             builder.trace_expressions = Some(Vec::new());
         }
+        builder.trace_product = deferred.is_some();
         // 建立 HIR 局部变量 → MIR 局部变量映射。
         // 被 nested 函数捕获的名字（cell，M3.0）在槽位里存 `object[1]`，
         // 必须用 Dynamic 表示；读写都经过运行时 cell 协议。
@@ -431,21 +441,10 @@ pub(crate) fn build_program_with_origins(
         source_name: hir.source_name.clone(),
     };
 
-    let generators = hir
-        .functions
-        .iter()
-        .filter(|(_, f)| f.is_generator)
-        .map(|(id, _)| fn_map[&id])
-        .collect::<Vec<_>>();
-    // 逻辑 handler 必须读取真实用户类对象，不能用同名内建 PyType 替代。
-    let exception_globals = hir
-        .classes
-        .iter()
-        .filter(|(_, cls)| cls.is_exception)
-        .map(|(id, cls)| (cls.name.as_str().to_owned(), hir_class_globals[&id]))
-        .collect();
     crate::module_bindings::instrument(&mut program, &module_bound_flags);
-    let generator_layouts = crate::generators::lower(&mut program, &generators, &exception_globals);
+    let generator_layouts = crate::generator_product::finish_build(
+        &mut program, hir, &fn_map, &hir_class_globals, deferred,
+    );
 
     let exports = crate::module_bindings::exports(
         hir,
@@ -489,6 +488,7 @@ pub fn ty_to_mir(ty: &Ty) -> MirType {
 /// 字段对外开放到 crate 内，是为了把「循环」「异常区域」这些小节的构建逻辑拆到
 /// 独立文件（`build_loops.rs` / `build_try.rs`），避免单文件过长。
 pub(crate) struct FunctionBuilder<'a> {
+    pub(crate) trace_product: bool,
     pub(crate) trace_expressions: Option<Vec<crate::trace_lowering::ExpressionOrigin>>,
     pub(crate) module_state: Option<MirLocalId>,
     pub(crate) hir: &'a Module,

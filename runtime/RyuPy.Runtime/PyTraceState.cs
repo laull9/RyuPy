@@ -6,7 +6,7 @@ using System.Collections.ObjectModel;
 
 namespace RyuPy.Runtime;
 
-internal sealed class PyTraceState
+internal sealed partial class PyTraceState
 {
     private TraceSnapshot _state;
     internal TraceSnapshot Snapshot => _state;
@@ -59,7 +59,7 @@ internal sealed class PyTraceState
         // 成功 Explicit 也永久撤销出生资格，不能把处理过但 H 为空的对象再当 NativeFresh。
         var next = new TraceSnapshot(this, old.Epoch, old.History, Array.AsReadOnly(copy), request,
             kind, copy.Length, old.GrantUsed || kind == TraceBeginKind.NativeFresh,
-            false, old.Version + 1, null, 1);
+            false, old.Version + 1, null, 1, old.Park);
         _state = next;
         return TraceResult.Applied;
     }
@@ -108,7 +108,8 @@ internal sealed class PyTraceState
         long version = old.Version + 1;
         var next = new TraceSnapshot(this, old.Epoch, Array.AsReadOnly(history), old.Scene,
             old.Request, old.BeginKind, input.Kind == TraceReceiveKind.Forward ? start : null,
-            old.GrantUsed, old.GrantValid, version, new TraceReceipt(input, version), old.NextReceive + 1);
+            old.GrantUsed, old.GrantValid, version, new TraceReceipt(input, version), old.NextReceive + 1,
+            old.Park, old.Continuation);
         _state = next;
         return TraceResult.Applied;
     }
@@ -122,7 +123,8 @@ internal sealed class PyTraceState
         if (!ReferenceEquals(permit.Target.Authority, old.Epoch.Authority)
             || !ReferenceEquals(permit.Target, old.Epoch.Authority.Current)
             || permit.Target.Generation <= old.Epoch.Generation) return TraceResult.Fail(TraceReject.Epoch);
-        if (old.PendingCount.HasValue) return TraceResult.Fail(TraceReject.Unfinished);
+        if (old.PendingCount.HasValue || old.Park is not null)
+            return TraceResult.Fail(TraceReject.Unfinished);
         if (old.Version == long.MaxValue) return TraceResult.Fail(TraceReject.Overflow);
         var next = new TraceSnapshot(this, permit.Target, old.History, Empty(), null, null, null,
             old.GrantUsed, false, old.Version + 1, null, 0);

@@ -20,6 +20,7 @@ class InterpreterRoutingTests(unittest.TestCase):
                 (result / 'results.trx').write_text('<TestRun><Counters passed="1" failed="0"/></TestRun>')
         with tempfile.TemporaryDirectory() as folder:
             with patch.object(full_check.h, 'REPO', Path(folder)), patch.object(full_check.h, 'run', record), \
+                 patch.object(full_check.build_identity, 'before'), patch.object(full_check.build_identity, 'after'), \
                  patch.dict(os.environ, PYTHON=sys.executable, DOTNET='not-executed', CHECK_MODE='pilot', GITHUB_SHA='test-only'):
                 full_check.main()
         by_name = {name: (args, options) for name, args, options in calls}
@@ -31,6 +32,8 @@ class InterpreterRoutingTests(unittest.TestCase):
         self.assertEqual(by_name['python-child-version'][0], [Path(python), '--version'])
         self.assertEqual(by_name['python-child-version'][1]['expected'], b'Python 3.12.13\n')
         self.assertIn('CARGO_FEATURES=ryupy-driver/ordinary-dynamic-module-pilot', by_name['make-check'][0])
+        self.assertIn('trx;LogFileName=dotnet-test.trx', by_name['make-check'][1]['env']['DOTNET_TEST_ARGS'])
+        self.assertIn('FULL_CHECK_EVIDENCE', by_name['make-check'][1]['env'])
 
     def test_mismatched_executable_is_rejected_before_any_child(self):
         with tempfile.TemporaryDirectory() as folder:

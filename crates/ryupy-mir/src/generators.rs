@@ -12,9 +12,18 @@ pub(crate) fn lower(
     generators: &[FnId],
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
 ) -> Vec<crate::trace_lowering::GeneratorLayout> {
+    lower_with_trace(program, generators, exception_globals, false)
+}
+
+pub(crate) fn lower_with_trace(
+    program: &mut Program,
+    generators: &[FnId],
+    exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+    product: bool,
+) -> Vec<crate::trace_lowering::GeneratorLayout> {
     generators
         .iter()
-        .map(|&id| lower_one(program, id, exception_globals))
+        .map(|&id| lower_one(program, id, exception_globals, product))
         .collect()
 }
 
@@ -87,6 +96,7 @@ fn lower_one(
     program: &mut Program,
     id: FnId,
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+    product: bool,
 ) -> crate::trace_lowering::GeneratorLayout {
     let function = &mut program.functions[id];
     let mut body = std::mem::replace(&mut function.body, empty_body());
@@ -96,6 +106,13 @@ fn lower_one(
         .map(|(id, decl)| (id, decl.ty.clone()))
         .collect();
     let original_entry = body.entry;
+    let depths: Vec<_> = body.blocks.iter().flat_map(|(_, block)| &block.stmts)
+        .filter_map(|stmt| match stmt {
+            Statement::Assign { dest, value: Rvalue::Call {
+                callee: Callee::Runtime(RuntimeFn::TracePush | RuntimeFn::TracePushWithOrigin), ..
+            }} => Some(*dest),
+            _ => None,
+        }).collect();
     let mut factory = empty_body();
     for (_, decl) in body.locals.iter() {
         factory.locals.alloc(LocalDecl {
@@ -237,6 +254,12 @@ fn lower_one(
         }
     }
     let state_object = local(&mut body.locals, MirType::Dynamic);
+    if product {
+        // 本地槽虽跨暂停保存，但接收深度必须绑定本次实际 Push，而非上一 activation。
+        for depth in depths {
+            restore.push(call(depth, RuntimeFn::TraceV1GeneratorDepth, vec![]));
+        }
+    }
     restore.push(call(
         state_object,
         RuntimeFn::ArrayGet,
@@ -275,7 +298,7 @@ fn lower_one(
     });
 
     let (block_map, catch_reads) =
-        exceptions.finish(&mut body, frame, &original, exception_globals);
+        exceptions.finish(&mut body, frame, &original, exception_globals, product);
 
     let physical_region = body
         .regions

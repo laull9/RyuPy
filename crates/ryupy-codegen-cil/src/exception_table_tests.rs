@@ -92,6 +92,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         exports: vec![],
     });
     let program = LinkedProgram {
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

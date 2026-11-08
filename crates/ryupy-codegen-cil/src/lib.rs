@@ -49,6 +49,7 @@ mod stackify_runtime;
 mod stackify_rvalue;
 mod system_refs;
 mod types;
+mod trace_product_refs;
 mod unpack_refs;
 
 use ryupy_mir::LinkedProgram;
@@ -79,6 +80,7 @@ pub fn emit_assembly_with_report(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> Result<EmissionArtifact, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     let (res, _, report) = assembly::build_resolution_with_report(program, opts);
     let bytes = res
         .write(dotnetdll::prelude::WriteOptions {

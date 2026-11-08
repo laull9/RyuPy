@@ -23,9 +23,10 @@ def listing():
 
 def output(group):
     names = gate.expected_names(group)
+    isolated = gate.isolated_names(group)
     filtered = len(universe(group)) - len(names)
-    return f"running {len(names)} tests\n" + "\n".join(f"test {name} ... ok" for name in sorted(names)) + (
-        f"\ntest result: ok. {len(names)} passed; 0 failed; 0 ignored; 0 measured; {filtered} filtered out; finished in 0.01s\n"
+    return f"running {len(names)} tests\n" + "\n".join(f"test {name} ... " + ("ignored, known experimental failure" if name in isolated else "ok") for name in sorted(names)) + (
+        f"\ntest result: ok. {len(names - isolated)} passed; 0 failed; {len(isolated)} ignored; 0 measured; {filtered} filtered out; finished in 0.01s\n"
     )
 
 
@@ -145,7 +146,7 @@ class Preflight(unittest.TestCase):
     def test_frame_names_match_all_actual_definitions(self):
         import re
         source = (gate.ROOT / "crates/ryupy-mir/src/trace_frame_tests.rs").read_text()
-        names = re.findall(r"#\[test\]\s*fn (\w+)\(", source)
+        names = re.findall(r"#\[test\]\s*(?:#\[ignore[^\n]*\]\s*)?fn (\w+)\(", source)
         self.assertEqual(len(names), 12)
         self.assertEqual(set(names), set(gate.EXPECTED["frame"]))
         guard = (gate.ROOT / "crates/ryupy-driver/tests/dynamic_except_structure.rs").read_text()
@@ -158,7 +159,7 @@ class Preflight(unittest.TestCase):
         self.assertNotIn("observer::finish", source)
         self.assertIn("trace_frame_dataflow::inspect", source)
         new = (gate.ROOT / "crates/ryupy-mir/src/trace_frame_dataflow_tests.rs").read_text()
-        names = gate.re.findall(r"#\[test\]\s*fn (\w+)\(", new)
+        names = gate.re.findall(r"#\[test\]\s*(?:#\[ignore[^\n]*\]\s*)?fn (\w+)\(", new)
         self.assertEqual(len(names), 7)
         self.assertEqual(set(names), set(gate.EXPECTED["dataflow"]))
         collector = Path(gate.__file__).read_text()
@@ -211,6 +212,16 @@ class Preflight(unittest.TestCase):
                 self.assertIn("--locked", calls[label])
             self.assertIn("--exact", calls["guard-pilot"])
             self.assertIn("--show-output", calls["frame"])
+
+    def test_only_four_named_experiments_can_be_isolated(self):
+        evidence = outputs()
+        result = gate.aggregate(dict.fromkeys(gate.REQUIRED, 0), evidence)
+        self.assertTrue(result["success"])
+        self.assertEqual(result["isolated_experiments"]["count"], 4)
+        self.assertEqual(result["isolated_experiments"]["status"], "not-executed-known-failed")
+        for group in gate.EXPERIMENTAL:
+            good = output(group)
+            self.assertFalse(gate.tests_complete(good.replace("ignored, known experimental failure", "ok", 1), group, universe(group)))
 
     def test_total_budget_skips_work_but_keeps_final_identity(self):
         with tempfile.TemporaryDirectory() as temporary:

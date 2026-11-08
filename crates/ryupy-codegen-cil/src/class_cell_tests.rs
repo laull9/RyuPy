@@ -47,6 +47,7 @@ fn program(guard: bool) -> LinkedProgram {
         exports: vec![],
     });
     LinkedProgram {
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

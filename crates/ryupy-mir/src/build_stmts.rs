@@ -400,6 +400,7 @@ impl FunctionBuilder<'_> {
                         let prepare = RuntimeFn::RaisePrepare;
                         #[cfg(feature = "trace-adapter-test")]
                         let prepare = RuntimeFn::TraceAdapterExplicit;
+                        let prepare = if self.trace_product { RuntimeFn::TraceV1Explicit } else { prepare };
                         self.push_stmt(Statement::Assign {
                             dest,
                             value: Rvalue::Call {

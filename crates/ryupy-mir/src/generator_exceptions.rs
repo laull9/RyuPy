@@ -54,6 +54,7 @@ impl Plan {
         frame: LocalId,
         saved: &[(LocalId, MirType)],
         exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
+        product: bool,
     ) -> (Vec<BlockId>, Vec<(BlockId, usize, LocalId)>) {
         if self.regions.is_empty() {
             return (body.blocks.iter().map(|(id, _)| id).collect(), Vec::new());
@@ -171,11 +172,14 @@ impl Plan {
                     value: Rvalue::CatchException,
                 },
                 // 普通运行时错误也必须在Retry弹callee帧前记录traceback/当前异常。
-                call(
+                if product { Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::TraceV1GeneratorCatch),
+                    args: vec![Operand::Local(caught)],
+                }) } else { call(
                     caught,
                     RuntimeFn::RaisePrepare,
                     vec![Operand::Local(caught)],
-                ),
+                ) },
             ],
             Terminator::Goto(dispatch),
         );

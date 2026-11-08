@@ -15,6 +15,8 @@ namespace RyuPy.Runtime;
 /// </remarks>
 public class PyBaseException : Exception
 {
+    // 只有 V1 成功源操作绑定；构造异常本身不建立传播，也不授 NativeFresh 权限。
+    internal TraceProductBinding? TraceProductBinding;
 #if TRACE_ADAPTER_TEST
     // 构造期不读取scope；首次真实Source成功后才发布。
     internal TraceAdapterBinding? TraceAdapterBinding;
@@ -49,7 +51,28 @@ public class PyBaseException : Exception
     public PyBaseException? Context { get; set; }
 
     /// <summary>抛出点的栈帧快照，最内层在前；由 <see cref="PyTraceback"/> 在抛出时填写。</summary>
-    public PyStackFrame[] Frames { get; internal set; } = [];
+    private PyStackFrame[] _legacyFrames = [];
+    public PyStackFrame[] Frames
+    {
+        get
+        {
+            if (TraceProductBinding is not { } binding) return _legacyFrames;
+            var history = binding.Owner.Snapshot.History;
+            var frames = new PyStackFrame[history.Count];
+            for (int i = 0; i < frames.Length; i++)
+            {
+                var frame = history[history.Count - 1 - i];
+                frames[i] = new(frame.File, frame.Function, frame.Line);
+            }
+            return frames;
+        }
+        internal set
+        {
+            if (TraceProductBinding is not null || PyTraceProduct.Enabled)
+                throw new InvalidOperationException("trace V1 history has a single owner");
+            _legacyFrames = value;
+        }
+    }
 
     /// <summary>用户异常类对应的 Python 类对象；内建异常为 <c>null</c>。</summary>
     public PyClass? PythonClass { get; private set; }

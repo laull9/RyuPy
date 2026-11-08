@@ -3,7 +3,7 @@
 use crate::build::FunctionBuilder;
 use crate::{BlockId, Callee, FnId, LocalId, MirType, RuntimeFn, Rvalue, Statement};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClassCellDefinition {
     /// 当前支持模块级 class；owner 明确指向实际模块执行函数，而非注册名称。
     pub owner: FnId,
@@ -17,14 +17,14 @@ pub struct ClassCellDefinition {
     pub captures: Vec<ClassCellCapture>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ClassCellCapture {
     pub function: FnId,
     pub index: usize,
     pub source: ClassCellEnvSource,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ClassCellEnvSource {
     /// 函数对象的纯 cell Env 隐藏参数。
     Parameter,

@@ -32,6 +32,7 @@ pub(crate) fn emit_entry_wrapper(
     init_class_factories: MethodIndex,
     source_name: &str,
     source_path: &str,
+    trace_product: Option<MethodRefIndex>,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: ldstr source_name
@@ -61,7 +62,7 @@ pub(crate) fn emit_entry_wrapper(
     // 系统初始化也位于保护区中，初始化失败与普通Python异常共享退出规则。
     // 处理区必须以 leave 离开、不能直接 ret，否则 CLR 判为非法方法体
     // （InvalidProgramException，且堆栈里看不出是哪一条指令）。
-    let instructions = vec![
+    let mut instructions = vec![
         Instruction::load_string(source_name),
         Instruction::call(set_file),
         Instruction::load_string(source_path),
@@ -90,6 +91,15 @@ pub(crate) fn emit_entry_wrapper(
         Instruction::call(exit_flush),
         Instruction::Return,
     ];
+    // V1根在固定系统初始化之后、任何用户定义初始化之前核验真实runtime ABI。
+    // 旧产品不插入指令，不移动其原EH；V1同步平移全部leave与handler窗口。
+    let shift = if let Some(enter) = trace_product {
+        for instruction in &mut instructions {
+            if let Instruction::Leave(target) = instruction { *target += 2; }
+        }
+        instructions.splice(5..5, [Instruction::LoadConstantInt64(1), Instruction::call(enter)]);
+        2
+    } else { 0 };
     // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
     // 不能仅依赖转储文本的 .locals init 或某个平台偶然为零的栈内容。
     let mut method_body = body::Method::with_locals(
@@ -101,22 +111,22 @@ pub(crate) fn emit_entry_wrapper(
         body::Exception {
             kind: body::ExceptionKind::TypedException(system_exit_type),
             try_offset: 2,
-            try_length: 7,
-            handler_offset: 9,
+            try_length: 7 + shift,
+            handler_offset: 9 + shift,
             handler_length: 3,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(exception_type),
             try_offset: 2,
-            try_length: 7,
-            handler_offset: 12,
+            try_length: 7 + shift,
+            handler_offset: 12 + shift,
             handler_length: 4,
         },
         body::Exception {
             kind: body::ExceptionKind::TypedException(clr_exception_type),
             try_offset: 2,
-            try_length: 7,
-            handler_offset: 16,
+            try_length: 7 + shift,
+            handler_offset: 16 + shift,
             handler_length: 4,
         },
     ])];
@@ -124,6 +134,7 @@ pub(crate) fn emit_entry_wrapper(
 }
 
 pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     let (res, _) = build_resolution(program, opts);
     res.write(WriteOptions {
         // `true` 生成 PE32 + ILONLY（AnyCPU），不是「32 位程序」：
@@ -136,6 +147,7 @@ pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, Code
 }
 
 pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     let (res, module_class) = build_resolution(program, opts);
     let mut out = String::new();
     out.push_str(&format!(".assembly {}\n{{\n}}\n", opts.assembly_name));

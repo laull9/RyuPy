@@ -174,6 +174,19 @@ pub fn run_pipeline_observed<O: PipelineObserver>(
     passes: &[PipelinePass],
     observer: &mut O,
 ) -> Result<(), String> {
+    run_pipeline_stage(program, passes, observer, None)
+}
+
+/// 延迟生成器产品在每个 pass 后运行高层验证，最终 lowering 后仍必须运行严格验证。
+pub fn run_pipeline_high<O: PipelineObserver>(
+    program: &mut Program, passes: &[PipelinePass], observer: &mut O, generators: &[crate::FnId],
+) -> Result<(), String> {
+    run_pipeline_stage(program, passes, observer, Some(generators))
+}
+
+fn run_pipeline_stage<O: PipelineObserver>(
+    program: &mut Program, passes: &[PipelinePass], observer: &mut O, generators: Option<&[crate::FnId]>,
+) -> Result<(), String> {
     for (index, pass) in passes.iter().enumerate() {
         let mut notify = |phase, step| {
             if O::ENABLED {
@@ -196,7 +209,11 @@ pub fn run_pipeline_observed<O: PipelineObserver>(
         }
         notify(PipelinePhase::Run, PipelineStep::End);
         notify(PipelinePhase::Validate, PipelineStep::Begin);
-        if let Err(errs) = crate::validate::validate(program) {
+        let validation = match generators {
+            Some(ids) => crate::validate::validate_high(program, ids),
+            None => crate::validate::validate(program),
+        };
+        if let Err(errs) = validation {
             return Err(format!(
                 "内部错误：Pass `{}` 产出了非法 MIR:\n{}",
                 pass.name(),

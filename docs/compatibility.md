@@ -1,5 +1,7 @@
 # 兼容性清单与偏差
 
+**2026-11-08 未验收候选**：新增显式 `--trace-product-v1` 的有限生成器 traceback 产品路径；默认关闭，不增加当前项目通过数。目标为原 A/B 及同 getter 重复执行的真实 JIT/NativeAOT，原 C/D 在初始化前拒绝。尚无本候选 Rust/C#/产品或完整门通过结果，见 [ADR0142](adr/0142-generator-trace-product-v1.md)。
+
 > **2026-11-02恢复与排期历史记录**：当时代码恢复自已推送M3.10（`a788d86`），其已归档项目能力为5/20。此前未推送M3.11源码随临时工作区丢失，历史10/20及725项C#测试不能当作当前checkout能力。用户已暂停16/20前置，优先原生AOT/JIT，并批准小步提交推送与独立WIP远端备份。详见[ADR0042](adr/0042-aot-jit-recovery-priority.md)；原兼容目标未达成、不勾完成。
 
 **2026-11-06架构复核基线**：db866ead 默认完整20入口为9 native / 8 unsupported / 3 failed，CP20项原stdout均等于原golden。当前九项为tomli/docopt/tabulate/texttable/chardet/wcwidth/colorama/termcolor/binaryornot；历史已通过的progress现因显式super失败，仍是默认晋升阻断，不能以新增docopt抵消。新增[按ID门禁](../tests/projects.md#p0按项目-id-的保留与默认晋升门禁)区分保九项与默认晋升，不改原选集/入口/golden；pyfiglet显式字体另计、Markdown窄源另计，20项AOT未运行。下文不同日期的矩阵继续作为历史记录。

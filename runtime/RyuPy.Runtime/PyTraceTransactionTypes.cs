@@ -21,7 +21,7 @@ internal readonly record struct TraceResult(TraceChange Change, TraceReject Reje
     internal static TraceResult Fail(TraceReject why) => new(TraceChange.Rejected, why);
 }
 
-internal enum TraceBeginKind { Explicit, NativeFresh }
+internal enum TraceBeginKind { Explicit, NativeFresh, DispatchResume }
 internal enum TraceReceiveKind { Forward, Handle, Suppress, Terminal }
 internal enum TraceInclusion { Exclusive, Inclusive }
 
@@ -51,17 +51,29 @@ internal sealed class TraceSnapshot
     internal long Version { get; }
     internal TraceReceipt? Receipt { get; }
     internal long NextReceive { get; }
+    // 暂停的动态分派属于同一个 owner 快照；外部 token 无权保存/恢复历史。
+    internal TraceDispatchPark? Park { get; }
+    // all-miss 重开外段的来源；只用于识别已由 Park 提交的同 activation 分派边界。
+    internal TraceDispatchPark? Continuation { get; }
 
     internal TraceSnapshot(PyTraceState owner, TraceEpoch epoch,
         ReadOnlyCollection<TraceFrame> history, ReadOnlyCollection<TraceFrame> scene,
         TraceRequest? request, TraceBeginKind? beginKind, int? pendingCount,
-        bool grantUsed, bool grantValid, long version, TraceReceipt? receipt, long nextReceive)
+        bool grantUsed, bool grantValid, long version, TraceReceipt? receipt, long nextReceive,
+        TraceDispatchPark? park = null, TraceDispatchPark? continuation = null)
     {
         Owner = owner; Epoch = epoch; History = history; Scene = scene; Request = request;
         BeginKind = beginKind; PendingCount = pendingCount; GrantUsed = grantUsed;
         GrantValid = grantValid; Version = version; Receipt = receipt; NextReceive = nextReceive;
+        Park = park;
+        Continuation = continuation;
     }
 }
+
+// token 只保存已暂停 flight 的外段与真实接收身份；消费位只在 owner.Park。
+// 不保存旧 History，因此同对象在 selector 中的新 raise 不会被恢复旧历史覆盖。
+internal sealed record TraceDispatchPark(TraceRequest Lineage, TraceBoundary Boundary,
+    ReadOnlyCollection<TraceFrame> Scene, int Remaining);
 
 // grant 只有引用身份；有效性和消费位只存在对应 owner 的一次发布状态中。
 internal sealed class TraceBirthGrant

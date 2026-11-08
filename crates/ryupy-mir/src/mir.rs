@@ -15,7 +15,7 @@ pub type ModuleId = Idx<ModuleDef>;
 ///
 /// 目前只用于函数对象、参数默认值数组与参数元数据：它们必须在多次调用之间保持同一份
 /// 引用（`def f(x=[])` 的列表要在调用间共享）。M2.7 的模块变量会复用同一套机制。
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GlobalDecl {
     /// 存储身份来自前端能力，不由名字前缀推断。
     pub storage: GlobalStorage,
@@ -43,6 +43,8 @@ pub struct Program {
 /// 合并后的程序：所有可达模块 + 入口模块。
 #[derive(Debug)]
 pub struct LinkedProgram {
+    /// 仅整产物准入与实际link核验可签发；发射前仍逐字段校验，不能以存在性当作授权。
+    pub trace_product: Option<crate::generator_product::Certificate>,
     pub functions: Arena<Function>,
     pub classes: Arena<ClassDef>,
     pub globals: Arena<GlobalDecl>,
@@ -51,7 +53,7 @@ pub struct LinkedProgram {
 }
 
 /// 一个已编译模块在运行时需要的信息。
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModuleDef {
     pub instance_capabilities: ryupy_base::InstanceCapabilities,
     pub execution: ModuleExecutionKind,
@@ -78,7 +80,7 @@ pub struct ModuleDef {
 }
 
 /// 导出读取的显式绑定状态协议；后端不得依据 Python 名称或 CLR 默认值猜测。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ExportGuard {
     None,
     ValueSentinel,
@@ -86,14 +88,14 @@ pub enum ExportGuard {
 }
 
 /// 一个公开名字及其存储、绑定状态。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ModuleExport {
     pub name: String,
     pub value: GlobalId,
     pub guard: ExportGuard,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClassDef {
     /// 仅实例类隐式词法 cell 的来源计划；代码后端不据名字重建此身份。
     pub class_cell: Option<crate::ClassCellDefinition>,
@@ -132,7 +134,7 @@ pub enum ParamKind {
 }
 
 /// 一个 Python 参数的元数据（名字、绑定种类、默认值、槽位类型）。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ParamMeta {
     pub name: String,
     pub kind: ParamKind,
@@ -141,7 +143,7 @@ pub struct ParamMeta {
 }
 
 /// Dynamic core 的真实函数引用；私有槽仅用于普通定义的静态已知直调。
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DynamicFunctionOrigin {
     pub owner: LocalId,
     pub source_global: Option<GlobalId>,
@@ -202,7 +204,7 @@ pub struct Body {
 /// 为什么用「块下标区间」而不是块集合：codegen 按 arena 顺序发射指令，构建器保证
 /// 区域内的块是**连续分配**的，于是「块区间」与「指令区间」一一对应，异常表只需要
 /// 首尾两条指令的位置。
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Region {
     /// 本函数源码异常链ID；仅实际分派外层区域携带，with/cleanup没有。
     pub source_handler_chain: Option<usize>,
@@ -218,7 +220,7 @@ pub struct Region {
 }
 
 /// 异常区域的种类。
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RegionKind {
     /// `except TypeError:` / `except (TypeError, ValueError):`。
     ///
@@ -254,7 +256,7 @@ pub enum MirType {
     // Phase 4：NdArrayView { elem: Box<MirType>, ndim: u8 }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LocalDecl {
     pub ty: MirType,
     /// 用户变量保留名字（调试与快照用），编译器临时变量为 `None`。
@@ -264,13 +266,13 @@ pub struct LocalDecl {
     pub is_cell: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BasicBlock {
     pub stmts: Vec<Statement>,
     pub terminator: Terminator,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     Assign {
         dest: LocalId,
@@ -295,7 +297,7 @@ pub enum Statement {
     Line(u32),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Operand {
     Local(LocalId),
     Const(Constant),
@@ -319,7 +321,7 @@ pub enum Constant {
     None,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Rvalue {
     /// 生成器降级前的委托推进；降级时补帧参数，返回是否产出。
     GeneratorDelegateStep {
@@ -487,7 +489,7 @@ pub enum Callee {
 
 pub use crate::runtime_fn::{EXCEPTION_TYPE_NAMES, RuntimeFn};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Terminator {
     /// 暂停边，仅在生成器降级前存在；恢复时从 resume 继续。
     Suspend {

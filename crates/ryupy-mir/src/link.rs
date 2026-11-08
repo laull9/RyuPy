@@ -267,6 +267,7 @@ pub(crate) fn link_with_origins(
     });
 
     LinkedProgram {
+        trace_product: None,
         functions,
         classes,
         globals,

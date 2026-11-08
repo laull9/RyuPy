@@ -17,9 +17,7 @@ fn exception_edge(engine: &mut Engine<'_>, state: &State) -> Result<(), String> 
             let mut caught = state.clone();
             domain::age(&mut caught.locals, &mut engine.budget)?;
             domain::age(&mut caught.slots, &mut engine.budget)?;
-            caught.key.expected_retry = engine
-                .lookup
-                .retry(state.key.block, &mut engine.budget)?;
+            caught.key.expected_retry = engine.lookup.retry(state.key.block, &mut engine.budget)?;
             caught.key.physical = true;
             caught.key.dispatching = false;
             jump(engine, caught, region.handler)?;
@@ -37,7 +35,10 @@ pub(super) fn step(engine: &mut Engine<'_>, mut state: State) -> Result<(), Stri
     }
     let block = &body.blocks[state.key.block];
     if state.key.dispatching && state.key.cursor == 0 {
-        if let Some(pc) = engine.lookup.dispatch(state.key.block, &mut engine.budget)? {
+        if let Some(pc) = engine
+            .lookup
+            .dispatch(state.key.block, &mut engine.budget)?
+        {
             if pc != state.key.pc {
                 return Err("实际 dispatch 与 old-PC 映射不符".into());
             }

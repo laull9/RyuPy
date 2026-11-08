@@ -12,6 +12,8 @@ export PYTHON
 # 指定check/projects门禁保持原CLI与项目mode；性能另用确切冻结工具。
 CARGO_FEATURES ?=
 CARGO_FEATURE_ARGS = $(if $(strip $(CARGO_FEATURES)),--features $(CARGO_FEATURES))
+# 完整CI仅增加本轮TRX输出参数，不新启动测试进程。
+DOTNET_TEST_ARGS ?=
 
 # 发行包命名：只产出宿主平台产物，不假装支持交叉编译。
 VERSION := $(shell sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
@@ -58,8 +60,18 @@ lint: ## fmt 检查 + clippy（警告视为错误）
 
 .PHONY: test
 test: runtime python-baseline ## Python 基线 + 单元测试 + 快照测试（不含编译 e2e）
-	dotnet test runtime/RyuPy.Runtime.Tests -nologo -v q
+	@echo "主门明确隔离旧反向frame证明实验4项（frame 3 + diamond 1），状态仍为已知失败/本门未执行；其余安全负例照跑。独立运行：make trace-frame-proof-experiment"
+	dotnet build runtime/RyuPy.Runtime.Tests -nologo -v q
+	@if [ -n "$$FULL_CHECK_EVIDENCE" ]; then "$(PYTHON)" -B tests/aot/wcwidth_ci/build_identity.py runtimes-before; fi
+	dotnet test runtime/RyuPy.Runtime.Tests --no-build -nologo -v q $(DOTNET_TEST_ARGS)
 	cargo test $(CARGO_FEATURE_ARGS) --workspace --exclude ryupy-e2e
+
+.PHONY: trace-frame-proof-experiment
+trace-frame-proof-experiment: ## 独立运行四项旧已知失败实验；保留原断言，不作为产品准入
+	@status=0; \
+	cargo test $(CARGO_FEATURE_ARGS) -p ryupy-mir --lib trace_frame_tests:: -- --ignored --test-threads=1 || status=1; \
+	cargo test $(CARGO_FEATURE_ARGS) -p ryupy-mir --lib trace_frame_dataflow::tests::actual_mir_diamond_reaches_fixed_point -- --ignored --exact --test-threads=1 || status=1; \
+	exit $$status
 
 .PHONY: python-baseline
 python-baseline: ## 自检 Phase 1–3 的 CPython 用例与预期错误退出

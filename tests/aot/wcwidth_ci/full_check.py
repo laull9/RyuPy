@@ -4,6 +4,7 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 import run as h
+import build_identity
 
 
 def main():
@@ -13,7 +14,9 @@ def main():
     if python != Path(sys.executable).resolve() or sys.version_info[:3] != (3, 12, 13) or sys.implementation.name != 'cpython':
         raise RuntimeError('full_check必须由固定CPython3.12.13启动')
     # e2e/driver大多数测试读取PYTHON；ForEach专测独立读取RYUPY_FOREACH_PYTHON。
-    env = dict(os.environ, PYTHON=str(python), RYUPY_FOREACH_PYTHON=str(python))
+    env = dict(os.environ, PYTHON=str(python), RYUPY_FOREACH_PYTHON=str(python),
+               FULL_CHECK_EVIDENCE=str(h.OUT),
+               DOTNET_TEST_ARGS='--logger \"trx;LogFileName=dotnet-test.trx\" --results-directory ' + str(h.OUT))
     mode = os.environ['CHECK_MODE']
     if mode not in ('default', 'pilot'):
         raise RuntimeError('未知检查模式')
@@ -29,7 +32,11 @@ def main():
         h.run(name, cmd)
     h.run('metadata-cp-oracle', [python, '-B', h.HERE / 'metadata_oracle.py'], env=env)
     h.run('make-plan', ['make', '-n', 'check', 'CARGO_FEATURES=' + feature], env=env)
-    h.run('make-check', args, env=env, timeout=4800)
+    build_identity.before(h.REPO, h.OUT, mode, feature)
+    try:
+        h.run('make-check', args, env=env, timeout=4800)
+    finally:
+        build_identity.after(h.REPO, h.OUT)
     # 正常完整门已运行PIC默认配置；另开进程核直接runtime PIC禁用，不以0测试冒通过。
     pic_results = h.OUT / 'explicit-super-pic-off'
     h.run('explicit-super-pic-off', [os.environ['DOTNET'], 'test', 'runtime/RyuPy.Runtime.Tests',
