@@ -192,6 +192,9 @@ impl FunctionBuilder<'_> {
             let guard_body = self.new_block();
             self.blocks[guard_bb].terminator = Terminator::Goto(guard_body);
             self.current_bb = guard_body;
+            // S2a仅准入自动handler cleanup；真实catch在PopTo前转发同一Q。
+            #[cfg(feature = "trace-adapter-test")]
+            self.emit_adapter_receive(guard_exc.expect("已检查"), true);
             self.emit_frame_restore();
             // 登记当前异常：`finally` 里再抛出的异常要把这条挂成 __context__
             let prev_current = saved_context.expect("finally上下文已保存");
@@ -370,6 +373,8 @@ impl FunctionBuilder<'_> {
 
             // 0) 被展开的调用栈帧要弹回本函数：异常穿过的那几层不会执行自己的
             //    PopTo，不补这一步，递归守卫的深度会被永久占住。
+            #[cfg(feature = "trace-adapter-test")]
+            self.emit_adapter_receive(exc, false);
             self.emit_frame_restore();
 
             // 1) 登记当前异常（裸 raise 与 __context__ 依赖它）

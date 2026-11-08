@@ -181,6 +181,18 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::HandlerLeave => ins.push(Instruction::call(ctx.runtime_refs.handler_leave)),
         RuntimeFn::ExceptionMatch => ins.push(Instruction::call(ctx.runtime_refs.exception_match)),
         RuntimeFn::Reraise => ins.push(Instruction::call(ctx.runtime_refs.reraise)),
+        #[cfg(feature = "trace-adapter-test")]
+        RuntimeFn::TraceAdapterExplicit => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_explicit));
+        }
+        #[cfg(feature = "trace-adapter-test")]
+        RuntimeFn::TraceAdapterHandle => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_handle));
+        }
+        #[cfg(feature = "trace-adapter-test")]
+        RuntimeFn::TraceAdapterForward => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_forward));
+        }
         RuntimeFn::RaisePrepare => ins.push(Instruction::call(ctx.runtime_refs.raise_prepare)),
         RuntimeFn::MakeUnbound => ins.push(Instruction::call(ctx.runtime_refs.make_unbound)),
         RuntimeFn::TraceCheckDepth => {

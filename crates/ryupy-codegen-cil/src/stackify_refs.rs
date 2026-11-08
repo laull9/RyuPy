@@ -79,6 +79,12 @@ pub struct RuntimeRefs {
     pub exception_match: MethodRefIndex,
     pub reraise: MethodRefIndex,
     pub raise_prepare: MethodRefIndex,
+    #[cfg(feature = "trace-adapter-test")]
+    pub trace_adapter_explicit: MethodRefIndex,
+    #[cfg(feature = "trace-adapter-test")]
+    pub trace_adapter_handle: MethodRefIndex,
+    #[cfg(feature = "trace-adapter-test")]
+    pub trace_adapter_forward: MethodRefIndex,
     pub make_unbound: MethodRefIndex,
     pub load_checked: MethodRefIndex,
     /// 模块名字与属性采用 MIR 显式声明的绑定检查，保留有类型槽。

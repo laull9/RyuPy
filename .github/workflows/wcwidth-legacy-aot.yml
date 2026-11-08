@@ -175,3 +175,43 @@ jobs:
             target/project-ci-evidence
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
+  trace-adapter-s2:
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONHASHSEED: '0'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定官方工具（仅hosted）
+        run: |
+          mkdir -p target/wcwidth-aot-evidence
+          python3 tests/aot/wcwidth_ci/prepare.py 2>&1 | tee target/wcwidth-aot-evidence/prepare.log
+      - name: 独立S2a真实source与catch JIT纵切
+        run: '"$PYTHON" -B tests/aot/wcwidth_ci/trace_adapter_s2.py'
+      - name: 保留S2a实际原流和隔离产物
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: trace-adapter-s2-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/trace-adapter-s2/*.json
+            target/trace-adapter-s2/*.stdout
+            target/trace-adapter-s2/*.stderr
+            target/trace-adapter-s2/trx
+            target/trace-adapter-s2/observed
+            target/trace-adapter-s2/generated
+            target/trace-adapter-s2/default-generated
+            target/trace-adapter-s2/hosts/**/bin
+            target/trace-adapter-s2/probe-runtime/bin
+            target/trace-adapter-s2/default-runtime/bin
+            target/wcwidth-aot-evidence/prepare.log
+          if-no-files-found: error
+          retention-days: 3

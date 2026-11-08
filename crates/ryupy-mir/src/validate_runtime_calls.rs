@@ -4,6 +4,15 @@ use crate::validate::operand_type;
 
 /// 这些运行时方法只有固定Call签名，不能通过CallWithArgs追加数组改变ABI。
 pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
+    #[cfg(feature = "trace-adapter-test")]
+    if matches!(
+        callee,
+        RuntimeFn::TraceAdapterExplicit
+            | RuntimeFn::TraceAdapterHandle
+            | RuntimeFn::TraceAdapterForward
+    ) {
+        return true;
+    }
     matches!(
         callee,
         RuntimeFn::InstanceClassGuard
@@ -51,6 +60,12 @@ pub(super) fn validate_call(
             ));
         }
         let expected: Option<&[MirType]> = match runtime {
+            #[cfg(feature = "trace-adapter-test")]
+            RuntimeFn::TraceAdapterExplicit => Some(&[MirType::Dynamic]),
+            #[cfg(feature = "trace-adapter-test")]
+            RuntimeFn::TraceAdapterHandle | RuntimeFn::TraceAdapterForward => {
+                Some(&[MirType::Dynamic, MirType::I64])
+            }
             RuntimeFn::InstanceRelativeImport => Some(&[
                 MirType::Dynamic,
                 MirType::Str,
@@ -264,7 +279,19 @@ pub(super) fn validate_destination(
         ..
     } = value
     {
+        #[cfg(feature = "trace-adapter-test")]
+        if matches!(
+            runtime,
+            RuntimeFn::TraceAdapterHandle | RuntimeFn::TraceAdapterForward
+        ) {
+            errors.push(format!(
+                "函数 `{}` 的S2a接收ABI返回void，只允许Eval",
+                func.name
+            ));
+        }
         let expected = match runtime {
+            #[cfg(feature = "trace-adapter-test")]
+            RuntimeFn::TraceAdapterExplicit => Some(MirType::Dynamic),
             RuntimeFn::ModuleFile => Some(MirType::Str),
             RuntimeFn::TracePushWithOrigin => Some(MirType::I64),
             RuntimeFn::InstanceRelativeImport
@@ -326,6 +353,16 @@ pub(super) fn validate_destination(
 
 /// 运行时返回值必须消费；这是既有 Eval 规则的等价归拢，仅新增星号入口。
 pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<String>) {
+    #[cfg(feature = "trace-adapter-test")]
+    if matches!(
+        value,
+        Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::TraceAdapterExplicit),
+            ..
+        }
+    ) {
+        errors.push(format!("函数 `{}` 的S2a源返回值必须写入临时", func.name));
+    }
     if matches!(
         value,
         Rvalue::Call {

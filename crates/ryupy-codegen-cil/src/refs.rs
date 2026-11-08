@@ -176,6 +176,17 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         res.push_method_reference(method_ref! { static object @pyerrors_type::Reraise() });
     let raise_prepare = res
         .push_method_reference(method_ref! { static object @pyerrors_type::PrepareRaise(object) });
+    #[cfg(feature = "trace-adapter-test")]
+    let (trace_adapter_explicit, trace_adapter_handle, trace_adapter_forward) = {
+        let adapter =
+            res.push_type_reference(type_ref! { RyuPy.Runtime.PyTraceAdapter in #ryupy_runtime });
+        let adapter: MethodType = BaseType::class(adapter).into();
+        (
+            res.push_method_reference(method_ref! { static object @adapter::PrepareExplicit(object) }),
+            res.push_method_reference(method_ref! { static void @adapter::Handle(object, long) }),
+            res.push_method_reference(method_ref! { static void @adapter::Forward(object, long) }),
+        )
+    };
     let make_unbound =
         res.push_method_reference(method_ref! { static object @pyerrors_type::Unbound() });
     let load_checked = res
@@ -480,6 +491,12 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         exception_match,
         reraise,
         raise_prepare,
+        #[cfg(feature = "trace-adapter-test")]
+        trace_adapter_explicit,
+        #[cfg(feature = "trace-adapter-test")]
+        trace_adapter_handle,
+        #[cfg(feature = "trace-adapter-test")]
+        trace_adapter_forward,
         make_unbound,
         load_checked,
         bindings: crate::module_binding_refs::BindingRefs::build(res, ryupy_runtime),

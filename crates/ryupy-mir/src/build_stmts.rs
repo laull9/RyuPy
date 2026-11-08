@@ -396,10 +396,14 @@ impl FunctionBuilder<'_> {
                         let raw = self.expr_builder().build_expr(*expr);
                         let boxed = self.expr_builder().coerce(raw, &ty, &MirType::Dynamic);
                         let dest = self.alloc_temp(MirType::Dynamic);
+                        #[cfg(not(feature = "trace-adapter-test"))]
+                        let prepare = RuntimeFn::RaisePrepare;
+                        #[cfg(feature = "trace-adapter-test")]
+                        let prepare = RuntimeFn::TraceAdapterExplicit;
                         self.push_stmt(Statement::Assign {
                             dest,
                             value: Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::RaisePrepare),
+                                callee: Callee::Runtime(prepare),
                                 args: vec![boxed],
                             },
                         });

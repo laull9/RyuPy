@@ -44,6 +44,8 @@ pub fn build_program(
     let mut classes = Arena::default();
     let mut globals = Arena::default();
     let mut diagnostics = Vec::new();
+    #[cfg(feature = "trace-adapter-test")]
+    diagnostics.extend(crate::trace_adapter_test::admission(hir));
 
     // 0. 构建 MIR 类定义。
     //

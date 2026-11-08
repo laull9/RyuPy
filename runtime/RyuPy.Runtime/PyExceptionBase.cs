@@ -15,6 +15,10 @@ namespace RyuPy.Runtime;
 /// </remarks>
 public class PyBaseException : Exception
 {
+#if TRACE_ADAPTER_TEST
+    // 构造期不读取scope；首次真实Source成功后才发布。
+    internal TraceAdapterBinding? TraceAdapterBinding;
+#endif
     /// <summary>Python 异常类名，例如 <c>TypeError</c>。</summary>
     public string PyTypeName { get; }
 

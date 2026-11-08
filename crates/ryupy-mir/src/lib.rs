@@ -151,3 +151,8 @@ mod source_handler_contract;
 pub use source_handler_contract::SourceHandlerContract;
 #[cfg(test)]
 mod instance_handler_tests;
+
+#[cfg(feature = "trace-adapter-test")]
+mod trace_adapter_test;
+#[cfg(all(test, feature = "trace-adapter-test"))]
+mod trace_adapter_test_tests;

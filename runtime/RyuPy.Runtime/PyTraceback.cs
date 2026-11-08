@@ -98,6 +98,9 @@ public static partial class PyTraceback
             Array.Resize(ref _lines, _depth * 2);
             Array.Resize(ref _origins, _depth * 2);
         }
+#if TRACE_ADAPTER_TEST
+        AdapterPush(_depth);
+#endif
         _functions[_depth] = function;
         _files[_depth] = file;
         _lines[_depth] = 0;
@@ -144,6 +147,9 @@ public static partial class PyTraceback
     {
         if (depth >= 1 && depth <= _depth)
         {
+#if TRACE_ADAPTER_TEST
+            Array.Clear(_adapterActivations, (int)depth - 1, _depth - (int)depth + 1);
+#endif
             Array.Clear(_origins, (int)depth - 1, _depth - (int)depth + 1);
             _depth = (int)depth - 1;
         }
@@ -327,6 +333,9 @@ public static partial class PyTraceback
     /// <summary>清空帧栈；仅用于同一进程内反复执行多个模块的宿主场景（测试）。</summary>
     public static void Reset()
     {
+#if TRACE_ADAPTER_TEST
+        Array.Clear(_adapterActivations, 0, _depth);
+#endif
         Array.Clear(_origins, 0, _depth);
         _depth = 0;
     }

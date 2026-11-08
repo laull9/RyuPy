@@ -160,6 +160,15 @@ pub enum RuntimeFn {
     Reraise,
     /// `PyErrors.PrepareRaise(object) -> object`：抛前准备（挂上下文 + 记栈帧）。
     RaisePrepare,
+    /// 隔离S2a源raise入口：归一化后发行真实Explicit请求。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterExplicit,
+    /// 隔离S2a静态handler：必须在恢复帧之前接收。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterHandle,
+    /// 隔离S2a自动cleanup：同Q转发，不重复Begin。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterForward,
     /// `PyRepr.StrValue(object) -> string`：`str(x)`。
     DynStr,
     /// `PyObject.TypeOf(object) -> object`：`type(x)`。

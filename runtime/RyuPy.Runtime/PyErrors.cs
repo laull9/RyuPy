@@ -83,6 +83,14 @@ public static partial class PyErrors
     /// <param name="exception">即将抛出的异常。</param>
     public static object PrepareRaise(object exception)
     {
+        PyBaseException ex = NormalizeRaise(exception);
+        PyTraceback.Attach(ex);
+        return Prepare(ex);
+    }
+
+    // 归一化不附Frames，供隔离测试在旧Attach之前拒绝历史混用；默认顺序保持不变。
+    internal static PyBaseException NormalizeRaise(object exception)
+    {
         // `raise SomeClass` / `raise SomeClass(...)`：类对象先实例化（无参构造）。
         switch (exception)
         {
@@ -110,8 +118,7 @@ public static partial class PyErrors
         {
             throw new PyTypeError("exceptions must derive from BaseException");
         }
-        PyTraceback.Attach(ex);
-        return Prepare(ex);
+        return ex;
     }
 
     /// <summary>按名字构造异常；<paramref name="arg"/> 为 <c>None</c> 时消息为空。</summary>
