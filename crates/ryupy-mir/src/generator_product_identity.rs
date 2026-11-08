@@ -100,7 +100,11 @@ impl UnchangedHigh {
                 .filter(|(id, _)| !generators.contains(id))
                 .map(|(id, function)| (id, FunctionImage::capture(function)))
                 .collect(),
-            globals: program.globals.iter().map(|(_, value)| value.clone()).collect(),
+            globals: program
+                .globals
+                .iter()
+                .map(|(_, value)| value.clone())
+                .collect(),
             classes: program
                 .classes
                 .iter()
@@ -122,8 +126,18 @@ impl UnchangedHigh {
         if self.entry != program.entry
             || self.source_name != program.source_name
             || self.exports != exports
-            || self.globals != program.globals.iter().map(|(_, g)| g.clone()).collect::<Vec<_>>()
-            || self.classes != program.classes.iter().map(|(_, c)| c.clone()).collect::<Vec<_>>()
+            || self.globals
+                != program
+                    .globals
+                    .iter()
+                    .map(|(_, g)| g.clone())
+                    .collect::<Vec<_>>()
+            || self.classes
+                != program
+                    .classes
+                    .iter()
+                    .map(|(_, c)| c.clone())
+                    .collect::<Vec<_>>()
         {
             return Err("模块初始化封存：lower改变根身份/GlobalDecl/exports/class".into());
         }

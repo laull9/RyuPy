@@ -103,10 +103,7 @@ pub fn compile<O: crate::passes::PipelineObserver>(
     }
     crate::validate::validate_high(&program, &plan.functions).map_err(|e| e.join("\n"))?;
     let initialization = crate::generator_product_initialization::Initialization::expected(
-        hir,
-        &origins,
-        &program,
-        &exports,
+        hir, &origins, &program, &exports,
     )?;
     let contract = crate::generator_product_trace::Contract::capture(&program, &plan.functions)?;
     crate::passes::run_pipeline_high(&mut program, passes, observer, &plan.functions)?;

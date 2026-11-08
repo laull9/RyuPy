@@ -29,12 +29,8 @@ impl Fixture {
         assert!(errors.is_empty());
         let mut origins = LoweringOrigins::default();
         let mut plan = generator_product::DeferredGenerators::default();
-        let (mut program, exports, errors) = build::build_program_mode(
-            &hir,
-            &types,
-            Some(&mut origins),
-            Some(&mut plan),
-        );
+        let (mut program, exports, errors) =
+            build::build_program_mode(&hir, &types, Some(&mut origins), Some(&mut plan));
         assert!(errors.is_empty());
         let initialization = Initialization::expected(&hir, &origins, &program, &exports).unwrap();
         passes::run_pipeline_high(
@@ -64,8 +60,11 @@ impl Fixture {
     }
     pub fn publish(&self, key: &str) -> usize {
         let slot = self.slot(key);
-        self.program.functions[self.program.entry].body.blocks[self.block].stmts.iter()
-            .rposition(|s| matches!(s, Statement::SetGlobal { dest, .. } if *dest == slot)).unwrap()
+        self.program.functions[self.program.entry].body.blocks[self.block]
+            .stmts
+            .iter()
+            .rposition(|s| matches!(s, Statement::SetGlobal { dest, .. } if *dest == slot))
+            .unwrap()
     }
     pub fn call(&self, runtime: RuntimeFn) -> usize {
         self.program.functions[self.program.entry].body.blocks[self.block].stmts.iter()
@@ -73,14 +72,20 @@ impl Fixture {
                 | Statement::Eval(Rvalue::Call { callee: Callee::Runtime(r), .. }) if *r == runtime)).unwrap()
     }
     pub fn local(&mut self) -> LocalId {
-        self.program.functions[self.program.entry].body.locals.alloc(LocalDecl {
-            ty: MirType::Dynamic,
-            name: None,
-            is_cell: false,
-        })
+        self.program.functions[self.program.entry]
+            .body
+            .locals
+            .alloc(LocalDecl {
+                ty: MirType::Dynamic,
+                name: None,
+                is_cell: false,
+            })
     }
     pub fn reject(&self, reason: &str) {
-        let result = self.initialization.inspect(&self.program, &self.exports).unwrap_err();
+        let result = self
+            .initialization
+            .inspect(&self.program, &self.exports)
+            .unwrap_err();
         assert!(result.contains(reason), "期待{reason}，实际{result}");
     }
     pub fn meta(&self) -> UnitMeta {
