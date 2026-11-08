@@ -6,6 +6,7 @@ use std::fmt::{self, Write as _};
 use std::io::{self, Write as _};
 
 pub(super) const DYNAMIC_LIMIT: usize = 16 * 1024 * 1024;
+#[expect(dead_code, reason = "保留已结束的一次性采样审计入口，不重新启用")]
 pub(super) const IR_LIMIT: usize = 2 * 1024 * 1024;
 const RECORD_LIMIT: usize = 8192;
 const EVENT_LIMIT: usize = 16384;
@@ -220,6 +221,7 @@ pub(super) fn analysis(diagnostics: &FrameDiagnostics) {
     });
 }
 
+#[expect(dead_code, reason = "保留已结束的一次性采样审计入口，不重新启用")]
 pub(crate) fn start(program: &Program, origin: &GeneratorOrigin, layout: &GeneratorLayout) {
     // 本地普通cargo test不写artifact；hosted采集器提供已验证的绝对路径。
     if std::env::var_os("RYUPY_FRAME_OBSERVATION").is_none() {
@@ -298,6 +300,7 @@ fn encode_diagnostics(out: &mut Bounded, diagnostics: Option<&FrameDiagnostics>)
     out.write_str("}}")
 }
 
+#[expect(dead_code, reason = "保留已结束的一次性采样审计入口，不重新启用")]
 pub(crate) fn finish(result: &Result<FrameObligations<'_>, String>) {
     let observation = ACTIVE.with(|active| {
         active

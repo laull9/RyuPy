@@ -2,7 +2,8 @@
 use crate::trace_lowering::LoweringOrigins;
 use crate::*;
 
-pub(super) const SOURCE: &str = include_str!("../../../tests/cases/generator_dynamic/frames/entry.py");
+pub(super) const SOURCE: &str =
+    include_str!("../../../tests/cases/generator_dynamic/frames/entry.py");
 
 pub(super) fn build(source: &str) -> (Program, LoweringOrigins) {
     let mut db = ryupy_base::SourceDb::default();
@@ -56,7 +57,10 @@ fn original_frames_has_pc_partitioned_retry_frame_obligations() {
     let result = analysis.expect("原 frames 的私有 frame 义务应闭合");
     println!(
         "frame obligations: accesses={} phase_keys={} caught_reads={} retry_edges={}",
-        result.frame_accesses, result.diagnostics.phase_keys, result.exception_reads, result.retry_edges
+        result.frame_accesses,
+        result.diagnostics.phase_keys,
+        result.exception_reads,
+        result.retry_edges
     );
     println!("original diagnostics: {:?}", result.diagnostics);
     assert!(result.frame_accesses > 0);

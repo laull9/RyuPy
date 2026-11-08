@@ -5,8 +5,12 @@ use crate::trace_lowering::LoweringOrigins;
 
 fn rejected(program: &Program, origins: &LoweringOrigins, reason: &str) {
     assert!(validate::validate(program).is_ok(), "负例必须为有效MIR");
-    let error = inspect(program, &origins.generators[0], &origins.generator_layouts[0])
-        .expect_err("实际坏MIR必须拒绝");
+    let error = inspect(
+        program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    )
+    .expect_err("实际坏MIR必须拒绝");
     assert!(error.contains(reason), "实际拒绝原因：{error}");
 }
 
@@ -18,41 +22,52 @@ fn saved_parameter(program: &Program, origins: &LoweringOrigins) -> LocalId {
         .expect("参数映射前先核真实factory初值与恢复模板");
     let factory = &program.functions[origin.factory];
     let parameter = factory.params[0];
-    let source = layout.saved_locals.iter().enumerate().find_map(|(offset, local)| {
-        let mut operand = &origin.initial_slots[offset + 4];
-        for _ in 0..32 {
-            let Operand::Local(id) = operand else {
-                return None;
-            };
-            if *id == parameter {
-                return Some((*local, offset + 4));
+    let source = layout
+        .saved_locals
+        .iter()
+        .enumerate()
+        .find_map(|(offset, local)| {
+            let mut operand = &origin.initial_slots[offset + 4];
+            for _ in 0..32 {
+                let Operand::Local(id) = operand else {
+                    return None;
+                };
+                if *id == parameter {
+                    return Some((*local, offset + 4));
+                }
+                let definitions: Vec<_> = factory.body.blocks[factory.body.entry]
+                    .stmts
+                    .iter()
+                    .filter_map(|statement| match statement {
+                        Statement::Assign {
+                            dest,
+                            value: Rvalue::Use(value) | Rvalue::Box { value, .. },
+                        } if dest == id => Some(value),
+                        _ => None,
+                    })
+                    .collect();
+                if definitions.len() != 1 {
+                    return None;
+                }
+                operand = definitions[0];
             }
-            let definitions: Vec<_> = factory.body.blocks[factory.body.entry]
-                .stmts
-                .iter()
-                .filter_map(|statement| match statement {
-                    Statement::Assign {
-                        dest,
-                        value: Rvalue::Use(value) | Rvalue::Box { value, .. },
-                    } if dest == id => Some(value),
-                    _ => None,
-                })
-                .collect();
-            if definitions.len() != 1 {
-                return None;
-            }
-            operand = definitions[0];
-        }
-        None
-    }).expect("实际factory参数必须有保存槽映射");
+            None
+        })
+        .expect("实际factory参数必须有保存槽映射");
     let resume = &program.functions[origin.resume];
-    assert!(resume.body.blocks[resume.body.entry].stmts.iter().any(|statement| {
-        matches!(statement, Statement::Assign { dest, value: Rvalue::Call {
+    assert!(
+        resume.body.blocks[resume.body.entry]
+            .stmts
+            .iter()
+            .any(|statement| {
+                matches!(statement, Statement::Assign { dest, value: Rvalue::Call {
             callee: Callee::Runtime(RuntimeFn::ArrayGet), args,
         }} if *dest == source.0 && args.len() == 2
             && matches!(args[0], Operand::Local(frame) if frame == origin.frame_parameter)
             && matches!(args[1], Operand::Const(Constant::I64(slot)) if slot == source.1 as i64))
-    }), "resume必须实际恢复所选参数槽");
+            }),
+        "resume必须实际恢复所选参数槽"
+    );
     source.0
 }
 
@@ -154,8 +169,12 @@ fn actual_mir_diamond_reaches_fixed_point() {
     let (mut program, origins) = build(SOURCE);
     diamond(&mut program, &origins, false, false);
     assert!(validate::validate(&program).is_ok());
-    let proof = inspect(&program, &origins.generators[0], &origins.generator_layouts[0])
-        .expect("实际多前驱合流应在原预算内闭合");
+    let proof = inspect(
+        &program,
+        &origins.generators[0],
+        &origins.generator_layouts[0],
+    )
+    .expect("实际多前驱合流应在原预算内闭合");
     assert!(proof.diagnostics.equal_joins > 0);
     assert!(!proof.complete_production_certificate);
 }
@@ -165,28 +184,36 @@ fn actual_mir_nested_frame_escape_is_rejected() {
     let (mut program, origins) = build(SOURCE);
     let origin = &origins.generators[0];
     let body = &mut program.functions[origin.resume].body;
-    body.blocks[body.entry].stmts.push(Statement::Eval(Rvalue::Use(Operand::Array(vec![
-        Operand::Array(vec![Operand::Local(origin.frame_parameter)]),
-    ]))));
+    body.blocks[body.entry]
+        .stmts
+        .push(Statement::Eval(Rvalue::Use(Operand::Array(vec![
+            Operand::Array(vec![Operand::Local(origin.frame_parameter)]),
+        ]))));
     rejected(&program, &origins, "frame");
 }
 
-fn seed_engine<'a>(program: &'a Program, origins: &'a LoweringOrigins) -> (Engine<'a>, State) {
+pub(super) fn seed_engine<'a>(
+    program: &'a Program,
+    origins: &'a LoweringOrigins,
+) -> (Engine<'a>, State) {
     assert!(validate::validate(program).is_ok());
     let origin = &origins.generators[0];
     let layout = &origins.generator_layouts[0];
     let prepared = crate::trace_frame::prepare(program, origin, layout).expect("真实前置检查");
+    let mut budget = Budget {
+        diagnostics: Diagnostics::default(),
+    };
+    let lookup = LayoutIndex::build(prepared.body, layout, &mut budget).expect("有界三表");
     let mut engine = Engine {
         body: prepared.body,
         origin,
         layout,
         pcs: prepared.pcs,
+        lookup,
         indices: HashMap::new(),
         nodes: Vec::new(),
         queue: VecDeque::new(),
-        budget: Budget {
-            diagnostics: Diagnostics::default(),
-        },
+        budget,
         reads: 0,
         retries: 0,
     };
@@ -194,7 +221,12 @@ fn seed_engine<'a>(program: &'a Program, origins: &'a LoweringOrigins) -> (Engin
         engine.body,
         origin,
         layout.initial_pc,
-        prepared.slots.into_iter().map(|value| vec![value]).collect(),
+        prepared
+            .slots
+            .into_iter()
+            .map(|value| Values::single(value, &mut engine.budget))
+            .collect::<Result<Vec<_>, _>>()
+            .expect("初槽有界"),
         &mut engine.budget,
     )
     .expect("真实factory播种");
@@ -227,22 +259,39 @@ fn actual_ir_seed_raise_prepare_and_phase_split() {
     let (program, origins) = build(SOURCE);
     let (mut engine, mut state) = seed_engine(&program, &origins);
     let local = engine.layout.saved_locals[0];
-    state.locals[index(local)] = vec![Value::Exception, Value::None];
+    state.locals[index(local)] =
+        Values::checked(vec![Value::Exception, Value::None], &mut engine.budget).unwrap();
     let value = Rvalue::Call {
         callee: Callee::Runtime(RuntimeFn::RaisePrepare),
-        args: vec![Operand::Local(local)]
+        args: vec![Operand::Local(local)],
     };
     let output = eval::evaluate(&value, &mut state, &mut engine).expect("逐原子RaisePrepare");
-    assert_eq!(output, vec![Value::Exception, Value::Opaque]);
-    let pcs: Vec<_> = engine.layout.pc_targets.iter().take(2).map(|(pc, _)| Value::Integer(*pc)).collect();
-    state.slots[0] = pcs.clone();
+    assert_eq!(output.as_slice(), &[Value::Exception, Value::Opaque]);
+    let pcs: Vec<_> = engine
+        .layout
+        .pc_targets
+        .iter()
+        .take(2)
+        .map(|(pc, _)| Value::Integer(*pc))
+        .collect();
+    state.slots[0] = Values::checked(pcs.clone(), &mut engine.budget).unwrap();
     engine.enqueue(state.clone()).expect("所有合法PC分发");
     assert_eq!(engine.nodes.len(), 2);
     for pc in pcs {
-        assert!(engine.nodes.iter().any(|node| node.input.slots[0] == [pc.clone()]));
+        assert!(
+            engine
+                .nodes
+                .iter()
+                .any(|node| node.input.slots[0] == [pc.clone()])
+        );
     }
-    state.slots[0] = vec![Value::Integer(999999)];
-    assert!(engine.enqueue(state).expect_err("未知PC不能筛掉").contains("未知 PC"));
+    state.slots[0] = Values::single(Value::Integer(999999), &mut engine.budget).unwrap();
+    assert!(
+        engine
+            .enqueue(state)
+            .expect_err("未知PC不能筛掉")
+            .contains("未知 PC")
+    );
 }
 
 #[test]
@@ -254,42 +303,65 @@ fn actual_ir_seed_growth_and_inner_work_are_bounded() {
     engine.enqueue(state.clone()).expect("equal不加内容费");
     assert_eq!(engine.budget.diagnostics.cumulative_content, first);
     let mut changed = state;
-    changed.locals[0].push(Value::Exception);
+    changed.locals[0]
+        .insert(Value::Exception, &mut engine.budget)
+        .unwrap();
     engine.enqueue(changed.clone()).expect("排队中增长也收费");
     assert!(engine.budget.diagnostics.cumulative_content > first);
     engine.budget.diagnostics.cumulative_content = VALUE_CELL_BUDGET;
-    changed.locals[0].push(Value::None);
-    assert!(engine.enqueue(changed).expect_err("不能回收费用").contains("内容预算"));
+    changed.locals[0]
+        .insert(Value::None, &mut engine.budget)
+        .unwrap();
+    assert!(
+        engine
+            .enqueue(changed)
+            .expect_err("不能回收费用")
+            .contains("内容预算")
+    );
     let (mut engine, mut state) = seed_engine(&program, &origins);
-    state.locals[0] = (0..32).map(Value::Integer).collect();
-    state.locals[1] = (0..32).map(Value::Integer).collect();
+    state.locals[0] =
+        Values::checked((0..32).map(Value::Integer).collect(), &mut engine.budget).unwrap();
+    state.locals[1] =
+        Values::checked((0..32).map(Value::Integer).collect(), &mut engine.budget).unwrap();
     engine.budget.diagnostics.work_units = STEP_BUDGET - 100;
-    let value = Rvalue::Binary { op: BinOp::Eq, lhs: Operand::Local(engine.layout.saved_locals[0]),
-        rhs: Operand::Local(engine.layout.saved_locals[1]) };
-    assert!(eval::evaluate(&value, &mut state, &mut engine).expect_err("内层枚举也计work").contains("工作预算"));
+    let value = Rvalue::Binary {
+        op: BinOp::Eq,
+        lhs: Operand::Local(engine.layout.saved_locals[0]),
+        rhs: Operand::Local(engine.layout.saved_locals[1]),
+    };
+    assert!(
+        eval::evaluate(&value, &mut state, &mut engine)
+            .expect_err("内层枚举也计work")
+            .contains("工作预算")
+    );
     // 两种空集合分支直接测试生产使用的成员原语，不借先行其它费用挡住。
     let mut budget = Budget {
         diagnostics: Diagnostics::default(),
     };
     let mut empty = Vec::new();
     budget.diagnostics.work_units = STEP_BUDGET;
-    assert!(domain::add(&mut empty, Value::None, &mut budget)
-        .expect_err("空Value首次新增仍须成员处理费")
-        .contains("工作预算"));
+    assert!(
+        domain::add(&mut empty, Value::None, &mut budget)
+            .expect_err("空Value首次新增仍须成员处理费")
+            .contains("工作预算")
+    );
     assert!(empty.is_empty());
     budget.diagnostics.work_units = 0;
     assert!(domain::add(&mut empty, Value::None, &mut budget).expect("余量足够时正常新增"));
     assert_eq!(empty, vec![Value::None]);
-    assert_eq!(budget.diagnostics.work_units, 1);
+    assert_eq!(budget.diagnostics.work_units, 2);
     let left = [engine.layout.saved_locals[0]];
     budget.diagnostics.work_units = STEP_BUDGET;
-    assert!(domain::intersect_sources(&left, &[], &mut budget)
-        .expect_err("非空R与空R交仍须成员处理费")
-        .contains("工作预算"));
+    assert!(
+        domain::intersect_sources(&left, &[], &mut budget)
+            .expect_err("非空R与空R交仍须成员处理费")
+            .contains("工作预算")
+    );
     budget.diagnostics.work_units = 0;
-    assert!(domain::intersect_sources(&left, &[], &mut budget)
-        .expect("余量足够时删除旧must成员")
-        .is_empty());
+    assert!(
+        domain::intersect_sources(&left, &[], &mut budget)
+            .expect("余量足够时删除旧must成员")
+            .is_empty()
+    );
     assert_eq!(budget.diagnostics.work_units, 1);
-
 }

@@ -17,13 +17,9 @@ fn exception_edge(engine: &mut Engine<'_>, state: &State) -> Result<(), String> 
             let mut caught = state.clone();
             domain::age(&mut caught.locals, &mut engine.budget)?;
             domain::age(&mut caught.slots, &mut engine.budget)?;
-            engine.budget.work(engine.layout.original_blocks.len() + engine.layout.exception_routes.len())?;
-            caught.key.expected_retry = engine.layout.original_blocks.iter()
-                .position(|id| *id == state.key.block).and_then(|old| {
-                    engine.layout.exception_routes.iter().find(|route| {
-                        old as i64 >= route.start && (old as i64) < route.start + route.length as i64
-                    })
-                }).map(|route| route.handler_pc);
+            caught.key.expected_retry = engine
+                .lookup
+                .retry(state.key.block, &mut engine.budget)?;
             caught.key.physical = true;
             caught.key.dispatching = false;
             jump(engine, caught, region.handler)?;
@@ -41,28 +37,16 @@ pub(super) fn step(engine: &mut Engine<'_>, mut state: State) -> Result<(), Stri
     }
     let block = &body.blocks[state.key.block];
     if state.key.dispatching && state.key.cursor == 0 {
-        engine.budget.work(engine.layout.pc_targets.len())?;
-        if let Some((pc, _)) = engine
-            .layout
-            .pc_targets
-            .iter()
-            .find(|(_, target)| *target == state.key.block)
-        {
-            if *pc != state.key.pc {
+        if let Some(pc) = engine.lookup.dispatch(state.key.block, &mut engine.budget)? {
+            if pc != state.key.pc {
                 return Err("实际 dispatch 与 old-PC 映射不符".into());
             }
             state.key.dispatching = false;
         }
     }
     if state.key.cursor == 0 {
-        engine.budget.work(engine.layout.exit_pcs.len())?;
-        if let Some((_, pc)) = engine
-            .layout
-            .exit_pcs
-            .iter()
-            .find(|(id, _)| *id == state.key.block)
-        {
-            state.key.expected_return = Some(*pc);
+        if let Some(pc) = engine.lookup.exit(state.key.block, &mut engine.budget)? {
+            state.key.expected_return = Some(pc);
         }
     }
     if let Some(statement) = block.stmts.get(state.key.cursor) {
@@ -115,12 +99,11 @@ pub(super) fn step(engine: &mut Engine<'_>, mut state: State) -> Result<(), Stri
             }
             Ok(())
         }
-        Terminator::Raise {
-            ..
-        } => exception_edge(engine, &state),
+        Terminator::Raise { .. } => exception_edge(engine, &state),
         Terminator::Return(value) => {
             let values = match value {
-                Some(value) => eval::operand(value, &state, &mut engine.budget)?, None => vec![Value::None]
+                Some(value) => eval::operand(value, &state, &mut engine.budget)?,
+                None => Values::single(Value::None, &mut engine.budget)?,
             };
             engine.budget.work(values.len())?;
             let retry = values.contains(&Value::Retry);
@@ -155,9 +138,16 @@ pub(super) fn step(engine: &mut Engine<'_>, mut state: State) -> Result<(), Stri
             if !engine.pcs.contains(&pc) {
                 return Err("返回边使用未知 PC".into());
             }
-            engine.budget.work(state.written.len() + engine.layout.saved_locals.len())?;
+            engine
+                .budget
+                .work(state.written.len() + engine.layout.saved_locals.len())?;
             if state.written[4..].iter().any(|done| !done)
-                || engine.layout.saved_locals.iter().any(|id| !state.stored[index(*id) + 4]) {
+                || engine
+                    .layout
+                    .saved_locals
+                    .iter()
+                    .any(|id| !state.stored[index(*id) + 4])
+            {
                 return Err("暂停或 Retry 缺少当前版本的局部逐槽保存".into());
             }
             if retry {
@@ -165,7 +155,9 @@ pub(super) fn step(engine: &mut Engine<'_>, mut state: State) -> Result<(), Stri
                     return Err("Retry 没有保存物理 caught 异常".into());
                 }
                 engine.retries += 1;
-            } else if state.slots[3] != [Value::None] { return Err("普通暂停保留未消费的 caught 值".into()); }
+            } else if state.slots[3] != [Value::None] {
+                return Err("普通暂停保留未消费的 caught 值".into());
+            }
             let restarted = domain::restart(
                 engine.body,
                 engine.origin,
@@ -176,8 +168,6 @@ pub(super) fn step(engine: &mut Engine<'_>, mut state: State) -> Result<(), Stri
             engine.enqueue(restarted)
         }
         Terminator::Unreachable => Err("可达 Unreachable 终结符".into()),
-        Terminator::Suspend {
-            ..
-        } => Err("未降级暂停".into()),
+        Terminator::Suspend { .. } => Err("未降级暂停".into()),
     }
 }

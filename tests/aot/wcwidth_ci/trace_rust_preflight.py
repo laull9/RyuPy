@@ -46,6 +46,10 @@ EXPECTED = {
         "actual_ir_seed_raise_prepare_and_phase_split",
         "actual_ir_seed_growth_and_inner_work_are_bounded",
     ],
+    "mechanical": [
+        "bounded_cells_preserve_snapshots_and_failure_atomicity",
+        "actual_layout_indices_match_first_match_linear_oracle",
+    ],
     "observer": [
         "bounded_encoding_checks_actual_bytes_and_errors",
         "failed_export_is_separate_from_analysis_result",
@@ -83,7 +87,7 @@ def capture(directory, label, argv, cwd, timeout=900):
     return code
 
 
-MIR_MODULES = {"domain": "trace_domain_tests", "lowering": "trace_lowering_tests", "frame": "trace_frame_tests", "observer": "trace_frame::observer::tests", "dataflow": "trace_frame_dataflow::tests"}
+MIR_MODULES = {"domain": "trace_domain_tests", "lowering": "trace_lowering_tests", "frame": "trace_frame_tests", "observer": "trace_frame::observer::tests", "dataflow": "trace_frame_dataflow::tests", "mechanical": "trace_frame_dataflow::mechanical_tests"}
 REQUIRED = {
     "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
     "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",

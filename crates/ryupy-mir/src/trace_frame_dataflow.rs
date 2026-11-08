@@ -10,6 +10,9 @@ mod eval;
 #[path = "trace_frame_dataflow_flow.rs"]
 mod flow;
 use domain::{Key, State, Values};
+#[path = "trace_frame_dataflow_index.rs"]
+mod layout_index;
+use layout_index::LayoutIndex;
 
 pub const STATE_BUDGET: usize = 32768;
 pub const STEP_BUDGET: usize = 524288;
@@ -61,7 +64,8 @@ impl Budget {
             self.work(1)?;
             cells += 2 * sources.len();
         }
-        self.diagnostics.cumulative_content = self.diagnostics.cumulative_content.saturating_add(cells);
+        self.diagnostics.cumulative_content =
+            self.diagnostics.cumulative_content.saturating_add(cells);
         if self.diagnostics.cumulative_content > VALUE_CELL_BUDGET {
             return Err("固定点累计内容预算耗尽".into());
         }
@@ -78,6 +82,7 @@ pub(super) struct Engine<'a> {
     origin: &'a GeneratorOrigin,
     layout: &'a GeneratorLayout,
     pcs: HashSet<i64>,
+    lookup: LayoutIndex,
     indices: HashMap<Key, usize>,
     nodes: Vec<Node>,
     queue: VecDeque<usize>,
@@ -88,12 +93,6 @@ pub(super) struct Engine<'a> {
 
 impl Engine<'_> {
     fn enqueue(&mut self, state: State) -> Result<(), String> {
-        for cell in state.locals.iter().chain(&state.slots) {
-            self.budget.work(1)?;
-            if cell.is_empty() || cell.len() > 32 {
-                return Err("空可达cell或原子超限".into());
-            }
-        }
         for pc in &state.slots[0] {
             self.budget.work(1)?;
             if !matches!(pc, Value::Integer(v) if *v == -1 || self.pcs.contains(v)) {
@@ -101,12 +100,15 @@ impl Engine<'_> {
             }
             for caught in &state.slots[3] {
                 self.budget.work(1)?;
-                if !matches!(caught, Value::None | Value::Exception | Value::StoredException) {
+                if !matches!(
+                    caught,
+                    Value::None | Value::Exception | Value::StoredException
+                ) {
                     return Err("未知 caught 控制槽".into());
                 }
                 let mut incoming = state.clone();
-                incoming.slots[0] = vec![pc.clone()];
-                incoming.slots[3] = vec![caught.clone()];
+                incoming.slots[0] = Values::single(pc.clone(), &mut self.budget)?;
+                incoming.slots[3] = Values::single(caught.clone(), &mut self.budget)?;
                 incoming.key.slot0 = pc.clone();
                 incoming.key.slot3 = caught.clone();
                 self.install(incoming)?;
@@ -149,7 +151,10 @@ impl Engine<'_> {
             self.body,
             self.origin,
             self.layout.initial_pc,
-            slots.into_iter().map(|value| vec![value]).collect(),
+            slots
+                .into_iter()
+                .map(|value| Values::single(value, &mut self.budget))
+                .collect::<Result<Vec<_>, _>>()?,
             &mut self.budget,
         )?;
         self.enqueue(state)?;
@@ -178,23 +183,26 @@ pub fn inspect<'a>(
         frame_accesses,
         pcs,
     } = crate::trace_frame::prepare(program, origin, layout)?;
+    let mut budget = Budget {
+        diagnostics: Diagnostics::default(),
+    };
+    let lookup = LayoutIndex::build(body, layout, &mut budget)?;
     let mut engine = Engine {
         body,
         origin,
         layout,
         pcs,
+        lookup,
         indices: HashMap::new(),
         nodes: Vec::new(),
         queue: VecDeque::new(),
-        budget: Budget {
-            diagnostics: Diagnostics::default(),
-        },
+        budget,
         reads: 0,
         retries: 0,
     };
-    engine.run(slots).map_err(|error| {
-        format!("{error}; dataflow={:?}", engine.budget.diagnostics)
-    })?;
+    engine
+        .run(slots)
+        .map_err(|error| format!("{error}; dataflow={:?}", engine.budget.diagnostics))?;
     Ok(FrameObligations {
         program,
         frame_accesses,
@@ -212,3 +220,7 @@ pub fn inspect<'a>(
 #[cfg(test)]
 #[path = "trace_frame_dataflow_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "trace_frame_dataflow_mechanical_tests.rs"]
+mod mechanical_tests;

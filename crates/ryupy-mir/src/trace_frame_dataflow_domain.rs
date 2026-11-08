@@ -1,7 +1,63 @@
 //! 有限集合值域、精确phase和must交；不可达由工作表缺席表示。
 use super::*;
 
-pub(super) type Values = Vec<Value>;
+/// 私有非空有界集合；只读切片不允许构造或修改内部表示。
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct Values(Vec<Value>);
+
+impl Values {
+    pub(super) fn checked(values: Vec<Value>, budget: &mut Budget) -> Result<Self, String> {
+        budget.work(1)?;
+        if values.is_empty() || values.len() > 32 {
+            return Err("空可达cell或原子超限".into());
+        }
+        Ok(Self(values))
+    }
+
+    pub(super) fn single(value: Value, budget: &mut Budget) -> Result<Self, String> {
+        Self::checked(vec![value], budget)
+    }
+
+    pub(super) fn as_slice(&self) -> &[Value] {
+        &self.0
+    }
+
+    pub(super) fn insert(&mut self, value: Value, budget: &mut Budget) -> Result<bool, String> {
+        add(&mut self.0, value, budget)
+    }
+}
+
+impl std::ops::Deref for Values {
+    type Target = [Value];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+
+impl<'a> IntoIterator for &'a Values {
+    type Item = &'a Value;
+    type IntoIter = std::slice::Iter<'a, Value>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
+impl IntoIterator for Values {
+    type Item = Value;
+    type IntoIter = std::vec::IntoIter<Value>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<const N: usize> PartialEq<[Value; N]> for Values {
+    fn eq(&self, other: &[Value; N]) -> bool {
+        self.as_slice() == other
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) enum Pending {
@@ -34,7 +90,11 @@ pub(super) struct State {
     pub sources: Vec<Vec<LocalId>>,
 }
 
-pub(super) fn add(values: &mut Values, value: Value, budget: &mut Budget) -> Result<bool, String> {
+pub(super) fn add(
+    values: &mut Vec<Value>,
+    value: Value,
+    budget: &mut Budget,
+) -> Result<bool, String> {
     // 成员处理基本费独立于相等比较，空目标也不能免费新增。
     budget.work(1)?;
     for old in values.iter() {
@@ -43,6 +103,7 @@ pub(super) fn add(values: &mut Values, value: Value, budget: &mut Budget) -> Res
             return Ok(false);
         }
     }
+    budget.work(1)?;
     if values.len() >= 32 {
         return Err("Value 原子预算耗尽".into());
     }
@@ -50,7 +111,11 @@ pub(super) fn add(values: &mut Values, value: Value, budget: &mut Budget) -> Res
     Ok(true)
 }
 
-pub(super) fn join(target: &mut State, source: &State, budget: &mut Budget) -> Result<bool, String> {
+pub(super) fn join(
+    target: &mut State,
+    source: &State,
+    budget: &mut Budget,
+) -> Result<bool, String> {
     if target.key != source.key {
         return Err("phase key 不一致".into());
     }
@@ -62,7 +127,7 @@ pub(super) fn join(target: &mut State, source: &State, budget: &mut Budget) -> R
         .zip(source.locals.iter().chain(&source.slots))
     {
         for value in right {
-            changed |= add(left, value.clone(), budget)?;
+            changed |= left.insert(value.clone(), budget)?;
         }
     }
     for (left, right) in target.sources.iter_mut().zip(&source.sources) {
@@ -111,7 +176,8 @@ pub(super) fn define(
     budget: &mut Budget,
 ) -> Result<(), String> {
     let captured = match value {
-        Rvalue::Use(Operand::Local(source)) | Rvalue::Box {
+        Rvalue::Use(Operand::Local(source))
+        | Rvalue::Box {
             value: Operand::Local(source),
             ..
         } => state.sources[index(*source)].clone(),
@@ -151,7 +217,7 @@ pub(super) fn age(values: &mut [Values], budget: &mut Budget) -> Result<(), Stri
             };
             add(&mut result, mapped, budget)?;
         }
-        *cell = result;
+        *cell = Values::checked(result, budget)?;
     }
     Ok(())
 }
@@ -165,8 +231,8 @@ pub(super) fn restart(
 ) -> Result<State, String> {
     age(&mut slots, budget)?;
     budget.work(body.locals.len() + slots.len())?;
-    let mut locals = vec![vec![Value::Uninitialized]; body.locals.len()];
-    locals[index(origin.frame_parameter)] = vec![Value::Frame];
+    let mut locals = vec![Values::single(Value::Uninitialized, budget)?; body.locals.len()];
+    locals[index(origin.frame_parameter)] = Values::single(Value::Frame, budget)?;
     // 每次restart的slot3来自已核单值退出；不凭HIR构造caught。
     let pending = match slots[3].as_slice() {
         [Value::StoredException] => Pending::AwaitingRead,
