@@ -6,11 +6,18 @@ use ryupy_driver::{Session, Stage};
 fn trace_adapter_s2_real_driver_stages_and_rejections() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/trace_adapter_s2");
-    for name in ["explicit_inner", "explicit_module", "recursive", "reused"] {
+    for name in [
+        "explicit_inner",
+        "explicit_module",
+        "recursive",
+        "reused",
+        "native_local",
+        "native_outer",
+    ] {
         for stage in [Stage::Hir, Stage::Types, Stage::Mir, Stage::Cil] {
             let mut session = Session::default();
             ryupy_driver::dump(&mut session, &root.join(format!("{name}.py")), stage)
-                .expect("四正例必须通过真实driver全部阶段");
+                .expect("六正例必须通过真实driver全部阶段");
         }
     }
     for name in [

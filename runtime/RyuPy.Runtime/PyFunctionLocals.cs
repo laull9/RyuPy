@@ -9,6 +9,9 @@ public static partial class PyOps
     /// <summary>完整展开调用实参后严格校验；无参直调可由编译器省略本步。</summary>
     public static void FunctionLocalsValidate(object?[] rawArgs, object?[] rawNames, object?[] rawValues)
     {
+#if TRACE_ADAPTER_TEST
+        var nativeTicket = PyTraceAdapter.CaptureNativeCaller();
+#endif
         try
         {
             // 唯一裸star在kwargs合并之后消费；混合位置star/多段**由MIR明确诊断。
@@ -29,14 +32,45 @@ public static partial class PyOps
             // 非字符串key检查在CALL边界，晚于唯一star的实际展开。
             if (nonString) throw new PyTypeError("keywords must be strings");
             if (keywords != 0) throw new PyTypeError("locals() takes no keyword arguments");
-            if (positional != 0) throw new PyTypeError($"locals() takes no arguments ({positional} given)");
+            if (positional != 0)
+#if TRACE_ADAPTER_TEST
+                throw CreateLocalsPositionalError(positional, nativeTicket);
+#else
+                throw new PyTypeError($"locals() takes no arguments ({positional} given)");
+#endif
         }
         catch (PyBaseException error)
         {
+#if TRACE_ADAPTER_TEST
+            PyTraceAdapter.ForwardNative(error, nativeTicket);
+#endif
             PyErrors.PrepareRaise(error);
             throw;
         }
     }
+
+#if TRACE_ADAPTER_TEST
+    // 唯一冷来源工厂：只由上述精确positional错误点调用，不接受既有异常。
+    // 全部可抛准备和事件登记先完成，再以无抛字段赋值发布binding及票据来源。
+    private static PyTypeError CreateLocalsPositionalError(long positional, TraceNativeTicket ticket)
+    {
+        var scope = PyTraceAdapter.ValidateNativeSource(ticket);
+        var scene = PyTraceback.AdapterScene();
+        var error = new PyTypeError($"locals() takes no arguments ({positional} given)");
+        var owner = new PyTraceState(scope.Authority);
+        var before = owner.Snapshot;
+        var request = new TraceRequest(owner, before.Epoch, 1);
+        PyTraceAdapter.RequireApplied(owner.BeginNativeFresh(request, owner.BirthGrant, scene));
+        var binding = new TraceAdapterBinding(scope.Seal, owner);
+        var source = new TraceNativeSource(error, owner, request);
+        var item = new TraceAdapterEvent("NativeFresh", error, before, owner.Snapshot,
+            PyTraceback.CaptureDepth(), error.Frames.Length, error.Context);
+        scope.Events.Add(item);
+        error.TraceAdapterBinding = binding;
+        ticket.Source = source;
+        return error;
+    }
+#endif
 
     // 本切只接受已有真实dict/native mapping的关键字展开。重复键先于非string错误；
     // 用户hash键的merge需缓存hash协议，未纳入时明确拒绝，不重放用户hash假装等价。

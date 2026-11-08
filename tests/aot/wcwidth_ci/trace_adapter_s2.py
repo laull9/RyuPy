@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / "target/trace-adapter-s2"
 FIXTURES = ROOT / "tests/fixtures/trace_adapter_s2"
-CASES = ("explicit_inner", "explicit_module", "recursive", "reused")
+CASES = ("explicit_inner", "explicit_module", "recursive", "reused", "native_local", "native_outer")
 
 
 def write(name, data):
@@ -80,6 +80,16 @@ def main():
         raise RuntimeError("默认归一化focused测试未精确2/2零skip")
     run("probe-runtime", [dotnet, "build", runtime, "-c", "Release", "--artifacts-path", probe,
         "-p:TraceAdapterTest=true", "-nologo"], env)
+    probe_tests = OUT / "probe-tests"
+    run("native-adapter-tests", [dotnet, "test", tests, "-c", "Release", "--artifacts-path", probe_tests,
+        "-p:TraceAdapterTest=true", "--filter", "FullyQualifiedName~PyTraceNativeAdapterTests",
+        "--logger", "trx;LogFileName=native-adapter.trx", "--results-directory", OUT / "trx-native"], env)
+    native_rows = ET.parse(OUT / "trx-native/native-adapter.trx").findall(".//t:UnitTestResult", ns)
+    native_expected = {"NativeSourcePreservesIdentityOrderAndContext",
+        "NativeReceiveRejectsUnknownSourceAndDuplicateBoundary", "NativeBirthRejectsWrongConsumedAndExplicitRevokedGrants",
+        "NativeTicketsRejectStaleActivationScopeAndColdEpoch", "NativeOldFlightFinishesAndUnfinishedCloseReleasesScope"}
+    if len(native_rows) != 5 or {row.attrib["testName"].split(".")[-1] for row in native_rows} != native_expected or any(row.attrib["outcome"] != "Passed" for row in native_rows):
+        raise RuntimeError("native adapter反例未精确5/5零skip")
     default_dll = unique(default / "bin/RyuPy.Runtime", "**/RyuPy.Runtime.dll")
     probe_dll = unique(probe / "bin/RyuPy.Runtime", "**/RyuPy.Runtime.dll")
     write("runtime-identities.json", [digest(default_dll), digest(probe_dll)])
@@ -90,7 +100,8 @@ def main():
     write("compiler-identities.json", [digest(OUT / "cargo-default/debug/ryupy"), digest(OUT / "cargo/debug/ryupy")])
     for name in ("trace_adapter_abi_rejects_wrong_arguments_results_and_array_calls",
                  "trace_adapter_real_typed_cfg_receives_before_pop_with_exact_caught_local",
-                 "trace_adapter_admission_rejects_unimplemented_semantics"):
+                 "trace_adapter_admission_rejects_unimplemented_semantics",
+                 "trace_adapter_native_typed_cfg_keeps_real_call_and_handle_before_pop"):
         run(name, ["cargo", "test", "-p", "ryupy-mir", "--features", "trace-adapter-test", "--locked",
             "--lib", "trace_adapter_test_tests::" + name, "--", "--exact", "--nocapture"], probe_env)
         if "1 passed; 0 failed" not in (OUT / (name + ".stdout")).read_text():

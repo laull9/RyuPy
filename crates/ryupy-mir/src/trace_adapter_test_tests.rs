@@ -303,3 +303,64 @@ fn trace_adapter_admission_rejects_unimplemented_semantics() {
         assert!(!diagnostics.is_empty());
     }
 }
+
+#[test]
+fn trace_adapter_native_typed_cfg_keeps_real_call_and_handle_before_pop() {
+    for source in [
+        include_str!("../../../tests/fixtures/trace_adapter_s2/native_local.py"),
+        include_str!("../../../tests/fixtures/trace_adapter_s2/native_outer.py"),
+    ] {
+        let (program, diagnostics) = compile(source);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        assert!(validate::validate(&program).is_ok());
+        println!("S2a native typed MIR:\n{}", crate::pretty::dump(&program));
+        let calls: Vec<_> = program
+            .functions
+            .iter()
+            .flat_map(|(_, f)| f.body.blocks.iter())
+            .flat_map(|(_, b)| b.stmts.iter())
+            .filter_map(runtime)
+            .map(|(kind, _)| kind)
+            .collect();
+        assert!(calls.contains(&RuntimeFn::FunctionLocalsValidate));
+        assert!(!calls.contains(&RuntimeFn::TraceAdapterExplicit));
+        let mut handles = 0;
+        for (_, function) in program.functions.iter() {
+            for region in &function.body.regions {
+                if !matches!(region.kind, RegionKind::Catch { .. }) {
+                    continue;
+                }
+                let caught = region.exc_local.expect("真实catch异常局部");
+                let entry = &function.body.blocks[region.handler];
+                assert!(entry.stmts.iter().any(|s| matches!(
+                    s,
+                    Statement::Assign { dest, value: Rvalue::CatchException } if *dest == caught
+                )));
+                let Terminator::Goto(body_id) = entry.terminator else {
+                    panic!("静态catch必须进入真实接收体")
+                };
+                let body = &function.body.blocks[body_id];
+                let handle = body
+                    .stmts
+                    .iter()
+                    .position(|s| matches!(runtime(s), Some((RuntimeFn::TraceAdapterHandle, _))))
+                    .expect("保留Handle");
+                let (_, args) = runtime(&body.stmts[handle]).unwrap();
+                assert!(matches!(&args[0], Operand::Local(id) if *id == caught));
+                let pop = body
+                    .stmts
+                    .iter()
+                    .position(|s| matches!(runtime(s), Some((RuntimeFn::TracePopTo, _))))
+                    .expect("保留PopTo");
+                let enter = body
+                    .stmts
+                    .iter()
+                    .position(|s| matches!(runtime(s), Some((RuntimeFn::HandlerEnter, _))))
+                    .expect("保留HandlerEnter");
+                assert!(handle < pop && pop < enter);
+                handles += 1;
+            }
+        }
+        assert!(handles > 0);
+    }
+}

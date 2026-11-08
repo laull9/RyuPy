@@ -9,7 +9,8 @@ namespace RyuPy.Runtime;
 
 internal sealed record TraceAdapterBinding(object Scope, PyTraceState Owner);
 internal sealed record TraceAdapterEvent(string Kind, PyBaseException Error,
-    TraceSnapshot Before, TraceSnapshot After, long LiveDepth);
+    TraceSnapshot Before, TraceSnapshot After, long LiveDepth,
+    int? LegacyFrameCount = null, PyBaseException? LegacyContext = null);
 
 internal sealed class TraceAdapterScope : IDisposable
 {
@@ -23,7 +24,7 @@ internal sealed class TraceAdapterScope : IDisposable
 }
 
 /// <summary>仅隔离probe产物存在的真实源/接收桥；生产程序集没有此类型。</summary>
-public static class PyTraceAdapter
+public static partial class PyTraceAdapter
 {
     internal static TraceAdapterScope? Active;
     internal static TraceAdapterScope RequireScope() => Active
@@ -97,11 +98,11 @@ public static class PyTraceAdapter
             forward ? TraceReceiveKind.Forward : TraceReceiveKind.Handle));
         RequireApplied(result);
         scope.Events.Add(new(forward ? "Forward" : "Handle", error, before,
-            owner.Snapshot, PyTraceback.CaptureDepth()));
+            owner.Snapshot, PyTraceback.CaptureDepth(), error.Frames.Length, error.Context));
         if (!forward) scope.LastHandled = error;
     }
 
-    private static void RequireApplied(TraceResult result)
+    internal static void RequireApplied(TraceResult result)
     {
         if (result.Change != TraceChange.Applied)
             throw new InvalidOperationException($"S2a transaction rejected: {result.Change}/{result.Reject}");

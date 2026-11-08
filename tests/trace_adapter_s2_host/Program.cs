@@ -27,7 +27,7 @@ internal static class Program
         };
     }
 
-    private static void InspectPe(string path, bool probe, bool runtime)
+    private static void InspectPe(string path, bool probe, bool runtime, bool native = false)
     {
         using var stream = File.OpenRead(path);
         using var pe = new PEReader(stream);
@@ -39,7 +39,8 @@ internal static class Program
         if (probe && !runtime)
         {
             var members = metadata.MemberReferences.Select(h => metadata.GetString(metadata.GetMemberReference(h).Name)).ToArray();
-            Require(members.Contains("PrepareExplicit") && members.Contains("Handle"), "生成PE没有真实source/receive调用");
+            Require(members.Contains(native ? "FunctionLocalsValidate" : "PrepareExplicit") && members.Contains("Handle"), "生成PE没有本case真实source/receive调用");
+            if (native) Require(!members.Contains("PrepareExplicit"), "native正例不能塞入无关Explicit");
         }
     }
 
@@ -98,7 +99,9 @@ internal static class Program
         // argv: expected、evidence、probe runtime、generated、default runtime、default generated。
         Require(args.Length == 6, "需要六个冻结产物参数");
         InspectPe(args[2], true, true);
-        InspectPe(args[3], true, false);
+        NativeChecks.InspectRuntime(args[2], true);
+        NativeChecks.InspectRuntime(args[4], false);
+        InspectPe(args[3], true, false, NativeChecks.IsNative(args[0]));
         InspectPe(args[4], false, true);
         InspectPe(args[5], false, false);
         Require(File.ReadAllBytes(typeof(PyBaseException).Assembly.Location).SequenceEqual(File.ReadAllBytes(args[2])), "实际加载runtime不是本轮probe字节");
@@ -118,13 +121,22 @@ internal static class Program
             {
                 if (item.Kind == "Explicit")
                     Require(item.After.BeginKind == TraceBeginKind.Explicit && !item.After.GrantValid, "Source身份错误");
-                else
+                else if (item.Kind == "NativeFresh")
+                {
+                    Require(item.Before.Request is null && item.Before.History.Count == 0, "native必须真实冷源");
+                    Require(item.After.BeginKind == TraceBeginKind.NativeFresh && item.After.GrantUsed
+                        && !item.After.GrantValid && item.After.Request?.Number == 1
+                        && item.After.NextReceive == 1 && item.After.Receipt is null, "native出生授权错误");
+                }
+                else if (item.Kind is "Forward" or "Handle")
                 {
                     Require(item.Before.Request == item.After.Request, "接收错误地重新Begin");
                     Require(item.Before.NextReceive + 1 == item.After.NextReceive, "接收R不连续");
                     Require(item.LiveDepth >= item.After.Receipt!.Event.Boundary.Position + 1, "Receive晚于PopTo");
                 }
+                else throw new InvalidOperationException("未知适配事件");
             }
+            if (NativeChecks.IsNative(args[0])) NativeChecks.Check(scope);
             if (Path.GetFileName(args[0]).StartsWith("explicit_inner", StringComparison.Ordinal))
             {
                 Require(scope.Events.Count(e => e.Kind == "Explicit") == 2, "replacement需要两个独立源");
@@ -138,7 +150,14 @@ internal static class Program
                 Require(frames.Select(f => f.Activation).Distinct().Count() == frames.Count, "递归activation被合并");
             }
             var events = scope.Events.Select(e => new {
-                e.Kind, Type = e.Error.PyTypeName, e.LiveDepth,
+                e.Kind, Type = e.Error.PyTypeName, e.LiveDepth, e.LegacyFrameCount,
+                LegacyContextType = e.LegacyContext?.PyTypeName,
+                BeginKind = e.After.BeginKind.ToString(), e.After.GrantUsed, e.After.GrantValid,
+                e.After.PendingCount, e.After.NextReceive,
+                Boundary = e.After.Receipt is null ? null : new {
+                    e.After.Receipt.Event.Boundary.Position, e.After.Receipt.Event.Boundary.Activation,
+                    Inclusion = e.After.Receipt.Event.Inclusion.ToString(),
+                },
                 Q = e.After.Request?.Number, R = e.After.Receipt?.Event.Number,
                 Scene = e.After.Scene.Select(f => new { f.Activation, f.Function, f.Line }),
                 History = e.After.History.Select(f => new { f.Activation, f.Function, f.Line }),
