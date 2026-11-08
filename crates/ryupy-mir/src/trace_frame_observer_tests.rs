@@ -30,7 +30,8 @@ fn bounded_encoding_checks_actual_bytes_and_errors() {
 
 #[test]
 fn failed_export_is_separate_from_analysis_result() {
-    let directory = std::env::temp_dir().join(format!("ryupy-observer-file-{}", std::process::id()));
+    let directory =
+        std::env::temp_dir().join(format!("ryupy-observer-file-{}", std::process::id()));
     std::fs::write(&directory, b"not a directory").expect("测试障碍文件");
     let original: Result<(), String> = Err("original analysis failure".into());
     let observation = Observation::new(0);
@@ -72,7 +73,9 @@ fn actual_inspection_is_unchanged_when_observation_stops() {
     let baseline = run();
     ACTIVE.with(|active| *active.borrow_mut() = Some(Observation::new(DYNAMIC_LIMIT)));
     let observed = run();
-    let complete = ACTIVE.with(|active| active.borrow_mut().take()).expect("观察已配置");
+    let complete = ACTIVE
+        .with(|active| active.borrow_mut().take())
+        .expect("观察已配置");
     assert_eq!(observed, baseline);
     assert!(!complete.states.is_empty());
     assert_eq!(complete.attempted, 7004);
@@ -80,7 +83,9 @@ fn actual_inspection_is_unchanged_when_observation_stops() {
     // 零限额触发记录失败但检查器继续；原Result和全部已有诊断必须一致。
     ACTIVE.with(|active| *active.borrow_mut() = Some(Observation::new(0)));
     let stopped = run();
-    let truncated = ACTIVE.with(|active| active.borrow_mut().take()).expect("观察已配置");
+    let truncated = ACTIVE
+        .with(|active| active.borrow_mut().take())
+        .expect("观察已配置");
     assert_eq!(stopped, baseline);
     assert_eq!(truncated.status, "byte_limit");
     assert_eq!(truncated.attempted, complete.attempted);

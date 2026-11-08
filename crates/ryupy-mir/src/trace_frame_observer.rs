@@ -271,7 +271,8 @@ fn export(observation: &Observation, directory: &std::path::Path, result: &str) 
         .map_err(|_| io::Error::other("metadata encoding"))?;
     encode_diagnostics(&mut meta, observation.analysis.as_ref())
         .map_err(|_| io::Error::other("diagnostics encoding"))?;
-    meta.write_str("}\n").map_err(|_| io::Error::other("metadata encoding"))?;
+    meta.write_str("}\n")
+        .map_err(|_| io::Error::other("metadata encoding"))?;
     std::fs::write(directory.join("metadata.json"), meta.text)
 }
 
@@ -279,8 +280,15 @@ fn encode_diagnostics(out: &mut Bounded, diagnostics: Option<&FrameDiagnostics>)
     let Some(value) = diagnostics else {
         return out.write_str("null");
     };
-    write!(out, "{{\"processed\":{},\"unique_states\":{},\"duplicate_states\":{},\"self_edges\":{},\"value_cells\":{},\"states_by_pc\":{{",
-        value.processed, value.unique_states, value.duplicate_states, value.self_edges, value.value_cells)?;
+    write!(
+        out,
+        "{{\"processed\":{},\"unique_states\":{},\"duplicate_states\":{},\"self_edges\":{},\"value_cells\":{},\"states_by_pc\":{{",
+        value.processed,
+        value.unique_states,
+        value.duplicate_states,
+        value.self_edges,
+        value.value_cells
+    )?;
     for (i, (pc, count)) in value.states_by_pc.iter().enumerate() {
         if i > 0 {
             out.write_char(',')?;

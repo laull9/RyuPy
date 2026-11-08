@@ -8,11 +8,11 @@ mod eval;
 use crate::trace_lowering::{GeneratorLayout, GeneratorOrigin};
 use crate::*;
 use eval::{age_exceptions, evaluate, initial_slots, may_throw};
-#[path = "trace_frame_relations.rs"]
-mod relations;
 #[cfg(test)]
 #[path = "trace_frame_observer.rs"]
 pub(crate) mod observer;
+#[path = "trace_frame_relations.rs"]
+mod relations;
 
 pub const STATE_BUDGET: usize = 32768;
 pub const STEP_BUDGET: usize = 524288;
@@ -88,91 +88,12 @@ pub fn inspect_with_diagnostics<'a>(
     diagnostics: &mut FrameDiagnostics,
 ) -> Result<FrameObligations<'a>, String> {
     *diagnostics = FrameDiagnostics::default();
-    crate::validate::validate(program).map_err(|errors| format!("MIR 结构无效：{errors:?}"))?;
-    if origin.factory != layout.factory || origin.resume != layout.resume {
-        return Err("factory/resume 旁证不一致".into());
-    }
-    let factory = arena_get(&program.functions, origin.factory).ok_or("缺失 factory")?;
-    let resume = arena_get(&program.functions, origin.resume).ok_or("缺失 resume")?;
-    let body = &resume.body;
-    if resume.params != vec![origin.frame_parameter] {
-        return Err("resume 参数不是唯一私有 frame".into());
-    }
-    if layout.pc_targets.is_empty()
-        || layout.pc_targets.len() > 256
-        || body.blocks.len() > 2048
-        || body.locals.len() > 512
-        || body
-            .blocks
-            .iter()
-            .map(|(_, block)| block.stmts.len())
-            .sum::<usize>()
-            > 16384
-        || layout.exception_routes.len() > 256
-        || layout.exit_pcs.len() > 2048
-    {
-        return Err("frame 模型形状预算超限".into());
-    }
-    let pcs: HashSet<_> = layout.pc_targets.iter().map(|(pc, _)| *pc).collect();
-    if pcs.len() != layout.pc_targets.len()
-        || !pcs.contains(&layout.initial_pc)
-        || layout
-            .pc_targets
-            .iter()
-            .any(|(pc, block)| *pc < 0 || arena_get(&body.blocks, *block).is_none())
-    {
-        return Err("PC 映射缺失、重复或越界".into());
-    }
-    if layout
-        .exception_routes
-        .iter()
-        .any(|route| !route.unconditional)
-        || body
-            .regions
-            .first()
-            .map(|region| (region.try_len, region.handler))
-            != layout.physical_region
-    {
-        return Err("逻辑 typed EH 未证明或物理 EH 映射被改变".into());
-    }
-    let originals: HashSet<_> = layout.original_blocks.iter().copied().collect();
-    if originals.len() != layout.original_blocks.len()
-        || layout.original_blocks.len() > 2048
-        || layout
-            .original_blocks
-            .iter()
-            .any(|id| arena_get(&body.blocks, *id).is_none())
-        || layout
-            .pc_targets
-            .iter()
-            .any(|(pc, target)| layout.original_blocks.get(*pc as usize) != Some(target))
-        || layout.exception_routes.iter().any(|route| {
-            route.start < 0
-                || route.length > layout.original_blocks.len()
-                || route.start as usize > layout.original_blocks.len() - route.length
-                || !pcs.contains(&route.handler_pc)
-        })
-        || layout
-            .exit_pcs
-            .iter()
-            .any(|(block, pc)| !originals.contains(block) || (*pc != -1 && !pcs.contains(pc)))
-        || layout.physical_region.is_some() != !layout.exception_routes.is_empty()
-    {
-        return Err("原始块、退出或逻辑 EH 旁证缺失或越界".into());
-    }
-    let slots = initial_slots(factory, origin, layout)?;
-    let frame_accesses = crate::trace_frame_shape::check(body, origin, layout)?;
-    if body.regions.len() > 1
-        || body.regions.iter().any(|region| {
-            !matches!(region.kind, RegionKind::CatchAll)
-                || region.try_start.into_raw().into_u32() != 0
-                || region.try_len > body.blocks.len()
-                || region.handler.into_raw().into_u32() < region.try_len as u32
-                || arena_get(&body.blocks, region.handler).is_none()
-        })
-    {
-        return Err("物理 catch 区域不符合有限模板".into());
-    }
+    let Prepared {
+        body,
+        slots,
+        frame_accesses,
+        pcs,
+    } = prepare(program, origin, layout)?;
     let mut queue = VecDeque::from([restart(body, origin, layout.initial_pc, slots)]);
     let mut visited = HashSet::new();
     let mut exception_reads = 0;
@@ -334,6 +255,116 @@ pub fn inspect_with_diagnostics<'a>(
             "GeneratorRetry 不向 Python 暴露且按同一 frame 恢复",
             "非 frame operation 的能力、异常来源、backend helper 与 EnterV1 尚待总检查",
         ],
+    })
+}
+
+pub(crate) fn operation_may_throw(value: &Rvalue) -> bool {
+    may_throw(value)
+}
+
+/// 旧参考与新固定点共享的机械前置验证，不运行任一搜索引擎。
+pub(crate) struct Prepared<'a> {
+    pub body: &'a Body,
+    pub slots: Vec<Value>,
+    pub frame_accesses: usize,
+    pub pcs: HashSet<i64>,
+}
+
+pub(crate) fn prepare<'a>(
+    program: &'a Program,
+    origin: &GeneratorOrigin,
+    layout: &GeneratorLayout,
+) -> Result<Prepared<'a>, String> {
+    crate::validate::validate(program).map_err(|errors| format!("MIR 结构无效：{errors:?}"))?;
+    if origin.factory != layout.factory || origin.resume != layout.resume {
+        return Err("factory/resume 旁证不一致".into());
+    }
+    let factory = arena_get(&program.functions, origin.factory).ok_or("缺失 factory")?;
+    let resume = arena_get(&program.functions, origin.resume).ok_or("缺失 resume")?;
+    let body = &resume.body;
+    if resume.params != vec![origin.frame_parameter] {
+        return Err("resume 参数不是唯一私有 frame".into());
+    }
+    if layout.pc_targets.is_empty()
+        || layout.pc_targets.len() > 256
+        || body.blocks.len() > 2048
+        || body.locals.len() > 512
+        || body
+            .blocks
+            .iter()
+            .map(|(_, block)| block.stmts.len())
+            .sum::<usize>()
+            > 16384
+        || layout.exception_routes.len() > 256
+        || layout.exit_pcs.len() > 2048
+    {
+        return Err("frame 模型形状预算超限".into());
+    }
+    let pcs: HashSet<_> = layout.pc_targets.iter().map(|(pc, _)| *pc).collect();
+    if pcs.len() != layout.pc_targets.len()
+        || !pcs.contains(&layout.initial_pc)
+        || layout
+            .pc_targets
+            .iter()
+            .any(|(pc, block)| *pc < 0 || arena_get(&body.blocks, *block).is_none())
+    {
+        return Err("PC 映射缺失、重复或越界".into());
+    }
+    if layout
+        .exception_routes
+        .iter()
+        .any(|route| !route.unconditional)
+        || body
+            .regions
+            .first()
+            .map(|region| (region.try_len, region.handler))
+            != layout.physical_region
+    {
+        return Err("逻辑 typed EH 未证明或物理 EH 映射被改变".into());
+    }
+    let originals: HashSet<_> = layout.original_blocks.iter().copied().collect();
+    if originals.len() != layout.original_blocks.len()
+        || layout.original_blocks.len() > 2048
+        || layout
+            .original_blocks
+            .iter()
+            .any(|id| arena_get(&body.blocks, *id).is_none())
+        || layout
+            .pc_targets
+            .iter()
+            .any(|(pc, target)| layout.original_blocks.get(*pc as usize) != Some(target))
+        || layout.exception_routes.iter().any(|route| {
+            route.start < 0
+                || route.length > layout.original_blocks.len()
+                || route.start as usize > layout.original_blocks.len() - route.length
+                || !pcs.contains(&route.handler_pc)
+        })
+        || layout
+            .exit_pcs
+            .iter()
+            .any(|(block, pc)| !originals.contains(block) || (*pc != -1 && !pcs.contains(pc)))
+        || layout.physical_region.is_some() != !layout.exception_routes.is_empty()
+    {
+        return Err("原始块、退出或逻辑 EH 旁证缺失或越界".into());
+    }
+    let slots = initial_slots(factory, origin, layout)?;
+    let frame_accesses = crate::trace_frame_shape::check(body, origin, layout)?;
+    if body.regions.len() > 1
+        || body.regions.iter().any(|region| {
+            !matches!(region.kind, RegionKind::CatchAll)
+                || region.try_start.into_raw().into_u32() != 0
+                || region.try_len > body.blocks.len()
+                || region.handler.into_raw().into_u32() < region.try_len as u32
+                || arena_get(&body.blocks, region.handler).is_none()
+        })
+    {
+        return Err("物理 catch 区域不符合有限模板".into());
+    }
+    Ok(Prepared {
+        body,
+        slots,
+        frame_accesses,
+        pcs,
     })
 }
 

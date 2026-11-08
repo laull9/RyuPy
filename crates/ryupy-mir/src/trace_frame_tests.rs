@@ -2,9 +2,9 @@
 use crate::trace_lowering::LoweringOrigins;
 use crate::*;
 
-const SOURCE: &str = include_str!("../../../tests/cases/generator_dynamic/frames/entry.py");
+pub(super) const SOURCE: &str = include_str!("../../../tests/cases/generator_dynamic/frames/entry.py");
 
-fn build(source: &str) -> (Program, LoweringOrigins) {
+pub(super) fn build(source: &str) -> (Program, LoweringOrigins) {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("frame_proof_input.py", source);
     let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
@@ -22,7 +22,7 @@ fn build(source: &str) -> (Program, LoweringOrigins) {
 
 fn rejected(program: &Program, origins: &LoweringOrigins) {
     assert!(
-        trace_frame::inspect(
+        trace_frame_dataflow::inspect(
             program,
             &origins.generators[0],
             &origins.generator_layouts[0]
@@ -36,7 +36,7 @@ fn rejected_because(program: &Program, origins: &LoweringOrigins, reason: &str) 
         validate::validate(program).is_ok(),
         "负例必须是结构有效 MIR"
     );
-    let error = trace_frame::inspect(
+    let error = trace_frame_dataflow::inspect(
         program,
         &origins.generators[0],
         &origins.generator_layouts[0],
@@ -48,27 +48,21 @@ fn rejected_because(program: &Program, origins: &LoweringOrigins, reason: &str) 
 #[test]
 fn original_frames_has_pc_partitioned_retry_frame_obligations() {
     let (program, origins) = build(SOURCE);
-    trace_frame::observer::start(
+    let analysis = trace_frame_dataflow::inspect(
         &program,
         &origins.generators[0],
         &origins.generator_layouts[0],
     );
-    let analysis = trace_frame::inspect(
-        &program,
-        &origins.generators[0],
-        &origins.generator_layouts[0],
-    );
-    trace_frame::observer::finish(&analysis);
     let result = analysis.expect("原 frames 的私有 frame 义务应闭合");
     println!(
-        "frame obligations: accesses={} states={} caught_reads={} retry_edges={}",
-        result.frame_accesses, result.explored_states, result.exception_reads, result.retry_edges
+        "frame obligations: accesses={} phase_keys={} caught_reads={} retry_edges={}",
+        result.frame_accesses, result.diagnostics.phase_keys, result.exception_reads, result.retry_edges
     );
     println!("original diagnostics: {:?}", result.diagnostics);
     assert!(result.frame_accesses > 0);
     assert!(result.exception_reads > 0);
     assert!(result.retry_edges > 0);
-    assert!(result.explored_states <= trace_frame::STATE_BUDGET);
+    assert!(result.diagnostics.phase_keys <= trace_frame_dataflow::STATE_BUDGET);
     assert!(!result.complete_production_certificate);
     assert!(!result.required_runtime_contracts.is_empty());
 }
@@ -83,7 +77,7 @@ fn renamed_generator_and_factory_alias_keep_frame_proof() {
             "factory = produce\nit = factory(Receiver())",
         );
     let (program, origins) = build(&source);
-    let result = trace_frame::inspect(
+    let result = trace_frame_dataflow::inspect(
         &program,
         &origins.generators[0],
         &origins.generator_layouts[0],
@@ -338,7 +332,7 @@ fn repeated_actual_match_block_converges_without_epoch_growth() {
     // 同一保护区内回接，保留另一个出口；原指令、异常边、slot与旁证均不改。
     *else_ = id;
     assert!(validate::validate(&program).is_ok());
-    let result = trace_frame::inspect(
+    let result = trace_frame_dataflow::inspect(
         &program,
         &origins.generators[0],
         &origins.generator_layouts[0],
@@ -346,8 +340,8 @@ fn repeated_actual_match_block_converges_without_epoch_growth() {
     .expect("真实 MIR 同一静态写复访须在原预算内收敛");
     println!("loop diagnostics: {:?}", result.diagnostics);
     assert!(result.diagnostics.self_edges > 0);
-    assert!(result.diagnostics.duplicate_states > 0);
-    assert!(result.diagnostics.value_cells <= trace_frame::VALUE_CELL_BUDGET);
+    assert!(result.diagnostics.equal_joins > 0);
+    assert!(result.diagnostics.cumulative_content <= trace_frame_dataflow::VALUE_CELL_BUDGET);
 }
 
 #[test]

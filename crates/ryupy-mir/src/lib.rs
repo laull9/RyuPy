@@ -170,6 +170,7 @@ pub mod trace_lowering;
 mod trace_lowering_tests;
 
 pub mod trace_frame;
+pub mod trace_frame_dataflow;
 mod trace_frame_shape;
 #[cfg(test)]
 mod trace_frame_tests;

@@ -151,6 +151,38 @@ class Preflight(unittest.TestCase):
         guard = (gate.ROOT / "crates/ryupy-driver/tests/dynamic_except_structure.rs").read_text()
         self.assertEqual(re.findall(r"#\[test\]\s*fn (\w+)\(", guard), gate.EXPECTED["guard-default"])
 
+    def test_dataflow_route_and_closed_observation_are_explicit(self):
+        source = (gate.ROOT / "crates/ryupy-mir/src/trace_frame_tests.rs").read_text()
+        self.assertNotIn("trace_frame::inspect", source)
+        self.assertNotIn("observer::start", source)
+        self.assertNotIn("observer::finish", source)
+        self.assertIn("trace_frame_dataflow::inspect", source)
+        new = (gate.ROOT / "crates/ryupy-mir/src/trace_frame_dataflow_tests.rs").read_text()
+        names = gate.re.findall(r"#\[test\]\s*fn (\w+)\(", new)
+        self.assertEqual(len(names), 7)
+        self.assertEqual(set(names), set(gate.EXPECTED["dataflow"]))
+        collector = Path(gate.__file__).read_text()
+        self.assertNotIn("trace_frame_observation.collect(", collector)
+        self.assertNotIn('os.environ["RYUPY_FRAME_OBSERVATION"] =', collector)
+        self.assertIn('"not-requested"', collector)
+
+    def test_unexpected_observation_request_is_not_swallowed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "evidence"
+            def fake_capture(out, label, argv, cwd, timeout=900):
+                text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                if label in ("git-head", "git-head-after"):
+                    text = "fixed-head\n"
+                (out / f"{label}.stdout").write_text(text)
+                return 0
+            with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head", "RYUPY_FRAME_OBSERVATION": "unexpected"}), patch("builtins.print"):
+                self.assertEqual(gate.main(), 1)
+            status = json.loads((directory / "frame-observation-result.json").read_text())
+            self.assertEqual(status["status"], "unexpected-request")
+            self.assertNotIn("complete", status)
+            report = json.loads((directory / "result.json").read_text())
+            self.assertTrue(any("unexpected request" in value for value in report["failures"]))
+
     def test_driver_modes_are_independent_locked_exact_processes(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary) / "evidence"
@@ -166,6 +198,9 @@ class Preflight(unittest.TestCase):
 
             with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head"}), patch("builtins.print"):
                 self.assertEqual(gate.main(), 1)
+            observation = json.loads((directory / "frame-observation-result.json").read_text())
+            self.assertEqual(observation["status"], "not-requested")
+            self.assertNotIn("complete", observation)
             self.assertNotIn("guard-default", calls)
             self.assertIn("guard-pilot", calls)
             self.assertIn("--locked", calls["check-guard-default"])
