@@ -68,7 +68,9 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
             &types,
             &plan,
             &stage_trace::StageTrace::new(false),
-        )?;
+            trace_product::Request::RequireV1,
+        )?
+        .ok_or_else(|| anyhow::anyhow!("内部错误：显式dump缺少V1产物"))?;
         (compiled.program, compiled.exports, compiled.trace_proof)
     } else {
         let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);

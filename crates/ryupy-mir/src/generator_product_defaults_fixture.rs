@@ -5,7 +5,7 @@ use crate::*;
 
 pub(super) const SOURCE: &str =
     "def generate(value, other):\n    yield value\nit = generate('ready', 'other')\nnext(it)\n";
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     pub program: Program,
     pub exports: Vec<ModuleExport>,
     pub block: BlockId,
@@ -104,9 +104,12 @@ impl Fixture {
     pub fn reject(&self, expected: &str) {
         let error = match Defaults::inspect(&self.program, &self.exports) {
             Ok(_) => panic!("新合同错误接受：{expected}"),
-            Err(error) => error,
+            Err(error) => error.to_string(),
         };
         assert!(error.starts_with("FunctionDefaults合同："), "{error}");
-        assert!(error.contains(expected), "期待{expected}，实际{error}");
+        assert!(
+            error.to_string().contains(expected),
+            "期待{expected}，实际{error}"
+        );
     }
 }

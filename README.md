@@ -4,6 +4,8 @@
 
 ## 当前状态
 
+CI012的显式trace V1有限产品及双模式完整check已过，原无flag frames门仍失败；固定20默认JIT为10/8/2，239 pending未变。普通CLI无flag有限迁移现为未构建/未运行产品的[新候选](docs/adr/0143-generator-trace-default-cutover.md)，不代表默认修复完成或accepted晋升。
+
 当前能力、有限兼容范围与未完成项以 [TODO](TODO.md)、[语义说明](docs/semantics.md) 和 [验证归档](docs/validation/) 为准。WIP 的专项通过不等于全部真实项目、任意扩展或所有部署环境通过。
 
 近期目标为固定纯 Python 项目集至少 80% 原生通过。项目集已冻结；2026-11-01 历史 Linux JIT 指定入口记录为 5/20，后续特性没有自动增加项目通过数，逐项目范围和旧阻塞见 [compatibility.md](docs/compatibility.md)。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。阶段安排见路线图。

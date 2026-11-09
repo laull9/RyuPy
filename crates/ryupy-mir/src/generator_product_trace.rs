@@ -288,8 +288,26 @@ fn check_stack(program: &Program, id: FnId, generator: bool) -> Result<(), Strin
                     callee: Callee::Runtime(RuntimeFn::TracePopTo),
                     args,
                 }) => {
-                    if args.as_slice() != [Operand::Local(push.ok_or("Pop先于真实Push定义")?)]
-                        || position + 1 != block.stmts.len()
+                    let depth = push.ok_or("Pop先于真实Push定义")?;
+                    if args.as_slice() != [Operand::Local(depth)] {
+                        // 合法普通handler保留当前帧：仍严格核实际depth+1唯一局部。
+                        // 这是能力域外的栈完整性检查，不授予普通handler V1资格。
+                        let valid = !generator
+                            && !body.regions.is_empty()
+                            && position > 0
+                            && matches!((&block.stmts[position - 1], args.as_slice()),
+                                (Statement::Assign { dest, value: Rvalue::Binary {
+                                    op: BinOp::Add, lhs: Operand::Local(base),
+                                    rhs: Operand::Const(Constant::I64(1)),
+                                } }, [Operand::Local(actual)]) if dest == actual && *base == depth
+                                    && body.blocks.iter().flat_map(|(_, b)| &b.stmts)
+                                        .filter(|s| matches!(s, Statement::Assign { dest: write, .. } if write == dest)).count() == 1);
+                        if valid {
+                            continue;
+                        }
+                        return Err("高层Pop的实际depth来源错误".into());
+                    }
+                    if position + 1 != block.stmts.len()
                         || !matches!(block.terminator, Terminator::Return(_))
                     {
                         return Err("高层Pop不是唯一正常返回末操作".into());
@@ -323,9 +341,6 @@ fn check_stack(program: &Program, id: FnId, generator: bool) -> Result<(), Strin
             != 1
     {
         return Err("高层depth被覆盖或出现额外Pop".into());
-    }
-    if !generator && !body.regions.is_empty() {
-        return Err("首产品域的非生成器不得有额外handler".into());
     }
     Ok(())
 }

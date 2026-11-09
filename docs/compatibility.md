@@ -1,6 +1,6 @@
 # 兼容性清单与偏差
 
-**2026-11-08 未验收候选**：新增显式 `--trace-product-v1` 的有限生成器 traceback 产品路径；默认关闭，不增加当前项目通过数。目标为原 A/B 及同 getter 重复执行的真实 JIT/NativeAOT，原 C/D 在初始化前拒绝。尚无本候选 Rust/C#/产品或完整门通过结果，见 [ADR0142](adr/0142-generator-trace-product-v1.md)。
+**2026-11-09候选与历史证据**：CI012显式V1十二产品run、C/D四拒绝及双模式完整check已过，640发现/401 compiled/239 pending不变；原无flag frames仍失败，整run failure。固定20为10 native/8 unsupported/2 failed，native是默认JIT标签，不是20项NativeAOT。现在普通CLI无flag有限选择已接源码但尚未产品验收，不增加通过数或移动accepted，见[ADR0143](adr/0143-generator-trace-default-cutover.md)。
 
 > **2026-11-02恢复与排期历史记录**：当时代码恢复自已推送M3.10（`a788d86`），其已归档项目能力为5/20。此前未推送M3.11源码随临时工作区丢失，历史10/20及725项C#测试不能当作当前checkout能力。用户已暂停16/20前置，优先原生AOT/JIT，并批准小步提交推送与独立WIP远端备份。详见[ADR0042](adr/0042-aot-jit-recovery-priority.md)；原兼容目标未达成、不勾完成。
 

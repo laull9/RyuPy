@@ -4,7 +4,7 @@ use crate::generator_product_tests::{B, Observer};
 use crate::trace_lowering::LoweringOrigins;
 use crate::*;
 
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     pub program: Program,
     pub exports: Vec<ModuleExport>,
     pub plan: generator_product::DeferredGenerators,
@@ -85,7 +85,8 @@ impl Fixture {
         let result = self
             .initialization
             .inspect(&self.program, &self.exports)
-            .unwrap_err();
+            .unwrap_err()
+            .to_string();
         assert!(result.contains(reason), "期待{reason}，实际{result}");
     }
     pub fn meta(&self) -> UnitMeta {

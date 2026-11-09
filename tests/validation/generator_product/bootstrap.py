@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""同job显式V1门接线：复用已构建产品工具，仅构建一次只读PE decoder，不改baseline证据。"""
+"""同job普通无flag与显式V1门接线：复用已构建产品工具，仅构建一次只读PE decoder，不改baseline证据。"""
 import json
 import os
 from pathlib import Path
@@ -137,11 +137,11 @@ class Bootstrap:
         try:
             contract = self.prepare()
             save(self.out / 'product-started.json', {'attempt': 1, 'contract_sha256': c.sha(self.out / 'contract.json')})
-            gate.Runner(contract).execute()  # 唯一产品窗口；旧Legacy红灯不改写为通过。
+            gate.Runner(contract).execute()  # 唯一产品窗口；历史CI012旧默认红灯不改写。
             c.require(self.p0.candidate_identity(self.repo) == self.source_before, '产品后源码身份改变')
             c.require(build_provenance.compiler_evidence(self.baseline, contract) == self.provenance_before,
                       '产品后baseline证据被改变')
-            save(self.out / 'result.json', {'passed': True, 'scope': 'explicit V1 only; legacy/fullcheck/P0 statuses remain separate',
+            save(self.out / 'result.json', {'passed': True, 'scope': 'ordinary CLI no-flag plus strict explicit V1; fullcheck/P0 statuses remain separate',
                  'product_result_sha256': c.sha(Path(contract['output']) / 'result.json')})
         except Exception as error:
             save(self.out / 'result.json', {'passed': False, 'error': str(error), 'traceback': traceback.format_exc(),

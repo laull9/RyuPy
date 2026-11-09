@@ -1,10 +1,10 @@
-# ADR0142：显式生成器 trace 产品 V1（未验收候选）
+# ADR0142：显式生成器 trace 产品 V1（CI012有限域已验证）
 
-日期：2026-11-08。状态：源码候选；尚无 Rust 编译、C#、正常 driver JIT、NativeAOT 或同提交完整门结果。不得据本文改写项目矩阵或 accepted。
+日期：2026-11-08，状态更正于2026-11-09。CI012显式A/B/HOT十二run与C/D四拒绝、两模式完整check已通过；原无flag frames仍失败，整run为failure，accepted未动。源tree、报告SHA及默认迁移的新候选见[ADR0143](0143-generator-trace-default-cutover.md)。
 
 ## 决定
 
-默认产品保持旧域。只有全局 `--trace-product-v1` 才尝试单源码 Legacy 整产物准入；任何未知能力以 E0310 和“trace V1 整产物拒绝”结束编译，不产生局部旧回退。旧 S1/S2 测试适配不是生产开关。
+CI012受测默认产品保持旧域。当时只有全局 `--trace-product-v1` 才尝试单源码 Legacy 整产物准入；合法未覆盖能力以 E0310 和“trace V1 整产物拒绝”结束编译，不产生局部旧回退。旧 S1/S2 测试适配不是生产开关。
 
 高层 MIR 的 Suspend/Region 保留到全部已选 pass 后。高层与最后低层分别使用对应验证阶段；严格最终 validator 不放宽。生成器身份取 HIR is_generator→真实 FnId，不扫描残留 yield。复用既有 lowering 后，以实际输入/输出的类型化结构、相邻定义、槽位、PC、EH、source/行号核验；不再从帧槽反推整个高层状态，也不建立第二个跨 Retry 固定点。
 
@@ -88,5 +88,5 @@ FnId 均拒绝，正常外部 Main 调用不在此禁止范围。只支持实际
 映射；LegacyDiagnostic 不能配合关闭file槽退回旧 Register。JIT SourceAbsolute、
 AOT ExecutableRelative 和无资源 LegacyDiagnostic+Source 注册仍按各自合同处理。
 
-这是源码候选，不是已运行的产品结果。集中反例直接进入新合同，真实基底先过才变异；
-旧31项及4项具名实验隔离不变，新增8项全名接入原前置，仍需同源真实产品与完整项目验收。
+CI012已完成该显式有限产品与集中反例的实际验收，原默认frames红灯仍保留；
+旧4项具名实验隔离与239 pending不变。本次普通CLI默认迁移是另一个待验候选，不能沿用CI012绿色宣称完成。

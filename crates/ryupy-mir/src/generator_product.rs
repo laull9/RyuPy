@@ -44,18 +44,46 @@ impl DeferredGenerators {
     }
 }
 
+pub use crate::generator_product_failure::Failure;
 pub use crate::generator_product_link::{Certificate, Proof};
 
-/// 显式产品入口：高层验证→全部选定pass→高层闭包→复用末端lowering→独立实际结构检查→严格低层验证。
-/// 任何失败只返回拒绝，不能在生成V1操作后改走局部Legacy。
+/// 私有拥有一次高层准备的实际结果；不能Clone或由调用方伪造，不含已lower的局部函数。
+#[derive(Debug)]
+pub struct PreparedHigh {
+    program: Program,
+    exports: Vec<crate::ModuleExport>,
+    plan: DeferredGenerators,
+    origins: crate::trace_lowering::LoweringOrigins,
+    initialization: crate::generator_product_initialization::Initialization,
+    diagnostics: Vec<ryupy_base::Diagnostic>,
+}
+impl PreparedHigh {
+    /// 仅观察原构建警告；不暴露或允许更改候选IR、身份、计划。
+    pub fn diagnostics(&self) -> &[ryupy_base::Diagnostic] {
+        &self.diagnostics
+    }
+}
+
+/// 旧显式API保留严格失败语义；自动driver使用typed prepare，而不是捕获这个字符串接口。
 pub fn compile<O: crate::passes::PipelineObserver>(
     hir: &ryupy_hir::Module,
     types: &ryupy_ty::ModuleTypes,
     passes: &[crate::passes::PipelinePass],
     observer: &mut O,
 ) -> Result<(Program, Vec<crate::ModuleExport>, Proof), String> {
+    let prepared = prepare_high(hir, types, passes, observer).map_err(|e| e.to_string())?;
+    finish(prepared)
+}
+
+/// 请求不是证明：这里仅准备整个未lower候选。能力不足可丢弃，原诊断和坏IR始终硬停。
+pub fn prepare_high<O: crate::passes::PipelineObserver>(
+    hir: &ryupy_hir::Module,
+    types: &ryupy_ty::ModuleTypes,
+    passes: &[crate::passes::PipelinePass],
+    observer: &mut O,
+) -> Result<PreparedHigh, Failure> {
     if cfg!(feature = "trace-adapter-test") {
-        return Err("产品V1不能与S2测试编译器混用".into());
+        return Err(Failure::unsupported("产品V1不能与S2测试编译器混用"));
     }
     for (_, function) in hir.functions.iter() {
         if function
@@ -64,7 +92,7 @@ pub fn compile<O: crate::passes::PipelineObserver>(
             .iter()
             .any(|(_, handler)| handler.types.is_none() && handler.type_expr.is_none())
         {
-            return Err("源码bare except尚未迁入产品域".into());
+            return Err(Failure::unsupported("源码bare except尚未迁入产品域"));
         }
     }
     let facts = crate::trace_domain::analyze(hir);
@@ -83,23 +111,27 @@ pub fn compile<O: crate::passes::PipelineObserver>(
             )
         })
     }) {
-        return Err("传播效果包含未迁入异常类型（含SystemExit/GeneratorExit）".into());
+        return Err(Failure::unsupported(
+            "传播效果包含未迁入异常类型（含SystemExit/GeneratorExit）",
+        ));
     }
     if !facts.converged || !facts.refusals.is_empty() {
-        return Err(facts
-            .refusals
-            .iter()
-            .cloned()
-            .collect::<Vec<_>>()
-            .join("；"));
+        return Err(Failure::unsupported(
+            facts
+                .refusals
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("；"),
+        ));
     }
     check_exception_arguments(hir, &facts)?;
     let mut origins = crate::trace_lowering::LoweringOrigins::default();
     let mut plan = DeferredGenerators::default();
     let (mut program, exports, diagnostics) =
         crate::build::build_program_mode(hir, types, Some(&mut origins), Some(&mut plan));
-    if !diagnostics.is_empty() {
-        return Err(format!("高层构建诊断：{diagnostics:?}"));
+    if diagnostics.iter().any(ryupy_base::Diagnostic::is_error) {
+        return Err(Failure::Diagnostics(diagnostics));
     }
     crate::validate::validate_high(&program, &plan.functions).map_err(|e| e.join("\n"))?;
     let initialization = crate::generator_product_initialization::Initialization::expected(
@@ -116,6 +148,28 @@ pub fn compile<O: crate::passes::PipelineObserver>(
         &exports,
         &initialization,
     )?;
+    Ok(PreparedHigh {
+        program,
+        exports,
+        plan,
+        origins,
+        initialization,
+        diagnostics,
+    })
+}
+
+/// 消费成功准备的同一Program；从此lower/link/发射仅能成功或硬错，不再有域外结果。
+pub fn finish(
+    prepared: PreparedHigh,
+) -> Result<(Program, Vec<crate::ModuleExport>, Proof), String> {
+    let PreparedHigh {
+        mut program,
+        exports,
+        plan,
+        origins,
+        initialization,
+        diagnostics: _,
+    } = prepared;
     let unchanged = crate::generator_product_identity::UnchangedHigh::capture(
         &program,
         &exports,
@@ -154,7 +208,7 @@ pub fn compile<O: crate::passes::PipelineObserver>(
 fn check_exception_arguments(
     hir: &ryupy_hir::Module,
     facts: &crate::trace_domain::Facts,
-) -> Result<(), String> {
+) -> Result<(), Failure> {
     use crate::trace_domain::{Atom, Primitive};
     for (function, definition) in hir.functions.iter() {
         for (_, expression) in definition.body.exprs.iter() {
@@ -180,7 +234,9 @@ fn check_exception_arguments(
                     .ok_or("异常构造缺少实际参数事实")?;
                 if values.is_unknown() || values.atoms().contains(&Atom::Primitive(Primitive::None))
                 {
-                    return Err("产品异常单参构造可能为None；现有ABI不区分显式None与无参".into());
+                    return Err(Failure::unsupported(
+                        "产品异常单参构造可能为None；现有ABI不区分显式None与无参",
+                    ));
                 }
             }
         }

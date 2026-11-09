@@ -4,7 +4,7 @@ use crate::generator_product_tests::{Observer, frontend};
 use crate::*;
 
 #[path = "generator_product_defaults_fixture.rs"]
-mod fixture;
+pub(super) mod fixture;
 use fixture::{Fixture, SOURCE};
 
 #[test]
@@ -265,7 +265,9 @@ fn cold_chain_rejects_unknown_steps_and_wrong_module_receiver() {
         generator_product::compile(&hir, &types, &passes::default_pipeline(), &mut Observer)
             .expect_err("FunctionMetadata仍不准入");
     assert!(
-        error.contains("producer与getter之间有未认证操作"),
+        error
+            .to_string()
+            .contains("producer与getter之间有未认证操作"),
         "{error}"
     );
 }
@@ -392,7 +394,11 @@ fn opaque_defaults_reject_other_consumers_and_control_escape() {
     let error = resolver
         .operand(f.program.entry, &Operand::Global(slot))
         .unwrap_err();
-    assert!(error.contains("FunctionDefaults合同：私有槽不能作为高层值读取"));
+    assert!(
+        error
+            .to_string()
+            .contains("FunctionDefaults合同：私有槽不能作为高层值读取")
+    );
     assert!(
         resolver
             .runtime(
@@ -413,6 +419,7 @@ fn opaque_defaults_reject_other_consumers_and_control_escape() {
         resolver
             .inspect_value(f.program.entry, None, value)
             .unwrap_err()
+            .to_string()
             .contains("getter没有实际同块发布证明")
     );
 }

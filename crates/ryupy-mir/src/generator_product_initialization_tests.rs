@@ -3,7 +3,7 @@ use crate::generator_product_identity::UnchangedHigh;
 use crate::*;
 
 #[path = "generator_product_initialization_fixture.rs"]
-mod fixture;
+pub(super) mod fixture;
 use fixture::Fixture;
 
 #[test]

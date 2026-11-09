@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""普通driver产品竖切草稿：复用P0限流进程捕获、既有PE decoder与Native归档。"""
+"""同候选普通CLI无flag与显式V1整流门：复用冻结CP、PE decoder和Native归档。"""
 import argparse
 import importlib
 import json
@@ -11,6 +11,7 @@ import time
 import traceback
 import product_contract as c
 import build_provenance
+from selection_contract import stages
 
 # 这些只是新门预算，不改变full_check、fixed20及任何已有安全负例。
 LIMITS = {'total_seconds': 3600, 'compile_seconds': 300, 'publish_seconds': 1500,
@@ -40,6 +41,13 @@ def require_plan(path):
               and modules[0]['execution'] == 'LegacySingleton' and modules[0]['compiled'] is True,
               '必须为真实单源Legacy完整编译')
     return plan
+
+
+def stage_plan():
+    selected = [(name, mode, False) for name in (*c.CASES[:2], c.HOT) for mode in ('jit', 'native')]
+    outside = [(name, 'jit', False) for name in sorted(c.REJECTED)]
+    required = [(name, mode, True) for name in (*c.CASES, c.HOT) for mode in ('jit', 'native')]
+    return selected + outside + required
 
 
 class Runner:
@@ -143,6 +151,40 @@ class Runner:
                 shutil.copy2(path, saved / path.name)
         return saved / pe.name
 
+    def preserve_existing(self, root, evidence, primary_error=None, native=False):
+        """已有原件先有界保存；归档另败单独留证，不能替换compile/run的首因。"""
+        if not root.exists():
+            return None
+        original = root
+        try:
+            if native:
+                dist = root / 'entry.dist'
+                if dist.exists():
+                    root = dist
+                else:
+                    # 未形成dist时仅保本次顶层托管输入，不递归打包AOT obj/nuget缓存。
+                    files = [p for p in root.iterdir() if p.suffix.lower() in {'.dll', '.exe', '.json'} and p.is_file()]
+                    if not files:
+                        return None
+                    c.require(not any(p.is_symlink() for p in files), '托管输入不接受链接')
+                    c.require(len(files) <= self.native.MAX_FILES and sum(p.stat().st_size for p in files) <= self.native.MAX_BYTES,
+                              '托管输入超过既有归档上限')
+                    root = evidence / 'partial-managed-input'; root.mkdir()
+                    for path in files:
+                        shutil.copy2(path, root / path.name)
+            before = self.native.preserve_dist(root, evidence)
+            save(evidence / 'preservation-scope.json', {'original_root': str(original), 'saved_root': str(root), 'native_requested': native})
+            return before
+        except Exception as error:
+            try:
+                save(evidence / 'preservation-failure.json', {'error': str(error),
+                    'primary_error': str(primary_error) if primary_error is not None else None, 'root': str(original)})
+            except Exception:
+                pass  # 记录自身失败也不能替换原始异常；成功路径仍以原归档异常硬失败。
+            if primary_error is None:
+                raise
+            return None
+
     def stage(self, name, mode, enabled=True):
         label = name + '-' + mode + ('-default' if not enabled else '')
         evidence = self.out / label
@@ -154,21 +196,26 @@ class Runner:
         c.require(c.sha(entry) == c.sha(self.oracle[name]['source']), '源副本改变')
         output = work / 'output'
         native = mode == 'native'
-        rejected = name in c.REJECTED
+        rejected = enabled and name in c.REJECTED
+        protocol = name not in c.REJECTED
         source_sha = self.oracle[name]['source_sha256']
-        record, stdout, stderr = self.command(evidence, 'compile',
-            build_command(self.tools['cli'], entry, output, enabled, native),
-            1 if rejected else 0, LIMITS['publish_seconds'] if native else LIMITS['compile_seconds'])
+        try:
+            record, stdout, stderr = self.command(evidence, 'compile',
+                build_command(self.tools['cli'], entry, output, enabled, native),
+                1 if rejected else 0, LIMITS['publish_seconds'] if native else LIMITS['compile_seconds'])
+        finally:
+            before = self.preserve_existing(output, evidence, sys.exception(), native)
+
         c.require(c.sha(entry) == source_sha and c.sha(self.oracle[name]['source']) == source_sha,
                   '编译阶段改变原源')
         if rejected:
+            stages(stderr, False, rejected=True)
             c.rejection(record, stdout, stderr, output)
             save(evidence / 'result.json', {'passed': True, 'kind': 'compile-rejection',
                 'source_execution': 'not-started', 'basis': 'empty compiler stdout; no PE/ELF; build only'})
             return
         if native:
             dist = output / 'entry.dist'
-            before = self.native.preserve_dist(dist, evidence)  # 比manifest/ELF检查更早；失败仍留原件。
             exe = dist / 'entry'
             c.require(exe.read_bytes()[:4] == b'\x7fELF', '不是ELF')
             c.require(not any(p.suffix in {'.py', '.pyc', '.pyo'} for p in dist.rglob('*')), '交付混入源码')
@@ -177,26 +224,41 @@ class Runner:
         else:
             require_plan(output / 'module-environment.json')
             c.require(c.sha(output / 'RyuPy.Runtime.dll') == c.sha(self.tools['runtime']), 'JIT实际runtime不符')
-            # 同一个归档helper也保留完整JIT目录；名称含native仅为既有helper约定。
-            before = self.native.preserve_dist(output, evidence)
             pe, argv = output / 'entry.dll', [self.tools['dotnet'], output / 'entry.dll']
-        self.decode(evidence, pe, enabled, name == c.HOT)
-        if enabled:
+        selection = stages(stderr, protocol)
+        save(evidence / 'selection-stages.json', selection)
+        self.decode(evidence, pe, protocol, name == c.HOT)
+        if protocol:
             for pic in self.config['pic_modes']:
                 result, out, err = self.command(evidence, 'run-pic-' + pic, argv, self.oracle[name]['exit'], LIMITS['run_seconds'], pic)
                 c.require(c.sha(entry) == source_sha and c.sha(self.oracle[name]['source']) == source_sha,
                           '产品执行阶段改变原源')
                 normalized = c.compare(self.oracle[name], result, out, err, entry)
                 (evidence / ('run-pic-' + pic + '.normalized.stderr')).write_bytes(normalized)
+        if not enabled and not native and name == 'b_target_failure':
+            # 真实Run子命令另走正常构建/执行出口；不传trace flag，不剥诊断后冒充CP流。
+            run_output = work / '__pycache__' / 'entry'
+            run_evidence = evidence / 'cli-run-pe'; run_evidence.mkdir()
+            try:
+                result, out, err = self.command(evidence, 'cli-run-no-flag',
+                    [self.tools['cli'], 'run', entry], self.oracle[name]['exit'],
+                    LIMITS['compile_seconds'], '1')
+            finally:
+                self.preserve_existing(run_output, run_evidence, sys.exception())
+
+            normalized = c.compare(self.oracle[name], result, out, err, entry)
+            (evidence / 'cli-run-no-flag.normalized.stderr').write_bytes(normalized)
+            c.require(c.sha(run_output / 'RyuPy.Runtime.dll') == c.sha(self.tools['runtime']), 'Run实际runtime不符')
+            self.decode(run_evidence, run_output / 'entry.dll', True)
         c.require(before == self.native.snapshot(dist if native else output)[0], '执行/检查期间产物改变')
         save(evidence / 'result.json', {'passed': True, 'enabled': enabled, 'mode': mode,
-             'kind': 'product-raw-streams' if enabled else 'default-pe-control',
-             'pic_modes': self.config['pic_modes'] if enabled else [],
+             'selection_request': 'require-v1' if enabled else 'ordinary-cli-no-flag',
+             'kind': 'product-raw-streams' if protocol else 'domain-outside-legacy-pe-only',
+             'protocol': protocol, 'pic_modes': self.config['pic_modes'] if protocol else [],
              'getter_coverage': 'same-site repeated execution; separate C# cold/warm mechanism; no product hit counts' if name == c.HOT else 'original case'})
 
     def execute(self):
-        planned = [(name, 'jit', False) for name in c.CASES[:2]]
-        planned += [(name, mode, True) for name in (*c.CASES, c.HOT) for mode in ('jit', 'native')]
+        planned = stage_plan()
         completed = []
         try:
             for name, mode, enabled in planned:
@@ -210,7 +272,7 @@ class Runner:
             c.require(self.provenance == build_provenance.compiler_evidence(Path(self.config['compiler_evidence']), self.config),
                       '构建provenance运行中改变')
             save(self.out / 'result.json', {'passed': True, 'completed': completed,
-                 'scope': 'original A/B and frozen hot fixture JIT+Native PIC1/PIC0; original C/D compile rejection; same-site repeated execution, no product hit counts or performance claim',
+                 'scope': 'original A/B/HOT ordinary CLI no-flag 12 runs plus explicit 12 runs and original C/D four strict rejects; C/D no-flag PE Legacy only; one actual no-flag ryupy run; no performance claim',
                  'fullcheck_and_fixed20': 'separate same-HEAD existing jobs remain required'})
         except Exception as error:
             save(self.out / 'result.json', {'passed': False, 'completed': completed,
@@ -218,20 +280,23 @@ class Runner:
                  'error': str(error), 'traceback': traceback.format_exc()})
             raise
         finally:
-            # 即使publish命令失败，若交付目录已有ELF也保现场；不据此补认发布成功。
-            for dist in self.work.glob('*/output/entry.dist'):
-                evidence = self.out / dist.relative_to(self.work).parts[0]
-                if not (evidence / 'native-dist.tar.gz').exists():
-                    try:
-                        self.native.preserve_dist(dist, evidence)
-                    except Exception as error:
-                        save(evidence / 'preservation-failure.json', {'error': str(error)})
+            # compile首败也保本次JIT原件；Native仅取dist/顶层托管输入，不归档整个obj。
+            primary_error = sys.exception()
+            for output in self.work.glob('*/output'):
+                label = output.relative_to(self.work).parts[0]
+                evidence = self.out / label
+                if not (evidence / 'native-dist.tar.gz').exists() and not (evidence / 'preservation-failure.json').exists():
+                    self.preserve_existing(output, evidence, primary_error, '-native' in label)
             # 失败publish也保留真实SDK输出及普通driver Host，不能替换成测试Host。
             for path in self.work.rglob('*'):
                 if path.is_file() and path.name in {'publish.stdout.log', 'publish.stderr.log', 'Host.csproj', 'Program.cs', 'build-error.log', 'sdk.version'}:
                     target = self.out / 'publish' / path.relative_to(self.work)
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copy2(path, target)
+                    try:
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(path, target)
+                    except Exception:
+                        if primary_error is None:
+                            raise
 
 
 def main():

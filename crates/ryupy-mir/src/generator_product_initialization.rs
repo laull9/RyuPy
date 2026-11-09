@@ -1,5 +1,6 @@
 //! 单Legacy模块前言的有限事务见证：实际reset与发布分开，所有读取点须在发布之后。
 //! 只认无回入直链和最多7个身份/初值角色；不改变普通Global union或metadata未绑定语义。
+use crate::generator_product_failure::{Failure, Limitations};
 use crate::trace_lowering::{LinkRemap, LoweringOrigins};
 use crate::*;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -54,10 +55,10 @@ impl Initialization {
         origins: &LoweringOrigins,
         program: &Program,
         exports: &[ModuleExport],
-    ) -> Result<Self, String> {
+    ) -> Result<Self, Failure> {
         if hir.info.name != "__main__" || !hir.info.package.is_empty() || hir.info.instance_globals
         {
-            return Err(error("输入不是单Legacy主模块"));
+            return Err(Failure::unsupported(error("输入不是单Legacy主模块")));
         }
         let mut result = Self {
             entry: program.entry,
@@ -82,7 +83,7 @@ impl Initialization {
             if let ExportGuard::BoundFlag(flag) = export.guard {
                 let declaration = global(program, flag)?;
                 if declaration.ty != MirType::Bool {
-                    return Err(error("普通变量reset flag类型错误"));
+                    return Err(error("普通变量reset flag类型错误").into());
                 }
                 result.resets.insert(flag, declaration.clone());
             }
@@ -99,7 +100,7 @@ impl Initialization {
             let metadata = matches!(key, "__spec__" | "__loader__" | "__cached__" | "__path__");
             if metadata && !hir.info.resolve_file_at_runtime {
                 if exports.iter().any(|e| e.name == key) {
-                    return Err(error("输入未要求的metadata导出"));
+                    return Err(error("输入未要求的metadata导出").into());
                 }
                 continue;
             }
@@ -108,7 +109,7 @@ impl Initialization {
                 if key == "__file__" && !exports.iter().any(|e| e.name == key) {
                     continue;
                 }
-                return Err(error("输入要求的前言角色缺失"));
+                return Err(error("输入要求的前言角色缺失").into());
             };
             let slot = *origins
                 .globals
@@ -116,17 +117,17 @@ impl Initialization {
                 .ok_or_else(|| error("角色没有真实GlobalId来源"))?;
             let matches: Vec<_> = exports.iter().filter(|e| e.name == key).collect();
             let [export] = matches.as_slice() else {
-                return Err(error("角色没有唯一实际导出"));
+                return Err(error("角色没有唯一实际导出").into());
             };
             if export.value != slot || export.guard != ExportGuard::ValueSentinel {
-                return Err(error("角色导出槽或ValueSentinel协议错误"));
+                return Err(error("角色导出槽或ValueSentinel协议错误").into());
             }
             let declaration = global(program, slot)?.clone();
             if declaration.ty != MirType::Dynamic
                 || declaration.storage != GlobalStorage::LegacyStatic
                 || result.roles.iter().any(|r| r.export.value == slot)
             {
-                return Err(error("角色不是互异Dynamic Legacy槽"));
+                return Err(error("角色不是互异Dynamic Legacy槽").into());
             }
             let initial = match key {
                 "__name__" => Initial::Text("__main__".into()),
@@ -144,34 +145,48 @@ impl Initialization {
         Ok(result)
     }
 
-    pub fn inspect(&self, program: &Program, exports: &[ModuleExport]) -> Result<(), String> {
+    pub fn inspect(&self, program: &Program, exports: &[ModuleExport]) -> Result<(), Failure> {
         if program.entry != self.entry || function(program, self.entry)?.source_file != self.file {
-            return Err(error("实际初始化入口或来源文件改变"));
+            return Err(error("实际初始化入口或来源文件改变").into());
         }
         let module = function(program, self.entry)?;
         let body = &module.body;
         crate::generator_product_edges::check(body)?;
+        let mut region_errors = Vec::new();
+        crate::validate_regions::validate_regions(module, &mut region_errors);
+        if !region_errors.is_empty() {
+            return Err(error(&format!(
+                "初始化入口含异常绕入：{}",
+                region_errors.join("；")
+            ))
+            .into());
+        }
+        let mut limitations = Limitations::default();
         if !body.regions.is_empty() || !body.source_handler_contracts.is_empty() {
-            return Err(error("初始化入口含异常绕入"));
+            limitations.note(error("初始化入口含异常绕入"));
         }
         let mut order = FxHashMap::default();
         let mut at = body.entry;
         loop {
             let rank = order.len();
             if order.insert(at, rank).is_some() {
-                return Err(error("模块控制链回入"));
+                limitations.note(error("模块控制链回入"));
+                break;
             }
             match body.blocks[at].terminator {
                 Terminator::Goto(next) => at = next,
                 Terminator::Return(None) => break,
-                _ => return Err(error("模块初始化不是确定直链出口")),
+                _ => {
+                    limitations.note(error("模块初始化不是确定直链出口"));
+                    break;
+                }
             }
         }
         for (_, block) in body.blocks.iter() {
             if matches!(block.terminator, Terminator::Goto(to) | Terminator::Suspend { resume: to, .. } if to == body.entry)
                 || matches!(block.terminator, Terminator::Branch { then_, else_, .. } if then_ == body.entry || else_ == body.entry)
             {
-                return Err(error("模块基本块回入entry"));
+                limitations.note(error("模块基本块回入entry"));
             }
         }
         let mut definitions: FxHashMap<LocalId, Vec<Point>> = FxHashMap::default();
@@ -203,10 +218,12 @@ impl Initialization {
             definitions: &definitions,
             private: FxHashSet::default(),
             transfers: FxHashSet::default(),
+            pending_chains: vec![],
         };
         let mut published = FxHashMap::default();
         let mut producer_sites = FxHashSet::default();
         let mut resets = vec![];
+        let mut chains_complete = true;
         for role in &self.roles {
             if global(program, role.export.value)? != &role.declaration
                 || exports
@@ -215,7 +232,7 @@ impl Initialization {
                     .collect::<Vec<_>>()
                     != [&role.export]
             {
-                return Err(error("角色声明或导出协议改变"));
+                return Err(error("角色声明或导出协议改变").into());
             }
             let slot = role.export.value;
             if exports.iter().any(|e| {
@@ -235,17 +252,17 @@ impl Initialization {
                 .iter()
                 .any(|(_, c)| c.factory_global == Some(slot))
             {
-                return Err(error("角色槽与其它导出/私有角色冲突"));
+                return Err(error("角色槽与其它导出/私有角色冲突").into());
             }
             let Some(writes) = writes.get(&role.export.value) else {
-                return Err(error("角色缺少reset与发布"));
+                return Err(error("角色缺少reset与发布").into());
             };
             let [
                 (reset_fn, reset, Operand::Const(Constant::Null)),
                 (publish_fn, publish, value),
             ] = writes.as_slice()
             else {
-                return Err(error("角色不是唯一Null reset随后唯一发布"));
+                return Err(error("角色不是唯一Null reset随后唯一发布").into());
             };
             if *reset_fn != self.entry
                 || *publish_fn != self.entry
@@ -253,12 +270,17 @@ impl Initialization {
                 || publish.0 != body.entry
                 || reset.1 >= publish.1
             {
-                return Err(error("角色发布不在entry同块有序前言"));
+                return Err(error("角色发布不在entry同块有序前言").into());
             }
-            if crate::validate::operand_type(program, module, value) != Some(MirType::Dynamic)
-                || context.initial(value, *publish, &mut producer_sites)? != role.initial
-            {
-                return Err(error("角色发布producer/helper/key/常量不符"));
+            if crate::validate::operand_type(program, module, value) != Some(MirType::Dynamic) {
+                return Err(error("角色发布producer/helper/key/常量不符").into());
+            }
+            match limitations.check(context.initial(value, *publish, &mut producer_sites))? {
+                Some(actual) if actual != role.initial => {
+                    return Err(error("角色发布producer/helper/key/常量不符").into());
+                }
+                Some(_) => {}
+                None => chains_complete = false,
             }
             resets.push(reset.1);
             published.insert(role.export.value, publish.1);
@@ -272,7 +294,7 @@ impl Initialization {
             .max()
             .ok_or_else(|| error("没有真实身份发布"))?;
         if resets.iter().any(|reset| *reset >= first) {
-            return Err(error("reset区晚于真实发布"));
+            return Err(error("reset区晚于真实发布").into());
         }
         // Source的name实参由builder先Box；同样追到真实字面量，而非假定实参是常量。
         let sources: Vec<_> = body.blocks[body.entry]
@@ -296,20 +318,29 @@ impl Initialization {
             })
             .collect();
         let [(source_at, source, args)] = sources.as_slice() else {
-            return Err(error("前言缺少唯一Source注册来源"));
+            return Err(error("前言缺少唯一Source注册来源").into());
         };
         let [argument] = args.as_slice() else {
-            return Err(error("Source真实参数不符"));
+            return Err(error("Source真实参数不符").into());
         };
         if *source_at >= first
             || crate::validate::operand_type(program, module, argument) != Some(MirType::Dynamic)
             || crate::validate::local_decl(&body.locals, *source)
                 .is_none_or(|d| d.ty != MirType::Dynamic || d.is_cell)
             || definitions.get(source).map(Vec::as_slice) != Some(&[(body.entry, *source_at)][..])
-            || context.initial(argument, (body.entry, *source_at), &mut producer_sites)?
-                != Initial::Text("__main__".into())
         {
-            return Err(error("Source真实参数不符"));
+            return Err(error("Source真实参数不符").into());
+        }
+        match limitations.check(context.initial(
+            argument,
+            (body.entry, *source_at),
+            &mut producer_sites,
+        ))? {
+            Some(actual) if actual != Initial::Text("__main__".into()) => {
+                return Err(error("Source真实参数不符").into());
+            }
+            Some(_) => {}
+            None => chains_complete = false,
         }
         // producer临时值只能沿已核纯链进入对应store；metadata不因store完成而获得用户能力。
         context.transfers = producer_sites.clone();
@@ -322,7 +353,9 @@ impl Initialization {
         context
             .transfers
             .extend(published.values().map(|at| (body.entry, *at)));
-        self.consumers(&context, &published, &producer_sites)?;
+        limitations.check(self.consumers(&context, &published, &producer_sites))?;
+        // 能力未完成也执行同一个前言检查：reset/Push/effect不能被长纯链遮蔽。
+        // 仅实际截断链上尚未证明的producer保持NotProven，不认证初始值。
         let mut push = None;
         let mut ordinary_resets = FxHashSet::default();
         for (position, statement) in body.blocks[body.entry].stmts[..=last].iter().enumerate() {
@@ -363,16 +396,29 @@ impl Initialization {
                     push = Some(*dest);
                     true
                 }
+                Statement::Assign {
+                    value:
+                        Rvalue::Use(_)
+                        | Rvalue::Box { .. }
+                        | Rvalue::Call {
+                            callee:
+                                Callee::Runtime(RuntimeFn::ModuleFile | RuntimeFn::ModuleMetadata),
+                            ..
+                        },
+                    ..
+                } if !chains_complete => limitations
+                    .check(context.pending_site(site))?
+                    .unwrap_or(true),
                 _ => false,
             };
             if !allowed {
-                return Err(error("前言全部发布前存在未知effect或伪reset"));
+                return Err(error("前言全部发布前存在未知effect或伪reset").into());
             }
         }
         if push.is_none() {
-            return Err(error("前言缺少真实Source注册来源/Push"));
+            return Err(error("前言缺少真实Source注册来源/Push").into());
         }
-        Ok(())
+        limitations.finish()
     }
 
     pub fn meta(&self, meta: &UnitMeta) -> Result<(), String> {

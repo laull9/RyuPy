@@ -27,6 +27,7 @@ mod resources;
 pub mod runtime;
 mod stage_trace;
 mod trace_product;
+pub use trace_product::TraceEntry;
 
 use std::path::{Path, PathBuf};
 
@@ -36,8 +37,10 @@ use ryupy_base::{Diagnostics, FileId, SourceDb};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
-    /// 显式受控生成器trace V1；整产物闭包拒绝，不扩大默认产品域。
+    /// 显式强制有限trace V1；合法域外E0310，内部损坏硬停。
     pub trace_product_v1: bool,
+    /// 明确正常Main执行的请求；裸API默认Unknown，不从DLL扩展名推断宿主生命周期。
+    pub trace_entry: TraceEntry,
     /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
     pub instance_modules: Vec<String>,
     /// 编译会话的隔离候选策略；无公开CLI开关，也不改变运行时模式数。
@@ -141,6 +144,7 @@ fn compile_module(
     native_exceptions: &[&str],
     plan: &module_environments::ModuleEnvironmentPlan,
     trace: &stage_trace::StageTrace,
+    trace_request: trace_product::Request,
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
         instance_globals: plan.instance_globals(),
@@ -170,8 +174,9 @@ fn compile_module(
     stop_if_errors(sess)?;
     trace.mark("end", "type-check", &module.name);
 
-    if sess.trace_product_v1 {
-        return trace_product::compile(sess, &hir, &types, plan, trace);
+    if let Some(compiled) = trace_product::compile(sess, &hir, &types, plan, trace, trace_request)?
+    {
+        return Ok(compiled);
     }
     trace.mark("begin", "mir-build", &module.name);
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
@@ -196,6 +201,7 @@ fn compile_module(
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
     trace.mark("end", "final-validate", &module.name);
+    trace.mark("end", "trace-legacy", &module.name);
     Ok(CompiledModule {
         trace_proof: None,
         program: mir,
@@ -272,7 +278,7 @@ fn compile_linked_traced(
         modules::load_program_including(sess, entry, search_paths, &include_modules)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
-    trace_product::graph(
+    let trace_request = trace_product::graph(
         sess,
         sources[entry_index].parsed.file,
         sources.len(),
@@ -338,7 +344,14 @@ fn compile_linked_traced(
             program,
             exports,
             protected_exports,
-        } = compile_module(sess, &module, &native_exceptions, &plan, trace)?;
+        } = compile_module(
+            sess,
+            &module,
+            &native_exceptions,
+            &plan,
+            trace,
+            trace_request,
+        )?;
         if let Some(proof) = trace_proof {
             trace_proofs.push(proof);
         }
@@ -579,3 +592,6 @@ mod generator_dynamic_fixture_tests;
 
 #[cfg(test)]
 mod generator_product_tests;
+
+#[cfg(test)]
+mod generator_default_tests;

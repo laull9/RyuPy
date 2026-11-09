@@ -1,6 +1,9 @@
 //! 受控产品实际 helper 实参/effect 合同。未知helper没有按名字默认放行；
 //! property与next沿实际值身份闭合，ArrayGet/Set仅在末端模板校验后进入低层，不能用于高层用户heap。
-use crate::generator_product_values::{Resolver, Set, Value, primitive, union};
+use crate::generator_product_failure::{Failure, Limitations};
+use crate::generator_product_values::{
+    Bound, Obligation, Resolver, Set, Value, fits, primitive, union,
+};
 use crate::trace_domain::Primitive;
 use crate::*;
 
@@ -21,13 +24,51 @@ fn only(values: &Set, allowed: impl Fn(&Value) -> bool) -> bool {
 }
 
 impl Resolver<'_> {
+    // CLR参数个数/类型由validate_high全量验证。这里只核已解析的同类型来源，
+    // 某个实参未知时仍核其它实参；None表示尚未证明，不是伪造的Value。
+    pub fn runtime_obligations(
+        &self,
+        runtime: RuntimeFn,
+        args: &[Option<Set>],
+    ) -> Result<(), Failure> {
+        for (index, values) in args.iter().enumerate() {
+            let Some(values) = values else { continue };
+            // 空集合没有负反证；完整Bottom和未知前缀的区别由Bound/Limitations保留。
+            if values.is_empty() {
+                continue;
+            }
+            let valid = match (runtime, index) {
+                (RuntimeFn::TraceV1Explicit, 0) => only(values, |v| {
+                    matches!(v, Value::Error | Value::ExceptionType(_))
+                }),
+                (
+                    RuntimeFn::TraceV1Park | RuntimeFn::TraceV1Handle | RuntimeFn::TraceV1Forward,
+                    0,
+                ) => only(values, |v| *v == Value::Error),
+                (
+                    RuntimeFn::TraceV1Park | RuntimeFn::TraceV1Handle | RuntimeFn::TraceV1Forward,
+                    1,
+                )
+                | (RuntimeFn::TracePopTo, 0) => values == &[Value::Depth],
+                (
+                    RuntimeFn::TraceV1Match | RuntimeFn::TraceV1Abort | RuntimeFn::TraceV1AllMiss,
+                    0,
+                ) => only(values, |v| matches!(v, Value::Park | Value::None)),
+                _ => true,
+            };
+            if !valid {
+                return Err(format!("实际helper {runtime:?} 第{index}实参协议来源错误").into());
+            }
+        }
+        Ok(())
+    }
     pub fn runtime(
         &self,
         function: FnId,
         dest: Option<LocalId>,
         runtime: RuntimeFn,
         args: &[Set],
-    ) -> Result<Set, String> {
+    ) -> Result<Set, Failure> {
         let none = || Ok(vec![Value::None]);
         match (runtime, args) {
             (RuntimeFn::DynNone, []) => none(),
@@ -216,21 +257,34 @@ impl Resolver<'_> {
                 let mut result = Vec::new();
                 for receiver in receiver {
                     let Value::Instance(class) = receiver else {
-                        return Err("属性接收者不是固定无字段实例".into());
+                        return Err(Failure::unsupported("属性接收者不是固定无字段实例"));
                     };
                     let getter = self
                         .properties
                         .get(&(*class, text(name).unwrap().into()))
-                        .ok_or("实际类没有该固定property")?;
+                        .ok_or_else(|| Failure::unsupported("实际类没有该固定property"))?;
                     let target = &self.program.functions[*getter];
                     if target.param_meta.len() != 1
                         || self.generators.contains(getter)
-                        || self.bounds.parameters.get(&(*getter, target.params[0]))
-                            != Some(&vec![Value::Instance(*class)])
+                        || self
+                            .bounds
+                            .parameters
+                            .get(&(*getter, target.params[0]))
+                            .ok_or("getter缺实际参数上界")?
+                            .value()?
+                            != &vec![Value::Instance(*class)]
                     {
                         return Err("property→InvokeBound→thunk的真实self合同不成立".into());
                     }
-                    union(&mut result, self.bounds.returns[getter].clone())?;
+                    union(
+                        &mut result,
+                        self.bounds
+                            .returns
+                            .get(getter)
+                            .ok_or("getter缺实际返回摘要")?
+                            .value()?
+                            .clone(),
+                    )?;
                 }
                 Ok(result)
             }
@@ -274,23 +328,209 @@ impl Resolver<'_> {
             {
                 none()
             }
-            _ => Err(format!("实际helper {runtime:?} 的接收者/实参/effect未闭合")),
+            _ if crate::trace_product_abi::signature(runtime).is_some()
+                || matches!(
+                    runtime,
+                    RuntimeFn::TracePush
+                        | RuntimeFn::TracePushWithOrigin
+                        | RuntimeFn::TracePopTo
+                        | RuntimeFn::ModuleExecutionSource
+                ) =>
+            {
+                Err(format!("实际helper {runtime:?} 的协议来源合同损坏").into())
+            }
+            _ => Err(Failure::unsupported(format!(
+                "实际helper {runtime:?} 的接收者/实参/effect未闭合"
+            ))),
         }
     }
-    pub fn builtin(&self, caller: FnId, name: &str, args: &[Set]) -> Result<Set, String> {
+    pub fn builtin(&self, caller: FnId, name: &str, args: &[Set]) -> Result<Set, Failure> {
         match (name, args) {
             ("next", [receiver]) if caller == self.program.entry => {
                 let mut result = Vec::new();
                 for value in receiver {
                     let Value::Generator(function) = value else {
-                        return Err("next的实际对象不是已绑定PyGenerator".into());
+                        return Err(Failure::unsupported("next的实际对象不是已绑定PyGenerator"));
                     };
-                    union(&mut result, self.bounds.yields[function].clone())?;
+                    union(
+                        &mut result,
+                        self.bounds
+                            .yields
+                            .get(function)
+                            .ok_or("generator缺实际yield摘要")?
+                            .value()?
+                            .clone(),
+                    )?;
                 }
                 Ok(result)
             }
             ("print", args) if args.iter().all(primitive) => Ok(vec![Value::None]),
-            _ => Err("实际builtin callback不在产品闭包".into()),
+            _ => Err(Failure::unsupported("实际builtin callback不在产品闭包")),
         }
+    }
+    // 每个实际已知定义（包括第33项之后）先经过原硬义务，再丢弃多余集合存储。
+    // 不增加Value/摘要，不用未知填充值，也不将这一否定检查当调用成功。
+    pub(super) fn check_known(
+        &self,
+        obligation: Obligation<'_>,
+        values: &Set,
+    ) -> Result<(), Failure> {
+        // 空集合可以是完整Bottom或未完成前缀；是否完成由Bound/Limitations决定。
+        // 两者都没有可以否定token/参数合同的实际值，不在此处授予正向能力。
+        if values.is_empty() {
+            return Ok(());
+        }
+        match obligation {
+            Obligation::Dynamic(callee, index) => {
+                for value in callee {
+                    if let Value::Function(target) = value {
+                        self.check_known(Obligation::Parameter(*target, index, false), values)?;
+                    }
+                }
+                Ok(())
+            }
+            Obligation::Positionals(callee) => {
+                for value in values {
+                    if let Value::Array(args) = value {
+                        self.call_arguments(
+                            callee,
+                            &args.iter().cloned().map(Some).collect::<Vec<_>>(),
+                        )?;
+                    }
+                }
+                Ok(())
+            }
+            Obligation::Runtime(runtime, index) => {
+                let mut args = vec![None; index + 1];
+                args[index] = Some(values.clone());
+                self.runtime_obligations(runtime, &args)
+            }
+            Obligation::Parameter(target, index, hidden) => {
+                let function = &self.program.functions[target];
+                let count = if hidden {
+                    function.params.len()
+                } else {
+                    function.param_meta.len()
+                };
+                if index >= count {
+                    return Err("真实函数调用不是固定位置参数形状".into());
+                }
+                let mut args = vec![None; count];
+                args[index] = Some(values.clone());
+                match self.invoke_arguments(target, &args, hidden) {
+                    Err(Failure::NotInDomain(_)) => Ok(()),
+                    result => result,
+                }
+            }
+        }
+    }
+    pub(super) fn call_arguments(&self, callee: &Set, args: &[Option<Set>]) -> Result<(), Failure> {
+        for value in callee {
+            if let Value::Function(target) = value {
+                match self.invoke_arguments(*target, args, false) {
+                    Err(Failure::NotInDomain(_)) => {}
+                    result => result?,
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn invoke(
+        &self,
+        caller: FnId,
+        target: FnId,
+        args: &[Set],
+        hidden: bool,
+    ) -> Result<Set, Failure> {
+        self.invoke_arguments(
+            target,
+            &args.iter().cloned().map(Some).collect::<Vec<_>>(),
+            hidden,
+        )?;
+        if caller != self.program.entry {
+            return Err(Failure::unsupported("首产品域不接受函数内额外用户调用"));
+        }
+        if self.generators.contains(&target) {
+            Ok(vec![Value::Generator(target)])
+        } else {
+            Ok(self
+                .bounds
+                .returns
+                .get(&target)
+                .ok_or("实际callee缺返回摘要")?
+                .value()?
+                .clone())
+        }
+    }
+    pub(super) fn invoke_arguments(
+        &self,
+        target: FnId,
+        args: &[Option<Set>],
+        hidden: bool,
+    ) -> Result<(), Failure> {
+        let mut limitations = Limitations::default();
+        let function = &self.program.functions[target];
+        let count = if hidden {
+            function.params.len()
+        } else {
+            function.param_meta.len()
+        };
+        if args.len() != count {
+            return Err("真实函数调用不是固定位置参数形状".into());
+        }
+        for (local, value) in function.params.iter().zip(args) {
+            let Some(value) = value else {
+                limitations.note("调用实参能力尚未闭合");
+                continue;
+            };
+            let expected = if function
+                .dynamic_origin
+                .is_some_and(|origin| origin.owner == *local)
+            {
+                vec![Value::Function(target)]
+            } else {
+                match self.bounds.parameters.get(&(target, *local)) {
+                    Some(Bound::Known(values)) => values.clone(),
+                    Some(Bound::NotProven) => {
+                        limitations.note("实际参数上界尚未证明");
+                        continue;
+                    }
+                    None if function.env == Some(*local)
+                        || function.module_state == Some(*local) =>
+                    {
+                        limitations.note("hidden env/state能力未迁入");
+                        continue;
+                    }
+                    None => return Err("实际参数缺HIR映射上界".into()),
+                }
+            };
+            if expected.is_empty() || value.is_empty() {
+                limitations.note("真实参数没有完整输入上界");
+            } else if !fits(value, &expected) {
+                return Err("真实参数/env/owner不满足函数定义合同".into());
+            }
+        }
+        limitations.finish()
+    }
+
+    pub fn call(&self, caller: FnId, callee: &Set, args: &[Set]) -> Result<Set, Failure> {
+        if callee.is_empty() {
+            return Err(Failure::unsupported(
+                "实际callee为Bottom，不能借不可达猜测准入",
+            ));
+        }
+        let mut result = Vec::new();
+        for target in callee {
+            let values = match target {
+                Value::Function(target) => self.invoke(caller, *target, args, false)?,
+                Value::Class(class) if caller == self.program.entry && args.is_empty() => {
+                    vec![Value::Instance(*class)]
+                }
+                Value::Builtin(name) => self.builtin(caller, name, args)?,
+                _ => return Err(Failure::unsupported("真实callee不是封闭函数或无参数普通类")),
+            };
+            union(&mut result, values)?;
+        }
+        Ok(result)
     }
 }

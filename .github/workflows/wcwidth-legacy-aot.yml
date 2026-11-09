@@ -124,11 +124,15 @@ jobs:
       - name: 原四调用、真实 publish、ELF 与搬移
         id: legacy
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
-      - name: 显式V1真实生成器产品门（复用本轮工具，Legacy红灯独立保留）
+      - name: 原A/B/HOT无flag及显式V1整流（同源工具，历史红灯不覆写）
         id: generator_product_v1
         if: ${{ !cancelled() && hashFiles('target/wcwidth-aot-evidence/compiler-identity.json') != '' }}
         timeout-minutes: 68
         run: '"$PYTHON" -B tests/validation/generator_product/bootstrap.py'
+      - name: 普通CLI域外与同候选Legacy API完整对照
+        if: ${{ !cancelled() && steps.generator_product_v1.outcome == 'success' }}
+        timeout-minutes: 21
+        run: '"$PYTHON" -B tests/validation/generator_default/default_gate.py'
       - name: 显式Instance资格与PE前置、两Native产物及隔离搬迁
         if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/instance_gate.py'
@@ -152,6 +156,7 @@ jobs:
             target/explicit-super-evidence
             target/generator-dynamic-evidence
             target/generator-product-evidence
+            target/generator-default-evidence
             target/generator-product-bootstrap/*.json
             target/generator-product-bootstrap/*.stdout
             target/generator-product-bootstrap/*.stderr
@@ -325,6 +330,10 @@ jobs:
           persist-credentials: false
       - name: Rust前置采集与结果聚合器自测
         run: python3 -B -m unittest discover -s tests/aot/wcwidth_ci -p 'test_trace*.py'
+      - name: 无flag产品与域外脚本纯mock门
+        run: |
+          python3 -B -m unittest discover -s tests/validation/generator_product -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/validation/generator_default -p 'test_*.py'
       - name: 仅准备固定SHA的官方Rust组件
         run: |
           mkdir -p target/trace-rust-prepare

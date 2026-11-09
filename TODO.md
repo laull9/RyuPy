@@ -1,6 +1,7 @@
 # TODO
 
-- [~] 2026-11-08 显式生成器 trace 产品 V1 完整竖切候选：A/B 真实 driver JIT/NativeAOT、原 C/D 执行前拒绝、同源完整门与20项目逐ID保护尚待编译验收。源码接线不计通过；默认与 accepted 不变。见 [ADR0142](docs/adr/0142-generator-trace-product-v1.md)。
+- [~] 2026-11-09 普通CLI trace有限默认迁移候选：typed拒绝/私有prepare→finish及真实无flag入口已接，尚未Rust构建、产品运行或最终独审。原frames pending/430B源/期望不动；同源无flag整流、域外保功能、完整门及逐ID保护待验。见[ADR0143](docs/adr/0143-generator-trace-default-cutover.md)。
+- [~] CI012显式V1有限域已验：A/B/HOT十二run与C/D四拒绝、双模式完整check成立；原无flag frames独立失败，整run failure，固定20默认JIT为10/8/2，accepted未动。历史证据见[ADR0142](docs/adr/0142-generator-trace-product-v1.md)。
 
 > **2026-11-02恢复与排期更新**：当前代码恢复自已推送M3.10（`a788d86`），其已归档项目能力为5/20。此前未推送M3.11源码随临时工作区丢失，历史10/20及725项C#测试不能当作当前checkout能力。用户已暂停16/20前置，优先原生AOT/JIT，并批准小步提交推送与独立WIP远端备份。详见[ADR0042](docs/adr/0042-aot-jit-recovery-priority.md)；原兼容目标未达成、不勾完成。
 

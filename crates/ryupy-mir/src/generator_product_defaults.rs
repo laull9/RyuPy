@@ -1,20 +1,32 @@
 //! 只认证模块同块真实def的内部Null默认槽冷发布，不授予一般Function标签元数据读取权。
 //! 全程序一次建局部/发布/槽角色索引；每条producer→getter→发布链至多128条语句/别名。
+use crate::generator_product_failure::{Failure, Limitations};
 use crate::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
+#[path = "generator_product_defaults_construct.rs"]
+mod construct;
+pub(super) use construct::make_function;
+
 type Site = (FnId, BlockId, usize);
 const LIMIT: usize = 128;
-fn error(reason: &str) -> String {
-    format!("FunctionDefaults合同：{reason}")
+fn error(reason: &str) -> Failure {
+    format!("FunctionDefaults合同：{reason}").into()
+}
+fn unsupported(reason: &str) -> Failure {
+    Failure::unsupported(format!("FunctionDefaults合同：{reason}"))
 }
 
 #[derive(Default)]
 pub(super) struct Defaults {
     getters: FxHashMap<(FnId, LocalId), FnId>,
-    locals: FxHashMap<(FnId, LocalId), FnId>,
+    locals: FxHashSet<(FnId, LocalId)>,
     slots: FxHashSet<GlobalId>,
     allowed: FxHashSet<Site>,
+    // 部分检查结果不是证书；未证明的getter没有Value，成功prepare之前必须清空能力拒绝。
+    pending: FxHashSet<(FnId, LocalId)>,
+    // 只有输出扫描确实撞到128窗口，才允许该链边界的纯别名保持能力不足。
+    frontier: FxHashSet<(FnId, LocalId)>,
 }
 
 struct Index<'a> {
@@ -24,6 +36,7 @@ struct Index<'a> {
     roles: FxHashMap<GlobalId, usize>,
     exported: FxHashSet<GlobalId>,
     default_slots: FxHashSet<GlobalId>,
+    targets: FxHashMap<GlobalId, FnId>,
     slots: FxHashSet<GlobalId>,
 }
 impl<'a> Index<'a> {
@@ -35,6 +48,7 @@ impl<'a> Index<'a> {
             roles: FxHashMap::default(),
             exported: FxHashSet::default(),
             default_slots: FxHashSet::default(),
+            targets: FxHashMap::default(),
             slots: program
                 .globals
                 .iter()
@@ -52,6 +66,9 @@ impl<'a> Index<'a> {
         }
         for (id, function) in program.functions.iter() {
             result.default_slots.extend(function.defaults_global);
+            if let Some(slot) = function.defaults_global {
+                result.targets.insert(slot, id);
+            }
             for slot in [
                 function.defaults_global,
                 function.function_global,
@@ -91,7 +108,108 @@ impl<'a> Index<'a> {
         }
         result
     }
-    fn unique(&self, function: FnId, local: LocalId) -> Result<(BlockId, usize), String> {
+    fn private_obligations(&self) -> Result<(), Failure> {
+        for slot in &self.default_slots {
+            if !self.slots.contains(slot)
+                || self.roles.get(slot) != Some(&1)
+                || self.exported.contains(slot)
+            {
+                return Err(error("私有槽角色冲突、公开导出或无效GlobalId"));
+            }
+            match self.writes.get(slot).map(Vec::as_slice) {
+                // 类方法的通用槽可保持CLR null；零写不是获准读取的值能力。
+                None | Some([_]) => {}
+                _ => return Err(error("私有槽重复或错误发布")),
+            }
+        }
+        Ok(())
+    }
+    // 必发布来自当前getter的真实receiver，不把所有声明角色误当普通def。
+    // 先核全索引的缺/错/重复写，再允许输出窗口返回能力不足。
+    fn required_publication(&self, site: Site, target: FnId) -> Result<(), Failure> {
+        let slot = self.program.functions[target]
+            .defaults_global
+            .ok_or_else(|| error("真实getter目标缺少默认槽"))?;
+        match self.writes.get(&slot).map(Vec::as_slice) {
+            Some([(function, block, at)])
+                if (*function, *block) == (site.0, site.1) && *at > site.2 =>
+            {
+                Ok(())
+            }
+            None => Err(error("结果未沿同块私有发布链消费：实际索引缺少发布")),
+            _ => Err(error("私有槽重复或错误发布")),
+        }
+    }
+    // 能力不足的getter仍不能替另一条私有写背书。复用同一真实定义索引，
+    // 仅沿该写的Use/Box追到本次未证明getter；未知尾部只保留能力拒绝，不授信。
+    fn pending_publication(
+        &self,
+        site: Site,
+        operand: &Operand,
+        pending: &FxHashSet<(FnId, LocalId)>,
+    ) -> Result<(), Failure> {
+        let (function, block, mut before) = site;
+        // 局部游标可缩短输入与索引的借用，不要求调用者的操作数活到整个Index生命周期。
+        let mut value = operand;
+        for _ in 0..LIMIT {
+            let Operand::Local(local) = value else {
+                return Err(error("私有槽存在未认证写入"));
+            };
+            if pending.contains(&(function, *local)) {
+                return Ok(());
+            }
+            let (defined_block, at) = self.unique(function, *local)?;
+            if defined_block != block || at >= before {
+                return Err(error("私有槽存在未认证写入"));
+            }
+            match &self.program.functions[function].body.blocks[block].stmts[at] {
+                Statement::Assign {
+                    value:
+                        Rvalue::Use(input)
+                        | Rvalue::Box {
+                            value: input,
+                            from: MirType::Dynamic,
+                        },
+                    ..
+                } => value = input,
+                _ => return Err(error("私有槽存在未认证写入")),
+            }
+            before = at;
+        }
+        Err(unsupported("私有发布别名链超过128上界"))
+    }
+    // 复用实际定义索引检查consumer的纯别名来源；只用于否定opaque逃逸，不返回函数能力。
+    // 每次最多128步，无固定点/heap；超预算保域外，不能把未证尾部当作已证明安全。
+    fn aliases(
+        &self,
+        function: FnId,
+        mut local: LocalId,
+        roots: &FxHashSet<(FnId, LocalId)>,
+    ) -> Result<bool, Failure> {
+        for _ in 0..LIMIT {
+            if roots.contains(&(function, local)) {
+                return Ok(true);
+            }
+            let Some([(block, at)]) = self.assignments.get(&(function, local)).map(Vec::as_slice)
+            else {
+                return Ok(false);
+            };
+            match &self.program.functions[function].body.blocks[*block].stmts[*at] {
+                Statement::Assign {
+                    value:
+                        Rvalue::Use(Operand::Local(input))
+                        | Rvalue::Box {
+                            value: Operand::Local(input),
+                            from: MirType::Dynamic,
+                        },
+                    ..
+                } => local = *input,
+                _ => return Ok(false),
+            }
+        }
+        Err(unsupported("opaque消费者纯别名超过128检查上界"))
+    }
+    fn unique(&self, function: FnId, local: LocalId) -> Result<(BlockId, usize), Failure> {
         let body = &self.program.functions[function].body;
         if crate::validate::local_decl(&body.locals, local)
             .is_none_or(|decl| decl.ty != MirType::Dynamic)
@@ -104,7 +222,12 @@ impl<'a> Index<'a> {
             _ => Err(error("局部缺少唯一实际定义或被覆盖")),
         }
     }
-    fn producer(&self, site: Site, operand: &Operand) -> Result<(usize, FnId), String> {
+    fn producer(
+        &self,
+        site: Site,
+        operand: &Operand,
+        limitations: &mut Limitations,
+    ) -> Result<(usize, FnId), Failure> {
         let (function, block, mut limit) = site;
         let mut value = operand;
         for _ in 0..LIMIT {
@@ -130,72 +253,33 @@ impl<'a> Index<'a> {
                     value = input;
                     limit = position;
                 }
-                Rvalue::MakeFunction { .. } => {
-                    return Ok((position, make_function(self.program, definition)?));
+                Rvalue::MakeFunction { func, .. } => {
+                    // 能力未迁入不抹掉已核真实FnId；capture最终仍须finish才能授信。
+                    limitations.check(make_function(self.program, definition))?;
+                    return Ok((position, *func));
                 }
                 _ => return Err(error("receiver没有同块真实MakeFunction来源")),
             }
         }
-        Err(error("同块别名链超过128上界"))
+        Err(unsupported("同块别名链超过128上界"))
     }
-}
-
-/// 校验真实构造及Python参数；也用于原有MakeFunction值事实，避免坏FnId索引panic。
-pub(super) fn make_function(program: &Program, value: &Rvalue) -> Result<FnId, String> {
-    let Rvalue::MakeFunction {
-        func,
-        instance_context,
-        env,
-        defaults,
-    } = value
-    else {
-        return Err(error("不是实际MakeFunction构造"));
-    };
-    if func.into_raw().into_u32() as usize >= program.functions.len() {
-        return Err(error("构造FnId不存在"));
-    }
-    let target = &program.functions[*func];
-    let hidden = usize::from(target.dynamic_origin.is_some());
-    if instance_context.is_some()
-        || !env.is_empty()
-        || target.env.is_some()
-        || target.module_state.is_some()
-        || target.module_state_source.is_some()
-        || target.params.len() != target.param_meta.len() + hidden
-        || defaults.len() != target.param_meta.len()
-        || defaults
-            .iter()
-            .any(|v| *v != Operand::Const(Constant::Null))
-        || target.param_meta.iter().any(|p| {
-            p.has_default
-                || !matches!(
-                    p.kind,
-                    ParamKind::PositionalOnly | ParamKind::PositionalOrKeyword
-                )
-        })
-    {
-        return Err(error("构造不是精确Python参数数的全CLR Null无默认槽"));
-    }
-    for (local, meta) in target.params.iter().zip(&target.param_meta) {
-        if crate::validate::local_decl(&target.body.locals, *local)
-            .is_none_or(|decl| decl.ty != meta.ty || decl.is_cell)
-        {
-            return Err(error("构造的实际参数类型不符"));
-        }
-    }
-    if let Some(origin) = target.dynamic_origin
-        && (target.params.last() != Some(&origin.owner)
-            || crate::validate::local_decl(&target.body.locals, origin.owner)
-                .is_none_or(|decl| decl.ty != MirType::Dynamic || decl.is_cell))
-    {
-        return Err(error("构造的hidden owner不符"));
-    }
-    Ok(*func)
 }
 
 impl Defaults {
-    pub fn inspect(program: &Program, exports: &[ModuleExport]) -> Result<Self, String> {
+    #[cfg(test)]
+    pub fn inspect(program: &Program, exports: &[ModuleExport]) -> Result<Self, Failure> {
+        let mut limitations = Limitations::default();
+        let result = Self::inspect_partial(program, exports, &mut limitations)?;
+        limitations.finish()?;
+        Ok(result)
+    }
+    pub fn inspect_partial(
+        program: &Program,
+        exports: &[ModuleExport],
+        limitations: &mut Limitations,
+    ) -> Result<Self, Failure> {
         let index = Index::new(program, exports);
+        index.private_obligations()?;
         let mut result = Self {
             slots: index.default_slots.clone(),
             ..Self::default()
@@ -214,12 +298,32 @@ impl Defaults {
                     } = value
                     {
                         let dest = dest.ok_or_else(|| error("getter结果未存入私有局部"))?;
-                        result.capture(&index, (function, block_id, position), dest, args)?;
+                        // 失败链的局部状态不混进已证明链；仍继续检查随后每个实际getter。
+                        let mut candidate = Self::default();
+                        if limitations
+                            .check(candidate.capture(
+                                &index,
+                                (function, block_id, position),
+                                dest,
+                                args,
+                            ))?
+                            .is_some()
+                        {
+                            result.getters.extend(candidate.getters);
+                            result.locals.extend(candidate.locals);
+                            result.allowed.extend(candidate.allowed);
+                        } else {
+                            // 未证producer不抹掉已检查到的opaque输出前缀，独立逃逸仍硬停。
+                            result.locals.extend(candidate.locals);
+                            result.allowed.extend(candidate.allowed);
+                            result.pending.insert((function, dest));
+                            result.frontier.extend(candidate.frontier);
+                        }
                     }
                 }
             }
         }
-        result.consumers(program)?;
+        result.consumers(&index, limitations)?;
         Ok(result)
     }
     fn capture(
@@ -228,7 +332,7 @@ impl Defaults {
         site: Site,
         dest: LocalId,
         args: &[Operand],
-    ) -> Result<(), String> {
+    ) -> Result<(), Failure> {
         let (function, block_id, position) = site;
         let [receiver] = args else {
             return Err(error("getter实参不是单个receiver"));
@@ -237,9 +341,25 @@ impl Defaults {
             return Err(error("getter不在模块def冷发布入口"));
         }
         index.unique(function, dest)?;
-        let (producer, target) = index.producer(site, receiver)?;
-        if position - producer > LIMIT {
-            return Err(error("同块发布跨度超过128上界"));
+        // 两侧能力不足互不遮硬错；真实receiver先核required写，opaque输出独立保护。
+        let mut limitations = Limitations::default();
+        let actual = index.producer(site, receiver, &mut limitations);
+        let actual = limitations.check(actual)?;
+        if let Some((_, target)) = actual {
+            index.required_publication(site, target)?;
+        }
+        let published = limitations.check(self.publication(index, site, dest))?;
+        let Some((producer, actual_target)) = actual else {
+            return limitations.finish();
+        };
+        let Some((publish, target)) = published else {
+            return limitations.finish();
+        };
+        if actual_target != target {
+            return Err(error("私有槽重复或错误发布"));
+        }
+        if publish - producer > LIMIT {
+            return Err(unsupported("同块发布跨度超过128上界"));
         }
         let block = &index.program.functions[function].body.blocks[block_id];
         for at in producer + 1..position {
@@ -248,37 +368,44 @@ impl Defaults {
                     dest,
                     value: Rvalue::Use(_) | Rvalue::Box { .. },
                 } => {
-                    index.producer((function, block_id, at + 1), &Operand::Local(*dest))?
-                        == (producer, target)
+                    index.producer(
+                        (function, block_id, at + 1),
+                        &Operand::Local(*dest),
+                        &mut limitations,
+                    )? == (producer, target)
                 }
                 Statement::Eval(Rvalue::Call {
                     callee: Callee::Runtime(RuntimeFn::FunctionModule),
                     args,
                 }) => {
                     args.len() == 2
-                        && index.producer((function, block_id, at), &args[0])? == (producer, target)
+                        && index.producer((function, block_id, at), &args[0], &mut limitations)?
+                            == (producer, target)
                 }
                 _ => false,
             };
             if !valid {
-                return Err(error("producer与getter之间有未认证操作"));
+                return Err(unsupported("producer与getter之间有未认证操作"));
             }
         }
-        let slot = index.program.functions[target]
-            .defaults_global
-            .ok_or_else(|| error("缺少私有defaults槽"))?;
-        if !index.slots.contains(&slot)
-            || index.roles.get(&slot) != Some(&1)
-            || index.exported.contains(&slot)
-        {
-            return Err(error("私有槽角色冲突、公开导出或无效GlobalId"));
-        }
+        limitations.finish()?;
         self.getters.insert((function, dest), target);
-        self.locals.insert((function, dest), target);
+        Ok(())
+    }
+    fn publication(
+        &mut self,
+        index: &Index<'_>,
+        site: Site,
+        dest: LocalId,
+    ) -> Result<(usize, FnId), Failure> {
+        let (function, block_id, position) = site;
+        let block = &index.program.functions[function].body.blocks[block_id];
+        // locals只记录opaque结果身份；实际target必须由唯一私有写取得，不能伪造函数值。
+        self.locals.insert((function, dest));
         self.allowed.insert(site);
         let mut aliases = FxHashSet::default();
         aliases.insert(dest);
-        for at in position + 1..block.stmts.len().min(producer + LIMIT + 1) {
+        for at in position + 1..block.stmts.len().min(position + LIMIT + 1) {
             match &block.stmts[at] {
                 Statement::Assign {
                     dest,
@@ -291,44 +418,82 @@ impl Defaults {
                 } if aliases.contains(input) => {
                     index.unique(function, *dest)?;
                     aliases.insert(*dest);
-                    self.locals.insert((function, *dest), target);
+                    self.locals.insert((function, *dest));
                     self.allowed.insert((function, block_id, at));
                 }
                 Statement::SetGlobal {
                     dest,
                     value: Operand::Local(input),
-                } if *dest == slot && aliases.contains(input) => {
-                    if index.writes.get(&slot).map(Vec::as_slice)
+                } if aliases.contains(input) => {
+                    let target = *index
+                        .targets
+                        .get(dest)
+                        .ok_or_else(|| error("结果未沿同块私有发布链消费"))?;
+                    if index.writes.get(dest).map(Vec::as_slice)
                         != Some(&[(function, block_id, at)][..])
                     {
                         return Err(error("私有槽重复或错误发布"));
                     }
                     self.allowed.insert((function, block_id, at));
-                    return Ok(());
+                    return Ok((at, target));
                 }
                 _ => return Err(error("结果未沿同块私有发布链消费")),
             }
         }
-        Err(error("结果缺少有界同块私有发布"))
+        if position + LIMIT + 1 < block.stmts.len() {
+            self.frontier
+                .extend(aliases.into_iter().map(|local| (function, local)));
+            Err(unsupported("唯一实际发布在128能力窗口之外"))
+        } else {
+            Err(error("结果缺少有界同块私有发布"))
+        }
     }
-    pub fn getter(&self, function: FnId, dest: Option<LocalId>) -> Result<FnId, String> {
+    pub fn getter(&self, function: FnId, dest: Option<LocalId>) -> Result<FnId, Failure> {
         dest.and_then(|dest| self.getters.get(&(function, dest)).copied())
-            .ok_or_else(|| error("getter没有实际同块发布证明"))
+            .ok_or_else(|| {
+                if dest.is_some_and(|dest| self.pending.contains(&(function, dest))) {
+                    unsupported("getter尚无完整同块发布能力")
+                } else {
+                    error("getter没有实际同块发布证明")
+                }
+            })
     }
     pub fn private_slot(&self, slot: GlobalId) -> bool {
         self.slots.contains(&slot)
     }
 
+    fn opaque(
+        &self,
+        index: &Index<'_>,
+        function: FnId,
+        local: LocalId,
+        limitations: &mut Limitations,
+    ) -> Result<bool, Failure> {
+        if self.locals.contains(&(function, local)) {
+            return Ok(true);
+        }
+        if self.frontier.is_empty() {
+            return Ok(false);
+        }
+        Ok(limitations
+            .check(index.aliases(function, local, &self.frontier))?
+            .unwrap_or(false))
+    }
     // 复用既有穷尽Rvalue读操作数走查，不为opaque结果建立第二套数据流。
-    fn consumers(&self, program: &Program) -> Result<(), String> {
+    fn consumers(&self, index: &Index<'_>, limitations: &mut Limitations) -> Result<(), Failure> {
+        let program = index.program;
         use crate::passes::dead_values::{read_operand, read_value};
         for (function, definition) in program.functions.iter() {
             for (block_id, block) in definition.body.blocks.iter() {
                 for (position, statement) in block.stmts.iter().enumerate() {
-                    if matches!(statement, Statement::SetGlobal { dest, .. } if self.slots.contains(dest))
-                        && !self.allowed.contains(&(function, block_id, position))
-                    {
-                        return Err(error("私有槽存在未认证写入"));
+                    let pending_write = matches!(statement, Statement::SetGlobal { dest, .. }
+                        if self.slots.contains(dest) && !self.allowed.contains(&(function, block_id, position)));
+                    if pending_write && let Statement::SetGlobal { value, .. } = statement {
+                        limitations.check(index.pending_publication(
+                            (function, block_id, position),
+                            value,
+                            &self.pending,
+                        ))?;
                     }
                     let mut reads = FxHashSet::default();
                     let dest = match statement {
@@ -351,14 +516,39 @@ impl Defaults {
                         }
                         Statement::Line(_) => None,
                     };
-                    if reads
-                        .iter()
-                        .copied()
-                        .chain(dest)
-                        .any(|local| self.locals.contains_key(&(function, local)))
+                    let mut opaque = false;
+                    for local in reads.iter().copied().chain(dest) {
+                        opaque |= self.opaque(index, function, local, limitations)?;
+                    }
+                    if opaque
                         && !self.allowed.contains(&(function, block_id, position))
+                        && !pending_write
                     {
-                        return Err(error("不透明结果存在其它消费者或覆盖"));
+                        let deferred_alias = if let Statement::Assign {
+                            dest,
+                            value:
+                                Rvalue::Use(Operand::Local(input))
+                                | Rvalue::Box {
+                                    value: Operand::Local(input),
+                                    from: MirType::Dynamic,
+                                },
+                        } = statement
+                        {
+                            let deferred = limitations
+                                .check(index.aliases(function, *input, &self.frontier))?
+                                .unwrap_or(false);
+                            if deferred {
+                                index.unique(function, *dest)?;
+                            }
+                            deferred
+                        } else {
+                            false
+                        };
+                        if deferred_alias {
+                            limitations.note("FunctionDefaults合同：未证明输出链的后续纯别名");
+                        } else {
+                            return Err(error("不透明结果存在其它消费者或覆盖"));
+                        }
                     }
                 }
                 let mut reads = FxHashSet::default();
@@ -376,11 +566,10 @@ impl Defaults {
                     }
                     Terminator::Goto(_) | Terminator::Return(None) | Terminator::Unreachable => {}
                 }
-                if reads
-                    .iter()
-                    .any(|local| self.locals.contains_key(&(function, *local)))
-                {
-                    return Err(error("不透明结果从控制边/return/yield外逃"));
+                for local in reads {
+                    if self.opaque(index, function, local, limitations)? {
+                        return Err(error("不透明结果从控制边/return/yield外逃"));
+                    }
                 }
             }
         }

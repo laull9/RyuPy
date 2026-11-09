@@ -251,7 +251,9 @@ class ContractTests(unittest.TestCase):
             runner.native, runner.oracle = native, self.reference
             runner.config = {'pic_modes': ['1', '0']}
             runner.tools = {'cli': root / 'not-executed'}
+            calls = []
             def fake_command(stage, label, argv, expected, timeout, pic=None):
+                calls.append(label)
                 if label != 'compile':
                     raise ValueError('合成的目标退出失败，未启动任何子进程')
                 output = Path(argv[argv.index('--out-dir') + 1])
@@ -259,12 +261,13 @@ class ContractTests(unittest.TestCase):
                 dist.mkdir(parents=True)
                 (dist / 'entry').write_bytes(b'\x7fELFsynthetic')
                 (dist / 'ryupy-artifact.json').write_text('{}')
-                return {}, b'', b''
+                return {}, b'', ''.join('[ryupy-stage] event=' + event + ' stage=' + name + ' module="__main__"\n' for name in ('trace-v1-prepare', 'trace-v1-lower') for event in ('begin', 'end')).encode()
             runner.command = fake_command
             runner.publish_inputs = lambda *args: root / 'not-executed.dll'
             runner.decode = lambda *args: None
-            with self.assertRaises(ValueError):
+            with self.assertRaisesRegex(ValueError, '合成的目标退出失败，未启动任何子进程'):
                 runner.stage(c.CASES[0], 'native')
+            self.assertEqual(calls, ['compile', 'run-pic-1'])
             evidence = runner.out / (c.CASES[0] + '-native')
             self.assertTrue((evidence / 'native-dist.tar.gz').is_file())
             self.assertEqual(json.loads((evidence / 'dist-identity.json').read_text())['phase'], 'before-native-execution')

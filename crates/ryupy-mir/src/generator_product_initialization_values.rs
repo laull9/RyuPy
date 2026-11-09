@@ -7,7 +7,8 @@ impl Initialization {
         context: &Context<'_>,
         published: &FxHashMap<GlobalId, usize>,
         producer_sites: &FxHashSet<Point>,
-    ) -> Result<(), String> {
+    ) -> Result<(), Failure> {
+        let mut limitations = Limitations::default();
         let name = self
             .roles
             .iter()
@@ -19,71 +20,119 @@ impl Initialization {
             for (block_id, block) in function.body.blocks.iter() {
                 for (position, statement) in block.stmts.iter().enumerate() {
                     let point = (block_id, position);
-                    let value = match statement {
-                        Statement::Assign { value, .. } | Statement::Eval(value) => Some(value),
-                        Statement::SetGlobal { value, .. } => {
-                            self.read(context, published, function_id, point, value)?;
-                            None
-                        }
-                        Statement::SetField { obj, value, .. } => {
-                            self.read(context, published, function_id, point, obj)?;
-                            self.read(context, published, function_id, point, value)?;
-                            None
-                        }
-                        Statement::Line(_) => None,
-                    };
-                    if let Some(value) = value {
-                        if matches!(value, Rvalue::Call { callee: Callee::Fn(id), .. }
-                            | Rvalue::MakeFunction { func: id, .. } if *id == self.entry)
-                        {
-                            return Err(error("程序内部调用或包装初始化入口"));
-                        }
-                        if let Rvalue::Call {
-                            callee: Callee::Runtime(runtime),
-                            args,
-                        } = value
-                        {
-                            match runtime {
-                                RuntimeFn::MakeClass => {
-                                    context.after(
-                                        function_id,
-                                        self.entry,
-                                        point,
-                                        published[&name],
-                                    )?;
-                                }
-                                RuntimeFn::FunctionModule => {
-                                    let [_, module] = args.as_slice() else {
-                                        return Err(error("FunctionModule冻结实参错误"));
-                                    };
-                                    if function_id != self.entry
-                                        || context.frozen_name(module, point)? != name
-                                    {
-                                        return Err(error(
-                                            "FunctionModule不是实际已发布name的冻结值",
-                                        ));
-                                    }
-                                }
-                                RuntimeFn::ModuleFile | RuntimeFn::ModuleMetadata
-                                    if function_id != self.entry
-                                        || !producer_sites.contains(&point) =>
-                                {
-                                    return Err(error("未认证的file/metadata初值消费者"));
-                                }
-                                RuntimeFn::ModuleExecutionSource
-                                    if function_id != self.entry
-                                        || block_id != context.body.entry
-                                        || position >= *published.values().min().unwrap() =>
-                                {
-                                    return Err(error("额外模块Source初始化"));
-                                }
-                                _ => {}
+                    let checked = (|| -> Result<(), Failure> {
+                        let mut operand_limits = Limitations::default();
+                        let value = match statement {
+                            Statement::Assign { value, .. } | Statement::Eval(value) => Some(value),
+                            Statement::SetGlobal { value, .. } => {
+                                operand_limits.check(self.read(
+                                    context,
+                                    published,
+                                    function_id,
+                                    point,
+                                    value,
+                                ))?;
+                                None
+                            }
+                            Statement::SetField { obj, value, .. } => {
+                                operand_limits.check(self.read(
+                                    context,
+                                    published,
+                                    function_id,
+                                    point,
+                                    obj,
+                                ))?;
+                                operand_limits.check(self.read(
+                                    context,
+                                    published,
+                                    function_id,
+                                    point,
+                                    value,
+                                ))?;
+                                None
+                            }
+                            Statement::Line(_) => None,
+                        };
+                        if function_id == self.entry && !context.transfers.contains(&point) {
+                            let mut reads = FxHashSet::default();
+                            if let Some(value) = value {
+                                crate::passes::dead_values::read_value(value, &mut reads);
+                            }
+                            if reads.iter().any(|local| context.private.contains(local)) {
+                                return Err(error("前言producer局部向已核store之外外逃").into());
                             }
                         }
-                        for operand in operands(value)? {
-                            self.read(context, published, function_id, point, operand)?;
+                        if let Some(value) = value {
+                            if matches!(value, Rvalue::Call { callee: Callee::Fn(id), .. }
+                            | Rvalue::MakeFunction { func: id, .. } if *id == self.entry)
+                            {
+                                return Err(error("程序内部调用或包装初始化入口").into());
+                            }
+                            if let Rvalue::Call {
+                                callee: Callee::Runtime(runtime),
+                                args,
+                            } = value
+                            {
+                                let runtime_check = (|| -> Result<(), Failure> {
+                                    match runtime {
+                                        RuntimeFn::MakeClass => {
+                                            context.after(
+                                                function_id,
+                                                self.entry,
+                                                point,
+                                                published[&name],
+                                            )?;
+                                        }
+                                        RuntimeFn::FunctionModule => {
+                                            let [_, module] = args.as_slice() else {
+                                                return Err(
+                                                    error("FunctionModule冻结实参错误").into()
+                                                );
+                                            };
+                                            if function_id != self.entry
+                                                || context.frozen_name(module, point)? != name
+                                            {
+                                                return Err(error(
+                                                    "FunctionModule不是实际已发布name的冻结值",
+                                                )
+                                                .into());
+                                            }
+                                        }
+                                        RuntimeFn::ModuleFile | RuntimeFn::ModuleMetadata
+                                            if function_id != self.entry
+                                                || !producer_sites.contains(&point) =>
+                                        {
+                                            return Err(Failure::unsupported(error(
+                                                "未认证的file/metadata初值消费者",
+                                            )));
+                                        }
+                                        RuntimeFn::ModuleExecutionSource
+                                            if function_id != self.entry
+                                                || block_id != context.body.entry
+                                                || position
+                                                    >= *published.values().min().unwrap() =>
+                                        {
+                                            return Err(error("额外模块Source初始化").into());
+                                        }
+                                        _ => {}
+                                    }
+                                    Ok(())
+                                })();
+                                operand_limits.check(runtime_check)?;
+                            }
+                            for operand in operands(value) {
+                                operand_limits.check(self.read(
+                                    context,
+                                    published,
+                                    function_id,
+                                    point,
+                                    operand,
+                                ))?;
+                            }
                         }
-                    }
+                        operand_limits.finish()
+                    })();
+                    limitations.check(checked)?;
                 }
                 let point = (block_id, block.stmts.len());
                 let values: Vec<_> = match &block.terminator {
@@ -94,11 +143,11 @@ impl Initialization {
                     _ => vec![],
                 };
                 for value in values {
-                    self.read(context, published, function_id, point, value)?;
+                    limitations.check(self.read(context, published, function_id, point, value))?;
                 }
             }
         }
-        Ok(())
+        limitations.finish()
     }
 
     fn read(
@@ -108,8 +157,9 @@ impl Initialization {
         function: FnId,
         point: Point,
         value: &Operand,
-    ) -> Result<(), String> {
+    ) -> Result<(), Failure> {
         // 只遍历实际操作数；不用递归栈承受手造的深数组，也不赋予Array新能力。
+        let mut limitations = Limitations::default();
         let mut pending = vec![value];
         while let Some(value) = pending.pop() {
             match value {
@@ -119,20 +169,25 @@ impl Initialization {
                         && context.private.contains(local)
                         && !context.transfers.contains(&point) =>
                 {
-                    return Err(error("前言producer局部向已核store之外外逃"));
+                    return Err(error("前言producer局部向已核store之外外逃").into());
                 }
                 Operand::Global(slot) => {
                     if let Some(role) = self.roles.iter().find(|r| r.export.value == *slot) {
-                        context.after(function, self.entry, point, published[slot])?;
+                        limitations.check(context.after(
+                            function,
+                            self.entry,
+                            point,
+                            published[slot],
+                        ))?;
                         if !matches!(role.export.name.as_str(), "__name__" | "__package__") {
-                            return Err(error("opaque file/metadata初值不能作为用户读取能力"));
+                            limitations.note(error("opaque file/metadata初值不能作为用户读取能力"));
                         }
                     }
                 }
                 _ => {}
             }
         }
-        Ok(())
+        limitations.finish()
     }
 }
 
@@ -143,6 +198,7 @@ pub(super) struct Context<'a> {
     pub(super) definitions: &'a FxHashMap<LocalId, Vec<Point>>,
     pub(super) private: FxHashSet<LocalId>,
     pub(super) transfers: FxHashSet<Point>,
+    pub(super) pending_chains: Vec<(Operand, Point)>,
 }
 impl<'a> Context<'a> {
     fn before(&self, left: Point, right: Point) -> bool {
@@ -157,22 +213,27 @@ impl<'a> Context<'a> {
         entry: FnId,
         point: Point,
         publish: usize,
-    ) -> Result<(), String> {
-        if function != entry || !self.before((self.body.entry, publish), point) {
-            Err(error("真实读取/冻结/MakeClass早于发布或绕过entry"))
-        } else {
-            Ok(())
+    ) -> Result<(), Failure> {
+        if function != entry {
+            return Err(Failure::unsupported(error("函数内读取时序尚未认证")));
         }
+        if point.0 == self.body.entry && point.1 <= publish {
+            return Err(error("真实读取/冻结/MakeClass早于发布或绕过entry").into());
+        }
+        if !self.before((self.body.entry, publish), point) {
+            return Err(Failure::unsupported(error("读取点不在已认证模块直链")));
+        }
+        Ok(())
     }
-    fn definition(&self, local: LocalId, before: Point) -> Result<(Point, &'a Rvalue), String> {
+    fn definition(&self, local: LocalId, before: Point) -> Result<(Point, &'a Rvalue), Failure> {
         let Some([site]) = self.definitions.get(&local).map(Vec::as_slice) else {
-            return Err(error("冻结/producer局部被覆盖或缺定义"));
+            return Err(error("冻结/producer局部被覆盖或缺定义").into());
         };
         if !self.before(*site, before) {
-            return Err(error("冻结/producer定义晚于使用或不可达"));
+            return Err(error("冻结/producer定义晚于使用或不可达").into());
         }
         let Statement::Assign { value, .. } = &self.body.blocks[site.0].stmts[site.1] else {
-            return Err(error("缺少真实局部赋值"));
+            return Err(error("缺少真实局部赋值").into());
         };
         let declared = crate::validate::local_decl(&self.body.locals, local)
             .ok_or_else(|| error("实际LocalId不存在"))?;
@@ -183,7 +244,7 @@ impl<'a> Context<'a> {
                 if crate::validate::operand_type(self.program, module, value).as_ref() != Some(from)
                     || !matches!(from, MirType::Str | MirType::Dynamic)
                 {
-                    return Err(error("前言Box不是保全引用/字符串"));
+                    return Err(error("前言Box不是保全引用/字符串").into());
                 }
                 Some(MirType::Dynamic)
             }
@@ -198,23 +259,23 @@ impl<'a> Context<'a> {
             _ => None,
         };
         if ty.as_ref() != Some(&declared.ty) {
-            return Err(error("前言真实局部类型不符"));
+            return Err(error("前言真实局部类型不符").into());
         }
         Ok((*site, value))
     }
     pub(super) fn initial(
-        &self,
+        &mut self,
         mut value: &'a Operand,
         mut before: Point,
         sites: &mut FxHashSet<Point>,
-    ) -> Result<Initial, String> {
+    ) -> Result<Initial, Failure> {
         for _ in 0..128 {
             match value {
                 Operand::Const(Constant::Str(text)) => return Ok(Initial::Text(text.clone())),
                 Operand::Local(local) => {
                     let (site, definition) = self.definition(*local, before)?;
                     if site.0 != self.body.entry {
-                        return Err(error("发布producer不在entry同块"));
+                        return Err(error("发布producer不在entry同块").into());
                     }
                     sites.insert(site);
                     before = site;
@@ -235,7 +296,7 @@ impl<'a> Context<'a> {
                                 Operand::Const(Constant::Str(key)),
                             ] = args.as_slice()
                             else {
-                                return Err(error("metadata实际module/key错误"));
+                                return Err(error("metadata实际module/key错误").into());
                             };
                             if module != "__main__"
                                 || !matches!(
@@ -243,19 +304,53 @@ impl<'a> Context<'a> {
                                     "__spec__" | "__loader__" | "__cached__" | "__path__"
                                 )
                             {
-                                return Err(error("metadata实际module/key错误"));
+                                return Err(error("metadata实际module/key错误").into());
                             }
                             return Ok(Initial::Metadata(key.clone()));
                         }
-                        _ => return Err(error("角色发布producer/helper/key/常量不符")),
+                        _ => return Err(error("角色发布producer/helper/key/常量不符").into()),
                     }
                 }
-                _ => return Err(error("角色发布producer/helper/key/常量不符")),
+                _ => return Err(error("角色发布producer/helper/key/常量不符").into()),
             }
         }
-        Err(error("初始化局部链超过128上界"))
+        self.pending_chains.push((value.clone(), before));
+        Err(Failure::unsupported(error("初始化局部链超过128上界")))
     }
-    fn frozen_name(&self, mut value: &'a Operand, mut before: Point) -> Result<GlobalId, String> {
+    // 只定位已截断真实初始化链的未核纯producer；不继续求Initial，也不认证发布值。
+    // 每个真实frontier至多128个定义，独立reset/effect仍由inspect的同一次前言走查检查。
+    pub(super) fn pending_site(&self, site: Point) -> Result<bool, Failure> {
+        let mut limitations = Limitations::default();
+        for (root, root_before) in &self.pending_chains {
+            let mut value = root;
+            let mut before = *root_before;
+            let mut exhausted = true;
+            for _ in 0..128 {
+                let Operand::Local(local) = value else {
+                    exhausted = false;
+                    break;
+                };
+                let (at, definition) = self.definition(*local, before)?;
+                if at == site {
+                    return Ok(true);
+                }
+                before = at;
+                match definition {
+                    Rvalue::Use(input) | Rvalue::Box { value: input, .. } => value = input,
+                    _ => {
+                        exhausted = false;
+                        break;
+                    }
+                }
+            }
+            if exhausted {
+                limitations.note(error("未核初始化链身份定位超过128上界"));
+            }
+        }
+        limitations.finish()?;
+        Ok(false)
+    }
+    fn frozen_name(&self, mut value: &'a Operand, mut before: Point) -> Result<GlobalId, Failure> {
         for _ in 0..128 {
             match value {
                 Operand::Global(slot) => return Ok(*slot),
@@ -264,29 +359,61 @@ impl<'a> Context<'a> {
                     before = site;
                     match definition {
                         Rvalue::Use(input) | Rvalue::Box { value: input, .. } => value = input,
-                        _ => return Err(error("FunctionModule冻结不是实际name读取")),
+                        _ => return Err(error("FunctionModule冻结不是实际name读取").into()),
                     }
                 }
-                _ => return Err(error("FunctionModule冻结不是实际name读取")),
+                _ => return Err(error("FunctionModule冻结不是实际name读取").into()),
             }
         }
-        Err(error("FunctionModule冻结链超过128上界"))
+        Err(Failure::unsupported(error(
+            "FunctionModule冻结链超过128上界",
+        )))
     }
 }
 
-fn operands(value: &Rvalue) -> Result<Vec<&Operand>, String> {
-    Ok(match value {
-        Rvalue::Use(value) | Rvalue::Box { value, .. } | Rvalue::Unbox { value, .. } => vec![value],
-        Rvalue::Binary { lhs, rhs, .. } => vec![lhs, rhs],
-        Rvalue::Call { args, .. } => args.iter().collect(),
+// 穷尽读取实际操作数；合法但未迁入的Rvalue由high能力检查拒绝，不能遮后续发布前读取。
+fn operands(value: &Rvalue) -> Vec<&Operand> {
+    match value {
+        Rvalue::Use(value)
+        | Rvalue::Box { value, .. }
+        | Rvalue::Unbox { value, .. }
+        | Rvalue::GeneratorDelegateStep { delegate: value }
+        | Rvalue::GetField { obj: value, .. }
+        | Rvalue::VectorLaneF64 { value, .. }
+        | Rvalue::IsBoxedF64 { value }
+        | Rvalue::UnboxExactF64 { value }
+        | Rvalue::IsBoxedI64 { value }
+        | Rvalue::UnboxExactI64 { value }
+        | Rvalue::DynTruthy { value }
+        | Rvalue::Unary { operand: value, .. }
+        | Rvalue::Cast { operand: value, .. }
+        | Rvalue::DynUnary { operand: value, .. } => vec![value],
+        Rvalue::Binary { lhs, rhs, .. }
+        | Rvalue::VectorBinaryF64 { lhs, rhs, .. }
+        | Rvalue::DynBinary { lhs, rhs, .. }
+        | Rvalue::DynCompare { lhs, rhs, .. } => vec![lhs, rhs],
+        Rvalue::VectorPackF64 { low, high } => vec![low, high],
+        Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.iter().collect(),
+        Rvalue::CallWithArgs { prefix, args, .. } => prefix.iter().chain(args).collect(),
         Rvalue::DynCallValue { callee, args } => std::iter::once(callee).chain(args).collect(),
+        Rvalue::DynCallMethod {
+            captured,
+            obj,
+            args,
+            ..
+        } => captured
+            .iter()
+            .chain(std::iter::once(obj))
+            .chain(args)
+            .collect(),
         Rvalue::MakeFunction {
             env,
             defaults,
             instance_context,
             ..
         } => env.iter().chain(defaults).chain(instance_context).collect(),
-        Rvalue::CatchException => vec![],
-        _ => return Err(error("未认证的高层操作数结构")),
-    })
+        Rvalue::MakeGenerator { frame, origin, .. } => frame.iter().chain(origin).collect(),
+        Rvalue::InstanceZeroCall { callee, .. } => vec![callee],
+        Rvalue::CatchException | Rvalue::IsVector128Supported => vec![],
+    }
 }

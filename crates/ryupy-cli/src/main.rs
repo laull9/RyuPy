@@ -11,7 +11,7 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
-    /// 受控生成器trace V1：仅闭合单源码产品，域外整产物编译拒绝（默认关闭）
+    /// 强制有限trace V1：域外整产物编译拒绝；普通build/run无flag自动检查有限域
     #[arg(long, global = true)]
     trace_product_v1: bool,
     /// 显式启用已发现源码模块的真实实例全局；不会自动包含模块（可重复）
@@ -150,6 +150,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             search_paths,
             include_modules,
         } => {
+            sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
             let out_dir = out_dir.unwrap_or_else(|| {
@@ -193,6 +194,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             search_paths,
             include_modules,
         } => {
+            sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
             let out_dir = default_out_dir(&input);

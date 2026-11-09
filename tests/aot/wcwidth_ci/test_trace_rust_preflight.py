@@ -11,13 +11,15 @@ import prepare
 
 
 def universe(group):
+    if group in gate.DRIVER_GROUPS:
+        return gate.expected_names(group) | {"other_driver_test"}
     if group not in gate.MIR_MODULES:
         return gate.expected_names(group)
     return set().union(*(gate.expected_names(name) for name in gate.MIR_MODULES), {"other::test"})
 
 
-def listing():
-    names = universe("domain")
+def listing(group="domain"):
+    names = universe(group)
     return "\n".join(f"{name}: test" for name in sorted(names)) + f"\n{len(names)} tests, 0 benchmarks\n"
 
 
@@ -31,7 +33,8 @@ def output(group):
 
 
 def outputs():
-    return {"mir-list": listing(), **{group: output(group) for group in gate.EXPECTED}}
+    return {"mir-list": listing(), **{group: output(group) for group in gate.EXPECTED},
+            **{group + "-list": listing(group) for group in gate.DRIVER_GROUPS}}
 
 
 class Preflight(unittest.TestCase):
@@ -72,7 +75,7 @@ class Preflight(unittest.TestCase):
         self.assertFalse(gate.aggregate(codes, dict(evidence, domain=""))["success"])
         self.assertFalse(gate.aggregate(codes, dict(evidence, **{"git-status": " M file.rs\n"}))["success"])
 
-    def test_fmt_failure_still_compiles_and_runs_both_groups(self):
+    def test_fmt_failure_skips_all_expensive_work_and_keeps_exact_failure(self):
         for check_exit in (0, 1):
             with self.subTest(check_exit=check_exit), tempfile.TemporaryDirectory() as temporary:
                 directory = Path(temporary) / "evidence"
@@ -80,20 +83,21 @@ class Preflight(unittest.TestCase):
 
                 def fake_capture(out, label, argv, cwd, timeout=900):
                     called.append(label)
-                    text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                    text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else listing(label.removesuffix("-list")) if label.removesuffix("-list") in gate.DRIVER_GROUPS and label.endswith("-list") else ""
                     if label in ("git-head", "git-head-after"):
                         text = "fixed-head\n"
+                    if label in ("git-tree", "git-tree-after"):
+                        text = "fixed-tree\n"
                     (out / f"{label}.stdout").write_text(text)
                     return 1 if label == "fmt" else check_exit if label == "check" else 0
 
                 with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head"}), patch("builtins.print"):
                     self.assertEqual(gate.main(), 1)
-                self.assertLess(called.index("fmt"), called.index("check"))
-                self.assertEqual("domain" in called, check_exit == 0)
-                self.assertEqual("lowering" in called, check_exit == 0)
-                self.assertEqual("frame" in called, check_exit == 0)
-                self.assertIn("guard-default", called)
-                self.assertIn("guard-pilot", called)
+                self.assertIn("fmt", called)
+                for label in ("check", "mir-list", *gate.MIR_MODULES, "check-guard-default", "check-guard-pilot", "guard-default", "guard-pilot"):
+                    self.assertNotIn(label, called)
+                    self.assertTrue((directory / (label + ".skipped.json")).is_file())
+                self.assertIn("git-head-after", called)
                 report = json.loads((directory / "result.json").read_text())
                 self.assertIn("fmt", report["failures"])
                 if check_exit:
@@ -171,9 +175,11 @@ class Preflight(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary) / "evidence"
             def fake_capture(out, label, argv, cwd, timeout=900):
-                text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else listing(label.removesuffix("-list")) if label.removesuffix("-list") in gate.DRIVER_GROUPS and label.endswith("-list") else ""
                 if label in ("git-head", "git-head-after"):
                     text = "fixed-head\n"
+                if label in ("git-tree", "git-tree-after"):
+                    text = "fixed-tree\n"
                 (out / f"{label}.stdout").write_text(text)
                 return 0
             with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head", "RYUPY_FRAME_OBSERVATION": "unexpected"}), patch("builtins.print"):
@@ -191,9 +197,11 @@ class Preflight(unittest.TestCase):
 
             def fake_capture(out, label, argv, cwd, timeout=900):
                 calls[label] = argv
-                text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else listing(label.removesuffix("-list")) if label.removesuffix("-list") in gate.DRIVER_GROUPS and label.endswith("-list") else ""
                 if label in ("git-head", "git-head-after"):
                     text = "fixed-head\n"
+                if label in ("git-tree", "git-tree-after"):
+                    text = "fixed-tree\n"
                 (out / f"{label}.stdout").write_text(text)
                 return 1 if label == "check-guard-default" else 0
 
@@ -231,12 +239,18 @@ class Preflight(unittest.TestCase):
             "product-edges": ("generator_product_edges_tests.rs", 6),
             "product-defaults": ("generator_product_defaults_tests.rs", 7),
             "product-initialization": ("generator_product_initialization_tests.rs", 8),
+            "product-selection": ("generator_product_selection_tests.rs", 25),
         }
         self.assertEqual(set(files), set(gate.PRODUCT_GROUPS))
-        self.assertEqual(sum(count for _, count in files.values()), 39)
+        self.assertEqual(sum(count for _, count in files.values()), 64)
         for group, (filename, count) in files.items():
             source = (gate.ROOT / "crates/ryupy-mir/src" / filename).read_text()
             names = gate.re.findall(r"#\[test\]\s*fn (\w+)\(", source)
+            if group == "product-selection":
+                for suffix in ["limits", "roots", "arguments"]:
+                    extra = (gate.ROOT / f"crates/ryupy-mir/src/generator_product_selection_{suffix}_tests.rs").read_text()
+                    names += [suffix + "::" + name for name in gate.re.findall(r"#\[test\]\s*fn (\w+)\(", extra)]
+                    self.assertNotIn("#[ignore", extra)
             self.assertEqual(len(names), count)
             self.assertEqual(set(names), set(gate.EXPECTED[group]))
             self.assertNotIn("#[ignore", source)
@@ -263,12 +277,14 @@ class Preflight(unittest.TestCase):
                 calls = {}
                 def fake_capture(out, label, argv, cwd, timeout=900):
                     calls[label] = argv
-                    text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else ""
+                    text = output(label) if label in gate.EXPECTED else listing() if label == "mir-list" else listing(label.removesuffix("-list")) if label.removesuffix("-list") in gate.DRIVER_GROUPS and label.endswith("-list") else ""
                     if label == "mir-list" and bad_list:
                         names = universe("domain") - {next(iter(gate.expected_names("product-edges")))}
                         text = "\n".join(f"{name}: test" for name in sorted(names)) + f"\n{len(names)} tests, 0 benchmarks\n"
                     if label in ("git-head", "git-head-after"):
                         text = "fixed-head\n"
+                    if label in ("git-tree", "git-tree-after"):
+                        text = "fixed-tree\n"
                     (out / f"{label}.stdout").write_text(text)
                     return 0
                 with patch.object(gate, "verify_tools"), patch.object(gate, "OUTPUT", directory), patch.object(gate, "capture", fake_capture), patch.dict(gate.os.environ, {"GITHUB_SHA": "fixed-head"}), patch("builtins.print"):
@@ -281,6 +297,32 @@ class Preflight(unittest.TestCase):
                         self.assertIn(gate.MIR_MODULES[group] + "::", calls[group])
                         self.assertNotIn("--ignored", calls[group])
                 self.assertIn("git-head-after", calls)
+
+    def test_driver_selection_inventory_is_exact_in_both_modes(self):
+        source = (gate.ROOT / "crates/ryupy-driver/src/generator_default_tests.rs").read_text()
+        names = {"generator_default_tests::" + name for name in gate.re.findall(r"#\[test\]\s*fn (\w+)\(", source)}
+        self.assertEqual(len(names), 4)
+        for group in gate.DRIVER_GROUPS:
+            self.assertEqual(gate.expected_names(group), names)
+            self.assertIn(group + "-check", gate.REQUIRED)
+            self.assertIn(group + "-list", gate.REQUIRED)
+            report = gate.aggregate(dict.fromkeys(gate.REQUIRED, 0), dict(outputs(), **{group + "-list": ""}))
+            self.assertFalse(report["success"])
+
+    def test_initial_tool_identity_failure_never_starts_rust_and_is_recorded(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "evidence"
+            calls = []
+            def fake_capture(out, label, argv, cwd, timeout=900):
+                calls.append(label)
+                (out / (label + ".stdout")).write_text("")
+                return 0
+            with patch.object(gate, "OUTPUT", directory), patch.object(gate, "verify_tools", side_effect=RuntimeError("wrong fixed tool")), patch.object(gate, "capture", fake_capture), patch("builtins.print"):
+                self.assertEqual(gate.main(), 1)
+            self.assertTrue(all(label.startswith("git-") for label in calls))
+            self.assertTrue((directory / "tool-identity-error.json").is_file())
+            self.assertTrue((directory / "check.skipped.json").is_file())
+            self.assertTrue((directory / "selection-pilot.skipped.json").is_file())
 
     def test_total_budget_skips_work_but_keeps_final_identity(self):
         with tempfile.TemporaryDirectory() as temporary:

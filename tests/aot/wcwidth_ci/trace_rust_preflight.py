@@ -1,4 +1,4 @@
-"""S3候选的hosted Rust前置：保留首次原流，格式失败不阻止获取编译反馈。"""
+"""S3候选的hosted Rust前置：保留首次原流，基础身份/格式失败即精确跳过昂贵编译，不把skip当通过。"""
 import hashlib
 import json
 import os
@@ -107,6 +107,7 @@ EXPECTED = {
         "lowering_seal_preserves_all_non_generators_and_global_export_premises",
         "linked_registration_capability_and_real_maps_are_checked_before_certification",
     ],
+    "product-selection": ["unused_bottom_identity_is_uncovered_not_corrupt_and_preparation_consumes_once", "bottom_helper_never_masks_independent_missing_initialization", "unknown_helper_does_not_mask_token_owner_or_private_slot_in_either_order", "missing_origin_mapping_is_typed_error_not_index_panic", "defaults_exact_127_128_129_span_and_real_missing_duplicate_publications", "unsupported_signature_still_checks_owner_and_required_parameter_mapping", "initialization_127_128_129_steps_never_hide_missing_or_duplicate_roles", "unknown_cold_step_does_not_mask_an_opaque_defaults_escape", "incomplete_facts_are_not_partially_credited_to_high", "limits::unknown_definition_preserves_known_bad_token_through_alias_in_either_order", "limits::one_pending_defaults_chain_cannot_hide_another_proved_chain_alias_escape", "limits::thirty_two_and_thirty_three_known_token_values_never_hide_behind_budget", "limits::actual_defaults_frontier_aliases_keep_eval_and_return_escape_hard", "limits::uncovered_summary_never_masks_other_token_or_missing_mapping", "limits::long_initialization_chain_never_masks_fake_reset_or_extra_effect", "limits::thirty_third_known_argument_contradiction_is_checked_before_storage_cap", "limits::unknown_only_tokens_through_zero_one_or_many_aliases_stay_unproved", "roots::optional_property_slot_is_not_a_publication_or_read_capability", "roots::captured_def_effects_cannot_be_removed_by_high_passes", "roots::calls_before_later_definitions_remain_out_of_domain", "roots::known_receiver_requires_publication_beyond_output_budget", "arguments::completed_arguments_keep_every_slot_and_missing_is_an_internal_error", "arguments::runtime_empty_and_unknown_targets_preserve_existing_bottom_contract", "arguments::empty_runtime_argument_never_masks_a_later_known_protocol_error", "arguments::function_calls_keep_empty_inputs_unproved_and_check_later_arguments"],
     "guard-default": ["bounded_dynamic_except_regions_and_identity_flow"],
     "guard-pilot": ["bounded_dynamic_except_regions_and_identity_flow"],
 }
@@ -151,12 +152,18 @@ MIR_MODULES = {
     "product-edges": "generator_product_edges::tests",
     "product-defaults": "generator_product_defaults_tests",
     "product-initialization": "generator_product_initialization_tests",
+    "product-selection": "generator_product_selection_tests",
 }
-PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges", "product-defaults", "product-initialization")
+DRIVER_GROUPS = ("selection-default", "selection-pilot")
+for group in DRIVER_GROUPS:
+    EXPECTED[group] = ['generator_default_tests::explicit_standalone_selects_actual_proof_and_reuse_never_retains_old_selection', 'generator_default_tests::no_demand_and_legal_outside_sources_keep_legacy_without_new_diagnostics', 'generator_default_tests::require_v1_is_not_auto_and_dump_never_inherits_standalone_auto', 'generator_default_tests::actual_graph_boundary_cannot_be_overridden_by_standalone_intent']
+
+PRODUCT_GROUPS = ("product", "product-structure", "product-edge-witness", "product-edges", "product-defaults", "product-initialization", "product-selection")
 REQUIRED = {
     "cargo-version", "rustc-version", "rustfmt-version", "git-head", "git-tree", "git-status",
     "git-head-after", "git-tree-after", "git-status-after", "fmt", "check", "mir-list",
     "check-guard-default", "check-guard-pilot", *EXPECTED,
+    *(group + "-check" for group in DRIVER_GROUPS), *(group + "-list" for group in DRIVER_GROUPS),
 }
 WORK_BUDGET_SECONDS = 1800
 EXPERIMENTAL = {
@@ -220,7 +227,7 @@ def aggregate(codes, outputs):
     if available is None:
         failures.append("mir-list: incomplete test list")
     for group in EXPECTED:
-        universe = available if group in MIR_MODULES else expected_names(group)
+        universe = listed_tests(outputs.get(group + "-list", "")) if group in DRIVER_GROUPS else available if group in MIR_MODULES else expected_names(group)
         if codes.get(group) == 0 and not tests_complete(outputs.get(group, ""), group, universe):
             failures.append(f"{group}: incomplete test identities/counts")
     # checkout必须是实际提交；脏工作树不允许冒充该git identity的受测源码。
@@ -254,7 +261,12 @@ def main():
     (OUTPUT / "hosted.json").write_text(json.dumps({
         key: os.environ.get(key) for key in ("GITHUB_SHA", "GITHUB_REF", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT", "RUNNER_OS")
     }, indent=2) + "\n")
-    verify_tools(OUTPUT)
+    tool_error = None
+    try:
+        verify_tools(OUTPUT)
+    except Exception as error:
+        tool_error = str(error)
+        (OUTPUT / "tool-identity-error.json").write_text(json.dumps({"error": tool_error}) + "\n")
     codes = {}
     deadline = time.monotonic() + WORK_BUDGET_SECONDS
     (OUTPUT / "budget.json").write_text(json.dumps({
@@ -279,12 +291,27 @@ def main():
         ("git-head", ["git", "rev-parse", "HEAD"]),
         ("git-tree", ["git", "rev-parse", "HEAD^{tree}"]),
         ("git-status", ["git", "status", "--porcelain", "--untracked-files=all"]),
-        ("fmt", ["cargo", "fmt", "--all", "--", "--check"]),
-        ("check", ["cargo", "check", "-p", "ryupy-mir", "--tests", "--locked"]),
     ]
     for label, argv in stages:
-        timeout = 900 if label == "check" else 180 if label == "fmt" else 60
-        run(label, argv, timeout)
+        if tool_error and label.endswith("-version"):
+            skip(label, "fixed tool identity failed")
+        else:
+            run(label, argv, 60)
+    def text(label):
+        path = OUTPUT / (label + ".stdout")
+        return path.read_text().strip() if path.is_file() else ""
+    identity_ok = (not tool_error and all(codes.get(label) == 0 for label, _ in stages)
+        and bool(text("git-tree")) and not text("git-status")
+        and bool(os.environ.get("GITHUB_SHA")) and text("git-head") == os.environ.get("GITHUB_SHA"))
+    if identity_ok:
+        run("fmt", ["cargo", "fmt", "--all", "--", "--check"], 180)
+    else:
+        skip("fmt", "fixed tool/source identity failed or unavailable")
+    ready = identity_ok and codes.get("fmt") == 0
+    if ready:
+        run("check", ["cargo", "check", "-p", "ryupy-mir", "--tests", "--locked"], 900)
+    else:
+        skip("check", "fixed tool/source identity or fmt failed; no compilation started")
     # 先真实枚举已编译library测试，精确核filtered；失败不能伪造成空清单成功。
     if codes["check"] == 0:
         run("mir-list", ["cargo", "test", "-p", "ryupy-mir", "--lib", "--locked", "--", "--list", "--color", "never"], 600)
@@ -308,12 +335,33 @@ def main():
         if group == "guard-pilot":
             options += ["--features", "ryupy-driver/ordinary-dynamic-module-pilot"]
         check = "check-" + group
+        if not ready:
+            skip(check, "fixed tool/source identity or fmt failed; no compilation started")
+            skip(group, "matching driver check skipped after prerequisite failure")
+            continue
         run(check, ["cargo", "check", *options], 600)
         if codes[check] == 0:
             run(group, ["cargo", "test", *options, EXPECTED[group][0], "--", "--exact",
                         "--color", "never", "--test-threads=1", "--show-output"], 600)
         else:
             skip(group, "matching driver check failed or budget exhausted")
+    # 独立driver库进程实际list后核精确4项，不靠全量check间接宣称覆盖Auto请求。
+    for group in DRIVER_GROUPS:
+        check, listing = group + "-check", group + "-list"
+        if not ready:
+            for label in (check, listing, group): skip(label, "fixed identity/fmt prerequisite failed")
+            continue
+        options = ["-p", "ryupy-driver", "--lib", "--locked", "--no-default-features"]
+        if group == "selection-pilot": options += ["--features", "ryupy-driver/ordinary-dynamic-module-pilot"]
+        run(check, ["cargo", "check", *options, "--tests"], 600)
+        if codes[check] != 0:
+            skip(listing, "driver library check failed"); skip(group, "driver library check failed"); continue
+        run(listing, ["cargo", "test", *options, "--", "--list", "--color", "never"], 600)
+        available = listed_tests(text(listing)) if codes.get(listing) == 0 else None
+        pattern = "generator_default_tests::"
+        if available is None or {name for name in available if pattern in name} != expected_names(group):
+            skip(group, "actual driver library list does not match exact four selection tests"); continue
+        run(group, ["cargo", "test", *options, pattern, "--", "--color", "never", "--test-threads=1", "--show-output"], 600)
     for label, argv in (
         ("git-head-after", ["git", "rev-parse", "HEAD"]),
         ("git-tree-after", ["git", "rev-parse", "HEAD^{tree}"]),
@@ -327,6 +375,9 @@ def main():
                    "reason": "one-shot-observation-closed"}
     (OUTPUT / "frame-observation-result.json").write_text(json.dumps(observation, indent=2) + "\n")
     report = aggregate(codes, outputs)
+    if tool_error or not identity_ok:
+        report["failures"].append("initial prerequisite identity failed: " + (tool_error or "source/version identity"))
+        report["success"] = False
     if unexpected:
         report["failures"].append("frame-observation: unexpected request after one-shot closure")
         report["success"] = False
