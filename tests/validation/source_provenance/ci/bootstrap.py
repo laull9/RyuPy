@@ -97,14 +97,25 @@ def verify_trx(path, expected, class_name):
     return dict(actual)
 
 
-def pe_review(parsed, role, case, expected_pe):
+def pe_review(parsed, role, case, expected_pe, *, location_mode='jit_files', expected_manifest_sha256=None):
     require(parsed['role'] == role and parsed['case_id'] == case and parsed['sha256'] == expected_pe, 'PE角色/输入不符')
     # 只能消费独立固定表全部关键链实际通过的结果，finite_checks绝不是自动授权。
     require(parsed.get('admitted') is True and parsed.get('pe_sha256') == expected_pe and
             parsed.get('unit_link_mapping_verified') is True and parsed.get('frame_carriers_verified') is True,
             '固定fixture实际来源/字段/origin关键链未通过')
-    return {key: parsed[key] for key in ('role', 'case_id', 'pe_sha256', 'admitted',
-            'unit_link_mapping_verified', 'frame_carriers_verified')}
+    keys = ['role', 'case_id', 'pe_sha256', 'admitted', 'unit_link_mapping_verified', 'frame_carriers_verified']
+    # 同名native_consumers也有正常JIT臂；位置域必须来自实际调用方，不能猜case名称。
+    require(location_mode in ('jit_files', 'native_consumers_aot') and
+            parsed.get('location_mode') == location_mode, 'PE位置审核域与调用方不符')
+    if location_mode == 'native_consumers_aot':
+        require(role == 'new' and case == 'native_consumers' and
+                isinstance(expected_manifest_sha256, str) and len(expected_manifest_sha256) == 64 and
+                all(c in '0123456789abcdef' for c in expected_manifest_sha256) and
+                parsed.get('native_manifest_sha256') == expected_manifest_sha256, 'Native缺固定位置域/同次manifest身份')
+        keys += ['location_mode', 'native_manifest_sha256']
+    else:
+        require(expected_manifest_sha256 is None and 'native_manifest_sha256' not in parsed, 'JIT不能携带Native manifest身份')
+    return {key: parsed[key] for key in keys}
 
 
 def dynamic_none(input_root, cp_root, jit_root):
@@ -151,7 +162,8 @@ def execute_jit(out, run, input_root, contract, toolset, env):
                         'Legacy负例不是实际精确编译拒绝，不得当正例跳过')
                 continue
             parsed = json.loads((build / 'logs' / (label + '-pe-read.stdout')).read_text())
-            save(reviews / (label + '.json'), pe_review(parsed, 'new', case['id'], product['pe']['sha256']))
+            save(reviews / (label + '.json'), pe_review(parsed, 'new', case['id'], product['pe']['sha256'],
+                 location_mode='jit_files'))
     run.run('jit-stage', common + ['--out', out / 'jit', '--role', 'new', '--phase', 'jit', '--tools', out / 'tools-new.json',
             '--oracle', oracle, '--build-evidence', build, '--pe-reviews', reviews], cwd=out, env=env, check=True, timeout=300)
     save(out / 'dynamic-none.json', dynamic_none(input_root, oracle, out / 'jit'))
@@ -175,7 +187,8 @@ def execute_native(out, run, input_root, toolset, env):
     parsed = json.loads((publish / 'logs/native-pe-read.stdout').read_text())
     published = json.loads((publish / 'publish.json').read_text())
     review = out / 'native-pe-review.json'
-    save(review, pe_review(parsed, 'new', 'native_consumers', published['managed_sha256']))
+    save(review, pe_review(parsed, 'new', 'native_consumers', published['managed_sha256'],
+         location_mode='native_consumers_aot', expected_manifest_sha256=published['manifest_sha256']))
     run.run('native-run', common + ['--out', out / 'run', '--phase', 'run', '--publish-evidence', publish,
             '--pe-review', review], cwd=out, env=env, check=True, timeout=150)
 

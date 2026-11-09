@@ -190,13 +190,84 @@ def getter_name(getter, fields, index, module_name, main):
             'comparison_offset': gc[compare]['offset'], 'next_branch_offset': target}
 
 
-def check(decoded, expectation, fixture_root, role):
+def native_locations(decoded, expectation, manifest):
+    """仅固定native_consumers审核域；manifest绑定同一PE，不能由缺文件自动进入。"""
+    fixed = json.loads(Path(__file__).with_name('fixed_expectations.json').read_text())['cases']['native_consumers']
+    need(decoded.get('case_id') == 'native_consumers' and expectation == fixed, 'Native只接受固定native_consumers预期')
+    need(isinstance(manifest, dict) and manifest.get('schema_version') == 2
+         and manifest.get('kind') == 'ryupy-native-aot-artifact', 'Native manifest类型/schema错误')
+    need(manifest.get('target') == {'architecture': 'x64', 'native_format': 'ELF', 'rid': 'linux-x64'}, 'Native目标不符')
+    for key, count in [('build_inputs', 2), ('modules', 3), ('sources', 3), ('module_locations', 2)]:
+        rows = manifest.get(key)
+        need(isinstance(rows, list) and len(rows) == count and all(isinstance(row, dict) for row in rows),
+             'Native manifest表缺失/类型/数量错误: ' + key)
+    inputs = manifest['build_inputs']
+    need({row.get('role') for row in inputs} == {'compiled_managed_input', 'runtime_managed_input'}, 'Native输入角色重复/缺失')
+    managed = unique([row for row in inputs if row['role'] == 'compiled_managed_input'], 'Native实际managed输入')
+    need(managed.get('relative_path') == 'managed-entry.dll' and managed.get('sha256') == decoded['sha256']
+         and isinstance(decoded['sha256'], str) and len(decoded['sha256']) == 64
+         and all(c in '0123456789abcdef' for c in decoded['sha256']), 'Native manifest与实际PE SHA不符')
+    need(type(managed.get('size')) is int and type(decoded.get('pe_bytes')) is int
+         and managed['size'] == decoded['pe_bytes'] > 0, 'Native manifest与实际PE字节数不符')
+    packages = ['', 'sp_pkg', 'sp_pkg']
+    logical = ['entry/entry.py', 'modules/sp_pkg/__init__.py', 'modules/sp_pkg/subject.py']
+    locations = [(0, ''), (2, '_internal/resources/v1/modules/sp_pkg/__init__.py'),
+                 (2, '_internal/resources/v1/modules/sp_pkg/subject.py')]
+    expected_sources, expected_locations = [], []
+    owner = 'RyuPy.Generated.Module'
+    for index, module in enumerate(fixed['modules']):
+        source = manifest['sources'][index]
+        row = manifest['modules'][index]
+        need(type(source.get('module_id')) is int and type(row.get('id')) is int, 'Native模块ID必须为整数')
+        expected_sources.append({'module_id': index, 'module_name': module['name'],
+            'package': packages[index], 'logical_source': logical[index], 'compiled_text_sha256': module['sha256']})
+        legacy = module['environment'] == 'LegacySingleton'
+        need(row.get('id') == index and row.get('name') == module['name']
+             and row.get('environment_reason') == ('aot-not-migrated' if legacy else 'explicit-instance'), 'Native模块映射/环境不符')
+        need(row.get('init') == {'owner': owner, 'name': f'm{index}___module_main',
+             'signature': 'static void ()' if legacy else 'static void ([System.Runtime]System.Object)'}, 'Native模块入口不符')
+        for access, signature in [('getter', 'static [System.Runtime]System.Object (string)'),
+                                  ('setter', 'static void ([RyuPy.Runtime]RyuPy.Runtime.PyModule, string, [System.Runtime]System.Object)')]:
+            expected = {'owner': owner, 'name': f'__mod_{"get" if access == "getter" else "set"}_{index}',
+                        'signature': signature} if legacy else None
+            need(access in row and row[access] == expected, 'Native模块accessor/环境不符')
+        if index:
+            expected_locations.append({'module_id': index, 'module_name': module['name'],
+                'kind': 'executable_relative', 'relative_file': locations[index][1]})
+    need(manifest['sources'] == expected_sources, 'Native sources映射/固定输入SHA不符')
+    need(all(type(row.get('module_id')) is int for row in manifest['module_locations'])
+         and manifest['module_locations'] == expected_locations, 'Native module_locations不是精确两处相对位置')
+    need(manifest.get('resources') == [] and isinstance(manifest.get('scope'), dict)
+         and manifest['scope'].get('resources_included') is False, 'Native空锚点不能携带源码资源')
+    return locations, packages
+
+
+def registration_location(part, module, native_location=None, package=None):
+    """从实际注册的连续literal/kind/path实参读取位置；JIT仍核存在的绝对源码及SHA。"""
+    positions = [j for j, item in enumerate(part) if item['opcode'] == '0x72'][-4:]
+    need(len(positions) == 4, '模块注册缺四个literal')
+    start = positions[0]
+    need(positions == [start, start+1, start+2, start+4], '模块注册位置参数不是连续literal/kind/path')
+    strings = [part[j]['string'] for j in positions]
+    kind = number(part[start+3])
+    need(strings[0] == module['name'] and strings[2] == module['file'], '模块注册literal不符')
+    if native_location is None:
+        path = Path(strings[3])
+        need(kind == 1 and path.is_absolute() and path.is_file()
+             and hashlib.sha256(path.read_bytes()).hexdigest() == module['sha256'], '实际JIT注册Kind1源路径/SHA不符')
+    else:
+        need((kind, strings[3]) == native_location and strings[1] == package, '实际Native注册kind/path/package不符')
+    return {'kind': kind, 'runtime_path': strings[3]}
+
+
+def check(decoded, expectation, fixture_root, role, *, native_manifest=None):
     modules, methods, init, bindings, evidence = locate(decoded, expectation, role)
     fields = decoded['fields']
     for module in modules:
         path = Path(fixture_root) / module['fixture']
         need(path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == module['sha256'], '固定fixture SHA不符')
     need(role == 'new', '旧定位仅为checker控制，不签准新source协议')
+    native = native_locations(decoded, expectation, native_manifest) if native_manifest is not None else None
     source_init = unique([m for m in methods.values() if m['method']['owner'] == 'RyuPy.Generated.Module'
                           and m['method']['name'] == '__init_code_sources'], 'source冷入口')
     instructions = code(init)
@@ -250,13 +321,11 @@ def check(decoded, expectation, fixture_root, role):
                 or runtime(ins, 'PyModules', 'RegisterInstanceSourceLocated')):
             continue
         part = instructions[previous:k]
-        strings = [x['string'] for x in part if x['opcode'] == '0x72'][-4:]
         index = len(register_evidence)
         need(index < len(modules), '额外真实模块注册')
         module = modules[index]
-        need(len(strings) == 4 and strings[0] == module['name'] and strings[2] == module['file'], '模块注册literal不符')
-        path = Path(strings[3])
-        need(path.is_file() and hashlib.sha256(path.read_bytes()).hexdigest() == module['sha256'], '实际注册源路径/SHA不符')
+        location = registration_location(part, module, native[0][index] if native else None,
+                                         native[1][index] if native else None)
         ptrs = [x['token'] for x in part if x['opcode'] == '0xfe06']
         legacy = module['environment'] == 'LegacySingleton'
         ptrs = ptrs[-3:] if legacy else ptrs[-1:]
@@ -278,7 +347,7 @@ def check(decoded, expectation, fixture_root, role):
         need(not any(runtime(x, 'PyTraceback', 'PushFrame') for x in mc), 'ModuleMain退旧帧')
         register_evidence.append({'unit': index, 'module': module['name'], 'source_field': source_tokens[index],
                                   'main': main['token'], 'getter': getters.get(index), 'marker_offset': mc[marker]['offset'],
-                                  'push_offset': mc[push]['offset']})
+                                  'push_offset': mc[push]['offset'], 'location': location})
         previous = k+1
     need(len(register_evidence) == len(modules), '模块注册覆盖不全')
     for field, binding in bindings.items():
@@ -304,6 +373,7 @@ def check(decoded, expectation, fixture_root, role):
              filename == ('string', modules[binding['key'][0]]['file']), 'Static own signature或Dynamic self帧错误')
         need(not any(runtime(x, 'PyTraceback', 'PushFrame') for x in ins), '普通函数退旧帧')
     return {'admitted': True, 'role': role, 'pe_sha256': decoded['sha256'],
+            'location_mode': 'native_consumers_aot' if native else 'jit_files',
             'unit_link_mapping_verified': True, 'frame_carriers_verified': True,
             'verification_scope': '固定fixture关键source/getter、词法signature→真实thunk/core、ModuleMain/Dynamic/Static origin操作数；非通用全IR或Runtime协议证明。',
             'modules': register_evidence, 'definitions': evidence,

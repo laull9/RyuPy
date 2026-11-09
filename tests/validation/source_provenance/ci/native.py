@@ -6,6 +6,16 @@ from pathlib import Path
 import sys
 
 
+def verify_pe_review(review, published):
+    """真实执行前最后一门：固定审核域与同次PE/manifest身份必须随证据完整传递。"""
+    if not (review.get('admitted') is True and review.get('pe_sha256') == published['managed_sha256']
+            and review.get('unit_link_mapping_verified') is True and review.get('frame_carriers_verified') is True
+            and review.get('role') == 'new' and review.get('case_id') == 'native_consumers'
+            and review.get('location_mode') == 'native_consumers_aot'
+            and review.get('native_manifest_sha256') == published['manifest_sha256']):
+        raise ValueError('必须先完成同PE/manifest的Native固定来源/producer审查')
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ('repo', 'input', 'out', 'tools', 'oracle'):
@@ -76,7 +86,8 @@ def main():
             require(not manifest['resources'] and not manifest['scope']['resources_included'], '空锚点不能偷偷携带源码资源')
             require(not any(p.suffix.lower() in ('.py', '.pyc', '.pyo') for p in layout.dist.rglob('*')), 'dist含Python源/字节码')
             parsed = run.run('native-pe-read', [sys.executable, args.input / 'ci/read_pe.py',
-                               layout.managed, 'new', 'native_consumers'], cwd=args.out, env=env, check=True, timeout=30)
+                               layout.managed, 'new', 'native_consumers', '--native-manifest',
+                               layout.dist / 'ryupy-artifact.json'], cwd=args.out, env=env, check=True, timeout=30)
             save(args.out / 'publish.json', {'managed': str(layout.managed), 'managed_sha256': sha(layout.managed),
                  'native': str(layout.native), 'native_sha256': sha(layout.native), 'dist': str(layout.dist),
                  'manifest_sha256': sha(layout.dist / 'ryupy-artifact.json'), 'image': image,
@@ -90,9 +101,7 @@ def main():
         require(published['contract_sha256'] == sha(args.input / 'contract.json') and published['source_head'] == tools['source_head'], '发布与当前输入/HEAD不符')
         require(sha(Path(published['managed'])) == published['managed_sha256'] and sha(native) == published['native_sha256'] and
                 sha(dist / 'ryupy-artifact.json') == published['manifest_sha256'], 'publish真实输入/交付漂移')
-        require(review['admitted'] is True and review['pe_sha256'] == published['managed_sha256'] and
-                review['unit_link_mapping_verified'] and review['frame_carriers_verified'] and review['role'] == 'new',
-                '必须先完成实际Native managed PE独立来源/producer审查')
+        verify_pe_review(review, published)
         image, before = published['image'], published['before']
         def positive(label, command, cwd):
             actual = run.run(label, command, cwd=cwd, env=env, timeout=30)

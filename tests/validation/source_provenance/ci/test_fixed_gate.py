@@ -10,17 +10,21 @@ import unittest
 HERE = Path(__file__).resolve().parent
 ROOT = None  # setUpClass临时模型输入；import不读改argv，也不依赖真实fixture根。
 G = runpy.run_path(str(HERE / 'fixed_gate.py'))
-EXPECT = json.loads((HERE / 'fixed_expectations.json').read_text())['cases']['td_dynamic']
+TABLE = json.loads((HERE / 'fixed_expectations.json').read_text())['cases']
+EXPECT = TABLE['td_dynamic']
+MODEL_PE_BYTES = b'synthetic-not-a-valid-pe'  # 仅wrapper mock输入，绝不能交真实解码器。
 
 
-def model(static=False, bound=False):
-    expectation = deepcopy(EXPECT)
-    for module in expectation['modules']:
+def model(static=False, bound=False, native=False):
+    expectation = deepcopy(TABLE['native_consumers'] if native else EXPECT)
+    for module in expectation['modules'] if not native else []:
         module['sha256'] = hashlib.sha256((ROOT/module['fixture']).read_bytes()).hexdigest()
     if static:
         definition = expectation['modules'][1]['definitions'][0]
         definition['mode'], definition['static_signature_hex'] = 'static', '000001'
-    data = {'sha256': 'synthetic-not-a-product', 'fields': {}, 'methods': []}
+    data = {'sha256': hashlib.sha256(MODEL_PE_BYTES).hexdigest() if native else 'synthetic-not-a-product',
+            'pe_bytes': len(MODEL_PE_BYTES) if native else 0,
+            'case_id': 'native_consumers' if native else 'td_dynamic', 'fields': {}, 'methods': []}
     fields, methods = data['fields'], data['methods']
     def field(name):
         token = hex(0x04000000 + len(fields) + 1)
@@ -45,25 +49,32 @@ def model(static=False, bound=False):
     literal = method('__init_literals', [ret])
     source_init = method('__init_code_sources', [])
     init = method('__init_functions', [direct(literal), direct(source_init)])
-    sources = [field('m0___code_source'), field('m1___code_source')]
-    name_field = field('m0___mv0___name__')
-    bound_field = field('m0___bound_0')
-    fields[bound_field]['signature_hex'] = '0602'
-    getter = method('__mod_get_0', [])
-    hit = ([load(bound_field), string('__main__'), string('__name__'), call('PyModules','CheckBound'),load(name_field)]
-           if bound else [load(name_field),string('__main__'),string('__name__'),call('PyModules','LoadAttribute')])
-    branch = ins(0x39, operand_hex='00000000')
-    gc = [ins(2),string('__name__'),call('PyModules','SameName'),branch] + hit + [deepcopy(ret),ins(0x14),deepcopy(ret)]
-    offset = 0
-    for item in gc:
-        item['offset'] = offset
-        offset += 5 if item['opcode'] in ('0x28','0x72','0x7e','0x39') else 1
-    branch['operand_hex'] = (gc[-2]['offset']-branch['offset']-5).to_bytes(4,'little',signed=True).hex()
-    getter['body']['instructions'] = gc
-    setter = method('__mod_set_0', [ret])
+    sources = [field(f'm{unit}___code_source') for unit in range(len(expectation['modules']))]
+    accessors = {}
+    for unit, module in enumerate(expectation['modules']):
+        if module['environment'] != 'LegacySingleton':
+            continue
+        name_field = field(f'm{unit}___mv0___name__')
+        bound_field = field(f'm{unit}___bound_0')
+        fields[bound_field]['signature_hex'] = '0602'
+        getter = method(f'__mod_get_{unit}', [])
+        hit = ([load(bound_field), string(module['name']), string('__name__'), call('PyModules','CheckBound'),load(name_field)]
+               if bound else [load(name_field),string(module['name']),string('__name__'),call('PyModules','LoadAttribute')])
+        branch = ins(0x39, operand_hex='00000000')
+        gc = [ins(2),string('__name__'),call('PyModules','SameName'),branch] + hit + [deepcopy(ret),ins(0x14),deepcopy(ret)]
+        offset = 0
+        for item in gc:
+            item['offset'] = offset
+            offset += 5 if item['opcode'] in ('0x28','0x72','0x7e','0x39') else 1
+        branch['operand_hex'] = (gc[-2]['offset']-branch['offset']-5).to_bytes(4,'little',signed=True).hex()
+        getter['body']['instructions'] = gc
+        setter = method(f'__mod_set_{unit}', [ret])
+        accessors[unit] = getter, setter, name_field, bound_field
     mains, signature_fields = [], []
     for unit, module in enumerate(expectation['modules']):
-        legacy = unit == 0
+        legacy = module['environment'] == 'LegacySingleton'
+        if legacy:
+            getter, setter, name_field, bound_field = accessors[unit]
         source_init['body']['instructions'] += [string(module['name']), string(module['file']), ins(0x14)]
         if legacy:
             source_init['body']['instructions'] += [ptr(getter), ins(0x73, target={'owner':'RyuPy.Runtime.PyModuleGet','name':'.ctor'})]
@@ -84,14 +95,19 @@ def model(static=False, bound=False):
                 load(sig) if fixed else ins(3), call('PyTraceback','PushFrameWithOrigin'),
                 integer(definition['body_lines'][0]),call('PyTraceback','SetLine'),ret],
                 '000001' if fixed else '00021c1c1c')
-            method('__thunk_'+str(len(signature_fields)), [load(sig)]+([] if fixed else [ins(2+unit)])+[direct(core),ret])
+            method('__thunk_'+str(len(signature_fields)), [load(sig)]+([] if fixed else [ins(2+int(not legacy))])+[direct(core),ret])
     source_init['body']['instructions'].append(ret)
     for unit, module in enumerate(expectation['modules']):
-        init['body']['instructions'] += [string(module['name']),string(''),string(module['file']),
-            string(str(ROOT/module['fixture'])),ptr(mains[unit])]
-        if unit == 0:
+        legacy = module['environment'] == 'LegacySingleton'
+        kind = (0 if unit == 0 else 2) if native else 1
+        path = ('' if unit == 0 else '_internal/resources/v1/modules/sp_pkg/' + module['file']) if native else str(ROOT/module['fixture'])
+        package = 'sp_pkg' if native and unit else ''
+        init['body']['instructions'] += [string(module['name']),string(package),string(module['file']),
+            integer(kind),string(path),ptr(mains[unit])]
+        if legacy:
+            getter, setter, _, _ = accessors[unit]
             init['body']['instructions'] += [ptr(getter),ptr(setter)]
-        init['body']['instructions'].append(call('PyModules','RegisterSourceLocated' if unit == 0 else 'RegisterInstanceSourceLocated'))
+        init['body']['instructions'].append(call('PyModules','RegisterSourceLocated' if legacy else 'RegisterInstanceSourceLocated'))
     init['body']['instructions'].append(ret)
     return data, expectation, sources, signature_fields
 
@@ -117,6 +133,19 @@ class FixedGateNegativeTests(unittest.TestCase):
         return next(m for m in data['methods'] if m['method']['name']=='__init_functions')['body']['instructions']
     def test_synthetic_positive_shape_not_product(self):
         d,e,_,_=model();self.assertTrue(self.accepts(d,e)['admitted'])
+    def test_jit_rejects_wrong_kind_relative_missing_or_changed_source(self):
+        for mutation in ('kind0', 'kind2', 'relative', 'missing', 'hash', 'missing-kind'):
+            with self.subTest(mutation=mutation):
+                d,e,_,_=model();ins=self.init(d)
+                at=next(i for i,x in enumerate(ins) if x.get('target',{}).get('name')=='RegisterSourceLocated')
+                path=next(i for i in range(at-1,-1,-1) if ins[i]['opcode']=='0x72')
+                if mutation.startswith('kind'):
+                    ins[path-1]['operand_hex']=int(mutation[-1]).to_bytes(8,'little',signed=True).hex()
+                elif mutation=='missing-kind': del ins[path-1]
+                elif mutation in ('relative','missing'): ins[path]['string']='entry.py' if mutation=='relative' else str(ROOT/'absent.py')
+                else:
+                    wrong=ROOT/'different.py';wrong.write_text('# different\n');ins[path]['string']=str(wrong)
+                with self.assertRaises(ValueError):self.accepts(d,e)
     def test_accepts_typed_bound_shape_not_product(self):
         d,e,_,_=model(bound=True);self.assertTrue(self.accepts(d,e)['admitted'])
     def test_rejects_name_published_before_frame(self):

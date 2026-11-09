@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
+import bootstrap
 from bootstrap import verify_trx, pe_review, dynamic_none
 from host_gate import compare_host, old_pe_review
 
@@ -34,10 +36,100 @@ class SourceAdmissionTests(unittest.TestCase):
 
     def proof(self):
         return {'role': 'new', 'case_id': 'fixture', 'sha256': 'actual', 'pe_sha256': 'actual',
-                'admitted': True, 'unit_link_mapping_verified': True, 'frame_carriers_verified': True}
+                'admitted': True, 'unit_link_mapping_verified': True, 'frame_carriers_verified': True,
+                'location_mode': 'jit_files'}
 
     def test_complete_fixed_proof_is_consumed(self):
         self.assertTrue(pe_review(self.proof(), 'new', 'fixture', 'actual')['admitted'])
+
+    def test_same_named_native_consumer_is_valid_default_jit(self):
+        proof = dict(self.proof(), case_id='native_consumers')
+        review = pe_review(proof, 'new', 'native_consumers', 'actual')
+        self.assertTrue(review['admitted'])
+        self.assertNotIn('native_manifest_sha256', review)
+
+    def test_native_mode_requires_explicit_same_manifest_and_fixed_case(self):
+        proof = dict(self.proof(), case_id='native_consumers', location_mode='native_consumers_aot',
+                     native_manifest_sha256='d' * 64)
+        with self.assertRaises(RuntimeError): pe_review(proof, 'new', 'native_consumers', 'actual')
+        for kwargs in ({'location_mode': 'native_consumers_aot'},
+                       {'location_mode': 'native_consumers_aot', 'expected_manifest_sha256': 'e' * 64},
+                       {'location_mode': 'unknown', 'expected_manifest_sha256': 'd' * 64}):
+            with self.subTest(kwargs=kwargs), self.assertRaises(RuntimeError):
+                pe_review(proof, 'new', 'native_consumers', 'actual', **kwargs)
+        native = {'location_mode': 'native_consumers_aot', 'expected_manifest_sha256': 'd' * 64}
+        self.assertTrue(pe_review(proof, 'new', 'native_consumers', 'actual', **native)['admitted'])
+        for key in ('location_mode', 'native_manifest_sha256'):
+            bad = dict(proof); del bad[key]
+            with self.assertRaises(RuntimeError): pe_review(bad, 'new', 'native_consumers', 'actual', **native)
+        for role, case in [('old', 'native_consumers'), ('new', 'fixture')]:
+            bad = dict(proof, role=role, case_id=case)
+            with self.assertRaises(RuntimeError): pe_review(bad, role, case, 'actual', **native)
+        jit = dict(self.proof(), case_id='native_consumers')
+        with self.assertRaises(RuntimeError): pe_review(jit, 'new', 'native_consumers', 'actual', **native)
+        with self.assertRaises(RuntimeError):
+            pe_review(jit, 'new', 'native_consumers', 'actual', expected_manifest_sha256='d' * 64)
+
+    def exercise_jit_calls(self, proof):
+        """执行现存编排函数，所有产品/Host执行入口均mock；只核审核参数与停止边界。"""
+        input_root = Path(bootstrap.INPUT_SOURCE)
+        contract = json.loads((input_root / 'contract.json').read_text())
+        case = next(case for case in contract['cases'] if case['id'] == 'native_consumers')
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            for folder in ('build/results', 'build/logs'): (out / folder).mkdir(parents=True)
+            (out / 'build/results/native_consumers-default.json').write_text(json.dumps({'pe': {'sha256': 'actual'}}))
+            (out / 'build/logs/native_consumers-default-pe-read.stdout').write_text(json.dumps(proof))
+            runner = Mock()
+            with patch.object(bootstrap, 'verify_trx', return_value={}), patch.object(bootstrap, 'space'), \
+                 patch.object(bootstrap, 'dynamic_none', return_value={}), patch('host_gate.execute') as host, \
+                 patch.object(bootstrap, 'pe_review', wraps=pe_review) as checked:
+                try:
+                    bootstrap.execute_jit(out, runner, input_root, {'cases': [case], 'boundary_cases': []},
+                                          {'files': {'dotnet': {'path': 'not-executed-dotnet'}}}, {})
+                except RuntimeError:
+                    self.assertNotIn('jit-stage', [call.args[0] for call in runner.run.call_args_list])
+                    host.assert_not_called()
+                    raise
+                host.assert_called_once()
+            self.assertEqual(checked.call_args.kwargs, {'location_mode': 'jit_files'})
+            labels = [call.args[0] for call in runner.run.call_args_list]
+            self.assertEqual(labels, ['runtime-tests', 'cp-stage', 'build-stage', 'jit-stage'])
+            return json.loads((out / 'pe-reviews/native_consumers-default.json').read_text())
+
+    def test_execute_jit_same_named_consumer_uses_jit_domain(self):
+        review = self.exercise_jit_calls(dict(self.proof(), case_id='native_consumers'))
+        self.assertTrue(review['admitted'])
+        self.assertNotIn('native_manifest_sha256', review)
+
+    def test_execute_jit_rejects_aot_proof_before_jit_run(self):
+        proof = dict(self.proof(), case_id='native_consumers', location_mode='native_consumers_aot',
+                     native_manifest_sha256='d' * 64)
+        with self.assertRaisesRegex(RuntimeError, '审核域'):
+            self.exercise_jit_calls(proof)
+
+    def test_execute_native_forwards_published_manifest_and_domain(self):
+        input_root = Path(bootstrap.INPUT_SOURCE)
+        proof = dict(self.proof(), case_id='native_consumers', location_mode='native_consumers_aot',
+                     native_manifest_sha256='d' * 64)
+        for mode in ('native_consumers_aot', 'jit_files'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp:
+                out = Path(temp); (out / 'publish/logs').mkdir(parents=True)
+                (out / 'publish/logs/native-pe-read.stdout').write_text(json.dumps(dict(proof, location_mode=mode)))
+                (out / 'publish/publish.json').write_text(json.dumps({'managed_sha256': 'actual', 'manifest_sha256': 'd' * 64}))
+                runner = Mock(); runner.run.return_value = Mock(returncode=0, stdout=b'model-only\n', stderr=b'')
+                with patch.object(bootstrap, 'pe_review', wraps=pe_review) as checked:
+                    if mode == 'jit_files':
+                        with self.assertRaisesRegex(RuntimeError, '审核域'):
+                            bootstrap.execute_native(out, runner, input_root, {'files': {'cp': {'path': 'not-executed-cp'}}}, {})
+                    else:
+                        bootstrap.execute_native(out, runner, input_root, {'files': {'cp': {'path': 'not-executed-cp'}}}, {})
+                        review = json.loads((out / 'native-pe-review.json').read_text())
+                        self.assertEqual(review['native_manifest_sha256'], 'd' * 64)
+                self.assertEqual(checked.call_args.kwargs,
+                                 {'location_mode': 'native_consumers_aot', 'expected_manifest_sha256': 'd' * 64})
+                labels = [call.args[0] for call in runner.run.call_args_list]
+                self.assertEqual(labels, ['native-cp', 'native-publish'] + (['native-run'] if mode != 'jit_files' else []))
 
     def test_finite_symbols_are_not_admission(self):
         with self.assertRaises(RuntimeError):

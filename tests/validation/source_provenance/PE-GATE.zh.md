@@ -15,6 +15,19 @@
 5. X/Y真实图两个Instance及主入口的实际字段/载体；State.Code仍Y、真实old/new alias和__bool__帧恢复由托管宿主观察，不能由字段存在替代。
 6. 新Native的包/subject ModuleMain与真正Dynamic消费者来自该次publish的managed PE。新消费者输出须原位/搬移/源码隔离三次对CP，不能拿旧Native绿代替。
 
+## JIT与固定Native位置域
+
+默认四参数接口仍逐条要求实际注册Kind1、绝对源码文件存在及固定输入SHA；不存在的路径不能触发降级。
+仅`new native_consumers --native-manifest PATH`显式选择固定AOT审核，PATH必须是这次publish的真实`ryupy-artifact.json`。
+审核绑定其compiled_managed_input SHA/字节数与实际PE、三个固定模块的ID/名字/环境、sources固定SHA/逻辑来源，
+并核真实IL注册的主入口Kind0空路径、包及subject两个Kind2的精确资源相对位置，与module_locations逐项相等。
+模块、sources或location的缺失、额外、重名、错kind/path/hash均拒绝。空resources不等于源码资源已携带。
+所有source/getter/signature/thunk/core及ModuleMain/Dynamic/Static帧检查继续执行，不因AOT位置域跳过。
+
+read_pe输出实际manifest原字节SHA及`location_mode=native_consumers_aot`，bootstrap原样转交，
+Native三次真实运行之前再次比对同次publish保存的PE与manifest SHA。旧角色及其它JIT case禁止使用该参数。
+合成元数据与传递负控只验证检查器拒绝边界；真实PE只读通过也不等于Host/JIT/Native或完整make通过。
+
 ## 记录与准入
 
 完整解码保留fields/methods/IL。只有固定表全部关键链通过才输出admitted=true、实际pe_sha256/role/case_id及检查版本/预期表身份。历史schema名unit_link_mapping_verified仅表示上述固定映射核对，不声称全IR/link通用证明；frame_carriers_verified只表示列明实际帧操作数链。

@@ -209,12 +209,53 @@ fn unused_deletion_refs_preserve_real_program_metadata_and_initializers() {
             "__init_class_factories",
             "__main__",
             "Main",
-            "__init_functions",
             "__mod_get_0",
             "__mod_set_0",
+            "__init_functions",
             "__run_main",
         ]
     );
+    // 声明次序不等于执行次序：通过真实MethodIndex核对入口调用，不依赖显示字符串。
+    let method = |name: &str| {
+        res.enumerate_type_definitions()
+            .flat_map(|(owner, _)| res.enumerate_methods(owner))
+            .find(|(_, method)| method.name == name)
+            .unwrap()
+            .0
+    };
+    let calls: Vec<_> = res[method("Main")]
+        .body
+        .as_ref()
+        .unwrap()
+        .instructions
+        .iter()
+        .filter_map(|instruction| match instruction {
+            Instruction::Call {
+                param0: MethodSource::User(UserMethod::Definition(target)),
+                ..
+            } => Some(*target),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        calls,
+        [
+            method("__init_functions"),
+            method("__init_class_factories"),
+            method("__run_main"),
+        ]
+    );
+    assert!(matches!(
+        res[method("__init_functions")]
+            .body
+            .as_ref()
+            .unwrap()
+            .instructions
+            .first(),
+        Some(Instruction::Call {
+            param0: MethodSource::User(UserMethod::Definition(target)), ..
+        }) if *target == method("__init_literals")
+    ));
     let runtime = res
         .enumerate_assembly_references()
         .find(|(_, assembly)| assembly.name == "RyuPy.Runtime")

@@ -64,6 +64,19 @@ static class Program
     }
     static int Main(string[] args)
     {
+        try { Observe(args); }
+        catch
+        {
+            // 宿主异常仍须写出已发生的观察；刷新故障不能替换原异常及其堆栈。
+            try { Builtins.FlushForExit(1); }
+            catch (Exception) { /* 保留下面的原异常rethrow。 */ }
+            throw;
+        }
+        // 生成入口已FinishExit；宿主只刷新自己的后续输出，不重复atexit或trace重置。
+        return Builtins.FlushForExit(0);
+    }
+    static void Observe(string[] args)
+    {
         Require(args.Length == 2 && args[0] is "old" or "new", "参数必须为角色和真实Session生成PE路径");
         bool newRole = args[0] == "new";
         var assembly = Assembly.LoadFrom(Path.GetFullPath(args[1]));
@@ -134,6 +147,5 @@ static class Program
         Managed(() => { PyModuleInstances.Execute(module); return 0; });
         Out("xy-default-code", module.GetAttr("source_marker"));
         Out("XY done");
-        return 0;
     }
 }
