@@ -83,8 +83,8 @@ jobs:
           if-no-files-found: error
           retention-days: 3
   baseline:
-    needs: trace-adapter-s2
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     defaults:
@@ -172,8 +172,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
   full-check:
-    needs: trace-adapter-s2
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 100
     defaults:
@@ -238,8 +238,8 @@ jobs:
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
   projects:
-    needs: trace-adapter-s2
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 80
     defaults:
@@ -272,8 +272,8 @@ jobs:
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
   trace-adapter-s2:
-    needs: [trace-rust-preflight, source-import-paths]
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -367,7 +367,7 @@ jobs:
 
   pyfiglet-explicit-deployment:
     name: 原pyfiglet显式外置字体有界部署
-    needs: [select-mode, source-import-paths]
+    needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 45

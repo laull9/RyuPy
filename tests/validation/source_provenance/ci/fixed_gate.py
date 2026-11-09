@@ -1,4 +1,4 @@
-"""固定11组fixture的PE关键链；不读取production IR，不执行生成程序集，不推广为通用证明。"""
+"""固定具名fixture的PE关键链；不读取production IR，不执行生成程序集，不推广为通用证明。"""
 from pathlib import Path
 import hashlib
 import json

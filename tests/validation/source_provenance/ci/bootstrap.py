@@ -9,6 +9,8 @@ import sys
 import traceback
 import xml.etree.ElementTree as ET
 
+from warning_split import cases, load as load_split
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
 INPUT_SOURCE = HERE.parent
@@ -52,6 +54,7 @@ def materialize(out):
         require(sha(dest / name) == value, '固定fixture改变：' + name)
     for name, value in json.loads((dest / 'oracles/identity.json').read_text())['files'].items():
         require(sha(dest / 'oracles' / name) == value, '历史旧观察改变：' + name)
+    load_split(dest, contract)
     return dest, contract
 
 
@@ -138,10 +141,15 @@ def execute_jit(out, run, input_root, contract, toolset, env):
     run.run('build-stage', common + ['--out', build, '--role', 'new', '--phase', 'build', '--tools', out / 'tools-new.json', '--oracle', oracle],
             cwd=out, env=env, check=True, timeout=1500)
     reviews = out / 'pe-reviews'; reviews.mkdir()
-    for case in contract['cases']:
+    for case in cases(contract):
         for arm in case['arms']:
             label = case['id'] + '-' + arm['id']
             product = json.loads((build / 'results' / (label + '.json')).read_text())
+            if arm.get('reject_phase') == 'build':
+                require(product['classification'] == 'expected-capability-rejection'
+                        and product['phase'] == 'build' and product['exit'] == 1 and 'pe' not in product,
+                        'Legacy负例不是实际精确编译拒绝，不得当正例跳过')
+                continue
             parsed = json.loads((build / 'logs' / (label + '-pe-read.stdout')).read_text())
             save(reviews / (label + '.json'), pe_review(parsed, 'new', case['id'], product['pe']['sha256']))
     run.run('jit-stage', common + ['--out', out / 'jit', '--role', 'new', '--phase', 'jit', '--tools', out / 'tools-new.json',

@@ -240,8 +240,49 @@
       ]
     },
     {
-      "id": "warning_names",
-      "entry": "fixtures/warning_names/entry.py",
+      "id": "warning_names_legacy",
+      "entry": "fixtures/warning_names_legacy/entry.py",
+      "graph": [
+        "__main__",
+        "subject"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "None抑制先于用户warning构造/str，events为空。",
+        "类别校验先于None抑制。",
+        "不调用name对象str/bool/eq；default0/always累计1。",
+        "整数name按<string>；default0/always累计1。",
+        "list name按<string>；default0/always累计1。",
+        "原NameString不可变payload读取；default1/always累计2，禁止override事件。",
+        "构造恰一次，选择module先于constructor修改。",
+        "已有warning的str恰一次，选择module先于str修改。",
+        "两输入都自然越过全部自身观察。"
+      ],
+      "comparison": "cp-exact",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/warning_names_legacy/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/warning_names_legacy/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "warning_name_missing",
+      "entry": "fixtures/warning_name_missing/entry.py",
       "graph": [
         "__main__",
         "subject"
@@ -256,24 +297,22 @@
         }
       ],
       "expected_observations": [
-        "subject显式Instance；无flag因类定义选择Legacy，global del __name__仍在HIR报E0100，不声明默认支持。",
-        "None记录0、events[]，bad category先报TypeError。",
-        "nonstr/missing默认DeprecationWarning为0、always可显示；name对象没有str/bool/eq。",
-        "NameString(\"__main__\")默认发出1，读取不可变payload；constructor/已有Warning.str只调用一次且本次筛选仍按修改前__main__。"
+        "原缺name块逐字保留；global删除后builtin default抑制/always累计1。",
+        "两输入都自然越过全部自身观察。"
       ],
       "comparison": "cp-exact",
       "cp_argv": [
         "{CP}",
         "-B",
         "-S",
-        "{INPUT}/fixtures/warning_names/entry.py"
+        "{INPUT}/fixtures/warning_name_missing/entry.py"
       ],
       "build_argv": [
         "{ROLE_CLI}",
         "--instance-module",
         "subject",
         "build",
-        "{INPUT}/fixtures/warning_names/entry.py",
+        "{INPUT}/fixtures/warning_name_missing/entry.py",
         "--diagnostic-stages",
         "--out-dir",
         "{PRODUCT}"
@@ -413,7 +452,12 @@
     "fixtures/warning_names/subject.py": "ebeed0d0e1ef7c5414ddacc8ab8f6e7f108907a6741ab857b8d7bec7be0e6412",
     "fixtures/warning_origin/entry.py": "969ae229808bb9453ae99f7078b2c60be471ce9c4e027d1c35d5eff289a30dd8",
     "fixtures/warning_origin/pkg/__init__.py": "32891e33c4eb9d61027ca6b62a23e1682d186ce79809894f61048f7ab25ef787",
-    "fixtures/warning_origin/pkg/data/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    "fixtures/warning_origin/pkg/data/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "fixtures/warning_names_legacy/entry.py": "412ca5c6fee93214aa409f2a93d15c39f9e4b91d0d472ec53d229445eec0224a",
+    "fixtures/warning_names_legacy/subject.py": "1e5fc97791932cb0f9ca7d97867387be18c7b6984184cd4e424434c4ff4edf05",
+    "fixtures/warning_name_missing/entry.py": "cb9a7997412531c47263f355a4b6cf652664b2f33c6e84154acebbe832b6c02c",
+    "fixtures/warning_name_missing/subject.py": "52a7f184c8eb38e6a5fc49c7bd7227f969594bc1b5b12edbd19fd6b064c5fd0f",
+    "warning-split.json": "05a45fa634bfd4f8677c738102de5eeb74170a96bddaf1602bf3596c94f447f6"
   },
   "tool_new_binding": "必须同HEAD clean源码构建；CI compiled-tools.json/source-before.json锁CLI、runtime与来源。严禁替换old角色。",
   "host": {
@@ -434,11 +478,11 @@
     "source_proof": "反射只读取真实States和Code名称/引用用于断言，执行调用既有Execute(code,target)；实际函数/marker来自编译源；不手工造新source/signature。"
   },
   "budget": {
-    "cp_target": 11,
+    "cp_target": 13,
     "old_pe_build": 1,
     "old_jit": 1,
-    "new_pe_build": 13,
-    "new_jit": 13,
+    "new_pe_build": 16,
+    "new_jit": 15,
     "host_sdk_build": 2,
     "native_publish": 1,
     "native_runs": 3,
@@ -489,5 +533,82 @@
   },
   "fixture_materialization": {
     "fixtures/mixed_frames/entry.py": "tests/e2e/phase3/m3_7_source_provenance.py"
+  },
+  "boundary_cases": [
+    {
+      "id": "warning_names",
+      "entry": "fixtures/warning_names/entry.py",
+      "graph": [
+        "__main__",
+        "subject"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "legacy-rejected",
+          "include_modules": [],
+          "instance_modules": [],
+          "reject_phase": "build"
+        },
+        {
+          "id": "instance-rejected",
+          "include_modules": [],
+          "instance_modules": [
+            "subject"
+          ],
+          "reject_phase": "jit"
+        }
+      ],
+      "expected_observations": [
+        "原组合仍不支持；两域各按真实阶段精确拒绝，不是正向skip。"
+      ],
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/warning_names/entry.py"
+      ]
+    }
+  ],
+  "warning_split": "warning-split.json",
+  "budget_breakdown": {
+    "hosted_jit_cp": {
+      "positive_inputs": 11,
+      "original_boundary_control": 1,
+      "host_control": 1,
+      "total": 13
+    },
+    "hosted_new_build": {
+      "positive_arms": 13,
+      "boundary_attempts": 2,
+      "host": 1,
+      "total": 16,
+      "boundary_successful_pe": 1,
+      "boundary_compile_rejection": 1
+    },
+    "hosted_new_jit": {
+      "positive_arms": 13,
+      "boundary_instance": 1,
+      "boundary_legacy": 0,
+      "host": 1,
+      "total": 15
+    },
+    "hosted_old": {
+      "host_build": 1,
+      "host_jit": 1
+    },
+    "native_separate_job": {
+      "cp": 1,
+      "publish": 1,
+      "runs": 3,
+      "note": "继续既有native_consumers；本次split不新增Native消费者，不证明A/B Native。"
+    },
+    "local_split_only": {
+      "new_cp": 2,
+      "new_build": 0,
+      "new_jit": 0,
+      "new_native": 0,
+      "retry": 0
+    }
   }
 }

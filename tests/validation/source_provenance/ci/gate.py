@@ -8,6 +8,8 @@ import shutil
 import sys
 import traceback
 
+from warning_split import cases, instance_modules, load as load_split, check_cp, rejection
+
 
 def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
@@ -115,6 +117,7 @@ def main():
     contract = json.loads((args.input / 'contract.json').read_text())
     for name, expected in contract['files'].items():
         require(digest(args.input / name) == expected, '输入改变：' + name)
+    split = load_split(args.input, contract)
     args.out.mkdir(parents=True, exist_ok=False)
     # 复用原runner/环境构造；只在获准执行时导入，不在AST审查时导入仓库。
     sys.path.insert(0, str(args.repo / 'tests/aot/pyfiglet_ci'))
@@ -132,7 +135,7 @@ def main():
     save(args.out / 'admitted-input.json', {'contract_sha256': digest(args.input / 'contract.json'), 'tools': tools})
     results = {}
     try:
-        for case in contract['cases']:
+        for case in cases(contract):
             name = case['id']
             source = args.input / case['entry']
             def cwd(label):
@@ -147,6 +150,7 @@ def main():
                 save(d / 'result.json', {'exit': actual.returncode, 'source_root': str(source.parent),
                                          'entry_sha256': digest(source)})
                 require(actual.returncode == 0, 'CP输入失败，不可改源追首错：' + name)
+                check_cp(split, name, actual)
                 results[name] = {'classification': 'cp-observed-not-golden-before-review'}
                 continue
             require(args.oracle is not None, '产品比较必须指定已冻结CP观察目录')
@@ -156,12 +160,21 @@ def main():
                 if args.phase == 'build':
                     target = args.out / 'products' / label
                     command = [cli]
-                    for module in case['instance_modules']:
+                    for module in instance_modules(case, arm):
                         command += ['--instance-module', module]
                     command += ['build', source, '--diagnostic-stages', '--out-dir', target]
                     for module in arm['include_modules']:
                         command += ['--include-module', module]
                     build = runner.run(label + '-build', command, cwd=cwd(label + '-build'), env=env, timeout=120)
+                    if arm.get('reject_phase') == 'build':
+                        result = rejection(split, arm, build, source.parent / 'subject.py')
+                        require(not list(target.rglob('*.dll')), 'Legacy编译拒绝却留下可执行PE')
+                        result.update(role=args.role, entry_sha256=digest(source),
+                                      contract_sha256=digest(args.input / 'contract.json'),
+                                      stderr_sha256=digest(args.out / 'logs' / (label + '-build.stderr')))
+                        save(args.out / 'results' / (label + '.json'), result)
+                        results[label] = result
+                        continue
                     if build.returncode != 0:
                         results[label] = {'classification': 'compile-failed-unreviewed', 'exit': build.returncode}
                         raise RuntimeError('首次未核编译失败，停止该窗口：' + label)
@@ -169,7 +182,7 @@ def main():
                     graph = json.loads((target / 'module-environment.json').read_text())
                     require(sorted(row['module'] for row in graph['modules']) == sorted(case['graph'] + arm['include_modules']), '实际图改变')
                     for row in graph['modules']:
-                        expected = 'InstanceGlobals' if row['module'] in case['instance_modules'] else 'LegacySingleton'
+                        expected = 'InstanceGlobals' if row['module'] in instance_modules(case, arm) else 'LegacySingleton'
                         require(row['execution'] == expected, '真实模块执行模式不符')
                     require(digest(dll.parent / 'RyuPy.Runtime.dll') == tools['files']['runtime']['sha256'], '产物runtime角色错配')
                     product = {'pe': {'path': str(dll), 'sha256': digest(dll)},
@@ -185,6 +198,17 @@ def main():
                     continue
                 require(args.build_evidence is not None and args.pe_reviews is not None, 'JIT阶段缺真实build/独立PE审查')
                 product = json.loads((args.build_evidence / 'results' / (label + '.json')).read_text())
+                if arm.get('reject_phase') == 'build':
+                    require(product['role'] == args.role and product['entry_sha256'] == digest(source)
+                            and product['contract_sha256'] == digest(args.input / 'contract.json')
+                            and product['classification'] == 'expected-capability-rejection'
+                            and product['phase'] == 'build' and product['exit'] == 1 and 'pe' not in product,
+                            'Legacy负例缺实际编译拒绝证据')
+                    log = args.build_evidence / 'logs' / (label + '-build.stderr')
+                    require(digest(log) == product['stderr_sha256'], 'Legacy负例build原流漂移')
+                    results[label] = dict(product, jit='not-applicable-compile-rejected')
+                    save(args.out / 'results' / (label + '.json'), results[label])
+                    continue
                 dll = Path(product['pe']['path'])
                 require(product['role'] == args.role and digest(dll) == product['pe']['sha256'] and
                         product['entry_sha256'] == digest(source) and product['contract_sha256'] == digest(args.input / 'contract.json'),
@@ -194,7 +218,9 @@ def main():
                         review['unit_link_mapping_verified'] and review['frame_carriers_verified'],
                         '缺独立真实unit/link/frame/PE准入，禁止JIT')
                 actual = runner.run(label + '-jit', [dotnet, dll], cwd=cwd(label + '-jit'), env=env, timeout=20)
-                results[label] = compare(case, None, actual, args.role, source.parent, args.oracle / name)
+                results[label] = (rejection(split, arm, actual, source.parent / 'subject.py')
+                                  if arm.get('reject_phase') == 'jit' else
+                                  compare(case, None, actual, args.role, source.parent, args.oracle / name))
                 results[label]['pe'] = {'path': str(dll), 'sha256': digest(dll)}
                 save(args.out / 'results' / (label + '.json'), results[label])
         # X/Y是单独Session+托管宿主阶段，不隐式从此脚本补SDK或调用旧host未知产物。
