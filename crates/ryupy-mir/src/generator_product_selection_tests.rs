@@ -178,7 +178,12 @@ fn bottom_helper_never_masks_independent_missing_initialization() {
         .rposition(|s| matches!(s, Statement::SetGlobal { dest, .. } if *dest == slot))
         .unwrap();
     block.stmts.remove(at);
-    invalid_reason(high.check(), "角色不是唯一Null reset随后唯一发布");
+    match high.check() {
+        Err(Failure::InvalidCompilerState(reason)) => {
+            assert_eq!(reason, "代码来源缺少真实Legacy入口初值发布");
+        }
+        other => panic!("期待缺少真实Legacy初值发布硬错，实际{other:?}"),
+    }
 }
 
 #[test]
@@ -251,10 +256,10 @@ fn unknown_helper_does_not_mask_token_owner_or_private_slot_in_either_order() {
                 match mutation {
                     0 => token_invalid(high.check()),
                     1 => {
-                        // 原validator先核owner；不得以尚未到达的后续Contract错误冒充命中。
+                        // 新载体与原owner验证器均须硬拒绝；逐字核两条诊断，不接受任意错误。
                         let expected = format!(
-                            "函数 `{}` 压帧必须传实际owner参数",
-                            high.program.functions[high.plan.functions()[0]].name
+                            "函数 `{name}` 的新版压帧载体错误\n函数 `{name}` 压帧必须传实际owner参数",
+                            name = high.program.functions[high.plan.functions()[0]].name
                         );
                         match high.check() {
                             Err(Failure::InvalidCompilerState(reason)) => {

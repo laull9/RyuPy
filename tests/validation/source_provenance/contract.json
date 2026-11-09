@@ -246,14 +246,17 @@
         "__main__",
         "subject"
       ],
-      "instance_modules": [],
+      "instance_modules": [
+        "subject"
+      ],
       "arms": [
         {
-          "id": "default",
+          "id": "explicit-subject-instance",
           "include_modules": []
         }
       ],
       "expected_observations": [
+        "subject显式Instance；无flag因类定义选择Legacy，global del __name__仍在HIR报E0100，不声明默认支持。",
         "None记录0、events[]，bad category先报TypeError。",
         "nonstr/missing默认DeprecationWarning为0、always可显示；name对象没有str/bool/eq。",
         "NameString(\"__main__\")默认发出1，读取不可变payload；constructor/已有Warning.str只调用一次且本次筛选仍按修改前__main__。"
@@ -267,6 +270,8 @@
       ],
       "build_argv": [
         "{ROLE_CLI}",
+        "--instance-module",
+        "subject",
         "build",
         "{INPUT}/fixtures/warning_names/entry.py",
         "--diagnostic-stages",
