@@ -358,3 +358,41 @@ jobs:
             ${{ runner.temp }}/wcwidth-rust-tools/download-identity.json
           if-no-files-found: error
           retention-days: 3
+
+  pyfiglet-explicit-deployment:
+    name: 原pyfiglet显式外置字体有界部署
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 脚本纯合成自测（无CP/产品/构建）
+        run: python3 -B -m unittest discover -s tests/aot/pyfiglet_ci -p 'test_*.py'
+      - name: 复用固定官方CP与SDK准备
+        run: |
+          mkdir -p target/pyfiglet-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/pyfiglet-prepare/stdout 2> target/pyfiglet-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/pyfiglet-prepare/exit
+          exit "$status"
+      - name: 一次CP与两JIT、唯一发布和四次Native
+        run: '"$PYTHON" -B tests/aot/pyfiglet_ci/run.py'
+      - name: 首次失败也收件完整原流、真实dist及发布树
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pyfiglet-explicit-deployment-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/pyfiglet-deployment-evidence
+            target/pyfiglet-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
