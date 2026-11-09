@@ -87,6 +87,65 @@ fn removing_or_replacing_actual_dynamic_push_is_rejected() {
 }
 
 #[test]
+fn replacing_actual_static_signature_carrier_is_rejected() {
+    let (mut program, _) = unit("first");
+    let wrong = program
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "dynamic")
+        .unwrap()
+        .1
+        .signature_global
+        .unwrap();
+    let (_, function) = program
+        .functions
+        .iter_mut()
+        .find(|(_, f)| f.name == "fixed")
+        .unwrap();
+    assert!(function.dynamic_origin.is_none());
+    let signature = function.signature_global.unwrap();
+    assert_ne!(signature, wrong);
+    let mut changed = 0;
+    for (_, block) in function.body.blocks.iter_mut() {
+        for statement in &mut block.stmts {
+            if let Statement::Assign {
+                value: Rvalue::Call { callee, args },
+                ..
+            } = statement
+                && *callee == Callee::Runtime(RuntimeFn::TracePushWithOrigin)
+            {
+                assert_eq!(args.len(), 3);
+                assert_eq!(args[2], Operand::Global(signature));
+                // 另一个真实函数的合法signature仍不能冒充当前Static的来源载体。
+                args[2] = Operand::Global(wrong);
+                changed += 1;
+            }
+        }
+    }
+    assert_eq!(changed, 1);
+    assert!(source_provenance::require_program(&program).is_err());
+}
+
+#[test]
+fn removing_actual_static_source_membership_is_rejected() {
+    let (mut program, _) = unit("first");
+    let (fixed, function) = program
+        .functions
+        .iter()
+        .find(|(_, f)| f.name == "fixed")
+        .unwrap();
+    assert!(function.dynamic_origin.is_none());
+    assert!(function.signature_global.is_some());
+    let source = source_provenance::for_function(&program.globals, fixed).unwrap();
+    let GlobalStorage::CodeSource { functions, .. } = &mut program.globals[source].storage else {
+        panic!("真实Static必须属于代码来源");
+    };
+    assert_eq!(functions.iter().filter(|id| **id == fixed).count(), 1);
+    functions.retain(|id| *id != fixed);
+    assert!(source_provenance::require_program(&program).is_err());
+}
+
+#[test]
 fn missing_source_or_ordinary_source_write_cannot_downgrade() {
     for remove in [false, true] {
         let (mut program, _) = unit("first");

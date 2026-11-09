@@ -1,6 +1,6 @@
 //! 从实际应用源码收敛Types/default MIR后锁owner；不能用注解或文件名猜分类。
 //! 这里只检查结构，不运行CP/SDK；调用者须在有效CP oracle之后才调用。
-use ryupy_mir::{Callee, Function, MirType, Operand, RuntimeFn, Rvalue, Statement};
+use ryupy_mir::{Callee, Function, GlobalStorage, MirType, Operand, RuntimeFn, Rvalue, Statement};
 use std::path::Path;
 const STATIC_SOURCE: &str =
     include_str!("../../../../tests/fixtures/namedtuple_core/static_boundary.py");
@@ -88,6 +88,7 @@ fn verify(
     )
     .unwrap();
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    ryupy_mir::source_provenance::require_program(&program).unwrap();
     let result =
         ryupy_mir::passes::run_pipeline(&mut program, &ryupy_mir::passes::default_pipeline());
     std::fs::write(
@@ -101,6 +102,7 @@ fn verify(
     )
     .unwrap();
     result.unwrap();
+    ryupy_mir::source_provenance::require_program(&program).unwrap();
     for name in dynamic.iter().chain(static_names.iter()) {
         let matches: Vec<_> = program
             .functions
@@ -108,17 +110,49 @@ fn verify(
             .filter(|(_, function)| function.name == *name && function.signature_global.is_some())
             .collect();
         assert_eq!(matches.len(), 1, "MIR真实函数必须唯一: {name}");
-        let function = matches[0].1;
+        let (function_id, function) = matches[0];
         if static_names.contains(name) {
             assert!(function.dynamic_origin.is_none());
             assert_eq!(function.params.len(), 1);
             assert_eq!(function.param_meta.len(), 1);
             assert_eq!(function.body.locals[function.params[0]].ty, MirType::I64);
             assert_eq!(function.ret, MirType::Unit);
-            assert!(traces(function, RuntimeFn::TracePushWithOrigin).is_empty());
-            let push = traces(function, RuntimeFn::TracePush);
+            // 此处独立build_program只含一个源码unit；按实际ID绑定冷signature，不猜名称。
+            let signature = function.signature_global.unwrap();
+            assert_eq!(program.globals[signature].ty, MirType::Dynamic);
+            assert_eq!(
+                program.globals[signature].storage,
+                GlobalStorage::LegacyStatic
+            );
+            let signature_owners: Vec<_> = program
+                .functions
+                .iter()
+                .filter_map(|(id, f)| (f.signature_global == Some(signature)).then_some(id))
+                .collect();
+            assert_eq!(signature_owners, [function_id]);
+            let sources: Vec<_> = program
+                .globals
+                .iter()
+                .filter_map(|(id, global)| match &global.storage {
+                    GlobalStorage::CodeSource {
+                        entry, functions, ..
+                    } if functions.contains(&function_id) => Some((id, *entry, functions)),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(sources.len(), 1, "Static必须有唯一实际来源");
+            let (source, entry, members) = sources[0];
+            assert_eq!(entry, program.entry);
+            assert_eq!(members.iter().filter(|id| **id == function_id).count(), 1);
+            assert_eq!(
+                ryupy_mir::source_provenance::for_function(&program.globals, function_id),
+                Some(source)
+            );
+            assert!(traces(function, RuntimeFn::TracePush).is_empty());
+            let push = traces(function, RuntimeFn::TracePushWithOrigin);
             assert_eq!(push.len(), 1);
-            assert_eq!(push[0].len(), 2);
+            assert_eq!(push[0].len(), 3);
+            assert_eq!(push[0][2], Operand::Global(signature));
         } else {
             let owner = function.dynamic_origin.expect("Dynamic来源丢失").owner;
             assert_eq!(function.params.last(), Some(&owner));
