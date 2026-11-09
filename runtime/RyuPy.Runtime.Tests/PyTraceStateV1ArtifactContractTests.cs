@@ -33,6 +33,28 @@ public sealed class PyTraceStateV1ArtifactContractTests
         Assert.False(C.PreservesAbi(before, after.Append(after[0]).ToArray()));
         replacement[^1] = after[0]; Assert.False(C.PreservesAbi(before, replacement));
         Assert.False(C.PreservesAbi(before, after.Append("M:RyuPy.Runtime.PyTraceProduct:Enter:错误重载").ToArray()));
+
+        // 复用本反例组验证全程序集门；V1 仍独立拒绝来源增量，S1 的精确测试名单不变。
+        var source = PyTraceStateArtifactTests.SourcePublicAdditions();
+        Assert.Equal(3, source.Length); Assert.Equal(3, source.Distinct().Count());
+        var combined = after.Concat(source).ToArray();
+        Assert.False(C.PreservesAbi(before, combined));
+        Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before, combined));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, before.Concat(source).ToArray()));
+        // 历史代表项与每条 V1/来源增量：缺失、同数量改签、替换成重复项均拒绝。
+        foreach (int index in new[] { 0 }.Concat(Enumerable.Range(before.Length, combined.Length - before.Length)))
+        {
+            Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before,
+                combined.Where((_, at) => at != index).ToArray()));
+            var changed = (string[])combined.Clone(); changed[index] += "改签";
+            Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, changed));
+            changed[index] = combined[(index + 1) % combined.Length];
+            Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, changed));
+        }
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, combined.Append(combined[0]).ToArray()));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before,
+            combined.Append("M:RyuPy.Runtime.PyTraceback:CreateCodeSource:错误重载").ToArray()));
     }
 
     [Fact]

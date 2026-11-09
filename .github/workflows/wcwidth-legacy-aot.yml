@@ -143,6 +143,64 @@ jobs:
       - name: 显式super三分合同与独立Legacy Native及隔离搬迁
         if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/explicit_super_gate.py'
+      # 后段故障前先保存已完成阶段的小文本；不能替代最终产物或恢复正在崩溃的阶段。
+      - name: resource前保存已完成阶段原流检查点
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wcwidth-legacy-aot-pre-resource-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/wcwidth-aot-evidence/**/*.json
+            target/wcwidth-aot-evidence/**/*.stdout
+            target/wcwidth-aot-evidence/**/*.stderr
+            target/wcwidth-aot-evidence/**/*.log
+            target/wcwidth-aot-evidence/**/*.exit
+            target/source-provenance-native/*.json
+            target/source-provenance-native/cp/native_consumers/result.json
+            target/source-provenance-native/publish/*.json
+            target/source-provenance-native/publish/sdk-evidence/**/*.log
+            target/source-provenance-native/publish/product/entry.dist/ryupy-artifact.json
+            target/source-provenance-native/run/*.json
+            target/source-provenance-native/run/moved/ryupy-artifact.json
+            target/source-provenance-native/logs/*.json
+            target/source-provenance-native/logs/*.stdout
+            target/source-provenance-native/logs/*.stderr
+            target/source-provenance-native/publish/logs/*.json
+            target/source-provenance-native/publish/logs/*.stdout
+            target/source-provenance-native/publish/logs/*.stderr
+            target/source-provenance-native/run/logs/*.json
+            target/source-provenance-native/run/logs/*.stdout
+            target/source-provenance-native/run/logs/*.stderr
+            target/generator-product-evidence/**/*.json
+            target/generator-product-evidence/**/*.stdout
+            target/generator-product-evidence/**/*.stderr
+            target/generator-product-evidence/**/*.log
+            target/generator-product-evidence/**/*.exit
+            target/generator-default-evidence/**/*.json
+            target/generator-default-evidence/**/*.stdout
+            target/generator-default-evidence/**/*.stderr
+            target/generator-default-evidence/**/*.log
+            target/generator-default-evidence/**/*.exit
+            target/instance-aot-evidence/**/*.json
+            target/instance-aot-evidence/**/*.stdout
+            target/instance-aot-evidence/**/*.stderr
+            target/instance-aot-evidence/**/*.log
+            target/instance-aot-evidence/**/*.exit
+            target/explicit-super-evidence/**/*.json
+            target/explicit-super-evidence/**/*.stdout
+            target/explicit-super-evidence/**/*.stderr
+            target/explicit-super-evidence/**/*.log
+            target/explicit-super-evidence/**/*.exit
+            target/generator-product-bootstrap/*.json
+            target/generator-product-bootstrap/*.stdout
+            target/generator-product-bootstrap/*.stderr
+            target/source-provenance-native/cp/native_consumers/stdout
+            target/source-provenance-native/cp/native_consumers/stderr
+            !target/**/obj/**
+            !target/**/bin/**
+            !target/source-provenance-native/INPUT/**
+          if-no-files-found: error
+          retention-days: 3
       - name: 既有Kind1 JIT与Kind2资源AOT及搬移
         if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
         run: '"$PYTHON" -B tests/aot/resource_smoke.py --ryupy "$PWD/target/debug/ryupy" --python "$PYTHON" --dotnet "$DOTNET" --rid linux-x64 --out target/resource-ci-evidence'

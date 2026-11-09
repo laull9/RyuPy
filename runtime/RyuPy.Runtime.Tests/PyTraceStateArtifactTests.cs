@@ -103,16 +103,32 @@ public partial class PyTraceStateArtifactTests
         var before = PublicAbi(baseline!);
         var after = PublicAbi(candidate);
         Assert.NotEmpty(before);
-        var expected = before.Concat(PyTraceStateV1ArtifactContract.PublicAdditions()).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var v1Additions = PyTraceStateV1ArtifactContract.PublicAdditions();
+        var sourceAdditions = SourcePublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = PyTraceStateV1ArtifactContract.PublicAdditions(),
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1659逐字段保留，仅允许12条V1增量；不覆盖默认参数、常量、全部属性或完整程序集scope" });
-        Assert.True(PyTraceStateV1ArtifactContract.PreservesAbi(before, after), "历史ABI或精确V1增量不符；见baseline-abi.json。");
+            scope = "旧1659逐字段保留，精确12条V1与ADR0145三条冷来源增量分立；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+        Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1或冷来源增量不符；见baseline-abi.json。");
     }
+
+    // 全程序集门另列 ADR0145 冷 API；不改变 V1 专属十二条合同，也不接受其它来源 API/重载。
+    internal static string[] SourcePublicAdditions() =>
+    [
+        "M:RyuPy.Runtime.PyOps:FunctionDefinitionWithSource:150:[0;0;4](Object,String,Int64,Object)->Void:",
+        "M:RyuPy.Runtime.PyTraceback:CreateCodeSource:150:[0;0;3](String,String,RyuPy.Runtime.PyModuleGet)->Object:",
+        "M:RyuPy.Runtime.PyTraceback:CreateModuleExecutionSourceWithCode:150:[0;0;2](Object,Object)->Object:"
+    ];
+
+    internal static bool PreservesBaselineAbi(string[] before, string[] after)
+        => before.Length == 1659 && after.Length == 1674
+            && before.Concat(PyTraceStateV1ArtifactContract.PublicAdditions()).Concat(SourcePublicAdditions())
+                .OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(after.OrderBy(x => x, StringComparer.Ordinal));
 
     private static string[] PublicAbi(string path)
     {

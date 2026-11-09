@@ -26,7 +26,8 @@ static class Program
     static object? Attr(object? value, string name) => PyObject.GetAttr(value, name);
     static void Out(params object?[] values) => Call(PyOps.BuiltinFunction("print"), values);
     static object? Repr(object? value) => Call(PyOps.BuiltinFunction("repr"), value);
-    static object? TypeName(object? value) => Attr(Call(PyOps.BuiltinFunction("type"), value), "__name__");
+    // 与真实 Python type(x) 的 DynType 降低相同；旧/新公开 ABI 已有此入口，不借缺失的内建分派。
+    static object? TypeName(object? value) => Attr(Managed(() => PyObject.TypeOf(value)), "__name__");
     static void Require(bool value, string label) { if (!value) throw new InvalidOperationException(label); }
     static object State(PyModule module)
     {

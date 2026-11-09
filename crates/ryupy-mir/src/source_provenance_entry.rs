@@ -71,14 +71,11 @@ pub(super) fn name_export(
 
 // 只沿本入口块的已执行纯Use/Box链读取字面量；不执行用户协议或扫描注册名。
 pub(super) fn entry_name(function: &Function, initial: &LegacySourceEntry) -> Option<usize> {
-    let Some((_, entry)) = function
+    let (_, entry) = function
         .body
         .blocks
         .iter()
-        .find(|(id, _)| *id == function.body.entry)
-    else {
-        return None;
-    };
+        .find(|(id, _)| *id == function.body.entry)?;
     let mut phase = 0;
     for (at, statement) in entry.stmts.iter().enumerate() {
         if let Statement::SetGlobal { dest, value } = statement
