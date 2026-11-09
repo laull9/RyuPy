@@ -2,7 +2,7 @@
 
 `gate.py`复用现有hosted准备、Recorder、实际PE路径解析、白名单环境及全源码身份工具，不另装本地SDK。
 
-固定顺序：Release runtime/tests build一次 → C#定向测试一次（新44条、旧49方法58条精确case计数，全部Passed零skip）→ 同源pilot CLI build一次 → CP6、PE build7、JIT7，各label一次，无重试。完整make check仍在原job执行。
+固定顺序：Release runtime/tests build一次 → C#定向测试一次（新44条、旧61方法84条精确case计数，全部Passed零skip）→ 同源pilot CLI build一次 → CP6、PE build7、JIT7，各label一次，无重试。完整make check仍在原job执行。
 
 旧parent_path_first三源逐字保留原已实测反例，fixtures.json锁输入/golden。原图恰main+pkg，显式`--include-module pkg.data`图恰main+pkg+pkg.data；两者必须正常exit1、原stdout和终结MNFE。信号/abort/启动失败/NI/成功一律失败。负臂stderr只验终行，完整traceback双流保留供独核，不声称CP/JIT traceback逐字相同。
 

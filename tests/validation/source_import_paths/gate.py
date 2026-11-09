@@ -108,6 +108,18 @@ OLD_TESTS = {
     'PyModuleCacheAliasTests.DeletionRejectsPresentAbsentAndCallbackKeysWithoutChangingCache': 1,
     'PyModuleCacheAliasTests.SavedSettersAndSeparateViewsShareCacheWhileReadListsStaySnapshots': 1,
     'PyModuleCacheAliasTests.MultipleAliasesKeepOneTargetAndDoNotIntroduceAnEvictionLimit': 1,
+    'PyModuleCacheAliasTests.EveryRegistrationEntryRejectsAliasNamesAndDescendants': 7,
+    'PyModuleCacheAliasTests.DeclarationPreflightRejectsDescendantsBeforeGeneratedSlotWrites': 1,
+    'PyModuleCacheAliasTests.RegistrationAliasGuardPrecedesLocationValidation': 4,
+    'PyModuleCacheAliasTests.ExistingPackageChildAttributeWorksButAliasSubmoduleImportDoesNot': 1,
+    'PyModuleCacheAliasTests.FinderRejectsAliasDescendantsBeforeParentPathGetterCallbacks': 1,
+    'PyModuleCacheAliasTests.FromMissingAttributePreservesOriginalMissingAndOuterContext': 1,
+    'PyModuleCacheAliasTests.ExistingGetterFailuresRemainOriginalAndNonAliasMissingImportIsUnchanged': 1,
+    'PyModuleCacheAliasTests.FindSpecReadsTheCurrentOriginalObjectAndPreservesMissingSemantics': 1,
+    'PyModuleCacheAliasTests.AssignmentAndCacheHitNeverProbeModuleAttributes': 1,
+    'PyModuleCacheAliasTests.AllNewRejectionsCaptureCallerFramesAndActiveException': 1,
+    'PyModuleCacheAliasTests.NormalRegistrationReplacementAndInitializationFailureRetryRemainAvailable': 1,
+    'PyModuleCacheAliasTests.SetterKeywordArgumentsFailBeforePublishingOrReservingAlias': 6,
 }
 
 
