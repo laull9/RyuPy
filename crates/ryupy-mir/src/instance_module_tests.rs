@@ -28,12 +28,27 @@ fn instance_main_uses_explicit_state_and_dictionary_calls() {
         main.params,
         vec![main.module_state.expect("实例入口必须有state")]
     );
-    assert!(
-        program
-            .globals
-            .iter()
-            .all(|(_, global)| matches!(global.storage, GlobalStorage::InstancePublic { .. }))
-    );
+    source_provenance::require_program(&program).unwrap();
+    // 此源码没有用户函数；唯一冷槽必须属于真实入口，其余全是实例字典名称。
+    let mut sources = 0;
+    for (_, global) in program.globals.iter() {
+        match &global.storage {
+            GlobalStorage::InstancePublic { .. } => {}
+            GlobalStorage::CodeSource {
+                entry,
+                functions,
+                legacy_entry,
+            } => {
+                sources += 1;
+                assert_eq!(*entry, program.entry);
+                assert_eq!(global.ty, MirType::Dynamic);
+                assert!(functions.is_empty());
+                assert!(legacy_entry.is_none());
+            }
+            GlobalStorage::LegacyStatic => panic!("实例入口不应包含Legacy静态槽"),
+        }
+    }
+    assert_eq!(sources, 1);
     assert!(validate::validate(&program).is_ok());
     let dump = pretty::dump(&program);
     assert!(dump.contains("InstanceLoadName"), "{dump}");
@@ -49,7 +64,17 @@ fn instance_main_uses_explicit_state_and_dictionary_calls() {
 #[test]
 fn instance_dictionary_rejects_static_reads_and_wrong_state() {
     let (mut program, _) = compile_instance("x = 1\n");
-    let global = program.globals.iter().next().unwrap().0;
+    // 按公开名称角色选择负例目标，不能依赖私有冷槽的分配顺序。
+    let public_x: Vec<_> = program
+        .globals
+        .iter()
+        .filter_map(|(id, global)| {
+            matches!(&global.storage, GlobalStorage::InstancePublic { name } if name == "x")
+                .then_some(id)
+        })
+        .collect();
+    assert_eq!(public_x.len(), 1);
+    let global = public_x[0];
     let main = &mut program.functions[program.entry];
     main.body.blocks[main.body.entry]
         .stmts

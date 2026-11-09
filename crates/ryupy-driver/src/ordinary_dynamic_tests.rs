@@ -1,6 +1,7 @@
 //! 普通动态模块的计划/旧ABI/真实发射联合合同；不以显式实例成功冒充自动迁移。
 use super::*;
-use ryupy_mir::{GlobalStorage, ModuleExecutionKind};
+use ryupy_mir::{GlobalStorage, MirType, ModuleExecutionKind, source_provenance};
+use std::collections::HashSet;
 struct Tree(PathBuf);
 impl Tree {
     fn new() -> Self {
@@ -30,6 +31,74 @@ impl Tree {
 impl Drop for Tree {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+// 以真实模块入口、函数与导出表交叉核对来源，不能让待验所属表自证完整。
+fn assert_linked_source_authority(linked: &ryupy_mir::LinkedProgram) {
+    source_provenance::require_linked(linked).unwrap();
+    let sources: Vec<_> = linked
+        .globals
+        .iter()
+        .filter(|(_, global)| matches!(global.storage, GlobalStorage::CodeSource { .. }))
+        .collect();
+    assert_eq!(sources.len(), linked.modules.len());
+    for (id, module) in linked.modules.iter() {
+        let prefix = format!("m{}_", id.into_raw().into_u32());
+        let owned: Vec<_> = sources
+            .iter()
+            .copied()
+            .filter(|(_, global)| {
+                matches!(&global.storage, GlobalStorage::CodeSource { entry, .. } if *entry == module.init)
+            })
+            .collect();
+        assert_eq!(owned.len(), 1, "{}", module.name);
+        let (source_id, global) = owned[0];
+        let GlobalStorage::CodeSource {
+            entry,
+            functions,
+            legacy_entry,
+        } = &global.storage
+        else {
+            unreachable!()
+        };
+        assert_eq!(*entry, module.init);
+        assert_eq!(global.ty, MirType::Dynamic);
+        assert!(global.name.starts_with(&prefix));
+        // link为所有真实函数加模块前缀；无signature的生成器resume不属于成员表。
+        let expected: HashSet<_> = linked
+            .functions
+            .iter()
+            .filter_map(|(id, function)| {
+                (function.codegen_name.starts_with(&prefix) && function.signature_global.is_some())
+                    .then_some(id)
+            })
+            .collect();
+        assert_eq!(functions.len(), expected.len());
+        assert_eq!(functions.iter().copied().collect::<HashSet<_>>(), expected);
+        for function in std::iter::once(entry).chain(functions) {
+            assert_eq!(
+                source_provenance::for_function(&linked.globals, *function),
+                Some(source_id)
+            );
+        }
+        match module.execution {
+            ModuleExecutionKind::InstanceGlobals => assert!(legacy_entry.is_none()),
+            ModuleExecutionKind::LegacySingleton => {
+                let initial = legacy_entry.as_ref().expect("Legacy必须保留真实入口name");
+                assert_eq!(initial.initial_name, module.name);
+                let names: Vec<_> = module
+                    .exports
+                    .iter()
+                    .filter(|export| export.name == "__name__")
+                    .collect();
+                assert_eq!(names.len(), 1);
+                assert_eq!(initial.name_global, names[0].value);
+                let name = &linked.globals[names[0].value];
+                assert_eq!(name.storage, GlobalStorage::LegacyStatic);
+                assert!(name.name.starts_with(&prefix));
+            }
+        }
     }
 }
 #[test]
@@ -132,6 +201,8 @@ fn ordinary_dynamic_emitted_authority_and_mixed_consumers() {
     tree.write("entry.py", "import subject\nfrom subject import read as saved\ndef typed(x: int) -> int:\n    return x + 1\ndef consumer(x: int) -> int:\n    return subject.read(x)\nassert consumer(2) == 12\nassert saved(typed(1)) == 12\nassert saved.__globals__ is subject.__dict__\nsubject.value = None\nassert subject.stream().__next__() is None\nsubject.value = 'a'\nassert saved('b') == 'ab'\nprint('mixed owner ok')\n");
     let baseline = tree.compile(ModuleEnvironmentPolicy::ExplicitOnly);
     let linked = tree.compile(ModuleEnvironmentPolicy::OrdinaryDynamicPilot);
+    assert_linked_source_authority(&baseline);
+    assert_linked_source_authority(&linked);
     let (id, subject) = linked
         .modules
         .iter()
@@ -155,19 +226,32 @@ fn ordinary_dynamic_emitted_authority_and_mixed_consumers() {
             .iter()
             .any(|(_, global)| matches!(global.storage, GlobalStorage::InstancePublic { .. }))
     );
-    for (_, global) in &selected_globals {
-        assert!(
-            matches!(global.storage, GlobalStorage::InstancePublic { .. })
-                || global.name.starts_with(&format!("{prefix}__sig")),
-            "{}",
-            global.name
-        );
-    }
-    for (_, function) in linked
+    let selected_functions: Vec<_> = linked
         .functions
         .iter()
         .filter(|(_, f)| f.codegen_name.starts_with(&prefix))
-    {
+        .collect();
+    let signatures: HashSet<_> = selected_functions
+        .iter()
+        .filter_map(|(_, function)| function.signature_global)
+        .collect();
+    let actual_static: HashSet<_> = selected_globals
+        .iter()
+        .filter_map(|(id, global)| (global.storage == GlobalStorage::LegacyStatic).then_some(*id))
+        .collect();
+    assert_eq!(actual_static, signatures);
+    let source = source_provenance::for_function(&linked.globals, subject.init).unwrap();
+    for (global_id, global) in &selected_globals {
+        match &global.storage {
+            GlobalStorage::InstancePublic { .. } => {}
+            GlobalStorage::LegacyStatic => assert!(signatures.contains(global_id)),
+            GlobalStorage::CodeSource { entry, .. } => {
+                assert_eq!(*global_id, source);
+                assert_eq!(*entry, subject.init);
+            }
+        }
+    }
+    for (_, function) in selected_functions {
         assert!(
             function.function_global.is_none()
                 && function.defaults_global.is_none()
