@@ -275,11 +275,16 @@ fn check_stack(program: &Program, id: FnId, generator: bool) -> Result<(), Strin
                                 return Err("模块Push缺实际来源局部".into());
                             };
                             if !block.stmts[..position].iter().any(|stmt| matches!(stmt,
-                                Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ModuleExecutionSource), .. } } if *dest == origin)) {
+                                Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::ModuleExecutionSourceWithCode), .. } } if *dest == origin)) {
                                 return Err("模块Push来源并非本次执行的实际定义".into());
                             }
                         }
-                        None if id != program.entry && args.len() == 2 => {}
+                        None if id != program.entry
+                            && args.len() == 3
+                            && function
+                                .signature_global
+                                .is_some_and(|signature| args[2] == Operand::Global(signature)) => {
+                        }
                         _ => return Err("高层Push的真实hidden owner错误".into()),
                     }
                     push = Some(*dest);

@@ -1,0 +1,488 @@
+{
+  "schema_version": 1,
+  "status": "源码候选；真实产品与完整旧保护未验收",
+  "frozen_design": {
+    "v2_manifest": "2ffeb0e3cbd8e238bbecc1ffba3d7631e132eb42f0cbedb28a42ad876abdecda",
+    "addendum": "f25b0d4090da80c7bc623f859f42de978ea7a390d38b9a242450e2affcd3865e"
+  },
+  "baseline_head": "510293725410d8d144fcb131deb95c477d17e155",
+  "baseline_tree": "802df207c7b4bd47a188929f70a1077cbbe5cf38",
+  "python_version": "3.12.13",
+  "cases": [
+    {
+      "id": "warning_origin",
+      "entry": "fixtures/warning_origin/entry.py",
+      "graph": [
+        "__main__",
+        "pkg"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "two",
+          "include_modules": []
+        },
+        {
+          "id": "three",
+          "include_modules": [
+            "pkg.data"
+          ]
+        }
+      ],
+      "expected_observations": [
+        "CP与新JIT完整stdout为原W顺序、data-cached False、unused从未调用。",
+        "警告原位置pkg/__init__.py:14；CP全路径及源码行、JIT原basename差异仅精确location投影，不掩盖类型/行/消息。",
+        "三节点只是include未执行空pkg.data，不得调整默认发现/资源。"
+      ],
+      "comparison": "original-warning-location",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/warning_origin/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/warning_origin/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "functional_typeddict",
+      "entry": "fixtures/functional_typeddict/entry.py",
+      "graph": [
+        "__main__",
+        "pkg"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "two",
+          "include_modules": []
+        },
+        {
+          "id": "three",
+          "include_modules": [
+            "pkg.data"
+          ]
+        }
+      ],
+      "expected_observations": [
+        "CP与新JIT原完整stdout逐字相等；T:module pkg；pkg.data未缓存。"
+      ],
+      "comparison": "cp-exact",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/functional_typeddict/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/functional_typeddict/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "p2_frames",
+      "entry": "fixtures/p2_frames/entry.py",
+      "graph": [
+        "__main__",
+        "a",
+        "b"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "原TD所有值与9条warning顺序/源行；b level2与第二次generator均正确抑制。",
+        "static_candidate必须真实Static numeric i64 ABI，不能仅从注解推断。"
+      ],
+      "comparison": "cp-warning-locations",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/p2_frames/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/p2_frames/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "p3_instances",
+      "entry": "fixtures/p3_instances/entry.py",
+      "graph": [
+        "__main__",
+        "source_a",
+        "source_b"
+      ],
+      "instance_modules": [
+        "source_a",
+        "source_b"
+      ],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "原完整输出；default4→4→6，module/once2→2→4。",
+        "旧/新函数、generator、builtins重绑、真实globals/target metadata身份完整保持；此公开目标不冒称State.Code=Y。"
+      ],
+      "comparison": "cp-warning-locations",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/p3_instances/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "--instance-module",
+        "source_a",
+        "--instance-module",
+        "source_b",
+        "build",
+        "{INPUT}/fixtures/p3_instances/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "static_td",
+      "entry": "fixtures/static_td/entry.py",
+      "graph": [
+        "__main__"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "真实m0_out Static void()；default CP/old/new等价。",
+        "rebound新候选必须保旧JIT原流而非宣称CP等价；flush丢返回不证明TD metadata。"
+      ],
+      "comparison": "static-accepted-debt",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/static_td/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/static_td/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "td_dynamic",
+      "entry": "fixtures/td_dynamic/entry.py",
+      "graph": [
+        "__main__",
+        "subject"
+      ],
+      "instance_modules": [
+        "subject"
+      ],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "正常None/空串/删除fallback main，int/list同对象；old alias独立于当前subject.make。",
+        "AttributeError及真实子类只调用一次bool，事后读取同subject活name；缺键main；空串/0/空list/FalseAgain不二次bool。",
+        "RuntimeError原异常/事件传播；None控制以本次CP最终值与旧/new逐行三方决定，新NI且旧正确则硬停。",
+        "直接repr/typing alias为明确NI边界，不能伪造CPgolden或把NI算等价。"
+      ],
+      "comparison": "td-bounded-debt",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/td_dynamic/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "--instance-module",
+        "subject",
+        "build",
+        "{INPUT}/fixtures/td_dynamic/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "warning_names",
+      "entry": "fixtures/warning_names/entry.py",
+      "graph": [
+        "__main__",
+        "subject"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "None记录0、events[]，bad category先报TypeError。",
+        "nonstr/missing默认DeprecationWarning为0、always可显示；name对象没有str/bool/eq。",
+        "NameString(\"__main__\")默认发出1，读取不可变payload；constructor/已有Warning.str只调用一次且本次筛选仍按修改前__main__。"
+      ],
+      "comparison": "cp-exact",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/warning_names/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/warning_names/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "mixed_epoch",
+      "entry": "fixtures/mixed_epoch/entry.py",
+      "graph": [
+        "__main__"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "两个顺序分别只1条event；首行分别5、8；同epoch module与once共享二元altkey。"
+      ],
+      "comparison": "cp-exact",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/mixed_epoch/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/mixed_epoch/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "mixed_frames",
+      "entry": "fixtures/mixed_frames/entry.py",
+      "graph": [
+        "__main__"
+      ],
+      "instance_modules": [],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "完整8组：module/once×main/dynamic×static先后；每组恰1条。",
+        "真实PE：static_issue void()和native partial无Python中间帧；dynamic_issue实际self；模块marker新source。",
+        "源由canonical writer提供；末段None抑制保类别检查。"
+      ],
+      "comparison": "cp-exact",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/mixed_frames/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "build",
+        "{INPUT}/fixtures/mixed_frames/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    },
+    {
+      "id": "native_consumers",
+      "entry": "fixtures/native_consumers/entry.py",
+      "graph": [
+        "__main__",
+        "sp_pkg",
+        "sp_pkg.subject"
+      ],
+      "instance_modules": [
+        "sp_pkg.subject"
+      ],
+      "arms": [
+        {
+          "id": "default",
+          "include_modules": []
+        }
+      ],
+      "expected_observations": [
+        "Legacy pkg ModuleMain与Instance subject ModuleMain各真warning+TD；emit为实际Dynamic并真消费两API。",
+        "包TD=sp_pkg，subject TD=sp_pkg.subject；两main warning各1，dynamic warning1，TD=reflection-native。",
+        "原位/搬移/容器隔离同本次CP原流；无源码/pyc/runtime解释器依赖；所有输入hash和PE来源链必须真实。"
+      ],
+      "comparison": "cp-exact",
+      "cp_argv": [
+        "{CP}",
+        "-B",
+        "-S",
+        "{INPUT}/fixtures/native_consumers/entry.py"
+      ],
+      "build_argv": [
+        "{ROLE_CLI}",
+        "--instance-module",
+        "sp_pkg.subject",
+        "build",
+        "{INPUT}/fixtures/native_consumers/entry.py",
+        "--diagnostic-stages",
+        "--out-dir",
+        "{PRODUCT}"
+      ]
+    }
+  ],
+  "files": {
+    "fixtures/functional_typeddict/entry.py": "56c191277ab15d01433b8359d091ef281758eaec8f033f88305d2aa7a4b266e3",
+    "fixtures/functional_typeddict/pkg/__init__.py": "81bb32012393e821e5872a224819ceae4d4c6a3464c9be03e6b4ef25185aa671",
+    "fixtures/functional_typeddict/pkg/data/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "fixtures/host_xy/cp_control.py": "4300c04ffb85c26276c7f5a3793f5ec0ed08a579b082b94a877dbf43559ea0b3",
+    "fixtures/host_xy/entry.py": "64320b7be1ecd52acb0f5b8cc3a2e25351cac7b28d1ad70bca2fa5b72e0c5b8f",
+    "fixtures/host_xy/source_x.py": "33e1840fd3da848f8c2449ea70f268d2ccd4a7c4259af867dd08c747eb2fec1a",
+    "fixtures/host_xy/source_y.py": "cfe6deeb230e7c1923c1badcdb99566ac70148b0d521efef71320996023d3d22",
+    "fixtures/mixed_epoch/entry.py": "eb6c5818c888000259956b3da4162a27fae26b2f40c9c776269eaef6712f266d",
+    "fixtures/mixed_frames/entry.py": "9309ce6c956f20132af063a5829bbb89320bccbe5ec3265c98a8f95ba0431e72",
+    "fixtures/native_consumers/entry.py": "90c57ceb672d63d70e06399187d0a6bf935b25bbb5d95766ee43f0227797ab6b",
+    "fixtures/native_consumers/resources.json": "d22b75bafdaeb858f21c30c1a4cf6a6c5577f2859bcca9ebd86832f42701ef40",
+    "fixtures/native_consumers/sp_pkg/__init__.py": "142ed4172744622be00a76ef313ea63878d4f4d072e0bb6e89025a143ae9e6af",
+    "fixtures/native_consumers/sp_pkg/subject.py": "087d5e3ce985bcf5591bc88c31520307807dd7528206e400061bb52b5d3c809d",
+    "fixtures/p2_frames/a/__init__.py": "11eede0f5ffb9fffc50bf656a60a7766620f588dbc89adf403de243e58c6441f",
+    "fixtures/p2_frames/b/__init__.py": "6487b8bab908d51b85d39942ad7369e3ed2c742c8de387d723f2a1a9b9e1693a",
+    "fixtures/p2_frames/entry.py": "289825f2f374e43380a83f2b38b65b98e1331ae262dc9b9c97dd20cd261b3522",
+    "fixtures/p3_instances/entry.py": "90e232bfd8a353c2ed01a4d0af253b0860c708eea66cfa4cba018bcd023e6c10",
+    "fixtures/p3_instances/source_a.py": "0f0e2d1a0d74bc26c6fad4fccf20e1bae2927d6975cd734fc584780c82b4e2c3",
+    "fixtures/p3_instances/source_b.py": "31fba5d93a13055269d4ec90321c033902d0e90a273d469681cf1b15cc1cbaf1",
+    "fixtures/static_td/entry.py": "fe13354978719c7ea4f81f6532d84a8d6e98a29c3afb595859f0cd4ed9138c46",
+    "fixtures/td_dynamic/entry.py": "88d0a6361dc8828e946cf3e0d6e02f7c2703dbd58f2cf199ca1e7f736ef5bdcb",
+    "fixtures/td_dynamic/subject.py": "cf533ff91fc14632089acf53793739c70ba7d5718448e201476922c897990e30",
+    "fixtures/warning_names/entry.py": "0ff4f380120ca831a157195b93ff41d1fb4e209886687aa192ec69f94e5f8052",
+    "fixtures/warning_names/subject.py": "ebeed0d0e1ef7c5414ddacc8ab8f6e7f108907a6741ab857b8d7bec7be0e6412",
+    "fixtures/warning_origin/entry.py": "969ae229808bb9453ae99f7078b2c60be471ce9c4e027d1c35d5eff289a30dd8",
+    "fixtures/warning_origin/pkg/__init__.py": "32891e33c4eb9d61027ca6b62a23e1682d186ce79809894f61048f7ab25ef787",
+    "fixtures/warning_origin/pkg/data/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "tool_new_binding": "必须同HEAD clean源码构建；CI compiled-tools.json/source-before.json锁CLI、runtime与来源。严禁替换old角色。",
+  "host": {
+    "entry": "fixtures/host_xy/entry.py",
+    "cp_entry": "fixtures/host_xy/cp_control.py",
+    "instance_modules": [
+      "source_x",
+      "source_y"
+    ],
+    "session_harness": "crates/ryupy-driver/examples/instance_migration.rs",
+    "program": "host/Program.cs",
+    "project": "host/Probe.csproj",
+    "graph": [
+      "__main__",
+      "source_x",
+      "source_y"
+    ],
+    "source_proof": "反射只读取真实States和Code名称/引用用于断言，执行调用既有Execute(code,target)；实际函数/marker来自编译源；不手工造新source/signature。"
+  },
+  "budget": {
+    "cp_target": 11,
+    "old_pe_build": 1,
+    "old_jit": 1,
+    "new_pe_build": 13,
+    "new_jit": 13,
+    "host_sdk_build": 2,
+    "native_publish": 1,
+    "native_runs": 3,
+    "retry": 0,
+    "extra_dump": 0,
+    "performance_process": 0,
+    "old_runtime_build": 1,
+    "session_example_build": 2,
+    "cp_native_separate_job": 1
+  },
+  "timeouts_seconds": {
+    "cp": 15,
+    "build": 120,
+    "jit": 20,
+    "host_build": 300,
+    "host_jit": 20,
+    "publish": 1500,
+    "native": 30
+  },
+  "environment": {
+    "inherit_only": [
+      "PATH",
+      "HOME",
+      "RUNNER_TEMP",
+      "CARGO_HOME",
+      "RUSTUP_HOME",
+      "NUGET_PACKAGES"
+    ],
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC",
+    "PYTHONHASHSEED": "0",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONNOUSERSITE": "1",
+    "DOTNET": "{ROLE_DOTNET}",
+    "DOTNET_ROOT": "{ROLE_DOTNET_ROOT}",
+    "RYUPY_RUNTIME_DIR": "{ROLE_RUNTIME_DIR}",
+    "DOTNET_MULTILEVEL_LOOKUP": "0",
+    "DOTNET_CLI_TELEMETRY_OPTOUT": "1",
+    "DOTNET_NOLOGO": "1"
+  },
+  "stop": "首次目标失败或oracle改变，保完整argv/env/cwd/原流/退出/产物/manifest；同案不重试、不改源追首错。未知/阻塞不能作为passed。None控制旧正确新拒绝则整体验收停止。",
+  "preservation": "完整同HEAD default/pilot make check、固定20按ID10/8/2、TraceA/B/HOT与C/D拒绝、旧pyfiglet和Instance Native均由原CI独立保留；不增项目分子、不作性能结论。",
+  "baseline_build": {
+    "commit": "7545eae82270797cbac2da68e996a7a8a5ba98af",
+    "tree": "802df207c7b4bd47a188929f70a1077cbbe5cf38",
+    "note": "hosted单独checkout/build旧Runtime与Session，记录实际新二进制身份，不复称历史DLL逐字相同"
+  },
+  "fixture_materialization": {
+    "fixtures/mixed_frames/entry.py": "tests/e2e/phase3/m3_7_source_provenance.py"
+  }
+}

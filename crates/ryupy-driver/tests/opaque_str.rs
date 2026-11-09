@@ -140,8 +140,19 @@ fn opaque_mir_keeps_object_signature_exact_concat_and_numeric_loop() {
     for name in ["identity", "read", "branch", "numeric_loop"] {
         let body = function(name);
         assert!(!body.contains("__function_owner"), "{body}");
-        assert!(!body.contains("RuntimeFn::TracePushWithOrigin"), "{body}");
-        assert!(body.contains("RuntimeFn::TracePush("), "{body}");
+        assert!(!body.contains("RuntimeFn::TracePush("), "{body}");
+        let prefix =
+            format!("RuntimeFn::TracePushWithOrigin(const \"shape.py\", const \"{name}\", global@");
+        let origins: Vec<_> = body
+            .lines()
+            .filter_map(|line| line.split_once(&prefix))
+            .collect();
+        assert_eq!(origins.len(), 1, "{body}");
+        let global = origins[0]
+            .1
+            .strip_suffix(");")
+            .expect("Static来源必须是直接global载体");
+        assert!(global.parse::<u32>().is_ok(), "{body}");
     }
     // 返回注解不匹配使 declared_int 整函数降为 Dynamic，owner 是独立尾参。
     let declared = function("declared_int");

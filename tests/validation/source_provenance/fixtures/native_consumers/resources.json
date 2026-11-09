@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {"module": "sp_pkg", "files": []},
+    {"module": "sp_pkg.subject", "files": []}
+  ]
+}

@@ -1,9 +1,9 @@
-//! 仅按收敛后的Dynamic模式添加实际self；模块入口冷建一次本次执行的来源。
+//! 按真实收敛模式提供帧载体：Dynamic用self，Static用自身signature，模块冷建执行来源。
 use crate::build::FunctionBuilder;
 use crate::mir::{Constant, LocalDecl, LocalId, MirType, Operand, RuntimeFn};
 use rustc_hash::FxHashSet;
 use ryupy_hir::{FuncId, FunctionKind, Module, StmtKind};
-use ryupy_ty::{FuncMode, Ty};
+use ryupy_ty::FuncMode;
 
 /// 只收普通定义语句，装饰器结果和嵌套实例不得混进代码的私有直调槽。
 pub(crate) fn plain_definitions(hir: &Module) -> FxHashSet<FuncId> {
@@ -33,29 +33,26 @@ impl FunctionBuilder<'_> {
         self.dynamic_owner = Some(owner);
     }
 
-    pub(crate) fn frame_origin(&mut self) -> Option<Operand> {
+    pub(crate) fn frame_origin(
+        &mut self,
+        source: crate::GlobalId,
+        signature: Option<crate::GlobalId>,
+    ) -> Option<Operand> {
         if let Some(owner) = self.dynamic_owner {
             return Some(Operand::Local(owner));
         }
 
-        if let Some(state) = self.module_state {
-            return Some(self.expr_builder().runtime_call(
-                RuntimeFn::InstanceExecutionSource,
-                vec![Operand::Local(state)],
-                MirType::Dynamic,
-            ));
-        }
         if self.hir.functions[self.current_hir_fn].kind != FunctionKind::ModuleMain {
-            return None;
+            return signature.map(Operand::Global);
         }
-        // 此处在HIR模块前言之前，不读刚重置的__name__槽；与前言使用同一初始名。
-        let name = Operand::Const(Constant::Str(self.hir.info.name.clone()));
-        let boxed = self
-            .expr_builder()
-            .coerce(name, &Ty::Str, &MirType::Dynamic);
+        // source属于实际代码，state只提供目标环境；不能用state.Code推断运行的是谁。
+        let context = self
+            .module_state
+            .map(Operand::Local)
+            .unwrap_or(Operand::Const(Constant::Null));
         Some(self.expr_builder().runtime_call(
-            RuntimeFn::ModuleExecutionSource,
-            vec![boxed],
+            RuntimeFn::ModuleExecutionSourceWithCode,
+            vec![Operand::Global(source), context],
             MirType::Dynamic,
         ))
     }

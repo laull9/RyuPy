@@ -126,6 +126,24 @@ pub(crate) fn link_with_origins(
             fn_map.insert(old, new_id);
         }
 
+        // 来源槽先分配，FnId映射就绪后才回填其完整所属关系；不能保留unit内的旧序号。
+        for (old, decl) in program.globals.iter() {
+            if let crate::GlobalStorage::CodeSource {
+                entry,
+                functions: members,
+                legacy_entry,
+            } = &decl.storage
+            {
+                globals[global_map[&old]].storage = crate::GlobalStorage::CodeSource {
+                    entry: fn_map[entry],
+                    functions: members.iter().map(|id| fn_map[id]).collect(),
+                    legacy_entry: legacy_entry.as_ref().map(|value| crate::LegacySourceEntry {
+                        initial_name: value.initial_name.clone(),
+                        name_global: global_map[&value.name_global],
+                    }),
+                };
+            }
+        }
         // 2. 类定义：字段 / 基类 / 工厂槽位都要改写。
         for (old, cls) in program.classes.iter() {
             let new_id = class_map[&old];

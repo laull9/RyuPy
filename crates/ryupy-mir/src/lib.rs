@@ -80,8 +80,13 @@ mod operations;
 mod trace_product_abi;
 mod validate_lexical_super;
 mod validate_regions;
-pub use module_execution::{GlobalStorage, InstanceStateSource, ModuleExecutionKind};
+pub use module_execution::{
+    GlobalStorage, InstanceStateSource, LegacySourceEntry, ModuleExecutionKind,
+};
 mod instance_module;
+pub mod source_provenance;
+#[cfg(test)]
+mod source_provenance_tests;
 mod validate_class_cell_uses;
 mod validate_class_cells;
 mod validate_instance_module;

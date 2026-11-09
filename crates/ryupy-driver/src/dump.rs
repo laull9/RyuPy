@@ -80,6 +80,8 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
             .map_err(|e| anyhow::anyhow!(e))?;
         (mir, exports, None)
     };
+    ryupy_mir::source_provenance::require_program(&mir)
+        .map_err(|errors| anyhow::anyhow!(errors.join("\n")))?;
     if stage == Stage::Mir {
         return Ok(ryupy_mir::pretty::dump(&mir));
     }
@@ -98,7 +100,7 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
                 package: module.package.clone(),
                 file: module.file.clone(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
+                file_backed_by_global: true,
                 is_package: false,
                 exports,
             },
@@ -111,5 +113,5 @@ pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
         assembly_name: assembly_name(input),
         entry_source_path: Some(input.to_string_lossy().into_owned()),
     };
-    Ok(ryupy_codegen_cil::dump_cil(&linked, &emit_opts)?)
+    Ok(ryupy_codegen_cil::dump_source_cil(&linked, &emit_opts)?)
 }

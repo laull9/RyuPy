@@ -43,6 +43,7 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
             | RuntimeFn::FunctionDefaults
             | RuntimeFn::TracePushWithOrigin
             | RuntimeFn::ModuleExecutionSource
+            | RuntimeFn::ModuleExecutionSourceWithCode
             | RuntimeFn::UnpackEx
     ) || crate::validate_module_pairs::fixed_abi(callee)
 }
@@ -121,6 +122,7 @@ pub(super) fn validate_call(
             RuntimeFn::UnpackEx => Some(&[MirType::Dynamic, MirType::I64, MirType::I64]),
             RuntimeFn::FinalizeOrdinaryClass => Some(&[MirType::Dynamic]),
             RuntimeFn::FunctionModule => Some(&[MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::ModuleExecutionSourceWithCode => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::FunctionDefaults | RuntimeFn::ModuleExecutionSource => {
                 Some(&[MirType::Dynamic])
             }
@@ -333,6 +335,7 @@ pub(super) fn validate_destination(
             | RuntimeFn::CaptureModuleTarget
             | RuntimeFn::FunctionDefaults
             | RuntimeFn::ModuleExecutionSource
+            | RuntimeFn::ModuleExecutionSourceWithCode
             | RuntimeFn::UnpackEx
             | RuntimeFn::CallCapturedMethod
             | RuntimeFn::NumericListCreate
@@ -417,6 +420,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::TracePushWithOrigin
                     | RuntimeFn::FunctionDefaults
                     | RuntimeFn::ModuleExecutionSource
+                    | RuntimeFn::ModuleExecutionSourceWithCode
                     | RuntimeFn::CaptureModuleTarget
                     | RuntimeFn::IsModule
                     | RuntimeFn::CallCapturedMethod

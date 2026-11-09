@@ -64,19 +64,31 @@ public static class PyWarnings
     {
         if (source is not (null or PyNone))
             throw new PyNotImplementedError("warnings source allocation tracing is not supported");
+        // 类别选择/验证先于None抑制；已有Warning实例忽略显式category。
+        PyBaseException? existing = message is PyBaseException candidate
+            && (candidate is PyWarning || candidate.PythonClass?.IsSubclassOfBuiltin("Warning") == true)
+            ? candidate : null;
+        category = existing is not null ? (object?)existing.PythonClass ?? PyType.Get(existing.PyTypeName)
+            : category is null or PyNone ? PyType.Get("UserWarning") : category;
+        if (!PyWarningFilters.IsCategory(category)) throw new PyTypeError("category must be a Warning subclass");
+        PyCallerSource caller = PyTraceback.CallerSource(stacklevel);
+        string? module = null;
+        if (caller.Known)
+        {
+            // CP先取得选中帧的活globals，再构造/格式化消息；后续用户副作用不重选环境。
+            bool present = caller.TryReadName(out object? rawName);
+            if (present && rawName is null or PyNone) return;
+            module = present && PyStringLayout.TryGet(rawName, out string name) ? name : "<string>";
+        }
         object? text = message;
         PyBaseException warning;
-        if (message is PyBaseException existing
-            && (existing is PyWarning || existing.PythonClass?.IsSubclassOfBuiltin("Warning") == true))
+        if (existing is not null)
         {
             warning = existing;
             text = PyRepr.Str(existing);
-            category = (object?)existing.PythonClass ?? PyType.Get(existing.PyTypeName);
         }
         else
         {
-            category = category is null or PyNone ? PyType.Get("UserWarning") : category;
-            if (!PyWarningFilters.IsCategory(category)) throw new PyTypeError("category must be a Warning subclass");
             warning = category switch
             {
                 PyType type => PyWarningTypes.Create(type.Name, [message]),
@@ -85,10 +97,13 @@ public static class PyWarnings
                 _ => throw new PyTypeError("category must be a Warning subclass"),
             };
         }
-        PyStackFrame frame = PyTraceback.GetCallerLocation(stacklevel);
-        string module = frame.File == "sys" ? "sys" : PyModules.ModuleForFile(frame.File)
+        // 真旧载体仍保消息构造后的旧扫描；新Static已经是Known，不能混入旧表。
+        PyStackFrame frame = caller.Known ? caller.Frame : PyTraceback.GetCallerLocation(stacklevel);
+        module ??= frame.File == "sys" ? "sys" : PyModules.ModuleForFile(frame.File)
             ?? throw new PyNotImplementedError("warning module cannot be resolved for source " + frame.File);
-        string action = PyWarningFilters.Action(text, category!, module, frame.Line);
+        string action = caller.Known
+            ? PyWarningFilters.ActionKnown(text, category!, module, frame.Line, caller.Environment)
+            : PyWarningFilters.Action(text, category!, module, frame.Line);
         if (action == "ignore") return;
         if (action == "error") throw warning;
         var record = new PyWarningMessage(warning, category!, frame.File, frame.Line, source);

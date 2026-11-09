@@ -1,13 +1,29 @@
 //! 捕获调用异常后必须保留处理函数自身帧；正常返回才弹自身帧。
 use ryupy_driver::Session;
+
+const SOURCE: &str = "def original():\n    raise ValueError('old')\ndef caught():\n    try:\n        original()\n    except ValueError:\n        pass\n    raise RuntimeError('new')\ncaught()\n";
+
+// 纯Rust快照入口与真实运行回归分开；完整JIT断言仍由原测试独立执行。
+#[test]
+fn snapshot_catch_restores_current_frame() {
+    let directory =
+        std::env::temp_dir().join(format!("ryupy_catch_snapshot_{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("ryupy_catch_current_frame.py");
+    std::fs::write(&path, SOURCE).unwrap();
+    let mut session = Session::default();
+    let mir = ryupy_driver::dump(&mut session, &path, ryupy_driver::Stage::Mir).unwrap();
+    insta::assert_snapshot!("catch_restores_current_frame_mir", mir);
+    std::fs::remove_file(path).unwrap();
+    std::fs::remove_dir(directory).unwrap();
+}
+
 #[test]
 fn caught_call_does_not_remove_the_catching_function_frame() {
     let root = ryupy_driver::runtime::workspace_root();
     let path = std::env::temp_dir().join("ryupy_catch_current_frame.py");
-    std::fs::write(&path, "def original():\n    raise ValueError('old')\ndef caught():\n    try:\n        original()\n    except ValueError:\n        pass\n    raise RuntimeError('new')\ncaught()\n").unwrap();
+    std::fs::write(&path, SOURCE).unwrap();
     let mut session = Session::default();
-    let mir = ryupy_driver::dump(&mut session, &path, ryupy_driver::Stage::Mir).unwrap();
-    insta::assert_snapshot!("catch_restores_current_frame_mir", mir);
     let artifact = ryupy_driver::build(
         &mut session,
         &ryupy_driver::BuildOptions {

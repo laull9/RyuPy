@@ -212,6 +212,8 @@ pub enum RuntimeFn {
     TracePushWithOrigin,
     /// `PyTraceback.CreateModuleExecutionSource(object) -> object`，每次模块执行新建。
     ModuleExecutionSource,
+    /// `CreateModuleExecutionSourceWithCode(object source, object context) -> object`；旧ABI不变。
+    ModuleExecutionSourceWithCode,
     /// 与TracePush相同的递归深度检查，但不压入无回调叶快路的帧。
     TraceCheckDepth,
     /// `PyTraceback.SetLine(long)`：更新当前行号。

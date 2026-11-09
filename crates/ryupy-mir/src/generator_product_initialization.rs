@@ -306,7 +306,7 @@ impl Initialization {
                     dest,
                     value:
                         Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::ModuleExecutionSource),
+                            callee: Callee::Runtime(RuntimeFn::ModuleExecutionSourceWithCode),
                             args,
                         },
                 } = s
@@ -320,7 +320,11 @@ impl Initialization {
         let [(source_at, source, args)] = sources.as_slice() else {
             return Err(error("前言缺少唯一Source注册来源").into());
         };
-        let [argument] = args.as_slice() else {
+        let [
+            argument @ Operand::Global(code),
+            Operand::Const(Constant::Null),
+        ] = args.as_slice()
+        else {
             return Err(error("Source真实参数不符").into());
         };
         if *source_at >= first
@@ -331,16 +335,13 @@ impl Initialization {
         {
             return Err(error("Source真实参数不符").into());
         }
-        match limitations.check(context.initial(
-            argument,
-            (body.entry, *source_at),
-            &mut producer_sites,
-        ))? {
-            Some(actual) if actual != Initial::Text("__main__".into()) => {
-                return Err(error("Source真实参数不符").into());
-            }
-            Some(_) => {}
-            None => chains_complete = false,
+        // 冷source来自真实unit，其Legacy初值/name槽须与已核初始化角色一致。
+        if !matches!(&global(program, *code)?.storage,
+            GlobalStorage::CodeSource { entry, legacy_entry: Some(initial), .. }
+            if *entry == self.entry && initial.initial_name == "__main__"
+                && self.roles.iter().any(|role| role.export.name == "__name__" && role.export.value == initial.name_global))
+        {
+            return Err(error("Source代码/入口/name槽关系错误").into());
         }
         // producer临时值只能沿已核纯链进入对应store；metadata不因store完成而获得用户能力。
         context.transfers = producer_sites.clone();

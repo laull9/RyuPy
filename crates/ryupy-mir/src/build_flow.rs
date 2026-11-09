@@ -36,7 +36,11 @@ impl FunctionBuilder<'_> {
     ///
     /// 深度用于两个地方：正常返回时 `PopTo(depth)` 弹掉自己的帧；异常被兜住时
     /// 用depth+1只弹掉被展开的被调用者帧，保留当前帧。
-    pub(crate) fn emit_frame_push(&mut self) {
+    pub(crate) fn emit_frame_push(
+        &mut self,
+        source: crate::GlobalId,
+        signature: Option<crate::GlobalId>,
+    ) {
         // 模块顶层函数在 traceback 里显示为 `<module>`，与 CPython 一致
         let func = &self.hir.functions[self.current_hir_fn];
         let fn_name = if matches!(func.kind, ryupy_hir::FunctionKind::ModuleMain) {
@@ -44,7 +48,7 @@ impl FunctionBuilder<'_> {
         } else {
             func.name.as_str().to_string()
         };
-        let origin = self.frame_origin();
+        let origin = self.frame_origin(source, signature);
         let mut args = vec![
             Operand::Const(Constant::Str(self.hir.info.file.clone())),
             Operand::Const(Constant::Str(fn_name)),

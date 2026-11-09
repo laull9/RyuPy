@@ -236,6 +236,14 @@ pub(crate) fn build_program_mode(
         fn_map.insert(hir_fn_id, mir_fn_id);
     }
 
+    let source = crate::source_provenance::allocate(
+        hir,
+        &fn_map,
+        &module_var_ids,
+        &functions,
+        &mut globals,
+        &mut diagnostics,
+    );
     let mut fn_globals: FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId> = FxHashMap::default();
     let mut fn_defaults: FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>> =
         FxHashMap::default();
@@ -383,7 +391,7 @@ pub(crate) fn build_program_mode(
         }
 
         // 帧记录：traceback 需要知道「当前在哪个函数、第几行」
-        builder.emit_frame_push();
+        builder.emit_frame_push(source, functions[mir_fn_id].signature_global);
 
         // 构建语句
         for &stmt_id in &hir_fn.body.root {

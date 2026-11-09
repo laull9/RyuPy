@@ -159,7 +159,7 @@ fn helper_keys_modules_source_and_opaque_values_cannot_be_forged_or_escape() {
         f.reject("opaque file/metadata初值");
     }
     let mut f = Fixture::new(true);
-    let at = f.call(RuntimeFn::ModuleExecutionSource);
+    let at = f.call(RuntimeFn::ModuleExecutionSourceWithCode);
     let Statement::Assign {
         value: Rvalue::Call { args, .. },
         ..

@@ -20,7 +20,14 @@ fn assert_static_numeric(program: &Program) {
             function.dynamic_origin.is_none(),
             "Static不可具有owner: {name}"
         );
-        assert!(trace_calls(function, RuntimeFn::TracePushWithOrigin).is_empty());
+        // 只增加既有私有signature冷载体；不增加owner参数或逐调用对象。
+        let push = trace_calls(function, RuntimeFn::TracePushWithOrigin);
+        assert_eq!(push.len(), 1);
+        assert_eq!(push[0].len(), 3);
+        assert_eq!(
+            push[0][2],
+            Operand::Global(function.signature_global.unwrap())
+        );
         assert_eq!(function.params.len(), count, "Static不可新增owner: {name}");
         assert_eq!(function.param_meta.len(), count);
         assert_eq!(function.ret, ret);
@@ -30,8 +37,7 @@ fn assert_static_numeric(program: &Program) {
                 .iter()
                 .all(|id| function.body.locals[*id].ty == MirType::I64)
         );
-        assert_eq!(trace_calls(function, RuntimeFn::TracePush).len(), 1);
-        assert_eq!(trace_calls(function, RuntimeFn::TracePush)[0].len(), 2);
+        assert!(trace_calls(function, RuntimeFn::TracePush).is_empty());
         if name != "static_output" {
             assert!(
                 rvalues(function).all(|value| !matches!(
@@ -166,11 +172,18 @@ fn assert_dynamic_shape(program: &Program, exports: &[ModuleExport]) {
                     dest,
                     value:
                         Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::ModuleExecutionSource),
+                            callee: Callee::Runtime(RuntimeFn::ModuleExecutionSourceWithCode),
                             args,
                         },
                 } => {
-                    assert_eq!(args.len(), 1);
+                    let own = unique(program.globals.iter().filter_map(|(id, global)| {
+                        matches!(&global.storage, ryupy_mir::GlobalStorage::CodeSource { entry, .. }
+                            if *entry == program.entry).then_some(id)
+                    }), "ModuleMain自己的代码来源");
+                    assert_eq!(
+                        args,
+                        &vec![Operand::Global(own), Operand::Const(Constant::Null)]
+                    );
                     Some(*dest)
                 }
                 _ => None,

@@ -1,0 +1,5 @@
+<!-- 与既有托管Instance宿主方式一致；显式Runtime路径，不添加SDK/包/产品API。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
+  <ItemGroup><Compile Include="Program.cs"/><Reference Include="RyuPy.Runtime"><HintPath>$(RuntimePath)</HintPath><Private>true</Private></Reference></ItemGroup>
+</Project>

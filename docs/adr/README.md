@@ -81,3 +81,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 带来的代价、需要后续跟进的事项、什么情况下应该重新审视。
 ```
 | [0142](0142-generator-trace-product-v1.md) | 显式生成器 trace 产品 V1：末端 lowering 与单一权威 | 未验收源码候选；默认关闭，完整产品/回归待执行 |
+
+| [0145](0145-compiled-source-provenance.md) | 实际代码来源与同帧warnings/功能式TypedDict | 有限源码候选；纯Rust门完成，真实C#/JIT/Native与完整保护待验 |

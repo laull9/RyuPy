@@ -142,6 +142,7 @@ pub(crate) fn emit_entry_wrapper(
 
 pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     let (res, _) = build_resolution(program, opts);
     res.write(WriteOptions {
         // `true` 生成 PE32 + ILONLY（AnyCPU），不是「32 位程序」：
@@ -155,6 +156,7 @@ pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, Code
 
 pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     let (res, module_class) = build_resolution(program, opts);
     let mut out = String::new();
     out.push_str(&format!(".assembly {}\n{{\n}}\n", opts.assembly_name));

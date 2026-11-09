@@ -106,7 +106,7 @@ impl Initialization {
                                                 "未认证的file/metadata初值消费者",
                                             )));
                                         }
-                                        RuntimeFn::ModuleExecutionSource
+                                        RuntimeFn::ModuleExecutionSourceWithCode
                                             if function_id != self.entry
                                                 || block_id != context.body.entry
                                                 || position
@@ -371,49 +371,5 @@ impl<'a> Context<'a> {
     }
 }
 
-// 穷尽读取实际操作数；合法但未迁入的Rvalue由high能力检查拒绝，不能遮后续发布前读取。
-fn operands(value: &Rvalue) -> Vec<&Operand> {
-    match value {
-        Rvalue::Use(value)
-        | Rvalue::Box { value, .. }
-        | Rvalue::Unbox { value, .. }
-        | Rvalue::GeneratorDelegateStep { delegate: value }
-        | Rvalue::GetField { obj: value, .. }
-        | Rvalue::VectorLaneF64 { value, .. }
-        | Rvalue::IsBoxedF64 { value }
-        | Rvalue::UnboxExactF64 { value }
-        | Rvalue::IsBoxedI64 { value }
-        | Rvalue::UnboxExactI64 { value }
-        | Rvalue::DynTruthy { value }
-        | Rvalue::Unary { operand: value, .. }
-        | Rvalue::Cast { operand: value, .. }
-        | Rvalue::DynUnary { operand: value, .. } => vec![value],
-        Rvalue::Binary { lhs, rhs, .. }
-        | Rvalue::VectorBinaryF64 { lhs, rhs, .. }
-        | Rvalue::DynBinary { lhs, rhs, .. }
-        | Rvalue::DynCompare { lhs, rhs, .. } => vec![lhs, rhs],
-        Rvalue::VectorPackF64 { low, high } => vec![low, high],
-        Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => args.iter().collect(),
-        Rvalue::CallWithArgs { prefix, args, .. } => prefix.iter().chain(args).collect(),
-        Rvalue::DynCallValue { callee, args } => std::iter::once(callee).chain(args).collect(),
-        Rvalue::DynCallMethod {
-            captured,
-            obj,
-            args,
-            ..
-        } => captured
-            .iter()
-            .chain(std::iter::once(obj))
-            .chain(args)
-            .collect(),
-        Rvalue::MakeFunction {
-            env,
-            defaults,
-            instance_context,
-            ..
-        } => env.iter().chain(defaults).chain(instance_context).collect(),
-        Rvalue::MakeGenerator { frame, origin, .. } => frame.iter().chain(origin).collect(),
-        Rvalue::InstanceZeroCall { callee, .. } => vec![callee],
-        Rvalue::CatchException | Rvalue::IsVector128Supported => vec![],
-    }
-}
+// 来源校验与本前言见证复用完整操作数枚举，不遗漏数组/调用载体。
+use crate::source_provenance::operands;

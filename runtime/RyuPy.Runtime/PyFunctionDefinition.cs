@@ -8,10 +8,11 @@ namespace RyuPy.Runtime;
 internal static class PyFunctionDefinition
 {
     // 编译器提供真实词法名与源码首行；运行时不得用可变名字或函数序号推测来源。
-    private sealed class DefinitionInfo(string lexicalQualname, long firstLine)
+    private sealed class DefinitionInfo(string? lexicalQualname, long firstLine, CompiledCodeSource? source = null)
     {
-        internal readonly string LexicalQualname = lexicalQualname;
+        internal readonly string? LexicalQualname = lexicalQualname;
         internal readonly long FirstLine = firstLine;
+        internal readonly CompiledCodeSource? Source = source;
     }
 
     private sealed class QualnameOverride(string value)
@@ -35,10 +36,24 @@ internal static class PyFunctionDefinition
         }
     }
 
+    internal static void RegisterSource(PySignature signature, string? qualname, long firstLine, object source)
+    {
+        var code = CompiledCodeSource.Require(source);
+        // 合成signature可只有代码关联；不为它伪造词法限定名或首行。
+        if (qualname is null ? firstLine != 0 : firstLine < 1)
+            throw new PyValueError("invalid source definition lexical metadata");
+        try { Definitions.Add(signature, new DefinitionInfo(qualname, firstLine, code)); }
+        catch (ArgumentException) { throw new PyRuntimeError("function definition is already registered"); }
+    }
+
+    internal static CompiledCodeSource? Source(PySignature signature) =>
+        Definitions.TryGetValue(signature, out DefinitionInfo? info) ? info.Source : null;
+
     internal static string GetQualname(PyFunction function)
     {
         if (Qualnames is { } overrides && overrides.TryGetValue(function, out QualnameOverride? value)) return value.Value;
-        if (Definitions.TryGetValue(function.Signature, out DefinitionInfo? info)) return info.LexicalQualname;
+        if (Definitions.TryGetValue(function.Signature, out DefinitionInfo? info)
+            && info.LexicalQualname is { } name) return name;
         throw new PyNotImplementedError("function lexical qualname is not available");
     }
 
@@ -64,7 +79,7 @@ internal static class PyFunctionDefinition
         overrides.GetValue(function, _ => new QualnameOverride(name)).Value = name;
 
     internal static long GetFirstLine(PySignature signature) =>
-        Definitions.TryGetValue(signature, out DefinitionInfo? info) ? info.FirstLine
+        Definitions.TryGetValue(signature, out DefinitionInfo? info) && info.FirstLine > 0 ? info.FirstLine
             : throw new PyNotImplementedError("function definition first line is not available");
 }
 
@@ -76,6 +91,14 @@ public sealed partial class PyFunction
 
 public static partial class PyOps
 {
+    /// <summary>新版冷登记：每签名一次关联实际代码，不修改旧函数实例/调用ABI。</summary>
+    public static void FunctionDefinitionWithSource(object signature, string? lexicalQualname, long firstLine, object source)
+    {
+        if (signature is not PySignature target)
+            throw new PyTypeError("function definition target must be a signature");
+        PyFunctionDefinition.RegisterSource(target, lexicalQualname, firstLine, source);
+    }
+
     /// <summary>每个共享签名初始化时冷登记一次不可变定义来源，不改变真实def的求值顺序。</summary>
     public static void FunctionDefinition(object signature, string qualname, long firstlineno)
     {

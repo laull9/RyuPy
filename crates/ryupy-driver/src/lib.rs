@@ -352,6 +352,8 @@ fn compile_linked_traced(
             trace,
             trace_request,
         )?;
+        ryupy_mir::source_provenance::require_program(&program)
+            .map_err(|errors| anyhow::anyhow!(errors.join("\n")))?;
         if let Some(proof) = trace_proof {
             trace_proofs.push(proof);
         }
@@ -407,7 +409,7 @@ fn check_linked_exports(
     linked: &ryupy_mir::LinkedProgram,
     file: FileId,
 ) -> Result<()> {
-    if let Err(errors) = ryupy_mir::validate::validate_linked_exports(linked) {
+    if let Err(errors) = ryupy_mir::source_provenance::require_linked(linked) {
         for error in errors {
             sess.diagnostics.push(
                 ryupy_base::Diagnostic::error(
@@ -511,7 +513,7 @@ fn build_with_resources_inner(
     };
     trace.mark("begin", "emit", "-");
     let (bytes, context) = if opts.aot {
-        let emitted = ryupy_codegen_cil::emit_assembly_with_report(&linked, &emit_opts)?;
+        let emitted = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &emit_opts)?;
         let context = manifest::ManifestContext::new(
             emitted.report,
             sources,
@@ -521,7 +523,8 @@ fn build_with_resources_inner(
         )?;
         (emitted.bytes, Some(context))
     } else {
-        (ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?, None)
+        let bytes = ryupy_codegen_cil::emit_source_assembly(&linked, &emit_opts)?;
+        (bytes, None)
     };
 
     trace.mark("end", "emit", "-");

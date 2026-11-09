@@ -78,6 +78,7 @@ fn compile(root: &Root, name: &str, source: &str) -> (Program, Vec<ModuleExport>
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let info = ryupy_hir::ModuleInfo {
         instance_globals: false,
+        name: "__main__".into(),
         file: filename,
         ..Default::default()
     };
@@ -409,7 +410,7 @@ fn module_function_bindings_freeze_public_calls_and_preserve_unselected_static_p
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
                 environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
+                file_backed_by_global: true,
                 is_package: false,
                 protected_exports: vec![],
                 name: "__main__".into(),

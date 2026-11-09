@@ -280,7 +280,7 @@ pub(crate) fn emit_init_functions(
     let string_type: MethodType = BaseType::String.into();
     let mut ins = Vec::new();
 
-    for (_, func) in program.functions.iter() {
+    for (function_id, func) in program.functions.iter() {
         let Some(signature_global) = func.signature_global else {
             continue;
         };
@@ -312,19 +312,35 @@ pub(crate) fn emit_init_functions(
             volatile: false,
             param0: signature_field.into(),
         });
-        // 来源只随每定义共享的签名冷登记；普通 def 创建、thunk 与调用不查表。
-        if let Some(definition) = &func.definition {
+        // 每个signature关联实际unit，合成定义可无lexical信息；旧手工MIR保原冷ABI。
+        let source = ryupy_mir::source_provenance::for_function(&program.globals, function_id);
+        if func.definition.is_some() || source.is_some() {
             ins.push(Instruction::LoadStaticField {
                 volatile: false,
                 param0: signature_field.into(),
             });
-            ins.push(Instruction::load_string(
-                definition.lexical_qualname.clone(),
-            ));
-            ins.push(Instruction::LoadConstantInt64(i64::from(
-                definition.firstlineno,
-            )));
-            ins.push(Instruction::call(refs.function_objects.definition));
+            if let Some(definition) = &func.definition {
+                ins.push(Instruction::load_string(
+                    definition.lexical_qualname.clone(),
+                ));
+                ins.push(Instruction::LoadConstantInt64(i64::from(
+                    definition.firstlineno,
+                )));
+            } else {
+                ins.push(Instruction::LoadNull);
+                ins.push(Instruction::LoadConstantInt64(0));
+            }
+            if let Some(source) = source {
+                ins.push(Instruction::LoadStaticField {
+                    volatile: false,
+                    param0: refs.global_fields[&source].into(),
+                });
+                ins.push(Instruction::call(
+                    refs.function_objects.definition_with_source,
+                ));
+            } else {
+                ins.push(Instruction::call(refs.function_objects.definition));
+            }
         }
     }
     ins.push(Instruction::Return);

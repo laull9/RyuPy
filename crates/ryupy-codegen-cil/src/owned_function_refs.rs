@@ -51,10 +51,14 @@ pub(crate) fn initialize(
     refs: &mut crate::stackify_refs::RuntimeRefs,
     thunks: &FxHashMap<FnId, MethodIndex>,
     init_literals: MethodIndex,
+    init_sources: Option<MethodIndex>,
 ) -> MethodIndex {
     let init = crate::callables::emit_init_functions(res, module, program, refs);
     // 字面量先初始化，def默认值才可读取它；未选路径指令次序保持不变。
     if let Some(body) = res[init].body.as_mut() {
+        if let Some(source) = init_sources {
+            body.instructions.insert(0, Instruction::call(source));
+        }
         body.instructions
             .insert(0, Instruction::call(init_literals));
         body.header.maximum_stack_size = body.header.maximum_stack_size.max(8);

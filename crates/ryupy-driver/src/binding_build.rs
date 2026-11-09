@@ -49,10 +49,11 @@ fn build_internal(
     sess.fixed_binding_build = previous;
     let (mut program, sources, _) = compiled?;
     plan.check_modules(&program)?;
+    let source_modules = ryupy_codegen_cil::SourceModules::capture(&program)?;
     let binding = declare(&mut program, &plan);
     let name = crate::assembly_name(&opts.input);
     validate_name(&name)?;
-    let emitted = fixed_bindings::emit_with_report(
+    let emitted = fixed_bindings::emit_source_with_report(
         &program,
         &ryupy_codegen_cil::EmitOptions {
             assembly_name: name.clone(),
@@ -62,6 +63,7 @@ fn build_internal(
         &BindingDeployment {
             relative_file: plan.platform.relative_file().into(),
         },
+        &source_modules,
     )?;
     let context = BindingManifest::new(
         emitted.report,

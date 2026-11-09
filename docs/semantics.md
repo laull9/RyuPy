@@ -1343,3 +1343,9 @@ except*与其它复杂目标继续拒绝，默认模块集合和Native自动Lega
 find_spec父导入共享唯一初始化但保strict发现合同，避免重复getter；父spec圆环协议、kind0/2及来源歧义未扩域。CP已测，C#/JIT/完整门/旧Native未验，四目录pending，见[合同](source-import-paths.md)。
 
 单成员Legacy ImportAttr同名MNFE进入第二属性/cache阶段，正文已挂父值优先；正常已初始化kind1源的最终ImportError补父name/path及含路径消息。可写name/file/spec诊断、循环消息、多成员fromlist相位与实例Relative旧formatter未修，不扩大compiler ABI。host登记子名须为单路径分量。新增caller C#与真实JIT门仍待执行。
+
+### 实际来源与warning/功能式TypedDict候选（ADR0145，未验收）
+
+新source帧让warning读取stacklevel同一帧活globals，None在消息构造/str前抑制但不跳过类别校验；缺名/非str用<string>，str子类有限payload匹配。环境去重不含可变name，module/once共altkey，过滤重设刷新。只承诺普通精确str元数据键域，不宣称PyDict查找无任意用户回调。
+
+Main/Dynamic功能式TypedDict读执行入口快照/真实可写function.Module，raw identity与一次truthiness保留；仅AttributeError及子类转事后同env live fallback，缺键main，非None不二次bool。二级None元类默认填充与非str显示明确NI，旧正确路径不得因guard回退。Static TD继续旧文件扫描算法与重绑债；TypeVar旧内部来源接口不改。详见[ADR0145](adr/0145-compiled-source-provenance.md)。纯Rust结构门已过不代表真实C#/JIT/Native通过，来源e2e仍pending。

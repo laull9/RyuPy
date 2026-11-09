@@ -33,4 +33,17 @@ pub enum GlobalStorage {
     InstancePublic {
         name: String,
     },
+    /// 每真实编译单元一个私有冷来源；函数所属关系只在此登记，link必须重映射内部ID。
+    CodeSource {
+        entry: crate::FnId,
+        functions: Vec<crate::FnId>,
+        legacy_entry: Option<LegacySourceEntry>,
+    },
+}
+
+/// Legacy入口值来自实际HIR身份前言，不在未初始化getter失败后猜初始名字。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LegacySourceEntry {
+    pub initial_name: String,
+    pub name_global: crate::GlobalId,
 }

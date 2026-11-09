@@ -422,7 +422,22 @@ fn build_resolution_core(
         thunk_index += 1;
     }
 
-    // 模块初始化只预建签名；Python函数身份在真实定义执行点构造。
+    // 先定义访问器，再冷建source，最后关联signature；这些步骤不执行getter或模块正文。
+    let accessors = crate::modules::emit_module_accessors(
+        &mut res,
+        module_class,
+        program,
+        &runtime_refs,
+        &class_types,
+    );
+    let init_sources = crate::source_provenance::initialize(
+        &mut res,
+        module_class,
+        program,
+        &runtime_refs,
+        &accessors,
+        ryupy_runtime,
+    );
     let init_functions = crate::owned_function_refs::initialize(
         &mut res,
         module_class,
@@ -430,15 +445,7 @@ fn build_resolution_core(
         &mut runtime_refs,
         &thunks,
         init_literals,
-    );
-    // 模块对象的属性读写入口 + 注册表。注册追加到 `__init_functions` 末尾，
-    // 此时函数对象与类工厂都已就绪。
-    let accessors = crate::modules::emit_module_accessors(
-        &mut res,
-        module_class,
-        program,
-        &runtime_refs,
-        &class_types,
+        init_sources,
     );
     crate::modules::append_module_registration(
         &mut res,

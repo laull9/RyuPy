@@ -175,6 +175,21 @@ pub(super) fn link(
     for (old, actual) in &map.globals {
         let mut expected = proof.globals[old.into_raw().into_u32() as usize].clone();
         expected.name = format!("m0_{}", expected.name);
+        if let GlobalStorage::CodeSource {
+            entry,
+            functions,
+            legacy_entry,
+        } = &mut expected.storage
+        {
+            *entry = mapped(&map.functions, *entry)?;
+            for function in functions {
+                *function = mapped(&map.functions, *function)?;
+            }
+            if let Some(initial) = legacy_entry {
+                initial.name_global = mapped(&map.globals, initial.name_global)?;
+            }
+        }
+
         if linked.globals[*actual] != expected {
             return Err("link全局槽/类型/存储身份不符".into());
         }

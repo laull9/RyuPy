@@ -220,6 +220,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::ModuleExecutionSource => {
             ins.push(Instruction::call(ctx.runtime_refs.origins.module_source))
         }
+        RuntimeFn::ModuleExecutionSourceWithCode => ins.push(Instruction::call(
+            ctx.runtime_refs.origins.module_source_with_code,
+        )),
         RuntimeFn::TraceLine => ins.push(Instruction::call(ctx.runtime_refs.trace_line)),
         RuntimeFn::TracePopTo => ins.push(Instruction::call(ctx.runtime_refs.trace_pop_to)),
         RuntimeFn::DynStr => ins.push(Instruction::call(ctx.runtime_refs.dyn_str)),

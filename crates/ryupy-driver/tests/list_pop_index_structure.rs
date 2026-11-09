@@ -334,7 +334,13 @@ fn list_pop_index_fix_keeps_direct_saved_and_prepared_call_paths() {
     let file = db.add("structure.py", SOURCE);
     let (parsed, diagnostics) = ryupy_syntax::parse(file, SOURCE);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let (hir, diagnostics) = ryupy_hir::lower_module(&parsed, &Default::default(), SOURCE);
+    // 源码型结构门使用与真实link一致的模块身份；不能以空name冒充Known来源。
+    let info = ryupy_hir::ModuleInfo {
+        name: "__main__".into(),
+        file: "structure.py".into(),
+        ..Default::default()
+    };
+    let (hir, diagnostics) = ryupy_hir::lower_module(&parsed, &info, SOURCE);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (types, diagnostics) = ryupy_ty::check_module(&hir);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
@@ -366,7 +372,7 @@ fn list_pop_index_fix_keeps_direct_saved_and_prepared_call_paths() {
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
                 environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
+                file_backed_by_global: true,
                 is_package: false,
                 protected_exports: vec![],
                 name: "__main__".into(),

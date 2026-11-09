@@ -6,7 +6,13 @@ namespace RyuPy.Runtime;
 internal sealed class ModuleExecutionSource
 {
     internal readonly object Module;
-    internal ModuleExecutionSource(object? module) => Module = module ?? PyNone.Instance;
+    internal readonly CompiledCodeSource? Source;
+    internal readonly PyDict? Globals;
+    internal readonly object EntryModule;
+    // 旧ABI的原值语义保持，不将字符串重新解释为代码或注册名。
+    internal ModuleExecutionSource(object? module) => Module = EntryModule = module ?? PyNone.Instance;
+    internal ModuleExecutionSource(object module, CompiledCodeSource source, PyDict? globals, object entry)
+    { Module = module; Source = source; Globals = globals; EntryModule = entry; }
 }
 
 public static partial class PyTraceback

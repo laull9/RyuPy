@@ -37,6 +37,24 @@ impl Resolver<'_> {
             if values.is_empty() {
                 continue;
             }
+            // 新冷载体不是一般Dynamic值，只准指定来源参数，不能借Bottom/未知helper外逃。
+            if values
+                .iter()
+                .any(|v| matches!(v, Value::CodeSource(_) | Value::Signature(_)))
+            {
+                let valid = match (runtime, index) {
+                    (RuntimeFn::ModuleExecutionSourceWithCode, 0) => {
+                        only(values, |v| matches!(v, Value::CodeSource(_)))
+                    }
+                    (RuntimeFn::TracePushWithOrigin, 2) => {
+                        only(values, |v| matches!(v, Value::Signature(_)))
+                    }
+                    _ => false,
+                };
+                if !valid {
+                    return Err("私有来源值进入了未指定的helper参数".into());
+                }
+            }
             let valid = match (runtime, index) {
                 (RuntimeFn::TraceV1Explicit, 0) => only(values, |v| {
                     matches!(v, Value::Error | Value::ExceptionType(_))
@@ -145,7 +163,10 @@ impl Resolver<'_> {
                 if text(file).is_some()
                     && text(name).is_some()
                     && only(origin, |v| {
-                        matches!(v, Value::Function(_) | Value::ModuleOrigin)
+                        matches!(
+                            v,
+                            Value::Function(_) | Value::ModuleOrigin | Value::Signature(_)
+                        )
                     }) =>
             {
                 Ok(vec![Value::Depth])
@@ -157,6 +178,12 @@ impl Resolver<'_> {
             }
             (RuntimeFn::TracePopTo, [depth]) if depth == &[Value::Depth] => none(),
             (RuntimeFn::TraceCheckDepth, []) => none(),
+            (RuntimeFn::ModuleExecutionSourceWithCode, [source, context])
+                if only(source, |v| matches!(v, Value::CodeSource(_)))
+                    && context == &[Value::Null] =>
+            {
+                Ok(vec![Value::ModuleOrigin])
+            }
             (RuntimeFn::ModuleExecutionSource, [name]) if text(name) == Some("__main__") => {
                 Ok(vec![Value::ModuleOrigin])
             }
@@ -335,6 +362,7 @@ impl Resolver<'_> {
                         | RuntimeFn::TracePushWithOrigin
                         | RuntimeFn::TracePopTo
                         | RuntimeFn::ModuleExecutionSource
+                        | RuntimeFn::ModuleExecutionSourceWithCode
                 ) =>
             {
                 Err(format!("实际helper {runtime:?} 的协议来源合同损坏").into())

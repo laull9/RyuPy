@@ -43,7 +43,14 @@ pub(super) fn inspect(
         }
     }
     for (_, global) in program.globals.iter() {
-        if global.storage != GlobalStorage::LegacyStatic {
+        if !matches!(
+            global.storage,
+            GlobalStorage::LegacyStatic
+                | GlobalStorage::CodeSource {
+                    legacy_entry: Some(_),
+                    ..
+                }
+        ) {
             limitations.note("产品域不接受Instance全局");
         }
     }

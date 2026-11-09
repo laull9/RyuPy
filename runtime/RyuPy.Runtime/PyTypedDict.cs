@@ -19,7 +19,7 @@ public static class PyTypedDict
                 throw new PyNotImplementedError("TypedDict fields currently require a dict");
             if (arguments[2] is not bool total)
                 throw new PyNotImplementedError("TypedDict total currently requires a bool");
-            string module = PyModules.ModuleForFile(PyTraceback.GetCallerLocation(1).File) ?? "__main__";
+            object module = PyTraceback.CallerSource(1).TypedDictModule();
             return Create(name, module, null, total, fields);
         }, ["posonly", "posonly", "kwonly"]);
 
@@ -57,7 +57,7 @@ public static class PyTypedDict
         return result;
     }
 
-    private static PyTypedDictType Create(string name, string module, PyTypedDictType? parent,
+    private static PyTypedDictType Create(string name, object module, PyTypedDictType? parent,
         bool total, PyDict fields)
     {
         var annotations = new PyDict();
@@ -103,7 +103,10 @@ public sealed class PyTypedDictType : PyNativeObject, IPyNativeCallable
 {
     internal object? Doc { get; set; } = PyNone.Instance;
     internal string Name { get; }
-    internal string Module { get; }
+    private readonly object rawModule;
+    // 直接class repr和PyTyping.Display共用此guard，绝不隐式CLR字符串化raw对象。
+    internal string Module => rawModule as string
+        ?? throw new PyNotImplementedError("TypedDict representation with a non-string module is not supported");
     internal bool Total { get; }
     internal PyDict Annotations { get; }
     internal HashSet<string> Required { get; }
@@ -111,10 +114,10 @@ public sealed class PyTypedDictType : PyNativeObject, IPyNativeCallable
     private readonly PyFrozenSet _requiredKeys;
     private readonly PyFrozenSet _optionalKeys;
 
-    internal PyTypedDictType(string name, string module, bool total, PyDict annotations,
+    internal PyTypedDictType(string name, object module, bool total, PyDict annotations,
         HashSet<string> required, HashSet<string> optional)
     {
-        Name = name; Module = module; Total = total; Annotations = annotations;
+        Name = name; rawModule = module; Total = total; Annotations = annotations;
         Required = required; Optional = optional;
         _requiredKeys = new PyFrozenSet(required);
         _optionalKeys = new PyFrozenSet(optional);
@@ -126,7 +129,7 @@ public sealed class PyTypedDictType : PyNativeObject, IPyNativeCallable
     public override object? GetAttr(string name) => name switch
     {
         "__class__" => PyType.Get("_TypedDictMeta"),
-        "__name__" or "__qualname__" => Name, "__module__" => Module,
+        "__name__" or "__qualname__" => Name, "__module__" => rawModule,
         "__doc__" => Doc,
         "__annotations__" => Annotations, "__total__" => Total,
         "__required_keys__" => _requiredKeys, "__optional_keys__" => _optionalKeys,

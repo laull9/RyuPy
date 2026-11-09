@@ -289,7 +289,13 @@ fn text_affix_keeps_exact_ordinary_saved_and_prepared_shapes() {
     let (parsed, diagnostics) = ryupy_syntax::parse(file, SOURCE);
     std::fs::write(root.join("parse.diagnostics"), format!("{diagnostics:?}\n")).unwrap();
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
-    let (hir, diagnostics) = ryupy_hir::lower_module(&parsed, &Default::default(), SOURCE);
+    // 源码型结构门使用与真实link一致的模块身份；不能以空name冒充Known来源。
+    let info = ryupy_hir::ModuleInfo {
+        name: "__main__".into(),
+        file: "structure.py".into(),
+        ..Default::default()
+    };
+    let (hir, diagnostics) = ryupy_hir::lower_module(&parsed, &info, SOURCE);
     std::fs::write(root.join("hir.diagnostics"), format!("{diagnostics:?}\n")).unwrap();
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     let (types, diagnostics) = ryupy_ty::check_module(&hir);
@@ -316,7 +322,7 @@ fn text_affix_keeps_exact_ordinary_saved_and_prepared_shapes() {
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
                 environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
+                file_backed_by_global: true,
                 is_package: false,
                 protected_exports: vec![],
                 name: "__main__".into(),

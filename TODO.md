@@ -842,3 +842,5 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 - [~] 旧显式include空父path首次错误成功：kind1实际来源相干/当前path/缓存重试/discovery共享初始化候选已写，CP3.12.13十案已测。C#/真实原样include JIT、完整default/pilot/20及旧Native未验，四目录pending，见ADR0144。自动发现、kind2新语义、warning/TypedDict来源另切，不提升项目成绩。
 - [~] 同竖切单成员Legacy caller：同名MNFE后第二阶段与kind1源ImportError字段候选已写，四臂CP已测；C#/真实caller JIT待验，不扩多成员ABI或可写元数据诊断。
+
+- [~] 共同来源归属：CodeSource→MIR/link/CIL→Main/Dynamic/Static warning与功能式TD闭包候选（ADR0145）。纯Rust结构/类型已检；来源e2e保持pending，Runtime13、原J1/J2、真实host/新Native及同HEAD20/default-pilot/旧门待验。Static TD保旧算法，二级None以旧正确路径不回退为硬门，不扩元类/默认图。

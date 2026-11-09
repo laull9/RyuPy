@@ -124,6 +124,10 @@ jobs:
       - name: 原四调用、真实 publish、ELF 与搬移
         id: legacy
         run: '"$PYTHON" -B tests/aot/wcwidth_ci/run.py'
+      - name: 实际来源新消费者Native原位、搬移与源码隔离
+        if: ${{ !cancelled() && steps.legacy.outcome == 'success' }}
+        timeout-minutes: 30
+        run: '"$PYTHON" -B tests/validation/source_provenance/ci/bootstrap.py native'
       - name: 原A/B/HOT无flag及显式V1整流（同源工具，历史红灯不覆写）
         id: generator_product_v1
         if: ${{ !cancelled() && hashFiles('target/wcwidth-aot-evidence/compiler-identity.json') != '' }}
@@ -152,6 +156,8 @@ jobs:
           name: wcwidth-legacy-aot-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/wcwidth-aot-evidence
+            target/source-provenance-native
+            !target/source-provenance-native/publish/product/**
             target/instance-aot-evidence
             target/explicit-super-evidence
             target/generator-dynamic-evidence
@@ -402,7 +408,7 @@ jobs:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 70
     env:
       CARGO_TERM_COLOR: never
       LC_ALL: C.UTF-8
@@ -423,6 +429,17 @@ jobs:
           exit "$status"
       - name: 一次C#构建与定向测试、原反例两JIT及路径/caller JIT
         run: '"$PYTHON" -B tests/validation/source_import_paths/gate.py'
+      - name: 来源判定器纯合成自测（不启动产品）
+        run: python3 -B -m unittest discover -s tests/validation/source_provenance/ci -p 'test_*.py'
+      - name: 固定同树旧源码，仅供真实host对照
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 7545eae82270797cbac2da68e996a7a8a5ba98af
+          path: target/source-provenance-baseline
+          persist-credentials: false
+      - name: 来源Runtime、原J1/J2、新语义与旧新host一次闭环
+        timeout-minutes: 30
+        run: '"$PYTHON" -B tests/validation/source_provenance/ci/bootstrap.py jit'
       - name: 保留首次失败原流及实际托管产物
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -430,6 +447,8 @@ jobs:
           name: source-import-paths-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/source-import-path-evidence
+            target/source-provenance-evidence
+            !target/source-provenance-evidence/host/old/graph/**/RyuPy.Runtime.dll
             target/source-import-prepare
             ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
           if-no-files-found: error

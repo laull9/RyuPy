@@ -157,7 +157,7 @@ pub(super) fn cil(
                 execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
                 environment_reason: "existing-contract".into(),
                 location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
+                file_backed_by_global: true,
                 is_package: false,
                 protected_exports: vec![],
                 name: "__main__".into(),

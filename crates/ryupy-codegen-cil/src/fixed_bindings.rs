@@ -129,6 +129,7 @@ pub fn emit(
     bindings: &[FixedI32Binding],
 ) -> Result<Vec<u8>, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     if program.trace_product.is_some() {
         return Err(CodegenError::Unsupported(
             "trace V1不接受外部原生绑定".into(),
@@ -185,6 +186,7 @@ pub fn emit_with_report(
     deployment: &BindingDeployment,
 ) -> Result<BindingEmissionArtifact, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     if program.trace_product.is_some() {
         return Err(CodegenError::Unsupported(
             "trace V1不接受外部原生绑定".into(),
@@ -216,4 +218,17 @@ pub fn emit_with_report(
         report,
         bindings: records,
     })
+}
+
+/// 真实源码加一个已验证原生占位模块；凭declare前来源集合防止把旧源码unit冒作例外。
+pub fn emit_source_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    bindings: &[FixedI32Binding],
+    deployment: &BindingDeployment,
+    sources: &crate::SourceModules,
+) -> Result<BindingEmissionArtifact, CodegenError> {
+    validate(program, bindings)?;
+    sources.validate_extension(program, bindings)?;
+    emit_with_report(program, opts, bindings, deployment)
 }

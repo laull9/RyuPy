@@ -1,10 +1,11 @@
-//! Dynamic函数与模块执行来源的机械CLR引用；Static帧继续使用既有PushFrame未知来源入口。
+//! 真实帧来源的机械CLR引用；新Static传自身signature，旧无来源ABI继续保留。
 
 use dotnetdll::prelude::*;
 
 pub(crate) struct OriginRefs {
     pub push_frame: MethodRefIndex,
     pub module_source: MethodRefIndex,
+    pub module_source_with_code: MethodRefIndex,
 }
 
 impl OriginRefs {
@@ -15,6 +16,9 @@ impl OriginRefs {
             }),
             module_source: res.push_method_reference(method_ref! {
                 static object @traceback::CreateModuleExecutionSource(object)
+            }),
+            module_source_with_code: res.push_method_reference(method_ref! {
+                static object @traceback::CreateModuleExecutionSourceWithCode(object, object)
             }),
         }
     }

@@ -29,6 +29,8 @@ pub(super) enum Value {
     Output,
     Metadata,
     ModuleOrigin,
+    CodeSource(GlobalId),
+    Signature(FnId),
 }
 pub(super) type Set = Vec<Value>;
 
@@ -333,6 +335,21 @@ impl Resolver<'_> {
                 checked?
             }
             Operand::Global(global) => {
+                if matches!(
+                    self.program.globals[*global].storage,
+                    GlobalStorage::CodeSource { .. }
+                ) {
+                    return Ok(vec![Value::CodeSource(*global)]);
+                }
+                if let Some((owner, _)) = self
+                    .program
+                    .functions
+                    .iter()
+                    .find(|(_, f)| f.signature_global == Some(*global))
+                {
+                    return Ok(vec![Value::Signature(owner)]);
+                }
+
                 if self.defaults.private_slot(*global) {
                     return Err("FunctionDefaults合同：私有槽不能作为高层值读取".into());
                 }

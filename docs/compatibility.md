@@ -745,3 +745,7 @@ AOT仍拒绝、自动默认Legacy不变；新增Legacy super Native合同不等�
 与yield组合边界。当前只有CP合同前置与候选代码，未运行新产品矩阵；不增加原生分子。
 networkx同机制函数未被固定入口调用，click终端分支也不能由greet入口代替执行证明。
 范围与验收见[ADR0141](adr/0141-legacy-generator-dynamic-handlers.md)。
+
+## 2026-11-09 共同来源归属候选（未验收）
+
+原显式include空pkg.data导致warnings/功能式TypedDict来源歧义，现候选以实际code/env载体连接两消费者。有限Rust结构/类型门已完成，新增Runtime13具名测试及真实J1/J2、固定PE/JIT、旧新host、实际新Native和完整同HEAD保护尚待。Static TD旧债、二级None元类与非str显示边界见[ADR0145](adr/0145-compiled-source-provenance.md)。不改变固定20项目结果或原生覆盖比例，不宣称性能改善。

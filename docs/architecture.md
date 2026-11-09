@@ -216,3 +216,7 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 ## 8. 保留的架构决定
 
 保留实际九个 crate 的分层、非 SSA MIR（ADR-0002）、GC 合法的 PyValue 候选布局（ADR-0003）、子进程 `dotnet x.dll` 运行方式与按需引入依赖。Phase 3 有数据流分析需求后再判断是否增加 SSA 视图或图算法库，不照旧愿景提前引入完整优化框架。
+
+## 实际代码来源候选（ADR0145）
+
+MIR单一CodeSource表记录真实unit入口与私有signature归属，link按ID重映射，CIL冷关联不可变Runtime载体。真实源码driver使用required入口，旧手工MIR emit保兼容；fixed-binding豁免仅限实际已验证新增initializer。warnings环境与TypedDict函数Module能力分开，不按basename/注册名补来源。合同、有限前言门与热成本见[ADR0145](adr/0145-compiled-source-provenance.md)，当前产品未验收。

@@ -42,6 +42,10 @@ mod origin_refs;
 mod owned_function_refs;
 mod refs;
 pub mod runtimeconfig;
+mod source_provenance;
+pub use source_provenance::SourceModules;
+#[cfg(test)]
+mod source_provenance_tests;
 mod stackify;
 mod stackify_operands;
 mod stackify_refs;
@@ -70,17 +74,18 @@ pub enum CodegenError {
     Write(String),
 }
 
-/// 生成程序集字节。
+/// 兼容既有手工MIR的发射入口；真实源码driver必须选择emit_source_assembly。
 pub fn emit_assembly(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, CodegenError> {
     entry::emit(program, opts)
 }
 
-/// 返回同一次Resolution的字节和实际委托引用报告；不新增发射根或运行时注册。
+/// 兼容手工MIR：返回同一次Resolution的字节/报告；源码必须选择source专用入口。
 pub fn emit_assembly_with_report(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> Result<EmissionArtifact, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
     let (res, _, report) = assembly::build_resolution_with_report(program, opts);
     let bytes = res
         .write(dotnetdll::prelude::WriteOptions {
@@ -91,9 +96,36 @@ pub fn emit_assembly_with_report(
     Ok(EmissionArtifact { bytes, report })
 }
 
-/// 生成可读的 CIL 文本（供 `ryupy dump --emit cil` 与快照测试）。
+/// 兼容手工MIR的CIL文本出口；真实源码dump必须选择dump_source_cil。
 pub fn dump_cil(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, CodegenError> {
     entry::dump(program, opts)
+}
+
+/// 源码准入由调用链显式要求，不能因整条来源接线被擦掉而自动变为旧兼容输入。
+pub fn emit_source_assembly(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> Result<Vec<u8>, CodegenError> {
+    source_provenance::require(program)?;
+    emit_assembly(program, opts)
+}
+
+/// 与普通源码出口同一准入；复用原同次Resolution报告，不建立另一发射流程。
+pub fn emit_source_assembly_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> Result<EmissionArtifact, CodegenError> {
+    source_provenance::require(program)?;
+    emit_assembly_with_report(program, opts)
+}
+
+/// MIR/CIL转储也属于真实源码生产链，不能把缺来源的损坏产物显示成可用结果。
+pub fn dump_source_cil(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> Result<String, CodegenError> {
+    source_provenance::require(program)?;
+    dump_cil(program, opts)
 }
 
 #[cfg(test)]
