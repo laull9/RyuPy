@@ -44,9 +44,14 @@ public static partial class PyModules
         }
         RejectFinderHooks();
         RequireOriginalSearchPath(parent, parentPath);
-        _ = SourceDiscoveryRegistration(name);
+        Registration registration = SourceDiscoveryRegistration(name);
+        // 原Import入口在这些getter/检查之后仍先短路缓存：path getter也可能已导入本层。
+        // 保这次检查，再直接进入共享生命周期，不能重走普通Import而重复path/hooks副作用。
+        if (Cache.TryGetValue(name, out cached)) return cached;
+        string? childName = dot > 0 ? name[(dot + 1)..] : null;
+        RequireSourceImportLocation(parent, childName, registration);
         // 父正文异常原身份传播；不能转换为查无目标、猜补异常name或清理成功的祖先。
-        return Import(name);
+        return InitializeRegisteredModule(name, parent, childName, registration);
     }
 
     private static object? DiscoveryParentPath(PyModule parent, string parentName, string fullname, bool importing)

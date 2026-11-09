@@ -238,6 +238,15 @@ public static partial class PyModules
             throw new PyModuleNotFoundError($"No module named '{name}'");
         }
 
+        RequireSourceImportPath(name, parent, childName, registration);
+        return InitializeRegisteredModule(name, parent, childName, registration);
+    }
+
+    // 普通导入与发现所需的父导入共用唯一生命周期；调用方各自完成查找和末次缓存短路。
+    // 不再递归查父或重读path/hooks，避免find_spec已检查过的getter被再次消费。
+    private static PyModule InitializeRegisteredModule(string name, PyModule? parent,
+        string? childName, Registration registration)
+    {
         var module = registration.InstanceCode is { } code ? PyModuleInstances.Create(code) : new PyModule(
             name,
             registration.Package,
@@ -293,16 +302,40 @@ public static partial class PyModules
                 PyErrors.Prepare(missing);
                 throw CacheAliasUnsupported("missing attributes cannot fall back to alias submodules", missing);
             }
-            var submodule = moduleName + "." + name;
-            if (Registry.ContainsKey(submodule))
+        }
+        var submodule = moduleName + "." + name;
+        if (Registry.ContainsKey(submodule))
+        {
+            PyModule? imported = null;
+            try { imported = Import(submodule); }
+            catch (PyModuleNotFoundError missing)
             {
-                var imported = Import(submodule);
-                // CPython 会把子模块挂到父包上，后续 pkg.sub 也能取到。
+                object? previous = PyErrors.EnterHandler(missing);
+                try
+                {
+                    object? failedName;
+                    try { failedName = PyObject.ReadImportErrorName(missing, requireComparableName: true); }
+                    catch (PyBaseException lookup) { PyErrors.PrepareRaise(lookup); throw; }
+                    if (failedName is null or PyNone) throw;
+                    if (failedName is not string failed)
+                        throw new PyNotImplementedError("import: custom ModuleNotFoundError.name comparison is not implemented") { Context = missing };
+                    if (!string.Equals(failed, submodule, StringComparison.Ordinal)) throw;
+                }
+                finally { PyErrors.LeaveHandler(previous); }
+            }
+            // 仅导入调用参与同名抑制，既有外层发布的setter错误仍原样传播。
+            if (imported is not null)
+            {
                 module.SetAttr(name, imported);
                 return imported;
             }
-            throw new PyImportError($"cannot import name '{name}' from '{moduleName}'");
+            // 正文可能发布父属性后再抛同名MNFE；不能盲转错误或重新执行失败子模块。
+            // 离开missing的handler再读取，以免最终ImportError残留被抑制异常的context。
+            try { return module.GetAttr(name); }
+            catch (PyAttributeError) { }
+            if (Cache.TryGetValue(submodule, out PyModule? partial)) return partial;
         }
+        throw ImportAttributeMissing(module, moduleName, name);
     }
 
     /// <summary>执行入口模块（<c>__main__</c>）；开启 <c>RYUPY_STATS</c> 时从这里开始计执行耗时。</summary>

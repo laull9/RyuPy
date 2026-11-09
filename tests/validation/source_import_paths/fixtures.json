@@ -1,0 +1,126 @@
+{
+  "python_version": "3.12.13",
+  "cases": [
+    {
+      "name": "parent_path_first",
+      "entry": "tests/validation/source_import_paths/parent_path_first/entry.py",
+      "files": {
+        "tests/validation/source_import_paths/parent_path_first/entry.py": "66993bf3b8b7512893ae6182b4fa3e6fe7b0ce57fe1b97ab98b66b0d360c4878",
+        "tests/validation/source_import_paths/parent_path_first/pkg/__init__.py": "1215e5c0268c2e288cd0b59157312d834517ff25bcadafcc317a85d7d06db445",
+        "tests/validation/source_import_paths/parent_path_first/pkg/data/__init__.py": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+      },
+      "graph": [
+        "__main__",
+        "pkg"
+      ],
+      "expected_exit": 1,
+      "expected_stdout": "P:pkg-init\nP:data-cached-before False\nP:path []\nP:before-files\n",
+      "expected_terminal_error": "ModuleNotFoundError: No module named 'pkg.data'"
+    },
+    {
+      "name": "normal_order",
+      "entry": "tests/cases/source_import_paths/normal_order/entry.py",
+      "files": {
+        "tests/cases/source_import_paths/normal_order/entry.py": "c640c62e3f0953a848bad83bc0f2019479f95b037ca32d60a90a738fa258d373",
+        "tests/cases/source_import_paths/normal_order/pkg/__init__.py": "a0d36cd453556bd5c7997cfe894ae6657ac74fc35ebc475051b1ad4082d6f32f",
+        "tests/cases/source_import_paths/normal_order/pkg/child.py": "867cd8319cda503d70f52a3999cfbbbccbbef4b6f42ee74b9b7b71ab7e88f2c6"
+      },
+      "graph": [
+        "__main__",
+        "pkg",
+        "pkg.child"
+      ],
+      "expected_exit": 0,
+      "expected_stdout": "N:before False False\nN:parent\nN:child\nN:after 17 True\n",
+      "expected_terminal_error": null
+    },
+    {
+      "name": "equal_rebind",
+      "entry": "tests/cases/source_import_paths/equal_rebind/entry.py",
+      "files": {
+        "tests/cases/source_import_paths/equal_rebind/entry.py": "bafc0a03ca8548f1c84a9665ac1a4fff938c24afda6f8126fda5ec66ba88083d",
+        "tests/cases/source_import_paths/equal_rebind/pkg/__init__.py": "e0ce47580e5c2880f748cd8121a03d2bb6e99358336a6ce4c1c0b47cbc64c34a",
+        "tests/cases/source_import_paths/equal_rebind/pkg/duplicate.py": "6302f9bac69ef6568cbda34a0d3f3a98b93c927c32e202ca53cf80987011de67",
+        "tests/cases/source_import_paths/equal_rebind/pkg/first.py": "31808679b8546ee72e8434f0db11a01d730bc731182955ee04715079e2036dc2",
+        "tests/cases/source_import_paths/equal_rebind/pkg/second.py": "7373568ec8c371baef29a21c949de18bef63142c9a1438fc8c55dcbd7a814937",
+        "tests/cases/source_import_paths/equal_rebind/pkg/third.py": "d00a8ae7b8c3ee2885c9bebd3f2341e6723dec55925a3a68335962741038be78"
+      },
+      "graph": [
+        "__main__",
+        "pkg",
+        "pkg.duplicate",
+        "pkg.first",
+        "pkg.second",
+        "pkg.third"
+      ],
+      "expected_exit": 0,
+      "expected_stdout": "R:parent\nR:new-list False\nR:first\nR:second\nR:duplicate\nR:duplicate duplicate\nR:empty ModuleNotFoundError No module named 'pkg.third'\nR:empty:name pkg.third\nR:empty:cause-none True\nR:empty:context NoneType\nR:empty:suppress False\nR:uncached False\nR:third\nR:restored first second third\n",
+      "expected_terminal_error": null
+    },
+    {
+      "name": "cache_and_initializing",
+      "entry": "tests/cases/source_import_paths/cache_and_initializing/entry.py",
+      "files": {
+        "tests/cases/source_import_paths/cache_and_initializing/entry.py": "7ea985d5331ad7d12906d6c1248ab8759f1128e5ba77e22285beb17a1ae34be9",
+        "tests/cases/source_import_paths/cache_and_initializing/pkg/__init__.py": "bb22200418b4a50e305799dfb3f5bc95d421d550e280348344290b5038402623",
+        "tests/cases/source_import_paths/cache_and_initializing/pkg/child.py": "b83bd9c9f517ac2304bf6b8dadafc124d62906f08bcf17a22215c3315f89350e"
+      },
+      "graph": [
+        "__main__",
+        "pkg",
+        "pkg.child"
+      ],
+      "expected_exit": 0,
+      "expected_stdout": "C:before\nC:parent-enter\nC:child-enter True\nC:child-reentered True\nC:child-exit\nC:parent-exit\nC:after-parent [] True\nC:cached-same True\nC:cached-with-hooks True\n",
+      "expected_terminal_error": null
+    },
+    {
+      "name": "failed_init_retry",
+      "entry": "tests/cases/source_import_paths/failed_init_retry/entry.py",
+      "files": {
+        "tests/cases/source_import_paths/failed_init_retry/dependency.py": "214d30c5e6be0787b7c91cad73d354d09372123aef683569cbfacb6d11c16229",
+        "tests/cases/source_import_paths/failed_init_retry/entry.py": "0cd6bd17cab06fcc3b3069bc642f7aea017339bb710bdf3b6d4a523221d78fca",
+        "tests/cases/source_import_paths/failed_init_retry/pkg/__init__.py": "6b4ecec55664e753046f8a4a9fac0fa98ff3c888799e2b1402ef2437ae9a025c",
+        "tests/cases/source_import_paths/failed_init_retry/pkg/child.py": "e53b39f2aafe54a6c923fba840ef6816f9cd8b869dd8b84e3ef41e9f0b92dc9e",
+        "tests/cases/source_import_paths/failed_init_retry/state.py": "32a2b21d5a779452bd3dca89c9d978f887884300d6bef8c814709820ccf4604a"
+      },
+      "graph": [
+        "__main__",
+        "dependency",
+        "pkg",
+        "pkg.child",
+        "state"
+      ],
+      "expected_exit": 0,
+      "expected_stdout": "F:parent\nF:dependency\nF:child 1\nF:first ValueError first-child-failure\nF:first:name None\nF:first:cause-none True\nF:first:context NoneType\nF:first:suppress False\nF:identity True\nF:after-fail 1 False True\nF:blocked-retry ModuleNotFoundError No module named 'pkg.child'\nF:blocked-retry:name pkg.child\nF:blocked-retry:cause-none True\nF:blocked-retry:context NoneType\nF:blocked-retry:suppress False\nF:after-block 1 False\nF:child 2\nF:success 2 29 True True\n",
+      "expected_terminal_error": null
+    },
+    {
+      "name": "empty_from_import",
+      "entry": "tests/cases/source_import_paths/empty_from_import/entry.py",
+      "files": {
+        "tests/cases/source_import_paths/empty_from_import/empty_pkg/__init__.py": "40b3cafb2c8e961f43caeb0ab5a91057c6a97dff4bee24b67bfda7dcc297747b",
+        "tests/cases/source_import_paths/empty_from_import/empty_pkg/child.py": "bcec9a97821bd1a82ba6a85272ac0db86ef0cbdb6bfe55214cad201e0a624c5a",
+        "tests/cases/source_import_paths/empty_from_import/entry.py": "709e7d941ac7d3ecde06c6509bd44ff00deaeb48be487ec4f0037364335ac536"
+      },
+      "graph": [
+        "__main__",
+        "empty_pkg",
+        "empty_pkg.child"
+      ],
+      "expected_exit": 0,
+      "expected_stdout": "ARM empty\nERROR ImportError cannot import name 'child' from 'empty_pkg' ({SOURCE_ROOT}/empty_pkg/__init__.py)\nDETAIL empty_pkg {SOURCE_ROOT}/empty_pkg/__init__.py False NoneType True False\nCACHE False True False\n",
+      "stdout_source_root": "tests/cases/source_import_paths/empty_from_import",
+      "expected_terminal_error": null,
+      "derivation": {
+        "scope": "原CP四臂仅empty子案独立成三源；parent/child逐字不变，entry仅该臂及等值缓存观察，无关键字异常构造/属性写。",
+        "not_covered": "unrelated/same-body/published三正文臂只有原CP事实和本次C#草稿，未有编译Python JIT/AOT实测。"
+      }
+    }
+  ],
+  "provenance": {
+    "original_repro_result_sha256": "9b3fee8582256a216ef855c8eb2ba07a3ef8e3d63c54a1e041c9b02e4e572439",
+    "cp002_result_sha256": "0ca050665801c1d46e23f5ca4c4e3ad5ac3e66b776e0e5edb36e051888a3ef9d",
+    "caller_cp_result_sha256": "bd09f406e3d0f69b8a3af2913aedec5d5eaef5529b002db6bc05a35993a35c7d"
+  }
+}

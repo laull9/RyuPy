@@ -837,3 +837,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [~] 只开放Legacy SourceDynamic generator，复用动态handler CFG和现状态机；六组CP
   合同/独立observer/错误帧前置已有效，产品MIR、真实PE、完整20和Native待hosted验证。
   Instance守卫不放宽，不声称历史结构或性能相等，详见ADR0141。
+
+### 2026-11-09：普通JIT source-bound首次Import父路径
+
+- [~] 旧显式include空父path首次错误成功：kind1实际来源相干/当前path/缓存重试/discovery共享初始化候选已写，CP3.12.13十案已测。C#/真实原样include JIT、完整default/pilot/20及旧Native未验，四目录pending，见ADR0144。自动发现、kind2新语义、warning/TypedDict来源另切，不提升项目成绩。
+- [~] 同竖切单成员Legacy caller：同名MNFE后第二阶段与kind1源ImportError字段候选已写，四臂CP已测；C#/真实caller JIT待验，不扩多成员ABI或可写元数据诊断。

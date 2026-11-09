@@ -266,7 +266,7 @@ jobs:
             target/wcwidth-aot-evidence/prepare.log
           retention-days: 3
   trace-adapter-s2:
-    needs: trace-rust-preflight
+    needs: [trace-rust-preflight, source-import-paths]
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -361,7 +361,7 @@ jobs:
 
   pyfiglet-explicit-deployment:
     name: 原pyfiglet显式外置字体有界部署
-    needs: select-mode
+    needs: [select-mode, source-import-paths]
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -393,6 +393,44 @@ jobs:
           path: |
             target/pyfiglet-deployment-evidence
             target/pyfiglet-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+
+  source-import-paths:
+    name: 普通Import路径C#早门及原include反例JIT
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 判定器纯合成自测（不启动产品）
+        run: python3 -B -m unittest discover -s tests/validation/source_import_paths -p 'test_*.py'
+      - name: 复用固定官方CP与SDK准备
+        run: |
+          mkdir -p target/source-import-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/source-import-prepare/stdout 2> target/source-import-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/source-import-prepare/exit
+          exit "$status"
+      - name: 一次C#构建与定向测试、原反例两JIT及路径/caller JIT
+        run: '"$PYTHON" -B tests/validation/source_import_paths/gate.py'
+      - name: 保留首次失败原流及实际托管产物
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: source-import-paths-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/source-import-path-evidence
+            target/source-import-prepare
             ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
           if-no-files-found: error
           retention-days: 3

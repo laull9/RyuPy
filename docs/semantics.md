@@ -1335,3 +1335,11 @@ except*与其它复杂目标继续拒绝，默认模块集合和Native自动Lega
 异常单参构造若通过参数/返回/别名可能取得None，同样在产品HIR合同拒绝；现有无参/显式None的旧ABI歧义未作全面修复，零参及直接raise已准入类型仍单独保留。
 
 内部 all-miss continuation 与源码显式 raise 分开，Retry 保持同 activation；异常 Frames 在 V1 中只能从唯一 owner 历史派生。CI012原A/B/HOT显式JIT/Native×PIC十二run及C/D四编译拒绝已通过；原默认frames仍失败。新候选必须同源通过真实无flag整流与域外对照，不能用结构或离线自测替代。见[ADR0143](adr/0143-generator-trace-default-cutover.md)。
+
+### 普通JIT source-bound首次Import父路径候选（ADR0144）
+
+实际kind1普通父子且目录相干的首次miss读取父当前path：精确空list/tuple为MNFE，同值新list/tuple及[d,d]合法。先cache/父二查、实际getter、finder边界和来源证明，再判路径；None/未知路径/协议/跨root明确NI，不假报不存在。cache命中含State1不重查。
+
+find_spec父导入共享唯一初始化但保strict发现合同，避免重复getter；父spec圆环协议、kind0/2及来源歧义未扩域。CP已测，C#/JIT/完整门/旧Native未验，四目录pending，见[合同](source-import-paths.md)。
+
+单成员Legacy ImportAttr同名MNFE进入第二属性/cache阶段，正文已挂父值优先；正常已初始化kind1源的最终ImportError补父name/path及含路径消息。可写name/file/spec诊断、循环消息、多成员fromlist相位与实例Relative旧formatter未修，不扩大compiler ABI。host登记子名须为单路径分量。新增caller C#与真实JIT门仍待执行。

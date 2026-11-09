@@ -72,3 +72,7 @@ name/path 为可变实例字段；两个不同实例按当前字段相等，hash
 病例分开，非包父窄病例与包含缓存写入的完整病例分开；没有删除原完整源后段来换通过。
 clone/failure/parser 的原完整正文保留，包括函数 globals、方法归属、闭包/生成器、容器、
 别名、重复执行、直接 exec 失败和真实解析差异。最终通过范围和原始失败见 ADR0122。
+
+## 普通Import路径候选的共享初始化
+
+ADR0144候选让已验证的父导入与ordinary共享唯一私有初始化尾段。父导入仍先原strict路径/hooks检查、保末次cache，再直接初始化，不能重入ordinary第二次读getter。最终查询/原引用path域不扩展；C#/JIT回归待验，见[路径合同](source-import-paths.md)。
