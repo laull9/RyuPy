@@ -1,6 +1,6 @@
 # ADR0143：普通 CLI 的有限 trace 默认迁移候选
 
-日期：2026-11-09。状态：candidate06源码候选，尚待绑定本源的Rust与产品验收。
+日期：2026-11-09。状态：candidate09观测合同候选，尚待绑定本源的Rust与产品验收。
 本地完成12份新源各一次固定CP3.12.13参考、纯Python脚本自测与同版官方rustfmt格式检查。
 candidate05的真实MIR/driver库检查通过，但21项选择测试为10通过/11失败；首败定位为完整Bottom实参被缩掉。
 该旧失败原流保留，candidate06修订不借旧统计宣称通过；driver测试、真实CLI/JIT/Native及完整门仍待同源验证。accepted `fb0553`不动。
@@ -84,3 +84,20 @@ CI012最终报告SHA256为`368ba72b1f12f3a64a7b886e803f1566cb3e5d563b88210153770
 成功出口仍有缺位则报内部错。空集合本身不作负反证，后续已知坏值仍核；普通函数空输入/空上界和Bottom callee仍域外。
 原ExceptionMatch的完整Bottom target合同不改，不新增helper成功域。新增四组保形/未知/后继坏值配对测试，
 仍保留原21项与原B真实prepare/finish；新冻结的Rust及产品结果须另行验证，不能沿用前一候选的统计。
+
+
+## candidate09：阶段区间与单点结果
+
+两个既有结果保持原位置，只使用`event=result`，不伪造begin/end区间：
+- `trace-v1-not-in-domain`只表示普通Auto的prepare返回能力域外，在旧MIR开始前记录。
+  RequireV1拒绝、普通诊断、内部错误不记录这个Auto结果；不借它证明回退编译成功。
+- `trace-legacy`只表示该模块旧MIR及最终校验完成，位于link开始之前。
+  多模块保旧或单模块无需求也会有此结果，不代表一定尝试过V1，更不代表link/emit或整命令成功。
+
+result的elapsed_us是共享编译起点的时间戳，不是新阶段耗时。prepare end仅表示调用返回，
+不能等同已选中；真实lower/proof/link/certificate仍独立约束。默认关闭、失败停写、真实阶段和编译控制流不变。
+CLI按精确事件/模块/相对位置核完整序列，另以四类小fixture核默认关闭双流与拒绝无输出；不启动dotnet。
+共享产品门保留原begin/end映射，旁置独立results字段，核结果缺失/重复/错误模块/位置及任意非result事件。
+四类结果数（not-in-domain, legacy）分别为V1成功(0,0)、无需求Legacy(0,1)、域外Legacy(1,1)、显式拒绝(0,0)。
+结果不能填进阶段映射。新CI独立验收器需同时核{begin,end,results}；旧CI原件、报告和旧验收脚本不改。
+此观测候选仍须新的同源验证，不把此前CI产品绿色或本地Rust统计套用到新源，不改变C/D范围。

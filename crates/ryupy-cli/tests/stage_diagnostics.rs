@@ -25,7 +25,13 @@ impl Fixture {
         Self(root)
     }
     fn build(&self, enabled: bool) -> Output {
+        self.build_mode(enabled, false)
+    }
+    fn build_mode(&self, enabled: bool, required: bool) -> Output {
         let mut command = Command::new(env!("CARGO_BIN_EXE_ryupy"));
+        if required {
+            command.arg("--trace-product-v1");
+        }
         command
             .arg("build")
             .arg(self.0.join("main.py"))
@@ -94,6 +100,15 @@ fn pair(stage: &str, module: &str) -> Vec<(String, String, String)> {
         .to_vec()
 }
 
+// 单点结果没有begin/end区间；elapsed_us仍只是共享起点的时间戳。
+fn outcome(stage: &str, module: &str) -> (String, String, String) {
+    (
+        "event=result".into(),
+        format!("stage={stage}"),
+        format!("module={module:?}"),
+    )
+}
+
 #[test]
 fn stage_diagnostics_default_unchanged_and_enabled_ordered() {
     let fixture = Fixture::new("import helper\nprint(helper.value)\n");
@@ -126,6 +141,7 @@ fn stage_diagnostics_default_unchanged_and_enabled_ordered() {
         ] {
             expected.extend(pair(stage, module));
         }
+        expected.push(outcome("trace-legacy", module));
     }
     for stage in ["link", "export-check", "emit", "output-write"] {
         expected.extend(pair(stage, "-"));
@@ -264,4 +280,77 @@ fn stage_diagnostics_audit_write_failure_does_not_change_build() {
         fs::read(fixture.0.join("out/RyuPy.Runtime.dll")).unwrap(),
         b"compile-only-copy-sentinel"
     );
+}
+
+// 同一小参数组覆盖实际CLI四条选路，不启动dotnet，不从结果日志推断产物证书。
+#[test]
+fn stage_diagnostics_trace_results_are_single_points_for_each_path() {
+    let original = include_str!("../../../tests/cases/generator_dynamic/frames/entry.py");
+    // identity位于定义区，确保拒绝源于未覆盖输入，而不是调用先于后续定义。
+    let outside = format!("def identity(value):\n    return value\n{original}");
+    for (source, selected, fallback, required) in [
+        ("print(1)\n", false, false, false),
+        (original, true, false, false),
+        (outside.as_str(), false, true, false),
+        (outside.as_str(), false, false, true),
+    ] {
+        let fixture = Fixture::new(source);
+        assert!(!fixture.0.join("out").exists());
+        let plain = fixture.build_mode(false, required);
+        if required {
+            assert!(!fixture.0.join("out").exists());
+        }
+        let traced = fixture.build_mode(true, required);
+        assert_eq!(plain.status.code(), traced.status.code());
+        assert_eq!(
+            plain.status.success(),
+            !required,
+            "{}",
+            String::from_utf8_lossy(&plain.stderr)
+        );
+        assert!(markers(&plain).is_empty());
+        assert_eq!(plain.stdout, traced.stdout);
+        assert_eq!(
+            String::from_utf8_lossy(&plain.stderr),
+            without_markers(&traced)
+        );
+        let mut expected = pair("graph-load", "-");
+        for stage in ["hir", "type-check"] {
+            expected.extend(pair(stage, "__main__"));
+        }
+        if selected || fallback || required {
+            expected.extend(pair("trace-v1-prepare", "__main__"));
+        }
+        if selected {
+            expected.extend(pair("trace-v1-lower", "__main__"));
+        } else if !required {
+            if fallback {
+                expected.push(outcome("trace-v1-not-in-domain", "__main__"));
+            }
+            for stage in ["mir-build", "pipeline", "final-validate"] {
+                expected.extend(pair(stage, "__main__"));
+            }
+            expected.push(outcome("trace-legacy", "__main__"));
+        }
+        if required {
+            assert_eq!(
+                String::from_utf8_lossy(&traced.stderr)
+                    .matches("[E0310]")
+                    .count(),
+                1
+            );
+            assert!(!fixture.0.join("out").exists());
+        } else {
+            for stage in ["link", "export-check", "emit", "output-write"] {
+                expected.extend(pair(stage, "-"));
+            }
+            assert!(fixture.0.join("out/main.dll").is_file());
+            assert_eq!(
+                fs::read(fixture.0.join("out/RyuPy.Runtime.dll")).unwrap(),
+                b"compile-only-copy-sentinel"
+            );
+        }
+        // 包含精确event、模块、相对位置和全序列；拒绝时绝不能有lower/结果/emit/write。
+        assert_eq!(markers(&traced), expected);
+    }
 }

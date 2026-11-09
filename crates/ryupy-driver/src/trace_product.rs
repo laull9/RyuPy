@@ -110,7 +110,7 @@ pub(crate) fn compile(
             return reject(session, hir.file, reason);
         }
         Err(Failure::NotInDomain(_)) => {
-            trace.mark("end", "trace-v1-not-in-domain", &hir.info.name);
+            trace.mark("result", "trace-v1-not-in-domain", &hir.info.name);
             return Ok(None);
         }
         Err(Failure::Diagnostics(diagnostics)) => {

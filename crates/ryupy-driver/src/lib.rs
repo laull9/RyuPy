@@ -201,7 +201,7 @@ fn compile_module(
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
     trace.mark("end", "final-validate", &module.name);
-    trace.mark("end", "trace-legacy", &module.name);
+    trace.mark("result", "trace-legacy", &module.name);
     Ok(CompiledModule {
         trace_proof: None,
         program: mir,
