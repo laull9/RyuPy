@@ -42,7 +42,7 @@ def select(title, event='push', ref=c.old.shared.REF, attempt='1'):
         if name == 'select-mode': continue
         expression = re.search(r'^    if: (.*)$', block, re.M)[1]
         replacements = {'github.ref': ref, 'github.event_name': event, 'github.run_attempt': attempt}
-        replacements.update({'needs.select-mode.outputs.' + key: values.get(key, '') for key in ('diagnostic', 'markdown', 'noreturn', 'search', 'metadata', 'dedent', 'scanner')})
+        replacements.update({'needs.select-mode.outputs.' + key: values.get(key, '') for key in ('diagnostic', 'markdown', 'noreturn', 'search', 'metadata', 'dedent', 'scanner', 'percent')})
         for key, value in replacements.items(): expression = expression.replace(key, repr(value))
         if eval(expression.replace('&&', 'and'), {'__builtins__': {}}, {}): active.add(name)
     return output, values, active
@@ -66,7 +66,7 @@ class Tests(unittest.TestCase):
     def test_all_old_job_blocks_are_byte_unchanged_and_independent(self):
         raw, blocks = jobs()
         self.assertEqual(set(blocks), ORDINARY | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight',
-                         'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner'})
+                         'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent'})
         for name, expected in DATA['unchanged_job_blocks'].items():
             self.assertEqual(hashlib.sha256(blocks[name].encode()).hexdigest(), expected, name)
         for name in ORDINARY | {'distribution-metadata', 'textwrap-dedent'}:

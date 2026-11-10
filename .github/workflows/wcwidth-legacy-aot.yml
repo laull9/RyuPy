@@ -14,7 +14,7 @@ jobs:
     name: 精确选择诊断或原验收链
     runs-on: ubuntu-24.04
     timeout-minutes: 2
-    outputs: {diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}"}
+    outputs: {diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}", percent: "${{ steps.mode.outputs.percent }}"}
     steps:
       # Actions字符串比较不区分大小写，因此不以表达式==冒充标题字节精确匹配。
       # 不checkout、不执行仓库源码、不把提交消息插入shell；普通提交/dispatch保持原链。
@@ -22,22 +22,18 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, os
-          with open(os.environ['GITHUB_EVENT_PATH']) as stream:
-              event = json.load(stream)
-          head = event.get('head_commit')
-          is_push = (isinstance(head, dict) and os.environ.get('GITHUB_EVENT_NAME') == 'push'
-              and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056')
-          title = head.get('message') if isinstance(head, dict) else None
-          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'
-          markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'
-          noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001')
-          search = is_push and title == 'validation: text-search-002'
-          metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001')
+          with open(os.environ['GITHUB_EVENT_PATH']) as stream: event = json.load(stream)
+          head = event.get('head_commit'); title = head.get('message') if isinstance(head, dict) else None
+          is_push = (isinstance(head, dict) and os.environ.get('GITHUB_EVENT_NAME') == 'push' and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056')
+          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'; markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'
+          noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'); search = is_push and title == 'validation: text-search-002'
+          metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.writelines(name + '=' + str(value).lower() + '\n' for name, value in
                   zip(('diagnostic', 'markdown', 'noreturn', 'search', 'metadata'), (diagnostic, markdown, noreturn, search, metadata)))
-              if is_push and title in ('validation: textwrap-dedent-001', 'validation: re-scanner-001'): stream.write('dedent=true\n')
-              if is_push and title == 'validation: re-scanner-001': stream.write('scanner=true\n')
+              if is_push and title in ('validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001'): stream.write('dedent=true\n')
+              if is_push and title in ('validation: re-scanner-001', 'validation: decimal-percent-001'): stream.write('scanner=true\n')
+              if is_push and title == 'validation: decimal-percent-001': stream.write('percent=true\n')
           PY
   trace-edge-diagnostic:
     name: diagnostic-not-acceptance 首边原流
@@ -165,6 +161,10 @@ jobs:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.scanner == 'true' && github.run_attempt == '1'
     uses: ./.github/workflows/re-scanner.yml
+  decimal-percent:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.percent == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/decimal-percent.yml
   baseline:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'

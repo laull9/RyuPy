@@ -166,7 +166,7 @@ def check_context(env, event):
             and env.get('GITHUB_EVENT_NAME') == 'push' and env.get('GITHUB_RUN_ATTEMPT') == '1'
             and env.get('GITHUB_REF') == event.get('ref') == shared.old.shared.REF, '仅专用 hosted 首次 push')
     head = event.get('head_commit') or {}
-    require(head.get('message') == TITLE and head.get('id') == env.get('GITHUB_SHA')
+    require(head.get('message') in (TITLE, 'validation: decimal-percent-001') and head.get('id') == env.get('GITHUB_SHA')
             and event.get('after') == env.get('GITHUB_SHA'), 'Scanner 精确标题/提交不符')
     for key in ('RUSTFLAGS', 'RUSTC_WRAPPER', 'RUSTC_WORKSPACE_WRAPPER', 'CARGO_ENCODED_RUSTFLAGS',
                 'RUSTUP_TOOLCHAIN', 'CARGO_TARGET_DIR', 'LD_PRELOAD', 'LD_LIBRARY_PATH'):

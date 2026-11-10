@@ -288,7 +288,7 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 | 41 | 增量赋值目标只求值一次 | `a[f()] += 1`、`g().x += 1` 中 `f` / `g` 只调用一次 | 读、写各降级一次会执行两遍 | M2.12：`aug_assign.rs` 把除不可变字面量外的子表达式（含名字）先求值进隐藏局部，冻结原对象/索引并跨暂停保存 |
 | 42 | `True` / `False` 与小整数的 `is` | `True` 是单例；[-5, 256] 的 int 被缓存，`x is 0` 为真 | 每次 `box` 都是新对象 | M2.12：bool 装箱复用单例、小整数装箱走缓存；`PyOps.Is` 对 bool 与 [-5, 256] 的 int 按值判定（不依赖装箱来源）。范围外的 int 仍按对象身份，与 CPython 一样不应依赖 |
 | 43 | 排序只用 `<` | `sorted` / `list.sort` 只调用 `__lt__`，不调用 `__eq__` | — | M2.12：`PySort` 改为只用「小于」的二分插入 + 归并；此前每次比较先 `==` 再 `<`，会多调用用户 `__eq__` |
-| 44 | `%` 字符串格式化（有限子集） | `"%d-%s" % (1, "a")`、`"%(name)s" % mapping` | — | M3.7 支持无修饰 `%s/%r/%a/%d/%i/%u/%%` 与映射键，逐项求值；flags/宽度/precision/其它转换及 bytes 仍未支持，详见 [string-percent.md](string-percent.md) |
+| 44 | `%` 字符串格式化（有限子集） | `"%d-%s" % (1, "a")`、`"%(name)s" % mapping` | — | M3.7 支持无修饰 `%s/%r/%a/%d/%i/%u/%%` 与映射键，逐项求值；d/i/u 的 ASCII flags/literal width 已实现候选、待产品验证；字符串宽度/precision/其它转换及 bytes 仍未支持，详见 [string-percent.md](string-percent.md) |
 | 45 | 类体内引用同类定义的函数名 | `v = property(getv, setv)` 读到类体刚定义的原始函数 | 不能提前绑定 self，也不能把类命名空间捕获进方法正文 | 既有 ClassScope/ClassNamespaceGet 路线经专用真实差分确认；别名、defaults/decorator、条件 fallback、方法与内部闭包的模块 late 名及 getter super 均有断言。旧 E0106 记录已过期，本轮仅补证，见 ADR0067；不外推任意 descriptor 或失败类发布 |
 
 | 46 | 闭包 late binding 与默认值 | 闭包读调用时的变量；默认值保留定义时的结果 | 复制捕获值会丢失共享修改 | M3.0：一个绑定对应一个 cell，多闭包共享，默认值在 def / lambda 位置求值 |
@@ -1390,3 +1390,12 @@ private字段/re替换普通赋值成功，dedent消费域外值NI；当前同�
 stock re保原pattern16384、译后主体200000字符及单次match2秒预算；前者不代表16379空格margin可用，
 不宣称实际最大接受值，也不在自定义sub前统一限margin。完整__getattribute__ trap与大margin CP成功例独立pending。
 CP正例pending与NI负门分开；本地CP自检不计产品验收，见[ADR-0151](adr/0151-textwrap-dedent.md)。
+
+### 十进制百分号宽度候选的宿主容量边界
+
+只扩通用str百分号d/i/u的ASCII flags与literal width，复用既有数值转换和mapping顺序。
+全输出按.NET v10.0.14最终string的0x3FFFFFDF UTF16单位逐项差值计长，
+数值转换后、填充分配前超限明确NI；词法width超过long.MaxValue仍先报ValueError。
+此为宿主表示偏差，不声称CP同输入NI或OOM时序等价，也不保证容量内物理内存充足。
+既有无修饰常用路径不缩域；precision/star/其它specifier及bool转换警告边界保持。
+实现与新增测试尚待C#/JIT/Native及真实未改入口验证，不增加项目通过数，见ADR0153。

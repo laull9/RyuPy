@@ -656,7 +656,7 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] M3.4 剩余长尾：文件描述符/完整编码策略、Windows 实机与退出整数宽度；逐项范围见 docs/stdlib-system.md 和 ADR-0028
 - [x] 超过 u64::MAX 的字面量已接入有界正规化与常量池（4300有效十进制位）；四进制/默认值/容量差分及 M3.7 checkpoint3 聚合门禁通过（M3.4 错误退出测试发现），范围与代价见 docs/integer-literals.md
 
-- [ ] `%` 字符串格式化的剩余 flags/宽度/precision/其它转换与 bytes 格式；M3.7 已支持无修饰标量和映射 `%s/%r/%a/%d/%i/%u/%%`，不再将整个能力标成未支持（docs/string-percent.md、semantics §4 #44）
+- [ ] `%` 字符串格式化的剩余域：d/i/u ASCII flags/literal width候选已实现、待C#/JIT/Native及未改真实入口验证（ADR0153）；字符串宽度/precision/其它转换与 bytes 格式仍未实现；M3.7 已支持无修饰标量和映射 `%s/%r/%a/%d/%i/%u/%%`，不再将整个能力标成未支持（docs/string-percent.md、semantics §4 #44）
 - [x] 类体内引用同类刚定义的函数名：既有 raw namespace 路线经专用 CP/JIT 差分确认，`v = property(getv, setv)`、别名、定义时 defaults/decorator 与方法全局作用域通过；纠正旧 E0106 记录，不计新增生产能力（semantics §4 #45、ADR0067）。
 - [ ] `MemoryError` 类型缺失：超大序列重复暂用 OverflowError 代替
 - [ ] 动态路径剩余差距（ADR-0014「仍落后」）：异常抛捕（CLR 异常成本）、`str +=` 累加（不可变 string）、
