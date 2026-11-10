@@ -76,17 +76,21 @@ public static class PyTypedDict
             // 字段表达式已全部求值；先读取当前禁止集合，再按真实顶层 alias 分类。
             // native alias 不比较其 origin，也不递归拒绝它内部保存的 ClassVar。
             object? classVar = PyTypingClassVar.ReadExport();
-            PyTypingGeneric.ValidateTypeArgument(value);
+            if (value is PyTypingGenericAlias) PyTypingGeneric.ValidateTypeArgument(value);
             PyTypingClassVar.ValidateAlias(value, classVar);
-            if (value is PyTypingForm { Name: "ClassVar" })
-                throw PyTypingClassVar.Error(new PyTypeError("Plain typing.ClassVar is not valid as type argument"));
             // 不伪造ForwardRef，也不将尚未实现的Required/NotRequired误按total分类。
             if (value is string || value is PyTypingAlias { Name: "Required" or "NotRequired" }
                 || value is PyTypingForm { Name: "Required" or "NotRequired" })
                 throw new PyNotImplementedError("TypedDict forward references and field qualifiers are not supported yet");
             if (value is not (null or PyNone or PyType or PyClass or PyNativeType or PyTypingAlias or PyTypingForm or PyTypedDictType or PyTypingTypeVar))
                 throw new PyNotImplementedError("TypedDict currently supports concrete type annotations");
-            annotations.Set(field, value is null or PyNone ? PyType.Get("NoneType") : value);
+            object normalized = value is null or PyNone ? PyType.Get("NoneType") : value;
+            // 只消费当前新字段；空字段及继承字段不新增全局读取，旧 ForwardRef 边界仍在前。
+            bool acceptedSpecial = PyTypingNoReturn.TypedDictMembership(normalized);
+            if (!acceptedSpecial && normalized is PyTypingForm { Name: "ClassVar" or "NoReturn" } form)
+                throw PyTypingClassVar.Error(new PyTypeError($"Plain typing.{form.Name} is not valid as type argument"));
+            if (!acceptedSpecial && PyTypingGeneric.IsRoot(normalized)) PyTypingGeneric.ValidateTypeArgument(normalized);
+            annotations.Set(field, normalized);
             required.Remove(field);
             optional.Remove(field);
             (total ? required : optional).Add(field);

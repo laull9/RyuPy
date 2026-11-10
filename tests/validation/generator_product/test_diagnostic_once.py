@@ -50,6 +50,7 @@ class DiagnosticTests(unittest.TestCase):
         block = workflow.split("          python3 - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
         code = '\n'.join(line[10:] for line in block.splitlines())
         markdown_title = 'diagnostic-not-acceptance: markdown-preflight-001'
+        noreturn_title = 'validation: typing-noreturn-001'
         cases = [(d.TITLE, 'push', d.REF, True), (d.TITLE.upper(), 'push', d.REF, False),
                  (d.TITLE + '\n', 'push', d.REF, False), ('normal commit', 'push', d.REF, False),
                  (d.TITLE, 'workflow_dispatch', d.REF, False), (None, 'push', d.REF, False),
@@ -58,7 +59,12 @@ class DiagnosticTests(unittest.TestCase):
                  (markdown_title.upper(), 'push', d.REF, False),
                  (markdown_title + '\n', 'push', d.REF, False),
                  (markdown_title, 'workflow_dispatch', d.REF, False),
-                 (markdown_title, 'push', d.REF.upper(), False)]
+                 (markdown_title, 'push', d.REF.upper(), False),
+                 (noreturn_title, 'push', d.REF, False),
+                 (noreturn_title.upper(), 'push', d.REF, False),
+                 (noreturn_title + '\n', 'push', d.REF, False),
+                 (noreturn_title, 'workflow_dispatch', d.REF, False),
+                 (noreturn_title, 'push', d.REF.upper(), False)]
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for title, event_name, ref, expected in cases:
@@ -72,10 +78,12 @@ class DiagnosticTests(unittest.TestCase):
                          'GITHUB_OUTPUT': str(root / 'output'), 'GITHUB_EVENT_NAME': event_name,
                          'GITHUB_REF': ref}, clear=True):
                         exec(compile(code, 'workflow-selector', 'exec'), {})
+                    noreturn = title == noreturn_title and event_name == 'push' and ref == d.REF
                     markdown = title == markdown_title and event_name == 'push' and ref == d.REF
                     self.assertEqual((root / 'output').read_text(),
                                      'diagnostic=' + str(expected).lower() + '\n'
-                                     + 'markdown=' + str(markdown).lower() + '\n')
+                                     + 'markdown=' + str(markdown).lower() + '\n'
+                                     + 'noreturn=' + str(noreturn).lower() + '\n')
         self.assertNotIn('${{', block)
         self.assertNotIn('checkout', block)
 

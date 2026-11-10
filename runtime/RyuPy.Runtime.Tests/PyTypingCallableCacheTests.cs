@@ -108,7 +108,7 @@ public sealed class PyTypingCallableCacheTests : IDisposable
     public void WarmIdentitySkipsAllColdDependenciesAndColdMissConsumesThem()
     {
         foreach (string helper in new[] { "_type_check", "_type_convert", "Generic", "Protocol", "Final",
-            "_GenericAlias", "Any", "LiteralString", "NoReturn", "Never", "Self", "TypeAlias", "_SpecialForm",
+            "_GenericAlias", "Any", "LiteralString", "Never", "Self", "TypeAlias", "_SpecialForm",
             "_CallableGenericAlias", "_TypingEllipsis", "_collect_parameters" })
         {
             object? t = Fresh(), cold = Fresh(), alias = One(t);

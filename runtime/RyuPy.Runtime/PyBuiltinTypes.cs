@@ -7,6 +7,7 @@ public static partial class PyOps
 {
     private static bool MatchesType(object? value, object? type) => type switch
     {
+        PyTypingForm { Name: "NoReturn" } => PyTypingNoReturn.RejectCheck(subclass: false),
         PyTypingForm { Name: "ClassVar" } => PyTypingClassVar.RejectRootCheck(subclass: false),
         PyTypingAlias { Name: "ClassVar" } => PyTypingGeneric.RejectRuntimeAlias(),
         PyTypingGenericAlias => PyTypingGeneric.RejectRuntimeAlias(),
@@ -73,6 +74,7 @@ public static partial class PyOps
 
     private static bool IsSubclassOf(object? child, object? parent) => (child, parent) switch
     {
+        (_, PyTypingForm { Name: "NoReturn" }) => PyTypingNoReturn.RejectCheck(subclass: true),
         (_, PyTypingForm { Name: "ClassVar" }) => PyTypingClassVar.RejectRootCheck(subclass: true),
         (_, PyTypingAlias { Name: "ClassVar" }) => PyTypingGeneric.RejectRuntimeAlias(),
         (_, PyTypingGenericAlias) => PyTypingGeneric.RejectRuntimeAlias(),

@@ -7,6 +7,8 @@ public static partial class PyTyping
 {
     internal static object SpecialUncached(PyTypingForm receiver, object? parameter)
     {
+        if (receiver.Name == "NoReturn")
+            throw PyTypingClassVar.Error(new PyTypeError("typing.NoReturn is not subscriptable"));
         if (receiver.Name == "ClassVar")
         {
             object argument = SpecialTypeArgument(parameter, "typing.ClassVar accepts only single type.");
@@ -76,11 +78,12 @@ public static partial class PyTyping
         PyTypingClassVar.ValidateAlias(converted, classVar);
         if (!Attributes.Value.TryGetValue("Any", out object? any) || !ReferenceEquals(any, Forms["Any"]))
             throw new PyNotImplementedError("rebound typing.Any type-argument comparison is not supported");
-        GuardHelper("LiteralString"); GuardHelper("NoReturn"); GuardHelper("Never");
-        GuardHelper("Self"); GuardHelper("TypeAlias");
-        if (ReferenceEquals(converted, any)) return converted!;
+        GuardHelper("LiteralString");
+        object? noReturn = PyTypingNoReturn.ReadExport();
+        GuardHelper("Never"); GuardHelper("Self"); GuardHelper("TypeAlias");
+        if (PyTypingNoReturn.Matches(converted, any, noReturn)) return converted!;
         GuardHelper("_SpecialForm");
-        if (converted is PyTypingForm { Name: "Optional" or "Union" or "ClassVar" or "Literal" })
+        if (converted is PyTypingForm { Name: "Optional" or "Union" or "ClassVar" or "Literal" or "NoReturn" })
             throw new PyTypeError($"Plain {Display(converted)} is not valid as type argument");
         if (PyTypingGeneric.IsRoot(converted)) PyTypingGeneric.ValidateTypeArgument(converted);
         if (converted is PyTuple)

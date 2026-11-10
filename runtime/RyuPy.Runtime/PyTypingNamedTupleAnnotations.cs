@@ -12,7 +12,7 @@ internal static class PyTypingNamedTupleAnnotations
     private static readonly string[] AfterClassVar = ["Final", "_type_convert"];
     private static readonly string[] BeforeString = ["isinstance", "str"];
     private static readonly string[] BeforeAlias = ["isinstance", "_GenericAlias"];
-    private static readonly string[] Membership = ["LiteralString", "NoReturn", "Never", "Self", "TypeAlias"];
+    private static readonly string[] MembershipTail = ["Never", "Self", "TypeAlias"];
 
     internal static object NormalizeAnnotation(object? value, string fieldName)
     {
@@ -42,7 +42,7 @@ internal static class PyTypingNamedTupleAnnotations
         }
 
         RejectAdded(attributes, BeforeAlias);
-        PyTypingGeneric.ValidateTypeArgument(normalized);
+        if (normalized is PyTypingGenericAlias) PyTypingGeneric.ValidateTypeArgument(normalized);
         PyTypingClassVar.ValidateAlias(normalized, classVar);
         if (normalized is PyTypingAlias alias && !SafeAliasOrigin(alias.Origin))
             throw Unsupported(fieldName, "typing alias origin with unknown comparison behavior is not supported");
@@ -51,8 +51,10 @@ internal static class PyTypingNamedTupleAnnotations
         if (!attributes.TryGetValue("Any", out object? currentAny)
             || !ReferenceEquals(currentAny, PyTyping.OriginalForm("Any")))
             throw PyTypingForwardRef.Unsupported("NamedTuple annotation lookup after rebinding typing.Any is not supported");
-        RejectAdded(attributes, Membership);
-        if (ReferenceEquals(normalized, currentAny)) return normalized;
+        RejectAdded(attributes, "LiteralString");
+        object? noReturn = PyTypingNoReturn.ReadExport();
+        RejectAdded(attributes, MembershipTail);
+        if (PyTypingNoReturn.Matches(normalized, currentAny, noReturn, fieldName)) return normalized;
 
         // Any已提前返回；裸special也在type(...)之前报原TypeError，不让未消费的type改绑抢先。
         RejectAdded(attributes, "_SpecialForm");
@@ -60,9 +62,10 @@ internal static class PyTypingNamedTupleAnnotations
         {
             if (!KnownForm(form.Name) || !ReferenceEquals(form, PyTyping.OriginalForm(form.Name)))
                 throw Unsupported(fieldName, "unknown typing form identity is not supported");
-            if (form.Name is "Union" or "Optional" or "ClassVar" or "Literal")
+            if (form.Name is "Union" or "Optional" or "ClassVar" or "Literal" or "NoReturn")
                 throw (PyTypeError)PyErrors.PrepareRaise(new PyTypeError($"Plain typing.{form.Name} is not valid as type argument"));
         }
+        if (PyTypingGeneric.IsRoot(normalized)) PyTypingGeneric.ValidateTypeArgument(normalized);
         RejectAdded(attributes, "type");
 
         // 类实例的__eq__不等于类对象元类的__eq__；当前PyClass尚无用户metaclass。
@@ -78,7 +81,7 @@ internal static class PyTypingNamedTupleAnnotations
         || origin is PyTypingForm { Name: "Union" or "ClassVar" or "Literal" } form
             && ReferenceEquals(form, PyTyping.OriginalForm(form.Name));
 
-    private static bool KnownForm(string name) => name is "Any" or "Optional" or "Union" or "ClassVar" or "Literal"
+    private static bool KnownForm(string name) => name is "Any" or "NoReturn" or "Optional" or "Union" or "ClassVar" or "Literal"
         or "List" or "Dict" or "Tuple" or "Set" or "FrozenSet" or "Callable" or "Iterable" or "Iterator"
         or "Sequence" or "Mapping" or "MutableMapping" or "Collection" or "Container";
 

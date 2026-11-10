@@ -418,12 +418,14 @@ class PureTests(unittest.TestCase):
         jobs = {match[1]: match[2] for match in re.finditer(r'^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:|\Z)', text.split('\njobs:\n', 1)[1], re.M | re.S)}
         ordinary = {'baseline', 'full-check', 'projects', 'trace-adapter-s2',
                     'trace-rust-preflight', 'pyfiglet-explicit-deployment', 'source-import-paths'}
-        self.assertEqual(set(jobs), ordinary | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight'})
-        for diagnostic, markdown, event, attempt, expected in [
-                ('false', 'false', 'push', '1', ordinary), ('false', 'false', 'workflow_dispatch', '1', ordinary),
-                ('true', 'false', 'push', '1', {'trace-edge-diagnostic'}),
-                ('false', 'true', 'push', '1', {'markdown-preflight'}),
-                ('false', 'true', 'push', '2', set())]:
+        self.assertEqual(set(jobs), ordinary | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight', 'typing-noreturn'})
+        for diagnostic, markdown, noreturn, event, attempt, expected in [
+                ('false', 'false', 'false', 'push', '1', ordinary),
+                ('false', 'false', 'true', 'push', '1', ordinary | {'typing-noreturn'}),
+                ('false', 'false', 'true', 'push', '2', ordinary), ('false', 'false', 'false', 'workflow_dispatch', '1', ordinary),
+                ('true', 'false', 'false', 'push', '1', {'trace-edge-diagnostic'}),
+                ('false', 'true', 'false', 'push', '1', {'markdown-preflight'}),
+                ('false', 'true', 'false', 'push', '2', set())]:
             active = set()
             for name, block in jobs.items():
                 if name == 'select-mode':
@@ -431,7 +433,8 @@ class PureTests(unittest.TestCase):
                 condition = re.search(r'^    if: (.*)$', block, re.M)[1]
                 for key, value in [('github.ref', REF), ('github.event_name', event), ('github.run_attempt', attempt),
                         ('needs.select-mode.outputs.diagnostic', diagnostic),
-                        ('needs.select-mode.outputs.markdown', markdown)]:
+                        ('needs.select-mode.outputs.markdown', markdown),
+                        ('needs.select-mode.outputs.noreturn', noreturn)]:
                     condition = condition.replace(key, repr(value))
                 condition = condition.replace('&&', 'and')
                 # 只求值本仓库固定的纯比较表达式，不读取GitHub事件文本/第三方内容。

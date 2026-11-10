@@ -23,7 +23,7 @@ public static partial class PyTyping
             ["is_typeddict"] = PyNativeFunctions.Create("is_typeddict", ["tp"], [null], 1,
                 args => PyTypedDict.IsTypedDict(args[0])),
         };
-        foreach (string name in new[] { "Any", "Optional", "Union", "ClassVar", "Literal", "List", "Dict", "Tuple", "Set", "FrozenSet", "Callable", "Iterable", "Iterator", "Sequence", "Mapping", "MutableMapping", "Collection", "Container" })
+        foreach (string name in new[] { "Any", "NoReturn", "Optional", "Union", "ClassVar", "Literal", "List", "Dict", "Tuple", "Set", "FrozenSet", "Callable", "Iterable", "Iterator", "Sequence", "Mapping", "MutableMapping", "Collection", "Container" })
         {
             var form = new PyTypingForm(name); Forms[name] = form; result[name] = form;
         }
@@ -46,7 +46,7 @@ public static partial class PyTyping
         GuardHelper("GenericAlias"); GuardHelper("ParamSpecArgs"); GuardHelper("ParamSpecKwargs");
         if (value is PyTypingGenericAlias) return PyTypingGeneric.Root;
         if (value is PyTypingAlias alias) return alias.Origin;
-        if (value is PyTypingForm form && form.Name is not ("Any" or "Optional" or "Union" or "ClassVar" or "Literal")) return Origin(form.Name);
+        if (value is PyTypingForm form && form.Name is not ("Any" or "NoReturn" or "Optional" or "Union" or "ClassVar" or "Literal")) return Origin(form.Name);
         PyTypingGeneric.GuardExport(Attributes.Value);
         if (PyTypingGeneric.IsRoot(value)) return PyTypingGeneric.Root;
         GuardHelper("types");
@@ -74,7 +74,7 @@ public static partial class PyTyping
     internal static object Subscribe(PyTypingForm form, object? parameter)
     {
         string name = form.Name;
-        if (name is "Optional" or "Union" or "ClassVar") return PyTypingSpecialFormCache.Subscribe(form, parameter);
+        if (name is "Optional" or "Union" or "ClassVar" or "NoReturn") return PyTypingSpecialFormCache.Subscribe(form, parameter);
         if (form.IsOrdinaryGeneric) return OrdinaryCache.Subscribe(form, parameter);
         if (name == "Tuple") return TupleCache.Subscribe(form, parameter);
         if (name == "Callable") return CallableSubscribe(form, parameter);
@@ -158,11 +158,11 @@ public sealed class PyTypingForm(string name) : PyNativeObject, IPyNativeCallabl
     public override string TypeName => Name switch
     {
         "Any" => "_AnyMeta", "Literal" => "_LiteralSpecialForm",
-        "Optional" or "Union" or "ClassVar" => "_SpecialForm", "Tuple" => "_TupleType",
+        "Optional" or "Union" or "ClassVar" or "NoReturn" => "_SpecialForm", "Tuple" => "_TupleType",
         "Callable" => "_CallableType", _ => "_SpecialGenericAlias",
     };
     /// <inheritdoc />
-    public override object? GetAttr(string name) => name switch
+    public override object? GetAttr(string name) => Name == "NoReturn" ? PyTypingNoReturn.GetAttr(this, name) : name switch
     {
         "__class__" => PyObject.TypeOf(this),
         "__name__" or "__qualname__" => Name, "__module__" => "typing",
@@ -187,7 +187,7 @@ public sealed class PyTypingForm(string name) : PyNativeObject, IPyNativeCallabl
         throw new PyNotImplementedError("typing root attribute deletion is not supported");
     /// <inheritdoc />
     public object? Invoke(object?[] args, string[] names, object?[] values) =>
-        throw (Name == "ClassVar" ? PyTypingClassVar.Error(new PyTypeError("Cannot instantiate typing.ClassVar"))
+        throw (Name == "NoReturn" ? PyTypingNoReturn.CannotInstantiate() : Name == "ClassVar" ? PyTypingClassVar.Error(new PyTypeError("Cannot instantiate typing.ClassVar"))
             : new PyTypeError($"Type {Name} cannot be instantiated"));
     /// <inheritdoc />
     public override string PythonRepr() => "typing." + Name;

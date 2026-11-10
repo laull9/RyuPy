@@ -71,16 +71,19 @@ internal static class PyTypingTypeVarFactory
             normalized = PyTypingForwardRef.Create(text);
         }
         RejectAdded(attributes, "_GenericAlias");
-        PyTypingGeneric.ValidateTypeArgument(normalized);
+        if (normalized is PyTypingGenericAlias) PyTypingGeneric.ValidateTypeArgument(normalized);
         PyTypingClassVar.ValidateAlias(normalized, classVar);
         if (!attributes.TryGetValue("Any", out object? any)
             || !ReferenceEquals(any, PyTyping.OriginalForm("Any")))
             throw Unsupported("bound lookup after rebinding typing.Any is not supported");
-        RejectAdded(attributes, "LiteralString", "NoReturn", "Never", "Self", "TypeAlias");
-        if (ReferenceEquals(normalized, any)) return normalized;
+        RejectAdded(attributes, "LiteralString");
+        object? noReturn = PyTypingNoReturn.ReadExport();
+        RejectAdded(attributes, "Never", "Self", "TypeAlias");
+        if (PyTypingNoReturn.Matches(normalized, any, noReturn)) return normalized;
         RejectAdded(attributes, "_SpecialForm");
-        if (normalized is PyTypingForm { Name: "Union" or "Optional" or "ClassVar" or "Literal" } form)
+        if (normalized is PyTypingForm { Name: "Union" or "Optional" or "ClassVar" or "Literal" or "NoReturn" } form)
             throw Error($"Plain typing.{form.Name} is not valid as type argument");
+        if (PyTypingGeneric.IsRoot(normalized)) PyTypingGeneric.ValidateTypeArgument(normalized);
         RejectAdded(attributes, "type");
         if (normalized is PyTuple tuple && tuple.GetType() == typeof(PyTuple))
         {

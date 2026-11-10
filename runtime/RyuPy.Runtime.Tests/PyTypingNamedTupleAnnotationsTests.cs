@@ -141,7 +141,7 @@ public class PyTypingNamedTupleAnnotationsTests
     public void AddedConsumedGlobalsRejectButUnrelatedModuleMetadataDoesNot()
     {
         foreach (string name in new[] { "_type_check", "_type_convert", "Generic", "Protocol", "Final",
-            "isinstance", "str", "_GenericAlias", "LiteralString", "NoReturn", "Never", "Self", "TypeAlias", "_SpecialForm", "type" })
+            "isinstance", "str", "_GenericAlias", "LiteralString", "Never", "Self", "TypeAlias", "_SpecialForm", "type" })
             With(name, PyNone.Instance, () =>
                 Assert.Contains("typing." + name, Assert.Throws<PyNotImplementedError>(() => Normalize(PyType.Get("int"))).PyMessage));
         With("__name__", "renamed", () => With("unrelated", new object(), () =>
