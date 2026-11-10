@@ -17,9 +17,9 @@ from native_evidence import preserve_dist
 
 ROOT = shared.REPO
 TITLE = 'validation: typing-noreturn-001'
-BASE_SOURCE_HEAD = 'a728e24f263a93607cd4373076a130098273bacf'
-REMOTE_BASE_HEAD = '492f4afff6788ec08cf33b3a34c68b38c3ac40be'
-BASE_TREE = 'b404f22e24d443982c1be27a3666657699a6e526'
+BASE_SOURCE_HEAD = 'b0aee23f15ed1662039756bd60eef1d32e9e00c8'
+REMOTE_BASE_HEAD = '1e263ff824ef8f50d2559e1562ff3d71b17db228'
+BASE_TREE = 'e5a1e790d0bbf8a1c0ce3dff27a2771a8fae0944'
 FROZEN = {
     'docs/adr/0147-typing-noreturn-consumers.md':
         '8230e2ff5385f1a63c7a024d41c5c7c5962e8eae9c1e4af764a5fc7466b95624',
@@ -47,6 +47,8 @@ FROZEN = {
         '343389d887df8c1d68bb461e10e99fd76b56821455f25c5bfdc21bb29e7e3420',
     'runtime/RyuPy.Runtime/PyTypingTypeVarFactory.cs':
         '83a1285cf0588474092f96b4464a7886019df561a7483d8925fad2ff954e8a34',
+    'tests/e2e/phase3/m3_7_typing_noreturn_supported.py':
+        '52e6eda8542f09371e0c222a64983ab4bff2fd759b3207879bbe829e0e3ca4f1',
     'tests/e2e/phase3/m3_7_typing_noreturn.py':
         '542f65d9108f343605b0c1df41b21e53c42618f088a900eee0196e1e108f99cb',
 }
@@ -66,6 +68,13 @@ FACTS = {
     'LiteralOnlyAddsImmutableFormIdentityAndPreservesOldValueDomain',
 }
 CONTRACT = 'tests/e2e/phase3/m3_7_typing_noreturn.py'
+SUPPORTED = 'tests/e2e/phase3/m3_7_typing_noreturn_supported.py'
+SUPPORTED_ORACLE_SHA = '3d3141a80cd27e59aa3e162f9f37cd6cd2553ff0a581902285ac9bfc20c678ff'
+# run42754725069的原完整源JIT删除边界，严格原流；不是CP1482B支持。
+BOUNDARY_STREAMS = {
+    'stdout': (851, 'ccf5907ccaa9a88efc3232deea54c37ffbbfcf4b7f4d61d5ce5b66ce4485e5c7'),
+    'stderr': (174, 'a20780ff889db88ed94e1f86206017a1b120e7e40be0cbadeca7c267b2bed79e'),
+}
 ORACLE_SHA = '4ca42299e1eb9a42407935a54db7321401ba3b729edeac827fb4b53d0ceffdf1'
 require, save, sha, snapshot = shared.require, shared.save, shared.sha, shared.snapshot
 
@@ -97,6 +106,14 @@ def positive(record, prefix, golden):
             and prefix.with_suffix('.stderr').read_bytes() == b'')
 
 
+def expected_refusal(record, prefix):
+    # 非零/超时/信号或任意错误都不够；原stdout前缀与完整Traceback逐流锁定。
+    return (record['exit'] == 1 and record['failure'] is None and record['raw_streams_complete']
+            and all(prefix.with_suffix('.' + key).stat().st_size == size and
+                    sha(prefix.with_suffix('.' + key)) == expected
+                    for key, (size, expected) in BOUNDARY_STREAMS.items()))
+
+
 def plain_probe(entry):
     # 保原入口首个调用逐字，不修改完整入口；只能删已锁定的第二个print。
     lines = entry.read_bytes().splitlines(keepends=True)
@@ -109,9 +126,10 @@ class Runner(shared.Runner):
         self.out = ROOT / 'target/typing-noreturn-evidence'
         self.out.mkdir(parents=True, exist_ok=False)
         self.labels = set()
-        self.result = {'passed': False, 'default_project_delta': 0, 'stages': {
+        self.result = {'passed': False, 'supported_contract_passed': False, 'full_contract_supported': False, 'default_project_delta': 0, 'stages': {
             x: {'passed': False, 'status': 'not-run'} for x in
-            ['csharp', 'tools', 'contract-jit', 'contract-native', 'markdown-plain', 'markdown-full']},
+            ['csharp', 'tools', 'supported-cp', 'supported-jit', 'supported-native',
+             'full-source-deletion-boundary', 'markdown-plain', 'markdown-full']},
             'scope': 'NoReturn支持合同与显式Markdown阶段；非全typing、非默认Markdown晋升',
             'old_gates': '独立原jobs运行，本runner不代替或跳过', 'retries': 0}
         self.frozen = {}
@@ -128,8 +146,10 @@ class Runner(shared.Runner):
     def phase(self, name, operation):
         self.result['stages'][name] = {'passed': False, 'status': 'started'}
         try:
-            operation()
+            detail = operation()
             self.result['stages'][name].update(passed=True, status='passed')
+            if isinstance(detail, dict):
+                self.result['stages'][name].update(detail)
         except Exception as error:
             self.result['stages'][name].update(status='failed', error=str(error), traceback=traceback.format_exc())
         save(self.out / 'result.json', self.result)
@@ -163,11 +183,14 @@ class Runner(shared.Runner):
             DOTNET=str(self.dotnet), DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1', PYTHONDONTWRITEBYTECODE='1',
             PYTHONNOUSERSITE='1', PYTHONHASHSEED='0', LC_ALL='C.UTF-8', TZ='UTC')
 
-    def run_positive(self, name, argv, golden, env=None):
+    def run_product(self, name, argv, env=None):
         require(name not in self.labels, '禁止重复执行：' + name)
         self.labels.add(name)
         cwd = self.out / 'cwd' / name; cwd.mkdir(parents=True)
-        actual = shared.capture(self.out / name, argv, cwd, 30, env or self.env)
+        return shared.capture(self.out / name, argv, cwd, 30, env or self.env)
+
+    def run_positive(self, name, argv, golden, env=None):
+        actual = self.run_product(name, argv, env)
         require(positive(actual, self.out / name, golden), name + '实际exit/stdout/stderr不符；见原流')
 
     def jit(self, name, entry, golden, inputs=None):
@@ -177,7 +200,7 @@ class Runner(shared.Runner):
         env = dict(self.env)
         if inputs:
             env['PYTHONPATH'] = os.pathsep.join(map(str, [inputs / 'stdlib', inputs / 'markdown']))
-        if name != 'contract':
+        if name not in ('supported', 'full-source-deletion-boundary'):
             self.run_positive(name + '-cp', [self.python, '-B', entry], golden, env)
         actual = self.command(name + '-compile', args, 120, env)
         require(actual['exit'] == 0 and not actual['failure'], name + '编译失败，未执行JIT')
@@ -188,6 +211,11 @@ class Runner(shared.Runner):
         require(snapshot(target) == snapshot(preserved), '执行前PE保存不一致')
         self.preserve(target, name + '-pe')
         self.preserve(preserved, name + '-preserved-pe')
+        if name == 'full-source-deletion-boundary':
+            record = self.run_product(name + '-jit', [self.dotnet, dll], env)
+            require(expected_refusal(record, self.out / (name + '-jit')),
+                    '原完整源删除负界不是精确exit1/851B/174B原流')
+            return {'status': 'expected_refusal', 'cp_equivalent': False, 'supported': False}
         self.run_positive(name + '-jit', [self.dotnet, dll], golden, env)
 
     def preserve_publish_evidence(self, target, stem):
@@ -244,6 +272,13 @@ class Runner(shared.Runner):
         self.preserve(moved, 'native-relocated')
         self.run_positive('native-relocated', [binary], golden, native_env)
 
+    def supported_oracle(self):
+        cp = self.command('supported-oracle', [self.python, '-B', ROOT / SUPPORTED], 30, self.env)
+        prefix = self.out / 'supported-oracle'
+        golden = prefix.with_suffix('.stdout').read_bytes()
+        require(len(golden) == 1401 and sha(prefix.with_suffix('.stdout')) == SUPPORTED_ORACLE_SHA
+                and positive(cp, prefix, golden), '有限支持合同CP1401B oracle不符')
+
     def execute(self):
         before = None
         try:
@@ -254,7 +289,7 @@ class Runner(shared.Runner):
             base = shared.tree_records((self.out / 'base-files.stdout').read_bytes())
             changed = {p for p in base.keys() | before['files'].keys() if base.get(p) != before['files'].get(p)}
             require(changed <= set(FROZEN) | CI_PATHS, '出现候选外差异')
-            require(all(sha(ROOT / p) == h for p, h in FROZEN.items()), '冻结14路径hash不符')
+            require(all(sha(ROOT / p) == h for p, h in FROZEN.items()), '冻结15路径hash不符')
             save(self.out / 'source-identity.json', dict(before, frozen_paths=FROZEN,
                 base_source_head=BASE_SOURCE_HEAD, remote_base_head=REMOTE_BASE_HEAD, base_tree=BASE_TREE))
             self.python, self.dotnet = Path(os.environ['PYTHON']).resolve(), Path(os.environ['DOTNET']).resolve()
@@ -276,14 +311,30 @@ class Runner(shared.Runner):
                 return 1
             if not self.phase('tools', self.build_tools):
                 return 1
-            # 固定原positive源完整执行；不删构造边界，不把CP-only未知协议纳入支持。
-            contract = ROOT / CONTRACT
-            cp = self.command('contract-oracle', [self.python, '-B', contract], 30, self.env)
-            golden = (self.out / 'contract-oracle.stdout').read_bytes()
-            require(len(golden) == 1482 and sha(self.out / 'contract-oracle.stdout') == ORACLE_SHA
-                    and positive(cp, self.out / 'contract-oracle', golden), '固定合同oracle不符')
-            self.phase('contract-jit', lambda: self.jit('contract', contract, golden))
-            self.phase('contract-native', lambda: self.native(contract, golden))
+            # 保原完整源及新有限支持源的确切内容；无publicdict/模块删除旁路。
+            saved = self.out / 'sources'; saved.mkdir()
+            for name in (CONTRACT, SUPPORTED):
+                shutil.copy2(ROOT / name, saved / Path(name).name)
+            self.preserve(saved, 'contract-sources')
+            save(self.out / 'full-contract-cp-reference.json', {
+                'status': 'not-run', 'reference_run': 42754725069,
+                'reference_remote_head': REMOTE_BASE_HEAD, 'source': CONTRACT,
+                'source_sha256': FROZEN[CONTRACT], 'python_sha256': shared.PYTHON_SHA,
+                'stdout_bytes': 1482, 'stdout_sha256': ORACLE_SHA, 'stderr_bytes': 0, 'exit': 0,
+                'note': '本次不重跑原CP；保既有同版本同源oracle，不截断为成功输出。'})
+            save(self.out / 'full-contract-native-reference.json', {
+                'status': 'not-run', 'reference_run': 42754725069, 'source': CONTRACT,
+                'reference_remote_head': REMOTE_BASE_HEAD, 'previous_status': 'failed',
+                'previous_publish_exit': 0, 'previous_native_exit': 1, 'previous_relocated': False,
+                'note': '旧完整源Native删除失败原件保留；本次唯一Native仅验新支持源，不覆写旧失败。'})
+            if self.phase('supported-cp', self.supported_oracle):
+                golden = (self.out / 'supported-oracle.stdout').read_bytes()
+                self.phase('supported-jit', lambda: self.jit('supported', ROOT / SUPPORTED, golden))
+                self.phase('supported-native', lambda: self.native(ROOT / SUPPORTED, golden))
+            self.result['supported_contract_passed'] = all(self.result['stages'][name]['passed']
+                for name in ('csharp', 'tools', 'supported-cp', 'supported-jit', 'supported-native'))
+            self.phase('full-source-deletion-boundary',
+                lambda: self.jit('full-source-deletion-boundary', ROOT / CONTRACT, None))
             inputs = self.inputs(self.python)
             full = inputs / 'markdown_sample.py'
             plain = inputs / 'markdown_plain_probe.py'; plain.write_bytes(plain_probe(full))
@@ -301,7 +352,7 @@ class Runner(shared.Runner):
                 require(all(sha(Path(p)) == h for p, h in self.frozen.items()), '工具/输入/产物身份改变')
                 self.result['identity_preserved'] = True
             except Exception as error:
-                self.result.update(passed=False, identity_preserved=False, identity_error=str(error))
+                self.result.update(passed=False, supported_contract_passed=False, identity_preserved=False, identity_error=str(error))
             save(self.out / 'result.json', self.result)
         return 0 if self.result['passed'] else 1
 

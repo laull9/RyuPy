@@ -14,7 +14,7 @@ import typing_noreturn as n
 
 class Tests(unittest.TestCase):
     def test_frozen_inputs_and_plain_probe(self):
-        self.assertEqual(len(n.FROZEN), 14)
+        self.assertEqual(len(n.FROZEN), 15)
         for path, expected in n.FROZEN.items():
             self.assertEqual(n.sha(n.ROOT / path), expected)
         source = n.ROOT / 'tests/projects/entries/markdown_sample.py'
@@ -65,9 +65,9 @@ class Tests(unittest.TestCase):
             self.assertLessEqual(len(text.splitlines()), 600)
 
     def test_base_tree_is_frozen_public_parent_tree_not_private_history(self):
-        self.assertEqual(n.BASE_TREE, 'b404f22e24d443982c1be27a3666657699a6e526')
-        self.assertEqual(n.REMOTE_BASE_HEAD, '492f4afff6788ec08cf33b3a34c68b38c3ac40be')
-        self.assertEqual(n.BASE_SOURCE_HEAD, 'a728e24f263a93607cd4373076a130098273bacf')
+        self.assertEqual(n.BASE_TREE, 'e5a1e790d0bbf8a1c0ce3dff27a2771a8fae0944')
+        self.assertEqual(n.REMOTE_BASE_HEAD, '1e263ff824ef8f50d2559e1562ff3d71b17db228')
+        self.assertEqual(n.BASE_SOURCE_HEAD, 'b0aee23f15ed1662039756bd60eef1d32e9e00c8')
         # 全流程mock的base-files命令拒绝两个commit查询；私有原始历史只做来源说明。
         tree = ast.parse((n.ROOT / 'tests/validation/typing_noreturn.py').read_text())
         invocations = [x for x in ast.walk(tree) if isinstance(x, ast.Call) and
@@ -141,8 +141,8 @@ class Tests(unittest.TestCase):
             runner.command = fail
             runner.run_positive = lambda *args: self.fail('编译失败后不应执行产品')
             with self.assertRaises(ValueError):
-                runner.jit('contract', Path('/fake/contract.py'), b'golden')
-            self.assertEqual([x[0] for x in calls], ['contract-compile'])
+                runner.jit('supported', Path('/fake/contract.py'), b'golden')
+            self.assertEqual([x[0] for x in calls], ['supported-compile'])
             self.assertNotIn('--aot', calls[0][1])
 
     def test_phase_failure_is_recorded_and_later_phase_runs(self):
@@ -201,13 +201,65 @@ class Tests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     runner.run_positive('native-relocated', ['/fake/elf'], b'golden', env)
 
+    def test_boundary_jit_skips_cp_and_preserves_actual_pe_before_refusal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = object.__new__(n.Runner)
+            runner.out = Path(tmp); runner.env = {}; runner.frozen = {}
+            runner.cli = Path('/fake/ryupy'); runner.dotnet = Path('/fake/dotnet')
+            runner.runtime = runner.out / 'runtime.dll'; runner.runtime.write_bytes(b'runtime')
+            entry = Path('/fake/m3_7_typing_noreturn.py')
+            calls = []
+            def command(name, argv, timeout, env):
+                calls.append(name)
+                target = Path(argv[argv.index('--out-dir') + 1]); target.mkdir(parents=True)
+                (target / (entry.stem + '.dll')).write_bytes(b'actual-pe')
+                (target / 'RyuPy.Runtime.dll').write_bytes(b'runtime')
+                return dict(exit=0, failure=None)
+            def product(name, argv, env):
+                calls.append(name)
+                saved = runner.out / 'preserved-pe/full-source-deletion-boundary'
+                self.assertEqual((saved / (entry.stem + '.dll')).read_bytes(), b'actual-pe')
+                return dict(exit=1, failure=None, raw_streams_complete=True)
+            runner.command = command; runner.run_product = product
+            runner.run_positive = lambda *args: self.fail('原完整边界不得新跑CP或按positive执行')
+            with patch.object(n, 'expected_refusal', return_value=True) as verify:
+                result = runner.jit('full-source-deletion-boundary', entry, None)
+                self.assertEqual(verify.call_count, 1)
+            self.assertEqual(calls, ['full-source-deletion-boundary-compile', 'full-source-deletion-boundary-jit'])
+            self.assertEqual(result, {'status': 'expected_refusal', 'cp_equivalent': False, 'supported': False})
+
+    def test_deletion_boundary_requires_exact_original_streams_and_exit_one(self):
+        # run42754725069同一原源的实际原流；只测试判定器，不执行CP或产品。
+        stdout = b'True typing.NoReturn True\nNoReturn NoReturn typing None ()\ncall TypeError Cannot instantiate typing.NoReturn\nexplicit-call TypeError Cannot instantiate typing.NoReturn\nsubscribe TypeError typing.NoReturn is not subscriptable\ninstance TypeError typing.NoReturn cannot be used with isinstance()\nsubclass TypeError typing.NoReturn cannot be used with issubclass()\nbase TypeError Cannot subclass typing.NoReturn\nList True True\nSet True True\nFrozenSet True True\nIterable True True\nIterator True True\nSequence True True\nCollection True True\nContainer True True\nDict True\nMapping True\nMutableMapping True\nTrue typing.Optional[typing.NoReturn] typing.ClassVar[typing.NoReturn]\ntyping.Tuple[typing.NoReturn, ...] typing.Callable[[typing.NoReturn], typing.NoReturn]\nTrue\nTrue\nTrue\nTrue True\ntyping.Union[typing.NoReturn, int] typing.Union[int, typing.NoReturn]\n'
+        stderr = b'Traceback (most recent call last):\n  File "m3_7_typing_noreturn.py", line 36, in <module>\nNotImplementedError: module attribute deletion requires global-slot synchronization\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            prefix = Path(tmp) / 'boundary'
+            out, err = prefix.with_suffix('.stdout'), prefix.with_suffix('.stderr')
+            out.write_bytes(stdout); err.write_bytes(stderr)
+            good = dict(exit=1, failure=None, raw_streams_complete=True)
+            self.assertTrue(n.expected_refusal(good, prefix))
+            for change in [dict(exit=0), dict(exit=2), dict(exit=-9), dict(failure='timeout'),
+                           dict(raw_streams_complete=False)]:
+                self.assertFalse(n.expected_refusal(dict(good, **change), prefix))
+            for bad in [stdout[:-1], stdout + b'x', b'x' * len(stdout)]:
+                out.write_bytes(bad)
+                self.assertFalse(n.expected_refusal(good, prefix))
+            out.write_bytes(stdout)
+            for bad in [stderr[:-1], stderr.replace(b'line 36', b'line 37'), b'x' * len(stderr)]:
+                err.write_bytes(bad)
+                self.assertFalse(n.expected_refusal(good, prefix))
+
     def test_orchestration_early_stop_and_independent_product_failures(self):
         # 所有命令都是内存mock；专门覆盖早门停链与full失败仍非零。
         actual_root = n.ROOT
-        for failure in ['csharp', 'tools', 'contract-jit', 'markdown-plain', 'markdown-full', None]:
+        for failure in ['csharp', 'tools', 'supported-oracle', 'supported-jit', 'supported-native',
+                        'full-source-deletion-boundary', 'markdown-plain', 'markdown-full', None]:
             with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 calls = []
+                for name in (n.CONTRACT, n.SUPPORTED):
+                    path = root / name; path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes((actual_root / name).read_bytes())
                 identity = {'head': '1' * 40, 'files': {}}
                 event = root / 'event.json'; event.write_text('{}')
                 self_outer = self
@@ -237,15 +289,21 @@ class Tests(unittest.TestCase):
                         self.env = {}
                     def command(self, name, argv, timeout, env=None):
                         calls.append(name)
-                        (self.out / (name + '.stdout')).write_bytes(b'x' * 1482)
+                        (self.out / (name + '.stdout')).write_bytes(b'x' * 1401)
                         (self.out / (name + '.stderr')).write_bytes(b'')
-                        return dict(exit=0, failure=None, raw_streams_complete=True)
+                        return dict(exit=1 if failure == name else 0, failure=None, raw_streams_complete=True)
                     def jit(self, name, *args):
                         calls.append(name + '-jit')
                         if failure in [name, name + '-jit']:
                             raise ValueError('product error')
-                    def native(self, *args):
+                        if name == 'full-source-deletion-boundary':
+                            return {'status': 'expected_refusal', 'cp_equivalent': False, 'supported': False}
+                    def native(self, entry, golden):
+                        self_outer.assertEqual(entry, root / n.SUPPORTED)
+                        self_outer.assertEqual(len(golden), 1401)
                         calls.append('native')
+                        if failure == 'supported-native':
+                            raise ValueError('native error')
                     def inputs(self, python):
                         path = self.out / 'inputs'; path.mkdir()
                         (path / 'stdout.txt').write_bytes(b'x' * 77)
@@ -256,14 +314,14 @@ class Tests(unittest.TestCase):
                     path = Path(path)
                     if path.name == 'python':
                         return n.shared.PYTHON_SHA
-                    if path.name == 'contract-oracle.stdout':
-                        return n.ORACLE_SHA
+                    if path.name == 'supported-oracle.stdout':
+                        return n.SUPPORTED_ORACLE_SHA
                     if path.name == 'markdown_sample.py':
                         return n.shared.ENTRY_SHA
                     return 'f' * 64
                 env = {'GITHUB_EVENT_PATH': str(event), 'GITHUB_SHA': identity['head'],
                        'PYTHON': str(root / 'python'), 'DOTNET': str(root / 'dotnet')}
-                with patch.object(n, 'ROOT', root), patch.object(n, 'FROZEN', {}), \
+                with patch.object(n, 'ROOT', root), patch.object(n, 'FROZEN', {n.CONTRACT: 'f' * 64}), \
                      patch.object(n, 'check_context'), patch.object(n, 'sha', sha), \
                      patch.object(n.shutil, 'which', return_value=str(root / 'tool')), \
                      patch.object(n.sys, 'version_info', (3, 12, 13)), patch.dict(os.environ, env):
@@ -271,12 +329,26 @@ class Tests(unittest.TestCase):
                     code = runner.execute()
                 self.assertEqual(code, 0 if failure is None else 1)
                 if failure in ['csharp', 'tools']:
-                    self.assertNotIn('contract-oracle', calls)
-                    self.assertEqual(runner.result['stages']['contract-jit']['status'], 'not-run')
+                    self.assertNotIn('supported-oracle', calls)
+                    self.assertEqual(runner.result['stages']['supported-jit']['status'], 'not-run')
                 else:
-                    self.assertIn('native', calls)
+                    if failure != 'supported-oracle':
+                        self.assertEqual(calls.count('native'), 1)
+                        self.assertLess(calls.index('supported-jit'), calls.index('native'))
+                    else:
+                        self.assertNotIn('native', calls)
                     self.assertIn('markdown-full-jit', calls)
-                    self.assertLess(calls.index('contract-jit'), calls.index('native'))
+                    self.assertIn('full-source-deletion-boundary-jit', calls)
+                    self.assertNotIn('contract-oracle', calls)
+                    self.assertFalse(runner.result['full_contract_supported'])
+                    if failure in ('markdown-plain', 'markdown-full', 'full-source-deletion-boundary', None):
+                        self.assertTrue(runner.result['supported_contract_passed'])
+                    else:
+                        self.assertFalse(runner.result['supported_contract_passed'])
+                    if failure != 'full-source-deletion-boundary':
+                        boundary = runner.result['stages']['full-source-deletion-boundary']
+                        self.assertEqual(boundary['status'], 'expected_refusal')
+                        self.assertFalse(boundary['cp_equivalent'])
                     self.assertLess(calls.index('markdown-plain-jit'), calls.index('markdown-full-jit'))
 
 
