@@ -1,4 +1,4 @@
-// str.expandtabs的唯一绑定/转换/两遍填充权威；冷类型槽协议局限于本API，不扩全局调用ABI。
+// str.expandtabs的唯一绑定/转换/两遍填充权威；冷类型槽调用共享窄帮助器，不扩全局调用ABI。
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -55,19 +55,7 @@ internal static class PyTextExpandTabs
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static int IndexSlow(object? value)
     {
-        object? result;
-        PyClass? cls = PythonClass(value);
-        if (cls is not null)
-        {
-            cls.GuardInheritedGenericProtocol("__index__");
-            if (!cls.TryLookup("__index__", out PyClass owner, out object? raw)) throw MissingIndex(value);
-            result = InvokeIndexSlot(value!, cls, owner, raw);
-        }
-        else if (value is PyNativeObject && PyObject.TryMethod(value, "__index__", [], out result))
-        {
-            // 保留已有native特殊槽域，不把普通实例字段当作类型槽。
-        }
-        else throw MissingIndex(value);
+        if (!PyIndexSlot.TryInvoke(value, out object? result)) throw MissingIndex(value);
         // 用户getter/index异常不catch；bool结果的警告可抛错或重入，之后不重读任何实参。
         if (result is bool flag)
         {
@@ -85,75 +73,6 @@ internal static class PyTextExpandTabs
 
     private static PyTypeError MissingIndex(object? value) =>
         Own(new PyTypeError($"'{PyRepr.TypeName(value)}' object cannot be interpreted as an integer"));
-
-    private static PyClass? PythonClass(object? value) => value switch
-    {
-        PyInstance instance => instance.Class,
-        PyBaseException exception => exception.PythonClass,
-        _ => null,
-    };
-
-    // __index__按实际类型链取槽，不接受实例遮蔽；上层普通描述符绑定与下层raw Get严格分开。
-    private static object? InvokeIndexSlot(object self, PyClass actualClass, PyClass owner, object? raw)
-    {
-        if (raw is PyFunction) return PyObject.InvokeBound(raw, owner, self, [], [], []);
-        if (raw is PyStaticMethod staticMethod)
-        {
-            CheckCallable(staticMethod.Value);
-            return PyObject.InvokeBound(raw, owner, self, [], [], []);
-        }
-        if (raw is PyClassMethod classMethod)
-        {
-            CheckCallable(classMethod.Value);
-            return PyObject.InvokeBound(raw, owner, self, [], [], []);
-        }
-        object? callable;
-        if (raw is PyProperty property)
-        {
-            object? getter = property.Getter;
-            if (getter is null or PyNone)
-                throw Own(new PyAttributeError($"property '__index__' of '{actualClass.Name}' object has no getter"));
-            // 普通getter函数保已有super上下文；其它getter是raw callable，显式接收self。
-            callable = getter is PyFunction
-                ? PyObject.InvokeBound(getter, owner, self, [], [], []) : CallRaw(getter, [self]);
-        }
-        else if (PythonClass(raw) is { } descriptorClass)
-        {
-            descriptorClass.GuardInheritedGenericProtocol("__get__");
-            if (descriptorClass.TryLookup("__get__", out PyClass getOwner, out object? get))
-                // 普通函数仍收到三个参数，并保已有super的owner/self上下文；
-                // 其它raw槽绝不再次descriptor绑定，static包装也必须接收完整三参。
-                callable = get is PyFunction
-                    ? PyObject.InvokeBound(get, getOwner, raw, [self, actualClass], [], [])
-                    : CallRaw(get, [raw, self, actualClass]);
-            else callable = PyObject.Bind(raw, owner, self);
-        }
-        else callable = PyObject.Bind(raw, owner, self);
-        return CallRaw(callable, []);
-    }
-
-    // CallValue旧入口会解包classmethod；本API的raw调用明确拒绝它和property，绝不调用getter。
-    private static object? CallRaw(object? target, object?[] args)
-    {
-        target = CheckCallable(target);
-        return PyOps.CallValue(target, args, [], []);
-    }
-
-    private static object? CheckCallable(object? target)
-    {
-        while (target is PyStaticMethod method) target = method.Value;
-        bool bad = target switch
-        {
-            PyClassMethod or PyProperty => true,
-            PyInstance instance => !instance.Class.TryLookup("__call__", out _, out _),
-            IPyNativeCallable or PyFunction or PyBuiltinFunction or PyNativeType or PyClass
-                or PyBoundMethod or PyBuiltinMethod or PyType => false,
-            _ => true,
-        };
-        // 旧TypeName将两个wrapper统称内建方法；此处必须保CP的精确classmethod标签。
-        if (bad) throw Own(new PyTypeError($"'{(target is PyClassMethod ? "classmethod" : PyRepr.TypeName(target))}' object is not callable"));
-        return target;
-    }
 
     // 纯容量比较可测limit±1而不分配；每步计长即检查，不等巨大结果构造后再拒绝。
     internal static int CheckCapacity(long length)

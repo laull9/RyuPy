@@ -1364,3 +1364,10 @@ JIT build/run仅可选纳入硬图普通父包同目录、resolver同位且UTF8�
 普通dict重复keyword/任意mapping展开和通用属性协议旧债不在本切修复。bool-index弃用警告必须
 保实际过滤/error/caller位置与stderr重入/原异常身份；真实源码与JIT/AOT尚未验证，不能登记项目
 晋升。详见[ADR0148](adr/0148-string-expandtabs.md)及pending源码tests/fixtures/text_expandtabs。
+
+### str 五搜索码点窗口候选（ADR0149，未编译验收）
+
+count/find/rfind/index/rindex 共用绑定与码点窗口；start/end先后转换后验证needle，None与大整数
+饱和、空needle越尾/反向窗、非重叠count及命中两端代理边界分别处理。冷类型槽与expandtabs
+共享调用而不共享C-int转换；affix只共享纯Offset。真实属性override、D009/int派生布局和warnings
+既存失败边界保持；C#/JIT/AOT、完整保护及Markdown尚未验，见[ADR0149](adr/0149-string-search-windows.md)。

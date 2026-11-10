@@ -1,0 +1,79 @@
+# 新精确标题独立复用入口；旧NoReturn workflow及原上传/超时断言不变。
+name: 五搜索同候选产品验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  text-search:
+    name: 搜索及ParserBase和旧保护与Markdown真实JIT和Native
+    runs-on: ubuntu-24.04
+    # 170分钟仅硬上限，非预计或实测耗时；每阶段仍有更小独立预算。
+    timeout-minutes: 170
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+      RYUPY_VALIDATION_MODE: text-search
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        timeout-minutes: 2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: 新旧控制自测，不运行产品
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s tests/validation -p test_text_search.py
+          python3 -B tests/validation/test_text_search.py --legacy-control
+          python3 -B tests/validation/markdown_preflight.py --self-test
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 固定原官方工具并保存准备原流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/text-search-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/text-search-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/text-search-prepare/stdout 2> target/text-search-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/text-search-prepare/exit
+          exit "$status"
+      - name: 一次C#和工具构建后各域独立真实验收
+        timeout-minutes: 146
+        run: '"$PYTHON" -B tests/validation/text_search.py'
+      - name: 失败仍保小证据原流PE清单
+        if: always()
+        timeout-minutes: 3
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: text-search-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/text-search-evidence
+            !target/text-search-evidence/tools/**
+            !target/text-search-evidence/**/native-dist.tar.gz
+            !target/text-search-evidence/**/native-build/**
+            !target/text-search-evidence/**/relocated/**
+            target/text-search-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 独立保同轮工具
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: text-search-tools-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/text-search-evidence/tools
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 仅保执行前完整Native归档
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: text-search-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/text-search-evidence/**/native-dist.tar.gz
+          if-no-files-found: warn
+          retention-days: 3

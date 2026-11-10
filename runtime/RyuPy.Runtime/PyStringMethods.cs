@@ -23,6 +23,7 @@ public static partial class PyOps
 {
     internal static object? StringRootMethod(string text, string name, object?[] args, string[] names, object?[] values, bool bound)
     {
+        if (PyTextSearch.Has(name)) return PyTextSearch.Invoke(text, name, args, names);
         if (name is "startswith" or "endswith")
             return PyTextAffix.Match(text, name, args, names, qualified: !bound);
         // 仅准备本入口绑定错误，正文中的用户真假/迭代回调不被广catch。

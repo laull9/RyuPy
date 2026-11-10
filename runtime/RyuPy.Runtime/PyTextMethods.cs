@@ -59,11 +59,7 @@ public static partial class PyOps
         "splitlines" => SplitLines(text, args),
         "join" => JoinText(text, Single("join", args)),
         "replace" => ReplaceText(text, args),
-        "find" => FindText(text, args, fromEnd: false, raiseIfMissing: false),
-        "rfind" => FindText(text, args, fromEnd: true, raiseIfMissing: false),
-        "index" => FindText(text, args, fromEnd: false, raiseIfMissing: true),
-        "rindex" => FindText(text, args, fromEnd: true, raiseIfMissing: true),
-        "count" => CountText(text, args),
+        "count" or "find" or "rfind" or "index" or "rindex" => PyTextSearch.Invoke(text, name, args, []),
         "startswith" or "endswith" => PyTextAffix.Match(text, name, args, [], qualified: false),
         _ => throw MissingAttribute("str", name),
     };
@@ -152,56 +148,6 @@ public static partial class PyOps
         }
         builder.Append(text, start, text.Length - start);
         return builder.ToString();
-    }
-
-    /// <summary>find / rfind / index / rindex 共用；返回值是**码点**下标。</summary>
-    private static object FindText(
-        string text,
-        object?[] args,
-        bool fromEnd,
-        bool raiseIfMissing
-    )
-    {
-        if (args.Length is < 1 or > 3)
-        {
-            throw new PyTypeError($"find expected 1 to 3 arguments, got {args.Length}");
-        }
-        string needle = AsText(args[0]);
-        int start = args.Length > 1 ? (int)ToIndex(args[1], "start") : 0;
-        int end = args.Length > 2 ? (int)ToIndex(args[2], "end") : text.Length;
-        start = Math.Clamp(start, 0, text.Length);
-        end = Math.Clamp(end, start, text.Length);
-        string window = text[start..end];
-        int index = fromEnd
-            ? window.LastIndexOf(needle, StringComparison.Ordinal)
-            : window.IndexOf(needle, StringComparison.Ordinal);
-        if (index < 0)
-        {
-            if (raiseIfMissing)
-            {
-                throw new PyValueError("substring not found");
-            }
-            return -1L;
-        }
-        // UTF-16 偏移 → 码点下标（与 Python 的 str.find 一致）
-        return PyText.Length(text[..(start + index)]);
-    }
-
-    private static object CountText(string text, object?[] args)
-    {
-        string needle = AsText(Single("count", args));
-        if (needle.Length == 0)
-        {
-            return (long)PyText.Length(text) + 1;
-        }
-        long count = 0;
-        int index = 0;
-        while ((index = text.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += needle.Length;
-        }
-        return count;
     }
 
     private static object SplitText(string text, object?[] args)

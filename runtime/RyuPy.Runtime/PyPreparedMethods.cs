@@ -45,6 +45,8 @@ public sealed class PyBuiltinMethod
     /// <param name="values">关键字值。</param>
     public object? Invoke(object?[] args, string[] names, object?[] values)
     {
+        if (_receiver is string searchText && PyTextSearch.Has(_name))
+            return PyTextSearch.Invoke(searchText, _name, args, names);
         // expandtabs独立绑定须先于通用arity与keyword拒绝。
         if (_receiver is string && _name == "expandtabs")
             return PyTextExpandTabs.Invoke(_receiver, args, names, values);
@@ -165,10 +167,10 @@ public static partial class PyOps
             (string, "format") => (0, int.MaxValue),
             (string, "upper" or "lower") => (0, 0),
             (string, "encode" or "strip" or "lstrip" or "rstrip" or "split" or "splitlines") => (0, 1),
-            (string, "join" or "count") => (1, 1),
+            (string, "join") => (1, 1),
             (string, "startswith" or "endswith") => (1, 3),
             (string, "replace") => (2, 3),
-            (string, "find" or "rfind" or "index" or "rindex") => (1, 3),
+            (string, "count" or "find" or "rfind" or "index" or "rindex") => (1, 3),
             (PyGenerator, "__iter__" or "__next__" or "close") => (0, 0),
             (PyGenerator, "send" or "throw") => (1, 1),
             (PyProperty, "getter" or "setter" or "deleter") => (1, 1),
@@ -224,6 +226,7 @@ public static partial class PyOps
 
     private static object? PreparedText(object receiver, string name, object?[] args, string[] names, object?[] values)
     {
+        if (PyTextSearch.Has(name)) return PyTextSearch.Invoke((string)receiver, name, args, names);
         if (name is "startswith" or "endswith")
             return PyTextAffix.Match((string)receiver, name, args, names, qualified: false);
         // format的关键字是字段数据，不经过其它字符串方法的关键字拒绝器。

@@ -65,27 +65,8 @@ internal static class PyTextAffix
 
     // 不先计算整串码点长度：正值从首定位，负值从尾定位。正start越界保-1而非夹尾，
     // 因为空前缀在start==len时成立、start>len时不成立。每个tuple仅算一次窗口。
-    private static int Offset(string text, long logical, bool clipEnd)
-    {
-        if (logical == 0) return 0;
-        if (logical > 0)
-        {
-            if (logical > text.Length || clipEnd && logical == text.Length)
-                return clipEnd ? text.Length : -1;
-            int offset = PyText.OffsetOf(text, logical);
-            return offset < 0 && clipEnd ? text.Length : offset;
-        }
-        if (logical <= -(long)text.Length) return 0;
-        int tail = text.Length;
-        // 保持负remaining逐次递增，不对long.MinValue取负而溢出。
-        while (logical < 0 && tail > 0)
-        {
-            char last = text[--tail];
-            if (char.IsLowSurrogate(last) && tail > 0 && char.IsHighSurrogate(text[tail - 1])) tail--;
-            logical++;
-        }
-        return tail;
-    }
+    private static int Offset(string text, long logical, bool clipEnd) =>
+        PyTextWindow.Offset(text, logical, clipEnd);
 
     private static long Index(object? value, long fallback) => value switch
     {

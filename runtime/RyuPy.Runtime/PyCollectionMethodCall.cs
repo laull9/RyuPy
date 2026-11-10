@@ -57,6 +57,9 @@ public static partial class PyOps
             ValidatePreparedArity(obj!, name, args.Length);
             return PreparedLength(obj!, name, args, kwNames, kwValues);
         }
+        // 搜索族在通用keyword拒绝前进入同一绑定器；派生实例仍走上面的真实属性路径。
+        if (obj is string searchText && PyTextSearch.Has(name))
+            return PyTextSearch.Invoke(searchText, name, args, kwNames);
         // 前后缀的keyword先于arity，精确str不创建绑定对象；保存/根入口共用同一正文。
         if (obj is string affixText && name is "startswith" or "endswith")
             return PyTextAffix.Match(affixText, name, args, kwNames, qualified: true);
