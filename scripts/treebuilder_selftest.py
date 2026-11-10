@@ -307,6 +307,8 @@ class ContractTests(unittest.TestCase):
         new=parent.split('  treebuilder-state:',1)[1].split('  keyerror-construction:',1)[0]
         self.assertNotIn('needs:',new)
         self.assertIn("github.event.head_commit.message == 'validation: treebuilder-state-001'",new)
+        # 标题含冒号空格，必须整体引用 YAML 标量；此断言不替代完整 YAML 解析。
+        self.assertIn('    if: "github.event.head_commit.message == \'validation: treebuilder-state-001\'"',new.splitlines())
         self.assertNotIn('workflow_dispatch:',child)
         self.assertIn('self.business()',Path(v.__file__).read_text())
         self.assertIn("if c.native_eligible(self.result['stages'])",Path(v.__file__).read_text())

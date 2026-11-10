@@ -7,7 +7,7 @@ permissions:
 jobs:
   treebuilder-state:
     # 根selector只准精确新标题；本job无needs，原KeyError红不阻塞它。
-    if: github.event.head_commit.message == 'validation: treebuilder-state-001'
+    if: "github.event.head_commit.message == 'validation: treebuilder-state-001'"
     uses: ./.github/workflows/treebuilder.yml
   keyerror-construction:
     runs-on: ubuntu-24.04
