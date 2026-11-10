@@ -1400,11 +1400,23 @@ CP正例pending与NI负门分开；本地CP自检不计产品验收，见[ADR-01
 既有无修饰常用路径不缩域；precision/star/其它specifier及bool转换警告边界保持。
 实现与新增测试尚待C#/JIT/Native及真实未改入口验证，不增加项目通过数，见ADR0153。
 
-### KeyError默认域构造候选（待产品验收）
+### KeyError默认域构造有限验收（2026-11-10）
 
 仅KeyError的直接构造与普通值读取接入通用LoadDefaultBuiltin冷ABI，读取真实共享默认字典，
 先固定callee再求完整参数，复用位置异常工厂；零参/None/空串不混同，原对象不先转消息。
 其它异常、内部ForKey、删除回退和现有locals/free/globals/InstanceGlobals owner路径不改。
 静态custom builtins的完整捕获、静态except的动态重绑、用户异常repr及ForKey展示时机不晋升。
-固定CP29观察已执行，但新Rust/C#/三图JIT/Native及原百分号完整流仍未验；见
-`tests/cases/keyerror_construction/README.md`，不增加项目通过数。
+`fefe3954155be47e99f163cfc6fe1d6c1c437426`的CI42907658383已验20/20 CP/JIT/Native及搬迁，
+两策略make check退出0、原S1 38项与ABI1700保留；整CI仍有两个旧失败，默认项目矩阵11/8/1。
+见`tests/cases/keyerror_construction/README.md`，不泛化其它异常或增加项目分子。
+
+
+### TreeBuilder状态机候选（产品待验）
+
+真实节点事件、默认非空dict别名、空dict分离、显式Element复制；close不flush/不验栈，
+end忽略tag且空栈前先flush。第二根先flush并清tail目标后抛真实ParseError，不回滚已发生变化。
+六组CP参考冻结不等于产品通过；原TreeBuilder pending、旧callback traceback红项不变。
+新SyntaxError/ParseError只开放零/单精确str消息，零参str为`None`；位置协议、非str消息、字段写删、
+用户派生明确NI/E0100。builder的用户factory、非bool flags、非精确str数据/追加、非精确dict/string键
+为显式NI域外，不是假称CP同错。稳定ParseError catch所需的公开异身份重绑提前NI，同值可赋回；
+其它ElementTree旧重绑行为不封禁。成本与全部边界见[ADR0154](adr/0154-treebuilder-state-machine.md)。

@@ -44,7 +44,10 @@ public sealed class PyTraceStateV1ArtifactContractTests
         var old1699 = after.Concat(source).Concat(metadata).ToArray();
         Assert.Equal(1699, old1699.Length);
         Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1699));
-        var combined = old1699.Concat(builtin).ToArray();
+        var old1700 = old1699.Concat(builtin).ToArray();
+        Assert.Equal(1700, old1700.Length);
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1700));
+        var combined = old1700.Concat(PyTraceStateArtifactTests.XmlPublicAdditions()).ToArray();
         Assert.False(C.PreservesAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before.Reverse().ToArray(), combined.Reverse().ToArray()));
@@ -74,7 +77,8 @@ public sealed class PyTraceStateV1ArtifactContractTests
         var source = PyTraceStateArtifactTests.SourcePublicAdditions();
         var metadata = PyTraceStateArtifactTests.MetadataPublicAdditions();
         var builtin = PyTraceStateArtifactTests.BuiltinPublicAdditions();
-        var groups = new[] { before, v1, source, metadata, builtin };
+        var xml = PyTraceStateArtifactTests.XmlPublicAdditions();
+        var groups = new[] { before, v1, source, metadata, builtin, xml };
         // 各组自身重复及任意两组重叠，即使 after 完全照着错误允许表拼成也不能通过。
         for (int group = 0; group < groups.Length; group++)
         for (int donor = 0; donor < groups.Length; donor++)
@@ -84,7 +88,7 @@ public sealed class PyTraceStateV1ArtifactContractTests
             changed[group][0] = groups[donor][donor == group ? 1 : 0];
             var after = changed.SelectMany(x => x).ToArray();
             Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(
-                changed[0], after, changed[1], changed[2], changed[3], changed[4]));
+                changed[0], after, changed[1], changed[2], changed[3], changed[4], changed[5]));
         }
         // 即使候选跟着错误新表一起改签/重复，也不得接受新的任意 API 或重载。
         foreach (var wrong in new[] { Array.Empty<string>(), builtin.Concat(builtin).ToArray(),

@@ -19,6 +19,8 @@ public static partial class PyOps
         if (bases.Length == 1) baseValue = PyTypingGenericClass.ResolveBase(baseValue, out originalBases);
         if (bases.Length == 1 && factory is null && PyTypingNamedTuple.IsRoot(bases[0]))
             return PyTypingNamedTuple.BeginDefinition(name, bases[0]);
+        if (ReferenceEquals(baseValue, PyType.Get("SyntaxError")) || ReferenceEquals(baseValue, PyType.Get("ParseError")))
+            throw PyXmlTreeBuilderErrors.Unsupported("SyntaxError/ParseError user inheritance");
         var cls = new PyClass(name);
         if (bases.Length == 1 && ReferenceEquals(bases[0], PyMappingProxy.Type))
             throw PyMappingProxy.Error(new PyTypeError("type 'mappingproxy' is not an acceptable base type"));

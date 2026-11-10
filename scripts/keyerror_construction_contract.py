@@ -17,7 +17,7 @@ RESOURCE_REQUEST = 'default-owner-resources.json'
 
 
 def check_context(env, event):
-    require(event.get('head_commit', {}).get('message') == TITLE, 'KeyError精确标题不符')
+    require(event.get('head_commit', {}).get('message') in (TITLE, 'validation: treebuilder-state-001'), 'KeyError精确标题不符')
     previous.check_context(env, event)
 
 

@@ -221,3 +221,66 @@ fn assert_dynamic(source: &str, native: &[&str]) {
     );
     assert!(module.protected_exports.is_empty(), "{source}");
 }
+
+#[test]
+fn xml_parse_error_uses_only_verified_import_identity() {
+    let source = "import xml.etree.ElementTree as ET\nfrom xml.etree.ElementTree import ParseError as P\ntry:\n    pass\nexcept (ET.ParseError, P, SyntaxError):\n    pass\n";
+    let (module, diagnostics) = lower(source, &["xml.etree.ElementTree"]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let types: Vec<_> = module
+        .functions
+        .iter()
+        .flat_map(|(_, f)| f.body.handlers.iter().filter_map(|(_, h)| h.types.as_ref()))
+        .flatten()
+        .map(|n| n.as_str())
+        .collect();
+    assert_eq!(
+        types,
+        [
+            "xml.etree.ElementTree.ParseError",
+            "xml.etree.ElementTree.ParseError",
+            "SyntaxError"
+        ]
+    );
+    assert_dynamic(
+        "import xml.etree.ElementTree as ET\ntry:\n    pass\nexcept ET.ParseError:\n    pass\n",
+        &[],
+    );
+    assert_dynamic(
+        "import xml.etree.ElementTree as ET\nP = ET.ParseError\ntry:\n    pass\nexcept P:\n    pass\n",
+        &["xml.etree.ElementTree"],
+    );
+    assert_dynamic(
+        "def f(ET):\n    try:\n        pass\n    except ET.ParseError:\n        pass\n",
+        &["xml.etree.ElementTree"],
+    );
+}
+
+#[test]
+fn syntax_and_xml_user_subclasses_reject_before_any_clr_constructor() {
+    for source in [
+        "class Child(SyntaxError):\n    pass\n",
+        "import xml.etree.ElementTree as ET\nclass Child(ET.ParseError):\n    pass\n",
+        "from xml.etree.ElementTree import ParseError as P\nclass Child(P):\n    pass\n",
+    ] {
+        let (module, diagnostics) = lower(source, &["xml.etree.ElementTree"]);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|d| d.code == Some("E0100") && d.message.contains("用户派生")),
+            "{source}\n{diagnostics:?}"
+        );
+        assert!(
+            !module.classes.iter().any(|(_, c)| c.is_exception),
+            "不得生成新族用户异常工厂"
+        );
+    }
+    let (_, diagnostics) = lower(
+        "class SyntaxError:\n    pass\nclass Child(SyntaxError):\n    pass\n",
+        &[],
+    );
+    assert!(
+        diagnostics.is_empty(),
+        "同名用户类不受新族守卫影响：{diagnostics:?}"
+    );
+}

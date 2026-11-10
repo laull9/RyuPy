@@ -180,6 +180,9 @@ mod module_delete_abi_tests;
 mod builtin_lookup_tests;
 
 #[cfg(test)]
+mod syntax_error_tests;
+
+#[cfg(test)]
 mod class_cell_tests;
 
 #[cfg(test)]

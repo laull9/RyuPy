@@ -69,6 +69,7 @@ public partial class PyTraceStateArtifactTests
         var bodies = raw.Select(b => b with { Owner = C.Short(b.Owner), Source = C.Short(b.Source),
             Instructions = b.Instructions.Select(i => i with { Target = i.Target is null ? null : C.Short(i.Target) }).ToArray() }).ToArray();
         CheckDefaultBuiltinProducer(bodies, failures);
+        CheckTreeBuilderProducers(bodies, failures);
         string M(string owner, string name, string result, bool instance = false, params string[] args)
             => C.Method(owner, name, result, instance, args);
         string P(string name, string result, params string[] args) => M("PyTraceProduct", name, result, false, args);

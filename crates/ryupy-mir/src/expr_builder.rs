@@ -452,6 +452,7 @@ impl<'a> ExprBuilder<'a> {
         let name = match builtin {
             // 本切仅迁移KeyError，保保存别名的真实绑定；不扩大其它异常的构造合同。
             Builtin::Exception("KeyError") => return self.default_builtin_value("KeyError"),
+            Builtin::Exception("SyntaxError") => return self.default_builtin_value("SyntaxError"),
             // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
             Builtin::Exception(type_name) => type_name,
             Builtin::Int => "int",

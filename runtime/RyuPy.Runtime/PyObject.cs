@@ -27,7 +27,7 @@ public sealed class PyType
     public static PyType Get(string name) => Cache.GetOrAdd(name, static n => new PyType(n));
 
     /// <summary>与 CPython 一致的 <c>repr</c> 形式。</summary>
-    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "BadZipFile" ? "zipfile." : Name == "GetoptError" ? "getopt." : PyOptParseExceptions.IsType(Name) ? "optparse." : PyTyping.IsMetadataType(Name) ? "typing." : "")}{Name}'>";
+    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "BadZipFile" ? "zipfile." : Name == "GetoptError" ? "getopt." : Name == "ParseError" ? "xml.etree.ElementTree." : PyOptParseExceptions.IsType(Name) ? "optparse." : PyTyping.IsMetadataType(Name) ? "typing." : "")}{Name}'>";
 }
 
 /// <summary>
@@ -140,6 +140,8 @@ public static partial class PyObject
                 exception.SuppressContextFlag = value is bool flag ? flag
                     : throw new PyTypeError("attribute value type must be bool");
                 return;
+            case PySyntaxError:
+                throw PyXmlTreeBuilderErrors.Unsupported("SyntaxError/ParseError attribute mutation");
             case PyGetoptError getopt:
                 getopt.Write(name, value);
                 return;
@@ -212,6 +214,8 @@ public static partial class PyObject
                 throw new PyAttributeError(
                     $"'{(instance.Class.IsTypingGenericRoot ? "typing.Generic" : instance.Class.Name)}' object has no attribute '{name}'"
                 );
+            case PySyntaxError:
+                throw PyXmlTreeBuilderErrors.Unsupported("SyntaxError/ParseError attribute mutation");
             case PyGetoptError getopt:
                 getopt.Delete(name);
                 return;

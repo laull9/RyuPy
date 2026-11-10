@@ -1,5 +1,7 @@
 """S1 采集身份的纯脚本反例；XML/列表为标明的合成数据，不编译或运行 C#、产品。"""
 import copy
+import hashlib
+import re
 import json
 from pathlib import Path
 import tempfile
@@ -68,11 +70,55 @@ class S1CollectionIdentity(unittest.TestCase):
             self.verify(root)
         self.assertTrue(json.loads((self.out / "trx-validation.json").read_text())["violations"])
 
+    def test_legacy_31_methods_38_cases_are_byte_exact_identity_subset(self):
+        frozen = json.dumps(gate.LEGACY_PLAN, sort_keys=True, separators=(",", ":")).encode()
+        self.assertEqual(hashlib.sha256(frozen).hexdigest(),
+                         "8966ba2463e1b2361c4ed2779677a9e9726a001ce9b55c42be4b23a46dab654e")
+        legacy = gate.GROUP_EXPECTED["legacy"]
+        self.assertEqual((len(legacy), sum(legacy.values())), (31, 38))
+        cases = {name: method for name, method in gate.CASE_METHOD.items() if method in legacy}
+        self.assertEqual(hashlib.sha256(json.dumps(cases, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+                         "d38fee2dd849e757d66f17bd899a00749e8798f426190adc2190e7b31377cd6d")
+        self.assertEqual({name: gate.EXPECTED[name] for name in legacy}, legacy)
+
+    def test_two_treebuilder_facts_match_production_and_require_actual_passed_trx(self):
+        cls = "RyuPy.Runtime.Tests.PyTraceStateArtifactTests."
+        methods = ["ActualPeTreeBuilderProducersRejectMissingWrongReusedEscapedAndJumpedFresh",
+                   "TreeBuilderAbiIncrementRejectsMissingDuplicateChangedAndInventedPermissions"]
+        expected = {cls + name: 1 for name in methods}
+        self.assertEqual(gate.GROUP_EXPECTED["treebuilder"], expected)
+        source = gate.ROOT / "runtime/RyuPy.Runtime.Tests/PyTraceStateTreeBuilderMutationTests.cs"
+        self.assertEqual(re.findall(r"\[Fact\]\s+public void (\w+)\(", source.read_text()), methods)
+        self.assertIn('"--filter", "FullyQualifiedName~PyTraceState"', Path(gate.__file__).read_text())
+        # 发现仍必须精确全体；新两项缺失/错owner/重复/多项全部拒绝。
+        for collection in (gate.EXPECTED, gate.CASE_METHOD):
+            names = list(collection)
+            for name in expected:
+                for changed in ([n for n in names if n != name], names + [name],
+                                [name.replace("PyTraceStateArtifactTests", "WrongOwner") if n == name else n for n in names]):
+                    with self.subTest(name=name), self.assertRaises(RuntimeError): self.discovery(changed)
+        for name in expected:
+            for outcome in ("Failed", "NotExecuted", "Unknown"):
+                root = synthetic_trx()
+                next(row for row in results(root) if row.get("testName") == name).set("outcome", outcome)
+                with self.subTest(name=name, outcome=outcome): self.reject(root)
+            root = synthetic_trx()
+            row = next(row for row in results(root) if row.get("testName") == name)
+            root.find("t:Results", N).remove(row)
+            root.find("t:ResultSummary/t:Counters", N).attrib.update(total="39", executed="39", passed="39")
+            self.reject(root)
+        records = self.verify(synthetic_trx())
+        groups = gate.execution_groups(records)
+        self.assertEqual((groups["legacy"]["executed_cases"], groups["legacy"]["passed_cases"]), (38, 38))
+        self.assertEqual((groups["treebuilder"]["executed_cases"], groups["treebuilder"]["passed_cases"]), (2, 2))
+        self.assertEqual(groups["treebuilder"]["non_passed_cases"], 0)
+        self.assertEqual(set(groups["treebuilder"]["cases"]), set(expected))
+
     def test_expanded_discovery_is_exact_full_case_set(self):
-        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (31, 38))
+        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (33, 40))
         report = self.discovery()
         self.assertEqual(report["mode"], "expanded_cases")
-        self.assertEqual(report["observed_count"], 38)
+        self.assertEqual(report["observed_count"], 40)
         self.assertEqual(sum(count for method, count in gate.EXPECTED.items()
                              if method.startswith(("RyuPy.Runtime.Tests.PyTraceStateTests.",
                                                    "RyuPy.Runtime.Tests.PyTraceStateEpochTests."))), 21)
@@ -95,8 +141,8 @@ class S1CollectionIdentity(unittest.TestCase):
         root = synthetic_trx()
         missing = next(row for row in results(root) if row.get("testName") == name)
         root.find("t:Results", N).remove(missing)
-        # 即使同步降低汇总，也不能把漏执行伪装为合法的旧37案例门。
-        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="37", executed="37", passed="37")
+        # 即使同步降低汇总，也不能把漏执行伪装为合法的少一案例门。
+        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="39", executed="39", passed="39")
         self.reject(root)
 
     def test_builtin_producer_fact_is_exact_and_cannot_replace_an_old_case(self):
@@ -113,7 +159,7 @@ class S1CollectionIdentity(unittest.TestCase):
                             [wrong if x == name else x for x in names]):
                 with self.subTest(changed=changed), self.assertRaises(RuntimeError):
                     self.discovery(changed)
-        # 保持38条结果仍不能以重复新Fact替换旧保护；少新Fact也不能降为37。
+        # 保持40条结果仍不能以重复Fact替换旧保护；少一Fact也不能降为39。
         root = synthetic_trx(); rows = results(root)
         new = next(row for row in rows if row.get("testName") == name)
         old = next(row for row in rows if row.get("testName") != name)
@@ -122,14 +168,14 @@ class S1CollectionIdentity(unittest.TestCase):
         root = synthetic_trx()
         new = next(row for row in results(root) if row.get("testName") == name)
         root.find("t:Results", N).remove(new)
-        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="37", executed="37", passed="37")
+        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="39", executed="39", passed="39")
         self.reject(root)
 
     def test_method_only_discovery_does_not_claim_case_expansion(self):
         report = self.discovery(gate.EXPECTED)
         self.assertEqual(report["mode"], "methods_only")
-        self.assertEqual(report["observed_count"], 31)
-        self.assertEqual(len(self.verify(synthetic_trx(), report)), 38)
+        self.assertEqual(report["observed_count"], 33)
+        self.assertEqual(len(self.verify(synthetic_trx(), report)), 40)
 
     def test_discovery_rejects_missing_extra_duplicate_wrong_owner_and_mixed_forms(self):
         names = list(gate.CASE_METHOD)
@@ -178,7 +224,7 @@ class S1CollectionIdentity(unittest.TestCase):
         root = synthetic_trx(); rows = results(root)
         indices = [i for i, row in enumerate(rows) if "ExplicitPermanentlyRevokesBirth" in row.get("testName")]
         self.assertEqual(len(indices), 2)
-        # 保持38结果和短/完整方法计数，只有一个Theory案例被重复替代。
+        # 保持40结果和短/完整方法计数，只有一个Theory案例被重复替代。
         parent = root.find("t:Results", N); parent.remove(rows[indices[1]])
         parent.insert(indices[1], copy.deepcopy(rows[indices[0]]))
         self.reject(root)

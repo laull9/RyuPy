@@ -74,6 +74,10 @@ pub(crate) fn unsupported_custom_exception_base(
             .exception_imports
             .get(&Name::from(name))
             .and_then(|binding| binding.resolve(member, expr.range().start()))
-            .is_some_and(|name| name.starts_with("optparse.") || name == "getopt.GetoptError")
+            .is_some_and(|name| {
+                name.starts_with("optparse.")
+                    || name == "getopt.GetoptError"
+                    || name == "xml.etree.ElementTree.ParseError"
+            })
     })
 }

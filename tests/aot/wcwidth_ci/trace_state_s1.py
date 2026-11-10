@@ -62,11 +62,42 @@ PLAN = {
         "RealGeneratorRetryKeepsActivationAndNextResumeAllocatesNew": FACT,
     },
 }
+# 原31方法/38案例逐名保留，不滚动旧S1/ABI保护；新两Fact独立列账再合并发现集合。
+LEGACY_PLAN = PLAN
+TREEBUILDER_PLAN = {
+    "PyTraceStateArtifactTests": {
+        "ActualPeTreeBuilderProducersRejectMissingWrongReusedEscapedAndJumpedFresh": FACT,
+        "TreeBuilderAbiIncrementRejectsMissingDuplicateChangedAndInventedPermissions": FACT,
+    },
+}
+PLAN = {cls: dict(methods) for cls, methods in LEGACY_PLAN.items()}
+for cls, methods in TREEBUILDER_PLAN.items():
+    if set(PLAN.get(cls, {})) & set(methods):
+        raise RuntimeError("新TreeBuilder Fact与旧S1身份重复。")
+    PLAN.setdefault(cls, {}).update(methods)
+GROUP_EXPECTED = {
+    group: {"RyuPy.Runtime.Tests." + cls + "." + method: len(cases)
+            for cls, methods in plan.items() for method, cases in methods.items()}
+    for group, plan in (("legacy", LEGACY_PLAN), ("treebuilder", TREEBUILDER_PLAN))
+}
 EXPECTED = {"RyuPy.Runtime.Tests." + cls + "." + method: len(cases)
             for cls, methods in PLAN.items() for method, cases in methods.items()}
 CASE_METHOD = {"RyuPy.Runtime.Tests." + cls + "." + method + case: "RyuPy.Runtime.Tests." + cls + "." + method
                for cls, methods in PLAN.items() for method, cases in methods.items() for case in cases}
 
+
+
+def execution_groups(records):
+    """原38与新2分别报告真实TRX结果；失败/缺失仍由全身份门严格拒绝。"""
+    report = {}
+    for group, expected in GROUP_EXPECTED.items():
+        observed = [row for row in records if row["method"] in expected]
+        report[group] = {"expected_methods": len(expected), "expected_cases": sum(expected.values()),
+                         "executed_cases": len(observed),
+                         "passed_cases": sum(row["outcome"] == "Passed" for row in observed),
+                         "non_passed_cases": sum(row["outcome"] != "Passed" for row in observed),
+                         "cases": [row["name"] for row in observed]}
+    return report
 
 
 def write(name, value):
@@ -179,7 +210,8 @@ def verify_trx(path, discovery):
         violations.append("TRX 汇总含非法计数。")
     write("executed-tests.json", records)
     write("trx-validation.json", {"definitions": list(definitions.values()), "method_counts": dict(counts),
-          "expected_methods": len(EXPECTED), "expected_cases": len(CASE_METHOD), "violations": violations})
+          "expected_methods": len(EXPECTED), "expected_cases": len(CASE_METHOD),
+          "groups": execution_groups(records), "violations": violations})
     if violations:
         raise RuntimeError("S1 TRX 完整身份/执行结果不符；见 trx-validation.json。")
     return records
@@ -237,7 +269,7 @@ def main():
     for required in ("candidate-pe.json", "baseline-abi.json"):
         if not (OUT / required).is_file():
             raise RuntimeError(f"缺少真实PE证据：{required}")
-    write("result.json", {"status": "passed", "executed": len(records), "scope": "S1/V1合同：原内核、精确ABI/桥接、有限生命周期；非真实产品JIT/AOT或旧项目全绿"})
+    write("result.json", {"status": "passed", "executed": len(records), "groups": execution_groups(records), "scope": "S1/V1合同：原内核、精确ABI/桥接、有限生命周期；非真实产品JIT/AOT或旧项目全绿"})
 
 
 if __name__ == "__main__":

@@ -84,6 +84,7 @@ impl ExceptionImport {
             ("optparse", "AmbiguousOptionError") => Some("optparse.AmbiguousOptionError"),
             ("dataclasses", "FrozenInstanceError") => Some("dataclasses.FrozenInstanceError"),
             ("re", "error") => Some("re.error"),
+            ("xml.etree.ElementTree", "ParseError") => Some("xml.etree.ElementTree.ParseError"),
             ("io", "UnsupportedOperation") => Some("io.UnsupportedOperation"),
             _ => None,
         }

@@ -75,6 +75,11 @@ impl ExprBuilder<'_> {
                 let callable = self.default_builtin_value("KeyError");
                 self.call_value(callable, args)
             }
+            Builtin::Exception("SyntaxError") => {
+                // 新族也必须完整求值位置/关键字参数，不借旧MakeException吞掉定位参数。
+                let callable = self.default_builtin_value("SyntaxError");
+                self.call_value(callable, args)
+            }
             Builtin::Exception(name) => {
                 let mut args_ops = vec![Operand::Const(Constant::Str(name.to_owned()))];
                 if let Some(arg) = args.first() {

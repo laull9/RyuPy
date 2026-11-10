@@ -24,6 +24,7 @@ pub(crate) fn build(
                     "re.error" => "PyRegexError".to_owned(),
                     "io.UnsupportedOperation" => "PyUnsupportedOperation".to_owned(),
                     "json.JSONDecodeError" => "PyJSONDecodeError".to_owned(),
+                    "xml.etree.ElementTree.ParseError" => "PyXmlParseError".to_owned(),
                     "zipfile.BadZipFile" => "PyBadZipFile".to_owned(),
                     "getopt.GetoptError" => "PyGetoptError".to_owned(),
                     "dataclasses.FrozenInstanceError" => "PyFrozenInstanceError".to_owned(),

@@ -67,7 +67,7 @@ def load_manifest(root=ROOT, path=MANIFEST):
 
 def check_context(env, event):
     require(env.get('RUNNER_ENVIRONMENT') == 'github-hosted', '只允许原hosted runner')
-    require(event.get('head_commit', {}).get('message') in (TITLE, 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001'), 'dedent标题字节不符')
+    require(event.get('head_commit', {}).get('message') in (TITLE, 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'), 'dedent标题字节不符')
     adjusted = dict(event, head_commit=dict(event['head_commit'], message=old.shared.TITLE))
     old.shared.check_context(env, adjusted)
 

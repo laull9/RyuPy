@@ -371,7 +371,10 @@ public static partial class PyModules
     /// <summary>legacy未声明属性写动态字典；实例模块仍写唯一globals。</summary>
     public static void SetDynamic(PyModule module, string name, object? value)
     {
-        if (PyModuleInstances.IsInstance(module)) module.SetAttr(name, value);
+        // 新ParseError的静态catch身份不能被公开legacy动态写入口绕过。
+        if (module.IsNativeRegistration && module.Name == PyXmlElementTree.ModuleName && name == "ParseError")
+            module.SetAttr(name, value);
+        else if (PyModuleInstances.IsInstance(module)) module.SetAttr(name, value);
         else module.DynamicAttributes[name] = value;
     }
 }

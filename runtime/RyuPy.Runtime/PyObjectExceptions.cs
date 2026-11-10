@@ -18,6 +18,8 @@ public static partial class PyObject
             "__module__" when type.Name == "JSONDecodeError" => "json.decoder",
             "__module__" when type.Name == "error" => "re",
             "__module__" when type.Name == "BadZipFile" => "zipfile",
+            "__module__" when type.Name == "ParseError" => "xml.etree.ElementTree",
+            "__module__" when type.Name == "SyntaxError" => "builtins",
             "__module__" when type.Name == "GetoptError" => "getopt",
             "msg" or "opt" when type.Name == "GetoptError" => "",
             "__module__" when PyOptParseExceptions.IsType(type.Name) => "optparse",
@@ -62,6 +64,7 @@ public static partial class PyObject
             "__context__" => (object?)exception.Context ?? PyNone.Instance,
             "__class__" => (object?)exception.PythonClass ?? PyType.Get(exception.PyTypeName),
             "__traceback__" => PyNone.Instance,
+            _ when exception is PySyntaxError syntax => syntax.Field(name),
             _ when exception is PyGetoptError getopt => getopt.Field(name),
             _ when exception is PyOptParseError error => error.Field(name),
             _ => throw new PyAttributeError(

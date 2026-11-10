@@ -37,6 +37,8 @@ public static class PyExceptionHierarchy
         ["LookupError"] = "Exception",
         ["IndexError"] = "LookupError",
         ["KeyError"] = "LookupError",
+        ["SyntaxError"] = "Exception",
+        ["ParseError"] = "SyntaxError",
         ["ValueError"] = "Exception",
         ["JSONDecodeError"] = "ValueError",
         ["error"] = "Exception",

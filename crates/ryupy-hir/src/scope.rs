@@ -310,6 +310,7 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "LookupError",
         "IndexError",
         "KeyError",
+        "SyntaxError",
         "ValueError",
         "UnicodeError",
         "UnicodeDecodeError",

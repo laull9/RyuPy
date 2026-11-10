@@ -24,6 +24,7 @@ public static class PyXmlElementTree
         var globals = new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["Element"] = ElementType, ["ElementTree"] = TreeType, ["QName"] = QNameType,
+            ["TreeBuilder"] = PyXmlTreeBuilder.Type, ["ParseError"] = PyType.Get("ParseError"),
             ["SubElement"] = Raw("SubElement", (a, n, v) => CreateElement(a, n, v, true)),
             ["HTML_EMPTY"] = new PySet(new object?[] { "area", "base", "basefont", "br", "col", "embed",
                 "frame", "hr", "img", "input", "isindex", "link", "meta", "param", "source", "track", "wbr" }),
@@ -38,7 +39,7 @@ public static class PyXmlElementTree
                 if (PyOps.Truthy(a[1]))
                 {
                     if (a[1] is not string || a[0] is not string)
-                        throw Unsupported("ProcessingInstruction non-string concatenation");
+                        throw PyXmlTreeBuilderErrors.Unsupported("ProcessingInstruction non-string concatenation");
                     node.Text = (string)a[0]! + " " + (string)a[1]!;
                 }
                 return node;
@@ -50,6 +51,8 @@ public static class PyXmlElementTree
     /// <summary>QName 的 Python 全局重绑会改变其方法的 isinstance；有限类型不能接受后静默忽略。</summary>
     public static void BeforeSet(string name, object? value)
     {
+        if (name == "ParseError" && !ReferenceEquals(value, PyType.Get("ParseError")))
+            throw PyXmlTreeBuilderErrors.Unsupported("rebinding xml.etree.ElementTree.ParseError");
         if (name == "QName" && !ReferenceEquals(value, QNameType))
             throw Unsupported("rebinding xml.etree.ElementTree.QName");
     }
@@ -58,9 +61,9 @@ public static class PyXmlElementTree
     {
         // 自定义 Element 工厂需要单独验证回调/返回值合同，不偷偷退回 canonical 类型。
         if (!globals.TryGetValue("Element", out object? element) || !ReferenceEquals(element, ElementType))
-            throw Unsupported(name + " with a rebound Element factory");
+            throw PyXmlTreeBuilderErrors.Unsupported(name + " with a rebound Element factory");
         if (!globals.TryGetValue(name, out object? tag))
-            throw Own(new PyNameError("name '" + name + "' is not defined"));
+            throw PyXmlTreeBuilderErrors.Name("name '" + name + "' is not defined");
         return new PyXmlElement(tag, new PyDict()) { Text = text };
     }
 

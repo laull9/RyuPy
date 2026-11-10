@@ -34,6 +34,8 @@ internal static partial class PyExceptionMatch
         [PyType.Get("OverflowError")] = new("OverflowError", static error => error is PyOverflowError),
         [PyType.Get("LookupError")] = new("LookupError", static error => error is PyLookupError),
         [PyType.Get("IndexError")] = new("IndexError", static error => error is PyIndexError),
+        [PyType.Get("SyntaxError")] = new("SyntaxError", static error => error is PySyntaxError),
+        [PyType.Get("ParseError")] = new("ParseError", static error => error is PyXmlParseError),
         [PyType.Get("KeyError")] = new("KeyError", static error => error is PyKeyError),
         [PyType.Get("ValueError")] = new("ValueError", static error => error is PyValueError or PyUnsupportedOperation),
         [PyType.Get("JSONDecodeError")] = new("JSONDecodeError", static error => error is PyJSONDecodeError),

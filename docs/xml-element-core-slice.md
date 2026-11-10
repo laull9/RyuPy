@@ -48,7 +48,7 @@ bool(Element) 按 children 数量求真并接现有 warnings 发出 DeprecationW
 
 ## 未做与成本
 
-TreeBuilder 未提供空构造壳；start/data/end/close 留待独立状态机切。tostring、XML/HTML 序列化、XMLParser/fromstring/parse、ElementPath/XPath、namespace、canonicalize、IO 编码均未完成。clear/remove/extend、写/删 children、itertext、copy/deepcopy、用户派生、复杂索引/映射/比较、完整反射仍明确 NI 或未导出并保 pending。
+TreeBuilder 的真实start/data/end/close与comment/pi现有独立WIP状态机切，尚待产品验收，不提供空构造壳；见[ADR0154](adr/0154-treebuilder-state-machine.md)。tostring、XML/HTML 序列化、XMLParser/fromstring/parse、ElementPath/XPath、namespace、canonicalize、IO 编码均未完成。clear/remove/extend、写/删 children、itertext、copy/deepcopy、用户派生、复杂索引/映射/比较、完整反射仍明确 NI 或未导出并保 pending。
 
 原 Markdown 核心使用自己的 serializer；本切只提供真实对象，不替换其转义算法。本次原入口尚未走到转换完成，不能把 XML 输出/转义或整个 Markdown 算作已验收。
 

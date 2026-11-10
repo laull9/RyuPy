@@ -39,7 +39,9 @@ public static class PyNativeModules
         // 原生 XML 包只提供已验收的真实 Element 核心，不伪造源码 metadata。
         PyModules.RegisterNative("xml", new Dictionary<string, object?>());
         PyModules.RegisterNative("xml.etree", new Dictionary<string, object?>());
-        PyModules.RegisterNative("xml.etree.ElementTree", PyXmlElementTree.CreateAttributes(), PyXmlElementTree.BeforeSet);
+        var elementTree = PyXmlElementTree.CreateAttributes();
+        PyModules.RegisterNative("xml.etree.ElementTree", elementTree, PyXmlElementTree.BeforeSet);
+        PyXmlTreeBuilder.RegisterFactories(elementTree);
         PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
         PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
         PyModules.RegisterNative("json", PyJsonModule.CreateAttributes(), (key, _) =>

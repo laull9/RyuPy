@@ -23,13 +23,13 @@ jobs:
           python3 - <<'PY'
           import json, os; from pathlib import Path; event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
           head = event.get('head_commit'); title = head.get('message') if isinstance(head, dict) else None; is_push = (isinstance(head, dict) and os.environ.get('GITHUB_EVENT_NAME') == 'push' and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056')
-          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'; markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'; noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'); search = is_push and title == 'validation: text-search-002'; metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001')
+          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'; markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'; noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'); search = is_push and title == 'validation: text-search-002'; metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.writelines(name + '=' + str(value).lower() + '\n' for name, value in zip(('diagnostic', 'markdown', 'noreturn', 'search', 'metadata'), (diagnostic, markdown, noreturn, search, metadata)))
-              if is_push and title in ('validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001'): stream.write('dedent=true\n')
-              if is_push and title in ('validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001'): stream.write('scanner=true\n')
-              if is_push and title in ('validation: decimal-percent-001', 'validation: keyerror-construction-001'): stream.write('percent=true\n')
-              if is_push and title == 'validation: keyerror-construction-001': stream.write('keyerror=true\n')
+              if is_push and title in ('validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('dedent=true\n')
+              if is_push and title in ('validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('scanner=true\n')
+              if is_push and title in ('validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('percent=true\n')
+              if is_push and title in ('validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('keyerror=true\n')
           PY
   trace-edge-diagnostic:
     name: diagnostic-not-acceptance 首边原流

@@ -10,7 +10,7 @@ internal static class PyModuleBuiltins
         "help" or "license" or "vars" or "BaseExceptionGroup" or "ExceptionGroup" or
         "BlockingIOError" or "BrokenPipeError" or "ChildProcessError" or "ConnectionAbortedError" or
         "ConnectionError" or "ConnectionRefusedError" or "ConnectionResetError" or "EncodingWarning" or
-        "InterruptedError" or "ProcessLookupError" or "StopAsyncIteration" or "SyntaxError" or
+        "InterruptedError" or "ProcessLookupError" or "StopAsyncIteration" or
         "IndentationError" or "TabError" or "TimeoutError" or "UnicodeTranslateError" or "MemoryError" or
         "ReferenceError" or "SystemError" or "FloatingPointError" or "ascii" or "bin" or "hex" or "oct";
 
@@ -56,6 +56,7 @@ internal static class PyModuleBuiltins
         values.Set("OverflowError", PyOps.TypeObject("OverflowError"));
         values.Set("LookupError", PyOps.TypeObject("LookupError"));
         values.Set("IndexError", PyOps.TypeObject("IndexError"));
+        values.Set("SyntaxError", PyOps.TypeObject("SyntaxError"));
         values.Set("KeyError", PyOps.TypeObject("KeyError"));
         values.Set("ValueError", PyOps.TypeObject("ValueError"));
         values.Set("UnicodeError", PyOps.TypeObject("UnicodeError"));

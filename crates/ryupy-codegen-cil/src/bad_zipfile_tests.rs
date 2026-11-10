@@ -125,3 +125,85 @@ fn bad_zipfile_is_real_clr_catch_and_generated_subclass_base() {
         msig! { void (string, string, object[]) }
     );
 }
+
+#[test]
+fn syntax_and_xml_parse_error_emit_real_typed_catch_clauses() {
+    for (python, clr) in [
+        ("SyntaxError", "PySyntaxError"),
+        ("xml.etree.ElementTree.ParseError", "PyXmlParseError"),
+    ] {
+        let mut program = crate::exact_i64_tests::program();
+        let init = program.modules[program.entry].init;
+        let body = &mut program.functions[init].body;
+        let caught = crate::exact_i64_tests::local(&mut body.locals, ryupy_mir::MirType::Dynamic);
+        let protected = body.entry;
+        let handler = body.blocks.alloc(BasicBlock {
+            stmts: vec![Statement::Assign {
+                dest: caught,
+                value: Rvalue::CatchException,
+            }],
+            terminator: Terminator::Unreachable,
+        });
+        let after = body.blocks.alloc(BasicBlock {
+            stmts: vec![],
+            terminator: Terminator::Return(None),
+        });
+        body.blocks[protected].terminator = Terminator::Goto(after);
+        body.blocks[handler].terminator = Terminator::Goto(after);
+        body.regions.push(Region {
+            source_handler_chain: None,
+            kind: RegionKind::Catch {
+                type_names: vec![python.into()],
+            },
+            try_start: protected,
+            try_len: 1,
+            handler,
+            exc_local: Some(caught),
+        });
+        let bytes = crate::emit_assembly(
+            &program,
+            &crate::EmitOptions {
+                assembly_name: "xml_exception".into(),
+                entry_source_path: None,
+            },
+        )
+        .unwrap();
+        let res = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
+        let expected = format!("[RyuPy.Runtime]RyuPy.Runtime.{clr}");
+        let method = res
+            .type_definitions
+            .iter()
+            .flat_map(|t| &t.methods)
+            .find(|m| m.name == "__main__")
+            .unwrap();
+        let clauses: Vec<_> = method
+            .body
+            .as_ref()
+            .unwrap()
+            .data_sections
+            .iter()
+            .filter_map(|s| match s {
+                body::DataSection::ExceptionHandlers(clauses) => Some(clauses),
+                _ => None,
+            })
+            .flatten()
+            .collect();
+        assert!(clauses.iter().any(|c| matches!(&c.kind, body::ExceptionKind::TypedException(ty) if ty.show(&res) == expected)), "真实EH不是仅有TypeRef");
+        assert!(
+            method
+                .body
+                .as_ref()
+                .unwrap()
+                .instructions
+                .iter()
+                .any(|i| matches!(i, Instruction::StoreLocal(_))),
+            "catch异常必须实际落槽"
+        );
+        assert!(
+            !res.type_definitions
+                .iter()
+                .any(|t| t.name.starts_with("_Child")),
+            "新族未开放用户CLR派生"
+        );
+    }
+}

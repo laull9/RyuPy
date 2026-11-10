@@ -11,6 +11,8 @@ public static class PyRuntimeBases
     /// <returns>通过验证的原类对象。</returns>
     public static object Validate(object? value)
     {
+        if (ReferenceEquals(value, PyType.Get("SyntaxError")) || ReferenceEquals(value, PyType.Get("ParseError")))
+            throw PyXmlTreeBuilderErrors.Unsupported("SyntaxError/ParseError user inheritance");
         if (value is PyTypingForm { Name: "NoReturn" }) return PyTypingClassVar.RejectBase(value);
         if (value is PyTypingForm { Name: "ClassVar" } or PyTypingAlias { Name: "ClassVar" })
             return PyTypingClassVar.RejectBase(value);

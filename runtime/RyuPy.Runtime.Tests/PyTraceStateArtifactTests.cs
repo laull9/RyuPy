@@ -107,16 +107,17 @@ public partial class PyTraceStateArtifactTests
         var sourceAdditions = SourcePublicAdditions();
         var metadataAdditions = MetadataPublicAdditions();
         var builtinAdditions = BuiltinPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var xmlAdditions = XmlPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1699逐字段保留：历史1659＋原12条V1/4条冷来源/24条metadata；仅另加一条默认builtins冷读取；不覆盖默认参数、常量、全部属性或完整程序集scope" });
-        Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins增量不符；见baseline-abi.json。");
+            scope = "旧1700逐字段保留：历史1659＋原12条V1/4条冷来源/24条metadata/1条builtins；仅另加6条语法/XML异常族；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+        Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins或XML异常增量不符；见baseline-abi.json。");
     }
 
     // 全程序集门另列 ADR0145 冷 API；不改变 V1 专属十二条合同，也不接受其它来源 API/重载。
@@ -163,18 +164,33 @@ public partial class PyTraceStateArtifactTests
         "M:RyuPy.Runtime.PyOps:LoadDefaultBuiltin:150:[0;0;1](String)->Object:"
     ];
 
+    // TreeBuilder本身及cold producer均internal；仅异常CLR父链和必要消息覆盖进入公开ABI。
+    internal static string[] XmlPublicAdditions() =>
+    [
+        "T:RyuPy.Runtime.PySyntaxError:1048577:RyuPy.Runtime.PyException:",
+        "M:RyuPy.Runtime.PySyntaxError:.ctor:6278:[32;0;1](String)->Void:",
+        "M:RyuPy.Runtime.PySyntaxError:get_PyMessage:2246:[32;0;0]()->String:",
+        "P:RyuPy.Runtime.PySyntaxError:PyMessage:0:[40;0;0]()->String",
+        "T:RyuPy.Runtime.PyXmlParseError:1048833:RyuPy.Runtime.PySyntaxError:",
+        "M:RyuPy.Runtime.PyXmlParseError:.ctor:6278:[32;0;1](String)->Void:"
+    ];
+
     internal static bool PreservesBaselineAbi(string[] before, string[] after)
         => PreservesBaselineAbi(before, after, PyTraceStateV1ArtifactContract.PublicAdditions(),
-            SourcePublicAdditions(), MetadataPublicAdditions(), BuiltinPublicAdditions());
+            SourcePublicAdditions(), MetadataPublicAdditions(), BuiltinPublicAdditions(), XmlPublicAdditions());
 
-    // 参数化仅供反例检验允许表自身；真实 PE 门始终使用上面的固定四张表。
+    // 参数化仅供反例检验允许表自身；真实 PE 门始终使用上面的固定五张表。
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin)
+        => PreservesBaselineAbi(before, after, v1, source, metadata, builtin, XmlPublicAdditions());
+
+    internal static bool PreservesBaselineAbi(string[] before, string[] after,
+        string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml)
     {
-        if (before.Length != 1659 || after.Length != 1700
+        if (before.Length != 1659 || after.Length != 1706
             || v1.Length != 12 || source.Length != 4 || metadata.Length != 24
-            || !builtin.SequenceEqual(BuiltinPublicAdditions())) return false;
-        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).ToArray();
+            || !builtin.SequenceEqual(BuiltinPublicAdditions()) || !xml.SequenceEqual(XmlPublicAdditions())) return false;
+        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).ToArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         // 不用去重后的集合判等：任一组内或组间重复直接拒绝。
         if (expected.Any(signature => !seen.Add(signature))) return false;

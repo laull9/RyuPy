@@ -94,6 +94,14 @@ internal sealed partial class PyTraceStateV1ArtifactContract
         Rule(P("EscapeGenerator", "Void", "Object", "Int64"), [], Call(P("Forward", "Void", "Object", "Int64")));
     }
 
+    // 独立手写六个cold producer；不按类名通配授权，也不扩大S1产品owner准入。
+    internal static readonly (string Name, string Type)[] TreeBuilderProducers =
+    [
+        ("Type", "PyTypeError"), ("Unsupported", "PyNotImplementedError"),
+        ("Index", "PyIndexError"), ("Parse", "PyXmlParseError"),
+        ("Attribute", "PyAttributeError"), ("Name", "PyNameError")
+    ];
+
     private void ProjectionAndProducerRules()
     {
         string enabled = Call(P("get_Enabled", "Boolean")), suppress = Call(P("Suppress", "Void", "System.Exception"));
@@ -120,6 +128,8 @@ internal sealed partial class PyTraceStateV1ArtifactContract
         Rule(S("PyErrors", "Load", "Object", "Object", "String"), [], FreshCall("PyUnboundLocalError"));
         Rule(S("PyOps", "ThrowUnboundGlobal", "Void", "String"), [], FreshCall("PyNotImplementedError"), FreshCall("PyNameError"));
         Rule(S("PyOps", "LoadDefaultBuiltin", "Object", "String"), [], FreshCall("PyNotImplementedError"), FreshCall("PyNameError"));
+        foreach (var (name, type) in TreeBuilderProducers)
+            Rule(S("PyXmlTreeBuilderErrors", name, type, "String"), [], enabled, FreshCall(type));
         Rule(S("PyIO", "Guard", "Object", "System.Func`1<Object>"), [], enabled, FreshCall("PyBaseException"));
         Rule(I("PyGenerator", "Next", "Object", "Object", "Boolean"), [], FreshCall("PyStopIteration"));
         Rule(I("PyGenerator", "MoveNextCore", "Boolean", "Object", "Object&", "PyBaseException"), [], enabled,

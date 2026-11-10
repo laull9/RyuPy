@@ -1,6 +1,7 @@
 # TODO
 
-- [~] KeyError默认builtins冷读取候选：完整位置参数与direct/value真实绑定已接，固定CP29观察通过；Rust/C#/三图JIT/Native及原percent完整流待验，不计兼容晋升。见 `tests/cases/keyerror_construction/README.md`。
+- [~] TreeBuilder真实事件状态机候选：通用节点/文本尾文本/工厂身份及真实SyntaxError→ParseError父链接入；六组CP参考已冻结，C#/JIT/Native/完整check待验，原pending保留。见[ADR0154](docs/adr/0154-treebuilder-state-machine.md)。
+- [x] KeyError默认builtins冷读取有限验收：`fefe3954155be47e99f163cfc6fe1d6c1c437426`、CI `42907658383` 的20/20 CP/JIT/Native及搬迁通过，两策略make check退出0、原S1 38项与ABI1700保留。整CI仍有两个旧失败，固定默认项目仍11/8/1，不据此声称全异常或全库兼容。见 `tests/cases/keyerror_construction/README.md`。
 
 - [~] ADR0146候选：JIT-only空资源直接子包发现＋新Legacy冷词法归属；局部Rust通过，新Runtime/原pyfiglet/通用Native/完整同HEAD门待验，不计项目晋升。
 
