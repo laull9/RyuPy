@@ -248,3 +248,14 @@ BOM/BOM_UTF16 与 BOM_UTF32 按运行机器端序选择；模块重绑定不联�
 同名源码继续沿真实模块解析处理。encode/decode/lookup、CodecInfo、registry、错误处理器、
 增量和流接口未交付，不提供占位，合法 CP 正例保 pending。首次四项运行时与两项CP/JIT差分通过，正常完整门禁1651C#/228CP/202e2e+30原ignored通过，
 具体合同、受控 CP 源码遮蔽条件与初始化成本见 [ADR0095](adr/0095-codecs-bom.md)。
+
+## textwrap.dedent（有限源码候选，未验收）
+
+新增dedent(text)普通绑定、raw str子类、ASCII space/tab与LF共同缩进，保无变化exact-str身份。
+最后替换读取同一初始re的当前sub，恰三位置实参并保返回/异常身份；无margin不读取re/sub。
+旧TextWrapper/wrap/fill仍用原共享字典，新四字段只归实际导入owner，失败重试不回填旧owner。
+首次规范native compile产生两真实Pattern；源码re、自定义compile/flags/backend状态只使新dedent NI，
+不拒绝旧wrap/fill。私有pattern/textwrap.re普通写入成功，但域外值在实际消费阶段NI。
+完整五compile/private代理/source-re正期待保pending，不能以导入成功或NI负门宣称支持。
+本地仅固定CP fixture自检，C#/JIT/Native及完整保护未跑；资源界限和具体清单见
+[ADR-0151](adr/0151-textwrap-dedent.md)及[专项页](textwrap-dedent.md)。

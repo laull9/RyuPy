@@ -14,12 +14,7 @@ jobs:
     name: 精确选择诊断或原验收链
     runs-on: ubuntu-24.04
     timeout-minutes: 2
-    outputs:
-      diagnostic: ${{ steps.mode.outputs.diagnostic }}
-      markdown: ${{ steps.mode.outputs.markdown }}
-      noreturn: ${{ steps.mode.outputs.noreturn }}
-      search: ${{ steps.mode.outputs.search }}
-      metadata: ${{ steps.mode.outputs.metadata }}
+    outputs: {diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}"}
     steps:
       # Actions字符串比较不区分大小写，因此不以表达式==冒充标题字节精确匹配。
       # 不checkout、不执行仓库源码、不把提交消息插入shell；普通提交/dispatch保持原链。
@@ -39,13 +34,14 @@ jobs:
           markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'
           noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001')
           search = is_push and title == 'validation: text-search-002'
-          metadata = is_push and title == 'validation: distribution-metadata-001'
+          metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('diagnostic=' + str(diagnostic).lower() + '\n')
               stream.write('markdown=' + str(markdown).lower() + '\n')
               stream.write('noreturn=' + str(noreturn).lower() + '\n')
               stream.write('search=' + str(search).lower() + '\n')
               stream.write('metadata=' + str(metadata).lower() + '\n')
+              if is_push and title == 'validation: textwrap-dedent-001': stream.write('dedent=true\n')
           PY
   trace-edge-diagnostic:
     name: diagnostic-not-acceptance 首边原流
@@ -165,6 +161,10 @@ jobs:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.metadata == 'true' && github.run_attempt == '1'
     uses: ./.github/workflows/distribution-metadata.yml
+  textwrap-dedent:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.dedent == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/textwrap-dedent.yml
   baseline:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'

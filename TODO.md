@@ -680,6 +680,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 
 - [~] `re` 条件组有限候选：闭合ASCII编号/名字、数字前向及两支解析已接；283运行时专项、3真实CP/JIT应用与正常完整门禁通过。开放capture等边界、后端差异与成本见ADR0082，不计项目增长。
 
+- [~] `textwrap.dedent` 有限owner候选：真实Import re、两canonical Pattern、raw字符串/ASCII-LF扫描、当前sub与阶段NI已写；旧三导出保共享字典。固定CP小fixture自检与首轮修正分开留证，C#/JIT/Native/完整门禁待hosted，不增加Markdown或固定20分子。详见ADR0151。
+
 - [~] `textwrap.TextWrapper` 普通可继承类与动态hook候选：74运行时专项通过，四应用分别通过（首轮2/4保留），完整门禁1411C#/228CP/202e2e+30原ignored通过；严格根快路保旧区间引擎，根高级算法及对象框架旧边界明确保留，见ADR0083。
 
 - [~] `str.format` 通用模板候选：增量字段、命名/位置/自动编号、属性索引、转换、动态规格与对象身份已接内部引擎；累计47项通过，四应用分别通过（首轮2/4保留），正常门禁1458C#/228CP/202e2e+30原ignored通过。沿既有值格式域，不冒format_map/Formatter/f-string统一；见ADR0084。

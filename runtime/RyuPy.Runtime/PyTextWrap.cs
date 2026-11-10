@@ -1,4 +1,4 @@
-// textwrap模块稳定发布真实普通类；快捷函数每次读取当前导出并真实构造，不冻结工厂或方法。
+// textwrap旧类与快捷函数保共享字典/动态工厂；新增dedent四字段只归真实导入owner。
 using System;
 using System.Collections.Generic;
 
@@ -8,8 +8,22 @@ namespace RyuPy.Runtime;
 public static class PyTextWrap
 {
     private static readonly Lazy<Dictionary<string, object?>> Attributes = new(Build);
-    /// <summary>共享原生模块属性字典；RegisterNative的模块写入直接更新此字典。</summary>
+    /// <summary>旧TextWrapper/wrap/fill的共享字典；新dedent字段归真实导入owner，不从此宿主入口公开。</summary>
     public static Dictionary<string, object?> CreateAttributes() => Attributes.Value;
+
+    // 旧三名继续共享原字典；仅四个新增名字归当前owner，读写绝不双写或shadow旧工厂。
+    internal static void Register(PyTextDedentCompile witness)
+    {
+        Dictionary<string, object?> attributes = CreateAttributes();
+        PyModules.RegisterNativeLazy("textwrap", "", "", () => PyTextDedent.Initialize(witness),
+            name => !PyTextDedent.Owns(name) && attributes.TryGetValue(name, out object? value) ? value
+                : throw new PyAttributeError($"module 'textwrap' has no attribute '{name}'"),
+            (owner, name, value) =>
+            {
+                if (PyTextDedent.Owns(name)) owner.DynamicAttributes[name] = value;
+                else attributes[name] = value;
+            });
+    }
 
     private static Dictionary<string, object?> Build()
     {

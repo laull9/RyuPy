@@ -1377,3 +1377,16 @@ count/find/rfind/index/rindex 共用绑定与码点窗口；start/end先后转�
 --distribution-metadata以显式根完整快照替代该产品的发行版发现环境，不实现动态sys.path。未配置不是空，首次metadata import绑定导入函数并锁定runtime域配置；owner/payload冲突拒绝。普通导入只新增精确字符串域，自定义name/相对package或字符串子类不跳过用户协议伪装兼容。默认导入、原搜索窗口/core/warning不变。
 
 ADR-0150修订002：metadata新增可导入性不代表无配置可发现；未实现高级属性保持AttributeError/from-import失败，防止占位吞掉ImportError fallback。分发文件读取有平台限定末端nofollow与句柄身份核验，仍不是恶意并发下的原子快照。
+
+### textwrap.dedent 的有限owner状态（源码候选，未产品验收）
+
+正常绑定后，首次准入→whitespace Pattern身份→raw字符串类型及空白行归一→leading Pattern身份
+→共同前缀→按需当前同一re.sub，顺序不可互换。无margin不读re/sub，但不能绕过两private阶段。
+无变化exact str保identity，str子类不调用覆写并返回base str；只按ASCII space/tab、LF处理。
+新四名只归真实模块owner，旧三导出仍归原字典；保存别名与旧工厂读取不失效。
+源码re成功/导入前非规范compile/flags/有限backend挂载只令新dedent NI，实际依赖导入异常原样传播。
+private字段/re替换普通赋值成功，dedent消费域外值NI；当前同一re.sub保3pos、返回与异常原对象。
+公开compile/MULTILINE在首次绑定后改变不重新拒绝；私有backend整体替换及完整CP导入hook仍域外。
+stock re保原pattern16384、译后主体200000字符及单次match2秒预算；前者不代表16379空格margin可用，
+不宣称实际最大接受值，也不在自定义sub前统一限margin。完整__getattribute__ trap与大margin CP成功例独立pending。
+CP正例pending与NI负门分开；本地CP自检不计产品验收，见[ADR-0151](adr/0151-textwrap-dedent.md)。

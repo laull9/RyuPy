@@ -1,3 +1,4 @@
+// 原生标准库冷注册；re的实际compile见证仅交给textwrap首次导入，不改普通调用热路。
 using System;
 using System.Collections.Generic;
 
@@ -34,7 +35,6 @@ public static class PyNativeModules
         });
         PyModules.RegisterNative("codecs", PyCodecs.CreateAttributes());
         PyModules.RegisterNative("unicodedata", PyUnicodeData.CreateAttributes());
-        PyModules.RegisterNative("textwrap", PyTextWrap.CreateAttributes());
         PyModules.RegisterNative("html", PyHtml.CreateAttributes());
         // 原生 XML 包只提供已验收的真实 Element 核心，不伪造源码 metadata。
         PyModules.RegisterNative("xml", new Dictionary<string, object?>());
@@ -47,11 +47,15 @@ public static class PyNativeModules
             if (key == "JSONDecodeError")
                 throw new PyNotImplementedError("rebinding json.JSONDecodeError is not supported");
         });
-        PyModules.RegisterNative("re", PyRegex.CreateAttributes(), (key, _) =>
+        // 捕获实际登记字典的compile身份；不提前Import，不为见证另建一份re。
+        var regex = PyRegex.CreateAttributes();
+        var dedentCompile = new PyTextDedentCompile((PyFunction)regex["compile"]!);
+        PyModules.RegisterNative("re", regex, (key, _) =>
         {
             if (key == "error")
                 throw new PyNotImplementedError("rebinding re.error is not supported");
         });
+        PyTextWrap.Register(dedentCompile);
         PyModules.RegisterNative("collections", PyCollections.CreateAttributes());
         PyModules.RegisterNative("collections.abc", PyAbc.CreateAttributes());
         PyModules.Import("collections.abc");
