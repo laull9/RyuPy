@@ -119,6 +119,7 @@ pub struct RuntimeRefs {
     pub array_get: MethodRefIndex,
     pub array_set: MethodRefIndex,
     pub type_object: MethodRefIndex,
+    pub load_default_builtin: MethodRefIndex,
     pub arg_error: MethodRefIndex,
     pub star_arg: MethodRefIndex,
     pub format_value: MethodRefIndex,

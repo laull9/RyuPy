@@ -177,6 +177,9 @@ mod module_delete_tests;
 mod module_delete_abi_tests;
 
 #[cfg(test)]
+mod builtin_lookup_tests;
+
+#[cfg(test)]
 mod class_cell_tests;
 
 #[cfg(test)]

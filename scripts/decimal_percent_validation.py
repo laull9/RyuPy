@@ -17,7 +17,8 @@ ROOT, require, sha, save = c.ROOT, c.require, c.sha, helper.save
 
 
 def stages(data):
-    names = ['identity', 'csharp-build', 'csharp-tests', 'tools', 'sourceprep', 'termcolor-source']
+    names = ['identity', 'csharp-build', 'csharp-tests', 'tools', 'sourceprep']
+    if any(row['id'] == 'old-termcolor' for row in data['old_cases']): names.append('termcolor-source')
     for graph in data['graphs']:
         names += [graph['id'] + '-compile', graph['id'] + '-native']
         for row in graph['cases']:
@@ -27,9 +28,12 @@ def stages(data):
 
 
 class Runner(base.Runner):
+    # 新窄门只替换合同与路径；身份、恢复和阶段依赖仍共用同一个实现。
+    contract, evidence_name, test_prefix = c, 'decimal-percent-evidence', 'percent'
+
     def __init__(self, resume=False):
-        self.data = c.parse(c.MANIFEST.read_bytes())
-        self.out = self.root_out = ROOT / 'target/decimal-percent-evidence'
+        self.data = self.contract.parse(self.contract.MANIFEST.read_bytes())
+        self.out = self.root_out = ROOT / 'target' / self.evidence_name
         self.out.mkdir(parents=True, exist_ok=resume)
         self.inputs_dir = self.out / 'inputs'
         self.before, self.identity_failed = None, False
@@ -38,13 +42,13 @@ class Runner(base.Runner):
         self.run_records = {}
         self.ready = False
         self.result = dict(passed=False, default_project_delta=0, retries=0,
-            scope='两新图；NI/宿主偏差/真实trace逐row分账；整体NOT_GO不因本切自动升级',
+            scope=self.data.get('scope', '两新图；NI/宿主偏差/真实trace逐row分账；整体NOT_GO不因本切自动升级'),
             oracle_roles=self.data['oracle_roles'], old_gates='同HEAD独立原jobs，不冒领通过',
             stages={name: dict(passed=False, status='not-run') for name in stages(self.data)})
 
     def fresh_identity(self):
         return dict(head=self.before['head'], tree=self.before['tree'], run_id=os.environ['GITHUB_RUN_ID'],
-            run_attempt=os.environ['GITHUB_RUN_ATTEMPT'], manifest_sha256=sha(c.MANIFEST), sources=self.data['sources'],
+            run_attempt=os.environ['GITHUB_RUN_ATTEMPT'], manifest_sha256=sha(self.contract.MANIFEST), sources=self.data['sources'],
             tools={name: sha(path) for name, path in self.tool_paths().items()})
 
     def tool_paths(self):
@@ -72,8 +76,8 @@ class Runner(base.Runner):
         save(self.root_out / 'result.json', self.result)
 
     def identities(self):
-        c.check_context(os.environ, c.parse(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes()))
-        c.load_manifest()
+        self.contract.check_context(os.environ, self.contract.parse(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes()))
+        self.contract.load_manifest()
         self.before = self.identity('before')
         require(self.before['head'] == os.environ['GITHUB_SHA'], 'HEAD不同于事件')
         self.python, self.dotnet = Path(os.environ['PYTHON']).resolve(), Path(os.environ['DOTNET']).resolve()
@@ -86,7 +90,7 @@ class Runner(base.Runner):
             require((self.out / (name + '-version.stdout')).read_text().strip() == version, '固定工具版本不符')
             self.frozen[str(path)] = sha(path)
         self.frozen[str(self.python)] = sha(self.python)
-        self.frozen[str(c.MANIFEST)] = sha(c.MANIFEST)
+        self.frozen[str(self.contract.MANIFEST)] = sha(self.contract.MANIFEST)
         self.environment()
 
     def test_command(self):
@@ -104,12 +108,12 @@ class Runner(base.Runner):
     def managed_tests(self):
         self.audit(self.test_assemblies)
         self.barrier('csharp-before')
-        self.command('percent-csharp-tests', self.test_command(), 300)
+        self.command(self.test_prefix + '-csharp-tests', self.test_command(), 300)
         self.barrier('csharp-after')
         self.audit(self.test_assemblies)
         if (self.out / 'trx').is_dir(): self.preserve(self.out / 'trx', 'trx')
-        c.verify_command(self.out / 'percent-csharp-tests', self.test_command())
-        return c.verify_trx(self.out / 'trx/result.trx', self.data['csharp']['facts'])
+        self.contract.verify_command(self.out / (self.test_prefix + '-csharp-tests'), self.test_command())
+        return self.contract.verify_trx(self.out / 'trx/result.trx', self.data['csharp']['facts'])
 
     def prepare_sources(self):
         for source in set(self.data['sources']) | {row['source'] for row in self.data['old_cases']}:
@@ -117,12 +121,13 @@ class Runner(base.Runner):
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / source, target)
         # termcolor只恢复一个已有锁定官方sdist，失败与新两图无依赖。
-        self.phase('termcolor-source', self.prepare_termcolor)
+        if 'termcolor-source' in self.result['stages']:
+            self.phase('termcolor-source', self.prepare_termcolor)
         self.freeze_inputs(self.inputs_dir)
         self.preserve(self.inputs_dir, 'compiled-inputs')
 
     def prepare_termcolor(self):
-        recipe = c.parse((ROOT / 'tests/aot/wcwidth_ci/project-source-recovery.json').read_bytes())
+        recipe = self.contract.parse((ROOT / 'tests/aot/wcwidth_ci/project-source-recovery.json').read_bytes())
         items = [row for row in recipe['packages'] if row['package'] == 'termcolor' and row['version'] == '2.4.0']
         require(len(items) == 1, '锁定termcolor来源不唯一')
         item = items[0]
@@ -149,15 +154,27 @@ class Runner(base.Runner):
     def termcolor_root(self):
         return self.inputs_dir / 'termcolor-package/termcolor-2.4.0/src'
 
+    def compiler_argv(self):
+        return ['cargo', 'build', '--locked', '-p', 'ryupy-cli', '--features', helper.old.shared.FEATURE]
+
+    def cp_argv(self, row, source):
+        return [self.python, '-I', '-B', source, *row['argv']]
+
+    def build_argv(self, case, target, aot=False):
+        return helper.build_argv(self, case, target, aot)
+
+    def verify_plan(self, path, case, aot=False):
+        return helper.verify_plan(path, case, aot)
+
     def graph_target(self, graph):
         return self.root_out / 'products' / graph['id']
 
     def compile_graph(self, graph):
-        case, target = c.cases(graph)[0], self.graph_target(graph)
-        argv = helper.build_argv(self, case, target)
+        case, target = self.contract.cases(graph)[0], self.graph_target(graph)
+        argv = self.build_argv(case, target)
         self.command(graph['id'] + '-compile-command', argv, 180, self.env)
-        c.verify_command(self.root_out / (graph['id'] + '-compile-command'), argv)
-        self.audit(lambda: helper.verify_plan(target / 'module-environment.json', case))
+        self.contract.verify_command(self.root_out / (graph['id'] + '-compile-command'), argv)
+        self.audit(lambda: self.verify_plan(target / 'module-environment.json', case))
         self.audit(lambda: require(sha(target / 'RyuPy.Runtime.dll') == sha(self.runtime), '图runtime换源'))
         self.preserve(target, graph['id'] + '-pe')
 
@@ -165,18 +182,18 @@ class Runner(base.Runner):
         record = self.run_product(name, argv, env)
         self.run_records[name] = dict(record=record, prefix=name, argv=list(map(str, argv)),
                                      source_sha256=sha(source))
-        return c.verify_row(self.out / name, argv, row, source)
+        return self.contract.verify_row(self.out / name, argv, row, source)
 
     def run_positive(self, name, argv, golden, env=None):
         # Native helper按固定ID回调；未知行不能获得宽松stderr或exit1权利。
-        row = next((r for g in self.data['graphs'] for r in c.cases(g)
+        row = next((r for g in self.data['graphs'] for r in self.contract.cases(g)
                     if name in (r['id'] + '-original', r['id'] + '-relocated')), None)
         require(row is not None and golden == row['stdout'].encode(), 'Native行ID或完整golden不符')
         self.run_product(name, argv, env)
-        return c.verify_row(self.out / name, argv, row, ROOT / row['source'])
+        return self.contract.verify_row(self.out / name, argv, row, ROOT / row['source'])
 
     def native_graph(self, graph):
-        detail = native(self, c.cases(graph))
+        detail = native(self, self.contract.cases(graph))
         detail.pop('cp_equivalent', None); detail.pop('expected_ni', None)
         detail['case_kinds'] = {row['id']: row['kind'] for row in graph['cases']}
         return detail
@@ -201,12 +218,12 @@ class Runner(base.Runner):
             self.run_records[name + '-cp-run'] = dict(record=record, prefix=name + '-cp-run',
                 argv=list(map(str, cp_argv)), source_sha256=sha(source))
             actual = dict(row, stdout=(self.out / (name + '-cp-run.stdout')).read_text() if row['kind'] != 'trace' else row['stdout'])
-            return c.verify_row(self.out / (name + '-cp-run'), cp_argv, actual, source)
+            return self.contract.verify_row(self.out / (name + '-cp-run'), cp_argv, actual, source)
         cp_ok = self.phase(name + '-cp', cp)
         argv = self.old_compile_argv(row)
         def compile_old():
             self.command(name + '-compile-command', argv, 180, self.env)
-            c.verify_command(self.out / (name + '-compile-command'), argv)
+            self.contract.verify_command(self.out / (name + '-compile-command'), argv)
             self.preserve(self.root_out / 'products' / name, name + '-pe')
         compiled = self.phase(name + '-compile', compile_old)
         if cp_ok and compiled:
@@ -222,8 +239,8 @@ class Runner(base.Runner):
             required.update(name + '.' + suffix for suffix in ('stdout', 'stderr', 'json', 'argv.json'))
         def command(name, argv, success=False):
             files(name)
-            record, _ = c.verify_process(self.root_out / name, argv, exits=tuple(range(256)))
-            if success: c.verify_command(self.root_out / name, argv)
+            record, _ = self.contract.verify_process(self.root_out / name, argv, exits=tuple(range(256)))
+            if success: self.contract.verify_command(self.root_out / name, argv)
             return record['exit'] == 0
         def run(name, argv, row, source):
             files(name)
@@ -231,28 +248,28 @@ class Runner(base.Runner):
             semantic_rows[name] = (row, source)
         tests = ROOT / 'runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj'
         command('csharp-build', [self.dotnet, 'build', tests, '-c', 'Release', '-nologo'], True)
-        command('compiler-build', ['cargo', 'build', '--locked', '-p', 'ryupy-cli', '--features', helper.old.shared.FEATURE], True)
-        command('percent-csharp-tests', self.test_command())
+        command('compiler-build', self.compiler_argv(), True)
+        command(self.test_prefix + '-csharp-tests', self.test_command())
         required.update(('tools/ryupy', 'tools/RyuPy.Runtime.dll', 'managed/RyuPy.Runtime.dll', 'managed/RyuPy.Runtime.Tests.dll'))
         for graph in self.data['graphs']:
             target = self.graph_target(graph)
-            compiled = command(graph['id'] + '-compile-command', helper.build_argv(self, c.cases(graph)[0], target))
+            compiled = command(graph['id'] + '-compile-command', self.build_argv(self.contract.cases(graph)[0], target))
             self.result['stages'][graph['id'] + '-compile'] = dict(passed=compiled, status='passed' if compiled else 'failed')
             if compiled:
                 required.update(str((target / filename).relative_to(self.root_out)) for filename in
                     (Path(graph['source']).stem + '.dll', 'RyuPy.Runtime.dll', 'module-environment.json'))
-                helper.verify_plan(target / 'module-environment.json', c.cases(graph)[0])
+                self.verify_plan(target / 'module-environment.json', self.contract.cases(graph)[0])
                 require(sha(target / 'RyuPy.Runtime.dll') == sha(self.runtime), '已编译runtime换源')
             source = self.inputs_dir / graph['source']
             for row in graph['cases']:
-                if row['cp']: run(row['id'] + '-cp-run', [self.python, '-I', '-B', source, *row['argv']], row, source)
+                if row['cp']: run(row['id'] + '-cp-run', self.cp_argv(row, source), row, source)
                 if compiled:
                     run(row['id'] + '-jit-run', [self.dotnet, target / (source.stem + '.dll'), *row['argv']], row, source)
                 else: self.block(row['id'] + '-jit', '本图实际compile失败；Native可独立采集')
         termcolor = (self.root_out / 'termcolor-source.json').is_file()
         require(termcolor == self.termcolor_root().is_dir(), 'termcolor成功标记/实际输入矛盾')
         if termcolor:
-            source = c.parse((self.root_out / 'termcolor-source.json').read_bytes())
+            source = self.contract.parse((self.root_out / 'termcolor-source.json').read_bytes())
             require(source['recipe'] == self.data['termcolor'] and source['archive_sha256'] == self.data['termcolor']['sha256']
                     and sha(self.root_out / self.data['termcolor']['filename']) == source['archive_sha256']
                     and source['inventory'] == base.inventory(self.inputs_dir / 'termcolor-package'), 'termcolor来源身份不符')
@@ -264,10 +281,10 @@ class Runner(base.Runner):
                 continue
             argv = [self.python, '-B', source, *row['argv']]
             prefix = self.root_out / (name + '-cp-run')
-            record, streams = c.verify_process(prefix, argv)
+            record, streams = self.contract.verify_process(prefix, argv)
             actual = dict(row, stdout=streams['stdout'].decode() if row['kind'] != 'trace' else row['stdout'])
             run(name + '-cp-run', argv, actual, source)
-            cp_ok = self.phase(name + '-cp', lambda: c.verify_row(prefix, argv, actual, source))
+            cp_ok = self.phase(name + '-cp', lambda: self.contract.verify_row(prefix, argv, actual, source))
             compiled = command(name + '-compile-command', self.old_compile_argv(row))
             self.result['stages'][name + '-compile'] = dict(passed=compiled, status='passed' if compiled else 'failed')
             if compiled:
@@ -281,12 +298,12 @@ class Runner(base.Runner):
         return expected, semantic_rows, required
 
     def load_state(self):
-        raw = c.safe_file(self.root_out, 'state.json').read_bytes()
+        raw = self.contract.safe_file(self.root_out, 'state.json').read_bytes()
         with (self.root_out / 'resume-state.raw.json').open('xb') as handle: handle.write(raw)
-        state = c.parse(raw)
+        state = self.contract.parse(raw)
         require(set(state) == {'schema_version', 'before', 'frozen', 'inventories', 'isolation', 'environment', 'labels', 'checkpoint'}
                 and state['schema_version'] == 1 and not state['isolation'], '恢复结构/隔离无效')
-        c.check_context(os.environ, c.parse(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())); c.load_manifest()
+        self.contract.check_context(os.environ, self.contract.parse(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes())); self.contract.load_manifest()
         self.python, self.dotnet = Path(os.environ['PYTHON']).resolve(), Path(os.environ['DOTNET']).resolve()
         self.cli, self.runtime = self.root_out / 'tools/ryupy', self.root_out / 'tools/RyuPy.Runtime.dll'
         require(Path(sys.executable).resolve() == self.python and sys.version_info[:3] == (3, 12, 13)
@@ -298,19 +315,19 @@ class Runner(base.Runner):
         require(set(self.input_inventories) == {str(self.inputs_dir)}, '输入inventory根改变')
         for path in self.frozen:
             require(Path(path).is_absolute(), '冻结路径非法')
-            c.safe_file(Path(path).parent, Path(path).name)
+            self.contract.safe_file(Path(path).parent, Path(path).name)
         checkpoint = state['checkpoint']
         require(type(checkpoint) is dict, '未完整采集到可核checkpoint')
         # 先核全部原件与身份，再读真实编译结果推导run集合；返回摘要不被采纳。
         require(checkpoint['identity'] == self.fresh_identity(), '跨run/attempt/工具恢复')
-        for name, digest in checkpoint['files'].items(): require(sha(c.safe_file(self.root_out, name)) == digest, '原件改变')
+        for name, digest in checkpoint['files'].items(): require(sha(self.contract.safe_file(self.root_out, name)) == digest, '原件改变')
         self.test_assemblies()
         self.barrier('resume-inputs')
         expected, rows, required = self.resume_expectations()
-        c.verify_checkpoint(checkpoint, self.fresh_identity(), expected, self.root_out, required)
+        self.contract.verify_checkpoint(checkpoint, self.fresh_identity(), expected, self.root_out, required)
         # 完整恢复核验后登记原digest；不覆盖旧authority，并持续保护到Native/final。
-        authority = {str(c.safe_file(self.root_out, name)): digest for name, digest in checkpoint['files'].items()}
-        authority[str(c.safe_file(self.root_out, 'resume-state.raw.json'))] = hashlib.sha256(raw).hexdigest()
+        authority = {str(self.contract.safe_file(self.root_out, name)): digest for name, digest in checkpoint['files'].items()}
+        authority[str(self.contract.safe_file(self.root_out, 'resume-state.raw.json'))] = hashlib.sha256(raw).hexdigest()
         for name, digest in authority.items():
             if name in self.frozen and self.frozen[name] != digest:
                 raise helper.IdentityError('恢复原件冻结authority冲突：' + name)
@@ -320,19 +337,20 @@ class Runner(base.Runner):
         # 不信state摘要；包括异常行在内全部从已验身份的真实原流重算。
         for name, (row, source) in rows.items():
             self.phase(name.removesuffix('-run'), lambda name=name, row=row, source=source:
-                       c.verify_row(self.root_out / name, expected[name]['argv'], row, source))
+                       self.contract.verify_row(self.root_out / name, expected[name]['argv'], row, source))
         self.phase('csharp-tests', lambda: self.check_saved_tests())
         for name in ('identity', 'csharp-build', 'tools', 'sourceprep'):
             self.result['stages'][name] = dict(passed=True, status='passed', recomputed=True)
-        self.result['stages']['termcolor-source'] = dict(passed=(self.root_out / 'termcolor-source.json').is_file(),
-            status='passed' if (self.root_out / 'termcolor-source.json').is_file() else 'failed')
+        if 'termcolor-source' in self.result['stages']:
+            self.result['stages']['termcolor-source'] = dict(passed=(self.root_out / 'termcolor-source.json').is_file(),
+                status='passed' if (self.root_out / 'termcolor-source.json').is_file() else 'failed')
         require(type(state['labels']) is list and len(state['labels']) == len(set(state['labels'])), '重复label')
         self.labels.update(state['labels'])
         self.ready = True
 
     def check_saved_tests(self):
-        c.verify_command(self.root_out / 'percent-csharp-tests', self.test_command())
-        return c.verify_trx(self.root_out / 'trx/result.trx', self.data['csharp']['facts'])
+        self.contract.verify_command(self.root_out / (self.test_prefix + '-csharp-tests'), self.test_command())
+        return self.contract.verify_trx(self.root_out / 'trx/result.trx', self.data['csharp']['facts'])
 
     def invalidate(self, error):
         self.ready = False
@@ -350,7 +368,7 @@ class Runner(base.Runner):
                     source = self.inputs_dir / graph['source']
                     for row in graph['cases']:
                         if row['cp']:
-                            argv = [self.python, '-I', '-B', source, *row['argv']]
+                            argv = self.cp_argv(row, source)
                             self.phase(row['id'] + '-cp', lambda row=row, argv=argv, source=source:
                                 self.record_row(row['id'] + '-cp-run', argv, row, source))
                     compiled = self.phase(graph['id'] + '-compile', lambda graph=graph: self.compile_graph(graph))

@@ -161,6 +161,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
             ins.push(Instruction::call(ctx.runtime_refs.py_function_get_defaults));
         }
         RuntimeFn::TypeObject => ins.push(Instruction::call(ctx.runtime_refs.type_object)),
+        RuntimeFn::LoadDefaultBuiltin => {
+            ins.push(Instruction::call(ctx.runtime_refs.load_default_builtin))
+        }
         RuntimeFn::ArgError => ins.push(Instruction::call(ctx.runtime_refs.arg_error)),
         RuntimeFn::StarArg => ins.push(Instruction::call(ctx.runtime_refs.star_arg)),
         RuntimeFn::FormatValue => ins.push(Instruction::call(ctx.runtime_refs.format_value)),

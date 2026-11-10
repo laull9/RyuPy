@@ -1399,3 +1399,12 @@ CP正例pending与NI负门分开；本地CP自检不计产品验收，见[ADR-01
 此为宿主表示偏差，不声称CP同输入NI或OOM时序等价，也不保证容量内物理内存充足。
 既有无修饰常用路径不缩域；precision/star/其它specifier及bool转换警告边界保持。
 实现与新增测试尚待C#/JIT/Native及真实未改入口验证，不增加项目通过数，见ADR0153。
+
+### KeyError默认域构造候选（待产品验收）
+
+仅KeyError的直接构造与普通值读取接入通用LoadDefaultBuiltin冷ABI，读取真实共享默认字典，
+先固定callee再求完整参数，复用位置异常工厂；零参/None/空串不混同，原对象不先转消息。
+其它异常、内部ForKey、删除回退和现有locals/free/globals/InstanceGlobals owner路径不改。
+静态custom builtins的完整捕获、静态except的动态重绑、用户异常repr及ForKey展示时机不晋升。
+固定CP29观察已执行，但新Rust/C#/三图JIT/Native及原百分号完整流仍未验；见
+`tests/cases/keyerror_construction/README.md`，不增加项目通过数。

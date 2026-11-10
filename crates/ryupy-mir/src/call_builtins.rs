@@ -70,6 +70,11 @@ impl ExprBuilder<'_> {
                 let op = self.coerce(arg_op, &arg_ty, &MirType::Dynamic);
                 self.runtime_call(RuntimeFn::DynType, vec![op], MirType::Dynamic)
             }
+            Builtin::Exception("KeyError") => {
+                // 先读当前真实callee，再完整求实参；回调重绑仅影响下次调用。
+                let callable = self.default_builtin_value("KeyError");
+                self.call_value(callable, args)
+            }
             Builtin::Exception(name) => {
                 let mut args_ops = vec![Operand::Const(Constant::Str(name.to_owned()))];
                 if let Some(arg) = args.first() {

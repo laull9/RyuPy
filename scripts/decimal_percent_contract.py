@@ -14,7 +14,7 @@ MANIFEST = ROOT / 'tests/validation/decimal_percent.json'
 
 
 def check_context(env, event):
-    require(event.get('head_commit', {}).get('message') == TITLE, '百分号精确标题不符')
+    require(event.get('head_commit', {}).get('message') in (TITLE, 'validation: keyerror-construction-001'), '百分号精确标题不符')
     shared.check_context(env, event)
 
 

@@ -236,8 +236,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     let array_set = res.push_method_reference(
         method_ref! { static void @pyops_type::ArraySet(object, long, object) },
     );
-    let type_object =
-        res.push_method_reference(method_ref! { static object @pyops_type::TypeObject(string) });
+    let (type_object, load_default_builtin) = crate::builtin_lookup_refs::build(res, &pyops_type);
     let arg_error =
         res.push_method_reference(method_ref! { static object @pyops_type::ArgError(int, string) });
     let star_arg =
@@ -529,6 +528,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         array_get,
         array_set,
         type_object,
+        load_default_builtin,
         arg_error,
         star_arg,
         format_value,

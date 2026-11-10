@@ -39,14 +39,19 @@ public sealed class PyTraceStateV1ArtifactContractTests
         Assert.Equal(4, source.Length); Assert.Equal(4, source.Distinct().Count());
         var metadata = PyTraceStateArtifactTests.MetadataPublicAdditions();
         Assert.Equal(24, metadata.Length); Assert.Equal(24, metadata.Distinct().Count());
-        var combined = after.Concat(source).Concat(metadata).ToArray();
+        var builtin = PyTraceStateArtifactTests.BuiltinPublicAdditions();
+        Assert.Equal(new[] { "M:RyuPy.Runtime.PyOps:LoadDefaultBuiltin:150:[0;0;1](String)->Object:" }, builtin);
+        var old1699 = after.Concat(source).Concat(metadata).ToArray();
+        Assert.Equal(1699, old1699.Length);
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1699));
+        var combined = old1699.Concat(builtin).ToArray();
         Assert.False(C.PreservesAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before.Reverse().ToArray(), combined.Reverse().ToArray()));
         Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after.Concat(source).ToArray()));
         Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after));
         Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, before.Concat(source).ToArray()));
-        // 历史代表项与每条 V1/来源/metadata 增量：缺失、同数量改签、替换成重复项均拒绝。
+        // 历史代表项与每条 V1/来源/metadata/默认builtins 增量：缺失、同数量改签、替换成重复项均拒绝。
         foreach (int index in new[] { 0 }.Concat(Enumerable.Range(before.Length, combined.Length - before.Length)))
         {
             Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before,
@@ -68,17 +73,26 @@ public sealed class PyTraceStateV1ArtifactContractTests
         var v1 = C.PublicAdditions();
         var source = PyTraceStateArtifactTests.SourcePublicAdditions();
         var metadata = PyTraceStateArtifactTests.MetadataPublicAdditions();
-        var groups = new[] { before, v1, source, metadata };
+        var builtin = PyTraceStateArtifactTests.BuiltinPublicAdditions();
+        var groups = new[] { before, v1, source, metadata, builtin };
         // 各组自身重复及任意两组重叠，即使 after 完全照着错误允许表拼成也不能通过。
         for (int group = 0; group < groups.Length; group++)
         for (int donor = 0; donor < groups.Length; donor++)
         {
             var changed = groups.Select(x => (string[])x.Clone()).ToArray();
+            if (group == donor && groups[group].Length == 1) continue;
             changed[group][0] = groups[donor][donor == group ? 1 : 0];
             var after = changed.SelectMany(x => x).ToArray();
             Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(
-                changed[0], after, changed[1], changed[2], changed[3]));
+                changed[0], after, changed[1], changed[2], changed[3], changed[4]));
         }
+        // 即使候选跟着错误新表一起改签/重复，也不得接受新的任意 API 或重载。
+        foreach (var wrong in new[] { Array.Empty<string>(), builtin.Concat(builtin).ToArray(),
+            new[] { builtin[0].Replace("(String)->Object", "(Object)->Object", StringComparison.Ordinal) },
+            new[] { builtin[0].Replace("(String)->Object", "(String)->String", StringComparison.Ordinal) },
+            new[] { builtin[0].Replace(":150:", ":134:", StringComparison.Ordinal) } })
+            Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before,
+                before.Concat(v1).Concat(source).Concat(metadata).Concat(wrong).ToArray(), v1, source, metadata, wrong));
         var good = groups.SelectMany(x => x).ToArray();
         foreach (var mutation in new[] {
             (":Type:54:", ":Type:22:"), // readonly 标志

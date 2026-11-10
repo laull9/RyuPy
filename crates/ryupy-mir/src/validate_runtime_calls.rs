@@ -29,6 +29,7 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
             | RuntimeFn::CheckModuleDelete
             | RuntimeFn::CheckModuleDeleteValue
             | RuntimeFn::LoadDeletedModuleName
+            | RuntimeFn::LoadDefaultBuiltin
             | RuntimeFn::InstanceMakeClass
             | RuntimeFn::InstanceExecutionSource
             | RuntimeFn::InstanceCaptureDefinitionContext
@@ -100,6 +101,7 @@ pub(super) fn validate_call(
                 Some(&[MirType::Dynamic])
             }
             RuntimeFn::InstanceLoadName => Some(&[MirType::Dynamic, MirType::Str]),
+            RuntimeFn::LoadDefaultBuiltin => Some(&[MirType::Str]),
             RuntimeFn::InstanceDeleteName
             | RuntimeFn::CheckModuleDeleteValue
             | RuntimeFn::LoadDeletedModuleName => Some(&[MirType::Dynamic, MirType::Str]),
@@ -247,6 +249,8 @@ pub(super) fn validate_call(
                     "模块位置ABI"
                 } else if matches!(runtime, RuntimeFn::UnpackEx) {
                     "星号解包ABI"
+                } else if matches!(runtime, RuntimeFn::LoadDefaultBuiltin) {
+                    "默认内建读取ABI"
                 } else {
                     "输出目标ABI"
                 }
@@ -326,6 +330,7 @@ pub(super) fn validate_destination(
             | RuntimeFn::InstanceRelativeImportAttr
             | RuntimeFn::InstanceLoadName
             | RuntimeFn::LoadDeletedModuleName
+            | RuntimeFn::LoadDefaultBuiltin
             | RuntimeFn::InstanceMakeClass
             | RuntimeFn::InstanceExecutionSource
             | RuntimeFn::InstanceCaptureDefinitionContext
@@ -411,6 +416,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                 RuntimeFn::InstanceMakeClass
                     | RuntimeFn::InstanceLoadName
                     | RuntimeFn::LoadDeletedModuleName
+                    | RuntimeFn::LoadDefaultBuiltin
                     | RuntimeFn::InstanceExecutionSource
                     | RuntimeFn::InstanceCaptureDefinitionContext
                     | RuntimeFn::InstanceDefinitionModule

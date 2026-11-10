@@ -139,6 +139,10 @@ mod exception_table_tests;
 #[cfg(test)]
 mod exception_constructor_tests;
 
+mod builtin_lookup_refs;
+#[cfg(test)]
+mod builtin_lookup_tests;
+
 mod class_refs;
 
 mod exception_refs;

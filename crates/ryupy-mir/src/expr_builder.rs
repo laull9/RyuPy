@@ -435,12 +435,23 @@ impl<'a> ExprBuilder<'a> {
         }
     }
 
+    /// 默认域内建名称的真实冷读取；实例模块与源码遮蔽不经过这个入口。
+    pub(crate) fn default_builtin_value(&mut self, name: &str) -> Operand {
+        self.runtime_call(
+            RuntimeFn::LoadDefaultBuiltin,
+            vec![Operand::Const(Constant::Str(name.to_owned()))],
+            MirType::Dynamic,
+        )
+    }
+
     /// 内建名字作为**值**使用时的结果。
     ///
     /// 构造函数（`int` / `str` / `list` …）在 Python 里是类型对象，`isinstance`
     /// 和赋值都依赖它。真正调用走 `build_call`，不会到这里。
     fn build_builtin_value(&mut self, builtin: Builtin, _expression: ExprId) -> Operand {
         let name = match builtin {
+            // 本切仅迁移KeyError，保保存别名的真实绑定；不扩大其它异常的构造合同。
+            Builtin::Exception("KeyError") => return self.default_builtin_value("KeyError"),
             // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
             Builtin::Exception(type_name) => type_name,
             Builtin::Int => "int",

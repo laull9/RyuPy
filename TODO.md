@@ -1,5 +1,7 @@
 # TODO
 
+- [~] KeyError默认builtins冷读取候选：完整位置参数与direct/value真实绑定已接，固定CP29观察通过；Rust/C#/三图JIT/Native及原percent完整流待验，不计兼容晋升。见 `tests/cases/keyerror_construction/README.md`。
+
 - [~] ADR0146候选：JIT-only空资源直接子包发现＋新Legacy冷词法归属；局部Rust通过，新Runtime/原pyfiglet/通用Native/完整同HEAD门待验，不计项目晋升。
 
 - [~] 2026-11-09 普通CLI trace有限默认迁移候选：typed拒绝/私有prepare→finish及真实无flag入口已接，尚未Rust构建、产品运行或最终独审。原frames pending/430B源/期望不动；同源无flag整流、域外保功能、完整门及逐ID保护待验。见[ADR0143](docs/adr/0143-generator-trace-default-cutover.md)。

@@ -23,7 +23,9 @@ def preserve_before_validation(runner, target, stem):
     return candidates
 
 
-def native(runner, cases):
+def native(runner, cases, contract=c):
+    # 默认仍是原严格Legacy合同；新门必须显式提供自己的精确选型/清单合同。
+    c = contract
     case = cases[0]
     previous, labels = runner.out, runner.labels
     runner.out = previous / 'native-domains' / case['id']
@@ -51,6 +53,8 @@ def native(runner, cases):
             if path.is_file(): shutil.copy2(path, saved / path.name)
         runner.preserve(saved, 'native-managed')
         runner.frozen[str(layout.managed)] = sha(layout.managed)
+        # 新门可加真实PE语义证据；失败只拒本图，不把普通结构红误作全局换源。
+        if hasattr(c, 'verify_native_structure'): c.verify_native_structure(runner, case, layout)
         # 空cwd、最小环境，无Python/DOTNET工具查找；repo原fixture仍保留，范围在独立记录里明示。
         env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C.UTF-8', 'TZ': 'UTC'}
         state['validation'] = 'passed'

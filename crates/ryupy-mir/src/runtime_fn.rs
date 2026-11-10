@@ -300,6 +300,8 @@ pub enum RuntimeFn {
     CellGetFree,
     /// `PyOps.TypeObject(string) -> object`：内建构造名作为值使用时的类型对象。
     TypeObject,
+    /// `PyOps.LoadDefaultBuiltin(string) -> object`：默认域真实字典冷读取，可抛错且不可缓存。
+    LoadDefaultBuiltin,
     BuiltinFunction,
     /// `PyOps.FunctionModule(object, object)`：定义点写入已冻结的真实模块成员。
     FunctionModule,
