@@ -26,6 +26,38 @@ pub(crate) fn registration(
     ]
 }
 
+/// #US token为24bit偏移。按所有ldstr逐个计入（不依赖去重），超限明确拒绝。
+/// 单载荷最多4MiB UTF-8/8MiB UTF-16；新增方法体恒定20字节，分块不减少heap。
+pub(crate) fn validate_heap(
+    program: &ryupy_mir::LinkedProgram,
+    res: &Resolution<'_>,
+) -> Result<(), crate::CodegenError> {
+    let Some(payload) = &program.distribution_metadata else {
+        return Ok(());
+    };
+    if payload.len() > 4 * 1024 * 1024 || program.trace_product.is_some() {
+        return Err(crate::CodegenError::Unsupported(
+            "分发载荷超过4MiB或与trace V1冲突".into(),
+        ));
+    }
+    let mut size = 1usize;
+    for method in res.type_definitions.iter().flat_map(|ty| &ty.methods) {
+        if let Some(body) = &method.body {
+            for instruction in &body.instructions {
+                if let Instruction::LoadString(text) = instruction {
+                    size = size.saturating_add(text.len().saturating_mul(2).saturating_add(5));
+                }
+            }
+        }
+    }
+    if size > 0x00ff_ffff {
+        return Err(crate::CodegenError::Unsupported(
+            "分发产品的完整#US预算超过24bit".into(),
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -136,36 +168,4 @@ mod tests {
                 .collect::<Vec<_>>()
         );
     }
-}
-
-/// #US token为24bit偏移。按所有ldstr逐个计入（不依赖去重），超限明确拒绝。
-/// 单载荷最多4MiB UTF-8/8MiB UTF-16；新增方法体恒定20字节，分块不减少heap。
-pub(crate) fn validate_heap(
-    program: &ryupy_mir::LinkedProgram,
-    res: &Resolution<'_>,
-) -> Result<(), crate::CodegenError> {
-    let Some(payload) = &program.distribution_metadata else {
-        return Ok(());
-    };
-    if payload.len() > 4 * 1024 * 1024 || program.trace_product.is_some() {
-        return Err(crate::CodegenError::Unsupported(
-            "分发载荷超过4MiB或与trace V1冲突".into(),
-        ));
-    }
-    let mut size = 1usize;
-    for method in res.type_definitions.iter().flat_map(|ty| &ty.methods) {
-        if let Some(body) = &method.body {
-            for instruction in &body.instructions {
-                if let Instruction::LoadString(text) = instruction {
-                    size = size.saturating_add(text.len().saturating_mul(2).saturating_add(5));
-                }
-            }
-        }
-    }
-    if size > 0x00ff_ffff {
-        return Err(crate::CodegenError::Unsupported(
-            "分发产品的完整#US预算超过24bit".into(),
-        ));
-    }
-    Ok(())
 }

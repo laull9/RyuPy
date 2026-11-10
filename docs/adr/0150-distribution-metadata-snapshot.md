@@ -33,3 +33,17 @@ version/files/requires/Distribution等8个未实现高级名字不公开，普�
 修订003：native metadata的EntryPoint/EntryPoints替换与删除在本轮域外，构造NI另行登记。
 向这两个名字赋同一真实类型对象允许；不同对象在字典写入前按ReferenceEquals拒绝，不执行用户比较。
 import_module与entry_points仍允许普通重绑；源码metadata自己的setter不受此native限制。
+
+## CLR 公开 ABI 的有限增量
+
+S1 全程序集门独立列出 24 条 metadata 冷部署/模块对象适配签名，包含
+Configure(Type,string)、真实 EntryPoint/EntryPoints 类型及其公开协议、只读属性、
+import_module 工厂/入口和 metadata 注册入口。getter 与 property 各自按原提取字段计数。
+旧 1659 条、V1 十二条、来源四条分别保留；V1 专属 1659→1671 判定不变。
+组合门精确要求 1699 条并拒绝重复、缺失、改签及未知增量，不授予未来 API 通行证。
+
+CI 42794868125 的 S1 旧红灯是未列入这 24 条的精确增量不符，不是已证明旧签名删除。
+审查依据：distribution-metadata-001 的 review/ABI-ADDITIONS-REVIEW.md 与
+ci-42794868125/protection/S1-ABI-DIFF.json；旧失败原件保留，新测试仍待 hosted 执行。
+范围仅为既有 PublicAbi 提取字段，不包含默认参数、常量、全部属性或完整程序集 scope。
+这不修改 runtime 可见性或热 ABI，也不代表完整 Python metadata、原 Markdown 77B 或 AOT 红灯已通过。
