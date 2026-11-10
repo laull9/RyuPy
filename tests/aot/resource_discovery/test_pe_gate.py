@@ -1,6 +1,15 @@
-"""固定PE/Native输入门的纯合成反例；不是真PE或产品运行证明。"""
+"""固定PE/Native输入门及解释器身份的纯Python回归；不是真PE或产品运行证明。"""
 from copy import deepcopy
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
 from pe_gate import check, bind_native_inputs
 
 
@@ -111,6 +120,60 @@ class RejectionTests(unittest.TestCase):
     def test_empty_or_unrelated_method_cannot_claim_static_capability(self):
         with self.assertRaises(ValueError):
             check({'methods': [], 'sha256': 'synthetic'}, 'resource')
+
+
+class InterpreterIdentityTests(unittest.TestCase):
+    def test_execute_resolves_only_interpreter_and_preserves_plain_file_guards(self):
+        # 独立名字加载真实execute；导入路径/模块变更不泄漏到其它纯测试。
+        spec = importlib.util.spec_from_file_location('resource_discovery_runner', Path(__file__).with_name('run.py'))
+        runner = importlib.util.module_from_spec(spec)
+        with patch.object(sys, 'path', list(sys.path)), patch.dict(sys.modules):
+            spec.loader.exec_module(runner)
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            cli = root / 'target/debug/ryupy'
+            runtime = root / 'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll'
+            dotnet, python = root / 'dotnet', root / 'python3.12'
+            inputs = {cli: b'cli', runtime: b'runtime', dotnet: b'dotnet', python: b'python'}
+            for path, value in inputs.items():
+                path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(value)
+            link = root / 'python3'; link.symlink_to(python.name)
+            frozen = {str(path): hashlib.sha256(value).hexdigest() for path, value in inputs.items()}
+            prior = root / 'target/pyfiglet-deployment-evidence'; prior.mkdir()
+            runner.save(prior / 'result.json', {'status': 'explicit-deployment-passed'})
+            runner.save(prior / 'input-tools.json', {'source': ['synthetic-head'], 'files': frozen})
+            out = root / 'evidence'; out.mkdir()
+            commands = Mock(spec=['run'])
+            commands.run.side_effect = AssertionError('纯回归不得启动产品')
+            save = runner.save
+            class IdentityRecorded(Exception):
+                pass
+            def stop_after_identity(path, value):
+                # 在实际inputs落盘之后停止，绝不进入fixture物化/首个产品命令。
+                self.assertEqual(path, out / 'inputs.json')
+                save(path, value)
+                raise IdentityRecorded
+            with patch.object(runner, 'REPO', root), patch.object(runner, 'save', stop_after_identity), \
+                    patch.object(runner, 'sys', SimpleNamespace(executable=str(link), version_info=(3, 12, 13))), \
+                    patch.dict(os.environ, GITHUB_ACTIONS='true', RUNNER_ENVIRONMENT='github-hosted',
+                               GITHUB_SHA='synthetic-head', DOTNET=str(dotnet)):
+                with self.assertRaises(IdentityRecorded):
+                    runner.execute(out, commands)
+                self.assertEqual(json.loads((out / 'inputs.json').read_text()), frozen)
+                self.assertNotIn(str(link), frozen)
+                # 通用sha/plain_stat不改：直接链接、目录以及解析后目录仍拒绝。
+                for path in (link, root):
+                    with self.subTest(path=path.name), self.assertRaises(ValueError):
+                        runner.sha(path)
+                directory_link = root / 'python-dir'; directory_link.symlink_to(root, target_is_directory=True)
+                with patch.object(runner.sys, 'executable', str(directory_link)), \
+                        self.assertRaisesRegex(ValueError, '非普通文件'):
+                    runner.execute(out, commands)
+                dangling = root / 'python-missing'; dangling.symlink_to('missing-python')
+                with patch.object(runner.sys, 'executable', str(dangling)), self.assertRaises(FileNotFoundError):
+                    runner.execute(out, commands)
+            commands.run.assert_not_called()
+            self.assertFalse((out / 'original').exists())
 
 
 if __name__ == '__main__':

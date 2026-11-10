@@ -36,7 +36,8 @@ def execute(out, run):
     dotnet = Path(os.environ['DOTNET']).resolve()
     env = base_environment(dotnet, runtime)
     source = REPO / 'tests/fixtures/resource_discovery'
-    frozen = {str(path): sha(path) for path in [cli, runtime, dotnet, Path(sys.executable)]}
+    # 官方CP入口可为链接；只在工具身份入口解析，sha仍只接受普通文件。
+    frozen = {str(path): sha(path) for path in [cli, runtime, dotnet, Path(sys.executable).resolve(strict=True)]}
     runtime_size = runtime.stat().st_size
     frozen.update({str(path): sha(path) for path in source.rglob('*') if path.is_file()})
     prior = REPO / 'target/pyfiglet-deployment-evidence'
