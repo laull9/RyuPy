@@ -126,6 +126,22 @@ public sealed class PyTraceStateV1ArtifactContractTests
         Assert.False(contract.Allows(good with { Source = C.Method("PyTraceProduct", "Hidden", "Void") }));
         Assert.False(contract.Allows(new("PyIO", C.Method("PyIO", "Guard", "Object", false, "System.Func`1<Object>"), "IL",
             "call PyTraceProduct::NativeFresh[16;1;1](!!0)->!!0<PyTypeError>")));
+        string lookup = C.Method("PyOps", "LoadDefaultBuiltin", "Object", false, "String");
+        foreach (string type in new[] { "PyNotImplementedError", "PyNameError" })
+        {
+            var producer = new C.Edge("PyOps", lookup, "IL", "call PyTraceProduct::NativeFresh[16;1;1](!!0)->!!0<" + type + ">");
+            Assert.True(contract.Allows(producer));
+            foreach (string wrong in new[] { C.Method("PyOps", "LoadDefaultBuiltinExtra", "Object", false, "String"),
+                C.Method("PyOps", "LoadDefaultBuiltin", "String", false, "String"),
+                C.Method("PyOps", "LoadDefaultBuiltin", "Object", false, "Object"),
+                C.Method("PyOps", "LoadDefaultBuiltin", "Object", true, "String") })
+                Assert.False(contract.Allows(producer with { Source = wrong }));
+            foreach (string wrong in new[] { "PyTypeError", "PyBaseException" })
+                Assert.False(contract.Allows(producer with { Target = producer.Target.Replace("<" + type + ">", "<" + wrong + ">", StringComparison.Ordinal) }));
+            foreach (string op in new[] { "ldftn ", "callvirt " })
+                Assert.False(contract.Allows(producer with { Target = producer.Target.Replace("call ", op, StringComparison.Ordinal) }));
+        }
+        AssertDefaultBuiltinProducerStructure();
         string depth = C.Method("PyTraceProduct", "GeneratorDepth", "Int64");
         Assert.True(C.AllowsGeneratorStackUse(depth, "callvirt", C.Method("Stack<Int64>", "Peek", "!0", true)));
         Assert.False(C.AllowsGeneratorStackUse(depth, "callvirt", C.Method("Stack<Int64>", "Clear", "Void", true)));
@@ -152,6 +168,52 @@ public sealed class PyTraceStateV1ArtifactContractTests
             Assert.False(contract.Allows(local with { Kind = "IL", Target = "box " + local.Target }));
             Assert.False(contract.Allows(local with { Kind = "IL", Target = "ldftn " + C.Method("PyTraceState", "Receive", "TraceResult", true, "TraceReceive") }));
         }
+    }
+
+    // 只测直线producer判定器，不把合成记录冒称候选Debug/Release的真实IL。
+    private static void AssertDefaultBuiltinProducerStructure()
+    {
+        string source = PyTraceStateArtifactTests.DefaultBuiltinProducerSource;
+        string Fresh(string type) => "PyTraceProduct::NativeFresh[16;1;1](!!0)->!!0<" + type + ">";
+        (int Offset, string Op, string? Target, long? Integer)[] good =
+        [
+            (0, "newobj", C.Method("PyNotImplementedError", ".ctor", "Void", true, "String"), null),
+            (5, "nop", null, null), (6, "call", Fresh("PyNotImplementedError"), null),
+            (11, "nop", null, null), (12, "throw", null, null),
+            (13, "newobj", C.Method("PyNameError", ".ctor", "Void", true, "String"), null),
+            (18, "call", Fresh("PyNameError"), null), (23, "throw", null, null), (24, "ret", null, null)
+        ];
+        string[] Check((int Offset, string Op, string? Target, long? Integer)[] il, string[]? names = null,
+            int attributes = 150, int regions = 0)
+            => PyTraceStateArtifactTests.DefaultBuiltinProducerProbe(names ?? [source], attributes, il, regions);
+        Assert.Empty(Check(good));
+        Assert.Empty(Check(good.Where(i => i.Op != "nop").ToArray()));
+        Assert.NotEmpty(Check(good, [])); Assert.NotEmpty(Check(good, [source, source]));
+        Assert.NotEmpty(Check(good, [source.Replace("(String)", "(Object)", StringComparison.Ordinal)]));
+        Assert.NotEmpty(Check(good, attributes: 134)); Assert.NotEmpty(Check(good, regions: 1));
+        foreach (int index in new[] { 4, 7 })
+        {
+            var changed = good.ToArray(); changed[index] = (changed[index].Offset, "ret", changed[index].Target, changed[index].Integer);
+            Assert.NotEmpty(Check(changed));
+        }
+        foreach (string op in new[] { "stloc.0", "stfld", "dup", "call", "ret", "br.s" })
+        foreach (int index in new[] { 2, 4, 6, 7 })
+            Assert.NotEmpty(Check(good.Take(index).Append((good[index].Offset, op, (string?)null, (long?)null)).Concat(good.Skip(index)).ToArray()));
+        foreach (string op in new[] { "br", "br.s", "beq.s", "leave" })
+        foreach (long target in new long[] { 5, 6, 11, 12, 18, 23 })
+            Assert.NotEmpty(Check(good.Append((25, op, (string?)null, (long?)target)).ToArray()));
+        // 跳到newobj本身仍会新建；仅constructor之后的入口被拒绝。
+        foreach (long target in new long[] { 0, 13 })
+            Assert.Empty(Check(good.Append((25, "br.s", (string?)null, (long?)target)).ToArray()));
+        foreach (string op in new[] { "switch", "throw", "rethrow" })
+            Assert.NotEmpty(Check(good.Append((25, op, (string?)null, (long?)null)).ToArray()));
+        foreach (int index in new[] { 0, 2, 5, 6 })
+        {
+            Assert.NotEmpty(Check(good.Append(good[index]).ToArray()));
+            Assert.NotEmpty(Check(good.Where((_, at) => at != index).ToArray()));
+        }
+        var wrongFresh = good.ToArray(); wrongFresh[2] = (wrongFresh[2].Offset, wrongFresh[2].Op, Fresh("PyTypeError"), wrongFresh[2].Integer);
+        Assert.NotEmpty(Check(wrongFresh));
     }
 
     [Fact]

@@ -43,6 +43,7 @@ PLAN = {
         "ProducedAssemblyPreservesEveryBaselinePublicSignature": FACT,
         "ActualPeRejectsReceiveInjectedIntoFramesProjection": FACT,
         "ActualPeRejectsAllMissChangedToConsume": FACT,
+        "ActualPeRejectsDefaultBuiltinFreshReturnInsteadOfThrow": FACT,
     },
     "PyTraceStateV1ArtifactContractTests": {
         "PublicIncrementContainsOnlyTheTwelveApprovedRecords": FACT,

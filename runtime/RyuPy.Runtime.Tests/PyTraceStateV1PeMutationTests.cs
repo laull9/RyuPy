@@ -69,4 +69,52 @@ public partial class PyTraceStateArtifactTests
         finally { File.Delete(mutated); }
     }
 
+    [Fact]
+    public void ActualPeRejectsDefaultBuiltinFreshReturnInsteadOfThrow()
+    {
+        string candidate = Candidate();
+        AssertCandidatePe(candidate, "candidate-pe-before-default-builtin-mutation.json");
+        byte[] original = File.ReadAllBytes(candidate);
+        string originalSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(original));
+        using var stream = new MemoryStream(original, writable: false);
+        using var pe = new PEReader(stream); var metadata = pe.GetMetadataReader(); var names = new Signatures();
+        string source = "RyuPy.Runtime." + DefaultBuiltinProducerSource;
+        var handle = metadata.MethodDefinitions.Single(h => Resolve(metadata, h, names) == source);
+        var method = metadata.GetMethodDefinition(handle); var body = pe.GetMethodBody(method.RelativeVirtualAddress);
+        var raw = DecodeTraceInstructions(body.GetILBytes()!, metadata, names);
+        var il = raw.Where(i => i.Op != "nop").ToArray();
+        Assert.Empty(body.ExceptionRegions);
+        Evidence("default-builtin-producer-original.json", new { candidate, sha256 = originalSha256, source,
+            attributes = (int)method.Attributes, instructions = raw, regions = body.ExceptionRegions.Length,
+            phase = "original-candidate", mutationStarted = false });
+        var section = pe.PEHeaders.SectionHeaders.Single(s => method.RelativeVirtualAddress >= s.VirtualAddress
+            && method.RelativeVirtualAddress < s.VirtualAddress + Math.Max(s.VirtualSize, s.SizeOfRawData));
+        int start = section.PointerToRawData + method.RelativeVirtualAddress - section.VirtualAddress;
+        int header = (original[start] & 3) == 2 ? 1 : (BitConverter.ToUInt16(original, start) >> 12) * 4;
+        // 两分支均从原件各复制一次，不能把第二次变异叠在第一次上。
+        foreach (string type in new[] { "PyNotImplementedError", "PyNameError" })
+        {
+            string fresh = "RyuPy.Runtime.PyTraceProduct::NativeFresh[16;1;1](!!0)->!!0<RyuPy.Runtime." + type + ">";
+            int call = Array.FindIndex(il, i => i.Op == "call" && i.Target == fresh);
+            Assert.True(call >= 0 && call + 1 < il.Length); Assert.Equal("throw", il[call + 1].Op);
+            int offset = start + header + il[call + 1].Offset;
+            Assert.Equal(0x7a, original[offset]);
+            byte[] bytes = (byte[])original.Clone(); bytes[offset] = 0x2a; // throw→ret，返回Object且不改指令长度。
+            Assert.Single(bytes.Select((value, index) => (value, index)).Where(x => x.value != original[x.index]));
+            string mutated = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllBytes(mutated, bytes);
+                var audit = ScanV1(mutated);
+                Evidence("default-builtin-" + type + "-throw-ret.json", new { originalSha256,
+                    mutatedSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(mutated))),
+                    source, type, offset, originalOpcode = 0x7a, mutatedOpcode = 0x2a,
+                    phase = "read-only-mutant", mutationStarted = true, audit.Violations });
+                Assert.Contains(audit.Violations, value => value.Contains(DefaultBuiltinProducerFailure + DefaultBuiltinProducerSource, StringComparison.Ordinal)
+                    && value.Contains(type + "必须对应newobj→NativeFresh→throw", StringComparison.Ordinal));
+            }
+            finally { File.Delete(mutated); }
+        }
+    }
+
 }

@@ -119,6 +119,7 @@ internal sealed partial class PyTraceStateV1ArtifactContract
         Rule(S("PyTraceback", "ReportClr", "Void", "System.Exception"), [], enabled, FreshCall("PyBaseException"));
         Rule(S("PyErrors", "Load", "Object", "Object", "String"), [], FreshCall("PyUnboundLocalError"));
         Rule(S("PyOps", "ThrowUnboundGlobal", "Void", "String"), [], FreshCall("PyNotImplementedError"), FreshCall("PyNameError"));
+        Rule(S("PyOps", "LoadDefaultBuiltin", "Object", "String"), [], FreshCall("PyNotImplementedError"), FreshCall("PyNameError"));
         Rule(S("PyIO", "Guard", "Object", "System.Func`1<Object>"), [], enabled, FreshCall("PyBaseException"));
         Rule(I("PyGenerator", "Next", "Object", "Object", "Boolean"), [], FreshCall("PyStopIteration"));
         Rule(I("PyGenerator", "MoveNextCore", "Boolean", "Object", "Object&", "PyBaseException"), [], enabled,

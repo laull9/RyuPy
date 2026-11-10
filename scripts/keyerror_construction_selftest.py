@@ -3,7 +3,6 @@ import copy
 import hashlib
 import os
 from pathlib import Path
-import subprocess
 import shutil
 import tempfile
 import unittest
@@ -15,6 +14,18 @@ import decimal_percent_validation as old_gate
 import decimal_percent_selftest as old_tests
 import textwrap_dedent_selftest as selector
 from re_scanner_selftest import write_process
+
+
+# 保真收录109原控制器，不依赖快照CI不可见的本地Git历史；不得换成当前实现自比。
+DECIMAL_BASELINE = Path(__file__).with_name('baselines') / 'decimal_percent_validation_109ac7b.py.txt'
+DECIMAL_BASELINE_SHA256 = 'feb781e33eb4137cd004c8f0ea906196be7ec20b173009afa567935b6fd5d4b5'
+
+
+def decimal_baseline_source(path=DECIMAL_BASELINE):
+    raw = path.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != DECIMAL_BASELINE_SHA256:
+        raise ValueError('109历史控制器原件缺失或改变，不能跳过或替换基线')
+    return raw
 
 
 class KeyErrorControlTests(unittest.TestCase):
@@ -119,7 +130,7 @@ class KeyErrorControlTests(unittest.TestCase):
 
     def test_original_decimal_default_is_equivalent_to_109_source(self):
         # 只加载已确认基线的Python控制器，不执行产品；逐对象比较默认row、argv和阶段计划。
-        raw=subprocess.check_output(['git','show','109ac7b1b2737b88fc6fc3e60c8c74cd07adb92a:scripts/decimal_percent_validation.py'],cwd=c.ROOT,text=True)
+        raw=decimal_baseline_source()
         namespace={'__name__':'decimal_baseline_control','__file__':str(c.ROOT/'scripts/decimal_percent_validation.py')}
         exec(compile(raw,'109-decimal-control','exec'),namespace)
         with tempfile.TemporaryDirectory() as temp,mock.patch.object(old_gate,'ROOT',Path(temp)):
@@ -137,6 +148,17 @@ class KeyErrorControlTests(unittest.TestCase):
                         self.assertEqual(old_gate.helper.build_argv(baseline,case,baseline.graph_target(graph),aot),current.build_argv(case,current.graph_target(graph),aot))
                     self.assertEqual(current.cp_argv(case,Path(case['source'])),[baseline.python,'-I','-B',Path(case['source']),*case['argv']])
             for row in baseline.data['old_cases']:self.assertEqual(baseline.old_compile_argv(row),current.old_compile_argv(row))
+
+    def test_history_baseline_missing_or_changed_is_rejected_without_fallback(self):
+        raw = decimal_baseline_source()
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'baseline.py.txt'
+            with self.assertRaises(FileNotFoundError): decimal_baseline_source(path)
+            for wrong in (raw + b'\n# changed\n', raw[:-1], (c.ROOT / 'scripts/decimal_percent_validation.py').read_bytes()):
+                path.write_bytes(wrong)
+                with self.assertRaises(ValueError): decimal_baseline_source(path)
+            path.write_bytes(raw)
+            self.assertEqual(decimal_baseline_source(path), raw)
 
     def fixture(self, root, compile_failed=False, csharp_failed=False):
         with mock.patch.object(old_gate, 'ROOT', root): runner = gate.Runner()

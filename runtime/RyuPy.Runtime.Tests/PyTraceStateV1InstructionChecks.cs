@@ -1,6 +1,7 @@
 // 少数必须有的写入与相对顺序：不以允许边集合冒充 activation、域生命周期或发布原子性。
 // 这些检查只覆盖明确成员；真实行为仍交给 lifecycle/产品差分，不实现通用 IL 数据流框架。
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using C = RyuPy.Runtime.Tests.PyTraceStateV1ArtifactContract;
 
@@ -8,10 +9,66 @@ namespace RyuPy.Runtime.Tests;
 
 public partial class PyTraceStateArtifactTests
 {
+    internal const string DefaultBuiltinProducerSource = "PyOps::LoadDefaultBuiltin[0;0;1](String)->Object";
+    private const string DefaultBuiltinProducerFailure = "默认builtins producer结构：";
+
+    // 仅本新增producer的有界直线合同；允许nop，不推断局部溢出、helper或分支等价。
+    private static void CheckDefaultBuiltinProducer(TraceBody[] bodies, List<string> failures)
+    {
+        void Need(bool condition, string reason)
+        {
+            if (!condition) failures.Add(DefaultBuiltinProducerFailure + DefaultBuiltinProducerSource + " | " + reason);
+        }
+        var matches = bodies.Where(b => b.Source == DefaultBuiltinProducerSource).ToArray();
+        Need(matches.Length == 1, "完整静态签名必须唯一存在");
+        if (matches.Length != 1) return;
+        var body = matches[0]; var raw = body.Instructions;
+        Need(body.Owner == "PyOps" && (body.Attributes & (int)MethodAttributes.Static) != 0, "必须真实PyOps静态成员");
+        Need(body.Regions.Length == 0, "不得有EH入口");
+        Need(!raw.Any(i => i.Op == "switch"), "本窄域不接受switch");
+        var il = raw.Where(i => i.Op != "nop").ToArray();
+        const string fresh = "PyTraceProduct::NativeFresh[16;1;1](!!0)->!!0";
+        Need(il.Count(i => i.Target?.StartsWith("PyTraceProduct::NativeFresh", StringComparison.Ordinal) == true) == 2,
+            "NativeFresh总数必须恰为两次");
+        Need(il.Count(i => i.Op == "throw") == 2 && !il.Any(i => i.Op == "rethrow"), "必须仅有对应两次throw且无rethrow");
+        var branches = Opcodes.Values.Where(op => op.OperandType is OperandType.ShortInlineBrTarget or OperandType.InlineBrTarget)
+            .Select(op => op.Name!).ToHashSet(StringComparer.Ordinal);
+        foreach (string type in new[] { "PyNotImplementedError", "PyNameError" })
+        {
+            string constructor = C.Method(type, ".ctor", "Void", true, "String"), call = fresh + "<" + type + ">";
+            Need(il.Count(i => i.Target == constructor) == 1 && il.Any(i => i.Op == "newobj" && i.Target == constructor),
+                type + "匹配constructor须恰一次newobj");
+            var positions = il.Select((i, n) => (i, n)).Where(x => x.i.Target == call).Select(x => x.n).ToArray();
+            Need(positions.Length == 1, type + "匹配Fresh须恰一次");
+            if (positions.Length != 1) continue;
+            int at = positions[0];
+            bool sequence = at > 0 && at + 1 < il.Length && il[at - 1].Op == "newobj" && il[at - 1].Target == constructor
+                && il[at].Op == "call" && il[at + 1].Op == "throw";
+            Need(sequence, type + "必须对应newobj→NativeFresh→throw且只可夹nop");
+            if (!sequence) continue;
+            int start = il[at - 1].Offset, end = il[at + 1].Offset;
+            // 使用原offset区间，包含被忽略nop；不能跳过newobj后在中段重新进入。
+            Need(!raw.Any(i => branches.Contains(i.Op) && i.Integer is long target && target > start && target <= end),
+                type + "不得有分支进入constructor之后至throw的区间");
+        }
+    }
+
+    // 合成输入只验证上述判定器；真实门始终传入同一PE解码所得的完整方法集合。
+    internal static string[] DefaultBuiltinProducerProbe(string[] sources, int attributes,
+        (int Offset, string Op, string? Target, long? Integer)[] instructions, int regionCount = 0)
+    {
+        var bodies = sources.Select(source => new TraceBody("PyOps", source, attributes,
+            instructions.Select(i => new TraceInstruction(i.Offset, i.Op, i.Target, i.Integer)).ToArray(),
+            new ExceptionRegion[regionCount])).ToArray();
+        var failures = new List<string>(); CheckDefaultBuiltinProducer(bodies, failures);
+        return failures.ToArray();
+    }
+
     private static void CheckV1InstructionBoundaries(List<TraceBody> raw, List<string> failures)
     {
         var bodies = raw.Select(b => b with { Owner = C.Short(b.Owner), Source = C.Short(b.Source),
             Instructions = b.Instructions.Select(i => i with { Target = i.Target is null ? null : C.Short(i.Target) }).ToArray() }).ToArray();
+        CheckDefaultBuiltinProducer(bodies, failures);
         string M(string owner, string name, string result, bool instance = false, params string[] args)
             => C.Method(owner, name, result, instance, args);
         string P(string name, string result, params string[] args) => M("PyTraceProduct", name, result, false, args);
