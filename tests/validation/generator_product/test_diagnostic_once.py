@@ -52,7 +52,7 @@ class DiagnosticTests(unittest.TestCase):
         markdown_title = 'diagnostic-not-acceptance: markdown-preflight-001'
         noreturn_title = 'validation: typing-noreturn-001'
         expand_title = 'validation: text-expandtabs-001'
-        search_title = 'validation: text-search-001'
+        search_title = 'validation: text-search-002'
         cases = [(d.TITLE, 'push', d.REF, True), (d.TITLE.upper(), 'push', d.REF, False),
                  (d.TITLE + '\n', 'push', d.REF, False), ('normal commit', 'push', d.REF, False),
                  (d.TITLE, 'workflow_dispatch', d.REF, False), (None, 'push', d.REF, False),
@@ -75,6 +75,7 @@ class DiagnosticTests(unittest.TestCase):
             (search_title, 'push', d.REF), (search_title.upper(), 'push', d.REF),
             (search_title + '\n', 'push', d.REF), (search_title, 'workflow_dispatch', d.REF),
             (search_title, 'push', d.REF.upper())]]
+        cases.append(('validation: text-search-001', 'push', d.REF, False))
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for title, event_name, ref, expected in cases:

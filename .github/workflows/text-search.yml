@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         timeout-minutes: 2
         with:
-          fetch-depth: 2
+          fetch-depth: 3
           persist-credentials: false
       - name: 新旧控制自测，不运行产品
         timeout-minutes: 2

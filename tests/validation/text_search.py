@@ -49,7 +49,7 @@ class Runner(old.Runner):
                  'full-source-deletion-boundary', 'sourceprep']
         names += ['expandtabs-' + n + '-' + mode for n in old.EXPAND_CONTRACTS for mode in ('cp', 'jit', 'native')]
         names += [n + '-' + mode for n in [*DATA['fixtures'], 'markdown-plain', 'markdown-full']
-                  for mode in ('cp', 'jit', 'native')]
+                  for mode in (('cp', 'jit') if n == 'core' else ('cp', 'jit', 'native'))]
         self.result = {'passed': False, 'supported_contract_passed': False, 'full_contract_supported': False,
                        'identity_preserved': False, 'default_project_delta': 0, 'retries': 0,
                        'scope': '五搜索及真实ParserBase；旧保护和显式Markdown；非性能/默认晋升',
@@ -71,6 +71,9 @@ class Runner(old.Runner):
         self.checked('parent', ['git', 'rev-parse', 'HEAD^', 'HEAD^^{tree}'], 20)
         require((self.out / 'parent.stdout').read_text().splitlines() == [DATA['parent'], DATA['parent_tree']],
                 '直接远端父及tree不符')
+        self.checked('legacy-parent', ['git', 'rev-parse', 'HEAD^^', 'HEAD^^^{tree}'], 20)
+        require((self.out / 'legacy-parent.stdout').read_text().splitlines() ==
+                [DATA['legacy_parent'], DATA['legacy_tree']], '固定历史祖父及tree不符')
         self.checked('base-files', ['git', 'ls-tree', '-r', '-z', DATA['parent_tree']], 20)
         base = shared.tree_records((self.out / 'base-files.stdout').read_bytes())
         changed = {p for p in base.keys() | self.before['files'].keys() if base.get(p) != self.before['files'].get(p)}
@@ -98,7 +101,10 @@ class Runner(old.Runner):
             dest = saved / name; dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / name, dest)
         self.preserve(saved, 'contract-sources')
-        save(self.out / 'references.json', {'cp245': {'status': 'not-run', 'cases': 245,
+        save(self.out / 'references.json', {'core-native': {'status': 'historical-reference-not-rerun', 'run': 42769351447,
+             'exit': 1, 'relocated': False, 'supported': False,
+             'reason': '原字面量输入在旧前端合流为U+FFFD；保留原count期望1'},
+             'cp245': {'status': 'not-run', 'cases': 245,
              'script_sha256': '899fc6ea18adcf23c44e7de6d1dc4e4fea7ebe838bd2dc1bf00ebb33e72d20de'},
              'full-noreturn': {'status': 'historical-reference-not-rerun', 'run': 42754725069,
              'cp_stdout_bytes': 1482, 'cp_stdout_sha256': old.ORACLE_SHA,
@@ -136,12 +142,13 @@ class Runner(old.Runner):
         require(sha(entry) == before and sha(self.python) == shared.PYTHON_SHA, 'CP前后身份改变')
         require(old.positive(record, self.out / label, golden), '同源CP不等于完整冻结golden')
 
-    def domain(self, name, entry, golden, inputs=None, markdown=False):
+    def domain(self, name, entry, golden, inputs=None, markdown=False, native=True):
         if not self.phase(name + '-cp', lambda: self.oracle(name, entry, golden, inputs)):
             return
         self.product_timeout = 30 if markdown else 15
         self.phase(name + '-jit', lambda: product.jit(self, name, entry, golden, inputs, markdown))
-        self.phase(name + '-native', lambda: product.markdown_boundary(self, name, entry, inputs) if markdown
+        if native:
+            self.phase(name + '-native', lambda: product.markdown_boundary(self, name, entry, inputs) if markdown
                    else product.native(self, name, entry, golden, inputs, False))
         self.product_timeout = 30
 
@@ -157,7 +164,7 @@ class Runner(old.Runner):
         for name, row in DATA['fixtures'].items():
             inputs = self.source_inputs if ready and name == 'markupbase_updatepos' else None
             if name == 'markupbase_updatepos' and not ready: continue
-            self.domain(name, ROOT / row['source'], bytes.fromhex(row['stdout_hex']), inputs)
+            self.domain(name, ROOT / row['source'], bytes.fromhex(row['stdout_hex']), inputs, native=row.get('native', True))
         if ready:
             golden = (self.source_inputs / 'stdout.txt').read_bytes()
             require(len(golden) == 77, 'Markdown完整golden大小不符')

@@ -31,7 +31,7 @@ class Tests(unittest.TestCase):
 
     def test_frozen_files_and_fact_names_are_real(self):
         import re
-        self.assertEqual(len(set(s.DATA['implementation_paths'])), 19)
+        self.assertEqual(len(set(s.DATA['implementation_paths'])), 21)
         self.assertEqual(set(s.DATA['frozen']), set(s.DATA['implementation_paths']) |
                          set(s.old.FROZEN) | set(s.old.EXPAND_FROZEN))
         for path, expected in s.DATA['frozen'].items():
@@ -45,6 +45,50 @@ class Tests(unittest.TestCase):
             import hashlib
             self.assertEqual(len(golden), row['bytes'])
             self.assertEqual(hashlib.sha256(golden).hexdigest(), row['stdout_sha256'])
+
+    def test_supported_ast_preserves_all_windows_and_legal_assertions(self):
+        # 不执行fixture；只将chr常量折叠为CP码点，再比较整棵原AST。
+        import ast
+        original = ast.parse((s.ROOT / s.DATA['fixtures']['core']['source']).read_text())
+        supported = ast.parse((s.ROOT / s.DATA['fixtures']['core_supported']['source']).read_text())
+        class Fold(ast.NodeTransformer):
+            def visit_Call(self, node):
+                node = self.generic_visit(node)
+                if isinstance(node.func, ast.Name) and node.func.id == 'chr':
+                    self_value = ast.literal_eval(node.args[0])
+                    return ast.Constant(chr(self_value))
+                return node
+            def visit_BinOp(self, node):
+                node = self.generic_visit(node)
+                if isinstance(node.op, ast.Add) and isinstance(node.left, ast.Constant) and isinstance(node.right, ast.Constant):
+                    return ast.Constant(node.left.value + node.right.value)
+                return node
+        supported = Fold().visit(supported)
+        text = next(n for n in original.body if isinstance(n, ast.ClassDef) and n.name == 'Text')
+        self.assertEqual([n.name for n in text.body], ['__str__', '__len__'])
+        text.body = text.body[:1]
+        self.assertEqual(original.body[-1].value.args[0].value, 'text search core')
+        self.assertEqual(supported.body[-1].value.args[0].value, 'text search core supported')
+        supported.body[-1] = original.body[-1]
+        self.assertEqual(ast.dump(original), ast.dump(supported))
+
+    def test_full_core_stays_failed_and_native_budget_stays_eight(self):
+        self.assertFalse(s.DATA['fixtures']['core']['native'])
+        self.assertEqual(bytes.fromhex(s.DATA['fixtures']['core']['stdout_hex']), b'text search core\n')
+        self.assertEqual(1 + len(s.old.EXPAND_CONTRACTS) + sum(
+            row.get('native', True) for row in s.DATA['fixtures'].values()), 8)
+        with tempfile.TemporaryDirectory() as tmp, patch.object(s, 'ROOT', Path(tmp)):
+            runner = s.Runner(); runner.env = {}; runner.oracle = lambda *a: None
+            with patch.object(p, 'jit', side_effect=ValueError('original core failure')), patch.object(p, 'native') as native:
+                runner.domain('core', Path('core.py'), b'text search core\n', native=False)
+            native.assert_not_called()
+            self.assertFalse(runner.result['stages']['core-jit']['passed'])
+            self.assertEqual(runner.result['stages']['core-jit']['status'], 'failed')
+            self.assertNotIn('core-native', runner.result['stages'])
+            self.assertFalse(runner.result['full_contract_supported'])
+        self.assertEqual(s.DATA['legacy_parent'], '98cdc560427eb047598924f0fad3d7fc13caaabc')
+        self.assertEqual(s.DATA['legacy_tree'], '911e9c735ef01ed878a17f9f1953307010a3afa5')
+        self.assertIn('fetch-depth: 3', (s.ROOT / '.github/workflows/text-search.yml').read_text())
 
     def test_trx_requires_exact_all_passed_counter(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -239,8 +283,8 @@ class Tests(unittest.TestCase):
             self.assertLessEqual(len((s.ROOT / 'tests/validation' / filename).read_text().splitlines()), 600)
 
 
-def legacy_control():
-    """19项检查当前源，唯一候选hash方法检查真实公共父的15路径；不改原方法。"""
+def legacy_control(local_tree=False):
+    """19项检查当前源，唯一候选hash方法检查固定历史公共祖父的15路径；不改原方法。"""
     import subprocess
     import test_typing_noreturn as legacy
     historical = 'test_expand_frozen_oracles_and_unchanged_production'
@@ -249,9 +293,9 @@ def legacy_control():
     current = unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(
         legacy.Tests(name) for name in names if name != historical))
     print('legacy-control: 19 current-source methods; one historical identity method follows', flush=True)
-    parent = s.DATA['parent']
+    parent = s.DATA['legacy_tree'] if local_tree else s.DATA['legacy_parent']
     tree = subprocess.check_output(['git', 'rev-parse', parent + '^{tree}'], cwd=s.ROOT, text=True).strip()
-    s.require(tree == s.DATA['parent_tree'], '公共直接父tree不符')
+    s.require(tree == s.DATA['legacy_tree'], '固定历史tree不符')
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         for name, expected in s.old.EXPAND_FROZEN.items():
@@ -266,6 +310,6 @@ def legacy_control():
 
 if __name__ == '__main__':
     import sys
-    if sys.argv[1:] == ['--legacy-control']:
-        raise SystemExit(legacy_control())
+    if sys.argv[1:] in (['--legacy-control'], ['--legacy-control-local-tree']):
+        raise SystemExit(legacy_control(local_tree=sys.argv[1] == '--legacy-control-local-tree'))
     unittest.main()

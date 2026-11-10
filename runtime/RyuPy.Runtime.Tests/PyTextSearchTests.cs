@@ -70,7 +70,18 @@ public sealed class PyTextSearchTests
     {
         var cls = (PyClass)PyOps.MakeClass("SearchText", [PyType.Get("str")], null); PyOps.FinalizeOrdinaryClass(cls);
         cls.SetAttr("__str__", Fn(_ => throw new PyValueError("unexpected str")));
-        cls.SetAttr("__len__", Fn(_ => throw new PyValueError("unexpected len")));
+        // 旧槽拒绝必须发生在写入/版本变化之前；不绕过守卫构造伪支持类。
+        long version = cls.Version; int attributes = cls.Attributes.Count;
+        Assert.Equal("str subclass slot __len__ is not supported",
+            Assert.Throws<PyNotImplementedError>(() => cls.SetAttr("__len__", Fn(_ => throw new PyValueError("unexpected len")))).PyMessage);
+        Assert.Equal(version, cls.Version); Assert.Equal(attributes, cls.Attributes.Count);
+        Assert.False(cls.Attributes.ContainsKey("__len__"));
+        var invalid = (PyClass)PyOps.MakeClass("SearchInvalidText", [PyType.Get("str")], null);
+        invalid.SetAttr("__len__", Fn(_ => 1L)); long invalidVersion = invalid.Version;
+        Assert.Equal("str subclass slot __len__ is not supported",
+            Assert.Throws<PyNotImplementedError>(() => PyOps.FinalizeOrdinaryClass(invalid)).PyMessage);
+        Assert.Equal(invalidVersion, invalid.Version);
+        Assert.Throws<PyNotImplementedError>(() => invalid.Invoke(["a"], [], []));
         object text = cls.Invoke(["a😀a"], [], [])!, needle = cls.Invoke(["a"], [], [])!;
         long[] expected = [2, 0, 2, 0, 2];
         foreach (string route in new[] { "direct", "saved", "prepared", "root" })

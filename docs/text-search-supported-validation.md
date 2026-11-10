@@ -1,0 +1,13 @@
+# 五搜索测试分层候选002
+
+本次仅测试、fixture、CI和文档变化，不扩字符串IR、str槽或warning能力，不声明性能收益或全支持。
+
+原core.py完整源及17B golden不改。42769351447中其JIT及原位Native失败：旧ruff字面量路径将孤立代理替成U+FFFD，输入合流后count为2，原CP期望1不应修改。half循环同样未覆盖真实半代理输入。后续Text.__len__亦超出旧str类槽域；该后续失败尚未在原产品执行到。
+
+core_supported.py将原代理及半pair以chr构造，CP码点与原literal一致；窗口及期望不改，保留__str__抛错、raw receiver/needle、保存绑定、根绑定、override和container断言。仅不含非法__len__槽，以独有完整marker区分支持域。原C#同一Fact先断言旧槽拒绝及无属性/版本变化，再执行原合法搜索断言，另保构造期拒绝；14 Fact名不变。
+
+CI标题限定validation: text-search-002。新支持域占8次Native计划中的原core位置，原core仍显式CP/JIT、失败保持failed；其Native只引用42769351447原失败，不加第9次publish。原warning、新warning、NoReturn完整删除边界和MarkdownAOT拒绝均保持原断言与失败口径，full_contract_supported仍false。
+
+直接公共父为d84de1133abfff43b90a7b63941e88030747e424/tree f76b07f22768064e07881e5c8a12280bd1a164d8；旧第20历史身份方法始终取98cdc560427eb047598924f0fad3d7fc13caaabc/tree911e9c735ef01ed878a17f9f1953307010a3afa5的15个真实blob。hosted深度3验证祖父；本地仅核真实tree，不声称不存在的公共commit已验。
+
+本地只运行新fixture一次固定CP和纯控制测试，不运行新JIT/Native、C#、Rust或完整门。支持域产品能力仍待同候选CI验收；整体不是GO。

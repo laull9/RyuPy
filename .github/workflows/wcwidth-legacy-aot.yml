@@ -37,7 +37,7 @@ jobs:
           diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'
           markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'
           noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001')
-          search = is_push and title == 'validation: text-search-001'
+          search = is_push and title == 'validation: text-search-002'
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('diagnostic=' + str(diagnostic).lower() + '\n')
               stream.write('markdown=' + str(markdown).lower() + '\n')
