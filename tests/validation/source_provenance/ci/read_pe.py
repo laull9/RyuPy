@@ -18,7 +18,7 @@ if len(sys.argv) == 6:
          'Native manifest只能显式用于new/native_consumers')
     native_path = Path(sys.argv[5])
 decoder = HERE / 'read_pe_decoder.py'
-need(hashlib.sha256(decoder.read_bytes()).hexdigest() == '3c20e0dbeef6fd07b4cd7246bd69e6dd356ca0c94a90c4d4101dca9921a0d1b9', '原解码器字节变化')
+need(hashlib.sha256(decoder.read_bytes()).hexdigest() == 'a8e468b66dbbeae46787db287bf487f89e776d5a3b1a3ce2f6d400d55d76b625', '原解码器字节变化')
 text = io.StringIO()
 status = 0
 with contextlib.redirect_stdout(text):

@@ -79,3 +79,5 @@ NotImplementedError。这是明确能力守卫，**不声称支持任意元类�
 ## 功能式调用来源候选（未验收）
 
 ADR0145候选只改变功能式调用来源：真实Main入口快照或Dynamic函数当前__module__，不是调用时globals或basename猜测。raw对象保身份，true原样/false main；真值AttributeError及子类才读同帧活globals，非None结果不再次求真值。二级None元类默认填充、非str直接/typing alias显示仍明确NI，并受旧正确路径不能回退的验收硬门。Static保旧ModuleForFile消费者，不能据signature声称支持可变真实Module。类语句的原模块名合同不在此切扩大。详见[ADR0145](adr/0145-compiled-source-provenance.md)；真实产品门未完成。
+
+ADR0146候选进一步把新编译Legacy Static的冷归属从注册表扫描分离：经精确V1 factory的自身signature取词法InitialName。旧CreateCodeSource/Unknown仍保上述旧算法，actual Dynamic函数Module真值/fallback不改。这只避免空子包扩图破坏既有正确Static路径；不修Static rebound或定义前globals改名，不表示完整TypedDict支持。真实JIT/Native与完整门待验。

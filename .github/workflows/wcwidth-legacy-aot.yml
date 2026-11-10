@@ -428,7 +428,7 @@ jobs:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 70
     env:
       CARGO_TERM_COLOR: never
       LC_ALL: C.UTF-8
@@ -449,6 +449,10 @@ jobs:
           exit "$status"
       - name: 一次CP与两JIT、唯一发布和四次Native
         run: '"$PYTHON" -B tests/aot/pyfiglet_ci/run.py'
+      - name: 通用资源PE判定器拒绝自测（无产品）
+        run: python3 -B -m unittest discover -s tests/aot/resource_discovery -p 'test_*.py'
+      - name: 同工具通用空包发现、原Static反例与显式资源Native
+        run: '"$PYTHON" -B tests/aot/resource_discovery/run.py'
       - name: 首次失败也收件完整原流、真实dist及发布树
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -456,6 +460,7 @@ jobs:
           name: pyfiglet-explicit-deployment-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/pyfiglet-deployment-evidence
+            target/resource-discovery-evidence
             target/pyfiglet-prepare
             ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
           if-no-files-found: error

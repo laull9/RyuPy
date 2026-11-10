@@ -153,7 +153,7 @@ def execute(options, output):
     write_json(output / "run.json", metadata)
     write_json(output / "summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False), flush=True)
-    print("保留通过只表示当前九项未丢失；默认晋升仍须恢复历史 progress。AOT/显式配置未运行。")
+    print("保留通过只表示当前十项（含恢复后的 progress）逐ID未丢失；不证明新项目或AOT/显式配置。")
     return 0 if summary["preserve_pass" if options.gate == "preserve" else "promotion_pass"] else 1
 
 

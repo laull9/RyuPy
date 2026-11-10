@@ -113,7 +113,7 @@ public partial class PyTraceStateArtifactTests
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1659逐字段保留，精确12条V1与ADR0145三条冷来源增量分立；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+            scope = "旧1659逐字段保留，精确12条V1与ADR0145三条及Legacy词法V1一条冷来源增量分立；不覆盖默认参数、常量、全部属性或完整程序集scope" });
         Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1或冷来源增量不符；见baseline-abi.json。");
     }
 
@@ -121,12 +121,13 @@ public partial class PyTraceStateArtifactTests
     internal static string[] SourcePublicAdditions() =>
     [
         "M:RyuPy.Runtime.PyOps:FunctionDefinitionWithSource:150:[0;0;4](Object,String,Int64,Object)->Void:",
+        "M:RyuPy.Runtime.PyTraceback:CreateLegacyCodeSourceV1:150:[0;0;3](String,String,RyuPy.Runtime.PyModuleGet)->Object:",
         "M:RyuPy.Runtime.PyTraceback:CreateCodeSource:150:[0;0;3](String,String,RyuPy.Runtime.PyModuleGet)->Object:",
         "M:RyuPy.Runtime.PyTraceback:CreateModuleExecutionSourceWithCode:150:[0;0;2](Object,Object)->Object:"
     ];
 
     internal static bool PreservesBaselineAbi(string[] before, string[] after)
-        => before.Length == 1659 && after.Length == 1674
+        => before.Length == 1659 && after.Length == 1675
             && before.Concat(PyTraceStateV1ArtifactContract.PublicAdditions()).Concat(SourcePublicAdditions())
                 .OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(after.OrderBy(x => x, StringComparer.Ordinal));
 

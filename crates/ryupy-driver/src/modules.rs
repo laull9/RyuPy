@@ -6,7 +6,7 @@
 //!
 //! 搜索路径为入口目录及显式search_paths，不自动扫描site-packages。普通AST导入未找到
 //! 源码时仍交原生注册表；显式include必须找到源码及普通父包，否则构建失败。
-//! include只建立依赖图，初始化仍发生在真实import时；不推断字符串调用或复制资源。
+//! include只建立硬依赖图；产品JIT另可选发现空资源子包，均不提前初始化或复制资源。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -16,10 +16,22 @@ use ryupy_syntax::ParsedModule;
 
 use crate::Session;
 
+#[path = "resource_discovery.rs"]
+mod resource_discovery;
+
+/// 只记录可选发现的实际理由，不改变模块执行资格。
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ResourceDiscovery {
+    pub source: String,
+    pub anchor: String,
+    pub reason: &'static str,
+}
+
 /// 一个已解析的源模块。
 pub struct SourceModule {
     /// 由实际resolver分支保留；同路径可有Package与ModuleFile两种身份。
     pub kind: SourceKind,
+    pub resource_discovery: Option<ResourceDiscovery>,
     /// 本次resolver选中的绝对lexical路径；不是canonical安全身份证明。
     pub resolved_source_path: PathBuf,
     /// 点分绝对模块名；入口是 `__main__`。
@@ -52,6 +64,34 @@ pub fn load_program_including(
     entry: &Path,
     search_paths: &[PathBuf],
     include_modules: &[String],
+) -> Result<(Vec<SourceModule>, usize)> {
+    load_program_with_discovery(sess, entry, search_paths, include_modules, false)
+}
+
+/// 产品编排入口复制本次显式include配置；发现范围仍由调用者的构建种类决定。
+pub(crate) fn load_build_graph(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+    discover_resources: bool,
+) -> Result<(Vec<SourceModule>, usize)> {
+    let include_modules = sess.include_modules.clone();
+    load_program_with_discovery(
+        sess,
+        entry,
+        search_paths,
+        &include_modules,
+        discover_resources,
+    )
+}
+
+/// 现有编排显式选择JIT发现；AOT与旧公开硬图入口不自动增图。
+pub(crate) fn load_program_with_discovery(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+    include_modules: &[String],
+    discover_resources: bool,
 ) -> Result<(Vec<SourceModule>, usize)> {
     let root = entry
         .parent()
@@ -109,6 +149,9 @@ pub fn load_program_including(
         modules.insert(name, source);
     }
 
+    if discover_resources {
+        resource_discovery::extend(sess, &roots, &entry_module, &mut modules);
+    }
     let mut ordered: Vec<SourceModule> = modules.into_values().collect();
     ordered.insert(0, entry_module);
     Ok((ordered, 0))
@@ -148,6 +191,7 @@ fn read_module(
     };
     Ok(SourceModule {
         kind,
+        resource_discovery: None,
         resolved_source_path,
         name: name.to_owned(),
         package: package.to_owned(),

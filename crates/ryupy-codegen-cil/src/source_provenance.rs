@@ -81,6 +81,9 @@ pub(crate) fn initialize(
     let create = res.push_method_reference(
         method_ref! { static object @traceback::CreateCodeSource(string, string, @getter) },
     );
+    let create_legacy = res.push_method_reference(
+        method_ref! { static object @traceback::CreateLegacyCodeSourceV1(string, string, @getter) },
+    );
     let mut instructions = Vec::new();
     for (global, declaration) in program.globals.iter() {
         let GlobalStorage::CodeSource {
@@ -113,7 +116,11 @@ pub(crate) fn initialize(
         } else {
             instructions.push(Instruction::LoadNull);
         }
-        instructions.push(Instruction::call(create));
+        instructions.push(Instruction::call(if legacy_entry.is_some() {
+            create_legacy
+        } else {
+            create
+        }));
         instructions.push(Instruction::StoreStaticField {
             volatile: false,
             param0: refs.global_fields[&global].into(),

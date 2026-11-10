@@ -749,3 +749,7 @@ networkx同机制函数未被固定入口调用，click终端分支也不能由g
 ## 2026-11-09 共同来源归属候选（未验收）
 
 原显式include空pkg.data导致warnings/功能式TypedDict来源歧义，现候选以实际code/env载体连接两消费者。有限Rust结构/类型门已完成，新增Runtime13具名测试及真实J1/J2、固定PE/JIT、旧新host、实际新Native和完整同HEAD保护尚待。Static TD旧债、二级None元类与非str显示边界见[ADR0145](adr/0145-compiled-source-provenance.md)。不改变固定20项目结果或原生覆盖比例，不宣称性能改善。
+
+### JIT资源闭包候选（2026-11-10，未晋升）
+
+ADR0146已接新Legacy冷词法能力与JIT-only空直接子包发现，当前只有有限Rust结构/类型检查。原pyfiglet无include完整入口、通用Static碰撞JIT/Native、两模式完整check和同HEAD固定20均待新工具实测；旧CI58的10/8/2不等于本候选结果。旧10（含progress）现按ID保护，pyfiglet暂不加长期通过列表。AOT仍显式include/resources，性能未测。

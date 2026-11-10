@@ -36,7 +36,7 @@ public sealed class PyTraceStateV1ArtifactContractTests
 
         // 复用本反例组验证全程序集门；V1 仍独立拒绝来源增量，S1 的精确测试名单不变。
         var source = PyTraceStateArtifactTests.SourcePublicAdditions();
-        Assert.Equal(3, source.Length); Assert.Equal(3, source.Distinct().Count());
+        Assert.Equal(4, source.Length); Assert.Equal(4, source.Distinct().Count());
         var combined = after.Concat(source).ToArray();
         Assert.False(C.PreservesAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before, combined));

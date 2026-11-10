@@ -48,6 +48,9 @@
         "--diagnostic-stages",
         "--out-dir",
         "{PRODUCT}"
+      ],
+      "discovered_modules": [
+        "pkg.data"
       ]
     },
     {

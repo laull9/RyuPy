@@ -109,6 +109,8 @@ pub(crate) fn plan_validated(
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ModuleEnvironmentDecision {
     pub module: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_discovery: Option<crate::modules::ResourceDiscovery>,
     pub execution: String,
     pub reason: String,
     pub compiled: bool,
@@ -125,6 +127,7 @@ pub(crate) fn record(
         .zip(plans)
         .map(|(source, plan)| ModuleEnvironmentDecision {
             module: source.name.clone(),
+            resource_discovery: source.resource_discovery.clone(),
             execution: format!("{:?}", plan.execution),
             reason: plan.reason.clone(),
             compiled: false,

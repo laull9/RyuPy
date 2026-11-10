@@ -104,3 +104,7 @@ TreeBuilder、tostring/XMLParser/ElementPath、clear/extend/remove和写删child
 401 e2e、234 ignored，不等于远端发布。Markdown窄配置转缺NoReturn仍未过，默认
 find_spec NI独立。范围见[容器API表](stdlib-collections.md)和[合同与验收](ordered-dict-core-slice.md)，
 成本见[性能原报告](ordered-dict-performance.md)。
+
+## importlib.resources 编译闭包候选补充
+
+ADR0146只为JIT显式literal files锚点可选发现空普通直接子包；资源API运行时行为、AOT显式include/resources和旧负域不变。`files`重绑仍实际调用，未知/非空/编码声明候选不强制编译。候选尚待原pyfiglet/通用Native与完整同HEAD验收，不计新API或项目通过。

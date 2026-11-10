@@ -198,7 +198,9 @@ fn runtime_call(instruction: &Instruction, res: &Resolution<'_>, owner: &str, na
     assert!(!signature.instance && !signature.explicit_this && signature.varargs.is_none());
     assert_eq!(signature.calling_convention, CallingConvention::Default);
     let expected: (&str, &[&str]) = match name {
-        "CreateCodeSource" => ("object", &["string", "string", "RyuPy.Runtime.PyModuleGet"]),
+        "CreateCodeSource" | "CreateLegacyCodeSourceV1" => {
+            ("object", &["string", "string", "RyuPy.Runtime.PyModuleGet"])
+        }
         "PushFrameWithOrigin" => ("long", &["string", "string", "object"]),
         "CreateModuleExecutionSourceWithCode" => ("object", &["object", "object"]),
         "FunctionDefinitionWithSource" => ("void", &["object", "string", "long", "object"]),
@@ -247,7 +249,7 @@ fn source_helpers_bind_actual_getters_fields_and_signature_operands() {
     let calls: Vec<_> = instructions
         .iter()
         .enumerate()
-        .filter(|(_, i)| runtime_call(i, &res, "PyTraceback", "CreateCodeSource"))
+        .filter(|(_, i)| runtime_call(i, &res, "PyTraceback", "CreateLegacyCodeSourceV1"))
         .map(|(at, _)| at)
         .collect();
     assert_eq!(calls.len(), 2);

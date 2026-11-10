@@ -34,7 +34,7 @@ make e2e-all                                # 包括 pending，看整体进度
 make build                                  # 打发行包：Release CLI + 运行时 → releases/*.tar.gz
 make snap                                   # 审阅快照变更
 make check                                  # 提交前必跑（含离线项目门禁自检）
-make projects-preserve                      # 完整20项默认JIT，按ID保护现有九项
+make projects-preserve                      # 完整20项默认JIT，按ID保护现有十项（含progress）
 make projects-promote                       # 另要求恢复历史progress回归
 ```
 
@@ -86,7 +86,7 @@ Phase 1 已完成 M1.0–M1.5；旧 M1.6 的 AOT 保持待做并转入 M5.2。�
 Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPython 基线，先确认 pending 程序本身成立；Rust e2e 仍跳过 pending。多文件辅助模块不单独发现，预期错误退出由独立 manifest 验证，详见 [tests/README.md](../tests/README.md)。
 
 项目能力保持与默认晋升使用[项目门禁](../tests/projects.md#p0按项目-id-的保留与默认晋升门禁)。
-`make check`绿色不替代完整固定20项；当前九项保持与历史progress恢复分别报告。原源由开发者预先
+`make check`绿色不替代完整固定20项；当前十项逐ID保持（含已恢复progress），新项目另行报告。原源由开发者预先
 准备，门禁不下载或改golden；定向--only结果不能替代完整矩阵。默认配置、显式配置和AOT分开验收。
 
 ## 5. 调试手段

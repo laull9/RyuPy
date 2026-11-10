@@ -33,7 +33,8 @@
     "wcwidth",
     "colorama",
     "termcolor",
-    "binaryornot"
+    "binaryornot",
+    "progress"
   ],
   "promotion_requires": [
     "progress"
@@ -103,5 +104,18 @@
     "tests/projects/baselines/tomli/stdout.txt": "d4a68402aa675c8b3d0f839bac01c87346f9c01baf49c2a27ce9e54f27b1b3bd",
     "tests/projects/baselines/wcwidth/meta.txt": "63104ea458e1d02e5b894f8891b6e506cf4878f55aac486ab11bdb0fe4483963",
     "tests/projects/baselines/wcwidth/stdout.txt": "c29e28be95be47b3502159b1369abf04f0da3a460af33f92358a941444e1ff6e"
-  }
+  },
+  "preservation_reference_commit": "f34f22b057974f60cfcfff52dd37b1f4e4dfb1ec",
+  "historical_protected_native": [
+    "tomli",
+    "docopt",
+    "tabulate",
+    "texttable",
+    "chardet",
+    "wcwidth",
+    "colorama",
+    "termcolor",
+    "binaryornot"
+  ],
+  "preservation_update_note": "f34/CI58完整20已实际恢复progress，当前protected_native为旧10逐ID保护；新增pyfiglet不能抵消回退。reference_commit及historical字段保旧九项/旧progress失败事实，不改历史。"
 }

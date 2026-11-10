@@ -137,6 +137,47 @@ public class PySourceProvenanceTests
     }
 
     [Fact]
+    public void LexicalStaticV1IgnoresRegistryCollisionAndNeverReadsGetter()
+    {
+        const string file = "lexical_static_v1_unique.py";
+        int reads = 0;
+        object source = PyTraceback.CreateLegacyCodeSourceV1("lexical_pkg", file,
+            _ => { reads++; throw new PyRuntimeError("getter must stay cold"); });
+        var signature = Signature(source, false);
+        Frame(signature, () => Assert.Equal("lexical_pkg", Module()), file);
+        foreach (string name in new[] { "lexical_pkg", "lexical_pkg.data" })
+            PyModules.Register(name, "", file, () => { }, _ => PyNone.Instance, (_, _, _) => { });
+        Frame(signature, () => Assert.Equal("lexical_pkg", Module()), file);
+        Assert.Equal(0, reads);
+        // 同样的旧host仍按注册表消费；新能力不能由getter存在或名称猜出。
+        object old = PyTraceback.CreateCodeSource("lexical_pkg", file, _ => PyNone.Instance);
+        Frame(Signature(old, false), () => Assert.Throws<PyNotImplementedError>(() => Module()), file);
+        Frame(null, () => Assert.Throws<PyNotImplementedError>(() => Module()), file);
+    }
+
+    [Fact]
+    public void LexicalStaticV1DoesNotReplaceActualFunctionOrModuleMetadata()
+    {
+        int reads = 0;
+        object source = PyTraceback.CreateLegacyCodeSourceV1("lexical", File,
+            _ => { reads++; return "changed_globals"; });
+        var signature = Signature(source);
+        var function = Function(signature, "definition");
+        Frame(function, () =>
+        {
+            Assert.Equal("definition", Module());
+            PyOps.FunctionModule(function, "rebound"); Assert.Equal("rebound", Module());
+        });
+        Frame(signature, () => Assert.Equal("lexical", Module()));
+        Frame(PyTraceback.CreateModuleExecutionSourceWithCode(source, null),
+            () => Assert.Equal("lexical", Module()));
+        Assert.Equal(0, reads);
+        Assert.Throws<PyTypeError>(() => PyTraceback.CreateLegacyCodeSourceV1("x", File, null!));
+        Assert.Throws<PyTypeError>(() => PyTraceback.CreateLegacyCodeSourceV1(null!, File, _ => null));
+        Assert.Throws<PyTypeError>(() => PyTraceback.CreateLegacyCodeSourceV1("x", null!, _ => null));
+    }
+
+    [Fact]
     public void TypedDictKeepsRawIdentityAndGuardsBothDisplayPaths()
     {
         var (source, _) = Legacy(); var function = Function(Signature(source), null);

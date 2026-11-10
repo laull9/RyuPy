@@ -272,10 +272,9 @@ fn compile_linked_traced(
 )> {
     accumulator_options::validate(sess)?;
     sess.module_environment_report.clear();
-    let include_modules = sess.include_modules.clone();
     trace.mark("begin", "graph-load", "-");
     let (sources, entry_index) =
-        modules::load_program_including(sess, entry, search_paths, &include_modules)?;
+        modules::load_build_graph(sess, entry, search_paths, !aot_locations)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
     let trace_request = trace_product::graph(

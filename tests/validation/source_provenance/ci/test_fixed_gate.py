@@ -78,7 +78,7 @@ def model(static=False, bound=False, native=False):
         source_init['body']['instructions'] += [string(module['name']), string(module['file']), ins(0x14)]
         if legacy:
             source_init['body']['instructions'] += [ptr(getter), ins(0x73, target={'owner':'RyuPy.Runtime.PyModuleGet','name':'.ctor'})]
-        source_init['body']['instructions'] += [call('PyTraceback','CreateCodeSource'),store(sources[unit])]
+        source_init['body']['instructions'] += [call('PyTraceback','CreateLegacyCodeSourceV1' if legacy else 'CreateCodeSource'),store(sources[unit])]
         main = method(f'm{unit}___module_main', [load(sources[unit]), ins(0x14 if legacy else 2),
             call('PyTraceback','CreateModuleExecutionSourceWithCode'), ins(0xa), string(module['file']),
             string('<module>'), ins(6), call('PyTraceback','PushFrameWithOrigin'), ret])
@@ -133,6 +133,23 @@ class FixedGateNegativeTests(unittest.TestCase):
         return next(m for m in data['methods'] if m['method']['name']=='__init_functions')['body']['instructions']
     def test_synthetic_positive_shape_not_product(self):
         d,e,_,_=model();self.assertTrue(self.accepts(d,e)['admitted'])
+    def test_warning_origin_old_two_or_three_new_only_three(self):
+        # 只测试旧/new图定位边界；词法定义另由完整模型门检查。
+        expectation = deepcopy(TABLE['warning_origin'])
+        for module in expectation['modules']:
+            module['definitions'] = []
+        for count, role, accepted in [(2, 'old', True), (3, 'old', True),
+                                       (2, 'new', False), (3, 'new', True)]:
+            methods = [{'token': 'init', 'method': {'owner': 'RyuPy.Generated.Module',
+                        'name': '__init_functions'}, 'body': {'instructions': []}}]
+            methods += [{'token': str(i), 'method': {'owner': 'RyuPy.Generated.Module',
+                         'name': f'm{i}___module_main'}} for i in range(count)]
+            with self.subTest(count=count, role=role):
+                if accepted:
+                    self.assertEqual(len(G['locate']({'methods': methods}, expectation, role)[0]), count)
+                else:
+                    with self.assertRaises(ValueError):
+                        G['locate']({'methods': methods}, expectation, role)
     def test_jit_rejects_wrong_kind_relative_missing_or_changed_source(self):
         for mutation in ('kind0', 'kind2', 'relative', 'missing', 'hash', 'missing-kind'):
             with self.subTest(mutation=mutation):
@@ -165,6 +182,12 @@ class FixedGateNegativeTests(unittest.TestCase):
         d,e,_,_=model();g=next(m for m in d['methods'] if m['method']['name']=='__mod_get_0')
         g['body']['instructions'][3]['operand_hex']='01000000'
         with self.assertRaises(ValueError):self.accepts(d,e)
+    def test_rejects_missing_or_wrong_lexical_capability(self):
+        for unit, wrong in [(0, 'CreateCodeSource'), (1, 'CreateLegacyCodeSourceV1')]:
+            d,e,_,_=model()
+            calls=[x for x in self.source(d) if x.get('target',{}).get('owner') == 'RyuPy.Runtime.PyTraceback']
+            calls[unit]['target']['name']=wrong
+            with self.assertRaises(ValueError):self.accepts(d,e)
     def test_rejects_swapped_module_literal(self):
         d,e,_,_=model();self.source(d)[0]['string']='subject'
         with self.assertRaises(ValueError):self.accepts(d,e)

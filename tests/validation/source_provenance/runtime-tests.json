@@ -1,5 +1,5 @@
 {
-  "status": "外部未编译草案，未写canonical，非产品证据",
+  "status": "候选待新Runtime编译与具名执行；不冒冷测试替代产品验收",
   "class": "RyuPy.Runtime.Tests.PySourceProvenanceTests",
   "cases": {
     "NewAbiColdRegistrationPreservesOldAbiAndStaticCapabilities": 1,
@@ -14,7 +14,9 @@
     "KnownWarningSelectsLocationAndNameFromTheSameStacklevel": 1,
     "KnownWarningRawMessagesKeepAlwaysIgnoreAndErrorProtocol": 1,
     "KnownRegistryUsesEnvironmentIdentityAndSharedModuleOnceKeys": 1,
-    "KnownRegistryDoesNotRootInstanceGlobals": 1
+    "KnownRegistryDoesNotRootInstanceGlobals": 1,
+    "LexicalStaticV1IgnoresRegistryCollisionAndNeverReadsGetter": 1,
+    "LexicalStaticV1DoesNotReplaceActualFunctionOrModuleMetadata": 1
   },
-  "source_sha256": "f92bc1744891fdeee989b552020da1016ca3dc071f871461accd5a9f02765f63"
+  "source_sha256": "d95b1215c30035fd4400d4b263bae84763140f28ee880d85a29168ee4af04549"
 }

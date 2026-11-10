@@ -4,9 +4,10 @@ using System;
 
 namespace RyuPy.Runtime;
 
-internal sealed class CompiledCodeSource(string name, string file, PyModuleGet? getter)
+internal sealed class CompiledCodeSource(string name, string file, PyModuleGet? getter, bool lexicalStaticV1 = false)
 {
     internal readonly string InitialName = name;
+    internal readonly bool LexicalStaticV1 = lexicalStaticV1;
     internal readonly string File = file;
     internal readonly PyModuleGet? LegacyGetter = getter;
     internal bool IsInstance => LegacyGetter is null;
@@ -38,7 +39,8 @@ internal readonly record struct PyCallerSource(PyStackFrame Frame, CompiledCodeS
     internal object TypedDictModule()
     {
         if (OutOfStack) return "__main__";
-        // Static只提供已验证代码/环境，没有当前可写function.Module；明确保旧消费算法。
+        // V1仅证明编译词法归属，不是实际可写function.Module；旧host/Unknown保原算法。
+        if (Origin is PySignature && Code is { LexicalStaticV1: true } code) return code.InitialName;
         if (!Known || Origin is PySignature)
             return PyModules.ModuleForFile(Frame.File) ?? "__main__";
         object raw = Origin switch
@@ -82,6 +84,14 @@ public static partial class PyTraceback
     {
         if (moduleName is null || diagnosticFile is null) throw new PyTypeError("code source requires names");
         return new CompiledCodeSource(moduleName, diagnosticFile, legacyGetter);
+    }
+
+    /// <summary>V1只供已验证Legacy单元冷登记；不读getter，不授予实际Function.Module能力。</summary>
+    public static object CreateLegacyCodeSourceV1(string moduleName, string diagnosticFile, PyModuleGet legacyGetter)
+    {
+        if (moduleName is null || diagnosticFile is null || legacyGetter is null)
+            throw new PyTypeError("legacy code source requires names and a getter");
+        return new CompiledCodeSource(moduleName, diagnosticFile, legacyGetter, lexicalStaticV1: true);
     }
 
     /// <summary>每次实际ModuleMain捕获入口值；Legacy保已证明前言初值，Instance取真实目标。</summary>

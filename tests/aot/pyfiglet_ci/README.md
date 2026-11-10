@@ -1,7 +1,7 @@
 # 原 pyfiglet 1.0.2 显式部署配方
 
-本切只新增测试/CI/文档，不改引擎、Runtime、原入口、上游源码或默认20项配置。
-当前仅脚本准备，不能标为已验Native或默认项目晋升。默认20沿用10/8/2。
+当前增加JIT空资源子包发现候选，原入口、上游源码及golden不改。
+新候选尚待完整实际验收；旧CI58为默认10/8/2，不提前登记pyfiglet晋升。
 
 ## 准入与固定输入
 
@@ -30,7 +30,7 @@ hosted调用顺序：纯合成unittest → 固定工具准备 → `"$PYTHON" -B 
 目标预算为：
 
 1. CP原入口 `-B -S` 正测一次，与固定golden逐字对三流。
-2. 同CLI不include部署control：一次build、一次JIT；必须保持缺pyfiglet.fonts首错。
+2. 同CLI不include默认臂：一次build、一次JIT；必须逐字对CP/golden成功，图中fonts带自动发现理由。
 3. 同CLI仅增加 `--include-module pyfiglet.fonts`：一次build、一次JIT；逐字对CP/golden。
 4. explicit全入口通过后唯一 `--aot --resources <本目录JSON>` publish。
 5. 原位置/完整复制搬迁/无SDK无源码隔离容器/独立缺字体副本各运行一次。

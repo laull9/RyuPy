@@ -27,11 +27,6 @@ class GuardsTest(unittest.TestCase):
         for code, out, err in [(1, b'golden', b''), (0, b'golden', b'x'), (0, b'other', b'')]:
             with self.assertRaises(RuntimeError):
                 h.positive(subprocess.CompletedProcess([], code, out, err), b'golden')
-        failure = subprocess.CompletedProcess([], 1, b'',
-            b"trace\nModuleNotFoundError: No module named 'pyfiglet.fonts'\n")
-        h.control(failure)
-        with self.assertRaises(RuntimeError):
-            h.control(ok)
         h.missing(subprocess.CompletedProcess([], 1, b'', b'any error'), b'golden')
         for result in (ok, subprocess.CompletedProcess([], 1, b'golden', b'error')):
             with self.assertRaises(RuntimeError):
@@ -58,8 +53,13 @@ class GuardsTest(unittest.TestCase):
         p = self.root / 'graph.json'
         modules = [dict(module=name, compiled=True, execution='LegacySingleton',
                         ordinary_name_handlers=False, relative_from_import=False)
-                   for name in ('__main__', 'pyfiglet', 'pyfiglet.version')]
+                   for name in ('__main__', 'pyfiglet', 'pyfiglet.version', 'pyfiglet.fonts')]
         data = dict(compiled_feature=True, session_policy='ordinary-dynamic-module-pilot', modules=modules)
+        p.write_text(json.dumps(data))
+        g.graph(p, True)
+        with self.assertRaises(RuntimeError):
+            g.graph(p, False)
+        modules[-1]['resource_discovery'] = dict(source='pyfiglet', anchor='pyfiglet.fonts', reason='literal-files-empty-direct-package')
         p.write_text(json.dumps(data))
         g.graph(p, False)
         with self.assertRaises(RuntimeError):

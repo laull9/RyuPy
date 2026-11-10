@@ -228,7 +228,7 @@ def execute(out, run):
                 if explicit: args += ['--include-module', 'pkg.data']
                 built = run.run(label + '-build', args, cwd=cwd(label + '-build'), env=env, check=True, timeout=120)
                 dll = reported_managed(built.stderr, target)
-                expected = case['graph'] + (['pkg.data'] if explicit else [])
+                expected = sorted(set(case['graph'] + case.get('discovered_modules', []) + (['pkg.data'] if explicit else [])))
                 verify_graph(target / 'module-environment.json', expected)
                 require(sha(dll.parent / 'RyuPy.Runtime.dll') == frozen[str(runtime)], 'PE Runtime不符')
                 artifacts = {str(path.relative_to(out)): identity(path) for path in target.rglob('*') if path.is_file()}

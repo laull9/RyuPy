@@ -66,13 +66,6 @@ def positive(result, golden):
             '正测三流不匹配，停止，不补API/重跑')
 
 
-def control(result):
-    require(result.returncode == 1 and not result.stdout and
-            result.stderr.decode().rstrip().splitlines()[-1] ==
-            "ModuleNotFoundError: No module named 'pyfiglet.fonts'",
-            'control首错改变，停止')
-
-
 def missing(result, golden, report_path=None):
     # 只接受正常应用失败1；信号/崩溃样退出不是正确缺件拒绝，不匹配异常文案。
     code = result.returncode
@@ -193,7 +186,7 @@ def execute(out, run):
             require(sha(dll.parent / 'RyuPy.Runtime.dll') == frozen[str(runtime)], 'JIT Runtime不符')
             save(out / (arm + '-artifacts.json'), snapshot(target)[0])
             actual = run.run(arm + '-jit', [dotnet, dll], cwd=clean(arm + '-jit'), env=env, timeout=30)
-            positive(actual, golden) if explicit else control(actual)
+            positive(actual, golden)
         target, built = build('native-build', True, aot=True)
         layout = reported_aot(built.stderr, target, entry.stem, 'linux-x64')
         # 完整dist/构建原流已经落盘；先归档，任何后续校验失败仍可收件。

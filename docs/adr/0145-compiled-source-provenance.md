@@ -41,3 +41,7 @@ Dynamic/generator帧保真实函数，Static帧加载自己的既有signature。
 必须完成：原J1/J2 two/three图、固定fixture实际PE关键链与CP/JIT、双Instance/mixed八组去重、Static旧正确路径、原生bool错误现场恢复、真实Execute(X,targetY)旧/新host、实际新消费者Native一次publish及原位/搬移/源码隔离。固定PE表不等于通用全部IR证明，与现MIR/CIL测试和真实输出联合使用。
 
 同HEAD default/pilot完整make check、固定20逐ID、全部旧Legacy/Instance/资源/Trace/pyfiglet门仍必需，不能用新专项遮蔽旧门。测试入口见tests/validation/source_provenance/，e2e来源例保持pending直到实际产品门通过。
+
+## 后续候选修正（ADR0146）
+
+本页历史Static扫描边界由ADR0146有限补充：旧三参CreateCodeSource及Unknown保持不变，新Legacy编译单元另发精确V1冷factory并以词法InitialName稳定Static TD；不冒实际可变Function.Module。新ABI仅多一条，Instance仍原factory；新Runtime具名测试15项。JIT可选空包发现会使warning_origin默认也为3模块，旧完整源码/oracle不改。新真实产品门尚待验收。

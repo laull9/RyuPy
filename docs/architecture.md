@@ -220,3 +220,5 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 ## 实际代码来源候选（ADR0145）
 
 MIR单一CodeSource表记录真实unit入口与私有signature归属，link按ID重映射，CIL冷关联不可变Runtime载体。真实源码driver使用required入口，旧手工MIR emit保兼容；fixed-binding豁免仅限实际已验证新增initializer。warnings环境与TypedDict函数Module能力分开，不按basename/注册名补来源。合同、有限前言门与热成本见[ADR0145](adr/0145-compiled-source-provenance.md)，当前产品未验收。
+
+ADR0146候选只在driver完成硬图后作JIT可选空资源子包发现；AOT图不变。新Legacy冷source V1消费已有MIR关联证明授予词法归属，不新增owner或热调用ABI；旧host仍原合同。真实产品及完整门待验，见[ADR0146](adr/0146-empty-resource-package-discovery.md)。

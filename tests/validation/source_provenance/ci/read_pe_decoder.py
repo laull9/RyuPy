@@ -162,7 +162,8 @@ if role == 'new':
     source_init = [m for m in methods if m['method']['name'] == '__init_code_sources']
     checks['exactly_one_source_initializer'] = len(source_init) == 1
     calls = [i['target']['name'] for m in methods if m['body'] for i in m['body']['instructions'] if 'target' in i]
-    checks['actual_source_create_call'] = 'CreateCodeSource' in calls
+    checks['actual_legacy_source_v1_call'] = 'CreateLegacyCodeSourceV1' in calls
+    # 各Legacy/Instance调用角色由fixed_gate依实际module/getter/field逐项核验。
     # 原J2完整三源没有def/lambda/class，ModuleMain无signature；不得为凑符号改原输入。
     signature_calls = calls.count('FunctionDefinitionWithSource')
     checks['actual_signature_source_association'] = signature_calls == 0 if case_id == 'functional_typeddict' else signature_calls > 0

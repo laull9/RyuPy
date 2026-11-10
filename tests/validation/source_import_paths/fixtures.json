@@ -15,7 +15,10 @@
       ],
       "expected_exit": 1,
       "expected_stdout": "P:pkg-init\nP:data-cached-before False\nP:path []\nP:before-files\n",
-      "expected_terminal_error": "ModuleNotFoundError: No module named 'pkg.data'"
+      "expected_terminal_error": "ModuleNotFoundError: No module named 'pkg.data'",
+      "discovered_modules": [
+        "pkg.data"
+      ]
     },
     {
       "name": "normal_order",

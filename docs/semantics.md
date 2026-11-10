@@ -1349,3 +1349,7 @@ find_spec父导入共享唯一初始化但保strict发现合同，避免重复ge
 新source帧让warning读取stacklevel同一帧活globals，None在消息构造/str前抑制但不跳过类别校验；缺名/非str用<string>，str子类有限payload匹配。环境去重不含可变name，module/once共altkey，过滤重设刷新。只承诺普通精确str元数据键域，不宣称PyDict查找无任意用户回调。
 
 Main/Dynamic功能式TypedDict读执行入口快照/真实可写function.Module，raw identity与一次truthiness保留；仅AttributeError及子类转事后同env live fallback，缺键main，非None不二次bool。二级None元类默认填充与非str显示明确NI，旧正确路径不得因guard回退。Static TD继续旧文件扫描算法与重绑债；TypeVar旧内部来源接口不改。详见[ADR0145](adr/0145-compiled-source-provenance.md)。纯Rust结构门已过不代表真实C#/JIT/Native通过，来源e2e仍pending。
+
+### JIT空资源子包发现候选（ADR0146）
+
+JIT build/run仅可选纳入硬图普通父包同目录、resolver同位且UTF8无BOM/coding声明、解析body为空的直接子包。有限files literal调用只是提示，不替换实际callee；dead/missing/非空/坏源码候选不提前报错或执行。AOT不自动纳图，资源复制仍显式。新增登记不再改变新Legacy V1 Static TD的词法归属；该词法值并非actual Function.Module，Static rebound/定义前globals改名旧债保留，旧host/Unknown仍原算法。新产品及完整门未验，见[ADR0146](adr/0146-empty-resource-package-discovery.md)。

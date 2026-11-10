@@ -8,10 +8,10 @@
 
 每例必须核实际MethodDef、真实IL call/ldftn/field操作数，而非unused MemberRef。函数同名用真实签名/词法关系消歧；unknown opcode/截断等明确失败，不猜。
 
-1. 每个固定源码单元CreateCodeSource的模块literal、诊断文件、Legacy本unit实际getter或Instance null与实际存储字段一致。
+1. 每个固定源码单元的factory按角色精确选择：新Legacy为CreateLegacyCodeSourceV1，Instance仍CreateCodeSource；其模块literal、诊断文件、Legacy本unit实际getter或Instance null与实际存储字段一致。
 2. 每个固定函数signature关联own source字段，source初始化先于signature消费。原J2无函数/signature不能为凑检查改输入，仍核所有module source/入口。
 3. ModuleMain source/context→marker→PushFrameWithOrigin的实际操作数。Dynamic传真实self，Static加载自己signature。Static参数/返回/运算与thunk ABI保护，允许来源加载/压帧前言差异。
-4. 固定mixed八组及同epoch组帧角色来自实际方法；两图只include差异不改变pkg主消费者所属source。
+4. 固定mixed八组及同epoch组帧角色来自实际方法；显式include不改变pkg主消费者所属source；ADR0146后warning_origin默认也因unused提示登记data，两臂实际3/3。
 5. X/Y真实图两个Instance及主入口的实际字段/载体；State.Code仍Y、真实old/new alias和__bool__帧恢复由托管宿主观察，不能由字段存在替代。
 6. 新Native的包/subject ModuleMain与真正Dynamic消费者来自该次publish的managed PE。新消费者输出须原位/搬移/源码隔离三次对CP，不能拿旧Native绿代替。
 

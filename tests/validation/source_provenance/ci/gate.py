@@ -180,7 +180,7 @@ def main():
                         raise RuntimeError('首次未核编译失败，停止该窗口：' + label)
                     dll = reported_managed(build.stderr, target)
                     graph = json.loads((target / 'module-environment.json').read_text())
-                    require(sorted(row['module'] for row in graph['modules']) == sorted(case['graph'] + arm['include_modules']), '实际图改变')
+                    require(sorted(row['module'] for row in graph['modules']) == sorted(set(case['graph'] + arm['include_modules'] + (case.get('discovered_modules', []) if args.role == 'new' else []))), '实际图改变')
                     for row in graph['modules']:
                         expected = 'InstanceGlobals' if row['module'] in instance_modules(case, arm) else 'LegacySingleton'
                         require(row['execution'] == expected, '真实模块执行模式不符')

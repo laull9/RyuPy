@@ -85,7 +85,9 @@ def locate(decoded, expectation, role):
     init = unique([m for m in owner_methods if m['method']['name'] == '__init_functions'], '冷初始化MethodDef')
     mains = [m for m in owner_methods if m['method']['name'].endswith('___module_main')]
     count = len(mains)
-    need(count in expectation['allowed_module_counts'], '模块数不是固定臂')
+    counts = (expectation['allowed_module_counts_by_role'][role] if 'allowed_module_counts_by_role' in expectation
+              else expectation['allowed_module_counts'])
+    need(count in counts, '模块数不是固定臂')
     modules = expectation['modules'][:count]
     need(all(not m['optional'] for m in modules[:-1]), 'optional图次序错误')
     definitions = {}
@@ -300,7 +302,8 @@ def check(decoded, expectation, fixture_root, role, *, native_manifest=None):
             getters[index] = getter['token']
             main = unique([m for m in methods.values() if m['method']['name'] == f'm{index}___module_main'], 'getter对应入口')
             getter_name(getter, fields, index, module['name'], main)
-        need(runtime(part[-2], 'PyTraceback', 'CreateCodeSource') and part[-1]['opcode'] == '0x80'
+        factory = 'CreateLegacyCodeSourceV1' if legacy else 'CreateCodeSource'
+        need(runtime(part[-2], 'PyTraceback', factory) and part[-1]['opcode'] == '0x80'
              and part[-1].get('field_token') == source_tokens[index], 'source调用/存储错绑')
         position += width
     need(len(emitted) == position + 1 and emitted[-1]['opcode'] == '0x2a', 'source冷路有额外求值/调用')

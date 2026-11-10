@@ -170,9 +170,7 @@ def deployment_files(dist, manifest):
 
 def graph(path, explicit):
     data = json.loads(path.read_text())
-    expected = {'__main__', 'pyfiglet', 'pyfiglet.version'}
-    if explicit:
-        expected.add('pyfiglet.fonts')
+    expected = {'__main__', 'pyfiglet', 'pyfiglet.version', 'pyfiglet.fonts'}
     require(data['compiled_feature'] is True and
             data['session_policy'] == 'ordinary-dynamic-module-pilot', 'CLI实际feature/policy不符')
     require(len(data['modules']) == len(expected) and
@@ -180,6 +178,10 @@ def graph(path, explicit):
     require(all(m['compiled'] is True and m['execution'] == 'LegacySingleton'
                 and not m['ordinary_name_handlers'] and not m['relative_from_import']
                 for m in data['modules']), '实际模块执行策略改变')
+    discovered = {m['module']: m['resource_discovery'] for m in data['modules'] if 'resource_discovery' in m}
+    expected_discovery = {} if explicit else {'pyfiglet.fonts': {
+        'source': 'pyfiglet', 'anchor': 'pyfiglet.fonts', 'reason': 'literal-files-empty-direct-package'}}
+    require(discovered == expected_discovery, '默认发现与显式图的实际来源理由不符')
     return data
 
 

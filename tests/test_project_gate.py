@@ -33,14 +33,14 @@ class ProjectGateTests(unittest.TestCase):
         return [{"id": pid, "status": "native" if pid in self.contract["protected_native"] else "unsupported"}
                 for pid in self.contract["project_ids"]]
 
-    def test_policy_keeps_nine_and_historical_blocker(self):
+    def test_policy_keeps_ten_including_recovered_progress(self):
         self.assertEqual(set(self.contract["protected_native"]), {
-            "tomli", "docopt", "tabulate", "texttable", "chardet", "wcwidth", "colorama", "termcolor", "binaryornot"})
+            "tomli", "docopt", "tabulate", "texttable", "chardet", "wcwidth", "colorama", "termcolor", "binaryornot", "progress"})
         self.assertEqual(self.contract["promotion_requires"], ["progress"])
         rows = self.matrix()
         next(row for row in rows if row["id"] == "progress")["status"] = "failed"
         result = evaluate(self.contract, rows)
-        self.assertTrue(result["preserve_pass"])
+        self.assertFalse(result["preserve_pass"])
         self.assertFalse(result["promotion_pass"])
         self.assertEqual(result["historical_regressions_open"], ["progress"])
         self.assertEqual(result["native"], 9)
@@ -52,7 +52,7 @@ class ProjectGateTests(unittest.TestCase):
             if row["id"] == "tomli": row["status"] = "failed"
             if row["id"] == "six": row["status"] = "native"
         result = evaluate(self.contract, rows)
-        self.assertEqual(result["native"], 9)
+        self.assertEqual(result["native"], 10)
         self.assertEqual(result["protected_lost"], ["tomli"])
         self.assertFalse(result["preserve_pass"])
         self.assertFalse(result["promotion_pass"])
@@ -63,8 +63,17 @@ class ProjectGateTests(unittest.TestCase):
         next(row for row in rows if row["id"] == "progress")["status"] = "native"
         result = evaluate(self.contract, rows)
         self.assertTrue(result["promotion_pass"])
-        self.assertEqual(result["additional_native"], ["progress"])
+        self.assertEqual(result["additional_native"], [])
         self.assertEqual(self.contract, before)
+
+    def test_new_pyfiglet_cannot_offset_a_progress_regression(self):
+        rows = self.matrix()
+        next(row for row in rows if row['id'] == 'progress')['status'] = 'failed'
+        next(row for row in rows if row['id'] == 'pyfiglet')['status'] = 'native'
+        result = evaluate(self.contract, rows)
+        self.assertEqual(result['native'], 10)
+        self.assertEqual(result['protected_lost'], ['progress'])
+        self.assertFalse(result['preserve_pass'])
 
     def test_partial_duplicate_and_unknown_ids(self):
         for rows in (self.matrix()[:-1], self.matrix() + [self.matrix()[0]],
@@ -233,7 +242,7 @@ class WrapperInjectionTests(unittest.TestCase):
                 directory.mkdir(parents=True)
                 run_id = command[command.index('--run-id') + 1]
                 native = pid in contract['protected_native'] or pid == 'progress'
-                if scenario == 'current-baseline' and pid == 'progress':
+                if scenario == 'historical-baseline' and pid == 'progress':
                     native = False
                 status = 'native' if native else ('failed' if pid in ('progress', 'pyfiglet', 'markdown') else 'unsupported')
                 row = {k: project[k] for k in ('id', 'pypi', 'version', 'scope', 'deps')}
@@ -291,10 +300,10 @@ class WrapperInjectionTests(unittest.TestCase):
                     'summary': json.loads(summary_path.read_text()) if summary_path.exists() else None,
                     'completed': json.loads(run_path.read_text()).get('completed') if run_path.exists() else None}
 
-    def test_current_progress_is_preserve_only(self):
-        preserve = self.run_case('current-baseline', 'preserve')
-        promote = self.run_case('current-baseline', 'promote')
-        self.assertEqual(preserve['exit'], 0)
+    def test_historical_progress_failure_now_fails_both_gates(self):
+        preserve = self.run_case('historical-baseline', 'preserve')
+        promote = self.run_case('historical-baseline', 'promote')
+        self.assertEqual(preserve['exit'], 1)
         self.assertEqual(promote['exit'], 1)
         self.assertFalse(preserve['summary']['promotion_pass'])
 
