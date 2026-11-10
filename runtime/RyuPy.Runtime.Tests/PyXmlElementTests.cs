@@ -104,6 +104,95 @@ public class PyXmlElementTests
         Assert.False(iterator.MoveNext()); Method(e, "append", a); Assert.False(iterator.MoveNext());
     }
 
+    // 按引用逐项比较，防止未来节点相等逻辑掩盖克隆、去重或顺序变化。
+    private static void SameChildren(object?[] actual, params object?[] expected)
+    {
+        Assert.Equal(expected.Length, actual.Length);
+        for (int i = 0; i < expected.Length; i++) Assert.Same(expected[i], actual[i]);
+    }
+
+    [Fact]
+    public void SequenceConstructorsPreserveChildrenIdentityAndSnapshotBoundary()
+    {
+        var root = Element("r");
+        Assert.Empty(PyOps.ToSequence(root));
+        Assert.Empty(Assert.IsType<PyList>(PyOps.CallBuiltin("list", [root], [], [])).Items);
+        Assert.Empty(Assert.IsType<PyTuple>(PyOps.CallBuiltin("tuple", [root], [], [])).Items);
+        var a = Element("a"); var b = Element("b"); var leaf = Element("leaf"); var other = Element("other");
+        Method(root, "append", a); SameChildren(PyOps.ToSequence(root), a);
+        Method(root, "append", b); Method(root, "append", a); Method(other, "append", a); Method(a, "append", leaf);
+        var raw = PyOps.ToSequence(root);
+        var list = Assert.IsType<PyList>(PyOps.CallBuiltin("list", [root], [], []));
+        var tuple = Assert.IsType<PyTuple>(PyOps.CallBuiltin("tuple", [root], [], []));
+        SameChildren(raw, a, b, a); SameChildren(list.Items.ToArray(), a, b, a); SameChildren(tuple.Items, a, b, a);
+        SameChildren(PyOps.ToSequence(PyOps.IterStart(root)), a, b, a);
+        SameChildren(PyOps.ToSequence(other), a); SameChildren(PyOps.ToSequence(raw[0]), leaf);
+        Assert.NotSame(raw, PyOps.ToSequence(root));
+        Assert.NotSame(list, PyOps.CallBuiltin("list", [root], [], []));
+        Assert.NotSame(tuple, PyOps.CallBuiltin("tuple", [root], [], []));
+        Method(root, "append", leaf);
+        SameChildren(raw, a, b, a); SameChildren(tuple.Items, a, b, a);
+        SameChildren(PyOps.ToSequence(root), a, b, a, leaf);
+        list.Items.Clear(); SameChildren(PyOps.ToSequence(root), a, b, a, leaf);
+    }
+
+    [Fact]
+    public void SequenceConsumersShareElementAdapterWithoutChangingNodes()
+    {
+        var root = Element("r"); var a = Element("a"); var b = Element("b"); var leaf = Element("leaf");
+        Method(root, "append", a); Method(root, "append", b); Method(a, "append", leaf);
+        var replacement = new PyList([PyNone.Instance]);
+        PyOps.SetItem(replacement, new PySlice(null, null, null), root);
+        SameChildren(replacement.Items.ToArray(), a, b);
+        var one = Element("one"); Method(one, "append", a);
+        // tuple(*one) 的星号先物化 one，再由构造器物化唯一实参 a。
+        var nested = Assert.IsType<PyTuple>(PyOps.CallBuiltin("tuple", [PyOps.StarArg(one)], [], []));
+        SameChildren(nested.Items, leaf);
+        var error = Assert.Throws<PyTypeError>(() => PyOps.CallBuiltin("sorted", [root], [], []));
+        Assert.Contains("not supported between instances", error.PyMessage);
+        SameChildren(PyOps.ToSequence(root), a, b);
+        var qname = Call(PyXmlElementTree.QNameType, ["plain"]);
+        Assert.Throws<PyTypeError>(() => PyOps.ToSequence(qname));
+        Assert.Throws<PyAttributeError>(() => root.GetAttr("__iter__"));
+    }
+
+    [Fact]
+    public void MaterializingLiveChildrenRetainsInsertAppendAndStickyExhaustion()
+    {
+        var root = Element("r"); var a = Element("a"); var b = Element("b"); var before = Element("before"); var after = Element("after");
+        Method(root, "append", a); Method(root, "append", b);
+        var first = PyIter.Create(root); var second = PyIter.Create(root);
+        Assert.True(first.MoveNext()); Assert.Same(a, first.Current());
+        Method(root, "insert", 0L, before);
+        Assert.True(first.MoveNext()); Assert.Same(a, first.Current());
+        Method(root, "insert", 2L, after);
+        Assert.True(first.MoveNext()); Assert.Same(after, first.Current());
+        Method(root, "append", a);
+        SameChildren(Assert.IsType<PyTuple>(PyOps.CallBuiltin("tuple", [first], [], [])).Items, b, a);
+        Method(root, "append", b); Assert.Empty(PyOps.ToSequence(first));
+        SameChildren(PyOps.ToSequence(second), before, a, after, b, a, b);
+        SameChildren(PyOps.ToSequence(root), before, a, after, b, a, b);
+        var empty = Element("empty"); var exhausted = PyIter.Create(empty);
+        Assert.Empty(PyOps.ToSequence(exhausted)); Method(empty, "append", a);
+        Assert.Empty(PyOps.ToSequence(exhausted)); SameChildren(PyOps.ToSequence(empty), a);
+    }
+
+    // 消费入口必须原样传播游标异常，而不是吞错、重试或返回部分快照。
+    private sealed class FailingChildrenIterator(PyValueError error) : IPyIterator
+    {
+        public int Calls;
+        public bool MoveNext() { Calls++; throw error; }
+        public object? Current() => throw new InvalidOperationException("不应读取失败游标的当前项");
+    }
+
+    [Fact]
+    public void SequenceMaterializationDoesNotRewriteIteratorErrors()
+    {
+        var error = new PyValueError("children consumer failure"); var iterator = new FailingChildrenIterator(error);
+        Assert.Same(error, Assert.Throws<PyValueError>(() => PyOps.CallBuiltin("list", [iterator], [], [])));
+        Assert.Equal(1, iterator.Calls);
+    }
+
     [Fact]
     public void PreorderVisitsSharedChildrenAndRejectsActualCycles()
     {

@@ -33,7 +33,7 @@ class Runner(base.Runner):
         self.root_labels = self.labels
         self.python = self.dotnet = self.cli = self.runtime = None
         self.run_records, self.snapshot_reports = {}, {}
-        self.result = {'passed': False, 'default_project_delta': 0, 'retries': 0,
+        self.result = {'passed': False, 'collection_ready': False, 'default_project_delta': 0, 'retries': 0,
             'scope': '四候选图及NI分账；pending非产品支持；attr_list不替代完整extra/默认20',
             'oracle_execution': '只核先前固定CP原流；本专用job不重复采CP fixture',
             'stages': {name: dict(passed=False, status='not-run') for name in stage_names(self.data)}}
@@ -56,7 +56,7 @@ class Runner(base.Runner):
                 for suffix in ('stdout', 'stderr', 'json', 'argv.json'):
                     path = (destination / row['prefix']).with_suffix('.' + suffix)
                     if path.is_file(): files[str(path.relative_to(destination))] = sha(path)
-            for name in ('csharp-build', 'scanner-csharp-tests', 'compiler-build'):
+            for name in self.successful_commands():
                 for suffix in ('stdout', 'stderr', 'json', 'argv.json'):
                     path = (destination / name).with_suffix('.' + suffix)
                     if path.is_file(): files[str(path.relative_to(destination))] = sha(path)
@@ -105,12 +105,30 @@ class Runner(base.Runner):
         return c.verify_trx(target / 'result.trx', facts)
 
     def successful_commands(self):
+        from re_scanner_workload import argv as workload_argv
         tests = ROOT / 'runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj'
-        return {'csharp-build': [self.dotnet, 'build', tests, '-c', 'Release', '-nologo'],
+        commands = {'csharp-build': [self.dotnet, 'build', tests, '-c', 'Release', '-nologo'],
             'scanner-csharp-tests': [self.dotnet, 'test', tests, '-c', 'Release', '--no-build', '--no-restore',
                 '--filter', self.data['csharp']['filter'], '--logger', 'trx;LogFileName=result.trx',
                 '--results-directory', self.root_out / 'trx'],
             'compiler-build': ['cargo', 'build', '--locked', '-p', 'ryupy-cli', '--features', old.shared.FEATURE]}
+        for graph in self.data['graphs']:
+            if graph['native']:
+                commands[graph['id'] + '-compile-command'] = c.shared.build_argv(
+                    self, c.native_cases(graph)[0], self.root_out / 'products' / graph['id'])
+        commands['attr-list-compile'] = workload_argv(self, self.root_out / 'products/attr-list')
+        return commands
+
+    def invalidate(self, error):
+        self.result['collection_ready'] = False
+        super().invalidate(error)
+
+    def preserve_resume(self):
+        raw = c.safe_file(self.out, 'state.json').read_bytes()
+        # 独占写入，不覆盖上次失败恢复原件，也不允许第二次Native补采。
+        with (self.out / 'resume-state.raw.json').open('xb') as handle:
+            handle.write(raw)
+        return c.parse(raw)
 
     def test_assemblies(self):
         # --no-build实际从repo/bin加载；这两份真实程序集必须等于工具来源的managed副本。
@@ -180,9 +198,8 @@ class Runner(base.Runner):
         return expected
 
     def load_state(self):
-        raw = (self.out / 'state.json').read_bytes()
-        (self.out / 'resume-state.raw.json').write_bytes(raw)
-        state = c.parse(raw)
+        self.result['collection_ready'] = False
+        state = self.preserve_resume()
         require(state['schema_version'] == 1 and not state['isolation'], '恢复版本/隔离状态无效')
         self.labels = set(state['labels'])
         self.root_labels = self.labels
@@ -196,12 +213,17 @@ class Runner(base.Runner):
         self.environment()
         require(self.env == state['environment'], '恢复环境改变')
         self.frozen, self.input_inventories = state['frozen'], state['inventories']
+        require(type(self.frozen) is dict, '恢复冻结表结构无效')
+        for name in self.frozen:
+            path = Path(name)
+            require(path.is_absolute() and str(path) == name, '恢复冻结路径不规范')
+            c.safe_file(path.parent, path.name)
         require(set(self.input_inventories) == {str(self.inputs_dir)}, '完整编译输入域缺失')
         checkpoint = state['checkpoint']
         all_expected = self.expected_runs()
         require(set(checkpoint['runs']) == set(all_expected) and len(all_expected) == 20,
                 'Native前必须完整19个图argv及attr_list共20条JIT原流')
-        # 非成功原流同样重核，绝不因旧state的passed标志而忽略；失败恢复停止而非补跑。
+        # 语义红也须完整身份；构建、C#和六次图编译仍必须真实成功。
         mandatory = {'tools/ryupy', 'tools/RyuPy.Runtime.dll', 'managed/RyuPy.Runtime.dll',
                      'managed/RyuPy.Runtime.Tests.dll', 'trx/result.trx'}
         mandatory.update(name + '.' + suffix for name in self.successful_commands()
@@ -211,23 +233,43 @@ class Runner(base.Runner):
             mandatory.update(str((pe.parent / name).relative_to(self.out)) for name in
                              (pe.name, 'RyuPy.Runtime.dll', 'module-environment.json'))
         verified = c.verify_checkpoint(checkpoint, self.fresh_identity(), all_expected, self.out, mandatory)
-        for name, expected in self.successful_commands().items():
-            c.verify_command(self.root_out / name, expected)
-        c.verify_trx(self.out / 'trx/result.trx', self.data['csharp']['facts'])
+        commands = self.successful_commands()
+        require(set(commands) | set(all_expected) <= self.labels, '命令label缺少同轮执行记录')
+        for name, expected in commands.items(): c.verify_command(self.root_out / name, expected)
+        trx = c.verify_trx(self.out / 'trx/result.trx', self.data['csharp']['facts'])
+        require(trx['total'] == trx['new_facts'] == 43, '必须同轮恰43个Scanner Fact')
+        require(sha(self.runtime) == sha(self.out / 'managed/RyuPy.Runtime.dll'), '工具与C#测试runtime不一致')
+        for expected in all_expected.values():
+            require(sha(Path(expected['argv'][1]).parent / 'RyuPy.Runtime.dll') == sha(self.runtime), 'PE旁Runtime不是同轮工具')
+        # 全部原record/argv和双流也进入之后每道barrier，不仅校验时瞬时存在。
+        for name, digest in checkpoint['files'].items():
+            path = str(c.safe_file(self.out, name))
+            require(path not in self.frozen or self.frozen[path] == digest, '两份冻结身份矛盾')
+            self.frozen[path] = digest
+        self.frozen[str(self.out / 'resume-state.raw.json')] = sha(self.out / 'resume-state.raw.json')
         self.test_assemblies()
         self.barrier('resume-full-identity')
         self.snapshot_reports = state['snapshots']
         self.run_records = checkpoint['runs']
+        self.restore_results(verified, trx, commands)
+        # 此处是唯一准入置真点，任何先前硬门异常均不会继承旧result宣称通过。
+        self.result['collection_ready'] = True
+
+    def restore_results(self, verified, trx, commands):
+        """仅用重核原件重建43/20事实，不读取state.result中的passed、数量或摘要。"""
         for name in ('identity', 'csharp-build', 'csharp-tests', 'tools', 'sourceprep'):
             self.result['stages'][name] = dict(passed=True, status='passed', reverified=True)
-        for name in self.run_records:
+        self.result['stages']['csharp-tests'].update(trx)
+        for name in verified:
             stage = name.removesuffix('-run')
             self.result['stages'][stage] = dict(verified[name], reverified=True)
         for graph in self.data['graphs']:
             if graph['native']:
-                self.result['stages'][graph['id'] + '-compile'] = dict(passed=all(row['id'] + '-jit-run' in self.run_records
-                    for row in c.native_cases(graph)), status='passed' if all(row['id'] + '-jit-run' in self.run_records
-                    for row in c.native_cases(graph)) else 'blocked')
+                self.result['stages'][graph['id'] + '-compile'] = dict(passed=True, status='passed', reverified=True)
+        self.result['compile_commands'] = {name: dict(passed=True, status='passed', reverified=True)
+            for name in commands if name.endswith(('-compile-command', '-compile'))}
+        self.result['jit_observed'] = len(verified)
+        self.result['jit_semantic_failed'] = [name for name, row in verified.items() if not row['passed']]
 
     def native_graph(self, graph):
         from textwrap_dedent_native import native

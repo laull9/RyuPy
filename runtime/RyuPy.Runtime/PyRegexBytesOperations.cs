@@ -181,7 +181,7 @@ internal static partial class PyRegexBytes
     }
 }
 
-public partial class PyRegexPattern
+public sealed partial class PyRegexPattern
 {
     internal object ApplyBytesInput(string method, object? value, object? start, object? end)
     {

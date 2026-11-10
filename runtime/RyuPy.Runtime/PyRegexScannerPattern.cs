@@ -1,5 +1,5 @@
-// Scanner专用sealed载体及每次scan独占的具体cursor。复用真实Pattern/Match身份，
-// 单个\G复合Regex保词条左优先与完整输入上下文；不增加普通Pattern/Match实例字段。
+// Scanner专用的真实Regex子型，由sealed Pattern的现有_search持有，不向Python暴露。
+// 单个\G复合执行器保词条左优先与完整上下文；cursor固定真实owner，Match.re保持该身份。
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace RyuPy.Runtime;
 
-internal sealed class PyRegexScannerPattern : PyRegexPattern
+internal sealed class PyRegexScannerPattern : Regex
 {
     private const string Boundary = "(?!(?<=[\\uD800-\\uDBFF])[\\uDC00-\\uDFFF])";
     // \G(?: 与最终 ) 加双边界；非空wrapper本体、编号和分隔符按真实字符数累加。
@@ -20,11 +20,10 @@ internal sealed class PyRegexScannerPattern : PyRegexPattern
         return size + wrapper + fragment.Length;
     }
 
-    private readonly Regex _executor;
-    private PyRegexScannerPattern(Regex executor, int flags, int groups) : base(executor, flags, groups)
-    { _executor = executor; }
+    // public三参基类构造完整初始化解释器；不覆写Match、不改protected引擎状态、不使用Emit。
+    private PyRegexScannerPattern(string source, RegexOptions options) : base(source, options, TimeSpan.FromSeconds(2)) { }
 
-    internal static PyRegexScannerPattern Create(List<string> fragments, int flags)
+    internal static PyRegexPattern Create(List<string> fragments, int flags)
     {
         // 公共构造已在最终消费点处理空lexicon；不允许内部误用产生可匹配空串的plan。
         if (fragments.Count == 0) throw PyRegexScanner.Unsupported("empty compiled plan");
@@ -37,7 +36,7 @@ internal sealed class PyRegexScannerPattern : PyRegexPattern
         Append(")"); Append(Boundary);
         RegexOptions options = RegexOptions.CultureInvariant
             | ((flags & 8) != 0 ? RegexOptions.Multiline : RegexOptions.None);
-        try { return new(new Regex(source.ToString(), options, TimeSpan.FromSeconds(2)), flags, fragments.Count); }
+        try { return new(new PyRegexScannerPattern(source.ToString(), options), flags, fragments.Count); }
         catch (ArgumentException)
         {
             // 受支持语法已由同一Python parser验证；宿主无法承载时明确能力拒绝，
@@ -53,52 +52,33 @@ internal sealed class PyRegexScannerPattern : PyRegexPattern
         }
     }
 
-    // 白名单闭合：未来普通Pattern新增方法不会自动逃逸到这个复合载体。
-    public override object? GetAttr(string name) => name switch
-    {
-        "pattern" => PyNone.Instance, "flags" => (long)Flags, "groups" => (long)Groups,
-        "groupindex" => throw PyRegexScanner.Unsupported("Pattern.groupindex"),
-        "split" => PyRegexSplit.Pattern(this),
-        "match" or "search" or "fullmatch" or "findall" or "finditer" =>
-            PyRegex.Function(name, ["string", "pos", "endpos"], [null, 0L, long.MaxValue], 1,
-                _ => throw PyRegexScanner.Unsupported("Pattern." + name)),
-        "sub" or "subn" => PyRegex.Function(name, ["repl", "string", "count"], [null, null, 0L], 2,
-            _ => throw PyRegexScanner.Unsupported("Pattern." + name)),
-        "scanner" => PyRegex.Function(name, ["string", "pos", "endpos"], [null, 0L, long.MaxValue], 1,
-            _ => throw PyRegexScanner.Unsupported("Pattern.scanner private API")),
-        "__copy__" or "__deepcopy__" or "__reduce__" or "__reduce_ex__" =>
-            throw PyRegexScanner.Unsupported("Pattern copy or pickle"),
-        _ => throw Missing(name),
-    };
-
-    public override string PythonRepr() => throw PyRegexScanner.Unsupported("Pattern repr");
-
     internal static void RejectConsumer(PyRegexPattern pattern)
     {
-        if (pattern is PyRegexScannerPattern) throw PyRegexScanner.Unsupported("compound Pattern consumer");
+        if (pattern.ScannerPlan is not null) throw PyRegexScanner.Unsupported("compound Pattern consumer");
     }
 
     // 无内部捕获时恰一个wrapper参与；公开lastindex允许线性读取，不给普通Match加槽。
-    internal int Select(Match raw)
+    internal int Select(Match raw, int groups)
     {
-        for (int number = 1; number <= Groups; number++)
+        for (int number = 1; number <= groups; number++)
             if (raw.Groups["ryu" + number].Success) return number;
         throw PyRegexScanner.Unsupported("compound match without wrapper");
     }
 
-    internal ScannerCursor Cursor(object? value) => new(this, value);
+    internal ScannerCursor Cursor(PyRegexPattern owner, object? value) => new(this, owner, value);
 
     internal sealed class ScannerCursor
     {
         private readonly PyRegexScannerPattern _plan;
+        private readonly PyRegexPattern _owner;
         private readonly PyRegexText? _text;
         private readonly PyBytes? _bytes;
         private readonly string _subject;
         private int _position;
 
-        internal ScannerCursor(PyRegexScannerPattern plan, object? value)
+        internal ScannerCursor(PyRegexScannerPattern plan, PyRegexPattern owner, object? value)
         {
-            _plan = plan;
+            _plan = plan; _owner = owner;
             if (value is string text) { _text = new PyRegexText(text); _subject = text; }
             else if (value is PyBytes bytes) { _bytes = bytes; _subject = Encoding.Latin1.GetString(bytes.Bytes); }
             else if (PyRegexScanner.DefinitelyNotBuffer(value))
@@ -110,15 +90,15 @@ internal sealed class PyRegexScannerPattern : PyRegexPattern
         internal bool Next(out PyRegexMatch? match, out int wrapper, out int end)
         {
             Match raw;
-            try { raw = _plan._executor.Match(_subject, _position); }
+            try { raw = _plan.Match(_subject, _position); }
             catch (RegexMatchTimeoutException)
             { throw PyRegexScanner.Own(new PyRuntimeError("re: supported matching time budget exceeded (2 seconds)")); }
             match = null; wrapper = 0; end = _position;
             if (!raw.Success || raw.Length == 0) return false;
-            wrapper = _plan.Select(raw);
+            wrapper = _plan.Select(raw, _owner.Groups);
             end = raw.Index + raw.Length;
-            match = _bytes is null ? new PyRegexMatch(_plan, _text!, raw, 0, _text!.Length)
-                : new PyRegexMatch(_plan, _bytes, raw, 0, _bytes.Count);
+            match = _bytes is null ? new PyRegexMatch(_owner, _text!, raw, 0, _text!.Length)
+                : new PyRegexMatch(_owner, _bytes, raw, 0, _bytes.Count);
             _position = end;
             return true;
         }

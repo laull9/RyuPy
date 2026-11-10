@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace RyuPy.Runtime;
 
 /// <summary>已验证的Python模式；.NET仅执行翻译结果，匹配迭代及公开索引保持Python语义。</summary>
-public partial class PyRegexPattern : PyNativeObject
+public sealed partial class PyRegexPattern : PyNativeObject
 {
     private readonly Regex _search;
     // 仅在需要全匹配或空匹配重试时构造辅助执行器，避免每次compile无条件解析三份。
@@ -18,7 +18,7 @@ public partial class PyRegexPattern : PyNativeObject
     internal int Groups { get; }
     internal Dictionary<string, int> Names { get; }
     /// <inheritdoc />
-    public sealed override string TypeName => "Pattern";
+    public override string TypeName => "Pattern";
     internal PyRegexPattern(string pattern, int flags) : this(pattern, flags, null) { }
     private PyRegexPattern(string pattern, int flags, PyBytes? bytePattern)
     {
@@ -41,16 +41,17 @@ public partial class PyRegexPattern : PyNativeObject
                 : new PyRegexError("invalid regular expression", bytePattern, 0);
         }
     }
-    // 复合Scanner的同程序集冷构造；已有字段均为真实可用执行器，不制造空模式占位。
-    // 普通Pattern实例的字段集合与旧构造/匹配正文不变；辅助Lazy只属于复合对象冷成本。
-    private protected PyRegexPattern(Regex executor, int flags, int groups)
+    // Scanner使用真实sealed Pattern；现有_search保存真实Regex子型，不用源码或组名识别。
+    // 普通Pattern字段集合不变；两个辅助Lazy仍指向有效执行器，公开消费者先明确拒绝。
+    internal PyRegexPattern(PyRegexScannerPattern executor, int flags, int groups)
     {
         Pattern = null; BytePattern = null; Flags = flags; Groups = groups;
         Names = new(StringComparer.Ordinal); _search = executor;
         _nonempty = new Lazy<Regex>(() => executor); _full = new Lazy<Regex>(() => executor);
     }
+    internal PyRegexScannerPattern? ScannerPlan => _search as PyRegexScannerPattern;
     /// <inheritdoc />
-    public override object? GetAttr(string name) => name switch
+    public override object? GetAttr(string name) => ScannerPlan is not null ? ScannerAttr(name) : name switch
     {
         "pattern" => (object?)BytePattern ?? Pattern, "flags" => (long)Flags, "groups" => (long)Groups,
         "split" => PyRegexSplit.Pattern(this),
@@ -66,6 +67,23 @@ public partial class PyRegexPattern : PyNativeObject
                 args => Apply(name, PyRegex.Text(args[0]), PyRegex.Number(args[1]), PyRegex.Number(args[2]))),
         "sub" or "subn" => PyRegex.Function(name, ["repl", "string", "count"], [null, null, 0L], 2,
             args => Substitute(args[0], PyRegex.Text(args[1]), PyRegex.Number(args[2]), name == "subn")),
+        _ => throw Missing(name),
+    };
+    // 白名单闭合：未来普通Pattern新增方法不会自动开放给Scanner计划。
+    private object? ScannerAttr(string name) => name switch
+    {
+        "pattern" => PyNone.Instance, "flags" => (long)Flags, "groups" => (long)Groups,
+        "groupindex" => throw PyRegexScanner.Unsupported("Pattern.groupindex"),
+        "split" => PyRegexSplit.Pattern(this),
+        "match" or "search" or "fullmatch" or "findall" or "finditer" =>
+            PyRegex.Function(name, ["string", "pos", "endpos"], [null, 0L, long.MaxValue], 1,
+                _ => throw PyRegexScanner.Unsupported("Pattern." + name)),
+        "sub" or "subn" => PyRegex.Function(name, ["repl", "string", "count"], [null, null, 0L], 2,
+            _ => throw PyRegexScanner.Unsupported("Pattern." + name)),
+        "scanner" => PyRegex.Function(name, ["string", "pos", "endpos"], [null, 0L, long.MaxValue], 1,
+            _ => throw PyRegexScanner.Unsupported("Pattern.scanner private API")),
+        "__copy__" or "__deepcopy__" or "__reduce__" or "__reduce_ex__" =>
+            throw PyRegexScanner.Unsupported("Pattern copy or pickle"),
         _ => throw Missing(name),
     };
     internal object? Apply(string method, string value, int start, int end)
@@ -128,7 +146,8 @@ public partial class PyRegexPattern : PyNativeObject
         return tuple ? new PyTuple([output.ToString(), (long)changed]) : output.ToString();
     }
     /// <inheritdoc />
-    public override string PythonRepr() => BytePattern is null ? "re.compile(" + PyRepr.Repr(Pattern) + ")" : BytesRepr();
+    public override string PythonRepr() => ScannerPlan is not null ? throw PyRegexScanner.Unsupported("Pattern repr")
+        : BytePattern is null ? "re.compile(" + PyRepr.Repr(Pattern) + ")" : BytesRepr();
 }
 
 /// <summary>惰性finditer；每次MoveNext只推进到一个匹配，复用共享输入码点表。</summary>

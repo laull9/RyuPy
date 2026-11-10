@@ -23,7 +23,7 @@ internal static partial class PyRegexBytes
     }
 }
 
-public partial class PyRegexPattern
+public sealed partial class PyRegexPattern
 {
     // 公共Compile的exact bytes构造入口；只在本地解析/构造失败时准备原异常。
     internal static PyRegexPattern CreateBytes(PyBytes pattern, int flags)

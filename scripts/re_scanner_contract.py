@@ -10,6 +10,54 @@ require, sha, parse, relative = shared.require, shared.sha, shared.parse, shared
 verify_output, verify_trx = shared.verify_output, shared.verify_trx
 TIMEOUT_OUTPUTS = {'resource-timeout RESOURCE_COMPLETED\n': False,
                    'resource-timeout RESOURCE_TIMED_OUT\n': True}
+RUNTIME_PATHS = {f'runtime/RyuPy.Runtime/{name}.cs' for name in (
+    'PyRegex', 'PyRegexPattern', 'PyRegexSplit', 'PyRegexMatch', 'PyRegexParser', 'PyRegexBytes',
+    'PyRegexBytesOperations', 'PyRegexMutableBytes', 'PyRegexMutableIterator',
+    'PyRegexMutableSubstitution', 'PyRegexScanner', 'PyRegexScannerPattern')} | {
+    f'runtime/RyuPy.Runtime.Tests/PyRegexScanner{name}Tests.cs'
+    for name in ('Boundary', 'Construction', 'Domain', 'State')}
+
+
+def safe_file(root, name):
+    file = root / relative(name)
+    require(file.is_file() and not file.is_symlink() and file.resolve() == file.absolute(),
+            '原件缺失/路径含symlink：' + name)
+    return file
+
+
+def verify_process(prefix, expected_argv, exits=(0, 1)):
+    """仅核真实自然退出及原件身份；语义红不能替代launch/信号/超时或结构失败。"""
+    record = parse(prefix.with_suffix('.json').read_bytes())
+    started = parse(prefix.with_suffix('.argv.json').read_bytes())
+    require(type(record) is dict and type(started) is dict
+            and {'argv', 'exit', 'failure', 'raw_streams_complete', 'streams'} <= set(record), '原进程结构不完整')
+    require(record['argv'] == started.get('argv') == list(map(str, expected_argv)), '原进程argv不符')
+    require(type(record['exit']) is int and record['exit'] in exits
+            and record['failure'] is None and record['raw_streams_complete'] is True,
+            '不是允许的完整自然退出')
+    require(type(record['streams']) is dict and set(record['streams']) == {'stdout', 'stderr'}, '原进程双流记录不完整')
+    streams = {}
+    for suffix in ('stdout', 'stderr'):
+        path = prefix.with_suffix('.' + suffix)
+        streams[suffix] = path.read_bytes()
+        metadata = record['streams'][suffix]
+        require(type(metadata) is dict and type(metadata.get('bytes')) is int
+                and metadata == {'bytes': len(streams[suffix]), 'sha256': hashlib.sha256(streams[suffix]).hexdigest()},
+                '原进程双流长度/hash与record矛盾')
+    return record, streams
+
+
+def semantic_result(record, streams, expected):
+    """只接收已核原件的bytes，原exit0/完整双流成功谓词不变；此处不做I/O或吞异常。"""
+    detail = {}
+    golden = expected['stdout'].encode()
+    if expected.get('observation') == 'regex-timeout':
+        choices = {text.encode(): observed for text, observed in TIMEOUT_OUTPUTS.items()}
+        if streams['stdout'] in choices:
+            golden = streams['stdout']
+            detail = dict(branch=golden.decode().strip().split(' ')[1], timeout_observed=choices[golden])
+    passed = record['exit'] == 0 and streams['stdout'] == golden and streams['stderr'] == b''
+    return dict(passed=passed, status='passed' if passed else 'semantic_failed', actual_exit=record['exit'], **detail)
 
 
 def verify_timeout_output(record, prefix):
@@ -22,14 +70,7 @@ def verify_timeout_output(record, prefix):
 
 def verify_command(prefix, expected_argv):
     """构建/C#命令没有固定stdout，但必须完整成功并绑定真实argv、双流长度与hash。"""
-    record = parse(prefix.with_suffix('.json').read_bytes())
-    started = parse(prefix.with_suffix('.argv.json').read_bytes())
-    require(record.get('argv') == started.get('argv') == list(map(str, expected_argv))
-            and shared.complete(record), '原构建/C#命令非完整成功或argv不符')
-    for suffix in ('stdout', 'stderr'):
-        path = prefix.with_suffix('.' + suffix)
-        require(path.is_file() and record['streams'][suffix] == {'bytes': path.stat().st_size, 'sha256': sha(path)},
-                '原构建/C#完整双流与record矛盾')
+    record, _ = verify_process(prefix, expected_argv, exits=(0,))
     return record
 
 
@@ -45,8 +86,9 @@ def load_manifest(root=ROOT, path=MANIFEST):
         path = root / relative(name)
         require(path.is_file() and not path.is_symlink() and path.resolve() == path.absolute()
                 and sha(path) == digest, 'Scanner 输入身份不符：' + name)
-    require(data['runtime_candidate']['revision'] == '003' and len(data['runtime_candidate']['sources']) == 16,
-            '必须绑定最终003的12生产源与4测试源')
+    require(data['runtime_candidate']['revision'] == 'runtime-abi-b-001'
+            and set(data['runtime_candidate']['sources']) == RUNTIME_PATHS,
+            '必须绑定当前B载体的精确12生产源与4测试源')
     for name, digest in {**data['old_protected'], **data['runtime_candidate']['sources']}.items():
         require(sha(root / relative(name)) == digest, '最终runtime/旧保护源身份不符：' + name)
     identifiers = set()
@@ -90,7 +132,7 @@ def fail_closed(stages, reason):
 
 
 def verify_checkpoint(state, fresh_identity, expected_runs, root, required_files=()):
-    """Native 前重核完整 JIT checkpoint；从原流重算，不沿用 state 中的 passed 布尔值。"""
+    """先核全部执行身份再分类语义；这里只返回重算结果，不授权Native采集。"""
     require(type(state) is dict and set(state) == {'schema_version', 'identity', 'runs', 'files'}, '恢复 state 结构不符')
     require(state['schema_version'] == 1 and state['identity'] == fresh_identity, '恢复 state 与本轮身份不符')
     require(set(fresh_identity) == {'head', 'tree', 'run_id', 'run_attempt', 'manifest_sha256', 'sources', 'tools'}, '本轮完整身份缺失')
@@ -99,27 +141,24 @@ def verify_checkpoint(state, fresh_identity, expected_runs, root, required_files
     require(type(state['files']) is dict and state['files'], 'PE/TRX 等原件清单为空')
     require(set(required_files) <= set(state['files']), '恢复缺少强制PE/TRX/工具原件')
     for name, digest in state['files'].items():
-        file = root / relative(name)
-        require(file.is_file() and not file.is_symlink() and sha(file) == digest, 'checkpoint 原件改变：' + name)
-    verified = {}
+        require(sha(safe_file(root, name)) == digest, 'checkpoint 原件改变：' + name)
+    processes = {}
     for name, expected in expected_runs.items():
         row = state['runs'][name]
         require(set(row) == {'record', 'prefix', 'argv', 'source_sha256'}, '原进程记录缺字段/混入旧 passed')
         require(row['argv'] == expected['argv'] and row['source_sha256'] == expected['source_sha256'], '原进程 argv/输入换源')
-        prefix = root / relative(row['prefix'])
+        require(row['prefix'] == name, '原进程prefix必须等于唯一预定ID')
+        prefix = root / relative(name)
         # 两份流必须同时属于已重核文件清单；仅存在同名文件不足以证明是这次执行。
         require(all(str(prefix.with_suffix('.' + suffix).relative_to(root)) in state['files']
                     for suffix in ('stdout', 'stderr', 'json', 'argv.json')), '恢复缺少绑定的双流/原命令记录')
-        original = parse(prefix.with_suffix('.json').read_bytes())
-        started = parse(prefix.with_suffix('.argv.json').read_bytes())
-        require(original == row['record'] and original.get('argv') == started.get('argv') == expected['argv'],
+        original, streams = verify_process(prefix, expected['argv'])
+        require(original == row['record'],
                 'state与原进程record/argv矛盾，不能靠修改exit沿用通过')
         if expected.get('observation') is not None:
             require(name == 'negative-timeout-jit-run' and expected['observation'] == 'regex-timeout', '不得放宽其它JIT原流')
-        detail = verify_timeout_output(row['record'], prefix) if expected.get('observation') == 'regex-timeout' else {}
-        if not detail: verify_output(row['record'], prefix, expected['stdout'])
-        verified[name] = {'passed': True, 'status': 'passed', **detail}
-    return verified
+        processes[name] = (original, streams)
+    return {name: semantic_result(*processes[name], expected) for name, expected in expected_runs.items()}
 
 
 def check_context(env, event):

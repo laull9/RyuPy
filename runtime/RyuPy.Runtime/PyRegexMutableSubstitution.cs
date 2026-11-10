@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace RyuPy.Runtime;
 
-public partial class PyRegexPattern
+public sealed partial class PyRegexPattern
 {
     // 公共sub入口已按count→replacement顺序准备参数；此处不重复转换或模板解析。
     // executor仅供每调用受控故障专项，默认不创建delegate、不改变exact bytes执行路。

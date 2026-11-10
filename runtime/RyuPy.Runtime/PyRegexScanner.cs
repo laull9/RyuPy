@@ -69,14 +69,15 @@ internal static class PyRegexScanner
     {
         object? self = args[0];
         object? backend = PyObject.GetAttr(self, "scanner");
-        if (backend is not PyRegexScannerPattern plan)
+        if (backend is not PyRegexPattern owner || owner.ScannerPlan is not { } plan)
         {
             // 普通Pattern的私有scanner API尚未实现；其它对象先真实读取属性，
             // 让缺属性/property异常在原位置发生，但绝不半调用自造backend。
             if (backend is not PyRegexPattern) _ = PyObject.GetAttr(backend, "scanner");
             throw Unsupported("replacement backend scanner");
         }
-        var cursor = plan.Cursor(args[1]);
+        // owner与执行器只固定一次；回调重绑scanner不改变当前cursor或已产生Match.re。
+        var cursor = plan.Cursor(owner, args[1]);
         var result = new List<object?>();
         int consumed = 0;
         while (cursor.Next(out PyRegexMatch? match, out int wrapper, out int end))

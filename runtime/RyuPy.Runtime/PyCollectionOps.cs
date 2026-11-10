@@ -218,6 +218,8 @@ public static partial class PyOps
         // proxy 公开返回 raw iterator；不能让旧 fallback 对它重复调用 __iter__。
         PyMappingProxy proxy => PyMappingProxyIteration.Materialize(proxy),
         PyClass cls when PyEnum.IsEnumClass(cls) => DrainIterator(PyEnum.Iterate(cls)),
+        // sealed Element 没有公开 __iter__；仅此冷分支复用 for/iter 的活 children 游标。
+        PyXmlElement element => DrainIterator(PyIter.Create(element)),
         _ when PyObject.TryMethod(value, "__iter__", [], out object? iterator) =>
             ToSequence(PyIter.Create(iterator)),
         _ => throw new PyTypeError($"'{PyRepr.TypeName(value)}' object is not iterable"),

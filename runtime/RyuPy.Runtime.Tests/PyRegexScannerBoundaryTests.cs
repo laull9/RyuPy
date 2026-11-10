@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using RyuPy.Runtime;
 using Xunit;
 
@@ -256,7 +257,30 @@ public sealed partial class PyRegexScannerTests
         Assert.Equal(7, typeof(PyRegexMatch).GetFields(declared).Length);
         foreach (string name in new[] { "Apply", "Enumerate", "Substitute", "ApplyBytes", "EnumerateBytes", "ApplyBytesInput", "SubstituteBytesInput", "SplitInput" })
             Assert.False(typeof(PyRegexPattern).GetMethod(name, declared)!.IsVirtual);
-        Assert.True(typeof(PyRegexPattern).GetProperty("TypeName")!.GetMethod!.IsFinal);
+        // 恢复旧公开PE旗标：sealed类型不等于给override额外写入Final方法旗标。
+        Assert.True(typeof(PyRegexPattern).IsSealed);
+        Assert.Equal(1048833, (int)typeof(PyRegexPattern).Attributes);
+        MethodInfo typeName = typeof(PyRegexPattern).GetProperty("TypeName")!.GetMethod!;
+        Assert.False(typeName.IsFinal);
+        Assert.Equal(2246, (int)typeName.Attributes);
+        FieldInfo search = typeof(PyRegexPattern).GetField("_search", declared)!;
+        Assert.Equal(typeof(Regex), search.FieldType);
+        var scanner = New(Root(Module()), Lex(Pair("a", Echo())));
+        var owner = Assert.IsType<PyRegexPattern>(PyObject.GetAttr(scanner, "scanner"));
+        Assert.Same(owner, PyRegex.Compile(owner));
+        var executor = Assert.IsAssignableFrom<Regex>(search.GetValue(owner));
+        Assert.NotEqual(typeof(Regex), executor.GetType());
+        Assert.Equal(typeof(Regex), executor.GetType().BaseType);
+        Assert.True(executor.GetType().IsSealed);
+        Assert.False(executor.GetType().IsVisible);
+        Assert.Empty(executor.GetType().GetFields(declared));
+        Assert.Equal(RegexOptions.CultureInvariant, executor.Options);
+        Assert.Equal(TimeSpan.FromSeconds(2), executor.MatchTimeout);
+        Assert.Equal("(['a', 'a'], '!')", PyRepr.Repr(Scan(scanner, "aa!")));
+        var match = Assert.IsType<PyRegexMatch>(PyObject.GetAttr(scanner, "match"));
+        Assert.Same(owner, PyObject.GetAttr(match, "re"));
+        Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(owner, "ScannerPlan"));
+        Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(owner, "_search"));
         // 字段/虚槽断言不是对象实测布局、JIT去虚化或吞吐回归结论。
     }
 }

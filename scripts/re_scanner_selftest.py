@@ -7,13 +7,179 @@ from pathlib import Path
 import tempfile
 import types
 import unittest
+from unittest import mock
 import re_scanner_contract as c
 import re_scanner_workload as workload
 import re_scanner_validation as gate
 import textwrap_dedent_selftest as old_tests
 
 
+def write_process(root, name, argv, stdout=b'OK\n', stderr=b'', **changes):
+    """小型假原件保留capture四件结构；控制测试不启动任何被测程序。"""
+    prefix = root / name
+    prefix.parent.mkdir(parents=True, exist_ok=True)
+    for suffix, raw in [('stdout', stdout), ('stderr', stderr)]: prefix.with_suffix('.' + suffix).write_bytes(raw)
+    record = dict(exit=0, failure=None, raw_streams_complete=True, argv=list(map(str, argv)),
+        streams={suffix: dict(bytes=prefix.with_suffix('.' + suffix).stat().st_size,
+                              sha256=c.sha(prefix.with_suffix('.' + suffix))) for suffix in ('stdout', 'stderr')})
+    record.update(changes)
+    prefix.with_suffix('.json').write_text(json.dumps(record))
+    prefix.with_suffix('.argv.json').write_text(json.dumps(dict(argv=list(map(str, argv)))))
+    return record
+
+
 class ScannerControlTests(unittest.TestCase):
+    def checkpoint_runner(self, root, red=None):
+        """纯假证据覆盖真实load_state控制流；host、程序集与source barrier只用显式stub。"""
+        runner = gate.Runner.__new__(gate.Runner)
+        runner.data = c.load_manifest()
+        runner.out = runner.root_out = root
+        runner.inputs_dir = root / 'inputs'; runner.inputs_dir.mkdir()
+        runner.python, runner.dotnet = Path('/fake/python'), Path('/fake/dotnet')
+        runner.cli, runner.runtime = root / 'tools/ryupy', root / 'tools/RyuPy.Runtime.dll'
+        runner.labels = runner.root_labels = set()
+        runner.before, runner.identity_failed = None, False
+        runner.frozen, runner.input_inventories, runner.isolation = {}, {}, {}
+        runner.run_records, runner.snapshot_reports = {}, {}
+        runner.result = dict(passed=False, collection_ready=False,
+            stages={name: dict(passed=False, status='not-run') for name in gate.stage_names(runner.data)})
+        identity = dict(head='a', tree='b', run_id='123', run_attempt='1', manifest_sha256='c', sources={}, tools={})
+        runner.identity = lambda label: dict(head='a', tree='b')
+        runner.fresh_identity = lambda: identity
+        runner.environment = lambda: setattr(runner, 'env', {'TEST_ONLY': '1'})
+        runner.test_assemblies = lambda: None
+        runner.barrier = lambda label: None
+        runner.persist = lambda: None
+        expected, commands = runner.expected_runs(), runner.successful_commands()
+        runs = {}
+        for name, row in expected.items():
+            changes = red if name == 'tokens-exception-jit-run' and red else {}
+            arguments = dict(stdout=row['stdout'].encode()); arguments.update(changes)
+            record = write_process(root, name, row['argv'], **arguments)
+            runs[name] = dict(record=record, prefix=name, argv=row['argv'], source_sha256=row['source_sha256'])
+            pe = Path(row['argv'][1]); pe.parent.mkdir(parents=True, exist_ok=True)
+            for filename, content in ((pe.name, b'PE'), ('RyuPy.Runtime.dll', b'Runtime'), ('module-environment.json', b'{}')):
+                (pe.parent / filename).write_bytes(content)
+        for name, argv in commands.items(): write_process(root, name, argv)
+        for name, content in [('tools/ryupy', b'CLI'), ('tools/RyuPy.Runtime.dll', b'Runtime'),
+                              ('managed/RyuPy.Runtime.dll', b'Runtime'), ('managed/RyuPy.Runtime.Tests.dll', b'Tests')]:
+            path = root / name; path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(content)
+        trx = root / 'trx/result.trx'; trx.parent.mkdir()
+        trx.write_text('<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">' + ''.join(
+            '<UnitTestResult testName="RyuPy.Runtime.Tests.' + name + '" outcome="Passed"/>'
+            for name in runner.data['csharp']['facts']) + '</TestRun>')
+        checkpoint = dict(schema_version=1, identity=identity, runs=runs,
+            files={str(p.relative_to(root)): c.sha(p) for p in root.rglob('*') if p.is_file()})
+        state = dict(schema_version=1, before=dict(head='a', tree='b'), isolation={},
+            labels=list(expected) + list(commands), environment={'TEST_ONLY': '1'}, frozen={},
+            inventories={str(runner.inputs_dir): {}}, checkpoint=checkpoint, snapshots={},
+            result=dict(passed=True, stages={'untrusted': dict(passed=True)}, jit_observed=999))
+        return runner, state
+
+    def resume(self, runner, state, execute=False):
+        gate.save(runner.out / 'state.json', state)
+        event = runner.out / 'event.json'; event.write_text('{}')
+        with mock.patch.dict(gate.os.environ, PYTHON='/fake/python', DOTNET='/fake/dotnet', GITHUB_EVENT_PATH=str(event)), \
+             mock.patch.object(c, 'check_context', return_value=None):
+            return runner.execute('native') if execute else runner.load_state()
+
+    def test_complete_semantic_red_collects_but_native_green_cannot_erase_it(self):
+        for red in (dict(exit=1, stderr=b'traceback\n'), dict(stdout=b'wrong\n'), dict(stderr=b'wrong\n'), None):
+            with self.subTest(red=red), tempfile.TemporaryDirectory() as temp:
+                runner, state = self.checkpoint_runner(Path(temp), red)
+                visited = []
+                runner.native_graph = lambda graph: visited.append(graph['id'])
+                with mock.patch.object(workload, 'native', return_value={'test_only': True}):
+                    code = self.resume(runner, state, execute=True)
+                self.assertTrue(runner.result['collection_ready'])
+                self.assertEqual(code, 1 if red else 0)
+                self.assertEqual(runner.result['passed'], not bool(red))
+                self.assertEqual(runner.result['jit_observed'], 20)
+                self.assertEqual(len(runner.result['compile_commands']), 6)
+                self.assertEqual(runner.result['stages']['csharp-tests']['total'], 43)
+                self.assertEqual(len(visited), 5)
+                self.assertNotIn('untrusted', runner.result['stages'])
+                row = runner.result['stages']['tokens-exception-jit']
+                self.assertEqual(row['status'], 'semantic_failed' if red else 'passed')
+                self.assertEqual(runner.result['jit_semantic_failed'], ['tokens-exception-jit-run'] if red else [])
+                for name in state['checkpoint']['files']:
+                    self.assertEqual(runner.frozen[str(runner.out / name)], state['checkpoint']['files'][name])
+
+    def test_process_identity_failures_never_authorize_collection(self):
+        bad_records = [dict(exit=2), dict(exit=-9), dict(exit=None), dict(exit=False),
+            dict(failure='timeout'), dict(failure='launch-failed'), dict(raw_streams_complete=False),
+            dict(streams={}), dict(streams={'stdout': dict(bytes=0, sha256='0' * 64), 'stderr': {}})]
+        for changes in bad_records:
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as temp:
+                runner, state = self.checkpoint_runner(Path(temp), changes)
+                with self.assertRaises(ValueError): self.resume(runner, state)
+                self.assertFalse(runner.result['collection_ready'])
+                self.assertEqual(runner.result['stages']['csharp-tests']['status'], 'not-run')
+                self.assertTrue((runner.out / 'resume-state.raw.json').is_file())
+
+    def test_compile_and_csharp_commands_are_mandatory_successes(self):
+        # 六次CLI和三次工具/C#命令逐个负测，不能仅凭PE/TRX存在越过实际失败。
+        data = c.load_manifest()
+        names = ['csharp-build', 'scanner-csharp-tests', 'compiler-build', 'attr-list-compile']
+        names += [g['id'] + '-compile-command' for g in data['graphs'] if g['native']]
+        for name in names:
+            for fault in ('missing', 'failed', 'argv'):
+                with self.subTest(name=name, fault=fault), tempfile.TemporaryDirectory() as temp:
+                    runner, state = self.checkpoint_runner(Path(temp))
+                    checkpoint = state['checkpoint']; path = runner.out / (name + '.json')
+                    if fault == 'missing': del checkpoint['files'][path.name]
+                    else:
+                        record = c.parse(path.read_bytes())
+                        record.update(exit=1) if fault == 'failed' else record.update(argv=['wrong'])
+                        gate.save(path, record); checkpoint['files'][path.name] = c.sha(path)
+                    with self.assertRaises(ValueError): self.resume(runner, state)
+                    self.assertFalse(runner.result['collection_ready'])
+
+    def test_missing_io_alias_unsafe_path_and_isolation_fail_closed(self):
+        for fault in ('missing-stream', 'prefix', 'duplicate-label', 'unsafe', 'symlink', 'isolation', 'source', 'record'):
+            with self.subTest(fault=fault), tempfile.TemporaryDirectory() as temp:
+                runner, state = self.checkpoint_runner(Path(temp))
+                checkpoint = state['checkpoint']; name = 'tokens-exception-jit-run'
+                if fault == 'missing-stream': (runner.out / (name + '.stderr')).unlink()
+                elif fault == 'prefix': checkpoint['runs'][name]['prefix'] = 'tokens-flow-jit-run'
+                elif fault == 'duplicate-label': state['labels'].append(state['labels'][0])
+                elif fault == 'unsafe': checkpoint['files']['../escape'] = '0' * 64
+                elif fault == 'symlink':
+                    (runner.out / 'alias').symlink_to(runner.out / 'tools', target_is_directory=True)
+                    checkpoint['files']['alias/ryupy'] = c.sha(runner.cli)
+                elif fault == 'isolation': state['isolation']['inputs'] = 'lost'
+                elif fault == 'source': checkpoint['runs'][name]['source_sha256'] = '0' * 64
+                else: checkpoint['runs'][name]['record']['exit'] = 1
+                with self.assertRaises(ValueError): self.resume(runner, state)
+                self.assertFalse(runner.result['collection_ready'])
+
+    def test_failed_resume_invalidates_without_claimed_pass_and_keeps_original(self):
+        with tempfile.TemporaryDirectory() as temp:
+            runner, state = self.checkpoint_runner(Path(temp), dict(exit=-9))
+            runner.native_graph = lambda graph: self.fail('坏身份不能进入Native')
+            self.assertEqual(self.resume(runner, state, execute=True), 1)
+            self.assertTrue(runner.identity_failed)
+            self.assertFalse(runner.result['collection_ready'])
+            self.assertNotIn('untrusted', runner.result['stages'])
+            original = (runner.out / 'resume-state.raw.json').read_bytes()
+            (runner.out / 'state.json').write_bytes(b'{}')
+            with self.assertRaises(FileExistsError): runner.preserve_resume()
+            self.assertEqual((runner.out / 'resume-state.raw.json').read_bytes(), original)
+
+    def test_timeout_observation_recomputed_and_malformed_stream_stays_red(self):
+        for text, observed in [*c.TIMEOUT_OUTPUTS.items(), ('resource-timeout NI_OK\n', None)]:
+            with self.subTest(text=text), tempfile.TemporaryDirectory() as temp:
+                runner, state = self.checkpoint_runner(Path(temp))
+                name = 'negative-timeout-jit-run'; row = state['checkpoint']['runs'][name]
+                row['record'] = write_process(runner.out, name, row['argv'], text.encode())
+                for suffix in ('stdout', 'stderr', 'json', 'argv.json'):
+                    path = runner.out / (name + '.' + suffix); state['checkpoint']['files'][path.name] = c.sha(path)
+                self.resume(runner, state)
+                actual = runner.result['stages']['negative-timeout-jit']
+                self.assertTrue(runner.result['collection_ready'])
+                self.assertEqual(actual['passed'], observed is not None)
+                self.assertEqual(actual.get('timeout_observed'), observed)
+
     def test_current_frozen_sources_and_separate_accounts(self):
         data = c.load_manifest()
         c.qualified_oracles(data)
@@ -114,15 +280,13 @@ class ScannerControlTests(unittest.TestCase):
                 (root / name).write_bytes(content)
             identity = dict(head='a' * 40, tree='b' * 40, run_id='123', run_attempt='1',
                             manifest_sha256='c' * 64, sources={'entry.py': 'd' * 64}, tools={'runtime': 'e' * 64})
-            expected = {'jit': {'argv': ['dotnet', 'entry.dll', 'flow'], 'source_sha256': 'd' * 64, 'stdout': 'OK\n'}}
-            record = dict(exit=0, failure=None, raw_streams_complete=True, argv=expected['jit']['argv'])
-            (root / 'run.json').write_text(json.dumps(record))
-            (root / 'run.argv.json').write_text(json.dumps(dict(argv=expected['jit']['argv'])))
+            expected = {'run': {'argv': ['dotnet', 'entry.dll', 'flow'], 'source_sha256': 'd' * 64, 'stdout': 'OK\n'}}
+            record = write_process(root, 'run', expected['run']['argv'])
             state = {'schema_version': 1, 'identity': identity,
-                     'runs': {'jit': {'record': record,
-                                     'prefix': 'run', 'argv': expected['jit']['argv'], 'source_sha256': 'd' * 64}},
+                     'runs': {'run': {'record': record,
+                                     'prefix': 'run', 'argv': expected['run']['argv'], 'source_sha256': 'd' * 64}},
                      'files': {p.name: c.sha(p) for p in root.iterdir()}}
-            self.assertTrue(c.verify_checkpoint(state, identity, expected, root)['jit']['passed'])
+            self.assertTrue(c.verify_checkpoint(state, identity, expected, root)['run']['passed'])
             c.verify_checkpoint(state, identity, expected, root, {'entry.dll', 'tests.trx'})
             missing = copy.deepcopy(state); del missing['files']['entry.dll']
             with self.assertRaises(ValueError):
@@ -132,10 +296,10 @@ class ScannerControlTests(unittest.TestCase):
                                ('run_attempt', '2'), ('manifest_sha256', 'f' * 64),
                                ('sources', {}), ('tools', {})]:
                 bad = copy.deepcopy(state); bad['identity'][key] = value; mutations.append(bad)
-            bad = copy.deepcopy(state); bad['runs']['jit']['record']['exit'] = -11; mutations.append(bad)
+            bad = copy.deepcopy(state); bad['runs']['run']['record']['exit'] = -11; mutations.append(bad)
             bad = copy.deepcopy(state); del bad['files']['run.stderr']; mutations.append(bad)
-            bad = copy.deepcopy(state); bad['runs']['jit']['passed'] = True; mutations.append(bad)
-            bad = copy.deepcopy(state); bad['runs']['jit']['source_sha256'] = 'f' * 64; mutations.append(bad)
+            bad = copy.deepcopy(state); bad['runs']['run']['passed'] = True; mutations.append(bad)
+            bad = copy.deepcopy(state); bad['runs']['run']['source_sha256'] = 'f' * 64; mutations.append(bad)
             bad = copy.deepcopy(state); del bad['files']['run.json']; mutations.append(bad)
             bad = copy.deepcopy(state); del bad['files']['run.argv.json']; mutations.append(bad)
             for bad in mutations:
@@ -171,11 +335,10 @@ class ScannerControlTests(unittest.TestCase):
             identity = dict(head='a', tree='b', run_id='123', run_attempt='1', manifest_sha256='c', sources={}, tools={})
             state = dict(schema_version=1, identity=identity, runs={}, files={})
             for name, row in expected.items():
-                record = dict(exit=0, failure=None, raw_streams_complete=True, argv=row['argv'])
+                record = write_process(root, name, row['argv'], row['stdout'].encode())
                 state['runs'][name] = dict(record=record, prefix=name, argv=row['argv'], source_sha256=row['source_sha256'])
-                for suffix, raw in [('stdout', row['stdout']), ('stderr', ''), ('json', json.dumps(record)),
-                                    ('argv.json', json.dumps(dict(argv=row['argv'])))]:
-                    path = root / (name + '.' + suffix); path.write_text(raw); state['files'][path.name] = c.sha(path)
+                for suffix in ('stdout', 'stderr', 'json', 'argv.json'):
+                    path = root / (name + '.' + suffix); state['files'][path.name] = c.sha(path)
             self.assertEqual(len(c.verify_checkpoint(state, identity, expected, root)), 20)
             for removed in (['tokens-flow-jit-run'], [name for name in expected if name.startswith('tokens-')], ['attr-list']):
                 missing = copy.deepcopy(state)
@@ -184,7 +347,9 @@ class ScannerControlTests(unittest.TestCase):
             failed = copy.deepcopy(state); failed['runs']['tokens-flow-jit-run']['record']['exit'] = 1
             path = root / 'tokens-flow-jit-run.json'; path.write_text(json.dumps(failed['runs']['tokens-flow-jit-run']['record']))
             failed['files'][path.name] = c.sha(path)
-            with self.assertRaises(ValueError): c.verify_checkpoint(failed, identity, expected, root)
+            actual = c.verify_checkpoint(failed, identity, expected, root)
+            self.assertFalse(actual['tokens-flow-jit-run']['passed'])
+            self.assertEqual(actual['tokens-flow-jit-run']['status'], 'semantic_failed')
 
     def test_exact_timeout_branches_never_accept_process_failure(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -227,6 +392,7 @@ class ScannerControlTests(unittest.TestCase):
             runner.input_inventories, runner.isolation, runner.snapshot_reports = {}, {}, {}
             runner.result = {'passed': False, 'stages': {}}
             runner.fresh_identity = lambda: {'test_only': True}
+            runner.successful_commands = lambda: {}
             runner.persist()
             self.assertTrue((root / 'state.json').is_file())
             self.assertFalse((nested / 'state.json').exists())

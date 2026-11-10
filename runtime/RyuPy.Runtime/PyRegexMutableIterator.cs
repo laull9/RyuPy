@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace RyuPy.Runtime;
 
-public partial class PyRegexPattern
+public sealed partial class PyRegexPattern
 {
     // pos/endpos的用户协议由共同入口先完成；此处立即取得扫描期租约，不延迟到first next。
     internal IPyIterator CreateMutableBytesIterator(object source, long start, long end) =>

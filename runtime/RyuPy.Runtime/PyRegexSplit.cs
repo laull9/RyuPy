@@ -64,7 +64,7 @@ internal static class PyRegexSplit
     }
 }
 
-public partial class PyRegexPattern
+public sealed partial class PyRegexPattern
 {
     internal PyList SplitInput(object? source, object? maxsplit)
     {

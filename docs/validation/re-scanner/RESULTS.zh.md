@@ -76,3 +76,11 @@ Scanner专用CI实际HEAD为`df75ece84bb4b32e345a96785742169b6442c509`。官方c
 Python基线的parse_manifest不接受timeout键，execute固定30秒；Rust CaseSpec::from_case_dir支持该键，但初始timeout_secs也为30。修订仅从五个case.txt删除冗余的`timeout = 30`行，使Rust解析值和CP固定超时不变。entry、args、所有断言、pending=true和源码pending标记保持；没有放宽任何parser或跳过用例，没有重跑CP/旧CLI。旧失败配置与两门原流保留，配置解析验证与纯控制结果另列，不能代替整组重验。
 
 一次纯配置验证调用真实Python解析器：五份旧配置仍精确拒绝timeout，五份新配置全部接受且entry/pending/args/env/期望值不变；没有调用execute或启动case。Rust默认值只作源码静态核对，不冒称运行了Rust解析器。合并这两项前置修复后，控制007只运行一次同样四组55项，12+13+23+7全部通过。原控制代码、workflow、CP参考流及003历史包不变；C#重建、五例CP完整门与JIT/Native仍须新轮实际验证。
+
+## Native采集门与ABI B来源增量
+
+旧恢复门把完整自然退出后的JIT语义红与身份坏混为一类，因而阻断独立Native采集；新恢复只对实际原件身份作硬门，语义红仍保留。准入仅接受精确int 0/1、failure=null和完整双流，exit1不算通过；其它退出码、signal、进程timeout、残流、原record矛盾、缺任一run或编译命令均拒采。实际43Fact及九个构建/测试/图编译命令仍必须成功。恢复不信旧passed，重新保存43/20真实结果；Native成功不能改变JIT失败或总体退出码。
+
+清单当前16源精确绑定runtime-abi-b-001，manifest SHA256为`7da48eb58449a1eaa1ad20dd4e2d6b57eaa3178e3aa13bd5d3f1433ce9560b1c`。003及测试语法修订只作历史来源保留；B载体的C#重建、ABI和产品结果必须重新验收。本次不改变任何产品断言、CP原流或业务202B目标，不执行CP、CLI、C#、JIT、Native，不提交或发布。
+
+本次纯控制恰运行一次四组：Scanner18/18、dedent13/13、metadata23/23、selector7/7，共61项，四进程自然exit0。新增6个测试函数包含自然语义红可采但总体仍红、原件/退出身份坏拒采、六图编译及三构建/测试命令逐项缺失/失败/错argv、路径/label/隔离负门、原resume不覆盖和timeout分支重算。测试仅使用小假文件与明确mock；43/20为控制中模拟的证据规模，不冒称本次真实产品执行。shared helper及workflow零改。

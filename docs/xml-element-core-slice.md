@@ -75,3 +75,17 @@ CP环境首捕获误假定内建_elementtree有__file__而失败，后按实际b
 父首次004复验误传相对runtime路径，12例编译均找不到DLL，没有执行；修为绝对路径另建attempt后六核心通过，最后完整22例验证九正十三pending。首封包patch混合空文件git header与unified diff失败，原patch/流保留；只修封包格式后二次check/apply及全部new SHA核同，未修改源。隔离C#历次日志与冻结源均保留，最终2538过不能抹去先前发现。
 
 get/set等为守住外部attrib别名新增非文本键而扫描keys，属性多时逐项set可能二次增长；节点/字典、方法包装和参数数组、快照、前序O(depth)栈/集合及启动注册均有真实成本。非XML普通容器、通用hash/type/binder源保持原实现，PyIter只在已进入native分支增加载体判断。未以此宣称零开销，S1/B2及所有旧不利样本继续开放。
+
+## 2026-11-10 Element 序列物化接线候选（源 WIP，产品待验）
+
+CI 42851111696 的 attr_list 原三输入调用只得到 JIT stdout 117 字节、exit1；CP 原业务参考为完整 202 字节。首个 h1 成功不等于业务通过。源码确认 `for/iter(Element)` 已由 `PyIter.Create` 构造 children 游标，但 `list(Element)` 的 `PyOps.ToSequence` 没有同一适配。锁定上游 `treeprocessors.py:310` 是第二输入最早强源码候选；无栈的错误流不能证明实际失败行。
+
+本候选仅在 `ToSequence` 既有容器快路之后增加 sealed `PyXmlElement` 分派，复用 `PyIter.Create` 与 `DrainIterator`。不补已有 PyIter 分支，不向 Element 公开 `__iter__`，不泛化任意 native 的 fallback。物化只复制外层 children 顺序与原节点引用，不递归摊平子树，不去重或克隆；之后 append 不反向改写旧快照，新物化可见新 children。消耗已有游标继续遵循活索引、独立游标与第一次耗尽后不复活的原合同；插入当前索引之前可能再次读到旧节点。
+
+`list`、`tuple` 以及共享 `ToSequence` 的星号参数和普通 list 切片赋值获得同一有限输入域；不因此承诺所有序列 API。非 Element native 对象、游标原异常和物化后的排序比较错误仍走原路径。未改 RuntimeFn、CIL/ABI、TreeBuilder、公开 ABC 形状或普通容器快路，不宣称零分派成本。
+
+新增四个 C# Fact 与既有 `live_preorder_iteration/entry.py` 的追加断言，保留全部旧断言、case 元数据和两份 golden 双流。覆盖空/单/多节点、重复引用与两父共享、嵌套物化、直接/别名/函数参数构造、for/iter、快照与新鲜容器、star/list 切片消费者、append/insert/耗尽、非 Element 拒绝、后续比较错误与游标异常身份。
+
+固定 CPython 3.12.13（解释器 SHA256 `021044895e95be79dc2f110367607e684119afbc8ce75f6f0eec94844e0acec7`）只运行一次扩展夹具，源 SHA256 `1b32ffd734a32720f8648afeaf34a9616c7ee4ff71a814b8781a8a9693d885d4`，exit0、stdout 123 字节逐字等于既有 golden、stderr 空。这只是新增断言的 CP oracle，不是 RyuPy 通过。当前环境无 .NET SDK，四个新增 C# Fact、新夹具 JIT/Native 及完整门尚未执行；前述历史首切验收不能覆盖本次源变化。没有重跑原 Markdown CP 或旧五个窗口。
+
+原业务完整 202 字节、extra 完整 77 字节与固定项目 11/8/1 门仍保留。callback `__traceback__` 旧 getter 返回 None、Scanner 引起的 S1 ABI 门失败独立开放；本切不改 ABI baseline 或 Scanner 源、不删除红例、不计项目晋升。仓内活动冻结清单未直接绑定上述四路径；bytearray-slice 的 PyCollectionOps 旧 SHA 属历史记录，保留原值，不把它重写成新基线。
