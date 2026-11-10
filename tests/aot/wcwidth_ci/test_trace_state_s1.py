@@ -69,19 +69,41 @@ class S1CollectionIdentity(unittest.TestCase):
         self.assertTrue(json.loads((self.out / "trx-validation.json").read_text())["violations"])
 
     def test_expanded_discovery_is_exact_full_case_set(self):
-        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (29, 36))
+        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (30, 37))
         report = self.discovery()
         self.assertEqual(report["mode"], "expanded_cases")
-        self.assertEqual(report["observed_count"], 36)
+        self.assertEqual(report["observed_count"], 37)
         self.assertEqual(sum(count for method, count in gate.EXPECTED.items()
                              if method.startswith(("RyuPy.Runtime.Tests.PyTraceStateTests.",
                                                    "RyuPy.Runtime.Tests.PyTraceStateEpochTests."))), 21)
 
+    def test_metadata_abi_fact_is_registered_and_cannot_be_omitted_or_misattributed(self):
+        cls = "PyTraceStateV1ArtifactContractTests"
+        method = "CombinedAbiRejectsInvalidAllowListsAndMetadataFlags"
+        name = "RyuPy.Runtime.Tests." + cls + "." + method
+        self.assertEqual(gate.PLAN[cls][method], gate.FACT)
+        self.assertEqual(gate.EXPECTED[name], 1)
+        self.assertEqual(gate.CASE_METHOD[name], name)
+        # 两种 discovery 形态都必须保留这个完整身份，不能仅靠总数量通过。
+        for collection in (gate.EXPECTED, gate.CASE_METHOD):
+            names = list(collection)
+            wrong = name.replace(cls, "PyTraceStateTests")
+            for changed in ([x for x in names if x != name], names + [name],
+                            [wrong if x == name else x for x in names]):
+                with self.subTest(changed=changed), self.assertRaises(RuntimeError):
+                    self.discovery(changed)
+        root = synthetic_trx()
+        missing = next(row for row in results(root) if row.get("testName") == name)
+        root.find("t:Results", N).remove(missing)
+        # 即使同步降低汇总，也不能把漏执行伪装为合法的旧36案例门。
+        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="36", executed="36", passed="36")
+        self.reject(root)
+
     def test_method_only_discovery_does_not_claim_case_expansion(self):
         report = self.discovery(gate.EXPECTED)
         self.assertEqual(report["mode"], "methods_only")
-        self.assertEqual(report["observed_count"], 29)
-        self.assertEqual(len(self.verify(synthetic_trx(), report)), 36)
+        self.assertEqual(report["observed_count"], 30)
+        self.assertEqual(len(self.verify(synthetic_trx(), report)), 37)
 
     def test_discovery_rejects_missing_extra_duplicate_wrong_owner_and_mixed_forms(self):
         names = list(gate.CASE_METHOD)
@@ -130,7 +152,7 @@ class S1CollectionIdentity(unittest.TestCase):
         root = synthetic_trx(); rows = results(root)
         indices = [i for i, row in enumerate(rows) if "ExplicitPermanentlyRevokesBirth" in row.get("testName")]
         self.assertEqual(len(indices), 2)
-        # 保持36结果和短/完整方法计数，只有一个Theory案例被重复替代。
+        # 保持37结果和短/完整方法计数，只有一个Theory案例被重复替代。
         parent = root.find("t:Results", N); parent.remove(rows[indices[1]])
         parent.insert(indices[1], copy.deepcopy(rows[indices[0]]))
         self.reject(root)

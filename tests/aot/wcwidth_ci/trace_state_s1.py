@@ -47,6 +47,7 @@ PLAN = {
     "PyTraceStateV1ArtifactContractTests": {
         "PublicIncrementContainsOnlyTheTwelveApprovedRecords": FACT,
         "AbiRejectsMissingChangedExtraAndDuplicateRecords": FACT,
+        "CombinedAbiRejectsInvalidAllowListsAndMetadataFlags": FACT,
         "BridgeRulesRejectUnknownSourcesTargetsSignaturesAndOpcodes": FACT,
         "CarrierTemplatesRejectExtraFieldsAndUnlistedMechanicalMembers": FACT,
         "TraceTypeMatchingDoesNotTreatNamePrefixesAsIdentity": FACT,
