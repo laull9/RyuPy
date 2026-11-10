@@ -1371,3 +1371,9 @@ count/find/rfind/index/rindex 共用绑定与码点窗口；start/end先后转�
 饱和、空needle越尾/反向窗、非重叠count及命中两端代理边界分别处理。冷类型槽与expandtabs
 共享调用而不共享C-int转换；affix只共享纯Offset。真实属性override、D009/int派生布局和warnings
 既存失败边界保持；C#/JIT/AOT、完整保护及Markdown尚未验，见[ADR0149](adr/0149-string-search-windows.md)。
+
+### ADR-0150：封闭分发快照候选边界（待验收）
+
+--distribution-metadata以显式根完整快照替代该产品的发行版发现环境，不实现动态sys.path。未配置不是空，首次metadata import绑定导入函数并锁定runtime域配置；owner/payload冲突拒绝。普通导入只新增精确字符串域，自定义name/相对package或字符串子类不跳过用户协议伪装兼容。默认导入、原搜索窗口/core/warning不变。
+
+ADR-0150修订002：metadata新增可导入性不代表无配置可发现；未实现高级属性保持AttributeError/from-import失败，防止占位吞掉ImportError fallback。分发文件读取有平台限定末端nofollow与句柄身份核验，仍不是恶意并发下的原子快照。

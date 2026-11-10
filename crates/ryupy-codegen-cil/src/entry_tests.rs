@@ -53,6 +53,7 @@ fn serialized_entry_initializes_exit_code() {
         exports: Vec::new(),
     });
     let program = LinkedProgram {
+        distribution_metadata: None,
         trace_product: None,
         functions,
         modules,

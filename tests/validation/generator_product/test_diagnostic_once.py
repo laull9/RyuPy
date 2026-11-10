@@ -53,6 +53,7 @@ class DiagnosticTests(unittest.TestCase):
         noreturn_title = 'validation: typing-noreturn-001'
         expand_title = 'validation: text-expandtabs-001'
         search_title = 'validation: text-search-002'
+        metadata_title = 'validation: distribution-metadata-001'
         cases = [(d.TITLE, 'push', d.REF, True), (d.TITLE.upper(), 'push', d.REF, False),
                  (d.TITLE + '\n', 'push', d.REF, False), ('normal commit', 'push', d.REF, False),
                  (d.TITLE, 'workflow_dispatch', d.REF, False), (None, 'push', d.REF, False),
@@ -75,6 +76,10 @@ class DiagnosticTests(unittest.TestCase):
             (search_title, 'push', d.REF), (search_title.upper(), 'push', d.REF),
             (search_title + '\n', 'push', d.REF), (search_title, 'workflow_dispatch', d.REF),
             (search_title, 'push', d.REF.upper())]]
+        cases += [(title, event, ref, False) for title, event, ref in [
+            (metadata_title, 'push', d.REF), (metadata_title.upper(), 'push', d.REF),
+            (metadata_title + '\n', 'push', d.REF), (metadata_title, 'workflow_dispatch', d.REF),
+            (metadata_title, 'push', d.REF.upper())]]
         cases.append(('validation: text-search-001', 'push', d.REF, False))
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -91,12 +96,14 @@ class DiagnosticTests(unittest.TestCase):
                         exec(compile(code, 'workflow-selector', 'exec'), {})
                     noreturn = title in (noreturn_title, expand_title) and event_name == 'push' and ref == d.REF
                     search = title == search_title and event_name == 'push' and ref == d.REF
+                    metadata = title == metadata_title and event_name == 'push' and ref == d.REF
                     markdown = title == markdown_title and event_name == 'push' and ref == d.REF
                     self.assertEqual((root / 'output').read_text(),
                                      'diagnostic=' + str(expected).lower() + '\n'
                                      + 'markdown=' + str(markdown).lower() + '\n'
                                      + 'noreturn=' + str(noreturn).lower() + '\n'
-                                     + 'search=' + str(search).lower() + '\n')
+                                     + 'search=' + str(search).lower() + '\n'
+                                     + 'metadata=' + str(metadata).lower() + '\n')
         self.assertNotIn('${{', block)
         self.assertNotIn('checkout', block)
 

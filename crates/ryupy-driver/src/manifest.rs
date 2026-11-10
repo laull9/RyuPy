@@ -59,6 +59,10 @@ impl ManifestContext {
                 "instance_modules": session.instance_modules,
                 "module_environment_policy": session.module_environment_policy.identity()}),
         };
+        let mut context = context;
+        if let Some(report) = &session.distribution_metadata_report {
+            context.options["distribution_metadata"] = report.clone();
+        }
         context.validate()?;
         Ok(context)
     }

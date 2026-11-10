@@ -47,6 +47,7 @@ fn program(guard: bool) -> LinkedProgram {
         exports: vec![],
     });
     LinkedProgram {
+        distribution_metadata: None,
         trace_product: None,
         functions,
         modules,

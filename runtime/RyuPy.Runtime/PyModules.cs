@@ -33,6 +33,8 @@ public sealed class PyModule
 
     /// <summary>0 = 未初始化，1 = 初始化中，2 = 已完成。</summary>
     internal int State;
+    // 由内部注册签发，不从可改公开属性推断父包来源。
+    internal bool IsNativeRegistration { get; }
 
     private readonly PyModuleInit init;
     private readonly PyModuleGet get;
@@ -56,9 +58,11 @@ public sealed class PyModule
         PyModuleSet set,
         bool fileBackedByGlobal = false,
         bool legacyResourceMetadata = false,
-        bool instanceGlobals = false
+        bool instanceGlobals = false,
+        bool isNativeRegistration = false
     )
     {
+        IsNativeRegistration = isNativeRegistration;
         this.instanceGlobals = instanceGlobals;
         this.fileBackedByGlobal = fileBackedByGlobal;
         this.legacyResourceMetadata = legacyResourceMetadata;
@@ -136,9 +140,11 @@ public static partial class PyModules
         bool fileBackedByGlobal = false,
         ResourceLocation? resourceLocation = null,
         bool metadataEnabled = false,
-        PyCompiledModuleCode? instanceCode = null
+        PyCompiledModuleCode? instanceCode = null,
+        bool nativeRegistration = false
     )
     {
+        public bool NativeRegistration { get; } = nativeRegistration;
         public ResourceLocation? ResourceLocation { get; } = resourceLocation;
         public bool MetadataEnabled { get; } = metadataEnabled;
         public PyCompiledModuleCode? InstanceCode { get; } = instanceCode;
@@ -196,10 +202,18 @@ public static partial class PyModules
     /// <summary>登记原生模块属性；对象缓存与普通编译模块共享，属性写入保持实时可见。</summary>
     public static void RegisterNative(string name, Dictionary<string, object?> attributes, Action<string, object?>? beforeSet = null)
     {
-        Register(name, name.Contains('.') ? name[..name.LastIndexOf('.')] : "", "", () => { },
+        RegisterNativeLazy(name, name.Contains('.') ? name[..name.LastIndexOf('.')] : "", "", () => { },
             key => attributes.TryGetValue(key, out object? value) ? value
                 : throw new PyAttributeError($"module '{name}' has no attribute '{key}'"),
             (_, key, value) => { beforeSet?.Invoke(key, value); attributes[key] = value; });
+    }
+
+    // 与普通Register共用生命周期；仅内部native模块可签发来源，不扩公开ABI。
+    internal static void RegisterNativeLazy(string name, string package, string file,
+        PyModuleInit init, PyModuleGet get, PyModuleSet set)
+    {
+        EnsureRegistrationAvoidsCacheAliases(name);
+        Registry[name] = new Registration(package, file, init, get, set, nativeRegistration: true);
     }
 
     internal static Dictionary<string, PyModule> CacheSnapshot() => new(Cache, StringComparer.Ordinal);
@@ -255,7 +269,8 @@ public static partial class PyModules
             registration.Get,
             registration.Set,
             registration.FileBackedByGlobal,
-            registration.ResourceLocation is not null && !registration.MetadataEnabled
+            registration.ResourceLocation is not null && !registration.MetadataEnabled,
+            isNativeRegistration: registration.NativeRegistration
         );
         if (registration.InstanceCode is null && registration.MetadataEnabled && registration.ResourceLocation is { } source)
             module.Metadata = source.Kind == 0

@@ -66,6 +66,7 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         factory_global: None,
     });
     let program = LinkedProgram {
+        distribution_metadata: None,
         trace_product: None,
         functions,
         modules,

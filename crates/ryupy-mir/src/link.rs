@@ -285,6 +285,7 @@ pub(crate) fn link_with_origins(
     });
 
     LinkedProgram {
+        distribution_metadata: None,
         trace_product: None,
         functions,
         classes,

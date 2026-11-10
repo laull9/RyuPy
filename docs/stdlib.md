@@ -108,3 +108,9 @@ find_spec NI独立。范围见[容器API表](stdlib-collections.md)和[合同与
 ## importlib.resources 编译闭包候选补充
 
 ADR0146只为JIT显式literal files锚点可选发现空普通直接子包；资源API运行时行为、AOT显式include/resources和旧负域不变。`files`重绑仍实际调用，未知/非空/编码声明候选不强制编译。候选尚待原pyfiglet/通用Native与完整同HEAD验收，不计新API或项目通过。
+
+### 分发快照候选（ADR-0150，未验收）
+
+新增显式闭包metadata请求与普通import_module候选；EntryPoint/EntryPoints只承诺name/value/group/load、iter/len/bool、select(name/group)、字符串索引。尚待CP差分/JIT/AOT及保护门，不计标准库或项目通过；高级构造、比较/hash、动态finder、zip与未配置环境明确NI。
+
+修订002：未实现的version/files/requires/Distribution等高级API不公开，保持缺属性/from-import失败而非占位函数。无选项能import metadata但entry_points明确NI，不能将模块可导入当默认兼容。

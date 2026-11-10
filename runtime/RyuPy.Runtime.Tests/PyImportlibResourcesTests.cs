@@ -30,7 +30,7 @@ public class PyImportlibResourcesTests
         var child = PyModules.Import("importlib.resources"); var parent = PyModules.Import("importlib");
         Assert.Same(child, parent.GetAttr("resources"));
         Assert.Same(PyImportlibResources.CreateAttributes()["files"], child.GetAttr("files"));
-        Assert.Throws<PyAttributeError>(() => parent.GetAttr("import_module"));
+        Assert.IsType<PyFunction>(parent.GetAttr("import_module"));
         Assert.Throws<PyNotImplementedError>(() => Files(PyModules.Import("sys")));
     }
     [Fact]

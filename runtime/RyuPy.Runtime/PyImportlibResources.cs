@@ -9,8 +9,8 @@ public static class PyImportlibResources
     private static readonly PyFunction FilesFunction = new("files", PySignature.Create("files", [], [], []),
         (_, args, names, values) => Files(args, names, values), [], false);
 
-    /// <summary>父模块不伪造 import_module 等尚未实现的属性。</summary>
-    public static Dictionary<string, object?> ParentAttributes() => new();
+    /// <summary>父模块由通用importlib入口提供普通动态导入。</summary>
+    public static Dictionary<string, object?> ParentAttributes() => PyImportlib.CreateAttributes();
 
     /// <summary>子模块复用稳定的 files 函数对象。</summary>
     public static Dictionary<string, object?> CreateAttributes() => new() { ["files"] = FilesFunction };

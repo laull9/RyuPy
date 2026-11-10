@@ -11,6 +11,9 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
+    /// 显式封闭分发快照请求（JIT/AOT）；不改变sys.path
+    #[arg(long, global = true)]
+    distribution_metadata: Option<PathBuf>,
     /// 强制有限trace V1：域外整产物编译拒绝；普通build/run无flag自动检查有限域
     #[arg(long, global = true)]
     trace_product_v1: bool,
@@ -112,6 +115,7 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let mut sess = Session {
+        distribution_metadata: cli.distribution_metadata,
         trace_product_v1: cli.trace_product_v1,
         instance_modules: cli.instance_modules,
         experimental_direct_accumulator: cli.experimental_direct_accumulator,

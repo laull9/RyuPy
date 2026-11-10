@@ -753,3 +753,5 @@ networkx同机制函数未被固定入口调用，click终端分支也不能由g
 ### JIT资源闭包候选（2026-11-10，未晋升）
 
 ADR0146已接新Legacy冷词法能力与JIT-only空直接子包发现，当前只有有限Rust结构/类型检查。原pyfiglet无include完整入口、通用Static碰撞JIT/Native、两模式完整check和同HEAD固定20均待新工具实测；旧CI58的10/8/2不等于本候选结果。旧10（含progress）现按ID保护，pyfiglet暂不加长期通过列表。AOT仍显式include/resources，性能未测。
+
+分发metadata闭包候选见ADR-0150：真实完整发行版快照与惰性目标加载独立于源码include。候选尚未产品验收，不增加默认20项目分子；原Markdown显式48/77B、默认find_spec来源阻点与AOT资源部署分开记录。

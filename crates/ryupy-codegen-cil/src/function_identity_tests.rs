@@ -107,6 +107,7 @@ fn original_function_identity_is_duplicated_at_definition() {
         exports: vec![],
     });
     let program = LinkedProgram {
+        distribution_metadata: None,
         trace_product: None,
         functions,
         modules,

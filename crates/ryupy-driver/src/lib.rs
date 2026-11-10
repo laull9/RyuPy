@@ -14,6 +14,7 @@ mod binding_build;
 pub mod dotnet;
 mod dump;
 pub use dump::dump;
+mod distribution_metadata;
 mod instance_modules;
 mod module_environments;
 pub use module_environments::{ModuleEnvironmentDecision, ModuleEnvironmentPolicy};
@@ -32,59 +33,10 @@ pub use trace_product::TraceEntry;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use ryupy_base::{Diagnostics, FileId, SourceDb};
+use ryupy_base::FileId;
 
-/// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
-#[derive(Default)]
-pub struct Session {
-    /// 显式强制有限trace V1；合法域外E0310，内部损坏硬停。
-    pub trace_product_v1: bool,
-    /// 明确正常Main执行的请求；裸API默认Unknown，不从DLL扩展名推断宿主生命周期。
-    pub trace_entry: TraceEntry,
-    /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
-    pub instance_modules: Vec<String>,
-    /// 编译会话的隔离候选策略；无公开CLI开关，也不改变运行时模式数。
-    pub module_environment_policy: ModuleEnvironmentPolicy,
-    /// 当前实际源码图的编译计划；compiled区分已完成编译与首错后未执行者。
-    pub module_environment_report: Vec<ModuleEnvironmentDecision>,
-    /// 固定绑定编排期间禁止自动迁移，结束后恢复；显式能力仍按原边界。
-    #[doc(hidden)]
-    pub fixed_binding_build: bool,
-    /// 显式输出普通构建的编译阶段标记；默认关闭，不改变运行时 ABI。
-    pub diagnostic_stages: bool,
-    /// 本次编译显式包含的源码模块；只加入依赖图，仍在import时初始化。
-    pub include_modules: Vec<String>,
-    pub sources: SourceDb,
-    pub diagnostics: Diagnostics,
-    /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
-    /// 仅控制本次会话的 MIR 流水线，不从进程环境隐式读取，也不改变语言语义。
-    pub experimental_direct_accumulator: bool,
-    /// 显式实验：仅在实际自动选择的普通动态实例模块启用严格ForEach holder。
-    /// 默认关闭，不提供公共CLI模式，也不影响显式实例模块与旧ForRange累加器。
-    pub experimental_foreach_accumulator: bool,
-    /// 实验：精确Int64实参的受守卫纯叶内联；guard失败性能未达默认门槛。
-    pub experimental_leaf_inline: bool,
-    /// 仅诊断：SLP保相同守卫/物化，但使用直接标量运算，隔离packed本身的收益。
-    pub diagnostic_scalar_slp: bool,
-    /// 实验：两lane packed SLP已实现，但相对同守卫标量无净收益，默认关闭。
-    pub experimental_packed_slp: bool,
-}
-
-impl Session {
-    pub fn load_file(&mut self, path: &Path) -> Result<FileId> {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("无法读取源文件 {}", path.display()))?;
-        Ok(self.sources.add(path.display().to_string(), text))
-    }
-
-    /// 把全部诊断渲染成文本。
-    pub fn render_diagnostics(&self, color: bool) -> String {
-        self.diagnostics
-            .iter()
-            .map(|d| ryupy_base::diagnostic::render(&self.sources, d, color))
-            .collect()
-    }
-}
+mod session;
+pub use session::Session;
 
 /// 编译因用户代码错误而中止（诊断已存入 [`Session`]）。区别于 IO 等内部错误。
 /// CLI 通过 `err.is::<HasErrors>()` 判断只需打印诊断、不必再打印错误链。
@@ -271,6 +223,7 @@ fn compile_linked_traced(
     Option<resources::ResourcePlan>,
 )> {
     accumulator_options::validate(sess)?;
+    let distribution_payload = distribution_metadata::prepare(sess)?;
     sess.module_environment_report.clear();
     trace.mark("begin", "graph-load", "-");
     let (sources, entry_index) =
@@ -394,7 +347,8 @@ fn compile_linked_traced(
         ));
     }
     trace.mark("begin", "link", "-");
-    let linked = trace_product::link(sess, entry_file, units, entry_index, trace_proofs)?;
+    let mut linked = trace_product::link(sess, entry_file, units, entry_index, trace_proofs)?;
+    linked.distribution_metadata = distribution_payload;
     trace.mark("end", "link", "-");
     trace.mark("begin", "export-check", "-");
     check_linked_exports(sess, &linked, entry_file)?;
@@ -542,6 +496,7 @@ fn build_with_resources_inner(
         // 普通JIT交付没有manifest，原stderr阶段协议也不插入新记录。
         let _ = std::fs::write(opts.out_dir.join("module-environment.json"), report);
     }
+    distribution_metadata::write_report(sess, &opts.out_dir)?;
     runtime::copy_runtime_to(&opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 

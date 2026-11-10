@@ -100,6 +100,9 @@ public static partial class PyHash
     /// <param name="b">右操作数。</param>
     public static bool Equal(object? a, object? b)
     {
+        // 有限metadata对象不把尚未实现的值比较冒充CLR身份相等。
+        if (a is PyEntryPoint or PyEntryPoints || b is PyEntryPoint or PyEntryPoints)
+            throw PyDistributionSnapshot.Unsupported("entry point value equality");
         // 最常见的键 / 元素类型先比：不可能有用户 __eq__，结果与下面的通用顺序一致
         if (a is long x && b is long y)
         {

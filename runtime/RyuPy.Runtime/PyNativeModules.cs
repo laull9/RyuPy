@@ -116,7 +116,8 @@ public static class PyNativeModules
         // os.path同时是os的公开属性；与import os.path返回同一模块对象。
         PyModules.Import("os.path");
         PyModules.RegisterNative("pathlib", PyPaths.CreateAttributes());
-        PyModules.RegisterNative("importlib", PyImportlibResources.ParentAttributes());
+        PyModules.RegisterNative("importlib", PyImportlib.CreateAttributes());
+        PyImportlibMetadata.Register();
         PyModules.RegisterNative("importlib.resources", PyImportlibResources.CreateAttributes());
         PyModules.RegisterNative("importlib.machinery", PyModuleSpec.CreateAttributes());
         PyModules.RegisterNative("importlib.util", PyImportlibUtil.CreateAttributes());

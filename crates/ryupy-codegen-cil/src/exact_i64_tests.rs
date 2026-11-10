@@ -191,6 +191,7 @@ pub(super) fn program() -> LinkedProgram {
         exports: Vec::new(),
     });
     LinkedProgram {
+        distribution_metadata: None,
         trace_product: None,
         functions,
         modules,

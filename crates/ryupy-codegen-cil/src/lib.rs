@@ -25,6 +25,7 @@ pub use emission_report::{
 mod class_cell_refs;
 #[cfg(test)]
 mod class_cell_tests;
+mod distribution_metadata;
 #[cfg(test)]
 mod dynamic_origin_tests;
 #[cfg(test)]
@@ -87,6 +88,7 @@ pub fn emit_assembly_with_report(
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     crate::source_provenance::validate(program)?;
     let (res, _, report) = assembly::build_resolution_with_report(program, opts);
+    crate::distribution_metadata::validate_heap(program, &res)?;
     let bytes = res
         .write(dotnetdll::prelude::WriteOptions {
             is_32_bit: true,

@@ -43,6 +43,8 @@ pub struct Program {
 /// 合并后的程序：所有可达模块 + 入口模块。
 #[derive(Debug)]
 pub struct LinkedProgram {
+    /// driver签发的封闭分发静态载荷；后端只传递，不解析元数据。
+    pub distribution_metadata: Option<String>,
     /// 仅整产物准入与实际link核验可签发；发射前仍逐字段校验，不能以存在性当作授权。
     pub trace_product: Option<crate::generator_product::Certificate>,
     pub functions: Arena<Function>,

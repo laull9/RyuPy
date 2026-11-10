@@ -1,0 +1,8 @@
+<!-- 独立进程状态验收宿主；引用同次已构建Runtime，不ProjectReference重复构建生产。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup><Reference Include="RyuPy.Runtime"><HintPath>$(RuntimePath)</HintPath></Reference></ItemGroup>
+</Project>

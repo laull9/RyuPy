@@ -144,6 +144,7 @@ pub fn emit(program: &LinkedProgram, opts: &EmitOptions) -> Result<Vec<u8>, Code
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     crate::source_provenance::validate(program)?;
     let (res, _) = build_resolution(program, opts);
+    crate::distribution_metadata::validate_heap(program, &res)?;
     res.write(WriteOptions {
         // `true` 生成 PE32 + ILONLY（AnyCPU），不是「32 位程序」：
         // .NET 编译器对 AnyCPU 程序集同样使用 I386 文件头，运行时按目标平台 JIT。
@@ -158,6 +159,7 @@ pub fn dump(program: &LinkedProgram, opts: &EmitOptions) -> Result<String, Codeg
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     crate::source_provenance::validate(program)?;
     let (res, module_class) = build_resolution(program, opts);
+    crate::distribution_metadata::validate_heap(program, &res)?;
     let mut out = String::new();
     out.push_str(&format!(".assembly {}\n{{\n}}\n", opts.assembly_name));
     out.push_str(".assembly extern System.Runtime\n{\n}\n");

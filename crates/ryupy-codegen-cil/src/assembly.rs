@@ -454,6 +454,7 @@ fn build_resolution_core(
         &fn_indices,
         init_functions,
         &accessors,
+        (module_class, sys_runtime, ryupy_runtime),
         binding_refs.as_ref().map(|refs| (bindings, refs)),
     );
 

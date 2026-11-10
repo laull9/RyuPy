@@ -193,6 +193,7 @@ pub(crate) fn emit_module_accessors(
 }
 
 /// 在 `__init_functions` 末尾追加 `PyModules.Register(...)` 调用。
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn append_module_registration(
     res: &mut Resolution<'static>,
     program: &LinkedProgram,
@@ -200,15 +201,28 @@ pub(crate) fn append_module_registration(
     fn_indices: &FxHashMap<FnId, MethodIndex>,
     init_functions: MethodIndex,
     accessors: &ModuleAccessors,
+    deployment_owner: (TypeIndex, AssemblyRefIndex, AssemblyRefIndex),
     binding_context: Option<(
         &[crate::fixed_bindings::FixedI32Binding],
         &crate::fixed_binding_refs::BindingRefs,
     )>,
 ) {
+    let prefix = program.distribution_metadata.as_ref().map(|payload| {
+        crate::distribution_metadata::registration(
+            res,
+            deployment_owner.0,
+            deployment_owner.1,
+            deployment_owner.2,
+            payload,
+        )
+    });
     let Some(method) = res[init_functions].body.as_mut() else {
         return;
     };
     let instructions = &mut method.instructions;
+    if let Some(prefix) = prefix {
+        instructions.splice(0..0, prefix);
+    }
     if matches!(instructions.last(), Some(Instruction::Return)) {
         instructions.pop();
     }

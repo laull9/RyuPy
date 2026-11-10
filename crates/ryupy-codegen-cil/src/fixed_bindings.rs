@@ -130,6 +130,11 @@ pub fn emit(
 ) -> Result<Vec<u8>, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     crate::source_provenance::validate(program)?;
+    if program.distribution_metadata.is_some() {
+        return Err(CodegenError::Unsupported(
+            "分发快照不支持外部原生绑定宿主".into(),
+        ));
+    }
     if program.trace_product.is_some() {
         return Err(CodegenError::Unsupported(
             "trace V1不接受外部原生绑定".into(),
@@ -187,6 +192,11 @@ pub fn emit_with_report(
 ) -> Result<BindingEmissionArtifact, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     crate::source_provenance::validate(program)?;
+    if program.distribution_metadata.is_some() {
+        return Err(CodegenError::Unsupported(
+            "分发快照不支持外部原生绑定宿主".into(),
+        ));
+    }
     if program.trace_product.is_some() {
         return Err(CodegenError::Unsupported(
             "trace V1不接受外部原生绑定".into(),

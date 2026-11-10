@@ -846,3 +846,5 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [~] 同竖切单成员Legacy caller：同名MNFE后第二阶段与kind1源ImportError字段候选已写，四臂CP已测；C#/真实caller JIT待验，不扩多成员ABI或可写元数据诊断。
 
 - [~] 共同来源归属：CodeSource→MIR/link/CIL→Main/Dynamic/Static warning与功能式TD闭包候选（ADR0145）。纯Rust结构/类型已检；来源e2e保持pending，Runtime13、原J1/J2、真实host/新Native及同HEAD20/default-pilot/旧门待验。Static TD保旧算法，二级None以旧正确路径不回退为硬门，不扩元类/默认图。
+
+- [ ] ADR-0150：显式完整分发快照→真实metadata首次import→EntryPoints→普通动态load闭环候选。源码/pending fixtures已准备，Rust纯检查与C#/CP/JIT/AOT/完整保护门分别记录；不计默认Markdown通过。
