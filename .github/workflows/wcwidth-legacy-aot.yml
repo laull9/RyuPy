@@ -16,6 +16,7 @@ jobs:
     timeout-minutes: 2
     outputs:
       diagnostic: ${{ steps.mode.outputs.diagnostic }}
+      markdown: ${{ steps.mode.outputs.markdown }}
     steps:
       # Actions字符串比较不区分大小写，因此不以表达式==冒充标题字节精确匹配。
       # 不checkout、不执行仓库源码、不把提交消息插入shell；普通提交/dispatch保持原链。
@@ -34,8 +35,16 @@ jobs:
               and isinstance(head, dict)
               and head.get('message') == 'diagnostic-not-acceptance: trace-v1-first-edge-001'
           )
+          markdown = (
+              os.environ.get('GITHUB_EVENT_NAME') == 'push'
+              and os.environ.get('GITHUB_REF') == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+              and event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
+              and isinstance(head, dict)
+              and head.get('message') == 'diagnostic-not-acceptance: markdown-preflight-001'
+          )
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('diagnostic=' + str(diagnostic).lower() + '\n')
+              stream.write('markdown=' + str(markdown).lower() + '\n')
           PY
   trace-edge-diagnostic:
     name: diagnostic-not-acceptance 首边原流
@@ -82,9 +91,70 @@ jobs:
             ${{ runner.temp }}/wcwidth-rust-tools/download-identity.json
           if-no-files-found: error
           retention-days: 3
+  markdown-preflight:
+    name: NOT-ACCEPTANCE Markdown原双调用预检
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.markdown == 'true' && github.run_attempt == '1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: 新控制流及原selector纯自测
+        run: |
+          python3 -B tests/validation/markdown_preflight.py --self-test
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+      - name: 复用固定官方Rust、SDK及CP工具
+        run: |
+          mkdir -p target/markdown-preflight-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/markdown-preflight-prepare/stdout 2> target/markdown-preflight-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/markdown-preflight-prepare/exit
+          exit "$status"
+      - name: 一次1200秒工具构建及180秒原入口预检
+        run: '"$PYTHON" -B tests/validation/markdown_preflight.py'
+      - name: 明示旧保护门not-run、不更新accepted或默认分子
+        if: always()
+        run: |
+          printf '%s\n' '## NOT-ACCEPTANCE: Markdown explicit preflight' \
+            '仅原双调用CP及显式JIT诊断。第一段48B不是完整77B项目通过；显式通过也不增加默认分子。' \
+            'not-run: full make check(default/pilot)、固定20及旧11逐ID保护、NativeAOT/搬迁、Legacy/Instance/Trace回归、source provenance/import-path回归、性能、Markdown上游整库及完整扩展功能。' \
+            '既有失败与accepted保持；本轮不是发布或兼容性全验收。' >> "$GITHUB_STEP_SUMMARY"
+      - name: 保留精确输入及首次原流（排除大工具文件）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: markdown-preflight-evidence-NOT-ACCEPTANCE-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/markdown-preflight
+            !target/markdown-preflight/tools/**
+            target/markdown-preflight-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 独立保留普通CLI及Runtime（同工具身份绑定，可稍后单取）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: markdown-preflight-tools-NOT-ACCEPTANCE-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/markdown-preflight/tools/ryupy
+            target/markdown-preflight/tools/RyuPy.Runtime.dll
+            target/markdown-preflight/tools.json
+          if-no-files-found: error
+          retention-days: 3
   baseline:
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     defaults:
@@ -231,7 +301,7 @@ jobs:
           retention-days: 3
   full-check:
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 100
     defaults:
@@ -297,7 +367,7 @@ jobs:
           retention-days: 3
   projects:
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 80
     defaults:
@@ -331,7 +401,7 @@ jobs:
           retention-days: 3
   trace-adapter-s2:
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -380,7 +450,7 @@ jobs:
 
   trace-rust-preflight:
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -426,7 +496,7 @@ jobs:
   pyfiglet-explicit-deployment:
     name: 原pyfiglet显式外置字体有界部署
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     env:
@@ -469,7 +539,7 @@ jobs:
   source-import-paths:
     name: 普通Import路径C#早门及原include反例JIT
     needs: select-mode
-    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false'
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false'
     runs-on: ubuntu-24.04
     timeout-minutes: 70
     env:
