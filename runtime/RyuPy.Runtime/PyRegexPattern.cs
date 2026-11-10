@@ -7,18 +7,18 @@ using System.Text.RegularExpressions;
 namespace RyuPy.Runtime;
 
 /// <summary>已验证的Python模式；.NET仅执行翻译结果，匹配迭代及公开索引保持Python语义。</summary>
-public sealed partial class PyRegexPattern : PyNativeObject
+public partial class PyRegexPattern : PyNativeObject
 {
     private readonly Regex _search;
     // 仅在需要全匹配或空匹配重试时构造辅助执行器，避免每次compile无条件解析三份。
     private readonly Lazy<Regex> _nonempty, _full;
-    internal string Pattern { get; }
+    internal string? Pattern { get; }
     internal PyBytes? BytePattern { get; }
     internal int Flags { get; }
     internal int Groups { get; }
     internal Dictionary<string, int> Names { get; }
     /// <inheritdoc />
-    public override string TypeName => "Pattern";
+    public sealed override string TypeName => "Pattern";
     internal PyRegexPattern(string pattern, int flags) : this(pattern, flags, null) { }
     private PyRegexPattern(string pattern, int flags, PyBytes? bytePattern)
     {
@@ -40,6 +40,14 @@ public sealed partial class PyRegexPattern : PyNativeObject
             throw bytePattern is null ? new PyRegexError("invalid regular expression", pattern, 0)
                 : new PyRegexError("invalid regular expression", bytePattern, 0);
         }
+    }
+    // 复合Scanner的同程序集冷构造；已有字段均为真实可用执行器，不制造空模式占位。
+    // 普通Pattern实例的字段集合与旧构造/匹配正文不变；辅助Lazy只属于复合对象冷成本。
+    private protected PyRegexPattern(Regex executor, int flags, int groups)
+    {
+        Pattern = null; BytePattern = null; Flags = flags; Groups = groups;
+        Names = new(StringComparer.Ordinal); _search = executor;
+        _nonempty = new Lazy<Regex>(() => executor); _full = new Lazy<Regex>(() => executor);
     }
     /// <inheritdoc />
     public override object? GetAttr(string name) => name switch

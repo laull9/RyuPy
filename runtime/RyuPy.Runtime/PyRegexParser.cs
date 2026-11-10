@@ -10,6 +10,10 @@ internal sealed partial class PyRegexParser
 {
     private readonly string _pattern;
     private readonly PyBytes? _bytesPattern;
+    // Scanner的全局inline flags只影响词法/源域校验；执行始终读不可变根flags。
+    private readonly bool _scanner;
+    private readonly int _rootFlags;
+    private int ExecutionFlags => _scanner ? _rootFlags : Flags;
     private int _position;
     private int _depth;
     internal int Flags { get; private set; }
@@ -18,34 +22,52 @@ internal sealed partial class PyRegexParser
     private readonly HashSet<int> _closed = [];
     // 只在实际出现数字前向条件时分配；顺序保留首次无效引用的原位置。
     private List<(int Group, int Position)>? _forwardConditionals;
-    private bool Ascii => _bytesPattern is not null || (Flags & 256) != 0;
-    private bool Ignore => (Flags & 2) != 0;
-    internal PyRegexParser(string pattern, int flags, PyBytes? bytesPattern = null)
-    { _pattern = pattern; Flags = flags; _bytesPattern = bytesPattern; }
+    private bool Ascii => _scanner ? (_rootFlags & 32) == 0 || (_rootFlags & 256) != 0
+        : _bytesPattern is not null || (Flags & 256) != 0;
+    private bool Ignore => (ExecutionFlags & 2) != 0;
+    internal PyRegexParser(string pattern, int flags, PyBytes? bytesPattern = null, bool scanner = false)
+    { _pattern = pattern; Flags = flags; _bytesPattern = bytesPattern; _scanner = scanner; _rootFlags = flags; }
     internal string Translate()
     {
         // 初始全局flags在Python语法中必须位于表达式开头。
-        while (_pattern.AsSpan(_position).StartsWith("(?", StringComparison.Ordinal))
+        while (true)
         {
+            // Scanner的VERBOSE词法可在首个实际token之前出现空白/注释；
+            // “initial”不等于UTF16偏移0。只前进同一parser，不剥字符串或再解析。
+            if (_scanner && (Flags & 64) != 0) SkipScannerVerbosePrefix();
+            if (!_pattern.AsSpan(_position).StartsWith("(?", StringComparison.Ordinal)) break;
             int close = _pattern.IndexOf(')', _position + 2);
             if (close < 0) break;
             string flags = _pattern[(_position + 2)..close];
             if (flags.Length == 0 || !AllFlags(flags)) break;
             if (_bytesPattern is not null) CheckBytesInlineFlags(flags, _position + 2);
+            else if (_scanner) CheckScannerTextInlineFlags(flags, _position + 2);
             foreach (char flag in flags) Flags |= Flag(flag);
             _position = close + 1;
         }
-        if (_bytesPattern is null) PyRegex.CheckFlags(Flags);
+        if (!_scanner && _bytesPattern is null) PyRegex.CheckFlags(Flags);
         string result = Sequence(false);
         if (_position != _pattern.Length) throw Error("unbalanced parenthesis");
         // CP在语法解析完成后验证外部type flags，合法LOCALE的NI不能吞掉先发生的语法错。
         if (_bytesPattern is not null) PyRegexBytes.CheckFlags(Flags);
+        else if (_scanner) PyRegex.CheckFlags(Flags);
         if (_forwardConditionals is not null)
             foreach (var reference in _forwardConditionals)
                 if (reference.Group > Groups)
                     throw ErrorAt("invalid group reference " + reference.Group, reference.Position);
         ValidateLookbehinds();
+        if (_scanner && Groups != 0) throw Unsupported("Scanner internal captures, references or conditionals");
         return result;
+    }
+    private void SkipScannerVerbosePrefix()
+    {
+        while (_position < _pattern.Length)
+        {
+            char value = _pattern[_position];
+            if (" \t\r\n\v\f".Contains(value)) { _position++; continue; }
+            if (value != '#') break;
+            while (_position < _pattern.Length && _pattern[_position] != '\n') _position++;
+        }
     }
     private string Sequence(bool grouped, int groupStart = 0, bool conditionalBranch = false)
     {
@@ -89,7 +111,7 @@ internal sealed partial class PyRegexParser
             {
                 case '(' : output.Append(Group()); width?.Atom(_groupWidth); break;
                 case '[' : output.Append(CharacterClass().Emit()); width?.Atom(Width.One); break;
-                case '.' : output.Append(((Flags & 16) != 0 ? new PyRegexSet().Add(0, 0x10ffff) : new PyRegexSet().Add(10, 10).Negate()).Emit()); width?.Atom(Width.One); break;
+                case '.' : output.Append(((ExecutionFlags & 16) != 0 ? new PyRegexSet().Add(0, 0x10ffff) : new PyRegexSet().Add(10, 10).Negate()).Emit()); width?.Atom(Width.One); break;
                 case '^': case '$': RejectLookbehindNode("anchor or boundary"); output.Append(value); hasAtom = false; break;
                 case '\\':
                     bool assertion = _position < _pattern.Length && "AZbB".Contains(_pattern[_position]);
@@ -143,7 +165,10 @@ internal sealed partial class PyRegexParser
                 else throw Error("unknown extension ?P");
             }
             else if (_position + 1 < _pattern.Length && _pattern[_position] == '<' && _pattern[_position + 1] is '=' or '!')
+            {
+                if (_scanner) throw Unsupported("Scanner lookbehind");
                 return Lookbehind(start);
+            }
             else if (_position < _pattern.Length && (_pattern[_position] is '>' or '#' or '-' || AllFlags(_pattern[_position].ToString())))
             {
                 if (_bytesPattern is not null && AllFlags(_pattern[_position].ToString()))
@@ -391,6 +416,22 @@ internal sealed partial class PyRegexParser
             {
                 types |= Flag(flag);
                 if (types == (256 | 4)) throw ErrorAt("bad inline flags: flags 'a', 'u' and 'L' are incompatible", start + index + 1);
+            }
+        }
+    }
+    // Scanner准入的initial global flags仍是Python语法：inline L/同组A|U在token处
+    // 报re.error，不能混同外部flags在完整phrase解析后的ValueError。普通mode保持原路。
+    private void CheckScannerTextInlineFlags(string flags, int start)
+    {
+        int types = 0;
+        for (int index = 0; index < flags.Length; index++)
+        {
+            char flag = flags[index];
+            if (flag == 'L') throw ErrorAt("bad inline flags: cannot use 'L' flag with a str pattern", start + index + 1);
+            if (flag is 'a' or 'u')
+            {
+                types |= Flag(flag);
+                if (types == (256 | 32)) throw ErrorAt("bad inline flags: flags 'a', 'u' and 'L' are incompatible", start + index + 1);
             }
         }
     }

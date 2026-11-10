@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+timeout = 30

@@ -64,10 +64,11 @@ internal static class PyRegexSplit
     }
 }
 
-public sealed partial class PyRegexPattern
+public partial class PyRegexPattern
 {
     internal PyList SplitInput(object? source, object? maxsplit)
     {
+        PyRegexScannerPattern.RejectConsumer(this);
         // 两域同用ssize_t，协议只执行一次；之后才观察可被index改写/resize/release的输入。
         long limit = PyRegexBytes.Index(maxsplit);
         if (BytePattern is not null)

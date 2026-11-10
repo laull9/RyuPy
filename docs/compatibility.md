@@ -755,3 +755,15 @@ networkx同机制函数未被固定入口调用，click终端分支也不能由g
 ADR0146已接新Legacy冷词法能力与JIT-only空直接子包发现，当前只有有限Rust结构/类型检查。原pyfiglet无include完整入口、通用Static碰撞JIT/Native、两模式完整check和同HEAD固定20均待新工具实测；旧CI58的10/8/2不等于本候选结果。旧10（含progress）现按ID保护，pyfiglet暂不加长期通过列表。AOT仍显式include/resources，性能未测。
 
 分发metadata闭包候选见ADR-0150：真实完整发行版快照与惰性目标加载独立于源码include。候选尚未产品验收，不增加默认20项目分子；原Markdown显式48/77B、默认find_spec来源阻点与AOT资源部署分开记录。
+
+## 2026-11-10 re.Scanner 源码候选（未产品验收）
+
+普通 Scanner 类、真实 Pattern 子型及单锚定 Regex 的通用多 token 扫描已接源码，保 live
+lexicon、回调副作用、异常身份及明确 NI/pending 边界。空 lexicon 根 0/False 的构造
+RuntimeError 已按固定 CP 实观更正；其它空 flags 组合仍待支持。普通 Pattern/Match 不增
+字段，RuntimeFn 不变，但去 sealed 的去虚化风险、入口 guard 与冷解析成本尚未测量。
+
+43 个 C# Fact、独立 JIT/Native、原样 attr_list 三调用的产品 202B 及完整门禁均尚未执行。
+完整 extra 的 TreeBuilder 等后继与原 AOT 图边界独立保留，默认 20 项仍为 11/8/1，
+不据本候选增加通过数或推断其它八项目收益。见 [ADR0152](adr/0152-regex-scanner.md)、
+[验收计划](validation/re-scanner/PLAN.zh.md)和[当前记录](validation/re-scanner/RESULTS.zh.md)。

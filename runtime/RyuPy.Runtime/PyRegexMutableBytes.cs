@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace RyuPy.Runtime;
 
-public sealed partial class PyRegexPattern
+public partial class PyRegexPattern
 {
     internal object ApplyMutableBytes(string method, object source, long start, long end)
     {

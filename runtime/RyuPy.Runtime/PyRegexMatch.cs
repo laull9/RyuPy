@@ -41,6 +41,13 @@ public sealed class PyRegexMatch : PyNativeObject
             args => Position(name, GroupNumber(args[0])), ["posonly"]),
         "start" or "end" or "span" => PyNativeFunctions.Create(name, ["group"], [0L], 0,
             args => Position(name, GroupNumber(args[0])), ["posonly"]),
+        // Scanner只暴露wrapper元数据，不给所有Match增加selector或缓存字段。
+        "lastindex" when _pattern is PyRegexScannerPattern scanner => (long)scanner.Select(Raw),
+        "lastgroup" when _pattern is PyRegexScannerPattern => PyNone.Instance,
+        "regs" when _pattern is PyRegexScannerPattern => new PyTuple(
+            Enumerable.Range(0, _pattern.Groups + 1).Select(number => Position("span", number)).ToArray()),
+        "expand" when _pattern is PyRegexScannerPattern => PyRegex.Function("expand", ["template"], [null], 1,
+            _ => throw PyRegexScanner.Unsupported("Match.expand")),
         "expand" when BytesDomain => PyRegex.Function("expand", ["template"], [null], 1, args => ExpandBytes(args[0])),
         "expand" => PyRegex.Function("expand", ["template"], [null], 1, args => new PyRegexReplacement(_pattern, PyRegex.Text(args[0])).Expand(this)),
         _ => throw Missing(name),

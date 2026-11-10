@@ -27,6 +27,7 @@ public static class PyRegex
             ["U"] = 32L, ["UNICODE"] = 32L, ["X"] = 64L, ["VERBOSE"] = 64L,
             ["A"] = 256L, ["ASCII"] = 256L, ["NOFLAG"] = 0L,
             ["split"] = PyRegexSplit.Module(),
+            ["Scanner"] = PyRegexScanner.Build(),
             ["compile"] = Function("compile", ["pattern", "flags"], [null, 0L], 1, args => Compile(args[0], args[1])),
             ["escape"] = Function("escape", ["pattern"], [null], 1, args => args[0] is PyBytes or PyByteArray or PyMemoryView ? PyRegexBytes.Escape(args[0]) : Escape(Text(args[0]))),
             ["purge"] = Function("purge", [], [], 0, _ => { lock (CacheLock) { Cache.Clear(); Order.Clear(); } return PyNone.Instance; }),
@@ -41,6 +42,7 @@ public static class PyRegex
                 args =>
                 {
                     PyRegexPattern pattern = Compile(args[0], args[2]);
+                    PyRegexScannerPattern.RejectConsumer(pattern);
                     return pattern.BytePattern is null ? pattern.Apply(captured, Text(args[1]), 0, int.MaxValue)
                         : pattern.ApplyBytesInput(captured, args[1], 0L, long.MaxValue);
                 });
@@ -52,6 +54,7 @@ public static class PyRegex
                 args =>
                 {
                     PyRegexPattern pattern = Compile(args[0], args[4]);
+                    PyRegexScannerPattern.RejectConsumer(pattern);
                     return pattern.BytePattern is null ? pattern.Substitute(args[1], Text(args[2]), Number(args[3]), tuple)
                         : pattern.SubstituteBytesInput(args[1], args[2], args[3], tuple);
                 });
