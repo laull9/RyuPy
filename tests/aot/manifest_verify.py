@@ -57,7 +57,7 @@ def no_duplicate_keys(pairs):
     return result
 
 
-def validate_schema(data, expected_rid, expected_sdk):
+def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modules=None):
     require(isinstance(data, dict), '清单必须是对象')
     version = data.get('schema_version')
     require(type(version) is int and version in (1, 2), '未知schema')
@@ -71,6 +71,15 @@ def validate_schema(data, expected_rid, expected_sdk):
             isinstance(compiler['build_revision'], str) and bool(re.fullmatch('[0-9a-f]{40}', compiler['build_revision'])), '不可靠revision')
     require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] in (1, 2), '未知codegen报告')
     validate_options(compiler['options'])
+    # None完整保留旧Legacy验证；只有调用方显式tuple才启用实例预期合同。
+    if expected_instance_modules is not None:
+        require(type(expected_instance_modules) is tuple, '实例预期必须是不可变tuple')
+        require(all(type(name) is str and all(part.isidentifier() for part in name.split('.'))
+                    for name in expected_instance_modules), '实例预期包含非法模块名字')
+        require(len(set(expected_instance_modules)) == len(expected_instance_modules), '实例预期不能重复')
+        require(compiler['options']['instance_modules'] == list(expected_instance_modules), '实例预期与实际编译选项不一致')
+        if expected_instance_modules:
+            require(version == 2 and compiler['codegen_report_version'] == 2, '实例需要schema2及report2')
     shape(data['target'], 'rid native_format architecture')
     require(expected_rid in TARGETS, '未知期望RID')
     fmt, arch = TARGETS[expected_rid]
@@ -111,8 +120,15 @@ def validate_schema(data, expected_rid, expected_sdk):
         integer(module['id'])
         require(module['id'] in sources and module['id'] not in modules, '模块缺失/重复')
         require(module['name'] == sources[module['id']]['module_name'], '报告/来源模块不一致')
-        for name in ('init', 'getter', 'setter'):
-            method(module[name])
+        method(module['init'])
+        if expected_instance_modules is not None and module['name'] in expected_instance_modules:
+            require(module['getter'] is None and module['setter'] is None and module['exports'] == [],
+                    '预期实例只能双null accessor和空exports，不能伪造Legacy方法')
+            require(module['environment_reason'] == 'explicit-instance', '预期实例选择理由不符')
+        else:
+            method(module['getter']); method(module['setter'])
+            if expected_instance_modules is not None:
+                require(module['environment_reason'] != 'explicit-instance', '未选择模块冒充显式实例')
         require(isinstance(module['exports'], list) and all(isinstance(x, str) for x in module['exports']), '错误exports')
         modules[module['id']] = module
     require(set(modules) == set(sources), '来源与发射模块不一一对应')
@@ -120,6 +136,10 @@ def validate_schema(data, expected_rid, expected_sdk):
     integer(data['entry']['module_id'])
     require(data['entry']['module_id'] in modules, '入口模块不存在')
     method(data['entry']['managed_entry'])
+    if expected_instance_modules is not None:
+        require(set(expected_instance_modules) <= module_names, '预期实例缺少实际源码模块')
+        require(sources[data['entry']['module_id']]['module_name'] not in expected_instance_modules,
+                '显式实例不能选择入口')
     sites = set()
     for reference in data['emitted_delegate_references']:
         shape(reference, 'site target target_display role module_id function_id class_id')
@@ -190,13 +210,13 @@ def read_sdk_version(path):
     return value
 
 
-def verify_manifest(publish, native, rid, sdk_version):
+def verify_manifest(publish, native, rid, sdk_version, *, expected_instance_modules=None):
     publish, native = Path(publish).absolute(), Path(native).absolute()
     plain_stat(publish, directory=True)
     manifest = publish/MANIFEST_NAME
     plain_stat(manifest)
     data = json.loads(manifest.read_text(encoding='utf-8'), object_pairs_hook=no_duplicate_keys)
-    validate_schema(data, rid, sdk_version)
+    validate_schema(data, rid, sdk_version, expected_instance_modules=expected_instance_modules)
     actual = check_artifacts(publish, data['artifacts'], MANIFEST_NAME, windows=rid == 'win-x64')
     entry = next(x for x in data['artifacts'] if x['role'] == 'native_executable')
     expected = actual[entry['relative_path']]
@@ -228,9 +248,10 @@ def dependency_binaries(root, data):
     return paths
 
 
-def relocate_manifest(publish, native, destination, rid, sdk_version):
+def relocate_manifest(publish, native, destination, rid, sdk_version, *, expected_instance_modules=None):
     publish, destination = Path(publish), Path(destination)
-    data = verify_manifest(publish, native, rid, sdk_version)
+    options = {} if expected_instance_modules is None else {'expected_instance_modules': expected_instance_modules}
+    data = verify_manifest(publish, native, rid, sdk_version, **options)
     destination.mkdir()  # 不覆盖旧目录，不把用户已有文件混进本次搬迁。
     for entry in data['artifacts']:
         target = destination/entry['relative_path']
@@ -239,7 +260,7 @@ def relocate_manifest(publish, native, destination, rid, sdk_version):
     shutil.copy2(publish/MANIFEST_NAME, destination/MANIFEST_NAME)
     name = next(x['relative_path'] for x in data['artifacts'] if x['role'] == 'native_executable')
     relocated_native = destination/name
-    verify_manifest(destination, relocated_native, rid, sdk_version)
+    verify_manifest(destination, relocated_native, rid, sdk_version, **options)
     return relocated_native, data
 
 

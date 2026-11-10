@@ -59,7 +59,11 @@ def native(runner, cases, contract=c):
         env = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C.UTF-8', 'TZ': 'UTC'}
         state['validation'] = 'passed'
         moved = runner.out / 'relocated'
-        binary, _ = old.relocate_manifest(layout.dist, layout.native, moved, 'linux-x64', runner.data['sdk_version'])
+        # 专用合同须把同一期望贯穿搬前/搬后；无hook时原Legacy调用保持不变。
+        if hasattr(c, 'relocate_native'):
+            binary, _ = c.relocate_native(runner, case, layout, moved)
+        else:
+            binary, _ = old.relocate_manifest(layout.dist, layout.native, moved, 'linux-x64', runner.data['sdk_version'])
         runner.audit(lambda: require(old.snapshot(moved) == old.snapshot(layout.dist), '搬移全部文件不等'))
         runner.preserve(moved, 'native-relocated')
         with c.isolated(runner, [runner.inputs_dir], 'all-compiled-inputs'):

@@ -13,6 +13,7 @@ complete, isolated, IdentityError = shared.complete, shared.isolated, shared.Ide
 TITLE = 'validation: keyerror-construction-001'
 MANIFEST = ROOT / 'scripts/keyerror_construction.json'
 ABI = '[RyuPy.Runtime]RyuPy.Runtime.PyOps::LoadDefaultBuiltin[0;0;1](String)->Object'
+RESOURCE_REQUEST = 'default-owner-resources.json'
 
 
 def check_context(env, event):
@@ -39,6 +40,7 @@ def load_manifest(root=ROOT, path=MANIFEST):
             and data['sdk_version'] == '10.0.403', '固定工具改变')
     require(data['default_project_delta'] == 0 and data['old_cases'] == [] and data['expected_product_processes'] == 20, '进程数/旧独立门合同改变')
     require([g['id'] for g in data['graphs']] == ['direct', 'shadow', 'default-owner'], '固定三图改变')
+    resource_request(data)
     require({str(p.relative_to(root)) for p in (root / 'tests/cases/keyerror_construction').rglob('*.py')} == set(data['sources']), '实际fixture集合漏项/增项')
     for name, digest in {**data['sources'], **data['protected']}.items():
         require(sha(safe_file(root, name)) == digest, '冻结源改变：' + name)
@@ -49,6 +51,7 @@ def load_manifest(root=ROOT, path=MANIFEST):
         require(set(graph['modules'].values()) <= set(data['sources']), '图含未冻结源')
         for module in graph['include']:
             require(graph['modules'][module] == str(Path(graph['source']).parent / (module + '.py')), 'include实际搜索根不符')
+        expected_instances(cases(graph)[0])
         for row in graph['cases']:
             identifiers.append(row['id'])
             require(row['kind'] in ('cp', 'trace') and row['cp'] is True and row['exit'] == (1 if row['kind'] == 'trace' else 0), '场景不能改NI或跳CP')
@@ -77,10 +80,45 @@ def verify_row(prefix, argv, row, source):
     return previous.verify_row(prefix, argv, row, source)
 
 
+def resource_request(data):
+    request = data['native_resources']
+    require(type(request) is dict and type(request.get('schema_version')) is int and request == {
+        'schema_version': 1, 'modules': [{'module': 'owner', 'files': []}, {'module': 'consumer', 'files': []}]},
+        '仅允许owner和consumer两个空files来源锚点')
+    return request
+
+
+def resource_input(runner):
+    path = safe_file(runner.inputs_dir, RESOURCE_REQUEST)
+    actual = resource_request({'native_resources': parse(path.read_bytes())})
+    require(actual == resource_request(runner.data), '已冻结资源请求与固定合同不同')
+    return path
+
+
+def expected_instances(case):
+    owner = case['graph_id'] == 'default-owner'
+    require(case['instance_modules'] == (['owner'] if owner else []), '非固定owner选择')
+    if owner:
+        folder = 'tests/cases/keyerror_construction/03_default_owner/'
+        require(case['source'] == folder + 'entry.py' and case['include'] == ['owner', 'consumer']
+                and case['modules'] == {'__main__': folder + 'entry.py', 'owner': folder + 'owner.py',
+                                         'consumer': folder + 'consumer.py'}, 'owner完整三模块图改变')
+    else:
+        require(case['graph_id'] in ('direct', 'shadow') and case['modules'] == {'__main__': case['source']}
+                and case['include'] == [], '其它两图不能加入实例或额外模块')
+    return ('owner',) if owner else None
+
+
+def native_options(case):
+    expected = expected_instances(case)
+    return {} if expected is None else {'expected_instance_modules': expected}
+
+
 def build_argv(runner, case, target, aot=False):
     argv = shared.build_argv(runner, case, target, aot)
-    require(case['instance_modules'] == (['owner'] if case['graph_id'] == 'default-owner' else []), '非固定owner选择')
+    expected = expected_instances(case)
     for module in case['instance_modules']: argv += ['--instance-module', module]
+    if aot and expected is not None: argv += ['--resources', resource_input(runner)]
     return argv
 
 
@@ -124,7 +162,8 @@ def verify_native(runner, case, layout):
     old = shared.old
     sdk = old.read_sdk_version(layout.host / 'sdk.version')
     require(sdk == runner.data['sdk_version'], 'Native SDK不符')
-    manifest = old.verify_manifest(layout.dist, layout.native, 'linux-x64', sdk)
+    manifest = old.verify_manifest(layout.dist, layout.native, 'linux-x64', sdk, **native_options(case))
+    verify_native_resources(manifest, case)
     sources = manifest['sources']
     require(len(sources) == len(case['modules']) and {s['module_name'] for s in sources} == set(case['modules']), 'Native逐源集合不符')
     for row in sources:
@@ -145,6 +184,32 @@ def verify_native(runner, case, layout):
     require(bindings['runtime_managed_input']['sha256'] == sha(runner.runtime) == sha(layout.managed.parent / 'RyuPy.Runtime.dll')
             and bindings['compiled_managed_input']['sha256'] == sha(layout.managed), 'Native PE/runtime绑定不符')
     return manifest
+
+
+def verify_native_resources(manifest, case):
+    if expected_instances(case) is None: return
+    require(manifest['schema_version'] == 2 and manifest['compiler']['codegen_report_version'] == 2,
+            'owner必须是真实schema2/report2')
+    sources = {s['module_name']: s for s in manifest['sources']}
+    require(len(manifest['sources']) == 3 and set(sources) == set(case['modules']), 'owner来源图不完整')
+    expected = {name: dict(module_id=sources[name]['module_id'], module_name=name, kind='executable_relative',
+                          relative_file='_internal/resources/v1/modules/' + name + '.py') for name in ('owner', 'consumer')}
+    locations = manifest['module_locations']
+    require(len(locations) == 2 and {row['module_name']: row for row in locations} == expected, '必须精确两个部署相对锚点')
+    require(manifest['resources'] == [] and manifest['scope']['resources_included'] is False
+            and manifest['scope']['declared_resources_complete'] is True, '空files不能部署资源')
+    require(all(Path(row['relative_path']).suffix.lower() not in ('.py', '.pyc', '.pyo')
+                for row in manifest['artifacts']), '不得部署Python源码或缓存')
+
+
+def relocate_native(runner, case, layout, destination):
+    # 与原位共享同一精确tuple，底层在搬前及搬后各自完整验证；helper还核全dist字节不变。
+    binary, manifest = shared.old.relocate_manifest(layout.dist, layout.native, destination, 'linux-x64',
+        runner.data['sdk_version'], **native_options(case))
+    moved = parse(safe_file(destination, 'ryupy-artifact.json').read_bytes())
+    require(moved == manifest, '搬移清单内容与搬前不同')
+    verify_native_resources(moved, case)
+    return binary, manifest
 
 
 def verify_native_structure(runner, case, layout):

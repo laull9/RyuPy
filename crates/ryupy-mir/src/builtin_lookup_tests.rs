@@ -115,12 +115,28 @@ fn full_positionals_use_existing_calls_without_flattening_into_messages() {
 fn shadowed_instance_and_other_exception_paths_are_not_replaced() {
     for source in [
         "def f(KeyError):\n    return KeyError('x')\n",
-        "KeyError = 7\nKeyError('x')\n",
+        "def replacement(value):\n    return value\nKeyError = replacement\nKeyError('x')\n",
         "def outer(KeyError):\n    def inner():\n        return KeyError('x')\n    return inner\n",
         "a = ValueError('x')\nb = RuntimeError\n",
     ] {
         assert_eq!(lookups(&compile(source, false)), 0, "{source}");
     }
+    // 整数遮蔽不是合法的MIR输入；保留原源码，在类型边界验证明确拒绝。
+    let source = "KeyError = 7\nKeyError('x')\n";
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("keyerror_not_callable.py", source);
+    let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
+    assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
+    let (hir, diagnostics) =
+        ryupy_hir::lower_module(&parsed, &ryupy_hir::ModuleInfo::default(), source);
+    assert!(diagnostics.is_empty(), "{source}\n{diagnostics:?}");
+    let (_, diagnostics) = ryupy_ty::check_module(&hir);
+    assert!(
+        matches!(diagnostics.as_slice(), [diagnostic]
+            if diagnostic.code == Some("E0200") && diagnostic.is_error()),
+        "类型检查应只报告非可调用对象E0200：{source}\n{diagnostics:?}"
+    );
+
     let instance = compile("a = KeyError('x')\nb = KeyError\n", true);
     assert_eq!(lookups(&instance), 0);
     assert!(pretty::dump(&instance).contains("InstanceLoadName"));

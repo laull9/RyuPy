@@ -63,7 +63,15 @@ class Runner(previous.Runner):
         self.preserve(self.reader.parent, 'pe-reader-tools')
         return dict(passed=True, status='passed', sha256=sha(self.reader))
 
+    def prepare_resources(self):
+        # 必须先于完整inputs的唯一freeze；恢复时只读核原件，绝不重新生成。
+        path = self.inputs_dir / c.RESOURCE_REQUEST
+        path.parent.mkdir(parents=True, exist_ok=True)
+        require(not path.exists(), '资源请求不能覆盖已有输入')
+        save(path, c.resource_request(self.data))
+
     def prepare_sources(self):
+        self.prepare_resources()
         super().prepare_sources()
         for group in ('mir', 'codegen'):
             def run(group=group):
@@ -100,6 +108,8 @@ class Runner(previous.Runner):
 
     def resume_expectations(self):
         expected, rows, required = super().resume_expectations()
+        resource = c.resource_input(self)
+        required.add(str(resource.relative_to(self.root_out)))
         def files(label): required.update(label + '.' + suffix for suffix in ('stdout', 'stderr', 'json', 'argv.json'))
         for group in ('mir', 'codegen'):
             files('rust-' + group)

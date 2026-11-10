@@ -6,6 +6,8 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest.mock import patch
+import manifest_verify as gate
 from manifest_verify import ManifestError, MANIFEST_NAME, verify_manifest, relocate_manifest, read_sdk_version
 
 
@@ -40,6 +42,26 @@ def manifest_fixture(root):
       'artifacts':[artifact('program','native_executable'),artifact('symbols/program.dbg','unclassified_sidecar')],
       'scope':dict.fromkeys(['dynamic_dependency_closure_complete','resources_included','native_retention_proven','manifest_self_hash_included'],False)}
     (root/MANIFEST_NAME).write_text(json.dumps(data))
+    return data
+
+
+def instance_manifest_fixture(root):
+    """普通subject/consumer合成图，非任何业务fixture或实际ILC产物。"""
+    data = manifest_fixture(root)
+    data['schema_version'] = data['compiler']['codegen_report_version'] = 2
+    data['compiler']['options']['instance_modules'] = ['subject']
+    data['scope'].update(declared_resources_complete=True)
+    data['resources'], data['module_locations'] = [], []
+    for number, name in ((1, 'subject'), (2, 'consumer')):
+        source = {**data['sources'][0], 'module_id': number, 'module_name': name,
+                  'logical_source': 'modules/' + name + '.py'}
+        data['sources'].append(source)
+        module = {**data['modules'][0], 'id': number, 'name': name}
+        if name == 'subject': module.update(getter=None, setter=None, exports=[], environment_reason='explicit-instance')
+        data['modules'].append(module)
+        data['module_locations'].append(dict(module_id=number, module_name=name,
+            kind='executable_relative', relative_file='_internal/resources/v1/' + source['logical_source']))
+    (root / MANIFEST_NAME).write_text(json.dumps(data))
     return data
 
 
@@ -121,6 +143,85 @@ class ManifestVerifyTests(unittest.TestCase):
             for value in ('', '10.0.403\nextra', ' 10.0.403', '10.0.403\n\n'):
                 record.write_bytes(value.encode('utf-8'))
                 with self.assertRaises(ManifestError):read_sdk_version(record)
+
+    def test_none_preserves_legacy_options_but_explicit_tuple_is_strict(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'publish'; data = manifest_fixture(root)
+            gate.validate_schema(data, 'linux-x64', '10.0.403', expected_instance_modules=())
+            data['compiler']['options']['instance_modules'] = ['pkg.mod', 'pkg.mod']
+            gate.validate_schema(data, 'linux-x64', '10.0.403')
+            gate.validate_schema(data, 'linux-x64', '10.0.403', expected_instance_modules=None)
+            for selected in ((), ('pkg.mod',), ('pkg.mod', 'pkg.mod')):
+                with self.assertRaises(ManifestError):
+                    gate.validate_schema(data, 'linux-x64', '10.0.403', expected_instance_modules=selected)
+
+    def test_explicit_instance_original_and_relocation_use_identical_expectation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'publish'; data = instance_manifest_fixture(root)
+            with self.assertRaises(ManifestError): verify_manifest(root, root/'program', 'linux-x64', '10.0.403')
+            with self.assertRaises(ManifestError):
+                relocate_manifest(root, root/'program', Path(directory)/'default-rejected', 'linux-x64', '10.0.403')
+            self.assertFalse((Path(directory)/'default-rejected').exists())
+            selected = ('subject',)
+            self.assertEqual(verify_manifest(root, root/'program', 'linux-x64', '10.0.403', expected_instance_modules=selected), data)
+            with patch.object(gate, 'verify_manifest', wraps=gate.verify_manifest) as verify:
+                binary, moved = relocate_manifest(root, root/'program', Path(directory)/'moved', 'linux-x64',
+                    '10.0.403', expected_instance_modules=selected)
+            self.assertEqual([call.kwargs for call in verify.call_args_list], [{'expected_instance_modules': selected}] * 2)
+            self.assertEqual(moved, data)
+            self.assertEqual((binary.parent/MANIFEST_NAME).read_bytes(), (root/MANIFEST_NAME).read_bytes())
+            with self.assertRaises(ManifestError): verify_manifest(binary.parent, binary, 'linux-x64', '10.0.403')
+
+    def test_explicit_instance_rejects_bad_expectations_shapes_and_identities(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'publish'; original = instance_manifest_fixture(root)
+            for selected in ([], ['subject'], 'subject', False, ('',), ('bad..name',), (1,), ('subject', 'subject'), (), ('other',)):
+                with self.subTest(selected=selected), self.assertRaises(ManifestError):
+                    gate.validate_schema(original, 'linux-x64', '10.0.403', expected_instance_modules=selected)
+            method = original['modules'][0]['init']
+            mutations = [lambda d: d['compiler'].update(codegen_report_version=1),
+                lambda d: d['compiler']['options'].update(instance_modules=[]),
+                lambda d: d['compiler']['options'].update(instance_modules=['subject', 'subject']),
+                lambda d: d['modules'][1].update(init=None),
+                lambda d: d['modules'][1].update(getter=method), lambda d: d['modules'][1].update(setter=method),
+                lambda d: d['modules'][1].update(getter=method, setter=method),
+                lambda d: d['modules'][1].update(exports=['hidden']),
+                lambda d: d['modules'][1].update(environment_reason='policy-disabled'),
+                lambda d: d['modules'][2].update(getter=None), lambda d: d['modules'][2].update(setter=None),
+                lambda d: d['modules'][2].update(environment_reason='explicit-instance'),
+                lambda d: d['entry'].update(module_id=1)]
+            def schema1(data):
+                data.update(schema_version=1); data.pop('resources'); data.pop('module_locations')
+                data['scope'].pop('declared_resources_complete')
+            mutations.append(schema1)
+            for mutate in mutations:
+                changed = copy.deepcopy(original); mutate(changed)
+                with self.subTest(mutation=mutate), self.assertRaises(ManifestError):
+                    gate.validate_schema(changed, 'linux-x64', '10.0.403', expected_instance_modules=('subject',))
+            # 即使options与预期一致，也不能以缺失模块或错误顺序借用null权利。
+            data = copy.deepcopy(original); data['compiler']['options']['instance_modules'] = ['missing']
+            data['modules'][1] = {**data['modules'][0], 'id': 1, 'name': 'subject'}
+            with self.assertRaises(ManifestError): gate.validate_schema(data, 'linux-x64', '10.0.403', expected_instance_modules=('missing',))
+            data = copy.deepcopy(original); data['compiler']['options']['instance_modules'] = ['consumer', 'subject']
+            with self.assertRaises(ManifestError): gate.validate_schema(data, 'linux-x64', '10.0.403', expected_instance_modules=('subject', 'consumer'))
+
+    def test_relocation_rechecks_instance_shape_and_bytes_after_copy(self):
+        for mutation in ('half-null', 'artifact'):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / 'publish'; instance_manifest_fixture(root)
+                copy_file = gate.shutil.copy2
+                def copy_and_change(source, target):
+                    result = copy_file(source, target)
+                    if Path(source).name == MANIFEST_NAME:
+                        if mutation == 'half-null':
+                            data = json.loads(Path(target).read_text())
+                            data['modules'][1]['setter'] = data['modules'][0]['setter']
+                            Path(target).write_text(json.dumps(data))
+                        else: (Path(target).parent/'program').write_bytes(b'changed')
+                    return result
+                with patch.object(gate.shutil, 'copy2', side_effect=copy_and_change), self.assertRaises(ManifestError):
+                    relocate_manifest(root, root/'program', Path(directory)/'moved', 'linux-x64',
+                        '10.0.403', expected_instance_modules=('subject',))
 
 
 if __name__=='__main__':

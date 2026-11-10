@@ -5,7 +5,10 @@ pub(super) fn compile(source: &str, instance_globals: bool) -> Program {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("delete.py", source);
     let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
-    assert!(diagnostics.is_empty());
+    assert!(
+        diagnostics.is_empty(),
+        "语法检查失败：\n{source}\n{diagnostics:?}"
+    );
     let (hir, diagnostics) = ryupy_hir::lower_module(
         &parsed,
         &ryupy_hir::ModuleInfo {
@@ -14,14 +17,23 @@ pub(super) fn compile(source: &str, instance_globals: bool) -> Program {
         },
         source,
     );
-    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        diagnostics.is_empty(),
+        "HIR降级失败：\n{source}\n{diagnostics:?}"
+    );
     let (types, diagnostics) = ryupy_ty::check_module(&hir);
-    assert!(diagnostics.is_empty());
+    assert!(
+        diagnostics.is_empty(),
+        "类型检查失败：\n{source}\n{diagnostics:?}"
+    );
     let (program, _, diagnostics) = build_program(&hir, &types);
-    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert!(
+        diagnostics.is_empty(),
+        "MIR构建失败：\n{source}\n{diagnostics:?}"
+    );
     assert!(
         validate::validate(&program).is_ok(),
-        "{:?}",
+        "MIR校验失败：\n{source}\n{:?}",
         validate::validate(&program)
     );
     program
