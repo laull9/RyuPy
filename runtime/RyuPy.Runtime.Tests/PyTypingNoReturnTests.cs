@@ -9,15 +9,34 @@ namespace RyuPy.Runtime.Tests;
 [Collection("生成器帧栈")]
 public sealed class PyTypingNoReturnTests : IDisposable
 {
-    private readonly PyTypingGenericRootTests frame = new();
-    public void Dispose() => frame.Dispose();
+    private readonly long savedDepth;
+    private readonly string moduleKey;
+    public PyTypingNoReturnTests()
+    {
+        PyNativeModules.Register();
+        // 旧 host 来源按文件查唯一模块；不能复用 Generic fixture 的共享诊断文件。
+        moduleKey = "noreturn_contract_" + Guid.NewGuid().ToString("N");
+        string file = moduleKey + ".py";
+        PyModules.Register(moduleKey, "", file, () => { },
+            name => name == "__name__" ? moduleKey : throw new PyAttributeError(name), (_, _, _) => { });
+        Assert.Equal(moduleKey, PyModules.ModuleForFile(file));
+        savedDepth = PyTraceback.CaptureDepth();
+        PyTraceback.PushFrameWithOrigin(file, "<module>", PyTraceback.CreateModuleExecutionSource(moduleKey));
+    }
+    public void Dispose()
+    {
+        PyTraceback.PopTo(savedDepth + 1);
+        Assert.Equal(savedDepth, PyTraceback.CaptureDepth());
+    }
     private static object? Apply(string name, object? value) => PyOps.GetItem(Form(name), value);
     private static object? Bound(object? value) => PyOps.CallValue(Form("TypeVar"), ["NBound"], ["bound"], [value]);
     private static object? Named(object? value) => Call(Form("NamedTuple"), "NPoint", new PyList([new PyTuple(["x", value])]));
-    private static object? Typed(object? value)
+    private object? Typed(object? value)
     {
         var fields = new PyDict(); fields.Set("x", value);
-        return Call(Form("TypedDict"), "NRecord", fields);
+        object? result = Call(Form("TypedDict"), "NRecord", fields);
+        Assert.Equal(moduleKey, Get(result, "__module__"));
+        return result;
     }
     private static object? Annotation(object? value) => PyOps.GetItem(Get(value, "__annotations__"), "x");
     private static void WithExport(object? value, Action action, bool delete = false)
@@ -105,7 +124,9 @@ public sealed class PyTypingNoReturnTests : IDisposable
                 () => Named(Form("Any")), () => Typed(Form("Any"))];
             foreach (var consume in cold)
                 Assert.Equal("name 'NoReturn' is not defined", Assert.Throws<PyNameError>(() => consume()).PyMessage);
-            Assert.NotNull(Call(Form("TypedDict"), "Empty", new PyDict()));
+            object? empty = Call(Form("TypedDict"), "Empty", new PyDict());
+            Assert.NotNull(empty);
+            Assert.Equal(moduleKey, Get(empty, "__module__"));
             Assert.Empty(Assert.IsType<PyTuple>(Get(Apply("Tuple", new PyTuple([])), "__args__")).Items);
             Assert.Same(n, Assert.IsType<PyTuple>(Get(PyOps.GetItem(PyType.Get("list"), n), "__args__")).Items[0]);
             object? constraints = Call(Form("TypeVar"), "Constraints", n, Form("Any"));

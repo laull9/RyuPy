@@ -65,9 +65,9 @@ class Tests(unittest.TestCase):
             self.assertLessEqual(len(text.splitlines()), 600)
 
     def test_base_tree_is_frozen_public_parent_tree_not_private_history(self):
-        self.assertEqual(n.BASE_TREE, 'eb1d3432a0a00917e6a320ee47c2f7eac7d2c37e')
-        self.assertEqual(n.REMOTE_BASE_HEAD, '7c9c895178181664d06a113ba369185e19650688')
-        self.assertEqual(n.BASE_SOURCE_HEAD, 'fb9c1214a7ce0f00f9793c9904c2a6fa412bc31e')
+        self.assertEqual(n.BASE_TREE, 'b404f22e24d443982c1be27a3666657699a6e526')
+        self.assertEqual(n.REMOTE_BASE_HEAD, '492f4afff6788ec08cf33b3a34c68b38c3ac40be')
+        self.assertEqual(n.BASE_SOURCE_HEAD, 'a728e24f263a93607cd4373076a130098273bacf')
         # 全流程mock的base-files命令拒绝两个commit查询；私有原始历史只做来源说明。
         tree = ast.parse((n.ROOT / 'tests/validation/typing_noreturn.py').read_text())
         invocations = [x for x in ast.walk(tree) if isinstance(x, ast.Call) and

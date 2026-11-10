@@ -17,9 +17,9 @@ from native_evidence import preserve_dist
 
 ROOT = shared.REPO
 TITLE = 'validation: typing-noreturn-001'
-BASE_SOURCE_HEAD = 'fb9c1214a7ce0f00f9793c9904c2a6fa412bc31e'
-REMOTE_BASE_HEAD = '7c9c895178181664d06a113ba369185e19650688'
-BASE_TREE = 'eb1d3432a0a00917e6a320ee47c2f7eac7d2c37e'
+BASE_SOURCE_HEAD = 'a728e24f263a93607cd4373076a130098273bacf'
+REMOTE_BASE_HEAD = '492f4afff6788ec08cf33b3a34c68b38c3ac40be'
+BASE_TREE = 'b404f22e24d443982c1be27a3666657699a6e526'
 FROZEN = {
     'docs/adr/0147-typing-noreturn-consumers.md':
         '8230e2ff5385f1a63c7a024d41c5c7c5962e8eae9c1e4af764a5fc7466b95624',
@@ -28,7 +28,7 @@ FROZEN = {
     'runtime/RyuPy.Runtime.Tests/PyTypingNamedTupleAnnotationsTests.cs':
         '994669189a8bf27c3534be43a4faf6f6dd22920cb79cc3908be5f97e2fb214c3',
     'runtime/RyuPy.Runtime.Tests/PyTypingNoReturnTests.cs':
-        '4e924cfeea312edac018cf303a79d0e3776c310075430bafa11b6c86842f8b36',
+        'a21bb09e631e2370e7de04b3f0f6c915780b9c288e364a2f7a457ad3c1f9fe10',
     'runtime/RyuPy.Runtime/PyBuiltinTypes.cs':
         '9b609fd2607a1f1757a95f3f117e2cd0a6ec7d470e24f25143ab30d3dd236a87',
     'runtime/RyuPy.Runtime/PyRuntimeBases.cs':
