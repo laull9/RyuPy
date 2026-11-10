@@ -186,7 +186,8 @@ public sealed partial class PyRegexScannerTests
     public void SavedCallbackExceptionKeepsCauseContextAndTraceback()
     {
         PyClass root = Root(Module()); var error = new PyValueError("saved");
-        var context = new PyValueError("original"), later = new PyValueError("later");
+        var context = new PyValueError("original");
+        var later = new PyValueError("later");
         var cause = new PyValueError("explicit cause"); error.WithCause(cause);
         object? previous = PyErrors.EnterHandler(context); long depth = PyTraceback.PushFrame("saved.py", "original");
         try { PyTraceback.SetLine(7); PyErrors.PrepareRaise(error); }

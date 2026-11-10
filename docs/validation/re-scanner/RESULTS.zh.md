@@ -58,3 +58,21 @@ NI夹具三处按已有实现合同纠正，不改生产、不重跑CP：plan.sc
 控制005：Scanner12/12、dedent13/13、metadata23/23、selector7/7，共55项通过。新增反例包括缺单run/整图、失败run、state与磁盘原record矛盾、缺原argv/record、C#进程失败却打印Passed、稳定根persist，以及两条timeout结果对进程错误的严格拒绝。未执行产品、提交或发布。
 
 控制006在五源结构提升及新同源oracle引用更新后，只运行一次相同四组：Scanner12/12、dedent13/13、metadata23/23、selector7/7，共55项通过。控制代码和workflow未改，原002包保全；003仅更新fixture结构、身份/参考流来源与这份文档。该结果不是C#、JIT或Native通过。
+
+## 首次 hosted Scanner 门：测试源码语法失败
+
+以下追加已核进展，不改写上述各窗口当时状态。旧CLI五新fixture另窗003均编译exit0，实际图各仅__main__，未执行PE；原attr_list未重复。这只解除fixture编译阻塞，不证明新Runtime行为。
+
+Scanner专用CI实际HEAD为`df75ece84bb4b32e345a96785742169b6442c509`。官方checkpoint中的C# build自然exit1、failure=null、完整stdout1734B、stderr0B；stdout SHA256为`547109e71d67439fb9a627bc251373524e6221bebfa959d95017488cc828adf9`。Runtime子项目已生成DLL，测试项目在`PyRegexScannerStateTests.cs:189`报CS0819：隐式var声明不能含多个declarator。另有一条既有xUnit2031 warning，不将其误记为本次error。
+
+测试程序集未构建完成，43Fact未执行，checkpoint没有TRX；本Scanner门的CLI构建、19场景JIT、attr_list JIT和全部Native阶段均not-run。其它独立保护job另行核验，不从Scanner首败推断其结果，也不沿用旧checkpoint通过状态。
+
+修复只把context/later的一条var声明拆成顺序相同的两条，保原对象身份、断言、43Fact名称及filter。该测试文件新SHA256为`1cf95f6ba06a3998057c75bf66ef9effb3fd20cfdc6630a8d9fd89afe3a6f372`；其余15个候选源（含全部12生产文件）不变。清单保003基准来源并显式登记这一test-only身份增量，不修改原003冻结包或旧CP/CLI证据。此修复尚未经过C#重建，不能把纯控制通过当作编译成功。
+
+## 独立完整门：case配置不被CP基线接受
+
+默认和pilot两份完整门原stdout均为644通过、5失败；各自stderr均明确列出Scanner五个case.txt的未知timeout键。失败发生于Python基线配置解析，不能说这五个entry已执行失败，也不能把其pending标记当作跳过CP参考的理由。
+
+Python基线的parse_manifest不接受timeout键，execute固定30秒；Rust CaseSpec::from_case_dir支持该键，但初始timeout_secs也为30。修订仅从五个case.txt删除冗余的`timeout = 30`行，使Rust解析值和CP固定超时不变。entry、args、所有断言、pending=true和源码pending标记保持；没有放宽任何parser或跳过用例，没有重跑CP/旧CLI。旧失败配置与两门原流保留，配置解析验证与纯控制结果另列，不能代替整组重验。
+
+一次纯配置验证调用真实Python解析器：五份旧配置仍精确拒绝timeout，五份新配置全部接受且entry/pending/args/env/期望值不变；没有调用execute或启动case。Rust默认值只作源码静态核对，不冒称运行了Rust解析器。合并这两项前置修复后，控制007只运行一次同样四组55项，12+13+23+7全部通过。原控制代码、workflow、CP参考流及003历史包不变；C#重建、五例CP完整门与JIT/Native仍须新轮实际验证。
