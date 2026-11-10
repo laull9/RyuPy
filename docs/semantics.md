@@ -1353,3 +1353,14 @@ Main/Dynamic功能式TypedDict读执行入口快照/真实可写function.Module�
 ### JIT空资源子包发现候选（ADR0146）
 
 JIT build/run仅可选纳入硬图普通父包同目录、resolver同位且UTF8无BOM/coding声明、解析body为空的直接子包。有限files literal调用只是提示，不替换实际callee；dead/missing/非空/坏源码候选不提前报错或执行。AOT不自动纳图，资源复制仍显式。新增登记不再改变新Legacy V1 Static TD的词法归属；该词法值并非actual Function.Module，Static rebound/定义前globals改名旧债保留，旧host/Unknown仍原算法。新产品及完整门未验，见[ADR0146](adr/0146-empty-resource-package-discovery.md)。
+
+### str.expandtabs 有限候选与宿主容量（ADR0148，未验收）
+
+统一窄绑定、一次类型级index与码点两遍扫描；空串/无tab仍转换，C-int越界为OverflowError。
+输出超过.NET10真实上限0x3FFFFFDF个UTF16单位明确NotImplementedError，消息为
+`str.expandtabs: result exceeds managed string capacity`；这是新API宿主偏差，不宣称CP容量等价，
+不执行CP巨大分配，也不引入1M人为阈值。实际OOM沿既有宿主策略，未新增MemoryError映射。
+有效代理对一列、孤立代理保值，只有CR/LF清列；独立代理拼接D009及int派生布局仍pending。
+普通dict重复keyword/任意mapping展开和通用属性协议旧债不在本切修复。bool-index弃用警告必须
+保实际过滤/error/caller位置与stderr重入/原异常身份；真实源码与JIT/AOT尚未验证，不能登记项目
+晋升。详见[ADR0148](adr/0148-string-expandtabs.md)及pending源码tests/fixtures/text_expandtabs。

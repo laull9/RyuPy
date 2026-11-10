@@ -63,6 +63,9 @@ public static partial class PyOps
         // partition独立绑定保keyword先arity；不为精确str制造绑定对象。
         if (obj is string partitionText && name is "partition" or "rpartition")
             return PyTextPartition.Invoke(partitionText, name, args, kwNames);
+        // 仅精确CLR文本快路，不吞派生override/实例遮蔽，也不创建绑定对象。
+        if (obj is string expandText && name == "expandtabs")
+            return PyTextExpandTabs.Invoke(expandText, args, kwNames, kwValues);
         // 精确字符串保原直接路径，不构造绑定方法；format单独消费全部命名字段。
         if (obj is string template && name == "format")
             return PyStringTemplate.Format(template, args, kwNames, kwValues);

@@ -6,9 +6,10 @@ internal static class PyStringMethods
     internal static bool Has(string name) => name is "encode" or "upper" or "lower" or "strip" or "lstrip"
         or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
         or "index" or "rindex" or "count" or "startswith" or "endswith" or "format"
-        or "partition" or "rpartition";
+        or "partition" or "rpartition" or "expandtabs";
     internal static object? Invoke(object receiver, string name, object?[] args, string[] names, object?[] values, bool bound)
     {
+        if (name == "expandtabs") return PyTextExpandTabs.Invoke(receiver, args, names, values);
         // format的终端writer可返回原模板子类，必须在仅提取raw文本之前保住receiver。
         if (name == "format") return PyStringTemplate.Format(receiver, args, names, values);
         // partition未命中保source身份，命中保separator身份，不能提前剥离真实子类。

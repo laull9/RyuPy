@@ -45,7 +45,7 @@ jobs:
           )
           noreturn = (os.environ.get('GITHUB_EVENT_NAME') == 'push'
               and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056'
-              and isinstance(head, dict) and head.get('message') == 'validation: typing-noreturn-001')
+              and isinstance(head, dict) and head.get('message') in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'))
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.write('diagnostic=' + str(diagnostic).lower() + '\n')
               stream.write('markdown=' + str(markdown).lower() + '\n')

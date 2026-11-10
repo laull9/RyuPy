@@ -45,6 +45,9 @@ public sealed class PyBuiltinMethod
     /// <param name="values">关键字值。</param>
     public object? Invoke(object?[] args, string[] names, object?[] values)
     {
+        // expandtabs独立绑定须先于通用arity与keyword拒绝。
+        if (_receiver is string && _name == "expandtabs")
+            return PyTextExpandTabs.Invoke(_receiver, args, names, values);
         // translate 的 table/delete 绑定独立于旧方法的通用数量/关键字规则。
         if (_receiver is PyBytes or PyByteArray && _name == "translate")
             return PyBinaryTranslate.Invoke(_receiver, args, names, values);
@@ -128,7 +131,7 @@ public static partial class PyOps
             string when name is "encode" or "upper" or "lower" or "strip" or "lstrip"
                 or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
                 or "index" or "rindex" or "count" or "startswith" or "endswith" or "format"
-                or "partition" or "rpartition" => PreparedText,
+                or "partition" or "rpartition" or "expandtabs" => PreparedText,
             PyGenerator when name is "__iter__" or "__next__" or "send" or "throw" or "close"
                 => PreparedGenerator,
             _ => null,

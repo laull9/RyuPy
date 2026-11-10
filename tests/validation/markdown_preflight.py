@@ -88,18 +88,24 @@ def source_delta(base, current):
     return sorted(changed)
 
 
-def capture(prefix, argv, cwd, timeout, env=None, limit=32 * 1024 * 1024):
+def capture(prefix, argv, cwd, timeout, env=None, limit=32 * 1024 * 1024, memory_limit=None):
     """启动前保存命令；超时/超量杀本进程组，保已写原流，不重跑。"""
+    # 仅显式CP调用设置AS/FSIZE；旧调用及.NET不受新增地址空间限制。
+    def cp_limits():
+        import resource
+        resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
     argv = list(map(str, argv))
     record = {'argv': argv, 'cwd': str(cwd), 'timeout_seconds': timeout, 'exit': None,
-              'failure': None, 'raw_streams_complete': False}
+              'failure': None, 'raw_streams_complete': False, 'memory_limit': memory_limit, 'stream_limit': limit}
     save(prefix.with_suffix('.argv.json'), record)
     start = time.monotonic()
     process = None
     with prefix.with_suffix('.stdout').open('xb') as out, prefix.with_suffix('.stderr').open('xb') as err:
         try:
             process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,
-                                       stdout=out, stderr=err, start_new_session=True)
+                                       stdout=out, stderr=err, start_new_session=True,
+                                       preexec_fn=cp_limits if memory_limit is not None else None)
             while process.poll() is None:
                 if time.monotonic() - start > timeout:
                     raise TimeoutError('single window expired')

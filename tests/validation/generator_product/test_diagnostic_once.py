@@ -51,6 +51,7 @@ class DiagnosticTests(unittest.TestCase):
         code = '\n'.join(line[10:] for line in block.splitlines())
         markdown_title = 'diagnostic-not-acceptance: markdown-preflight-001'
         noreturn_title = 'validation: typing-noreturn-001'
+        expand_title = 'validation: text-expandtabs-001'
         cases = [(d.TITLE, 'push', d.REF, True), (d.TITLE.upper(), 'push', d.REF, False),
                  (d.TITLE + '\n', 'push', d.REF, False), ('normal commit', 'push', d.REF, False),
                  (d.TITLE, 'workflow_dispatch', d.REF, False), (None, 'push', d.REF, False),
@@ -65,6 +66,10 @@ class DiagnosticTests(unittest.TestCase):
                  (noreturn_title + '\n', 'push', d.REF, False),
                  (noreturn_title, 'workflow_dispatch', d.REF, False),
                  (noreturn_title, 'push', d.REF.upper(), False)]
+        cases += [(title, event, ref, False) for title, event, ref in [
+            (expand_title, 'push', d.REF), (expand_title.upper(), 'push', d.REF),
+            (expand_title + '\n', 'push', d.REF), (expand_title, 'workflow_dispatch', d.REF),
+            (expand_title, 'push', d.REF.upper())]]
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             for title, event_name, ref, expected in cases:
@@ -78,7 +83,7 @@ class DiagnosticTests(unittest.TestCase):
                          'GITHUB_OUTPUT': str(root / 'output'), 'GITHUB_EVENT_NAME': event_name,
                          'GITHUB_REF': ref}, clear=True):
                         exec(compile(code, 'workflow-selector', 'exec'), {})
-                    noreturn = title == noreturn_title and event_name == 'push' and ref == d.REF
+                    noreturn = title in (noreturn_title, expand_title) and event_name == 'push' and ref == d.REF
                     markdown = title == markdown_title and event_name == 'push' and ref == d.REF
                     self.assertEqual((root / 'output').read_text(),
                                      'diagnostic=' + str(expected).lower() + '\n'

@@ -60,6 +60,11 @@ public static class PyWarnings
         return children != 0;
     }
 
+    // 整数协议的窄通知复用真实过滤、caller与stderr；直接bool参数不经过这里。
+    internal static void IndexReturnedStrictSubclass(string typeName) =>
+        Warn($"__index__ returned non-int (type {typeName}).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.",
+            PyType.Get("DeprecationWarning"), 1, null);
+
     private static void Warn(object? message, object? category, long stacklevel, object? source)
     {
         if (source is not (null or PyNone))

@@ -42,23 +42,37 @@ class Tests(unittest.TestCase):
                          'typing-noreturn-evidence-${{ github.sha }}', 'typing-noreturn-tools-${{ github.sha }}',
                          'typing-noreturn-native-${{ github.sha }}']:
             self.assertIn(required, called)
+        self.assertIn("RYUPY_VALIDATION_MODE:", called)
+        self.assertIn("&& 'text-expandtabs' || ''", called)
+        self.assertIn('&& 120 || 65', called)
+        self.assertEqual(called.count('&& 98 || 65'), 1)
+        self.assertEqual(called.count('&& 10 || 65'), 1)
+        self.assertEqual(called.count('&& 1 || 65'), 8)
+        self.assertLessEqual(98 + 10 + 8, 120)
         self.assertEqual(called.count('if: always()'), 3)
+        self.assertEqual(called.count('if: "always() &&'), 3)
         self.assertEqual(called.count('if-no-files-found: error'), 2)
         self.assertIn('!target/typing-noreturn-evidence/native-build/**', called)
-        self.assertEqual(called.count('if-no-files-found: warn'), 1)
+        self.assertEqual(called.count('if-no-files-found: warn'), 4)
         self.assertNotIn('continue-on-error:', called)
         uploads = called.split('uses: actions/upload-artifact@')[1:]
-        self.assertEqual(len(uploads), 3)
+        self.assertEqual(len(uploads), 6)
         paths = [re.search(r'^          path: (.*?)(?=^          (?:#|if-no-files-found))',
                            block, re.M | re.S)[1].strip() for block in uploads]
         self.assertEqual(paths[1], 'target/typing-noreturn-evidence/tools')
         self.assertEqual(paths[2], 'target/typing-noreturn-evidence/native-dist.tar.gz')
+        self.assertEqual(paths[3:], ['target/typing-noreturn-evidence/native-domains/' + name +
+                                   '/native-dist.tar.gz' for name in n.EXPAND_CONTRACTS])
         self.assertEqual(paths[0].splitlines()[0], '|')
         self.assertEqual([line.strip() for line in paths[0].splitlines()[1:]], [
             'target/typing-noreturn-evidence', '!target/typing-noreturn-evidence/tools/**',
             '!target/typing-noreturn-evidence/native-dist.tar.gz',
             '!target/typing-noreturn-evidence/native-build/**',
-            '!target/typing-noreturn-evidence/relocated/**', 'target/typing-noreturn-prepare',
+            '!target/typing-noreturn-evidence/relocated/**',
+            '!target/typing-noreturn-evidence/native-domains/*/native-build/**',
+            '!target/typing-noreturn-evidence/native-domains/*/relocated/**',
+            '!target/typing-noreturn-evidence/native-domains/*/native-dist.tar.gz',
+            'target/typing-noreturn-prepare',
             '${{ runner.temp }}/wcwidth-aot-tools/download-identity.json'])
 
         for text in [main, called]:
@@ -350,6 +364,224 @@ class Tests(unittest.TestCase):
                         self.assertEqual(boundary['status'], 'expected_refusal')
                         self.assertFalse(boundary['cp_equivalent'])
                     self.assertLess(calls.index('markdown-plain-jit'), calls.index('markdown-full-jit'))
+
+    def test_expand_frozen_oracles_and_unchanged_production(self):
+        import hashlib
+        self.assertEqual(set(n.EXPAND_CONTRACTS), {'core', 'slots', 'warning_contract'})
+        self.assertEqual(len(n.EXPAND_FROZEN), 15)
+        for path, digest in n.EXPAND_FROZEN.items():
+            self.assertEqual(n.sha(n.ROOT / path), digest)
+        for name, (source, size, digest, encoded) in n.EXPAND_CONTRACTS.items():
+            self.assertEqual(n.sha(n.ROOT / ('tests/fixtures/text_expandtabs/' + name + '.py')), source)
+            golden = bytes.fromhex(encoded)
+            self.assertEqual(len(golden), size)
+            self.assertEqual(hashlib.sha256(golden).hexdigest(), digest)
+        self.assertEqual([x[1] for x in n.EXPAND_CONTRACTS.values()], [47, 17, 20])
+        self.assertEqual(n.EXPAND_PARENT, 'f306cae57860d4d8e46ed288984b8b7eafd39830')
+        self.assertEqual(n.EXPAND_TREE, '989b15a877c7fdbda6dcc6383ede93d1f66caa60')
+
+    def test_expand_domains_continue_without_repeating_or_joining_sources(self):
+        for failure in ['core-cp', 'slots-jit', 'warning_contract-native', None]:
+            with tempfile.TemporaryDirectory() as tmp:
+                runner = object.__new__(n.Runner)
+                runner.out = Path(tmp); runner.result = {'stages': {}}
+                calls = []
+                def cp(name):
+                    calls.append(name + '-cp')
+                    if failure == name + '-cp':
+                        raise ValueError('CP原失败')
+                def jit(name, entry, golden):
+                    calls.append(entry.stem + '-jit')
+                    self.assertEqual(golden, bytes.fromhex(n.EXPAND_CONTRACTS[entry.stem][3]))
+                    if failure == entry.stem + '-jit':
+                        raise ValueError('JIT原失败')
+                def native(entry, golden, *, name, timeout):
+                    calls.append(name + '-native')
+                    self.assertEqual(name, entry.stem)
+                    self.assertEqual(timeout, 180)
+                    if failure == name + '-native':
+                        raise ValueError('Native原失败')
+                runner.expand_oracle, runner.jit, runner.native = cp, jit, native
+                runner.expand_products()
+                self.assertEqual(len(calls), len(set(calls)))
+                self.assertIn('warning_contract-native', calls)
+                self.assertEqual('core-native' in calls, failure != 'core-cp')
+                self.assertEqual(runner.product_timeout, 30)
+
+    def test_native_named_scope_restores_defaults_and_keeps_four_archives_separate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = object.__new__(n.Runner)
+            root = runner.out = Path(tmp); runner.labels = {'old'}
+            calls = []
+            def native(entry, golden, timeout):
+                calls.append((runner.out, timeout, runner.product_timeout))
+                (runner.out / 'native-dist.tar.gz').write_bytes(entry.name.encode())
+            runner._native = native
+            runner.product_timeout = 30
+            runner.native(Path('supported.py'), b'original')
+            for name in n.EXPAND_CONTRACTS:
+                runner.native(Path(name + '.py'), b'golden', name=name, timeout=180)
+                self.assertEqual(runner.out, root)
+                self.assertEqual(runner.labels, {'old'})
+                self.assertEqual(runner.product_timeout, 30)
+            self.assertEqual([x[1:] for x in calls], [(1200, 30)] + [(180, 15)] * 3)
+            self.assertEqual(len(list(root.rglob('native-dist.tar.gz'))), 4)
+            runner._native = lambda *args: (_ for _ in ()).throw(ValueError('publish失败'))
+            with self.assertRaises(ValueError):
+                runner.native(Path('failed.py'), b'', name='failed', timeout=180)
+            self.assertEqual(runner.out, root)
+            self.assertEqual(runner.labels, {'old'})
+
+    def test_expand_cp_uses_only_bounded_direct_source_and_preserves_raw(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = object.__new__(n.Runner)
+            runner.out = Path(tmp); runner.labels = set(); runner.python = Path('/fake/python')
+            runner.env = {'DOTNET': '/must/not/be/used'}
+            name = 'core'; digest = n.EXPAND_CONTRACTS[name][0]
+            def capture(prefix, argv, cwd, timeout, env, *, limit, memory_limit):
+                self.assertEqual(argv, [runner.python, '-B', n.ROOT / 'tests/fixtures/text_expandtabs/core.py'])
+                self.assertEqual((timeout, limit, memory_limit), (15, 131072, 536870912))
+                self.assertNotIn('DOTNET', env)
+                prefix.with_suffix('.stdout').write_bytes(bytes.fromhex(n.EXPAND_CONTRACTS[name][3]))
+                prefix.with_suffix('.stderr').write_bytes(b'')
+                return dict(exit=0, failure=None, raw_streams_complete=True)
+            original_sha = n.sha
+            def sha(path):
+                return n.shared.PYTHON_SHA if Path(path) == runner.python else original_sha(path)
+            with patch.object(n.shared, 'capture', capture), patch.object(n, 'sha', sha):
+                runner.expand_oracle(name)
+                with self.assertRaises(ValueError):
+                    runner.expand_oracle(name)
+
+    def test_expand_full_orchestration_independent_failures_and_parent_only(self):
+        actual_root = n.ROOT
+        for failure in ['csharp-build', 'csharp-typing', 'csharp-expandtabs', 'tools',
+                        'supported-cp', 'supported-jit', 'supported-native',
+                        'full-source-deletion-boundary', 'expandtabs', 'markdown-full',
+                        'after-identity', 'frozen-hash', None]:
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp); identity = {'head': '1' * 40, 'tree': '2' * 40, 'files': {}}
+                for name in (n.CONTRACT, n.SUPPORTED, *('tests/fixtures/text_expandtabs/' + x + '.py' for x in n.EXPAND_CONTRACTS)):
+                    path = root / name; path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes((actual_root / name).read_bytes())
+                event = root / 'event'; event.write_text(json.dumps({'head_commit': {'message': n.EXPAND_TITLE}}))
+                calls = []; outer = self
+                after = []
+                class Fake(n.Runner):
+                    def identity(self, label):
+                        if label == 'after':
+                            after.append(True)
+                            if failure == 'after-identity':
+                                return dict(identity, tree='changed')
+                        return identity
+                    def preserve(self, path, label):
+                        return {}
+                    def checked(self, name, argv, timeout):
+                        if name == 'direct-parent':
+                            outer.assertEqual(argv, ['git', 'rev-parse', 'HEAD^', 'HEAD^{tree}', 'HEAD^^{tree}'])
+                        values = {'direct-parent': n.EXPAND_PARENT + '\n' + identity['tree'] + '\n' + n.EXPAND_TREE,
+                            'expand-base-files': '', 'dotnet-version': '10.0.403',
+                            'rustc-version': 'rustc 1.99.1 (58cf8f9c3 2026-10-13)',
+                            'cargo-version': 'cargo 1.99.1 (5f94df478 2026-08-27)'}
+                        (self.out / (name + '.stdout')).write_text(values[name])
+                    def operation(self, name):
+                        calls.append(name)
+                        if name == failure:
+                            raise ValueError('mock失败')
+                    def managed(self, *, build_only=False):
+                        outer.assertTrue(build_only); self.operation('csharp-build')
+                    def managed_domain(self, name):
+                        self.operation('csharp-' + name)
+                    def build_tools(self):
+                        self.operation('tools')
+                    def supported_oracle(self):
+                        self.operation('supported-cp')
+                        (self.out / 'supported-oracle.stdout').write_bytes(b'x' * 1401)
+                    def jit(self, name, *args):
+                        self.operation(name + '-jit' if name == 'supported' else name)
+                    def native(self, *args):
+                        self.operation('supported-native')
+                    def expand_products(self):
+                        self.phase('expandtabs-core-cp', lambda: self.operation('expandtabs'))
+                        for key in self.result['stages']:
+                            if key.startswith('expandtabs-') and key != 'expandtabs-core-cp':
+                                self.phase(key, lambda: None)
+                    def markdown_products(self):
+                        self.phase('markdown-plain', lambda: self.operation('markdown-plain'))
+                        self.phase('markdown-full', lambda: self.operation('markdown-full'))
+                env = {'GITHUB_EVENT_PATH': str(event), 'GITHUB_SHA': identity['head'],
+                       'PYTHON': str(root / 'python'), 'DOTNET': str(root / 'dotnet')}
+                with patch.object(n, 'ROOT', root), patch.object(n, 'FROZEN', {n.CONTRACT: n.shared.PYTHON_SHA}), \
+                     patch.object(n, 'EXPAND_FROZEN', {}), patch.object(n, 'check_context'), \
+                     patch.object(n, 'sha', side_effect=lambda path:
+                         '0' * 64 if failure == 'frozen-hash' and after else n.shared.PYTHON_SHA), \
+                     patch.object(n.shutil, 'which', return_value='/fake/tool'), \
+                     patch.object(n.sys, 'version_info', (3, 12, 13)), patch.dict(os.environ, env):
+                    runner = Fake(expandtabs=True); code = runner.execute()
+                self.assertEqual(code, 0 if failure is None else 1)
+                if failure in ('csharp-build', 'tools'):
+                    self.assertNotIn('supported-cp', calls)
+                else:
+                    self.assertIn('markdown-full', calls)
+                    self.assertIn('full-source-deletion-boundary', calls)
+                    self.assertIn('expandtabs', calls)
+                    self.assertEqual('supported-native' in calls, failure != 'supported-cp')
+                if failure != 'csharp-build':
+                    self.assertIn('csharp-typing', calls)
+                    self.assertIn('csharp-expandtabs', calls)
+                self.assertFalse(runner.result['full_contract_supported'])
+                if failure in ('after-identity', 'frozen-hash'):
+                    self.assertFalse(runner.result['passed'])
+                    self.assertFalse(runner.result['identity_preserved'])
+                    self.assertFalse(runner.result['supported_contract_passed'])
+                    self.assertTrue(runner.result['stages']['supported-native']['passed'])
+
+
+    def test_capture_cp_limits_do_not_leak_into_default_dotnet_calls(self):
+        from unittest.mock import MagicMock
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for memory in [None, 536870912]:
+                resource = MagicMock(); process = MagicMock(); process.poll.return_value = 0
+                process.returncode = 0
+                def popen(*args, **kwargs):
+                    before = kwargs['preexec_fn']
+                    if memory is None:
+                        self.assertIsNone(before)
+                    else:
+                        before()
+                        self.assertEqual(resource.setrlimit.call_count, 2)
+                        resource.setrlimit.assert_any_call(resource.RLIMIT_AS, (memory, memory))
+                        resource.setrlimit.assert_any_call(resource.RLIMIT_FSIZE, (131072, 131072))
+                    return process
+                with patch.dict('sys.modules', resource=resource), patch.object(n.shared.subprocess, 'Popen', popen):
+                    record = n.shared.capture(root / str(memory), ['/fake/tool'], root, 15,
+                                              limit=131072, memory_limit=memory)
+                self.assertEqual(record['exit'], 0)
+                self.assertEqual(record['memory_limit'], memory)
+                self.assertTrue(record['raw_streams_complete'])
+                if memory is None:
+                    resource.setrlimit.assert_not_called()
+
+    def test_expand_trx_requires_all_eighteen_distinct_facts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runner = object.__new__(n.Runner); runner.out = Path(tmp); runner.dotnet = Path('/fake/dotnet')
+            names = sorted(n.EXPAND_FACTS)
+            for items, outcome in [(names, 'Passed'), (names[:-1], 'Passed'),
+                                   (names + names[:1], 'Passed'), (names, 'Failed'), (names, 'NotExecuted')]:
+                def checked(*args):
+                    target = runner.out / 'trx-expandtabs'; target.mkdir(exist_ok=True)
+                    root = ET.Element('TestRun')
+                    for name in items:
+                        ET.SubElement(root, '{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}UnitTestResult',
+                                      testName='RyuPy.Runtime.Tests.' + name, outcome=outcome)
+                    ET.ElementTree(root).write(target / 'result.trx')
+                runner.checked = checked
+                if items == names and outcome == 'Passed':
+                    self.assertEqual(runner.managed_domain('expandtabs')['total'], 18)
+                else:
+                    with self.assertRaises(ValueError):
+                        runner.managed_domain('expandtabs')
 
 
 if __name__ == '__main__':
