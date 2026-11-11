@@ -1,0 +1,53 @@
+# 暖kernel独立门；不将可靠性当速度优势，失败不阻旧保护调度。
+name: wcwidth暖kernel同产物可靠性
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  warm-kernel:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 纯反例先行
+        run: python3 -B -m unittest discover -s tests/validation/wcwidth_warm -p test_runner.py
+      - name: 复用固定官方工具及锁源准备
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/wcwidth-warm-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py >target/wcwidth-warm-prepare/stdout 2>target/wcwidth-warm-prepare/stderr || status=$?
+          printf '%s\n' "$status" >target/wcwidth-warm-prepare/exit
+          exit "$status"
+      - name: 单次AOT构建和C3合同、成功才M6
+        run: '"$PYTHON" -B tests/validation/wcwidth_warm/runner.py --execute'
+      - name: 上传前允许环境检查
+        id: safe
+        if: always()
+        run: python3 -B tests/validation/wcwidth_warm/runner.py --upload-check
+      - name: 所有原流与实际产物始终保留
+        if: always() && steps.safe.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wcwidth-warm-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/wcwidth-warm-evidence
+            !target/wcwidth-warm-evidence/cargo
+            !target/wcwidth-warm-evidence/**/obj/**
+            !target/wcwidth-warm-evidence/**/bin/**
+            target/wcwidth-warm-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 准确范围
+        if: always()
+        run: echo '四调用点两个API；C3非计时合同后Native同ELF A/A，不比较CP/JIT速度；所有旧保护独立，metadata完整AOT红界保留。' >> "$GITHUB_STEP_SUMMARY"
