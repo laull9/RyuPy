@@ -87,3 +87,8 @@ distribution-metadata.json保完整snapshot摘要与payload_sha256；optional-so
 真实Markdown原两调用77B、独立parser48B、固定20逐ID保旧11、双策略make check及旧
 source/ABI/trace/Native/AOT门仍需同源执行。不得用helper单测、显式18-target历史成功
 或source部署成功替代默认产品结果。生产触点29，超初估18–25已单独记录，后续不扩域。
+
+## 显式权威恢复候选（未验收）
+
+显式枚举未选目标与自动Outside的区分及顶层守卫fallback见[ADR0157](0157-explicit-metadata-closed-fallback.md)。
+不撤回显式literal-group候选；v1保持原语义，原产品golden和自动边界待同源复验。

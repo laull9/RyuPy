@@ -34,6 +34,9 @@ pub struct DefaultSourceState {
 #[derive(Default)]
 pub(crate) struct Plan {
     pub payload: Option<String>,
+    // 来源权威独立于快照内容；显式未选不继承自动Outside政策。
+    pub explicit_metadata: bool,
+    pub closed_unplanned: BTreeSet<String>,
     pub metadata_unavailable: Option<String>,
     pub roots: BTreeSet<String>,
     pub dependencies: BTreeMap<String, Vec<String>>,
@@ -44,14 +47,19 @@ pub(crate) struct Plan {
 }
 impl Plan {
     pub(crate) fn runtime_payload(&self) -> Result<Option<String>> {
-        if self.roots.is_empty() && self.outside.is_empty() {
+        if self.roots.is_empty() && self.outside.is_empty() && self.closed_unplanned.is_empty() {
             return Ok(None);
         }
-        Ok(Some(serde_json::to_string(&serde_json::json!({
+        let mut payload = serde_json::json!({
             "schema_version": 1, "roots": self.roots, "dependencies": self.dependencies,
             "deferred": self.deferred, "outside": self.outside,
             "protected": self.protected, "locations": self.locations,
-        }))?))
+        });
+        if !self.closed_unplanned.is_empty() {
+            payload["schema_version"] = 2.into();
+            payload["closed_unplanned"] = serde_json::to_value(&self.closed_unplanned)?;
+        }
+        Ok(Some(serde_json::to_string(&payload)?))
     }
 }
 
@@ -65,6 +73,7 @@ pub(crate) fn extend(
     aot: bool,
 ) -> Result<()> {
     sess.default_source_state.plan = Plan {
+        explicit_metadata: explicit_payload.is_some(),
         payload: explicit_payload,
         ..Default::default()
     };
@@ -220,6 +229,8 @@ pub(crate) fn extend(
             .is_some_and(|&index| sources[index].candidate)
     });
     plan.outside.retain(|name| !nodes.contains_key(name));
+    plan.closed_unplanned
+        .retain(|name| !nodes.contains_key(name) && !plan.outside.contains(name));
     if let Some(payload) = &plan.payload {
         crate::distribution_metadata::record_payload(sess, payload)?;
     }
@@ -267,9 +278,14 @@ fn metadata_candidates(
     }
     if let Some(payload) = &plan.payload {
         let (targets, outside) = crate::distribution_metadata::targets(payload, groups)?;
-        plan.outside.extend(outside);
+        if plan.explicit_metadata {
+            plan.closed_unplanned.extend(outside);
+        } else {
+            plan.outside.extend(outside);
+        }
         for name in targets {
             plan.outside.remove(&name);
+            plan.closed_unplanned.remove(&name);
             plan.roots.insert(name.clone());
             queue.push_back((name, false, false));
         }
@@ -363,3 +379,7 @@ pub(crate) fn enabled(sess: &Session, aot: bool) -> bool {
     !aot && !sess.fixed_binding_build
         && sess.module_environment_policy != crate::ModuleEnvironmentPolicy::ExplicitOnly
 }
+
+#[cfg(test)]
+#[path = "optional_sources_tests.rs"]
+mod tests;

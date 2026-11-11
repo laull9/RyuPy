@@ -106,6 +106,9 @@ def products(r):
         pair(r, name, filename, request, include)
     pair(r, 'missing-include', 'missing_include.py', request, paths=[r.fixture / 'root-a', r.fixture / 'root-b'])
     pair(r, 'empty', 'empty.py', r.fixture / 'empty.json', paths=[])
+    # 新独立域先收件；不改旧unconfigured断言或其身份失效出口。
+    import distribution_metadata_authority as authority
+    authority.run(r)
     r.phase('unconfigured-jit', lambda: jit(r, 'unconfigured', r.fixture / 'unconfigured.py',
             r.data['goldens']['unconfigured'].encode()))
     real_entry = r.fixture / 'real.py'

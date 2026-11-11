@@ -7,6 +7,19 @@ namespace RyuPy.Runtime;
 public static class PySystem
 {
     private static PyModule? _sys;
+    // 首次真实初始化绑定，后续Initialize不为被修改状态重新签发身份。
+    private static Dictionary<string, object?>? originalAttributes;
+    private static object? originalPath;
+    internal static bool HasOriginalImportPath(PyModule system)
+        => IsOriginalSystem(system) && originalPath is not null
+            && originalAttributes is not null
+            && originalAttributes.TryGetValue("path", out var path) && ReferenceEquals(path, originalPath)
+            && !system.DynamicAttributes.ContainsKey("path")
+            && !HasExplicitFinderConfiguration
+            && !HasFinderHooks(originalAttributes) && !HasFinderHooks(system.DynamicAttributes);
+    private static bool HasFinderHooks(Dictionary<string, object?> attributes)
+        => attributes.ContainsKey("meta_path") || attributes.ContainsKey("path_hooks")
+            || attributes.ContainsKey("path_importer_cache");
     // 候选冷激活不调用公开sys getter，配置写入时记录内部拒绝事实。
     internal static bool HasExplicitFinderConfiguration { get; private set; }
     internal static bool IsOriginalSystem(PyModule module) => ReferenceEquals(module, _sys);
@@ -36,12 +49,19 @@ public static class PySystem
         };
         if (_sys is null)
         {
+            bool freshSystem = !PyModules.TryCached("sys", out _);
             PyModules.RegisterNative("sys", attributes, (name, _) =>
             {
                 if (name is "meta_path" or "path_hooks" or "path_importer_cache") HasExplicitFinderConfiguration = true;
                 if (name is "modules" or "path" or "unraisablehook") throw new PyNotImplementedError("replacement of sys." + name + " is not supported");
             });
             _sys = PyModules.Import("sys");
+            // 首次已有未知缓存对象时不认证它；普通初始化行为仍沿旧路径。
+            if (freshSystem)
+            {
+                originalAttributes = attributes;
+                originalPath = attributes["path"];
+            }
         }
         else foreach (var pair in attributes) if (pair.Key is not ("modules" or "path")) _sys.SetAttr(pair.Key, pair.Value);
         PyNativeModules.Register();

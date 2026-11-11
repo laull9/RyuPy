@@ -324,5 +324,97 @@ class Tests(unittest.TestCase):
         self.assertIn('case "source-parent": SourceParent()', source)
 
 
-if __name__ == '__main__':
-    unittest.main()
+
+
+class AuthorityTests(unittest.TestCase):
+    """只构造记录/PE解码数据；不执行新fixture或产品。"""
+    def test_authority_budget_and_complete_frozen_fixtures(self):
+        import distribution_metadata_authority as a
+        self.assertEqual(a.DATA['budget'], {'cp': 8, 'compile': 9, 'jit': 9, 'native': 0})
+        self.assertEqual(len(a.DATA['oracles']), 8)
+        self.assertEqual(len(a.DATA['cases']), 9)
+        self.assertEqual(len(set(a.stage_names())), 18)
+        root = p.FIXTURES / 'authority'
+        self.assertEqual({f.relative_to(root).as_posix(): c.sha(f) for f in root.rglob('*') if f.is_file()},
+                         a.DATA['fixture_hashes'])
+        for file in root.rglob('*.py'):
+            compile(file.read_bytes(), str(file), 'exec')
+
+    def test_authority_negative_requires_exact_natural_exit_and_streams(self):
+        import distribution_metadata_authority as a
+        record = {'exit': 1, 'failure': None, 'raw_streams_complete': True}
+        a.verdict(record, b'before\n', a.NI['hooks'].encode(), b'before\n', 'hooks')
+        for key, value in [('exit', 0), ('exit', -11), ('exit', 124), ('failure', 'timeout'),
+                           ('failure', 'launch'), ('raw_streams_complete', False)]:
+            with self.assertRaises(ValueError):
+                a.verdict(dict(record, **{key: value}), b'before\n', a.NI['hooks'].encode(), b'before\n', 'hooks')
+        for stdout, stderr in [(b'', a.NI['hooks'].encode()), (b'before\n', a.NI['outside'].encode()),
+                               (b'before\n', b'NotImplementedError: unrelated\n')]:
+            with self.assertRaises(ValueError):
+                a.verdict(record, stdout, stderr, b'before\n', 'hooks')
+        with self.assertRaises(ValueError):
+            a.verdict(record, b'before\n', a.NI['hooks'].encode(), b'before\n')
+
+    def test_authority_plan_cannot_replace_automatic_with_empty_or_closed(self):
+        import distribution_metadata_authority as a
+        payload = {'schema_version': 1, 'roots': ['neutral_pkg.target'],
+                   'dependencies': {'neutral_pkg.target': ['neutral_pkg']},
+                   'locations': {'neutral_pkg.target': {}}, 'deferred': {},
+                   'outside': sorted(a.TARGETS - {'neutral_pkg.target'}), 'protected': []}
+        report = dict(payload, diagnostics={}, metadata_unavailable=None)
+        modules = {'modules': [{'module': 'neutral_pkg.target', 'compiled': True, 'candidate': True}]}
+        row = a.DATA['cases']['automatic-selected']
+        a.validate_plan(payload, report, modules, row)
+        for key, value in [('roots', []), ('outside', []), ('closed_unplanned', []), ('schema_version', 2),
+                           ('deferred', {'neutral_pkg.target': 'compile failure'})]:
+            bad = dict(payload, **{key: value})
+            with self.assertRaises(ValueError):
+                a.validate_plan(bad, dict(bad, diagnostics={}, metadata_unavailable=None), modules, row)
+        with self.assertRaises(ValueError):
+            a.validate_plan(payload, dict(report, outside=[]), modules, row)
+
+    def test_authority_payload_must_be_actual_unique_ldstr_call(self):
+        import distribution_metadata_authority as a
+        target = {'owner': 'RyuPy.Runtime.PyModules', 'name': 'ConfigureOptionalSources',
+                  'signature_hex': '0001010e'}
+        code = [{'opcode': '0x72', 'string': '{"schema_version":1}'}, {'opcode': '0x28', 'target': target}]
+        def decoded(ins): return {'methods': [{'body': {'instructions': ins}}]}
+        self.assertEqual(a.optional_payload(decoded(code)), {'schema_version': 1})
+        for ins in [[], code + code, [dict(code[0], opcode='0x00'), code[1]],
+                    [code[0], dict(code[1], target=dict(target, signature_hex='000001'))]]:
+            with self.assertRaises(ValueError): a.optional_payload(decoded(ins))
+
+
+class AuthorityIdentityPropagationTests(unittest.TestCase):
+    def test_checkpoint_identity_failure_invalidates_and_stops_successor(self):
+        import distribution_metadata_authority as a
+        # 复用真实Runner.audit/phase/fail_identity/invalidate，只mock持久化和产品边界。
+        runner = gate.Runner.__new__(gate.Runner)
+        runner.result = {'stages': {n: {'passed': False, 'status': 'not-run'} for n in gate.stage_names()}}
+        runner.identity_failed = False
+        runner.persist = Mock()
+        runner.out = Path('/unused-authority-selftest')
+        runner.fixture = Path('/unused-authority-selftest/fixtures')
+        runner.cli = Path('/unused-cli')
+        runner.dotnet = Path('/unused-dotnet')
+        runner.env = {}
+        runner.barrier = Mock()
+        runner.command = Mock(return_value={'exit': 0, 'failure': None})
+        runner.run_product = Mock(side_effect=RuntimeError('产品绝不能执行'))
+        stage = 'authority-explicit-selected-jit'
+        successor = Mock(side_effect=RuntimeError('后继绝不能执行'))
+        with patch.object(a, 'checkpoint', side_effect=ValueError('PE/runtime/payload identity mismatch')), \
+             patch.object(gate, 'save'):
+            with self.assertRaises(IdentityError):
+                runner.phase(stage, lambda: a.jit(runner, 'explicit-selected', a.DATA['cases']['explicit-selected']))
+            self.assertTrue(runner.identity_failed)
+            self.assertFalse(runner.result['passed'])
+            self.assertEqual(runner.result['stages'][stage]['status'], 'invalidated-identity')
+            with self.assertRaises(IdentityError):
+                runner.phase('authority-automatic-selected-jit', successor)
+        runner.run_product.assert_not_called()
+        successor.assert_not_called()
+        self.assertTrue(runner.persist.called)
+
+
+if __name__ == '__main__': unittest.main()

@@ -41,7 +41,8 @@ def stage_names():
               'real-discovery', 'markdown-plain', 'markdown-full', *('search-' + n for n in DATA['search'])]
               for mode in ['cp', 'jit']]
     names += ['host-' + n for n in DATA['host_modes']]
-    return names
+    import distribution_metadata_authority as authority
+    return names + authority.stage_names()
 
 
 class Runner(old.Runner):
@@ -249,6 +250,8 @@ class Runner(old.Runner):
                 if not self.phase('identity', lambda: self.audit(self.identities)): return 1
                 if not self.phase('csharp-build', lambda: self.managed(build_only=True)): return 1
                 self.phase('csharp-tests', self.managed_tests)
+                import distribution_metadata_authority as authority
+                self.phase('authority-csharp-tests', lambda: authority.managed_tests(self))
                 if self.phase('host-build', self.host_build):
                     self.phase('host-smoke', lambda: self.run_positive('host-smoke-run', [self.dotnet, self.host, 'smoke'], b'smoke ok\n'))
                 if not self.phase('tools', self.build_tools): return 1

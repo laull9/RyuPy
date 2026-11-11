@@ -52,8 +52,14 @@ public static partial class PyModules
         if (payload.Length > 4 * 1024 * 1024) throw new PyValueError("optional source plan exceeds budget");
         using var document = JsonDocument.Parse(payload);
         var root = document.RootElement;
-        RequireCandidateFields(root, "schema_version", "roots", "dependencies", "locations", "deferred", "outside", "protected");
-        if (root.GetProperty("schema_version").GetInt32() != 1) throw new PyValueError("unknown optional source schema");
+        if (!root.TryGetProperty("schema_version", out var schema))
+            throw new PyValueError("missing optional source field");
+        int version = schema.GetInt32();
+        string[] closed = [];
+        if (version == 1)
+            RequireCandidateFields(root, "schema_version", "roots", "dependencies", "locations", "deferred", "outside", "protected");
+        else if (version == 2) closed = ValidateClosedPlan(root);
+        else throw new PyValueError("unknown optional source schema");
         var dependencies = new Dictionary<string, string[]>(StringComparer.Ordinal);
         var locations = new Dictionary<string, Registration>(StringComparer.Ordinal);
         var errors = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -92,6 +98,7 @@ public static partial class PyModules
             OutsideSources.Add(name);
             for (int dot = name.IndexOf('.'); dot >= 0; dot = name.IndexOf('.', dot + 1)) OutsideSources.Add(name[..dot]);
         }
+        foreach (string name in closed) AddClosedPrefixes(name);
         candidatePlan = payload;
     }
     private static void RequireCandidateFields(JsonElement value, params string[] fields)
@@ -181,6 +188,7 @@ public static partial class PyModules
             throw new PyNotImplementedError(CandidateErrors[name]);
         }
         if (OutsideSources.Contains(name)) throw new PyNotImplementedError("module is outside the planned source domain");
+        if (ClosedUnplanned.Contains(name)) RequireClosedFallback(name);
         return false;
     }
 }
