@@ -48,7 +48,7 @@ class KeyErrorControlTests(unittest.TestCase):
         self.assertEqual(values['keyerror'], 'true')
         _, blocks = selector.jobs()
         for name, digest in selector.DATA['unchanged_job_blocks'].items():
-            self.assertEqual(hashlib.sha256(blocks[name].encode()).hexdigest(), digest)
+            self.assertEqual(selector.protected_job_digest(name, blocks[name]), digest)
         self.assertIn('    needs: select-mode\n', blocks['keyerror-construction'])
         for title in (c.TITLE.upper(), c.TITLE + '\n', c.TITLE.replace('001', '002')):
             self.assertEqual(selector.select(title)[2], selector.ORDINARY)

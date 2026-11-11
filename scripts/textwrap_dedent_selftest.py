@@ -25,6 +25,22 @@ def jobs():
     return raw, blocks
 
 
+def protected_job_digest(name, block):
+    """只允许七ordinary的唯一精确if后缀；其它全部字节仍对历史hash。"""
+    suffix = " && needs.select-mode.outputs.closure != 'true'"
+    if name in ORDINARY:
+        lines = block.splitlines(keepends=True)
+        conditions = [i for i, line in enumerate(lines) if line.startswith('    if: ')]
+        if len(conditions) != 1 or block.count(suffix) != 1:
+            raise ValueError('旧job仅允许一处closure隔离条件：' + name)
+        index = conditions[0]
+        if not lines[index].endswith(suffix + '\n'):
+            raise ValueError('closure条件必须是原if唯一后缀：' + name)
+        lines[index] = lines[index][:-len(suffix + '\n')] + '\n'
+        block = ''.join(lines)
+    return hashlib.sha256(block.encode()).hexdigest()
+
+
 def select(title, event='push', ref=c.old.shared.REF, attempt='1'):
     raw, blocks = jobs()
     selector = blocks['select-mode'].split("python3 - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
@@ -42,7 +58,7 @@ def select(title, event='push', ref=c.old.shared.REF, attempt='1'):
         if name == 'select-mode': continue
         expression = re.search(r'^    if: (.*)$', block, re.M)[1]
         replacements = {'github.ref': ref, 'github.event_name': event, 'github.run_attempt': attempt}
-        replacements.update({'needs.select-mode.outputs.' + key: values.get(key, '') for key in ('diagnostic', 'markdown', 'noreturn', 'search', 'metadata', 'dedent', 'scanner', 'percent', 'keyerror')})
+        replacements.update({'needs.select-mode.outputs.' + key: values.get(key, '') for key in ('diagnostic', 'markdown', 'noreturn', 'search', 'metadata', 'dedent', 'scanner', 'percent', 'keyerror', 'closure')})
         for key, value in replacements.items(): expression = expression.replace(key, repr(value))
         if eval(expression.replace('&&', 'and'), {'__builtins__': {}}, {}): active.add(name)
     return output, values, active
@@ -66,9 +82,9 @@ class Tests(unittest.TestCase):
     def test_all_old_job_blocks_are_byte_unchanged_and_independent(self):
         raw, blocks = jobs()
         self.assertEqual(set(blocks), ORDINARY | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight',
-                         'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent', 'keyerror-construction'})
+                         'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent', 'keyerror-construction', 'markdown-closure'})
         for name, expected in DATA['unchanged_job_blocks'].items():
-            self.assertEqual(hashlib.sha256(blocks[name].encode()).hexdigest(), expected, name)
+            self.assertEqual(protected_job_digest(name, blocks[name]), expected, name)
         for name in ORDINARY | {'distribution-metadata', 'textwrap-dedent'}:
             self.assertIn('    needs: select-mode\n', blocks[name])
             self.assertNotIn('needs: textwrap-dedent', blocks[name])

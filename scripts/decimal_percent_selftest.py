@@ -35,7 +35,7 @@ class PercentControlTests(unittest.TestCase):
         self.assertEqual(values['percent'], 'true')
         _, blocks = old.jobs()
         for name, digest in old.DATA['unchanged_job_blocks'].items():
-            self.assertEqual(hashlib.sha256(blocks[name].encode()).hexdigest(), digest, name)
+            self.assertEqual(old.protected_job_digest(name, blocks[name]), digest, name)
         for name in active:
             self.assertIn('    needs: select-mode\n', blocks[name])
         for title in (c.TITLE.upper(), c.TITLE + '\n', 'ordinary'):
