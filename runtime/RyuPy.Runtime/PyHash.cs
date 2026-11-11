@@ -363,12 +363,22 @@ public static partial class PyHash
         return FitsSigned(hash);
     }
 
+    // 两项探针与一般tuple共享同一乘加内核、调用顺序和收尾；不物化临时tuple。
+    internal static long TwoStringTupleHash(string first, string second)
+    {
+        long hash = TupleHashStep(0x345678, first);
+        return FitsSigned(TupleHashStep(hash, second));
+    }
+
+    private static long TupleHashStep(long hash, object? item) =>
+        unchecked(hash * 1000003 ^ Of(item));
+
     private static long TupleHash(PyTuple tuple)
     {
         long hash = 0x345678;
         foreach (object? item in tuple.Items)
         {
-            hash = unchecked(hash * 1000003 ^ Of(item));
+            hash = TupleHashStep(hash, item);
         }
         return FitsSigned(hash);
     }

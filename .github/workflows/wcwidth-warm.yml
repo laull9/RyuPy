@@ -51,3 +51,56 @@ jobs:
       - name: 准确范围
         if: always()
         run: echo '四调用点两个API；C3非计时合同后Native同ELF A/A，不比较CP/JIT速度；所有旧保护独立，metadata完整AOT红界保留。' >> "$GITHUB_STEP_SUMMARY"
+  lru-allocation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 纯检查器反例和metadata真实入口
+        run: |
+          python3 -B -m unittest discover -s tests/validation/wcwidth_warm -p test_allocation_runner.py
+          python3 -B tests/validation/distribution_metadata_selftest.py
+      - name: 只读精确公开旧完整源
+        timeout-minutes: 2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: laull9/RyuPy
+          ref: 6923573d78f7b504dcbe6d6067dd145cd1a7bd65
+          path: target/lru-baseline-source
+          persist-credentials: false
+      - name: 官方固定SDK准备
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/lru-allocation-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py >target/lru-allocation-prepare/stdout 2>target/lru-allocation-prepare/stderr || status=$?
+          printf '%s\n' "$status" >target/lru-allocation-prepare/exit
+          exit "$status"
+      - name: 原LRU与十新Fact和轻量Host先行、同Host分配ABBA
+        run: '"$PYTHON" -B tests/validation/wcwidth_warm/allocation_runner.py --execute'
+      - name: 上传环境允许清单
+        id: safe
+        if: always()
+        run: python3 -B tests/validation/wcwidth_warm/allocation_runner.py --upload-check
+      - name: 原流实际Host和两Runtime始终保留
+        if: always() && steps.safe.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lru-allocation-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/lru-allocation-evidence
+            target/lru-allocation-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 准确计量边界
+        if: always()
+        run: echo '仅双短string命中Invoke当前线程分配；非kernel或Native分配、不报告速度；失败不跳过独立warm和旧项目保护。' >> "$GITHUB_STEP_SUMMARY"

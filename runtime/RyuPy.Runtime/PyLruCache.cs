@@ -87,13 +87,24 @@ public sealed class PyLruCache : PyNativeObject, IPyNativeCallable, IPyNativeDes
             lock (_gate) _misses++;
             return PyOps.CallValue(_function, args, names, values);
         }
-        var key = new PyLruKey(args, names, values, _typed);
+        PyLruStringPair probe = default;
+        PyLruKey? key;
+        // 资格检查同时捕获两引用，比较回调后不重读args。非规范kwargs继续原路。
+        bool pair = false;
+        if (!_typed && names.Length == 0 && values.Length == 0 && args.Length == 2
+            && args[0] is string first && args[1] is string second)
+        {
+            pair = true; probe = new PyLruStringPair(first, second); key = null;
+        }
+        else key = new PyLruKey(args, names, values, _typed);
         lock (_gate)
         {
-            Entry? found = Find(key);
+            Entry? found = pair ? Find(in probe) : Find(key!);
             if (found is not null) { _hits++; Touch(found); return found.Result; }
             _misses++;
         }
+        // 未命中沿用原表示及已算hash；用户函数仍接原数组，不替换为探针快照。
+        key ??= new PyLruKey(in probe);
         object? result = PyOps.CallValue(_function, args, names, values);
         lock (_gate)
         {
@@ -117,6 +128,23 @@ public sealed class PyLruCache : PyNativeObject, IPyNativeCallable, IPyNativeDes
             {
                 Entry candidate = bucket[i]; bool equal = candidate.Key.Equal(key);
                 // __eq__ 可清缓存或递归插入；不能返回已经淘汰的条目或沿用被改动的桶下标。
+                if (version != _version) { changed = true; break; }
+                if (equal) return candidate;
+            }
+            if (!changed) return null;
+        }
+    }
+    private Entry? Find(in PyLruStringPair probe)
+    {
+        while (true)
+        {
+            long version = _version;
+            if (!_buckets.TryGetValue(probe.Hash, out var bucket)) return null;
+            bool changed = false;
+            for (int i = 0; i < bucket.Count; i++)
+            {
+                Entry candidate = bucket[i]; bool equal = candidate.Key.Equal(in probe);
+                // 与通用Find一致：完整candidate比较后重验，不能在两项之间提前退出。
                 if (version != _version) { changed = true; break; }
                 if (equal) return candidate;
             }

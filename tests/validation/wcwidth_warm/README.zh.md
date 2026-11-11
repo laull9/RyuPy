@@ -13,3 +13,28 @@ M6每进程初始化一次，4个非计时暖batch+12计量batch，每batchN1000
 执行与归档使用同一明确允许环境，不传递或记录TOKEN/SECRET等任意继承键。原双流及退出状态先保存再判；失败RESULT仍passed=false。上传前再核环境键；如安全检查失败停止上传，不换路泄露。纯反例不代表产品执行。新kernel编译、cache API实际访问以及Native合同行为仍须首次hosted证明。
 
 本候选在任何新产品/计量前由N20000改为100000，仅操作预算放大5倍降低过短风险；没有耗时实测依据、不保证通过，60秒child/600秒总预算不变，超时如实失败。始末和C前核HEAD/tree/clean；初始工具、C前及最终同hash。小输入清单不冒全仓字节冻结，完整dist含目录mode/文件集合、size/hash/mode实核等价。
+
+
+## LRU双字符串分配对照（新增门，尚待hosted实测）
+
+`allocation_runner.py` 由同一 reusable workflow 的独立 job 执行，不能阻止原 warm 或项目保护调度。
+固定旧公开完整 commit `6923573d78f7b504dcbe6d6067dd145cd1a7bd65` / tree
+`c27b271f3223e215a3c4fcc1618664ad3acf7968`；只准三个Runtime内部文件差分。
+同一官方 SDK、Release、TraceAdapterTest=false；旧/新 Runtime 独立构建，十新Fact和原LRU/functools通过后，
+以旧Runtime编译一次公开ABI Host，字节相同的Host在旧/新隔离目录执行。实际程序集位置/版本/SHA与磁盘相核。
+
+预构造参数与稳定返回，capacity128，两短CLR字符串、typed=false目标与typed=true控制；各先填一次、预热20000次。
+ABBA四进程，各域三批100000次，24样本。区间只有真实Invoke/最后返回与线程分配计数；
+精确hits/misses/返回identity在外检查，不强制GC、不调tiering/亲和性。
+6个同版本同域字节计数必须相同、typed控制旧新相同且目标严格减少，才报告此微核B/op；
+首批不丢、失败不重试/补采，不能外推kernel、Native分配或速度。本轮无时间A/B。
+job35分钟硬限，各构建/测试300秒、Host120秒、单进程60秒、测量总300秒；
+新增两Runtime构建/一个Host构建、四计量进程，无额外CLI或ILC。最坏所有子上限接近job硬限，
+准备/上传超额将如实形成不完整门，不延长或偷偷重跑。
+
+原warm的C3/M6统计输入、阈值和计数不变。C3三合同全成功后、M6 deadline及六进程之前，
+以同普通CLI/Runtime一次编译、执行仍标pending的
+`tests/e2e/stdlib/functools_lru_string_pair.py`，对已冻结CP19B和空stderr；保存真实PE及Runtime，
+编译域不支持也是红，不删标记、不改为单独CP通过；pending失败则M6未运行，原样记录。
+此顺序是功能先行，避免M6噪声阻挡功能验收；不拿旧暖时间做新A/B。不为该fixture扩大AOT类域。
+metadata消费者现在接受既有warm精确标题，并经真实check_context反例验证；后继既有产品红界不豁免。

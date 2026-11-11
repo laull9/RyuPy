@@ -178,7 +178,11 @@ def run(out):
         require(sys.flags.optimize == 0, '不得-O禁用旧布局检查器')
         expected_sources = json.loads((ROOT / 'tests/aot/wcwidth_ci/source-hashes.json').read_text())
         require({n: sha(source / 'wcwidth' / n) for n in expected_sources} == expected_sources, '锁源不符')
-        source_files = [p for p in HERE.iterdir() if p.is_file()] + [source / 'wcwidth' / n for n in expected_sources]
+        source_files = [p for p in HERE.rglob('*') if p.is_file() and
+                        not {'obj', 'bin', '__pycache__'}.intersection(p.parts)]
+        source_files += [source / 'wcwidth' / n for n in expected_sources]
+        source_files += [ROOT / 'tests/e2e/stdlib/functools_lru_string_pair.py',
+                         ROOT / 'tests/validation/instance_globals/read_entry_identity.py']
         before = identities(source_files)
         save(out / 'source-before.json', before)
         repo_initial = repository_identity(out, 'before', build_env)
@@ -259,6 +263,10 @@ def run(out):
             raw = product(label, argv, 30)
             require(raw == (HERE / 'EXPECTED.txt').read_bytes(), 'CP438B合同不符')
             outcome['accepted_contracts'] += 1
+        # 功能先行：C3全过才验pending；不让后续计时噪声挡住真实功能验收。
+        from allocation_runner import run_pending
+        run_pending(out / 'pending-lru', cli, runtime, dotnet, build_env)
+        outcome['pending_jit_passed'] = True
         rows = []
         deadline = time.monotonic() + 600
         for i in range(6):
