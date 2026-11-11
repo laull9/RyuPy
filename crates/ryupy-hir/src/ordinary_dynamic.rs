@@ -14,15 +14,10 @@ pub enum OrdinaryDynamicEligibility {
 }
 
 pub fn ordinary_dynamic_eligibility(parsed: &ParsedModule) -> OrdinaryDynamicEligibility {
-    if !crate::instance_globals::validate(&parsed.module.body, parsed.file, Default::default())
-        .is_empty()
-    {
+    if !instance_ast_supported(parsed, Default::default()) {
         return OrdinaryDynamicEligibility::InstanceSyntaxBoundary;
     }
-    let mut scan = Scan::default();
-    for statement in &parsed.module.body {
-        scan.visit_stmt(statement);
-    }
+    let scan = shape(parsed);
     if scan.has_class {
         OrdinaryDynamicEligibility::ClassDefinition
     } else if scan.complete_signature {
@@ -34,6 +29,27 @@ pub fn ordinary_dynamic_eligibility(parsed: &ParsedModule) -> OrdinaryDynamicEli
             functions: scan.functions,
         }
     }
+}
+
+/// 来源认证不等于ABI资格；此纯查询复用显式lower的唯一完整AST验证器，不发布诊断。
+pub fn instance_ast_supported(
+    parsed: &ParsedModule,
+    capabilities: ryupy_base::InstanceCapabilities,
+) -> bool {
+    crate::instance_globals::validate(&parsed.module.body, parsed.file, capabilities).is_empty()
+}
+
+/// 只回答源码角色事实，不授予class或实例能力；包角色由driver真实resolver判断。
+pub fn has_defined_functions(parsed: &ParsedModule) -> bool {
+    shape(parsed).functions != 0
+}
+
+fn shape(parsed: &ParsedModule) -> Scan {
+    let mut scan = Scan::default();
+    for statement in &parsed.module.body {
+        scan.visit_stmt(statement);
+    }
+    scan
 }
 
 #[derive(Default)]

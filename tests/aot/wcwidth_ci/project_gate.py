@@ -6,23 +6,40 @@ import shutil
 import sys
 import tarfile
 import run as h
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+import default_source_deployment_validation_plans as strict
 
 
 def audit_plans(result, expected):
     """逐项目核实际计划；固定选择集合不等于所有被选模块已编译/执行。"""
+    originals = strict.baseline(expected)
+    matrix = json.loads((result / 'matrix.json').read_text())
+    summary = json.loads((result / 'summary.json').read_text())
+    strict.require(summary['valid'] is True and summary['denominator'] == 20
+                   and summary['cp_passed'] == 20 and summary['preserve_pass'] is True
+                   and not summary['protected_lost'] and len(matrix) == 20
+                   and {r['id'] for r in matrix} == set(originals)
+                   and all(r['run_id'] == summary['run_id'] for r in matrix), '完整同轮保护结果不符')
     plans = {}
     for pid, selected in expected['selected'].items():
         path = result / pid / 'native' / pid / 'module-environment.json'
         actual = json.loads(path.read_text())
-        if actual['compiled_feature'] is not True or actual['session_policy'] != expected['session_policy']:
-            raise RuntimeError('实际runner没有启用原pilot策略：' + pid)
-        chosen = sorted((m for m in actual['modules'] if m['execution'] == 'InstanceGlobals'),
-                        key=lambda m: m['module'])
-        if chosen != sorted(selected, key=lambda m: m['module']):
-            raise RuntimeError('自动实例选择/编译状态改变：' + pid)
-        if any(m['relative_from_import'] or m['ordinary_name_handlers'] for m in actual['modules']):
-            raise RuntimeError('默认项目意外打开显式实例能力：' + pid)
-        plans[pid] = {'sha256': h.sha(path), 'selected': chosen}
+        additions = strict.audit_old_rows(actual, originals[pid], selected)
+        level = strict.evidence_layer(result, pid, matrix)
+        if pid in {'markdown', 'pyparsing'}:
+            strict.audit_candidates(additions, pid, compiled=level == 'deployment')
+        else:
+            strict.require(not additions, '普通18图出现未批准候选：' + pid)
+        output = path.parent
+        if not additions:
+            strict.require(not (output / 'optional-sources.json').exists(),
+                           '普通18图出现未批准的optional报告：' + pid)
+        cross = {'level': level, 'source_absolute': 'not-run', 'optional_cross_audit': 'not-run'}
+        if additions and (level == 'deployment' or (output / 'optional-sources.json').exists()):
+            cross = strict.audit_deployment(output, additions, pid,
+                h.REPO / 'third_party/projects/markdown-3.5.2/Markdown-3.5.2')
+        plans[pid] = {'sha256': h.sha(path), 'selected': selected, 'evidence': cross}
+
     return plans
 
 
@@ -86,7 +103,8 @@ def main():
     plans = audit_plans(result, expected)
     h.save('progress-promotion.json', require_progress_promotion(result))
     h.save('plan-audit.json', {'run_id': actual['run_id'], 'run_json_sha256': h.sha(result / 'run.json'),
-        'contract_sha256': h.sha(h.HERE / 'project-pilot-plans.json'), 'plans': plans})
+        'contract_sha256': h.sha(h.HERE / 'project-pilot-plans.json'),
+        'full_graph_contract_sha256': h.sha(strict.CONTRACT), 'plans': plans})
     if any(h.sha(Path(p)) != digest for p, digest in tools.items()):
         raise RuntimeError('冻结工具被修改')
 

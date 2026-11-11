@@ -9,6 +9,7 @@ import traceback
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tests/validation'))
 import markdown_closure_probe as shared
 import default_source_deployment_validation_probes as probes
+import default_source_deployment_validation_plans as plan_guard
 
 ROOT, old = shared.REPO, shared.old
 require, sha, save, snapshot = shared.require, shared.sha, shared.save, shared.snapshot
@@ -122,14 +123,7 @@ def verify_audit(output, inputs, name):
     plan = json.loads((output / 'module-environment.json').read_text())
     require(plan['compiled_feature'] is True and plan['session_policy'] == 'ordinary-dynamic-module-pilot',
             '实际session_policy/编译feature不同于固定20矩阵')
-    rows = plan['modules']
-    require(len({row['module'] for row in rows}) == len(rows), 'module计划重复身份')
-    parser = next(row for row in rows if row['module'] == 'html.parser')
-    require(parser['compiled'] and parser['execution'] == 'InstanceGlobals'
-            and parser['ordinary_name_handlers'] and parser['relative_from_import']
-            and parser['candidate'] is True and parser['catalog_authenticated'] is True
-            and type(parser['hard']) is bool and parser['reason'] == 'compiler-catalog-authenticated-source',
-            '实际parser执行计划/真实catalog认证不符')
+    plan_guard.audit_product_plan(output, plan, inputs, name)
     deployed = {}
     for relative, digest in old.STDLIB.items():
         matches = list((output / 'compiler-sources').glob('*/' + relative))

@@ -42,12 +42,15 @@ impl Drop for Tree {
 #[test]
 fn default_source_policy_explicit_off_aot_fixed_and_token() {
     let tree = Tree::new();
-    let (path, _, token) = source_catalog::resolve(&tree.0.join("out"), "html.parser")
+    let (path, kind, token) = source_catalog::resolve(&tree.0.join("out"), "html.parser")
         .unwrap()
         .unwrap();
     let mut session = tree.session();
     let mut source = modules::load_single(&mut session, &path).unwrap();
     source.catalog = Some(token);
+    source.kind = kind;
+    source.name = "html.parser".into();
+    source.package = "html".into();
     let plan = module_environments::plan(&session, &source, false);
     assert!(plan.instance_globals());
     assert!(plan.automatic);
@@ -142,7 +145,14 @@ fn default_source_hint_cycle_and_native_parent_are_inactive() {
     tree.write("a.py", "import b\n");
     tree.write("b.py", "import a\n");
     let mut session = tree.session();
-    let linked = tree.compile(&mut session).unwrap();
+    let linked = tree.compile(&mut session).unwrap_or_else(|error| {
+        panic!(
+            "{error:#}\n{}\nmodule plan: {}\noptional plan: {:?}",
+            session.render_diagnostics(false),
+            String::from_utf8_lossy(&session.module_environment_report_json().unwrap()),
+            session.default_source_state.plan.runtime_payload()
+        );
+    });
     for name in ["a", "b", "html", "html.parser", "_markupbase"] {
         assert!(
             linked
@@ -329,3 +339,6 @@ fn default_source_nested_hints_metadata_and_alias_sets_reach_fixed_point() {
             .contains("outside")
     );
 }
+
+#[path = "catalog_environment_tests.rs"]
+mod catalog_environment_tests;

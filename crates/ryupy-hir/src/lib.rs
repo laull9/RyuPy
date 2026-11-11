@@ -130,7 +130,10 @@ mod instance_aot_tests;
 mod instance_globals;
 pub use instance_aot::validate_instance_aot;
 mod ordinary_dynamic;
-pub use ordinary_dynamic::{OrdinaryDynamicEligibility, ordinary_dynamic_eligibility};
+pub use ordinary_dynamic::{
+    OrdinaryDynamicEligibility, has_defined_functions, instance_ast_supported,
+    ordinary_dynamic_eligibility,
+};
 #[cfg(test)]
 mod ordinary_dynamic_tests;
 

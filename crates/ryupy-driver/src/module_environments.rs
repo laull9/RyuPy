@@ -71,19 +71,23 @@ pub(crate) fn plan_validated(
             reason: "explicit-instance".into(),
         };
     }
-    // catalog令牌绑定实际最终位置和已解析字节，不按模块名字/公开元数据放行class。
+    // 令牌只证明来源；角色与完整Instance AST能力分别准入，不catch后重编或授新协议。
+    let catalog_capabilities = ryupy_base::InstanceCapabilities {
+        ordinary_name_handlers: true,
+        relative_from_import: true,
+    };
     if !aot
         && !session.fixed_binding_build
         && session.module_environment_policy != ModuleEnvironmentPolicy::ExplicitOnly
+        && source.kind == SourceKind::ModuleFile
         && source.catalog.as_ref().is_some_and(|token| {
             token.authenticates(&source.resolved_source_path, source.text.as_bytes())
         })
+        && ryupy_hir::has_defined_functions(&source.parsed)
+        && ryupy_hir::instance_ast_supported(&source.parsed, catalog_capabilities)
     {
         return ModuleEnvironmentPlan {
-            capabilities: ryupy_base::InstanceCapabilities {
-                ordinary_name_handlers: true,
-                relative_from_import: true,
-            },
+            capabilities: catalog_capabilities,
             execution: ModuleExecutionKind::InstanceGlobals,
             automatic: true,
             reason: "compiler-catalog-authenticated-source".into(),

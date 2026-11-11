@@ -20,6 +20,12 @@ RUST_DRIVER = (
     'default_source_nested_hints_metadata_and_alias_sets_reach_fixed_point',
 )
 RUST_ARCHIVE = ('default_source_archive_fixed_members_and_corruption',)
+RUST_ENVIRONMENT = (
+    'default_source_catalog_mixed_abi_preserves_hard_and_soft',
+    'default_source_catalog_explicit_markupbase_keeps_original_rejection',
+    'default_source_catalog_identity_does_not_grant_user_class_abi',
+    'default_source_shared_instance_validator_keeps_attribute_and_environment_boundaries',
+)
 RUST_EXTRA = {
     'module_resolver': ('modules::module_resolver::tests::', 'default_source_resolver_never_borrows_another_root_child'),
     'source_catalog': ('source_catalog::tests::', 'default_source_embedded_catalog_and_license_are_locked'),
@@ -27,7 +33,8 @@ RUST_EXTRA = {
 }
 RUST_NAMES = tuple('default_source_tests::' + name for name in RUST_DRIVER) + tuple(
     'source_catalog::archive::tests::' + name for name in RUST_ARCHIVE) + tuple(
-    prefix + name for prefix, name in RUST_EXTRA.values())
+    prefix + name for prefix, name in RUST_EXTRA.values()) + tuple(
+    'default_source_tests::catalog_environment_tests::' + name for name in RUST_ENVIRONMENT)
 CS_CLASS = 'RyuPy.Runtime.Tests.PyDefaultSourceCandidatesTests'
 CS_METHOD = 'DefaultSourceCandidateActivationPreservesCacheNativeAndFailurePhases'
 CS_NAMES = (CS_CLASS + '.' + CS_METHOD,)
@@ -39,7 +46,8 @@ STAGES = ('rust-default', 'rust-pilot', 'runtime-facts', 'metadata-fresh-host')
 def source_manifest(root):
     """只核真实源的显式名单，不把自动发现到的任意新测试当作固定覆盖。"""
     paths = {'crates/ryupy-driver/src/default_source_tests.rs': RUST_DRIVER,
-             'crates/ryupy-driver/src/source_catalog_archive.rs': RUST_ARCHIVE}
+             'crates/ryupy-driver/src/source_catalog_archive.rs': RUST_ARCHIVE,
+             'crates/ryupy-driver/src/catalog_environment_tests.rs': RUST_ENVIRONMENT}
     paths.update({'crates/ryupy-driver/src/' + source + '.rs': (name,)
                   for source, (_, name) in RUST_EXTRA.items()})
     for name, expected in paths.items():
@@ -60,8 +68,8 @@ def verify_rust(stdout):
             'Rust probe零测试/漏项/重复/失败/ignored/越界')
     summaries = re.findall(r'^test result: (.*)$', stdout, re.M)
     require(len(summaries) == 1 and re.fullmatch(
-        r'ok\. 13 passed; 0 failed; 0 ignored; 0 measured; \d+ filtered out; finished in .+', summaries[0]),
-        'Rust probe汇总不是精确13/0/0')
+        r'ok\. 17 passed; 0 failed; 0 ignored; 0 measured; \d+ filtered out; finished in .+', summaries[0]),
+        'Rust probe汇总不是精确17/0/0')
     return {'passed': True, 'tests': list(RUST_NAMES), 'total': len(rows), 'ignored': 0}
 
 
@@ -118,6 +126,26 @@ def materialize_input(source, target):
     return target_id
 
 
+def archive_test_assembly(runner, original):
+    """执行前保存本次实际Tests.dll，副本不是重建件；失败也由原always artifact保留。"""
+    identity = execution_identity(original, b'MZ')
+    target = runner.out / 'runtime-facts-inputs'
+    try:
+        target.mkdir(exist_ok=False)
+    except OSError as error:
+        raise shared.IdentityError('Tests.dll归档目录无法创建') from error
+    archived = target / Path(original).name
+    copied = materialize_input(original, archived)
+    if identity['sha256'] != copied['sha256']:
+        raise shared.IdentityError('Tests.dll复制期间原件身份改变')
+    runner.frozen[str(original)] = identity['sha256']
+    runner.frozen[str(archived)] = copied['sha256']
+    record = {'original': identity, 'archived': copied, 'scope': '实际执行前输入副本；不代表测试执行通过'}
+    save(target / 'identity.json', record)
+    runner.frozen[str(target / 'identity.json')] = sha(target / 'identity.json')
+    return record
+
+
 def run_command(runner, name, argv, timeout, env=None):
     runner.barrier()
     record = runner.command(name, argv, timeout, env)
@@ -145,13 +173,14 @@ def execute(runner, name):
             raise shared.IdentityError('C#测试实际Runtime异源')
         for path in (actual, actual.parent / 'RyuPy.Runtime.Tests.dll'):
             runner.frozen[str(path)] = execution_identity(path)['sha256']
+        archive_test_assembly(runner, actual.parent / 'RyuPy.Runtime.Tests.dll')
+        save(out / 'runtime-facts-runtime.json', actual_id)
         trx = out / 'runtime-probe-trx'
         run_command(runner, name, [runner.dotnet, 'test', project, '-c', 'Release', '--no-build',
             '--no-restore', '--filter', 'FullyQualifiedName~' + CS_CLASS,
             '--logger', 'trx;LogFileName=default-source.trx', '--results-directory', trx], 300)
         save(out / 'runtime-facts-tests.json', verify_trx(trx / 'default-source.trx'))
         runner.frozen[str(trx / 'default-source.trx')] = sha(trx / 'default-source.trx')
-        save(out / 'runtime-facts-runtime.json', execution_identity(actual))
     elif name == 'metadata-fresh-host':
         target = out / 'metadata-fresh-host'; target.mkdir()
         # 复用既有最小Reference项目，仅把本probe放到该项目固定Program.cs输入位置。

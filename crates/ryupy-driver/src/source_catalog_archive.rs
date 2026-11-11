@@ -31,7 +31,7 @@ fn number(field: &[u8]) -> Result<usize> {
 }
 fn parse(bytes: &[u8]) -> Result<BTreeMap<String, &[u8]>> {
     ensure!(
-        bytes.len() <= 256 * 1024 && bytes.len().is_multiple_of(10240),
+        bytes.len() <= 256 * 1024 && bytes.len() % 10240 == 0,
         "catalog包尺寸或尾块不合法"
     );
     let mut offset = 0usize;

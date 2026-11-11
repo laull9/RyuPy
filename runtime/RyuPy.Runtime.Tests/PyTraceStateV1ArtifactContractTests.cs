@@ -40,20 +40,25 @@ public sealed class PyTraceStateV1ArtifactContractTests
         var metadata = PyTraceStateArtifactTests.MetadataPublicAdditions();
         Assert.Equal(24, metadata.Length); Assert.Equal(24, metadata.Distinct().Count());
         var builtin = PyTraceStateArtifactTests.BuiltinPublicAdditions();
+        var deployment = PyTraceStateArtifactTests.DefaultSourcePublicAdditions();
         Assert.Equal(new[] { "M:RyuPy.Runtime.PyOps:LoadDefaultBuiltin:150:[0;0;1](String)->Object:" }, builtin);
         var old1699 = after.Concat(source).Concat(metadata).ToArray();
         Assert.Equal(1699, old1699.Length);
-        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1699));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1699.Concat(deployment).ToArray()));
         var old1700 = old1699.Concat(builtin).ToArray();
         Assert.Equal(1700, old1700.Length);
-        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1700));
-        var combined = old1700.Concat(PyTraceStateArtifactTests.XmlPublicAdditions()).ToArray();
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1700.Concat(deployment).ToArray()));
+        var old1706 = old1700.Concat(PyTraceStateArtifactTests.XmlPublicAdditions()).ToArray();
+        Assert.Equal(1706, old1706.Length);
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, old1706));
+        Assert.Equal(4, deployment.Length); Assert.Equal(4, deployment.Distinct().Count());
+        var combined = old1706.Concat(deployment).ToArray();
         Assert.False(C.PreservesAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before, combined));
         Assert.True(PyTraceStateArtifactTests.PreservesBaselineAbi(before.Reverse().ToArray(), combined.Reverse().ToArray()));
-        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after.Concat(source).ToArray()));
-        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after));
-        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, before.Concat(source).ToArray()));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after.Concat(source).Concat(deployment).ToArray()));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, after.Concat(deployment).ToArray()));
+        Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before, before.Concat(source).Concat(deployment).ToArray()));
         // 历史代表项与每条 V1/来源/metadata/默认builtins 增量：缺失、同数量改签、替换成重复项均拒绝。
         foreach (int index in new[] { 0 }.Concat(Enumerable.Range(before.Length, combined.Length - before.Length)))
         {
@@ -78,7 +83,8 @@ public sealed class PyTraceStateV1ArtifactContractTests
         var metadata = PyTraceStateArtifactTests.MetadataPublicAdditions();
         var builtin = PyTraceStateArtifactTests.BuiltinPublicAdditions();
         var xml = PyTraceStateArtifactTests.XmlPublicAdditions();
-        var groups = new[] { before, v1, source, metadata, builtin, xml };
+        var deployment = PyTraceStateArtifactTests.DefaultSourcePublicAdditions();
+        var groups = new[] { before, v1, source, metadata, builtin, xml, deployment };
         // 各组自身重复及任意两组重叠，即使 after 完全照着错误允许表拼成也不能通过。
         for (int group = 0; group < groups.Length; group++)
         for (int donor = 0; donor < groups.Length; donor++)
@@ -88,7 +94,7 @@ public sealed class PyTraceStateV1ArtifactContractTests
             changed[group][0] = groups[donor][donor == group ? 1 : 0];
             var after = changed.SelectMany(x => x).ToArray();
             Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(
-                changed[0], after, changed[1], changed[2], changed[3], changed[4], changed[5]));
+                changed[0], after, changed[1], changed[2], changed[3], changed[4], changed[5], changed[6]));
         }
         // 即使候选跟着错误新表一起改签/重复，也不得接受新的任意 API 或重载。
         foreach (var wrong in new[] { Array.Empty<string>(), builtin.Concat(builtin).ToArray(),
@@ -96,7 +102,16 @@ public sealed class PyTraceStateV1ArtifactContractTests
             new[] { builtin[0].Replace("(String)->Object", "(String)->String", StringComparison.Ordinal) },
             new[] { builtin[0].Replace(":150:", ":134:", StringComparison.Ordinal) } })
             Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before,
-                before.Concat(v1).Concat(source).Concat(metadata).Concat(wrong).ToArray(), v1, source, metadata, wrong));
+                before.Concat(v1).Concat(source).Concat(metadata).Concat(wrong).Concat(xml).Concat(deployment).ToArray(), v1, source, metadata, wrong));
+        // 候选跟着伪造冷允许表一起改签也必须拒绝，不仅靠少四条的数量差。
+        foreach (var wrong in new[] { Array.Empty<string>(), deployment.Concat(deployment).ToArray(),
+            deployment.Select((s, i) => i == 0 ? s.Replace("System.Type", "Object", StringComparison.Ordinal) : s).ToArray(),
+            deployment.Select((s, i) => i == 1 ? s.Replace(":150:", ":134:", StringComparison.Ordinal) : s).ToArray(),
+            deployment.Select((s, i) => i == 2 ? s.Replace("->Void", "->Object", StringComparison.Ordinal) : s).ToArray(),
+            deployment.Select((s, i) => i == 3 ? "M:RyuPy.Runtime.PyModules:Unknown:150:[0;0;0]()->Void:" : s).ToArray() })
+            Assert.False(PyTraceStateArtifactTests.PreservesBaselineAbi(before,
+                before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(wrong).ToArray(),
+                v1, source, metadata, builtin, xml, wrong));
         var good = groups.SelectMany(x => x).ToArray();
         foreach (var mutation in new[] {
             (":Type:54:", ":Type:22:"), // readonly 标志

@@ -66,6 +66,9 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         factory_global: None,
     });
     let program = LinkedProgram {
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
         distribution_metadata: None,
         trace_product: None,
         functions,

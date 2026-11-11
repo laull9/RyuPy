@@ -107,6 +107,9 @@ fn original_function_identity_is_duplicated_at_definition() {
         exports: vec![],
     });
     let program = LinkedProgram {
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
         distribution_metadata: None,
         trace_product: None,
         functions,

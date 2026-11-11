@@ -109,6 +109,13 @@ fn absolute(path: &Path) -> Result<PathBuf> {
     }
 }
 
+/// 普通native父包不是独立catalog触发目标；此角色事实来自声明表。
+pub(crate) fn direct_request(name: &str) -> bool {
+    ENTRIES
+        .iter()
+        .any(|entry| entry.name == name && entry.kind != SourceKind::Package)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -120,11 +127,4 @@ mod tests {
             assert!(std::str::from_utf8(archive::member(entry.path).unwrap()).is_ok());
         }
     }
-}
-
-/// 普通native父包不是独立catalog触发目标；此角色事实来自声明表。
-pub(crate) fn direct_request(name: &str) -> bool {
-    ENTRIES
-        .iter()
-        .any(|entry| entry.name == name && entry.kind != SourceKind::Package)
 }

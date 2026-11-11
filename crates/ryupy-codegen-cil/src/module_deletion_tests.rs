@@ -38,6 +38,9 @@ fn plain_program() -> LinkedProgram {
         exports: vec![],
     });
     LinkedProgram {
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
         distribution_metadata: None,
         trace_product: None,
         functions,

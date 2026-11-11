@@ -106,7 +106,7 @@ class Tests(unittest.TestCase):
                 shadowed=False, directories=[], files=[dict(path='entry_points.txt', size=(metadata / 'entry_points.txt').stat().st_size,
                 sha256=gate.sha(metadata / 'entry_points.txt'))])])
             gate.save(output / 'distribution-metadata.json', report)
-            with patch.dict(gate.old.STDLIB, hashes, clear=True):
+            with patch.dict(gate.old.STDLIB, hashes, clear=True), patch.object(gate.plan_guard, 'audit_product_plan'):
                 self.assertEqual(gate.verify_audit(output, inputs, 'markdown')['module_plan'], plan)
                 bad = dict(plan, session_policy='explicit-only')
                 gate.save(output / 'module-environment.json', bad)
@@ -129,13 +129,13 @@ class Tests(unittest.TestCase):
     def test_production_probe_source_names_and_rust_zero_filter_rejection(self):
         probes = gate.probes
         manifest = probes.source_manifest(gate.ROOT)
-        self.assertEqual(len(manifest['rust_default']), 13)
+        self.assertEqual(len(manifest['rust_default']), 17)
         self.assertEqual(manifest['rust_default'], manifest['rust_pilot'])
         rows = ['test ' + name + ' ... ok' for name in probes.RUST_NAMES]
-        summary = 'test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 100 filtered out; finished in 0.1s'
+        summary = 'test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 100 filtered out; finished in 0.1s'
         text = '\n'.join(rows + [summary])
-        self.assertEqual(probes.verify_rust(text)['total'], 13)
-        for wrong in (summary.replace('13 passed', '0 passed'), '\n'.join(rows[1:] + [summary]),
+        self.assertEqual(probes.verify_rust(text)['total'], 17)
+        for wrong in (summary.replace('17 passed', '0 passed'), '\n'.join(rows[1:] + [summary]),
                       text + '\n' + rows[0], text.replace(' ... ok', ' ... ignored', 1),
                       text.replace(' ... ok', ' ... FAILED', 1), text + '\n' + summary):
             with self.assertRaises(ValueError): probes.verify_rust(wrong)
@@ -176,7 +176,7 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             out = Path(temp)
             text = '\n'.join('test ' + name + ' ... ok' for name in probes.RUST_NAMES)
-            text += '\ntest result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1s\n'
+            text += '\ntest result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 1s\n'
             calls = []
             def command(name, argv, timeout, env):
                 calls.append(argv); (out / (name + '.stdout')).write_text(text)
@@ -311,6 +311,9 @@ class Tests(unittest.TestCase):
             self.assertEqual(calls, ['runtime-probe-build', 'runtime-facts', 'next-jit'])
             self.assertEqual(result['stages']['runtime-facts']['status'], 'failed')
             self.assertTrue(result['stages']['next-jit']['passed'])
+            self.assertTrue((out / 'runtime-facts-inputs/RyuPy.Runtime.Tests.dll').is_file())
+            self.assertTrue((out / 'runtime-facts-inputs/identity.json').is_file())
+            self.assertEqual((out / 'runtime-facts.stdout').read_text(), 'real test failure')
 
     def test_jit_missing_execution_inputs_are_identity_failures(self):
         from types import SimpleNamespace
@@ -326,6 +329,32 @@ class Tests(unittest.TestCase):
                     command=Mock(return_value=dict(exit=0, failure=None, raw_streams_complete=True)))
                 with self.assertRaises(gate.shared.IdentityError): gate.Runner.product(runner, 'parser')
                 self.assertEqual(runner.command.call_count, 1)
+
+    def test_tests_assembly_is_archived_before_execution_and_both_hashes_frozen(self):
+        from types import SimpleNamespace
+        import json
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); actual = root / 'build/RyuPy.Runtime.Tests.dll'
+            actual.parent.mkdir(); actual.write_bytes(b'MZactual-tests')
+            out = root / 'evidence'; out.mkdir()
+            runner = SimpleNamespace(out=out, frozen={})
+            record = gate.probes.archive_test_assembly(runner, actual)
+            archived = out / 'runtime-facts-inputs/RyuPy.Runtime.Tests.dll'
+            self.assertEqual(archived.read_bytes(), actual.read_bytes())
+            self.assertEqual(record['original']['sha256'], record['archived']['sha256'])
+            self.assertEqual(record, json.loads((archived.parent / 'identity.json').read_text()))
+            for path in (actual, archived, archived.parent / 'identity.json'):
+                self.assertEqual(runner.frozen[str(path)], gate.sha(path))
+
+    def test_tests_assembly_archive_copy_damage_is_identity_error(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp); actual = root / 'RyuPy.Runtime.Tests.dll'; actual.write_bytes(b'MZoriginal')
+            runner = SimpleNamespace(out=root, frozen={})
+            def damaged(source, dest): Path(dest).write_bytes(b'MZchanged')
+            with patch.object(gate.probes.shutil, 'copyfile', damaged), self.assertRaises(gate.shared.IdentityError):
+                gate.probes.archive_test_assembly(runner, actual)
+            self.assertFalse((root / 'runtime-facts-inputs/identity.json').exists())
 
     def test_archive_original_members_without_execution(self):
         with tempfile.TemporaryDirectory() as temp:

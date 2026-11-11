@@ -27,3 +27,7 @@ driver先核外层digest，再核白名单、头checksum、固定metadata、padd
 
 私有令牌绑定最终来源字节；入口与-I用户源优先，相同名字或相同字节的用户文件
 都不能自动取得catalog能力。候选冷激活是另一独立合同，部署不等于活动注册。
+
+来源认证与ABI能力分别判定：认证源也必须通过共享完整AST能力查询才可自动选择
+Instance；包、无函数及能力边界回到原Legacy选择。令牌不豁免self.__class__等限制，
+也不扩大普通用户auto的class域。候选可同时含已有Legacy与Instance冷注册形式。

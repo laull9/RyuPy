@@ -19,8 +19,15 @@ feature-off仍保持原策略，不把pilot结果声称feature-off默认通过�
 只读固定USTAR子集，无用户tar入口、新依赖或通用解包框架。外层digest、固定成员与
 metadata、头校验、padding、manifest长度/hash与许可逐项核验，损坏全部硬停。需要的
 成员恢复到最终output/compiler-sources/<族摘要>，create_new不覆盖已有未知内容；
-最后nofollow读取同批字节后入SourceDb，SourceAbsolute为真实.py位置。实例能力令牌
+最后nofollow读取同批字节后入SourceDb，SourceAbsolute为真实.py位置。私有来源认证令牌
 绑定最终来源和digest，不按模块名、用户同名/同字节文件授予class能力。
+
+来源认证不等于Instance ABI准入。显式Instance先按原严格规则验证；自动catalog先检查
+ModuleFile角色与函数定义（含类方法），再用共享完整AST validator及既有handler/相对
+导入双能力查询，查询不发布试探诊断。包、无函数或查询拒绝者沿原ordinary/Legacy选择，
+不catch重编或软化错误。四源预期为html.parser Instance，html、html.entities与_markupbase
+Legacy；_markupbase的self.__class__仍不受Instance支持，显式选择仍报原E0100。普通用户
+auto的class、shape、signature门不变，来源认证审计字段也不依赖最终ABI。
 
 普通resolver首先选顶层身份，后代仅沿已选普通父包目录查找。禁止跨搜索根补子级。
 目录与源码不同来源的冲突显式失败，不使用最后登记覆盖。
