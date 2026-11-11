@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""单候选metadata验收：两阶段共享一次工具，所有真实失败保红，不改变默认20口径。"""
+"""单候选metadata验收：两阶段共享一次Runtime与各一次pilot/feature-off工具，所有真实失败保红，不改变默认20口径。"""
 import argparse
 import collections
 import json
@@ -11,6 +11,7 @@ import traceback
 import xml.etree.ElementTree as ET
 import typing_noreturn as old
 import distribution_metadata_products as product
+import distribution_metadata_modes as modes
 from distribution_metadata_identity import IdentityError, inventory, mapped, validate_mapping
 
 ROOT = old.ROOT
@@ -36,7 +37,7 @@ def verify_trx(path):
 
 def stage_names():
     names = ['identity', 'csharp-build', 'csharp-tests', 'host-build', 'host-smoke', 'tools', 'sourceprep',
-             'unconfigured-jit', 'collection-rejections', 'synthetic-native', 'markdown-aot']
+             'unconfigured-jit', 'explicit-tools', 'automatic-empty-cp', 'automatic-empty-jit', 'collection-rejections', 'synthetic-native', 'markdown-aot']
     names += [name + '-' + mode for name in ['synthetic', 'binding', 'parameters', 'missing-include', 'empty',
               'real-discovery', 'markdown-plain', 'markdown-full', *('search-' + n for n in DATA['search'])]
               for mode in ['cp', 'jit']]
@@ -53,7 +54,7 @@ class Runner(old.Runner):
         self.resume = resume
         self.identity_failed = False
         self.input_inventories, self.isolation, self.snapshot_reports = {}, {}, {}
-        self.python = self.dotnet = self.cli = self.runtime = self.payload = None
+        self.python = self.dotnet = self.cli = self.runtime = self.payload = self.explicit_cli = None
         self.fixture, self.inputs_dir = self.out / 'fixtures', self.out / 'inputs'
         self.host = self.out / 'host/bin/MetadataHost.dll'
         self.result = {'passed': False, 'default_project_delta': 0, 'retries': 0,
@@ -71,7 +72,7 @@ class Runner(old.Runner):
             candidate = state.get('result')
             if (isinstance(candidate, dict) and isinstance(candidate.get('stages'), dict)
                     and all(isinstance(row, dict) for row in candidate['stages'].values())): self.result = candidate
-            require(candidate is self.result and state['schema_version'] == 2
+            require(candidate is self.result and state['schema_version'] == 3
                     and set(self.result['stages']) == set(stage_names())
                     and all(type(row.get('passed')) is bool and isinstance(row.get('status'), str)
                             for row in self.result['stages'].values()), 'state版本/阶段集合不符')
@@ -80,9 +81,10 @@ class Runner(old.Runner):
             self.snapshot_reports = state['snapshot_reports']
             self.identity_failed = state['identity_failed']
             self.labels = set(state['labels'])
-            for key in ('python', 'dotnet', 'cli', 'runtime', 'payload'):
+            for key in ('python', 'dotnet', 'cli', 'runtime', 'payload', 'explicit_cli'):
                 setattr(self, key, Path(state[key]) if state.get(key) else None)
             require(not self.identity_failed and not self.isolation, '先前身份失效或隔离未恢复')
+            modes.validate_tool_state(self, state)
             self.environment()
             require(self.env == state['environment'], '两阶段进程环境改变')
             if self.result['stages']['sourceprep']['passed']:
@@ -235,11 +237,11 @@ class Runner(old.Runner):
             if row.get('passed') or row.get('status') == 'started': row.update(passed=False, status='invalidated-identity')
 
     def persist(self):
-        state = {'schema_version': 2, 'before': self.before, 'frozen': self.frozen,
+        state = {'schema_version': 3, 'before': self.before, 'frozen': self.frozen,
                  'input_inventories': self.input_inventories, 'isolation': self.isolation, 'identity_failed': self.identity_failed,
                  'snapshot_reports': self.snapshot_reports,
                  'result': self.result, 'labels': sorted(self.labels), 'environment': getattr(self, 'env', None)}
-        for key in ('python', 'dotnet', 'cli', 'runtime', 'payload'):
+        for key in ('python', 'dotnet', 'cli', 'runtime', 'payload', 'explicit_cli'):
             state[key] = str(getattr(self, key)) if getattr(self, key) is not None else None
         save(self.out / 'state.json', state)
         save(self.out / 'result.json', self.result)
@@ -255,6 +257,7 @@ class Runner(old.Runner):
                 if self.phase('host-build', self.host_build):
                     self.phase('host-smoke', lambda: self.run_positive('host-smoke-run', [self.dotnet, self.host, 'smoke'], b'smoke ok\n'))
                 if not self.phase('tools', self.build_tools): return 1
+                self.phase('explicit-tools', lambda: modes.build(self))
                 product.products(self)
                 self.hosts()
             else:

@@ -417,4 +417,6 @@ class AuthorityIdentityPropagationTests(unittest.TestCase):
         self.assertTrue(runner.persist.called)
 
 
+from distribution_metadata_modes_selftest import ModeTests
+
 if __name__ == '__main__': unittest.main()

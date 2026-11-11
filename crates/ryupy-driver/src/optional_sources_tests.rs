@@ -21,7 +21,9 @@ fn closed_plan_only_upgrades_when_new_authority_exists() {
 #[test]
 fn explicit_selected_queue_survives_and_removes_previous_closed_classification() {
     let request = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/cases/distribution_metadata/request.json");
+        .join("../../tests/cases/distribution_metadata/request.json")
+        .canonicalize()
+        .unwrap();
     let payload = crate::distribution_metadata::collect(&request).unwrap();
     for explicit_metadata in [false, true] {
         let mut plan = Plan {

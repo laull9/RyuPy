@@ -109,8 +109,8 @@ def products(r):
     # 新独立域先收件；不改旧unconfigured断言或其身份失效出口。
     import distribution_metadata_authority as authority
     authority.run(r)
-    r.phase('unconfigured-jit', lambda: jit(r, 'unconfigured', r.fixture / 'unconfigured.py',
-            r.data['goldens']['unconfigured'].encode()))
+    import distribution_metadata_modes as modes
+    modes.run(r)
     real_entry = r.fixture / 'real.py'
     real_request = r.inputs_dir / 'metadata-request.json'
     real_golden = r.data['goldens']['real-discovery'].encode()
