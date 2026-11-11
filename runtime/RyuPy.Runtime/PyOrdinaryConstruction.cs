@@ -16,6 +16,7 @@ public sealed partial class PyClass
 
     private ConstructionSlots Construction()
     {
+        RequireLexicalFactoryReady();
         if (_constructionVersion == GlobalVersion && _constructionSlots is { } cached) return cached;
         bool special = false;
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);

@@ -86,6 +86,7 @@ public sealed partial class PyClass
     {
         get
         {
+            RequireLexicalFactoryReady();
             long version = _globalVersion;
             if (_propertyVersion == version)
             {
@@ -210,6 +211,7 @@ public sealed partial class PyClass
     /// </remarks>
     public bool TryLookup(string name, out PyClass owner, out object? value)
     {
+        RequireLexicalFactoryReady();
         long version = _globalVersion;
         if (_cache.TryGetValue(name, out CacheEntry cached) && cached.Version == version)
         {
@@ -283,6 +285,7 @@ public sealed partial class PyClass
     /// <summary>创建实例并执行 `__init__`。</summary>
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues)
     {
+        RequireLexicalFactoryReady();
         if (IsTypingGenericRoot) return PyTypingGeneric.Construct(args, kwNames);
         RequireTypingIoReady();
         RequireTypingGenericReady();

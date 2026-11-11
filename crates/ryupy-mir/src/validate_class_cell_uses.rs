@@ -81,13 +81,16 @@ pub(crate) fn validate_owner_uses(
     cell: &ClassCellDefinition,
     errors: &mut Vec<String>,
 ) {
-    for (_, block) in function.body.blocks.iter() {
-        for statement in &block.stmts {
+    for (block_id, block) in function.body.blocks.iter() {
+        for (index, statement) in block.stmts.iter().enumerate() {
             let mut reads = FxHashSet::default();
             let allowed = match statement {
                 Statement::Assign { value, .. } | Statement::Eval(value) => {
                     crate::passes::dead_values::read_value(value, &mut reads);
                     match value {
+                        value if crate::lexical_cell_read::is_direct_read(value, cell) => {
+                            crate::validate_instance_module::context_dominates(function, cell.cell, block_id, index)
+                        }
                         Rvalue::MakeFunction { func, env, defaults, instance_context } => {
                             cell.captures.iter().find(|capture| capture.function == *func).is_some_and(|capture| {
                                 matches!(env.get(capture.index), Some(Operand::Local(local)) if *local == cell.cell)

@@ -26,6 +26,7 @@ internal static class PyExplicitSuper
         if (receiver is PyClass or PyType or PyNativeType or PyNativeObject or PyNamedTupleInstance or PyBaseException)
             throw Unsupported("class receivers and native layouts");
         if (receiver is not PyInstance instance) throw Unrelated();
+        instance.Class.RequireLexicalFactoryReady();
         // 检查完整链，不能找到start就跳过后面的特殊布局；不调用用户hash/eq/getter。
         if (!ValidateChain(instance.Class, start))
         {

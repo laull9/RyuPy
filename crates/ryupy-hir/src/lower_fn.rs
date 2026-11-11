@@ -385,6 +385,7 @@ pub(crate) fn lower_function_body(args: LowerArgs<'_, '_>) {
         module_vars,
         vars,
         module_scope: false,
+        forbid_lexical_class: is_generator || matches!(&source, FnSource::Def(def) if def.is_async),
         direct_stmt_index: 0,
         package,
         classes,

@@ -310,6 +310,12 @@ pub enum RuntimeFn {
     /// 读取真实函数实例的Defaults；只在成功的静态def发布处更新直调默认值槽。
     FunctionDefaults,
     FunctionMetadata,
+    /// 新词法类事务的固定ABI；Prepare只建namespace，Finish才得到类。
+    LexicalClassPrepare,
+    LexicalClassFinish,
+    LexicalNamespaceContains,
+    LexicalNamespaceGet,
+    LexicalNamespaceSet,
     ClassNamespaceGet,
     /// 当前类自身原始字典是否包含名字，不执行描述符或继承查找。
     ClassNamespaceContains,

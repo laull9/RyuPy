@@ -23,6 +23,10 @@ use crate::mir::{Callee, Constant, MirType, Operand, RuntimeFn, Rvalue, Statemen
 impl FunctionBuilder<'_> {
     /// 构建一条 `class` 语句。
     pub(crate) fn build_class_def(&mut self, cls_id: ryupy_hir::ClassId) {
+        if self.hir.classes[cls_id].lexical.is_some() {
+            self.build_lexical_class_def(cls_id);
+            return;
+        }
         let class_global = self.hir_class_globals.get(&cls_id).copied();
         let cls = &self.hir.classes[cls_id];
         let name = cls.name.as_str().to_owned();
@@ -143,6 +147,9 @@ impl FunctionBuilder<'_> {
         }
         let class_object = Operand::Local(dest);
         let class_cell = self.begin_class_cell(cls_id, dest);
+        if let Some(cell) = class_cell {
+            self.lexical_cell_stack.push((cls_id, Operand::Local(cell)));
+        }
 
         let previous_state = self.module_state;
         if let Some(Operand::Local(context)) = class_context {
@@ -170,6 +177,9 @@ impl FunctionBuilder<'_> {
         );
         self.class_namespace = previous_namespace;
         self.class_cell = previous_cell;
+        if class_cell.is_some() {
+            self.lexical_cell_stack.pop();
+        }
         self.module_state = previous_state;
         // 类体最终namespace完成后才处理隐式new绑定；类decorator仍在其后。
         // 专用Enum/TypedDict/异常构造协议不走普通类终结；dataclass装饰前仍普通。
@@ -253,7 +263,7 @@ impl FunctionBuilder<'_> {
     }
 
     /// 类体 if 不创建作用域，只把实际分支接入当前方法的普通 CFG。
-    fn build_class_items(
+    pub(crate) fn build_class_items(
         &mut self,
         items: &[ryupy_hir::ClassItem],
         class_object: Operand,
@@ -261,6 +271,7 @@ impl FunctionBuilder<'_> {
     ) {
         for (index, item) in items.iter().cloned().enumerate() {
             match item.kind {
+                ClassItemKind::NestedClass(class) => self.build_class_def(class),
                 ClassItemKind::If { test, body, orelse } => {
                     let raw = self.expr_builder().build_expr(test);
                     let ty = self.expr_builder().ty_of(test);
@@ -284,7 +295,11 @@ impl FunctionBuilder<'_> {
                 ClassItemKind::Annotation { name, value } => {
                     let value = self.freeze_expression(value);
                     let mapping = self.expr_builder().runtime_call(
-                        RuntimeFn::ClassNamespaceGet,
+                        if self.lexical_namespace {
+                            RuntimeFn::LexicalNamespaceGet
+                        } else {
+                            RuntimeFn::ClassNamespaceGet
+                        },
                         vec![
                             class_object.clone(),
                             Operand::Const(Constant::Str("__annotations__".into())),
@@ -325,9 +340,13 @@ impl FunctionBuilder<'_> {
     }
 
     /// 写类属性。属性值是动态值（普通类对象 / 方法 / 修饰器结果）。
-    fn emit_set_attr(&mut self, obj: Operand, name: &str, value: Operand) {
+    pub(crate) fn emit_set_attr(&mut self, obj: Operand, name: &str, value: Operand) {
         self.push_stmt(Statement::Eval(Rvalue::Call {
-            callee: Callee::Runtime(RuntimeFn::SetAttr),
+            callee: Callee::Runtime(if self.lexical_namespace {
+                RuntimeFn::LexicalNamespaceSet
+            } else {
+                RuntimeFn::SetAttr
+            }),
             args: vec![obj, Operand::Const(Constant::Str(name.to_owned())), value],
         }));
     }

@@ -68,7 +68,9 @@ impl<'a> FunctionBuilder<'a> {
             env: None,
             dynamic_owner: None,
             class_namespace: None,
+            lexical_namespace: false,
             class_cell: None,
+            lexical_cell_stack: Vec::new(),
             class_cells: Vec::new(),
         }
     }

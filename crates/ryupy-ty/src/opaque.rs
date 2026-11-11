@@ -35,7 +35,9 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
             | ExprKind::UnresolvedGlobal(_)
             | ExprKind::Free(_)
             | ExprKind::Lambda(_)
-            | ExprKind::ClassLocal(_) => vec![],
+            | ExprKind::ClassLocal(_)
+            | ExprKind::ClassCellRead(_)
+            | ExprKind::ClassFreeLocal(_) => vec![],
             ExprKind::ClassLookup { fallback, .. } => vec![*fallback],
             ExprKind::Unary { operand, .. }
             | ExprKind::Attribute { base: operand, .. }

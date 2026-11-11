@@ -9,7 +9,7 @@ jobs:
     name: 精确选择诊断或原验收链
     runs-on: ubuntu-24.04
     timeout-minutes: 2
-    outputs: {deployment: "${{ steps.mode.outputs.deployment }}", closure: "${{ steps.mode.outputs.closure }}", diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}", percent: "${{ steps.mode.outputs.percent }}", keyerror: "${{ steps.mode.outputs.keyerror }}"}
+    outputs: {factory: "${{ steps.mode.outputs.factory }}", deployment: "${{ steps.mode.outputs.deployment }}", closure: "${{ steps.mode.outputs.closure }}", diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}", percent: "${{ steps.mode.outputs.percent }}", keyerror: "${{ steps.mode.outputs.keyerror }}"}
     steps:
       # Actions字符串比较不区分大小写，因此不以表达式==冒充标题字节精确匹配。
       # 不checkout、不执行仓库源码、不把提交消息插入shell；普通提交/dispatch保持原链。
@@ -18,7 +18,7 @@ jobs:
           python3 - <<'PY'
           import json, os; from pathlib import Path; event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
           head = event.get('head_commit'); title = head.get('message') if isinstance(head, dict) else None; is_push = (isinstance(head, dict) and os.environ.get('GITHUB_EVENT_NAME') == 'push' and os.environ.get('GITHUB_REF') == event.get('ref') == 'refs/heads/ci/wcwidth-legacy-aot-2909056')
-          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'; markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'; noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'); search = is_push and title == 'validation: text-search-002'; metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001')
+          diagnostic = is_push and title == 'diagnostic-not-acceptance: trace-v1-first-edge-001'; markdown = is_push and title == 'diagnostic-not-acceptance: markdown-preflight-001'; noreturn = is_push and title in ('validation: typing-noreturn-001', 'validation: text-expandtabs-001'); search = is_push and title == 'validation: text-search-002'; metadata = is_push and title in ('validation: distribution-metadata-001', 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001', 'validation: lexical-class-factory-001')
           with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
               stream.writelines(name + '=' + str(value).lower() + '\n' for name, value in zip(('diagnostic', 'markdown', 'noreturn', 'search', 'metadata'), (diagnostic, markdown, noreturn, search, metadata)))
               if is_push and title == 'diagnostic-not-acceptance: markdown-closure-001': stream.write('closure=true\n')
@@ -26,7 +26,8 @@ jobs:
               if is_push and title in ('validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('scanner=true\n')
               if is_push and title in ('validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('percent=true\n')
               if is_push and title in ('validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('keyerror=true\n')
-              if is_push and title == 'validation: default-source-deployment-001': stream.write('deployment=true\n')
+              if is_push and title in ('validation: default-source-deployment-001', 'validation: lexical-class-factory-001'): stream.write('deployment=true\n')
+              if is_push and title == 'validation: lexical-class-factory-001': stream.write('factory=true\n')
           PY
   trace-edge-diagnostic:
     needs: select-mode
@@ -129,6 +130,10 @@ jobs:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.deployment == 'true' && github.run_attempt == '1'
     uses: ./.github/workflows/default-source-deployment.yml
+  lexical-class-factory:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.factory == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/lexical-class-factory.yml
   baseline:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'

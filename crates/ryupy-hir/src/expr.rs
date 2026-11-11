@@ -300,8 +300,11 @@ impl<'a> ExprLowerCtx<'a> {
         ExprKind::Lambda(func_id)
     }
 
-    fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
+    pub(crate) fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
         let name = Name::from(name_expr.id.as_str());
+        if let Some(kind) = self.lower_lexical_name(name_expr) {
+            return kind;
+        }
         if let Some(scope) = self.class_names
             && scope.contains(&name)
         {

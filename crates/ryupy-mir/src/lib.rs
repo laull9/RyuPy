@@ -215,3 +215,16 @@ mod trace_frame_shape;
 #[cfg(test)]
 mod trace_frame_tests;
 mod trace_frame_values;
+
+mod lexical_class_abi;
+
+mod build_lexical_class;
+
+mod lexical_cell_read;
+mod lexical_class_cells;
+pub use lexical_class_cells::{LexicalClassCell, LexicalClassPublication};
+
+mod lexical_class_publish;
+
+#[cfg(test)]
+mod lexical_class_tests;

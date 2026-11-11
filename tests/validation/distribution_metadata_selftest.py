@@ -38,6 +38,18 @@ def serialize(data):
 
 
 class Tests(unittest.TestCase):
+    def test_class_factory_title_is_exact_addition(self):
+        env = {'RUNNER_ENVIRONMENT': 'github-hosted', 'RYUPY_VALIDATION_MODE': 'distribution-metadata',
+               'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': gate.old.shared.REF,
+               'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_SHA': 'a' * 40}
+        title = 'validation: lexical-class-factory-001'
+        event = {'ref': env['GITHUB_REF'], 'after': env['GITHUB_SHA'],
+                 'head_commit': {'id': env['GITHUB_SHA'], 'message': title}}
+        gate.check_context(env, event)
+        for wrong in (title.upper(), title + '\n'):
+            with self.assertRaises(ValueError):
+                gate.check_context(env, dict(event, head_commit=dict(event['head_commit'], message=wrong)))
+
     def test_context_is_exact_and_does_not_mutate_original(self):
         env = {'RUNNER_ENVIRONMENT': 'github-hosted', 'RYUPY_VALIDATION_MODE': 'distribution-metadata',
                'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': gate.old.shared.REF,

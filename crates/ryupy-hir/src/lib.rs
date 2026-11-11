@@ -42,8 +42,15 @@ mod future_imports;
 mod generator_scan;
 mod hir;
 pub mod imports;
+mod lexical_class_lower;
+mod lexical_class_registry;
+mod lexical_private;
 pub mod lower;
 mod lower_fn;
+pub use lexical_class_lower::LexicalBinding;
+pub use lexical_class_registry::LexicalClassDefinition;
+#[cfg(test)]
+mod lexical_private_tests;
 mod lower_stmts;
 mod module_definition_bindings;
 mod module_deletions;
@@ -144,3 +151,9 @@ mod module_delete_tests;
 mod class_cell_tests;
 #[cfg(test)]
 mod lexical_super_tests;
+
+#[cfg(test)]
+mod lexical_class_tests;
+
+#[cfg(test)]
+mod lexical_class_boundary_tests;

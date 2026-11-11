@@ -8,6 +8,21 @@ use ryupy_mir::RuntimeFn;
 pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
     let system = &ctx.runtime_refs.system;
     match rt_fn {
+        RuntimeFn::LexicalClassPrepare => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_prepare))
+        }
+        RuntimeFn::LexicalClassFinish => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_finish))
+        }
+        RuntimeFn::LexicalNamespaceContains => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_contains))
+        }
+        RuntimeFn::LexicalNamespaceGet => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_get))
+        }
+        RuntimeFn::LexicalNamespaceSet => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_set))
+        }
         RuntimeFn::CheckModuleDelete
         | RuntimeFn::CheckModuleDeleteValue
         | RuntimeFn::LoadDeletedModuleName

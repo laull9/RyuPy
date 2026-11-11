@@ -195,6 +195,7 @@ public static partial class PyObject
                 }
                 return;
             case PyInstance instance:
+                instance.Class.RequireLexicalFactoryReady();
                 if (name is "__class__" or "__dict__") PyTypingIo.GuardInstanceReservedMutation(instance.Class, name);
                 if (instance.Class.HasProperties
                     && instance.Class.TryLookup(name, out PyClass propertyOwner, out object? descriptor)
@@ -273,6 +274,7 @@ public static partial class PyObject
     )
     {
         if (target is PyClassMethod) self = ClassMethodReceiver(owner, self);
+        PyLexicalClassGuard.Receiver(self);
         // 绝大多数方法不调用 `super()`，不需要维护上下文，直接调用。
         if (target is PyFunction plain && !plain.UsesSuper)
         {
@@ -323,6 +325,7 @@ public static partial class PyObject
         object?[] kwValues
     )
     {
+        PyLexicalClassGuard.Receiver(self);
         if (!function.UsesSuper)
         {
             return function.Invoke(args, kwNames, kwValues);
@@ -428,6 +431,7 @@ public static partial class PyObject
     /// <summary>读取实例属性。</summary>
     private static object? GetInstanceAttr(PyInstance instance, string name)
     {
+        instance.Class.RequireLexicalFactoryReady();
         if (PyTypingGenericMetadata.InstanceAttribute(instance, name, out object? genericValue)) return genericValue;
         if (PyTypingIo.TryInstanceMetadata(instance, name, out object? ioValue)) return ioValue;
         if (PyStringLayout.TryInstanceMetadata(instance, name, out object? stringValue)) return stringValue;
@@ -493,6 +497,7 @@ public static partial class PyObject
     /// <summary>读取类对象上的属性。</summary>
     private static object? GetClassAttr(PyClass cls, string name)
     {
+        cls.RequireLexicalFactoryReady();
         if (PyTypingGenericMetadata.ClassAttribute(cls, name, out object? genericValue)) return genericValue;
         if (PyTypingIo.TryClassMetadata(cls, name, out object? ioValue)) return ioValue;
         if (PyNamedTupleLayout.TryClassMetadata(cls, name, out object? tupleValue)) return tupleValue;
@@ -557,6 +562,7 @@ public static partial class PyObject
     /// <summary>读取 `super()` 代理的属性：从定义类的下一个基类开始。</summary>
     private static object? GetSuperAttr(PySuper super, string name)
     {
+        PyLexicalClassGuard.Receiver(super.Self);
         if (name == "__class__") return PyLexicalSuper.Type;
         PyLexicalSuper.GuardAttribute(name);
         PyTypingGenericProtocols.GuardSuper(super, name);

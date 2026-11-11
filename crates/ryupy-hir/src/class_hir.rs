@@ -11,6 +11,8 @@ use ryupy_base::TextRange;
 ///   求值属性并登记方法。
 #[derive(Debug)]
 pub struct Class {
+    /// 新位置的静态词法定义计划；None继续旧顶层专用路径。
+    pub lexical: Option<crate::LexicalClassDefinition>,
     /// 本次类定义需要独立的隐式 __class__ cell；普通 namespace 同名项与它无关。
     pub has_class_cell: bool,
     pub name: Name,
@@ -86,6 +88,8 @@ pub struct ClassItem {
 
 #[derive(Clone, Debug)]
 pub enum ClassItemKind {
+    /// 内嵌类在当前namespace的源码位置执行，ClassId只引用静态模板。
+    NestedClass(ClassId),
     /// 条件在类定义时执行，不改变命名空间或提前折叠分支。
     If {
         test: ExprId,

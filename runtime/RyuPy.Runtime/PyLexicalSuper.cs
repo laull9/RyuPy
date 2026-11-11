@@ -57,6 +57,7 @@ public static class PyLexicalSuper
             throw new PyNotImplementedError("super class receivers and native layouts are not supported");
         if (receiver is not PyInstance instance)
             throw new PyTypeError("super(type, obj): obj must be an instance or subtype of type");
+        instance.Class.RequireLexicalFactoryReady();
         bool related = false;
         for (PyClass? current = instance.Class; current is not null; current = current.BaseClass)
         {

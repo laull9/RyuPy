@@ -45,6 +45,7 @@ public static partial class PyOps
                     if (baseClass.HasEnumMetadata)
                         throw new PyNotImplementedError("dynamic Enum inheritance requires a compiled Enum factory");
                     cls.BaseClass = baseClass;
+                    cls.InheritLexicalFactoryFamily(baseClass);
                     if (baseClass.IsTypingGenericFamily)
                         cls.GenericDefinition = new PyTypingGenericDefinition(originalBases);
                     cls.HasStringLayout = baseClass.HasStringLayout;

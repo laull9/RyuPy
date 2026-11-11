@@ -109,16 +109,17 @@ public partial class PyTraceStateArtifactTests
         var builtinAdditions = BuiltinPublicAdditions();
         var xmlAdditions = XmlPublicAdditions();
         var deploymentAdditions = DefaultSourcePublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var factoryAdditions = LexicalClassFactoryPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1706逐字段保留：历史1659＋原12条V1/4条冷来源/24条metadata/1条builtins/6条语法XML；仅另加4条默认来源冷方法；不覆盖默认参数、常量、全部属性或完整程序集scope" });
-        Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins、XML异常或默认来源冷增量不符；见baseline-abi.json。");
+            scope = "旧1710逐字段保留：历史1659＋原51条许可；仅新增类工厂1公开类型＋5冷方法共6条；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+        Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins、XML异常或默认来源/类工厂冷增量不符；见baseline-abi.json。");
     }
 
     // 全程序集门另列 ADR0145 冷 API；不改变 V1 专属十二条合同，也不接受其它来源 API/重载。
@@ -185,11 +186,22 @@ public partial class PyTraceStateArtifactTests
         "M:RyuPy.Runtime.PyModules:RegisterCandidateSource:150:[0;0;10](String,String,String,Int64,String,Boolean,Boolean,RyuPy.Runtime.PyModuleInit,RyuPy.Runtime.PyModuleGet,RyuPy.Runtime.PyModuleSet)->Void:"
     ];
 
+    // ADR0156精确六条；公开static类型本身也计一条，不从候选PE差集授权。
+    internal static string[] LexicalClassFactoryPublicAdditions() =>
+    [
+        "T:RyuPy.Runtime.PyLexicalClassFactory:1048961:System.Object:",
+        "M:RyuPy.Runtime.PyLexicalClassFactory:Prepare:150:[0;0;4](String,String,Object,Object[])->Object:",
+        "M:RyuPy.Runtime.PyLexicalClassFactory:NamespaceContains:150:[0;0;2](Object,String)->Boolean:",
+        "M:RyuPy.Runtime.PyLexicalClassFactory:NamespaceGet:150:[0;0;2](Object,String)->Object:",
+        "M:RyuPy.Runtime.PyLexicalClassFactory:NamespaceSet:150:[0;0;3](Object,String,Object)->Void:",
+        "M:RyuPy.Runtime.PyLexicalClassFactory:Finish:150:[0;0;1](Object)->Object:"
+    ];
+
     internal static bool PreservesBaselineAbi(string[] before, string[] after)
         => PreservesBaselineAbi(before, after, PyTraceStateV1ArtifactContract.PublicAdditions(),
             SourcePublicAdditions(), MetadataPublicAdditions(), BuiltinPublicAdditions(), XmlPublicAdditions());
 
-    // 参数化仅供反例检验允许表自身；真实 PE 门始终使用上面的固定六张表。
+    // 参数化仅供反例检验允许表自身；真实 PE 门始终使用上面的固定七张表。
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin)
         => PreservesBaselineAbi(before, after, v1, source, metadata, builtin, XmlPublicAdditions());
@@ -200,12 +212,17 @@ public partial class PyTraceStateArtifactTests
 
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml, string[] deployment)
+        => PreservesBaselineAbi(before, after, v1, source, metadata, builtin, xml, deployment, LexicalClassFactoryPublicAdditions());
+
+    internal static bool PreservesBaselineAbi(string[] before, string[] after,
+        string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml, string[] deployment, string[] factory)
     {
-        if (before.Length != 1659 || after.Length != 1710
+        if (before.Length != 1659 || after.Length != 1716
             || v1.Length != 12 || source.Length != 4 || metadata.Length != 24
             || !builtin.SequenceEqual(BuiltinPublicAdditions()) || !xml.SequenceEqual(XmlPublicAdditions())
-            || !deployment.SequenceEqual(DefaultSourcePublicAdditions())) return false;
-        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).ToArray();
+            || !deployment.SequenceEqual(DefaultSourcePublicAdditions())
+            || !factory.SequenceEqual(LexicalClassFactoryPublicAdditions())) return false;
+        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).ToArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         // 不用去重后的集合判等：任一组内或组间重复直接拒绝。
         if (expected.Any(signature => !seen.Add(signature))) return false;

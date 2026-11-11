@@ -21,13 +21,20 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
             errors.push("类 cell 的定义 owner 不存在".into());
             continue;
         };
-        if cell.owner != program.entry
-            || owner.module_state_source != Some(InstanceStateSource::ModuleEntryParameter)
+        if (cell.lexical.is_none()
+            && (cell.owner != program.entry
+                || owner.module_state_source != Some(InstanceStateSource::ModuleEntryParameter)))
             || class.is_exception
             || class.is_dataclass
-            || !locals.insert(cell.cell)
-            || !originals.insert(cell.original_class)
-            || cell.captures.is_empty()
+            || !locals.insert((cell.owner, cell.cell))
+            || !originals.insert((cell.owner, cell.original_class))
+            || (cell.captures.is_empty() && !owner.body.blocks.iter().any(|(_, block)| block.stmts.iter().any(|stmt| matches!(stmt, Statement::Assign { value, .. } | Statement::Eval(value) if crate::lexical_cell_read::is_direct_read(value, cell)))))
+            || (cell.lexical.is_some()
+                && owner
+                    .body
+                    .blocks
+                    .iter()
+                    .any(|(_, block)| matches!(block.terminator, Terminator::Suspend { .. })))
             || cell.cell == cell.original_class
             || !local_decl(&owner.body.locals, cell.cell)
                 .is_some_and(|local| local.ty == MirType::Dynamic && local.is_cell)
@@ -61,11 +68,27 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
             .body
             .locals
             .iter()
-            .any(|(id, local)| local.is_cell && !locals.contains(&id))
+            .any(|(id, local)| local.is_cell && !locals.contains(&(program.entry, id)))
     {
         errors.push("实例入口存在未登记来源的类定义 cell".into());
     }
     for (caller_id, caller) in program.functions.iter() {
+        if caller.body.locals.iter().any(|(id, local)| {
+            local.is_cell
+                && local.name.is_none()
+                && !locals.contains(&(caller_id, id))
+                && assignments(caller, id).iter().any(|(_, value)| {
+                    matches!(
+                        value,
+                        Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::CellNew),
+                            ..
+                        }
+                    )
+                })
+        }) {
+            errors.push("函数存在未登记来源的隐式类定义 cell".into());
+        }
         for (block, body) in caller.body.blocks.iter() {
             for (index, statement) in body.stmts.iter().enumerate() {
                 let (Statement::Assign { value, .. } | Statement::Eval(value)) = statement else {
@@ -113,7 +136,15 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                     }
                 }
                 if let Some((class, _, capture)) = captures.get(&caller_id) {
-                    validate_cell_access(caller, capture, value, position, errors);
+                    let direct = program.classes.iter().any(|(_, class)| {
+                        class.class_cell.as_ref().is_some_and(|cell| {
+                            cell.owner == caller_id
+                                && crate::lexical_cell_read::is_direct_read(value, cell)
+                        })
+                    });
+                    if !direct {
+                        validate_cell_access(caller, capture, value, position, errors);
+                    }
                     validate_forwarded_uses(caller, capture, value, &captures, *class, errors);
                     if let Rvalue::MakeGenerator { resume, .. } = value
                         && !captures.get(resume).is_some_and(|(resume_class, _, resumed)| {
@@ -183,9 +214,9 @@ fn validate_definition(
         return;
     }
     let valid_new = matches!(created.as_slice(), [((block, _), Rvalue::Call { callee: Callee::Runtime(RuntimeFn::CellNew), args })] if *block == cell.block && args.is_empty());
-    let valid_class = matches!((original.as_slice(), created.as_slice()),
+    let valid_class = cell.lexical.as_ref().map_or_else(|| matches!((original.as_slice(), created.as_slice()),
         ([((class_block, class_index), Rvalue::Call { callee: Callee::Runtime(RuntimeFn::InstanceMakeClass), .. })], [((cell_block, cell_index), _)])
-        if class_block == cell_block && class_index + 1 == *cell_index);
+        if class_block == cell_block && class_index + 1 == *cell_index), |_| crate::lexical_class_cells::valid_source(function, cell));
     validate_owner_uses(function, cell, errors);
     let mut fills = Vec::new();
     let mut publications = Vec::new();
@@ -208,14 +239,21 @@ fn validate_definition(
                 let valid = block == cell.completion
                     && matches!(args.as_slice(), [_, Operand::Local(value)] if *value == cell.original_class)
                     && matches!(previous, Some(Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::InstanceClassCellGuard), args })) if matches!(args.as_slice(), [Operand::Local(value)] if *value == cell.original_class))
-                    && matches!(finalized, Some(Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::FinalizeOrdinaryClass), args })) if matches!(args.as_slice(), [Operand::Local(value)] if *value == cell.original_class))
+                    && if cell.lexical.is_some() {
+                        matches!(finalized, Some(Statement::Assign { dest, value: Rvalue::Call { callee: Callee::Runtime(RuntimeFn::LexicalClassFinish), .. } }) if *dest == cell.original_class)
+                    } else {
+                        matches!(finalized, Some(Statement::Eval(Rvalue::Call { callee: Callee::Runtime(RuntimeFn::FinalizeOrdinaryClass), args })) if matches!(args.as_slice(), [Operand::Local(value)] if *value == cell.original_class))
+                    }
                     && context_dominates(function, cell.cell, block, index)
                     && context_dominates(function, cell.original_class, block, index);
                 fills.push(valid);
             }
         }
     }
-    if publications.as_slice() != [true] {
+    if publications.as_slice() != [true]
+        && !(publications.is_empty()
+            && crate::lexical_class_cells::dead_local_publication(function, cell))
+    {
         errors.push("类 cell 缺少唯一实际类绑定发布接点".into());
     }
     if !valid_new || !valid_class || fills.as_slice() != [true] {
@@ -363,7 +401,10 @@ fn validate_environment(
     };
     let valid = match capture.source {
         ClassCellEnvSource::Parameter => target.env.is_some_and(|env| {
-            target.module_state_source == Some(InstanceStateSource::FunctionParameter)
+            (target.module_state_source == Some(InstanceStateSource::FunctionParameter)
+                || (cell.lexical.is_some()
+                    && target.module_state_source.is_none()
+                    && target.module_state.is_none()))
                 && Some(env) != target.module_state
                 && target.params.iter().filter(|param| **param == env).count() == 1
                 && assignments(target, env).is_empty()
@@ -417,6 +458,9 @@ fn validate_environment(
 
 /// 发布必须是实际class绑定，不以返回或普通属性写入代替成功创建接点。
 fn is_publication(statement: &Statement, cell: &ClassCellDefinition, name: &str) -> bool {
+    if cell.lexical.is_some() {
+        return crate::lexical_class_cells::is_publication(statement, cell);
+    }
     matches!(statement, Statement::Eval(Rvalue::Call {
         callee: Callee::Runtime(RuntimeFn::InstanceStoreName), args
     }) if matches!(args.as_slice(), [_, Operand::Const(Constant::Str(binding)), Operand::Local(value)]

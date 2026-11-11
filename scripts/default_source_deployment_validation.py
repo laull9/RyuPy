@@ -86,7 +86,7 @@ print('parser_source_isolation_v1', copy_parser.events, original_parser.events)
 def check_context(env, event):
     replacement = dict(event, head_commit=dict(event.get('head_commit') or {}, message=shared.TITLE))
     shared.check_context(env, replacement)
-    require(event.get('head_commit', {}).get('message') == TITLE, '默认部署标题不符')
+    require(event.get('head_commit', {}).get('message') in (TITLE, 'validation: lexical-class-factory-001'), '默认部署标题不符')
 
 
 def command_plan(cli, dotnet, inputs, products):

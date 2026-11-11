@@ -50,6 +50,7 @@ internal static class PyBaseObjectMethods
             if (args.Length < offset)
                 throw new PyTypeError($"descriptor '{name}' of 'object' object needs an argument");
             object? self = receiver ?? args[0];
+            PyLexicalClassGuard.Receiver(self);
             int extra = args.Length - offset;
             if (name == "__init__")
             {

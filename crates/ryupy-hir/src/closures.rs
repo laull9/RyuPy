@@ -97,6 +97,7 @@ pub(crate) fn analyze_closures(
     functions: &mut Arena<Function>,
     main_id: FuncId,
     instance_classes: Option<&FxHashMap<TextRange, ClassId>>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> ClosureAnalysis {
     let mut scopes: Vec<ScopeData> = Vec::new();
@@ -132,6 +133,7 @@ pub(crate) fn analyze_closures(
         &mut scopes,
         &mut nested_funcs,
         &mut nested_def_names,
+        lexical_classes,
     );
 
     // 每个顶层 def / 方法是独立的函数作用域（父作用域 = 模块）。
@@ -149,6 +151,7 @@ pub(crate) fn analyze_closures(
                     &mut scopes,
                     &mut nested_funcs,
                     &mut nested_def_names,
+                    lexical_classes,
                 );
             }
             Stmt::ClassDef(cls_def) => {
@@ -163,6 +166,7 @@ pub(crate) fn analyze_closures(
                             &mut scopes,
                             &mut nested_funcs,
                             &mut nested_def_names,
+                            lexical_classes,
                         )
                     });
                 for fn_def in crate::class_body::methods(&cls_def.body) {
@@ -177,6 +181,7 @@ pub(crate) fn analyze_closures(
                         &mut scopes,
                         &mut nested_funcs,
                         &mut nested_def_names,
+                        lexical_classes,
                     );
                 }
             }
@@ -186,7 +191,7 @@ pub(crate) fn analyze_closures(
 
     // CP 的 super 名字读取隐式请求 __class__，即使 super 被参数/local/global 遮蔽。
     // 仍走下面的普通词法解析：__class__ 自身的遮蔽不能被这份隐式需求覆盖。
-    if instance_classes.is_some() {
+    if instance_classes.is_some() || !lexical_classes.is_empty() {
         for scope in &mut scopes {
             if !scope.is_module
                 && scope.class.is_none()

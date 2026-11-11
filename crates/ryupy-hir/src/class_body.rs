@@ -43,6 +43,7 @@ pub(crate) fn has_annotations(statements: &[ast::Stmt]) -> bool {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn lower_items(
     statements: &[ast::Stmt],
+    classes: &la_arena::Arena<crate::Class>,
     class_names: &mut ClassScope,
     file: FileId,
     globals: &GlobalScope,
@@ -128,6 +129,7 @@ pub(crate) fn lower_items(
                     let mut branch_scope = entry.clone();
                     let items = lower_items(
                         statements,
+                        classes,
                         &mut branch_scope,
                         file,
                         globals,
@@ -175,6 +177,33 @@ pub(crate) fn lower_items(
                     };
                 }
                 body.extend(tail);
+            }
+            ast::Stmt::ClassDef(class) => {
+                let scope = crate::scope::FunctionScope::default();
+                let mut context = crate::expr::ExprLowerCtx {
+                    class_names: Some(class_names),
+                    allow_yield: false,
+                    file,
+                    global_scope: globals,
+                    func_scope: &scope,
+                    module_vars,
+                    nested_funcs,
+                    nested_defaults,
+                    body: main_body,
+                    diagnostics: diags,
+                };
+                if let Some(id) = crate::lexical_class_lower::lower_definition(
+                    class,
+                    classes,
+                    &mut context,
+                    crate::LexicalBinding::Namespace(Name::from(class.name.as_str())),
+                ) {
+                    body.push(ClassItem {
+                        kind: ClassItemKind::NestedClass(id),
+                        range: class.range,
+                    });
+                    class_names.insert(Name::from(class.name.as_str()));
+                }
             }
             ast::Stmt::Pass(_) => {}
             ast::Stmt::Assign(assign) => {

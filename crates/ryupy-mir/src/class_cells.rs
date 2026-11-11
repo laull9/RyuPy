@@ -5,6 +5,7 @@ use crate::{BlockId, Callee, FnId, LocalId, MirType, RuntimeFn, Rvalue, Statemen
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassCellDefinition {
+    pub lexical: Option<crate::LexicalClassCell>,
     /// 当前支持模块级 class；owner 明确指向实际模块执行函数，而非注册名称。
     pub owner: FnId,
     pub block: BlockId,
@@ -80,6 +81,7 @@ impl FunctionBuilder<'_> {
         self.class_cells.push((
             self.class_map[&class],
             ClassCellDefinition {
+                lexical: None,
                 owner: self.fn_map[&self.current_hir_fn],
                 block: self.current_bb,
                 cell,

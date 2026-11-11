@@ -4,7 +4,9 @@ use crate::validate::operand_type;
 
 /// 这些运行时方法只有固定Call签名，不能通过CallWithArgs追加数组改变ABI。
 pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
-    if crate::trace_product_abi::signature(callee).is_some() {
+    if crate::trace_product_abi::signature(callee).is_some()
+        || crate::lexical_class_abi::signature(callee).is_some()
+    {
         return true;
     }
     #[cfg(feature = "trace-adapter-test")]
@@ -58,15 +60,19 @@ pub(super) fn validate_call(
 ) {
     // 输出与累加器专用ABI校验，防止参数错配生成栈不平衡的CIL。
     if let Callee::Runtime(runtime) = callee {
-        if let Some((expected, _)) = crate::trace_product_abi::signature(*runtime) {
-            if args.len() != expected.len()
+        if let Some((expected, _)) = crate::trace_product_abi::signature(*runtime)
+            .or_else(|| crate::lexical_class_abi::signature(*runtime))
+        {
+            if (*runtime == RuntimeFn::LexicalClassPrepare
+                && !matches!(args.get(3), Some(Operand::Array(_))))
+                || args.len() != expected.len()
                 || args
                     .iter()
                     .zip(expected)
                     .any(|(arg, ty)| operand_type(program, func, arg).as_ref() != Some(ty))
             {
                 errors.push(format!(
-                    "函数 `{}` 的产品 trace ABI 实参类型/数量错误",
+                    "函数 `{}` 的固定运行时 ABI 实参类型/数量错误",
                     func.name
                 ));
             }
@@ -302,12 +308,14 @@ pub(super) fn validate_destination(
         ..
     } = value
     {
-        if let Some((_, expected)) = crate::trace_product_abi::signature(*runtime) {
+        if let Some((_, expected)) = crate::trace_product_abi::signature(*runtime)
+            .or_else(|| crate::lexical_class_abi::signature(*runtime))
+        {
             if expected == MirType::Unit
                 || crate::validate::local_decl(&func.body.locals, dest)
                     .is_none_or(|decl| decl.ty != expected)
             {
-                errors.push(format!("函数 `{}` 的产品 trace ABI 返回槽非法", func.name));
+                errors.push(format!("函数 `{}` 的固定运行时 ABI 返回槽非法", func.name));
             }
             return;
         }
@@ -392,10 +400,11 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
         ..
     } = value
         && let Some((_, result)) = crate::trace_product_abi::signature(*runtime)
+            .or_else(|| crate::lexical_class_abi::signature(*runtime))
         && result != MirType::Unit
     {
         errors.push(format!(
-            "函数 `{}` 的产品 trace ABI 返回值必须消费",
+            "函数 `{}` 的固定运行时 ABI 返回值必须消费",
             func.name
         ));
     }
@@ -413,7 +422,11 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
         value,
         Rvalue::Call {
             callee: Callee::Runtime(
-                RuntimeFn::InstanceMakeClass
+                RuntimeFn::LexicalClassPrepare
+                    | RuntimeFn::LexicalClassFinish
+                    | RuntimeFn::LexicalNamespaceContains
+                    | RuntimeFn::LexicalNamespaceGet
+                    | RuntimeFn::InstanceMakeClass
                     | RuntimeFn::InstanceLoadName
                     | RuntimeFn::LoadDeletedModuleName
                     | RuntimeFn::LoadDefaultBuiltin

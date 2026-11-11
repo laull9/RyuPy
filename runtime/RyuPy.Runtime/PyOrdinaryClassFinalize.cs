@@ -7,6 +7,17 @@ public sealed partial class PyClass
 {
     internal void FinalizeOrdinaryConstruction()
     {
+        if (!IsLexicalFactoryFamily) { FinalizeOrdinaryConstructionCore(); return; }
+        // 所有special早返之前验证新族，不能通过旧创建路径洗掉继承的能力身份。
+        PyLexicalClassFactory.ValidateDefinition(this);
+        _lexicalFinalizing = true;
+        try { FinalizeOrdinaryConstructionCore(); }
+        finally { _lexicalFinalizing = false; }
+        RequireLexicalFactoryReady();
+    }
+
+    private void FinalizeOrdinaryConstructionCore()
+    {
         PyNamedTupleLayout.GuardMutation(this);
         if (IsNativeRuntimeClass) PyTypingNamedTupleShell.RejectPending(this);
         if (Attributes.TryGetValue("__qualname__", out object? qualname))
@@ -37,6 +48,7 @@ public sealed partial class PyClass
         _ordinaryFinalized = true;
         CompleteTypingIoDefinition();
         CompleteTypingGenericDefinition();
+
     }
 
     private static bool RootWrapped(object? value) => value switch

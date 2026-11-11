@@ -184,6 +184,7 @@ public static partial class PyPic
         out MethodEntry found
     )
     {
+        instance.Class.RequireLexicalFactoryReady();
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
         {
@@ -264,6 +265,7 @@ public static partial class PyPic
         }
 
         long classVersion = PyClass.GlobalVersion;
+        instance.Class.RequireLexicalFactoryReady();
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
         {

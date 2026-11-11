@@ -10,6 +10,16 @@ import textwrap_dedent_selftest as selector
 
 
 class Tests(unittest.TestCase):
+    def test_class_factory_exact_title_keeps_old_context_rules(self):
+        import lexical_class_factory_selftest as factory
+        env, event = factory.context()
+        env['GITHUB_REPOSITORY'] = gate.shared.REPOSITORY
+        event['repository'] = {'full_name': gate.shared.REPOSITORY}
+        gate.check_context(env, event)
+        for title in (factory.c.TITLE.upper(), factory.c.TITLE + '\n'):
+            with self.assertRaises(ValueError):
+                gate.check_context(env, dict(event, head_commit=dict(event['head_commit'], message=title)))
+
     def test_original_parser_and_default_commands(self):
         self.assertEqual(hashlib.sha256(gate.PARSER_SOURCE.encode()).hexdigest(), gate.PARSER_SHA)
         self.assertEqual(hashlib.sha256(gate.PARSER_OUTPUT).hexdigest(), gate.PARSER_OUTPUT_SHA)

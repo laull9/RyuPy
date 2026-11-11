@@ -105,7 +105,10 @@ pub(crate) fn collect_def_names(body: &[Stmt]) -> Vec<Name> {
                 Stmt::FunctionDef(fn_def) => {
                     out.push(Name::from(fn_def.name.as_str()));
                 }
-                // 嵌套 def 自己的函数体不属于本作用域，不下行。
+                Stmt::ClassDef(class) => {
+                    out.push(Name::from(class.name.as_str()));
+                }
+                // 嵌套 def/class 自己的函数体不属于本作用域，不下行。
                 Stmt::If(s) => {
                     walk(&s.body, out);
                     for clause in &s.elif_else_clauses {

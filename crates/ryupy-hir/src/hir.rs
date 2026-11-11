@@ -240,6 +240,10 @@ pub struct Expr {
 
 #[derive(Clone, Debug)]
 pub enum ExprKind {
+    /// 内层类体读取外层定义的隐式cell，不是当前类namespace或模块槽。
+    ClassCellRead(ClassId),
+    /// 类体读取定义者普通局部cell，未绑定按free的NameError而非LOAD_FAST。
+    ClassFreeLocal(LocalId),
     /// 类体定义位置读取先前类命名空间绑定；不对descriptor做实例绑定。
     ClassLocal(Name),
     /// 条件可能绑定的类名字；仅命名空间缺值时求 fallback。

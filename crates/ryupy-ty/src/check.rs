@@ -294,26 +294,36 @@ impl FunctionChecker<'_> {
             for &expr in &self.module.default_exprs {
                 self.check_expr(expr);
             }
-            // 类体属性表达式也在模块作用域求值，必须补齐类型旁表，
-            // 否则 MIR 会把它们当成都态值而丢失静态特化。
-            for (_, class) in self.module.classes.iter() {
-                self.soft_demote |= class.decorated_binding.is_some() || class.runtime_dataclass;
-                for decorator in &class.decorators {
-                    if let ryupy_hir::Decorator::Expr(expr) = decorator {
-                        self.check_expr(*expr);
-                    }
-                }
-                if let Some(
-                    ryupy_hir::ClassBase::Expr(expr)
-                    | ryupy_hir::ClassBase::Runtime(expr)
-                    | ryupy_hir::ClassBase::Native { value: expr, .. }
-                    | ryupy_hir::ClassBase::TypedDict { value: expr, .. },
-                ) = &class.base
-                {
+        }
+        // 类表达式只在记录的真实arena owner中检查，绝不能把局部工厂读成模块类。
+        for (_, class) in self.module.classes.iter() {
+            let owns = class.lexical.as_ref().map_or(
+                self.func.kind == FunctionKind::ModuleMain,
+                |definition| {
+                    definition
+                        .owner
+                        .is_some_and(|owner| std::ptr::eq(&self.module.functions[owner], self.func))
+                },
+            );
+            if !owns {
+                continue;
+            }
+            self.soft_demote |= class.decorated_binding.is_some() || class.runtime_dataclass;
+            for decorator in &class.decorators {
+                if let ryupy_hir::Decorator::Expr(expr) = decorator {
                     self.check_expr(*expr);
                 }
-                self.check_class_items(&class.body);
             }
+            if let Some(
+                ryupy_hir::ClassBase::Expr(expr)
+                | ryupy_hir::ClassBase::Runtime(expr)
+                | ryupy_hir::ClassBase::Native { value: expr, .. }
+                | ryupy_hir::ClassBase::TypedDict { value: expr, .. },
+            ) = &class.base
+            {
+                self.check_expr(*expr);
+            }
+            self.check_class_items(&class.body);
         }
 
         for (loc_id, _loc) in self.func.body.locals.iter() {
@@ -331,6 +341,7 @@ impl FunctionChecker<'_> {
     fn check_class_items(&mut self, items: &[ryupy_hir::ClassItem]) {
         for item in items {
             match &item.kind {
+                ryupy_hir::ClassItemKind::NestedClass(_) => {}
                 ryupy_hir::ClassItemKind::If { test, body, orelse } => {
                     self.check_expr(*test);
                     self.check_class_items(body);
@@ -341,7 +352,15 @@ impl FunctionChecker<'_> {
                 | ryupy_hir::ClassItemKind::Expr(value) => {
                     self.check_expr(*value);
                 }
-                ryupy_hir::ClassItemKind::Method { decorators, .. } => {
+                ryupy_hir::ClassItemKind::Method { func, decorators } => {
+                    for parameter in &self.module.functions[*func].params {
+                        if let Some(value) = parameter.default {
+                            self.check_expr(value);
+                        }
+                    }
+                    for (_, value) in &self.module.functions[*func].annotation_values {
+                        self.check_expr(*value);
+                    }
                     for decorator in decorators {
                         if let ryupy_hir::Decorator::Expr(expr) = decorator {
                             self.check_expr(*expr);
@@ -384,7 +403,11 @@ impl FunctionChecker<'_> {
                 self.check_expr(*fallback);
                 Ty::Dynamic
             }
-            ExprKind::Free(_) | ExprKind::Lambda(_) | ExprKind::ClassLocal(_) => Ty::Dynamic,
+            ExprKind::Free(_)
+            | ExprKind::Lambda(_)
+            | ExprKind::ClassLocal(_)
+            | ExprKind::ClassCellRead(_)
+            | ExprKind::ClassFreeLocal(_) => Ty::Dynamic,
             // 函数名作为值使用时是一等函数对象；调用位置由 check_call 单独处理。
             ExprKind::Func(id) => Ty::Func(*id),
             ExprKind::Builtin(builtin) => match builtin {

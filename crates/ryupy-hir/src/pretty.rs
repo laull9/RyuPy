@@ -387,6 +387,8 @@ fn dump_list(module: &Module, body: &Body, items: &[ExprId]) -> String {
 pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String {
     let expr = &body.exprs[expr_id];
     match &expr.kind {
+        ExprKind::ClassFreeLocal(local) => format!("class_free({})", body.locals[*local].name),
+        ExprKind::ClassCellRead(class) => format!("class_cell({})", module.classes[*class].name),
         ExprKind::ClassLookup { name, fallback } => format!(
             "class_lookup({name}, {})",
             dump_expr(module, body, *fallback)

@@ -50,8 +50,10 @@ pub struct ExprBuilder<'a> {
     pub function_locals_cache: &'a mut Option<MirLocalId>,
     /// 类体读取只查当前类的原始命名空间，不绑定描述符。
     pub class_namespace: Option<Operand>,
+    pub lexical_namespace: bool,
     /// 类体创建函数时，显式捕获本次定义的隐式 cell，不读取类 namespace。
     pub class_cell: Option<(ryupy_hir::ClassId, Operand)>,
+    pub lexical_cell_stack: Vec<(ryupy_hir::ClassId, Operand)>,
     pub locals: &'a mut Arena<LocalDecl>,
     pub blocks: &'a mut Arena<BasicBlock>,
     pub current_bb: &'a mut crate::mir::BlockId,
@@ -301,6 +303,8 @@ impl<'a> ExprBuilder<'a> {
                 Operand::Local(dest)
             }
             // 内建构造名作为值（`isinstance(x, int)`、`f = str`）：构造类型对象
+            ExprKind::ClassCellRead(class) => self.build_lexical_cell_read(*class, expr.range),
+            ExprKind::ClassFreeLocal(local) => self.build_class_free_local(*local, expr.range),
             ExprKind::ClassLookup { name, fallback } => {
                 self.build_class_lookup(name.as_str(), *fallback)
             }

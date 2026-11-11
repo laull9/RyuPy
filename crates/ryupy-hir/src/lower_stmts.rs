@@ -509,6 +509,7 @@ impl StmtLowerCtx<'_> {
                     }
                 }
             }
+            ast::Stmt::ClassDef(class) => return self.lower_lexical_class(class),
             ast::Stmt::FunctionDef(f) => {
                 return self.lower_nested_def(f);
             }

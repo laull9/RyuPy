@@ -1,0 +1,7 @@
+# 定义来源与可变公开模块元数据分开；调用者模块不能污染工厂所属模块。
+entry = entry.py
+instance_module = owner
+pending = true
+expect_exit = 0
+expect_stdout = exact
+timeout = 30

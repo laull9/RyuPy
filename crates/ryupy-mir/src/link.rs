@@ -151,7 +151,7 @@ pub(crate) fn link_with_origins(
                 class_cell: cls
                     .class_cell
                     .as_ref()
-                    .map(|cell| remap_class_cell(cell, &fn_map)),
+                    .map(|cell| remap_class_cell(cell, &fn_map, &global_map)),
                 name: cls.name.clone(),
                 codegen_name: format!("{prefix}{}", cls.codegen_name),
                 fields: cls
@@ -560,9 +560,15 @@ fn remap_rvalue(
 fn remap_class_cell(
     cell: &crate::ClassCellDefinition,
     functions: &FxHashMap<FnId, FnId>,
+    globals: &FxHashMap<GlobalId, GlobalId>,
 ) -> crate::ClassCellDefinition {
     let mut mapped = cell.clone();
     mapped.owner = functions[&cell.owner];
+    if let Some(plan) = &mut mapped.lexical
+        && let crate::LexicalClassPublication::Global(global) = &mut plan.publication
+    {
+        *global = globals[global];
+    }
     for capture in &mut mapped.captures {
         capture.function = functions[&capture.function];
         if let crate::ClassCellEnvSource::GeneratorFrame { factory, .. } = &mut capture.source {

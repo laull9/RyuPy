@@ -62,7 +62,7 @@ pub fn lower_module_with_native_exceptions(
             return (module, diagnostics);
         }
     }
-    let mut diagnostics = Vec::new();
+    let mut diagnostics = crate::lexical_private::validate(parsed.file, &parsed.module.body);
     crate::future_imports::validate(&parsed.module.body, parsed.file, &mut diagnostics);
     let line_starts = crate::source_lines::line_starts(source);
     let mut functions = Arena::default();
@@ -138,6 +138,7 @@ pub fn lower_module_with_native_exceptions(
                     );
                 }
                 let cls_id = classes.alloc(crate::hir::Class {
+                    lexical: None,
                     has_class_cell: false,
                     name: name.clone(),
                     base: None,
@@ -250,19 +251,14 @@ pub fn lower_module_with_native_exceptions(
 
     // M3.0：闭包作用域分析——发现嵌套 def / lambda 并计算 free / cell 变量。
     // 必须在降级任何函数体之前完成：名字解析（Free / cell）和 lambda 表达式
-    // 都依赖它的登记表。
-    let analysis = crate::closures::analyze_closures(
+    // 都依赖它的登记表；新类模板同时明确每个表达式arena的真实owner。
+    let analysis = crate::lexical_class_registry::analyze(
         parsed,
         &mut functions,
+        &mut classes,
         main_id,
         info.instance_globals.then_some(&definition_classes),
-        &mut diagnostics,
-    );
-    crate::function_definition::attach(
-        &parsed.module.body,
         &line_starts,
-        &mut functions,
-        parsed.file,
         &mut diagnostics,
     );
     let mut nested_defaults = crate::definition_metadata::DefinitionMetadata::default();
@@ -377,6 +373,7 @@ pub fn lower_module_with_native_exceptions(
         module_vars: &module_var_ids,
         vars: &mut vars,
         module_scope: true,
+        forbid_lexical_class: false,
         direct_stmt_index: 0,
         package: &info.package,
         classes: &classes,
@@ -449,6 +446,7 @@ pub fn lower_module_with_native_exceptions(
         }
     }
 
+    crate::lexical_class_lower::apply(&mut classes, &mut nested_defaults);
     for (func_id, annotations) in nested_defaults.annotations {
         functions[func_id].annotation_values = annotations;
     }
@@ -485,6 +483,7 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) direct_stmt_index: usize,
     /// 是否位于模块顶层；函数导入仍在原语句位置执行。
     pub(crate) module_scope: bool,
+    pub(crate) forbid_lexical_class: bool,
     /// 当前模块的 `__package__`，用于把相对导入换算成绝对模块名。
     pub(crate) package: &'a str,
     /// 已解析的类（`except` 需要判断用户类是否属于异常家族）。

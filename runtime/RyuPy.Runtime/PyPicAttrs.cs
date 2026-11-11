@@ -56,6 +56,7 @@ public static partial class PyPic
         {
             return PyObject.GetAttr(obj, name);
         }
+        PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
@@ -154,6 +155,7 @@ public static partial class PyPic
             PyObject.SetAttr(obj, name, value);
             return;
         }
+        PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
@@ -218,6 +220,7 @@ public static partial class PyPic
         }
         PyLexicalSuper.GuardAttribute(name);
         if (name == "__class__") return PyOps.CallMethod(obj, name, args, [], []);
+        PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
         ref SuperEntry entry = ref SuperEntries[site];
         if (entry.Valid == 0

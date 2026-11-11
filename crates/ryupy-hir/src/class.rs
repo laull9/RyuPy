@@ -254,6 +254,12 @@ pub fn parse_class_def(
     };
 
     let mut class_names = crate::class_scope::ClassScope::default();
+    class_names.legacy_class_body = !globals.instance_globals;
+    if globals.instance_globals {
+        class_names.lexical_class = classes
+            .iter()
+            .find_map(|(id, class)| (class.range == class_def.range).then_some(id));
+    }
     // 仅实际MakeClass路径由runtime冷初始化；Enum/TypedDict仍用各自协议。
     let runtime_namespace =
         enum_members.is_none() && !matches!(base, Some(ClassBase::TypedDict { .. }));
@@ -299,6 +305,7 @@ pub fn parse_class_def(
     }
     body.extend(crate::class_body::lower_items(
         statements,
+        classes,
         &mut class_names,
         file,
         globals,
@@ -321,6 +328,7 @@ pub fn parse_class_def(
     }
 
     Some(Class {
+        lexical: None,
         has_class_cell: false,
         name: class_name,
         base,

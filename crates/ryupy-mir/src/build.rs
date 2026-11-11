@@ -104,7 +104,7 @@ pub(crate) fn build_program_mode(
             factory_global,
         });
         class_map.insert(hir_cls_id, mir_id);
-        if !hir.info.instance_globals {
+        if !hir.info.instance_globals && cls.lexical.is_none() {
             let global = globals.alloc(GlobalDecl {
                 storage: crate::GlobalStorage::LegacyStatic,
                 name: format!("__class_{}", hir_cls_id.into_raw().into_u32()),
@@ -560,8 +560,10 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) dynamic_owner: Option<MirLocalId>,
     /// 当前正在执行的类体原始命名空间。
     pub(crate) class_namespace: Option<Operand>,
+    pub(crate) lexical_namespace: bool,
     /// 当前类体定义点的 cell，与 namespace 对象、module context 分开。
     pub(crate) class_cell: Option<(ryupy_hir::ClassId, Operand)>,
+    pub(crate) lexical_cell_stack: Vec<(ryupy_hir::ClassId, Operand)>,
     pub(crate) class_cells: Vec<(crate::ClassDefId, crate::ClassCellDefinition)>,
 }
 
