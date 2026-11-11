@@ -160,10 +160,8 @@ pub(crate) fn dead_local_publication(function: &Function, cell: &ClassCellDefini
             }
         }
         match &block.terminator {
-            Terminator::Return(value) => {
-                if let Some(value) = value {
-                    crate::passes::dead_values::read_operand(value, &mut reads);
-                }
+            Terminator::Return(Some(value)) => {
+                crate::passes::dead_values::read_operand(value, &mut reads);
             }
             Terminator::Branch { cond, .. } => {
                 crate::passes::dead_values::read_operand(cond, &mut reads)
