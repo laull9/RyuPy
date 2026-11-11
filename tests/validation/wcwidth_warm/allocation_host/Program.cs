@@ -18,7 +18,7 @@ internal static class Program
         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
     }
     private static long Number(object info, string name) =>
-        checked((long)PyInt.ToBigInteger(PyObject.GetAttr(info, name)!));
+        (long)PyObject.GetAttr(info, name)!;
 
     private static object Domain(bool typed)
     {
