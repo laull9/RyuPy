@@ -40,6 +40,22 @@ class Tests(unittest.TestCase):
         empty = dict(data, frozen=True, sources={}, cases=[], facts=[], rust_tests=[])
         with self.assertRaises(ValueError): c.validate(empty)
 
+    def test_metadata_is_accounted_without_weakening_oracle(self):
+        data = c.load_manifest(ready=True)
+        self.assertEqual(len(data['sources']), 18)
+        for case in data['cases']:
+            if Path(case['source']).stem in c.SIDECAR_STEMS:
+                sidecar = str(Path(case['source']).with_suffix('.case.txt'))
+                self.assertEqual(case['support'], [sidecar])
+                changed = copy.deepcopy(data)
+                next(row for row in changed['cases'] if row['id'] == case['id'])['support'] = []
+                with self.assertRaisesRegex(ValueError, 'support合同'):
+                    c.validate(changed, c.ROOT)
+        extra = copy.deepcopy(data)
+        extra['sources'].pop(next(p for p in data['sources'] if p.endswith('.case.txt')))
+        with self.assertRaisesRegex(ValueError, '完整源域'):
+            c.validate(extra, c.ROOT)
+
     @patch.object(c, 'verify_test_names')
     def test_frozen_scope_regressions_and_exact_old_authority(self, _names):
         # 惰性临时源码从不执行；旧保护复制真实固定bytes，不制造生产oracle。

@@ -42,7 +42,10 @@ fn main() {
     let python_only = std::env::var("E2E_PYTHON_ONLY").is_ok_and(|v| v == "1");
 
     let mut cases = Vec::new();
-    ryupy_e2e::discover_single_files(&root.join("tests/e2e"), &mut cases);
+    if let Err(err) = ryupy_e2e::discover_single_files(&root.join("tests/e2e"), &mut cases) {
+        eprintln!("单文件清单解析失败：{err}");
+        std::process::exit(2);
+    }
     match ryupy_e2e::discover_case_dirs(&root.join("tests/cases")) {
         Ok(mut dirs) => cases.append(&mut dirs),
         Err(err) => {

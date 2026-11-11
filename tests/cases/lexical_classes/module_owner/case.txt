@@ -3,5 +3,3 @@ entry = entry.py
 instance_module = owner
 pending = true
 expect_exit = 0
-expect_stdout = exact
-timeout = 30

@@ -16,7 +16,8 @@
 //! ## 单文件用例
 //!
 //! `tests/e2e/phaseN/*.py`：一个文件就是一个入口，无参数、期望成功退出、stdout 与
-//! CPython 逐字节一致。文件首部注释区出现 `# ryupy: pending` 表示功能未实现。
+//! CPython 逐字节一致。同名 `.case.txt` 可严格声明退出 1 和异常类型/非空消息子串，
+//! 不表示完整 traceback 兼容。文件首部注释区出现 `# ryupy: pending` 表示功能未实现。
 //!
 //! ## 目录用例
 //!
@@ -50,6 +51,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 mod results;
+mod single_expectation;
 pub use results::{CaseResult, Status, json_escape, write_jsonl, write_results};
 
 // ───────────────────────────── 用例模型 ─────────────────────────────
@@ -108,15 +110,28 @@ pub enum StdoutExpect {
 }
 
 impl CaseSpec {
-    /// 单文件用例：把 `.py` 文件包成默认期望的用例。
-    pub fn from_single_file(root: &Path, path: &Path) -> Self {
+    /// 单文件用例：默认成功，或读取严格同名异常旁车；解析失败必须向上传播。
+    pub fn from_single_file(root: &Path, path: &Path) -> Result<Self, String> {
+        let mut expected = Expectation::default();
+        let sidecar = path.with_extension("case.txt");
+        match std::fs::read_to_string(&sidecar) {
+            Ok(text) => {
+                expected.exception = Some(
+                    single_expectation::parse(&text)
+                        .map_err(|error| format!("{}: {error}", sidecar.display()))?,
+                );
+                expected.exit = ExitExpect::Code(1);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(format!("{}: {error}", sidecar.display())),
+        }
         let name = path
             .strip_prefix(root)
             .unwrap_or(path)
             .with_extension("")
             .display()
             .to_string();
-        Self {
+        Ok(Self {
             name,
             dir: path.parent().unwrap_or(Path::new(".")).to_path_buf(),
             entry: path.to_path_buf(),
@@ -126,9 +141,9 @@ impl CaseSpec {
             stdin: None,
             cwd: None,
             pending: file_is_pending(path),
-            expected: Expectation::default(),
+            expected,
             timeout_secs: 30,
-        }
+        })
     }
 
     /// 解析 `case.txt` 所在的目录。
@@ -354,25 +369,24 @@ pub fn file_is_pending(path: &Path) -> bool {
 // ───────────────────────────── 发现 ─────────────────────────────
 
 /// 收集单文件用例：`<root>/**/*.py`，跳过 `fixtures` 目录。
-pub fn discover_single_files(root: &Path, out: &mut Vec<CaseSpec>) {
-    collect_py(root, root, out);
+pub fn discover_single_files(root: &Path, out: &mut Vec<CaseSpec>) -> Result<(), String> {
+    collect_py(root, root, out)
 }
 
-fn collect_py(root: &Path, dir: &Path, out: &mut Vec<CaseSpec>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
+fn collect_py(root: &Path, dir: &Path, out: &mut Vec<CaseSpec>) -> Result<(), String> {
+    let entries = std::fs::read_dir(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    for entry in entries {
+        let path = entry.map_err(|e| e.to_string())?.path();
         if path.is_dir() {
             if path.file_name().is_some_and(|n| n == "fixtures") {
                 continue;
             }
-            collect_py(root, &path, out);
+            collect_py(root, &path, out)?;
         } else if path.extension().is_some_and(|e| e == "py") {
-            out.push(CaseSpec::from_single_file(root, &path));
+            out.push(CaseSpec::from_single_file(root, &path)?);
         }
     }
+    Ok(())
 }
 
 /// 收集目录用例：`<root>/**/case.txt` 所在目录。

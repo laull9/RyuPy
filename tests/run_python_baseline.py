@@ -3,7 +3,7 @@
 """在隔离工作目录执行 CPython 基线；Phase 4 需显式选择并安装扩展依赖。
 
 本脚本是「用例本身成立」的自检：
-- `tests/e2e/phaseN/**.py` 为单文件成功用例，期望退出码 0；
+- `tests/e2e/phaseN/**.py` 为单文件用例，默认退出 0；严格同名 .case.txt 可声明退出 1 及异常；
 - `tests/cases/**/case.txt` 为目录用例，清单里的参数、环境、标准输入与错误路径期望
   必须与 CPython 的实际行为一致（清单写错时这里就会失败）。
 
@@ -99,10 +99,43 @@ def execute(python, entry, spec):
         )
 
 
+def parse_single_expectation(path):
+    """严格旁车仅声明 exit=1 与具名、非空消息异常；不改变源码/pending。"""
+    sidecar = path.with_suffix(".case.txt")
+    if not sidecar.exists():
+        return None
+    values = {}
+    for raw in sidecar.read_bytes().decode("utf-8").split("\n"):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+        if not separator or key not in {"expect_exit", "expect_exception"} or key in values:
+            raise AssertionError(f"{sidecar}: 未知/重复/无效旁车字段")
+        values[key] = value
+    declaration = values.get("expect_exception", "")
+    kind, separator, message = declaration.partition(":")
+    kind = kind.strip()
+    if (values.get("expect_exit") != "1" or not separator or not message.strip()
+            or not kind.isascii() or not kind.isidentifier()):
+        raise AssertionError(f"{sidecar}: 必须精确 expect_exit=1 和异常类型: 非空消息")
+    return kind, message.strip()
+
+
+def check_single_result(result, expected):
+    if result.returncode != (1 if expected else 0):
+        raise AssertionError(f"exit={result.returncode}\n{result.stderr}")
+    if expected:
+        kind, message = expected
+        last = next((line for line in reversed(result.stderr.split("\n")) if line.strip()), "")
+        if not last.startswith(kind + ":") or message not in last:
+            raise AssertionError(f"异常行不符: {last!r}\n{result.stderr}")
+
+
 def check_single(python, path):
-    result = execute(python, path, {})
-    if result.returncode != 0:
-        raise AssertionError(result.stderr or f"exit={result.returncode}")
+    expected = parse_single_expectation(path)
+    check_single_result(execute(python, path, {}), expected)
 
 
 def check_case(python, path):

@@ -92,6 +92,8 @@ PROTECTED = {'runtime/RyuPy.Runtime.Tests/PyTraceStateArtifactTests.cs': '46e66e
     'tests/projects/protected.json': 'a45e4f70d7dc18323a6866dd448c9794d67c72aa963a9c88096fd4a80b800686'}
 MULTI_ROOT = 'tests/cases/lexical_classes/module_owner'
 FIXTURE_GLOB = 'tests/e2e/phase3/m3_11_lexical_class*.py'
+SIDECAR_GLOB = 'tests/e2e/phase3/m3_11_lexical_class*.case.txt'
+SIDECAR_STEMS = {'m3_11_lexical_class_body_error', 'm3_11_lexical_class_legacy_outer_cell_ni'}
 PRIVATE_PENDING = 'tests/e2e/phase3/m3_11_lexical_class_namespace.py'
 PENDING_REASON = 'private-name-mangling-not-supported'
 
@@ -128,6 +130,7 @@ def validate(data, root=ROOT, ready=True):
     if data['frozen']:
         require(data['old_protected'] == PROTECTED, '固定旧20/Markdown/ABI保护完整键或哈希改变')
         actual = {str(p.relative_to(root)) for p in root.glob(FIXTURE_GLOB)}
+        actual.update(str(p.relative_to(root)) for p in root.glob(SIDECAR_GLOB))
         actual.update(str(p.relative_to(root)) for p in (root / MULTI_ROOT).rglob('*') if not p.is_dir() or p.is_symlink())
         require(actual and set(data['sources']) == actual, 'class fixture完整源域有漏项/增项')
         require({row.get('kind') for row in data['cases']} == {'positive', 'cp_error', 'ni'}, '冻结必须齐备positive/CPerror/NI三类')
@@ -165,7 +168,9 @@ def validate(data, root=ROOT, ready=True):
         for name in case['include']:
             require(re.fullmatch(r'[A-Za-z_]\w*', name) and
                     case['modules'][name] == str(Path(case['source']).parent / (name + '.py')), 'include不在同根')
-        require(case['support'] == ([MULTI_ROOT + '/case.txt'] if case['source'] == MULTI_ROOT + '/entry.py' else []), 'support合同集合不符')
+        support = ([MULTI_ROOT + '/case.txt'] if case['source'] == MULTI_ROOT + '/entry.py' else
+                   [str(Path(case['source']).with_suffix('.case.txt'))] if Path(case['source']).stem in SIDECAR_STEMS else [])
+        require(case['support'] == support, 'support合同集合不符')
         require(all(p in data['sources'] for p in case['support']), 'case.txt未冻结')
         require(case['instance_modules'] == (['owner'] if case['source'] == MULTI_ROOT + '/entry.py' else []), '实例owner必须显式且只限真实跨模块case')
         used.update(case['modules'].values()); used.update(case['support'])

@@ -99,7 +99,6 @@ fn class_cell_explicit_protocol_and_annotation_scopes_stay_diagnostic() {
         "class C:\n    def f(self):\n        nonlocal __class__\n        return __class__\n",
         "class C:\n    __classcell__ = 1\n    def f(self):\n        return __class__\n",
         "class C:\n    def __classcell__(self):\n        return 1\n",
-        "def f():\n    class C:\n        def ident(self):\n            return __class__\n",
         "class C:\n    def f(self):\n        return self.__class__\n",
     ] {
         let (_, diagnostics) = lower(source, true);
@@ -108,6 +107,55 @@ fn class_cell_explicit_protocol_and_annotation_scopes_stay_diagnostic() {
             "{source}: {diagnostics:?}"
         );
     }
+    // 原函数局部类反例已进入有限factory域；保原源码和Instance模式，验证真实HIR来源。
+    let source = "def f():\n    class C:\n        def ident(self):\n            return __class__\n";
+    let (module, diagnostics) = lower(source, true);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    assert_eq!(module.classes.len(), 1);
+    let (class_id, class) = module.classes.iter().next().unwrap();
+    assert_eq!(class.name.as_str(), "C");
+    assert!(class.base.is_none() && class.has_class_cell);
+    let lexical = class.lexical.as_ref().expect("必须是词法类模板");
+    let owner = lexical.owner.expect("必须有真实定义owner");
+    assert_ne!(owner, module.main);
+    let function = &module.functions[owner];
+    assert_eq!(function.name.as_str(), "f");
+    assert_eq!(lexical.qualname, "f.<locals>.C");
+    let Some(LexicalBinding::Outer(Binding::Local(local))) = &lexical.target else {
+        panic!("局部类必须发布到定义函数的真实local");
+    };
+    assert_eq!(function.body.locals[*local].name.as_str(), "C");
+    assert!(function.body.root.iter().any(|stmt| {
+        matches!(function.body.stmts[*stmt].kind, StmtKind::ClassDef(id) if id == class_id)
+    }));
+    let [
+        ClassItem {
+            kind: ClassItemKind::Method { func, .. },
+            ..
+        },
+    ] = class.body.as_slice()
+    else {
+        panic!("原类体必须保留唯一ident方法");
+    };
+    let method = &module.functions[*func];
+    assert_eq!(method.name.as_str(), "ident");
+    assert_eq!(method.closure.class_cell, Some(class_id));
+    assert_eq!(
+        method
+            .closure
+            .free
+            .iter()
+            .map(|name| name.as_str())
+            .collect::<Vec<_>>(),
+        ["__class__"]
+    );
+    let [statement] = method.body.root.as_slice() else {
+        panic!("原方法必须保留唯一return");
+    };
+    let StmtKind::Return(Some(value)) = method.body.stmts[*statement].kind else {
+        panic!("原方法必须返回classcell读取");
+    };
+    assert!(matches!(method.body.exprs[value].kind, ExprKind::Free(0)));
 }
 
 /// 当前解析入口固定 Python 3.11，先准确记录版本诊断；随后验证真实恢复AST的第二道能力守卫。
