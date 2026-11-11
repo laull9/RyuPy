@@ -23,6 +23,33 @@ def native_ready(result, case):
     return all(result['stages'][name]['passed'] for name in ('identity', 'tools', 'sourceprep', case['id'] + '-cp'))
 
 
+def resume_bindings(state, expected, out, inputs):
+    """仅已证CLI构建失败、尚未建立绑定的状态可缺工具；已有绑定仍严格核。"""
+    wanted = {n: str(p) for n, p in expected.items()}
+    rows = state['result']['stages']
+    if state['tools'].get('cli') is None and state['tools'].get('runtime') is None:
+        require(rows['identity']['passed'] and rows['csharp-build']['passed']
+                and rows['tools']['status'] == 'failed' and not rows['tools']['passed']
+                and 'compiler-build' in state['labels'], '未绑定工具与构建阶段矛盾')
+        downstream = ['sourceprep'] + [n for n in rows if n.endswith(('-cp', '-jit', '-native'))]
+        require(all(rows[n]['status'] == 'not-run' and not rows[n]['passed'] for n in downstream)
+                and state['input_inventories'] == {}, '未绑定却已有输入/后继结果')
+        require(not any(p.exists() or p.is_symlink() for n, p in expected.items() if n in ('cli', 'runtime')),
+                '未绑定状态发现实际工具产物')
+        record = c.parse((out / 'compiler-build.json').read_bytes())
+        require(record['argv'] == ['cargo', 'build', '--locked', '-p', 'ryupy-cli', '--features', c.old.shared.FEATURE]
+                and record['cwd'] == str(ROOT) and type(record['exit']) is int and 0 < record['exit'] < 128
+                and record['failure'] is None and record['raw_streams_complete'] is True, '缺CLI原始非信号构建失败证据')
+        for stream in ('stdout', 'stderr'):
+            path = out / ('compiler-build.' + stream); row = record['streams'][stream]
+            require(path.stat().st_size == row['bytes'] and sha(path) == row['sha256'], 'CLI构建原双流身份改变')
+        wanted.update(cli=None, runtime=None)
+    else:
+        require(set(state['input_inventories']) == {str(inputs)}, '完整输入清单缺失')
+    require(state['tools'] == wanted, '工具路径替换')
+    return {n: Path(p) if p is not None else None for n, p in wanted.items()}
+
+
 class Runner(c.metadata.Runner):
     def __init__(self, resume=False):
         # 必须先核冻结，不能先创建目录、下载、构建或启动业务进程。
@@ -95,10 +122,9 @@ class Runner(c.metadata.Runner):
             require(not self.identity_failed and not self.isolation, '旧身份失效/隔离未恢复')
             expected = {'python': Path(os.environ['PYTHON']).resolve(), 'dotnet': Path(os.environ['DOTNET']).resolve(),
                         'cli': self.out / 'tools/ryupy', 'runtime': self.out / 'tools/RyuPy.Runtime.dll'}
-            require(state['tools'] == {n: str(p) for n, p in expected.items()}, '工具路径替换')
-            for n, p in expected.items(): setattr(self, n, p)
+            bound = resume_bindings(state, expected, self.out, self.inputs_dir)
+            for n, p in bound.items(): setattr(self, n, p)
             self.environment(); require(self.env == state['environment'], '环境改变')
-            require(set(self.input_inventories) == {str(self.inputs_dir)}, '完整输入清单缺失')
             c.load_manifest()
             c.check_context(os.environ, c.parse(Path(os.environ['GITHUB_EVENT_PATH']).read_bytes()))
             self.barrier('native-resume')
@@ -216,7 +242,10 @@ class Runner(c.metadata.Runner):
                 for case in self.data['cases']:
                     if case['native'] == 'none': continue
                     name = case['id'] + '-native'
-                    if not native_ready(self.result, case): self.block(name, '同源身份/工具/输入/CP不足'); continue
+                    if not native_ready(self.result, case):
+                        self.block(name, 'CLI构建失败且工具从未绑定；Native未执行' if self.cli is None
+                                   else '同源身份/工具/输入/CP不足；Native未执行')
+                        continue
                     self.phase(name, lambda case=case: self.native(case))
                     row = self.result['stages'][name]
                     if row.get('unsupported'): row.update(passed=False, status='unsupported')

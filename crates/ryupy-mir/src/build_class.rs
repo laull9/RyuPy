@@ -294,12 +294,13 @@ impl FunctionBuilder<'_> {
                 }
                 ClassItemKind::Annotation { name, value } => {
                     let value = self.freeze_expression(value);
+                    let getter = if self.lexical_namespace {
+                        RuntimeFn::LexicalNamespaceGet
+                    } else {
+                        RuntimeFn::ClassNamespaceGet
+                    };
                     let mapping = self.expr_builder().runtime_call(
-                        if self.lexical_namespace {
-                            RuntimeFn::LexicalNamespaceGet
-                        } else {
-                            RuntimeFn::ClassNamespaceGet
-                        },
+                        getter,
                         vec![
                             class_object.clone(),
                             Operand::Const(Constant::Str("__annotations__".into())),

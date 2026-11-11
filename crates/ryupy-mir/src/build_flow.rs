@@ -367,7 +367,7 @@ impl FunctionBuilder<'_> {
     }
 
     /// 把一个操作数从 `from` 表示转换到 `to` 表示（Dynamic 与静态槽位之间）。
-    fn coerce_mir(&mut self, value: Operand, from: &MirType, to: &MirType) -> Operand {
+    pub(crate) fn coerce_mir(&mut self, value: Operand, from: &MirType, to: &MirType) -> Operand {
         if from == to {
             return value;
         }

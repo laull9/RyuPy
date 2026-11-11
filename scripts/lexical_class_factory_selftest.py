@@ -179,6 +179,92 @@ class Tests(unittest.TestCase):
             bad = copy.deepcopy(result); bad['stages'][required]['passed'] = False
             self.assertFalse(gate.native_ready(bad, case))
 
+    def test_real_resume_preserves_unbound_build_failure_but_invalidates_replacement(self):
+        # 完整走load_state/Native编排与真实文件hash barrier；不启动任何子进程。
+        import types
+        for variant in ('unbound', 'proof-success', 'proof-truncated', 'passed-but-null', 'wrong-path', 'changed-byte', 'wrong-state',
+                        'bound-missing', 'bound-wrong-path', 'bound-changed-byte', 'bound-jit-red'):
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp); out = root / 'evidence'; out.mkdir()
+                python = root / 'python'; dotnet = root / 'dotnet'
+                python.write_bytes(b'fixed python'); dotnet.write_bytes(b'fixed dotnet')
+                event = root / 'event.json'; event.write_text('{}')
+                with patch.dict(os.environ, PYTHON=str(python), DOTNET=str(dotnet), GITHUB_EVENT_PATH=str(event)):
+                    runner = object.__new__(gate.Runner)
+                    runner.data = c.load_manifest(); runner.out = out; runner.inputs_dir = out / 'inputs'
+                    runner.python, runner.dotnet, runner.cli, runner.runtime = python, dotnet, None, None
+                    runner.before = {'head': 'same-head'}; runner.identity_failed = False
+                    runner.labels = {'compiler-build'}; runner.isolation = {}; runner.input_inventories = {}
+                    runner.frozen = {str(p): c.sha(p) for p in (python, dotnet)}
+                    runner.result = {'passed': False, 'retries': 0, 'default_project_delta': 0,
+                        'pending_only': [], 'case_counts': {}, 'stages': {n: {'passed': False, 'status': 'not-run'}
+                            for n in gate.stages(runner.data)}}
+                    for name in ('identity', 'csharp-build', 'csharp-tests'):
+                        runner.result['stages'][name] = {'passed': True, 'status': 'passed'}
+                    for name in ('rust-tests', 'tools'):
+                        runner.result['stages'][name] = {'passed': False, 'status': 'failed', 'error': 'original build failure'}
+                    record = {'argv': ['cargo', 'build', '--locked', '-p', 'ryupy-cli', '--features', c.old.shared.FEATURE],
+                              'cwd': str(gate.ROOT), 'exit': 101, 'failure': None, 'raw_streams_complete': True, 'streams': {}}
+                    for stream in ('stdout', 'stderr'):
+                        p = out / ('compiler-build.' + stream); p.write_bytes(b'' if stream == 'stdout' else b'E0624 E0503')
+                        record['streams'][stream] = {'bytes': p.stat().st_size, 'sha256': c.sha(p)}
+                    if variant == 'proof-success': record['exit'] = 0
+                    if variant == 'proof-truncated': record['raw_streams_complete'] = False
+                    c.save(out / 'compiler-build.json', record)
+                    runner.environment(); runner.persist()
+                    state = c.parse((out / 'state.json').read_bytes())
+                    if variant == 'passed-but-null': state['result']['stages']['tools'] = {'passed': True, 'status': 'passed'}
+                    if variant == 'wrong-state': state['result']['stages']['sourceprep'] = {'passed': True, 'status': 'passed'}
+                    if variant == 'wrong-path': state['tools']['python'] = str(root / 'replacement')
+                    if variant == 'changed-byte': python.write_bytes(b'changed')
+                    if variant.startswith('bound-'):
+                        target = out / 'tools'; target.mkdir(); runner.inputs_dir.mkdir()
+                        for name, file in [('cli', 'ryupy'), ('runtime', 'RyuPy.Runtime.dll')]:
+                            path = target / file; path.write_bytes(b'compiled')
+                            state['tools'][name] = str(path); state['frozen'][str(path)] = c.sha(path)
+                        state['input_inventories'] = {str(runner.inputs_dir): {'.': {'type': 'directory'}}}
+                        for name in ('tools', 'sourceprep'):
+                            state['result']['stages'][name] = {'passed': True, 'status': 'passed'}
+                        for case in runner.data['cases']:
+                            state['result']['stages'][case['id'] + '-cp'] = {'passed': True, 'status': 'passed'}
+                            state['result']['stages'][case['id'] + '-jit'] = {'passed': False, 'status': 'failed'}
+                        if variant == 'bound-missing': (target / 'ryupy').unlink()
+                        if variant == 'bound-wrong-path': state['tools']['cli'] = str(target / 'other-ryupy')
+                        if variant == 'bound-changed-byte': (target / 'ryupy').write_bytes(b'replaced CLI')
+                    c.save(out / 'state.json', state)
+                    runner.identity = types.MethodType(lambda self, label: self.before, runner)
+                    called = []
+                    runner.native = lambda case: called.append(case['id']) or {}
+                    with patch.object(c, 'check_context'):
+                        code = runner.execute('native')
+                    self.assertEqual(code, 1)
+                    if variant in ('unbound', 'bound-jit-red'):
+                        self.assertFalse(runner.identity_failed)
+                        self.assertTrue(runner.result['stages']['csharp-tests']['passed'])
+                        self.assertEqual(runner.result['stages']['rust-tests']['error'], 'original build failure')
+                        self.assertEqual(len(called), 2 if variant == 'bound-jit-red' else 0)
+                        if variant == 'unbound':
+                            self.assertEqual(runner.result['stages']['fresh-native']['status'], 'blocked')
+                            self.assertIn('未执行', runner.result['stages']['fresh-native']['reason'])
+                    else:
+                        self.assertTrue(runner.identity_failed)
+                        self.assertEqual(called, [])
+                        self.assertEqual(runner.result['stages']['csharp-tests']['status'], 'invalidated-identity')
+
+    def test_markdown_selector_still_rejects_unknown_job_and_lost_old_chain(self):
+        import markdown_preflight as preflight
+        path = c.ROOT / '.github/workflows/wcwidth-legacy-aot.yml'
+        original = path.read_text()
+        test = preflight.PureTests('test_workflow_job_filters_keep_original_chains')
+        # 原精确集合不改为子集；任意新增与删除旧链都必须继续失败。
+        for raw in (original + '\n  unknown-job:\n    needs: select-mode\n',
+                    original.replace('  baseline:\n', '  baseline-lost:\n', 1)):
+            old_read = Path.read_text
+            def read(p, *args, **kwargs):
+                return raw if p == path else old_read(p, *args, **kwargs)
+            with patch.object(Path, 'read_text', read), self.assertRaises(AssertionError):
+                test.test_workflow_job_filters_keep_original_chains()
+
     def test_real_workflow_timeouts_permissions_and_checkpoint_order(self):
         raw = (c.ROOT / '.github/workflows/lexical-class-factory.yml').read_text()
         self.assertIn('timeout-minutes: 65', raw)
