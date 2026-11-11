@@ -6,7 +6,7 @@ internal static class PyModuleBuiltins
     // 默认有限域中已知但未实现的builtin必须明确拒绝；不影响用户字典缺键的NameError。
     internal static bool IsUnsupported(string name) => name is
         "aiter" or "anext" or "breakpoint" or "compile" or "complex" or
-        "credits" or "copyright" or "divmod" or "eval" or "exec" or "filter" or "globals" or
+        "credits" or "copyright" or "divmod" or "eval" or "exec" or "filter" or
         "help" or "license" or "vars" or "BaseExceptionGroup" or "ExceptionGroup" or
         "BlockingIOError" or "BrokenPipeError" or "ChildProcessError" or "ConnectionAbortedError" or
         "ConnectionError" or "ConnectionRefusedError" or "ConnectionResetError" or "EncodingWarning" or
@@ -18,6 +18,7 @@ internal static class PyModuleBuiltins
     {
         var values = new PyDict();
         values.Set("__name__", "builtins");
+        values.Set("globals", PyInstanceGlobals.Function);
         values.Set("__import__", PyModuleImport.Function);
         values.Set("__build_class__", PyInstanceClassHook.Function);
         values.Set("int", PyOps.TypeObject("int"));

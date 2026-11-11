@@ -191,6 +191,7 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
         ty: MirType::Dynamic,
     });
     let mut body = Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: Vec::new(),
         locals: Default::default(),
         blocks: Default::default(),

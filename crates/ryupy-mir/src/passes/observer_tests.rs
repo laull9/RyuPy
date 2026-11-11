@@ -22,6 +22,7 @@ fn sample_function() -> Function {
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,

@@ -197,11 +197,16 @@ public partial class PyTraceStateArtifactTests
         "M:RyuPy.Runtime.PyLexicalClassFactory:Finish:150:[0;0;1](Object)->Object:"
     ];
 
+    internal static string[] DirectGlobalsPublicAdditions() =>
+    [
+        "M:RyuPy.Runtime.PyModuleInstances:CallDirectGlobals:150:[0;0;2](Object,Object)->Object:"
+    ];
+
     internal static bool PreservesBaselineAbi(string[] before, string[] after)
         => PreservesBaselineAbi(before, after, PyTraceStateV1ArtifactContract.PublicAdditions(),
             SourcePublicAdditions(), MetadataPublicAdditions(), BuiltinPublicAdditions(), XmlPublicAdditions());
 
-    // 参数化仅供反例检验允许表自身；真实 PE 门始终使用上面的固定七张表。
+    // 参数化仅供反例检验允许表自身；真实 PE 门始终使用上面的固定八张表。
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin)
         => PreservesBaselineAbi(before, after, v1, source, metadata, builtin, XmlPublicAdditions());
@@ -216,13 +221,18 @@ public partial class PyTraceStateArtifactTests
 
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml, string[] deployment, string[] factory)
+        => PreservesBaselineAbi(before, after, v1, source, metadata, builtin, xml, deployment, factory, DirectGlobalsPublicAdditions());
+
+    internal static bool PreservesBaselineAbi(string[] before, string[] after,
+        string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml, string[] deployment, string[] factory, string[] globals)
     {
-        if (before.Length != 1659 || after.Length != 1716
+        if (before.Length != 1659 || after.Length != 1717
             || v1.Length != 12 || source.Length != 4 || metadata.Length != 24
             || !builtin.SequenceEqual(BuiltinPublicAdditions()) || !xml.SequenceEqual(XmlPublicAdditions())
             || !deployment.SequenceEqual(DefaultSourcePublicAdditions())
-            || !factory.SequenceEqual(LexicalClassFactoryPublicAdditions())) return false;
-        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).ToArray();
+            || !factory.SequenceEqual(LexicalClassFactoryPublicAdditions())
+            || !globals.SequenceEqual(DirectGlobalsPublicAdditions())) return false;
+        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).ToArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         // 不用去重后的集合判等：任一组内或组间重复直接拒绝。
         if (expected.Any(signature => !seen.Add(signature))) return false;

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "module": "subject",
+      "files": []
+    },
+    {
+      "module": "indirect_subject",
+      "files": []
+    },
+    {
+      "module": "module_body",
+      "files": []
+    },
+    {
+      "module": "legacy_callback",
+      "files": []
+    }
+  ]
+}

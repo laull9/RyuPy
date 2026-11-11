@@ -5,10 +5,19 @@ use ryupy_syntax::{ParsedModule, ast};
 
 /// 资源来源由 driver 验证；这里只验证语法，并保留全部既有实例限制。
 pub fn validate_instance_aot(parsed: &ParsedModule) -> Vec<Diagnostic> {
+    validate_instance_aot_direct_globals(parsed, false)
+}
+
+/// 仅显式普通实例可选择直接globals；其它AOT语法守卫完全共用。
+pub fn validate_instance_aot_direct_globals(
+    parsed: &ParsedModule,
+    direct_globals: bool,
+) -> Vec<Diagnostic> {
     let mut errors = crate::instance_globals::validate(
         &parsed.module.body,
         parsed.file,
         ryupy_base::InstanceCapabilities {
+            direct_globals,
             ordinary_name_handlers: true,
             relative_from_import: true,
         },

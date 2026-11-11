@@ -45,6 +45,7 @@ fn valid(runtime: RuntimeFn, args: Vec<Operand>, ret: MirType, eval: bool, array
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals,
             blocks,

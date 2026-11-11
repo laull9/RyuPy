@@ -55,6 +55,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::InstanceImportGuard => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).import_guard,
         )),
+        RuntimeFn::InstanceDirectGlobals => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).direct_globals,
+        )),
         RuntimeFn::InstanceLoadName => ins.push(Instruction::call(
             crate::instance_refs::required(ctx.runtime_refs).load_name,
         )),

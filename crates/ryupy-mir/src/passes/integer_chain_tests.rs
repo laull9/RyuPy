@@ -38,6 +38,7 @@ fn sample(steps: usize) -> (Function, LocalId) {
         params: Vec::new(),
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,

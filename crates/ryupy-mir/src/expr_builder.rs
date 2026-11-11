@@ -28,6 +28,7 @@ use crate::mir::{
 };
 
 pub struct ExprBuilder<'a> {
+    pub direct_globals_contracts: &'a mut Vec<crate::DirectGlobalsContract>,
     pub trace_expressions: Option<&'a mut Vec<crate::trace_lowering::ExpressionOrigin>>,
     pub module_state: Option<MirLocalId>,
     pub hir: &'a Module,

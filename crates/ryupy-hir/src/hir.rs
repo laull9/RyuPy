@@ -211,6 +211,8 @@ pub enum TypeRef {
 
 #[derive(Debug, Default)]
 pub struct Body {
+    /// AST零参直接Name globals调用的源码事实；MIR仍须独立能力/context。
+    pub direct_globals_calls: Vec<(ExprId, ExprId)>,
     /// 可支持直接 locals() 的普通函数；源码可见槽按 CPython 编译访问顺序排列。
     pub function_locals: Option<Vec<LocalId>>,
     pub locals: Arena<Local>,

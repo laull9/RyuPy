@@ -360,4 +360,6 @@ pub enum RuntimeFn {
     ModuleMetadata,
     /// `PyModules.ImportAttr(string, string) -> object`：`from m import name` 的取值。
     ImportAttr,
+    /// 调用者显式context与实际零参callee；只在direct_globals能力下使用。
+    InstanceDirectGlobals,
 }

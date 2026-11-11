@@ -228,3 +228,11 @@ mod lexical_class_publish;
 
 #[cfg(test)]
 mod lexical_class_tests;
+
+#[cfg(test)]
+mod direct_globals_tests;
+
+mod direct_globals_contract;
+pub use direct_globals_contract::DirectGlobalsContract;
+#[cfg(test)]
+mod direct_globals_contract_tests;

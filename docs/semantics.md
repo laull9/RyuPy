@@ -1430,3 +1430,11 @@ pilot普通JIT可准备固定catalog与literal提示候选；提示不证明调�
 自动metadata为入口/-I直接根的完整静态环境；不可用只在实际查询Require时报NI，不返回
 假空。未规划entry-point目标可明确域外，但不覆盖已有身份，load仍实时使用重绑callee。
 源码文件使用最终部署真实路径，普通JIT未承诺任意搬迁；ExplicitOnly/AOT/fixed不自动开启。
+
+### 显式 Instance 直接 globals（ADR-0158，未验收候选）
+
+新增独立 opt-in `--instance-direct-globals`，仅普通显式Instance中的零参直接
+Name调用使用真实callee/context冷分派，返回module.__dict__/function.__globals__
+同一真字典。裸builtin值、非零参、推导式保持编译边界，间接无context标记为NI。
+Default builtins新增稳定普通callable；删除该键为NameError，重绑遵守真实值。
+默认项目、Legacy热ABI、AOT类域未扩大，源码实现不等于JIT/Native验收。

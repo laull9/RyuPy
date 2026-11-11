@@ -117,6 +117,7 @@ fn sample() -> (Program, FnId, [BlockId; 6], [LocalId; 9]) {
         params: vec![xs, seed],
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals,
             blocks,

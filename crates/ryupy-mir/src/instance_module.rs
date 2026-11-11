@@ -38,3 +38,48 @@ impl ExprBuilder<'_> {
         ))
     }
 }
+
+impl ExprBuilder<'_> {
+    pub(crate) fn direct_globals_call(
+        &mut self,
+        call: ryupy_hir::ExprId,
+        callee: ryupy_hir::ExprId,
+    ) -> Option<Operand> {
+        if !self.hir.info.instance_capabilities.direct_globals
+            || !self.hir.functions[self.current_hir_fn]
+                .body
+                .direct_globals_calls
+                .contains(&(call, callee))
+        {
+            return None;
+        }
+        let state = self.module_state?;
+        // 求值实际callee一次；参数/局部遮蔽同样走真实动态调用，不按名称直取dict。
+        let value = self.build_expr(callee);
+        let ty = self.ty_of(callee);
+        let callable = self.coerce(value, &ty, &MirType::Dynamic);
+        let snapshot = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(crate::Statement::Assign {
+            dest: snapshot,
+            value: crate::Rvalue::Use(callable.clone()),
+        });
+        let result = self.alloc_temp(MirType::Dynamic);
+        self.push_stmt(crate::Statement::Assign {
+            dest: result,
+            value: crate::Rvalue::Call {
+                callee: crate::Callee::Runtime(RuntimeFn::InstanceDirectGlobals),
+                args: vec![Operand::Local(state), Operand::Local(snapshot)],
+            },
+        });
+        self.direct_globals_contracts
+            .push(crate::DirectGlobalsContract {
+                source_call: call.into_raw().into_u32(),
+                source_callee: callee.into_raw().into_u32(),
+                context: state,
+                snapshot,
+                result,
+                callee_value: callable,
+            });
+        Some(Operand::Local(result))
+    }
+}

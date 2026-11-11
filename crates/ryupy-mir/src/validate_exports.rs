@@ -6,6 +6,7 @@ pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String
     let mut errors = Vec::new();
     crate::source_provenance::validate_linked(program, &mut errors);
     crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
+    crate::direct_globals_contract::validate_functions(&program.functions, &mut errors);
     let anchors: rustc_hash::FxHashSet<_> = program
         .functions
         .iter()
@@ -27,7 +28,8 @@ pub fn validate_linked_exports(program: &LinkedProgram) -> Result<(), Vec<String
         {
             errors.push(format!("模块 `{}` 的计划能力与实际入口不一致", module.name));
         }
-        if (module.instance_capabilities.relative_from_import
+        if (module.instance_capabilities.direct_globals
+            || module.instance_capabilities.relative_from_import
             || module.instance_capabilities.ordinary_name_handlers)
             && module.execution != crate::ModuleExecutionKind::InstanceGlobals
         {

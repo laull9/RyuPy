@@ -22,6 +22,7 @@ fn catches_unreachable_terminator() {
         params: Vec::new(),
         ret: MirType::Unit,
         body: crate::mir::Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,

@@ -85,6 +85,7 @@ pub(super) fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
             params: vec![a, b],
             ret: MirType::Dynamic,
             body: Body {
+                direct_globals_contracts: Vec::new(),
                 source_handler_contracts: Vec::new(),
                 locals,
                 blocks,

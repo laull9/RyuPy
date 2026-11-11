@@ -34,6 +34,7 @@ fn validate_stage(
     let mut errors = Vec::new();
     crate::source_provenance::validate_program(program, &mut errors);
     crate::source_handler_contract::validate_functions(&program.functions, &mut errors);
+    crate::direct_globals_contract::validate_functions(&program.functions, &mut errors);
     crate::validate_instance_module::validate(program, &mut errors);
     crate::validate_class_cells::validate(program, &mut errors);
     crate::validate_lexical_super::validate(program, &mut errors);

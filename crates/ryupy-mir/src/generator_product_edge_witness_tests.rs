@@ -92,6 +92,7 @@ fn real_redirect_still_rejects_and_is_not_described_as_erased_bridge() {
 #[test]
 fn witness_bounds_chains_utf8_and_redacts_literal_contents() {
     let mut body = Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: vec![],
         locals: Arena::default(),
         blocks: Arena::default(),

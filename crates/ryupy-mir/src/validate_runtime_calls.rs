@@ -25,6 +25,7 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
             | RuntimeFn::InstanceRelativeImport
             | RuntimeFn::InstanceRelativeImportAttr
             | RuntimeFn::InstanceImportGuard
+            | RuntimeFn::InstanceDirectGlobals
             | RuntimeFn::InstanceLoadName
             | RuntimeFn::InstanceStoreName
             | RuntimeFn::InstanceDeleteName
@@ -106,6 +107,7 @@ pub(super) fn validate_call(
             RuntimeFn::InstanceClassGuard | RuntimeFn::InstanceClassCellGuard => {
                 Some(&[MirType::Dynamic])
             }
+            RuntimeFn::InstanceDirectGlobals => Some(&[MirType::Dynamic, MirType::Dynamic]),
             RuntimeFn::InstanceLoadName => Some(&[MirType::Dynamic, MirType::Str]),
             RuntimeFn::LoadDefaultBuiltin => Some(&[MirType::Str]),
             RuntimeFn::InstanceDeleteName
@@ -336,6 +338,7 @@ pub(super) fn validate_destination(
             RuntimeFn::TracePushWithOrigin => Some(MirType::I64),
             RuntimeFn::InstanceRelativeImport
             | RuntimeFn::InstanceRelativeImportAttr
+            | RuntimeFn::InstanceDirectGlobals
             | RuntimeFn::InstanceLoadName
             | RuntimeFn::LoadDeletedModuleName
             | RuntimeFn::LoadDefaultBuiltin
@@ -427,6 +430,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::LexicalNamespaceContains
                     | RuntimeFn::LexicalNamespaceGet
                     | RuntimeFn::InstanceMakeClass
+                    | RuntimeFn::InstanceDirectGlobals
                     | RuntimeFn::InstanceLoadName
                     | RuntimeFn::LoadDeletedModuleName
                     | RuntimeFn::LoadDefaultBuiltin

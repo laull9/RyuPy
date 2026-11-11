@@ -4,6 +4,7 @@ use super::*;
 #[test]
 fn exception_retry_has_single_physical_region_and_external_returns() {
     let mut body = Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: Vec::new(),
         locals: Arena::default(),
         blocks: Arena::default(),
@@ -133,6 +134,7 @@ fn statement_yield_discards_input_via_local_not_cil_stack() {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
@@ -221,6 +223,7 @@ fn delegated_resume_preserves_input_for_delegate_step() {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals,
             blocks,

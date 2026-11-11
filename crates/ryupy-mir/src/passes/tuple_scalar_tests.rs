@@ -64,6 +64,7 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
             params: vec![left, right],
             ret: MirType::Dynamic,
             body: Body {
+                direct_globals_contracts: Vec::new(),
                 source_handler_contracts: Vec::new(),
                 locals,
                 blocks,

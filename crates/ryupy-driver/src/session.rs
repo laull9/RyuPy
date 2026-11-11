@@ -20,6 +20,8 @@ pub struct Session {
     pub trace_entry: TraceEntry,
     /// 已在实际依赖图中的源码模块显式启用实例全局，不隐式加入依赖。
     pub instance_modules: Vec<String>,
+    /// 仅与显式instance_modules共同启用；不改变自动选择。
+    pub instance_direct_globals: bool,
     /// 编译会话的隔离候选策略；无公开CLI开关，也不改变运行时模式数。
     pub module_environment_policy: ModuleEnvironmentPolicy,
     /// 当前实际源码图的编译计划；compiled区分已完成编译与首错后未执行者。

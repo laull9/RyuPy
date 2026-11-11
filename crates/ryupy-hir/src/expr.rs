@@ -208,7 +208,9 @@ impl<'a> ExprLowerCtx<'a> {
             }
         };
 
-        self.body.exprs.alloc(Expr { kind, range })
+        let id = self.body.exprs.alloc(Expr { kind, range });
+        crate::direct_globals::record(self.body, expr, id);
+        id
     }
 
     /// 容器字面量的元素列表，保留 `*x` 星号标记。

@@ -59,6 +59,9 @@ pub(crate) fn plan_validated(
     if session.instance_modules.contains(&source.name) && admitted {
         return ModuleEnvironmentPlan {
             capabilities: ryupy_base::InstanceCapabilities {
+                direct_globals: session.instance_direct_globals
+                    && source.kind == SourceKind::ModuleFile
+                    && !session.fixed_binding_build,
                 ordinary_name_handlers: source.kind == SourceKind::ModuleFile
                     && admitted
                     && !session.fixed_binding_build,
@@ -73,6 +76,7 @@ pub(crate) fn plan_validated(
     }
     // 令牌只证明来源；角色与完整Instance AST能力分别准入，不catch后重编或授新协议。
     let catalog_capabilities = ryupy_base::InstanceCapabilities {
+        direct_globals: false,
         ordinary_name_handlers: true,
         relative_from_import: true,
     };
@@ -141,6 +145,8 @@ pub struct ModuleEnvironmentDecision {
     pub compiled: bool,
     pub relative_from_import: bool,
     pub ordinary_name_handlers: bool,
+    #[serde(skip_serializing_if = "direct_globals_disabled")]
+    pub direct_globals: bool,
 }
 pub(crate) fn record(
     session: &mut Session,
@@ -163,6 +169,7 @@ pub(crate) fn record(
             compiled: false,
             relative_from_import: plan.capabilities.relative_from_import,
             ordinary_name_handlers: plan.capabilities.ordinary_name_handlers,
+            direct_globals: plan.capabilities.direct_globals,
         })
         .collect();
 }
@@ -175,4 +182,9 @@ impl Session {
             "modules": self.module_environment_report,
         }))
     }
+}
+
+// 默认报告保持原字段集合，只有显式新增能力才发布新键。
+fn direct_globals_disabled(value: &bool) -> bool {
+    !*value
 }

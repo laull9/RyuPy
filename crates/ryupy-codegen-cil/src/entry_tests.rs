@@ -20,6 +20,7 @@ fn serialized_entry_initializes_exit_code() {
         params: Vec::new(),
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,

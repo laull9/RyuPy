@@ -162,7 +162,10 @@ pub(crate) fn validate_aot(
         }
         if sess.instance_modules.contains(&source.name) {
             sess.diagnostics
-                .extend(ryupy_hir::validate_instance_aot(&source.parsed));
+                .extend(ryupy_hir::validate_instance_aot_direct_globals(
+                    &source.parsed,
+                    sess.instance_direct_globals,
+                ));
             validated.selected.push(index);
         }
     }

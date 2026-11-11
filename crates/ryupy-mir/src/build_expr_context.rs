@@ -5,6 +5,7 @@ impl FunctionBuilder<'_> {
     // ───────────────────── 帧记录 / 行号 / 统一返回 ─────────────────────
     pub(crate) fn expr_builder(&mut self) -> ExprBuilder<'_> {
         ExprBuilder {
+            direct_globals_contracts: &mut self.direct_globals_contracts,
             trace_expressions: self.trace_expressions.as_mut(),
             module_state: self.module_state,
             hir: self.hir,

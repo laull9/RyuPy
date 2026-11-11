@@ -93,6 +93,7 @@ pub(crate) fn link_with_origins(
                 params: func.params.clone(),
                 ret: remap_type(&func.ret, &class_map),
                 body: Body {
+                    direct_globals_contracts: Vec::new(),
                     source_handler_contracts: Vec::new(),
                     locals: Arena::default(),
                     blocks: Arena::default(),
@@ -180,6 +181,16 @@ pub(crate) fn link_with_origins(
                 });
             }
             let body = Body {
+                direct_globals_contracts: func
+                    .body
+                    .direct_globals_contracts
+                    .iter()
+                    .map(|fact| {
+                        let mut fact = fact.clone();
+                        fact.callee_value = remap_operand(&fact.callee_value, &global_map);
+                        fact
+                    })
+                    .collect(),
                 source_handler_contracts: func.body.source_handler_contracts.clone(),
                 locals,
                 blocks: remap_blocks(&func.body.blocks, &fn_map, &class_map, &global_map),

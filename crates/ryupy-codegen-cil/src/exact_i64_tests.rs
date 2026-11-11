@@ -50,6 +50,7 @@ pub(super) fn single_block(
         terminator: Terminator::Return(ret),
     });
     Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: Vec::new(),
         locals,
         blocks,
@@ -101,6 +102,7 @@ pub(super) fn program() -> LinkedProgram {
     functions.alloc(function(
         "guarded_exact",
         Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals,
             blocks,

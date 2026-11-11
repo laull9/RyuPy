@@ -82,6 +82,7 @@ fn vector128_methods_encode_generic_value_locals_and_method_specs() {
             program.functions.alloc(function(
                 &format!("vector_{name}_{lane}"),
                 Body {
+                    direct_globals_contracts: Vec::new(),
                     source_handler_contracts: Vec::new(),
                     locals,
                     blocks,

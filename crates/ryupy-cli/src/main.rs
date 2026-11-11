@@ -20,6 +20,9 @@ struct Cli {
     /// 显式启用已发现源码模块的真实实例全局；不会自动包含模块（可重复）
     #[arg(long = "instance-module", global = true)]
     instance_modules: Vec<String>,
+    /// 显式普通Instance的直接globals冷路；不支持推导式或间接builtin调用
+    #[arg(long, global = true)]
+    instance_direct_globals: bool,
     /// 实验：将受守卫循环累加展开成直接 CIL（不保证更快；默认使用 holder）
     #[arg(long, global = true)]
     experimental_direct_accumulator: bool,
@@ -118,6 +121,7 @@ fn main() -> ExitCode {
         distribution_metadata: cli.distribution_metadata,
         trace_product_v1: cli.trace_product_v1,
         instance_modules: cli.instance_modules,
+        instance_direct_globals: cli.instance_direct_globals,
         experimental_direct_accumulator: cli.experimental_direct_accumulator,
         experimental_leaf_inline: cli.experimental_leaf_inline,
         diagnostic_scalar_slp: cli.diagnostic_scalar_slp,

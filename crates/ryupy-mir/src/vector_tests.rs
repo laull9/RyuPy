@@ -71,6 +71,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 4]) {
         params: vec![],
         ret: MirType::F64,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals,
             blocks,

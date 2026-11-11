@@ -28,6 +28,7 @@ fn body() -> Body {
         });
     }
     Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: vec![],
         locals: Arena::default(),
         blocks,
@@ -46,6 +47,7 @@ fn copy(source: &Body) -> Body {
     assert!(source.locals.is_empty());
     assert!(source.source_handler_contracts.is_empty());
     Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: vec![],
         locals: Arena::default(),
         blocks,

@@ -60,6 +60,7 @@ pub(super) fn sample() -> (Program, [BlockId; 3], [LocalId; 3]) {
         params: vec![subject],
         ret: MirType::I64,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals,
             blocks,

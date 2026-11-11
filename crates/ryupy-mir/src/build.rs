@@ -218,6 +218,7 @@ pub(crate) fn build_program_mode(
             params: Vec::new(),
             ret: ret_ty,
             body: crate::mir::Body {
+                direct_globals_contracts: Vec::new(),
                 source_handler_contracts: Vec::new(),
                 locals: Arena::default(),
                 blocks: Arena::default(),
@@ -432,6 +433,7 @@ pub(crate) fn build_program_mode(
             );
         }
         functions[mir_fn_id].body = crate::mir::Body {
+            direct_globals_contracts: std::mem::take(&mut builder.direct_globals_contracts),
             source_handler_contracts: std::mem::take(&mut builder.source_handler_contracts),
             locals: builder.locals,
             blocks: builder.blocks,
@@ -536,6 +538,7 @@ pub(crate) struct FunctionBuilder<'a> {
     pub(crate) diagnostics: Vec<Diagnostic>,
     /// 已构建的异常区域。
     pub(crate) regions: Vec<Region>,
+    pub(crate) direct_globals_contracts: Vec<crate::DirectGlobalsContract>,
     pub(crate) source_handler_contracts: Vec<crate::SourceHandlerContract>,
     /// 当前嵌套的受保护区域起点（块下标），最内层在末尾。
     pub(crate) protected_stack: Vec<usize>,

@@ -39,6 +39,7 @@ fn empty(name: &str) -> Function {
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,

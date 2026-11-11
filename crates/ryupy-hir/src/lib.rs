@@ -135,7 +135,7 @@ mod instance_aot_lambda;
 #[cfg(test)]
 mod instance_aot_tests;
 mod instance_globals;
-pub use instance_aot::validate_instance_aot;
+pub use instance_aot::{validate_instance_aot, validate_instance_aot_direct_globals};
 mod ordinary_dynamic;
 pub use ordinary_dynamic::{
     OrdinaryDynamicEligibility, has_defined_functions, instance_ast_supported,
@@ -157,3 +157,8 @@ mod lexical_class_tests;
 
 #[cfg(test)]
 mod lexical_class_boundary_tests;
+
+#[cfg(test)]
+mod direct_globals_tests;
+
+mod direct_globals;

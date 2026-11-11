@@ -55,6 +55,7 @@ impl<'a> FunctionBuilder<'a> {
             loop_stack: Vec::new(),
             diagnostics: Vec::new(),
             regions: Vec::new(),
+            direct_globals_contracts: Vec::new(),
             source_handler_contracts: Vec::new(),
             protected_stack: Vec::new(),
             finally_stack: Vec::new(),

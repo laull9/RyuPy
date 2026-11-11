@@ -13,6 +13,7 @@ pub(crate) fn validate(
         requirements: Vec::new(),
         scope: Default::default(),
         generator: false,
+        direct_globals: capabilities.direct_globals,
     };
     for statement in body {
         check.visit_stmt(statement);
@@ -51,6 +52,7 @@ struct Check {
     requirements: Vec<(TextRange, Requirement)>,
     scope: crate::module_deletions::DeleteScope,
     generator: bool,
+    direct_globals: bool,
 }
 
 impl Check {
@@ -114,7 +116,9 @@ impl<'a> Visitor<'a> for Check {
                 .push((statement.range(), Requirement::RelativeFrom)),
             ast::Stmt::Global(global) => {
                 for name in &global.names {
-                    self.name(name.as_str(), name.range());
+                    if name.as_str() != "globals" || !self.direct_globals {
+                        self.name(name.as_str(), name.range());
+                    }
                 }
             }
             ast::Stmt::Nonlocal(nonlocal) => {
@@ -144,6 +148,21 @@ impl<'a> Visitor<'a> for Check {
 
     fn visit_expr(&mut self, expression: &'a ast::Expr) {
         match expression {
+            ast::Expr::Call(call)
+                if self.direct_globals
+                    && !self.generator
+                    && !matches!(self.scope, crate::module_deletions::DeleteScope::Class)
+                    && call.arguments.args.is_empty()
+                    && call.arguments.keywords.is_empty()
+                    && matches!(call.func.as_ref(), ast::Expr::Name(name) if name.id.as_str() == "globals") =>
+            {
+                // 只跳过此处callee读取的环境NI；其实际LEGB值仍由HIR正常降低。
+                return;
+            }
+            ast::Expr::Name(name)
+                if self.direct_globals
+                    && name.id.as_str() == "globals"
+                    && !matches!(name.ctx, ast::ExprContext::Load) => {}
             // CP3.12急切推导式沿用当前frame builtins；现synthetic函数协议尚未接好。
             ast::Expr::ListComp(_) | ast::Expr::SetComp(_) | ast::Expr::DictComp(_) => {
                 self.reject(expression.range(), "急切推导式的frame环境继承")

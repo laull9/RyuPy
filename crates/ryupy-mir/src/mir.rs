@@ -197,6 +197,7 @@ pub struct Function {
 #[derive(Debug)]
 pub struct Body {
     /// 源码实例异常链要求；独立于EH形状，pure bare也不能遗失。
+    pub direct_globals_contracts: Vec<crate::DirectGlobalsContract>,
     pub source_handler_contracts: Vec<crate::SourceHandlerContract>,
     pub locals: Arena<LocalDecl>,
     pub blocks: Arena<BasicBlock>,

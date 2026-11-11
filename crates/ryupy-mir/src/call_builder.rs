@@ -47,6 +47,11 @@ impl ExprBuilder<'_> {
         call_expr: ExprId,
     ) -> Operand {
         let call_ty = self.ty_of(call_expr);
+        if args.is_empty()
+            && let Some(result) = self.direct_globals_call(call_expr, callee)
+        {
+            return self.coerce(result, &Ty::Dynamic, &ty_to_mir(&call_ty));
+        }
         let callee_kind = self.hir.functions[self.current_hir_fn].body.exprs[callee]
             .kind
             .clone();

@@ -42,6 +42,7 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
     });
     // 先创建空Body再分配其真实入口；不新增arena依赖。
     let mut body = Body {
+        direct_globals_contracts: Vec::new(),
         source_handler_contracts: Vec::new(),
         locals: Default::default(),
         blocks: Default::default(),

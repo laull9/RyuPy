@@ -17,7 +17,8 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                 function.name
             ));
         }
-        if (function.instance_capabilities.relative_from_import
+        if (function.instance_capabilities.direct_globals
+            || function.instance_capabilities.relative_from_import
             || function.instance_capabilities.ordinary_name_handlers)
             && function.module_state.is_none()
         {
@@ -104,6 +105,16 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                     if matches!(
                         value,
                         Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::InstanceDirectGlobals),
+                            ..
+                        }
+                    ) && !function.instance_capabilities.direct_globals
+                    {
+                        errors.push(format!("函数 `{}` 缺少直接globals能力", function.name));
+                    }
+                    if matches!(
+                        value,
+                        Rvalue::Call {
                             callee: Callee::Runtime(
                                 RuntimeFn::InstanceRelativeImport
                                     | RuntimeFn::InstanceRelativeImportAttr
@@ -125,6 +136,7 @@ pub(crate) fn validate(program: &Program, errors: &mut Vec<String>) {
                                 | RuntimeFn::InstanceRelativeImport
                                 | RuntimeFn::InstanceRelativeImportAttr
                                 | RuntimeFn::InstanceImportGuard
+                                | RuntimeFn::InstanceDirectGlobals
                                 | RuntimeFn::InstanceLoadName
                                 | RuntimeFn::InstanceStoreName
                                 | RuntimeFn::InstanceDeleteName
