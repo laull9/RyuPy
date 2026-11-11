@@ -167,6 +167,10 @@ impl<'a> Visitor<'a> for Check {
             ast::Expr::ListComp(_) | ast::Expr::SetComp(_) | ast::Expr::DictComp(_) => {
                 self.reject(expression.range(), "急切推导式的frame环境继承")
             }
+            // A1明确不迁移惰性推导式；仅新能力域拒绝，保留旧实例/Legacy资格。
+            ast::Expr::Generator(_) if self.direct_globals => {
+                self.reject(expression.range(), "直接globals能力域的生成器表达式")
+            }
             ast::Expr::Name(name) if name.id.as_str() == "__debug__" => {
                 // 这是编译期语言常量，不能伪装成可由实例字典遮蔽的普通名字。
                 self.reject(name.range, "语言常量 __debug__");

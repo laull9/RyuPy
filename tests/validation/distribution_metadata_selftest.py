@@ -50,6 +50,29 @@ class Tests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 gate.check_context(env, dict(event, head_commit=dict(event['head_commit'], message=wrong)))
 
+    def test_a1_title_exact_and_context_guards_preserved(self):
+        env = {'RUNNER_ENVIRONMENT': 'github-hosted', 'RYUPY_VALIDATION_MODE': 'distribution-metadata',
+               'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': gate.old.shared.REF,
+               'GITHUB_RUN_ATTEMPT': '1', 'GITHUB_SHA': 'a' * 40}
+        title = 'validation: instance-direct-globals-001'
+        event = {'ref': env['GITHUB_REF'], 'after': env['GITHUB_SHA'],
+                 'head_commit': {'id': env['GITHUB_SHA'], 'message': title}}
+        original = copy.deepcopy(event)
+        gate.check_context(env, event)
+        self.assertEqual(event, original)
+        for wrong in (title.upper(), title + '\n', ' ' + title, title + 'x',
+                      'validation: instance-direct-globals-002'):
+            with self.assertRaises(ValueError):
+                gate.check_context(env, dict(event, head_commit=dict(event['head_commit'], message=wrong)))
+        for key, value in [('RUNNER_ENVIRONMENT', 'self-hosted'), ('RYUPY_VALIDATION_MODE', 'other'),
+                           ('GITHUB_EVENT_NAME', 'workflow_dispatch'), ('GITHUB_RUN_ATTEMPT', '2'),
+                           ('GITHUB_ACTIONS', 'false'), ('GITHUB_REF', 'refs/heads/main'),
+                           ('GITHUB_SHA', 'b' * 40), ('RUSTFLAGS', '-A warnings')]:
+            with self.assertRaises(ValueError): gate.check_context(dict(env, **{key: value}), event)
+        for changed in (dict(event, ref='refs/heads/main'), dict(event, after='b' * 40),
+                        dict(event, head_commit=dict(event['head_commit'], id='b' * 40))):
+            with self.assertRaises(ValueError): gate.check_context(env, changed)
+
     def test_context_is_exact_and_does_not_mutate_original(self):
         env = {'RUNNER_ENVIRONMENT': 'github-hosted', 'RYUPY_VALIDATION_MODE': 'distribution-metadata',
                'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': gate.old.shared.REF,

@@ -37,3 +37,7 @@ DeadValues原样保留被helper使用的快照及有副作用Call；SimplifyCfg�
 语句。未关闭默认优化，未改全部passes；默认pipeline保持性与mutation测试已在WIP003的Rust002窗口实跑。
 该窗HIR 2、MIR 9、CIL 3通过，pilot CLI类型检查及相关Clippy通过；
 两次业务PE发射只验证编译布局，旧Runtime仅复制未执行，不能外推新运行时或Native通过。
+
+### 首轮hosted准入遗漏更正
+
+首轮generator expression实际被编译接受，与A1全部推导式NI合同不符；未执行该DLL，不能据此推断运行语义错误。新增能力域显式拒绝Expr::Generator，旧未启用能力的Instance与Legacy资格不变。原13产品负例不改；新限定Rust回归与后续真实产品需分别记录。

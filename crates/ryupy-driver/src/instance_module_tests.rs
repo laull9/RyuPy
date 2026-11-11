@@ -135,3 +135,47 @@ fn instance_dump_ast_preserves_parse_error_stage_boundary() {
     assert!(dump(&mut session, &tree.0.join("main.py"), Stage::Ast).is_err());
     assert!(session.render_diagnostics(false).contains("单模块图"));
 }
+
+#[test]
+fn direct_globals_original_thirteen_fixtures_reject_in_real_session() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/validation/instance_globals/negative");
+    let cases: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("CASES.json")).unwrap()).unwrap();
+    let cases = cases["cases"].as_array().unwrap();
+    assert_eq!(cases.len(), 13);
+    for case in cases {
+        let id = case["id"].as_str().unwrap();
+        let selected: Vec<String> = case["selected"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(case["policy"], "OrdinaryDynamicPilot");
+        assert_eq!(case["aot"], false);
+        let input = root.join(case["input"].as_str().unwrap());
+        let source = match id {
+            "entry" => input.clone(),
+            "package" => input.parent().unwrap().join("pkg/__init__.py"),
+            _ => input.parent().unwrap().join("subject.py"),
+        };
+        assert_eq!(
+            crate::manifest_files::hash_bytes(&std::fs::read(source).unwrap()),
+            case["source_sha256"].as_str().unwrap()
+        );
+        let mut session = Session {
+            module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
+            instance_modules: selected,
+            instance_direct_globals: case["instance_direct_globals"].as_bool().unwrap(),
+            ..Default::default()
+        };
+        let error = match compile_linked(&mut session, &input, &[], false, None) {
+            Ok(_) => panic!("{id}: unexpectedly compiled"),
+            Err(error) => error,
+        };
+        assert!(error.is::<HasErrors>(), "{id}: {error:#}");
+        assert!(session.render_diagnostics(false).contains("E0100"), "{id}");
+        println!("A1_REJECT {id}: HasErrors/E0100");
+    }
+}
