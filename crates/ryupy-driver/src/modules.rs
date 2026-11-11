@@ -243,9 +243,12 @@ fn module_package(name: &str, path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// dump 不遍历依赖源码，但异常 / 原生基类静态身份仍遵循入口目录的源码优先规则。
-pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
-    let root = entry.parent().unwrap_or(Path::new(".")).to_path_buf();
+/// build/dump 共用候选与来源门；原生点分模块的任一源码父路径均取消证明。
+/// 只认证已有原生注册项，不因拼接导入文字扩大模块解析能力。
+fn certified_native_exception_modules(
+    roots: &[PathBuf],
+    sources: &[SourceModule],
+) -> Vec<&'static str> {
     [
         "json",
         "zipfile",
@@ -257,10 +260,38 @@ pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
         "enum",
         "io",
         "typing",
+        "xml.etree.ElementTree",
     ]
     .into_iter()
-    .filter(|name| resolve_in(std::slice::from_ref(&root), name).is_none())
+    .filter(|name| {
+        package_prefixes(name)
+            .iter()
+            .map(String::as_str)
+            .chain(std::iter::once(*name))
+            .all(|part| {
+                !sources.iter().any(|source| source.name == part)
+                    && resolve_in(roots, part).is_none()
+            })
+    })
     .collect()
+}
+
+/// build 同时检查实际模块图及入口/显式搜索根，父包遮蔽不依赖加载顺序。
+pub(crate) fn native_exception_modules_for_build(
+    entry: &Path,
+    search_paths: &[PathBuf],
+    sources: &[SourceModule],
+) -> Vec<&'static str> {
+    let root = entry.parent().unwrap_or(Path::new(".")).to_path_buf();
+    let roots: Vec<_> = std::iter::once(root)
+        .chain(search_paths.iter().cloned())
+        .collect();
+    certified_native_exception_modules(&roots, sources)
+}
+
+/// dump 不遍历依赖源码，但使用同一来源门检查入口目录。
+pub(crate) fn native_exception_modules(entry: &Path) -> Vec<&'static str> {
+    native_exception_modules_for_build(entry, &[], &[])
 }
 
 #[cfg(test)]
@@ -431,3 +462,7 @@ fn explicit_includes(roots: &[PathBuf], names: &[String]) -> Result<BTreeSet<Str
 #[cfg(test)]
 #[path = "modules_include_tests.rs"]
 mod include_tests;
+
+#[cfg(test)]
+#[path = "modules_exception_identity_tests.rs"]
+mod exception_identity_tests;

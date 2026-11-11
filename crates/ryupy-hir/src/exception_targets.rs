@@ -11,16 +11,8 @@ impl StmtLowerCtx<'_> {
     /// 元组每一项都必须能静态解析；不能丢弃未知项后冒称整条 handler 已支持。
     /// 返回空列表由调用方报诊断，不求值动态类型表达式。
     pub(crate) fn exception_type_names(&self, expr: &ast::Expr, mark_used: bool) -> Vec<String> {
-        let imported = match expr {
-            ast::Expr::Name(name) => Some((name, None)),
-            ast::Expr::Attribute(attr) => match attr.value.as_ref() {
-                ast::Expr::Name(name) => Some((name, Some(attr.attr.as_str()))),
-                _ => None,
-            },
-            _ => None,
-        };
-        if let Some((name, member)) = imported {
-            let ident = Name::from(name.id.as_str());
+        if let Some((name, path)) = crate::exception_imports::attribute_path(expr) {
+            let ident = Name::from(name);
             // local候选失败就拒绝，不能退回同名模块类或builtin。
             if !self.module_scope && self.func_scope.locals.contains_key(&ident) {
                 return self
@@ -29,7 +21,7 @@ impl StmtLowerCtx<'_> {
                     .get(&ident)
                     .and_then(|binding| {
                         binding.resolve(
-                            member,
+                            &path,
                             expr.range().start(),
                             self.direct_stmt_index,
                             mark_used,
@@ -51,9 +43,9 @@ impl StmtLowerCtx<'_> {
             }
             if let Some(binding) = self.global_scope.exception_imports.get(&ident) {
                 let resolved = if mark_used {
-                    binding.resolve(member, expr.range().start())
+                    binding.resolve(&path, expr.range().start())
                 } else {
-                    binding.peek(member, expr.range().start())
+                    binding.peek(&path, expr.range().start())
                 };
                 return resolved
                     .map(|name| vec![name.to_owned()])

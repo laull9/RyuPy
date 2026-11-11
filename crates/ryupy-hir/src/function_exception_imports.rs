@@ -17,7 +17,7 @@ pub(crate) struct LocalExceptionImport {
 impl LocalExceptionImport {
     pub(crate) fn resolve(
         &self,
-        member: Option<&str>,
+        path: &[&str],
         position: TextSize,
         handler_index: usize,
         mark_used: bool,
@@ -27,9 +27,9 @@ impl LocalExceptionImport {
             return None;
         }
         if mark_used {
-            self.binding.resolve(member, position)
+            self.binding.resolve(path, position)
         } else {
-            self.binding.peek(member, position)
+            self.binding.peek(path, position)
         }
     }
 }
@@ -58,6 +58,7 @@ pub(crate) fn collect(
                         binding: ExceptionImport::new(
                             request.module,
                             request.name,
+                            request.bind_root,
                             stmt.range().end(),
                         ),
                         direct_index: index,
@@ -73,13 +74,18 @@ pub(crate) fn collect(
     for stmt in &def.body {
         writes.visit_stmt(stmt);
     }
-    imports.retain(|name, _| {
+    imports.retain(|name, import| {
         scope.locals.contains_key(name)
             && !scope.globals.contains(name)
             && !scope.nonlocals.contains(name)
             && !scope.free.contains_key(name)
             && !scope.cells.contains(name)
             && !writes.changed.contains(name)
+            && !writes.attribute_writes.get(name).is_some_and(|paths| {
+                paths
+                    .iter()
+                    .any(|path| import.binding.affected_by_attribute_write(path))
+            })
             && writes.import_count.get(name) == Some(&1)
     });
     imports
@@ -90,6 +96,8 @@ pub(crate) fn collect(
 struct Writes {
     changed: FxHashSet<Name>,
     import_count: FxHashMap<Name, usize>,
+    attribute_writes: FxHashMap<Name, Vec<Vec<String>>>,
+    comprehension_locals: FxHashSet<Name>,
 }
 impl Writes {
     fn invalidate(&mut self, name: &str) {
@@ -170,11 +178,44 @@ impl<'a> Visitor<'a> for Writes {
     }
 
     fn visit_expr(&mut self, expr: &'a ast::Expr) {
+        if let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(expr) {
+            if let Some(first) = comp.generators.first() {
+                self.visit_expr(&first.iter);
+            }
+            let outer = self.comprehension_locals.clone();
+            self.comprehension_locals
+                .extend(crate::exception_imports::comprehension_bindings(comp));
+            crate::exception_imports::walk_comprehension_body(self, comp);
+            self.comprehension_locals = outer;
+            return;
+        }
         match expr {
+            ast::Expr::Named(named) => {
+                if let ast::Expr::Name(name) = named.target.as_ref() {
+                    self.invalidate(name.id.as_str());
+                }
+                self.visit_expr(&named.value);
+            }
             ast::Expr::Name(name)
-                if matches!(name.ctx, ast::ExprContext::Store | ast::ExprContext::Del) =>
+                if !self
+                    .comprehension_locals
+                    .contains(&Name::from(name.id.as_str()))
+                    && matches!(name.ctx, ast::ExprContext::Store | ast::ExprContext::Del) =>
             {
                 self.invalidate(name.id.as_str());
+            }
+            ast::Expr::Attribute(attr)
+                if matches!(attr.ctx, ast::ExprContext::Store | ast::ExprContext::Del) =>
+            {
+                if let Some((root, path)) = crate::exception_imports::attribute_path(expr)
+                    && !self.comprehension_locals.contains(&Name::from(root))
+                {
+                    self.attribute_writes
+                        .entry(Name::from(root))
+                        .or_default()
+                        .push(path.into_iter().map(str::to_owned).collect());
+                }
+                walk_expr(self, expr);
             }
             ast::Expr::Lambda(lambda) => {
                 // lambda体独立；默认表达式在包围作用域求值。
@@ -182,7 +223,6 @@ impl<'a> Visitor<'a> for Writes {
                     self.visit_parameters(parameters);
                 }
             }
-            // 推导式全扫：同名迭代变量可能过拒，但walrus写包围函数绝不能漏判。
             _ => walk_expr(self, expr),
         }
     }

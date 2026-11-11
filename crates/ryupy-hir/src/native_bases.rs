@@ -13,18 +13,11 @@ pub(crate) fn resolve<'a>(
         return None;
     }
     let expr = &args.args[0];
-    let (binding, member) = match expr {
-        ast::Expr::Name(name) => (name.id.as_str(), None),
-        ast::Expr::Attribute(attr) => match &*attr.value {
-            ast::Expr::Name(name) => (name.id.as_str(), Some(attr.attr.as_str())),
-            _ => return None,
-        },
-        _ => return None,
-    };
+    let (binding, path) = crate::exception_imports::attribute_path(expr)?;
     let kind = globals
         .exception_imports
         .get(&Name::from(binding))?
-        .resolve_native_base(member, expr.range().start())?;
+        .resolve_native_base(&path, expr.range().start())?;
     Some((kind, expr))
 }
 
@@ -38,18 +31,11 @@ pub(crate) fn io_exception(
         return None;
     }
     let expr = &args.args[0];
-    let (name, member) = match expr {
-        ast::Expr::Name(name) => (name.id.as_str(), None),
-        ast::Expr::Attribute(attr) => match attr.value.as_ref() {
-            ast::Expr::Name(name) => (name.id.as_str(), Some(attr.attr.as_str())),
-            _ => return None,
-        },
-        _ => return None,
-    };
+    let (name, path) = crate::exception_imports::attribute_path(expr)?;
     globals
         .exception_imports
         .get(&Name::from(name))?
-        .resolve(member, expr.range().start())
+        .resolve(&path, expr.range().start())
         .filter(|name| matches!(*name, "io.UnsupportedOperation" | "zipfile.BadZipFile"))
 }
 
@@ -62,18 +48,13 @@ pub(crate) fn unsupported_custom_exception_base(
         return false;
     };
     args.args.iter().any(|expr| {
-        let (name, member) = match expr {
-            ast::Expr::Name(name) => (name.id.as_str(), None),
-            ast::Expr::Attribute(attr) => match attr.value.as_ref() {
-                ast::Expr::Name(name) => (name.id.as_str(), Some(attr.attr.as_str())),
-                _ => return false,
-            },
-            _ => return false,
+        let Some((name, path)) = crate::exception_imports::attribute_path(expr) else {
+            return false;
         };
         globals
             .exception_imports
             .get(&Name::from(name))
-            .and_then(|binding| binding.resolve(member, expr.range().start()))
+            .and_then(|binding| binding.resolve(&path, expr.range().start()))
             .is_some_and(|name| {
                 name.starts_with("optparse.")
                     || name == "getopt.GetoptError"

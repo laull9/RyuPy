@@ -255,21 +255,8 @@ fn compile_linked_traced(
         resource_plan.as_ref(),
     )?;
     let entry_file = sources[entry_index].parsed.file;
-    let native_exceptions: Vec<&str> = [
-        "json",
-        "zipfile",
-        "optparse",
-        "getopt",
-        "re",
-        "dataclasses",
-        "unittest",
-        "enum",
-        "io",
-        "typing",
-    ]
-    .into_iter()
-    .filter(|name| !sources.iter().any(|source| source.name == *name))
-    .collect();
+    let native_exceptions =
+        modules::native_exception_modules_for_build(entry, search_paths, &sources);
     let mut units = Vec::new();
     let mut trace_proofs = Vec::new();
     let mut summaries = Vec::new();

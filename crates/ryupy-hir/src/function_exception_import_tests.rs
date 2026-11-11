@@ -141,3 +141,85 @@ fn assert_dynamic(source: &str, native: &[&str]) {
     );
     assert!(module.protected_exports.is_empty(), "{source}");
 }
+
+#[test]
+fn xml_local_imports_use_exact_paths_without_extending_root_proof() {
+    for (import, target, proven) in [
+        ("import xml.etree.ElementTree as ET", "ET.ParseError", true),
+        (
+            "import xml.etree.ElementTree as ET\n    ET.unrelated = 1",
+            "ET.ParseError",
+            true,
+        ),
+        (
+            "from xml.etree.ElementTree import ParseError as Base",
+            "Base",
+            true,
+        ),
+        ("import xml.etree.ElementTree", "xml.ParseError", false),
+        (
+            "import xml.etree.ElementTree",
+            "xml.etree.ElementTree.ParseError",
+            false,
+        ),
+        (
+            "import xml.etree.ElementTree as ET",
+            "ET.ElementTree.ParseError",
+            false,
+        ),
+        (
+            "from xml.etree import ElementTree as ET",
+            "ET.ParseError",
+            false,
+        ),
+        (
+            "import xml.etree.ElementTree as ET\n    ET.ParseError = None",
+            "ET.ParseError",
+            false,
+        ),
+    ] {
+        let source = format!(
+            "def f():\n    {import}\n    try:\n        pass\n    except {target}:\n        pass\n"
+        );
+        if !proven {
+            assert_dynamic(&source, &["xml.etree.ElementTree"]);
+            continue;
+        }
+        let (module, diagnostics) = lower(&source, &["xml.etree.ElementTree"]);
+        assert!(diagnostics.is_empty(), "{source}: {diagnostics:?}");
+        let types: Vec<_> = module
+            .functions
+            .iter()
+            .flat_map(|(_, f)| f.body.handlers.iter().filter_map(|(_, h)| h.types.as_ref()))
+            .flatten()
+            .map(|n| n.as_str())
+            .collect();
+        assert_eq!(types, ["xml.etree.ElementTree.ParseError"]);
+        assert!(module.protected_exports.is_empty());
+    }
+    assert_dynamic(
+        "import xml.etree.ElementTree as ET\ndef f(ET):\n    try:\n        pass\n    except ET.ParseError:\n        pass\n",
+        &["xml.etree.ElementTree"],
+    );
+}
+
+#[test]
+fn comprehension_targets_are_local_but_walrus_still_changes_function_import() {
+    for (expression, stable) in [
+        ("[0 for E in []]", true),
+        ("{E for E in []}", true),
+        ("{E: E for E in []}", true),
+        ("(E for E in [])", true),
+        ("[0 for (E, *rest) in []]", true),
+        ("[[0 for E in []] for outer in []]", true),
+        ("[(lambda: (E := None)) for item in []]", true),
+        ("[(E := None) for item in []]", false),
+        ("[item for item in [] if (E := None)]", false),
+        ("{(E := None): item for item in []}", false),
+        ("[[(E := None) for inner in []] for outer in []]", false),
+    ] {
+        let source =
+            format!("def f():\n    from getopt import error as E\n    values = {expression}\n");
+        assert_eq!(candidate(&source), stable, "{source}");
+    }
+}

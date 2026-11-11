@@ -70,6 +70,27 @@ public class PySyntaxErrorTests
     }
 
     [Fact]
+    public void AliasesContainersAndOrdinarySameNamesUseExactBaseIdentity()
+    {
+        // 赋值与容器读取不改变实际类型身份；不执行Python负例程序集。
+        var syntaxAlias = PyType.Get("SyntaxError");
+        var parseAlias = PyType.Get("ParseError");
+        object?[] container = [parseAlias];
+        foreach (object? nativeBase in new object?[] { syntaxAlias, parseAlias, container[0] })
+        {
+            Assert.Throws<PyNotImplementedError>(() => PyRuntimeBases.Validate(nativeBase));
+            Assert.Throws<PyNotImplementedError>(() => PyOps.MakeClass("Child", [nativeBase], null));
+        }
+        // 普通用户类即使名称相同也不是驻留的原生PyType，两个公开入口都必须接受。
+        foreach (string name in new[] { "SyntaxError", "ParseError" })
+        {
+            var ordinary = Assert.IsType<PyClass>(PyOps.MakeClass(name, [], null));
+            Assert.Same(ordinary, PyRuntimeBases.Validate(ordinary));
+            Assert.IsType<PyClass>(PyOps.MakeClass("Child", [ordinary], null));
+        }
+    }
+
+    [Fact]
     public void ParseErrorRebindingIsRejectedBeforeEveryPublicModuleWrite()
     {
         PyNativeModules.Register(); var module = PyModules.Import(PyXmlElementTree.ModuleName);

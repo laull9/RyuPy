@@ -89,14 +89,16 @@ def verify_native(runner, case, layout):
 
 
 def qualified_oracles(data, root=ROOT):
-    require(set(data['oracles']) == {*GROUPS, 'original', 'markdown-full', 'markdown-html'}, 'oracle角色漏项/增项')
+    require(set(data['oracles']) == {*GROUPS, 'original', 'markdown-full', 'markdown-html', 'ordinary-bases', 'mutable-parent'}, 'oracle角色漏项/增项')
     for name, row in data['oracles'].items():
         require(row['status'] == 'observed' and row['python_sha256'] == data['cp_sha256']
                 and type(row['exit']) is int and row['exit'] == 0 and row['failure'] is None and row['raw_streams_complete'] is True,
                 'oracle尚未实际观测：' + name)
         expected_source = ORIGINAL if name == 'original' else (
             'tests/projects/entries/markdown_sample.py' if name == 'markdown-full' else
-            FIXTURE + ('markdown_html.py' if name == 'markdown-html' else 'core.py'))
+            FIXTURE + ('mutable_parent.py' if name == 'mutable-parent' else
+                       'ordinary_bases.py' if name == 'ordinary-bases' else
+                       'markdown_html.py' if name == 'markdown-html' else 'core.py'))
         require(row['source_sha256'] == sha(root / expected_source), 'oracle不是同源：' + name)
         for stream in ('stdout', 'stderr'):
             path = root / shared.relative(row[stream + '_file'])

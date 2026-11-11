@@ -29,7 +29,11 @@ class ContractTests(unittest.TestCase):
         self.assertEqual((c.ROOT / self.data['oracles']['all']['stdout_file']).stat().st_size, 1467)
         plan = self.data['process_plan']
         self.assertEqual((plan['core']['cp'], plan['core']['jit']), (7, 7))
-        self.assertEqual(plan['totals'], dict(cp=10, jit=11, native_core=2, native_markdown_conditional=2, aot_build=2))
+        base_totals = dict(plan['totals']); base_totals['cp'] -= 2; base_totals['jit'] -= 3
+        self.assertEqual(base_totals, dict(cp=10, jit=11, native_core=2, native_markdown_conditional=2, aot_build=2))
+        self.assertEqual(plan['ordinary_bases'], dict(cp=1, jit=1, jit_compile=1))
+        self.assertEqual(plan['runtime_bases'], dict(cp=0, jit=1, jit_compile=1))
+        self.assertEqual(plan['mutable_parent'], dict(cp=1, jit=1, jit_compile=1))
         for group in c.GROUPS:
             self.assertEqual(self.data['oracles'][group]['source_sha256'], self.data['sources'][c.FIXTURE + 'core.py'])
 
@@ -76,7 +80,7 @@ class ContractTests(unittest.TestCase):
                 runner.result['stages'][name]=dict(passed=False,status='failed',error=str(error))
             return runner.result['stages'][name]['passed']
         runner.phase=phase;runner.audit=lambda fn:fn();runner.golden=lambda name:b'complete\n'
-        for name in ('identities','build_tools','prepare_sources','business','persist'):
+        for name in ('identities','build_tools','prepare_sources','base_controls','business','persist'):
             setattr(runner,name,lambda:None)
         runner.types=lambda *args:None;runner.cp=lambda *args:None;runner.compile=lambda *args:None
         runner.barrier=lambda *args:None
@@ -247,6 +251,87 @@ class ContractTests(unittest.TestCase):
             for wrong in [text+b'[E0100] another',b'[E0100] UnknownName',text.replace(message.encode(),b'other')]:
                 prefix,argv,_=self.make_record(root,stdout=b'',stderr=wrong,code=1)
                 with self.assertRaises(ValueError):c.subclass_rejection(prefix,argv,source,message)
+
+    def test_base_controls_freeze_real_calls_and_explicit_ni(self):
+        ordinary = ast.parse((c.ROOT / (c.FIXTURE + 'ordinary_bases.py')).read_text())
+        classes = [n.name for n in ordinary.body if isinstance(n, ast.ClassDef)]
+        self.assertEqual(classes, ['SyntaxError', 'ParseError', 'SyntaxChild', 'ParseChild',
+                                   'ImportedChild', 'ModuleChild'])
+        calls = [n for n in ast.walk(ordinary) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Attribute) and n.func.attr == 'value']
+        self.assertEqual(len(calls), 4)
+        runtime = ast.parse((c.ROOT / (c.FIXTURE + 'runtime_bases.py')).read_text())
+        blocks = [n for n in runtime.body if isinstance(n, ast.Try)]
+        self.assertEqual(len(blocks), 3)
+        for block in blocks:
+            self.assertIsInstance(block.body[0], ast.ClassDef)
+            if block is blocks[-1]:
+                self.assertEqual(ast.unparse(block.body[0].bases[0]), 'xml.etree.ElementTree.ParseError')
+            else: self.assertEqual(block.body[0].bases[0].id, 'Base')
+            self.assertEqual(block.handlers[0].type.id, 'NotImplementedError')
+            self.assertIsInstance(block.orelse[0], ast.Raise)
+        self.assertNotIn('runtime-bases', self.data['oracles'])
+        golden = self.data['runtime_bases_stdout'].encode()
+        expected = ''.join('before ' + label + '\nNI ' + label +
+            ' SyntaxError/ParseError user inheritance is not supported\nafter ' + label + '\n'
+            for label in ('syntax-container', 'parse-container', 'dotted-parse')) + 'runtime bases complete\n'
+        self.assertEqual(golden, expected.encode())
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            prefix, argv, _ = self.make_record(root, stdout=golden)
+            c.positive(prefix, argv, golden)
+            for stdout, stderr, code in [
+                (golden.replace(b'after syntax-container\n', b''), b'', 0),
+                (golden.replace(b'NI parse-container', b'wrong parse-container'), b'', 0),
+                (golden.replace(b'after dotted-parse\n', b''), b'', 0),
+                (golden.replace(b'runtime bases complete\n', b''), b'', 0),
+                (b'', b'[E0100] native base rejected', 1), (golden, b'', -9)]:
+                prefix, argv, _ = self.make_record(root, stdout=stdout, stderr=stderr, code=code)
+                with self.subTest(stdout=stdout, code=code), self.assertRaises(ValueError):
+                    c.positive(prefix, argv, golden)
+            prefix, argv, record = self.make_record(root, stdout=golden)
+            record['failure'] = 'timeout'
+            prefix.with_suffix('.json').write_text(json.dumps(record))
+            with self.assertRaises(ValueError): c.positive(prefix, argv, golden)
+
+    def test_mutable_parent_keeps_runtime_chain_and_separate_oracle(self):
+        tree = ast.parse((c.ROOT / (c.FIXTURE + 'mutable_parent.py')).read_text())
+        classes = [n for n in tree.body if isinstance(n, ast.ClassDef)]
+        self.assertEqual([n.name for n in classes], ['Ordinary', 'FakeET', 'Child'])
+        self.assertEqual(ast.unparse(classes[-1].bases[0]), 'xml.etree.ElementTree.ParseError')
+        assignments = [ast.unparse(n) for n in tree.body if isinstance(n, ast.Assign)]
+        self.assertEqual(assignments, ['alias = xml.etree', 'alias.ElementTree = FakeET'])
+        self.assertEqual(ast.unparse(classes[1].body[0]), 'ParseError = Ordinary')
+        for name, length in [('ordinary-bases', 91), ('mutable-parent', 42)]:
+            self.assertEqual((c.ROOT / self.data['oracles'][name]['stdout_file']).stat().st_size, length)
+            bad = copy.deepcopy(self.data); bad['oracles'][name]['source_sha256'] = '0' * 64
+            with self.subTest(name=name), self.assertRaises(ValueError): c.qualified_oracles(bad)
+
+    def test_base_control_stage_counts_and_compile_failure_not_ni(self):
+        for failing in (None, 'ordinary-bases', 'mutable-parent', 'runtime-bases'):
+            runner = object.__new__(v.Runner)
+            runner.inputs_dir = Path('/inputs'); runner.data = self.data
+            calls, stages = [], {}
+            runner.cp = lambda name, *args: calls.append(('cp', name))
+            def compile_case(name, case):
+                calls.append(('compile', name))
+                if name == failing: raise ValueError('compile failed')
+            runner.compile = compile_case
+            runner.jit = lambda name, *args, **kwargs: calls.append(('jit', name))
+            def phase(name, operation):
+                try: operation(); stages[name] = True
+                except ValueError: stages[name] = False
+                return stages[name]
+            runner.phase = phase
+            runner.base_controls()
+            self.assertEqual([name for mode, name in calls if mode == 'cp'], ['ordinary-bases', 'mutable-parent'])
+            self.assertEqual([name for mode, name in calls if mode == 'compile'],
+                             ['ordinary-bases', 'mutable-parent', 'runtime-bases'])
+            self.assertEqual([name for mode, name in calls if mode == 'jit'],
+                             [name for name in ('ordinary-bases', 'mutable-parent', 'runtime-bases') if name != failing])
+            if failing:
+                self.assertFalse(stages[failing + '-compile'])
+                self.assertNotIn(failing + '-jit', stages)
 
     def context(self,title):
         env=dict(RUNNER_ENVIRONMENT='github-hosted',GITHUB_ACTIONS='true',GITHUB_EVENT_NAME='push',

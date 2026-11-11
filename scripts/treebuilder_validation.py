@@ -25,7 +25,10 @@ class Runner(base.Runner):
         self.python = self.dotnet = self.cli = self.runtime = None
         names = ['identity', 'tools', 'sourceprep', 'original-types', 'original-cp', 'original-compile',
                  'original-jit', 'core-compile', 'boundaries-compile', 'boundaries-jit',
-                 'subclass-syntax', 'subclass-parse', 'subclass-imported', 'core-native', 'markdown-aot']
+                 'subclass-syntax', 'subclass-parse', 'subclass-imported', 'core-native', 'markdown-aot',
+                 'ordinary-bases-cp', 'ordinary-bases-compile', 'ordinary-bases-jit',
+                 'runtime-bases-compile', 'runtime-bases-jit',
+                 'mutable-parent-cp', 'mutable-parent-compile', 'mutable-parent-jit']
         names += [g + '-' + mode for g in c.GROUPS for mode in ('cp', 'jit')]
         names += [g + '-' + mode for g in ('markdown-full', 'markdown-html') for mode in ('cp', 'compile', 'jit')]
         self.result = dict(passed=False, default_project_delta=0, retries=0,
@@ -191,6 +194,21 @@ class Runner(base.Runner):
         require(not list(target.rglob('*.dll')), '新族派生拒绝却生成PE')
         return detail
 
+    def base_controls(self):
+        # 普通类按冻结CP对齐；原生对象拒绝只核明确NI，绝不运行NI的CP。
+        ordinary = dict(source=c.FIXTURE + 'ordinary_bases.py')
+        self.phase('ordinary-bases-cp', lambda: self.cp('ordinary-bases', self.inputs_dir / ordinary['source']))
+        if self.phase('ordinary-bases-compile', lambda: self.compile('ordinary-bases', ordinary)):
+            self.phase('ordinary-bases-jit', lambda: self.jit('ordinary-bases', 'ordinary-bases', ordinary['source']))
+        mutable = dict(source=c.FIXTURE + 'mutable_parent.py')
+        self.phase('mutable-parent-cp', lambda: self.cp('mutable-parent', self.inputs_dir / mutable['source']))
+        if self.phase('mutable-parent-compile', lambda: self.compile('mutable-parent', mutable)):
+            self.phase('mutable-parent-jit', lambda: self.jit('mutable-parent', 'mutable-parent', mutable['source']))
+        runtime = dict(source=c.FIXTURE + 'runtime_bases.py')
+        if self.phase('runtime-bases-compile', lambda: self.compile('runtime-bases', runtime)):
+            self.phase('runtime-bases-jit', lambda: self.jit('runtime-bases', 'runtime-bases', runtime['source'],
+                golden=self.data['runtime_bases_stdout'].encode()))
+
     def business(self):
         # 首个新业务失败即停本JIT链；仍保独立core Native与一次完整AOT边界。
         for name, source in [('markdown-full', 'markdown_sample.py'), ('markdown-html', c.FIXTURE + 'markdown_html.py')]:
@@ -271,6 +289,7 @@ class Runner(base.Runner):
                     golden=self.data['boundary_stdout'].encode()))
             for kind in self.data['subclass_messages']:
                 self.phase('subclass-' + kind, lambda kind=kind: self.rejected_class(kind))
+            self.base_controls()
             self.business()
             self.persist()
             if c.native_eligible(self.result['stages']): self.phase('core-native', lambda: native(self, [core], contract=c))
