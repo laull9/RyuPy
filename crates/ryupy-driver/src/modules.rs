@@ -234,6 +234,11 @@ pub(crate) fn resolve_in(roots: &[PathBuf], name: &str) -> Option<(PathBuf, Sour
     module_resolver::resolve(roots, name)
 }
 
+/// 固定入口/显式搜索根的负向证据；不承诺该源码能够按包路径加载。
+pub(crate) fn source_evidence(roots: &[PathBuf], name: &str) -> bool {
+    module_resolver::source_evidence(roots, name)
+}
+
 /// 模块的 `__package__`：包自身是模块名，普通文件的包是它的父命名空间。
 pub(crate) fn module_package(name: &str, path: &Path) -> String {
     if path.file_name().is_some_and(|n| n == "__init__.py") {
@@ -273,7 +278,7 @@ fn certified_native_exception_modules(
                 !sources
                     .iter()
                     .any(|source| !source.candidate && source.name == part)
-                    && resolve_in(roots, part).is_none()
+                    && !source_evidence(roots, part)
             })
     })
     .collect()

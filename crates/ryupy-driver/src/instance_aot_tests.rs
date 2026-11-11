@@ -375,3 +375,35 @@ fn explicit_aot_rejects_missing_intermediate_package() {
     let diagnostics = session.render_diagnostics(false);
     assert!(diagnostics.contains("pkg.middle") && diagnostics.contains("E0100"));
 }
+
+#[test]
+fn explicit_aot_missing_selection_does_not_borrow_another_root_or_invent_ancestor() {
+    for second_root_source in [false, true] {
+        let tree = Tree::new();
+        tree.write("entry.py", "import pkg.missing\n");
+        let second = tree.0.join("second");
+        std::fs::create_dir(&second).unwrap();
+        if second_root_source {
+            tree.write("second/pkg/__init__.py", "");
+            tree.write("second/pkg/missing.py", "def f():\n    return 1\n");
+        }
+        let resource = tree.resources(&["pkg"]);
+        let mut session = session(ModuleEnvironmentPolicy::ExplicitOnly);
+        session.instance_modules = vec!["pkg.missing".into()];
+        assert!(
+            compile_linked_locations(
+                &mut session,
+                &tree.0.join("entry.py"),
+                &[second],
+                false,
+                Some(&resource),
+                true,
+            )
+            .is_err()
+        );
+        let diagnostic = session.render_diagnostics(false);
+        assert!(diagnostic.contains("不在实际源码依赖图"), "{diagnostic}");
+        assert!(!diagnostic.contains("包祖先"), "{diagnostic}");
+        assert!(session.module_environment_report.is_empty());
+    }
+}

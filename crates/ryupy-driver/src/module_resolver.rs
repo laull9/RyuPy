@@ -28,6 +28,19 @@ fn child(root: &Path, name: &str) -> Option<(PathBuf, SourceKind)> {
     init.is_file().then_some((init, SourceKind::Package))
 }
 
+/// 只提供取消资格的物理源证据；不可当可加载身份或跨根补源依据。
+/// 完整名字验证先于任何IO；is_file沿用lexical路径语义，不是symlink安全证明。
+pub(super) fn source_evidence(roots: &[PathBuf], name: &str) -> bool {
+    if !crate::module_hints::valid_name(name) {
+        return false;
+    }
+    let relative = name.replace('.', "/");
+    roots.iter().any(|root| {
+        root.join(format!("{relative}.py")).is_file()
+            || root.join(&relative).join("__init__.py").is_file()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

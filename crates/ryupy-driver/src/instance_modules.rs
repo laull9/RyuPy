@@ -12,6 +12,7 @@ pub(crate) fn validate_selection(
     entry: usize,
     aot: bool,
     has_resources: bool,
+    roots: &[std::path::PathBuf],
 ) -> Result<()> {
     // 选择检查只负责自己的诊断，不能提前消费解析阶段已有的错误。
     if sess.instance_modules.is_empty() {
@@ -46,14 +47,28 @@ pub(crate) fn validate_selection(
         }
         if !sources.iter().any(|module| &module.name == name) {
             invalid_selection = true;
+            // 缺图仍拒绝；只有合法名字的实际源码证据才检查祖先并细化原因。
+            // 不把证据读入图，也不以第二root补齐第一root已经选中的包。
+            let missing_parent = (aot && crate::modules::source_evidence(roots, name))
+                .then(|| {
+                    crate::modules::package_prefixes(name)
+                        .into_iter()
+                        .find(|prefix| {
+                            !matches!(
+                                crate::modules::resolve_in(roots, prefix),
+                                Some((_, SourceKind::Package))
+                            )
+                        })
+                })
+                .flatten();
+            let message = if let Some(prefix) = missing_parent {
+                format!("显式实例 AOT 模块 `{name}`：包祖先 `{prefix}` 缺少真实 Package 来源")
+            } else {
+                format!("实例模块 `{name}` 不在实际源码依赖图中；请先导入或显式 --include-module")
+            };
             sess.diagnostics.push(
-                Diagnostic::error(
-                    Span::new(file, TextRange::default()),
-                    format!(
-                        "实例模块 `{name}` 不在实际源码依赖图中；请先导入或显式 --include-module"
-                    ),
-                )
-                .with_code("E0100"),
+                Diagnostic::error(Span::new(file, TextRange::default()), message)
+                    .with_code("E0100"),
             );
         }
     }

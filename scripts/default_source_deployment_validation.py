@@ -90,11 +90,11 @@ def check_context(env, event):
 
 
 def command_plan(cli, dotnet, inputs, products):
-    """唯一正常项目根为Markdown；绝不将归档stdlib注入-I。"""
+    """默认业务策略仅开启既有诊断观察；唯一项目根为Markdown，不注入catalog。"""
     result = {}
     for name, stem in [('parser', 'parser_isolation'), ('markdown', 'markdown_sample')]:
         target = products / name
-        args = [cli, 'build', inputs / (stem + '.py'), '--out-dir', target]
+        args = [cli, 'build', inputs / (stem + '.py'), '--out-dir', target, '--diagnostic-stages']
         if name == 'markdown': args += ['-I', inputs / 'markdown']
         result[name] = {'compile': list(map(str, args)),
                         'jit': list(map(str, [dotnet, target / (stem + '.dll')]))}

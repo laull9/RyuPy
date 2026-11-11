@@ -17,11 +17,20 @@ class Tests(unittest.TestCase):
         self.assertEqual(gate.sha(gate.ROOT / gate.shared.A_PATH), gate.shared.A_SHA)
         self.assertEqual(gate.sha(gate.ROOT / 'tests/projects/entries/markdown_sample.py'), gate.old.ENTRY_SHA)
         plans = gate.command_plan('ryupy', 'dotnet', Path('/inputs'), Path('/out'))
-        self.assertEqual(plans['parser']['compile'], ['ryupy', 'build', '/inputs/parser_isolation.py', '--out-dir', '/out/parser'])
-        self.assertEqual(plans['markdown']['compile'], ['ryupy', 'build', '/inputs/markdown_sample.py', '--out-dir', '/out/markdown', '-I', '/inputs/markdown'])
+        self.assertEqual(plans['parser']['compile'], ['ryupy', 'build', '/inputs/parser_isolation.py', '--out-dir', '/out/parser', '--diagnostic-stages'])
+        self.assertEqual(plans['markdown']['compile'], ['ryupy', 'build', '/inputs/markdown_sample.py', '--out-dir', '/out/markdown', '--diagnostic-stages', '-I', '/inputs/markdown'])
         for plan in plans.values():
             for forbidden in ('--include-module', '--instance-module', '--distribution-metadata', 'stdlib', '--trace-product-v1'):
                 self.assertNotIn(forbidden, str(plan))
+
+    def test_observation_only_keeps_two_builds_and_exact_jit_commands(self):
+        plans = gate.command_plan('ryupy', 'dotnet', Path('/inputs'), Path('/out'))
+        self.assertEqual(set(plans), {'parser', 'markdown'})
+        for name, stem in [('parser', 'parser_isolation'), ('markdown', 'markdown_sample')]:
+            self.assertEqual(set(plans[name]), {'compile', 'jit'})
+            self.assertEqual(plans[name]['compile'].count('--diagnostic-stages'), 1)
+            self.assertEqual(plans[name]['jit'], ['dotnet', f'/out/{name}/{stem}.dll'])
+            self.assertNotIn('--diagnostic-stages', plans[name]['jit'])
 
     def test_business_failure_does_not_skip_other_new_gates(self):
         for failure in ('parser', 'markdown', None):

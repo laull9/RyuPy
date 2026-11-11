@@ -259,6 +259,7 @@ fn compile_linked_traced(
         entry_index,
         aot_locations,
         resource_request.is_some(),
+        &roots,
     )?;
     let resource_plan = resource_request
         .map(|path| resources::ResourcePlan::read(path, &sources))

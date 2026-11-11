@@ -109,7 +109,8 @@ fn instance_selection_preserves_preexisting_parse_diagnostics() {
         }
         let before = session.render_diagnostics(false);
         assert!(
-            instance_modules::validate_selection(&mut session, &[module], 0, false, false).is_ok()
+            instance_modules::validate_selection(&mut session, &[module], 0, false, false, &[])
+                .is_ok()
         );
         assert_eq!(session.render_diagnostics(false), before);
     }

@@ -90,7 +90,7 @@ class PlanTests(unittest.TestCase):
             rows = strict.candidate_rows('markdown')
             report = dict(schema_version=1, roots=sorted(set(rows) - {'html', '_markupbase'}),
                 dependencies={n: sources[n]['dependencies'] for n in rows}, locations=locations,
-                deferred={}, diagnostics={}, outside=[], metadata_unavailable=None,
+                deferred={}, diagnostics={}, outside=['markdown.__main__'], metadata_unavailable=None,
                 protected=['json', 'zipfile', 'optparse', 'getopt', 're', 'dataclasses', 'unittest',
                            'enum', 'io', 'typing', 'xml.etree.ElementTree'])
             target = output / 'optional-sources.json'; target.write_text(json.dumps(report))
@@ -115,6 +115,32 @@ class PlanTests(unittest.TestCase):
                                ('deferred', {'html.parser': 'unsupported'}), ('protected', []), ('outside', ['extra'])]:
                 bad = copy.deepcopy(report); bad[key] = value; target.write_text(json.dumps(bad))
                 with self.assertRaises(RuntimeError): strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')
+            # 第19条仍可枚举，但Outside不能缺失/重复/增项，亦不能转为候选代码或来源。
+            for outside in ([], ['markdown.__main__', 'markdown.__main__'],
+                            ['markdown.__main__', 'extra'], ['extra']):
+                bad = copy.deepcopy(report); bad['outside'] = outside; target.write_text(json.dumps(bad))
+                with self.assertRaises(RuntimeError): strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')
+            bad = copy.deepcopy(report); del bad['outside']; target.write_text(json.dumps(bad))
+            with self.assertRaises(RuntimeError): strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')
+            for key in ('roots', 'dependencies', 'locations'):
+                bad = copy.deepcopy(report)
+                if key == 'roots': bad[key].append('markdown.__main__')
+                else: bad[key]['markdown.__main__'] = [] if key == 'dependencies' else locations['html']
+                target.write_text(json.dumps(bad))
+                with self.assertRaises(RuntimeError): strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')
+            bad = copy.deepcopy(rows); bad['markdown.__main__'] = dict(rows['html'], module='markdown.__main__')
+            with self.assertRaises(RuntimeError): strict.audit_candidates(bad, 'markdown')
+            # 另外两图仍严格空Outside；同一批锁源正样本只测试审计，不执行Python业务。
+            for name in ('parser', 'pyparsing'):
+                subset = strict.candidate_rows(name)
+                small = copy.deepcopy(report)
+                small.update(roots=['html.parser'] if name == 'parser' else ['html.entities'], outside=[],
+                             dependencies={n: sources[n]['dependencies'] for n in subset},
+                             locations={n: locations[n] for n in subset})
+                target.write_text(json.dumps(small))
+                self.assertEqual(len(strict.audit_deployment(output, subset, name)['sources']), len(subset))
+                small['outside'] = ['markdown.__main__']; target.write_text(json.dumps(small))
+                with self.assertRaises(RuntimeError): strict.audit_deployment(output, subset, name)
             target.write_text(json.dumps(report))
             path = Path(locations['html.parser']['path']); path.write_bytes(path.read_bytes() + b'#changed')
             with self.assertRaises(RuntimeError): strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')

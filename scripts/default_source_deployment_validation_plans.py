@@ -128,7 +128,9 @@ def audit_deployment(output, rows, name, markdown_root=None):
     sources = source_contract()
     roots = set(rows) - {'html', '_markupbase'}
     if name == 'parser': roots = {'html.parser'}
-    require(report['roots'] == sorted(roots) and report['outside'] == []
+    # 完整metadata保留未选console_scripts；只记录Outside，不授予候选来源/loader。
+    outside = ['markdown.__main__'] if name == 'markdown' else []
+    require(report['roots'] == sorted(roots) and report['outside'] == outside
             and report['deferred'] == {} and report['diagnostics'] == {}
             and report['metadata_unavailable'] is None, '候选根/延期/metadata状态不符')
     require(report['protected'] == ['json', 'zipfile', 'optparse', 'getopt', 're', 'dataclasses',

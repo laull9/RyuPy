@@ -170,3 +170,52 @@ fn unaliased_xml_chain_remains_runtime_even_with_native_module_origin() {
     crate::dump(&mut Session::default(), &input, Stage::Mir).unwrap();
     crate::compile_linked(&mut Session::default(), &input, &[], false, None).unwrap();
 }
+
+#[test]
+fn source_evidence_is_negative_only_and_validates_whole_name() {
+    let root = Root::new();
+    let input = root.write("first/main.py", "import xml.etree.ElementTree\n");
+    let first = root.0.join("first");
+    let second = root.0.join("second");
+    std::fs::create_dir_all(first.join("xml/etree")).unwrap();
+    assert!(!source_evidence(
+        std::slice::from_ref(&first),
+        "xml.etree.ElementTree"
+    ));
+    assert!(native_exception_modules(&input).contains(&"xml.etree.ElementTree"));
+    root.write("outside.py", "marker = 1\n");
+    for name in [
+        "",
+        ".outside",
+        "..outside",
+        "../outside",
+        "xml/etree",
+        "xml\\etree",
+        "/outside",
+        "xml.",
+    ] {
+        assert!(
+            !source_evidence(std::slice::from_ref(&first), name),
+            "{name}"
+        );
+    }
+    root.write("first/xml/__init__.py", "");
+    root.write("first/xml/etree/__init__.py", "");
+    root.write(
+        "second/xml/etree/ElementTree.py",
+        "class ParseError: pass\n",
+    );
+    let roots = [first.clone(), second.clone()];
+    assert!(source_evidence(&roots, "xml.etree.ElementTree"));
+    assert!(resolve_in(&roots, "xml.etree.ElementTree").is_none());
+    assert!(
+        !native_exception_modules_for_build(&input, &[second], &[])
+            .contains(&"xml.etree.ElementTree")
+    );
+    // 文件父不把实际子文件变成可加载源码；仍保守取消native资格。
+    root.write("first/xml.py", "marker = 1\n");
+    root.write("first/xml/etree/ElementTree.py", "class ParseError: pass\n");
+    assert!(source_evidence(&roots, "xml.etree.ElementTree"));
+    assert!(resolve_in(&roots, "xml.etree.ElementTree").is_none());
+    assert!(!native_exception_modules(&input).contains(&"xml.etree.ElementTree"));
+}
