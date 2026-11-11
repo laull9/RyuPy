@@ -232,6 +232,7 @@ public static partial class PyModules
             return cached;
         }
 
+        ActivateCandidates(name, finder: false);
         PyModule? parent = null;
         string? childName = null;
         int dot = name.LastIndexOf('.');
@@ -249,6 +250,7 @@ public static partial class PyModules
         if (!Registry.TryGetValue(name, out var registration))
         {
             RejectCacheAliasDescendant(name);
+            _ = ThrowUnavailableImport(name, parent, childName);
             throw new PyModuleNotFoundError($"No module named '{name}'");
         }
 
@@ -319,7 +321,7 @@ public static partial class PyModules
             }
         }
         var submodule = moduleName + "." + name;
-        if (Registry.ContainsKey(submodule))
+        if (Registry.ContainsKey(submodule) || CandidateRoots.Contains(submodule) || ActiveUnavailable.ContainsKey(submodule))
         {
             PyModule? imported = null;
             try { imported = Import(submodule); }

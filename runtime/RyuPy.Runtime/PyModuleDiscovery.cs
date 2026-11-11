@@ -9,6 +9,7 @@ public static partial class PyModules
     {
         // 别名后代未纳入闭世界 finder；在父 __path__ getter 或其它用户协议之前明确拒绝。
         RejectCacheAliasDescendant(fullname);
+        ActivateCandidates(fullname, finder: true);
         PyModule? parent = null;
         object? parentPath = null;
         int dot = fullname.LastIndexOf('.');
@@ -83,6 +84,7 @@ public static partial class PyModules
     private static Registration SourceDiscoveryRegistration(string name)
     {
         // 闭世界没有负存在性证明；未登记名称明确NI，不把旧Import错误当作文件不存在证明。
+        if (ActiveUnavailable.ContainsKey(name)) throw DiscoveryUnsupported("unavailable source modules");
         if (!Registry.TryGetValue(name, out Registration? registration))
             throw DiscoveryUnsupported("names outside the compiled module domain");
         if (!registration.MetadataEnabled || registration.ResourceLocation is not { Kind: 1 or 2 })

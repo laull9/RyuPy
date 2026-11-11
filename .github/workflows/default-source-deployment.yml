@@ -1,0 +1,58 @@
+# 新默认门与七旧保护独立fanout；失败不能变成成功或阻断旧job。
+name: 默认来源部署同源验收
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  default-source-deployment:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 新控制流及全部旧selector纯自测
+        run: |
+          python3 -B scripts/default_source_deployment_validation_selftest.py
+          python3 -B tests/validation/markdown_closure_probe.py --self-test
+          python3 -B tests/validation/markdown_preflight.py --self-test
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+          python3 -B scripts/textwrap_dedent_selftest.py
+          python3 -B scripts/decimal_percent_selftest.py
+          python3 -B scripts/keyerror_construction_selftest.py
+      - name: 复用固定官方工具准备
+        run: |
+          mkdir -p target/default-source-deployment-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/default-source-deployment-prepare/stdout 2> target/default-source-deployment-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/default-source-deployment-prepare/exit
+          exit "$status"
+      - name: 一次同源构建、生产probes及两个独立默认JIT新门
+        run: '"$PYTHON" -B scripts/default_source_deployment_validation.py'
+      - name: 保留成功及失败的完整小证据和实际Runtime
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: default-source-deployment-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/default-source-deployment
+            target/default-source-deployment-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 独立口径及总体失败说明
+        if: always()
+        run: |
+          printf '%s\n' '## 默认来源部署同源门' \
+            '普通JIT无include/Instance/metadata/catalog搜索旗；编译feature仍ordinary-dynamic-module-pilot，不声称feature-off通过。' \
+            '独立parser48B不是原A builtin修复；原A全文/pending保留。原Markdown两调用77B；新增裸默认Markdown AOT not-run/unsupported-not-promoted，旧AOT保护独立。' \
+            '旧11逐ID固定20、双make check及source/ABI/trace/Native保护是同HEAD独立jobs，本门失败不阻止它们。' \
+            '本job非零仍使整个workflow失败；全部同HEAD结果完成前不晋升默认11/8/1。' >> "$GITHUB_STEP_SUMMARY"

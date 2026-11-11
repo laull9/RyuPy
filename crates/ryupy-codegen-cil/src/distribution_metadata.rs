@@ -6,6 +6,7 @@ pub(crate) fn registration(
     system: AssemblyRefIndex,
     runtime: AssemblyRefIndex,
     payload: &str,
+    unavailable: bool,
 ) -> Vec<Instruction> {
     let ty = res.push_type_reference(type_ref! { System.Type in #system });
     let ty: MethodType = BaseType::class(ty).into();
@@ -16,8 +17,13 @@ pub(crate) fn registration(
     let snapshot: MethodType = BaseType::class(snapshot).into();
     let get_type =
         res.push_method_reference(method_ref! { static @ty @ty::GetTypeFromHandle(@handle) });
-    let configure =
-        res.push_method_reference(method_ref! { static void @snapshot::Configure(@ty, string) });
+    let configure = if unavailable {
+        res.push_method_reference(
+            method_ref! { static void @snapshot::ConfigureAutoUnavailable(@ty, string) },
+        )
+    } else {
+        res.push_method_reference(method_ref! { static void @snapshot::Configure(@ty, string) })
+    };
     vec![
         Instruction::LoadTokenType(BaseType::class(owner).into()),
         Instruction::call(get_type),
@@ -32,12 +38,22 @@ pub(crate) fn validate_heap(
     program: &ryupy_mir::LinkedProgram,
     res: &Resolution<'_>,
 ) -> Result<(), crate::CodegenError> {
-    let Some(payload) = &program.distribution_metadata else {
+    let payloads = [
+        &program.distribution_metadata,
+        &program.metadata_unavailable,
+        &program.optional_sources,
+    ];
+    if payloads.iter().all(|payload| payload.is_none()) {
         return Ok(());
-    };
-    if payload.len() > 4 * 1024 * 1024 || program.trace_product.is_some() {
+    }
+    if payloads
+        .iter()
+        .filter_map(|payload| payload.as_ref())
+        .any(|payload| payload.len() > 4 * 1024 * 1024)
+        || program.trace_product.is_some()
+    {
         return Err(crate::CodegenError::Unsupported(
-            "分发载荷超过4MiB或与trace V1冲突".into(),
+            "冷来源载荷超过4MiB或与trace V1冲突".into(),
         ));
     }
     let mut size = 1usize;

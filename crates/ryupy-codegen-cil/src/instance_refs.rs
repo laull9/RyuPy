@@ -49,6 +49,7 @@ pub(crate) fn append_registration(
     module: &ryupy_mir::ModuleDef,
     execute: MethodIndex,
     refs: &InstanceRefs,
+    candidate_register: Option<MethodRefIndex>,
 ) {
     let (kind, location) = match &module.location {
         ryupy_mir::ModuleLocation::LegacyDiagnostic => (0, ""),
@@ -65,7 +66,7 @@ pub(crate) fn append_registration(
         Instruction::LoadNull,
         Instruction::LoadMethodPointer(MethodSource::User(UserMethod::Definition(execute))),
         Instruction::NewObject(UserMethod::Reference(refs.execute_ctor)),
-        Instruction::call(refs.register),
+        Instruction::call(candidate_register.unwrap_or(refs.register)),
     ]);
 }
 

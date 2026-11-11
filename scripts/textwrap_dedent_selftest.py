@@ -27,6 +27,19 @@ def jobs():
 
 def protected_job_digest(name, block):
     """只允许七ordinary的唯一精确if后缀；其它全部字节仍对历史hash。"""
+    if name == 'trace-edge-diagnostic':
+        # 仅准许精确caller；原步骤、env和所有字段仍逐字节核原冻结hash。
+        expected = ("    needs: select-mode\n"
+            "    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.diagnostic == 'true'\n"
+            "    uses: ./.github/workflows/trace-edge-diagnostic.yml\n")
+        if block != expected: raise ValueError('诊断caller语义改变')
+        child = (c.ROOT / '.github/workflows/trace-edge-diagnostic.yml').read_text()
+        header, body = child.split('  trace-edge-diagnostic:\n')
+        expected_header = ('# 原诊断job逐字段迁移；caller独占路由，权限不扩大。\n'
+            'name: 首边诊断原流程\non:\n  workflow_call:\npermissions:\n  contents: read\njobs:\n')
+        if header != expected_header: raise ValueError('诊断reusable边界改变')
+        first, rest = body.split('\n', 1)
+        block = first + '\n' + ''.join(expected.splitlines(keepends=True)[:2]) + rest
     suffix = " && needs.select-mode.outputs.closure != 'true'"
     if name in ORDINARY:
         lines = block.splitlines(keepends=True)
@@ -58,7 +71,7 @@ def select(title, event='push', ref=c.old.shared.REF, attempt='1'):
         if name == 'select-mode': continue
         expression = re.search(r'^    if: (.*)$', block, re.M)[1]
         replacements = {'github.ref': ref, 'github.event_name': event, 'github.run_attempt': attempt}
-        replacements.update({'needs.select-mode.outputs.' + key: values.get(key, '') for key in ('diagnostic', 'markdown', 'noreturn', 'search', 'metadata', 'dedent', 'scanner', 'percent', 'keyerror', 'closure')})
+        replacements.update({'needs.select-mode.outputs.' + key: values.get(key, '') for key in ('diagnostic', 'markdown', 'noreturn', 'search', 'metadata', 'dedent', 'scanner', 'percent', 'keyerror', 'closure', 'deployment')})
         for key, value in replacements.items(): expression = expression.replace(key, repr(value))
         if eval(expression.replace('&&', 'and'), {'__builtins__': {}}, {}): active.add(name)
     return output, values, active
@@ -82,7 +95,7 @@ class Tests(unittest.TestCase):
     def test_all_old_job_blocks_are_byte_unchanged_and_independent(self):
         raw, blocks = jobs()
         self.assertEqual(set(blocks), ORDINARY | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight',
-                         'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent', 'keyerror-construction', 'markdown-closure'})
+                         'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent', 'keyerror-construction', 'markdown-closure', 'default-source-deployment'})
         for name, expected in DATA['unchanged_job_blocks'].items():
             self.assertEqual(protected_job_digest(name, blocks[name]), expected, name)
         for name in ORDINARY | {'distribution-metadata', 'textwrap-dedent'}:

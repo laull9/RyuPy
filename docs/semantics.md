@@ -1420,3 +1420,13 @@ end忽略tag且空栈前先flush。第二根先flush并清tail目标后抛真实
 用户派生明确NI/E0100。builder的用户factory、非bool flags、非精确str数据/追加、非精确dict/string键
 为显式NI域外，不是假称CP同错。稳定ParseError catch所需的公开异身份重绑提前NI，同值可赋回；
 其它ElementTree旧重绑行为不封禁。成本与全部边界见[ADR0154](adr/0154-treebuilder-state-machine.md)。
+
+### ADR-0155候选：有限JIT来源发现边界（尚待产品验收）
+
+pilot普通JIT可准备固定catalog与literal提示候选；提示不证明调用目标或可达性，候选
+不会提前初始化或改变native身份。真正Import/find_spec遇需要替换的已缓存native父或
+认证身份冲突明确NotImplementedError且零发布。被标记不可执行的soft源码自身零正文，
+实际加载NI，成功父/调用方副作用保留；不承诺精确SyntaxError/IndentationError/位置字段。
+自动metadata为入口/-I直接根的完整静态环境；不可用只在实际查询Require时报NI，不返回
+假空。未规划entry-point目标可明确域外，但不覆盖已有身份，load仍实时使用重绑callee。
+源码文件使用最终部署真实路径，普通JIT未承诺任意搬迁；ExplicitOnly/AOT/fixed不自动开启。

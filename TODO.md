@@ -855,3 +855,5 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [~] 共同来源归属：CodeSource→MIR/link/CIL→Main/Dynamic/Static warning与功能式TD闭包候选（ADR0145）。纯Rust结构/类型已检；来源e2e保持pending，Runtime13、原J1/J2、真实host/新Native及同HEAD20/default-pilot/旧门待验。Static TD保旧算法，二级None以旧正确路径不回退为硬门，不扩元类/默认图。
 
 - [ ] ADR-0150：显式完整分发快照→真实metadata首次import→EntryPoints→普通动态load闭环候选。源码/pending fixtures已准备，Rust纯检查与C#/CP/JIT/AOT/完整保护门分别记录；不计默认Markdown通过。
+
+- [~] ADR-0155：pilot普通JIT固定源catalog最终部署、非绑定candidate固定点、全组冷激活、自动完整分发快照已接线；ExplicitOnly/AOT/fixed关闭。新增Rust/C#及AutoUnavailable独立host probe待同源CI；原A pending、默认11/8/1不改，不提前计Markdown通过。

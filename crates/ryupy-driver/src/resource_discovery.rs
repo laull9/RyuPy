@@ -58,6 +58,10 @@ pub(super) fn extend(
             accepted.insert(
                 anchor.clone(),
                 SourceModule {
+                    candidate: false,
+                    hard: true,
+                    catalog: None,
+                    parse_diagnostics: Vec::new(),
                     kind: SourceKind::Package,
                     resource_discovery: Some(ResourceDiscovery {
                         source: source.name.clone(),

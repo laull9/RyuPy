@@ -9,7 +9,7 @@ jobs:
     name: 精确选择诊断或原验收链
     runs-on: ubuntu-24.04
     timeout-minutes: 2
-    outputs: {closure: "${{ steps.mode.outputs.closure }}", diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}", percent: "${{ steps.mode.outputs.percent }}", keyerror: "${{ steps.mode.outputs.keyerror }}"}
+    outputs: {deployment: "${{ steps.mode.outputs.deployment }}", closure: "${{ steps.mode.outputs.closure }}", diagnostic: "${{ steps.mode.outputs.diagnostic }}", markdown: "${{ steps.mode.outputs.markdown }}", noreturn: "${{ steps.mode.outputs.noreturn }}", search: "${{ steps.mode.outputs.search }}", metadata: "${{ steps.mode.outputs.metadata }}", dedent: "${{ steps.mode.outputs.dedent }}", scanner: "${{ steps.mode.outputs.scanner }}", percent: "${{ steps.mode.outputs.percent }}", keyerror: "${{ steps.mode.outputs.keyerror }}"}
     steps:
       # Actions字符串比较不区分大小写，因此不以表达式==冒充标题字节精确匹配。
       # 不checkout、不执行仓库源码、不把提交消息插入shell；普通提交/dispatch保持原链。
@@ -26,52 +26,12 @@ jobs:
               if is_push and title in ('validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('scanner=true\n')
               if is_push and title in ('validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('percent=true\n')
               if is_push and title in ('validation: keyerror-construction-001', 'validation: treebuilder-state-001'): stream.write('keyerror=true\n')
+              if is_push and title == 'validation: default-source-deployment-001': stream.write('deployment=true\n')
           PY
   trace-edge-diagnostic:
-    name: diagnostic-not-acceptance 首边原流
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.diagnostic == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      CARGO_TERM_COLOR: never
-      LC_ALL: C.UTF-8
-      TZ: UTC
-      PYTHONDONTWRITEBYTECODE: '1'
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - name: 单次诊断runner纯mock自测
-        run: python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
-      - name: 仅准备同版固定SHA官方Rust组件
-        run: |
-          mkdir -p target/trace-v1-edge-prepare
-          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py", "--rust-only"]' > target/trace-v1-edge-prepare/prepare.argv.json
-          status=0
-          python3 -B tests/aot/wcwidth_ci/prepare.py --rust-only > target/trace-v1-edge-prepare/prepare.stdout 2> target/trace-v1-edge-prepare/prepare.stderr || status=$?
-          printf '%s\n' "$status" > target/trace-v1-edge-prepare/prepare.exit
-          exit "$status"
-      - name: 一次普通CLI构建、三个诊断测试、原A编译60秒（预期仍E0310）
-        run: python3 -B tests/validation/generator_product/diagnostic_once.py
-      - name: 明示本轮全门not-run
-        if: always()
-        run: |
-          printf '%s\n' '## diagnostic-not-acceptance' \
-            '本轮只采一次原A编译拒绝。无产品运行，不是验收通过。' \
-            'not-run: CP fixtures、B/C/D/HOT、NativeAOT、原Rust验收组、S2、S1、full make check、20 projects、Legacy baseline与dynamic frames。' \
-            '这些门本轮略过，既有失败状态与accepted不改变。' >> "$GITHUB_STEP_SUMMARY"
-      - name: 保留首次诊断失败原流（不是产品验收）
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: diagnostic-not-acceptance-${{ github.sha }}-${{ github.run_attempt }}
-          path: |
-            target/trace-v1-edge-diagnostic
-            target/trace-v1-edge-prepare
-            ${{ runner.temp }}/wcwidth-rust-tools/download-identity.json
-          if-no-files-found: error
-          retention-days: 3
+    uses: ./.github/workflows/trace-edge-diagnostic.yml
   markdown-preflight:
     name: NOT-ACCEPTANCE Markdown原双调用预检
     needs: select-mode
@@ -165,6 +125,10 @@ jobs:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.keyerror == 'true' && github.run_attempt == '1'
     uses: ./.github/workflows/keyerror-construction.yml
+  default-source-deployment:
+    needs: select-mode
+    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.deployment == 'true' && github.run_attempt == '1'
+    uses: ./.github/workflows/default-source-deployment.yml
   baseline:
     needs: select-mode
     if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && needs.select-mode.outputs.diagnostic == 'false' && needs.select-mode.outputs.markdown == 'false' && needs.select-mode.outputs.closure != 'true'

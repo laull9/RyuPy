@@ -17,6 +17,7 @@ pub use dump::dump;
 mod distribution_metadata;
 mod instance_modules;
 mod module_environments;
+mod module_hints;
 pub use module_environments::{ModuleEnvironmentDecision, ModuleEnvironmentPolicy};
 mod manifest;
 mod manifest_files;
@@ -35,7 +36,11 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use ryupy_base::FileId;
 
+mod optional_sources;
+pub use optional_sources::DefaultSourceState;
 mod session;
+mod source_catalog;
+mod source_deployment;
 pub use session::Session;
 
 /// 编译因用户代码错误而中止（诊断已存入 [`Session`]）。区别于 IO 等内部错误。
@@ -226,8 +231,19 @@ fn compile_linked_traced(
     let distribution_payload = distribution_metadata::prepare(sess)?;
     sess.module_environment_report.clear();
     trace.mark("begin", "graph-load", "-");
-    let (sources, entry_index) =
+    let (mut sources, entry_index) =
         modules::load_build_graph(sess, entry, search_paths, !aot_locations)?;
+    let roots: Vec<_> = std::iter::once(entry.parent().unwrap_or(Path::new(".")).to_path_buf())
+        .chain(search_paths.iter().cloned())
+        .collect();
+    optional_sources::extend(
+        sess,
+        entry,
+        &roots,
+        &mut sources,
+        distribution_payload,
+        aot_locations,
+    )?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
     let trace_request = trace_product::graph(
@@ -274,23 +290,33 @@ fn compile_linked_traced(
         })
         .collect();
     module_environments::record(sess, &sources, &plans);
+    let candidate_names = sources
+        .iter()
+        .filter(|source| source.candidate)
+        .map(|source| source.name.clone())
+        .collect();
     for (index, (module, plan)) in sources.into_iter().zip(plans).enumerate() {
         if collect_manifest {
             summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, &module));
         }
-        let CompiledModule {
+        let Some(CompiledModule {
             trace_proof,
             program,
             exports,
             protected_exports,
-        } = compile_module(
-            sess,
-            &module,
-            &native_exceptions,
-            &plan,
-            trace,
-            trace_request,
-        )?;
+        }) = optional_sources::compile(sess, &module, |sess| {
+            compile_module(
+                sess,
+                &module,
+                &native_exceptions,
+                &plan,
+                trace,
+                trace_request,
+            )
+        })?
+        else {
+            continue;
+        };
         ryupy_mir::source_provenance::require_program(&program)
             .map_err(|errors| anyhow::anyhow!(errors.join("\n")))?;
         if let Some(proof) = trace_proof {
@@ -335,7 +361,10 @@ fn compile_linked_traced(
     }
     trace.mark("begin", "link", "-");
     let mut linked = trace_product::link(sess, entry_file, units, entry_index, trace_proofs)?;
-    linked.distribution_metadata = distribution_payload;
+    linked.distribution_metadata = sess.default_source_state.plan.payload.clone();
+    linked.candidate_modules = candidate_names;
+    linked.optional_sources = sess.default_source_state.plan.runtime_payload()?;
+    linked.metadata_unavailable = sess.default_source_state.plan.metadata_unavailable.clone();
     trace.mark("end", "link", "-");
     trace.mark("begin", "export-check", "-");
     check_linked_exports(sess, &linked, entry_file)?;
@@ -436,7 +465,11 @@ fn build_with_resources_inner(
 ) -> Result<Artifacts> {
     let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     aot::validate_before_build(&opts.input, opts.aot)?;
-    let (linked, sources, resource_plan) = compile_linked_traced(
+    let previous_output = sess.default_source_state.output.take();
+    if optional_sources::enabled(sess, opts.aot) {
+        sess.default_source_state.output = Some(opts.out_dir.clone());
+    }
+    let compiled = compile_linked_traced(
         sess,
         &opts.input,
         &opts.search_paths,
@@ -444,7 +477,9 @@ fn build_with_resources_inner(
         resource_request,
         opts.aot,
         &trace,
-    )?;
+    );
+    sess.default_source_state.output = previous_output;
+    let (linked, sources, resource_plan) = compiled?;
 
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
@@ -484,6 +519,7 @@ fn build_with_resources_inner(
         let _ = std::fs::write(opts.out_dir.join("module-environment.json"), report);
     }
     distribution_metadata::write_report(sess, &opts.out_dir)?;
+    optional_sources::write_report(sess, &opts.out_dir)?;
     runtime::copy_runtime_to(&opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 
@@ -539,3 +575,6 @@ mod generator_product_tests;
 
 #[cfg(test)]
 mod generator_default_tests;
+
+#[cfg(test)]
+mod default_source_tests;

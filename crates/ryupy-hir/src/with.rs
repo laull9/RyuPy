@@ -56,6 +56,8 @@ impl StmtLowerCtx<'_> {
                     "暂不支持 `async with`",
                 )
                 .with_code("E0100")
+                // 此产生点是合法async with的明确支持域拒绝，不包含未知/type/MIR错误。
+                .with_deferred_failure(ryupy_base::diagnostic::DeferredFailure::SupportBoundary)
                 .with_primary_label("目前只支持同步上下文管理器"),
             );
             return None;

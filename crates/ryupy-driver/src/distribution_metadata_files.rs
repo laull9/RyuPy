@@ -1,5 +1,6 @@
 //! 分发快照的有界普通文件读取；不跟链接、不沿RECORD寻找安装文件。
-use anyhow::{Context, Result, ensure};
+use super::EnvironmentUnavailable;
+use anyhow::{Context, Result};
 use serde::Serialize;
 use std::fs::{File, Metadata};
 use std::io::Read;
@@ -18,15 +19,15 @@ pub(super) struct Record {
 }
 pub(super) fn plain_path(path: &Path) -> Result<()> {
     for component in path.components() {
-        ensure!(
+        environment_ensure!(
             !matches!(component, Component::ParentDir),
             "分发路径不接受..越根组件"
         );
     }
     for ancestor in path.ancestors().filter(|p| !p.as_os_str().is_empty()) {
         let meta = std::fs::symlink_metadata(ancestor)?;
-        ensure!(!meta.file_type().is_symlink(), "分发路径不接受链接");
-        ensure!(meta.is_dir() || meta.is_file(), "分发路径不接受特殊文件");
+        environment_ensure!(!meta.file_type().is_symlink(), "分发路径不接受链接");
+        environment_ensure!(meta.is_dir() || meta.is_file(), "分发路径不接受特殊文件");
     }
     Ok(())
 }
@@ -64,12 +65,12 @@ fn unchanged(before: &Metadata, after: &Metadata) -> Result<()> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        ensure!(
+        environment_ensure!(
             before.dev() == after.dev() && before.ino() == after.ino(),
             "分发文件身份在打开或读取期间改变"
         );
     }
-    ensure!(
+    environment_ensure!(
         before.len() == after.len() && before.modified()? == after.modified()?,
         "分发文件长度或时间在读取期间改变"
     );
@@ -77,13 +78,13 @@ fn unchanged(before: &Metadata, after: &Metadata) -> Result<()> {
 }
 // before来自本次lstat；helper保留为私有，测试能直接验证检查后末端替换。
 fn open_checked(path: &Path, before: &Metadata, limit: usize) -> Result<File> {
-    ensure!(
+    environment_ensure!(
         before.is_file() && before.len() <= limit as u64,
         "分发文件类型或尺寸超限"
     );
     let file = open_no_follow(path)?;
     let opened = file.metadata()?;
-    ensure!(
+    environment_ensure!(
         opened.is_file() && opened.len() <= limit as u64,
         "打开后的分发对象不是有界普通文件"
     );
@@ -98,14 +99,14 @@ pub(super) fn read(path: &Path, limit: usize) -> Result<Vec<u8>> {
     file.by_ref()
         .take(limit as u64 + 1)
         .read_to_end(&mut bytes)?;
-    ensure!(
+    environment_ensure!(
         bytes.len() <= limit && bytes.len() as u64 == before.len(),
         "分发文件读取期间截短或增长"
     );
     unchanged(&before, &file.metadata()?)?;
     plain_path(path)?;
     let after = std::fs::symlink_metadata(path)?;
-    ensure!(after.is_file(), "分发路径在读取后不再是普通文件");
+    environment_ensure!(after.is_file(), "分发路径在读取后不再是普通文件");
     unchanged(&before, &after)?;
     Ok(bytes)
 }
@@ -120,7 +121,7 @@ pub(super) fn children(path: &Path) -> Result<Vec<(String, PathBuf)>> {
         crate::manifest_files::safe_relative(&name)?;
         // 根也不能藏链接/特殊文件再被静默忽略；普通源码目录无需递归。
         plain_path(&entry.path())?;
-        ensure!(found.len() < 4096, "分发目录直接子项超过4096");
+        environment_ensure!(found.len() < 4096, "分发目录直接子项超过4096");
         found.push((name, entry.path()));
     }
     found.sort_by(|a, b| a.0.cmp(&b.0));
@@ -130,7 +131,7 @@ pub(super) fn record(path: &Path, name: &str, budget: &mut Budget) -> Result<Rec
     let bytes = read(path, 1024 * 1024)?;
     budget.files += 1;
     budget.bytes += bytes.len();
-    ensure!(
+    environment_ensure!(
         budget.files <= 2048 && budget.bytes <= 1024 * 1024,
         "完整分发快照超过2048文件或1MiB"
     );
@@ -150,7 +151,7 @@ pub(super) fn walk(
     budget: &mut Budget,
     depth: usize,
 ) -> Result<()> {
-    ensure!(depth <= 16, "分发目录深度超过16");
+    environment_ensure!(depth <= 16, "分发目录深度超过16");
     for (name, path) in children(&root.join(relative))? {
         let relative = if relative.is_empty() {
             name
@@ -158,7 +159,7 @@ pub(super) fn walk(
             format!("{relative}/{name}")
         };
         if path.is_dir() {
-            ensure!(directories.len() < 2048, "分发子目录超过2048");
+            environment_ensure!(directories.len() < 2048, "分发子目录超过2048");
             directories.push(relative.clone());
             walk(root, &relative, output, directories, budget, depth + 1)?;
         } else {

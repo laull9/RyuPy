@@ -16,6 +16,9 @@ use ryupy_syntax::ParsedModule;
 
 use crate::Session;
 
+#[path = "module_resolver.rs"]
+mod module_resolver;
+
 #[path = "resource_discovery.rs"]
 mod resource_discovery;
 
@@ -29,6 +32,11 @@ pub struct ResourceDiscovery {
 
 /// 一个已解析的源模块。
 pub struct SourceModule {
+    /// 候选可执行代码与活动导入图分开；硬度只决定编译失败是否延期。
+    pub(crate) candidate: bool,
+    pub(crate) hard: bool,
+    pub(crate) catalog: Option<crate::source_catalog::Token>,
+    pub(crate) parse_diagnostics: Vec<ryupy_base::Diagnostic>,
     /// 由实际resolver分支保留；同路径可有Package与ModuleFile两种身份。
     pub kind: SourceKind,
     pub resource_discovery: Option<ResourceDiscovery>,
@@ -190,6 +198,10 @@ fn read_module(
         std::env::current_dir()?.join(path)
     };
     Ok(SourceModule {
+        candidate: false,
+        hard: true,
+        catalog: None,
+        parse_diagnostics: Vec::new(),
         kind,
         resource_discovery: None,
         resolved_source_path,
@@ -212,29 +224,18 @@ fn collect_requests(parsed: &ParsedModule, package: &str, queue: &mut Vec<String
 }
 
 /// `a.b.c` 的所有包前缀：`a`、`a.b`。
-fn package_prefixes(name: &str) -> Vec<String> {
+pub(crate) fn package_prefixes(name: &str) -> Vec<String> {
     let parts: Vec<&str> = name.split('.').collect();
     (1..parts.len()).map(|i| parts[..i].join(".")).collect()
 }
 
-/// 在所有搜索根里找模块：每个根都优先 `<root>/a/b.py`，其次 `<root>/a/b/__init__.py`。
-fn resolve_in(roots: &[PathBuf], name: &str) -> Option<(PathBuf, SourceKind)> {
-    let relative = name.replace('.', "/");
-    for root in roots {
-        let file = root.join(format!("{relative}.py"));
-        if file.is_file() {
-            return Some((file, SourceKind::ModuleFile));
-        }
-        let init = root.join(&relative).join("__init__.py");
-        if init.is_file() {
-            return Some((init, SourceKind::Package));
-        }
-    }
-    None
+/// 首个顶层普通包决定后代来源，不跨root拼接父子。
+pub(crate) fn resolve_in(roots: &[PathBuf], name: &str) -> Option<(PathBuf, SourceKind)> {
+    module_resolver::resolve(roots, name)
 }
 
 /// 模块的 `__package__`：包自身是模块名，普通文件的包是它的父命名空间。
-fn module_package(name: &str, path: &Path) -> String {
+pub(crate) fn module_package(name: &str, path: &Path) -> String {
     if path.file_name().is_some_and(|n| n == "__init__.py") {
         return name.to_owned();
     }
@@ -269,7 +270,9 @@ fn certified_native_exception_modules(
             .map(String::as_str)
             .chain(std::iter::once(*name))
             .all(|part| {
-                !sources.iter().any(|source| source.name == part)
+                !sources
+                    .iter()
+                    .any(|source| !source.candidate && source.name == part)
                     && resolve_in(roots, part).is_none()
             })
     })
@@ -308,7 +311,7 @@ mod tests {
 }
 
 /// 按已解析的实际文件种类记录逻辑来源；不从点分模块名猜是否为包。
-fn logical_source(module: &str, file_name: &str, kind: SourceKind) -> String {
+pub(crate) fn logical_source(module: &str, file_name: &str, kind: SourceKind) -> String {
     match kind {
         SourceKind::Entry => format!("entry/{file_name}"),
         SourceKind::ModuleFile => format!("modules/{}.py", module.replace('.', "/")),

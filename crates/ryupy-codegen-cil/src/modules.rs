@@ -207,15 +207,24 @@ pub(crate) fn append_module_registration(
         &crate::fixed_binding_refs::BindingRefs,
     )>,
 ) {
-    let prefix = program.distribution_metadata.as_ref().map(|payload| {
-        crate::distribution_metadata::registration(
-            res,
-            deployment_owner.0,
-            deployment_owner.1,
-            deployment_owner.2,
-            payload,
-        )
-    });
+    let candidates = program
+        .optional_sources
+        .as_ref()
+        .map(|_| crate::candidate_sources::References::build(res, deployment_owner.2));
+    let prefix = program
+        .distribution_metadata
+        .as_ref()
+        .or(program.metadata_unavailable.as_ref())
+        .map(|payload| {
+            crate::distribution_metadata::registration(
+                res,
+                deployment_owner.0,
+                deployment_owner.1,
+                deployment_owner.2,
+                payload,
+                program.metadata_unavailable.is_some(),
+            )
+        });
     let Some(method) = res[init_functions].body.as_mut() else {
         return;
     };
@@ -227,12 +236,14 @@ pub(crate) fn append_module_registration(
         instructions.pop();
     }
     for (index, (module_id, module)) in program.modules.iter().enumerate() {
+        let candidate = program.candidate_modules.contains(&module.name);
         if module.execution == ryupy_mir::ModuleExecutionKind::InstanceGlobals {
             crate::instance_refs::append_registration(
                 instructions,
                 module,
                 fn_indices[&module.init],
                 refs.instances.as_ref().expect("instance module references"),
+                candidate.then(|| candidates.as_ref().expect("candidate references").instance),
             );
             continue;
         }
@@ -289,11 +300,19 @@ pub(crate) fn append_module_registration(
                 .expect("validated binding references")
                 .1
                 .register
+        } else if candidate {
+            candidates.as_ref().expect("candidate references").source
         } else if located {
             refs.module_register_source_located
         } else {
             refs.module_register
         }));
+    }
+    if let Some(payload) = &program.optional_sources {
+        instructions.push(Instruction::load_string(payload));
+        instructions.push(Instruction::call(
+            candidates.as_ref().expect("candidate references").configure,
+        ));
     }
     instructions.push(Instruction::Return);
     method.header.maximum_stack_size = 32;

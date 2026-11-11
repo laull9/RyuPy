@@ -424,7 +424,7 @@ class PureTests(unittest.TestCase):
         jobs = {match[1]: match[2] for match in re.finditer(r'^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:|\Z)', text.split('\njobs:\n', 1)[1], re.M | re.S)}
         ordinary = {'baseline', 'full-check', 'projects', 'trace-adapter-s2',
                     'trace-rust-preflight', 'pyfiglet-explicit-deployment', 'source-import-paths'}
-        self.assertEqual(set(jobs), ordinary | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight', 'markdown-closure', 'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent', 'keyerror-construction'})
+        self.assertEqual(set(jobs), ordinary | {'select-mode', 'trace-edge-diagnostic', 'markdown-preflight', 'markdown-closure', 'typing-noreturn', 'text-search', 'distribution-metadata', 'textwrap-dedent', 're-scanner', 'decimal-percent', 'keyerror-construction', 'default-source-deployment'})
         for diagnostic, markdown, noreturn, search, event, attempt, expected in [
                 ('false', 'false', 'false', 'false', 'push', '1', ordinary),
                 ('false', 'false', 'true', 'false', 'push', '1', ordinary | {'typing-noreturn'}),
@@ -446,7 +446,7 @@ class PureTests(unittest.TestCase):
                         ('needs.select-mode.outputs.noreturn', noreturn),
                         ('needs.select-mode.outputs.search', search),
                         *[('needs.select-mode.outputs.' + key, '') for key in
-                          ('closure', 'metadata', 'dedent', 'scanner', 'percent', 'keyerror')]]:
+                          ('closure', 'metadata', 'dedent', 'scanner', 'percent', 'keyerror', 'deployment')]]:
                     condition = condition.replace(key, repr(value))
                 condition = condition.replace('&&', 'and')
                 # 只求值本仓库固定的纯比较表达式，不读取GitHub事件文本/第三方内容。

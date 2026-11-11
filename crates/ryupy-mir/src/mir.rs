@@ -43,6 +43,10 @@ pub struct Program {
 /// 合并后的程序：所有可达模块 + 入口模块。
 #[derive(Debug)]
 pub struct LinkedProgram {
+    /// 仅冷注册消费；候选不进入活动导入表，不能成为跨模块绑定证明。
+    pub candidate_modules: Vec<String>,
+    pub optional_sources: Option<String>,
+    pub metadata_unavailable: Option<String>,
     /// driver签发的封闭分发静态载荷；后端只传递，不解析元数据。
     pub distribution_metadata: Option<String>,
     /// 仅整产物准入与实际link核验可签发；发射前仍逐字段校验，不能以存在性当作授权。

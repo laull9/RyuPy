@@ -7,6 +7,9 @@ namespace RyuPy.Runtime;
 public static class PySystem
 {
     private static PyModule? _sys;
+    // 候选冷激活不调用公开sys getter，配置写入时记录内部拒绝事实。
+    internal static bool HasExplicitFinderConfiguration { get; private set; }
+    internal static bool IsOriginalSystem(PyModule module) => ReferenceEquals(module, _sys);
     private static readonly PyStandardStream DefaultOutput = new("<stdout>", null, Builtins.DefaultOutput);
     private static readonly PyStandardStream DefaultError = new("<stderr>", null, Console.Error);
     private static readonly PyStandardStream DefaultInput = new("<stdin>", Console.In, null);
@@ -35,6 +38,7 @@ public static class PySystem
         {
             PyModules.RegisterNative("sys", attributes, (name, _) =>
             {
+                if (name is "meta_path" or "path_hooks" or "path_importer_cache") HasExplicitFinderConfiguration = true;
                 if (name is "modules" or "path" or "unraisablehook") throw new PyNotImplementedError("replacement of sys." + name + " is not supported");
             });
             _sys = PyModules.Import("sys");

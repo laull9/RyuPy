@@ -22,6 +22,7 @@ pub use emission_report::{
     DelegateReference, EmissionArtifact, EmissionReport, FunctionEmission, MethodDescriptor,
     ModuleEmission,
 };
+mod candidate_sources;
 mod class_cell_refs;
 #[cfg(test)]
 mod class_cell_tests;

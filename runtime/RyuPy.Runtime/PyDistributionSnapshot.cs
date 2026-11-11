@@ -12,6 +12,7 @@ public static class PyDistributionSnapshot
     private static Type? owner;
     private static string? payload;
     private static bool observed;
+    private static string? autoUnavailable;
     /// <summary>验证完整静态载荷后按真实类型owner原子发布；冲突拒绝。</summary>
     public static void Configure(Type productOwner, string value)
     {
@@ -30,10 +31,25 @@ public static class PyDistributionSnapshot
             owner = productOwner; payload = value;
         }
     }
+    /// <summary>自动环境不可用只是冷状态；Observe/import/startup不抛，仅Require拒绝。</summary>
+    public static void ConfigureAutoUnavailable(Type productOwner, string reason)
+    {
+        if (productOwner is null || reason is null) throw new PyValueError("automatic metadata state requires owner and reason");
+        lock (Gate)
+        {
+            if (owner is not null)
+            {
+                if (ReferenceEquals(owner, productOwner) && autoUnavailable == reason) return;
+                throw Unsupported("conflicting generated assembly owner or automatic state");
+            }
+            if (observed) throw Unsupported("configuration after first metadata import");
+            owner = productOwner; autoUnavailable = reason;
+        }
+    }
     internal static void Observe() { lock (Gate) observed = true; }
     internal static string Require()
     {
-        lock (Gate) return payload ?? throw Unsupported("entry_points requires an explicit closed distribution snapshot");
+        lock (Gate) return payload ?? throw Unsupported(autoUnavailable is null ? "entry_points requires a closed distribution snapshot" : "automatic distribution environment unavailable: " + autoUnavailable);
     }
     private static void Validate(string value)
     {

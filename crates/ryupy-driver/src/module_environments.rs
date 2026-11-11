@@ -71,6 +71,24 @@ pub(crate) fn plan_validated(
             reason: "explicit-instance".into(),
         };
     }
+    // catalog令牌绑定实际最终位置和已解析字节，不按模块名字/公开元数据放行class。
+    if !aot
+        && !session.fixed_binding_build
+        && session.module_environment_policy != ModuleEnvironmentPolicy::ExplicitOnly
+        && source.catalog.as_ref().is_some_and(|token| {
+            token.authenticates(&source.resolved_source_path, source.text.as_bytes())
+        })
+    {
+        return ModuleEnvironmentPlan {
+            capabilities: ryupy_base::InstanceCapabilities {
+                ordinary_name_handlers: true,
+                relative_from_import: true,
+            },
+            execution: ModuleExecutionKind::InstanceGlobals,
+            automatic: true,
+            reason: "compiler-catalog-authenticated-source".into(),
+        };
+    }
     let boundary = if session.module_environment_policy == ModuleEnvironmentPolicy::ExplicitOnly {
         Some("policy-disabled")
     } else if session.fixed_binding_build {
@@ -108,6 +126,9 @@ pub(crate) fn plan_validated(
 /// 本次真实编译计划的可序列化审计事实；不靠重扫Python猜测入选数量。
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ModuleEnvironmentDecision {
+    pub candidate: bool,
+    pub hard: bool,
+    pub catalog_authenticated: bool,
     pub module: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resource_discovery: Option<crate::modules::ResourceDiscovery>,
@@ -126,6 +147,11 @@ pub(crate) fn record(
         .iter()
         .zip(plans)
         .map(|(source, plan)| ModuleEnvironmentDecision {
+            candidate: source.candidate,
+            hard: source.hard,
+            catalog_authenticated: source.catalog.as_ref().is_some_and(|token| {
+                token.authenticates(&source.resolved_source_path, source.text.as_bytes())
+            }),
             module: source.name.clone(),
             resource_discovery: source.resource_discovery.clone(),
             execution: format!("{:?}", plan.execution),
