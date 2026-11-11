@@ -213,6 +213,34 @@ class Runner:
         argv, env = cp_command(self.tools['python'], self.cp_fixture, name)
         return self.call(label, argv, cwd, 30, env, cp=True)
 
+    def cache_locks(self):
+        """共享缓存先验必须绑定两份真实锁，不以同名平台或历史成功替代。"""
+        require(set(self.sources) == {'A', 'B'}, '共享fetch必须先核两源')
+        receipts = {}
+        for key in ('A', 'B'):
+            lock = self.sources[key] / 'Cargo.lock'
+            digest = sha(lock)
+            require(digest == FROZEN['sources'][key]['contracts']['Cargo.lock'], 'fetch锁身份不符：' + key)
+            receipts[key] = {'path': str(lock), 'sha256': digest}
+        require(receipts['A']['sha256'] == receipts['B']['sha256'], '两源锁不等，不能共享fetch')
+        return receipts
+
+    def prepare_dependency_cache(self):
+        # fetch不编译；不指定target才覆盖完整锁图。保locked，禁止命令重试和Cargo网络重试。
+        # 后续metadata仍offline完整解析，不用no-deps或平台过滤掩盖缺件。
+        before = self.cache_locks()
+        for key in ('A', 'B'): self.guard(key)
+        save(self.out / 'dependency-cache-before.json', before)
+        env = dict(self.env, CARGO_NET_RETRY='0')
+        record = self.call('dependency-cache-fetch', [self.tools['cargo'], 'fetch', '--locked',
+                           '--manifest-path', self.sources['A'] / 'Cargo.toml'], self.sources['A'], 600, env)
+        after = self.cache_locks()
+        save(self.out / 'dependency-cache-after.json', after)
+        require(before == after, 'fetch期间锁改变')
+        for key in ('A', 'B'): self.guard(key)
+        require(succeeded(record), '完整锁图缓存准备失败；不运行两源build/产品，不补取重试')
+        return True
+
     def build(self, key):
         source = self.sources[key]; dest = self.out / key; dest.mkdir()
         env = dict(self.env, CARGO_TARGET_DIR=str(source / 'target'))
@@ -223,11 +251,14 @@ class Runner:
         record = self.call(key + '-cargo-build', [self.tools['cargo'], 'build', '--locked', '-p', 'ryupy-cli', '--features', FEATURE], source, 1200, env)
         require(succeeded(record), 'cargo失败；该源不执行产品')
         self.guard(key)
-        # metadata只读已解析依赖；--offline/--locked禁止另取新依赖，不产生产品执行。
+        # metadata是工作区已解析库存，不代表每包实际参与CLI编译；offline/locked仍保完整门。
         dep = self.call(key + '-dependencies', [self.tools['cargo'], 'metadata', '--locked', '--offline', '--format-version', '1',
                         '--features', 'ryupy-driver/ordinary-dynamic-module-pilot'], source, 30, env)
-        require(succeeded(dep), '实际依赖来源缺失')
+        require(succeeded(dep), '完整解析依赖来源缺失')
         deps = json.loads((self.out / (key + '-dependencies.stdout')).read_text())
+        save(self.out / (key + '-dependency-scope.json'), {
+            'kind': 'workspace-resolved-inventory', 'all_packages_compiled': False,
+            'features': FEATURE, 'locked': True, 'offline': True, 'no_deps': False})
         dep_inputs = {}
         for package in deps['packages']:
             manifest = Path(package['manifest_path'])
@@ -302,11 +333,12 @@ class Runner:
         try:
             self.setup()
             for name in DOMAINS: self.stage(name + '-cp-window', lambda n=name: self.cp(n))
-            for key in self.sources:
-                tools = self.stage(key + '-build-window', lambda k=key: self.build(k), key)
-                if tools:
-                    for name in DOMAINS:
-                        self.stage(key + '-' + name + '-window', lambda k=key, n=name, t=tools: self.product(k, n, t), key)
+            if self.stage('dependency-cache-window', self.prepare_dependency_cache):
+                for key in self.sources:
+                    tools = self.stage(key + '-build-window', lambda k=key: self.build(k), key)
+                    if tools:
+                        for name in DOMAINS:
+                            self.stage(key + '-' + name + '-window', lambda k=key, n=name, t=tools: self.product(k, n, t), key)
             self.summarize()
         except Exception as error:
             self.result['fatal'] = {'error': str(error), 'traceback': traceback.format_exc()}

@@ -138,6 +138,7 @@ class Tests(unittest.TestCase):
                 calls.append(key + '-' + name)
                 if key == 'A' and name == 'synthetic': raise ValueError('原红')
             with patch.object(r, 'setup'), patch.object(r, 'guard'), patch.object(r, 'cp'), \
+                 patch.object(r, 'prepare_dependency_cache', return_value=True), \
                  patch.object(r, 'build', side_effect=build), patch.object(r, 'product', side_effect=product):
                 self.assertEqual(r.execute(), 1)
             self.assertEqual(calls, ['A-build', 'A-synthetic', 'A-missing-include', 'B-build', 'B-synthetic', 'B-missing-include'])
@@ -175,6 +176,7 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             r = self.runner(Path(temp)); calls = []
             with patch.object(r, 'setup'), patch.object(r, 'guard'), patch.object(r, 'cp'), \
+                 patch.object(r, 'prepare_dependency_cache', return_value=True), \
                  patch.object(r, 'build', side_effect=[ValueError('A build failed'), Path('/tools')]), \
                  patch.object(r, 'product', side_effect=lambda key, name, tools: calls.append((key, name))):
                 self.assertEqual(r.execute(), 1)
@@ -211,6 +213,51 @@ class Tests(unittest.TestCase):
                 identity.assert_not_called()
                 r.guard('B')
                 self.assertEqual(identity.call_args.args[0], r.sources['B'])
+
+    def cache_fixture(self, root):
+        r = self.runner(root); r.tools['cargo'] = '/fixed/cargo'
+        for source in r.sources.values():
+            source.mkdir(); (source / 'Cargo.toml').write_text('[workspace]')
+            (source / 'Cargo.lock').write_bytes((d.ROOT / 'Cargo.lock').read_bytes())
+        return r
+
+    def test_fetch_once_full_locked_graph_no_platform_filter(self):
+        with tempfile.TemporaryDirectory() as temp:
+            r = self.cache_fixture(Path(temp))
+            with patch.object(r, 'guard') as guard, patch.object(d.shared, 'capture', return_value=OK) as cap:
+                self.assertTrue(r.prepare_dependency_cache())
+                argv = cap.call_args.args[1]
+                self.assertEqual(argv, ['/fixed/cargo', 'fetch', '--locked', '--manifest-path', r.sources['A'] / 'Cargo.toml'])
+                self.assertEqual(cap.call_args.args[3], 600)
+                self.assertEqual(cap.call_args.args[4]['CARGO_NET_RETRY'], '0')
+                self.assertEqual([x.args for x in guard.call_args_list], [('A',), ('B',), ('A',), ('B',)])
+                with self.assertRaises(ValueError): r.prepare_dependency_cache()
+                self.assertEqual(cap.call_count, 1)
+
+    def test_fetch_rejects_bad_lock_before_network_and_mutation_after(self):
+        for moment in ('before', 'during'):
+            with tempfile.TemporaryDirectory() as temp:
+                r = self.cache_fixture(Path(temp)); lock = r.sources['B'] / 'Cargo.lock'
+                if moment == 'before': lock.write_text('changed')
+                def capture(*args, **kwargs):
+                    lock.write_text('changed'); return OK
+                with patch.object(r, 'guard'), patch.object(d.shared, 'capture', side_effect=capture) as cap:
+                    with self.assertRaises(ValueError): r.prepare_dependency_cache()
+                    self.assertEqual(cap.call_count, 0 if moment == 'before' else 1)
+
+    def test_fetch_failed_timeout_or_incomplete_no_build_or_product(self):
+        for record in (dict(OK, exit=101), dict(OK, failure='timeout', raw_streams_complete=False),
+                       dict(OK, raw_streams_complete=False)):
+            with tempfile.TemporaryDirectory() as temp:
+                r = self.cache_fixture(Path(temp))
+                with patch.object(r, 'setup'), patch.object(r, 'guard'), patch.object(r, 'cp') as cp, \
+                     patch.object(d.shared, 'capture', return_value=record) as cap, \
+                     patch.object(r, 'build') as build, patch.object(r, 'product') as product:
+                    self.assertEqual(r.execute(), 1)
+                    self.assertEqual(cp.call_count, 2); self.assertEqual(cap.call_count, 1)
+                    build.assert_not_called(); product.assert_not_called()
+                    self.assertEqual(r.result['stages']['dependency-cache-fetch'], record)
+                    self.assertEqual(r.result['windows']['dependency-cache-window'], 'failed')
 
     def test_capture_single_use_and_parameters(self):
         with tempfile.TemporaryDirectory() as temp:
