@@ -3,13 +3,7 @@ use super::*;
 struct Tree(PathBuf);
 impl Tree {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("ryupy-instance-aot-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&root).unwrap();
+        let root = crate::test_temp::directory("ryupy-instance-aot");
         let tree = Self(root);
         tree.write("entry.py", "from pkg import subject\n");
         tree.write("pkg/__init__.py", "value = 1\n");
