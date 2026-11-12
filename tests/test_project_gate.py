@@ -174,6 +174,16 @@ class ProjectGateTests(unittest.TestCase):
                 self.assertTrue((directory / "process.json").is_file())
 
     @unittest.skipUnless(os.name == "posix", "当前进程组监管只支持 POSIX")
+    def test_collect_nonzero_preserves_failure_record(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            record = run_process([sys.executable, "-c", "print('original'); raise SystemExit(2)"],
+                                 directory, os.environ, directory / "runner", 2, directory, check=False)
+            self.assertEqual(record['exit'], 2)
+            self.assertTrue(record['raw_streams_complete'])
+            self.assertEqual((directory / 'runner.stdout').read_bytes(), b'original\n')
+
+    @unittest.skipUnless(os.name == "posix", "当前进程组监管只支持 POSIX")
     def test_timeout_also_stops_descendant(self):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
@@ -221,7 +231,7 @@ class WrapperInjectionTests(unittest.TestCase):
             if scenario in ('nan-timeout', 'inf-timeout'):
                 argv += ['--timeout', scenario.split('-')[0]]
 
-            def fake_process(command, cwd, env, prefix, timeout, watch):
+            def fake_process(command, cwd, env, prefix, timeout, watch, *, check=True):
                 # 原始进程边界保留小文件，但没有启动任何子进程。
                 prefix.with_suffix('.stdout').write_bytes(b'')
                 prefix.with_suffix('.stderr').write_bytes(b'')
@@ -260,6 +270,16 @@ class WrapperInjectionTests(unittest.TestCase):
                     (directory / 'RyuPy.Runtime.dll').write_bytes(runtime.read_bytes())
                     (directory / 'jit.stdout').write_bytes(golden.read_bytes() if native else b'')
                     (directory / 'jit.stderr').write_bytes(b'' if native else b'Traceback (most recent call last):\nNotImplementedError: synthetic\n')
+                if scenario == 'malformed-status-early' and pid == 'six':
+                    row['status'] = []
+                    row.pop('detail')
+                if scenario == 'stale-first' and pid == 'six':
+                    row['run_id'] = 'stale'
+                if scenario == 'crash-early' and pid == 'sortedcontainers':
+                    row.update(status='failed', failure_kind='crash', run_exit=134)
+                    (native_root / 'projects.jsonl').write_text(json.dumps(row) + '\n')
+                    gate.write_json(prefix.with_suffix('.json'), {'exit': 2, 'failure': None})
+                    return {'exit': 2, 'failure': None}
                 if pid == 'progress':
                     if scenario == 'stale-last':
                         row['run_id'] = 'stale'
@@ -275,6 +295,7 @@ class WrapperInjectionTests(unittest.TestCase):
                     if scenario == 'runner-nonzero-last':
                         raise gate.GateError('runner exit=2')
                 (native_root / 'projects.jsonl').write_text(json.dumps(row) + '\n')
+                return {'exit': 0, 'failure': None}
 
             save = gate.write_json
             def checked_write(path, value):
@@ -298,7 +319,37 @@ class WrapperInjectionTests(unittest.TestCase):
             run_path = output / 'run.json'
             return {'exit': code, 'uncaught': error,
                     'summary': json.loads(summary_path.read_text()) if summary_path.exists() else None,
-                    'completed': json.loads(run_path.read_text()).get('completed') if run_path.exists() else None}
+                    'completed': json.loads(run_path.read_text()).get('completed') if run_path.exists() else None,
+                    'matrix': json.loads((output / 'matrix.json').read_text()) if (output / 'matrix.json').exists() else None}
+
+    def test_early_crash_keeps_all_twenty_and_still_fails(self):
+        result = self.run_case('crash-early', 'preserve')
+        self.assertEqual(result['exit'], 2)
+        self.assertTrue(result['completed'])
+        self.assertEqual(len(result['matrix']), 20)
+        row = next(r for r in result['matrix'] if r['id'] == 'sortedcontainers')
+        self.assertEqual((row['status'], row['failure_kind']), ('failed', 'crash'))
+        self.assertIn('gate_error', row)
+        self.assertFalse(result['summary']['valid'])
+        self.assertFalse(result['summary']['preserve_pass'])
+        self.assertFalse(result['summary']['promotion_pass'])
+        self.assertEqual(result['summary']['protected_lost'], [])
+
+    def test_malformed_status_does_not_stop_remaining_projects_or_count_native(self):
+        result = self.run_case('malformed-status-early', 'preserve')
+        self.assertEqual(result['exit'], 2)
+        self.assertEqual(len(result['matrix']), 20)
+        row = next(r for r in result['matrix'] if r['id'] == 'six')
+        self.assertEqual(row['status'], 'invalid')
+        self.assertEqual(row['reported_status'], [])
+        self.assertFalse(result['summary']['preserve_pass'])
+
+    def test_stale_identity_stops_instead_of_collecting(self):
+        result = self.run_case('stale-first', 'preserve')
+        self.assertEqual(result['exit'], 2)
+        self.assertFalse(result['completed'])
+        self.assertIsNone(result['matrix'])
+        self.assertFalse(result['summary']['valid'])
 
     def test_historical_progress_failure_now_fails_both_gates(self):
         preserve = self.run_case('historical-baseline', 'preserve')

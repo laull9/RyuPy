@@ -17,6 +17,10 @@ class GateError(ValueError):
     """输入或证据不满足合同，不能生成通过结论。"""
 
 
+class IdentityError(GateError):
+    """候选、工具或结果归属不可信：必须停止整轮，不当作项目局部失败。"""
+
+
 def digest(path):
     with Path(path).open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
@@ -112,7 +116,7 @@ def validate_result(row, project, run_id, directory, golden, runtime_sha):
     identity = {key: project[key] for key in ("id", "pypi", "version", "scope", "deps")}
     identity.update(run_id=run_id, mode="default-jit", entry=str(golden.parents[2] / project["entry"]))
     if any(row.get(key) != value for key, value in identity.items()):
-        raise GateError(f"陈旧/错误身份或非默认报告：{project['id']}")
+        raise IdentityError(f"陈旧/错误身份或非默认报告：{project['id']}")
     status, kind = row.get("status"), row.get("failure_kind")
     allowed = {"native": {""}, "unsupported": {"diagnostic"}, "failed": {"runtime-error"}}
     if not isinstance(status, str) or not isinstance(kind, str) or status not in allowed or kind not in allowed[status]:
@@ -131,7 +135,7 @@ def validate_result(row, project, run_id, directory, golden, runtime_sha):
         if not (directory / artifact).is_file() or not (directory / artifact).stat().st_size:
             raise GateError("缺少本轮编译产物")
     if digest(directory / "RyuPy.Runtime.dll") != runtime_sha:
-        raise GateError("执行产物的 runtime 与本轮冻结工具不符")
+        raise IdentityError("执行产物的 runtime 与本轮冻结工具不符")
     stdout = (directory / "jit.stdout").read_bytes()
     stderr = (directory / "jit.stderr").read_bytes()
     if status == "native" and (type(row.get("run_exit")) is not int or row["run_exit"] != 0 or stdout != golden.read_bytes()):

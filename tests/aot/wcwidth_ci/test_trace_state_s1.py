@@ -114,11 +114,29 @@ class S1CollectionIdentity(unittest.TestCase):
         self.assertEqual(groups["treebuilder"]["non_passed_cases"], 0)
         self.assertEqual(set(groups["treebuilder"]["cases"]), set(expected))
 
+    def test_mi_fact_is_exact_addition_not_replacement(self):
+        method = "ProducedMiAssemblyHasExactColdSignatureAndTotal"
+        name = "RyuPy.Runtime.Tests.PyTraceStateArtifactTests." + method
+        self.assertEqual(gate.GROUP_EXPECTED["ordinary_mi"], {name: 1})
+        source = gate.ROOT / "runtime/RyuPy.Runtime.Tests/PyOrdinaryMiAbiContractTests.cs"
+        self.assertIn("public void " + method + "()", source.read_text())
+        for collection in (gate.EXPECTED, gate.CASE_METHOD):
+            names = list(collection)
+            for altered in ([n for n in names if n != name], names + [name],
+                            [n.replace("PyTraceStateArtifactTests", "WrongOwner") if n == name else n for n in names]):
+                with self.assertRaises(RuntimeError): self.discovery(altered)
+        root = synthetic_trx()
+        row = next(x for x in results(root) if x.get("testName") == name)
+        row.set("outcome", "NotExecuted")
+        self.reject(root)
+        group = gate.execution_groups(self.verify(synthetic_trx()))["ordinary_mi"]
+        self.assertEqual((group["executed_cases"], group["passed_cases"]), (1, 1))
+
     def test_expanded_discovery_is_exact_full_case_set(self):
-        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (33, 40))
+        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (34, 41))
         report = self.discovery()
         self.assertEqual(report["mode"], "expanded_cases")
-        self.assertEqual(report["observed_count"], 40)
+        self.assertEqual(report["observed_count"], 41)
         self.assertEqual(sum(count for method, count in gate.EXPECTED.items()
                              if method.startswith(("RyuPy.Runtime.Tests.PyTraceStateTests.",
                                                    "RyuPy.Runtime.Tests.PyTraceStateEpochTests."))), 21)
@@ -174,8 +192,8 @@ class S1CollectionIdentity(unittest.TestCase):
     def test_method_only_discovery_does_not_claim_case_expansion(self):
         report = self.discovery(gate.EXPECTED)
         self.assertEqual(report["mode"], "methods_only")
-        self.assertEqual(report["observed_count"], 33)
-        self.assertEqual(len(self.verify(synthetic_trx(), report)), 40)
+        self.assertEqual(report["observed_count"], 34)
+        self.assertEqual(len(self.verify(synthetic_trx(), report)), 41)
 
     def test_discovery_rejects_missing_extra_duplicate_wrong_owner_and_mixed_forms(self):
         names = list(gate.CASE_METHOD)

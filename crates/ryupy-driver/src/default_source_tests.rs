@@ -293,7 +293,11 @@ fn default_source_actual_support_boundary_not_unknown_hir() {
             .deferred
             .contains_key("optional")
     );
+    // 普通多继承已属于Legacy可编译域；未绑定基类在真正激活时处理。
     tree.write("optional.py", "class C(A, B):\n    pass\n");
+    tree.compile(&mut tree.session()).unwrap();
+    // 保留实际未支持的类关键字边界，不把新的合法MI当成旧拒绝证据。
+    tree.write("optional.py", "class C(metaclass=type):\n    pass\n");
     assert!(tree.compile(&mut tree.session()).is_err());
 }
 
