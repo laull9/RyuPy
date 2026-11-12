@@ -3,7 +3,7 @@ name: binaryornot普通consumer原生部署
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/deployment-binaryornot-20261112-001']
+    branches: ['ci/deployment-binaryornot-20261112-002']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   linux-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-binaryornot-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-binaryornot-002'
     runs-on: ubuntu-24.04
     timeout-minutes: 105
     env:

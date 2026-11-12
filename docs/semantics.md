@@ -242,6 +242,20 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 
 ## 4. 语义陷阱清单
 
+### 二进制 decode 参数与严格编码（2026-11-12）
+
+`bytes.decode` / `bytearray.decode` 的直接、保存方法、类型根直接与保存根四入口共用
+`encoding='utf-8', errors='strict'` 绑定。关键字参数不再误报 TypeError；重复、额外、
+非字符串与内嵌 NUL 参数严格拒绝，不调用 `str()` 转换协议。
+当前解码族为 UTF-8、ASCII、Latin-1、UTF-16/LE/BE。ASCII 非 ASCII 字节与损坏 UTF-8/UTF-16
+抛 UnicodeDecodeError，不用 CLR 的默认替换策略。异常消息仍为概要，尚不承诺完整的
+object/start/end/reason 字段与 CPython 逐字节错误详情。UTF-16 消费 BOM；无 BOM 时按宿主字节序，
+显式 LE/BE 保留 BOM 字符。未知编码抛 LookupError。
+非 `strict` 的 errors 策略（包括 ignore/replace/自定义处理器）尚不支持，明确抛
+NotImplementedError，即使输入无需错误处理也如此；不宣称完整 codecs 兼容。
+新差分用例 `m2_5_binary_decode_binding.py` 与 C# 四入口合同覆盖该有限域；
+此项本身不代表 binaryornot 整个 Native 产品已通过，也不改变性能结论。
+
 > 每一条都应该有对应的 e2e 用例。新发现的陷阱请追加到这里。
 
 | # | 现象 | Python | CIL / .NET 原生 | RyuPy 处理 |

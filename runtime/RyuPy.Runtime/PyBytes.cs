@@ -233,7 +233,7 @@ public sealed partial class PyByteArray
 /// <summary>编码与字节转换。</summary>
 public static class PyEncoding
 {
-    /// <summary>按名字解码字节串（支持 utf-8 / ascii / latin-1）。</summary>
+    /// <summary>按名字解码字节串（支持 utf-8 / ascii / latin-1 / utf-16）。</summary>
     /// <param name="bytes">字节。</param>
     /// <param name="encoding">编码名。</param>
     public static string Decode(ReadOnlySpan<byte> bytes, string encoding)
@@ -243,8 +243,11 @@ public static class PyEncoding
         {
             return normalized switch
             {
-                "utf8" or "u8" or "" => new UTF8Encoding(false, true).GetString(bytes),
-                "ascii" or "usascii" => Encoding.ASCII.GetString(bytes),
+                "utf8" or "u8" => new UTF8Encoding(false, true).GetString(bytes),
+                "utf16" => DecodeUtf16(bytes),
+                "utf16le" => new UnicodeEncoding(false, false, true).GetString(bytes),
+                "utf16be" => new UnicodeEncoding(true, false, true).GetString(bytes),
+                "ascii" or "usascii" => Encoding.GetEncoding("ascii", EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback).GetString(bytes),
                 "latin1" or "iso88591" => Encoding.Latin1.GetString(bytes),
                 _ => throw new PyLookupError($"unknown encoding: {encoding}"),
             };
@@ -252,9 +255,18 @@ public static class PyEncoding
         catch (DecoderFallbackException)
         {
             throw new PyUnicodeDecodeError(
-                $"'utf-8' codec can't decode bytes: invalid start byte"
+                $"'{encoding}' codec can't decode bytes: invalid byte sequence"
             );
         }
+    }
+
+    // UTF-16消费BOM；无BOM采用宿主字节序，与CPython的一次性decode一致。
+    private static string DecodeUtf16(ReadOnlySpan<byte> bytes)
+    {
+        bool bigEndian = !BitConverter.IsLittleEndian;
+        if (bytes.Length >= 2 && bytes[0] == 0xff && bytes[1] == 0xfe) { bytes = bytes[2..]; bigEndian = false; }
+        else if (bytes.Length >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff) { bytes = bytes[2..]; bigEndian = true; }
+        return new UnicodeEncoding(bigEndian, false, true).GetString(bytes);
     }
 
     /// <summary>按名字编码字符串。</summary>

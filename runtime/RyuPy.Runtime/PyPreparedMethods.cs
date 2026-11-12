@@ -52,6 +52,8 @@ public sealed class PyBuiltinMethod
         // expandtabs独立绑定须先于通用arity与keyword拒绝。
         if (_receiver is string && _name == "expandtabs")
             return PyTextExpandTabs.Invoke(_receiver, args, names, values);
+        if (_receiver is PyBytes or PyByteArray && _name == "decode")
+            return PyBinaryDecode.Invoke(_receiver, args, names, values);
         // translate 的 table/delete 绑定独立于旧方法的通用数量/关键字规则。
         if (_receiver is PyBytes or PyByteArray && _name == "translate")
             return PyBinaryTranslate.Invoke(_receiver, args, names, values);
