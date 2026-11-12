@@ -10,12 +10,20 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     private readonly TextWriter? _writer;
     private readonly string _name;
     private bool _closed;
+    private bool _detached;
+    internal bool Detached => _detached;
+    internal bool BufferClosed => _buffer?.Closed == true;
+    private readonly PyStandardBinaryOutput? _buffer;
     private bool _skipLineFeed;
     private object? _current;
 
     /// <summary>创建输入或输出包装。</summary>
     public PyStandardStream(string name, TextReader? reader, TextWriter? writer)
     { _name = name; _reader = reader; _writer = writer; }
+
+    /// <summary>真实标准输出包装与稳定raw载体共享所有权状态。</summary>
+    internal PyStandardStream(string name, TextWriter writer, PyStandardBinaryOutput buffer)
+    { _name = name; _writer = writer; _buffer = buffer; }
 
     /// <inheritdoc />
     public override string TypeName => "TextIOWrapper";
@@ -40,7 +48,24 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     /// <summary>显式刷新输出。</summary>
     public void Flush() { CheckOpen(); PyIO.Guard(() => { _writer?.Flush(); return PyNone.Instance; }); }
 
-    private void CheckOpen() { if (_closed) throw new PyValueError("I/O operation on closed file."); }
+    private void CheckAttached() { if (_detached) throw new PyValueError("underlying buffer has been detached"); }
+    private bool Closed { get { CheckAttached(); return _closed || _buffer?.Closed == true; } }
+    private void CheckOpen() { if (Closed) throw new PyValueError("I/O operation on closed file."); }
+    private object Detach()
+    {
+        CheckOpen();
+        if (_buffer is null) throw new PyNotImplementedError("detach requires a real standard output binary buffer");
+        Flush(); // 刷新失败时必须保留附着状态。
+        _detached = true;
+        return _buffer;
+    }
+    private void Close()
+    {
+        CheckAttached();
+        if (Closed) return;
+        try { Flush(); }
+        finally { _closed = true; _buffer?.Close(); }
+    }
 
     private string Read(long size, bool line)
     {
@@ -73,15 +98,17 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
     /// <inheritdoc />
     public override object? GetAttr(string name) => name switch
     {
-        "name" => _name, "mode" => _reader is null ? "w" : "r", "encoding" => "utf-8",
-        "errors" => "strict", "closed" => _closed,
+        "name" => StreamName(), "mode" => _reader is null ? "w" : "r", "encoding" => "utf-8",
+        "errors" => "strict", "closed" => Closed,
+        "buffer" => _detached ? PyNone.Instance : _buffer ?? throw new PyNotImplementedError("binary buffer requires a real standard output stream"),
+        "detach" => PyNativeFunctions.Create(name, [], [], 0, _ => Detach()),
         "write" => PyNativeFunctions.Create("write", ["text"], [null], 1, args =>
         { string text = PyCast.ToStr(args[0]); Write(text); return PyText.Length(text); }),
         "read" or "readline" => PyNativeFunctions.Create(name, ["size"], [-1L], 0,
             args => PyIO.Guard(() => Read(PyCast.ToInt64(args[0]), name == "readline"))),
         "flush" => PyNativeFunctions.Create(name, [], [], 0, _ => { Flush(); return PyNone.Instance; }),
         "close" => PyNativeFunctions.Create(name, [], [], 0, _ =>
-        { if (!_closed) _writer?.Flush(); _closed = true; return PyNone.Instance; }),
+        { Close(); return PyNone.Instance; }),
         "readable" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return _reader is not null; }),
         "writable" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return _writer is not null; }),
         "seekable" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return false; }),
@@ -89,11 +116,13 @@ public sealed class PyStandardStream : PyNativeObject, IPyIterator
         { CheckOpen(); return _reader is not null ? !Console.IsInputRedirected : _name == "<stderr>" ? !Console.IsErrorRedirected : !Console.IsOutputRedirected; }),
         "__enter__" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return this; }),
         "__exit__" => PyNativeFunctions.Create(name, ["type", "value", "traceback"], [null, null, null], 3,
-            _ => { if (!_closed) _writer?.Flush(); _closed = true; return false; }),
+            _ => { Close(); return false; }),
         "__iter__" => PyNativeFunctions.Create(name, [], [], 0, _ => { CheckOpen(); return this; }),
         "__next__" => PyNativeFunctions.Create(name, [], [], 0, _ => MoveNext() ? Current() : throw new PyStopIteration()),
         _ => throw Missing(name),
     };
+
+    private string StreamName() { CheckAttached(); return _name; }
 
     /// <inheritdoc />
     public bool MoveNext() { string line = Read(-1, true); _current = line; return line.Length > 0; }

@@ -22,6 +22,7 @@ pub(crate) struct StagedResources {
     files: Vec<PathBuf>,
     anchors: Vec<String>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
+    pub(crate) explicit_declaration: bool,
 }
 
 pub(super) fn checked_total(current: u64, additional: u64) -> Result<u64> {
@@ -213,6 +214,22 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
         }
         let snapshot = &snapshots[chosen.context("资源声明缺少来源")?];
         total = checked_total(total, snapshot.size)?;
+        // 消费者在资源读入时仍是source索引；不能把延期/缺失来源静默丢弃。
+        let consumers: BTreeSet<u32> = if let Some(audit) = &plan.automatic {
+            consumers
+                .into_iter()
+                .map(|id| {
+                    audit
+                        .source_to_emitted
+                        .get(id as usize)
+                        .copied()
+                        .flatten()
+                        .context("资源消费者未编译，不能发布资源")
+                })
+                .collect::<Result<_>>()?
+        } else {
+            consumers
+        };
         records.push(ResourceRecord {
             relative_path: target.clone(),
             size: snapshot.size,
@@ -237,6 +254,7 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
             plan.locations.clone()
         },
         automatic: plan.automatic.clone(),
+        explicit_declaration: plan.explicit_declaration,
         anchors: plan
             .locations
             .iter()
