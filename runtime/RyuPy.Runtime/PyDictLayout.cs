@@ -45,6 +45,7 @@ internal static class PyDictLayout
         if (target is PyClass cls && IsClass(cls))
         {
             cls.RequireDictReady();
+            if (cls.HasDictC3Layout) cls.RequireLexicalFactoryReady();
             return new PyDictInstance(cls);
         }
         if (target is PyClass or PyType or PyNativeType)
@@ -84,6 +85,12 @@ internal static class PyDictLayout
         value = null;
         if (!IsClass(cls)) return false;
         if (name == "__dict__") throw Own(new PyNotImplementedError("dict subclass class __dict__ is not supported"));
+        if (cls.HasDictC3Layout)
+        {
+            if (name == "__base__") { value = cls.DictBestBase; return true; }
+            if (name == "__bases__") { value = cls.DirectBasesTuple(); return true; }
+            if (name == "__mro__") { value = cls.MroTuple(); return true; }
+        }
         if (name == "__base__") { value = (object?)cls.BaseClass ?? PyType.Get("dict"); return true; }
         if (name == "__bases__") { value = new PyTuple([(object?)cls.BaseClass ?? PyType.Get("dict")]); return true; }
         return false;

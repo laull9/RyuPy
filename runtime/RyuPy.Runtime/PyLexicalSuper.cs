@@ -49,7 +49,8 @@ public static class PyLexicalSuper
                 throw new PyNotImplementedError("super native starting classes are not supported");
             throw new PyRuntimeError($"super(): __class__ is not a type ({PyRepr.TypeName(classValue)})");
         }
-        GuardOrdinaryClass(start);
+        bool dictReceiver = receiver is PyInstance { Class.HasDictC3Layout: true } or PyClass { HasDictC3Layout: true };
+        GuardOrdinaryClass(start, dictReceiver);
         // CP将真实None首参解释为未绑定super；本切不开放未绑定代理。
         if (receiver is PyNone)
             throw new PyNotImplementedError("unbound super receivers are not supported");
@@ -59,7 +60,7 @@ public static class PyLexicalSuper
             bool classRelated = false;
             foreach (PyClass current in receiverClass.MroClasses())
             {
-                GuardOrdinaryClass(current);
+                GuardOrdinaryClass(current, dictReceiver);
                 classRelated |= ReferenceEquals(current, start);
             }
             if (!classRelated) throw new PyTypeError("super(type, obj): obj must be an instance or subtype of type");
@@ -73,7 +74,7 @@ public static class PyLexicalSuper
         bool related = false;
         foreach (PyClass current in instance.Class.MroClasses())
         {
-            GuardOrdinaryClass(current);
+            GuardOrdinaryClass(current, dictReceiver);
             related |= ReferenceEquals(current, start);
         }
         if (!related)
@@ -92,9 +93,9 @@ public static class PyLexicalSuper
     private static object? ReadCell(object? cell) => cell is object?[] { Length: 1 } values ? values[0]
         : throw new PyNotImplementedError("super requires a real lexical cell");
 
-    private static void GuardOrdinaryClass(PyClass cls)
+    private static void GuardOrdinaryClass(PyClass cls, bool allowDict)
     {
-        if (cls.BuiltinBase is not null || cls.HasStringLayout || cls.HasListLayout || cls.HasDictLayout
+        if (cls.BuiltinBase is not null || cls.HasStringLayout || cls.HasListLayout || cls.HasDictLayout && !allowDict
             || cls.NamedTupleLayout is not null || cls.HasEnumMetadata || cls.IsTypingIoFamily || cls.IsTypingGenericFamily)
             throw new PyNotImplementedError("super native class layouts are not supported");
     }

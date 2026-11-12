@@ -19,14 +19,15 @@ internal static class PyExplicitSuper
                 throw Unsupported("native starting classes");
             throw new PyTypeError($"super() argument 1 must be a type, not {PyRepr.TypeName(args[0])}");
         }
-        ValidateChain(start, null);
+        bool dictReceiver = args.Length == 2 && args[1] is (PyInstance { Class.HasDictC3Layout: true } or PyClass { HasDictC3Layout: true });
+        ValidateChain(start, null, dictReceiver);
         if (args.Length == 1 || args[1] is PyNone)
             throw Unsupported("unbound receivers");
         object? receiver = args[1];
         if (receiver is PyClass { HasMultipleInheritance: true } receiverClass)
         {
             receiverClass.RequireLexicalFactoryReady();
-            if (!ValidateChain(receiverClass, start)) throw Unrelated();
+            if (!ValidateChain(receiverClass, start, dictReceiver)) throw Unrelated();
             return new PySuper(start, receiverClass);
         }
         if (receiver is PyClass or PyType or PyNativeType or PyNativeObject or PyNamedTupleInstance or PyBaseException)
@@ -34,7 +35,7 @@ internal static class PyExplicitSuper
         if (receiver is not PyInstance instance) throw Unrelated();
         instance.Class.RequireLexicalFactoryReady();
         // 检查完整链，不能找到start就跳过后面的特殊布局；不调用用户hash/eq/getter。
-        if (!ValidateChain(instance.Class, start))
+        if (!ValidateChain(instance.Class, start, dictReceiver))
         {
             if (instance.Class.TryLookup("__class__", out _, out _)
                 || instance.Class.TryLookup("__getattribute__", out _, out _)
@@ -47,7 +48,7 @@ internal static class PyExplicitSuper
     }
 
     // 单链与普通MI共用真实MRO；不以专用类的PyClass外壳冒充通用MRO。
-    private static bool ValidateChain(PyClass cls, PyClass? start)
+    private static bool ValidateChain(PyClass cls, PyClass? start, bool allowDict)
     {
         bool related = false;
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
@@ -55,7 +56,7 @@ internal static class PyExplicitSuper
         {
             if (!seen.Add(current)) throw Unsupported("cyclic class chains");
             if (current.BuiltinBase is not null || current.ExceptionFactory is not null
-                || current.HasStringLayout || current.HasListLayout || current.HasDictLayout
+                || current.HasStringLayout || current.HasListLayout || current.HasDictLayout && !allowDict
                 || current.NamedTupleLayout is not null || current.HasEnumMetadata
                 || current.IsTypingIoFamily || current.IsTypingGenericFamily
                 || current.DataclassActive || current.IsNativeRuntimeClass)

@@ -473,3 +473,35 @@ fn unknown_single_base_keeps_aot_plan_and_runtime_capability_guard() {
     assert!(calls.contains(&ryupy_mir::RuntimeFn::PrepareRuntimeDerivedClass));
     assert!(!calls.contains(&ryupy_mir::RuntimeFn::PrepareOrdinaryMiClass));
 }
+
+#[test]
+fn lexical_multiple_bases_reject_aot_without_changing_old_single_base_plans() {
+    for (bases, rejected) in [("left, right", true), ("left", false), ("", false)] {
+        let root = root();
+        std::fs::write(
+            root.join("entry.py"),
+            format!("def make(left, right):\n    class C({bases}):\n        pass\n    return C\n"),
+        )
+        .unwrap();
+        let mut session = Session::default();
+        let result = crate::compile_linked_locations(
+            &mut session,
+            &root.join("entry.py"),
+            &[],
+            true,
+            None,
+            true,
+        );
+        if rejected {
+            assert!(result.is_err());
+            assert!(
+                session
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.message.contains("多继承C3"))
+            );
+        } else {
+            assert!(result.is_ok(), "{:?}", session.diagnostics);
+        }
+    }
+}

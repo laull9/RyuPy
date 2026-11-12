@@ -15,6 +15,7 @@ pub enum LexicalBinding {
 #[derive(Debug)]
 pub struct LoweredClass {
     pub base: Option<ClassBase>,
+    pub ordinary_mi_bases: Option<Vec<ExprId>>,
     pub decorators: Vec<Decorator>,
     pub body: Vec<ClassItem>,
     pub target: LexicalBinding,
@@ -74,7 +75,6 @@ pub(crate) fn lower_definition(
     if class.type_params.is_some()
         || class.arguments.as_ref().is_some_and(|args| {
             !args.keywords.is_empty()
-                || args.args.len() > 1
                 || args
                     .args
                     .iter()
@@ -84,7 +84,7 @@ pub(crate) fn lower_definition(
         ctx.diagnostics.push(
             Diagnostic::error(
                 Span::new(ctx.file, class.range),
-                "定义位置类暂不支持多重继承、类关键字、星基类或类型参数",
+                "定义位置类暂不支持类关键字、星基类或类型参数",
             )
             .with_code("E0100"),
         );
@@ -94,11 +94,26 @@ pub(crate) fn lower_definition(
         .iter()
         .map(|decorator| Decorator::Expr(ctx.lower_expr(&decorator.expression)))
         .collect();
-    let base = class
+    // 所有基表达式属于真实定义者arena；多基只选私有frame合同，不猜动态ClassId。
+    let values: Vec<_> = class
         .arguments
         .as_ref()
-        .and_then(|args| args.args.first())
-        .map(|expr| ClassBase::Runtime(ctx.lower_expr(expr)));
+        .map(|args| args.args.iter().map(|expr| ctx.lower_expr(expr)).collect())
+        .unwrap_or_default();
+    let (base, ordinary_mi_bases) = if values.len() > 1 {
+        if ctx.global_scope.instance_globals {
+            ctx.diagnostics.push(
+                Diagnostic::error(
+                    Span::new(ctx.file, class.range),
+                    "定义位置多重继承仅支持Legacy；Instance尚未支持",
+                )
+                .with_code("E0100"),
+            );
+        }
+        (None, Some(values))
+    } else {
+        (values.first().copied().map(ClassBase::Runtime), None)
+    };
     let mut scope = crate::class_scope::ClassScope::default();
     let mut bindings = FxHashSet::default();
     collect_bindings(&class.body, &mut bindings);
@@ -143,6 +158,7 @@ pub(crate) fn lower_definition(
         id,
         LoweredClass {
             base,
+            ordinary_mi_bases,
             decorators,
             body: items,
             target,
@@ -343,6 +359,7 @@ pub(crate) fn apply(
     for (id, definition) in metadata.lexical_classes.drain() {
         let class = &mut classes[id];
         class.base = definition.base;
+        class.ordinary_mi_bases = definition.ordinary_mi_bases;
         class.decorators = definition.decorators;
         class.body = definition.body;
         class.has_annotations = definition.annotations;

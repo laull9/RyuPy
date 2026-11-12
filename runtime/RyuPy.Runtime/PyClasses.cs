@@ -222,6 +222,13 @@ public sealed partial class PyClass
     public bool TryLookup(string name, out PyClass owner, out object? value)
     {
         RequireLexicalFactoryReady();
+        if (HasDictC3Layout)
+        {
+            // 旧公开ABI只返回真实用户owner；native命中仍已终止完整C3，不能继续搜索后方mixin。
+            if (TryResolveDictC3(name, out var resolved) && resolved.Owner is PyClass user)
+            { owner = user; value = resolved.Raw; return true; }
+            owner = null!; value = null; return false;
+        }
         long version = _globalVersion;
         if (_cache.TryGetValue(name, out CacheEntry cached) && cached.Version == version)
         {

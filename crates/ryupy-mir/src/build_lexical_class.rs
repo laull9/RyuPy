@@ -28,6 +28,7 @@ impl FunctionBuilder<'_> {
         let items = class.body.clone();
         let annotations = class.has_annotations;
         let base = class.base;
+        let mi_bases = class.ordinary_mi_bases.clone();
         let decorators = self.prepare_decorators(&class.decorators.clone());
         if let Some(state) = self.module_state {
             self.push_stmt(Statement::Eval(Rvalue::Call {
@@ -36,18 +37,26 @@ impl FunctionBuilder<'_> {
             }));
         }
         let context = self.expr_builder().capture_definition_context();
-        let bases = match base {
-            Some(ClassBase::Runtime(value)) => vec![self.freeze_expression(value)],
-            None => Vec::new(),
-            _ => {
-                self.diagnostics.push(
-                    ryupy_base::Diagnostic::error(
-                        ryupy_base::Span::new(self.hir.file, class.range),
-                        "词法类不能复用旧静态基类/专用布局路径",
-                    )
-                    .with_code("E0300"),
-                );
-                return;
+        // 每个base先冻结再求下一个；仍交私有namespace的既有prepare/finish，不提前造公开类。
+        let bases = if let Some(values) = mi_bases {
+            values
+                .into_iter()
+                .map(|value| self.freeze_expression(value))
+                .collect()
+        } else {
+            match base {
+                Some(ClassBase::Runtime(value)) => vec![self.freeze_expression(value)],
+                None => Vec::new(),
+                _ => {
+                    self.diagnostics.push(
+                        ryupy_base::Diagnostic::error(
+                            ryupy_base::Span::new(self.hir.file, class.range),
+                            "词法类不能复用旧静态基类/专用布局路径",
+                        )
+                        .with_code("E0300"),
+                    );
+                    return;
+                }
             }
         };
         let outer_state = self.module_state;

@@ -389,6 +389,12 @@ public static partial class PyObject
             result = PyOps.CallValue(method, args, [], []);
             return true;
         }
+        if (self is PyInstance { Class.HasDictC3Layout: true } mixed)
+        {
+            if (mixed.Class.TryResolveDictC3(name, out var resolved))
+            { result = resolved.Invoke(mixed, args, [], []); return true; }
+            result = null; return false;
+        }
         if (self is PyInstance genericInstance) genericInstance.Class.GuardInheritedGenericProtocol(name);
         if (self is PyInstance instance
             && instance.Class.TryLookup(name, out PyClass owner, out object? raw))
@@ -472,7 +478,10 @@ public static partial class PyObject
         {
             return value;
         }
-        // 3. 类链上的方法 / 值
+        // 3. 新native族的真实owner绑定；实例字段仍先于非数据native方法。
+        if (instance.Class.HasDictC3Layout && instance.Class.TryResolveDictC3(name, out var resolved))
+            return resolved.Bind(instance);
+        // 旧族保留用户owner快路。
         if (instance.Class.TryLookup(name, out PyClass owner, out object? raw))
         {
             PyTypingGenericProtocols.GuardDescriptorRead(instance.Class, raw);
@@ -544,6 +553,7 @@ public static partial class PyObject
                     return dict;
                 }
         }
+        if (cls.HasDictC3Layout && cls.TryResolveDictC3(name, out var resolved)) return resolved.Bind(cls, classAccess: true);
         if (!cls.TryLookup(name, out PyClass owner, out object? raw))
         {
             if (cls.TryRootConstructionAttribute(name, null, out object? rootMethod)) return rootMethod;
@@ -564,33 +574,5 @@ public static partial class PyObject
         };
     }
 
-    /// <summary>读取 `super()` 代理的属性：从定义类的下一个基类开始。</summary>
-    private static object? GetSuperAttr(PySuper super, string name)
-    {
-        PyLexicalClassGuard.Receiver(super.Self);
-        if (name == "__class__") return PyLexicalSuper.Type;
-        PyLexicalSuper.GuardAttribute(name);
-        PyTypingGenericProtocols.GuardSuper(super, name);
-        PyTypingIo.GuardSuperAttribute(super, name);
-        foreach (PyClass current in PyClass.SuperClasses(super.Owner, super.Self))
-        {
-            if (current.Attributes.TryGetValue(name, out object? raw))
-            {
-                PyLexicalSuper.GuardDescriptor(raw);
-                PyTypingGenericProtocols.GuardDescriptorRead(super.Owner, raw);
-                // class接收的普通函数/property不绑定；classmethod仍绑定真实派生类。
-                if (super.Self is PyClass && raw is not (PyClassMethod or PyStaticMethod)) return raw;
-                if (raw is PyProperty property)
-                {
-                    return InvokeBound(property.Getter, current, super.Self, [], [], []);
-                }
-                return Bind(raw, current, super.Self);
-            }
-        }
-        if (super.Owner.TryRootConstructionAttribute(name, super.Self, out object? rootMethod)) return rootMethod;
-        throw new PyAttributeError(
-            $"'super' object has no attribute '{name}'"
-        );
-    }
 
 }

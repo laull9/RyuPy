@@ -20,7 +20,7 @@ public static partial class PyOps
         PyDict dict => dict.Get(key),
         string text => GetString(text, key),
         PyListInstance list => PyListProtocols.Item(list, key),
-        PyDictInstance dict => PyDictProtocols.Item(dict, key),
+        PyDictInstance dict => PyDictSubclassDispatch.Item(dict, key),
         PyStringInstance text => PyStringProtocols.Item(text, key),
         PyBytes bytes => key is PySlice slice ? bytes.GetSlice(slice) : bytes.GetItem(ToIndex(key, "bytes")),
         PyByteArray array => key is PySlice slice2

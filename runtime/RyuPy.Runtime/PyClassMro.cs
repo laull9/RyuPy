@@ -16,8 +16,10 @@ public sealed partial class PyClass
     // 类体前只冻结真实引用及能力，不在此计算C3/重复基错误。
     internal void PrepareMultipleBases(object?[] bases)
     {
+        bool dict = DictCandidate(bases);
         foreach (object? value in bases)
         {
+            if (dict) { ValidateDictC3Base(value); continue; }
             if (ReferenceEquals(value, PyBaseObject.Type)) continue;
             if (value is not PyClass parent)
                 throw new PyNotImplementedError("ordinary multiple inheritance requires real ordinary classes or object");
@@ -37,6 +39,7 @@ public sealed partial class PyClass
         if (_pendingMiBases is not { } bases) return;
         try
         {
+            if (DictCandidate(bases)) { CompleteDictC3(bases); return; }
             var unique = new HashSet<object>(ReferenceEqualityComparer.Instance);
             var sequences = new List<List<object>>();
             foreach (object? value in bases)
@@ -126,7 +129,7 @@ public sealed partial class PyClass
     internal PyTuple MroTuple()
     {
         RequireLexicalFactoryReady();
-        if (!HasOrdinaryLexicalLayout) throw new PyNotImplementedError("special-layout MRO reflection");
+        if (!HasOrdinaryLexicalLayout && !HasDictC3Layout) throw new PyNotImplementedError("special-layout MRO reflection");
         return _miMroTuple ?? new PyTuple(FullOrdinaryMro().ToArray());
     }
 

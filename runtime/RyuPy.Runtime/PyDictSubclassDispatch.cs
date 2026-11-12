@@ -8,10 +8,18 @@ internal static class PyDictSubclassDispatch
     private static bool Invoke(PyDictInstance self, string name, object?[] args, out object? value)
     {
         self.Class.RequireDictReady();
+        if (self.Class.HasDictC3Layout)
+        {
+            if (self.Class.TryResolveDictC3(name, out var resolved))
+            { value = resolved.Invoke(self, args, [], []); return true; }
+            value = null; return false;
+        }
         if (self.Class.TryLookup(name, out PyClass owner, out object? method))
         { value = PyObject.InvokeBound(method, owner, self, args, [], []); return true; }
         value = null; return false;
     }
+    internal static object? Item(PyDictInstance self, object? key) => self.Class.HasDictC3Layout
+        && Invoke(self, "__getitem__", [key], out object? value) ? value : PyDictProtocols.Item(self, key);
     internal static void SetItem(PyDictInstance self, object? key, object? value)
     { if (!Invoke(self, "__setitem__", [key, value], out _)) PyDictProtocols.SetItem(self, key, value); }
     internal static void DeleteItem(PyDictInstance self, object? key)
