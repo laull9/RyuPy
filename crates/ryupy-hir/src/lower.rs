@@ -143,6 +143,7 @@ pub fn lower_module_with_native_exceptions(
                     name: name.clone(),
                     base: None,
                     ordinary_mi_bases: None,
+                    deferred_runtime_base: false,
                     fields: Vec::new(),
                     has_annotations: false,
                     declared_fields: Vec::new(),

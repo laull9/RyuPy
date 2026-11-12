@@ -3,7 +3,9 @@ use crate::{MirType, RuntimeFn};
 pub(crate) fn signature(runtime: RuntimeFn) -> Option<(&'static [MirType], MirType)> {
     use MirType::{Bool, Dynamic, Str, Unit};
     Some(match runtime {
-        RuntimeFn::PrepareOrdinaryMiClass => (&[Str, Dynamic], Dynamic),
+        RuntimeFn::PrepareOrdinaryMiClass | RuntimeFn::PrepareRuntimeDerivedClass => {
+            (&[Str, Dynamic], Dynamic)
+        }
         RuntimeFn::LexicalClassPrepare => (&[Str, Str, Dynamic, Dynamic], Dynamic),
         RuntimeFn::LexicalClassFinish => (&[Dynamic], Dynamic),
         RuntimeFn::LexicalNamespaceContains => (&[Dynamic, Str], Bool),

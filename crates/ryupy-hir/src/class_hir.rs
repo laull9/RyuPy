@@ -20,6 +20,8 @@ pub struct Class {
     pub base: Option<ClassBase>,
     /// Some为有延后发布合同的普通MI族；逐个保留真实运行时基表达式，含单基后代。
     pub ordinary_mi_bases: Option<Vec<ExprId>>,
+    /// 未知动态单基仅选择延后发布合同；不证明MI身份，不改变真实基值与专用布局判断。
+    pub deferred_runtime_base: bool,
     pub fields: Vec<Field>,
     /// 类自身简单标注名，按首次声明顺序去重；供动态dataclass转换读取。
     /// 不参与静态字段布局，也不把普通类标注强行解析为TypeRef。

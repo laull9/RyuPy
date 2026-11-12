@@ -33,6 +33,9 @@ impl FunctionBuilder<'_> {
         let base = cls.base;
         let mi_bases = cls.ordinary_mi_bases.clone();
         let ordinary_mi = mi_bases.is_some();
+        let deferred_runtime_base = cls.deferred_runtime_base;
+        // 冷发布合同不代表实际布局：动态单基由独立运行时入口保留旧单继承能力。
+        let deferred_publication = ordinary_mi || deferred_runtime_base;
         let is_exception = cls.is_exception;
         let items = cls.body.clone();
         let mir_cls = self.class_map[&cls_id];
@@ -113,6 +116,11 @@ impl FunctionBuilder<'_> {
                 RuntimeFn::PrepareOrdinaryMiClass,
                 vec![Operand::Const(Constant::Str(name)), Operand::Array(bases)],
             )
+        } else if deferred_runtime_base {
+            (
+                RuntimeFn::PrepareRuntimeDerivedClass,
+                vec![Operand::Const(Constant::Str(name)), Operand::Array(bases)],
+            )
         } else if let Some(context) = &class_context {
             (
                 RuntimeFn::InstanceMakeClass,
@@ -153,7 +161,7 @@ impl FunctionBuilder<'_> {
                 args,
             },
         });
-        if let Some(global) = class_global.filter(|_| !ordinary_mi) {
+        if let Some(global) = class_global.filter(|_| !deferred_publication) {
             self.push_stmt(Statement::SetGlobal {
                 dest: global,
                 value: Operand::Local(dest),
@@ -208,7 +216,7 @@ impl FunctionBuilder<'_> {
         }
         // 类体和普通类终结均成功后才填入原类；任何 class decorator 都在此之后。
         // 新显式AOT域无cell也核真实hook；旧cell不重复，不制造假cell。
-        if ordinary_mi
+        if deferred_publication
             || class_cell.is_some()
             || self.hir.info.instance_capabilities.aot_class_guards
         {
@@ -217,7 +225,7 @@ impl FunctionBuilder<'_> {
                 args: vec![class_object.clone()],
             }));
         }
-        if ordinary_mi && let Some(global) = class_global {
+        if deferred_publication && let Some(global) = class_global {
             self.push_stmt(Statement::SetGlobal {
                 dest: global,
                 value: class_object.clone(),

@@ -139,3 +139,9 @@ pickle 状态、任意自定义 descriptor 或迭代器子类完整兼容。
 提供Sequence/MutableSequence、Set/MutableSet、Mapping/MutableMapping常用mixins及live view。MappingView持有真实`_mapping`槽，空slots子类和实例字典遵循有限布局合同。原生生成器mixin仅提供iter/next与PEP479异常转换、耗尽终态；访问send/throw/close明确报NotImplementedError，不因显示为generator宣称完整控制协议。
 
 边界：动态ABCMeta/register/update_abstractmethods、手写抽象集合和自定义抽象标记尚不支持；已认证抽象方法标记被改写时明确拒绝。`Set._hash`需与frozenset散列统一后再开放。Generator根默认throw的traceback参数尚不支持。Sized不可订阅；collections.abc.Callable非法订阅参数报TypeError，合法形状目前明确NotImplementedError，不冒充typing.Callable缓存别名。其余有限PEP585订阅保留真实canonical origin。
+
+### 动态单基的延迟发布合同
+
+编译器对已冻结的动态单基值使用独立冷准备入口，基值不重复求值，已知Generic别名只在旧单基构造核心解析一次。实际普通MI族进入同一C3验证/终结；其它类型继续str/list/dict、typing IO/Generic等既有单基专用布局，不把它们转换成MI。类体、终结或装饰器失败时的旧绑定和类cell由编译链保持。旧MakeClass仍拒绝MI族基类，动态异常继承仍需要编译异常factory，native MI等原有限域不放开。
+
+运行时才识别出的MI继承要求`RuntimeFeature.IsDynamicCodeSupported`为真；NativeAOT及显式关闭动态码能力的JIT均明确报NotImplementedError。此限制只在真实MI分支消费，普通单基布局继续既有AOT能力；内部mode测试不能替代真实NativeAOT验收。

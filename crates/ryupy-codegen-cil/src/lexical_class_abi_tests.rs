@@ -18,6 +18,10 @@ fn lexical_class_factory_references_have_exact_clr_signatures() {
             msig! { static object(string, object[]) },
         ),
         (
+            "PrepareRuntimeDerivedClass",
+            msig! { static object(string, object[]) },
+        ),
+        (
             "Prepare",
             msig! { static object(string, string, object, object[]) },
         ),
