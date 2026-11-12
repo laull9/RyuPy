@@ -228,8 +228,8 @@ def native(r):
         import manifest_verify
         sdk=manifest_verify.read_sdk_version(layout.host/'sdk.version')
         require(sdk=='10.0.403','SDK版本改变')
-        manifest=manifest_verify.verify_manifest(layout.dist,layout.native,'linux-x64',sdk,
-                                                 expected_instance_modules=tuple(case['selected']))
+        from native_manifest import verify as verify_native_manifest
+        manifest=verify_native_manifest(r,name,layout,case['metadata'],case['selected'],sdk)
         for item in manifest['build_inputs']:
             path=layout.managed if item['role']=='compiled_managed_input' else r.runtime
             require(path.is_file() and path.stat().st_size==item['size'] and sha(path)==item['sha256'],
