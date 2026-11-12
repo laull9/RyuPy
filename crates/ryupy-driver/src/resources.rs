@@ -1,4 +1,4 @@
-//! 显式资源选择与schema2报告；仅针对本次已编译模块，不扫描目录或扩大Python导入闭包。
+//! 显式资源选择与schema2报告；仅针对本次已编译模块，仅展开有界显式目录，不扩大Python导入闭包。
 use crate::modules::SourceModule;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 
 #[path = "resources_paths.rs"]
 mod paths;
+#[path = "resources_select.rs"]
+mod select;
 #[path = "resources_stage.rs"]
 mod stage;
 use paths::{Kind, Targets};
@@ -26,7 +28,10 @@ struct Request {
 #[serde(deny_unknown_fields)]
 struct ModuleRequest {
     module: String,
+    #[serde(default)]
     files: Vec<String>,
+    #[serde(default)]
+    trees: Vec<select::TreeRequest>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct ModuleLocationRecord {
@@ -57,6 +62,7 @@ pub(crate) struct ResourcePlan {
     pub(super) selected: BTreeSet<usize>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
     pub(crate) explicit_declaration: bool,
+    selections: Vec<select::Selection>,
 }
 
 impl ResourcePlan {
@@ -92,6 +98,7 @@ impl ResourcePlan {
             selected: BTreeSet::new(),
             automatic: None,
             explicit_declaration: true,
+            selections: Vec::new(),
         };
         let mut targets = Targets::default();
         // 锚点先全部保留，防先处理的资源覆盖后声明模块的虚拟源位置。
@@ -110,6 +117,7 @@ impl ResourcePlan {
                 relative_file,
             });
         }
+        let mut scan_budget = select::SCAN_LIMIT;
         for (entry, location) in request.modules.iter().zip(&plan.locations) {
             let source_module = location.module_id as usize;
             let parent = location
@@ -117,7 +125,17 @@ impl ResourcePlan {
                 .rsplit_once('/')
                 .context("模块锚点没有父目录")?
                 .0;
-            for file in &entry.files {
+            ensure!(entry.trees.len() <= 64, "每模块资源目录选择超过64项");
+            let mut files = entry.files.clone();
+            for tree in &entry.trees {
+                let root = plan.source_files[source_module]
+                    .parent()
+                    .context("资源源码没有父目录")?;
+                let selection = select::Selection::read(root, tree, &mut scan_budget)?;
+                files.extend(selection.files.iter().cloned());
+                plan.selections.push(selection);
+            }
+            for file in &files {
                 paths::portable(file)?;
                 let lower = file.to_ascii_lowercase();
                 ensure!(
@@ -174,6 +192,7 @@ impl ResourcePlan {
                 );
             }
             plan.claims = explicit.claims;
+            plan.selections = explicit.selections;
             plan.explicit_declaration = true;
         }
         Ok(plan)
@@ -208,6 +227,7 @@ impl ResourcePlan {
             selected: (0..sources.len()).collect(),
             automatic: None,
             explicit_declaration: false,
+            selections: Vec::new(),
         })
     }
     pub(crate) fn module_location(&self, id: u32) -> Option<&str> {
@@ -216,8 +236,18 @@ impl ResourcePlan {
             .find(|l| l.module_id == id)
             .map(|l| l.relative_file.as_str())
     }
+    fn verify_selections(&self) -> Result<()> {
+        let mut budget = select::SCAN_LIMIT;
+        for selection in &self.selections {
+            selection.verify(&mut budget)?;
+        }
+        Ok(())
+    }
     pub(crate) fn stage(&self, root: &Path) -> Result<StagedResources> {
-        stage::freeze(self, root)
+        self.verify_selections()?;
+        let staged = stage::freeze(self, root)?;
+        self.verify_selections()?;
+        Ok(staged)
     }
 }
 

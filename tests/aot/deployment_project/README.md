@@ -18,6 +18,8 @@ ryupy build --project /work/pyfiglet-project/ryupy.json --target cli
 ryupy build --project /work/pyfiglet-project/ryupy.json --target metadata
 ```
 
+新生成的 `resources.json` 使用显式 `pyfiglet.fonts` 目录 `"."` 与 `.flf` / `.flc` 后缀，不再手写 553 文件名。轻量测试独立对照旧 `standalone_app/resources.json` 与锁定输入，要求集合精确一致；旧 benchmark 请求与结果保持不变。新选择器仍需新的真实 Native 验收，下文历史 CI 只覆盖当时的手列声明。
+
 默认输出分别位于项目 `build/cli`、`build/metadata`；`-o` 覆盖仍相对于调用者 cwd。项目配置的 search_paths、入口及请求文件相对配置文件父目录；metadata 请求内部 roots 继续相对于该请求文件自身，不重写语义。
 
 ## 验证层次

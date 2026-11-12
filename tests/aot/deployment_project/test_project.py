@@ -7,7 +7,7 @@ from unittest.mock import patch
 import hashlib
 import subprocess
 import sys
-from prepare import configuration
+from prepare import configuration, resource_configuration
 
 
 from public_build import project_command, inputs, relocate_project
@@ -119,6 +119,23 @@ class ProjectTests(unittest.TestCase):
             self.assertNotIn('..', Path(path).parts)
         self.assertEqual(config['include_modules'], ['pyfiglet','pyfiglet.fonts'])
         self.assertNotIn('oracle', json.dumps(config))
+
+    def test_compact_resource_selector_matches_independent_locked_list(self):
+        # 只对冻结输入作独立集合核验；不调用产品展开器，也不更新旧benchmark清单。
+        app=Path(__file__).resolve().parent.parent/'standalone_app'
+        locked=json.loads((app/'inputs.json').read_text(encoding='utf-8'))['files']
+        old=json.loads((app/'resources.json').read_text(encoding='utf-8'))['modules']
+        config=resource_configuration()
+        module=config['modules'][0]
+        self.assertEqual(module['module'],'pyfiglet.fonts')
+        self.assertNotIn('files',module)
+        tree=module['trees'][0]
+        self.assertEqual(tree['directory'],'.')
+        prefix='pyfiglet/fonts/'
+        selected=sorted(name[len(prefix):] for name in locked
+                        if name.startswith(prefix) and name.endswith(tuple(tree['suffixes'])))
+        self.assertEqual(len(selected),553)
+        self.assertEqual(selected,sorted(old[0]['files']))
 
     def test_public_command_does_not_inject_legacy_inputs(self):
         argv = project_command('/tools/ryupy',Path('/moved/project'),'metadata')

@@ -155,7 +155,7 @@ def main():
                 test='default_aot::tests::default_aot_real_graph_emit'
                 answer=run.run(target+'-oracle',['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1',test,'--','--exact','--ignored','--nocapture'],cwd=REPO,env=dict(env,**{'RYUPY_DEFAULT_AOT_'+k:str(v) for k,v in values.items()}),check=True,timeout=600)
                 require([s for s in answer.stdout.decode().splitlines() if s.startswith('test ') and not s.startswith('test result:')]==['test '+test+' ... ok'],'oracle不是唯一测试')
-                receipt=validate_app_artifact(layout,project,frozen,case=target,python=python,dotnet=dotnet,cli=cli,runtime=runtime,oracle_dir=oracle,output=out/(target+'-receipt'),expected_rid=args.rid)
+                receipt=validate_app_artifact(layout,project,frozen,case=target,python=python,dotnet=dotnet,cli=cli,runtime=runtime,oracle_dir=oracle,output=out/(target+'-receipt'),expected_rid=args.rid,compact_resources=True)
                 moved=out/(target+'-relocated');shutil.copytree(layout.dist,moved)
                 require(inventory(moved)==inventory(layout.dist),'搬迁字节变化')
                 dist_before=inventory(layout.dist)

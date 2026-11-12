@@ -25,7 +25,7 @@ def audit(layout, project, target, output, cli, runtime, python, dotnet, env):
     from measure import sha
     tools={str(p.resolve()):sha(p) for p in (cli,runtime,python,dotnet)}
     receipt=validate_app_artifact(layout,project,tools,case=target,python=python,dotnet=dotnet,
-                                 cli=cli,runtime=runtime,oracle_dir=oracle,output=output/'receipt')
+                                 cli=cli,runtime=runtime,oracle_dir=oracle,output=output/'receipt',compact_resources=True)
     require(receipt['structure_validated'],'独立receipt未通过')
     save(output/'validated.json',{'oracle_after_public_build':True,'receipt':receipt})
     return receipt

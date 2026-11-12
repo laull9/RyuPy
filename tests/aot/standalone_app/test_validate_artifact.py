@@ -39,6 +39,23 @@ class AppReceiptTests(unittest.TestCase):
                 (package/'a.flf').unlink()
                 with self.assertRaisesRegex(ValueError,'资源文件缺失'): v.expected_resources(root,oracle)
 
+    def test_compact_request_requires_explicit_mode_and_exact_contract(self):
+        with tempfile.TemporaryDirectory() as folder:
+            p=Path(folder)/'resources.json'
+            good={'schema_version':1,'modules':[{'module':'pyfiglet.fonts',
+                  'trees':[{'directory':'.','suffixes':['.flf','.flc']}]}]}
+            p.write_text(json.dumps(good),encoding='utf-8')
+            v.check_resource_request(p,True)
+            with self.assertRaises(ValueError):v.check_resource_request(p)
+            for change in ('directory','suffixes'):
+                bad=json.loads(json.dumps(good))
+                bad['modules'][0]['trees'][0][change]='..' if change=='directory' else ['.flf']
+                p.write_text(json.dumps(bad),encoding='utf-8')
+                with self.assertRaises(ValueError):v.check_resource_request(p,True)
+            p.write_bytes((v.HERE/'resources.json').read_bytes())
+            v.check_resource_request(p)
+            with self.assertRaises(ValueError):v.check_resource_request(p,True)
+
     def test_tool_roles_reject_swapped_valid_hashes(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder); cli=root/'cli'; runtime=root/'runtime'

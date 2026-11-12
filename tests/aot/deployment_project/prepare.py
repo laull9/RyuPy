@@ -22,6 +22,12 @@ def configuration():
                         'metadata': {'entry': 'console_entry.py'}}}
 
 
+def resource_configuration():
+    """显式后缀目录声明；历史手列清单仍作为独立资源集合基线。"""
+    return {'schema_version': 1, 'modules': [{'module': 'pyfiglet.fonts',
+            'trees': [{'directory': '.', 'suffixes': ['.flf', '.flc']}]}]}
+
+
 def prepare(output, package):
     """package可为下载恢复后的原包；只复制锁定文件，不依赖任何已生成编译计划。"""
     output = Path(output).resolve(); package = Path(package).resolve()
@@ -52,11 +58,12 @@ def prepare(output, package):
     for name in inputs['files']:
         target = output/'package'/name; target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(package/name, target)
-    for name in ('console_entry.py', 'resources.json'):
+    for name in ('console_entry.py',):
         shutil.copyfile(APP/name, output/name)
     request = {'schema_version': 1, 'mode': 'closed_snapshot',
                'roots': [{'id': 'pyfiglet-1.0.2', 'path': 'package'}]}
-    for name, value in [('metadata-request.json', request), ('ryupy.json', configuration())]:
+    for name, value in [('metadata-request.json', request), ('ryupy.json', configuration()),
+                        ('resources.json', resource_configuration())]:
         (output/name).write_text(json.dumps(value, indent=2)+'\n', encoding='utf-8')
     return output
 

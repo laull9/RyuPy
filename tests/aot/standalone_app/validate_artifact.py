@@ -45,7 +45,16 @@ def check_source_names(rows, emitted, expected):
     require(set(emitted) == set(expected), '发射来源不是app锁定模块全集')
 
 
-def locked_sources(prepared,case,oracle_dir,tools,cli,runtime):
+def check_resource_request(path, compact_resources=False):
+    """新项目显式选择compact合同；旧benchmark仍要求原请求精确字节。"""
+    if compact_resources:
+        require(read(path) == {'schema_version':1,'modules':[{'module':'pyfiglet.fonts',
+            'trees':[{'directory':'.','suffixes':['.flf','.flc']}]}]}, 'compact资源请求偏离锁定合同')
+    else:
+        require(sha(path) == sha(HERE/'resources.json'), '资源请求不是原手列字节')
+
+
+def locked_sources(prepared,case,oracle_dir,tools,cli,runtime,compact_resources=False):
     """锁定应用源和独立driver实际source plan，不从artifact反造预期。"""
     contract=read(HERE/'contract.json'); inputs=read(HERE/'inputs.json'); package=prepared/'package'
     for name,digest in contract['files'].items(): require(sha(HERE/name)==digest,'合同文件变化：'+name)
@@ -60,8 +69,8 @@ def locked_sources(prepared,case,oracle_dir,tools,cli,runtime):
     require([Path(x).resolve() for x in identity['search_roots']] == [package.resolve()], 'oracle搜索根变化')
     require(identity['include_modules'] == ['pyfiglet', 'pyfiglet.fonts'], 'oracle显式模块集合变化')
     require(Path(identity['metadata']).resolve() == (prepared/'metadata-request.json').resolve(), 'oracle metadata非本轮请求')
-    require(Path(identity['resources']).resolve() == (prepared/'resources.json').resolve()
-            and sha(identity['resources']) == sha(HERE/'resources.json'), 'oracle资源请求不是完整锁定集合')
+    require(Path(identity['resources']).resolve() == (prepared/'resources.json').resolve(), 'oracle资源请求不是本轮项目请求')
+    check_resource_request(identity['resources'],compact_resources)
     rows=identity['files']; require(len(rows)==len({r['module_name'] for r in rows}),'独立来源重名')
     emitted={r['module_name']:r for r in oracle['sources']}; seen=set()
     expected_names = inputs['expected_source_modules']
@@ -108,7 +117,7 @@ class Probe:
         require(p.returncode==0,'实际PE探针失败：'+name)
 
 
-def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,runtime,oracle_dir,output,expected_rid="linux-x64"):
+def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,runtime,oracle_dir,output,expected_rid="linux-x64",compact_resources=False):
     """结构验证后仍需独立clean-container完整六run，receipt不会直接允许measure。"""
     require(expected_rid in ('linux-x64','osx-arm64','win-x64'),'未知验收平台')
     require(case in ('cli','metadata'),'未知case')
@@ -123,7 +132,7 @@ def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,
     hashes={n:sha(oracle_dir/n) for n in names}
     source_before=inventory(prepared); dist_before=inventory(layout.dist)
     manifest_hash,pe_hash=sha(layout.manifest),sha(layout.managed)
-    oracle,identity=locked_sources(prepared,case,oracle_dir,tools,cli,runtime)
+    oracle,identity=locked_sources(prepared,case,oracle_dir,tools,cli,runtime,compact_resources)
     plan=read(oracle_dir/'default_source_plan.json'); payload=(oracle_dir/'candidate.json').read_text(encoding='utf-8')
     candidate=read(oracle_dir/'candidate.json'); roots=read(oracle_dir/'emission-roots.json')
     probe=Probe(output,python,dotnet); decoder=REPO/'tests/validation/source_provenance/ci/read_pe_decoder.py'

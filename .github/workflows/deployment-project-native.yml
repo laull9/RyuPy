@@ -3,7 +3,7 @@ name: Linux普通项目Native部署
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/deployment-project-20261112-001']
+    branches: ['ci/deployment-project-20261112-001', 'ci/resource-trees-20261112-001']
 permissions:
   contents: read
 concurrency:

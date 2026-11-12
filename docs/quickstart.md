@@ -128,6 +128,20 @@ ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
 
 配置中的入口、搜索根和声明文件路径相对于配置文件父目录，须留在该目录内且不跟随内部符号链接；搜索根可用 `"."`。显式 `--project` 本身可使用绝对路径或相对调用目录的路径。嵌套请求不重写：metadata 的 `roots` 仍相对该请求文件，resources 的文件仍按原模块资源合同解释。
 
+资源请求可以保留逐文件 `files`，也可在明确选定的模块内声明目录与字面后缀。例如 `resources.json`：
+
+```json
+{
+  "schema_version": 1,
+  "modules": [{
+    "module": "pyfiglet.fonts",
+    "trees": [{"directory": ".", "suffixes": [".flf", ".flc"]}]
+  }]
+}
+```
+
+目录相对于该模块实际源码父目录，递归选择匹配文件；这不是 glob，也不会自动加入模块或第三方依赖。空匹配、链接、不安全路径及 Python 源码/字节码拒绝；仍受现有资源数量、大小和来源冻结限制。`files` 与 `trees` 可合用。输出目录必须位于所选资源树之外，否则构建生成的匹配文件或旧产物可能被递归选入并导致集合变化拒绝；优先选择专用 `assets` / `fonts` 子目录，必要时用 `-o` 指向树外。后缀区分大小写，不读取 `.gitignore`；路径合法性及链接/特殊文件检查适用于所有被扫描条目，包括未匹配文件。此新声明的 Native 验证独立于下述历史手列清单验收，不能沿用旧 CI 结果。
+
 默认输出根为配置目录的 `build/<目标名>`，其下沿用 `<入口名>.build/`、`<入口名>.dist/`；`-o` 覆盖仍相对调用者当前目录。项目模式与位置输入、`-I` / `--search-path`、`--include-module`、`--resources`、`--distribution-metadata`、`--native-binding`、`--instance-module`、`--instance-direct-globals` 互斥，不隐式合并。
 
 普通默认构建保持 `ExplicitOnly` 模块策略，不因项目配置或 AOT 源位置计划自动启用实例模块。项目文件是部署声明，不是完整依赖锁，也不证明动态依赖闭包。[CI 43255885614](https://github.com/laull9/RyuPy/actions/runs/43255885614) 在候选 `2556fea1` 的无 feature Release CLI 上，已验证 pyfiglet 1.0.2 原 CLI 与 metadata 加载入口：Linux x64 四次公开项目构建、四份独立产物验收、12 次隔离源码宿主运行及12次禁网无 Python/.NET 容器运行通过。
