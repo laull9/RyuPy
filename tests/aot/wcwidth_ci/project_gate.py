@@ -19,6 +19,9 @@ SORTEDCONTAINERS_COMPILED_PROMOTIONS = frozenset({
 # 真实toml原入口及扩展四图双PIC通过后，仅准许这三个Legacy模块编译晋升。
 TOML_COMPILED_PROMOTIONS = frozenset({'toml.decoder', 'toml.encoder', 'toml.tz'})
 
+# 仅单模块编译进展：click 原入口仍 unsupported，不计项目成功。
+CLICK_COMPILED_PROMOTIONS = frozenset({'click.core'})
+
 def audit_plans(result, expected):
     """逐项目核实际计划；固定选择集合不等于所有被选模块已编译/执行。"""
     originals = strict.baseline(expected)
@@ -41,7 +44,8 @@ def audit_plans(result, expected):
         additions = strict.audit_old_rows(actual, originals[pid], selected,
             compiled_promotions=SORTEDCONTAINERS_COMPILED_PROMOTIONS
             if pid == 'sortedcontainers' else TOML_COMPILED_PROMOTIONS
-            if pid == 'toml' else frozenset())
+            if pid == 'toml' else CLICK_COMPILED_PROMOTIONS
+            if pid == 'click' else frozenset())
         level = strict.evidence_layer(result, pid, matrix)
         if pid in {'markdown', 'pyparsing'}:
             strict.audit_candidates(additions, pid, compiled=level == 'deployment')

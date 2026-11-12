@@ -8,7 +8,7 @@
 真实 click 需要 enum.auto，采用真实导出对象及经认证导入的零参调用，不按包名/源码位置猜测。
 生成发生于成员赋值期，后续成员别名和方法默认参数必须读到已解析值；冻结成员名单，最终成功后才发布公开类绑定。不能把生成延后到 Finalize，更不能让 warning-as-error 暴露半成品。
 
-默认 Enum 的 int/bool/负数/BigInt 历史遵循 CP3.12 的最大值加一及真实 DeprecationWarning；非数 scalar 历史生成 1 并警告。警告 record/ignore/error 共用现有协议。混数值与 str/None 生成仍明确拒绝，不静默近似。
+默认 Enum 的 int/bool/负数/BigInt 历史遵循 CP3.12 的最大值加一及真实 DeprecationWarning；全 str/None 历史生成 1 并警告。警告 record/ignore/error 共用现有协议。混数值与 str/None 生成仍明确拒绝，不静默近似。
 Flag 保非负历史与下一位生成，组合位须已有独立命名成员。不扩展原成员 initializer：字面量/此前成员别名及新增零参 auto，Flag 另保既有有限位运算。
 
 ## 范围与证据

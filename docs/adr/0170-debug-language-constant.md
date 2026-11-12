@@ -14,6 +14,10 @@ __debug__ 是语言常量而非可遮蔽 builtin/global 槽。HIR 在词法/类/
 
 三组 tests/cases/debug_constant 在 CP3.12.13 与真实 JIT 双 PIC 精确通过，覆盖模块/函数/类/闭包/默认参数、条件式、assert 副作用和模块字符串属性注入。注入同名 False 后反射可见 False，直接读取仍 True，不借此扩大 globals() 能力。
 
-HIR 对照已核 31 非法与 12 合法语法。普通名字赋值/删除、参数和导入绑定等必须诊断；obj.__debug__ 点赋值也非法，但属性删除/增强赋值及字符串 setattr 合法，必须按 CP 区分，不能一概拒绝。正 baseline 不夹入非法 Python。
+编译语法合法性对照已核 31 非法与 12 合法语法；syntax 仅新增该目标的窄合法性检查，未启用宽泛 semantic checker，也不承担类型/名字解析语义检查。普通名字赋值/删除、参数和导入绑定等必须诊断；obj.__debug__ 点赋值也非法，但属性删除/增强赋值及字符串 setattr 合法，必须按 CP 区分，不能一概拒绝。正 baseline 不夹入非法 Python。
 
 Native 尚待 hosted，完整回归另验；真实 click 原入口和固定项目保护不由这三组替代。常量 lowering 没有新增分派，但未据此宣称已测得性能提升。
+
+## 单模块编译审计增量
+
+最终固定矩阵的 click 仍为 unsupported（del frame），不计项目通过。仅批准旧计划 click.core.compiled 的严格布尔 false→true，表示单模块可编译进展。历史 raw/hash 冻结不改；其余模块、字段、selector、ABI、reason 及来源身份逐项保持，缺失晋升或类型错误仍拒绝。此审计例外不修改项目成功计数，不表示真实 click 入口已完成。

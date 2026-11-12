@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from project_gate import audit_plans, require_progress_promotion, SORTEDCONTAINERS_COMPILED_PROMOTIONS, TOML_COMPILED_PROMOTIONS
+from project_gate import audit_plans, require_progress_promotion, SORTEDCONTAINERS_COMPILED_PROMOTIONS, TOML_COMPILED_PROMOTIONS, CLICK_COMPILED_PROMOTIONS
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import default_source_deployment_validation_plans as strict
 
@@ -103,6 +103,38 @@ class PlanTests(unittest.TestCase):
                 strict.audit_old_rows(actual, original, selected, approvals)
         for name in allowed:
             for key, value in [('compiled', False), ('reason', 'changed'),
+                               ('execution', 'InstanceGlobals'), ('candidate', True),
+                               ('hard', False), ('catalog_authenticated', True),
+                               ('relative_from_import', True), ('ordinary_name_handlers', True)]:
+                bad = copy.deepcopy(actual)
+                next(row for row in bad['modules'] if row['module'] == name)[key] = value
+                with self.assertRaises(RuntimeError):
+                    strict.audit_old_rows(bad, original, selected, allowed)
+            old = copy.deepcopy(original)
+            next(row for row in old['modules'] if row['module'] == name)['compiled'] = True
+            with self.assertRaises(RuntimeError):
+                strict.audit_old_rows(actual, old, selected, allowed)
+        wrong_selected = copy.deepcopy(selected) + [strict.old_projection(actual['modules'][0])]
+        with self.assertRaises(RuntimeError):
+            strict.audit_old_rows(actual, original, wrong_selected, allowed)
+
+    def test_click_single_compiled_promotion_preserve_every_other_field(self):
+        expected = json.loads((Path(__file__).parent / 'project-pilot-plans.json').read_text())
+        original = strict.baseline(expected)['click']
+        selected = expected['selected']['click']
+        allowed = CLICK_COMPILED_PROMOTIONS
+        self.assertEqual(allowed, {'click.core'})
+        actual = copy.deepcopy(original)
+        for row in actual['modules']:
+            row.update(candidate=False, hard=True, catalog_authenticated=False)
+            if row['module'] in allowed: row['compiled'] = True
+        self.assertEqual(strict.audit_old_rows(actual, original, selected, allowed), {})
+        for approvals in (frozenset(), allowed - {'click.core'},
+                          allowed | {'unexpected'}, allowed | {'click'}):
+            with self.assertRaises(RuntimeError):
+                strict.audit_old_rows(actual, original, selected, approvals)
+        for name in allowed:
+            for key, value in [('compiled', False), ('compiled', 1), ('compiled', 'true'), ('reason', 'changed'),
                                ('execution', 'InstanceGlobals'), ('candidate', True),
                                ('hard', False), ('catalog_authenticated', True),
                                ('relative_from_import', True), ('ordinary_name_handlers', True)]:
@@ -261,8 +293,9 @@ class PlanTests(unittest.TestCase):
                 output = root / pid / 'native' / pid; output.mkdir(parents=True)
                 actual = copy.deepcopy(original)
                 for row in actual['modules']: row.update(candidate=False, hard=True, catalog_authenticated=False)
-                if pid in {'sortedcontainers', 'toml'}:
-                    allowed = SORTEDCONTAINERS_COMPILED_PROMOTIONS if pid == 'sortedcontainers' else TOML_COMPILED_PROMOTIONS
+                if pid in {'sortedcontainers', 'toml', 'click'}:
+                    allowed = (SORTEDCONTAINERS_COMPILED_PROMOTIONS if pid == 'sortedcontainers'
+                               else TOML_COMPILED_PROMOTIONS if pid == 'toml' else CLICK_COMPILED_PROMOTIONS)
                     for row in actual['modules']:
                         if row['module'] in allowed:
                             row['compiled'] = True
@@ -294,6 +327,23 @@ class PlanTests(unittest.TestCase):
             persist()
             with patch.object(strict, 'audit_deployment', side_effect=isolated):
                 self.assertEqual(len(audit_plans(root, expected)), 20)
+                # click 仅模块编译晋升，项目仍不成功；新增/缺失/非批准字段均拒绝。
+                click_row = next(row for row in matrix if row['id'] == 'click')
+                self.assertEqual(click_row['status'], 'unsupported')
+                click_path = root / 'click/native/click/module-environment.json'
+                click_plan = json.loads(click_path.read_text())
+                mutations = []
+                added = copy.deepcopy(click_plan)
+                extra_row = copy.deepcopy(added['modules'][0]); extra_row['module'] = 'click.extra'
+                added['modules'].append(extra_row); mutations.append(added)
+                removed = copy.deepcopy(click_plan); removed['modules'].pop(); mutations.append(removed)
+                other = copy.deepcopy(click_plan)
+                other_row = next(row for row in other['modules'] if row['module'] != 'click.core')
+                other_row['compiled'] = not other_row['compiled']; mutations.append(other)
+                for bad in mutations:
+                    click_path.write_text(json.dumps(bad))
+                    with self.assertRaises(RuntimeError): audit_plans(root, expected)
+                click_path.write_text(json.dumps(click_plan))
                 # 摘要即使谎称通过，toml状态/退出/失败类型/模式/同轮身份也不能绕过。
                 toml = next(row for row in matrix if row['id'] == 'toml')
                 saved_toml = copy.deepcopy(toml)
