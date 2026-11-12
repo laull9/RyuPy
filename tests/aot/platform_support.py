@@ -112,11 +112,22 @@ def audit(run, relocated, rid, tools, *, binaries=None):
 
 
 def clean_environment(work):
+    work = work.resolve()
     empty = work/'empty-path'
     empty.mkdir()
     env = {'PATH': str(empty), 'HOME': str(work)}
     if os.name == 'nt':
-        for key in ('SystemRoot', 'WINDIR', 'TEMP', 'TMP'):
+        # 保留正常Windows用户目录合同，但绝不借用宿主配置、缓存或临时文件。
+        profile = work/'profile'
+        roaming = profile/'AppData'/'Roaming'
+        local = profile/'AppData'/'Local'
+        temporary = local/'Temp'
+        roaming.mkdir(parents=True)
+        temporary.mkdir(parents=True)
+        env.update({'HOME': str(profile), 'USERPROFILE': str(profile),
+                    'APPDATA': str(roaming), 'LOCALAPPDATA': str(local),
+                    'TEMP': str(temporary), 'TMP': str(temporary)})
+        for key in ('SystemRoot', 'WINDIR'):
             if key in os.environ:
                 env[key] = os.environ[key]
     else:
