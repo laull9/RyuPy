@@ -6,7 +6,7 @@ pub(super) fn compile_linked_traced(
     entry: &Path,
     search_paths: &[PathBuf],
     collect_manifest: bool,
-    resource_request: Option<&Path>,
+    resource_request: Option<resources::ResourceRequestContext<'_>>,
     aot_locations: bool,
     trace: &stage_trace::StageTrace,
 ) -> Result<(
@@ -51,7 +51,7 @@ pub(super) fn compile_linked_traced(
         &roots,
     )?;
     let mut resource_plan = resource_request
-        .map(|path| resources::ResourcePlan::read(path, &sources))
+        .map(|request| resources::ResourcePlan::read_context(request, &sources))
         .transpose()?;
     let selected = if automatic {
         default_aot::selected(sess, &sources)?

@@ -64,3 +64,7 @@ ryupy build --project /work/pyfiglet-project/ryupy.json --target metadata
 新compact声明独立通过 [Linux CI 43296651927](https://github.com/laull9/RyuPy/actions/runs/43296651927)，候选 `f1765bb4`：四次公开AOT、四份独立receipt各553资源、12次宿主和12次禁网只读无Python/.NET容器运行。旧手列清单仍独立推导资源预期，未改benchmark合同。
 
 [同树平台CI 43298130779](https://github.com/laull9/RyuPy/actions/runs/43298130779)，触发提交 `c16be5c4`（两候选树均 `c42b182b`）：macOS arm64与Windows x64各两入口、两份553资源receipt、原位/产物搬迁共12次运行，与各平台CP原流精确一致。Windows路径宿主3/3及metadata nofollow3/3实际通过。ZIP摘要与原流已复核；这些平台宿主仍装有SDK，不等于无Python/.NET干净机，不给新性能数字。
+
+## 输出相交预检门
+
+平台门另执行资源/输出边界与事务分组：Windows 3+2项，macOS 3+4项，名称及计数均须匹配，忽略/零测试不得通过。覆盖实际生成目录相交、合法兄弟、原产物不变及POSIX输出别名/fake SDK；之后继续原两入口真实Native流程。边界测试不是Native成功的替代证据。

@@ -3,7 +3,7 @@ name: Linux普通项目Native部署
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/deployment-project-20261112-001', 'ci/resource-trees-20261112-001']
+    branches: ['ci/deployment-project-20261112-001', 'ci/resource-trees-20261112-001', 'ci/resource-output-20261112-001']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   linux-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-project-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-project-001' || github.event.head_commit.message == 'validation: resource-output-001'
     runs-on: ubuntu-24.04
     timeout-minutes: 105
     env:

@@ -6,6 +6,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+#[path = "resources_output.rs"]
+mod output;
 #[path = "resources_paths.rs"]
 mod paths;
 #[path = "resources_select.rs"]
@@ -65,8 +67,30 @@ pub(crate) struct ResourcePlan {
     selections: Vec<select::Selection>,
 }
 
+/// 单次请求借用实际布局边界，不把输出权限保存到Session。
+pub(crate) struct ResourceRequestContext<'a> {
+    pub(crate) path: &'a Path,
+    pub(crate) output_roots: &'a [PathBuf],
+}
 impl ResourcePlan {
+    pub(crate) fn read_context(
+        request: ResourceRequestContext<'_>,
+        sources: &[SourceModule],
+    ) -> Result<Self> {
+        if request.output_roots.is_empty() {
+            Self::read(request.path, sources)
+        } else {
+            Self::read_with_outputs(request.path, sources, request.output_roots)
+        }
+    }
     pub(crate) fn read(path: &Path, sources: &[SourceModule]) -> Result<Self> {
+        Self::read_with_outputs(path, sources, &[])
+    }
+    fn read_with_outputs(
+        path: &Path,
+        sources: &[SourceModule],
+        output_roots: &[PathBuf],
+    ) -> Result<Self> {
         let metadata = crate::manifest_files::plain_metadata(path)?;
         ensure!(
             metadata.is_file() && metadata.len() <= 1024 * 1024,
@@ -116,6 +140,24 @@ impl ResourcePlan {
                 kind: "executable_relative",
                 relative_file,
             });
+        }
+        // 必须先预检全部树，再展开任何树；避免先扫描/读取生成输出再报告第二棵冲突。
+        for (entry, location) in request.modules.iter().zip(&plan.locations) {
+            ensure!(entry.trees.len() <= 64, "每模块资源目录选择超过64项");
+            let root = plan.source_files[location.module_id as usize]
+                .parent()
+                .context("资源源码没有父目录")?;
+            for tree in &entry.trees {
+                output::reject_overlap(root, tree.directory(), output_roots).with_context(
+                    || {
+                        format!(
+                            "模块{}的资源树directory={:?}预检失败",
+                            entry.module,
+                            tree.directory()
+                        )
+                    },
+                )?;
+            }
         }
         let mut scan_budget = select::SCAN_LIMIT;
         for (entry, location) in request.modules.iter().zip(&plan.locations) {

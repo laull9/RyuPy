@@ -341,3 +341,6 @@ fn owned_short_roots_reject_conflicts_and_escaping_without_cleanup() {
     })
     .unwrap();
 }
+
+#[path = "aot_resource_output_tests.rs"]
+mod resource_output_tests;

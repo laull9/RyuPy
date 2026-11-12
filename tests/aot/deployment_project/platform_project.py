@@ -22,6 +22,7 @@ from smoke import executable
 from aot_layout import reported_aot
 from manifest_verify import dependency_binaries
 from prepare import prepare, APP
+from resource_output_contract import check_resource_output_tests
 sys.path.insert(0,str(APP))
 from validate_artifact import validate_app_artifact, inventory
 
@@ -122,6 +123,11 @@ def main():
         if args.rid=='win-x64':
             safety=run.run('windows-nofollow-tests',['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1','distribution_metadata_windows_','--','--nocapture'],cwd=REPO,env=env,check=True,timeout=600)
             check_windows_tests(safety.stdout.decode('utf-8'))
+        result['resource_output_tests']={}
+        for section, pattern in [('boundaries','resources::output::tests::'),
+                                 ('transaction','aot_layout::tests::resource_output_tests::')]:
+            checked=run.run('resource-output-'+section,['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1',pattern,'--','--nocapture'],cwd=REPO,env=env,check=True,timeout=600)
+            result['resource_output_tests'][section]=check_resource_output_tests(checked.stdout.decode('utf-8'),args.rid,section)
         tools=out/'tools';tools.mkdir();cli=tools/('ryupy.exe' if os.name=='nt' else 'ryupy')
         shutil.copy2(REPO/'target/release'/cli.name,cli)
         runtime=tools/'RyuPy.Runtime.dll';shutil.copy2(REPO/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll',runtime)

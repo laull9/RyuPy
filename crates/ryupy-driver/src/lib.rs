@@ -216,7 +216,10 @@ fn compile_linked_locations(
         entry,
         search_paths,
         collect_manifest,
-        resource_request,
+        resource_request.map(|path| resources::ResourceRequestContext {
+            path,
+            output_roots: &[],
+        }),
         aot_locations,
         &trace,
     )
@@ -327,7 +330,10 @@ fn build_with_resources_inner(
         &opts.input,
         &opts.search_paths,
         opts.aot,
-        resource_request,
+        resource_request.map(|path| resources::ResourceRequestContext {
+            path,
+            output_roots: owned.map_or(&[], |attempt| attempt.output_roots()),
+        }),
         opts.aot,
         &trace,
     );

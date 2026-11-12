@@ -21,8 +21,12 @@ struct Owner {
 /// 仅外层排他创建attempt后可构造；调用者不能靠目录名字伪造资格。
 pub(crate) struct OwnedAttempt {
     root: PathBuf,
+    output_roots: [PathBuf; 2],
 }
 impl OwnedAttempt {
+    pub(crate) fn output_roots(&self) -> &[PathBuf] {
+        &self.output_roots
+    }
     pub(crate) fn create_child(&self, parent: &Path, name: &str) -> Result<PathBuf> {
         ensure!(
             matches!(name, "ryupy-binding-0" | "ryupy-aot-0"),
@@ -119,6 +123,7 @@ pub(crate) fn build(
     inner.out_dir = attempt.clone();
     let owned = OwnedAttempt {
         root: attempt.clone(),
+        output_roots: [build.clone(), dist.clone()],
     };
     let result = compile(&inner, &owned)
         .and_then(|artifacts| install(&attempt, &dist, &stem, &owner.dist, artifacts));

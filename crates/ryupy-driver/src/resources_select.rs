@@ -16,6 +16,12 @@ pub(super) struct TreeRequest {
     suffixes: Vec<String>,
 }
 
+impl TreeRequest {
+    pub(super) fn directory(&self) -> &str {
+        &self.directory
+    }
+}
+
 pub(super) struct Selection {
     root: PathBuf,
     request: TreeRequest,
