@@ -47,3 +47,11 @@ tests/aot/deployment_tabulate/*.txt text eol=lf
 
 # 独立PE审计器按原字节冻结SHA；Windows checkout不得把其LF改成CRLF。
 tests/validation/source_provenance/ci/pe_metadata.py text eol=lf
+
+# 文件分类consumer锁定原始输入；UTF-16/BOM与二进制不能被换行转换。
+tests/aot/deployment_binaryornot/*.json text eol=lf
+tests/aot/deployment_binaryornot/*.py text eol=lf
+tests/aot/deployment_binaryornot/ascii.txt text eol=lf
+tests/aot/deployment_binaryornot/utf8.txt text eol=lf
+tests/aot/deployment_binaryornot/utf16.txt -text
+tests/aot/deployment_binaryornot/*.bin -text

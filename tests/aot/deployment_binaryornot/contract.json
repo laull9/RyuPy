@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "consumer": "ordinary binaryornot.check.is_binary consumer; not upstream CLI",
+  "cp_version": "3.12.13",
+  "files": {
+    "inputs.json": "8aae6b8ebff8cae46f6c21a883ac5736bdf01622b9ff7856e1995244d76bfe2a",
+    "utf16.txt": "08598d1c6ccd64e8f2872e329bcbe7b20be5f29373ab2ac2212a00f8fd013bd3",
+    "scanner.py": "c63f99a6bfbee6fce3ccf89d9a5cef78aea3068620acf65cdf0634d0e19a92d6",
+    "ascii.txt": "c30a92f9ef889c07c781a7cf99f5b71415d4d1289e84473d1b9e6f01feffc62d",
+    "binary.bin": "3d1f57c984978ef98a18378c8166c1cb8ede02c03eeb6aee7e2f121dfeee3e56",
+    "utf8.txt": "2436004d36a909d724ac1a1ea2d70f3fde1651b7c236f6d7dd6e356e1b99caaf"
+  },
+  "cases": [
+    {
+      "id": "ascii",
+      "input": "ascii.txt",
+      "stdout": "False\n"
+    },
+    {
+      "id": "utf8",
+      "input": "utf8.txt",
+      "stdout": "False\n"
+    },
+    {
+      "id": "utf16",
+      "input": "utf16.txt",
+      "stdout": "False\n"
+    },
+    {
+      "id": "binary",
+      "input": "binary.bin",
+      "stdout": "True\n"
+    }
+  ]
+}
