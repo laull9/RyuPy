@@ -61,7 +61,8 @@ def main():
     require(os.environ.get('GITHUB_ACTIONS') == 'true' and os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted', '仅hosted')
     current = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     require(current == os.environ['GITHUB_SHA'], '候选身份不符')
-    perf = Path(os.environ['PERF_BINARY']).resolve(); require(perf.is_file() and perf.is_absolute(), 'perf须为真实绝对路径')
+    perf = Path(os.environ['PERF_BINARY']); require(perf.is_absolute(), 'perf须为绝对路径')
+    perf = perf.resolve(); require(perf.is_file(), 'perf须为真实文件')
     out = Path(os.environ['RUNNER_TEMP'])/'native-hotspot-profile'; out.mkdir(exist_ok=True)
     require(not (out/'result.json').exists() and not (out/'tools').exists(), '已有profile证据，不覆盖')
     python = Path(os.environ['PYTHON']).resolve(); dotnet = Path(os.environ['DOTNET']).resolve()
@@ -118,9 +119,11 @@ def main():
             positive(rec, prefix, golden[name])
         data = out/'perf.data'; app_stderr = out/'profile-app.stderr'
         rec = capture(out/'perf-record', profile_command(perf, data, app_stderr, native, WORKLOADS['profilehi800']), cwd, clean, 180)
+        # 失败的perf.data也保留为可上传原件；权限调整仅限本次明确路径。
+        if data.exists():
+            command('perf-data-owner', ['sudo', '-n', '--', '/bin/chown', f'{os.getuid()}:{os.getgid()}', data], cwd)
         require(rec['exit'] == 0 and rec['failure'] is None, '真实perf采样失败；不降级为源码猜测')
         require((out/'perf-record.stdout').read_bytes() == golden['profilehi800'] and app_stderr.read_bytes() == b'', '采样时应用原流不匹配')
-        command('perf-data-owner', ['sudo', '-n', '--', '/bin/chown', f'{os.getuid()}:{os.getgid()}', data], cwd)
         require(data.is_file() and data.stat().st_size > 0, '无perf.data')
         command('perf-samples', [perf, 'script', '-i', data, '-F', 'period,event'], cwd)
         count = sample_count((out/'perf-samples.stdout').read_text()); require(count >= MIN_SAMPLES, '真实CPU采样数不足')

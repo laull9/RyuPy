@@ -32,7 +32,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/native-hotspot-profile"
           sudo apt-get update > "$RUNNER_TEMP/native-hotspot-profile/apt-update.log" 2>&1
           sudo apt-get install -y clang zlib1g-dev libicu-dev linux-tools-generic binutils > "$RUNNER_TEMP/native-hotspot-profile/apt-install.log" 2>&1
-          PERF_BINARY="$(find /usr/lib/linux-tools -type f -name perf | sort -V | tail -n 1)"
+          find -L /usr/lib/linux-tools -type f -name perf | sort -V > "$RUNNER_TEMP/native-hotspot-profile/perf-candidates.txt"
+          PERF_BINARY="$(tail -n 1 "$RUNNER_TEMP/native-hotspot-profile/perf-candidates.txt")"
           test -n "$PERF_BINARY"
           test -x "$PERF_BINARY"
           echo "PERF_BINARY=$PERF_BINARY" >> "$GITHUB_ENV"
