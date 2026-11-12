@@ -43,6 +43,7 @@ public static class PyNativeModules
         PyModules.RegisterNative("xml.etree.ElementTree", elementTree, PyXmlElementTree.BeforeSet);
         PyXmlTreeBuilder.RegisterFactories(elementTree);
         PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
+        PyModules.RegisterNative("decimal", PyDecimal.CreateAttributes());
         PyModules.RegisterNative("bisect", PyBisect.CreateAttributes());
         PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
         PyModules.RegisterNative("traceback", PyTracebackModule.CreateAttributes());

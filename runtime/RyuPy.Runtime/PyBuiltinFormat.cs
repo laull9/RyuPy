@@ -28,6 +28,7 @@ internal static partial class PyBuiltinFormat
                     : Integer(flag ? BigInteger.One : BigInteger.Zero, Parse(text, "bool"), "bool");
             case long or int or BigInteger:
                 return Integer(PyInt.ToBigInteger(value), Parse(text, "int"), "int");
+            case PyDecimal number: return number.Format(text);
             case double number: return Float(number, text);
             case float number: return Float(number, text);
         }

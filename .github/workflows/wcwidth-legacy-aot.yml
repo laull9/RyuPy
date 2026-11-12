@@ -594,3 +594,7 @@ jobs:
     needs: select-mode
     if: needs.select-mode.outputs.ordinary_mi == 'true'
     uses: ./.github/workflows/ordinary-mi.yml
+  decimal-finite-native:
+    needs: select-mode
+    if: needs.select-mode.outputs.ordinary_mi == 'true'
+    uses: ./.github/workflows/decimal-finite-native.yml

@@ -417,7 +417,8 @@ public static partial class PyHash
             // 超出 i64 的整数浮点仍须与同值 BigInteger 命中同一字典/集合键。
             return BigIntegerHash(new BigInteger(value));
         }
-        return BitConverter.DoubleToInt64Bits(value);
+        // 有限非整数也按精确有理数hash，与Decimal相等时不能分裂字典键。
+        return PyFiniteNumericHash.Float(value);
     }
 
     private static long FitsSigned(long value) => value;

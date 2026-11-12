@@ -1,0 +1,54 @@
+# 独立Decimal Native图，不修改旧MI原件、默认源计划或项目统计。
+name: 有限Decimal真实Native
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  decimal-finite-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 独立检查器反例
+        timeout-minutes: 2
+        run: python3 -B -m unittest discover -s tests/aot/decimal_finite_native -p 'test_*.py'
+      - name: 固定官方工具
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/decimal-finite-native-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/decimal-finite-native-prepare/stdout 2> target/decimal-finite-native-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/decimal-finite-native-prepare/exit
+          exit "$status"
+      - name: CP双PIC及真实Native原位搬迁
+        timeout-minutes: 25
+        run: '"$PYTHON" -B tests/aot/decimal_finite_native/run.py'
+      - name: 独立原件与身份
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: decimal-finite-native-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/decimal-finite-native-evidence
+            !target/decimal-finite-native-evidence/native-build/**
+            !target/decimal-finite-native-evidence/relocated/**
+            target/decimal-finite-native-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 有限域说明
+        if: always()
+        run: |
+          printf '%s\n' '独立Decimal有限真值：固定CP、双PIC、1ELF/2Native原位搬迁及源码隔离。' \
+            '不扩算术/Context/特殊值，不将旧MI或默认源计划黄金改为本门分母。' \
+            'Native/退出/双流/来源任一失败保原件，检查器通过不是产品通过。' >> "$GITHUB_STEP_SUMMARY"
