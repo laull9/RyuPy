@@ -64,6 +64,10 @@ def main():
         commit=run.run('source-head',['git','rev-parse','HEAD'],cwd=REPO,check=True).stdout.decode().strip()
         require(commit==os.environ.get('GITHUB_SHA'),'不是当前CI候选')
         result['source_head']=commit
+        if args.rid=='win-x64':
+            longpaths=run.run('git-longpaths',['git','config','--global','--get','core.longpaths'],cwd=REPO,check=True).stdout.decode().strip()
+            require(longpaths=='true' and Path(os.environ['CARGO_HOME']).resolve()==(Path(os.environ['RUNNER_TEMP'])/'c').resolve(),'Windows构建路径准备未生效')
+            result['windows_build_paths']={'git_core_longpaths':longpaths,'cargo_home':os.environ['CARGO_HOME']}
         version=run.run('python-version',[str(python),'-c','import sys; print(sys.version.split()[0])'],cwd=out,env=env,check=True)
         require(version.stdout.decode().strip()=='3.12.13','CP版本不符')
         sdk=run.run('dotnet-version',[str(dotnet),'--version'],cwd=out,env=env,check=True)

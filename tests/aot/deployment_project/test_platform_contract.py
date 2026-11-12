@@ -38,6 +38,13 @@ class PlatformContractTests(unittest.TestCase):
         for bad in ('test result: ok. 0 passed; 0 failed; 0 ignored;',good.replace(' ... ok',' ... ignored',1),good+good):
             with self.assertRaises(ValueError):check_windows_tests(bad)
 
+    def test_windows_short_cache_and_git_longpaths_are_explicit(self):
+        workflow=(HERE.parents[2]/'.github/workflows/deployment-project-platforms.yml').read_text(encoding='utf-8')
+        self.assertIn('git config --global core.longpaths true',workflow)
+        self.assertIn("Join-Path $env:RUNNER_TEMP 'c'",workflow)
+        self.assertIn('CARGO_HOME=$shortCargoHome',workflow)
+        self.assertLess(workflow.index('一次性Windows runner长路径准备'),workflow.index('平台负测与真实项目（Windows）'))
+
     def test_linux_default_and_unknown_platform_rejected(self):
         self.assertEqual(inspect.signature(validate_app_artifact).parameters['expected_rid'].default,'linux-x64')
         with self.assertRaises(ValueError):
