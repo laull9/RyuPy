@@ -288,3 +288,38 @@ fn instance_pe_envelope_rejects_stale_truncated_and_trailing_inputs() {
     wrong[12..16].copy_from_slice(&u32::MAX.to_le_bytes());
     assert!(decode(&wrong, "current", "original").is_err());
 }
+
+#[test]
+#[ignore = "显式类同次PE/envelope门，须固定case清单及源身份"]
+fn instance_class_actual_pe_gate() {
+    let directory =
+        std::path::PathBuf::from(std::env::var("RYUPY_INSTANCE_AOT_STRUCTURE_OUT").unwrap());
+    // 每行一个受限输出stem，不为测试桥新增JSON依赖。
+    let cases: Vec<String> = std::env::var("RYUPY_INSTANCE_CLASS_CASES")
+        .unwrap()
+        .lines()
+        .map(str::to_owned)
+        .collect();
+    assert!(!cases.is_empty());
+    let identity = match std::env::var("RYUPY_INSTANCE_CLASS_SOURCE_SHA256") {
+        Ok(hash) => {
+            assert!(std::env::var_os("GITHUB_ACTIONS").is_none());
+            assert!(hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()));
+            format!("source-manifest:{hash}")
+        }
+        Err(_) => std::env::var("GITHUB_SHA").unwrap(),
+    };
+    let mut seen = std::collections::BTreeSet::new();
+    for case in cases {
+        assert!(
+            !case.is_empty()
+                && case
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+        );
+        assert!(seen.insert(case.clone()));
+        let bytes = std::fs::read(directory.join(format!("{case}.pe-envelope"))).unwrap();
+        let (expected, pe) = decode(&bytes, &identity, &case).unwrap();
+        verify(pe, &expected).unwrap();
+    }
+}

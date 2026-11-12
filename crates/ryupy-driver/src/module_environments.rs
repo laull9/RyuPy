@@ -59,6 +59,10 @@ pub(crate) fn plan_validated(
     if session.instance_modules.contains(&source.name) && admitted {
         return ModuleEnvironmentPlan {
             capabilities: ryupy_base::InstanceCapabilities {
+                aot_class_guards: aot
+                    && source.kind == SourceKind::ModuleFile
+                    && !session.fixed_binding_build
+                    && validated.is_some_and(|v| v.selects(index)),
                 direct_globals: session.instance_direct_globals
                     && source.kind == SourceKind::ModuleFile
                     && !session.fixed_binding_build,
@@ -76,6 +80,7 @@ pub(crate) fn plan_validated(
     }
     // 令牌只证明来源；角色与完整Instance AST能力分别准入，不catch后重编或授新协议。
     let catalog_capabilities = ryupy_base::InstanceCapabilities {
+        aot_class_guards: false,
         direct_globals: false,
         ordinary_name_handlers: true,
         relative_from_import: true,

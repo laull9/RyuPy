@@ -551,6 +551,8 @@ mod instance_aot_evidence_tests;
 #[cfg(test)]
 mod instance_aot_tests;
 #[cfg(test)]
+mod instance_class_aot_tests;
+#[cfg(test)]
 mod instance_module_tests;
 
 #[cfg(test)]

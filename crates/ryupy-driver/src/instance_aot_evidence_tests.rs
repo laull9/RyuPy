@@ -23,6 +23,48 @@ pub(super) fn save(
     sources: &[crate::manifest::SourceSummary],
     artifact: &EmissionArtifact,
 ) {
+    let commit = std::env::var("GITHUB_SHA").expect("当前源 commit");
+    save_identity(
+        output,
+        name,
+        linked,
+        selected,
+        sources,
+        artifact,
+        json!({"commit": commit}),
+    );
+}
+
+pub(super) fn save_with_source_manifest(
+    output: &Path,
+    name: &str,
+    linked: &LinkedProgram,
+    selected: &[String],
+    sources: &[crate::manifest::SourceSummary],
+    artifact: &EmissionArtifact,
+    sha256: &str,
+) {
+    assert!(sha256.len() == 64 && sha256.bytes().all(|b| b.is_ascii_hexdigit()));
+    save_identity(
+        output,
+        name,
+        linked,
+        selected,
+        sources,
+        artifact,
+        json!({"identity_kind": "source-manifest", "source_manifest_sha256": sha256}),
+    );
+}
+
+fn save_identity(
+    output: &Path,
+    name: &str,
+    linked: &LinkedProgram,
+    selected: &[String],
+    sources: &[crate::manifest::SourceSummary],
+    artifact: &EmissionArtifact,
+    identity: Value,
+) {
     let report = &artifact.report;
     assert_eq!(report.schema_version, 2);
     let mut owners = Vec::new();
@@ -77,14 +119,18 @@ pub(super) fn save(
         assert_eq!(roots.len(), 1);
         module_roots.push(json!({"module_id": id, "module_name": name, "root": root(roots[0])}));
     }
-    let expected = json!({"schema_version": 1, "report_version": report.schema_version,
-        "case": name, "commit": std::env::var("GITHUB_SHA").expect("当前源 commit"),
+    let mut expected = json!({"schema_version": 1, "report_version": report.schema_version,
+        "case": name,
         "pe": {"name": format!("{name}.dll"), "size": artifact.bytes.len(),
             "sha256": crate::manifest_files::hash_bytes(&artifact.bytes)},
         "selected": selected, "sources": sources, "owner_count": linked.functions.iter()
             .filter(|(_, f)| f.module_state_source == Some(InstanceStateSource::FunctionParameter)).count(),
         "entry": locator(&report.entry, report.entry_slot),
         "owners": owners, "modules": module_roots});
+    expected
+        .as_object_mut()
+        .unwrap()
+        .extend(identity.as_object().unwrap().clone());
     std::fs::write(
         output.join(format!("{name}-expected.json")),
         serde_json::to_vec_pretty(&expected).unwrap(),

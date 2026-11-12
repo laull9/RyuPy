@@ -186,3 +186,51 @@ fn namespace_unsupported_builtin_fallback_survives_pipeline_without_opening_api(
         validate::validate(&program).unwrap();
     }
 }
+
+#[test]
+fn explicit_aot_class_guard_no_cell_and_old_path_contract() {
+    for cell in [false, true] {
+        for admitted in [false, true] {
+            let source = if cell {
+                "class C:\n    def read(self): return __class__\n"
+            } else {
+                "class C:\n    def read(self): return 1\n"
+            };
+            let mut db = ryupy_base::SourceDb::default();
+            let file = db.add("subject.py", source);
+            let (parsed, errors) = ryupy_syntax::parse(file, source);
+            assert!(errors.is_empty());
+            let info = ryupy_hir::ModuleInfo {
+                instance_globals: true,
+                instance_capabilities: ryupy_base::InstanceCapabilities {
+                    aot_class_guards: admitted,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let (hir, errors) = ryupy_hir::lower_module(&parsed, &info, source);
+            assert!(errors.is_empty(), "{errors:?}");
+            let (types, errors) = ryupy_ty::check_module(&hir);
+            assert!(errors.is_empty(), "{errors:?}");
+            let (program, _, errors) = build_program(&hir, &types);
+            assert!(errors.is_empty(), "{errors:?}");
+            validate::validate(&program).unwrap();
+            let count = program
+                .functions
+                .iter()
+                .flat_map(|(_, f)| f.body.blocks.iter())
+                .flat_map(|(_, b)| &b.stmts)
+                .filter(|s| {
+                    matches!(
+                        s,
+                        Statement::Eval(Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::InstanceClassCellGuard),
+                            ..
+                        })
+                    )
+                })
+                .count();
+            assert_eq!(count, usize::from(cell || admitted));
+        }
+    }
+}

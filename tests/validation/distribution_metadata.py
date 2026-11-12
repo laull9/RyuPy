@@ -22,7 +22,7 @@ DATA = json.loads(Path(__file__).with_suffix('.json').read_text())
 def check_context(env, event):
     require(env.get('RUNNER_ENVIRONMENT') == 'github-hosted' and
             env.get('RYUPY_VALIDATION_MODE') == 'distribution-metadata', '只允许新hosted有限模式')
-    require(event.get('head_commit', {}).get('message') in (DATA['title'], 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001', 'validation: lexical-class-factory-001', 'validation: instance-direct-globals-001', 'validation: wcwidth-warm-kernel-001'), '精确标题不符')
+    require(event.get('head_commit', {}).get('message') in (DATA['title'], 'validation: textwrap-dedent-001', 'validation: re-scanner-001', 'validation: decimal-percent-001', 'validation: keyerror-construction-001', 'validation: treebuilder-state-001', 'validation: lexical-class-factory-001', 'validation: instance-direct-globals-001', 'validation: wcwidth-warm-kernel-001', 'validation: instance-class-aot-001'), '精确标题不符')
     adjusted = dict(event, head_commit=dict(event['head_commit'], message=old.shared.TITLE))
     old.shared.check_context(env, adjusted)
 

@@ -193,11 +193,14 @@ impl FunctionBuilder<'_> {
             }));
         }
         // 类体和普通类终结均成功后才填入原类；任何 class decorator 都在此之后。
-        if let Some(cell) = class_cell {
+        // 新显式AOT域无cell也核真实hook；旧cell不重复，不制造假cell。
+        if class_cell.is_some() || self.hir.info.instance_capabilities.aot_class_guards {
             self.push_stmt(Statement::Eval(Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::InstanceClassCellGuard),
                 args: vec![class_object.clone()],
             }));
+        }
+        if let Some(cell) = class_cell {
             self.push_stmt(Statement::Eval(Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::CellSet),
                 args: vec![Operand::Local(cell), class_object.clone()],

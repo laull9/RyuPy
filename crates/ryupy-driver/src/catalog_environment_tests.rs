@@ -167,6 +167,7 @@ fn default_source_catalog_identity_does_not_grant_user_class_abi() {
 fn default_source_shared_instance_validator_keeps_attribute_and_environment_boundaries() {
     let mut sources = ryupy_base::SourceDb::default();
     let capabilities = ryupy_base::InstanceCapabilities {
+        aot_class_guards: false,
         direct_globals: false,
         ordinary_name_handlers: true,
         relative_from_import: true,

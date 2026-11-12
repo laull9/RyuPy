@@ -15,7 +15,7 @@ fn explicit_aot_accepts_relative_and_name_handlers() {
 #[test]
 fn explicit_aot_scans_dead_code_defaults_and_decorators() {
     for boundary in [
-        "class C:\n    pass\n",
+        "class C:\n    class Inner:\n        pass\n",
         "def typed(x: int) -> int:\n    return x\n",
         "def outer():\n    def inner():\n        return 1\n    return inner\n",
         "f = lambda: outside\n",
@@ -172,4 +172,19 @@ fn assert_python312_boundary(source: &str, dead: bool, type_alias: bool) {
     let errors = crate::validate_instance_aot(&parsed);
     assert!(errors.iter().all(|error| error.code == Some("E0100")));
     assert!(errors.iter().any(|error| error.message.contains(expected)));
+}
+
+#[test]
+fn explicit_aot_ordinary_class_scope_contract() {
+    assert!(assess("class C(Base):\n    def read(self, x=1): return helper(x)\n").is_empty());
+    for source in [
+        "class C(A,B):\n    def f(self): return 1\n",
+        "class C(metaclass=M):\n    def f(self): return 1\n",
+        "class C:\n    __slots__=[]\n    def f(self): return 1\n",
+        "class C:\n    def f(self):\n        def nested(): return 1\n        return nested()\n",
+        "class C:\n    def f(self): yield 1\n",
+        "class C:\n    if False: __init_subclass__=hook\n    def f(self): return 1\n",
+    ] {
+        assert!(!assess(source).is_empty(), "{source}");
+    }
 }
