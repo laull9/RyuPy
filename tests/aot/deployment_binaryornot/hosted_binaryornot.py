@@ -46,6 +46,8 @@ def main():
         tools=base/'tools';tools.mkdir();shutil.copy2(REPO/'target/release/ryupy',tools/'ryupy')
         shutil.copy2(REPO/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll',tools/'RyuPy.Runtime.dll')
         save(base/'frozen-tools.json',{str(p):sha(p) for p in (tools/'ryupy',tools/'RyuPy.Runtime.dll',python,dotnet)})
+        command('dependencies',[python,'-B',HERE/'check_dependencies.py','--cli',tools/'ryupy',
+            '--runtime',tools/'RyuPy.Runtime.dll','--project',base/'project','--output',base/'dependency-evidence'],600)
         docker=HERE.parent/'standalone_app/benchmark'
         command('image-build',['docker','build','--iidfile',base/'runtime-image.id','-f',docker/'runtime.Dockerfile',docker],600)
         image=(base/'runtime-image.id').read_text().strip()

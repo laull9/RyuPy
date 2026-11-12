@@ -84,6 +84,21 @@ def locked_sources(prepared,oracle_dir,tools,cli,runtime):
     return oracle,identity
 
 
+def validate_dependency_report(data, request_hash, payload_hash):
+    """预期闭包来自锁定上游requires.txt，不采用待验报告自行给出的节点或边。"""
+    fields={'schema_version','mode','requirements','validated_names','checks','request_sha256','payload_sha256'}
+    require(set(data)==fields,'依赖预检报告字段不符')
+    require(data['schema_version']==1 and data['mode']=='unconditional_closure','依赖预检模式不符')
+    require(data['requirements']==['binaryornot==0.4.4'],'预检根约束改变')
+    require(data['validated_names']==['binaryornot','chardet'],'预检闭包缺失/新增')
+    require(data['request_sha256']==request_hash and data['payload_sha256']==payload_hash,'预检未绑定实际请求/载荷')
+    require(data['checks']==[
+        {'from':'<root>','requirement':'binaryornot==0.4.4','name':'binaryornot','version':'0.4.4',
+         'root':'vendor','path':'binaryornot.egg-info'},
+        {'from':'binaryornot','requirement':'chardet>=3.0.2','name':'chardet','version':'5.2.0',
+         'root':'vendor','path':'chardet.egg-info'}], '预检原始约束/边/版本/位置不符')
+
+
 def validate_metadata_only(data,sdk,report):
     _validate_schema4(data,'linux-x64',sdk,expected_automatic=(),metadata_report=report,
         declared_request=False,expected_policy='explicit-only')
@@ -129,6 +144,10 @@ def validate_binaryornot_artifact(layout,prepared,frozen_tools,*,python,dotnet,c
     types=source_types(layout.managed); validate_cold_abi(decoded,types)
     save(output/'actual-pe-roots.json',cold_registration(decoded,oracle,roots,payload,types,pe_layout(layout.managed)))
     report,_=metadata.audit_pe(probe,'metadata',layout.managed,layout.managed.parent/'distribution-metadata.json',prepared/'distribution.json')
+    dependency_path=layout.managed.parent/'dependency-check.json';dependency_hash=sha(dependency_path)
+    dependency=read(dependency_path)
+    validate_dependency_report(dependency,sha(prepared/'distribution.json'),report['payload_sha256'])
+    save(output/'dependency-check.json',dependency)
     data=read(layout.manifest); sdk=read_sdk_version(layout.host/'sdk.version'); require(sdk=='10.0.403','SDK未锁定')
     require(plan['automatic_instance_modules'] == [], '默认app不得自动实例选择')
     validate_metadata_only(data,sdk,report)
@@ -142,6 +161,7 @@ def validate_binaryornot_artifact(layout,prepared,frozen_tools,*,python,dotnet,c
     require(inputs['runtime_managed_input']['sha256']==identity['runtime_sha256']==sha(layout.managed.parent/'RyuPy.Runtime.dll'),'真实runtime不符')
     require(source_before==inventory(prepared) and dist_before==inventory(layout.dist),'验收时源/dist变化')
     require(sha(layout.manifest)==manifest_hash and sha(layout.managed)==pe_hash,'产物变化')
+    require(sha(dependency_path)==dependency_hash,'依赖预检收据变化')
     require(all(sha(k)==v for k,v in tools.items()) and all(sha(oracle_dir/k)==v for k,v in hashes.items()),'工具/oracle变化')
     receipt={'schema_version':1,'expected_rid':expected_rid,'case':case,'structure_validated':True,'clean_container_validated':False,'performance_permitted':False,
         'manifest_sha256':manifest_hash,'managed_pe_sha256':pe_hash,'native_sha256':sha(layout.native),

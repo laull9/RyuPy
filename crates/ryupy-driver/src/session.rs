@@ -17,6 +17,8 @@ pub struct Session {
     pub distribution_metadata: Option<PathBuf>,
     /// 同次采集载荷的审计摘要，非运行时authority。
     pub distribution_metadata_report: Option<serde_json::Value>,
+    /// 显式有限依赖预检的构建期收据；不进入运行时分发载荷或扩展模块发现。
+    pub distribution_dependency_report: Option<serde_json::Value>,
     /// 显式强制有限trace V1；合法域外E0310，内部损坏硬停。
     pub trace_product_v1: bool,
     /// 明确正常Main执行的请求；裸API默认Unknown，不从DLL扩展名推断宿主生命周期。

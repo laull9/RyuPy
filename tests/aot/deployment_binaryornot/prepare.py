@@ -13,7 +13,8 @@ def configuration():
     return {'schema_version':1,'mode':'aot','search_paths':['vendor'],
             'distribution_metadata':'distribution.json','targets':{'scan':{'entry':'scanner.py'}}}
 def metadata_request():
-    return {'schema_version':1,'mode':'closed_snapshot','roots':[{'id':'vendor','path':'vendor'}]}
+    return {'schema_version':1,'mode':'closed_snapshot','roots':[{'id':'vendor','path':'vendor'}],
+            'dependency_check':{'mode':'unconditional_closure','requirements':['binaryornot==0.4.4']}}
 def prepare(output,sources):
     output=Path(output).resolve();require(not output.exists() and not output.is_relative_to(REPO),'项目须为仓库外新目录')
     contract=json.loads((HERE/'contract.json').read_text())

@@ -151,3 +151,9 @@ ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
 ## 后续阶段的 Python 用例
 
 Phase 2–4 用例已经写入 `tests/e2e/` 并标记 pending。`python3 tests/run_python_baseline.py` 自检 Phase 1–3 的 CPython 行为；安装 NumPy 后加 `--phase phase4` 检查扩展基线。辅助包与预期错误退出的运行方式见 [测试说明](../tests/README.md)。这些基线通过不表示 RyuPy 已支持相应功能。
+
+## 可选：原生打包前验证无条件声明依赖
+
+显式分发配置可以加入 `"dependency_check": {"mode": "unconditional_closure", "requirements": ["binaryornot==0.4.4"]}`。它在加载Python源码及调用SDK前检查该根的传递声明依赖，例如缺少chardet或版本不满足会直接报“依赖预检”错误。不会替你安装包，也不会读取宿主Python环境。
+
+首切拒绝活跃依赖中的markers、extras和URL要求，不推测目标环境；不使用该字段则保持旧行为。成功的编译期 `dependency-check.json` 只证明所选声明闭包的存在/版本匹配，不能代替实际Native运行验证。配置和范围见[ADR-0176](adr/0176-explicit-dependency-preflight.md)。
