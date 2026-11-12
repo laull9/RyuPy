@@ -46,3 +46,5 @@ ryupy build --project /work/pyfiglet-project/ryupy.json --target metadata
 `deployment-project-platforms.yml` 用同候选默认 Release CLI 和 Release runtime，固定 Rust 1.99.1、CP 3.12.13、.NET SDK 10.0.403；运行时再核平台/架构/版本和工具摘要。macOS 仅 arm64，Windows 仅 x64 MSVC。每平台两个公开项目target，独立同RID schema4 receipt，原位及搬迁各三模式，源目录隔离；Mach-O/PE格式和otool/dumpbin依赖审计不接受Linux ELF或托管PE替代。平台CP原流按真实上游协议：standard/slant在detach后直接写bytes，保留LF；fonts走文本print，才使用平台换行。Native逐字匹配该CP，不改输出忽略差异。
 
 这些平台在装有SDK的GitHub宿主上以精简PATH运行，**不是无Python/.NET干净容器证明**，也不生成性能测量。旧Linux容器链不改变。当前生产候选Windows分发metadata末端nofollow未实现，必须保留两个target完整metadata请求并真实报告拒绝，不删请求或跳过metadata入口凑成功；后续Windows读取修复与首轮候选分开验收。
+
+首轮平台CI 43261914690未获得Native证据：macOS14标签已退役、未分配runner；Windows先被测试自身默认编码及斜杠断言阻断，尚未触发产品metadata读取。第二候选改用官方仍支持的macos-15 arm64，保实际架构断言；所有本门文本读取显式UTF-8，配置与黄金binary流不额外归一化。Windows新nofollow合同须真实执行三项指定Rust测试（链接/目录等创建失败也不能skip），然后完整两入口项目验收，不能将Linux单测当Windows安全证明。

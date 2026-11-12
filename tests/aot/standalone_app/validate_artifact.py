@@ -19,8 +19,8 @@ def require(ok, reason):
     if not ok: raise ValueError(reason)
 
 def sha(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-def read(path): return json.loads(Path(path).read_text(),object_pairs_hook=no_duplicate_keys)
-def save(path,value): Path(path).write_text(json.dumps(value,indent=2,sort_keys=True)+'\n')
+def read(path): return json.loads(Path(path).read_text(encoding='utf-8'),object_pairs_hook=no_duplicate_keys)
+def save(path,value): Path(path).write_text(json.dumps(value,indent=2,sort_keys=True)+'\n', encoding='utf-8')
 
 def inventory(root):
     result={}
@@ -124,7 +124,7 @@ def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,
     source_before=inventory(prepared); dist_before=inventory(layout.dist)
     manifest_hash,pe_hash=sha(layout.manifest),sha(layout.managed)
     oracle,identity=locked_sources(prepared,case,oracle_dir,tools,cli,runtime)
-    plan=read(oracle_dir/'default_source_plan.json'); payload=(oracle_dir/'candidate.json').read_text()
+    plan=read(oracle_dir/'default_source_plan.json'); payload=(oracle_dir/'candidate.json').read_text(encoding='utf-8')
     candidate=read(oracle_dir/'candidate.json'); roots=read(oracle_dir/'emission-roots.json')
     probe=Probe(output,python,dotnet); decoder=REPO/'tests/validation/source_provenance/ci/read_pe_decoder.py'
     probe.checked('actual-pe',[python,'-B',decoder,layout.managed,'old',case],90)

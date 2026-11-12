@@ -17,10 +17,10 @@ class ProjectTests(unittest.TestCase):
             root=Path(folder);app=root/'contract';app.mkdir();project=root/'project';project.mkdir()
             (project/'package').mkdir();(project/'package/source.py').write_bytes(b'print(1)\n')
             digest=hashlib.sha256(b'print(1)\n').hexdigest()
-            (app/'inputs.json').write_text(json.dumps({'files':{'source.py':digest}}))
+            (app/'inputs.json').write_text(json.dumps({'files':{'source.py':digest}}), encoding='utf-8')
             for name in ('resources.json','metadata-request.json','console_entry.py'):
-                (project/name).write_text('{}')
-            (project/'ryupy.json').write_text(json.dumps(configuration()))
+                (project/name).write_text('{}', encoding='utf-8')
+            (project/'ryupy.json').write_text(json.dumps(configuration()), encoding='utf-8')
             with patch.object(public_build,'APP',app):
                 before=inputs(project);moved=root/'new-location';project.rename(moved)
                 self.assertEqual(before,inputs(moved))
@@ -30,16 +30,16 @@ class ProjectTests(unittest.TestCase):
     def test_relocation_preserves_owned_build_outside_new_project(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);project=root/'project';project.mkdir()
-            (project/'ryupy.json').write_text('input')
+            (project/'ryupy.json').write_text('input', encoding='utf-8')
             build=project/'build/cli';build.mkdir(parents=True)
-            (build/'owner.json').write_text('{"source":"/old/project/entry.py"}')
+            (build/'owner.json').write_text('{"source":"/old/project/entry.py"}', encoding='utf-8')
             (build/'native').write_bytes(b'old-original')
             moved=root/'moved';evidence=root/'preserved'
             self.assertEqual(relocate_project(project,moved,evidence),moved)
             self.assertFalse((moved/'build').exists())
-            self.assertEqual((moved/'ryupy.json').read_text(),'input')
+            self.assertEqual((moved/'ryupy.json').read_text(encoding='utf-8'),'input')
             self.assertEqual((evidence/'cli/native').read_bytes(),b'old-original')
-            self.assertEqual((evidence/'cli/owner.json').read_text(),'{"source":"/old/project/entry.py"}')
+            self.assertEqual((evidence/'cli/owner.json').read_text(encoding='utf-8'),'{"source":"/old/project/entry.py"}')
             self.assertFalse(project.exists())
             with self.assertRaises(ValueError):relocate_project(moved,root/'again',evidence)
 
@@ -55,7 +55,7 @@ class ProjectTests(unittest.TestCase):
 
     def test_public_command_does_not_inject_legacy_inputs(self):
         argv = project_command('/tools/ryupy',Path('/moved/project'),'metadata')
-        self.assertEqual(argv, ['/tools/ryupy','build','--project','/moved/project/ryupy.json','--target','metadata'])
+        self.assertEqual(argv, ['/tools/ryupy','build','--project',str(Path('/moved/project')/'ryupy.json'),'--target','metadata'])
         for flag in ('--aot','--resources','--include-module','-I','--distribution-metadata'):
             self.assertNotIn(flag,argv)
         self.assertEqual(project_command('ryupy',Path('project'),'cli','caller-output')[-2:], ['-o','caller-output'])
