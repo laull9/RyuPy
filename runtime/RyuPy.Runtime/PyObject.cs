@@ -517,15 +517,9 @@ public static partial class PyObject
                 if (cls.Attributes.TryGetValue(name, out object? module)) return module;
                 return cls.NativeDefinitionModule is null ? "__main__" : cls.NativeModuleValue;
             case "__bases__":
-                if (cls.BaseClass is not null)
-                {
-                    return new PyTuple([cls.BaseClass]);
-                }
-                if (cls.BuiltinBase is { } builtin)
-                {
-                    return new PyTuple([PyType.Get(builtin)]);
-                }
-                return new PyTuple([PyBaseObject.Type]);
+                return cls.DirectBasesTuple();
+            case "__mro__" when cls.HasMultipleInheritance:
+                return cls.MroTuple();
             case "__base__":
                 return (object?)cls.BaseClass ?? (cls.BuiltinBase is { } baseName
                     ? PyType.Get(baseName) : PyBaseObject.Type);
@@ -567,12 +561,14 @@ public static partial class PyObject
         PyLexicalSuper.GuardAttribute(name);
         PyTypingGenericProtocols.GuardSuper(super, name);
         PyTypingIo.GuardSuperAttribute(super, name);
-        for (PyClass? current = super.Owner.BaseClass; current is not null; current = current.BaseClass)
+        foreach (PyClass current in PyClass.SuperClasses(super.Owner, super.Self))
         {
             if (current.Attributes.TryGetValue(name, out object? raw))
             {
                 PyLexicalSuper.GuardDescriptor(raw);
                 PyTypingGenericProtocols.GuardDescriptorRead(super.Owner, raw);
+                // class接收的普通函数/property不绑定；classmethod仍绑定真实派生类。
+                if (super.Self is PyClass && raw is not (PyClassMethod or PyStaticMethod)) return raw;
                 if (raw is PyProperty property)
                 {
                     return InvokeBound(property.Getter, current, super.Self, [], [], []);

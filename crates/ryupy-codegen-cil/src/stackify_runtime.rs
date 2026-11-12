@@ -293,6 +293,7 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         | RuntimeFn::IterNextOk
         | RuntimeFn::IterValue
         | RuntimeFn::MakeClass
+        | RuntimeFn::PrepareOrdinaryMiClass
         | RuntimeFn::DelAttr
         | RuntimeFn::Decorate => {
             ins.push(Instruction::call(runtime_method(*rt_fn, ctx.runtime_refs)))

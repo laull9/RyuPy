@@ -18,7 +18,7 @@ def context():
     require(os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted' and
             os.environ.get('GITHUB_EVENT_NAME') == 'push' and
             os.environ.get('GITHUB_REF') == 'refs/heads/ci/wcwidth-legacy-aot-2909056' and
-            event.get('head_commit', {}).get('message') in (TITLE, 'validation: default-source-aot-001'), '只允许精确同源hosted竖切')
+            event.get('head_commit', {}).get('message') in (TITLE, 'validation: default-source-aot-001', 'validation: ordinary-mi-c3-001'), '只允许精确同源hosted竖切')
     require('RYUPY_INSTANCE_CLASS_SOURCE_MANIFEST' not in os.environ, 'hosted禁止借本地身份替代commit')
 
 

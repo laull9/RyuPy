@@ -11,6 +11,15 @@ public static partial class PyOps
     public static object MakeClass(string name, object?[] bases, object? factory) =>
         MakeClassCore(name, bases, factory, captureAmbientMetadata: true);
 
+    /// <summary>普通MI族的冷准备：调用者必须类体后终结并延后公开，旧MakeClass不授予此合同。</summary>
+    public static object PrepareOrdinaryMiClass(string name, object?[] bases)
+    {
+        var cls = new PyClass(name);
+        cls.PrepareMultipleBases(bases);
+        PyClassNamespaceMetadata.Capture(cls);
+        return cls;
+    }
+
     // 实例类使用相同真实布局构造，但元数据由显式class frame初始化，不借ambient来源。
     internal static object MakeClassCore(string name, object?[] bases, object? factory, bool captureAmbientMetadata)
     {
@@ -39,6 +48,8 @@ public static partial class PyOps
                 case PyNativeType native when ReferenceEquals(native, PyLexicalSuper.Type):
                     throw new PyNotImplementedError("super type inheritance is not supported");
                 case PyClass baseClass:
+                    if (baseClass.HasMultipleInheritance)
+                        throw new PyNotImplementedError("MI base requires a compiled deferred-publication class definition");
                     PyNamedTupleLayout.GuardBase(baseClass);
                     baseClass.RequireTypingIoReady();
                     baseClass.RequireTypingGenericReady();

@@ -1,4 +1,4 @@
-# ADR 0160：默认 AOT 的封闭来源计划（实现候选，待 Native 验收）
+# ADR 0160：默认 AOT 的封闭来源计划（有界默认入口已验）
 
 ## 范围
 
@@ -25,3 +25,7 @@ candidate payload v3覆盖全部 compiled/deferred位置，registration三分类
 artifact schema4：原资源形状加 default_source_plan（版本1、automatic_locations、原payloadSHA、自动Instance名及独立Deferred来源），sources/locations仅compiled；resources为空。scope旧四项false，declared_resources_complete=false，automatic_module_locations_complete=true。后者不表示数据/动态依赖完整。显式options不被自动选择改写。
 
 须以真实默认Markdown77B/HTML102B、通用包正负例、Native原位/完整搬移/构建源不可达、实际PE静态根，以及原20项目/双全检/S1/ABI/显式资源类AOT保护验收。类体traceback帧缺失等已知边界不修不掩盖。此文不是新Native或全面默认AOT已通过声明。
+
+## 2026-11-12 有界验收
+
+[CI 43154611168](https://github.com/laull9/RyuPy/actions/runs/43154611168) 已完成本合同的限定默认入口与原保护核验；只覆盖已测源码/资源边界，不授任意动态资源、全反射、trim 或性能承诺。旧显式无清单拒绝保留，类体 traceback 帧缺失仍独立登记。后续普通多继承工作不由本结论自动获得 AOT 准入。

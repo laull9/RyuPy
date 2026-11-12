@@ -236,3 +236,6 @@ mod direct_globals_contract;
 pub use direct_globals_contract::DirectGlobalsContract;
 #[cfg(test)]
 mod direct_globals_contract_tests;
+
+#[cfg(test)]
+mod ordinary_mi_tests;

@@ -30,6 +30,8 @@ pub enum Resolution {
 pub struct GlobalScope {
     /// 真实名字从当前模块实例命名空间读取，内建也不可静态直达。
     pub instance_globals: bool,
+    /// 同模块MI族定义只获得延后公开入口；实际基值仍必须逐值验证。
+    pub(crate) ordinary_mi: FxHashSet<TextRange>,
     /// TypedDict仅登记候选语法，真实根/父身份仍在执行定义时验证。
     pub(crate) typed_dict_roots: FxHashSet<Name>,
     pub(crate) typed_dict_modules: FxHashSet<Name>,

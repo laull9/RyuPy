@@ -322,3 +322,80 @@ fn subsequent_graphs_do_not_reuse_automatic_payload_or_authority() {
     assert!(plan.is_none());
     assert!(linked.optional_sources.is_none());
 }
+
+#[test]
+fn mi_in_parse_rejected_soft_source_stays_deferred() {
+    let root = root();
+    std::fs::write(
+        root.join("entry.py"),
+        "import importlib.util\nimportlib.util.find_spec('bad')\n",
+    )
+    .unwrap();
+    // parser保留完整多基节点，后续坏语法仍由旧ParseRejected来源桶延期。
+    std::fs::write(
+        root.join("bad.py"),
+        "class A: pass\nclass B: pass\nclass D(A,B): pass\ndef :\n",
+    )
+    .unwrap();
+    let mut session = Session {
+        module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
+        ..Default::default()
+    };
+    session.default_source_state.aot_request = true;
+    session.default_source_state.output = Some(root.join("out"));
+    let (linked, sources, plan) = crate::compile_linked_locations(
+        &mut session,
+        &root.join("entry.py"),
+        &[],
+        true,
+        None,
+        true,
+    )
+    .unwrap();
+    assert!(sources.iter().all(|source| source.module_name != "bad"));
+    assert!(
+        session
+            .default_source_state
+            .plan
+            .deferred
+            .contains_key("bad")
+    );
+    assert_eq!(sources.len(), linked.modules.len());
+    assert!(
+        plan.unwrap()
+            .automatic
+            .as_ref()
+            .unwrap()
+            .source_to_emitted
+            .iter()
+            .any(Option::is_none)
+    );
+}
+
+#[test]
+fn compiled_ordinary_mi_aot_is_explicitly_rejected() {
+    let root = root();
+    std::fs::write(
+        root.join("entry.py"),
+        "class A: pass\nclass B: pass\nclass D(A,B): pass\nprint(D())\n",
+    )
+    .unwrap();
+    let mut session = Session::default();
+    assert!(
+        crate::compile_linked_locations(
+            &mut session,
+            &root.join("entry.py"),
+            &[],
+            true,
+            None,
+            true
+        )
+        .is_err()
+    );
+    assert!(
+        session
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("多继承C3"))
+    );
+}

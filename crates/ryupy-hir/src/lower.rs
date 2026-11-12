@@ -142,6 +142,7 @@ pub fn lower_module_with_native_exceptions(
                     has_class_cell: false,
                     name: name.clone(),
                     base: None,
+                    ordinary_mi_bases: None,
                     fields: Vec::new(),
                     has_annotations: false,
                     declared_fields: Vec::new(),

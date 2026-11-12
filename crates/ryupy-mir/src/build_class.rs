@@ -31,6 +31,8 @@ impl FunctionBuilder<'_> {
         let cls = &self.hir.classes[cls_id];
         let name = cls.name.as_str().to_owned();
         let base = cls.base;
+        let mi_bases = cls.ordinary_mi_bases.clone();
+        let ordinary_mi = mi_bases.is_some();
         let is_exception = cls.is_exception;
         let items = cls.body.clone();
         let mir_cls = self.class_map[&cls_id];
@@ -58,35 +60,42 @@ impl FunctionBuilder<'_> {
         let class_context = self.expr_builder().capture_definition_context();
 
         // 1. 基类表达式先于类体求值（与 CPython 的 `__build_class__` 顺序一致）。
-        let bases = match base {
-            Some(ClassBase::User(base_id)) => match self.hir_class_globals.get(&base_id) {
-                Some(global) => vec![Operand::Global(*global)],
+        let bases = if let Some(expressions) = mi_bases {
+            expressions
+                .into_iter()
+                .map(|expr| self.freeze_expression(expr))
+                .collect()
+        } else {
+            match base {
+                Some(ClassBase::User(base_id)) => match self.hir_class_globals.get(&base_id) {
+                    Some(global) => vec![Operand::Global(*global)],
+                    None => Vec::new(),
+                },
+                Some(ClassBase::Builtin(type_name)) => {
+                    let type_object = self.expr_builder().runtime_call(
+                        RuntimeFn::TypeObject,
+                        vec![Operand::Const(Constant::Str(type_name.to_owned()))],
+                        MirType::Dynamic,
+                    );
+                    vec![type_object]
+                }
+                Some(
+                    ClassBase::Expr(expr)
+                    | ClassBase::Native { value: expr, .. }
+                    | ClassBase::TypedDict { value: expr, .. },
+                ) => {
+                    vec![self.freeze_expression(expr)]
+                }
+                Some(ClassBase::Runtime(expr)) => {
+                    let value = self.freeze_expression(expr);
+                    vec![self.expr_builder().runtime_call(
+                        RuntimeFn::ValidateOrdinaryBase,
+                        vec![value],
+                        MirType::Dynamic,
+                    )]
+                }
                 None => Vec::new(),
-            },
-            Some(ClassBase::Builtin(type_name)) => {
-                let type_object = self.expr_builder().runtime_call(
-                    RuntimeFn::TypeObject,
-                    vec![Operand::Const(Constant::Str(type_name.to_owned()))],
-                    MirType::Dynamic,
-                );
-                vec![type_object]
             }
-            Some(
-                ClassBase::Expr(expr)
-                | ClassBase::Native { value: expr, .. }
-                | ClassBase::TypedDict { value: expr, .. },
-            ) => {
-                vec![self.freeze_expression(expr)]
-            }
-            Some(ClassBase::Runtime(expr)) => {
-                let value = self.freeze_expression(expr);
-                vec![self.expr_builder().runtime_call(
-                    RuntimeFn::ValidateOrdinaryBase,
-                    vec![value],
-                    MirType::Dynamic,
-                )]
-            }
-            None => Vec::new(),
         };
 
         // 2. 创建类对象。异常类的 factory 由 `__init_class_factories` 提前写入静态槽位。
@@ -99,7 +108,12 @@ impl FunctionBuilder<'_> {
             Operand::Const(Constant::Null)
         };
         let dest = self.alloc_temp(MirType::Dynamic);
-        let (constructor, args) = if let Some(context) = &class_context {
+        let (constructor, args) = if ordinary_mi {
+            (
+                RuntimeFn::PrepareOrdinaryMiClass,
+                vec![Operand::Const(Constant::Str(name)), Operand::Array(bases)],
+            )
+        } else if let Some(context) = &class_context {
             (
                 RuntimeFn::InstanceMakeClass,
                 vec![
@@ -139,7 +153,7 @@ impl FunctionBuilder<'_> {
                 args,
             },
         });
-        if let Some(global) = class_global {
+        if let Some(global) = class_global.filter(|_| !ordinary_mi) {
             self.push_stmt(Statement::SetGlobal {
                 dest: global,
                 value: Operand::Local(dest),
@@ -194,11 +208,20 @@ impl FunctionBuilder<'_> {
         }
         // 类体和普通类终结均成功后才填入原类；任何 class decorator 都在此之后。
         // 新显式AOT域无cell也核真实hook；旧cell不重复，不制造假cell。
-        if class_cell.is_some() || self.hir.info.instance_capabilities.aot_class_guards {
+        if ordinary_mi
+            || class_cell.is_some()
+            || self.hir.info.instance_capabilities.aot_class_guards
+        {
             self.push_stmt(Statement::Eval(Rvalue::Call {
                 callee: Callee::Runtime(RuntimeFn::InstanceClassCellGuard),
                 args: vec![class_object.clone()],
             }));
+        }
+        if ordinary_mi && let Some(global) = class_global {
+            self.push_stmt(Statement::SetGlobal {
+                dest: global,
+                value: class_object.clone(),
+            });
         }
         if let Some(cell) = class_cell {
             self.push_stmt(Statement::Eval(Rvalue::Call {

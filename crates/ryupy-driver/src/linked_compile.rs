@@ -133,6 +133,10 @@ pub(super) fn compile_linked_traced(
         else {
             continue;
         };
+        if aot_locations {
+            ordinary_mi::reject_emitted_aot(sess, module, &program);
+            stop_if_errors(sess)?;
+        }
         mapping[index] = Some(u32::try_from(units.len())?);
         if collect_manifest && automatic {
             summaries.push(manifest::SourceSummary::new(

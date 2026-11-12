@@ -18,6 +18,8 @@ pub struct Class {
     pub name: Name,
     /// 单继承的基类；`None` 表示 `object`。
     pub base: Option<ClassBase>,
+    /// Some为有延后发布合同的普通MI族；逐个保留真实运行时基表达式，含单基后代。
+    pub ordinary_mi_bases: Option<Vec<ExprId>>,
     pub fields: Vec<Field>,
     /// 类自身简单标注名，按首次声明顺序去重；供动态dataclass转换读取。
     /// 不参与静态字段布局，也不把普通类标注强行解析为TypeRef。

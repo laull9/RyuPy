@@ -13,9 +13,9 @@ namespace RyuPy.Runtime;
 /// 普通类不生成 CLR 类型：类体是运行时语句，属性 / 方法都在 `class` 语句执行时
 /// 写进 <see cref="Attributes"/>。实例是 <see cref="PyInstance"/>，持有自己的属性字典。
 ///
-/// # 单继承
+/// # 继承权威
 ///
-/// 只支持单继承；<see cref="BaseClass"/> 指向用户基类，或由 <see cref="BuiltinBase"/>
+/// 旧单继承以 <see cref="BaseClass"/> 保持快链；普通MI族由冷C3数组统一查找。<see cref="BuiltinBase"/>
 /// 记录内建异常基类名（用于 `except ValueError` 与 `isinstance(e, Exception)`）。
 ///
 /// # 缓存与失效
@@ -93,7 +93,7 @@ public sealed partial class PyClass
                 return _propertyFlag;
             }
             bool found = false;
-            for (PyClass? current = this; current is not null && !found; current = current.BaseClass)
+            foreach (PyClass current in MroClasses())
             {
                 foreach (object? value in current.Attributes.Values)
                 {
@@ -103,6 +103,7 @@ public sealed partial class PyClass
                         break;
                     }
                 }
+                if (found) break;
             }
             _propertyVersion = version;
             _propertyFlag = found;
@@ -119,6 +120,8 @@ public sealed partial class PyClass
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
+        if (HasMultipleInheritance && name is "__bases__" or "__mro__")
+            throw new PyNotImplementedError("MI structural mutation is not supported");
         PyNamedTupleLayout.GuardMutation(this);
         PyEnum.GuardClassMutation(this, name);
         GuardConstructionSet(name, value);
@@ -134,6 +137,8 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        if (HasMultipleInheritance && name is "__bases__" or "__mro__")
+            throw new PyNotImplementedError("MI structural mutation is not supported");
         PyNamedTupleLayout.GuardMutation(this);
         GuardTypingIoMutation(name, deleting: true);
         PyTypingGenericMetadata.MutateClass(this, name);
@@ -242,6 +247,12 @@ public sealed partial class PyClass
 
     private static bool Walk(PyClass? cls, string name, out PyClass owner, out object? value)
     {
+        if (cls?._ordinaryMro is { } mro)
+        {
+            foreach (PyClass current in mro)
+                if (current.Attributes.TryGetValue(name, out value)) { owner = current; return true; }
+            owner = null!; value = null; return false;
+        }
         for (PyClass? current = cls; current is not null; current = current.BaseClass)
         {
             if (current.Attributes.TryGetValue(name, out value))
@@ -258,6 +269,11 @@ public sealed partial class PyClass
     /// <summary>是否为 <paramref name="other"/> 或其子类。</summary>
     public bool IsSubclassOf(PyClass other)
     {
+        if (_ordinaryMro is { } mro)
+        {
+            foreach (PyClass current in mro) if (ReferenceEquals(current, other)) return true;
+            return false;
+        }
         for (PyClass? current = this; current is not null; current = current.BaseClass)
         {
             if (ReferenceEquals(current, other))

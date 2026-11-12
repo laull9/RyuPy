@@ -1,4 +1,4 @@
-// 独立固定六项许可的合成反例；真实PE仍由原S1门逐字段读取并验1717，不以本类替代。
+// 独立固定六项许可的合成反例；真实PE仍由原S1门逐字段读取并验1718，不以本类替代。
 using System;
 using System.Linq;
 using Xunit;
@@ -14,7 +14,7 @@ public class PyLexicalClassAbiContractTests
         before, PyTraceStateV1ArtifactContract.PublicAdditions(), A.SourcePublicAdditions(),
         A.MetadataPublicAdditions(), A.BuiltinPublicAdditions(), A.XmlPublicAdditions(), A.DefaultSourcePublicAdditions()
     ];
-    private static string[] After(string[] before, string[] factory) => Groups(before).SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).ToArray();
+    private static string[] After(string[] before, string[] factory) => Groups(before).SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).Concat(A.OrdinaryMiPublicAdditions()).ToArray();
     private static bool WithPermission(string[] before, string[] factory)
     {
         var groups = Groups(before);
@@ -29,8 +29,8 @@ public class PyLexicalClassAbiContractTests
         Assert.Equal(6, factory.Length); Assert.Equal(6, factory.Distinct(StringComparer.Ordinal).Count());
         Assert.Single(factory.Where(x => x.StartsWith("T:", StringComparison.Ordinal)));
         Assert.Equal(5, factory.Count(x => x.StartsWith("M:", StringComparison.Ordinal)));
-        var old = After(before, []); Assert.Equal(1711, old.Length);
-        var after = After(before, factory); Assert.Equal(1717, after.Length);
+        var old = After(before, []); Assert.Equal(1712, old.Length);
+        var after = After(before, factory); Assert.Equal(1718, after.Length);
         Assert.True(A.PreservesBaselineAbi(before, after));
         Assert.True(A.PreservesBaselineAbi(before.Reverse().ToArray(), after.Reverse().ToArray()));
         Assert.False(A.PreservesBaselineAbi(before, old));
@@ -95,7 +95,7 @@ public class PyLexicalClassAbiContractTests
         {
             var changed = groups.Select(x => (string[])x.Clone()).ToArray();
             changed[index][0] = factory[0];
-            var after = changed.SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).ToArray();
+            var after = changed.SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).Concat(A.OrdinaryMiPublicAdditions()).ToArray();
             Assert.False(A.PreservesBaselineAbi(changed[0], after,
                 changed[1], changed[2], changed[3], changed[4], changed[5], changed[6], factory));
         }

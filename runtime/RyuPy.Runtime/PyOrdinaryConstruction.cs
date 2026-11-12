@@ -1,4 +1,4 @@
-// 普通单继承的new/init分派；类型槽分类沿用全局版本失效，不建立反向继承网络。
+// 普通类的new/init分派（MI仅改变槽的C3选择）；类型槽分类沿用全局版本失效，不建立反向继承网络。
 using System;
 using System.Collections.Generic;
 
@@ -20,7 +20,7 @@ public sealed partial class PyClass
         if (_constructionVersion == GlobalVersion && _constructionSlots is { } cached) return cached;
         bool special = false;
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
-        for (PyClass? current = this; current is not null; current = current.BaseClass)
+        foreach (PyClass current in MroClasses())
         {
             if (!seen.Add(current)) throw new PyNotImplementedError("cyclic class layouts are not supported");
             special |= current.HasStringLayout || current.HasListLayout || current.HasDictLayout || current.BuiltinBase is not null || current.ExceptionFactory is not null

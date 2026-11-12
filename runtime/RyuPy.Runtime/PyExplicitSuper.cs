@@ -23,6 +23,12 @@ internal static class PyExplicitSuper
         if (args.Length == 1 || args[1] is PyNone)
             throw Unsupported("unbound receivers");
         object? receiver = args[1];
+        if (receiver is PyClass { HasMultipleInheritance: true } receiverClass)
+        {
+            receiverClass.RequireLexicalFactoryReady();
+            if (!ValidateChain(receiverClass, start)) throw Unrelated();
+            return new PySuper(start, receiverClass);
+        }
         if (receiver is PyClass or PyType or PyNativeType or PyNativeObject or PyNamedTupleInstance or PyBaseException)
             throw Unsupported("class receivers and native layouts");
         if (receiver is not PyInstance instance) throw Unrelated();
@@ -40,12 +46,12 @@ internal static class PyExplicitSuper
         return new PySuper(start, instance);
     }
 
-    // 只接受现有普通单继承表示；不以专用类的PyClass外壳冒充通用MRO。
+    // 单链与普通MI共用真实MRO；不以专用类的PyClass外壳冒充通用MRO。
     private static bool ValidateChain(PyClass cls, PyClass? start)
     {
         bool related = false;
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
-        for (PyClass? current = cls; current is not null; current = current.BaseClass)
+        foreach (PyClass current in cls.MroClasses())
         {
             if (!seen.Add(current)) throw Unsupported("cyclic class chains");
             if (current.BuiltinBase is not null || current.ExceptionFactory is not null

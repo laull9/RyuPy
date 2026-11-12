@@ -196,6 +196,8 @@ public static partial class PyPic
         public string? Name;
         /// <summary>`super()` 所在方法的定义类（查找从它的基类开始）。</summary>
         public PyClass? Start;
+        // 同一个owner的super在不同MI接收类上可选择不同下一分支。
+        public PyClass? ReceiverMro;
         public long ClassVersion;
         /// <summary>找到方法的类（作为被调方法的 `super()` 上下文）。</summary>
         public PyClass? Owner;
@@ -209,7 +211,7 @@ public static partial class PyPic
     /// </summary>
     /// <remarks>
     /// 零参数 <c>super()</c> 的结果每次都是新的 <see cref="PySuper"/>，但「从哪个类开始找、找到哪个
-    /// 函数」只取决于定义类与类版本，可以缓存。命中时直接以 <c>super.Self</c> 为第一个实参调用目标
+    /// 函数」在单继承依赖定义类与版本，MI还依赖实际接收类。命中时直接以 <c>super.Self</c> 为第一个实参调用目标
     /// 函数，省掉绑定方法对象与类链遍历；只缓存普通函数（property / classmethod 等走通用路径）。
     /// </remarks>
     private static object? CallMethodFallback(int site, object? obj, string name, object?[] args)
@@ -219,16 +221,20 @@ public static partial class PyPic
             return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
         }
         PyLexicalSuper.GuardAttribute(name);
-        if (name == "__class__") return PyOps.CallMethod(obj, name, args, [], []);
+        if (name == "__class__" || super.Self is PyClass)
+            return PyOps.CallMethod(obj, name, args, [], []);
         PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
+        PyClass? receiverClass = super.Self switch { PyInstance value => value.Class, PyClass value => value, _ => null };
+        PyClass? receiverMro = receiverClass?.HasMultipleInheritance == true ? receiverClass : null;
         ref SuperEntry entry = ref SuperEntries[site];
         if (entry.Valid == 0
             || !ReferenceEquals(entry.Start, super.Owner)
+            || !ReferenceEquals(entry.ReceiverMro, receiverMro)
             || entry.ClassVersion != classVersion
             || !string.Equals(entry.Name, name, System.StringComparison.Ordinal))
         {
-            if (!TryResolveSuper(super.Owner, name, out PyClass? owner, out PyFunction? target))
+            if (!TryResolveSuper(super.Owner, super.Self, name, out PyClass? owner, out PyFunction? target))
             {
                 return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
             }
@@ -237,6 +243,7 @@ public static partial class PyPic
                 Valid = 1,
                 Name = name,
                 Start = super.Owner,
+                ReceiverMro = receiverMro,
                 ClassVersion = classVersion,
                 Owner = owner,
                 Target = target,
@@ -251,6 +258,7 @@ public static partial class PyPic
     /// <summary>沿 `start` 的基类链找第一个定义 `name` 的类；只接受普通函数。</summary>
     private static bool TryResolveSuper(
         PyClass start,
+        object? receiver,
         string name,
         out PyClass? owner,
         out PyFunction? target
@@ -258,7 +266,7 @@ public static partial class PyPic
     {
         if (start.IsTypingGenericFamily && name is "__init_subclass__" or "__class_getitem__")
             throw PyTypingGeneric.Unsupported($"explicit Generic super {name} binding is not supported");
-        for (PyClass? current = start.BaseClass; current is not null; current = current.BaseClass)
+        foreach (PyClass current in PyClass.SuperClasses(start, receiver))
         {
             if (current.Attributes.TryGetValue(name, out object? raw))
             {

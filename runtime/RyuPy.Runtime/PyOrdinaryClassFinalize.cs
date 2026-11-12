@@ -7,6 +7,7 @@ public sealed partial class PyClass
 {
     internal void FinalizeOrdinaryConstruction()
     {
+        CompleteMultipleInheritance();
         if (!IsLexicalFactoryFamily) { FinalizeOrdinaryConstructionCore(); return; }
         // 所有special早返之前验证新族，不能通过旧创建路径洗掉继承的能力身份。
         PyLexicalClassFactory.ValidateDefinition(this);

@@ -27,6 +27,7 @@ public static class PyLexicalClassFactory
             if (bases.Length == 1 && !ReferenceEquals(bases[0], PyBaseObject.Type))
             {
                 parent = bases[0] as PyClass ?? throw Unsupported("non-ordinary base or metaclass protocol");
+                if (parent.HasMultipleInheritance) throw Unsupported("MI at lexical definition positions");
                 ValidateAncestors(parent);
             }
             return new Frame(name, parent, module, qualname);
@@ -80,22 +81,29 @@ public static class PyLexicalClassFactory
         try
         {
             if (!cls.HasOrdinaryLexicalLayout) throw Unsupported("special-layout definition");
-            ValidateAncestors(cls.BaseClass);
+            foreach (PyClass ancestor in cls.MroClasses())
+                if (!ReferenceEquals(ancestor, cls)) ValidateAncestors(ancestor);
             ValidateNamespace(cls.Attributes);
+            if (cls.HasMultipleInheritance) cls.ValidateMiStructuralMetadata();
         }
         catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
     }
 
     internal static void ValidateFamily(PyClass cls)
     {
-        try { ValidateAncestors(cls); }
+        try
+        {
+            ValidateAncestors(cls);
+            if (cls.HasMultipleInheritance) cls.ValidateMiStructuralMetadata();
+        }
         catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
     }
 
     private static void ValidateAncestors(PyClass? parent)
     {
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
-        for (PyClass? current = parent; current is not null; current = current.BaseClass)
+        if (parent is null) return;
+        foreach (PyClass current in parent.MroClasses())
         {
             if (!seen.Add(current) || !current.IsCompletedOrdinaryLexicalBase)
                 throw Unsupported("unfinished or special-layout ancestor");
@@ -128,11 +136,12 @@ public static class PyLexicalClassFactory
             _ => null,
         };
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
-        for (; type is not null; type = type.BaseClass)
+        if (type is null) return false;
+        foreach (PyClass current in type.MroClasses())
         {
-            if (!seen.Add(type)) throw Unsupported("cyclic descriptor type");
+            if (!seen.Add(current)) throw Unsupported("cyclic descriptor type");
             foreach (string name in new[] { "__get__", "__set__", "__delete__", "__set_name__" })
-                if (type.Attributes.ContainsKey(name)) return true;
+                if (current.Attributes.ContainsKey(name)) return true;
         }
         return false;
     }

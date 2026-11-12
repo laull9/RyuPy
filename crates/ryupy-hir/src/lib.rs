@@ -85,6 +85,7 @@ mod annotation_tests;
 
 mod sequence_target;
 
+mod ordinary_mi;
 mod runtime_bases;
 
 mod unresolved_globals;

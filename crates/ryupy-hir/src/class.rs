@@ -79,7 +79,49 @@ pub fn parse_class_def(
 
     // 原生基类仅对白名单身份放行，仍保留表达式求值；其它基类继续原有诊断。
     let native = crate::native_bases::resolve(class_def, globals);
-    let parsed_base = if globals.instance_globals {
+    let ordinary_mi = globals.ordinary_mi.contains(&class_def.range);
+    let ordinary_mi_bases = if ordinary_mi {
+        let args = class_def.arguments.as_ref()?;
+        if globals.instance_globals
+            || is_dataclass
+            || native.is_some()
+            || !args.keywords.is_empty()
+            || args
+                .args
+                .iter()
+                .any(|base| matches!(base, ast::Expr::Starred(_)))
+        {
+            diags.push(unsupported_class_statement(
+                file,
+                class_def.range(),
+                "普通多继承仅支持Legacy普通类；Instance、专用布局、关键字和展开基类仍未支持",
+            ));
+            return None;
+        }
+        Some(
+            args.args
+                .iter()
+                .map(|expr| {
+                    lower_class_expr(
+                        None,
+                        file,
+                        globals,
+                        module_vars,
+                        nested_funcs,
+                        nested_defaults,
+                        main_body,
+                        diags,
+                        expr,
+                    )
+                })
+                .collect(),
+        )
+    } else {
+        None
+    };
+    let parsed_base = if ordinary_mi {
+        None
+    } else if globals.instance_globals {
         if is_dataclass {
             diags.push(unsupported_class_statement(
                 file,
@@ -332,6 +374,7 @@ pub fn parse_class_def(
         has_class_cell: false,
         name: class_name,
         base,
+        ordinary_mi_bases,
         fields,
         declared_fields,
         enum_members,

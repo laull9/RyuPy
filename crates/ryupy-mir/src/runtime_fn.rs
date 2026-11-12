@@ -345,6 +345,8 @@ pub enum RuntimeFn {
     /// `PyOps.MakeClass(string, object[], object) -> object`：创建类对象。
     /// 第三个参数是异常类的工厂委托（普通类传 `null`）。
     MakeClass,
+    /// 普通MI族冷准备；仅配合类体后Finalize及延后公开合同。
+    PrepareOrdinaryMiClass,
     /// `PyOps.SetAttr(object, string, object)`：实例 / 类属性写入。
     SetAttr,
     /// `PyOps.DelAttr(object, string)`：实例 / 类属性删除。

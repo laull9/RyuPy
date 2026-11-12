@@ -21,6 +21,7 @@ mod distribution_metadata;
 mod instance_modules;
 mod module_environments;
 mod module_hints;
+mod ordinary_mi;
 pub use module_environments::{ModuleEnvironmentDecision, ModuleEnvironmentPolicy};
 mod manifest;
 mod manifest_files;

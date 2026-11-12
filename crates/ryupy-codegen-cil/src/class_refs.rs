@@ -1,6 +1,7 @@
 //! 普通运行时基类与类命名空间的CLR方法引用；Python能力边界由运行时负责。
 use dotnetdll::prelude::*;
 pub(crate) struct ClassRefs {
+    pub prepare_ordinary_mi: MethodRefIndex,
     pub lexical_prepare: MethodRefIndex,
     pub lexical_finish: MethodRefIndex,
     pub lexical_contains: MethodRefIndex,
@@ -19,6 +20,9 @@ impl ClassRefs {
             res.push_type_reference(type_ref! { RyuPy.Runtime.PyLexicalClassFactory in #runtime });
         let factory: MethodType = BaseType::class(factory).into();
         Self {
+            prepare_ordinary_mi: res.push_method_reference(
+                method_ref! { static object @ops::PrepareOrdinaryMiClass(string, object[]) },
+            ),
             lexical_prepare: res.push_method_reference(
                 method_ref! { static object @factory::Prepare(string, string, object, object[]) },
             ),

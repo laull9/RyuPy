@@ -1,5 +1,7 @@
 # TODO
 
+- [~] 普通 MI/C3 冷权威候选：真实菱形、单基后代、发布失败及 super/PIC 同源验证待完成；Legacy JIT 有界准入，Instance/Native 与专用布局保持拒绝。见[ADR0161](docs/adr/0161-ordinary-mi-c3.md)。
+
 - [~] TreeBuilder真实事件状态机候选：通用节点/文本尾文本/工厂身份及真实SyntaxError→ParseError父链接入；六组CP参考已冻结，C#/JIT/Native/完整check待验，原pending保留。见[ADR0154](docs/adr/0154-treebuilder-state-machine.md)。
 - [x] KeyError默认builtins冷读取有限验收：`fefe3954155be47e99f163cfc6fe1d6c1c437426`、CI `42907658383` 的20/20 CP/JIT/Native及搬迁通过，两策略make check退出0、原S1 38项与ABI1700保留。整CI仍有两个旧失败，固定默认项目仍11/8/1，不据此声称全异常或全库兼容。见 `tests/cases/keyerror_construction/README.md`。
 

@@ -17,6 +17,16 @@ pub(crate) fn register(
 ) {
     // 同名定义若包含装饰链，全部定义位置共用公开动态槽；失败时保留此前绑定。
     let definitions = crate::module_definitions::definitions(&parsed.module.body);
+    globals.ordinary_mi = crate::ordinary_mi::definitions(&parsed.module.body);
+    for statement in &definitions {
+        if let ast::Stmt::ClassDef(class) = statement
+            && globals.ordinary_mi.contains(&class.range)
+        {
+            let name = Name::from(class.name.as_str());
+            globals.dynamic_names.insert(name.clone());
+            ensure_slot(name, class.range, vars, slots);
+        }
+    }
     for stmt in &definitions {
         if globals.instance_globals {
             let name = match stmt {
