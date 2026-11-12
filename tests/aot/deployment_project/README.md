@@ -40,3 +40,9 @@ ryupy build --project /work/pyfiglet-project/ryupy.json --target metadata
 [CI 43255885614](https://github.com/laull9/RyuPy/actions/runs/43255885614)，候选 `2556fea1`，使用无 feature Release CLI，已通过 Linux x64 的 pyfiglet 1.0.2 两入口合同：原 CLI 和真实 console_scripts metadata 加载同一 main。原位置及源码项目搬迁后共四次公开 `build --project FILE --target NAME` 成功，四份独立源/PE/metadata/完整字体资源 receipt 通过；standard、slant、list_fonts 三模式共12次隔离源码宿主运行、12次禁网无 Python/.NET 容器运行通过。
 
 此结果只证明上述锁定项目、入口与模式。源码项目搬迁后是新位置重新构建，旧 build 完整保留，不是编译缓存搬迁复用；不扩展为跨平台或任意依赖支持，不产生新的性能结论，也不修改旧 benchmark 数字。
+
+## macOS / Windows 当前候选专项门
+
+`deployment-project-platforms.yml` 用同候选默认 Release CLI 和 Release runtime，固定 Rust 1.99.1、CP 3.12.13、.NET SDK 10.0.403；运行时再核平台/架构/版本和工具摘要。macOS 仅 arm64，Windows 仅 x64 MSVC。每平台两个公开项目target，独立同RID schema4 receipt，原位及搬迁各三模式，源目录隔离；Mach-O/PE格式和otool/dumpbin依赖审计不接受Linux ELF或托管PE替代。平台CP原流按真实上游协议：standard/slant在detach后直接写bytes，保留LF；fonts走文本print，才使用平台换行。Native逐字匹配该CP，不改输出忽略差异。
+
+这些平台在装有SDK的GitHub宿主上以精简PATH运行，**不是无Python/.NET干净容器证明**，也不生成性能测量。旧Linux容器链不改变。当前生产候选Windows分发metadata末端nofollow未实现，必须保留两个target完整metadata请求并真实报告拒绝，不删请求或跳过metadata入口凑成功；后续Windows读取修复与首轮候选分开验收。

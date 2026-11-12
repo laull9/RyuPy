@@ -4,6 +4,11 @@ use super::*;
 pub(super) fn emit_real_graph() {
     let entry = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_ENTRY").unwrap());
     let root = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_ROOT").unwrap());
+    let roots = oracle_roots(
+        root,
+        std::env::var("RYUPY_DEFAULT_AOT_ROOTS").ok().as_deref(),
+    )
+    .unwrap();
     let out = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_OUTPUT").unwrap());
     std::fs::create_dir_all(&out).unwrap();
     let mut s = Session {
@@ -20,7 +25,7 @@ pub(super) fn emit_real_graph() {
     let result = crate::compile_linked_locations(
         &mut s,
         &entry,
-        std::slice::from_ref(&root),
+        &roots,
         true,
         resource_request.as_deref(),
         true,
@@ -72,7 +77,7 @@ pub(super) fn emit_real_graph() {
             "entry":entry,"files":input_files,
             "cli_sha256":tool_hash("RYUPY_DEFAULT_AOT_CLI"),
             "runtime_sha256":tool_hash("RYUPY_DEFAULT_AOT_RUNTIME"),
-            "search_roots":[root],"include_modules":s.include_modules,
+            "search_roots":roots,"include_modules":s.include_modules,
             "resources":resource_request,"metadata":s.distribution_metadata
         }))
         .unwrap(),
@@ -203,4 +208,49 @@ pub(super) fn emit_real_graph() {
         serde_json::to_vec_pretty(&staged.locations).unwrap(),
     )
     .unwrap();
+}
+
+/// 仅测试导出器的多root补充；旧ROOT路径和默认行为保持不变。
+fn oracle_roots(original: PathBuf, override_json: Option<&str>) -> anyhow::Result<Vec<PathBuf>> {
+    let Some(raw) = override_json else {
+        return Ok(vec![original]);
+    };
+    let roots: Vec<PathBuf> = serde_json::from_str(raw)?;
+    anyhow::ensure!(
+        !roots.is_empty() && roots.len() <= 64,
+        "oracle ROOTS须为1至64个绝对目录"
+    );
+    let mut seen = std::collections::BTreeSet::new();
+    for root in &roots {
+        anyhow::ensure!(
+            root.is_absolute() && root.is_dir(),
+            "oracle ROOTS必须为现存绝对目录"
+        );
+        anyhow::ensure!(seen.insert(root.canonicalize()?), "oracle ROOTS重复目录");
+    }
+    Ok(roots)
+}
+
+#[test]
+fn oracle_multi_roots_are_explicit_and_preserve_old_default() {
+    let first = crate::test_temp::directory("oracle-root-first");
+    let second = crate::test_temp::directory("oracle-root-second");
+    assert_eq!(
+        oracle_roots(PathBuf::from("old-relative"), None).unwrap(),
+        vec![PathBuf::from("old-relative")]
+    );
+    let raw = serde_json::to_string(&vec![&first, &second]).unwrap();
+    assert_eq!(
+        oracle_roots(first.clone(), Some(&raw)).unwrap(),
+        vec![first.clone(), second.clone()]
+    );
+    for raw in ["[]", "null", "{}", "[1]", "[\"relative\"]"] {
+        assert!(oracle_roots(first.clone(), Some(raw)).is_err());
+    }
+    let duplicate = serde_json::to_string(&vec![&first, &first]).unwrap();
+    assert!(oracle_roots(first.clone(), Some(&duplicate)).is_err());
+    let missing = serde_json::to_string(&vec![first.join("missing")]).unwrap();
+    assert!(oracle_roots(first.clone(), Some(&missing)).is_err());
+    std::fs::remove_dir_all(first).unwrap();
+    std::fs::remove_dir_all(second).unwrap();
 }
