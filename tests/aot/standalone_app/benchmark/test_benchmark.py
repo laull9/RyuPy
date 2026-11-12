@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
+import hosted
 
 HERE = Path(__file__).resolve().parent
 import sys
@@ -69,14 +70,25 @@ class BenchmarkTests(unittest.TestCase):
             manifest = dist/'manifest.json'
             manifest.write_text(json.dumps({'resources':[{'relative_path':'font.flf', 'size':4, 'sha256':gate.sha(font)}]}))
             receipt = {'structure_validated':True, 'metadata_payload_sha256':'unit-test-only',
-                       'manifest_sha256':gate.sha(manifest), 'dist_files':inventory(dist), 'resource_count':1}
+                       'manifest_sha256':gate.sha(manifest), 'dist_files':{'font.flf': {'size':4, 'sha256':gate.sha(font)}, 'manifest.json': {'size':manifest.stat().st_size, 'sha256':gate.sha(manifest)}}, 'resource_count':1}
             with patch.object(gate, 'HERE', root/'benchmark'):
                 gate.preserved_resources(root/'package', dist, 'ryupy', receipt=receipt, manifest=manifest)
                 with self.assertRaises(ValueError):
                     gate.preserved_resources(root/'package', dist, 'ryupy', receipt=dict(receipt, metadata_payload_sha256=None), manifest=manifest)
+                extra = dist/'extra'; extra.write_bytes(b'extra')
+                with self.assertRaises(ValueError):
+                    gate.preserved_resources(root/'package', dist, 'ryupy', receipt=receipt, manifest=manifest)
+                extra.unlink()
                 font.write_bytes(b'evil')
                 with self.assertRaises(ValueError):
                     gate.preserved_resources(root/'package', dist, 'ryupy', receipt=receipt, manifest=manifest)
+
+    def test_exact_oracle_runtime_output(self):
+        good = 'test '+hosted.ORACLE_TEST+' ... ok\ntest result: ok. 1 passed; 0 failed; 0 ignored;\n'
+        hosted.check_oracle_test(good)
+        for bad in ('test result: ok. 0 passed; 0 failed;', good+good,
+                    good.replace(hosted.ORACLE_TEST, 'different_test'), good.replace('... ok','... ignored')):
+            with self.assertRaises(ValueError): hosted.check_oracle_test(bad)
 
     def test_environment_secret_values_never_serialized(self):
         secrets = {'GITHUB_TOKEN': 'fake-gh-private-092',
@@ -104,7 +116,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(lock['version'], '4.3.5')
         self.assertEqual(lock['sha256'], 'ca1dabc274b95efa7a46597f464ec27484b30f32cb89872d14d66541284d4f01')
         args = gate.nuitka_command(Path('/cp'), Path('/src/main.py'), Path('/src/package'), Path('/out'))
-        for arg in ('--mode=standalone', '--jobs=1', '--include-package=pyfiglet', '--include-distribution-metadata=pyfiglet'):
+        for arg in ('--mode=standalone', '--python-flag=site', '--jobs=1', '--include-package=pyfiglet', '--include-distribution-metadata=pyfiglet'):
             self.assertIn(arg, args)
         self.assertNotIn('--onefile', args)
         self.assertIn('--include-data-dir=/src/package/pyfiglet/fonts=pyfiglet/fonts', args)

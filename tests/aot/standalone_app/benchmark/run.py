@@ -19,7 +19,7 @@ import manifest_verify
 
 
 def nuitka_command(python, entry, package, output):
-    return [python, '-B', '-m', 'nuitka', '--mode=standalone', '--jobs=1', '--disable-ccache',
+    return [python, '-B', '-m', 'nuitka', '--mode=standalone', '--python-flag=site', '--jobs=1', '--disable-ccache',
             '--output-dir='+str(output), '--output-filename=pyfiglet-native',
             '--report='+str(output/'compilation-report.xml'), '--include-package=pyfiglet',
             '--include-distribution-metadata=pyfiglet',
@@ -55,6 +55,14 @@ def exact_file(source, target, root):
             '资源路径字节不符：'+str(target))
 
 
+def receipt_inventory(dist):
+    # validator的稳定wire格式不含性能计数/mode；不可直接比较两种包络。
+    measured = inventory(dist)
+    require(all('symlink' not in row for row in measured['files'].values()), 'receipt拒绝链接')
+    return {name: {'sha256': row['sha256'], 'size': row['bytes']}
+            for name, row in measured['files'].items()}
+
+
 def preserved_resources(package, dist, arm, *, receipt=None, manifest=None):
     request = json.loads((HERE.parent/'resources.json').read_text())
     if arm == 'ryupy':
@@ -62,7 +70,7 @@ def preserved_resources(package, dist, arm, *, receipt=None, manifest=None):
         require(receipt is not None and receipt.get('structure_validated') is True
                 and receipt.get('metadata_payload_sha256'), '缺独立PE/资源receipt')
         require(manifest is not None and sha(manifest) == receipt['manifest_sha256'], 'receipt清单绑定不符')
-        require(inventory(dist) == receipt['dist_files'], 'receipt产物绑定不符')
+        require(receipt_inventory(dist) == receipt['dist_files'], 'receipt产物绑定不符')
         data = json.loads(manifest.read_text())
         require(len(data['resources']) == receipt['resource_count'], '资源计数不同')
         for row in data['resources']:

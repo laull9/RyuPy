@@ -66,3 +66,5 @@ RyuPy测量用cargo --release CLI与dotnet Release runtime；两者构建均属�
 四个 build/receipt 分别保留失败并继续其他独立臂；只有完成基础来源与产物安全验收的 bundle 才进入各自部署验证。任一必要臂、receipt 或部署失败，最终退出失败，禁止启动性能采样和速度比。原始编译流始终保留；该收集行为不把失败变为兼容。
 
 RyuPy 的完整 egg-info 通过独立实际 PE payload 审计及 metadata 入口运行证明，不要求在 dist 重复物理复制。独立 receipt 必须绑定当前 manifest 和完整 dist；字体仍按经独立 oracle 验证的 manifest 精确路径、大小、SHA 校验。Nuitka 按明确复制布局 `pyfiglet/fonts/<name>` 与 `pyfiglet.egg-info/<name>` 逐文件校验，不使用无路径 hash 集合。两工具仍必须通过全部三种参数、两入口及同洁净容器执行。首轮 schema2 原件不充当修改后候选的验收证据。
+
+Nuitka 显式使用官方 `--python-flag=site`，对齐合同既定正常 CP（site 启用），不使用 shim 或关闭诊断。首轮默认 standalone 隐含 no_site 导致原 `--list_fonts` 打印后缺少 exit，失败原件保留，不据此声称工具兼容性或速度优劣。锁定 4.3.5 官方 Options.py 支持 site 覆盖 no_site。独立 oracle 使用稳定完整测试名及 --exact，并检查真实 stdout 只有该测试且 1 passed。
