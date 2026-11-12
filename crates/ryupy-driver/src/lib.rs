@@ -15,6 +15,7 @@ pub mod dotnet;
 mod dump;
 pub use dump::dump;
 mod default_aot;
+pub mod deployment_request;
 mod linked_compile;
 use linked_compile::compile_linked_traced;
 mod distribution_metadata;
@@ -206,6 +207,9 @@ fn compile_linked_locations(
     Vec<manifest::SourceSummary>,
     Option<resources::ResourcePlan>,
 )> {
+    if let Some(guard) = &sess.deployment_inputs {
+        guard.verify()?;
+    }
     let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     compile_linked_traced(
         sess,
@@ -373,6 +377,9 @@ fn build_with_resources_inner(
     runtime::copy_runtime_to(&opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 
+    if let Some(guard) = &sess.deployment_inputs {
+        guard.verify()?;
+    }
     let (native_exe, manifest) = if let Some(context) = context {
         let published = aot::publish_with_manifest(
             &dll,
@@ -385,6 +392,10 @@ fn build_with_resources_inner(
     } else {
         (None, None)
     };
+    // 仍在aot_layout的compile闭包内；配置变化须在dist最终安装前失败。
+    if let Some(guard) = &sess.deployment_inputs {
+        guard.verify()?;
+    }
     Ok(Artifacts {
         dll,
         native_exe,

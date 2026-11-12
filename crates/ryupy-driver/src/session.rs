@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 项目请求的私有字节守卫；默认None，不授予模块或发布权限。
+    #[doc(hidden)]
+    pub deployment_inputs: Option<crate::deployment_request::InputGuard>,
     /// 不透明编排状态；公开字段保留既有Session结构更新语法，内部authority不可外部构造。
     #[doc(hidden)]
     pub default_source_state: crate::DefaultSourceState,
