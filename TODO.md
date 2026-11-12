@@ -2,6 +2,8 @@
 
 ## 当前 AOT 产品主线（2026-11-12）
 
+- [x] Linux binaryornot普通consumer有限部署：未改上游binaryornot/chardet，47源码自动发现，四类输入在原位/搬迁宿主8/8与禁网无Python/.NET容器8/8通过。CI `43314021657` 与同树完整check及原件独审通过；非完整库兼容，不改固定20项目分子，无性能结论。见 `tests/aot/deployment_binaryornot/README.md`。
+
 - [~] 真实 standalone 联合部署：Linux/macOS/Windows pyfiglet 1.0.2 两入口、完整553字体及metadata已验；新增显式资源目录选择同树通过 Linux CI `43296651927` 与平台 CI `43298130779`，各平台原位/搬迁运行通过，Windows nofollow/路径宿主各3/3。只有Linux有禁网无Python/.NET容器证明，Mac/Windows干净机仍未验。见 [ADR0174](docs/adr/0174-explicit-resource-trees.md)。不宣称 Nuitka 全面兼容或更快。
 - [~] 真实渲染性能：PyText.Length BMP向量扫描候选已过完整回归，同宿主Native A/B CI `43300538885` 已验：长hi渲染中位76.69→66.64ms（40交替样本，耗时降13.1%）；短hi分布重叠不作可靠提升，旧Nuitka数字不复用为新提升。裸return的Python None表示修复另行验证，避免污染性能控制变量。
 

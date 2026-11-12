@@ -10,6 +10,14 @@
 
 产物原位与复制搬迁后，各运行四个外部输入。隐藏项目源码，输入和 dist 均不允许改变。固定 `runtime.Dockerfile` 镜像须实际证明无 Python/.NET，然后在禁网、只读根、去 capabilities、no-new-privileges、非 root 用户环境中仅挂只读 dist 和输入，再跑两位置八次。结果保留全部 argv、退出码与 stdout/stderr 原流、工具与输入摘要。
 
+## 已验证结果（2026-11-12）
+
+修复候选 `3a512ee928806c8554c4ed4a012f242f386c6f3e`（树 `b3269bda04972f5c747ffc1076d3f72815d59801`）在 [CI 43314021657](https://github.com/laull9/RyuPy/actions/runs/43314021657) 完整通过。原位与搬迁各四输入，Linux宿主8/8和无Python/.NET禁网容器8/8均exit 0、stderr空、stdout逐字节等于CP合同；实际PE/47来源/两分发metadata/零资源及工具摘要审计通过。官方ZIP `13986868626` 的SHA256为 `ee19c82c31de9e9ef68d57d5909721d6bf7b1056ffc26889f45c7a0cfce75607`，下载后再次独立检查16条原流、上游源码锁和搬迁字节一致。本地直接执行同一官方Native二进制的四输入也通过。
+
+同树本地完整 `make check` 退出0，C# 3050通过/5跳过，e2e 452通过/282忽略。首轮旧decode根方法禁用断言已由新的四路正负合同替代；第二轮磁盘不足后仅清理可再生debug缓存，并以关闭调试信息和增量缓存的配置完成第三轮，未改变产品优化或功能。此前失败日志仍保留，不将失败轮改写成成功。
+
+验证只覆盖本文Linux普通consumer四输入，不代表上游CLI、完整编码探测或任意文件兼容；无性能测量，不更新固定20项目分子或Nuitka比较。dev/main未因本次验证而移动。
+
 ## 状态边界
 
 首轮 hosted Native CI `43310884534` 实际构建与结构审计成功，ASCII 宿主和无 Python/.NET 容器各通过一次，但 UTF-8 运行因 `bytes.decode(encoding=...)` 被错误拒绝而进入上游 Python 2 的 `unicode` 回退，最终失败。该轮不是通过，搬迁门尚未执行。后续候选修复通用 bytes/bytearray decode 绑定与严格 UTF-16 解码，不改写上游源码；本地重新编译的普通 JIT consumer 四输入已与 CP 一致，但不能替代新的完整 hosted Native 门。此前本地发布的 MSB4216/4027 原始失败也保留，不改写历史。缺 chardet 的本地实验也仅在发布失败前观察到四来源和一分发，不能宣称产品已有依赖缺失预检。这些历史原件保留，不改写成成功。
