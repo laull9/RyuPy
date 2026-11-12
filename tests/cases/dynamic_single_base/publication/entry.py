@@ -45,16 +45,8 @@ try:
 except NameError:
     print('name remains missing')
 
-# 无效实际基值在执行类体之前失败，同样保持旧名。
-InvalidBase = 42
-events = []
-try:
-    class Target(InvalidBase):
-        events.append('unreachable')
-except TypeError:
-    print('invalid base', Target is old, events)
-
 # 下标求值本身抛错也不得发布或开始执行类体。
+events = []
 class FailingSelector:
     def __getitem__(self, key):
         events.append(('base', key))

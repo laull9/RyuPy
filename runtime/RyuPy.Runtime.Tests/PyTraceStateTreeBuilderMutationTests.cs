@@ -80,15 +80,15 @@ public partial class PyTraceStateArtifactTests
         var xml = XmlPublicAdditions(); Assert.Equal(1700, old.Length); Assert.Equal(6, xml.Length);
         var deployment = DefaultSourcePublicAdditions();
         var factory = LexicalClassFactoryPublicAdditions();
-        var full = old.Concat(xml).Concat(deployment).Concat(factory).Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).ToArray(); Assert.True(PreservesBaselineAbi(before, full));
+        var full = old.Concat(xml).Concat(deployment).Concat(factory).Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).Concat(RuntimeDerivedPublicAdditions()).ToArray(); Assert.True(PreservesBaselineAbi(before, full));
         for (int at = 0; at < xml.Length; at++)
         {
             foreach (string[] wrong in new[] { xml.Where((_, i) => i != at).ToArray(),
                 xml.Select((s, i) => i == at ? s + "改签" : s).ToArray(),
                 xml.Select((s, i) => i == at ? xml[(i + 1) % xml.Length] : s).ToArray() })
             {
-                Assert.False(PreservesBaselineAbi(before, old.Concat(wrong).Concat(deployment).Concat(factory).Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).ToArray()));
-                Assert.False(PreservesBaselineAbi(before, old.Concat(wrong).Concat(deployment).Concat(factory).Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).ToArray(), v1, source, metadata, builtin, wrong));
+                Assert.False(PreservesBaselineAbi(before, old.Concat(wrong).Concat(deployment).Concat(factory).Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).Concat(RuntimeDerivedPublicAdditions()).ToArray()));
+                Assert.False(PreservesBaselineAbi(before, old.Concat(wrong).Concat(deployment).Concat(factory).Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions()).Concat(RuntimeDerivedPublicAdditions()).ToArray(), v1, source, metadata, builtin, wrong));
             }
         }
         foreach (var (name, type) in C.TreeBuilderProducers)
