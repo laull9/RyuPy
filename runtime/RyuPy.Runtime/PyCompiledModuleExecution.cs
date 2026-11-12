@@ -49,9 +49,9 @@ internal static partial class PyCompiledModuleLoader
         return source;
     }
 
-    internal static void RequireInstanceCode(PyInstance loader)
+    internal static PyCompiledModuleCode RequireInstanceCode(PyInstance loader)
     {
-        if (Source(loader).Code is null) throw Unsupported("static compiled source execution");
+        return Source(loader).Code ?? throw Unsupported("static compiled source execution");
     }
 
     private static object CreateModule(object? self)

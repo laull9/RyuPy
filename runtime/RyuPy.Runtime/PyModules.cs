@@ -279,8 +279,9 @@ public static partial class PyModules
                 ? PyModuleMetadata.WithoutLocation(name, source.IsPackage)
                 : new PyModuleMetadata(name, registration.ResolvedFile, source.IsPackage);
         // 必须先登记再执行：循环导入的另一端需要看到「初始化中」的模块对象。
-        if (registration.ResourceLocation is { } resourceLocation)
+        if (registration.ResourceLocation is { } resourceLocation && !ResourceLocations.TryGetValue(module, out _))
             ResourceLocations.Add(module, resourceLocation);
+        BindDefaultSource(module, registration);
         Cache[name] = module;
         module.State = 1;
         try

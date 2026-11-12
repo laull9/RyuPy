@@ -129,13 +129,13 @@ pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
     let value: serde_json::Value = serde_json::from_slice(&read_json(&path)?)?;
     ensure!(
         value["kind"] == "ryupy-native-aot-artifact"
-            && matches!(value["schema_version"].as_u64(), Some(1..=3)),
-        "布局只接受AOT清单1/2/3"
+            && matches!(value["schema_version"].as_u64(), Some(1..=4)),
+        "布局只接受AOT清单1/2/3/4"
     );
     let artifacts = value["artifacts"].as_array().context("清单缺artifacts")?;
     ensure!(artifacts.len() <= 100_000, "清单artifacts条目超过预算");
     let snapshot = snapshot(root, false)?;
-    if value["schema_version"] == 2 {
+    if value["schema_version"] == 2 || value["schema_version"] == 4 {
         validate_resource_names(&value, &snapshot)?;
     }
     let by_path: std::collections::BTreeMap<_, _> = snapshot
@@ -177,7 +177,7 @@ pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
 pub(super) fn relocate(root: &Path, old: &str, new: &str) -> Result<()> {
     crate::binding_build::validate_name(new)?;
     let mut value = verify_manifest(root)?;
-    if value["schema_version"] == 2 {
+    if value["schema_version"] == 2 || value["schema_version"] == 4 {
         ensure!(
             ![
                 "_internal",

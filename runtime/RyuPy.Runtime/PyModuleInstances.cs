@@ -57,6 +57,7 @@ public static partial class PyModuleInstances
             state.GetAttr, (_, name, value) => state.SetAttr(name, value), fileBackedByGlobal: true, instanceGlobals: true)
             { Metadata = metadata };
         States.Add(module, state);
+        PyModules.BindDefaultInstance(module, code);
         return module;
     }
 
@@ -149,7 +150,7 @@ public static partial class PyModules
         if (!Registry.TryGetValue(name, out var registration)) throw new PyModuleNotFoundError($"No module named '{name}'");
         if (registration.InstanceCode is not { } code) throw new PyNotImplementedError("registered module has no instance execution capability");
         var module = PyModuleInstances.Create(code);
-        if (registration.ResourceLocation is { } source) ResourceLocations.Add(module, source);
+        if (registration.ResourceLocation is { } source && !ResourceLocations.TryGetValue(module, out _)) ResourceLocations.Add(module, source);
         return module;
     }
 }

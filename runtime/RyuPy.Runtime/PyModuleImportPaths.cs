@@ -43,7 +43,7 @@ public static partial class PyModules
     }
 
     private static bool IsSourceImportPair(PyModule? parent, Registration registration) =>
-        parent is { Metadata: { HasSourceLocation: true } }
+        DefaultSourcePair(parent, registration) || parent is { Metadata: { HasSourceLocation: true } }
         && ResourceLocations.TryGetValue(parent, out ResourceLocation? location) && location.Kind == 1
         && registration.MetadataEnabled && registration.ResourceLocation is { Kind: 1 };
 

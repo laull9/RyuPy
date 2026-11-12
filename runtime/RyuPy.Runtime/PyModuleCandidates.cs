@@ -20,7 +20,7 @@ public static partial class PyModules
     public static void RegisterCandidateSource(string name, string package, string file, long kind,
         string path, bool globals, bool isPackage, PyModuleInit init, PyModuleGet get, PyModuleSet set)
     {
-        if (kind != 1) throw new PyValueError("candidate sources require absolute JIT source locations");
+        if (kind is not (1 or 2)) throw new PyValueError("unknown candidate source location");
         string resolved = PyModuleLocations.Resolve(kind, path);
         AddCandidate(name, new Registration(package, file, init, get, set, resolved, globals,
             new ResourceLocation(isPackage, kind, resolved), true));
@@ -29,7 +29,7 @@ public static partial class PyModules
     public static void RegisterCandidateInstance(string name, string package, string file, long kind,
         string path, bool isPackage, PyModuleExecute execute)
     {
-        if (kind != 1) throw new PyValueError("candidate instances require absolute JIT source locations");
+        if (kind is not (1 or 2)) throw new PyValueError("unknown candidate instance location");
         string resolved = PyModuleLocations.Resolve(kind, path);
         var code = new PyCompiledModuleCode(name, package, resolved, isPackage, execute);
         AddCandidate(name, new Registration(package, file, () => { },
@@ -55,6 +55,9 @@ public static partial class PyModules
         if (!root.TryGetProperty("schema_version", out var schema))
             throw new PyValueError("missing optional source field");
         int version = schema.GetInt32();
+        if (version == 3) { ConfigureDefaultSources(root, payload); return; }
+        foreach (var code in CandidateCode.Values)
+            if (code.ResourceLocation is not { Kind: 1 }) throw new PyValueError("old candidate plans require kind1");
         string[] closed = [];
         if (version == 1)
             RequireCandidateFields(root, "schema_version", "roots", "dependencies", "locations", "deferred", "outside", "protected");

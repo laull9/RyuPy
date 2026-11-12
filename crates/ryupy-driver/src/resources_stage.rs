@@ -20,6 +20,8 @@ pub(crate) struct StagedResources {
     pub(crate) locations: Vec<ModuleLocationRecord>,
     pub(crate) records: Vec<ResourceRecord>,
     files: Vec<PathBuf>,
+    anchors: Vec<String>,
+    pub(crate) automatic: Option<crate::default_aot::Audit>,
 }
 
 pub(super) fn checked_total(current: u64, additional: u64) -> Result<u64> {
@@ -220,7 +222,26 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
         files.push(snapshot.path.clone());
     }
     Ok(StagedResources {
-        locations: plan.locations.clone(),
+        locations: if let Some(audit) = &plan.automatic {
+            plan.locations
+                .iter()
+                .filter_map(|location| {
+                    audit.source_to_emitted[location.module_id as usize].map(|id| {
+                        let mut projected = location.clone();
+                        projected.module_id = id;
+                        projected
+                    })
+                })
+                .collect()
+        } else {
+            plan.locations.clone()
+        },
+        automatic: plan.automatic.clone(),
+        anchors: plan
+            .locations
+            .iter()
+            .map(|l| l.relative_file.clone())
+            .collect(),
         records,
         files,
     })
@@ -261,8 +282,9 @@ impl StagedResources {
         let mut targets = Targets::default();
         targets.insert(crate::manifest_files::MANIFEST_NAME, Kind::Reserved)?;
         targets.insert(".ryupy-artifact.json.tmp", Kind::Reserved)?;
-        for location in &self.locations {
-            targets.insert(&location.relative_file, Kind::Anchor)?;
+        // Deferred虽无输出module_id，其虚拟源锚仍不能被发布文件覆盖。
+        for anchor in &self.anchors {
+            targets.insert(anchor, Kind::Anchor)?;
         }
         for record in &self.records {
             targets.insert(&record.relative_path, Kind::Resource)?;

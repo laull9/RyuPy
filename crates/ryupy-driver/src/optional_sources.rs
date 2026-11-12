@@ -29,10 +29,12 @@ pub struct DefaultSourceState {
     pub(crate) output: Option<PathBuf>,
     pub(crate) plan: Plan,
     pub(crate) diagnostics: BTreeMap<String, Vec<String>>,
+    pub(crate) aot_request: bool,
 }
 
 #[derive(Default)]
 pub(crate) struct Plan {
+    pub generated_payload: Option<String>,
     pub payload: Option<String>,
     // 来源权威独立于快照内容；显式未选不继承自动Outside政策。
     pub explicit_metadata: bool,
@@ -47,6 +49,9 @@ pub(crate) struct Plan {
 }
 impl Plan {
     pub(crate) fn runtime_payload(&self) -> Result<Option<String>> {
+        if let Some(payload) = &self.generated_payload {
+            return Ok(Some(payload.clone()));
+        }
         if self.roots.is_empty() && self.outside.is_empty() && self.closed_unplanned.is_empty() {
             return Ok(None);
         }
@@ -376,7 +381,8 @@ pub(crate) fn write_report(sess: &Session, out: &Path) -> Result<()> {
 
 /// 单一策略门，显式关闭/AOT/fixed-binding均保既有接口。
 pub(crate) fn enabled(sess: &Session, aot: bool) -> bool {
-    !aot && !sess.fixed_binding_build
+    (!aot || sess.default_source_state.aot_request)
+        && !sess.fixed_binding_build
         && sess.module_environment_policy != crate::ModuleEnvironmentPolicy::ExplicitOnly
 }
 

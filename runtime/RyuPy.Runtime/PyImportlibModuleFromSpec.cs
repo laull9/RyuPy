@@ -45,12 +45,13 @@ internal static class PyImportlibModuleFromSpec
             if (!spec.Class.TryGetInstanceSlot(field, out int slot) || !spec.TryGetSlot(slot, out _))
                 throw Unsupported("incomplete specs");
         object? loader = PyModuleSpec.Get(spec, "loader");
+        PyCompiledModuleCode? sourceCode = null;
         if (loader is PyInstance compiled)
         {
             PyCompiledModuleLoader.RequireOriginalProtocol(compiled);
             // 真正普通绑定/调用；不使用与公开方法脱离的专用快捷实现。
             _ = PyOps.CallMethod(compiled, "create_module", [spec], [], []);
-            PyCompiledModuleLoader.RequireInstanceCode(compiled);
+            sourceCode = PyCompiledModuleLoader.RequireInstanceCode(compiled);
         }
         else if (loader is not (null or PyNone)) throw Unsupported("custom loaders");
 
@@ -72,6 +73,7 @@ internal static class PyImportlibModuleFromSpec
             throw Unsupported("custom origin/cache protocols");
 
         var module = PyModuleInstances.CreateEmpty(name);
+        if (sourceCode is not null) PyModules.BindDefaultInstance(module, sourceCode);
         module.SetAttr("__loader__", loader);
         module.SetAttr("__package__", PyModuleSpec.Get(spec, "parent"));
         module.SetAttr("__spec__", spec);

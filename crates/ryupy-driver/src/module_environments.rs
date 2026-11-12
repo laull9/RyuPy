@@ -80,12 +80,12 @@ pub(crate) fn plan_validated(
     }
     // 令牌只证明来源；角色与完整Instance AST能力分别准入，不catch后重编或授新协议。
     let catalog_capabilities = ryupy_base::InstanceCapabilities {
-        aot_class_guards: false,
+        aot_class_guards: aot && validated.is_some_and(|v| v.selects(index)),
         direct_globals: false,
         ordinary_name_handlers: true,
         relative_from_import: true,
     };
-    if !aot
+    if (!aot || validated.is_some_and(|v| v.selects(index)))
         && !session.fixed_binding_build
         && session.module_environment_policy != ModuleEnvironmentPolicy::ExplicitOnly
         && source.kind == SourceKind::ModuleFile

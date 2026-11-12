@@ -14,6 +14,9 @@ mod binding_build;
 pub mod dotnet;
 mod dump;
 pub use dump::dump;
+mod default_aot;
+mod linked_compile;
+use linked_compile::compile_linked_traced;
 mod distribution_metadata;
 mod instance_modules;
 mod module_environments;
@@ -214,165 +217,6 @@ fn compile_linked_locations(
     )
 }
 
-fn compile_linked_traced(
-    sess: &mut Session,
-    entry: &Path,
-    search_paths: &[PathBuf],
-    collect_manifest: bool,
-    resource_request: Option<&Path>,
-    aot_locations: bool,
-    trace: &stage_trace::StageTrace,
-) -> Result<(
-    ryupy_mir::LinkedProgram,
-    Vec<manifest::SourceSummary>,
-    Option<resources::ResourcePlan>,
-)> {
-    accumulator_options::validate(sess)?;
-    let distribution_payload = distribution_metadata::prepare(sess)?;
-    sess.module_environment_report.clear();
-    trace.mark("begin", "graph-load", "-");
-    let (mut sources, entry_index) =
-        modules::load_build_graph(sess, entry, search_paths, !aot_locations)?;
-    let roots: Vec<_> = std::iter::once(entry.parent().unwrap_or(Path::new(".")).to_path_buf())
-        .chain(search_paths.iter().cloned())
-        .collect();
-    optional_sources::extend(
-        sess,
-        entry,
-        &roots,
-        &mut sources,
-        distribution_payload,
-        aot_locations,
-    )?;
-    // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
-    trace.mark("end", "graph-load", "-");
-    let trace_request = trace_product::graph(
-        sess,
-        sources[entry_index].parsed.file,
-        sources.len(),
-        entry_index,
-        resource_request.is_some(),
-    )?;
-    instance_modules::validate_selection(
-        sess,
-        &sources,
-        entry_index,
-        aot_locations,
-        resource_request.is_some(),
-        &roots,
-    )?;
-    let resource_plan = resource_request
-        .map(|path| resources::ResourcePlan::read(path, &sources))
-        .transpose()?;
-    let validated_aot = instance_modules::validate_aot(
-        sess,
-        &sources,
-        entry_index,
-        aot_locations,
-        resource_plan.as_ref(),
-    )?;
-    let entry_file = sources[entry_index].parsed.file;
-    let native_exceptions =
-        modules::native_exception_modules_for_build(entry, search_paths, &sources);
-    let mut units = Vec::new();
-    let mut trace_proofs = Vec::new();
-    let mut summaries = Vec::new();
-    let plans: Vec<_> = sources
-        .iter()
-        .enumerate()
-        .map(|(index, source)| {
-            module_environments::plan_validated(
-                sess,
-                source,
-                aot_locations,
-                index,
-                validated_aot.as_ref(),
-            )
-        })
-        .collect();
-    module_environments::record(sess, &sources, &plans);
-    let candidate_names = sources
-        .iter()
-        .filter(|source| source.candidate)
-        .map(|source| source.name.clone())
-        .collect();
-    for (index, (module, plan)) in sources.into_iter().zip(plans).enumerate() {
-        if collect_manifest {
-            summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, &module));
-        }
-        let Some(CompiledModule {
-            trace_proof,
-            program,
-            exports,
-            protected_exports,
-        }) = optional_sources::compile(sess, &module, |sess| {
-            compile_module(
-                sess,
-                &module,
-                &native_exceptions,
-                &plan,
-                trace,
-                trace_request,
-            )
-        })?
-        else {
-            continue;
-        };
-        ryupy_mir::source_provenance::require_program(&program)
-            .map_err(|errors| anyhow::anyhow!(errors.join("\n")))?;
-        if let Some(proof) = trace_proof {
-            trace_proofs.push(proof);
-        }
-        sess.module_environment_report[index].compiled = true;
-        let location = if !aot_locations {
-            ryupy_mir::ModuleLocation::SourceAbsolute(
-                module
-                    .resolved_source_path
-                    .to_str()
-                    .context("模块源码绝对路径必须可表示为 UTF-8")?
-                    .to_owned(),
-            )
-        } else if let Some(relative) = resource_plan
-            .as_ref()
-            .and_then(|plan| plan.module_location(index as u32))
-        {
-            ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
-        } else {
-            ryupy_mir::ModuleLocation::LegacyDiagnostic
-        };
-        if let Some(validated) = &validated_aot {
-            validated.validate_location(sess, index, &module, &location)?;
-        }
-        units.push((
-            program,
-            ryupy_mir::UnitMeta {
-                instance_capabilities: plan.capabilities,
-                execution: plan.execution,
-                environment_reason: plan.reason.clone(),
-                protected_exports,
-                name: module.name.clone(),
-                package: module.package.clone(),
-                file: module.file.clone(),
-                location,
-                file_backed_by_global: true,
-                is_package: module.kind == modules::SourceKind::Package,
-                exports,
-            },
-        ));
-    }
-    trace.mark("begin", "link", "-");
-    let mut linked = trace_product::link(sess, entry_file, units, entry_index, trace_proofs)?;
-    linked.distribution_metadata = sess.default_source_state.plan.payload.clone();
-    linked.candidate_modules = candidate_names;
-    linked.optional_sources = sess.default_source_state.plan.runtime_payload()?;
-    linked.metadata_unavailable = sess.default_source_state.plan.metadata_unavailable.clone();
-    trace.mark("end", "link", "-");
-    trace.mark("begin", "export-check", "-");
-    check_linked_exports(sess, &linked, entry_file)?;
-    trace.mark("end", "export-check", "-");
-    Ok((linked, summaries, resource_plan))
-}
-
 /// 链接后的导出 guard 也必须验证，避免错误字段 ID 或栈类型进入 codegen。
 fn check_linked_exports(
     sess: &mut Session,
@@ -466,6 +310,9 @@ fn build_with_resources_inner(
 ) -> Result<Artifacts> {
     let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     aot::validate_before_build(&opts.input, opts.aot)?;
+    // 每次请求显式重置，不从前次成功/失败会话继承默认AOT权限。
+    sess.default_source_state.aot_request =
+        default_aot::eligible(sess, opts.aot, resource_request.is_some());
     let previous_output = sess.default_source_state.output.take();
     if optional_sources::enabled(sess, opts.aot) {
         sess.default_source_state.output = Some(opts.out_dir.clone());
@@ -480,6 +327,7 @@ fn build_with_resources_inner(
         &trace,
     );
     sess.default_source_state.output = previous_output;
+    sess.default_source_state.aot_request = false;
     let (linked, sources, resource_plan) = compiled?;
 
     let name = assembly_name(&opts.input);

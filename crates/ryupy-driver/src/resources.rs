@@ -55,6 +55,7 @@ pub(crate) struct ResourcePlan {
     pub(super) source_hashes: Vec<String>,
     pub(super) source_lengths: Vec<u64>,
     pub(super) selected: BTreeSet<usize>,
+    pub(crate) automatic: Option<crate::default_aot::Audit>,
 }
 
 impl ResourcePlan {
@@ -88,6 +89,7 @@ impl ResourcePlan {
                 .map(|s| crate::manifest_files::hash_bytes(s.text.as_bytes()))
                 .collect(),
             selected: BTreeSet::new(),
+            automatic: None,
         };
         let mut targets = Targets::default();
         // 锚点先全部保留，防先处理的资源覆盖后声明模块的虚拟源位置。
@@ -143,6 +145,37 @@ impl ResourcePlan {
         plan.locations.sort_by_key(|l| l.module_id);
         Ok(plan)
     }
+    /// 默认域只签发虚拟锚；所有源仍由原stage持句柄复核，无数据claims。
+    pub(crate) fn automatic(sources: &[SourceModule]) -> Result<Self> {
+        ensure!(sources.len() <= 256, "默认AOT位置超过256项");
+        let mut targets = Targets::default();
+        let mut locations = Vec::new();
+        for (index, source) in sources.iter().enumerate() {
+            let relative_file = format!("{PREFIX}{}", source.logical_source);
+            targets.insert(&relative_file, Kind::Anchor)?;
+            locations.push(ModuleLocationRecord {
+                module_id: u32::try_from(index)?,
+                module_name: source.name.clone(),
+                kind: "executable_relative",
+                relative_file,
+            });
+        }
+        Ok(Self {
+            locations,
+            claims: BTreeMap::new(),
+            source_files: sources
+                .iter()
+                .map(|s| s.resolved_source_path.clone())
+                .collect(),
+            source_hashes: sources
+                .iter()
+                .map(|s| crate::manifest_files::hash_bytes(s.text.as_bytes()))
+                .collect(),
+            source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
+            selected: (0..sources.len()).collect(),
+            automatic: None,
+        })
+    }
     pub(crate) fn module_location(&self, id: u32) -> Option<&str> {
         self.locations
             .iter()
@@ -157,11 +190,16 @@ impl ResourcePlan {
 /// 在同次schema1序列化结果上追加资源声明；无请求不调用，保schema1原快路/字节合同。
 pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<Vec<u8>> {
     let mut value: serde_json::Value = serde_json::from_slice(bytes)?;
-    value["schema_version"] = 2.into();
+    value["schema_version"] = if staged.automatic.is_some() { 4 } else { 2 }.into();
     value["module_locations"] = serde_json::to_value(&staged.locations)?;
     value["resources"] = serde_json::to_value(&staged.records)?;
     value["scope"]["resources_included"] = (!staged.records.is_empty()).into();
-    value["scope"]["declared_resources_complete"] = true.into();
+    value["scope"]["declared_resources_complete"] = staged.automatic.is_none().into();
+    if let Some(audit) = &staged.automatic {
+        ensure!(staged.records.is_empty(), "默认自动位置不声称数据资源完整");
+        value["default_source_plan"] = audit.manifest.clone();
+        value["scope"]["automatic_module_locations_complete"] = true.into();
+    }
     let mut output = serde_json::to_vec_pretty(&value)?;
     output.push(b'\n');
     Ok(output)

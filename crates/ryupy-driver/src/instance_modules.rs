@@ -126,6 +126,22 @@ pub(crate) fn validate_aot(
     if !aot || sess.instance_modules.is_empty() {
         return Ok(None);
     }
+    let selected: Vec<_> = sources
+        .iter()
+        .enumerate()
+        .filter_map(|(i, source)| sess.instance_modules.contains(&source.name).then_some(i))
+        .collect();
+    validate_indices(sess, sources, entry, resources, &selected)
+}
+
+/// 私有调用者已证默认来源；仍复用完整包祖先、位置及AST检查。
+pub(crate) fn validate_indices(
+    sess: &mut Session,
+    sources: &[SourceModule],
+    entry: usize,
+    resources: Option<&crate::resources::ResourcePlan>,
+    selected: &[usize],
+) -> Result<Option<ValidatedAot>> {
     let mut validated = ValidatedAot {
         selected: Vec::new(),
         required: Vec::new(),
@@ -160,7 +176,7 @@ pub(crate) fn validate_aot(
             }
             validated.required.push(index);
         }
-        if sess.instance_modules.contains(&source.name) {
+        if selected.contains(&index) {
             sess.diagnostics
                 .extend(ryupy_hir::validate_instance_aot_direct_globals(
                     &source.parsed,
