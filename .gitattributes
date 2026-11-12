@@ -44,3 +44,6 @@ tests/aot/standalone_app/*.txt text eol=lf
 tests/aot/deployment_tabulate/*.json text eol=lf
 tests/aot/deployment_tabulate/*.py text eol=lf
 tests/aot/deployment_tabulate/*.txt text eol=lf
+
+# 独立PE审计器按原字节冻结SHA；Windows checkout不得把其LF改成CRLF。
+tests/validation/source_provenance/ci/pe_metadata.py text eol=lf

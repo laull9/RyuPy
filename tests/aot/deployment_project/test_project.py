@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 import hashlib
 import subprocess
+import sys
 from prepare import configuration
 
 
@@ -62,6 +63,37 @@ class ProjectTests(unittest.TestCase):
             git('add','.gitattributes',*paths)
             git('checkout-index','--prefix='+out.as_posix()+'/', '--',*paths)
             for name in paths:self.assertEqual((out/name).read_bytes(),payload)
+
+    def test_frozen_pe_reader_checkout_keeps_exact_hash_and_rejects_tampering(self):
+        # 用真实冻结读取器而非替代文本验证checkout；SHA断言不允许换行归一化。
+        repo=Path(__file__).resolve().parents[3]
+        relative=Path('tests/validation/source_provenance/ci/pe_metadata.py')
+        decoder=repo/relative.with_name('read_pe_decoder.py')
+        expected='a43bf4bb9e89ceb169b89a67c8817e8cf2312429cb251a0f36f1b9da8f469bc3'
+        payload=(repo/relative).read_bytes()
+        self.assertEqual(hashlib.sha256(payload).hexdigest(),expected)
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);work=root/'git';work.mkdir();out=root/'checkout';out.mkdir()
+            def git(*argv):
+                return subprocess.run(['git','-C',str(work),'-c','core.autocrlf=true',*argv],check=True,capture_output=True)
+            git('init')
+            (work/'.gitattributes').write_bytes((repo/'.gitattributes').read_bytes())
+            source=work/relative;source.parent.mkdir(parents=True);source.write_bytes(payload)
+            git('add','.gitattributes',relative.as_posix())
+            git('checkout-index','--prefix='+out.as_posix()+'/', '--',relative.as_posix())
+            checked=out/relative
+            self.assertEqual(checked.read_bytes(),payload)
+            self.assertEqual(hashlib.sha256(checked.read_bytes()).hexdigest(),expected)
+            wrapper=checked.with_name('read_pe_decoder.py');wrapper.write_bytes(decoder.read_bytes())
+            dummy=root/'not-a-product.dll';dummy.write_bytes(b'not a PE')
+            # 两种改写仍必须在加载读取器之前拒绝，不能通过规范化弱化原字节身份。
+            for changed in (payload.replace(b'\n',b'\r\n'),payload+b'\n# mutation\n'):
+                checked.write_bytes(changed)
+                result=subprocess.run([sys.executable,'-B',str(wrapper),str(dummy),'old','hash-negative'],capture_output=True)
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn(b'AssertionError',result.stderr)
+                self.assertIn(b'BASE_SHA',result.stderr)
+                self.assertEqual(result.stdout,b'')
 
     def test_prepare_mismatch_keeps_actual_digest_evidence(self):
         with tempfile.TemporaryDirectory() as folder:
