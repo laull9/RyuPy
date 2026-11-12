@@ -1,0 +1,94 @@
+# 当前源码真实平台验收；Windows尚不支持的metadata读取必须失败留证，不能跳过。
+name: macOS与Windows普通项目Native
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/deployment-platforms-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: deployment-platforms-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native-project:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-platforms-001'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            rid: osx-arm64
+          - os: windows-2022
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '10.0.403'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.4'
+          enable-cache: false
+      - name: 固定CP（macOS）
+        if: runner.os == 'macOS'
+        run: |
+          uv python install 3.12.13
+          echo "PYTHON=$(uv python find 3.12.13 --managed-python)" >> "$GITHUB_ENV"
+      - name: 固定CP（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv python install 3.12.13
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = uv python find 3.12.13 --managed-python
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: 选择已安装x64 Visual C++
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          @echo off
+          set "RYUPY_VSROOT="
+          for /f "usebackq delims=" %%I in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "RYUPY_VSROOT=%%I"
+          if not defined RYUPY_VSROOT exit /b 1
+          call "%RYUPY_VSROOT%\Common7\Tools\VsDevCmd.bat" -no_logo -arch=x64 -host_arch=x64
+          if errorlevel 1 exit /b %errorlevel%
+          "%PYTHON%" -c "import os; keys={'path','include','lib','libpath','vcinstalldir','vctoolsinstalldir','windowssdkdir','windowssdkversion','ucrtversion','universalcrtsdkdir'}; f=open(os.environ['GITHUB_ENV'],'a',encoding='utf-8'); f.writelines(k+'='+v+'\n' for k,v in os.environ.items() if k.lower() in keys); f.close()"
+      - name: 平台负测与真实项目（macOS）
+        if: runner.os == 'macOS'
+        timeout-minutes: 73
+        run: |
+          "$PYTHON" -B -m unittest discover -s tests/aot/deployment_project -p 'test_*.py'
+          "$PYTHON" -B tests/aot/deployment_project/platform_project.py --rid osx-arm64 --python "$PYTHON" --dotnet "$(command -v dotnet)" --out "$RUNNER_TEMP/deployment-platform-osx-arm64"
+      - name: 平台负测与真实项目（Windows）
+        if: runner.os == 'Windows'
+        timeout-minutes: 73
+        shell: pwsh
+        run: |
+          & $env:PYTHON -B -m unittest discover -s tests/aot/deployment_project -p 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $env:PYTHON -B tests/aot/deployment_project/platform_project.py --rid win-x64 --python $env:PYTHON --dotnet (Get-Command dotnet).Source --out "$env:RUNNER_TEMP/deployment-platform-win-x64"
+          exit $LASTEXITCODE
+      - name: 全部实际成功与失败原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: deployment-platform-${{ matrix.rid }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/deployment-platform-${{ matrix.rid }}
+          if-no-files-found: warn
+          retention-days: 3

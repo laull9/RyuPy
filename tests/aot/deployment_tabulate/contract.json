@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "cp_version": "3.12.13",
+  "entry_point": {
+    "group": "console_scripts",
+    "name": "tabulate",
+    "value": "tabulate:_main"
+  },
+  "cases": [
+    {
+      "id": "grid",
+      "input": "grid.input.txt",
+      "argv": [
+        "-1",
+        "-f",
+        "grid"
+      ],
+      "stdout": "grid.stdout.txt"
+    },
+    {
+      "id": "html-file",
+      "input": "html.input.txt",
+      "argv": [
+        "-1",
+        "-f",
+        "html"
+      ],
+      "output": "html.output.txt"
+    }
+  ],
+  "files": {
+    "grid.input.txt": "9b4a5f679b684d400969f5af5c4b47087b1ece6c0c818c7b02982eac1e3a8787",
+    "inputs.json": "3f84d777832aa8b2404a7952589cd54e28361f9e2fa35e2032b330f73f6ac632",
+    "html.output.txt": "b6a614d51531baedf196351abb80204a403c1b676efbd88651d0b68febf58626",
+    "console_entry.py": "2611fd939d6833dd7033ca4f14c3482553ee02e6a721418d91f828bd05887c7b",
+    "grid.stdout.txt": "b1d3b0dfa2f2a0df39e449810ef9bac6759edc2669ba1797f9f4feee96d58c3d",
+    "html.input.txt": "749a49df858196e1517def1140f7b03d853ecb177c9c3ed1670375ce749a835c"
+  }
+}
