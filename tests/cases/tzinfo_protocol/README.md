@@ -1,6 +1,6 @@
-# tzinfo 用户派生协议合同（pending）
+# tzinfo 用户派生协议合同
 
-五组纯通用 CPython 3.12.13 合同，产品尚未验证，全部 pending。
+五组纯通用 CPython 3.12.13 合同，已通过产品双 PIC 精确 stdout、stderr 和退出码差分。保留 time 回调 None、错误文案及用户返回对象身份，不对差异做归一化。
 
 - 根身份、重复导入、timezone 继承关系；根不可修改任意属性，用户类及实例可存储与修改属性。
 - datetime 回调传原对象，time 回调传 None；tzname 保留 str 子类返回身份。

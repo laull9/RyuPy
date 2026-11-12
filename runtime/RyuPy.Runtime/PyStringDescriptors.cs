@@ -40,7 +40,7 @@ internal static class PyStringDescriptors
         private object? InvokeCore(object?[] args, string[] names, object?[] values)
         {
             if (receiver is null && args.Length == 0)
-                throw Own(new PyTypeError(name is "format" or "startswith" or "endswith" or "partition" or "rpartition" or "expandtabs"
+                throw Own(new PyTypeError(name is "format" or "startswith" or "endswith" or "partition" or "rpartition" or "expandtabs" or "split" or "isspace"
                     ? $"unbound method str.{name}() needs an argument"
                     : $"descriptor '{name}' of 'str' object needs an argument"));
             object? self = receiver ?? args[0];

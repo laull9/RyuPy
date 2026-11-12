@@ -4,8 +4,8 @@ public sealed partial class PyClass
 {
     internal bool IsFrozenNativeProtocolRoot { get; private set; }
     internal void FreezeNativeProtocolRoot() => IsFrozenNativeProtocolRoot = true;
-    private void GuardNativeProtocolMutation()
+    private void GuardNativeProtocolMutation(string name)
     {
-        if (IsFrozenNativeProtocolRoot) throw new PyTypeError($"cannot set attributes of immutable type '{Name}'");
+        if (IsFrozenNativeProtocolRoot) throw new PyTypeError($"cannot set '{name}' attribute of immutable type '{NativeDefinitionModule}.{Name}'");
     }
 }

@@ -21,7 +21,9 @@ jobs:
           persist-credentials: false
       - name: 独立检查器反例
         timeout-minutes: 2
-        run: python3 -B -m unittest discover -s tests/aot/decimal_finite_native -p 'test_*.py'
+        run: |
+          python3 -B -m unittest discover -s tests/aot/decimal_finite_native -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/aot/tzinfo_native -p 'test_*.py'
       - name: 固定官方工具
         timeout-minutes: 10
         run: |
@@ -32,7 +34,10 @@ jobs:
           exit "$status"
       - name: CP双PIC及真实Native原位搬迁
         timeout-minutes: 25
-        run: '"$PYTHON" -B tests/aot/decimal_finite_native/run.py'
+        run: |
+          export NATIVE_GRAPHS_DEADLINE=$(( $(date +%s) + 1500 ))
+          "$PYTHON" -B tests/aot/decimal_finite_native/run.py
+          "$PYTHON" -B tests/aot/tzinfo_native/run.py
       - name: 独立原件与身份
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -46,9 +51,22 @@ jobs:
             ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
           if-no-files-found: warn
           retention-days: 3
+      - name: tzinfo独立原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tzinfo-native-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/tzinfo-native-evidence
+            !target/tzinfo-native-evidence/native-build/**
+            !target/tzinfo-native-evidence/relocated/**
+          if-no-files-found: warn
+          retention-days: 3
       - name: 有限域说明
         if: always()
         run: |
           printf '%s\n' '独立Decimal有限真值：固定CP、双PIC、1ELF/2Native原位搬迁及源码隔离。' \
             '不扩算术/Context/特殊值，不将旧MI或默认源计划黄金改为本门分母。' \
             'Native/退出/双流/来源任一失败保原件，检查器通过不是产品通过。' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' 'tzinfo用户单基独立图：复用冻结默认工具，各图分别1ELF/2执行，不合并统计。' \
+            'tzinfo只覆盖正负零偏移与aware回调，不声明完整datetime或真实toml通过。' >> "$GITHUB_STEP_SUMMARY"

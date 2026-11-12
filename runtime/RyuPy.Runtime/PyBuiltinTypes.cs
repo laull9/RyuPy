@@ -96,6 +96,8 @@ public static partial class PyOps
         (PyNativeType derived, PyClass protocol) when derived.IsIdentitySubclassOf(protocol) => true,
         (PyNativeType derived, PyNativeType baseType) => derived.IsSubclassOf(baseType),
         (PyNativeType derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name),
+        // 普通真实类不能继承有独立native载体的类型；无关系不是非法class参数。
+        (PyClass, PyNativeType) => false,
         (PyClass derived, PyClass baseClass) => derived.IsSubclassOf(baseClass),
         (PyType or PyNativeType or PyTypedDictType, PyClass target) when target.IsTypingIoFamily => false,
         (_, PyClass target) when target.IsTypingIoFamily => throw new PyTypeError("issubclass() arg 1 must be a class"),

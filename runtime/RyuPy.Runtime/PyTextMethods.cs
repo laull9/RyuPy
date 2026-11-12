@@ -55,7 +55,8 @@ public static partial class PyOps
         "strip" => StripText(text, args, left: true, right: true),
         "lstrip" => StripText(text, args, left: true, right: false),
         "rstrip" => StripText(text, args, left: false, right: true),
-        "split" => SplitText(text, args),
+        "split" => PyTextSplit.Invoke(text, args, [], []),
+        "isspace" => PyUnicodeWhitespace.Invoke(text, args, []),
         "splitlines" => SplitLines(text, args),
         "join" => JoinText(text, Single("join", args)),
         "replace" => ReplaceText(text, args),
@@ -107,7 +108,7 @@ public static partial class PyOps
     }
 
     private static bool IsStrippable(char ch, string? chars) =>
-        chars is null ? char.IsWhiteSpace(ch) : chars.Contains(ch, StringComparison.Ordinal);
+        chars is null ? PyUnicodeWhitespace.Is(ch) : chars.Contains(ch, StringComparison.Ordinal);
 
     /// <summary>
     /// `str.replace(old, new[, count])`。.NET 的 `Replace` 总是替换全部，
@@ -148,22 +149,6 @@ public static partial class PyOps
         }
         builder.Append(text, start, text.Length - start);
         return builder.ToString();
-    }
-
-    private static object SplitText(string text, object?[] args)
-    {
-        if (args.Length == 0)
-        {
-            return new PyList(Array.ConvertAll(
-                text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries),
-                part => (object?)part
-            ));
-        }
-        string separator = AsText(args[0]);
-        return new PyList(Array.ConvertAll(
-            text.Split(separator, StringSplitOptions.None),
-            part => (object?)part
-        ));
     }
 
     private static object JoinText(string separator, object? value)

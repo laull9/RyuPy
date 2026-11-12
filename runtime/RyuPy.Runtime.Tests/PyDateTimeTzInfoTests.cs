@@ -23,7 +23,8 @@ public class PyDateTimeTzInfoTests
         var root = Assert.IsType<PyClass>(first["tzinfo"]); Assert.Same(root, second["tzinfo"]);
         Assert.False(root.HasMultipleInheritance); Assert.False(root.IsNativeRuntimeClass);
         Assert.Throws<PyTypeError>(() => root.SetAttr("arbitrary", 1L));
-        Assert.Throws<PyTypeError>(() => root.DeleteAttr("utcoffset"));
+        Assert.Equal("cannot set 'utcoffset' attribute of immutable type 'datetime.tzinfo'",
+            Assert.Throws<PyTypeError>(() => root.DeleteAttr("utcoffset")).Message);
         var instance = root.Invoke([], [], []);
         Assert.Throws<PyNotImplementedError>(() => Call(instance!, "utcoffset", PyNone.Instance));
         Assert.Same(root, PyObject.GetAttr(first["timezone"], "__base__"));
@@ -39,7 +40,7 @@ public class PyDateTimeTzInfoTests
         var zone = cls.Invoke([], [], []); var dt = New("datetime", [2024L, 1L, 2L, 3L], ["tzinfo"], [zone]);
         Assert.Null(seen); Assert.Same(zone, PyObject.GetAttr(dt, "tzinfo"));
         Assert.Equal("2024-01-02T03:00:00+01:00", Call(dt, "isoformat")); Assert.Same(dt, seen);
-        var clock = New("time", [3L], ["tzinfo"], [zone]); Call(clock, "utcoffset"); Assert.True(seen is null or PyNone);
+        var clock = New("time", [3L], ["tzinfo"], [zone]); Call(clock, "utcoffset"); Assert.Same(PyNone.Instance, seen);
         Assert.Same(zone, PyObject.GetAttr(Call(dt, "timetz"), "tzinfo"));
     }
     [Fact]
@@ -84,6 +85,20 @@ public class PyDateTimeTzInfoTests
         cls.SetAttr("tzname", PyNativeFunctions.Create("tzname", ["self", "dt"], [null, null], 2, _ => name));
         var dt = New("datetime", [2024L, 1L, 2L], ["tzinfo"], [cls.Invoke([], [], [])]);
         Assert.Same(name, Call(dt, "tzname"));
+    }
+
+    [Fact]
+    public void OrdinaryClassesUnrelatedToNativeTypesReturnFalseNotTypeError()
+    {
+        var zone = Class("Zone", _ => new PyDateTimeDelta(0));
+        var attributes = PyDateTimeModule.CreateAttributes();
+        Assert.Equal(true, PyOps.CallBuiltin("issubclass", [zone, attributes["tzinfo"]], [], []));
+        Assert.Equal(true, PyOps.CallBuiltin("issubclass", [attributes["timezone"], attributes["tzinfo"]], [], []));
+        Assert.Equal(false, PyOps.CallBuiltin("issubclass", [zone, attributes["timezone"]], [], []));
+        var plain = (PyClass)PyOps.MakeClass("Unrelated", [], null); PyOps.FinalizeOrdinaryClass(plain);
+        Assert.Equal(false, PyOps.CallBuiltin("issubclass", [plain, attributes["date"]], [], []));
+        Assert.Throws<PyTypeError>(() => PyOps.CallBuiltin("issubclass", [42L, attributes["timezone"]], [], []));
+        Assert.Throws<PyTypeError>(() => PyOps.CallBuiltin("issubclass", [plain.Invoke([], [], []), attributes["timezone"]], [], []));
     }
 
 }

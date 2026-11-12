@@ -120,7 +120,7 @@ public sealed partial class PyClass
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
-        GuardNativeProtocolMutation();
+        GuardNativeProtocolMutation(name);
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
             throw new PyNotImplementedError("MI structural mutation is not supported");
         PyAbc.GuardAbstractMutation(this, name);
@@ -140,7 +140,7 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
-        GuardNativeProtocolMutation();
+        GuardNativeProtocolMutation(name);
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
             throw new PyNotImplementedError("MI structural mutation is not supported");
         PyAbc.GuardAbstractMutation(this, name);
