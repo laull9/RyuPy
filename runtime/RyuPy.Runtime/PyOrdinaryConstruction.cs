@@ -118,6 +118,7 @@ public sealed partial class PyClass
 
     internal PyInstance AllocateFromObject(int extra, int keywords)
     {
+        PyAbc.RequireConcrete(this);
         if (IsTypingGenericRoot)
         {
             if (extra != 0 || keywords != 0)

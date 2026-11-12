@@ -76,7 +76,7 @@ internal static partial class PyTextWrapper
             throw Unsupported("textwrap.TextWrapper custom " + name + " is not supported");
         }
         // 默认类暂不导出 CP 的 regex/translate 表。不触发额外 __getattr__，也不忽略用户覆写。
-        bool own = receiver.Class.TryGetInstanceSlot(name, out int slot) && receiver.TryGetSlot(slot, out _);
+        bool own = receiver.TryOwnAttribute(name, out _);
         if (own || receiver.Class.TryLookup(name, out _, out _))
             throw Unsupported("textwrap.TextWrapper custom " + name + " is not supported");
     }

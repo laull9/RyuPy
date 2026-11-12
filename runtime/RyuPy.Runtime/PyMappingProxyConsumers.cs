@@ -13,7 +13,8 @@ internal static class PyMappingProxyConsumers
     internal static bool NeedsKeywordMerge(object?[] names, object?[] values)
     {
         for (int i = 0; i < names.Length; i++)
-            if ((names[i] is null or PyNone) && values[i] is PyMappingProxy or PyOrderedDict) return true;
+            if ((names[i] is null or PyNone) && (values[i] is PyMappingProxy or PyOrderedDict
+                || values[i] is PyDictInstance derived && PyDictSubclassDispatch.HasCustomIterator(derived))) return true;
         return false;
     }
 
@@ -141,6 +142,15 @@ internal static class PyMappingProxyConsumers
             if (values[i] is PyOrderedDict ordered)
             {
                 foreach (var (key, value) in ordered.Entries()) Add(merged, key, value);
+                continue;
+            }
+            if (values[i] is PyDictInstance derived && PyDictSubclassDispatch.HasCustomIterator(derived))
+            {
+                foreach (object? sourceKey in PyOps.DictSubclassKeys(derived))
+                {
+                    object key = CheckAbsent(merged, sourceKey);
+                    merged.Set(key, PyOps.GetItem(derived, sourceKey));
+                }
                 continue;
             }
             PyDict? dictionary = values[i] as PyDict ?? (values[i] as PyDictInstance)?.Payload

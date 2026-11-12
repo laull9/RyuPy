@@ -52,7 +52,7 @@ public static partial class PyPic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object? GetAttr(int site, object? obj, string name)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout)
         {
             return PyObject.GetAttr(obj, name);
         }
@@ -150,7 +150,7 @@ public static partial class PyPic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetAttr(int site, object? obj, string name, object? value)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout)
         {
             PyObject.SetAttr(obj, name, value);
             return;

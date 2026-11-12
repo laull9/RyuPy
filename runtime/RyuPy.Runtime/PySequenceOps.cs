@@ -76,7 +76,7 @@ public static partial class PyOps
                 }
                 break;
             case PyDictInstance dict when op == BitOr:
-                return PyDictProtocols.Invoke("__ior__", dict, [b])!;
+                return PyDictSubclassDispatch.Union(dict, b, inplace: true);
             case PyListInstance list when op == Add:
                 return PyListProtocols.InPlaceAdd(list, b);
             case PyListInstance list when op == Mul:

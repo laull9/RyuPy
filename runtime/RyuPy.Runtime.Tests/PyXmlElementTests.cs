@@ -96,8 +96,8 @@ public class PyXmlElementTests
         var e = Element("r"); var a = Element("a"); Method(e, "append", a);
         Assert.Throws<PyAttributeError>(() => e.GetAttr("__iter__"));
         foreach (string name in new[] { "Iterable", "Iterator", "Sequence", "Container" })
-            Assert.False(Assert.IsType<PyNativeType>(PyAbc.CreateAttributes()[name]).Accepts(e));
-        Assert.True(Assert.IsType<PyNativeType>(PyAbc.CreateAttributes()["Sized"]).Accepts(e));
+            Assert.Equal(false, PyOps.CallBuiltin("isinstance", [e, PyAbc.CreateAttributes()[name]], [], []));
+        Assert.Equal(true, PyOps.CallBuiltin("isinstance", [e, PyAbc.CreateAttributes()["Sized"]], [], []));
         var iterator = PyIter.Create(e); Assert.Same(iterator, PyIter.Create(iterator));
         Assert.True(iterator.MoveNext()); Assert.Same(a, iterator.Current());
         var b = Element("b"); Method(e, "append", b); Assert.True(iterator.MoveNext()); Assert.Same(b, iterator.Current());

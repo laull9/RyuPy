@@ -207,6 +207,12 @@ public static partial class PyObject
                     InvokeBound(property.Deleter, propertyOwner, instance, [], [], []);
                     return;
                 }
+                if (instance.Class.HasSlotLayout)
+                {
+                    if (instance.Class.TryLookup(name, out _, out object? fixedRaw) && fixedRaw is PyInstanceSlotDescriptor fixedSlot) { fixedSlot.Delete(instance); return; }
+                    if (instance.DeleteSlotDictionaryField(name)) return;
+                    throw new PyAttributeError($"'{instance.Class.Name}' object has no attribute '{name}'");
+                }
                 if (instance.Class.IsTypingIoRoot) PyTypingIo.RejectRootInstanceMutation(instance.Class, name);
                 if (instance.Class.TryGetInstanceSlot(name, out int slot) && instance.IsSlotSet(slot))
                 {
@@ -456,9 +462,13 @@ public static partial class PyObject
             }
             return InvokeBound(property.Getter, dataOwner, instance, [], [], []);
         }
-        // 2. 实例属性槽位
-        if (instance.Class.TryGetInstanceSlot(name, out int instanceSlot)
-            && instance.TryGetSlot(instanceSlot, out object? value))
+        if (instance.Class.HasSlotLayout)
+        {
+            if (instance.Class.TryLookup(name, out _, out object? fixedRaw) && fixedRaw is PyInstanceSlotDescriptor fixedSlot) return fixedSlot.Read(instance);
+            if (name == "__dict__") return instance.SlotDictionary;
+        }
+        // 2. 实例属性权威：旧数组槽或新族真实dict。
+        if (instance.TryOwnAttribute(name, out object? value))
         {
             return value;
         }

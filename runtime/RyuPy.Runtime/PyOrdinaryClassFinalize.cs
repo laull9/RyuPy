@@ -46,6 +46,8 @@ public sealed partial class PyClass
         // 真正写入None，后续删除/重绑按普通类属性与现有版本缓存处理。
         if (Attributes.ContainsKey("__eq__") && !Attributes.ContainsKey("__hash__"))
             SetAttr("__hash__", PyNone.Instance);
+        FinalizeSlotLayout();
+        PyAbc.FinalizeAbstractMethods(this);
         _ordinaryFinalized = true;
         CompleteTypingIoDefinition();
         CompleteTypingGenericDefinition();

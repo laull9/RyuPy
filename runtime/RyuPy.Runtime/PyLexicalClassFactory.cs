@@ -83,7 +83,7 @@ public static class PyLexicalClassFactory
             if (!cls.HasOrdinaryLexicalLayout) throw Unsupported("special-layout definition");
             foreach (PyClass ancestor in cls.MroClasses())
                 if (!ReferenceEquals(ancestor, cls)) ValidateAncestors(ancestor);
-            ValidateNamespace(cls.Attributes);
+            ValidateNamespace(cls.Attributes, cls);
             if (cls.HasMultipleInheritance) cls.ValidateMiStructuralMetadata();
         }
         catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
@@ -107,15 +107,17 @@ public static class PyLexicalClassFactory
         {
             if (!seen.Add(current) || !current.IsCompletedOrdinaryLexicalBase)
                 throw Unsupported("unfinished or special-layout ancestor");
-            ValidateNamespace(current.Attributes);
+            ValidateNamespace(current.Attributes, current);
         }
     }
 
-    private static void ValidateNamespace(Dictionary<string, object?> attributes)
+    private static void ValidateNamespace(Dictionary<string, object?> attributes, PyClass? cls = null)
     {
         foreach (var pair in attributes)
         {
             // 不搬用dict槽禁令：普通类已有数值/容器方法仍保留。__class__只是普通属性。
+            if (pair.Key == "__slots__" && (cls?.AllowsSlotsNamespace(pair.Value) ?? PyClass.EmptySlots(pair.Value))) continue;
+            if (pair.Value is PyInstanceSlotDescriptor slot && cls?.AllowsSlotDescriptor(pair.Key, slot) == true) continue;
             if (pair.Key is "__slots__" or "__init_subclass__" or "__class_getitem__"
                 or "__mro_entries__" or "__prepare__" or "__set_name__" or "__classcell__"
                 or "__getattribute__" or "__setattr__" or "__delattr__")

@@ -17,6 +17,8 @@ internal static class PyDictDescriptors
         "fromkeys" => Methods.GetOrAdd(name, static n => new Method(n, PyType.Get("dict"))),
         _ => Methods.GetOrAdd(name, static n => new Method(n, null)),
     };
+    // 仅认证本类型实际创建的未绑定根描述符，不能放行任意 native callable。
+    internal static bool IsUnbound(object? value) => value is Method method && method.IsUnbound;
     internal static object Bind(object receiver, string name)
     {
         if (name is "__hash__" or "__new__") return Unbound(name);
@@ -28,6 +30,7 @@ internal static class PyDictDescriptors
 
     private sealed class Method(string name, object? receiver) : PyNativeObject, IPyNativeCallable
     {
+        internal bool IsUnbound => receiver is null;
         private string Owner => name == "__str__" ? "object" : "dict";
         public override string TypeName => name == "__new__" ? "builtin_function_or_method"
             : receiver is null ? IsMethod(name) ? "method_descriptor" : "wrapper_descriptor"

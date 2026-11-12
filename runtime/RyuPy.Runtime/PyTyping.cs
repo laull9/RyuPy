@@ -67,7 +67,7 @@ public static partial class PyTyping
         "Set" => PyType.Get("set"), "FrozenSet" => PyType.Get("frozenset"),
         // Callable的ABC身份在collections.abc注册后解析，而非另造同名对象。
         "Callable" or "Iterable" or "Iterator" or "Sequence" or "Mapping" or "MutableMapping" or "Collection" or "Container"
-            => PyObject.GetAttr(PyModules.Import("collections.abc"), name)!,
+            => PyAbc.RootType(name),
         _ => throw new PyNotImplementedError("unsupported typing form"),
     };
 
@@ -93,6 +93,16 @@ public static partial class PyTyping
     /// <summary>内建容器/ABC的有限PEP585订阅；元数据不能当作isinstance类型。</summary>
     public static object SubscribeNative(object origin, object? parameter)
     {
+        if (origin is PyClass abc && PyAbc.IsAbc(abc))
+        {
+            if (abc.Name == "Sized") throw new PyTypeError("type 'Sized' is not subscriptable");
+            if (abc.Name == "Callable")
+            {
+                if (parameter is not PyTuple { Items.Length: 2 } callable || callable.Items[0] is not (PyList or PyTuple or PyEllipsis))
+                    throw new PyTypeError("Callable must be used as Callable[[arg, ...], result]");
+                throw new PyNotImplementedError("collections.abc.Callable generic aliases are not supported");
+            }
+        }
         object?[] args = parameter is PyTuple tuple ? tuple.Items : [parameter];
         var normalized = new object?[args.Length];
         for (int i = 0; i < args.Length; i++) normalized[i] = TypeArgument(args[i]);
@@ -100,6 +110,7 @@ public static partial class PyTyping
         {
             PyType type => type.Name,
             PyNativeType type => type.Module + "." + type.Name,
+            PyClass type when PyAbc.IsAbc(type) => "collections.abc." + type.Name,
             _ => throw new PyTypeError("not a supported generic type"),
         };
         return Intern("native:" + name, name, origin, normalized);

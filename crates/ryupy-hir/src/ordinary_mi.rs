@@ -4,7 +4,11 @@ use rustc_hash::FxHashSet;
 use ryupy_base::TextRange;
 use ryupy_syntax::ast;
 
-pub(crate) fn definitions(body: &[ast::Stmt]) -> FxHashSet<TextRange> {
+pub(crate) fn definitions(
+    body: &[ast::Stmt],
+    globals: &crate::scope::GlobalScope,
+) -> FxHashSet<TextRange> {
+    let abc_imports = crate::abc_bases::imports(body, &globals.native_exception_modules);
     let definitions = crate::module_definitions::definitions(body);
     let mut names = FxHashSet::<Name>::default();
     let mut selected = FxHashSet::default();
@@ -19,6 +23,8 @@ pub(crate) fn definitions(body: &[ast::Stmt]) -> FxHashSet<TextRange> {
             };
             let family = arguments.args.len() > 1 || arguments.args.iter().any(|base| {
                 matches!(base, ast::Expr::Name(name) if names.contains(&Name::from(name.id.as_str())))
+                    || crate::abc_bases::candidate(base, &globals.exception_imports)
+                    || crate::abc_bases::candidate(base, &abc_imports)
             });
             if family {
                 changed |= selected.insert(class.range);

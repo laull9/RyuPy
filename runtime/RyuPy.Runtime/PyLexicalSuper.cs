@@ -109,6 +109,7 @@ public static class PyLexicalSuper
 
     internal static void GuardDescriptor(object? raw)
     {
+        if (raw is PyInstanceSlotDescriptor slot && slot.Owner.OwnsNativeDescriptor(slot)) return;
         if (raw is IPyNativeDescriptor)
             throw new PyNotImplementedError("super native descriptor binding is not supported");
         PyClass? type = raw switch

@@ -63,7 +63,7 @@ public static partial class PyOps
                 PyListProtocols.SetItem(list, key, value);
                 return;
             case PyDictInstance dict:
-                PyDictProtocols.SetItem(dict, key, value);
+                PyDictSubclassDispatch.SetItem(dict, key, value);
                 return;
             case PyDict dict:
                 dict.Set(key, value);
@@ -98,7 +98,7 @@ public static partial class PyOps
                 PyListProtocols.DeleteItem(list, key);
                 return;
             case PyDictInstance dict:
-                PyDictProtocols.DeleteItem(dict, key);
+                PyDictSubclassDispatch.DeleteItem(dict, key);
                 return;
             case PyDict dict:
                 dict.Delete(key);
@@ -209,7 +209,7 @@ public static partial class PyOps
         PyFrozenSet frozen => [.. frozen.Items],
         string text => Chars(text),
         PyListInstance list => DrainIterator(PyListProtocols.Iter(list)),
-        PyDictInstance dict => DrainIterator(PyDictProtocols.Iter(dict)),
+        PyDictInstance dict => DrainIterator(PyDictSubclassDispatch.Iter(dict)),
         PyStringInstance text => Chars(text.Value),
         PyBytes bytes => MapBytes(bytes.Span),
         PyByteArray array => MapBytes([.. array.Bytes]),
@@ -470,9 +470,7 @@ public static partial class PyOps
         "add" => AddToSet(set, args),
         "remove" => RemoveFromSet(set, args),
         "discard" => DiscardFromSet(set, args),
-        "union" => set.Union(AsSet(Single("union", args))),
-        "intersection" => set.Intersect(AsSet(Single("intersection", args))),
-        "difference" => set.Difference(AsSet(Single("difference", args))),
+        _ when HasSetFamilyMethod(name) => CallSetFamilyMethod(set, name, args, []),
         _ => throw MissingAttribute("set", name),
     };
 

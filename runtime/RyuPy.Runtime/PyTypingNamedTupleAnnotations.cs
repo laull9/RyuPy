@@ -78,6 +78,7 @@ internal static class PyTypingNamedTupleAnnotations
     }
 
     private static bool SafeAliasOrigin(object origin) => origin is PyType or PyNativeType
+        || origin is PyClass abc && PyAbc.IsAbc(abc)
         || origin is PyTypingForm { Name: "Union" or "ClassVar" or "Literal" } form
             && ReferenceEquals(form, PyTyping.OriginalForm(form.Name));
 

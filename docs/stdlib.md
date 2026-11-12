@@ -131,3 +131,11 @@ pickle 状态、任意自定义 descriptor 或迭代器子类完整兼容。
 身份数值与 CPython 或其他进程不做比较，也不表示 OS native id。参数会正常拒绝。
 仅提供此 API，不开放 Python 线程创建、锁或 GIL 控制。证据为
 `m3_7_thread_identity.py` 差分与 `PyThreadIdentityTests` 的宿主双线程测试。
+
+### collections.abc canonical类族（当前兼容竖切）
+
+18个导出均为真实普通类，保留直接父图和C3身份：Iterable、Iterator、Reversible、Generator、Sized、Container、Callable、Collection、Sequence、MutableSequence、Set、MutableSet、Mapping、MutableMapping、MappingView、KeysView、ItemsView、ValuesView。模块导出重绑不替换内部canonical身份；用户子类采用nominal判断，不自动继承根的结构注册。继承定义完成时冻结抽象集合；普通类拷贝抽象函数不会自动变ABC。
+
+提供Sequence/MutableSequence、Set/MutableSet、Mapping/MutableMapping常用mixins及live view。MappingView持有真实`_mapping`槽，空slots子类和实例字典遵循有限布局合同。原生生成器mixin仅提供iter/next与PEP479异常转换、耗尽终态；访问send/throw/close明确报NotImplementedError，不因显示为generator宣称完整控制协议。
+
+边界：动态ABCMeta/register/update_abstractmethods、手写抽象集合和自定义抽象标记尚不支持；已认证抽象方法标记被改写时明确拒绝。`Set._hash`需与frozenset散列统一后再开放。Generator根默认throw的traceback参数尚不支持。Sized不可订阅；collections.abc.Callable非法订阅参数报TypeError，合法形状目前明确NotImplementedError，不冒充typing.Callable缓存别名。其余有限PEP585订阅保留真实canonical origin。

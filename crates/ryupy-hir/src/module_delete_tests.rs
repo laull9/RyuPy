@@ -291,3 +291,16 @@ fn module_delete_default_annotations_has_explicit_namespace_boundary() {
         assert!(diagnostics.is_empty(), "{source}: {diagnostics:?}");
     }
 }
+
+#[test]
+fn map_fallback_does_not_ignore_explicit_custom_default_builtins() {
+    let (_, diagnostics) = lower(
+        "__builtins__ = {}\nif False:\n    map = None\nprint(map)\n",
+        false,
+    );
+    assert!(
+        diagnostics
+            .iter()
+            .any(|d| d.message.contains("__builtins__"))
+    );
+}
