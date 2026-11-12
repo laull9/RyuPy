@@ -272,20 +272,40 @@ class ContractTests(unittest.TestCase):
             self.assertTrue((evidence / 'native-dist.tar.gz').is_file())
             self.assertEqual(json.loads((evidence / 'dist-identity.json').read_text())['phase'], 'before-native-execution')
 
-    def test_fixed20_and_ten_successes_are_per_id_not_counts(self):
+    def test_fixed20_and_eleven_successes_are_per_id_not_counts(self):
         gate.load_reused(REPO)
         import project_gate_contract as old
         contract, _ = old.load_inputs(REPO)
         protected = set(contract['protected_native']) | set(contract['promotion_requires'])
         self.assertEqual(protected, {'tomli', 'docopt', 'tabulate', 'texttable', 'chardet',
-                                    'wcwidth', 'colorama', 'termcolor', 'binaryornot', 'progress'})
+                                    'wcwidth', 'colorama', 'termcolor', 'binaryornot', 'progress', 'toml'})
         rows = [{'id': name, 'status': 'native' if name in protected else 'unsupported'}
                 for name in contract['project_ids']]
         self.assertTrue(old.evaluate(contract, rows)['promotion_pass'])
-        for name in protected:
-            changed = copy.deepcopy(rows)
-            next(r for r in changed if r['id'] == name)['status'] = 'failed'
-            self.assertFalse(old.evaluate(contract, changed)['promotion_pass'])
+        import regression_contract as regressions
+        self.assertEqual(regressions.protected_ids(contract), protected)
+        for name in sorted(protected):
+            for status in ('failed', 'unsupported'):
+                with self.subTest(lost=name, status=status):
+                    changed = copy.deepcopy(rows)
+                    next(r for r in changed if r['id'] == name)['status'] = status
+                    # 另一个非保护成功不能掩盖丢失ID，即使总通过数仍是十一。
+                    next(r for r in changed if r['id'] == 'six')['status'] = 'native'
+                    result = old.evaluate(contract, changed)
+                    self.assertEqual(result['native'], 11)
+                    self.assertEqual(result['protected_lost'], [name])
+                    self.assertFalse(result['preserve_pass'])
+                    self.assertFalse(result['promotion_pass'])
+            altered = copy.deepcopy(contract)
+            altered['protected_native'].remove(name)
+            altered['protected_native'].append('six')
+            altered['promotion_requires'] = [p for p in altered['promotion_requires'] if p != name]
+            with self.assertRaisesRegex(ValueError, '十一项逐ID'):
+                regressions.protected_ids(altered)
+        duplicated = copy.deepcopy(contract)
+        duplicated['protected_native'].append('toml')
+        with self.assertRaisesRegex(ValueError, '重复ID'):
+            regressions.protected_ids(duplicated)
         for bad in (rows[:-1], rows + [rows[0]], rows[:-1] + [{'id': 'replacement', 'status': 'native'}]):
             with self.assertRaises(old.GateError):
                 old.evaluate(contract, bad)

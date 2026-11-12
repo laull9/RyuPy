@@ -6,7 +6,7 @@
 - `generator_product_gate.py` 默认只输出计划；只有最终 clean commit/tree、实际 baseline 构建 provenance 和工具 hash 冻结后，加 `--execute` 才执行。模板 `frozen=false`，不能直接用于验收。
 - 正向 A/B/热输入每个 JIT 与 Native 各编译一次，PIC1/0 各运行一次；原 C/D 两模式只编译拒绝。默认 A/B 仅编译和 PE 无 V1 控制，不执行。
 - `product_contract.py` 核完整流、原源 SHA、实际 PE Main Enter(1)、V1 ABI 和唯一 getter 站点。只允许精确源路径与 CP 源码展示归一化。
-- `regression_contract.py` 只读核已有同源 fullcheck/default+pilot、20项目逐 ID、原十通过项、四旧实验精确隔离及 C# 两项 TRX，不重建或重跑回归。
+- `regression_contract.py` 只读核已有同源 fullcheck/default+pilot、20项目逐 ID、十一保护通过项（原十项及 toml）、四旧实验精确隔离及 C# 两项 TRX，不重建或重跑回归。
 - `build_provenance.py` 核已有 baseline 的实际构建 argv、双流、工具和输出身份。其它 job 按自己的构建配置与 runtime 核验，不强迫跨配置二进制同 hash。
 
 产品总预算3600秒：编译300秒、发布1500秒、单运行30秒、decoder60秒，同时受剩余总预算约束。沿用已有进程组终止、8MiB流限制及128文件/256MiB dist归档，不重试、不补采。

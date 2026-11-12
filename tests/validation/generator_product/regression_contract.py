@@ -14,12 +14,24 @@ def same_source(actual, product):
             and actual['files'] == expected['files'], '不是同最终HEAD及完整源码身份')
 
 
+def protected_ids(contract):
+    """独立固定十一项身份，禁止同数量替换或重复项掩盖保护集合漂移。"""
+    expected = {'tomli', 'docopt', 'tabulate', 'texttable', 'chardet', 'wcwidth',
+                'colorama', 'termcolor', 'binaryornot', 'progress', 'toml'}
+    for key in ('protected_native', 'promotion_requires'):
+        require(len(contract[key]) == len(set(contract[key])), '保护合同存在重复ID')
+    protected = set(contract['protected_native']) | set(contract['promotion_requires'])
+    require(len(protected) == 11 and protected == expected, '保护合同不是本轮十一项逐ID集合')
+    return protected
+
+
 def fixed20(repo, evidence, product_freeze):
-    """全20逐行复用原验证；九protected+progress为原十项，非只查总数。"""
+    """全20逐行复用原验证；保留原十项并纳入 toml，非只查总数。"""
     product = provenance.freeze(product_freeze)
     sys.path.insert(0, str(repo / 'tests'))
     old = importlib.import_module('project_gate_contract')
     contract, projects = old.load_inputs(repo)
+    protected = protected_ids(contract)
     root = evidence / 'gate'
     actual = json.loads((root / 'run.json').read_text())
     summary = json.loads((root / 'summary.json').read_text())
@@ -28,7 +40,7 @@ def fixed20(repo, evidence, product_freeze):
     same_source(actual['candidate'], product)
     require(actual['contract'] == contract, '实际P0合同被更改')
     recomputed = old.evaluate(contract, rows)
-    require(recomputed['preserve_pass'] and recomputed['promotion_pass'], '原十个成功ID有丢失')
+    require(recomputed['preserve_pass'] and recomputed['promotion_pass'], '十一项保护成功ID有丢失')
     require(summary['valid'] is True and summary['cp_passed'] == 20
             and summary['run_id'] == actual['run_id'], 'P0完成身份/CP不完整')
     require(all(summary.get(key) == value for key, value in recomputed.items()), 'P0摘要与逐ID矩阵矛盾')
@@ -63,8 +75,6 @@ def fixed20(repo, evidence, product_freeze):
         old.validate_result(row, project, actual['run_id'], directory, golden, runtime_sha)
         if row['status'] == 'native':
             require((directory / 'jit.stderr').read_bytes() == b'', '原成功ID stderr不符：' + pid)
-    protected = set(contract['protected_native']) | set(contract['promotion_requires'])
-    require(len(protected) == 10, '保护合同不是本轮原十项')
     return {'all_ids': contract['project_ids'], 'protected_ids': [p for p in contract['project_ids'] if p in protected],
             'results_by_id': {r['id']: r['status'] for r in rows}, 'run_id': actual['run_id'],
             'common_commit': product['contract']['commit'], 'common_tree': product['contract']['tree'],
