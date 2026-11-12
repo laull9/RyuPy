@@ -15,7 +15,7 @@ class AppReceiptTests(unittest.TestCase):
             out=root/'receipt'
             with self.assertRaisesRegex(ValueError,'缺独立发射前oracle'):
                 v.validate_app_artifact(SimpleNamespace(),root,{str(tool):v.sha(tool)},
-                    case='cli',python=tool,dotnet=tool,oracle_dir=root/'missing',output=out)
+                    case='cli',python=tool,dotnet=tool,cli=tool,runtime=tool,oracle_dir=root/'missing',output=out)
             self.assertFalse((out/'receipt.json').exists())
 
     def test_tampered_tool_never_signs(self):
@@ -23,7 +23,7 @@ class AppReceiptTests(unittest.TestCase):
             root=Path(folder); tool=root/'tool'; tool.write_bytes(b'changed')
             with self.assertRaisesRegex(ValueError,'冻结工具变化'):
                 v.validate_app_artifact(SimpleNamespace(),root,{str(tool):'0'*64},
-                    case='cli',python=tool,dotnet=tool,oracle_dir=root,output=root/'out')
+                    case='cli',python=tool,dotnet=tool,cli=tool,runtime=tool,oracle_dir=root,output=root/'out')
             self.assertFalse((root/'out/receipt.json').exists())
 
     def test_resource_oracle_uses_request_bytes_and_emitted_id(self):
@@ -39,11 +39,35 @@ class AppReceiptTests(unittest.TestCase):
                 (package/'a.flf').unlink()
                 with self.assertRaisesRegex(ValueError,'资源文件缺失'): v.expected_resources(root,oracle)
 
+    def test_tool_roles_reject_swapped_valid_hashes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder); cli=root/'cli'; runtime=root/'runtime'
+            cli.write_bytes(b'cli'); runtime.write_bytes(b'runtime')
+            tools={str(p):v.sha(p) for p in (cli,runtime)}
+            identity={'cli_sha256':v.sha(cli),'runtime_sha256':v.sha(runtime)}
+            v.check_tool_roles(identity,tools,cli,runtime)
+            swapped={'cli_sha256':identity['runtime_sha256'],'runtime_sha256':identity['cli_sha256']}
+            with self.assertRaisesRegex(ValueError,'角色摘要不匹配'):
+                v.check_tool_roles(swapped,tools,cli,runtime)
+            with self.assertRaisesRegex(ValueError,'角色摘要不匹配'):
+                v.check_tool_roles(identity,tools,runtime,cli)
+
+    def test_exact_source_set_rejects_extra_missing_and_unknown(self):
+        expected={'__main__','pyfiglet','pyfiglet.fonts','pyfiglet.version'}
+        rows=[{'module_name':name} for name in sorted(expected)]
+        v.check_source_names(rows, dict.fromkeys(expected), expected)
+        for names in (expected|{'unexpected'}, expected-{'pyfiglet.version'},
+                      (expected-{'pyfiglet.version'})|{'other'}):
+            with self.assertRaisesRegex(ValueError,'锁定模块全集'):
+                v.check_source_names([{'module_name':name} for name in names],dict.fromkeys(names),expected)
+        with self.assertRaisesRegex(ValueError,'锁定模块全集'):
+            v.check_source_names(rows,dict.fromkeys(expected|{'extra'}),expected)
+
     def test_unknown_case_does_not_create_receipt(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder)
             with self.assertRaisesRegex(ValueError,'未知case'):
-                v.validate_app_artifact(None,root,{},case='fake',python='',dotnet='',oracle_dir=root,output=root/'out')
+                v.validate_app_artifact(None,root,{},case='fake',python='',dotnet='',cli='',runtime='',oracle_dir=root,output=root/'out')
             self.assertFalse((root/'out').exists())
 
 if __name__=='__main__': unittest.main()

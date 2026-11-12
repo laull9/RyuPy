@@ -30,7 +30,22 @@ def inventory(root):
     return result
 
 
-def locked_sources(prepared,case,oracle_dir,tools):
+def check_tool_roles(identity, tools, cli, runtime):
+    """角色绑定到明确路径；交换两个合法摘要也必须失败。"""
+    for role, path in [('cli', cli), ('runtime', runtime)]:
+        key = str(Path(path).resolve())
+        require(key in tools and sha(key) == tools[key], role + '角色工具未冻结')
+        require(identity[role + '_sha256'] == tools[key], role + '角色摘要不匹配')
+
+
+def check_source_names(rows, emitted, expected):
+    """app测试精确模块全集来自合同，不允许未知源携带自给SHA混入。"""
+    names = [r['module_name'] for r in rows]
+    require(len(names) == len(set(names)) and set(names) == set(expected), '实际来源不是app锁定模块全集')
+    require(set(emitted) == set(expected), '发射来源不是app锁定模块全集')
+
+
+def locked_sources(prepared,case,oracle_dir,tools,cli,runtime):
     """锁定应用源和独立driver实际source plan，不从artifact反造预期。"""
     contract=read(HERE/'contract.json'); inputs=read(HERE/'inputs.json'); package=prepared/'package'
     for name,digest in contract['files'].items(): require(sha(HERE/name)==digest,'合同文件变化：'+name)
@@ -41,14 +56,22 @@ def locked_sources(prepared,case,oracle_dir,tools):
     entry=package/'pyfiglet/__main__.py' if case=='cli' else prepared/'console_entry.py'
     oracle=read(oracle_dir/'mir-oracle.json'); identity=read(oracle_dir/'source-inputs.json')
     require(Path(identity['entry']).resolve()==entry.resolve(),'独立oracle不是当前入口')
-    require(identity['cli_sha256'] in tools.values() and identity['runtime_sha256'] in tools.values(),'oracle工具未冻结')
+    check_tool_roles(identity, tools, cli, runtime)
+    require([Path(x).resolve() for x in identity['search_roots']] == [package.resolve()], 'oracle搜索根变化')
+    require(identity['include_modules'] == ['pyfiglet', 'pyfiglet.fonts'], 'oracle显式模块集合变化')
+    require(Path(identity['metadata']).resolve() == (prepared/'metadata-request.json').resolve(), 'oracle metadata非本轮请求')
+    require(Path(identity['resources']).resolve() == (prepared/'resources.json').resolve()
+            and sha(identity['resources']) == sha(HERE/'resources.json'), 'oracle资源请求不是完整锁定集合')
     rows=identity['files']; require(len(rows)==len({r['module_name'] for r in rows}),'独立来源重名')
     emitted={r['module_name']:r for r in oracle['sources']}; seen=set()
+    expected_names = inputs['expected_source_modules']
+    check_source_names(rows, emitted, expected_names)
     for row in rows:
         path=Path(row['path']).resolve(strict=True); name=row['module_name']; seen.add(name)
         require(sha(path)==row['sha256'],'实际源已变化')
         if name=='__main__': require(path==entry.resolve(),'入口源不符')
-        elif name=='pyfiglet' or name.startswith('pyfiglet.'):
+        else:
+            require(path == (package/expected_names[name]).resolve(), '模块名与锁定来源不符')
             require(path.is_relative_to(package.resolve()),'pyfiglet越界')
             require(inputs['files'].get(path.relative_to(package.resolve()).as_posix())==row['sha256'],'非锁定pyfiglet源')
         if name in emitted: require(emitted[name]['compiled_text_sha256']==row['sha256'],'编译文本非冻结源字节')
@@ -85,7 +108,7 @@ class Probe:
         require(p.returncode==0,'实际PE探针失败：'+name)
 
 
-def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,oracle_dir,output):
+def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,runtime,oracle_dir,output):
     """结构验证后仍需独立clean-container完整六run，receipt不会直接允许measure。"""
     require(case in ('cli','metadata'),'未知case')
     prepared,oracle_dir,output=Path(prepared),Path(oracle_dir),Path(output)
@@ -99,7 +122,7 @@ def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,orac
     hashes={n:sha(oracle_dir/n) for n in names}
     source_before=inventory(prepared); dist_before=inventory(layout.dist)
     manifest_hash,pe_hash=sha(layout.manifest),sha(layout.managed)
-    oracle,identity=locked_sources(prepared,case,oracle_dir,tools)
+    oracle,identity=locked_sources(prepared,case,oracle_dir,tools,cli,runtime)
     plan=read(oracle_dir/'default_source_plan.json'); payload=(oracle_dir/'candidate.json').read_text()
     candidate=read(oracle_dir/'candidate.json'); roots=read(oracle_dir/'emission-roots.json')
     probe=Probe(output,python,dotnet); decoder=REPO/'tests/validation/source_provenance/ci/read_pe_decoder.py'

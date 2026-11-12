@@ -88,5 +88,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0155：有限JIT默认来源候选与分发环境](0155-default-source-candidates.md)（实现候选，完整门待验）
 - [0158：显式普通实例直接globals冷路](0158-instance-direct-globals.md)（未验收；推导式保持拒绝）
 
-- [0169：Enum auto 赋值期生成](0169-enum-auto-assignment.md)（有限域 JIT 已验证，Native hosted/完整回归另验）
-- [0170：固定非优化 __debug__](0170-debug-language-constant.md)（JIT 正合同与诊断对照已验证，Native hosted/完整回归另验）
+- [0169：Enum auto 赋值期生成](0169-enum-auto-assignment.md)（有限图 JIT/Native 与完整回归已验证；不代表完整 Enum）
+- [0170：固定非优化 __debug__](0170-debug-language-constant.md)（固定非优化正/负合同、有限 Native 与完整回归已验证）
+
+- [0171：AOT standalone 同一部署计划](0171-aot-standalone-deployment-plan.md)（真实应用及独立 PE 合同已验证；原生发布/干净部署待验）
+- [0172：有限标准输出 detach](0172-standard-output-detach.md)（CP/JIT/完整 C# 已验证；不扩一般 IO 或宿主句柄所有权）

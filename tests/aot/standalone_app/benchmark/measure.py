@@ -33,9 +33,31 @@ def tree_rss(root_pid, known, proc=Path('/proc')):
     return sum(row[2] for pid, row in rows.items() if pid in known)*os.sysconf('SC_PAGE_SIZE')
 
 
+# 精确键允许清单；禁止按GITHUB_/ACTIONS_/TOKEN等前缀收集，也不记录省略值或其摘要。
+RECORDED_ENV_KEYS = frozenset({
+    'PATH', 'HOME', 'LANG', 'LC_ALL', 'TZ',
+    'PYTHON', 'PYTHONPATH', 'PYTHONDONTWRITEBYTECODE', 'PYTHONOPTIMIZE',
+    'PYTHONHASHSEED', 'PYTHONNOUSERSITE',
+    'DOTNET', 'DOTNET_ROOT', 'DOTNET_PROCESSOR_COUNT', 'DOTNET_CLI_TELEMETRY_OPTOUT',
+    'DOTNET_NOLOGO', 'DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER',
+    'MSBUILDDISABLENODEREUSE', 'UseSharedCompilation',
+    'RYUPY_RUNTIME_DIR', 'CARGO_TARGET_DIR', 'CARGO_TERM_COLOR', 'NUITKA_CACHE_DIR',
+    'RYUPY_DEFAULT_AOT_ENTRY', 'RYUPY_DEFAULT_AOT_ROOT', 'RYUPY_DEFAULT_AOT_OUTPUT',
+    'RYUPY_DEFAULT_AOT_RESOURCES', 'RYUPY_DEFAULT_AOT_METADATA',
+    'RYUPY_DEFAULT_AOT_INCLUDE', 'RYUPY_DEFAULT_AOT_CLI', 'RYUPY_DEFAULT_AOT_RUNTIME',
+})
+
+
+def recorded_environment(env):
+    selected = {key: env[key] for key in sorted(RECORDED_ENV_KEYS) if key in env}
+    return {'env': selected, 'env_recording_policy': 'exact non-secret key allowlist v1',
+            'omitted_environment_key_count': len(set(env)-RECORDED_ENV_KEYS)}
+
+
 def capture(prefix, argv, cwd, env, timeout, sample_tree=False):
     prefix = Path(prefix); prefix.parent.mkdir(parents=True, exist_ok=True)
-    save(str(prefix)+'.argv.json', {'argv': [str(x) for x in argv], 'cwd': str(cwd), 'env': env})
+    save(str(prefix)+'.argv.json', {'argv': [str(x) for x in argv], 'cwd': str(cwd),
+                                   **recorded_environment(env)})
     start = time.perf_counter(); peak = 0; samples = 0; failure = None; known = set()
     with open(str(prefix)+'.stdout', 'xb') as out, open(str(prefix)+'.stderr', 'xb') as err:
         process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL,

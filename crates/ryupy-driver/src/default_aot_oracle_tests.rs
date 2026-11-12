@@ -23,7 +23,7 @@ fn default_aot_real_graph_emit() {
     let result = crate::compile_linked_locations(
         &mut s,
         &entry,
-        &[root.clone()],
+        std::slice::from_ref(&root),
         true,
         resource_request.as_deref(),
         true,

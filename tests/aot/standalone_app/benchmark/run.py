@@ -94,6 +94,7 @@ def run(options):
            'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONOPTIMIZE': '0', 'PYTHONHASHSEED': '0', 'PYTHONNOUSERSITE': '1',
            'DOTNET': str(options.dotnet), 'DOTNET_ROOT': str(options.dotnet.parent),
            'RYUPY_RUNTIME_DIR': str(options.runtime.parent), 'DOTNET_PROCESSOR_COUNT': '1',
+           'DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER': '1', 'MSBUILDDISABLENODEREUSE': '1', 'UseSharedCompilation': 'false',
            'PYTHONPATH': str(package), 'NUITKA_CACHE_DIR': str(out/'nuitka-cache')}
     Path(env['HOME']).mkdir(); save(out/'environment.json', {'env': env, 'platform': platform.platform(),
         'cpuinfo': Path('/proc/cpuinfo').read_text(), 'build_policy': 'fresh output/cache; Nuitka jobs=1; DOTNET_PROCESSOR_COUNT=1; not proof of identical compiler parallelism'})
@@ -113,6 +114,11 @@ def run(options):
         else: require(record['exit'] == 0 and record['failure'] is None, '命令失败：'+label)
         return record
     try:
+        # 预恢复Native SDK依赖是setup；编译wall不混首轮NuGet下载。
+        restore = out/'setup-restore'; restore.mkdir()
+        project = restore/'dependencies.csproj'
+        project.write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><PublishAot>true</PublishAot></PropertyGroup></Project>')
+        checked('setup-native-restore', [options.dotnet, 'restore', project, '-r', 'linux-x64'], 300)
         checked('python-version', [options.python, '-B', '-c',
                 'import sys; print(sys.version.split()[0], sys.flags.optimize, sys.flags.no_site, sys.flags.no_user_site, __debug__)'], expected=b'3.12.13 0 0 1 True\n')
         checked('nuitka-version', [options.python, '-B', '-m', 'nuitka', '--version'])
@@ -136,8 +142,9 @@ def run(options):
                     sys.path.insert(0, str(HERE.parent))
                     from validate_artifact import validate_app_artifact
                     receipt = validate_app_artifact(layout, source, frozen, case=case,
-                        python=options.python, dotnet=options.dotnet, oracle_dir=options.oracle_root/case,
+                        python=options.python, dotnet=options.dotnet, cli=options.cli, runtime=options.runtime, oracle_dir=options.oracle_root/('upstream' if case == 'cli' else 'console'),
                         output=out/(case+'-ryupy-product-audit'))
+                    require(receipt.get('structure_validated') is True, '独立产品验收未签有效结构receipt')
                     save(out/(case+'-ryupy-product-receipt.json'), receipt)
                 else:
                     dists = list(target.glob('*.dist')); require(len(dists) == 1, 'Nuitka standalone目录非唯一')
@@ -175,7 +182,9 @@ def run(options):
                         '--env', 'LC_ALL=C.UTF-8', '--env', 'TZ=UTC', options.runtime_image,
                         '/app/'+paths[key].name]+args, native_env=clean, expected=expected)
                 require(inventory(moved) == before, '搬迁执行改变dist')
-            result['compatible'] = True; save(out/'result.json', result)
+            result['compatible'] = True
+            result['clean_container'] = {'validated': True, 'runtime_image': options.runtime_image, 'network': 'none', 'mounted': 'only dist read-only', 'semantic_runs': 12}
+            save(out/'result.json', result)
             keys = list(paths)
             for index in range(32):
                 order = keys[index % 4:]+keys[:index % 4]

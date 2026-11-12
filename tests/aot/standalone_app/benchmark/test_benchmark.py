@@ -9,12 +9,33 @@ import unittest
 HERE = Path(__file__).resolve().parent
 import sys
 sys.path.insert(0, str(HERE))
-from measure import elf, inventory, positive, save, tree_rss
+from measure import capture, elf, inventory, positive, recorded_environment, save, tree_rss
 spec = importlib.util.spec_from_file_location('standalone_benchmark', HERE/'run.py')
 gate = importlib.util.module_from_spec(spec); spec.loader.exec_module(gate)
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_environment_secret_values_never_serialized(self):
+        secrets = {'GITHUB_TOKEN': 'fake-gh-private-092',
+                   'ACTIONS_RUNTIME_TOKEN': 'fake-action-private-583',
+                   'UNRELATED_SECRET': 'fake-other-private-741',
+                   'DOTNET_SECRET': 'fake-prefix-private-862'}
+        env = dict(secrets, PATH='/usr/bin:/bin', DOTNET_ROOT='/fixed/dotnet',
+                   RYUPY_DEFAULT_AOT_INCLUDE='["pyfiglet"]')
+        logged = recorded_environment(env)
+        self.assertEqual(logged['env'], {'PATH':'/usr/bin:/bin', 'DOTNET_ROOT':'/fixed/dotnet',
+                                       'RYUPY_DEFAULT_AOT_INCLUDE':'["pyfiglet"]'})
+        self.assertEqual(logged['omitted_environment_key_count'], 4)
+        with tempfile.TemporaryDirectory() as folder:
+            prefix = Path(folder)/'actual-capture'
+            result = capture(prefix, ['/bin/true'], Path(folder), env, 5)
+            self.assertEqual(result['exit'], 0)
+            raw = b''.join(p.read_bytes() for p in Path(folder).iterdir())
+            for key, value in secrets.items():
+                self.assertNotIn(value.encode(), raw)
+                self.assertNotIn(key.encode(), raw)
+            self.assertIn(b'/fixed/dotnet', raw)
+
     def test_nuitka_pinned_options_and_same_inputs(self):
         lock = json.loads((HERE/'nuitka-lock.json').read_text())
         self.assertEqual(lock['version'], '4.3.5')
@@ -70,6 +91,11 @@ class BenchmarkTests(unittest.TestCase):
             self.assertIn(token,source)
         self.assertIn("record = checked(case+'-'+arm+'-compile', argv, 600, True",source)
         self.assertIn("native_env=clean, expected=golden",source)
+        for token in ('validate_app_artifact', "receipt.get('structure_validated')", "'--network', 'none'", "'--read-only'", "'--security-opt=no-new-privileges'", "dst=/app,readonly", "'PYTHONNOUSERSITE': '1'"):
+            # mount参数含固定前缀，其余均直接存在。
+            self.assertIn(token, source)
+        self.assertNotIn("[options.python, '-B', '-S'", source)
+
 
 
 if __name__ == '__main__': unittest.main()

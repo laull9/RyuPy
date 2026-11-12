@@ -580,5 +580,14 @@
   "fonts": [
     "standard",
     "slant"
-  ]
+  ],
+  "expected_source_modules": {
+    "__main__": {
+      "cli": "pyfiglet/__main__.py",
+      "metadata": "console_entry.py"
+    },
+    "pyfiglet": "pyfiglet/__init__.py",
+    "pyfiglet.fonts": "pyfiglet/fonts/__init__.py",
+    "pyfiglet.version": "pyfiglet/version.py"
+  }
 }

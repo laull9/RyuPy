@@ -44,3 +44,13 @@ Nuitka 同机同源同参数、同字体/metadata及完整输出门由 `benchmar
 `tests/aot/standalone_manifest.py` 提供专用组合验证入口；旧 default_source_aot.validate_schema4 继续要求空资源、declared_resources_complete=false。组合入口保全原始 schema4 和字段集合，要求自动位置完整、显式声明完整、resources_included 与集合真值一致；复用 source/锚点、延期锚碰撞、artifact 哈希/大小、consumer emitted-ID、预算和便携路径校验。显式空请求可 declared=true/resources=false，无请求不等价。
 
 调用者须独立提供锁定请求的 expected_resources，不能复制 manifest 自己的资源列表冒充预期；须由 resources.json、inputs.json 字节和实际独立 PE source 报告的 emitted-ID/逻辑锚推导。candidate 原载荷及 metadata_report 仍须对独立 PE 原件核对，实际磁盘文件使用既有 check_artifacts 验 hash。仅结构自洽不证明资源请求无遗漏、ILC 保根或 standalone 运行完成。
+
+## build→独立验收→clean-container→measure 接口
+
+`validate_artifact.validate_app_artifact(layout, prepared, frozen_tools, case=..., python=..., dotnet=..., cli=..., runtime=..., oracle_dir=..., output=...)` 在新 output 写真实探针原流和结构 receipt。case 为 cli/metadata，layout 来自本次公开 AOT 报告，frozen_tools 是明确绝对路径→SHA；CLI/runtime 各自角色校验，交换有效摘要也拒绝。
+
+oracle_dir 必须由同配置 driver 测试出口在发射前导出 mir-oracle.json、emission-roots.json、candidate.json、default_source_plan.json、source-inputs.json，不能由 artifact 回填。source-inputs 绑定入口、实际源路径/字节、搜索根、includes、资源和 metadata 请求、工具角色。当前真实 upstream/console PE 的冷注册及独立 553 资源映射已联验，尚不等于 Native 发布。
+
+验收器自行解码本次实际 managed PE，查冷注册/源码身份及真实 metadata ldstr 载荷，对照完整原 egg-info；从锁定请求和独立 emitted source-ID 生成资源预期，然后核完整 schema4、实际 dist 字节与输入工具不变。缺 oracle、实际 PE/请求不同或任何失败都不签成功receipt。
+
+结构 receipt 仍为 clean_container_validated=false、performance_permitted=false。benchmark 必须再完成对应dist移源隔离容器里的完整standard/slant/list六run并绑定该receipt和同一dist哈希，才可生成测量许可；无 Native 原件时保持 blocked，不允许把合成checker或测试出口PE当成正式Native验收。

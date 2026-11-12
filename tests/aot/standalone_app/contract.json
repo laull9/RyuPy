@@ -19,7 +19,7 @@
   "expected_exit": 0,
   "expected_stderr": "",
   "files": {
-    "inputs.json": "b5125bc84dc4a26313fb94e23ef66a55a60bbd03012276f7c5e267b7c927f905",
+    "inputs.json": "0277f68f6f1688ffffe4f98404a67f2399c07cddfa24fd2dfd90ca0806ce65eb",
     "resources.json": "49d1a23120e7780a73b530bb059b5fdc9d185960f07409d02e493c964174f9b0",
     "console_entry.py": "245777191705f50dee5c37faa3c8c240cd5b6b5468d3bc69910c1a1861346357",
     "stdout.txt": "e01c7b04d9bcccb597250161c6083f5ab5fce6ae22c4a0c386b6a051da23b270",
