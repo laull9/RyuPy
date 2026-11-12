@@ -242,3 +242,6 @@ mod ordinary_mi_tests;
 
 #[cfg(test)]
 mod enum_auto_tests;
+
+#[cfg(test)]
+mod function_symbol_tests;

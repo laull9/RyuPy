@@ -35,3 +35,10 @@ Native三次真实运行之前再次比对同次publish保存的PE与manifest SH
 bootstrap拒绝只有finite_checks_passed的输出，也拒绝错角色/错PE/缺任一链。Runtime13白盒、真实CP/JIT/host/Native与已有结构门联合验收，任何一项不能相互冒替。旧Static TD默认与重绑债、TD二级None三方停止门独立保留，不能把NI或exit0当CP兼容。
 
 旧host PE只接受old_locator_verified=true且admitted=false的独立旧角色，不能借此给新source准入。真实getter按SameName/BranchFalsy的有限命中区核ValueSentinel或BoundFlag；typed发布顺序为marker→push→name→bound。typed-name尚无真实新PE正例，首个实际不符必须停报。标准discover合成控制不读取或修改argv，不要求外部fixture参数。
+
+
+## 内部方法命名变更后的显式绑定版本
+
+`read_pe.py` / `read_pe_decoder.py` 的历史默认仍为 `legacy-names-v1`，保留旧产物的精确名字合同；`role=new` 不隐式改变版本。当前候选调用者显式传 `--binding-version lexical-chain-v1`，不猜 `$fID` 或用前缀挑方法。
+
+新模式从固定 fixture 的源码 SHA、词法限定名、首行与正文行表，沿实际 Create 写入的 signature 字段、唯一 thunk、精确 MethodDef token 和签名闭链定位 core；检查完整描述符、token、定义/core 唯一性，继续核自身 source、getter、压帧与静态 ABI。额外 core 调用、重复身份、错行/签名/来源都拒绝。历史正式 PE 的回放不回写原件，也不因此声称旧位置的源文件仍可执行。资源发现固定门同样沿其独立 out 定义链定位，不再把内部名字当身份。

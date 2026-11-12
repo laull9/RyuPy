@@ -19,3 +19,5 @@ pub fn dump(
         Ok(output)
     }
 }
+
+pub mod cil_contract;

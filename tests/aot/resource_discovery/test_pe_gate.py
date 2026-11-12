@@ -64,6 +64,31 @@ class RejectionTests(unittest.TestCase):
         for fixture in ('original', 'resource'):
             self.assertTrue(check(model(fixture), fixture)['lexical_v1_verified'])
 
+    def test_core_is_bound_by_lexical_chain_not_spelling(self):
+        # 两种明确输入都沿同一Create/definition/thunk/token闭链，不模糊搜索名字。
+        for symbol in ('m1_out', 'm1_out$f37'):
+            data = model()
+            core = named(data, 'm1_out'); core['method']['name'] = symbol
+            self.assertEqual(check(data, 'resource')['core_token'], core['token'])
+
+    def test_rejects_duplicate_descriptor_token_and_extra_core_edge(self):
+        for change in ('token', 'descriptor', 'extra-edge', 'duplicate-thunk'):
+            data = model(); core = named(data, 'm1_out')
+            duplicate = deepcopy(core)
+            if change == 'token': data['methods'].append(duplicate)
+            if change == 'descriptor':
+                duplicate['token'] = '0x0600ffff'; data['methods'].append(duplicate)
+            if change == 'extra-edge':
+                duplicate['token'] = '0x0600ffff'; duplicate['method']['name'] = 'other'
+                data['methods'].append(duplicate)
+                named(data, '__thunk_out')['body']['instructions'].append({'opcode': '0x28', 'token': duplicate['token']})
+            if change == 'duplicate-thunk':
+                duplicate = deepcopy(named(data, '__thunk_out'))
+                duplicate['token'] = '0x0600ffff'; duplicate['method']['name'] = '__thunk_other'
+                data['methods'].append(duplicate)
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                check(data, 'resource')
+
     def test_rejects_abi_old_factory_other_getter_and_source(self):
         for change in ('abi', 'factory', 'getter', 'source', 'direct', 'data-call', 'registration'):
             data = deepcopy(model())

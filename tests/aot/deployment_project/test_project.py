@@ -5,11 +5,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import hashlib
+import subprocess
 from prepare import configuration
 
 
 from public_build import project_command, inputs, relocate_project
 import public_build
+import prepare as project_prepare
 
 class ProjectTests(unittest.TestCase):
     def test_whole_project_relocation_preserves_locked_inputs(self):
@@ -42,6 +44,39 @@ class ProjectTests(unittest.TestCase):
             self.assertEqual((evidence/'cli/owner.json').read_text(encoding='utf-8'),'{"source":"/old/project/entry.py"}')
             self.assertFalse(project.exists())
             with self.assertRaises(ValueError):relocate_project(moved,root/'again',evidence)
+
+    def test_locked_fixtures_keep_lf_under_autocrlf_checkout(self):
+        repo=Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);work=root/'git';work.mkdir();out=root/'checkout';out.mkdir()
+            def git(*argv):
+                return subprocess.run(['git','-C',str(work),'-c','core.autocrlf=true',*argv],check=True,capture_output=True)
+            git('init')
+            (work/'.gitattributes').write_bytes((repo/'.gitattributes').read_bytes())
+            paths=['tests/aot/standalone_app/inputs.json','tests/aot/standalone_app/console_entry.py',
+                   'tests/aot/standalone_app/stdout.txt','tests/aot/deployment_tabulate/inputs.json',
+                   'tests/aot/deployment_tabulate/console_entry.py','tests/aot/deployment_tabulate/html.output.txt']
+            payload=b'first\nsecond\n'
+            for name in paths:
+                p=work/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(payload)
+            git('add','.gitattributes',*paths)
+            git('checkout-index','--prefix='+out.as_posix()+'/', '--',*paths)
+            for name in paths:self.assertEqual((out/name).read_bytes(),payload)
+
+    def test_prepare_mismatch_keeps_actual_digest_evidence(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);app=root/'app';app.mkdir()
+            expected=hashlib.sha256(b'line\n').hexdigest()
+            (app/'inputs.json').write_text('{"files":{}}',encoding='utf-8')
+            (app/'contract.json').write_text(json.dumps({'files':{'golden.txt':expected}}),encoding='utf-8')
+            (app/'golden.txt').write_bytes(b'line\r\n')
+            with patch.object(project_prepare,'APP',app):
+                with self.assertRaises(ValueError):project_prepare.prepare(root/'project',root/'package')
+            record=json.loads((root/'project-input-check.json').read_text(encoding='utf-8'))['golden.txt']
+            self.assertEqual(record['expected_sha256'],expected)
+            self.assertEqual(record['actual_sha256'],hashlib.sha256(b'line\r\n').hexdigest())
+            self.assertEqual(record['CRLF'],1)
+            self.assertFalse((root/'project').exists())
 
     def test_configuration_has_no_workspace_paths_or_build_helpers(self):
         config = configuration()
