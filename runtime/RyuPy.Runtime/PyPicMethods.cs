@@ -35,7 +35,7 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：0 个位置实参。</summary>
     public static object? CallMethod0(int site, object? obj, string name)
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -53,7 +53,7 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：1 个位置实参。</summary>
     public static object? CallMethod1(int site, object? obj, string name, object? a0)
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -75,7 +75,7 @@ public static partial class PyPic
     /// <summary>`CallMethodN`：2 个位置实参。</summary>
     public static object? CallMethod2(int site, object? obj, string name, object? a0, object? a1)
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -107,7 +107,7 @@ public static partial class PyPic
         object? a2
     )
     {
-        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout)
+        if (Enabled && (uint)site < MaxSites && obj is PyInstance instance && !instance.Class.HasSlotLayout && !instance.Class.HasDictC3Layout)
         {
             long classVersion = PyClass.GlobalVersion;
             if (TryGetMethodEntry(site, instance, name, classVersion, out MethodEntry entry))
@@ -201,7 +201,7 @@ public static partial class PyPic
 
     private static object? CallMethodFast(int site, object? obj, string name, object?[] args)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasSlotLayout)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             return CallMethodFallback(site, obj, name, args);
         }
@@ -259,7 +259,7 @@ public static partial class PyPic
         if (!Enabled
             || (uint)site >= MaxSites
             || PyOps.NeedsFlatten(rawArgs, rawNames)
-            || obj is not PyInstance instance || instance.Class.HasSlotLayout)
+            || obj is not PyInstance instance || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             return PyOps.CallMethod(obj, name, rawArgs, rawNames, rawValues);
         }

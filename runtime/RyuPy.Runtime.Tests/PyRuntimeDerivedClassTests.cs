@@ -24,7 +24,8 @@ public class PyRuntimeDerivedClassTests
         Assert.True(result.TryLookup("value", out var owner, out var value)); Assert.Same(c, owner); Assert.Equal(42L, value);
         Assert.IsType<PyInstance>(result.Invoke([], [], []));
         Assert.Throws<PyNotImplementedError>(() => PyOps.MakeClass("Old", [d], null));
-        Assert.Throws<PyNotImplementedError>(() => PyLexicalClassFactory.Prepare("Old", "Old", "m", [d]));
+        var lexical = Assert.IsType<PyClass>(PyLexicalClassFactory.Finish(PyLexicalClassFactory.Prepare("New", "New", "m", [d])));
+        Assert.True(lexical.IsSubclassOf(d));
     }
     [Theory]
     [InlineData("str")]

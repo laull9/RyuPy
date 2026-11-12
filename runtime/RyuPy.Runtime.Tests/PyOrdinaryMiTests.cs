@@ -64,7 +64,9 @@ public class PyOrdinaryMiTests
     {
         var d = Mi("D", Root("A"), Root("B"));
         Assert.Throws<PyNotImplementedError>(() => PyOps.MakeClass("E", [d], null));
-        Assert.Throws<PyNotImplementedError>(() => PyLexicalClassFactory.Prepare("E", "E", "m", [d]));
+        var frame = PyLexicalClassFactory.Prepare("E", "E", "m", [d]);
+        var lexical = Assert.IsType<PyClass>(PyLexicalClassFactory.Finish(frame));
+        Assert.True(lexical.IsSubclassOf(d));
         Assert.Throws<PyNotImplementedError>(() => d.SetAttr("__bases__", new PyTuple([])));
     }
     [Fact]
@@ -83,8 +85,10 @@ public class PyOrdinaryMiTests
     public void NewDomainRejectsNativeLayoutsWithoutChangingOldSingleBase()
     {
         var a = Root("A");
-        foreach (string name in new[] { "dict", "str", "list" })
+        foreach (string name in new[] { "str", "list" })
             Assert.Throws<PyNotImplementedError>(() => PyOps.PrepareOrdinaryMiClass("D", [a, PyType.Get(name)]));
+        var mixed = Mi("DictMixed", a, PyType.Get("dict"));
+        Assert.IsType<PyDictInstance>(mixed.Invoke([], [], []));
         Assert.IsType<PyClass>(PyOps.MakeClass("Old", [PyType.Get("list")], null));
     }
     [Fact]

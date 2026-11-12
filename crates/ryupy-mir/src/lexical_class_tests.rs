@@ -234,3 +234,98 @@ fn explicit_aot_class_guard_no_cell_and_old_path_contract() {
         }
     }
 }
+
+#[test]
+fn lexical_mi_freezes_all_bases_before_frame_and_preserves_finish_cell_publication() {
+    let source = "def make(left, right):\n    class C(left(), right()):\n        def owner(self): return __class__\n    return C\n";
+    let mut program = compile(source, false);
+    let (_, cell) = plan(&program);
+    let function = &program.functions[cell.owner];
+    let statements: Vec<_> = function
+        .body
+        .blocks
+        .iter()
+        .flat_map(|(_, b)| &b.stmts)
+        .collect();
+    let calls = |wanted| -> Vec<_> {
+        statements
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| {
+                let value = match s {
+                    Statement::Assign { value, .. } | Statement::Eval(value) => value,
+                    _ => return None,
+                };
+                match value {
+                    Rvalue::Call {
+                        callee: Callee::Runtime(actual),
+                        args,
+                    } if *actual == wanted => Some((i, args)),
+                    _ => None,
+                }
+            })
+            .collect()
+    };
+    let prepare = calls(RuntimeFn::LexicalClassPrepare);
+    let finish = calls(RuntimeFn::LexicalClassFinish);
+    let evaluate: Vec<_> = statements
+        .iter()
+        .enumerate()
+        .filter_map(|(i, s)| match s {
+            Statement::Assign {
+                value: Rvalue::DynCallValue { callee, args },
+                ..
+            } => {
+                assert!(args.is_empty());
+                Some((i, callee))
+            }
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        (prepare.len(), finish.len(), evaluate.len()),
+        (1, 1, 2),
+        "{}",
+        crate::pretty::dump(&program)
+    );
+    assert!(matches!(evaluate[0].1, Operand::Local(id) if *id == function.params[0]));
+    assert!(matches!(evaluate[1].1, Operand::Local(id) if *id == function.params[1]));
+    let Operand::Array(bases) = &prepare[0].1[3] else {
+        panic!("所有基值必须完整传给私有frame")
+    };
+    assert_eq!(bases.len(), 2);
+    let mut frozen = Vec::new();
+    for base in bases {
+        let Operand::Local(local) = base else {
+            panic!("base必须先冻结")
+        };
+        let writes: Vec<_> = statements
+            .iter()
+            .enumerate()
+            .filter_map(|(i, s)| {
+                matches!(s, Statement::Assign { dest, .. } if dest == local).then_some(i)
+            })
+            .collect();
+        assert_eq!(writes.len(), 1);
+        frozen.push(writes[0]);
+    }
+    assert!(
+        evaluate[0].0 < frozen[0]
+            && frozen[0] < evaluate[1].0
+            && evaluate[1].0 < frozen[1]
+            && frozen[1] < prepare[0].0
+            && prepare[0].0 < finish[0].0
+    );
+    assert!(
+        calls(RuntimeFn::PrepareOrdinaryMiClass).is_empty(),
+        "不能绕开私有frame"
+    );
+    assert!(calls(RuntimeFn::MakeClass).is_empty());
+    let guards = calls(RuntimeFn::InstanceClassCellGuard);
+    let fills = calls(RuntimeFn::CellSet);
+    assert_eq!(guards.len(), 1);
+    assert!(finish[0].0 < guards[0].0);
+    assert!(fills.iter().any(|(i, _)| *i > guards[0].0));
+    crate::passes::run_pipeline(&mut program, &crate::passes::default_pipeline()).unwrap();
+    validate::validate(&program).unwrap();
+}

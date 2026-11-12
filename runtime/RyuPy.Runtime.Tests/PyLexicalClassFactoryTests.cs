@@ -38,11 +38,14 @@ public class PyLexicalClassFactoryTests
         Assert.Same(parent, child.BaseClass);
         Assert.Throws<PyNotImplementedError>(() =>
             PyLexicalClassFactory.Prepare("C", "C", "source", [new PyClass("Pending")]));
-        foreach (object root in new[] { PyType.Get("dict"), PyType.Get("list"), PyType.Get("str") })
+        foreach (object root in new[] { PyType.Get("list"), PyType.Get("str") })
             Assert.Throws<PyNotImplementedError>(() =>
                 PyLexicalClassFactory.Prepare("C", "C", "source", [root]));
         Assert.IsType<PyClass>(PyLexicalClassFactory.Finish(
             PyLexicalClassFactory.Prepare("C", "C", "source", [PyBaseObject.Type])));
+        var dictionary = Assert.IsType<PyClass>(PyLexicalClassFactory.Finish(
+            PyLexicalClassFactory.Prepare("C", "C", "source", [PyType.Get("dict")])));
+        Assert.IsType<PyDictInstance>(dictionary.Invoke([], [], []));
     }
     [Fact]
     public void HooksAreRejectedAfterBodyAndParentsAreRecheckedAtFinish()

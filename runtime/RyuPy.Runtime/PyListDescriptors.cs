@@ -38,6 +38,8 @@ internal static class PyListDescriptors
                 throw Error(IsMethod(name) ? $"unbound method list.{name}() needs an argument"
                     : $"descriptor '{name}' of '{Owner}' object needs an argument");
             object? self = receiver ?? args[0];
+            // object.__str__可绑定新dict混合族；保存的native方法也必须重验祖先晚改。
+            if (self is PyDictInstance { Class.HasDictC3Layout: true } mixed) mixed.Class.RequireLexicalFactoryReady();
             // object.__str__ 接受任意对象，但只调用 repr，不调用用户 str。
             if (name != "__str__" && !PyListLayout.TryGet(self, out _))
                 throw Error(IsMethod(name)

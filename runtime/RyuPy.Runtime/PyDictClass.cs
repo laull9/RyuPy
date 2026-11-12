@@ -49,6 +49,10 @@ public sealed partial class PyClass
     private void FinalizeDictConstruction()
     {
         if (_dictReady) throw new PyNotImplementedError("dict subclass is already finalized");
+        if (HasDictC3Layout)
+        {
+            ValidateDictC3Family(); _dictReady = true; Touch(); return;
+        }
         var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
         for (PyClass? current = this; current is not null; current = current.BaseClass)
         {
@@ -76,13 +80,22 @@ public sealed partial class PyClass
         {
             if (name is "__name__" or "__qualname__")
                 throw new PyNotImplementedError($"dict subclass metadata {name} mutation is not supported");
-            ValidateDictSlot(name, deleting ? null : value);
+            if (HasDictC3Layout && name == "__slots__") return; // 已冻结的布局不随元数据重绑改变。
+            if (HasDictC3Layout) ValidateDictC3Slot(name, deleting ? null : value);
+            else ValidateDictSlot(name, deleting ? null : value);
         }
         catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
     }
 
     internal void InitializeDictInstance(PyInstance instance, object?[] args, string[] names, object?[] values)
     {
+        if (HasDictC3Layout)
+        {
+            if (!TryResolveDictC3("__init__", out var init)) throw new PyRuntimeError("dict C3 has no initializer");
+            object? returned = init.Invoke(instance, args, names, values);
+            if (returned is not null and not PyNone) throw PyDictLayout.Own(new PyTypeError("__init__() should return None"));
+            return;
+        }
         ConstructionSlots slots = Construction();
         if (!slots.CustomInit) { PyDictLayout.Init(instance, args, names, values); return; }
         // 用户正文在catch之外；只校验错误和非None返回值由原冷构造协议负责。
