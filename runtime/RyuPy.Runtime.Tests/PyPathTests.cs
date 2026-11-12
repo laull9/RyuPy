@@ -55,7 +55,6 @@ public class PyPathTests
     [Fact]
     public void FilesystemOperationsStayInsideOwnedTemporaryDirectory()
     {
-        if (OperatingSystem.IsWindows()) { Assert.Throws<PyNotImplementedError>(() => new PyPath("a")); return; }
         string temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ryupy-path-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temp);
         try
@@ -83,13 +82,12 @@ public class PyPathTests
     [Fact]
     public void PathFactoriesAreNativeTypesWithConcreteIdentity()
     {
-        if (OperatingSystem.IsWindows()) return;
         var attributes = PyPaths.CreateAttributes();
         Assert.Same(attributes, PyPaths.CreateAttributes());
         System.Threading.Tasks.Parallel.For(0, 8, _ =>
             Assert.Same(attributes["Path"], PyPaths.CreateAttributes()["Path"]));
         var pathType = Assert.IsType<PyNativeType>(attributes["Path"]);
-        var posixType = Assert.IsType<PyNativeType>(attributes["PosixPath"]);
+        var posixType = Assert.IsType<PyNativeType>(attributes[OperatingSystem.IsWindows() ? "WindowsPath" : "PosixPath"]);
         object value = pathType.Invoke(["a", "b"], [], [])!;
         Assert.True(pathType.Accepts(value));
         Assert.True(posixType.Accepts(value));
@@ -98,7 +96,7 @@ public class PyPathTests
         Assert.Equal("pathlib", pathType.GetAttr("__module__"));
         var cwd = Assert.IsType<PyPath>(PyOps.CallValue(pathType.GetAttr("cwd"), [], [], []));
         Assert.Equal(Directory.GetCurrentDirectory(), cwd.Value);
-        var windows = Assert.IsType<PyNativeType>(attributes["WindowsPath"]);
+        var windows = Assert.IsType<PyNativeType>(attributes[OperatingSystem.IsWindows() ? "PosixPath" : "WindowsPath"]);
         Assert.Throws<PyNotImplementedError>(() => windows.Invoke([], [], []));
     }
 
@@ -137,7 +135,6 @@ public class PyPathTests
     [Fact]
     public void DirectoryIteratorReadsAtFirstAdvanceAndGlobUsesPythonWildcard()
     {
-        if (OperatingSystem.IsWindows()) { Assert.Throws<PyNotImplementedError>(() => new PyPath("a")); return; }
         string temp = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ryupy-glob-" + Guid.NewGuid().ToString("N"));
         var root = new PyPath(temp);
         var iterator = Assert.IsAssignableFrom<IPyIterator>(Call(root, "iterdir"));

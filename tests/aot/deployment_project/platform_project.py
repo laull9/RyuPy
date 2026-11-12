@@ -11,6 +11,7 @@ import tarfile
 import time
 import traceback
 import urllib.request
+import xml.etree.ElementTree as ET
 
 HERE=Path(__file__).resolve().parent
 REPO=HERE.parents[2]
@@ -45,6 +46,28 @@ def check_windows_tests(stdout):
     require(any(line.startswith('test result: ok. 3 passed; 0 failed; 0 ignored;') for line in stdout.splitlines()), 'Windows安全测试计数不符')
 
 
+def check_windows_path_tests(trx):
+    names={'RyuPy.Runtime.Tests.PyWindowsPathHostTests.'+name for name in
+           ('LexicalObjectsAndContextBoundaries','FactoriesHaveHostIdentity','RegisteredResourceUsesRealIsolatedFiles')}
+    root=ET.parse(trx).getroot();rows=root.findall('.//{*}UnitTestResult')
+    require(len(rows)==3 and {row.get('testName') for row in rows}==names and
+            all(row.get('outcome')=='Passed' for row in rows),'Windows路径宿主测试须三项实际通过，不接受skip或零匹配')
+    counters=root.findall('.//{*}Counters')
+    require(len(counters)==1 and all(counters[0].get(k)==v for k,v in
+            {'total':'3','executed':'3','passed':'3','failed':'0','notExecuted':'0'}.items()),'Windows路径宿主测试计数不符')
+
+
+def source_command(python, package, entry, argv):
+    # 使用明确源路径启动原入口，不向环境加入PYTHONPATH；Native不执行此wrapper。
+    wrapper="import runpy,sys;sys.path.insert(0,sys.argv[1]);sys.argv=sys.argv[2:];runpy.run_path(sys.argv[0],run_name='__main__')"
+    return [str(python),'-B','-c',wrapper,str(package),str(entry)]+argv
+
+
+def check_missing_appdata(result):
+    require(result.returncode != 0 and result.stdout == b'' and b"KeyError: 'APPDATA'" in result.stderr,
+            '缺APPDATA负控未得到应用声明的KeyError')
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--rid',required=True,choices=['osx-arm64','win-x64'])
@@ -64,6 +87,10 @@ def main():
         commit=run.run('source-head',['git','rev-parse','HEAD'],cwd=REPO,check=True).stdout.decode().strip()
         require(commit==os.environ.get('GITHUB_SHA'),'不是当前CI候选')
         result['source_head']=commit
+        if args.rid=='win-x64':
+            longpaths=run.run('git-longpaths',['git','config','--global','--get','core.longpaths'],cwd=REPO,check=True).stdout.decode().strip()
+            require(longpaths=='true' and Path(os.environ['CARGO_HOME']).resolve()==(Path(os.environ['RUNNER_TEMP'])/'c').resolve(),'Windows构建路径准备未生效')
+            result['windows_build_paths']={'git_core_longpaths':longpaths,'cargo_home':os.environ['CARGO_HOME']}
         version=run.run('python-version',[str(python),'-c','import sys; print(sys.version.split()[0])'],cwd=out,env=env,check=True)
         require(version.stdout.decode().strip()=='3.12.13','CP版本不符')
         sdk=run.run('dotnet-version',[str(dotnet),'--version'],cwd=out,env=env,check=True)
@@ -84,6 +111,13 @@ def main():
         original=next(store.glob('pyfiglet-*'));project=prepare(out/'project',original)
         source_before=inventory(project);save(out/'project-inputs.json',source_before)
         run.run('runtime-build',[str(dotnet),'build','runtime/RyuPy.Runtime/RyuPy.Runtime.csproj','-c','Release','-nologo'],cwd=REPO,env=env,check=True,timeout=300)
+        if args.rid=='win-x64':
+            run.run('windows-path-host-tests',[str(dotnet),'test','runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj',
+                    '-c','Release','--filter','FullyQualifiedName~PyWindowsPathHostTests',
+                    '--logger','trx;LogFileName=windows-path-tests.trx','--results-directory',str(logs)],
+                    cwd=REPO,env=env,check=True,timeout=300)
+            check_windows_path_tests(logs/'windows-path-tests.trx')
+            result['windows_path_host_tests']=3
         run.run('cli-build',['cargo','build','--locked','--release','-p','ryupy-cli'],cwd=REPO,env=env,check=True,timeout=900)
         if args.rid=='win-x64':
             safety=run.run('windows-nofollow-tests',['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1','distribution_metadata_windows_','--','--nocapture'],cwd=REPO,env=env,check=True,timeout=600)
@@ -99,10 +133,20 @@ def main():
         for target,relative in [('cli','package/pyfiglet/__main__.py'),('metadata','console_entry.py')]:
             try:
                 entry=project/relative;goldens={}
+                # CP与Native使用完全相同的隔离环境；CP通过显式源路径启动原入口。
+                clean_root=out/(target+'-clean-env');clean_root.mkdir();clean=clean_environment(clean_root)
+                clean_before=inventory(clean_root)
+                save(out/(target+'-cp-environment.json'),{'cwd':str(cwd),'env':clean,
+                     'source_launch':'explicit sys.path plus runpy.run_path; original entry and argv'})
+                if args.rid=='win-x64':
+                    missing=dict(clean);missing.pop('APPDATA')
+                    negative=run.run(target+'-cp-missing-appdata',source_command(python,project/'package',entry,['-f','standard','hi']),cwd=cwd,env=missing)
+                    check_missing_appdata(negative)
                 for name,argv,gold in variants:
-                    cp=run.run(target+'-cp-'+name,[str(python),'-B',str(entry)]+argv,cwd=cwd,env=dict(env,PYTHONPATH=str(project/'package')),check=True)
+                    cp=run.run(target+'-cp-'+name,source_command(python,project/'package',entry,argv),cwd=cwd,env=clean,check=True)
                     expected=platform_golden(name,(APP/gold).read_bytes(),os.linesep)
                     require(cp.stdout==expected and cp.stderr==b'','平台CP黄金不一致');goldens[name]=cp.stdout
+                require(inventory(clean_root)==clean_before,'CP对照污染隔离profile')
                 output=out/(target+'-build')
                 built=run.run(target+'-public-build',[str(cli),'build','--project',str(project/'ryupy.json'),'--target',target,'-o',str(output)],cwd=cwd,env=env,check=True,timeout=600)
                 layout=reported_aot(built.stderr,output,entry.stem,args.rid);native_format(layout.native,args.rid)
@@ -117,8 +161,10 @@ def main():
                 dist_before=inventory(layout.dist)
                 hidden=out/'project-hidden';project.rename(hidden)
                 try:
-                    clean_root=out/(target+'-clean-env');clean_root.mkdir();clean=clean_environment(clean_root)
                     save(out/(target+'-execution-environment.json'),{'cwd':str(cwd),'env':clean,'source_hidden_at':str(hidden),'clean_machine':False})
+                    if args.rid=='win-x64':
+                        negative=run.run(target+'-native-missing-appdata',[str(layout.native),'-f','standard','hi'],cwd=cwd,env=missing)
+                        check_missing_appdata(negative)
                     for location,dist in [('original',layout.dist),('relocated',moved)]:
                         data=json.loads((dist/'ryupy-artifact.json').read_text(encoding='utf-8'))
                         dependency_logs=out/(target+'-'+location+'-dependency-logs');dependency_logs.mkdir()
@@ -128,6 +174,7 @@ def main():
                             actual=run.run(target+'-'+location+'-'+name,[str(dist/layout.native.name)]+argv,cwd=cwd,env=clean,check=True)
                             require(actual.stdout==goldens[name] and actual.stderr==b'','Native与平台CP原流不符')
                 finally:hidden.rename(project)
+                require(inventory(clean_root)==clean_before,'Native运行改变隔离profile')
                 require(inventory(project)==source_before,'运行改变项目源')
                 require(inventory(layout.dist)==dist_before and inventory(moved)==dist_before,'执行改变产物')
                 require(all(sha(p)==h for p,h in frozen.items()),'冻结工具变化')

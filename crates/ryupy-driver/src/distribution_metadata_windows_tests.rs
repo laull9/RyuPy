@@ -5,14 +5,7 @@ use std::fs::{self, OpenOptions};
 struct Tree(PathBuf);
 impl Tree {
     fn new() -> Self {
-        let nonce = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("ryupy-win-metadata-{}-{nonce}", std::process::id()));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(crate::test_temp::directory("ryupy-win-metadata"))
     }
 }
 impl Drop for Tree {
@@ -23,6 +16,17 @@ impl Drop for Tree {
 
 #[test]
 fn distribution_metadata_windows_plain_and_bounded() {
+    // 测试包装也必须真正使用并发安全的独占allocator；持有所有目录直到比较结束。
+    let workers: Vec<_> = (0..16)
+        .map(|_| std::thread::spawn(|| (0..4).map(|_| Tree::new()).collect::<Vec<_>>()))
+        .collect();
+    let trees: Vec<_> = workers
+        .into_iter()
+        .flat_map(|worker| worker.join().unwrap())
+        .collect();
+    let unique: std::collections::HashSet<_> = trees.iter().map(|tree| &tree.0).collect();
+    assert_eq!(trees.len(), 64);
+    assert_eq!(unique.len(), trees.len());
     let tree = Tree::new();
     let path = tree.0.join("METADATA");
     fs::write(&path, b"data").unwrap();
