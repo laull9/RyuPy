@@ -33,9 +33,9 @@ class ProjectGateTests(unittest.TestCase):
         return [{"id": pid, "status": "native" if pid in self.contract["protected_native"] else "unsupported"}
                 for pid in self.contract["project_ids"]]
 
-    def test_policy_keeps_ten_including_recovered_progress(self):
+    def test_policy_keeps_eleven_including_progress_and_toml(self):
         self.assertEqual(set(self.contract["protected_native"]), {
-            "tomli", "docopt", "tabulate", "texttable", "chardet", "wcwidth", "colorama", "termcolor", "binaryornot", "progress"})
+            "tomli", "docopt", "tabulate", "texttable", "chardet", "wcwidth", "colorama", "termcolor", "binaryornot", "progress", "toml"})
         self.assertEqual(self.contract["promotion_requires"], ["progress"])
         rows = self.matrix()
         next(row for row in rows if row["id"] == "progress")["status"] = "failed"
@@ -43,7 +43,7 @@ class ProjectGateTests(unittest.TestCase):
         self.assertFalse(result["preserve_pass"])
         self.assertFalse(result["promotion_pass"])
         self.assertEqual(result["historical_regressions_open"], ["progress"])
-        self.assertEqual(result["native"], 9)
+        self.assertEqual(result["native"], 10)
         self.assertEqual(result["aot"], "not-evaluated")
 
     def test_same_count_cannot_hide_lost_id(self):
@@ -52,7 +52,7 @@ class ProjectGateTests(unittest.TestCase):
             if row["id"] == "tomli": row["status"] = "failed"
             if row["id"] == "six": row["status"] = "native"
         result = evaluate(self.contract, rows)
-        self.assertEqual(result["native"], 10)
+        self.assertEqual(result["native"], 11)
         self.assertEqual(result["protected_lost"], ["tomli"])
         self.assertFalse(result["preserve_pass"])
         self.assertFalse(result["promotion_pass"])
@@ -71,9 +71,20 @@ class ProjectGateTests(unittest.TestCase):
         next(row for row in rows if row['id'] == 'progress')['status'] = 'failed'
         next(row for row in rows if row['id'] == 'pyfiglet')['status'] = 'native'
         result = evaluate(self.contract, rows)
-        self.assertEqual(result['native'], 10)
+        self.assertEqual(result['native'], 11)
         self.assertEqual(result['protected_lost'], ['progress'])
         self.assertFalse(result['preserve_pass'])
+
+    def test_toml_failure_cannot_be_offset_by_new_success(self):
+        for status in ('failed', 'unsupported'):
+            rows = self.matrix()
+            next(row for row in rows if row['id'] == 'toml')['status'] = status
+            next(row for row in rows if row['id'] == 'six')['status'] = 'native'
+            result = evaluate(self.contract, rows)
+            self.assertEqual(result['native'], 11)
+            self.assertEqual(result['protected_lost'], ['toml'])
+            self.assertFalse(result['preserve_pass'])
+            self.assertFalse(result['promotion_pass'])
 
     def test_partial_duplicate_and_unknown_ids(self):
         for rows in (self.matrix()[:-1], self.matrix() + [self.matrix()[0]],

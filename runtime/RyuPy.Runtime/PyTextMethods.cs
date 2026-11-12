@@ -56,7 +56,7 @@ public static partial class PyOps
         "lstrip" => StripText(text, args, left: true, right: false),
         "rstrip" => StripText(text, args, left: false, right: true),
         "split" => PyTextSplit.Invoke(text, args, [], []),
-        "isspace" => PyUnicodeWhitespace.Invoke(text, args, []),
+        "isspace" or "isalnum" => PyUnicodeWhitespace.Invoke(text, args, [], name),
         "splitlines" => SplitLines(text, args),
         "join" => JoinText(text, Single("join", args)),
         "replace" => ReplaceText(text, args),

@@ -71,12 +71,17 @@ internal static class PyDictLayout
         if (instance is not PyDictInstance) return false;
         if (name == "__dict__") throw Own(new PyNotImplementedError("dict subclass instance __dict__ is not supported"));
         if (name != "__class__") return false;
+        // 用户类项可遮蔽根类型属性；交给统一property/实例字段/类链次序，真实TypeOf不变。
+        if (instance.Class.TryLookup(name, out _, out _)) return false;
         value = instance.Class; return true;
     }
 
     internal static void GuardInstanceMutation(PyInstance instance, string name)
     {
-        if (instance is PyDictInstance && name is "__class__" or "__dict__")
+        if (instance is not PyDictInstance) return;
+        // 类链遮蔽后的写/删是普通descriptor或字段操作，不是改变真实Class/layout。
+        if (name == "__class__" && instance.Class.TryLookup(name, out _, out _)) return;
+        if (name is "__class__" or "__dict__")
             throw Own(new PyNotImplementedError($"dict subclass instance {name} mutation is not supported"));
     }
 

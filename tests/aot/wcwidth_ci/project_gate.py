@@ -16,6 +16,9 @@ SORTEDCONTAINERS_COMPILED_PROMOTIONS = frozenset({
 })
 
 
+# 真实toml原入口及扩展四图双PIC通过后，仅准许这三个Legacy模块编译晋升。
+TOML_COMPILED_PROMOTIONS = frozenset({'toml.decoder', 'toml.encoder', 'toml.tz'})
+
 def audit_plans(result, expected):
     """逐项目核实际计划；固定选择集合不等于所有被选模块已编译/执行。"""
     originals = strict.baseline(expected)
@@ -26,13 +29,19 @@ def audit_plans(result, expected):
                    and not summary['protected_lost'] and len(matrix) == 20
                    and {r['id'] for r in matrix} == set(originals)
                    and all(r['run_id'] == summary['run_id'] for r in matrix), '完整同轮保护结果不符')
+    toml = [row for row in matrix if row['id'] == 'toml']
+    strict.require(len(toml) == 1 and toml[0]['status'] == 'native'
+                   and type(toml[0]['run_exit']) is int and toml[0]['run_exit'] == 0
+                   and toml[0]['failure_kind'] == '' and toml[0]['mode'] == 'default-jit',
+                   'toml原入口未在同轮真实通过；不能只凭计划晋升')
     plans = {}
     for pid, selected in expected['selected'].items():
         path = result / pid / 'native' / pid / 'module-environment.json'
         actual = json.loads(path.read_text())
         additions = strict.audit_old_rows(actual, originals[pid], selected,
             compiled_promotions=SORTEDCONTAINERS_COMPILED_PROMOTIONS
-            if pid == 'sortedcontainers' else frozenset())
+            if pid == 'sortedcontainers' else TOML_COMPILED_PROMOTIONS
+            if pid == 'toml' else frozenset())
         level = strict.evidence_layer(result, pid, matrix)
         if pid in {'markdown', 'pyparsing'}:
             strict.audit_candidates(additions, pid, compiled=level == 'deployment')
