@@ -10,6 +10,16 @@ from measure import capture, require, save, sha
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
+ORACLE_TEST = 'default_aot::tests::default_aot_real_graph_emit'
+
+
+def check_oracle_test(stdout):
+    tests = [line.strip() for line in stdout.splitlines() if line.startswith('test ')
+             and not line.startswith('test result:')]
+    require(tests == ['test '+ORACLE_TEST+' ... ok'], 'oracle必须唯一指定测试实际通过')
+    require(any(line.startswith('test result: ok. 1 passed; 0 failed;') for line in stdout.splitlines()),
+            'oracle实际测试计数不是1通过')
+
 
 
 def main():
@@ -47,8 +57,9 @@ def main():
                         METADATA=prepared/'metadata-request.json',INCLUDE='["pyfiglet","pyfiglet.fonts"]',
                         CLI=tools/'ryupy',RUNTIME=tools/'RyuPy.Runtime.dll')
             command(case+'-oracle',['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1',
-                    'default_aot_real_graph_emit','--','--ignored','--nocapture'],600,
+                    ORACLE_TEST,'--','--exact','--ignored','--nocapture'],600,
                     {'RYUPY_DEFAULT_AOT_'+k:str(v) for k,v in values.items()})
+            check_oracle_test((base/(case+'-oracle.stdout')).read_text())
         require(all(sha(p)==h for p,h in frozen.items()), 'oracle改变工具')
     else:
         command('benchmark', [python,'-B',HERE/'run.py','--prepared',prepared,'--python',python,
