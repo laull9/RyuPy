@@ -45,6 +45,8 @@ public sealed class PyBuiltinMethod
     /// <param name="values">关键字值。</param>
     public object? Invoke(object?[] args, string[] names, object?[] values)
     {
+        if (_receiver is string splitText && _name == "split") return PyTextSplit.Invoke(splitText, args, names, values);
+        if (_receiver is string spaceText && _name is "isspace" or "isalnum") return PyUnicodeWhitespace.Invoke(spaceText, args, names, _name);
         if (_receiver is string searchText && PyTextSearch.Has(_name))
             return PyTextSearch.Invoke(searchText, _name, args, names);
         // expandtabs独立绑定须先于通用arity与keyword拒绝。
@@ -136,7 +138,7 @@ public static partial class PyOps
             string when name is "encode" or "upper" or "lower" or "strip" or "lstrip"
                 or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
                 or "index" or "rindex" or "count" or "startswith" or "endswith" or "format"
-                or "partition" or "rpartition" or "expandtabs" => PreparedText,
+                or "partition" or "rpartition" or "expandtabs" or "isspace" or "isalnum" => PreparedText,
             PyGenerator when name is "__iter__" or "__next__" or "send" or "throw" or "close"
                 => PreparedGenerator,
             _ => null,
@@ -168,8 +170,9 @@ public static partial class PyOps
             (PyByteArray or PyBytes, "startswith" or "endswith") => (1, 3),
             (PyBytes, "hex") => (0, 0),
             (string, "format") => (0, int.MaxValue),
-            (string, "upper" or "lower") => (0, 0),
-            (string, "encode" or "strip" or "lstrip" or "rstrip" or "split" or "splitlines") => (0, 1),
+            (string, "upper" or "lower" or "isspace" or "isalnum") => (0, 0),
+            (string, "encode" or "strip" or "lstrip" or "rstrip" or "splitlines") => (0, 1),
+            (string, "split") => (0, 2),
             (string, "join") => (1, 1),
             (string, "startswith" or "endswith") => (1, 3),
             (string, "replace") => (2, 3),

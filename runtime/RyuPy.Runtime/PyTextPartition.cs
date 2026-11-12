@@ -62,7 +62,7 @@ internal static class PyTextPartition
 
     // 成功ordinal匹配后常数时间检查两端，不切开正常补充码点。
     // 两个独立代理码点拼接丢失来源的D009仍独立保留，本切不重写字符串表示。
-    private static bool Boundary(string text, int offset) => offset == 0 || offset == text.Length
+    internal static bool Boundary(string text, int offset) => offset == 0 || offset == text.Length
         || !char.IsHighSurrogate(text[offset - 1]) || !char.IsLowSurrogate(text[offset]);
 
     // 只准备本层自造错误；真实str内容读取不调用__str__或其它用户协议。

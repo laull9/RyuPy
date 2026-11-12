@@ -11,6 +11,7 @@ public sealed class PyNativeType
     private readonly Func<object?[], string[], object?[], object?>? _factory;
     private readonly Func<object?, bool> _accepts;
     private readonly HashSet<string> _bases;
+    private PyClass? _identityBase;
     private readonly Dictionary<string, object?> _attributes = new(StringComparer.Ordinal);
     /// <summary>Python类型短名称。</summary>
     public string Name { get; }
@@ -25,6 +26,18 @@ public sealed class PyNativeType
         Types[name] = this;
     }
 
+    // 内部真实根身份元数据；不接受公开字符串授权，不改变公开构造ABI。
+    internal void ConfigureIdentityBase(PyClass root)
+    {
+        if (_identityBase is not null) throw new System.InvalidOperationException("native identity base already configured");
+        _identityBase = root;
+        _attributes["__base__"] = root;
+        _attributes["__bases__"] = new PyTuple([root]);
+        var nodes = new List<object?> { this };
+        nodes.AddRange(root.MroTuple().Items);
+        _attributes["__mro__"] = new PyTuple(nodes.ToArray());
+    }
+    internal bool IsIdentitySubclassOf(PyClass root) => _identityBase?.IsSubclassOf(root) == true;
     /// <summary>按实例协议声明的名字寻找已登记类型。</summary>
     public static PyNativeType? LookupByName(string name) => Types.TryGetValue(name, out var type) ? type : null;
     /// <summary>原生对象类型检查。</summary>

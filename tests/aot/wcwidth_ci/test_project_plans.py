@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from project_gate import audit_plans, require_progress_promotion, SORTEDCONTAINERS_COMPILED_PROMOTIONS
+from project_gate import audit_plans, require_progress_promotion, SORTEDCONTAINERS_COMPILED_PROMOTIONS, TOML_COMPILED_PROMOTIONS
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import default_source_deployment_validation_plans as strict
 
@@ -66,6 +66,39 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(strict.audit_old_rows(actual, original, selected, allowed), {})
         for approvals in (frozenset(), allowed - {'sortedcontainers.sortedlist'},
                           allowed | {'unexpected'}, allowed | {'sortedcontainers'}):
+            with self.assertRaises(RuntimeError):
+                strict.audit_old_rows(actual, original, selected, approvals)
+        for name in allowed:
+            for key, value in [('compiled', False), ('reason', 'changed'),
+                               ('execution', 'InstanceGlobals'), ('candidate', True),
+                               ('hard', False), ('catalog_authenticated', True),
+                               ('relative_from_import', True), ('ordinary_name_handlers', True)]:
+                bad = copy.deepcopy(actual)
+                next(row for row in bad['modules'] if row['module'] == name)[key] = value
+                with self.assertRaises(RuntimeError):
+                    strict.audit_old_rows(bad, original, selected, allowed)
+            old = copy.deepcopy(original)
+            next(row for row in old['modules'] if row['module'] == name)['compiled'] = True
+            with self.assertRaises(RuntimeError):
+                strict.audit_old_rows(actual, old, selected, allowed)
+        wrong_selected = copy.deepcopy(selected) + [strict.old_projection(actual['modules'][0])]
+        with self.assertRaises(RuntimeError):
+            strict.audit_old_rows(actual, original, wrong_selected, allowed)
+
+    def test_toml_exact_compiled_promotions_preserve_every_other_field(self):
+        expected = json.loads((Path(__file__).parent / 'project-pilot-plans.json').read_text())
+        original = strict.baseline(expected)['toml']
+        selected = expected['selected']['toml']
+        allowed = TOML_COMPILED_PROMOTIONS
+        self.assertEqual(allowed, {'toml.decoder', 'toml.encoder',
+                                   'toml.tz'})
+        actual = copy.deepcopy(original)
+        for row in actual['modules']:
+            row.update(candidate=False, hard=True, catalog_authenticated=False)
+            if row['module'] in allowed: row['compiled'] = True
+        self.assertEqual(strict.audit_old_rows(actual, original, selected, allowed), {})
+        for approvals in (frozenset(), allowed - {'toml.encoder'},
+                          allowed | {'unexpected'}, allowed | {'toml'}):
             with self.assertRaises(RuntimeError):
                 strict.audit_old_rows(actual, original, selected, approvals)
         for name in allowed:
@@ -221,16 +254,17 @@ class PlanTests(unittest.TestCase):
     def test_real_gate_entry_rejects_regression_future_missing_report_and_extra_candidate(self):
         expected = json.loads((Path(__file__).parent / 'project-pilot-plans.json').read_text())
         originals = strict.baseline(expected)
-        known = {'six', 'attrs', 'click', 'toml', 'networkx', 'pyparsing', 'python-dateutil', 'sortedcontainers'}
+        known = {'six', 'attrs', 'click', 'networkx', 'pyparsing', 'python-dateutil', 'sortedcontainers'}
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder); matrix = []
             for pid, original in originals.items():
                 output = root / pid / 'native' / pid; output.mkdir(parents=True)
                 actual = copy.deepcopy(original)
                 for row in actual['modules']: row.update(candidate=False, hard=True, catalog_authenticated=False)
-                if pid == 'sortedcontainers':
+                if pid in {'sortedcontainers', 'toml'}:
+                    allowed = SORTEDCONTAINERS_COMPILED_PROMOTIONS if pid == 'sortedcontainers' else TOML_COMPILED_PROMOTIONS
                     for row in actual['modules']:
-                        if row['module'] in SORTEDCONTAINERS_COMPILED_PROMOTIONS:
+                        if row['module'] in allowed:
                             row['compiled'] = True
                 if pid in {'markdown', 'pyparsing'}:
                     actual['modules'] += list(strict.candidate_rows(pid, pid == 'markdown').values())
@@ -260,6 +294,15 @@ class PlanTests(unittest.TestCase):
             persist()
             with patch.object(strict, 'audit_deployment', side_effect=isolated):
                 self.assertEqual(len(audit_plans(root, expected)), 20)
+                # 摘要即使谎称通过，toml状态/退出/失败类型/模式/同轮身份也不能绕过。
+                toml = next(row for row in matrix if row['id'] == 'toml')
+                saved_toml = copy.deepcopy(toml)
+                for key, value in [('status', 'failed'), ('status', 'unsupported'),
+                                   ('run_exit', 1), ('run_exit', False), ('failure_kind', 'crash'),
+                                   ('mode', 'aot'), ('run_id', 'stale')]:
+                    toml.clear(); toml.update(saved_toml); toml[key] = value; persist()
+                    with self.assertRaises(RuntimeError): audit_plans(root, expected)
+                toml.clear(); toml.update(saved_toml); persist()
                 unexpected_report = root / 'tabulate/native/tabulate/optional-sources.json'
                 unexpected_report.write_text('{}'); persist()
                 with self.assertRaises(RuntimeError): audit_plans(root, expected)

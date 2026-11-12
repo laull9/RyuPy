@@ -76,6 +76,8 @@ internal static class PyAttributeDeletion
             && (descriptorClass.TryLookup("__delete__", out _, out _)
                 || descriptorClass.TryLookup("__set__", out _, out _)))
             throw Unsupported("custom deletion descriptors are not supported");
+        // dict用户类链的普通同名项允许删除自身遮蔽字段；无类项仍是域外布局变更。
+        if (name == "__class__" && value is PyDictInstance && owner.TryLookup(name, out _, out _)) return;
         if (name == "__dict__" && owner.HasSlotLayout) return;
         if (name is "__dict__" or "__class__") throw Unsupported($"instance {name} deletion is not supported");
     }

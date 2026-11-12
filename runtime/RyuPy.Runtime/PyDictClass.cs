@@ -14,7 +14,7 @@ public sealed partial class PyClass
     {
         var slots = new HashSet<string>(StringComparer.Ordinal)
         {
-            "__new__", "__slots__", "__bases__", "__base__", "__mro__", "__class__", "__dict__",
+            "__new__", "__slots__", "__bases__", "__base__", "__mro__", "__dict__",
             "__init_subclass__", "__class_getitem__", "__mro_entries__", "__prepare__",
             "__getattribute__", "__setattr__", "__delattr__", "__get__", "__set__", "__delete__", "__set_name__",
             "__len__", "__bool__", "__iter__", "__getitem__", "__contains__", "__setitem__", "__delitem__",

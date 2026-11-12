@@ -17,8 +17,8 @@ internal static class PyDecimalText
         // CP Decimal先去外围Unicode空白，再忽略任意位置下划线；Unicode Nd按十进制数字归一。
         // Python外围空白另含四个ASCII信息分隔符；.NET Trim遗漏这四项。
         int startTrim = 0, endTrim = input.Length;
-        while (startTrim < endTrim && IsPythonWhitespace(input[startTrim])) startTrim++;
-        while (endTrim > startTrim && IsPythonWhitespace(input[endTrim - 1])) endTrim--;
+        while (startTrim < endTrim && PyUnicodeWhitespace.Is(input[startTrim])) startTrim++;
+        while (endTrim > startTrim && PyUnicodeWhitespace.Is(input[endTrim - 1])) endTrim--;
         string trimmed = input[startTrim..endTrim];
         var normalized = new StringBuilder(trimmed.Length);
         for (int i = 0; i < trimmed.Length; i++)
@@ -91,8 +91,6 @@ internal static class PyDecimalText
         string mantissa = digits.Length == 1 ? digits : digits.Insert(1, ".");
         return sign + mantissa + "E" + (adjusted >= 0 ? "+" : "") + adjusted.ToString(CultureInfo.InvariantCulture);
     }
-
-    private static bool IsPythonWhitespace(char value) => char.IsWhiteSpace(value) || value is >= '\u001c' and <= '\u001f';
 
     private static PyNotImplementedError Invalid() => PyDecimal.Unsupported("invalid text requires decimal.InvalidOperation");
 }

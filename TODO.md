@@ -30,6 +30,10 @@
 
 - [~] 有限精确 Decimal 与有理数 hash：解除真实 toml 的下一依赖，禁止占位类型；独立数值合同和实际 Decimal 编码待验。见 [ADR0166](docs/adr/0166-finite-decimal-values.md)。
 
+- [~] tzinfo 真实协议根与 aware 消费：修复真实 toml 下一继承边界，统一回调/身份/fold/hash/fromutc；原包往返与回归待验。见 [ADR0167](docs/adr/0167-tzinfo-protocol-root.md)。
+
+- [~] Python空白/完整split与精确内建__class__：真实toml进入解析/编码后的通用缺口，四路径合同及完整入口待验。见 [ADR0168](docs/adr/0168-text-and-builtin-identity.md)。
+
 ## Phase 0：脚手架 ✅
 
 - [x] Cargo workspace 与 crate 分层（base / syntax / hir / ty / mir / codegen-cil / driver / cli / e2e）

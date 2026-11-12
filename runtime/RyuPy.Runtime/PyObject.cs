@@ -89,6 +89,10 @@ public static partial class PyObject
         PyFunction function => function.GetMetadata(name),
         PyBuiltinFunction function => function.GetMetadata(name),
         PyBuiltinMethod method => method.GetMetadata(name),
+        // 精确内建载体的根类型属性；前面的用户/原生类分派保留真实描述符优先级。
+        PyList or PyTuple or PyDict or PySet or PyFrozenSet or PyByteArray or PyBytes or string
+            or int or long or System.Numerics.BigInteger or bool or double or PyNone or null
+            when name == "__class__" => TypeOf(obj),
         PyDictView { UseLayoutProtocol: true } when name == "mapping"
             => throw PyDictLayout.Own(new PyNotImplementedError("dict view mapping metadata is not supported")),
         PyList or PyTuple or PyDict or PySet or PyFrozenSet or PyDictView or PyByteArray or PyBytes or string or PyGenerator
@@ -538,7 +542,7 @@ public static partial class PyObject
                 return cls.NativeDefinitionModule is null ? "__main__" : cls.NativeModuleValue;
             case "__bases__":
                 return cls.DirectBasesTuple();
-            case "__mro__" when cls.HasMultipleInheritance:
+            case "__mro__" when cls.HasMultipleInheritance || cls.IsFrozenNativeProtocolRoot:
                 return cls.MroTuple();
             case "__base__":
                 return (object?)cls.BaseClass ?? (cls.BuiltinBase is { } baseName

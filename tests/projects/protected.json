@@ -34,7 +34,8 @@
     "colorama",
     "termcolor",
     "binaryornot",
-    "progress"
+    "progress",
+    "toml"
   ],
   "promotion_requires": [
     "progress"
@@ -117,5 +118,6 @@
     "termcolor",
     "binaryornot"
   ],
-  "preservation_update_note": "f34/CI58完整20已实际恢复progress，当前protected_native为旧10逐ID保护；新增pyfiglet不能抵消回退。reference_commit及historical字段保旧九项/旧progress失败事实，不改历史。"
+  "preservation_update_note": "f34/CI58完整20已实际恢复progress，当前protected_native为旧10逐ID保护；新增pyfiglet不能抵消回退。reference_commit及historical字段保旧九项/旧progress失败事实，不改历史。",
+  "toml_preservation_note": "真实toml原入口、扩展、有限Decimal及tzinfo四图双PIC同源通过后新增toml逐ID保护；完整20同源回归仍须执行，不改历史reference、原源/入口/golden与旧选择。compiled晋升仅decoder/encoder/tz三模块，其余字段不变。"
 }
