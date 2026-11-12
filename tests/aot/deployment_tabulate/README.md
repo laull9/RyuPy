@@ -29,3 +29,19 @@ CP完整任务为ASCII grid输出及Unicode HTML文件输出。`check_cp.py --pr
   两个真实失败保留，不在本部署竖切修runtime，也不纳入支持声明。
 - 首个仓库外项目草稿把metadata置于子目录并使用`../vendor`，被既有分发路径合同拒绝。
   正式配置将metadata置于项目根并用`vendor/table`、`vendor/width`；嵌套路径政策未放宽。
+
+## 独立 Linux Native 门（待官方运行）
+
+`deployment-tabulate-native.yml` 是独立 workflow，不调用 pyfiglet 准备器或性能链。
+固定工具准备后，`hosted_tabulate.py setup` 下载/校验两份原始 sdist，逐文件锁校验并运行 CP 两完整任务，
+构建无 feature 的默认 release CLI 与 Release runtime，冻结工具哈希及无 Python/.NET 的容器 image ID。
+`verify` 调 `runner.py`，只向产品传 `build --project ... --target table -o ...`。
+
+产品发布之后才运行独立多 ROOTS oracle，校验精确九源、实际 PE 冷注册与 metadata payload，
+保持 schema4 的 explicit-only、全 Legacy、自动实例空、无资源请求边界。缺 oracle 或任何角色/来源摘要不符均失败。
+随后复制整个 dist，隐藏项目源目录；原 dist 与搬迁 dist 各执行 grid stdout 和 Unicode HTML 文件任务，
+共 4 次宿主运行与 4 次禁网/只读根容器运行。只挂载 dist、只读外部输入和专用输出目录，不挂载源码/SDK。
+两个输出均逐字比较；不能以退出零、行数或部分 stdout 替代完整结果。
+
+`result.json` 只有全部执行及输入/工具/产物不变性通过才标 `passed=true`。
+receipt 只证明结构深验，容器执行由最终 result 独立记录；未执行前不宣称 Native、跨平台或性能通过。

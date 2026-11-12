@@ -21,7 +21,7 @@ def audit(layout, project, target, output, cli, runtime, python, dotnet, env):
                          '--','--exact','--ignored','--nocapture'],HERE.parents[2],
                    dict(env,**{'RYUPY_DEFAULT_AOT_'+k:str(v) for k,v in values.items()}),600)
     require(record['exit']==0 and record['failure'] is None,'独立oracle失败')
-    check_oracle_test(prefix.with_suffix('.stdout').read_text())
+    check_oracle_test(prefix.with_suffix('.stdout').read_text(encoding='utf-8'))
     from measure import sha
     tools={str(p.resolve()):sha(p) for p in (cli,runtime,python,dotnet)}
     receipt=validate_app_artifact(layout,project,tools,case=target,python=python,dotnet=dotnet,

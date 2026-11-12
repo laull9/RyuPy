@@ -36,6 +36,15 @@ def platform_golden(name, raw, linesep):
     return raw.replace(b'\n', linesep.encode()) if name=='fonts' else raw
 
 
+def check_windows_tests(stdout):
+    prefix='test distribution_metadata::files::windows_tests::distribution_metadata_windows_'
+    expected={prefix+name+' ... ok' for name in ('plain_and_bounded',
+        'handle_identity_and_write_delete_denial','final_symlink_and_junction_rejected')}
+    actual=[line for line in stdout.splitlines() if line.startswith('test ') and not line.startswith('test result:')]
+    require(len(actual)==3 and set(actual)==expected, 'Windows安全测试必须三项实际通过，不接受零匹配/skip')
+    require(any(line.startswith('test result: ok. 3 passed; 0 failed; 0 ignored;') for line in stdout.splitlines()), 'Windows安全测试计数不符')
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--rid',required=True,choices=['osx-arm64','win-x64'])
@@ -66,7 +75,7 @@ def main():
         rust=run.run('rustc-info',['rustc','-vV'],cwd=REPO,env=env,check=True)
         expected='aarch64-apple-darwin' if args.rid=='osx-arm64' else 'x86_64-pc-windows-msvc'
         require(('host: '+expected) in rust.stdout.decode() and 'release: 1.99.1' in rust.stdout.decode(),'Rust宿主/版本不同')
-        recipe=json.loads((REPO/'tests/aot/wcwidth_ci/project-source-recovery.json').read_text())
+        recipe=json.loads((REPO/'tests/aot/wcwidth_ci/project-source-recovery.json').read_text(encoding='utf-8'))
         item=next(x for x in recipe['packages'] if x['package']=='pyfiglet');archive=out/item['filename']
         with urllib.request.urlopen(item['url'],timeout=120) as response:archive.write_bytes(response.read())
         require(sha(archive)==item['sha256'],'原包hash不符');save(out/'download.json',item)
@@ -76,6 +85,9 @@ def main():
         source_before=inventory(project);save(out/'project-inputs.json',source_before)
         run.run('runtime-build',[str(dotnet),'build','runtime/RyuPy.Runtime/RyuPy.Runtime.csproj','-c','Release','-nologo'],cwd=REPO,env=env,check=True,timeout=300)
         run.run('cli-build',['cargo','build','--locked','--release','-p','ryupy-cli'],cwd=REPO,env=env,check=True,timeout=900)
+        if args.rid=='win-x64':
+            safety=run.run('windows-nofollow-tests',['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1','distribution_metadata_windows_','--','--nocapture'],cwd=REPO,env=env,check=True,timeout=600)
+            check_windows_tests(safety.stdout.decode('utf-8'))
         tools=out/'tools';tools.mkdir();cli=tools/('ryupy.exe' if os.name=='nt' else 'ryupy')
         shutil.copy2(REPO/'target/release'/cli.name,cli)
         runtime=tools/'RyuPy.Runtime.dll';shutil.copy2(REPO/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll',runtime)
@@ -108,7 +120,7 @@ def main():
                     clean_root=out/(target+'-clean-env');clean_root.mkdir();clean=clean_environment(clean_root)
                     save(out/(target+'-execution-environment.json'),{'cwd':str(cwd),'env':clean,'source_hidden_at':str(hidden),'clean_machine':False})
                     for location,dist in [('original',layout.dist),('relocated',moved)]:
-                        data=json.loads((dist/'ryupy-artifact.json').read_text())
+                        data=json.loads((dist/'ryupy-artifact.json').read_text(encoding='utf-8'))
                         dependency_logs=out/(target+'-'+location+'-dependency-logs');dependency_logs.mkdir()
                         dependencies=audit(Runner(dependency_logs,deadline=run.deadline),dist,args.rid,dependency_tools,binaries=dependency_binaries(dist,data))
                         save(out/(target+'-'+location+'-dependencies.json'),dependencies)

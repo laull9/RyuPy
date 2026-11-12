@@ -11,7 +11,7 @@ sys.path.insert(0,str(HERE.parent));sys.path.insert(0,str(HERE.parent/'standalon
 from manifest_verify import image_header
 from platform_support import native_format
 from validate_artifact import validate_app_artifact
-from platform_project import platform_golden
+from platform_project import platform_golden, check_windows_tests
 
 
 class PlatformContractTests(unittest.TestCase):
@@ -24,11 +24,19 @@ class PlatformContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):platform_golden('unknown',raw,'\r\n')
 
     def test_rust_override_matches_repository_build_context(self):
-        workflow=(HERE.parents[2]/'.github/workflows/deployment-project-platforms.yml').read_text()
+        workflow=(HERE.parents[2]/'.github/workflows/deployment-project-platforms.yml').read_text(encoding='utf-8')
         self.assertIn("RUSTUP_TOOLCHAIN: '1.99.1'",workflow)
         self.assertIn("toolchain: '1.99.1'",workflow)
-        source=(HERE/'platform_project.py').read_text()
+        source=(HERE/'platform_project.py').read_text(encoding='utf-8')
         self.assertIn("run('rustc-info',['rustc','-vV'],cwd=REPO",source)
+
+    def test_windows_security_tests_must_really_run(self):
+        prefix='test distribution_metadata::files::windows_tests::distribution_metadata_windows_'
+        names=('plain_and_bounded','handle_identity_and_write_delete_denial','final_symlink_and_junction_rejected')
+        good='\n'.join(prefix+n+' ... ok' for n in names)+'\ntest result: ok. 3 passed; 0 failed; 0 ignored;'
+        check_windows_tests(good)
+        for bad in ('test result: ok. 0 passed; 0 failed; 0 ignored;',good.replace(' ... ok',' ... ignored',1),good+good):
+            with self.assertRaises(ValueError):check_windows_tests(bad)
 
     def test_linux_default_and_unknown_platform_rejected(self):
         self.assertEqual(inspect.signature(validate_app_artifact).parameters['expected_rid'].default,'linux-x64')
