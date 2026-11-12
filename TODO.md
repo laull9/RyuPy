@@ -863,3 +863,16 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
 - [ ] ADR-0150：显式完整分发快照→真实metadata首次import→EntryPoints→普通动态load闭环候选。源码/pending fixtures已准备，Rust纯检查与C#/CP/JIT/AOT/完整保护门分别记录；不计默认Markdown通过。
 
 - [~] ADR-0155：pilot普通JIT固定源catalog最终部署、非绑定candidate固定点、全组冷激活、自动完整分发快照已接线；ExplicitOnly/AOT/fixed关闭。新增Rust/C#及AutoUnavailable独立host probe待同源CI；原A pending、默认11/8/1不改，不提前计Markdown通过。
+
+
+### 2026-11-12：规范 ABC / view / 有限 slots 与真实 sortedcontainers
+
+- [x] 本地通用类/布局与依赖竖切：规范十八 ABC 根、有限 mixins/live views、
+  空 slots 与真实字典、dict 七槽、set 家族、既有 map 模块回退；
+  完整 make check 2927 C# / 415 e2e 通过，279 ignored 保留。
+- [x] 原 sortedcontainers 2.4.0 入口与黄金不改，默认/PIC0 完整差分通过；
+  完整二十项目 pilot 配置 13/7/0，无 pilot 12/7/1，两口径分开。
+- [ ] 同提交 hosted 双配置完整回归和旧 Native AOT 保护，未验不得宣称全 CI 绿色。
+- [ ] 扩展探针末尾跨模块再派生 SortedList 仍被旧延后发布合同守卫拒绝；
+  下一切设计通用动态单基准备合同，不删除保护、不按项目名特判。
+- [ ] ABC/slots 冷路与实例布局新增成本尚未测量，不关闭历史性能风险。见 ADR0163。

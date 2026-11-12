@@ -12,6 +12,10 @@ internal static class PyMappingProxyOperators
     {
         if (left is PyMappingProxy a) left = a.Mapping;
         if (right is PyMappingProxy b) right = b.Mapping;
+        if ((left is PyDictInstance || right is PyDictInstance)
+            && left is not PyMappingProxy and not PyOrderedDict
+            && right is not PyMappingProxy and not PyOrderedDict)
+            return PyDictSubclassDispatch.Union(left!, right!);
         GuardDerived(left, right);
         // 每侧只有轮到时才读取、守门和调用；左回调可以动态替换右侧槽。
         if (TrySlot(left, "__or__", right, out object? forward) && forward is not PyNotImplemented)

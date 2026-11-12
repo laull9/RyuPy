@@ -399,3 +399,34 @@ fn compiled_ordinary_mi_aot_is_explicitly_rejected() {
             .any(|d| d.message.contains("多继承C3"))
     );
 }
+
+#[test]
+fn compiled_abc_single_base_cold_contract_still_rejects_aot() {
+    for source in [
+        "from collections.abc import MutableSequence\nclass C(MutableSequence): pass\n",
+        "try:\n    from collections.abc import MutableSequence\nexcept ImportError:\n    from collections import MutableSequence\nclass C(MutableSequence): pass\n",
+    ] {
+        let root = root();
+        std::fs::write(root.join("entry.py"), source).unwrap();
+        let mut session = Session::default();
+        assert!(
+            crate::compile_linked_locations(
+                &mut session,
+                &root.join("entry.py"),
+                &[],
+                true,
+                None,
+                true
+            )
+            .is_err()
+        );
+        assert!(
+            session
+                .diagnostics
+                .iter()
+                .any(|d| d.message.contains("多继承C3")),
+            "{:?}",
+            session.diagnostics
+        );
+    }
+}

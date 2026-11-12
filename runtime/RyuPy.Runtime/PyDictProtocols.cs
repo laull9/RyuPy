@@ -123,7 +123,10 @@ internal static class PyDictProtocols
                 PyDict first = name == "__or__" ? PyDictLayout.RequireRaw(self) : other;
                 PyDict second = name == "__or__" ? other : PyDictLayout.RequireRaw(self);
                 RequireScalarContents(first); RequireScalarContents(second);
-                PyDict result = first.Copy(); result.Update(second); return result;
+                PyDict result = new();
+                PyOps.DictLayoutUpdateSource(result, name == "__or__" ? self : args[0]);
+                PyOps.DictLayoutUpdateSource(result, name == "__or__" ? args[0] : self);
+                return result;
             default: return Compare(name, self, args[0]);
         }
     }

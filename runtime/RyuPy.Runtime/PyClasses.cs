@@ -122,6 +122,8 @@ public sealed partial class PyClass
     {
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
             throw new PyNotImplementedError("MI structural mutation is not supported");
+        PyAbc.GuardAbstractMutation(this, name);
+        GuardSlotClassMutation(name);
         PyNamedTupleLayout.GuardMutation(this);
         PyEnum.GuardClassMutation(this, name);
         GuardConstructionSet(name, value);
@@ -139,6 +141,8 @@ public sealed partial class PyClass
     {
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
             throw new PyNotImplementedError("MI structural mutation is not supported");
+        PyAbc.GuardAbstractMutation(this, name);
+        GuardSlotClassMutation(name);
         PyNamedTupleLayout.GuardMutation(this);
         GuardTypingIoMutation(name, deleting: true);
         PyTypingGenericMetadata.MutateClass(this, name);
@@ -183,6 +187,7 @@ public sealed partial class PyClass
     /// <summary>枚举某实例真正已赋值的属性名，不暴露同类其它实例或已删除的槽位。</summary>
     internal IEnumerable<string> AssignedInstanceNames(PyInstance instance)
     {
+        if (HasSlotLayout) foreach (string name in instance.SlotDictionaryNames()) yield return name;
         if (_instanceSlots is null) yield break;
         foreach (var (name, slot) in _instanceSlots)
             if (instance.IsSlotSet(slot)) yield return name;
@@ -302,6 +307,7 @@ public sealed partial class PyClass
     public object? Invoke(object?[] args, string[] kwNames, object?[] kwValues)
     {
         RequireLexicalFactoryReady();
+        PyAbc.RequireConcrete(this);
         if (IsTypingGenericRoot) return PyTypingGeneric.Construct(args, kwNames);
         RequireTypingIoReady();
         RequireTypingGenericReady();
@@ -347,7 +353,7 @@ public sealed partial class PyClass
 }
 
 /// <summary>普通类实例：类引用 + 实例属性字典（保持插入顺序）。</summary>
-public class PyInstance
+public partial class PyInstance
 {
     /// <summary>所属类。</summary>
     public PyClass Class { get; }

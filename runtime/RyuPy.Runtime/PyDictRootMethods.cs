@@ -23,7 +23,9 @@ internal static class PyDictRootMethods
             case "keys": return new PyDictView(raw, PyDictViewKind.Keys, true, self is PyDictInstance);
             case "values": return new PyDictView(raw, PyDictViewKind.Values, true, self is PyDictInstance);
             case "items": return new PyDictView(raw, PyDictViewKind.Items, true, self is PyDictInstance);
-            case "copy": PyDictProtocols.RequireScalarContents(raw); return raw.Copy();
+            case "copy":
+                PyDictProtocols.RequireScalarContents(raw);
+                var copy = new PyDict(); PyOps.DictLayoutUpdateSource(copy, self); return copy;
             case "popitem":
                 if (self is not PyDictInstance) PyDictProtocols.RequireScalarContents(raw);
                 if (raw.Count == 0) throw PyDictLayout.Own(new PyKeyError("popitem(): dictionary is empty"));

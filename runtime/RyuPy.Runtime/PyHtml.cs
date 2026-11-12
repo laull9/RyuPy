@@ -59,8 +59,7 @@ public static class PyHtml
     private static void GuardReplacementLookup(object? current)
     {
         if (current is not PyInstance instance) return;
-        bool hasInstance = instance.Class.TryGetInstanceSlot("replace", out int slot)
-            && instance.TryGetSlot(slot, out _);
+        bool hasInstance = instance.TryOwnAttribute("replace", out _);
         if (instance.Class.TryLookup("replace", out _, out object? raw))
         {
             // 普通 property 是真实数据描述符，仍由 GetAttr 执行 getter；不误拦它。

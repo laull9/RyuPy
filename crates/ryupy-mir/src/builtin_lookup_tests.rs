@@ -206,3 +206,25 @@ fn default_builtin_fixed_abi_rejects_wrong_arity_argument_result_and_array_call(
             .any(|e| e.contains("固定Call ABI"))
     );
 }
+
+#[test]
+fn conditional_map_binding_uses_shared_dynamic_default_lookup_not_unbound_guard() {
+    let program = compile(
+        "if False:\n    from itertools import imap as map\ndef f():\n    return map(str, [1])\n",
+        false,
+    );
+    let dump = pretty::dump(&program);
+    assert!(dump.contains("LoadDeletedModuleName"), "{dump}");
+    assert!(!dump.contains("CheckGlobalBound"), "{dump}");
+    assert!(
+        program
+            .globals
+            .iter()
+            .any(|(_, g)| g.name.ends_with("_map") && g.ty == MirType::Dynamic)
+    );
+    let instance = compile(
+        "if False:\n    map = None\ndef f():\n    return map(str, [1])\n",
+        true,
+    );
+    assert!(!pretty::dump(&instance).contains("LoadDeletedModuleName"));
+}

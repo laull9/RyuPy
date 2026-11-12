@@ -121,7 +121,7 @@ public static class PyImportlibUtil
                 || instance.Class.TryLookup(attribute, out _, out _)
                 || instance.Class.TryLookup("__getattr__", out _, out _)
                 || instance.Class.TryLookup("__getattribute__", out _, out _)
-                || (instance.Class.TryGetInstanceSlot(attribute, out int slot) && instance.TryGetSlot(slot, out _)))
+                || (instance.TryOwnAttribute(attribute, out _)))
                 throw Unsupported("custom name/package protocols");
             throw Error(new PyAttributeError($"'{PyRepr.TypeName(value)}' object has no attribute '{attribute}'"));
         }

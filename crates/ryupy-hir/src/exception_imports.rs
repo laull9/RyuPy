@@ -76,6 +76,14 @@ impl ExceptionImport {
         }
     }
 
+    /// ABC只选择需延后发布的冷类合同，不把导出冻结成静态布局身份。
+    pub(crate) fn peek_abc_base(&self, path: &[&str], position: TextSize) -> bool {
+        self.module == "collections.abc"
+            && self
+                .normalized_member(path, position)
+                .is_some_and(|name| crate::abc_bases::NAMES.contains(&name))
+    }
+
     /// 只让准确类型导出写入取消叶模块身份证明；无关属性不扩大失效域。
     /// from导入已复制类型引用，随后写该类型的属性不是重绑引用本身。
     pub(crate) fn affected_by_attribute_write(&self, path: &[String]) -> bool {
@@ -85,6 +93,7 @@ impl ExceptionImport {
         let path: Vec<_> = path.iter().map(String::as_str).collect();
         self.peek(&path, self.available).is_some()
             || self.peek_native_base(&path, self.available).is_some()
+            || self.peek_abc_base(&path, self.available)
     }
 
     pub(crate) fn resolve(&self, path: &[&str], position: TextSize) -> Option<&'static str> {

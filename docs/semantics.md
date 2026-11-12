@@ -1469,3 +1469,26 @@ frame/traceback 对象 API。V1 产品域明确以 NotImplementedError 拒绝观
 算术仍保留旧 Binary 左槽优先于右反射槽的已知偏差，尚未补全右子类反射优先；
 operator 不另造一套修补分派。`operator_reflected_subclass_pending.py` 明确保留该
 CP 差分失败边界，普通无子类的左右 NotImplemented 回退另有通过用例。
+
+### 普通空 slots 与 ABC 固定槽的有限布局
+
+普通类的空 `__slots__` 现在参与真实布局：无字典祖先的空槽实例不能新增字段；未声明
+slots 的后代恢复实例字典，有字典祖先则继续保留字典。canonical MappingView 的
+`_mapping` 使用独立固定槽，不进入 `__dict__`，同名字典项不能覆盖数据描述符。
+不相关固定存储祖先产生布局冲突。非空用户 slots 仍明确 NotImplementedError。
+
+本轮仅 slots/ABC 族开放 live `__dict__`，不扩大旧无 slots 普通类的既有反射边界。
+返回真正字典，别名修改立即可见；赋值只支持 exact dict 引用替换，dict 子类替换明确
+NotImplementedError，非 dict 为 TypeError。删除 `__dict__` 重置字典，不清空旧别名。
+字典内的 `__dict__` 键不改变结构属性。类 `__dict__` 覆盖/重绑与该族实例 `__class__`
+重绑明确不支持。真实 slots 族完成后修改 `__slots__` 仅改变类元数据，不重新布置实例。
+旧无 slots 祖先晚设不受支持的声明（如 None）仍受 S1 家族能力守卫拒绝；
+此为保留的有限实现边界，CPython 此时仅改变元数据，不会拒绝派生类使用。
+
+新族暂走属性及方法 PIC 冷回退，避免直接字典修改绕过缓存失效；dataclass 直接数组写
+构造计划不准入新族。旧 typing.IO/Generic 专用布局合同不因此改变。此切不宣称完整
+slots/ABCMeta，也不宣称性能零成本：PyInstance 新增一个惰性字典引用字段。
+
+#### 精确 set 方法族（ABC 项目验证配套）
+
+`isdisjoint/issubset/issuperset/copy/update/intersection_update/difference_update/symmetric_difference/symmetric_difference_update` 采用统一直接/PIC/保存方法绑定；`union/intersection/difference` 接受零或多个 iterable。非集合源遵守 CPython 3.12 的短路消费，update/difference_update 失败保留前缀，intersection_update 失败不替换原集合。现有 HashSet 未暴露缓存 hash，精确 set/frozenset 源含用户 hash 的复制/查询、以及需复用缓存 hash 的交集/对称差用户对象域明确 NI，不用重复用户回调伪装兼容；一般 iterable 的 update 复用流式 SetExtend。未扩展 frozenset 自身方法表、set 派生、根类型未绑定描述符或 pop，未宣称成本不变。

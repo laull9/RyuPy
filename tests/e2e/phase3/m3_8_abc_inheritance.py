@@ -1,4 +1,3 @@
-# ryupy: pending
 # ABC 类族合同：真实身份/C3、抽象约束、空slots及live view，不能靠同名空壳类过关。
 from collections.abc import Sequence, MutableSequence, MutableSet, KeysView, ItemsView, ValuesView
 

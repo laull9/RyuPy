@@ -10,6 +10,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import default_source_deployment_validation_plans as strict
 
 
+# 只批准已验收的普通MI/ABC源码编译晋升，不扩大默认模块选择或候选身份。
+SORTEDCONTAINERS_COMPILED_PROMOTIONS = frozenset({
+    'sortedcontainers.sorteddict', 'sortedcontainers.sortedlist', 'sortedcontainers.sortedset',
+})
+
+
 def audit_plans(result, expected):
     """逐项目核实际计划；固定选择集合不等于所有被选模块已编译/执行。"""
     originals = strict.baseline(expected)
@@ -24,7 +30,9 @@ def audit_plans(result, expected):
     for pid, selected in expected['selected'].items():
         path = result / pid / 'native' / pid / 'module-environment.json'
         actual = json.loads(path.read_text())
-        additions = strict.audit_old_rows(actual, originals[pid], selected)
+        additions = strict.audit_old_rows(actual, originals[pid], selected,
+            compiled_promotions=SORTEDCONTAINERS_COMPILED_PROMOTIONS
+            if pid == 'sortedcontainers' else frozenset())
         level = strict.evidence_layer(result, pid, matrix)
         if pid in {'markdown', 'pyparsing'}:
             strict.audit_candidates(additions, pid, compiled=level == 'deployment')

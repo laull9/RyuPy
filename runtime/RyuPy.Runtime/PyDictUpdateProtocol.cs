@@ -36,7 +36,9 @@ public static partial class PyOps
         if (source is PyDictInstance wrapper)
         {
             wrapper.Class.RequireDictReady();
-            DictLayoutUpdateSource(target, wrapper);
+            if (PyDictSubclassDispatch.HasCustomIterator(wrapper))
+                DictUpdateMapping(target, wrapper, PyObject.GetAttr(wrapper, "keys"));
+            else DictLayoutUpdateSource(target, wrapper);
             return;
         }
         // iter(user) 只是运行时适配器，Python 中仍是原对象，不能隐藏它的 keys。
@@ -73,6 +75,8 @@ public static partial class PyOps
         if (source is PyDictInstance wrapper)
         {
             wrapper.Class.RequireDictReady();
+            if (PyDictSubclassDispatch.HasCustomIterator(wrapper))
+            { DictUpdateSource(target, wrapper); return; }
             raw = wrapper.Payload;
         }
         if (raw is not null)
@@ -85,6 +89,15 @@ public static partial class PyOps
         }
         // generic 路径已有逐项键/目标守卫与流式前缀；proxy 也有自己的有限守卫。
         DictUpdateSource(target, source);
+    }
+
+    // kwargs 合并必须先查重复再取值；只共享 keys 的真实物化，不提前读取所有 value。
+    internal static object?[] DictSubclassKeys(PyDictInstance source)
+    {
+        object sequence = DictUpdateSequence(DictUpdateMappingCall(PyObject.GetAttr(source, "keys"), null, invoke: true));
+        var keys = new object?[DictUpdateCount(sequence)];
+        for (int i = 0; i < keys.Length; i++) keys[i] = DictUpdateAt(sequence, i);
+        return keys;
     }
 
     // 所有外源共用完整 inner 物化、错误索引、键域与立即提交逻辑，避免快路悄悄改变失败前缀。

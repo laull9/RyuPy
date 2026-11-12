@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
-from project_gate import audit_plans, require_progress_promotion
+from project_gate import audit_plans, require_progress_promotion, SORTEDCONTAINERS_COMPILED_PROMOTIONS
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 import default_source_deployment_validation_plans as strict
 
@@ -52,6 +52,39 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             strict.audit_old_rows(actual, originals['pyfiglet'], expected['selected']['pyfiglet'])
 
+    def test_explicit_compiled_promotions_preserve_every_other_field(self):
+        expected = json.loads((Path(__file__).parent / 'project-pilot-plans.json').read_text())
+        original = strict.baseline(expected)['sortedcontainers']
+        selected = expected['selected']['sortedcontainers']
+        allowed = SORTEDCONTAINERS_COMPILED_PROMOTIONS
+        self.assertEqual(allowed, {'sortedcontainers.sorteddict', 'sortedcontainers.sortedlist',
+                                   'sortedcontainers.sortedset'})
+        actual = copy.deepcopy(original)
+        for row in actual['modules']:
+            row.update(candidate=False, hard=True, catalog_authenticated=False)
+            if row['module'] in allowed: row['compiled'] = True
+        self.assertEqual(strict.audit_old_rows(actual, original, selected, allowed), {})
+        for approvals in (frozenset(), allowed - {'sortedcontainers.sortedlist'},
+                          allowed | {'unexpected'}, allowed | {'sortedcontainers'}):
+            with self.assertRaises(RuntimeError):
+                strict.audit_old_rows(actual, original, selected, approvals)
+        for name in allowed:
+            for key, value in [('compiled', False), ('reason', 'changed'),
+                               ('execution', 'InstanceGlobals'), ('candidate', True),
+                               ('hard', False), ('catalog_authenticated', True),
+                               ('relative_from_import', True), ('ordinary_name_handlers', True)]:
+                bad = copy.deepcopy(actual)
+                next(row for row in bad['modules'] if row['module'] == name)[key] = value
+                with self.assertRaises(RuntimeError):
+                    strict.audit_old_rows(bad, original, selected, allowed)
+            old = copy.deepcopy(original)
+            next(row for row in old['modules'] if row['module'] == name)['compiled'] = True
+            with self.assertRaises(RuntimeError):
+                strict.audit_old_rows(actual, old, selected, allowed)
+        wrong_selected = copy.deepcopy(selected) + [strict.old_projection(actual['modules'][0])]
+        with self.assertRaises(RuntimeError):
+            strict.audit_old_rows(actual, original, wrong_selected, allowed)
+
     def test_full_contract_missing_source_duplicate_or_bad_digest_rejected(self):
         expected = json.loads((Path(__file__).parent / 'project-pilot-plans.json').read_text())
         contract = json.loads(strict.CONTRACT.read_text())
@@ -92,7 +125,7 @@ class PlanTests(unittest.TestCase):
                 dependencies={n: sources[n]['dependencies'] for n in rows}, locations=locations,
                 deferred={}, diagnostics={}, outside=['markdown.__main__'], metadata_unavailable=None,
                 protected=['json', 'zipfile', 'optparse', 'getopt', 're', 'dataclasses', 'unittest',
-                           'enum', 'io', 'typing', 'xml.etree.ElementTree'])
+                           'enum', 'io', 'typing', 'xml.etree.ElementTree', 'collections.abc'])
             target = output / 'optional-sources.json'; target.write_text(json.dumps(report))
             self.assertEqual(len(strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')['sources']), 22)
             expected = json.loads((Path(__file__).parent / 'project-pilot-plans.json').read_text())
@@ -115,6 +148,14 @@ class PlanTests(unittest.TestCase):
                                ('deferred', {'html.parser': 'unsupported'}), ('protected', []), ('outside', ['extra'])]:
                 bad = copy.deepcopy(report); bad[key] = value; target.write_text(json.dumps(bad))
                 with self.assertRaises(RuntimeError): strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')
+            # 原生保护仍是精确有序合同：缺新增项、增项、重复与乱序均拒绝。
+            protected = report['protected']
+            for changed in (protected[:-1], protected + ['unexpected'],
+                            protected + ['collections.abc'], list(reversed(protected))):
+                bad = copy.deepcopy(report); bad['protected'] = changed
+                target.write_text(json.dumps(bad))
+                with self.assertRaisesRegex(RuntimeError, '原生保护集合改变'):
+                    strict.audit_deployment(output, rows, 'markdown', inputs / 'markdown')
             # 第19条仍可枚举，但Outside不能缺失/重复/增项，亦不能转为候选代码或来源。
             for outside in ([], ['markdown.__main__', 'markdown.__main__'],
                             ['markdown.__main__', 'extra'], ['extra']):
@@ -187,6 +228,10 @@ class PlanTests(unittest.TestCase):
                 output = root / pid / 'native' / pid; output.mkdir(parents=True)
                 actual = copy.deepcopy(original)
                 for row in actual['modules']: row.update(candidate=False, hard=True, catalog_authenticated=False)
+                if pid == 'sortedcontainers':
+                    for row in actual['modules']:
+                        if row['module'] in SORTEDCONTAINERS_COMPILED_PROMOTIONS:
+                            row['compiled'] = True
                 if pid in {'markdown', 'pyparsing'}:
                     actual['modules'] += list(strict.candidate_rows(pid, pid == 'markdown').values())
                 (output / 'module-environment.json').write_text(json.dumps(actual))

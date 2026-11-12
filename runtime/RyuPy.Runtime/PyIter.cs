@@ -103,7 +103,7 @@ public sealed class PyIter : IPyIterator
         IPyIterator iterator => iterator,
         // 普通实例：调用一次 `__iter__`，验证返回对象的迭代器协议。
         PyListInstance list => PyListProtocols.Iter(list),
-        PyDictInstance dict => PyDictProtocols.Iter(dict),
+        PyDictInstance dict => PyDictSubclassDispatch.Iter(dict),
         PyInstance instance => CreateFromObject(instance),
         _ => throw NotIterable(source),
     };

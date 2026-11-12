@@ -203,8 +203,14 @@ public static partial class PyOps
         RejectUnknownKeywords("reversed", names);
         object? value = Single("reversed", args);
         if (value is PyListInstance list) return PyListProtocols.Reversed(list);
-        if (value is PyDictInstance dict) return PyDictProtocols.Reversed(dict);
+        if (value is PyDictInstance dict) return PyDictSubclassDispatch.Reversed(dict) ?? PyNone.Instance;
         if (value is PyDictView { UseLayoutProtocol: true } view) return PyDictViewProtocols.Iter(view, reverse: true);
+        // 普通实例也必须优先使用类型上的反向协议，不能先迭代物化（可能无限或有副作用）。
+        if (value is PyInstance instance && instance.Class.TryLookup("__reversed__", out _, out object? raw))
+        {
+            if (raw is null or PyNone) throw new PyTypeError($"'{instance.Class.Name}' object is not reversible");
+            if (PyObject.TryMethod(value, "__reversed__", [], out object? ordinary)) return ordinary ?? PyNone.Instance;
+        }
         if (value is PyNativeObject && PyObject.TryMethod(value, "__reversed__", [], out object? reversed))
             return reversed ?? PyNone.Instance;
         object?[] items = ToSequence(value);

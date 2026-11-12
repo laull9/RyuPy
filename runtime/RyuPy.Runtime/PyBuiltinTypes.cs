@@ -16,6 +16,7 @@ public static partial class PyOps
         PyType root when ReferenceEquals(root, PyBaseObject.Type) => true,
         PyType root when ReferenceEquals(root, PySlice.Type) => value is PySlice,
         PyNativeType native => native.Accepts(value),
+        PyClass abc when PyAbc.IsAbc(abc) => PyAbc.Accepts(abc, value),
         PyClass cls => PyObject.IsInstance(value, cls),
         PyType pyType => MatchesBuiltin(value, pyType.Name),
         _ => throw new PyTypeError(
@@ -90,12 +91,13 @@ public static partial class PyOps
         (PyTypedDictType, _) => IsSubclassOf(PyType.Get("dict"), parent),
         (PyType { Name: "_TypedDictMeta" }, PyType { Name: "type" or "object" }) => true,
         (PyType { Name: "ellipsis" }, PyType { Name: "object" }) => true,
-        (_, PyNativeType abc) when PyAbc.IsAbc(abc) => PyAbc.IsSubclass(child, abc),
+        (_, PyClass abc) when PyAbc.IsAbc(abc) => PyAbc.IsSubclass(child, abc),
         (PyNativeType derived, PyNativeType baseType) => derived.IsSubclassOf(baseType),
         (PyNativeType derived, PyType builtin) => derived.IsSubclassOfBuiltin(builtin.Name),
         (PyClass derived, PyClass baseClass) => derived.IsSubclassOf(baseClass),
         (PyType or PyNativeType or PyTypedDictType, PyClass target) when target.IsTypingIoFamily => false,
         (_, PyClass target) when target.IsTypingIoFamily => throw new PyTypeError("issubclass() arg 1 must be a class"),
+        (PyType or PyNativeType, PyClass) => false,
         (PyClass derived, PyType builtin) => (derived.HasStringLayout && ReferenceEquals(builtin, PyType.Get("str")))
             || (derived.HasListLayout && ReferenceEquals(builtin, PyType.Get("list")))
             || (derived.HasDictLayout && ReferenceEquals(builtin, PyType.Get("dict")))

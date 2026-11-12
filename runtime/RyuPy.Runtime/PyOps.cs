@@ -116,6 +116,9 @@ public static partial class PyOps
         // 其它类型仍沿既有二元/反射协议；数值取模不受此入口影响。
         if (op == Mod && a is string format) return PyPercentFormat.Format(format, b);
         if (op == Mod && a is PyStringInstance subformat) return PyPercentFormat.Format(subformat.Value, b);
+        if (op == BitOr && (a is PyDictInstance || b is PyDictInstance)
+            && a is not PyMappingProxy and not PyOrderedDict && b is not PyMappingProxy and not PyOrderedDict)
+            return PyDictSubclassDispatch.Union(a, b, inplace);
         if (TryBinaryMagic(op, a, b, out object? magic))
         {
             return magic!;

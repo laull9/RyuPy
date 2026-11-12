@@ -25,6 +25,8 @@ public sealed partial class PyClass
         // 默认字典运算直接访问payload；反射/原位覆盖尚未接通，必须显式拒绝而不是静默忽略。
         foreach (string op in new[] { "add", "mul", "mod", "sub", "truediv", "floordiv", "pow", "and", "or", "xor", "lshift", "rshift", "matmul", "divmod" })
             foreach (string prefix in new[] { "", "r", "i" }) slots.Add($"__{prefix}{op}__");
+        foreach (string supported in new[] { "__setitem__", "__delitem__", "__iter__", "__reversed__", "__or__", "__ror__", "__ior__" })
+            slots.Remove(supported);
         return slots;
     }
 
@@ -32,7 +34,9 @@ public sealed partial class PyClass
     {
         if (UnsupportedDictSlots.Contains(name))
             throw new PyNotImplementedError($"dict subclass slot {name} is not supported");
-        if (name is "__init__" or "__str__" or "__repr__" or "__missing__") EnsureSupportedSlot(value, name);
+        if (name is "__init__" or "__str__" or "__repr__" or "__missing__"
+            or "__setitem__" or "__delitem__" or "__iter__" or "__reversed__" or "__or__" or "__ror__" or "__ior__")
+        { if (!PyDictDescriptors.IsUnbound(value)) EnsureSupportedSlot(value, name); }
         if (value is PyProperty or PyStaticMethod or PyClassMethod) return;
         if (value is IPyNativeDescriptor || value is PyInstance instance
             && (instance.Class.TryLookup("__set_name__", out _, out _)

@@ -38,6 +38,12 @@ public static partial class PyObject
             InvokeBound(property.Setter, owner, instance, [value], [], []);
             return;
         }
+        if (instance.Class.HasSlotLayout)
+        {
+            if (instance.Class.TryLookup(name, out _, out object? fixedRaw) && fixedRaw is PyInstanceSlotDescriptor fixedSlot) fixedSlot.Write(instance, value);
+            else instance.WriteSlotDictionaryField(name, value);
+            return;
+        }
         int slot = instance.Class.GetOrAddInstanceSlot(name);
         instance.SetSlot(slot, value);
     }

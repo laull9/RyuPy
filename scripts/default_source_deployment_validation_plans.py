@@ -73,12 +73,19 @@ def old_projection(row):
     return {key: value for key, value in row.items() if key not in FLAGS}
 
 
-def audit_old_rows(actual, original, selected):
+def audit_old_rows(actual, original, selected, compiled_promotions=frozenset()):
     """每个既有模块逐字段相等；旧Instance选择另行独立比较，不能靠candidate逃过。"""
     rows = validate_plan(actual)
     old_rows = validate_plan(original, new=False)
+    # 晋升是调用方显式列举的窄覆盖，不改历史raw/hash，且每项必须实际false→true。
+    require(type(compiled_promotions) in (set, frozenset)
+            and compiled_promotions <= old_rows.keys(), '编译晋升集合无效')
+    for name in compiled_promotions:
+        require(old_rows[name]['compiled'] is False and name in rows
+                and rows[name]['compiled'] is True, '编译晋升未实际匹配：' + name)
     for name, old in old_rows.items():
-        require(name in rows and old_projection(rows[name]) == old, '既有全图字段改变：' + name)
+        wanted = dict(old, compiled=True) if name in compiled_promotions else old
+        require(name in rows and old_projection(rows[name]) == wanted, '既有全图字段改变：' + name)
         require({key: rows[name][key] for key in FLAGS}
                 == {'candidate': False, 'hard': True, 'catalog_authenticated': False},
                 '旧活动源码身份改变：' + name)
@@ -134,7 +141,8 @@ def audit_deployment(output, rows, name, markdown_root=None):
             and report['deferred'] == {} and report['diagnostics'] == {}
             and report['metadata_unavailable'] is None, '候选根/延期/metadata状态不符')
     require(report['protected'] == ['json', 'zipfile', 'optparse', 'getopt', 're', 'dataclasses',
-                                   'unittest', 'enum', 'io', 'typing', 'xml.etree.ElementTree'],
+                                   'unittest', 'enum', 'io', 'typing', 'xml.etree.ElementTree',
+                                   'collections.abc'],
             '原生保护集合改变')
     require(report['dependencies'] == {n: sources[n]['dependencies'] for n in rows}, '依赖图改变')
     require(set(report['locations']) == set(rows), '来源位置集合改变')

@@ -71,10 +71,12 @@ internal static class PyAttributeDeletion
         PyClass? descriptorClass = raw is PyInstance descriptor ? descriptor.Class
             : raw is PyBaseException descriptorException ? descriptorException.PythonClass : null;
         // 已知非数据native包装允许删自身遮蔽槽；tuple字段等真实数据descriptor不能误放行。
+        if (raw is PyInstanceSlotDescriptor slot && owner.AllowsSlotDescriptor(name, slot)) return;
         if (raw is IPyNativeDataDescriptor || descriptorClass is not null
             && (descriptorClass.TryLookup("__delete__", out _, out _)
                 || descriptorClass.TryLookup("__set__", out _, out _)))
             throw Unsupported("custom deletion descriptors are not supported");
+        if (name == "__dict__" && owner.HasSlotLayout) return;
         if (name is "__dict__" or "__class__") throw Unsupported($"instance {name} deletion is not supported");
     }
 

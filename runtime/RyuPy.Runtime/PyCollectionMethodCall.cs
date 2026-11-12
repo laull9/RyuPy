@@ -72,6 +72,8 @@ public static partial class PyOps
         // 精确字符串保原直接路径，不构造绑定方法；format单独消费全部命名字段。
         if (obj is string template && name == "format")
             return PyStringTemplate.Format(template, args, kwNames, kwValues);
+        if (obj is PySet family && HasSetFamilyMethod(name))
+            return CallSetFamilyMethod(family, name, args, kwNames);
         if (obj is PyDict updateTarget && name == "update")
             return CallDictUpdate(updateTarget, args, kwNames, kwValues);
         // format已在上方分流；其余集合仅list.sort接收关键字，未知关键字立即报TypeError，

@@ -68,6 +68,8 @@ public sealed class PyBuiltinMethod
             return PyOps.CallListCheckedMethod(list, _name, args, names);
         }
         // set.clear 也须先拒绝关键字，再检查位置数，不进入泛化签名文案。
+        if (_receiver is PySet family && PyOps.HasSetFamilyMethod(_name))
+            return PyOps.CallSetFamilyMethod(family, _name, args, names);
         if (_receiver is PySet set && _name == "clear")
             return PyOps.CallSetClear(set, args, names);
         if (_receiver is PyDict dict && _name == "update")
@@ -124,6 +126,7 @@ public static partial class PyOps
             PyTuple when name is "count" or "index" => PreparedTuple,
             PyDict when name is "get" or "keys" or "values" or "items" or "update"
                 or "pop" or "setdefault" or "clear" or "copy" => PreparedDict,
+            PySet when HasSetFamilyMethod(name) => PreparedSet,
             PySet when name is "add" or "remove" or "discard" or "union" or "intersection"
                 or "difference" or "clear" => PreparedSet,
             PyByteArray when name is "append" or "extend" or "decode" or "startswith" or "endswith" or "translate" => PreparedByteArray,

@@ -21,13 +21,15 @@ public static partial class PyOps
         if (value is null or PyUnbound) CheckModuleDelete(false, name);
     }
 
-    /// <summary>仅供可能删除的模块槽读取：已有值保留原引用，未绑定时查真实默认内建字典。</summary>
+    /// <summary>已准入的缺绑定回退读取（删除名及map兼容分支）：保留真实值与默认字典。</summary>
     public static object LoadDeletedModuleName(object? value, string name)
     {
         if (value is not null and not PyUnbound) return value;
         // 不缓存或复制内建值，也不把 Default 加入 PyOps 的静态初始化路径。
         if (PyModuleBuiltins.Default.TryGet(name, out object? builtin)) return builtin!;
-        // 维持既有未实现内建与未知名称的错误分类，不改变普通槽读取的热路径。
+        // map冷回退已闭合；实际默认键被删除后按支持域报NameError，不谎称未实现。
+        if (name == "map") return LoadDefaultBuiltin(name)!;
+        // 维持其它既有未实现内建与未知名称的错误分类，不改变普通槽读取的热路径。
         CheckGlobalBound(false, name);
         return value!;
     }

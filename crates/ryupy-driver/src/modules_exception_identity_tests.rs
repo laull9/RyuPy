@@ -219,3 +219,35 @@ fn source_evidence_is_negative_only_and_validates_whole_name() {
     assert!(resolve_in(&roots, "xml.etree.ElementTree").is_none());
     assert!(!native_exception_modules(&input).contains(&"xml.etree.ElementTree"));
 }
+
+#[test]
+fn collections_abc_cold_candidate_requires_unshadowed_native_module_and_parent() {
+    let clean = Root::new();
+    let input = clean.write(
+        "main.py",
+        "from collections.abc import Sequence\nclass Child(Sequence): pass\n",
+    );
+    assert!(native_exception_modules(&input).contains(&"collections.abc"));
+    for (path, source) in [
+        ("collections.py", "Sequence = object\n"),
+        ("collections/__init__.py", ""),
+        ("collections/abc.py", "class Sequence: pass\n"),
+    ] {
+        let root = Root::new();
+        let input = root.write(
+            "main.py",
+            "from collections.abc import Sequence\nclass Child(Sequence): pass\n",
+        );
+        root.write(path, source);
+        assert!(
+            !native_exception_modules(&input).contains(&"collections.abc"),
+            "{path}"
+        );
+    }
+    let extra = Root::new();
+    extra.write("collections/abc.py", "class Sequence: pass\n");
+    assert!(
+        !native_exception_modules_for_build(&input, std::slice::from_ref(&extra.0), &[])
+            .contains(&"collections.abc")
+    );
+}

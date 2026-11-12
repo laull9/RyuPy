@@ -87,7 +87,7 @@ public sealed class PyDictLayoutTests
     [Fact]
     public void FailedFinalizationAndLateSlotsAreAtomic()
     {
-        foreach (string slot in new[] { "__new__", "__slots__", "__getattribute__", "__len__", "__bool__", "__iter__", "__getitem__", "__setitem__", "__delitem__", "__contains__", "__ior__", "__eq__", "__hash__", "__rsub__", "__reversed__" })
+        foreach (string slot in new[] { "__new__", "__slots__", "__getattribute__", "__len__", "__bool__", "__getitem__", "__contains__", "__eq__", "__hash__", "__rsub__" })
         {
             var cls = Make(); Assert.Throws<PyNotImplementedError>(() => New(cls));
             Assert.Throws<PyNotImplementedError>(() => PyRuntimeBases.Validate(cls));
@@ -97,6 +97,23 @@ public sealed class PyDictLayoutTests
             cls.DeleteAttr(slot); Finish(cls); version = cls.Version;
             Assert.Throws<PyNotImplementedError>(() => cls.SetAttr(slot, PyNone.Instance));
             Assert.Throws<PyNotImplementedError>(() => cls.DeleteAttr(slot)); Assert.Equal(version, cls.Version);
+        }
+    }
+
+    [Fact]
+    public void SupportedSlotsAllowLateReplacementButStillRejectCustomDescriptors()
+    {
+        foreach (string slot in new[] { "__setitem__", "__delitem__", "__iter__", "__reversed__", "__or__", "__ror__", "__ior__" })
+        {
+            var cls = Make(); cls.SetAttr(slot, Method(slot, _ => PyNone.Instance)); Finish(cls);
+            cls.SetAttr(slot, Method(slot, _ => 42L));
+            long version = cls.Version;
+            Assert.Throws<PyNotImplementedError>(() => cls.SetAttr(slot, new PyProperty(Method("get", _ => 1L))));
+            Assert.Equal(version, cls.Version);
+            Assert.True(cls.DeleteAttr(slot));
+            // 认证根描述符别名是可绑定的，不能据此放开任意 native callable。
+            cls.SetAttr(slot, PyObject.GetAttr(PyType.Get("dict"), slot));
+            Assert.True(cls.DeleteAttr(slot));
         }
     }
 

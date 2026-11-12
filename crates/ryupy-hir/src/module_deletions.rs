@@ -66,9 +66,10 @@ pub(crate) fn collect(statements: &[ast::Stmt]) -> FxHashSet<Name> {
     scan.names
 }
 
-/// 只选择已有真实builtin对象的名字；未支持元数据仍沿旧缺绑定NI分类。
+/// 选择已有真实builtin对象的冷回退：删除名字，以及可能由兼容分支遮蔽的map。
+/// 保留旧函数名以兼容调用方；map不伪造may_delete，类型与MIR共同消费同一选择。
 pub fn uses_deleted_builtin_fallback(var: &ModuleVar) -> bool {
-    var.may_delete && supported_builtin(var.name.as_str())
+    (var.may_delete && supported_builtin(var.name.as_str())) || var.name.as_str() == "map"
 }
 
 fn supported_builtin(name: &str) -> bool {
@@ -111,12 +112,12 @@ pub(crate) fn validate_default_builtins(
         .find(|(_, var)| var.name.as_str() == "__builtins__");
     if let Some((_, environment)) = environment
         // 用户builtins可以包含任意普通名字，不能仅按编译器已知builtin筛选。
-        && vars.iter().any(|(_, var)| var.may_delete)
+        && vars.iter().any(|(_, var)| var.may_delete || uses_deleted_builtin_fallback(var))
     {
         diagnostics.push(
             Diagnostic::error(
                 Span::new(file, environment.range),
-                "默认静态模块暂不支持删除或替换__builtins__后进行名称删除回退；请使用显式实例能力",
+                "默认静态模块暂不支持删除或替换__builtins__后进行名称删除或map回退；请使用显式实例能力",
             )
             .with_code("E0100"),
         );

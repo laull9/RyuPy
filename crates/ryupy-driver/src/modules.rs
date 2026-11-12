@@ -267,6 +267,7 @@ fn certified_native_exception_modules(
         "io",
         "typing",
         "xml.etree.ElementTree",
+        "collections.abc",
     ]
     .into_iter()
     .filter(|name| {
