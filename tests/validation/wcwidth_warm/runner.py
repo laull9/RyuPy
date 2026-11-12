@@ -298,6 +298,9 @@ def run(out):
             final_error = error
         outcome['actual_processes'] = execution_counts(out)
         save(out / 'RESULT.json', outcome)
+        if outcome['passed']:
+            from paired_inputs import warm
+            warm(out, layout, runtime, manifest)
         upload_check(out)
         if final_error is not None:
             raise final_error

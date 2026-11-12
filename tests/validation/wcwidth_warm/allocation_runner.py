@@ -228,6 +228,9 @@ def run(out):
             state['actual_processes'] = {'attempted': len(records), 'started': sum(x['started'] for x in records),
                                          'completed': sum(x.get('exit') is not None for x in records)}
             w.save(out / 'RESULT.json', state)
+            if state['passed']:
+                from paired_inputs import allocation
+                allocation(out)
             w.upload_check(out)
 
 

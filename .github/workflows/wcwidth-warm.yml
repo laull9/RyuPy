@@ -48,6 +48,14 @@ jobs:
             ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
           if-no-files-found: error
           retention-days: 3
+      - name: 成对门同run透明输入
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: paired-warm-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/wcwidth-warm-evidence/paired-warm.tar
+          if-no-files-found: error
+          retention-days: 3
       - name: 准确范围
         if: always()
         run: echo '四调用点两个API；C3非计时合同后Native同ELF A/A，不比较CP/JIT速度；所有旧保护独立，metadata完整AOT红界保留。' >> "$GITHUB_STEP_SUMMARY"
@@ -101,6 +109,69 @@ jobs:
             ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
           if-no-files-found: error
           retention-days: 3
+      - name: 成对门同run两Runtime和来源
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: paired-allocation-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/lru-allocation-evidence/paired-allocation.tar
+          if-no-files-found: error
+          retention-days: 3
       - name: 准确计量边界
         if: always()
         run: echo '仅双短string命中Invoke当前线程分配；非kernel或Native分配、不报告速度；失败不跳过独立warm和旧项目保护。' >> "$GITHUB_STEP_SUMMARY"
+
+  paired-native:
+    needs: [warm-kernel, lru-allocation]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 成对协议纯反例
+        run: python3 -B -m unittest discover -s tests/validation/wcwidth_warm -p test_paired.py
+      - name: 只取同run精确warm输入
+        timeout-minutes: 1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: paired-warm-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/paired-downloads/warm
+      - name: 只取同run精确allocation输入
+        timeout-minutes: 1
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: paired-allocation-${{ github.sha }}-${{ github.run_attempt }}
+          path: target/paired-downloads/allocation
+      - name: 仅官方固定SDK不重建Rust
+        timeout-minutes: 4
+        run: python3 -B tests/validation/wcwidth_warm/paired_prepare.py
+      - name: 双严格publish及C3后平衡成对窗口
+        timeout-minutes: 31
+        run: python3 -B tests/validation/wcwidth_warm/paired_runner.py --execute
+      - name: 上传允许环境检查
+        id: safe
+        if: always()
+        run: python3 -B tests/validation/wcwidth_warm/paired_runner.py --upload-check
+      - name: 原流与两完整dist始终保留
+        if: always() && steps.safe.outcome == 'success'
+        timeout-minutes: 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: wcwidth-paired-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/wcwidth-paired-evidence
+            !target/wcwidth-paired-evidence/**/obj/**
+            !target/wcwidth-paired-evidence/**/bin/**
+            target/wcwidth-paired-prepare
+          if-no-files-found: error
+          retention-days: 3
+      - name: 准确范围
+        if: always()
+        run: echo '仅同runner同PE两Runtime本窗口计时；先C3/A-A，未通过不补采；保全部原样本，不外推硬件/项目或置信下界。' >> "$GITHUB_STEP_SUMMARY"
