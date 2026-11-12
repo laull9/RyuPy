@@ -30,6 +30,17 @@ def numeric_loop(count: int) -> int:
     return total
 "#;
 
+// 从同次真实linked函数唯一取内部符号，不猜测HIR编号或模糊匹配CIL名称。
+fn linked_codegen<'a>(linked: &'a ryupy_mir::LinkedProgram, name: &str) -> &'a str {
+    let mut found = linked
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == name && f.signature_global.is_some());
+    let (_, function) = found.next().expect(name);
+    assert!(found.next().is_none(), "函数身份不唯一: {name}");
+    &function.codegen_name
+}
+
 fn function<'a>(program: &'a LinkedProgram, name: &str) -> (FnId, &'a Function) {
     let found: Vec<_> = program
         .functions
@@ -355,7 +366,7 @@ fn text_affix_keeps_exact_ordinary_saved_and_prepared_shapes() {
         ("touched", "startswith", 3),
         ("ordinary", "select", 1),
     ] {
-        let body = method(&cil, &format!("m0_{name}"));
+        let body = method(&cil, linked_codegen(&linked, name));
         assert!(
             body.contains(&format!("PyPic.CallCapturedMethod{arity}(")),
             "{body}"
@@ -371,12 +382,15 @@ fn text_affix_keeps_exact_ordinary_saved_and_prepared_shapes() {
     saved_and_opaque(&linked);
     prepared(&linked);
     numeric(&linked);
-    assert!(method(&cil, "m0_saved").contains("CallValue3("));
+    assert!(method(&cil, linked_codegen(&linked, "saved")).contains("CallValue3("));
     assert!(
-        method(&cil, "m0_add")
+        method(&cil, linked_codegen(&linked, "add"))
             .lines()
             .next()
             .unwrap()
-            .contains("long m0_add(long, long)")
+            .contains(&format!(
+                "long {}(long, long)",
+                linked_codegen(&linked, "add")
+            ))
     );
 }

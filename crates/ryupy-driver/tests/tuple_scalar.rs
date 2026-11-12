@@ -46,6 +46,26 @@ fn source_temporary_tuple_is_removed_but_escaping_tuple_survives() {
     );
     insta::assert_snapshot!("tuple_scalar_mir", mir);
     let cil = support::dump(&mut session, &path, Stage::Cil).unwrap();
-    insta::assert_snapshot!("tuple_scalar_cil", cil);
+    let code = support::cil_contract::Cil::parse(&cil);
+    for name in ["swap", "first"] {
+        let method = code.method(name);
+        for member in ["PyOps.MakeTuple", "PyOps.GetItem", "PyOps.UnpackCheck"] {
+            assert_eq!(method.runtime_count(member), 0, "{name}: {member}");
+        }
+        for opcode in ["NewArray", "NewObject", "Box", "Unbox"] {
+            assert_eq!(method.opcode_count(opcode), 0, "{name}: {opcode}");
+        }
+        assert_eq!(method.opcode_count("Return"), 1);
+    }
+    assert_eq!(code.method("swap").opcode_count("StoreArgument"), 2);
+    assert_eq!(code.method("swap").runtime_count("PyPic.Binary"), 1);
+    let escaped = code.method("escape");
+    assert_eq!(escaped.runtime_count("PyOps.MakeTuple"), 1);
+    assert_eq!(escaped.runtime_count("PyOps.GetItem"), 1);
+    assert_eq!(escaped.opcode_count("NewArray"), 1);
+    assert_eq!(escaped.opcode_count("StoreElement"), 2);
+    escaped.ordered_calls(&["PyOps.MakeTuple", "Builtins.WriteObject", "PyOps.GetItem"]);
+    // 保元组身份逃逸后的打印与索引，而不是仅证明未崩溃。
+    assert_eq!(escaped.runtime_count("Builtins.WriteNewline"), 1);
     std::fs::remove_file(path).unwrap();
 }

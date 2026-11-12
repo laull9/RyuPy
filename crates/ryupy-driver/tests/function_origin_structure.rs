@@ -7,6 +7,17 @@ use ryupy_mir::{
 };
 use support::*;
 
+// 从同次真实linked函数唯一取内部符号，不猜测HIR编号或模糊匹配CIL名称。
+fn linked_codegen<'a>(linked: &'a ryupy_mir::LinkedProgram, name: &str) -> &'a str {
+    let mut found = linked
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == name && f.signature_global.is_some());
+    let (_, function) = found.next().expect(name);
+    assert!(found.next().is_none(), "函数身份不唯一: {name}");
+    &function.codegen_name
+}
+
 fn assert_static_numeric(program: &Program) {
     for (name, count, ret) in [
         ("numeric_add", 2, MirType::I64),
@@ -70,17 +81,35 @@ fn assert_static_numeric(program: &Program) {
         |value| matches!(value, Rvalue::Call { callee: Callee::Fn(id), .. } if *id == recursive)
     ));
 }
-fn assert_static_cil(cil: &str) {
+fn assert_static_cil(linked: &ryupy_mir::LinkedProgram, cil: &str) {
     for (name, signature) in [
-        ("numeric_add", "long m0_numeric_add(long, long)"),
-        ("numeric_loop", "long m0_numeric_loop(long)"),
-        ("numeric_direct", "long m0_numeric_direct(long, long)"),
-        ("numeric_recursive", "long m0_numeric_recursive(long)"),
-        ("static_output", "void m0_static_output(long)"),
+        (
+            "numeric_add",
+            format!("long {}(long, long)", linked_codegen(linked, "numeric_add")),
+        ),
+        (
+            "numeric_loop",
+            format!("long {}(long)", linked_codegen(linked, "numeric_loop")),
+        ),
+        (
+            "numeric_direct",
+            format!(
+                "long {}(long, long)",
+                linked_codegen(linked, "numeric_direct")
+            ),
+        ),
+        (
+            "numeric_recursive",
+            format!("long {}(long)", linked_codegen(linked, "numeric_recursive")),
+        ),
+        (
+            "static_output",
+            format!("void {}(long)", linked_codegen(linked, "static_output")),
+        ),
     ] {
-        let body = cil_method(cil, &format!("m0_{name}"));
+        let body = cil_method(cil, linked_codegen(linked, name));
         assert!(
-            body.lines().next().unwrap().contains(signature),
+            body.lines().next().unwrap().contains(&signature),
             "Static真实签名改变: {body}"
         );
         if name != "static_output" {
@@ -103,12 +132,14 @@ fn assert_static_cil(cil: &str) {
             }
         }
     }
-    assert!(cil_method(cil, "m0_numeric_add").contains("AddOverflow(Signed)"));
+    assert!(cil_method(cil, linked_codegen(linked, "numeric_add")).contains("AddOverflow(Signed)"));
     assert!(
-        instructions(cil_method(cil, "m0_numeric_direct"))
+        instructions(cil_method(cil, linked_codegen(linked, "numeric_direct")))
             .iter()
-            .any(|instruction| instruction
-                .contains("Call(static long RyuPy.Generated.Module.m0_numeric_add(long, long))"))
+            .any(|instruction| instruction.contains(&format!(
+                "Call(static long RyuPy.Generated.Module.{}(long, long))",
+                linked_codegen(linked, "numeric_add")
+            )))
     );
 }
 
@@ -435,6 +466,6 @@ fn dynamic_function_origin_preserves_static_abi_and_actual_instance() {
     assert_direct_origin(&program);
     assert_generator_origin(&program);
     let (linked, cil) = cil(&root, program, exports);
-    assert_static_cil(&cil);
+    assert_static_cil(&linked, &cil);
     assert_dynamic_cil(&linked, &cil);
 }

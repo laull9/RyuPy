@@ -30,7 +30,7 @@ def number(ins):
     return None
 
 
-def out_binding(methods, init, core, fixture):
+def out_binding(methods, init, fixture):
     """只核两份固定无参out：实际Create/词法/首行/thunk闭链，不泛化数据流。"""
     need(fixture in ('original', 'resource'), '未知固定fixture')
     firstline, body_line = (28, 29) if fixture == 'original' else (15, 16)
@@ -54,7 +54,10 @@ def out_binding(methods, init, core, fixture):
               and any(x['opcode'] == '0x7e' and x.get('field_token') == signature for x in code(m))]
     thunk = only(thunks, 'out signature必须唯一连接实际thunk')
     targets = {x['token'] for x in code(thunk) if x['opcode'] == '0x28' and x.get('token') in methods}
-    need(targets == {core['token']}, 'out实际thunk未指向自身core')
+    core = methods[only(list(targets), 'out实际thunk必须唯一指向core')]
+    need(core['method']['owner'] == 'RyuPy.Generated.Module'
+         and core['flags'] & 0x10 and core['method']['signature_hex'] == '000001',
+         'out不是真Static void()')
     body = code(core)
     frame = only([i for i, ins in enumerate(body) if runtime(ins, 'PyTraceback', 'PushFrameWithOrigin')],
                  'Static必须唯一真实压帧')
@@ -63,7 +66,7 @@ def out_binding(methods, init, core, fixture):
          and body[frame - 1].get('field_token') == signature, 'out压帧未使用自身定义signature')
     lines = [i for i, ins in enumerate(body) if runtime(ins, 'PyTraceback', 'SetLine')]
     need(lines and lines[0] > 0 and number(body[lines[0] - 1]) == body_line, 'out实际首行不符')
-    return signature, init[at - 1]['field_token'], thunk['token'], firstline, body_line
+    return core, signature, init[at - 1]['field_token'], thunk['token'], firstline, body_line
 
 
 def bind_native_inputs(manifest, expected):
@@ -79,13 +82,15 @@ def bind_native_inputs(manifest, expected):
 
 def check(decoded, fixture):
     methods = {method['token']: method for method in decoded['methods']}
+    need(len(methods) == len(decoded['methods']), 'MethodDef token重复')
+    identities = [(m['method']['owner'], m['method']['name'], m['method']['signature_hex'])
+                  for m in methods.values()]
+    need(len(set(identities)) == len(identities), 'MethodDef完整描述符重复')
     def method(name):
         return only([m for m in methods.values() if m['method']['owner'] == 'RyuPy.Generated.Module'
                      and m['method']['name'] == name], 'MethodDef不唯一: ' + name)
-    core = method('m1_out')
-    need(core['flags'] & 0x10 and core['method']['signature_hex'] == '000001', 'out不是真Static void()')
     init = code(method('__init_functions'))
-    signature, source, thunk, firstline, body_line = out_binding(methods, init, core, fixture)
+    core, signature, source, thunk, firstline, body_line = out_binding(methods, init, fixture)
     sources = code(method('__init_code_sources'))
     need(len(sources) == 22 and sources[-1]['opcode'] == '0x2a', '固定3包冷创建形状改变')
     fields = []
