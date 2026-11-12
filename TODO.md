@@ -28,6 +28,8 @@
 - [~] sortedcontainers 原入口及跨模块再派生：ABC/view/有限 slots 与动态单基已实现，原入口和扩展探针双 PIC 通过；S1 精确清单修复在 CI `43196707322` 已实际 42/42；真实 Native 正/负图与旧门通过，仍有旧 metadata 红项，不以整链冒充全绿。见 ADR0163/0164。
 - [~] 通用 dict 原生布局与完整 C3：词法多基事务及布局提供者分离正在实施；目标真实 toml 原入口与内联表扩展，当前不计项目晋升。见 [ADR0165](docs/adr/0165-native-layout-c3.md)。
 
+- [~] 有限精确 Decimal 与有理数 hash：解除真实 toml 的下一依赖，禁止占位类型；独立数值合同和实际 Decimal 编码待验。见 [ADR0166](docs/adr/0166-finite-decimal-values.md)。
+
 ## Phase 0：脚手架 ✅
 
 - [x] Cargo workspace 与 crate 分层（base / syntax / hir / ty / mir / codegen-cil / driver / cli / e2e）
