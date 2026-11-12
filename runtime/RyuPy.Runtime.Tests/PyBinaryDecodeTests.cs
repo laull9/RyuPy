@@ -31,7 +31,10 @@ public sealed class PyBinaryDecodeTests
                 Assert.Throws<PyTypeError>(() => Call(route, self, [], ["unknown"], ["utf8"]));
                 Assert.Throws<PyTypeError>(() => Call(route, self, ["utf8", "strict", 1L], [], []));
                 Assert.Throws<PyValueError>(() => Call(route, self, [], ["encoding"], ["utf8\0"]));
-                Assert.Throws<PyNotImplementedError>(() => Call(route, self, [], ["errors"], ["replace"]));
+                Assert.Equal("é", Call(route, self, [], ["errors"], ["backslashreplace"]));
+                Assert.Throws<PyNotImplementedError>(() => Call(route, self, ["ascii"], ["errors"], ["backslashreplace"]));
+                Assert.Equal("é", Call(route, self, [], ["errors"], ["unknown-handler"]));
+                Assert.Throws<PyLookupError>(() => Call(route, self, ["ascii"], ["errors"], ["unknown-handler"]));
                 Assert.Throws<PyLookupError>(() => Call(route, self, [""], [], []));
                 Assert.Throws<PyUnicodeDecodeError>(() => Call(route, self, ["ascii"], [], []));
             }
@@ -48,6 +51,24 @@ public sealed class PyBinaryDecodeTests
         foreach (byte[] invalid in new byte[][] { [0xff], [0xff, 0xfe, 65], [0xff, 0xfe, 0, 0xd8], [0xfe, 0xff, 0xdc, 0] })
             Assert.Throws<PyUnicodeDecodeError>(() => PyEncoding.Decode(invalid, "utf-16"));
         Assert.Throws<PyUnicodeDecodeError>(() => PyEncoding.Decode([0xff], "utf-8"));
+    }
+
+    [Fact]
+    public void ReplaceAndIgnoreUsePythonErrorUnitsOnAllRoutes()
+    {
+        foreach (object self in new object[] { new PyBytes([0xed, 0xa0, 0x80]), new PyByteArray([0xed, 0xa0, 0x80]) })
+            for (int route = 0; route < 4; route++)
+            {
+                Assert.Equal("\ufffd\ufffd\ufffd", Call(route, self, ["utf-8", "replace"], [], []));
+                Assert.Equal("", Call(route, self, ["ascii"], ["errors"], ["ignore"]));
+                Assert.Equal("\ufffd\ufffd\ufffd", Call(route, self, ["ascii"], ["errors"], ["replace"]));
+            }
+        Assert.Equal("\ufffd", PyEncoding.Decode([0, 0xd8, 65], "utf-16-le", "replace"));
+        Assert.Equal("\ufffd", PyEncoding.Decode([0xd8, 0, 65], "utf-16-be", "replace"));
+        Assert.Equal("\ufffdA", PyEncoding.Decode([0, 0xd8, 65, 0], "utf-16-le", "replace"));
+        Assert.Equal("", PyEncoding.Decode([0, 0xd8, 65], "utf-16-le", "ignore"));
+        Assert.Equal("\ufffd", PyEncoding.Decode([0xe2, 0x82], "utf-8", "replace"));
+        Assert.Equal("ÿ", PyEncoding.Decode([255], "latin-1", "unknown-handler"));
     }
 
     [Fact]

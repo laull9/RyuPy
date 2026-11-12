@@ -1,4 +1,4 @@
-// bytes/bytearray.decode统一参数绑定；严格编码限定在有限编码族，不调用字符串转换协议。
+// bytes/bytearray.decode统一参数绑定；解码限定在有限编码族，不调用字符串转换协议。
 namespace RyuPy.Runtime;
 
 internal static class PyBinaryDecode
@@ -27,10 +27,8 @@ internal static class PyBinaryDecode
             }
             string codec = Text(encoding, "encoding", 1);
             string policy = Text(errors, "errors", 2);
-            // 自定义处理器及非strict策略尚未实现，显式拒绝，不伪装成丢弃/替换成功。
-            if (policy != "strict") throw new PyNotImplementedError("decode currently supports only errors='strict'");
-            return receiver is PyBytes bytes ? PyEncoding.Decode(bytes.Bytes, codec)
-                : PyEncoding.Decode([.. ((PyByteArray)receiver).Bytes], codec);
+            return receiver is PyBytes bytes ? PyEncoding.Decode(bytes.Bytes, codec, policy)
+                : PyEncoding.Decode([.. ((PyByteArray)receiver).Bytes], codec, policy);
         }
         catch (PyBaseException error)
         {
