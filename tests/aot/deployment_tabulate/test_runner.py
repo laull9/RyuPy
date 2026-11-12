@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from runner import public_command, oracle_environment, verify_task, HERE
+from unittest.mock import patch
+from runner import public_command, oracle_environment, verify_task, HERE, container_command, container_security
 
 class RunnerTests(unittest.TestCase):
     def test_public_project_only(self):
@@ -25,6 +26,24 @@ class RunnerTests(unittest.TestCase):
         workflow=(HERE.parents[2]/'.github/workflows/deployment-tabulate-native.yml').read_text()
         self.assertIn('tests/aot/deployment_tabulate/hosted_tabulate.py verify',workflow)
         self.assertIn('if: always()',workflow)
+    def test_container_matches_uid_without_weakening_isolation(self):
+        with patch('runner.os.getuid',return_value=1001), patch('runner.os.getgid',return_value=1002):
+            command=container_command(Path('/dist'),Path('/inputs'),Path('/out'),'sha256:image','tabulate',['-1'])
+        check=lambda cmd: container_security(cmd,1001,1002,Path('/dist'),Path('/inputs'),Path('/out'))
+        check(command)
+        mutations=[]
+        wrong=command.copy();wrong[wrong.index('--user')+1]='0:0';mutations.append(wrong)
+        absent=command.copy();i=absent.index('--user');del absent[i:i+2];mutations.append(absent)
+        for flag in ('--cap-drop=ALL','--read-only','--security-opt=no-new-privileges'):
+            value=command.copy();value.remove(flag);mutations.append(value)
+        for mount in ('dst=/app,readonly','dst=/inputs,readonly'):
+            mutations.append([x.replace(mount,mount.replace(',readonly','')) for x in command])
+        extra=command.copy();extra[2:2]=['--mount','type=bind,src=/source,dst=/source'];mutations.append(extra)
+        network=command.copy();network[network.index('--network')+1]='host';mutations.append(network)
+        for mutation in mutations:
+            with self.assertRaises(ValueError):check(mutation)
+        for uid in (-1, '1001', True):
+            with self.assertRaises(ValueError):container_security(command,uid,1002,Path('/dist'),Path('/inputs'),Path('/out'))
     def test_exact_outputs_and_failures(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);prefix=root/'run';html=root/'out.html';ok={'exit':0,'failure':None}
