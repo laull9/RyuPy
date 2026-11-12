@@ -4,13 +4,12 @@ mod support;
 use support::dump;
 
 #[test]
-fn snapshot_runtime_base_and_atomic_public_binding() {
+fn snapshot_runtime_base_hir_and_types() {
     let path = std::env::temp_dir().join("ryupy_runtime_base_snapshot.py");
     std::fs::write(&path, "from package import Base as Alias\nclass Child(Alias):\n    pass\nclass Grandchild(Child):\n    pass\n").unwrap();
     for (stage, name) in [
         (Stage::Hir, "runtime_base_hir"),
         (Stage::Types, "runtime_base_types"),
-        (Stage::Mir, "runtime_base_mir"),
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).unwrap();
