@@ -24,10 +24,10 @@
 
 不修改固定 20 项目的原生通过分子、旧基线或 Nuitka 数字，不产生性能结论；仅以本门真实结果报告这一 consumer 的交付能力，不扩张到完整编码探测、任意文件或全库兼容。
 
-## 无条件依赖预检候选
+## 无条件依赖预检已验证
 
 本门现显式请求 `dependency_check.mode=unconditional_closure`，根为 `binaryornot==0.4.4`。冻结egg-info的 `requires.txt` 声明 `chardet>=3.0.2`，正例编译期收据须绑定请求/载荷摘要以及恰好这两个分发和两条检查；原metadata payload、上游源码和四输入合同不变。
 
 新增公开CLI负例门使用独立项目副本与无效Python入口、假SDK哨兵：缺chardet、版本不足、markers/extras/URL及基础条件段必须先报告依赖预检失败；关闭配置则仍按旧流程抵达源码语法错误。完整原流/耗时/工具和项目摘要保留，不以exit非0单独作为通过。正例仍要求后续原Native部署门全部执行。
 
-此节为新候选，不能复用上一节旧CI当成新预检已通过Native的证明。只验证无条件声明闭包，不验证Requires-Python、ABI或动态导入；详见[ADR-0176](../../../docs/adr/0176-explicit-dependency-preflight.md)。
+新候选 `c3042b37` 已通过独立新CI [43317160754](https://github.com/laull9/RyuPy/actions/runs/43317160754)，7个公开拒绝/关闭对照、完整依赖收据与16次原生部署均经官方原件独审通过；同树完整check退出0。此结论没有复用上一节旧CI冒充新功能验证。只验证无条件声明闭包，不验证Requires-Python、ABI或动态导入；详见[ADR-0176](../../../docs/adr/0176-explicit-dependency-preflight.md)。

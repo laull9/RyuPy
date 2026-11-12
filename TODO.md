@@ -2,6 +2,8 @@
 
 ## 当前 AOT 产品主线（2026-11-12）
 
+- [x] 显式无条件声明依赖预检：成熟PEP508/440解析，真实缺chardet/版本不符先于源码及SDK报错；默认关闭保持旧行为。CI `43317160754` 7个反例/对照、精确收据、真实Native宿主8/8和隔离容器8/8以及同树完整check通过。拒绝markers/extras/URL/===，不求解安装、不检查Requires-Python/ABI；无Native性能提升声明。见[ADR0176](docs/adr/0176-explicit-dependency-preflight.md)。
+
 - [x] Linux binaryornot普通consumer有限部署：未改上游binaryornot/chardet，47源码自动发现，四类输入在原位/搬迁宿主8/8与禁网无Python/.NET容器8/8通过。CI `43314021657` 与同树完整check及原件独审通过；非完整库兼容，不改固定20项目分子，无性能结论。见 `tests/aot/deployment_binaryornot/README.md`。
 
 - [~] 真实 standalone 联合部署：Linux/macOS/Windows pyfiglet 1.0.2 两入口、完整553字体及metadata已验；新增显式资源目录选择同树通过 Linux CI `43296651927` 与平台 CI `43298130779`，各平台原位/搬迁运行通过，Windows nofollow/路径宿主各3/3。只有Linux有禁网无Python/.NET容器证明，Mac/Windows干净机仍未验。见 [ADR0174](docs/adr/0174-explicit-resource-trees.md)。不宣称 Nuitka 全面兼容或更快。
