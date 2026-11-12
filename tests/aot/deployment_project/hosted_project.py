@@ -26,7 +26,7 @@ def main():
         record=capture(base/label,argv,ROOT,dict(os.environ),timeout)
         require(record['exit']==0 and record['failure'] is None,label+'失败')
     if args.phase=='setup':
-        recipe=json.loads((ROOT/'tests/aot/wcwidth_ci/project-source-recovery.json').read_text())
+        recipe=json.loads((ROOT/'tests/aot/wcwidth_ci/project-source-recovery.json').read_text(encoding='utf-8'))
         item=next(x for x in recipe['packages'] if x['package']=='pyfiglet')
         archive=base/item['filename']
         with urllib.request.urlopen(item['url'],timeout=120) as response:archive.write_bytes(response.read())
@@ -36,10 +36,10 @@ def main():
         # 仅复用工具/正常CP/镜像准备；不调用该benchmark的oracles或benchmark阶段。
         command('tools',[python,'-B',HERE.parent/'standalone_app/benchmark/hosted.py','tools'],1500)
         prepare(base/'project',reused/'prepared/package')
-        save(base/'project-tools.json',json.loads((reused/'frozen-tools.json').read_text()))
+        save(base/'project-tools.json',json.loads((reused/'frozen-tools.json').read_text(encoding='utf-8')))
     else:
-        tools=json.loads((base/'project-tools.json').read_text());require(all(sha(p)==h for p,h in tools.items()),'工具变更')
-        image=(reused/'runtime-image.id').read_text().strip()
+        tools=json.loads((base/'project-tools.json').read_text(encoding='utf-8'));require(all(sha(p)==h for p,h in tools.items()),'工具变更')
+        image=(reused/'runtime-image.id').read_text(encoding='utf-8').strip()
         require(image.startswith('sha256:') and len(image)==71,'必须固定镜像ID')
         command('no-python-dotnet',['docker','run','--rm','--network','none','--read-only',image,'sh','-c',
             'for p in python python3 dotnet; do if command -v "$p" >/dev/null 2>&1; then exit 9; fi; done'],60)

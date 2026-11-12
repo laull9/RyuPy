@@ -27,8 +27,8 @@ def prepare(output, package):
     output = Path(output).resolve(); package = Path(package).resolve()
     if output.exists() or output.is_relative_to(REPO):
         raise ValueError('项目必须为仓库外新目录')
-    inputs = json.loads((APP/'inputs.json').read_text())
-    contract = json.loads((APP/'contract.json').read_text())
+    inputs = json.loads((APP/'inputs.json').read_text(encoding='utf-8'))
+    contract = json.loads((APP/'contract.json').read_text(encoding='utf-8'))
     for name, digest in contract['files'].items():
         if sha(APP/name) != digest: raise ValueError('原合同改变：'+name)
     for name, digest in inputs['files'].items():
@@ -44,7 +44,7 @@ def prepare(output, package):
     request = {'schema_version': 1, 'mode': 'closed_snapshot',
                'roots': [{'id': 'pyfiglet-1.0.2', 'path': 'package'}]}
     for name, value in [('metadata-request.json', request), ('ryupy.json', configuration())]:
-        (output/name).write_text(json.dumps(value, indent=2)+'\n')
+        (output/name).write_text(json.dumps(value, indent=2)+'\n', encoding='utf-8')
     return output
 
 
@@ -53,7 +53,7 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--package', type=Path)
     args = parser.parse_args()
-    inputs = json.loads((APP/'inputs.json').read_text())
+    inputs = json.loads((APP/'inputs.json').read_text(encoding='utf-8'))
     prepare(args.output, args.package or REPO/inputs['source_root'])
 
 
