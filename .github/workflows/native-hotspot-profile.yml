@@ -1,0 +1,52 @@
+# 对真实公开Native采样，不修改系统perf安全配置，不把profile时间作为性能结论。
+name: pyfiglet Native用户态热点采样
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/native-hotspot-profile-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: native-hotspot-profile-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  profile:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-hotspot-profile-001'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定工具、系统依赖与软件采样器
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-hotspot-profile"
+          sudo apt-get update > "$RUNNER_TEMP/native-hotspot-profile/apt-update.log" 2>&1
+          sudo apt-get install -y clang zlib1g-dev libicu-dev linux-tools-generic binutils > "$RUNNER_TEMP/native-hotspot-profile/apt-install.log" 2>&1
+          PERF_BINARY="$(find /usr/lib/linux-tools -type f -name perf | sort -V | tail -n 1)"
+          test -n "$PERF_BINARY"
+          test -x "$PERF_BINARY"
+          echo "PERF_BINARY=$PERF_BINARY" >> "$GITHUB_ENV"
+          python3 -B tests/aot/wcwidth_ci/prepare.py
+      - name: 采样轻量合同
+        run: '"$PYTHON" -B -m unittest discover -s tests/aot/native_hotspot_profile -p "test_*.py"'
+      - name: 真实Native正确性与用户态采样
+        timeout-minutes: 45
+        run: '"$PYTHON" -B tests/aot/native_hotspot_profile/run.py'
+      - name: 成功与失败原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-hotspot-profile-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-hotspot-profile
+          if-no-files-found: warn
+          retention-days: 3
