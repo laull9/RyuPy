@@ -105,7 +105,8 @@ class S1CollectionIdentity(unittest.TestCase):
             root = synthetic_trx()
             row = next(row for row in results(root) if row.get("testName") == name)
             root.find("t:Results", N).remove(row)
-            root.find("t:ResultSummary/t:Counters", N).attrib.update(total="39", executed="39", passed="39")
+            root.find("t:ResultSummary/t:Counters", N).attrib.update(total=str(len(gate.CASE_METHOD) - 1),
+                executed=str(len(gate.CASE_METHOD) - 1), passed=str(len(gate.CASE_METHOD) - 1))
             self.reject(root)
         records = self.verify(synthetic_trx())
         groups = gate.execution_groups(records)
@@ -132,11 +133,40 @@ class S1CollectionIdentity(unittest.TestCase):
         group = gate.execution_groups(self.verify(synthetic_trx()))["ordinary_mi"]
         self.assertEqual((group["executed_cases"], group["passed_cases"]), (1, 1))
 
+    def test_runtime_derived_fact_is_exact_addition_and_requires_execution(self):
+        method = "ProducedRuntimeDerivedAssemblyHasExactSingleAdditionAndTotal"
+        owner = "PyTraceStateArtifactTests"
+        name = "RyuPy.Runtime.Tests." + owner + "." + method
+        self.assertEqual(gate.GROUP_EXPECTED["runtime_derived"], {name: 1})
+        source = gate.ROOT / "runtime/RyuPy.Runtime.Tests/PyRuntimeDerivedAbiContractTests.cs"
+        artifact = source.read_text().split("public partial class " + owner, 1)[1]
+        self.assertEqual(re.findall(r"\[Fact\]\s+public void (\w+)\(", artifact), [method])
+        for collection in (gate.EXPECTED, gate.CASE_METHOD):
+            names = list(collection)
+            for altered in ([n for n in names if n != name], names + [name],
+                            names + [name + "Unknown"],
+                            [n.replace(owner, "WrongOwner") if n == name else n for n in names]):
+                with self.assertRaises(RuntimeError): self.discovery(altered)
+        for outcome in ("Failed", "NotExecuted", "Unknown"):
+            root = synthetic_trx()
+            next(row for row in results(root) if row.get("testName") == name).set("outcome", outcome)
+            self.reject(root)
+        root = synthetic_trx()
+        row = next(row for row in results(root) if row.get("testName") == name)
+        root.find("t:Results", N).remove(row)
+        root.find("t:ResultSummary/t:Counters", N).attrib.update(
+            total=str(len(gate.CASE_METHOD) - 1), executed=str(len(gate.CASE_METHOD) - 1),
+            passed=str(len(gate.CASE_METHOD) - 1))
+        self.reject(root)
+        group = gate.execution_groups(self.verify(synthetic_trx()))["runtime_derived"]
+        self.assertEqual((group["expected_methods"], group["executed_cases"], group["passed_cases"]), (1, 1, 1))
+        self.assertEqual(group["cases"], [name])
+
     def test_expanded_discovery_is_exact_full_case_set(self):
-        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (34, 41))
+        self.assertEqual((len(gate.EXPECTED), len(gate.CASE_METHOD)), (35, 42))
         report = self.discovery()
         self.assertEqual(report["mode"], "expanded_cases")
-        self.assertEqual(report["observed_count"], 41)
+        self.assertEqual(report["observed_count"], 42)
         self.assertEqual(sum(count for method, count in gate.EXPECTED.items()
                              if method.startswith(("RyuPy.Runtime.Tests.PyTraceStateTests.",
                                                    "RyuPy.Runtime.Tests.PyTraceStateEpochTests."))), 21)
@@ -160,7 +190,8 @@ class S1CollectionIdentity(unittest.TestCase):
         missing = next(row for row in results(root) if row.get("testName") == name)
         root.find("t:Results", N).remove(missing)
         # 即使同步降低汇总，也不能把漏执行伪装为合法的少一案例门。
-        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="39", executed="39", passed="39")
+        root.find("t:ResultSummary/t:Counters", N).attrib.update(total=str(len(gate.CASE_METHOD) - 1),
+                executed=str(len(gate.CASE_METHOD) - 1), passed=str(len(gate.CASE_METHOD) - 1))
         self.reject(root)
 
     def test_builtin_producer_fact_is_exact_and_cannot_replace_an_old_case(self):
@@ -177,7 +208,7 @@ class S1CollectionIdentity(unittest.TestCase):
                             [wrong if x == name else x for x in names]):
                 with self.subTest(changed=changed), self.assertRaises(RuntimeError):
                     self.discovery(changed)
-        # 保持40条结果仍不能以重复Fact替换旧保护；少一Fact也不能降为39。
+        # 保持完整结果总数仍不能以重复Fact替换旧保护；少一Fact也不能降低门槛。
         root = synthetic_trx(); rows = results(root)
         new = next(row for row in rows if row.get("testName") == name)
         old = next(row for row in rows if row.get("testName") != name)
@@ -186,14 +217,15 @@ class S1CollectionIdentity(unittest.TestCase):
         root = synthetic_trx()
         new = next(row for row in results(root) if row.get("testName") == name)
         root.find("t:Results", N).remove(new)
-        root.find("t:ResultSummary/t:Counters", N).attrib.update(total="39", executed="39", passed="39")
+        root.find("t:ResultSummary/t:Counters", N).attrib.update(total=str(len(gate.CASE_METHOD) - 1),
+                executed=str(len(gate.CASE_METHOD) - 1), passed=str(len(gate.CASE_METHOD) - 1))
         self.reject(root)
 
     def test_method_only_discovery_does_not_claim_case_expansion(self):
         report = self.discovery(gate.EXPECTED)
         self.assertEqual(report["mode"], "methods_only")
-        self.assertEqual(report["observed_count"], 34)
-        self.assertEqual(len(self.verify(synthetic_trx(), report)), 41)
+        self.assertEqual(report["observed_count"], 35)
+        self.assertEqual(len(self.verify(synthetic_trx(), report)), 42)
 
     def test_discovery_rejects_missing_extra_duplicate_wrong_owner_and_mixed_forms(self):
         names = list(gate.CASE_METHOD)
@@ -242,7 +274,7 @@ class S1CollectionIdentity(unittest.TestCase):
         root = synthetic_trx(); rows = results(root)
         indices = [i for i, row in enumerate(rows) if "ExplicitPermanentlyRevokesBirth" in row.get("testName")]
         self.assertEqual(len(indices), 2)
-        # 保持40结果和短/完整方法计数，只有一个Theory案例被重复替代。
+        # 保持完整结果和短/完整方法计数，只有一个Theory案例被重复替代。
         parent = root.find("t:Results", N); parent.remove(rows[indices[1]])
         parent.insert(indices[1], copy.deepcopy(rows[indices[0]]))
         self.reject(root)

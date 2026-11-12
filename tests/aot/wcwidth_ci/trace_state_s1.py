@@ -75,6 +75,11 @@ ORDINARY_MI_PLAN = {
         "ProducedMiAssemblyHasExactColdSignatureAndTotal": FACT,
     },
 }
+RUNTIME_DERIVED_PLAN = {
+    "PyTraceStateArtifactTests": {
+        "ProducedRuntimeDerivedAssemblyHasExactSingleAdditionAndTotal": FACT,
+    },
+}
 PLAN = {cls: dict(methods) for cls, methods in LEGACY_PLAN.items()}
 for cls, methods in TREEBUILDER_PLAN.items():
     if set(PLAN.get(cls, {})) & set(methods):
@@ -84,10 +89,15 @@ for cls, methods in ORDINARY_MI_PLAN.items():
     if set(PLAN.get(cls, {})) & set(methods):
         raise RuntimeError("新MI Fact与旧S1身份重复。")
     PLAN.setdefault(cls, {}).update(methods)
+for cls, methods in RUNTIME_DERIVED_PLAN.items():
+    if set(PLAN.get(cls, {})) & set(methods):
+        raise RuntimeError("新动态单基Fact与旧S1身份重复。")
+    PLAN.setdefault(cls, {}).update(methods)
 GROUP_EXPECTED = {
     group: {"RyuPy.Runtime.Tests." + cls + "." + method: len(cases)
             for cls, methods in plan.items() for method, cases in methods.items()}
-    for group, plan in (("legacy", LEGACY_PLAN), ("treebuilder", TREEBUILDER_PLAN), ("ordinary_mi", ORDINARY_MI_PLAN))
+    for group, plan in (("legacy", LEGACY_PLAN), ("treebuilder", TREEBUILDER_PLAN), ("ordinary_mi", ORDINARY_MI_PLAN),
+                        ("runtime_derived", RUNTIME_DERIVED_PLAN))
 }
 EXPECTED = {"RyuPy.Runtime.Tests." + cls + "." + method: len(cases)
             for cls, methods in PLAN.items() for method, cases in methods.items()}
@@ -97,7 +107,7 @@ CASE_METHOD = {"RyuPy.Runtime.Tests." + cls + "." + method + case: "RyuPy.Runtim
 
 
 def execution_groups(records):
-    """原38、TreeBuilder2与MI1分别报告真实TRX结果；失败/缺失仍由全身份门严格拒绝。"""
+    """原38、TreeBuilder2、MI1与动态单基1分别报告真实TRX结果；失败/缺失仍由全身份门严格拒绝。"""
     report = {}
     for group, expected in GROUP_EXPECTED.items():
         observed = [row for row in records if row["method"] in expected]
