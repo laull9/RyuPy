@@ -32,14 +32,22 @@ public static class PyText
     /// <param name="text">字符串。</param>
     public static long Length(string text)
     {
-        long count = 0;
-        int index = 0;
-        while (index < text.Length)
+        // BMP（含孤立低代理项）一单元即一码点；用BCL向量搜索跳过整段普通文本。
+        // 只对真正的高低代理配对减一，不将孤立代理替换成Rune或改变Python语义。
+        ReadOnlySpan<char> remaining = text.AsSpan();
+        int pairs = 0;
+        int high;
+        while ((high = remaining.IndexOfAnyInRange('\ud800', '\udbff')) >= 0)
         {
-            index += CodePointWidth(text, index);
-            count++;
+            int consumed = high + 1;
+            if (consumed < remaining.Length && char.IsLowSurrogate(remaining[consumed]))
+            {
+                pairs++;
+                consumed++;
+            }
+            remaining = remaining[consumed..];
         }
-        return count;
+        return text.Length - pairs;
     }
 
     /// <summary>把码点下标换算成 CLR 字符偏移；越界返回 -1。</summary>
