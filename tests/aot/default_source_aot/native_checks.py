@@ -7,6 +7,7 @@ from checking import require, sha, parse
 from support import ROOT, old
 from schema4 import validate_schema4, bind_candidate
 from pe_checks import cold_registration, validate_cold_abi
+from code_source_checks import pe_layout, source_types
 import manifest_verify as manifest
 import distribution_metadata_contract as metadata
 from contract import pe_timestamp_equivalence
@@ -18,7 +19,7 @@ def decode(r, label, pe):
     r.checked(label, [r.python, '-B', decoder, pe, 'old', label], 90)
     decoded = parse((r.out/(label+'.stdout')).read_bytes())
     require(decoded['sha256'] == sha(pe), '解码PE身份不符')
-    validate_cold_abi(decoded, metadata.pe_structure(pe))
+    validate_cold_abi(decoded, source_types(pe))
     return decoded
 
 
@@ -58,7 +59,7 @@ def audit_structure(r, case):
         require(case['candidate']['closed_unplanned'] == [], '默认不授closed权限')
     pe = folder/(name+'.dll')
     r.save(name+'-structure-roots.json', cold_registration(decode(r, name+'-decode', pe), oracle,
-                                                         case['roots'], case['payload'], metadata.pe_structure(pe)))
+                                                         case['roots'], case['payload'], source_types(pe), pe_layout(pe)))
     rust_owner_gate(r, case, folder, name+'-owner-signatures')
     r.freeze([p for p in folder.iterdir() if p.is_file()])
 
@@ -68,7 +69,7 @@ def audit_native(r, case, layout):
     r.save(name+'-coff-equivalence.json', pe_timestamp_equivalence(
         (source/(name+'.dll')).read_bytes(), layout.managed.read_bytes()))
     decoded = decode(r, name+'-actual-cli-decode', layout.managed)
-    r.save(name+'-actual-cli-roots.json', cold_registration(decoded, case['oracle'], case['roots'], case['payload'], metadata.pe_structure(layout.managed)))
+    r.save(name+'-actual-cli-roots.json', cold_registration(decoded, case['oracle'], case['roots'], case['payload'], source_types(layout.managed), pe_layout(layout.managed)))
     folder = r.out/(name+'-actual-cli-pe'); folder.mkdir()
     shutil.copy2(layout.managed, folder/(name+'.dll'))
     expected_file = source/(name+'-expected.json')

@@ -35,14 +35,33 @@ def fixture(instance=False):
     sig='0007010e0e0e0a0e021211' if instance else '000a010e0e0e0a0e020212051209120d'
     body.extend([ins('0x28',target=dict(owner='RyuPy.Runtime.PyModules',name=register,signature_hex=sig)),text(payload),
                  ins('0x28',target=dict(owner='RyuPy.Runtime.PyModules',name='ConfigureOptionalSources',signature_hex='0001010e')),ins('0x2a')])
-    return dict(sha256='synthetic',methods=methods),oracle,roots,payload,types
+    source_token='0x6000010'; wrapper_token='0x6000011'; main_token='0x6000012'
+    body.insert(len(body)-1,ins('0x28',token=source_token))
+    code_body=[text('entry'),text('entry.py'),ins('0x14')]
+    if not instance:
+        code_body += [ins('0xfe06',token='0x6000003'),ins('0x73',target=dict(owner='RyuPy.Runtime.PyModuleGet',name='.ctor',signature_hex='2002011c18'))]
+    code_body += [ins('0x28',target=dict(owner='RyuPy.Runtime.PyTraceback',name='CreateCodeSource' if instance else 'CreateLegacyCodeSourceV1',signature_hex='00031c0e0e1209')),
+                  ins('0x80',field_token='0x4000001'),ins('0x2a')]
+    methods += [method('__init_code_sources',source_token,code_body),
+                method('__run_main',wrapper_token,[ins('0x28',target=dict(owner='RyuPy.Runtime.PyModules',name='RunMain',signature_hex='000001')),ins('0x2a')]),
+                method('Main',main_token,[ins('0x28',token='0x6000001'),ins('0x28',token=wrapper_token),ins('0x2a')])]
+    # Mock仅模拟顺序；实际fixture的完整前置序列允许冷常量/委托。
+    body.pop(-2);body.insert(0,ins('0x28',token=source_token))
+    for root in roots: root['instruction']+=1
+    oracle['static_globals']=[dict(global_id=0,name='source',storage='CodeSource'),dict(global_id=1,name='name',storage='LegacyStatic')]
+    oracle['code_sources']=[dict(global_id=0,name='source',module_id=0,entry_fn=8,source_file='entry.py',legacy_entry=None if instance else dict(initial_name='entry',name_global=1))]
+    layout={'entry_token':main_token,'fields':{'0x4000001':dict(owner='Module',slot=0,name='source',flags=17,signature_hex='061c'),
+                                           '0x4000002':dict(owner='Module',slot=1,name='name',flags=17,signature_hex='061c')}}
+    if not instance:
+        roots.append(dict(role='module_getter',module_id=0,function_id=None,source=loc('__init_code_sources',len(roles)+1),target=loc('module_getter',2),instruction=3))
+    return dict(sha256='synthetic',methods=methods,_layout=layout),oracle,roots,payload,types
 
 
 class PeTests(unittest.TestCase):
     def test_models_both_domains(self):
         for instance in (False,True):
             d,o,r,p,t=fixture(instance)
-            self.assertEqual(cold_registration(d,o,r,p,t)['static_roots'],1 if instance else 3)
+            self.assertEqual(cold_registration(d,o,r,p,t,d['_layout'])['static_roots'],1 if instance else 3)
             validate_cold_abi(d,t)
 
     def test_oracle_mutations(self):
@@ -54,29 +73,29 @@ class PeTests(unittest.TestCase):
                        lambda o:o.update(candidate_payload_sha256='wrong')):
             with self.subTest(change=change):
                 d,o,r,p,t=fixture();change(o)
-                with self.assertRaises(ValueError): cold_registration(d,o,r,p,t)
+                with self.assertRaises(ValueError): cold_registration(d,o,r,p,t,d['_layout'])
 
     def test_locator_mutations(self):
         for change in (lambda r:r.append(copy.deepcopy(r[0])),lambda r:r.pop(),
                        lambda r:r[0].update(role='unclassified'),lambda r:r[0].update(module_id=99),
                        lambda r:r[0]['target'].update(slot=99),lambda r:r[0].update(instruction=1)):
             d,o,r,p,t=fixture();change(r)
-            with self.assertRaises(ValueError): cold_registration(d,o,r,p,t)
+            with self.assertRaises(ValueError): cold_registration(d,o,r,p,t,d['_layout'])
 
     def test_actual_edges_and_arguments(self):
-        for index,update in ((0,dict(string='other')),(3,dict(operand_hex='0100000000000000')),
-                             (7,dict(opcode='0x16')),(8,dict(token='0x6000004')),
-                             (9,dict(opcode='0x28')),(16,dict(opcode='0x6f'))):
+        for index,update in ((1,dict(string='other')),(4,dict(operand_hex='0100000000000000')),
+                             (8,dict(opcode='0x16')),(9,dict(token='0x6000004')),
+                             (10,dict(opcode='0x28')),(17,dict(opcode='0x6f'))):
             d,o,r,p,t=fixture();d['methods'][0]['body']['instructions'][index].update(update)
-            with self.assertRaises(ValueError): cold_registration(d,o,r,p,t)
+            with self.assertRaises(ValueError): cold_registration(d,o,r,p,t,d['_layout'])
 
     def test_extra_actual_source_root(self):
         d,o,r,p,t=fixture();d['methods'][1]['body']['instructions'].insert(0,dict(opcode='0xfe06',token='0x6000002'))
-        with self.assertRaises(ValueError): cold_registration(d,o,r,p,t)
+        with self.assertRaises(ValueError): cold_registration(d,o,r,p,t,d['_layout'])
 
     def test_extra_registration(self):
-        d,o,r,p,t=fixture();body=d['methods'][0]['body']['instructions'];body.append(copy.deepcopy(body[16]))
-        with self.assertRaises(ValueError): cold_registration(d,o,r,p,t)
+        d,o,r,p,t=fixture();body=d['methods'][0]['body']['instructions'];body.append(copy.deepcopy(body[17]))
+        with self.assertRaises(ValueError): cold_registration(d,o,r,p,t,d['_layout'])
 
     def test_abi_changes(self):
         for sig in ('000001','0001010e00','2001010e','00010112ff'):
@@ -92,7 +111,7 @@ class PeTests(unittest.TestCase):
                     if field == 'flags': d['methods'][slot][field] = value
                     else: d['methods'][slot]['method'][field] = value
                     with self.subTest(instance=instance,slot=slot,field=field,value=value), self.assertRaises(ValueError):
-                        cold_registration(d,o,r,p,t)
+                        cold_registration(d,o,r,p,t,d['_layout'])
 
     def test_unknown_type_and_truncated(self):
         for sig in ('','00010112','0001011205'):

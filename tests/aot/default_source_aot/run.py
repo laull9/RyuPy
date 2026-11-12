@@ -139,8 +139,8 @@ def main():
     context(); r = Runner()
     try:
         r.phase('prepare', lambda: prepare(r))
-        r.phase('structure', lambda: structure(r))
         r.phase('default-jit', lambda: managed(r))
+        r.phase('structure', lambda: structure(r))
         r.phase('default-native', lambda: native(r))
         require(source_identity(r, 'source-after') == r.before, '全源前后变化')
         r.result.update(passed=True, scope='默认AOT三图/8执行；非任意数据资源/全部trim证明')

@@ -109,10 +109,48 @@ fn default_aot_real_graph_emit() {
         "codegen_name":f.codegen_name,"state":format!("{:?}",f.module_state_source)})
         })
         .collect();
+    // 此处只读发射前Linked MIR；字段次序来自已有非InstancePublic分配合同。
+    let static_globals: Vec<_> = linked.globals.iter().filter(|(_, g)| {
+        !matches!(g.storage, ryupy_mir::GlobalStorage::InstancePublic { .. })
+    }).map(|(id, g)| {
+        json!({"global_id":id.into_raw().into_u32(),"name":g.name,
+            "storage":if matches!(g.storage, ryupy_mir::GlobalStorage::CodeSource { .. }) {"CodeSource"} else {"LegacyStatic"}})
+    }).collect();
+    let code_sources: Vec<_> = linked
+        .globals
+        .iter()
+        .filter_map(|(id, g)| {
+            let ryupy_mir::GlobalStorage::CodeSource {
+                entry,
+                legacy_entry,
+                ..
+            } = &g.storage
+            else {
+                return None;
+            };
+            let owners: Vec<_> = linked
+                .modules
+                .iter()
+                .filter(|(_, m)| m.init == *entry)
+                .collect();
+            assert_eq!(owners.len(), 1);
+            let (module_id, module) = owners[0];
+            assert_eq!(
+                module.execution == ryupy_mir::ModuleExecutionKind::LegacySingleton,
+                legacy_entry.is_some()
+            );
+            Some(json!({"global_id":id.into_raw().into_u32(),"name":g.name,
+            "module_id":module_id.into_raw().into_u32(),"entry_fn":entry.into_raw().into_u32(),
+            "source_file":linked.functions[*entry].source_file,
+            "legacy_entry":legacy_entry.as_ref().map(|v|json!({"initial_name":v.initial_name,
+                "name_global":v.name_global.into_raw().into_u32()}))}))
+        })
+        .collect();
+    assert_eq!(code_sources.len(), linked.modules.len());
     std::fs::write(
         out.join("mir-oracle.json"),
         serde_json::to_vec_pretty(&json!({"modules":modules,"functions":functions,
-        "sources":sources,"source_to_emitted":plan.automatic.as_ref().unwrap().source_to_emitted,
+        "sources":sources,"static_globals":static_globals,"code_sources":code_sources,"source_to_emitted":plan.automatic.as_ref().unwrap().source_to_emitted,
         "candidate_payload_sha256":crate::manifest_files::hash_bytes(payload.as_bytes())}))
         .unwrap(),
     )
