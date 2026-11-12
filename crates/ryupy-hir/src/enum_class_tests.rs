@@ -102,3 +102,81 @@ fn dynamic_members_special_hooks_duplicate_names_and_enum_subclasses_are_rejecte
         Some(crate::ClassBase::Runtime(_))
     ) && class.enum_members.is_none()));
 }
+
+#[test]
+fn auto_admission_keeps_stable_aliases_and_rhs_before_current_class_write() {
+    for source in [
+        "from enum import Enum, auto\nclass C(Enum):\n    A = auto()\n    B = A\n    C = auto()\n    def read(self, value=A): return value\n",
+        "import enum as e\nclass C(e.Enum):\n    A = e.auto()\n",
+        "from enum import Enum as E, auto as next_value\nclass C(E):\n    auto = next_value()\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    auto = auto()\n",
+        "from enum import Flag, auto\nclass C(Flag):\n    A = auto()\n    B = auto()\n    BOTH = A | B\n",
+    ] {
+        let (module, errors) = lower(source, &["enum"]);
+        assert!(errors.is_empty(), "{source}: {errors:?}");
+        assert!(
+            module
+                .classes
+                .iter()
+                .next()
+                .unwrap()
+                .1
+                .enum_members
+                .is_some()
+        );
+        // auto只是语法候选，不成为受保护的静态类型导出。
+        assert!(
+            !module
+                .protected_exports
+                .iter()
+                .any(|name| name.as_str() == "next_value")
+        );
+    }
+}
+
+#[test]
+fn auto_admission_rejects_fake_import_rebinding_local_shadow_and_argument_effects() {
+    for source in [
+        "from enum import Enum, auto\nauto = unknown\nclass C(Enum):\n    A = auto()\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    auto = 1\n    A = auto()\n",
+        "import enum as e\nclass C(e.Enum):\n    e = 1\n    A = e.auto()\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    def auto(self): return 1\n    A = auto()\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    A = auto(effect())\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    A = auto(value=effect())\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    A = (auto(),)\n",
+        "from enum import Enum, auto\nclass C(Enum):\n    def _generate_next_value_(name, start, count, last): return 7\n    A = auto()\n",
+        "from enum import Enum\nfrom fake import auto\nclass C(Enum):\n    A = auto()\n",
+        "from enum import Enum\nclass C(Enum):\n    A = auto()\nfrom enum import auto\n",
+    ] {
+        let (_, errors) = lower(source, &["enum"]);
+        assert!(
+            errors.iter().any(|d| d.code == Some("E0100")),
+            "{source}: {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn auto_module_export_is_not_frozen_and_source_shadow_is_not_certified_enum() {
+    let source = "import enum as e\ne.auto = replacement\nclass C(e.Enum):\n    A = e.auto()\n";
+    let (module, errors) = lower(source, &["enum"]);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert!(
+        module
+            .classes
+            .iter()
+            .next()
+            .unwrap()
+            .1
+            .enum_members
+            .is_some()
+    );
+    let source_shadow = "from enum import Enum, auto\nclass C(Enum):\n    A = auto()\n";
+    let (module, _) = lower(source_shadow, &[]);
+    assert!(
+        module
+            .classes
+            .iter()
+            .all(|(_, class)| class.enum_members.is_none())
+    );
+}

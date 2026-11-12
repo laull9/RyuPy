@@ -76,6 +76,11 @@ impl ExceptionImport {
         }
     }
 
+    /// auto只准入表达式语法，既不冻结运行时导出，也不把调用折叠为生成值。
+    pub(crate) fn peek_enum_auto(&self, path: &[&str], position: TextSize) -> bool {
+        self.module == "enum" && self.normalized_member(path, position) == Some("auto")
+    }
+
     /// ABC只选择需延后发布的冷类合同，不把导出冻结成静态布局身份。
     pub(crate) fn peek_abc_base(&self, path: &[&str], position: TextSize) -> bool {
         self.module == "collections.abc"
