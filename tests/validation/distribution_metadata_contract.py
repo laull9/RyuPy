@@ -165,12 +165,17 @@ def schema_projection(data, report):
     return projected
 
 
-def verify_native(dist, native, sdk, report, runtime, pe, source_map):
+def verify_native(dist, native, sdk, report, runtime, pe, source_map, *, decoded=None):
     dist, native = Path(dist).absolute(), Path(native).absolute()
     manifest.plain_stat(dist, directory=True)
     manifest.plain_stat(dist / 'ryupy-artifact.json')
     data = parse((dist / 'ryupy-artifact.json').read_text())
-    manifest.validate_schema(schema_projection(data, report), 'linux-x64', sdk)
+    if data.get('schema_version') == 4:
+        require(decoded is not None, 'schema4缺本轮实际PE探针，不能跳过深检')
+        from distribution_metadata_schema4 import validate_synthetic_schema4
+        validate_synthetic_schema4(data, sdk, report, pe, source_map, decoded)
+    else:
+        manifest.validate_schema(schema_projection(data, report), 'linux-x64', sdk)
     actual = manifest.check_artifacts(dist, data['artifacts'], 'ryupy-artifact.json', windows=False)
     entry = next(x for x in data['artifacts'] if x['role'] == 'native_executable')
     expected = actual[entry['relative_path']]

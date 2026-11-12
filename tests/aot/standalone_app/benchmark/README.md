@@ -60,3 +60,9 @@ RyuPy测量用cargo --release CLI与dotnet Release runtime；两者构建均属�
 日志环境安全策略：measure.capture只序列化精确非秘密键允许清单（见RECORDED_ENV_KEYS），
 无GITHUB_/ACTIONS_/TOKEN前缀通配；其余环境仍可传给子进程，但日志仅记省略键数量，
 不记键名、值或值摘要。伪GitHub/ACTIONS运行令牌与任意SECRET的真实capture负测必须通过。
+
+### 独立臂失败与存储布局
+
+四个 build/receipt 分别保留失败并继续其他独立臂；只有完成基础来源与产物安全验收的 bundle 才进入各自部署验证。任一必要臂、receipt 或部署失败，最终退出失败，禁止启动性能采样和速度比。原始编译流始终保留；该收集行为不把失败变为兼容。
+
+RyuPy 的完整 egg-info 通过独立实际 PE payload 审计及 metadata 入口运行证明，不要求在 dist 重复物理复制。独立 receipt 必须绑定当前 manifest 和完整 dist；字体仍按经独立 oracle 验证的 manifest 精确路径、大小、SHA 校验。Nuitka 按明确复制布局 `pyfiglet/fonts/<name>` 与 `pyfiglet.egg-info/<name>` 逐文件校验，不使用无路径 hash 集合。两工具仍必须通过全部三种参数、两入口及同洁净容器执行。首轮 schema2 原件不充当修改后候选的验收证据。

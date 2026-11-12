@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 import sys
@@ -15,6 +16,68 @@ gate = importlib.util.module_from_spec(spec); spec.loader.exec_module(gate)
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_independent_arm_failure_blocks_measurement(self):
+        calls = []; failures = {}; builds = {}; deployments = {}
+        def action(key):
+            calls.append(key)
+            if key == 'cli-ryupy': raise ValueError('receipt rejected')
+            builds[key] = True; deployments[key] = True
+        for key in ('cli-ryupy', 'cli-nuitka', 'metadata-nuitka', 'metadata-ryupy'):
+            gate.collect_arm(key, lambda: action(key), failures)
+        self.assertEqual(len(calls), 4)
+        self.assertIn('receipt rejected', failures['cli-ryupy'])
+        measured = []
+        with self.assertRaises(ValueError):
+            gate.require_complete(builds, deployments, failures)
+            measured.append(True)
+        self.assertEqual(measured, [])
+        builds['cli-ryupy'] = True; deployments['cli-ryupy'] = True
+        with self.assertRaises(ValueError): gate.require_complete(builds, deployments, failures)
+        gate.require_complete(builds, deployments, {})
+
+    def test_nuitka_exact_resource_paths_not_hash_bag(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); package = root/'package'; dist = root/'dist'
+            (root/'resources.json').write_text(json.dumps({'modules':[{'module':'pyfiglet.fonts','files':['a.flf','b.flf']}]}))
+            for base in (package, dist):
+                (base/'pyfiglet/fonts').mkdir(parents=True)
+                (base/'pyfiglet.egg-info').mkdir()
+                (base/'pyfiglet/fonts/a.flf').write_bytes(b'AAA')
+                (base/'pyfiglet/fonts/b.flf').write_bytes(b'BBB')
+                (base/'pyfiglet.egg-info/PKG-INFO').write_bytes(b'metadata')
+            with patch.object(gate, 'HERE', root/'benchmark'):
+                gate.preserved_resources(package, dist, 'nuitka')
+                a = dist/'pyfiglet/fonts/a.flf'; b = dist/'pyfiglet/fonts/b.flf'
+                a.rename(a.with_name('wrong.flf'))
+                with self.assertRaises(ValueError): gate.preserved_resources(package, dist, 'nuitka')
+                a.with_name('wrong.flf').rename(a)
+                a.write_bytes(b'BBB'); b.write_bytes(b'AAA')
+                with self.assertRaises(ValueError): gate.preserved_resources(package, dist, 'nuitka')
+                a.write_bytes(b'AAA'); b.write_bytes(b'BBB'); a.unlink()
+                with self.assertRaises(ValueError): gate.preserved_resources(package, dist, 'nuitka')
+                a.write_bytes(b'AAA')
+                (dist/'pyfiglet.egg-info/PKG-INFO').rename(dist/'wrong-metadata')
+                with self.assertRaises(ValueError): gate.preserved_resources(package, dist, 'nuitka')
+                with self.assertRaises(ValueError): gate.preserved_resources(package, dist, 'ryupy')
+
+    def test_ryupy_receipt_binds_embedded_metadata_and_exact_resources(self):
+        # 仅消费者形状/篡改负测，合成receipt不构成真实Native验收。
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); dist = root/'dist'; dist.mkdir()
+            (root/'resources.json').write_text('{"modules": []}')
+            font = dist/'font.flf'; font.write_bytes(b'font')
+            manifest = dist/'manifest.json'
+            manifest.write_text(json.dumps({'resources':[{'relative_path':'font.flf', 'size':4, 'sha256':gate.sha(font)}]}))
+            receipt = {'structure_validated':True, 'metadata_payload_sha256':'unit-test-only',
+                       'manifest_sha256':gate.sha(manifest), 'dist_files':inventory(dist), 'resource_count':1}
+            with patch.object(gate, 'HERE', root/'benchmark'):
+                gate.preserved_resources(root/'package', dist, 'ryupy', receipt=receipt, manifest=manifest)
+                with self.assertRaises(ValueError):
+                    gate.preserved_resources(root/'package', dist, 'ryupy', receipt=dict(receipt, metadata_payload_sha256=None), manifest=manifest)
+                font.write_bytes(b'evil')
+                with self.assertRaises(ValueError):
+                    gate.preserved_resources(root/'package', dist, 'ryupy', receipt=receipt, manifest=manifest)
+
     def test_environment_secret_values_never_serialized(self):
         secrets = {'GITHUB_TOKEN': 'fake-gh-private-092',
                    'ACTIONS_RUNTIME_TOKEN': 'fake-action-private-583',
