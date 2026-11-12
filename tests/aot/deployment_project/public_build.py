@@ -24,8 +24,8 @@ def project_command(cli, project, target, output=None):
 
 def inputs(project):
     config = configuration()
-    require(json.loads((project/'ryupy.json').read_text()) == config, '配置不同')
-    locked = json.loads((APP/'inputs.json').read_text())['files']
+    require(json.loads((project/'ryupy.json').read_text(encoding='utf-8')) == config, '配置不同')
+    locked = json.loads((APP/'inputs.json').read_text(encoding='utf-8'))['files']
     result = {}
     for relative, digest in locked.items():
         path = project/'package'/relative
@@ -80,7 +80,7 @@ def main():
                     require(rec['exit']==0 and rec['failure'] is None,'公开AOT构建失败')
                     entry=configuration()['targets'][target]['entry'];root=project/'build'/target
                     layout=reported_aot((out/(label+'.stderr')).read_bytes(),root,Path(entry).stem,'linux-x64')
-                    manifest=json.loads(layout.manifest.read_text())
+                    manifest=json.loads(layout.manifest.read_text(encoding='utf-8'))
                     require(manifest['schema_version']==4,'应生成默认计划schema4')
                     check_artifacts(layout.dist,manifest['artifacts'],'ryupy-artifact.json')
                     elf(layout.native)

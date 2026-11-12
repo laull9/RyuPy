@@ -19,8 +19,8 @@ def require(ok, reason):
     if not ok: raise ValueError(reason)
 
 def sha(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-def read(path): return json.loads(Path(path).read_text(),object_pairs_hook=no_duplicate_keys)
-def save(path,value): Path(path).write_text(json.dumps(value,indent=2,sort_keys=True)+'\n')
+def read(path): return json.loads(Path(path).read_text(encoding='utf-8'),object_pairs_hook=no_duplicate_keys)
+def save(path,value): Path(path).write_text(json.dumps(value,indent=2,sort_keys=True)+'\n', encoding='utf-8')
 
 def inventory(root):
     result={}
@@ -108,8 +108,9 @@ class Probe:
         require(p.returncode==0,'实际PE探针失败：'+name)
 
 
-def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,runtime,oracle_dir,output):
+def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,runtime,oracle_dir,output,expected_rid="linux-x64"):
     """结构验证后仍需独立clean-container完整六run，receipt不会直接允许measure。"""
+    require(expected_rid in ('linux-x64','osx-arm64','win-x64'),'未知验收平台')
     require(case in ('cli','metadata'),'未知case')
     prepared,oracle_dir,output=Path(prepared),Path(oracle_dir),Path(output)
     output.mkdir(parents=True,exist_ok=False)
@@ -123,7 +124,7 @@ def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,
     source_before=inventory(prepared); dist_before=inventory(layout.dist)
     manifest_hash,pe_hash=sha(layout.manifest),sha(layout.managed)
     oracle,identity=locked_sources(prepared,case,oracle_dir,tools,cli,runtime)
-    plan=read(oracle_dir/'default_source_plan.json'); payload=(oracle_dir/'candidate.json').read_text()
+    plan=read(oracle_dir/'default_source_plan.json'); payload=(oracle_dir/'candidate.json').read_text(encoding='utf-8')
     candidate=read(oracle_dir/'candidate.json'); roots=read(oracle_dir/'emission-roots.json')
     probe=Probe(output,python,dotnet); decoder=REPO/'tests/validation/source_provenance/ci/read_pe_decoder.py'
     probe.checked('actual-pe',[python,'-B',decoder,layout.managed,'old',case],90)
@@ -134,19 +135,19 @@ def validate_app_artifact(layout,prepared,frozen_tools,*,case,python,dotnet,cli,
     data=read(layout.manifest); sdk=read_sdk_version(layout.host/'sdk.version'); require(sdk=='10.0.403','SDK未锁定')
     require(plan['automatic_instance_modules'] == [], '默认app不得自动实例选择')
     expected=expected_resources(prepared,oracle)
-    validate_standalone_schema4(data,'linux-x64',sdk,expected_automatic=(),metadata_report=report,expected_resources=expected)
+    validate_standalone_schema4(data,expected_rid,sdk,expected_automatic=(),metadata_report=report,expected_resources=expected)
     require(data['sources']==oracle['sources'] and data['default_source_plan']==plan,'清单与独立source/plan不符')
     bind_candidate(data,payload,candidate)
-    actual=check_artifacts(layout.dist,data['artifacts'],'ryupy-artifact.json',windows=False)
+    actual=check_artifacts(layout.dist,data['artifacts'],'ryupy-artifact.json',windows=expected_rid=='win-x64')
     executable=next(r for r in data['artifacts'] if r['role']=='native_executable')
-    require(actual[executable['relative_path']].samefile(layout.native),'非本次Native'); image_header(layout.native,'linux-x64')
+    require(actual[executable['relative_path']].samefile(layout.native),'非本次Native'); image_header(layout.native,expected_rid)
     inputs={r['role']:r for r in data['build_inputs']}
     require(inputs['compiled_managed_input']['sha256']==pe_hash,'实际托管入口不同')
     require(inputs['runtime_managed_input']['sha256']==identity['runtime_sha256']==sha(layout.managed.parent/'RyuPy.Runtime.dll'),'真实runtime不符')
     require(source_before==inventory(prepared) and dist_before==inventory(layout.dist),'验收时源/dist变化')
     require(sha(layout.manifest)==manifest_hash and sha(layout.managed)==pe_hash,'产物变化')
     require(all(sha(k)==v for k,v in tools.items()) and all(sha(oracle_dir/k)==v for k,v in hashes.items()),'工具/oracle变化')
-    receipt={'schema_version':1,'case':case,'structure_validated':True,'clean_container_validated':False,'performance_permitted':False,
+    receipt={'schema_version':1,'expected_rid':expected_rid,'case':case,'structure_validated':True,'clean_container_validated':False,'performance_permitted':False,
         'manifest_sha256':manifest_hash,'managed_pe_sha256':pe_hash,'native_sha256':sha(layout.native),
         'tools':tools,'oracle':hashes,'prepared_files':source_before,'dist_files':dist_before,
         'resource_count':len(expected),'metadata_payload_sha256':report['payload_sha256'],'validator_sha256':sha(__file__)}
