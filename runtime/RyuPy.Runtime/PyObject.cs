@@ -538,7 +538,7 @@ public static partial class PyObject
                 return cls.NativeDefinitionModule is null ? "__main__" : cls.NativeModuleValue;
             case "__bases__":
                 return cls.DirectBasesTuple();
-            case "__mro__" when cls.HasMultipleInheritance:
+            case "__mro__" when cls.HasMultipleInheritance || cls.IsFrozenNativeProtocolRoot:
                 return cls.MroTuple();
             case "__base__":
                 return (object?)cls.BaseClass ?? (cls.BuiltinBase is { } baseName

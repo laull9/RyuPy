@@ -9,7 +9,9 @@ public static class PyDateTimeModule
     internal const long Day = 86400000000L;
     internal static readonly PyDateTimeZone Utc = new(0, null);
     /// <summary>创建原生类型以及明确实现的类方法和常量。</summary>
-    public static Dictionary<string, object?> CreateAttributes()
+    public static Dictionary<string, object?> CreateAttributes() => new(Canonical.Value, StringComparer.Ordinal);
+    private static readonly Lazy<Dictionary<string, object?>> Canonical = new(BuildAttributes);
+    private static Dictionary<string, object?> BuildAttributes()
     {
         var date = Type("date", ["year", "month", "day"], [null, null, null], 3, a => PyDateTimeValue.Create(a, false), v => v is PyDateTimeValue);
         var datetime = Type("datetime", ["year", "month", "day", "hour", "minute", "second", "microsecond", "tzinfo", "fold"],
@@ -19,8 +21,9 @@ public static class PyDateTimeModule
             a => PyDateTimeClock.Create(a), v => v is PyDateTimeClock, [], ["pos", "pos", "pos", "pos", "pos", "kwonly"]);
         var delta = Type("timedelta", ["days", "seconds", "microseconds", "milliseconds", "minutes", "hours", "weeks"],
             [0L, 0L, 0L, 0L, 0L, 0L, 0L], 0, PyDateTimeDelta.Create, v => v is PyDateTimeDelta);
-        var zone = Type("timezone", ["offset", "name"], [null, PyDateTimeZone.MissingName], 1, a => PyDateTimeZone.Create(a), v => v is PyDateTimeZone, ["tzinfo"]);
-        var tzinfo = new PyNativeType("tzinfo", "datetime", null, v => v is PyDateTimeZone);
+        var zone = Type("timezone", ["offset", "name"], [null, PyDateTimeZone.MissingName], 1, a => PyDateTimeZone.Create(a), v => v is PyDateTimeZone);
+        var tzinfo = PyDateTimeTzInfo.Root;
+        zone.ConfigureIdentityBase(tzinfo);
         zone.SetAttr("utc", Utc);
         zone.SetAttr("min", new PyDateTimeZone(-Day + 60000000L, null)); zone.SetAttr("max", new PyDateTimeZone(Day - 60000000L, null));
         date.SetAttr("fromordinal", Function("fromordinal", ["n"], [null], 1, a => PyDateTimeValue.FromOrdinal(Index(a[0]), false)));
@@ -93,6 +96,5 @@ public static class PyDateTimeModule
     internal static object Compare(string op, int? compare) => compare is null ? PyNotImplemented.Instance : op switch
     { "__eq__" => compare == 0, "__ne__" => compare != 0, "__lt__" => compare < 0, "__le__" => compare <= 0, "__gt__" => compare > 0, _ => compare >= 0 };
     internal static bool Comparison(string name) => name is "__eq__" or "__ne__" or "__lt__" or "__le__" or "__gt__" or "__ge__";
-    internal static PyDateTimeZone? Zone(object? value) => value is null or PyNone ? null : value as PyDateTimeZone
-        ?? throw new PyNotImplementedError("only datetime.timezone fixed offsets are supported");
+    internal static object? Zone(object? value) => PyDateTimeZoneProtocol.Check(value);
 }

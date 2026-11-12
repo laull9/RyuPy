@@ -5,9 +5,10 @@ namespace RyuPy.Runtime;
 public sealed class PyDateTimeClock : PyNativeObject
 {
     internal readonly long Microseconds;
-    internal readonly PyDateTimeZone? Zone;
+    internal readonly object? Zone;
     internal readonly int Fold;
-    internal PyDateTimeClock(long microseconds, PyDateTimeZone? zone, int fold)
+    private long? _hash;
+    internal PyDateTimeClock(long microseconds, object? zone, int fold)
     { Microseconds = microseconds; Zone = zone; Fold = fold; }
     internal static object Create(object?[] args) => new PyDateTimeClock(Parts(args, 0), PyDateTimeModule.Zone(args[4]), FoldValue(args[5]));
     internal static int FoldValue(object? value)
@@ -43,32 +44,42 @@ public sealed class PyDateTimeClock : PyNativeObject
         {
             "hour" => Microseconds / 3600000000, "minute" => Microseconds / 60000000 % 60,
             "second" => Microseconds / 1000000 % 60, "microsecond" => Microseconds % 1000000, "tzinfo" => (object?)Zone ?? PyNone.Instance, "fold" => (long)Fold,
-            "isoformat" => PyDateTimeModule.Function(name, ["timespec"], ["auto"], 0, a => Format(Microseconds, PyCast.ToStr(a[0])) + (Zone?.Suffix() ?? "")),
-            "utcoffset" => PyDateTimeModule.Zero(name, () => Zone is null ? null : new PyDateTimeDelta(Zone.Offset)),
-            "dst" => PyDateTimeModule.Zero(name, () => null), "tzname" => PyDateTimeModule.Zero(name, () => Zone?.PythonStr()),
+            "isoformat" => PyDateTimeModule.Function(name, ["timespec"], ["auto"], 0, a => Format(Microseconds, PyCast.ToStr(a[0])) + PyDateTimeZoneProtocol.Suffix(Zone, null)),
+            "utcoffset" => PyDateTimeModule.Zero(name, () => PyDateTimeZoneProtocol.Delta(Zone, "utcoffset", null)),
+            "dst" => PyDateTimeModule.Zero(name, () => PyDateTimeZoneProtocol.Delta(Zone, "dst", null)), "tzname" => PyDateTimeModule.Zero(name, () => PyDateTimeZoneProtocol.Name(Zone, null)),
             "replace" => PyNativeFunctions.Create(name, ["hour", "minute", "second", "microsecond", "tzinfo", "fold"],
                 [Microseconds / 3600000000, Microseconds / 60000000 % 60, Microseconds / 1000000 % 60, Microseconds % 1000000, Zone, (long)Fold], 0, Create,
                 ["pos", "pos", "pos", "pos", "pos", "kwonly"]),
-            "__hash__" => PyDateTimeModule.Zero(name, () => PyHash.Of(new PyTuple(["time", Zone is not null, Microseconds - (Zone?.Offset ?? 0)]))),
+            "__hash__" => PyDateTimeModule.Zero(name, Hash),
             _ => throw Missing(name),
         };
     }
     private object Compare(string name, object? value)
     {
         if (value is not PyDateTimeClock clock) return PyNotImplemented.Instance;
-        if ((Zone is null) != (clock.Zone is null))
+        if (ReferenceEquals(Zone, clock.Zone)) return PyDateTimeModule.Compare(name, Microseconds.CompareTo(clock.Microseconds));
+        long? left = PyDateTimeZoneProtocol.Offset(Zone, null), right = PyDateTimeZoneProtocol.Offset(clock.Zone, null);
+        if ((left is null) != (right is null))
         { if (name is "__eq__" or "__ne__") return name == "__ne__"; throw new PyTypeError("can't compare offset-naive and offset-aware times"); }
-        return PyDateTimeModule.Compare(name, (Microseconds - (Zone?.Offset ?? 0)).CompareTo(clock.Microseconds - (clock.Zone?.Offset ?? 0)));
+        return PyDateTimeModule.Compare(name, (Microseconds - (left ?? 0)).CompareTo(clock.Microseconds - (right ?? 0)));
     }
+    private object Hash()
+    {
+        if (_hash is { } hash) return hash;
+        long offset = PyDateTimeZoneProtocol.Offset(Zone, null) ?? 0;
+        // time的零偏移与无偏移哈希相同；偏移校正不按一天取模。
+        return (_hash = PyHash.Of(new PyTuple(["time", Microseconds - offset]))).Value;
+    }
+
     /// <inheritdoc/>
-    public override string PythonStr() => Format(Microseconds, "auto") + (Zone?.Suffix() ?? "");
+    public override string PythonStr() => Format(Microseconds, "auto") + PyDateTimeZoneProtocol.Suffix(Zone, null);
     /// <inheritdoc/>
     public override string PythonRepr()
     {
         string text = $"datetime.time({Microseconds / 3600000000}, {Microseconds / 60000000 % 60}";
         if (Microseconds % 60000000 != 0) text += $", {Microseconds / 1000000 % 60}";
         if (Microseconds % 1000000 != 0) text += $", {Microseconds % 1000000}";
-        if (Zone is not null) text += ", tzinfo=" + Zone.PythonRepr(); if (Fold != 0) text += ", fold=1";
+        if (Zone is not null) text += ", tzinfo=" + PyRepr.Repr(Zone); if (Fold != 0) text += ", fold=1";
         return text + ")";
     }
 }
