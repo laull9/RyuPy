@@ -100,6 +100,38 @@ CLI + 运行时压缩包，没有单文件 CLI 发布。产物可跨哪些系统
 
 原生通过、桥接通过和已接受偏差的区别见 [compatibility.md](compatibility.md)。Native AOT 的目标平台、构建与加载限制参考 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
 
+### 统一项目部署配置（WIP，2026-11-12）
+
+新入口将部署声明集中到一个显式 JSON 文件；首切只支持 `schema_version: 1`、`mode: "aot"`。例如项目目录中的 `ryupy.json`：
+
+```json
+{
+  "schema_version": 1,
+  "mode": "aot",
+  "search_paths": ["package"],
+  "include_modules": ["pyfiglet", "pyfiglet.fonts"],
+  "resources": "resources.json",
+  "distribution_metadata": "metadata-request.json",
+  "targets": {
+    "cli": {"entry": "package/pyfiglet/__main__.py"},
+    "metadata": {"entry": "console_entry.py"}
+  }
+}
+```
+
+```bash
+ryupy build --project /work/app/ryupy.json --target cli
+ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
+```
+
+`--project` 必须指向文件，不自动发现目录；`--target` 必须显式选择一个目标，不构建所有入口。配置的 `mode` 已决定 AOT，无需且不能再加 `--aot`。示例要求对应源码及声明文件实际存在；可省略搜索根、显式模块及两种声明字段，不会因此自动发现包数据。
+
+配置中的入口、搜索根和声明文件路径相对于配置文件父目录，须留在该目录内且不跟随内部符号链接；搜索根可用 `"."`。显式 `--project` 本身可使用绝对路径或相对调用目录的路径。嵌套请求不重写：metadata 的 `roots` 仍相对该请求文件，resources 的文件仍按原模块资源合同解释。
+
+默认输出根为配置目录的 `build/<目标名>`，其下沿用 `<入口名>.build/`、`<入口名>.dist/`；`-o` 覆盖仍相对调用者当前目录。项目模式与位置输入、`-I` / `--search-path`、`--include-module`、`--resources`、`--distribution-metadata`、`--native-binding`、`--instance-module`、`--instance-direct-globals` 互斥，不隐式合并。
+
+普通默认构建保持 `ExplicitOnly` 模块策略，不因项目配置或 AOT 源位置计划自动启用实例模块。项目文件是部署声明，不是完整依赖锁，也不证明动态依赖闭包。配置入口的 Native 构建、搬迁和独立产物验收仍在验证，不能借用旧候选的 Native 成功记录；当前合同和验证层次见 [deployment_project](../tests/aot/deployment_project/README.md)。
+
 ## 后续阶段的 Python 用例
 
 Phase 2–4 用例已经写入 `tests/e2e/` 并标记 pending。`python3 tests/run_python_baseline.py` 自检 Phase 1–3 的 CPython 行为；安装 NumPy 后加 `--phase phase4` 检查扩展基线。辅助包与预期错误退出的运行方式见 [测试说明](../tests/README.md)。这些基线通过不表示 RyuPy 已支持相应功能。

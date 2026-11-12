@@ -1,0 +1,60 @@
+# 独立公开项目验收，不重新测量旧benchmark，不扩大旧controller。
+name: Linux普通项目Native部署
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/deployment-project-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: deployment-project-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  linux-project:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-project-001'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 项目与深验轻量负例
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s tests/aot/deployment_project -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/aot/standalone_app -p 'test_validate_artifact.py'
+          python3 -B -m unittest discover -s tests/aot/standalone_app/benchmark -p 'test_*.py'
+      - name: 固定工具与系统依赖
+        timeout-minutes: 15
+        run: |
+          mkdir -p "$RUNNER_TEMP/deployment-project"
+          sudo apt-get update > "$RUNNER_TEMP/deployment-project/apt-update.log" 2>&1
+          sudo apt-get install -y clang zlib1g-dev libicu-dev > "$RUNNER_TEMP/deployment-project/apt-install.log" 2>&1
+          python3 -B tests/aot/wcwidth_ci/prepare.py > "$RUNNER_TEMP/deployment-project/tool-prepare.log" 2>&1
+      - name: 默认release工具、自足项目、无宿主运行镜像
+        timeout-minutes: 27
+        run: '"$PYTHON" -B tests/aot/deployment_project/hosted_project.py setup'
+      - name: 四公开项目AOT、独立审计、搬迁及禁网部署
+        timeout-minutes: 57
+        run: '"$PYTHON" -B tests/aot/deployment_project/hosted_project.py verify'
+      - name: 全部成功与失败原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: deployment-project-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/deployment-project
+            ${{ runner.temp }}/standalone-app-benchmark
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3

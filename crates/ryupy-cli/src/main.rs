@@ -41,13 +41,24 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// 编译为 .dll（加 --aot 生成原生可执行文件）
+    /// 编译为 .dll；--aot或项目配置的aot模式生成原生可执行文件
     Build {
-        input: PathBuf,
+        #[arg(required_unless_present = "project")]
+        input: Option<PathBuf>,
+        /// 统一部署配置；与零散部署参数互斥，不隐式合并
+        #[arg(long, requires = "target", conflicts_with_all = [
+            "input", "aot", "search_paths", "include_modules", "resources",
+            "native_binding", "distribution_metadata", "instance_modules",
+            "instance_direct_globals"
+        ])]
+        project: Option<PathBuf>,
+        /// 配置中要构建的目标；首切目标的mode必须为aot
+        #[arg(long, requires = "project")]
+        target: Option<String>,
         /// 诊断：逐阶段写 stderr（编译至产物写出，不含 AOT publish；默认关闭）
         #[arg(long, conflicts_with = "native_binding")]
         diagnostic_stages: bool,
-        /// 输出根；AOT默认源目录下<文件名>.build/.dist，JIT默认__pycache__/<文件名>/
+        /// 输出根（相对调用目录）；项目默认配置目录/build/<目标>，旧AOT/JIT默认不变
         #[arg(short, long)]
         out_dir: Option<PathBuf>,
         #[arg(long)]
@@ -150,6 +161,8 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
     match command {
         Command::Build {
             input,
+            project,
+            target,
             diagnostic_stages,
             out_dir,
             aot,
@@ -160,29 +173,45 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
         } => {
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
-            sess.include_modules = include_modules;
-            let out_dir = out_dir.unwrap_or_else(|| {
-                if aot {
-                    input
-                        .parent()
-                        .filter(|p| !p.as_os_str().is_empty())
-                        .unwrap_or_else(|| std::path::Path::new("."))
-                        .to_path_buf()
-                } else {
-                    default_out_dir(&input)
-                }
-            });
-            let artifacts = ryupy_driver::build_configured(
-                sess,
-                &BuildOptions {
-                    input,
-                    out_dir,
-                    aot,
-                    search_paths,
-                },
-                resources.as_deref(),
-                native_binding.as_deref(),
-            )?;
+            // 配置解析、相对路径与部署请求都由driver统一处理；CLI不读JSON。
+            let (artifacts, aot) = if let Some(project) = project {
+                let target = target
+                    .as_deref()
+                    .ok_or_else(|| anyhow::anyhow!("项目模式需要--target"))?;
+                let request = ryupy_driver::deployment_request::DeploymentRequest::load(
+                    &project,
+                    target,
+                    out_dir.as_deref(),
+                )?;
+                let aot = request.options().aot;
+                (request.build(sess)?, aot)
+            } else {
+                let input = input.ok_or_else(|| anyhow::anyhow!("缺少输入文件"))?;
+                sess.include_modules = include_modules;
+                let out_dir = out_dir.unwrap_or_else(|| {
+                    if aot {
+                        input
+                            .parent()
+                            .filter(|p| !p.as_os_str().is_empty())
+                            .unwrap_or_else(|| std::path::Path::new("."))
+                            .to_path_buf()
+                    } else {
+                        default_out_dir(&input)
+                    }
+                });
+                let artifacts = ryupy_driver::build_configured(
+                    sess,
+                    &BuildOptions {
+                        input,
+                        out_dir,
+                        aot,
+                        search_paths,
+                    },
+                    resources.as_deref(),
+                    native_binding.as_deref(),
+                )?;
+                (artifacts, aot)
+            };
             eprintln!("已生成 {}", artifacts.dll.display());
             if let Some(exe) = artifacts.native_exe {
                 eprintln!("已生成 {}", exe.display());
@@ -440,3 +469,8 @@ mod instance_module_tests {
         assert_eq!(include_modules, ["c"]);
     }
 }
+
+#[cfg(test)]
+mod project_tests;
+
+mod cli_validation;
