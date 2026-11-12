@@ -11,6 +11,7 @@ import tarfile
 import time
 import traceback
 import urllib.request
+import xml.etree.ElementTree as ET
 
 HERE=Path(__file__).resolve().parent
 REPO=HERE.parents[2]
@@ -43,6 +44,17 @@ def check_windows_tests(stdout):
     actual=[line for line in stdout.splitlines() if line.startswith('test ') and not line.startswith('test result:')]
     require(len(actual)==3 and set(actual)==expected, 'Windows安全测试必须三项实际通过，不接受零匹配/skip')
     require(any(line.startswith('test result: ok. 3 passed; 0 failed; 0 ignored;') for line in stdout.splitlines()), 'Windows安全测试计数不符')
+
+
+def check_windows_path_tests(trx):
+    names={'RyuPy.Runtime.Tests.PyWindowsPathHostTests.'+name for name in
+           ('LexicalObjectsAndContextBoundaries','FactoriesHaveHostIdentity','RegisteredResourceUsesRealIsolatedFiles')}
+    root=ET.parse(trx).getroot();rows=root.findall('.//{*}UnitTestResult')
+    require(len(rows)==3 and {row.get('testName') for row in rows}==names and
+            all(row.get('outcome')=='Passed' for row in rows),'Windows路径宿主测试须三项实际通过，不接受skip或零匹配')
+    counters=root.findall('.//{*}Counters')
+    require(len(counters)==1 and all(counters[0].get(k)==v for k,v in
+            {'total':'3','executed':'3','passed':'3','failed':'0','notExecuted':'0'}.items()),'Windows路径宿主测试计数不符')
 
 
 def source_command(python, package, entry, argv):
@@ -99,6 +111,13 @@ def main():
         original=next(store.glob('pyfiglet-*'));project=prepare(out/'project',original)
         source_before=inventory(project);save(out/'project-inputs.json',source_before)
         run.run('runtime-build',[str(dotnet),'build','runtime/RyuPy.Runtime/RyuPy.Runtime.csproj','-c','Release','-nologo'],cwd=REPO,env=env,check=True,timeout=300)
+        if args.rid=='win-x64':
+            run.run('windows-path-host-tests',[str(dotnet),'test','runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj',
+                    '-c','Release','--filter','FullyQualifiedName~PyWindowsPathHostTests',
+                    '--logger','trx;LogFileName=windows-path-tests.trx','--results-directory',str(logs)],
+                    cwd=REPO,env=env,check=True,timeout=300)
+            check_windows_path_tests(logs/'windows-path-tests.trx')
+            result['windows_path_host_tests']=3
         run.run('cli-build',['cargo','build','--locked','--release','-p','ryupy-cli'],cwd=REPO,env=env,check=True,timeout=900)
         if args.rid=='win-x64':
             safety=run.run('windows-nofollow-tests',['cargo','test','--locked','-p','ryupy-driver','--lib','-j','1','distribution_metadata_windows_','--','--nocapture'],cwd=REPO,env=env,check=True,timeout=600)

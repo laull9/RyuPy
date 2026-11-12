@@ -2,7 +2,7 @@
 
 ## 当前 AOT 产品主线（2026-11-12）
 
-- [~] 真实 standalone 联合部署：原 pyfiglet 1.0.2 CLI/console entry、完整553字体及 metadata 同计划；公开 AOT 前端已过，本地 MSB4216/4027 未产 ELF。hosted 原生搬迁、缺件/篡改负测、完整回归与同源 Nuitka 性能对照待验；不宣称全库兼容。见 [ADR0171](docs/adr/0171-aot-standalone-deployment-plan.md)。词法 del/click 扩展暂不实施。
+- [~] 真实 standalone 联合部署：Linux pyfiglet 1.0.2 两入口、553 字体及 metadata 的公开项目构建、原位/项目搬迁重建和无 Python/.NET 容器已验；Mac 同候选两入口原位/产物搬迁共12语义运行已验。Windows CI `43285836945` 已过真实 nofollow 3/3、两次 Native 构建及 receipt、同隔离环境 CP 6正/CP与Native 4负控，但 Native 仍被 Windows Path 词法门禁阻断，当前不计 Windows 应用通过。继续通用路径模型，不用资源包特判绕过。见 [ADR0171](docs/adr/0171-aot-standalone-deployment-plan.md)、[ADR0173](docs/adr/0173-windows-path-lexical-model.md)。Mac/Windows 无运行时干净机与性能对照仍未验；不宣称 Nuitka 全面兼容或更快。
 
 
 - [~] 普通 MI/C3 冷权威候选：真实菱形、单基后代、发布失败及 super/PIC 同源验证待完成；Legacy JIT 有界准入，Instance/Native 与专用布局保持拒绝。见[ADR0161](docs/adr/0161-ordinary-mi-c3.md)。

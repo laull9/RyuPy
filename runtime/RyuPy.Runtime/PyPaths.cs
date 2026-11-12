@@ -20,9 +20,10 @@ public static class PyPaths
         PyFunction constructor = PyNativeFunctions.CreateVariadic("Path", args => new PyPath(
             args.Length == 0 ? "." : PyOsPath.Join(args)));
         var path = new PyNativeType("Path", "pathlib", constructor.Invoke, value => value is PyPath);
-        var posix = new PyNativeType("PosixPath", "pathlib", constructor.Invoke,
+        var posix = new PyNativeType("PosixPath", "pathlib", OperatingSystem.IsWindows() ? null : constructor.Invoke,
             value => value is PyPath && !OperatingSystem.IsWindows(), "Path");
-        var windows = new PyNativeType("WindowsPath", "pathlib", null, _ => false, "Path");
+        var windows = new PyNativeType("WindowsPath", "pathlib", OperatingSystem.IsWindows() ? constructor.Invoke : null,
+            value => value is PyPath && OperatingSystem.IsWindows(), "Path");
         foreach (PyNativeType type in new[] { path, posix, windows })
             type.SetAttr("cwd", PyNativeFunctions.Create("cwd", [], [], 0,
                 _ => type.Invoke([Directory.GetCurrentDirectory()], [], [])));
@@ -61,15 +62,15 @@ public sealed class PyPath : PyNativeObject
         "__fspath__" => Method(name, [], [], 0, _ => Value),
         "__str__" => Method(name, [], [], 0, _ => Value),
         "__eq__" => Method(name, ["other"], [null], 1, a => a[0] is PyPath other
-            ? string.Equals(Value, other.Value, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)
+            ? string.Equals(ComparisonKey, other.ComparisonKey, StringComparison.Ordinal)
             : PyNotImplemented.Instance),
-        "__hash__" => Method(name, [], [], 0, _ => (long)(OperatingSystem.IsWindows()
-            ? StringComparer.OrdinalIgnoreCase.GetHashCode(Value) : StringComparer.Ordinal.GetHashCode(Value))),
+        "__hash__" => Method(name, [], [], 0, _ => (long)StringComparer.Ordinal.GetHashCode(ComparisonKey)),
         "__truediv__" => Method(name, ["other"], [null], 1, a => new PyPath(PyOsPath.Join([Value, a[0]]))),
         "__rtruediv__" => Method(name, ["other"], [null], 1, a => new PyPath(PyOsPath.Join([a[0], Value]))),
         "joinpath" => PyNativeFunctions.CreateVariadic(name, args => new PyPath(PyOsPath.Join([Value, .. args]))),
-        "is_absolute" => Method(name, [], [], 0, _ => System.IO.Path.IsPathRooted(Value)),
-        "absolute" => Method(name, [], [], 0, _ => new PyPath(System.IO.Path.IsPathRooted(Value) ? Value : PyOsPath.Join([Directory.GetCurrentDirectory(), Value]))),
+        "is_absolute" => Method(name, [], [], 0, _ => OperatingSystem.IsWindows()
+            ? PyWindowsPath.IsAbsolute(Value) : System.IO.Path.IsPathRooted(Value)),
+        "absolute" => Method(name, [], [], 0, _ => Absolute()),
         "as_posix" => Method(name, [], [], 0, _ => OperatingSystem.IsWindows() ? Value.Replace('\\', '/') : Value),
         "exists" => Method(name, [], [], 0, _ => PyPathQueries.Probe(Value) is not null),
         "is_file" => Method(name, [], [], 0, _ => PyPathQueries.Probe(Value) is FileAttributes attributes && (attributes & FileAttributes.Directory) == 0),
@@ -101,9 +102,19 @@ public sealed class PyPath : PyNativeObject
         Func<object?[], object?> body, string[]? kinds = null) =>
         PyNativeFunctions.Create(name, names, defaults, required, body, kinds);
 
-    private string Anchor => !OperatingSystem.IsWindows() && Value.StartsWith("//", StringComparison.Ordinal)
+    private string ComparisonKey => OperatingSystem.IsWindows() ? PyWindowsPath.ComparisonKey(Value) : Value;
+
+    private PyPath Absolute()
+    {
+        // Windows盘符上下文尚未验收；只允许已经完全限定的路径原样返回，保留..。
+        if (OperatingSystem.IsWindows() && !PyWindowsPath.IsAbsolute(Value))
+            throw new PyNotImplementedError("Windows context-dependent Path.absolute is not supported yet");
+        return new PyPath(System.IO.Path.IsPathRooted(Value) ? Value : PyOsPath.Join([Directory.GetCurrentDirectory(), Value]));
+    }
+
+    private string Anchor => OperatingSystem.IsWindows() ? PyWindowsPath.Anchor(Value) : !OperatingSystem.IsWindows() && Value.StartsWith("//", StringComparison.Ordinal)
         ? "//" : System.IO.Path.GetPathRoot(Value) ?? "";
-    private string Name => Value == "." || Value == Anchor ? "" : PyOsPath.BaseName(Value);
+    private string Name => OperatingSystem.IsWindows() ? PyWindowsPath.Name(Value) : Value == "." || Value == Anchor ? "" : PyOsPath.BaseName(Value);
     private string Suffix
     {
         get
@@ -112,11 +123,12 @@ public sealed class PyPath : PyNativeObject
             return dot > 0 && dot < Name.Length - 1 ? Name[dot..] : "";
         }
     }
-    private PyPath Parent => Value == Anchor || Value == "." ? new PyPath(Value)
+    private PyPath Parent => OperatingSystem.IsWindows() ? new PyPath(PyWindowsPath.Parent(Value)) : Value == Anchor || Value == "." ? new PyPath(Value)
         : new PyPath(PyOsPath.DirName(Value));
 
     private PyTuple Parts()
     {
+        if (OperatingSystem.IsWindows()) return new PyTuple(PyWindowsPath.Parts(Value).Cast<object?>().ToArray());
         var parts = new List<object?>();
         if (Anchor.Length > 0) parts.Add(Anchor);
         foreach (string part in Value[Anchor.Length..].Split(System.IO.Path.DirectorySeparatorChar))
@@ -167,8 +179,7 @@ public sealed class PyPath : PyNativeObject
 
     private static string Clean(string value)
     {
-        PyOsPath.EnsureLexicalPlatform(OperatingSystem.IsWindows());
-        if (OperatingSystem.IsWindows()) value = value.Replace('/', '\\');
+        if (OperatingSystem.IsWindows()) return PyWindowsPath.Clean(value);
         char separator = System.IO.Path.DirectorySeparatorChar;
         string anchor = System.IO.Path.GetPathRoot(value) ?? "";
         if (!OperatingSystem.IsWindows() && value.StartsWith("//", StringComparison.Ordinal)
