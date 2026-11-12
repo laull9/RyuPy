@@ -2,13 +2,14 @@
 
 use ryupy_driver::{Session, Stage};
 mod generator_cil_contract;
+mod genexpr_mir_contract;
 mod support;
 use support::dump;
 
 #[test]
 fn snapshot_m3_2_basic() {
     let path = std::env::temp_dir().join("ryupy_test_generator_basic.py");
-    std::fs::write(&path, "def values(limit):\n    for value in range(limit):\n        yield value\n    return\n\nprint(list(values(2)))\n").unwrap();
+    std::fs::write(&path, genexpr_mir_contract::BASIC).unwrap();
     for (stage, name) in [
         (Stage::Hir, "m3_2_basic_hir"),
         (Stage::Types, "m3_2_basic_types"),
@@ -23,6 +24,8 @@ fn snapshot_m3_2_basic() {
             assert!(
                 std::panic::catch_unwind(|| generator_cil_contract::check(&broken, name)).is_err()
             );
+        } else if matches!(stage, Stage::Mir) && name == "m3_2_basic_mir" {
+            genexpr_mir_contract::check_with_negative_controls(true);
         } else {
             insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
         }

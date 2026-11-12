@@ -74,7 +74,12 @@ pub fn check(output: &str, case: &str) {
     };
     let (_, resume) = pair(&cil, name);
     let (gets, sets, yields) = match case {
-        "m3_2_basic_cil" => (20, 21, 1),
+        "m3_2_basic_cil" => {
+            // typed MIR逐槽复核保存/恢复；新增None临时量不改变状态机合同。
+            let restored = resume.runtime_count("PyOps.ArrayGet");
+            assert!(restored >= 4);
+            (restored, restored + 1, 1)
+        }
         "m3_2_send_cil" => (7, 8, 1),
         "m3_2_prepared_cil" => (10, 21, 2),
         "m3_2_starred_cil" => (14, 29, 2),

@@ -3,6 +3,7 @@
 use ryupy_driver::{Session, Stage};
 mod comprehension_cil_contract;
 mod generator_cil_contract;
+mod genexpr_mir_contract;
 mod support;
 use support::dump;
 
@@ -108,11 +109,7 @@ fn snapshot_m3_1_dict_set() {
 #[test]
 fn snapshot_m3_1_generator_expression() {
     let path = std::env::temp_dir().join("ryupy_test_generator_expression.py");
-    std::fs::write(
-        &path,
-        "values = (x * 2 for x in [1, 2] if x > 1)\nprint(list(values))\n",
-    )
-    .unwrap();
+    std::fs::write(&path, genexpr_mir_contract::SOURCE).unwrap();
     for (stage, name) in [
         (Stage::Hir, "m3_1_genexpr_hir"),
         (Stage::Mir, "m3_1_genexpr_mir"),
@@ -127,6 +124,8 @@ fn snapshot_m3_1_generator_expression() {
                 std::panic::catch_unwind(|| comprehension_cil_contract::check(&broken, name))
                     .is_err()
             );
+        } else if matches!(stage, Stage::Mir) {
+            genexpr_mir_contract::check_with_negative_controls(false);
         } else {
             insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "genexpr.py"));
         }

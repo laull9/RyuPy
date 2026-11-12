@@ -58,3 +58,9 @@ ryupy build --project /work/pyfiglet-project/ryupy.json --target metadata
 本轮把平台前提与产品语义分开：Windows 的 HOME/USERPROFILE/APPDATA/LOCALAPPDATA/TEMP/TMP 位于私有空目录，仅保留必要系统目录变量，PATH 为空。CPython 与 Native 使用完全相同环境；CP仅通过显式源路径加 runpy 启动两个锁定原入口，不把此 wrapper 声称为任意程序的通用等价启动器。源隐藏前 CP 六模式通过；CP 与 Native 各两次缺 APPDATA 负控均得到上游声明的 KeyError。随后 Native 的 Windows Path 拒绝才是已隔离出的产品缺口。
 
 固定 PE 读取器使用精确 SHA；`.gitattributes` 只固定该文件 LF，实际 Git autocrlf 回归同时拒绝 CRLF 及其它字节篡改，不做归一化后放行。产物ZIP及原始输出在验收证据区保存，生成 IR/编译物不进入源码仓库。
+
+## 显式资源目录选择验收（2026-11-12）
+
+新compact声明独立通过 [Linux CI 43296651927](https://github.com/laull9/RyuPy/actions/runs/43296651927)，候选 `f1765bb4`：四次公开AOT、四份独立receipt各553资源、12次宿主和12次禁网只读无Python/.NET容器运行。旧手列清单仍独立推导资源预期，未改benchmark合同。
+
+[同树平台CI 43298130779](https://github.com/laull9/RyuPy/actions/runs/43298130779)，触发提交 `c16be5c4`（两候选树均 `c42b182b`）：macOS arm64与Windows x64各两入口、两份553资源receipt、原位/产物搬迁共12次运行，与各平台CP原流精确一致。Windows路径宿主3/3及metadata nofollow3/3实际通过。ZIP摘要与原流已复核；这些平台宿主仍装有SDK，不等于无Python/.NET干净机，不给新性能数字。

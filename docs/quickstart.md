@@ -140,7 +140,7 @@ ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
 }
 ```
 
-目录相对于该模块实际源码父目录，递归选择匹配文件；这不是 glob，也不会自动加入模块或第三方依赖。空匹配、链接、不安全路径及 Python 源码/字节码拒绝；仍受现有资源数量、大小和来源冻结限制。`files` 与 `trees` 可合用。输出目录必须位于所选资源树之外，否则构建生成的匹配文件或旧产物可能被递归选入并导致集合变化拒绝；优先选择专用 `assets` / `fonts` 子目录，必要时用 `-o` 指向树外。后缀区分大小写，不读取 `.gitignore`；路径合法性及链接/特殊文件检查适用于所有被扫描条目，包括未匹配文件。此新声明的 Native 验证独立于下述历史手列清单验收，不能沿用旧 CI 结果。
+目录相对于该模块实际源码父目录，递归选择匹配文件；这不是 glob，也不会自动加入模块或第三方依赖。空匹配、链接、不安全路径及 Python 源码/字节码拒绝；仍受现有资源数量、大小和来源冻结限制。`files` 与 `trees` 可合用。输出目录必须位于所选资源树之外，否则构建生成的匹配文件或旧产物可能被递归选入并导致集合变化拒绝；优先选择专用 `assets` / `fonts` 子目录，必要时用 `-o` 指向树外。后缀区分大小写，不读取 `.gitignore`；路径合法性及链接/特殊文件检查适用于所有被扫描条目，包括未匹配文件。此新声明已独立通过 [Linux CI 43296651927](https://github.com/laull9/RyuPy/actions/runs/43296651927) 与[同树 macOS/Windows CI 43298130779](https://github.com/laull9/RyuPy/actions/runs/43298130779)：两入口、553资源与原位/搬迁运行。只有Linux另验禁网无Python/.NET容器；不产生新性能结论。
 
 默认输出根为配置目录的 `build/<目标名>`，其下沿用 `<入口名>.build/`、`<入口名>.dist/`；`-o` 覆盖仍相对调用者当前目录。项目模式与位置输入、`-I` / `--search-path`、`--include-module`、`--resources`、`--distribution-metadata`、`--native-binding`、`--instance-module`、`--instance-direct-globals` 互斥，不隐式合并。
 
