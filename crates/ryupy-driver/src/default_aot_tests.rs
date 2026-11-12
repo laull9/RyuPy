@@ -70,6 +70,12 @@ fn real_optional_graph_has_contiguous_emitted_ids_and_virtual_locations() {
 mod oracle;
 
 #[test]
+#[ignore = "真实工作负载显式窗口；只编译/发射，不publish或执行"]
+fn default_aot_real_graph_emit() {
+    oracle::emit_real_graph();
+}
+
+#[test]
 fn deferred_hole_keeps_real_source_snapshot_and_compiled_ids() {
     let root = root();
     std::fs::write(root.join("entry.py"),"import importlib.util\nimportlib.util.find_spec('a')\nimportlib.util.find_spec('bad')\nimportlib.util.find_spec('c')\n").unwrap();
@@ -425,5 +431,82 @@ fn explicit_metadata_and_data_share_one_default_source_graph() {
     let frozen = plan.stage(&stage).unwrap();
     assert_eq!(frozen.records.len(), 1);
     assert_eq!(frozen.records[0].size, 13);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn explicit_only_aot_planning_preserves_legacy_and_source_priority() {
+    let root = root();
+    std::fs::write(
+        root.join("entry.py"),
+        "import importlib.util\nimport json\nprint(importlib.util.find_spec('subject'))\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("subject.py"), "value = 7\n").unwrap();
+    std::fs::write(root.join("json.py"), "value = 99\n").unwrap();
+    let mut s = Session {
+        module_environment_policy: ModuleEnvironmentPolicy::ExplicitOnly,
+        ..Default::default()
+    };
+    assert!(eligible(&s, true, false));
+    assert!(!crate::optional_sources::enabled(&s, false));
+    assert!(!crate::optional_sources::enabled(&s, true));
+    s.default_source_state.aot_request = true;
+    assert!(crate::optional_sources::enabled(&s, true));
+    assert!(!crate::optional_sources::enabled(&s, false));
+    s.default_source_state.output = Some(root.join("out"));
+    let (linked, sources, plan) =
+        crate::compile_linked_locations(&mut s, &root.join("entry.py"), &[], true, None, true)
+            .unwrap();
+    assert!(
+        linked
+            .modules
+            .iter()
+            .all(|(_, m)| m.execution == ryupy_mir::ModuleExecutionKind::LegacySingleton)
+    );
+    let plan = plan.unwrap();
+    assert_eq!(
+        plan.automatic.as_ref().unwrap().manifest["automatic_instance_modules"],
+        json!([])
+    );
+    let user = sources.iter().find(|m| m.module_name == "json").unwrap();
+    assert_eq!(
+        user.compiled_text_sha256,
+        crate::manifest_files::hash_bytes(b"value = 99\n")
+    );
+    assert_eq!(
+        sources.iter().filter(|m| m.module_name == "json").count(),
+        1
+    );
+    s.fixed_binding_build = true;
+    assert!(!eligible(&s, true, true));
+    assert!(!crate::optional_sources::enabled(&s, true));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn explicit_only_aot_without_plan_demand_keeps_old_artifact_path() {
+    let root = root();
+    std::fs::write(root.join("entry.py"), "import math\nprint(7)\n").unwrap();
+    let mut s = Session {
+        module_environment_policy: ModuleEnvironmentPolicy::ExplicitOnly,
+        ..Default::default()
+    };
+    s.default_source_state.aot_request = true;
+    s.default_source_state.output = Some(root.join("out"));
+    let (linked, sources, plan) =
+        crate::compile_linked_locations(&mut s, &root.join("entry.py"), &[], true, None, true)
+            .unwrap();
+    assert_eq!(sources.len(), 1); // 已有native math不被catalog候选替换。
+    assert!(plan.is_none());
+    assert!(linked.optional_sources.is_none());
+    assert!(
+        linked
+            .modules
+            .iter()
+            .all(|(_, m)| m.execution == ryupy_mir::ModuleExecutionKind::LegacySingleton)
+    );
+    s.instance_modules.push("subject".into());
+    assert!(!eligible(&s, true, true));
     std::fs::remove_dir_all(root).unwrap();
 }

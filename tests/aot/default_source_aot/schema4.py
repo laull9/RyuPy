@@ -10,12 +10,12 @@ from manifest_options import BOOL_OPTIONS, OPTION_KEYS, validate_options
 from resource_manifest import portable, check_targets, PREFIX
 
 
-def validate_default_options(options, report):
+def validate_default_options(options, report, expected_policy):
     require(isinstance(options, dict), 'options不是对象')
     require(set(options) == OPTION_KEYS | ({'distribution_metadata'} if report is not None else set()), 'options字段不符')
     # 字段级复用七项合同；不是将整个新artifact降级后交旧schema。
     validate_options({k:options[k] for k in OPTION_KEYS})
-    require(options['instance_modules'] == [] and options['module_environment_policy'] == 'ordinary-dynamic-module-pilot', '非默认选择')
+    require(options['instance_modules'] == [] and options['module_environment_policy'] == expected_policy, '非默认选择')
     if report is not None:
         require(options['distribution_metadata'] == report, '实际PE metadata报告不符')
 
@@ -23,11 +23,11 @@ def validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic, me
     # 旧公开门保持无显式资源请求；组合门不能隐式改变这里的合同。
     return _validate_schema4(data, expected_rid, expected_sdk,
         expected_automatic=expected_automatic, metadata_report=metadata_report,
-        declared_request=False)
+        declared_request=False, expected_policy='ordinary-dynamic-module-pilot')
 
 
 def _validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic,
-                      metadata_report, declared_request):
+                      metadata_report, declared_request, expected_policy):
     expected_instance_modules = expected_automatic
     require(isinstance(data, dict), '清单必须是对象')
     version = data.get('schema_version')
@@ -41,7 +41,10 @@ def _validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic,
     require(compiler['build_revision'] is None or
             isinstance(compiler['build_revision'], str) and bool(re.fullmatch('[0-9a-f]{40}', compiler['build_revision'])), '不可靠revision')
     require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] in (1, 2), '未知codegen报告')
-    validate_default_options(compiler['options'], metadata_report)
+    require(expected_policy in ('explicit-only', 'ordinary-dynamic-module-pilot'), '未知预期策略')
+    if expected_policy == 'explicit-only':
+        require(expected_automatic == (), 'ExplicitOnly不得自动选择实例')
+    validate_default_options(compiler['options'], metadata_report, expected_policy)
     # None完整保留旧Legacy验证；只有调用方显式tuple才启用实例预期合同。
     if expected_instance_modules is not None:
         require(type(expected_instance_modules) is tuple, '实例预期必须是不可变tuple')

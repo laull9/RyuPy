@@ -47,14 +47,54 @@ def validate_inputs(source):
                        'roots': [{'id': 'pyfiglet-1.0.2', 'path': 'package'}]}, 'metadata根域不同')
 
 
-def preserved_resources(package, dist):
+def exact_file(source, target, root):
+    require(source.is_file() and not source.is_symlink(), '锁定资源输入非法')
+    require(target.is_file() and not target.is_symlink()
+            and target.resolve().is_relative_to(root.resolve()), '资源路径缺失/越界：'+str(target))
+    require(source.stat().st_size == target.stat().st_size and sha(source) == sha(target),
+            '资源路径字节不符：'+str(target))
+
+
+def preserved_resources(package, dist, arm, *, receipt=None, manifest=None):
     request = json.loads((HERE.parent/'resources.json').read_text())
-    required = [package/Path(*module['module'].split('.'))/name
-                for module in request['modules'] for name in module['files']]
-    required += sorted((package/'pyfiglet.egg-info').glob('*'))
-    require(required and all(p.is_file() and not p.is_symlink() for p in required), '字体/metadata输入非法')
-    hashes = {sha(p) for p in dist.rglob('*') if p.is_file() and not p.is_symlink()}
-    require(all(sha(p) in hashes for p in required), 'standalone未保完整原字体/egg-info字节')
+    if arm == 'ryupy':
+        # 独立validator已从锁定源+发射前oracle推导精确映射，并审实际PE metadata payload。
+        require(receipt is not None and receipt.get('structure_validated') is True
+                and receipt.get('metadata_payload_sha256'), '缺独立PE/资源receipt')
+        require(manifest is not None and sha(manifest) == receipt['manifest_sha256'], 'receipt清单绑定不符')
+        require(inventory(dist) == receipt['dist_files'], 'receipt产物绑定不符')
+        data = json.loads(manifest.read_text())
+        require(len(data['resources']) == receipt['resource_count'], '资源计数不同')
+        for row in data['resources']:
+            path = dist/row['relative_path']
+            require(path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(dist.resolve()), '资源路径非法')
+            require(path.stat().st_size == row['size'] and sha(path) == row['sha256'], '资源路径字节不符')
+        return
+    require(arm == 'nuitka', '未知工具')
+    for module in request['modules']:
+        relative = Path(*module['module'].split('.'))
+        for name in module['files']:
+            exact_file(package/relative/name, dist/relative/name, dist)
+    metadata = sorted((package/'pyfiglet.egg-info').glob('*'))
+    require(metadata, '缺完整metadata输入')
+    for path in metadata:
+        exact_file(path, dist/'pyfiglet.egg-info'/path.name, dist)
+
+
+def collect_arm(key, action, failures):
+    """独立arm保留失败，其他arm仍执行；最终统一门禁止不完整测量。"""
+    try:
+        action()
+        return True
+    except Exception:
+        failures[key] = traceback.format_exc()
+        return False
+
+
+def require_complete(builds, deployments, failures):
+    expected = {case+'-'+arm for case in ('cli', 'metadata') for arm in ('ryupy', 'nuitka')}
+    require(not failures and set(builds) == expected and set(deployments) == expected,
+            '必要构建/验收/部署未全部通过，禁止性能测量')
 
 
 def summarize(rows):
@@ -89,7 +129,7 @@ def run(options):
     frozen.update({str(p.resolve()):sha(p) for p in HERE.parent.rglob('*') if p.is_file() and '__pycache__' not in p.parts})
     source_before = inventory(source); save(out/'source-before.json', source_before)
     save(out/'tools.json', frozen)
-    result = {'passed': False, 'compatible': False, 'performance': 'not-measured', 'builds': {}}
+    result = {'passed': False, 'compatible': False, 'performance': 'not-measured', 'builds': {}, 'failures': {}, 'deployments': {}}
     env = {'PATH': os.environ['PATH'], 'HOME': str(out/'home'), 'LC_ALL': 'C.UTF-8', 'TZ': 'UTC',
            'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONOPTIMIZE': '0', 'PYTHONHASHSEED': '0', 'PYTHONNOUSERSITE': '1',
            'DOTNET': str(options.dotnet), 'DOTNET_ROOT': str(options.dotnet.parent),
@@ -128,33 +168,40 @@ def run(options):
                 checked(case+'-'+variant+'-cpython', [options.python, '-B', entry]+args, expected=expected)
         for case, entry in entries.items():
             for arm in (('ryupy', 'nuitka') if case == 'cli' else ('nuitka', 'ryupy')):
-                barrier(); target = out/(case+'-'+arm+'-build'); target.mkdir()
-                argv = ryupy_command(options.cli, entry, source, target) if arm == 'ryupy' else nuitka_command(options.python, entry, package, target)
-                record = checked(case+'-'+arm+'-compile', argv, 600, True,
-                                 native_env=dict(env, NUITKA_CACHE_DIR=str(target/'nuitka-cache')))
-                if arm == 'ryupy':
-                    layout = reported_aot((out/(case+'-'+arm+'-compile.stderr')).read_bytes(), target, entry.stem, 'linux-x64')
-                    dist, executable = layout.dist, layout.native
-                    data = json.loads(layout.manifest.read_text())
-                    require(data['schema_version'] == 4 and data['resources'] and data['scope']['declared_resources_complete'] is True, '组合发布清单不是完整schema4资源合同')
-                    manifest_verify.check_artifacts(dist, data['artifacts'], manifest_verify.MANIFEST_NAME)
-                    require(sha(layout.managed.parent/'RyuPy.Runtime.dll') == sha(options.runtime), '实际Native runtime输入不同')
-                    sys.path.insert(0, str(HERE.parent))
-                    from validate_artifact import validate_app_artifact
-                    receipt = validate_app_artifact(layout, source, frozen, case=case,
-                        python=options.python, dotnet=options.dotnet, cli=options.cli, runtime=options.runtime, oracle_dir=options.oracle_root/('upstream' if case == 'cli' else 'console'),
-                        output=out/(case+'-ryupy-product-audit'))
-                    require(receipt.get('structure_validated') is True, '独立产品验收未签有效结构receipt')
-                    save(out/(case+'-ryupy-product-receipt.json'), receipt)
-                else:
-                    dists = list(target.glob('*.dist')); require(len(dists) == 1, 'Nuitka standalone目录非唯一')
-                    dist = dists[0]; executable = dist/'pyfiglet-native'
-                    require((target/'compilation-report.xml').is_file(), 'Nuitka无编译来源报告')
-                elf(executable); preserved_resources(package, dist)
-                key = case+'-'+arm; bundles[key] = dist; paths[key] = executable
-                snapshot = inventory(dist); save(out/(key+'-dist.json'), snapshot)
-                result['builds'][key] = {'measurement': record, 'dist': snapshot,
-                                        'executable_sha256': sha(executable)}
+                def build_arm():
+                    barrier(); target = out/(case+'-'+arm+'-build'); target.mkdir()
+                    argv = ryupy_command(options.cli, entry, source, target) if arm == 'ryupy' else nuitka_command(options.python, entry, package, target)
+                    record = checked(case+'-'+arm+'-compile', argv, 600, True,
+                                     native_env=dict(env, NUITKA_CACHE_DIR=str(target/'nuitka-cache')))
+                    result['builds'][case+'-'+arm] = {'measurement': record, 'validated': False}
+                    receipt = None; manifest = None
+                    if arm == 'ryupy':
+                        layout = reported_aot((out/(case+'-'+arm+'-compile.stderr')).read_bytes(), target, entry.stem, 'linux-x64')
+                        dist, executable = layout.dist, layout.native
+                        manifest = layout.manifest
+                        data = json.loads(layout.manifest.read_text())
+                        require(data['schema_version'] == 4 and data['resources'] and data['scope']['declared_resources_complete'] is True, '组合发布清单不是完整schema4资源合同')
+                        manifest_verify.check_artifacts(dist, data['artifacts'], manifest_verify.MANIFEST_NAME)
+                        require(sha(layout.managed.parent/'RyuPy.Runtime.dll') == sha(options.runtime), '实际Native runtime输入不同')
+                        sys.path.insert(0, str(HERE.parent))
+                        from validate_artifact import validate_app_artifact
+                        receipt = validate_app_artifact(layout, source, frozen, case=case,
+                            python=options.python, dotnet=options.dotnet, cli=options.cli, runtime=options.runtime, oracle_dir=options.oracle_root/('upstream' if case == 'cli' else 'console'),
+                            output=out/(case+'-ryupy-product-audit'))
+                        require(receipt.get('structure_validated') is True, '独立产品验收未签有效结构receipt')
+                        save(out/(case+'-ryupy-product-receipt.json'), receipt)
+                    else:
+                        dists = list(target.glob('*.dist')); require(len(dists) == 1, 'Nuitka standalone目录非唯一')
+                        dist = dists[0]; executable = dist/'pyfiglet-native'
+                        require((target/'compilation-report.xml').is_file(), 'Nuitka无编译来源报告')
+                    elf(executable); preserved_resources(package, dist, arm, receipt=receipt, manifest=manifest)
+                    key = case+'-'+arm
+                    snapshot = inventory(dist); save(out/(key+'-dist.json'), snapshot)
+                    result['builds'][key] = {'measurement': record, 'validated': True, 'dist': snapshot,
+                                            'executable_sha256': sha(executable)}
+                    bundles[key] = dist; paths[key] = executable
+                    save(out/'result.json', result)
+                collect_arm(case+'-'+arm, build_arm, result['failures'])
                 save(out/'result.json', result)
         require(bool(re.fullmatch(r'sha256:[0-9a-f]{64}', options.runtime_image)), '必须固定同一个实际runtime镜像ID')
         checked('runtime-image-inspect', ['docker', 'image', 'inspect', options.runtime_image])
@@ -167,21 +214,26 @@ def run(options):
         clean = {'PATH': '/usr/bin:/bin', 'LC_ALL': 'C.UTF-8', 'TZ': 'UTC'}
         try:
             for key, dist in bundles.items():
-                before = result['builds'][key]['dist']
-                for variant, args, expected in variants:
-                    checked(key+'-'+variant+'-original', [paths[key]]+args, native_env=clean, expected=expected)
-                require(inventory(dist) == before, '原位执行改变dist')
-                moved = out/(key+'-relocated'); shutil.copytree(dist, moved, symlinks=True)
-                require(inventory(moved) == before, '搬迁字节改变')
-                paths[key] = moved/paths[key].name
-                for variant, args, expected in variants:
-                    checked(key+'-'+variant+'-relocated', [paths[key]]+args, native_env=clean, expected=expected)
-                    checked(key+'-'+variant+'-clean-container', ['docker', 'run', '--rm', '--network', 'none',
-                        '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--tmpfs', '/tmp',
-                        '--mount', 'type=bind,src='+str(moved)+',dst=/app,readonly', '--workdir', '/tmp',
-                        '--env', 'LC_ALL=C.UTF-8', '--env', 'TZ=UTC', options.runtime_image,
-                        '/app/'+paths[key].name]+args, native_env=clean, expected=expected)
-                require(inventory(moved) == before, '搬迁执行改变dist')
+                def deploy_arm():
+                    before = result['builds'][key]['dist']
+                    for variant, args, expected in variants:
+                        checked(key+'-'+variant+'-original', [paths[key]]+args, native_env=clean, expected=expected)
+                    require(inventory(dist) == before, '原位执行改变dist')
+                    moved = out/(key+'-relocated'); shutil.copytree(dist, moved, symlinks=True)
+                    require(inventory(moved) == before, '搬迁字节改变')
+                    paths[key] = moved/paths[key].name
+                    for variant, args, expected in variants:
+                        checked(key+'-'+variant+'-relocated', [paths[key]]+args, native_env=clean, expected=expected)
+                        checked(key+'-'+variant+'-clean-container', ['docker', 'run', '--rm', '--network', 'none',
+                            '--read-only', '--cap-drop=ALL', '--security-opt=no-new-privileges', '--tmpfs', '/tmp',
+                            '--mount', 'type=bind,src='+str(moved)+',dst=/app,readonly', '--workdir', '/tmp',
+                            '--env', 'LC_ALL=C.UTF-8', '--env', 'TZ=UTC', options.runtime_image,
+                            '/app/'+paths[key].name]+args, native_env=clean, expected=expected)
+                    require(inventory(moved) == before, '搬迁执行改变dist')
+                if collect_arm(key+'-deployment', deploy_arm, result['failures']):
+                    result['deployments'][key] = {'validated': True, 'semantic_runs': 3}
+                save(out/'result.json', result)
+            require_complete(bundles, result['deployments'], result['failures'])
             result['compatible'] = True
             result['clean_container'] = {'validated': True, 'runtime_image': options.runtime_image, 'network': 'none', 'mounted': 'only dist read-only', 'semantic_runs': 12}
             save(out/'result.json', result)
