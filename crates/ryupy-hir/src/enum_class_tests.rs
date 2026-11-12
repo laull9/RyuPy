@@ -180,3 +180,42 @@ fn auto_module_export_is_not_frozen_and_source_shadow_is_not_certified_enum() {
             .all(|(_, class)| class.enum_members.is_none())
     );
 }
+
+#[test]
+fn identical_enum_imports_keep_first_availability_and_later_auto_admission() {
+    for source in [
+        "from enum import Enum, auto\nclass Before(Enum):\n    A = auto()\nfrom enum import Enum, auto\nclass After(Enum):\n    A = auto()\n",
+        "from enum import Flag, auto as generate\nfrom enum import Flag, auto as generate\nclass C(Flag):\n    A = generate()\n",
+        "import enum as e\nclass Before(e.Enum):\n    A = e.auto()\nimport enum as e\nclass After(e.Flag):\n    A = e.auto()\n",
+    ] {
+        let (module, errors) = lower(source, &["enum"]);
+        assert!(errors.is_empty(), "{source}: {errors:?}");
+        assert!(
+            module
+                .classes
+                .iter()
+                .all(|(_, class)| class.enum_members.is_some()),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn repeated_enum_imports_do_not_erase_real_rebinding_or_conditional_uncertainty() {
+    for prefix in [
+        "from fake import auto\nfrom enum import auto\n",
+        "from enum import auto\nfrom fake import auto\nfrom enum import auto\n",
+        "from enum import auto\nauto = replacement\nfrom enum import auto\n",
+        "from enum import auto\ndel auto\nfrom enum import auto\n",
+        "from enum import auto\nif condition:\n    from enum import auto\n",
+        "from enum import auto\nfrom enum import Enum as auto\nfrom enum import auto\n",
+        "from enum import auto\ndef mutate():\n    global auto\n    auto = replacement\nfrom enum import auto\n",
+    ] {
+        let source = format!("from enum import Enum\n{prefix}class C(Enum):\n    A = auto()\n");
+        let (_, errors) = lower(&source, &["enum"]);
+        assert!(
+            errors.iter().any(|e| e.code == Some("E0100")),
+            "{source}: {errors:?}"
+        );
+    }
+}
