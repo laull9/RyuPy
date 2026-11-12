@@ -45,6 +45,14 @@ ryupy build --project /work/pyfiglet-project/ryupy.json --target metadata
 
 `deployment-project-platforms.yml` 用同候选默认 Release CLI 和 Release runtime，固定 Rust 1.99.1、CP 3.12.13、.NET SDK 10.0.403；运行时再核平台/架构/版本和工具摘要。macOS 仅 arm64，Windows 仅 x64 MSVC。每平台两个公开项目target，独立同RID schema4 receipt，原位及搬迁各三模式，源目录隔离；Mach-O/PE格式和otool/dumpbin依赖审计不接受Linux ELF或托管PE替代。平台CP原流按真实上游协议：standard/slant在detach后直接写bytes，保留LF；fonts走文本print，才使用平台换行。Native逐字匹配该CP，不改输出忽略差异。
 
-这些平台在装有SDK的GitHub宿主上以精简PATH运行，**不是无Python/.NET干净容器证明**，也不生成性能测量。旧Linux容器链不改变。当前生产候选Windows分发metadata末端nofollow未实现，必须保留两个target完整metadata请求并真实报告拒绝，不删请求或跳过metadata入口凑成功；后续Windows读取修复与首轮候选分开验收。
+这些平台在装有SDK的GitHub宿主上以精简PATH运行，**不是无Python/.NET干净容器证明**，也不生成性能测量。旧Linux容器链不改变。初始候选曾缺 Windows 分发 metadata 末端 nofollow；后续已补实现，并继续要求三项指定安全测试实际通过，不删请求或跳过 metadata 入口凑成功。最新结果见下文，历史失败不改写为成功。
 
 首轮平台CI 43261914690未获得Native证据：macOS14标签已退役、未分配runner；Windows先被测试自身默认编码及斜杠断言阻断，尚未触发产品metadata读取。第二候选改用官方仍支持的macos-15 arm64，保实际架构断言；所有本门文本读取显式UTF-8，配置与黄金binary流不额外归一化。Windows新nofollow合同须真实执行三项指定Rust测试（链接/目录等创建失败也不能skip），然后完整两入口项目验收，不能将Linux单测当Windows安全证明。
+
+## 2026-11-12 跨平台复核断点
+
+[CI 43285836945](https://github.com/laull9/RyuPy/actions/runs/43285836945)，候选 `17df93ba`：macOS 15.8.2 arm64 两入口 Native 构建、2份独立receipt、原位/搬迁共12模式运行通过，并复核原件。Windows x64 完成 nofollow 3/3、两份 Native 构建和receipt；但两个入口首次正常执行仍抛 `NotImplementedError: Windows lexical paths are not implemented yet`，尚无应用成功结果。不能将构建成功算作可用发布。
+
+本轮把平台前提与产品语义分开：Windows 的 HOME/USERPROFILE/APPDATA/LOCALAPPDATA/TEMP/TMP 位于私有空目录，仅保留必要系统目录变量，PATH 为空。CPython 与 Native 使用完全相同环境；CP仅通过显式源路径加 runpy 启动两个锁定原入口，不把此 wrapper 声称为任意程序的通用等价启动器。源隐藏前 CP 六模式通过；CP 与 Native 各两次缺 APPDATA 负控均得到上游声明的 KeyError。随后 Native 的 Windows Path 拒绝才是已隔离出的产品缺口。
+
+固定 PE 读取器使用精确 SHA；`.gitattributes` 只固定该文件 LF，实际 Git autocrlf 回归同时拒绝 CRLF 及其它字节篡改，不做归一化后放行。产物ZIP及原始输出在验收证据区保存，生成 IR/编译物不进入源码仓库。

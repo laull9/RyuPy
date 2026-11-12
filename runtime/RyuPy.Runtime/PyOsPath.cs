@@ -19,7 +19,8 @@ public static class PyOsPath
         ["splitext"] = Unary("splitext", p => SplitExtension(p)),
         ["normpath"] = Unary("normpath", p => Normalize(p)),
         ["abspath"] = Unary("abspath", p => Absolute(p)),
-        ["isabs"] = Unary("isabs", p => System.IO.Path.IsPathRooted(p)),
+        ["isabs"] = Unary("isabs", p => OperatingSystem.IsWindows()
+            ? PyWindowsPath.OsIsAbsolute(p) : System.IO.Path.IsPathRooted(p)),
         ["exists"] = Unary("exists", p => File.Exists(p) || Directory.Exists(p)),
         ["isfile"] = Unary("isfile", p => File.Exists(p)),
         ["isdir"] = Unary("isdir", p => Directory.Exists(p)),
@@ -75,7 +76,7 @@ public static class PyOsPath
     /// <summary>最后一个分隔符之后的文本；尾随分隔符返回空串。</summary>
     public static string BaseName(string path)
     {
-        EnsureLexicalPlatform(OperatingSystem.IsWindows());
+        if (OperatingSystem.IsWindows()) return PyWindowsPath.BaseName(path);
         int index = path.Length - 1;
         while (index >= 0 && !Separator(path[index])) index--;
         return path[(index + 1)..];

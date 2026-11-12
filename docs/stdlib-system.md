@@ -7,9 +7,9 @@
 ## 平台与错误约定
 
 - **已实际验证**：Linux x86_64 / POSIX，固定 CPython 3.12.13；文件副作用用例只使用框架隔离目录或自建临时目录并清理。
-- **Windows 词法路径未实现**：`Path` 构造，以及 `os.path.join/basename/dirname/split/splitext/normpath/abspath`
-  的 Windows 路径规则明确抛 `NotImplementedError`。独立平台门禁单测覆盖此拒绝分支，不冒称已在 Windows 执行文件差分。
-  `WindowsPath` 类型可被识别，但构造明确拒绝；不提供跨平台 `PureWindowsPath` / `PurePosixPath` 模拟。
+- **Windows 词法路径有限实现候选**（[ADR0173](adr/0173-windows-path-lexical-model.md)）：共享 drive/root/tail 模型覆盖普通相对、盘符相对/绝对、当前盘根及完整 UNC；Path 保留 `..`，`is_absolute` 与 CPython 3.12 `os.path.isabs` 分开。
+  `Path`/`WindowsPath` 具有宿主身份，异宿主具体类拒绝；设备命名空间、残缺 UNC、非 ASCII 路径比较/哈希及依赖当前盘上下文的 `absolute()` 明确拒绝。`os.path.normpath/abspath` 的 Windows 规则仍未实现。
+  固定 CPython 词法矩阵和 Linux 纯算法测试不等于 Windows 文件/Native 验收；三项 Windows 宿主测试与完整 AOT 应用仍需 CI 实跑。无跨平台 PurePath 模拟。
 - `os` 的原始字符串文件系统调用、标准流及换行分支使用宿主平台；Windows 原生行为尚未实测，不据 .NET 支持推定兼容。
 - 文件路径接受 `str`、本实现的 `Path` 及返回 `str` 的 `__fspath__`；bytes 路径明确拒绝。
   文件描述符、`dir_fd`、自定义 opener、底层句柄和完整特殊文件协议不在本批范围。
@@ -102,7 +102,7 @@
 
 | API | 支持参数 / 行为 | 限制 |
 | --- | --- | --- |
-| `Path(*segments)` / `PosixPath(*segments)` / `cwd()` | 原生类型对象；稳定身份、type/isinstance/issubclass；构造无文件系统副作用 | POSIX对象；WindowsPath构造拒绝；非完整PurePath层次/原生类继承 |
+| `Path(*segments)` / `PosixPath(*segments)` / `cwd()` | 原生类型对象；稳定身份、type/isinstance/issubclass；构造无文件系统副作用 | 宿主POSIX/Windows对象；异宿主具体类构造拒绝；Windows候选边界见开头，非完整PurePath层次/原生类继承 |
 | `str/repr/__fspath__`、`/`、`joinpath`、相等/哈希 | 组合时清除冗余分隔符和`.`，不消除`..`；路径值不可变 | 仅文本PathLike；未声明完整排序/模式匹配协议 |
 | `name/suffix/stem/parent/parts/anchor` | 词法组件，点文件与根有专门处理 | 不提供suffixes/parents/with_name等其它属性与转换 |
 | `absolute/is_absolute/as_posix` | absolute只增加cwd前缀，**保留`..`**，与os.path.abspath不同 | 不等价resolve；不宣称符号链接解析转换接口已完成 |

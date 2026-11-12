@@ -93,3 +93,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 - [0171：AOT standalone 同一部署计划](0171-aot-standalone-deployment-plan.md)（真实应用及独立 PE 合同已验证；原生发布/干净部署待验）
 - [0172：有限标准输出 detach](0172-standard-output-detach.md)（CP/JIT/完整 C# 已验证；不扩一般 IO 或宿主句柄所有权）
+
+- [0173：Windows Path 有界共享词法模型](0173-windows-path-lexical-model.md)（实现候选；真实 Windows 应用仍被旧路径门禁阻断）
