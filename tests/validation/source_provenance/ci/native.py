@@ -87,7 +87,7 @@ def main():
             require(not any(p.suffix.lower() in ('.py', '.pyc', '.pyo') for p in layout.dist.rglob('*')), 'dist含Python源/字节码')
             parsed = run.run('native-pe-read', [sys.executable, args.input / 'ci/read_pe.py',
                                layout.managed, 'new', 'native_consumers', '--native-manifest',
-                               layout.dist / 'ryupy-artifact.json'], cwd=args.out, env=env, check=True, timeout=30)
+                               layout.dist / 'ryupy-artifact.json', '--binding-version', 'lexical-chain-v1'], cwd=args.out, env=env, check=True, timeout=30)
             save(args.out / 'publish.json', {'managed': str(layout.managed), 'managed_sha256': sha(layout.managed),
                  'native': str(layout.native), 'native_sha256': sha(layout.native), 'dist': str(layout.dist),
                  'manifest_sha256': sha(layout.dist / 'ryupy-artifact.json'), 'image': image,

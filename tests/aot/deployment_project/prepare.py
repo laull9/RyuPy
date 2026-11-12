@@ -29,8 +29,21 @@ def prepare(output, package):
         raise ValueError('项目必须为仓库外新目录')
     inputs = json.loads((APP/'inputs.json').read_text(encoding='utf-8'))
     contract = json.loads((APP/'contract.json').read_text(encoding='utf-8'))
+    # 失败也保实际文件摘要/换行计数，不能只记录推测的checkout原因。
+    observed = {}
     for name, digest in contract['files'].items():
-        if sha(APP/name) != digest: raise ValueError('原合同改变：'+name)
+        path = APP/name; raw = path.read_bytes() if path.is_file() else None
+        observed[name] = {'expected_sha256': digest,
+                          'actual_sha256': hashlib.sha256(raw).hexdigest() if raw is not None else None,
+                          'CRLF': raw.count(b'\r\n') if raw is not None else None,
+                          'LF': raw.count(b'\n') if raw is not None else None}
+    output.parent.mkdir(parents=True, exist_ok=True)
+    evidence = output.with_name(output.name+'-input-check.json')
+    if evidence.exists(): raise ValueError('输入核验原件已存在，不覆盖')
+    evidence.write_text(json.dumps(observed, indent=2)+'\n', encoding='utf-8')
+    for name, row in observed.items():
+        if row['actual_sha256'] != row['expected_sha256']:
+            raise ValueError('原合同改变：'+name+' expected='+row['expected_sha256']+' actual='+str(row['actual_sha256']))
     for name, digest in inputs['files'].items():
         path = package/name
         if path.is_symlink() or not path.is_file() or sha(path) != digest:

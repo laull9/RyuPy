@@ -62,7 +62,48 @@ fn snapshot_big_defaults_do_not_demote_unrelated_small_integer_function() {
                 "巨大默认值不能塞进i64参数"
             );
         }
-        insta::assert_snapshot!(name, output);
+        if matches!(stage, Stage::Cil) {
+            let code = support::cil_contract::Cil::parse(&output);
+            let small = code.method("small");
+            assert_eq!(
+                small.header,
+                format!("public static long {}(long) cil managed", small.name)
+            );
+            assert_eq!(small.opcode_count("AddOverflow"), 1);
+            for opcode in ["Box", "Unbox", "NewArray", "NewObject"] {
+                assert_eq!(small.opcode_count(opcode), 0);
+            }
+            let huge = code.method("huge");
+            assert_eq!(
+                huge.header,
+                format!(
+                    "public static [System.Runtime]System.Object {}([System.Runtime]System.Object, [System.Runtime]System.Object) cil managed",
+                    huge.name
+                )
+            );
+            assert_eq!(huge.opcode_count("Return"), 1);
+            let literals = code.exact("__init_literals");
+            assert_eq!(literals.runtime_count("PyOps.FromDecimalString"), 1);
+            let decimal = literals
+                .instructions
+                .iter()
+                .position(|s| *s == "LoadString(\"184467440737095516160\")")
+                .unwrap();
+            assert_eq!(
+                literals.instructions[decimal + 1],
+                "Call(static object [RyuPy.Runtime]RyuPy.Runtime.PyOps.FromDecimalString(string))"
+            );
+            assert_eq!(
+                literals.instructions[decimal + 2].split('(').next(),
+                Some("StoreStaticField")
+            );
+            let main = code.exact("m0___module_main");
+            assert_eq!(main.runtime_count("PyOps.Unary"), 1);
+            assert_eq!(main.runtime_count("PyFunction.get_Defaults"), 3);
+            assert_eq!(main.generated_call_count(small), 1);
+        } else {
+            insta::assert_snapshot!(name, output);
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

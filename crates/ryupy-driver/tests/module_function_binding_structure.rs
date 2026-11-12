@@ -16,6 +16,17 @@ impl Drop for Root {
         }
     }
 }
+// 从同次真实linked函数唯一取内部符号，不猜测HIR编号或模糊匹配CIL名称。
+fn linked_codegen<'a>(linked: &'a ryupy_mir::LinkedProgram, name: &str) -> &'a str {
+    let mut found = linked
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == name && f.signature_global.is_some());
+    let (_, function) = found.next().expect(name);
+    assert!(found.next().is_none(), "函数身份不唯一: {name}");
+    &function.codegen_name
+}
+
 fn root() -> Root {
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -430,14 +441,11 @@ fn module_function_bindings_freeze_public_calls_and_preserve_unselected_static_p
     )
     .unwrap();
     std::fs::write(root.0.join("mixed.cil"), &cil).unwrap();
-    let function = cil_method(&cil, "m0_f");
-    assert!(
-        function
-            .lines()
-            .next()
-            .unwrap()
-            .contains("m0_f([System.Runtime]System.Object, [System.Runtime]System.Object)")
-    );
+    let function = cil_method(&cil, linked_codegen(&linked, "f"));
+    assert!(function.lines().next().unwrap().contains(&format!(
+        "{}([System.Runtime]System.Object, [System.Runtime]System.Object)",
+        linked_codegen(&linked, "f")
+    )));
     let core_code = instructions(function);
     let pushes: Vec<_> = core_code
         .iter()
@@ -452,7 +460,11 @@ fn module_function_bindings_freeze_public_calls_and_preserve_unselected_static_p
         .iter()
         .enumerate()
         .filter(|(_, instruction)| {
-            instruction.starts_with("Call(") && instruction.contains("RyuPy.Generated.Module.m0_f(")
+            instruction.starts_with("Call(")
+                && instruction.contains(&format!(
+                    "RyuPy.Generated.Module.{}(",
+                    linked_codegen(&linked, "f")
+                ))
         })
         .collect();
     assert_eq!(calls.len(), 2, "保留fast/slow两条真实core调用");
@@ -479,11 +491,14 @@ fn module_function_bindings_freeze_public_calls_and_preserve_unselected_static_p
         "旧alias默认值必须来自实际函数实例"
     );
     assert!(
-        cil_method(&cil, "m0_add")
+        cil_method(&cil, linked_codegen(&linked, "add"))
             .lines()
             .next()
             .unwrap()
-            .contains("long m0_add(long, long)")
+            .contains(&format!(
+                "long {}(long, long)",
+                linked_codegen(&linked, "add")
+            ))
     );
     let export = linked.modules[linked.entry]
         .exports

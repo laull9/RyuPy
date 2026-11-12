@@ -444,3 +444,6 @@ mod default_source_tests;
 
 #[cfg(test)]
 mod test_temp;
+
+#[cfg(test)]
+mod function_symbols_tests;
