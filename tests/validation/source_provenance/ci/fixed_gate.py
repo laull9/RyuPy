@@ -78,9 +78,14 @@ def unique(rows, description):
     return rows[0]
 
 
-def locate(decoded, expectation, role):
+def locate(decoded, expectation, role, *, binding_version="legacy-names-v1"):
     """旧PE也可调用的独立词法→signature→thunk→真实core定位，不冒新source链正例。"""
+    need(binding_version in ('legacy-names-v1', 'lexical-chain-v1'), '未知core绑定版本')
     methods = {m['token']: m for m in decoded['methods']}
+    need(len(methods) == len(decoded['methods']), 'MethodDef token重复')
+    if binding_version == 'lexical-chain-v1':
+        identities = [(m['method']['owner'], m['method']['name'], m['method']['signature_hex']) for m in methods.values()]
+        need(len(set(identities)) == len(identities), 'MethodDef完整描述符重复')
     owner_methods = [m for m in methods.values() if m['method']['owner'] == 'RyuPy.Generated.Module']
     init = unique([m for m in owner_methods if m['method']['name'] == '__init_functions'], '冷初始化MethodDef')
     mains = [m for m in owner_methods if m['method']['name'].endswith('___module_main')]
@@ -120,10 +125,14 @@ def locate(decoded, expectation, role):
                   any(x.get('field_token') == field and x['opcode'] == '0x7e' for x in code(m))]
         thunk = unique(thunks, 'signature真实thunk')
         targets = {x['token'] for x in code(thunk) if x['opcode'] == '0x28' and
-                   x.get('token') in methods and x['target']['name'].startswith('m')}
+                   x.get('token') in methods}
         core = methods[unique(list(targets), 'thunk实际core MethodDef')]
         expected = definitions[key]
-        need(core['method']['name'] == f'm{index}_' + expected['name'], 'core单元/名字错绑')
+        need(core['method']['owner'] == 'RyuPy.Generated.Module', 'core owner错绑')
+        if binding_version == 'legacy-names-v1':
+            need(core['method']['name'] == f'm{index}_' + expected['name'], 'core单元/名字错绑')
+        # 新模式仅由独立词法定义→唯一signature→唯一thunk→精确MethodDef闭链确定身份。
+        # 不按名字前缀选core，也不从role=new猜测编译器的内部命名版本。
         need(core['flags'] & 0x10, 'core不是静态CIL方法')
         lines = [(j, x) for j, x in enumerate(code(core)) if runtime(x, 'PyTraceback', 'SetLine')]
         if not expected['generator']:
@@ -140,6 +149,8 @@ def locate(decoded, expectation, role):
     need(sum(runtime(x, 'PySignature', 'Create') for x in instructions) == len(associated), '额外未关联signature')
     need(len(associated) == len(definitions), '签名关联未覆盖固定全部定义')
     need(len({tuple(a['key']) for a in associated.values()}) == len(definitions), '同词法定义被重复签名替代')
+    if binding_version == 'lexical-chain-v1':
+        need(len({a['core']['token'] for a in associated.values()}) == len(associated), '不同词法定义共用core身份')
     return modules, methods, init, associated, evidence
 
 
@@ -262,8 +273,8 @@ def registration_location(part, module, native_location=None, package=None):
     return {'kind': kind, 'runtime_path': strings[3]}
 
 
-def check(decoded, expectation, fixture_root, role, *, native_manifest=None):
-    modules, methods, init, bindings, evidence = locate(decoded, expectation, role)
+def check(decoded, expectation, fixture_root, role, *, native_manifest=None, binding_version="legacy-names-v1"):
+    modules, methods, init, bindings, evidence = locate(decoded, expectation, role, binding_version=binding_version)
     fields = decoded['fields']
     for module in modules:
         path = Path(fixture_root) / module['fixture']
