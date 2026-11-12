@@ -38,6 +38,31 @@ def verify_task(case,record,prefix,output_file=None):
         require(output_file.is_file() and output_file.read_bytes()==(HERE/'html.output.txt').read_bytes(),'完整HTML文件不同')
 
 
+def container_security(command, uid, gid, dist, inputs, output):
+    """精确执行身份与最小挂载合同；不以恢复root权限或放宽目录权限修复写入。"""
+    require(type(uid) is int and type(gid) is int and uid >= 0 and gid >= 0, '非法执行uid/gid')
+    require(command.count('--user') == 1 and command[command.index('--user')+1] == f'{uid}:{gid}', '容器用户必须匹配输出目录owner')
+    for flag in ('--read-only','--cap-drop=ALL','--security-opt=no-new-privileges'):
+        require(command.count(flag)==1, '容器隔离标志缺失/重复：'+flag)
+    require(command.count('--network')==1 and command[command.index('--network')+1]=='none', '容器必须禁网')
+    mounts=[command[i+1] for i,x in enumerate(command) if x=='--mount']
+    require(mounts==['type=bind,src='+str(dist)+',dst=/app,readonly',
+        'type=bind,src='+str(inputs)+',dst=/inputs,readonly',
+        'type=bind,src='+str(output)+',dst=/output'], '只准只读产物/输入及独立可写输出')
+
+
+def container_command(dist, inputs, output, image, native, argv):
+    uid,gid=os.getuid(),os.getgid()
+    command=['docker','run','--rm','--user',f'{uid}:{gid}','--network','none','--read-only',
+        '--cap-drop=ALL','--security-opt=no-new-privileges','--tmpfs','/tmp',
+        '--mount','type=bind,src='+str(dist)+',dst=/app,readonly',
+        '--mount','type=bind,src='+str(inputs)+',dst=/inputs,readonly',
+        '--mount','type=bind,src='+str(output)+',dst=/output','--workdir','/tmp',
+        '--env','LC_ALL=C.UTF-8','--env','TZ=UTC',image,'/app/'+native]+argv
+    container_security(command,uid,gid,dist,inputs,output)
+    return command
+
+
 def main():
     parser=argparse.ArgumentParser()
     for key in ('cli','runtime','project','output','python','dotnet'):
@@ -89,11 +114,7 @@ def main():
                     data=out/(place+'-'+case+'-container-data');data.mkdir()
                     container_file=data/'output.html';argv=['-1','-f',fmt,'/inputs/'+input_name]
                     if case=='html-file':argv=['-o','/output/output.html']+argv
-                    command=['docker','run','--rm','--network','none','--read-only','--cap-drop=ALL','--security-opt=no-new-privileges',
-                        '--tmpfs','/tmp','--mount','type=bind,src='+str(dist)+',dst=/app,readonly',
-                        '--mount','type=bind,src='+str(inputs)+',dst=/inputs,readonly',
-                        '--mount','type=bind,src='+str(data)+',dst=/output','--workdir','/tmp',
-                        '--env','LC_ALL=C.UTF-8','--env','TZ=UTC',args.runtime_image,'/app/'+layout.native.name]+argv
+                    command=container_command(dist,inputs,data,args.runtime_image,layout.native.name,argv)
                     prefix=out/(place+'-'+case+'-container');rec=capture(prefix,command,cwd,clean,60)
                     verify_task(case,rec,prefix,container_file);result['container_runs']+=1
         finally:
