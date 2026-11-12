@@ -100,7 +100,7 @@ CLI + 运行时压缩包，没有单文件 CLI 发布。产物可跨哪些系统
 
 原生通过、桥接通过和已接受偏差的区别见 [compatibility.md](compatibility.md)。Native AOT 的目标平台、构建与加载限制参考 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
 
-### 统一项目部署配置（WIP，2026-11-12）
+### 统一项目部署配置（有限 Linux x64 验收，2026-11-12）
 
 新入口将部署声明集中到一个显式 JSON 文件；首切只支持 `schema_version: 1`、`mode: "aot"`。例如项目目录中的 `ryupy.json`：
 
@@ -130,7 +130,9 @@ ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
 
 默认输出根为配置目录的 `build/<目标名>`，其下沿用 `<入口名>.build/`、`<入口名>.dist/`；`-o` 覆盖仍相对调用者当前目录。项目模式与位置输入、`-I` / `--search-path`、`--include-module`、`--resources`、`--distribution-metadata`、`--native-binding`、`--instance-module`、`--instance-direct-globals` 互斥，不隐式合并。
 
-普通默认构建保持 `ExplicitOnly` 模块策略，不因项目配置或 AOT 源位置计划自动启用实例模块。项目文件是部署声明，不是完整依赖锁，也不证明动态依赖闭包。配置入口的 Native 构建、搬迁和独立产物验收仍在验证，不能借用旧候选的 Native 成功记录；当前合同和验证层次见 [deployment_project](../tests/aot/deployment_project/README.md)。
+普通默认构建保持 `ExplicitOnly` 模块策略，不因项目配置或 AOT 源位置计划自动启用实例模块。项目文件是部署声明，不是完整依赖锁，也不证明动态依赖闭包。[CI 43255885614](https://github.com/laull9/RyuPy/actions/runs/43255885614) 在候选 `2556fea1` 的无 feature Release CLI 上，已验证 pyfiglet 1.0.2 原 CLI 与 metadata 加载入口：Linux x64 四次公开项目构建、四份独立产物验收、12 次隔离源码宿主运行及12次禁网无 Python/.NET 容器运行通过。
+
+其中搬迁验证是保留旧 `build` 证据后，将自足源码项目移至新位置重新构建，不是复用搬迁的编译缓存。这一有限结果不证明跨平台、任意依赖闭包或其他项目兼容，也没有新的性能结论；合同及验证层次见 [deployment_project](../tests/aot/deployment_project/README.md)。
 
 ## 后续阶段的 Python 用例
 
