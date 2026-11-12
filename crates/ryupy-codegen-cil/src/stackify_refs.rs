@@ -226,6 +226,7 @@ pub(crate) fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRef
         RuntimeFn::IterValue => refs.iter_value,
         RuntimeFn::MakeClass => refs.make_class,
         RuntimeFn::PrepareOrdinaryMiClass => refs.classes.prepare_ordinary_mi,
+        RuntimeFn::PrepareRuntimeDerivedClass => refs.classes.prepare_runtime_derived,
         RuntimeFn::SetAttr => refs.set_attr,
         RuntimeFn::DelAttr => refs.del_attr,
         RuntimeFn::Decorate => refs.decorate,

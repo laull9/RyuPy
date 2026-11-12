@@ -99,6 +99,7 @@ impl<'a> Visitor<'a> for Registry<'_> {
                         name: Name::from(class.name.as_str()),
                         base: None,
                         ordinary_mi_bases: None,
+                        deferred_runtime_base: false,
                         fields: Vec::new(),
                         declared_fields: Vec::new(),
                         enum_members: None,

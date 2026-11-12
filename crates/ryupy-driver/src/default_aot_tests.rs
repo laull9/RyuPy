@@ -430,3 +430,46 @@ fn compiled_abc_single_base_cold_contract_still_rejects_aot() {
         );
     }
 }
+
+#[test]
+fn unknown_single_base_keeps_aot_plan_and_runtime_capability_guard() {
+    // 只验编译计划未把未知单基冒认为MI；实际Native执行由独立后验覆盖。
+    let root = root();
+    std::fs::write(
+        root.join("entry.py"),
+        "from source import Base\nclass Child(Base): pass\nprint(Child([1, 2]))\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("source.py"), "Base = list\n").unwrap();
+    let mut session = Session::default();
+    let (linked, _, _) = crate::compile_linked_locations(
+        &mut session,
+        &root.join("entry.py"),
+        &[],
+        true,
+        None,
+        true,
+    )
+    .unwrap_or_else(|error| panic!("{error:?}: {:?}", session.diagnostics));
+    assert!(session.diagnostics.is_empty(), "{:?}", session.diagnostics);
+    let mut calls = Vec::new();
+    for (_, function) in linked.functions.iter() {
+        for (_, block) in function.body.blocks.iter() {
+            for statement in &block.stmts {
+                if let ryupy_mir::Statement::Assign {
+                    value:
+                        ryupy_mir::Rvalue::Call {
+                            callee: ryupy_mir::Callee::Runtime(function),
+                            ..
+                        },
+                    ..
+                } = statement
+                {
+                    calls.push(*function);
+                }
+            }
+        }
+    }
+    assert!(calls.contains(&ryupy_mir::RuntimeFn::PrepareRuntimeDerivedClass));
+    assert!(!calls.contains(&ryupy_mir::RuntimeFn::PrepareOrdinaryMiClass));
+}

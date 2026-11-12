@@ -1,4 +1,4 @@
-"""四个Legacy MI真实图，PIC开关对照；原三红与新MI AOT拒绝分账，不冒全兼容。"""
+"""四个Legacy MI真实图及旧动态单基Native；原三红和两类MI拒绝分账，不冒全兼容。"""
 import json
 import os
 import shutil
@@ -121,7 +121,7 @@ def aot_boundary(r):
 def main():
     context(os.environ,json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text()));r=Runner()
     try:
-        for name,fn in [('prepare',prepare),('supported-legacy',supported),('original-reds',original_reds),('new-mi-aot-negative',aot_boundary)]:r.phase(name,lambda fn=fn:fn(r))
+        for name,fn in [('prepare',prepare),('supported-legacy',supported),('original-reds',original_reds),('new-mi-aot-negative',aot_boundary),('runtime-single-base-native',__import__('runtime_single_base').run)]:r.phase(name,lambda fn=fn:fn(r))
     except Exception:
         r.result['primary_error']=traceback.format_exc()
         raise
@@ -134,7 +134,7 @@ def main():
             if 'primary_error' not in r.result:
                 raise
         finally:
-            r.result['supported_contract_pass']=bool(r.result.get('four_graphs_pic_pass') and r.result.get('source_after_verified') and r.result.get('new_mi_aot') and not r.result.get('primary_error') and not r.result.get('source_after_error'))
+            r.result['supported_contract_pass']=bool(r.result.get('four_graphs_pic_pass') and r.result.get('source_after_verified') and r.result.get('new_mi_aot') and r.result.get('runtime_single_base_native', {}).get('passed') and not r.result.get('primary_error') and not r.result.get('source_after_error'))
             r.result['original_red_count']=len(r.result['original_reds'])
             r.save('result.json',r.result)
 

@@ -372,12 +372,18 @@ pub fn parse_class_def(
         // 普通类不要求字段，这里只是让 `fields` 的用途明确：仅 dataclass 使用。
     }
 
+    // 动态基与后代的公开槽已由runtime_bases预登记。此标志只延后发布，
+    // 不按import文本猜MI；runtime wrapper仍区分真实MI与原单基布局。
+    let deferred_runtime_base = !globals.instance_globals
+        && !is_dataclass
+        && matches!(base, Some(ClassBase::Runtime(_) | ClassBase::Expr(_)));
     Some(Class {
         lexical: None,
         has_class_cell: false,
         name: class_name,
         base,
         ordinary_mi_bases,
+        deferred_runtime_base,
         fields,
         declared_fields,
         enum_members,

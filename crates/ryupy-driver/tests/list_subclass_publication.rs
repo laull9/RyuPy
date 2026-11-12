@@ -102,9 +102,15 @@ fn list_layout_finishes_before_decoration_and_publication() {
             .collect()
     };
     let validate = positions(RuntimeFn::ValidateOrdinaryBase);
-    let make = positions(RuntimeFn::MakeClass);
+    let make = positions(RuntimeFn::PrepareRuntimeDerivedClass);
+    assert!(positions(RuntimeFn::MakeClass).is_empty());
+    assert!(positions(RuntimeFn::PrepareOrdinaryMiClass).is_empty());
+    let guard = positions(RuntimeFn::InstanceClassCellGuard);
     let finish = positions(RuntimeFn::FinalizeOrdinaryClass);
-    assert_eq!((validate.len(), make.len(), finish.len()), (1, 1, 1));
+    assert_eq!(
+        (validate.len(), make.len(), finish.len(), guard.len()),
+        (1, 1, 1, 1)
+    );
     let writes: Vec<_> = statements
         .iter()
         .enumerate()
@@ -129,6 +135,19 @@ fn list_layout_finishes_before_decoration_and_publication() {
         .filter(|index| *index > finish[0] && *index < writes[1])
         .collect();
     assert_eq!(decorators.len(), 1, "唯一装饰调用在完成后、发布前");
-    assert_eq!(statements.iter().filter(|statement|
-        matches!(statement, Statement::SetGlobal { dest, .. } if *dest == private)).count(), 1);
+    let private_writes: Vec<_> = statements
+        .iter()
+        .enumerate()
+        .filter_map(|(index, statement)| {
+            matches!(statement, Statement::SetGlobal { dest, .. } if *dest == private)
+                .then_some(index)
+        })
+        .collect();
+    assert_eq!(private_writes.len(), 1, "内部原类槽也不得提前公开半成品");
+    assert!(
+        finish[0] < guard[0]
+            && guard[0] < private_writes[0]
+            && private_writes[0] < decorators[0]
+            && decorators[0] < writes[1]
+    );
 }

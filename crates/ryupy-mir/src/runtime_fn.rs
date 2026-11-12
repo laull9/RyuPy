@@ -347,6 +347,8 @@ pub enum RuntimeFn {
     MakeClass,
     /// 普通MI族冷准备；仅配合类体后Finalize及延后公开合同。
     PrepareOrdinaryMiClass,
+    /// 动态单基的延后发布准备；真实布局仍由运行时沿原单基规则验证。
+    PrepareRuntimeDerivedClass,
     /// `PyOps.SetAttr(object, string, object)`：实例 / 类属性写入。
     SetAttr,
     /// `PyOps.DelAttr(object, string)`：实例 / 类属性删除。

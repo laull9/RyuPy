@@ -1,4 +1,6 @@
 // 类创建及属性操作的公开 ABI；具体类布局仍由 PyClass 与各专用 partial 管理。
+using System.Runtime.CompilerServices;
+
 namespace RyuPy.Runtime;
 
 /// <summary>类与属性协议的运行时入口（codegen 只依赖这几个方法）。</summary>
@@ -20,8 +22,20 @@ public static partial class PyOps
         return cls;
     }
 
+    /// <summary>冻结的动态单基冷准备；成功终结前由编译代码保留旧绑定和未填充类cell。</summary>
+    public static object PrepareRuntimeDerivedClass(string name, object?[] bases) =>
+        PrepareRuntimeDerivedClassForMode(name, bases, RuntimeFeature.IsDynamicCodeSupported);
+
+    // 显式能力参数只供内部合同测试；不是公开可绕过的用户开关，也不替代真实NativeAOT验收。
+    internal static object PrepareRuntimeDerivedClassForMode(string name, object?[] bases, bool supportsDynamicCode)
+    {
+        if (bases.Length != 1) throw new PyTypeError("runtime derived class requires exactly one base");
+        return MakeClassCore(name, bases, null, captureAmbientMetadata: true,
+            allowDeferredMi: true, supportsDynamicCode: supportsDynamicCode);
+    }
+
     // 实例类使用相同真实布局构造，但元数据由显式class frame初始化，不借ambient来源。
-    internal static object MakeClassCore(string name, object?[] bases, object? factory, bool captureAmbientMetadata)
+    internal static object MakeClassCore(string name, object?[] bases, object? factory, bool captureAmbientMetadata, bool allowDeferredMi = false, bool supportsDynamicCode = true)
     {
         object? baseValue = bases.Length == 1 ? bases[0] : null;
         PyTuple? originalBases = null;
@@ -30,6 +44,13 @@ public static partial class PyOps
             return PyTypingNamedTuple.BeginDefinition(name, bases[0]);
         if (ReferenceEquals(baseValue, PyType.Get("SyntaxError")) || ReferenceEquals(baseValue, PyType.Get("ParseError")))
             throw PyXmlTreeBuilderErrors.Unsupported("SyntaxError/ParseError user inheritance");
+        // 基值只解析一次。仅新编译合同允许真实MI族进入既有C3；其它布局继续原单基规则。
+        if (allowDeferredMi && baseValue is PyClass { HasMultipleInheritance: true })
+        {
+            if (!supportsDynamicCode)
+                throw new PyNotImplementedError("runtime MI inheritance requires dynamic code support");
+            return PrepareOrdinaryMiClass(name, [baseValue]);
+        }
         var cls = new PyClass(name);
         if (bases.Length == 1 && ReferenceEquals(bases[0], PyMappingProxy.Type))
             throw PyMappingProxy.Error(new PyTypeError("type 'mappingproxy' is not an acceptable base type"));

@@ -102,3 +102,7 @@ mod list_class_publication_tests;
 #[cfg(test)]
 #[path = "dict_class_publication_tests.rs"]
 mod dict_class_publication_tests;
+
+#[cfg(test)]
+#[path = "runtime_base_publication_tests.rs"]
+mod runtime_base_publication_tests;

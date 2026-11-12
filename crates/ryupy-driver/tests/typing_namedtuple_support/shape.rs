@@ -105,7 +105,16 @@ pub(super) fn check() {
     }
     let stmts = statements(&program);
     assert_eq!(positions(&stmts, RuntimeFn::ValidateOrdinaryBase).len(), 3);
-    assert_eq!(positions(&stmts, RuntimeFn::MakeClass).len(), 3);
+    assert_eq!(
+        positions(&stmts, RuntimeFn::PrepareRuntimeDerivedClass).len(),
+        3
+    );
+    assert_eq!(
+        positions(&stmts, RuntimeFn::InstanceClassCellGuard).len(),
+        3
+    );
+    assert!(positions(&stmts, RuntimeFn::MakeClass).is_empty());
+    assert!(positions(&stmts, RuntimeFn::PrepareOrdinaryMiClass).is_empty());
     assert_eq!(positions(&stmts, RuntimeFn::FinalizeOrdinaryClass).len(), 3);
 
     let atomic = "from typing import NamedTuple as Root\ndef decorate(cls):\n    return cls\nExisting = 'old'\n@decorate\nclass Existing(Root):\n    x: str = Existing\n    seen = Existing\n    def read(self, saved=Existing):\n        return saved\n";
@@ -139,7 +148,11 @@ pub(super) fn check() {
         .0;
     assert_ne!(public, private);
     let stmts = statements(&program);
-    let make = positions(&stmts, RuntimeFn::MakeClass);
+    let make = positions(&stmts, RuntimeFn::PrepareRuntimeDerivedClass);
+    let guard = positions(&stmts, RuntimeFn::InstanceClassCellGuard);
+    assert_eq!(guard.len(), 1);
+    assert!(positions(&stmts, RuntimeFn::MakeClass).is_empty());
+    assert!(positions(&stmts, RuntimeFn::PrepareOrdinaryMiClass).is_empty());
     let finish = positions(&stmts, RuntimeFn::FinalizeOrdinaryClass);
     let declare = positions(&stmts, RuntimeFn::DeclareDataclass);
     assert_eq!(make.len(), 1);
@@ -169,12 +182,21 @@ pub(super) fn check() {
         .filter(|i| *i > declare[0] && *i < writes[1])
         .collect();
     assert_eq!(decorator_calls.len(), 1, "装饰发生在finish之后publish之前");
-    assert_eq!(
-        stmts
-            .iter()
-            .filter(|s| matches!(s, Statement::SetGlobal { dest, .. } if *dest == private))
-            .count(),
-        1
+    let private_writes: Vec<_> = stmts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, statement)| {
+            matches!(statement, Statement::SetGlobal { dest, .. } if *dest == private)
+                .then_some(index)
+        })
+        .collect();
+    assert_eq!(private_writes.len(), 1);
+    assert!(
+        finish[0] < guard[0]
+            && guard[0] < private_writes[0]
+            && private_writes[0] < declare[0]
+            && declare[0] < decorator_calls[0]
+            && decorator_calls[0] < writes[1]
     );
     let validation = positions(&stmts, RuntimeFn::ValidateOrdinaryBase);
     assert_eq!(validation.len(), 1);

@@ -11,3 +11,21 @@
 本地纯检查：`python3 -B -m unittest discover -s tests/aot/ordinary_mi -p 'test_*.py'`。纯模型不运行产品、不代表 Native 支持。
 
 固定20按同HEAD逐项目记录，原通过项目继续保护；新NI可改变失败阶段，不硬编码总通过/拒绝计数，也不声称项目增加。
+
+## 动态单基的旧 Native 能力与实际 MI 拒绝
+
+同一 job 追加 `runtime-single-base-native`，不替换四个 MI JIT 图、原红例或
+已知 MI 发射前拒绝。独立的两份小图都先核固定 CP3.12.13 黄金、实际 PE 调用
+`PrepareRuntimeDerivedClass` 的数量/签名，再运行双 PIC JIT。
+
+- `ordinary`：真实源码再导出、模块属性基、继承 `super()` 及 str/list/dict
+  别名。真实 Native 原位/搬迁都必须成功，输出逐字节符合 CP。
+- `mi_rejected`：实际 Sequence 基经普通变量槽进入新准备入口，CP/JIT 成功；
+  Native 原位/搬迁都必须 exit1、空 stdout、精确动态码能力 NI。它不是
+  发射前拒绝，更不是 MI Native 支持。
+
+每次 Native 发布限600秒，复用已有40分钟step/55分钟job预算，不增加工作流
+选择开关。两ELF在执行前保完整dist归档、manifest文件身份与managed/runtime
+输入摘要；执行时隐藏本门源码副本、清空继承环境，并核搬迁前后dist不变。
+obj/bin发布中间缓存不上传，必要SDK输入/原流及真实dist归档保留。检查器纯测试
+通过、内部false能力参数或本地JIT都不能替代同提交hosted真实Native验收。
