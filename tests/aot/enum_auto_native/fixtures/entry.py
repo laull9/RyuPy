@@ -106,3 +106,18 @@ Ordinary.value = 9
 obj.value = 12
 print('ordinary', Ordinary.value, obj.read())
 print('enum-auto-native-complete')
+
+# 独立非-O语言语义：不能按.NET Release删除assert或消息副作用。
+print('debug-direct', __debug__)
+def debug_default(value=__debug__):
+    return value
+print('debug-default', debug_default())
+assert_calls = []
+def assert_message():
+    assert_calls.append('once')
+    return 'debug-assert-message'
+try:
+    assert False, assert_message()
+except AssertionError as error:
+    print('debug-assert', str(error), len(assert_calls))
+print('debug-side-effects', assert_calls)

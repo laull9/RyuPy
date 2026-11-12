@@ -25,6 +25,8 @@
 
 ## 当前兼容竖切（2026-11-12）
 
+- [~] Enum auto 与 __debug__：四组/三组有限域 JIT 双 PIC 与独审通过；赋值期生成、警告及固定非 -O 常量已接。完整回归、Native hosted 和真实 click 原入口独立验收，不能按导入成功计项目晋升。见 [ADR0169](docs/adr/0169-enum-auto-assignment.md)、[ADR0170](docs/adr/0170-debug-language-constant.md)。
+
 - [~] sortedcontainers 原入口及跨模块再派生：ABC/view/有限 slots 与动态单基已实现，原入口和扩展探针双 PIC 通过；S1 精确清单修复在 CI `43196707322` 已实际 42/42；真实 Native 正/负图与旧门通过，仍有旧 metadata 红项，不以整链冒充全绿。见 ADR0163/0164。
 - [~] 通用 dict 原生布局与完整 C3：词法多基事务及布局提供者分离正在实施；目标真实 toml 原入口与内联表扩展，当前不计项目晋升。见 [ADR0165](docs/adr/0165-native-layout-c3.md)。
 

@@ -13,7 +13,7 @@ gate = importlib.util.module_from_spec(spec); spec.loader.exec_module(gate)
 
 class ContractTests(unittest.TestCase):
     def test_fixture_originals_and_rejections(self):
-        self.assertTrue(gate.base.fixture(HERE/'fixtures').endswith(b'enum-auto-native-complete\n'))
+        self.assertTrue(gate.base.fixture(HERE/'fixtures').endswith(b"debug-side-effects ['once']\n"))
         for change in ('body', 'shadow', 'missing', 'duplicate', 'python'):
             with self.subTest(change=change), tempfile.TemporaryDirectory() as folder:
                 p = Path(folder)/'fixtures'; shutil.copytree(HERE/'fixtures', p)
@@ -38,6 +38,8 @@ class ContractTests(unittest.TestCase):
     def test_real_native_and_default_tools_required(self):
         source = (HERE/'run.py').read_text()
         self.assertIn("r.phase('native', base.native)", source)
+        self.assertIn("PYTHONOPTIMIZE='0'", source)
+        self.assertIn("self.save('python-mode.json'", source)
         self.assertIn("r.phase('prepare-default-tools', base.prepare)", source)
         shared = (HERE.parent/'decimal_finite_native/run.py').read_text()
         self.assertIn("['cargo', 'build', '--locked', '-p', 'ryupy-cli']", shared)

@@ -15,3 +15,9 @@ warning及异常路径也必须在真实ELF执行，不能将JIT成功代替Nati
 冻结源码/CLI/runtime/CP/SDK与实际PE、校验manifest、归档dist、隔离源并finally恢复，
 对照完整退出/双流与dist快照。Native发布上限600秒，验证25分钟、job40分钟。
 检查器只是拒绝坏证据，本地CP或checker通过不等于产品/Native通过。
+
+另加独立非-O语言检查：直接和函数默认参数中的__debug__为True，try内assert False仍抛出，
+消息副作用只发生一次。即使.NET Release也不能删除这些行为；不声明CP完整-O模式支持。
+
+本图独立runner显式固定PYTHONOPTIMIZE=0，并记录python-mode.json；实际CP argv另存原件。
+不会继承宿主的优化环境，旧Decimal/tzinfo runner不变。

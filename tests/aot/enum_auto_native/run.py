@@ -21,10 +21,13 @@ class Runner(base.Runner):
         self.python = Path(os.environ['PYTHON']).resolve(strict=True)
         self.dotnet = Path(os.environ['DOTNET']).resolve(strict=True)
         require(sys.version_info[:3] == (3, 12, 13) and base.sha(self.python) == base.PYTHON_SHA, '固定CP身份不同')
-        self.env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONHASHSEED='0')
+        self.env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', PYTHONHASHSEED='0', PYTHONOPTIMIZE='0')
         self.labels = set(); self.frozen = {}
         self.result = {'passed': False, 'graph': 'enum-auto-finite', 'stages': {}, 'native_executions': 0}
         self.save('result.json', self.result)
+        self.save('python-mode.json', {'PYTHONOPTIMIZE': self.env['PYTHONOPTIMIZE'],
+                                     'cpython_argv': [str(self.python), '-B', '<frozen entry.py>'],
+                                     'scope': '固定非-O；不是新增优化模式支持'})
 
 
 def main():
