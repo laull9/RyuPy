@@ -73,6 +73,10 @@ class Runner:
         self.save('result.json', self.result)
 
     def named_test(self, label, argv, name, timeout=900):
+        require('::' in name and '--' in argv, '具名测试必须使用完整Rust路径')
+        split = argv.index('--')
+        require(argv[:split].count(name) == 1 and argv[split + 1:].count('--exact') == 1,
+                '具名测试必须唯一完整过滤且启用--exact')
         self.checked(label, argv, timeout)
         lines = (self.out / (label + '.stdout')).read_text().splitlines()
         named_test_output(lines, name)
