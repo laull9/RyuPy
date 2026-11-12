@@ -13,9 +13,7 @@ pub(crate) struct Audit {
     pub manifest: Value,
 }
 pub(crate) fn eligible(sess: &Session, aot: bool, _resources: bool) -> bool {
-    aot && !sess.fixed_binding_build
-        && sess.module_environment_policy == ModuleEnvironmentPolicy::OrdinaryDynamicPilot
-        && sess.instance_modules.is_empty()
+    aot && !sess.fixed_binding_build && sess.instance_modules.is_empty()
 }
 pub(crate) fn needed(sess: &Session, sources: &[SourceModule]) -> bool {
     sess.default_source_state.aot_request
@@ -29,6 +27,10 @@ pub(crate) fn needed(sess: &Session, sources: &[SourceModule]) -> bool {
 }
 /// Token只证明来源；先按旧JIT完整资格纯查询选择，再验证所选者AOT，编译失败不回退。
 pub(crate) fn selected(sess: &Session, sources: &[SourceModule]) -> Result<Vec<usize>> {
+    // 部署规划不授予Instance能力；默认ExplicitOnly始终保留原Legacy ABI。
+    if sess.module_environment_policy == ModuleEnvironmentPolicy::ExplicitOnly {
+        return Ok(Vec::new());
+    }
     let mut selected = Vec::new();
     for (i, source) in sources.iter().enumerate() {
         if source.kind != SourceKind::ModuleFile

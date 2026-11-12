@@ -1,21 +1,18 @@
 //! 真实AOT图的显式测试导出器：只产独立发射前oracle，不执行SDK或生成交付声明。
 use super::*;
 
-#[test]
-#[ignore = "真实工作负载显式窗口；只编译/发射，不publish或执行"]
-fn default_aot_real_graph_emit() {
+pub(super) fn emit_real_graph() {
     let entry = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_ENTRY").unwrap());
     let root = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_ROOT").unwrap());
     let out = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_OUTPUT").unwrap());
     std::fs::create_dir_all(&out).unwrap();
     let mut s = Session {
-        module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
+        include_modules: std::env::var("RYUPY_DEFAULT_AOT_INCLUDE")
+            .map(|v| serde_json::from_str(&v).expect("include须为JSON字符串数组"))
+            .unwrap_or_default(),
+        distribution_metadata: std::env::var_os("RYUPY_DEFAULT_AOT_METADATA").map(PathBuf::from),
         ..Default::default()
     };
-    s.include_modules = std::env::var("RYUPY_DEFAULT_AOT_INCLUDE")
-        .map(|v| serde_json::from_str(&v).expect("include须为JSON字符串数组"))
-        .unwrap_or_default();
-    s.distribution_metadata = std::env::var_os("RYUPY_DEFAULT_AOT_METADATA").map(PathBuf::from);
     let resource_request = std::env::var_os("RYUPY_DEFAULT_AOT_RESOURCES").map(PathBuf::from);
     assert!(eligible(&s, true, resource_request.is_some()));
     s.default_source_state.aot_request = true;

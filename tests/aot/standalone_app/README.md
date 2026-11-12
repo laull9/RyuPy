@@ -54,3 +54,7 @@ oracle_dir 必须由同配置 driver 测试出口在发射前导出 mir-oracle.j
 验收器自行解码本次实际 managed PE，查冷注册/源码身份及真实 metadata ldstr 载荷，对照完整原 egg-info；从锁定请求和独立 emitted source-ID 生成资源预期，然后核完整 schema4、实际 dist 字节与输入工具不变。缺 oracle、实际 PE/请求不同或任何失败都不签成功receipt。
 
 结构 receipt 仍为 clean_container_validated=false、performance_permitted=false。benchmark 必须再完成对应dist移源隔离容器里的完整standard/slant/list六run并绑定该receipt和同一dist哈希，才可生成测量许可；无 Native 原件时保持 blocked，不允许把合成checker或测试出口PE当成正式Native验收。
+
+## 默认工具策略纠正
+
+standalone app 使用无 pilot feature 的公开 Release CLI：预期策略 explicit-only，automatic_instance_modules 必须为空，所有编译模块保持真实 Legacy 访问器。本地曾用 pilot 的结果不能称默认产品证据。schema4只表示AOT可搬迁来源/资源组合，不授自动实例能力；旧default_source_aot pilot门保持原严格策略，不互相接受策略标签。

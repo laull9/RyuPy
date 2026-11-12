@@ -14,7 +14,9 @@
 ## 决策
 
 1. 保留唯一 SourceModule 来源图。资源与封闭 distribution metadata 是该图的补充声明，
-   不能切换默认模块执行策略；显式 instance_modules、fixed-binding 的旧准入边界不放宽。
+   不能切换默认模块执行策略；默认无feature AOT采用 ExplicitOnly、自动Instance集合为空，
+   模块仍为Legacy。pilot构建保自己的独立合同；不把它冒充默认CLI。
+   JIT默认不变，显式 instance_modules、fixed-binding 的旧准入边界不放宽。
 2. 动态目标继续用公开 `--include-module` 显式包含；metadata 存在不等于任意动态依赖闭包完备。
    `--distribution-metadata` 只提供封闭快照，不改运行时 sys.path。
 3. 自动模块虚拟锚点与显式资源 claims 合并，先核同源文件和编译字节 hash；
@@ -52,3 +54,11 @@ Nuitka 对照固定同源码、输入、依赖、字体及 metadata 部署语义
 - 局部 driver 与 clippy 已通过；一次全 driver 测试因磁盘耗尽导致 rust-lld SIGBUS，
   该次不是通过。缓存清理不改变其原始失败记录，完整回归待统一执行。
 - hosted 原生搬迁、完整联合回归及平台性能仍待验，不计新增项目兼容完成。
+
+## 默认构建纠偏
+
+首个hosted默认release已实际产ELF和553资源，但旧实现仍输出schema2/explicit-only，
+专用schema4验收正确拒绝。原因是本地CLI曾显式启pilot、测试oracle又硬编码Pilot，
+不能以本地成功代替默认产品。现将部署规划与执行策略解耦；oracle改用真实Session默认值。
+旧具名oracle测试拆分造成exact路径零匹配，恢复原稳定wrapper并增加零/重复/异名/ignored负测。
+以上是修复中的边界记录，不能把失败的hosted验收改写成全绿或已搬迁完成。
