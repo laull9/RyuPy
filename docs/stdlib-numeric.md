@@ -145,3 +145,21 @@ bytearray/memoryview 的实时内容与租约、split/scanner 及原有复杂语
 `m3_5_regex.py`保持原验收内容；`m3_5_regex_edges.py`覆盖Unicode、组序、替换与空匹配；`m3_5_regex_boundaries.py`覆盖类别/flags矩阵、码点范围、回调None及error构造。`PyRegexTests`另验证显式拒绝、无匹配时模板验证与资源保护。差分基线固定CPython3.12.13，门禁结果以当前测试日志为准。
 
 不可变 bytes 新增 `PyRegexBytesCoreTests`、`PyRegexBytesReplacementTests`、`PyRegexBytesPublicTests` 共40项，`bytes_regex` 四个真实应用共85标签及完整用户异常链首次通过；可变输入/旧语法正例仍为未注册 pending，首次完整门禁通过，终态见 ADR-0080。
+
+## bisect：项目驱动二分搜索
+
+`bisect_left` / `bisect_right`（别名 `bisect`）以及 `insort_left` / `insort_right`
+（别名 `insort`）接受 `a, x, lo=0, hi=None, *, key=None`。别名保持函数身份。
+搜索只读取指定区间，通过真实下标与 `<` 协议比较，不调用相等比较、不预复制序列。
+左搜索比较 `key(a[mid]) < x`，右搜索比较 `x < key(a[mid])`；搜索不对 `x` 应用 key。
+插入先对原始 `x` 应用一次 key，搜索完成后调用真实 `a.insert(index, x)`，保留原值身份
+及用户重载；失败不自行插入，但不回滚用户回调已发生的副作用。
+
+`lo` / `hi` 使用整数或 `__index__`，越过有符号 64 位索引报 OverflowError；负 lo
+报 ValueError。与固定 CPython 3.12 加速器一致，None 或 -1 的 hi 读取长度，其他负 hi
+保留为空区间。显式 hi 不裁剪到长度，因此越界访问保留 IndexError。key 仅按实际算法
+访问时调用，不预验证为空区间的搜索 key。
+
+验收：`PyBisectTests` 四项运行时测试及 `m3_5_bisect.py` 的 CPython/JIT 差分，覆盖重复项、
+子区间、key 时机、NaN、参数错误、原对象插入和用户序列/比较协议。该 API 竖切本身
+不代表 sortedcontainers 项目通过，也未单独验收 Native AOT 或宣称性能提升。

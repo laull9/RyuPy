@@ -23,6 +23,10 @@
 >
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
+## 当前兼容竖切（2026-11-12）
+
+- [ ] sortedcontainers 原始入口：通用标准库依赖正在补齐；ABC 类族、view 与空 slots 尚待实现。见 [ADR-0162](docs/adr/0162-sortedcontainers-dependency-slices.md)。不改变固定 20 项、黄金或项目通过数。
+
 ## Phase 0：脚手架 ✅
 
 - [x] Cargo workspace 与 crate 分层（base / syntax / hir / ty / mir / codegen-cil / driver / cli / e2e）

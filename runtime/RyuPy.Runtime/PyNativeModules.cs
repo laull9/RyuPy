@@ -43,7 +43,10 @@ public static class PyNativeModules
         PyModules.RegisterNative("xml.etree.ElementTree", elementTree, PyXmlElementTree.BeforeSet);
         PyXmlTreeBuilder.RegisterFactories(elementTree);
         PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
+        PyModules.RegisterNative("bisect", PyBisect.CreateAttributes());
         PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
+        PyModules.RegisterNative("traceback", PyTracebackModule.CreateAttributes());
+        PyModules.RegisterNative("_thread", PyThreadIdentity.CreateAttributes());
         PyModules.RegisterNative("json", PyJsonModule.CreateAttributes(), (key, _) =>
         {
             if (key == "JSONDecodeError")
@@ -68,6 +71,7 @@ public static class PyNativeModules
         });
         PyModules.RegisterNative("itertools", PyItertools.CreateAttributes());
         PyModules.RegisterNative("functools", PyFunctools.CreateAttributes());
+        PyModules.RegisterNative("operator", PyOperator.CreateAttributes());
         PyModules.RegisterNative("contextlib", PyContextLib.CreateAttributes());
         PyModules.RegisterNative("typing", PyTyping.CreateAttributes());
         PyModules.RegisterNative("__future__", PyFuture.CreateAttributes());

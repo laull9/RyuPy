@@ -63,6 +63,7 @@ internal static class PyMappingProxyIteration
         {
             // map.MoveNext 也会先吞用户的原 Stop；沿其真实 Next 保存这个对象而非丢弃现场。
             if (iterator is PyMap map) { value = map.Next(); return true; }
+            if (iterator is PyStarMap starMap) { value = starMap.Next(); return true; }
             // adapter.MoveNext 会先吞 StopIteration；这里直接调用真实 next 以保存该异常现场。
             if (iterator is PyInstanceIterator adapter)
             {

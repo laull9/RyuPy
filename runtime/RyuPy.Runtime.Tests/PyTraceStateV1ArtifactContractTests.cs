@@ -147,6 +147,32 @@ public sealed class PyTraceStateV1ArtifactContractTests
         Assert.False(contract.Allows(good with { Source = C.Method("PyTraceProduct", "Hidden", "Void") }));
         Assert.False(contract.Allows(new("PyIO", C.Method("PyIO", "Guard", "Object", false, "System.Func`1<Object>"), "IL",
             "call PyTraceProduct::NativeFresh[16;1;1](!!0)->!!0<PyTypeError>")));
+        // traceback 窄接口只获得状态只读边；签名迁移不保留旧 formatter 入口权限。
+        string parts = C.Method("PyTracebackModule", "Parts", "String[]", false, "Object", "Object");
+        var observer = new C.Edge("PyTracebackModule", parts, "IL", "call " + C.Method("PyTraceProduct", "get_Enabled", "Boolean"));
+        Assert.True(contract.Allows(observer));
+        foreach (string target in new[] {
+            C.Method("PyTraceProduct", "Receive", "Void", false, "Object", "Int64", "TraceReceiveKind"),
+            C.Method("PyTraceProduct", "Terminal", "Void", false, "PyBaseException"),
+            C.Method("PyTraceProduct", "Suppress", "Void", false, "System.Exception"),
+            C.Method("PyTraceProduct", "get_Active", "TraceProductScope") })
+            Assert.False(contract.Allows(observer with { Target = "call " + target }));
+        foreach (string op in new[] { "callvirt ", "ldftn " })
+            Assert.False(contract.Allows(observer with { Target = op + C.Method("PyTraceProduct", "get_Enabled", "Boolean") }));
+        foreach (string wrong in new[] {
+            C.Method("PyTracebackModule", "Other", "String[]", false, "Object", "Object"),
+            C.Method("PyTracebackModule", "Parts", "Object", false, "Object", "Object"),
+            C.Method("PyTracebackModule", "Parts", "String[]", true, "Object", "Object") })
+            Assert.False(contract.Allows(observer with { Source = wrong }));
+        string formatter = C.Method("PyTraceback", "AppendSingle", "Void", false,
+            "System.Text.StringBuilder", "PyBaseException", "Nullable<Int64>", "System.Collections.Generic.List`1<String>");
+        var display = new C.Edge("PyTraceback", formatter, "IL", "call " + C.Method("PyTraceProduct", "Suppress", "Void", false, "System.Exception"));
+        Assert.True(contract.Allows(display));
+        Assert.False(contract.Allows(display with { Source = C.Method("PyTraceback", "AppendSingle", "Void", false,
+            "System.Text.StringBuilder", "PyBaseException") }));
+        Assert.False(contract.Allows(display with { Source = formatter.Replace("Nullable<Int64>", "Int64", StringComparison.Ordinal) }));
+        Assert.False(contract.Allows(display with { Target = "call " + C.Method("PyTraceProduct", "Terminal", "Void", false, "PyBaseException") }));
+        Assert.False(contract.Allows(display with { Target = "call " + C.Method("PyTraceProduct", "Receive", "Void", false, "Object", "Int64", "TraceReceiveKind") }));
         string lookup = C.Method("PyOps", "LoadDefaultBuiltin", "Object", false, "String");
         foreach (string type in new[] { "PyNotImplementedError", "PyNameError" })
         {

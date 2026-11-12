@@ -487,6 +487,8 @@ public static partial class PyOps
             return generator.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
         if (args[0] is PyMap map)
             return map.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
+        if (args[0] is PyStarMap starMap)
+            return starMap.Next(args.Length == 2 ? args[1] : null, args.Length == 2);
         if (args[0] is PyInstance instance)
         {
             try

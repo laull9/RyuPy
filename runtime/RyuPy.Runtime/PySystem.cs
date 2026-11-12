@@ -43,6 +43,8 @@ public static class PySystem
             ["platform"] = OperatingSystem.IsWindows() ? "win32" : OperatingSystem.IsMacOS() ? "darwin" : "linux",
             ["version_info"] = PySystemVersion.VersionInfo, ["version"] = PySystemVersion.Version,
             ["implementation"] = PySystemVersion.Implementation,
+            // 与固定语言兼容目标 3.12.13 final 0 同源，不代表完整 CPython 实现。
+            ["hexversion"] = 0x030C0DF0L,
             ["byteorder"] = BitConverter.IsLittleEndian ? "little" : "big", ["maxsize"] = long.MaxValue,
             ["exit"] = PyNativeFunctions.Create("exit", ["status"], [PyNone.Instance], 0,
                 values => throw new PySystemExit(values[0] is PyNone ? null : values[0])),

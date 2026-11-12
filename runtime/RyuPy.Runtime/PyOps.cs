@@ -309,6 +309,8 @@ public static partial class PyOps
             return PyDictComparisonDispatch.Compare(op, a, b);
         if (op is Eq or Ne && (a is PyListInstance || b is PyListInstance))
             return PyListComparisonDispatch.Compare(op, a, b);
+        if (PyOrdinaryRichComparison.TryCompare(op, a, b, out object? ordinary))
+            return Truthy(ordinary);
         if (op == Eq)
         {
             return ValuesEqual(a, b);

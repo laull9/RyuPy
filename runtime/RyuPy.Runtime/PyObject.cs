@@ -51,6 +51,7 @@ public static partial class PyObject
         // 裸object身份不受原生类型短名注册表影响。
         PyBaseObject => PyBaseObject.Type,
         PyNativeObject native => native is PyTypingTypeVar ? PyTypingTypeVar.Type
+            : native is PyStarMap ? PyStarMap.Type
             : native is PyCount ? PyCount.Type
             : (object?)PyNativeType.LookupByName(native.TypeName) ?? PyType.Get(native.TypeName),
         PyNativeType => PyType.Get("type"),

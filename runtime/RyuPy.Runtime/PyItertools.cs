@@ -23,7 +23,7 @@ public static class PyItertools
         return new(StringComparer.Ordinal)
         {
             ["chain"] = chain, ["repeat"] = repeat, ["islice"] = islice, ["zip_longest"] = PyZipLongest.Type,
-            ["count"] = PyCount.Type,
+            ["count"] = PyCount.Type, ["starmap"] = PyStarMap.Type,
         };
     }
     private static PyNativeType Type(string name, PyFunction factory) => new(name, "itertools",

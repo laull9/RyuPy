@@ -122,7 +122,11 @@ internal sealed partial class PyTraceStateV1ArtifactContract
             New(I("TraceBoundary", ".ctor", "Void", "TraceEpoch", "Int32", "Int64")));
         Rule(S("PyTraceback", "Attach", "Void", "Object"), [], enabled);
         Rule(S("PyTraceback", "CheckDepth", "Void"), [], FreshCall("PyRecursionError"));
-        Rule(S("PyTraceback", "AppendSingle", "Void", "System.Text.StringBuilder", "PyBaseException"), [], suppress);
+        // 仅迁移实际 formatter 的完整签名，保留原 Suppress 单目标，不授权整类。
+        Rule(S("PyTraceback", "AppendSingle", "Void", "System.Text.StringBuilder", "PyBaseException",
+            "Nullable<Int64>", "System.Collections.Generic.List`1<String>"), [], suppress);
+        // 模块观察入口只能读取启用状态并拒绝 V1，不允许接收/终结或抑制传播。
+        Rule(S("PyTracebackModule", "Parts", "String[]", "Object", "Object"), [], enabled);
         Rule(S("PyTraceback", "Report", "Void", "PyBaseException"), [], Call(P("Terminal", "Void", "PyBaseException")), suppress);
         Rule(S("PyTraceback", "ReportClr", "Void", "System.Exception"), [], enabled, FreshCall("PyBaseException"));
         Rule(S("PyErrors", "Load", "Object", "Object", "String"), [], FreshCall("PyUnboundLocalError"));

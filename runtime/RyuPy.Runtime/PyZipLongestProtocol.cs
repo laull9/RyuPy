@@ -48,6 +48,7 @@ internal static class PyZipLongestProtocol
         {
             // map.MoveNext 会先吞原 Stop；用已有 Next 让本层保存该异常现场再退休此 zip 槽。
             if (iterator is PyMap map) { value = map.Next(); return true; }
+            if (iterator is PyStarMap starMap) { value = starMap.Next(); return true; }
             // 槽退休由 zip 管理；不能让一个共享用户适配器的 finished 位压掉另一槽的原始 next。
             if (iterator is PyInstanceIterator user)
             {

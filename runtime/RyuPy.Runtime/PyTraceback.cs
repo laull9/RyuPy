@@ -186,6 +186,19 @@ public static partial class PyTraceback
         return builder.ToString();
     }
 
+    private static void AppendPart(StringBuilder builder, List<string>? parts, string text)
+    {
+        builder.Append(text); parts?.Add(text);
+    }
+
+    internal static string[] FormatParts(PyBaseException exception, long? limit, bool chain)
+    {
+        var parts = new List<string>();
+        AppendChain(new StringBuilder(), exception, 0,
+            new HashSet<PyBaseException>(ReferenceEqualityComparer.Instance), limit, chain, parts);
+        return parts.ToArray();
+    }
+
     /// <summary>退出回调的不可传播异常只报告本体，不修改或展开原异常链。</summary>
     public static string FormatSingle(PyBaseException exception)
     {
@@ -194,44 +207,45 @@ public static partial class PyTraceback
         return builder.ToString();
     }
 
-    private static void AppendChain(StringBuilder builder, PyBaseException exception, int depth, HashSet<PyBaseException> seen)
+    private static void AppendChain(StringBuilder builder, PyBaseException exception, int depth, HashSet<PyBaseException> seen, long? limit = null, bool chain = true, List<string>? parts = null)
     {
         // 异常链可能成环；身份集合避免同一实例反复报告，深度上限仍保护特别长的无环链。
         seen.Add(exception);
         if (depth > 16)
         {
-            AppendSingle(builder, exception);
+            AppendSingle(builder, exception, limit, parts);
             return;
         }
 
-        if (exception.Cause is not null)
+        if (chain && exception.Cause is not null)
         {
             if (!seen.Contains(exception.Cause))
             {
-                AppendChain(builder, exception.Cause, depth + 1, seen);
-                builder.Append(CauseSeparator);
+                AppendChain(builder, exception.Cause, depth + 1, seen, limit, chain, parts);
+                AppendPart(builder, parts, CauseSeparator);
             }
         }
-        else if (!exception.SuppressContextFlag && exception.Context is not null && !seen.Contains(exception.Context))
+        else if (chain && !exception.SuppressContextFlag && exception.Context is not null && !seen.Contains(exception.Context))
         {
-            AppendChain(builder, exception.Context, depth + 1, seen);
-            builder.Append(ContextSeparator);
+            AppendChain(builder, exception.Context, depth + 1, seen, limit, chain, parts);
+            AppendPart(builder, parts, ContextSeparator);
         }
-        AppendSingle(builder, exception);
+        AppendSingle(builder, exception, limit, parts);
     }
 
-    private static void AppendSingle(StringBuilder builder, PyBaseException exception)
+    private static void AppendSingle(StringBuilder builder, PyBaseException exception, long? limit = null, List<string>? parts = null)
     {
         PyStackFrame[] frames = exception.Frames;
-        if (frames.Length > 0)
+        int count = limit is null ? frames.Length : (int)Math.Min(frames.Length, limit == long.MinValue ? long.MaxValue : Math.Abs(limit.Value));
+        int end = limit is < 0 ? count - 1 : frames.Length - 1;
+        if (count > 0)
         {
-            builder.Append(Header).Append('\n');
+            AppendPart(builder, parts, Header + "\n");
             // frames 最内层在前，输出时从最外层开始
-            for (int i = frames.Length - 1; i >= 0; i--)
+            for (int i = end; i > end - count; i--)
             {
                 PyStackFrame frame = frames[i];
-                builder.Append("  File \"").Append(frame.File).Append("\", line ");
-                builder.Append(frame.Line).Append(", in ").Append(frame.Function).Append('\n');
+                AppendPart(builder, parts, $"  File \"{frame.File}\", line {frame.Line}, in {frame.Function}\n");
             }
         }
         string rendered;
@@ -245,7 +259,7 @@ public static partial class PyTraceback
             // 报告异常时不能被用户 __str__ 再次打断；普通 str(exc) 仍传播原错误。
             rendered = PyNativeExceptionDisplay.Name(exception) + ": <exception str() failed>";
         }
-        builder.Append(rendered).Append('\n');
+        AppendPart(builder, parts, rendered + "\n");
     }
 
     /// <summary>把未捕获异常写到 stderr（格式与 CPython 一致）。</summary>

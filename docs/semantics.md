@@ -1439,3 +1439,33 @@ Name调用使用真实callee/context冷分派，返回module.__dict__/function._
 同一真字典。裸builtin值、非零参、推导式保持编译边界，间接无context标记为NI。
 Default builtins新增稳定普通callable；删除该键为NameError，重绑遵守真实值。
 默认项目、Legacy热ABI、AOT类域未扩大，源码实现不等于JIT/Native验收。
+
+### traceback 当前异常文本窄接口（Legacy）
+
+`traceback.format_exc(limit=None, chain=True)` 与
+`traceback.print_exc(limit=None, file=None, chain=True)` 读取真实当前 handler 异常，
+保留 cause/context，`chain=False` 只输出本体；正整数 limit 取外层帧，负整数取内层帧，
+零只输出异常文本。`print_exc` 默认选择调用时的 `sys.stderr`，显式 file 使用真实 write，
+不吞 writer 异常，也不关闭/刷新用户文件。无当前异常输出 `NoneType: None\n`。
+
+这是既有 Legacy 渲染器的有限接口，不是完整 traceback 模块兼容：默认帧文本仍只含
+文件、行号、函数名，不加载源代码行、不画位置指示；既有长异常链深度保护保留。
+尚不支持自定义 limit 数值协议、`sys.tracebacklimit`、异常 notes、ExceptionGroup 或
+frame/traceback 对象 API。V1 产品域明确以 NotImplementedError 拒绝观察，不调用终端
+接收器或篡改 trace owner。零帧 CP 差分与含真实帧的测试分别验收，前者不能证明默认
+完整文本相等。
+
+### operator 二元函数与普通对象富比较的有限支持
+
+`operator.add/iadd/eq/ne/lt/le/gt/ge` 仅接受两个位置参数。`iadd` 复用语言增量赋值，
+保留 list 别名和用户 `__iadd__`，其 NotImplemented 回退仍复用既有二元入口。
+普通无特殊布局对象的比较共享一个原始值协议：右严格子类先反射、NotImplemented
+继续另一侧、显式 `__ne__` 与缺席时的默认取反有区别。operator 返回该原始结果；
+语言现有 Compare ABI 仍在同一协议出口求真值，**没有**改变 MIR 比较结果类型。
+因此 `bool(a == b)` 的分派可对齐，但直接 `print(a == b)` 对自定义非 bool 结果
+仍是旧偏差，不能宣称所有 Python 富比较表达式兼容。特殊布局和原生对象仍走原有
+专用比较路径，未据此扩张为其自定义非 bool 返回兼容保证。
+
+算术仍保留旧 Binary 左槽优先于右反射槽的已知偏差，尚未补全右子类反射优先；
+operator 不另造一套修补分派。`operator_reflected_subclass_pending.py` 明确保留该
+CP 差分失败边界，普通无子类的左右 NotImplemented 回退另有通过用例。

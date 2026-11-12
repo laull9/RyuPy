@@ -114,3 +114,20 @@ ADR0146只为JIT显式literal files锚点可选发现空普通直接子包；资
 新增显式闭包metadata请求与普通import_module候选；EntryPoint/EntryPoints只承诺name/value/group/load、iter/len/bool、select(name/group)、字符串索引。尚待CP差分/JIT/AOT及保护门，不计标准库或项目通过；高级构造、比较/hash、动态finder、zip与未配置环境明确NI。
 
 修订002：未实现的version/files/requires/Distribution等高级API不公开，保持缺属性/from-import失败而非占位函数。无选项能import metadata但entry_points明确NI，不能将模块可导入当默认兼容。
+
+### `itertools.starmap`（sortedcontainers 索引构建依赖）
+
+原生逐行惰性解包调用；构造只取得外层迭代器，不提前验证 callable 或消费行。
+覆盖 tuple/list 行、空输入、可变源、非可迭代行和 callable 异常后的继续、用户游标
+非永久耗尽、`StopIteration.value` 及重入。复用已有参数调用与迭代协议，不声称
+pickle 状态、任意自定义 descriptor 或迭代器子类完整兼容。
+证据：`m3_6_itertools_starmap.py` 差分与 `PyStarMapTests`。
+仅此 API 通过不代表 sortedcontainers 项目已运行通过。
+
+### 版本位编码与当前线程身份
+
+`sys.hexversion` 与固定语言目标 `3.12.13 final 0` 一致；不冒充 CPython 的实现身份。
+`_thread.get_ident()` 返回当前实际 CLR 线程的非零身份，存活线程间不同，同线程稳定。
+身份数值与 CPython 或其他进程不做比较，也不表示 OS native id。参数会正常拒绝。
+仅提供此 API，不开放 Python 线程创建、锁或 GIL 控制。证据为
+`m3_7_thread_identity.py` 差分与 `PyThreadIdentityTests` 的宿主双线程测试。
