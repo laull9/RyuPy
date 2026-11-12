@@ -57,6 +57,7 @@ fn unsupported_class_features_are_diagnostics() {
         "class C(TypedDict):\n    x: int = 1\n",
         "class C(TypedDict):\n    def method(self):\n        pass\n",
         "class C(TypedDict, dict):\n    pass\n",
+        "class C(dict, TypedDict):\n    pass\n",
     ] {
         let (_, errors) = lower(
             &format!("from typing import TypedDict\n{definition}"),
@@ -82,4 +83,14 @@ fn forward_syntax_candidates_never_lose_public_binding() {
             .iter()
             .all(|(_, c)| c.decorated_binding.is_some())
     );
+}
+
+#[test]
+fn mi_typed_dict_candidate_rebinding_remains_conservative_boundary() {
+    // TypedDict沿用已有语法候选协议，不冒充稳定原生身份；重绑仍明确拒绝MI。
+    let (_, errors) = lower(
+        "from typing import TypedDict\nclass Local:\n    pass\nTypedDict=Local\nclass C(TypedDict, object):\n    pass\n",
+        &["typing"],
+    );
+    assert!(errors.iter().any(|error| error.code == Some("E0100")));
 }

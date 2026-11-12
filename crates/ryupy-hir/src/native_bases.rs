@@ -13,12 +13,17 @@ pub(crate) fn resolve<'a>(
         return None;
     }
     let expr = &args.args[0];
+    resolve_expr(expr, globals).map(|kind| (kind, expr))
+}
+
+/// 多基类资格检查复用同一稳定导入身份，不能按名称猜测原生布局。
+pub(crate) fn resolve_expr(expr: &ast::Expr, globals: &GlobalScope) -> Option<NativeBase> {
     let (binding, path) = crate::exception_imports::attribute_path(expr)?;
     let kind = globals
         .exception_imports
         .get(&Name::from(binding))?
         .resolve_native_base(&path, expr.range().start())?;
-    Some((kind, expr))
+    Some(kind)
 }
 
 /// 有限模块异常基类；仍要求driver确认的稳定原生导入，不接受任意属性类。

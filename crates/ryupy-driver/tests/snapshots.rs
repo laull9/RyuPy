@@ -453,30 +453,20 @@ fn snapshot_m2_6_user_errors_cil() {
     insta::assert_snapshot!("m2_6_user_errors_cil", cil);
 }
 
-/// 暂缓能力必须明确报错：多重继承在 HIR 阶段给出 E0100。
+/// 普通Legacy多继承已准入；快照记录合法HIR形状，不再期待旧拒绝；基类顺序由MI运行合同覆盖。
 #[test]
-fn snapshot_multiple_inheritance_diagnostic() {
+fn snapshot_multiple_inheritance_hir() {
     let py_path = std::env::temp_dir().join("ryupy_test_multi_inherit.py");
     std::fs::write(
         &py_path,
         "class A:\n    pass\n\nclass B:\n    pass\n\nclass C(A, B):\n    pass\n",
     )
     .unwrap();
-
     let mut sess = Session::default();
-    let _ = dump(&mut sess, &py_path, Stage::Hir);
-    // 仅规范化宿主临时目录，保留源码行列与完整诊断内容。
-    let rendered = sess.render_diagnostics(false).replace(
-        py_path.to_str().unwrap(),
-        py_path.file_name().unwrap().to_str().unwrap(),
-    );
+    let hir = dump(&mut sess, &py_path, Stage::Hir).unwrap();
     let _ = std::fs::remove_file(&py_path);
-
-    assert!(
-        rendered.contains("E0100"),
-        "期望多重继承诊断 E0100，实际：{rendered}"
-    );
-    insta::assert_snapshot!("m2_6_multiple_inheritance", rendered);
+    assert!(!sess.render_diagnostics(false).contains("E0100"));
+    insta::assert_snapshot!("m2_6_multiple_inheritance", hir);
 }
 
 /// M2.8：`with` 去糖成 try/except/finally 后的 HIR / MIR / CIL。

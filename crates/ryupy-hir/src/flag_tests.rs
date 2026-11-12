@@ -106,3 +106,33 @@ fn local_module_or_rebound_alias_never_selects_flag_protocol() {
         assert!(module.protected_exports.is_empty());
     }
 }
+
+#[test]
+fn ordinary_mi_rejects_only_authenticated_flag_base_identity() {
+    for header in ["object, E.Flag", "E.Flag, object"] {
+        let (_, errors) = lower(
+            &format!("import enum as E\nclass Bits({header}):\n    pass\n"),
+            &["enum"],
+        );
+        assert!(errors.iter().any(|e| e.code == Some("E0100")));
+    }
+    for (source, native) in [
+        (
+            "from enum import Flag\nclass Bits(Flag, object):\n    pass\n",
+            &[][..],
+        ),
+        (
+            "from enum import Flag\nclass Local:\n    pass\nFlag=Local\nclass Bits(Flag, object):\n    pass\n",
+            &["enum"][..],
+        ),
+    ] {
+        let (module, errors) = lower(source, native);
+        assert!(errors.is_empty(), "{errors:?}");
+        assert!(
+            module
+                .classes
+                .iter()
+                .any(|(_, c)| c.ordinary_mi_bases.is_some())
+        );
+    }
+}

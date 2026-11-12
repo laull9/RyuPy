@@ -17,3 +17,7 @@
 ## 验收
 
 四个pending真实CP合同覆盖菱形、单基MI后代、descriptor/PIC重绑、失败副作用/旧绑定、new返回外对象及decorator观察。Rust检查真实发布槽与MIR顺序、CIL冷签名，C#检查实际类对象；本地HIR3/MIR1/CIL1、C#8及相关旧类合同共74项已执行通过；原CP四源中construction209B对齐，其余三源分别因旧instance.__dict__、class-body直接raise、Legacy globals边界保红。独立支持源保留全部MI核心机制，CP/JIT823B/499B/168B双流对齐；不证明原红源已修、项目+1或MI Native支持。固定20及默认AOT完整同源保护仍待；新两个实际driver图测试已核软解析失败保持deferred、真正MI产物AOT拒绝。类体helper引入额外frame，不称trace等价。
+
+## 首轮完整回归暴露的特殊基类边界
+
+普通MI准入不得绕过已有专用布局拒绝：Enum/Flag等复用driver认证、位置及重绑分析后的稳定原生导入身份，逐个基表达式核查，不能按裸名称猜测。TypedDict则沿用既有保守候选语法，不是稳定身份证明；即使该候选名称已重绑为普通类，多基类定义仍明确E0100。这一保守限制已单独测试，前文“重绑普通值逐值验证”不覆盖TypedDict候选域。

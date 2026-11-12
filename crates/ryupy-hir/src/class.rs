@@ -84,7 +84,10 @@ pub fn parse_class_def(
         let args = class_def.arguments.as_ref()?;
         if globals.instance_globals
             || is_dataclass
-            || native.is_some()
+            || args.args.iter().any(|base| {
+                crate::native_bases::resolve_expr(base, globals).is_some()
+                    || crate::typed_dict::candidate_expr(base, globals)
+            })
             || !args.keywords.is_empty()
             || args
                 .args
