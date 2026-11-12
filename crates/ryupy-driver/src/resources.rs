@@ -56,6 +56,7 @@ pub(crate) struct ResourcePlan {
     pub(super) source_lengths: Vec<u64>,
     pub(super) selected: BTreeSet<usize>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
+    pub(crate) explicit_declaration: bool,
 }
 
 impl ResourcePlan {
@@ -90,6 +91,7 @@ impl ResourcePlan {
                 .collect(),
             selected: BTreeSet::new(),
             automatic: None,
+            explicit_declaration: true,
         };
         let mut targets = Targets::default();
         // 锚点先全部保留，防先处理的资源覆盖后声明模块的虚拟源位置。
@@ -145,6 +147,37 @@ impl ResourcePlan {
         plan.locations.sort_by_key(|l| l.module_id);
         Ok(plan)
     }
+    /// 唯一来源图上的补充组合；资源声明不能覆盖自动锚点或改变模块选择。
+    pub(crate) fn compose_automatic(
+        sources: &[SourceModule],
+        explicit: Option<Self>,
+    ) -> Result<Self> {
+        let mut plan = Self::automatic(sources)?;
+        if let Some(explicit) = explicit {
+            ensure!(
+                plan.source_files == explicit.source_files
+                    && plan.source_hashes == explicit.source_hashes,
+                "资源与默认计划来源不一致"
+            );
+            let mut targets = Targets::default();
+            for location in &plan.locations {
+                targets.insert(&location.relative_file, Kind::Anchor)?;
+            }
+            for target in explicit.claims.keys() {
+                targets.insert(target, Kind::Resource)?;
+            }
+            for location in &explicit.locations {
+                ensure!(
+                    plan.module_location(location.module_id)
+                        == Some(location.relative_file.as_str()),
+                    "显式资源锚点与默认计划冲突"
+                );
+            }
+            plan.claims = explicit.claims;
+            plan.explicit_declaration = true;
+        }
+        Ok(plan)
+    }
     /// 默认域只签发虚拟锚；所有源仍由原stage持句柄复核，无数据claims。
     pub(crate) fn automatic(sources: &[SourceModule]) -> Result<Self> {
         ensure!(sources.len() <= 256, "默认AOT位置超过256项");
@@ -174,6 +207,7 @@ impl ResourcePlan {
             source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
             selected: (0..sources.len()).collect(),
             automatic: None,
+            explicit_declaration: false,
         })
     }
     pub(crate) fn module_location(&self, id: u32) -> Option<&str> {
@@ -194,9 +228,8 @@ pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<
     value["module_locations"] = serde_json::to_value(&staged.locations)?;
     value["resources"] = serde_json::to_value(&staged.records)?;
     value["scope"]["resources_included"] = (!staged.records.is_empty()).into();
-    value["scope"]["declared_resources_complete"] = staged.automatic.is_none().into();
+    value["scope"]["declared_resources_complete"] = staged.explicit_declaration.into();
     if let Some(audit) = &staged.automatic {
-        ensure!(staged.records.is_empty(), "默认自动位置不声称数据资源完整");
         value["default_source_plan"] = audit.manifest.clone();
         value["scope"]["automatic_module_locations_complete"] = true.into();
     }
@@ -213,3 +246,7 @@ mod stage_tests;
 pub(crate) fn validate_layout_artifact_path(path: &str) -> Result<()> {
     paths::portable(path)
 }
+
+#[cfg(test)]
+#[path = "resources_composition_tests.rs"]
+mod composition_tests;

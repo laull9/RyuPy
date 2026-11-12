@@ -1,0 +1,74 @@
+# 独立WIP候选入口；不扩大旧600行controller，也不把benchmark替代产品验收。
+name: Linux standalone应用与Nuitka对照
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/standalone-app-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: standalone-app-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  linux-standalone:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: standalone-app-001'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 独立协议负测试
+        timeout-minutes: 2
+        run: |
+          python3 -B -m unittest discover -s tests/aot/standalone_app/benchmark -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/aot/standalone_app -p 'test_validate_artifact.py'
+          python3 -B -m unittest discover -s tests/aot -p 'test_standalone_manifest.py'
+      - name: 官方工具与系统构建依赖（setup不计编译性能）
+        timeout-minutes: 15
+        run: |
+          mkdir -p "$RUNNER_TEMP/standalone-app-benchmark"
+          sudo apt-get update > "$RUNNER_TEMP/standalone-app-benchmark/apt-update.log" 2>&1
+          sudo apt-get install -y clang zlib1g-dev libicu-dev patchelf > "$RUNNER_TEMP/standalone-app-benchmark/apt-install.log" 2>&1
+          dpkg-query -W > "$RUNNER_TEMP/standalone-app-benchmark/build-os-packages.txt"
+          python3 -B tests/aot/wcwidth_ci/prepare.py > "$RUNNER_TEMP/standalone-app-benchmark/fixed-tool-prepare.log" 2>&1
+      - name: 锁定Nuitka安装及原包恢复（不计性能）
+        timeout-minutes: 10
+        run: '"$PYTHON" -B tests/aot/standalone_app/benchmark/setup_hosted.py'
+      - name: 冻结默认工具、正常CP与无宿主运行镜像
+        timeout-minutes: 25
+        run: '"$PYTHON" -B tests/aot/standalone_app/benchmark/hosted.py tools'
+      - name: 独立发射前oracle
+        timeout-minutes: 20
+        run: '"$PYTHON" -B tests/aot/standalone_app/benchmark/hosted.py oracles'
+      - name: 四真实发布、独立验收、禁网干净部署再测量
+        timeout-minutes: 50
+        run: '"$PYTHON" -B tests/aot/standalone_app/benchmark/hosted.py benchmark'
+      - name: 全部原件（失败不抹除）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: standalone-app-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/standalone-app-benchmark
+            ${{ runner.temp }}/standalone-bench-setup
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 口径与边界
+        if: always()
+        run: |
+          printf '%s\n' '仅Linux x64，真实完整pyfiglet原CLI与metadata入口；双方同完整字体及egg-info。' \
+            '依赖恢复后fresh-output/cached-dependencies构建；RSS为10ms全进程树采样，非精确总峰值。' \
+            '先结构receipt，再同一禁网无Python/.NET镜像，仅挂dist；兼容失败不产速度比。' \
+            '启动测量是新进程而非冷磁盘，短CLI不声明稳态或更快；setup成本单列。' >> "$GITHUB_STEP_SUMMARY"

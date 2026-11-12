@@ -1,5 +1,10 @@
 # TODO
 
+## 当前 AOT 产品主线（2026-11-12）
+
+- [~] 真实 standalone 联合部署：原 pyfiglet 1.0.2 CLI/console entry、完整553字体及 metadata 同计划；公开 AOT 前端已过，本地 MSB4216/4027 未产 ELF。hosted 原生搬迁、缺件/篡改负测、完整回归与同源 Nuitka 性能对照待验；不宣称全库兼容。见 [ADR0171](docs/adr/0171-aot-standalone-deployment-plan.md)。词法 del/click 扩展暂不实施。
+
+
 - [~] 普通 MI/C3 冷权威候选：真实菱形、单基后代、发布失败及 super/PIC 同源验证待完成；Legacy JIT 有界准入，Instance/Native 与专用布局保持拒绝。见[ADR0161](docs/adr/0161-ordinary-mi-c3.md)。
 
 - [~] TreeBuilder真实事件状态机候选：通用节点/文本尾文本/工厂身份及真实SyntaxError→ParseError父链接入；六组CP参考已冻结，C#/JIT/Native/完整check待验，原pending保留。见[ADR0154](docs/adr/0154-treebuilder-state-machine.md)。

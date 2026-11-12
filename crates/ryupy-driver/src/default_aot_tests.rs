@@ -24,12 +24,14 @@ fn eligibility_keeps_explicit_and_binding_paths() {
     };
     assert!(eligible(&s, true, false));
     assert!(!eligible(&s, false, false));
-    assert!(!eligible(&s, true, true));
+    assert!(eligible(&s, true, true));
     s.instance_modules.push("html.parser".into());
     assert!(!eligible(&s, true, false));
     s.instance_modules.clear();
     s.include_modules.push("x".into());
-    assert!(!eligible(&s, true, false));
+    assert!(eligible(&s, true, false));
+    s.distribution_metadata = Some(PathBuf::from("snapshot.json"));
+    assert!(eligible(&s, true, true));
     s.include_modules.clear();
     s.fixed_binding_build = true;
     assert!(!eligible(&s, true, false));
@@ -64,158 +66,8 @@ fn real_optional_graph_has_contiguous_emitted_ids_and_virtual_locations() {
             .all(|p| p.relative_file.starts_with(crate::resources::PREFIX))
     );
 }
-#[test]
-#[ignore = "真实工作负载显式窗口；只编译/发射，不publish或执行"]
-fn default_aot_real_graph_emit() {
-    let entry = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_ENTRY").unwrap());
-    let root = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_ROOT").unwrap());
-    let out = PathBuf::from(std::env::var("RYUPY_DEFAULT_AOT_OUTPUT").unwrap());
-    std::fs::create_dir_all(&out).unwrap();
-    let mut s = Session {
-        module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
-        ..Default::default()
-    };
-    s.default_source_state.aot_request = true;
-    s.default_source_state.output = Some(out.clone());
-    let result = crate::compile_linked_locations(&mut s, &entry, &[root], true, None, true);
-    std::fs::write(out.join("diagnostics.txt"), s.render_diagnostics(false)).unwrap();
-    std::fs::write(
-        out.join("module-environment.json"),
-        s.module_environment_report_json().unwrap(),
-    )
-    .unwrap();
-    let (linked, sources, resources) = result.unwrap();
-    let plan = resources.unwrap();
-    assert_eq!(sources.len(), linked.modules.len());
-    for (i, source) in sources.iter().enumerate() {
-        assert_eq!(source.module_id, i as u32);
-    }
-    let payload = linked.optional_sources.as_ref().unwrap();
-    std::fs::write(out.join("candidate.json"), payload).unwrap();
-    std::fs::write(
-        out.join("default_source_plan.json"),
-        serde_json::to_vec_pretty(&plan.automatic.as_ref().unwrap().manifest).unwrap(),
-    )
-    .unwrap();
-    let name = crate::assembly_name(&entry);
-    // 发射前MIR权威独立保存；后端slot报告只能给位置，不能由实际Call重建期望。
-    let modules:Vec<_>=linked.modules.iter().map(|(id,m)|json!({"module_id":id.into_raw().into_u32(),
-        "name":m.name,"init_fn":m.init.into_raw().into_u32(),"execution":format!("{:?}",m.execution)})).collect();
-    let functions: Vec<_> = linked
-        .functions
-        .iter()
-        .map(|(id, f)| {
-            json!({"function_id":id.into_raw().into_u32(),
-        "codegen_name":f.codegen_name,"state":format!("{:?}",f.module_state_source)})
-        })
-        .collect();
-    // 此处只读发射前Linked MIR；字段次序来自已有非InstancePublic分配合同。
-    let static_globals: Vec<_> = linked.globals.iter().filter(|(_, g)| {
-        !matches!(g.storage, ryupy_mir::GlobalStorage::InstancePublic { .. })
-    }).map(|(id, g)| {
-        json!({"global_id":id.into_raw().into_u32(),"name":g.name,
-            "storage":if matches!(g.storage, ryupy_mir::GlobalStorage::CodeSource { .. }) {"CodeSource"} else {"LegacyStatic"}})
-    }).collect();
-    let code_sources: Vec<_> = linked
-        .globals
-        .iter()
-        .filter_map(|(id, g)| {
-            let ryupy_mir::GlobalStorage::CodeSource {
-                entry,
-                legacy_entry,
-                ..
-            } = &g.storage
-            else {
-                return None;
-            };
-            let owners: Vec<_> = linked
-                .modules
-                .iter()
-                .filter(|(_, m)| m.init == *entry)
-                .collect();
-            assert_eq!(owners.len(), 1);
-            let (module_id, module) = owners[0];
-            assert_eq!(
-                module.execution == ryupy_mir::ModuleExecutionKind::LegacySingleton,
-                legacy_entry.is_some()
-            );
-            Some(json!({"global_id":id.into_raw().into_u32(),"name":g.name,
-            "module_id":module_id.into_raw().into_u32(),"entry_fn":entry.into_raw().into_u32(),
-            "source_file":linked.functions[*entry].source_file,
-            "legacy_entry":legacy_entry.as_ref().map(|v|json!({"initial_name":v.initial_name,
-                "name_global":v.name_global.into_raw().into_u32()}))}))
-        })
-        .collect();
-    assert_eq!(code_sources.len(), linked.modules.len());
-    std::fs::write(
-        out.join("mir-oracle.json"),
-        serde_json::to_vec_pretty(&json!({"modules":modules,"functions":functions,
-        "sources":sources,"static_globals":static_globals,"code_sources":code_sources,"source_to_emitted":plan.automatic.as_ref().unwrap().source_to_emitted,
-        "candidate_payload_sha256":crate::manifest_files::hash_bytes(payload.as_bytes())}))
-        .unwrap(),
-    )
-    .unwrap();
-    let options = ryupy_codegen_cil::EmitOptions {
-        assembly_name: crate::assembly_name(&entry),
-        entry_source_path: Some(entry.to_string_lossy().into_owned()),
-    };
-    let emitted = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &options).unwrap();
-    std::fs::write(out.join(format!("{name}.dll")), &emitted.bytes).unwrap();
-    let roots:Vec<_>=emitted.report.delegate_references.iter().map(|r|json!({
-        "role":r.role,"module_id":r.module_id,"function_id":r.function_id,"instruction":r.instruction,
-        "source":{"owner":r.source.owner,"name":r.source.name,"signature":r.source.signature,"slot":r.source_slot},
-        "target":r.target.as_ref().map(|t|json!({"owner":t.owner,"name":t.name,"signature":t.signature,"slot":r.target_slot}))})).collect();
-    std::fs::write(
-        out.join("emission-roots.json"),
-        serde_json::to_vec_pretty(&roots).unwrap(),
-    )
-    .unwrap();
-    let selected: Vec<String> =
-        plan.automatic.as_ref().unwrap().manifest["automatic_instance_modules"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_str().unwrap().to_owned())
-            .collect();
-    if !selected.is_empty() {
-        if let Ok(path) = std::env::var("RYUPY_DEFAULT_AOT_SOURCE_MANIFEST") {
-            assert!(std::env::var_os("GITHUB_ACTIONS").is_none());
-            let hash = crate::manifest_files::hash_bytes(&std::fs::read(path).unwrap());
-            crate::instance_aot_evidence_tests::save_with_source_manifest(
-                &out, &name, &linked, &selected, &sources, &emitted, &hash,
-            );
-        } else {
-            crate::instance_aot_evidence_tests::save(
-                &out, &name, &linked, &selected, &sources, &emitted,
-            );
-        }
-    }
-    std::fs::write(out.join("emission.txt"), format!("{:#?}", emitted.report)).unwrap();
-    let context = crate::manifest::ManifestContext::new(
-        emitted.report,
-        sources,
-        linked.entry.into_raw().into_u32(),
-        &emitted.bytes,
-        &s,
-    )
-    .unwrap();
-    assert!(
-        context.options["instance_modules"]
-            .as_array()
-            .unwrap()
-            .is_empty()
-    );
-    let stage = out.join("stage");
-    std::fs::create_dir(&stage).unwrap();
-    let staged = plan.stage(&stage).unwrap();
-    assert!(staged.records.is_empty());
-    assert_eq!(staged.locations.len(), linked.modules.len());
-    std::fs::write(
-        out.join("staged-locations.json"),
-        serde_json::to_vec_pretty(&staged.locations).unwrap(),
-    )
-    .unwrap();
-}
+#[path = "default_aot_oracle_tests.rs"]
+mod oracle;
 
 #[test]
 fn deferred_hole_keeps_real_source_snapshot_and_compiled_ids() {
@@ -504,4 +356,74 @@ fn lexical_multiple_bases_reject_aot_without_changing_old_single_base_plans() {
             assert!(result.is_ok(), "{:?}", session.diagnostics);
         }
     }
+}
+
+#[test]
+fn explicit_metadata_and_data_share_one_default_source_graph() {
+    let root = root();
+    std::fs::write(
+        root.join("entry.py"),
+        "import importlib.metadata\nimport app\nprint(app.value)\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("app.py"), "value = 7\n").unwrap();
+    std::fs::write(root.join("payload.txt"), "package data\n").unwrap();
+    std::fs::create_dir(root.join("demo-1.dist-info")).unwrap();
+    std::fs::write(
+        root.join("demo-1.dist-info/METADATA"),
+        "Name: demo\nVersion: 1\n",
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("demo-1.dist-info/entry_points.txt"),
+        "[console_scripts]\ndemo = app:main\n",
+    )
+    .unwrap();
+    let metadata = root.join("metadata.json");
+    std::fs::write(
+        &metadata,
+        r#"{"schema_version":1,"mode":"closed_snapshot","roots":[{"id":"app","path":"."}]}"#,
+    )
+    .unwrap();
+    let resources = root.join("resources.json");
+    std::fs::write(
+        &resources,
+        r#"{"schema_version":1,"modules":[{"module":"app","files":["payload.txt"]}]}"#,
+    )
+    .unwrap();
+    let mut session = Session {
+        distribution_metadata: Some(metadata),
+        include_modules: vec!["app".into()],
+        module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
+        ..Default::default()
+    };
+    assert!(eligible(&session, true, true));
+    session.default_source_state.aot_request = true;
+    let (linked, sources, plan) = crate::compile_linked_locations(
+        &mut session,
+        &root.join("entry.py"),
+        &[],
+        true,
+        Some(&resources),
+        true,
+    )
+    .unwrap();
+    assert!(
+        linked
+            .distribution_metadata
+            .as_ref()
+            .unwrap()
+            .contains("demo")
+    );
+    assert_eq!(sources.len(), linked.modules.len());
+    let plan = plan.unwrap();
+    assert!(plan.explicit_declaration);
+    assert!(plan.automatic.is_some());
+    assert!(linked.optional_sources.is_some());
+    let stage = root.join("stage");
+    std::fs::create_dir(&stage).unwrap();
+    let frozen = plan.stage(&stage).unwrap();
+    assert_eq!(frozen.records.len(), 1);
+    assert_eq!(frozen.records[0].size, 13);
+    std::fs::remove_dir_all(root).unwrap();
 }
