@@ -23,4 +23,29 @@ RSS在所有wall测量结束后独立各运行一次，不混入计时分布。1
 
 ## 状态
 
-这是待真实hosted运行的门；本地统计测试通过不等于优化收益。runtime优化、完整回归以及跨平台/打包验收由对应独立门提供，不由本脚本的绿色状态推断。
+2026-11-12，候选 `3700df16`（产品树 `b8b2fc1a`，本地同树 `eefab816`）完成 CI [43328258397](https://github.com/laull9/RyuPy/actions/runs/43328258397) 两个 attempt。每轮原件的 440 次正式/预热运行及 10 次独立 RSS 运行均逐项核完整输出、退出和 stderr；统计重算一致，两臂 runtime 源差异只有 `PyText.cs`，源码前后哈希不变。
+
+| 负载 | 首轮中位 before→after ms | 第二轮中位 before→after ms | 结论 |
+| --- | --- | --- | --- |
+| startup | 12.61→13.28 | 11.01→10.82 | 首轮变慢未复现，不能声称无启动风险 |
+| hi | 28.75→29.28 | 24.21→24.31 | 无可靠收益 |
+| longhi100 | 77.98→75.21 | 73.54→71.67 | 未达预设稳健 3% 阈值 |
+| longhi800 | 2115.26→1946.93 | 1921.73→1815.15 | 两轮中位耗时降低 7.96% / 5.55% |
+| paragraph | 55.33→54.56 | 46.91→47.09 | 无可靠收益 |
+
+longhi800 的配对 before/after 比 95% bootstrap 区间分别 `[1.0841, 1.0891]`、`[1.0507, 1.0607]`；只支持该极长行场景，不代表一般应用提速。startup 首轮区间 `[0.9337, 0.9997]`，第二轮 `[0.9602, 1.0664]`，保留两轮，不选择性丢弃负向结果。
+
+Native 入口两轮均只增 8B；完整 dist 分别增 217B/225B，含调试文件，allocated bytes不变。RSS仅10ms独立采样，不作精确内存优势；构建缓存条件不同，不作构建加速结论。Nuitka未重测。
+
+同产品完整 `make check` 通过：C# 3053通过/5跳过，e2e 454通过/283忽略。新源码孤立代理字面量与反向切片独立代理合并缺口另留 pending，基线与候选输出相同，不冒充完整Unicode兼容。
+[binaryornot回归](https://github.com/laull9/RyuPy/actions/runs/43328258313)：8宿主+8无Python/.NET隔离容器输出及7依赖控制通过。
+[Mac/Windows回归](https://github.com/laull9/RyuPy/actions/runs/43328258236)：各平台两入口共12次原位/搬迁、553字体、receipt及平台负控通过；不是无运行时干净机证明。候选保存在独立验证分支，不因CI绿色自动合入dev/main。
+
+官方ZIP SHA256：
+- A/B attempt1：`bb39f8ddc8a5a8e62fc3655b4e66d1b5254e29b040f7f0436851f53ede38e5e4`
+- A/B attempt2：`9f9f9335d9f26a8cfc1b750d1803c74fb5c21e5ad726b2ceec8910cc61891a82`
+- binaryornot：`d24a8b1875e1e6f7a838ac5d4cd0ae18963ab3d86d4463ef50795e38b26cb3b3`
+- macOS：`f7e82daa32a9877d2b55d954e27745dab6115330a76a9d18cb705da636b45673`
+- Windows：`7e0640faf947eef3b267a4d58aacafa1a1ef0201e225419bb8d4111cae0b8aa3`
+
+GitHub artifacts保留3天；下载原件已另行保存审计，不以CI摘要代替原流。
