@@ -62,7 +62,7 @@ fn unsupported_flag_members_and_class_options_are_explicit() {
         "A = 's'",
         "A = None",
         "A = 1.0",
-        "A = auto()",
+        "A = auto(1)",
         "A = Missing | 1",
         "A = 1\n    A = 2",
     ] {

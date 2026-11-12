@@ -8,6 +8,7 @@ use ryupy_syntax::ast;
 pub(crate) fn members(
     class: &ast::StmtClassDef,
     flag: bool,
+    globals: &crate::scope::GlobalScope,
     file: FileId,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Vec<Name> {
@@ -20,13 +21,15 @@ pub(crate) fn members(
             ast::Stmt::Assign(assign) if assign.targets.len() == 1 => {
                 if let ast::Expr::Name(target) = &assign.targets[0] {
                     let name = Name::from(target.id.as_str());
+                    // RHS先于本次名字写入；此前类局部成员/方法则遮蔽模块导入。
+                    let auto = auto_call(&assign.value, &assigned, globals);
                     if special(name.as_str()) {
                         Some("暂不支持Enum特殊名字或元类配置")
                     } else if !assigned.insert(name.clone()) {
                         Some("Enum成员/方法名字不能重复声明")
-                    } else if flag && !flag_value(&assign.value, &members, 0) {
+                    } else if flag && !auto && !flag_value(&assign.value, &members, 0) {
                         Some("Flag成员仅支持非负整数字面量、此前成员及有限|/&/^组合")
-                    } else if !flag && !literal_or_alias(&assign.value, &members) {
+                    } else if !flag && !auto && !literal_or_alias(&assign.value, &members) {
                         Some("Enum成员仅支持int/str/bool/None字面量及此前成员别名")
                     } else {
                         members.push(name);
@@ -103,4 +106,26 @@ fn flag_value(expr: &ast::Expr, members: &[Name], depth: usize) -> bool {
         }
         _ => false,
     }
+}
+
+/// 只认证导入来源及无参形状；实际callee/value仍按Python正常求值，runtime守真实auto身份。
+fn auto_call(
+    expr: &ast::Expr,
+    assigned: &FxHashSet<Name>,
+    globals: &crate::scope::GlobalScope,
+) -> bool {
+    let ast::Expr::Call(call) = expr else {
+        return false;
+    };
+    if !call.arguments.args.is_empty() || !call.arguments.keywords.is_empty() {
+        return false;
+    }
+    let Some((root, path)) = crate::exception_imports::attribute_path(&call.func) else {
+        return false;
+    };
+    !assigned.contains(&Name::from(root))
+        && globals
+            .exception_imports
+            .get(&Name::from(root))
+            .is_some_and(|binding| binding.peek_enum_auto(&path, expr.range().start()))
 }

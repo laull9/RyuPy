@@ -239,3 +239,6 @@ mod direct_globals_contract_tests;
 
 #[cfg(test)]
 mod ordinary_mi_tests;
+
+#[cfg(test)]
+mod enum_auto_tests;

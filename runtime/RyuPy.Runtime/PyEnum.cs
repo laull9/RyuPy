@@ -32,15 +32,16 @@ public static partial class PyEnum
         var root = new PyClass("Enum"); Classes.Add(root, new ClassInfo()); root.HasEnumMetadata = true;
         PyClass flag = BuildFlagRoot(root);
         var meta = new PyNativeType("EnumType", "enum", null, IsEnumClass, "type");
-        return new(StringComparer.Ordinal) { ["Enum"] = root, ["Flag"] = flag, ["EnumType"] = meta, ["EnumMeta"] = meta };
+        return new(StringComparer.Ordinal) { ["Enum"] = root, ["Flag"] = flag, ["EnumType"] = meta, ["EnumMeta"] = meta, ["auto"] = PyEnumAuto.Type };
     }
     /// <summary>仅已验证原生 Enum 基类的 HIR 路径可调用；不借普通 MakeClass 绕过身份门禁。</summary>
     public static object Create(string name, object?[] bases, object? factory)
     {
-        if (bases.Length != 1 || factory is not null and not PyNone
+        if (bases.Length != 1 || factory is not (null or PyNone or object?[])
             || (!ReferenceEquals(bases[0], CreateAttributes()["Enum"]) && !ReferenceEquals(bases[0], CreateAttributes()["Flag"])))
             throw new PyNotImplementedError("Enum construction requires the stable native Enum or Flag base");
-        return new PyClass(name) { BaseClass = (PyClass)bases[0]! };
+        return new PyClass(name) { BaseClass = (PyClass)bases[0]!,
+            EnumPending = factory is object?[] names ? new PendingEnum(names, ReferenceEquals(bases[0], CreateAttributes()["Flag"])) : null };
     }
 
     /// <summary>编译器在类体完成、装饰器应用前调用；memberNames含源码顺序中的别名。</summary>
@@ -51,6 +52,7 @@ public static partial class PyEnum
         bool isFlag = ReferenceEquals(type.BaseClass, CreateAttributes()["Flag"]);
         if (!isFlag && !ReferenceEquals(type.BaseClass, CreateAttributes()["Enum"]))
             throw new PyNotImplementedError("only direct Enum subclasses are supported");
+        type.EnumPending?.ValidateFinalization(memberNames);
         var info = new ClassInfo { IsFlag = isFlag };
         foreach (object? rawName in memberNames)
         {
@@ -72,6 +74,8 @@ public static partial class PyEnum
             info.Members.Set(name, member);
         }
         if (isFlag) FinalizeFlagInfo(info);
+        // 元数据构建成功后关闭赋值期协议；包装成员对象不再加入原值历史。
+        type.EnumPending = null;
         // 元数据构建成功后再替换类成员；激活只读守卫前完成所有写入。
         foreach (var (name, member) in info.Members.Entries()) type.SetAttr((string)name!, member);
         Classes.Add(type, info); type.HasEnumMetadata = true;

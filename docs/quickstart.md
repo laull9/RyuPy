@@ -1,14 +1,14 @@
 # 快速上手与部署边界
 
-当前实现覆盖 Phase 1 与 Phase 2 的 M2.1–M2.10：动态核心、容器、普通类、异常、模块系统、`with` 与有界 PIC。闭包、生成器、推导式、装饰器与标准库移植安排在 Phase 3。支持现状见 [semantics.md](semantics.md)，愿景与排期见 [roadmap.md](roadmap.md)。
+当前已实现动态核心、容器、普通类、异常、模块、闭包、生成器、装饰器及部分标准库的有限能力；各自仍有明确边界，不能按阶段名称推断完整 Python 兼容。实际支持见 [semantics.md](semantics.md)、[TODO](../TODO.md) 与[验证归档](validation/)，路线图不是验收结果。
 
 ## 开发环境
 
 | 依赖 | 版本 | 用途 |
 | --- | --- | --- |
 | Rust | stable，2024 edition | 构建编译器 |
-| .NET SDK | 10.x | 构建 C# 运行时与执行测试；后续 AOT 发布 |
-| Python | 3.12+ | 当前 CPython 差分测试；M2.0 将固定具体基准版本 |
+| .NET SDK | 10.x | 构建 C# 运行时、测试与有限 NativeAOT 发布 |
+| Python | 3.12.13 | 固定 CPython 差分验收基准 |
 
 ```bash
 make runtime
@@ -35,11 +35,11 @@ make e2e-all   # 包括未来尚未实现的 pending 用例
 make bench     # CPython vs RyuPy Release 的固定输入基准（不进入 make check）
 ```
 
-`import` 支持编译时可达的模块与包：搜索顺序是入口文件所在目录 → `-I/--search-path` 指定的额外根（可重复）。项目集用 `-I third_party/projects/...` 加载第三方源码。`from dataclasses import dataclass` 仍是特殊识别的编译期能力；标准库、import hook 与桥接尚未接入。不要据未来路线图推断现有 CLI 已具备这些能力。
+`import` 支持编译时可达的模块与包：搜索顺序是入口文件所在目录 → `-I/--search-path` 指定的额外根（可重复）。项目集用 `-I third_party/projects/...` 加载第三方源码。`from dataclasses import dataclass` 仍是特殊识别的编译期能力；部分标准库已有原生实现；任意动态 import hook 与 libpython 桥接不在当前完整支持范围。不要据未来路线图推断现有 CLI 已具备这些能力。
 
 ```bash
 # 额外搜索根：入口目录优先，然后是给定的第三方源码目录
-cargo run -q -p ryupy-cli -- run app.py -I third_party/projects/six-1.16.0/six-1.16.0
+cargo run -q -p ryupy-cli -- run app.py -I third_party/projects/toml-0.10.2/toml-0.10.2
 ```
 
 ## 当前产物
@@ -62,27 +62,38 @@ out/
 
 ```text
 releases/
-├── ryupy-0.0.1-darwin-arm64/
+├── ryupy-0.0.1-linux-x86_64/
 │   ├── bin/ryupy                # Rust 编译器 CLI
 │   └── runtime/RyuPy.Runtime.dll
-└── ryupy-0.0.1-darwin-arm64.tar.gz
+└── ryupy-0.0.1-linux-x86_64.tar.gz
 ```
+
+以上仅示意宿主平台包布局；实际版本/平台后缀由打包脚本决定，不是跨平台验收声明。本轮已证平台仅 Ubuntu 24.04 x86_64。
 
 CLI 查找运行时的顺序是：`RYUPY_RUNTIME_DIR` → 可执行文件旁边的 `runtime/`（`bin/../runtime`
 或同目录）→ 开发期的 `runtime/…/bin/Release/net10.0/`。所以解压后无需设置环境变量即可使用；
 目标机仍需要 .NET Runtime（当前目标框架 net10.0），但不需要 Rust 工具链、.NET SDK 或 Python。
 包名只反映构建机器的平台，`make build` 不做交叉编译。
 
-## 计划中的分发与执行形态
+## JIT 与 NativeAOT 的当前边界
 
-以下内容尚待实现，特别是 `--aot` 虽已有参数入口，`publish_aot` 仍为占位实现。
+状态日期：2026-11-12。产品证据对应代码 [85b11a94](https://github.com/laull9/RyuPy/commit/85b11a94368f0ba0a0bda80d611b9e0c39a5cf7b)，本次仅更新文档，不表示在后续文档提交上重新构建或运行产品。
 
-| 形态 | 目标 | 构建与运行依赖 | 排期 |
-| --- | --- | --- | --- |
-| 原生语义的 JIT 程序 | 项目编译成 CIL，通过 RyuJIT 运行 | 目标机 .NET Runtime；不依赖 libpython，但只能调用已原生实现的 API | 现有静态子集可用，项目支持在 Phase 2 / 3 扩展 |
-| 桥接 JIT 程序 | 必要模块通过 libpython 调用 | .NET Runtime、兼容的 libpython、Python 标准库与扩展依赖 | M3.8，Phase 4 扩展到 NumPy 等非纯 Python 模块 |
-| 原生 AOT 程序 | `ryupy build --aot` 生成目标平台可执行文件 | 构建需 .NET SDK 与目标工具链；运行免装 .NET / Python，仍服从平台系统库依赖 | M5.2，承接旧 M1.6 |
-| 桥接 AOT 程序 | AOT 编译托管部分，保留解释器边界 | 构建需 SDK 与目标工具链；运行仍需 libpython / 标准库 / 扩展，单独验收裁剪与原生加载 | M5.2 独立验证 |
+`--aot` 已有真实发布实现，不再是占位入口。普通 `build` 生成托管程序集，`build --aot` 调用 NativeAOT 生成宿主目标的可执行文件；构建需 .NET SDK 与原生工具链。Native 运行免装 .NET / Python，但仍依赖目标平台系统库。
+
+下面直接使用已验收的有限 Decimal 图（在仓库根目录运行）：
+
+```bash
+cargo run -q -p ryupy-cli -- build tests/aot/decimal_finite_native/fixtures/entry.py --out-dir out/decimal-native --aot
+./out/decimal-native/entry.dist/entry
+```
+
+AOT 输出根包含 `<入口名>.build/` 中间产物和 `<入口名>.dist/` 交付目录；部署应保留完整 `.dist`，不要只复制可执行文件。已有未知或修改过的输出目录不会被覆盖，重复构建请选新的输出根。
+
+本轮 [CI 43210802587](https://github.com/laull9/RyuPy/actions/runs/43210802587) 的独立 Decimal 与 tzinfo 用户单基图，在 Ubuntu 24.04 x86_64、.NET SDK 10.0.403、CPython 3.12.13 基准下完成双 PIC JIT、真实 Linux x64 ELF 原位及搬迁验证。命令、fixture 与验收边界见 [Decimal](../tests/aot/decimal_finite_native/README.md)、[tzinfo](../tests/aot/tzinfo_native/README.md)。这不是 macOS / Windows AOT 验收，也不是完整 toml Native、全 MI Native 或完整 Decimal / datetime 支持。
+
+固定 20 项目在构建时启用 Cargo feature `ryupy-driver/ordinary-dynamic-module-pilot` 的 pilot 为 14 成功 / 6 unsupported / 0 失败，默认源计划为 13 / 6 / 1（旧 Markdown 运行期失败）。这些是 managed JIT 入口结果，不是 NativeAOT 数量；默认 JIT 的 Markdown 失败是 `NotImplementedError: find_spec(): legacy or native module registrations without source metadata are not implemented`，pilot JIT 的该入口通过。独立 `distribution-metadata` AOT 仍失败于 `[E0100] 显式实例 AOT 需要资源清单且不支持原生绑定`，与默认 JIT 失败不同，整次 CI 不应称全绿。libpython 桥接 JIT / AOT 仍属于后续方案。
+pilot 是构建时 feature，不是 CLI 运行参数；普通默认构建未启用它，因此默认命令对应 13 / 6 / 1，不应期待 pilot 的 14 / 6 / 0。
 
 CLI 内嵌预构建运行时、全局缓存与跨平台发行仍属于后续分发设计；当前 `make build` 只产出宿主平台的
 CLI + 运行时压缩包，没有单文件 CLI 发布。产物可跨哪些系统 / 架构运行，以实测支持矩阵为准。

@@ -4,11 +4,17 @@
 
 ## 当前状态
 
-CI012的显式trace V1有限产品及双模式完整check已过，原无flag frames门仍失败；固定20默认JIT为10/8/2，239 pending未变。普通CLI无flag有限迁移现为未构建/未运行产品的[新候选](docs/adr/0143-generator-trace-default-cutover.md)，不代表默认修复完成或accepted晋升。
+状态日期：2026-11-12。产品证据对应代码 [85b11a94](https://github.com/laull9/RyuPy/commit/85b11a94368f0ba0a0bda80d611b9e0c39a5cf7b)，本次仅更新文档，不表示在后续文档提交上重新构建或运行产品。
+
+固定 20 项目的最新完整入口结果：启用构建时 Cargo feature `ryupy-driver/ordinary-dynamic-module-pilot` 的普通动态模块 pilot 为 **14 成功 / 6 unsupported / 0 失败**；默认源计划为 **13 成功 / 6 unsupported / 1 失败**，差异仍是既有 Markdown 路径。这里的成功指托管程序集的 **JIT 执行**，不等于 NativeAOT，也不代表项目全部 API 兼容。默认 JIT 的 Markdown 失败是 `NotImplementedError: find_spec(): legacy or native module registrations without source metadata are not implemented`；pilot JIT 的该入口通过。独立 `distribution-metadata` AOT 的旧失败则是 `[E0100] 显式实例 AOT 需要资源清单且不支持原生绑定`，不是同一个失败。
+
+独立默认 CLI 的有限 Decimal、tzinfo 用户单基图已在 Ubuntu 24.04 x86_64、.NET SDK 10.0.403 上完成真实 Linux x64 ELF 原位与搬迁运行。证据见 [CI 43210802587](https://github.com/laull9/RyuPy/actions/runs/43210802587) 及各独立 artifact；整次 CI 仍有旧门失败，不能据专项通过称全绿。完整 toml Native、全量 MI Native 不在通过范围。
+
+pilot 是构建时 feature，不是 CLI 运行参数；普通默认构建未启用它，因此默认命令对应 13 / 6 / 1，不应期待 pilot 的 14 / 6 / 0。
 
 当前能力、有限兼容范围与未完成项以 [TODO](TODO.md)、[语义说明](docs/semantics.md) 和 [验证归档](docs/validation/) 为准。WIP 的专项通过不等于全部真实项目、任意扩展或所有部署环境通过。
 
-近期目标为固定纯 Python 项目集至少 80% 原生通过。项目集已冻结；2026-11-01 历史 Linux JIT 指定入口记录为 5/20，后续特性没有自动增加项目通过数，逐项目范围和旧阻塞见 [compatibility.md](docs/compatibility.md)。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。阶段安排见路线图。
+近期目标为固定纯 Python 项目集至少 80% 原生语义兼容（当前以 JIT 指定入口计数，不是 80% NativeAOT）。pilot 的 14/20 为 70%，仍需两项完整入口通过。项目范围和历史记录见 [compatibility.md](docs/compatibility.md)；后续特性不会自动增加通过数。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。
 
 ```bash
 make run FILE=tests/e2e/phase1/m1_5_dataclass.py
@@ -17,7 +23,7 @@ make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
 
 ## 快速开始
 
-依赖：Rust stable、.NET SDK 10、Python 3.12+。
+依赖：Rust stable（2024 edition）、.NET SDK 10；差分验收固定 CPython 3.12.13。NativeAOT 还需目标平台的原生工具链；本轮只验证 Ubuntu 24.04 x86_64，未验证 macOS / Windows AOT。
 
 ```bash
 make runtime   # 构建 C# 运行时
@@ -28,9 +34,11 @@ make bench-aot # AOT 后端；也可 make bench ARGS='--aot'
 make help      # 全部命令
 ```
 
-## AOT 构建与交付（WIP）
+## AOT 构建与交付（有限范围已验证）
 
 `ryupy build --aot path/name.py` 把中间产物放入 `path/name.build/`，交付目录为 `path/name.dist/`，原生入口为 `name`（Windows 为 `name.exe`）。`--out-dir ROOT` 将这两个目录放到 ROOT；JIT 缓存布局不变。已有未知或修改过的输出目录不会被覆盖。
+
+可复用的独立验收入口与边界见 [Decimal Native 门](tests/aot/decimal_finite_native/README.md) 和 [tzinfo Native 门](tests/aot/tzinfo_native/README.md)。通过的是默认 CLI 的这些有限图，不是完整 toml 或任意多继承程序。
 
 新 AOT 基准直接执行交付目录中的原生程序，编译/ILC 不计入运行采样；保存结果标明后端，默认不混比 JIT/AOT。当前基准 runner 仅支持 POSIX，`--aot --profile` 不支持。完整限制与本轮验证状态见 [ADR-0052](docs/adr/0052-aot-build-dist-and-bench.md)。
 

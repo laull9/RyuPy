@@ -303,6 +303,10 @@ impl<'a> ExprLowerCtx<'a> {
     }
 
     pub(crate) fn lower_name(&mut self, name_expr: &ast::ExprName) -> ExprKind {
+        // 当前编译模式没有Python -O；语言常量先于所有namespace解析，宿主优化级别无关。
+        if name_expr.id.as_str() == "__debug__" && name_expr.ctx == ast::ExprContext::Load {
+            return ExprKind::Literal(Literal::Bool(true));
+        }
         let name = Name::from(name_expr.id.as_str());
         if let Some(kind) = self.lower_lexical_name(name_expr) {
             return kind;

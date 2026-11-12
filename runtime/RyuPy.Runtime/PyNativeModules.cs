@@ -99,7 +99,7 @@ public static class PyNativeModules
         PyModules.RegisterNative("string", PyStringModule.CreateAttributes());
         PyModules.RegisterNative("enum", PyEnum.CreateAttributes(), (key, _) =>
         {
-            if (key is "Enum" or "Flag")
+            if (key is "Enum" or "Flag" or "auto")
                 throw new PyNotImplementedError($"rebinding enum.{key} is not supported");
         });
         PyModules.RegisterNative("atexit", PyAtexit.CreateAttributes());
