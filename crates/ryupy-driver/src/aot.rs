@@ -231,13 +231,14 @@ pub(crate) fn publish_binding(
     out: &Path,
     context: &crate::native_binding_manifest::BindingManifest,
     plan: &crate::native_binding::BindingPlan,
+    resources: Option<&crate::resources::ResourcePlan>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<ManifestPublication> {
     let result = publish_internal(
         dll,
         out,
         Some(AotManifest::Binding(context, plan)),
-        None,
+        resources,
         owned,
     )?;
     Ok(ManifestPublication {

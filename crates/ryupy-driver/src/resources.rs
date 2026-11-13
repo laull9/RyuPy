@@ -1,4 +1,4 @@
-//! 显式资源选择与schema2报告；仅针对本次已编译模块，不扫描目录或扩大Python导入闭包。
+//! 显式资源选择与普通/绑定发布的资源报告；仅针对本次已编译模块，不扫描目录或扩大导入闭包。
 use crate::modules::SourceModule;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -187,10 +187,28 @@ impl ResourcePlan {
     }
 }
 
-/// 在同次schema1序列化结果上追加资源声明；无请求不调用，保schema1原快路/字节合同。
+/// 在同次发射清单上追加资源声明；普通与绑定各有独立版本，保留原生模块来源与 PInvoke 记录。
+/// 无资源请求不调用，旧 schema1/3/4 的快路和字段合同保持原样。
 pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<Vec<u8>> {
     let mut value: serde_json::Value = serde_json::from_slice(bytes)?;
-    value["schema_version"] = if staged.automatic.is_some() { 4 } else { 2 }.into();
+    let version = match (
+        value["schema_version"].as_u64(),
+        value.get("native_bindings").is_some(),
+        staged.automatic.is_some(),
+    ) {
+        (Some(1), false, false) => 2,
+        (Some(1), false, true) => 4,
+        (Some(3), true, false) => 5,
+        (Some(4), true, false) => 6,
+        _ => anyhow::bail!("资源扩展与基础发布清单版本不匹配"),
+    };
+    if value.get("native_bindings").is_some() {
+        ensure!(
+            value["kind"] == "ryupy-native-aot-artifact",
+            "绑定资源仅用于 AOT 清单"
+        );
+    }
+    value["schema_version"] = version.into();
     value["module_locations"] = serde_json::to_value(&staged.locations)?;
     value["resources"] = serde_json::to_value(&staged.records)?;
     value["scope"]["resources_included"] = (!staged.records.is_empty()).into();

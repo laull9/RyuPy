@@ -141,7 +141,12 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
             let index = if let Some(index) = cache.get(&lexical) {
                 *index
             } else {
-                let checked = paths::checked_source(parent, &claim.file)?;
+                let checked = paths::checked_source(parent, &claim.file).with_context(|| {
+                    format!(
+                        "无法冻结资源 {}（源码模块 {}）",
+                        claim.file, claim.source_module
+                    )
+                })?;
                 let identity = open_plain(&checked)?;
                 ensure!(
                     !compiled.iter().any(|source| source == &identity),

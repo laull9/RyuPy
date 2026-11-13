@@ -1,4 +1,5 @@
-//! schema3/4 只用于显式绑定：真实编译源码与生成模块来源分列，使用同次 Resolution 的实际 PInvoke 报告。
+//! schema3/4 用于显式绑定；资源发布在同一报告上扩展为 schema5/6。
+//! 真实编译源码与生成模块来源分列，使用同次 Resolution 的实际 PInvoke 报告。
 use crate::{
     manifest::SourceSummary,
     manifest_files::{self, FileDigest},

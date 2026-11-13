@@ -56,7 +56,7 @@ fn fake(opts: &BuildOptions, data: &[u8], schema: u64) -> Result<Artifacts> {
     let mut artifacts = vec![
         json!({"relative_path":native.file_name().unwrap().to_str().unwrap(),"role":"native_executable","size":data.len(),"sha256":manifest_files::hash_bytes(data)}),
     ];
-    if schema == 2 {
+    if matches!(schema, 2 | 4..=6) {
         let resource = publish.join("_internal/resources/v1/data.txt");
         std::fs::create_dir_all(resource.parent().unwrap())?;
         std::fs::write(resource, b"data")?;
@@ -155,7 +155,7 @@ fn concurrent_lock_is_never_removed_or_reused() {
 }
 #[test]
 fn all_manifest_schemas_and_resource_subtree_survive() {
-    for schema in 1..=3 {
+    for schema in 1..=6 {
         let c = Case::new();
         let a = build(&c.opts, |o, _owned| fake(o, b"native", schema)).unwrap();
         let value = files::verify_manifest(a.manifest.unwrap().parent().unwrap()).unwrap();
@@ -165,7 +165,7 @@ fn all_manifest_schemas_and_resource_subtree_survive() {
             value["build_inputs"][0]["sha256"],
             manifest_files::hash_bytes(b"managed")
         );
-        if schema == 2 {
+        if matches!(schema, 2 | 4..=6) {
             assert_eq!(
                 std::fs::read(c.dist().join("_internal/resources/v1/data.txt")).unwrap(),
                 b"data"

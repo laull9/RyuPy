@@ -70,15 +70,14 @@ fn jit_bundle_owned_and_actual_source_schema() {
 #[test]
 fn combinations_and_source_collision_fail_before_writes() {
     let (root, opts, declaration) = setup();
-    assert!(
-        crate::build_configured(
-            &mut Session::default(),
-            &opts,
-            Some(Path::new("missing-resource.json")),
-            Some(&declaration)
-        )
-        .is_err()
-    );
+    let error = crate::build_configured(
+        &mut Session::default(),
+        &opts,
+        Some(Path::new("missing-resource.json")),
+        Some(&declaration),
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("--resources 仅可与 --aot 同用"));
     assert!(!opts.out_dir.exists());
     std::fs::write(root.join("declared_demo.py"), "x = 1\n").unwrap();
     let e = crate::build_configured(&mut Session::default(), &opts, None, Some(&declaration))
@@ -151,4 +150,144 @@ fn multi_export_bundle_has_one_native_input_and_all_actual_references() {
         .collect();
     assert_eq!(delegates.len(), 2);
     std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() {
+    // 编译/发射/冻结均走真实路径；仅最终 native 用占位文件，真实 ILC 由专项 runner 验收。
+    for version in [1, 2] {
+        for with_data in [false, true] {
+            let (root, opts, declaration) = setup();
+            std::fs::create_dir(root.join("pkg")).unwrap();
+            std::fs::write(root.join("pkg/__init__.py"), "# 真实包\n").unwrap();
+            std::fs::write(root.join("pkg/data.txt"), "随包数据\n").unwrap();
+            std::fs::write(&opts.input, "import pkg\nimport declared_demo\n").unwrap();
+            let resources = root.join("resources.json");
+            std::fs::write(
+                &resources,
+                json!({"schema_version":1,"modules":[{
+                    "module":"pkg", "files":if with_data {vec!["data.txt"]} else {vec![]}
+                }]})
+                .to_string(),
+            )
+            .unwrap();
+            let mut plan =
+                BindingPlan::read(&declaration, Platform::current().unwrap(), false).unwrap();
+            // 清单结构测试复用已经验证的输入记录；不启动链接器，不把占位 native 当执行证据。
+            plan.declaration_version = version;
+            plan.aot = true;
+            plan.input.digest.role = "native_static_archive".into();
+            if version == 2 {
+                plan.exports.push(crate::native_binding::BindingExport {
+                    name: "subtract".into(),
+                    symbol: "demo_subtract".into(),
+                    signature: crate::native_binding::SIGNATURE.into(),
+                });
+            }
+            let mut session = Session {
+                fixed_binding_build: true,
+                ..Session::default()
+            };
+            let (mut linked, sources, resource_plan) = crate::compile_linked_locations(
+                &mut session,
+                &opts.input,
+                &[],
+                true,
+                Some(&resources),
+                true,
+            )
+            .unwrap();
+            let resource_plan = resource_plan.unwrap();
+            let location = &resource_plan.locations[0];
+            let source_id = location.module_id;
+            assert_eq!(sources[source_id as usize].module_name, "pkg");
+            let source_module = linked
+                .modules
+                .iter()
+                .find(|(id, _)| id.into_raw().into_u32() == source_id)
+                .unwrap()
+                .1;
+            assert!(matches!(
+                &source_module.location,
+                ryupy_mir::ModuleLocation::ExecutableRelative(path) if path == &location.relative_file
+            ));
+            plan.check_modules(&linked).unwrap();
+            let originals = ryupy_codegen_cil::SourceModules::capture(&linked).unwrap();
+            let bindings = declare(&mut linked, &plan);
+            let emitted = fixed_bindings::emit_source_with_report(
+                &linked,
+                &ryupy_codegen_cil::EmitOptions {
+                    assembly_name: "main".into(),
+                    entry_source_path: None,
+                },
+                &bindings,
+                &BindingDeployment {
+                    relative_file: plan.platform.relative_file().into(),
+                },
+                &originals,
+            )
+            .unwrap();
+            let context = BindingManifest::new(
+                emitted.report,
+                sources,
+                emitted.bindings,
+                linked.entry.into_raw().into_u32(),
+                &emitted.bytes,
+                &session,
+                &plan,
+            )
+            .unwrap();
+            let dll = root.join("main.dll");
+            std::fs::write(&dll, emitted.bytes).unwrap();
+            crate::runtime::copy_runtime_to(&root).unwrap();
+            let mut inputs =
+                crate::manifest::input_digests(&dll, &root.join("RyuPy.Runtime.dll")).unwrap();
+            inputs.push(plan.input.digest.clone());
+            let staged = resource_plan.stage(&root).unwrap();
+            let publish = root.join("publish");
+            std::fs::create_dir(&publish).unwrap();
+            let native = publish.join("app");
+            std::fs::write(&native, b"native placeholder").unwrap();
+            staged.publish(&publish).unwrap();
+            let mut artifacts = crate::manifest_files::collect(&publish, &native).unwrap();
+            staged.mark_artifacts(&mut artifacts).unwrap();
+            let base = context
+                .render(&plan, Some("10.0.403"), &artifacts, &inputs)
+                .unwrap();
+            let base: Value = serde_json::from_slice(&base).unwrap();
+            let bytes =
+                crate::resources::extend_manifest(&serde_json::to_vec(&base).unwrap(), &staged)
+                    .unwrap();
+            let combined: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(combined["schema_version"], version + 4);
+            for key in [
+                "native_bindings",
+                "modules",
+                "sources",
+                "build_inputs",
+                "emitted_delegate_references",
+            ] {
+                assert_eq!(combined[key], base[key], "{key}");
+            }
+            assert_eq!(combined["scope"]["resources_included"], with_data);
+            assert_eq!(combined["scope"]["declared_resources_complete"], true);
+            assert_eq!(combined["module_locations"][0]["module_id"], source_id);
+            assert_eq!(
+                combined["resources"].as_array().unwrap().len(),
+                usize::from(with_data)
+            );
+            if with_data {
+                assert_eq!(
+                    combined["resources"][0]["consumer_module_ids"],
+                    json!([source_id])
+                );
+                assert_eq!(
+                    std::fs::read(publish.join(staged.records[0].relative_path.clone())).unwrap(),
+                    "随包数据\n".as_bytes()
+                );
+            }
+            assert_ne!(combined["native_bindings"][0]["module_id"], source_id);
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
 }

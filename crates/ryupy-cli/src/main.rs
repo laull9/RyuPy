@@ -55,8 +55,8 @@ enum Command {
         /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
         #[arg(long, requires = "aot")]
         resources: Option<PathBuf>,
-        /// 显式固定签名 C ABI 声明，首切不能与资源组合
-        #[arg(long, conflicts_with = "resources")]
+        /// 显式固定签名 C ABI 声明；AOT 可同时发布显式资源
+        #[arg(long)]
         native_binding: Option<PathBuf>,
         /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
         #[arg(short = 'I', long = "search-path")]
@@ -368,6 +368,20 @@ mod packed_slp_flag_tests {
 #[cfg(test)]
 mod include_module_tests {
     use super::*;
+    #[test]
+    fn resources_and_binding_compose_only_with_aot() {
+        let args = [
+            "ryupy",
+            "build",
+            "app.py",
+            "--resources",
+            "resources.json",
+            "--native-binding",
+            "binding.json",
+        ];
+        assert!(Cli::try_parse_from(args).is_err());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--aot"])).is_ok());
+    }
     #[test]
     fn include_module_is_repeatable_for_build_and_run() {
         for command in ["build", "run"] {

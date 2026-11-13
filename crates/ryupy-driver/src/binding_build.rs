@@ -18,21 +18,23 @@ pub(crate) fn build(
     opts: &BuildOptions,
     declaration: &Path,
 ) -> Result<Artifacts> {
-    build_internal(sess, opts, declaration, None)
+    build_internal(sess, opts, declaration, None, None)
 }
 pub(crate) fn build_in_attempt(
     sess: &mut Session,
     opts: &BuildOptions,
     declaration: &Path,
+    resources: Option<&Path>,
     owned: &crate::aot_layout::OwnedAttempt,
 ) -> Result<Artifacts> {
     ensure!(opts.aot, "短绑定工作根只供高层AOT");
-    build_internal(sess, opts, declaration, Some(owned))
+    build_internal(sess, opts, declaration, resources, Some(owned))
 }
 fn build_internal(
     sess: &mut Session,
     opts: &BuildOptions,
     declaration: &Path,
+    resources: Option<&Path>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<Artifacts> {
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
@@ -43,11 +45,12 @@ fn build_internal(
         &opts.input,
         &opts.search_paths,
         true,
-        None,
+        resources,
         opts.aot,
     );
     sess.fixed_binding_build = previous;
-    let (mut program, sources, _) = compiled?;
+    // 同次源码闭图签发位置与来源；生成原生模块在捕获后追加，不能成为资源 consumer。
+    let (mut program, sources, resource_plan) = compiled?;
     plan.check_modules(&program)?;
     let source_modules = ryupy_codegen_cil::SourceModules::capture(&program)?;
     let bindings = declare(&mut program, &plan);
@@ -92,7 +95,14 @@ fn build_internal(
         crate::runtime::copy_runtime_to(&bundle)?;
         let runtime = bundle.join("RyuPy.Runtime.dll");
         if opts.aot {
-            let p = crate::aot::publish_binding(&dll, &bundle, &context, &plan, owned)?;
+            let p = crate::aot::publish_binding(
+                &dll,
+                &bundle,
+                &context,
+                &plan,
+                resource_plan.as_ref(),
+                owned,
+            )?;
             return Ok(Artifacts {
                 dll,
                 native_exe: Some(p.executable),

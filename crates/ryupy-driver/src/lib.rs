@@ -269,13 +269,13 @@ pub fn build_configured(
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
     anyhow::ensure!(
-        resources.is_none() || binding.is_none(),
-        "首切不支持 --resources 与 --native-binding 同用"
+        resources.is_none() || opts.aot,
+        "--resources 仅可与 --aot 同用"
     );
     if let Some(path) = binding {
         return if opts.aot {
             aot_layout::build(opts, |inner, owned| {
-                binding_build::build_in_attempt(sess, inner, path, owned)
+                binding_build::build_in_attempt(sess, inner, path, resources, owned)
             })
         } else {
             binding_build::build(sess, opts, path)
