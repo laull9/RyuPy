@@ -116,10 +116,11 @@ public partial class PyTraceStateArtifactTests
         var resourceContextAdditions = ResourceContextPublicAdditions();
         var nativeAbiAdditions = NativeAbiPublicAdditions();
         var compressionAdditions = CompressionPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var binaryCryptoAdditions = BinaryCryptoPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
@@ -258,7 +259,7 @@ public partial class PyTraceStateArtifactTests
             || !globals.SequenceEqual(DirectGlobalsPublicAdditions())
             || !mi.SequenceEqual(OrdinaryMiPublicAdditions())
             || !runtimeDerived.SequenceEqual(RuntimeDerivedPublicAdditions())) return false;
-        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).Concat(mi).Concat(runtimeDerived).Concat(ResourceContextPublicAdditions()).Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions()).ToArray();
+        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).Concat(mi).Concat(runtimeDerived).Concat(ResourceContextPublicAdditions()).Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions()).Concat(BinaryCryptoPublicAdditions()).ToArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         // 不用去重后的集合判等：任一组内或组间重复直接拒绝。
         if (expected.Any(signature => !seen.Add(signature))) return false;

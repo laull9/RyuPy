@@ -131,6 +131,7 @@ fn syntax_and_xml_parse_error_emit_real_typed_catch_clauses() {
     for (python, clr) in [
         ("SyntaxError", "PySyntaxError"),
         ("xml.etree.ElementTree.ParseError", "PyXmlParseError"),
+        ("binascii.Error", "PyBinasciiError"),
     ] {
         let mut program = crate::exact_i64_tests::program();
         let init = program.modules[program.entry].init;

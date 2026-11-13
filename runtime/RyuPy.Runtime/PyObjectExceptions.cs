@@ -24,6 +24,8 @@ public static partial class PyObject
             "__module__" when type.Name is "URLError" or "HTTPError" => "urllib.error",
             "__module__" when type.Name is "SSLError" or "SSLCertVerificationError" => "ssl",
             "__module__" when type.Name is "HTTPException" or "InvalidURL" or "IncompleteRead" => "http.client",
+
+            "__module__" when type.Name == "Error" => "binascii",
             "__module__" when type.Name == "ParseError" => "xml.etree.ElementTree",
             "__module__" when type.Name == "SyntaxError" => "builtins",
             "__module__" when type.Name == "GetoptError" => "getopt",

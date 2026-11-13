@@ -47,6 +47,8 @@ public static class PyExceptionHierarchy
         ["zlib.error"] = "Exception",
         ["BadGzipFile"] = "OSError",
         ["MemoryError"] = "Exception",
+
+        ["Error"] = "ValueError",
         ["GetoptError"] = "Exception",
         ["OptParseError"] = "Exception",
         ["OptionError"] = "OptParseError",

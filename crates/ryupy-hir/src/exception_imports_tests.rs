@@ -45,6 +45,23 @@ fn authentic_module_and_from_aliases_lower_to_runtime_names() {
 }
 
 #[test]
+fn binascii_exception_aliases_preserve_module_identity() {
+    let source = "import binascii as binary\nfrom binascii import Error as BinaryError\ntry:\n    pass\nexcept (binary.Error, BinaryError):\n    pass\n";
+    let (module, diagnostics) = lower(source, &["binascii"]);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    let types: Vec<_> = module
+        .functions
+        .iter()
+        .flat_map(|(_, function)| function.body.handlers.iter())
+        .filter_map(|(_, handler)| handler.types.as_ref())
+        .flatten()
+        .map(|name| name.as_str())
+        .collect();
+    assert_eq!(types, ["binascii.Error", "binascii.Error"]);
+    assert_eq!(module.protected_exports, ["BinaryError", "binary"]);
+}
+
+#[test]
 fn shadowing_rebinding_unknown_tuple_members_use_real_dynamic_targets() {
     for source in [
         "class json:\n    JSONDecodeError = ValueError\ntry:\n    pass\nexcept json.JSONDecodeError:\n    pass\n",

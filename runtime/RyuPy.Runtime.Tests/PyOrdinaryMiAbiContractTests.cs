@@ -14,7 +14,7 @@ public class PyOrdinaryMiAbiContractTests
         A.DefaultSourcePublicAdditions(), A.LexicalClassFactoryPublicAdditions(), A.DirectGlobalsPublicAdditions()
     ];
     private static bool Check(string[][] g, string[] mi) => A.PreservesBaselineAbi(g[0],
-        g.SelectMany(x => x).Concat(mi).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray(), g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], mi);
+        g.SelectMany(x => x).Concat(mi).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).Concat(A.BinaryCryptoPublicAdditions()).ToArray(), g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], mi);
 
     [Fact]
     public void OneColdAdditionPreservesEveryPrior1717Record()
@@ -26,9 +26,9 @@ public class PyOrdinaryMiAbiContractTests
         Assert.False(A.PreservesBaselineAbi(groups[0], old));
         for (int index = 0; index < old.Length; index++)
         {
-            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).Concat(A.BinaryCryptoPublicAdditions()).ToArray()));
             var changed = (string[])old.Clone(); changed[index] += "改签";
-            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).Concat(A.BinaryCryptoPublicAdditions()).ToArray()));
         }
     }
 

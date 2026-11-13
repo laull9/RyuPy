@@ -30,7 +30,7 @@ public partial class PyTraceStateArtifactTests
             .Concat(DefaultSourcePublicAdditions()).Concat(LexicalClassFactoryPublicAdditions())
             .Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions())
             .Concat(RuntimeDerivedPublicAdditions()).Concat(ResourceContextPublicAdditions())
-            .Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions()).ToArray();
+            .Concat(NativeAbiPublicAdditions()).Concat(BinaryCryptoPublicAdditions()).Concat(CompressionPublicAdditions()).ToArray();
         Assert.True(PreservesBaselineAbi(before, complete));
         for (int index = complete.Length - 7; index < complete.Length; index++)
         {

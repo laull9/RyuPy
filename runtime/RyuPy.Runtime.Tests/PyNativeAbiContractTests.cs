@@ -3,7 +3,7 @@ namespace RyuPy.Runtime.Tests;
 
 public partial class PyTraceStateArtifactTests
 {
-    internal const int CurrentPublicAbiCount = 1744;
+    internal const int CurrentPublicAbiCount = 1747;
 
     internal static string[] NativeAbiPublicAdditions() =>
     [
@@ -48,7 +48,7 @@ public partial class PyTraceStateArtifactTests
         Assert.Equal(1722, old.Length);
         var additions = NativeAbiPublicAdditions();
         Assert.Equal(15, additions.Length);
-        var complete = old.Concat(additions).Concat(CompressionPublicAdditions()).ToArray();
+        var complete = old.Concat(additions).Concat(CompressionPublicAdditions()).Concat(BinaryCryptoPublicAdditions()).ToArray();
         Assert.True(PreservesBaselineAbi(before, complete));
         Assert.False(PreservesBaselineAbi(before, old));
         for (int index = 0; index < complete.Length; index++)

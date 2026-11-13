@@ -14,7 +14,7 @@ public class PyLexicalClassAbiContractTests
         before, PyTraceStateV1ArtifactContract.PublicAdditions(), A.SourcePublicAdditions(),
         A.MetadataPublicAdditions(), A.BuiltinPublicAdditions(), A.XmlPublicAdditions(), A.DefaultSourcePublicAdditions()
     ];
-    private static string[] After(string[] before, string[] factory) => Groups(before).SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray();
+    private static string[] After(string[] before, string[] factory) => Groups(before).SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).Concat(A.BinaryCryptoPublicAdditions()).ToArray();
     private static bool WithPermission(string[] before, string[] factory)
     {
         var groups = Groups(before);
@@ -95,7 +95,7 @@ public class PyLexicalClassAbiContractTests
         {
             var changed = groups.Select(x => (string[])x.Clone()).ToArray();
             changed[index][0] = factory[0];
-            var after = changed.SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray();
+            var after = changed.SelectMany(x => x).Concat(factory).Concat(A.DirectGlobalsPublicAdditions()).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).Concat(A.BinaryCryptoPublicAdditions()).ToArray();
             Assert.False(A.PreservesBaselineAbi(changed[0], after,
                 changed[1], changed[2], changed[3], changed[4], changed[5], changed[6], factory));
         }

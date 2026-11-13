@@ -1,3 +1,4 @@
+// 一等可调用对象的运行时入口：统一实参展开、原生异常身份分派与绑定错误。
 using System;
 using System.Collections.Generic;
 
@@ -46,6 +47,7 @@ public static partial class PyOps
         // 编译器内部用限定名避免与同名用户异常类的CLR引用冲突。
         "json.JSONDecodeError" => "JSONDecodeError",
         "zipfile.BadZipFile" => "BadZipFile",
+        "binascii.Error" => "Error",
         "getopt.GetoptError" or "getopt.error" => "GetoptError",
         "io.UnsupportedOperation" => "UnsupportedOperation",
         "re.error" => "error",

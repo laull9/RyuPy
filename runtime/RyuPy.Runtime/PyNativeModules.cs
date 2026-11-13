@@ -36,6 +36,14 @@ public static class PyNativeModules
         PyModules.RegisterNative("codecs", PyCodecs.CreateAttributes());
         PyModules.RegisterNative("zlib", PyCompression.ZlibAttributes());
         PyModules.RegisterNative("gzip", PyCompression.GzipAttributes());
+
+        PyModules.RegisterNative("binascii", PyBinascii.CreateAttributes(), (key, _) =>
+        {
+            if (key == "Error") throw new PyNotImplementedError("rebinding binascii.Error is not supported");
+        });
+        PyModules.RegisterNative("base64", PyBase64.CreateAttributes());
+        PyModules.RegisterNative("hashlib", PyHashlib.CreateAttributes());
+        PyModules.RegisterNative("hmac", PyHmac.CreateAttributes());
         PyModules.RegisterNative("unicodedata", PyUnicodeData.CreateAttributes());
         PyModules.RegisterNative("html", PyHtml.CreateAttributes());
         // 原生 XML 包只提供已验收的真实 Element 核心，不伪造源码 metadata。

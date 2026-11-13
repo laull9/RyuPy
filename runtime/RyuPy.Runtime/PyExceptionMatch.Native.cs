@@ -44,6 +44,8 @@ internal static partial class PyExceptionMatch
         [PyType.Get("zlib.error")] = new("zlib.error", static error => error is PyZlibError),
         [PyType.Get("BadGzipFile")] = new("BadGzipFile", static error => error is PyBadGzipFile),
         [PyType.Get("MemoryError")] = new("MemoryError", static error => error is PyMemoryError),
+
+        [PyType.Get("Error")] = new("Error", static error => error is PyBinasciiError),
         [PyType.Get("GetoptError")] = new("GetoptError", static error => error is PyGetoptError),
         [PyType.Get("OptParseError")] = new("OptParseError", static error => error is PyOptParseError),
         [PyType.Get("OptionError")] = new("OptionError", static error => error is PyOptionError),

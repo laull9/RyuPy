@@ -112,6 +112,8 @@ impl ExceptionImport {
             ("zipfile", "BadZipFile") => Some("zipfile.BadZipFile"),
             ("zlib", "error") => Some("zlib.error"),
             ("gzip", "BadGzipFile") => Some("gzip.BadGzipFile"),
+
+            ("binascii", "Error") => Some("binascii.Error"),
             ("getopt", "GetoptError" | "error") => Some("getopt.GetoptError"),
             ("optparse", "OptParseError") => Some("optparse.OptParseError"),
             ("optparse", "OptionError") => Some("optparse.OptionError"),

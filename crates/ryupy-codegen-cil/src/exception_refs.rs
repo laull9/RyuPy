@@ -28,6 +28,8 @@ pub(crate) fn build(
                     "zipfile.BadZipFile" => "PyBadZipFile".to_owned(),
                     "zlib.error" => "PyZlibError".to_owned(),
                     "gzip.BadGzipFile" => "PyBadGzipFile".to_owned(),
+
+                    "binascii.Error" => "PyBinasciiError".to_owned(),
                     "getopt.GetoptError" => "PyGetoptError".to_owned(),
                     "dataclasses.FrozenInstanceError" => "PyFrozenInstanceError".to_owned(),
                     name => format!("Py{}", name.strip_prefix("optparse.").unwrap_or(name)),

@@ -56,7 +56,8 @@ fn syntax_error_keeps_full_arguments_and_real_value_binding() {
     assert_eq!(lookups(&compile("raise SyntaxError\n", false)), 1);
     // 新族只能尾部追加，旧异常token的相对顺序不动。
     assert_eq!(
-        &EXCEPTION_TYPE_NAMES[EXCEPTION_TYPE_NAMES.len() - 2..],
+        &EXCEPTION_TYPE_NAMES[58..60],
         ["SyntaxError", "xml.etree.ElementTree.ParseError"]
     );
+    assert_eq!(EXCEPTION_TYPE_NAMES[60], "binascii.Error");
 }

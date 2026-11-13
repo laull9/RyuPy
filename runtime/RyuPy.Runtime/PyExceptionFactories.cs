@@ -20,6 +20,8 @@ public static class PyExceptionTypes
         ["zlib.error"] = m => new PyZlibError(m),
         ["BadGzipFile"] = m => new PyBadGzipFile(m),
         ["MemoryError"] = m => new PyMemoryError(m),
+
+        ["Error"] = m => new PyBinasciiError(m),
         ["SystemExit"] = m => new PySystemExit(m),
         ["KeyboardInterrupt"] = m => new PyKeyboardInterrupt(m),
         ["GeneratorExit"] = m => new PyGeneratorExit(m),

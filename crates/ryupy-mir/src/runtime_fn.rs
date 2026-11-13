@@ -69,6 +69,7 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "io.UnsupportedOperation",
     "SyntaxError",
     "xml.etree.ElementTree.ParseError",
+    "binascii.Error",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。

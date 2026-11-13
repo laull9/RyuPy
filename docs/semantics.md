@@ -517,6 +517,18 @@ HTTP 超时、证书失败、状态错误和截断响应走真实 Python 异常�
 逐 API 范围、CPython 差分和真实 HTTP/TLS/AOT 搬迁命令见
 [网络验收](validation/network-stdlib.md)。安全差异的可运行负例在 `tests/network/fixtures/client.py`。
 
+### 4.13 二进制编码与有限 BCL 密码合同（ADR0178）
+
+`base64/binascii/hashlib/hmac` 按 [ADR0178](adr/0178-binary-crypto-stdlib.md) 的逐 API
+合同开放。严格消费真实连续 buffer，解码只接 ASCII str；Base64 strict/permissive
+padding 和跨参数回调的导出租约有 CPython 3.12.13 差分及真实 NativeAOT 搬迁覆盖。
+摘要和 HMAC 由 BCL 保有界增量状态、非破坏 digest 和独立 copy。
+
+算法集合只公布实际四种 SHA256/SHA512/SHA1/MD5，其他名字 ValueError；任意自定义
+HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI。usedforsecurity
+不绕过宿主密码策略。compare_digest 的恒时性质限于同类型同长度字节的最终 BCL 比较，
+参数检查和转换另行执行。未导出的长尾 API 正常 AttributeError；完整清单及平台边界见 ADR。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。
