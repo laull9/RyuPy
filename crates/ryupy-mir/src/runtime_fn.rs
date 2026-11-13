@@ -46,7 +46,6 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "FileNotFoundError",
     "FileExistsError",
     "PermissionError",
-    "TimeoutError",
     "IsADirectoryError",
     "NotADirectoryError",
     "StopIteration",
@@ -54,9 +53,6 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "EOFError",
     "json.JSONDecodeError",
     "zipfile.BadZipFile",
-    "zlib.error",
-    "gzip.BadGzipFile",
-    "MemoryError",
     "getopt.GetoptError",
     "optparse.OptParseError",
     "optparse.OptionError",
@@ -70,6 +66,11 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "SyntaxError",
     "xml.etree.ElementTree.ParseError",
     "binascii.Error",
+    // 新异常只追加，保留既有异常 token 的编号与相对顺序。
+    "zlib.error",
+    "gzip.BadGzipFile",
+    "MemoryError",
+    "TimeoutError",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。

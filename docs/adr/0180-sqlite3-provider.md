@@ -1,8 +1,7 @@
-# sqlite3：成熟 provider、静态适配与可搬迁部署
+# ADR0180：sqlite3 成熟 provider、静态适配与可搬迁部署
 
 - 日期：2026-11-13
-- 状态：本分支实现并验证；交主代理整合
-- 编号：独立命名，留待主代理分配；不占用 ADR0175
+- 状态：已整合；macOS arm64 JIT/NativeAOT 搬迁与跨模块应用通过
 - 配套说明：[sqlite3-implementation.md](../sqlite3-implementation.md)
 
 ## 决策

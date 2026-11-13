@@ -346,3 +346,6 @@ fn default_source_nested_hints_metadata_and_alias_sets_reach_fixed_point() {
 
 #[path = "catalog_environment_tests.rs"]
 mod catalog_environment_tests;
+
+#[path = "catalog_default_tests.rs"]
+mod catalog_default_tests;

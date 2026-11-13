@@ -1,5 +1,5 @@
 //! 可选源码工作队列：hard/soft失败强度与candidate/active注册状态互相独立。
-//! 只在实际JIT产品会话启用，不更改旧公开硬图、AOT或fixed-binding接口。
+//! 默认仅扩展认证 catalog 的静态依赖；普通动态提示与元数据候选仍受试点策略控制。
 use crate::{
     Session,
     modules::{SourceKind, SourceModule},
@@ -108,6 +108,8 @@ pub(crate) fn extend(
         .enumerate()
         .map(|(index, source)| (source.name.clone(), index))
         .collect();
+    let catalog_only =
+        sess.module_environment_policy == crate::ModuleEnvironmentPolicy::CatalogOnly;
     let mut queue = VecDeque::new();
     let mut groups = Vec::new();
     let mut metadata_requested = false;
@@ -115,6 +117,9 @@ pub(crate) fn extend(
         for name in requests(source) {
             // 尚无用户源码的静态导入仍不把native替换为活动source。
             queue.push_back((name, true, false));
+        }
+        if catalog_only {
+            continue;
         }
         let hints = crate::module_hints::collect(&source.parsed);
         metadata_requested |= hints.metadata;
@@ -209,14 +214,16 @@ pub(crate) fn extend(
             parsed,
             text,
         };
-        let hints = crate::module_hints::collect(&source.parsed);
-        for target in hints.modules {
-            plan.roots.insert(target.clone());
-            queue.push_back((target, false, false));
-        }
-        if hints.metadata {
-            groups.extend(hints.groups);
-            metadata_candidates(&mut plan, roots, &groups, &mut queue)?;
+        if !catalog_only {
+            let hints = crate::module_hints::collect(&source.parsed);
+            for target in hints.modules {
+                plan.roots.insert(target.clone());
+                queue.push_back((target, false, false));
+            }
+            if hints.metadata {
+                groups.extend(hints.groups);
+                metadata_candidates(&mut plan, roots, &groups, &mut queue)?;
+            }
         }
         let mut dependencies = requests(&source);
         dependencies.extend(crate::modules::package_prefixes(&name));

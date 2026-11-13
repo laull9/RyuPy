@@ -2,11 +2,11 @@
 
 ## 范围与入口
 
-本说明只登记本分支的已实现 API、部署接口及验证。公共 TODO、roadmap、stdlib 清单留给主代理统一更新；主代理联合分发由 `a851eab1` 演进至 dev `804e28d5`，本分支不改 schema9 的来源编译/source-plan 设计，合并时保留主代理该部分实现。
+本说明登记已整合的 SQLite API、部署接口及验证。默认 CLI 的来源报告、schema9 联合分发与认证 catalog 已共同接通；HTTP→编码解压→包资源→SQLite 的真实跨模块应用见 [联合验收](../tests/aot/stdlib_service/README.md)。
 
 模块由 `PyNativeModules` 注册；`PySqlite` 提供固定函数签名和异常类别，`PySqliteConnection` 管理事务/线程/关闭，`PySqliteStatement` 处理参数词法与单语句检查，`PySqliteCursor` 管理流式结果。实现类型全部内部可见，沿用统一 native 对象分派，不新增编译器运行时函数或公开 CIL 桥接入口。
 
-依赖与架构理由见 [独立 ADR](adr/sqlite3-provider-vertical.md)。版本唯一来源为 `runtime/RyuPy.Runtime/RuntimeDependencies.props`：`Microsoft.Data.Sqlite 10.0.15`、`SQLitePCLRaw.bundle_e_sqlite3 2.1.13`。许可证在 `ThirdPartyNotices.sqlite3.txt`，包括 Microsoft MIT、SQLitePCLRaw Apache-2.0、上游 NOTICE 及 SQLite public domain 说明；法律文本保留原文。
+依赖与架构理由见 [独立 ADR](adr/0180-sqlite3-provider.md)。版本唯一来源为 `runtime/RyuPy.Runtime/RuntimeDependencies.props`：`Microsoft.Data.Sqlite 10.0.15`、`SQLitePCLRaw.bundle_e_sqlite3 2.1.13`。许可证在 `ThirdPartyNotices.sqlite3.txt`，包括 Microsoft MIT、SQLitePCLRaw Apache-2.0、上游 NOTICE 及 SQLite public domain 说明；法律文本保留原文。
 
 ## 已实现 API
 
@@ -64,7 +64,7 @@ driver 的 `runtime_dir()` 继续按显式环境变量、相对发行 CLI、开�
 
 `runtime::dependency_role()` 为 driver 收集器提供精确分类；`binding_build.rs` 的 JIT artifact 白名单增加这四类。`manifest_files.rs` 沿用既有清单收集，不增加 hash。验证器在 `tests/aot/runtime_dependencies.py` 共享完整性合同：JIT 必须四 DLL + props + native + 许可证七项；AOT 必须 native + 许可证两项；不接受其它 RID 或错角色。该 helper 当前沿用已有验证器支持的 linux-x64/osx-arm64/win-x64 RID 表。
 
-主代理合并 schema9 时应将这些角色并入其 catalog+显式资源联合清单白名单和校验入口，继续保留 `a851eab1` 的 `binding_sources.rs` 抽取、冲突后 source-plan 保存与资源联合发布。上述分类与来源/catalog API 正交，不需要改动来源编译流程。包内 `schema.sql` 仍交给既有 resources API，sqlite3 接收 SQL 字符串。
+这些角色已并入 catalog+显式资源联合清单白名单和校验入口，保留 `binding_sources.rs` 抽取、冲突后 source-plan 保存与资源联合发布。上述分类与来源/catalog API 正交，不需要改动来源编译流程。包内 `schema.sql` 仍交给既有 resources API，sqlite3 接收 SQL 字符串。
 
 ### 缺库和解析顺序
 

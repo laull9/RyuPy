@@ -1,5 +1,5 @@
 //! 真实 CPython 差分与可搬迁 AOT 验收；编译器始终使用内嵌原源而非宿主模块。
-use ryupy_driver::{BuildOptions, ModuleEnvironmentPolicy, Session};
+use ryupy_driver::{BuildOptions, Session};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -57,10 +57,7 @@ fn verify(aot: bool) {
     )
     .unwrap();
     let expected = oracle(&source);
-    let mut session = Session {
-        module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
-        ..Default::default()
-    };
+    let mut session = Session::default();
     let artifacts = ryupy_driver::build(
         &mut session,
         &BuildOptions {

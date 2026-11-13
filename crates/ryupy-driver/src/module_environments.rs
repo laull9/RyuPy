@@ -1,5 +1,5 @@
 //! 一次编译的模块环境计划；build/dump/link共同消费，运行时仍只有既有两种ABI。
-//! 试点仅由编译期feature默认开启，不读取环境变量、项目名表或用户公开元数据。
+//! 默认仅自动接入认证标准库；普通模块试点仍由编译期 feature 开启。
 use crate::{
     Session,
     modules::{SourceKind, SourceModule},
@@ -10,6 +10,8 @@ use ryupy_mir::ModuleExecutionKind;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ModuleEnvironmentPolicy {
     ExplicitOnly,
+    /// 只为编译器认证 catalog 启用实例环境；普通用户模块沿用显式策略。
+    CatalogOnly,
     OrdinaryDynamicPilot,
 }
 impl Default for ModuleEnvironmentPolicy {
@@ -17,7 +19,7 @@ impl Default for ModuleEnvironmentPolicy {
         if cfg!(feature = "ordinary-dynamic-module-pilot") {
             Self::OrdinaryDynamicPilot
         } else {
-            Self::ExplicitOnly
+            Self::CatalogOnly
         }
     }
 }
@@ -25,6 +27,7 @@ impl ModuleEnvironmentPolicy {
     pub fn identity(self) -> &'static str {
         match self {
             Self::ExplicitOnly => "explicit-only",
+            Self::CatalogOnly => "catalog-only",
             Self::OrdinaryDynamicPilot => "ordinary-dynamic-module-pilot",
         }
     }
@@ -102,17 +105,18 @@ pub(crate) fn plan_validated(
             reason: "compiler-catalog-authenticated-source".into(),
         };
     }
-    let boundary = if session.module_environment_policy == ModuleEnvironmentPolicy::ExplicitOnly {
-        Some("policy-disabled")
-    } else if session.fixed_binding_build {
-        Some("fixed-binding-build")
-    } else if aot {
-        Some("aot-not-migrated")
-    } else if source.kind != SourceKind::ModuleFile {
-        Some("entry-or-package")
-    } else {
-        None
-    };
+    let boundary =
+        if session.module_environment_policy != ModuleEnvironmentPolicy::OrdinaryDynamicPilot {
+            Some("policy-disabled")
+        } else if session.fixed_binding_build {
+            Some("fixed-binding-build")
+        } else if aot {
+            Some("aot-not-migrated")
+        } else if source.kind != SourceKind::ModuleFile {
+            Some("entry-or-package")
+        } else {
+            None
+        };
     let reason = if let Some(boundary) = boundary {
         boundary.to_owned()
     } else {
