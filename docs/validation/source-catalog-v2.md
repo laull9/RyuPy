@@ -90,3 +90,19 @@ colorsys 报 catalog_unavailable 并解释策略门；这是保留原有授权�
 完整标准库尚未完成；旧四模块 tag 未核实、queue 未接入、动态反射不确定、C# 模块
 逐 API 覆盖、其他平台与干净目标机验收都保留为独立工作。
 报告是静态发现产物，最终成功需结合编译诊断、optional-sources.json 和 AOT artifact 清单。
+
+## 主树整合与主代理评审修订
+
+2026-11-13，主代理将 catalog 实现整合至 dev 后，发现全分支动态探测中的别名表
+会被后续同名 import 覆盖。现改为累积候选集合，并新增跨分支重绑定及二次赋值
+回归，保持两条 `importlib.import_module` 证据；字面目标依然不能取得来源权限。
+来源探测专项现为 10 项，全数通过。
+
+主树串行复验 `make runtime`、来源专项、colorsys JIT/真实 NativeAOT 搬迁和完整
+`make check` 全部退出 0；最终 .NET 3009 通过/2 跳过、CPython 基线 721 通过、
+Python-only 自检 724 通过、编译 e2e 444 通过/284 ignored。日志分别保留在
+`target/integration-runtime.log`、`target/integration-probe.log`、
+`target/integration-colorsys.log`、`target/integration-check.log`。
+
+固定 C ABI 绑定构建沿用自身来源合同，本切的 source-plan 报告覆盖 probe 与普通
+源码构建；绑定构建的 provider 联合计划仍待后续接通。

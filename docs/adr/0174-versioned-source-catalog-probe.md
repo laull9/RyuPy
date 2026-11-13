@@ -34,7 +34,7 @@
 Session 原有来源计划在探测结束后恢复，审计输出位置与来源权限载体分离。
 
 报告 schema 1，独立文件 `<assembly>.source-plan.json`，probe 同时打印 JSON。
-正常 build 在图发现后写同一形状，因此后续语义编译失败仍留有静态证据。
+普通源码 build 在图发现后写同一形状，因此后续语义编译失败仍留有静态证据。
 JIT 文件在输出目录，AOT 文件在 `<stem>.build/attempt-.../`，不进入最终 dist。
 
 每个模块最多一个 `provider`：
@@ -74,3 +74,5 @@ PYTHONHOME/PYTHONPATH、PATH 指向无工具目录，在其它 cwd 执行并复�
 queue 仍缺 threading/heapq/_queue 等 provider，线程、锁、异常身份及 API 未接入。
 开放动态执行、完整标准库、libpython 兼容宿主及自动原生库闭包仍按 ADR0172 推进。
 详见 [验收记录](../validation/source-catalog-v2.md)。
+
+主树评审后，动态别名采用候选集合，跨分支重绑定保留全部已识别目标；固定绑定构建仍用自身来源合同。详见验收记录的主树整合节。

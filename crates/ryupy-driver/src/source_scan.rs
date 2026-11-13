@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) struct Scan {
     pub imports: BTreeMap<String, BTreeSet<String>>,
     pub dynamic: Vec<Dynamic>,
-    aliases: BTreeMap<String, String>,
+    aliases: BTreeMap<String, BTreeSet<String>>,
     package: String,
 }
 
@@ -31,7 +31,7 @@ pub(crate) fn collect(parsed: &ParsedModule, package: &str) -> Scan {
             None if import.bind_root => import.module.split('.').next().unwrap_or("").to_owned(),
             None => import.module,
         };
-        scan.aliases.insert(import.bind, target);
+        scan.aliases.entry(import.bind).or_default().insert(target);
     }
     for statement in &parsed.module.body {
         scan.visit_stmt(statement);
@@ -40,18 +40,21 @@ pub(crate) fn collect(parsed: &ParsedModule, package: &str) -> Scan {
 }
 
 impl Scan {
-    fn target(&self, expr: &ast::Expr) -> Option<String> {
+    /// 全分支扫描只积累可能目标；后续分支的同名绑定不能擦掉先前证据。
+    /// 多目标仍是语法候选，不推断实际控制流或授予来源权限。
+    fn targets(&self, expr: &ast::Expr) -> BTreeSet<String> {
         match expr {
-            ast::Expr::Name(name) => Some(
-                self.aliases
-                    .get(name.id.as_str())
-                    .cloned()
-                    .unwrap_or_else(|| name.id.to_string()),
-            ),
-            ast::Expr::Attribute(attr) => {
-                Some(format!("{}.{}", self.target(&attr.value)?, attr.attr))
-            }
-            _ => None,
+            ast::Expr::Name(name) => self
+                .aliases
+                .get(name.id.as_str())
+                .cloned()
+                .unwrap_or_else(|| BTreeSet::from([name.id.to_string()])),
+            ast::Expr::Attribute(attr) => self
+                .targets(&attr.value)
+                .into_iter()
+                .map(|target| format!("{target}.{}", attr.attr))
+                .collect(),
+            _ => BTreeSet::new(),
         }
     }
 }
@@ -84,11 +87,13 @@ impl<'a> Visitor<'a> for Scan {
             }
             ast::Stmt::Assign(assign) => {
                 // 只保留简单别名候选；重绑定无法证明实际 callee，仍标为不确定。
-                if let Some(target) = self.target(&assign.value) {
-                    for left in &assign.targets {
-                        if let ast::Expr::Name(name) = left {
-                            self.aliases.insert(name.id.to_string(), target.clone());
-                        }
+                let targets = self.targets(&assign.value);
+                for left in &assign.targets {
+                    if let ast::Expr::Name(name) = left {
+                        self.aliases
+                            .entry(name.id.to_string())
+                            .or_default()
+                            .extend(targets.iter().cloned());
                     }
                 }
             }
@@ -98,48 +103,49 @@ impl<'a> Visitor<'a> for Scan {
     }
 
     fn visit_expr(&mut self, expr: &'a ast::Expr) {
-        if let ast::Expr::Call(call) = expr
-            && let Some(target) = self.target(&call.func)
-            && matches!(
-                target.as_str(),
-                "__import__"
-                    | "builtins.__import__"
-                    | "importlib.import_module"
-                    | "importlib.util.find_spec"
-                    | "exec"
-                    | "eval"
-                    | "compile"
-                    | "builtins.exec"
-                    | "builtins.eval"
-                    | "builtins.compile"
-                    | "getattr"
-                    | "builtins.getattr"
-            )
-        {
-            let argument = call.arguments.args.first().or_else(|| {
-                call.arguments
-                    .keywords
-                    .iter()
-                    .find(|keyword| {
-                        keyword
-                            .arg
-                            .as_ref()
-                            .is_some_and(|name| name.as_str() == "name")
-                    })
-                    .map(|keyword| &keyword.value)
-            });
-            let literal_target = argument.and_then(|argument| {
-                if let ast::Expr::StringLiteral(value) = argument {
-                    Some(value.value.to_str().to_owned())
-                } else {
-                    None
-                }
-            });
-            self.dynamic.push(Dynamic {
-                operation: target,
-                literal_target,
-                reason: "语法候选；callee 可被遮蔽或重绑定，字符串只作线索，不授予来源权限",
-            });
+        if let ast::Expr::Call(call) = expr {
+            for target in self.targets(&call.func).into_iter().filter(|target| {
+                matches!(
+                    target.as_str(),
+                    "__import__"
+                        | "builtins.__import__"
+                        | "importlib.import_module"
+                        | "importlib.util.find_spec"
+                        | "exec"
+                        | "eval"
+                        | "compile"
+                        | "builtins.exec"
+                        | "builtins.eval"
+                        | "builtins.compile"
+                        | "getattr"
+                        | "builtins.getattr"
+                )
+            }) {
+                let argument = call.arguments.args.first().or_else(|| {
+                    call.arguments
+                        .keywords
+                        .iter()
+                        .find(|keyword| {
+                            keyword
+                                .arg
+                                .as_ref()
+                                .is_some_and(|name| name.as_str() == "name")
+                        })
+                        .map(|keyword| &keyword.value)
+                });
+                let literal_target = argument.and_then(|argument| {
+                    if let ast::Expr::StringLiteral(value) = argument {
+                        Some(value.value.to_str().to_owned())
+                    } else {
+                        None
+                    }
+                });
+                self.dynamic.push(Dynamic {
+                    operation: target,
+                    literal_target,
+                    reason: "语法候选；callee 可被遮蔽或重绑定，字符串只作线索，不授予来源权限",
+                });
+            }
         }
         walk_expr(self, expr);
     }

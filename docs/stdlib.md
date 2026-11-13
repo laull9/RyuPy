@@ -48,6 +48,25 @@ C# 重写 Python 对象、异常、参数绑定和系统 API 的适配层，连�
 
 每一行继续按单个 API 的竖切实施。若 `enum` 等依赖暂缓的类机制，应评估限定降级或桥接，不把受影响项目标成原生通过。
 
+## 原源复用与构建期探测
+
+版本化目录 `cpython-3.12.13-catalog-2` 已准入 `_markupbase`、`html`、
+`html.entities`、`html.parser` 和 `colorsys`；每个模块仍按自己的 API 用例验收。
+`colorsys` 复用 CPython 原源，六公开 API 已完成 55 行 CPython 差分和 macOS arm64
+NativeAOT 搬迁，覆盖往返、色相分支、无彩色、截断与参数错误。转换值比较至小数九位，
+自定义数值对象和完整上游测试继续待验。
+
+`ryupy probe <入口> --aot -I <源码根> -o <报告目录>` 仅读取和解析源码，输出
+`<入口>.source-plan.json`；普通源码构建也在编译图发现后输出同形报告。报告列出唯一 provider、
+真实来源、版本、依赖闭包、传递缺口和动态调用候选，保留用户源码搜索优先级。
+`queue` 只登记来源及依赖缺口，尚未准入；动态调用仍有静态盲区。
+
+catalog 沿用 `ordinary-dynamic-module-pilot` 的显式策略门；发行默认构建关闭该策略时，
+报告会给出 `catalog_unavailable`。复现 CLI 和逐 API 范围见
+[ADR0174](adr/0174-versioned-source-catalog-probe.md) 与
+[验收记录](validation/source-catalog-v2.md)。现有 C# provider 继续承担底层适配；SQLite、
+OpenSSL 等后续接入复用成熟库，通过声明式 ABI 或显式兼容宿主处理部署和生命周期。
+
 ## libpython 最小桥接，M3.8
 
 先记录 Python 的准确版本、动态库定位、标准库路径、解释器初始化和退出边界，再做常用标量、字符串、容器、可调用对象与异常转换。对象包装保留共享身份；跨堆引用和回调要有可释放的所有权，不能制造无法回收的强引用环。

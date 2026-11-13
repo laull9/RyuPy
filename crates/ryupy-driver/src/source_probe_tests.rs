@@ -255,3 +255,25 @@ fn source_probe_search_root_order_and_session_state_are_preserved() {
         Some(tree.0.join("original"))
     );
 }
+
+#[test]
+fn source_probe_branch_aliases_preserve_dynamic_candidates() {
+    let tree = Tree::new();
+    tree.write(
+        "main.py",
+        "import importlib as dispatcher\nif False:\n    import math as dispatcher\ndispatcher.import_module('colorsys')\nloader = dispatcher.import_module\nloader('queue')\n",
+    );
+    let report = tree.report(ModuleEnvironmentPolicy::OrdinaryDynamicPilot, vec![]);
+    let candidates = report["uncertainties"].as_array().unwrap();
+    assert_eq!(report["dynamic_status"], "uncertain");
+    assert_eq!(candidates.len(), 2);
+    assert!(
+        candidates
+            .iter()
+            .all(|candidate| { candidate["evidence"]["operation"] == "importlib.import_module" })
+    );
+    assert_eq!(candidates[0]["evidence"]["literal_target"], "colorsys");
+    assert_eq!(candidates[1]["evidence"]["literal_target"], "queue");
+    assert!(report["modules"].get("colorsys").is_none());
+    assert!(report["modules"].get("queue").is_none());
+}
