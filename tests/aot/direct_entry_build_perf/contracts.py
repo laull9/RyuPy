@@ -14,6 +14,12 @@ def require(ok, message):
 APPS = ('pyfiglet', 'binaryornot')
 
 
+def python_command(python, app, entry, argv):
+    # 上游pyfiglet列字体会调用site安装的exit；不得用-S破坏真实CP入口再注入替身。
+    require(app in APPS, '未知应用')
+    return [python, '-B', *(['-S'] if app == 'binaryornot' else []), entry, *argv]
+
+
 def schedule():
     rows = []
     for app in APPS:

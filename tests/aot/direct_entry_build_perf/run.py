@@ -10,7 +10,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent), str(HERE.parent/'standalone_app/benchmark')]
-from contracts import APPS, require, schedule, timings, verify_project, summaries
+from contracts import APPS, require, schedule, timings, verify_project, summaries, python_command
 from measure import capture, save, sha, inventory, positive, elf
 from aot_layout import reported_aot
 from manifest_files import check_artifacts
@@ -75,7 +75,7 @@ def main():
             cp_env=dict(env,PYTHONPATH=str(projects[app]/('package' if app=='pyfiglet' else 'vendor')))
             for name,argv in cases[app].items():
                 prefix=out/'oracle'/f'{app}-{name}'
-                command(prefix,[python,'-B','-S',entry,*argv],environment=cp_env,timeout=60)
+                command(prefix,python_command(python,app,entry,argv),environment=cp_env,timeout=60)
                 require(prefix.with_suffix('.stderr').read_bytes()==b'','CP oracle stderr非空')
                 golden=prefix.with_suffix('.stdout').read_bytes()
                 if app=='pyfiglet':

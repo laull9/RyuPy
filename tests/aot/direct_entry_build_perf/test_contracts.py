@@ -7,10 +7,17 @@ import unittest
 import hashlib
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from contracts import schedule, timings, summaries, verify_project
+from contracts import python_command, schedule, timings, summaries, verify_project
 
 
 class ContractsTests(unittest.TestCase):
+    def test_python_oracle_keeps_upstream_site_exit(self):
+        self.assertEqual(python_command('python','pyfiglet','entry',['--list_fonts']),
+                         ['python','-B','entry','--list_fonts'])
+        self.assertEqual(python_command('python','binaryornot','entry',[]),
+                         ['python','-B','-S','entry'])
+        with self.assertRaises(AssertionError):python_command('python','unknown','entry',[])
+
     def test_schedule_is_frozen_balanced_and_disjoint(self):
         rows=schedule();self.assertEqual(len(rows),36)
         self.assertEqual(len({r['id'] for r in rows}),36)

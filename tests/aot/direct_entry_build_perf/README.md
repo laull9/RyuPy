@@ -19,3 +19,5 @@ python3 -B -m unittest discover -s tests/aot/direct_entry_build_perf -p 'test_co
 ```
 
 原件包括完整36次SDK工作树、dist与日志，体积较大；CI应分包上传而非裁掉失败/中间证据。artifact并非新的运行时缓存资格证明。
+
+首轮 CI43371083829 在CP oracle阶段停止，尚未产生构建样本：上游pyfiglet列字体调用site提供的`exit`，错误的`-S`令其NameError。保留失败原件；修为真实普通CP启动（仍固定版本、禁用户site、冻结PYTHONPATH），不注入exit替身或改上游。后续独立完整重跑不复用失败样本。
