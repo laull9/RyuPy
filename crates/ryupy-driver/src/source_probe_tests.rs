@@ -246,7 +246,7 @@ fn source_probe_search_root_order_and_session_state_are_preserved() {
     let report: Value = serde_json::from_str(&text).unwrap();
     assert_eq!(
         report["modules"]["colorsys"]["source"],
-        tree.0.join("first/colorsys.py").to_str().unwrap()
+        tree.0.join("first").join("colorsys.py").to_str().unwrap()
     );
     assert!(report["modules"].get("absent").is_none());
     assert!(session.default_source_state.plan.roots.contains("previous"));
