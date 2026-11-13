@@ -20,10 +20,13 @@ class ContractTests(unittest.TestCase):
         tail = f"\n#0  {SYMBOL} (receiver=...)\nFalse\n[Inferior 1 exited normally]\n"
         for prefix in ['', 'Thread 1 "scanner" hit ']:
             verify_debugger_transcript(f'{prefix}Breakpoint 1, {SYMBOL} (receiver=...)'+tail)
+        verify_debugger_transcript(f'Breakpoint 1, {SYMBOL}'+tail.replace('#0  ', '#0  0xABC123 in '))
         for bad in [f'Breakpoint 1 at 0xc5b20: {SYMBOL}'+tail,
                     f'Thread 1 "scanner" hit Breakpoint 1, wrong_function'+tail,
                     f'Breakpoint 1, {SYMBOL}_other'+tail,
                     f'Breakpoint 1, {SYMBOL}\n#0 wrong\nFalse\nexited normally',
+                    f'Breakpoint 1, {SYMBOL}'+tail.replace(f'#0  {SYMBOL}', f'#0  prefix_{SYMBOL}'),
+                    f'Breakpoint 1, {SYMBOL}'+tail.replace(f'#0  {SYMBOL} (receiver=...)', f'#0  other_function(name="{SYMBOL}")'),
                     f'Breakpoint 1, {SYMBOL}'+tail.replace('False', 'True'),
                     f'Breakpoint 1, {SYMBOL}'+tail.replace('exited normally', 'SIGSEGV')]:
             with self.assertRaises(ValueError):

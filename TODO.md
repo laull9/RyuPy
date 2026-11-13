@@ -2,7 +2,7 @@
 
 ## 当前 AOT 产品主线（2026-11-12）
 
-- [~] Linux Native调试符号交付分离候选：成熟ELF parser核debuglink/CRC/build-id，仅从新dist副本分离精确host.dbg，原publish保留且CLI报告记录；未知旁件与Mac/Windows保留。专项身份与失败保旧通过，真实binaryornot调试恢复、三平台部署和完整门待验。见[ADR0177](docs/adr/0177-linux-native-symbol-delivery.md)。
+- [x] Linux x64 Native符号交付分离有限验收：精确本次host.dbg经debuglink/CRC/build-id验证后仅留.build，未知旁件与Mac/Windows保守保留。CI `43339677617` binaryornot 8宿主+8禁网容器及真实搬迁GDB恢复通过；dist由21,424,519降至11,101,529字节（约48.18%），不是总磁盘或性能收益。pyfiglet Linux/双平台回归、profiler与完整check通过；仅验证分支，未合入dev/main。见[ADR0177](docs/adr/0177-linux-native-symbol-delivery.md)。
 
 - [~] PyText有界索引扫描候选：`3700df16` 同树完整check通过，A/B CI `43328258397` 两轮极长hi800中位耗时降7.96%/5.55%；其它负载无可靠收益，首轮startup负向第二轮未复现，保留风险。binaryornot及Mac/Windows部署原件已验；仅独立验证分支，未自动合入dev/main。见 `tests/aot/native_text_index_perf/README.md`，不宣称Nuitka总体性能领先。
 

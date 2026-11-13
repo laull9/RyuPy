@@ -82,7 +82,8 @@ def verify_debugger_transcript(transcript):
     """GDB多线程前缀不改变命中含义；仍要求实际命中、顶帧及正常输出。"""
     hit = r'^(?:Thread \d+ "[^"\n]*" hit )?Breakpoint \d+,\s*' + re.escape(SYMBOL) + r'\b'
     require(re.search(hit, transcript, re.M), '断点未实际命中已知函数')
-    require(re.search(r'^#0\s+.*'+re.escape(SYMBOL)+r'\b', transcript, re.M), '回溯顶帧非已知runtime函数')
+    frame = r'^#0[ \t]+(?:0x[0-9a-fA-F]+[ \t]+in[ \t]+)?' + re.escape(SYMBOL) + r'\b'
+    require(re.search(frame, transcript, re.M), '回溯顶帧非已知runtime函数')
     require('exited normally' in transcript and re.search(r'^False\s*$', transcript, re.M), '被调试程序未正常完成')
 
 

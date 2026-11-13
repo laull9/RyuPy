@@ -1,6 +1,6 @@
 # ADR-0177：Linux Native 调试符号与交付目录分离
 
-状态：候选。纯身份测试已过；真实应用部署、调试器恢复及完整门待验。未合入 dev/main。
+状态：有限验收通过（2026-11-13）。Linux x64交付分离、真实搬迁调试恢复与三平台应用回归已核；仅独立验证分支，未合入 dev/main。
 
 ## 背景与边界
 
@@ -30,3 +30,16 @@ CPU采样器只向它自己的诊断副本加回已校验符号，产品dist保�
 - binaryornot真实47源consumer宿主/搬迁/禁网无Python/.NET容器，追加符号身份与gdb恢复；报告部署字节与保留符号字节，不测执行性能。
 - pyfiglet两入口与553字体完整资源部署；Mac/Windows保守回归，必要时检查受影响CPU profiler。
 - 完整make check、CLI体积变化与源码同树证明。未验证的项目不因helper绿色晋升。
+
+
+## 2026-11-13 实际验收
+
+产品提交本地 `f8696099` / 远端 `8095410c`，树 `4775ee88`。随后仅修审计脚本与workflow，产品源码不变；解析修复本地 `e5d65d31` / 远端 `932f85a0`，树 `faf2e98f`。完整 `make check` 退出0：C# 3053通过/5跳过，e2e 454通过/283 ignored，不把跳过项算兼容。生成产物与ZIP不进入Git。
+
+- [binaryornot CI 43339677617](https://github.com/laull9/RyuPy/actions/runs/43339677617)：47源consumer，宿主原位/搬迁8次及禁网无Python/.NET容器8次通过。独立readelf/CRC/build-id/清单审计通过；搬迁ELF显式加载保留符号，GDB实际命中`PyBinaryDecode__Invoke`并恢复正确顶帧、输出False、正常退出，原件前后未变。
+- 此应用原publish为 **21,424,519字节**，交付dist为 **11,101,529字节**，少 **10,322,990字节（约48.18%）**；其中保留符号为10,322,728字节，余差来自清单/入口名。native SHA一致。不是执行性能提升，也不是总磁盘节省。
+- [Linux项目 CI 43335125471](https://github.com/laull9/RyuPy/actions/runs/43335125471)：pyfiglet原CLI/metadata入口，原项目/项目搬迁后共4次公开AOT、各553资源、12次无Python/.NET禁网容器运行通过。原CLI交付为13,095,235字节，metadata入口为13,099,406字节；保留约10.09MB符号。
+- [平台 CI 43335125423](https://github.com/laull9/RyuPy/actions/runs/43335125423)：macOS arm64、Windows x64各两入口、原位/搬迁12次语义运行通过，原有资源/输出边界和Windows路径/metadata检查保留。两者仍为带SDK宿主的精简环境，不宣称干净机；本决策不分离它们的符号。
+- [热点 CI 43335125457](https://github.com/laull9/RyuPy/actions/runs/43335125457)：诊断副本加回匹配符号后获得496样本/482 native样本；产品交付目录未加回符号。不把采样wall或热点占比当作性能A/B数据。
+
+失败历史保留：初次binaryornot workflow YAML条件写法未进入产品执行，修正后`43335274625`真实构建和部署通过，但GDB已实际命中时输出为`Thread 1 "scanner" hit Breakpoint ...`，旧解析只接受行首`Breakpoint`而误判。修复后新增实际命中/仅创建断点/错误函数/错误顶帧/异常退出负例；`43339677617`整轮成功。最终又收紧顶帧函数位置，拒绝前缀函数或参数字符串内伪匹配，并用两轮原始GDB输出和7项合同复核；这项测试-only收紧未再重建产品，不伪称在新文档提交上重跑所有CI。

@@ -100,7 +100,7 @@ CLI + 运行时压缩包，没有单文件 CLI 发布。产物可跨哪些系统
 
 原生通过、桥接通过和已接受偏差的区别见 [compatibility.md](compatibility.md)。Native AOT 的目标平台、构建与加载限制参考 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
 
-### 统一项目部署配置（有限 Linux x64 验收，2026-11-12）
+### 统一项目部署配置（有限范围验收）
 
 新入口将部署声明集中到一个显式 JSON 文件；首切只支持 `schema_version: 1`、`mode: "aot"`。例如项目目录中的 `ryupy.json`：
 
@@ -157,3 +157,23 @@ Phase 2–4 用例已经写入 `tests/e2e/` 并标记 pending。`python3 tests/r
 显式分发配置可以加入 `"dependency_check": {"mode": "unconditional_closure", "requirements": ["binaryornot==0.4.4"]}`。它在加载Python源码及调用SDK前检查该根的传递声明依赖，例如缺少chardet或版本不满足会直接报“依赖预检”错误。不会替你安装包，也不会读取宿主Python环境。
 
 首切拒绝活跃依赖中的markers、extras和URL要求，不推测目标环境；不使用该字段则保持旧行为。成功的编译期 `dependency-check.json` 只证明所选声明闭包的存在/版本匹配，不能代替实际Native运行验证。配置和范围见[ADR-0176](adr/0176-explicit-dependency-preflight.md)。
+
+
+### 部署什么、保留什么
+
+- 交付整个 `<入口>.dist/`，不要只复制可执行文件；资源和分发 metadata 可能是程序必需的。
+- `.build/` 是本轮构建与诊断资料，不是部署运行所需。Linux x64 会把**身份验证通过的本次 ELF 调试符号**留在这里，而不随 `.dist` 发货；未知旁件、用户资源和 macOS / Windows 的符号保持保守复制。
+- CLI 报告 `AOT 调试符号清单：.../debug-symbols.json` 时，先看 `status`。只有 `separated` 表示已分离，`retained` 表示本轮未分离（也可能没有符号文件）；原因在 `reason`。保留符号仍占构建磁盘，交付变小不等于总磁盘变小。
+- 要保留后续调试能力，归档本轮 `.build` 和匹配 `.dist`。清单中 `symbols_relative_path` 相对于该清单所在的 attempt 目录；不要混用另一次构建的同名符号。
+
+搬迁后的 Linux 程序可以显式加载匹配符号，例如在 GDB 中执行（尖括号替换为实际值，先选择要检查的函数断点）：
+
+```text
+file /absolute/path/app.dist/app
+symbol-file /absolute/path/attempt/ryupy-aot-0/publish/<本次host>.dbg
+break <函数符号>
+run <程序参数>
+bt
+```
+
+这不是搬迁后自动发现符号的承诺；调试器、源码位置及实际崩溃栈也会影响可见信息。精确身份、事务行为及真实验收见[ADR-0177](adr/0177-linux-native-symbol-delivery.md)。不要手工删除 `.dist` 的未知文件来减包。
