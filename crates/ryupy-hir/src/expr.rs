@@ -193,6 +193,7 @@ impl<'a> ExprLowerCtx<'a> {
                 let index = self.lower_subscript_index(&sub.slice);
                 ExprKind::Subscript { base, index }
             }
+            ast::Expr::Slice(_) => return self.lower_subscript_index(expr),
             ast::Expr::Starred(starred) => {
                 let inner = self.lower_expr(&starred.value);
                 ExprKind::Starred(inner)

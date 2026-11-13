@@ -15,8 +15,7 @@ fn list_primitives_slice_index() {
             "list-primitives.index-missing",
             "list-primitives.index-empty",
         ],
-        include_bytes!("../../../tests/fixtures/list_primitives/golden/slice_index.stdout"),
-        None,
+        false,
     );
 }
 
@@ -35,8 +34,7 @@ fn list_primitives_extend_order() {
         "extend_order.py",
         include_str!("../../../tests/fixtures/list_primitives/extend_order.py"),
         &labels,
-        include_bytes!("../../../tests/fixtures/list_primitives/golden/extend_order.stdout"),
-        None,
+        false,
     );
 }
 
@@ -52,9 +50,6 @@ fn list_primitives_iterator_chain() {
             "list-primitives.chain",
             "list-primitives.chain-prefix",
         ],
-        include_bytes!("../../../tests/fixtures/list_primitives/golden/iterator_chain.stdout"),
-        Some(include_str!(
-            "../../../tests/fixtures/list_primitives/golden/iterator_chain.trace"
-        )),
+        true,
     );
 }

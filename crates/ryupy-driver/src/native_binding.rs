@@ -38,6 +38,9 @@ struct Target {
     rid: String,
     shared: Option<String>,
     archive: Option<String>,
+    linkage: Option<String>,
+    #[serde(default)]
+    dependencies: Vec<String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Platform {
@@ -93,6 +96,8 @@ pub(crate) struct BindingPlan {
     pub declaration_sha256: String,
     pub platform: Platform,
     pub aot: bool,
+    pub dynamic: bool,
+    pub dependencies: Vec<(String, files::NativeInput)>,
     pub input: files::NativeInput,
 }
 impl BindingPlan {
@@ -160,8 +165,20 @@ impl BindingPlan {
             }
         }
         ensure!(d.target.rid == platform.rid(), "绑定RID必须精确匹配宿主");
+        // AOT 动态绑定继续使用静态机器签名；仅加载时机与部署形态改变。
+        let dynamic = match d.target.linkage.as_deref() {
+            None => !aot,
+            Some("dynamic") if d.schema_version == 3 => true,
+            Some("static") if d.schema_version == 3 && aot => false,
+            _ => anyhow::bail!("linkage仅支持v3的dynamic或AOT static"),
+        };
+        ensure!(
+            dynamic || d.target.dependencies.is_empty(),
+            "静态绑定不能声明动态依赖"
+        );
+        ensure!(d.target.dependencies.len() <= 64, "动态依赖最多64个");
         // 只消费本次模式所选输入，不给另一条未读取的路径背书。
-        let selected = (if aot {
+        let selected = (if !dynamic {
             d.target.archive
         } else {
             d.target.shared
@@ -170,18 +187,66 @@ impl BindingPlan {
         let path = absolute(path)?;
         let root = path.parent().context("声明没有父目录")?;
         let source = files::checked_relative(root, &selected)?;
-        let input = files::NativeInput::open(&source, platform, aot)?;
+        let input = files::NativeInput::open(&source, platform, !dynamic)?;
+        let mut dependencies = Vec::new();
+        let mut names = std::collections::HashSet::from([Path::new(platform.relative_file())
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_lowercase()]);
+        for dependency in d.target.dependencies {
+            let path = files::checked_relative(root, &dependency)?;
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .context("依赖文件名无效")?;
+            ensure!(
+                name.is_ascii() && names.insert(name.to_ascii_lowercase()),
+                "依赖部署名必须ASCII且唯一"
+            );
+            let mut native = files::NativeInput::open(&path, platform, false)?;
+            native.digest.relative_path = dependency;
+            native.digest.role = "native_dependency_input".into();
+            dependencies.push((name.to_owned(), native));
+        }
         Ok(Self {
             declaration_version: d.schema_version,
             module: d.module,
             exports,
             signatures,
             library: d.library,
-            declaration_sha256: crate::manifest_files::hash_bytes(&bytes),
+            declaration_sha256: String::new(),
             platform,
             aot,
+            dynamic,
+            dependencies,
             input,
         })
+    }
+    /// 将入口库及显式依赖作为同次候选包冻结；加载器相对路径由库自身负责。
+    pub(crate) fn stage_shared(&self, bundle: &Path) -> Result<Vec<files::FrozenInput>> {
+        let target = bundle.join(self.platform.relative_file());
+        let parent = target.parent().context("shared缺父目录")?;
+        std::fs::create_dir_all(parent)?;
+        let mut frozen = vec![self.input.freeze(&target)?];
+        for (name, input) in &self.dependencies {
+            frozen.push(input.freeze(&parent.join(name))?);
+        }
+        Ok(frozen)
+    }
+    pub(crate) fn mark_shared(&self, artifacts: &mut [crate::manifest_files::FileDigest]) {
+        let parent = Path::new(self.platform.relative_file()).parent().unwrap();
+        for item in artifacts {
+            if item.relative_path == self.platform.relative_file() {
+                item.role = "native_shared".into();
+            } else if self
+                .dependencies
+                .iter()
+                .any(|(name, _)| parent.join(name).to_string_lossy() == item.relative_path)
+            {
+                item.role = "native_dependency".into();
+            }
+        }
     }
     pub(crate) fn check_modules(&self, p: &ryupy_mir::LinkedProgram) -> Result<()> {
         for (_, m) in p.modules.iter() {

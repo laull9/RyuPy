@@ -395,7 +395,8 @@ pub(crate) fn write_report(sess: &Session, out: &Path) -> Result<()> {
 
 /// 统一策略门：AOT 与已解析绑定只凭本次私有授权进入 catalog；显式关闭继续生效。
 pub(crate) fn enabled(sess: &Session, aot: bool) -> bool {
-    (!aot || sess.default_source_state.aot_request)
+    sess.cpython_provider.is_none()
+        && (!aot || sess.default_source_state.aot_request)
         && (!sess.fixed_binding_build || sess.default_source_state.binding_catalog)
         && sess.module_environment_policy != crate::ModuleEnvironmentPolicy::ExplicitOnly
 }

@@ -187,6 +187,9 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::FormatValue => ins.push(Instruction::call(ctx.runtime_refs.format_value)),
         RuntimeFn::WriteObject => ins.push(Instruction::call(system.write_object)),
         RuntimeFn::DynBinary => ins.push(Instruction::call(ctx.runtime_refs.dyn_binary)),
+        RuntimeFn::DynRichCompareValue => {
+            ins.push(Instruction::call(ctx.runtime_refs.dyn_rich_compare_value))
+        }
         RuntimeFn::DynCompare => ins.push(Instruction::call(ctx.runtime_refs.dyn_compare)),
         RuntimeFn::DynUnary => ins.push(Instruction::call(ctx.runtime_refs.dyn_unary)),
         RuntimeFn::DynTruthy => ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy)),

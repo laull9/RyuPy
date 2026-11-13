@@ -84,8 +84,11 @@ pub(super) fn compile_linked_traced(
         )?
     };
     let entry_file = sources[entry_index].parsed.file;
-    let native_exceptions =
-        modules::native_exception_modules_for_build(entry, search_paths, &sources);
+    let native_exceptions: Vec<_> =
+        modules::native_exception_modules_for_build(entry, search_paths, &sources)
+            .into_iter()
+            .filter(|name| !cpython_provider::selected(sess, name))
+            .collect();
     let mut units = Vec::new();
     let mut trace_proofs = Vec::new();
     let mut summaries = Vec::new();
@@ -198,6 +201,11 @@ pub(super) fn compile_linked_traced(
         entry_index
     };
     let mut linked = trace_product::link(sess, entry_file, units, emitted_entry, trace_proofs)?;
+    linked.external_provider = sess
+        .cpython_provider_state
+        .plan
+        .as_ref()
+        .map(|_| cpython_provider::CONFIG.to_owned());
     linked.distribution_metadata = sess.default_source_state.plan.payload.clone();
     linked.candidate_modules = candidate_names;
     linked.optional_sources = if automatic {

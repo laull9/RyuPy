@@ -4,7 +4,6 @@ use super::{FILE_LIMIT, ModuleLocationRecord, ResourcePlan, ResourceRecord, TOTA
 use crate::manifest_files::{FileDigest, plain_metadata};
 use anyhow::{Context, Result, ensure};
 use same_file::Handle;
-use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
@@ -14,12 +13,12 @@ struct Snapshot {
     identity: Handle,
     path: PathBuf,
     size: u64,
-    hash: String,
 }
 pub(crate) struct StagedResources {
     pub(crate) locations: Vec<ModuleLocationRecord>,
     pub(crate) records: Vec<ResourceRecord>,
     files: Vec<PathBuf>,
+    metadata: Vec<Metadata>,
     anchors: Vec<String>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
     pub(crate) declared: bool,
@@ -69,7 +68,7 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
     std::fs::create_dir(&stage).context("资源 staging 必须为本次独占新目录")?;
     // 编译源码全部持活句柄，禁止资源经 hardlink/其它后缀部署源码。Windows 相等仅保守拒绝。
     let mut compiled = Vec::new();
-    let mut hashes = Vec::new();
+    let mut source_bytes = Vec::new();
     let mut compiled_keys = BTreeMap::new();
     let mut source_ids = Vec::new();
     for (module_id, path) in plan.source_files.iter().enumerate() {
@@ -84,7 +83,7 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
                 .as_file()
                 .take(expected.checked_add(1).context("源码长度溢出")?);
             let mut size = 0_u64;
-            let mut hash = Sha256::new();
+            let mut content = Vec::new();
             let mut buffer = [0_u8; 65536];
             loop {
                 let count = input.read(&mut buffer)?;
@@ -93,7 +92,7 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
                 }
                 size += count as u64;
                 ensure!(size <= expected, "编译源码在资源冻结时增长");
-                hash.update(&buffer[..count]);
+                content.extend_from_slice(&buffer[..count]);
             }
             ensure!(size == expected, "编译源码在资源冻结时截短");
             unchanged(&before, &identity.as_file().metadata()?)?;
@@ -102,12 +101,12 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
             unchanged(&before, &verified.as_file().metadata()?)?;
             let id = compiled.len();
             compiled.push(identity);
-            hashes.push(format!("{:x}", hash.finalize()));
+            source_bytes.push(content);
             compiled_keys.insert(path.clone(), id);
             id
         };
         ensure!(
-            hashes[id] == plan.source_hashes[module_id],
+            source_bytes[id] == plan.source_bytes[module_id],
             "编译源码在资源冻结前已变化"
         );
         source_ids.push(id);
@@ -172,7 +171,6 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
                         .write(true)
                         .create_new(true)
                         .open(&frozen)?;
-                    let mut hasher = Sha256::new();
                     let mut size = 0_u64;
                     let mut buffer = [0_u8; 65536];
                     let mut input = identity.as_file();
@@ -188,7 +186,6 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
                         );
                         checked_total(frozen_total - before.len(), size)?;
                         output.write_all(&buffer[..count])?;
-                        hasher.update(&buffer[..count]);
                     }
                     output.flush()?;
                     output.sync_all()?;
@@ -201,7 +198,6 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
                         identity,
                         path: frozen,
                         size,
-                        hash: format!("{:x}", hasher.finalize()),
                     });
                     cache.insert(lexical, index);
                     index
@@ -235,7 +231,7 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
         records.push(ResourceRecord {
             relative_path: target.clone(),
             size: snapshot.size,
-            sha256: snapshot.hash.clone(),
+            sha256: String::new(),
             consumer_module_ids: consumers.into_iter().collect(),
         });
         files.push(snapshot.path.clone());
@@ -262,6 +258,10 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
             .iter()
             .map(|l| l.relative_file.clone())
             .collect(),
+        metadata: files
+            .iter()
+            .map(std::fs::metadata)
+            .collect::<std::io::Result<Vec<_>>>()?,
         records,
         files,
     })
@@ -274,7 +274,6 @@ fn copy_snapshot(path: &Path, record: &ResourceRecord, output: &mut dyn Write) -
     ensure!(before.len() == record.size, "资源快照长度变化");
     let mut input = identity.as_file().take(record.size + 1);
     let mut copied = 0_u64;
-    let mut hash = Sha256::new();
     let mut buffer = [0_u8; 65536];
     loop {
         let count = input.read(&mut buffer)?;
@@ -284,12 +283,8 @@ fn copy_snapshot(path: &Path, record: &ResourceRecord, output: &mut dyn Write) -
         copied += count as u64;
         ensure!(copied <= record.size, "资源快照读取时增长");
         output.write_all(&buffer[..count])?;
-        hash.update(&buffer[..count]);
     }
-    ensure!(
-        copied == record.size && format!("{:x}", hash.finalize()) == record.sha256,
-        "资源快照字节与冻结记录不同"
-    );
+    ensure!(copied == record.size, "资源快照字节与冻结记录不同");
     unchanged(&before, &identity.as_file().metadata()?)?;
     let after = open_plain(path)?;
     ensure!(after == identity, "资源快照路径在读取时被替换");
@@ -311,10 +306,7 @@ impl StagedResources {
         }
         targets.include_publish(root)?;
         for (index, (record, source)) in self.records.iter().zip(&self.files).enumerate() {
-            ensure!(
-                plain_metadata(source)?.len() == record.size,
-                "staging 快照长度变化"
-            );
+            unchanged(&self.metadata[index], &plain_metadata(source)?)?;
             let destination = root.join(&record.relative_path);
             let parent = destination.parent().context("资源目标缺父目录")?;
             let mut current = root.to_owned();
@@ -338,6 +330,11 @@ impl StagedResources {
             ensure!(!destination.try_exists()?, "资源发布不能覆盖已有项");
             std::fs::rename(&temporary, &destination)?;
             copy_snapshot(&destination, record, &mut std::io::sink())?;
+            // 同次发布直接比较快照字节，保留复制正确性而不计算普通文件摘要。
+            ensure!(
+                std::fs::read(source)? == std::fs::read(&destination)?,
+                "资源发布字节与快照不同"
+            );
         }
         Ok(())
     }
@@ -347,10 +344,7 @@ impl StagedResources {
                 .iter_mut()
                 .find(|a| a.relative_path == resource.relative_path)
                 .context("发布清单缺少已声明资源")?;
-            ensure!(
-                artifact.size == resource.size && artifact.sha256 == resource.sha256,
-                "资源清单哈希不一致"
-            );
+            ensure!(artifact.size == resource.size, "资源清单大小不一致");
             artifact.role = "declared_resource".to_owned();
         }
         Ok(())

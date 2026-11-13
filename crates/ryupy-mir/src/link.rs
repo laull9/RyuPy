@@ -296,6 +296,7 @@ pub(crate) fn link_with_origins(
     });
 
     LinkedProgram {
+        external_provider: None,
         candidate_modules: Vec::new(),
         optional_sources: None,
         metadata_unavailable: None,

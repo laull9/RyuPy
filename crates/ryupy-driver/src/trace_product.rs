@@ -43,7 +43,8 @@ pub(crate) fn graph(
     entry: usize,
     resources: bool,
 ) -> Result<Request> {
-    let supported = session.distribution_metadata.is_none()
+    let supported = session.cpython_provider.is_none()
+        && session.distribution_metadata.is_none()
         && count == 1
         && entry == 0
         && !resources

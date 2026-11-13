@@ -30,6 +30,7 @@ public static partial class PyModules
         string resolved = PyModuleLocations.Resolve(locationKind, locationKind == 0 ? diagnosticFile : locationValue);
         Registry[name] = new Registration(package, diagnosticFile, init, get, set, resolved, fileBackedByGlobal,
             new ResourceLocation(isPackage, locationKind, resolved), metadataEnabled);
+        PyProvider.Current?.Registered(name);
     }
 
     internal static PyPath ResourceFiles(PyModule module)

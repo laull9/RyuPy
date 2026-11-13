@@ -34,6 +34,7 @@ internal static partial class PyExceptionMatch
 
     private static void Validate(object? target)
     {
+        if (target is IPyForeignObject { IsExceptionClass: true }) return;
         if (target is PyType type && NativeTargets.ContainsKey(type)) return;
         if (target is PyClass cls && HasBuiltinAncestor(cls, "BaseException")) return;
         // 嵌套tuple、异常实例和普通同名类均非法。只有新错误需准备帧及ambient。
@@ -43,6 +44,7 @@ internal static partial class PyExceptionMatch
 
     private static bool MatchesValidated(PyBaseException original, object target)
     {
+        if (target is IPyForeignObject foreign) return foreign.MatchesException(original);
         if (target is PyClass cls)
             return original.PythonClass is { } actual && HasClassAncestor(actual, cls);
         NativeTarget native = NativeTargets[(PyType)target];

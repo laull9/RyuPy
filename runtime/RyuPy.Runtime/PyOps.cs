@@ -102,6 +102,8 @@ public static partial class PyOps
     /// <remarks>操作码带 <see cref="InPlaceFlag"/> 时按增量赋值处理（见 <c>PySequenceOps.cs</c>）。</remarks>
     public static object Binary(int op, object a, object b)
     {
+        if (a is IPyForeignObject leftForeign) return leftForeign.Binary(op, b, false);
+        if (b is IPyForeignObject rightForeign) return rightForeign.Binary(op, a, true);
         if ((op & InPlaceFlag) != 0)
         {
             return InPlaceBinary(op & ~InPlaceFlag, a, b);
@@ -277,6 +279,8 @@ public static partial class PyOps
     /// <summary>比较运算：返回 Python <c>bool</c>。NaN 下所有排序比较为假，相等为假、不等为真。</summary>
     public static bool Compare(int op, object a, object b)
     {
+        if (a is IPyForeignObject leftForeign) return leftForeign.Compare(op, b, false);
+        if (b is IPyForeignObject rightForeign) return rightForeign.Compare(op, a, true);
         // 快路径：两侧都是 long / double / str 时与通用路径结果相同（不涉及用户魔术方法），
         // 但跳过了 `__eq__` / `__lt__` 探测与 Order 的形态分类。double 的 IEEE 比较本身就满足
         // Python 的 NaN 规则（相等为假、不等为真、排序比较为假）。
@@ -363,6 +367,7 @@ public static partial class PyOps
     /// <summary>一元运算。</summary>
     public static object Unary(int op, object value)
     {
+        if (value is IPyForeignObject foreign) return foreign.Unary(op);
         switch (op)
         {
             case Neg:
@@ -445,6 +450,7 @@ public static partial class PyOps
     /// <summary>整数 / 布尔转 <c>double</c>；超出 <c>double</c> 范围时报 <c>OverflowError</c>。</summary>
     public static double ToDouble(object value) => value switch
     {
+        IPyForeignObject foreign => (double)foreign.ReadScalar("float"),
         bool b => b ? 1.0 : 0.0,
         double d => d,
         long l => l,

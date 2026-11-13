@@ -183,3 +183,10 @@ clean: ## 清理全部产物
 .PHONY: upstream
 upstream: runtime ## 固定上游移植用例差分（需已准备登记版本的项目源码）
 	"$(PYTHON)" tests/run_upstream.py
+
+# CPython provider 是显式试点；普通 runtime 不依赖 Python 发行输入。
+.PHONY: runtime-cpython
+runtime-cpython: ## 构建 CPython 桥与 shim（须显式指定 CPYTHON_HOME，固定3.12.13）
+	@test -n "$(CPYTHON_HOME)" || { echo "请显式指定 CPYTHON_HOME=<CPython 3.12.13 基础发行根>"; exit 1; }
+	dotnet build runtime/RyuPy.CPython -c Release -nologo -v q
+	sh runtime/RyuPy.CPython/native/build.sh "$(CPYTHON_HOME)" runtime/RyuPy.CPython/bin/Release/net10.0

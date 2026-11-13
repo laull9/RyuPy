@@ -146,7 +146,12 @@ pub(crate) fn lower_rvalue(rval: &Rvalue, ins: &mut Vec<Instruction>, ctx: &Lowe
             }
             for (index, arg) in args.iter().enumerate() {
                 lower_operand(arg, ins, ctx.param_slots, ctx.local_slots, ctx.runtime_refs);
-                if index == 0 && matches!(callee, Callee::Runtime(RuntimeFn::DynBinary)) {
+                if index == 0
+                    && matches!(
+                        callee,
+                        Callee::Runtime(RuntimeFn::DynBinary | RuntimeFn::DynRichCompareValue)
+                    )
+                {
                     // 固定 ABI 的首参是 CLR int；MIR 验证器已约束常量可表示性。
                     // 只适配签名宽度，不在后端解释操作码或选择动态回退语义。
                     ins.push(Instruction::Convert(ConversionType::Int32));

@@ -19,6 +19,8 @@ from urllib.parse import parse_qs, urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from aot_layout import reported_aot
 from runtime_dependencies import MANAGED, NATIVE, validate_runtime_dependencies
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'cpython'))
+from support import environment, external_workspace, require_python
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -49,15 +51,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ryupy', type=Path, required=True)
     parser.add_argument('--python', default=sys.executable)
-    parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--out', type=Path)
+    parser.add_argument('--keep', action='store_true', help='显式保留仓库外调试输出')
     args = parser.parse_args()
     args.ryupy = args.ryupy.resolve()
-    args.out.mkdir(parents=True, exist_ok=True)
-    root = Path(tempfile.mkdtemp(prefix='stdlib-service-', dir=args.out.resolve()))
+    root = external_workspace('stdlib-service-', args.out)
     logs = root / 'logs'
     logs.mkdir()
     records = {'status': 'failed', 'platform': platform.platform(), 'steps': []}
-    env = {**os.environ, 'PYTHONDONTWRITEBYTECODE': '1', 'DOTNET_CLI_UI_LANGUAGE': 'en-US'}
+    env = environment()
     # 本地合同绕过代理，应用仍走真实 HTTP 栈。
     env['NO_PROXY'] = env['no_proxy'] = '127.0.0.1,localhost'
     dotnet = shutil.which(os.environ.get('DOTNET', 'dotnet'))
@@ -80,10 +82,13 @@ def main():
 
     def inspect_db(path):
         with sqlite3.connect(path) as conn:
-            assert conn.execute('SELECT id FROM records ORDER BY id').fetchall() == [(1,), (2,)]
+            assert conn.execute('SELECT id, name FROM records ORDER BY id').fetchall() == [
+                (1, "quote'); DROP TABLE records; --"), (2, '中文数据')]
+            assert conn.execute('SELECT COUNT(*) FROM records WHERE id=99').fetchone() == (0,)
             assert conn.execute('PRAGMA integrity_check').fetchone() == ('ok',)
 
     try:
+        require_python(args.python, root, env)
         fixture = Path(__file__).resolve().parent
         Handler.requests = 0
         source = root / '中文 & source'
@@ -93,7 +98,10 @@ def main():
         resource_request = source / 'resources.json'
         resource_request.write_text(json.dumps({'schema_version': 1, 'modules': [
             {'module': 'appdata', 'files': ['schema.sql']}]}), encoding='utf-8')
-        baseline = run('cpython', [args.python, source / 'app.py', url, root / 'cp.sqlite']).stdout
+        baseline_cwd = root / 'cpython-cwd'
+        baseline_cwd.mkdir()
+        baseline_result = run('cpython', [args.python, source / 'app.py', url, root / 'cp.sqlite'], cwd=baseline_cwd)
+        baseline = baseline_result.stdout
         inspect_db(root / 'cp.sqlite')
         jit = run('jit-build', [args.ryupy, 'build', source / 'app.py', '-o', root / 'jit'])
         dlls = [Path(line.removeprefix('已生成 ')) for line in jit.stderr.decode().splitlines()
@@ -101,7 +109,10 @@ def main():
         assert len(dlls) == 1
         for dependency in MANAGED | {'RuntimeDependencies.props', 'ThirdPartyNotices.sqlite3.txt'}:
             assert (root / 'jit' / dependency).is_file(), dependency
-        assert run('jit-run', [dotnet, dlls[0], url, root / 'jit.sqlite']).stdout == baseline
+        jit_cwd = root / 'jit-cwd'
+        jit_cwd.mkdir()
+        jit_run = run('jit-run', [dotnet, dlls[0], url, root / 'jit.sqlite'], cwd=jit_cwd)
+        assert (jit_run.stdout, jit_run.stderr) == (baseline, baseline_result.stderr)
         inspect_db(root / 'jit.sqlite')
         report = json.loads((root / 'jit/app.source-plan.json').read_text())
         for name in ('sqlite3', 'base64', 'gzip', 'urllib.parse', 'urllib.request'):
@@ -120,7 +131,10 @@ def main():
         library = NATIVE[rid]
         assert (layout.dist / library).is_file()
         assert (layout.dist / 'ThirdPartyNotices.sqlite3.txt').is_file()
-        assert run('native-original', [layout.native, url, root / 'native.sqlite']).stdout == baseline
+        native_cwd = root / 'native-cwd'
+        native_cwd.mkdir()
+        native_run = run('native-original', [layout.native, url, root / 'native.sqlite'], cwd=native_cwd)
+        assert (native_run.stdout, native_run.stderr) == (baseline, baseline_result.stderr)
         inspect_db(root / 'native.sqlite')
         moved = root / '中文 & relocated'
         shutil.move(layout.dist, moved)
@@ -135,7 +149,7 @@ def main():
         executable = moved / layout.native.name
         actual = run('native-relocated', [executable, url, root / 'moved.sqlite'],
                      cwd=empty, process_env=clean)
-        assert actual.stdout == baseline
+        assert (actual.stdout, actual.stderr) == (baseline, baseline_result.stderr)
         inspect_db(root / 'moved.sqlite')
         # 独立进程删除随包库，确认不能从构建机安装位置偷偷补齐依赖。
         (moved / library).rename(root / (library + '.withheld'))
@@ -152,7 +166,10 @@ def main():
         server.server_close()
         worker.join(timeout=5)
         (root / 'result.json').write_text(json.dumps(records, ensure_ascii=False, indent=2) + '\n')
-        print(root)
+        if args.keep:
+            print('调试临时目录：', root)
+        else:
+            shutil.rmtree(root)
 
 
 if __name__ == '__main__':

@@ -11,6 +11,9 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
+    /// 显式 CPython provider 声明（固定发行、模块执行域与包载荷）
+    #[arg(long, global = true)]
+    cpython_provider: Option<PathBuf>,
     /// 显式封闭分发快照请求（JIT/AOT）；不改变sys.path
     #[arg(long, global = true)]
     distribution_metadata: Option<PathBuf>,
@@ -131,6 +134,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let mut sess = Session {
         distribution_metadata: cli.distribution_metadata,
+        cpython_provider: cli.cpython_provider,
         trace_product_v1: cli.trace_product_v1,
         instance_modules: cli.instance_modules,
         instance_direct_globals: cli.instance_direct_globals,

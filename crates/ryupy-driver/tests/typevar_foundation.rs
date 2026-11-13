@@ -1,4 +1,4 @@
-//! TypeVar公开合同：先校验固定CP原流，再独立构建/JIT，所有失败保留证据。
+//! TypeVar公开合同：先取得固定CP同次预期，再独立构建/JIT，所有失败保留证据。
 #[path = "typevar_foundation_support/mod.rs"]
 mod support;
 
@@ -29,7 +29,6 @@ fn typevar_foundation_metadata() {
             "class-delete",
             "function-module",
         ],
-        include_bytes!("../../../tests/cases/typevar_foundation/metadata/golden.stdout"),
     );
 }
 
@@ -64,7 +63,6 @@ fn typevar_foundation_binding() {
             "missing-unknown",
             "duplicate-name-unknown",
         ],
-        include_bytes!("../../../tests/cases/typevar_foundation/binding/golden.stdout"),
     );
 }
 
@@ -74,7 +72,6 @@ fn typevar_foundation_composition() {
         "composition.py",
         include_str!("../../../tests/cases/typevar_foundation/composition/entry.py"),
         &["aliases", "recursive-parameters", "annotations"],
-        include_bytes!("../../../tests/cases/typevar_foundation/composition/golden.stdout"),
     );
 }
 
@@ -95,7 +92,6 @@ fn typevar_foundation_protocols() {
             "isinstance",
             "no-implicit-events",
         ],
-        include_bytes!("../../../tests/cases/typevar_foundation/protocols/golden.stdout"),
     );
 }
 
@@ -119,6 +115,5 @@ fn typevar_foundation_public_slots() {
             "no-poison-events",
             "write-delete-key",
         ],
-        include_bytes!("../../../tests/cases/typevar_foundation/public_slots/golden.stdout"),
     );
 }

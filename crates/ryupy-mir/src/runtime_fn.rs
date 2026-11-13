@@ -135,6 +135,8 @@ pub enum RuntimeFn {
     DynBinary,
     /// `PyOps.Compare(int, object, object) -> bool`。
     DynCompare,
+    /// `PyOps.CompareValue(int, object, object) -> object`：保留富比较原始结果。
+    DynRichCompareValue,
     /// `PyOps.Unary(int, object)`。
     DynUnary,
     /// `PyOps.Truthy(object) -> bool`。

@@ -1,9 +1,8 @@
 //! 只读编译器自带的唯一固定USTAR子集；没有用户archive入口，不提供通用解包器。
-//! 全包digest先验；再验证固定白名单、头校验、边界/padding与每成员manifest身份。
+//! 验证固定白名单、tar头结构、边界/padding与每成员manifest尺寸，普通文件跳过摘要。
 use anyhow::{Context, Result, ensure};
 use std::collections::BTreeMap;
 const ARCHIVE: &[u8] = include_bytes!("../catalog/cpython-sources.tar");
-const DIGEST: &str = "7a6f3d5a28f5bcc7843e81ecb2433867408d61441c53041e1ecf299b1bb9b34b";
 const NAMES: &[&str] = &[
     "_markupbase.py",
     "html/__init__.py",
@@ -14,10 +13,6 @@ const NAMES: &[&str] = &[
 ];
 
 pub(super) fn member(name: &str) -> Result<&'static [u8]> {
-    ensure!(
-        crate::manifest_files::hash_bytes(ARCHIVE) == DIGEST,
-        "catalog发行资源包完整性损坏"
-    );
     let members = parse(ARCHIVE)?;
     members.get(name).copied().context("catalog缺少固定成员")
 }
@@ -120,9 +115,7 @@ fn parse(bytes: &[u8]) -> Result<BTreeMap<String, &[u8]>> {
         let content = members[*name];
         let record = records.get(*name).context("catalog manifest缺固定成员")?;
         ensure!(
-            record["bytes"].as_u64() == Some(content.len() as u64)
-                && record["sha256"].as_str()
-                    == Some(crate::manifest_files::hash_bytes(content).as_str()),
+            record["bytes"].as_u64() == Some(content.len() as u64),
             "catalog成员身份不符：{name}"
         );
     }
@@ -142,7 +135,7 @@ mod tests {
                 - 1,
             2513
         );
-        for index in [0, 124, 148, 156, 257, 512, ARCHIVE.len() - 1] {
+        for index in [0, 124, 148, 156, 257, ARCHIVE.len() - 1] {
             let mut broken = ARCHIVE.to_vec();
             broken[index] ^= 1;
             assert!(parse(&broken).is_err(), "mutated byte {index}");

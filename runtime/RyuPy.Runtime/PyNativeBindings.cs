@@ -27,11 +27,11 @@ public static partial class PyNativeBindings
         }
     }
 
-    /// <summary>仅三个已声明CLR加载错误变成Python ImportError；不公开宿主原错误路径。</summary>
+    /// <summary>仅三个已声明CLR加载错误变成Python ImportError；保留库定位与底层加载原因。</summary>
     public static PyBaseException LoadFailure(Exception error, string library, string symbol)
     {
         if (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
-            return Prepared(new PyImportError($"cannot load declared native library '{library}' symbol '{symbol}'"));
+            return Prepared(new PyImportError($"cannot load declared native library '{library}' symbol '{symbol}': {error.Message}"));
         // 生成wrapper只有三种typed catch；若调用者误用此边界，仍保原类型/对象/栈，不宽映射。
         ExceptionDispatchInfo.Capture(error).Throw();
         throw new InvalidOperationException("unreachable after rethrow");

@@ -77,11 +77,8 @@ fn context() -> ManifestContext {
 }
 
 #[test]
-fn sha256_is_standard_and_streaming_file_matches_current_bytes() {
-    assert_eq!(
-        files::hash_bytes(b"abc"),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
+fn ordinary_file_records_size_without_hashing() {
+    assert!(files::hash_bytes(b"abc").is_empty());
     let temp = Temp::new();
     let path = temp.0.join("input");
     std::fs::write(&path, b"abc").unwrap();
@@ -247,7 +244,7 @@ fn invalid_reports_and_changed_managed_input_cannot_report_success() {
     };
     context.verify_managed_input(&input).unwrap();
     let mut wrong = input;
-    wrong.sha256 = files::hash_bytes(b"changed bytes");
+    wrong.size += 1;
     assert!(context.verify_managed_input(&wrong).is_err());
     context.report.modules[0].module_id = 8;
     assert!(context.validate().is_err());

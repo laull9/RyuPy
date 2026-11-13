@@ -4,7 +4,7 @@
 
 项目目标调整为：**以随包 libpython 和通用对象桥获得良好 Python 生态兼容，保留
 Python → CIL → NativeAOT 的编译链，长期对标 Nuitka 的 AOT 打包，并按实测热点优化性能。**
-本轮仅完成规划和文档整理，CP1–CP5 均待实施。决策见
+CP1–CP3 已开始实施，手写差分与生命周期门已建立；平台产品门逐项验收。决策见
 [ADR-0181](adr/0181-cpython-provider-first.md)，架构合同见 [CPython provider](cpython-provider.md)。
 
 ### 短期顺序
@@ -34,8 +34,8 @@ Python → CIL → NativeAOT 的编译链，长期对标 Nuitka 的 AOT 打包�
 代码与测试按职责分层，保留稳定用例 ID、入口和必要手写输入；CPython 预期当次生成，
 测试输出放仓库外临时目录。Git 仅保留必要源码、配置与文档，规则见
 [ADR-0182](adr/0182-source-only-test-oracles.md)。迁移步骤见 [仓库结构规划](repository-layout-plan.md)。
-本轮不移动代码和测试；后续按一条测试发现链一个迁移竖切推进。用户另行授权的全历史
-生成产物清理与强推由现有子代理执行，包含忽略规则维护；生成 golden、快照与 patch/diff 一并清理。
+代码和测试按一条发现链一个迁移竖切推进。全历史生成产物清理与强推已完成，
+生成 golden、快照与 patch/diff 已清理；现有测试消费者继续迁移到即时比较。
 固定 20 项继续作为可比较项目集，产品功能兼容率允许已验收的 CPython provider，
 纯 RyuPy 执行率另列。短期先通过 CP1–CP3，之后产品目标至少 16/20；历史原生 16/20
 转为长期优化指标。JIT、NativeAOT、搬迁、平台分别计量。

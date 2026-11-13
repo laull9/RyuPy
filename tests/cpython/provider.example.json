@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "python_version": "3.12.13",
+  "distribution_root": "/替换为基础发行绝对路径",
+  "container_transfer": "synchronized",
+  "source": {
+    "project": "python-build-standalone",
+    "build_id": "20260623",
+    "source_url": "https://github.com/astral-sh/python-build-standalone/releases/tag/20260623",
+    "licenses": ["lib/python3.12/LICENSE.txt"]
+  },
+  "modules": ["ctypes", "sys"],
+  "payloads": []
+}

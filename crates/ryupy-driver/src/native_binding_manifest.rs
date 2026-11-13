@@ -13,7 +13,6 @@ pub(crate) struct BindingManifest {
     sources: Vec<SourceSummary>,
     bindings: Vec<BindingEmission>,
     entry: u32,
-    managed_sha256: String,
     managed_size: u64,
     options: Value,
 }
@@ -103,14 +102,13 @@ impl BindingManifest {
             sources,
             bindings,
             entry,
-            managed_sha256: manifest_files::hash_bytes(bytes),
             managed_size: bytes.len() as u64,
             options: json!({"experimental_direct_accumulator":session.experimental_direct_accumulator,"experimental_foreach_accumulator":session.experimental_foreach_accumulator,"experimental_leaf_inline":session.experimental_leaf_inline,"diagnostic_scalar_slp":session.diagnostic_scalar_slp,"experimental_packed_slp":session.experimental_packed_slp,"instance_modules":session.instance_modules,"module_environment_policy":session.module_environment_policy.identity()}),
         })
     }
     pub(crate) fn verify_managed_input(&self, input: &FileDigest) -> Result<()> {
         ensure!(
-            input.size == self.managed_size && input.sha256 == self.managed_sha256,
+            input.size == self.managed_size,
             "绑定托管输入不等于本次发射字节"
         );
         Ok(())
@@ -123,13 +121,28 @@ impl BindingManifest {
         inputs: &[FileDigest],
     ) -> Result<Vec<u8>> {
         ensure!(
-            inputs.len() == 3
+            inputs.len() == 3 + plan.dependencies.len()
                 && inputs[0].role == "compiled_managed_input"
                 && inputs[1].role == "runtime_managed_input"
                 && inputs[2] == plan.input.digest,
             "绑定构建输入不完整"
         );
         self.verify_managed_input(&inputs[0])?;
+        for (actual, (_, dependency)) in inputs[3..].iter().zip(&plan.dependencies) {
+            ensure!(actual == &dependency.digest, "动态依赖输入来源不符");
+        }
+        for (name, dependency) in &plan.dependencies {
+            let path = std::path::Path::new(plan.platform.relative_file())
+                .parent()
+                .unwrap()
+                .join(name);
+            ensure!(
+                artifacts.iter().any(|item| item.role == "native_dependency"
+                    && item.relative_path == path.to_string_lossy()
+                    && item.size == dependency.digest.size),
+                "发布包缺少显式动态依赖"
+            );
+        }
         let role = if plan.aot {
             "native_executable"
         } else {
@@ -140,7 +153,7 @@ impl BindingManifest {
             "绑定部署入口数量不符"
         );
         ensure!(plan.aot == sdk.is_some(), "SDK记录与模式不一致");
-        if plan.aot {
+        if !plan.dynamic {
             ensure!(
                 !artifacts.iter().any(|a| a.role == "native_shared"),
                 "静态AOT不能靠shared补救"
@@ -149,7 +162,6 @@ impl BindingManifest {
             ensure!(
                 artifacts.iter().any(|a| a.role == "native_shared"
                     && a.relative_path == plan.platform.relative_file()
-                    && a.sha256 == plan.input.digest.sha256
                     && a.size == plan.input.digest.size),
                 "JIT缺少冻结shared"
             );
@@ -157,12 +169,13 @@ impl BindingManifest {
         let modules:Vec<Value>=self.report.modules.iter().map(|m|json!({"id":m.module_id,"name":m.module_name,"environment_reason":m.environment_reason,"init":method(&m.init),"getter":m.getter.as_ref().map(method),"setter":m.setter.as_ref().map(method),"exports":m.exports,"origin":if m.module_id==self.bindings[0].module_id{if plan.declaration_version == 1 { json!({"kind":"declared_native_binding","binding_id":"b0","declaration_sha256":plan.declaration_sha256}) } else { json!({"kind":"declared_native_binding","binding_ids":self.bindings.iter().map(|b| &b.binding_id).collect::<Vec<_>>(),"declaration_sha256":plan.declaration_sha256}) }}else{json!({"kind":"compiled_source","source_module_id":m.module_id})}})).collect();
         let refs:Vec<Value>=self.report.delegate_references.iter().map(|r|json!({"site":{"source_method":method(&r.source),"instruction":r.instruction},"target":r.target.as_ref().map(method),"target_display":r.target_display,"role":r.role,"module_id":r.module_id,"function_id":r.function_id,"class_id":r.class_id})).collect();
         let native_bindings: Vec<Value> = self.bindings.iter().zip(&plan.exports).map(|(b, e)|
-            json!({"binding_id":b.binding_id,"module_id":b.module_id,"module":plan.module,"export":e.name,"signature":e.signature,"library":b.library,"symbol":b.symbol,"declaration_sha256":plan.declaration_sha256,"linkage":if plan.aot{"aot_static"}else{"jit_shared"},"relative_file":if plan.aot{None}else{Some(plan.platform.relative_file())},"initializer_id":b.initializer_id,"export_id":b.export_id,"body":method(&b.body),"native":method(&b.native),"pinvoke":{"calling_convention":b.calling_convention,"character_set":b.character_set,"no_mangle":b.no_mangle,"supports_last_error":b.supports_last_error,"preserve_sig":b.preserve_sig,"is_static":b.is_static,"has_body":b.has_body}})
+            json!({"binding_id":b.binding_id,"module_id":b.module_id,"module":plan.module,"export":e.name,"signature":e.signature,"library":b.library,"symbol":b.symbol,"declaration_sha256":plan.declaration_sha256,"linkage":if !plan.dynamic{"aot_static"}else if plan.aot{"aot_shared"}else{"jit_shared"},"relative_file":if !plan.dynamic{None}else{Some(plan.platform.relative_file())},"initializer_id":b.initializer_id,"export_id":b.export_id,"body":method(&b.body),"native":method(&b.native),"pinvoke":{"calling_convention":b.calling_convention,"character_set":b.character_set,"no_mangle":b.no_mangle,"supports_last_error":b.supports_last_error,"preserve_sig":b.preserve_sig,"is_static":b.is_static,"has_body":b.has_body}})
         ).collect();
         let value = json!({"schema_version":match plan.declaration_version { 1 => 3, 2 => 4, _ => 7 },"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},
  "compiler":{"package_version":env!("CARGO_PKG_VERSION"),"build_revision":Value::Null,"codegen_report_version":self.report.schema_version,"options":self.options},"target":{"rid":plan.platform.rid(),"native_format":plan.platform.native_format(),"architecture":plan.platform.architecture()},"toolchain":{"sdk_version":sdk,"target_framework_major":ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR},
  "entry":{"module_id":self.entry,"managed_entry":method(&self.report.entry)},"sources":self.sources,"modules":modules,"emitted_delegate_references":refs,
  "native_bindings":native_bindings,
+ "native_dependencies":plan.dependencies.iter().map(|(name, _)| name).collect::<Vec<_>>(),
  "build_inputs":inputs,"artifacts":artifacts,"scope":{"dynamic_dependency_closure_complete":false,"resources_included":false,"native_retention_proven":false,"manifest_self_hash_included":false}});
         let mut bytes = serde_json::to_vec_pretty(&value)?;
         bytes.push(b'\n');

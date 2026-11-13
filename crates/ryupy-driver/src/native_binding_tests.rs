@@ -219,3 +219,44 @@ fn symlink_rejected() {
     assert!(files::NativeInput::open(&r.join("link"), Platform::Linux, false).is_err());
     std::fs::remove_dir_all(r).unwrap();
 }
+
+#[test]
+fn dynamic_aot_selects_shared_and_stages_declared_dependency() {
+    let r = root();
+    std::fs::write(r.join("库 & file.so"), elf()).unwrap();
+    std::fs::write(r.join("helper.so"), elf()).unwrap();
+    let mut d = declaration();
+    let object = d.as_object_mut().unwrap();
+    object.remove("export");
+    object.remove("signature");
+    object.remove("symbol");
+    object.insert("schema_version".into(), serde_json::json!(3));
+    object.insert(
+        "exports".into(),
+        serde_json::json!([{"name":"read","symbol":"read", "signature":{
+        "calling_convention":"cdecl","parameters":[],"returns":"i32"}}]),
+    );
+    d["target"]["linkage"] = serde_json::json!("dynamic");
+    d["target"]["dependencies"] = serde_json::json!(["helper.so"]);
+    let p = r.join("binding.json");
+    std::fs::write(&p, d.to_string()).unwrap();
+    let plan = BindingPlan::read(&p, Platform::Linux, true).unwrap();
+    assert!(plan.aot && plan.dynamic);
+    let staged = plan.stage_shared(&r.join("bundle")).unwrap();
+    assert_eq!(staged.len(), 2);
+    assert!(r.join("bundle/_internal/native/v1/b0/helper.so").is_file());
+    // 大小写冲突、入口覆盖与静态依赖都必须拒绝。
+    for dependencies in [
+        serde_json::json!(["helper.so", "helper.so"]),
+        serde_json::json!(["library.so"]),
+    ] {
+        d["target"]["dependencies"] = dependencies;
+        std::fs::write(&p, d.to_string()).unwrap();
+        assert!(BindingPlan::read(&p, Platform::Linux, true).is_err());
+    }
+    d["target"]["dependencies"] = serde_json::json!(["helper.so"]);
+    d["target"]["linkage"] = serde_json::json!("static");
+    std::fs::write(&p, d.to_string()).unwrap();
+    assert!(BindingPlan::read(&p, Platform::Linux, true).is_err());
+    std::fs::remove_dir_all(r).unwrap();
+}

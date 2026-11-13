@@ -105,7 +105,16 @@ public static class PyNativeBindingLibrary
                 }
                 // 绝对路径且失败抛出：绝不返回零句柄触发 cwd/PATH 探测。
                 // 成功句柄进程期保留，不在 Python GC/模块删除时 Free 已缓存函数地址。
-                IntPtr loaded = NativeLibrary.Load(Path);
+                IntPtr loaded;
+                try { loaded = NativeLibrary.Load(Path); }
+                catch (DllNotFoundException error)
+                {
+                    throw new DllNotFoundException($"native binding '{Name}' at '{Path}': {error.Message}", error);
+                }
+                catch (BadImageFormatException error)
+                {
+                    throw new BadImageFormatException($"native binding '{Name}' at '{Path}': {error.Message}", error);
+                }
                 if (loaded == IntPtr.Zero) throw new DllNotFoundException("native binding library returned a null handle");
                 _handle = loaded;
                 return loaded;

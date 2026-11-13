@@ -52,7 +52,7 @@ pub(crate) struct ResourcePlan {
     pub(crate) locations: Vec<ModuleLocationRecord>,
     pub(super) claims: BTreeMap<String, Vec<Claim>>,
     pub(super) source_files: Vec<PathBuf>,
-    pub(super) source_hashes: Vec<String>,
+    pub(super) source_bytes: Vec<Vec<u8>>,
     pub(super) source_lengths: Vec<u64>,
     pub(super) selected: BTreeSet<usize>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
@@ -85,10 +85,7 @@ impl ResourcePlan {
                 .map(|s| s.resolved_source_path.clone())
                 .collect(),
             source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
-            source_hashes: sources
-                .iter()
-                .map(|s| crate::manifest_files::hash_bytes(s.text.as_bytes()))
-                .collect(),
+            source_bytes: sources.iter().map(|s| s.text.as_bytes().to_vec()).collect(),
             selected: BTreeSet::new(),
             automatic: None,
             declared: true,
@@ -169,10 +166,7 @@ impl ResourcePlan {
                 .iter()
                 .map(|s| s.resolved_source_path.clone())
                 .collect(),
-            source_hashes: sources
-                .iter()
-                .map(|s| crate::manifest_files::hash_bytes(s.text.as_bytes()))
-                .collect(),
+            source_bytes: sources.iter().map(|s| s.text.as_bytes().to_vec()).collect(),
             source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
             selected: (0..sources.len()).collect(),
             automatic: None,

@@ -294,17 +294,16 @@ impl<'a> ExprBuilder<'a> {
         if self.ty_of(expr_id).is_dynamic() {
             lhs_op = self.coerce(lhs_op, &lhs_ty, &MirType::Dynamic);
             rhs_op = self.coerce(rhs_op, &rhs_ty, &MirType::Dynamic);
-            let dest = self.alloc_temp(MirType::Bool);
-            self.push_stmt(Statement::Assign {
-                dest,
-                value: Rvalue::DynCompare {
-                    op: dyn_cmp_op(op),
-                    lhs: lhs_op,
-                    rhs: rhs_op,
-                },
-            });
-            // 动态上下文里比较结果也是 object（Python 的 True/False 是一等值）
-            return self.bool_to_value(Operand::Local(dest));
+            // Python 富比较可以返回 ndarray 或用户对象；只在条件位置求真。
+            return self.runtime_call(
+                RuntimeFn::DynRichCompareValue,
+                vec![
+                    Operand::Const(Constant::I64(i64::from(dyn_cmp_op(op).code()))),
+                    lhs_op,
+                    rhs_op,
+                ],
+                MirType::Dynamic,
+            );
         }
 
         if lhs_ty == Ty::Int && rhs_ty == Ty::Float {

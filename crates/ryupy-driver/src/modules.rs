@@ -124,6 +124,9 @@ pub(crate) fn load_program_with_discovery(
         if !seen.insert(name.clone()) {
             continue;
         }
+        if crate::cpython_provider::selected(sess, &name) {
+            continue;
+        }
         // 父包先登记（`import a.b.c` 会依次初始化 a、a.b，运行时依赖它们已注册）。
         if name.contains('.') {
             for prefix in package_prefixes(&name) {
@@ -157,7 +160,7 @@ pub(crate) fn load_program_with_discovery(
         modules.insert(name, source);
     }
 
-    if discover_resources {
+    if discover_resources && sess.cpython_provider.is_none() {
         resource_discovery::extend(sess, &roots, &entry_module, &mut modules);
     }
     let mut ordered: Vec<SourceModule> = modules.into_values().collect();

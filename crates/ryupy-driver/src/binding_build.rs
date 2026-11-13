@@ -4,7 +4,7 @@ use crate::{
     native_binding::{BindingPlan, Platform},
     native_binding_manifest::BindingManifest,
 };
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use ryupy_codegen_cil::fixed_bindings::{self, BindingDeployment, FixedI32Binding};
 use ryupy_mir::{
     BasicBlock, Body, ExportGuard, Function, GlobalDecl, MirType, ModuleDef, ModuleExport,
@@ -103,11 +103,14 @@ fn build_internal(
                 manifest: Some(p.manifest),
             });
         }
-        let target = bundle.join(plan.platform.relative_file());
-        std::fs::create_dir_all(target.parent().context("shared缺父目录")?)?;
-        let frozen = plan.input.freeze(&target)?;
+        let frozen = plan.stage_shared(&bundle)?;
         let mut inputs = crate::manifest::input_digests(&dll, &runtime)?;
         inputs.push(plan.input.digest.clone());
+        inputs.extend(
+            plan.dependencies
+                .iter()
+                .map(|(_, input)| input.digest.clone()),
+        );
         let mut artifacts = crate::manifest_files::collect(&bundle, &dll)?;
         for a in &mut artifacts {
             a.role = if a.relative_path == format!("{name}.dll") {
@@ -118,6 +121,12 @@ fn build_internal(
                 "runtimeconfig"
             } else if a.relative_path == plan.platform.relative_file() {
                 "native_shared"
+            } else if plan
+                .dependencies
+                .iter()
+                .any(|(name, _)| a.relative_path.ends_with(&format!("/{name}")))
+            {
+                "native_dependency"
             } else if let Some(role) = crate::runtime::dependency_role(&a.relative_path) {
                 role
             } else {
@@ -125,7 +134,9 @@ fn build_internal(
             }
             .into();
         }
-        frozen.verify()?;
+        for input in &frozen {
+            input.verify()?;
+        }
         let bytes = context.render(&plan, None, &artifacts, &inputs)?;
         let manifest = crate::manifest_files::write_atomic(&bundle, &bytes)?;
         Ok(Artifacts {

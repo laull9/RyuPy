@@ -2,19 +2,19 @@
 
 ## 当前执行计划：CPython provider 主线（2026-11-13）
 
-主代理本轮范围：规划、文档整理及清理历史的本地同步；下面开发项全部待做。
+当前范围：实施随包宿主、通用对象桥、显式provider分发与真实应用验收；逐项实测后登记。
 全历史生成产物清理和远端强推已完成，主工作区及其余有效 worktree 已同步，必要源码和手写输入保留。新排期依据
 [ADR-0181](docs/adr/0181-cpython-provider-first.md)；详细合同见
 [CPython provider 方案](docs/cpython-provider.md)，目录迁移见
 [仓库结构规划](docs/repository-layout-plan.md)。
 
-- [ ] **CP1a 随包宿主**：冻结 CPython 3.12.13 发行来源、GIL 构建、ABI/RID/许可证；
+- [~] **CP1a 随包宿主**：已冻结PBS20260623/CPython3.12.13、GIL、osx-arm64、来源和许可证；
   最小 shim、隔离初始化、搜索路径、关机状态机；JIT/NativeAOT、搬迁与缺库/错 ABI 负例。
-- [ ] **CP1b 通用对象桥**：provider 中性合同、所有权、身份/别名、模块代理、对象协议；
+- [~] **CP1b 通用对象桥**：provider 中性合同、所有权、身份/别名、模块代理、对象协议；
   异常身份与链、静态回调、线程重入、跨堆环和释放门。
-- [ ] **CP2 同程序迁移**：保留 `tests/aot/stdlib_service/app.py` 和必要包数据，预期由 CPython 即时生成，
+- [~] **CP2 同程序迁移**：保留 `tests/aot/stdlib_service/app.py` 和必要包数据，预期由 CPython 即时生成，
   切 CPython provider；CP/旧 provider/新 provider 对照，数据库独立检查，原位/搬迁/干净机。
-- [ ] **CP3 真实 NumPy**：锁定包与原生闭包；ndarray/dtype/视图、计算、编译回调、
+- [~] **CP3 真实 NumPy**：已固定NumPy2.3.5/cp312/macosx_14_0_arm64官方wheel，ndarray/dtype/视图、计算、编译回调、
   双向异常、生命周期、搬迁与缺依赖负例。
 - [ ] **默认兼容配置晋升**：CP1–CP3 全部门通过后切默认 CPython provider，保留显式
   纯 RyuPy 配置；固定 20 项增加 provider 维度，保留原始入口、版本与 native 结果。
@@ -22,6 +22,10 @@
   macOS/Linux/Windows 目标机与依赖闭包，standalone 后再推进 onefile。
 - [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
+
+验收驱动见 [tests/cpython](tests/cpython/README.md)：12个独立pending探针与原联合应用
+固定CPython基线通过，产品后端和生命周期门待验收。CPython/NumPy输入与所有测试产物均
+在仓库外；原_sqlite3内建于本轮PBS，独立缺扩展共享库负例列环境阻塞。
 
 ### 结构整理配套任务（后续开发竖切）
 

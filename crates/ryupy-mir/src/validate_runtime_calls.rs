@@ -20,7 +20,8 @@ pub(super) fn fixed_abi(callee: RuntimeFn) -> bool {
     }
     matches!(
         callee,
-        RuntimeFn::InstanceClassGuard
+        RuntimeFn::DynRichCompareValue
+            | RuntimeFn::InstanceClassGuard
             | RuntimeFn::InstanceClassCellGuard
             | RuntimeFn::InstanceRelativeImport
             | RuntimeFn::InstanceRelativeImportAttr
@@ -82,6 +83,14 @@ pub(super) fn validate_call(
         if *runtime == RuntimeFn::DynBinary && !valid_binary_opcode(args.first()) {
             errors.push(format!(
                 "函数 `{}` 的通用二元操作码必须为合法编译期i64常量",
+                func.name
+            ));
+        }
+        if *runtime == RuntimeFn::DynRichCompareValue
+            && !matches!(args.first(), Some(Operand::Const(Constant::I64(1..=6))))
+        {
+            errors.push(format!(
+                "函数 `{}` 的富比较操作码必须为1至6的编译期i64常量",
                 func.name
             ));
         }
@@ -155,7 +164,9 @@ pub(super) fn validate_call(
             | RuntimeFn::NumericListCanReadF64
             | RuntimeFn::NumericListReadF64
             | RuntimeFn::NumericListReadCheckedF64 => Some(&[MirType::Dynamic, MirType::Dynamic]),
-            RuntimeFn::DynBinary => Some(&[MirType::I64, MirType::Dynamic, MirType::Dynamic]),
+            RuntimeFn::DynBinary | RuntimeFn::DynRichCompareValue => {
+                Some(&[MirType::I64, MirType::Dynamic, MirType::Dynamic])
+            }
             RuntimeFn::PrintTarget | RuntimeFn::TraceCheckDepth => Some(&[]),
             RuntimeFn::CheckGlobalBound => Some(&[MirType::Bool, MirType::Str]),
             RuntimeFn::ClassNamespaceContains => Some(&[MirType::Dynamic, MirType::Str]),
@@ -448,6 +459,7 @@ pub(super) fn validate_eval(func: &Function, value: &Rvalue, errors: &mut Vec<St
                     | RuntimeFn::IsModule
                     | RuntimeFn::CallCapturedMethod
                     | RuntimeFn::DynBinary
+                    | RuntimeFn::DynRichCompareValue
                     | RuntimeFn::ClassNamespaceContains
                     | RuntimeFn::GeneratorInput
                     | RuntimeFn::GeneratorRetry

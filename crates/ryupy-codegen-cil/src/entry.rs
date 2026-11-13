@@ -9,6 +9,23 @@ use ryupy_mir::LinkedProgram;
 use crate::assembly::build_resolution;
 use crate::{CodegenError, EmitOptions};
 
+/// SystemExit 的入口专用 ABI 与其他异常处理共享运行时程序集身份。
+pub(crate) fn system_exit_refs(
+    res: &mut Resolution<'static>,
+    runtime: AssemblyRefIndex,
+    traceback: &MethodType,
+) -> (MethodType, MethodRefIndex) {
+    let exit = res.push_type_reference(ExternalTypeReference::new(
+        Some("RyuPy.Runtime".into()),
+        "PySystemExit",
+        ResolutionScope::Assembly(runtime),
+    ));
+    let exit: MethodType = BaseType::class(exit).into();
+    let code =
+        res.push_method_reference(method_ref! { static int @traceback::SystemExitCode(@exit) });
+    (exit, code)
+}
+
 /// 入口包装器：`try { __main(); return 0; } catch (PyBaseException e) { Report(e); return 1; }`。
 ///
 /// 这是 M2.2 的第一块：**未捕获异常必须按 Python 的方式退出**（stderr 上 traceback、
@@ -33,6 +50,7 @@ pub(crate) fn emit_entry_wrapper(
     source_name: &str,
     source_path: &str,
     trace_product: Option<MethodRefIndex>,
+    provider: Option<(&str, &crate::provider_refs::ProviderRefs)>,
 ) {
     // 指令布局（分支目标是**指令下标**）：
     //   0: ldstr source_name
@@ -93,7 +111,7 @@ pub(crate) fn emit_entry_wrapper(
     ];
     // V1根在固定系统初始化之后、任何用户定义初始化之前核验真实runtime ABI。
     // 旧产品不插入指令，不移动其原EH；V1同步平移全部leave与handler窗口。
-    let shift = if let Some(enter) = trace_product {
+    let mut shift = if let Some(enter) = trace_product {
         for instruction in &mut instructions {
             if let Instruction::Leave(target) = instruction {
                 *target += 2;
@@ -107,6 +125,26 @@ pub(crate) fn emit_entry_wrapper(
     } else {
         0
     };
+    // provider 在所有用户初始化之前启动；公共退出点关闭，四类退出路径共用同一租约。
+    if let Some((config, refs)) = provider {
+        for instruction in &mut instructions {
+            if let Instruction::Leave(target) = instruction {
+                *target += 3;
+            }
+        }
+        instructions.splice(
+            5..5,
+            [
+                Instruction::load_string(config),
+                Instruction::LoadArgument(0),
+                Instruction::call(refs.start),
+            ],
+        );
+        shift += 3;
+        // Finish 在 finally 中关闭宿主；刷新或关闭失败由同一 ABI 保留稳定退出诊断。
+        let finish = instructions.len() - 2;
+        instructions[finish] = Instruction::call(refs.finish);
+    }
     // 成功路径直接返回槽 0：with_locals 在真实 PE 方法头启用清零，
     // 不能仅依赖转储文本的 .locals init 或某个平台偶然为零的栈内容。
     let mut method_body = body::Method::with_locals(

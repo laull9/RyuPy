@@ -47,6 +47,8 @@ pub struct RuntimeRefs {
     // ── 动态值 ABI（ADR-0010）──
     pub dyn_binary: MethodRefIndex,
     pub dyn_compare: MethodRefIndex,
+    /// 独立的 object 返回富比较 ABI；条件位置仍单独调用 Truthy。
+    pub dyn_rich_compare_value: MethodRefIndex,
     pub dyn_unary: MethodRefIndex,
     pub pic_binary: MethodRefIndex,
     pub call_value: MethodRefIndex,

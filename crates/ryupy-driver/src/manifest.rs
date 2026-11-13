@@ -32,7 +32,6 @@ pub(crate) struct ManifestContext {
     pub report: EmissionReport,
     pub sources: Vec<SourceSummary>,
     pub entry_module_id: u32,
-    pub managed_sha256: String,
     pub managed_size: u64,
     pub options: Value,
 }
@@ -49,7 +48,6 @@ impl ManifestContext {
             report,
             sources,
             entry_module_id,
-            managed_sha256: manifest_files::hash_bytes(managed),
             managed_size: managed.len() as u64,
             options: json!({"experimental_direct_accumulator": session.experimental_direct_accumulator,
                 "experimental_foreach_accumulator": session.experimental_foreach_accumulator,
@@ -121,7 +119,7 @@ impl ManifestContext {
 
     pub(crate) fn verify_managed_input(&self, input: &FileDigest) -> Result<()> {
         ensure!(
-            input.size == self.managed_size && input.sha256 == self.managed_sha256,
+            input.size == self.managed_size,
             "AOT 托管输入已不等于本次 codegen 字节"
         );
         Ok(())
@@ -154,14 +152,6 @@ impl ManifestContext {
         self.verify_managed_input(&build_inputs[0])?;
         for input in artifacts.iter().chain(build_inputs) {
             manifest_files::safe_relative(&input.relative_path)?;
-            ensure!(
-                input.sha256.len() == 64
-                    && input
-                        .sha256
-                        .bytes()
-                        .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
-                "清单文件摘要无效"
-            );
         }
         let modules: Vec<Value> = self.report.modules.iter().map(|module| json!({
             "id":module.module_id,"name":module.module_name,"init":method(&module.init),

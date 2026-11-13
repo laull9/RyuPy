@@ -79,6 +79,7 @@ public sealed class PyIter : IPyIterator
     /// <param name="source">可迭代对象。</param>
     public static IPyIterator Create(object? source) => source switch
     {
+        IPyForeignObject foreign => foreign.Iterate(),
         null or PyNone => throw NotIterable(source),
         PyList list => new PyIter(list, 0, null, null),
         PyTuple tuple => new PyIter(tuple, 0, null, null),

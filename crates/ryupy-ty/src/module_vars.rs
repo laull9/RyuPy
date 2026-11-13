@@ -308,7 +308,22 @@ pub(crate) fn expr_hint(
                 }
             }
         }
-        ExprKind::Compare { .. } => Some(Ty::Bool),
+        ExprKind::Compare { op, lhs, rhs } => {
+            // 身份/成员测试固定返回 bool；富比较只在精确静态操作数可证明时固定槽类型。
+            // ndarray 或用户 __lt__ 的原始返回对象必须保留到条件位置才求真。
+            if matches!(
+                op,
+                ryupy_hir::CmpOp::Is
+                    | ryupy_hir::CmpOp::IsNot
+                    | ryupy_hir::CmpOp::In
+                    | ryupy_hir::CmpOp::NotIn
+            ) {
+                return Some(Ty::Bool);
+            }
+            let left = expr_hint(module, body, *lhs, hints)?;
+            let right = expr_hint(module, body, *rhs, hints)?;
+            Some(crate::ops::check_cmp_op(*op, &left, &right).unwrap_or(Ty::Dynamic))
+        }
         ExprKind::BoolOp { lhs, rhs, .. } => {
             let a = expr_hint(module, body, *lhs, hints)?;
             let b = expr_hint(module, body, *rhs, hints)?;

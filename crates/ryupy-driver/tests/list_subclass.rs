@@ -1,4 +1,4 @@
-//! 真实list派生载体三份公开入口应用；CP-first冻结原源/双流，默认协议与根raw边界独立验收。
+//! 真实list派生载体三份公开入口应用；固定 CPython 同次差分，默认协议与根raw边界独立验收。
 #[path = "list_subclass_support/mod.rs"]
 mod support;
 
@@ -17,8 +17,7 @@ fn list_subclass_construction_methods() {
             "list-subclass.in-place-identity",
             "list-subclass.foreign-reflection",
         ],
-        include_bytes!("../../../tests/fixtures/list_subclass/golden/construction_methods.stdout"),
-        None,
+        false,
     );
 }
 
@@ -36,8 +35,7 @@ fn list_subclass_alias_override() {
             "list-subclass.partial-mutation",
             "list-subclass.capture-before-yield",
         ],
-        include_bytes!("../../../tests/fixtures/list_subclass/golden/alias_override.stdout"),
-        None,
+        false,
     );
 }
 
@@ -49,9 +47,6 @@ fn list_subclass_errors_chain() {
         "errors_chain.py",
         include_str!("../../../tests/fixtures/list_subclass/errors_chain.py"),
         &labels,
-        include_bytes!("../../../tests/fixtures/list_subclass/golden/errors_chain.stdout"),
-        Some(include_str!(
-            "../../../tests/fixtures/list_subclass/golden/errors_chain.trace"
-        )),
+        true,
     );
 }

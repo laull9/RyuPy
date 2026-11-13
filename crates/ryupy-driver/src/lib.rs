@@ -8,6 +8,9 @@
 //! ```
 
 mod accumulator_options;
+mod cpython_jit;
+mod cpython_provider;
+pub use cpython_provider::CPythonProviderState;
 mod aot;
 mod aot_layout;
 mod binding_build;
@@ -273,6 +276,10 @@ pub fn build_configured(
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
     anyhow::ensure!(
+        binding.is_none() || sess.cpython_provider.is_none(),
+        "CPython provider 与固定 C ABI 入口需分别声明构建"
+    );
+    anyhow::ensure!(
         resources.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
     );
@@ -304,6 +311,11 @@ pub fn build_with_resources(
             build_with_resources_inner(sess, inner, resource_request, Some(owned))
         });
     }
+    if sess.cpython_provider.is_some() {
+        return cpython_jit::build(opts, |inner| {
+            build_with_resources_inner(sess, inner, resource_request, None)
+        });
+    }
     build_with_resources_inner(sess, opts, resource_request, None)
 }
 
@@ -315,6 +327,7 @@ fn build_with_resources_inner(
 ) -> Result<Artifacts> {
     let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     aot::validate_before_build(&opts.input, opts.aot)?;
+    cpython_provider::prepare(sess)?;
     // 每次请求显式重置，不从前次成功/失败会话继承默认AOT权限。
     sess.default_source_state.aot_request =
         default_aot::eligible(sess, opts.aot, resource_request.is_some());
@@ -380,6 +393,7 @@ fn build_with_resources_inner(
     distribution_metadata::write_report(sess, &opts.out_dir)?;
     optional_sources::write_report(sess, &opts.out_dir)?;
     runtime::copy_runtime_to(&opts.out_dir)?;
+    cpython_provider::stage(sess, &opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 
     let (native_exe, manifest) = if let Some(context) = context {

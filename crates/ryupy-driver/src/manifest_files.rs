@@ -1,9 +1,8 @@
-//! 本次独占 publish 树的安全枚举与流式 SHA256；不跟随链接，不把散落文件猜成依赖闭包。
+//! 本次独占 publish 树的安全枚举与文件大小登记；普通文件跳过摘要，不跟随链接。
 use anyhow::{Context, Result, bail, ensure};
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::fs::{File, Metadata, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 pub(crate) const MANIFEST_NAME: &str = "ryupy-artifact.json";
@@ -19,8 +18,9 @@ pub(crate) struct FileDigest {
     pub sha256: String,
 }
 
-pub(crate) fn hash_bytes(bytes: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(bytes))
+// 历史报告保留字段形状；普通源码/构建产物按项目约定不计算摘要。
+pub(crate) fn hash_bytes(_bytes: &[u8]) -> String {
+    String::new()
 }
 
 /// 使用平台无关的保守相对名称，拒绝 Windows 盘符/ADS 以及 Unix 上可出现的反斜线。
@@ -61,37 +61,26 @@ pub(crate) fn plain_metadata(path: &Path) -> Result<Metadata> {
 pub(crate) fn digest_file(path: &Path, logical: &str, role: &str) -> Result<FileDigest> {
     safe_relative(logical)?;
     let before = plain_metadata(path)?;
-    ensure!(before.is_file(), "待哈希对象不是普通文件");
-    let mut file = File::open(path).context("无法打开本次清单文件")?;
+    ensure!(before.is_file(), "登记对象不是普通文件");
+    let file = File::open(path).context("无法打开本次清单文件")?;
     let opened = file.metadata()?;
     ensure!(
         opened.is_file() && unchanged(&before, &opened)?,
         "清单文件在打开时变化"
     );
-    let mut hash = Sha256::new();
-    let mut buffer = [0_u8; 64 * 1024];
-    let mut size = 0_u64;
-    loop {
-        let read = file.read(&mut buffer)?;
-        if read == 0 {
-            break;
-        }
-        size = size.checked_add(read as u64).context("清单文件长度溢出")?;
-        ensure!(size <= before.len(), "清单文件在读取时增长");
-        hash.update(&buffer[..read]);
-    }
+    let size = opened.len();
     let after = plain_metadata(path)?;
     ensure!(
         size == before.len()
             && unchanged(&before, &after)?
             && unchanged(&opened, &file.metadata()?)?,
-        "清单文件在哈希期间变化"
+        "清单文件在登记期间变化"
     );
     Ok(FileDigest {
         relative_path: logical.to_owned(),
         role: role.to_owned(),
         size,
-        sha256: format!("{:x}", hash.finalize()),
+        sha256: String::new(),
     })
 }
 

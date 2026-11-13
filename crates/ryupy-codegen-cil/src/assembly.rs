@@ -97,6 +97,7 @@ fn build_resolution_core(
         clr_exc_type,
     } = extras;
 
+    let provider_refs = crate::provider_refs::ProviderRefs::for_program(&mut res, program);
     let binding_refs = (!bindings.is_empty()).then(|| {
         crate::fixed_binding_refs::BindingRefs::build(&mut res, sys_runtime, ryupy_runtime)
     });
@@ -547,15 +548,8 @@ fn build_resolution_core(
 
     // 包装器最后生成：需要 `__run_main` 的方法下标
     {
-        let py_system_exit_ref = res.push_type_reference(ExternalTypeReference::new(
-            Some("RyuPy.Runtime".into()),
-            "PySystemExit",
-            ResolutionScope::Assembly(ryupy_runtime),
-        ));
-        let py_system_exit_type: MethodType = BaseType::class(py_system_exit_ref).into();
-        let system_exit_code = res.push_method_reference(
-            method_ref! { static int @traceback_type::SystemExitCode(@py_system_exit_type) },
-        );
+        let (py_system_exit_type, system_exit_code) =
+            crate::entry::system_exit_refs(&mut res, ryupy_runtime, &traceback_type);
         emit_entry_wrapper(
             &mut res,
             wrapper,
@@ -576,6 +570,10 @@ fn build_resolution_core(
                 .as_deref()
                 .unwrap_or(&program.modules[program.entry].file),
             runtime_refs.trace_product.as_ref().map(|refs| refs.enter),
+            program
+                .external_provider
+                .as_deref()
+                .zip(provider_refs.as_ref()),
         );
     }
 

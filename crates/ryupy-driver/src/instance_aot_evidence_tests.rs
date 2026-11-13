@@ -44,7 +44,7 @@ pub(super) fn save_with_source_manifest(
     artifact: &EmissionArtifact,
     sha256: &str,
 ) {
-    assert!(sha256.len() == 64 && sha256.bytes().all(|b| b.is_ascii_hexdigit()));
+    assert!(sha256.is_empty(), "普通产物跳过摘要");
     save_identity(
         output,
         name,

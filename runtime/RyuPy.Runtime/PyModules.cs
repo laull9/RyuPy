@@ -197,6 +197,7 @@ public static partial class PyModules
     {
         EnsureRegistrationAvoidsCacheAliases(name);
         Registry[name] = new Registration(package, file, init, get, set);
+        PyProvider.Current?.Registered(name);
     }
 
     /// <summary>登记原生模块属性；对象缓存与普通编译模块共享，属性写入保持实时可见。</summary>
@@ -214,10 +215,12 @@ public static partial class PyModules
     {
         EnsureRegistrationAvoidsCacheAliases(name);
         Registry[name] = new Registration(package, file, init, get, set, nativeRegistration: true);
+        PyProvider.Current?.Registered(name);
     }
 
     internal static Dictionary<string, PyModule> CacheSnapshot() => new(Cache, StringComparer.Ordinal);
-    internal static bool TryCached(string name, out PyModule? module) => Cache.TryGetValue(name, out module);
+    /// <summary>读取已有Runtime模块缓存；供入口组合获取初始化前的argv来源。</summary>
+    public static bool TryCached(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PyModule? module) => Cache.TryGetValue(name, out module);
 
     /// <summary>导入模块；已缓存或正在初始化时直接返回现有对象。</summary>
     /// <remarks>
@@ -227,6 +230,7 @@ public static partial class PyModules
     /// </remarks>
     public static PyModule Import(string name)
     {
+        if (PyProvider.Current is { } provider && provider.Owns(name)) return provider.Import(name);
         if (Cache.TryGetValue(name, out var cached))
         {
             return cached;
@@ -286,6 +290,7 @@ public static partial class PyModules
         module.State = 1;
         try
         {
+            PyProvider.Current?.Initializing(module);
             module.RunInit();
             module.State = 2;
         }
@@ -293,6 +298,7 @@ public static partial class PyModules
         {
             // 失败模块不能留在缓存里；已经成功导入的依赖保留。
             if (Cache.TryGetValue(name, out var current) && ReferenceEquals(current, module)) Cache.Remove(name);
+            PyProvider.Current?.Failed(name);
             throw;
         }
 
@@ -322,7 +328,7 @@ public static partial class PyModules
             }
         }
         var submodule = moduleName + "." + name;
-        if (Registry.ContainsKey(submodule) || CandidateRoots.Contains(submodule) || ActiveUnavailable.ContainsKey(submodule))
+        if (PyProvider.Current?.Owns(submodule) == true || Registry.ContainsKey(submodule) || CandidateRoots.Contains(submodule) || ActiveUnavailable.ContainsKey(submodule))
         {
             PyModule? imported = null;
             try { imported = Import(submodule); }

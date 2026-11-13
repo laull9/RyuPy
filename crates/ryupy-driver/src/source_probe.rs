@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 /// 与 build 使用相同策略门和搜索根；调用方可显式选择报告输出目录。
 pub fn probe_sources(sess: &mut Session, opts: &BuildOptions) -> Result<String> {
+    crate::cpython_provider::prepare(sess)?;
     ensure!(!sess.fixed_binding_build, "固定绑定构建使用自身来源合同");
     // 探测是独立事务，不能抹掉同一 Session 原有的来源计划和权限载体。
     let previous_state = std::mem::take(&mut sess.default_source_state);
@@ -68,7 +69,10 @@ pub(crate) fn analyze(
             && detected_user.is_none()
             && name.contains('.')
             && crate::modules::resolve_in(roots, top).is_some();
-        let mut record = if let Some(source) = loaded.get(name.as_str()) {
+        let cpython = crate::cpython_provider::selected(sess, &name);
+        let mut record = if cpython {
+            json!({"provider": "cpython", "status": "provider_selected", "version": "3.12.13", "reason": "显式CPython依赖族；源码与扩展由随包导入器加载", "dependencies": [], "dependency_coverage": "完整基础发行及显式包载荷"})
+        } else if let Some(source) = loaded.get(name.as_str()) {
             let catalog = source.catalog.is_some();
             json!({
                 "provider": if catalog { "cpython_source" } else { "user_source" },
@@ -111,7 +115,9 @@ pub(crate) fn analyze(
             json!({"provider": null, "status": "dependency_missing",
                 "reason": "显式搜索根、已准入 catalog 和 C# 注册表均无本次 provider", "dependencies": []})
         };
-        let scan = if let Some(source) = loaded.get(name.as_str()) {
+        let scan = if cpython {
+            None
+        } else if let Some(source) = loaded.get(name.as_str()) {
             Some(source_scan::collect(&source.parsed, &source.package))
         } else if let Some((path, _)) = &detected_user {
             // 未选源码只在局部数据库解析；包括星号导入和未准入 catalog 的用户依赖。

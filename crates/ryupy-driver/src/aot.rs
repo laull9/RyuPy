@@ -21,11 +21,14 @@ mod work_paths;
 
 /// 在 build 的任何产物写入之前调用。运行时保留名对 JIT 同样适用，避免 DLL 被覆盖。
 pub(crate) fn validate_before_build(input: &Path, aot: bool) -> Result<()> {
-    if input.file_stem().is_some_and(|name| {
-        name.to_string_lossy()
-            .eq_ignore_ascii_case(RUNTIME_ASSEMBLY)
-    }) {
-        bail!("输入程序集名 RyuPy.Runtime 为运行时保留名，不能生成同名产物");
+    if let Some(name) = input.file_stem() {
+        let name = name.to_string_lossy();
+        if [RUNTIME_ASSEMBLY, "RyuPy.CPython"]
+            .iter()
+            .any(|reserved| name.eq_ignore_ascii_case(reserved))
+        {
+            bail!("输入程序集名 {name} 为运行时保留名，不能生成同名产物");
+        }
     }
     if aot {
         validate_platform()?;
@@ -61,7 +64,7 @@ fn literal(value: &str) -> String {
     escaped
 }
 
-fn path_literal(path: &Path) -> Result<String> {
+pub(crate) fn path_literal(path: &Path) -> Result<String> {
     let text = path
         .to_str()
         .context("AOT 项目引用路径必须可表示为 UTF-8")?;
@@ -230,6 +233,11 @@ impl AotManifest<'_> {
             Self::Binding(c, plan) => {
                 let mut inputs = inputs.to_vec();
                 inputs.push(plan.input.digest.clone());
+                inputs.extend(
+                    plan.dependencies
+                        .iter()
+                        .map(|(_, input)| input.digest.clone()),
+                );
                 c.render(plan, Some(sdk), artifacts, &inputs)
             }
         }
@@ -315,7 +323,7 @@ fn publish_owned(
     // SDK只见已完成资源快照；冻结失败由外层按高层留证/低层清理策略处理。
     let staged = resources.map(|plan| plan.stage(root)).transpose()?;
     let archive = match context {
-        Some(AotManifest::Binding(_, plan)) => {
+        Some(AotManifest::Binding(_, plan)) if !plan.dynamic => {
             Some(plan.input.freeze(&root.join("binding-static.a"))?)
         }
         _ => None,
@@ -347,6 +355,7 @@ fn publish_owned(
         &sdk_runtime,
         context.map(|_| sdk_record_path.as_path()),
     )?;
+    project_text = crate::cpython_provider::extend_project(project_text, runtime)?;
     if let (Some(AotManifest::Binding(_, plan)), Some(archive)) = (context, &archive) {
         let path = path_literal(&sdk_paths::sdk_path(&archive.path)?)?;
         // 同一archive只登记一次，每个实际符号精确DirectPInvoke；显式别名去重。
@@ -415,6 +424,10 @@ fn publish_owned(
             String::from_utf8_lossy(&output.stderr)
         );
     }
+    let shared = match context {
+        Some(AotManifest::Binding(_, plan)) if plan.dynamic => plan.stage_shared(&publish)?,
+        _ => Vec::new(),
+    };
     let checked = (|| -> Result<Publication> {
         if context.is_some() {
             anyhow::ensure!(
@@ -455,9 +468,21 @@ fn publish_owned(
             if let Some(staged) = &staged {
                 staged.publish(&publish)?;
             }
+            crate::cpython_provider::publish(
+                runtime.parent().context("运行时缺父目录")?,
+                &publish,
+            )?;
             let mut artifacts = crate::manifest_files::collect(&publish, &executable)?;
             if let Some(staged) = &staged {
                 staged.mark_artifacts(&mut artifacts)?;
+            }
+            if let AotManifest::Binding(_, plan) = context {
+                if plan.dynamic {
+                    plan.mark_shared(&mut artifacts);
+                }
+            }
+            for input in &shared {
+                input.verify()?;
             }
             if let Some(archive) = &archive {
                 archive.verify()?;

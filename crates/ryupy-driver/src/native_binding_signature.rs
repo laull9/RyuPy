@@ -113,3 +113,20 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod unsupported_tests {
+    use super::parse;
+    use serde_json::json;
+
+    #[test]
+    fn complex_abi_requires_an_explicit_adapter() {
+        // 这些布局与生命周期需要独立合同；不能误当整数或隐式缓冲封送。
+        for kind in ["pointer", "struct", "callback", "owned_bytes", "handle"] {
+            let value = json!({"calling_convention":"cdecl", "parameters":[
+                {"name":"value", "type":kind}], "returns":"i32"});
+            let error = parse(&value).unwrap_err().to_string();
+            assert!(error.contains("不支持的C ABI参数类型"), "{kind}: {error}");
+        }
+    }
+}

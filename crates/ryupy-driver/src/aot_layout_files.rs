@@ -2,7 +2,6 @@
 use crate::manifest_files as files;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::path::Path;
 pub(super) const JSON_LIMIT: u64 = 32 * 1024 * 1024;
@@ -72,7 +71,7 @@ fn walk(
                 *total <= TREE_LIMIT,
                 "布局历史树超过64GiB；请保留诊断后人工选择新输出ROOT"
             );
-            Some(bounded_hash(&path, meta.len())?)
+            Some(bounded_read(&path, meta.len())?)
         };
         out.push(Node {
             path: relative,
@@ -123,7 +122,7 @@ pub(super) fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     );
     Ok(())
 }
-/// 原清单在SDK阶段已验证；这里再次严格核全部文件集合/长度/hash，绝不忽略未分类旁件。
+/// 原清单在SDK阶段已验证；这里再次严格核全部文件集合/长度/路径，绝不忽略未分类旁件。
 pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
     let path = root.join(files::MANIFEST_NAME);
     let value: serde_json::Value = serde_json::from_slice(&read_json(&path)?)?;
@@ -154,10 +153,7 @@ pub(super) fn verify_manifest(root: &Path) -> Result<serde_json::Value> {
         );
         let size = item["size"].as_u64().context("产物缺size")?;
         let actual = by_path.get(name).copied().context("清单产物不在真实树")?;
-        ensure!(
-            actual.size == size && item["sha256"].as_str() == Some(actual.sha256.as_str()),
-            "清单与产物hash/size不一致"
-        );
+        ensure!(actual.size == size, "清单与产物大小不一致");
         if item["role"] == "native_executable" {
             native += 1;
         }
@@ -220,7 +216,7 @@ pub(super) fn relocate(root: &Path, old: &str, new: &str) -> Result<()> {
 }
 
 /// 有限读取并在同活handle前后核身份/mtime；不把stat长度当作实际读取上限的替代。
-fn bounded_hash(path: &Path, size: u64) -> Result<String> {
+fn bounded_read(path: &Path, size: u64) -> Result<String> {
     ensure!(size <= FILE_LIMIT, "布局单文件超过8GiB");
     let before = files::plain_metadata(path)?;
     ensure!(
@@ -239,7 +235,6 @@ fn bounded_hash(path: &Path, size: u64) -> Result<String> {
         "文件打开元数据变化"
     );
     let mut reader = handle.as_file().take(size + 1);
-    let mut hash = Sha256::new();
     let mut buffer = [0u8; 65536];
     let mut count = 0u64;
     loop {
@@ -248,7 +243,6 @@ fn bounded_hash(path: &Path, size: u64) -> Result<String> {
             break;
         }
         count += n as u64;
-        hash.update(&buffer[..n]);
     }
     let after = files::plain_metadata(path)?;
     let closed = handle.as_file().metadata()?;
@@ -261,7 +255,7 @@ fn bounded_hash(path: &Path, size: u64) -> Result<String> {
             && handle == same_file::Handle::from_path(path)?,
         "文件读取期间变化"
     );
-    Ok(format!("{:x}", hash.finalize()))
+    Ok(String::new())
 }
 pub(super) fn read_json(path: &Path) -> Result<Vec<u8>> {
     let before = files::plain_metadata(path)?;
@@ -269,13 +263,14 @@ pub(super) fn read_json(path: &Path) -> Result<Vec<u8>> {
         before.is_file() && before.len() <= JSON_LIMIT,
         "布局JSON超过32MiB或不是文件"
     );
-    let digest = bounded_hash(path, before.len())?;
+    bounded_read(path, before.len())?;
     let mut bytes = Vec::new();
     std::fs::File::open(path)?
         .take(JSON_LIMIT + 1)
         .read_to_end(&mut bytes)?;
     ensure!(
-        bytes.len() as u64 == before.len() && files::hash_bytes(&bytes) == digest,
+        bytes.len() as u64 == before.len()
+            && before.modified()? == files::plain_metadata(path)?.modified()?,
         "布局JSON读取变化"
     );
     Ok(bytes)

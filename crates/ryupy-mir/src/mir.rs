@@ -43,6 +43,8 @@ pub struct Program {
 /// 合并后的程序：所有可达模块 + 入口模块。
 #[derive(Debug)]
 pub struct LinkedProgram {
+    /// driver 冻结的外部运行时 provider 配置相对位置；后端只组合显式宿主，不发现依赖。
+    pub external_provider: Option<String>,
     /// 仅冷注册消费；候选不进入活动导入表，不能成为跨模块绑定证明。
     pub candidate_modules: Vec<String>,
     pub optional_sources: Option<String>,

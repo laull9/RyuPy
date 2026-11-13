@@ -7,6 +7,10 @@ use std::path::{Path, PathBuf};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 显式冻结 CPython 执行域及基础发行；不从环境或系统解释器隐式选择。
+    pub cpython_provider: Option<PathBuf>,
+    #[doc(hidden)]
+    pub cpython_provider_state: crate::CPythonProviderState,
     /// 不透明编排状态；公开字段保留既有Session结构更新语法，内部authority不可外部构造。
     #[doc(hidden)]
     pub default_source_state: crate::DefaultSourceState,

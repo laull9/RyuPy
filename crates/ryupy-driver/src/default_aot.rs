@@ -13,7 +13,8 @@ pub(crate) struct Audit {
     pub manifest: Value,
 }
 pub(crate) fn eligible(sess: &Session, aot: bool, _resources: bool) -> bool {
-    aot && (!sess.fixed_binding_build || sess.default_source_state.binding_catalog)
+    aot && sess.cpython_provider.is_none()
+        && (!sess.fixed_binding_build || sess.default_source_state.binding_catalog)
         && sess.module_environment_policy != ModuleEnvironmentPolicy::ExplicitOnly
         && sess.instance_modules.is_empty()
         && sess.include_modules.is_empty()

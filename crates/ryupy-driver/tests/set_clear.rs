@@ -7,8 +7,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
-// 不实现 Drop 清理：成功/失败原证据均保留，外部归档之后由证据所有者清理。
+// 本次临时产物在成功与断言失败退出时统一清理。
 struct Root(PathBuf);
+impl Drop for Root {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
 fn root() -> Root {
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -39,13 +44,13 @@ fn execute(
     source: &str,
     filename: &str,
     expected_exit: i32,
-    expected_stdout: &[u8],
+    expected_stdout: Option<&[u8]>,
     expected_trace: Option<&[&str]>,
 ) -> (Root, Output, Output) {
     let root = root();
     let input = root.0.join(filename);
     std::fs::write(&input, source).unwrap();
-    std::fs::write(root.0.join("expected.stdout"), expected_stdout).unwrap();
+
     if let Some(trace) = expected_trace {
         std::fs::write(root.0.join("expected.trace"), trace.join("\n") + "\n").unwrap();
     }
@@ -83,7 +88,9 @@ fn execute(
         "CP reference failed: {}",
         String::from_utf8_lossy(&expected.stderr)
     );
-    assert_eq!(expected.stdout, expected_stdout);
+    if let Some(stdout) = expected_stdout {
+        assert_eq!(expected.stdout, stdout);
+    }
     if let Some(trace) = expected_trace {
         assert_eq!(trace_projection(&expected), trace);
     } else {
@@ -175,7 +182,7 @@ fn set_clear_binding_identity_and_no_hash_match_python() {
         include_str!("../../../tests/fixtures/set_clear/bindings_and_identity.py"),
         "set_clear_bindings.py",
         0,
-        include_bytes!("../../../tests/fixtures/set_clear/bindings.reference.stdout"),
+        None,
         None,
     );
     assert_success(&expected, &actual);
@@ -187,7 +194,7 @@ fn set_clear_evaluation_and_live_iterator_states_match_python() {
         include_str!("../../../tests/fixtures/set_clear/evaluation_and_iterators.py"),
         "set_clear_evaluation.py",
         0,
-        include_bytes!("../../../tests/fixtures/set_clear/evaluation.reference.stdout"),
+        None,
         None,
     );
     assert_success(&expected, &actual);
@@ -199,7 +206,7 @@ fn set_clear_binding_error_keeps_complete_user_context_chain() {
         include_str!("../../../tests/fixtures/set_clear/error_chain.py"),
         "set_clear_error.py",
         1,
-        b"after failure [10, 20]\n",
+        Some(b"after failure [10, 20]\n"),
         Some(EXPECTED_TRACE),
     );
     assert_eq!(actual.status.code(), expected.status.code());

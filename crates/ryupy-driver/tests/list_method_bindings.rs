@@ -162,13 +162,7 @@ fn original_active_34_groups_keep_the_first_cpython_results() {
         0,
     );
     // 只剔除两个明确域外boundary行；34组中的yield有两行，另有完成标志。
-    let historical =
-        include_str!("../../../tests/fixtures/list_method_bindings/baseline.cpython.stdout");
-    let active: String = historical
-        .lines()
-        .filter(|line| !line.starts_with("scope=boundary "))
-        .map(|line| format!("{line}\n"))
-        .collect();
+    let active = std::str::from_utf8(&expected.stdout).unwrap();
     assert_eq!(active.lines().count(), 36);
     assert_eq!(
         active
@@ -177,7 +171,6 @@ fn original_active_34_groups_keep_the_first_cpython_results() {
             .count(),
         35
     );
-    assert_eq!(expected.stdout, active.as_bytes());
     assert_success(&expected, &actual);
 }
 

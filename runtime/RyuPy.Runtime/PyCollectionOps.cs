@@ -54,6 +54,7 @@ public static partial class PyOps
     /// <param name="value">新值。</param>
     public static void SetItem(object? obj, object? key, object? value)
     {
+        if (obj is IPyForeignObject foreign) { foreign.WriteItem(key, value, false); return; }
         switch (obj)
         {
             case PyList list:
@@ -151,6 +152,7 @@ public static partial class PyOps
     /// <param name="value">容器或字符串。</param>
     public static long Len(object? value) => value switch
     {
+        IPyForeignObject foreign => foreign.Length(),
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Length(cls),
         PyList list => list.Count,
         PyTuple tuple => tuple.Length,

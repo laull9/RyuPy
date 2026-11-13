@@ -1,4 +1,4 @@
-//! 通用str.partition/rpartition的三个实际应用；CP先自证冻结golden，再独立构建与JIT。
+//! 通用str.partition/rpartition的三个实际应用；固定 CPython 同次生成预期，再独立构建与JIT。
 //! __dict__反射设置和D009相邻独立代理拼接单独pending，不注册为本切支持。
 #[path = "string_partition_support/mod.rs"]
 mod support;
@@ -25,7 +25,6 @@ fn string_partition_fields() {
             "nul",
             "fields-ok",
         ],
-        include_bytes!("../../../tests/cases/string_partition/fields/golden.stdout"),
     );
 }
 
@@ -107,7 +106,6 @@ fn string_partition_identity_unicode() {
             "rpartition-unicode-maximum",
             "identity-unicode-ok",
         ],
-        include_bytes!("../../../tests/cases/string_partition/identity_unicode/golden.stdout"),
     );
 }
 
@@ -207,6 +205,5 @@ fn string_partition_binding() {
             "rpartition-saved-builtin",
             "binding-ok",
         ],
-        include_bytes!("../../../tests/cases/string_partition/binding/golden.stdout"),
     );
 }

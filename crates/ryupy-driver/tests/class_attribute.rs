@@ -15,7 +15,6 @@ fn class_attribute_identity() {
             "roots",
             "version-invalidation",
         ],
-        include_bytes!("../../../tests/cases/class_attribute/identity/golden.stdout"),
     );
 }
 
@@ -32,7 +31,6 @@ fn class_attribute_lookup() {
             "class-binding",
             "nearest-item",
         ],
-        include_bytes!("../../../tests/cases/class_attribute/lookup/golden.stdout"),
     );
 }
 
@@ -42,6 +40,5 @@ fn class_attribute_errors() {
         "errors.py",
         include_str!("../../../tests/cases/class_attribute/errors/entry.py"),
         &["value-error", "attribute-error", "no-getter"],
-        include_bytes!("../../../tests/cases/class_attribute/errors/golden.stdout"),
     );
 }

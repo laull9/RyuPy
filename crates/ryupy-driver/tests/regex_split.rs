@@ -1,4 +1,4 @@
-//! 通用re.split / Pattern.split三个实际应用；CP先自证冻结golden，再独立构建与JIT。
+//! 通用re.split / Pattern.split三个实际应用；固定 CPython 同次生成预期，再独立构建与JIT。
 //! 宽/非连续buffer、匿名父view回收、继承index、警告与旧flags独立pending，不注册此验收。
 #[path = "regex_split_support/mod.rs"]
 mod support;
@@ -62,7 +62,6 @@ fn regex_split_tokens() {
             "unicode",
             "flags",
         ],
-        include_bytes!("../../../tests/cases/regex_split/tokens/golden.stdout"),
     );
 }
 
@@ -91,7 +90,6 @@ fn regex_split_buffers() {
             "domain-error",
             "error-release",
         ],
-        include_bytes!("../../../tests/cases/regex_split/buffers/golden.stdout"),
     );
 }
 
@@ -137,6 +135,5 @@ fn regex_split_binding() {
             "unknown-before-duplicate",
             "duplicate-before-unknown",
         ],
-        include_bytes!("../../../tests/cases/regex_split/binding/golden.stdout"),
     );
 }

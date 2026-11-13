@@ -93,6 +93,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         exports: vec![],
     });
     let program = LinkedProgram {
+        external_provider: None,
         candidate_modules: Vec::new(),
         metadata_unavailable: None,
         optional_sources: None,

@@ -7,6 +7,7 @@ public static partial class PyOps
 {
     private static bool MatchesType(object? value, object? type) => type switch
     {
+        IPyForeignObject foreign => foreign.IsInstanceOf(PyType.Get("type")) ? foreign.Accepts(value) : throw new PyTypeError("isinstance() arg 2 must be a type"),
         PyTypingForm { Name: "NoReturn" } => PyTypingNoReturn.RejectCheck(subclass: false),
         PyTypingForm { Name: "ClassVar" } => PyTypingClassVar.RejectRootCheck(subclass: false),
         PyTypingAlias { Name: "ClassVar" } => PyTypingGeneric.RejectRuntimeAlias(),
@@ -28,6 +29,7 @@ public static partial class PyOps
     /// <summary>内建类型名匹配：覆盖 bool/int 子类型、用户异常链与容器。</summary>
     private static bool MatchesBuiltin(object? value, string expected) => value switch
     {
+        IPyForeignObject foreign => foreign.IsInstanceOf(PyType.Get(expected)),
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOfBuiltin(expected)
             : PyExceptionHierarchy.IsSubclass(exception.PyTypeName, expected),

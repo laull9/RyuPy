@@ -144,6 +144,7 @@ public static partial class PyModules
         Registry[name] = new Registration(package, diagnosticFile, () => { },
             _ => throw new PyRuntimeError("instance code has no singleton globals"), SetDynamic,
             resolved, true, new ResourceLocation(isPackage, locationKind, resolved), true, code);
+        PyProvider.Current?.Registered(name);
     }
     internal static PyModule CreateRegisteredInstance(string name)
     {

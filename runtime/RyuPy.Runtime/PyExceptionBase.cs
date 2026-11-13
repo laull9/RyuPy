@@ -21,6 +21,9 @@ public class PyBaseException : Exception
     // 构造期不读取scope；首次真实Source成功后才发布。
     internal TraceAdapterBinding? TraceAdapterBinding;
 #endif
+    /// <summary>外部执行域保留的真实异常实例协议；纯原生异常为空。</summary>
+    public IPyForeignObject? ForeignObject { get; set; }
+
     /// <summary>Python 异常类名，例如 <c>TypeError</c>。</summary>
     public string PyTypeName { get; }
 

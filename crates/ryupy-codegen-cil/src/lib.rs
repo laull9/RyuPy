@@ -29,6 +29,7 @@ mod class_cell_tests;
 mod distribution_metadata;
 #[cfg(test)]
 mod dynamic_origin_tests;
+mod dynamic_value_refs;
 #[cfg(test)]
 mod emission_report_tests;
 mod function_refs;
@@ -42,6 +43,7 @@ mod locals_refs;
 mod modules;
 mod origin_refs;
 mod owned_function_refs;
+mod provider_refs;
 mod refs;
 pub mod runtimeconfig;
 mod source_provenance;

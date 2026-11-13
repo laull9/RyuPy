@@ -49,6 +49,7 @@ public static partial class PyObject
     /// <param name="value">任意 Python 值。</param>
     public static object TypeOf(object? value) => value switch
     {
+        IPyForeignObject foreign => foreign.ForeignType,
         // 裸object身份不受原生类型短名注册表影响。
         PyBaseObject => PyBaseObject.Type,
         PyNativeObject native => native is PyTypingTypeVar ? PyTypingTypeVar.Type
@@ -77,6 +78,7 @@ public static partial class PyObject
     /// <param name="name">属性名。</param>
     public static object? GetAttr(object? obj, string name) => obj switch
     {
+        PyBaseException { ForeignObject: PyNativeObject origin } => origin.GetAttr(name),
         PySlice slice => slice.GetAttribute(name),
         PyNativeType native => native.GetAttr(name),
         PyNativeObject native => native.GetAttr(name),

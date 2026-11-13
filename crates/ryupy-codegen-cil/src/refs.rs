@@ -61,14 +61,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     // ── 动态值 ABI（ADR-0010）──
     let (pyops_type, context_method, prepare_method) =
         crate::function_refs::build_method_protocol_refs(res, ryupy_runtime);
-    let dyn_binary = res.push_method_reference(
-        method_ref! { static object @pyops_type::Binary(int, object, object) },
-    );
-    let dyn_compare = res.push_method_reference(
-        method_ref! { static bool @pyops_type::Compare(int, object, object) },
-    );
-    let dyn_unary =
-        res.push_method_reference(method_ref! { static object @pyops_type::Unary(int, object) });
+    let (dyn_binary, dyn_compare, dyn_unary, dyn_rich_compare_value) =
+        crate::dynamic_value_refs::build(res, &pyops_type);
     // PIC：动态运算与方法调用的有界内联缓存（M2.9）。
     let pypic_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyPic in #ryupy_runtime });
     let pypic_type: MethodType = BaseType::class(pypic_ref).into();
@@ -462,6 +456,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         shr_i64,
         dyn_binary,
         dyn_compare,
+        dyn_rich_compare_value,
         dyn_unary,
         pic_binary,
         call_value,

@@ -12,8 +12,7 @@ fn dict_subclass_consumers() {
             "dict-subclass.json-policy-cycle",
             "dict-subclass.dataclass-default",
         ],
-        include_bytes!("../../../tests/fixtures/dict_subclass/golden/consumers.stdout"),
-        None,
+        false,
     );
 }
 
@@ -27,8 +26,7 @@ fn dict_subclass_custom_policy() {
             "dict-subclass.missing-lookup",
             "dict-subclass.fromkeys-init",
         ],
-        include_bytes!("../../../tests/fixtures/dict_subclass/golden/custom_policy.stdout"),
-        None,
+        false,
     );
 }
 
@@ -43,8 +41,7 @@ fn dict_subclass_records() {
             "dict-subclass.prefix",
             "dict-subclass.copy-union-methods",
         ],
-        include_bytes!("../../../tests/fixtures/dict_subclass/golden/records.stdout"),
-        None,
+        false,
     );
 }
 
@@ -54,8 +51,7 @@ fn dict_subclass_scalar_comparison() {
         "scalar_comparison.py",
         include_str!("../../../tests/fixtures/dict_subclass/scalar_comparison.py"),
         &["dict-subclass.scalar-keys", "dict-subclass.value-equality"],
-        include_bytes!("../../../tests/fixtures/dict_subclass/golden/scalar_comparison.stdout"),
-        None,
+        false,
     );
 }
 
@@ -71,8 +67,7 @@ fn dict_subclass_views() {
             "dict-subclass.size-sticky",
             "dict-subclass.size-sticky",
         ],
-        include_bytes!("../../../tests/fixtures/dict_subclass/golden/views.stdout"),
-        None,
+        false,
     );
 }
 
@@ -94,7 +89,6 @@ fn dict_subclass_consumer_adapters() {
             "proxykeys",
             "percent",
         ],
-        include_bytes!("../../../tests/fixtures/dict_subclass/golden/consumer_adapters.stdout"),
-        None,
+        false,
     );
 }

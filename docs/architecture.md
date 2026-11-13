@@ -3,10 +3,10 @@
 > 本文描述**当前代码的实际分层**以及每层的职责边界。愿景与阶段规划见 [roadmap.md](roadmap.md)；
 > 关键取舍见 [adr/](adr/)；Python 语义细节见 [semantics.md](semantics.md)。
 
-> **2026-11-13 目标架构**：当前代码分层继续有效；随包 libpython 宿主与通用对象桥的
-> 待实现设计见 [cpython-provider.md](cpython-provider.md)。新增互操作组件封装 C API、
-> GIL、句柄和静态回调，Runtime 提供中性对象合同，driver 管理 provider 与分发闭包。
-> 标准库和扩展优先由 CPython provider 承接，typed CIL 快路保留；当前图尚未新增组件。
+> **2026-11-13 实施中的架构**：当前crate分层继续有效；随包 libpython 宿主与通用对象桥
+> 见 [cpython-provider.md](cpython-provider.md)。`RyuPy.CPython` 封装 C API、GIL、句柄、
+> 静态回调与确定释放，Runtime提供中性对象/provider合同，driver管理显式归属与分发闭包。
+> 标准库和扩展优先由CPython provider承接，typed CIL快路保留；下方总览保留编译流水线。
 
 ## 1. 总览
 
