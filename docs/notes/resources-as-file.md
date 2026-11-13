@@ -6,7 +6,7 @@
 实现集中在 `PyImportlibResources.cs`、独立 `PyResourcePathContext.cs`；公开
 上下文状态/方法放在 `PyGeneratorContextAttributes.cs`，生命周期继续使用
 `PyContextManager.cs`。架构取舍见
-[待编号 ADR](../adr/filesystem-as-file-context.md)。driver/binding/resources
+[ADR-0170](../adr/0170-filesystem-as-file-context.md)。driver/binding/resources
 组合构建实现及公共 TODO/roadmap/stdlib/semantics 本轮未修改。
 
 ## 复现

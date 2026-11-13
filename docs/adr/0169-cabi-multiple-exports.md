@@ -1,6 +1,6 @@
 # ADR-0169：固定 C ABI 的单库多导出
 
-状态：实现候选；本机真实 JIT / NativeAOT 搬迁、错误路径与完整 make check 通过，等待主代理审查整合。
+状态：已实现并整合；macOS arm64 真实 JIT / NativeAOT 搬迁、错误路径与完整 make check 通过。新增多导出合同的 Linux / Windows 实机验收待补。
 
 ## 决定
 

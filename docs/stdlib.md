@@ -105,6 +105,12 @@ TreeBuilder、tostring/XMLParser/ElementPath、clear/extend/remove和写删child
 find_spec NI独立。范围见[容器API表](stdlib-collections.md)和[合同与验收](ordered-dict-core-slice.md)，
 成本见[性能原报告](ordered-dict-performance.md)。
 
+## importlib.resources 文件系统 as_file
+
+`as_file(Path)` 已实现：返回原生生成器上下文，进入得到原 Path 对象，目录和不存在路径也可进入；退出保留文件并传播原异常。Path 协议及注册包资源两个 CP/JIT 差分用例通过，显式资源的 macOS arm64 NativeAOT 搬迁通过。
+
+公开 `args/kwds/func/gen/__dict__` 与保存的绑定方法身份有差分覆盖。zip、自定义 Traversable 解包、singledispatch 注册/反射仍待实现；前两项保留 pending。无 SDK 目标环境及 Linux/Windows 新合同待验。见 [ADR0170](adr/0170-filesystem-as-file-context.md) 与 [复现记录](notes/resources-as-file.md)。
+
 ## importlib.resources 编译闭包候选补充
 
 ADR0146只为JIT显式literal files锚点可选发现空普通直接子包；资源API运行时行为、AOT显式include/resources和旧负域不变。`files`重绑仍实际调用，未知/非空/编码声明候选不强制编译。候选尚待原pyfiglet/通用Native与完整同HEAD验收，不计新API或项目通过。

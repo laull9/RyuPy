@@ -6,6 +6,12 @@
 
 修订日期：2026-11-02。本文描述后续计划；已实现能力见 [semantics.md](semantics.md)，执行任务见 [TODO.md](../TODO.md)。本次调整记录在 [ADR-0009](adr/0009-project-compatibility-first.md)。
 
+## 2026-11-13 AOT 打包推进
+
+当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。下一关口是资源与绑定组合发布，随后扩展 ABI 缓冲区/句柄、原生依赖闭包及跨平台目标环境验收。
+
+完整标准库继续按 API、底层依赖和平台登记。已有纯 Python 源码 catalog 与 C# 底层实现共同推进；版本化 catalog、统一 provider 选择和显式 libpython 宿主仍需专项设计与实现。onefile 排在 standalone 分发闭环之后。
+
 ## 愿景
 
 把常见 Python 项目编译成 .NET CIL，让用户保留现有代码，在可证明类型和对象行为的地方获得编译执行的性能。编译器用 Rust 编写，运行时用 C# 编写。日常开发通过 RyuJIT 运行；Native AOT现为持续性能、动态代码生成适配与独立交付的重大主线，见[ADR0043](adr/0043-aot-delivery-mainline.md)。

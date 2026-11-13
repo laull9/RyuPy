@@ -1,4 +1,4 @@
-# ADR（待主代理编号）：文件系统资源 as_file 与原生生成器上下文
+# ADR-0170：文件系统资源 as_file 与原生生成器上下文
 
 状态：实现完成；专项、macOS arm64 NativeAOT 搬迁及最终完整 make check 通过。
 

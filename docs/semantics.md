@@ -779,6 +779,12 @@ int的模块级context→函数调用错误仍逐项核完整帧和链顺序，�
 非包锚点、默认caller、弃用package关键字warning及其它loader长尾明确未实现；显式spec/loader覆盖也拒绝，完整CP正期待保pending。目录/IO沿现有Path语义，不引入新的资源沙箱。见[ADR0057](adr/0057-explicit-package-resources.md)，不等于完整importlib、pyfiglet、AOT项目或性能验收。
 
 
+### importlib.resources.as_file 文件系统 Path
+
+`as_file(Path)` 不检查路径存在性；进入保持对象身份，目录及缺失路径原样进入，读取错误沿 Path IO 抛出。退出保留原资源、传播原异常；重复进入报 AttributeError，正常及重复退出返回 False。首次进入依次删除公开 args/kwds/func；gen 与实例字典保存真实可写状态。绑定方法保持 self 和共享函数身份，相等/hash 与字典键行为按两者身份计算。
+
+具有 is_dir 的其它资源载体明确报 NotImplementedError，int/str/None 报缺少 is_dir 的 AttributeError。zip、自定义 Traversable 和完整 singledispatch 待实现。现有 with 去糖的实例特殊方法重绑边界仍待通用协议竖切处理。见 [ADR0170](adr/0170-filesystem-as-file-context.md)。
+
 ### shutil 通用流复制（本地候选）
 
 `copyfileobj(fsrc, fdst, length=0)` 绑定后求length真值一次，假值使用模块当前COPY_BUFSIZE；
