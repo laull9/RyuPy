@@ -1,6 +1,6 @@
 # ADR0180：普通源码 AOT 直接进入 SDK 编译主入口
 
-状态：整合候选，2026-11-13。原独立候选已有限验收；与最新 dev 的多导出 C ABI、资源组合和上下文协议合并后的验证待完成，不把旧候选结果当作合并树通过。
+状态：独立整合分支有限验收完成，2026-11-13；最新结果见末节，未合dev/main。构建性能A/B另行测量，不把正确性通过或去掉Csc直接当作提速证明。
 
 ## 动机与边界
 
@@ -34,7 +34,7 @@
 - CI [43363656513](https://github.com/laull9/RyuPy/actions/runs/43363656513)：原单导出 C ABI 绑定三平台回归通过；这不是用户新增多导出/资源组合的验收。
 - 最后 CI [43365134081](https://github.com/laull9/RyuPy/actions/runs/43365134081)，测试修复提交 `baf6f205`：construction 三平台全部通过。前序保留 SDK cwd 和路径别名的失败记录；改为 owned cwd 固定 SDK，并按 canonical 目录身份校验测试路径，不放宽版本或行为合同。
 
-这里不声明稳定构建提速、Nuitka 总体性能领先或完整兼容。整合以最新用户 dev 为基线，须重验其 `binding_multi`、`binding_resources`、`resources_as_file` 和上下文协议，以及既有 direct/thin 两路径；在合并树结果完成前保持候选状态。
+这里不声明稳定构建提速、Nuitka 总体性能领先或完整兼容。整合以最新用户 dev 为基线，已重新验证其 `binding_multi`、`binding_resources`、`resources_as_file` 和上下文协议，以及既有 direct/thin 两路径，详见下节。
 
 ## dev 整合验收（2026-11-13）
 
