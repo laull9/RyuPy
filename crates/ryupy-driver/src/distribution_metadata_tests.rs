@@ -36,10 +36,8 @@ fn complete_snapshot_and_path_key_are_not_metadata_name() {
 }
 #[test]
 fn empty_explicit_roots_and_invalid_schema() {
-    let path = std::env::temp_dir().join(format!(
-        "ryupy-metadata-request-{}.json",
-        std::process::id()
-    ));
+    let root = crate::test_temp::Root::new("metadata-request");
+    let path = root.join("request.json");
     std::fs::write(
         &path,
         r#"{"schema_version":1,"mode":"closed_snapshot","roots":[]}"#,
@@ -64,14 +62,7 @@ fn empty_explicit_roots_and_invalid_schema() {
 
 #[test]
 fn distribution_metadata_keeps_unknown_bytes_and_all_shadowed_sources() {
-    let serial = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let base = std::env::temp_dir().join(format!(
-        "ryupy-distributions-{}-{serial}",
-        std::process::id()
-    ));
+    let base = crate::test_temp::Root::new("distributions");
     let write = |relative: &str, bytes: &[u8]| {
         let path = base.join(relative);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

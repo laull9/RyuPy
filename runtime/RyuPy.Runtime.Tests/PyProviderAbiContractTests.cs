@@ -41,6 +41,7 @@ public partial class PyTraceStateArtifactTests
         "M:RyuPy.Runtime.PyProvider:Remove:150:[0;0;1](RyuPy.Runtime.IPyModuleProvider)->Void:",
         "M:RyuPy.Runtime.PyProvider:Module:150:[0;0;4](String,RyuPy.Runtime.PyModuleGet,RyuPy.Runtime.PyModuleSet,RyuPy.Runtime.IPyForeignObject)->RyuPy.Runtime.PyModule:",
         "M:RyuPy.Runtime.PyErrors:FromClr:150:[0;0;1](System.Exception)->RyuPy.Runtime.PyBaseException:",
+        "M:RyuPy.Runtime.PyErrors:ExchangeHandledException:150:[0;0;1](RyuPy.Runtime.PyBaseException)->Object:",
         "M:RyuPy.Runtime.PyErrors:ReceiveForeign:150:[0;0;1](RyuPy.Runtime.PyBaseException)->RyuPy.Runtime.PyBaseException:",
         "M:RyuPy.Runtime.PyOps:CompareValue:150:[0;0;3](Int32,Object,Object)->Object:",
         "M:RyuPy.Runtime.PyBaseException:BindForeignException:134:[32;0;3](RyuPy.Runtime.IPyForeignObject,Object[],String)->Void:",
@@ -112,5 +113,22 @@ public partial class PyTraceStateArtifactTests
         Assert.False(contract.Allows(new("PyErrors", receive, "IL", fresh)));
         string old = PyTraceStateV1ArtifactContract.Method("PyTraceback", "ReportClr", "Void", false, "System.Exception");
         Assert.False(contract.Allows(new("PyTraceback", old, "IL", fresh)));
+    }
+
+    [Fact]
+    public void ProviderHandledScopeRestoresTheCompleteNestedContextToken()
+    {
+        var outer = new RyuPy.Runtime.PyValueError("outer");
+        var inner = new RyuPy.Runtime.PyTypeError("inner");
+        object? original = RyuPy.Runtime.PyErrors.EnterHandler(outer);
+        try
+        {
+            object? outerToken = RyuPy.Runtime.PyErrors.EnterHandler(inner);
+            object? nestedToken = RyuPy.Runtime.PyErrors.ExchangeHandledException(null);
+            Assert.Null(RyuPy.Runtime.PyErrors.Current);
+            RyuPy.Runtime.PyErrors.LeaveHandler(nestedToken); Assert.Same(inner, RyuPy.Runtime.PyErrors.Current);
+            RyuPy.Runtime.PyErrors.LeaveHandler(outerToken); Assert.Same(outer, RyuPy.Runtime.PyErrors.Current);
+        }
+        finally { RyuPy.Runtime.PyErrors.LeaveHandler(original); }
     }
 }

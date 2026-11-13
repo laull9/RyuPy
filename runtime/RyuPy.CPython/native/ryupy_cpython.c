@@ -312,6 +312,8 @@ API int rp_scalar_kind(PyObject *value) {
     if (PyBytes_CheckExact(value)) return 5;
     return 0;
 }
+/* 指数协议已返回int后读取完整值；base16避免十进制max_str_digits影响ABI范围诊断。 */
+API PyObject *rp_integer_hex(PyObject *value) { return PyNumber_ToBase(value, 16); }
 /* 沿真实MRO寻找内建异常祖先，避免同名用户类型冒充内建异常。 */
 API const char *rp_builtin_exception(PyObject *value) {
     PyObject *mro = Py_TYPE(value)->tp_mro;
@@ -373,6 +375,13 @@ API PyObject *rp_exception_link(PyObject *value, int cause) {
 }
 API const char *rp_exception_name(PyObject *value) { return Py_TYPE(value)->tp_name; }
 API int rp_exception_suppress(PyObject *value) { return ((PyBaseExceptionObject *)value)->suppress_context; }
+/* handled getter为新引用，setter借用；切换当前handler绝不改待抛raised-error通道。 */
+API PyObject *rp_get_handled(void) { return PyErr_GetHandledException(); }
+API void rp_set_handled(PyObject *value) {
+    PyObject *raised = PyErr_GetRaisedException();
+    PyErr_SetHandledException(value);
+    PyErr_SetRaisedException(raised);
+}
 /* 链字段使用异常公开C API，避开用户__setattr__；固定布局只写无公开setter的标志位。 */
 API void rp_exception_set_chain(PyObject *value, PyObject *cause, PyObject *context, int suppress) {
     PyException_SetCause(value, Py_XNewRef(cause));

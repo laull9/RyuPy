@@ -12,7 +12,7 @@ impl Tree {
             std::process::id()
         ));
         std::fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(path.canonicalize().unwrap())
     }
     fn write(&self, name: &str, text: &str) {
         let path = self.0.join(name);

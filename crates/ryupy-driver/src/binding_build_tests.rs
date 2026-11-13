@@ -1,8 +1,8 @@
 //! 真实 driver 编译/部署结构回归，合成库头不执行，不冒充真实 native 成功。
 use super::*;
 use serde_json::{Value, json};
-fn setup() -> (PathBuf, BuildOptions, PathBuf) {
-    let root = owned_root(&std::env::temp_dir()).unwrap();
+fn setup() -> (crate::test_temp::Root, BuildOptions, PathBuf) {
+    let root = crate::test_temp::Root::new("binding-build");
     let input = root.join("main.py");
     std::fs::write(&input, "import declared_demo\nprint('ready')\n").unwrap();
     let platform = Platform::current().unwrap();
@@ -202,6 +202,7 @@ fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() 
             // 清单结构测试复用已经验证的输入记录；不启动链接器，不把占位 native 当执行证据。
             plan.declaration_version = version;
             plan.aot = true;
+            plan.dynamic = false;
             plan.input.digest.role = "native_static_archive".into();
             if version == 2 {
                 plan.signatures.push(None);

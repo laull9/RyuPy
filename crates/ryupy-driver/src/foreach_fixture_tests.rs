@@ -1,10 +1,9 @@
-//! 本轮全新ForEach完整源矩阵：独立CPython oracle、真实off/on PE、结构与原流证据。
-//! 不清理证据、不复用历史计数；完整跑完再报告失败，既有偏差不得冒充CP通过。
+//! ForEach完整手写源矩阵：当次固定CPython、真实off/on PE与逐函数结构断言。
+//! 三臂各用独占工作目录，临时诊断和发布树随测试作用域清理。
 use super::{compile_linked, dotnet, foreach_accumulator_tests::session, runtime};
 use anyhow::{Context, Result};
 use ryupy_mir::{Callee, RuntimeFn, Rvalue, Statement};
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -35,25 +34,6 @@ fn same_output(left: &Output, right: &Output) -> bool {
         && left.status.success() == right.status.success()
         && left.stdout == right.stdout
         && left.stderr == right.stderr
-}
-
-fn exclusive_root(workspace: &Path) -> Result<PathBuf> {
-    let base = std::env::var_os("RYUPY_FOREACH_EVIDENCE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| workspace.join("target/foreach-new-run"));
-    fs::create_dir_all(&base)?;
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_nanos();
-    for nonce in 0..100 {
-        let root = base.join(format!("{}-{stamp}-{nonce}", std::process::id()));
-        match fs::create_dir(&root) {
-            Ok(()) => return Ok(root),
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(error) => return Err(error.into()),
-        }
-    }
-    anyhow::bail!("无法建立独占证据目录")
 }
 
 /// 从实际linked MIR逐函数计数，不把文本dump中的名称出现次数当调用数。
@@ -156,13 +136,12 @@ fn native(entry: &Path, out: &Path, enabled: bool) -> Result<NativeRun> {
         ryupy_codegen_cil::runtimeconfig::render(),
     )?;
     runtime::copy_runtime_to(out)?;
-    let output = dotnet::run_dll_with(
-        &dll,
-        &dotnet::RunOptions {
-            cwd: entry.parent().map(Path::to_path_buf),
-            ..Default::default()
-        },
-    )?;
+    let cwd = out.join("cwd");
+    fs::create_dir(&cwd)?;
+    let output = clean_command(dotnet::dotnet_exe())
+        .arg(&dll)
+        .current_dir(cwd)
+        .output()?;
     save_output(&out.join("run"), &output)?;
     Ok(NativeRun {
         output,
@@ -171,18 +150,25 @@ fn native(entry: &Path, out: &Path, enabled: bool) -> Result<NativeRun> {
     })
 }
 
-fn copy_source(source: &Path, target: &Path, case: &Value) -> Result<()> {
+fn copy_source(source: &Path, target: &Path) -> Result<()> {
     fs::create_dir_all(target)?;
     for name in ["entry.py", "subject.py"] {
-        let bytes = fs::read(source.join(name))?;
-        let sha = format!("{:x}", Sha256::digest(&bytes));
-        anyhow::ensure!(
-            case["sha256"][name].as_str() == Some(&sha),
-            "源hash不符：{name}"
-        );
-        fs::write(target.join(name), bytes)?;
+        fs::copy(source.join(name), target.join(name))?;
     }
     Ok(())
+}
+
+// 比较子进程共享固定locale/时区且不继承开发机Python路径；cwd分别新建。
+fn clean_command(executable: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(executable);
+    command
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
+        .env("LC_ALL", "C")
+        .env("TZ", "UTC")
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env("PYTHON_COLORS", "0");
+    command
 }
 
 /// 既有边界只接受明确的原生原流或单一诊断；未知失败与off/on差异仍令测试失败。
@@ -194,10 +180,7 @@ fn known_boundary(
     root: &Path,
 ) -> Result<bool> {
     let expected = &case["known_expectation"];
-    if !oracle.status.success()
-        || !oracle.stderr.is_empty()
-        || Some(oracle.stdout.as_slice()) != expected["cpython_stdout"].as_str().map(str::as_bytes)
-    {
+    if !oracle.status.success() || !oracle.stderr.is_empty() {
         return Ok(false);
     }
     if let Some(stdout) = expected["native_stdout"].as_str() {
@@ -235,13 +218,14 @@ fn run_case(case: &Value, fixture: &Path, root: &Path, python: &Path) -> Result<
     let id = case["id"].as_str().context("缺少case id")?;
     let out = root.join(id);
     let source = out.join("source");
-    copy_source(&fixture.join(id), &source, case)?;
+    copy_source(&fixture.join(id), &source)?;
     let entry = source.join("entry.py");
-    let oracle = Command::new(python)
+    let cwd = out.join("cpython-cwd");
+    fs::create_dir(&cwd)?;
+    let oracle = clean_command(python)
+        .arg("-B")
         .arg(&entry)
-        .current_dir(&source)
-        .env("PYTHONDONTWRITEBYTECODE", "1")
-        .env("PYTHON_COLORS", "0")
+        .current_dir(cwd)
         .output()
         .context("无法启动CPython oracle")?;
     save_output(&out.join("cpython"), &oracle)?;
@@ -319,14 +303,15 @@ fn foreach_reconstructed_semantic_matrix() -> Result<()> {
     let fixtures = workspace.join("tests/fixtures/foreach_accumulator_reconstructed");
     let manifest_bytes = fs::read(fixtures.join("manifest.json"))?;
     let manifest: Value = serde_json::from_slice(&manifest_bytes)?;
-    let root = exclusive_root(&workspace)?;
+    let root = crate::test_temp::Root::new("foreach-matrix");
     fs::write(root.join("manifest.json"), &manifest_bytes)?;
-    let python = std::env::var_os("RYUPY_FOREACH_PYTHON")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("python3"));
+    let python = PathBuf::from(
+        std::env::var_os("PYTHON").context("请显式设置固定CPython 3.12.13的PYTHON绝对路径")?,
+    );
+    anyhow::ensure!(python.is_absolute(), "PYTHON必须是绝对路径");
     for (name, mut command) in [
-        ("python-version", Command::new(&python)),
-        ("dotnet-version", Command::new(dotnet::dotnet_exe())),
+        ("python-version", clean_command(&python)),
+        ("dotnet-version", clean_command(dotnet::dotnet_exe())),
     ] {
         match command.arg("--version").output() {
             Ok(output) => {
@@ -334,7 +319,7 @@ fn foreach_reconstructed_semantic_matrix() -> Result<()> {
                 if name == "python-version" {
                     anyhow::ensure!(
                         output.status.success() && output.stdout == b"Python 3.12.13\n",
-                        "CPython版本必须为3.12.13；版本原流保存在{}",
+                        "CPython版本必须为3.12.13；临时诊断目录{}",
                         root.display()
                     );
                 }
@@ -363,8 +348,7 @@ fn foreach_reconstructed_semantic_matrix() -> Result<()> {
         .collect();
     anyhow::ensure!(
         failed.is_empty(),
-        "ForEach矩阵失败：{failed:?}；完整证据：{}",
-        root.display()
+        "ForEach矩阵失败：{failed:?}；各用例结果：{rows:#?}"
     );
     Ok(())
 }

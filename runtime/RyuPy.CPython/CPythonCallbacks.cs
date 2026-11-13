@@ -18,10 +18,14 @@ public sealed partial class CPythonHost
             return 0;
         }
         long callbackDepth = PyTraceback.CaptureDepth();
+        Lease? lease = null;
+        CallbackScope? callback = null;
+        ManagedHandledScope? handled = null;
         try
         {
-            using Lease lease = host.Enter(callback: true);
-            using var callback = new CallbackScope(true);
+            lease = host.Enter(callback: true);
+            callback = new CallbackScope(true);
+            handled = new ManagedHandledScope(host);
             if (identity == -1)
             {
                 string moduleName = host.ReadText(a);
@@ -75,19 +79,24 @@ public sealed partial class CPythonHost
         }
         catch (PyBaseException error)
         {
-            host.RestoreCallbackError(error);
+            if (lease is not null) host.RestoreCallbackError(error);
+            else Native.rp_error_text(error.PyTypeName, error.Message);
             return 0;
         }
         catch (Exception error)
         {
-            host.RestoreCallbackError(PyErrors.FromClr(error));
+            if (lease is not null) host.RestoreCallbackError(PyErrors.FromClr(error));
+            else Native.rp_error_text("RuntimeError", error.Message);
             return 0;
         }
         finally
         {
+            // 租约与当前异常一直覆盖catch中的同步、CLR映射和异常导出，不能提前退出作用域。
+            handled?.Dispose(); callback?.Dispose();
             // CLR异常展开越出编译函数时，CIL正常返回的PopTo不会执行；恢复入口深度，
             // cause已保存的帧保持不变，外层随后抛出的新异常只捕获仍活动的编译调用者。
             PyTraceback.PopTo(callbackDepth + 1);
+            lease?.Dispose();
         }
     }
 

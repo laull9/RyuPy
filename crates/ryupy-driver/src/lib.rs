@@ -277,10 +277,6 @@ pub fn build_configured(
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
     anyhow::ensure!(
-        binding.is_none() || sess.cpython_provider.is_none(),
-        "CPython provider 与固定 C ABI 入口需分别声明构建"
-    );
-    anyhow::ensure!(
         resources.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
     );
@@ -454,3 +450,6 @@ mod generator_default_tests;
 
 #[cfg(test)]
 mod default_source_tests;
+
+#[cfg(test)]
+mod test_temp;

@@ -197,7 +197,7 @@ mod tests {
                 std::process::id()
             ));
             std::fs::create_dir(&path).unwrap();
-            Self(path)
+            Self(path.canonicalize().unwrap())
         }
     }
     impl Drop for Tree {

@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--distribution-metadata', type=Path, required=True)
     parser.add_argument('--python', default=sys.executable)
     args = parser.parse_args()
+    assert run([args.python, '-c', 'import platform; print(platform.python_version())']).stdout.strip() == b'3.12.13'
     cli, fixture = args.ryupy.resolve(), Path(__file__).resolve().parent
     config_path = args.provider.resolve()
     template = json.loads(config_path.read_text())
@@ -76,7 +77,7 @@ def main():
         conflict_result = run([cli, '--cpython-provider', conflict_provider, 'build', app,
                                '--native-binding', binding, '-o', work / 'conflict-out'], check=False)
         assert conflict_result.returncode != 0 and b'native_demo' in conflict_result.stderr, conflict_result
-        assert b'C ABI' in conflict_result.stderr or b'provider' in conflict_result.stderr, conflict_result.stderr
+        assert b'CPython' in conflict_result.stderr and '直接C绑定' in conflict_result.stderr.decode(), conflict_result.stderr
         moved = []
         for aot in (False, True):
             output = work / ('build-aot' if aot else 'build-jit')
@@ -85,6 +86,9 @@ def main():
             generated = [Path(line[len('已生成 '):]) for line in result.stderr.decode().splitlines()
                          if line.startswith('已生成 ')]
             entry = next(path for path in generated if path.suffix != '.dll') if aot else generated[0]
+            immediate = run([entry] if aot else [dotnet, entry], cwd=work)
+            assert (immediate.returncode, immediate.stdout, immediate.stderr) == expected, (aot, immediate, expected)
+            print('json+direct zlib', 'AOT' if aot else 'JIT', '原位完整三流/反向导入通过', flush=True)
             destination = work / ('中文 空格 & 搬迁 AOT' if aot else '中文 空格 & 搬迁 JIT')
             shutil.move(entry.parent, destination)
             manifest = json.loads((destination / 'ryupy-artifact.json').read_text())
@@ -125,7 +129,8 @@ def main():
             failure = run([entry] if aot else [dotnet, entry], cwd=unrelated, env=env, check=False)
             assert failure.returncode != 0 and b'ImportError' in failure.stderr, failure.stderr
             assert str(native_path).encode() in failure.stderr, failure.stderr
-            assert b'Unable to load' in failure.stderr or b'dlopen' in failure.stderr, failure.stderr
+            assert any(reason in failure.stderr for reason in
+                       (b'Unable to load', b'dlopen', b'Could not find', b'No such file')), failure.stderr
             print('json+direct zlib', 'AOT' if aot else 'JIT', '三流/搬迁/加载路径/缺库通过', flush=True)
 
 

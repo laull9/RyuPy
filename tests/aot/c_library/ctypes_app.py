@@ -1,4 +1,3 @@
-# ryupy: pending
 # 编译应用只调用通用CPython模块代理；结构、指针与本机回调由ctypes执行。
 import ffi_demo
 import first_exception

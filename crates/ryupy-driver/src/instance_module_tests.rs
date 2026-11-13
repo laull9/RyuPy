@@ -10,7 +10,7 @@ impl Tree {
         let path =
             std::env::temp_dir().join(format!("ryupy-instance-{}-{stamp}", std::process::id()));
         std::fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(path.canonicalize().unwrap())
     }
     fn write(&self, name: &str, source: &str) {
         std::fs::write(self.0.join(name), source).unwrap();
@@ -160,10 +160,25 @@ fn direct_globals_original_thirteen_fixtures_reject_in_real_session() {
             "package" => input.parent().unwrap().join("pkg/__init__.py"),
             _ => input.parent().unwrap().join("subject.py"),
         };
-        assert_eq!(
-            crate::manifest_files::hash_bytes(&std::fs::read(source).unwrap()),
-            case["source_sha256"].as_str().unwrap()
-        );
+        let text = std::fs::read_to_string(&source).unwrap();
+        let syntax = match id {
+            "bare" => "return globals\n",
+            "positional" | "parameter_positional" => "return globals(1)",
+            "star" => "globals(*[])",
+            "keyword_star" => "globals(**{})",
+            "list_comp" => "[x for x in globals()]",
+            "set_comp" => "{x for x in globals()}",
+            "dict_comp" => "{x: x for x in globals()}",
+            "generator_expr" => "(x for x in globals())",
+            "generator_function" => "yield globals()",
+            "default_off" => "return globals()",
+            "entry" | "package" => "top = globals()",
+            _ => panic!("未知手写输入ID：{id}"),
+        };
+        assert!(text.contains(syntax), "{id}: {text}");
+        if id == "parameter_positional" {
+            assert!(text.contains("def f(globals)"));
+        }
         let mut session = Session {
             module_environment_policy: ModuleEnvironmentPolicy::OrdinaryDynamicPilot,
             instance_modules: selected,

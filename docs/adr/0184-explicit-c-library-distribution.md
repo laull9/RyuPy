@@ -1,6 +1,6 @@
 # ADR-0184：显式 C ABI 动态库与依赖分发
 
-状态：显式动态库路径已实现，macOS arm64 JIT/NativeAOT 搬迁通过；ctypes 编译桥同平台 JIT/NativeAOT 搬迁与缺库负例通过。
+状态：显式动态库路径、json联合应用与真实精确标量接入已实现，macOS arm64 JIT/NativeAOT 原位、搬迁及缺库负例通过；ctypes 编译桥同平台完整通过。
 日期：2026-11-13。
 
 ## 决定
@@ -33,6 +33,10 @@ NativeAOT 懒加载与 DirectPInvoke 的区别依据
 ## 类型与所有权
 
 直接声明支持 13 种标量、void 和只读调用期 utf8/bytes 借用；签名限制沿 ADR-0173。
+原生值与CPython provider的精确内置标量共用同一入口：按静态签名读取真实载荷，
+不执行 `__int__`、`__index__`、`__float__`、`__str__` 或 `__bytes__`。
+bool与int互拒，内置类型的子类拒绝；整数保原范围检查，巨大整数读取不受十进制位数上限影响。
+utf8/bytes仅复制调用期自有缓冲，全部参数检查完成后固定地址，返回或加载失败均由finally释放。
 任意裸指针、按值结构、可写/返回 buffer、回调、varargs 和 native-owned handle 的
 直接声明会被严格诊断拒绝。C++ 先提供 `extern "C"` 适配边界。
 
@@ -54,6 +58,8 @@ NativeAOT 懒加载与 DirectPInvoke 的区别依据
 `compressBound` / `crc32_z` 直接签名；自有入口→相邻依赖的两层动态库；
 CPython 同次差分；JIT/NativeAOT 搬迁、原输入/构建根删除、清工具 PATH、缺依赖负例；
 ctypes 的结构、指针输出与成对释放、编译函数回调和异常返回。
+同一应用可组合json provider与直接zlib绑定；CPython载荷通过反向finder导入生成的绑定模块，
+复用中性模块登记与真实importlib加载元数据。同名provider库存模块与直接绑定模块在构建时拒绝双权威。
 
 zlib API 以[官方手册](https://zlib.net/manual.html)及固定 1.3.1 发行头文件为准，
 发行来源为 <https://zlib.net/fossils/zlib-1.3.1.tar.gz>，许可随发行 README。

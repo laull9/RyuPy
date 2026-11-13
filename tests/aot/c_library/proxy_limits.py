@@ -1,4 +1,3 @@
-# ryupy: pending
 """默认代理容器比较的显式边界，不让未知键或set混合比较递归到本机栈溢出。"""
 import ffi_demo
 import set_limits

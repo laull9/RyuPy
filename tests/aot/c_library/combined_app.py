@@ -1,4 +1,3 @@
-# ryupy: pending
 """同一编译程序组合随包json provider与直接声明zlib C ABI。"""
 import json
 import combo_helper

@@ -1,4 +1,3 @@
-# ryupy: pending
 """受限异常类型导出的明确诊断：失败不冻结，成功后两个执行域均拒绝类修改。"""
 import ffi_demo
 import set_limits

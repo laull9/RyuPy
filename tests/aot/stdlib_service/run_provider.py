@@ -36,6 +36,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', default=sys.executable)
     parser.add_argument('--ryupy', type=Path)
+    parser.add_argument('--product-root', type=Path, help='仓库外冻结产物根：ryupy、runtime/完整闭包、bridge/完整闭包')
     parser.add_argument('--distribution', type=Path)
     parser.add_argument('--distribution-metadata', type=Path)
     parser.add_argument('--out', type=Path)
@@ -46,8 +47,10 @@ def main():
     if not args.baseline_only:
         assert args.ryupy and args.distribution, '产品验收需 --ryupy 和 --distribution'
         args.ryupy = args.ryupy.resolve()
+        if args.product_root:
+            assert args.ryupy.is_relative_to(args.product_root.resolve()), '冻结模式必须实际使用私有根内CLI'
     root = external_workspace('ryupy-cp2-', args.out)
-    env = environment()
+    env = environment(args.product_root)
     server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     worker = threading.Thread(target=server.serve_forever, daemon=True)
     worker.start()
@@ -88,7 +91,7 @@ def main():
             return
         request = source / 'provider.json'
         write_json(request, declaration(distribution, [
-            {'source': str(source / 'appdata'), 'destination': 'appdata'}], MODULES))
+            {'source': str(source / 'appdata'), 'destination': 'appdata'}], MODULES, product_root=args.product_root))
         command = [args.ryupy, '--cpython-provider', request, 'build', source / 'app.py']
         jit = root / 'jit'
         result = run('jit-build', command + ['-o', jit])

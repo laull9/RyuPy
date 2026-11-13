@@ -99,6 +99,27 @@ public class PyDeclaredBindingModulesTests
     }
 
     [Fact]
+    public void SyntheticMetadataDefaultsOnlyMissingSpecAndLoaderAndPreservesActualAssignments()
+    {
+        string name = Name();
+        PyModules.RegisterDeclaredBinding(name, () => { }, Missing, PyModules.SetDynamic);
+        PyModule module = PyModules.Import(name);
+        Assert.Same(PyNone.Instance, module.GetAttr("__spec__"));
+        Assert.Same(PyNone.Instance, module.GetAttr("__loader__"));
+        Assert.Throws<PyAttributeError>(() => module.GetAttr("__file__"));
+        Assert.Throws<PyAttributeError>(() => module.GetAttr("unrelated"));
+        object spec = new PyDict(), loader = new PyList([]);
+        module.SetAttr("__spec__", spec); module.SetAttr("__loader__", loader);
+        Assert.Same(spec, PyModules.Import(name).GetAttr("__spec__"));
+        Assert.Same(loader, PyModules.Import(name).GetAttr("__loader__"));
+        string explicitName = Name();
+        PyModules.RegisterDeclaredBinding(explicitName, () => { }, key => key switch
+        { "__spec__" => spec, "__loader__" => loader, _ => Missing(key) }, PyModules.SetDynamic);
+        Assert.Same(spec, PyModules.Import(explicitName).GetAttr("__spec__"));
+        Assert.Same(loader, PyModules.Import(explicitName).GetAttr("__loader__"));
+    }
+
+    [Fact]
     public void RegistrationConflictCapturesActualCallerAndKeepsOuterContext()
     {
         string name = Name(); PyModules.RegisterNative(name, new Dictionary<string, object?>());

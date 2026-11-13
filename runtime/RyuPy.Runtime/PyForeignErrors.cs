@@ -5,6 +5,14 @@ namespace RyuPy.Runtime;
 
 public static partial class PyErrors
 {
+    /// <summary>外部执行域进入时替换完整handled上下文；返回token由LeaveHandler原样恢复。</summary>
+    public static object? ExchangeHandledException(PyBaseException? error)
+    {
+        PyExceptionContext? previous = _current;
+        _current = error is null ? null : new PyExceptionContext(error, null);
+        return previous;
+    }
+
     /// <summary>运行时入口和外部回调共享的可恢复CLR异常归一化。</summary>
     public static PyBaseException FromClr(Exception exception)
     {

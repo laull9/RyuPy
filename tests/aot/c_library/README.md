@@ -26,7 +26,7 @@ uv run --python 3.12.13 python -B tests/aot/c_library/run.py --ryupy target/debu
 
 `run.py` 仅在构建验收阶段下载官方 zlib 1.3.1 源码并构建动态库，产品运行离线，直接绑定 `compressBound`、`crc32_z`；
 另编译自有 demo→helper 两层动态库，依赖采用 `@loader_path`/`$ORIGIN`。
-Python ctypes 当次生成 stdout 预期，对照 JIT/AOT 的完整退出码、stdout 与 stderr。
+Python ctypes 当次生成完整三流预期，对照 JIT/AOT 的退出码、stdout 与 stderr。
 构建完成后删除源程序、shared 原输入、zlib 源码、SDK 构建树，再切换 cwd、清 Python/加载器环境、
 使用空 PATH 执行搬迁包。删除实际 helper 后必须加载失败并抛 ImportError。
 临时目录由上下文退出时清理，仓库只保存源码；不生成文件摘要。
@@ -53,6 +53,17 @@ uv run --python 3.12.13 python -B tests/aot/c_library/run_ctypes.py \
 再删除源码/SDK构建树并搬迁，清环境、空 PATH、换 cwd 后差分；删除动态库执行负例。
 模板须提供正式发行来源、随包 libpython、桥 DLL 与 shim，禁止改用 Python 子进程执行产品入口。
 
+## provider与直接绑定组合
+
+`run_combined.py` 采用相同参数运行真实json+zlib程序，CPython helper顶层反向导入生成绑定模块，
+另验同名provider库存冲突、实际libpython/shim路径、中文空格路径搬迁与缺入口库诊断。
+每个包构建后立即运行原位完整三流门，再进入后续NativeAOT与删输入搬迁。
+
+`run_scalars.py` 采用相同参数，令json产生全部13种声明标量，测试void和中文/NUL UTF8、
+NUL/非UTF8 bytes。调用前拒绝错误类型、子类及超范围值，用户转换hook计数和C调用计数保持不变。
+其中巨大整数为 `10**5000`，应由ABI范围门抛OverflowError。限制用例按显式诊断和副作用断言验收；
+正常用例以同次固定CPython 3.12.13 ctypes调用同C库作完整三流参考。
+
 ## 状态
 
 - 类型解析、动态 AOT 输入选择、显式依赖部署结构单测：通过（macOS arm64，2026-11-13）。
@@ -62,4 +73,9 @@ uv run --python 3.12.13 python -B tests/aot/c_library/run_ctypes.py \
   原输入、第三方源码与构建根均已删除，仓库外临时目录退出时清理。
 - ctypes 编译应用桥：macOS arm64 JIT/NativeAOT、搬迁与缺C库负例通过（2026-11-13）。
   按值结构、128次成对分配释放、编译函数成功回调与ValueError往返均与CPython完整三流一致。
+- 同版json+直接zlib联合应用、CPython反向导入绑定模块、同名域冲突、JIT/NativeAOT搬迁和缺库路径/根因：通过。
+- 真实CP标量的13类型、整数双侧边界/越界、float32舍入/正负溢出、bool真/假、void、空及非空借用buffer：
+  macOS arm64 JIT/NativeAOT原位和删源搬迁通过；错误类型/子类/转换hook拒绝、巨大整数范围检查通过。
+- 默认活代理list/dict双向比较、比较中修改容器、排序对象身份、递归终止，以及纯继承异常导出限制：
+  同版JIT/NativeAOT和搬迁通过；set/frozenset混合比较在两种传输模式均明确拒绝。
 - Linux x64、Windows x64、无 Python/.NET/SDK 干净机：待验收。

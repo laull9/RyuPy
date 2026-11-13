@@ -1,4 +1,3 @@
-# ryupy: pending
 """两个容器模式共享同一set/frozenset限制断言，禁止静默返回错误比较值。"""
 import ffi_demo
 

@@ -10,8 +10,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "0493a9afc68095a658bdbdf8b7744a98097ed53959142ce18bcb47c8bc30f779"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "positional",
@@ -22,8 +21,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "05fb1f98a07676b47adfa1f678fcaa1a7df3fa106d81c043322325102ab3dd25"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "parameter_positional",
@@ -34,8 +32,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "be853eb6daa0e5b0a352ddfb866415ebc2c127d500e70a9ec632bc1bad981d76"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "star",
@@ -46,8 +43,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "1da4b0faa41438dbefa6e37ccff9bfb7e1d829ea22aa90ebbb3eb2f210eeaf56"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "keyword_star",
@@ -58,8 +54,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "d24a50ca1adbf1aafa2207d1b3813e7573a13bf8b9d70ef2715adea1e4ec43d0"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "list_comp",
@@ -70,8 +65,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "573936bdaed9f2d8fcf18dfa50e94c2f897ab64327f61c6d6419331cf5a6875f"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "set_comp",
@@ -82,8 +76,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "1e738e9a399a74428b91bb2b7cbe678d52b283807ad42cd614ce21948195b31e"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "dict_comp",
@@ -94,8 +87,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "2eff18ed99a998c1eede774ffea1831e025042aefcad514d5be572217653c3c6"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "generator_expr",
@@ -106,8 +98,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "657d13d8cf163e3878ceb85e81af33737f718636b3ba9d3aa0ce9be2197c2dbc"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "generator_function",
@@ -118,8 +109,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "544c4cfbd10d9c7f0ee786047204e15c33bbcc75680d2cbe358bf755d17a4b6e"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "default_off",
@@ -130,8 +120,7 @@
       "instance_direct_globals": false,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "9c03aa2ccced61cc1bdaaa061f8f2d18e7224682b26e31c37539159660cd27b4"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "entry",
@@ -142,8 +131,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "7d66fec2de1ecb73d6126a5374be5b909592e1a89d7b1d452dea47ebdc920a10"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     },
     {
       "id": "package",
@@ -154,8 +142,7 @@
       "instance_direct_globals": true,
       "policy": "OrdinaryDynamicPilot",
       "aot": false,
-      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime",
-      "source_sha256": "7d66fec2de1ecb73d6126a5374be5b909592e1a89d7b1d452dea47ebdc920a10"
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
     }
   ]
 }

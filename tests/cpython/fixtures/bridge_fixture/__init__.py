@@ -184,3 +184,38 @@ def mutate_exception_without_raise(error, cause, context, suppress, arguments):
     error.__context__ = context
     error.__suppress_context__ = suppress
     error.args = arguments
+
+
+def handled_exception():
+    """读取处理中的异常；与当前raised-error槽分开观察。"""
+    import sys
+    return sys.exception()
+
+
+def reraise_handled_exception():
+    raise
+
+
+def call_in_python_handler(error, callback):
+    """正常返回和异常退出均须恢复解释域原handler，再离开该except。"""
+    import sys
+    try:
+        raise error
+    except BaseException:
+        assert sys.exception() is error
+        failure = None
+        try:
+            result = callback()
+        except BaseException as raised:
+            assert sys.exception() is raised
+            failure = raised
+        assert sys.exception() is error
+        if failure is not None:
+            raise failure
+        return result
+
+
+def read_handled_exception_details(error):
+    """在同一handler中观察真实origin链与args，防scope入口写回旧缓存。"""
+    import sys
+    return sys.exception(), error.__cause__, error.args

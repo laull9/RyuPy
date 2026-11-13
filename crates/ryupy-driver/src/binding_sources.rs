@@ -93,14 +93,7 @@ mod tests {
     }
     #[test]
     fn catalog_resource_and_declared_native_share_one_graph() {
-        let root = std::env::temp_dir().join(format!(
-            "ryupy-binding-catalog-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
+        let root = crate::test_temp::Root::new("binding-catalog");
         std::fs::create_dir_all(root.join("pkgdata")).unwrap();
         std::fs::write(root.join("pkgdata/__init__.py"), "value = 1\n").unwrap();
         std::fs::write(root.join("pkgdata/data.txt"), "payload").unwrap();

@@ -139,6 +139,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--python', default=sys.executable)
     parser.add_argument('--ryupy', type=Path)
+    parser.add_argument('--product-root', type=Path, help='仓库外冻结产物根：ryupy、runtime/完整闭包、bridge/完整闭包')
     parser.add_argument('--distribution', type=Path)
     parser.add_argument('--distribution-metadata', type=Path, help='固定PBS full archive内含PYTHON.json/licenses的python目录')
     parser.add_argument('--numpy-root', type=Path)
@@ -158,8 +159,10 @@ def main():
     if args.mode != 'baseline':
         assert args.ryupy and args.distribution, '产品验收需要 --ryupy 与 --distribution'
         args.ryupy = args.ryupy.resolve()
+        if args.product_root:
+            assert args.ryupy.is_relative_to(args.product_root.resolve()), '冻结模式必须实际使用私有根内CLI'
     root = external_workspace('ryupy-cpython-', args.out)
-    env = environment()
+    env = environment(args.product_root)
     records = []
     failures = []
 
@@ -199,7 +202,7 @@ def main():
                     payloads.extend({'source': str(path), 'destination': path.name}
                                     for path in (source / 'numpy-input').iterdir())
                 provider = source / 'provider.json'
-                write_json(provider, declaration(distribution, payloads, MODULES))
+                write_json(provider, declaration(distribution, payloads, MODULES, product_root=args.product_root))
                 common = [args.ryupy, '--cpython-provider', provider, 'build', source / 'app.py']
                 if args.mode in ('jit', 'all'):
                     jit = root / (case.stem + '-jit')

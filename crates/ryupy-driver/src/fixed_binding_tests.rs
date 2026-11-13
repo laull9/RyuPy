@@ -9,9 +9,7 @@ use ryupy_mir::{
 struct Root(PathBuf);
 impl Drop for Root {
     fn drop(&mut self) {
-        if !std::thread::panicking() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 fn root() -> Root {
@@ -26,7 +24,7 @@ fn root() -> Root {
         std::process::id()
     ));
     std::fs::create_dir(&path).unwrap();
-    Root(path)
+    Root(path.canonicalize().unwrap())
 }
 fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Binding {
     assert!(
@@ -106,13 +104,13 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
     }
 }
 fn execute(source: &str, module: &str) -> std::process::Output {
-    execute_configured(source, module, None)
+    execute_configured(source, module, None).0
 }
 fn execute_configured(
     source: &str,
     module: &str,
     relative_file: Option<&str>,
-) -> std::process::Output {
+) -> (std::process::Output, PathBuf) {
     let root = root();
     let input = root.0.join("boundary.py");
     std::fs::write(&input, source).unwrap();
@@ -147,7 +145,7 @@ fn execute_configured(
     )
     .unwrap();
     runtime::copy_runtime_to(&root.0).unwrap();
-    dotnet::run_dll(&dll).unwrap()
+    (dotnet::run_dll(&dll).unwrap(), root.0.clone())
 }
 fn expected(text: &str) -> Vec<u8> {
     if cfg!(windows) {
@@ -228,20 +226,35 @@ fn fixed_binding_b_resolver_loads_before_body_and_missing_library_keeps_caller()
         "    saved(0, 0)\n",
         "caller()\n",
     );
-    let result = execute_configured(source, "declared_demo", Some(relative_file));
+    let (result, deployed_root) = execute_configured(source, "declared_demo", Some(relative_file));
     assert_eq!(result.status.code(), Some(1));
     assert_eq!(result.stdout, expected("registered-module-identity\n"));
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert!(stderr.contains("line 7, in <module>"), "{stderr}");
     assert!(stderr.contains("line 6, in caller"), "{stderr}");
     assert!(stderr.contains("ImportError: cannot load declared native library 'ryupy_deliberately_absent_binding_A' symbol 'ryupy_demo_add_i32'"), "{stderr}");
+    // 显式部署路径和底层文件系统原因属于加载诊断合同；保留编译调用者的两个帧。
+    let library_path =
+        deployed_root.join(relative_file.replace('/', std::path::MAIN_SEPARATOR_STR));
+    let diagnostic = format!(
+        "native binding 'ryupy_deliberately_absent_binding_A' at '{}' is unavailable: ",
+        library_path.display()
+    );
+    let reason = stderr
+        .split_once(&diagnostic)
+        .unwrap_or_else(|| panic!("{stderr}"))
+        .1;
+    assert!(
+        reason.contains(&*library_path.to_string_lossy()),
+        "{stderr}"
+    );
+    assert!(!reason.trim().is_empty(), "{stderr}");
     for forbidden in [
         "Unhandled exception",
         "TypeLoadException",
         "Could not load type",
         "MissingMethodException",
         "BindingBody",
-        "_internal/native",
     ] {
         assert!(!stderr.contains(forbidden), "{stderr}");
     }

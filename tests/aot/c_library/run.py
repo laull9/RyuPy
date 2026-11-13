@@ -26,7 +26,7 @@ def run(command, *, cwd=None, env=None, timeout=600, check=True):
 def declaration(rid, library, exports, dependencies=()):
     def parameter(index, kind):
         value = {'name': 'arg' + str(index), 'type': kind}
-        if kind == 'bytes':
+        if kind in ('bytes', 'utf8'):
             value.update(ownership='borrowed_call', length='usize')
         return value
     return {'schema_version': 3, 'module': 'native_demo', 'library': 'arbitrary_c',
@@ -42,22 +42,29 @@ def reference(app, library, exports):
     # 参考实现直接调用同一原生库；Python 标准库不替换被测 C 符号。
     native = ctypes.CDLL(str(library))
     module = types.ModuleType('native_demo')
-    kinds = {'i32': ctypes.c_int32, 'usize': ctypes.c_size_t, 'u64': ctypes.c_uint64}
+    kinds = {'i8': ctypes.c_int8, 'u8': ctypes.c_uint8, 'i16': ctypes.c_int16,
+             'u16': ctypes.c_uint16, 'i32': ctypes.c_int32, 'u32': ctypes.c_uint32,
+             'i64': ctypes.c_int64, 'u64': ctypes.c_uint64, 'isize': ctypes.c_ssize_t,
+             'usize': ctypes.c_size_t, 'f32': ctypes.c_float, 'f64': ctypes.c_double,
+             'bool8': ctypes.c_uint8, 'void': None}
     for name, symbol, parameters, returns in exports:
         function = getattr(native, symbol)
         function.argtypes = [ty for kind in parameters for ty in
-            ([ctypes.c_void_p, ctypes.c_size_t] if kind == 'bytes' else [kinds[kind]])]
+            ([ctypes.c_void_p, ctypes.c_size_t] if kind in ('bytes', 'utf8') else [kinds[kind]])]
         function.restype = kinds[returns]
-        def invoke(*args, _function=function, _parameters=parameters):
+        def invoke(*args, _function=function, _parameters=parameters, _returns=returns):
             values, buffers = [], []
             for value, kind in zip(args, _parameters):
-                if kind == 'bytes':
+                if kind in ('bytes', 'utf8'):
+                    if kind == 'utf8':
+                        value = value.encode('utf-8')
                     buffer = ctypes.create_string_buffer(value, max(1, len(value)))
                     buffers.append(buffer)
                     values.extend((ctypes.cast(buffer, ctypes.c_void_p), len(value)))
                 else:
                     values.append(value)
-            return _function(*values)
+            result = _function(*values)
+            return bool(result) if _returns == 'bool8' else result
         setattr(module, name, invoke)
     sys.modules['native_demo'] = module
     runpy.run_path(str(app), run_name='__main__')

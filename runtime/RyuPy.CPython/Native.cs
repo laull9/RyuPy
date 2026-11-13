@@ -13,6 +13,7 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_install_imports([MarshalAs(UnmanagedType.LPUTF8Str)] string source);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_make_error([MarshalAs(UnmanagedType.LPUTF8Str)] string type, nint args);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_scalar_kind(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_integer_hex(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_builtin_exception(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_builtin([MarshalAs(UnmanagedType.LPUTF8Str)] string name);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_list();
@@ -57,6 +58,8 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_length(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern long rp_hash(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_error();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_get_handled();
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_set_handled(nint error);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_take_error();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_restore_error(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_error_text([MarshalAs(UnmanagedType.LPUTF8Str)] string type, [MarshalAs(UnmanagedType.LPUTF8Str)] string message);

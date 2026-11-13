@@ -51,6 +51,7 @@ public sealed partial class CPythonHost
     internal T PythonCall<T>(Func<T> operation)
     {
         using Lease lease = Enter();
+        using var handled = new PythonHandledScope(this);
         EnterPythonCall();
         T result;
         try { result = operation(); }

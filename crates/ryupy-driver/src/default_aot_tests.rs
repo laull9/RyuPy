@@ -1,20 +1,8 @@
 //! 默认联合计划纯门与实际小图编译；不把普通managed执行当kind2 Native。
 use super::*;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
-static NEXT: AtomicUsize = AtomicUsize::new(0);
-fn root() -> PathBuf {
-    let p = std::env::temp_dir().join(format!(
-        "ryupy-default-aot-{}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::create_dir(&p).unwrap();
-    p
+fn root() -> crate::test_temp::Root {
+    crate::test_temp::Root::new("default-aot")
 }
 #[test]
 fn eligibility_keeps_explicit_and_binding_paths() {

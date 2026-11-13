@@ -1,4 +1,3 @@
-# ryupy: pending
 """默认活代理容器比较：双向、嵌套、实时别名修改、原始排序结果及循环边界。"""
 import ffi_demo
 

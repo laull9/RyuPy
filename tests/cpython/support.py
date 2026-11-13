@@ -26,13 +26,15 @@ def checked(result, label):
     return result
 
 
-def environment():
+def environment(product_root=None):
     """消除Python/加载器开发环境污染，固定可控locale与时区。"""
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('PYTHON', 'RYUPY_', 'LD_', 'DYLD_'))}
     env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONHASHSEED='0', TZ='UTC',
                LC_ALL='C.UTF-8', DOTNET_CLI_UI_LANGUAGE='en-US',
                NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
+    if product_root:
+        env['RYUPY_RUNTIME_DIR'] = str(Path(product_root).resolve() / 'runtime')
     return env
 
 
@@ -58,17 +60,21 @@ def rid():
     return system + ('-arm64' if machine in ('arm64', 'aarch64') else '-x64')
 
 
-def declaration(distribution, payloads, modules, container_transfer='synchronized'):
+def declaration(distribution, payloads, modules, container_transfer='synchronized', product_root=None):
     """开发机根显式提供；上游发行和许可证随声明进入产品清单。"""
     distribution = Path(distribution).resolve()
     licenses = ['lib/python3.12/LICENSE.txt']
     licenses.extend(str(path.relative_to(distribution)) for path in sorted((distribution / 'licenses').glob('*.txt')))
-    return {'schema': 1, 'python_version': VERSION,
+    result = {'schema': 1, 'python_version': VERSION,
             'distribution_root': str(Path(distribution).resolve()),
             'modules': modules, 'payloads': payloads, 'container_transfer': container_transfer,
             'source': {'project': 'python-build-standalone', 'build_id': '20260623',
                        'source_url': 'https://github.com/astral-sh/python-build-standalone/releases/tag/20260623',
                        'licenses': licenses}}
+    if product_root:
+        bridge = Path(product_root).resolve() / 'bridge'
+        result.update(bridge_directory=str(bridge), shim=str(bridge / 'libryupy_cpython.dylib'))
+    return result
 
 
 def write_json(path, value):

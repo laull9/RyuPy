@@ -32,14 +32,33 @@ internal sealed class PythonObject : PyNativeObject, IPyForeignObject, IDisposab
     public override string PythonStr() => Host.PythonCall(() => Host.ReadTextOwned(Native.rp_op(12, Pointer)));
     public object ReadScalar(string kind) => Host.PythonCall<object>(() =>
     {
+        if (kind.StartsWith("exact_", StringComparison.Ordinal))
+        {
+            int required = kind switch { "exact_int" => 1, "exact_bool" => 2, "exact_float" => 3, "exact_str" => 4, "exact_bytes" => 5, _ => 0 };
+            if (required == 0 || Native.rp_scalar_kind(Pointer) != required)
+                throw new PyTypeError("foreign scalar requires " + kind + " without conversion protocols");
+            if (required == 2) return Native.rp_truth(Pointer) != 0;
+            if (required == 5)
+            {
+                nint bytes = Host.Check(Native.rp_bytes_view(Pointer, out long length));
+                var contents = new byte[checked((int)length)];
+                System.Runtime.InteropServices.Marshal.Copy(bytes, contents, 0, contents.Length);
+                return new PyBytes(contents);
+            }
+            kind = required switch { 1 => "int", 3 => "float", _ => "str" };
+        }
         if (kind == "str") return Host.ReadText(Pointer);
         if (kind is "int" or "integer")
         {
             nint indexed = Host.Check(Native.rp_op(kind == "integer" ? 24 : 31, Pointer));
             try
             {
-                string digits = Host.ReadTextOwned(Native.rp_op(12, indexed));
-                System.Numerics.BigInteger number = System.Numerics.BigInteger.Parse(digits, System.Globalization.CultureInfo.InvariantCulture);
+                // 十六进制公开API不受十进制字符串位数上限影响；巨大整数仍由消费者执行自身range检查。
+                string digits = Host.ReadTextOwned(Native.rp_integer_hex(indexed));
+                bool negative = digits[0] == '-';
+                System.Numerics.BigInteger number = System.Numerics.BigInteger.Parse("0" + digits[(negative ? 3 : 2)..],
+                    System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture);
+                if (negative) number = -number;
                 return number >= long.MinValue && number <= long.MaxValue ? (object)(long)number : number;
             }
             finally { Native.rp_decref(indexed); }

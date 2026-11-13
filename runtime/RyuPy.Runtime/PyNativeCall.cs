@@ -47,6 +47,11 @@ public sealed class PyNativeCall : IDisposable
     private static object ConvertValue(object? value, string kind, string function, string parameter)
     {
         string label = $"{function}() argument '{parameter}'";
+        value = PyNativeBindings.ReadExactScalar(value, kind switch
+        {
+            "utf8" => "exact_str", "bytes" => "exact_bytes", "bool8" => "exact_bool",
+            "f32" or "f64" => "exact_float", _ => "exact_int",
+        });
         if (kind is "utf8" or "bytes")
         {
             if (kind == "bytes" && value is PyBytes bytes) return (byte[])bytes.Bytes.Clone();

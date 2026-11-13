@@ -11,6 +11,7 @@ public static partial class PyNativeBindings
     /// <summary>仅实际整数表示；bool/用户协议不进入C，BigInteger先比较范围再转换。</summary>
     public static int CheckedI32(object? value, string function, string parameter)
     {
+        value = ReadExactScalar(value, "exact_int");
         switch (value)
         {
             case int small:
@@ -25,6 +26,14 @@ public static partial class PyNativeBindings
                 // 不格式化value或调用__index__/__int__/__repr__，错误本身也无用户副作用。
                 throw Prepared(new PyTypeError($"{function}() argument '{parameter}' must be an actual integer, not bool or a converted value"));
         }
+    }
+
+    // C ABI只读取外部精确标量的载荷；普通原生值保持现有严格检查和常用热路。
+    internal static object? ReadExactScalar(object? value, string kind)
+    {
+        if (value is not IPyForeignObject foreign) return value;
+        try { return foreign.ReadScalar(kind); }
+        catch (PyBaseException error) { PyErrors.PrepareRaise(error); throw; }
     }
 
     /// <summary>仅三个已声明CLR加载错误变成Python ImportError；保留库定位与底层加载原因。</summary>

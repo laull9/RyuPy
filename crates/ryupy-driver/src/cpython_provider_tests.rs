@@ -153,8 +153,13 @@ fn provider_bundle_uses_one_explicit_bridge_root_and_binding_failure_restores_pl
         aot: false,
         search_paths: vec![],
     };
-    let error =
-        crate::binding_build::build(&mut sess, &options, &root.0.join("binding.json")).unwrap_err();
+    let error = crate::build_configured(
+        &mut sess,
+        &options,
+        None,
+        Some(&root.0.join("binding.json")),
+    )
+    .unwrap_err();
     assert!(error.to_string().contains("CPython provider 声明不存在"));
     assert!(selected(&sess, "dependency.child"));
     assert_eq!(

@@ -19,7 +19,14 @@ public static partial class PyModules
     public static void RegisterDeclaredBinding(string name, PyModuleInit init, PyModuleGet get, PyModuleSet set)
     {
         EnsureDeclaredBindingAvailable(name);
-        Registry.Add(name, new Registration("", "", init, get, set, fileBackedByGlobal: true));
+        object? Read(string key)
+        {
+            try { return get(key); }
+            // 声明生成的synthetic模块没有源码metadata；真实importlib稍后填本次spec/loader。
+            catch (PyAttributeError) when (key is "__spec__" or "__loader__") { return PyNone.Instance; }
+        }
+        Registry.Add(name, new Registration("", "", init, Read, set, fileBackedByGlobal: true));
+        PyProvider.Current?.Registered(name);
     }
 
     private static bool ConflictsWithDeclaredBinding(string existing, string name) =>
