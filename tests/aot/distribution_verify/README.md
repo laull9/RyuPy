@@ -18,3 +18,5 @@ python3 -B -m unittest discover -s tests/aot/distribution_verify -p test_contrac
 CI每平台分共享原件、两应用raw及两应用SDK五包；raw保留所有验包副本和前后快照，SDK保留实际构建/发布原件。失败前若尚未隐藏树，仍上传原路径。无未运行平台成功声明，不将本验收当性能测量。
 
 GitHub artifact ZIP可能转换权限或跟随链接；实际验证时的模式、Windows属性和链接目标以每轮before/after快照JSON记录，不能把下载后的ZIP解包权限冒充原运行宿主权限。这里只构造符号链接负例，不声称测试了所有Windows junction/reparse类别。
+
+2026-11-13：代码`da56a16b`、CI43384272262三平台全部通过，15原件独审完成，每平台30次verify/20拒绝/零skip及7组CP-Native原流一致。详见[结果与边界](../../../docs/validation/distribution-verify-20261113.md)。

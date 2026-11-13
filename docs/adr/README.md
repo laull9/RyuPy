@@ -118,4 +118,4 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0186：显式资源目录选择](0186-explicit-resource-trees.md)（Linux/macOS/Windows 两入口553资源已验；仅Linux有无运行时容器证明）
 
 - [0187：Windows Path 有界共享词法模型](0187-windows-path-lexical-model.md)（有限词法与真实Windows路径/应用回归已验；不扩任意设备命名空间）
-- [0188：离线校验已交付的AOT目录](0188-offline-distribution-verification.md)（实现及真实应用验收中；只证明内容自洽，不证明真实性/兼容性）
+- [0188：离线校验已交付的AOT目录](0188-offline-distribution-verification.md)（独立候选三平台真实应用已验；只证明内容自洽，不证明真实性/兼容性）
