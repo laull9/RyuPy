@@ -1,41 +1,108 @@
+# ADR0182：源码、必要输入与人工文档入库；测试输出写仓库外临时目录并默认清理。
+# 忽略规则仅防误加，不能作为在项目内长期保留测试产物的许可。
 /target
-# `make build` 生成的发行包（二进制不进版本库，压缩包名与平台相关）
 /releases
-# .NET 构建产物（Rust 的 src/bin/ 是源码目录，不能一并忽略）
 runtime/**/bin/
 runtime/**/obj/
 **/obj/
-*.pending-snap
-*.snap.new
-.DS_Store
-
-# Python 基线脚本生成的字节码缓存
-__pycache__/
-*.pyc
-.idea/
-.vscode/
-
-# 抓取的项目源码（tests/fetch_projects.py 生成，锁定信息在 tests/projects/lock.tsv）
-/third_party/projects/
-
-# AOT运行记录保留于Git历史/CI；新运行输出写入target，不混入摘要目录。
-/docs/validation/aot-driver-ci/logs/
-/docs/validation/aot-smoke-ci/logs/
-/docs/validation/aot-driver-local/full-check.log
-/docs/validation/aot-driver-local/e2e.jsonl
-/docs/validation/aot-reference-identity/*.log
-/docs/validation/aot-reference-identity/e2e.jsonl
-
-# 高层 NativeAOT 生成目录及独占构建锁（不忽略源码/清单文件本身）。
 *.build/
 *.dist/
 *.build.lock/
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/
+/third_party/projects/
+/vendor/dotnetdll/.cargo-ok
 
-# 性能实验可再生的编译 IR / JIT 转储不进版本库；测试输入和已审阅 insta 期望仍保留。
-/tests/perf/results/**/*.mir
-/tests/perf/results/**/*.cil
-/tests/perf/results/**/*.types
-/tests/perf/results/**/*.asm
-/tests/perf/results/**/*.asm.diff
-/tests/perf/results/m3_10/union-prototype/jit-arithmetic.txt
-/tests/perf/results/m3_10/union-prototype/jit-calls.txt
+# 禁止补丁、快照、运行流与比较输出；必要修改落实到源码，差异由 Git 表达。
+*.patch
+*.diff
+*.snap
+*.pending-snap
+*.snap.new
+*.stdout
+*.stderr
+*.exit
+*.log
+*.jsonl
+*.time
+*.trace
+*.labels
+*.sha256
+stdout.txt
+stderr.txt
+*.stdout.txt
+*.output.txt
+
+# 历史实验树只保留源码和人工总结，不把整棵 results 树当垃圾目录删除。
+/tests/perf/results/**
+!/tests/perf/results/**/
+!/tests/perf/results/**/*.py
+!/tests/perf/results/**/*.cs
+!/tests/perf/results/**/*.csproj
+!/tests/perf/results/**/*.sh
+!/tests/perf/results/**/*.md
+/tests/perf/results/m3_10/float-chain/candidate/summary.md
+/tests/perf/results/m3_10/float-loop/candidate/summary.md
+/tests/perf/results/m3_10/full-suite/summary.md
+/tests/perf/results/m3_9/full-suite/kernel-summary.md
+/tests/perf/results/m3_9/full-suite/paired-summary.md
+/tests/perf/results/m3_9/full-suite/suite-summary.md
+/tests/perf/results/m3_9/full-suite/core-jit/README.md
+/tests/perf/results/m3_9/interval-candidate/absolute-times.md
+/tests/perf/results/m3_9/leaf-first/absolute-times.md
+/tests/perf/results/m3_9/leaf-narrow/absolute-times.md
+
+# 验收文档目录只收人工说明与必要驱动源码，机器报告移至仓库外。
+/docs/validation/**
+!/docs/validation/**/
+!/docs/validation/**/*.md
+!/docs/validation/**/*.py
+!/docs/validation/**/*.cs
+
+# 旧 CPython/golden 入口禁入；配置、锁文件和手写资源不能全局按 JSON/TXT 忽略。
+/tests/projects/baselines/
+/tests/data/*_cpython_*.json
+/tests/aot/**/results/*.json
+/tests/aot/**/SOURCE.json
+/tests/aot/**/EXPECTED.json
+/tests/aot/**/ORACLE.json
+/tests/aot/**/REBUILT-ORACLE.json
+/tests/aot/**/expected.json
+/tests/aot/**/guard_expected.json
+/tests/aot/ordinary_mi/dag_baseline.json
+/tests/aot/wcwidth_ci/project-pilot-plans.json
+/tests/aot/wcwidth_ci/project-source-plan-contract.json
+/tests/aot/wcwidth_ci/source-hashes.json
+/tests/cases/xml_element/core_errors_atomicity/reference.v1.json
+/tests/fixtures/**/*.result.json
+/tests/fixtures/**/*.reference.json
+/tests/fixtures/foreach_accumulator_reconstructed/SOURCE_SHA256SUMS.txt
+/tests/fixtures/mutable_regex_replacement/pending/view_templates_reference.json
+/tests/fixtures/set_clear/extraction.txt
+/tests/fixtures/trace_adapter_s2/*.json
+/tests/validation/decimal_percent.json
+/tests/validation/distribution_metadata.json
+/tests/validation/distribution_metadata_authority.json
+/tests/validation/lexical_class_factory.json
+/tests/validation/re_scanner.json
+/tests/validation/text_search.json
+/tests/validation/textwrap_dedent.json
+/tests/validation/generator_default/reference/*.json
+/tests/validation/generator_product/goldens/*.json
+/tests/validation/instance_globals/cp/EXPECTED.json
+/tests/validation/metadata_source_comparison/frozen.json
+/tests/validation/source_provenance/ORIGINAL-IDENTITY.json
+/tests/validation/source_provenance/ci/fixed_expectations.json
+/tests/validation/source_provenance/oracles/identity.json
+/tests/validation/source_provenance/warning-split.json
+/tests/validation/wcwidth_warm/EXPECTED.txt
+/tests/validation/windows_path/*reference.json
+/scripts/keyerror_construction.json
+/scripts/treebuilder.json
+
+# 放在源码白名单之后，避免实验树的 .cs 例外放行构建器自动生成的源码。
+/tests/perf/results/**/bin/
+**/obj/

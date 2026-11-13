@@ -1,6 +1,17 @@
-# 标准库移植计划
+# 标准库 provider 与覆盖计划
 
-标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)，不代表完整 dataclasses 或 typing。M3.7 已完成用户批准的有界逐 API 交付，已实现的有限范围见 [项目工具表](stdlib-project-tools.md)，未列能力不自动视为支持。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
+## 当前策略（2026-11-13）
+
+新增覆盖优先随包 CPython provider，停止以逐模块 C# 重写或逐库 C ABI 扩张兼容性。
+先让现有联合应用完整切换 provider，再以真实 NumPy 和固定应用扩大覆盖；原生模块
+保留维护、回归和性能对照。后续只对实测热点考虑 C# 替换，保留身份、别名、异常与
+副作用。统一架构与验收见 [cpython-provider.md](cpython-provider.md)。
+各 API 增加 provider、版本、平台与证据归属。CP1–CP3 尚待实施，现有 API 表继续描述
+原生实现的限定范围；下面旧移植批次保留历史，新增排期采用 CP 主线。
+
+## 既有原生实现与历史移植记录
+
+标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)；完整 dataclasses 和 typing 仍待实现。M3.7 已完成用户批准的有界逐 API 交付，已实现的有限范围见 [项目工具表](stdlib-project-tools.md)，未列能力不自动视为支持。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
 
 ## 标准库与应用联合打包
 
@@ -16,7 +27,7 @@ macOS arm64 已通过真实 CP/JIT/Native、缺资源失败保旧 dist、中文�
 
 `ord` / `chr` 直接调用已原生实现，独立于下方待做模块表：ord接受单码点str和单字节bytes/bytearray，
 chr接受整数/bool与一次`__index__`转换；代理项可往返。严格拒绝错误参数和关键字，区分C int溢出与Unicode范围错误。
-M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。这只描述基础内建；后续map等竖切已使wcwidth固定入口及九项指定上游场景通过，不代表整个标准库完成。
+M3.3已接入一等内建函数值，ord/chr可保存/传参与调用，保持同名对象身份。这只描述基础内建；后续map等竖切已使wcwidth固定入口及九项指定上游场景通过，完整标准库继续按下表推进。
 
 ## 后续项目驱动的有限适配
 
@@ -71,11 +82,26 @@ NativeAOT 搬迁，覆盖往返、色相分支、无彩色、截断与参数错�
 真实来源、版本、依赖闭包、传递缺口和动态调用候选，保留用户源码搜索优先级。
 `queue` 只登记来源及依赖缺口，尚未准入；动态调用仍有静态盲区。
 
-catalog 沿用 `ordinary-dynamic-module-pilot` 的显式策略门；发行默认构建关闭该策略时，
-报告会给出 `catalog_unavailable`。复现 CLI 和逐 API 范围见
-[ADR0174](adr/0174-versioned-source-catalog-probe.md) 与
-[验收记录](validation/source-catalog-v2.md)。现有 C# provider 继续承担底层适配；SQLite、
-OpenSSL 等后续接入复用成熟库，通过声明式 ABI 或显式兼容宿主处理部署和生命周期。
+默认发行构建现使用 `CatalogOnly`：静态导入自动选择已认证 catalog 模块，无需 pilot feature。
+普通用户模块的自动动态实例环境及动态提示收集仍受 `ordinary-dynamic-module-pilot` 控制；
+`ExplicitOnly` 继续关闭自动 catalog。同名、同字节用户文件保留用户来源。
+来源合同见 [ADR0174](adr/0174-versioned-source-catalog-probe.md)，默认准入见
+[ADR0179](adr/0179-default-catalog-stdlib.md)。
+
+## 常用应用标准库：已整合可用范围
+
+| 能力 | 已验收公开合同 | 实现与边界 |
+| --- | --- | --- |
+| 数据库 | sqlite3 连接/游标、参数化 SQL、executemany、fetch、事务、with、关闭与异常 | Microsoft.Data.Sqlite + SQLitePCLRaw；[逐 API 表](sqlite3-implementation.md) |
+| HTTP/TLS | urllib.parse URL/query/转义；Request/urlopen GET/POST/HEAD、headers/status/read/close、错误与重定向；默认 TLS 验证及可信 CA | .NET HttpClient/TLS；代理、cookie、auth handler、高级 SSL 尚待；[验收](validation/network-stdlib.md) |
+| 压缩 | zlib compress/decompress/adler32/crc32；gzip compress/decompress/open、追加、多成员、上下文关闭 | .NET 压缩流；累计解压 64 MiB，上述窗口范围与文件协议边界见[验收](validation/zlib-gzip.md) |
+| 编码 | Base64/urlsafe/Base16/Base32；binascii hex/unhex/base64/crc32 | 严格 bytes/ASCII/padding 参数合同；[ADR0178](adr/0178-binary-crypto-stdlib.md) |
+| 摘要认证 | hashlib SHA256/SHA512/SHA1/MD5，增量/复制；hmac 构造、增量、复制、digest、compare_digest | .NET IncrementalHash，固定算法范围；[ADR0178](adr/0178-binary-crypto-stdlib.md) |
+
+[跨模块应用](../tests/aot/stdlib_service/README.md) 已完成 HTTP→Base64→gzip→JSON→包资源→SQLite
+的 CP/JIT/NativeAOT 搬迁对照、参数化写入、事务回滚及缺库负例。JIT 随包携带托管依赖、
+版本合同和当前 RID 原生库；AOT 携带 SQLite 原生库与许可证。实机范围为 macOS arm64，
+Windows/Linux、无 SDK 目标机及完整模块公开 API 均继续单列验收。
 
 ## 标准库底层能力与通用 C ABI
 
@@ -89,8 +115,7 @@ Python 配置、工具 PATH 的执行验收。声明示例和错误合同见
 
 SQLite、OpenSSL 等沿用成熟库的实现；接入工作集中在公开 API、所有权、错误传播和部署。
 opaque handle 将采用完整 SafeHandle 创建/销毁合同；可写缓冲、原生分配返回、回调、
-多库依赖收集仍待实现。catalog 原源与 native binding 的联合准入保持独立集成项；
-当前绑定构建沿用既有策略门，静态来源报告覆盖 probe 与普通源码构建。
+多库依赖收集仍待实现。catalog 原源、native binding 与资源已联合准入，见 ADR0175；默认发行策略见 ADR0179。
 
 ## libpython 最小桥接，M3.8
 

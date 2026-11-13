@@ -1,5 +1,52 @@
 # TODO
 
+## 当前执行计划：CPython provider 主线（2026-11-13）
+
+主代理本轮范围：规划、文档整理及清理历史的本地同步；下面开发项全部待做。
+全历史生成产物清理和远端强推已完成，主工作区及其余有效 worktree 已同步，必要源码和手写输入保留。新排期依据
+[ADR-0181](docs/adr/0181-cpython-provider-first.md)；详细合同见
+[CPython provider 方案](docs/cpython-provider.md)，目录迁移见
+[仓库结构规划](docs/repository-layout-plan.md)。
+
+- [ ] **CP1a 随包宿主**：冻结 CPython 3.12.13 发行来源、GIL 构建、ABI/RID/许可证；
+  最小 shim、隔离初始化、搜索路径、关机状态机；JIT/NativeAOT、搬迁与缺库/错 ABI 负例。
+- [ ] **CP1b 通用对象桥**：provider 中性合同、所有权、身份/别名、模块代理、对象协议；
+  异常身份与链、静态回调、线程重入、跨堆环和释放门。
+- [ ] **CP2 同程序迁移**：保留 `tests/aot/stdlib_service/app.py` 和必要包数据，预期由 CPython 即时生成，
+  切 CPython provider；CP/旧 provider/新 provider 对照，数据库独立检查，原位/搬迁/干净机。
+- [ ] **CP3 真实 NumPy**：锁定包与原生闭包；ndarray/dtype/视图、计算、编译回调、
+  双向异常、生命周期、搬迁与缺依赖负例。
+- [ ] **默认兼容配置晋升**：CP1–CP3 全部门通过后切默认 CPython provider，保留显式
+  纯 RyuPy 配置；固定 20 项增加 provider 维度，保留原始入口、版本与 native 结果。
+- [ ] **CP4 覆盖与 AOT 分发**：产品固定集至少 16/20；扩大标准库验收，完成
+  macOS/Linux/Windows 目标机与依赖闭包，standalone 后再推进 onefile。
+- [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
+  按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
+
+### 结构整理配套任务（后续开发竖切）
+
+- [ ] 固定测试发现数量、用例 ID、pending/接受状态、命令入口与依赖路径。
+- [ ] 按职责逐 crate 分层，再逐套件迁移；每批同步 runner/CI/Makefile/文档。
+- [x] 建立实验及产物隔离规则；清理所有分支和历史中的可复现产物并强推远端，
+  同步本地引用与工作区索引，清除生成 golden、快照、patch/diff，保留必要源码和文档。
+  沿用已有清理备份，不再新增备份流程。
+- [ ] 测试驱动改为 CPython 同次即时比较，IR/诊断改为结构断言；输出使用仓库外临时目录，
+  增加提交产物检查，逐套件消除旧产物引用，禁止旧格式兼容层。见 [ADR-0182](docs/adr/0182-source-only-test-oracles.md)。
+
+2026-11-13 清理后执行 `make check`：格式检查通过，Clippy 编译测试目标时停在
+`crates/ryupy-driver/tests/list_subclass_regressions.rs` 的三个 `include_bytes!`：
+仍读取已删除的 `foreign_comparison.stdout`、`abc_iterator.stdout`、`dataclass_default.stdout`。
+下一步先迁移这些测试消费者到即时 CPython 比较，再继续完整门禁；本轮未修改 runner。
+
+CP1 的开发拆分、依赖顺序和默认配置晋升门见 [实施顺序](docs/cpython-provider.md#61-开发拆分与依赖关系)。
+
+暂停新增逐库 C ABI 扩张、标准库逐 API 手工重写和无证据热点优化；现有回归修复及
+CP1–CP3 的必要阻断优先。结构迁移与 provider 语义改动分开提交。
+
+## 历史任务登记（保留状态，按新主线重排）
+
+以下编号、勾选和候选状态保持原记录；历史未完成项只有进入新竖切时才恢复实施。
+
 - [~] 普通 MI/C3 冷权威候选：真实菱形、单基后代、发布失败及 super/PIC 同源验证待完成；Legacy JIT 有界准入，Instance/Native 与专用布局保持拒绝。见[ADR0161](docs/adr/0161-ordinary-mi-c3.md)。
 
 - [~] TreeBuilder真实事件状态机候选：通用节点/文本尾文本/工厂身份及真实SyntaxError→ParseError父链接入；六组CP参考已冻结，C#/JIT/Native/完整check待验，原pending保留。见[ADR0154](docs/adr/0154-treebuilder-state-machine.md)。
@@ -12,7 +59,7 @@
 
 > **2026-11-02恢复与排期更新**：当前代码恢复自已推送M3.10（`a788d86`），其已归档项目能力为5/20。此前未推送M3.11源码随临时工作区丢失，历史10/20及725项C#测试不能当作当前checkout能力。用户已暂停16/20前置，优先原生AOT/JIT，并批准小步提交推送与独立WIP远端备份。详见[ADR0042](docs/adr/0042-aot-jit-recovery-priority.md)；原兼容目标未达成、不勾完成。
 
-> **后续迭代顺序**：用户已再次确认，C ABI属于当前打包主线，继续绑定/部署与有界优化；打包能力闭环后沿TODO继续兼容性适配。16/20只是暂停前置，不是取消或已完成；当前不重新追逐全部项目长尾。
+> **历史迭代顺序，已由 ADR-0181 更新**：此前以 C ABI 推进打包；当前执行本页顶部 CPython provider 计划。
 
 > 按里程碑组织，每个里程碑拆成多个贯穿所有层的「竖切」，以对应 e2e 用例转正为完成标志。
 > 推进方式见 [docs/workflow.md](docs/workflow.md)；完成标准见其中的「里程碑验收」。
@@ -648,8 +695,10 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [x] 上下文协议评审修订：with 按类型绑定 enter/exit；装饰器调用公开 `_recreate_cm`，CP/JIT 与组合 NativeAOT 验收通过（[证据](docs/validation/aot-context-protocol-review/README.md)）。
   - [ ] `as_file` 的 zip / 自定义 Traversable 解包与退出清理；保留两个 pending 用例。
   - [x] 通用 C ABI v3：13 类标量、void 返回和 UTF-8/bytes 只读调用期借用；静态 PInvoke、严格范围/编码、异常路径释放 pin，schema7/8 与 `as_file()` 资源组合已完成 macOS arm64 真实搬迁（[ADR0173](docs/adr/0173-declarative-cabi-signatures.md)、[验收](tests/aot/binding_abi/README.md)）。
-  - [ ] C ABI opaque handle/SafeHandle 创建与释放、可写及原生分配缓冲、回调、多库及传递依赖收集；catalog 与绑定联合准入、Linux/Windows 和干净目标环境继续逐项验收。
-  - [x] catalog v2 与静态来源报告：五模块准入，colorsys 六 API/55 行 CP/JIT 与 macOS arm64 AOT 搬迁；probe/普通构建报告唯一 provider、来源、版本、传递缺口和动态候选，保留 pilot 策略门（[ADR0174](docs/adr/0174-versioned-source-catalog-probe.md)）。queue 保持未准入。
+  - [ ] C ABI opaque handle/SafeHandle 创建与释放、可写及原生分配缓冲、回调、多库及传递依赖收集；更多 catalog 模块、Linux/Windows 和干净目标环境继续逐项验收。
+  - [x] catalog v2 与静态来源报告：五模块准入，colorsys 六 API/55 行 CP/JIT 与 macOS arm64 AOT 搬迁；probe/普通构建报告唯一 provider、来源、版本、传递缺口和动态候选，默认认证 catalog 静态准入、动态用户模块保留 pilot 策略门（[ADR0174](docs/adr/0174-versioned-source-catalog-probe.md)）。queue 保持未准入。
+  - [x] 默认 CLI 认证 catalog 接入：CatalogOnly 保持用户来源隔离，colorsys 六 API 默认 JIT 对照、源码+C ABI+资源无 feature NativeAOT 搬迁通过（[ADR0179](docs/adr/0179-default-catalog-stdlib.md)）。
+  - [x] SQLite、HTTP/TLS、gzip/zlib、Base64/binascii/hashlib/hmac 常用 API 整合；HTTP→编码解压→包资源→SQLite 参数化事务应用 CP/JIT/NativeAOT 搬迁和缺库负例通过（[联合验收](tests/aot/stdlib_service/README.md)）。
   - [ ] 完整标准库 provider 与版本化 catalog 逐 API 落地（路线和合同已通过交叉评审）（[ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md)）。
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成

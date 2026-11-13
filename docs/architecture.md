@@ -3,6 +3,11 @@
 > 本文描述**当前代码的实际分层**以及每层的职责边界。愿景与阶段规划见 [roadmap.md](roadmap.md)；
 > 关键取舍见 [adr/](adr/)；Python 语义细节见 [semantics.md](semantics.md)。
 
+> **2026-11-13 目标架构**：当前代码分层继续有效；随包 libpython 宿主与通用对象桥的
+> 待实现设计见 [cpython-provider.md](cpython-provider.md)。新增互操作组件封装 C API、
+> GIL、句柄和静态回调，Runtime 提供中性对象合同，driver 管理 provider 与分发闭包。
+> 标准库和扩展优先由 CPython provider 承接，typed CIL 快路保留；当前图尚未新增组件。
+
 ## 1. 总览
 
 ```text
@@ -34,6 +39,11 @@ ryupy-e2e（仅测试）─► ryupy-driver
 4. **`ryupy-codegen-cil` 只依赖 `ryupy-mir`**，不得引用 HIR / 类型 crate。后端不理解 Python。
 5. **只有 `ryupy-codegen-cil` 依赖 `dotnetdll`**。
 6. 只有 `ryupy-driver` 做文件 IO、启动子进程；各阶段 crate 是纯函数式的「数据进、数据出」。
+
+**目标架构新增约束（实施时执行）：**编译进程不载入用户 CPython 扩展；provider 决策
+与分发归 driver，CIL 后端只发射 MIR 显式操作。互操作组件依赖 Runtime 中性合同，
+由入口组合注册，禁止反向依赖；PyObject/GIL/引用所有权不泄漏到 Rust IR 或原生快路。
+上面的 IO 约束用于编译阶段；目标进程的文件、网络和 CPython 宿主由运行时负责。
 
 | Crate | 输入 → 输出 | 负责 | 不负责 |
 | --- | --- | --- | --- |
@@ -168,10 +178,13 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 
 ## 6. 测试策略
 
+目标规则以 [ADR-0182](adr/0182-source-only-test-oracles.md) 为准：Python 行为同次 CPython
+即时比较，IR/诊断使用源码断言；旧快照消费者待迁移，生成结果禁止入库。
+
 | 层次 | 工具 | 测什么 | 位置 |
 | --- | --- | --- | --- |
 | 单元测试 | `#[test]` | 单个函数的边界情况（并查集、运算规则表…） | 各 crate 的 `#[cfg(test)]` |
-| 快照测试 | `insta` | 每层 IR 的文本转储、诊断文本 | 各 crate 的 `tests/` 或 `#[cfg(test)]` |
+| 结构测试（迁移目标） | Rust 源码断言 / IR 验证器 | 每层 IR 不变量、诊断错误码/位置/必要消息 | 各 crate 的 `tests/` 或 `#[cfg(test)]` |
 | 端到端差分 | `libtest-mimic` | 同一 `.py` 在 CPython 与 RyuPy 下 stdout 一致 | `tests/e2e/**/*.py`，由 `ryupy-e2e` 驱动 |
 | 目录用例差分 | `libtest-mimic` + `ryupy-e2e` 库 | 入口 / 参数 / 环境 / stdio / 工作目录，以及退出码、异常类型、消息、cause | `tests/cases/**/case.txt` |
 | 项目级验收 | `ryupy-e2e` 项目 runner | 编译并运行固定项目入口，对照 CPython 基线 | `tests/projects/`，结果写 JSONL |

@@ -2,6 +2,16 @@
 
 把常见 Python 项目编译成 .NET CIL，交给 RyuJIT 运行。编译器用 Rust 编写，运行时 `RyuPy.Runtime` 用 C# 编写；当前 WIP 已提供有界 Native AOT 发布，适用范围与验证记录见 docs/validation/。
 
+## 项目方向（2026-11-13）
+
+**兼容性优先复用随包 libpython，性能保留 CIL / NativeAOT 优化空间。**
+近期依次完成可分发宿主与通用对象桥、现有“HTTP → 编码解压 → 包资源 → SQLite”
+同程序迁移、真实 NumPy 扩展的加载/回调/异常/生命周期验收。
+长期对标 Nuitka 的 AOT 打包体验，扩大标准库覆盖，再按实测热点选择 C# 原生替换。
+本轮只调整规划与文档，宿主和新 provider 尚待实现，现有命令与默认执行路径保持原样。
+见 [路线图](docs/roadmap.md)、[宿主与对象桥](docs/cpython-provider.md)、
+[目录整理](docs/repository-layout-plan.md) 和 [ADR-0181](docs/adr/0181-cpython-provider-first.md)。
+
 ## 当前状态
 
 状态日期：2026-11-12。产品证据对应代码 [85b11a94](https://github.com/laull9/RyuPy/commit/85b11a94368f0ba0a0bda80d611b9e0c39a5cf7b)，本次仅更新文档，不表示在后续文档提交上重新构建或运行产品。
@@ -14,7 +24,10 @@ pilot 是构建时 feature，不是 CLI 运行参数；普通默认构建未启�
 
 当前能力、有限兼容范围与未完成项以 [TODO](TODO.md)、[语义说明](docs/semantics.md) 和 [验证归档](docs/validation/) 为准。WIP 的专项通过不等于全部真实项目、任意扩展或所有部署环境通过。
 
-近期目标为固定纯 Python 项目集至少 80% 原生语义兼容（当前以 JIT 指定入口计数，不是 80% NativeAOT）。pilot 的 14/20 为 70%，仍需两项完整入口通过。项目范围和历史记录见 [compatibility.md](docs/compatibility.md)；后续特性不会自动增加通过数。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。
+固定项目集保留原版本与入口。后续产品兼容目标为至少 16/20，分别登记纯 RyuPy 与
+CPython provider 结果；历史原生 16/20 转为长期优化指标。上面的 13/20、14/20 是既有
+JIT 证据，新宿主尚无通过记录。生命周期按托管对象、CPython 对象与跨堆代理分别验收，
+见 [兼容性口径](docs/compatibility.md) 和 [对象桥合同](docs/cpython-provider.md)。
 
 ```bash
 make run FILE=tests/e2e/phase1/m1_5_dataclass.py
@@ -69,9 +82,11 @@ docs/                  文档
 | 文档 | 内容 |
 | --- | --- |
 | [docs/quickstart.md](docs/quickstart.md) | 快速上手与发布架构说明 |
-| [docs/roadmap.md](docs/roadmap.md) | 愿景与五阶段路线图 |
+| [docs/roadmap.md](docs/roadmap.md) | CPython provider 主线与历史五阶段 |
 | [docs/compatibility.md](docs/compatibility.md) | 80% 目标的计算方式、项目清单与偏差 |
-| [docs/stdlib.md](docs/stdlib.md) | 标准库逐批移植、C# 实现与 libpython 桥接 |
+| [docs/stdlib.md](docs/stdlib.md) | CPython 优先覆盖与既有原生 API 清单 |
+| [docs/cpython-provider.md](docs/cpython-provider.md) | 随包宿主、对象桥与短期验收门 |
+| [docs/repository-layout-plan.md](docs/repository-layout-plan.md) | 代码/测试分层与产物治理计划 |
 | [docs/optimization.md](docs/optimization.md) | 各阶段的前瞻优化、守卫与性能验收 |
 | [docs/architecture.md](docs/architecture.md) | 分层、依赖规则、各层 IR 设计、测试策略 |
 | [docs/semantics.md](docs/semantics.md) | 支持的 Python 子集、类型映射、语义陷阱清单 |
