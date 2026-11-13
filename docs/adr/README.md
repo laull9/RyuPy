@@ -106,15 +106,16 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 - [0179：显式NativeAOT体积/速度偏好](0179-native-aot-optimization-preference.md)（默认不变；真实SDK收据核对，优化收益按应用实测）
 
-- [0180：普通源码 NativeAOT 直入口](0180-native-direct-source-entry.md)（原独立候选三平台有限验收通过；与最新 dev 合并后的组合验证待完成）
+- [0180：普通源码 NativeAOT 直入口](0180-native-direct-source-entry.md)（独立整合分支三平台及catalog/通用ABI组合已验；未合dev）
 
 - [0181：Enum auto 赋值期生成](0181-enum-auto-assignment.md)（有限图 JIT/Native 与完整回归已验证；不代表完整 Enum）
 - [0182：固定非优化 __debug__](0182-debug-language-constant.md)（固定非优化正/负合同、有限 Native 与完整回归已验证）
 - [0183：AOT standalone 同一部署计划](0183-aot-standalone-deployment-plan.md)（真实应用及独立 PE 合同已验证；原生发布/干净部署待验）
 - [0184：有限标准输出 detach](0184-standard-output-detach.md)（CP/JIT/完整 C# 已验证；不扩一般 IO 或宿主句柄所有权）
 
-- [0185：Windows extended 文件系统路径的有限准入](0185-windows-extended-filesystem-paths.md)（修复草案；首轮 Windows 失败保留，修复后验收待完成）
+- [0185：Windows extended 文件系统路径的有限准入](0185-windows-extended-filesystem-paths.md)（Windows真实宿主路径与三平台资源组合修复已验，保首轮失败）
 
 - [0186：显式资源目录选择](0186-explicit-resource-trees.md)（Linux/macOS/Windows 两入口553资源已验；仅Linux有无运行时容器证明）
 
-- [0187：Windows Path 有界共享词法模型](0187-windows-path-lexical-model.md)（实现候选；真实 Windows 应用仍被旧路径门禁阻断）
+- [0187：Windows Path 有界共享词法模型](0187-windows-path-lexical-model.md)（有限词法与真实Windows路径/应用回归已验；不扩任意设备命名空间）
+- [0188：离线校验已交付的AOT目录](0188-offline-distribution-verification.md)（实现及真实应用验收中；只证明内容自洽，不证明真实性/兼容性）

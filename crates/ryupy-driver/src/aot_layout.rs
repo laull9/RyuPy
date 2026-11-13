@@ -11,6 +11,16 @@ mod files;
 #[path = "aot_layout_symbols.rs"]
 mod symbols;
 static NEXT: AtomicU64 = AtomicU64::new(0);
+/// 离线验包只复用现有底座，不扩大为清单全语义或原子目录快照。
+pub(crate) fn verify_distribution_manifest(root: &Path) -> Result<serde_json::Value> {
+    // 公开入口先拒绝根本身的链接/非目录，不先读取其manifest；这不是并发no-follow保证。
+    ensure!(
+        manifest_files::plain_metadata(root)?.is_dir(),
+        "验包根不是普通目录"
+    );
+    files::verify_manifest(root)
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Owner {

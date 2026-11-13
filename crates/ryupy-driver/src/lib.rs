@@ -21,6 +21,10 @@ pub mod deployment_request;
 mod linked_compile;
 use linked_compile::compile_linked_traced;
 mod distribution_metadata;
+mod distribution_verify;
+pub use distribution_verify::{DistributionVerification, verify_distribution};
+#[cfg(test)]
+mod distribution_verify_tests;
 mod instance_modules;
 mod module_environments;
 mod module_hints;

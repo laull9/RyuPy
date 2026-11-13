@@ -1239,6 +1239,7 @@ dependencies = [
  "clap",
  "ryupy-base",
  "ryupy-driver",
+ "serde_json",
 ]
 
 [[package]]

@@ -185,3 +185,15 @@ bt
 ```
 
 这不是搬迁后自动发现符号的承诺；调试器、源码位置及实际崩溃栈也会影响可见信息。精确身份、事务行为及真实验收见[ADR-0177](adr/0177-linux-native-symbol-delivery.md)。不要手工删除 `.dist` 的未知文件来减包。
+
+### 搬迁后离线核验AOT交付目录
+
+独立候选提供只读验包命令（真实应用跨平台验收进行中）：
+
+```sh
+ryupy verify ./release/app.dist
+```
+
+成功时退出0并打印JSON；文件缺失、内容与清单摘要不符、额外文件或不支持的清单版本会非零退出。它不修改目录，不调用dotnet/Python，也不重新编译。编译参数和metadata/provider配置不能混入verify。
+
+`content_integrity_verified: true`只表示文件与清单自洽。真实性、目标机兼容性、完整schema语义均明确为`not_checked`；清单与文件一起被改后可以再次自洽，不能替代签名。额外空目录允许，根内链接拒绝，不提供恶意并发替换防护。`reported_target_rid`只是声明，`total_bytes`不含清单本身；仍应单独运行应用确认目标环境可用。详见[ADR0188](adr/0188-offline-distribution-verification.md)。

@@ -41,6 +41,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// 离线核对AOT目录的文件集合与摘要；不证明签名、运行兼容性或完整schema语义
+    Verify { distribution: PathBuf },
     /// 静态探测来源闭包并输出 JSON；只解析源码，不执行 Python 或语义编译
     Probe {
         input: PathBuf,
@@ -174,6 +176,11 @@ fn main() -> ExitCode {
 
 fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
     match command {
+        Command::Verify { distribution } => {
+            let report = ryupy_driver::verify_distribution(&distribution)?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+            Ok(ExitCode::SUCCESS)
+        }
         Command::Probe {
             input,
             out_dir,
@@ -527,3 +534,6 @@ mod instance_module_tests {
 mod project_tests;
 
 mod cli_validation;
+
+#[cfg(test)]
+mod verify_tests;

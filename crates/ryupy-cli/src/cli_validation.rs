@@ -37,6 +37,22 @@ impl Cli {
                 ));
             }
         }
+        // 验包只读取现有交付目录，不静默接受或激活任何编译/来源配置。
+        if matches!(cli.command, Command::Verify { .. })
+            && (cli.distribution_metadata.is_some()
+                || cli.trace_product_v1
+                || !cli.instance_modules.is_empty()
+                || cli.instance_direct_globals
+                || cli.experimental_direct_accumulator
+                || cli.experimental_leaf_inline
+                || cli.diagnostic_scalar_slp
+                || cli.experimental_packed_slp)
+        {
+            return Err(Self::command().error(
+                ErrorKind::ArgumentConflict,
+                "verify只接受交付目录，不接受编译或来源配置",
+            ));
+        }
         Ok(cli)
     }
 }
