@@ -8,7 +8,7 @@
 
 ## 2026-11-13 AOT 打包推进
 
-当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。资源与绑定组合发布已完成 23 步真实搬迁验收，接下来扩展 ABI 缓冲区/句柄、原生依赖闭包及跨平台目标环境验收。
+当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。资源与绑定组合发布已完成 23 步真实搬迁验收；通用 C ABI v3 进一步支持 13 类标量、void 返回和 UTF-8/bytes 只读借用，已通过静态 AOT、`as_file()` 资源组合与受限环境搬迁（[ADR0173](adr/0173-declarative-cabi-signatures.md)）。接下来推进 SafeHandle 所有权、多库依赖闭包、catalog 与绑定联合准入及跨平台目标环境验收。
 
 完整标准库继续按 API、底层依赖和平台登记。版本化 catalog v2 已接入五个纯 Python 原源模块，新增 colorsys 六 API 差分与真实 AOT 搬迁；`ryupy probe` 及普通构建报告列出 provider、来源、版本、依赖缺口与动态不确定性，沿用显式 pilot 策略门（[ADR0174](adr/0174-versioned-source-catalog-probe.md)）。C# 继续提供底层适配，SQLite、OpenSSL 等复用成熟库；完整 provider 覆盖与 libpython 宿主继续实施。onefile 排在 standalone 分发闭环之后。完整接入路线见 [ADR0172](adr/0172-aot-stdlib-provider-plan.md)。
 

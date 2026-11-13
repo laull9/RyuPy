@@ -38,9 +38,11 @@ Linux 使用 cc/ar；Windows 从 MSVC 开发环境调用 cl/link/lib。新增 AB
 - 14 项无效声明在原生文件读取/输出写入之前失败，覆盖未知字段/类型、null 封送字段、
   错误调用约定/长度/所有权、buffer 返回、void 输入、超额/重名参数、符号冲突和版本混用。
 - 真正构建 JIT/NativeAOT 与 schema7；静态重复符号别名去重，缺符号 archive 交给真实链接器失败，
-  失败后旧 AOT dist 仍运行正确；显式资源与 v3 同次 AOT 发布得到 schema8。
+  失败后旧 AOT dist 仍运行正确；`as_file()` 读取包数据后调用 UTF-8 C 函数，
+  显式资源与 v3 同次 AOT 发布得到 schema8。
 - 源码、shared/archive 输入、构建目录整体移走，换 cwd 运行搬迁 JIT/AOT/资源AOT，
-  完整差分仍通过。原 v1/v2 与资源组合使用各自 runner 回归。
+  完整差分仍通过；搬迁后的两个 NativeAOT 程序清除全部 Python 环境变量，
+  PATH 指向新建空目录后再次通过。原 v1/v2 与资源组合使用各自 runner 回归。
 
 runner 将每一步命令、退出码、宿主与搬迁路径写入独立证据目录的 `result.json`，
 逐步 stdout/stderr 保存在 `logs/`；证据在本 worktree 的 target 下，不加入版本库。
@@ -67,3 +69,23 @@ runner 将每一步命令、退出码、宿主与搬迁路径写入独立证据�
 ABI 编码器需要实际孤立代理项，因此验收使用 `"a" + chr(0xd800) + "b"`，得到预期
 UnicodeEncodeError；C# 单测直接覆盖孤立 UTF16 输入。源码字面量缺口已登记 semantics §4.10，
 保留在原语义链的后续修复范围。本轮未扩展 handle、可写借用、回调、native-owned 输出或算法库。
+
+## 主树整合验收
+
+2026-11-13，主代理在 `dev` 整合 catalog/probe 与通用 C ABI 后完成代码评审，
+并补强 `as_file()` 与 v3 的组合执行验收。ABI runner 共 37 步通过：全部标量/缓冲
+CPython 差分、14 类无效声明、装载失败、缺静态符号保留旧 dist、schema7/8 和三类搬迁。
+两个 NativeAOT 搬迁步骤使用已清除 Python 环境变量与空工具 PATH 的环境；
+`result.json.native_relocation_environment` 记录 cwd、PATH 和资源入口。
+
+本轮实测 macOS arm64；Linux/Windows 和卸载 SDK/runtime 的干净目标机验收继续待补。
+固定 catalog 策略门仍保留，catalog 原源与绑定同次构建的联合准入继续待做。
+本轮日志：`target/integration-abi-runtime.log`、`target/integration-abi-restricted-run.log`；
+逐步输出与最终状态见 `target/integration-abi-restricted-evidence/abi-*/result.json` 和 `logs/`。
+
+主树完整 `make check` 退出 0：fmt/clippy、Rust 单测、C# 3025 项通过/2 项跳过、
+CPython 基线 721 项、全用例自检 724 项、编译 e2e 444 项通过/284 项跳过；
+日志为 `target/integration-abi-final-check.log`。
+
+旧绑定主树回归也通过：`binding_multi` 19 步、`binding_resources` 23 步，
+日志为 `target/integration-abi-legacy-multi.log`、`target/integration-abi-legacy-resources.log`。

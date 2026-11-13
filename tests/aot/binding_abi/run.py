@@ -34,9 +34,10 @@ def main():
     dotnet = shutil.which(os.environ.get('DOTNET', 'dotnet'))
     assert dotnet
 
-    def run(label, command, *, check=True, cwd=work, timeout=90):
+    def run(label, command, *, check=True, cwd=work, timeout=90, process_env=None):
         command = list(map(str, command))
-        result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, timeout=timeout)
+        result = subprocess.run(command, cwd=cwd, env=env if process_env is None else process_env,
+                                capture_output=True, timeout=timeout)
         (logs / (label + '.stdout')).write_bytes(result.stdout)
         (logs / (label + '.stderr')).write_bytes(result.stderr)
         records['steps'].append({'step': label, 'argv': command, 'exit': result.returncode})
@@ -97,9 +98,9 @@ def main():
         unrelated = work / 'unrelated-cwd'
         unrelated.mkdir()
 
-        def application(label, entry, *, native=False, mode=None):
+        def application(label, entry, *, native=False, mode=None, process_env=None):
             return run(label, ([entry] if native else [dotnet, entry]) + ([mode] if mode else []),
-                       cwd=unrelated, timeout=40)
+                       cwd=unrelated, timeout=40, process_env=process_env)
 
         jit_output, aot_output = work / 'jit-build', work / 'aot-build'
         command = [args.ryupy, 'build', app, '--native-binding', binding]
@@ -166,8 +167,9 @@ def main():
         (package / '__init__.py').write_text('', encoding='utf-8')
         (package / 'payload.txt').write_text('中文\x00payload', encoding='utf-8')
         resource_app = source / 'resource_app.py'
-        resource_app.write_text('import pkgdata, abi\nfrom importlib.resources import files\n'
-            'print(abi.utf8(files(pkgdata).joinpath("payload.txt").read_text(encoding="utf-8")))\n', encoding='utf-8')
+        resource_app.write_text('import pkgdata, abi\nfrom importlib.resources import files, as_file\n'
+            'with as_file(files(pkgdata).joinpath("payload.txt")) as payload:\n'
+            '    print(abi.utf8(payload.read_text(encoding="utf-8")))\n', encoding='utf-8')
         resources = source / 'resources.json'
         save(resources, {'schema_version': 1, 'modules': [{'module': 'pkgdata', 'files': ['payload.txt']}]})
         resource_output = work / 'resource-build'
@@ -187,9 +189,20 @@ def main():
         shutil.move(resource_output, work / 'resource-build.unavailable')
         jit, native = moved_jit / jit.name, moved_aot / layout.native.name
         assert application('jit-relocated', jit).stdout == reference
-        assert application('aot-relocated', native, native=True).stdout == reference
+        # NativeAOT 搬迁后清除 Python 配置并隔离工具 PATH，验证运行无需查找构建工具。
+        empty_tools = work / 'empty-tools'
+        empty_tools.mkdir()
+        restricted_env = {key: value for key, value in env.items()
+                          if not key.upper().startswith('PYTHON')}
+        restricted_env['PATH'] = str(empty_tools)
+        assert application('aot-relocated', native, native=True,
+                           process_env=restricted_env).stdout == reference
         assert application('resource-relocated', moved_resource / resource_layout.native.name,
-                           native=True).stdout == resource_expected
+                           native=True, process_env=restricted_env).stdout == resource_expected
+        records['native_relocation_environment'] = {
+            'python_variables': 'removed', 'PATH': str(empty_tools),
+            'cwd': str(unrelated), 'resource_api': 'as_file(Path)',
+            'target_environment': 'same_host_restricted_environment'}
         relative = Path(jit_manifest['native_bindings'][0]['relative_file'])
         for label in ('missing-symbol', 'no-library', 'invalid-library'):
             destination = work / label

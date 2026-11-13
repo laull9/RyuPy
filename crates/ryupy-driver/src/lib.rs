@@ -263,7 +263,7 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     build_with_resources(sess, opts, None)
 }
 
-/// 首切资源与绑定互斥，在任何输出写入前拒绝组合。
+/// 资源计划与原生绑定共同进入构建及发布流程，声明错误在输出写入前拒绝。
 pub fn build_configured(
     sess: &mut Session,
     opts: &BuildOptions,
