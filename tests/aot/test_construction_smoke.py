@@ -262,9 +262,12 @@ class StaticContractTests(unittest.TestCase):
 
 
 class MainFlowTests(unittest.TestCase):
-    def exercise(self, failure=None):
+    def exercise(self, failure=None, aliased=False):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
-        root = Path(temp.name); repo = root/'repo'; repo.mkdir(); out = root/'out'
+        root = Path(temp.name)
+        if aliased:
+            (root/'alias').mkdir(); root = root/'alias'/'..'
+        repo = root/'repo'; repo.mkdir(); out = root/'out'
         fixture = repo/'tests/aot/construction_fixtures/construction.py'
         fixture.parent.mkdir(parents=True); fixture.write_bytes(b'fixture-not-executed')
         source_sha = hashlib.sha256(fixture.read_bytes()).hexdigest()
@@ -277,12 +280,12 @@ class MainFlowTests(unittest.TestCase):
             if label == 'git-status': return subprocess.CompletedProcess(command, 0, b'', b'')
             if label == 'cp-positive': return output(python=True)
             if label == 'runtime-build':
-                self.assertEqual(Path(command[2]), repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj')
+                self.assertEqual(Path(command[2]).resolve(), (repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj').resolve())
                 self.assertTrue(Path(command[2]).is_absolute())
-                self.assertNotEqual(kwargs['cwd'], repo)
+                self.assertNotEqual(kwargs['cwd'].resolve(), repo.resolve())
                 pin = json.loads((kwargs['cwd']/'global.json').read_text())
                 self.assertEqual(pin['sdk'], {'version': harness.SDK, 'rollForward': 'disable', 'allowPrerelease': False})
-                self.assertEqual(kwargs['cwd'].parent, out)
+                self.assertEqual(kwargs['cwd'].parent.resolve(), out.resolve())
                 runtime = repo/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll'
                 runtime.parent.mkdir(parents=True); runtime.write_bytes(b'runtime')
             elif label == 'compiler-build':
@@ -340,6 +343,10 @@ class MainFlowTests(unittest.TestCase):
         self.assertFalse(result['clean_machine_without_runtime_tested'])
         self.assertEqual(result['source_tree_action'], 'renamed')
         self.assertEqual(result['not_executed'], [])
+
+    def test_runtime_command_uses_same_directory_identity_through_alias(self):
+        result, _, _ = self.exercise(aliased=True)
+        self.assertEqual(result['status'], 'passed')
 
     def test_first_failure_never_launches_following_stage_or_application(self):
         for failure in ['cp-positive', 'runtime-build', 'compiler-build', 'aot-publish', 'jit-positive', 'jit-ryupy-boundaries', 'native-positive']:
