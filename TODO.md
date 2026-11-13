@@ -1,5 +1,27 @@
 # TODO
 
+## 当前 AOT 产品主线（2026-11-13）
+
+**当前整合优先级**：以最新 dev 的 C ABI 多导出、`as_file`、绑定与资源组合及上下文协议工作为基线，保留新增完整测试，先验证与 standalone、资源树、优化偏好和直接入口的组合。后续仍按 [ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md) 推进原生库接入与逐 API provider/catalog；以下旧优化证据不替代这条主线，也不代表当前合并树已验收。
+
+- [~] 普通源码AOT直入口整合候选：原独立候选已通过三平台入口/项目/绑定及Linux三偏好/符号回归；Unix普通源码去掉重复Csc薄宿主，Windows/静态绑定/无context保旧路径。与最新dev多导出C ABI、资源组合和上下文协议合并后的回归待验，不能沿用原候选绿灯。见[ADR0180](docs/adr/0180-native-direct-source-entry.md)。
+
+- [x] 显式NativeAOT default/size/speed偏好：默认不变，SDK有效值/原生hash收据核对，错配失败保旧dist。CI43351388627六构建、288宿主+24净容器及标准8+8通过；size在binaryornot交付省1.846%，speed增3.133%，不宣称可靠速度收益。默认三平台回归与完整check已验，未合dev/main。见[ADR0179](docs/adr/0179-native-aot-optimization-preference.md)。
+
+- [~] 精确list join分配优化候选：完整check与三平台打包回归已验；真实Native两轮极长行中位降2.57%/5.75%，仅第二轮越过既定3%可靠门，其它负载无可靠收益。native/dist各+8B，RSS没有稳定下降；不宣称跨轮晋升，未合入dev。见[ADR0178](docs/adr/0178-exact-list-join-allocation.md)。
+
+- [x] Linux x64 Native符号交付分离有限验收：精确本次host.dbg经debuglink/CRC/build-id验证后仅留.build，未知旁件与Mac/Windows保守保留。CI `43339677617` binaryornot 8宿主+8禁网容器及真实搬迁GDB恢复通过；dist由21,424,519降至11,101,529字节（约48.18%），不是总磁盘或性能收益。pyfiglet Linux/双平台回归、profiler与完整check通过；仅验证分支，未合入dev/main。见[ADR0177](docs/adr/0177-linux-native-symbol-delivery.md)。
+
+- [~] PyText有界索引扫描候选：`3700df16` 同树完整check通过，A/B CI `43328258397` 两轮极长hi800中位耗时降7.96%/5.55%；其它负载无可靠收益，首轮startup负向第二轮未复现，保留风险。binaryornot及Mac/Windows部署原件已验；仅独立验证分支，未自动合入dev/main。见 `tests/aot/native_text_index_perf/README.md`，不宣称Nuitka总体性能领先。
+
+- [x] 显式无条件声明依赖预检：成熟PEP508/440解析，真实缺chardet/版本不符先于源码及SDK报错；默认关闭保持旧行为。CI `43317160754` 7个反例/对照、精确收据、真实Native宿主8/8和隔离容器8/8以及同树完整check通过。拒绝markers/extras/URL/===，不求解安装、不检查Requires-Python/ABI；无Native性能提升声明。见[ADR0176](docs/adr/0176-explicit-dependency-preflight.md)。
+
+- [x] Linux binaryornot普通consumer有限部署：未改上游binaryornot/chardet，47源码自动发现，四类输入在原位/搬迁宿主8/8与禁网无Python/.NET容器8/8通过。CI `43314021657` 与同树完整check及原件独审通过；非完整库兼容，不改固定20项目分子，无性能结论。见 `tests/aot/deployment_binaryornot/README.md`。
+
+- [~] 真实 standalone 联合部署：Linux/macOS/Windows pyfiglet 1.0.2 两入口、完整553字体及metadata已验；新增显式资源目录选择同树通过 Linux CI `43296651927` 与平台 CI `43298130779`，各平台原位/搬迁运行通过，Windows nofollow/路径宿主各3/3。只有Linux有禁网无Python/.NET容器证明，Mac/Windows干净机仍未验。见 [ADR0174](docs/adr/0174-explicit-resource-trees.md)。不宣称 Nuitka 全面兼容或更快。
+- [~] 真实渲染性能：PyText.Length BMP向量扫描候选已过完整回归，同宿主Native A/B CI `43300538885` 已验：长hi渲染中位76.69→66.64ms（40交替样本，耗时降13.1%）；短hi分布重叠不作可靠提升，旧Nuitka数字不复用为新提升。裸return的Python None表示修复另行验证，避免污染性能控制变量。
+
+
 - [~] 普通 MI/C3 冷权威候选：真实菱形、单基后代、发布失败及 super/PIC 同源验证待完成；Legacy JIT 有界准入，Instance/Native 与专用布局保持拒绝。见[ADR0161](docs/adr/0161-ordinary-mi-c3.md)。
 
 - [~] TreeBuilder真实事件状态机候选：通用节点/文本尾文本/工厂身份及真实SyntaxError→ParseError父链接入；六组CP参考已冻结，C#/JIT/Native/完整check待验，原pending保留。见[ADR0154](docs/adr/0154-treebuilder-state-machine.md)。
@@ -24,6 +46,8 @@
 > Phase 2–4 的 Python 验收样例已预置并标记 pending，另有多文件辅助包、错误退出 fixture 与 CPython 基线脚本，见 [tests/README.md](tests/README.md)。它们不计为 RyuPy 已实现能力，也不替代待选的真实项目集。
 
 ## 当前兼容竖切（2026-11-12）
+
+- [~] Enum auto 与 __debug__：四组/三组有限域 JIT 双 PIC 与独审通过；赋值期生成、警告及固定非 -O 常量已接。完整回归、Native hosted 和真实 click 原入口独立验收，不能按导入成功计项目晋升。见 [ADR0181](docs/adr/0181-enum-auto-assignment.md)、[ADR0182](docs/adr/0182-debug-language-constant.md)。
 
 - [~] sortedcontainers 原入口及跨模块再派生：ABC/view/有限 slots 与动态单基已实现，原入口和扩展探针双 PIC 通过；S1 精确清单修复在 CI `43196707322` 已实际 42/42；真实 Native 正/负图与旧门通过，仍有旧 metadata 红项，不以整链冒充全绿。见 ADR0163/0164。
 - [~] 通用 dict 原生布局与完整 C3：词法多基事务及布局提供者分离正在实施；目标真实 toml 原入口与内联表扩展，当前不计项目晋升。见 [ADR0165](docs/adr/0165-native-layout-c3.md)。

@@ -1,0 +1,14 @@
+{
+  "name": "Nuitka",
+  "version": "4.3.5",
+  "index": "https://pypi.org/pypi/Nuitka/4.3.5/json",
+  "filename": "nuitka-4.3.5.tar.gz",
+  "url": "https://files.pythonhosted.org/packages/5f/ec/a9a448d2c429865483fdecf3e4d60e4dcdb8738085337cbd2482ec6468ef/nuitka-4.3.5.tar.gz",
+  "sha256": "ca1dabc274b95efa7a46597f464ec27484b30f32cb89872d14d66541284d4f01",
+  "uploaded": "2026-11-08T13:01:00.034143Z",
+  "yanked": false,
+  "verified": "2026-11-12 live PyPI JSON and downloaded archive SHA256; not installed",
+  "mode": "standalone directory; not onefile",
+  "source_options_verified": "nuitka/options/OptionParsing.py in hash-verified sdist",
+  "installation_scope": "not implemented; hosted setup must separately pin build dependencies and record installed tree"
+}

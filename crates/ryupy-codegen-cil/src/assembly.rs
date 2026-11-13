@@ -363,7 +363,7 @@ fn build_resolution_core(
 
     // 第一遍：为所有函数分配 MethodIndex。
     //
-    // 方法名用 `codegen_name`（link 阶段已按模块加前缀，保证唯一）；Python 可见的
+    // 方法名用 `codegen_name`（MIR按稳定函数身份区分，link再加模块前缀，保证唯一）；Python 可见的
     // 函数名仍保留在 `Function::name`，供 PyFunction 与签名使用。
     let mut fn_indices: FxHashMap<FnId, MethodIndex> = FxHashMap::default();
     for (fn_id, func) in program.functions.iter() {

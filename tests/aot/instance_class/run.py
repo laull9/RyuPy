@@ -126,8 +126,8 @@ def structure(r):
     output=r.out/'structure'
     r.env.update(RYUPY_INSTANCE_CLASS_REQUEST=str(r.out/'requests.json'),RYUPY_INSTANCE_CLASS_OUT=str(output))
     r.named_test('structure',['cargo','test','--locked','-p','ryupy-driver','--features','ordinary-dynamic-module-pilot',
-          'instance_class_aot_real_source_and_pe_gate','--','--ignored','--nocapture'],
-          'instance_class_aot_real_source_and_pe_gate',1200)
+          'instance_class_aot_tests::instance_class_aot_real_source_and_pe_gate','--','--exact','--ignored','--nocapture'],
+          'instance_class_aot_tests::instance_class_aot_real_source_and_pe_gate',1200)
     sys.path.insert(0,str(ROOT/'tests/aot/wcwidth_ci'))
     from instance_pe import envelope, unchanged
     r.pe_identity={}
@@ -148,7 +148,7 @@ def structure(r):
     r.env.update(RYUPY_INSTANCE_AOT_STRUCTURE_OUT=str(output),
                  RYUPY_INSTANCE_CLASS_CASES='\n'.join(c['name'] for c in r.cases))
     r.named_test('pe-signatures',['cargo','test','--locked','-p','ryupy-codegen-cil',
-       'instance_class_actual_pe_gate','--','--ignored','--nocapture'],'instance_class_actual_pe_gate',900)
+       'instance_pe_tests::instance_class_actual_pe_gate','--','--exact','--ignored','--nocapture'],'instance_pe_tests::instance_class_actual_pe_gate',900)
     unchanged(output,r.pe_identity)
 
 
@@ -206,7 +206,7 @@ def actual_cli_pe(r, case, layout):
     r.save(name+'-cli-actual-pe.json',check(decoded,expected,mapping,sources))
     r.env.update(RYUPY_INSTANCE_AOT_STRUCTURE_OUT=str(folder),RYUPY_INSTANCE_CLASS_CASES=name)
     r.named_test(name+'-cli-pe-signatures',['cargo','test','--locked','-p','ryupy-codegen-cil',
-        'instance_class_actual_pe_gate','--','--ignored','--nocapture'],'instance_class_actual_pe_gate',900)
+        'instance_pe_tests::instance_class_actual_pe_gate','--','--exact','--ignored','--nocapture'],'instance_pe_tests::instance_class_actual_pe_gate',900)
     unchanged(folder,identities)
 
 

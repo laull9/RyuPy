@@ -44,3 +44,10 @@ def boundary_expected(cp):
     require(cp == required, '不是已冻结CP边界观察')
     return (b'cold 2 []\ndeferred NI\noutside NI\nempty probe_pkg.path_empty False\n'
             b'changed NI\nfinder NI\nevents [\'path_empty\']\n')
+
+
+def named_test_output(lines, name):
+    # 精确完整身份，拒零匹配、重复、ignored和后缀碰撞。
+    expected = 'test ' + name + ' ... ok'
+    require(sum(line == expected for line in lines) == 1,
+            '缺失/重复具名测试: ' + name)

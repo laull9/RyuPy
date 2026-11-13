@@ -92,3 +92,23 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
 - [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
 - [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
+
+
+- [0173：Windows Path 有界共享词法模型](0173-windows-path-lexical-model.md)（实现候选；真实 Windows 应用仍被旧路径门禁阻断）
+
+- [0174：显式资源目录选择](0174-explicit-resource-trees.md)（Linux/macOS/Windows 两入口553资源已验；仅Linux有无运行时容器证明）
+
+- [0175：资源树与实际输出的早期相交诊断](0175-resource-output-preflight.md)（单一模块图内预检，保留合法兄弟资源与失败留证）
+
+| [0177](0177-linux-native-symbol-delivery.md) | Linux Native调试符号与交付目录分离 | Linux有限验收通过；未合入dev/main |
+
+- [0178：精确内建list的join去掉重复引用快照](0178-exact-list-join-allocation.md)（减分配候选，真实A/B两轮仅一轮过3%可靠门）
+
+- [0179：显式NativeAOT体积/速度偏好](0179-native-aot-optimization-preference.md)（默认不变；真实SDK收据核对，优化收益按应用实测）
+
+- [0180：普通源码 NativeAOT 直入口](0180-native-direct-source-entry.md)（原独立候选三平台有限验收通过；与最新 dev 合并后的组合验证待完成）
+
+- [0181：Enum auto 赋值期生成](0181-enum-auto-assignment.md)（有限图 JIT/Native 与完整回归已验证；不代表完整 Enum）
+- [0182：固定非优化 __debug__](0182-debug-language-constant.md)（固定非优化正/负合同、有限 Native 与完整回归已验证）
+- [0183：AOT standalone 同一部署计划](0183-aot-standalone-deployment-plan.md)（真实应用及独立 PE 合同已验证；原生发布/干净部署待验）
+- [0184：有限标准输出 detach](0184-standard-output-detach.md)（CP/JIT/完整 C# 已验证；不扩一般 IO 或宿主句柄所有权）

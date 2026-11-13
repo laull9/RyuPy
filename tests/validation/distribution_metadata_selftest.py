@@ -11,6 +11,7 @@ import distribution_metadata as gate
 import distribution_metadata_contract as c
 import distribution_metadata_products as p
 import manifest_options
+from test_distribution_metadata_schema4 import MetadataSchemaTests
 from distribution_metadata_identity import IdentityError, inventory, isolated
 
 

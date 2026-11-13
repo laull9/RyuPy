@@ -29,6 +29,7 @@ impl SourceSummary {
 }
 
 pub(crate) struct ManifestContext {
+    pub(crate) aot_optimization: crate::AotOptimization,
     pub report: EmissionReport,
     pub sources: Vec<SourceSummary>,
     pub entry_module_id: u32,
@@ -46,6 +47,7 @@ impl ManifestContext {
         session: &crate::Session,
     ) -> Result<Self> {
         let context = Self {
+            aot_optimization: session.aot_optimization,
             report,
             sources,
             entry_module_id,

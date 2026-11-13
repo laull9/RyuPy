@@ -1,0 +1,46 @@
+# 通用裸return及真实pyfiglet空格/长段落Native验收，不做性能测量。
+name: 裸return与pyfiglet真实Native兼容
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/bare-return-none-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: bare-return-none-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 固定工具与系统依赖
+        timeout-minutes: 15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev libicu-dev
+          python3 -B tests/aot/wcwidth_ci/prepare.py
+      - name: 真实失败输入合同
+        run: '"$PYTHON" -B -m unittest discover -s tests/aot/bare_return_none -p "test_*.py"'
+      - name: 公开Native、独立receipt、源隔离与搬迁
+        timeout-minutes: 45
+        run: '"$PYTHON" -B tests/aot/bare_return_none/run.py'
+      - name: 全部成功与失败原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: bare-return-none-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bare-return-none
+          if-no-files-found: warn
+          retention-days: 3

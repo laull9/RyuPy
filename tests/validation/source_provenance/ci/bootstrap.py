@@ -149,7 +149,7 @@ def execute_jit(out, run, input_root, contract, toolset, env):
             cwd=out, env=env, check=True, timeout=240)
     space(out)
     build = out / 'build'; oracle = out / 'cp/results'
-    run.run('build-stage', common + ['--out', build, '--role', 'new', '--phase', 'build', '--tools', out / 'tools-new.json', '--oracle', oracle],
+    run.run('build-stage', common + ['--out', build, '--role', 'new', '--phase', 'build', '--tools', out / 'tools-new.json', '--oracle', oracle, '--binding-version', 'lexical-chain-v1'],
             cwd=out, env=env, check=True, timeout=1500)
     reviews = out / 'pe-reviews'; reviews.mkdir()
     for case in cases(contract):

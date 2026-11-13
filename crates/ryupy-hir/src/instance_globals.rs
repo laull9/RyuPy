@@ -171,10 +171,9 @@ impl<'a> Visitor<'a> for Check {
             ast::Expr::Generator(_) if self.direct_globals => {
                 self.reject(expression.range(), "直接globals能力域的生成器表达式")
             }
-            ast::Expr::Name(name) if name.id.as_str() == "__debug__" => {
-                // 这是编译期语言常量，不能伪装成可由实例字典遮蔽的普通名字。
-                self.reject(name.range, "语言常量 __debug__");
-            }
+            // Load由HIR直接变成True，不读取实例globals；非法写由syntax窄校验拒绝。
+            ast::Expr::Name(name)
+                if name.id.as_str() == "__debug__" && name.ctx == ast::ExprContext::Load => {}
             ast::Expr::Name(name) => self.name(name.id.as_str(), name.range),
             // 这三个属性名没有专用 frame 协议，走已有的通用属性读写/调用即可。
             // 不能把 re.compile 或任意对象的同名属性误当环境裸名；receiver 仍递归预检。

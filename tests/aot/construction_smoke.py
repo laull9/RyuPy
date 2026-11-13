@@ -23,6 +23,16 @@ from platform_support import audit, clean_environment, host
 SDK = '10.0.403'
 RUST = '1.99.1'
 MODES = ('positive', 'ryupy-boundaries')
+# 对齐manifest.rs当前七字段及ModuleEnvironmentPolicy无feature默认身份；不得忽略非bool项。
+DEFAULT_OPTIONS = {
+    'experimental_direct_accumulator': False,
+    'experimental_foreach_accumulator': False,
+    'experimental_leaf_inline': False,
+    'diagnostic_scalar_slp': False,
+    'experimental_packed_slp': False,
+    'instance_modules': [],
+    'module_environment_policy': 'explicit-only',
+}
 # 与唯一fixture一起审定；不能从当次程序输出生成期望。
 FIXTURE_SHA256 = 'ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e'
 EXPECTED = {'positive': {'stdout': 'sentinel-ok\n'
@@ -176,7 +186,11 @@ def published_inputs(output, il, rid):
 
 def verify_inputs(data, il, runtime):
     require(data['schema_version'] == 1, '只接受无资源schema1')
-    require(all(value is False for value in data['compiler']['options'].values()), '不能打开实验开关')
+    options = data['compiler']['options']
+    require(type(options) is dict and set(options) == set(DEFAULT_OPTIONS), '必须精确包含当前七个默认选项')
+    for name, expected in DEFAULT_OPTIONS.items():
+        require(type(options[name]) is type(expected) and options[name] == expected,
+                '不是本门固定默认选项：'+name)
     sources = data['sources']
     require(len(sources) == 1 and sources[0]['module_name'] == '__main__'
             and sources[0]['compiled_text_sha256'] == FIXTURE_SHA256, '源码身份或冻结SHA不符')
@@ -188,7 +202,7 @@ def verify_inputs(data, il, runtime):
     return inputs
 
 
-def verify_project(root):
+def verify_project(root, rid):
     text = (root/'host/Host.csproj').read_text(encoding='utf-8')
     project = ET.fromstring(text)
     for name in ('PublishAot', 'TreatWarningsAsErrors', 'IlcTreatWarningsAsErrors', 'ILLinkTreatWarningsAsErrors'):
@@ -196,10 +210,38 @@ def verify_project(root):
     require(project.findtext('./PropertyGroup/TrimmerSingleWarn') == 'false', '裁剪警告被折叠')
     forbidden = ('TrimmerRoot', 'RootAll', 'DynamicDependency', 'NoWarn', 'WarningsNotAsErrors', 'SuppressTrim')
     require(not any(word in text for word in forbidden), '额外保根/警告屏蔽')
-    require([x.attrib.get('Include') for x in project.findall('./ItemGroup/Reference')]
-            == ['construction', 'RyuPy.Runtime'], '托管引用不是两个精确输入')
-    expected = b'internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n'
-    require((root/'host/Program.cs').read_bytes() == expected, '公开薄入口改变')
+    require(rid in ('linux-x64', 'osx-arm64', 'win-x64'), '未知入口平台')
+    references = [x.attrib.get('Include') for x in project.findall('./ItemGroup/Reference')]
+    compiles = [x.attrib.get('Include') for x in project.findall('./ItemGroup/Compile')]
+    direct_properties = {'SkipCompilerExecution': 'true', 'ProduceReferenceAssembly': 'false',
+                         'GenerateAssemblyInfo': 'false', 'GenerateTargetFrameworkAttribute': 'false',
+                         'UseAppHost': 'false'}
+    if rid == 'win-x64':
+        require(references == ['construction', 'RyuPy.Runtime'], 'Windows不是两个精确引用')
+        require(compiles == ['Program.cs'], 'Windows不再编译唯一薄入口')
+        require(not project.findall('.//Copy'), 'Windows混入直接入口Copy')
+        for name in direct_properties:
+            require(not project.findall('./PropertyGroup/'+name), 'Windows混入直接入口属性')
+        expected = b'internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n'
+        require((root/'host/Program.cs').read_bytes() == expected, '公开薄入口改变')
+        return
+    require(references == ['RyuPy.Runtime'] and not compiles, '直接入口引用/编译项改变')
+    require(not (root/'host/Program.cs').exists(), '直接入口不能保留Program.cs')
+    for name, expected in direct_properties.items():
+        values = project.findall('./PropertyGroup/'+name)
+        require(len(values) == 1 and values[0].text == expected, '直接入口属性不同：'+name)
+    targets = [target for target in project.findall('./Target')
+               if target.get('BeforeTargets') == 'CoreCompile']
+    require(len(targets) == 1, '必须有唯一CoreCompile前置目标')
+    target = targets[0]
+    require(set(target.attrib) == {'Name', 'BeforeTargets'}, '直接入口目标存在额外条件')
+    copies = project.findall('.//Copy')
+    require(len(copies) == 1 and list(target) == copies, '前置目标必须仅复制一次本轮输入')
+    # XML解析已反转XML实体；MSBuild字面量仍必须逐字符转义，不能解释源码路径为表达式。
+    managed = (root.parent/'construction.dll').resolve(strict=True)
+    escaped = ''.join('%'+format(ord(ch), '02X') if ch in "%$@;'()*?" else ch for ch in str(managed))
+    require(copies[0].attrib == {'SourceFiles': escaped, 'DestinationFiles': '@(IntermediateAssembly)'},
+            '直接入口Copy不是本轮精确managed到SDK中间程序集')
 
 
 def copy_jit(il, destination, expected, check=lambda: None):
@@ -256,10 +298,9 @@ def linux_audit(budget, package, data, env):
 def toolchains(budget, repo, work, python, dotnet, cargo, env, rid):
     cp = budget.command('python-version', [python, '-c', "import sys; print(sys.implementation.name); print('.'.join(map(str,sys.version_info[:3])))"], cwd=work, env=env)
     require(cp.stdout.decode().splitlines() == ['cpython', '3.12.13'], '必须固定CPython3.12.13')
-    # owned global.json不约束repo cwd，runtime准备所在cwd单独实核。
-    for label, cwd in (('runtime-sdk', repo), ('owned-sdk', work)):
-        value = budget.command(label, [dotnet, '--version'], cwd=cwd, env=env)
-        require(value.stdout.decode('utf-8-sig').splitlines() == [SDK], '实际cwd SDK不是10.0.403')
+    # runtime准备和公开AOT均从owned工作根发起，共享本轮global.json，不修改仓库SDK配置。
+    value = budget.command('owned-sdk', [dotnet, '--version'], cwd=work, env=env)
+    require(value.stdout.decode('utf-8-sig').splitlines() == [SDK], '实际owned cwd SDK不是10.0.403')
     info = budget.command('dotnet-info', [dotnet, '--info'], cwd=work, env=env).stdout.decode('utf-8-sig')
     arch = 'arm64' if rid == 'osx-arm64' else 'x64'
     arches = re.findall(r'^\s*Architecture:\s*(\S+)\s*$', info, re.M)
@@ -341,7 +382,7 @@ def main(argv=None):
                 'stderr_sha256': hashlib.sha256(cp.stderr).hexdigest(), 'signature': signature(cp, 'positive', allow_source=True)}
         with budget.phase('runtime'):
             result['counts']['runtime'] += 1
-            budget.command('runtime-build', [dotnet, 'build', 'runtime/RyuPy.Runtime', '-c', 'Release', '-t:Rebuild', '-nologo', '-v', 'q'], cwd=repo, env=env, timeout=180)
+            budget.command('runtime-build', [dotnet, 'build', repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj', '-c', 'Release', '-t:Rebuild', '-nologo', '-v', 'q'], cwd=work, env=env, timeout=180)
             result['runtime'] = file_record(runtime)
         with budget.phase('compiler'):
             result['counts']['compiler'] += 1
@@ -359,7 +400,7 @@ def main(argv=None):
             for name in ('publish.stdout.log', 'publish.stderr.log'):
                 shutil.copy2(aot_root/name, logs/('driver-' + name))
             require(b'Generating native code' in (logs/'driver-publish.stdout.log').read_bytes(), '无本次真实ILC日志')
-            verify_project(aot_root)
+            verify_project(aot_root, args.rid)
             sdk = read_sdk_version(aot_root/'host/sdk.version')
             require(sdk == SDK, '实际publish SDK不符')
             shutil.copy2(aot_root/'host/sdk.version', logs/'sdk.version')

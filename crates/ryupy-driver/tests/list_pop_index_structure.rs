@@ -16,6 +16,17 @@ impl Drop for Root {
         }
     }
 }
+// 从同次真实linked函数唯一取内部符号，不猜测HIR编号或模糊匹配CIL名称。
+fn linked_codegen<'a>(linked: &'a ryupy_mir::LinkedProgram, name: &str) -> &'a str {
+    let mut found = linked
+        .functions
+        .iter()
+        .filter(|(_, f)| f.name == name && f.signature_global.is_some());
+    let (_, function) = found.next().expect(name);
+    assert!(found.next().is_none(), "函数身份不唯一: {name}");
+    &function.codegen_name
+}
+
 fn root() -> Root {
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -399,7 +410,7 @@ fn list_pop_index_fix_keeps_direct_saved_and_prepared_call_paths() {
         ("direct_pop", 1),
         ("touched", 1),
     ] {
-        let body = method(&cil, &format!("m0_{name}"));
+        let body = method(&cil, linked_codegen(&linked, name));
         assert!(
             body.contains(&format!("PyPic.CallCapturedMethod{arity}(")),
             "{body}"
@@ -409,14 +420,21 @@ fn list_pop_index_fix_keeps_direct_saved_and_prepared_call_paths() {
             "普通调用不能为新检查改成绑定包装/实参数组"
         );
     }
-    assert!(method(&cil, "m0_star_clear").contains("PyOps.CallCapturedMethod("));
-    assert!(method(&cil, "m0_keyword_copy").contains("PyOps.CallCapturedMethod("));
-    assert!(method(&cil, "m0_saved").contains("CallValue1("));
     assert!(
-        method(&cil, "m0_add")
+        method(&cil, linked_codegen(&linked, "star_clear")).contains("PyOps.CallCapturedMethod(")
+    );
+    assert!(
+        method(&cil, linked_codegen(&linked, "keyword_copy")).contains("PyOps.CallCapturedMethod(")
+    );
+    assert!(method(&cil, linked_codegen(&linked, "saved")).contains("CallValue1("));
+    assert!(
+        method(&cil, linked_codegen(&linked, "add"))
             .lines()
             .next()
             .unwrap()
-            .contains("long m0_add(long, long)")
+            .contains(&format!(
+                "long {}(long, long)",
+                linked_codegen(&linked, "add")
+            ))
     );
 }

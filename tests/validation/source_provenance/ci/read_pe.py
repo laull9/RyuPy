@@ -9,23 +9,31 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 need = lambda ok, message: None if ok else (_ for _ in ()).throw(ValueError(message))
-need(len(sys.argv) in (4, 6), '参数为 PE old|new case-id [--native-manifest PATH]')
+need(len(sys.argv) in (4, 6, 8), '参数为 PE old|new case-id [--native-manifest PATH] [--binding-version VERSION]')
 pe, role, case_id = sys.argv[1:4]
 need(role in ('old', 'new'), '未知角色')
 native_path = None
-if len(sys.argv) == 6:
-    need(sys.argv[4] == '--native-manifest' and role == 'new' and case_id == 'native_consumers',
-         'Native manifest只能显式用于new/native_consumers')
-    native_path = Path(sys.argv[5])
+binding_version = 'legacy-names-v1'
+seen = set()
+for key, value in zip(sys.argv[4::2], sys.argv[5::2]):
+    need(key not in seen, '重复选项'); seen.add(key)
+    if key == '--native-manifest':
+        need(role == 'new' and case_id == 'native_consumers', 'Native manifest只能显式用于new/native_consumers')
+        native_path = Path(value)
+    elif key == '--binding-version':
+        need(value in ('legacy-names-v1', 'lexical-chain-v1'), '未知绑定版本')
+        binding_version = value
+    else:
+        need(False, '未知选项')
 decoder = HERE / 'read_pe_decoder.py'
-need(hashlib.sha256(decoder.read_bytes()).hexdigest() == 'a8e468b66dbbeae46787db287bf487f89e776d5a3b1a3ce2f6d400d55d76b625', '原解码器字节变化')
+need(hashlib.sha256(decoder.read_bytes()).hexdigest() == '933ae201d055b3e4b5ed52be469f80e20a37e9556fee3e83b1ee7486a3afd0dd', '原解码器字节变化')
 text = io.StringIO()
 status = 0
 with contextlib.redirect_stdout(text):
     saved_argv = sys.argv[:]
     try:
-        # 冻结解码器仍只接收原四参；新增位置域只属于外层固定测试门。
-        sys.argv = saved_argv[:4]
+        # 内部命名版本必须由调用者显式选择；历史四参接口继续旧合同。
+        sys.argv = saved_argv[:4] + ['--binding-version', binding_version]
         runpy.run_path(str(decoder), run_name='__main__')
     except SystemExit as error:
         status = error.code
@@ -53,9 +61,9 @@ try:
     manifest = json.loads(manifest_bytes, object_pairs_hook=unique_keys) if manifest_bytes is not None else None
     need(native_path is None or isinstance(manifest, dict), 'Native manifest必须为JSON对象')
     if role == 'new':
-        result = gate['check'](decoded, table['cases'][case_id], HERE.parent, role, native_manifest=manifest)
+        result = gate['check'](decoded, table['cases'][case_id], HERE.parent, role, native_manifest=manifest, binding_version=binding_version)
     else:
-        _, _, _, _, facts = gate['locate'](decoded, table['cases'][case_id], role)
+        _, _, _, _, facts = gate['locate'](decoded, table['cases'][case_id], role, binding_version=binding_version)
         result = {'admitted': False, 'role': role, 'pe_sha256': decoded['sha256'],
                   'old_locator_verified': True, 'definitions': facts,
                   'verification_scope': '旧角色仅固定词法/thunk/core定位控制；不是新source协议准入。'}

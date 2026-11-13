@@ -38,6 +38,9 @@ public sealed partial class PyClass
     /// <summary>枚举类冷元数据标记；普通类热路径不查询弱表。</summary>
     internal bool HasEnumMetadata { get; set; }
 
+    // 仅已声明Enum的类体持有冷状态；普通类写入不查询弱表或成员历史。
+    internal PyEnum.PendingEnum? EnumPending { get; set; }
+
     /// <summary>用户基类；`None` 表示直接继承 `object` 或内建异常。</summary>
     public PyClass? BaseClass { get; internal set; }
 
@@ -133,6 +136,7 @@ public sealed partial class PyClass
         GuardDictMutation(name, value, deleting: false);
         GuardTypingIoMutation(name, deleting: false);
         PyTypingGenericMetadata.MutateClass(this, name);
+        if (EnumPending is not null) value = EnumPending.Prepare(name, value);
         Attributes[name] = value;
         Touch();
     }

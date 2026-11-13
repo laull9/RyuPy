@@ -73,6 +73,30 @@ fn serialized_entry_initializes_exit_code() {
         },
     )
     .unwrap();
+    let options = crate::EmitOptions {
+        assembly_name: "entry".into(),
+        entry_source_path: Some("/source/真实 entry.py".into()),
+    };
+    let dll = crate::emit_assembly_with_report(&program, &options).unwrap();
+    let executable = crate::emit_assembly_report_kind(&program, &options, true).unwrap();
+    assert_eq!(dll.report, executable.report);
+    for (artifact, expected_dll) in [(&dll, true), (&executable, false)] {
+        let pe = u32::from_le_bytes(artifact.bytes[0x3c..0x40].try_into().unwrap()) as usize;
+        assert_eq!(&artifact.bytes[pe..pe + 4], b"PE\0\0");
+        let flags = u16::from_le_bytes(artifact.bytes[pe + 22..pe + 24].try_into().unwrap());
+        assert_eq!(flags & 0x2000 != 0, expected_dll);
+        assert_ne!(flags & 0x0002, 0, "必须是可执行映像");
+        let actual = Resolution::parse(&artifact.bytes, ReadOptions::default()).unwrap();
+        let Some(EntryPoint::Method(main)) = actual.entry_point else {
+            panic!("CLR必须保留非零方法入口token")
+        };
+        assert_eq!(actual[main].name, artifact.report.entry.name);
+        assert_eq!(
+            actual[main].signature.show(&actual),
+            artifact.report.entry.signature
+        );
+        assert_eq!(actual[main].name, "Main");
+    }
     let resolution = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
     let main = resolution
         .type_definitions

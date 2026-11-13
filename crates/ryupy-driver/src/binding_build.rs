@@ -40,14 +40,21 @@ fn build_internal(
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
     let plan = BindingPlan::read(declaration, Platform::current()?, opts.aot)?;
     let previous = std::mem::replace(&mut sess.fixed_binding_build, true);
-    let compiled = crate::compile_linked_locations(
-        sess,
-        &opts.input,
-        &opts.search_paths,
-        true,
-        resources,
-        opts.aot,
-    );
+    let compiled = if let Some(path) = resources {
+        crate::compile_linked_locations_context(
+            sess,
+            &opts.input,
+            &opts.search_paths,
+            true,
+            Some(crate::resources::ResourceRequestContext {
+                path,
+                output_roots: owned.map_or(&[], |attempt| attempt.output_roots()),
+            }),
+            opts.aot,
+        )
+    } else {
+        crate::compile_linked_locations(sess, &opts.input, &opts.search_paths, true, None, opts.aot)
+    };
     sess.fixed_binding_build = previous;
     // 同次源码闭图签发位置与来源；生成原生模块在捕获后追加，不能成为资源 consumer。
     let (mut program, sources, resource_plan) = compiled?;
@@ -107,6 +114,7 @@ fn build_internal(
                 dll,
                 native_exe: Some(p.executable),
                 manifest: Some(p.manifest),
+                debug_symbols: None,
             });
         }
         let target = bundle.join(plan.platform.relative_file());
@@ -136,6 +144,7 @@ fn build_internal(
             dll,
             native_exe: None,
             manifest: Some(manifest),
+            debug_symbols: None,
         })
     })();
     match result {

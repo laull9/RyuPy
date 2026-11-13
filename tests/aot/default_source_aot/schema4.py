@@ -10,16 +10,24 @@ from manifest_options import BOOL_OPTIONS, OPTION_KEYS, validate_options
 from resource_manifest import portable, check_targets, PREFIX
 
 
-def validate_default_options(options, report):
+def validate_default_options(options, report, expected_policy):
     require(isinstance(options, dict), 'options不是对象')
     require(set(options) == OPTION_KEYS | ({'distribution_metadata'} if report is not None else set()), 'options字段不符')
     # 字段级复用七项合同；不是将整个新artifact降级后交旧schema。
     validate_options({k:options[k] for k in OPTION_KEYS})
-    require(options['instance_modules'] == [] and options['module_environment_policy'] == 'ordinary-dynamic-module-pilot', '非默认选择')
+    require(options['instance_modules'] == [] and options['module_environment_policy'] == expected_policy, '非默认选择')
     if report is not None:
         require(options['distribution_metadata'] == report, '实际PE metadata报告不符')
 
 def validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic, metadata_report):
+    # 旧公开门保持无显式资源请求；组合门不能隐式改变这里的合同。
+    return _validate_schema4(data, expected_rid, expected_sdk,
+        expected_automatic=expected_automatic, metadata_report=metadata_report,
+        declared_request=False, expected_policy='ordinary-dynamic-module-pilot')
+
+
+def _validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic,
+                      metadata_report, declared_request, expected_policy):
     expected_instance_modules = expected_automatic
     require(isinstance(data, dict), '清单必须是对象')
     version = data.get('schema_version')
@@ -33,7 +41,10 @@ def validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic, me
     require(compiler['build_revision'] is None or
             isinstance(compiler['build_revision'], str) and bool(re.fullmatch('[0-9a-f]{40}', compiler['build_revision'])), '不可靠revision')
     require(type(compiler['codegen_report_version']) is int and compiler['codegen_report_version'] in (1, 2), '未知codegen报告')
-    validate_default_options(compiler['options'], metadata_report)
+    require(expected_policy in ('explicit-only', 'ordinary-dynamic-module-pilot'), '未知预期策略')
+    if expected_policy == 'explicit-only':
+        require(expected_automatic == (), 'ExplicitOnly不得自动选择实例')
+    validate_default_options(compiler['options'], metadata_report, expected_policy)
     # None完整保留旧Legacy验证；只有调用方显式tuple才启用实例预期合同。
     if expected_instance_modules is not None:
         require(type(expected_instance_modules) is tuple, '实例预期必须是不可变tuple')
@@ -56,8 +67,13 @@ def validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic, me
     shape(data['scope'], ' '.join(sorted(scope_keys)))
     require(all(data['scope'][key] is False for key in SCOPE - {'resources_included'}),
             '错误宣称闭包/原生保留或自hash')
-    require(all(data['scope'][k] is False for k in SCOPE), '新域无数据资源或完整闭包声明')
-    require(data['scope']['declared_resources_complete'] is False and data['scope']['automatic_module_locations_complete'] is True, '位置与数据完整性混淆')
+    require(type(declared_request) is bool, '声明请求模式必须是bool')
+    require(data['scope']['automatic_module_locations_complete'] is True, '自动位置不完整')
+    if not declared_request:
+        require(all(data['scope'][k] is False for k in SCOPE), '新域无数据资源或完整闭包声明')
+        require(data['scope']['declared_resources_complete'] is False, '位置与数据完整性混淆')
+    else:
+        require(data['scope']['declared_resources_complete'] is True, '显式声明未完整处理')
     for name in ('sources', 'modules', 'emitted_delegate_references', 'build_inputs', 'artifacts'):
         require(isinstance(data[name], list), f'{name}必须是数组')
     require(bool(data['sources']), '没有源码模块')
@@ -125,10 +141,13 @@ def validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic, me
     require({(x['relative_path'], x['role']) for x in data['build_inputs']} ==
             {('managed-entry.dll','compiled_managed_input'), ('RyuPy.Runtime.dll','runtime_managed_input')}
             and len(data['build_inputs']) == 2, '托管输入名称/角色不符')
-    roles = {'native_executable', 'unclassified_sidecar'}
+    roles = {'native_executable', 'unclassified_sidecar'} | ({'declared_resource'} if declared_request else set())
     require(all(x['role'] in roles for x in data['artifacts']), '未知发布角色')
     require(sum(x['role'] == 'native_executable' for x in data['artifacts']) == 1, '需要唯一native')
-    validate_default_locations(data, expected_automatic)
+    validate_default_locations(data, expected_automatic, declared_request=declared_request)
+    if declared_request:
+        from resource_manifest import validate_resources
+        validate_resources(data)
 
 
 def names(values):
@@ -138,13 +157,14 @@ def names(values):
     return set(values)
 
 
-def validate_default_locations(data, selected):
+def validate_default_locations(data, selected, *, declared_request=False):
     plan = data['default_source_plan']
     shape(plan, 'schema_version mode candidate_payload_sha256 automatic_instance_modules deferred_sources')
     require(type(plan['schema_version']) is int and plan['schema_version'] == 1 and plan['mode'] == 'automatic_locations', '未知默认计划')
     digest_text(plan['candidate_payload_sha256'])
     require(plan['automatic_instance_modules'] == sorted(names(plan['automatic_instance_modules'])) == list(selected), '自动模块不符/未排序')
-    require(data['resources'] == [], '新域不声明数据资源')
+    if not declared_request:
+        require(data['resources'] == [], '新域不声明数据资源')
     sources = {s['module_id']:s for s in data['sources']}
     locs = data['module_locations']; require(type(locs) is list, '位置必须数组')
     require(len(locs) == len(sources) and len(locs) <= 256, '位置不完整/预算')

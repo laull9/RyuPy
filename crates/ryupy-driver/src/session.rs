@@ -7,6 +7,11 @@ use std::path::{Path, PathBuf};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 显式NativeAOT优化偏好；Default不设置SDK属性。
+    pub aot_optimization: crate::AotOptimization,
+    /// 项目请求的私有字节守卫；默认None，不授予模块或发布权限。
+    #[doc(hidden)]
+    pub deployment_inputs: Option<crate::deployment_request::InputGuard>,
     /// 不透明编排状态；公开字段保留既有Session结构更新语法，内部authority不可外部构造。
     #[doc(hidden)]
     pub default_source_state: crate::DefaultSourceState,
@@ -14,6 +19,8 @@ pub struct Session {
     pub distribution_metadata: Option<PathBuf>,
     /// 同次采集载荷的审计摘要，非运行时authority。
     pub distribution_metadata_report: Option<serde_json::Value>,
+    /// 显式有限依赖预检的构建期收据；不进入运行时分发载荷或扩展模块发现。
+    pub distribution_dependency_report: Option<serde_json::Value>,
     /// 显式强制有限trace V1；合法域外E0310，内部损坏硬停。
     pub trace_product_v1: bool,
     /// 明确正常Main执行的请求；裸API默认Unknown，不从DLL扩展名推断宿主生命周期。

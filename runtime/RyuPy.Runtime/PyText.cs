@@ -32,14 +32,22 @@ public static class PyText
     /// <param name="text">字符串。</param>
     public static long Length(string text)
     {
-        long count = 0;
-        int index = 0;
-        while (index < text.Length)
+        // BMP（含孤立低代理项）一单元即一码点；用BCL向量搜索跳过整段普通文本。
+        // 只对真正的高低代理配对减一，不将孤立代理替换成Rune或改变Python语义。
+        ReadOnlySpan<char> remaining = text.AsSpan();
+        int pairs = 0;
+        int high;
+        while ((high = remaining.IndexOfAnyInRange('\ud800', '\udbff')) >= 0)
         {
-            index += CodePointWidth(text, index);
-            count++;
+            int consumed = high + 1;
+            if (consumed < remaining.Length && char.IsLowSurrogate(remaining[consumed]))
+            {
+                pairs++;
+                consumed++;
+            }
+            remaining = remaining[consumed..];
         }
-        return count;
+        return text.Length - pairs;
     }
 
     /// <summary>把码点下标换算成 CLR 字符偏移；越界返回 -1。</summary>
@@ -47,22 +55,22 @@ public static class PyText
     /// <param name="index">码点下标（调用方已处理负数）。</param>
     public static int OffsetOf(string text, long index)
     {
-        if (index < 0)
-        {
-            return -1;
-        }
+        if (index < 0 || index > text.Length) return -1;
         long remaining = index;
         int offset = 0;
-        while (offset < text.Length)
+        while (remaining > 0)
         {
-            if (remaining == 0)
-            {
-                return offset;
-            }
+            // 先检查剩余单元，才能安全窄化long；只扫描目标前缀，不扫完整尾部。
+            if (remaining > text.Length - offset) return -1;
+            int high = text.AsSpan(offset, (int)remaining).IndexOfAnyInRange('\ud800', '\udbff');
+            if (high < 0) return offset + (int)remaining;
+            offset += high;
+            remaining -= high;
+            // 搜索边界上的高代理仍须看下一单元，不能拆开真实代理对。
             offset += CodePointWidth(text, offset);
             remaining--;
         }
-        return remaining == 0 ? offset : -1;
+        return offset;
     }
 
     /// <summary>取第 <paramref name="index"/> 个码点；越界抛 <c>IndexError</c>。</summary>
@@ -70,13 +78,13 @@ public static class PyText
     /// <param name="index">码点下标（支持负数）。</param>
     public static string At(string text, long index)
     {
-        long length = Length(text);
-        long normalized = index < 0 ? index + length : index;
-        if (normalized < 0 || normalized >= length)
+        long normalized = index < 0 ? index + Length(text) : index;
+        int offset = OffsetOf(text, normalized);
+        // OffsetOf允许末尾边界；下标不允许。正下标不再预先扫描整个字符串。
+        if (offset < 0 || offset == text.Length)
         {
             throw new PyIndexError("string index out of range");
         }
-        int offset = OffsetOf(text, normalized);
         int width = CodePointWidth(text, offset);
         return text.Substring(offset, width);
     }
@@ -86,11 +94,14 @@ public static class PyText
     /// <param name="slice">切片对象。</param>
     public static string Slice(string text, PySlice slice)
     {
-        var (start, _, step, count) = slice.Indices(Length(text));
+        long length = Length(text);
+        var (start, _, step, count) = slice.Indices(length);
         if (count == 0)
         {
             return string.Empty;
         }
+        // 无配对代理时码点与单元偏移相同（孤立代理仍保留），省掉两次前缀扫描。
+        if (step == 1 && length == text.Length) return text.Substring((int)start, (int)count);
         // 先换算成字符偏移，再逐个码点追加；步长为 1 时可以直接一次 Substring。
         int first = OffsetOf(text, start);
         if (step == 1)

@@ -20,11 +20,11 @@ public static class PyNativeModules
                 value => value is PyIOTextMemory, "TextIOBase", "IOBase"),
             ["BytesIO"] = new PyNativeType("BytesIO", "_io", PyIO.CreateBytesIO,
                 value => value is PyIOBinary binary && binary.TypeName == "BytesIO", "BufferedIOBase", "IOBase"),
-            ["IOBase"] = new PyNativeType("IOBase", "io", null, value => value is PyIOStream or PyStandardStream),
+            ["IOBase"] = new PyNativeType("IOBase", "io", null, value => value is PyIOStream or PyStandardStream or PyStandardBinaryOutput),
             ["TextIOBase"] = new PyNativeType("TextIOBase", "io", null,
                 value => value is PyIOTextMemory or PyIOTextFile or PyStandardStream, "IOBase"),
             ["BufferedIOBase"] = new PyNativeType("BufferedIOBase", "io", null,
-                value => value is PyIOBinary binary && binary.TypeName != "FileIO", "IOBase"),
+                value => value is PyStandardBinaryOutput || value is PyIOBinary binary && binary.TypeName != "FileIO", "IOBase"),
             ["TextIOWrapper"] = new PyNativeType("TextIOWrapper", "_io", null,
                 value => value is PyIOTextFile or PyStandardStream, "TextIOBase", "IOBase"),
             ["open"] = Forward("open", PyIO.Open),
@@ -99,7 +99,7 @@ public static class PyNativeModules
         PyModules.RegisterNative("string", PyStringModule.CreateAttributes());
         PyModules.RegisterNative("enum", PyEnum.CreateAttributes(), (key, _) =>
         {
-            if (key is "Enum" or "Flag")
+            if (key is "Enum" or "Flag" or "auto")
                 throw new PyNotImplementedError($"rebinding enum.{key} is not supported");
         });
         PyModules.RegisterNative("atexit", PyAtexit.CreateAttributes());

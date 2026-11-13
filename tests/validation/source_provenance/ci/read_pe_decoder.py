@@ -7,8 +7,13 @@ import sys
 
 BASE = Path(__file__).resolve().with_name('pe_metadata.py')
 BASE_SHA = 'a43bf4bb9e89ceb169b89a67c8817e8cf2312429cb251a0f36f1b9da8f469bc3'
-assert len(sys.argv) == 4, '参数为实际PE路径、old/new角色、case-id'
-role, case_id = sys.argv[2:]
+assert len(sys.argv) in (4, 6), '参数为实际PE路径、old/new角色、case-id [--binding-version VERSION]'
+role, case_id = sys.argv[2:4]
+binding_version = 'legacy-names-v1'
+if len(sys.argv) == 6:
+    assert sys.argv[4] == '--binding-version'
+    binding_version = sys.argv[5]
+assert binding_version in ('legacy-names-v1', 'lexical-chain-v1')
 assert role in ("old", "new")
 pe_path = Path(sys.argv[1]).resolve(strict=True)
 assert hashlib.sha256(BASE.read_bytes()).hexdigest() == BASE_SHA
@@ -169,10 +174,25 @@ if role == 'new':
     checks['actual_signature_source_association'] = signature_calls == 0 if case_id == 'functional_typeddict' else signature_calls > 0
     checks['actual_module_marker_call'] = 'CreateModuleExecutionSourceWithCode' in calls
 if case_id in ('static_td', 'mixed_frames'):
-    name = 'm0_out' if case_id == 'static_td' else 'm0_static_issue'
-    found = [m for m in methods if m['method']['name'] == name]
-    assert len(found) == 1, ('Static core定位不唯一', name)
-    static = found[0]
+    if binding_version == 'legacy-names-v1':
+        name = 'm0_out' if case_id == 'static_td' else 'm0_static_issue'
+        found = [m for m in methods if m['method']['owner'] == 'RyuPy.Generated.Module' and m['method']['name'] == name]
+        assert len(found) == 1, ('Static core定位不唯一', name)
+        static = found[0]
+    else:
+        table = json.loads(BASE.with_name('fixed_expectations.json').read_text())['cases'][case_id]
+        # 当前显式版本复用独立fixture词法/行号表，完整绑定全部定义再选Static定义。
+        for module in table['modules']:
+            source = BASE.parent.parent / module['fixture']
+            assert hashlib.sha256(source.read_bytes()).hexdigest() == module['sha256']
+        gate = runpy.run_path(str(BASE.with_name('fixed_gate.py')))
+        _, _, _, bindings, _ = gate['locate']({'methods': methods, 'fields': fields}, table, role,
+                                             binding_version=binding_version)
+        qualname = 'out' if case_id == 'static_td' else 'static_issue'
+        found = [item['core'] for item in bindings.values()
+                 if item['key'][0] == 0 and item['key'][1] == qualname and item['definition']['mode'] == 'static']
+        assert len(found) == 1, ('Static词法绑定不唯一', qualname)
+        static = found[0]
     checks['static_numeric_abi_void_noargs'] = bool(static['flags'] & 0x10) and static['method']['signature_hex'] == '000001'
     calls = [i['target']['name'] for i in static['body']['instructions'] if 'target' in i]
     checks['static_push_role'] = calls.count('PushFrameWithOrigin' if role == 'new' else 'PushFrame') == 1
@@ -185,7 +205,7 @@ if case_id in ('static_td', 'mixed_frames'):
         checks['static_has_existing_signature_field_load'] = any(
             i['opcode'] == '0x7e' and 'field' in i for i in static['body']['instructions'])
 result = {'path': str(pe_path), 'sha256': hashlib.sha256(b).hexdigest(),
-          'parser_sha256': BASE_SHA, 'case_id': case_id, 'role': role, 'fields': fields,
+          'parser_sha256': BASE_SHA, 'case_id': case_id, 'role': role, 'binding_version': binding_version, 'fields': fields,
           'methods': methods, 'finite_checks': checks, 'finite_checks_passed': all(checks.values()),
           'product_accepted': False,
           'mandatory_independent_review': '完整unit→link映射、own signature/source/getter/marker/self、热ABI及cold次序由PE-GATE.zh.md逐项审；字段存在不是证明'}

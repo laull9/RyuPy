@@ -291,3 +291,97 @@ fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() 
         }
     }
 }
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[test]
+fn binding_resource_tree_rejects_output_overlap_before_sdk_and_preserves_dist() {
+    // 合成archive仅满足读取准入；不执行它，也不将占位旧dist称为Native验证。
+    for previous in [false, true] {
+        let (root, mut opts, declaration) = setup();
+        opts.aot = true;
+        opts.out_dir = root.clone();
+        let mut object = vec![0u8; 32];
+        object[..6].copy_from_slice(b"\x7fELF\x02\x01");
+        object[16] = 1;
+        object[18] = 62;
+        let mut archive = b"!<arch>\n".to_vec();
+        archive.extend(
+            format!(
+                "{:<16}{:<12}{:<6}{:<6}{:<8}{:<10}`\n",
+                "file.o/",
+                0,
+                0,
+                0,
+                644,
+                object.len()
+            )
+            .bytes(),
+        );
+        archive.extend(object);
+        std::fs::write(root.join("input.a"), archive).unwrap();
+        let mut value: Value =
+            serde_json::from_slice(&std::fs::read(&declaration).unwrap()).unwrap();
+        value["target"]["archive"] = "input.a".into();
+        std::fs::write(&declaration, serde_json::to_vec(&value).unwrap()).unwrap();
+        let old = previous.then(|| crate::aot_layout::build(&opts, |inner, _| {
+            let dll = inner.out_dir.join("main.dll");
+            std::fs::write(&dll, b"managed-old")?;
+            let publish = inner.out_dir.join("old-publish");
+            std::fs::create_dir(&publish)?;
+            let native = publish.join("old-native");
+            std::fs::write(&native, b"old-native")?;
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&native, std::fs::Permissions::from_mode(0o755))?;
+            let data = json!({"schema_version":1,"kind":"ryupy-native-aot-artifact","artifacts":[{
+                "relative_path":"old-native","role":"native_executable","size":10,
+                "sha256":crate::manifest_files::hash_bytes(b"old-native")} ]});
+            let manifest = crate::manifest_files::write_atomic(&publish, &serde_json::to_vec(&data)?)?;
+            Ok(Artifacts { dll, native_exe: Some(native), manifest: Some(manifest), debug_symbols: None })
+        }).unwrap());
+        let old_manifest = old
+            .as_ref()
+            .map(|a| std::fs::read(a.manifest.as_ref().unwrap()).unwrap());
+        let resources = root.join("resources.json");
+        std::fs::write(&resources, br#"{"schema_version":1,"modules":[{"module":"__main__","trees":[{"directory":".","suffixes":[".json"]}]}]}"#).unwrap();
+        let mut session = Session::default();
+        let error =
+            crate::build_configured(&mut session, &opts, Some(&resources), Some(&declaration))
+                .unwrap_err();
+        let message = format!("{error:#}");
+        assert!(message.contains("生成输出重叠"), "{message}");
+        assert!(session.diagnostics.is_empty());
+        assert!(!session.fixed_binding_build);
+        let attempts: Vec<_> = std::fs::read_dir(root.join("main.build"))
+            .unwrap()
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.join("build-error.log").is_file())
+            .collect();
+        assert_eq!(attempts.len(), 1);
+        let files: Vec<_> = std::fs::read_dir(&attempts[0])
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(
+            files,
+            [std::ffi::OsString::from("build-error.log")],
+            "不能发射托管字节或启动SDK"
+        );
+        if let Some(old) = old {
+            assert_eq!(
+                std::fs::read(old.native_exe.unwrap()).unwrap(),
+                b"old-native"
+            );
+            assert_eq!(
+                std::fs::read(old.manifest.unwrap()).unwrap(),
+                old_manifest.unwrap()
+            );
+            assert_eq!(
+                std::fs::read_dir(root.join("main.dist")).unwrap().count(),
+                2
+            );
+        } else {
+            assert!(!root.join("main.dist").exists());
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+}

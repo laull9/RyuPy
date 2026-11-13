@@ -16,6 +16,7 @@ fn packed_lanes_preserve_scalar_payload_zero_and_operand_order() {
     };
     let mir = support::dump(&mut session, &input, Stage::Mir).unwrap();
     assert!(mir.contains("vector_Mul_f64") && mir.contains("vector_Sub_f64"));
+    let symbols = core_symbols(&input);
     let artifact = ryupy_driver::build(
         &mut session,
         &BuildOptions {
@@ -32,7 +33,16 @@ fn packed_lanes_preserve_scalar_payload_zero_and_operand_order() {
     std::fs::write(host.join("payload_host.csproj"), format!(
         "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup><ItemGroup><Reference Include=\"RyuPy.Runtime\"><HintPath>{}</HintPath></Reference></ItemGroup></Project>", runtime.display()
     )).unwrap();
-    std::fs::write(host.join("Program.cs"), HOST).unwrap();
+    let mapping = symbols
+        .iter()
+        .map(|(name, symbol)| format!("{{\"{name}\", \"{symbol}\"}}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    std::fs::write(
+        host.join("Program.cs"),
+        HOST.replace("/*CORE_NAMES*/", &mapping),
+    )
+    .unwrap();
     let built = std::process::Command::new("dotnet")
         .args(["build", "-c", "Release", "-v", "q", "--nologo"])
         .arg(host.join("payload_host.csproj"))
@@ -76,10 +86,11 @@ if (args.Length > 1 && Vector128.IsHardwareAccelerated) throw new Exception("未
 var type = assembly.GetType("RyuPy.Generated.Module")!;
 const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
 var module = PyModules.Import("__main__");
+var coreNames = new Dictionary<string,string> { /*CORE_NAMES*/ };
 (MethodInfo Core, PyFunction Owner) Function(string name, int arity) {
     // 入口已执行；从真实模块公开绑定取owner，绝不new假函数或传null占位。
     var owner = module.GetAttr(name) as PyFunction ?? throw new Exception($"未发布函数{name}");
-    var core = type.GetMethod("m0_" + name, flags) ?? throw new Exception($"缺少core{name}");
+    var core = type.GetMethod(coreNames[name], flags) ?? throw new Exception($"缺少core{name}");
     if (!core.IsStatic || core.ReturnType != typeof(object)
         || core.GetParameters().Length != arity + 1
         || core.GetParameters().Any(parameter => parameter.ParameterType != typeof(object))
@@ -110,3 +121,54 @@ foreach (string suffix in new[] { "", "_sub" }) {
 }
 Console.WriteLine("位模式通过");
 "#;
+
+// 与当前源同一次前中端规则取得链接符号，禁止以Python可见名猜反射core。
+fn core_symbols(input: &std::path::Path) -> Vec<(String, String)> {
+    let source = std::fs::read_to_string(input).unwrap();
+    let mut db = ryupy_base::SourceDb::default();
+    let file = db.add("payload.py", &source);
+    let (parsed, diagnostics) = ryupy_syntax::parse(file, &source);
+    assert!(diagnostics.is_empty());
+    let info = ryupy_hir::ModuleInfo {
+        name: "__main__".into(),
+        file: "payload.py".into(),
+        ..Default::default()
+    };
+    let (hir, diagnostics) = ryupy_hir::lower_module(&parsed, &info, &source);
+    assert!(diagnostics.is_empty());
+    let (types, diagnostics) = ryupy_ty::check_module(&hir);
+    assert!(diagnostics.is_empty());
+    let (program, exports, diagnostics) = ryupy_mir::build_program(&hir, &types);
+    assert!(diagnostics.is_empty());
+    let linked = ryupy_mir::link(
+        vec![(
+            program,
+            ryupy_mir::UnitMeta {
+                instance_capabilities: Default::default(),
+                execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "test".into(),
+                location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
+                file_backed_by_global: true,
+                is_package: false,
+                protected_exports: vec![],
+                name: "__main__".into(),
+                package: String::new(),
+                file: "payload.py".into(),
+                exports,
+            },
+        )],
+        0,
+    );
+    ["pair", "scalar", "pair_sub", "scalar_sub"]
+        .iter()
+        .map(|name| {
+            let found: Vec<_> = linked
+                .functions
+                .iter()
+                .filter(|(_, f)| f.name == *name)
+                .collect();
+            assert_eq!(found.len(), 1);
+            ((*name).to_owned(), found[0].1.codegen_name.clone())
+        })
+        .collect()
+}
