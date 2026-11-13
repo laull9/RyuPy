@@ -4,18 +4,34 @@ using System.Linq;
 
 namespace RyuPy.Runtime;
 
-/// <summary>供宿主Path和os.path限定入口使用；设备命名空间、完整ntpath不在本子集。</summary>
+/// <summary>供宿主Path和os.path限定入口使用；仅支持extended盘符绝对路径与完整extended UNC；其他设备命名空间仍拒绝。</summary>
 public static class PyWindowsPath
 {
     private static bool Separator(char value) => value is '/' or '\\';
 
-    // 盘符、UNC share 和剩余路径分开保存。设备命名空间没有在本切冒充普通 UNC。
+    // extended DOS/UNC保留独立drive身份；按ntpath接受两种分隔符，其他设备命名空间不冒充UNC。
     private static (string Drive, string Tail) SplitDrive(string path)
     {
         if (path.Length >= 2 && Separator(path[0]) && Separator(path[1]))
         {
             if (path.Length >= 4 && (path[2] is '?' or '.') && Separator(path[3]))
+            {
+                // 保留extended身份与尾点/空格；不剥前缀，不将设备路径变成普通文件路径。
+                if (path[2] == '?' && path.Length >= 7 && char.IsAsciiLetter(path[4])
+                    && path[5] == ':' && Separator(path[6]))
+                    return (path[..6], path[6..]);
+                if (path[2] == '?' && path.Length >= 8
+                    && path.AsSpan(4, 3).Equals("UNC", StringComparison.OrdinalIgnoreCase) && Separator(path[7]))
+                {
+                    int server = 8;
+                    while (server < path.Length && !Separator(path[server])) server++;
+                    int share = server + 1;
+                    while (share < path.Length && !Separator(path[share])) share++;
+                    if (server > 8 && server + 1 < share)
+                        return (path[..share], path[share..]);
+                }
                 throw new PyNotImplementedError("Windows device namespace paths are not supported yet");
+            }
             int serverEnd = 2;
             while (serverEnd < path.Length && !Separator(path[serverEnd])) serverEnd++;
             if (serverEnd == path.Length) return (path, "");
@@ -32,8 +48,10 @@ public static class PyWindowsPath
     {
         path = path.Replace('/', '\\');
         var (drive, tail) = SplitDrive(path);
-        bool unc = drive.StartsWith("\\\\", StringComparison.Ordinal);
-        if (unc && (drive[2..].Split('\\') is not [var server, var share]
+        bool extendedDisk = drive.StartsWith("\\\\?\\", StringComparison.Ordinal) && drive.Length == 6 && drive[5] == ':';
+        bool unc = drive.StartsWith("\\\\", StringComparison.Ordinal) && !extendedDisk;
+        int uncStart = drive.StartsWith("\\\\?\\UNC\\", StringComparison.OrdinalIgnoreCase) ? 8 : 2;
+        if (unc && (drive[uncStart..].Split('\\') is not [var server, var share]
             || server.Length == 0 || share.Length == 0))
             throw new PyNotImplementedError("incomplete Windows UNC paths are not supported yet");
         string root = unc || tail.StartsWith('\\') ? "\\" : "";

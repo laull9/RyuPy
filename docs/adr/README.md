@@ -112,3 +112,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0182：固定非优化 __debug__](0182-debug-language-constant.md)（固定非优化正/负合同、有限 Native 与完整回归已验证）
 - [0183：AOT standalone 同一部署计划](0183-aot-standalone-deployment-plan.md)（真实应用及独立 PE 合同已验证；原生发布/干净部署待验）
 - [0184：有限标准输出 detach](0184-standard-output-detach.md)（CP/JIT/完整 C# 已验证；不扩一般 IO 或宿主句柄所有权）
+
+- [0185：Windows extended 文件系统路径的有限准入](0185-windows-extended-filesystem-paths.md)（修复草案；首轮 Windows 失败保留，修复后验收待完成）

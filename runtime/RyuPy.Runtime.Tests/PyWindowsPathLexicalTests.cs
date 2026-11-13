@@ -43,7 +43,7 @@ public class PyWindowsPathLexicalTests
     }
 
     [Theory]
-    [InlineData(@"\\?\C:\a")]
+    [InlineData(@"\\?\GLOBALROOT\Device\a")]
     [InlineData(@"\\.\pipe\name")]
     [InlineData("//server")]
     [InlineData("///a")]

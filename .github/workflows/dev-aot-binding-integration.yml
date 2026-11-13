@@ -125,6 +125,18 @@ jobs:
           shutil.copy2(repo/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll', tools)
           with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
               stream.write('RYUPY_INTEGRATION_ROOT='+str(root)+'\nRYUPY_INTEGRATION_CLI='+str(cli)+'\nRYUPY_RUNTIME_DIR='+str(tools)+'\nDOTNET='+dotnet+'\n')
+      - name: Windows路径词法与真实宿主入口
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 8
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          project = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj'
+          command = [os.environ['DOTNET'], 'test', str(project), '-c', 'Release', '--filter', 'FullyQualifiedName~PyWindowsPath|FullyQualifiedName~PyWindowsExtendedPath', '-nologo', '-v', 'normal']
+          with (root/'windows-path-tests.stdout').open('wb') as out, (root/'windows-path-tests.stderr').open('wb') as err:
+              result = subprocess.run(command, cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
       - name: Unix直接入口与Windows薄入口协议
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         shell: python

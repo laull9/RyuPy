@@ -631,7 +631,7 @@ getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细
 失败退出 120，不自动 close 用户重绑定流，不保证 CPython finalization 的重复刷新次数。
 文本 cookie、编码、换行和关闭后错误有差分；显式 with/close 清理不依赖 GC。
 sys.path为受控只读视图；sys.modules仅准入ADR0131的受限新模块别名，不是可写dict。不支持动态import hook；环境与模块keys/items仍为快照。
-Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；设备命名空间、需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
+Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。ADR0185 草案拟有限准入extended 盘符绝对路径和完整 extended UNC 这两种类型（含 CP 一致的正斜线/混合分隔符及小写 unc 词法拼写），保留前缀与尾点/空格、`..`；Path 规范化点与重复分隔符，有限 ntpath 入口保原拼写；其他 device/pipe/volume/GLOBALROOT 形式继续拒绝，不以无差别剥前缀代替语义。此修复后的 Windows 实际行为仍待验，不能据首轮 Linux/macOS AOT 通过宣称已支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
 Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
 io.UnsupportedOperation 已通过 CLR 主树、Python 额外父边及原位 typed catch 展开，支持
 OSError/ValueError 两父捕获；无参/单参构造、既有流能力错误和内存流 fileno 的准确范围见

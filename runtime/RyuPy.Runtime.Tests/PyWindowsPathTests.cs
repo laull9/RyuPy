@@ -97,9 +97,9 @@ public class PyWindowsPathTests
     }
 
     [Theory]
-    [InlineData("\\\\?\\C:\\a")]
-    [InlineData("//?/C:/a")]
-    [InlineData("/\\?\\C:/a")]
+    [InlineData(@"\\?\GLOBALROOT\Device\a")]
+    [InlineData("//?/GLOBALROOT/Device/a")]
+    [InlineData("/\\?\\GLOBALROOT/Device/a")]
     [InlineData("\\/./C:/a")]
     [InlineData("\\\\.\\pipe\\name")]
     public void DeviceNamespacesRemainExplicitlyUnsupported(string path)
