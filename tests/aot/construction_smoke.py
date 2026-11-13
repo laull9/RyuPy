@@ -23,6 +23,16 @@ from platform_support import audit, clean_environment, host
 SDK = '10.0.403'
 RUST = '1.99.1'
 MODES = ('positive', 'ryupy-boundaries')
+# 对齐manifest.rs当前七字段及ModuleEnvironmentPolicy无feature默认身份；不得忽略非bool项。
+DEFAULT_OPTIONS = {
+    'experimental_direct_accumulator': False,
+    'experimental_foreach_accumulator': False,
+    'experimental_leaf_inline': False,
+    'diagnostic_scalar_slp': False,
+    'experimental_packed_slp': False,
+    'instance_modules': [],
+    'module_environment_policy': 'explicit-only',
+}
 # 与唯一fixture一起审定；不能从当次程序输出生成期望。
 FIXTURE_SHA256 = 'ed97c274b1d5159486c87ca7fbf5594a0d9b815898f26dea7298c2e9df66d34e'
 EXPECTED = {'positive': {'stdout': 'sentinel-ok\n'
@@ -176,7 +186,11 @@ def published_inputs(output, il, rid):
 
 def verify_inputs(data, il, runtime):
     require(data['schema_version'] == 1, '只接受无资源schema1')
-    require(all(value is False for value in data['compiler']['options'].values()), '不能打开实验开关')
+    options = data['compiler']['options']
+    require(type(options) is dict and set(options) == set(DEFAULT_OPTIONS), '必须精确包含当前七个默认选项')
+    for name, expected in DEFAULT_OPTIONS.items():
+        require(type(options[name]) is type(expected) and options[name] == expected,
+                '不是本门固定默认选项：'+name)
     sources = data['sources']
     require(len(sources) == 1 and sources[0]['module_name'] == '__main__'
             and sources[0]['compiled_text_sha256'] == FIXTURE_SHA256, '源码身份或冻结SHA不符')

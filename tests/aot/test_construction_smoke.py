@@ -184,7 +184,7 @@ class FilesTests(unittest.TestCase):
 
     def test_managed_and_runtime_hashes_are_verified(self):
         source, _ = self.bundle()
-        data = {'schema_version': 1, 'compiler': {'options': {'flag': False}},
+        data = {'schema_version': 1, 'compiler': {'options': copy.deepcopy(harness.DEFAULT_OPTIONS)},
                 'sources': [{'module_name': '__main__', 'compiled_text_sha256': 'f'*64}],
                 'build_inputs': [{'relative_path': key, **harness.file_record(source/name)} for key, name in
                     [('managed-entry.dll', 'construction.dll'), ('RyuPy.Runtime.dll', 'RyuPy.Runtime.dll')]]}
@@ -194,8 +194,36 @@ class FilesTests(unittest.TestCase):
                 altered = copy.deepcopy(data)
                 if change in ('managed', 'runtime'): altered['build_inputs'][0 if change == 'managed' else 1]['sha256'] = '0'*64
                 elif change == 'fixture': altered['sources'][0]['compiled_text_sha256'] = '0'*64
-                else: altered['compiler']['options']['flag'] = True
+                else: altered['compiler']['options']['experimental_leaf_inline'] = True
                 with self.subTest(change=change), self.assertRaises(AssertionError):
+                    harness.verify_inputs(altered, source, source/'RyuPy.Runtime.dll')
+
+    def test_input_options_require_exact_default_keys_types_and_values(self):
+        source, _ = self.bundle()
+        data = {'schema_version': 1, 'compiler': {'options': copy.deepcopy(harness.DEFAULT_OPTIONS)},
+                'sources': [{'module_name': '__main__', 'compiled_text_sha256': 'f'*64}],
+                'build_inputs': [{'relative_path': key, **harness.file_record(source/name)} for key, name in
+                    [('managed-entry.dll', 'construction.dll'), ('RyuPy.Runtime.dll', 'RyuPy.Runtime.dll')]]}
+        mutations = []
+        for key in harness.DEFAULT_OPTIONS:
+            missing = copy.deepcopy(harness.DEFAULT_OPTIONS); del missing[key]; mutations.append(missing)
+        unknown = copy.deepcopy(harness.DEFAULT_OPTIONS); unknown['future_option'] = False; mutations.append(unknown)
+        for key, values in {
+            'experimental_direct_accumulator': [True, 0, '', None],
+            'experimental_foreach_accumulator': [True],
+            'experimental_leaf_inline': [True],
+            'diagnostic_scalar_slp': [True], 'experimental_packed_slp': [True],
+            'instance_modules': [False, (), ['module']],
+            'module_environment_policy': [False, '', 'ordinary-dynamic-module-pilot', 'unknown'],
+        }.items():
+            for value in values:
+                changed = copy.deepcopy(harness.DEFAULT_OPTIONS); changed[key] = value; mutations.append(changed)
+        mutations.extend([None, [], {}])
+        with mock.patch.object(harness, 'FIXTURE_SHA256', 'f'*64):
+            harness.verify_inputs(data, source, source/'RyuPy.Runtime.dll')
+            for options in mutations:
+                altered = copy.deepcopy(data); altered['compiler']['options'] = options
+                with self.subTest(options=options), self.assertRaises(AssertionError):
                     harness.verify_inputs(altered, source, source/'RyuPy.Runtime.dll')
 
     def test_unique_same_publish_managed_path(self):
@@ -264,7 +292,7 @@ class MainFlowTests(unittest.TestCase):
                 (aot/'host').mkdir(); (aot/'host/sdk.version').write_text(harness.SDK+'\n')
                 (aot/'publish.stdout.log').write_bytes(b'Generating native code\n'); (aot/'publish.stderr.log').write_bytes(b'')
                 (native.parent/'ryupy-artifact.json').write_bytes(b'{}')
-                data.update(schema_version=1, compiler={'options': {'test_flag': False}},
+                data.update(schema_version=1, compiler={'options': copy.deepcopy(harness.DEFAULT_OPTIONS)},
                     sources=[{'module_name': '__main__', 'compiled_text_sha256': source_sha}],
                     build_inputs=[{'relative_path': name, **harness.file_record(managed_dir/file)} for name,file in
                         [('managed-entry.dll','construction.dll'), ('RyuPy.Runtime.dll','RyuPy.Runtime.dll')]])

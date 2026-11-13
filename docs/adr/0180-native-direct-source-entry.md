@@ -20,3 +20,5 @@
 局部 XML 合同不能代替真实 ILC 使用证明。验收需要核本次唯一 ILC 主输入与本轮 managed 摘要，参数/非零退出/字符串 SystemExit/异常栈/退出回调刷新，原位与搬迁运行；另保留 construction、静态绑定和三平台 pyfiglet 字体/metadata 真实部署、Linux consumer 三偏好收据及分离符号恢复。
 
 没有跨平台完成前只记候选；Mac/Windows 宿主隔离仍不是无 SDK 干净机证明。原型计时受构建顺序与包缓存影响，不把减去 Csc 或一次原型 wall time 报为稳定产品性能提升。
+
+首轮产品 `639c2643` 的 construction Linux/Windows 已产出真实 Native，但旧验收器将全部 compiler options 误当布尔值而拒绝当前默认的 `instance_modules=[]` 与 `module_environment_policy="explicit-only"`。保留 CI 43362463721 失败原件，修为七个默认字段逐类型/值精确检查，不能忽略未知字段。macos-14 的两项任务未执行步骤即取消，后续改在已用于项目门的 macos-15 验证；取消不计通过。

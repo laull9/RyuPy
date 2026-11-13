@@ -12,7 +12,7 @@ concurrency:
 jobs:
   native-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: deployment-platforms-001' || github.event.head_commit.message == 'validation: resource-output-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+      github.event_name == 'workflow_dispatch' || (github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-direct-entry-002') || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: deployment-platforms-001' || github.event.head_commit.message == 'validation: resource-output-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
     strategy:
       fail-fast: false
       matrix:

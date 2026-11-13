@@ -31,7 +31,7 @@ jobs:
           - os: ubuntu-24.04
             rid: linux-x64
             shell: bash
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
             shell: bash
           - os: windows-2022
