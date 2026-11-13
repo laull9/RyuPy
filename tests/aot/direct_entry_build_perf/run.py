@@ -10,7 +10,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent), str(HERE.parent/'standalone_app/benchmark')]
-from contracts import APPS, require, schedule, timings, verify_project, summaries, python_command
+from contracts import APPS, require, schedule, timings, verify_project, summaries, python_command, verify_managed_equivalence
 from measure import capture, save, sha, inventory, positive, elf
 from aot_layout import reported_aot
 from manifest_files import check_artifacts
@@ -108,8 +108,8 @@ def main():
                 require(not restore.get('sources'), '测量恢复仍含联网源')
             require(str(packages)+os.sep in assets['packageFolders'] or str(packages) in assets['packageFolders'], 'SDK包缓存路径不同')
             evidence=verify_project(layout,arm,sha)
-            managed=evidence['managed_sha256'];identities.setdefault(app,managed)
-            require(managed==identities[app],'同应用managed字节发生变化，不能忽略MVID/源差异')
+            managed=layout.managed.read_bytes();identities.setdefault(app,managed)
+            evidence['managed_equivalence']=verify_managed_equivalence(managed,identities[app])
             require((layout.host/'sdk.version').read_text(encoding='utf-8-sig').strip()=='10.0.403','实际SDK漂移')
             receipt=json.loads((layout.sdk_root/'aot-optimization.json').read_text())
             require(receipt['requested']=='default' and receipt['native_sha256']==sha(layout.native),'优化收据输入不同')

@@ -7,10 +7,28 @@ import unittest
 import hashlib
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parent))
-from contracts import python_command, schedule, timings, summaries, verify_project
+from contracts import python_command, schedule, timings, summaries, verify_project, managed_identity, verify_managed_equivalence
 
 
 class ContractsTests(unittest.TestCase):
+    def test_managed_only_exact_coff_timestamp_may_differ(self):
+        # 合成PE仅用于字段/拒错合同，不是Native执行证据；后段模拟MVID。
+        data=bytearray(256);data[:2]=b'MZ';data[60:64]=(64).to_bytes(4,'little')
+        data[64:68]=b'PE\0\0';data[84:86]=(2).to_bytes(2,'little');data[88:90]=b'\x0b\x01'
+        baseline=bytes(data);data[72:76]=(123456).to_bytes(4,'little')
+        identity=verify_managed_equivalence(bytes(data),baseline)
+        self.assertEqual(identity['coff_timestamp'],123456)
+        self.assertNotEqual(identity['raw_sha256'],managed_identity(baseline)['raw_sha256'])
+        self.assertEqual(identity['coff_timestamp_zeroed_sha256'],managed_identity(baseline)['coff_timestamp_zeroed_sha256'])
+        # 每一个时间戳外字节都不能获豁免，包括模拟MVID的16字节。
+        for offset in range(len(data)):
+            if 72 <= offset < 76:continue
+            changed=bytearray(data);changed[offset]^=1
+            with self.assertRaises(AssertionError):verify_managed_equivalence(bytes(changed),baseline)
+        for bad in (0,63,253,0xffffffff):
+            changed=bytearray(data);changed[60:64]=bad.to_bytes(4,'little')
+            with self.assertRaises(AssertionError):managed_identity(bytes(changed))
+
     def test_python_oracle_keeps_upstream_site_exit(self):
         self.assertEqual(python_command('python','pyfiglet','entry',['--list_fonts']),
                          ['python','-B','entry','--list_fonts'])

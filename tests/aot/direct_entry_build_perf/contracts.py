@@ -1,4 +1,5 @@
 """完整构建A/B的冻结顺序、SDK计时分类与输入身份合同；不启动编译。"""
+import hashlib
 from pathlib import Path
 import re
 import statistics
@@ -84,6 +85,30 @@ def verify_project(layout, arm, sha):
     require((sha(entry) == sha(layout.managed)) == (arm == 'direct'), 'ILC入口字节与目标模式不同')
     return {'project_sha256':sha(layout.host/'Host.csproj'), 'ilc_response':str(responses[0]),
             'ilc_main':str(entry),'ilc_main_sha256':sha(entry),'managed_sha256':sha(layout.managed)}
+
+
+def managed_identity(data):
+    """仅定位已知非确定COFF时间戳；不改原件，不屏蔽MVID/metadata/IL。"""
+    require(len(data) >= 64 and data[:2] == b'MZ', '不是完整MZ头')
+    pe = int.from_bytes(data[60:64], 'little')
+    require(64 <= pe <= len(data)-24 and data[pe:pe+4] == b'PE\0\0', '无效PE头偏移/签名')
+    optional_size = int.from_bytes(data[pe+20:pe+22], 'little')
+    require(optional_size >= 2 and pe+24+optional_size <= len(data), '截短PE可选头')
+    require(int.from_bytes(data[pe+24:pe+26], 'little') in (0x10b, 0x20b), '未知PE格式')
+    offset = pe+8
+    equivalent = data[:offset] + bytes(4) + data[offset+4:]
+    return {'raw_sha256':hashlib.sha256(data).hexdigest(), 'size':len(data),
+            'coff_timestamp_offset':offset, 'coff_timestamp':int.from_bytes(data[offset:offset+4], 'little'),
+            'coff_timestamp_zeroed_sha256':hashlib.sha256(equivalent).hexdigest()}
+
+
+def verify_managed_equivalence(data, baseline):
+    actual, expected = managed_identity(data), managed_identity(baseline)
+    offset = actual['coff_timestamp_offset']
+    require(offset == expected['coff_timestamp_offset'] and len(data) == len(baseline), 'managed PE布局改变')
+    require(data[:offset] == baseline[:offset] and data[offset+4:] == baseline[offset+4:],
+            'managed除精确COFF时间戳外存在字节差异，不允许忽略MVID/metadata/IL')
+    return actual
 
 
 def summaries(rows):
