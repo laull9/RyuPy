@@ -16,6 +16,7 @@ mod check_attrs;
 mod check_comparison;
 mod check_stmts;
 mod default_modes;
+mod fallthrough;
 mod infer;
 mod module_metadata;
 mod module_vars;
@@ -68,3 +69,6 @@ mod module_delete_tests;
 
 #[cfg(test)]
 mod ordinary_dynamic_tests;
+
+#[cfg(test)]
+mod fallthrough_tests;

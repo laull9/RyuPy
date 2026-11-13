@@ -512,7 +512,7 @@ public static partial class PyOps
         {
             return PyText.Slice(text, slice);
         }
-        return PyText.At(text, ToIndex(key, "string"));
+        return PyText.At(text, PyStringIndex.Convert(key));
     }
 
     private static long ToIndex(object? value, string context) => value switch

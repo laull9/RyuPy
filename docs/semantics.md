@@ -1574,3 +1574,49 @@ slots/ABCMeta，也不宣称性能零成本：PyInstance 新增一个惰性字�
 #### 精确 set 方法族（ABC 项目验证配套）
 
 `isdisjoint/issubset/issuperset/copy/update/intersection_update/difference_update/symmetric_difference/symmetric_difference_update` 采用统一直接/PIC/保存方法绑定；`union/intersection/difference` 接受零或多个 iterable。非集合源遵守 CPython 3.12 的短路消费，update/difference_update 失败保留前缀，intersection_update 失败不替换原集合。现有 HashSet 未暴露缓存 hash，精确 set/frozenset 源含用户 hash 的复制/查询、以及需复用缓存 hash 的交集/对称差用户对象域明确 NI，不用重复用户回调伪装兼容；一般 iterable 的 update 复用流式 SetExtend。未扩展 frozenset 自身方法表、set 派生、根类型未绑定描述符或 pop，未宣称成本不变。
+
+
+### 原生裸 return 的 None 身份（新 dev 集成）
+
+动态函数和方法的裸 `return` 使用与显式 `return None`、动态落尾相同的 None 单例，
+不能把整数零写入 object 返回槽。回归覆盖身份、关键字方法调用、带标注混合返回
+以及 finally 中的裸返回；静态 Unit 和明确 int 返回保持原合同。
+本项不改 CPython provider 或 C ABI；NativeAOT、混合域与完整门禁另行验收。
+
+### 原生函数自然落尾的 None 类型（新 dev 集成）
+
+带标注普通函数的可达自然落尾作为隐式 `return None` 参与类型检查；与静态返回类型
+不兼容时复用既有整函数动态降级，不伪造 i64 零值。结构分析合并分支、循环零次/耗尽
+与 break、except/else、finally 对转移的保留或覆盖；嵌套函数返回不属于外层。
+完整分支返回、循环后明确返回及已证明不落尾的 `while True` 保留静态资格，仍受其它
+类型条件约束。未知控制流保守允许落尾，不折叠 `if True`、不识别 `while 1`、不证明
+for 非空或 except 不匹配；可能额外整函数降级并产生装箱，不能称为性能提升。
+调用者传播沿用既有最多 16 轮固定点；本组只验证单层调用者，不宣称任意深度调用链。
+本次类型单测、类型/MIR结构及固定 CPython 3.12.13 同次 JIT 差分通过；NativeAOT、
+混合域、跨平台和完整门禁未由本组验收，未修改用户 CompareChain/provider/C ABI。
+
+### 原生 str.translate 与外部对象边界（新 dev 集成）
+
+原生字符串支持整数码点查表，LookupError 保留原字符、None 删除、整数/字符串替换；
+直接、保存、prepared 与根描述符入口共用实现。吞掉的 LookupError 回调恢复编译帧深度，
+其它异常保持身份/上下文；只对本层新建错误调用既有 PrepareRaise，不修改外部异常同步。
+ASCII 缓存、扩展替换和删除段的查表次数由固定 CPython 3.12.13 同次行为测试覆盖。
+继承 D009 的 UTF-16 代理分组边界，不宣称完整 Python 字符串身份或任意版本回调合同。
+
+当前只接入原生映射域：外部 `IPyForeignObject` 表（包括空输入）以及原生表返回的外部
+包装值明确抛 NotImplementedError，不运行其隐式标量转换。该限制不能计入 provider
+兼容率；真正的 CPython 表/包装 str、bigint 与生命周期接入留给 provider 工作，未改
+foreign.Item、转换规则或 C ABI。真实混合域和 NativeAOT 另验，本组负例只验证中性
+边界拒绝、零外部回调以及活动异常/调用帧保留。
+
+### 原生字符串整数下标与 warnings 回调（新 dev 集成）
+
+精确 str 和 str 派生默认下标共用整数转换，整数/bool 快路保留；原生用户对象通过类型
+`__index__` 槽调用一次，实例同名属性不替代槽。bool 返回沿既有 warnings 机制发出
+DeprecationWarning，非整数返回报 TypeError，超大整数报保留原输入类型名的 IndexError。
+本组不扩展其它序列 API，不改变已有 foreign 首分支或 provider 标量转换。
+
+warnings 的 error 筛选对同一 warning 调用现有 PrepareRaise，保留活动异常上下文；
+默认输出吞掉 Python OSError 时只恢复编译回调帧，真实传播错误保留 write 帧。
+新版 PyErrors 的外部异常同步与 handled-scope 合同保持不变。纯原生 JIT/中性合同
+的测试不能代替真实 libpython 混合域、NativeAOT、跨平台或完整门禁验收。

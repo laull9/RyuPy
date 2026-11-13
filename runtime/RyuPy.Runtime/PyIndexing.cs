@@ -28,7 +28,9 @@ public static partial class PyOps
             ? array.GetSlice(slice2)
             : array.GetItem(ToIndex(key, "bytearray")),
         _ when PyObject.TryMethod1(obj, "__getitem__", key, out object? item) => item,
-        _ => throw new PyTypeError($"'{PyRepr.TypeName(obj)}' object is not subscriptable"),
+        // 只准备本入口自造的错误，__getitem__正文的异常由原调用路径原样传播。
+        _ => throw (PyTypeError)PyErrors.PrepareRaise(
+            new PyTypeError($"'{PyRepr.TypeName(obj)}' object is not subscriptable")),
     };
 
 }

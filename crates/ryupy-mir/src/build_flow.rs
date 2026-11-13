@@ -194,18 +194,20 @@ impl FunctionBuilder<'_> {
         let ret_ty = ty_to_mir(&self.types.sigs[self.current_hir_fn].ret);
         let retval = self.retval_local();
         if let Some(dest) = retval {
-            let op = match value {
+            let value = match value {
                 Some(expr) => {
                     let value_ty = self.expr_builder().ty_of(expr);
                     let raw = self.expr_builder().build_expr(expr);
-                    self.expr_builder().coerce(raw, &value_ty, &ret_ty)
+                    Rvalue::Use(self.expr_builder().coerce(raw, &value_ty, &ret_ty))
                 }
-                None => Operand::Const(Constant::I64(0)),
+                // 裸return与显式None/动态落尾共用单例；不能把i64零写进object返回槽。
+                None if matches!(ret_ty, MirType::Dynamic) => Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::DynNone),
+                    args: Vec::new(),
+                },
+                None => Rvalue::Use(Operand::Const(Constant::I64(0))),
             };
-            self.push_stmt(Statement::Assign {
-                dest,
-                value: Rvalue::Use(op),
-            });
+            self.push_stmt(Statement::Assign { dest, value });
         }
         if !self.finally_stack.is_empty() {
             self.set_flow(FLOW_RETURN);

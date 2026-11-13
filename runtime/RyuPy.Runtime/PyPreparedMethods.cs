@@ -45,6 +45,7 @@ public sealed class PyBuiltinMethod
     /// <param name="values">关键字值。</param>
     public object? Invoke(object?[] args, string[] names, object?[] values)
     {
+        if (_receiver is string && _name == "translate") return PyTextTranslate.Invoke(_receiver, args, names);
         if (_receiver is string splitText && _name == "split") return PyTextSplit.Invoke(splitText, args, names, values);
         if (_receiver is string spaceText && _name is "isspace" or "isalnum") return PyUnicodeWhitespace.Invoke(spaceText, args, names, _name);
         if (_receiver is string searchText && PyTextSearch.Has(_name))
@@ -139,7 +140,7 @@ public static partial class PyOps
             string when name is "encode" or "upper" or "lower" or "strip" or "lstrip"
                 or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
                 or "index" or "rindex" or "count" or "startswith" or "endswith" or "format"
-                or "partition" or "rpartition" or "expandtabs" or "isspace" or "isalnum" => PreparedText,
+                or "partition" or "rpartition" or "expandtabs" or "isspace" or "isalnum" or "translate" => PreparedText,
             PyGenerator when name is "__iter__" or "__next__" or "send" or "throw" or "close"
                 => PreparedGenerator,
             _ => null,

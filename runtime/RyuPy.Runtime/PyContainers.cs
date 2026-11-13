@@ -95,11 +95,14 @@ public sealed partial class PySlice
         long count;
         if (step > 0)
         {
-            count = stop > start ? (stop - start + step - 1) / step : 0;
+            // 先减一再除，避免较大步长在向上取整的加法中溢出。
+            count = stop > start ? 1 + (stop - start - 1) / step : 0;
         }
         else
         {
-            count = start > stop ? (start - stop - step - 1) / (-step) : 0;
+            // long.MinValue 不能取负；其跨度比任意合法序列都大，非空窗口只能选一项。
+            count = start <= stop ? 0 : step == long.MinValue ? 1
+                : 1 + (start - stop - 1) / (-step);
         }
         return (start, stop, step, count);
     }

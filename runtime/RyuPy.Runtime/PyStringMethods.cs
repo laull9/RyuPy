@@ -6,9 +6,10 @@ internal static class PyStringMethods
     internal static bool Has(string name) => name is "encode" or "upper" or "lower" or "strip" or "lstrip"
         or "rstrip" or "split" or "splitlines" or "join" or "replace" or "find" or "rfind"
         or "index" or "rindex" or "count" or "startswith" or "endswith" or "format"
-        or "partition" or "rpartition" or "expandtabs" or "isspace" or "isalnum";
+        or "partition" or "rpartition" or "expandtabs" or "isspace" or "isalnum" or "translate";
     internal static object? Invoke(object receiver, string name, object?[] args, string[] names, object?[] values, bool bound)
     {
+        if (name == "translate") return PyTextTranslate.Invoke(receiver, args, names);
         if (name == "split") return PyTextSplit.Invoke(receiver, args, names, values);
         if (name is "isspace" or "isalnum") return PyUnicodeWhitespace.Invoke(PyStringLayout.RequireRaw(receiver), args, names, name);
         if (name == "expandtabs") return PyTextExpandTabs.Invoke(receiver, args, names, values);

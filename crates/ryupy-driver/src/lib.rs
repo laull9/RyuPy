@@ -34,6 +34,7 @@ mod manifest_sdk;
 pub mod modules;
 mod native_binding;
 mod native_binding_manifest;
+pub mod python_selection;
 mod resources;
 pub mod runtime;
 mod stage_trace;

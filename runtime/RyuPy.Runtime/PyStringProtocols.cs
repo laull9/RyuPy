@@ -44,18 +44,8 @@ internal static class PyStringProtocols
             try { return PyText.Slice(text, slice); }
             catch (PyBaseException error) { throw Own(error); }
         }
-        object? index = key;
-        if (index is not (bool or int or long or BigInteger))
-        {
-            if (!PyObject.TryMethod(index, "__index__", [], out index))
-                throw Own(new PyTypeError($"string indices must be integers, not '{PyRepr.TypeName(key)}'"));
-            if (index is bool) throw Own(new PyNotImplementedError("str indexing: __index__ returning bool requires DeprecationWarning support"));
-            if (index is not (int or long or BigInteger))
-                throw Own(new PyTypeError($"__index__ returned non-int (type {PyRepr.TypeName(index)})"));
-        }
-        BigInteger wide = PyInt.ToBigInteger(index!);
-        if (wide < long.MinValue || wide > long.MaxValue) throw Own(new PyIndexError("cannot fit 'int' into an index-sized integer"));
-        try { return PyText.At(text, (long)wide); }
+        long index = PyStringIndex.Convert(key);
+        try { return PyText.At(text, index); }
         catch (PyBaseException error) { throw Own(error); }
     }
     internal static object Compare(string name, object self, object? other)

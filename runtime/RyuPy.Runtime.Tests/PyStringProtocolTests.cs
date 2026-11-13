@@ -147,9 +147,22 @@ public sealed class PyStringProtocolTests
         object index = new PyInstance(indexClass), value = New(Make(), "ab");
         Assert.Equal("b", Root("__getitem__", value, index)); Assert.Equal(1, calls);
         Assert.Equal("ab", Root("__mul__", value, index)); Assert.Equal(2, calls);
-        indexClass.SetAttr("__index__", Method("index", _ => true));
-        Assert.Throws<PyNotImplementedError>(() => Root("__getitem__", value, index));
-        Assert.Throws<PyNotImplementedError>(() => Root("__mul__", value, index));
+        indexClass.SetAttr("__index__", Method("index", _ => { calls++; return true; }));
+        object warningContext = PyOps.CallValue(PyWarnings.CreateAttributes()["catch_warnings"], [], ["record"], [true])!;
+        var records = Assert.IsType<PyList>(Call(warningContext, "__enter__"));
+        try
+        {
+            PyOps.CallValue(PyWarnings.CreateAttributes()["simplefilter"], ["always"], [], []);
+            Assert.Equal("b", Root("__getitem__", value, index)); Assert.Equal(3, calls);
+            object? record = Assert.Single(records.Items);
+            Assert.Same(PyType.Get("DeprecationWarning"), PyObject.GetAttr(record, "category"));
+            Assert.Equal("__index__ returned non-int (type bool).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.",
+                Assert.IsType<PyDeprecationWarning>(PyObject.GetAttr(record, "message")).PyMessage);
+            // 乘法仍是本轮范围外的既有未支持合同，不能随getitem升级而放宽。
+            Assert.Throws<PyNotImplementedError>(() => Root("__mul__", value, index));
+            Assert.Equal(4, calls); Assert.Single(records.Items);
+        }
+        finally { Call(warningContext, "__exit__", PyNone.Instance, PyNone.Instance, PyNone.Instance); }
         var failure = new PyValueError("index body"); PyErrors.PrepareRaise(failure);
         var frames = failure.Frames; var context = failure.Context;
         indexClass.SetAttr("__index__", Method("index", _ => throw failure));

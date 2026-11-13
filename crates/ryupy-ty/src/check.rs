@@ -292,6 +292,22 @@ impl FunctionChecker<'_> {
             self.check_stmt(stmt_id);
         }
 
+        // Python 标注不是运行时契约：可达落尾隐含 None，不能伪造静态零值。
+        // 模块入口不是普通 Python 调用；生成器已由初始模式处理。
+        if self.func.kind != FunctionKind::ModuleMain
+            && !self.func.is_generator
+            && crate::fallthrough::may_fall_through(&self.func.body)
+            && self
+                .infer
+                .unify(
+                    &InferTy::Known(self.sig.ret.clone()),
+                    &InferTy::Known(Ty::None),
+                )
+                .is_err()
+        {
+            self.soft_demote = true;
+        }
+
         // 参数默认值在模块作用域、def 执行时求值：放在语句之后检查，
         // 这样默认值引用的模块变量已经完成类型推导（类型与求值顺序无关）。
         // 它们仍然让 `has_dynamic` 能据此决定 main 是否降级。

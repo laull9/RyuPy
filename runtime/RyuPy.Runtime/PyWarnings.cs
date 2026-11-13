@@ -110,7 +110,7 @@ public static class PyWarnings
             ? PyWarningFilters.ActionKnown(text, category!, module, frame.Line, caller.Environment)
             : PyWarningFilters.Action(text, category!, module, frame.Line);
         if (action == "ignore") return;
-        if (action == "error") throw warning;
+        if (action == "error") throw (PyBaseException)PyErrors.PrepareRaise(warning);
         var record = new PyWarningMessage(warning, category!, frame.File, frame.Line, source);
         if (Records is { } records) { records.Append(record); return; }
         Write(record);
@@ -137,7 +137,12 @@ public static class PyWarnings
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
         // 默认showwarning忽略IO失败，但自定义write的其它Python异常必须传播。
+        long depth = PyTraceback.CaptureDepth();
         try { PySystem.Write(target, output); }
-        catch (PyOSError) { }
+        catch (PyOSError)
+        {
+            // 仅被吞掉的IO回调恢复调用者帧；其它异常继续携带原始write帧传播。
+            PyTraceback.PopTo(depth + 1);
+        }
     }
 }
