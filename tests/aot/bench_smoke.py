@@ -12,7 +12,7 @@ import time
 import uuid
 
 from platform_runner import Runner
-from manifest_files import check_artifacts, digest, plain_stat, files_under
+from manifest_files import check_artifacts, check_file_record, digest, plain_stat, files_under
 from manifest_verify import MANIFEST_NAME, image_header, no_duplicate_keys, read_sdk_version, validate_schema
 
 
@@ -60,17 +60,19 @@ def validate_bundle(root, source):
     sdk = read_sdk_version(sdk_root/'host/sdk.version')
     manifest, raw = read_json(dist/MANIFEST_NAME)
     validate_schema(manifest, 'linux-x64', sdk)
-    files = check_artifacts(dist, manifest['artifacts'], MANIFEST_NAME)
+    allow_omitted = manifest['schema_version'] == 1
+    files = check_artifacts(dist, manifest['artifacts'], MANIFEST_NAME, allow_omitted=allow_omitted)
     native = [x for x in manifest['artifacts'] if x['role'] == 'native_executable']
     assert len(native) == 1 and native[0]['relative_path'] == 'hello'
     image_header(files['hello'], 'linux-x64')
     assert os.access(files['hello'], os.X_OK)
     inputs = {x['role']: x for x in manifest['build_inputs']}
     for role, path in (('compiled_managed_input', managed), ('runtime_managed_input', managed.parent/'RyuPy.Runtime.dll')):
-        size, sha = digest(path)
-        assert (size, sha) == (inputs[role]['size'], inputs[role]['sha256'])
+        check_file_record(path, inputs[role], allow_omitted=allow_omitted)
     entry = [x for x in manifest['sources'] if x['module_name'] == '__main__']
-    assert len(entry) == 1 and entry[0]['compiled_text_sha256'] == hashlib.sha256(source.read_bytes()).hexdigest()
+    assert len(entry) == 1
+    if entry[0]['compiled_text_sha256']:
+        assert entry[0]['compiled_text_sha256'] == hashlib.sha256(source.read_bytes()).hexdigest()
     return {'manifest_sha256': hashlib.sha256(raw).hexdigest(), 'native': native[0], 'build_inputs': manifest['build_inputs'], 'sdk_version': sdk}, raw
 
 

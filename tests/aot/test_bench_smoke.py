@@ -33,6 +33,9 @@ def bundle(root, source):
     for record,name in zip(data['build_inputs'],('hello.dll','RyuPy.Runtime.dll')):
         raw=(attempt/name).read_bytes();record.update(size=len(raw),sha256=hashlib.sha256(raw).hexdigest())
     data['sources'][0]['compiled_text_sha256']=hashlib.sha256(source.read_bytes()).hexdigest()
+    # 当前普通发布明确省略这些摘要；归档器自校验证据仍另算摘要。
+    for item in data['sources']:item['compiled_text_sha256']=''
+    for item in data['build_inputs']+data['artifacts']:item['sha256']=''
     (dist/'ryupy-artifact.json').write_text(json.dumps(data))
 
 
@@ -105,7 +108,7 @@ class BenchSmokeTests(unittest.TestCase):
             dest=root/'bundle';bundle(dest,source)
             smoke.validate_bundle(dest,source)
             (dest/'hello.build/attempt-one/hello.dll').write_bytes(b'changed')
-            with self.assertRaises(AssertionError):smoke.validate_bundle(dest,source)
+            with self.assertRaises(ValueError):smoke.validate_bundle(dest,source)
 
 
 if __name__=='__main__':unittest.main()

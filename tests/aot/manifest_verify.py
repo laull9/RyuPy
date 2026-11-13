@@ -42,12 +42,13 @@ def method(value):
         text(item)
 
 
-def file_entry(value):
+def file_entry(value, *, allow_omitted=False):
     shape(value, 'relative_path role size sha256')
     relative_path(value['relative_path'])
     text(value['role'])
     integer(value['size'])
-    digest_text(value['sha256'])
+    if not (allow_omitted and value['sha256'] == ''):
+        digest_text(value['sha256'])
 
 
 def no_duplicate_keys(pairs):
@@ -112,7 +113,9 @@ def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modul
         require(source['module_name'] not in module_names and source['module_id'] not in sources, '重复源码身份')
         module_names.add(source['module_name'])
         sources[source['module_id']] = source
-        digest_text(source['compiled_text_sha256'])
+        # 当前普通schema1生产者明确不登记源码摘要；其它协议保持原严格合同。
+        if not (version == 1 and source['compiled_text_sha256'] == ''):
+            digest_text(source['compiled_text_sha256'])
     require(set(sources) == set(range(len(sources))), '模块编号不连续')
     modules = {}
     for module in data['modules']:
@@ -159,7 +162,7 @@ def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modul
                 integer(reference[name])
         require(reference['module_id'] is None or reference['module_id'] in modules, '引用模块不存在')
     for entry in data['build_inputs'] + data['artifacts']:
-        file_entry(entry)
+        file_entry(entry, allow_omitted=version == 1)
     require({(x['relative_path'], x['role']) for x in data['build_inputs']} ==
             {('managed-entry.dll','compiled_managed_input'), ('RyuPy.Runtime.dll','runtime_managed_input')}
             and len(data['build_inputs']) == 2, '托管输入名称/角色不符')
@@ -219,7 +222,8 @@ def verify_manifest(publish, native, rid, sdk_version, *, expected_instance_modu
     plain_stat(manifest)
     data = json.loads(manifest.read_text(encoding='utf-8'), object_pairs_hook=no_duplicate_keys)
     validate_schema(data, rid, sdk_version, expected_instance_modules=expected_instance_modules)
-    actual = check_artifacts(publish, data['artifacts'], MANIFEST_NAME, windows=rid == 'win-x64')
+    actual = check_artifacts(publish, data['artifacts'], MANIFEST_NAME, windows=rid == 'win-x64',
+                             allow_omitted=data['schema_version'] == 1)
     entry = next(x for x in data['artifacts'] if x['role'] == 'native_executable')
     expected = actual[entry['relative_path']]
     require(native.is_file() and native.samefile(expected) and native.parent.samefile(expected.parent)

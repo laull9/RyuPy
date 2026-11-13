@@ -127,6 +127,17 @@ class BenchAotTests(unittest.TestCase):
             (root/'program.build/attempt-current/program.dll').write_bytes(b'bad')
             with self.assertRaises(ValueError): artifact.verified_native(root,bench,log)
 
+    def test_current_empty_digest_native_pipeline_and_size_guard(self):
+        with tempfile.TemporaryDirectory() as temp, patch.object(artifact,'host_rid',return_value='linux-x64'):
+            root=Path(temp);bench,log,dist=self.fixture(root)
+            manifest=dist/'ryupy-artifact.json';data=json.loads(manifest.read_text())
+            for source in data['sources']:source['compiled_text_sha256']=''
+            for item in data['build_inputs']+data['artifacts']:item['sha256']=''
+            manifest.write_text(json.dumps(data))
+            self.assertEqual(artifact.verified_native(root,bench,log),dist/'program')
+            (root/'program.build/attempt-current/program.dll').write_bytes(b'longer')
+            with self.assertRaises(ValueError):artifact.verified_native(root,bench,log)
+
     def test_missing_or_tampered_manifest_never_falls_back(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(artifact,'host_rid',return_value='linux-x64'):
             root=Path(temp);bench,log,dist=self.fixture(root)

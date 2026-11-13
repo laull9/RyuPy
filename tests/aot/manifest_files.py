@@ -95,7 +95,33 @@ def digest(path):
     return size, hashed.hexdigest()
 
 
-def check_artifacts(root, entries, manifest_name, *, windows=False):
+def validate_digest(value, *, allow_omitted=False):
+    """仅调用方明确支持的空串表示未登记摘要；非空值仍严格校验。"""
+    if not isinstance(value, str) or not (allow_omitted and value == '' or re.fullmatch('[0-9a-f]{64}', value)):
+        raise ManifestError('需要小写SHA256（本合同仅可显式省略为空串）')
+
+
+def check_file_record(path, entry, *, allow_omitted=False):
+    """无摘要合同只证明大小及打开前后身份，不冒充等长内容篡改检测。"""
+    validate_digest(entry['sha256'], allow_omitted=allow_omitted)
+    if type(entry['size']) is not int or entry['size'] < 0:
+        raise ManifestError('非法文件大小')
+    if entry['sha256']:
+        size, hashed = digest(path)
+        if (size, hashed) != (entry['size'], entry['sha256']):
+            raise ManifestError(f'发布文件字节不符：{path.name}')
+    else:
+        before = plain_stat(path)
+        with path.open('rb') as stream:
+            opened = os.fstat(stream.fileno())
+            after_open = os.fstat(stream.fileno())
+        after = plain_stat(path)
+        check_read_snapshots(before, opened, after_open, after, before.st_size, windows=os.name == 'nt')
+        if before.st_size != entry['size']:
+            raise ManifestError(f'发布文件大小不符：{path.name}')
+
+
+def check_artifacts(root, entries, manifest_name, *, windows=False, allow_omitted=False):
     actual = files_under(root)
     if manifest_name not in actual:
         raise ManifestError('缺少发布清单普通文件')
@@ -108,14 +134,13 @@ def check_artifacts(root, entries, manifest_name, *, windows=False):
         if key in ({name.casefold() for name in reserved} if windows else reserved) or key in folded:
             raise ManifestError(f'自hash或重复发布路径：{path}')
         folded.add(key)
-        if type(entry['size']) is not int or entry['size'] < 0 or not isinstance(entry['sha256'], str) or not re.fullmatch('[0-9a-f]{64}', entry['sha256']):
+        if type(entry['size']) is not int or entry['size'] < 0:
             raise ManifestError(f'非法文件大小/摘要：{path}')
+        validate_digest(entry['sha256'], allow_omitted=allow_omitted)
         expected[path] = entry
     wanted = set(expected) | {manifest_name}
     if set(actual) != wanted:
         raise ManifestError(f'发布普通文件集合不同：missing={sorted(wanted-set(actual))}, extra={sorted(set(actual)-wanted)}')
     for path, entry in expected.items():
-        size, hashed = digest(actual[path])
-        if (size, hashed) != (entry['size'], entry['sha256']):
-            raise ManifestError(f'发布文件字节不符：{path}')
+        check_file_record(actual[path], entry, allow_omitted=allow_omitted)
     return actual

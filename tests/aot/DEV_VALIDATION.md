@@ -8,7 +8,7 @@
 - 先运行 runner、AOT 布局、清单和公开 benchmark 入口的纯 Python 回归。
 - Linux x64 使用仓库固定 CPython、固定 .NET SDK，实际执行一次公开
   `make bench-aot BENCH=hello` 管线。CPython 在同次运行生成 stdout 预期。
-- 既有 `bench_smoke.py` 检查真实原生文件、清单、编译输入哈希与唯一新输出树；
+- 既有 `bench_smoke.py` 检查真实原生文件、清单、编译输入登记与唯一新输出树；
   校验 CPython/原生各一次热身、五次运行及结果，再保留本次产物证据。
 - Rust 构建、benchmark 产物及报告放 runner 临时目录，证据作为 14 天 CI 工件，
   不提交 IR、JSON 报告、生成 golden 或二进制。
@@ -37,3 +37,16 @@ python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
 同次 CPython 差分后才能重新启用，不能以历史 CI 通过代替本轮验证。
 每轮冻结源码、解析出的 Python/ABI、依赖、provider 配置及样本计划，分别报告构建、
 启动、暖吞吐、RSS/分配与包大小。一次只晋升一个通过语义门且无超预算回退的优化。
+
+## 普通发布空摘要合同
+
+当前生成端 `manifest_files.rs` 的 `hash_bytes` 和 `digest_file` 明确把普通文件摘要
+登记为空串，文件登记只核大小、打开前后身份；`docs/workflow.md` 同样不要求新增普通文件 hash。
+本门仅同步普通 schema1：源码摘要允许为空，build inputs/artifacts 允许空摘要但仍严格
+核文件集合、普通文件类型、大小、打开前后身份、当前输出树及原生文件头。
+空摘要不保证源码/输入/原生产物内容一致，不能检测事先完成的等长内容篡改。
+非空摘要必须是合法小写 SHA256 且核对实际内容，不能以空摘要支持为由忽略错误摘要。
+
+共享核验函数默认仍要求摘要，binding/provider 及资源 schema2 合同在本切不放宽，
+更广协议迁移另行验收。测试归档的复制前后摘要仅用于证据自校验，不恢复生产端摘要计算，
+也不写回发布清单。此修复需由新提交 CI 再验真实编译和运行，旧工件 schema 通过不能替代重跑。

@@ -1,4 +1,4 @@
-"""只接受本次独占输出根的NativeAOT发布；核清单/输入/原生头，不执行产物或回退dotnet。"""
+"""只接受本次独占输出根的NativeAOT发布；核清单/输入登记/原生头，不执行产物或回退dotnet。"""
 import hashlib
 import json
 import os
@@ -10,7 +10,7 @@ import sys
 AOT_TOOLS = Path(__file__).resolve().parents[1] / "aot"
 if str(AOT_TOOLS) not in sys.path:
     sys.path.insert(0, str(AOT_TOOLS))
-from manifest_files import check_artifacts, digest, plain_stat  # noqa: E402
+from manifest_files import check_artifacts, check_file_record, plain_stat  # noqa: E402
 from aot_layout import reported_aot  # noqa: E402
 from manifest_verify import (MANIFEST_NAME, image_header, no_duplicate_keys,
     read_sdk_version, require, validate_schema)  # noqa: E402
@@ -44,16 +44,17 @@ def verified_native(root, bench, stderr):
     sdk = read_sdk_version(layout.host / "sdk.version")
     # 原基准没有native-binding声明；不将其它schema假当普通AOT清单。
     validate_schema(data, rid, sdk)
-    actual = check_artifacts(dist, data["artifacts"], MANIFEST_NAME)
+    allow_omitted = data["schema_version"] == 1
+    actual = check_artifacts(dist, data["artifacts"], MANIFEST_NAME, allow_omitted=allow_omitted)
     entry = next(x for x in data["artifacts"] if x["role"] == "native_executable")
     require(entry["relative_path"] == bench.name and os.path.samefile(actual[bench.name], native), "非预期唯一native入口")
     image_header(native, rid)
     require(os.access(native, os.X_OK), "native缺少执行权限")
     inputs = {x["role"]: x for x in data["build_inputs"]}
     for role, path in (("compiled_managed_input", managed), ("runtime_managed_input", managed.parent / "RyuPy.Runtime.dll")):
-        size, hashed = digest(path)
-        require((size, hashed) == (inputs[role]["size"], inputs[role]["sha256"]), "本次托管输入hash不匹配")
+        check_file_record(path, inputs[role], allow_omitted=allow_omitted)
     source = next((x for x in data["sources"] if x["module_name"] == "__main__"), None)
     require(source is not None, "清单缺入口源码")
-    require(source["compiled_text_sha256"] == hashlib.sha256(bench.path.read_bytes()).hexdigest(), "入口源码hash不匹配")
+    if source["compiled_text_sha256"]:
+        require(source["compiled_text_sha256"] == hashlib.sha256(bench.path.read_bytes()).hexdigest(), "入口源码hash不匹配")
     return native
