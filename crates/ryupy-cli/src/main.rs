@@ -216,6 +216,9 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             if let Some(exe) = artifacts.native_exe {
                 eprintln!("已生成 {}", exe.display());
             }
+            if let Some(symbols) = artifacts.debug_symbols {
+                eprintln!("AOT 调试符号清单：{}", symbols.display());
+            }
             if let Some(manifest) = artifacts.manifest {
                 eprintln!(
                     "{}：{}",

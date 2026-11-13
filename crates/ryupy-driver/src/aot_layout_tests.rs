@@ -68,6 +68,7 @@ fn fake(opts: &BuildOptions, data: &[u8], schema: u64) -> Result<Artifacts> {
         dll,
         native_exe: Some(native),
         manifest: Some(manifest),
+        debug_symbols: None,
     })
 }
 #[test]
@@ -344,3 +345,63 @@ fn owned_short_roots_reject_conflicts_and_escaping_without_cleanup() {
 
 #[path = "aot_resource_output_tests.rs"]
 mod resource_output_tests;
+
+#[cfg(target_os = "linux")]
+#[test]
+fn separated_symbols_then_name_collision_keeps_old_dist_and_owned_source() {
+    let c = Case::new();
+    build(&c.opts, |o, _owned| fake(o, b"old", 1)).unwrap();
+    let before = files::snapshot(&c.dist(), false).unwrap();
+    let debug = super::symbols_tests::elf(b"layout-id", true, None);
+    let native = super::symbols_tests::elf(
+        b"layout-id",
+        false,
+        Some(("RyuPyAotHost_fake.dbg", crc32fast::hash(&debug))),
+    );
+    let saved = std::cell::RefCell::new(PathBuf::new());
+    let error = build(&c.opts, |o, _owned| {
+        let artifacts = fake(o, &native, 1)?;
+        let publish = artifacts.native_exe.as_ref().unwrap().parent().unwrap();
+        let debug_path = publish.join("RyuPyAotHost_fake.dbg");
+        std::fs::write(&debug_path, &debug)?;
+        // 最终入口碰撞在分离后、swap前发生，必须保住旧dist及原SDK符号。
+        std::fs::write(publish.join("入口 & app"), b"collision")?;
+        let path = artifacts.manifest.as_ref().unwrap();
+        let mut value: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
+        for name in ["RyuPyAotHost_fake.dbg", "入口 & app"] {
+            let item =
+                manifest_files::digest_file(&publish.join(name), name, "unclassified_sidecar")?;
+            value["artifacts"]
+                .as_array_mut()
+                .unwrap()
+                .push(serde_json::to_value(item)?);
+        }
+        std::fs::write(path, serde_json::to_vec(&value)?)?;
+        *saved.borrow_mut() = publish.to_path_buf();
+        Ok(artifacts)
+    })
+    .unwrap_err();
+    eprintln!("分离后改名碰撞：{error:#}；原publish={:?}", saved.borrow());
+    assert_eq!(files::snapshot(&c.dist(), false).unwrap(), before);
+    let source = saved.borrow();
+    assert_eq!(
+        std::fs::read(source.join("RyuPyAotHost_fake.dbg")).unwrap(),
+        debug
+    );
+    assert_eq!(
+        std::fs::read(source.join("RyuPyAotHost_fake")).unwrap(),
+        native
+    );
+    files::verify_manifest(&source).unwrap();
+    let attempt = source.parent().unwrap().parent().unwrap();
+    let record: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(attempt.join("debug-symbols.json")).unwrap())
+            .unwrap();
+    assert_eq!(record["status"], "separated");
+    assert!(
+        !attempt
+            .join("dist-candidate/RyuPyAotHost_fake.dbg")
+            .exists()
+    );
+    build(&c.opts, |o, _owned| fake(o, b"next", 1)).unwrap();
+}

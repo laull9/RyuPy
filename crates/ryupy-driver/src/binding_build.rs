@@ -97,6 +97,7 @@ fn build_internal(
                 dll,
                 native_exe: Some(p.executable),
                 manifest: Some(p.manifest),
+                debug_symbols: None,
             });
         }
         let target = bundle.join(plan.platform.relative_file());
@@ -126,6 +127,7 @@ fn build_internal(
             dll,
             native_exe: None,
             manifest: Some(manifest),
+            debug_symbols: None,
         })
     })();
     match result {

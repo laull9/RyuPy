@@ -101,8 +101,11 @@ def main():
         layout = reported_aot((out/'public-build.stderr').read_bytes(), output, '__main__', 'linux-x64'); elf(layout.native)
         audit(layout, project, 'cli', out/'audit', cli, runtime, python, dotnet, env)
         dist = out/'profile-dist'; shutil.copytree(layout.dist, dist); native = dist/layout.native.name
+        product_dist = inventory(layout.dist); save(out/'product-dist-before.json', product_dist)
+        from profile_symbols import prepare_profile_symbols
+        debug_file, debug_scope = prepare_profile_symbols(layout, dist)
+        debug = [debug_file]; save(out/'profile-symbols.json', debug_scope)
         before_dist = inventory(dist); save(out/'dist-before.json', before_dist)
-        debug = list(dist.glob('*.dbg')); require(len(debug) == 1, '调试符号必须唯一且保留')
         command('debuglink', ['readelf', '-x', '.gnu_debuglink', native])
         command('symbols', ['nm', '-C', '--defined-only', debug[0]])
         require('RyuPy_Runtime_' in (out/'symbols.stdout').read_text(), 'dbg缺少真实runtime符号')
@@ -133,6 +136,7 @@ def main():
         own = [row for row in rows if Path(row['dso']).name == native.name]
         require(sum(row['samples'] for row in own) >= MIN_SAMPLES, '应用本体CPU采样不足')
         require(any('RyuPy_Runtime_' in row['symbol'] for row in own), '应用runtime采样未符号化')
+        require(inventory(layout.dist) == product_dist, '采样改变产品dist')
         require(inventory(dist) == before_dist, '采样改变Native产物')
         hidden.rename(project); hidden = None
         require(inputs(project) == original_inputs, '输入改变')

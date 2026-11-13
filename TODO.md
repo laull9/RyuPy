@@ -2,6 +2,8 @@
 
 ## 当前 AOT 产品主线（2026-11-12）
 
+- [~] Linux Native调试符号交付分离候选：成熟ELF parser核debuglink/CRC/build-id，仅从新dist副本分离精确host.dbg，原publish保留且CLI报告记录；未知旁件与Mac/Windows保留。专项身份与失败保旧通过，真实binaryornot调试恢复、三平台部署和完整门待验。见[ADR0177](docs/adr/0177-linux-native-symbol-delivery.md)。
+
 - [~] PyText有界索引扫描候选：`3700df16` 同树完整check通过，A/B CI `43328258397` 两轮极长hi800中位耗时降7.96%/5.55%；其它负载无可靠收益，首轮startup负向第二轮未复现，保留风险。binaryornot及Mac/Windows部署原件已验；仅独立验证分支，未自动合入dev/main。见 `tests/aot/native_text_index_perf/README.md`，不宣称Nuitka总体性能领先。
 
 - [x] 显式无条件声明依赖预检：成熟PEP508/440解析，真实缺chardet/版本不符先于源码及SDK报错；默认关闭保持旧行为。CI `43317160754` 7个反例/对照、精确收据、真实Native宿主8/8和隔离容器8/8以及同树完整check通过。拒绝markers/extras/URL/===，不求解安装、不检查Requires-Python/ABI；无Native性能提升声明。见[ADR0176](docs/adr/0176-explicit-dependency-preflight.md)。

@@ -88,6 +88,8 @@ pub struct Artifacts {
     pub native_exe: Option<PathBuf>,
     /// 仅本次完整 Native AOT 编译成功后返回的可搬迁清单。
     pub manifest: Option<PathBuf>,
+    /// 高层Linux交付的符号保留/分离记录；不属于可搬迁运行依赖。
+    pub debug_symbols: Option<PathBuf>,
 }
 
 /// 单模块产物与跨模块绑定契约，一同交给链接器。
@@ -406,6 +408,7 @@ fn build_with_resources_inner(
         dll,
         native_exe,
         manifest,
+        debug_symbols: None,
     })
 }
 

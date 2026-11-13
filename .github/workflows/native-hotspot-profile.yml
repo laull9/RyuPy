@@ -3,7 +3,7 @@ name: pyfiglet Native用户态热点采样
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/native-hotspot-profile-20261112-001']
+    branches: ['ci/symbol-delivery-20261113-001', 'ci/native-hotspot-profile-20261112-001']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   profile:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-hotspot-profile-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: native-hotspot-profile-001'
     runs-on: ubuntu-24.04
     timeout-minutes: 65
     env:

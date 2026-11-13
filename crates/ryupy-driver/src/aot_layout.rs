@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 #[path = "aot_layout_files.rs"]
 mod files;
+#[path = "aot_layout_symbols.rs"]
+mod symbols;
 static NEXT: AtomicU64 = AtomicU64::new(0);
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -243,6 +245,7 @@ fn install(
     let candidate = attempt.join("dist-candidate");
     files::verify_manifest(source)?;
     files::copy_tree(source, &candidate)?;
+    artifacts.debug_symbols = symbols::separate(attempt, source, &candidate, native_name)?;
     files::relocate(&candidate, native_name, &name)?;
     let ready = files::snapshot(&candidate, false)?;
     verify_dist(dist, old)?;
@@ -283,3 +286,7 @@ fn swap(candidate: &Path, dist: &Path, backup: &Path, had_old: bool) -> Result<(
 #[cfg(test)]
 #[path = "aot_layout_tests.rs"]
 mod tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "aot_layout_symbols_tests.rs"]
+mod symbols_tests;

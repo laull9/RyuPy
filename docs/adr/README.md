@@ -99,3 +99,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0174：显式资源目录选择](0174-explicit-resource-trees.md)（Linux/macOS/Windows 两入口553资源已验；仅Linux有无运行时容器证明）
 
 - [0175：资源树与实际输出的早期相交诊断](0175-resource-output-preflight.md)（单一模块图内预检，保留合法兄弟资源与失败留证）
+
+| [0177](0177-linux-native-symbol-delivery.md) | Linux Native调试符号与交付目录分离 | 候选，真实部署/调试待验 |

@@ -3,7 +3,7 @@ name: macOS与Windows普通项目Native
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/deployment-platforms-20261112-001', 'ci/resource-output-20261112-001', 'ci/native-text-index-perf-20261112-001']
+    branches: ['ci/symbol-delivery-20261113-001', 'ci/deployment-platforms-20261112-001', 'ci/resource-output-20261112-001', 'ci/native-text-index-perf-20261112-001']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   native-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: deployment-platforms-001' || github.event.head_commit.message == 'validation: resource-output-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: deployment-platforms-001' || github.event.head_commit.message == 'validation: resource-output-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
     strategy:
       fail-fast: false
       matrix:

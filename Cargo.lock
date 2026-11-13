@@ -1259,7 +1259,9 @@ name = "ryupy-driver"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "crc32fast",
  "insta",
+ "object",
  "pep440_rs",
  "pep508_rs",
  "ryupy-base",
