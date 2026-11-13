@@ -8,6 +8,7 @@ public static partial class PyOps
     /// <param name="name">__enter__或__exit__。</param>
     public static object? ContextMethod(object? receiver, string name)
     {
+        if (receiver is PyHTTPError httpError) return httpError.Attribute(name);
         if (receiver is PyNativeObject native && PyObject.TryGetNativeSpecial(native, name, out object? method))
             return method;
         if (receiver is PyInstance instance)

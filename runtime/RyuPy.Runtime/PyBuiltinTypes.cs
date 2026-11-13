@@ -34,6 +34,7 @@ public static partial class PyOps
         PyTypedDictType => expected is "_TypedDictMeta" or "type" or "object",
         PyEllipsis => expected is "ellipsis" or "object",
         PyNamedTupleInstance => expected is "tuple" or "object",
+        PyUrlResult => expected is "tuple" or "object",
         IPyNativeMapping => expected is "dict" or "object",
         PyNativeObject native => PyNativeType.LookupByName(native.TypeName)?.IsSubclassOfBuiltin(expected)
             ?? (string.Equals(native.TypeName, expected, StringComparison.Ordinal)

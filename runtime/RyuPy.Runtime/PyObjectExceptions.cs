@@ -21,6 +21,9 @@ public static partial class PyObject
             "__module__" when type.Name == "JSONDecodeError" => "json.decoder",
             "__module__" when type.Name == "error" => "re",
             "__module__" when type.Name == "BadZipFile" => "zipfile",
+            "__module__" when type.Name is "URLError" or "HTTPError" => "urllib.error",
+            "__module__" when type.Name is "SSLError" or "SSLCertVerificationError" => "ssl",
+            "__module__" when type.Name is "HTTPException" or "InvalidURL" or "IncompleteRead" => "http.client",
             "__module__" when type.Name == "ParseError" => "xml.etree.ElementTree",
             "__module__" when type.Name == "SyntaxError" => "builtins",
             "__module__" when type.Name == "GetoptError" => "getopt",
@@ -70,6 +73,9 @@ public static partial class PyObject
             _ when exception is PySyntaxError syntax => syntax.Field(name),
             _ when exception is PyGetoptError getopt => getopt.Field(name),
             _ when exception is PyOptParseError error => error.Field(name),
+            _ when exception is PyURLError error => error.Attribute(name),
+            "partial" when exception is PyIncompleteRead error => error.Partial,
+            "expected" when exception is PyIncompleteRead error => (object?)error.Expected ?? PyNone.Instance,
             _ => throw new PyAttributeError(
                 $"'{exception.PyTypeName}' object has no attribute '{name}'"
             ),

@@ -47,6 +47,13 @@ public static class PyExceptionTypes
         ["ImportError"] = m => new PyImportError(m),
         ["ModuleNotFoundError"] = m => new PyModuleNotFoundError(m),
         ["OSError"] = m => new PyOSError(m),
+        ["TimeoutError"] = m => new PyTimeoutError(m),
+        ["URLError"] = m => new PyURLError(m),
+        ["HTTPError"] = m => new PyHTTPError("", 0, m, null, null),
+        ["SSLError"] = m => new PySSLError(m),
+        ["SSLCertVerificationError"] = m => new PySSLCertVerificationError(m),
+        ["HTTPException"] = m => new PyHTTPException(m),
+        ["InvalidURL"] = m => new PyInvalidURL(m),
         ["UnsupportedOperation"] = m => m.Length == 0 ? new PyUnsupportedOperation() : new PyUnsupportedOperation(m),
         ["IsADirectoryError"] = m => new PyIsADirectoryError(m),
         ["NotADirectoryError"] = m => new PyNotADirectoryError(m),
@@ -61,7 +68,7 @@ public static class PyExceptionTypes
 
     /// <summary>该名字是否是已知的 Python 异常类型（供编译期诊断使用）。</summary>
     /// <param name="typeName">Python 类型名。</param>
-    public static bool IsKnown(string typeName) => typeName == "GetoptError" || PyOptParseExceptions.IsType(typeName) || Factories.ContainsKey(typeName)
+    public static bool IsKnown(string typeName) => typeName is "GetoptError" or "IncompleteRead" || PyOptParseExceptions.IsType(typeName) || Factories.ContainsKey(typeName)
         || PyExceptionHierarchy.IsSubclass(typeName, "Warning");
 
     /// <summary>按类型名构造异常对象；未知名字退化成 <c>Exception</c> 家族。</summary>

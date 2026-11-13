@@ -33,6 +33,7 @@ public static partial class PyRepr
         long or int or BigInteger => "int",
         double or float => "float",
         string => "str",
+        PyUrlResult result => result.Parsed ? "ParseResult" : "SplitResult",
         PyNamedTupleInstance instance => instance.Class.Name,
         PyTuple => "tuple",
         PyList => "list",
@@ -81,6 +82,7 @@ public static partial class PyRepr
         // str(异常) 是消息本身，不含类型名（与 CPython 一致）
         PyBaseException exception => StrException(exception),
         PyNamedTupleInstance instance => PyNamedTupleLayout.Repr(instance),
+        PyUrlResult result => result.Repr(),
         PyTuple tuple => ReprTuple(tuple),
         PyList list => ReprList(list),
         PyDict dict => ReprDict(dict),
@@ -116,6 +118,7 @@ public static partial class PyRepr
         string s => Quote(s),
         PyBaseException exception => ReprException(exception),
         PyNamedTupleInstance instance => PyNamedTupleLayout.Repr(instance),
+        PyUrlResult result => result.Repr(),
         PyTuple tuple => ReprTuple(tuple),
         PyList list => ReprList(list),
         PyDict dict => ReprDict(dict),

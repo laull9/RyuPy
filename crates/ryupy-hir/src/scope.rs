@@ -332,6 +332,7 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "FileNotFoundError",
         "FileExistsError",
         "PermissionError",
+        "TimeoutError",
         "IsADirectoryError",
         "NotADirectoryError",
         "StopIteration",

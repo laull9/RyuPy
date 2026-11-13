@@ -504,6 +504,19 @@ gzip 文件支持真实上下文关闭、追加成员、有限 strict 文本；s
 完整 API/性能取舍和验证步骤见 [ADR0176](adr/0176-zlib-gzip-native-compression.md)
 与[独立验收记录](validation/zlib-gzip.md)。
 
+### 4.12 网络标准库的强验证与有限适配（ADR0177）
+
+`urllib.parse` 保留 Python 字符串语义，HTTP 请求目标保留点段、百分号路径与 query，
+不发送 fragment。`urlopen` 使用系统 TLS 验证；自定义 SSLContext 仅允许加载可信 CA，
+拒绝 verify_mode/check_hostname 等未实现配置。跨源重定向移除凭据、HTTPS 降级重定向
+抛 URLError；这是有意采用的安全差异。环境代理与自动 cookie/auth handler 未开放。
+
+HTTP 超时、证书失败、状态错误和截断响应走真实 Python 异常层次；平台连接错误文本
+归一化，errno、TLS 握手阶段的专用超时包装尚未开放。read() 以原始 bytes 返回，
+解码和解压由调用者显式执行；资源通过 close/with 释放。
+逐 API 范围、CPython 差分和真实 HTTP/TLS/AOT 搬迁命令见
+[网络验收](validation/network-stdlib.md)。安全差异的可运行负例在 `tests/network/fixtures/client.py`。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。

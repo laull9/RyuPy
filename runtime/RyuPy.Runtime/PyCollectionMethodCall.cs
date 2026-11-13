@@ -35,6 +35,9 @@ public static partial class PyOps
             return CallValue(PyObject.GetAttr(obj, name), rawArgs, rawNames, rawValues);
         if (obj is PyNamedTupleInstance || obj is PyClass { NamedTupleLayout: not null })
             return CallValue(CaptureModuleTarget(obj, name), rawArgs, rawNames, rawValues);
+        // URL 结果扩展 tuple，HTTPError 扩展异常；先解析真实属性以保留关键字与绑定语义。
+        if (obj is PyUrlResult && name is not ("count" or "index" or "__len__") || obj is PyHTTPError)
+            return CallValue(PyObject.GetAttr(obj, name), rawArgs, rawNames, rawValues);
         var (args, kwNames, kwValues) = FlattenArgs(rawArgs, rawNames, rawValues);
         if (obj is PyBytes or PyByteArray && name == "translate")
             return PyBinaryTranslate.Invoke(obj, args, kwNames, kwValues);

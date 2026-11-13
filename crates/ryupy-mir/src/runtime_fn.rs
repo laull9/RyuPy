@@ -46,6 +46,7 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "FileNotFoundError",
     "FileExistsError",
     "PermissionError",
+    "TimeoutError",
     "IsADirectoryError",
     "NotADirectoryError",
     "StopIteration",

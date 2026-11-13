@@ -57,6 +57,7 @@ public static partial class PyObject
             : (object?)PyNativeType.LookupByName(native.TypeName) ?? PyType.Get(native.TypeName),
         PyNativeType => PyType.Get("type"),
         PySuper => PyLexicalSuper.Type,
+        PyUrlResult result => PyNativeType.LookupByName(result.Parsed ? "ParseResult" : "SplitResult")!,
         PyNamedTupleInstance instance => instance.Class,
         PyInstance instance => instance.Class,
         PyModule => PyType.Get("module"),
@@ -80,6 +81,7 @@ public static partial class PyObject
         PyNativeType native => native.GetAttr(name),
         PyNativeObject native => native.GetAttr(name),
         PyModule module => module.GetAttr(name),
+        PyUrlResult result => result.Attribute(name),
         PyNamedTupleInstance instance => PyNamedTupleLayout.GetInstanceAttribute(instance, name),
         PyInstance instance => GetInstanceAttr(instance, name),
         PyClass cls => GetClassAttr(cls, name),
@@ -358,7 +360,7 @@ public static partial class PyObject
     /// <summary>值是否可能带 Python 层方法（用户类实例、带 Python 类的异常）。</summary>
     /// <remarks>热路径先用它排除内建值，避免为 <see cref="TryMethod"/> 构造实参数组。</remarks>
     public static bool MayHaveMethods(object? value) =>
-        value is PyInstance or PyNativeObject || value is PyBaseException { PythonClass: not null };
+        value is PyInstance or PyNativeObject or PyHTTPError || value is PyBaseException { PythonClass: not null };
 
     /// <summary>单实参版本的 <see cref="TryMethod"/>：内建值直接返回 false，不分配实参数组。</summary>
     public static bool TryMethod1(object? self, string name, object? arg, out object? result)
@@ -392,6 +394,11 @@ public static partial class PyObject
         {
             if (!TryGetNativeSpecial(native, name, out object? method)) { result = null; return false; }
             result = PyOps.CallValue(method, args, [], []);
+            return true;
+        }
+        if (self is PyHTTPError httpError && name is "__enter__" or "__exit__")
+        {
+            result = PyOps.CallValue(httpError.Attribute(name), args, [], []);
             return true;
         }
         if (self is PyInstance { Class.HasDictC3Layout: true } mixed)

@@ -112,6 +112,7 @@ public static partial class PyOps
     /// <param name="name">方法属性名。</param>
     public static object? PrepareMethod(object? receiver, string name)
     {
+        if (receiver is PyUrlResult url && name is not ("count" or "index" or "__len__")) return url.Attribute(name);
         if (receiver is PyNamedTupleInstance || receiver is PyClass { NamedTupleLayout: not null })
             return CaptureModuleTarget(receiver, name);
         if (receiver is PyNativeType or PyNativeObject or PyInstance or PyClass or PySuper or PyModule or PyBaseException or PyType
