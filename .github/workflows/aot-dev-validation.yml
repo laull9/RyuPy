@@ -42,6 +42,7 @@ jobs:
           python -B tests/aot/test_aot_layout.py
           python -B tests/test_bench_aot.py
           python -B tests/aot/test_bench_smoke.py
+          python -B tests/aot/test_bench_relocation.py
           python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
       - name: Native prerequisites
         run: |
@@ -55,7 +56,7 @@ jobs:
         run: |
           make runtime
           cargo build -p ryupy-cli --release --locked
-      - name: Verify public hello NativeAOT pipeline
+      - name: Verify public hello NativeAOT pipeline and relocation
         timeout-minutes: 32
         run: |
           python -B tests/aot/bench_smoke.py \

@@ -10,11 +10,16 @@
   `make bench-aot BENCH=hello` 管线。CPython 在同次运行生成 stdout 预期。
 - 既有 `bench_smoke.py` 检查真实原生文件、清单、编译输入登记与唯一新输出树；
   校验 CPython/原生各一次热身、五次运行及结果，再保留本次产物证据。
+- 随后独立执行一对搬迁正确性比较，不计入上述性能样本：仅复制 dist 到中文、空格、
+  `&` 路径，使用空 cwd、空工具 PATH 与最小环境，临时隐藏本次原 build/dist。
+  同次 CPython 参考来自私有 hello 源码副本，native 运行前隐藏副本，严格比较退出码及双流。
+  成功、输出不符、超时均经 finally 恢复本轮自有路径，不移动仓库源码或用户文件。
 - Rust 构建、benchmark 产物及报告放 runner 临时目录，证据作为 14 天 CI 工件，
   不提交 IR、JSON 报告、生成 golden 或二进制。
 
 该门只证明 hello 的编译/发布/执行及公开测量管线，不证明性能提升、全部兼容、
-provider 可用性、搬迁或无 SDK 干净机运行。共享 runner 的五次 hello 时间不是性能基线。
+provider 可用性或无 SDK 干净机运行。搬迁门仅证明原 build/dist 路径不再需要；
+仓库源码与宿主系统库仍存在，不能宣称源码路径不可访问或完全脱离开发机。共享 runner 的五次 hello 时间不是性能基线。
 完整 `make check`、provider 多版本矩阵和真实应用性能配对分别验收。
 本地环境若不允许 SDK 所需 Unix socket，只运行以下轻量门；真实 ILC 结果以同提交 CI 为准。
 
@@ -23,6 +28,7 @@ python -B tests/aot/test_runner.py
 python -B tests/aot/test_aot_layout.py
 python -B tests/test_bench_aot.py
 python -B tests/aot/test_bench_smoke.py
+python -B tests/aot/test_bench_relocation.py
 python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
 ```
 
@@ -50,3 +56,6 @@ python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
 共享核验函数默认仍要求摘要，binding/provider 及资源 schema2 合同在本切不放宽，
 更广协议迁移另行验收。测试归档的复制前后摘要仅用于证据自校验，不恢复生产端摘要计算，
 也不写回发布清单。此修复需由新提交 CI 再验真实编译和运行，旧工件 schema 通过不能替代重跑。
+
+搬迁证据单列 `relocation.json` 和 `logs/relocation-*`；额外 CP/native 各一次，单次上限30秒，
+仍服从原整组1800秒预算。失败不降级为仅原位成功，也不把搬迁运行混入五次时间统计。

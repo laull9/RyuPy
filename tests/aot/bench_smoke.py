@@ -1,4 +1,4 @@
-"""只验一次公开make bench-aot hello管线；不形成性能结论或额外运行产物。"""
+"""只验一次公开make bench-aot hello管线；附带一次搬迁正确性门，不形成性能结论。"""
 import argparse
 import hashlib
 import json
@@ -12,6 +12,7 @@ import time
 import uuid
 
 from platform_runner import Runner
+from bench_relocation import verify_relocation
 from manifest_files import check_artifacts, check_file_record, digest, plain_stat, files_under
 from manifest_verify import MANIFEST_NAME, image_header, no_duplicate_keys, read_sdk_version, validate_schema
 
@@ -138,9 +139,9 @@ def run(root, out, target):
     saved = target/'bench/results'/f'{name}.json'
     parent = target/'bench/aot'
     before = set(parent.iterdir()) if parent.exists() else set()
-    evidence = {'schema_version': 1, 'purpose': 'command_pipeline_only', 'budget_seconds': 1800,
-                'save_name': name, 'expected_application_processes': {'cpython': 6, 'native': 6},
-                'process_count_basis': 'fixed runner warmup=1/runs=5, not independent process tracing',
+    evidence = {'schema_version': 1, 'purpose': 'command_pipeline_and_relocation', 'budget_seconds': 1800,
+                'save_name': name, 'expected_application_processes': {'cpython': 7, 'native': 7},
+                'process_count_basis': 'benchmark warmup=1/runs=5 plus one separate relocation pair, not independent tracing',
                 'per_application_timeout': None, 'per_publish_timeout': None, 'status': 'started'}
     (out/'result.json').write_text(json.dumps(evidence, indent=2))
     try:
@@ -161,6 +162,9 @@ def run(root, out, target):
         copied, copied_manifest = validate_bundle(out/'owned-bundle', root/'tests/benchmarks/hello.py')
         assert copied == checked and copied_manifest == manifest
         evidence['archive'] = archived
+        evidence['relocation'] = verify_relocation(
+            bundle, root/'tests/benchmarks/hello.py', out, checked['sdk_version'],
+            Runner(logs, deadline=started+1800))
         assert time.monotonic() < started + 1800
         evidence.update(status='passed', saved_result_sha256=hashlib.sha256(raw).hexdigest(),
                         bundle_relative_to_target=bundle.relative_to(target).as_posix(), **checked)

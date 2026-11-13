@@ -62,9 +62,10 @@ class BenchSmokeTests(unittest.TestCase):
                 name=command[3].removeprefix('ARGS=--save ')
                 saved=target/'bench/results'/f'{name}.json';saved.parent.mkdir(parents=True);saved.write_text(json.dumps(payload()))
                 bundle(target/'bench/aot/hello-new',source)
-            with patch.object(smoke.Runner,'run',side_effect=fake) as run:
+            with patch.object(smoke.Runner,'run',side_effect=fake) as run, patch.object(smoke,'verify_relocation',return_value={'status':'passed'}) as relocation:
                 smoke.run(root,out,target)
                 self.assertEqual(run.call_count,1)
+                relocation.assert_called_once()
             evidence=json.loads((out/'result.json').read_text())
             self.assertEqual(evidence['status'],'passed');self.assertEqual(evidence['bundle_relative_to_target'],'bench/aot/hello-new')
             self.assertTrue(old.exists());self.assertTrue((out/'saved-result.json').is_file())
