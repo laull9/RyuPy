@@ -71,7 +71,7 @@ pub(crate) fn analyze(
             && crate::modules::resolve_in(roots, top).is_some();
         let cpython = crate::cpython_provider::selected(sess, &name);
         let mut record = if cpython {
-            json!({"provider": "cpython", "status": "provider_selected", "version": "3.12.13", "reason": "显式CPython依赖族；源码与扩展由随包导入器加载", "dependencies": [], "dependency_coverage": "完整基础发行及显式包载荷"})
+            json!({"provider": "cpython", "status": "provider_selected", "version": "3.12.13", "reason": sess.cpython_provider_state.plan.as_ref().map(|plan| crate::cpython_inventory::reason(plan,&name)).unwrap_or("explicit_dependency_family"), "dependencies": [], "dependency_coverage": "完整基础发行及显式包载荷"})
         } else if let Some(source) = loaded.get(name.as_str()) {
             let catalog = source.catalog.is_some();
             json!({

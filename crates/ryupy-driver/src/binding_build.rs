@@ -37,8 +37,29 @@ fn build_internal(
     resources: Option<&Path>,
     owned: Option<&crate::aot_layout::OwnedAttempt>,
 ) -> Result<Artifacts> {
+    // provider执行域和部署计划覆盖整个绑定候选；成功/失败都恢复调用方会话。
+    let previous = std::mem::take(&mut sess.cpython_provider_state);
+    let result = (|| {
+        crate::cpython_provider::prepare(sess)?;
+        build_prepared(sess, opts, declaration, resources, owned)
+    })();
+    sess.cpython_provider_state = previous;
+    result
+}
+fn build_prepared(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    declaration: &Path,
+    resources: Option<&Path>,
+    owned: Option<&crate::aot_layout::OwnedAttempt>,
+) -> Result<Artifacts> {
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
     let plan = BindingPlan::read(declaration, Platform::current()?, opts.aot)?;
+    ensure!(
+        !crate::cpython_provider::selected(sess, &plan.module),
+        "模块 {} 同时属于直接C绑定与CPython执行域，必须选择唯一归属",
+        plan.module
+    );
     let compiled = crate::binding_sources::compile(sess, opts, resources, &plan.module);
     // 同次源码闭图签发位置与来源；生成原生模块在捕获后追加，不能成为资源 consumer。
     let (mut program, sources, resource_plan, source_report) = compiled?;
@@ -86,7 +107,8 @@ fn build_internal(
             bundle.join(format!("{name}.runtimeconfig.json")),
             ryupy_codegen_cil::runtimeconfig::render(),
         )?;
-        crate::runtime::copy_runtime_to(&bundle)?;
+        crate::cpython_provider::copy_runtime_to(sess, &bundle)?;
+        crate::cpython_provider::stage(sess, &bundle)?;
         let runtime = bundle.join("RyuPy.Runtime.dll");
         if opts.aot {
             let p = crate::aot::publish_binding(
@@ -128,6 +150,10 @@ fn build_internal(
             {
                 "native_dependency"
             } else if let Some(role) = crate::runtime::dependency_role(&a.relative_path) {
+                role
+            } else if let Some(role) =
+                crate::cpython_provider::artifact_role(sess, &a.relative_path)
+            {
                 role
             } else {
                 anyhow::bail!("JIT绑定包出现意外文件")

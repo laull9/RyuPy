@@ -1,3 +1,4 @@
+// Python内建异常类型与CLR异常壳的映射、构造及继承关系查询。
 using System;
 using System.Collections.Generic;
 
@@ -29,18 +30,19 @@ namespace RyuPy.Runtime;
 public class PySystemExit : PyBaseException
 {
     /// <summary>退出码；<c>None</c> 表示 0，字符串表示打印后退出 1。</summary>
-    public object? Code { get; }
+    public object? Code => ForeignObject is PyNativeObject foreign ? foreign.GetAttr("code") : code;
+    private readonly object? code;
 
     /// <summary>构造 <c>SystemExit</c>。</summary>
     /// <param name="code">退出码或消息。</param>
     public PySystemExit(object? code = null)
         : base("SystemExit", "", code is null ? [] : [code])
     {
-        Code = code;
+        this.code = code;
     }
 
     /// <summary>异常消息只在显式格式化时读取，构造不调用用户str。</summary>
-    public override string PyMessage => Code is null ? "" : PyRepr.Str(Code);
+    public override string PyMessage => ForeignObject is PyNativeObject foreign ? foreign.PythonStr() : Code is null ? "" : PyRepr.Str(Code);
 }
 
 /// <summary><c>KeyboardInterrupt</c>。</summary>
@@ -468,10 +470,11 @@ public class PyPermissionError : PyOSError
 public class PyStopIteration : PyException
 {
     /// <summary><c>StopIteration.value</c>。</summary>
-    public object? Value { get; }
+    public object? Value => ForeignObject is PyNativeObject foreign ? foreign.GetAttr("value") : value;
+    private readonly object? value;
 
     /// <summary>仅在请求消息时按完整 args 格式化；完成生成器不可调用返回值的 __str__。</summary>
-    public override string PyMessage => PyErrors.UserExceptionMessage(Args);
+    public override string PyMessage => ForeignObject is PyNativeObject foreign ? foreign.PythonStr() : PyErrors.UserExceptionMessage(Args);
 
     /// <summary>CLR 消息读取同样使用延迟格式化，不缓存可变返回值。</summary>
     public override string Message => PyMessage;
@@ -482,7 +485,7 @@ public class PyStopIteration : PyException
         : base("StopIteration", "", value is null or PyNone ? [] : [value])
     {
         // 内部迭代完成使用此构造；None 代表无终值，tuple 等对象仍是一个参数。
-        Value = value is PyNone ? null : value;
+        this.value = value is PyNone ? null : value;
     }
 
     /// <summary>供生成的用户子类保留真实名字与全部参数，不提前格式化。</summary>
@@ -491,7 +494,7 @@ public class PyStopIteration : PyException
     /// <param name="args">位置参数；独占浅拷贝，元素身份不变。</param>
     protected PyStopIteration(string typeName, string message, object?[] args)
         : base(typeName, "", (object?[])args.Clone())
-        => Value = Args.Length == 0 ? null : Args[0];
+        => value = Args.Length == 0 ? null : Args[0];
 }
 
 /// <summary><c>StopAsyncIteration</c>。</summary>

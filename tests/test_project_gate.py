@@ -16,8 +16,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from project_gate_contract import (GateError, audit_sources, digest, evaluate,
-                                   load_inputs, validate_result)
+from project_gate_contract import (GateError, audit_sources, file_state, evaluate,
+                                   load_inputs, stderr_matches, validate_result)
 import run_projects_gate as gate
 from run_projects_gate import main, run_process
 
@@ -25,6 +25,16 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 class ProjectGateTests(unittest.TestCase):
+    def test_only_current_oracle_warnings_may_be_omitted(self):
+        expected = b'/source.py:4: SyntaxWarning: known\n  x is 1\nbusiness\n'
+        self.assertTrue(stderr_matches(expected, expected))
+        self.assertTrue(stderr_matches(b'business\n', expected))
+        self.assertFalse(stderr_matches(b'SyntaxWarning: unknown\nbusiness\n', expected))
+        self.assertFalse(stderr_matches(expected.replace(b'known', b'changed'), expected))
+        self.assertFalse(stderr_matches(expected.replace(b':4:', b':5:'), expected))
+        self.assertFalse(stderr_matches(b'changed business\n', expected))
+        self.assertFalse(stderr_matches(b'business\n' + expected.split(b'business')[0], expected))
+
     @classmethod
     def setUpClass(cls):
         cls.contract, cls.projects = load_inputs(ROOT)
@@ -34,6 +44,7 @@ class ProjectGateTests(unittest.TestCase):
                 for pid in self.contract["project_ids"]]
 
     def test_policy_keeps_eleven_including_progress_and_toml(self):
+        self.assertEqual(next(row for row in self.projects if row['id'] == 'python-dateutil')['deps'], 'six==1.16.0')
         self.assertEqual(set(self.contract["protected_native"]), {
             "tomli", "docopt", "tabulate", "texttable", "chardet", "wcwidth", "colorama", "termcolor", "binaryornot", "progress", "toml"})
         self.assertEqual(self.contract["promotion_requires"], ["progress"])
@@ -95,9 +106,8 @@ class ProjectGateTests(unittest.TestCase):
 
     def evidence(self, root):
         project = next(row for row in self.projects if row["id"] == "tomli")
-        golden = root / "tests/projects/baselines/tomli/stdout.txt"
-        golden.parent.mkdir(parents=True)
-        golden.write_bytes(b"original\r\n")
+        oracle = {"entry": str(root / "tests/projects" / project["entry"]),
+                  "exit": 0, "stdout": b"original\r\n", "stderr": b""}
         directory = root / "native"
         directory.mkdir()
         for name, content in {"compile.diagnostics.txt": b"", "jit.stdout": b"original\r\n",
@@ -107,7 +117,7 @@ class ProjectGateTests(unittest.TestCase):
         row = {key: project[key] for key in ("id", "pypi", "version", "scope", "deps")}
         row.update(entry=str(root / "tests/projects" / project["entry"]), status="native", failure_kind="",
                    run_exit=0, run_id="fresh", mode="default-jit")
-        return row, project, directory, golden, digest(directory / "RyuPy.Runtime.dll")
+        return row, project, directory, oracle, (directory / "RyuPy.Runtime.dll").read_bytes()
 
     def test_result_rejects_stale_or_explicit_and_false_native(self):
         changes = ({"run_id": "old"}, {"mode": "explicit-jit"}, {"mode": "aot"}, {"id": "six"},
@@ -140,6 +150,7 @@ class ProjectGateTests(unittest.TestCase):
     def test_warning_stderr_is_preserved_without_becoming_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             row, project, directory, golden, sha = self.evidence(Path(tmp))
+            golden['stderr'] = b"SyntaxWarning: example\n"
             (directory / "jit.stderr").write_bytes(b"SyntaxWarning: example\n")
             validate_result(row, project, "fresh", directory, golden, sha)
 
@@ -154,7 +165,7 @@ class ProjectGateTests(unittest.TestCase):
                 member = tarfile.TarInfo("pkg-1/pkg.py")
                 member.size = 6
                 tar.addfile(member, io.BytesIO(b"x = 1\n"))
-            (root / "tests/projects/lock.tsv").write_text(f"pkg\t1\tpkg.tar.gz\t{digest(archive)}\thttps://example.invalid/pkg\n")
+            (root / "tests/projects/lock.tsv").write_text(f"pkg\t1\tpkg.tar.gz\tunused\thttps://example.invalid/pkg\n")
             source = store / "pkg-1/pkg-1/pkg.py"
             source.parent.mkdir(parents=True)
             source.write_bytes(b"x = 1\n")
@@ -252,10 +263,10 @@ class WrapperInjectionTests(unittest.TestCase):
                     return
                 pid = prefix.parent.name
                 project = by_id[pid]
-                golden = ROOT / 'tests/projects/baselines' / pid / 'stdout.txt'
+                expected = ('合成同次CP oracle:' + pid + '\n').encode()
                 if prefix.name == 'cp':
-                    prefix.with_suffix('.stdout').write_bytes(golden.read_bytes())
-                    if scenario == 'cp-mismatch' and pid == 'six':
+                    prefix.with_suffix('.stdout').write_bytes(expected)
+                    if scenario == 'cp-mismatch' and pid == 'tomli':
                         prefix.with_suffix('.stdout').write_bytes(b'wrong')
                     return
                 native_root = Path(command[command.index('--out-dir') + 1])
@@ -279,7 +290,7 @@ class WrapperInjectionTests(unittest.TestCase):
                     for name in (stem + '.dll', stem + '.runtimeconfig.json'):
                         (directory / name).write_bytes(b'synthetic artifact')
                     (directory / 'RyuPy.Runtime.dll').write_bytes(runtime.read_bytes())
-                    (directory / 'jit.stdout').write_bytes(golden.read_bytes() if native else b'')
+                    (directory / 'jit.stdout').write_bytes(expected if native else b'')
                     (directory / 'jit.stderr').write_bytes(b'' if native else b'Traceback (most recent call last):\nNotImplementedError: synthetic\n')
                 if scenario == 'malformed-status-early' and pid == 'six':
                     row['status'] = []
@@ -319,6 +330,7 @@ class WrapperInjectionTests(unittest.TestCase):
             with patch.object(gate, 'write_json', side_effect=checked_write), patch.object(sys, 'argv', argv), patch.object(gate, 'resolve', return_value=sys.executable), \
                  patch.object(gate, 'candidate_identity', return_value={'head': 'synthetic', 'files': {}}), \
                  patch.object(gate, 'audit_sources', return_value=({}, [])), \
+                 patch.object(gate, 'source_dirs', return_value=[]), \
                  patch.object(gate, 'run_process', side_effect=fake_process), \
                  contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 error = None

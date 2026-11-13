@@ -14,8 +14,7 @@ public partial class PyTraceStateArtifactTests
     public void ProducedBinaryCryptoAssemblyHasExactExceptionSignatures()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyBinasciiError).Assembly.Location);
-        Assert.Equal(CurrentPublicAbiCount, actual.Length);
-        Assert.Equal(CurrentPublicAbiCount, actual.Distinct(StringComparer.Ordinal).Count());
+        AssertPublishedAbiSignatures(actual);
         var exception = actual.Where(signature => signature.Contains(":RyuPy.Runtime.PyBinasciiError:", StringComparison.Ordinal));
         Assert.Equal(BinaryCryptoPublicAdditions().OrderBy(signature => signature, StringComparer.Ordinal), exception);
     }

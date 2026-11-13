@@ -125,6 +125,16 @@ pub(crate) fn load_program_with_discovery(
             continue;
         }
         if crate::cpython_provider::selected(sess, &name) {
+            let top = name.split('.').next().unwrap_or(&name);
+            if sess
+                .cpython_provider_state
+                .plan
+                .as_ref()
+                .is_some_and(|plan| plan.stdlib.contains(top))
+                && let Some((path, _)) = resolve_in(&roots, top)
+            {
+                sess.diagnostics.push(ryupy_base::Diagnostic::error(ryupy_base::Span::new(entry_module.parsed.file,ryupy_base::TextRange::default()),format!("CPython标准库 `{top}` 已由固定发行库存整体选择，与应用源码 {} 冲突；当前试点拒绝同名遮蔽",path.display())).with_code("E0100"));
+            }
             continue;
         }
         // 父包先登记（`import a.b.c` 会依次初始化 a、a.b，运行时依赖它们已注册）。

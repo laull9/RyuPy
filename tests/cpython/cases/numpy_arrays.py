@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP3：真实 ndarray/dtype、视图别名和独立向量运算；禁止 list 替代。"""
 import numpy as np
 

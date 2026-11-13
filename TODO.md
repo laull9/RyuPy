@@ -23,9 +23,12 @@
 - [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
 
-验收驱动见 [tests/cpython](tests/cpython/README.md)：12个独立pending探针与原联合应用
-固定CPython基线通过，产品后端和生命周期门待验收。CPython/NumPy输入与所有测试产物均
-在仓库外；原_sqlite3内建于本轮PBS，独立缺扩展共享库负例列环境阻塞。
+验收驱动见 [tests/cpython](tests/cpython/README.md)：macOS arm64固定CPython3.12.13/PBS20260623、
+NumPy2.3.5，18探针同次JIT通过，混合栈陈旧帧严格门待验，NativeAOT原位/中文空格&搬迁分批通过；六项C#宿主
+严格稳态通过。原联合应用完整三流、数据库与资源/SQLite包负例通过，业务源码未改。
+真实3.11.15错版本ABI拒绝通过，未捕获双域异常链无陈旧帧严格门待复验；完整make check、
+固定20默认native保护、Linux/Windows和干净目标机待验。CPython/NumPy输入与产物均在仓库外。
+本轮PBS把_sqlite3内建于libpython，独立缺扩展共享库负例为环境阻塞。
 
 ### 结构整理配套任务（后续开发竖切）
 
@@ -37,10 +40,9 @@
 - [ ] 测试驱动改为 CPython 同次即时比较，IR/诊断改为结构断言；输出使用仓库外临时目录，
   增加提交产物检查，逐套件消除旧产物引用，禁止旧格式兼容层。见 [ADR-0182](docs/adr/0182-source-only-test-oracles.md)。
 
-2026-11-13 清理后执行 `make check`：格式检查通过，Clippy 编译测试目标时停在
-`crates/ryupy-driver/tests/list_subclass_regressions.rs` 的三个 `include_bytes!`：
-仍读取已删除的 `foreign_comparison.stdout`、`abc_iterator.stdout`、`dataclass_default.stdout`。
-下一步先迁移这些测试消费者到即时 CPython 比较，再继续完整门禁；本轮未修改 runner。
+2026-11-13 清理后的旧生成产物消费者正在迁移：driver即时CPython差分11套41测、
+A/B结构8套57测、小套件结构17套42测已通过；原用例ID与输入保留。项目门23测通过。
+完整make check当前重新执行，最终结论以同一稳定构建完整退出为准。
 
 CP1 的开发拆分、依赖顺序和默认配置晋升门见 [实施顺序](docs/cpython-provider.md#61-开发拆分与依赖关系)。
 

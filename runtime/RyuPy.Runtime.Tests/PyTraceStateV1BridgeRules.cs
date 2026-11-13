@@ -128,7 +128,10 @@ internal sealed partial class PyTraceStateV1ArtifactContract
         // 模块观察入口只能读取启用状态并拒绝 V1，不允许接收/终结或抑制传播。
         Rule(S("PyTracebackModule", "Parts", "String[]", "Object", "Object"), [], enabled);
         Rule(S("PyTraceback", "Report", "Void", "PyBaseException"), [], Call(P("Terminal", "Void", "PyBaseException")), suppress);
-        Rule(S("PyTraceback", "ReportClr", "Void", "System.Exception"), [], enabled, FreshCall("PyBaseException"));
+        // CLR映射由终端报告与provider回调共享；权限随完整签名迁移，不保留旧ReportClr许可。
+        Rule(S("PyErrors", "FromClr", "PyBaseException", "System.Exception"), [], enabled, FreshCall("PyBaseException"));
+        // 外部异常接收仅检查V1并明确拒绝，不能修改V1传播状态。
+        Rule(S("PyErrors", "ReceiveForeign", "PyBaseException", "PyBaseException"), [], enabled);
         Rule(S("PyErrors", "Load", "Object", "Object", "String"), [], FreshCall("PyUnboundLocalError"));
         Rule(S("PyOps", "ThrowUnboundGlobal", "Void", "String"), [], FreshCall("PyNotImplementedError"), FreshCall("PyNameError"));
         Rule(S("PyOps", "LoadDefaultBuiltin", "Object", "String"), [], FreshCall("PyNotImplementedError"), FreshCall("PyNameError"));

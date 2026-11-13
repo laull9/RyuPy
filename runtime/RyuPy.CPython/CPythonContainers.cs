@@ -12,6 +12,12 @@ public sealed partial class CPythonHost
     private readonly bool synchronizeContainers;
     private int transferThread;
     private int transferDepth;
+    [ThreadStatic] private static int callbackDepth;
+    internal readonly struct CallbackScope : IDisposable
+    {
+        internal CallbackScope(bool _) { callbackDepth++; }
+        public void Dispose() { callbackDepth--; }
+    }
     private string? synchronizationFailure;
     private sealed class ContainerTransfer(object value, PythonObject owner)
     {
@@ -59,7 +65,7 @@ public sealed partial class CPythonHost
     internal void EnterPythonCall()
     {
         int thread = Environment.CurrentManagedThreadId;
-        if (transferDepth != 0 && transferThread != thread)
+        if (transferDepth != 0 && transferThread != thread && callbackDepth == 0)
             throw new PyRuntimeError("synchronized containers cannot be shared by concurrent Python/managed calls");
         if (transferDepth == 0) transferThread = thread;
         transferDepth++;
@@ -111,8 +117,9 @@ public sealed partial class CPythonHost
         var dict = (PyDict)transfer.Value;
         (object? Key, object? Value)[] entries = [.. dict.Entries()];
         foreach ((object? key, _) in entries) RequireTransferKey(key);
-        bool orderChanged = entries.Length == transfer.DictSnapshot.Length
-            && entries.Where((entry, i) => !ReferenceEquals(entry.Key, transfer.DictSnapshot[i].Key)).Any();
+        object?[] expectedKeys = transfer.DictSnapshot.Where(old => entries.Any(entry => ReferenceEquals(entry.Key, old.Key))).Select(entry => entry.Key)
+            .Concat(entries.Where(entry => !transfer.DictSnapshot.Any(old => ReferenceEquals(old.Key, entry.Key))).Select(entry => entry.Key)).ToArray();
+        bool orderChanged = !SameReferences(expectedKeys, entries.Select(entry => entry.Key).ToArray());
         foreach ((object? key, _) in transfer.DictSnapshot)
         {
             if (!orderChanged && entries.Any(entry => ReferenceEquals(entry.Key, key))) continue;
@@ -169,7 +176,9 @@ public sealed partial class CPythonHost
         }
         finally { Native.rp_decref(tuple); Native.rp_decref(keys); }
         object?[] currentKeys = dict.Keys.ToArray();
-        bool reordered = currentKeys.Length == entries.Count && currentKeys.Where((key, i) => !ReferenceEquals(key, entries[i].Key)).Any();
+        object?[] expectedKeys = currentKeys.Where(key => entries.Any(entry => ReferenceEquals(entry.Key, key)))
+            .Concat(entries.Where(entry => !currentKeys.Any(key => ReferenceEquals(key, entry.Key))).Select(entry => entry.Key)).ToArray();
+        bool reordered = !SameReferences(expectedKeys, entries.Select(entry => entry.Key).ToArray());
         if (reordered) dict.Clear();
         else foreach (object? key in currentKeys) if (!entries.Any(entry => ReferenceEquals(entry.Key, key))) dict.Delete(key);
         foreach ((object? key, object? value) in entries)

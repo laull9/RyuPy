@@ -1,4 +1,3 @@
-# ryupy: pending
 """显式synchronized：精确容器双向写回、共享环、回调与异常路径。"""
 import bridge_fixture
 import json

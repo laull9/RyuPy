@@ -49,6 +49,7 @@ public static partial class PyObject
     /// <param name="value">任意 Python 值。</param>
     public static object TypeOf(object? value) => value switch
     {
+        PyBaseException { ForeignObject: { } origin } => origin.ForeignType,
         IPyForeignObject foreign => foreign.ForeignType,
         // 裸object身份不受原生类型短名注册表影响。
         PyBaseObject => PyBaseObject.Type,
@@ -61,6 +62,7 @@ public static partial class PyObject
         PyUrlResult result => PyNativeType.LookupByName(result.Parsed ? "ParseResult" : "SplitResult")!,
         PyNamedTupleInstance instance => instance.Class,
         PyInstance instance => instance.Class,
+        PyModule { ForeignObject: { } foreign } => foreign.ForeignType,
         PyModule => PyType.Get("module"),
         PyClass cls when cls.HasEnumMetadata => PyEnum.MetaType,
         PyClass => PyType.Get("type"),
@@ -118,6 +120,8 @@ public static partial class PyObject
     {
         switch (obj)
         {
+            case PyBaseException { ForeignObject: PyNativeObject origin } error:
+                origin.SetAttr(name, value); error.ForeignObject.SynchronizeException(error, false); return;
             case PySlice:
                 PySliceMembers.RejectMutation(name, value, deleting: false);
                 return;
@@ -174,6 +178,8 @@ public static partial class PyObject
         PyAttributeDeletion.Guard(obj, name);
         switch (obj)
         {
+            case PyBaseException { ForeignObject: PyNativeObject origin } error:
+                origin.DelAttr(name); error.ForeignObject.SynchronizeException(error, false); return;
             case PyModule module:
                 PyModuleInstances.DeleteAttr(module, name);
                 return;
@@ -564,7 +570,7 @@ public static partial class PyObject
                     {
                         dict.Set(key, value);
                     }
-                    return dict;
+                    return cls.IsExportedExceptionFrozen ? PyMappingProxy.Create([dict], [], []) : dict;
                 }
         }
         if (cls.HasDictC3Layout && cls.TryResolveDictC3(name, out var resolved)) return resolved.Bind(cls, classAccess: true);

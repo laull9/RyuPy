@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1a：隔离初始化后加载基础扩展，版本必须与同次 oracle 一致。"""
 import base64
 import json

@@ -1,4 +1,3 @@
-# ryupy: pending
 """冻结provider执行域的真实模块状态、动态属性调用和argv同源合同。"""
 import json
 import json as repeated_json
@@ -28,4 +27,20 @@ from json import loads
 assert loads is compiled_marker
 assert loads('from绑定') == '编译函数标记:from绑定'
 json.loads = original
+
+
+def compiled_math_marker(value):
+    return value + 50
+
+
+import bridge_fixture
+
+original_sqrt = bridge_fixture.replace_math_sqrt(compiled_math_marker)
+assert math is sys.modules['math']
+assert math.sqrt is compiled_math_marker
+assert math.sqrt(9) == 59
+from math import sqrt
+
+assert sqrt is compiled_math_marker
+math.sqrt = original_sqrt
 print('CP1b 模块共享状态、动态绑定与argv通过')

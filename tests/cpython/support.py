@@ -60,22 +60,31 @@ def rid():
 
 def declaration(distribution, payloads, modules, container_transfer='synchronized'):
     """开发机根显式提供；上游发行和许可证随声明进入产品清单。"""
+    distribution = Path(distribution).resolve()
+    licenses = ['lib/python3.12/LICENSE.txt']
+    licenses.extend(str(path.relative_to(distribution)) for path in sorted((distribution / 'licenses').glob('*.txt')))
     return {'schema': 1, 'python_version': VERSION,
             'distribution_root': str(Path(distribution).resolve()),
             'modules': modules, 'payloads': payloads, 'container_transfer': container_transfer,
             'source': {'project': 'python-build-standalone', 'build_id': '20260623',
                        'source_url': 'https://github.com/astral-sh/python-build-standalone/releases/tag/20260623',
-                       'licenses': ['lib/python3.12/LICENSE.txt']}}
+                       'licenses': licenses}}
 
 
 def write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
-def private_distribution(source, workspace):
+def private_distribution(source, workspace, metadata=None):
     """私有发行输入可在搬迁时隐藏，避免修改其他验证进程共用的uv发行。"""
     target = workspace / 'distribution-input'
     shutil.copytree(source, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    if metadata:
+        metadata = Path(metadata).resolve()
+        shutil.copy2(metadata / 'PYTHON.json', target / 'PYTHON.json')
+        shutil.copytree(metadata / 'licenses', target / 'licenses', dirs_exist_ok=True)
+    assert (target / 'PYTHON.json').is_file() and (target / 'licenses/LICENSE.openssl-3.txt').is_file(), (
+        '基础发行缺少上游完整metadata/第三方许可，请传--distribution-metadata指向固定full archive的python目录')
     return target
 
 
@@ -91,10 +100,17 @@ def audit_native_paths(dist):
             if stream.read(4) not in magic:
                 continue
         result = subprocess.run(['/usr/bin/otool', '-L', path], capture_output=True, check=True)
+        own_id = None
+        if path.suffix == '.dylib':
+            identity = subprocess.run(['/usr/bin/otool', '-D', path], capture_output=True, check=True)
+            ids = identity.stdout.decode().splitlines()[1:]
+            own_id = ids[0].strip() if ids else None
+            if path.name in ('libryupy_cpython.dylib', 'libpython3.12.dylib'):
+                assert own_id and own_id.startswith(('@rpath/', '@loader_path/')), ('宿主库ID必须可搬迁', path, own_id)
         for index, line in enumerate(result.stdout.decode().splitlines()[1:]):
             dependency = line.strip().split(' (compatibility', 1)[0]
             # otool对dylib的第一行展示自身ID；它不是加载其他映像的边。
-            if index == 0 and path.suffix == '.dylib' and dependency == '@rpath/' + path.name:
+            if index == 0 and dependency == own_id:
                 continue
             if dependency.startswith(('/usr/lib/', '/System/Library/')):
                 continue

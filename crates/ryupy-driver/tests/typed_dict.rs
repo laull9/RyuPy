@@ -18,7 +18,41 @@ fn snapshot_typed_dict_uses_private_shell_then_atomic_binding() {
         let mut session = Session::default();
         let output = support::dump(&mut session, &path, stage).unwrap();
         assert!(session.diagnostics.is_empty());
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Hir => {
+                assert!(output.contains("class Record(TypedDict"), "{name}");
+                assert!(output.contains("total=false"));
+                assert!(output.contains("x: int"));
+            }
+            Stage::Types => {
+                assert_eq!(output.matches(": Dynamic").count(), 5, "{name}");
+                assert!(output.contains("[Dynamic]: [] -> None"));
+            }
+            Stage::Mir => {
+                let begin = output.find("TypedDictBegin(const \"Record\"").unwrap();
+                let annotations = output.find("const \"__annotations__\"").unwrap();
+                let member = output.find("RuntimeFn::SetItem").unwrap();
+                let finish = output.find("RuntimeFn::TypedDictFinish").unwrap();
+                assert!(
+                    begin < annotations && annotations < member && member < finish,
+                    "{name}"
+                );
+                assert!(output[begin..annotations].contains("const false"));
+                let line = output
+                    .lines()
+                    .find(|line| line.contains(" = RuntimeFn::TypedDictFinish"))
+                    .unwrap();
+                let result = line.trim().split(" = ").next().unwrap();
+                assert!(
+                    output[finish..]
+                        .lines()
+                        .any(|line| line.trim().starts_with('g')
+                            && line.ends_with(&format!(" = {result};"))),
+                    "只能公开完成后的类型"
+                );
+            }
+            _ => unreachable!(),
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

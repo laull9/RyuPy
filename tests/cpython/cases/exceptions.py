@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：异常实例、继承匹配、cause/context 与 Python traceback 原样往返。"""
 import bridge_fixture
 

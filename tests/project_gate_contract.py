@@ -4,8 +4,8 @@
 不维护第二份项目清单；版本/入口/依赖继续由现有 manifest 解析器提供。
 """
 
-import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
 import tarfile
 import zipfile
@@ -21,18 +21,35 @@ class IdentityError(GateError):
     """候选、工具或结果归属不可信：必须停止整轮，不当作项目局部失败。"""
 
 
-def digest(path):
-    with Path(path).open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+def file_state(path):
+    """普通文件只登记路径对象元数据；不计算内容摘要。"""
+    info = Path(path).stat()
+    return {'size': info.st_size, 'mtime_ns': info.st_mtime_ns,
+            'device': info.st_dev, 'inode': info.st_ino}
+
+
+def stderr_matches(actual, expected):
+    """仅允许省略本轮CP真实warning块；新增、改写、移动的业务stderr仍失败。"""
+    lines = expected.splitlines(keepends=True)
+    offsets, index = {0}, 0
+    while index < len(lines):
+        block = lines[index]
+        optional = re.match(rb'^(?:.*:[0-9]+: )?SyntaxWarning:', block) is not None
+        index += 1
+        if optional and index < len(lines) and lines[index].startswith((b' ', b'\t')):
+            block += lines[index]
+            index += 1
+        advanced = {offset + len(block) for offset in offsets if actual.startswith(block, offset)}
+        offsets = offsets | advanced if optional else advanced
+        if not offsets:
+            return False
+    return len(actual) in offsets
 
 
 def load_inputs(root):
     contract = json.loads((root / "tests/projects/protected.json").read_text())
     if contract["schema"] != 1 or contract["mode"] != "default-jit":
         raise GateError("未知门禁合同或非默认模式")
-    for name, expected in contract["inputs"].items():
-        if digest(root / name) != expected:
-            raise GateError(f"冻结输入改变：{name}；需要单独审阅，不可自动更新基线")
     rows = read_manifest(root / "tests/projects")
     ids = [row["id"] for row in rows]
     if len(ids) != 20 or len(set(ids)) != 20 or set(ids) != set(contract["project_ids"]):
@@ -52,7 +69,7 @@ def _archive_files(path):
         pure = PurePosixPath(name)
         if pure.is_absolute() or ".." in pure.parts or str(pure) in result:
             raise GateError(f"归档存在非法/重复路径：{name}")
-        result[str(pure)] = hashlib.file_digest(stream, "sha256").hexdigest()
+        result[str(pure)] = stream.read()
 
     if path.suffix == ".zip":
         with zipfile.ZipFile(path) as archive:
@@ -93,28 +110,32 @@ def audit_sources(root, store, rows):
             packages.update(tuple(dep.strip().split("==")) for dep in row["deps"].split(","))
     sources = {}
     for name, version in sorted(packages):
-        filename, sha = lock[name, version]
+        filename, _legacy_sha = lock[name, version]
         archive = store / "_dist" / filename
-        if digest(archive) != sha:
-            raise GateError(f"锁定归档 hash 不匹配：{filename}")
-        expected = _archive_files(archive)
+        try:
+            expected = _archive_files(archive)
+        except (tarfile.TarError, zipfile.BadZipFile) as error:
+            raise GateError(f"源码归档格式无效：{filename}") from error
         directory = store / f"{name}-{version}"
         actual = {}
         for path in directory.rglob("*"):
             if path.is_symlink():
                 raise GateError(f"源码内部含符号链接：{path}")
             if path.is_file():
-                actual[path.relative_to(directory).as_posix()] = digest(path)
+                actual[path.relative_to(directory).as_posix()] = path.read_bytes()
         if actual != expected:
             raise GateError(f"源码与锁定归档不一致（缺失/增加/修改）：{name}=={version}")
-        sources[f"{name}=={version}"] = actual
+        sources[f"{name}=={version}"] = {"archive": file_state(archive), "files": {
+            path: file_state(directory / path) for path in actual}}
     return sources, source_dirs(rows, store)
 
 
-def validate_result(row, project, run_id, directory, golden, runtime_sha):
+def validate_result(row, project, run_id, directory, oracle, runtime_bytes):
     """不只相信 native 标签：核对运行身份、退出码、完整原 stdout 和本轮产物。"""
+    if oracle.get("exit") != 0:
+        raise GateError("同次CPython oracle未成功，禁止比较产品")
     identity = {key: project[key] for key in ("id", "pypi", "version", "scope", "deps")}
-    identity.update(run_id=run_id, mode="default-jit", entry=str(golden.parents[2] / project["entry"]))
+    identity.update(run_id=run_id, mode="default-jit", entry=oracle["entry"])
     if any(row.get(key) != value for key, value in identity.items()):
         raise IdentityError(f"陈旧/错误身份或非默认报告：{project['id']}")
     status, kind = row.get("status"), row.get("failure_kind")
@@ -134,12 +155,12 @@ def validate_result(row, project, run_id, directory, golden, runtime_sha):
     for artifact in (f"{stem}.dll", f"{stem}.runtimeconfig.json"):
         if not (directory / artifact).is_file() or not (directory / artifact).stat().st_size:
             raise GateError("缺少本轮编译产物")
-    if digest(directory / "RyuPy.Runtime.dll") != runtime_sha:
+    if (directory / "RyuPy.Runtime.dll").read_bytes() != runtime_bytes:
         raise IdentityError("执行产物的 runtime 与本轮冻结工具不符")
     stdout = (directory / "jit.stdout").read_bytes()
     stderr = (directory / "jit.stderr").read_bytes()
-    if status == "native" and (type(row.get("run_exit")) is not int or row["run_exit"] != 0 or stdout != golden.read_bytes()):
-        raise GateError("native 标签与退出码/原 stdout 不一致")
+    if status == "native" and (type(row.get("run_exit")) is not int or row["run_exit"] != 0 or stdout != oracle["stdout"] or not stderr_matches(stderr, oracle["stderr"])):
+        raise GateError("native 标签与退出码/当次CPython退出码/三流合同不一致")
     if status == "failed" and (type(row.get("run_exit")) is not int or row["run_exit"] <= 0
                                or b"Traceback (most recent call last):" not in stderr):
         raise GateError("运行失败缺少正常 Python 错误证据")

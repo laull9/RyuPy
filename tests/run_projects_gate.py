@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""运行固定20入口并检查保留/晋升门；不接受离线旧报告，不下载、不修改 golden 或保护合同。"""
+"""运行固定20入口并检查保留/晋升门；不接受离线旧报告，不下载、不修改入口或保护合同。"""
 
 import argparse
 from collections import Counter
@@ -12,11 +12,13 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 
 from pinned_python import resolve
-from project_gate_contract import (GateError, IdentityError, audit_sources, digest, evaluate,
+from run_projects_baseline import source_dirs
+from project_gate_contract import (GateError, IdentityError, audit_sources, file_state, evaluate,
                                    load_inputs, validate_result)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -71,7 +73,7 @@ def candidate_identity(root):
         return subprocess.check_output(["git", "-C", str(root), *args])
     paths = set(git("ls-files", "-z").decode().split("\0"))
     paths.update(git("ls-files", "--others", "--exclude-standard", "-z").decode().split("\0"))
-    files = {name: digest(root / name) if (root / name).is_file() else "missing"
+    files = {name: file_state(root / name) if (root / name).is_file() else "missing"
              for name in sorted(paths) if name}
     return {"head": git("rev-parse", "HEAD").decode().strip(),
             "status": git("status", "--porcelain=v1", "--untracked-files=all").decode(), "files": files}
@@ -89,24 +91,24 @@ def execute(options, output):
     store = options.source_store.resolve()
     runtime = options.runtime.resolve()
     runner, python, dotnet = map(executable, (options.runner, options.python, options.dotnet))
-    tools = {str(path): digest(path) for path in (runner, python, dotnet, runtime)}
+    tools = {str(path): file_state(path) for path in (runner, python, dotnet, runtime)}
+    runtime_bytes = runtime.read_bytes()
     identity = candidate_identity(ROOT)
-    sources, roots = audit_sources(ROOT, store, projects)
+    sources, _ = audit_sources(ROOT, store, projects)
     run_id = uuid.uuid4().hex
     # 白名单继承宿主定位信息，不继承 PYTHONPATH、RYUPY_*、COMPlus_*、tier/PGO/实验开关。
     env = {key: value for key, value in os.environ.items()
            if key in {"PATH", "HOME", "USER", "SYSTEMROOT", "DOTNET_ROOT", "DOTNET_ROOT_X64", "TMPDIR"}}
-    env.update(PYTHONDONTWRITEBYTECODE="1", PYTHONHASHSEED="0", PYTHON_COLORS="0", NO_COLOR="1",
+    env.update(PYTHON=str(python), PYTHONDONTWRITEBYTECODE="1", PYTHONHASHSEED="0", PYTHON_COLORS="0", NO_COLOR="1",
                DOTNET=str(dotnet), RYUPY_RUNTIME_DIR=str(runtime.parent))
-    cp_env = dict(env, PYTHONPATH=os.pathsep.join(roots))
     metadata = {"schema": 1, "run_id": run_id, "mode": "default-jit", "completed": False,
                 "started": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "tools": tools, "source_store": str(store), "candidate": identity,
-                "source_files": sum(map(len, sources.values())), "contract": contract}
+                "source_files": sum(len(source['files']) for source in sources.values()), "contract": contract}
     write_json(output / "run.json", metadata)
     write_json(output / "sources.json", sources)
     run_process([python, "-S", "-B", "-c", "import platform; print(platform.python_version()); print(platform.python_implementation())"],
-                output, cp_env, output / "python-version", 10, output)
+                output, env, output / "python-version", 10, output)
     version = (output / "python-version.stdout").read_text().splitlines()
     if version != [(ROOT / "tests/pinned-python.txt").read_text().strip(), "CPython"]:
         raise GateError(f"解释器不是固定 CPython：{version}")
@@ -117,13 +119,17 @@ def execute(options, output):
         case = output / pid
         case.mkdir()
         entry = ROOT / "tests/projects" / project["entry"]
-        golden = ROOT / "tests/projects/baselines" / pid / "stdout.txt"
+
         # 项目局部失败保留原报告并继续；身份破坏绝不能被此边界吞掉。
         row = {"id": pid, "status": "invalid", "detail": "未获得可验证的完整项目结果"}
         try:
-            run_process([python, "-S", "-B", entry], case, cp_env, case / "cp", 60, case)
-            if (case / "cp.stdout").read_bytes() != golden.read_bytes():
-                raise GateError(f"CP stdout 不等于原 golden：{pid}")
+            cp_cwd = case / "cpython-cwd"
+            cp_cwd.mkdir()
+            cp_env = dict(env, PYTHONPATH=os.pathsep.join(source_dirs([project], store)))
+            run_process([python, "-S", "-B", entry], cp_cwd, cp_env, case / "cp", 60, case)
+            oracle = {"entry": str(entry), "exit": 0,
+                      "stdout": (case / "cp.stdout").read_bytes(),
+                      "stderr": (case / "cp.stderr").read_bytes()}
             cp_passed += 1
             process = run_process([runner, "--only", pid, "--source-store", store, "--out-dir", case / "native",
                                    "--run-id", run_id], ROOT, env, case / "runner", options.timeout, case, check=False)
@@ -136,7 +142,7 @@ def execute(options, output):
             # 即使运行器非零，仍校验其归属。保存原status，不把crash伪装unsupported。
             row = reported
             directory = case / "native" / pid
-            validate_result(row, project, run_id, directory, golden, tools[str(runtime)])
+            validate_result(row, project, run_id, directory, oracle, runtime_bytes)
             if process["failure"] or process["exit"] != 0:
                 raise GateError(f"运行器失败：{pid} exit={process['exit']} {process['failure'] or ''}")
         except IdentityError:
@@ -146,25 +152,25 @@ def execute(options, output):
             if row.get("status") != "failed":
                 row = dict(row, reported_status=row.get("status"), status="invalid")
             row["gate_error"] = str(error)
-            if candidate_identity(ROOT) != identity or any(digest(Path(path)) != sha for path, sha in tools.items()):
+            if candidate_identity(ROOT) != identity or any(file_state(Path(path)) != sha for path, sha in tools.items()):
                 raise IdentityError("项目失败后发现候选或工具身份改变")
             current_sources, _ = audit_sources(ROOT, store, projects)
             if current_sources != sources:
                 raise IdentityError("项目失败后发现源码身份改变")
-        row["evidence"] = {str(p.relative_to(output)): digest(p) for p in sorted(case.rglob("*")) if p.is_file()}
+        row["evidence"] = {str(p.relative_to(output)): file_state(p) for p in sorted(case.rglob("*")) if p.is_file()}
         rows.append(row)
         write_json(output / "matrix.partial.json", rows)
         print(f"{pid}: {row['status']} {row.get('detail', row.get('gate_error', ''))}", flush=True)
     if candidate_identity(ROOT) != identity:
         raise GateError("运行中候选工作树发生改变")
-    if any(digest(Path(path)) != sha for path, sha in tools.items()):
+    if any(file_state(Path(path)) != sha for path, sha in tools.items()):
         raise GateError("运行中工具发生改变")
     after, _ = audit_sources(ROOT, store, projects)
     if after != sources:
         raise GateError("运行中源码发生改变")
     # 防止结束前原流被覆盖；错误一律保留部分矩阵，不发布成功摘要。
     for row in rows:
-        if any(digest(output / name) != sha for name, sha in row["evidence"].items()):
+        if any(file_state(output / name) != sha for name, sha in row["evidence"].items()):
             raise GateError("运行中证据文件发生改变")
     summary = evaluate(contract, rows)
     errors = [{"id": row["id"], "error": row["gate_error"]} for row in rows if "gate_error" in row]
@@ -177,7 +183,7 @@ def execute(options, output):
     write_json(output / "run.json", metadata)
     write_json(output / "summary.json", summary)
     print(json.dumps(summary, ensure_ascii=False), flush=True)
-    print("保留通过只表示当前十项（含恢复后的 progress）逐ID未丢失；不证明新项目或AOT/显式配置。")
+    print("保留门按固定11项逐ID判定；AOT与显式配置独立验收。")
     if errors:
         return 2
     return 0 if summary["preserve_pass" if options.gate == "preserve" else "promotion_pass"] else 1
@@ -191,17 +197,22 @@ def main():
     parser.add_argument("--runtime", type=Path, default=ROOT / "runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll")
     parser.add_argument("--python", default=resolve())
     parser.add_argument("--dotnet", default=os.environ.get("DOTNET", "dotnet"))
-    parser.add_argument("--output", type=Path, help="必须不存在的证据目录；默认创建 target/e2e/project-gates/<随机ID>")
+    parser.add_argument("--output", type=Path, help="保留证据的仓库外新目录；默认使用外部临时目录并清理")
     parser.add_argument("--timeout", type=float, default=180, help="每项目编译+JIT的秒数上限")
     options = parser.parse_args()
-    output = (options.output or ROOT / "target/e2e/project-gates" / uuid.uuid4().hex).resolve()
+    temporary = tempfile.TemporaryDirectory(prefix="ryupy-project-gate-") if options.output is None else None
+    output = (options.output or Path(temporary.name) / "run").resolve()
     try:
+        if output.is_relative_to(ROOT):
+            raise GateError("门禁输出必须位于源码仓库外")
         if not math.isfinite(options.timeout) or options.timeout <= 0:
             raise GateError("timeout 必须为正")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.mkdir()  # 不覆盖任何已有证据，即便已有运行失败。
     except (OSError, GateError) as error:
         print(f"门禁未启动：{error}", file=sys.stderr)
+        if temporary:
+            temporary.cleanup()
         return 2
     try:
         return execute(options, output)
@@ -214,6 +225,9 @@ def main():
             pass
         print(f"门禁无效/失败：{error}；证据：{output}", file=sys.stderr)
         return 2
+    finally:
+        if temporary:
+            temporary.cleanup()
 
 
 if __name__ == "__main__":

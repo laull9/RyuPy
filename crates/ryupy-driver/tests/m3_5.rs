@@ -1,25 +1,43 @@
-//! M3.5 模块异常的层间快照与源码遮蔽，所有临时源码均自建并清理。
-use ryupy_driver::{Session, Stage, dump};
+//! M3.5 模块异常的层间结构合同与源码遮蔽，所有临时源码均自建并清理。
+use ryupy_driver::{Session, Stage};
+mod support;
+use support::dump;
 #[path = "m3_5_dynamic_support/mod.rs"]
 mod dynamic_support;
 
 #[test]
 fn snapshot_native_exception_aliases() {
-    let root = std::env::temp_dir().join(format!("ryupy_m3_5_aliases_{}", std::process::id()));
-    std::fs::create_dir_all(&root).unwrap();
+    let scope = support::temp_scope::TempScope::new("m3_5");
+    let root = scope.root();
+
     let path = root.join("exceptions.py");
     std::fs::write(&path, "import json as codec\nfrom re import error as PatternError\ntry:\n    codec.loads('[')\nexcept (codec.JSONDecodeError, PatternError):\n    print('caught')\n").unwrap();
-    for (stage, name) in [
-        (Stage::Hir, "module_exceptions_hir"),
-        (Stage::Mir, "module_exceptions_mir"),
-        (Stage::Cil, "module_exceptions_cil"),
-    ] {
+    for stage in [Stage::Hir, Stage::Mir, Stage::Cil] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("原生异常应正确降级");
-        insta::assert_snapshot!(
-            name,
-            output.replace(path.to_str().unwrap(), "exceptions.py")
-        );
+        let required: &[&str] = match stage {
+            Stage::Hir => &[
+                "import json as global.codec",
+                "from re import error as global.PatternError",
+                "except json.JSONDecodeError | re.error:",
+            ],
+            Stage::Mir => &[
+                "ImportModule(const \"json\"",
+                "ImportAttr(const \"re\", const \"error\")",
+                "catch json.JSONDecodeError",
+                "catch re.error",
+            ],
+            Stage::Cil => &[
+                "PyModules.Import",
+                "PyModules.ImportAttr",
+                "PyJSONDecodeError handler",
+                "PyRegexError handler",
+            ],
+            _ => unreachable!("测试只列出已约定阶段"),
+        };
+        for token in required {
+            assert!(output.contains(token), "缺少结构 {token}：{output}");
+        }
     }
     std::fs::remove_file(path).unwrap();
     std::fs::remove_dir(root).unwrap();
@@ -27,8 +45,9 @@ fn snapshot_native_exception_aliases() {
 
 #[test]
 fn local_source_named_json_is_not_treated_as_native_exception_module() {
-    let root = std::env::temp_dir().join(format!("ryupy_m3_5_shadow_{}", std::process::id()));
-    std::fs::create_dir_all(&root).unwrap();
+    let scope = support::temp_scope::TempScope::new("m3_5");
+    let root = scope.root();
+
     let path = root.join("main.py");
     let shadow = root.join("json.py");
     std::fs::write(&shadow, "JSONDecodeError = ValueError\n").unwrap();
@@ -70,8 +89,9 @@ fn local_source_named_json_is_not_treated_as_native_exception_module() {
 
 #[test]
 fn dynamic_exception_aliases_preserve_runtime_targets() {
-    let root = std::env::temp_dir().join(format!("ryupy_m3_5_dynamic_{}", std::process::id()));
-    std::fs::create_dir_all(&root).unwrap();
+    let scope = support::temp_scope::TempScope::new("m3_5");
+    let root = scope.root();
+
     let path = root.join("dynamic.py");
     std::fs::write(&path, "import json\nfrom re import error as E\ndef replace():\n    global E\n    E = ValueError\ndef local(json):\n    try:\n        pass\n    except json.JSONDecodeError:\n        pass\ntry:\n    pass\nexcept (ValueError, json.unknown):\n    pass\ntry:\n    pass\nexcept E:\n    pass\n").unwrap();
     let mut session = Session::default();
@@ -94,8 +114,9 @@ fn dynamic_exception_aliases_preserve_runtime_targets() {
 
 #[test]
 fn protected_exception_alias_rebinding_is_explicit_and_other_exports_stay_mutable() {
-    let root = std::env::temp_dir().join(format!("ryupy_m3_5_protected_{}", std::process::id()));
-    std::fs::create_dir_all(&root).unwrap();
+    let scope = support::temp_scope::TempScope::new("m3_5");
+    let root = scope.root();
+
     let main = root.join("main.py");
     let handlers = root.join("handlers.py");
     // codec 与 E 实际用于 handler；ordinary 虽同样导入 json，但不能被误保护。
@@ -132,8 +153,9 @@ fn protected_exception_alias_rebinding_is_explicit_and_other_exports_stay_mutabl
 
 #[test]
 fn local_source_named_re_is_not_treated_as_native_exception_module() {
-    let root = std::env::temp_dir().join(format!("ryupy_m3_5_re_shadow_{}", std::process::id()));
-    std::fs::create_dir_all(&root).unwrap();
+    let scope = support::temp_scope::TempScope::new("m3_5");
+    let root = scope.root();
+
     let main = root.join("main.py");
     std::fs::write(root.join("re.py"), "error = ValueError\n").unwrap();
     std::fs::write(

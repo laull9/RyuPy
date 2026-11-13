@@ -4,7 +4,8 @@
 
 项目目标调整为：**以随包 libpython 和通用对象桥获得良好 Python 生态兼容，保留
 Python → CIL → NativeAOT 的编译链，长期对标 Nuitka 的 AOT 打包，并按实测热点优化性能。**
-CP1–CP3 已开始实施，手写差分与生命周期门已建立；平台产品门逐项验收。决策见
+CP1–CP3在macOS arm64已通过18项JIT/NativeAOT搬迁、原联合应用及五项生命周期模式；
+真实错版本ABI已通过，混合异常栈无陈旧帧严格门待验；完整门禁、Linux/Windows和干净机继续验收。决策见
 [ADR-0181](adr/0181-cpython-provider-first.md)，架构合同见 [CPython provider](cpython-provider.md)。
 
 ### 短期顺序

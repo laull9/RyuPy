@@ -1,3 +1,4 @@
+// textwrap的手写矩阵与小字母表逐结果差分：固定CPython当次生成预期，不保留基线或摘要。
 using System.Text.Json;
 using RyuPy.Runtime;
 
@@ -12,60 +13,38 @@ public class PyTextWrapTests
     [Fact]
     public void FixedBaselineMatrixMatchesAllSupportedOptions()
     {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "tests/data/textwrap_cpython_3_12_13.json")))
-            directory = directory.Parent;
-        Assert.NotNull(directory);
-        using var data = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory.FullName, "tests/data/textwrap_cpython_3_12_13.json")));
-        foreach (JsonElement row in data.RootElement.EnumerateArray())
-        {
-            var names = new List<string>(); var values = new List<object?>();
-            foreach (var option in row.GetProperty("options").EnumerateObject())
-            {
-                names.Add(option.Name);
-                values.Add(option.Value.ValueKind switch
-                {
-                    JsonValueKind.String => option.Value.GetString(),
-                    JsonValueKind.Number => option.Value.GetInt64(),
-                    _ => option.Value.GetBoolean(),
-                });
-            }
-            string text = row.GetProperty("text").GetString()!;
-            long width = row.GetProperty("width").GetInt64();
-            var result = Assert.IsType<PyList>(Invoke("wrap", [text, width], names.ToArray(), values.ToArray()));
-            string[] expected = row.GetProperty("expected").EnumerateArray().Select(value => value.GetString()!).ToArray();
-            Assert.True(expected.SequenceEqual(result.Items.Cast<string>()),
-                $"text={PyRepr.Repr(text)} width={width} options={row.GetProperty("options")} actual={PyRepr.Repr(result)}");
-        }
+        using var data = TextWrapOracle.Read("matrix");
+        Assert.Equal(1200, data.RootElement.GetArrayLength());
+        foreach (JsonElement row in data.RootElement.EnumerateArray()) CheckRow(row);
     }
 
     [Fact]
     public void ExhaustiveSmallAlphabetPreservesBoundaryDecisions()
     {
-        const string alphabet = "ab- ";
-        ulong hash = 14695981039346656037UL;
-        for (int length = 1; length <= 6; length++)
+        using var data = TextWrapOracle.Read("exhaustive");
+        Assert.Equal(87360, data.RootElement.GetArrayLength());
+        foreach (JsonElement row in data.RootElement.EnumerateArray()) CheckRow(row);
+    }
+
+    private static void CheckRow(JsonElement row)
+    {
+        var names = new List<string>(); var values = new List<object?>();
+        foreach (var option in row.GetProperty("options").EnumerateObject())
         {
-            int count = 1 << (length * 2);
-            for (int code = 0; code < count; code++)
+            names.Add(option.Name);
+            values.Add(option.Value.ValueKind switch
             {
-                var chars = new char[length]; int value = code;
-                for (int index = length - 1; index >= 0; index--) { chars[index] = alphabet[value % 4]; value /= 4; }
-                string text = new(chars);
-                foreach (long width in new long[] { 1, 2, 3, 5 })
-                foreach (string? option in new string?[] { null, "break_long_words", "break_on_hyphens", "drop_whitespace" })
-                {
-                    var lines = Assert.IsType<PyList>(Invoke("wrap", [text, width], option is null ? [] : [option], option is null ? [] : [false]));
-                    foreach (string line in lines.Items.Cast<string>())
-                    {
-                        foreach (byte item in System.Text.Encoding.UTF8.GetBytes(line)) hash = unchecked((hash ^ item) * 1099511628211UL);
-                        hash = unchecked((hash ^ 255UL) * 1099511628211UL);
-                    }
-                    hash = unchecked((hash ^ 254UL) * 1099511628211UL);
-                }
-            }
+                JsonValueKind.String => option.Value.GetString(),
+                JsonValueKind.Number => option.Value.GetInt64(),
+                _ => option.Value.GetBoolean(),
+            });
         }
-        Assert.Equal(15755073280737951063UL, hash);
+        string text = row.GetProperty("text").GetString()!;
+        long width = row.GetProperty("width").GetInt64();
+        var result = Assert.IsType<PyList>(Invoke("wrap", [text, width], names.ToArray(), values.ToArray()));
+        string[] expected = row.GetProperty("expected").EnumerateArray().Select(value => value.GetString()!).ToArray();
+        Assert.True(expected.SequenceEqual(result.Items.Cast<string>()),
+            $"text={PyRepr.Repr(text)} width={width} options={row.GetProperty("options")} actual={PyRepr.Repr(result)}");
     }
 
     [Fact]

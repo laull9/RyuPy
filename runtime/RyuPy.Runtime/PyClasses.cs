@@ -1,3 +1,4 @@
+// Python类的身份、属性与实例构造；成功跨域导出的受限异常类以统一守卫冻结元数据。
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -117,9 +118,20 @@ public sealed partial class PyClass
     /// <summary>是否属于 `BaseException` 家族。</summary>
     public bool IsException => BuiltinBase is not null || BaseClass?.IsException == true;
 
+    private bool exportedExceptionFrozen;
+    internal bool IsExportedExceptionFrozen => exportedExceptionFrozen;
+    /// <summary>纯继承异常成功导出后冻结类元数据，避免两个执行域出现不同的类定义。</summary>
+    public void FreezeExportedException() => exportedExceptionFrozen = true;
+    internal void GuardExportedExceptionMutation()
+    {
+        if (exportedExceptionFrozen)
+            throw new PyNotImplementedError($"exported exception type '{Name}' attribute mutation is not supported");
+    }
+
     /// <summary>写入 / 替换类属性。</summary>
     public void SetAttr(string name, object? value)
     {
+        GuardExportedExceptionMutation();
         GuardNativeProtocolMutation(name);
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
             throw new PyNotImplementedError("MI structural mutation is not supported");
@@ -140,6 +152,7 @@ public sealed partial class PyClass
     /// <summary>删除类属性；不存在时返回 <c>false</c>。</summary>
     public bool DeleteAttr(string name)
     {
+        GuardExportedExceptionMutation();
         GuardNativeProtocolMutation(name);
         if (HasMultipleInheritance && name is "__bases__" or "__mro__")
             throw new PyNotImplementedError("MI structural mutation is not supported");

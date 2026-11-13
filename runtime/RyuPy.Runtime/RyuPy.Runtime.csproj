@@ -3,6 +3,8 @@
   <PropertyGroup>
     <!-- 与 crates/ryupy-codegen-cil/src/runtimeconfig.rs 的 TARGET_FRAMEWORK_MAJOR 保持一致 -->
     <TargetFramework>net10.0</TargetFramework>
+    <!-- 符号随同一DLL字节交付，NativeAOT无需回读共享obj目录的外部PDB。 -->
+    <DebugType>embedded</DebugType>
     <!-- 与 codegen-cil/assembly_refs.rs 的运行时引用身份同步；独立于 SDK/TFM 版本 -->
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <Nullable>enable</Nullable>

@@ -14,8 +14,7 @@ public partial class PyTraceStateArtifactTests
     public void ProducedResourceContextAssemblyHasOnlyExactPublicOverrides()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyOps).Assembly.Location);
-        Assert.Equal(CurrentPublicAbiCount, actual.Length);
-        Assert.Equal(CurrentPublicAbiCount, actual.Distinct(StringComparer.Ordinal).Count());
+        AssertPublishedAbiSignatures(actual);
         Assert.Equal(ResourceContextPublicAdditions(), actual.Where(x =>
             x.StartsWith("M:RyuPy.Runtime.PyGeneratorContext:DelAttr:", StringComparison.Ordinal)
             || x.StartsWith("M:RyuPy.Runtime.PyGeneratorContext:SetAttr:", StringComparison.Ordinal)

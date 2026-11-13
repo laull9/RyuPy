@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：静态编译 callable 经 Python 同线程重入及受控外线程调用。"""
 import bridge_fixture
 

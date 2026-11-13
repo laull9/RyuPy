@@ -127,16 +127,33 @@ API int rp_start(const char *home, const char **paths, int path_count, const cha
     PyConfig_Clear(&config); dispatch = callback;
     managed_type = (PyTypeObject *)PyType_FromSpec(&managed_spec);
     if (!managed_type) { strcpy(init_error, "managed proxy type creation failed"); PyErr_Clear(); Py_FinalizeEx(); return -1; }
-    for (PyMethodDef *method = bridge_methods; method->ml_name; method++) {
-        PyObject *function = PyCFunction_New(method, NULL);
-        if (!function || PyDict_SetItemString(PyEval_GetBuiltins(), method->ml_name, function) < 0) {
-            Py_XDECREF(function); strcpy(init_error, "import hook registration failed"); PyErr_Clear(); Py_FinalizeEx(); return -1;
-        }
-        Py_DECREF(function);
-    }
     initial_thread = PyEval_SaveThread(); return 0;
 error:
-    PyConfig_Clear(&config); return -1;
+    /* 初始化失败可能已经建立部分解释器；只在真实已初始化时同线程清理。 */
+    PyConfig_Clear(&config); if (Py_IsInitialized()) Py_FinalizeEx(); return -1;
+}
+/* 查找器全局只属于内部模块，用户builtins不出现桥函数、sys别名或loader类。 */
+API PyObject *rp_install_imports(const char *source) {
+    PyObject *module = PyModule_New("_ryupy_imports");
+    if (!module) return NULL;
+    PyObject *globals = PyModule_GetDict(module);
+    if (PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins()) < 0) goto error;
+    for (PyMethodDef *method = bridge_methods; method->ml_name; method++) {
+        PyObject *function = PyCFunction_New(method, NULL);
+        if (!function) goto error;
+        int status = PyDict_SetItemString(globals, method->ml_name, function);
+        Py_DECREF(function);
+        if (status < 0) goto error;
+    }
+    PyObject *result = PyRun_String(source, Py_file_input, globals, globals);
+    if (!result) goto error;
+    Py_DECREF(result);
+    if (PyDict_SetItemString(PyImport_GetModuleDict(), "_ryupy_imports", module) < 0) goto error;
+    Py_DECREF(module);
+    Py_RETURN_NONE;
+error:
+    Py_DECREF(module);
+    return NULL;
 }
 API const char *rp_init_error(void) { return init_error; }
 API int rp_gil(void) { return (int)PyGILState_Ensure(); }
@@ -248,6 +265,38 @@ API PyObject *rp_op(int op, PyObject *a, PyObject *b, PyObject *c, int64_t n, co
     PyErr_SetString(PyExc_NotImplementedError, "unknown RyuPy bridge operation"); return NULL;
 }
 
+/* 默认代理容器比较只读取live槽；输出元素引用归调用者持有。 */
+API int rp_container_kind(PyObject *value) {
+    if (PyList_CheckExact(value)) return 1;
+    if (PyDict_CheckExact(value)) return 2;
+    if (PySet_CheckExact(value)) return 3;
+    if (PyFrozenSet_CheckExact(value)) return 4;
+    return 0;
+}
+API PyObject *rp_list_item(PyObject *value, int64_t index) {
+    PyObject *item = PyList_GetItem(value, (Py_ssize_t)index); return item ? Py_NewRef(item) : NULL;
+}
+API int rp_dict_next(PyObject *value, int64_t *position, PyObject **key, PyObject **item) {
+    Py_ssize_t cursor = (Py_ssize_t)*position; *key = NULL; *item = NULL;
+    int found = PyDict_Next(value, &cursor, key, item); *position = cursor;
+    if (found) { Py_INCREF(*key); Py_INCREF(*item); }
+    return found;
+}
+API int rp_dict_lookup(PyObject *value, PyObject *key, PyObject **item) {
+    *item = PyDict_GetItemWithError(value, key);
+    if (*item) { Py_INCREF(*item); return 1; }
+    return PyErr_Occurred() ? -1 : 0;
+}
+/* 返回owned类型引用；Runtime按类身份缓存，CPython保留真实异常继承关系。 */
+API PyObject *rp_exception_type(const char *name, PyObject *parent, PyObject *metadata) {
+    if (!PyExceptionClass_Check(parent)) {
+        PyErr_SetString(PyExc_TypeError, "RyuPy exception base must derive from BaseException"); return NULL;
+    }
+    PyObject *type = PyErr_NewException(name, parent, metadata);
+    /* 受限导出合同不提供跨域类字段同步，双方显式拒绝后续类修改。 */
+    if (type) ((PyTypeObject *)type)->tp_flags |= Py_TPFLAGS_IMMUTABLETYPE;
+    return type;
+}
 /* 用真实异常类型与参数构造实例，回调首次出域后可复用同一实例。 */
 API PyObject *rp_make_error(const char *type, PyObject *args) {
     PyObject *cls = PyDict_GetItemString(PyEval_GetBuiltins(), type);
@@ -307,3 +356,43 @@ API PyObject *rp_loaded_modules(void) {
     return result;
 }
 API int rp_exception_instance(PyObject *value) { return PyExceptionInstance_Check(value); }
+
+API int rp_is_module(PyObject *value) { return PyModule_Check(value); }
+/* CPython与Runtime共享的小整数身份域；大整数继续保留opaque对象身份。 */
+API int rp_small_integer(PyObject *value, int64_t *result) {
+    if (!PyLong_CheckExact(value)) return 0;
+    int overflow = 0; long long number = PyLong_AsLongLongAndOverflow(value, &overflow);
+    if (overflow || number < -5 || number > 256) return 0;
+    *result = number; return 1;
+}
+/* 异常壳读取不执行用户__str__/__getattribute__；实际展示仍调用真实Python对象。 */
+API PyObject *rp_exception_args(PyObject *value) { return PyException_GetArgs(value); }
+API PyObject *rp_exception_link(PyObject *value, int cause) {
+    PyObject *link = cause ? PyException_GetCause(value) : PyException_GetContext(value);
+    return link ? link : Py_NewRef(Py_None);
+}
+API const char *rp_exception_name(PyObject *value) { return Py_TYPE(value)->tp_name; }
+API int rp_exception_suppress(PyObject *value) { return ((PyBaseExceptionObject *)value)->suppress_context; }
+/* 链字段使用异常公开C API，避开用户__setattr__；固定布局只写无公开setter的标志位。 */
+API void rp_exception_set_chain(PyObject *value, PyObject *cause, PyObject *context, int suppress) {
+    PyException_SetCause(value, Py_XNewRef(cause));
+    PyException_SetContext(value, Py_XNewRef(context));
+    ((PyBaseExceptionObject *)value)->suppress_context = suppress != 0;
+}
+/* 读取真实traceback的只读帧元数据，布局仅存在固定3.12.13编译的shim内。 */
+API int rp_traceback_frame(PyObject *error, int index, const char **file, const char **function, int *line) {
+    *file = NULL; *function = NULL; *line = 0;
+    if (!PyExceptionInstance_Check(error)) return 0;
+    PyObject *root = PyException_GetTraceback(error);
+    if (!root) return PyErr_Occurred() ? -1 : 0;
+    PyTracebackObject *trace = (PyTracebackObject *)root;
+    while (index-- > 0 && trace) trace = trace->tb_next;
+    if (!trace) { Py_DECREF(root); return 0; }
+    PyCodeObject *code = PyFrame_GetCode(trace->tb_frame);
+    if (!code) { Py_DECREF(root); return -1; }
+    *file = PyUnicode_AsUTF8(code->co_filename);
+    *function = PyUnicode_AsUTF8(code->co_name);
+    *line = trace->tb_lineno >= 0 ? trace->tb_lineno : PyCode_Addr2Line(code, trace->tb_lasti);
+    int result = *file && *function ? 1 : -1;
+    Py_DECREF(code); Py_DECREF(root); return result;
+}

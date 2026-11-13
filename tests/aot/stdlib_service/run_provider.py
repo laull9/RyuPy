@@ -7,6 +7,9 @@ from pathlib import Path
 import shutil
 import sqlite3
 import sys
+
+# 验收驱动本身也不在源码目录留下字节码缓存。
+sys.dont_write_bytecode = True
 import threading
 
 from run import Handler
@@ -34,6 +37,7 @@ def main():
     parser.add_argument('--python', default=sys.executable)
     parser.add_argument('--ryupy', type=Path)
     parser.add_argument('--distribution', type=Path)
+    parser.add_argument('--distribution-metadata', type=Path)
     parser.add_argument('--out', type=Path)
     parser.add_argument('--keep', action='store_true')
     parser.add_argument('--baseline-only', action='store_true')
@@ -68,7 +72,7 @@ def main():
 
     try:
         require_python(args.python, root, env)
-        distribution = private_distribution(args.distribution, root) if args.distribution else None
+        distribution = private_distribution(args.distribution, root, args.distribution_metadata) if args.distribution else None
         fixture = Path(__file__).resolve().parent
         source = root / '中文 & source'
         source.mkdir()
@@ -130,16 +134,18 @@ def main():
         # 包资源缺失和stdlib包缺失各在独立进程内验证，并恢复以保留错误发现。
         for label, pattern, expected_error in (
                 ('missing-resource', 'appdata/schema.sql', b'FileNotFoundError'),
-                ('missing-sqlite-package', 'sqlite3/__init__.py', b'ImportError')):
+                ('missing-sqlite-package', 'sqlite3/__init__.py', b'ModuleNotFoundError')):
             found = list(moved.rglob(pattern))
             assert len(found) == 1, (label, found)
-            original = found[0]
+            original = found[0].parent if label == 'missing-sqlite-package' else found[0]
             hidden = empty / (label + '.withheld')
             original.rename(hidden)
             try:
                 failed = run(label, [executable, url, root / (label + '.sqlite')],
                              cwd=empty, process_env=clean, check=False)
                 assert failed.returncode != 0 and expected_error in failed.stderr, failed.stderr
+                expected_detail = b'schema.sql' if label == 'missing-resource' else b"No module named 'sqlite3'"
+                assert expected_detail in failed.stderr, failed.stderr
             finally:
                 hidden.rename(original)
     finally:

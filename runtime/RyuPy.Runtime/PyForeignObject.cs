@@ -39,6 +39,10 @@ public interface IPyForeignObject : IPyNativeCallable
     bool IsExceptionClass { get; }
     /// <summary>按真实异常身份与继承匹配。</summary>
     bool MatchesException(PyBaseException error);
+    /// <summary>原异常解释栈元数据；数组按最外帧至最内帧排列，不运行用户属性钩子。</summary>
+    PyStackFrame[] TracebackFrames();
+    /// <summary>异常传播/字段修改的显式权威边界；write为真写回编译域链，否则刷新真实外部状态。</summary>
+    void SynchronizeException(PyBaseException error, bool write);
 }
 
 /// <summary>模块provider：选择由入口冻结，Runtime只执行中性导入合同。</summary>
@@ -46,6 +50,8 @@ public interface IPyModuleProvider
 {
     /// <summary>完整模块名是否属于本provider。</summary>
     bool Owns(string name);
+    /// <summary>共享解释器sys的标准流；显式None以PyNone返回。</summary>
+    object? SystemAttribute(string name);
     /// <summary>返回同一权威模块的Runtime视图。</summary>
     PyModule Import(string name);
     /// <summary>编译模块登记通知，供反向延迟导入使用。</summary>
@@ -75,7 +81,7 @@ public static class PyProvider
             throw new InvalidOperationException("module provider ownership mismatch");
     }
     /// <summary>构造全属性转发的模块视图，禁止建立第二份业务状态。</summary>
-    public static PyModule Module(string name, PyModuleGet get, PyModuleSet set) =>
+    public static PyModule Module(string name, PyModuleGet get, PyModuleSet set, IPyForeignObject? foreign = null) =>
         new(name, name.Contains('.') ? name[..name.LastIndexOf('.')] : "", "", () => { }, get, set,
-            instanceGlobals: true) { State = 2 };
+            instanceGlobals: true) { State = 2, ForeignObject = foreign };
 }

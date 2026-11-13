@@ -70,13 +70,13 @@ public static class PySystem
     }
 
     /// <summary>读取当前sys.stdout；模块属性赋值立即对所有print路径生效。</summary>
-    public static object? Stdout => _sys?.GetAttr("stdout") ?? DefaultOutput;
+    public static object? Stdout => PyProvider.Current?.SystemAttribute("stdout") ?? _sys?.GetAttr("stdout") ?? DefaultOutput;
 
     /// <summary>当前标准输入，供input共享重绑定语义。</summary>
-    public static object? Stdin => _sys?.GetAttr("stdin") ?? DefaultInput;
+    public static object? Stdin => PyProvider.Current?.SystemAttribute("stdin") ?? _sys?.GetAttr("stdin") ?? DefaultInput;
 
     /// <summary>当前标准错误流，用户重绑定同样对错误报告生效。</summary>
-    public static object? Stderr => _sys?.GetAttr("stderr") ?? DefaultError;
+    public static object? Stderr => PyProvider.Current?.SystemAttribute("stderr") ?? _sys?.GetAttr("stderr") ?? DefaultError;
 
     /// <summary>写入当前标准输出，保留自定义write方法副作用。</summary>
     public static void WriteStdout(string text) => Write(Stdout, text);

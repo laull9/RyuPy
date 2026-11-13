@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：跨域等值str/bytes/大int/tuple必须满足dict/set哈希不变量。"""
 import bridge_fixture
 

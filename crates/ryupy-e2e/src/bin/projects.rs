@@ -73,7 +73,7 @@ fn execute() -> Result<(), String> {
         }
         let directory = options.output.join(&project.id);
         std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
-        let outcome = match run_project(&projects_dir, &options, project, &directory) {
+        let outcome = match run_project(&options, project, &directory) {
             Ok(outcome) => outcome,
             Err(err) => Outcome::new("not-evaluated", "infrastructure", err),
         };
@@ -100,19 +100,117 @@ fn execute() -> Result<(), String> {
     Ok(())
 }
 
-fn run_project(
-    projects_dir: &Path,
+/// 固定CPython即时生成预期；每臂独立cwd，绝不读取历史stdout或忽略基线失败。
+fn project_oracle(
     options: &Options,
     project: &Project,
     out: &Path,
-) -> Result<Outcome, String> {
-    let expected = std::fs::read(
-        projects_dir
-            .join("baselines")
-            .join(&project.id)
-            .join("stdout.txt"),
-    )
-    .map_err(|e| format!("缺少或无法读取基线：{e}"))?;
+) -> Result<std::process::Output, String> {
+    let version = include_str!("../../../../tests/pinned-python.txt").trim();
+    let python = if let Ok(value) = std::env::var("PYTHON") {
+        value
+    } else {
+        let found = Command::new("uv")
+            .args(["python", "find", version])
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !found.status.success() {
+            return Err("缺少固定CPython".into());
+        }
+        String::from_utf8(found.stdout)
+            .map_err(|e| e.to_string())?
+            .trim()
+            .to_owned()
+    };
+    let actual = Command::new(&python)
+        .args([
+            "-S",
+            "-B",
+            "-c",
+            "import platform; print(platform.python_version())",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !actual.status.success() || String::from_utf8_lossy(&actual.stdout).trim() != version {
+        return Err(format!("项目oracle要求CPython {version}"));
+    }
+    let cwd = out.join("cpython-cwd");
+    std::fs::create_dir(&cwd).map_err(|e| e.to_string())?;
+    let paths =
+        std::env::join_paths(search_paths(&options.store, project)?).map_err(|e| e.to_string())?;
+    let expected = Command::new(&python)
+        .args(["-S", "-B"])
+        .arg(&project.entry)
+        .env("PYTHONPATH", paths)
+        .env("PYTHONHASHSEED", "0")
+        .env("PYTHONDONTWRITEBYTECODE", "1")
+        .env("PYTHON_COLORS", "0")
+        .env("NO_COLOR", "1")
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("CPython oracle执行失败：{e}"))?;
+    std::fs::write(out.join("cpython.stdout"), &expected.stdout).map_err(|e| e.to_string())?;
+    std::fs::write(out.join("cpython.stderr"), &expected.stderr).map_err(|e| e.to_string())?;
+    if !expected.status.success() {
+        return Err(format!(
+            "CPython oracle失败：{}",
+            String::from_utf8_lossy(&expected.stderr)
+        ));
+    }
+    Ok(expected)
+}
+
+/// 只允许省略本轮CP真实SyntaxWarning块；产品新增/改写warning仍须失败。
+fn stderr_matches(actual: &[u8], expected: &[u8]) -> bool {
+    let lines: Vec<_> = expected.split_inclusive(|byte| *byte == b'\n').collect();
+    let mut offsets = vec![0usize];
+    let mut index = 0;
+    while index < lines.len() {
+        let line = lines[index];
+        let optional = line.starts_with(b"SyntaxWarning:")
+            || line
+                .windows(16)
+                .position(|part| part == b": SyntaxWarning:")
+                .is_some_and(|position| {
+                    let prefix = &line[..position];
+                    prefix.contains(&b':')
+                        && prefix
+                            .rsplit(|byte| *byte == b':')
+                            .next()
+                            .is_some_and(|number| {
+                                !number.is_empty() && number.iter().all(u8::is_ascii_digit)
+                            })
+                });
+        let mut block = line.to_vec();
+        index += 1;
+        if optional && index < lines.len() && matches!(lines[index].first(), Some(b' ' | b'\t')) {
+            block.extend_from_slice(lines[index]);
+            index += 1;
+        }
+        let mut next: Vec<_> = offsets
+            .iter()
+            .filter_map(|offset| {
+                actual[*offset..]
+                    .starts_with(&block)
+                    .then_some(offset + block.len())
+            })
+            .collect();
+        if optional {
+            next.extend_from_slice(&offsets);
+        }
+        next.sort_unstable();
+        next.dedup();
+        offsets = next;
+        if offsets.is_empty() {
+            return false;
+        }
+    }
+    offsets.contains(&actual.len())
+}
+
+fn run_project(options: &Options, project: &Project, out: &Path) -> Result<Outcome, String> {
+    let expected = project_oracle(options, project, out)?;
     if !project.entry.is_file() {
         return Err("入口缺失".to_owned());
     }
@@ -156,9 +254,11 @@ fn run_project(
     // 原流直接落盘，父门禁可监测大小并终止整个进程组；不让 wait_with_output 无限积内存。
     let stdout_file = std::fs::File::create(out.join("jit.stdout")).map_err(|e| e.to_string())?;
     let stderr_file = std::fs::File::create(out.join("jit.stderr")).map_err(|e| e.to_string())?;
+    let jit_cwd = out.join("jit-cwd");
+    std::fs::create_dir(&jit_cwd).map_err(|e| e.to_string())?;
     let status = Command::new(dotnet::dotnet_exe())
         .arg(&artifacts.dll)
-        .current_dir(out)
+        .current_dir(&jit_cwd)
         .stdin(Stdio::null())
         .stdout(stdout_file)
         .stderr(stderr_file)
@@ -186,14 +286,14 @@ fn run_project(
             },
             detail,
         )
-    } else if stdout != expected {
+    } else if stdout != expected.stdout || !stderr_matches(&stderr, &expected.stderr) {
         Outcome::new(
             "failed",
-            "stdout-mismatch",
-            "运行成功但 stdout 与原 golden 不一致",
+            "output-mismatch",
+            "运行成功但原始流与同次CPython合同不一致",
         )
     } else {
-        Outcome::new("native", "", "运行成功，stdout 与原 golden 逐字节一致")
+        Outcome::new("native", "", "运行成功，原始流与同次固定CPython一致")
     };
     outcome.run_exit = status.code();
     Ok(outcome)
@@ -234,8 +334,34 @@ fn write_results(
                 .map_or_else(|| "null".to_owned(), |v| v.to_string())
         )?;
     }
-    // 原子发布只表示此调用已完成；不代表保留或晋升通过。
+    // 原子发布标记此调用已完成；产品准入继续由包装门禁逐ID判定。
     let temporary = path.with_extension("jsonl.tmp");
     std::fs::write(&temporary, buffer)?;
     std::fs::rename(temporary, path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::stderr_matches;
+
+    #[test]
+    fn only_current_oracle_warnings_can_be_omitted() {
+        let expected = b"/source.py:4: SyntaxWarning: known\n  x is 1\nbusiness\n";
+        assert!(stderr_matches(expected, expected));
+        assert!(stderr_matches(b"business\n", expected));
+        assert!(!stderr_matches(
+            b"SyntaxWarning: unknown\nbusiness\n",
+            expected
+        ));
+        assert!(!stderr_matches(
+            b"/source.py:4: SyntaxWarning: changed\n  x is 1\nbusiness\n",
+            expected
+        ));
+        assert!(!stderr_matches(
+            b"/source.py:5: SyntaxWarning: known\n  x is 1\nbusiness\n",
+            expected
+        ));
+        assert!(!stderr_matches(b"changed business\n", expected));
+        assert!(!stderr_matches(b"", b"business: SyntaxWarning: keep\n"));
+    }
 }

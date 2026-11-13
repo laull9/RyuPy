@@ -1,9 +1,9 @@
 # 语言子集与语义规范
 
-> **目标调整（2026-11-13）**：后续标准库与扩展优先经随包 CPython provider 执行。
-> 当前支持表不变；跨域身份、别名、异常链、回调与生命周期的待实现合同见
-> [cpython-provider.md](cpython-provider.md)。实施后按 provider 补证据与 §4 偏差，
-> 未通过验收的计划项保持待实现。
+> **CPython provider试点（2026-11-13）**：固定3.12.13/PBS20260623，显式provider在macOS arm64
+> 已通过18项JIT与NativeAOT/搬迁、同一联合应用和五项C#生命周期模式。API矩阵见
+> [验收驱动](../tests/cpython/README.md)。真实错版本ABI已通过，混合异常栈无陈旧帧严格门待验，其他平台与干净机待验。
+> 原生语义表与provider试点分别登记，默认配置暂不晋升。
 
 > 本文定义 RyuPy **当前支持**的 Python 子集，以及它与 Python 语义的对应方式。
 > 常用行为以固定版本 CPython 为准，按项目与 API 验收。已接受偏差明确登记，不支持能力明确报错；运行时才能确定的非法操作抛 Python 语义异常。未记录的差异按缺陷处理。
@@ -246,6 +246,20 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 - `a and b` / `a or b`：Python 返回**操作数本身**而非 `bool`。Phase 1 要求两侧类型相同，结果类型即该类型。
 
 ## 4. 语义陷阱清单
+
+### CPython provider的显式边界（2026-11-13）
+
+- 默认`proxy`传递活对象；`container_transfer="synchronized"`在调用边界物化精确list/dict并写回，
+  保共享引用、环、回调重入与异常前副作用。两域后台线程并发修改同一容器暂缓，数组保真实ndarray。
+- 跨域同一对象与等值不可变键分别保持身份及hash/equal不变量；共享intern参数缓存有原对象作用域。
+  生命周期验收先暖机再严格稳态；动态唯一消息显式释放，异常释放不递归破坏共享Args别名。
+- 编译异常类导出目前限定纯单继承链，每层无自定义init/new/str/repr、字段或方法，仅允许
+  module/qualname/doc元数据；整链预检后建立真实CP类型。类attrs或实例UserAttributes超出该域时报NI。
+  首次成功导出后该native类SetAttr/DeleteAttr报NI，CP heap type设IMMUTABLETYPE；未导出类保持原语义。
+  CP派生异常沿真实MRO选择最近Runtime ExceptionFactory建立catch壳，实际type仍来自ForeignObject。
+  此新增边界正在独立JIT/NativeAOT验收，结果见验收矩阵。
+- 混合traceback按域标记并保持各域帧次序，outer包装异常已补编译调用点，其无陈旧callback帧严格门仍待复验。
+
 
 > 每一条都应该有对应的 e2e 用例。新发现的陷阱请追加到这里。
 

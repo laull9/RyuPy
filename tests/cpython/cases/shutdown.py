@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：解释器退出时 Python 持有的编译回调仍保持可用。"""
 import atexit
 

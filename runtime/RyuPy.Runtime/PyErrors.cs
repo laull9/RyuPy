@@ -118,6 +118,7 @@ public static partial class PyErrors
         {
             throw new PyTypeError("exceptions must derive from BaseException");
         }
+        ex.ForeignObject?.SynchronizeException(ex, write: false);
         return ex;
     }
 

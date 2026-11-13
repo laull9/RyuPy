@@ -37,15 +37,19 @@ Python ctypes 当次生成 stdout 预期，对照 JIT/AOT 的完整退出码、s
 `complex.c` 公开按值结构参数/返回、malloc buffer/配对 free、C 函数指针回调。
 `ffi_demo.py` 显式指定每个 ctypes 参数和返回类型；buffer 连续创建/释放 128 次，结束计数为零。
 `ctypes_app.py` 是真正由 RyuPy 编译的入口，传入已编译函数供 ctypes 回调，覆盖正常回调及 ValueError。
+强化入口还覆盖纯继承编译异常类的真实 CPython type/base、同名类身份、CPython 派生异常返回后
+的编译端继承匹配，以及包属性、from-import、sys.modules 的同一模块视图和 ModuleType。
+`exception_limits.py` 单独验证未实现导出的诊断、失败不冻结及成功导出后的双方类修改拒绝。
 
 以已冻结且可构建宿主的 provider JSON 为模板运行：
 
 ```sh
 uv run --python 3.12.13 python -B tests/aot/c_library/run_ctypes.py \
-  --ryupy target/debug/ryupy --provider /absolute/provider.json
+  --ryupy target/debug/ryupy --provider /absolute/provider.json \
+  --distribution-metadata /absolute/full-archive/python
 ```
 
-驱动追加 `ffi_demo`、`ctypes` 模块，打包手写 facade 与自有动态库，执行 CPython/JIT/AOT 同程序，
+驱动追加 `ffi_demo`、`ctypes`、`urllib`、`sys`、`types` 模块，打包手写 facade 与自有动态库，执行 CPython/JIT/AOT 同程序，
 再删除源码/SDK构建树并搬迁，清环境、空 PATH、换 cwd 后差分；删除动态库执行负例。
 模板须提供正式发行来源、随包 libpython、桥 DLL 与 shim，禁止改用 Python 子进程执行产品入口。
 
@@ -56,5 +60,6 @@ uv run --python 3.12.13 python -B tests/aot/c_library/run_ctypes.py \
   demo→helper 两层动态依赖在清环境/空 PATH 下搬迁成功；删除 helper 两模式均以 ImportError 失败；
   zlib 1.3.1 两个公开 C API 在 JIT/NativeAOT 搬迁后与 CPython 当次输出逐字节一致。
   原输入、第三方源码与构建根均已删除，仓库外临时目录退出时清理。
-- ctypes 编译应用桥：待验收，输入保留 pending。
+- ctypes 编译应用桥：macOS arm64 JIT/NativeAOT、搬迁与缺C库负例通过（2026-11-13）。
+  按值结构、128次成对分配释放、编译函数成功回调与ValueError往返均与CPython完整三流一致。
 - Linux x64、Windows x64、无 Python/.NET/SDK 干净机：待验收。

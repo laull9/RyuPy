@@ -31,7 +31,7 @@ public static class Bootstrap
         catch (Exception error) { Console.Error.WriteLine("RyuPy退出失败：" + error.Message); if (result == 0) result = 1; }
         finally
         {
-            try { Stop(); }
+            try { Stop(); Builtins.Flush(); }
             catch (Exception error) { Console.Error.WriteLine("CPython关闭失败：" + error.Message); if (result == 0) result = 1; }
         }
         return result;
@@ -40,7 +40,12 @@ public static class Bootstrap
     public static void Stop()
     {
         if (host is not { } current) return;
-        current.Dispose(); PyProvider.Remove(current); host = null;
+        try { current.Dispose(); }
+        finally
+        {
+            // 拒绝跨线程/租约内关闭时仍保留活宿主；Finalize完成后的报告失败也撤销provider。
+            if (current.IsClosed) { PyProvider.Remove(current); host = null; }
+        }
     }
 }
 
@@ -78,8 +83,10 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
         string Resolve(string key) => ResolveValue(root.GetProperty(key).GetString()!);
         string[] paths = root.GetProperty("search_paths").EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray();
         if (paths.Length == 0 || paths.Any(p => p.Contains('\n'))) throw new InvalidDataException("CPython搜索路径为空或包含换行");
+        string mode = root.TryGetProperty("container_transfer", out JsonElement transfer) ? transfer.GetString()! : "proxy";
+        if (mode is not ("proxy" or "synchronized")) throw new InvalidDataException("container_transfer必须为proxy或synchronized");
         return new(Resolve("home"), Resolve("library"), Resolve("shim"), paths,
             root.GetProperty("modules").EnumerateArray().Select(p => p.GetString()!).ToArray(),
-            root.TryGetProperty("container_transfer", out JsonElement transfer) && transfer.GetString() == "synchronized");
+            mode == "synchronized");
     }
 }

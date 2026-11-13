@@ -1,3 +1,4 @@
+// 动态Python操作的中性分派：数值、比较、调用及外部对象协议共享统一入口。
 using System;
 using System.Numerics;
 
@@ -414,6 +415,7 @@ public static partial class PyOps
     /// <summary><c>int(x)</c>，结果为动态值。</summary>
     public static object ToIntValue(object value) => value switch
     {
+        IPyForeignObject foreign => foreign.ReadScalar("integer"),
         bool b => b ? 1L : 0L,
         long or int or BigInteger => PyInt.Normalize(PyInt.ToBigInteger(value)),
         double d => PyInt.Normalize(TruncateToInteger(d, "float")),
@@ -424,6 +426,7 @@ public static partial class PyOps
     /// <summary><c>float(x)</c>，结果为动态值。</summary>
     public static object ToFloatValue(object value) => value switch
     {
+        IPyForeignObject foreign => foreign.ReadScalar("floating"),
         bool b => b ? 1.0 : 0.0,
         long or int => ToDouble(value),
         BigInteger big => PyFloatConstructor.FromBigInteger(big),

@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：对象穿过 Python callable 往返，保持可变别名与模块身份。"""
 import bridge_fixture
 import bridge_fixture as again

@@ -24,6 +24,7 @@ public static class PyFloatConstructor
     /// <summary>精确文本或普通对象槽；缺 __float__ 才尝试 __index__。</summary>
     public static object ConvertObject(object? value)
     {
+        if (value is IPyForeignObject foreign) return foreign.ReadScalar("floating");
         if (value is string or PyBytes or PyByteArray) return PyFloatText.Parse(value);
         if (PyObject.TryMethod(value, "__float__", [], out object? floating))
         {

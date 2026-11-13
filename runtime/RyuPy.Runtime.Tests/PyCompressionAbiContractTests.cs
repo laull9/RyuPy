@@ -18,7 +18,7 @@ public partial class PyTraceStateArtifactTests
     public void CompressionPublishesOnlyExactExceptionAbi()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyZlibError).Assembly.Location);
-        Assert.Equal(CurrentPublicAbiCount, actual.Length);
+        AssertPublishedAbiSignatures(actual);
         var additions = actual.Where(signature => new[] { "PyZlibError", "PyBadGzipFile", "PyMemoryError" }
             .Any(name => signature.Contains(":RyuPy.Runtime." + name + ":", StringComparison.Ordinal)));
         Assert.Equal(CompressionPublicAdditions().Order(StringComparer.Ordinal), additions.Order(StringComparer.Ordinal));

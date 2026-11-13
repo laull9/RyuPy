@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：Python 反向导入半初始化编译模块，并验证失败模块可重试。"""
 import sys
 import bridge_fixture

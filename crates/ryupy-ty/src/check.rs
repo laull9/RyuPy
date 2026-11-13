@@ -221,7 +221,12 @@ fn try_static(
 /// 取表达式的直接子表达式（用于「容器字面量整体降级但仍要检查元素」）。
 fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
     match kind {
-        ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Set(items) => items.clone(),
+        ExprKind::List(items)
+        | ExprKind::Tuple(items)
+        | ExprKind::Set(items)
+        | ExprKind::CompareChain {
+            operands: items, ..
+        } => items.clone(),
         ExprKind::Dict(pairs) => pairs.iter().flat_map(|(k, v)| [*k, *v]).collect(),
         ExprKind::Subscript { base, index } => vec![*base, *index],
         ExprKind::Slice { start, stop, step } => {
@@ -476,6 +481,7 @@ impl FunctionChecker<'_> {
                     }
                 }
             }
+            ExprKind::CompareChain { operands, ops } => self.check_comparison_chain(operands, ops),
             ExprKind::BoolOp { op: _, lhs, rhs } => {
                 let lhs_ty = self.check_expr(*lhs);
                 let rhs_ty = self.check_expr(*rhs);

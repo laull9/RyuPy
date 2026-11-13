@@ -28,8 +28,7 @@ public partial class PyTraceStateArtifactTests
     public void ProducedNativeAbiBridgeHasExactPublicSignatures()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyNativeCall).Assembly.Location);
-        Assert.Equal(CurrentPublicAbiCount, actual.Length);
-        Assert.Equal(CurrentPublicAbiCount, actual.Distinct(StringComparer.Ordinal).Count());
+        AssertPublishedAbiSignatures(actual);
         var bridge = actual.Where(signature => signature.Contains(":RyuPy.Runtime.PyNativeCall:", StringComparison.Ordinal)
             || signature.StartsWith("M:RyuPy.Runtime.PyNativeBindings:CreateAbi:", StringComparison.Ordinal)
             || signature.StartsWith("M:RyuPy.Runtime.PyNativeBindings:Box", StringComparison.Ordinal)).ToArray();

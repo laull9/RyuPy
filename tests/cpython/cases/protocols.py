@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：真实 Python 对象的身份、别名、调用、迭代及异常合同。"""
 import json
 from collections import deque

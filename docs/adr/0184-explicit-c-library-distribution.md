@@ -1,6 +1,6 @@
 # ADR-0184：显式 C ABI 动态库与依赖分发
 
-状态：显式动态库路径已实现，macOS arm64 JIT/NativeAOT 搬迁通过；ctypes 编译桥待验。
+状态：显式动态库路径已实现，macOS arm64 JIT/NativeAOT 搬迁通过；ctypes 编译桥同平台 JIT/NativeAOT 搬迁与缺库负例通过。
 日期：2026-11-13。
 
 ## 决定
@@ -40,6 +40,13 @@ NativeAOT 懒加载与 DirectPInvoke 的区别依据
 适配者明确 Structure 布局、argtypes/restype、回调生命周期、错误模型和 allocator/free 配对。
 指针由适配模块内部管理；输出复制后立即 finally/free；回调异常在返回 C 后重抛。
 该通用路径复用 CPython/libffi；不要求每个第三方库进入 RyuPy 产品代码。
+
+编译回调可传播纯单继承的用户异常类。桥按真实 PyClass 身份生成 CPython 异常类型，
+保留 base、module/name/qualname/doc 元数据；同名类各有身份。CPython 侧构造或继续派生的异常
+返回时，按真实 MRO 中最近的已映射类调用原编译 ExceptionFactory，保留 CLR typed catch 和实际 CP 类型。
+导出前整条继承链须无自定义构造、方法、类字段，实例须无自定义字段，否则明确 NotImplementedError。
+成功导出后该 PyClass 的 SetAttr/DeleteAttr 明确拒绝修改，CP 对应类型设置 IMMUTABLETYPE；
+这是受限的纯继承导出合同。未导出的原生类保持原行为。
 
 ## 验收
 

@@ -69,14 +69,19 @@ pub fn workspace_root() -> PathBuf {
 }
 
 pub fn copy_runtime_to(out_dir: &Path) -> Result<()> {
-    let src = runtime_dir().join(RUNTIME_DLL);
+    copy_runtime_from(&runtime_dir(), out_dir)
+}
+
+/// 显式组件从同一构建输出根部署完整托管/原生依赖闭包，避免混用两个开发bin来源。
+pub(crate) fn copy_runtime_from(source: &Path, out_dir: &Path) -> Result<()> {
+    let src = source.join(RUNTIME_DLL);
     std::fs::copy(&src, out_dir.join(RUNTIME_DLL)).with_context(|| {
         format!(
             "找不到 {}，请先运行 `make runtime`，或设置 RYUPY_RUNTIME_DIR",
             src.display()
         )
     })?;
-    copy_dependencies(&runtime_dir(), out_dir)?;
+    copy_dependencies(source, out_dir)?;
     Ok(())
 }
 

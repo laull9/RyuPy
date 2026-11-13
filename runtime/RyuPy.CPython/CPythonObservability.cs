@@ -11,13 +11,19 @@ public sealed partial class CPythonHost
     private void CaptureModulePaths()
     {
         nint paths = Check(Native.rp_loaded_modules());
+        nint keys = 0, tuple = 0;
         try
         {
-            (string[] names, object?[] values) = ReadKeywords(paths);
-            for (int i = 0; i < names.Length; i++)
-                loadedModulePaths[names[i]] = values[i] is string text ? text : PyCast.ToStr(values[i]);
+            keys = Check(Native.rp_op(19, paths)); tuple = Check(Native.rp_op(26, keys));
+            long count = Native.rp_length(tuple); ThrowIfError();
+            for (long i = 0; i < count; i++)
+            {
+                nint key = Check(Native.rp_op(18, tuple, n: i));
+                try { loadedModulePaths[ReadText(key)] = ReadTextOwned(Native.rp_op(6, paths, key)); }
+                finally { Native.rp_decref(key); }
+            }
         }
-        finally { Native.rp_decref(paths); }
+        finally { Native.rp_decref(tuple); Native.rp_decref(keys); Native.rp_decref(paths); }
     }
     private void WriteReport()
     {

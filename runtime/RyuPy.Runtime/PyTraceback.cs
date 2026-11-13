@@ -1,3 +1,4 @@
+// 编译帧栈、混合执行域异常报告与SystemExit退出规则；格式化保持真实异常链和帧顺序。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -236,15 +237,28 @@ public static partial class PyTraceback
     private static void AppendSingle(StringBuilder builder, PyBaseException exception, long? limit = null, List<string>? parts = null)
     {
         PyStackFrame[] frames = exception.Frames;
-        int count = limit is null ? frames.Length : (int)Math.Min(frames.Length, limit == long.MinValue ? long.MaxValue : Math.Abs(limit.Value));
-        int end = limit is < 0 ? count - 1 : frames.Length - 1;
+        PyStackFrame[] foreignFrames = exception.ForeignObject?.TracebackFrames() ?? [];
+        int total = frames.Length + foreignFrames.Length;
+        int count = limit is null ? total : (int)Math.Min(total, limit == long.MinValue ? long.MaxValue : Math.Abs(limit.Value));
+        int start = limit is < 0 ? total - count : 0;
+        int end = start + count;
         if (count > 0)
         {
             AppendPart(builder, parts, Header + "\n");
-            // frames 最内层在前，输出时从最外层开始
-            for (int i = end; i > end - count; i--)
+            int compiledEnd = Math.Min(end, frames.Length);
+            if (start < compiledEnd && exception.ForeignObject is not null)
+                AppendPart(builder, parts, "  [RyuPy 编译栈]\n");
+            // 展示序固定为compiled域从外至内，随后CP域从外至内；limit对完整帧序统一截取。
+            for (int i = start; i < compiledEnd; i++)
             {
-                PyStackFrame frame = frames[i];
+                PyStackFrame frame = frames[frames.Length - 1 - i];
+                AppendPart(builder, parts, $"  File \"{frame.File}\", line {frame.Line}, in {frame.Function}\n");
+            }
+            int foreignStart = Math.Max(start, frames.Length);
+            if (foreignStart < end) AppendPart(builder, parts, "  [CPython 解释栈]\n");
+            for (int i = foreignStart; i < end; i++)
+            {
+                PyStackFrame frame = foreignFrames[i - frames.Length];
                 AppendPart(builder, parts, $"  File \"{frame.File}\", line {frame.Line}, in {frame.Function}\n");
             }
         }
@@ -296,19 +310,7 @@ public static partial class PyTraceback
     /// <param name="exception">逃逸到顶层的 CLR 异常。</param>
     public static void ReportClr(Exception exception)
     {
-        PyBaseException mapped = exception switch
-        {
-            OverflowException => new PyOverflowError(
-                "int too large to fit in a 64-bit integer (RyuPy static integer limit)"
-            ),
-            DivideByZeroException => new PyZeroDivisionError(
-                "integer division or modulo by zero"
-            ),
-            _ => new PyRuntimeError(exception.Message),
-        };
-        if (PyTraceProduct.Enabled) PyTraceProduct.NativeFresh(mapped);
-        else Attach(mapped);
-        Report(mapped);
+        Report(PyErrors.FromClr(exception));
     }
 
     /// <summary>
@@ -321,7 +323,9 @@ public static partial class PyTraceback
         // 与 CPython 一致：退出时先把 stdout 的缓冲写出去
         try { Builtins.Flush(); }
         catch (Exception error) { Report(error as PyBaseException ?? PyIO.FileSystemError(error)); return 120; }
-        switch (exit.Code)
+        object? code = exit.Code;
+        if (code is IPyForeignObject foreign && foreign.IsInstanceOf(PyType.Get("int"))) code = foreign.ReadScalar("int");
+        switch (code)
         {
             case null:
             case PyNone:
@@ -338,7 +342,7 @@ public static partial class PyTraceback
             default:
                 // 此时Python调用栈已经展开；新__str__失败只记录其自身调用帧。
                 Reset();
-                try { SafeExitError(PyRepr.Str(exit.Code) + "\n"); }
+                try { SafeExitError(PyRepr.Str(code) + "\n"); }
                 catch (PyBaseException error) { SafeExitError("\n"); Report(error); }
                 catch (Exception error) { SafeExitError("\n"); ReportClr(error); }
                 return 1;

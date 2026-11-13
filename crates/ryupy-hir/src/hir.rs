@@ -287,12 +287,16 @@ pub enum ExprKind {
         /// 要原地修改并保留身份，不可变值与普通二元运算相同。
         inplace: bool,
     },
-    /// 链式比较 `a < b < c` 在 lowering 时展开为 `a < b and b < c`
-    /// （要求中间项无副作用，否则报「暂不支持」）。
+    /// 单个富比较；返回值由运行时对象协议决定。
     Compare {
         op: CmpOp,
         lhs: ExprId,
         rhs: ExprId,
+    },
+    /// 每个操作数只求值一次；中间比较按真值短路，最终保留原始比较结果。
+    CompareChain {
+        operands: Vec<ExprId>,
+        ops: Vec<CmpOp>,
     },
     /// 短路逻辑。注意 Python 的 `and/or` 返回操作数本身而不是 bool。
     BoolOp {
@@ -425,23 +429,7 @@ pub enum BinOp {
     RShift,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CmpOp {
-    Eq,
-    NotEq,
-    Lt,
-    LtE,
-    Gt,
-    GtE,
-    /// `in`：成员判断，走容器的 `__contains__`。
-    In,
-    /// `not in`。
-    NotIn,
-    /// `is`：引用身份。
-    Is,
-    /// `is not`。
-    IsNot,
-}
+pub use crate::comparisons::CmpOp;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BoolOp {

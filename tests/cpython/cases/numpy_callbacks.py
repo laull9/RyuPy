@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP3：NumPy 原生 ufunc 实际调用已编译函数，并保留异常实例。"""
 import numpy as np
 

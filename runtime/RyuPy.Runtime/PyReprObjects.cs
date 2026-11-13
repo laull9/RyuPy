@@ -17,6 +17,7 @@ public static partial class PyRepr
 
     private static object StrExceptionObject(PyBaseException exception)
     {
+        if (exception.ForeignObject is PyNativeObject foreign) return foreign.PythonStr();
         if (PyObject.TryMethod(exception, "__str__", [], out object? result))
             return RequireStringObject(result, "__str__");
         return exception.PyMessage;

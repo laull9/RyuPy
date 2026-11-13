@@ -25,7 +25,7 @@ Rust driver：模块/provider 选择、依赖闭包、目标 ABI、分发计划
                                          │              │
                                  原生语义/typed 快路   CPython 对象代理
                                                         │
-                              RyuPy.CPython（计划中的 C# 组件）
+                              RyuPy.CPython（独立 C# 互操作组件）
                                       │ 静态互操作 / 回调
                               最小 C shim + 随包 libpython
                                       │
@@ -43,6 +43,8 @@ Rust driver：模块/provider 选择、依赖闭包、目标 ABI、分发计划
 ## 3. Provider 与导入域
 
 构建期冻结每个完整模块名的 provider：RyuPy 编译源码、现有原生运行时或 CPython。
+当前显式试点由固定发行库存确定完整标准库域，整体归CPython；应用搜索根若存在同名
+标准库源码/包，E0100携冲突路径拒绝。额外第三方以声明和随包库存固定归属。
 记录选择理由、版本、RID、CPython ABI、资源与原生依赖边；运行中固定归属。
 CPython 的普通源码依赖直接交由其导入器执行，无需让 RyuPy 编译器支持依赖内部全部语法。
 应用中尚未支持的语法仍报 Diagnostic；未来整模块委派须显式声明和单独验收。
@@ -204,10 +206,15 @@ CP3 首选 NumPy，版本在 CP1 依赖矩阵冻结时选择并锁定，不为�
 CPython 整应用运行可作为基线，产品门要求原应用入口实际经过 RyuPy 编译链。
 CP1 就预留低开销观测开关；性能默认值和 C# 热点替换在 CP5 依据重复测量决定。
 
-2026-11-13 验收驱动已建立：12个独立pending程序覆盖CP1a/CP1b/CP3，固定CPython
-基线通过，原联合应用基线通过。C#专用生命周期门覆盖256批确定释放/显式断环及关机后
-迟到释放；产品JIT、NativeAOT、搬迁和平台状态以验收README及本次结论继续登记。
-发行冻结为python-build-standalone 20260623/CPython3.12.13，NumPy2.3.5。
+2026-11-13，固定python-build-standalone20260623/CPython3.12.13、NumPy2.3.5，macOS arm64
+18项普通手写程序最新同次JIT通过；混合栈新增无陈旧帧严格门待验；NativeAOT原位/中文空格&搬迁分批通过，正做最终冻结版全量重跑。
+固定20个Python程序（含异常状态刷新和加强混合栈）正在最终同版全量；原联合应用完整三流、
+独立数据库副作用与资源/SQLite包负例通过，业务源码保持原样。
+六项C#宿主门通过256批断环、128批异常/真实NumPy回调稳态、确定释放和关机后迟到释放。
+真实3.11.15错版本库、CPU错配、缺libpython、启动encodings、NumPy缺核心扩展分别拒绝。
+API与平台矩阵见[验收驱动](../tests/cpython/README.md)，人工结论见
+[本轮登记](validation/cpython-provider-2026-11-13.md)。完整make check、默认native固定20保护、
+默认proxy新增专项及其他平台/干净机仍按最终结果登记。
 本机NumPy wheel为cp312-cp312-macosx_14_0_arm64，核心扩展依赖系统Accelerate。
 该PBS的_sqlite3和zlib为内建模块，单独缺_sqlite3共享库负例需独立扩展构建发行，列环境阻塞。
 

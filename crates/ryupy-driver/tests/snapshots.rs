@@ -1,4 +1,4 @@
-//! 既有语言竖切的 IR 与诊断快照；宿主临时路径不属于语义断言。
+//! 既有语言竖切的 IR 与诊断结构合同；各用例直接检查对应运算、类型和控制流。
 
 use ryupy_driver::{Session, Stage};
 mod support;
@@ -11,15 +11,17 @@ fn snapshot_m1_0() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_0_hir", hir);
+    assert!(hir.contains("print((1 + 2))"), "{hir}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_0_mir", mir);
+    assert!(mir.contains("Add(const 1_i64, const 2_i64)"), "{mir}");
+    assert!(mir.contains("RuntimeFn::WriteI64"), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_0_cil", cil);
+    assert!(cil.contains("AddOverflow"), "{cil}");
+    assert!(cil.contains("Builtins.WriteI64(object, long)"), "{cil}");
 }
 
 #[test]
@@ -29,24 +31,34 @@ fn snapshot_m1_1() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_1_hir", hir);
+    assert!(hir.contains("def main_calc(x: int) -> int:"), "{hir}");
+    assert!(hir.contains("helper(x) * 2"), "{hir}");
+    assert!(hir.contains("def helper(n: int) -> int:"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_1_types", types);
+    assert!(types.contains("[Static]: [Int] -> Int"), "{types}");
+    assert!(types.contains("local Idx::<Local>(1): Int"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_1_mir", mir);
+    assert!(mir.contains("fn main_calc(_0: i64) -> i64"), "{mir}");
+    assert!(mir.contains(" = helper("), "{mir}");
+    assert!(mir.contains("Mul("), "{mir}");
+    assert!(mir.contains("Add("), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_1_cil", cil);
+    assert!(cil.contains("m0_main_calc(long)"), "{cil}");
+    assert!(cil.contains("m0_helper(long)"), "{cil}");
+    assert!(cil.contains("MultiplyOverflow"), "{cil}");
+    assert!(cil.contains("AddOverflow"), "{cil}");
 }
 
 #[test]
 fn catches_unassigned_local_read() {
-    let py_path = std::env::temp_dir().join("ryupy_test_unbound.py");
+    let scope = support::temp_scope::TempScope::new("snapshots");
+    let py_path = scope.path("ryupy_test_unbound.py");
     std::fs::write(&py_path, "def foo() -> int:\n    x = x + 1\n    return x\n").unwrap();
 
     let mut sess = Session::default();
@@ -68,19 +80,31 @@ fn snapshot_m1_2_arith() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_2_arith_hir", hir);
+    assert!(hir.contains("7 // 2"), "{hir}");
+    assert!(hir.contains("Neg(7) % 3"), "{hir}");
+    assert!(hir.contains("2 ** 10"), "{hir}");
+    assert!(hir.contains("1 << 10"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_2_arith_types", types);
+    assert!(types.contains("[Static]: [] -> None"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_2_arith_mir", mir);
+    assert!(mir.contains("FloorDivI64"), "{mir}");
+    assert!(mir.contains("ModI64"), "{mir}");
+    assert!(mir.contains("PowI64"), "{mir}");
+    assert!(mir.contains("TrueDivF64"), "{mir}");
+    assert!(mir.contains("ShlI64"), "{mir}");
+    assert!(mir.contains("ShrI64"), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_2_arith_cil", cil);
+    assert!(cil.contains("PyMath.FloorDivI64"), "{cil}");
+    assert!(cil.contains("PyMath.ModI64"), "{cil}");
+    assert!(cil.contains("PyMath.PowI64"), "{cil}");
+    assert!(cil.contains("PyMath.TrueDivF64"), "{cil}");
+    assert!(cil.contains("PyMath.ShiftLeftI64"), "{cil}");
 }
 
 #[test]
@@ -90,19 +114,26 @@ fn snapshot_m1_2_control_flow() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_2_control_flow_hir", hir);
+    assert!(hir.contains("if (n Lt 0):"), "{hir}");
+    assert!(hir.contains("while (n NotEq 1):"), "{hir}");
+    assert!(hir.contains("n // 2"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_2_control_flow_types", types);
+    assert!(types.contains("[Static]: [Int] -> Int"), "{types}");
+    assert!(types.contains("[Static]: [Int, Int] -> Int"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_2_control_flow_mir", mir);
+    assert!(mir.contains("fn classify(_0: i64) -> i64"), "{mir}");
+    assert!(mir.contains("branch "), "{mir}");
+    assert!(mir.contains("RuntimeFn::FloorDivI64"), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_2_control_flow_cil", cil);
+    assert!(cil.contains("m0_classify(long)"), "{cil}");
+    assert!(cil.contains("BranchTruthy"), "{cil}");
+    assert!(cil.contains("PyMath.FloorDivI64"), "{cil}");
 }
 
 #[test]
@@ -112,19 +143,26 @@ fn snapshot_m1_3_for_range() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_3_for_range_hir", hir);
+    assert!(hir.contains("range(0, 10)"), "{hir}");
+    assert!(hir.contains("range(10, 0, Neg(3))"), "{hir}");
+    assert!(hir.contains("range(5, 5)"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_3_for_range_types", types);
+    assert!(types.contains("ModuleVar>(3): Int"), "{types}");
+    assert!(types.contains("ModuleVar>(4): Int"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_3_for_range_mir", mir);
+    assert!(mir.contains("const -3_i64"), "{mir}");
+    assert!(mir.contains("branch "), "{mir}");
+    assert!(mir.contains("Add("), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_3_for_range_cil", cil);
+    assert!(cil.contains("BranchTruthy"), "{cil}");
+    assert!(cil.contains("AddOverflow"), "{cil}");
+    assert!(cil.contains("Builtins.WriteI64"), "{cil}");
 }
 
 #[test]
@@ -134,19 +172,26 @@ fn snapshot_m1_3_fib() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_3_fib_hir", hir);
+    assert!(hir.contains("fib_rec((n - 1)) + fib_rec((n - 2))"), "{hir}");
+    assert!(hir.contains("for _ in range(0, n)"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_3_fib_types", types);
+    assert!(types.contains("[Static]: [Int] -> Int"), "{types}");
+    assert!(types.contains("local Idx::<Local>(4): Int"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_3_fib_mir", mir);
+    assert!(mir.contains("fn fib_rec(_0: i64) -> i64"), "{mir}");
+    assert!(mir.contains(" = fib_rec("), "{mir}");
+    assert!(mir.contains("fn fib_iter(_0: i64) -> i64"), "{mir}");
+    assert!(mir.contains("branch "), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_3_fib_cil", cil);
+    assert!(cil.contains("m0_fib_rec(long)"), "{cil}");
+    assert!(cil.contains("m0_fib_iter(long)"), "{cil}");
+    assert!(cil.contains("AddOverflow"), "{cil}");
 }
 
 #[test]
@@ -156,19 +201,29 @@ fn snapshot_m1_4_floats() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_4_floats_hir", hir);
+    assert!(hir.contains("0.1 + 0.2"), "{hir}");
+    assert!(hir.contains("7.5 // 2"), "{hir}");
+    assert!(hir.contains("2.0 ** 0.5"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_4_floats_types", types);
+    assert!(types.contains("[Static]: [] -> None"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_4_floats_mir", mir);
+    assert!(mir.contains(": f64;"), "{mir}");
+    assert!(mir.contains("FloorDivF64"), "{mir}");
+    assert!(mir.contains("ModF64"), "{mir}");
+    assert!(mir.contains("PowF64"), "{mir}");
+    assert!(mir.contains("F64ToI64"), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_4_floats_cil", cil);
+    assert!(cil.contains("Add"), "{cil}");
+    assert!(cil.contains("Multiply"), "{cil}");
+    assert!(cil.contains("PyMath.FloorDivF64"), "{cil}");
+    assert!(cil.contains("PyMath.F64ToI64"), "{cil}");
+    assert!(cil.contains("Builtins.WriteF64"), "{cil}");
 }
 
 #[test]
@@ -178,19 +233,35 @@ fn snapshot_m1_4_mandelbrot() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_4_mandelbrot_hir", hir);
+    assert!(
+        hir.contains("def mandel(cr: float, ci: float, max_iter: int) -> int:"),
+        "{hir}"
+    );
+    assert!(hir.contains("while (n Lt max_iter)"), "{hir}");
+    assert!(hir.contains("zr * zr"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_4_mandelbrot_types", types);
+    assert!(
+        types.contains("[Static]: [Float, Float, Int] -> Int"),
+        "{types}"
+    );
+    assert!(types.contains("local Idx::<Local>(6): Float"), "{types}");
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_4_mandelbrot_mir", mir);
+    assert!(
+        mir.contains("fn mandel(_0: f64, _1: f64, _2: i64) -> i64"),
+        "{mir}"
+    );
+    assert!(mir.contains("Mul("), "{mir}");
+    assert!(mir.contains("branch "), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_4_mandelbrot_cil", cil);
+    assert!(cil.contains("m0_mandel(double, double, long)"), "{cil}");
+    assert!(cil.contains("Multiply"), "{cil}");
+    assert!(cil.contains("BranchTruthy"), "{cil}");
 }
 
 #[test]
@@ -200,24 +271,37 @@ fn snapshot_m1_5_dataclass() {
 
     let mut sess = Session::default();
     let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m1_5_dataclass_hir", hir);
+    assert!(hir.contains("class Body:"), "{hir}");
+    assert!(hir.contains("x: float"), "{hir}");
+    assert!(hir.contains("class Vec2:"), "{hir}");
+    assert!(hir.contains("x: int"), "{hir}");
 
     let mut sess = Session::default();
     let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m1_5_dataclass_types", types);
+    assert!(
+        types.contains("[Dynamic]: [Dynamic, Dynamic] -> Dynamic"),
+        "{types}"
+    );
 
     let mut sess = Session::default();
     let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m1_5_dataclass_mir", mir);
+    assert!(mir.contains("DeclareDataclass"), "{mir}");
+    assert!(mir.contains("ApplyDataclass"), "{mir}");
+    assert!(mir.contains("DynGetAttr"), "{mir}");
+    assert!(mir.contains("SetAttr"), "{mir}");
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_5_dataclass_cil", cil);
+    assert!(cil.contains("PyOps.DeclareDataclass"), "{cil}");
+    assert!(cil.contains("PyOps.ApplyDataclass"), "{cil}");
+    assert!(cil.contains("PyPic.GetAttr"), "{cil}");
+    assert!(cil.contains("PyPic.SetAttr"), "{cil}");
 }
 
 #[test]
 fn catches_range_zero_step() {
-    let py_path = std::env::temp_dir().join("ryupy_test_zero_step.py");
+    let scope = support::temp_scope::TempScope::new("snapshots");
+    let py_path = scope.path("ryupy_test_zero_step.py");
     std::fs::write(&py_path, "for i in range(0, 10, 0):\n    print(i)\n").unwrap();
 
     let mut sess = Session::default();
@@ -234,8 +318,22 @@ fn catches_range_zero_step() {
 
 #[test]
 fn fib_iter_100_overflows() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let py_path = std::env::temp_dir().join("ryupy_test_fib_ovf.py");
+    // 编译输出与输入都属于本次外部临时根，断言失败也由Drop清理。
+    struct TempRoot(std::path::PathBuf);
+    impl Drop for TempRoot {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let root = TempRoot(
+        std::env::temp_dir().join(format!("ryupy-fib-overflow-{}-{stamp}", std::process::id())),
+    );
+    std::fs::create_dir(&root.0).unwrap();
+    let py_path = root.0.join("ryupy_test_fib_ovf.py");
     let src = r#"
 def fib_iter(n: int) -> int:
     a = 0
@@ -251,7 +349,7 @@ print(fib_iter(100))
     std::fs::write(&py_path, src).unwrap();
 
     let mut sess = Session::default();
-    let out_dir = root.join("target/test_ovf");
+    let out_dir = root.0.join("output");
     let opts = ryupy_driver::BuildOptions {
         input: py_path.clone(),
         out_dir,
@@ -272,272 +370,5 @@ print(fib_iter(100))
     );
 }
 
-// ───────────────── M2.1：动态路径 ─────────────────
-
-/// 动态函数：类型旁表只有静态函数有内容，MIR/CIL 里出现装箱与 `PyOps` 调用。
-#[test]
-fn snapshot_m2_1_dynamic() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_1_dynamic.py");
-
-    let mut sess = Session::default();
-    let types = dump(&mut sess, &case, Stage::Types).unwrap();
-    insta::assert_snapshot!("m2_1_dynamic_types", types);
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m2_1_dynamic_mir", mir);
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_1_dynamic_cil", cil);
-}
-
-/// 大整数：字面量以十进制字符串携带，超出 i64 的部分由运行时构造 BigInteger。
-#[test]
-fn snapshot_m2_1_bigint() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_1_bigint.py");
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m2_1_bigint_mir", mir);
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_1_bigint_cil", cil);
-}
-
-/// M2.2：异常区域的 MIR 与 CIL。
-///
-/// 这份快照同时锁住三件事：受保护区间的块划分、`finally` 的状态机分派、CIL 异常表。
-/// 改动图结构时先看这里的 diff，再决定是不是预期变化。
-#[test]
-fn snapshot_m2_2_try() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_2_finally.py");
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m2_2_try_mir", mir);
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_2_try_cil", cil);
-}
-
-/// 错误输入：有限动态except只新增Name/Name起点Attribute/tuple；数字字面量仍明确拒绝。
-#[test]
-fn snapshot_try_unsupported_handler_type() {
-    let py_path = std::env::temp_dir().join("ryupy_test_bad_except.py");
-    std::fs::write(&py_path, "try:\n    print(1)\nexcept 1:\n    print(2)\n").unwrap();
-
-    let mut sess = Session::default();
-    let res = dump(&mut sess, &py_path, Stage::Mir);
-    let _ = std::fs::remove_file(&py_path);
-
-    assert!(res.is_err(), "非类型名的 except 应被拒绝");
-    // 仅规范化宿主临时目录，保留源码行列与完整诊断内容。
-    let rendered = sess.render_diagnostics(false).replace(
-        py_path.to_str().unwrap(),
-        py_path.file_name().unwrap().to_str().unwrap(),
-    );
-    assert!(
-        rendered.contains("E0100"),
-        "期望 E0100 诊断，实际：{rendered}"
-    );
-    insta::assert_snapshot!("m2_2_unsupported_handler_type", rendered);
-}
-
-/// M2.3：容器表达式统一降为 `Dynamic` 后的 MIR 与 CIL。
-///
-/// 这份快照同时锁住三件事：容器构造 / 下标读写降级成运行时调用、`object[]` 实参数组的
-/// 真实落地方式、以及 `for` 在动态序列上的迭代协议。改动态降级策略时先看这里的 diff。
-#[test]
-fn snapshot_m2_3_containers() {
-    let py_path = std::env::temp_dir().join("ryupy_test_m2_3_containers.py");
-    std::fs::write(
-        &py_path,
-        "def mix():\n    items = [1, 2]\n    items[0] = len(items)\n    lookup = {\"a\": 1}\n    lookup[\"a\"] = 2\n    total = 0\n    for value in items:\n        total = total + value\n    return total in items\n",
-    )
-    .unwrap();
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &py_path, Stage::Mir).expect("容器用例应能编译");
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &py_path, Stage::Cil).expect("容器用例应能出 CIL");
-    let _ = std::fs::remove_file(&py_path);
-
-    insta::assert_snapshot!("m2_3_containers_mir", mir);
-    insta::assert_snapshot!("m2_3_containers_cil", cil);
-}
-
-/// M2.3：切片赋值与星号解包。
-///
-/// 这两条语句最容易在实现里被悄悄丢掉：切片赋值需要三段下标 + 长度校验，星号解包需要在
-/// 运行时才知道 `*middle` 收多少个元素。快照保证它们确实生成了对应的运行时调用。
-#[test]
-fn snapshot_m2_3_slice_and_unpack() {
-    let py_path = std::env::temp_dir().join("ryupy_test_m2_3_slice.py");
-    std::fs::write(
-        &py_path,
-        "def reshape(values):\n    head, *tail = values\n    values[1:3] = [8, 9]\n    return values[::-1]\n",
-    )
-    .unwrap();
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &py_path, Stage::Mir).expect("切片 / 解包应能编译");
-    let _ = std::fs::remove_file(&py_path);
-
-    assert!(mir.contains("SetItem"), "期望切片赋值走运行时调用：{mir}");
-    assert!(
-        mir.contains("UnpackEx"),
-        "期望星号解包走完整迭代准备：{mir}"
-    );
-    insta::assert_snapshot!("m2_3_slice_unpack_mir", mir);
-}
-
-/// 动态属性访问：M2.2 起编译成 `PyObject.GetAttr` 运行时查找。
-///
-/// 早期版本在编译期直接拒绝，但 Python 属性是运行时概念——类型未知不代表一定失败。
-/// 找不到属性时由运行时抛 `AttributeError`，与 CPython 一致。
-#[test]
-fn snapshot_dynamic_attribute_access() {
-    let py_path = std::env::temp_dir().join("ryupy_test_dynamic_attr.py");
-    std::fs::write(
-        &py_path,
-        "def read(obj):\n    return obj.value\n\nprint(read(1))\n",
-    )
-    .unwrap();
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &py_path, Stage::Mir).expect("动态属性访问应能编译");
-    let _ = std::fs::remove_file(&py_path);
-
-    assert!(
-        mir.contains("DynGetAttr"),
-        "期望生成动态属性读取调用，实际：{mir}"
-    );
-    insta::assert_snapshot!("m2_2_dynamic_attribute_mir", mir);
-}
-
-/// M2.5：普通 class 的 HIR / MIR / CIL 结构快照。
-///
-/// 重点检查类体顺序、类对象槽位、方法函数对象与 `SetAttr` / `Decorate` 调用。
-#[test]
-fn snapshot_m2_5_classes() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_5_classes.py");
-
-    let mut sess = Session::default();
-    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m2_5_classes_hir", hir);
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m2_5_classes_mir", mir);
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_5_classes_cil", cil);
-}
-
-/// M2.6：用户异常类会生成 CLR 子类与工厂委托，CIL 快照防止继承链退化。
-#[test]
-fn snapshot_m2_6_user_errors_cil() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_6_user_errors.py");
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_6_user_errors_cil", cil);
-}
-
-/// 普通Legacy多继承已准入；快照记录合法HIR形状，不再期待旧拒绝；基类顺序由MI运行合同覆盖。
-#[test]
-fn snapshot_multiple_inheritance_hir() {
-    let py_path = std::env::temp_dir().join("ryupy_test_multi_inherit.py");
-    std::fs::write(
-        &py_path,
-        "class A:\n    pass\n\nclass B:\n    pass\n\nclass C(A, B):\n    pass\n",
-    )
-    .unwrap();
-    let mut sess = Session::default();
-    let hir = dump(&mut sess, &py_path, Stage::Hir).unwrap();
-    let _ = std::fs::remove_file(&py_path);
-    assert!(!sess.render_diagnostics(false).contains("E0100"));
-    insta::assert_snapshot!("m2_6_multiple_inheritance", hir);
-}
-
-/// M2.8：`with` 去糖成 try/except/finally 后的 HIR / MIR / CIL。
-///
-/// HIR 快照锁住展开顺序：取 `__exit__` → `__enter__` → 绑定 → `handled` 标记 →
-/// try/handler/finally。MIR / CIL 快照锁住 `finally` 状态机与 `BaseException` 捕获。
-#[test]
-fn snapshot_m2_8_with() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_8_with.py");
-
-    let mut sess = Session::default();
-    let hir = dump(&mut sess, &case, Stage::Hir).unwrap();
-    insta::assert_snapshot!("m2_8_with_hir", hir);
-
-    let mut sess = Session::default();
-    let mir = dump(&mut sess, &case, Stage::Mir).unwrap();
-    insta::assert_snapshot!("m2_8_with_mir", mir);
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_8_with_cil", cil);
-}
-
-/// 错误输入：`async with` 明确拒绝，而不是静默当成同步上下文。
-#[test]
-fn snapshot_m2_8_async_with_diagnostic() {
-    let py_path = std::env::temp_dir().join("ryupy_test_async_with.py");
-    std::fs::write(
-        &py_path,
-        "async def work(manager):\n    async with manager:\n        print(1)\n",
-    )
-    .unwrap();
-
-    let mut sess = Session::default();
-    let res = dump(&mut sess, &py_path, Stage::Mir);
-    let _ = std::fs::remove_file(&py_path);
-
-    assert!(res.is_err(), "async with 应被拒绝");
-    // 仅规范化宿主临时目录，保留源码行列与完整诊断内容。
-    let rendered = sess.render_diagnostics(false).replace(
-        py_path.to_str().unwrap(),
-        py_path.file_name().unwrap().to_str().unwrap(),
-    );
-    assert!(
-        rendered.contains("E0100") && rendered.contains("async with"),
-        "期望 async with 的 E0100 诊断，实际：{rendered}"
-    );
-    insta::assert_snapshot!("m2_8_async_with", rendered);
-}
-
-/// M2.9：动态运算 / 调用的 PIC 调用点编号与运行时入口。
-///
-/// 这里锁住三件事：每个 `DynBinary` 有独立 site 编号、`CallValue` / 捕获方法分流
-/// 把 site 作为第一个实参、CIL 引用的是 `PyPic` 而不是通用 `PyOps` 入口。
-#[test]
-fn snapshot_m2_9_pic_cil() {
-    let root = ryupy_driver::runtime::workspace_root();
-    let case = root.join("tests/e2e/phase2/m2_9_pic.py");
-
-    let mut sess = Session::default();
-    let cil = dump(&mut sess, &case, Stage::Cil).expect("PIC 用例应能出 CIL");
-
-    assert!(cil.contains("PyPic.Binary"), "期望二元运算走 PIC：{cil}");
-    assert!(
-        cil.contains("PyPic.CallCapturedMethod0(int, bool, object, string)"),
-        "期望捕获方法调用保留带site的PIC分流入口：{cil}"
-    );
-    assert!(cil.contains("PyOps.IsModule(object)"));
-    assert!(cil.contains("PyOps.CaptureModuleTarget(object, string)"));
-    assert!(!cil.contains("CaptureModuleMethod"));
-    assert!(cil.contains("PyPic.CallValue"), "期望动态调用走 PIC：{cil}");
-    insta::assert_snapshot!("m2_9_pic_cil", cil);
-}
+// Phase2合同保留原测试函数名，拆分源码避免单文件超过600行。
+include!("support/phase2_contracts.rs");

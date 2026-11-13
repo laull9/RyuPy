@@ -54,7 +54,12 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
                     .chain(args.iter().map(|a| a.expr()))
                     .collect()
             }
-            ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Set(items) => items.clone(),
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Set(items)
+            | ExprKind::CompareChain {
+                operands: items, ..
+            } => items.clone(),
             ExprKind::Dict(items) => items.iter().flat_map(|(a, b)| [*a, *b]).collect(),
             ExprKind::FString(parts) => parts
                 .iter()

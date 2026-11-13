@@ -14,7 +14,21 @@ fn snapshot_runtime_base_hir_and_types() {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).unwrap();
         assert!(session.diagnostics.is_empty());
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Hir => {
+                let import = output
+                    .find("from package import Base as global.Alias")
+                    .unwrap();
+                let child = output.find("class Child(global.Alias)").unwrap();
+                let grandchild = output.find("class Grandchild(global.Child)").unwrap();
+                assert!(import < child && child < grandchild, "{name}");
+            }
+            Stage::Types => {
+                assert_eq!(output.matches(": Dynamic").count(), 6, "{name}");
+                assert!(output.contains("[Dynamic]: [] -> None"));
+            }
+            _ => unreachable!(),
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

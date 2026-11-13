@@ -25,6 +25,9 @@ public sealed class PyModule
     /// <summary>点分绝对模块名；入口模块是 <c>__main__</c>。</summary>
     public string Name { get; }
 
+    /// <summary>外部provider模块的真实对象协议；普通原生模块为空。</summary>
+    public IPyForeignObject? ForeignObject { get; internal set; }
+
     /// <summary><c>__package__</c>。</summary>
     public string Package { get; }
 

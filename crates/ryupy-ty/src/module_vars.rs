@@ -324,6 +324,23 @@ pub(crate) fn expr_hint(
             let right = expr_hint(module, body, *rhs, hints)?;
             Some(crate::ops::check_cmp_op(*op, &left, &right).unwrap_or(Ty::Dynamic))
         }
+        ExprKind::CompareChain { operands, ops } => {
+            let types = operands
+                .iter()
+                .map(|operand| expr_hint(module, body, *operand, hints))
+                .collect::<Option<Vec<_>>>()?;
+            Some(
+                if types.len() == ops.len() + 1
+                    && ops.iter().zip(types.windows(2)).all(|(op, pair)| {
+                        crate::ops::check_cmp_op(*op, &pair[0], &pair[1]) == Some(Ty::Bool)
+                    })
+                {
+                    Ty::Bool
+                } else {
+                    Ty::Dynamic
+                },
+            )
+        }
         ExprKind::BoolOp { lhs, rhs, .. } => {
             let a = expr_hint(module, body, *lhs, hints)?;
             let b = expr_hint(module, body, *rhs, hints)?;

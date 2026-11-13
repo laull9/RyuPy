@@ -1,4 +1,3 @@
-# ryupy: pending
 # 多维索引中的 slice 复用通用对象协议，边界表达式从左至右各求值一次。
 events = []
 

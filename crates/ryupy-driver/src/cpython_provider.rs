@@ -33,7 +33,10 @@ struct Declaration {
     python_version: String,
     distribution_root: PathBuf,
     source: Source,
+    #[serde(default)]
     modules: Vec<String>,
+    #[serde(default = "stdlib_provider")]
+    stdlib_provider: String,
     #[serde(default)]
     container_transfer: ContainerTransfer,
     #[serde(default)]
@@ -61,6 +64,9 @@ pub(crate) struct Plan {
     pub root: PathBuf,
     pub source: Source,
     pub modules: Vec<String>,
+    pub stdlib: std::collections::BTreeSet<String>,
+    pub declared: std::collections::BTreeSet<String>,
+    pub packages: std::collections::BTreeSet<String>,
     pub container_transfer: ContainerTransfer,
     pub payloads: Vec<Payload>,
     pub bridge: PathBuf,
@@ -72,10 +78,6 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
     let Some(path) = &sess.cpython_provider else {
         return Ok(());
     };
-    ensure!(
-        !sess.fixed_binding_build,
-        "CPython provider 与独立 C ABI 绑定请使用独立构建入口"
-    );
     ensure!(
         sess.distribution_metadata.is_none(),
         "CPython provider 的包数据须通过 payloads 声明"
@@ -131,9 +133,39 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
             "CPython 许可证缺失：{license}"
         );
     }
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("PYTHON.json")).context(
+            "CPython 基础发行缺少上游完整归档 PYTHON.json 与组件许可证，请显式准备同一发行元数据",
+        )?)?;
     ensure!(
-        !declaration.modules.is_empty(),
-        "CPython provider 必须显式声明模块执行域"
+        metadata["version"] == "8"
+            && metadata["python_version"] == VERSION
+            && metadata["target_triple"] == "aarch64-apple-darwin"
+            && metadata["build_options"] == "pgo+lto"
+            && metadata["libpython_link_mode"] == "shared",
+        "CPython 上游构建元数据与固定发行不符"
+    );
+    ensure!(
+        root.join("licenses").is_dir()
+            && source
+                .licenses
+                .iter()
+                .any(|path| path.starts_with("licenses/")),
+        "CPython 基础发行缺少组件许可证声明"
+    );
+    for entry in std::fs::read_dir(root.join("licenses"))? {
+        let entry = entry?;
+        if entry.file_type()?.is_file() {
+            let logical = format!("licenses/{}", entry.file_name().to_string_lossy());
+            ensure!(
+                source.licenses.contains(&logical),
+                "CPython 组件许可证未进入来源声明：{logical}"
+            );
+        }
+    }
+    ensure!(
+        declaration.stdlib_provider == "cpython",
+        "CPython provider 必须统一使用 stdlib_provider=cpython，不能与原生标准库混配"
     );
     let mut modules = declaration.modules;
     modules.sort();
@@ -162,6 +194,19 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
             .canonicalize()
             .with_context(|| format!("CPython 包载荷不存在：{}", payload.source.display()))?;
     }
+    let stdlib = crate::cpython_inventory::stdlib(&root, &metadata)?;
+    let packages = crate::cpython_inventory::packages(&root, &payloads)?;
+    let declared = modules.iter().cloned().collect();
+    modules.extend(stdlib.iter().cloned());
+    modules.extend(packages.iter().cloned());
+    modules.sort();
+    modules.dedup();
+    for included in &sess.include_modules {
+        ensure!(
+            !modules.iter().any(|root| domain(root, included)),
+            "模块同时声明为RyuPy源码与CPython完整依赖族：{included}"
+        );
+    }
     let default_bridge =
         crate::runtime::workspace_root().join("runtime/RyuPy.CPython/bin/Release/net10.0");
     let bridge = declaration
@@ -184,6 +229,9 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
         root,
         source,
         modules,
+        stdlib,
+        declared,
+        packages,
         container_transfer: declaration.container_transfer,
         payloads,
         bridge,
@@ -223,6 +271,27 @@ pub(crate) fn relative(text: &str) -> Result<()> {
     );
     Ok(())
 }
+/// 联合C绑定包的清单角色沿显式provider计划分类，不按扩展名猜任意文件。
+pub(crate) fn artifact_role(sess: &Session, path: &str) -> Option<&'static str> {
+    sess.cpython_provider_state.plan.as_ref()?;
+    match path {
+        "RyuPy.CPython.dll" => Some("runtime_provider_managed"),
+        CONFIG => Some("runtime_provider_configuration"),
+        REPORT => Some("runtime_provider_manifest"),
+        value if value == native::shim_name() => Some("runtime_provider_shim"),
+        value if value.starts_with("python/") => Some("runtime_provider_dependency"),
+        _ => None,
+    }
+}
+/// 显式provider使用Bridge构建的ProjectReference输出；普通模式沿既有runtime定位合同。
+pub(crate) fn copy_runtime_to(sess: &Session, output: &Path) -> Result<()> {
+    if let Some(plan) = &sess.cpython_provider_state.plan {
+        crate::runtime::copy_runtime_from(&plan.bridge, output)
+            .context("CPython桥输出必须包含Runtime与完整依赖，请先构建完整runtime-cpython")
+    } else {
+        crate::runtime::copy_runtime_to(output)
+    }
+}
 pub(crate) fn stage(sess: &Session, output: &Path) -> Result<()> {
     if let Some(plan) = &sess.cpython_provider_state.plan {
         deployment::stage(plan, output)?;
@@ -233,3 +302,7 @@ pub(crate) fn stage(sess: &Session, output: &Path) -> Result<()> {
 #[cfg(test)]
 #[path = "cpython_provider_tests.rs"]
 mod tests;
+
+fn stdlib_provider() -> String {
+    "cpython".into()
+}

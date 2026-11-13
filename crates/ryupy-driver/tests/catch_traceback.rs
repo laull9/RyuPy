@@ -13,7 +13,25 @@ fn snapshot_catch_restores_current_frame() {
     std::fs::write(&path, SOURCE).unwrap();
     let mut session = Session::default();
     let mir = ryupy_driver::dump(&mut session, &path, ryupy_driver::Stage::Mir).unwrap();
-    insta::assert_snapshot!("catch_restores_current_frame_mir", mir);
+    let caught = mir
+        .split("fn caught(")
+        .nth(1)
+        .unwrap()
+        .split("fn main(")
+        .next()
+        .unwrap();
+    assert!(caught.contains("catch ValueError handler"));
+    assert!(caught.contains("catch io.UnsupportedOperation handler"));
+    // catch入口保留当前帧，仅回退到base+1；正常退出才移除自身帧。
+    let restore = caught.find("Add(_1, const 1_i64)").unwrap();
+    let pop = caught.find("RuntimeFn::TracePopTo(_5)").unwrap();
+    let enter = caught.find("RuntimeFn::HandlerEnter(_4)").unwrap();
+    assert!(restore < pop && pop < enter);
+    assert!(
+        caught.find("RuntimeFn::HandlerLeave").unwrap()
+            < caught.find("MakeException(const \"RuntimeError\"").unwrap()
+    );
+    assert!(caught.contains("RuntimeFn::TracePopTo(_1)"));
     std::fs::remove_file(path).unwrap();
     std::fs::remove_dir(directory).unwrap();
 }

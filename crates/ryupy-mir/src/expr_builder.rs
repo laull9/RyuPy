@@ -9,7 +9,7 @@
 //!
 //! **动态路径**（M2.1）：
 //! - 所有值都是装箱的 `object`：字面量先 `Box`，运算交给 `PyOps`；
-//! - 比较返回 CIL `bool`，真值判定走 `PyOps.Truthy`；
+//! - 富比较保留原始对象，条件位置的真值判定走 `PyOps.Truthy`；
 //! - 动态值流入静态槽位时插入 `Unbox`（`PyCast.*`），底层类型不符抛 Python `TypeError`；
 //! - `and` / `or` 仍用基本块短路，但返回的是**操作数本身**。
 //!
@@ -204,6 +204,9 @@ impl<'a> ExprBuilder<'a> {
             } => self.build_binary(*op, *lhs, *rhs, *inplace, expr_id),
             ExprKind::Unary { op, operand } => self.build_unary(*op, *operand, expr_id),
             ExprKind::Compare { op, lhs, rhs } => self.build_compare(*op, *lhs, *rhs, expr_id),
+            ExprKind::CompareChain { operands, ops } => {
+                self.build_compare_chain(operands, ops, expr_id)
+            }
             ExprKind::BoolOp { op, lhs, rhs } => self.build_bool_op(*op, *lhs, *rhs, expr_id),
             ExprKind::IfExp { cond, then_, else_ } => {
                 self.build_if_exp(*cond, *then_, *else_, expr_id)

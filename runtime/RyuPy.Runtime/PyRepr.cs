@@ -1,3 +1,4 @@
+// Python对象的str/repr与类型名称显示；原生和外部对象分别调用真实显示协议。
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -62,7 +63,7 @@ public static partial class PyRepr
         PyProperty => "property",
         PyStaticMethod or PyClassMethod => "builtin_function_or_method",
         PySuper => "super",
-        PyBaseException exception => exception.PyTypeName,
+        PyBaseException exception => exception.ForeignDisplayName ?? exception.PyTypeName,
         _ => value.GetType().Name,
     };
 
@@ -207,6 +208,7 @@ public static partial class PyRepr
     /// <summary>异常对象的 <c>repr</c>：<c>ValueError('x')</c>。</summary>
     private static string ReprException(PyBaseException exception)
     {
+        if (exception.ForeignObject is PyNativeObject foreign) return foreign.PythonRepr();
         if (exception.Args.Length == 0)
         {
             return exception.PyTypeName + "()";

@@ -17,9 +17,11 @@ public sealed partial class CPythonHost
             if (host.Roots.TryRemove(identity, out object? root)) host.reverse.Remove(root);
             return 0;
         }
+        long callbackDepth = PyTraceback.CaptureDepth();
         try
         {
-            using Lease lease = host.Enter();
+            using Lease lease = host.Enter(callback: true);
+            using var callback = new CallbackScope(true);
             if (identity == -1)
             {
                 string moduleName = host.ReadText(a);
@@ -61,6 +63,8 @@ public sealed partial class CPythonHost
                 case 15:
                     int comparison = number switch { 0 => PyOps.Lt, 1 => PyOps.Le, 2 => PyOps.Eq, 3 => PyOps.Ne, 4 => PyOps.Gt, 5 => PyOps.Ge, _ => throw new PyRuntimeError("unknown comparison") };
                     object? compared = host.FromBorrowed(a);
+                    if (compared is PythonObject foreign && host.TryProxyComparison(foreign, comparison, target, true, out object proxyResult))
+                    { result = proxyResult; break; }
                     // 不把Python已返回NotImplemented的混合比较再次送回同一C槽，避免无限互调。
                     if (compared is IPyForeignObject) return Native.rp_notimplemented();
                     result = PyOps.CompareValue(comparison, target, compared!); break;
@@ -71,12 +75,29 @@ public sealed partial class CPythonHost
         }
         catch (PyBaseException error)
         {
-            try { host.PushContainers(); } catch (Exception sync) { host.synchronizationFailure = sync.Message; }
-            try { Native.rp_restore_error(host.ExportException(error)); }
-            catch (Exception nested) { Native.rp_error_text("RuntimeError", nested.Message); }
+            host.RestoreCallbackError(error);
             return 0;
         }
-        catch (Exception error) { Native.rp_error_text("RuntimeError", error.Message); return 0; }
+        catch (Exception error)
+        {
+            host.RestoreCallbackError(PyErrors.FromClr(error));
+            return 0;
+        }
+        finally
+        {
+            // CLR异常展开越出编译函数时，CIL正常返回的PopTo不会执行；恢复入口深度，
+            // cause已保存的帧保持不变，外层随后抛出的新异常只捕获仍活动的编译调用者。
+            PyTraceback.PopTo(callbackDepth + 1);
+        }
+    }
+
+    private void RestoreCallbackError(PyBaseException error)
+    {
+        // 无论异常来自Python协议还是typed CIL算术，已发生的容器副作用都必须先出域。
+        try { PushContainers(); } catch (Exception sync) { synchronizationFailure = sync.Message; }
+        try { Native.rp_restore_error(ExportException(error)); }
+        catch (PyBaseException nested) { Native.rp_error_text(nested.PyTypeName, nested.Message); }
+        catch (Exception nested) { Native.rp_error_text("RuntimeError", nested.Message); }
     }
 
     private object? ProtocolValue(nint pointer)
@@ -117,15 +138,28 @@ public sealed partial class CPythonHost
         }
         finally { Native.rp_decref(keys); Native.rp_decref(tuple); }
     }
-    private nint ExportException(PyBaseException error)
+    private nint ExportException(PyBaseException error, HashSet<PyBaseException>? visiting = null)
     {
-        if (error.ForeignObject is PythonObject original) return original.Pointer;
-        nint args = MakeTuple(error.Args);
         nint pointer;
-        try { pointer = Check(Native.rp_make_error(error.PyTypeName, args)); } finally { Native.rp_decref(args); }
-        var origin = new PythonObject(this, pointer); error.ForeignObject = origin; objects[pointer] = new(error);
-        if (error.Cause is { } cause) Native.rp_decref(Check(Native.rp_op(3, pointer, ExportException(cause), s: "__cause__")));
-        if (error.Context is { } context) Native.rp_decref(Check(Native.rp_op(3, pointer, ExportException(context), s: "__context__")));
+        if (error.ForeignObject is PythonObject original) pointer = original.Pointer;
+        else
+        {
+            RequireExportableException(error);
+            nint args = MakeTuple(error.Args);
+            try
+            {
+                nint type = ExceptionClass(error);
+                try { pointer = Check(Native.rp_op(5, type, args)); } finally { Native.rp_decref(type); }
+            }
+            finally { Native.rp_decref(args); }
+            var origin = new PythonObject(this, pointer); error.ForeignObject = origin; objects[pointer] = new(error);
+        }
+        visiting ??= new(ReferenceEqualityComparer.Instance);
+        if (!visiting.Add(error)) return pointer;
+        // 同一异常重抛也同步显式from None；按引用访问集合保留环与共享链。
+        nint cause = error.Cause is { } causeError ? ExportException(causeError, visiting) : 0;
+        nint context = error.Context is { } contextError ? ExportException(contextError, visiting) : 0;
+        Native.rp_exception_set_chain(pointer, cause, context, error.SuppressContextFlag ? 1 : 0);
         return pointer;
     }
 }

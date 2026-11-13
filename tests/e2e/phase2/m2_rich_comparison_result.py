@@ -1,4 +1,3 @@
-# ryupy: pending
 # 富比较返回任意对象：最终结果保身份，中间结果只在链式短路位置求真。
 events = []
 
@@ -42,3 +41,31 @@ def last():
 
 result = b < middle() < last()
 print(result is false, events)
+events.clear()
+
+def keep_result():
+    value = a < b < c
+    def saved():
+        return value
+    return saved
+
+print(keep_result()() is false, events)
+events.clear()
+
+def suspended_chain():
+    value = a < (yield b) < c
+    yield value
+
+generator = suspended_chain()
+print(next(generator) is b)
+print(generator.send(b) is false, events)
+events.clear()
+
+def explode():
+    events.append("explode")
+    raise ValueError("stop")
+
+try:
+    a < explode() < last()
+except ValueError:
+    print(events)

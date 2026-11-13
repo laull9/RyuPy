@@ -15,11 +15,17 @@ CPython 对象遵循其引用所有权，托管对象沿用 GC；代理、回调
 [对象桥合同](cpython-provider.md) 单列验收。后续表格保留既有实现和历史记录，
 本次调整不改变任何通过数。
 
-2026-11-13 CPython provider验收驱动建立：固定CPython3.12.13与真实NumPy2.3.5，
-12个独立Python探针和原联合应用基线通过；产品JIT/NativeAOT/搬迁/生命周期逐项待验收。
-新源程序继续保留pending，固定20项通过数保持原记录。API、执行域、平台及后端登记见
-[验收矩阵](../tests/cpython/README.md)。显式synchronized容器模式采用调用边界物化/写回；
-两域后台线程并发修改同一容器暂缓，默认proxy继续使用活代理。
+2026-11-13 CPython provider：固定CPython3.12.13/PBS20260623与NumPy2.3.5，macOS arm64
+18项手写程序同次JIT通过，混合栈陈旧帧严格门待验，NativeAOT原位/中文空格&搬迁分批通过；原联合应用完整三流、
+独立数据库副作用与资源/SQLite包负例通过。五种C#生命周期模式严格稳态通过。
+真实3.11.15错版本ABI拒绝通过，混合栈无陈旧帧严格门待验；Linux/Windows、干净目标机与完整门禁待验。
+固定20项默认native结果另列，API/平台/后端矩阵见[验收矩阵](../tests/cpython/README.md)。
+显式synchronized容器模式采用调用边界物化/写回；两域后台线程并发修改同一容器暂缓，
+默认proxy继续使用活代理。
+
+当前显式provider试点把固定发行的标准库库存整体交CPython管理；同名标准库源码或包出现在
+应用搜索根时，编译器以E0100和冲突路径拒绝。额外第三方包依据显式声明与随包库存冻结，
+进程启动后保持同一初始化权威。普通原生配置沿既有模块解析路径执行。
 
 **2026-11-09候选与历史证据**：CI012显式V1十二产品run、C/D四拒绝及双模式完整check已过，640发现/401 compiled/239 pending不变；原无flag frames仍失败，整run failure。固定20为10 native/8 unsupported/2 failed，native是默认JIT标签，不是20项NativeAOT。现在普通CLI无flag有限选择已接源码但尚未产品验收，不增加通过数或移动accepted，见[ADR0143](adr/0143-generator-trace-default-cutover.md)。
 

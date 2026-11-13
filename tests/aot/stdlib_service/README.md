@@ -36,7 +36,10 @@ uv run --no-project --python 3.12.13 python tests/aot/stdlib_service/run.py \
 ```sh
 python3.12 -B tests/aot/stdlib_service/run_provider.py --baseline-only
 python3.12 -B tests/aot/stdlib_service/run_provider.py --ryupy target/debug/ryupy \
-  --distribution "$(dirname "$(dirname "$(uv python find 3.12.13)")")"
+  --distribution "$(dirname "$(dirname "$(uv python find 3.12.13)")")" \
+  --distribution-metadata "$HOME/.cache/ryupy/cpython-provider/pbs-20260623-metadata/python"
 ```
 
-2026-11-13 固定 CPython 基线通过；provider JIT/NativeAOT/搬迁待验收。
+2026-11-13 macOS arm64：固定CPython3.12.13/PBS20260623，显式synchronized模式下，
+CP/JIT/NativeAOT原位与搬迁全通过；四次完整三流一致，数据库逐值/回滚/完整性及请求数通过。
+搬迁后缺资源与缺sqlite3包均按预期独立失败。其他平台及干净目标机待验收。

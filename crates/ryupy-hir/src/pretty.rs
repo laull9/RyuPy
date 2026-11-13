@@ -497,6 +497,9 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 dump_expr(module, body, *rhs)
             )
         }
+        ExprKind::CompareChain { operands, ops } => {
+            format!("chain({}: {:?})", dump_list(module, body, operands), ops)
+        }
         ExprKind::BoolOp { op, lhs, rhs } => {
             format!(
                 "({} {op:?} {})",

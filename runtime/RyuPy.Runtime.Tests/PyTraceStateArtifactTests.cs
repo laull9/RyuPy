@@ -10,7 +10,6 @@ using System.Reflection.Emit;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
-using System.Security.Cryptography;
 using System.Text.Json;
 using RyuPy.Runtime;
 using Xunit;
@@ -28,8 +27,8 @@ public class TraceBaselineFactAttribute : FactAttribute
 
 public partial class PyTraceStateArtifactTests
 {
-    private sealed record LoadedImage(string Role, string Path, long Bytes, string Sha256,
-        string? CopiedPath, string? CopiedSha256);
+    private sealed record LoadedImage(string Role, string Path, long Bytes, byte[] Content,
+        string? CopiedPath, byte[]? CopiedContent);
 
     private static LoadedImage[] LoadedImages()
     {
@@ -41,9 +40,7 @@ public partial class PyTraceStateArtifactTests
             string? fullcheck = Environment.GetEnvironmentVariable("FULL_CHECK_EVIDENCE");
             string? copied = fullcheck is null ? null
                 : System.IO.Path.Combine(fullcheck, "managed-test-inputs", System.IO.Path.GetFileName(path));
-            string? copiedSha256 = copied is null ? null
-                : Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(copied)));
-            return new(role, path, bytes.LongLength, Convert.ToHexString(SHA256.HashData(bytes)), copied, copiedSha256);
+            return new(role, path, bytes.LongLength, bytes, copied, copied is null ? null : File.ReadAllBytes(copied));
         }
         return [Image("runtime", typeof(PyTraceState).Assembly), Image("tests", typeof(PyTraceStateArtifactTests).Assembly)];
     }
@@ -78,17 +75,27 @@ public partial class PyTraceStateArtifactTests
         var loadedBefore = LoadedImages();
         var audit = ScanV1(candidate);
         var loadedAfter = LoadedImages();
-        string candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate)));
+        byte[] candidateBytes = File.ReadAllBytes(candidate);
         // 先保存完整失败明细，不能让 Assert 丢掉本次实际引用证据。
         Evidence(evidenceFile, new { candidate,
-            sha256 = candidateSha256,
-            loadedBefore, loadedAfter, phase = "original-candidate", mutationStarted = false,
+            bytes = candidateBytes.LongLength,
+            loadedBefore = loadedBefore.Select(image => new { image.Role, image.Path, image.Bytes, image.CopiedPath }),
+            loadedAfter = loadedAfter.Select(image => new { image.Role, image.Path, image.Bytes, image.CopiedPath }),
+            phase = "original-candidate", mutationStarted = false,
             audit.CoreTypes, audit.Bodies, audit.Operands, audit.Edges, audit.Violations,
             scope = "V1成员级PE边界/初始化；非全runtime形式化、默认行为或产品JIT/AOT验收" });
-        Assert.Equal(loadedBefore, loadedAfter);
-        Assert.Equal(loadedAfter[0].Sha256, candidateSha256);
-        foreach (var image in loadedAfter)
-            if (image.CopiedPath is not null) Assert.Equal(image.Sha256, image.CopiedSha256);
+        Assert.Equal(loadedBefore.Length, loadedAfter.Length);
+        for (int index = 0; index < loadedBefore.Length; index++)
+        {
+            var before = loadedBefore[index]; var after = loadedAfter[index];
+            Assert.Equal((before.Role, before.Path, before.Bytes, before.CopiedPath),
+                (after.Role, after.Path, after.Bytes, after.CopiedPath));
+            Assert.Equal(before.Content, after.Content);
+            if (before.CopiedPath is not null)
+            { Assert.Equal(before.Content, before.CopiedContent); Assert.Equal(before.CopiedContent, after.CopiedContent); }
+            if (after.CopiedPath is not null) Assert.Equal(after.Content, after.CopiedContent);
+        }
+        Assert.Equal(loadedAfter[0].Content, candidateBytes);
         // 谓词仍是完整 Violations 为空；不用集合格式化的省略号代替真实失败字符串。
         Assert.True(audit.Violations.Length == 0, "原始候选 PE 违规：\n" + string.Join("\n", audit.Violations));
     }
@@ -117,16 +124,30 @@ public partial class PyTraceStateArtifactTests
         var nativeAbiAdditions = NativeAbiPublicAdditions();
         var compressionAdditions = CompressionPublicAdditions();
         var binaryCryptoAdditions = BinaryCryptoPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var providerAdditions = ProviderPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).Concat(binaryCryptoAdditions).Concat(providerAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions, compressionAdditions, binaryCryptoAdditions, providerAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
-            expected, actual = after,
-            baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
-            candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1737逐字段保留；新增ADR0176七条压缩异常ABI；不覆盖默认参数、常量、全部属性或完整程序集scope" });
-        Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins、XML异常或默认来源/类工厂冷增量不符；见baseline-abi.json。");
+            expected, actual = after, baselineBytes = new FileInfo(baseline!).Length, candidateBytes = new FileInfo(candidate).Length,
+            scope = "固定1659历史ABI逐字段保留，逐条追加既有冷合同与中性provider合同；不覆盖默认参数和常量" });
+        Assert.True(PreservesProviderBaselineAbi(before, after), "历史ABI、既有冷合同或中性provider手写精确增量不符；见baseline-abi.json。");
+    }
+
+    internal static bool PreservesProviderBaselineAbi(string[] before, string[] after)
+    {
+        // 历史反例判定器仍固定其时代合同；真实当前PE门追加单独审准的provider集合。
+        if (before.Length != 1659) return false;
+        string[] historical = PyTraceStateV1ArtifactContract.PublicAdditions().Concat(SourcePublicAdditions())
+            .Concat(MetadataPublicAdditions()).Concat(BuiltinPublicAdditions()).Concat(XmlPublicAdditions())
+            .Concat(DefaultSourcePublicAdditions()).Concat(LexicalClassFactoryPublicAdditions())
+            .Concat(DirectGlobalsPublicAdditions()).Concat(OrdinaryMiPublicAdditions())
+            .Concat(RuntimeDerivedPublicAdditions()).Concat(ResourceContextPublicAdditions())
+            .Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions()).Concat(BinaryCryptoPublicAdditions()).ToArray();
+        string[] expected = before.Concat(historical).Concat(ProviderPublicAdditions()).ToArray();
+        return expected.Distinct(StringComparer.Ordinal).Count() == expected.Length
+            && expected.Order(StringComparer.Ordinal).SequenceEqual(after.Order(StringComparer.Ordinal));
     }
 
     // 全程序集门另列 ADR0145 冷 API；不改变 V1 专属十二条合同，也不接受其它来源 API/重载。

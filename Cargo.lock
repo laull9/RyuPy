@@ -1037,7 +1037,6 @@ name = "ryupy-driver"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "insta",
  "ryupy-base",
  "ryupy-codegen-cil",
  "ryupy-hir",

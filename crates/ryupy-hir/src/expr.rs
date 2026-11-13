@@ -7,7 +7,7 @@
 //!    - 模块级读取保留共享槽身份；真正未知名字在模块降级结束后登记，运行时检查绑定。
 //! 2. **运算符与去糖**：
 //!    - 二元与一元算符：映射为 [`BinOp`] 与 [`UnaryOp`]；
-//!    - 链式比较（`a < b < c`）：去糖展开为二元短路逻辑 `(a < b) and (b < c)`；
+//!    - 链式比较（`a < b < c`）：保留操作数顺序，MIR 负责单次求值与短路；
 //!    - 多元布尔逻辑（`a and b and c`）：展开为左结合的二元 [`BoolOp`] 树；
 //!    - 条件表达式（`then_ if cond else else_`）：降级为 [`IfExp`]。
 //! 3. **健壮性**：
@@ -17,10 +17,8 @@ use rustc_hash::FxHashMap;
 use ryupy_base::{Diagnostic, FileId, Ranged, Span, TextRange};
 use ryupy_syntax::ast;
 
-use crate::hir::{
-    Body, BoolOp, Expr, ExprId, ExprKind, FuncId, Literal, ModuleVarId, Name, UnaryOp,
-};
-use crate::operator::{map_bin_op, map_bool_op, map_cmp_op, map_unary_op};
+use crate::hir::{Body, Expr, ExprId, ExprKind, FuncId, Literal, ModuleVarId, Name, UnaryOp};
+use crate::operator::{map_bin_op, map_bool_op, map_unary_op};
 use crate::scope::{FunctionScope, GlobalScope, Resolution, resolve_builtin};
 
 pub struct ExprLowerCtx<'a> {
@@ -383,75 +381,6 @@ impl<'a> ExprLowerCtx<'a> {
         } else {
             ExprKind::UnresolvedGlobal(name)
         }
-    }
-
-    fn lower_compare(&mut self, cmp: &ast::ExprCompare) -> ExprKind {
-        if cmp.ops.is_empty() || cmp.operands.len() < 2 {
-            return ExprKind::Missing;
-        }
-
-        // 简单二元比较：a < b
-        if cmp.ops.len() == 1 {
-            let op = match map_cmp_op(cmp.ops[0]) {
-                Some(o) => o,
-                None => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, cmp.range()),
-                            "暂不支持该比较运算符",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("暂不支持的比较操作"),
-                    );
-                    return ExprKind::Missing;
-                }
-            };
-            let lhs = self.lower_expr(&cmp.operands[0]);
-            let rhs = self.lower_expr(&cmp.operands[1]);
-            return ExprKind::Compare { op, lhs, rhs };
-        }
-
-        // 链式比较去糖：a < b < c => (a < b) and (b < c)
-        // 注意：中间表达式求值在没有副作用时可安全复制
-        let mut sub_comparisons = Vec::new();
-        for (i, op_raw) in cmp.ops.iter().enumerate() {
-            let op = match map_cmp_op(*op_raw) {
-                Some(o) => o,
-                None => {
-                    self.diagnostics.push(
-                        Diagnostic::error(
-                            Span::new(self.file, cmp.range()),
-                            "暂不支持该比较运算符",
-                        )
-                        .with_code("E0100")
-                        .with_primary_label("暂不支持的比较操作"),
-                    );
-                    return ExprKind::Missing;
-                }
-            };
-            let lhs = self.lower_expr(&cmp.operands[i]);
-            let rhs = self.lower_expr(&cmp.operands[i + 1]);
-            let pair_cmp = self.body.exprs.alloc(Expr {
-                kind: ExprKind::Compare { op, lhs, rhs },
-                range: cmp.range(),
-            });
-            sub_comparisons.push(pair_cmp);
-        }
-
-        // 用 and 连接各个比较分量
-        let mut result = sub_comparisons[0];
-        for &next_cmp in &sub_comparisons[1..] {
-            result = self.body.exprs.alloc(Expr {
-                kind: ExprKind::BoolOp {
-                    op: BoolOp::And,
-                    lhs: result,
-                    rhs: next_cmp,
-                },
-                range: cmp.range(),
-            });
-        }
-
-        self.body.exprs[result].kind.clone()
     }
 
     fn lower_bool_op(&mut self, b: &ast::ExprBoolOp) -> ExprKind {

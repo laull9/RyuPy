@@ -3,7 +3,7 @@ namespace RyuPy.Runtime;
 
 internal static class PyNativeExceptionDisplay
 {
-    internal static string Name(PyBaseException error) => error is PyXmlParseError
+    internal static string Name(PyBaseException error) => error.ForeignDisplayName ?? (error is PyXmlParseError
         ? "xml.etree.ElementTree.ParseError" : error is PyGetoptError
-        ? "getopt." + error.PyTypeName : PyOptParseExceptions.DisplayName(error);
+        ? "getopt." + error.PyTypeName : PyOptParseExceptions.DisplayName(error));
 }

@@ -13,6 +13,7 @@
 mod call;
 mod check;
 mod check_attrs;
+mod check_comparison;
 mod check_stmts;
 mod default_modes;
 mod infer;

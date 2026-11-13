@@ -5,6 +5,12 @@ namespace RyuPy.CPython;
 
 internal static unsafe class Native
 {
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_container_kind(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_list_item(nint value, long index);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_dict_next(nint value, ref long position, out nint key, out nint item);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_dict_lookup(nint value, nint key, out nint item);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_exception_type([MarshalAs(UnmanagedType.LPUTF8Str)] string name, nint parent, nint metadata);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_install_imports([MarshalAs(UnmanagedType.LPUTF8Str)] string source);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_make_error([MarshalAs(UnmanagedType.LPUTF8Str)] string type, nint args);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_scalar_kind(nint value);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_builtin_exception(nint value);
@@ -18,6 +24,14 @@ internal static unsafe class Native
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_notimplemented();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_loaded_modules();
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_exception_instance(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_is_module(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_small_integer(nint value, out long number);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_exception_args(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_exception_link(nint value, int cause);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_exception_name(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_exception_suppress(nint value);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern void rp_exception_set_chain(nint value, nint cause, nint context, int suppress);
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_traceback_frame(nint error, int index, out nint file, out nint function, out int line);
     internal const string Library = "ryupy_cpython";
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern int rp_start([MarshalAs(UnmanagedType.LPUTF8Str)] string home, nint* paths, int pathCount, nint* argv, int argc, delegate* unmanaged[Cdecl]<nint, int, nint, nint, nint, long, nint, nint> callback);
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)] internal static extern nint rp_init_error();

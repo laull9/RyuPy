@@ -51,6 +51,11 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
             host.pythonLibrary = OperatingSystem.IsMacOS() ? MacLoad(configuration.Library, 0xA)
                 : OperatingSystem.IsLinux() ? LinuxLoad(configuration.Library, 0x102) : NativeLibrary.Load(configuration.Library);
             if (host.pythonLibrary == 0) throw new DllNotFoundException("无法加载固定libpython：" + configuration.Library);
+            // 在shim符号绑定之前读取实际库版本；错误ABI有确定诊断，而非偶然缺符号。
+            var versionFunction = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(host.pythonLibrary, "Py_GetVersion");
+            string actualVersion = Marshal.PtrToStringUTF8(versionFunction())!;
+            if (!actualVersion.StartsWith("3.12.13 ", StringComparison.Ordinal))
+                throw new InvalidDataException("ABI requires CPython 3.12.13, loaded " + actualVersion);
             host.shimLibrary = NativeLibrary.Load(configuration.Shim);
             NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
             nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
@@ -77,14 +82,14 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
     /// <summary>即时计数，不触发GC或隐式回收。</summary>
     public HostStatistics Statistics
     {
-        get { lock (gate) return new(state == 1 ? "running" : state == 2 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
+        get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
     }
 
-    internal Lease Enter()
+    internal Lease Enter(bool callback = false)
     {
         lock (gate)
         {
-            if (state != 1 && !(state == 2 && Environment.CurrentManagedThreadId == ownerThread))
+            if (state != 1 && !((state is 2 or 4) && (Environment.CurrentManagedThreadId == ownerThread || state == 2 && callback && active > 0)))
                 throw new ObjectDisposedException("CPython", "解释器关闭中或已关闭");
             active++; calls++;
         }
@@ -114,7 +119,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         lock (gate)
         {
             if (!handles.Remove(token, out nint pointer)) { if (state == 3) late++; return; }
-            if (state == 3) { late++; return; }
+            if (state is 3 or 4) { late++; return; }
             releases.Enqueue(pointer);
         }
     }
@@ -147,32 +152,54 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
             // Wait释放gate；现存外部调用和回调可以完成并通知。
             while (active != 0) Monitor.Wait(gate);
         }
-        using (Lease lease = Enter())
+        Exception? observationError = null;
+        try
         {
-            CaptureModulePaths();
-            imported.Clear(); objects.Clear(); Drain();
-            lock (gate) liveHandlesAtShutdown = handles.Count;
-            // 活代理可能被atexit回调再次使用，保留其owned引用到Finalize结束。
-            // 此处只排空已不可达代理的释放队列；显式作用域应在关闭前注销跨堆环。
+            using Lease lease = Enter();
+            try { CaptureModulePaths(); } catch (Exception error) { observationError = error; }
+            Drain(); lock (gate) liveHandlesAtShutdown = handles.Count;
+            // 活代理可能被atexit回调再次使用，保留其owned引用与身份缓存到Finalize结束。
         }
-        int result = Native.rp_stop();
-        // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根。
-        Roots.Clear(); transfers.Clear(); transferIndex.Clear(); lock (gate) { state = 3; handles.Clear(); } Instance = null;
+        catch (Exception error) { observationError ??= error; }
+        lock (gate) state = 4;
+        int result;
+        try { result = Native.rp_stop(); }
+        finally
+        {
+            // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根。
+            Roots.Clear(); imported.Clear(); objects.Clear(); transfers.Clear(); transferIndex.Clear(); lock (gate) { state = 3; handles.Clear(); } Instance = null;
+        }
         WriteReport();
+        if (observationError is not null) throw new InvalidOperationException("CPython关闭观测失败", observationError);
         if (result != 0) throw new InvalidOperationException("CPython关闭时标准流刷新失败");
     }
 
+    internal bool IsClosed { get { lock (gate) return state == 3; } }
+
+    /// <inheritdoc />
+    public object? SystemAttribute(string name) => PythonCall(() =>
+    {
+        nint system = Check(Native.rp_op(1, s: "sys"));
+        try { return FromOwned(Native.rp_op(2, system, s: name)); } finally { Native.rp_decref(system); }
+    });
     /// <inheritdoc />
     public bool Owns(string name) => modules.Contains(name) || modules.Any(m => name.StartsWith(m + ".", StringComparison.Ordinal));
     /// <summary>确定释放一个opaque对象；调用者应保证后续不再使用其任何别名。</summary>
     public void ReleaseObject(object value)
     {
-        if (value is PythonObject foreign) foreign.Dispose();
-        else if (value is PyBaseException { ForeignObject: PythonObject origin }) origin.Dispose();
+        // 关闭后只登记迟到释放，不取得GIL也不读取Python对象。
+        bool closed; lock (gate) closed = state == 3;
+        if (closed) { lock (gate) ReleaseCore(value); return; }
+        using Lease lease = Enter(); ReleaseCore(value);
+    }
+    private void ReleaseCore(object value)
+    {
+        if (value is PythonObject foreign) { if (!foreign.IsDisposed) objects.Remove(foreign.Pointer); foreign.Dispose(); }
+        else if (value is PyBaseException { ForeignObject: PythonObject origin })
+        { if (!origin.IsDisposed) objects.Remove(origin.Pointer); origin.Dispose(); }
         else if (reverse.TryGetValue(value, out ManagedReference? reference))
         {
-            reference.Owner?.Dispose(); reverse.Remove(value);
-            transfers.Remove(value);
+            objects.Remove(reference.Pointer); reference.Owner?.Dispose(); reverse.Remove(value); transfers.Remove(value);
         }
     }
     internal sealed record ManagedReference(nint Identity, nint Pointer, PythonObject? Owner = null);

@@ -66,15 +66,15 @@ pub(super) fn check(filename: &str, source: &str, labels: &[&str], failure: bool
         },
     )
     .unwrap_or_else(|error| panic!("编译失败：{error:#}\n{}", session.render_diagnostics(false)));
-    let actual = ryupy_driver::dotnet::run_dll_with(
-        &artifact.dll,
-        &ryupy_driver::dotnet::RunOptions {
-            cwd: Some(root.0.clone()),
-            env: vec![("LC_ALL".into(), "C".into())],
-            ..Default::default()
-        },
-    )
-    .unwrap();
+    let actual = Command::new(ryupy_driver::dotnet::dotnet_exe())
+        .arg(&artifact.dll)
+        .current_dir(&jit_cwd)
+        .env_remove("PYTHONHOME")
+        .env_remove("PYTHONPATH")
+        .env("LC_ALL", "C")
+        .env("TZ", "UTC")
+        .output()
+        .unwrap();
     assert_eq!(actual.status.code(), expected.status.code());
     assert_eq!(actual.stdout, expected.stdout);
     if failure {
@@ -141,9 +141,8 @@ fn project(output: &Output, filename: &str, source: &str) -> Vec<String> {
             continue;
         }
         caret_allowed = false;
-        if !line.is_empty() {
-            result.push(line.to_owned());
-        }
+        // 未识别行（含空行与缩进）逐字保留，避免归一化掩盖用户输出差异。
+        result.push(raw.to_owned());
     }
     result
 }

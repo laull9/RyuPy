@@ -8,6 +8,7 @@
 //! ```
 
 mod accumulator_options;
+mod cpython_inventory;
 mod cpython_jit;
 mod cpython_provider;
 pub use cpython_provider::CPythonProviderState;
@@ -392,7 +393,7 @@ fn build_with_resources_inner(
     }
     distribution_metadata::write_report(sess, &opts.out_dir)?;
     optional_sources::write_report(sess, &opts.out_dir)?;
-    runtime::copy_runtime_to(&opts.out_dir)?;
+    cpython_provider::copy_runtime_to(sess, &opts.out_dir)?;
     cpython_provider::stage(sess, &opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 

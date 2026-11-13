@@ -1,3 +1,4 @@
+// Python异常实例、原始参数、异常链和编译栈的统一承载；外部对象保持真实身份并延迟显示。
 using System;
 using System.Collections.Generic;
 
@@ -24,11 +25,21 @@ public class PyBaseException : Exception
     /// <summary>外部执行域保留的真实异常实例协议；纯原生异常为空。</summary>
     public IPyForeignObject? ForeignObject { get; set; }
 
+    /// <summary>外部异常真实显示名，CLR继承继续由内建壳维护。</summary>
+    public string? ForeignDisplayName { get; private set; }
+    /// <summary>绑定真实外部异常及未格式化的原args；不执行用户字符串转换。</summary>
+    public void BindForeignException(IPyForeignObject origin, object?[] args, string displayName)
+    { ForeignObject = origin; Args = args; ForeignDisplayName = displayName; }
+
+    /// <summary>外部异常真实传播时整体刷新链，包括已清除的cause/context。</summary>
+    public void BindForeignChain(PyBaseException? cause, PyBaseException? context, bool suppressContext)
+    { Cause = cause; Context = context; SuppressContextFlag = suppressContext; }
+
     /// <summary>Python 异常类名，例如 <c>TypeError</c>。</summary>
     public string PyTypeName { get; }
 
     /// <summary>Python 侧消息（<c>str(exc)</c> 的内容）。</summary>
-    public virtual string PyMessage => positionalConstruction
+    public virtual string PyMessage => ForeignObject is PyNativeObject foreign ? foreign.PythonStr() : positionalConstruction
         ? PyTypeName == "KeyError" && Args.Length == 1 ? PyRepr.Repr(Args[0]) : PyErrors.UserExceptionMessage(Args)
         : initialMessage;
 
@@ -36,7 +47,7 @@ public class PyBaseException : Exception
     private bool positionalConstruction;
 
     /// <summary>位置构造冷路延迟格式化；既有内部消息构造保持原CLR消息行为。</summary>
-    public override string Message => positionalConstruction ? PyMessage : base.Message;
+    public override string Message => ForeignObject is not null || positionalConstruction ? PyMessage : base.Message;
 
     /// <summary><c>exc.args</c>：构造时的位置参数。</summary>
     public object?[] Args { get; private set; }
@@ -135,8 +146,10 @@ public class PyBaseException : Exception
     /// <param name="cause">显式原因。</param>
     public PyBaseException WithCause(PyBaseException? cause)
     {
+        ForeignObject?.SynchronizeException(this, write: false);
         Cause = cause;
         SuppressContextFlag = true;
+        ForeignObject?.SynchronizeException(this, write: true);
         return this;
     }
 

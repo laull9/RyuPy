@@ -62,7 +62,31 @@ fn snapshot_big_defaults_do_not_demote_unrelated_small_integer_function() {
                 "巨大默认值不能塞进i64参数"
             );
         }
-        insta::assert_snapshot!(name, output);
+        match stage {
+            Stage::Hir => {
+                assert!(
+                    output.contains("def huge(value: int=...) -> int:"),
+                    "{name}"
+                );
+                assert!(output.contains("def small(value: int) -> int:"));
+                assert!(output.contains("return (value + 3)"));
+            }
+            Stage::Types => {}
+            Stage::Mir => {
+                assert!(output.contains("fn huge(_0: dyn"), "{name}");
+                assert!(output.contains("fn small(_0: i64) -> i64"));
+                assert!(output.contains("box<Dynamic>(const 184467440737095516160_bigint)"));
+                assert!(output.contains("dyn.Neg("));
+                assert!(output.contains("Add(_0, const 3_i64)"));
+            }
+            Stage::Cil => {
+                assert!(output.contains("m0_small(long)"), "{name}");
+                assert!(output.contains("PyOps.FromDecimalString(string)"));
+                assert!(output.contains("LoadString(\"184467440737095516160\")"));
+                assert!(output.contains("AddOverflow(Signed)"));
+            }
+            _ => unreachable!(),
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

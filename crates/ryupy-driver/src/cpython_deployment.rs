@@ -23,7 +23,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         python.display()
     );
     std::fs::create_dir(&python)?;
-    for directory in ["lib", "include", "share"] {
+    for directory in ["lib", "include", "share", "licenses"] {
         if plan.root.join(directory).is_dir() {
             copy_authorized(
                 &plan.root.join(directory),
@@ -32,7 +32,9 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
             )?;
         }
     }
-    std::fs::copy(plan.root.join("BUILD"), python.join("BUILD"))?;
+    for file in ["BUILD", "PYTHON.json"] {
+        copy_authorized(&plan.root.join(file), &python.join(file), &plan.root)?;
+    }
     for payload in &plan.payloads {
         let destination = python
             .join("lib/python3.12/site-packages")
@@ -44,10 +46,10 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         );
         copy_authorized(&payload.source, &destination, &payload.source)?;
     }
-    std::fs::copy(
-        plan.bridge.join("RyuPy.CPython.dll"),
-        output.join("RyuPy.CPython.dll"),
-    )?;
+    ensure!(
+        output.join("RyuPy.CPython.dll").is_file(),
+        "CPython托管桥尚未随同Runtime冻结"
+    );
     std::fs::copy(&plan.shim, output.join(native::shim_name()))?;
     native::relocate(output)?;
     let config = json!({
@@ -55,7 +57,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "library": format!("python/lib/{}", native::library_name()),
         "shim": native::shim_name(),
         "search_paths": ["python/lib/python3.12", "python/lib/python3.12/lib-dynload", "python/lib/python3.12/site-packages"],
-        "modules": plan.modules, "container_transfer": plan.container_transfer,
+        "stdlib_provider": "cpython", "modules": plan.modules, "container_transfer": plan.container_transfer,
     });
     std::fs::write(output.join(CONFIG), serde_json::to_vec_pretty(&config)?)?;
     let mut files = Vec::new();
@@ -66,10 +68,21 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         "archive_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-aarch64-apple-darwin-install_only.tar.gz",
         "build_configuration": {"implementation": "cpython", "gil": true, "archive_layout": "install_only", "source_build": "python-build-standalone@20260623"},
         "container_transfer": plan.container_transfer, "execution": "ryupy_compiled_entry",
-        "modules": plan.modules.iter().map(|name| (name.clone(), json!({"provider": "cpython", "reason": "explicit_dependency_family"}))).collect::<serde_json::Map<_,_>>(),
+        "modules": plan.modules.iter().map(|name| (name.clone(), json!({"provider": "cpython", "reason": crate::cpython_inventory::reason(plan,name)}))).collect::<serde_json::Map<_,_>>(),
+        "stdlib_provider": "cpython", "stdlib_inventory": plan.stdlib, "declared_modules": plan.declared, "package_inventory": plan.packages,
         "entry_provider": "ryupy_compiled_source", "files": files,
         "payloads": plan.payloads.iter().map(|payload| &payload.destination).collect::<Vec<_>>(),
+        "managed_bundle": {"source": "single_bridge_output", "symbols": "embedded_portable_pdb"},
         "system_dependencies": native::system_dependencies(),
+        // 证书属于宿主数据依赖；固定PBS首发使用OpenSSL的系统默认路径。
+        "certificate_policy": {
+            "mode": "system_default", "bundled": false,
+            "source": "macos_system_openssl_paths",
+            "default_cafile": "/private/etc/ssl/cert.pem",
+            "default_capath": "/private/etc/ssl/certs",
+            "environment_overrides": ["SSL_CERT_FILE", "SSL_CERT_DIR"]
+        },
+        "dependency_downloads_at_runtime": false,
     });
     std::fs::write(output.join(REPORT), serde_json::to_vec_pretty(&report)?)?;
     Ok(())

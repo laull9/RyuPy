@@ -10,7 +10,25 @@ fn stable_io_aliases_and_subclasses_lower_with_secondary_parent_handler() {
     std::fs::write(&path, "import io as stream\nfrom io import UnsupportedOperation as Unsupported\nclass Child(Unsupported):\n    pass\ntry:\n    raise Child('x')\nexcept (ValueError, ValueError, stream.UnsupportedOperation):\n    print('caught')\n").unwrap();
     let mut session = Session::default();
     let output = dump(&mut session, &path, Stage::Mir).expect("稳定原生io异常应降级");
-    insta::assert_snapshot!("io_unsupported_mir", output);
+    assert_eq!(
+        output.matches("catch ValueError handler").count(),
+        1,
+        "重复父类只登记一次"
+    );
+    assert_eq!(
+        output
+            .matches("catch io.UnsupportedOperation handler")
+            .count(),
+        1
+    );
+    assert!(output.contains("TypeObject(const \"io.UnsupportedOperation\")"));
+    assert!(output.contains("MakeClass(const \"Child\""));
+    assert!(
+        output
+            .find("ImportAttr(const \"io\", const \"UnsupportedOperation\")")
+            .unwrap()
+            < output.find("MakeClass(const \"Child\"").unwrap()
+    );
     std::fs::remove_file(path).unwrap();
 }
 #[test]

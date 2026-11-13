@@ -57,3 +57,122 @@ def callback(callable):
     if failures:
         raise failures[0]
     return result
+
+
+def import_hook_is_private():
+    import builtins
+    return all(not hasattr(builtins, name) for name in
+        ('_rp_has', '_rp_load', '_rp_package', '_rp_sys', '_RyuPyLoader', '_RyuPyFinder'))
+
+
+def exception_type(parent, child, invoke):
+    assert isinstance(parent, type) and issubclass(parent, ValueError)
+    assert child.__base__ is parent
+    assert parent.__module__ == child.__module__ == '__main__'
+    assert parent.__name__ == parent.__qualname__ == 'CustomError'
+    try:
+        invoke()
+    except child as error:
+        assert type(error) is child
+        assert isinstance(error, parent)
+        assert str(error) == 'compiled custom'
+    else:
+        raise AssertionError('编译异常未以真实类型传播')
+    return child('python custom')
+
+
+def distinct_types(first, second):
+    return first is not second and first.__name__ == second.__name__ == 'SameError'
+
+
+def raise_derived(parent):
+    global DerivedError
+    class DerivedError(parent):
+        pass
+    raise DerivedError('python derived')
+
+
+def derived_type():
+    return DerivedError
+
+
+def consume(value):
+    pass
+
+
+def mutate_type(value):
+    value.marker = 1
+
+
+def nested_list():
+    return [1, {'x': [2]}]
+
+
+def nested_dict():
+    return {'a': [1]}
+
+
+def equal_pair(first, second):
+    return first == second
+
+
+class MutatingValue:
+    def __init__(self, action):
+        self.action = action
+    def __eq__(self, other):
+        self.action()
+        return True
+
+
+def mutating_list(action):
+    return [MutatingValue(action), 99]
+
+
+def mutating_single(action):
+    return [MutatingValue(action)]
+
+
+def mutating_dict(action):
+    return {'a': MutatingValue(action), 'b': 2}
+
+
+_order_token = object()
+
+
+class OrderingValue:
+    def __eq__(self, other):
+        return False
+    def __lt__(self, other):
+        return _order_token
+    def __gt__(self, other):
+        return _order_token
+
+
+def ordering_list():
+    return [OrderingValue()]
+
+
+def order_token():
+    return _order_token
+
+
+def cycle():
+    value = []
+    value.append(value)
+    return value
+
+
+class CustomKey:
+    pass
+
+
+def custom_key_dict():
+    return {CustomKey(): 2}
+
+
+def make_set():
+    return {1, 2}
+
+
+def make_frozenset():
+    return frozenset([1, 2])
