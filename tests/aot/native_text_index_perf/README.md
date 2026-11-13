@@ -1,6 +1,10 @@
-# 真实 pyfiglet Native 文本索引优化对照
+# 真实 pyfiglet Native 文本热点优化对照
 
 本门使用同一 GitHub hosted Linux runner、同一当前Release编译器，分别绑定指定基线与候选runtime，公开构建同一锁定上游pyfiglet项目。每臂执行独立Native receipt审计，不以托管微基准代替真实应用。`BASE`与workflow的before-source checkout必须一致；基线须含此前裸return的Python None修复，不能用更旧失败产物规避paragraph。
+
+## 当前单变量：精确list join（2026-11-13）
+
+复用本门原有五负载、样本量、配对统计与独立RSS，不新增微基准替代真实应用。当前基线固定 `b6d92e951350c8640bfce740328fd58c369fa2c1`，runtime源码差异必须仅为 `PyTextMethods.cs`：精确内建list的join借用已物化背板，消除一份临时object引用数组，仍由string.Join拼接。下方2026-11-12索引优化历史保留原提交与结果，不借用为本次收益。当前性能与部署回归待实际CI，正确性通过不自动代表提速。
 
 ## 负载与完整正确性
 

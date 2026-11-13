@@ -100,4 +100,6 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 
 - [0175：资源树与实际输出的早期相交诊断](0175-resource-output-preflight.md)（单一模块图内预检，保留合法兄弟资源与失败留证）
 
-| [0177](0177-linux-native-symbol-delivery.md) | Linux Native调试符号与交付目录分离 | 候选，真实部署/调试待验 |
+| [0177](0177-linux-native-symbol-delivery.md) | Linux Native调试符号与交付目录分离 | Linux有限验收通过；未合入dev/main |
+
+- [0178：精确内建list的join去掉重复引用快照](0178-exact-list-join-allocation.md)（单变量候选，真实A/B待验）

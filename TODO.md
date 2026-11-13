@@ -1,6 +1,8 @@
 # TODO
 
-## 当前 AOT 产品主线（2026-11-12）
+## 当前 AOT 产品主线（2026-11-13）
+
+- [~] 精确list join分配优化：保留BCL拼接和完整物化，仅消除重复引用快照；真实Native同机五负载与打包回归待验。见[ADR0178](docs/adr/0178-exact-list-join-allocation.md)。
 
 - [x] Linux x64 Native符号交付分离有限验收：精确本次host.dbg经debuglink/CRC/build-id验证后仅留.build，未知旁件与Mac/Windows保守保留。CI `43339677617` binaryornot 8宿主+8禁网容器及真实搬迁GDB恢复通过；dist由21,424,519降至11,101,529字节（约48.18%），不是总磁盘或性能收益。pyfiglet Linux/双平台回归、profiler与完整check通过；仅验证分支，未合入dev/main。见[ADR0177](docs/adr/0177-linux-native-symbol-delivery.md)。
 

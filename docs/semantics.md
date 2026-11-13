@@ -1509,3 +1509,7 @@ slots/ABCMeta，也不宣称性能零成本：PyInstance 新增一个惰性字�
 #### 精确 set 方法族（ABC 项目验证配套）
 
 `isdisjoint/issubset/issuperset/copy/update/intersection_update/difference_update/symmetric_difference/symmetric_difference_update` 采用统一直接/PIC/保存方法绑定；`union/intersection/difference` 接受零或多个 iterable。非集合源遵守 CPython 3.12 的短路消费，update/difference_update 失败保留前缀，intersection_update 失败不替换原集合。现有 HashSet 未暴露缓存 hash，精确 set/frozenset 源含用户 hash 的复制/查询、以及需复用缓存 hash 的交集/对称差用户对象域明确 NI，不用重复用户回调伪装兼容；一般 iterable 的 update 复用流式 SetExtend。未扩展 frozenset 自身方法表、set 派生、根类型未绑定描述符或 pop，未宣称成本不变。
+
+#### join分配优化复核的既有子类边界（2026-11-13）
+
+精确内建list的join可借用已物化背板；字符串子类仍直接读取文本载体，不调用`__str__`。普通iterator先耗尽，再报元素类型错误，后续迭代异常保持优先。此项不开放list子类覆盖`__iter__`或str子类覆盖`__len__`，现仍在slot准入时明确NotImplementedError；前者保留`m2_4_join_list_override_pending.py`作为CP差分缺口，不计为本次兼容通过。无覆盖的list子类仍走原协议路径。

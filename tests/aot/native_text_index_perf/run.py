@@ -13,7 +13,7 @@ import urllib.request
 
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[2]
-BASE='07c6a7783b644281ed408341e6cdc44cc757e490'
+BASE='b6d92e951350c8640bfce740328fd58c369fa2c1'
 WORKLOADS={'startup':['--version'],'hi':['-f','standard','hi'],
            'longhi100':['-f','standard','-w','20000','hi'*100],
            'longhi800':['-f','standard','-w','20000','hi'*800],
@@ -79,7 +79,7 @@ def main():
     save(out/'source-before.json',source)
     runtime_names={name for files in source.values() for name in files if name.startswith('runtime/RyuPy.Runtime/')}
     changed=sorted(name for name in runtime_names if source['before'].get(name)!=source['after'].get(name))
-    require(changed==['runtime/RyuPy.Runtime/PyText.cs'],'runtime控制变量超出PyText候选')
+    require(changed==['runtime/RyuPy.Runtime/PyTextMethods.cs'],'runtime控制变量超出精确list join候选')
     save(out/'runtime-changes.json',changed)
     result={'passed':False,'before':BASE,'after':current,'rid':'linux-x64','samples_per_arm':40,
             'warmups_per_arm':4,'scope':'fresh native processes on warm filesystem cache; includes startup and rendering',

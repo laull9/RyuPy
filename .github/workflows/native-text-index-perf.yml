@@ -3,7 +3,7 @@ name: pyfiglet Native文本热点优化对照
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/native-text-index-perf-20261112-001']
+    branches: ['ci/native-join-perf-20261113-001']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   compare:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-join-perf-001'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          ref: 07c6a7783b644281ed408341e6cdc44cc757e490
+          ref: b6d92e951350c8640bfce740328fd58c369fa2c1
           path: before-source
           persist-credentials: false
       - name: 固定工具与系统依赖

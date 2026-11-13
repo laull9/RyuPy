@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace RyuPy.Runtime;
@@ -153,7 +154,11 @@ public static partial class PyOps
 
     private static object JoinText(string separator, object? value)
     {
-        object?[] items = ToSequence(value);
+        // 仅sealed内建list借用已物化背板；此段只有类型检查和只读文本字段，无用户回调。
+        // 保留数值背板物化、字符串子类载体与BCL拼接身份；其它iterable仍先完整耗尽。
+        // 借用期间不修改列表，不把Span交给外部代码；不扩展为并发可变容器保证。
+        ReadOnlySpan<object?> items = value is PyList list
+            ? CollectionsMarshal.AsSpan(list.Items) : ToSequence(value);
         var parts = new string[items.Length];
         for (int i = 0; i < items.Length; i++)
         {
