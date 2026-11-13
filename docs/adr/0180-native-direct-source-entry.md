@@ -1,6 +1,6 @@
 # ADR0180：普通源码 AOT 直接进入 SDK 编译主入口
 
-状态：独立整合分支有限验收完成，2026-11-13；最新结果见末节，未合dev/main。构建性能A/B另行测量，不把正确性通过或去掉Csc直接当作提速证明。
+状态：独立整合分支有限验收完成，2026-11-13；最新结果见末节，未合dev/main。同源Linux真实应用构建A/B已完成，见末节；不把正确性通过或去掉Csc直接当作普遍提速证明。
 
 ## 动机与边界
 
@@ -41,3 +41,7 @@
 独立分支 `integration/dev-aot-native-20261113` 以用户 dev `cd678640` 为第一父、原候选 `baf6f205` 为第二父真实合并，保留用户六提交和原测试。修复提交 `2fab5424` 的产品树经完整 `make check`（C# 3100 通过/6 跳过，编译 e2e 458 通过/286 既有忽略）及 CI [43368686854](https://github.com/laull9/RyuPy/actions/runs/43368686854) 三平台四组通过。直接入口共36次原位/搬迁原流，C ABI v2 三导出/同符号别名，schema5/6资源组合、真实失败保旧包、as_file CP/JIT/搬迁Native均已独审。
 
 首轮 CI43367296487 的 Windows 两失败原件保留：共享词法不支持真实 extended ProcessPath，以及验收器用路径文本替代目录身份；修复与边界见[ADR0185](0185-windows-extended-filesystem-paths.md)。本次没有修改dev/main，没有增加直接入口平台范围；只证明已安装SDK宿主，不是无SDK干净机或Nuitka兼容/性能结论。
+
+## 同源Linux构建性能有限结果
+
+CI [43372683973](https://github.com/laull9/RyuPy/actions/runs/43372683973)，同源入口单变量、相同SDK/Runtime/默认配置、热缓存。每应用每组8次，pyfiglet完整构建中位数13.744→11.999秒（降低12.695%），binaryornot 14.425→12.730秒（降低11.750%）；两应用各4个配对块均更短，36份构建、126组搬迁运行及全部SDK原件已核验。完整控制、原件身份与风险见[实验记录](../../tests/aot/direct_entry_build_perf/README.md)。不推断运行速度、冷构建、Windows/macOS或Nuitka总体性能。该实验不包含随后用户dev的96dfeb13/3237be71标准库catalog工作。
