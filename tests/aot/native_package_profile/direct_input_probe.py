@@ -47,6 +47,12 @@ def main():
             work = out/str(index); work.mkdir()
             host = work/'host'; host.mkdir()
             publish = work/'publish'
+            # 第二轮保留安全SDK名称；输入路径刻意含MSBuild/XML特殊字符。
+            sdk_name = managed.stem if index == 0 else 'RyuPyAotHost_direct_probe'
+            supplied = managed
+            if index == 1:
+                supplied = work/'输入 $();% &.dll'
+                shutil.copyfile(managed, supplied)
             tree = ET.parse(old_host); xml = tree.getroot()
             for group in xml.findall('ItemGroup'):
                 for item in list(group):
@@ -56,14 +62,14 @@ def main():
                 old = item.get('File', '')
                 require(old.endswith(('sdk.version', 'sdk.optimization')), '未知SDK记录路径')
                 item.set('File', literal(host/Path(old).name))
-            properties = {'AssemblyName': managed.stem, 'SkipCompilerExecution': 'true',
+            properties = {'AssemblyName': sdk_name, 'SkipCompilerExecution': 'true',
                           'ProduceReferenceAssembly': 'false', 'GenerateAssemblyInfo': 'false',
                           'GenerateTargetFrameworkAttribute': 'false', 'UseAppHost': 'false'}
-            for node in xml.findall('.//AssemblyName'): node.text = managed.stem
+            for node in xml.findall('.//AssemblyName'): node.text = sdk_name
             group = ET.SubElement(xml, 'PropertyGroup')
             for key,value in properties.items(): ET.SubElement(group,key).text=value
             target = ET.SubElement(xml,'Target',Name='RyuPySupplyExistingManagedInput',BeforeTargets='CoreCompile')
-            ET.SubElement(target,'Copy',SourceFiles=literal(managed),DestinationFiles='@(IntermediateAssembly)')
+            ET.SubElement(target,'Copy',SourceFiles=literal(supplied),DestinationFiles='@(IntermediateAssembly)')
             path = host/'Host.csproj'; tree.write(path,encoding='unicode')
             for key in ['TreatWarningsAsErrors','IlcTreatWarningsAsErrors','ILLinkTreatWarningsAsErrors']:
                 require(xml.find('.//'+key).text == 'true', 'warning合同改变')
@@ -77,7 +83,7 @@ def main():
             require(len(inputs)==1, 'ILC主输入不唯一')
             entry = Path(inputs[0]); entry = entry if entry.is_absolute() else host/entry
             require(entry.resolve().is_relative_to(host.resolve()) and sha(entry)==sha(managed), 'ILC主输入不是原PE字节')
-            native = publish/managed.stem; elf(native)
+            native = publish/sdk_name; elf(native)
             # 仅运行副本，刻意不把旧manifest作为新native的证明。
             dist = work/'unvalidated-dist'; shutil.copytree(baseline/'first-dist',dist)
             shutil.copyfile(native,dist/'scanner'); (dist/'scanner').chmod(0o755)
@@ -99,6 +105,7 @@ def main():
                 hidden.rename(project)
             timing = (work/'publish.stdout').read_text()
             report['attempts'].append({'wall_ms':rec['wall_ms'],'native_sha256':sha(native),
+                'sdk_assembly_name':sdk_name,'supplied_path':str(supplied),
                 'managed_sha256':sha(entry),'ilc_response':str(responses[0]),
                 'csc_task_summary':re.findall(r'^.*\bCsc\b.*$',timing,re.M),
                 'compiler_scope':'SkipCompilerExecution=true；Csc task可能仍运行，但不应调用编译器；主输入逐字节验证'})
