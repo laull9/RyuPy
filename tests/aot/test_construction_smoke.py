@@ -277,6 +277,12 @@ class MainFlowTests(unittest.TestCase):
             if label == 'git-status': return subprocess.CompletedProcess(command, 0, b'', b'')
             if label == 'cp-positive': return output(python=True)
             if label == 'runtime-build':
+                self.assertEqual(Path(command[2]), repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj')
+                self.assertTrue(Path(command[2]).is_absolute())
+                self.assertNotEqual(kwargs['cwd'], repo)
+                pin = json.loads((kwargs['cwd']/'global.json').read_text())
+                self.assertEqual(pin['sdk'], {'version': harness.SDK, 'rollForward': 'disable', 'allowPrerelease': False})
+                self.assertEqual(kwargs['cwd'].parent, out)
                 runtime = repo/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll'
                 runtime.parent.mkdir(parents=True); runtime.write_bytes(b'runtime')
             elif label == 'compiler-build':
@@ -347,15 +353,15 @@ class MainFlowTests(unittest.TestCase):
 
 
 class ToolchainTests(unittest.TestCase):
-    def test_owned_global_pin_does_not_replace_runtime_cwd_check(self):
+    def test_wrong_sdk_in_actual_owned_cwd_is_rejected(self):
         budget = mock.Mock()
         budget.command.side_effect = [subprocess.CompletedProcess([], 0, b'cpython\n3.12.13\n', b''),
                                      subprocess.CompletedProcess([], 0, b'10.0.402\n', b'')]
-        with self.assertRaisesRegex(AssertionError, '实际cwd SDK'):
+        with self.assertRaisesRegex(AssertionError, '实际owned cwd SDK'):
             harness.toolchains(budget, Path('/repo'), Path('/owned'), 'python', 'dotnet', 'cargo', {}, 'linux-x64')
         self.assertEqual(budget.command.call_count, 2)
-        self.assertEqual(budget.command.call_args.kwargs['cwd'], Path('/repo'))
-        self.assertEqual(budget.command.call_args.args[0], 'runtime-sdk')
+        self.assertEqual(budget.command.call_args.kwargs['cwd'], Path('/owned'))
+        self.assertEqual(budget.command.call_args.args[0], 'owned-sdk')
 
 
 class AuditTests(unittest.TestCase):

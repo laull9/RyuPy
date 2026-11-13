@@ -298,10 +298,9 @@ def linux_audit(budget, package, data, env):
 def toolchains(budget, repo, work, python, dotnet, cargo, env, rid):
     cp = budget.command('python-version', [python, '-c', "import sys; print(sys.implementation.name); print('.'.join(map(str,sys.version_info[:3])))"], cwd=work, env=env)
     require(cp.stdout.decode().splitlines() == ['cpython', '3.12.13'], '必须固定CPython3.12.13')
-    # owned global.json不约束repo cwd，runtime准备所在cwd单独实核。
-    for label, cwd in (('runtime-sdk', repo), ('owned-sdk', work)):
-        value = budget.command(label, [dotnet, '--version'], cwd=cwd, env=env)
-        require(value.stdout.decode('utf-8-sig').splitlines() == [SDK], '实际cwd SDK不是10.0.403')
+    # runtime准备和公开AOT均从owned工作根发起，共享本轮global.json，不修改仓库SDK配置。
+    value = budget.command('owned-sdk', [dotnet, '--version'], cwd=work, env=env)
+    require(value.stdout.decode('utf-8-sig').splitlines() == [SDK], '实际owned cwd SDK不是10.0.403')
     info = budget.command('dotnet-info', [dotnet, '--info'], cwd=work, env=env).stdout.decode('utf-8-sig')
     arch = 'arm64' if rid == 'osx-arm64' else 'x64'
     arches = re.findall(r'^\s*Architecture:\s*(\S+)\s*$', info, re.M)
@@ -383,7 +382,7 @@ def main(argv=None):
                 'stderr_sha256': hashlib.sha256(cp.stderr).hexdigest(), 'signature': signature(cp, 'positive', allow_source=True)}
         with budget.phase('runtime'):
             result['counts']['runtime'] += 1
-            budget.command('runtime-build', [dotnet, 'build', 'runtime/RyuPy.Runtime', '-c', 'Release', '-t:Rebuild', '-nologo', '-v', 'q'], cwd=repo, env=env, timeout=180)
+            budget.command('runtime-build', [dotnet, 'build', repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj', '-c', 'Release', '-t:Rebuild', '-nologo', '-v', 'q'], cwd=work, env=env, timeout=180)
             result['runtime'] = file_record(runtime)
         with budget.phase('compiler'):
             result['counts']['compiler'] += 1
