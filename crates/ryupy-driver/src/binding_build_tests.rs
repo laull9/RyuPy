@@ -64,7 +64,7 @@ fn jit_bundle_owned_and_actual_source_schema() {
         "Cdecl"
     );
     assert_eq!(v["build_inputs"].as_array().unwrap().len(), 3);
-    assert_eq!(v["artifacts"].as_array().unwrap().len(), 4);
+    assert_runtime_bundle(&v);
     std::fs::remove_dir_all(root).unwrap();
 }
 #[test]
@@ -159,7 +159,7 @@ fn multi_export_bundle_has_one_native_input_and_all_actual_references() {
     );
     assert_eq!(v["native_bindings"].as_array().unwrap().len(), 2);
     assert_eq!(v["build_inputs"].as_array().unwrap().len(), 3);
-    assert_eq!(v["artifacts"].as_array().unwrap().len(), 4);
+    assert_runtime_bundle(&v);
     assert_eq!(
         v["native_bindings"][0]["relative_file"],
         v["native_bindings"][1]["relative_file"]
@@ -316,5 +316,31 @@ fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() 
             assert_ne!(combined["native_bindings"][0]["module_id"], source_id);
             std::fs::remove_dir_all(root).unwrap();
         }
+    }
+}
+/// 核心四项与固定 runtime 依赖分开核对；旧测试环境没有版本合同则仍只有核心四项。
+fn assert_runtime_bundle(value: &serde_json::Value) {
+    let artifacts = value["artifacts"].as_array().unwrap();
+    let dependencies: Vec<_> = artifacts
+        .iter()
+        .filter(|item| {
+            item["role"].as_str().unwrap().starts_with("runtime_")
+                && item["role"] != "runtime_managed"
+        })
+        .collect();
+    assert_eq!(artifacts.len() - dependencies.len(), 4);
+    if crate::runtime::runtime_dir()
+        .join(crate::runtime::DEPENDENCIES)
+        .is_file()
+    {
+        assert_eq!(dependencies.len(), 7);
+        for item in dependencies {
+            assert_eq!(
+                crate::runtime::dependency_role(item["relative_path"].as_str().unwrap()),
+                item["role"].as_str()
+            );
+        }
+    } else {
+        assert!(dependencies.is_empty());
     }
 }

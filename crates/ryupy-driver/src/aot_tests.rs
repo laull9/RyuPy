@@ -2,6 +2,26 @@
 use super::*;
 
 #[test]
+fn host_imports_the_same_runtime_dependency_contract() {
+    let (root, _) = owned_root(&std::env::temp_dir(), "sqlite").unwrap();
+    let dependencies = root.join(crate::runtime::DEPENDENCIES);
+    std::fs::write(&dependencies, "<Project/>").unwrap();
+    let text = project(
+        "host",
+        "sqlite",
+        &root.join("sqlite.dll"),
+        &root.join("RyuPy.Runtime.dll"),
+        None,
+    )
+    .unwrap();
+    assert!(text.contains(&format!(
+        "<Import Project=\"{}\"",
+        path_literal(&dependencies).unwrap()
+    )));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn host_project_is_explicit_strict_and_escapes_literal_paths() {
     let text = project(
         "RyuPyAotHost_test",

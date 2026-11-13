@@ -118,6 +118,8 @@ fn build_internal(
                 "runtimeconfig"
             } else if a.relative_path == plan.platform.relative_file() {
                 "native_shared"
+            } else if let Some(role) = crate::runtime::dependency_role(&a.relative_path) {
+                role
             } else {
                 anyhow::bail!("JIT绑定包出现意外文件")
             }

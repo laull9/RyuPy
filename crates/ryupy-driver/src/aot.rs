@@ -79,6 +79,9 @@ fn project(
     sdk_record: Option<&Path>,
 ) -> Result<String> {
     let framework = ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR;
+    let dependencies = runtime
+        .parent()
+        .map(|parent| parent.join("RuntimeDependencies.props"));
     let dll = path_literal(dll)?;
     let runtime = path_literal(runtime)?;
     let input_name = literal(input_name);
@@ -90,6 +93,12 @@ fn project(
   </Target>
 "#
         )
+    } else {
+        String::new()
+    };
+    // SDK 根据唯一 NuGet 版本表解析托管依赖、ILC 引用与当前 RID 的 SQLite native 资产。
+    let dependency_import = if let Some(path) = dependencies.filter(|path| path.is_file()) {
+        format!("  <Import Project=\"{}\" />\n", path_literal(&path)?)
     } else {
         String::new()
     };
@@ -109,7 +118,7 @@ fn project(
     <Reference Include="{input_name}"><HintPath>{dll}</HintPath></Reference>
     <Reference Include="RyuPy.Runtime"><HintPath>{runtime}</HintPath></Reference>
   </ItemGroup>
-{sdk_target}</Project>
+{dependency_import}{sdk_target}</Project>
 "#
     ))
 }

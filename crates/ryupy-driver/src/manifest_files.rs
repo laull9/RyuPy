@@ -152,7 +152,7 @@ fn walk(
             let role = if path == native {
                 "native_executable"
             } else {
-                "unclassified_sidecar"
+                crate::runtime::dependency_role(&logical).unwrap_or("unclassified_sidecar")
             };
             files.push(digest_file(&path, &logical, role)?);
         }

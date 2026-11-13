@@ -8,6 +8,7 @@ from manifest_verify import (require, shape, text, integer, digest_text, method,
 from manifest_files import relative_path
 from manifest_options import BOOL_OPTIONS, OPTION_KEYS, validate_options
 from resource_manifest import portable, check_targets, PREFIX
+from runtime_dependencies import RUNTIME_ROLES, validate_runtime_dependencies
 
 
 def validate_default_options(options, report):
@@ -125,8 +126,9 @@ def validate_schema4(data, expected_rid, expected_sdk, *, expected_automatic, me
     require({(x['relative_path'], x['role']) for x in data['build_inputs']} ==
             {('managed-entry.dll','compiled_managed_input'), ('RyuPy.Runtime.dll','runtime_managed_input')}
             and len(data['build_inputs']) == 2, '托管输入名称/角色不符')
-    roles = {'native_executable', 'unclassified_sidecar'}
+    roles = {'native_executable', 'unclassified_sidecar'} | RUNTIME_ROLES
     require(all(x['role'] in roles for x in data['artifacts']), '未知发布角色')
+    validate_runtime_dependencies(data['artifacts'], expected_rid)
     require(sum(x['role'] == 'native_executable' for x in data['artifacts']) == 1, '需要唯一native')
     validate_default_locations(data, expected_automatic)
 

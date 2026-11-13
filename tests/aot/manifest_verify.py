@@ -7,6 +7,7 @@ import re
 import shutil
 import struct
 from manifest_files import ManifestError, check_artifacts, plain_stat, relative_path
+from runtime_dependencies import RUNTIME_ROLES, validate_runtime_dependencies
 
 MANIFEST_NAME = 'ryupy-artifact.json'
 TARGETS = {'linux-x64': ('ELF', 'x64'), 'osx-arm64': ('Mach-O', 'arm64'), 'win-x64': ('PE', 'x64')}
@@ -162,8 +163,9 @@ def validate_schema(data, expected_rid, expected_sdk, *, expected_instance_modul
     require({(x['relative_path'], x['role']) for x in data['build_inputs']} ==
             {('managed-entry.dll','compiled_managed_input'), ('RyuPy.Runtime.dll','runtime_managed_input')}
             and len(data['build_inputs']) == 2, '托管输入名称/角色不符')
-    roles = {'native_executable', 'unclassified_sidecar'} | ({'declared_resource'} if version == 2 else set())
+    roles = {'native_executable', 'unclassified_sidecar'} | RUNTIME_ROLES | ({'declared_resource'} if version == 2 else set())
     require(all(x['role'] in roles for x in data['artifacts']), '未知发布角色')
+    validate_runtime_dependencies(data['artifacts'], expected_rid)
     require(sum(x['role'] == 'native_executable' for x in data['artifacts']) == 1, '需要唯一native')
     if version == 2:
         from resource_manifest import validate_resources
@@ -242,7 +244,7 @@ def dependency_binaries(root, data):
     paths = []
     for item in data['artifacts']:
         name = item['relative_path']
-        if item['role'] == 'native_executable' or (item['role'] == 'unclassified_sidecar'
+        if item['role'] in ('native_executable', 'runtime_native_dependency') or (item['role'] == 'unclassified_sidecar'
                 and re.search(r'(?:\.so(?:\.[0-9]+)*|\.dylib|\.dll)$', name, re.I)):
             paths.append(Path(root)/name)
     return paths

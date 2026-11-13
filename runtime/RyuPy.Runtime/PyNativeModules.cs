@@ -54,6 +54,7 @@ public static class PyNativeModules
         PyXmlTreeBuilder.RegisterFactories(elementTree);
         PyModules.RegisterNative("math", PyMathModule.CreateAttributes());
         PyModules.RegisterNative("decimal", PyDecimal.CreateAttributes());
+        PyModules.RegisterNative("sqlite3", PySqlite.CreateAttributes());
         PyModules.RegisterNative("bisect", PyBisect.CreateAttributes());
         PyModules.RegisterNative("time", PyTimeModule.CreateAttributes());
         PyModules.RegisterNative("traceback", PyTracebackModule.CreateAttributes());

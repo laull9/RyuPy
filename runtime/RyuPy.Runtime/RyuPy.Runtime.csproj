@@ -13,8 +13,13 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RootNamespace>RyuPy.Runtime</RootNamespace>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <!-- 专用测试构建必须显式开启；生产没有此类型、字段和调用。 -->
     <DefineConstants Condition="'$(TraceAdapterTest)' == 'true'">$(DefineConstants);TRACE_ADAPTER_TEST</DefineConstants>
   </PropertyGroup>
 
+  <Import Project="RuntimeDependencies.props" />
+  <ItemGroup>
+    <None Update="RuntimeDependencies.props" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

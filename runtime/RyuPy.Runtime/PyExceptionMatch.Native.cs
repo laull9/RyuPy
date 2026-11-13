@@ -9,7 +9,15 @@ internal static partial class PyExceptionMatch
     private sealed record NativeTarget(string Name, Func<PyBaseException, bool> Accepts);
 
     // 显式静态构造器阻止beforefieldinit提前初始化；只由异常分派首次调用触发。
-    static PyExceptionMatch() { }
+    static PyExceptionMatch()
+    {
+        foreach (string category in PySqlite.Errors)
+        {
+            string name = "sqlite3." + category;
+            NativeTargets[PyType.Get(name)] = new(name, error => error is PySqliteError
+                && PyExceptionHierarchy.IsSubclass(error.PyTypeName, name));
+        }
+    }
 
     private static readonly Dictionary<PyType, NativeTarget> NativeTargets = new(ReferenceEqualityComparer.Instance)
     {

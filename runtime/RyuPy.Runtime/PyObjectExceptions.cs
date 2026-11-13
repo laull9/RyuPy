@@ -15,6 +15,8 @@ public static partial class PyObject
         {
             "__class__" => PyType.Get("type"), // PyType载体的真实元类固定点，不扩展实例反射。
             "__name__" or "__qualname__" when type.Name == "zlib.error" => "error",
+            "__name__" or "__qualname__" when type.Name.StartsWith("sqlite3.", System.StringComparison.Ordinal) => type.Name[8..],
+            "__module__" when type.Name.StartsWith("sqlite3.", System.StringComparison.Ordinal) => "sqlite3",
             "__name__" or "__qualname__" => type.Name,
             "__module__" when type.Name == "zlib.error" => "zlib",
             "__module__" when type.Name == "BadGzipFile" => "gzip",

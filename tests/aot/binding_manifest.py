@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 from manifest_files import check_artifacts, plain_stat, relative_path
+from runtime_dependencies import RUNTIME_ROLES, validate_runtime_dependencies
 from manifest_verify import (MANIFEST_NAME, TARGETS, SCOPE, digest_text, file_entry,
     image_header, integer, method, no_duplicate_keys, require, shape, text)
 
@@ -105,12 +106,14 @@ def validate_schema(data, rid, linkage, sdk):
         ('managed-entry.dll','compiled_managed_input'),('RyuPy.Runtime.dll','runtime_managed_input'),
         ('selected-native-input','native_static_archive' if aot else 'native_shared')}, '输入角色错误')
     require(len({x['relative_path'] for x in artifacts})==len(artifacts), '重复产物')
+    validate_runtime_dependencies(artifacts, rid)
     if aot:
-        require(all(x['role'] in ('native_executable','unclassified_sidecar') for x in artifacts), 'AOT产物角色错误')
+        require(all(x['role'] in {'native_executable','unclassified_sidecar'} | RUNTIME_ROLES for x in artifacts), 'AOT产物角色错误')
         require(sum(x['role']=='native_executable' for x in artifacts)==1, '缺唯一native')
     else:
-        require(len(artifacts)==4 and {x['role'] for x in artifacts}=={'managed_entry','runtime_managed','runtimeconfig','native_shared'}, 'JIT四产物错误')
-        by_role = {x['role']:x for x in artifacts}; managed = by_role['managed_entry']['relative_path']
+        core = [row for row in artifacts if row['role'] not in RUNTIME_ROLES]
+        require(len(core)==4 and {x['role'] for x in core}=={'managed_entry','runtime_managed','runtimeconfig','native_shared'}, 'JIT四项核心产物错误')
+        by_role = {x['role']:x for x in core}; managed = by_role['managed_entry']['relative_path']
         require('/' not in managed and managed.endswith('.dll'), '托管入口名错误')
         require(by_role['runtime_managed']['relative_path']=='RyuPy.Runtime.dll' and by_role['runtimeconfig']['relative_path']==managed[:-4]+'.runtimeconfig.json', '托管部署名错误')
         require(by_role['native_shared']['relative_path']==RELATIVE[rid], 'shared部署名错误')

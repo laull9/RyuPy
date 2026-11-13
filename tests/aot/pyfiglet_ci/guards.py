@@ -5,6 +5,7 @@ from pathlib import Path
 import tarfile
 import zipfile
 from manifest_files import plain_stat, relative_path, files_under
+from runtime_dependencies import validate_runtime_dependencies
 
 ARCHIVE_SHA = '758788018ab8faaddc0984e1ea05ff330d3c64be663c513cc1f105f6a3066dab'
 ENTRY_SHA = '8cea52bf78c0c504dc2b7b5638c709d906ab240469c8d991d357828dd5baa2e5'
@@ -141,11 +142,13 @@ def deployment_files(dist, manifest):
     require(sum(row['role'] == 'unclassified_sidecar' for row in records.values()) <= 1,
             '本Linux部署域最多一个ELF调试sidecar')
     observed = []
+    validate_runtime_dependencies(manifest['artifacts'], 'linux-x64')
     for name, path in sorted(actual.items()):
         if name == 'ryupy-artifact.json':
             continue
         row = records[name]
-        require(row['role'] in ('native_executable', 'declared_resource', 'unclassified_sidecar'),
+        require(row['role'] in ('native_executable', 'declared_resource', 'unclassified_sidecar',
+                                'runtime_native_dependency', 'runtime_dependency_license'),
                 '未知部署角色')
         require(plain_stat(path).st_size == row['size'] and sha(path) == row['sha256'],
                 '部署核验期间文件改变')
@@ -158,6 +161,8 @@ def deployment_files(dist, manifest):
         require(not header.startswith(b'MZ'), 'Linux dist含PE/可能托管映像：' + name)
         if row['role'] == 'declared_resource':
             require(row['sha256'] == FONT_SHA and row['size'] == 28504, '资源不是冻结字体')
+        elif row['role'] == 'runtime_dependency_license':
+            require(name == 'ThirdPartyNotices.sqlite3.txt', '未知运行时许可证')
         else:
             if row['role'] == 'unclassified_sidecar':
                 require('/' not in name and name.endswith('.dbg'),
@@ -165,7 +170,7 @@ def deployment_files(dist, manifest):
             # 已有同SDK真实.dbg为ELF64/x64 ET_DYN，复用同一严格头校验。
             image_header(path, 'linux-x64')
         observed.append(dict(row, header_hex=header.hex()))
-    return {'files': observed, 'scope': '仅native、冻结字体及至多一个顶层ELF调试sidecar；不检查ELF内嵌内容'}
+    return {'files': observed, 'scope': 'native、固定SQLite库和许可证、冻结字体及至多一个顶层ELF调试sidecar；不检查ELF内嵌内容'}
 
 
 def graph(path, explicit):

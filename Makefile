@@ -38,7 +38,11 @@ build: runtime ## 打发行包：Release CLI + 运行时 → releases/ryupy-<版
 	rm -rf "$(RELEASE_DIR)"; \
 	mkdir -p "$(RELEASE_DIR)/bin" "$(RELEASE_DIR)/runtime"; \
 	cp "$$target_dir/release/ryupy" "$(RELEASE_DIR)/bin/ryupy"; \
-	cp runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll "$(RELEASE_DIR)/runtime/"; \
+	cp runtime/RyuPy.Runtime/bin/Release/net10.0/*.dll runtime/RyuPy.Runtime/bin/Release/net10.0/*.props "$(RELEASE_DIR)/runtime/"; \
+	cp runtime/RyuPy.Runtime/bin/Release/net10.0/ThirdPartyNotices.sqlite3.txt "$(RELEASE_DIR)/runtime/"; \
+	runtime_rid=$$(dotnet msbuild runtime/RyuPy.Runtime -nologo -getProperty:NETCoreSdkRuntimeIdentifier); \
+	mkdir -p "$(RELEASE_DIR)/runtime/runtimes/$$runtime_rid"; \
+	cp -R "runtime/RyuPy.Runtime/bin/Release/net10.0/runtimes/$$runtime_rid/native" "$(RELEASE_DIR)/runtime/runtimes/$$runtime_rid/"; \
 	tar -czf "releases/$(RELEASE_NAME).tar.gz" -C releases "$(RELEASE_NAME)"; \
 	echo "发行包：releases/$(RELEASE_NAME).tar.gz"; \
 	tmp=$$(mktemp -d); \
