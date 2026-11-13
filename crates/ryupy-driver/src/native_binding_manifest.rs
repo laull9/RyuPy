@@ -8,6 +8,7 @@ use anyhow::{Result, ensure};
 use ryupy_codegen_cil::{EmissionReport, MethodDescriptor, fixed_bindings::BindingEmission};
 use serde_json::{Value, json};
 pub(crate) struct BindingManifest {
+    pub(crate) aot_optimization: crate::AotOptimization,
     report: EmissionReport,
     sources: Vec<SourceSummary>,
     binding: BindingEmission,
@@ -84,6 +85,7 @@ impl BindingManifest {
             "报告缺少实际wrapper委托引用"
         );
         Ok(Self {
+            aot_optimization: session.aot_optimization,
             report,
             sources,
             binding,

@@ -9,6 +9,8 @@
 
 mod accumulator_options;
 mod aot;
+mod aot_optimization;
+pub use aot_optimization::AotOptimization;
 mod aot_layout;
 mod binding_build;
 pub mod dotnet;
@@ -277,6 +279,7 @@ pub fn build_configured(
     binding: Option<&Path>,
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
+    sess.aot_optimization.validate(opts.aot)?;
     anyhow::ensure!(
         resources.is_none() || binding.is_none(),
         "首切不支持 --resources 与 --native-binding 同用"
@@ -300,6 +303,7 @@ pub fn build_with_resources(
     resource_request: Option<&Path>,
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
+    sess.aot_optimization.validate(opts.aot)?;
     anyhow::ensure!(
         resource_request.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"

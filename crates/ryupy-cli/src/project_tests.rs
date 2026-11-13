@@ -131,3 +131,53 @@ fn old_commands_and_explicit_aot_remain_available() {
     assert_eq!(input, Some(PathBuf::from("main.py")));
     assert!(project.is_none() && target.is_none() && aot);
 }
+
+#[test]
+fn aot_optimization_is_explicit_and_never_mixed_with_project_or_jit() {
+    for value in ["default", "size", "speed"] {
+        let cli = Cli::try_parse_from([
+            "ryupy",
+            "build",
+            "main.py",
+            "--aot",
+            "--aot-optimization",
+            value,
+        ])
+        .unwrap();
+        let Command::Build {
+            aot_optimization, ..
+        } = cli.command
+        else {
+            panic!("build")
+        };
+        assert_eq!(aot_optimization, Some(value.parse().unwrap()));
+        assert!(
+            Cli::try_parse_from(["ryupy", "build", "main.py", "--aot-optimization", value])
+                .is_err()
+        );
+        assert!(
+            Cli::try_parse_from([
+                "ryupy",
+                "build",
+                "--project",
+                "ryupy.json",
+                "--target",
+                "app",
+                "--aot-optimization",
+                value
+            ])
+            .is_err()
+        );
+    }
+    assert!(
+        Cli::try_parse_from([
+            "ryupy",
+            "build",
+            "main.py",
+            "--aot",
+            "--aot-optimization",
+            "Size"
+        ])
+        .is_err()
+    );
+}

@@ -49,7 +49,7 @@ enum Command {
         #[arg(long, requires = "target", conflicts_with_all = [
             "input", "aot", "search_paths", "include_modules", "resources",
             "native_binding", "distribution_metadata", "instance_modules",
-            "instance_direct_globals"
+            "instance_direct_globals", "aot_optimization"
         ])]
         project: Option<PathBuf>,
         /// 配置中要构建的目标；首切目标的mode必须为aot
@@ -63,6 +63,9 @@ enum Command {
         out_dir: Option<PathBuf>,
         #[arg(long)]
         aot: bool,
+        /// NativeAOT优化取舍：default/size/speed；default保留SDK默认
+        #[arg(long, requires = "aot", conflicts_with = "project")]
+        aot_optimization: Option<ryupy_driver::AotOptimization>,
         /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
         #[arg(long, requires = "aot")]
         resources: Option<PathBuf>,
@@ -166,6 +169,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             diagnostic_stages,
             out_dir,
             aot,
+            aot_optimization,
             resources,
             native_binding,
             search_paths,
@@ -173,6 +177,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
         } => {
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
+            sess.aot_optimization = aot_optimization.unwrap_or_default();
             // 配置解析、相对路径与部署请求都由driver统一处理；CLI不读JSON。
             let (artifacts, aot) = if let Some(project) = project {
                 let target = target

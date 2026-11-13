@@ -126,6 +126,14 @@ ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
 
 `--project` 必须指向文件，不自动发现目录；`--target` 必须显式选择一个目标，不构建所有入口。配置的 `mode` 已决定 AOT，无需且不能再加 `--aot`。示例要求对应源码及声明文件实际存在；可省略搜索根、显式模块及两种声明字段，不会因此自动发现包数据。
 
+原生优化偏好可在项目顶层写 `"aot_optimization": "size"`，可选 `default`、`size`、`speed`，省略保持原有 SDK 默认。直接编译单文件时使用：
+
+```bash
+ryupy build app.py --aot --aot-optimization size -o out/app
+```
+
+`--aot-optimization` 不能与 `--project` 混用，也不适用于 JIT。`size` 偏向交付体积，`speed` 偏向运行速度；均不保证对所有应用获益，须用自己的真实负载比较。它们不关闭兼容性检查或 AOT 警告，也不启用增量缓存。SDK 实际采用值保存在本次 `.build` 的 `aot-optimization.json`；这份诊断收据不随 `.dist` 交付，不是缓存命中凭证。
+
 配置中的入口、搜索根和声明文件路径相对于配置文件父目录，须留在该目录内且不跟随内部符号链接；搜索根可用 `"."`。显式 `--project` 本身可使用绝对路径或相对调用目录的路径。嵌套请求不重写：metadata 的 `roots` 仍相对该请求文件，resources 的文件仍按原模块资源合同解释。
 
 资源请求可以保留逐文件 `files`，也可在明确选定的模块内声明目录与字面后缀。例如 `resources.json`：

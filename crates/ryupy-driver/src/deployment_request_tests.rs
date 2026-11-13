@@ -186,3 +186,26 @@ fn changed_search_root_link_is_rejected_before_build() {
     assert!(request.build(&mut Session::default()).is_err());
     assert!(!tree.0.join("build").exists());
 }
+
+#[test]
+fn optimization_is_strict_and_session_is_restored_after_failure() {
+    let tree = Tree::new();
+    for name in ["default", "size", "speed"] {
+        tree.config(&format!(r#"{{"schema_version":1,"mode":"aot","aot_optimization":"{name}","targets":{{"app":{{"entry":"entry.py"}}}}}}"#));
+        let request = tree.load().unwrap();
+        assert_eq!(request.optimization, name.parse().unwrap());
+        // 构建前守卫拒绝变动，不能把请求状态泄漏给后续调用。
+        fs::write(tree.0.join("entry.py"), "print(8)\n").unwrap();
+        let mut session = crate::Session::default();
+        assert!(request.build(&mut session).is_err());
+        assert_eq!(session.aot_optimization, crate::AotOptimization::Default);
+        fs::write(tree.0.join("entry.py"), "def incomplete(\n").unwrap();
+        let request = tree.load().unwrap();
+        assert!(request.build(&mut session).is_err());
+        assert_eq!(session.aot_optimization, crate::AotOptimization::Default);
+    }
+    for value in ["null", "1", "\"Size\"", "\"quick\""] {
+        tree.config(&format!(r#"{{"schema_version":1,"mode":"aot","aot_optimization":{value},"targets":{{"app":{{"entry":"entry.py"}}}}}}"#));
+        assert!(tree.load().is_err());
+    }
+}

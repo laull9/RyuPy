@@ -196,6 +196,12 @@ enum AotManifest<'a> {
     ),
 }
 impl AotManifest<'_> {
+    fn optimization(self) -> crate::AotOptimization {
+        match self {
+            Self::Ordinary(c) => c.aot_optimization,
+            Self::Binding(c, _) => c.aot_optimization,
+        }
+    }
     fn verify_managed_input(self, input: &crate::manifest_files::FileDigest) -> Result<()> {
         match self {
             Self::Ordinary(c) => c.verify_managed_input(input),
@@ -316,6 +322,9 @@ fn publish_owned(
     std::fs::create_dir(&publish)?;
     let project_path = source.join("Host.csproj");
     let sdk_record = source.join("sdk.version");
+    let optimization_record = source.join("sdk.optimization");
+    crate::manifest_files::ensure_absent(&optimization_record)?;
+    let optimization = context.map_or(crate::AotOptimization::Default, AotManifest::optimization);
     crate::manifest_files::ensure_absent(&sdk_record)?;
     // 尚不存在的文件不能直接 canonicalize；转换已创建父目录后拼固定安全文件名。
     let sdk_source = sdk_paths::sdk_path(&source)?;
@@ -337,6 +346,11 @@ fn publish_owned(
         &sdk_runtime,
         context.map(|_| sdk_record_path.as_path()),
     )?;
+    project_text = crate::aot_optimization::configure(
+        project_text,
+        optimization,
+        &path_literal(&sdk_source.join("sdk.optimization"))?,
+    );
     if let (Some(AotManifest::Binding(_, plan)), Some(archive)) = (context, &archive) {
         let path = path_literal(&sdk_paths::sdk_path(&archive.path)?)?;
         let exact = literal(&format!("{}!{}", plan.library, plan.symbol));
@@ -421,6 +435,7 @@ fn publish_owned(
             crate::manifest_files::plain_metadata(&executable)?;
         }
         platform.validate_image(&executable)?;
+        crate::aot_optimization::receipt(root, &optimization_record, &executable, optimization)?;
         let manifest = if let Some(context) = context {
             platform.validate_manifest_image(&executable)?;
             let sdk_version = crate::manifest_sdk::read_version(&sdk_record)?;

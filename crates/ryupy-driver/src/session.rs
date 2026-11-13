@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 /// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
 #[derive(Default)]
 pub struct Session {
+    /// 显式NativeAOT优化偏好；Default不设置SDK属性。
+    pub aot_optimization: crate::AotOptimization,
     /// 项目请求的私有字节守卫；默认None，不授予模块或发布权限。
     #[doc(hidden)]
     pub deployment_inputs: Option<crate::deployment_request::InputGuard>,

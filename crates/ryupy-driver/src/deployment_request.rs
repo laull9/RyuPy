@@ -19,6 +19,8 @@ struct Config {
     schema_version: u32,
     mode: String,
     #[serde(default)]
+    aot_optimization: crate::AotOptimization,
+    #[serde(default)]
     search_paths: Vec<String>,
     #[serde(default)]
     include_modules: Vec<String>,
@@ -108,6 +110,7 @@ impl InputGuard {
 
 /// 已解析单目标部署请求；原JSON与声明文件在发布提交前仍须保持原字节。
 pub struct DeploymentRequest {
+    optimization: crate::AotOptimization,
     options: BuildOptions,
     includes: Vec<String>,
     resources: Option<PathBuf>,
@@ -193,6 +196,7 @@ impl DeploymentRequest {
         let metadata = declaration(root, config.distribution_metadata.as_deref(), &mut guard)?;
         guard.verify()?;
         Ok(Self {
+            optimization: config.aot_optimization,
             options: BuildOptions {
                 input,
                 out_dir: out_dir
@@ -219,16 +223,19 @@ impl DeploymentRequest {
                 && session.instance_modules.is_empty()
                 && !session.instance_direct_globals
                 && !session.fixed_binding_build
-                && session.deployment_inputs.is_none(),
+                && session.deployment_inputs.is_none()
+                && session.aot_optimization == crate::AotOptimization::Default,
             "项目部署不能混用外部声明或实例/绑定配置"
         );
         self.guard.verify()?;
         let includes = std::mem::replace(&mut session.include_modules, self.includes.clone());
         let metadata = std::mem::replace(&mut session.distribution_metadata, self.metadata.clone());
+        let optimization = std::mem::replace(&mut session.aot_optimization, self.optimization);
         session.deployment_inputs = Some(self.guard.clone());
         let result =
             crate::build_configured(session, &self.options, self.resources.as_deref(), None);
         session.deployment_inputs = None;
+        session.aot_optimization = optimization;
         session.include_modules = includes;
         session.distribution_metadata = metadata;
         result
