@@ -52,6 +52,56 @@ fn strict_declaration_selected_only() {
     std::fs::remove_dir_all(r).unwrap();
 }
 #[test]
+fn multi_export_declaration_accepts_one_library_and_distinct_functions() {
+    let r = root();
+    std::fs::write(r.join("库 & file.so"), elf()).unwrap();
+    let mut d = declaration();
+    let obj = d.as_object_mut().unwrap();
+    obj.remove("export");
+    obj.remove("symbol");
+    obj.remove("signature");
+    obj.insert("schema_version".into(), serde_json::json!(2));
+    obj.insert(
+        "exports".into(),
+        serde_json::json!([
+            {"name":"add", "symbol":"add_i32", "signature":SIGNATURE},
+            {"name":"subtract", "symbol":"subtract_i32", "signature":SIGNATURE},
+            {"name":"add_alias", "symbol":"add_i32", "signature":SIGNATURE}
+        ]),
+    );
+    let p = r.join("b.json");
+    std::fs::write(&p, d.to_string()).unwrap();
+    assert!(BindingPlan::read(&p, Platform::Linux, false).is_ok());
+    let exports = d["exports"].clone();
+    // 配置错误必须在读取native输入之前拒绝，不能静默漏掉后续导出。
+    for bad_exports in [
+        serde_json::json!([]),
+        serde_json::json!([exports[0].clone(), exports[0].clone()]),
+        serde_json::json!([{"name":"__file__", "symbol":"x", "signature":SIGNATURE}]),
+        serde_json::json!([{"name":"bad.name", "symbol":"x", "signature":SIGNATURE}]),
+        serde_json::json!([{"name":"good", "symbol":"x", "signature":"other"}]),
+        serde_json::json!([{"name":"good", "symbol":"x", "signature":SIGNATURE,"typo":0}]),
+        serde_json::json!([{"name":"good", "symbol":"x"}]),
+        serde_json::json!((0..65).map(|i| serde_json::json!({"name":format!("f{i}"),"symbol":"x","signature":SIGNATURE})).collect::<Vec<_>>()),
+    ] {
+        d["exports"] = bad_exports;
+        std::fs::write(&p, d.to_string()).unwrap();
+        assert!(BindingPlan::read(&p, Platform::Linux, false).is_err());
+    }
+    d["exports"] = exports;
+    for (key, value) in [
+        ("export", "legacy"),
+        ("symbol", "legacy"),
+        ("signature", SIGNATURE),
+    ] {
+        d[key] = serde_json::json!(value);
+        std::fs::write(&p, d.to_string()).unwrap();
+        assert!(BindingPlan::read(&p, Platform::Linux, false).is_err());
+        d.as_object_mut().unwrap().remove(key);
+    }
+    std::fs::remove_dir_all(r).unwrap();
+}
+#[test]
 fn snapshot_survives_source_removal_and_rejects_change() {
     let r = root();
     let p = r.join("i.so");

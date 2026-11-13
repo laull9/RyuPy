@@ -24,7 +24,8 @@ impl SourceModules {
         bindings: &[crate::fixed_bindings::FixedI32Binding],
     ) -> Result<(), crate::CodegenError> {
         let original: Vec<_> = self.0.iter().map(|(id, _, _)| *id).collect();
-        if program.modules.len() != self.0.len() + bindings.len()
+        let declared: std::collections::HashSet<_> = bindings.iter().map(|b| b.module).collect();
+        if program.modules.len() != self.0.len() + declared.len()
             || bindings.iter().any(|b| original.contains(&b.module))
             || program
                 .modules

@@ -14,14 +14,25 @@ pub struct FixedI32Binding {
     pub entry_point: String,
 }
 
-/// 首切只接受单个顶层模块/导出。所有检查发生在构造Resolution之前。
+/// 有界多导出共享单个顶层模块、库和初始化器。所有检查发生在构造Resolution之前。
 pub(crate) fn validate(
     program: &LinkedProgram,
     bindings: &[FixedI32Binding],
 ) -> Result<(), CodegenError> {
     let bad = |text: &str| CodegenError::Unsupported(format!("fixed C binding: {text}"));
-    if bindings.len() > 1 {
-        return Err(bad("only one binding is supported"));
+    if bindings.len() > 64 {
+        return Err(bad("at most 64 exports are supported"));
+    }
+    let mut exports = std::collections::HashSet::new();
+    for b in bindings {
+        let first = &bindings[0];
+        if b.module != first.module
+            || b.initializer != first.initializer
+            || b.module_ref != first.module_ref
+            || !exports.insert(b.export)
+        {
+            return Err(bad("expected distinct exports from one module and library"));
+        }
     }
     for binding in bindings {
         let module = program
@@ -39,6 +50,12 @@ pub(crate) fn validate(
             .iter()
             .find_map(|(id, value)| (id == binding.export).then_some(value))
             .ok_or_else(|| bad("missing export global"))?;
+        let export = module
+            .exports
+            .iter()
+            .find(|e| e.value == binding.export)
+            .ok_or_else(|| bad("missing module export"))?;
+        let names: std::collections::HashSet<_> = module.exports.iter().map(|e| &e.name).collect();
         let identifier = |value: &str| {
             !value.is_empty()
                 && value.bytes().enumerate().all(|(i, c)| {
@@ -54,14 +71,14 @@ pub(crate) fn validate(
         if module.init != binding.initializer
             || program.entry == binding.module
             || global.ty != MirType::Dynamic
-            || module.exports.len() != 1
-            || module.exports[0].value != binding.export
-            || !identifier(&module.exports[0].name)
+            || module.exports.len() != bindings.len()
+            || names.len() != bindings.len()
+            || !identifier(&export.name)
             || matches!(
-                module.exports[0].name.as_str(),
+                export.name.as_str(),
                 "__file__" | "__name__" | "__package__"
             )
-            || !matches!(module.exports[0].guard, ExportGuard::ValueSentinel)
+            || !matches!(export.guard, ExportGuard::ValueSentinel)
             || !module.protected_exports.is_empty()
             || !module.file.is_empty()
             || !matches!(module.location, ryupy_mir::ModuleLocation::LegacyDiagnostic)
@@ -203,7 +220,7 @@ pub fn emit_with_report(
         ));
     }
     validate(program, bindings)?;
-    if bindings.len() != 1
+    if bindings.is_empty()
         || !matches!(
             deployment.relative_file.as_str(),
             "_internal/native/v1/b0/library.so"
@@ -212,7 +229,7 @@ pub fn emit_with_report(
         )
     {
         return Err(CodegenError::Unsupported(
-            "fixed C binding: expected one binding and a controlled deployment path".into(),
+            "fixed C binding: expected exports and a controlled deployment path".into(),
         ));
     }
     let (res, report, records) =

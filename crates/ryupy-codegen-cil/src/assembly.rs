@@ -461,7 +461,7 @@ fn build_resolution_core(
     // 所有原生注册已由入口System.Initialize完成；检查置于任何生成初始化写之前。
     if let Some(refs) = &binding_refs {
         let mut prefix = Vec::new();
-        for binding in bindings {
+        if let Some(binding) = bindings.first() {
             prefix.push(Instruction::load_string(
                 program.modules[binding.module].name.clone(),
             ));
@@ -487,13 +487,16 @@ fn build_resolution_core(
     let mut binding_methods = Vec::new();
     for (fn_id, func) in program.functions.iter() {
         let method_idx = fn_indices[&fn_id];
-        if let Some(binding) = bindings.iter().find(|binding| binding.initializer == fn_id) {
+        if bindings
+            .first()
+            .is_some_and(|binding| binding.initializer == fn_id)
+        {
             // 已验证记录选择专用body，不按生成名称覆盖普通函数。
-            let (body, wrapper, native) = crate::fixed_binding_emit::initializer(
+            let (body, methods) = crate::fixed_binding_emit::initializer(
                 &mut res,
                 module_class,
                 program,
-                binding,
+                bindings,
                 binding_refs
                     .as_ref()
                     .expect("validated nonempty binding references"),
@@ -501,7 +504,7 @@ fn build_resolution_core(
             );
             res[method_idx].body = Some(body);
             if report_requested {
-                binding_methods.push((binding, wrapper, native));
+                binding_methods.extend(methods);
             }
             continue;
         }

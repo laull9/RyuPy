@@ -50,7 +50,7 @@ fn build_internal(
     let (mut program, sources, _) = compiled?;
     plan.check_modules(&program)?;
     let source_modules = ryupy_codegen_cil::SourceModules::capture(&program)?;
-    let binding = declare(&mut program, &plan);
+    let bindings = declare(&mut program, &plan);
     let name = crate::assembly_name(&opts.input);
     validate_name(&name)?;
     let emitted = fixed_bindings::emit_source_with_report(
@@ -59,7 +59,7 @@ fn build_internal(
             assembly_name: name.clone(),
             entry_source_path: Some(opts.input.to_string_lossy().into_owned()),
         },
-        &[binding],
+        &bindings,
         &BindingDeployment {
             relative_file: plan.platform.relative_file().into(),
         },
@@ -184,12 +184,19 @@ fn owned_root(out: &Path) -> Result<PathBuf> {
     }
     anyhow::bail!("独占绑定根重试超额")
 }
-fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Binding {
-    let export = p.globals.alloc(GlobalDecl {
-        storage: ryupy_mir::GlobalStorage::LegacyStatic,
-        name: format!("{}_{}", plan.module, plan.export),
-        ty: MirType::Dynamic,
-    });
+fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> Vec<FixedI32Binding> {
+    // 每个导出独立全局槽；共享同一真实模块与初始化函数，不合并函数身份。
+    let exports: Vec<_> = plan
+        .exports
+        .iter()
+        .map(|e| {
+            p.globals.alloc(GlobalDecl {
+                storage: ryupy_mir::GlobalStorage::LegacyStatic,
+                name: format!("{}_{}", plan.module, e.name),
+                ty: MirType::Dynamic,
+            })
+        })
+        .collect();
     let mut body = Body {
         direct_globals_contracts: Vec::new(),
         source_handler_contracts: Vec::new(),
@@ -233,19 +240,28 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> FixedI32Bind
         package: String::new(),
         file: String::new(),
         init: initializer,
-        exports: vec![ModuleExport {
-            name: plan.export.clone(),
-            value: export,
-            guard: ExportGuard::ValueSentinel,
-        }],
+        exports: plan
+            .exports
+            .iter()
+            .zip(&exports)
+            .map(|(e, &value)| ModuleExport {
+                name: e.name.clone(),
+                value,
+                guard: ExportGuard::ValueSentinel,
+            })
+            .collect(),
     });
-    FixedI32Binding {
-        module,
-        initializer,
-        export,
-        module_ref: plan.library.clone(),
-        entry_point: plan.symbol.clone(),
-    }
+    plan.exports
+        .iter()
+        .zip(exports)
+        .map(|(e, export)| FixedI32Binding {
+            module,
+            initializer,
+            export,
+            module_ref: plan.library.clone(),
+            entry_point: e.symbol.clone(),
+        })
+        .collect()
 }
 #[cfg(test)]
 #[path = "binding_build_tests.rs"]

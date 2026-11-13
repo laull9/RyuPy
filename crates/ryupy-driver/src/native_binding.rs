@@ -1,4 +1,4 @@
-//! 固定单签名声明：从 fded 基线重新实现，严格拒绝未知字段，不解释通用 FFI 类型语言。
+//! 固定签名的单库绑定声明：兼容v1单导出，v2有界多导出，严格拒绝未知字段。
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -9,16 +9,26 @@ mod images;
 pub(crate) const INPUT_LIMIT: u64 = 64 * 1024 * 1024;
 const DECLARATION_LIMIT: u64 = 64 * 1024;
 pub(crate) const SIGNATURE: &str = "cdecl_i32_i32_i64";
+pub(crate) const EXPORT_LIMIT: usize = 64;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Declaration {
     schema_version: u32,
     module: String,
-    export: String,
-    signature: String,
+    export: Option<String>,
+    signature: Option<String>,
     library: String,
-    symbol: String,
+    symbol: Option<String>,
+    exports: Option<Vec<BindingExport>>,
     target: Target,
+}
+/// 一个公开Python函数；允许不同名字显式绑定同一C符号，各自保有函数身份。
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct BindingExport {
+    pub name: String,
+    pub symbol: String,
+    pub signature: String,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -73,10 +83,10 @@ impl Platform {
     }
 }
 pub(crate) struct BindingPlan {
+    pub declaration_version: u32,
     pub module: String,
-    pub export: String,
+    pub exports: Vec<BindingExport>,
     pub library: String,
-    pub symbol: String,
     pub declaration_sha256: String,
     pub platform: Platform,
     pub aot: bool,
@@ -86,18 +96,46 @@ impl BindingPlan {
     pub(crate) fn read(path: &Path, platform: Platform, aot: bool) -> Result<Self> {
         let bytes = files::read_small(path, DECLARATION_LIMIT)?;
         let d: Declaration = serde_json::from_slice(&bytes).context("无效原生绑定声明")?;
+        // 两种声明只在此归一化；混合字段拒绝，避免新版配置被旧字段静默截断。
+        let exports = match d.schema_version {
+            1 => {
+                ensure!(d.exports.is_none(), "版本1不能包含exports");
+                vec![BindingExport {
+                    name: d.export.context("版本1缺少export")?,
+                    symbol: d.symbol.context("版本1缺少symbol")?,
+                    signature: d.signature.context("版本1缺少signature")?,
+                }]
+            }
+            2 => {
+                ensure!(
+                    d.export.is_none() && d.symbol.is_none() && d.signature.is_none(),
+                    "版本2不能包含版本1单导出字段"
+                );
+                d.exports.context("版本2缺少exports")?
+            }
+            _ => anyhow::bail!("只支持版本1或版本2原生绑定声明"),
+        };
         ensure!(
-            d.schema_version == 1 && d.signature == SIGNATURE,
-            "只支持版本1及固定cdecl_i32_i32_i64签名"
+            (1..=EXPORT_LIMIT).contains(&exports.len()),
+            "原生导出数量必须为1至64"
         );
-        for value in [&d.module, &d.export, &d.library, &d.symbol] {
+        for value in [&d.module, &d.library] {
             ensure!(identifier(value), "绑定名称必须是有界ASCII标识符");
         }
-        ensure!(
-            d.module != "__main__"
-                && !matches!(d.export.as_str(), "__name__" | "__package__" | "__file__"),
-            "绑定不能替代入口或保留元数据"
-        );
+        ensure!(d.module != "__main__", "绑定不能替代入口");
+        let mut names = std::collections::HashSet::new();
+        for e in &exports {
+            ensure!(
+                identifier(&e.name) && identifier(&e.symbol),
+                "绑定名称必须是有界ASCII标识符"
+            );
+            ensure!(e.signature == SIGNATURE, "只支持固定cdecl_i32_i32_i64签名");
+            ensure!(
+                !matches!(e.name.as_str(), "__name__" | "__package__" | "__file__"),
+                "绑定不能替代保留元数据"
+            );
+            ensure!(names.insert(&e.name), "原生导出名称重复");
+        }
         ensure!(d.target.rid == platform.rid(), "绑定RID必须精确匹配宿主");
         // 只消费本次模式所选输入，不给另一条未读取的路径背书。
         let selected = (if aot {
@@ -111,10 +149,10 @@ impl BindingPlan {
         let source = files::checked_relative(root, &selected)?;
         let input = files::NativeInput::open(&source, platform, aot)?;
         Ok(Self {
+            declaration_version: d.schema_version,
             module: d.module,
-            export: d.export,
+            exports,
             library: d.library,
-            symbol: d.symbol,
             declaration_sha256: crate::manifest_files::hash_bytes(&bytes),
             platform,
             aot,

@@ -339,9 +339,21 @@ fn publish_owned(
     )?;
     if let (Some(AotManifest::Binding(_, plan)), Some(archive)) = (context, &archive) {
         let path = path_literal(&sdk_paths::sdk_path(&archive.path)?)?;
-        let exact = literal(&format!("{}!{}", plan.library, plan.symbol));
-        // 仅精确单库/单符号，不加入 broad roots，不复制 shared 补救静态链接。
-        project_text=project_text.replace("</Project>",&format!("  <ItemGroup><DirectPInvoke Include=\"{exact}\" /><NativeLibrary Include=\"{path}\" /></ItemGroup>\n</Project>"));
+        // 同一archive只登记一次，每个实际符号精确DirectPInvoke；显式别名去重。
+        let mut symbols = std::collections::HashSet::new();
+        let mut direct = String::new();
+        for export in &plan.exports {
+            if symbols.insert(&export.symbol) {
+                let exact = literal(&format!("{}!{}", plan.library, export.symbol));
+                direct.push_str(&format!("<DirectPInvoke Include=\"{exact}\" />"));
+            }
+        }
+        project_text = project_text.replace(
+            "</Project>",
+            &format!(
+                "  <ItemGroup>{direct}<NativeLibrary Include=\"{path}\" /></ItemGroup>\n</Project>"
+            ),
+        );
     }
     std::fs::write(&project_path, project_text)?;
     std::fs::write(

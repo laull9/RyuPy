@@ -106,3 +106,49 @@ fn portable_output_keeps_unicode_and_rejects_device_alias() {
         validate_name(n).unwrap();
     }
 }
+
+#[test]
+fn multi_export_bundle_has_one_native_input_and_all_actual_references() {
+    let (root, opts, declaration) = setup();
+    let mut d: Value = serde_json::from_slice(&std::fs::read(&declaration).unwrap()).unwrap();
+    for key in ["export", "signature", "symbol"] {
+        d.as_object_mut().unwrap().remove(key);
+    }
+    d["schema_version"] = json!(2);
+    d["exports"] = json!([
+        {"name":"add", "symbol":"demo_add", "signature":crate::native_binding::SIGNATURE},
+        {"name":"subtract", "symbol":"demo_subtract", "signature":crate::native_binding::SIGNATURE}
+    ]);
+    std::fs::write(&declaration, d.to_string()).unwrap();
+    let artifacts =
+        crate::build_configured(&mut Session::default(), &opts, None, Some(&declaration)).unwrap();
+    let v: Value =
+        serde_json::from_slice(&std::fs::read(artifacts.manifest.unwrap()).unwrap()).unwrap();
+    assert_eq!(v["schema_version"], 4);
+    assert_eq!(v["sources"].as_array().unwrap().len(), 1);
+    assert_eq!(v["modules"].as_array().unwrap().len(), 2);
+    assert_eq!(v["modules"][1]["exports"], json!(["add", "subtract"]));
+    assert_eq!(
+        v["modules"][1]["origin"]["binding_ids"],
+        json!(["b0", "b1"])
+    );
+    assert_eq!(v["native_bindings"].as_array().unwrap().len(), 2);
+    assert_eq!(v["build_inputs"].as_array().unwrap().len(), 3);
+    assert_eq!(v["artifacts"].as_array().unwrap().len(), 4);
+    assert_eq!(
+        v["native_bindings"][0]["relative_file"],
+        v["native_bindings"][1]["relative_file"]
+    );
+    assert_ne!(
+        v["native_bindings"][0]["body"],
+        v["native_bindings"][1]["body"]
+    );
+    let delegates: Vec<_> = v["emitted_delegate_references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["role"] == "declared_native_body")
+        .collect();
+    assert_eq!(delegates.len(), 2);
+    std::fs::remove_dir_all(root).unwrap();
+}
