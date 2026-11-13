@@ -105,7 +105,8 @@ def execute(repo, out, run, input_root, tools, env, oracle_out):
                 expected = 'InstanceGlobals' if module['module'] in contract['instance_modules'] else 'LegacySingleton'
                 require(module['execution'] == expected, 'X/Y实际环境分类不符')
             require(sha(pe.parent / 'RyuPy.Runtime.dll') == sha(runtime), 'Session图Runtime角色错配')
-            parsed = run.run('host-' + role + '-pe', [sys.executable, '-B', input_root / 'ci/read_pe.py', pe, role, 'host_xy'],
+            parsed = run.run('host-' + role + '-pe', [sys.executable, '-B', input_root / 'ci/read_pe.py', pe, role, 'host_xy',
+                             '--binding-version', 'legacy-names-v1' if role == 'old' else 'lexical-chain-v1'],
                              cwd=role_root, env=role_env, check=True, timeout=30)
             decoded = json.loads(parsed.stdout)
             review = old_pe_review(decoded, sha(pe)) if role == 'old' else pe_review(decoded, role, 'host_xy', sha(pe))

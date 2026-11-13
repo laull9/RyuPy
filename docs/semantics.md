@@ -242,6 +242,23 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 
 ## 4. 语义陷阱清单
 
+### 二进制 decode 参数与编码错误策略（2026-11-12）
+
+`bytes.decode` / `bytearray.decode` 的直接、保存方法、类型根直接与保存根四入口共用
+`encoding='utf-8', errors='strict'` 绑定。关键字参数不再误报 TypeError；重复、额外、
+非字符串与内嵌 NUL 参数严格拒绝，不调用 `str()` 转换协议。
+当前解码族为 UTF-8、ASCII、Latin-1、UTF-16/LE/BE。ASCII 非 ASCII 字节与损坏 UTF-8/UTF-16
+抛 UnicodeDecodeError，不用 CLR 的默认替换策略。异常消息仍为概要，尚不承诺完整的
+object/start/end/reason 字段与 CPython 逐字节错误详情。UTF-16 消费 BOM；无 BOM 时按宿主字节序，
+显式 LE/BE 保留 BOM 字符。未知编码抛 LookupError。
+`errors` 支持 strict/replace/ignore；ASCII replace 使用 U+FFFD，不是问号；UTF-16
+尾部高代理项与单字节截断合为一个错误单位。处理器查询是惰性的：有效输入即使提供
+未知策略也正常返回；实际错误才对未知策略抛 LookupError。surrogateescape/surrogatepass/
+backslashreplace/xmlcharrefreplace/namereplace 的错误处理尚未实现，遇错明确抛
+NotImplementedError，不支持注册自定义处理器，不宣称完整 codecs 兼容。
+新差分用例 `m2_5_binary_decode_binding.py` 与 C# 四入口合同覆盖该有限域；
+此项本身不代表 binaryornot 整个 Native 产品已通过，也不改变性能结论。
+
 > 每一条都应该有对应的 e2e 用例。新发现的陷阱请追加到这里。
 
 | # | 现象 | Python | CIL / .NET 原生 | RyuPy 处理 |
@@ -593,7 +610,7 @@ ADR0072 候选严格区分：用户 __hash__ 返回实际整数，fits-i64保原
 
 ord/chr支持普通码点、补充平面和单独代理项；但两个独立代理项拼接后当前UTF-16表示会合并为代理对，
 `ord(chr(0xD800)+chr(0xDC00))`与CPython不一致。D009及`m3_builtins_surrogate_pair.py`记录为待修，
-不将它算作完整代理字符串兼容，也不作为已接受性能取舍。
+不将它算作完整代理字符串兼容，也不作为已接受性能取舍。源码孤立代理字面量仍可能被替换为 U+FFFD；反向切片生成相邻高低代理也会合并，见 pending `m2_4_text_surrogate_literal.py`。本轮 PyText 索引优化不宣称修复这些边界。
 
 ### 4.9 装饰器与元数据（M3.3）
 
@@ -614,7 +631,7 @@ getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细
 失败退出 120，不自动 close 用户重绑定流，不保证 CPython finalization 的重复刷新次数。
 文本 cookie、编码、换行和关闭后错误有差分；显式 with/close 清理不依赖 GC。
 sys.path为受控只读视图；sys.modules仅准入ADR0131的受限新模块别名，不是可写dict。不支持动态import hook；环境与模块keys/items仍为快照。
-Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；设备命名空间、需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
+Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。ADR0185 草案拟有限准入extended 盘符绝对路径和完整 extended UNC 这两种类型（含 CP 一致的正斜线/混合分隔符及小写 unc 词法拼写），保留前缀与尾点/空格、`..`；Path 规范化点与重复分隔符，有限 ntpath 入口保原拼写；其他 device/pipe/volume/GLOBALROOT 形式继续拒绝，不以无差别剥前缀代替语义。此修复后的 Windows 实际行为仍待验，不能据首轮 Linux/macOS AOT 通过宣称已支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
 Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
 io.UnsupportedOperation 已通过 CLR 主树、Python 额外父边及原位 typed catch 展开，支持
 OSError/ValueError 两父捕获；无参/单参构造、既有流能力错误和内存流 fileno 的准确范围见
@@ -1500,3 +1517,7 @@ slots/ABCMeta，也不宣称性能零成本：PyInstance 新增一个惰性字�
 #### 精确 set 方法族（ABC 项目验证配套）
 
 `isdisjoint/issubset/issuperset/copy/update/intersection_update/difference_update/symmetric_difference/symmetric_difference_update` 采用统一直接/PIC/保存方法绑定；`union/intersection/difference` 接受零或多个 iterable。非集合源遵守 CPython 3.12 的短路消费，update/difference_update 失败保留前缀，intersection_update 失败不替换原集合。现有 HashSet 未暴露缓存 hash，精确 set/frozenset 源含用户 hash 的复制/查询、以及需复用缓存 hash 的交集/对称差用户对象域明确 NI，不用重复用户回调伪装兼容；一般 iterable 的 update 复用流式 SetExtend。未扩展 frozenset 自身方法表、set 派生、根类型未绑定描述符或 pop，未宣称成本不变。
+
+#### join分配优化复核的既有子类边界（2026-11-13）
+
+精确内建list的join可借用已物化背板；字符串子类仍直接读取文本载体，不调用`__str__`。普通iterator先耗尽，再报元素类型错误，后续迭代异常保持优先。此项不开放list子类覆盖`__iter__`或str子类覆盖`__len__`，现仍在slot准入时明确NotImplementedError；前者保留`m2_4_join_list_override_pending.py`作为CP差分缺口，不计为本次兼容通过。无覆盖的list子类仍走原协议路径。

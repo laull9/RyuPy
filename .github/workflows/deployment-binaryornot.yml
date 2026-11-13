@@ -1,0 +1,90 @@
+# 普通文件分类consumer独立部署门；不改变20项目统计或旧性能基线。
+name: binaryornot普通consumer原生部署
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/native-build-cost-20261113-001', 'ci/native-package-profile-20261113-001', 'ci/native-join-perf-20261113-001', 'ci/symbol-delivery-20261113-001', 'ci/dependency-preflight-20261112-001', 'ci/native-text-index-perf-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: deployment-binaryornot-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  linux-project:
+    if: >-
+      github.event_name == 'workflow_dispatch' || (github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-direct-entry-002') || github.event.head_commit.message == 'validation: native-build-cost-004' || github.event.head_commit.message == 'validation: native-build-cost-003' || github.event.head_commit.message == 'validation: native-build-cost-002' || github.event.head_commit.message == 'validation: native-build-cost-001' || github.event.head_commit.message == 'validation: native-package-profiles-002' || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-package-baseline-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001' || github.event.head_commit.message == 'validation: dependency-preflight-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 105
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: consumer与独立审计轻量合同
+        run: |
+          python3 -B -m unittest discover -s tests/aot/deployment_binaryornot -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/aot/symbol_delivery -p 'test_*.py'
+      - name: 固定工具与系统依赖
+        timeout-minutes: 15
+        run: |
+          mkdir -p "$RUNNER_TEMP/deployment-binaryornot"
+          sudo apt-get update > "$RUNNER_TEMP/deployment-binaryornot/apt-update.log" 2>&1
+          sudo apt-get install -y clang zlib1g-dev libicu-dev gdb binutils > "$RUNNER_TEMP/deployment-binaryornot/apt-install.log" 2>&1
+          python3 -B tests/aot/wcwidth_ci/prepare.py > "$RUNNER_TEMP/deployment-binaryornot/tool-prepare.log" 2>&1
+      - name: 默认release工具、自足consumer项目、无宿主运行镜像
+        timeout-minutes: 27
+        run: '"$PYTHON" -B tests/aot/deployment_binaryornot/hosted_binaryornot.py setup'
+      - name: 首次与重复构建及真实分类成本
+        if: >-
+          github.event.head_commit.message == 'validation: native-package-baseline-001'
+        run: '"$PYTHON" -B tests/aot/native_package_profile/run.py'
+      - name: 原生优化偏好真实构建与部署对照
+        if: >-
+          (github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-direct-entry-002') || github.event.head_commit.message == 'validation: native-package-profiles-002' || github.event.head_commit.message == 'validation: native-package-profiles-001'
+        run: '"$PYTHON" -B tests/aot/native_package_profile/run.py --profiles'
+      - name: SDK真实任务成本分解
+        if: >-
+          github.event.head_commit.message == 'validation: native-build-cost-004' || github.event.head_commit.message == 'validation: native-build-cost-003' || github.event.head_commit.message == 'validation: native-build-cost-002' || github.event.head_commit.message == 'validation: native-build-cost-001'
+        run: '"$PYTHON" -B tests/aot/native_package_profile/run.py --sdk-timing'
+      - name: 本次managed入口直接进入SDK的有限原型
+        if: >-
+          github.event.head_commit.message == 'validation: native-build-cost-004' || github.event.head_commit.message == 'validation: native-build-cost-003' || github.event.head_commit.message == 'validation: native-build-cost-002'
+        run: '"$PYTHON" -B tests/aot/native_package_profile/direct_input_probe.py'
+      - name: 公开直接入口参数、退出与异常搬迁差分
+        if: >-
+          (github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-direct-entry-002')
+        run: '"$PYTHON" -B tests/aot/direct_entry/run.py --ryupy "$RUNNER_TEMP/deployment-binaryornot/tools/ryupy" --python "$PYTHON" --out "$RUNNER_TEMP/deployment-binaryornot/direct-entry-product" --rid linux-x64'
+      - name: 公开consumer AOT、独立审计、搬迁及禁网部署
+        timeout-minutes: 57
+        run: '"$PYTHON" -B tests/aot/deployment_binaryornot/hosted_binaryornot.py verify'
+      - name: 已分离符号身份、交付体积与真实调试恢复
+        if: >-
+          (github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-direct-entry-002') || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001'
+        run: '"$PYTHON" -B tests/aot/symbol_delivery/verify_binaryornot.py --evidence "$RUNNER_TEMP/deployment-binaryornot/evidence"'
+      - name: 全部成功与失败原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: deployment-binaryornot-native-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/deployment-binaryornot
+            !${{ runner.temp }}/deployment-binaryornot/build-profile/**
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: 分开保留完整优化偏好对照原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-package-profile-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/deployment-binaryornot/build-profile
+          if-no-files-found: ignore
+          retention-days: 3

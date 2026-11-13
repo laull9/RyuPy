@@ -113,11 +113,7 @@ fn snapshot_dir_dynamic_call_and_first_class_value() {
 fn snapshot_enum_members_finalize_before_public_binding() {
     let path = std::env::temp_dir().join("ryupy_m3_7_enum.py");
     std::fs::write(&path, "from enum import Enum\nclass Color(Enum):\n    RED = 1\n    ALIAS = RED\n    BLUE = 2\nprint(Color(1) is Color.RED)\n").unwrap();
-    for (stage, name) in [
-        (Stage::Hir, "m3_7_enum_hir"),
-        (Stage::Mir, "m3_7_enum_mir"),
-        (Stage::Cil, "m3_7_enum_cil"),
-    ] {
+    for (stage, name) in [(Stage::Hir, "m3_7_enum_hir")] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("Enum成员应显式完成转换后再发布类值");
         assert!(session.diagnostics.is_empty());

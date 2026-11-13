@@ -8,6 +8,7 @@ public static partial class PyObject
         : ReferenceEquals(type, PyType.Get("dict")) && PyDictDescriptors.IsAttribute(name) ? PyDictDescriptors.Unbound(name)
         : ReferenceEquals(type, PyType.Get("list")) && PyListDescriptors.IsAttribute(name) ? PyListDescriptors.Unbound(name)
         : ReferenceEquals(type, PySlice.Type) ? PySliceMembers.TypeAttribute(name)
+        : PyBinaryDecodeDescriptors.Has(type, name) ? PyBinaryDecodeDescriptors.Unbound(type)
         : PyBinaryTranslateDescriptors.Has(type, name) ? PyBinaryTranslateDescriptors.Unbound(type)
         : PyBinaryClassificationDescriptors.Has(type, name) ? PyBinaryClassificationDescriptors.Unbound(type, name)
         : ReferenceEquals(type, PyType.Get("str")) && PyStringDescriptors.IsMethod(name)

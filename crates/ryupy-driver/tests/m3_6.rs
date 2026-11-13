@@ -15,7 +15,14 @@ fn dataclass_defaults_and_annotation_values_are_runtime_semantics() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("数据类与注解应完成所有阶段");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "metadata.py"));
+        if matches!(stage, Stage::Cil) {
+            metadata_cil_contract(&output);
+            let broken =
+                output.replace("PyOps.FinalizeOrdinaryClass(", "PyOps.RemovedContractCall(");
+            assert!(std::panic::catch_unwind(|| metadata_cil_contract(&broken)).is_err());
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "metadata.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }
@@ -38,4 +45,55 @@ fn snapshot_numeric_accumulator_keeps_observed_aliases_dynamic() {
     let output = dump(&mut session, &path, Stage::Mir).expect("守卫累加器不能改变被观察别名");
     insta::assert_snapshot!("m3_6_numeric_accumulator_mir", output);
     std::fs::remove_file(path).unwrap();
+}
+
+// 保留数据类冻结异常、类体完成/装饰次序和真实函数注解写入，而非保存整份生成IR。
+fn metadata_cil_contract(output: &str) {
+    let cil = support::cil_contract::Cil::parse(output);
+    let main = cil.exact("m0___module_main");
+    for member in [
+        "PyOps.MakeClass",
+        "PyOps.FinalizeOrdinaryClass",
+        "PyOps.DeclareDataclass",
+        "PyOps.ApplyDataclass",
+        "PyOps.FunctionMetadata",
+    ] {
+        assert_eq!(main.runtime_count(member), 1);
+    }
+    assert_eq!(main.runtime_count("PyOps.TypeObject"), 5);
+    assert_eq!(main.runtime_count("PyOps.ClassNamespaceGet"), 2);
+    assert_eq!(main.runtime_count("PyOps.SetItem"), 2);
+    main.ordered_calls(&[
+        "PyOps.MakeClass",
+        "PyOps.MakeDict",
+        "PyOps.FinalizeOrdinaryClass",
+        "PyOps.DeclareDataclass",
+        "PyOps.ApplyDataclass",
+        "PyOps.FunctionMetadata",
+    ]);
+    assert_eq!(main.opcode_count("Leave"), 4);
+    assert_eq!(main.opcode_count("Throw"), 1);
+    let catches: Vec<_> = main
+        .eh
+        .iter()
+        .map(|line| {
+            line.split(" catch ")
+                .nth(1)
+                .unwrap()
+                .split(" handler ")
+                .next()
+                .unwrap()
+        })
+        .collect();
+    assert_eq!(
+        catches,
+        vec![
+            "[RyuPy.Runtime]RyuPy.Runtime.PyFrozenInstanceError",
+            "[RyuPy.Runtime]RyuPy.Runtime.PyBaseException"
+        ]
+    );
+    let identity = cil.method("identity");
+    assert_eq!(identity.opcode_count("Return"), 1);
+    assert_eq!(identity.runtime_count("PyTraceback.PushFrameWithOrigin"), 1);
+    assert_eq!(identity.runtime_count("PyTraceback.PopTo"), 1);
 }

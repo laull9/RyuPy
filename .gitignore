@@ -39,3 +39,10 @@ __pycache__/
 /tests/perf/results/**/*.asm.diff
 /tests/perf/results/m3_10/union-prototype/jit-arithmetic.txt
 /tests/perf/results/m3_10/union-prototype/jit-calls.txt
+
+# 生成器MIR改由类型化状态/None合同与负控覆盖，不再保存生成IR黄金。
+/crates/ryupy-driver/tests/snapshots/m3_1__m3_1_genexpr_mir.snap
+/crates/ryupy-driver/tests/snapshots/m3_2__m3_2_basic_mir.snap
+
+# with生成CIL已由类型槽/退出/EH结构及变异负控、真实行为用例替代。
+/crates/ryupy-driver/tests/snapshots/snapshots__m2_8_with_cil.snap

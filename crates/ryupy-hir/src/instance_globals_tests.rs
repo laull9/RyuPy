@@ -69,7 +69,6 @@ fn instance_globals_rejects_unsupported_even_when_unreachable() {
         "try:\n    pass\nexcept:\n    pass\n",
         "globals = 1\n",
         "x = locals\n",
-        "x = __debug__\n",
         "x = vars\n",
         "eval = 1\n",
         "exec = 1\n",
@@ -441,4 +440,24 @@ fn instance_functions_preserve_local_free_and_global_scopes() {
             .iter()
             .any(|(_, v)| v.name.as_str() == "p" || v.name.as_str() == "x")
     );
+}
+
+#[test]
+fn debug_load_is_literal_true_in_legacy_and_instance_namespaces() {
+    for instance in [false, true] {
+        let (module, errors) = lower(
+            "x = __debug__\ndef f(value=__debug__):\n    return __debug__\n",
+            instance,
+        );
+        assert!(errors.is_empty(), "{errors:?}");
+        let constants = module
+            .functions
+            .iter()
+            .flat_map(|(_, f)| f.body.exprs.iter())
+            .filter(|(_, e)| matches!(e.kind, ExprKind::Literal(crate::Literal::Bool(true))))
+            .count();
+        assert!(constants >= 3);
+        assert!(!module.functions.iter().flat_map(|(_, f)| f.body.exprs.iter()).any(|(_, e)|
+            matches!(&e.kind, ExprKind::UnresolvedGlobal(n) | ExprKind::ClassLocal(n) if n.as_str() == "__debug__")));
+    }
 }

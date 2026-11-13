@@ -1,10 +1,12 @@
 # RyuPy
 
-把常见 Python 项目编译成 .NET CIL，交给 RyuJIT 运行。编译器用 Rust 编写，运行时 `RyuPy.Runtime` 用 C# 编写；当前 WIP 已提供有界 Native AOT 发布，适用范围与验证记录见 docs/validation/。
+把 Python 项目编译为可独立交付的原生应用是当前主线：以 Nuitka 的实用兼容性为对标，逐步改进 AOT 性能与打包体验。编译器用 Rust 编写，经 .NET CIL / NativeAOT 发布，运行时用 C# 编写；同时保留 JIT 路径。这个目标尚未达成，不代表目前兼容或性能已全面超过 Nuitka。
 
 ## 当前状态
 
-状态日期：2026-11-12。产品证据对应代码 [85b11a94](https://github.com/laull9/RyuPy/commit/85b11a94368f0ba0a0bda80d611b9e0c39a5cf7b)，本次仅更新文档，不表示在后续文档提交上重新构建或运行产品。
+AOT 项目入口、资源声明、交付目录与平台范围见[快速上手](docs/quickstart.md#统一项目部署配置有限范围验收)。目前已验 pyfiglet 两入口的 Linux x64、macOS arm64、Windows x64 原位/搬迁运行；只有 Linux 有禁网无 Python/.NET 容器证据。其它项目按各自用例验收，不推导全库兼容。
+
+下面是保留的 **2026-11-12 JIT 与早期专项基线**，不是最新 AOT 项目总数。产品证据对应代码 [85b11a94](https://github.com/laull9/RyuPy/commit/85b11a94368f0ba0a0bda80d611b9e0c39a5cf7b)，本次仅更新文档，不表示在后续文档提交上重新构建或运行产品。
 
 固定 20 项目的最新完整入口结果：启用构建时 Cargo feature `ryupy-driver/ordinary-dynamic-module-pilot` 的普通动态模块 pilot 为 **14 成功 / 6 unsupported / 0 失败**；默认源计划为 **13 成功 / 6 unsupported / 1 失败**，差异仍是既有 Markdown 路径。这里的成功指托管程序集的 **JIT 执行**，不等于 NativeAOT，也不代表项目全部 API 兼容。默认 JIT 的 Markdown 失败是 `NotImplementedError: find_spec(): legacy or native module registrations without source metadata are not implemented`；pilot JIT 的该入口通过。独立 `distribution-metadata` AOT 的旧失败则是 `[E0100] 显式实例 AOT 需要资源清单且不支持原生绑定`，不是同一个失败。
 
@@ -14,7 +16,7 @@ pilot 是构建时 feature，不是 CLI 运行参数；普通默认构建未启�
 
 当前能力、有限兼容范围与未完成项以 [TODO](TODO.md)、[语义说明](docs/semantics.md) 和 [验证归档](docs/validation/) 为准。WIP 的专项通过不等于全部真实项目、任意扩展或所有部署环境通过。
 
-近期目标为固定纯 Python 项目集至少 80% 原生语义兼容（当前以 JIT 指定入口计数，不是 80% NativeAOT）。pilot 的 14/20 为 70%，仍需两项完整入口通过。项目范围和历史记录见 [compatibility.md](docs/compatibility.md)；后续特性不会自动增加通过数。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。
+兼容性参考仍保留固定纯 Python 项目集至少 80% 原生语义兼容目标（当前以 JIT 指定入口计数，不是 80% NativeAOT）。pilot 的 14/20 为 70%，仍需两项完整入口通过。项目范围和历史记录见 [compatibility.md](docs/compatibility.md)；后续特性不会自动增加通过数。已知偏差公开登记，refcount 与即时析构时机不作兼容承诺。
 
 ```bash
 make run FILE=tests/e2e/phase1/m1_5_dataclass.py
@@ -23,7 +25,7 @@ make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
 
 ## 快速开始
 
-依赖：Rust stable（2024 edition）、.NET SDK 10；差分验收固定 CPython 3.12.13。NativeAOT 还需目标平台的原生工具链；本轮只验证 Ubuntu 24.04 x86_64，未验证 macOS / Windows AOT。
+依赖：Rust stable（2024 edition）、.NET SDK 10；差分验收固定 CPython 3.12.13。NativeAOT 还需目标平台的原生工具链；已有 Linux x64、macOS arm64、Windows x64 的有限应用验证，不提供交叉编译承诺。
 
 ```bash
 make runtime   # 构建 C# 运行时

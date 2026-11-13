@@ -2,7 +2,7 @@ name: Fixed Python C ABI binding
 
 on:
   push:
-    branches: [wip/aot-jit-recovery]
+    branches: [wip/aot-jit-recovery, ci/native-build-cost-20261113-001]
     paths:
       - '.github/workflows/aot-python-binding.yml'
       - 'crates/ryupy-driver/src/aot*.rs'
@@ -34,7 +34,7 @@ jobs:
           - os: ubuntu-24.04
             rid: linux-x64
             shell: bash
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
             shell: bash
           - os: windows-2022

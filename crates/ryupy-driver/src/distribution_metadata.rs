@@ -19,6 +19,8 @@ macro_rules! environment_ensure {
     };
 }
 
+#[path = "distribution_dependency_check.rs"]
+mod dependency_check;
 #[path = "distribution_metadata_files.rs"]
 mod files;
 #[derive(Deserialize)]
@@ -27,6 +29,8 @@ struct Request {
     schema_version: u32,
     mode: String,
     roots: Vec<Root>,
+    #[serde(default)]
+    dependency_check: Option<dependency_check::Config>,
 }
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -55,7 +59,13 @@ struct Distribution {
 }
 
 /// 两次完整读取只检测可信非并发输入的一般变化，不声称对恶意竞态的原子性。
+#[cfg(test)]
 pub(crate) fn collect(path: &Path) -> Result<String> {
+    collect_checked(path).map(|(payload, _)| payload)
+}
+
+/// 同次冻结输入的依赖预检；不改变runtime快照schema。
+pub(crate) fn collect_checked(path: &Path) -> Result<(String, Option<serde_json::Value>)> {
     files::plain_path(path)?;
     let request_bytes = files::read(path, 64 * 1024)?;
     let request: Request = serde_json::from_slice(&request_bytes).context("分发请求schema无效")?;
@@ -72,7 +82,17 @@ pub(crate) fn collect(path: &Path) -> Result<String> {
     );
     let payload = serde_json::to_string(&first)?;
     ensure!(payload.len() <= 4 * 1024 * 1024, "分发静态载荷超过4MiB");
-    Ok(payload)
+    let report = request
+        .dependency_check
+        .as_ref()
+        .map(|config| {
+            let mut report = dependency_check::validate(config, &first).context("依赖预检失败")?;
+            report["request_sha256"] = crate::manifest_files::hash_bytes(&request_bytes).into();
+            report["payload_sha256"] = crate::manifest_files::hash_bytes(payload.as_bytes()).into();
+            Ok::<_, anyhow::Error>(report)
+        })
+        .transpose()?;
+    Ok((payload, report))
 }
 fn scan(request: &Request, base: &Path) -> Result<Snapshot> {
     let mut result = Snapshot {
@@ -190,19 +210,18 @@ mod tests;
 /// 编排同次审计摘要；无配置不改变默认清单。
 pub(crate) fn prepare(sess: &mut crate::Session) -> Result<Option<String>> {
     sess.distribution_metadata_report = None;
+    sess.distribution_dependency_report = None;
     anyhow::ensure!(
         !(sess.fixed_binding_build && sess.distribution_metadata.is_some()),
         "分发快照首切不支持native binding宿主"
     );
-    let distribution_payload = sess
-        .distribution_metadata
-        .as_deref()
-        .map(collect)
-        .transpose()?;
-    if let Some(payload) = &distribution_payload {
-        record_payload(sess, payload)?;
-    }
-    Ok(distribution_payload)
+    let Some(path) = sess.distribution_metadata.as_deref() else {
+        return Ok(None);
+    };
+    let (payload, dependency_report) = collect_checked(path)?;
+    record_payload(sess, &payload)?;
+    sess.distribution_dependency_report = dependency_report;
+    Ok(Some(payload))
 }
 
 /// 同次显式/自动快照共用审计格式；不把自动失败伪造成空inventory。
@@ -229,6 +248,20 @@ pub(crate) fn write_report(sess: &crate::Session, out: &Path) -> Result<()> {
             serde_json::to_vec_pretty(report)?,
         )?;
     }
+    // 单独的编译期收据，不改变既有metadata schema及Native分发的运行时字节。
+    if let Some(report) = &sess.distribution_dependency_report {
+        std::fs::write(
+            out.join("dependency-check.json"),
+            serde_json::to_vec_pretty(report)?,
+        )?;
+    } else {
+        // 普通JIT可复用输出目录；关闭预检后的成功构建不能沿用旧成功收据。
+        match std::fs::remove_file(out.join("dependency-check.json")) {
+            Ok(()) => (),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Err(error) => return Err(error.into()),
+        }
+    }
     Ok(())
 }
 
@@ -245,6 +278,7 @@ pub(crate) fn automatic(roots: &[PathBuf]) -> Result<std::result::Result<String,
     let request = Request {
         schema_version: 1,
         mode: "closed_snapshot".into(),
+        dependency_check: None,
         roots: roots
             .iter()
             .enumerate()
@@ -336,3 +370,7 @@ pub(crate) fn targets(payload: &str, groups: &[String]) -> Result<(Vec<String>, 
     outside.retain(|name| !planned.contains(name));
     Ok((planned.into_iter().collect(), outside.into_iter().collect()))
 }
+
+#[cfg(test)]
+#[path = "distribution_dependency_report_tests.rs"]
+mod dependency_report_tests;

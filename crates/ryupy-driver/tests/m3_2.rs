@@ -1,13 +1,15 @@
 //! 普通 yield 首切：逐层验证状态机，并锁定尚不能保证的暂停语义诊断。
 
 use ryupy_driver::{Session, Stage};
+mod generator_cil_contract;
+mod genexpr_mir_contract;
 mod support;
 use support::dump;
 
 #[test]
 fn snapshot_m3_2_basic() {
     let path = std::env::temp_dir().join("ryupy_test_generator_basic.py");
-    std::fs::write(&path, "def values(limit):\n    for value in range(limit):\n        yield value\n    return\n\nprint(list(values(2)))\n").unwrap();
+    std::fs::write(&path, genexpr_mir_contract::BASIC).unwrap();
     for (stage, name) in [
         (Stage::Hir, "m3_2_basic_hir"),
         (Stage::Types, "m3_2_basic_types"),
@@ -16,7 +18,17 @@ fn snapshot_m3_2_basic() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("普通生成器应完成所有阶段");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        if matches!(stage, Stage::Cil) {
+            generator_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.GeneratorInput(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| generator_cil_contract::check(&broken, name)).is_err()
+            );
+        } else if matches!(stage, Stage::Mir) && name == "m3_2_basic_mir" {
+            genexpr_mir_contract::check_with_negative_controls(true);
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }
@@ -117,7 +129,15 @@ fn snapshot_m3_2_send() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("yield表达式应有恢复接收槽");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        if matches!(stage, Stage::Cil) {
+            generator_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.GeneratorInput(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| generator_cil_contract::check(&broken, name)).is_err()
+            );
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }
@@ -136,7 +156,15 @@ fn snapshot_m3_2_prepared_call() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("暂停调用须先绑定目标");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        if matches!(stage, Stage::Cil) {
+            generator_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.GeneratorInput(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| generator_cil_contract::check(&broken, name)).is_err()
+            );
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }
@@ -166,7 +194,15 @@ fn snapshot_m3_2_starred_containers() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("星号容器应保持原类型和插入边界");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        if matches!(stage, Stage::Cil) {
+            generator_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.GeneratorInput(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| generator_cil_contract::check(&broken, name)).is_err()
+            );
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }
@@ -181,7 +217,15 @@ fn snapshot_m3_2_starred_call() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("star展开应在Suspend之前");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        if matches!(stage, Stage::Cil) {
+            generator_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.GeneratorInput(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| generator_cil_contract::check(&broken, name)).is_err()
+            );
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "generator.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

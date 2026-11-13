@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "cp_version": "3.12.13",
+  "argv": [
+    "-f",
+    "standard",
+    "hi"
+  ],
+  "additional_argv": [
+    [
+      "-f",
+      "slant",
+      "hi"
+    ],
+    [
+      "--list_fonts"
+    ]
+  ],
+  "expected_exit": 0,
+  "expected_stderr": "",
+  "files": {
+    "inputs.json": "0277f68f6f1688ffffe4f98404a67f2399c07cddfa24fd2dfd90ca0806ce65eb",
+    "resources.json": "49d1a23120e7780a73b530bb059b5fdc9d185960f07409d02e493c964174f9b0",
+    "console_entry.py": "245777191705f50dee5c37faa3c8c240cd5b6b5468d3bc69910c1a1861346357",
+    "stdout.txt": "e01c7b04d9bcccb597250161c6083f5ab5fce6ae22c4a0c386b6a051da23b270",
+    "slant.stdout.txt": "0d67bd5c65ecdc0f6c4a3c1a4ffcfb8cb1b2f492a8432ac762f83db4caac7a10",
+    "fonts.stdout.txt": "ae1b2e136f1bbbf1d2a3cb1ead036b10338195cf6a8a90596181d5e4c4b0c765"
+  },
+  "python_mode": {
+    "optimize": 0,
+    "site": true,
+    "user_site": false
+  }
+}

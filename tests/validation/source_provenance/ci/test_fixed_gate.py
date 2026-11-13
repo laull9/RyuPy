@@ -131,6 +131,46 @@ class FixedGateNegativeTests(unittest.TestCase):
         return next(m for m in data['methods'] if m['method']['name']=='__init_code_sources')['body']['instructions']
     def init(self, data):
         return next(m for m in data['methods'] if m['method']['name']=='__init_functions')['body']['instructions']
+    def current_model(self):
+        data, expectation, sources, signatures = model(static=True)
+        for index, method in enumerate(data['methods']):
+            name = method['method']['name']
+            if name.startswith('m') and not name.endswith('___module_main'):
+                method['method']['name'] += '$f' + str(index)
+        return data, expectation, sources, signatures
+
+    def test_explicit_lexical_version_preserves_legacy_default(self):
+        data, expectation, _, _ = self.current_model()
+        with self.assertRaises(ValueError): self.accepts(data, expectation)
+        result = G['check'](data, expectation, ROOT, 'new', binding_version='lexical-chain-v1')
+        self.assertTrue(result['admitted'])
+        with self.assertRaises(ValueError):
+            G['locate'](data, expectation, 'new', binding_version='guess-latest')
+
+    def test_current_chain_rejects_duplicate_source_signature_and_edges(self):
+        for mutation in ('token', 'descriptor', 'source', 'signature', 'extra-edge', 'firstline'):
+            data, expectation, sources, signatures = self.current_model()
+            init = self.init(data)
+            thunk = next(m for m in data['methods'] if m['method']['name'].startswith('__thunk_'))
+            target = next(i['token'] for i in thunk['body']['instructions'] if i['opcode'] == '0x28')
+            core = next(m for m in data['methods'] if m['token'] == target)
+            if mutation in ('token', 'descriptor', 'extra-edge'):
+                duplicate = deepcopy(core)
+                if mutation != 'token': duplicate['token'] = '0x0600ffff'
+                if mutation == 'extra-edge': duplicate['method']['name'] = 'unrelated$f999'
+                data['methods'].append(duplicate)
+                if mutation == 'extra-edge':
+                    thunk['body']['instructions'].append({'opcode': '0x28', 'token': duplicate['token'], 'target': duplicate['method']})
+            if mutation == 'source':
+                at = next(i for i,x in enumerate(init) if x.get('target',{}).get('name') == 'FunctionDefinitionWithSource')
+                init[at-1]['field_token'] = sources[-1]
+            if mutation == 'signature': thunk['body']['instructions'][0]['field_token'] = signatures[-1]
+            if mutation == 'firstline':
+                at = next(i for i,x in enumerate(init) if x.get('target',{}).get('name') == 'FunctionDefinitionWithSource')
+                init[at-2]['operand_hex'] = (999).to_bytes(8,'little',signed=True).hex()
+            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+                G['check'](data, expectation, ROOT, 'new', binding_version='lexical-chain-v1')
+
     def test_synthetic_positive_shape_not_product(self):
         d,e,_,_=model();self.assertTrue(self.accepts(d,e)['admitted'])
     def test_warning_origin_old_two_or_three_new_only_three(self):

@@ -1,0 +1,215 @@
+# 独立整合分支三平台验证用户原版多导出、绑定资源与as_file；不替代干净机部署证明。
+name: 整合多导出与资源原生回归
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/dev-aot-native-20261113, integration/dev-catalog-aot-20261113]
+permissions:
+  contents: read
+concurrency:
+  group: binding-integration-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  RUSTUP_TOOLCHAIN: '1.99.1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+  PYTHONOPTIMIZE: '0'
+  PYTHONNOUSERSITE: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_UI_LANGUAGE: en-US
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+jobs:
+  native-binding:
+    if: github.ref == 'refs/heads/integration/dev-aot-native-20261113' || github.ref == 'refs/heads/integration/dev-catalog-aot-20261113'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+          - os: macos-15
+            rid: osx-arm64
+          - os: windows-2022
+            rid: win-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 125
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '10.0.403'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.4'
+          enable-cache: false
+      - name: 固定CP（POSIX）
+        if: runner.os != 'Windows'
+        run: |
+          uv python install 3.12.13
+          echo "PYTHON=$(uv python find 3.12.13 --managed-python)" >> "$GITHUB_ENV"
+      - name: 固定CP（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          uv python install 3.12.13
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $python = uv python find 3.12.13 --managed-python
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "PYTHON=$python" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: 选择已安装x64 Visual C++
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          @echo off
+          set "RYUPY_VSROOT="
+          for /f "usebackq delims=" %%I in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "RYUPY_VSROOT=%%I"
+          if not defined RYUPY_VSROOT exit /b 1
+          call "%RYUPY_VSROOT%\Common7\Tools\VsDevCmd.bat" -no_logo -arch=x64 -host_arch=x64
+          if errorlevel 1 exit /b %errorlevel%
+          "%PYTHON%" -c "import os; keys={'path','include','lib','libpath','vcinstalldir','vctoolsinstalldir','windowssdkdir','windowssdkversion','ucrtversion','universalcrtsdkdir'}; f=open(os.environ['GITHUB_ENV'],'a',encoding='utf-8'); f.writelines(k+'='+v+'\n' for k,v in os.environ.items() if k.lower() in keys); f.close()"
+      - name: 一次性Windows runner长路径准备
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git config --global core.longpaths true
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $actual = git config --global --get core.longpaths
+          if ($LASTEXITCODE -ne 0 -or $actual -ne 'true') { throw 'Git long paths not enabled' }
+          $shortCargoHome = Join-Path $env:RUNNER_TEMP 'c'
+          New-Item -ItemType Directory -Force -Path $shortCargoHome | Out-Null
+          "CARGO_HOME=$shortCargoHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Output "core.longpaths=$actual; CARGO_HOME=$shortCargoHome"
+      - name: Linux原生工具依赖
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: 固定SDK工作根及本轮编译器运行时
+        id: prepare
+        shell: python
+        timeout-minutes: 25
+        run: |
+          import json, os, pathlib, shutil, subprocess
+          repo = pathlib.Path(os.environ['GITHUB_WORKSPACE']).resolve()
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])/'bi'
+          root.mkdir(exist_ok=False)
+          (root/'global.json').write_text(json.dumps({'sdk': {'version': '10.0.403', 'rollForward': 'disable', 'allowPrerelease': False}}))
+          dotnet = shutil.which('dotnet')
+          assert dotnet
+          def run(label, argv, cwd):
+              with (root/(label+'.stdout')).open('wb') as out, (root/(label+'.stderr')).open('wb') as err:
+                  result = subprocess.run(list(map(str, argv)), cwd=cwd, stdout=out, stderr=err)
+              (root/(label+'.status.json')).write_text(json.dumps({'exit': result.returncode, 'argv': list(map(str, argv)), 'cwd': str(cwd)}))
+              assert result.returncode == 0, label
+          run('sdk-version', [dotnet, '--version'], root)
+          assert (root/'sdk-version.stdout').read_text(encoding='utf-8-sig').strip() == '10.0.403'
+          run('python-version', [os.environ['PYTHON'], '-c', 'import platform; print(platform.python_version())'], root)
+          assert (root/'python-version.stdout').read_text().strip() == '3.12.13'
+          run('rust-version', ['rustc', '--version'], repo)
+          assert (root/'rust-version.stdout').read_text().startswith('rustc 1.99.1 ')
+          run('runtime-build', [dotnet, 'build', repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj', '-c', 'Release', '-t:Rebuild', '-nologo'], root)
+          run('cli-build', ['cargo', 'build', '--release', '--locked', '-p', 'ryupy-cli'], repo)
+          tools = root/'tools'; tools.mkdir()
+          cli = tools/('ryupy.exe' if os.name == 'nt' else 'ryupy')
+          shutil.copy2(repo/'target/release'/cli.name, cli)
+          shutil.copy2(repo/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll', tools)
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              stream.write('RYUPY_INTEGRATION_ROOT='+str(root)+'\nRYUPY_INTEGRATION_CLI='+str(cli)+'\nRYUPY_RUNTIME_DIR='+str(tools)+'\nDOTNET='+dotnet+'\n')
+      - name: Windows路径词法与真实宿主入口
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 8
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          project = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj'
+          command = [os.environ['DOTNET'], 'test', str(project), '-c', 'Release', '--filter', 'FullyQualifiedName~PyWindowsPath|FullyQualifiedName~PyWindowsExtendedPath', '-nologo', '-v', 'normal']
+          with (root/'windows-path-tests.stdout').open('wb') as out, (root/'windows-path-tests.stderr').open('wb') as err:
+              result = subprocess.run(command, cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
+      - name: Unix直接入口与Windows薄入口协议
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 26
+        env:
+          RYUPY_INTEGRATION_RID: ${{ matrix.rid }}
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          script = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'tests/aot/direct_entry/run.py'
+          with (root/'direct_entry.stdout').open('wb') as out, (root/'direct_entry.stderr').open('wb') as err:
+              result = subprocess.run([os.environ['PYTHON'], '-B', str(script), '--ryupy', os.environ['RYUPY_INTEGRATION_CLI'], '--python', os.environ['PYTHON'], '--out', str(root/'d'), '--rid', os.environ['RYUPY_INTEGRATION_RID']], cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
+      - name: 多导出JIT与静态AOT
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 22
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          script = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'tests/aot/binding_multi/run.py'
+          with (root/'binding_multi.stdout').open('wb') as out, (root/'binding_multi.stderr').open('wb') as err:
+              result = subprocess.run([os.environ['PYTHON'], '-B', str(script), '--ryupy', os.environ['RYUPY_INTEGRATION_CLI'], '--python', os.environ['PYTHON'], '--out', str(root/'m')], cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
+      - name: 绑定与文件资源组合
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 22
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          script = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'tests/aot/binding_resources/run.py'
+          with (root/'binding_resources.stdout').open('wb') as out, (root/'binding_resources.stderr').open('wb') as err:
+              result = subprocess.run([os.environ['PYTHON'], '-B', str(script), '--ryupy', os.environ['RYUPY_INTEGRATION_CLI'], '--python', os.environ['PYTHON'], '--out', str(root/'r')], cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
+      - name: as_file文件系统语义
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 22
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          script = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'tests/aot/resources_as_file.py'
+          with (root/'resources_as_file.stdout').open('wb') as out, (root/'resources_as_file.stderr').open('wb') as err:
+              result = subprocess.run([os.environ['PYTHON'], '-B', str(script), '--ryupy', os.environ['RYUPY_INTEGRATION_CLI'], '--python', os.environ['PYTHON'], '--out', str(root/'f')], cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
+      - name: 用户catalog原测试与真实ILC搬迁差分
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 30
+        run: |
+          import json, os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          repo = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+          env = dict(os.environ, RYUPY_FOREACH_PYTHON=os.environ['PYTHON'], RUST_TEST_THREADS='1')
+          commands = [
+              ('source-probe', ['cargo', 'test', '--locked', '-p', 'ryupy-driver', '--lib', 'source_probe', '--', '--nocapture']),
+              ('catalog-colorsys', ['cargo', 'test', '--locked', '-p', 'ryupy-driver', '--test', 'catalog_colorsys', '--', '--include-ignored', '--nocapture', '--test-threads=1']),
+              ('cli-stage-diagnostics', ['cargo', 'test', '--locked', '-p', 'ryupy-cli', '--test', 'stage_diagnostics', '--', '--nocapture']),
+          ]
+          failed = False
+          for label, command in commands:
+              with (root/(label+'.stdout')).open('wb') as out, (root/(label+'.stderr')).open('wb') as err:
+                  result = subprocess.run(command, cwd=repo, env=env, stdout=out, stderr=err)
+              (root/(label+'.status.json')).write_text(json.dumps({'exit': result.returncode, 'argv': command, 'cwd': str(repo)}))
+              failed = failed or result.returncode != 0
+          sys.exit(1 if failed else 0)
+      - name: 保存全部实际成功与失败证据
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: binding-integration-${{ matrix.rid }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bi
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

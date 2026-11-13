@@ -70,3 +70,51 @@ jobs:
             'Native/退出/双流/来源任一失败保原件，检查器通过不是产品通过。' >> "$GITHUB_STEP_SUMMARY"
           printf '%s\n' 'tzinfo用户单基独立图：复用冻结默认工具，各图分别1ELF/2执行，不合并统计。' \
             'tzinfo只覆盖正负零偏移与aware回调，不声明完整datetime或真实toml通过。' >> "$GITHUB_STEP_SUMMARY"
+  # 独立预算，不给旧Decimal/tzinfo共享25分钟再叠加第三次Native发布。
+  enum-auto-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Enum独立检查器反例
+        timeout-minutes: 2
+        run: python3 -B -m unittest discover -s tests/aot/enum_auto_native -p 'test_*.py'
+      - name: Enum固定官方工具
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/enum-auto-native-prepare
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/enum-auto-native-prepare/stdout 2> target/enum-auto-native-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/enum-auto-native-prepare/exit
+          exit "$status"
+      - name: Enum有限图CP双PIC及真实Native
+        timeout-minutes: 25
+        run: '"$PYTHON" -B tests/aot/enum_auto_native/run.py'
+      - name: Enum独立原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: enum-auto-native-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/enum-auto-native-evidence
+            !target/enum-auto-native-evidence/native-build/**
+            !target/enum-auto-native-evidence/relocated/**
+            target/enum-auto-native-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: warn
+          retention-days: 3
+      - name: Enum有限域说明
+        if: always()
+        run: |
+          printf '%s\n' 'Enum auto独立有限图：默认CLI、固定CP、双PIC、1ELF/2Native执行与源码隔离。' \
+            'warning record/ignore/error必须在真实Native执行，不借JIT替代；不扩全MI、混scalar生成或自定义hook。' \
+            '独立artifact与结果计数，不改变Decimal/tzinfo原图统计。' >> "$GITHUB_STEP_SUMMARY"

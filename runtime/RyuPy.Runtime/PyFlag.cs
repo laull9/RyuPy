@@ -6,7 +6,7 @@ namespace RyuPy.Runtime;
 
 /// <summary>
 /// Flag的有界真实协议：成员仍是Python实例，组合按值缓存；不伪装int，也不扩普通对象热分派。
-/// 仅默认严格掩码，所有有效bit须有单bit声明；auto/边界配置/负成员等由前端或完成阶段明确拒绝。
+/// 仅默认严格掩码，所有有效bit须有单bit声明；自定义生成器/边界配置/负成员等由前端或赋值、完成阶段明确拒绝。
 /// </summary>
 public static partial class PyEnum
 {

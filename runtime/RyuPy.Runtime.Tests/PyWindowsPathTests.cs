@@ -97,9 +97,9 @@ public class PyWindowsPathTests
     }
 
     [Theory]
-    [InlineData("\\\\?\\C:\\a")]
-    [InlineData("//?/C:/a")]
-    [InlineData("/\\?\\C:/a")]
+    [InlineData(@"\\?\GLOBALROOT\Device\a")]
+    [InlineData("//?/GLOBALROOT/Device/a")]
+    [InlineData("/\\?\\GLOBALROOT/Device/a")]
     [InlineData("\\/./C:/a")]
     [InlineData("\\\\.\\pipe\\name")]
     public void DeviceNamespacesRemainExplicitlyUnsupported(string path)
@@ -109,7 +109,7 @@ public class PyWindowsPathTests
     }
 
     [Fact]
-    public void PublicPlatformDispatchAndBinderDoNotExpandOtherWindowsApis()
+    public void PublicPlatformDispatchPreservesExplicitNormalizationBoundary()
     {
         var attributes = PyOsPath.CreateAttributes();
         if (OperatingSystem.IsWindows())
@@ -117,10 +117,10 @@ public class PyWindowsPathTests
             Assert.Equal("C:/中文 &目录", PyOps.CallValue(attributes["dirname"], ["C:/中文 &目录/file.py"], [], []));
             Assert.Equal("C:/中文 &目录\\data.txt", PyOps.CallValue(attributes["join"], ["C:/中文 &目录", "data.txt"], [], []));
             Assert.Throws<PyTypeError>(() => PyOps.CallValue(attributes["join"], ["a"], ["bad"], ["b"]));
-            Assert.Throws<PyNotImplementedError>(() => PyOsPath.BaseName("C:/a"));
+            Assert.Equal("a", PyOsPath.BaseName("C:/a"));
             Assert.Throws<PyNotImplementedError>(() => PyOsPath.Normalize("C:/a"));
             Assert.Throws<PyNotImplementedError>(() => PyOsPath.Absolute("C:/a"));
-            Assert.Throws<PyNotImplementedError>(() => PyOsPath.SplitExtension("C:/a.txt"));
+            Assert.Equal(new object?[] { "C:/a", ".txt" }, PyOsPath.SplitExtension("C:/a.txt").Items);
         }
         else
         {

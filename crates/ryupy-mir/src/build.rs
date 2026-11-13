@@ -199,7 +199,9 @@ pub(crate) fn build_program_mode(
         let codegen_name = if is_main {
             "__module_main".to_string()
         } else {
-            hir_fn.name.as_str().to_string()
+            // Python名允许跨作用域重用；内部方法身份不能只靠名字和签名。
+            // `$`不属于Python标识符，稳定HIR身份也隔离编译器thunk/worker保留名。
+            format!("{}$f{}", hir_fn.name, hir_fn_id.into_raw().into_u32())
         };
         let mir_fn = Function {
             module_state: None,

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "packages": {
+    "tabulate": {
+      "version": "0.9.0",
+      "source_root": "third_party/projects/tabulate-0.9.0/tabulate-0.9.0",
+      "archive": {
+        "filename": "tabulate-0.9.0.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797b8f7902564ab6ea0d60ff8ca23952079064155d1ae1/tabulate-0.9.0.tar.gz",
+        "sha256": "0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c"
+      },
+      "files": {
+        "tabulate.egg-info/PKG-INFO": "d6b134927b8f1a26139360edabb504b43166bcb51df433a54d177dc3d59954bc",
+        "tabulate.egg-info/SOURCES.txt": "dbe522bfa0c67a6ecdae5732e5e7e7bd285c03b5d438140194826cbd811776a1",
+        "tabulate.egg-info/dependency_links.txt": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+        "tabulate.egg-info/entry_points.txt": "f039828416266b69f852a0b556490a6c3e4dbb832b7596ac511a1e4ed1b4255a",
+        "tabulate.egg-info/requires.txt": "576a6542f4f231ae790afeb666f435394e713f49f82dc13f2f03496cd4193ddd",
+        "tabulate.egg-info/top_level.txt": "a9faa44366b3ecb4f151e45e3ed5fc8209a1dbde0a7f5111748fb5d5a5aa1595",
+        "tabulate/__init__.py": "5f7af0a28fcd713b830c97388675945fa8c4950b05b58f8d187c900a5752d57d",
+        "tabulate/version.py": "4155698e74e8afddf29be4dbe98fd7b4bffaa6643732da0dcb743a234a3762a8"
+      }
+    },
+    "wcwidth": {
+      "version": "0.2.13",
+      "source_root": "third_party/projects/wcwidth-0.2.13/wcwidth-0.2.13",
+      "archive": {
+        "filename": "wcwidth-0.2.13.tar.gz",
+        "url": "https://files.pythonhosted.org/packages/6c/63/53559446a878410fc5a5974feb13d31d78d752eb18aeba59c7fef1af7598/wcwidth-0.2.13.tar.gz",
+        "sha256": "72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5"
+      },
+      "files": {
+        "wcwidth.egg-info/PKG-INFO": "dfef2844ef0f7190485915d1c0ef0735a3004fce79c60fc909e4ce11e51bb0e4",
+        "wcwidth.egg-info/SOURCES.txt": "6491428acfe6b7f1d7daa209acbde51c9d773fb6d2e9bcb3210f10a5ecda2a30",
+        "wcwidth.egg-info/dependency_links.txt": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+        "wcwidth.egg-info/requires.txt": "b9781dd9d8e116fec6d16319e60834802a3b852909314a745d3ead9e24271d87",
+        "wcwidth.egg-info/top_level.txt": "2cb8d2f121625d7b8b11c0f604d7457468692967b9a291edbe7eca363f402112",
+        "wcwidth.egg-info/zip-safe": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+        "wcwidth/__init__.py": "79c671dd456892d66e02f6ad1ba35eb41c9516010d90a97d86d9a4d196ac4e60",
+        "wcwidth/table_vs16.py": "84f6eea05c66c6b19fb8169ea2178c4c01a6801d9ae04b9d87162c62890b7faa",
+        "wcwidth/table_wide.py": "bd41e310eb91c35586c94708c362fd1b2999b18bc2d88ddd73ce7c9a56324d83",
+        "wcwidth/table_zero.py": "e197a284b6431fca1b82bc00e9cb7ebeeda5c5ce2dfc3b1fca207da7d3afc5ba",
+        "wcwidth/unicode_versions.py": "ee74a181e458aef645906a5111dafe3e451e5e7b8cf96c5e3a61988fa40d69a1",
+        "wcwidth/wcwidth.py": "4cbcf21f56a17440c33ce20c72a54ee14d20c8ac12c9977302c4a010fb951466"
+      }
+    }
+  }
+}

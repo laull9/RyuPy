@@ -3,6 +3,8 @@
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
+#[path = "snapshots_cil_contract/mod.rs"]
+mod cil_features;
 
 #[test]
 fn snapshot_m1_0() {
@@ -41,7 +43,7 @@ fn snapshot_m1_1() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_1_cil", cil);
+    cil_features::check_and_reject_mutation("m1_1", &cil);
 }
 
 #[test]
@@ -102,7 +104,7 @@ fn snapshot_m1_2_control_flow() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_2_control_flow_cil", cil);
+    cil_features::check_and_reject_mutation("m1_2_control_flow", &cil);
 }
 
 #[test]
@@ -146,7 +148,7 @@ fn snapshot_m1_3_fib() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_3_fib_cil", cil);
+    cil_features::check_and_reject_mutation("m1_3_fib", &cil);
 }
 
 #[test]
@@ -190,7 +192,7 @@ fn snapshot_m1_4_mandelbrot() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_4_mandelbrot_cil", cil);
+    cil_features::check_and_reject_mutation("m1_4_mandelbrot", &cil);
 }
 
 #[test]
@@ -212,7 +214,7 @@ fn snapshot_m1_5_dataclass() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m1_5_dataclass_cil", cil);
+    cil_features::check_and_reject_mutation("m1_5_dataclass", &cil);
 }
 
 #[test]
@@ -290,7 +292,7 @@ fn snapshot_m2_1_dynamic() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_1_dynamic_cil", cil);
+    cil_features::check_and_reject_mutation("m2_1_dynamic", &cil);
 }
 
 /// 大整数：字面量以十进制字符串携带，超出 i64 的部分由运行时构造 BigInteger。
@@ -323,7 +325,7 @@ fn snapshot_m2_2_try() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_2_try_cil", cil);
+    cil_features::check_and_reject_mutation("m2_2_try", &cil);
 }
 
 /// 错误输入：有限动态except只新增Name/Name起点Attribute/tuple；数字字面量仍明确拒绝。
@@ -369,7 +371,7 @@ fn snapshot_m2_3_containers() {
     let _ = std::fs::remove_file(&py_path);
 
     insta::assert_snapshot!("m2_3_containers_mir", mir);
-    insta::assert_snapshot!("m2_3_containers_cil", cil);
+    cil_features::check_and_reject_mutation("m2_3_containers", &cil);
 }
 
 /// M2.3：切片赋值与星号解包。
@@ -439,7 +441,7 @@ fn snapshot_m2_5_classes() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_5_classes_cil", cil);
+    cil_features::check_and_reject_mutation("m2_5_classes", &cil);
 }
 
 /// M2.6：用户异常类会生成 CLR 子类与工厂委托，CIL 快照防止继承链退化。
@@ -471,8 +473,8 @@ fn snapshot_multiple_inheritance_hir() {
 
 /// M2.8：`with` 去糖成 try/except/finally 后的 HIR / MIR / CIL。
 ///
-/// HIR 快照锁住展开顺序：取 `__exit__` → `__enter__` → 绑定 → `handled` 标记 →
-/// try/handler/finally。MIR / CIL 快照锁住 `finally` 状态机与 `BaseException` 捕获。
+/// HIR 快照锁住展开顺序：固定类型 `__enter__` → `__exit__` → 调用进入 → `handled` 标记 →
+/// try/handler/finally。MIR与手写CIL结构/变异合同锁住状态机和异常捕获，不保存生成CIL。
 #[test]
 fn snapshot_m2_8_with() {
     let root = ryupy_driver::runtime::workspace_root();
@@ -488,7 +490,7 @@ fn snapshot_m2_8_with() {
 
     let mut sess = Session::default();
     let cil = dump(&mut sess, &case, Stage::Cil).unwrap();
-    insta::assert_snapshot!("m2_8_with_cil", cil);
+    cil_features::check_and_reject_mutation("m2_8_with", &cil);
 }
 
 /// 错误输入：`async with` 明确拒绝，而不是静默当成同步上下文。
@@ -539,5 +541,5 @@ fn snapshot_m2_9_pic_cil() {
     assert!(cil.contains("PyOps.CaptureModuleTarget(object, string)"));
     assert!(!cil.contains("CaptureModuleMethod"));
     assert!(cil.contains("PyPic.CallValue"), "期望动态调用走 PIC：{cil}");
-    insta::assert_snapshot!("m2_9_pic_cil", cil);
+    cil_features::check_and_reject_mutation("m2_9_pic", &cil);
 }
