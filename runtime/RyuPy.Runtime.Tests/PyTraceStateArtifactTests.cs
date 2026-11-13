@@ -113,15 +113,16 @@ public partial class PyTraceStateArtifactTests
         var globalsAdditions = DirectGlobalsPublicAdditions();
         var miAdditions = OrdinaryMiPublicAdditions();
         var runtimeDerivedAdditions = RuntimeDerivedPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var resourceContextAdditions = ResourceContextPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
-            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions,
+            candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions,
             removed = before.Except(after).ToArray(), added = after.Except(before).ToArray(),
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1718逐字段保留（含普通MI冷方法）；本轮仅新增动态单基准备冷方法1条；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+            scope = "旧1719逐字段保留；本轮仅新增生成器上下文SetAttr/DelAttr两条公开覆盖；不覆盖默认参数、常量、全部属性或完整程序集scope" });
         Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins、XML异常或默认来源/类工厂冷增量不符；见baseline-abi.json。");
     }
 
@@ -247,7 +248,7 @@ public partial class PyTraceStateArtifactTests
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml, string[] deployment, string[] factory, string[] globals, string[] mi, string[] runtimeDerived)
     {
-        if (before.Length != 1659 || after.Length != 1719
+        if (before.Length != 1659 || after.Length != 1721
             || v1.Length != 12 || source.Length != 4 || metadata.Length != 24
             || !builtin.SequenceEqual(BuiltinPublicAdditions()) || !xml.SequenceEqual(XmlPublicAdditions())
             || !deployment.SequenceEqual(DefaultSourcePublicAdditions())
@@ -255,7 +256,7 @@ public partial class PyTraceStateArtifactTests
             || !globals.SequenceEqual(DirectGlobalsPublicAdditions())
             || !mi.SequenceEqual(OrdinaryMiPublicAdditions())
             || !runtimeDerived.SequenceEqual(RuntimeDerivedPublicAdditions())) return false;
-        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).Concat(mi).Concat(runtimeDerived).ToArray();
+        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).Concat(mi).Concat(runtimeDerived).Concat(ResourceContextPublicAdditions()).ToArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         // 不用去重后的集合判等：任一组内或组间重复直接拒绝。
         if (expected.Any(signature => !seen.Add(signature))) return false;

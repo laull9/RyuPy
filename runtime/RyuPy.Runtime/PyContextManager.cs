@@ -22,42 +22,38 @@ public static class PyContextLib
 }
 
 /// <summary>每次 with 独占一个生成器；作为装饰器使用时每次调用重新创建上下文。</summary>
-public sealed class PyGeneratorContext : PyNativeObject, IPyNativeCallable
+public sealed partial class PyGeneratorContext : PyNativeObject, IPyNativeCallable
 {
-    private object? _function;
-    private object?[]? _args, _values;
-    private string[]? _names;
-    private readonly object? _generator;
-    /// <summary>调用工厂获得生成器，但不恢复其函数体。</summary>
+    /// <summary>调用工厂获得生成器，但不恢复其函数体；公开属性也是协议实际读取的状态。</summary>
     public PyGeneratorContext(object? function, object?[] args, string[] names, object?[] values)
     {
-        _function = function; _args = (object?[])args.Clone(); _names = (string[])names.Clone(); _values = (object?[])values.Clone();
-        _generator = PyOps.CallValue(function, args, names, values);
+        var keywords = new PyDict();
+        for (int i = 0; i < names.Length; i++) keywords.Set(names[i], values[i]);
+        _attributes.Set("gen", PyOps.CallValue(function, args, names, values));
+        _attributes.Set("func", function);
+        _attributes.Set("args", new PyTuple((object?[])args.Clone()));
+        _attributes.Set("kwds", keywords);
+        object? doc;
+        try { doc = PyObject.GetAttr(function, "__doc__"); }
+        catch (PyAttributeError) { doc = null; }
+        _attributes.Set("__doc__", doc is null or PyNone ? "Helper for @contextmanager decorator." : doc);
     }
     /// <inheritdoc/>
     public override string TypeName => "_GeneratorContextManager";
-    /// <inheritdoc/>
-    public override object? GetAttr(string name) => name switch
-    {
-        "__enter__" => PyNativeFunctions.Create(name, [], [], 0, _ => Enter()),
-        "__exit__" => PyNativeFunctions.Create(name, ["typ", "value", "traceback"], [null, null, null], 3,
-            a => Exit(a[0], a[1]), ["posonly", "posonly", "posonly"]),
-        "__call__" => this,
-        _ => throw Missing(name),
-    };
-    private object? Next() => _generator is PyGenerator gen ? gen.Next(null, false)
-        : PyOps.CallBuiltin("next", [_generator], [], []);
-    private object? Throw(PyBaseException error) => _generator is PyGenerator gen ? gen.Throw(error)
-        : PyOps.CallValue(PyOps.PrepareMethod(_generator, "throw"), [error], [], []);
+    private object? Generator => GetAttr("gen");
+    private object? Next() => Generator is PyGenerator gen ? gen.Next(null, false)
+        : PyOps.CallBuiltin("next", [Generator], [], []);
+    private object? Throw(PyBaseException error) => Generator is PyGenerator gen ? gen.Throw(error)
+        : PyOps.CallValue(PyOps.PrepareMethod(Generator, "throw"), [error], [], []);
     private void Close()
     {
-        if (_generator is PyGenerator gen) gen.Close();
-        else PyOps.CallValue(PyOps.PrepareMethod(_generator, "close"), [], [], []);
+        if (Generator is PyGenerator gen) gen.Close();
+        else PyOps.CallValue(PyOps.PrepareMethod(Generator, "close"), [], [], []);
     }
     private object? Enter()
     {
-        if (_args is null) throw new PyAttributeError("'_GeneratorContextManager' object has no attribute 'args'");
-        _function = null; _args = null; _names = null; _values = null;
+        // 与contextlib一致，顺序删除公开重建状态；失败时不启动生成器。
+        DelAttr("args"); DelAttr("kwds"); DelAttr("func");
         try { return Next(); }
         catch (PyStopIteration stopped)
         {
@@ -113,14 +109,14 @@ public sealed class PyGeneratorContext : PyNativeObject, IPyNativeCallable
         throw failure;
     }
     /// <summary>作为 ContextDecorator 使用时，包装函数每次调用独立重建上下文。</summary>
-    public object? Invoke(object?[] args, string[] names, object?[] values)
+    public object? Invoke(object?[] args, string[] names, object?[] values) =>
+        CallMethodFunction.Invoke([this, .. args], names, values);
+
+    private object? Decorate(object? function)
     {
-        if (args.Length != 1 || names.Length != 0) throw new PyTypeError("ContextDecorator.__call__ expects one function");
-        object? function = args[0];
         var wrapper = PyContextLib.Forward("inner", (callArgs, callNames, callValues) =>
         {
-            if (_args is null) throw new PyAttributeError("'_GeneratorContextManager' object has no attribute 'func'");
-            var context = new PyGeneratorContext(_function, _args, _names!, _values!);
+            var context = Recreate();
             context.Enter(); object? result;
             try { result = PyOps.CallValue(function, callArgs, callNames, callValues); }
             catch (PyBaseException error)

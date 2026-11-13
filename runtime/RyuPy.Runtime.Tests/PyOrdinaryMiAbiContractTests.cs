@@ -14,7 +14,7 @@ public class PyOrdinaryMiAbiContractTests
         A.DefaultSourcePublicAdditions(), A.LexicalClassFactoryPublicAdditions(), A.DirectGlobalsPublicAdditions()
     ];
     private static bool Check(string[][] g, string[] mi) => A.PreservesBaselineAbi(g[0],
-        g.SelectMany(x => x).Concat(mi).Concat(A.RuntimeDerivedPublicAdditions()).ToArray(), g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], mi);
+        g.SelectMany(x => x).Concat(mi).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).ToArray(), g[1], g[2], g[3], g[4], g[5], g[6], g[7], g[8], mi);
 
     [Fact]
     public void OneColdAdditionPreservesEveryPrior1717Record()
@@ -26,9 +26,9 @@ public class PyOrdinaryMiAbiContractTests
         Assert.False(A.PreservesBaselineAbi(groups[0], old));
         for (int index = 0; index < old.Length; index++)
         {
-            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).ToArray()));
             var changed = (string[])old.Clone(); changed[index] += "改签";
-            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).ToArray()));
         }
     }
 
@@ -57,8 +57,8 @@ public partial class PyTraceStateArtifactTests
     {
         // 实际本次Runtime PE计数/冷签名；历史DLL逐项比对仍由带baseline的S1门负责。
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyOps).Assembly.Location);
-        Assert.Equal(1719, actual.Length);
-        Assert.Equal(1719, actual.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(1721, actual.Length);
+        Assert.Equal(1721, actual.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(OrdinaryMiPublicAdditions(), actual.Where(x => x.Contains(":PrepareOrdinaryMiClass:", StringComparison.Ordinal)).ToArray());
     }
 }

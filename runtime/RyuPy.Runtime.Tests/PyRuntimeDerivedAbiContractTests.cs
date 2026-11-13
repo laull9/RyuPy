@@ -15,7 +15,7 @@ public class PyRuntimeDerivedAbiContractTests
         A.DirectGlobalsPublicAdditions(), A.OrdinaryMiPublicAdditions()
     ];
     private static bool Check(string[][] g, string[] additions) => A.PreservesBaselineAbi(g[0],
-        g.SelectMany(x => x).Concat(additions).ToArray(), g[1], g[2], g[3], g[4], g[5],
+        g.SelectMany(x => x).Concat(additions).Concat(A.ResourceContextPublicAdditions()).ToArray(), g[1], g[2], g[3], g[4], g[5],
         g[6], g[7], g[8], g[9], additions);
 
     [Fact]
@@ -28,9 +28,9 @@ public class PyRuntimeDerivedAbiContractTests
         Assert.False(A.PreservesBaselineAbi(groups[0], old));
         for (int index = 0; index < old.Length; index++)
         {
-            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.ResourceContextPublicAdditions()).ToArray()));
             var changed = (string[])old.Clone(); changed[index] += "改签";
-            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.ResourceContextPublicAdditions()).ToArray()));
         }
     }
 
@@ -60,8 +60,8 @@ public partial class PyTraceStateArtifactTests
     public void ProducedRuntimeDerivedAssemblyHasExactSingleAdditionAndTotal()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyOps).Assembly.Location);
-        Assert.Equal(1719, actual.Length);
-        Assert.Equal(1719, actual.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(1721, actual.Length);
+        Assert.Equal(1721, actual.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(RuntimeDerivedPublicAdditions(), actual.Where(x => x.Contains(":PrepareRuntimeDerivedClass:", StringComparison.Ordinal)).ToArray());
     }
 }
