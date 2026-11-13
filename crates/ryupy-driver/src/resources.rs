@@ -200,6 +200,7 @@ pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<
         (Some(1), false, true) => 4,
         (Some(3), true, false) => 5,
         (Some(4), true, false) => 6,
+        (Some(7), true, false) => 8,
         _ => anyhow::bail!("资源扩展与基础发布清单版本不匹配"),
     };
     if value.get("native_bindings").is_some() {

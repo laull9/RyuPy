@@ -1,4 +1,4 @@
-//! 固定两参数C整数绑定的显式发射记录；不从源码名称推断、不增加用户FFI语法。
+//! 声明式 C 绑定的显式发射记录；兼容旧版两参数入口，v3 使用 MIR 静态合同。
 use dotnetdll::prelude::*;
 use ryupy_mir::{ExportGuard, FnId, GlobalId, LinkedProgram, MirType, ModuleId};
 
@@ -12,6 +12,8 @@ pub struct FixedI32Binding {
     pub export: GlobalId,
     pub module_ref: String,
     pub entry_point: String,
+    /// None 保留 v1/v2 固定签名；Some 为已验证 v3 静态合同。
+    pub signature: Option<ryupy_mir::native_abi::AbiSignature>,
 }
 
 /// 有界多导出共享单个顶层模块、库和初始化器。所有检查发生在构造Resolution之前。
@@ -24,6 +26,7 @@ pub(crate) fn validate(
         return Err(bad("at most 64 exports are supported"));
     }
     let mut exports = std::collections::HashSet::new();
+    let mut symbols = std::collections::HashMap::new();
     for b in bindings {
         let first = &bindings[0];
         if b.module != first.module
@@ -33,8 +36,21 @@ pub(crate) fn validate(
         {
             return Err(bad("expected distinct exports from one module and library"));
         }
+        if let Some(previous) = symbols.insert(&b.entry_point, &b.signature) {
+            let compatible = match (previous, &b.signature) {
+                (None, None) => true,
+                (Some(left), Some(right)) => left.same_abi(right),
+                _ => false,
+            };
+            if !compatible {
+                return Err(bad("one symbol requires one consistent ABI signature"));
+            }
+        }
     }
     for binding in bindings {
+        if let Some(signature) = &binding.signature {
+            signature.validate().map_err(|message| bad(&message))?;
+        }
         let module = program
             .modules
             .iter()

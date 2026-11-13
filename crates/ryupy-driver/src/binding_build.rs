@@ -264,12 +264,14 @@ fn declare(p: &mut ryupy_mir::LinkedProgram, plan: &BindingPlan) -> Vec<FixedI32
     plan.exports
         .iter()
         .zip(exports)
-        .map(|(e, export)| FixedI32Binding {
+        .zip(&plan.signatures)
+        .map(|((e, export), signature)| FixedI32Binding {
             module,
             initializer,
             export,
             module_ref: plan.library.clone(),
             entry_point: e.symbol.clone(),
+            signature: signature.clone(),
         })
         .collect()
 }

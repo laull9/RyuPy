@@ -450,6 +450,7 @@ fn append_binding(program: &mut LinkedProgram) -> crate::fixed_bindings::FixedI3
         export,
         module_ref: "probe".into(),
         entry_point: "add".into(),
+        signature: None,
     }
 }
 

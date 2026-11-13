@@ -1,4 +1,4 @@
-//! 固定绑定的机械CIL：转换在受保护调用之前，窄loader catch之后仅BoxInt物化。
+//! 声明绑定的机械 CIL：旧版数值路径保持稳定，v3 委托静态 ABI 发射器。
 use dotnetdll::prelude::*;
 use ryupy_mir::LinkedProgram;
 
@@ -53,7 +53,11 @@ pub(crate) fn initializer<'a>(
             instructions,
         )
     };
-    init.header.maximum_stack_size = 3;
+    init.header.maximum_stack_size = if bindings.iter().any(|binding| binding.signature.is_some()) {
+        4
+    } else {
+        3
+    };
     (init, methods)
 }
 
@@ -72,6 +76,9 @@ fn function(
         .find(|e| e.value == binding.export)
         .expect("validated export global")
         .name;
+    if let Some(signature) = &binding.signature {
+        return crate::native_abi_emit::function(res, class, binding, signature, export_name, refs);
+    }
     // 同型方法须使用唯一名称，否则ILC/元数据消费者无法区分签名相同的多个导出。
     let method_name = |kind: &str| {
         if module.exports.len() == 1 {

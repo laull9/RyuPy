@@ -1,9 +1,9 @@
-//! schema3/4 用于显式绑定；资源发布在同一报告上扩展为 schema5/6。
+//! 旧绑定使用 schema3/4、资源组合5/6；v3 ABI 使用7、资源组合8。
 //! 真实编译源码与生成模块来源分列，使用同次 Resolution 的实际 PInvoke 报告。
 use crate::{
     manifest::SourceSummary,
     manifest_files::{self, FileDigest},
-    native_binding::{BindingPlan, SIGNATURE},
+    native_binding::BindingPlan,
 };
 use anyhow::{Result, ensure};
 use ryupy_codegen_cil::{EmissionReport, MethodDescriptor, fixed_bindings::BindingEmission};
@@ -45,7 +45,11 @@ impl BindingManifest {
                 "实际PInvoke与声明身份不符"
             );
             ensure!(
-                binding.native.signature == "static long (int, int)"
+                binding.native.signature
+                    == plan.signatures[index].as_ref().map_or_else(
+                        || "static long (int, int)".into(),
+                        ryupy_codegen_cil::native_abi_types::signature_display
+                    )
                     && binding.body.signature == "static object (object[])"
                     && binding.calling_convention == "Cdecl"
                     && binding.character_set == "NotSpecified"
@@ -153,9 +157,9 @@ impl BindingManifest {
         let modules:Vec<Value>=self.report.modules.iter().map(|m|json!({"id":m.module_id,"name":m.module_name,"environment_reason":m.environment_reason,"init":method(&m.init),"getter":m.getter.as_ref().map(method),"setter":m.setter.as_ref().map(method),"exports":m.exports,"origin":if m.module_id==self.bindings[0].module_id{if plan.declaration_version == 1 { json!({"kind":"declared_native_binding","binding_id":"b0","declaration_sha256":plan.declaration_sha256}) } else { json!({"kind":"declared_native_binding","binding_ids":self.bindings.iter().map(|b| &b.binding_id).collect::<Vec<_>>(),"declaration_sha256":plan.declaration_sha256}) }}else{json!({"kind":"compiled_source","source_module_id":m.module_id})}})).collect();
         let refs:Vec<Value>=self.report.delegate_references.iter().map(|r|json!({"site":{"source_method":method(&r.source),"instruction":r.instruction},"target":r.target.as_ref().map(method),"target_display":r.target_display,"role":r.role,"module_id":r.module_id,"function_id":r.function_id,"class_id":r.class_id})).collect();
         let native_bindings: Vec<Value> = self.bindings.iter().zip(&plan.exports).map(|(b, e)|
-            json!({"binding_id":b.binding_id,"module_id":b.module_id,"module":plan.module,"export":e.name,"signature":SIGNATURE,"library":b.library,"symbol":b.symbol,"declaration_sha256":plan.declaration_sha256,"linkage":if plan.aot{"aot_static"}else{"jit_shared"},"relative_file":if plan.aot{None}else{Some(plan.platform.relative_file())},"initializer_id":b.initializer_id,"export_id":b.export_id,"body":method(&b.body),"native":method(&b.native),"pinvoke":{"calling_convention":b.calling_convention,"character_set":b.character_set,"no_mangle":b.no_mangle,"supports_last_error":b.supports_last_error,"preserve_sig":b.preserve_sig,"is_static":b.is_static,"has_body":b.has_body}})
+            json!({"binding_id":b.binding_id,"module_id":b.module_id,"module":plan.module,"export":e.name,"signature":e.signature,"library":b.library,"symbol":b.symbol,"declaration_sha256":plan.declaration_sha256,"linkage":if plan.aot{"aot_static"}else{"jit_shared"},"relative_file":if plan.aot{None}else{Some(plan.platform.relative_file())},"initializer_id":b.initializer_id,"export_id":b.export_id,"body":method(&b.body),"native":method(&b.native),"pinvoke":{"calling_convention":b.calling_convention,"character_set":b.character_set,"no_mangle":b.no_mangle,"supports_last_error":b.supports_last_error,"preserve_sig":b.preserve_sig,"is_static":b.is_static,"has_body":b.has_body}})
         ).collect();
-        let value = json!({"schema_version":if plan.declaration_version == 1 {3} else {4},"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},
+        let value = json!({"schema_version":match plan.declaration_version { 1 => 3, 2 => 4, _ => 7 },"kind":if plan.aot{"ryupy-native-aot-artifact"}else{"ryupy-managed-binding-artifact"},
  "compiler":{"package_version":env!("CARGO_PKG_VERSION"),"build_revision":Value::Null,"codegen_report_version":self.report.schema_version,"options":self.options},"target":{"rid":plan.platform.rid(),"native_format":plan.platform.native_format(),"architecture":plan.platform.architecture()},"toolchain":{"sdk_version":sdk,"target_framework_major":ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR},
  "entry":{"module_id":self.entry,"managed_entry":method(&self.report.entry)},"sources":self.sources,"modules":modules,"emitted_delegate_references":refs,
  "native_bindings":native_bindings,

@@ -1,4 +1,4 @@
-//! 固定签名的单库绑定声明：兼容v1单导出，v2有界多导出，严格拒绝未知字段。
+//! 单库绑定声明：v1/v2 固定签名兼容，v3 为严格、显式的有界多导出 ABI。
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 pub(crate) mod files;
 #[path = "native_binding_images.rs"]
 mod images;
+#[path = "native_binding_signature.rs"]
+mod signature;
 pub(crate) const INPUT_LIMIT: u64 = 64 * 1024 * 1024;
 const DECLARATION_LIMIT: u64 = 64 * 1024;
 pub(crate) const SIGNATURE: &str = "cdecl_i32_i32_i64";
@@ -16,7 +18,7 @@ struct Declaration {
     schema_version: u32,
     module: String,
     export: Option<String>,
-    signature: Option<String>,
+    signature: Option<serde_json::Value>,
     library: String,
     symbol: Option<String>,
     exports: Option<Vec<BindingExport>>,
@@ -28,7 +30,7 @@ struct Declaration {
 pub(crate) struct BindingExport {
     pub name: String,
     pub symbol: String,
-    pub signature: String,
+    pub signature: serde_json::Value,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -86,6 +88,7 @@ pub(crate) struct BindingPlan {
     pub declaration_version: u32,
     pub module: String,
     pub exports: Vec<BindingExport>,
+    pub signatures: Vec<Option<ryupy_mir::native_abi::AbiSignature>>,
     pub library: String,
     pub declaration_sha256: String,
     pub platform: Platform,
@@ -96,7 +99,7 @@ impl BindingPlan {
     pub(crate) fn read(path: &Path, platform: Platform, aot: bool) -> Result<Self> {
         let bytes = files::read_small(path, DECLARATION_LIMIT)?;
         let d: Declaration = serde_json::from_slice(&bytes).context("无效原生绑定声明")?;
-        // 两种声明只在此归一化；混合字段拒绝，避免新版配置被旧字段静默截断。
+        // 历史声明只在此归一化；混合字段拒绝，避免新版配置被旧字段静默截断。
         let exports = match d.schema_version {
             1 => {
                 ensure!(d.exports.is_none(), "版本1不能包含exports");
@@ -106,14 +109,14 @@ impl BindingPlan {
                     signature: d.signature.context("版本1缺少signature")?,
                 }]
             }
-            2 => {
+            2 | 3 => {
                 ensure!(
                     d.export.is_none() && d.symbol.is_none() && d.signature.is_none(),
-                    "版本2不能包含版本1单导出字段"
+                    "版本2/3不能包含版本1单导出字段"
                 );
-                d.exports.context("版本2缺少exports")?
+                d.exports.context("版本2/3缺少exports")?
             }
-            _ => anyhow::bail!("只支持版本1或版本2原生绑定声明"),
+            _ => anyhow::bail!("只支持版本1、版本2或版本3原生绑定声明"),
         };
         ensure!(
             (1..=EXPORT_LIMIT).contains(&exports.len()),
@@ -124,17 +127,37 @@ impl BindingPlan {
         }
         ensure!(d.module != "__main__", "绑定不能替代入口");
         let mut names = std::collections::HashSet::new();
+        let mut signatures = Vec::new();
         for e in &exports {
             ensure!(
                 identifier(&e.name) && identifier(&e.symbol),
                 "绑定名称必须是有界ASCII标识符"
             );
-            ensure!(e.signature == SIGNATURE, "只支持固定cdecl_i32_i32_i64签名");
+            signatures.push(if d.schema_version == 3 {
+                Some(signature::parse(&e.signature).with_context(|| format!("导出{}", e.name))?)
+            } else {
+                ensure!(e.signature == SIGNATURE, "只支持固定cdecl_i32_i32_i64签名");
+                None
+            });
             ensure!(
                 !matches!(e.name.as_str(), "__name__" | "__package__" | "__file__"),
                 "绑定不能替代保留元数据"
             );
             ensure!(names.insert(&e.name), "原生导出名称重复");
+        }
+        for (index, export) in exports.iter().enumerate() {
+            for (previous, other) in exports[..index].iter().enumerate() {
+                if export.symbol == other.symbol {
+                    ensure!(
+                        match (&signatures[index], &signatures[previous]) {
+                            (Some(left), Some(right)) => left.same_abi(right),
+                            (None, None) => true,
+                            _ => false,
+                        },
+                        "同一C符号不能声明冲突ABI签名"
+                    );
+                }
+            }
         }
         ensure!(d.target.rid == platform.rid(), "绑定RID必须精确匹配宿主");
         // 只消费本次模式所选输入，不给另一条未读取的路径背书。
@@ -152,6 +175,7 @@ impl BindingPlan {
             declaration_version: d.schema_version,
             module: d.module,
             exports,
+            signatures,
             library: d.library,
             declaration_sha256: crate::manifest_files::hash_bytes(&bytes),
             platform,

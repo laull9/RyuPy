@@ -97,6 +97,7 @@ fn declare(program: &mut ryupy_mir::LinkedProgram, name: &str) -> FixedI32Bindin
         }],
     });
     FixedI32Binding {
+        signature: None,
         module,
         initializer,
         export,
