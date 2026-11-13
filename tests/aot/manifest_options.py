@@ -4,7 +4,8 @@ from manifest_files import ManifestError
 BOOL_OPTIONS = frozenset(('experimental_direct_accumulator', 'experimental_foreach_accumulator',
                          'experimental_leaf_inline', 'diagnostic_scalar_slp', 'experimental_packed_slp'))
 OPTION_KEYS = BOOL_OPTIONS | {'instance_modules', 'module_environment_policy'}
-POLICIES = frozenset(('explicit-only', 'ordinary-dynamic-module-pilot'))
+# 与ModuleEnvironmentPolicy.identity的三个生产者值一致；不放行任意未知策略。
+POLICIES = frozenset(('explicit-only', 'catalog-only', 'ordinary-dynamic-module-pilot'))
 
 
 def validate_options(options):

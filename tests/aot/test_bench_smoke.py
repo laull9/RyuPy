@@ -25,6 +25,8 @@ def bundle(root, source):
     (attempt/'hello.dll').write_bytes(b'il');(attempt/'RyuPy.Runtime.dll').write_bytes(b'rt')
     host=attempt/'ryupy-aot-one/host';host.mkdir(parents=True);(host/'sdk.version').write_text('10.0.403\n')
     dist=root/'hello.dist';data=manifest_fixture(dist)
+    # 真实无flag CLI采用catalog-only，管线回归须覆盖当前默认而非历史explicit-only。
+    data['compiler']['options']['module_environment_policy']='catalog-only'
     (dist/'program').rename(dist/'hello');(dist/'hello').chmod(0o755)
     for record in data['artifacts']:
         if record['relative_path']=='program':record['relative_path']='hello'

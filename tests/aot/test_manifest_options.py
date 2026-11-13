@@ -29,6 +29,14 @@ class CurrentProducerOptionsTests(unittest.TestCase):
                 data['compiler']['options']['instance_modules'] = ['pkg.mod', 'pkg.mod']
                 validate(data)
 
+    def test_catalog_only_current_default_is_accepted_in_all_schemas(self):
+        # 普通CLI默认CatalogOnly；不能只用旧explicit-only合成清单掩盖真实发布失败。
+        with tempfile.TemporaryDirectory() as folder:
+            for data, validate in self.cases(folder):
+                with self.subTest(schema=data["schema_version"]):
+                    data["compiler"]["options"]["module_environment_policy"] = "catalog-only"
+                    validate(data)
+
     def test_exact_keys_and_types_reject_all_schemas(self):
         with tempfile.TemporaryDirectory() as folder:
             for data, validate in self.cases(folder):
