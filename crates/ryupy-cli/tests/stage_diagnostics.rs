@@ -1,5 +1,5 @@
 //! 阶段诊断的窄CLI契约：只编译小fixture，不启动dotnet或外部项目。
-//! runtime是仅验证复制步骤的哨兵文件，不把这些测试计作运行时验收。
+//! runtime使用复制步骤哨兵；运行时语义另由真实差分验收。
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Output};
@@ -42,6 +42,18 @@ impl Fixture {
             command.arg("--diagnostic-stages");
         }
         command.output().unwrap()
+    }
+
+    // 图加载完成后，即使语义编译失败也保留来源报告；禁止出现 DLL 等编译产物。
+    fn assert_source_report_only(&self) {
+        let files: Vec<_> = fs::read_dir(self.0.join("out"))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(files, ["main.source-plan.json"]);
+        let report = fs::read_to_string(self.0.join("out/main.source-plan.json")).unwrap();
+        assert!(report.contains("\"compiler_verified\": false"));
+        assert!(report.contains("\"__main__\""));
     }
 }
 impl Drop for Fixture {
@@ -174,7 +186,7 @@ fn stage_diagnostics_error_preserves_original_diagnostics() {
         "module=\"__main__\"".into(),
     ));
     assert_eq!(markers(&traced), expected);
-    assert!(!fixture.0.join("out").exists());
+    fixture.assert_source_report_only();
 }
 
 #[test]
@@ -298,7 +310,7 @@ fn stage_diagnostics_trace_results_are_single_points_for_each_path() {
         assert!(!fixture.0.join("out").exists());
         let plain = fixture.build_mode(false, required);
         if required {
-            assert!(!fixture.0.join("out").exists());
+            fixture.assert_source_report_only();
         }
         let traced = fixture.build_mode(true, required);
         assert_eq!(plain.status.code(), traced.status.code());
@@ -339,7 +351,7 @@ fn stage_diagnostics_trace_results_are_single_points_for_each_path() {
                     .count(),
                 1
             );
-            assert!(!fixture.0.join("out").exists());
+            fixture.assert_source_report_only();
         } else {
             for stage in ["link", "export-check", "emit", "output-write"] {
                 expected.extend(pair(stage, "-"));

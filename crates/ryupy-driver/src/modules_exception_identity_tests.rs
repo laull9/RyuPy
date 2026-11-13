@@ -87,7 +87,16 @@ fn build_and_dump_reject_original_fixtures_and_all_stable_xml_forms() {
                 "{source}: {diagnostic}"
             );
         }
-        assert!(!out_dir.exists(), "编译拒绝不能写PE");
+        // 来源审计先于语义门落盘，拒绝后只允许该报告，绝不能发射 PE。
+        let files: Vec<_> = std::fs::read_dir(&out_dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(files, ["main.source-plan.json"]);
+        let report: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(out_dir.join("main.source-plan.json")).unwrap())
+                .unwrap();
+        assert_eq!(report["compiler_verified"], false);
     }
 }
 

@@ -44,6 +44,9 @@ mod optional_sources;
 pub use optional_sources::DefaultSourceState;
 mod session;
 mod source_catalog;
+mod source_probe;
+mod source_scan;
+pub use source_probe::probe_sources;
 mod source_deployment;
 pub use session::Session;
 
@@ -315,6 +318,10 @@ fn build_with_resources_inner(
     sess.default_source_state.aot_request =
         default_aot::eligible(sess, opts.aot, resource_request.is_some());
     let previous_output = sess.default_source_state.output.take();
+    let previous_report = sess
+        .default_source_state
+        .report_output
+        .replace(opts.out_dir.clone());
     if optional_sources::enabled(sess, opts.aot) {
         sess.default_source_state.output = Some(opts.out_dir.clone());
     }
@@ -328,6 +335,7 @@ fn build_with_resources_inner(
         &trace,
     );
     sess.default_source_state.output = previous_output;
+    sess.default_source_state.report_output = previous_report;
     sess.default_source_state.aot_request = false;
     let (linked, sources, resource_plan) = compiled?;
 

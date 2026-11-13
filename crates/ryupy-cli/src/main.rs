@@ -41,6 +41,18 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// 静态探测来源闭包并输出 JSON；只解析源码，不执行 Python 或语义编译
+    Probe {
+        input: PathBuf,
+        /// 报告及已授权 catalog 部署目录；默认入口旁 __pycache__/<入口>/probe
+        #[arg(short, long)]
+        out_dir: Option<PathBuf>,
+        #[arg(short = 'I', long = "search-path")]
+        search_paths: Vec<PathBuf>,
+        /// 按现有默认 AOT 策略探测，不启动 ILC
+        #[arg(long)]
+        aot: bool,
+    },
     /// 编译为 .dll（加 --aot 生成原生可执行文件）
     Build {
         input: PathBuf,
@@ -148,6 +160,25 @@ fn main() -> ExitCode {
 
 fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
     match command {
+        Command::Probe {
+            input,
+            out_dir,
+            search_paths,
+            aot,
+        } => {
+            let out_dir = out_dir.unwrap_or_else(|| default_out_dir(&input).join("probe"));
+            let report = ryupy_driver::probe_sources(
+                sess,
+                &BuildOptions {
+                    input,
+                    out_dir,
+                    search_paths,
+                    aot,
+                },
+            )?;
+            println!("{report}");
+            Ok(ExitCode::SUCCESS)
+        }
         Command::Build {
             input,
             diagnostic_stages,

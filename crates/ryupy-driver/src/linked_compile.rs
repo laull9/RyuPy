@@ -31,6 +31,7 @@ pub(super) fn compile_linked_traced(
         distribution_payload,
         aot_locations,
     )?;
+    crate::source_probe::write(sess, entry, &roots, &sources)?;
     // 加载函数返回不等于无语法诊断：沿用原有逐模块 stop_if_errors 边界。
     trace.mark("end", "graph-load", "-");
     let automatic = default_aot::needed(sess, &sources);

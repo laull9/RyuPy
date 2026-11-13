@@ -27,6 +27,8 @@ use std::path::{Path, PathBuf};
 #[derive(Default)]
 pub struct DefaultSourceState {
     pub(crate) output: Option<PathBuf>,
+    /// 纯审计目标与 catalog 部署权限隔离；默认关闭策略也可输出探测事实。
+    pub(crate) report_output: Option<PathBuf>,
     pub(crate) plan: Plan,
     pub(crate) diagnostics: BTreeMap<String, Vec<String>>,
     pub(crate) aot_request: bool,
