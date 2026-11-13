@@ -3,7 +3,7 @@ name: Dev NativeAOT validation
 
 on:
   push:
-    branches: [dev, ci/aot-manifest-contract-68f5ecd]
+    branches: [dev, ci/aot-relocation-0d7a6ea]
   pull_request:
     branches: [dev]
   workflow_dispatch:
