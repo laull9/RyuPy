@@ -59,3 +59,7 @@ python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
 
 搬迁证据单列 `relocation.json` 和 `logs/relocation-*`；额外 CP/native 各一次，单次上限30秒，
 仍服从原整组1800秒预算。失败不降级为仅原位成功，也不把搬迁运行混入五次时间统计。
+
+恢复阶段逐项尝试所有安全路径，原路径被重建或恢复IO失败时保留冲突hidden，并在
+`path_restoration`记录每项原路径、隐藏路径、恢复状态及汇总错误。只有原对象身份真正
+恢复才记成功，不能用路径重新存在替代；冲突不阻断其他无冲突路径恢复。

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from bench_relocation import hidden_originals, verify_relocation
+from bench_relocation import RestorationError, hidden_originals, verify_relocation
 from test_bench_smoke import bundle
 
 
@@ -75,6 +75,55 @@ class BenchRelocationTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 with hidden_originals((first,root/'missing')):self.fail('不能进入运行阶段')
             self.assertTrue(first.is_dir());self.assertEqual(list(root.glob('.ryupy-relocation-*')),[])
+
+    def test_oracle_conflict_does_not_prevent_bundle_restoration(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);source,product,out=self.setup_case(root)
+            identity=product.stat().st_ino
+            oracle=out/'搬迁 空格 & 验证/oracle-input'
+            def run(label,command,**kwargs):
+                if label=='relocation-native':
+                    oracle.mkdir();(oracle/'new-user-data').write_text('preserve')
+                return subprocess.CompletedProcess(command,0,b'hello\n',b'')
+            with self.assertRaises(RestorationError):
+                verify_relocation(product,source,out,'10.0.403',SimpleNamespace(run=run))
+            self.assertEqual(product.stat().st_ino,identity)
+            self.assertEqual((oracle/'new-user-data').read_text(),'preserve')
+            report=json.loads((out/'relocation.json').read_text())
+            self.assertEqual(report['status'],'failed');self.assertFalse(report['original_paths_restored'])
+            records=report['path_restoration']['paths']
+            self.assertTrue(records[0]['restored']);self.assertFalse(records[1]['restored'])
+            self.assertTrue((Path(records[1]['hidden'])/'hello.py').is_file())
+
+    def test_two_conflicts_are_aggregated_not_mistaken_for_restored(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);source,product,out=self.setup_case(root)
+            oracle=out/'搬迁 空格 & 验证/oracle-input'
+            def run(label,command,**kwargs):
+                if label=='relocation-native':
+                    product.mkdir();oracle.mkdir()
+                return subprocess.CompletedProcess(command,0,b'hello\n',b'')
+            with self.assertRaises(RestorationError):
+                verify_relocation(product,source,out,'10.0.403',SimpleNamespace(run=run))
+            self.assertTrue(product.exists() and oracle.exists())
+            report=json.loads((out/'relocation.json').read_text())
+            self.assertFalse(report['original_paths_restored'])
+            recovery=report['path_restoration'];self.assertEqual(len(recovery['errors']),2)
+            self.assertTrue(all(not x['restored'] and Path(x['hidden']).exists() for x in recovery['paths']))
+
+    def test_restore_io_error_still_attempts_other_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);first=root/'bundle';second=root/'oracle';first.mkdir();second.mkdir()
+            state={};rename=Path.rename
+            def fail_one(path,target):
+                if path.name.startswith('.ryupy-relocation-') and target==second:
+                    raise PermissionError('simulated restore failure')
+                return rename(path,target)
+            with patch.object(Path,'rename',fail_one),self.assertRaises(RestorationError):
+                with hidden_originals((first,second),recovery=state):pass
+            self.assertTrue(first.exists());self.assertFalse(second.exists());self.assertFalse(state['complete'])
+            self.assertTrue(Path(state['paths'][1]['hidden']).exists())
+            self.assertTrue(state['paths'][0]['restored']);self.assertEqual(len(state['errors']),1)
 
     def test_existing_destination_is_never_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:
