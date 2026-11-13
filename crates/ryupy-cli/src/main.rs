@@ -69,7 +69,7 @@ enum Command {
         /// 配置中要构建的目标；首切目标的mode必须为aot
         #[arg(long, requires = "project")]
         target: Option<String>,
-        /// 诊断：逐阶段写 stderr（编译至产物写出，不含 AOT publish；默认关闭）
+        /// 诊断：逐阶段写 stderr；普通AOT含SDK发布状态及实时日志位置（默认关闭）
         #[arg(long, conflicts_with = "native_binding")]
         diagnostic_stages: bool,
         /// 输出根（相对调用目录）；项目默认配置目录/build/<目标>，旧AOT/JIT默认不变

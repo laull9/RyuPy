@@ -3,7 +3,7 @@ name: 真实应用离线发行包验证
 on:
   workflow_dispatch:
   push:
-    branches: [integration/aot-distribution-verify-20261113, integration/dev-schema9-verify-20261113]
+    branches: [integration/aot-distribution-verify-20261113, integration/dev-schema9-verify-20261113, integration/aot-live-publish-20261113]
 permissions:
   contents: read
 concurrency:
@@ -24,7 +24,7 @@ env:
   UseSharedCompilation: 'false'
 jobs:
   verify-distribution:
-    if: github.ref == 'refs/heads/integration/aot-distribution-verify-20261113' || github.ref == 'refs/heads/integration/dev-schema9-verify-20261113'
+    if: github.ref == 'refs/heads/integration/aot-distribution-verify-20261113' || github.ref == 'refs/heads/integration/dev-schema9-verify-20261113' || github.ref == 'refs/heads/integration/aot-live-publish-20261113'
     strategy:
       fail-fast: false
       matrix:
@@ -104,6 +104,28 @@ jobs:
           root = pathlib.Path(os.environ['RUNNER_TEMP'])/'distribution-verify'
           command = [os.environ['PYTHON'], '-B', str(repo/'tests/aot/distribution_verify/setup.py'), '--base', str(root)]
           sys.exit(subprocess.call(command, cwd=repo))
+      - name: SDK双流与阶段诊断定向测试
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' && github.ref == 'refs/heads/integration/aot-live-publish-20261113' }}
+        shell: python
+        timeout-minutes: 20
+        run: |
+          import json, os, pathlib, re, subprocess, sys
+          repo = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])/'distribution-verify'
+          setup = json.loads((root/'setup.json').read_text())
+          env = dict(os.environ, CARGO_TARGET_DIR=str(root/'cargo-target'), RUSTUP_TOOLCHAIN='1.99.1',
+                     DOTNET=setup['dotnet'], PYTHON=setup['python'], RYUPY_RUNTIME_DIR=str(root/'tools'))
+          for pattern in ['aot::process::tests', 'stage_trace::tests']:
+              command = ['cargo', 'test', '--release', '--locked', '-p', 'ryupy-driver', '--lib', pattern, '--', '--nocapture']
+              label = pattern.split('::')[0]
+              with (root/'logs'/('live-'+label+'.stdout')).open('wb') as out, (root/'logs'/('live-'+label+'.stderr')).open('wb') as err:
+                  result = subprocess.run(command, cwd=repo, env=env, stdout=out, stderr=err)
+              (root/'logs'/('live-'+label+'.json')).write_text(json.dumps({'argv': command, 'exit': result.returncode}))
+              if result.returncode: sys.exit(result.returncode)
+              text = (root/'logs'/('live-'+label+'.stdout')).read_text(encoding='utf-8')
+              ignored = 1 if pattern == 'aot::process::tests' else 0
+              if not re.search(r'test result: ok\. [1-9][0-9]* passed; 0 failed; '+str(ignored)+' ignored', text):
+                  raise RuntimeError('定向测试必须实际执行；仅允许由子进程实际调用的一个helper忽略：'+label)
       - name: 公开构建与离线搬迁验包负例
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         shell: python
@@ -115,6 +137,7 @@ jobs:
           repo = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
           root = pathlib.Path(os.environ['RUNNER_TEMP'])/'distribution-verify'
           command = [os.environ['PYTHON'], '-B', str(repo/'tests/aot/distribution_verify/run.py'), '--base', str(root), '--rid', os.environ['VERIFY_RID']]
+          if os.environ['GITHUB_REF'] == 'refs/heads/integration/aot-live-publish-20261113': command.append('--live-publish')
           with (root/'run.stdout').open('wb') as out, (root/'run.stderr').open('wb') as err:
               result = subprocess.run(command, cwd=root, stdout=out, stderr=err)
           sys.exit(result.returncode)

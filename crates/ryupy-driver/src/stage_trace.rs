@@ -43,6 +43,30 @@ impl StageTrace {
         self.mark_with(event, stage, module, std::io::stderr);
     }
 
+    /// SDK使用自己的计时起点；路径以debug形式转义，不伪造restore/ILC百分比。
+    pub(crate) fn sdk_logs(&self, stdout: &std::path::Path, stderr: &std::path::Path) {
+        self.sdk_logs_with(stdout, stderr, std::io::stderr);
+    }
+
+    fn sdk_logs_with<W: Write>(
+        &self,
+        stdout: &std::path::Path,
+        stderr: &std::path::Path,
+        writer: impl FnOnce() -> W,
+    ) {
+        let Some(start) = self.start else { return };
+        if self.failed.get() {
+            return;
+        }
+        let mut writer = writer();
+        // 不截断可供用户打开的真实日志路径，Path的debug格式避免换行/控制注入。
+        if writeln!(writer,
+            "[ryupy-stage] event=logs stage=aot-sdk-publish clock=sdk stdout={stdout:?} stderr={stderr:?} elapsed_us={}",
+            start.elapsed().as_micros()).and_then(|()| writer.flush()).is_err() {
+            self.failed.set(true);
+        }
+    }
+
     fn mark_with<W: Write>(
         &self,
         event: &str,
@@ -241,6 +265,27 @@ mod tests {
         trace.mark_with("begin", "pipeline", "m", || WriteFailure);
         trace.mark_pass_with(pass_event("x"), "m", || -> Sink {
             panic!("普通阶段失败后pass不得再写")
+        });
+    }
+    #[test]
+    fn sdk_log_paths_are_escaped_flushed_and_diagnostics_are_optional() {
+        let path = std::path::Path::new("中文\n\x1b.log");
+        StageTrace::new(false).sdk_logs_with(path, path, || -> Sink {
+            panic!("关闭时不可取得日志路径sink")
+        });
+        let trace = StageTrace::new(true);
+        let mut sink = Sink::default();
+        trace.sdk_logs_with(path, path, || &mut sink);
+        let text = String::from_utf8(sink.bytes.clone()).unwrap();
+        assert_eq!(sink.flushes, 1);
+        assert_eq!(text.lines().count(), 1);
+        assert!(text.contains("clock=sdk"));
+        assert!(text.contains("\\n"));
+        assert!(!text.contains('\x1b'));
+        sink.fail_flush = true;
+        trace.sdk_logs_with(path, path, || &mut sink);
+        trace.mark_with("end", "aot-sdk-publish", "-", || -> Sink {
+            panic!("诊断写失败后不得再取sink")
         });
     }
 }

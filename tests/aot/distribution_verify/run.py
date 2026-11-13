@@ -17,6 +17,7 @@ REPO = HERE.parents[2]
 def main():
     parser = argparse.ArgumentParser(); parser.add_argument('--base', type=Path, required=True)
     parser.add_argument('--rid', choices=['linux-x64', 'osx-arm64', 'win-x64'], required=True)
+    parser.add_argument('--live-publish', action='store_true')
     args = parser.parse_args(); base = args.base.resolve()
     setup = json.loads((base/'setup.json').read_text()); require(setup['passed'], '准备未通过')
     cli, python, dotnet = map(Path, [setup['cli'], setup['python'], setup['dotnet']])
@@ -59,9 +60,15 @@ def main():
                 require(cp.stdout == expected, '冻结平台CP黄金不同')
                 goldens[app][name] = cp.stdout
             output = base/'builds'/app
-            build = capture(logs/'build', [cli, 'build', '--project', project/'ryupy.json', '--target', target, '-o', output], cwd, env, 1200)
+            command = [cli, 'build', '--project', project/'ryupy.json', '--target', target, '-o', output]
+            if args.live_publish:
+                from live_build import capture_live, validate_layout
+                build, live = capture_live(logs/'build', [*command, '--diagnostic-stages'], cwd, env, output, stem)
+            else:
+                build = capture(logs/'build', command, cwd, env, 1200)
             require(build.returncode == 0, '真实项目构建失败')
             layout = reported_aot(build.stderr, output, stem, args.rid); layouts[app] = layout
+            if args.live_publish: validate_layout(live, layout, build.stderr, logs/'build')
             require((layout.host/'sdk.version').read_text(encoding='utf-8-sig').strip() == '10.0.403', '实际SDK漂移')
             manifest = json.loads(layout.manifest.read_text())
             require(len(manifest.get('resources', [])) == (553 if app == 'pyfiglet' else 0), '真实资源集合数量不同')

@@ -14,6 +14,8 @@ const RUNTIME_ASSEMBLY: &str = "RyuPy.Runtime";
 #[path = "aot_platform.rs"]
 mod platform;
 use platform::HostPlatform;
+#[path = "aot_process.rs"]
+mod process;
 #[path = "aot_sdk_paths.rs"]
 mod sdk_paths;
 #[path = "aot_work_paths.rs"]
@@ -426,7 +428,11 @@ fn publish_owned(
     }
     let sdk_project = sdk_paths::sdk_path(&project_path)?;
     let sdk_publish = sdk_paths::sdk_path(&publish)?;
-    let output = Command::new(crate::dotnet::dotnet_exe())
+    let trace = crate::stage_trace::StageTrace::new(
+        matches!(context, Some(AotManifest::Ordinary(c)) if c.diagnostic_stages),
+    );
+    let mut command = Command::new(crate::dotnet::dotnet_exe());
+    command
         .arg("publish")
         .arg(&sdk_project)
         .args([
@@ -443,30 +449,14 @@ fn publish_owned(
             "-p:ImportDirectoryBuildProps=false",
             "-p:ImportDirectoryBuildTargets=false",
         ])
-        .current_dir(&sdk_source)
-        .output()
-        .context("无法启动 Native AOT dotnet publish（可用 DOTNET 指定 SDK）")?;
-    // 高层owned attempt保留失败树；低层仍沿finish_owned清理。两路先保存同次SDK双流。
-    (|| -> Result<()> {
-        std::fs::write(root.join("publish.stdout.log"), &output.stdout)?;
-        std::fs::write(root.join("publish.stderr.log"), &output.stderr)?;
-        Ok(())
-    })()
-    .with_context(|| {
-        format!(
-            "无法归档SDK输出（{}）\nstdout:\n{}\nstderr:\n{}",
-            output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })?;
-    // 完整输出总随错误交给CLI；低层即使删除工作根也不丢这份诊断。
+        .current_dir(&sdk_source);
+    let output = process::run(&mut command, root, &trace)?;
+    // 完整原流仍随失败返回；成功不把全部SDK输出读入父进程内存。
     if !output.status.success() {
         bail!(
-            "Native AOT dotnet publish 失败（{}）\nstdout:\n{}\nstderr:\n{}",
+            "Native AOT dotnet publish 失败（{}）\n{}",
             output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
+            output.diagnostics()
         );
     }
     let checked = (|| -> Result<Publication> {
@@ -534,10 +524,9 @@ fn publish_owned(
     })();
     checked.map_err(|error| {
         error.context(format!(
-            "SDK 已退出（{}），但发布校验/归档失败\nstdout:\n{}\nstderr:\n{}",
+            "SDK 已退出（{}），但发布校验/归档失败\n{}",
             output.status,
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
+            output.diagnostics()
         ))
     })
 }

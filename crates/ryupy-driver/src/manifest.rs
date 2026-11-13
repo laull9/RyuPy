@@ -29,6 +29,8 @@ impl SourceSummary {
 }
 
 pub(crate) struct ManifestContext {
+    // 仅本次诊断开关，不写入交付manifest，也不改变编译身份。
+    pub(crate) diagnostic_stages: bool,
     pub(crate) aot_optimization: crate::AotOptimization,
     pub report: EmissionReport,
     pub sources: Vec<SourceSummary>,
@@ -47,6 +49,7 @@ impl ManifestContext {
         session: &crate::Session,
     ) -> Result<Self> {
         let context = Self {
+            diagnostic_stages: session.diagnostic_stages,
             aot_optimization: session.aot_optimization,
             report,
             sources,
