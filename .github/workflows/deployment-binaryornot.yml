@@ -3,7 +3,7 @@ name: binaryornot普通consumer原生部署
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/native-join-perf-20261113-001', 'ci/symbol-delivery-20261113-001', 'ci/dependency-preflight-20261112-001', 'ci/native-text-index-perf-20261112-001']
+    branches: ['ci/native-package-profile-20261113-001', 'ci/native-join-perf-20261113-001', 'ci/symbol-delivery-20261113-001', 'ci/dependency-preflight-20261112-001', 'ci/native-text-index-perf-20261112-001']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   linux-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001' || github.event.head_commit.message == 'validation: dependency-preflight-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-package-baseline-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001' || github.event.head_commit.message == 'validation: dependency-preflight-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
     runs-on: ubuntu-24.04
     timeout-minutes: 105
     env:
@@ -42,6 +42,10 @@ jobs:
       - name: 默认release工具、自足consumer项目、无宿主运行镜像
         timeout-minutes: 27
         run: '"$PYTHON" -B tests/aot/deployment_binaryornot/hosted_binaryornot.py setup'
+      - name: 首次与重复构建及真实分类成本
+        if: >-
+          github.event.head_commit.message == 'validation: native-package-baseline-001'
+        run: '"$PYTHON" -B tests/aot/native_package_profile/run.py'
       - name: 公开consumer AOT、独立审计、搬迁及禁网部署
         timeout-minutes: 57
         run: '"$PYTHON" -B tests/aot/deployment_binaryornot/hosted_binaryornot.py verify'
