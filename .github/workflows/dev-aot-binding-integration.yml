@@ -191,7 +191,9 @@ jobs:
           import json, os, pathlib, subprocess, sys
           root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
           repo = pathlib.Path(os.environ['GITHUB_WORKSPACE'])
-          env = dict(os.environ, RYUPY_FOREACH_PYTHON=os.environ['PYTHON'], RUST_TEST_THREADS='1')
+          temp = root/'catalog-tmp'; temp.mkdir(exist_ok=False)
+          # 原用户测试在temp下建SDK宿主，必须继承本轮global.json而非runner其它SDK。
+          env = dict(os.environ, RYUPY_FOREACH_PYTHON=os.environ['PYTHON'], RUST_TEST_THREADS='1', TMPDIR=str(temp), TMP=str(temp), TEMP=str(temp))
           commands = [
               ('source-probe', ['cargo', 'test', '--locked', '-p', 'ryupy-driver', '--lib', 'source_probe', '--', '--nocapture']),
               ('catalog-colorsys', ['cargo', 'test', '--locked', '-p', 'ryupy-driver', '--test', 'catalog_colorsys', '--', '--include-ignored', '--nocapture', '--test-threads=1']),

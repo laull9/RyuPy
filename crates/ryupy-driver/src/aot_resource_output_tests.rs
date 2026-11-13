@@ -36,11 +36,18 @@ fn overlapping_request_rejects_before_emit_and_preserves_dist() {
             .filter(|p| p.join("build-error.log").is_file())
             .collect();
         assert_eq!(attempts.len(), 1);
-        let entries: Vec<_> = std::fs::read_dir(&attempts[0])
+        let mut entries: Vec<_> = std::fs::read_dir(&attempts[0])
             .unwrap()
             .map(|e| e.unwrap().file_name())
             .collect();
-        assert_eq!(entries, [std::ffi::OsString::from("build-error.log")]);
+        // 用户catalog在语义/发射之前保存来源审计；仅该报告与失败日志可存在。
+        entries.sort();
+        assert_eq!(entries, ["app.source-plan.json", "build-error.log"]);
+        let report: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(attempts[0].join("app.source-plan.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(report["compiler_verified"], false);
         if let Some(expected) = old_dist {
             assert_eq!(
                 files::snapshot(&c.root.join("app.dist"), false).unwrap(),
