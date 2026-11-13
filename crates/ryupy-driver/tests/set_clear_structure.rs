@@ -223,8 +223,17 @@ fn set_clear_keeps_real_direct_saved_and_expanded_call_paths() {
     )
     .unwrap();
     std::fs::write(root.join("structure.cil"), &cil).unwrap();
+    let symbol = |name: &str| {
+        let found: Vec<_> = linked
+            .functions
+            .iter()
+            .filter(|(_, f)| f.name == name)
+            .collect();
+        assert_eq!(found.len(), 1);
+        found[0].1.codegen_name.as_str()
+    };
     for (name, count) in [("direct", 0), ("touched", 1)] {
-        let body = method(&cil, &format!("m0_{name}"));
+        let body = method(&cil, symbol(name));
         assert!(
             body.contains(&format!("PyPic.CallCapturedMethod{count}(")),
             "{body}"
@@ -234,7 +243,7 @@ fn set_clear_keeps_real_direct_saved_and_expanded_call_paths() {
             "普通调用不能为清空检查创建绑定包装/实参数组"
         );
     }
-    assert!(method(&cil, "m0_saved").contains("CallValue0("));
-    assert!(method(&cil, "m0_starred").contains("PyOps.CallCapturedMethod("));
-    assert!(method(&cil, "m0_keyword").contains("PyOps.CallCapturedMethod("));
+    assert!(method(&cil, symbol("saved")).contains("CallValue0("));
+    assert!(method(&cil, symbol("starred")).contains("PyOps.CallCapturedMethod("));
+    assert!(method(&cil, symbol("keyword")).contains("PyOps.CallCapturedMethod("));
 }

@@ -9,6 +9,8 @@
 
 mod accumulator_options;
 mod aot;
+mod aot_optimization;
+pub use aot_optimization::AotOptimization;
 mod aot_layout;
 mod binding_build;
 mod binding_sources;
@@ -16,9 +18,14 @@ pub mod dotnet;
 mod dump;
 pub use dump::dump;
 mod default_aot;
+pub mod deployment_request;
 mod linked_compile;
 use linked_compile::compile_linked_traced;
 mod distribution_metadata;
+mod distribution_verify;
+pub use distribution_verify::{DistributionVerification, verify_distribution};
+#[cfg(test)]
+mod distribution_verify_tests;
 mod instance_modules;
 mod module_environments;
 mod module_hints;
@@ -91,6 +98,8 @@ pub struct Artifacts {
     pub native_exe: Option<PathBuf>,
     /// 仅本次完整 Native AOT 编译成功后返回的可搬迁清单。
     pub manifest: Option<PathBuf>,
+    /// 高层Linux交付的符号保留/分离记录；不属于可搬迁运行依赖。
+    pub debug_symbols: Option<PathBuf>,
 }
 
 /// 单模块产物与跨模块绑定契约，一同交给链接器。
@@ -197,7 +206,9 @@ fn compile_linked(
         collect_manifest,
     )
 }
+// 内部测试的无输出边界简写；生产普通/绑定路径统一显式传递请求context。
 // JIT 也收真实来源摘要，但不能因此把 __file__ 位置误切成 AOT 路径。
+#[cfg(test)]
 fn compile_linked_locations(
     sess: &mut Session,
     entry: &Path,
@@ -210,6 +221,35 @@ fn compile_linked_locations(
     Vec<manifest::SourceSummary>,
     Option<resources::ResourcePlan>,
 )> {
+    compile_linked_locations_context(
+        sess,
+        entry,
+        search_paths,
+        collect_manifest,
+        resource_request.map(|path| resources::ResourceRequestContext {
+            path,
+            output_roots: &[],
+        }),
+        aot_locations,
+    )
+}
+
+// 绑定与普通源码共享资源预检；owned输出边界只在当前编译借用，不写回Session。
+fn compile_linked_locations_context(
+    sess: &mut Session,
+    entry: &Path,
+    search_paths: &[PathBuf],
+    collect_manifest: bool,
+    resource_request: Option<resources::ResourceRequestContext<'_>>,
+    aot_locations: bool,
+) -> Result<(
+    ryupy_mir::LinkedProgram,
+    Vec<manifest::SourceSummary>,
+    Option<resources::ResourcePlan>,
+)> {
+    if let Some(guard) = &sess.deployment_inputs {
+        guard.verify()?;
+    }
     let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     compile_linked_traced(
         sess,
@@ -264,7 +304,7 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     build_with_resources(sess, opts, None)
 }
 
-/// 资源计划与原生绑定共同进入构建及发布流程，声明错误在输出写入前拒绝。
+/// 资源计划与原生绑定共同进入AOT发布；JIT资源请求与声明错误在输出写入前拒绝。
 pub fn build_configured(
     sess: &mut Session,
     opts: &BuildOptions,
@@ -272,6 +312,7 @@ pub fn build_configured(
     binding: Option<&Path>,
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
+    sess.aot_optimization.validate(opts.aot)?;
     anyhow::ensure!(
         resources.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
@@ -295,6 +336,7 @@ pub fn build_with_resources(
     resource_request: Option<&Path>,
 ) -> Result<Artifacts> {
     accumulator_options::validate(sess)?;
+    sess.aot_optimization.validate(opts.aot)?;
     anyhow::ensure!(
         resource_request.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
@@ -331,7 +373,10 @@ fn build_with_resources_inner(
         &opts.input,
         &opts.search_paths,
         opts.aot,
-        resource_request,
+        resource_request.map(|path| resources::ResourceRequestContext {
+            path,
+            output_roots: owned.map_or(&[], |attempt| attempt.output_roots()),
+        }),
         opts.aot,
         &trace,
     );
@@ -347,7 +392,7 @@ fn build_with_resources_inner(
     };
     trace.mark("begin", "emit", "-");
     let (bytes, context) = if opts.aot {
-        let emitted = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &emit_opts)?;
+        let emitted = ryupy_codegen_cil::emit_source_aot_assembly_with_report(&linked, &emit_opts)?;
         let context = manifest::ManifestContext::new(
             emitted.report,
             sources,
@@ -382,6 +427,9 @@ fn build_with_resources_inner(
     runtime::copy_runtime_to(&opts.out_dir)?;
     trace.mark("end", "output-write", "-");
 
+    if let Some(guard) = &sess.deployment_inputs {
+        guard.verify()?;
+    }
     let (native_exe, manifest) = if let Some(context) = context {
         let published = aot::publish_with_manifest(
             &dll,
@@ -394,10 +442,15 @@ fn build_with_resources_inner(
     } else {
         (None, None)
     };
+    // 仍在aot_layout的compile闭包内；配置变化须在dist最终安装前失败。
+    if let Some(guard) = &sess.deployment_inputs {
+        guard.verify()?;
+    }
     Ok(Artifacts {
         dll,
         native_exe,
         manifest,
+        debug_symbols: None,
     })
 }
 
@@ -439,3 +492,9 @@ mod generator_default_tests;
 
 #[cfg(test)]
 mod default_source_tests;
+
+#[cfg(test)]
+mod test_temp;
+
+#[cfg(test)]
+mod function_symbols_tests;

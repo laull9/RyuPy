@@ -36,6 +36,8 @@ public static partial class PyOps
         if (obj is PyNamedTupleInstance || obj is PyClass { NamedTupleLayout: not null })
             return CallValue(CaptureModuleTarget(obj, name), rawArgs, rawNames, rawValues);
         var (args, kwNames, kwValues) = FlattenArgs(rawArgs, rawNames, rawValues);
+        if (obj is PyBytes or PyByteArray && name == "decode")
+            return PyBinaryDecode.Invoke(obj, args, kwNames, kwValues);
         if (obj is PyBytes or PyByteArray && name == "translate")
             return PyBinaryTranslate.Invoke(obj, args, kwNames, kwValues);
         // 精确二进制分类不创建bound包装；专用检查保kwargs先arity及类型限定文案。
@@ -45,7 +47,7 @@ public static partial class PyOps
         // GetoptError只扩冷分派；其保存方法保原接收者，实例覆盖属性无需额外self。
         if (obj is PyNativeType or PyNativeObject or PyInstance or PyClass or PySuper or PyModule or PyFunction or PyBoundMethod or PyBuiltinFunction or PyProperty
             || (obj is PyType type && (ReferenceEquals(type, PyBaseObject.Type) || ReferenceEquals(type, PyType.Get("str"))
-                || PyBinaryClassificationDescriptors.Has(type, name) || PyBinaryTranslateDescriptors.Has(type, name)))
+                || PyBinaryClassificationDescriptors.Has(type, name) || PyBinaryTranslateDescriptors.Has(type, name) || PyBinaryDecodeDescriptors.Has(type, name)))
             || obj is PyGetoptError
             || (obj is PyBaseException exception && exception.PythonClass is not null))
         {

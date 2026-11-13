@@ -1,0 +1,111 @@
+name: 直接入口构建性能同源对照
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/dev-aot-native-20261113]
+permissions:
+  contents: read
+concurrency:
+  group: direct-entry-build-perf-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  RUSTUP_TOOLCHAIN: '1.99.1'
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+  PYTHONOPTIMIZE: '0'
+  PYTHONNOUSERSITE: '1'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  DOTNET_CLI_UI_LANGUAGE: en-US
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+jobs:
+  build-cost:
+    if: >-
+      github.ref == 'refs/heads/integration/dev-aot-native-20261113' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.head_commit.message == 'validation: direct-entry-build-perf-001')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '10.0.403'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.4'
+          enable-cache: false
+      - name: 固定Python与原生构建依赖
+        run: |
+          uv python install 3.12.13
+          echo "PYTHON=$(uv python find 3.12.13 --managed-python)" >> "$GITHUB_ENV"
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: 性能验收合同快门
+        run: |
+          "$PYTHON" -B -m unittest discover -s tests/aot/direct_entry_build_perf -p 'test_*.py'
+      - name: 冻结直接入口与临时薄入口控制工具和锁定项目
+        timeout-minutes: 25
+        run: |
+          "$PYTHON" -B tests/aot/direct_entry_build_perf/setup.py --base "$RUNNER_TEMP/direct-entry-build-perf"
+      - name: 配对构建测量与语义门禁
+        timeout-minutes: 60
+        run: |
+          "$PYTHON" -B tests/aot/direct_entry_build_perf/run.py --base "$RUNNER_TEMP/direct-entry-build-perf"
+      # 原流/身份包不含 NuGet 缓存；库存摘要和每轮 SDK assets 保留，所有工作树另分批上传。
+      - name: 保存准备、身份与测量原流（不含NuGet缓存）
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-build-perf-raw-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/direct-entry-build-perf/logs
+            ${{ runner.temp }}/direct-entry-build-perf/source-evidence
+            ${{ runner.temp }}/direct-entry-build-perf/sources
+            ${{ runner.temp }}/direct-entry-build-perf/tools
+            ${{ runner.temp }}/direct-entry-build-perf/projects
+            ${{ runner.temp }}/direct-entry-build-perf/projects-hidden-after-build
+            ${{ runner.temp }}/direct-entry-build-perf/*.json
+            ${{ runner.temp }}/direct-entry-build-perf/NuGet.Config
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/*.json
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/oracle
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/build-logs
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/runs
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/inputs
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/dotnet-timing
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存构建工作树与搬迁产物 000-019
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-build-perf-builds-000-019-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/buildroots/0[01][0-9]
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/buildroots-hidden-after-build/0[01][0-9]
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/moved/0[01][0-9]
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存构建工作树与搬迁产物 020-035
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-build-perf-builds-020-035-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/buildroots/0[23][0-9]
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/buildroots-hidden-after-build/0[23][0-9]
+            ${{ runner.temp }}/direct-entry-build-perf/measurement/moved/0[23][0-9]
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7

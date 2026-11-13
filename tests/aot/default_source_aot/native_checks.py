@@ -33,8 +33,8 @@ def rust_owner_gate(r, case, folder, label):
     require(expected['selected'] == case['plan']['automatic_instance_modules'], 'owner选择与来源计划不等')
     r.env.update(RYUPY_INSTANCE_AOT_STRUCTURE_OUT=str(folder), RYUPY_INSTANCE_CLASS_CASES=name)
     r.named_test(label, ['cargo', 'test', '--locked', '-p', 'ryupy-codegen-cil',
-                         'instance_class_actual_pe_gate', '--', '--ignored', '--nocapture'],
-                 'instance_class_actual_pe_gate', 900)
+                         'instance_pe_tests::instance_class_actual_pe_gate', '--', '--exact', '--ignored', '--nocapture'],
+                 'instance_pe_tests::instance_class_actual_pe_gate', 900)
     unchanged(folder, identity)
     r.env.pop('RYUPY_INSTANCE_AOT_STRUCTURE_OUT'); r.env.pop('RYUPY_INSTANCE_CLASS_CASES')
 

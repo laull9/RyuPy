@@ -150,7 +150,10 @@ exit {code}
     assert!(args.contains(&"-p:ImportDirectoryBuildTargets=false"));
     let project = fs::read_to_string(root.join("project.xml")).unwrap();
     for required in [
-        "<Reference Include=\"sample_alias\">",
+        "<Reference Include=\"RyuPy.Runtime\">",
+        "<SkipCompilerExecution>true</SkipCompilerExecution>",
+        "BeforeTargets=\"CoreCompile\"",
+        "DestinationFiles=\"@(IntermediateAssembly)\"",
         "&amp;",
         "<PublishAot>true",
         "<IlcTreatWarningsAsErrors>true",
@@ -158,6 +161,13 @@ exit {code}
     ] {
         assert!(project.contains(required), "缺少 {required}：{project}");
     }
+    // Unix源码即使SDK失败也必须提供本轮精确managed，不再留下重复C#宿主。
+    assert_eq!(project.matches("<Reference ").count(), 1);
+    assert!(!project.contains("<Compile "));
+    assert!(!sdk.join("host/Program.cs").exists());
+    let managed = attempts[0].join("sample_alias.dll").canonicalize().unwrap();
+    let expected = managed.to_str().unwrap().replace('&', "&amp;");
+    assert!(project.contains(&format!("SourceFiles=\"{expected}\"")));
     assert!(!project.contains("TrimmerRootAssembly"));
     cleanup_owned(&root);
 }

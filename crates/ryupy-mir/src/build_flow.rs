@@ -200,7 +200,12 @@ impl FunctionBuilder<'_> {
                     let raw = self.expr_builder().build_expr(expr);
                     self.expr_builder().coerce(raw, &value_ty, &ret_ty)
                 }
-                None => Operand::Const(Constant::I64(0)),
+                None => {
+                    // 裸return与显式return None使用相同Python值，不能向object槽写整数零。
+                    let none = self.expr_builder().none_value();
+                    self.expr_builder()
+                        .coerce(none, &ryupy_ty::Ty::None, &ret_ty)
+                }
             };
             self.push_stmt(Statement::Assign {
                 dest,

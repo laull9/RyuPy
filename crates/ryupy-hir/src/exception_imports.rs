@@ -76,6 +76,11 @@ impl ExceptionImport {
         }
     }
 
+    /// auto只准入表达式语法，既不冻结运行时导出，也不把调用折叠为生成值。
+    pub(crate) fn peek_enum_auto(&self, path: &[&str], position: TextSize) -> bool {
+        self.module == "enum" && self.normalized_member(path, position) == Some("auto")
+    }
+
     /// ABC只选择需延后发布的冷类合同，不把导出冻结成静态布局身份。
     pub(crate) fn peek_abc_base(&self, path: &[&str], position: TextSize) -> bool {
         self.module == "collections.abc"
@@ -192,13 +197,30 @@ pub(crate) fn walk_comprehension_body<'a>(
 }
 
 pub(crate) fn collect(stmts: &[ast::Stmt], native: &[&str]) -> FxHashMap<Name, ExceptionImport> {
-    let mut imports = FxHashMap::default();
+    let mut imports: FxHashMap<Name, ExceptionImport> = FxHashMap::default();
     let mut repeated = FxHashSet::default();
     // 仅无条件顶层导入。条件导入是否执行不能由类型化 catch 静态推断。
     for stmt in stmts {
         for request in crate::imports::collect_imports(std::slice::from_ref(stmt), "") {
             let bind = Name::from(request.bind.as_str());
-            if imports.contains_key(&bind) {
+            if let Some(previous) = imports.get(&bind) {
+                // enum三项导出由runtime保护不可重绑；完全相同的无条件导入可合并，
+                // 保首个available，不能让后面的同源导入抹掉前面已执行的身份。
+                // 一般可变模块/不同来源及条件导入仍按原规则取消静态认证。
+                let unconditional = matches!(stmt, ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_));
+                let same_enum = unconditional
+                    && native.contains(&"enum")
+                    && request.module == "enum"
+                    && request
+                        .name
+                        .as_deref()
+                        .is_none_or(|member| matches!(member, "Enum" | "Flag" | "auto"))
+                    && previous.module == request.module
+                    && previous.member == request.name
+                    && previous.bind_root == request.bind_root;
+                if same_enum {
+                    continue;
+                }
                 repeated.insert(bind.clone());
             }
             if matches!(stmt, ast::Stmt::Import(_) | ast::Stmt::ImportFrom(_))

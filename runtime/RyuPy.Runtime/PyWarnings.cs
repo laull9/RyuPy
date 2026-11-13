@@ -65,6 +65,12 @@ public static class PyWarnings
         Warn($"__index__ returned non-int (type {typeName}).  The ability to return an instance of a strict subclass of int is deprecated, and may be removed in a future version of Python.",
             PyType.Get("DeprecationWarning"), 1, null);
 
+    // Enum 3.12默认生成规则的弃用通知，复用真实过滤、记录、error与Python调用行。
+    internal static void EnumAutoGeneration() =>
+        Warn("In 3.13 the default `auto()`/`_generate_next_value_` will require all values to be sortable and support adding +1\n"
+            + "and the value returned will be the largest value in the enum incremented by 1",
+            PyType.Get("DeprecationWarning"), 1, null);
+
     private static void Warn(object? message, object? category, long stacklevel, object? source)
     {
         if (source is not (null or PyNone))

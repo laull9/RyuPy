@@ -168,7 +168,8 @@ public sealed class PyBinaryClassificationBindingTests
     public void NewRootSurfaceDoesNotOpenOtherMethodsUnicodeOrMemoryviews()
     {
         foreach (string owner in new[] { "bytes", "bytearray" })
-            foreach (string name in new[] { "decode", "lower", "isdecimal", "isnumeric" })
+            // decode已有独立四入口合同；其余未实现根方法仍必须拒绝。
+            foreach (string name in new[] { "lower", "isdecimal", "isnumeric" })
                 Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(PyType.Get(owner), name));
         object root = PyObject.GetAttr(PyType.Get("bytes"), "isalpha")!;
         Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(root, "__get__"));

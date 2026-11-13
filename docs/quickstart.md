@@ -100,6 +100,102 @@ CLI + 运行时压缩包，没有单文件 CLI 发布。产物可跨哪些系统
 
 原生通过、桥接通过和已接受偏差的区别见 [compatibility.md](compatibility.md)。Native AOT 的目标平台、构建与加载限制参考 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
 
+### 统一项目部署配置（有限范围验收）
+
+新入口将部署声明集中到一个显式 JSON 文件；首切只支持 `schema_version: 1`、`mode: "aot"`。例如项目目录中的 `ryupy.json`：
+
+```json
+{
+  "schema_version": 1,
+  "mode": "aot",
+  "search_paths": ["package"],
+  "include_modules": ["pyfiglet", "pyfiglet.fonts"],
+  "resources": "resources.json",
+  "distribution_metadata": "metadata-request.json",
+  "targets": {
+    "cli": {"entry": "package/pyfiglet/__main__.py"},
+    "metadata": {"entry": "console_entry.py"}
+  }
+}
+```
+
+```bash
+ryupy build --project /work/app/ryupy.json --target cli
+ryupy build --project /work/app/ryupy.json --target metadata -o out/metadata
+```
+
+`--project` 必须指向文件，不自动发现目录；`--target` 必须显式选择一个目标，不构建所有入口。配置的 `mode` 已决定 AOT，无需且不能再加 `--aot`。示例要求对应源码及声明文件实际存在；可省略搜索根、显式模块及两种声明字段，不会因此自动发现包数据。
+
+原生优化偏好可在项目顶层写 `"aot_optimization": "size"`，可选 `default`、`size`、`speed`，省略保持原有 SDK 默认。直接编译单文件时使用：
+
+```bash
+ryupy build app.py --aot --aot-optimization size -o out/app
+```
+
+`--aot-optimization` 不能与 `--project` 混用，也不适用于 JIT。`size` 偏向交付体积，`speed` 偏向运行速度；均不保证对所有应用获益，须用自己的真实负载比较。它们不关闭兼容性检查或 AOT 警告，也不启用增量缓存。SDK 实际采用值保存在本次 `.build` 的 `aot-optimization.json`；这份诊断收据不随 `.dist` 交付，不是缓存命中凭证。
+
+配置中的入口、搜索根和声明文件路径相对于配置文件父目录，须留在该目录内且不跟随内部符号链接；搜索根可用 `"."`。显式 `--project` 本身可使用绝对路径或相对调用目录的路径。嵌套请求不重写：metadata 的 `roots` 仍相对该请求文件，resources 的文件仍按原模块资源合同解释。
+
+资源请求可以保留逐文件 `files`，也可在明确选定的模块内声明目录与字面后缀。例如 `resources.json`：
+
+```json
+{
+  "schema_version": 1,
+  "modules": [{
+    "module": "pyfiglet.fonts",
+    "trees": [{"directory": ".", "suffixes": [".flf", ".flc"]}]
+  }]
+}
+```
+
+目录相对于该模块实际源码父目录，递归选择匹配文件；这不是 glob，也不会自动加入模块或第三方依赖。空匹配、链接、不安全路径及 Python 源码/字节码拒绝；仍受现有资源数量、大小和来源冻结限制。`files` 与 `trees` 可合用。实际生成的 `<入口>.build` / `<入口>.dist` 必须与资源树分离。相等或任一包含另一时，编译器会在资源树扫描、MIR发射与SDK启动前报告模块、资源路径及相交输出路径，建议调整 `-o` 或收窄 `directory`；不会静默排除资源。项目根作为 `-o`、`assets` 与 `.build` / `.dist` 为兄弟目录仍可用。早期失败可保留自有attempt及日志，但不改变旧dist。后缀区分大小写，不读取 `.gitignore`；路径合法性及链接/特殊文件检查适用于所有被扫描条目，包括未匹配文件。此新声明已独立通过 [Linux CI 43296651927](https://github.com/laull9/RyuPy/actions/runs/43296651927) 与[同树 macOS/Windows CI 43298130779](https://github.com/laull9/RyuPy/actions/runs/43298130779)：两入口、553资源与原位/搬迁运行。只有Linux另验禁网无Python/.NET容器；不产生新性能结论。
+
+默认输出根为配置目录的 `build/<目标名>`，其下沿用 `<入口名>.build/`、`<入口名>.dist/`；`-o` 覆盖仍相对调用者当前目录。项目模式与位置输入、`-I` / `--search-path`、`--include-module`、`--resources`、`--distribution-metadata`、`--native-binding`、`--instance-module`、`--instance-direct-globals` 互斥，不隐式合并。
+
+普通默认构建保持 `ExplicitOnly` 模块策略，不因项目配置或 AOT 源位置计划自动启用实例模块。项目文件是部署声明，不是完整依赖锁，也不证明动态依赖闭包。[CI 43255885614](https://github.com/laull9/RyuPy/actions/runs/43255885614) 在候选 `2556fea1` 的无 feature Release CLI 上，已验证 pyfiglet 1.0.2 原 CLI 与 metadata 加载入口：Linux x64 四次公开项目构建、四份独立产物验收、12 次隔离源码宿主运行及12次禁网无 Python/.NET 容器运行通过。
+
+其中搬迁验证是保留旧 `build` 证据后，将自足源码项目移至新位置重新构建，不是复用搬迁的编译缓存。这一有限结果不证明跨平台、任意依赖闭包或其他项目兼容，也没有新的性能结论；合同及验证层次见 [deployment_project](../tests/aot/deployment_project/README.md)。
+
 ## 后续阶段的 Python 用例
 
 Phase 2–4 用例已经写入 `tests/e2e/` 并标记 pending。`python3 tests/run_python_baseline.py` 自检 Phase 1–3 的 CPython 行为；安装 NumPy 后加 `--phase phase4` 检查扩展基线。辅助包与预期错误退出的运行方式见 [测试说明](../tests/README.md)。这些基线通过不表示 RyuPy 已支持相应功能。
+
+## 可选：原生打包前验证无条件声明依赖
+
+显式分发配置可以加入 `"dependency_check": {"mode": "unconditional_closure", "requirements": ["binaryornot==0.4.4"]}`。它在加载Python源码及调用SDK前检查该根的传递声明依赖，例如缺少chardet或版本不满足会直接报“依赖预检”错误。不会替你安装包，也不会读取宿主Python环境。
+
+首切拒绝活跃依赖中的markers、extras和URL要求，不推测目标环境；不使用该字段则保持旧行为。成功的编译期 `dependency-check.json` 只证明所选声明闭包的存在/版本匹配，不能代替实际Native运行验证。配置和范围见[ADR-0176](adr/0176-explicit-dependency-preflight.md)。
+
+
+### 部署什么、保留什么
+
+- 交付整个 `<入口>.dist/`，不要只复制可执行文件；资源和分发 metadata 可能是程序必需的。
+- `.build/` 是本轮构建与诊断资料，不是部署运行所需。Linux x64 会把**身份验证通过的本次 ELF 调试符号**留在这里，而不随 `.dist` 发货；未知旁件、用户资源和 macOS / Windows 的符号保持保守复制。
+- CLI 报告 `AOT 调试符号清单：.../debug-symbols.json` 时，先看 `status`。只有 `separated` 表示已分离，`retained` 表示本轮未分离（也可能没有符号文件）；原因在 `reason`。保留符号仍占构建磁盘，交付变小不等于总磁盘变小。
+- 要保留后续调试能力，归档本轮 `.build` 和匹配 `.dist`。清单中 `symbols_relative_path` 相对于该清单所在的 attempt 目录；不要混用另一次构建的同名符号。
+
+搬迁后的 Linux 程序可以显式加载匹配符号，例如在 GDB 中执行（尖括号替换为实际值，先选择要检查的函数断点）：
+
+```text
+file /absolute/path/app.dist/app
+symbol-file /absolute/path/attempt/ryupy-aot-0/publish/<本次host>.dbg
+break <函数符号>
+run <程序参数>
+bt
+```
+
+这不是搬迁后自动发现符号的承诺；调试器、源码位置及实际崩溃栈也会影响可见信息。精确身份、事务行为及真实验收见[ADR-0177](adr/0177-linux-native-symbol-delivery.md)。不要手工删除 `.dist` 的未知文件来减包。
+
+### 搬迁后离线核验AOT交付目录
+
+独立候选提供只读验包命令，已通过两真实应用的三平台[验收](validation/distribution-verify-20261113.md)，尚未合入dev/main：
+
+```sh
+ryupy verify ./release/app.dist
+```
+
+成功时退出0并打印JSON；文件缺失、内容与清单摘要不符、额外文件或不支持的清单版本会非零退出。它不修改目录，不调用dotnet/Python，也不重新编译。编译参数和metadata/provider配置不能混入verify。
+
+`content_integrity_verified: true`只表示文件与清单自洽。真实性、目标机兼容性、完整schema语义均明确为`not_checked`；清单与文件一起被改后可以再次自洽，不能替代签名。额外空目录允许，根内链接拒绝，不提供恶意并发替换防护。`reported_target_rid`只是声明，`total_bytes`不含清单本身；仍应单独运行应用确认目标环境可用。详见[ADR0188](adr/0188-offline-distribution-verification.md)。
+
+注意：用户并行dev新增的联合分发schema9尚未合入该验包候选；当前明确支持版本号1–8，未知版本拒绝，不提前称新格式已验证。

@@ -23,8 +23,10 @@ public static class PySystem
     // 候选冷激活不调用公开sys getter，配置写入时记录内部拒绝事实。
     internal static bool HasExplicitFinderConfiguration { get; private set; }
     internal static bool IsOriginalSystem(PyModule module) => ReferenceEquals(module, _sys);
-    private static readonly PyStandardStream DefaultOutput = new("<stdout>", null, Builtins.DefaultOutput);
-    private static readonly PyStandardStream DefaultError = new("<stderr>", null, Console.Error);
+    private static readonly PyStandardStream DefaultOutput = new("<stdout>", Builtins.DefaultOutput,
+        new PyStandardBinaryOutput(Console.OpenStandardOutput(), "<stdout>", () => !Console.IsOutputRedirected));
+    private static readonly PyStandardStream DefaultError = new("<stderr>", Console.Error,
+        new PyStandardBinaryOutput(Console.OpenStandardError(), "<stderr>", () => !Console.IsErrorRedirected));
     private static readonly PyStandardStream DefaultInput = new("<stdin>", Console.In, null);
     // 产品 V1 仅接受本进程原始CLR输出流；用户/宿主自定义writer不在准入闭包。
     internal static bool UsesDefaultOutputStreams
@@ -104,11 +106,14 @@ public static class PySystem
         if (PyTraceProduct.Enabled && !UsesDefaultOutputStreams)
             throw new InvalidOperationException("trace V1 output stream escaped its admitted domain");
         Exception? first = null;
-        try { Builtins.Flush(); } catch (Exception error) { first = error; }
-        var seen = new HashSet<object>(System.Collections.Generic.ReferenceEqualityComparer.Instance) { DefaultOutput };
+        try { if (!DefaultOutput.BufferClosed) Builtins.Flush(); } catch (Exception error) { first = error; }
+        var seen = new HashSet<object>(System.Collections.Generic.ReferenceEqualityComparer.Instance);
+        // 原文本仍附着时Builtins.Flush已刷新；detach却未改绑的当前流必须报告失效。
+        if (!DefaultOutput.Detached) seen.Add(DefaultOutput);
         foreach (object? target in new[] { Stdout, Stderr })
         {
             if (target is null or PyNone || !seen.Add(target)) continue;
+            if (target is PyStandardBinaryOutput { Closed: true }) continue;
             try { Flush(target); }
             catch (Exception error)
             {

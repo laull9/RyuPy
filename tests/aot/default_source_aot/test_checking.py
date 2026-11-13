@@ -1,8 +1,18 @@
 """命令/原流门纯测；不执行构建或产品。"""
 import unittest
-from checking import build_argv, positive, boundary_expected
+from checking import build_argv, positive, boundary_expected, named_test_output
 
 class CheckingTests(unittest.TestCase):
+    def test_named_discovery_never_accepts_zero_or_wrong_identity(self):
+        name = 'default_aot::tests::default_aot_real_graph_emit'
+        ok = 'test ' + name + ' ... ok'
+        named_test_output([ok], name)
+        for lines in [[], ['running 0 tests'], [ok, ok],
+                      ['test prefix::' + name + ' ... ok'],
+                      ['test ' + name + ' ... ignored'],
+                      ['test default_aot::tests::oracle::default_aot_real_graph_emit ... ok']]:
+            with self.assertRaises(ValueError): named_test_output(lines, name)
+
     def test_default_argv(self):
         self.assertEqual(build_argv('cli','entry','out','root',True),['cli','build','entry','--out-dir','out','-I','root','--aot'])
         self.assertNotIn('--aot',build_argv('cli','entry','out','root',False))

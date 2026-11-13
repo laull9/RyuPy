@@ -8,7 +8,19 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 #[path = "aot_layout_files.rs"]
 mod files;
+#[path = "aot_layout_symbols.rs"]
+mod symbols;
 static NEXT: AtomicU64 = AtomicU64::new(0);
+/// 离线验包只复用现有底座，不扩大为清单全语义或原子目录快照。
+pub(crate) fn verify_distribution_manifest(root: &Path) -> Result<serde_json::Value> {
+    // 公开入口先拒绝根本身的链接/非目录，不先读取其manifest；这不是并发no-follow保证。
+    ensure!(
+        manifest_files::plain_metadata(root)?.is_dir(),
+        "验包根不是普通目录"
+    );
+    files::verify_manifest(root)
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Owner {
@@ -21,8 +33,12 @@ struct Owner {
 /// 仅外层排他创建attempt后可构造；调用者不能靠目录名字伪造资格。
 pub(crate) struct OwnedAttempt {
     root: PathBuf,
+    output_roots: [PathBuf; 2],
 }
 impl OwnedAttempt {
+    pub(crate) fn output_roots(&self) -> &[PathBuf] {
+        &self.output_roots
+    }
     pub(crate) fn create_child(&self, parent: &Path, name: &str) -> Result<PathBuf> {
         ensure!(
             matches!(name, "ryupy-binding-0" | "ryupy-aot-0"),
@@ -119,6 +135,7 @@ pub(crate) fn build(
     inner.out_dir = attempt.clone();
     let owned = OwnedAttempt {
         root: attempt.clone(),
+        output_roots: [build.clone(), dist.clone()],
     };
     let result = compile(&inner, &owned)
         .and_then(|artifacts| install(&attempt, &dist, &stem, &owner.dist, artifacts));
@@ -238,6 +255,7 @@ fn install(
     let candidate = attempt.join("dist-candidate");
     files::verify_manifest(source)?;
     files::copy_tree(source, &candidate)?;
+    artifacts.debug_symbols = symbols::separate(attempt, source, &candidate, native_name)?;
     files::relocate(&candidate, native_name, &name)?;
     let ready = files::snapshot(&candidate, false)?;
     verify_dist(dist, old)?;
@@ -278,3 +296,7 @@ fn swap(candidate: &Path, dist: &Path, backup: &Path, had_old: bool) -> Result<(
 #[cfg(test)]
 #[path = "aot_layout_tests.rs"]
 mod tests;
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "aot_layout_symbols_tests.rs"]
+mod symbols_tests;

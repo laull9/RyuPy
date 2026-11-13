@@ -43,7 +43,6 @@ fn ordinary_dynamic_reuses_the_complete_instance_boundary() {
         "x: int = 1\n",
         "x = [v for v in []]\n",
         "x = globals()\n",
-        "x = __debug__\n",
         "del obj.value\n",
     ] {
         let source = format!(
@@ -59,4 +58,12 @@ fn ordinary_dynamic_reuses_the_complete_instance_boundary() {
             "{source}"
         );
     }
+}
+
+#[test]
+fn debug_constant_does_not_make_ordinary_function_need_instance_environment() {
+    assert!(matches!(
+        assess("def f():\n    return __debug__\n"),
+        Eligibility::Eligible { .. }
+    ));
 }

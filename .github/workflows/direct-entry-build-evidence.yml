@@ -1,0 +1,88 @@
+name: 原性能证据无损分块
+on:
+  workflow_dispatch:
+  push:
+    branches: [integration/dev-aot-native-20261113]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  split:
+    if: >-
+      github.ref == 'refs/heads/integration/dev-aot-native-20261113' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.head_commit.message == 'validation: direct-entry-build-evidence-001')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+      - name: 原件流式下载与逐字节分块
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -B tests/aot/direct_entry_build_perf/split_evidence.py
+      - name: 保存原ZIP分块 a-000
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-a-000
+          path: ${{ runner.temp }}/direct-entry-build-evidence/a/part-000.bin
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存原ZIP分块 a-001
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-a-001
+          path: ${{ runner.temp }}/direct-entry-build-evidence/a/part-001.bin
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存原ZIP分块 a-002
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-a-002
+          path: ${{ runner.temp }}/direct-entry-build-evidence/a/part-002.bin
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存原ZIP分块 b-000
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-b-000
+          path: ${{ runner.temp }}/direct-entry-build-evidence/b/part-000.bin
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存原ZIP分块 b-001
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-b-001
+          path: ${{ runner.temp }}/direct-entry-build-evidence/b/part-001.bin
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存原ZIP分块 b-002
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-b-002
+          path: ${{ runner.temp }}/direct-entry-build-evidence/b/part-002.bin
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 保存分块索引与验证状态
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: direct-entry-original-43372683973-index
+          path: ${{ runner.temp }}/direct-entry-build-evidence/index.json
+          compression-level: 0
+          if-no-files-found: warn
+          retention-days: 7

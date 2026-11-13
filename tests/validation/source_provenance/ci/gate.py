@@ -105,6 +105,7 @@ def main():
     p.add_argument('--tools', required=True, type=Path)
     p.add_argument('--oracle', type=Path)
     p.add_argument('--phase', required=True, choices=['cp', 'build', 'jit'])
+    p.add_argument('--binding-version', choices=['legacy-names-v1', 'lexical-chain-v1'], default='legacy-names-v1')
     p.add_argument('--build-evidence', type=Path)
     p.add_argument('--pe-reviews', type=Path)
     args = p.parse_args()
@@ -190,7 +191,7 @@ def main():
                                'contract_sha256': digest(args.input / 'contract.json')}
                     # 只读ECMA解析先于任何JIT；完整producer审查是另一个明确前置，不以字段存在自签。
                     parsed = runner.run(label + '-pe-read', [sys.executable, args.input / 'ci/read_pe.py',
-                                        dll, args.role, name], cwd=cwd(label + '-pe-read'), env=env, timeout=30)
+                                        dll, args.role, name, '--binding-version', args.binding_version], cwd=cwd(label + '-pe-read'), env=env, timeout=30)
                     require(parsed.returncode == 0, 'PE有限结构读取失败，保原件停止')
                     product['pe_read_sha256'] = digest(args.out / 'logs' / (label + '-pe-read.stdout'))
                     save(args.out / 'results' / (label + '.json'), product)

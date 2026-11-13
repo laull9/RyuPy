@@ -275,7 +275,7 @@ pub fn parse_class_def(
                 ..
             })
         );
-        crate::enum_class::members(class_def, flag, file, diags)
+        crate::enum_class::members(class_def, flag, globals, file, diags)
     });
     if enum_members.is_some() && is_dataclass {
         diags.push(

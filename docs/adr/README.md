@@ -92,3 +92,32 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
 - [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
 - [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
+- [0173：面向 NativeAOT 的声明式 C ABI 签名与只读借用](0173-declarative-cabi-signatures.md)（用户 dev 通用 C ABI v3；支持范围与验收见原 ADR）
+- [0174：版本化原源 catalog 与可解释静态依赖报告](0174-versioned-source-catalog-probe.md)（用户 dev 的 catalog v2 与静态来源报告；验收范围见原 ADR）
+
+
+
+
+- [0175：标准库源码、C ABI 与包资源共同分发](0175-stdlib-binding-resource-distribution.md)（用户 dev 的联合分发合同；支持范围与验收见原 ADR）
+
+| [0177](0177-linux-native-symbol-delivery.md) | Linux Native调试符号与交付目录分离 | Linux有限验收通过；未合入dev/main |
+
+- [0178：精确内建list的join去掉重复引用快照](0178-exact-list-join-allocation.md)（减分配候选，真实A/B两轮仅一轮过3%可靠门）
+
+- [0179：显式NativeAOT体积/速度偏好](0179-native-aot-optimization-preference.md)（默认不变；真实SDK收据核对，优化收益按应用实测）
+
+- [0180：普通源码 NativeAOT 直入口](0180-native-direct-source-entry.md)（独立整合分支三平台及catalog/通用ABI组合已验；未合dev）
+
+- [0181：Enum auto 赋值期生成](0181-enum-auto-assignment.md)（有限图 JIT/Native 与完整回归已验证；不代表完整 Enum）
+- [0182：固定非优化 __debug__](0182-debug-language-constant.md)（固定非优化正/负合同、有限 Native 与完整回归已验证）
+- [0183：AOT standalone 同一部署计划](0183-aot-standalone-deployment-plan.md)（真实应用及独立 PE 合同已验证；原生发布/干净部署待验）
+- [0184：有限标准输出 detach](0184-standard-output-detach.md)（CP/JIT/完整 C# 已验证；不扩一般 IO 或宿主句柄所有权）
+
+- [0185：Windows extended 文件系统路径的有限准入](0185-windows-extended-filesystem-paths.md)（Windows真实宿主路径与三平台资源组合修复已验，保首轮失败）
+
+- [0186：显式资源目录选择](0186-explicit-resource-trees.md)（Linux/macOS/Windows 两入口553资源已验；仅Linux有无运行时容器证明）
+
+- [0187：Windows Path 有界共享词法模型](0187-windows-path-lexical-model.md)（有限词法与真实Windows路径/应用回归已验；不扩任意设备命名空间）
+- [0188：离线校验已交付的AOT目录](0188-offline-distribution-verification.md)（独立候选三平台真实应用已验；只证明内容自洽，不证明真实性/兼容性）
+
+- [0189：资源树与实际输出的早期相交诊断](0189-resource-output-preflight.md)（单一模块图内预检，保留合法兄弟资源与失败留证）

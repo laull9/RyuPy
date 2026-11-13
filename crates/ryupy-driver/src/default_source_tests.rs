@@ -3,15 +3,7 @@ use super::*;
 struct Tree(PathBuf);
 impl Tree {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-default-source-{}-{stamp}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&path).unwrap();
+        let path = crate::test_temp::directory("ryupy-default-source");
         Self(path)
     }
     fn write(&self, name: &str, text: &str) {

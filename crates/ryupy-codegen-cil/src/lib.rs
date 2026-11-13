@@ -86,6 +86,15 @@ pub fn emit_assembly_with_report(
     program: &LinkedProgram,
     opts: &EmitOptions,
 ) -> Result<EmissionArtifact, CodegenError> {
+    emit_assembly_report_kind(program, opts, false)
+}
+
+// PE种类只影响序列化；字节与报告始终来自同一次Resolution。
+fn emit_assembly_report_kind(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    is_executable: bool,
+) -> Result<EmissionArtifact, CodegenError> {
     ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
     crate::source_provenance::validate(program)?;
     let (res, _, report) = assembly::build_resolution_with_report(program, opts);
@@ -93,7 +102,7 @@ pub fn emit_assembly_with_report(
     let bytes = res
         .write(dotnetdll::prelude::WriteOptions {
             is_32_bit: true,
-            is_executable: false,
+            is_executable,
         })
         .map_err(|error| CodegenError::Write(error.to_string()))?;
     Ok(EmissionArtifact { bytes, report })
@@ -120,6 +129,16 @@ pub fn emit_source_assembly_with_report(
 ) -> Result<EmissionArtifact, CodegenError> {
     source_provenance::require(program)?;
     emit_assembly_with_report(program, opts)
+}
+
+/// NativeAOT主输入：保留真实PE入口并发射可执行程序集，而非带入口token的DLL。
+/// 普通JIT/手工MIR出口不变；与源码报告出口共享全部准入及报告生成。
+pub fn emit_source_aot_assembly_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+) -> Result<EmissionArtifact, CodegenError> {
+    source_provenance::require(program)?;
+    emit_assembly_report_kind(program, opts, true)
 }
 
 /// MIR/CIL转储也属于真实源码生产链，不能把缺来源的损坏产物显示成可用结果。

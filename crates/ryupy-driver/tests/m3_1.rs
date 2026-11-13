@@ -1,6 +1,9 @@
 //! M3.1 三类急切推导式：逐层检查独立作用域、共享捕获与明确拒绝的语法。
 
 use ryupy_driver::{Session, Stage};
+mod comprehension_cil_contract;
+mod generator_cil_contract;
+mod genexpr_mir_contract;
 mod support;
 use support::dump;
 
@@ -16,7 +19,16 @@ fn snapshot_m3_1_list() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &case, stage).expect("列表推导式应完成所有编译阶段");
-        insta::assert_snapshot!(name, output);
+        if matches!(stage, Stage::Cil) {
+            comprehension_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.IterValue(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| comprehension_cil_contract::check(&broken, name))
+                    .is_err()
+            );
+        } else {
+            insta::assert_snapshot!(name, output);
+        }
     }
 }
 
@@ -81,18 +93,23 @@ fn snapshot_m3_1_dict_set() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &case, stage).expect("三类推导式应完成所有编译阶段");
-        insta::assert_snapshot!(name, output);
+        if matches!(stage, Stage::Cil) {
+            comprehension_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.IterValue(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| comprehension_cil_contract::check(&broken, name))
+                    .is_err()
+            );
+        } else {
+            insta::assert_snapshot!(name, output);
+        }
     }
 }
 
 #[test]
 fn snapshot_m3_1_generator_expression() {
     let path = std::env::temp_dir().join("ryupy_test_generator_expression.py");
-    std::fs::write(
-        &path,
-        "values = (x * 2 for x in [1, 2] if x > 1)\nprint(list(values))\n",
-    )
-    .unwrap();
+    std::fs::write(&path, genexpr_mir_contract::SOURCE).unwrap();
     for (stage, name) in [
         (Stage::Hir, "m3_1_genexpr_hir"),
         (Stage::Mir, "m3_1_genexpr_mir"),
@@ -100,7 +117,18 @@ fn snapshot_m3_1_generator_expression() {
     ] {
         let mut session = Session::default();
         let output = dump(&mut session, &path, stage).expect("生成器表达式应完成降级");
-        insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "genexpr.py"));
+        if matches!(stage, Stage::Cil) {
+            comprehension_cil_contract::check(&output, name);
+            let broken = output.replace("PyOps.IterValue(", "PyOps.RemovedContractCall(");
+            assert!(
+                std::panic::catch_unwind(|| comprehension_cil_contract::check(&broken, name))
+                    .is_err()
+            );
+        } else if matches!(stage, Stage::Mir) {
+            genexpr_mir_contract::check_with_negative_controls(false);
+        } else {
+            insta::assert_snapshot!(name, output.replace(path.to_str().unwrap(), "genexpr.py"));
+        }
     }
     std::fs::remove_file(path).unwrap();
 }

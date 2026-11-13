@@ -1,4 +1,4 @@
-//! 显式资源选择与普通/绑定发布的资源报告；仅针对本次已编译模块，不扫描目录或扩大导入闭包。
+//! 显式资源选择与普通/绑定资源报告；仅展开本次已编译模块的有界显式目录，不扩大Python导入闭包。
 use crate::modules::SourceModule;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -6,8 +6,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
+#[path = "resources_output.rs"]
+mod output;
 #[path = "resources_paths.rs"]
 mod paths;
+#[path = "resources_select.rs"]
+mod select;
 #[path = "resources_stage.rs"]
 mod stage;
 use paths::{Kind, Targets};
@@ -26,7 +30,10 @@ struct Request {
 #[serde(deny_unknown_fields)]
 struct ModuleRequest {
     module: String,
+    #[serde(default)]
     files: Vec<String>,
+    #[serde(default)]
+    trees: Vec<select::TreeRequest>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct ModuleLocationRecord {
@@ -57,10 +64,33 @@ pub(crate) struct ResourcePlan {
     pub(super) selected: BTreeSet<usize>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
     pub(super) declared: bool,
+    selections: Vec<select::Selection>,
 }
 
+/// 单次请求借用实际布局边界，不把输出权限保存到Session。
+pub(crate) struct ResourceRequestContext<'a> {
+    pub(crate) path: &'a Path,
+    pub(crate) output_roots: &'a [PathBuf],
+}
 impl ResourcePlan {
+    pub(crate) fn read_context(
+        request: ResourceRequestContext<'_>,
+        sources: &[SourceModule],
+    ) -> Result<Self> {
+        if request.output_roots.is_empty() {
+            Self::read(request.path, sources)
+        } else {
+            Self::read_with_outputs(request.path, sources, request.output_roots)
+        }
+    }
     pub(crate) fn read(path: &Path, sources: &[SourceModule]) -> Result<Self> {
+        Self::read_with_outputs(path, sources, &[])
+    }
+    fn read_with_outputs(
+        path: &Path,
+        sources: &[SourceModule],
+        output_roots: &[PathBuf],
+    ) -> Result<Self> {
         let metadata = crate::manifest_files::plain_metadata(path)?;
         ensure!(
             metadata.is_file() && metadata.len() <= 1024 * 1024,
@@ -92,6 +122,7 @@ impl ResourcePlan {
             selected: BTreeSet::new(),
             automatic: None,
             declared: true,
+            selections: Vec::new(),
         };
         let mut targets = Targets::default();
         // 锚点先全部保留，防先处理的资源覆盖后声明模块的虚拟源位置。
@@ -110,6 +141,25 @@ impl ResourcePlan {
                 relative_file,
             });
         }
+        // 必须先预检全部树，再展开任何树；避免先扫描/读取生成输出再报告第二棵冲突。
+        for (entry, location) in request.modules.iter().zip(&plan.locations) {
+            ensure!(entry.trees.len() <= 64, "每模块资源目录选择超过64项");
+            let root = plan.source_files[location.module_id as usize]
+                .parent()
+                .context("资源源码没有父目录")?;
+            for tree in &entry.trees {
+                output::reject_overlap(root, tree.directory(), output_roots).with_context(
+                    || {
+                        format!(
+                            "模块{}的资源树directory={:?}预检失败",
+                            entry.module,
+                            tree.directory()
+                        )
+                    },
+                )?;
+            }
+        }
+        let mut scan_budget = select::SCAN_LIMIT;
         for (entry, location) in request.modules.iter().zip(&plan.locations) {
             let source_module = location.module_id as usize;
             let parent = location
@@ -117,7 +167,17 @@ impl ResourcePlan {
                 .rsplit_once('/')
                 .context("模块锚点没有父目录")?
                 .0;
-            for file in &entry.files {
+            ensure!(entry.trees.len() <= 64, "每模块资源目录选择超过64项");
+            let mut files = entry.files.clone();
+            for tree in &entry.trees {
+                let root = plan.source_files[source_module]
+                    .parent()
+                    .context("资源源码没有父目录")?;
+                let selection = select::Selection::read(root, tree, &mut scan_budget)?;
+                files.extend(selection.files.iter().cloned());
+                plan.selections.push(selection);
+            }
+            for file in &files {
                 paths::portable(file)?;
                 let lower = file.to_ascii_lowercase();
                 ensure!(
@@ -146,6 +206,32 @@ impl ResourcePlan {
         }
         plan.locations.sort_by_key(|l| l.module_id);
         Ok(plan)
+    }
+    /// 唯一来源图上的补充组合；资源声明不能覆盖自动锚点或改变模块选择。
+    pub(crate) fn compose_automatic(
+        sources: &[SourceModule],
+        explicit: Option<Self>,
+    ) -> Result<Self> {
+        let automatic = Self::automatic(sources)?;
+        if let Some(mut explicit) = explicit {
+            ensure!(
+                automatic.source_files == explicit.source_files
+                    && automatic.source_hashes == explicit.source_hashes,
+                "资源与默认计划来源不一致"
+            );
+            for location in &explicit.locations {
+                ensure!(
+                    automatic.module_location(location.module_id)
+                        == Some(location.relative_file.as_str()),
+                    "显式资源锚点与默认计划冲突"
+                );
+            }
+            // 沿用户唯一锚点补齐合同组合，保留claims、目录选择快照及显式声明标记。
+            explicit.add_automatic_locations(sources)?;
+            Ok(explicit)
+        } else {
+            Ok(automatic)
+        }
     }
     /// 默认域只签发虚拟锚；所有源仍由原stage持句柄复核，无数据claims。
     pub(crate) fn automatic(sources: &[SourceModule]) -> Result<Self> {
@@ -177,6 +263,7 @@ impl ResourcePlan {
             selected: (0..sources.len()).collect(),
             automatic: None,
             declared: false,
+            selections: Vec::new(),
         })
     }
     /// 在同次真实源码图上补齐锚点；保留显式 claims，并统一检查锚点与数据冲突。
@@ -199,8 +286,18 @@ impl ResourcePlan {
             .find(|l| l.module_id == id)
             .map(|l| l.relative_file.as_str())
     }
+    fn verify_selections(&self) -> Result<()> {
+        let mut budget = select::SCAN_LIMIT;
+        for selection in &self.selections {
+            selection.verify(&mut budget)?;
+        }
+        Ok(())
+    }
     pub(crate) fn stage(&self, root: &Path) -> Result<StagedResources> {
-        stage::freeze(self, root)
+        self.verify_selections()?;
+        let staged = stage::freeze(self, root)?;
+        self.verify_selections()?;
+        Ok(staged)
     }
 }
 
@@ -253,3 +350,7 @@ pub(crate) fn validate_layout_artifact_path(path: &str) -> Result<()> {
 #[cfg(test)]
 #[path = "resources_combined_tests.rs"]
 mod combined_tests;
+
+#[cfg(test)]
+#[path = "resources_composition_tests.rs"]
+mod composition_tests;

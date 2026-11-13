@@ -82,7 +82,8 @@ else:
                 if line.startswith('已生成 ')]
     native_name = 'main.exe' if os.name == 'nt' else 'main'
     natives = [p for p in reported if p.name == native_name]
-    assert len(natives) == 1 and natives[0].parent == output / 'main.dist'
+    # Windows报告可能带\\?\\前缀；比较真实已发布目录身份，不把文本别名当不同目标。
+    assert len(natives) == 1 and natives[0].parent.samefile(output / 'main.dist')
     original_dist = natives[0].parent
     bundle = work / '搬迁 & bundle'
     shutil.copytree(original_dist, bundle)

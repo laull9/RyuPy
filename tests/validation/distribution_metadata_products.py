@@ -229,7 +229,9 @@ def native(r, markdown=False):
     else:
         source_map.update({'probe_pkg': sha(r.fixture / 'probe_pkg/__init__.py'),
                            'probe_pkg.target': sha(r.fixture / 'probe_pkg/target.py')})
-    manifest = r.audit(lambda: contract.verify_native(layout.dist, layout.native, sdk, report, r.runtime, layout.managed, source_map))
+    decoded = contract.parse((r.out / (name + '-pe-decode.stdout')).read_text())
+    manifest = r.audit(lambda: contract.verify_native(layout.dist, layout.native, sdk, report,
+        r.runtime, layout.managed, source_map, decoded=decoded))
     save(saved / 'validated-manifest.json', manifest)
     managed_saved = saved / 'managed'; managed_saved.mkdir()
     for source in layout.managed.parent.iterdir():
@@ -245,6 +247,7 @@ def native(r, markdown=False):
         r.run_positive(name + '-original', [layout.native], golden, env)
         moved = r.out / 'relocated' / name; moved.parent.mkdir(exist_ok=True)
         binary = r.audit(lambda: contract.relocate(layout.dist, layout.native, moved))
-        r.audit(lambda: contract.verify_native(moved, binary, sdk, report, r.runtime, layout.managed, source_map))
+        r.audit(lambda: contract.verify_native(moved, binary, sdk, report, r.runtime,
+            layout.managed, source_map, decoded=decoded))
         r.preserve(moved, name + '-relocated')
         r.run_positive(name + '-relocated', [binary], golden, env)

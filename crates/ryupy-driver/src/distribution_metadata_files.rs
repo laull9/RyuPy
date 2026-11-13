@@ -17,6 +17,18 @@ pub(super) struct Record {
     sha256: String,
     pub hex: String,
 }
+fn no_reparse(meta: &Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        // 所有reparse类型都拒绝，包括junction，不只Rust识别的symlink。
+        meta.file_attributes() & 0x400 == 0
+    }
+    #[cfg(not(windows))]
+    {
+        !meta.file_type().is_symlink()
+    }
+}
 pub(super) fn plain_path(path: &Path) -> Result<()> {
     for component in path.components() {
         environment_ensure!(
@@ -26,7 +38,7 @@ pub(super) fn plain_path(path: &Path) -> Result<()> {
     }
     for ancestor in path.ancestors().filter(|p| !p.as_os_str().is_empty()) {
         let meta = std::fs::symlink_metadata(ancestor)?;
-        environment_ensure!(!meta.file_type().is_symlink(), "分发路径不接受链接");
+        environment_ensure!(no_reparse(&meta), "分发路径不接受链接或reparse点");
         environment_ensure!(meta.is_dir() || meta.is_file(), "分发路径不接受特殊文件");
     }
     Ok(())
@@ -52,9 +64,29 @@ fn open_no_follow(path: &Path) -> Result<File> {
             .custom_flags(FLAGS)
             .open(path)?)
     }
-    #[cfg(not(all(
-        any(target_os = "linux", target_os = "macos"),
-        any(target_arch = "x86_64", target_arch = "aarch64")
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        // OPEN_REPARSE_POINT打开末端本身，不解析其目标；拒绝打开后观察到的所有reparse。
+        // 仅共享读，持有期间禁止并存写句柄和删除/替换；不退回普通follow打开。
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(0x0020_0000)
+            .share_mode(0x1)
+            .open(path)?;
+        let meta = file.metadata()?;
+        environment_ensure!(
+            meta.is_file() && no_reparse(&meta),
+            "分发对象不是普通非reparse文件"
+        );
+        Ok(file)
+    }
+    #[cfg(not(any(
+        windows,
+        all(
+            any(target_os = "linux", target_os = "macos"),
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        )
     )))]
     {
         let _ = path;
@@ -77,6 +109,7 @@ fn unchanged(before: &Metadata, after: &Metadata) -> Result<()> {
     Ok(())
 }
 // before来自本次lstat；helper保留为私有，测试能直接验证检查后末端替换。
+#[cfg(not(windows))]
 fn open_checked(path: &Path, before: &Metadata, limit: usize) -> Result<File> {
     environment_ensure!(
         before.is_file() && before.len() <= limit as u64,
@@ -91,10 +124,33 @@ fn open_checked(path: &Path, before: &Metadata, limit: usize) -> Result<File> {
     unchanged(before, &opened)?;
     Ok(file)
 }
+// Windows的Metadata未提供稳定公开file-id；快照从拒写/拒删除的真实句柄开始，
+// 不把先lstat的长度/时间假装成文件身份。额外句柄比对只作变化检测，不作来源去重。
+#[cfg(windows)]
+fn verify_identity(path: &Path, file: &File) -> Result<()> {
+    let retained = same_file::Handle::from_file(file.try_clone()?)?;
+    let current = same_file::Handle::from_file(open_no_follow(path)?)?;
+    environment_ensure!(retained == current, "分发路径不再指向已打开文件");
+    Ok(())
+}
+fn snapshot(path: &Path, limit: usize) -> Result<(File, Metadata)> {
+    #[cfg(windows)]
+    {
+        let file = open_no_follow(path)?;
+        let before = file.metadata()?;
+        environment_ensure!(before.len() <= limit as u64, "分发文件尺寸超限");
+        verify_identity(path, &file)?;
+        Ok((file, before))
+    }
+    #[cfg(not(windows))]
+    {
+        let before = std::fs::symlink_metadata(path)?;
+        Ok((open_checked(path, &before, limit)?, before))
+    }
+}
 pub(super) fn read(path: &Path, limit: usize) -> Result<Vec<u8>> {
     plain_path(path)?;
-    let before = std::fs::symlink_metadata(path)?;
-    let mut file = open_checked(path, &before, limit)?;
+    let (mut file, before) = snapshot(path, limit)?;
     let mut bytes = Vec::new();
     file.by_ref()
         .take(limit as u64 + 1)
@@ -108,6 +164,8 @@ pub(super) fn read(path: &Path, limit: usize) -> Result<Vec<u8>> {
     let after = std::fs::symlink_metadata(path)?;
     environment_ensure!(after.is_file(), "分发路径在读取后不再是普通文件");
     unchanged(&before, &after)?;
+    #[cfg(windows)]
+    verify_identity(path, &file)?;
     Ok(bytes)
 }
 pub(super) fn children(path: &Path) -> Result<Vec<(String, PathBuf)>> {
@@ -234,3 +292,7 @@ mod tests {
         assert!(open_checked(&path, &before, 4).is_err());
     }
 }
+
+#[cfg(all(test, windows))]
+#[path = "distribution_metadata_windows_tests.rs"]
+mod windows_tests;

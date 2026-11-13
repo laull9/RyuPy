@@ -233,28 +233,78 @@ public sealed partial class PyByteArray
 /// <summary>编码与字节转换。</summary>
 public static class PyEncoding
 {
-    /// <summary>按名字解码字节串（支持 utf-8 / ascii / latin-1）。</summary>
+    /// <summary>按名字解码字节串（支持 utf-8 / ascii / latin-1 / utf-16）。</summary>
     /// <param name="bytes">字节。</param>
     /// <param name="encoding">编码名。</param>
-    public static string Decode(ReadOnlySpan<byte> bytes, string encoding)
+    public static string Decode(ReadOnlySpan<byte> bytes, string encoding) => Decode(bytes, encoding, "strict");
+
+    /// <summary>显式错误策略解码；保留旧二参数ABI。</summary>
+    /// <param name="bytes">字节。</param>
+    /// <param name="encoding">编码名。</param>
+    /// <param name="errors">strict / replace / ignore；不改变默认严格行为。</param>
+    internal static string Decode(ReadOnlySpan<byte> bytes, string encoding, string errors)
     {
+        DecoderFallback fallback = errors switch
+        {
+            "strict" => DecoderFallback.ExceptionFallback,
+            "replace" => new DecoderReplacementFallback("\ufffd"),
+            "ignore" => new DecoderReplacementFallback(""),
+            // 未实现/未知处理器也先严格解码，只有实际错误才查询处理器。
+            _ => DecoderFallback.ExceptionFallback,
+        };
         string normalized = encoding.ToLowerInvariant().Replace("-", "").Replace("_", "");
         try
         {
             return normalized switch
             {
-                "utf8" or "u8" or "" => new UTF8Encoding(false, true).GetString(bytes),
-                "ascii" or "usascii" => Encoding.ASCII.GetString(bytes),
+                "utf8" or "u8" => WithFallback(new UTF8Encoding(false, true), fallback).GetString(bytes),
+                "utf16" => DecodeUtf16(bytes, fallback),
+                "utf16le" => DecodeUtf16Data(bytes, false, fallback),
+                "utf16be" => DecodeUtf16Data(bytes, true, fallback),
+                "ascii" or "usascii" => Encoding.GetEncoding("ascii", EncoderFallback.ExceptionFallback, fallback).GetString(bytes),
                 "latin1" or "iso88591" => Encoding.Latin1.GetString(bytes),
                 _ => throw new PyLookupError($"unknown encoding: {encoding}"),
             };
         }
         catch (DecoderFallbackException)
         {
+            if (errors is "surrogateescape" or "surrogatepass" or "backslashreplace" or "xmlcharrefreplace" or "namereplace")
+                throw new PyNotImplementedError($"decode error policy '{errors}' is not implemented");
+            if (errors is not ("strict" or "replace" or "ignore"))
+                throw new PyLookupError($"unknown error handler name '{errors}'");
             throw new PyUnicodeDecodeError(
-                $"'utf-8' codec can't decode bytes: invalid start byte"
+                $"'{encoding}' codec can't decode bytes: invalid byte sequence"
             );
         }
+    }
+
+    // 编码实例只在本次调用持有，可写Clone隔离不同调用的错误策略。
+    private static Encoding WithFallback(Encoding encoding, DecoderFallback fallback)
+    {
+        var configured = (Encoding)encoding.Clone();
+        configured.DecoderFallback = fallback;
+        return configured;
+    }
+
+    // UTF-16消费BOM；无BOM采用宿主字节序，与CPython的一次性decode一致。
+    private static string DecodeUtf16(ReadOnlySpan<byte> bytes, DecoderFallback fallback)
+    {
+        bool bigEndian = !BitConverter.IsLittleEndian;
+        if (bytes.Length >= 2 && bytes[0] == 0xff && bytes[1] == 0xfe) { bytes = bytes[2..]; bigEndian = false; }
+        else if (bytes.Length >= 2 && bytes[0] == 0xfe && bytes[1] == 0xff) { bytes = bytes[2..]; bigEndian = true; }
+        return DecodeUtf16Data(bytes, bigEndian, fallback);
+    }
+
+    // CPython把末尾高代理项和后续单字节截断合为一个错误；CLR会分成两个。
+    // 仅在非strict模式合并该尾部错误单位，其余完整字符仍交成熟解码器验证。
+    private static string DecodeUtf16Data(ReadOnlySpan<byte> bytes, bool bigEndian, DecoderFallback fallback)
+    {
+        if (fallback is not DecoderExceptionFallback && bytes.Length >= 3 && (bytes.Length & 1) != 0)
+        {
+            int high = bigEndian ? (bytes[^3] << 8) | bytes[^2] : (bytes[^2] << 8) | bytes[^3];
+            if (high is >= 0xd800 and <= 0xdbff) bytes = bytes[..^1];
+        }
+        return WithFallback(new UnicodeEncoding(bigEndian, false, true), fallback).GetString(bytes);
     }
 
     /// <summary>按名字编码字符串。</summary>

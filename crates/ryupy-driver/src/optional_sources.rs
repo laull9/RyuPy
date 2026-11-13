@@ -1,5 +1,5 @@
 //! 可选源码工作队列：hard/soft失败强度与candidate/active注册状态互相独立。
-//! 只在实际JIT产品会话启用，不更改旧公开硬图、AOT或fixed-binding接口。
+//! JIT沿原策略启用；AOT仅显式内部请求规划位置，执行ABI仍由独立策略决定。
 use crate::{
     Session,
     modules::{SourceKind, SourceModule},
@@ -386,11 +386,19 @@ pub(crate) fn write_report(sess: &Session, out: &Path) -> Result<()> {
     Ok(())
 }
 
-/// 统一策略门：AOT 与已解析绑定只凭本次私有授权进入 catalog；显式关闭继续生效。
+/// 普通AOT位置规划与执行策略分离；绑定仍需私有授权且显式关闭继续生效。
 pub(crate) fn enabled(sess: &Session, aot: bool) -> bool {
-    (!aot || sess.default_source_state.aot_request)
-        && (!sess.fixed_binding_build || sess.default_source_state.binding_catalog)
-        && sess.module_environment_policy != crate::ModuleEnvironmentPolicy::ExplicitOnly
+    if sess.fixed_binding_build
+        && (!sess.default_source_state.binding_catalog
+            || sess.module_environment_policy == crate::ModuleEnvironmentPolicy::ExplicitOnly)
+    {
+        return false;
+    }
+    if aot {
+        sess.default_source_state.aot_request
+    } else {
+        sess.module_environment_policy != crate::ModuleEnvironmentPolicy::ExplicitOnly
+    }
 }
 
 #[cfg(test)]

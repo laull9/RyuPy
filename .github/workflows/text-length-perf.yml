@@ -1,0 +1,51 @@
+# 真实应用同runner A/B；不复用旧Nuitka数字，也不把微基准冒充AOT收益。
+name: pyfiglet真实AOT长度优化对照
+on:
+  workflow_dispatch:
+  push:
+    branches: ['ci/text-length-perf-20261112-001']
+permissions:
+  contents: read
+concurrency:
+  group: text-length-perf-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONOPTIMIZE: '0'
+      PYTHONNOUSERSITE: '1'
+      LC_ALL: C.UTF-8
+      TZ: UTC
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: f1765bb40964ce6b251f40d291f0da95bcf44fde
+          path: before-source
+          persist-credentials: false
+      - name: 固定工具与系统依赖
+        timeout-minutes: 15
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev libicu-dev
+          python3 -B tests/aot/wcwidth_ci/prepare.py
+      - name: 分布轻量合同
+        run: '"$PYTHON" -B -m unittest discover -s tests/aot/text_length_perf -p "test_*.py"'
+      - name: 两份公开Native与独立receipt、原流硬门和交替计时
+        timeout-minutes: 45
+        run: '"$PYTHON" -B tests/aot/text_length_perf/run.py'
+      - name: 成功与失败原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: text-length-perf-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/text-length-perf
+          if-no-files-found: warn
+          retention-days: 3

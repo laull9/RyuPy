@@ -39,7 +39,19 @@ fn build_internal(
 ) -> Result<Artifacts> {
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
     let plan = BindingPlan::read(declaration, Platform::current()?, opts.aot)?;
-    let compiled = crate::binding_sources::compile(sess, opts, resources, &plan.module);
+    let compiled = if let Some(owned) = owned {
+        crate::binding_sources::compile_context(
+            sess,
+            opts,
+            resources.map(|path| crate::resources::ResourceRequestContext {
+                path,
+                output_roots: owned.output_roots(),
+            }),
+            &plan.module,
+        )
+    } else {
+        crate::binding_sources::compile(sess, opts, resources, &plan.module)
+    };
     // 同次源码闭图签发位置与来源；生成原生模块在捕获后追加，不能成为资源 consumer。
     let (mut program, sources, resource_plan, source_report) = compiled?;
     plan.check_modules(&program)?;
@@ -101,6 +113,7 @@ fn build_internal(
                 dll,
                 native_exe: Some(p.executable),
                 manifest: Some(p.manifest),
+                debug_symbols: None,
             });
         }
         let target = bundle.join(plan.platform.relative_file());
@@ -130,6 +143,7 @@ fn build_internal(
             dll,
             native_exe: None,
             manifest: Some(manifest),
+            debug_symbols: None,
         })
     })();
     match result {

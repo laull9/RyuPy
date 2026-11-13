@@ -184,7 +184,7 @@ class FilesTests(unittest.TestCase):
 
     def test_managed_and_runtime_hashes_are_verified(self):
         source, _ = self.bundle()
-        data = {'schema_version': 1, 'compiler': {'options': {'flag': False}},
+        data = {'schema_version': 1, 'compiler': {'options': copy.deepcopy(harness.DEFAULT_OPTIONS)},
                 'sources': [{'module_name': '__main__', 'compiled_text_sha256': 'f'*64}],
                 'build_inputs': [{'relative_path': key, **harness.file_record(source/name)} for key, name in
                     [('managed-entry.dll', 'construction.dll'), ('RyuPy.Runtime.dll', 'RyuPy.Runtime.dll')]]}
@@ -194,8 +194,36 @@ class FilesTests(unittest.TestCase):
                 altered = copy.deepcopy(data)
                 if change in ('managed', 'runtime'): altered['build_inputs'][0 if change == 'managed' else 1]['sha256'] = '0'*64
                 elif change == 'fixture': altered['sources'][0]['compiled_text_sha256'] = '0'*64
-                else: altered['compiler']['options']['flag'] = True
+                else: altered['compiler']['options']['experimental_leaf_inline'] = True
                 with self.subTest(change=change), self.assertRaises(AssertionError):
+                    harness.verify_inputs(altered, source, source/'RyuPy.Runtime.dll')
+
+    def test_input_options_require_exact_default_keys_types_and_values(self):
+        source, _ = self.bundle()
+        data = {'schema_version': 1, 'compiler': {'options': copy.deepcopy(harness.DEFAULT_OPTIONS)},
+                'sources': [{'module_name': '__main__', 'compiled_text_sha256': 'f'*64}],
+                'build_inputs': [{'relative_path': key, **harness.file_record(source/name)} for key, name in
+                    [('managed-entry.dll', 'construction.dll'), ('RyuPy.Runtime.dll', 'RyuPy.Runtime.dll')]]}
+        mutations = []
+        for key in harness.DEFAULT_OPTIONS:
+            missing = copy.deepcopy(harness.DEFAULT_OPTIONS); del missing[key]; mutations.append(missing)
+        unknown = copy.deepcopy(harness.DEFAULT_OPTIONS); unknown['future_option'] = False; mutations.append(unknown)
+        for key, values in {
+            'experimental_direct_accumulator': [True, 0, '', None],
+            'experimental_foreach_accumulator': [True],
+            'experimental_leaf_inline': [True],
+            'diagnostic_scalar_slp': [True], 'experimental_packed_slp': [True],
+            'instance_modules': [False, (), ['module']],
+            'module_environment_policy': [False, '', 'ordinary-dynamic-module-pilot', 'unknown'],
+        }.items():
+            for value in values:
+                changed = copy.deepcopy(harness.DEFAULT_OPTIONS); changed[key] = value; mutations.append(changed)
+        mutations.extend([None, [], {}])
+        with mock.patch.object(harness, 'FIXTURE_SHA256', 'f'*64):
+            harness.verify_inputs(data, source, source/'RyuPy.Runtime.dll')
+            for options in mutations:
+                altered = copy.deepcopy(data); altered['compiler']['options'] = options
+                with self.subTest(options=options), self.assertRaises(AssertionError):
                     harness.verify_inputs(altered, source, source/'RyuPy.Runtime.dll')
 
     def test_unique_same_publish_managed_path(self):
@@ -234,9 +262,12 @@ class StaticContractTests(unittest.TestCase):
 
 
 class MainFlowTests(unittest.TestCase):
-    def exercise(self, failure=None):
+    def exercise(self, failure=None, aliased=False):
         temp = tempfile.TemporaryDirectory(); self.addCleanup(temp.cleanup)
-        root = Path(temp.name); repo = root/'repo'; repo.mkdir(); out = root/'out'
+        root = Path(temp.name)
+        if aliased:
+            (root/'alias').mkdir(); root = root/'alias'/'..'
+        repo = root/'repo'; repo.mkdir(); out = root/'out'
         fixture = repo/'tests/aot/construction_fixtures/construction.py'
         fixture.parent.mkdir(parents=True); fixture.write_bytes(b'fixture-not-executed')
         source_sha = hashlib.sha256(fixture.read_bytes()).hexdigest()
@@ -249,6 +280,12 @@ class MainFlowTests(unittest.TestCase):
             if label == 'git-status': return subprocess.CompletedProcess(command, 0, b'', b'')
             if label == 'cp-positive': return output(python=True)
             if label == 'runtime-build':
+                self.assertEqual(Path(command[2]).resolve(), (repo/'runtime/RyuPy.Runtime/RyuPy.Runtime.csproj').resolve())
+                self.assertTrue(Path(command[2]).is_absolute())
+                self.assertNotEqual(kwargs['cwd'].resolve(), repo.resolve())
+                pin = json.loads((kwargs['cwd']/'global.json').read_text())
+                self.assertEqual(pin['sdk'], {'version': harness.SDK, 'rollForward': 'disable', 'allowPrerelease': False})
+                self.assertEqual(kwargs['cwd'].parent.resolve(), out.resolve())
                 runtime = repo/'runtime/RyuPy.Runtime/bin/Release/net10.0/RyuPy.Runtime.dll'
                 runtime.parent.mkdir(parents=True); runtime.write_bytes(b'runtime')
             elif label == 'compiler-build':
@@ -264,7 +301,7 @@ class MainFlowTests(unittest.TestCase):
                 (aot/'host').mkdir(); (aot/'host/sdk.version').write_text(harness.SDK+'\n')
                 (aot/'publish.stdout.log').write_bytes(b'Generating native code\n'); (aot/'publish.stderr.log').write_bytes(b'')
                 (native.parent/'ryupy-artifact.json').write_bytes(b'{}')
-                data.update(schema_version=1, compiler={'options': {'test_flag': False}},
+                data.update(schema_version=1, compiler={'options': copy.deepcopy(harness.DEFAULT_OPTIONS)},
                     sources=[{'module_name': '__main__', 'compiled_text_sha256': source_sha}],
                     build_inputs=[{'relative_path': name, **harness.file_record(managed_dir/file)} for name,file in
                         [('managed-entry.dll','construction.dll'), ('RyuPy.Runtime.dll','RyuPy.Runtime.dll')]])
@@ -307,6 +344,10 @@ class MainFlowTests(unittest.TestCase):
         self.assertEqual(result['source_tree_action'], 'renamed')
         self.assertEqual(result['not_executed'], [])
 
+    def test_runtime_command_uses_same_directory_identity_through_alias(self):
+        result, _, _ = self.exercise(aliased=True)
+        self.assertEqual(result['status'], 'passed')
+
     def test_first_failure_never_launches_following_stage_or_application(self):
         for failure in ['cp-positive', 'runtime-build', 'compiler-build', 'aot-publish', 'jit-positive', 'jit-ryupy-boundaries', 'native-positive']:
             with self.subTest(failure=failure):
@@ -319,15 +360,15 @@ class MainFlowTests(unittest.TestCase):
 
 
 class ToolchainTests(unittest.TestCase):
-    def test_owned_global_pin_does_not_replace_runtime_cwd_check(self):
+    def test_wrong_sdk_in_actual_owned_cwd_is_rejected(self):
         budget = mock.Mock()
         budget.command.side_effect = [subprocess.CompletedProcess([], 0, b'cpython\n3.12.13\n', b''),
                                      subprocess.CompletedProcess([], 0, b'10.0.402\n', b'')]
-        with self.assertRaisesRegex(AssertionError, '实际cwd SDK'):
+        with self.assertRaisesRegex(AssertionError, '实际owned cwd SDK'):
             harness.toolchains(budget, Path('/repo'), Path('/owned'), 'python', 'dotnet', 'cargo', {}, 'linux-x64')
         self.assertEqual(budget.command.call_count, 2)
-        self.assertEqual(budget.command.call_args.kwargs['cwd'], Path('/repo'))
-        self.assertEqual(budget.command.call_args.args[0], 'runtime-sdk')
+        self.assertEqual(budget.command.call_args.kwargs['cwd'], Path('/owned'))
+        self.assertEqual(budget.command.call_args.args[0], 'owned-sdk')
 
 
 class AuditTests(unittest.TestCase):
@@ -356,6 +397,76 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(check.call_count, 5)
             check.side_effect = [None, None, TimeoutError('deadline')]
             with self.assertRaises(TimeoutError): harness.inventory(root, check)
+
+
+class ProjectEntryContracts(unittest.TestCase):
+    def project(self, root, rid):
+        # 独立构造模板只测审核器；不冒充SDK执行证明。
+        from xml.etree import ElementTree as ET
+        (root/'host').mkdir(parents=True, exist_ok=True)
+        managed = root.parent/'construction.dll'; managed.write_bytes(b'current')
+        project = ET.Element('Project'); props = ET.SubElement(project, 'PropertyGroup')
+        for name in ('PublishAot', 'TreatWarningsAsErrors', 'IlcTreatWarningsAsErrors', 'ILLinkTreatWarningsAsErrors'):
+            ET.SubElement(props, name).text = 'true'
+        ET.SubElement(props, 'TrimmerSingleWarn').text = 'false'
+        items = ET.SubElement(project, 'ItemGroup')
+        if rid == 'win-x64':
+            ET.SubElement(items, 'Compile', Include='Program.cs')
+            ET.SubElement(items, 'Reference', Include='construction')
+            (root/'host/Program.cs').write_bytes(b'internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n')
+        else:
+            for name, value in {'SkipCompilerExecution': 'true', 'ProduceReferenceAssembly': 'false',
+                    'GenerateAssemblyInfo': 'false', 'GenerateTargetFrameworkAttribute': 'false', 'UseAppHost': 'false'}.items():
+                ET.SubElement(props, name).text = value
+            target = ET.SubElement(project, 'Target', Name='SupplyInput', BeforeTargets='CoreCompile')
+            path = ''.join('%'+format(ord(ch), '02X') if ch in "%$@;'()*?" else ch for ch in str(managed.resolve()))
+            ET.SubElement(target, 'Copy', SourceFiles=path, DestinationFiles='@(IntermediateAssembly)')
+        ET.SubElement(items, 'Reference', Include='RyuPy.Runtime')
+        return project
+
+    def write(self, root, project):
+        from xml.etree import ElementTree as ET
+        ET.ElementTree(project).write(root/'host/Host.csproj', encoding='unicode')
+
+    def test_explicit_platform_contracts(self):
+        for rid in ('linux-x64', 'osx-arm64', 'win-x64'):
+            with self.subTest(rid=rid), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)/'中文 $();% &'/'sdk'
+                project = self.project(root, rid); self.write(root, project)
+                harness.verify_project(root, rid)
+                with self.assertRaises(AssertionError): harness.verify_project(root, 'unknown')
+                other = 'linux-x64' if rid == 'win-x64' else 'win-x64'
+                with self.assertRaises(AssertionError): harness.verify_project(root, other)
+
+    def test_direct_rejects_wrong_input_target_properties_and_compile(self):
+        from xml.etree import ElementTree as ET
+        changes = [lambda p: p.find('./Target/Copy').set('SourceFiles', '/old/construction.dll'),
+                   lambda p: p.find('./Target/Copy').set('DestinationFiles', 'old.dll'),
+                   lambda p: p.find('./Target').set('BeforeTargets', 'Publish'),
+                   lambda p: p.find('./Target').set('Condition', 'false'),
+                   lambda p: p.find('./PropertyGroup/SkipCompilerExecution').__setattr__('text', 'false'),
+                   lambda p: ET.SubElement(p.find('./ItemGroup'), 'Compile', Include='Program.cs'),
+                   lambda p: ET.SubElement(p.find('./Target'), 'Copy', SourceFiles='old.dll'),
+                   lambda p: ET.SubElement(p.find('./PropertyGroup'), 'SkipCompilerExecution').__setattr__('text', 'true')]
+        for change in changes:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)/'sdk'; project = self.project(root, 'linux-x64')
+                change(project); self.write(root, project)
+                with self.assertRaises(AssertionError): harness.verify_project(root, 'linux-x64')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)/'sdk'; self.write(root, self.project(root, 'linux-x64'))
+            (root/'host/Program.cs').write_text('stale')
+            with self.assertRaises(AssertionError): harness.verify_project(root, 'linux-x64')
+
+    def test_windows_rejects_changed_host_or_reference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)/'sdk'; project = self.project(root, 'win-x64'); self.write(root, project)
+            (root/'host/Program.cs').write_text('different')
+            with self.assertRaises(AssertionError): harness.verify_project(root, 'win-x64')
+            project = self.project(root, 'win-x64')
+            project.find('./ItemGroup/Reference').set('Include', 'other')
+            self.write(root, project)
+            with self.assertRaises(AssertionError): harness.verify_project(root, 'win-x64')
 
 
 if __name__ == '__main__':

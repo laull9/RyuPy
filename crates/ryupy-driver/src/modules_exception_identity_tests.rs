@@ -5,15 +5,7 @@ use crate::{BuildOptions, Stage};
 struct Root(PathBuf);
 impl Root {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-native-identity-{}-{stamp}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&path).unwrap();
+        let path = crate::test_temp::directory("ryupy-native-identity");
         Self(path)
     }
     fn write(&self, path: &str, source: &str) -> PathBuf {

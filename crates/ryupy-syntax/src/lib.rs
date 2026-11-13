@@ -7,6 +7,8 @@
 
 use ryupy_base::{Diagnostic, FileId, Span};
 
+mod debug_targets;
+
 /// 下游使用的 AST 类型，统一从这里拿。
 pub use ruff_python_ast as ast;
 
@@ -41,6 +43,7 @@ pub fn parse(file: FileId, source: &str) -> (ParsedModule, Vec<Diagnostic>) {
     }));
 
     let module = parsed.into_syntax();
+    debug_targets::check(&module, file, &mut diagnostics);
     (ParsedModule { file, module }, diagnostics)
 }
 

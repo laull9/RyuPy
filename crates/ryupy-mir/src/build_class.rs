@@ -150,7 +150,16 @@ impl FunctionBuilder<'_> {
                 vec![
                     Operand::Const(Constant::Str(name)),
                     Operand::Array(bases),
-                    factory,
+                    // EnumCreate复用第三object槽传有序成员声明；不是异常factory。
+                    // 名单在类体前冻结，runtime在每次赋值时解析auto，不拖到Finalize。
+                    enum_members.as_ref().map_or(factory, |names| {
+                        Operand::Array(
+                            names
+                                .iter()
+                                .map(|name| Operand::Const(Constant::Str(name.as_str().to_owned())))
+                                .collect(),
+                        )
+                    }),
                 ],
             )
         };

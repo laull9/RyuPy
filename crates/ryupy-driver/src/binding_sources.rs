@@ -18,6 +18,24 @@ pub(crate) fn compile(
     resource_request: Option<&Path>,
     binding_module: &str,
 ) -> Result<Compiled> {
+    compile_context(
+        sess,
+        opts,
+        resource_request.map(|path| resources::ResourceRequestContext {
+            path,
+            output_roots: &[],
+        }),
+        binding_module,
+    )
+}
+
+/// 保留布局拥有者传入的输出边界，不能因进入绑定catalog事务而丢失资源预检。
+pub(crate) fn compile_context(
+    sess: &mut Session,
+    opts: &BuildOptions,
+    resource_request: Option<resources::ResourceRequestContext<'_>>,
+    binding_module: &str,
+) -> Result<Compiled> {
     let previous_fixed = std::mem::replace(&mut sess.fixed_binding_build, true);
     let previous_state = std::mem::replace(
         &mut sess.default_source_state,
@@ -33,7 +51,7 @@ pub(crate) fn compile(
     if crate::optional_sources::enabled(sess, opts.aot) {
         sess.default_source_state.output = Some(opts.out_dir.clone());
     }
-    let result = crate::compile_linked_locations(
+    let result = crate::compile_linked_locations_context(
         sess,
         &opts.input,
         &opts.search_paths,

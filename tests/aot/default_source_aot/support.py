@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from pathlib import Path
 import shutil
 import sys
-from checking import require, sha, positive
+from checking import require, sha, positive, named_test_output
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tests/validation'))
@@ -73,10 +73,13 @@ class Runner:
         self.save('result.json', self.result)
 
     def named_test(self, label, argv, name, timeout=900):
+        require('::' in name and '--' in argv, '具名测试必须使用完整Rust路径')
+        split = argv.index('--')
+        require(argv[:split].count(name) == 1 and argv[split + 1:].count('--exact') == 1,
+                '具名测试必须唯一完整过滤且启用--exact')
         self.checked(label, argv, timeout)
         lines = (self.out / (label + '.stdout')).read_text().splitlines()
-        require(sum(line.startswith('test ') and line.endswith(name + ' ... ok') for line in lines) == 1,
-                '缺失/重复具名测试: ' + name)
+        named_test_output(lines, name)
 
     def inputs(self):
         return old.Runner.inputs(self, self.python)
