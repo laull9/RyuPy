@@ -3,7 +3,7 @@ name: Dev NativeAOT validation
 
 on:
   push:
-    branches: [dev, integration/python-aot-snapshot-7e0021d]
+    branches: [dev, ci/aot-manifest-contract-68f5ecd]
   pull_request:
     branches: [dev]
   workflow_dispatch:
