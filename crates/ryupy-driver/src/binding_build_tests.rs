@@ -68,6 +68,32 @@ fn jit_bundle_owned_and_actual_source_schema() {
     std::fs::remove_dir_all(root).unwrap();
 }
 #[test]
+fn declarative_abi_manifest_keeps_logical_and_machine_signatures() {
+    let (root, opts, declaration) = setup();
+    let mut value: Value = serde_json::from_slice(&std::fs::read(&declaration).unwrap()).unwrap();
+    let signature = json!({"calling_convention":"cdecl","parameters":[
+        {"name":"text","type":"utf8","ownership":"borrowed_call","length":"usize"},
+        {"name":"value","type":"u64"}],"returns":"f32"});
+    value["schema_version"] = json!(3);
+    value.as_object_mut().unwrap().remove("export");
+    value.as_object_mut().unwrap().remove("signature");
+    value.as_object_mut().unwrap().remove("symbol");
+    value["exports"] = json!([{"name":"read","symbol":"fixture_read","signature":signature}]);
+    std::fs::write(&declaration, serde_json::to_vec(&value).unwrap()).unwrap();
+    let result =
+        crate::build_configured(&mut Session::default(), &opts, None, Some(&declaration)).unwrap();
+    let manifest: Value =
+        serde_json::from_slice(&std::fs::read(result.manifest.unwrap()).unwrap()).unwrap();
+    assert_eq!(manifest["schema_version"], 7);
+    assert_eq!(manifest["native_bindings"][0]["signature"], signature);
+    assert_eq!(
+        manifest["native_bindings"][0]["native"]["signature"],
+        "static float (nint, nuint, ulong)"
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn combinations_and_source_collision_fail_before_writes() {
     let (root, opts, declaration) = setup();
     let error = crate::build_configured(
@@ -178,6 +204,7 @@ fn resources_keep_real_source_locations_and_binding_origins_for_both_versions() 
             plan.aot = true;
             plan.input.digest.role = "native_static_archive".into();
             if version == 2 {
+                plan.signatures.push(None);
                 plan.exports.push(crate::native_binding::BindingExport {
                     name: "subtract".into(),
                     symbol: "demo_subtract".into(),

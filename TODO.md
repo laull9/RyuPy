@@ -671,7 +671,8 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [x] 资源与 C ABI 组合分发：ResourcePlan 贯通绑定编译、冻结、schema5/6 清单和 dist 安装；同一应用 `as_file()` + C 函数真实搬迁 23 步通过（[ADR0171](docs/adr/0171-aot-binding-resources.md)）。
   - [x] 上下文协议评审修订：with 按类型绑定 enter/exit；装饰器调用公开 `_recreate_cm`，CP/JIT 与组合 NativeAOT 验收通过（[证据](docs/validation/aot-context-protocol-review/README.md)）。
   - [ ] `as_file` 的 zip / 自定义 Traversable 解包与退出清理；保留两个 pending 用例。
-  - [ ] C ABI buffer/长度、opaque handle/释放、多库及传递依赖收集；新增能力逐平台验收。
+  - [x] 通用 C ABI v3：13 类标量、void 返回和 UTF-8/bytes 只读调用期借用；静态 PInvoke、严格范围/编码、异常路径释放 pin，schema7/8 与 `as_file()` 资源组合已完成 macOS arm64 真实搬迁（[ADR0173](docs/adr/0173-declarative-cabi-signatures.md)、[验收](tests/aot/binding_abi/README.md)）。
+  - [ ] C ABI opaque handle/SafeHandle 创建与释放、可写及原生分配缓冲、回调、多库及传递依赖收集；catalog 与绑定联合准入、Linux/Windows 和干净目标环境继续逐项验收。
   - [x] catalog v2 与静态来源报告：五模块准入，colorsys 六 API/55 行 CP/JIT 与 macOS arm64 AOT 搬迁；probe/普通构建报告唯一 provider、来源、版本、传递缺口和动态候选，保留 pilot 策略门（[ADR0174](docs/adr/0174-versioned-source-catalog-probe.md)）。queue 保持未准入。
   - [ ] 完整标准库 provider 与版本化 catalog 逐 API 落地（路线和合同已通过交叉评审）（[ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md)）。
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过

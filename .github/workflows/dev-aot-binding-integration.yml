@@ -172,6 +172,17 @@ jobs:
           with (root/'binding_resources.stdout').open('wb') as out, (root/'binding_resources.stderr').open('wb') as err:
               result = subprocess.run([os.environ['PYTHON'], '-B', str(script), '--ryupy', os.environ['RYUPY_INTEGRATION_CLI'], '--python', os.environ['PYTHON'], '--out', str(root/'r')], cwd=root, stdout=out, stderr=err)
           sys.exit(result.returncode)
+      - name: 用户通用C ABI与schema7及8受限环境搬迁
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        shell: python
+        timeout-minutes: 30
+        run: |
+          import os, pathlib, subprocess, sys
+          root = pathlib.Path(os.environ['RYUPY_INTEGRATION_ROOT'])
+          script = pathlib.Path(os.environ['GITHUB_WORKSPACE'])/'tests/aot/binding_abi/run.py'
+          with (root/'binding_abi.stdout').open('wb') as out, (root/'binding_abi.stderr').open('wb') as err:
+              result = subprocess.run([os.environ['PYTHON'], '-B', str(script), '--ryupy', os.environ['RYUPY_INTEGRATION_CLI'], '--python', os.environ['PYTHON'], '--out', str(root/'v')], cwd=root, stdout=out, stderr=err)
+          sys.exit(result.returncode)
       - name: as_file文件系统语义
         if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
         shell: python
@@ -211,7 +222,18 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: binding-integration-${{ matrix.rid }}-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/bi
+          path: |
+            ${{ runner.temp }}/bi
+            !${{ runner.temp }}/bi/v/**
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
+      - name: 独立保存通用ABI全部原件
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: binding-abi-integration-${{ matrix.rid }}-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bi/v
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7

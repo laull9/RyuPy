@@ -76,6 +76,7 @@ mod link_placeholders;
 mod mir;
 mod module_execution;
 mod module_location;
+pub mod native_abi;
 mod operations;
 mod trace_product_abi;
 mod validate_lexical_super;

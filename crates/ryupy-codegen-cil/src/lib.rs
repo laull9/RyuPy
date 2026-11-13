@@ -204,6 +204,10 @@ mod fixed_binding_refs;
 mod fixed_binding_tests;
 #[doc(hidden)]
 pub mod fixed_bindings;
+mod native_abi_emit;
+#[cfg(test)]
+mod native_abi_tests;
+pub mod native_abi_types;
 
 #[cfg(test)]
 mod module_capture_tests;

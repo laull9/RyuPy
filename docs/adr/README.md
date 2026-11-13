@@ -92,10 +92,10 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
 - [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
 - [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
+- [0173：面向 NativeAOT 的声明式 C ABI 签名与只读借用](0173-declarative-cabi-signatures.md)（用户 dev 通用 C ABI v3；支持范围与验收见原 ADR）
 - [0174：版本化原源 catalog 与可解释静态依赖报告](0174-versioned-source-catalog-probe.md)（用户 dev 的 catalog v2 与静态来源报告；验收范围见原 ADR）
 
 
-- [0173：Windows Path 有界共享词法模型](0173-windows-path-lexical-model.md)（实现候选；真实 Windows 应用仍被旧路径门禁阻断）
 
 
 - [0175：资源树与实际输出的早期相交诊断](0175-resource-output-preflight.md)（单一模块图内预检，保留合法兄弟资源与失败留证）
@@ -116,3 +116,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0185：Windows extended 文件系统路径的有限准入](0185-windows-extended-filesystem-paths.md)（修复草案；首轮 Windows 失败保留，修复后验收待完成）
 
 - [0186：显式资源目录选择](0186-explicit-resource-trees.md)（Linux/macOS/Windows 两入口553资源已验；仅Linux有无运行时容器证明）
+
+- [0187：Windows Path 有界共享词法模型](0187-windows-path-lexical-model.md)（实现候选；真实 Windows 应用仍被旧路径门禁阻断）

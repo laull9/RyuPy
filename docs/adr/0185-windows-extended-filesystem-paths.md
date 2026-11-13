@@ -15,7 +15,7 @@ Windows 首轮失败暴露两类问题：
 
 ## 决定与有限支持范围
 
-在 ADR0173 的共享 Windows drive/root/tail 词法层修复，不在 `importlib.resources`、特定包或单个 IO 调用处旁路。
+在 ADR0187 的共享 Windows drive/root/tail 词法层修复，不在 `importlib.resources`、特定包或单个 IO 调用处旁路。
 
 - 仅准入 extended 盘符绝对路径（ASCII 盘符）与完整 extended UNC（非空 server/share）这两种类型。共享词法接受 CPython 对照中的宽容分隔符拼写，包括 `\\?\C:\...`、`//?/C:/...`、混合分隔符、`//?/UNC/server/share/...` 与小写 `unc`；是否准入由解析后的路径类型决定，不扩展到任意设备路径。
 - 保留 extended 前缀身份与文件名分量的尾点、尾空格；不将 extended 路径整体转换为普通路径。Path 按 PureWindowsPath 的词法行为规范化斜线、`.` 与重复分隔符，保留 `..`；有限 `ntpath` 风格的 dirname/join 保留相应原始分隔符拼写。这不是原始 Win32 字符串逐字保留或实际文件系统等价性承诺。

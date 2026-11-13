@@ -7,7 +7,7 @@
 ## 平台与错误约定
 
 - **已实际验证**：Linux x86_64 / POSIX，固定 CPython 3.12.13；文件副作用用例只使用框架隔离目录或自建临时目录并清理。
-- **Windows 词法路径有限实现候选**（[ADR0173](adr/0173-windows-path-lexical-model.md)）：共享 drive/root/tail 模型覆盖普通相对、盘符相对/绝对、当前盘根及完整 UNC；Path 保留 `..`，`is_absolute` 与 CPython 3.12 `os.path.isabs` 分开。
+- **Windows 词法路径有限实现候选**（[ADR0187](adr/0187-windows-path-lexical-model.md)）：共享 drive/root/tail 模型覆盖普通相对、盘符相对/绝对、当前盘根及完整 UNC；Path 保留 `..`，`is_absolute` 与 CPython 3.12 `os.path.isabs` 分开。
   `Path`/`WindowsPath` 具有宿主身份，异宿主具体类拒绝；设备命名空间、残缺 UNC、非 ASCII 路径比较/哈希及依赖当前盘上下文的 `absolute()` 明确拒绝。`os.path.normpath/abspath` 的 Windows 规则仍未实现。
   固定 CPython 词法矩阵和 Linux 纯算法测试不等于 Windows 文件/Native 验收；三项 Windows 宿主测试与完整 AOT 应用仍需 CI 实跑。无跨平台 PurePath 模拟。
 - `os` 的原始字符串文件系统调用、标准流及换行分支使用宿主平台；Windows 原生行为尚未实测，不据 .NET 支持推定兼容。

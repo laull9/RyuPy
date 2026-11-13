@@ -51,6 +51,7 @@ pub(crate) fn fixture() -> (LinkedProgram, FixedI32Binding) {
             export,
             module_ref: "ryupy_cabi_probe".into(),
             entry_point: "ryupy_demo_add_i32".into(),
+            signature: None,
         },
     )
 }

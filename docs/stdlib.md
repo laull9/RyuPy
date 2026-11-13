@@ -67,6 +67,21 @@ catalog 沿用 `ordinary-dynamic-module-pilot` 的显式策略门；发行默认
 [验收记录](validation/source-catalog-v2.md)。现有 C# provider 继续承担底层适配；SQLite、
 OpenSSL 等后续接入复用成熟库，通过声明式 ABI 或显式兼容宿主处理部署和生命周期。
 
+## 标准库底层能力与通用 C ABI
+
+C# provider 提供对象语义和系统适配，纯 Python 上层实现复用 catalog 原源。
+外部成熟 C 库通过声明式 ABI 接入：v3 已支持 13 类精确标量、void 返回，以及
+UTF-8/bytes 输入展开的地址与 `size_t` 长度。C# 负责严格编码、BigInteger 范围检查、
+缓冲快照和 pin 生命周期；编译器生成精确静态 PInvoke，NativeAOT 使用静态 archive 链接。
+同一程序通过 `as_file()` 读取包资源后调用 C 函数，已完成 macOS arm64 搬迁与清除
+Python 配置、工具 PATH 的执行验收。声明示例和错误合同见
+[ADR0173](adr/0173-declarative-cabi-signatures.md)、[专项验收](../tests/aot/binding_abi/README.md)。
+
+SQLite、OpenSSL 等沿用成熟库的实现；接入工作集中在公开 API、所有权、错误传播和部署。
+opaque handle 将采用完整 SafeHandle 创建/销毁合同；可写缓冲、原生分配返回、回调、
+多库依赖收集仍待实现。catalog 原源与 native binding 的联合准入保持独立集成项；
+当前绑定构建沿用既有策略门，静态来源报告覆盖 probe 与普通源码构建。
+
 ## libpython 最小桥接，M3.8
 
 先记录 Python 的准确版本、动态库定位、标准库路径、解释器初始化和退出边界，再做常用标量、字符串、容器、可调用对象与异常转换。对象包装保留共享身份；跨堆引用和回调要有可释放的所有权，不能制造无法回收的强引用环。
