@@ -20,6 +20,7 @@ from runner import public_command, container_command, verify_case
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--profiles', action='store_true')
+    parser.add_argument('--sdk-timing', action='store_true')
     options = parser.parse_args()
     require(os.environ.get('GITHUB_ACTIONS') == 'true', '只用于hosted实际测量')
     base = Path(os.environ['RUNNER_TEMP'])/'deployment-binaryornot'
@@ -44,6 +45,13 @@ def main():
     workloads = {'startup': [], 'mixed64': paths}
     env = dict(os.environ, RYUPY_RUNTIME_DIR=str(runtime.parent), PYTHONDONTWRITEBYTECODE='1',
                DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER='1', MSBUILDDISABLENODEREUSE='1', UseSharedCompilation='false')
+    if options.sdk_timing:
+        import shlex
+        wrapper = out/'dotnet-timing'
+        wrapper.write_text('#!/bin/sh\nexec '+shlex.quote(os.environ['DOTNET'])+
+                           ' "$@" "-clp:PerformanceSummary"\n')
+        wrapper.chmod(0o700)
+        env['DOTNET'] = str(wrapper)
     result = {'passed':False, 'profile':'default/size/speed' if options.profiles else 'default', 'builds':{}, 'runs':{},
               'scope':'同一应用输出根两次完整构建；非incremental cache，系统/包缓存未清空',
               'runtime_scope':'新进程+已热文件缓存；首/重建产物不是性能A/B',
