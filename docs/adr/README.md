@@ -103,3 +103,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0177](0177-linux-native-symbol-delivery.md) | Linux Native调试符号与交付目录分离 | Linux有限验收通过；未合入dev/main |
 
 - [0178：精确内建list的join去掉重复引用快照](0178-exact-list-join-allocation.md)（减分配候选，真实A/B两轮仅一轮过3%可靠门）
+
+- [0179：显式NativeAOT体积/速度偏好](0179-native-aot-optimization-preference.md)（默认不变；真实SDK收据核对，优化收益按应用实测）

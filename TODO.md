@@ -2,6 +2,8 @@
 
 ## 当前 AOT 产品主线（2026-11-13）
 
+- [x] 显式NativeAOT default/size/speed偏好：默认不变，SDK有效值/原生hash收据核对，错配失败保旧dist。CI43351388627六构建、288宿主+24净容器及标准8+8通过；size在binaryornot交付省1.846%，speed增3.133%，不宣称可靠速度收益。默认三平台回归与完整check已验，未合dev/main。见[ADR0179](docs/adr/0179-native-aot-optimization-preference.md)。
+
 - [~] 精确list join分配优化候选：完整check与三平台打包回归已验；真实Native两轮极长行中位降2.57%/5.75%，仅第二轮越过既定3%可靠门，其它负载无可靠收益。native/dist各+8B，RSS没有稳定下降；不宣称跨轮晋升，未合入dev。见[ADR0178](docs/adr/0178-exact-list-join-allocation.md)。
 
 - [x] Linux x64 Native符号交付分离有限验收：精确本次host.dbg经debuglink/CRC/build-id验证后仅留.build，未知旁件与Mac/Windows保守保留。CI `43339677617` binaryornot 8宿主+8禁网容器及真实搬迁GDB恢复通过；dist由21,424,519降至11,101,529字节（约48.18%），不是总磁盘或性能收益。pyfiglet Linux/双平台回归、profiler与完整check通过；仅验证分支，未合入dev/main。见[ADR0177](docs/adr/0177-linux-native-symbol-delivery.md)。
