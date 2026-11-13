@@ -2,6 +2,16 @@
 
 标准库在 Phase 3 单独交付，M3.4 系统/文件/路径与 M3.5 数值/JSON/正则已按 [系统 API 表](stdlib-system.md) / [数值 API 表](stdlib-numeric.md) 实现限定范围，M3.6 容器/函数工具/元数据限定范围见 [容器表](stdlib-collections.md)、[函数表](stdlib-functional.md)、[元数据表](stdlib-metadata.md)，不代表完整 dataclasses 或 typing。M3.7 已完成用户批准的有界逐 API 交付，已实现的有限范围见 [项目工具表](stdlib-project-tools.md)，未列能力不自动视为支持。模块能导入、API 能调用、项目测试通过分别记录。语言进度见 [roadmap.md](roadmap.md)，任务见 TODO 的 M3.4–M3.8。
 
+## 标准库与应用联合打包
+
+catalog 标准库源码、声明式 C ABI 与显式包数据现在可以共同生成一个 NativeAOT 分发包。
+`build` 的 `.source-plan.json` 记录本次绑定 provider、源码闭包与运行时注册来源；
+运行时模块的注册事实在编译器构建期从全部 C# 源文件生成，逐 API 兼容性仍按各模块表验收。
+联合分发使用 schema9，自动源码位置与显式资源分别记录完整性。
+macOS arm64 已通过真实 CP/JIT/Native、缺资源失败保旧 dist、中文路径搬迁和空工具 PATH 验收。
+合同与复现见 [ADR0175](adr/0175-stdlib-binding-resource-distribution.md) 和
+[联合分发测试](../tests/aot/stdlib_distribution/README.md)。
+
 ## 项目驱动的基础内建
 
 `ord` / `chr` 直接调用已原生实现，独立于下方待做模块表：ord接受单码点str和单字节bytes/bytearray，

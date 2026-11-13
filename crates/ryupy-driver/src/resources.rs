@@ -56,6 +56,7 @@ pub(crate) struct ResourcePlan {
     pub(super) source_lengths: Vec<u64>,
     pub(super) selected: BTreeSet<usize>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
+    pub(super) declared: bool,
 }
 
 impl ResourcePlan {
@@ -90,6 +91,7 @@ impl ResourcePlan {
                 .collect(),
             selected: BTreeSet::new(),
             automatic: None,
+            declared: true,
         };
         let mut targets = Targets::default();
         // 锚点先全部保留，防先处理的资源覆盖后声明模块的虚拟源位置。
@@ -174,7 +176,22 @@ impl ResourcePlan {
             source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
             selected: (0..sources.len()).collect(),
             automatic: None,
+            declared: false,
         })
+    }
+    /// 在同次真实源码图上补齐锚点；保留显式 claims，并统一检查锚点与数据冲突。
+    pub(crate) fn add_automatic_locations(&mut self, sources: &[SourceModule]) -> Result<()> {
+        let automatic = Self::automatic(sources)?;
+        let mut targets = Targets::default();
+        for location in &automatic.locations {
+            targets.insert(&location.relative_file, Kind::Anchor)?;
+        }
+        for target in self.claims.keys() {
+            targets.insert(target, Kind::Resource)?;
+        }
+        self.locations = automatic.locations;
+        self.selected = automatic.selected;
+        Ok(())
     }
     pub(crate) fn module_location(&self, id: u32) -> Option<&str> {
         self.locations
@@ -201,6 +218,7 @@ pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<
         (Some(3), true, false) => 5,
         (Some(4), true, false) => 6,
         (Some(7), true, false) => 8,
+        (Some(3 | 4 | 7), true, true) => 9,
         _ => anyhow::bail!("资源扩展与基础发布清单版本不匹配"),
     };
     if value.get("native_bindings").is_some() {
@@ -213,9 +231,8 @@ pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<
     value["module_locations"] = serde_json::to_value(&staged.locations)?;
     value["resources"] = serde_json::to_value(&staged.records)?;
     value["scope"]["resources_included"] = (!staged.records.is_empty()).into();
-    value["scope"]["declared_resources_complete"] = staged.automatic.is_none().into();
+    value["scope"]["declared_resources_complete"] = staged.declared.into();
     if let Some(audit) = &staged.automatic {
-        ensure!(staged.records.is_empty(), "默认自动位置不声称数据资源完整");
         value["default_source_plan"] = audit.manifest.clone();
         value["scope"]["automatic_module_locations_complete"] = true.into();
     }
@@ -232,3 +249,7 @@ mod stage_tests;
 pub(crate) fn validate_layout_artifact_path(path: &str) -> Result<()> {
     paths::portable(path)
 }
+
+#[cfg(test)]
+#[path = "resources_combined_tests.rs"]
+mod combined_tests;

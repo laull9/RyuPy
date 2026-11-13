@@ -11,6 +11,7 @@ mod accumulator_options;
 mod aot;
 mod aot_layout;
 mod binding_build;
+mod binding_sources;
 pub mod dotnet;
 mod dump;
 pub use dump::dump;

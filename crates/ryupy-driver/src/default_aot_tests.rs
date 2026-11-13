@@ -24,7 +24,7 @@ fn eligibility_keeps_explicit_and_binding_paths() {
     };
     assert!(eligible(&s, true, false));
     assert!(!eligible(&s, false, false));
-    assert!(!eligible(&s, true, true));
+    assert!(eligible(&s, true, true));
     s.instance_modules.push("html.parser".into());
     assert!(!eligible(&s, true, false));
     s.instance_modules.clear();
@@ -33,6 +33,8 @@ fn eligibility_keeps_explicit_and_binding_paths() {
     s.include_modules.clear();
     s.fixed_binding_build = true;
     assert!(!eligible(&s, true, false));
+    s.default_source_state.binding_catalog = true;
+    assert!(eligible(&s, true, true));
 }
 #[test]
 fn real_optional_graph_has_contiguous_emitted_ids_and_virtual_locations() {

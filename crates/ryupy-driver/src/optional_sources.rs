@@ -32,6 +32,11 @@ pub struct DefaultSourceState {
     pub(crate) plan: Plan,
     pub(crate) diagnostics: BTreeMap<String, Vec<String>>,
     pub(crate) aot_request: bool,
+    /// 仅实际绑定编排在解析声明后开启；fixed_binding_build 的其它语义限制继续有效。
+    pub(crate) binding_catalog: bool,
+    pub(crate) binding_module: Option<String>,
+    /// 原生声明与真实源码先核冲突，再落盘来源报告。
+    pub(crate) pending_report: Option<serde_json::Value>,
 }
 
 #[derive(Default)]
@@ -381,10 +386,10 @@ pub(crate) fn write_report(sess: &Session, out: &Path) -> Result<()> {
     Ok(())
 }
 
-/// 单一策略门，显式关闭/AOT/fixed-binding均保既有接口。
+/// 统一策略门：AOT 与已解析绑定只凭本次私有授权进入 catalog；显式关闭继续生效。
 pub(crate) fn enabled(sess: &Session, aot: bool) -> bool {
     (!aot || sess.default_source_state.aot_request)
-        && !sess.fixed_binding_build
+        && (!sess.fixed_binding_build || sess.default_source_state.binding_catalog)
         && sess.module_environment_policy != crate::ModuleEnvironmentPolicy::ExplicitOnly
 }
 

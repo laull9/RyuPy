@@ -89,6 +89,10 @@ pub(crate) fn analyze(
                 "version": null, "catalog": null, "provenance_authorized": false,
                 "reason": "搜索根存在用户源码，但本次真实编译图尚未选入；仅继续静态解析，禁止改选同名 C# 或 catalog",
                 "dependencies": []})
+        } else if sess.default_source_state.binding_module.as_deref() == Some(name.as_str()) {
+            json!({"provider": "c_abi_binding", "status": "declaration_selected",
+                "reason": "本次构建已解析的静态 C ABI 声明；追加模块前核验源码冲突",
+                "dependencies": [], "dependency_coverage": "原生制品由绑定发布清单记录"})
         } else if let Some(registrations) = runtime.get(&name) {
             json!({"provider": "csharp_runtime", "status": "runtime_registered",
                 "source": registrations,
@@ -235,65 +239,39 @@ fn scan_detected(text: &str, path: &str, package: &str) -> (source_scan::Scan, V
     )
 }
 
-/// 编译器内嵌运行时的字面注册表；不运行 C#，也不推测 sqlite/openssl 等外部库。
+/// 从完整 C# 编译源生成的字面注册事实；动态注册仍须另行登记覆盖。
 fn runtime_modules() -> BTreeMap<String, Vec<String>> {
-    [
-        (
-            "PyNativeModules.cs",
-            include_str!("../../../runtime/RyuPy.Runtime/PyNativeModules.cs"),
-        ),
-        (
-            "PySystem.cs",
-            include_str!("../../../runtime/RyuPy.Runtime/PySystem.cs"),
-        ),
-        (
-            "PyImportlibMetadata.cs",
-            include_str!("../../../runtime/RyuPy.Runtime/PyImportlibMetadata.cs"),
-        ),
-        (
-            "PyTextWrap.cs",
-            include_str!("../../../runtime/RyuPy.Runtime/PyTextWrap.cs"),
-        ),
-    ]
-    .into_iter()
-    .flat_map(|(file, source)| {
-        source
-            .lines()
-            .enumerate()
-            .map(move |(index, line)| (file, index + 1, line))
-    })
-    .filter_map(|(file, index, line)| {
-        let registration = line
-            .split_once("PyModules.RegisterNative(\"")
-            .or_else(|| line.split_once("PyModules.RegisterNativeLazy(\""))?;
-        Some((
-            registration.1.split_once('"')?.0.to_owned(),
-            format!("runtime/RyuPy.Runtime/{file}:{index}"),
-        ))
-    })
-    .fold(
-        BTreeMap::<String, Vec<String>>::new(),
-        |mut modules, (name, source)| {
-            modules.entry(name).or_default().push(source);
-            modules
-        },
-    )
+    let facts: &[(&str, &str)] = include!(concat!(env!("OUT_DIR"), "/runtime_registry.rs"));
+    let mut modules = BTreeMap::<String, Vec<String>>::new();
+    for &(name, source) in facts {
+        modules.entry(name.into()).or_default().push(source.into());
+    }
+    modules
 }
+
+#[cfg(test)]
+#[path = "../runtime_registry_scan.rs"]
+mod runtime_registry_scan;
 
 /// 报告是独立审计产物，不进入 runtime payload，也不扩张既有来源权限。
 pub(crate) fn write(
-    sess: &Session,
+    sess: &mut Session,
     entry: &Path,
     roots: &[PathBuf],
     sources: &[SourceModule],
 ) -> Result<()> {
     if let Some(out) = &sess.default_source_state.report_output {
-        save(out, entry, &analyze(sess, sources, roots)?)?;
+        let report = analyze(sess, sources, roots)?;
+        if sess.default_source_state.binding_catalog {
+            sess.default_source_state.pending_report = Some(report);
+        } else {
+            save(out, entry, &report)?;
+        }
     }
     Ok(())
 }
 
-fn save(out: &Path, entry: &Path, report: &Value) -> Result<()> {
+pub(crate) fn save(out: &Path, entry: &Path, report: &Value) -> Result<()> {
     std::fs::create_dir_all(out)?;
     let path = out.join(format!("{}.source-plan.json", crate::assembly_name(entry)));
     std::fs::write(path, serde_json::to_vec_pretty(report)?)?;

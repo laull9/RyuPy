@@ -12,9 +12,8 @@ pub(crate) struct Audit {
     pub source_to_emitted: Vec<Option<u32>>,
     pub manifest: Value,
 }
-pub(crate) fn eligible(sess: &Session, aot: bool, resources: bool) -> bool {
-    aot && !resources
-        && !sess.fixed_binding_build
+pub(crate) fn eligible(sess: &Session, aot: bool, _resources: bool) -> bool {
+    aot && (!sess.fixed_binding_build || sess.default_source_state.binding_catalog)
         && sess.module_environment_policy == ModuleEnvironmentPolicy::OrdinaryDynamicPilot
         && sess.instance_modules.is_empty()
         && sess.include_modules.is_empty()

@@ -86,7 +86,7 @@ pub(crate) fn plan_validated(
         relative_from_import: true,
     };
     if (!aot || validated.is_some_and(|v| v.selects(index)))
-        && !session.fixed_binding_build
+        && (!session.fixed_binding_build || session.default_source_state.binding_catalog)
         && session.module_environment_policy != ModuleEnvironmentPolicy::ExplicitOnly
         && source.kind == SourceKind::ModuleFile
         && source.catalog.as_ref().is_some_and(|token| {

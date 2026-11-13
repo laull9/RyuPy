@@ -60,7 +60,11 @@ pub(super) fn compile_linked_traced(
         Vec::new()
     };
     if automatic {
-        resource_plan = Some(resources::ResourcePlan::automatic(&sources)?);
+        if let Some(plan) = resource_plan.as_mut() {
+            plan.add_automatic_locations(&sources)?;
+        } else {
+            resource_plan = Some(resources::ResourcePlan::automatic(&sources)?);
+        }
     }
     let validated_aot = if automatic {
         instance_modules::validate_indices(

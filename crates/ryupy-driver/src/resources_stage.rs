@@ -22,6 +22,7 @@ pub(crate) struct StagedResources {
     files: Vec<PathBuf>,
     anchors: Vec<String>,
     pub(crate) automatic: Option<crate::default_aot::Audit>,
+    pub(crate) declared: bool,
 }
 
 pub(super) fn checked_total(current: u64, additional: u64) -> Result<u64> {
@@ -214,7 +215,20 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
             } else {
                 chosen = Some(index);
             }
-            consumers.extend(claim.consumers.iter().copied());
+            // 资源声明使用发现索引；发布必须投影到最终发射 ID，延期模块不能消费数据。
+            for &consumer in &claim.consumers {
+                let emitted = if let Some(audit) = &plan.automatic {
+                    audit
+                        .source_to_emitted
+                        .get(consumer as usize)
+                        .copied()
+                        .flatten()
+                        .context("资源 consumer 未发射，拒绝发布悬空模块 ID")?
+                } else {
+                    consumer
+                };
+                consumers.insert(emitted);
+            }
         }
         let snapshot = &snapshots[chosen.context("资源声明缺少来源")?];
         total = checked_total(total, snapshot.size)?;
@@ -242,6 +256,7 @@ pub(super) fn freeze(plan: &ResourcePlan, root: &Path) -> Result<StagedResources
             plan.locations.clone()
         },
         automatic: plan.automatic.clone(),
+        declared: plan.declared,
         anchors: plan
             .locations
             .iter()

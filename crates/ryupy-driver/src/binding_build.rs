@@ -39,18 +39,9 @@ fn build_internal(
 ) -> Result<Artifacts> {
     crate::aot::validate_before_build(&opts.input, opts.aot)?;
     let plan = BindingPlan::read(declaration, Platform::current()?, opts.aot)?;
-    let previous = std::mem::replace(&mut sess.fixed_binding_build, true);
-    let compiled = crate::compile_linked_locations(
-        sess,
-        &opts.input,
-        &opts.search_paths,
-        true,
-        resources,
-        opts.aot,
-    );
-    sess.fixed_binding_build = previous;
+    let compiled = crate::binding_sources::compile(sess, opts, resources, &plan.module);
     // 同次源码闭图签发位置与来源；生成原生模块在捕获后追加，不能成为资源 consumer。
-    let (mut program, sources, resource_plan) = compiled?;
+    let (mut program, sources, resource_plan, source_report) = compiled?;
     plan.check_modules(&program)?;
     let source_modules = ryupy_codegen_cil::SourceModules::capture(&program)?;
     let bindings = declare(&mut program, &plan);
@@ -77,6 +68,9 @@ fn build_internal(
         sess,
         &plan,
     )?;
+    if let Some(report) = source_report {
+        crate::source_probe::save(&opts.out_dir, &opts.input, &report)?;
+    }
     std::fs::create_dir_all(&opts.out_dir)?;
     let root = if let Some(attempt) = owned {
         attempt.create_child(&opts.out_dir, "ryupy-binding-0")?
