@@ -358,5 +358,75 @@ class AuditTests(unittest.TestCase):
             with self.assertRaises(TimeoutError): harness.inventory(root, check)
 
 
+class ProjectEntryContracts(unittest.TestCase):
+    def project(self, root, rid):
+        # 独立构造模板只测审核器；不冒充SDK执行证明。
+        from xml.etree import ElementTree as ET
+        (root/'host').mkdir(parents=True, exist_ok=True)
+        managed = root.parent/'construction.dll'; managed.write_bytes(b'current')
+        project = ET.Element('Project'); props = ET.SubElement(project, 'PropertyGroup')
+        for name in ('PublishAot', 'TreatWarningsAsErrors', 'IlcTreatWarningsAsErrors', 'ILLinkTreatWarningsAsErrors'):
+            ET.SubElement(props, name).text = 'true'
+        ET.SubElement(props, 'TrimmerSingleWarn').text = 'false'
+        items = ET.SubElement(project, 'ItemGroup')
+        if rid == 'win-x64':
+            ET.SubElement(items, 'Compile', Include='Program.cs')
+            ET.SubElement(items, 'Reference', Include='construction')
+            (root/'host/Program.cs').write_bytes(b'internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n')
+        else:
+            for name, value in {'SkipCompilerExecution': 'true', 'ProduceReferenceAssembly': 'false',
+                    'GenerateAssemblyInfo': 'false', 'GenerateTargetFrameworkAttribute': 'false', 'UseAppHost': 'false'}.items():
+                ET.SubElement(props, name).text = value
+            target = ET.SubElement(project, 'Target', Name='SupplyInput', BeforeTargets='CoreCompile')
+            path = ''.join('%'+format(ord(ch), '02X') if ch in "%$@;'()*?" else ch for ch in str(managed.resolve()))
+            ET.SubElement(target, 'Copy', SourceFiles=path, DestinationFiles='@(IntermediateAssembly)')
+        ET.SubElement(items, 'Reference', Include='RyuPy.Runtime')
+        return project
+
+    def write(self, root, project):
+        from xml.etree import ElementTree as ET
+        ET.ElementTree(project).write(root/'host/Host.csproj', encoding='unicode')
+
+    def test_explicit_platform_contracts(self):
+        for rid in ('linux-x64', 'osx-arm64', 'win-x64'):
+            with self.subTest(rid=rid), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)/'中文 $();% &'/'sdk'
+                project = self.project(root, rid); self.write(root, project)
+                harness.verify_project(root, rid)
+                with self.assertRaises(AssertionError): harness.verify_project(root, 'unknown')
+                other = 'linux-x64' if rid == 'win-x64' else 'win-x64'
+                with self.assertRaises(AssertionError): harness.verify_project(root, other)
+
+    def test_direct_rejects_wrong_input_target_properties_and_compile(self):
+        from xml.etree import ElementTree as ET
+        changes = [lambda p: p.find('./Target/Copy').set('SourceFiles', '/old/construction.dll'),
+                   lambda p: p.find('./Target/Copy').set('DestinationFiles', 'old.dll'),
+                   lambda p: p.find('./Target').set('BeforeTargets', 'Publish'),
+                   lambda p: p.find('./Target').set('Condition', 'false'),
+                   lambda p: p.find('./PropertyGroup/SkipCompilerExecution').__setattr__('text', 'false'),
+                   lambda p: ET.SubElement(p.find('./ItemGroup'), 'Compile', Include='Program.cs'),
+                   lambda p: ET.SubElement(p.find('./Target'), 'Copy', SourceFiles='old.dll'),
+                   lambda p: ET.SubElement(p.find('./PropertyGroup'), 'SkipCompilerExecution').__setattr__('text', 'true')]
+        for change in changes:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)/'sdk'; project = self.project(root, 'linux-x64')
+                change(project); self.write(root, project)
+                with self.assertRaises(AssertionError): harness.verify_project(root, 'linux-x64')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)/'sdk'; self.write(root, self.project(root, 'linux-x64'))
+            (root/'host/Program.cs').write_text('stale')
+            with self.assertRaises(AssertionError): harness.verify_project(root, 'linux-x64')
+
+    def test_windows_rejects_changed_host_or_reference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)/'sdk'; project = self.project(root, 'win-x64'); self.write(root, project)
+            (root/'host/Program.cs').write_text('different')
+            with self.assertRaises(AssertionError): harness.verify_project(root, 'win-x64')
+            project = self.project(root, 'win-x64')
+            project.find('./ItemGroup/Reference').set('Include', 'other')
+            self.write(root, project)
+            with self.assertRaises(AssertionError): harness.verify_project(root, 'win-x64')
+
+
 if __name__ == '__main__':
     unittest.main()

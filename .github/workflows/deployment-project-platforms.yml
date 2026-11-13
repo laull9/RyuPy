@@ -3,7 +3,7 @@ name: macOS与Windows普通项目Native
 on:
   workflow_dispatch:
   push:
-    branches: ['ci/native-package-profile-20261113-001', 'ci/native-join-perf-20261113-001', 'ci/symbol-delivery-20261113-001', 'ci/deployment-platforms-20261112-001', 'ci/resource-output-20261112-001', 'ci/native-text-index-perf-20261112-001']
+    branches: ['ci/native-build-cost-20261113-001', 'ci/native-package-profile-20261113-001', 'ci/native-join-perf-20261113-001', 'ci/symbol-delivery-20261113-001', 'ci/deployment-platforms-20261112-001', 'ci/resource-output-20261112-001', 'ci/native-text-index-perf-20261112-001']
 permissions:
   contents: read
 concurrency:
@@ -12,7 +12,7 @@ concurrency:
 jobs:
   native-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: deployment-platforms-001' || github.event.head_commit.message == 'validation: resource-output-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: deployment-platforms-001' || github.event.head_commit.message == 'validation: resource-output-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +97,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & $env:PYTHON -B tests/aot/deployment_project/platform_project.py --rid win-x64 --python $env:PYTHON --dotnet (Get-Command dotnet).Source --out "$env:RUNNER_TEMP/deployment-platform-win-x64"
           exit $LASTEXITCODE
+      - name: 原生入口协议（macOS）
+        if: runner.os == 'macOS'
+        run: '"$PYTHON" -B tests/aot/direct_entry/run.py --ryupy "$RUNNER_TEMP/deployment-platform-osx-arm64/tools/ryupy" --python "$PYTHON" --out "$RUNNER_TEMP/deployment-platform-osx-arm64/direct-entry-product" --rid osx-arm64'
+      - name: 原生入口协议（Windows）
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '& $env:PYTHON -B tests/aot/direct_entry/run.py --ryupy "$env:RUNNER_TEMP/deployment-platform-win-x64/tools/ryupy.exe" --python $env:PYTHON --out "$env:RUNNER_TEMP/deployment-platform-win-x64/direct-entry-product" --rid win-x64; exit $LASTEXITCODE'
       - name: 全部实际成功与失败原件
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

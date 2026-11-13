@@ -9,6 +9,7 @@ fn host_project_is_explicit_strict_and_escapes_literal_paths() {
         Path::new("/tmp/中文 & <x>/$(name);%.dll"),
         Path::new("/tmp/RyuPy.Runtime.dll"),
         None,
+        EntryMode::ThinHost,
     )
     .unwrap();
     assert!(text.contains("<EnableDefaultCompileItems>false</EnableDefaultCompileItems>"));
@@ -92,6 +93,7 @@ fn sdk_version_target_uses_same_publish_and_escaped_owned_path() {
         Path::new("/tmp/user.dll"),
         Path::new("/tmp/RyuPy.Runtime.dll"),
         Some(Path::new("/tmp/a&b/$(private);%/sdk.version")),
+        EntryMode::ThinHost,
     )
     .unwrap();
     assert!(text.contains("BeforeTargets=\"Publish\""));
@@ -104,6 +106,7 @@ fn sdk_version_target_uses_same_publish_and_escaped_owned_path() {
         Path::new("a.dll"),
         Path::new("runtime.dll"),
         None,
+        EntryMode::ThinHost,
     )
     .unwrap();
     assert!(!legacy.contains("RyuPyRecordSdkVersion"));
@@ -119,4 +122,58 @@ fn failed_post_publish_validation_cleans_only_its_owned_root() {
     assert!(!root.exists());
     assert_eq!(std::fs::read(sibling.join("kept")).unwrap(), b"other build");
     std::fs::remove_dir_all(sibling).unwrap();
+}
+
+#[test]
+fn direct_source_entry_preserves_strict_sdk_and_literal_input() {
+    let text = project(
+        "RyuPyAotHost_safe",
+        "unsafe-input",
+        Path::new("/tmp/中文 &/输入 $();%.dll"),
+        Path::new("/tmp/RyuPy.Runtime.dll"),
+        Some(Path::new("/tmp/sdk.version")),
+        EntryMode::Direct,
+    )
+    .unwrap();
+    assert!(text.contains("<AssemblyName>RyuPyAotHost_safe</AssemblyName>"));
+    assert_eq!(text.matches("<Reference ").count(), 1);
+    assert!(!text.contains("<Compile "));
+    assert!(!text.contains("Program.cs"));
+    assert!(!text.contains("unsafe-input"));
+    for (name, value) in [
+        ("SkipCompilerExecution", "true"),
+        ("ProduceReferenceAssembly", "false"),
+        ("GenerateAssemblyInfo", "false"),
+        ("GenerateTargetFrameworkAttribute", "false"),
+        ("UseAppHost", "false"),
+        ("TreatWarningsAsErrors", "true"),
+        ("IlcTreatWarningsAsErrors", "true"),
+        ("ILLinkTreatWarningsAsErrors", "true"),
+    ] {
+        assert!(text.contains(&format!("<{name}>{value}</{name}>")));
+    }
+    assert!(text.contains("BeforeTargets=\"CoreCompile\""));
+    assert!(text.contains("SourceFiles=\"/tmp/中文 &amp;/输入 %24%28%29%3B%25.dll\""));
+    assert!(text.contains("DestinationFiles=\"@(IntermediateAssembly)\""));
+    assert!(!text.contains("TrimmerRootAssembly"));
+    assert!(!text.contains("NoWarn"));
+}
+
+#[test]
+fn direct_entry_requires_source_context_and_non_windows_platform() {
+    for platform in [
+        HostPlatform::LinuxX64,
+        HostPlatform::MacArm64,
+        HostPlatform::WindowsX64,
+    ] {
+        assert_eq!(EntryMode::select(platform, false), EntryMode::ThinHost);
+        assert_eq!(
+            EntryMode::select(platform, true),
+            if platform == HostPlatform::WindowsX64 {
+                EntryMode::ThinHost
+            } else {
+                EntryMode::Direct
+            }
+        );
+    }
 }

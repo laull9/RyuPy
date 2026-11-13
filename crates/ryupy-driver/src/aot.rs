@@ -1,4 +1,4 @@
-//! Native AOT 的薄宿主发布：只编排 SDK 与自有目录，不解释 Python 或生成运行时反射。
+//! Native AOT 的源码直入口与保守薄宿主发布：只编排 SDK 与自有目录，不解释 Python 或生成运行时反射。
 //!
 //! 每次成功保留独立工作根；高层OwnedAttempt保失败诊断树，低层失败只删本轮根。
 //! 所有诊断保留 SDK 退出码及完整输出，不能把上次的原生产物冒充本次成功。
@@ -71,17 +71,63 @@ fn path_literal(path: &Path) -> Result<String> {
     Ok(literal(text))
 }
 
+/// 仅普通源码AOT保证可执行PE；绑定/无报告及Windows的Win32资源仍走旧宿主。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EntryMode {
+    Direct,
+    ThinHost,
+}
+impl EntryMode {
+    fn select(platform: HostPlatform, source_aot: bool) -> Self {
+        if source_aot && platform != HostPlatform::WindowsX64 {
+            Self::Direct
+        } else {
+            Self::ThinHost
+        }
+    }
+}
+
 fn project(
     host: &str,
     input_name: &str,
     dll: &Path,
     runtime: &Path,
     sdk_record: Option<&Path>,
+    entry: EntryMode,
 ) -> Result<String> {
     let framework = ryupy_codegen_cil::runtimeconfig::TARGET_FRAMEWORK_MAJOR;
     let dll = path_literal(dll)?;
     let runtime = path_literal(runtime)?;
     let input_name = literal(input_name);
+    // 不替换SDK内部编译目标链；仅在公开CoreCompile边界提供本次已验证managed字节。
+    let (properties, items, supply) = match entry {
+        EntryMode::ThinHost => (
+            String::new(),
+            format!(
+                r#"    <Compile Include="Program.cs" />
+    <Reference Include="{input_name}"><HintPath>{dll}</HintPath></Reference>
+"#
+            ),
+            String::new(),
+        ),
+        EntryMode::Direct => (
+            String::from(
+                r#"    <SkipCompilerExecution>true</SkipCompilerExecution>
+    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <UseAppHost>false</UseAppHost>
+"#,
+            ),
+            String::new(),
+            format!(
+                r#"  <Target Name="RyuPySupplyExistingManagedInput" BeforeTargets="CoreCompile">
+    <Copy SourceFiles="{dll}" DestinationFiles="@(IntermediateAssembly)" />
+  </Target>
+"#
+            ),
+        ),
+    };
     let sdk_target = if let Some(path) = sdk_record {
         let path = path_literal(path)?;
         format!(
@@ -103,13 +149,11 @@ fn project(
     <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
     <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
-  </PropertyGroup>
+{properties}  </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
-    <Reference Include="{input_name}"><HintPath>{dll}</HintPath></Reference>
-    <Reference Include="RyuPy.Runtime"><HintPath>{runtime}</HintPath></Reference>
+{items}    <Reference Include="RyuPy.Runtime"><HintPath>{runtime}</HintPath></Reference>
   </ItemGroup>
-{sdk_target}</Project>
+{supply}{sdk_target}</Project>
 "#
     ))
 }
@@ -339,12 +383,15 @@ fn publish_owned(
     };
     let sdk_dll = sdk_paths::sdk_path(dll)?;
     let sdk_runtime = sdk_paths::sdk_path(runtime)?;
+    // Ordinary context只由source-AOT发射链建立；不能把绑定的library PE当作主入口。
+    let entry = EntryMode::select(platform, matches!(context, Some(AotManifest::Ordinary(_))));
     let mut project_text = project(
         host,
         input_name,
         &sdk_dll,
         &sdk_runtime,
         context.map(|_| sdk_record_path.as_path()),
+        entry,
     )?;
     project_text = crate::aot_optimization::configure(
         project_text,
@@ -358,10 +405,12 @@ fn publish_owned(
         project_text=project_text.replace("</Project>",&format!("  <ItemGroup><DirectPInvoke Include=\"{exact}\" /><NativeLibrary Include=\"{path}\" /></ItemGroup>\n</Project>"));
     }
     std::fs::write(&project_path, project_text)?;
-    std::fs::write(
-        source.join("Program.cs"),
-        "internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n",
-    )?;
+    if entry == EntryMode::ThinHost {
+        std::fs::write(
+            source.join("Program.cs"),
+            "internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n",
+        )?;
+    }
     let sdk_project = sdk_paths::sdk_path(&project_path)?;
     let sdk_publish = sdk_paths::sdk_path(&publish)?;
     let output = Command::new(crate::dotnet::dotnet_exe())

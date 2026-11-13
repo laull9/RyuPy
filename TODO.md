@@ -1,5 +1,7 @@
 # TODO
 
+- [~] 普通源码AOT直入口候选：Unix去掉重复Csc薄宿主，Windows/静态绑定/无context保旧路径；安全名及特殊路径原型已验，产品同提交跨平台/入口语义/部署验证待完成。见[ADR0180](docs/adr/0180-native-direct-source-entry.md)。
+
 ## 当前 AOT 产品主线（2026-11-13）
 
 - [x] 显式NativeAOT default/size/speed偏好：默认不变，SDK有效值/原生hash收据核对，错配失败保旧dist。CI43351388627六构建、288宿主+24净容器及标准8+8通过；size在binaryornot交付省1.846%，speed增3.133%，不宣称可靠速度收益。默认三平台回归与完整check已验，未合dev/main。见[ADR0179](docs/adr/0179-native-aot-optimization-preference.md)。

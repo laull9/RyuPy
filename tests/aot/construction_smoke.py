@@ -188,7 +188,7 @@ def verify_inputs(data, il, runtime):
     return inputs
 
 
-def verify_project(root):
+def verify_project(root, rid):
     text = (root/'host/Host.csproj').read_text(encoding='utf-8')
     project = ET.fromstring(text)
     for name in ('PublishAot', 'TreatWarningsAsErrors', 'IlcTreatWarningsAsErrors', 'ILLinkTreatWarningsAsErrors'):
@@ -196,10 +196,38 @@ def verify_project(root):
     require(project.findtext('./PropertyGroup/TrimmerSingleWarn') == 'false', '裁剪警告被折叠')
     forbidden = ('TrimmerRoot', 'RootAll', 'DynamicDependency', 'NoWarn', 'WarningsNotAsErrors', 'SuppressTrim')
     require(not any(word in text for word in forbidden), '额外保根/警告屏蔽')
-    require([x.attrib.get('Include') for x in project.findall('./ItemGroup/Reference')]
-            == ['construction', 'RyuPy.Runtime'], '托管引用不是两个精确输入')
-    expected = b'internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n'
-    require((root/'host/Program.cs').read_bytes() == expected, '公开薄入口改变')
+    require(rid in ('linux-x64', 'osx-arm64', 'win-x64'), '未知入口平台')
+    references = [x.attrib.get('Include') for x in project.findall('./ItemGroup/Reference')]
+    compiles = [x.attrib.get('Include') for x in project.findall('./ItemGroup/Compile')]
+    direct_properties = {'SkipCompilerExecution': 'true', 'ProduceReferenceAssembly': 'false',
+                         'GenerateAssemblyInfo': 'false', 'GenerateTargetFrameworkAttribute': 'false',
+                         'UseAppHost': 'false'}
+    if rid == 'win-x64':
+        require(references == ['construction', 'RyuPy.Runtime'], 'Windows不是两个精确引用')
+        require(compiles == ['Program.cs'], 'Windows不再编译唯一薄入口')
+        require(not project.findall('.//Copy'), 'Windows混入直接入口Copy')
+        for name in direct_properties:
+            require(not project.findall('./PropertyGroup/'+name), 'Windows混入直接入口属性')
+        expected = b'internal static class Program { private static int Main(string[] args) => global::RyuPy.Generated.Module.Main(args); }\n'
+        require((root/'host/Program.cs').read_bytes() == expected, '公开薄入口改变')
+        return
+    require(references == ['RyuPy.Runtime'] and not compiles, '直接入口引用/编译项改变')
+    require(not (root/'host/Program.cs').exists(), '直接入口不能保留Program.cs')
+    for name, expected in direct_properties.items():
+        values = project.findall('./PropertyGroup/'+name)
+        require(len(values) == 1 and values[0].text == expected, '直接入口属性不同：'+name)
+    targets = [target for target in project.findall('./Target')
+               if target.get('BeforeTargets') == 'CoreCompile']
+    require(len(targets) == 1, '必须有唯一CoreCompile前置目标')
+    target = targets[0]
+    require(set(target.attrib) == {'Name', 'BeforeTargets'}, '直接入口目标存在额外条件')
+    copies = project.findall('.//Copy')
+    require(len(copies) == 1 and list(target) == copies, '前置目标必须仅复制一次本轮输入')
+    # XML解析已反转XML实体；MSBuild字面量仍必须逐字符转义，不能解释源码路径为表达式。
+    managed = (root.parent/'construction.dll').resolve(strict=True)
+    escaped = ''.join('%'+format(ord(ch), '02X') if ch in "%$@;'()*?" else ch for ch in str(managed))
+    require(copies[0].attrib == {'SourceFiles': escaped, 'DestinationFiles': '@(IntermediateAssembly)'},
+            '直接入口Copy不是本轮精确managed到SDK中间程序集')
 
 
 def copy_jit(il, destination, expected, check=lambda: None):
@@ -359,7 +387,7 @@ def main(argv=None):
             for name in ('publish.stdout.log', 'publish.stderr.log'):
                 shutil.copy2(aot_root/name, logs/('driver-' + name))
             require(b'Generating native code' in (logs/'driver-publish.stdout.log').read_bytes(), '无本次真实ILC日志')
-            verify_project(aot_root)
+            verify_project(aot_root, args.rid)
             sdk = read_sdk_version(aot_root/'host/sdk.version')
             require(sdk == SDK, '实际publish SDK不符')
             shutil.copy2(aot_root/'host/sdk.version', logs/'sdk.version')

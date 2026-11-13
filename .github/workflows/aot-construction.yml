@@ -2,7 +2,7 @@ name: Ordinary construction NativeAOT
 
 on:
   push:
-    branches: [wip/aot-jit-recovery]
+    branches: [wip/aot-jit-recovery, ci/native-build-cost-20261113-001]
     paths:
       - '.github/workflows/aot-construction.yml'
       - 'tests/aot/construction_*.py'

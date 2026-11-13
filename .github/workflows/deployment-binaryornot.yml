@@ -12,7 +12,7 @@ concurrency:
 jobs:
   linux-project:
     if: >-
-      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-build-cost-004' || github.event.head_commit.message == 'validation: native-build-cost-003' || github.event.head_commit.message == 'validation: native-build-cost-002' || github.event.head_commit.message == 'validation: native-build-cost-001' || github.event.head_commit.message == 'validation: native-package-profiles-002' || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-package-baseline-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001' || github.event.head_commit.message == 'validation: dependency-preflight-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
+      github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-build-cost-004' || github.event.head_commit.message == 'validation: native-build-cost-003' || github.event.head_commit.message == 'validation: native-build-cost-002' || github.event.head_commit.message == 'validation: native-build-cost-001' || github.event.head_commit.message == 'validation: native-package-profiles-002' || github.event.head_commit.message == 'validation: native-package-profiles-001' || github.event.head_commit.message == 'validation: native-package-baseline-001' || github.event.head_commit.message == 'validation: native-join-perf-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001' || github.event.head_commit.message == 'validation: dependency-preflight-001' || github.event.head_commit.message == 'validation: native-text-index-perf-001'
     runs-on: ubuntu-24.04
     timeout-minutes: 105
     env:
@@ -48,7 +48,7 @@ jobs:
         run: '"$PYTHON" -B tests/aot/native_package_profile/run.py'
       - name: 原生优化偏好真实构建与部署对照
         if: >-
-          github.event.head_commit.message == 'validation: native-package-profiles-002' || github.event.head_commit.message == 'validation: native-package-profiles-001'
+          github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: native-package-profiles-002' || github.event.head_commit.message == 'validation: native-package-profiles-001'
         run: '"$PYTHON" -B tests/aot/native_package_profile/run.py --profiles'
       - name: SDK真实任务成本分解
         if: >-
@@ -58,12 +58,16 @@ jobs:
         if: >-
           github.event.head_commit.message == 'validation: native-build-cost-004' || github.event.head_commit.message == 'validation: native-build-cost-003' || github.event.head_commit.message == 'validation: native-build-cost-002'
         run: '"$PYTHON" -B tests/aot/native_package_profile/direct_input_probe.py'
+      - name: 公开直接入口参数、退出与异常搬迁差分
+        if: >-
+          github.event.head_commit.message == 'validation: native-direct-entry-001'
+        run: '"$PYTHON" -B tests/aot/direct_entry/run.py --ryupy "$RUNNER_TEMP/deployment-binaryornot/tools/ryupy" --python "$PYTHON" --out "$RUNNER_TEMP/deployment-binaryornot/direct-entry-product" --rid linux-x64'
       - name: 公开consumer AOT、独立审计、搬迁及禁网部署
         timeout-minutes: 57
         run: '"$PYTHON" -B tests/aot/deployment_binaryornot/hosted_binaryornot.py verify'
       - name: 已分离符号身份、交付体积与真实调试恢复
         if: >-
-          github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001'
+          github.event.head_commit.message == 'validation: native-direct-entry-001' || github.event.head_commit.message == 'validation: symbol-delivery-001' || github.event.head_commit.message == 'validation: symbol-delivery-binary-001'
         run: '"$PYTHON" -B tests/aot/symbol_delivery/verify_binaryornot.py --evidence "$RUNNER_TEMP/deployment-binaryornot/evidence"'
       - name: 全部成功与失败原件
         if: always()
