@@ -145,7 +145,8 @@ pub(super) fn emit_real_graph() {
         assembly_name: crate::assembly_name(&entry),
         entry_source_path: Some(entry.to_string_lossy().into_owned()),
     };
-    let emitted = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &options).unwrap();
+    let emitted =
+        ryupy_codegen_cil::emit_source_aot_assembly_with_report(&linked, &options).unwrap();
     std::fs::write(out.join(format!("{name}.dll")), &emitted.bytes).unwrap();
     let roots:Vec<_>=emitted.report.delegate_references.iter().map(|r|json!({
         "role":r.role,"module_id":r.module_id,"function_id":r.function_id,"instruction":r.instruction,

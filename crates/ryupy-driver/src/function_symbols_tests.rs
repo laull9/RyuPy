@@ -87,3 +87,26 @@ f = (x + 2 for x in [1, 2])
     );
     std::fs::remove_dir_all(root).unwrap();
 }
+
+#[test]
+fn source_aot_pe_kind_preserves_the_same_emission_report() {
+    let root = test_temp::directory("source-aot-pe-kind");
+    let entry = root.join("真实 entry.py");
+    std::fs::write(&entry, "def f(x):\n    return x + 1\nprint(f(2))\n").unwrap();
+    let mut session = Session::default();
+    let (linked, _, _) = compile_linked(&mut session, &entry, &[], false, None).unwrap();
+    let options = ryupy_codegen_cil::EmitOptions {
+        assembly_name: "真实 entry".into(),
+        entry_source_path: Some(entry.to_string_lossy().into_owned()),
+    };
+    let dll = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &options).unwrap();
+    let aot = ryupy_codegen_cil::emit_source_aot_assembly_with_report(&linked, &options).unwrap();
+    assert_eq!(dll.report, aot.report);
+    for (bytes, expected_dll) in [(&dll.bytes, true), (&aot.bytes, false)] {
+        let pe = u32::from_le_bytes(bytes[0x3c..0x40].try_into().unwrap()) as usize;
+        let flags = u16::from_le_bytes(bytes[pe + 22..pe + 24].try_into().unwrap());
+        assert_eq!(flags & 0x2000 != 0, expected_dll);
+    }
+    assert!(!aot.report.delegate_references.is_empty());
+    std::fs::remove_dir_all(root).unwrap();
+}

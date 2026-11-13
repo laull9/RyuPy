@@ -354,7 +354,7 @@ fn build_with_resources_inner(
     };
     trace.mark("begin", "emit", "-");
     let (bytes, context) = if opts.aot {
-        let emitted = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &emit_opts)?;
+        let emitted = ryupy_codegen_cil::emit_source_aot_assembly_with_report(&linked, &emit_opts)?;
         let context = manifest::ManifestContext::new(
             emitted.report,
             sources,
