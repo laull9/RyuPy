@@ -45,3 +45,7 @@
 ## 同源Linux构建性能有限结果
 
 CI [43372683973](https://github.com/laull9/RyuPy/actions/runs/43372683973)，同源入口单变量、相同SDK/Runtime/默认配置、热缓存。每应用每组8次，pyfiglet完整构建中位数13.744→11.999秒（降低12.695%），binaryornot 14.425→12.730秒（降低11.750%）；两应用各4个配对块均更短，36份构建、126组搬迁运行及全部SDK原件已核验。完整控制、原件身份与风险见[实验记录](../../tests/aot/direct_entry_build_perf/README.md)。不推断运行速度、冷构建、Windows/macOS或Nuitka总体性能。该实验不包含随后用户dev的96dfeb13/3237be71标准库catalog工作。
+
+## 后续用户catalog与通用ABI整合
+
+2026-11-13已合入用户dev `979a7f3c`，代码 `1920f5b1` 完整make check及CI43379355977三平台通过；用户来源probe、colorsys真实ILC、通用C ABI v3/schema7/8与旧v1/v2资源回归均已核验。范围、失败留痕、ADR编号和原件身份见[整合报告](../validation/catalog-aot-integration-20261113.md)。此前构建性能结果不自动外推到这些新增代码。仍仅独立整合分支，未合dev/main。
