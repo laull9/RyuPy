@@ -29,7 +29,9 @@ jobs:
         with:
           persist-credentials: false
       - name: consumer与独立审计轻量合同
-        run: python3 -B -m unittest discover -s tests/aot/deployment_binaryornot -p 'test_*.py'
+        run: |
+          python3 -B -m unittest discover -s tests/aot/deployment_binaryornot -p 'test_*.py'
+          python3 -B -m unittest discover -s tests/aot/symbol_delivery -p 'test_*.py'
       - name: 固定工具与系统依赖
         timeout-minutes: 15
         run: |

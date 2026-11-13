@@ -3,7 +3,7 @@ import struct
 import tempfile
 import unittest
 from pathlib import Path
-from verify_binaryornot import debuglink_from_readelf, build_id_from_readelf, quote_gdb, safe_child, DEBUG_INPUT
+from verify_binaryornot import debuglink_from_readelf, build_id_from_readelf, quote_gdb, safe_child, DEBUG_INPUT, SYMBOL, verify_debugger_transcript
 
 
 def dump(data):
@@ -16,6 +16,19 @@ def dump(data):
 
 
 class ContractTests(unittest.TestCase):
+    def test_debugger_actual_hits_with_or_without_thread_prefix(self):
+        tail = f"\n#0  {SYMBOL} (receiver=...)\nFalse\n[Inferior 1 exited normally]\n"
+        for prefix in ['', 'Thread 1 "scanner" hit ']:
+            verify_debugger_transcript(f'{prefix}Breakpoint 1, {SYMBOL} (receiver=...)'+tail)
+        for bad in [f'Breakpoint 1 at 0xc5b20: {SYMBOL}'+tail,
+                    f'Thread 1 "scanner" hit Breakpoint 1, wrong_function'+tail,
+                    f'Breakpoint 1, {SYMBOL}_other'+tail,
+                    f'Breakpoint 1, {SYMBOL}\n#0 wrong\nFalse\nexited normally',
+                    f'Breakpoint 1, {SYMBOL}'+tail.replace('False', 'True'),
+                    f'Breakpoint 1, {SYMBOL}'+tail.replace('exited normally', 'SIGSEGV')]:
+            with self.assertRaises(ValueError):
+                verify_debugger_transcript(bad)
+
     def test_debugger_input_hits_non_ascii_decode_path(self):
         self.assertEqual(DEBUG_INPUT, "utf16.txt")
 

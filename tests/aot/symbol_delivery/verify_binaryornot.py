@@ -78,6 +78,14 @@ def quote_gdb(path):
     return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
+def verify_debugger_transcript(transcript):
+    """GDB多线程前缀不改变命中含义；仍要求实际命中、顶帧及正常输出。"""
+    hit = r'^(?:Thread \d+ "[^"\n]*" hit )?Breakpoint \d+,\s*' + re.escape(SYMBOL) + r'\b'
+    require(re.search(hit, transcript, re.M), '断点未实际命中已知函数')
+    require(re.search(r'^#0\s+.*'+re.escape(SYMBOL)+r'\b', transcript, re.M), '回溯顶帧非已知runtime函数')
+    require('exited normally' in transcript and re.search(r'^False\s*$', transcript, re.M), '被调试程序未正常完成')
+
+
 def verify(evidence):
     evidence = evidence.resolve()
     out = evidence/'symbol-delivery'
@@ -172,9 +180,7 @@ def verify(evidence):
                 '-ex', 'break '+SYMBOL, '-ex', 'run '+quote_gdb(evidence/'user-inputs'/DEBUG_INPUT),
                 '-ex', 'bt', '-ex', 'disable breakpoints', '-ex', 'continue']
         transcript = command('gdb-relocated', argv)
-        require(re.search(r'^Breakpoint \d+,.*'+re.escape(SYMBOL), transcript, re.M), '断点未实际命中已知函数')
-        require(re.search(r'^#0\s+.*'+re.escape(SYMBOL), transcript, re.M), '回溯顶帧非已知runtime函数')
-        require('exited normally' in transcript and re.search(r'^False\s*$', transcript, re.M), '被调试程序未正常完成')
+        verify_debugger_transcript(transcript)
         result['debugger'] = {'passed': True, 'symbol': SYMBOL, 'native': str(moved),
                               'symbols': str(debug), 'scope': '显式保留符号下实际断点和回溯；非自动发现保证'}
         publish_bytes = frozen['trees']['source']['logical_bytes']
