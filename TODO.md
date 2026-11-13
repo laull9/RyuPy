@@ -4,7 +4,7 @@
 
 **当前整合优先级**：以最新 dev 的 C ABI 多导出、`as_file`、绑定与资源组合及上下文协议工作为基线，保留新增完整测试，先验证与 standalone、资源树、优化偏好和直接入口的组合。后续仍按 [ADR0172](docs/adr/0172-aot-stdlib-provider-plan.md) 推进原生库接入与逐 API provider/catalog；以下旧优化证据不替代这条主线，也不代表当前合并树已验收。
 
-- [~] 普通源码AOT直入口整合候选：原独立候选已通过三平台入口/项目/绑定及Linux三偏好/符号回归；Unix普通源码去掉重复Csc薄宿主，Windows/静态绑定/无context保旧路径。与最新dev多导出C ABI、资源组合和上下文协议合并后的回归待验，不能沿用原候选绿灯。见[ADR0180](docs/adr/0180-native-direct-source-entry.md)。
+- [~] 普通源码AOT直入口整合候选：原独立候选已通过三平台入口/项目/绑定及Linux三偏好/符号回归；Unix普通源码去掉重复Csc薄宿主，Windows/静态绑定/无context保旧路径。以dev cd678640整合后完整check与三平台CI43368686854、四组原件复核通过；Windows extended路径缺口已修复。仍只在独立整合分支，未合dev/main，详见ADR0185。见[ADR0180](docs/adr/0180-native-direct-source-entry.md)。
 
 - [x] 显式NativeAOT default/size/speed偏好：默认不变，SDK有效值/原生hash收据核对，错配失败保旧dist。CI43351388627六构建、288宿主+24净容器及标准8+8通过；size在binaryornot交付省1.846%，speed增3.133%，不宣称可靠速度收益。默认三平台回归与完整check已验，未合dev/main。见[ADR0179](docs/adr/0179-native-aot-optimization-preference.md)。
 

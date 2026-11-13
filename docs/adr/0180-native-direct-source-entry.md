@@ -35,3 +35,9 @@
 - 最后 CI [43365134081](https://github.com/laull9/RyuPy/actions/runs/43365134081)，测试修复提交 `baf6f205`：construction 三平台全部通过。前序保留 SDK cwd 和路径别名的失败记录；改为 owned cwd 固定 SDK，并按 canonical 目录身份校验测试路径，不放宽版本或行为合同。
 
 这里不声明稳定构建提速、Nuitka 总体性能领先或完整兼容。整合以最新用户 dev 为基线，须重验其 `binding_multi`、`binding_resources`、`resources_as_file` 和上下文协议，以及既有 direct/thin 两路径；在合并树结果完成前保持候选状态。
+
+## dev 整合验收（2026-11-13）
+
+独立分支 `integration/dev-aot-native-20261113` 以用户 dev `cd678640` 为第一父、原候选 `baf6f205` 为第二父真实合并，保留用户六提交和原测试。修复提交 `2fab5424` 的产品树经完整 `make check`（C# 3100 通过/6 跳过，编译 e2e 458 通过/286 既有忽略）及 CI [43368686854](https://github.com/laull9/RyuPy/actions/runs/43368686854) 三平台四组通过。直接入口共36次原位/搬迁原流，C ABI v2 三导出/同符号别名，schema5/6资源组合、真实失败保旧包、as_file CP/JIT/搬迁Native均已独审。
+
+首轮 CI43367296487 的 Windows 两失败原件保留：共享词法不支持真实 extended ProcessPath，以及验收器用路径文本替代目录身份；修复与边界见[ADR0185](0185-windows-extended-filesystem-paths.md)。本次没有修改dev/main，没有增加直接入口平台范围；只证明已安装SDK宿主，不是无SDK干净机或Nuitka兼容/性能结论。
