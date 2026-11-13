@@ -487,6 +487,23 @@ v3 声明的 utf8 参数严格编码实际字符串，嵌入 NUL 原样保留，
 与 CPython 保留孤立代理项的行为有差异。该缺口属于源码常量链，后续需单独保真修复并追加
 普通 Python 字符串差分，ABI 封送层继续拒绝实际非法代理项，禁止替换编码回退。
 
+### 4.11 zlib/gzip 原生容器与有界解压（ADR0176）
+
+`zlib.compress/decompress/adler32/crc32` 与 `gzip.compress/decompress/open` 使用 .NET
+成熟压缩流；gzip 头尾、多成员和截断由运行时独立验证。zlib 单次解压只取首流并忽略尾随数据，
+gzip 解压处理全部成员与末尾零填充，拒绝非零垃圾尾部。每次解压或每个文件累计输出上限
+64 MiB，gzip 名字/注释头字段各限 1 MiB，超限 `MemoryError`。
+
+压缩 level 支持 -1..9；wbits 支持 15/-15/31，解压另支持 0/47，小窗口明确报错。
+gzip MTIME 显式保真，默认当前时间；负数、非有限数、uint32 越界用 `OverflowError` 拒绝，
+部分错误类别与 CPython 3.12 不同。gzip 完整压缩字节允许因 OS/XFL/块布局等实现细节不同，
+合同保留标准容器、跨解压正文、MTIME、CRC32 和 ISIZE。
+
+gzip 文件支持真实上下文关闭、追加成员、有限 strict 文本；seek/truncate/text tell 明确
+`UnsupportedOperation`。流式 zlib 对象、fileobj 和小窗口暂未提供。
+完整 API/性能取舍和验证步骤见 [ADR0176](adr/0176-zlib-gzip-native-compression.md)
+与[独立验收记录](validation/zlib-gzip.md)。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。

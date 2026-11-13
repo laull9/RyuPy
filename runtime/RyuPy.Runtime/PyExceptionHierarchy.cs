@@ -1,3 +1,4 @@
+// 原生及内建异常的 Python 父类表，与真实 CLR catch 继承同步。
 using System;
 using System.Collections.Generic;
 
@@ -43,6 +44,9 @@ public static class PyExceptionHierarchy
         ["JSONDecodeError"] = "ValueError",
         ["error"] = "Exception",
         ["BadZipFile"] = "Exception",
+        ["zlib.error"] = "Exception",
+        ["BadGzipFile"] = "OSError",
+        ["MemoryError"] = "Exception",
         ["GetoptError"] = "Exception",
         ["OptParseError"] = "Exception",
         ["OptionError"] = "OptParseError",

@@ -110,6 +110,8 @@ impl ExceptionImport {
         match (self.module.as_str(), member) {
             ("json", "JSONDecodeError") => Some("json.JSONDecodeError"),
             ("zipfile", "BadZipFile") => Some("zipfile.BadZipFile"),
+            ("zlib", "error") => Some("zlib.error"),
+            ("gzip", "BadGzipFile") => Some("gzip.BadGzipFile"),
             ("getopt", "GetoptError" | "error") => Some("getopt.GetoptError"),
             ("optparse", "OptParseError") => Some("optparse.OptParseError"),
             ("optparse", "OptionError") => Some("optparse.OptionError"),

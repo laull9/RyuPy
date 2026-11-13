@@ -53,6 +53,7 @@ internal static class PyModuleBuiltins
         values.Set("GeneratorExit", PyOps.TypeObject("GeneratorExit"));
         values.Set("ArithmeticError", PyOps.TypeObject("ArithmeticError"));
         values.Set("BufferError", PyOps.TypeObject("BufferError"));
+        values.Set("MemoryError", PyOps.TypeObject("MemoryError"));
         values.Set("ZeroDivisionError", PyOps.TypeObject("ZeroDivisionError"));
         values.Set("OverflowError", PyOps.TypeObject("OverflowError"));
         values.Set("LookupError", PyOps.TypeObject("LookupError"));

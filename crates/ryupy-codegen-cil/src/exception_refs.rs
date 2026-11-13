@@ -26,6 +26,8 @@ pub(crate) fn build(
                     "json.JSONDecodeError" => "PyJSONDecodeError".to_owned(),
                     "xml.etree.ElementTree.ParseError" => "PyXmlParseError".to_owned(),
                     "zipfile.BadZipFile" => "PyBadZipFile".to_owned(),
+                    "zlib.error" => "PyZlibError".to_owned(),
+                    "gzip.BadGzipFile" => "PyBadGzipFile".to_owned(),
                     "getopt.GetoptError" => "PyGetoptError".to_owned(),
                     "dataclasses.FrozenInstanceError" => "PyFrozenInstanceError".to_owned(),
                     name => format!("Py{}", name.strip_prefix("optparse.").unwrap_or(name)),

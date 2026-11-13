@@ -76,7 +76,6 @@ pub(crate) fn unsupported_builtin(name: &str) -> bool {
             | "TimeoutError"
             | "UnicodeTranslateError"
             | "BufferError"
-            | "MemoryError"
             | "ReferenceError"
             | "SystemError"
             | "FloatingPointError"

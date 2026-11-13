@@ -1,3 +1,4 @@
+// Python 驻留类型身份及动态对象属性协议；专有模块异常保留各自限定类型键。
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ public sealed class PyType
     public static PyType Get(string name) => Cache.GetOrAdd(name, static n => new PyType(n));
 
     /// <summary>与 CPython 一致的 <c>repr</c> 形式。</summary>
-    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "BadZipFile" ? "zipfile." : Name == "GetoptError" ? "getopt." : Name == "ParseError" ? "xml.etree.ElementTree." : PyOptParseExceptions.IsType(Name) ? "optparse." : PyTyping.IsMetadataType(Name) ? "typing." : "")}{Name}'>";
+    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "BadGzipFile" ? "gzip." : Name == "BadZipFile" ? "zipfile." : Name == "GetoptError" ? "getopt." : Name == "ParseError" ? "xml.etree.ElementTree." : PyOptParseExceptions.IsType(Name) ? "optparse." : PyTyping.IsMetadataType(Name) ? "typing." : "")}{Name}'>";
 }
 
 /// <summary>

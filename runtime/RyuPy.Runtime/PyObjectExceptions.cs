@@ -14,7 +14,10 @@ public static partial class PyObject
             ? PyStringDescriptors.Unbound(name) : name switch
         {
             "__class__" => PyType.Get("type"), // PyType载体的真实元类固定点，不扩展实例反射。
+            "__name__" or "__qualname__" when type.Name == "zlib.error" => "error",
             "__name__" or "__qualname__" => type.Name,
+            "__module__" when type.Name == "zlib.error" => "zlib",
+            "__module__" when type.Name == "BadGzipFile" => "gzip",
             "__module__" when type.Name == "JSONDecodeError" => "json.decoder",
             "__module__" when type.Name == "error" => "re",
             "__module__" when type.Name == "BadZipFile" => "zipfile",

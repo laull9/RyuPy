@@ -34,6 +34,8 @@ public static class PyNativeModules
             if (key == "UnsupportedOperation") throw new PyNotImplementedError("rebinding io.UnsupportedOperation is not supported");
         });
         PyModules.RegisterNative("codecs", PyCodecs.CreateAttributes());
+        PyModules.RegisterNative("zlib", PyCompression.ZlibAttributes());
+        PyModules.RegisterNative("gzip", PyCompression.GzipAttributes());
         PyModules.RegisterNative("unicodedata", PyUnicodeData.CreateAttributes());
         PyModules.RegisterNative("html", PyHtml.CreateAttributes());
         // 原生 XML 包只提供已验收的真实 Element 核心，不伪造源码 metadata。

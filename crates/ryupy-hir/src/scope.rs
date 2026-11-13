@@ -307,6 +307,7 @@ pub fn resolve_builtin(name: &str) -> Option<Builtin> {
         "GeneratorExit",
         "ArithmeticError",
         "BufferError",
+        "MemoryError",
         "ZeroDivisionError",
         "OverflowError",
         "LookupError",

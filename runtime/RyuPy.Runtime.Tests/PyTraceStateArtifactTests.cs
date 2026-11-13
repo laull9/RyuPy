@@ -115,7 +115,8 @@ public partial class PyTraceStateArtifactTests
         var runtimeDerivedAdditions = RuntimeDerivedPublicAdditions();
         var resourceContextAdditions = ResourceContextPublicAdditions();
         var nativeAbiAdditions = NativeAbiPublicAdditions();
-        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        var compressionAdditions = CompressionPublicAdditions();
+        var additions = v1Additions.Concat(sourceAdditions).Concat(metadataAdditions).Concat(builtinAdditions).Concat(xmlAdditions).Concat(deploymentAdditions).Concat(factoryAdditions).Concat(globalsAdditions).Concat(miAdditions).Concat(runtimeDerivedAdditions).Concat(resourceContextAdditions).Concat(nativeAbiAdditions).Concat(compressionAdditions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         var expected = before.Concat(additions).OrderBy(x => x, StringComparer.Ordinal).ToArray();
         Evidence("baseline-abi.json", new { baseline, candidate, signatures = before.Length,
             candidateSignatures = after.Length, expectedAdditions = additions, v1Additions, sourceAdditions, metadataAdditions, builtinAdditions, xmlAdditions, deploymentAdditions, factoryAdditions, globalsAdditions, miAdditions, runtimeDerivedAdditions, resourceContextAdditions, nativeAbiAdditions,
@@ -123,7 +124,7 @@ public partial class PyTraceStateArtifactTests
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1722逐字段保留；新增ADR0173声明式C ABI调用帧及返回物化入口；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+            scope = "旧1737逐字段保留；新增ADR0176七条压缩异常ABI；不覆盖默认参数、常量、全部属性或完整程序集scope" });
         Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins、XML异常或默认来源/类工厂冷增量不符；见baseline-abi.json。");
     }
 
@@ -257,7 +258,7 @@ public partial class PyTraceStateArtifactTests
             || !globals.SequenceEqual(DirectGlobalsPublicAdditions())
             || !mi.SequenceEqual(OrdinaryMiPublicAdditions())
             || !runtimeDerived.SequenceEqual(RuntimeDerivedPublicAdditions())) return false;
-        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).Concat(mi).Concat(runtimeDerived).Concat(ResourceContextPublicAdditions()).Concat(NativeAbiPublicAdditions()).ToArray();
+        var expected = before.Concat(v1).Concat(source).Concat(metadata).Concat(builtin).Concat(xml).Concat(deployment).Concat(factory).Concat(globals).Concat(mi).Concat(runtimeDerived).Concat(ResourceContextPublicAdditions()).Concat(NativeAbiPublicAdditions()).Concat(CompressionPublicAdditions()).ToArray();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         // 不用去重后的集合判等：任一组内或组间重复直接拒绝。
         if (expected.Any(signature => !seen.Add(signature))) return false;

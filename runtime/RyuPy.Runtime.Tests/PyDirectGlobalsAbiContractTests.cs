@@ -16,7 +16,7 @@ public class PyDirectGlobalsAbiContractTests
         A.DefaultSourcePublicAdditions(), A.LexicalClassFactoryPublicAdditions()
     ];
     private static bool Check(string[][] groups, string[] additions)
-        => A.PreservesBaselineAbi(groups[0], groups.SelectMany(x => x).Concat(additions).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).ToArray(),
+        => A.PreservesBaselineAbi(groups[0], groups.SelectMany(x => x).Concat(additions).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray(),
             groups[1], groups[2], groups[3], groups[4], groups[5], groups[6], groups[7], additions);
 
     [Fact]
@@ -27,13 +27,13 @@ public class PyDirectGlobalsAbiContractTests
         Assert.Equal(1716, old.Length);
         Assert.Equal(new[] { Signature }, A.DirectGlobalsPublicAdditions());
         Assert.True(Check(groups, [Signature]));
-        Assert.True(A.PreservesBaselineAbi(groups[0], old.Append(Signature).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Reverse().ToArray()));
-        Assert.False(A.PreservesBaselineAbi(groups[0], old.Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).ToArray()));
+        Assert.True(A.PreservesBaselineAbi(groups[0], old.Append(Signature).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).Reverse().ToArray()));
+        Assert.False(A.PreservesBaselineAbi(groups[0], old.Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray()));
         for (int index = 0; index < old.Length; index++)
         {
-            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], old.Where((_, i) => i != index).Append(Signature).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray()));
             var changed = (string[])old.Clone(); changed[index] += "改签";
-            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).ToArray()));
+            Assert.False(A.PreservesBaselineAbi(groups[0], changed.Append(Signature).Concat(A.OrdinaryMiPublicAdditions()).Concat(A.RuntimeDerivedPublicAdditions()).Concat(A.ResourceContextPublicAdditions()).Concat(A.NativeAbiPublicAdditions()).Concat(A.CompressionPublicAdditions()).ToArray()));
         }
     }
 

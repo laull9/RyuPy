@@ -258,6 +258,8 @@ fn certified_native_exception_modules(
     [
         "json",
         "zipfile",
+        "zlib",
+        "gzip",
         "optparse",
         "getopt",
         "re",
