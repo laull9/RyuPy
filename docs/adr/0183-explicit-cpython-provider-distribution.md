@@ -1,7 +1,7 @@
 # ADR-0183：显式 CPython provider 与封闭分发计划
 
 - 日期：2026-11-13
-- 状态：已接受；macOS arm64 首条编译入口的 JIT / NativeAOT / 搬迁通过，完整协议、联合应用与 NumPy 由独立验收驱动继续执行。
+- 状态：已接受；macOS arm64 显式试点的21项CPython/JIT/NativeAOT/搬迁、原联合应用、NumPy及六项生命周期门已通过；完整门禁与平台边界见人工验收登记。
 
 ## 决定
 
@@ -82,6 +82,18 @@ CPython、托管双方对同步容器的改动在跨域边界按明确顺序写�
 同步与跨堆自动 GC 是不同合同；回调和 Python 对象形成的跨堆环仍按 ADR-0181 的登记、注销、
 显式断环和关闭清理要求独立验收。
 
+## 已处理异常状态
+
+中性 `PyErrors.ExchangeHandledException(PyBaseException?)->object?` 交换完整异常上下文token，
+退出时由既有 `LeaveHandler` 恢复原链，清空状态也保留可恢复token。每次托管→CPython调用在
+取得GIL后保存CPython当前handler，将Runtime当前异常同步到CPython，finally恢复；每次
+CPython→编译回调按相同规则建立Runtime作用域，范围覆盖回调catch、容器同步与异常导出。
+
+这项handled状态与正在传播的raised-error通道独立。shim使用3.12.13公开Get/SetHandledException
+API，getter的新引用有明确释放点，setter借用入参；切换时另行保存/恢复raised-error。
+引用合同按[固定CPython源码](https://github.com/python/cpython/blob/v3.12.13/Python/errors.c#L553-L579)核对。
+真实探针覆盖sys.exception/exc_info、裸raise、隐式context与嵌套回调恢复。
+
 ## 富比较与多维切片
 
 动态比较新增独立 `DynRichCompareValue` → `PyOps.CompareValue(int,object,object)->object`，
@@ -100,3 +112,10 @@ HIR 的 CompareChain 记录有序操作数，MIR 用基本块短路并冻结中�
 维护。预期使用固定 CPython 当次生成，所有构建、日志和数据库写到仓库外并在结束时清理。
 必须逐项记录 CP1a、CP1b、CP2、CP3 的 JIT、NativeAOT、搬迁、负例与干净机结果。
 默认配置晋升仍受 ADR-0181 全部门约束，Linux / Windows 使用独立来源与平台加载合同验收。
+
+macOS arm64实测由[人工验收登记](../validation/cpython-provider-2026-11-13.md)分版本保存：
+v3完成21项CP/JIT/NativeAOT/搬迁及真实ABI/缺库负例；v4仅修改三处加载诊断文本与XML注释，
+复验21项JIT、六项生命周期、原CP2及直接C联合/完整标量/ctypes/proxy正负专项。
+原CP2资源、SQLite和真实NumPy门均已通过。50项手写发布ABI合同连同PE完整扫描、
+历史ABI反例及handled上下文token恢复测试通过。其他平台、无Python/.NET/SDK干净目标机与
+HTTPS证书链仍待验收；本轮试点保持显式选择。

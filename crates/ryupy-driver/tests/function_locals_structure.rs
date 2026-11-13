@@ -1,4 +1,6 @@
 //! 普通函数locals编译结构合同：共享槽只惰性建立，调用点同步且保用户同名调用。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_mir::{Callee, Constant, Function, Operand, RuntimeFn, Rvalue, Statement};
 
 const SOURCE: &str = "
@@ -32,15 +34,7 @@ fn values(function: &Function) -> Vec<&Rvalue> {
 
 #[test]
 fn function_locals_sync_and_shadowing_structure() {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-function-locals-structure-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new("function-locals-structure");
     eprintln!("locals结构原证据: {}", root.display());
     std::fs::write(root.join("structure.py"), SOURCE).unwrap();
     let mut db = ryupy_base::SourceDb::default();

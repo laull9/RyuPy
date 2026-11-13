@@ -12,16 +12,19 @@
 区分编译应用＋CPython 依赖与整应用解释执行。标准库继续逐 API/行为验收，先看真实
 应用，再扩展 API 合同；导入、调用、项目通过分别记录。
 CPython 对象遵循其引用所有权，托管对象沿用 GC；代理、回调与混合循环按
-[对象桥合同](cpython-provider.md) 单列验收。后续表格保留既有实现和历史记录，
-本次调整不改变任何通过数。
+[对象桥合同](cpython-provider.md) 单列验收。后续表格保留既有实现和带日期的历史记录。
 
 2026-11-13 CPython provider：固定CPython3.12.13/PBS20260623与NumPy2.3.5，macOS arm64
-18项手写程序同次JIT通过，混合栈陈旧帧严格门待验，NativeAOT原位/中文空格&搬迁分批通过；原联合应用完整三流、
-独立数据库副作用与资源/SQLite包负例通过。五种C#生命周期模式严格稳态通过。
-真实3.11.15错版本ABI拒绝通过，混合栈无陈旧帧严格门待验；Linux/Windows、干净目标机与完整门禁待验。
-固定20项默认native结果另列，API/平台/后端矩阵见[验收矩阵](../tests/cpython/README.md)。
-显式synchronized容器模式采用调用边界物化/写回；两域后台线程并发修改同一容器暂缓，
-默认proxy继续使用活代理。
+21项CP/JIT/NativeAOT原位与中文空格&搬迁通过；原联合应用完整三流、HTTP/数据库副作用与
+资源/SQLite包负例通过。六种C#生命周期模式、50条provider发布ABI签名/PE合同、真实3.11.15错版本拒绝、
+handled双向状态、异常链刷新与混合栈无陈旧帧通过。v3完整长门与v4诊断变更复验范围见
+[人工登记](validation/cpython-provider-2026-11-13.md)。Linux/Windows、干净机及HTTPS待验。
+默认native固定20完整有效门为13 native/6 unsupported/1 failed；保护11全部保留，
+另外通过pyfiglet和sortedcontainers。六项未支持为six、pyparsing、attrs、networkx、python-dateutil、click；
+Markdown失败于find_spec缺source metadata。CP20当次基线全部通过，默认项目NativeAOT待验。
+2026-11-14完整make check已exit0。API/平台/后端矩阵见[验收矩阵](../tests/cpython/README.md)。
+显式synchronized采用调用边界物化/写回，保持共享图与异常前副作用；两域后台线程并发修改
+同一容器暂缓。默认proxy继续使用活代理，混合set/frozenset比较在两种模式均明确报NI。
 
 当前显式provider试点把固定发行的标准库库存整体交CPython管理；同名标准库源码或包出现在
 应用搜索根时，编译器以E0100和冲突路径拒绝。额外第三方包依据显式声明与随包库存冻结，

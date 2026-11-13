@@ -1,37 +1,21 @@
-//! slice公开类型应用共享CP-first留证：先源、再版本与CP、再构建/JIT；成功失败均保独占证据。
-//! 原始stdout/stderr/exit先落盘再断言；错误投影仅删冻结源回显，生命周期不靠临时Drop。
+//! slice公开类型应用共享CP-first留证：先源、再版本与CP、再构建/JIT；原始输出在独占临时根内采集并统一清理。
+//! 原始stdout/stderr/exit先落盘再断言；错误投影仅删冻结源回显，根生命周期由RAII统一清理。
 use ryupy_driver::{BuildOptions, Session};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
 
+#[path = "../../src/test_temp.rs"]
+mod test_temp;
 mod trace;
-static NEXT: AtomicU64 = AtomicU64::new(0);
 
-pub(super) fn create_root(label: &str) -> PathBuf {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-slice-constructor-{label}-{}-{stamp}-{}",
-        std::process::id(),
-        NEXT.fetch_add(1, Ordering::Relaxed)
-    ));
-    std::fs::create_dir(&root).unwrap();
-    eprintln!("slice公开类型结果证据: {}", root.display());
-    root
+// 独占临时根随调用作用域清理，断言展开也不遗留原始流与构建产物。
+pub(super) fn create_root(label: &str) -> test_temp::Root {
+    test_temp::Root::new(&format!("slice-constructor-{label}"))
 }
 
 fn save_output(root: &Path, label: &str, output: &Output) {
     for (stream, bytes) in [("stdout", &output.stdout), ("stderr", &output.stderr)] {
         std::fs::write(root.join(format!("{label}.{stream}")), bytes).unwrap();
-        std::fs::write(
-            root.join(format!("{label}.{stream}.sha256")),
-            format!("{:x}\n", Sha256::digest(bytes)),
-        )
-        .unwrap();
     }
     std::fs::write(
         root.join(format!("{label}.exit")),
@@ -117,11 +101,6 @@ pub(super) fn check(
     let input = root.join(filename);
     // 即使版本probe或CP自证失败，也必须保留这次实际待验证的原source。
     std::fs::write(&input, source).unwrap();
-    std::fs::write(
-        root.join("source.sha256"),
-        format!("{:x}\n", Sha256::digest(source.as_bytes())),
-    )
-    .unwrap();
     let cp_cwd = root.join("cp");
     let jit_cwd = root.join("jit");
     std::fs::create_dir(&cp_cwd).unwrap();

@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：handled异常状态双向同步、裸raise、嵌套重入与正常/错误路径恢复。"""
 import bridge_fixture
 

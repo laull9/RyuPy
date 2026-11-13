@@ -95,7 +95,7 @@ fn positions(statements: &[&Statement], wanted: RuntimeFn) -> Vec<usize> {
         .collect()
 }
 pub(super) fn check() {
-    let mut root = Root::new("structure");
+    let root = Root::new("structure");
     let aliases = "from typing import NamedTuple as Root\nimport typing as t\nAlias = Root\nclass From(Root):\n    x: int\nclass Attribute(t.NamedTuple):\n    x: int\nclass Assignment(Alias):\n    x: int\n";
     let (hir, program) = lower(&root, "aliases", aliases);
     assert_eq!(hir.classes.len(), 3);
@@ -225,7 +225,6 @@ pub(super) fn check() {
     }).collect();
     assert_eq!(doc_writes.len(), 1, "仅真正类首句docstring写__doc__");
     provider_origin(&root);
-    root.complete();
 }
 
 fn provider_origin(root: &Root) {

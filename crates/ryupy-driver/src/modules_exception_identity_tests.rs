@@ -2,32 +2,16 @@
 use super::*;
 use crate::{BuildOptions, Stage};
 
-struct Root(PathBuf);
+struct Root(crate::test_temp::Root);
 impl Root {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-native-identity-{}-{stamp}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(crate::test_temp::Root::new("native-identity"))
     }
     fn write(&self, path: &str, source: &str) -> PathBuf {
         let path = self.0.join(path);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, source).unwrap();
         path
-    }
-}
-impl Drop for Root {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
     }
 }
 

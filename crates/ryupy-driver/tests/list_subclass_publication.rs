@@ -1,5 +1,7 @@
 //! 真实list派生沿普通类发布事务：先验证/创建/完成，再装饰，最后写公开槽。
 //! 只检查HIR/MIR，不启动SDK/JIT；保留独占输入与结构原流，不批准任何快照。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_hir::{ClassBase, ClassItemKind, ExprKind};
 use ryupy_mir::{Callee, Constant, Operand, RuntimeFn, Rvalue, Statement};
 
@@ -7,15 +9,7 @@ const SOURCE: &str = "def decorate(cls):\n    return cls\nExisting = 'old'\n@dec
 
 #[test]
 fn list_layout_finishes_before_decoration_and_publication() {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-list-publication-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new("list-subclass-publication");
     std::fs::write(root.join("source.py"), SOURCE).unwrap();
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("source.py", SOURCE);

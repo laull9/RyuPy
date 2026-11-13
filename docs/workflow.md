@@ -1,11 +1,11 @@
 # 开发工作流
 
-## 当前规划与迁移规则（2026-11-13）
+## 当前实施与迁移规则（2026-11-13）
 
 执行顺序以 [路线图 CP1–CP5](roadmap.md) 为准；当前已授权实施随包宿主、通用对象桥、
 provider构建与真实应用验收。结构迁移单列于 [仓库结构规划](repository-layout-plan.md)。
 全分支、全历史可复现产物清理与远端强推已完成；测试消费者按套件迁移到即时oracle，
-保留源码、必要手写输入和当前未提交实现。
+保留源码、必要手写输入和实施记录；即时oracle与结构断言已接入，完整检查持续验证。
 最新规则见 [ADR-0182](adr/0182-source-only-test-oracles.md)：生成 golden、快照、比较产物和
 patch/diff 全部清理；测试驱动迁移为同次 CPython 即时比较，旧产物格式停止维护。
 后续结构迁移、provider 接入和性能优化独立验收；迁移前后保留发现清单、用例 ID、
@@ -31,7 +31,7 @@ Git。已跟踪产物按审查后的清单清理历史；先建立仓库外持�
 
 ```bash
 make runtime   # 构建 C# 运行时
-make check     # 现有完整检查；快照消费者迁移期间须单列阻断
+make check     # fmt/clippy、即时CPython、C#、Rust与e2e完整检查
 ```
 
 ## 2. 常用命令
@@ -40,7 +40,7 @@ make check     # 现有完整检查；快照消费者迁移期间须单列阻断
 make help                                   # 全部命令
 make dump FILE=foo.py EMIT=ast|hir|types|mir|cil   # 查看任意阶段的 IR
 make run  FILE=foo.py                       # 编译并运行
-make test                                   # 现有测试入口；旧快照消费者待迁移
+make test                                   # 固定CPython、C#及Rust完整测试
 make python-baseline                        # 自检含 pending 的 Phase 1–3 Python 用例
 make python-extensions                      # 自检 Phase 4，需 NumPy / sqlite3 / zlib
 make cases-selftest                         # 只验证用例与框架（多文件 / 参数 / 错误路径），不编译
@@ -48,8 +48,8 @@ make e2e                                    # 端到端（跳过 pending）
 make e2e-all                                # 包括 pending，看整体进度
 make build                                  # 打发行包：Release CLI + 运行时 → releases/*.tar.gz
 make check                                  # 提交前必跑（含离线项目门禁自检）
-make projects-preserve                      # 完整20项默认JIT，按ID保护现有十项（含progress）
-make projects-promote                       # 另要求恢复历史progress回归
+make projects-preserve                      # 完整20项默认JIT，按ID保护现有11项
+make projects-promote                       # 按既有合同检查默认晋升
 ```
 
 ## 3. 开发循环：一次只做一个「竖切」

@@ -1,4 +1,6 @@
 //! delattr删除的只编译结构回归：builtin值、全部参数副作用与用户同名绑定，不计入应用数。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_mir::{Callee, Constant, Function, Operand, RuntimeFn, Rvalue, Statement};
 
 const SOURCE: &str = "
@@ -27,15 +29,7 @@ fn values(function: &Function) -> Vec<&Rvalue> {
 
 #[test]
 fn delattr_builtin_value_preserves_all_arguments_and_shadowing() {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-delattr-structure-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new("delattr-structure");
     eprintln!("delattr structure evidence: {}", root.display());
     std::fs::write(root.join("structure.py"), SOURCE).unwrap();
     let mut db = ryupy_base::SourceDb::default();

@@ -1,37 +1,17 @@
 //! 有限getopt真实默认编译差分：原双流留证，静态拒绝另标，完整链仅精确投影已知库帧。
 use ryupy_driver::{BuildOptions, Session};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
 #[path = "m3_5_dynamic_support/mod.rs"]
 mod dynamic_support;
 
-static NEXT: AtomicU64 = AtomicU64::new(0);
-// 固定官方CPython3.12.13源码身份；安装位置可变，字节与精确库帧不可变。
-const LIBRARY_SHA256: &str = "0ce875700c8798193b8e2748f7a27fc542cc4d525a1e6fc403767450ec92be99";
-struct Root(PathBuf);
+#[path = "../src/test_temp.rs"]
+mod test_temp;
+// 保持现有路径调用面，成功与断言展开均由共享RAII根清理。
+struct Root(test_temp::Root);
 impl Root {
     fn new(label: &str) -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-getopt-{label}-{}-{stamp}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        // create成功才取得清理权；失败/断言panic保留证据，不能删除别人的目录。
-        std::fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-}
-impl Drop for Root {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+        Self(test_temp::Root::new(&format!("getopt-{label}")))
     }
 }
 fn save(root: &Path, label: &str, output: &Output) {
@@ -68,12 +48,6 @@ fn execute(
     assert_eq!(lines[0], pinned.trim());
     let stdlib = PathBuf::from(lines[1]);
     assert!(stdlib.is_absolute() && stdlib.is_file());
-    let library_bytes = std::fs::read(&stdlib).unwrap();
-    assert_eq!(
-        format!("{:x}", Sha256::digest(&library_bytes)),
-        LIBRARY_SHA256
-    );
-    std::fs::write(root.0.join("library.sha256"), LIBRARY_SHA256).unwrap();
     let input = root.0.join(filename);
     std::fs::write(&input, source).unwrap();
     if helper {

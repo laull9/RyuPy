@@ -9,13 +9,13 @@
 [仓库结构规划](docs/repository-layout-plan.md)。
 
 - [~] **CP1a 随包宿主**：已冻结PBS20260623/CPython3.12.13、GIL、osx-arm64、来源和许可证；
-  最小 shim、隔离初始化、搜索路径、关机状态机；JIT/NativeAOT、搬迁与缺库/错 ABI 负例。
+  最小shim、隔离初始化、搜索路径、关机状态机在macOS arm64通过JIT/NativeAOT、搬迁与缺库/错ABI；三平台和干净机继续验收。
 - [~] **CP1b 通用对象桥**：provider 中性合同、所有权、身份/别名、模块代理、对象协议；
-  异常身份与链、静态回调、线程重入、跨堆环和释放门。
+  异常身份与链、handled状态、静态回调、线程重入、跨堆环和释放门在macOS arm64完整通过；其他平台待验。
 - [~] **CP2 同程序迁移**：保留 `tests/aot/stdlib_service/app.py` 和必要包数据，预期由 CPython 即时生成，
-  切 CPython provider；CP/旧 provider/新 provider 对照，数据库独立检查，原位/搬迁/干净机。
+  切CPython provider，macOS arm64同次CP/JIT/AOT/搬迁、数据库独立检查通过；干净机待验。
 - [~] **CP3 真实 NumPy**：已固定NumPy2.3.5/cp312/macosx_14_0_arm64官方wheel，ndarray/dtype/视图、计算、编译回调、
-  双向异常、生命周期、搬迁与缺依赖负例。
+  双向异常、生命周期、搬迁与缺依赖负例在macOS arm64通过；其他平台待验。
 - [ ] **默认兼容配置晋升**：CP1–CP3 全部门通过后切默认 CPython provider，保留显式
   纯 RyuPy 配置；固定 20 项增加 provider 维度，保留原始入口、版本与 native 结果。
 - [ ] **CP4 覆盖与 AOT 分发**：产品固定集至少 16/20；扩大标准库验收，完成
@@ -24,11 +24,14 @@
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
 
 验收驱动见 [tests/cpython](tests/cpython/README.md)：macOS arm64固定CPython3.12.13/PBS20260623、
-NumPy2.3.5，18探针同次JIT通过，混合栈陈旧帧严格门待验，NativeAOT原位/中文空格&搬迁分批通过；六项C#宿主
-严格稳态通过。原联合应用完整三流、数据库与资源/SQLite包负例通过，业务源码未改。
-真实3.11.15错版本ABI拒绝通过，未捕获双域异常链无陈旧帧严格门待复验；完整make check、
-固定20默认native保护、Linux/Windows和干净目标机待验。CPython/NumPy输入与产物均在仓库外。
-本轮PBS把_sqlite3内建于libpython，独立缺扩展共享库负例为环境阻塞。
+NumPy2.3.5，21项CP/JIT/NativeAOT原位与中文空格&搬迁完整通过，含handled双向状态、
+同handler改链/args与混合栈无陈旧帧；六项C#宿主严格稳态及50条provider发布ABI签名/PE合同通过。
+原联合应用完整三流、HTTP/数据库副作用与资源/SQLite包负例通过，业务源码未改。
+真实3.11.15错版本ABI、CPU错配及缺依赖门通过；C ABI联合/标量/ctypes/默认proxy专项通过。
+固定20默认native完整保留门有效：13 native/6 unsupported/1 failed，保护11全部保留，CP20全过。
+2026-11-14完整make check已exit0。冻结快照v3长门、v4诊断变更复验范围见
+[人工登记](docs/validation/cpython-provider-2026-11-13.md)。Linux/Windows、干净目标机和HTTPS待验；
+本轮PBS将_sqlite3内建于libpython，独立缺扩展共享库负例为环境阻塞。默认CPython配置尚待单独晋升。
 
 ### 结构整理配套任务（后续开发竖切）
 
@@ -42,7 +45,17 @@ NumPy2.3.5，18探针同次JIT通过，混合栈陈旧帧严格门待验，Nativ
 
 2026-11-13 清理后的旧生成产物消费者正在迁移：driver即时CPython差分11套41测、
 A/B结构8套57测、小套件结构17套42测已通过；原用例ID与输入保留。项目门23测通过。
-完整make check当前重新执行，最终结论以同一稳定构建完整退出为准。
+2026-11-14完整make check已exit0；TextWrap 1200矩阵与87360穷举采用同次CP逐项预期，无生成golden。
+历史独立门继续保留迁移任务：性能入口[perf.py](tests/aot/perf.py)、[pair.py](tests/aot/pair.py)、
+[test_module_call_pair.py](tests/aot/test_module_call_pair.py)；wcwidth入口
+[run.py](tests/aot/wcwidth_ci/run.py)、[instance_gate.py](tests/aot/wcwidth_ci/instance_gate.py)、
+[warm runner](tests/validation/wcwidth_warm/runner.py)，以及[pyfiglet](tests/aot/pyfiglet_ci/run.py)；
+metadata入口[distribution_metadata.py](tests/validation/distribution_metadata.py)、
+[text_search.py](tests/validation/text_search.py)、[comparison](tests/validation/metadata_source_comparison/run.py)；
+source provenance入口[gate](tests/validation/source_provenance/ci/gate.py)、
+[bootstrap](tests/validation/source_provenance/ci/bootstrap.py)、[fixed_gate](tests/validation/source_provenance/ci/fixed_gate.py)、
+[warning_split](tests/validation/source_provenance/ci/warning_split.py)。
+
 
 CP1 的开发拆分、依赖顺序和默认配置晋升门见 [实施顺序](docs/cpython-provider.md#61-开发拆分与依赖关系)。
 

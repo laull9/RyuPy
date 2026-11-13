@@ -369,13 +369,7 @@ mod logical_source_tests {
     }
     #[test]
     fn loaded_sources_keep_actual_text_and_distinct_logical_names() {
-        let unique = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("ryupy-logical-{}-{unique}", std::process::id()));
-        std::fs::create_dir(&root).unwrap();
+        let root = crate::test_temp::Root::new("module-paths");
         let result = (|| -> anyhow::Result<()> {
             for package in ["left", "right"] {
                 std::fs::create_dir(root.join(package))?;
@@ -416,18 +410,11 @@ mod logical_source_tests {
             );
             Ok(())
         })();
-        std::fs::remove_dir_all(root).unwrap();
         result.unwrap();
     }
     #[test]
     fn importing_init_as_module_uses_actual_file_branch_not_package_guess() {
-        let unique = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("ryupy-init-kind-{}-{unique}", std::process::id()));
-        std::fs::create_dir(&root).unwrap();
+        let root = crate::test_temp::Root::new("module-paths");
         let result = (|| -> anyhow::Result<()> {
             std::fs::create_dir(root.join("pkg"))?;
             std::fs::write(root.join("pkg/__init__.py"), "value = 1\n")?;
@@ -447,7 +434,6 @@ mod logical_source_tests {
             assert_eq!(package.text, module.text);
             Ok(())
         })();
-        std::fs::remove_dir_all(root).unwrap();
         result.unwrap();
     }
 }

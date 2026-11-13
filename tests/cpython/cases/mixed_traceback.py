@@ -1,4 +1,3 @@
-# ryupy: pending
 """CP1b：未捕获的编译回调异常经解释域包装，保留异常链与双域栈。"""
 import bridge_fixture
 

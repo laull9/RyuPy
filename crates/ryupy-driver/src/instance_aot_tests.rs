@@ -1,16 +1,9 @@
 //! 显式 AOT 两阶段合同；测试只走编译/链接，不发布或运行 Native。
 use super::*;
-struct Tree(PathBuf);
+struct Tree(crate::test_temp::Root);
 impl Tree {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("ryupy-instance-aot-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&root).unwrap();
-        let tree = Self(root);
+        let tree = Self(crate::test_temp::Root::new("instance-aot"));
         tree.write("entry.py", "from pkg import subject\n");
         tree.write("pkg/__init__.py", "value = 1\n");
         tree.write("pkg/subject.py", "from . import helper\ndef f(x):\n    try:\n        return helper.value + x\n    except ValueError:\n        return 0\n");
@@ -47,11 +40,6 @@ impl Tree {
             true,
         )
         .map(|p| p.0)
-    }
-}
-impl Drop for Tree {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 fn session(policy: ModuleEnvironmentPolicy) -> Session {

@@ -1,25 +1,13 @@
 //! 真构建模块位置：两处__file__、可写对象身份、循环import及源目录资源，不用dump替代实际类型验收。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, Session};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Output};
 
-struct OwnedRoot(PathBuf);
-impl Drop for OwnedRoot {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+struct OwnedRoot(test_temp::Root);
 fn root() -> OwnedRoot {
-    let unique = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "ryupy-module-locations-{}-{unique}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&path).unwrap();
-    OwnedRoot(path)
+    OwnedRoot(test_temp::Root::new("module-locations"))
 }
 fn python() -> std::ffi::OsString {
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());

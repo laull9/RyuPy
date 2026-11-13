@@ -1,7 +1,7 @@
 # 随包 libpython 宿主与通用对象桥
 
 > 2026-11-13 依据 [ADR-0181](adr/0181-cpython-provider-first.md) 开始实施。
-> 随包宿主、对象桥、显式provider与分发计划正在接入；逐项产品门仍按实测登记。
+> 随包宿主、对象桥、显式provider与分发计划已接入；macOS arm64试点已通过21项完整编译应用门。
 > 手写探针、固定发行与重跑入口见 [验收驱动](../tests/cpython/README.md)。
 
 ## 1. 产品边界与保留资产
@@ -207,14 +207,16 @@ CPython 整应用运行可作为基线，产品门要求原应用入口实际经
 CP1 就预留低开销观测开关；性能默认值和 C# 热点替换在 CP5 依据重复测量决定。
 
 2026-11-13，固定python-build-standalone20260623/CPython3.12.13、NumPy2.3.5，macOS arm64
-18项普通手写程序最新同次JIT通过；混合栈新增无陈旧帧严格门待验；NativeAOT原位/中文空格&搬迁分批通过，正做最终冻结版全量重跑。
-固定20个Python程序（含异常状态刷新和加强混合栈）正在最终同版全量；原联合应用完整三流、
-独立数据库副作用与资源/SQLite包负例通过，业务源码保持原样。
-六项C#宿主门通过256批断环、128批异常/真实NumPy回调稳态、确定释放和关机后迟到释放。
+21个手写Python程序完整通过同次CP/JIT/NativeAOT原位与中文空格&搬迁，包含handled双向状态、
+同handler内CP修改异常链/args、混合栈无陈旧callback帧与真实NumPy编译回调。
+原联合应用完整三流、HTTP请求数、独立数据库副作用与资源/SQLite包负例通过，业务源码保持原样。
+六项C#宿主门通过256批断环、128批异常/真实NumPy回调稳态、确定释放与关机后迟到释放；
+50条provider发布ABI签名、PE扫描和handled token恢复合同通过。
 真实3.11.15错版本库、CPU错配、缺libpython、启动encodings、NumPy缺核心扩展分别拒绝。
-API与平台矩阵见[验收驱动](../tests/cpython/README.md)，人工结论见
-[本轮登记](validation/cpython-provider-2026-11-13.md)。完整make check、默认native固定20保护、
-默认proxy新增专项及其他平台/干净机仍按最终结果登记。
+默认proxy容器比较、纯继承异常导出限制、ctypes、CP+直接C联合和13种标量专项完整通过。
+默认native固定20门有效：13 native/6 unsupported/1 failed，保护11全部保留；2026-11-14完整make check已exit0。
+API、平台及v3/v4冻结快照的依赖影响复验范围见[验收驱动](../tests/cpython/README.md)与
+[人工登记](validation/cpython-provider-2026-11-13.md)。Linux/Windows、干净机及HTTPS待验。
 本机NumPy wheel为cp312-cp312-macosx_14_0_arm64，核心扩展依赖系统Accelerate。
 该PBS的_sqlite3和zlib为内建模块，单独缺_sqlite3共享库负例需独立扩展构建发行，列环境阻塞。
 

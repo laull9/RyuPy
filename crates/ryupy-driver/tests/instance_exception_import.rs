@@ -1,18 +1,12 @@
 //! 普通Name/bare实例异常链的完整CP/PE差分，自动选择与显式能力分别审计。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, ModuleEnvironmentPolicy, Session};
 use std::process::Command;
 #[test]
 fn instance_exception_lexical_owner_and_cleanup_contract() {
     let source = ryupy_driver::runtime::workspace_root().join("tests/fixtures/instance_exception");
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-instance-handler-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir_all(&root).unwrap();
+    let root = test_temp::Root::new("instance-exception-import");
     let expected = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
         .arg("-B")
         .arg(source.join("entry.py"))

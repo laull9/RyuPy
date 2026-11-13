@@ -2,13 +2,35 @@
   "schema": 1,
   "python_version": "3.12.13",
   "distribution_root": "/替换为基础发行绝对路径",
-  "container_transfer": "synchronized",
+  "stdlib_provider": "cpython",
+  "container_transfer": "proxy",
   "source": {
     "project": "python-build-standalone",
     "build_id": "20260623",
     "source_url": "https://github.com/astral-sh/python-build-standalone/releases/tag/20260623",
-    "licenses": ["lib/python3.12/LICENSE.txt"]
+    "licenses": [
+      "lib/python3.12/LICENSE.txt",
+      "licenses/LICENSE.bdb.txt",
+      "licenses/LICENSE.bzip2.txt",
+      "licenses/LICENSE.cpython.txt",
+      "licenses/LICENSE.expat.txt",
+      "licenses/LICENSE.libX11.txt",
+      "licenses/LICENSE.libXau.txt",
+      "licenses/LICENSE.libedit.txt",
+      "licenses/LICENSE.libffi.txt",
+      "licenses/LICENSE.liblzma.txt",
+      "licenses/LICENSE.libuuid.txt",
+      "licenses/LICENSE.libxcb.txt",
+      "licenses/LICENSE.mpdecimal.txt",
+      "licenses/LICENSE.ncurses.txt",
+      "licenses/LICENSE.openssl-1.1.txt",
+      "licenses/LICENSE.openssl-3.txt",
+      "licenses/LICENSE.sqlite.txt",
+      "licenses/LICENSE.tcl.txt",
+      "licenses/LICENSE.tix.txt",
+      "licenses/LICENSE.zlib.txt"
+    ]
   },
-  "modules": ["ctypes", "sys"],
+  "modules": [],
   "payloads": []
 }

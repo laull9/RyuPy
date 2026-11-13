@@ -1,5 +1,7 @@
 //! 既有语言竖切的 IR 与诊断结构合同；各用例直接检查对应运算、类型和控制流。
 
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{Session, Stage};
 mod support;
 use support::dump;
@@ -318,22 +320,9 @@ fn catches_range_zero_step() {
 
 #[test]
 fn fib_iter_100_overflows() {
-    // 编译输出与输入都属于本次外部临时根，断言失败也由Drop清理。
-    struct TempRoot(std::path::PathBuf);
-    impl Drop for TempRoot {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = TempRoot(
-        std::env::temp_dir().join(format!("ryupy-fib-overflow-{}-{stamp}", std::process::id())),
-    );
-    std::fs::create_dir(&root.0).unwrap();
-    let py_path = root.0.join("ryupy_test_fib_ovf.py");
+    // 输入和输出位于共享分配器建立的独占临时根，断言失败也清理。
+    let root = test_temp::Root::new("fib-overflow");
+    let py_path = root.join("ryupy_test_fib_ovf.py");
     let src = r#"
 def fib_iter(n: int) -> int:
     a = 0
@@ -349,7 +338,7 @@ print(fib_iter(100))
     std::fs::write(&py_path, src).unwrap();
 
     let mut sess = Session::default();
-    let out_dir = root.0.join("output");
+    let out_dir = root.join("output");
     let opts = ryupy_driver::BuildOptions {
         input: py_path.clone(),
         out_dir,

@@ -3,21 +3,12 @@
 use ryupy_mir::{
     Callee, Constant, Function, LocalId, Operand, Program, RuntimeFn, Rvalue, Statement,
 };
-use std::path::PathBuf;
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 
-// 每次独占目录；成功失败均保原 source/MIR/CIL，不能因断言失败丢现场。
-fn root() -> PathBuf {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!(
-        "ryupy-set-clear-structure-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&path).unwrap();
-    eprintln!("set clear structure evidence: {}", path.display());
-    path
+// 源码和IR输出属于独占外部临时根，断言展开时同样清理。
+fn root() -> test_temp::Root {
+    test_temp::Root::new("set-clear-structure")
 }
 
 const SOURCE: &str = "

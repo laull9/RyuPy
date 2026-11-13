@@ -1,18 +1,9 @@
 //! 默认来源的生产编排合同；这里只编译/发射真实MIR，不把helper通过当产品JIT验收。
 use super::*;
-struct Tree(PathBuf);
+struct Tree(crate::test_temp::Root);
 impl Tree {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-default-source-{}-{stamp}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&path).unwrap();
-        Self(path.canonicalize().unwrap())
+        Self(crate::test_temp::Root::new("default-source"))
     }
     fn write(&self, name: &str, text: &str) {
         let path = self.0.join(name);
@@ -31,11 +22,6 @@ impl Tree {
     }
     fn compile(&self, session: &mut Session) -> Result<ryupy_mir::LinkedProgram> {
         compile_linked(session, &self.0.join("entry.py"), &[], false, None).map(|value| value.0)
-    }
-}
-impl Drop for Tree {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 

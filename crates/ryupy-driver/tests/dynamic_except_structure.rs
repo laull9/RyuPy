@@ -8,6 +8,8 @@ use std::collections::HashSet;
 
 #[path = "dynamic_except_support/generator_contract.rs"]
 mod generator_contract;
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 
 fn index(id: BlockId) -> usize {
     u32::from(id.into_raw()) as usize
@@ -342,16 +344,7 @@ fn check_dynamic(function: &Function) {
 #[test]
 fn bounded_dynamic_except_regions_and_identity_flow() {
     const SOURCE: &str = include_str!("../../../tests/fixtures/dynamic_except_structure/source.py");
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-dynamic-except-structure-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&root).unwrap();
-    eprintln!("动态except结构证据: {}", root.display());
+    let root = test_temp::Root::new("dynamic-except-structure");
     std::fs::write(root.join("source.py"), SOURCE).unwrap();
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("dynamic_except_structure.py", SOURCE);

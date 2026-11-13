@@ -2,16 +2,10 @@
 use super::*;
 use ryupy_mir::{GlobalStorage, MirType, ModuleExecutionKind, source_provenance};
 use std::collections::HashSet;
-struct Tree(PathBuf);
+struct Tree(crate::test_temp::Root);
 impl Tree {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!("ryupy-p1-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(crate::test_temp::Root::new("ordinary-dynamic"))
     }
     fn write(&self, name: &str, source: &str) {
         let path = self.0.join(name);
@@ -26,11 +20,6 @@ impl Tree {
         compile_linked(&mut session, &self.0.join("entry.py"), &[], false, None)
             .unwrap_or_else(|error| panic!("{error}: {}", session.render_diagnostics(false)))
             .0
-    }
-}
-impl Drop for Tree {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 

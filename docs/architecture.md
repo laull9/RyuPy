@@ -3,7 +3,7 @@
 > 本文描述**当前代码的实际分层**以及每层的职责边界。愿景与阶段规划见 [roadmap.md](roadmap.md)；
 > 关键取舍见 [adr/](adr/)；Python 语义细节见 [semantics.md](semantics.md)。
 
-> **2026-11-13 实施中的架构**：当前crate分层继续有效；随包 libpython 宿主与通用对象桥
+> **2026-11-13 已接入的试点架构**：当前crate分层继续有效；随包 libpython 宿主与通用对象桥
 > 见 [cpython-provider.md](cpython-provider.md)。`RyuPy.CPython` 封装 C API、GIL、句柄、
 > 静态回调与确定释放，Runtime提供中性对象/provider合同，driver管理显式归属与分发闭包。
 > 标准库和扩展优先由CPython provider承接，typed CIL快路保留；下方总览保留编译流水线。
@@ -40,7 +40,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 5. **只有 `ryupy-codegen-cil` 依赖 `dotnetdll`**。
 6. 只有 `ryupy-driver` 做文件 IO、启动子进程；各阶段 crate 是纯函数式的「数据进、数据出」。
 
-**目标架构新增约束（实施时执行）：**编译进程不载入用户 CPython 扩展；provider 决策
+**当前provider架构约束：**编译进程不载入用户 CPython 扩展；provider 决策
 与分发归 driver，CIL 后端只发射 MIR 显式操作。互操作组件依赖 Runtime 中性合同，
 由入口组合注册，禁止反向依赖；PyObject/GIL/引用所有权不泄漏到 Rust IR 或原生快路。
 上面的 IO 约束用于编译阶段；目标进程的文件、网络和 CPython 宿主由运行时负责。

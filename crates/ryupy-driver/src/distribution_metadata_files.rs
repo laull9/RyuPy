@@ -185,24 +185,10 @@ pub(super) fn unhex(hex: &str) -> Result<Vec<u8>> {
 ))]
 mod tests {
     use super::*;
-    struct Tree(PathBuf);
+    struct Tree(crate::test_temp::Root);
     impl Tree {
         fn new() -> Self {
-            let nonce = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
-            let path = std::env::temp_dir().join(format!(
-                "ryupy-metadata-open-{}-{nonce}",
-                std::process::id()
-            ));
-            std::fs::create_dir(&path).unwrap();
-            Self(path.canonicalize().unwrap())
-        }
-    }
-    impl Drop for Tree {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
+            Self(crate::test_temp::Root::new("metadata-open"))
         }
     }
     #[test]

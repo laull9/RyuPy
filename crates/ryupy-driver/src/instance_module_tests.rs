@@ -1,26 +1,15 @@
 //! 能力选择与实际模块图严格分离；只编译，不执行模块正文。
 use super::*;
-struct Tree(PathBuf);
+struct Tree(crate::test_temp::Root);
 impl Tree {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("ryupy-instance-{}-{stamp}", std::process::id()));
-        std::fs::create_dir(&path).unwrap();
-        Self(path.canonicalize().unwrap())
+        Self(crate::test_temp::Root::new("instance"))
     }
     fn write(&self, name: &str, source: &str) {
         std::fs::write(self.0.join(name), source).unwrap();
     }
 }
-impl Drop for Tree {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
+
 #[test]
 fn instance_selection_does_not_include_unknown_module() {
     let tree = Tree::new();

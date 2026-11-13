@@ -1,66 +1,104 @@
-//! 完整链只规范路径及精确源码/位置的回显；未知行保留并触发差异。
-use std::path::{Path, PathBuf};
+//! 完整异常链的帧/类名/消息/分隔合同；仅规整本次源路径和精确源码/caret，未知行及空行逐字保留。
+use std::path::Path;
 
-// 设计期冻结的完整用户帧合同；首次CP不符必须停，不可自动更新。
-pub(super) const EXPECTED: &str = concat!(
-    "Traceback (most recent call last):\n",
-    "  File \"chain.py\", line 26, in <module>\n",
-    "  File \"chain.py\", line 21, in original_site\n",
-    "Original: original-chain\n",
-    "During handling of the above exception, another exception occurred:\n",
-    "Traceback (most recent call last):\n",
-    "  File \"chain.py\", line 27, in <module>\n",
-    "  File \"chain.py\", line 18, in error\n",
-    "Replacement: replacement-chain\n",
-    "The above exception was the direct cause of the following exception:\n",
-    "Traceback (most recent call last):\n",
-    "  File \"chain.py\", line 35, in <module>\n",
-    "Final: final-chain\n",
-);
-pub(super) fn project(bytes: &[u8], source: &Path) -> String {
-    let raw = std::str::from_utf8(bytes).unwrap();
-    assert!(!raw.contains("Unhandled exception"), "{raw}");
-    let mut lines = Vec::new();
-    let mut echo: Option<String> = None;
-    let mut frame_number = 0;
-    let mut after_echo = false;
-    for line in raw.lines() {
-        if line.trim().is_empty() {
-            continue;
+type Frame = (usize, &'static str, &'static str);
+const FRAMES: [&[Frame]; 3] = [
+    &[
+        (26, "<module>", "original_site()"),
+        (21, "original_site", "raise original"),
+    ],
+    &[
+        (27, "<module>", "except targets.error:"),
+        (18, "error", "raise replacement"),
+    ],
+    &[(35, "<module>", "raise final from caught")],
+];
+const ERRORS: [&str; 3] = [
+    "Original: original-chain",
+    "Replacement: replacement-chain",
+    "Final: final-chain",
+];
+const SEPARATORS: [&str; 2] = [
+    "During handling of the above exception, another exception occurred:",
+    "The above exception was the direct cause of the following exception:",
+];
+
+fn contract() -> String {
+    let mut result = String::new();
+    for (index, frames) in FRAMES.iter().enumerate() {
+        if index != 0 {
+            result.push_str(&format!("\n{}\n\n", SEPARATORS[index - 1]));
         }
+        result.push_str("Traceback (most recent call last):\n");
+        for (line, function, _) in *frames {
+            result.push_str(&format!(
+                "  File \"chain.py\", line {line}, in {function}\n"
+            ));
+        }
+        result.push_str(ERRORS[index]);
+        result.push('\n');
+    }
+    result
+}
+
+pub(super) fn checked(bytes: &[u8], source: &Path, cpython: bool) -> String {
+    let raw = std::str::from_utf8(bytes).unwrap();
+    assert!(raw.ends_with('\n'), "完整异常报告必须换行结束");
+    assert!(!raw.contains("Unhandled exception"), "{raw}");
+    let input = source.join("chain.py");
+    let code = std::fs::read_to_string(&input).unwrap();
+    let source_lines: Vec<_> = code.lines().collect();
+    for &(number, _, statement) in FRAMES.iter().flat_map(|frames| frames.iter()) {
+        assert_eq!(
+            source_lines[number - 1].trim(),
+            statement,
+            "固定帧源码合同改变"
+        );
+    }
+    let mut normalized = Vec::new();
+    let mut lines = raw.split_terminator('\n').peekable();
+    while let Some(line) = lines.next() {
         if let Some(frame) = line.strip_prefix("  File \"") {
             let (path, position) = frame.rsplit_once("\", line ").expect(line);
-            let (number, _) = position.split_once(", in ").expect(line);
+            assert!(
+                Path::new(path) == input || path == "chain.py",
+                "仅允许本次完整源路径或编译器已登记的精确短名：{path}"
+            );
+            let (number, function) = position.split_once(", in ").expect(line);
             let number: usize = number.parse().unwrap();
-            let path = PathBuf::from(path);
-            if path == source.join("chain.py") {
-                let code = std::fs::read_to_string(&path).unwrap();
-                echo = Some(format!(
-                    "    {}",
-                    code.lines().nth(number - 1).unwrap().trim()
-                ));
-                lines.push(format!("  File \"chain.py\", line {position}"));
-            } else {
-                echo = None;
-                lines.push(line.to_owned());
+            let statement = FRAMES
+                .iter()
+                .flat_map(|frames| frames.iter())
+                .find(|&&(line, name, _)| line == number && name == function)
+                .expect("出现未知用户帧")
+                .2;
+            normalized.push(format!("  File \"chain.py\", line {position}"));
+            let echo = format!("    {statement}");
+            let displayed = lines.peek().is_some_and(|line| *line == echo);
+            if cpython {
+                assert!(displayed, "CP必须回显固定源码位置");
             }
-            frame_number = number;
-            after_echo = false;
-        } else if echo.as_deref() == Some(line) {
-            echo = None;
-            after_echo = true;
-        } else if after_echo
-            && matches!(
-                (frame_number, line),
-                (26, "    ^^^^^^^^^^^^^^^") | (27, "           ^^^^^^^^^^^^^")
-            )
-        {
-            after_echo = false;
+            if displayed {
+                lines.next();
+                // 只允许这两个已知调用/属性目标的精确位置标记，不丢任意插入行。
+                let caret = match number {
+                    26 => Some("    ^^^^^^^^^^^^^^^"),
+                    27 => Some("           ^^^^^^^^^^^^^"),
+                    _ => None,
+                };
+                if caret.is_some_and(|caret| lines.peek().is_some_and(|line| *line == caret)) {
+                    lines.next();
+                }
+            }
         } else {
-            echo = None;
-            after_echo = false;
-            lines.push(line.to_owned());
+            normalized.push(line.to_owned());
         }
     }
-    format!("{}\n", lines.join("\n"))
+    let normalized = format!("{}\n", normalized.join("\n"));
+    assert_eq!(
+        normalized,
+        contract(),
+        "完整帧链/异常类型/消息/空行合同不符"
+    );
+    normalized
 }

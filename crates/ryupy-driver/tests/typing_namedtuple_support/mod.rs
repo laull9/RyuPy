@@ -1,54 +1,24 @@
-//! 每应用独占Root；成功失败均保原双流/状态/source/hash。外层预算由父拥有。
+//! 每应用独占临时Root，采集原双流/状态/source；正常返回与断言展开统一清理。
 use ryupy_driver::{BuildOptions, Session};
-use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
+#[path = "../../src/test_temp.rs"]
+mod test_temp;
 mod trace;
 
-static NEXT: AtomicU64 = AtomicU64::new(0);
+// 对外保留路径接口，实际目录所有权由共享RAII根持有。
 pub(crate) struct Root {
     pub(crate) path: PathBuf,
-    success: bool,
-}
-impl Drop for Root {
-    fn drop(&mut self) {
-        let state = if self.success && !std::thread::panicking() {
-            "成功"
-        } else {
-            "失败"
-        };
-        eprintln!("typing-namedtuple{state}证据保留: {}", self.path.display());
-    }
+    _owned: test_temp::Root,
 }
 impl Root {
     pub(crate) fn new(label: &str) -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-typing-namedtuple-{label}-{}-{stamp}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed),
-        ));
-        std::fs::create_dir(&path).unwrap();
-        eprintln!("typing-namedtuple证据目录: {}", path.display());
+        let owned = test_temp::Root::new(&format!("typing-namedtuple-{label}"));
         Self {
-            path,
-            success: false,
+            path: owned.as_ref().to_path_buf(),
+            _owned: owned,
         }
     }
-    pub(crate) fn complete(&mut self) {
-        self.success = true;
-    }
-}
-fn hash(root: &Root, label: &str, bytes: &[u8]) {
-    std::fs::write(
-        root.path.join(format!("{label}.sha256")),
-        format!("{:x}\n", Sha256::digest(bytes)),
-    )
-    .unwrap();
 }
 fn save(root: &Root, label: &str, output: &Output) {
     std::fs::write(root.path.join(format!("{label}.stdout")), &output.stdout).unwrap();
@@ -58,8 +28,6 @@ fn save(root: &Root, label: &str, output: &Output) {
         format!("{:?}\n", output.status.code()),
     )
     .unwrap();
-    hash(root, &format!("{label}.stdout"), &output.stdout);
-    hash(root, &format!("{label}.stderr"), &output.stderr);
 }
 fn run(root: &Root, label: &str, command: &mut Command) -> Output {
     std::fs::write(
@@ -131,7 +99,7 @@ pub(super) fn uncaught(filename: &str, source: &str) {
     check(filename, source, &[], None);
 }
 fn check(filename: &str, source: &str, helpers: &[(&str, &str)], expected_labels: Option<&[&str]>) {
-    let mut root = Root::new(filename);
+    let root = Root::new(filename);
     let sources = root.path.join("source");
     let cp_cwd = root.path.join("cp");
     let jit_cwd = root.path.join("jit");
@@ -144,14 +112,12 @@ fn check(filename: &str, source: &str, helpers: &[(&str, &str)], expected_labels
     );
     let input = sources.join(filename);
     std::fs::write(&input, source).unwrap();
-    hash(&root, &format!("source-{filename}"), source.as_bytes());
     for (name, text) in helpers {
         assert_eq!(
             Path::new(name).file_name().and_then(|x| x.to_str()),
             Some(*name)
         );
         std::fs::write(sources.join(name), text).unwrap();
-        hash(&root, &format!("source-{name}"), text.as_bytes());
     }
     let python = python(&root, &cp_cwd);
     let mut cmd = command(&python, &cp_cwd);
@@ -207,7 +173,6 @@ fn check(filename: &str, source: &str, helpers: &[(&str, &str)], expected_labels
             panic!("build失败，不启动JIT: {error:#}");
         }
     };
-    hash(&root, "build.dll", &std::fs::read(&artifact.dll).unwrap());
     // 库build不伪造进程退出码；常规默认优化/sampling完全不变。
     let options = ryupy_driver::dotnet::RunOptions {
         cwd: Some(jit_cwd),
@@ -246,7 +211,6 @@ fn check(filename: &str, source: &str, helpers: &[(&str, &str)], expected_labels
     } else {
         assert_eq!(actual.stderr, expected.stderr);
     }
-    root.complete();
 }
 mod shape;
 pub(super) fn structure() {

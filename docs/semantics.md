@@ -1,9 +1,9 @@
 # 语言子集与语义规范
 
 > **CPython provider试点（2026-11-13）**：固定3.12.13/PBS20260623，显式provider在macOS arm64
-> 已通过18项JIT与NativeAOT/搬迁、同一联合应用和五项C#生命周期模式。API矩阵见
-> [验收驱动](../tests/cpython/README.md)。真实错版本ABI已通过，混合异常栈无陈旧帧严格门待验，其他平台与干净机待验。
-> 原生语义表与provider试点分别登记，默认配置暂不晋升。
+> 已通过21项CP/JIT与NativeAOT/搬迁、原联合应用和六项C#生命周期模式。API与冻结快照范围见
+> [验收驱动](../tests/cpython/README.md)。真实错版本ABI、handled异常双向状态、混合栈无陈旧帧均通过；
+> 其他平台、干净机与HTTPS待验。CPython provider采用显式声明入口。
 
 > 本文定义 RyuPy **当前支持**的 Python 子集，以及它与 Python 语义的对应方式。
 > 常用行为以固定版本 CPython 为准，按项目与 API 验收。已接受偏差明确登记，不支持能力明确报错；运行时才能确定的非法操作抛 Python 语义异常。未记录的差异按缺陷处理。
@@ -257,8 +257,11 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
   module/qualname/doc元数据；整链预检后建立真实CP类型。类attrs或实例UserAttributes超出该域时报NI。
   首次成功导出后该native类SetAttr/DeleteAttr报NI，CP heap type设IMMUTABLETYPE；未导出类保持原语义。
   CP派生异常沿真实MRO选择最近Runtime ExceptionFactory建立catch壳，实际type仍来自ForeignObject。
-  此新增边界正在独立JIT/NativeAOT验收，结果见验收矩阵。
-- 混合traceback按域标记并保持各域帧次序，outer包装异常已补编译调用点，其无陈旧callback帧严格门仍待复验。
+  该边界及拒绝路径已通过独立JIT/NativeAOT/搬迁验收，结果见验收矩阵。
+- handled异常状态按调用/回调作用域双向保存恢复；sys.exception与裸raise使用同一真实异常。
+  CP正常返回后修改的cause/context/suppress/args保持最新值，同handler再次进入CP和重抛均已差分通过。
+- 混合traceback按域标记并保持各域帧次序；outer包装异常保编译调用点且无已退出callback陈旧帧，
+  总帧limit0/1/-1经原traceback公开入口验收。set/frozenset跨域混合比较在两种传输模式均明确报NI。
 
 
 > 每一条都应该有对应的 e2e 用例。新发现的陷阱请追加到这里。

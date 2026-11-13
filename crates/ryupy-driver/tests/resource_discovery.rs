@@ -1,33 +1,56 @@
-//! 真源码差分候选：实际callee/未执行候选/父path与Static旧债分开验，不把冷单测当产品。
+//! 资源发现的真实CP/JIT差分；Static旧债按已登记事件合同单列，所有临时输出由RAII清理。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, Session};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
-static NEXT: AtomicU64 = AtomicU64::new(0);
-struct Tree(PathBuf);
+struct Tree(test_temp::Root);
 impl Tree {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-resource-jit-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed)
-        ));
-        std::fs::create_dir(&path).unwrap();
-        Self(path)
+        let root = test_temp::Root::new("resource-jit");
+        for name in ["source", "cp", "jit"] {
+            std::fs::create_dir(root.join(name)).unwrap();
+        }
+        Self(root)
     }
     fn write(&self, name: &str, bytes: impl AsRef<[u8]>) {
         let path = self.0.join(name);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, bytes).unwrap();
     }
+    fn source(&self, name: &str, bytes: impl AsRef<[u8]>) {
+        self.write(&format!("source/{name}"), bytes);
+    }
+    // 两臂继承等效环境，清除解释器、provider和加载器注入；脚本目录仍按正常import规则查找。
+    fn command(&self, executable: impl AsRef<std::ffi::OsStr>, cwd: &Path) -> Command {
+        let mut command = Command::new(executable);
+        command
+            .env_clear()
+            .envs(std::env::vars_os().filter(|(name, _)| {
+                let name = name.to_string_lossy();
+                !["PYTHON", "RYUPY_", "DYLD_", "LD_"]
+                    .iter()
+                    .any(|prefix| name.starts_with(prefix))
+                    && !matches!(
+                        name.as_ref(),
+                        "DOTNET_STARTUP_HOOKS" | "DOTNET_ADDITIONAL_DEPS" | "DOTNET_SHARED_STORE"
+                    )
+            }))
+            .env("LC_ALL", "C")
+            .current_dir(cwd);
+        command
+    }
     fn python(&self) -> Output {
-        let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
-        let version = Command::new(&python)
+        let python =
+            PathBuf::from(std::env::var_os("PYTHON").expect("必须显式指定固定CPython绝对路径"));
+        assert!(python.is_absolute() && python.is_file());
+        let cwd = self.0.join("cp");
+        let version = self.command(&python, &cwd)
             .args([
                 "-B",
                 "-S",
                 "-c",
-                "import sys; print('.'.join(map(str, sys.version_info[:3])))",
+                "import sys; print(sys.implementation.name); print('.'.join(map(str, sys.version_info[:3])))",
             ])
             .output()
             .unwrap();
@@ -35,15 +58,17 @@ impl Tree {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/pinned-python.txt"),
         )
         .unwrap();
+        self.save("python-version", &version);
         assert!(version.status.success() && version.stderr.is_empty());
+        assert_eq!(expected.trim(), "3.12.13");
         assert_eq!(
-            String::from_utf8(version.stdout).unwrap().trim(),
-            expected.trim()
+            version.stdout,
+            format!("cpython\n{}\n", expected.trim()).as_bytes()
         );
-        let output = Command::new(python)
+        let output = self
+            .command(python, &cwd)
             .args(["-B", "-S"])
-            .arg(self.0.join("entry.py"))
-            .current_dir(&self.0)
+            .arg(self.0.join("source/entry.py"))
             .output()
             .unwrap();
         self.save("cp", &output);
@@ -59,14 +84,14 @@ impl Tree {
             format!("{:?}", output.status.code()),
         );
     }
-    fn jit(&self, label: &str, includes: &[&str], expected: &[u8], discovered: bool) {
+    fn jit(&self, label: &str, includes: &[&str], discovered: bool) -> Output {
         let mut session = Session {
             include_modules: includes.iter().map(|name| (*name).into()).collect(),
             ..Session::default()
         };
         let options = BuildOptions {
-            input: self.0.join("entry.py"),
-            out_dir: self.0.join(label),
+            input: self.0.join("source/entry.py"),
+            out_dir: self.0.join("build").join(label),
             aot: false,
             search_paths: vec![],
         };
@@ -92,28 +117,21 @@ impl Tree {
             .unwrap();
         assert_eq!(child.get("resource_discovery").is_some(), discovered);
         let dotnet = std::env::var_os("DOTNET").unwrap_or_else(|| "dotnet".into());
-        let output = Command::new(dotnet)
+        let cwd = self.0.join("jit").join(label);
+        std::fs::create_dir(&cwd).unwrap();
+        let output = self
+            .command(dotnet, &cwd)
             .arg(&artifact.dll)
-            .current_dir(&self.0)
             .output()
             .unwrap();
         self.save(label, &output);
-        assert_eq!(
-            (
-                output.status.code(),
-                output.stdout.as_slice(),
-                output.stderr.as_slice()
-            ),
-            (Some(0), expected, &[][..])
-        );
+        output
     }
 }
-impl Drop for Tree {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
+fn equal_streams(actual: &Output, expected: &Output) {
+    assert_eq!(actual.status.code(), expected.status.code());
+    assert_eq!(actual.stdout, expected.stdout);
+    assert_eq!(actual.stderr, expected.stderr);
 }
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -123,16 +141,16 @@ fn fixture(name: &str) -> PathBuf {
 #[test]
 fn actual_calls_rebinding_and_dead_nonempty_candidates_preserve_python_order() {
     let tree = Tree::new();
-    tree.write("pkg/__init__.py", "print('parent')\n");
-    tree.write("pkg/data/__init__.py", "\n");
-    tree.write("pkg/data/sample.txt", "resource-data\n");
-    tree.write(
+    tree.source("pkg/__init__.py", "print('parent')\n");
+    tree.source("pkg/data/__init__.py", "\n");
+    tree.source("pkg/data/sample.txt", "resource-data\n");
+    tree.source(
         "pkg/nonempty/__init__.py",
         "raise RuntimeError('must not import')\n",
     );
-    tree.write("pkg/broken/__init__.py", "def bad(:\n");
-    tree.write("pkg/encoded/__init__.py", "# coding: no-such-codec\n");
-    tree.write(
+    tree.source("pkg/broken/__init__.py", "def bad(:\n");
+    tree.source("pkg/encoded/__init__.py", "# coding: no-such-codec\n");
+    tree.source(
         "entry.py",
         r#"import pkg
 import sys
@@ -158,14 +176,14 @@ print('after', 'pkg.data' in sys.modules)
 "#,
     );
     let cp = tree.python();
-    tree.jit("jit", &[], &cp.stdout, true);
+    equal_streams(&tree.jit("jit", &[], true), &cp);
 }
 #[test]
 fn automatically_registered_package_still_obeys_empty_parent_path() {
     let tree = Tree::new();
-    tree.write("pkg/__init__.py", "");
-    tree.write("pkg/data/__init__.py", "\n");
-    tree.write(
+    tree.source("pkg/__init__.py", "");
+    tree.source("pkg/data/__init__.py", "\n");
+    tree.source(
         "entry.py",
         r#"import pkg
 import sys
@@ -179,7 +197,7 @@ print('cached', 'pkg.data' in sys.modules)
 "#,
     );
     let cp = tree.python();
-    tree.jit("jit", &[], &cp.stdout, true);
+    equal_streams(&tree.jit("jit", &[], true), &cp);
 }
 #[test]
 fn original_static_collision_keeps_correct_default_and_records_existing_rebound_debt() {
@@ -189,15 +207,60 @@ fn original_static_collision_keeps_correct_default_and_records_existing_rebound_
         ("pkg/__init__.py", "pkg/__init__.py"),
         ("pkg/data/__init__.py", "pkg/data/__init__.py"),
     ] {
-        tree.write(target, std::fs::read(fixture(original)).unwrap());
+        tree.source(target, std::fs::read(fixture(original)).unwrap());
     }
     let cp = tree.python();
+    static_events(&cp, true);
+    let default = tree.jit("default", &[], true);
+    static_events(&default, false);
+    let included = tree.jit("included", &["pkg.data"], false);
+    static_events(&included, false);
+    equal_streams(&default, &included);
+}
+
+// ADR0146：Static仍用词法来源；真实CP rebound会求marker真值，旧Static路径直接正常返回。
+// 仅核fixture声明的五条记录和每个事件，预期不依赖任何候选输出或旧golden。
+fn static_events(output: &Output, python: bool) {
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty(), "{:?}", output.stderr);
+    let text = std::str::from_utf8(&output.stdout).unwrap();
+    assert!(text.ends_with('\n'));
+    let lines: Vec<_> = text.lines().collect();
+    assert_eq!(lines.len(), 5);
+    let writes = ["'before-out',", "'write', 'payload'", "'write', '\\n'"];
+    let mut completed = writes.to_vec();
+    completed.push("'after-out',");
+    static_record(lines[0], "default", "ok", &completed);
+    if python {
+        let mut raised = writes.to_vec();
+        raised.extend(["'module-bool',", "'caught', 'module-bool-marker'"]);
+        static_record(lines[1], "rebound", "runtime-error", &raised);
+    } else {
+        static_record(lines[1], "rebound", "ok", &completed);
+    }
+    assert_eq!(lines[2], "S data-cached False");
+    assert_eq!(lines[3], "S done");
+    assert_eq!(lines[4], "E done");
+}
+
+fn static_record(line: &str, label: &str, outcome: &str, events: &[&str]) {
+    let mut fields = line.splitn(5, ' ');
+    assert_eq!(fields.next(), Some("S"));
+    assert_eq!(fields.next(), Some(label));
+    assert_eq!(fields.next(), Some(outcome));
     assert_eq!(
-        cp.stdout,
-        std::fs::read(fixture("static.cp.stdout")).unwrap()
+        fields.next(),
+        Some("True"),
+        "out.__module__必须仍是原赋值对象"
     );
-    let legacy = std::fs::read(fixture("static.legacy.stdout")).unwrap();
-    assert_ne!(cp.stdout, legacy, "不可把既有Static rebound差异冒充CP一致");
-    tree.jit("default", &[], &legacy, true);
-    tree.jit("included", &["pkg.data"], &legacy, false);
+    let observed: Vec<_> = fields
+        .next()
+        .unwrap()
+        .strip_prefix("[(")
+        .unwrap()
+        .strip_suffix(")]")
+        .unwrap()
+        .split("), (")
+        .collect();
+    assert_eq!(observed, events);
 }

@@ -1,5 +1,7 @@
 //! locals已登记支持边界，不计入CPython一致性用例；运行时必须明确NI而非借用调用者缓存。
 //! 独立保存源码、构建诊断和JIT原始流，正例仅用于锁定真实用户遮蔽。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_mir::{Callee, Constant, Operand, RuntimeFn, Rvalue, Statement};
 
 const BOUNDARIES: &str = r#"
@@ -74,15 +76,7 @@ print('shadow.module', locals(6))
 "#;
 
 fn run(label: &str, source: &str, expected: &str) {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-locals-boundary-{label}-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new(&format!("function-locals-boundaries-{label}"));
     eprintln!("locals边界证据: {}", root.display());
     let input = root.join("boundary.py");
     std::fs::write(&input, source).unwrap();

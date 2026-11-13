@@ -1,18 +1,12 @@
 //! Ryu专用Unsupported诊断，锁真实用户函数调用行和完整context链；不是CP同错误差分。
 //! 只构建一个新应用并运行一次；完整原始证据保留，运行预算由外层验证命令统一约束。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, Session};
 
 #[test]
 fn unsupported_regex_keeps_exact_user_call_lines_and_original_context() {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-regex-unsupported-{}-{stamp}",
-        std::process::id()
-    ));
-    std::fs::create_dir(&root).unwrap();
+    let root = test_temp::Root::new("regex-unsupported-error");
     eprintln!("正则冷错误证据: {}", root.display());
     let input = root.join("unsupported_context.py");
     std::fs::write(

@@ -46,12 +46,7 @@ mod tests {
     use super::*;
     #[test]
     fn default_source_resolver_never_borrows_another_root_child() {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root =
-            std::env::temp_dir().join(format!("ryupy-resolver-{}-{stamp}", std::process::id()));
+        let root = crate::test_temp::Root::new("module-paths");
         let first = root.join("first");
         let second = root.join("second");
         for path in [&first, &second] {
@@ -68,6 +63,5 @@ mod tests {
         );
         std::fs::write(first.join("pkg.py"), "").unwrap();
         assert!(resolve(&[first, second], "pkg.child").is_none());
-        std::fs::remove_dir_all(root).unwrap();
     }
 }

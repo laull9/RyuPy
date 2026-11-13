@@ -9,13 +9,20 @@ impl Root {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let serial = NEXT.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!(
-            "ryupy-{label}-{}-{stamp}-{serial}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&path).unwrap();
-        Self(path.canonicalize().unwrap())
+        for _ in 0..128 {
+            let serial = NEXT.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "ryupy-{label}-{}-{stamp}-{serial}",
+                std::process::id()
+            ));
+            match std::fs::create_dir(&path) {
+                Ok(()) => return Self(path.canonicalize().unwrap()),
+                // 只重试名称占用；其他IO错误直接呈现，既存目录保持原样。
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => panic!("无法建立测试临时根：{error}"),
+            }
+        }
+        panic!("测试临时根连续128个名称被占用");
     }
 }
 impl std::ops::Deref for Root {

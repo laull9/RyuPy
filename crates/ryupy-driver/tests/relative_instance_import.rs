@@ -1,4 +1,6 @@
 //! 显式普通模块相对导入的真实CP/PE差分与自动选择不扩域合同。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, ModuleEnvironmentPolicy, Session};
 use std::process::Command;
 
@@ -13,15 +15,7 @@ fn relative_instance_import_preserves_fromlist_and_bindings() {
 fn compare(entry: &str) {
     let source =
         ryupy_driver::runtime::workspace_root().join("tests/fixtures/module_relative_import");
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = std::env::temp_dir().join(format!(
-        "ryupy-relative-{}-{stamp}-{entry}",
-        std::process::id()
-    ));
-    std::fs::create_dir_all(&root).unwrap();
+    let root = test_temp::Root::new("relative-instance-import");
     let expected = Command::new(std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into()))
         .arg("-B")
         .arg(source.join(entry))

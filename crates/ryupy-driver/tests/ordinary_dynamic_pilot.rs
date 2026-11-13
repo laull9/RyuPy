@@ -1,27 +1,12 @@
 //! 首包原源CP/真实PE差分：候选普通import与同源公开loader均复用唯一环境。
 //! 不覆盖已有case；feature关闭的发行默认保持原路径，测试用显式Session隔离候选。
+#[path = "../src/test_temp.rs"]
+mod test_temp;
 use ryupy_driver::{BuildOptions, ModuleEnvironmentPolicy, Session};
-use std::{
-    path::{Path, PathBuf},
-    process::Command,
-};
-struct Root(PathBuf);
-impl Drop for Root {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
-    }
-}
+use std::{path::Path, process::Command};
+struct Root(test_temp::Root);
 fn compare(directory: &Path, entry: &str, selected: &[&str]) {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let root = Root(
-        std::env::temp_dir().join(format!("ryupy-p1-contract-{}-{stamp}", std::process::id())),
-    );
-    std::fs::create_dir(&root.0).unwrap();
+    let root = Root(test_temp::Root::new("ordinary-dynamic"));
     let input = directory.join(entry);
     let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
     let expected = Command::new(python)
@@ -130,14 +115,7 @@ fn ordinary_dynamic_keeps_complete_defaults_reflection_boundary() {
     let input = ryupy_driver::runtime::workspace_root()
         .join("tests/fixtures/module_environment_pilot/callee_defaults_owner/entry.py");
     for automatic in [false, true] {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = Root(
-            std::env::temp_dir().join(format!("ryupy-p1-defaults-{}-{stamp}", std::process::id())),
-        );
-        std::fs::create_dir(&root.0).unwrap();
+        let root = Root(test_temp::Root::new("ordinary-dynamic"));
         let mut session = Session {
             module_environment_policy: if automatic {
                 ModuleEnvironmentPolicy::OrdinaryDynamicPilot

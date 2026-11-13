@@ -1,23 +1,17 @@
 //! 真实PE与独立CLR迭代器联合测试：区分Next/Current，证明unused目标不能删Current。
-//! 四场景每次新进程，原始流和实际输入PE永久保存在本轮独占证据根。
+//! 四场景每次新进程；原始流与输入PE位于独占外部临时根，退出统一清理。
 use super::{
     compile_linked, dotnet,
     foreach_accumulator_tests::{holders, session},
     runtime,
 };
-use std::{fs, path::PathBuf, process::Command};
+use std::{fs, process::Command};
 
 #[test]
 fn foreach_native_current_effects_and_exceptions_survive() -> anyhow::Result<()> {
     let workspace = runtime::workspace_root();
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_nanos();
-    let base = std::env::var_os("RYUPY_FOREACH_EVIDENCE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| workspace.join("target/foreach-new-run"));
-    let root = base.join(format!("current-{}-{stamp}", std::process::id()));
-    fs::create_dir_all(root.join("source"))?;
+    let root = crate::test_temp::Root::new("foreach-current");
+    fs::create_dir(root.join("source"))?;
     fs::write(root.join("source/entry.py"), "import subject\n")?;
     fs::write(
         root.join("source/subject.py"),

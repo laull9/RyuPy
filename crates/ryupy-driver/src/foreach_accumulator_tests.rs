@@ -2,29 +2,15 @@
 use super::*;
 use ryupy_mir::{Callee, ModuleExecutionKind, RuntimeFn, Rvalue, Statement};
 
-pub(super) struct Tree(pub PathBuf);
+pub(super) struct Tree(pub crate::test_temp::Root);
 impl Tree {
     pub(super) fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "ryupy-foreach-reconstruction-{}-{stamp}",
-            std::process::id()
-        ));
-        std::fs::create_dir(&root).unwrap();
-        Self(root)
+        Self(crate::test_temp::Root::new("foreach-reconstruction"))
     }
     pub(super) fn write(&self, name: &str, text: &str) {
         let path = self.0.join(name);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, text).unwrap();
-    }
-}
-impl Drop for Tree {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 pub(super) fn session(enabled: bool) -> Session {

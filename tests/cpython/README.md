@@ -3,7 +3,7 @@
 本目录保存手写程序、固定依赖和驱动。每次执行先用 CPython 3.12.13 运行同一程序取得
 stdout、stderr 和退出码，再运行 RyuPy 编译入口。各执行臂使用独立 cwd；联合应用还各自
 创建数据库、重置 loopback HTTP 请求计数。输出默认写仓库外临时目录并清理，`--keep`
-仅用于显式失败调试。本次固定20个Python程序及6种独立C#宿主模式；最终冻结版全量结果登记在下表。
+仅用于显式失败调试。本次固定21个Python程序及6种独立C#宿主模式；最终冻结版全量结果登记在下表。
 
 ## 发行和依赖锁
 
@@ -45,8 +45,9 @@ uv安装输入缺少上游底层组件许可，驱动额外要求同一release�
 | stream_sharing | 编译print与CP sys.stdout/stderr重绑共享真实流 | macOS arm64：JIT/NativeAOT/搬迁通过 |
 | exception_laziness | 捕获不执行用户异常字符串/属性钩子，显式str才触发 | macOS arm64：JIT/NativeAOT/搬迁通过 |
 | exit_none/int/text/tuple | SystemExit真实code、文本错误流与退出码 | macOS arm64：JIT/NativeAOT/搬迁通过 |
-| exceptions_state | from None、已有Foreign异常双向改链/args、CP正常返回后重抛刷新 | JIT/NativeAOT/搬迁通过，待最终同版全量 |
-| mixed_traceback | 未捕获编译回调→CP包装异常的链、双域标记和帧顺序，outer无陈旧callback帧 | 加强JIT通过，待最终NativeAOT/搬迁 |
+| exceptions_state | from None、已有Foreign异常双向改链/args、CP正常返回后重抛刷新 | macOS arm64：JIT/NativeAOT/搬迁通过 |
+| exception_handled_state | sys.exception、双向裸raise、嵌套重入/失败恢复、同handler内CP改链后再读和重抛 | macOS arm64：JIT/NativeAOT/搬迁通过 |
+| mixed_traceback | 未捕获编译回调→CP包装异常的链、双域标记和帧顺序，outer无陈旧callback帧 | macOS arm64：JIT/NativeAOT/搬迁通过 |
 | numpy_arrays | 真实ndarray/dtype、视图owner与别名、向量运算、Python异常 | macOS arm64：JIT/NativeAOT/搬迁通过 |
 | numpy_callbacks | 真实frompyfunc调用编译函数、异常实例往返、重复创建 | macOS arm64：JIT/NativeAOT/搬迁通过 |
 | lifecycle/steady-state | 256批显式跨堆断环、注册/句柄/释放队列稳态 | macOS arm64：C#宿主探针通过 |
@@ -57,15 +58,25 @@ uv安装输入缺少上游底层组件许可，驱动额外要求同一release�
 | lifecycle/mixed-limit | Runtime格式化双域总帧limit0/1/-1，chain=False保异常本体 | macOS arm64：C#宿主探针通过 |
 | stdlib_service | 原HTTP/编码/压缩/JSON/资源/SQLite应用、数据库副作用 | macOS arm64：JIT/NativeAOT/搬迁通过 |
 
-2026-11-13，固定PBS/NumPy与显式`synchronized`：18个普通Python探针最新同次JIT全过，混合栈加强门待复验；
-18个普通探针NativeAOT分批原位/搬迁全过；同次三流完整比较，SystemExit保退出码。
-六项C#宿主模式均通过：先独立暖机，再逐批严格比较句柄/注册/队列，无强制GC。
-共享intern消息的首次身份缓存单独暖机；唯一动态消息每批显式释放，保留参数别名。
-原联合应用CP/JIT/NativeAOT/搬迁、数据库副作用、资源缺失与sqlite3包缺失负例完整通过。
-mixed_traceback已通过加强JIT门：outer无已退出callback陈旧帧，cause与outer各域顺序明确。
-exceptions_state新增双向改链/args与正常返回后重抛，JIT/NativeAOT搬迁通过；最终20全量待冻结版完成。首次exit_int AOT发布曾有ILC `Invalid handle`，保留外部诊断后稳定单项复跑通过。
-Linux x64、Windows x64、无Python/.NET/SDK的干净目标机均待验收。完整make check及固定20
-默认native逐ID保护门另行登记；上述桥接应用通过不增加纯native项目分子。
+2026-11-13，macOS arm64固定PBS/NumPy与显式`synchronized`：21个Python程序在冻结v3
+快照完整通过当次CP/JIT/NativeAOT原位与搬迁；SystemExit保留真实退出码，混合栈按双域合同检查。
+v4仅修改直接C绑定三处失败诊断字符串，另有一行接口注释；复验21项CP/JIT、六项生命周期、
+原联合应用完整链及C ABI专项均通过。两份65文件私有快照的大小/mtime在门前后保持一致。
+六项C#宿主先独立暖机，再逐批严格比较句柄/注册/队列，无强制GC；动态唯一消息显式释放。
+原联合应用业务输入保持原样，数据库/HTTP副作用、资源与sqlite3包负例全过。
+默认native固定20门完整有效：13 native、6 unsupported、1 failed，保护11全部保留。
+2026-11-14完整make check已exit0，结论见[人工验收登记](../../docs/validation/cpython-provider-2026-11-13.md)。
+Linux x64、Windows x64、无Python/.NET/SDK干净目标机与HTTPS仍待验。
+首次exit_int AOT发布曾有ILC `Invalid handle`；稳定单项及最终21全量均通过，该次根因仍未知。
+后续embedded PDB和依赖闭包分发改善另有PE读取验证。
+
+## 声明示例
+
+[provider.example.json](provider.example.json) 固定PBS20260623 macOS arm64完整许可清单。
+先由`prepare.py`准备官方full归档材料，将其`PYTHON.json`和`licenses/`连同基础发行部署到
+同一显式`distribution_root`，然后只替换示例根路径。`modules=[]`表示无额外第三方包；
+标准库由`stdlib_provider="cpython"`整体归属。默认`proxy`传递活代理；需要精确list/dict布局的
+应用显式改为`synchronized`，本目录主矩阵使用此模式。NumPy还需额外模块声明与包载荷。
 
 ## 重跑
 
