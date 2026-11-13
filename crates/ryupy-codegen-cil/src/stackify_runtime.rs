@@ -282,6 +282,7 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         | RuntimeFn::IsModule
         | RuntimeFn::CallCapturedMethod
         | RuntimeFn::PrepareMethod
+        | RuntimeFn::ContextMethod
         | RuntimeFn::SetAdd
         | RuntimeFn::SetExtend
         | RuntimeFn::ListAppend

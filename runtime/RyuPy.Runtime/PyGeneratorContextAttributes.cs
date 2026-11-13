@@ -21,7 +21,11 @@ public sealed partial class PyGeneratorContext
     {
         if (name == "__dict__") return _attributes;
         if (_attributes.TryGet(name, out object? value)) return value;
-        return name switch
+        return GetTypeMethod(name);
+    }
+
+    // 类型槽单独解析：隐式协议不会读取公开可写的实例字典。
+    internal object? GetTypeMethod(string name) => name switch
         {
             "__class__" => PyType.Get(TypeName),
             "__enter__" => new BoundMethod(this, EnterMethodFunction),
@@ -30,7 +34,6 @@ public sealed partial class PyGeneratorContext
             "_recreate_cm" => new BoundMethod(this, RecreateMethodFunction),
             _ => throw Missing(name),
         };
-    }
 
     /// <inheritdoc/>
     public override void SetAttr(string name, object? value)

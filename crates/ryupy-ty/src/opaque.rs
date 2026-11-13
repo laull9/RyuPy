@@ -40,6 +40,7 @@ pub(crate) fn safe_uses(function: &Function, facts: &TypeckResults) -> bool {
             | ExprKind::ClassFreeLocal(_) => vec![],
             ExprKind::ClassLookup { fallback, .. } => vec![*fallback],
             ExprKind::Unary { operand, .. }
+            | ExprKind::ContextMethod { base: operand, .. }
             | ExprKind::Attribute { base: operand, .. }
             | ExprKind::Starred(operand)
             | ExprKind::YieldFrom(operand) => vec![*operand],

@@ -189,6 +189,8 @@ pub enum RuntimeFn {
     DynGetAttr,
     /// `PyOps.PrepareMethod(object, string) -> object`：实参暂停前绑定方法。
     PrepareMethod,
+    /// `PyOps.ContextMethod(object, string) -> object`：按类型绑定上下文槽。
+    ContextMethod,
     /// 历史ABI：有界接收者在实参前冻结属性目标，其余原样返回。
     CaptureModuleTarget,
     /// 历史ABI：RequiresEarlyMethodCapture判据；不是Python模块类型判断，无用户回调。

@@ -7,7 +7,8 @@
 上下文状态/方法放在 `PyGeneratorContextAttributes.cs`，生命周期继续使用
 `PyContextManager.cs`。架构取舍见
 [ADR-0170](../adr/0170-filesystem-as-file-context.md)。driver/binding/resources
-组合构建实现及公共 TODO/roadmap/stdlib/semantics 本轮未修改。
+组合构建实现及公共文档由主代理后续整合；下文记录初始子任务结果。
+评审修订的最终验收见[上下文协议证据](../validation/aot-context-protocol-review/README.md)。
 
 ## 复现
 
@@ -32,7 +33,7 @@ Native runner 原流、退出码与结果保存在打印的唯一目录下 `logs
 执行搬迁二进制，保留 bundle 和原流；删除数据负例会使保留 bundle 缺少 data.txt。
 重跑请调用 runner 产生新目录。
 
-## 本轮结果
+## 初始子任务结果
 
 - `make runtime`：通过。
 - C#：新增 7 项行为及已有资源/上下文 19 项，26/26 通过；另增两项精确 ABI 合同。
@@ -49,7 +50,7 @@ Native runner 原流、退出码与结果保存在打印的唯一目录下 `logs
 
 本轮在已安装 SDK 的宿主机执行，无 SDK 目标环境验收仍待完成。
 
-## 请主代理整合的公共条目
+## 已由主代理整合的公共条目
 
 1. TODO：新增已完成的 `importlib.resources.as_file` 文件系统 Path 竖切；范围含
    身份、目录/缺失路径、单次状态、异常传播、公开状态/绑定、真实显式资源 Native 搬迁。
@@ -67,7 +68,7 @@ Native runner 原流、退出码与结果保存在打印的唯一目录下 `logs
 
 不改固定项目通过数；本轮未运行第三方项目完整验收、跨平台或性能门。
 
-现有设施的后续核验点：`ryupy-hir/src/with.rs` 目前以普通属性读取去糖
-`__enter__/__exit__`，CPython 的隐式 with 从类型查找特殊方法。对上下文实例
-重新绑定这两个特殊方法的域，本轮未测试；通用类型槽/类级反射留给独立协议竖切。
-本轮公开状态验收覆盖 args/kwds/func/gen/实例字典和已保存方法的真实绑定。
+评审后补齐上下文协议：with 的 HIR ContextMethod 与 ContextDecorator 共用
+PyOps.ContextMethod，按类型绑定并固定 enter/exit。实例覆盖仅影响显式属性调用。
+装饰器每次读取公开 `_recreate_cm`，保留替换函数的副作用、异常及返回上下文。
+新增 `tests/cases/resources_as_file/protocol` 差分，详见 ADR0170 的评审修订。

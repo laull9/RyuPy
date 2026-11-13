@@ -8,8 +8,9 @@
 //!
 //! ```text
 //! mgr = ctx
-//! exit = mgr.__exit__          # CPython 同样在 __enter__ 之前取出
-//! value = mgr.__enter__()
+//! enter = context_method(mgr, "__enter__")
+//! exit = context_method(mgr, "__exit__")
+//! value = enter()
 //! x = value
 //! handled = False
 //! try:
@@ -85,32 +86,34 @@ impl StmtLowerCtx<'_> {
         let range = first.context_expr.range();
         let mut out = Vec::new();
 
-        // 1) 先把上下文表达式求值一次，再读取 `__exit__` 与调用 `__enter__`。
+        // 1) 上下文求值一次，依次绑定类型的 enter/exit，再调用 enter。
         //    求值顺序与 CPython 一致，异常时不会重复求值上下文表达式。
         let mgr = self.alloc_with_temp("mgr", range);
         let context = self.lower_expr(&first.context_expr);
         out.push(self.push_assign_local(mgr, context, range));
 
+        let enter = self.alloc_with_temp("enter", range);
+        let mgr_for_enter = self.local_expr(mgr, range);
+        let enter_attr = self.alloc_with_expr(
+            ExprKind::ContextMethod {
+                base: mgr_for_enter,
+                name: Name::from("__enter__"),
+            },
+            range,
+        );
+        out.push(self.push_assign_local(enter, enter_attr, range));
         let exit = self.alloc_with_temp("exit", range);
         let mgr_for_exit = self.local_expr(mgr, range);
         let exit_attr = self.alloc_with_expr(
-            ExprKind::Attribute {
+            ExprKind::ContextMethod {
                 base: mgr_for_exit,
                 name: Name::from("__exit__"),
             },
             range,
         );
         out.push(self.push_assign_local(exit, exit_attr, range));
-
         let value = self.alloc_with_temp("value", range);
-        let mgr_for_enter = self.local_expr(mgr, range);
-        let enter_attr = self.alloc_with_expr(
-            ExprKind::Attribute {
-                base: mgr_for_enter,
-                name: Name::from("__enter__"),
-            },
-            range,
-        );
+        let enter_attr = self.local_expr(enter, range);
         let enter_call = self.alloc_with_expr(
             ExprKind::Call {
                 callee: enter_attr,

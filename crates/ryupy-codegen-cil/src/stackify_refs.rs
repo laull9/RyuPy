@@ -30,6 +30,7 @@ pub struct RuntimeRefs {
     pub(crate) generators: crate::generator_refs::GeneratorRefs,
     pub(crate) origins: crate::origin_refs::OriginRefs,
     pub prepare_method: MethodRefIndex,
+    pub context_method: MethodRefIndex,
     pub str_concat: MethodRefIndex,
     pub floor_div_i64: MethodRefIndex,
     pub mod_i64: MethodRefIndex,
@@ -193,6 +194,7 @@ pub struct RuntimeRefs {
 pub(crate) fn runtime_method(callee: RuntimeFn, refs: &RuntimeRefs) -> MethodRefIndex {
     match callee {
         RuntimeFn::PrepareMethod => refs.prepare_method,
+        RuntimeFn::ContextMethod => refs.context_method,
         RuntimeFn::CaptureModuleTarget => refs.bindings.capture_module_target,
         RuntimeFn::IsModule => refs.bindings.is_module,
         RuntimeFn::CallCapturedMethod => refs.bindings.call_captured_method,

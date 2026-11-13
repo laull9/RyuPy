@@ -122,7 +122,7 @@ public partial class PyTraceStateArtifactTests
             expected, actual = after,
             baselineSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(baseline!))),
             candidateSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(candidate))),
-            scope = "旧1719逐字段保留；本轮仅新增生成器上下文SetAttr/DelAttr两条公开覆盖；不覆盖默认参数、常量、全部属性或完整程序集scope" });
+            scope = "旧1719逐字段保留；新增生成器上下文SetAttr/DelAttr及ContextMethod类型槽入口；不覆盖默认参数、常量、全部属性或完整程序集scope" });
         Assert.True(PreservesBaselineAbi(before, after), "历史ABI、精确V1、冷来源、metadata或默认builtins、XML异常或默认来源/类工厂冷增量不符；见baseline-abi.json。");
     }
 
@@ -248,7 +248,7 @@ public partial class PyTraceStateArtifactTests
     internal static bool PreservesBaselineAbi(string[] before, string[] after,
         string[] v1, string[] source, string[] metadata, string[] builtin, string[] xml, string[] deployment, string[] factory, string[] globals, string[] mi, string[] runtimeDerived)
     {
-        if (before.Length != 1659 || after.Length != 1721
+        if (before.Length != 1659 || after.Length != 1722
             || v1.Length != 12 || source.Length != 4 || metadata.Length != 24
             || !builtin.SequenceEqual(BuiltinPublicAdditions()) || !xml.SequenceEqual(XmlPublicAdditions())
             || !deployment.SequenceEqual(DefaultSourcePublicAdditions())

@@ -20,9 +20,16 @@
 重建读取当前公开参数，`gen` 重绑会改变后续恢复对象，字典不是状态快照。
 公开方法固定接收者，保留共享 `__func__` 与 `__self__`，相等及字典键按接收者/函数身份判断；`__exit__` 接受
 `typ/value/traceback` 关键字，并沿用 Python 函数的 self 参数计数。
-这些补全也服务已有 `contextlib.contextmanager`，未新增 RuntimeFn 或编译层依赖。
-CLR ABI 只新增上下文公开 SetAttr/DelAttr 两条覆盖；as_file 调度入口为 internal。
-精确 ABI 清单与合成反例同步扩为 1721，旧 1719 条及 V1 专属十二条合同保留。
+这些补全也服务已有 `contextlib.contextmanager`。初始实现新增上下文 SetAttr/DelAttr 两条覆盖；
+as_file 调度入口为 internal。评审修订再加入 `PyOps.ContextMethod(object,string)`，
+对应独立 HIR 节点与 RuntimeFn，保持原分层。精确 ABI 清单与合成反例同步扩为 1722，
+旧 1719 条及 V1 专属十二条合同保留。
+
+评审修订：隐式 with 按类型绑定 enter、exit，再调用 enter；不读取实例字段或
+`__getattr__`。已有普通类的继承、staticmethod/classmethod 和 property 复用现有绑定设施，
+原生生成器上下文从固定方法表读取。显式属性访问仍支持实例覆盖。ContextDecorator
+每次调用公开 `_recreate_cm`，随后复用统一上下文协议，保留替换的副作用、异常、
+返回上下文和清理行为。D008 在已支持对象协议内关闭；任意自定义描述符与类级反射仍待后续扩展。
 
 ## 错误与边界
 

@@ -60,8 +60,8 @@ public partial class PyTraceStateArtifactTests
     public void ProducedRuntimeDerivedAssemblyHasExactSingleAdditionAndTotal()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyOps).Assembly.Location);
-        Assert.Equal(1721, actual.Length);
-        Assert.Equal(1721, actual.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(1722, actual.Length);
+        Assert.Equal(1722, actual.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(RuntimeDerivedPublicAdditions(), actual.Where(x => x.Contains(":PrepareRuntimeDerivedClass:", StringComparison.Ordinal)).ToArray());
     }
 }

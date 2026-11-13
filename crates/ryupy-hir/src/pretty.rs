@@ -525,6 +525,9 @@ pub(crate) fn dump_expr(module: &Module, body: &Body, expr_id: ExprId) -> String
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
+        ExprKind::ContextMethod { base, name } => {
+            format!("context_method({}, {name})", dump_expr(module, body, *base))
+        }
         ExprKind::Attribute { base, name } => format!("{}.{name}", dump_expr(module, body, *base)),
         ExprKind::FString(parts) => {
             let inner: Vec<String> = parts

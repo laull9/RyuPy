@@ -212,6 +212,19 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::PreparedCall { callee, args } => {
                 self.build_prepared_call(*callee, args, expr_id)
             }
+            ExprKind::ContextMethod { base, name } => {
+                let receiver = self.build_expr(*base);
+                let receiver = self.coerce(receiver, &self.ty_of(*base), &MirType::Dynamic);
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ContextMethod),
+                        args: vec![receiver, Operand::Const(Constant::Str(name.to_string()))],
+                    },
+                });
+                Operand::Local(dest)
+            }
             ExprKind::Attribute { base, name } => {
                 let base_op = self.build_expr(*base);
                 let base_ty = self.ty_of(*base);

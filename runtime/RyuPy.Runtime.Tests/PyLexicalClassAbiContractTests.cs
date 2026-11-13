@@ -1,4 +1,4 @@
-// 独立固定六项许可的合成反例；真实PE仍由原S1门逐字段读取并验1721，不以本类替代。
+// 独立固定六项许可的合成反例；真实PE仍由原S1门逐字段读取并验1722，不以本类替代。
 using System;
 using System.Linq;
 using Xunit;
@@ -29,8 +29,8 @@ public class PyLexicalClassAbiContractTests
         Assert.Equal(6, factory.Length); Assert.Equal(6, factory.Distinct(StringComparer.Ordinal).Count());
         Assert.Single(factory.Where(x => x.StartsWith("T:", StringComparison.Ordinal)));
         Assert.Equal(5, factory.Count(x => x.StartsWith("M:", StringComparison.Ordinal)));
-        var old = After(before, []); Assert.Equal(1715, old.Length);
-        var after = After(before, factory); Assert.Equal(1721, after.Length);
+        var old = After(before, []); Assert.Equal(1716, old.Length);
+        var after = After(before, factory); Assert.Equal(1722, after.Length);
         Assert.True(A.PreservesBaselineAbi(before, after));
         Assert.True(A.PreservesBaselineAbi(before.Reverse().ToArray(), after.Reverse().ToArray()));
         Assert.False(A.PreservesBaselineAbi(before, old));

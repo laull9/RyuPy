@@ -493,8 +493,9 @@ repr 与 CP 不同，两个完整正例保持 pending，不能称完整兼容。
 
 ```text
 mgr = ctx
-exit = mgr.__exit__          # CPython 同样在 __enter__ 之前取出
-value = mgr.__enter__()
+enter = context_method(mgr, "__enter__")
+exit = context_method(mgr, "__exit__")
+value = enter()
 x = value
 handled = False
 try:
@@ -512,9 +513,10 @@ finally:
 正常落下、`return`、`break`、`continue` 与异常路径都只调用一次 `__exit__`。
 `__exit__` 返回真值抑制异常；清理时再次抛出会替换原异常（与 CPython 一致）。
 
-已知边界：这里用 `mgr.__enter__` / `mgr.__exit__` 的普通属性查找（便于复用现有属性协议），
-而 CPython 的 `with` 机制按类型槽查找。实例字典里显式遮蔽 `__enter__` / `__exit__` 属于冷门写法，
-当前行为不同，登记为偏差 D008。
+`context_method` 按类型解析并绑定，先获取 enter、再获取 exit、最后调用 enter。
+普通类继承方法和 property、已有原生上下文均走此入口；实例字段及 `__getattr__` 不参与查找。
+显式 `cm.__enter__()` 继续采用普通属性协议。D008 已修复，差分见
+`tests/cases/resources_as_file/protocol`；异常 traceback 参数仍沿现有 None 边界。
 
 ## 6. 兼容范围与性能实现
 
@@ -783,7 +785,7 @@ int的模块级context→函数调用错误仍逐项核完整帧和链顺序，�
 
 `as_file(Path)` 不检查路径存在性；进入保持对象身份，目录及缺失路径原样进入，读取错误沿 Path IO 抛出。退出保留原资源、传播原异常；重复进入报 AttributeError，正常及重复退出返回 False。首次进入依次删除公开 args/kwds/func；gen 与实例字典保存真实可写状态。绑定方法保持 self 和共享函数身份，相等/hash 与字典键行为按两者身份计算。
 
-具有 is_dir 的其它资源载体明确报 NotImplementedError，int/str/None 报缺少 is_dir 的 AttributeError。zip、自定义 Traversable 和完整 singledispatch 待实现。现有 with 去糖的实例特殊方法重绑边界仍待通用协议竖切处理。见 [ADR0170](adr/0170-filesystem-as-file-context.md)。
+具有 is_dir 的其它资源载体明确报 NotImplementedError，int/str/None 报缺少 is_dir 的 AttributeError。zip、自定义 Traversable 和完整 singledispatch 待实现。with 与装饰器通过统一类型槽查找，忽略实例 enter/exit 覆盖；装饰器每次调用通过普通属性读取 `_recreate_cm`，保留替换入口的副作用、异常及返回上下文。见 [ADR0170](adr/0170-filesystem-as-file-context.md)。
 
 ### shutil 通用流复制（本地候选）
 

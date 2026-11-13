@@ -509,6 +509,11 @@ impl FunctionChecker<'_> {
                     Ty::Dynamic
                 }
             }
+            ExprKind::ContextMethod { base, .. } => {
+                self.check_expr(*base);
+                self.soft_demote = true;
+                Ty::Dynamic
+            }
             ExprKind::Attribute { base, name } => {
                 let base_ty = self.check_expr(*base);
                 self.check_attribute_read(&base_ty, expr.range, name)

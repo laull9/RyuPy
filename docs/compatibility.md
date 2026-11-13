@@ -301,7 +301,7 @@ M2.9 起模块搜索支持额外根（`ryupy build/run -I <dir>`），项目 run
 | D005 | 深递归 | 已修（M2.2）：`PyTraceback.PushFrame` 按帧数守卫，超过 1000 层抛可捕获的 `RecursionError`，可用 `RYUPY_RECURSION_LIMIT` 调整。测试：`m2_2_recursion` | 默认上限比 CPython 保守（一层 Python 调用占多层 CLR 栈帧）；极深递归仍可能先耗尽 CLR 栈 |
 | D006 | Phase 1 签名标注与模块级变量限制 | M2.1 / M2.7 已解除；M3.7 已支持函数内静态导入及 local/global/nonlocal 绑定，见[函数内导入范围](function-imports.md)。测试：`m2_1_*`、`m2_7_modules`、`m3_7_function_imports`、`m3_7_function_import_bindings`；星号导入、类体导入及函数本地异常别名作为动态 except 类型仍明确诊断 | 受限代码仍在编译期报错，不能据路线图认定已可用 |
 | D007 | Phase 1 除零、数值转换等错误暴露 .NET 异常，浮点除法缺少完整 Python 检查 | 已修：真除法 / `//` / `%` / `int(float)` 统一抛 Python 异常，未捕获时按 Python 形式退出（M2.2）；索引 / 属性错误已随 M2.3 / M2.5 接入 Python 异常。测试：`m2_2_exceptions`、`m2_3_*`、`errors/unhandled_zero_division` | 无已知剩余差异 |
-| D008 | `with` 的 `__enter__` / `__exit__` 使用普通属性查找，CPython 按类型槽查找 | M2.8 已知边界；类方法与常见上下文管理器无差异，`m2_8_with` 覆盖这些路径 | 不要在实例字典里遮蔽 `__enter__` / `__exit__`；需要类型槽精确语义时改用普通 `try` / `finally` |
+| D008（已修复） | `with` 按类型绑定 `__enter__` / `__exit__`，绕过实例字典与 `__getattr__` | `resources_as_file/protocol` 覆盖原生/普通类、property、清理、装饰器重建和错误路径 | 显式属性调用保留实例覆盖；traceback 参数继续按现有边界处理 |
 | D009 | 两个独立代理码点拼接后UTF-16表示将其当作一个补充码点 | 已知待修，非已接受性能偏差；`ord(chr(0xD800)+chr(0xDC00))`应TypeError却返回65536，独立pending `m3_builtins_surrogate_pair`，见ADR-0025 | 普通补充平面/单代理项支持；依赖独立相邻代理码点的程序不计兼容，后续统一处理字符串表示 |
 
 D001 接受生命周期模型差异，不自动接受任何 `__del__` / weakref 行为；实际开放 API 时仍需定义

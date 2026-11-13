@@ -59,11 +59,8 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
     } = crate::math_refs::MathRefs::build(res, ryupy_runtime);
 
     // ── 动态值 ABI（ADR-0010）──
-    let pyops_ref = res.push_type_reference(type_ref! { RyuPy.Runtime.PyOps in #ryupy_runtime });
-    let pyops_type: MethodType = BaseType::class(pyops_ref).into();
-    let prepare_method = res.push_method_reference(
-        method_ref! { static object @pyops_type::PrepareMethod(object, string) },
-    );
+    let (pyops_type, context_method, prepare_method) =
+        crate::function_refs::build_method_protocol_refs(res, ryupy_runtime);
     let dyn_binary = res.push_method_reference(
         method_ref! { static object @pyops_type::Binary(int, object, object) },
     );
@@ -449,6 +446,7 @@ pub(crate) fn build_runtime_refs(res: &mut Resolution<'static>) -> (RuntimeRefs,
         generators: crate::generator_refs::GeneratorRefs::build(res, ryupy_runtime),
         origins: crate::origin_refs::OriginRefs::build(res, traceback_type.clone()),
         prepare_method,
+        context_method,
         str_concat,
         floor_div_i64,
         mod_i64,

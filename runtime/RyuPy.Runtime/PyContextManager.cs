@@ -116,8 +116,10 @@ public sealed partial class PyGeneratorContext : PyNativeObject, IPyNativeCallab
     {
         var wrapper = PyContextLib.Forward("inner", (callArgs, callNames, callValues) =>
         {
-            var context = Recreate();
-            context.Enter(); object? result;
+            object? context = PyOps.CallValue(GetAttr("_recreate_cm"), [], [], []);
+            object? enter = PyOps.ContextMethod(context, "__enter__");
+            object? exit = PyOps.ContextMethod(context, "__exit__");
+            PyOps.CallValue(enter, [], [], []); object? result;
             try { result = PyOps.CallValue(function, callArgs, callNames, callValues); }
             catch (PyBaseException error)
             {
@@ -128,14 +130,14 @@ public sealed partial class PyGeneratorContext : PyNativeObject, IPyNativeCallab
                 {
                     try
                     {
-                        if (context.Exit(PyObject.TypeOf(error), error)) return PyNone.Instance;
+                        if (PyOps.Truthy(PyOps.CallValue(exit, [PyObject.TypeOf(error), error, PyNone.Instance], [], []))) return PyNone.Instance;
                     }
                     catch (PyBaseException replacement) { PyErrors.PrepareRaise(replacement); throw; }
                     throw;
                 }
                 finally { PyErrors.LeaveHandler(previous); }
             }
-            context.Exit(null, null); return result;
+            PyOps.CallValue(exit, [PyNone.Instance, PyNone.Instance, PyNone.Instance], [], []); return result;
         });
         return PyFunctools.UpdateWrapper(wrapper, function);
     }

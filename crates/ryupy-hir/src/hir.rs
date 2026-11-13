@@ -314,6 +314,11 @@ pub enum ExprKind {
         callee: ExprId,
         args: Vec<CallArg>,
     },
+    /// 隐式上下文协议：按类型绑定方法，绕过实例属性。
+    ContextMethod {
+        base: ExprId,
+        name: Name,
+    },
     Attribute {
         base: ExprId,
         name: Name,

@@ -1,4 +1,4 @@
-// as_file复用生成器上下文仅新增两个公开属性写删覆盖；独立手写签名并保护旧1719条完整合同。
+// as_file复用生成器上下文公开属性写删覆盖与上下文类型槽入口；独立手写签名并保护旧1719条完整合同。
 namespace RyuPy.Runtime.Tests;
 
 public partial class PyTraceStateArtifactTests
@@ -6,18 +6,20 @@ public partial class PyTraceStateArtifactTests
     internal static string[] ResourceContextPublicAdditions() =>
     [
         "M:RyuPy.Runtime.PyGeneratorContext:DelAttr:198:[32;0;1](String)->Void:",
-        "M:RyuPy.Runtime.PyGeneratorContext:SetAttr:198:[32;0;2](String,Object)->Void:"
+        "M:RyuPy.Runtime.PyGeneratorContext:SetAttr:198:[32;0;2](String,Object)->Void:",
+        "M:RyuPy.Runtime.PyOps:ContextMethod:150:[0;0;2](Object,String)->Object:"
     ];
 
     [Fact]
     public void ProducedResourceContextAssemblyHasOnlyExactPublicOverrides()
     {
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyOps).Assembly.Location);
-        Assert.Equal(1721, actual.Length);
-        Assert.Equal(1721, actual.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(1722, actual.Length);
+        Assert.Equal(1722, actual.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(ResourceContextPublicAdditions(), actual.Where(x =>
             x.StartsWith("M:RyuPy.Runtime.PyGeneratorContext:DelAttr:", StringComparison.Ordinal)
-            || x.StartsWith("M:RyuPy.Runtime.PyGeneratorContext:SetAttr:", StringComparison.Ordinal)).ToArray());
+            || x.StartsWith("M:RyuPy.Runtime.PyGeneratorContext:SetAttr:", StringComparison.Ordinal)
+            || x.StartsWith("M:RyuPy.Runtime.PyOps:ContextMethod:", StringComparison.Ordinal)).ToArray());
         Assert.DoesNotContain(actual, x => x.StartsWith("M:RyuPy.Runtime.PyImportlibResources:AsFile:", StringComparison.Ordinal));
     }
 

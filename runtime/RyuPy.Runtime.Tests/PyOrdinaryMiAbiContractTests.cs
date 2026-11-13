@@ -57,8 +57,8 @@ public partial class PyTraceStateArtifactTests
     {
         // 实际本次Runtime PE计数/冷签名；历史DLL逐项比对仍由带baseline的S1门负责。
         var actual = PublicAbi(typeof(RyuPy.Runtime.PyOps).Assembly.Location);
-        Assert.Equal(1721, actual.Length);
-        Assert.Equal(1721, actual.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(1722, actual.Length);
+        Assert.Equal(1722, actual.Distinct(StringComparer.Ordinal).Count());
         Assert.Equal(OrdinaryMiPublicAdditions(), actual.Where(x => x.Contains(":PrepareOrdinaryMiClass:", StringComparison.Ordinal)).ToArray());
     }
 }

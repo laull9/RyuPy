@@ -4,7 +4,10 @@ from importlib.resources import as_file, files
 from native_math import add, subtract
 
 resource = files(pkgdata).joinpath("numbers.txt")
-with as_file(resource) as path:
+context = as_file(resource)
+context.__enter__ = lambda: None
+context.__exit__ = lambda *args: True
+with context as path:
     assert path is resource
     text = path.read_text(encoding="utf-8")
 assert resource.is_file()
@@ -17,6 +20,18 @@ try:
 except ValueError as caught:
     assert caught is error
 assert resource.read_text(encoding="utf-8") == text
+# 装饰器必须调用公开重建入口，并读取该上下文部署后的真实资源。
+decorator = as_file(resource)
+recreated = []
+def recreate():
+    recreated.append(True)
+    return as_file(resource)
+decorator._recreate_cm = recreate
+@decorator
+def read_again():
+    return resource.read_text(encoding="utf-8")
+assert read_again() == text
+assert len(recreated) == 1
 parts = text.split()
 left = int(parts[0])
 right = int(parts[1])
