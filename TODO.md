@@ -644,9 +644,10 @@ Native AOT 转入 M5.2，矩阵乘法 / N-Body 转入 M2.9，基准维护转入 
   - [ ] [固定C ABI Python入口](tests/aot/cabi_probe/PYTHON_BINDING.md)：真实生成模块/一等函数、严格参数/错误/重绑，显式JIT shared与AOT static部署；恢复版三平台固定验收已通过，仍 WIP 待主线准入；旧本地提交不可读，不继承旧验收（[合同](tests/aot/cabi_probe/PYTHON_BINDING_BUILD.md)、[本轮证据](docs/validation/aot-python-binding/README.md)）
   - [x] 单库多导出 C ABI：v2 声明支持 1–64 个函数及同符号公开别名，兼容 v1；schema4 清单、JIT shared 和逐符号 AOT 静态链接已贯通，macOS arm64 21 步搬迁/错误路径通过（[ADR0169](docs/adr/0169-cabi-multiple-exports.md)）。签名仍为 `(i32,i32)->i64`。
   - [x] 文件系统资源 `as_file(Path)`：保持路径身份、支持目录/缺失路径、单次上下文状态、异常传播与文件保留；CP/JIT 差分及 macOS arm64 NativeAOT 搬迁通过（[ADR0170](docs/adr/0170-filesystem-as-file-context.md)）。
-  - [ ] 资源与 C ABI 组合分发：统一传递 ResourcePlan、原生声明和发布快照，以同一应用真实搬迁验收。
+  - [x] 资源与 C ABI 组合分发：ResourcePlan 贯通绑定编译、冻结、schema5/6 清单和 dist 安装；同一应用 `as_file()` + C 函数真实搬迁 23 步通过（[ADR0171](docs/adr/0171-aot-binding-resources.md)）。
   - [ ] `as_file` 的 zip / 自定义 Traversable 解包与退出清理；保留两个 pending 用例。
   - [ ] C ABI buffer/长度、opaque handle/释放、多库及传递依赖收集；新增能力逐平台验收。
+  - [ ] 完整标准库 provider 与版本化 catalog 路线评审及逐 API 落地（[ADR0172 提案](docs/adr/0172-aot-stdlib-provider-plan.md)）。
 - [ ] N4：逐真实OS/架构/ABI扩大平台CI，不把RID字符串当实机通过
   - [x] macOS arm64 / Windows x64 MSVC同宿主真实ILC、搬迁及args/exit/error通过（[证据](docs/validation/aot-host-platforms/README.md)）；SDK仍安装，干净目标机未勾完成
 - [ ] N5：静态能力优先，必要外置依赖集中 `_internal`；目录交付成熟后独立评估onefile，不为形式强加自解包，资源寻址/生命周期/性能另验

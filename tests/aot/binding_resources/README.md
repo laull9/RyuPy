@@ -1,7 +1,7 @@
 # C ABI 加显式资源的 AOT 验收
 
 公开组合为 `build --aot --resources ... --native-binding ...`，设计见
-[组合发布 ADR](../../../docs/adr/aot-binding-resources.md)。本目录独立于 `binding_multi`，
+[组合发布 ADR](../../../docs/adr/0171-aot-binding-resources.md)。本目录独立于 `binding_multi`，
 复用其自有 C 源和 CPython ctypes 参考入口、现有 AOT 布局解析与资源清单验证器。
 
 ```sh
@@ -25,7 +25,7 @@ make check
 `pkgdata/numbers.txt` 的两个数经过 `files(pkgdata).joinpath(...).read_text(encoding='utf-8')`
 交给两个真实 C 符号。程序还检查包 `__file__` 与 `__spec__.origin` 一致。
 `single.py` 使用 v1 单导出声明并读取同一数据；两个程序都直接对照固定 CPython 3.12.13 原双流。
-本 fixture 暂用 `read_text()`，不依赖并行实现中的 `as_file()`。
+整合后的 fixture 通过 `as_file()` 进入路径上下文，再调用 `read_text()`；同时检查 Path 身份、正常/异常退出后的文件保留和原异常传播。
 
 验收包含：
 
@@ -75,3 +75,13 @@ fmt、strict clippy、Rust workspace 全通过，C# 3000 passed / 2 skipped，
 
 公共 TODO/roadmap/stdlib/semantics、`as_file()` 与其运行时测试留给主代理整合；
 本次未修改这些文件。资源/目录事务原有预算与崩溃恢复边界见 ADR。
+
+## 主分支组合验收（2026-11-13）
+
+主分支整合 ADR0169/0170/0171 后，以包含 `as_file()` 的 v1/v2 应用重新发布。
+`target/integrated-binding-resources/binding-resources-yz4rt1lp/result.json` 为 passed，
+23 步全部符合预期，原双流见同目录 logs；主日志为 `target/integrated-binding-resources.log`。
+macOS arm64 上完成真实 ILC、原输入/构建路径失效、换 cwd 搬迁执行、四类失败保旧包
+及搬迁后缺数据负例。保留的 dist 中仍包含资源数据，静态库已链接进可执行文件。
+
+精简归档与最终整合门禁见 [验收证据](../../../docs/validation/aot-binding-resources-integrated/README.md)。

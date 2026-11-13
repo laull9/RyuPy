@@ -87,3 +87,8 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0149](0149-string-search-windows.md) | 五个字符串搜索方法共享码点窗口 | 未编译源码候选；原槽/警告、同源JIT/AOT与项目保护待验 |
 - [0155：有限JIT默认来源候选与分发环境](0155-default-source-candidates.md)（实现候选，完整门待验）
 - [0158：显式普通实例直接globals冷路](0158-instance-direct-globals.md)（未验收；推导式保持拒绝）
+
+- [0169：固定 C ABI 单库多导出](0169-cabi-multiple-exports.md)（已整合，macOS arm64 搬迁验收）
+- [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
+- [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
+- [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）

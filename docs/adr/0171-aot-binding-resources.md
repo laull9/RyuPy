@@ -1,6 +1,6 @@
-# ADR：固定 C ABI 与显式资源的组合 AOT 发布
+# ADR-0171：固定 C ABI 与显式资源的组合 AOT 发布
 
-状态：实现候选；宿主执行证据见[专项验收](../../tests/aot/binding_resources/README.md)。
+状态：已实现并整合；宿主执行证据见[专项验收](../../tests/aot/binding_resources/README.md)。
 
 ## 决定
 
@@ -69,5 +69,5 @@ v1/v2 各发布一次成功程序，v2 另用缺第二符号 archive 做真实�
 原源码/库及 build 中间路径全部改名后，在带同名诱饵数据的其他 cwd 逐字比较原双流。
 缺资源副本应抛带 Python 帧的 FileNotFoundError。
 
-本切使用 `files().read_text()`；`as_file()` 由独立实现负责，最终组合验收交主代理。
+整合验收已使用 `as_file(files(...))`，覆盖 Path 身份、正常/异常退出保留资源和原异常传播。
 多库、通用 ABI、传递原生依赖收集、wheel/zip、单文件自解包与干净目标机验证继续独立推进。

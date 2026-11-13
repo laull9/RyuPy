@@ -8,9 +8,9 @@
 
 ## 2026-11-13 AOT 打包推进
 
-当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。下一关口是资源与绑定组合发布，随后扩展 ABI 缓冲区/句柄、原生依赖闭包及跨平台目标环境验收。
+当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。资源与绑定组合发布已完成 23 步真实搬迁验收，接下来扩展 ABI 缓冲区/句柄、原生依赖闭包及跨平台目标环境验收。
 
-完整标准库继续按 API、底层依赖和平台登记。已有纯 Python 源码 catalog 与 C# 底层实现共同推进；版本化 catalog、统一 provider 选择和显式 libpython 宿主仍需专项设计与实现。onefile 排在 standalone 分发闭环之后。
+完整标准库继续按 API、底层依赖和平台登记。已有纯 Python 源码 catalog 与 C# 底层实现共同推进；版本化 catalog、统一 provider 选择和显式 libpython 宿主仍需专项设计与实现。onefile 排在 standalone 分发闭环之后。完整接入路线见 [ADR0172 提案](adr/0172-aot-stdlib-provider-plan.md)。
 
 ## 愿景
 
