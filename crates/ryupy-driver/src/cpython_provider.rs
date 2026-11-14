@@ -4,12 +4,15 @@ use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 
+#[path = "cpython_native.rs"]
+pub(crate) mod native;
+pub(crate) use native::version;
 #[path = "cpython_dependencies.rs"]
 mod dependencies;
 #[path = "cpython_deployment.rs"]
 mod deployment;
-#[path = "cpython_native.rs"]
-pub(crate) mod native;
+#[path = "cpython_discovery.rs"]
+pub(crate) mod discovery;
 pub(crate) use deployment::{extend_project, publish};
 const VERSION: &str = "3.12.13";
 pub(crate) const CONFIG: &str = "ryupy-cpython.json";
@@ -64,6 +67,7 @@ pub(crate) enum ContainerTransfer {
 }
 #[derive(Clone)]
 pub(crate) struct Plan {
+    pub version: version::PythonVersion,
     pub root: PathBuf,
     pub source: Source,
     pub modules: Vec<String>,
@@ -82,6 +86,9 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
     let Some(path) = &sess.cpython_provider else {
         return Ok(());
     };
+    if path == Path::new("auto") {
+        return prepare_auto(sess, entry);
+    }
     ensure!(
         sess.distribution_metadata.is_none(),
         "CPython provider 的包数据须通过 payloads 声明"
@@ -94,11 +101,12 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
         declaration.schema == 1,
         "CPython provider 声明 schema 必须为 1"
     );
+    let version = version::PythonVersion::parse(&declaration.python_version)?;
     ensure!(
         declaration.python_version == VERSION,
-        "CPython provider 固定版本为 {VERSION}"
+        "显式 schema 1 固定为 CPython {VERSION}；自动适配请使用 --cpython-provider auto"
     );
-    let source = declaration.source;
+    let source = declaration.source.clone();
     ensure!(
         source.project == "python-build-standalone"
             && source.build_id == "20260623"
@@ -117,7 +125,7 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
         build.trim() == source.build_id,
         "CPython 发行 BUILD 与声明来源不符"
     );
-    let header_path = native::header_relpaths()?
+    let header_path = native::header_relpaths_for_version(&version)?
         .iter()
         .map(|path| root.join(path))
         .find(|path| path.is_file())
@@ -171,6 +179,100 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
             );
         }
     }
+    finish_prepare(sess, entry, base, declaration, root, metadata, version)
+}
+
+pub(crate) fn prepare_auto(sess: &mut Session, entry: &Path) -> Result<()> {
+    ensure!(
+        sess.distribution_metadata.is_none(),
+        "CPython provider 自动模式的包数据须自动探测或通过闭包处理"
+    );
+    let discovered = discovery::discover(entry)?;
+    let root = discovered.distribution_root.canonicalize()?;
+    let version = discovered.version;
+    native::preflight_version(&root, &version)?;
+    let header_path = native::header_relpaths_for_version(&version)?
+        .iter()
+        .map(|path| root.join(path))
+        .find(|path| path.is_file())
+        .with_context(|| format!("CPython 发行缺少 {} 版本头文件", version.series()))?;
+    let header = std::fs::read_to_string(header_path).context("无法读取 CPython 发行头文件")?;
+    ensure!(
+        native::header_matches(&header, &version),
+        "CPython 头文件版本与探测版本不符"
+    );
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(root.join("PYTHON.json"))?)?;
+    let default_bridge =
+        crate::runtime::workspace_root().join("runtime/RyuPy.CPython/bin/Release/net10.0");
+    let bridge = default_bridge;
+    ensure!(
+        bridge.join("RyuPy.CPython.dll").is_file(),
+        "缺少 RyuPy.CPython.dll，请先构建随包宿主：{}",
+        bridge.display()
+    );
+    let shim = ensure_shim_for_version(&root, &bridge, &version)?;
+    let stdlib = crate::cpython_inventory::stdlib_for_version(&root, &metadata, &version)?;
+    let mut modules = Vec::new();
+    let mut payloads = Vec::new();
+    let closure = dependencies::collect_auto(
+        &discovered.prefix,
+        &root,
+        entry,
+        &modules,
+        &stdlib,
+        &version,
+    )?;
+    let declared = modules.iter().cloned().collect();
+    payloads.extend(closure.payloads);
+    let mut packages = if closure.report.is_null() {
+        crate::cpython_inventory::packages_for_version(&root, &payloads, &version)?
+    } else {
+        crate::cpython_inventory::payload_packages_for_version(&payloads, &version)?
+    };
+    packages.extend(closure.modules);
+    modules.extend(stdlib.iter().cloned());
+    modules.extend(packages.iter().cloned());
+    modules.sort();
+    modules.dedup();
+    for included in &sess.include_modules {
+        ensure!(
+            !modules.iter().any(|r| domain(r, included)),
+            "模块同时声明为RyuPy源码与CPython完整依赖族：{included}"
+        );
+    }
+    let source = Source {
+        project: discovered.source_project,
+        build_id: discovered.source_build_id,
+        source_url: discovered.source_url,
+        licenses: discovered.licenses,
+    };
+    sess.cpython_provider_state.plan = Some(Plan {
+        version,
+        root,
+        source,
+        modules,
+        stdlib,
+        declared,
+        packages,
+        container_transfer: ContainerTransfer::Synchronized,
+        payloads,
+        bridge,
+        shim,
+        dependency_report: closure.report,
+    });
+    Ok(())
+}
+
+fn finish_prepare(
+    sess: &mut Session,
+    entry: &Path,
+    base: &Path,
+    declaration: Declaration,
+    root: PathBuf,
+    metadata: serde_json::Value,
+    version: version::PythonVersion,
+) -> Result<()> {
     ensure!(
         declaration.stdlib_provider == "cpython",
         "CPython provider 必须统一使用 stdlib_provider=cpython，不能与原生标准库混配"
@@ -202,18 +304,22 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
             .canonicalize()
             .with_context(|| format!("CPython 包载荷不存在：{}", payload.source.display()))?;
     }
-    let stdlib = crate::cpython_inventory::stdlib(&root, &metadata)?;
+    let stdlib = crate::cpython_inventory::stdlib_for_version(&root, &metadata, &version)?;
     let closure = declaration
         .dependencies
-        .map(|request| dependencies::collect(request, base, &root, entry, &modules, &stdlib))
+        .map(|request| {
+            dependencies::collect_for_version(
+                request, base, &root, entry, &modules, &stdlib, &version,
+            )
+        })
         .transpose()?
         .unwrap_or_default();
     let declared = modules.iter().cloned().collect();
     payloads.extend(closure.payloads);
     let mut packages = if closure.report.is_null() {
-        crate::cpython_inventory::packages(&root, &payloads)?
+        crate::cpython_inventory::packages_for_version(&root, &payloads, &version)?
     } else {
-        crate::cpython_inventory::payload_packages(&payloads)?
+        crate::cpython_inventory::payload_packages_for_version(&payloads, &version)?
     };
     packages.extend(closure.modules);
     modules.extend(stdlib.iter().cloned());
@@ -233,21 +339,21 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
         .map(|path| absolute(base, &path))
         .transpose()?
         .unwrap_or(default_bridge);
-    let shim = declaration
-        .shim
-        .map(|path| absolute(base, &path))
-        .transpose()?
-        .unwrap_or_else(|| bridge.join(native::shim_name()));
+    let shim = match declaration.shim {
+        Some(path) => absolute(base, &path)?,
+        None => ensure_shim_for_version(&root, &bridge, &version)?,
+    };
     ensure!(
         bridge.join("RyuPy.CPython.dll").is_file(),
         "缺少 RyuPy.CPython.dll，请先构建随包宿主或指定bridge_directory：{}",
         bridge.display()
     );
     ensure!(shim.is_file(), "缺少 CPython shim：{}", shim.display());
-    native::preflight(&root)?;
+    native::preflight_version(&root, &version)?;
     sess.cpython_provider_state.plan = Some(Plan {
+        version,
         root,
-        source,
+        source: declaration.source,
         modules,
         stdlib,
         declared,
@@ -259,6 +365,56 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
         dependency_report: closure.report,
     });
     Ok(())
+}
+
+fn ensure_shim_for_version(
+    root: &Path,
+    _bridge: &Path,
+    version: &version::PythonVersion,
+) -> Result<PathBuf> {
+    let shim_name = native::shim_name();
+    let workspace = crate::runtime::workspace_root();
+    let shim_cache = workspace.join(format!(
+        "target/cpython_shims/{}/{}",
+        version.version_str(),
+        std::process::id()
+    ));
+    let target_shim = shim_cache.join(shim_name);
+    std::fs::create_dir_all(&shim_cache)?;
+    if cfg!(windows) {
+        let script = workspace.join("runtime/RyuPy.CPython/native/build.cmd");
+        let mut cmd = std::process::Command::new("cmd.exe");
+        cmd.arg("/c")
+            .arg(&script)
+            .arg(root)
+            .arg(&shim_cache)
+            .arg(version.series());
+        let output = cmd.output()?;
+        ensure!(
+            output.status.success(),
+            "编译 CPython shim 失败：{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    } else {
+        let script = workspace.join("runtime/RyuPy.CPython/native/build.sh");
+        let mut cmd = std::process::Command::new("sh");
+        cmd.arg(&script)
+            .arg(root)
+            .arg(&shim_cache)
+            .arg(version.series());
+        let output = cmd.output()?;
+        ensure!(
+            output.status.success(),
+            "编译 CPython shim 失败：{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    ensure!(
+        target_shim.is_file(),
+        "shim 产物未生成：{}",
+        target_shim.display()
+    );
+    Ok(target_shim)
 }
 
 pub(crate) fn selected(sess: &Session, name: &str) -> bool {

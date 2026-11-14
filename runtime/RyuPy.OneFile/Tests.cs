@@ -30,6 +30,7 @@ internal static class Tests
         foreach (string path in new[] { "../escape", "/escape", "a\\b", "a/../b", "a//b", "NUL.txt", "CONIN$", "CONOUT$", "C:escape", "a.", "a\0b" })
             Check(Archive(path, 5), false);
         Check(Archive("main", ulong.MaxValue), false);
+        Check(Archive(string.Join('/', Enumerable.Repeat("deep", 129)), 5), false);
         Check(Archive("main", 5, 100_001), false);
         Check(Archive("main", 5, duplicate: true), false);
         Check(Archive("main", 5, duplicate: true, caseDistinct: true), OperatingSystem.IsLinux());

@@ -31,6 +31,13 @@
   原生执行率仍单列，详见[项目矩阵](tests/cpython/projects_README.md)。
   三平台验收范围见[平台实测状态](docs/cpython-platform-support.md#52-平台实测状态)；依赖配置见
   [自动依赖说明](tests/cpython/dependencies/README.md)与[ADR-0185](docs/adr/0185-cpython-installed-dependency-closure.md)。
+- [~] **AOT 单文件**：完整 standalone 压缩载荷内嵌 NativeAOT 启动器，`build --onefile` 隐含 AOT，
+  发布目录仅含唯一可执行。macOS 正式 CLI 原生/CPython 全载荷、输入删除搬迁、三流和副作用通过；
+  同名重建及失败保留旧版通过；三平台单文件与中断清理由独立 CI 继续验收。
+  设计见 [ADR-0188](docs/adr/0188-aot-onefile.md)。
+- [~] **Python 3.9+ 自动版本适配**：`--cpython-provider auto` 自动探测项目/激活环境，
+  构建期匹配解释器、ABI、原生 shim、标准库与扩展 wheel，并冻结到发布产物；用户无需指定版本。
+  逐版本真实验收后登记，保留显式 provider 和纯 RyuPy 默认入口。
 - [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
 

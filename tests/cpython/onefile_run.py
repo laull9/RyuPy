@@ -293,7 +293,7 @@ def main():
             bad_proc = subprocess.run([str(corrupted_bin)], cwd=run_cwd, capture_output=True, env=polluted_env, timeout=30)
             assert bad_proc.returncode != 0, "损坏的单文件未被拦截"
         except OSError as error:
-            assert error.errno in (8, 86) or getattr(error, "winerror", None) == 193, error
+            assert error.errno in (8, 86) or getattr(error, "winerror", None) in (193, 1392), error
         print("[onefile] 损坏单文件严格负例校验通过")
 
         # 13. Linux 容器验证（若启用）

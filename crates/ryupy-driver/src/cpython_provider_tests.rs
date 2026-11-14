@@ -23,6 +23,7 @@ fn session(root: &Path) -> Session {
         ..Session::default()
     };
     sess.cpython_provider_state.plan = Some(Plan {
+        version: version::PythonVersion::new(3, 12, 13),
         root: root.into(),
         modules: vec!["dependency".into()],
         stdlib: Default::default(),
@@ -107,7 +108,7 @@ fn unselected_mode_retains_normal_dependency_discovery() {
 #[test]
 fn cpython_stdlib_inventory_excludes_site_packages_and_rejects_application_shadow() {
     let root = root();
-    let lib = root.0.join(native::stdlib_dirs().unwrap()[0]);
+    let lib = root.0.join(&native::stdlib_dirs().unwrap()[0]);
     std::fs::create_dir_all(lib.join("json")).unwrap();
     std::fs::write(lib.join("json/__init__.py"), "").unwrap();
     std::fs::create_dir_all(lib.join("site-packages/third_party")).unwrap();

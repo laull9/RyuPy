@@ -57,6 +57,7 @@ enum Command {
         aot: bool,
     },
     /// 编译为 .dll，或通过 --aot / --onefile 发布原生应用
+    #[command(group(clap::ArgGroup::new("native_publication").args(["aot", "onefile"]).multiple(true)))]
     Build {
         input: PathBuf,
         /// 诊断：逐阶段写 stderr（编译至产物写出，不含 AOT publish；默认关闭）
@@ -71,7 +72,7 @@ enum Command {
         #[arg(long)]
         onefile: bool,
         /// 显式资源清单（AOT / onefile；目标相对路径首切限 ASCII）
-        #[arg(long)]
+        #[arg(long, requires = "native_publication")]
         resources: Option<PathBuf>,
         /// 显式固定签名 C ABI 声明；AOT 可同时发布显式资源
         #[arg(long)]
@@ -432,6 +433,8 @@ mod include_module_tests {
         ];
         assert!(Cli::try_parse_from(args).is_err());
         assert!(Cli::try_parse_from(args.into_iter().chain(["--aot"])).is_ok());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--onefile"])).is_ok());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--aot", "--onefile"])).is_ok());
     }
     #[test]
     fn include_module_is_repeatable_for_build_and_run() {

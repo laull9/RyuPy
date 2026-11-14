@@ -1,4 +1,4 @@
-/* 固定CPython 3.12.13的嵌入与对象桥；所有返回对象指针均拥有一个新引用。
+/* CPython 3.9+ 嵌入与对象桥；所有返回对象指针均拥有一个新引用。
  * PyConfig布局、宏、代理类型及借用提升只在本文件出现，托管端仅处理opaque地址。 */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -10,9 +10,88 @@
 #else
 #define API __attribute__((visibility("default")))
 #endif
-#if PY_VERSION_HEX != 0x030c0df0
-#error "RyuPy shim requires CPython 3.12.13 headers"
+
+#if PY_VERSION_HEX < 0x03090000 || PY_VERSION_HEX >= 0x03100000
+#error "RyuPy CPython shim requires CPython 3.9 or higher"
 #endif
+
+#if defined(Py_DEBUG)
+#error "RyuPy requires a release CPython build"
+#endif
+
+#if defined(Py_GIL_DISABLED) && Py_GIL_DISABLED
+#error "RyuPy currently requires standard GIL build of CPython; free-threaded CPython is not supported yet"
+#endif
+
+#if PY_VERSION_HEX < 0x030a0000
+static inline PyObject *rp_compat_newref(PyObject *obj) {
+    Py_XINCREF(obj);
+    return obj;
+}
+#define Py_NewRef(obj) rp_compat_newref(obj)
+#define Py_XNewRef(obj) rp_compat_newref(obj)
+#define Py_IsNone(x) ((x) == Py_None)
+#endif
+
+#ifndef PySet_CheckExact
+#define PySet_CheckExact(ob) Py_IS_TYPE(ob, &PySet_Type)
+#endif
+
+#ifndef Py_TPFLAGS_IMMUTABLETYPE
+#define Py_TPFLAGS_IMMUTABLETYPE 0
+#endif
+
+#if PY_VERSION_HEX < 0x030c0000
+static inline PyObject *rp_compat_exception_args(PyObject *ex) {
+    PyObject *args = ((PyBaseExceptionObject *)ex)->args;
+    return args ? Py_NewRef(args) : PyTuple_New(0);
+}
+#define PyException_GetArgs rp_compat_exception_args
+
+static inline PyObject *rp_compat_get_raised_exception(void) {
+    PyObject *type = NULL, *value = NULL, *tb = NULL;
+    PyErr_Fetch(&type, &value, &tb);
+    if (!type) return NULL;
+    PyErr_NormalizeException(&type, &value, &tb);
+    if (tb) {
+        PyException_SetTraceback(value, tb);
+        Py_DECREF(tb);
+    }
+    Py_XDECREF(type);
+    return value;
+}
+
+static inline void rp_compat_set_raised_exception(PyObject *exc) {
+    if (!exc) { PyErr_Clear(); return; }
+    PyObject *tb = PyException_GetTraceback(exc);
+    /* PyErr_SetRaisedException 接管传入的新引用，Restore 同样接管。 */
+    Py_INCREF((PyObject *)Py_TYPE(exc));
+    PyErr_Restore((PyObject *)Py_TYPE(exc), exc, tb);
+}
+#define PyErr_GetRaisedException rp_compat_get_raised_exception
+#define PyErr_SetRaisedException rp_compat_set_raised_exception
+#endif
+
+#if PY_VERSION_HEX < 0x030b0000
+/* 公开 ExcInfo API 保留线程异常栈语义，避免依赖私有结构布局。 */
+static inline PyObject *rp_compat_get_handled_exception(void) {
+    PyObject *type = NULL, *value = NULL, *tb = NULL;
+    PyErr_GetExcInfo(&type, &value, &tb);
+    Py_XDECREF(type); Py_XDECREF(tb);
+    if (value == Py_None) { Py_DECREF(value); return NULL; }
+    return value;
+}
+static inline void rp_compat_set_handled_exception(PyObject *exc) {
+    PyObject *type = exc ? Py_NewRef((PyObject *)Py_TYPE(exc)) : NULL;
+    PyObject *tb = exc ? PyException_GetTraceback(exc) : NULL;
+    PyErr_SetExcInfo(type, Py_XNewRef(exc), tb);
+}
+#define PyErr_GetHandledException rp_compat_get_handled_exception
+#define PyErr_SetHandledException rp_compat_set_handled_exception
+#endif
+
+/* 宿主在调用任何布局相关函数之前核对实际 shim 的构建头文件版本。 */
+API const char *rp_build_version(void) { return PY_VERSION; }
 
 typedef PyObject *(*managed_call)(intptr_t, int, PyObject *, PyObject *, PyObject *, int64_t, const char *);
 typedef struct { PyObject_HEAD intptr_t identity; } Managed;
@@ -103,8 +182,10 @@ static int fail_status(PyStatus status) {
 }
 /* 使用UTF-8独立路径列表，设置所有搜索位置且拒绝环境、用户site和隐式cwd。 */
 API int rp_start(const char *home, const char **paths, int path_count, const char **argv, int argc, managed_call callback) {
-    if (strcmp(Py_GetVersion(), "3.12.13") < 0 || strncmp(Py_GetVersion(), "3.12.13 ", 8) != 0) {
-        snprintf(init_error, sizeof(init_error), "ABI requires CPython 3.12.13, loaded %s", Py_GetVersion()); return -1;
+    int major = 0, minor = 0;
+    if (sscanf(Py_GetVersion(), "%d.%d", &major, &minor) != 2 || major != PY_MAJOR_VERSION || minor != PY_MINOR_VERSION) {
+        snprintf(init_error, sizeof(init_error), "ABI requires CPython %d.%d, loaded %s", PY_MAJOR_VERSION, PY_MINOR_VERSION, Py_GetVersion());
+        return -1;
     }
     if (Py_IsInitialized()) { strcpy(init_error, "CPython already initialized"); return -1; }
     PyPreConfig preconfig; PyPreConfig_InitIsolatedConfig(&preconfig);
@@ -391,7 +472,7 @@ API void rp_exception_set_chain(PyObject *value, PyObject *cause, PyObject *cont
     PyException_SetContext(value, Py_XNewRef(context));
     ((PyBaseExceptionObject *)value)->suppress_context = suppress != 0;
 }
-/* 读取真实traceback的只读帧元数据，布局仅存在固定3.12.13编译的shim内。 */
+/* 读取真实traceback的只读帧元数据，布局仅存在与选中版本头文件一致的shim内。 */
 API int rp_traceback_frame(PyObject *error, int index, const char **file, const char **function, int *line) {
     *file = NULL; *function = NULL; *line = 0;
     if (!PyExceptionInstance_Check(error)) return 0;

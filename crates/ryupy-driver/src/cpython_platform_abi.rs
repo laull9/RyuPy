@@ -36,7 +36,9 @@ pub(super) fn check_architecture(path: &Path, expected_rid: &str) -> Result<()> 
     };
     ensure!(
         format_matches,
-        "原生二进制格式与目标RID错配：{expected_rid}"
+        "原生二进制格式与目标RID错配：{expected_rid}，文件：{} (头部: {:02x?})",
+        path.display(),
+        &header[..bytes_read.min(8)]
     );
     let detected = detect_binary_arch(&header[..bytes_read])
         .with_context(|| format!("无法识别二进制架构：{}", path.display()))?;

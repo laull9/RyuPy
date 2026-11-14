@@ -13,30 +13,52 @@ use std::process::Command;
 
 /// 判断文件是否为目标平台原生二进制动态库或扩展。
 pub(super) fn is_native_image(path: &Path) -> bool {
+    let Ok(rid) = super::rid() else {
+        return false;
+    };
+    is_native_image_for_rid(path, rid)
+}
+
+pub(super) fn is_native_image_for_rid(path: &Path, rid: &str) -> bool {
     if !path.is_file() {
         return false;
     }
-    if let Some(name) = path.file_name().and_then(|s| s.to_str()) {
-        if name.ends_with(".dylib") || name.ends_with(".dll") || name.ends_with(".pyd") {
-            return true;
-        }
-        // 捕获普通 .so 以及版本化共享库如 libpython3.12.so.1.0、libopenblas.so.3
-        if name.ends_with(".so") || name.contains(".so.") {
-            return true;
-        }
+    let Some(name) = path.file_name().and_then(|s| s.to_str()) else {
+        return false;
+    };
+    // 忽略非 Windows 平台上的跨平台启动器二进制资源（如 pip distlib 中的 *.exe）
+    if rid != "win-x64" && name.ends_with(".exe") {
+        return false;
     }
-    // 结合头部魔数校验
-    if let Ok(mut f) = File::open(path) {
-        let mut magic = [0u8; 4];
-        if f.read_exact(&mut magic).is_ok() {
-            return &magic == b"\x7fELF"
-                || &magic[0..2] == b"MZ"
-                || magic == [0xFE, 0xED, 0xFA, 0xCF]
+
+    let mut magic = [0u8; 4];
+    let Ok(mut f) = File::open(path) else {
+        return false;
+    };
+    if f.read_exact(&mut magic).is_err() {
+        return false;
+    }
+
+    match rid {
+        "osx-arm64" => {
+            let is_macho = magic == [0xFE, 0xED, 0xFA, 0xCF]
                 || magic == [0xCF, 0xFA, 0xED, 0xFE]
                 || magic == [0xCA, 0xFE, 0xBA, 0xBE];
+            let has_ext = name.ends_with(".dylib") || name.ends_with(".so");
+            is_macho || (has_ext && !magic.starts_with(b"\x7fELF") && !magic.starts_with(b"MZ"))
         }
+        "linux-x64" => {
+            let is_elf = magic.starts_with(b"\x7fELF");
+            let has_ext = name.ends_with(".so") || name.contains(".so.");
+            is_elf || (has_ext && !magic.starts_with(b"MZ"))
+        }
+        "win-x64" => {
+            let is_pe = magic.starts_with(b"MZ");
+            let has_ext = name.ends_with(".dll") || name.ends_with(".pyd");
+            is_pe || has_ext
+        }
+        _ => false,
     }
-    false
 }
 
 /// 递归收集指定根目录下的所有原生映像。

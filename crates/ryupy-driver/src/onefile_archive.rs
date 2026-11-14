@@ -124,7 +124,8 @@ fn portable(path: &Path) -> Result<String> {
         !name.is_empty() && name.len() <= 4096,
         "onefile 路径长度无效"
     );
-    for part in name.split('/') {
+    for (depth, part) in name.split('/').enumerate() {
+        ensure!(depth < 128, "onefile 路径层级超过128层");
         ensure!(
             !part.is_empty() && part != "." && part != ".." && !part.ends_with(['.', ' ']),
             "onefile 路径组件无效"
@@ -191,6 +192,7 @@ mod tests {
         assert_eq!(portable(Path::new("a\\b")).unwrap(), "a/b");
         #[cfg(not(windows))]
         assert!(portable(Path::new("a\\b")).is_err());
+        assert!(portable(Path::new(&["deep"; 129].join("/"))).is_err());
         assert_eq!(
             portable(Path::new("中文 空格/a.txt")).unwrap(),
             "中文 空格/a.txt"

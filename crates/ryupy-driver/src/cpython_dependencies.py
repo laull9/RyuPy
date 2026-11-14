@@ -28,10 +28,11 @@ def record_files(dist):
 
 
 def main(request):
-    if sys.version_info[:3] != (3, 12, 13):
-        fail('依赖收集固定使用CPython 3.12.13')
+    if sys.version_info < (3, 9):
+        fail(f'依赖收集要求 CPython 3.9+，当前为 {sys.version}')
     environment = Path(request['environment']).resolve()
-    site = environment / ('Lib/site-packages' if sys.platform == 'win32' else 'lib/python3.12/site-packages')
+    py_dir = f'lib/python{sys.version_info.major}.{sys.version_info.minor}/site-packages'
+    site = environment / ('Lib/site-packages' if sys.platform == 'win32' else py_dir)
     if not site.is_dir():
         fail(f'构建环境缺少site-packages：{site}')
     # packaging是明确的构建工具依赖；隔离模式不执行site初始化和.pth。
@@ -161,8 +162,9 @@ def main(request):
     for name in sorted(selected):
         dist = distributions[name]
         python_requirement = dist.metadata.get('Requires-Python')
-        if python_requirement and not SpecifierSet(python_requirement).contains('3.12.13'):
-            fail(f'{name} 的Requires-Python不接受3.12.13：{python_requirement}')
+        curr_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+        if python_requirement and not SpecifierSet(python_requirement).contains(curr_ver):
+            fail(f'{name} 的Requires-Python不接受{curr_ver}：{python_requirement}')
         wheel_metadata = dist.read_text('WHEEL') or ''
         tags = set()
         for line in wheel_metadata.splitlines():

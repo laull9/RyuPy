@@ -83,9 +83,19 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
             // 在shim符号绑定之前读取实际库版本；错误ABI有确定诊断，而非偶然缺符号。
             var versionFunction = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(host.pythonLibrary, "Py_GetVersion");
             string actualVersion = Marshal.PtrToStringUTF8(versionFunction())!;
-            if (!actualVersion.StartsWith("3.12.13 ", StringComparison.Ordinal))
-                throw new InvalidDataException("ABI requires CPython 3.12.13, loaded " + actualVersion);
+            if (!actualVersion.StartsWith(configuration.ExpectedVersion + " ", StringComparison.Ordinal))
+                throw new InvalidDataException($"ABI requires CPython {configuration.ExpectedVersion}, loaded {actualVersion}");
             host.shimLibrary = OperatingSystem.IsWindows() ? WindowsLoad(configuration.Shim) : NativeLibrary.Load(configuration.Shim);
+            // 原固定 3.12.13 shim 沿用已有静态版本 guard；多版本 shim 必须提供头文件版本。
+            if (NativeLibrary.TryGetExport(host.shimLibrary, "rp_build_version", out nint shimVersionAddress))
+            {
+                var shimVersionFunction = (delegate* unmanaged[Cdecl]<nint>)shimVersionAddress;
+                string shimVersion = Marshal.PtrToStringUTF8(shimVersionFunction())!;
+                if (shimVersion != configuration.ExpectedVersion)
+                    throw new InvalidDataException($"shim头文件版本应为 {configuration.ExpectedVersion}，实际为 {shimVersion}");
+            }
+            else if (configuration.ExpectedVersion != "3.12.13")
+                throw new InvalidDataException("多版本CPython shim缺少构建版本导出");
             NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
             nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
             nint[] args = argv.Select(Marshal.StringToCoTaskMemUTF8).ToArray();

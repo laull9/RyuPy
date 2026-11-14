@@ -14,9 +14,12 @@ mod platform;
 mod platform_abi;
 #[path = "cpython_platform_relocate.rs"]
 mod platform_relocate;
+#[path = "cpython_version.rs"]
+pub(crate) mod version;
 
 #[allow(dead_code)]
 pub(crate) use platform::PlatformKind;
+pub(crate) use version::PythonVersion;
 
 /// 平台 C shim 动态库文件名。
 pub(super) fn shim_name() -> &'static str {
@@ -32,12 +35,20 @@ pub(super) fn shim_name() -> &'static str {
 /// 平台固定 libpython 动态链接库文件名。
 pub(super) fn library_name() -> &'static str {
     PlatformKind::current()
-        .map(|p| p.library_name())
+        .map(|p| match p {
+            PlatformKind::MacOSArm64 => "libpython3.12.dylib",
+            PlatformKind::WindowsX64 => "python312.dll",
+            PlatformKind::LinuxX64 => "libpython3.12.so.1.0",
+        })
         .unwrap_or_else(|_| match std::env::consts::OS {
             "macos" => "libpython3.12.dylib",
             "windows" => "python312.dll",
             _ => "libpython3.12.so.1.0",
         })
+}
+
+pub(super) fn library_name_for_version(version: &PythonVersion) -> Result<String> {
+    Ok(PlatformKind::current()?.library_name_for_version(version))
 }
 
 /// 当前主机目标 RID。
@@ -65,9 +76,17 @@ pub(super) fn library_relpath() -> Result<PathBuf> {
     Ok(PlatformKind::current()?.library_relpath())
 }
 
+pub(super) fn library_relpath_for_version(version: &PythonVersion) -> Result<PathBuf> {
+    Ok(PlatformKind::current()?.library_relpath_for_version(version))
+}
+
 /// Python 运行时搜索路径。
 pub(super) fn search_paths() -> Result<Vec<String>> {
     Ok(PlatformKind::current()?.search_paths())
+}
+
+pub(super) fn search_paths_for_version(version: &PythonVersion) -> Result<Vec<String>> {
+    Ok(PlatformKind::current()?.search_paths_for_version(version))
 }
 
 /// site-packages 相对路径。
@@ -75,14 +94,26 @@ pub(crate) fn site_packages_relpath() -> Result<PathBuf> {
     Ok(PlatformKind::current()?.site_packages_relpath())
 }
 
+pub(crate) fn site_packages_relpath_for_version(version: &PythonVersion) -> Result<PathBuf> {
+    Ok(PlatformKind::current()?.site_packages_relpath_for_version(version))
+}
+
 /// 标准库目录列表。
-pub(crate) fn stdlib_dirs() -> Result<&'static [&'static str]> {
+pub(crate) fn stdlib_dirs() -> Result<Vec<String>> {
     Ok(PlatformKind::current()?.stdlib_dirs())
 }
 
+pub(crate) fn stdlib_dirs_for_version(version: &PythonVersion) -> Result<Vec<String>> {
+    Ok(PlatformKind::current()?.stdlib_dirs_for_version(version))
+}
+
 /// 候选版本头文件相对路径。
-pub(super) fn header_relpaths() -> Result<&'static [&'static str]> {
+pub(super) fn header_relpaths() -> Result<Vec<String>> {
     Ok(PlatformKind::current()?.header_relpaths())
+}
+
+pub(super) fn header_relpaths_for_version(version: &PythonVersion) -> Result<Vec<String>> {
+    Ok(PlatformKind::current()?.header_relpaths_for_version(version))
 }
 
 /// 必须复制的子目录名。
@@ -91,8 +122,12 @@ pub(super) fn copy_directories() -> Result<&'static [&'static str]> {
 }
 
 /// 平台官方扩展模块文件后缀名。
-pub(crate) fn extension_suffixes() -> Result<&'static [&'static str]> {
+pub(crate) fn extension_suffixes() -> Result<Vec<String>> {
     Ok(PlatformKind::current()?.extension_suffixes())
+}
+
+pub(crate) fn extension_suffixes_for_version(version: &PythonVersion) -> Result<Vec<String>> {
+    Ok(PlatformKind::current()?.extension_suffixes_for_version(version))
 }
 
 /// 系统证书策略描述。
@@ -118,13 +153,12 @@ pub(super) fn validate_target_triple(triple: &str) -> Result<()> {
 }
 
 /// 运行期预检：核查基础发行目录中的 libpython 文件完整性与机器架构（Mach-O arm64 / ELF x86_64 / PE x64）。
-pub(super) fn preflight(root: &Path) -> Result<()> {
+pub(super) fn preflight_version(root: &Path, version: &PythonVersion) -> Result<()> {
     let platform = PlatformKind::current()?;
+    let lib_name = platform.library_name_for_version(version);
     let lib_path = match platform {
-        PlatformKind::MacOSArm64 | PlatformKind::LinuxX64 => {
-            root.join("lib").join(platform.library_name())
-        }
-        PlatformKind::WindowsX64 => root.join(platform.library_name()),
+        PlatformKind::MacOSArm64 | PlatformKind::LinuxX64 => root.join("lib").join(&lib_name),
+        PlatformKind::WindowsX64 => root.join(&lib_name),
     };
     ensure!(
         lib_path.is_file(),
@@ -150,6 +184,10 @@ pub(super) fn preflight(root: &Path) -> Result<()> {
     Ok(())
 }
 
+pub(super) fn preflight(root: &Path) -> Result<()> {
+    preflight_version(root, &PythonVersion::new(3, 12, 13))
+}
+
 /// 原生库重定位与依赖封闭性检查：
 /// 在 macOS 上逐映像修正 install name 并重新代码签名；
 /// 在 Linux 上校验 ELF DT_NEEDED 闭包并配置 rpath；
@@ -173,9 +211,28 @@ pub(super) fn relocate(output: &Path) -> Result<()> {
     Ok(())
 }
 
+/// patchlevel.h 的 PY_VERSION 必须逐段完全匹配选中解释器。
+pub(super) fn header_matches(header: &str, version: &PythonVersion) -> bool {
+    let expected = format!("\"{}\"", version.version_str());
+    header.lines().any(|line| {
+        line.split_whitespace().collect::<Vec<_>>() == ["#define", "PY_VERSION", expected.as_str()]
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn header_requires_exact_micro_and_directive() {
+        let version = PythonVersion::new(3, 12, 13);
+        assert!(header_matches("#define PY_VERSION \"3.12.13\"", &version));
+        assert!(!header_matches("#define PY_VERSION \"3.12.14\"", &version));
+        assert!(!header_matches(
+            "/* 3.12.13 */\n#define PY_VERSION \"3.12.13rc1\"",
+            &version
+        ));
+    }
 
     #[test]
     fn test_platform_consistency() {

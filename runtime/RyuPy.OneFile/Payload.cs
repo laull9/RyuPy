@@ -79,7 +79,9 @@ internal static class Payload
         byte[] bytes = reader.ReadBytes((int)length);
         if (bytes.Length != length) throw new EndOfStreamException("载荷路径被截断");
         string name = Utf8.GetString(bytes);
-        foreach (string part in name.Split('/'))
+        string[] components = name.Split('/');
+        if (components.Length > 128) throw new InvalidDataException("载荷路径层级超过128层");
+        foreach (string part in components)
         {
             if (part.Length == 0 || part is "." or ".." || part.EndsWith('.') || part.EndsWith(' ') ||
                 part.Any(c => char.IsControl(c) || "\\:*?\"<>|".Contains(c)))

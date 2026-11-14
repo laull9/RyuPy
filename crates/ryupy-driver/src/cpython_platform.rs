@@ -72,13 +72,21 @@ impl PlatformKind {
         }
     }
 
-    /// 固定 CPython 3.12 核心动态链接库文件名。
-    pub(crate) fn library_name(&self) -> &'static str {
+    /// 指定版本的 CPython 核心动态链接库文件名。
+    pub(crate) fn library_name_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> String {
         match self {
-            Self::MacOSArm64 => "libpython3.12.dylib",
-            Self::LinuxX64 => "libpython3.12.so.1.0",
-            Self::WindowsX64 => "python312.dll",
+            Self::MacOSArm64 => format!("libpython{}.{}.dylib", version.major, version.minor),
+            Self::LinuxX64 => format!("libpython{}.{}.so.1.0", version.major, version.minor),
+            Self::WindowsX64 => format!("python{}{}.dll", version.major, version.minor),
         }
+    }
+
+    /// 固定 CPython 3.12 核心动态链接库文件名（默认兼容）。
+    pub(crate) fn library_name(&self) -> String {
+        self.library_name_for_version(&super::version::PythonVersion::new(3, 12, 13))
     }
 
     /// 上游固定 python-build-standalone 20260623 归档 URL。
@@ -97,22 +105,40 @@ impl PlatformKind {
     }
 
     /// 分发内 libpython 相对路径。
-    pub(crate) fn library_relpath(&self) -> PathBuf {
+    pub(crate) fn library_relpath_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> PathBuf {
         match self {
             Self::MacOSArm64 | Self::LinuxX64 => {
-                PathBuf::from("python/lib").join(self.library_name())
+                PathBuf::from("python/lib").join(self.library_name_for_version(version))
             }
-            Self::WindowsX64 => PathBuf::from("python").join(self.library_name()),
+            Self::WindowsX64 => {
+                PathBuf::from("python").join(self.library_name_for_version(version))
+            }
         }
     }
 
+    pub(crate) fn library_relpath(&self) -> PathBuf {
+        self.library_relpath_for_version(&super::version::PythonVersion::new(3, 12, 13))
+    }
+
     /// 运行时 Python 模块搜索路径（相对分发根）。
-    pub(crate) fn search_paths(&self) -> Vec<String> {
+    pub(crate) fn search_paths_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> Vec<String> {
         match self {
             Self::MacOSArm64 | Self::LinuxX64 => vec![
-                "python/lib/python3.12".into(),
-                "python/lib/python3.12/lib-dynload".into(),
-                "python/lib/python3.12/site-packages".into(),
+                format!("python/lib/python{}.{}", version.major, version.minor),
+                format!(
+                    "python/lib/python{}.{}/lib-dynload",
+                    version.major, version.minor
+                ),
+                format!(
+                    "python/lib/python{}.{}/site-packages",
+                    version.major, version.minor
+                ),
             ],
             Self::WindowsX64 => vec![
                 "python/Lib".into(),
@@ -122,32 +148,71 @@ impl PlatformKind {
         }
     }
 
+    pub(crate) fn search_paths(&self) -> Vec<String> {
+        self.search_paths_for_version(&super::version::PythonVersion::new(3, 12, 13))
+    }
+
     /// site-packages 目录相对分发根的路径。
-    pub(crate) fn site_packages_relpath(&self) -> PathBuf {
+    pub(crate) fn site_packages_relpath_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> PathBuf {
         match self {
-            Self::MacOSArm64 | Self::LinuxX64 => {
-                PathBuf::from("python/lib/python3.12/site-packages")
-            }
+            Self::MacOSArm64 | Self::LinuxX64 => PathBuf::from(format!(
+                "python/lib/python{}.{}/site-packages",
+                version.major, version.minor
+            )),
             Self::WindowsX64 => PathBuf::from("python/Lib/site-packages"),
         }
     }
 
+    pub(crate) fn site_packages_relpath(&self) -> PathBuf {
+        self.site_packages_relpath_for_version(&super::version::PythonVersion::new(3, 12, 13))
+    }
+
     /// 基础发行标准库目录列表。
-    pub(crate) fn stdlib_dirs(&self) -> &'static [&'static str] {
+    pub(crate) fn stdlib_dirs_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> Vec<String> {
         match self {
-            Self::MacOSArm64 | Self::LinuxX64 => &["lib/python3.12", "lib/python3.12/lib-dynload"],
-            Self::WindowsX64 => &["Lib", "DLLs"],
+            Self::MacOSArm64 | Self::LinuxX64 => vec![
+                format!("lib/python{}.{}", version.major, version.minor),
+                format!("lib/python{}.{}/lib-dynload", version.major, version.minor),
+            ],
+            Self::WindowsX64 => vec!["Lib".into(), "DLLs".into()],
         }
     }
 
-    /// 候选版本头文件相对路径（兼容 include/python3.12 与 Windows include）。
-    pub(crate) fn header_relpaths(&self) -> &'static [&'static str] {
+    pub(crate) fn stdlib_dirs(&self) -> Vec<String> {
+        self.stdlib_dirs_for_version(&super::version::PythonVersion::new(3, 12, 13))
+    }
+
+    /// 候选版本头文件相对路径（兼容 include/python3.x 与 Windows include）。
+    pub(crate) fn header_relpaths_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> Vec<String> {
         match self {
-            Self::MacOSArm64 | Self::LinuxX64 => {
-                &["include/python3.12/patchlevel.h", "include/patchlevel.h"]
-            }
-            Self::WindowsX64 => &["include/patchlevel.h", "include/python3.12/patchlevel.h"],
+            Self::MacOSArm64 | Self::LinuxX64 => vec![
+                format!(
+                    "include/python{}.{}/patchlevel.h",
+                    version.major, version.minor
+                ),
+                "include/patchlevel.h".into(),
+            ],
+            Self::WindowsX64 => vec![
+                "include/patchlevel.h".into(),
+                format!(
+                    "include/python{}.{}/patchlevel.h",
+                    version.major, version.minor
+                ),
+            ],
         }
+    }
+
+    pub(crate) fn header_relpaths(&self) -> Vec<String> {
+        self.header_relpaths_for_version(&super::version::PythonVersion::new(3, 12, 13))
     }
 
     /// 发行必须复制的子目录名。
@@ -159,12 +224,34 @@ impl PlatformKind {
     }
 
     /// 平台官方扩展模块文件后缀名（有序匹配）。
-    pub(crate) fn extension_suffixes(&self) -> &'static [&'static str] {
+    pub(crate) fn extension_suffixes_for_version(
+        &self,
+        version: &super::version::PythonVersion,
+    ) -> Vec<String> {
+        let tag = version.tag();
+        let cp_tag = tag.strip_prefix("cp").unwrap_or(&tag);
         match self {
-            Self::MacOSArm64 => &[".cpython-312-darwin.so", ".abi3.so", ".dylib", ".so"],
-            Self::LinuxX64 => &[".cpython-312-x86_64-linux-gnu.so", ".abi3.so", ".so"],
-            Self::WindowsX64 => &[".cp312-win_amd64.pyd", ".pyd", ".dll"],
+            Self::MacOSArm64 => vec![
+                format!(".cpython-{}-darwin.so", cp_tag),
+                ".abi3.so".into(),
+                ".dylib".into(),
+                ".so".into(),
+            ],
+            Self::LinuxX64 => vec![
+                format!(".cpython-{}-x86_64-linux-gnu.so", cp_tag),
+                ".abi3.so".into(),
+                ".so".into(),
+            ],
+            Self::WindowsX64 => vec![
+                format!(".{}-win_amd64.pyd", tag),
+                ".pyd".into(),
+                ".dll".into(),
+            ],
         }
+    }
+
+    pub(crate) fn extension_suffixes(&self) -> Vec<String> {
+        self.extension_suffixes_for_version(&super::version::PythonVersion::new(3, 12, 13))
     }
 
     /// 允许的原生系统库前缀与白名单。
