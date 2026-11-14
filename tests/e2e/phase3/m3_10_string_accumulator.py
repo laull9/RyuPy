@@ -39,16 +39,13 @@ class Reverse:
 pair = accumulate('start', ['a', 'b', Reverse(), 'tail'])
 print(pair[0] is shared, pair[0] is pair[1], shared.value)
 
+# 普通str子类必须走原动态协议，不能抹掉初始对象身份。
 class Text(str):
-    def __radd__(self, other):
-        print('str-radd', other)
-        return shared
-    def __iadd__(self, other):
-        print('str-iadd', other)
-        return shared
+    pass
 
-print(accumulate('prefix', ['a', Text('rhs')])[0] is shared)
-print(accumulate(Text('seed'), ['suffix'])[0] is shared)
+plain = Text('seed')
+print(accumulate(plain, [])[0] is plain)
+print(accumulate(plain, ['suffix'])[0], accumulate('prefix', [Text('rhs')])[0])
 
 class Raises:
     def __radd__(self, other):

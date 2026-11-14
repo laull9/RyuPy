@@ -6,6 +6,22 @@ namespace RyuPy.Runtime.Tests;
 public class PyStringAccumulatorTests
 {
     [Fact]
+    public void PlainStringSubclassKeepsIdentityUntilDynamicAddition()
+    {
+        var cls = (PyClass)PyOps.MakeClass("Text", [PyType.Get("str")], null);
+        PyOps.FinalizeOrdinaryClass(cls);
+        object text = cls.Invoke(["seed"], [], [])!;
+        object state = PyNumericAccumulator.Create(text);
+        Assert.Same(text, PyNumericAccumulator.Value(state));
+        PyNumericAccumulator.Add(state, "suffix");
+        Assert.Equal("seedsuffix", Assert.IsType<string>(PyNumericAccumulator.Value(state)));
+        object buffered = PyNumericAccumulator.Create("a");
+        PyNumericAccumulator.Add(buffered, "b");
+        PyNumericAccumulator.Add(buffered, text);
+        Assert.Equal("abseed", Assert.IsType<string>(PyNumericAccumulator.Value(buffered)));
+    }
+
+    [Fact]
     public void EmptyAndSharedStringsKeepIdentity()
     {
         string seed = new string('x', 3);

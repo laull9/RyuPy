@@ -53,3 +53,13 @@ MIR额外保守拒绝全函数FunctionLocals ABI，仍拒绝模块、cell、闭�
 提交阶段若本地没有C#/Rust工具链，只能记录CP预检与Python驱动测试，不能声称产品验收。
 完整CI必须先执行这些产品测试及CP/JIT/AOT差分，再做同runner同源工具链的旧/新交错A/B；
 原模块+=保留为预期不受益对照，join与数值累加保留为回归对照。
+
+## 自定义str槽的已知兼容缺口（不计作通过）
+
+run43610133094通过fmt、双产品编译、MIR12项及C#9项后，在base JIT的语义用例
+定义str子类`__radd__`时失败；另外三臂当次未执行，不能推断它们表现相同。
+基线PyStringClass明确拒绝自定义`__radd__`/`__iadd__`槽，该文件未被本优化修改。
+因此将这两项保留为独立`string_compatibility_fixtures/custom_slots.py`：CP成功oracle
+与四个产品臂逐一实际记录；仅精确既有NotImplementedError标记属于已知不兼容，
+意外成功或新错误必须拒绝并重新审查。此记录不是CP差分通过或优化正确性证据。
+普通str子类及非str动态协议仍留在严格CP全输出差分门，不能因已知缺口跳过。
