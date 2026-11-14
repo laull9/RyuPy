@@ -67,8 +67,11 @@ enum Command {
         out_dir: Option<PathBuf>,
         #[arg(long)]
         aot: bool,
-        /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
-        #[arg(long, requires = "aot")]
+        /// 将完整 NativeAOT 依赖封装为唯一可执行文件（隐含 --aot）
+        #[arg(long)]
+        onefile: bool,
+        /// 显式资源清单（AOT / onefile；目标相对路径首切限 ASCII）
+        #[arg(long)]
         resources: Option<PathBuf>,
         /// 显式固定签名 C ABI 声明；AOT 可同时发布显式资源
         #[arg(long)]
@@ -188,6 +191,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             diagnostic_stages,
             out_dir,
             aot,
+            onefile,
             resources,
             native_binding,
             search_paths,
@@ -196,6 +200,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
+            let aot = aot || onefile;
             let out_dir = out_dir.unwrap_or_else(|| {
                 if aot {
                     input
@@ -207,7 +212,12 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     default_out_dir(&input)
                 }
             });
-            let artifacts = ryupy_driver::build_configured(
+            let build = if onefile {
+                ryupy_driver::build_onefile
+            } else {
+                ryupy_driver::build_configured
+            };
+            let artifacts = build(
                 sess,
                 &BuildOptions {
                     input,
@@ -225,7 +235,13 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             if let Some(manifest) = artifacts.manifest {
                 eprintln!(
                     "{}：{}",
-                    if aot { "AOT 清单" } else { "产物清单" },
+                    if onefile {
+                        "内嵌 standalone 清单"
+                    } else if aot {
+                        "AOT 清单"
+                    } else {
+                        "产物清单"
+                    },
                     manifest.display()
                 );
             }
