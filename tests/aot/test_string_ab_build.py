@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 import string_ab as ab
+from string_ab_compatibility import CP_OUTPUT, RYUPY_OUTPUT
 from perf_schema import FIELDS
 
 
@@ -19,6 +20,8 @@ class BuildTest(unittest.TestCase):
         for c in ab.CASES:(sources/f'{c}.py').write_text('print(1)')
         semantic=root/'tests/e2e/phase3';semantic.mkdir(parents=True)
         for c in ('m3_6_numeric_accumulator','m3_10_string_accumulator'):(semantic/f'{c}.py').write_text('print(1)')
+        compatibility=root/'tests/aot/string_compatibility_fixtures';compatibility.mkdir(parents=True)
+        (compatibility/'custom_slots.py').write_text('print(1)')
         for t in targets.values():(t/'release').mkdir(parents=True);(t/'release/ryupy').write_text('cli')
         calls=[];layouts={}
         class FakeRunner:
@@ -36,6 +39,8 @@ class BuildTest(unittest.TestCase):
                     manifest=output/'manifest.json';manifest.write_text(json.dumps(dict(schema_version=1,
                         toolchain=dict(sdk_version='11.0.100' if bad_sdk else '10.0.403'),compiler=dict(options={}))))
                     layouts[str(output)]=SimpleNamespace(managed=managed,manifest=manifest)
+                elif label.startswith('compatibility-'):
+                    value=CP_OUTPUT if label.endswith('-cpython') else RYUPY_OUTPUT
                 elif label.startswith('diagnostic-'):
                     data=dict.fromkeys(FIELDS if stats else ('main_ms','gc0','gc1','gc2'),0)
                     (case/'stats.json').write_text(json.dumps(data))

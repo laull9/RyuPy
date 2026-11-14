@@ -14,6 +14,7 @@ from current_baseline import PYTHON_VERSION, SDK_VERSION
 from direct_baseline import measurement_environment
 from direct_protocol import diagnostic_stats, validate_output
 from perf_runner import Runner, digest, write_json
+from string_ab_compatibility import observe
 from string_ab_protocol import ARMS, CASES, ROUNDS, collect, summarize
 from benchlib.artifact import verified_native
 
@@ -59,6 +60,7 @@ def run(root, base, candidate, targets, out, expected_base, expected_candidate):
         semantic_names = ('m3_6_numeric_accumulator', 'm3_10_string_accumulator')
         source_paths = {c:sources/f'{c}.py' for c in CASES}
         source_paths.update({c:root/'tests/e2e/phase3'/f'{c}.py' for c in semantic_names})
+        source_paths['custom_slots'] = root/'tests/aot/string_compatibility_fixtures/custom_slots.py'
         source_digests = {c:digest(p) for c,p in source_paths.items()}
         report.update(commits=commits, python=sys.version, python_executable=sys.executable,
                       sdk=SDK_VERSION, dotnet=dotnet, source_sha256=source_digests,
@@ -93,6 +95,8 @@ def run(root, base, candidate, targets, out, expected_base, expected_candidate):
             values=[x['options'] for x in publications if x['case']==case]
             if values[0]!=values[1]:raise ValueError('A/B编译选项漂移')
         report['publications']=publications;write_json(out/'run.json',report)
+        observe(runner, products['custom_slots'], root, env, report,
+                lambda: write_json(out/'run.json', report))
         # 固定语义用例先逐字节对照两版本JIT/AOT，任何失败禁止进入性能结论。
         for case in semantic_names:
             oracle=runner.run(f'semantic-{case}-cpython',products[case]['cpython'],cwd=root,env=env,limit=120)
