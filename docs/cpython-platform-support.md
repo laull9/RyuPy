@@ -123,3 +123,13 @@ Linux系统包冻结与Windows UTF-8管道修复经异构只读审查，无新�
 要求目标真实位于冻结产品内；本机7项控制流/拒绝测试通过。Windows MSVC环境Platform=x64
 使托管桥输出到bin/x64/Release；CI托管构建显式Platform=AnyCPU并立即断言桥输出。
 macOS第五轮完整验收仍通过，Linux/Windows修正版继续实测。
+
+Windows固定发行的44个DLL/PYD已由产品PE解析器静态解析通过，补齐它们引用的14个确切
+Windows操作系统DLL名；VC运行时继续要求随包。新一轮继续验收Windows实际发布与执行。
+
+Linux干净目标选择Ubuntu24.04系的`mcr.microsoft.com/dotnet/runtime-deps:10.0-noble`，
+保留ICU、tzdata和stdc++等操作系统原生依赖，沿既有globalization语义执行。镜像用途与
+组成见[微软原生依赖镜像说明](https://github.com/dotnet/dotnet-docker/blob/main/README.runtime-deps.md)。
+驱动先实际断言镜像中python/python3/dotnet命令及.NET安装目录均不存在，再以只读产品挂载、
+独立工作目录、断网和空PATH执行NativeAOT，比较三流及文件副作用并重跑三个缺依赖负例。
+该目标验收结果等待新CI运行登记。

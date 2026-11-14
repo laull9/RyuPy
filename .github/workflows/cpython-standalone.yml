@@ -151,10 +151,16 @@ jobs:
         run: |
           & "$env:PYTHON_BIN" -B tests/cpython/test_cpython_platform.py
 
+      - name: Prepare clean Linux target
+        if: runner.os == 'Linux'
+        run: docker pull mcr.microsoft.com/dotnet/runtime-deps:10.0-noble
+
       - name: Standalone NativeAOT Build and Relocation Verification (POSIX)
         if: runner.os != 'Windows'
         run: |
-          "$PYTHON_BIN" -B tests/cpython/standalone_run.py --python "$PYTHON_BIN" --distribution "$CPYTHON_HOME" --ryupy "${{ matrix.cli }}"
+          args=(-B tests/cpython/standalone_run.py --python "$PYTHON_BIN" --distribution "$CPYTHON_HOME" --ryupy "${{ matrix.cli }}")
+          if [ "$RUNNER_OS" = "Linux" ]; then args+=(--linux-container mcr.microsoft.com/dotnet/runtime-deps:10.0-noble); fi
+          "$PYTHON_BIN" "${args[@]}"
 
       - name: Standalone NativeAOT Build and Relocation Verification (Windows)
         if: runner.os == 'Windows'

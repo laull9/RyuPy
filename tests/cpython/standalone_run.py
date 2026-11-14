@@ -154,6 +154,7 @@ def main():
     parser.add_argument("--distribution", required=True, help="固定 CPython 安装根目录")
     parser.add_argument("--metadata", help="包含 PYTHON.json 与 licenses 的目录")
     parser.add_argument("--ryupy", help="ryupy CLI 可执行文件路径")
+    parser.add_argument("--linux-container", help="在无Python/.NET/SDK的Linux容器内额外验收")
     parser.add_argument("--keep", action="store_true", help="失败或调试时保留测试临时目录")
     args = parser.parse_args()
 
@@ -338,6 +339,31 @@ def main():
         assert actual_side_effect == oracle_side_effect, "业务副作用文件内容与 oracle 不匹配"
         print("[standalone] NativeAOT 直接运行成功：标准库 sqlite3/ssl、中文默认 IO、第三方包与资源完全一致")
 
+        arms = [([str(binary_path)], run_cwd, polluted_env)]
+        if args.linux_container:
+            assert sys.platform == 'linux', '干净容器验收限于Linux目标'
+            docker = shutil.which('docker')
+            assert docker, 'Linux干净目标验收需要Docker'
+            base = [docker, 'run', '--rm', '--pull=never', '--network=none',
+                    '--user=' + str(os.getuid()) + ':' + str(os.getgid())]
+            probe = 'for tool in python python3 dotnet; do if command -v "$tool"; then exit 1; fi; done; test ! -d /usr/share/dotnet; test ! -d /usr/local/share/dotnet'
+            run_cmd(base + [args.linux_container, '/bin/sh', '-c', probe], cwd=workspace, env=env)
+            clean_cwd = workspace / 'clean-target-cwd'
+            clean_cwd.mkdir()
+            isolated = base + ['--mount', f'type=bind,source={relocated_dir},target=/app,readonly',
+                              '--mount', f'type=bind,source={clean_cwd},target=/work', '--workdir=/work',
+                              '--env=PATH=/empty', '--env=PYTHONHOME=/不可访问', '--env=PYTHONPATH=/不可访问',
+                              '--env=LC_ALL=C.UTF-8', '--env=TZ=UTC', args.linux_container, '/app/' + binary_name]
+            clean = run_cmd(isolated, cwd=workspace, env=env)
+            assert (clean.returncode, clean.stdout, clean.stderr) == (oracle_res.returncode, oracle_res.stdout, oracle_res.stderr), clean.stderr
+            assert (clean_cwd / '业务 副作用.txt').read_bytes() == oracle_side_effect
+            arms.append((isolated, workspace, env))
+            print('[standalone] 无Python/.NET/SDK的Linux容器运行与三流/副作用比较通过')
+
+        def failures():
+            return [run_cmd(command, cwd=cwd, env=arm_env, check=False)
+                    for command, cwd, arm_env in arms]
+
         # 9. 校验原生加载边
         audit_native_paths(relocated_dir)
 
@@ -354,8 +380,8 @@ def main():
         py_lib_bak = py_lib.with_suffix(".bak")
         py_lib.rename(py_lib_bak)
         try:
-            bad_lib = run_cmd([str(binary_path)], cwd=run_cwd, env=polluted_env, check=False)
-            assert bad_lib.returncode != 0 and b"CPython" in bad_lib.stderr, "缺少 libpython 时程序未按预期退出失败"
+            for bad_lib in failures():
+                assert bad_lib.returncode != 0 and b"CPython" in bad_lib.stderr, bad_lib.stderr
         finally:
             py_lib_bak.rename(py_lib)
 
@@ -371,8 +397,8 @@ def main():
         shim_lib_bak = shim_lib.with_suffix(".bak")
         shim_lib.rename(shim_lib_bak)
         try:
-            bad_shim = run_cmd([str(binary_path)], cwd=run_cwd, env=polluted_env, check=False)
-            assert bad_shim.returncode != 0 and b"CPython" in bad_shim.stderr, "缺少 shim 共享库时程序未按预期退出失败"
+            for bad_shim in failures():
+                assert bad_shim.returncode != 0 and b"CPython" in bad_shim.stderr, bad_shim.stderr
         finally:
             shim_lib_bak.rename(shim_lib)
 
@@ -386,10 +412,8 @@ def main():
         res_file_bak = res_file.with_suffix(".bak")
         res_file.rename(res_file_bak)
         try:
-            bad_res = run_cmd([str(binary_path)], cwd=run_cwd, env=polluted_env, check=False)
-            assert bad_res.returncode != 0 and b"FileNotFoundError" in bad_res.stderr, (
-                f"缺少包资源时未报告 FileNotFoundError: 退出码={bad_res.returncode}, stderr={bad_res.stderr}"
-            )
+            for bad_res in failures():
+                assert bad_res.returncode != 0 and b"FileNotFoundError" in bad_res.stderr, bad_res.stderr
         finally:
             res_file_bak.rename(res_file)
 
