@@ -36,7 +36,7 @@ def main(request):
     if not site.is_dir():
         fail(f'构建环境缺少site-packages：{site}')
     # packaging是明确的构建工具依赖；隔离模式不执行site初始化和.pth。
-    sys.path.insert(0, str(site))
+    sys.path.insert(0, prepare_build_tools() if request.get('auto_tools') else str(site))
     try:
         import packaging
         from packaging.requirements import Requirement

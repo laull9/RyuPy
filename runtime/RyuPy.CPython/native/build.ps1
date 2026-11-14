@@ -17,11 +17,22 @@ param (
 
 $ErrorActionPreference = 'Stop'
 
-$resolvedPython = (Resolve-Path $PythonHome).Path
+# Rust规范路径可能带verbatim前缀，原生编译器参数使用等价的普通盘符/UNC拼写。
+function Native-Path([string]$value) {
+    $resolved = (Resolve-Path -LiteralPath $value).ProviderPath
+    if ($resolved.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        return '\\' + $resolved.Substring(8)
+    }
+    if ($resolved.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+        return $resolved.Substring(4)
+    }
+    return $resolved
+}
+$resolvedPython = Native-Path $PythonHome
 if (-not (Test-Path $Output)) {
     New-Item -ItemType Directory -Path $Output -Force | Out-Null
 }
-$resolvedOutput = (Resolve-Path $Output).Path
+$resolvedOutput = Native-Path $Output
 $srcFile = Join-Path $PSScriptRoot "ryupy_cpython.c"
 $targetDll = Join-Path $resolvedOutput "ryupy_cpython.dll"
 
@@ -45,7 +56,7 @@ $libs = @("/LIBPATH:$resolvedPython\libs", $libName)
 
 if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
     Write-Host "[ryupy-cpython] 使用 MSVC cl.exe 构建 Windows shim..."
-    $clArgs = @("/nologo", "/O2", "/W3", "/WX", "/MD", "/LD") + $includes + @("/Fo$resolvedOutput\ryupy_cpython.obj", $srcFile, "/link") + $libs + @("/OUT:$targetDll", "/IMPLIB:$resolvedOutput\ryupy_cpython.lib")
+    $clArgs = @("/nologo", "/utf-8", "/O2", "/W3", "/WX", "/MD", "/LD") + $includes + @("/Fo$resolvedOutput\ryupy_cpython.obj", $srcFile, "/link") + $libs + @("/OUT:$targetDll", "/IMPLIB:$resolvedOutput\ryupy_cpython.lib")
     & cl.exe $clArgs
     if ($LASTEXITCODE -ne 0) {
         throw "MSVC 编译 ryupy_cpython.dll 失败，退出码: $LASTEXITCODE"

@@ -90,3 +90,7 @@ CPython3.12.13 oracle 执行完整 CPython 载荷的 CLI 单文件发布，sqlit
 第二轮 CI：macOS/Linux 单文件正常运行、三流/副作用、退出42、并发、中断清理与损坏头负例通过；
 Linux 无Python/.NET/SDK容器亦通过。Windows正常运行、并发和CTRL_BREAK清理通过，OS对损坏头
 返回ERROR_FILE_CORRUPT(1392)，驱动补齐该明确拒绝状态，继续复跑。
+
+修正版候选cd5c620b的[三平台CI](https://github.com/laull9/RyuPy/actions/runs/43596225141)全部通过。
+macOS/Linux覆盖三个POSIX信号，Windows覆盖CTRL_BREAK；三个平台均完成唯一文件搬迁、
+删除输入、字节级三流/文件副作用、退出42、并发与损坏头拒绝，Linux干净目标容器同时通过。

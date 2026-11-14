@@ -6,11 +6,14 @@ on:
     paths:
       - '.github/workflows/cpython-onefile-versions.yml'
       - 'crates/ryupy-driver/src/onefile*'
+      - 'crates/ryupy-cli/**'
       - 'crates/ryupy-driver/src/python_selection*'
       - 'crates/ryupy-driver/src/cpython_*'
       - 'runtime/RyuPy.OneFile/**'
       - 'runtime/RyuPy.CPython/**'
       - 'tests/cpython/onefile*'
+      - 'tests/cpython/multifile*'
+      - 'tests/cpython/fixtures/multifile*'
       - 'tests/cpython/version*'
       - 'tests/cpython/fixtures/onefile*'
       - 'tests/cpython/fixtures/version*'
@@ -18,11 +21,14 @@ on:
     paths:
       - '.github/workflows/cpython-onefile-versions.yml'
       - 'crates/ryupy-driver/src/onefile*'
+      - 'crates/ryupy-cli/**'
       - 'crates/ryupy-driver/src/python_selection*'
       - 'crates/ryupy-driver/src/cpython_*'
       - 'runtime/RyuPy.OneFile/**'
       - 'runtime/RyuPy.CPython/**'
       - 'tests/cpython/onefile*'
+      - 'tests/cpython/multifile*'
+      - 'tests/cpython/fixtures/multifile*'
       - 'tests/cpython/version*'
       - 'tests/cpython/fixtures/onefile*'
       - 'tests/cpython/fixtures/version*'
@@ -32,6 +38,7 @@ permissions:
   contents: read
 
 env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   MSBUILDDISABLENODEREUSE: '1'
   DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
   UseSharedCompilation: 'false'
@@ -136,7 +143,9 @@ jobs:
         run: cargo build -p ryupy-cli
 
       - name: Check OneFile Archive and Source Contracts
-        run: cargo test -p ryupy-driver --lib -- onefile
+        run: |
+          cargo test -p ryupy-cli
+          cargo test -p ryupy-driver --lib -- onefile
 
       - name: Pull Clean Linux Target Container
         if: runner.os == 'Linux'
@@ -153,3 +162,15 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           & "$env:RUNNER_PYTHON" -B tests/cpython/onefile_run.py --python "$env:PYTHON_BIN" --distribution "$env:CPYTHON_HOME" --ryupy "${{ matrix.cli }}"
+
+      - name: Verify ordinary multifile project (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          args=(-B tests/cpython/multifile_run.py --python "$PYTHON_BIN" --ryupy "${{ matrix.cli }}")
+          if [ "$RUNNER_OS" = "Linux" ]; then args+=(--linux-container mcr.microsoft.com/dotnet/runtime-deps:10.0-noble); fi
+          "$PYTHON_BIN" "${args[@]}"
+
+      - name: Verify ordinary multifile project (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          & "$env:RUNNER_PYTHON" -B tests/cpython/multifile_run.py --python "$env:PYTHON_BIN" --ryupy "${{ matrix.cli }}"

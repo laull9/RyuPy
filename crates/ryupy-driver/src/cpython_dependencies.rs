@@ -43,6 +43,7 @@ pub(super) fn collect(
 }
 
 struct CollectRequest<'a> {
+    auto_tools: bool,
     environment: &'a Path,
     root: &'a Path,
     entry: &'a Path,
@@ -66,6 +67,7 @@ pub(super) fn collect_for_version(
         .canonicalize()
         .context("依赖构建环境不存在，请准备固定CPython环境")?;
     collect_internal(CollectRequest {
+        auto_tools: false,
         environment: &environment,
         root,
         entry,
@@ -86,6 +88,7 @@ pub(super) fn collect_auto(
     version: &super::native::version::PythonVersion,
 ) -> Result<Closure> {
     collect_internal(CollectRequest {
+        auto_tools: true,
         environment,
         root,
         entry,
@@ -124,18 +127,16 @@ fn collect_internal(req: CollectRequest<'_>) -> Result<Closure> {
         "environment": req.environment, "entry": req.entry.canonicalize()?,
         "requirements": req.requirements, "dynamic_modules": req.dynamic_modules,
         "stdlib": req.stdlib, "provided_modules": req.provided,
+        "auto_tools": req.auto_tools,
     });
     // -I -S隔离应用导入；-X utf8固定JSON管道编码，避免Windows中文路径被ANSI解码破坏。
+    let script = format!(
+        "{}\n{}",
+        include_str!("cpython_build_tools.py"),
+        include_str!("cpython_dependencies.py")
+    );
     let mut child = Command::new(executable)
-        .args([
-            "-I",
-            "-X",
-            "utf8",
-            "-S",
-            "-B",
-            "-c",
-            include_str!("cpython_dependencies.py"),
-        ])
+        .args(["-I", "-X", "utf8", "-S", "-B", "-c", &script])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

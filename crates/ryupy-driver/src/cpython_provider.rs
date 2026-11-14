@@ -392,7 +392,8 @@ fn ensure_shim_for_version(
         let output = cmd.output()?;
         ensure!(
             output.status.success(),
-            "编译 CPython shim 失败：{}",
+            "编译 CPython shim 失败：{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
     } else {
@@ -405,7 +406,8 @@ fn ensure_shim_for_version(
         let output = cmd.output()?;
         ensure!(
             output.status.success(),
-            "编译 CPython shim 失败：{}",
+            "编译 CPython shim 失败：{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
     }
