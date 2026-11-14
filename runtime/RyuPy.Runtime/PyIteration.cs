@@ -189,7 +189,7 @@ public sealed class PyReversedIter : IPyIterator
 /// <summary>迭代相关的运行时工具。</summary>
 public static partial class PyOps
 {
-    /// <summary>把迭代器剩余元素全部取出（`list(it)`、`sum(it)` 等共用）。</summary>
+    /// <summary>把迭代器剩余元素全部取出（`list(it)` 等容器构造共用）。</summary>
     internal static object?[] DrainIterator(IPyIterator iterator)
     {
         var items = new List<object?>();

@@ -265,9 +265,13 @@ public static partial class PyOps
                 throw new PyTypeError("sum takes at most 2 arguments");
             }
         }
-        foreach (object? item in ToSequence(args[0]))
+        // 每次取值后立即相加，保留用户迭代/加法的交错、早停和活列表变更。
+        // 内部互操作仍可传入原生object数组；复用元组游标，无元素复制。
+        object? source = args[0] is object?[] array ? new PyTuple(array) : args[0];
+        IPyIterator iterator = PyIter.Create(source);
+        while (iterator.MoveNext())
         {
-            total = Binary(Add, total ?? PyNone.Instance, item ?? PyNone.Instance);
+            total = Binary(Add, total ?? PyNone.Instance, iterator.Current() ?? PyNone.Instance);
         }
         return total ?? PyNone.Instance;
     }
