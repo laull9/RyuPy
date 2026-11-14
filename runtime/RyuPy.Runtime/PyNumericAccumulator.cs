@@ -50,8 +50,8 @@ public static class PyNumericAccumulator
                 int required = checked(Text.Length + right.Length);
                 if (required > Text.Capacity)
                 {
-                    int capacity = (int)Math.Min(int.MaxValue,
-                        Math.Max((long)required, (long)Text.Capacity * 2));
+                    int capacity = (int)System.Math.Min(int.MaxValue,
+                        System.Math.Max((long)required, (long)Text.Capacity * 2));
                     Text.EnsureCapacity(capacity);
                 }
                 Text.Append(right);

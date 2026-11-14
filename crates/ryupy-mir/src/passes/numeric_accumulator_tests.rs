@@ -322,22 +322,29 @@ fn source_pipeline_string_holder_acceptance_and_observer_rejection() {
         let file = db.add("accumulator.py", source);
         let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
-        let (hir, diagnostics) = ryupy_hir::lower_module(
-            &parsed,
-            &ryupy_hir::ModuleInfo::default(),
-            source,
-        );
+        let (hir, diagnostics) =
+            ryupy_hir::lower_module(&parsed, &ryupy_hir::ModuleInfo::default(), source);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (types, diagnostics) = ryupy_ty::check_module(&hir);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         let (mut program, _, diagnostics) = crate::build_program(&hir, &types);
         assert!(diagnostics.is_empty(), "{diagnostics:?}");
         super::run_pipeline(&mut program, &super::default_pipeline()).unwrap();
-        program.functions.iter().flat_map(|(_, f)| f.body.blocks.iter())
-            .flat_map(|(_, b)| &b.stmts).filter(|stmt| matches!(stmt,
-                Statement::Eval(Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd), ..
-                }))).count()
+        program
+            .functions
+            .iter()
+            .flat_map(|(_, f)| f.body.blocks.iter())
+            .flat_map(|(_, b)| &b.stmts)
+            .filter(|stmt| {
+                matches!(
+                    stmt,
+                    Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                        ..
+                    })
+                )
+            })
+            .count()
     }
     assert_eq!(count("def f(initial, n, piece):\n    total = initial\n    for i in range(n):\n        total += piece\n    return total\nprint(f('', 3, 'ab'))\n"), 1);
     for source in [

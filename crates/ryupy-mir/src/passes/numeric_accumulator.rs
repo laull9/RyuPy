@@ -39,15 +39,22 @@ fn run(function: &mut Function, direct: bool) {
                         } | Statement::Eval(Rvalue::MakeGenerator { .. })
                             | Statement::Assign {
                                 value: Rvalue::Call {
-                                    callee: Callee::Runtime(RuntimeFn::FunctionLocalsValidate
-                                        | RuntimeFn::FunctionLocalsEnsure
-                                        | RuntimeFn::FunctionLocalsSync), ..
-                                }, ..
+                                    callee: Callee::Runtime(
+                                        RuntimeFn::FunctionLocalsValidate
+                                            | RuntimeFn::FunctionLocalsEnsure
+                                            | RuntimeFn::FunctionLocalsSync,
+                                    ),
+                                    ..
+                                },
+                                ..
                             }
                             | Statement::Eval(Rvalue::Call {
-                                callee: Callee::Runtime(RuntimeFn::FunctionLocalsValidate
-                                    | RuntimeFn::FunctionLocalsEnsure
-                                    | RuntimeFn::FunctionLocalsSync), ..
+                                callee: Callee::Runtime(
+                                    RuntimeFn::FunctionLocalsValidate
+                                        | RuntimeFn::FunctionLocalsEnsure
+                                        | RuntimeFn::FunctionLocalsSync,
+                                ),
+                                ..
                             })
                     )
                 })
