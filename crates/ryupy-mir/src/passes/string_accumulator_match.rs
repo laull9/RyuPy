@@ -1,577 +1,511 @@
-//! 字符串累加严格候选识别：
-//! 仅匹配顶层模块全局（`GlobalId`）且 LHS 在 preheader 有严格确凿字符串字面量初值的循环。
-//! 对整个 header / body / latch 实施严格指令白名单，拒绝任何动态调用、用户协议或中间观察。
-
+//! 精确字符串静态槽的有限自然循环匹配。
+//!
+//! 真实顶层 MIR 使用 Use(Global)→StrConcat→SetGlobal；这里只接受预头直接字符串
+//! 初值和常量后缀，环内其余语句仅允许已定型计数器计算、发布及已绑定检查。
+use super::dead_values::{read_operand, read_value};
+pub(super) use super::numeric_accumulator_match::predecessors;
 use crate::mir::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub(super) struct Plan {
-    pub(super) preheader: BlockId,
-    pub(super) header: BlockId,
-    pub(super) body: BlockId,
-    pub(super) latch: BlockId,
-    pub(super) exit: BlockId,
-    pub(super) update_start: usize,
-    pub(super) update_len: usize,
-    pub(super) target_id: GlobalId,
-    pub(super) target_name: String,
-    pub(super) rhs_literal: String,
-    pub(super) init_operand: Operand,
+    pub preheader: BlockId,
+    pub body: BlockId,
+    pub exit: BlockId,
+    pub update_start: usize,
+    pub target_id: GlobalId,
+    pub rhs_literal: String,
+    pub initial: Operand,
+    pub update_len: usize,
+    pub typed: bool,
 }
 
 pub(super) fn candidate(
-    function: &Function,
+    f: &Function,
     header: BlockId,
-    predecessors: &FxHashMap<BlockId, Vec<BlockId>>,
+    preds: &FxHashMap<BlockId, Vec<BlockId>>,
 ) -> Option<Plan> {
-    // 1. 严格 5 块自然循环控制流拓扑
     let Terminator::Branch {
         then_: body,
         else_: exit,
         ..
-    } = &function.body.blocks[header].terminator
+    } = f.body.blocks[header].terminator
     else {
         return None;
     };
-    let (body, exit) = (*body, *exit);
-
-    let Terminator::Goto(latch) = function.body.blocks[body].terminator else {
+    let Terminator::Goto(latch) = f.body.blocks[body].terminator else {
         return None;
     };
-    if !matches!(
-        function.body.blocks[latch].terminator,
-        Terminator::Goto(target) if target == header
-    ) {
+    if !matches!(f.body.blocks[latch].terminator, Terminator::Goto(back) if back == header) {
         return None;
     }
-
-    let incoming = predecessors.get(&header)?;
+    let incoming = preds.get(&header)?;
     if incoming.len() != 2 || !incoming.contains(&latch) {
         return None;
     }
-    let preheader = *incoming.iter().find(|&&block| block != latch)?;
-
-    if !matches!(
-        function.body.blocks[preheader].terminator,
-        Terminator::Goto(target) if target == header
-    ) {
-        return None;
-    }
-
-    let block_set: FxHashSet<_> = [preheader, header, body, latch, exit].into_iter().collect();
-    if block_set.len() != 5
-        || function.body.entry == header
-        || function.body.entry == body
-        || function.body.entry == latch
-        || function.body.entry == exit
-        || predecessors.get(&body)?.as_slice() != [header]
-        || predecessors.get(&latch)?.as_slice() != [body]
-        || predecessors.get(&exit)?.as_slice() != [header]
+    let preheader = *incoming.iter().find(|&&b| b != latch)?;
+    if [preheader, header, body, latch, exit]
+        .into_iter()
+        .collect::<FxHashSet<_>>()
+        .len()
+        != 5
+        || [header, body, latch, exit].contains(&f.body.entry)
+        || preds.get(&body)?.as_slice() != [header]
+        || preds.get(&latch)?.as_slice() != [body]
+        || preds.get(&exit)?.as_slice() != [header]
+        || !matches!(f.body.blocks[preheader].terminator, Terminator::Goto(to) if to == header)
+        || !f.body.blocks[header]
+            .stmts
+            .iter()
+            .all(|s| control_statement(f, s))
+        || !f.body.blocks[latch]
+            .stmts
+            .iter()
+            .all(|s| control_statement(f, s))
     {
         return None;
     }
-
-    // 2. 审查 header：仅允许纯原生 i64 / bool 循环条件计算
-    if !is_pure_header_block(&function.body.blocks[header]) {
+    if !canonical_unit_range(f, preheader, header, latch) {
         return None;
     }
-
-    // 3. 审查 latch：仅允许纯原生计数器步进
-    if !is_pure_latch_block(&function.body.blocks[latch]) {
-        return None;
-    }
-
-    let loop_blocks = [header, body, latch];
-
-    // 4. 匹配模块全局字符串累加
-    match_global_accumulator(function, preheader, header, body, latch, exit, &loop_blocks)
-}
-
-/// header 纯原生白名单：无函数调用、无动态协议、无全局读写
-fn is_pure_header_block(block: &BasicBlock) -> bool {
-    for stmt in &block.stmts {
-        match stmt {
-            Statement::Line(_) => {}
-            Statement::Assign { value, .. } => match value {
-                Rvalue::Binary { .. } | Rvalue::Unary { .. } | Rvalue::Use(_) => {}
-                _ => return false,
-            },
-            _ => return false,
-        }
-    }
-    matches!(block.terminator, Terminator::Branch { .. })
-}
-
-/// latch 纯原生白名单：仅允许原生算术步进与跳转
-fn is_pure_latch_block(block: &BasicBlock) -> bool {
-    for stmt in &block.stmts {
-        match stmt {
-            Statement::Line(_) => {}
-            Statement::Assign { value, .. } => match value {
-                Rvalue::Binary { op: BinOp::Add, .. } | Rvalue::Use(_) => {}
-                _ => return false,
-            },
-            _ => return false,
-        }
-    }
-    matches!(block.terminator, Terminator::Goto(_))
-}
-
-fn match_global_accumulator(
-    function: &Function,
-    preheader: BlockId,
-    header: BlockId,
-    body: BlockId,
-    latch: BlockId,
-    exit: BlockId,
-    loop_blocks: &[BlockId; 3],
-) -> Option<Plan> {
-    let statements = &function.body.blocks[body].stmts;
-
-    // 扫描 body 寻找 LoadName(target_id) -> DynBinary(Add) -> SetGlobal(target_id)
-    for (start_idx, stmt) in statements.iter().enumerate() {
-        let Statement::Assign {
-            dest: temp_load,
-            value:
-                Rvalue::Call {
-                    callee: Callee::Runtime(RuntimeFn::LoadName),
-                    args,
-                },
-        } = stmt
-        else {
-            continue;
-        };
-        let [Operand::Global(target_id), Operand::Const(Constant::Str(var_name))] = args.as_slice()
-        else {
-            continue;
-        };
-        let target_id = *target_id;
-        let var_name = var_name.clone();
-
-        // 证明 LHS 在 preheader 中具有确凿字符串字面量直接赋值且中途无改变
-        let Some((init_op, _init_str)) = prove_preheader_string_literal(function, preheader, target_id)
-        else {
-            continue;
-        };
-
-        // 在 body 紧随其后查找加法与写回
-        let mut add_info = None;
-        let mut store_idx = None;
-        let mut rhs_literal = None;
-        let mut rhs_local = None;
-
-        for (offset, follow) in statements[start_idx + 1..].iter().enumerate() {
-            let cur_idx = start_idx + 1 + offset;
-            match follow {
-                Statement::Line(_) => continue,
-                // 支持 RHS 在 DynBinary 前单步装箱或直接传递
+    for start in 0..f.body.blocks[body].stmts.len() {
+        let tail = &f.body.blocks[body].stmts[start..];
+        let matched = match tail {
+            [
                 Statement::Assign {
-                    dest: rhs_loc,
+                    dest: loaded,
+                    value: Rvalue::Use(Operand::Global(target)),
+                },
+                Statement::Assign {
+                    dest: result,
+                    value:
+                        Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::StrConcat),
+                            args,
+                        },
+                },
+                Statement::SetGlobal {
+                    dest: stored,
+                    value: Operand::Local(value),
+                },
+                ..,
+            ] => {
+                let [Operand::Local(left), Operand::Const(Constant::Str(suffix))] = args.as_slice()
+                else {
+                    continue;
+                };
+                if left != loaded
+                    || stored != target
+                    || value != result
+                    || f.body.locals[*loaded].ty != MirType::Str
+                {
+                    continue;
+                }
+                Some((*target, *loaded, *result, suffix.clone(), 3, true))
+            }
+            [
+                Statement::Assign {
+                    dest: loaded,
+                    value:
+                        Rvalue::Call {
+                            callee: Callee::Runtime(RuntimeFn::LoadName),
+                            args,
+                        },
+                },
+                Statement::Assign {
+                    dest: rhs,
                     value:
                         Rvalue::Box {
-                            value: Operand::Const(Constant::Str(s)),
+                            value: Operand::Const(Constant::Str(suffix)),
                             from: MirType::Str,
-                        }
-                        | Rvalue::Use(Operand::Const(Constant::Str(s))),
-                } if add_info.is_none() => {
-                    rhs_local = Some(*rhs_loc);
-                    rhs_literal = Some(s.clone());
-                }
+                        },
+                },
                 Statement::Assign {
-                    dest: temp_res,
+                    dest: result,
                     value:
                         Rvalue::DynBinary {
                             op: DynOp::Add,
-                            lhs: Operand::Local(lhs_loc),
-                            rhs,
+                            lhs: Operand::Local(left),
+                            rhs: Operand::Local(right),
                             ..
                         },
-                } if add_info.is_none() && lhs_loc == temp_load => {
-                    add_info = Some((cur_idx, *temp_res));
-                    if let Some(lit) = &rhs_literal {
-                        if rhs != &Operand::Local(rhs_local.unwrap()) {
-                            break;
-                        }
-                    } else if let Operand::Const(Constant::Str(s)) = rhs {
-                        rhs_literal = Some(s.clone());
-                    } else {
-                        break;
-                    }
-                }
+                },
                 Statement::SetGlobal {
-                    dest: store_target,
-                    value: Operand::Local(val_loc),
-                } if add_info.is_some() => {
-                    let (_, expected_res) = add_info.unwrap();
-                    if store_target == &target_id && val_loc == &expected_res {
-                        store_idx = Some(cur_idx);
-                        break;
-                    } else {
-                        break;
-                    }
+                    dest: stored,
+                    value: Operand::Local(value),
+                },
+                ..,
+            ] => {
+                let [Operand::Global(target), Operand::Const(Constant::Str(_))] = args.as_slice()
+                else {
+                    continue;
+                };
+                if left != loaded
+                    || right != rhs
+                    || stored != target
+                    || value != result
+                    || !single_use_definition(f, *rhs)
+                {
+                    continue;
                 }
-                _ => break,
+                Some((*target, *loaded, *result, suffix.clone(), 4, false))
             }
-        }
-
-        let (Some((_, temp_res)), Some(end_idx), Some(literal)) =
-            (add_info, store_idx, rhs_literal)
-        else {
+            _ => None,
+        };
+        let Some((target, loaded, result, suffix, update_len, typed)) = matched else {
             continue;
         };
-
-        // 审查 body 的所有其余语句：必须在白名单内（无未知调用、无动态协议）
-        if !is_pure_body_block(&function.body.blocks[body], start_idx, end_idx, target_id) {
+        if !single_use_definition(f, loaded) || !single_use_definition(f, result) {
             continue;
         }
-
-        // 验证中间临时量与目标全局槽的严格唯一读写
-        let mut target_reads = 0;
-        let mut target_writes = 0;
-        let mut temp_load_reads = 0;
-        let mut temp_load_writes = 0;
-        let mut temp_res_reads = 0;
-        let mut temp_res_writes = 0;
-        let mut rhs_local_reads = 0;
-        let mut rhs_local_writes = 0;
-
-        for (id, block) in function.body.blocks.iter() {
-            let in_loop = loop_blocks.contains(&id);
-            for s in &block.stmts {
-                visit_operands_in_stmt(s, &mut |op| {
-                    if let Operand::Local(loc) = op {
-                        if *loc == temp_load {
-                            temp_load_reads += 1;
-                        }
-                        if *loc == temp_res {
-                            temp_res_reads += 1;
-                        }
-                        if let Some(rl) = rhs_local {
-                            if *loc == rl {
-                                rhs_local_reads += 1;
-                            }
-                        }
-                    }
-                    if in_loop {
-                        if let Operand::Global(gid) = op {
-                            if *gid == target_id {
-                                target_reads += 1;
-                            }
-                        }
-                    }
-                });
-
-                if let Statement::Assign { dest, .. } = s {
-                    if *dest == temp_load {
-                        temp_load_writes += 1;
-                    }
-                    if *dest == temp_res {
-                        temp_res_writes += 1;
-                    }
-                    if let Some(rl) = rhs_local {
-                        if *dest == rl {
-                            rhs_local_writes += 1;
-                        }
-                    }
-                }
-                if in_loop {
-                    if let Statement::SetGlobal { dest, .. } = s {
-                        if *dest == target_id {
-                            target_writes += 1;
-                        }
-                    }
-                }
-            }
-
-            visit_operands_in_terminator(&block.terminator, &mut |op| {
-                if let Operand::Local(loc) = op {
-                    if *loc == temp_load {
-                        temp_load_reads += 1;
-                    }
-                    if *loc == temp_res {
-                        temp_res_reads += 1;
-                    }
-                }
-                if in_loop {
-                    if let Operand::Global(gid) = op {
-                        if *gid == target_id {
-                            target_reads += 1;
-                        }
-                    }
-                }
-            });
-        }
-
-        // target_id 在循环内有且仅有单次 LoadName 读取和单次 SetGlobal 写入
-        // 中间临时量有且仅有单次定义与单次使用
-        let rhs_ok = if rhs_local.is_some() {
-            rhs_local_reads == 1 && rhs_local_writes == 1
-        } else {
-            true
+        let Some(initial) = initial_literal(f, preheader, target) else {
+            continue;
         };
-
-        if target_reads == 1
-            && target_writes == 1
-            && temp_load_reads == 1
-            && temp_load_writes == 1
-            && temp_res_reads == 1
-            && temp_res_writes == 1
-            && rhs_ok
+        if !f.body.blocks[body]
+            .stmts
+            .iter()
+            .enumerate()
+            .all(|(index, statement)| {
+                (start..start + update_len).contains(&index)
+                    || body_statement(f, preheader, body, statement, target)
+            })
         {
-            return Some(Plan {
-                preheader,
-                header,
-                body,
-                latch,
-                exit,
-                update_start: start_idx,
-                update_len: end_idx + 1 - start_idx,
-                target_id,
-                target_name: var_name,
-                rhs_literal: literal,
-                init_operand: init_op,
-            });
+            continue;
         }
+        return Some(Plan {
+            preheader,
+            body,
+            exit,
+            update_start: start,
+            target_id: target,
+            rhs_literal: suffix,
+            initial,
+            update_len,
+            typed,
+        });
     }
     None
 }
 
-/// 证明 target_id 在 preheader 中具有确凿字符串字面量初值，且其后至 Goto(header) 无副作用/写覆盖
-fn prove_preheader_string_literal(
-    function: &Function,
+/// 控制局部只含原生 i64/bool，无全局读、引用、转换或用户协议。
+fn native_operand(f: &Function, op: &Operand) -> bool {
+    match op {
+        Operand::Const(Constant::I64(_) | Constant::Bool(_)) => true,
+        Operand::Local(id) => {
+            matches!(f.body.locals[*id].ty, MirType::I64 | MirType::Bool)
+                && !f.body.locals[*id].is_cell
+        }
+        _ => false,
+    }
+}
+fn control_statement(f: &Function, s: &Statement) -> bool {
+    match s {
+        Statement::Line(_) => true,
+        Statement::Assign { dest, value } if native_operand(f, &Operand::Local(*dest)) => {
+            match value {
+                Rvalue::Use(op) | Rvalue::Unary { operand: op, .. } => native_operand(f, op),
+                Rvalue::Binary { lhs, rhs, op } => {
+                    matches!(
+                        op,
+                        BinOp::Add
+                            | BinOp::Lt
+                            | BinOp::Gt
+                            | BinOp::Eq
+                            | BinOp::BitAnd
+                            | BinOp::BitOr
+                    ) && native_operand(f, lhs)
+                        && native_operand(f, rhs)
+                }
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// 最后一次静态槽写入必须是字面量，其后仅允许无调用的控制初始化和计数器发布。
+fn initial_literal(f: &Function, preheader: BlockId, target: GlobalId) -> Option<Operand> {
+    let statements = &f.body.blocks[preheader].stmts;
+    let (position, last) = statements
+        .iter()
+        .enumerate()
+        .rev()
+        .find(|(_, s)| matches!(s, Statement::SetGlobal { dest, .. } if *dest == target))?;
+    let Statement::SetGlobal { value, .. } = last else {
+        return None;
+    };
+    let initial = match value {
+        Operand::Const(Constant::Str(_)) => value.clone(),
+        Operand::Local(id) => {
+            let defs: Vec<_> = statements[..position]
+                .iter()
+                .filter_map(|s| match s {
+                    Statement::Assign { dest, value } if dest == id => Some(value),
+                    _ => None,
+                })
+                .collect();
+            if defs.len() != 1
+                || !single_definition(f, *id)
+                || !matches!(
+                    defs[0],
+                    Rvalue::Box {
+                        value: Operand::Const(Constant::Str(_)),
+                        from: MirType::Str
+                    }
+                )
+            {
+                return None;
+            }
+            value.clone()
+        }
+        _ => return None,
+    };
+    if statements[position + 1..].iter().all(|s| control_statement(f, s)
+        || matches!(s, Statement::SetGlobal { dest, value } if *dest != target && native_operand(f, value))
+        || literal_range_setup(f, statements, s)) { Some(initial) } else { None }
+}
+
+fn body_statement(
+    f: &Function,
     preheader: BlockId,
-    target_id: GlobalId,
-) -> Option<(Operand, String)> {
-    let stmts = &function.body.blocks[preheader].stmts;
-    let mut set_pos = None;
-    let mut string_literal = None;
-    let mut init_operand = None;
-
-    for (idx, stmt) in stmts.iter().enumerate() {
-        if let Statement::SetGlobal { dest, value } = stmt {
-            if *dest == target_id {
-                set_pos = Some(idx);
-                match value {
-                    Operand::Const(Constant::Str(s)) => {
-                        string_literal = Some(s.clone());
-                        init_operand = Some(value.clone());
-                    }
-                    Operand::Local(loc) => {
-                        // 在 preheader 之前语句中查找 loc 的唯一赋值
-                        for prev in &stmts[..idx] {
-                            if let Statement::Assign {
-                                dest: prev_dest,
-                                value:
-                                    Rvalue::Box {
-                                        value: Operand::Const(Constant::Str(s)),
-                                        from: MirType::Str,
-                                    }
-                                    | Rvalue::Use(Operand::Const(Constant::Str(s))),
-                            } = prev
-                            {
-                                if prev_dest == loc {
-                                    string_literal = Some(s.clone());
-                                    init_operand = Some(Operand::Local(*loc));
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    _ => {
-                        string_literal = None;
-                        init_operand = None;
-                    }
-                }
-            }
-        }
-    }
-
-    let set_idx = set_pos?;
-    let literal = string_literal?;
-    let op = init_operand?;
-
-    // 检查 SetGlobal 之后的语句：禁止再次写 target_id，禁止包含任意函数调用或动态协议
-    for stmt in &stmts[set_idx + 1..] {
-        match stmt {
-            Statement::Line(_) => {}
-            Statement::Assign { value, .. } => match value {
-                Rvalue::Use(_) | Rvalue::Binary { .. } | Rvalue::Unary { .. } => {}
-                _ => return None,
-            },
-            Statement::SetGlobal { dest, .. } if *dest == target_id => return None,
-            Statement::SetGlobal { .. } => {}
-            _ => return None,
-        }
-    }
-
-    Some((op, literal))
-}
-
-/// 审查 body 中除了累加切片之外的其它语句：仅允许原生循环计数变量发布与行号
-fn is_pure_body_block(
-    block: &BasicBlock,
-    slice_start: usize,
-    slice_end: usize,
-    target_id: GlobalId,
+    body: BlockId,
+    s: &Statement,
+    target: GlobalId,
 ) -> bool {
-    for (idx, stmt) in block.stmts.iter().enumerate() {
-        if idx >= slice_start && idx <= slice_end {
-            continue;
-        }
-        match stmt {
-            Statement::Line(_) => {}
-            Statement::Assign { value, .. } => match value {
-                // 仅允许循环计数器装箱与基本赋值
-                Rvalue::Box {
-                    from: MirType::I64, ..
-                }
-                | Rvalue::Use(_) => {}
-                _ => return false,
-            },
-            Statement::SetGlobal { dest, .. } => {
-                if *dest == target_id {
-                    return false;
-                }
-            }
-            _ => return false,
-        }
+    if matches!(s, Statement::Line(_)) {
+        return true;
     }
-    true
+    match s {
+        Statement::Assign {
+            value:
+                Rvalue::Box {
+                    value,
+                    from: MirType::I64,
+                },
+            ..
+        } => native_operand(f, value),
+        Statement::SetGlobal { dest, value } => {
+            *dest != target
+                && (native_operand(f, value)
+                    || matches!(value,
+            Operand::Local(id) if single_definition(f, *id) && f.body.blocks[body].stmts.iter().any(|s| matches!(s,
+                Statement::Assign { dest, value: Rvalue::Box { value, from: MirType::I64 } } if dest == id && native_operand(f, value)))))
+        }
+        Statement::Eval(Rvalue::Call {
+            callee: Callee::Runtime(RuntimeFn::CheckGlobalBound),
+            args,
+        }) => {
+            let [Operand::Global(bound), Operand::Const(Constant::Str(_))] = args.as_slice() else {
+                return false;
+            };
+            // 检查读取布尔绑定位；进入循环前已为 true，环内也只能写 true。
+            matches!(f.body.blocks[preheader].stmts.iter().rev().find(|s| matches!(s, Statement::SetGlobal { dest, .. } if dest == bound)),
+                Some(Statement::SetGlobal { value: Operand::Const(Constant::Bool(true)), .. }))
+                && f.body.blocks[body].stmts.iter().all(|s| !matches!(s, Statement::SetGlobal { dest, value } if dest == bound && !matches!(value, Operand::Const(Constant::Bool(true)))))
+        }
+        _ => false,
+    }
 }
 
-pub(super) fn predecessors(function: &Function) -> FxHashMap<BlockId, Vec<BlockId>> {
-    let mut result: FxHashMap<_, Vec<_>> = function
-        .body
+/// 读取器复用完整 MIR 定义；中间字符串只能在被改写切片中使用一次。
+fn single_use_definition(f: &Function, local: LocalId) -> bool {
+    let (mut writes, mut reads) = (0, 0);
+    for (_, block) in f.body.blocks.iter() {
+        for s in &block.stmts {
+            let mut used = FxHashSet::default();
+            match s {
+                Statement::Assign { dest, value } => {
+                    writes += usize::from(*dest == local);
+                    read_value(value, &mut used);
+                }
+                Statement::Eval(v) => read_value(v, &mut used),
+                Statement::SetGlobal { value, .. } => read_operand(value, &mut used),
+                Statement::SetField { obj, value, .. } => {
+                    read_operand(obj, &mut used);
+                    read_operand(value, &mut used);
+                }
+                Statement::Line(_) => {}
+            }
+            reads += usize::from(used.contains(&local));
+        }
+        let mut used = FxHashSet::default();
+        read_terminator(&block.terminator, &mut used);
+        reads += usize::from(used.contains(&local));
+    }
+    reads == 1 && writes == 1
+}
+
+/// 只允许 range 字面量先装箱后精确 i64 拆箱，不接受动态转换或用户协议。
+fn literal_range_setup(f: &Function, statements: &[Statement], s: &Statement) -> bool {
+    match s {
+        Statement::Assign { value: Rvalue::Box { value: Operand::Const(Constant::I64(_)), from: MirType::I64 }, .. } => true,
+        Statement::Assign { value: Rvalue::Unbox { value: Operand::Local(id), to: MirType::I64 }, .. } => {
+            single_definition(f, *id) && statements.iter().any(|s| matches!(s,
+                Statement::Assign { dest, value: Rvalue::Box { value: Operand::Const(Constant::I64(_)), from: MirType::I64 } } if dest == id))
+        }
+        _ => false,
+    }
+}
+fn single_definition(f: &Function, id: LocalId) -> bool {
+    f.body
         .blocks
         .iter()
-        .map(|(id, _)| (id, vec![]))
-        .collect();
-    for (id, block) in function.body.blocks.iter() {
-        let destinations = match &block.terminator {
-            Terminator::Goto(target) | Terminator::Suspend { resume: target, .. } => vec![*target],
-            Terminator::Branch { then_, else_, .. } => vec![*then_, *else_],
-            Terminator::Return(_) | Terminator::Raise { .. } | Terminator::Unreachable => vec![],
-        };
-        for target in destinations {
-            if let Some(incoming) = result.get_mut(&target) {
-                incoming.push(id);
+        .flat_map(|(_, b)| &b.stmts)
+        .filter(|s| matches!(s, Statement::Assign { dest, .. } if *dest == id))
+        .count()
+        == 1
+}
+
+/// 终结符只读实际消费的值；Suspend.input 是恢复端定义，非读取。
+fn read_terminator(term: &Terminator, reads: &mut FxHashSet<LocalId>) {
+    match term {
+        Terminator::Branch { cond, .. } => read_operand(cond, reads),
+        Terminator::Suspend { value, .. } => read_operand(value, reads),
+        Terminator::Return(value) => {
+            if let Some(value) = value {
+                read_operand(value, reads);
             }
         }
-    }
-    result
-}
-
-/// 完整递归遍历 Statement 中引用的所有操作数
-pub(super) fn visit_operands_in_stmt<F: FnMut(&Operand)>(stmt: &Statement, visitor: &mut F) {
-    match stmt {
-        Statement::Assign { value, .. } | Statement::Eval(value) => {
-            visit_operands_in_rvalue(value, visitor);
-        }
-        Statement::SetField { obj, value, .. } => {
-            visit_operand(obj, visitor);
-            visit_operand(value, visitor);
-        }
-        Statement::SetGlobal { value, .. } => {
-            visit_operand(value, visitor);
-        }
-        Statement::Line(_) => {}
-    }
-}
-
-/// 完整递归遍历 Terminator 中引用的所有操作数
-pub(super) fn visit_operands_in_terminator<F: FnMut(&Operand)>(
-    terminator: &Terminator,
-    visitor: &mut F,
-) {
-    match terminator {
-        Terminator::Branch { cond, .. } => visit_operand(cond, visitor),
-        Terminator::Suspend { value, .. } => visit_operand(value, visitor),
-        Terminator::Return(Some(val)) => visit_operand(val, visitor),
         Terminator::Raise { value, cause } => {
-            for op in value.iter().chain(cause.iter()) {
-                visit_operand(op, visitor);
+            for operand in value.iter().chain(cause.iter()) {
+                read_operand(operand, reads);
             }
         }
-        Terminator::Return(None) | Terminator::Goto(_) | Terminator::Unreachable => {}
+        Terminator::Goto(_) | Terminator::Unreachable => {}
     }
 }
 
-/// 完整递归遍历 Rvalue 中引用的所有操作数
-pub(super) fn visit_operands_in_rvalue<F: FnMut(&Operand)>(value: &Rvalue, visitor: &mut F) {
-    match value {
-        Rvalue::IsVector128Supported => {}
-        Rvalue::VectorPackF64 { low, high } => {
-            visit_operand(low, visitor);
-            visit_operand(high, visitor);
-        }
-        Rvalue::Use(v)
-        | Rvalue::GeneratorDelegateStep { delegate: v }
-        | Rvalue::GetField { obj: v, .. }
-        | Rvalue::Box { value: v, .. }
-        | Rvalue::Unbox { value: v, .. }
-        | Rvalue::VectorLaneF64 { value: v, .. }
-        | Rvalue::IsBoxedF64 { value: v }
-        | Rvalue::UnboxExactF64 { value: v }
-        | Rvalue::IsBoxedI64 { value: v }
-        | Rvalue::UnboxExactI64 { value: v }
-        | Rvalue::DynTruthy { value: v }
-        | Rvalue::Unary { operand: v, .. }
-        | Rvalue::Cast { operand: v, .. }
-        | Rvalue::DynUnary { operand: v, .. } => visit_operand(v, visitor),
-        Rvalue::Binary { lhs, rhs, .. }
-        | Rvalue::VectorBinaryF64 { lhs, rhs, .. }
-        | Rvalue::DynBinary { lhs, rhs, .. }
-        | Rvalue::DynCompare { lhs, rhs, .. } => {
-            visit_operand(lhs, visitor);
-            visit_operand(rhs, visitor);
-        }
-        Rvalue::MakeGenerator { frame, origin, .. } => {
-            for v in frame.iter().chain(origin.iter()) {
-                visit_operand(v, visitor);
-            }
-        }
-        Rvalue::Call { args, .. } | Rvalue::NewObject { args, .. } => {
-            for arg in args {
-                visit_operand(arg, visitor);
-            }
-        }
-        Rvalue::CallWithArgs { prefix, args, .. } => {
-            for arg in prefix.iter().chain(args) {
-                visit_operand(arg, visitor);
-            }
-        }
-        Rvalue::InstanceZeroCall { callee, .. } => {
-            visit_operand(callee, visitor);
-        }
-        Rvalue::DynCallValue { callee, args } => {
-            visit_operand(callee, visitor);
-            for arg in args {
-                visit_operand(arg, visitor);
-            }
-        }
-        Rvalue::DynCallMethod { obj, args, .. } => {
-            visit_operand(obj, visitor);
-            for arg in args {
-                visit_operand(arg, visitor);
-            }
-        }
-        Rvalue::Array { elements, .. } => {
-            for el in elements {
-                visit_operand(el, visitor);
-            }
-        }
-        Rvalue::ArrayView { source, .. } => {
-            visit_operand(source, visitor);
-        }
+/// 只改写编译器的 +1 range：counter < stop 保证回边加法不越过 i64 上界。
+/// 禁止普通 while 或动态步长，避免可捕获的步进异常观察到尚未写回的绑定。
+fn canonical_unit_range(f: &Function, preheader: BlockId, header: BlockId, latch: BlockId) -> bool {
+    let latch_stmts: Vec<_> = f.body.blocks[latch]
+        .stmts
+        .iter()
+        .filter(|s| !matches!(s, Statement::Line(_)))
+        .collect();
+    let [
+        Statement::Assign {
+            dest: counter,
+            value:
+                Rvalue::Binary {
+                    op: BinOp::Add,
+                    lhs: Operand::Local(left),
+                    rhs: Operand::Local(step),
+                },
+        },
+    ] = latch_stmts.as_slice()
+    else {
+        return false;
+    };
+    if counter != left || !single_definition(f, *step)
+        || !f.body.blocks[preheader].stmts.iter().any(|s| matches!(s,
+            Statement::Assign { dest, value: Rvalue::Use(Operand::Const(Constant::I64(1))) } if dest == step))
+    { return false; }
+    let header_stmts: Vec<_> = f.body.blocks[header]
+        .stmts
+        .iter()
+        .filter(|s| !matches!(s, Statement::Line(_)))
+        .collect();
+    let Terminator::Branch {
+        cond: Operand::Local(branch),
+        ..
+    } = f.body.blocks[header].terminator
+    else {
+        return false;
+    };
+    if let [
+        Statement::Assign {
+            dest,
+            value:
+                Rvalue::Binary {
+                    op: BinOp::Lt,
+                    lhs: Operand::Local(value),
+                    rhs,
+                },
+        },
+    ] = header_stmts.as_slice()
+    {
+        return *dest == branch
+            && value == counter
+            && native_operand(f, rhs)
+            && rhs != &Operand::Local(*counter);
     }
+    let [pos, lt, gt, positive, neg, negative, combined] = header_stmts.as_slice() else {
+        return false;
+    };
+    let Some(pos_id) = binary_result(
+        pos,
+        BinOp::Gt,
+        &Operand::Local(*step),
+        &Operand::Const(Constant::I64(0)),
+    ) else {
+        return false;
+    };
+    let Statement::Assign {
+        dest: lt_id,
+        value:
+            Rvalue::Binary {
+                op: BinOp::Lt,
+                lhs: Operand::Local(value),
+                rhs: stop,
+            },
+    } = lt
+    else {
+        return false;
+    };
+    if value != counter || !native_operand(f, stop) || stop == &Operand::Local(*counter) {
+        return false;
+    }
+    let Some(gt_id) = binary_result(gt, BinOp::Gt, &Operand::Local(*counter), stop) else {
+        return false;
+    };
+    let Some(positive_id) = binary_result(
+        positive,
+        BinOp::BitAnd,
+        &Operand::Local(pos_id),
+        &Operand::Local(*lt_id),
+    ) else {
+        return false;
+    };
+    let Statement::Assign {
+        dest: neg_id,
+        value:
+            Rvalue::Unary {
+                op: UnaryOp::Not,
+                operand: Operand::Local(value),
+            },
+    } = neg
+    else {
+        return false;
+    };
+    if *value != pos_id {
+        return false;
+    }
+    let Some(negative_id) = binary_result(
+        negative,
+        BinOp::BitAnd,
+        &Operand::Local(*neg_id),
+        &Operand::Local(gt_id),
+    ) else {
+        return false;
+    };
+    binary_result(
+        combined,
+        BinOp::BitOr,
+        &Operand::Local(positive_id),
+        &Operand::Local(negative_id),
+    ) == Some(branch)
 }
-
-/// 完整递归遍历 Operand（包含 Operand::Array）
-fn visit_operand<F: FnMut(&Operand)>(op: &Operand, visitor: &mut F) {
-    visitor(op);
-    if let Operand::Array(elements) = op {
-        for el in elements {
-            visit_operand(el, visitor);
-        }
+fn binary_result(
+    s: &Statement,
+    expected: BinOp,
+    left: &Operand,
+    right: &Operand,
+) -> Option<LocalId> {
+    match s {
+        Statement::Assign {
+            dest,
+            value: Rvalue::Binary { op, lhs, rhs },
+        } if *op == expected && lhs == left && rhs == right => Some(*dest),
+        _ => None,
     }
 }

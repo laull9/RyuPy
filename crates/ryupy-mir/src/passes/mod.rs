@@ -53,12 +53,9 @@ mod tuple_scalar;
 #[cfg(test)]
 mod tuple_scalar_tests;
 
-#[cfg(test)]
-pub(crate) mod string_accumulator;
-#[cfg(test)]
-pub(crate) mod string_accumulator_match;
-#[cfg(test)]
-pub(crate) mod string_accumulator_expand;
+mod string_accumulator;
+mod string_accumulator_expand;
+mod string_accumulator_match;
 #[cfg(test)]
 mod string_accumulator_tests;
 
@@ -69,6 +66,7 @@ pub use foreach_numeric_accumulator::ForEachNumericAccumulator;
 pub use interval_narrow::IntervalNarrow;
 pub use numeric_accumulator::{DirectNumericAccumulator, NumericAccumulator};
 pub use simplify_cfg::SimplifyCfg;
+pub use string_accumulator::StringAccumulator;
 pub use tuple_scalar::TupleScalar;
 
 pub trait MirPass {
@@ -149,6 +147,7 @@ pub fn pipeline_with_foreach_options(
     } else {
         passes.push(PipelinePass::Function(Box::new(NumericAccumulator)));
     }
+    passes.push(PipelinePass::Function(Box::new(StringAccumulator)));
     passes.push(PipelinePass::Function(Box::new(TupleScalar)));
     passes.push(PipelinePass::Function(Box::new(DeadValues)));
     passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));

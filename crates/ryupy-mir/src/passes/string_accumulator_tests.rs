@@ -16,23 +16,34 @@
 use super::{MirPass, string_accumulator::StringAccumulator};
 use crate::mir::*;
 
-fn compile_module(source: &str) -> (Program, FunctionId) {
+fn compile_module(source: &str) -> (Program, FnId) {
     let mut db = ryupy_base::SourceDb::default();
     let file = db.add("string_acc_test.py", source);
     let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
     assert!(diagnostics.is_empty(), "解析错误: {diagnostics:?}");
-    let (hir, diagnostics) =
-        ryupy_hir::lower_module(&parsed, &ryupy_hir::ModuleInfo::default(), source);
+    let info = if source.contains("globals()") {
+        ryupy_hir::ModuleInfo {
+            instance_globals: true,
+            instance_capabilities: ryupy_base::InstanceCapabilities {
+                direct_globals: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    } else {
+        ryupy_hir::ModuleInfo::default()
+    };
+    let (hir, diagnostics) = ryupy_hir::lower_module(&parsed, &info, source);
     assert!(diagnostics.is_empty(), "HIR 错误: {diagnostics:?}");
     let (types, diagnostics) = ryupy_ty::check_module(&hir);
     assert!(diagnostics.is_empty(), "类型检查错误: {diagnostics:?}");
     let (mut program, _, diagnostics) = crate::build_program(&hir, &types);
     assert!(diagnostics.is_empty(), "MIR 构建错误: {diagnostics:?}");
-    crate::validate(&program).unwrap();
+    crate::validate::validate(&program).unwrap();
 
     // 运行初始 CFG 简化，消除无用空块形成标准 5 块自然循环
     super::SimplifyCfg.run(&mut program.functions[program.entry]);
-    crate::validate(&program).unwrap();
+    crate::validate::validate(&program).unwrap();
 
     let entry = program.entry;
     (program, entry)
@@ -41,7 +52,7 @@ fn compile_module(source: &str) -> (Program, FunctionId) {
 fn check_optimization(source: &str) -> (bool, Program) {
     let (mut program, entry) = compile_module(source);
     StringAccumulator.run(&mut program.functions[entry]);
-    crate::validate(&program).unwrap();
+    crate::validate::validate(&program).unwrap();
 
     let optimized = program.functions[entry].body.blocks.iter().any(|(_, b)| {
         b.stmts.iter().any(|s| {
@@ -86,7 +97,10 @@ fn test_str_concat_module_global_inplace_optimized() {
 fn test_containers_module_global_non_inplace_and_multiple_loops_optimized() {
     let source = "x = 10\ntext = ''\nfor i in range(100):\n    text = text + 'b'\n";
     let (optimized, _) = check_optimization(source);
-    assert!(optimized, "containers 顶层 = + 模式在证明为精确字符串后应当被优化");
+    assert!(
+        optimized,
+        "containers 顶层 = + 模式在证明为精确字符串后应当被优化"
+    );
 }
 
 #[test]
@@ -126,7 +140,6 @@ def check():
 text = ""
 while check():
     text += "a"
-    break
 "#;
     let (optimized, _) = check_optimization(source);
     assert!(!optimized, "循环头包含动态调用时必须被拒绝");
@@ -212,7 +225,67 @@ result = text
     // 验证在 exit 块中，SetGlobal(text) 支配后文对 text 的读取
     let func = &program.functions[program.entry];
     let exit_has_set_global = func.body.blocks.iter().any(|(_, b)| {
-        b.stmts.iter().any(|s| matches!(s, Statement::SetGlobal { .. }))
+        b.stmts
+            .iter()
+            .any(|s| matches!(s, Statement::SetGlobal { .. }))
     });
     assert!(exit_has_set_global, "exit 必须包含 SetGlobal 写回");
+}
+
+#[test]
+fn original_benchmark_sources_have_real_string_candidates() {
+    for source in [
+        include_str!("../../../../tests/benchmarks/str_concat.py"),
+        include_str!("../../../../tests/benchmarks/containers.py"),
+    ] {
+        let (matched, program) = check_optimization(source);
+        assert!(
+            matched,
+            "{}\n{}",
+            source.lines().next().unwrap(),
+            crate::pretty::dump(&program)
+        );
+    }
+}
+
+#[test]
+fn valid_latch_with_observer_is_rejected() {
+    let (mut program, entry) = compile_module("text = ''\nfor i in range(10):\n    text += 'a'\n");
+    let latch = {
+        let f = &program.functions[entry];
+        let (_, header) = f
+            .body
+            .blocks
+            .iter()
+            .find(|(_, block)| matches!(block.terminator, Terminator::Branch { .. }))
+            .unwrap();
+        let Terminator::Branch { then_: body, .. } = header.terminator else {
+            unreachable!()
+        };
+        let Terminator::Goto(latch) = f.body.blocks[body].terminator else {
+            unreachable!()
+        };
+        latch
+    };
+    program.functions[entry].body.blocks[latch]
+        .stmts
+        .push(Statement::Eval(Rvalue::Call {
+            callee: Callee::Fn(entry),
+            args: vec![],
+        }));
+    crate::validate::validate(&program).unwrap();
+    let before = crate::pretty::dump(&program);
+    StringAccumulator.run(&mut program.functions[entry]);
+    assert_eq!(before, crate::pretty::dump(&program));
+}
+
+#[test]
+fn non_unit_range_and_while_remain_on_original_path() {
+    for source in [
+        "text = ''\nfor i in range(0, 10, 2):\n    text += 'a'\n",
+        "text = ''\nfor i in range(10, 0, -1):\n    text += 'a'\n",
+        "i = 0\ntext = ''\nwhile i < 10:\n    text += 'a'\n    i += 1\n",
+    ] {
+        assert!(!check_optimization(source).0);
+    }
 }

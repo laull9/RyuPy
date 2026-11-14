@@ -1,4 +1,3 @@
-# ryupy: pending
 # 字符串有界累加 AOT 优化测试集：覆盖顶层模块绑定、多循环偏置、非 inplace 拼接、别名快照与边界
 
 # 1. 顶层模块全局变量 += 累加（str_concat 模式）
@@ -66,3 +65,31 @@ for i in range(5):
     observed_trace.append(obs_text)
     obs_text += "!"
 print("test7 observed steps:", len(observed_trace), observed_trace[0], observed_trace[-1], obs_text)
+
+# 8. 已绑定目标的零次循环保留初值引用。
+zero_text = "zero_seed"
+zero_alias = zero_text
+for i in range(0):
+    zero_text += "suffix"
+print("test8 zero identity:", zero_alias is zero_text)
+
+# 9. 动态左值的非原地与原地协议须分别调用，不进入精确字符串快路。
+protocol_events = []
+
+
+class CustomConcat:
+    def __add__(self, right):
+        protocol_events.append("add:" + right)
+        return self
+
+    def __iadd__(self, right):
+        protocol_events.append("iadd:" + right)
+        return self
+
+
+custom_text = CustomConcat()
+for i in range(3):
+    custom_text = custom_text + "x"
+for i in range(2):
+    custom_text += "y"
+print("test9 protocols:", protocol_events)

@@ -6,7 +6,7 @@
 //! 1. 仅限模块全局槽（GlobalId），关闭未完全证明的 local 槽以避免局部临时量生命周期遗漏；
 //! 2. 必须由 preheader 显式赋予字符串字面量（精确保证内建 str 身份与已绑定状态，无 NameError 风险）；
 //! 3. header/body/latch 实行全指令严格白名单，彻底杜绝用户自定义 __add__/__iadd__、动态协议与中间 globals() 观察；
-//! 4. 处于 #[cfg(test)] 模式，不接入默认流水线，仅供主代理单测与差分验收。
+//! 4. 当前本地候选接入流水线接受差分与A/B验收，尚未提交晋升。
 
 use super::MirPass;
 use super::string_accumulator_match::predecessors;
@@ -21,7 +21,8 @@ impl MirPass for StringAccumulator {
 
     fn run(&self, function: &mut Function) {
         // 1. 拒绝包含异常保护区、闭包环境、直接 globals 合约的函数
-        if !function.body.regions.is_empty()
+        if function.module_state.is_some()
+            || !function.body.regions.is_empty()
             || function.env.is_some()
             || !function.body.direct_globals_contracts.is_empty()
         {

@@ -1,7 +1,7 @@
 //! 字符串累加展开：将候选循环改写为精确字符串 holder 的延迟追加与退出物化。
 //!
 //! 1. 前驱块（preheader）：
-//!    - 提升右操作数字面量装箱，整个循环只装箱一次；
+//!    - 提升右操作数字面量装箱，字符串装箱在CIL为no-op；
 //!    - 使用 preheader 中已证明的确凿初值操作数直接调用 NumericAccumulatorCreate 初始化 holder；
 //! 2. 循环体（body）：
 //!    - 移除原本二次方分配的 LoadName / DynBinary / SetGlobal 切片；
@@ -37,16 +37,33 @@ pub(super) fn expand(function: &mut Function, plan: Plan) {
         },
     });
 
-    // 使用已证明的初始操作数创建 holder；未绑定与 NameError 在 preheader 已经由确凿初值证明消除
+    let initial_box = function.body.locals.alloc(LocalDecl {
+        ty: MirType::Dynamic,
+        name: None,
+        is_cell: false,
+    });
+    preheader_stmts.push(Statement::Assign {
+        dest: initial_box,
+        value: match &plan.initial {
+            Operand::Local(id) if function.body.locals[*id].ty == MirType::Dynamic => {
+                Rvalue::Use(plan.initial.clone())
+            }
+            _ => Rvalue::Box {
+                value: plan.initial.clone(),
+                from: MirType::Str,
+            },
+        },
+    });
+    // 精确字符串初值显式装入动态 holder，不增加提前名字读取。
     preheader_stmts.push(Statement::Assign {
         dest: holder,
         value: Rvalue::Call {
             callee: Callee::Runtime(RuntimeFn::NumericAccumulatorCreate),
-            args: vec![plan.init_operand],
+            args: vec![Operand::Local(initial_box)],
         },
     });
 
-    // 2. 循环体：将 LoadName / DynBinary / SetGlobal 切片替换为单次无额外分配的追加
+    // 2. 循环体：将 LoadName / DynBinary / SetGlobal 切片替换为holder追加；StringBuilder仍有几何扩容
     let body_stmts = &mut function.body.blocks[plan.body].stmts;
     body_stmts.splice(
         plan.update_start..plan.update_start + plan.update_len,
@@ -74,11 +91,36 @@ pub(super) fn expand(function: &mut Function, plan: Plan) {
             },
         },
     );
+    if !plan.typed {
+        exit_stmts.insert(
+            1,
+            Statement::SetGlobal {
+                dest: plan.target_id,
+                value: Operand::Local(final_val),
+            },
+        );
+        return;
+    }
+    let final_str = function.body.locals.alloc(LocalDecl {
+        ty: MirType::Str,
+        name: None,
+        is_cell: false,
+    });
     exit_stmts.insert(
         1,
+        Statement::Assign {
+            dest: final_str,
+            value: Rvalue::Unbox {
+                value: Operand::Local(final_val),
+                to: MirType::Str,
+            },
+        },
+    );
+    exit_stmts.insert(
+        2,
         Statement::SetGlobal {
             dest: plan.target_id,
-            value: Operand::Local(final_val),
+            value: Operand::Local(final_str),
         },
     );
 }
