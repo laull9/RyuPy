@@ -27,4 +27,38 @@
 
 主代理用正式Release CLI即时打印原始generators.py的Native MIR：`count_up` 的 `n`、`i` 为Dynamic，挂起时保存对象引用；不会每轮按typed I64参数重复装箱。撤回以这两个槽推算数十MiB冗余spill的归因。报告中三百万外部产出还包含yield from内部恢复，不能混用作统一resume调用次数。
 
-已从运行时源码确认 `BuiltinSum` 通过 `ToSequence` 对迭代器调用 `DrainIterator`，先收集到List再复制数组；这是生成器表达式sum的全量物化热点，并改变迭代/加法副作用交错。下一竖切优先改为流式迭代，独立验证CPython事件顺序与真实AOT收益，再评估累加装箱优化。
+优化前 `BuiltinSum` 通过 `ToSequence` / `DrainIterator` 全量物化。流式消费已随c9abdb5e提交，
+原始generators配对约416.9→336.4ms、RSS83.6→21.9MiB；事件交错/早停、NativeAOT/搬迁及完整门禁通过。
+该历史热点已消除，后续不得继续据此解释当前性能，见[sum专项](aot-sum-optimization.md)。
+
+
+## 流式sum之后的候选复核
+
+最新6ad1cce8的26项配对中，generators候选臂346.8ms、RSS21.9MiB，CP118.6ms/14.8MiB。
+外部产出共3M；加上yield from内层，成功产出对应约4M次恢复，还需额外计入各生成器耗尽的最后恢复。
+
+### 只读形参跳过挂起写回（尚未实现）
+
+工厂确实将params写入初始frame；非参数局部是null/typed默认值，函数体首次运行后才有实际值。
+因此可研究仅对已初始化且整个函数中无定义的参数跳过重复ArraySet，恢复读取仍保留。
+这是引用写入优化，不能声称消除Dynamic参数反复装箱；实际吞吐须AOT配对测量。
+
+分析必须穷尽Statement及Terminator定义，尤其Suspend.input在恢复时会赋值、异常计划插入的catch目标、
+cell初始化/重绑定和trace product专用深度；只扫描Assign的伪代码不足以作为最终证明。
+非参数常量局部不能据此省掉首次spill。send/throw/close、参数重绑定、捕获写入、locals观察、
+yield from及EH/traceback均需独立结构与差分验证。
+
+### 整数sum快路（尚未实现）
+
+仅精确long可绕过用户魔法方法；溢出必须升级任意精度，异构/foreign/start回退仍维持交错和早停。
+调研给出的 `total = checked(long + long)` 会使用CLR原始装箱，绕过现有PyInt.Box的小整数缓存；
+未覆盖身份合同，不能直接采用。该写法也保留逐项堆分配，收益需要与真正原生累计状态的方案比较。
+空输入必须返回原start引用；遇到需回调的值之前必须物化准确累加值，普通加法不能改成__iadd__。
+
+### 调研论断修正
+
+locals init存在时，按分支加载局部本身不会必然触发InvalidProgramException；
+CLR验证器与Python/MIR的值有效性是不同要求。推迟restore仍需证明每个实际使用点与异常路径的定义，
+不能仅以“definite assignment不允许”排除。生成器typed特化也需守卫/回退与跨挂起存储设计，
+其工程成本高于本轮小竖切，但不是原则上不可能。
+traceback压栈虽无稳态分配，仍有CPU成本；保留必要异常帧是合同，性能影响需测量。

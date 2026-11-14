@@ -194,7 +194,7 @@ public sealed class PyIter : IPyIterator
                     };
                 }
             case PyList list:
-                return list.Items[(int)_cursor - 1];
+                return list.ReadIteratorItem((int)_cursor - 1);
             case PyTuple tuple:
                 return tuple.Items[(int)_cursor - 1];
             case PySet or PyFrozenSet:

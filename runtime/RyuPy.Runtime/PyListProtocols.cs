@@ -160,8 +160,10 @@ internal static class PyListProtocols
         PyList list = PyListLayout.RequireRaw(self);
         long times = RepeatCount(count, root);
         CheckRepeat(list, times);
+        if (PyList.TryRepeatBoolean(list, times, out PyList? boolList))
+            return boolList;
         var result = new PyList();
-        if (list.Count == 0) return result;
+        if (list.Count == 0 || times <= 0) return result;
         for (long i = 0; i < times; i++) result.ExtendExact(list);
         return result;
     }
