@@ -45,7 +45,7 @@ def validate_result(data):
     return result
 
 
-def validate_bundle(root, source):
+def validate_bundle(root, source, expected_sdk=None):
     """本轮唯一新目录绑定清单；仅读文件，不伪造CLI报告或重跑程序。"""
     build, dist = root/'hello.build', root/'hello.dist'
     for path in (root, build, dist): plain_stat(path, directory=True)
@@ -59,6 +59,9 @@ def validate_bundle(root, source):
     sdk_root = sdk_roots[0]
     for path in (sdk_root, sdk_root/'host'): plain_stat(path, directory=True)
     sdk = read_sdk_version(sdk_root/'host/sdk.version')
+    # 核真实MSBuild记录而非仅相信setup-dotnet输入或shell的SDK选择。
+    if expected_sdk is not None and sdk != expected_sdk:
+        raise ValueError(f'AOT实际SDK不符合冻结版本：预期{expected_sdk}，实际{sdk}')
     manifest, raw = read_json(dist/MANIFEST_NAME)
     validate_schema(manifest, 'linux-x64', sdk)
     allow_omitted = manifest['schema_version'] == 1
@@ -131,7 +134,7 @@ def archive_bundle(bundle, out, deadline):
             'owner_sha256':owner['sha256'] if owner and not owner['directory'] else None}
 
 
-def run(root, out, target):
+def run(root, out, target, expected_sdk=None):
     started = time.monotonic()
     out.mkdir(parents=True, exist_ok=False)
     logs = out/'logs'; logs.mkdir()
@@ -140,7 +143,7 @@ def run(root, out, target):
     parent = target/'bench/aot'
     before = set(parent.iterdir()) if parent.exists() else set()
     evidence = {'schema_version': 1, 'purpose': 'command_pipeline_and_relocation', 'budget_seconds': 1800,
-                'save_name': name, 'expected_application_processes': {'cpython': 7, 'native': 7},
+                'save_name': name, 'expected_sdk': expected_sdk, 'expected_application_processes': {'cpython': 7, 'native': 7},
                 'process_count_basis': 'benchmark warmup=1/runs=5 plus one separate relocation pair, not independent tracing',
                 'per_application_timeout': None, 'per_publish_timeout': None, 'status': 'started'}
     (out/'result.json').write_text(json.dumps(evidence, indent=2))
@@ -155,11 +158,11 @@ def run(root, out, target):
         (out/'saved-result.json').write_bytes(raw)
         validate_result(data)
         bundle = fresh_bundle(parent, before)
-        checked, manifest = validate_bundle(bundle, root/'tests/benchmarks/hello.py')
+        checked, manifest = validate_bundle(bundle, root/'tests/benchmarks/hello.py', expected_sdk)
         (out/'ryupy-artifact.json').write_bytes(manifest)
         archived = archive_bundle(bundle, out, started+1800)
         assert archived['owner_sha256'] is not None, '成功树缺owner'
-        copied, copied_manifest = validate_bundle(out/'owned-bundle', root/'tests/benchmarks/hello.py')
+        copied, copied_manifest = validate_bundle(out/'owned-bundle', root/'tests/benchmarks/hello.py', expected_sdk)
         assert copied == checked and copied_manifest == manifest
         evidence['archive'] = archived
         evidence['relocation'] = verify_relocation(
@@ -187,5 +190,6 @@ if __name__ == '__main__':
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[2])
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--target', type=Path, default=Path('target'))
+    parser.add_argument('--expected-sdk', help='冻结本次实际MSBuild SDK；不匹配立即拒绝验收')
     args = parser.parse_args()
-    run(args.root.resolve(), args.out.resolve(), args.target.resolve())
+    run(args.root.resolve(), args.out.resolve(), args.target.resolve(), args.expected_sdk)

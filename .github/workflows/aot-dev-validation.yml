@@ -25,6 +25,11 @@ env:
 jobs:
   linux-x64:
     runs-on: ubuntu-24.04
+    env:
+      # setup-dotnet默认与runner预装SDK共目录；隔离后禁止意外使用更新SDK。
+      DOTNET_INSTALL_DIR: ${{ runner.temp }}/ryupy-dotnet-${{ github.run_id }}-${{ github.run_attempt }}
+      DOTNET: ${{ runner.temp }}/ryupy-dotnet-${{ github.run_id }}-${{ github.run_attempt }}/dotnet
+      RYUPY_EXPECTED_SDK: '10.0.403'
     # 冷构建30分钟 + 管线32分钟，另留18分钟给安装与失败工件收尾。
     timeout-minutes: 80
     steps:
@@ -32,10 +37,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.403'
+          dotnet-version: ${{ env.RYUPY_EXPECTED_SDK }}
       - uses: actions/setup-python@v5
         with:
           python-version-file: tests/pinned-python.txt
+      - name: Verify selected SDK before compilation
+        run: |
+          test "$(command -v dotnet)" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = "$RYUPY_EXPECTED_SDK"
       - name: Lightweight runner and artifact regressions
         run: |
           python -B tests/aot/test_runner.py
@@ -61,6 +70,7 @@ jobs:
         run: |
           python -B tests/aot/bench_smoke.py \
             --target "$RUNNER_TEMP/ryupy-aot-target" \
+            --expected-sdk "$RYUPY_EXPECTED_SDK" \
             --out "$RUNNER_TEMP/aot-dev-validation-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
       - name: Preserve evidence outside source Git, including failure
         if: always()

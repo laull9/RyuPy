@@ -63,3 +63,14 @@ python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
 恢复阶段逐项尝试所有安全路径，原路径被重建或恢复IO失败时保留冲突hidden，并在
 `path_restoration`记录每项原路径、隐藏路径、恢复状态及汇总错误。只有原对象身份真正
 恢复才记成功，不能用路径重新存在替代；冲突不阻断其他无冲突路径恢复。
+
+## SDK 确定性
+
+此前该工作流请求安装10.0.403，但共享runner预装的更高SDK仍可能成为默认选择；
+成功记录实际使用11.0.100。这些旧结果仍是其记录版本上的有效正确性证据，不能改写为10.0.403。
+当前只在本CI作业内用独立 `DOTNET_INSTALL_DIR` 安装既定SDK，不给产品仓库新增全局
+`global.json`，不改net10.0目标或用户provider。安装后检查PATH命中的可执行路径和版本，
+随后 `--expected-sdk` 再核本次真实MSBuild写出的版本，拒绝安装设置与实际发布版本漂移。
+只有此精确提交的新CI成功，才能登记固定SDK上的AOT/搬迁通过；这仍不证明性能收益。
+这只固定SDK选择：setup-dotnet v4仍会安装当时的LTS runtime，action标签及系统依赖也未全部
+冻结，不能称整个工具链可复现。driver的 `DOTNET` 覆盖入口在本作业内也明确指向隔离可执行文件。
