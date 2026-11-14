@@ -23,22 +23,49 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         python.display()
     );
     std::fs::create_dir(&python)?;
-    for directory in ["lib", "include", "share", "licenses"] {
+    let site_packages = native::site_packages_relpath()?;
+    let relative_site = site_packages
+        .strip_prefix("python")
+        .context("平台site-packages路径必须以python开头")?;
+    let excluded = (!plan.dependency_report.is_null()).then(|| plan.root.join(relative_site));
+    for directory in native::copy_directories()? {
         if plan.root.join(directory).is_dir() {
-            copy_authorized(
+            // 自动闭包只复制已选第三方文件；基础发行中的开发包不能旁路冻结计划。
+            copy_tree(
                 &plan.root.join(directory),
                 &python.join(directory),
-                &plan.root,
+                &plan.root.canonicalize()?,
+                &mut Vec::new(),
+                excluded.as_deref(),
             )?;
         }
     }
     for file in ["BUILD", "PYTHON.json"] {
         copy_authorized(&plan.root.join(file), &python.join(file), &plan.root)?;
     }
+    // Windows核心库位于发行根；Unix核心库已随lib目录复制。
+    if cfg!(windows) {
+        for entry in std::fs::read_dir(&plan.root)? {
+            let entry = entry?;
+            if entry.file_type()?.is_file()
+                && entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("dll"))
+            {
+                copy_authorized(&entry.path(), &python.join(entry.file_name()), &plan.root)?;
+            }
+        }
+    }
+    // Windows等发行可把许可证放在根目录；声明的每份许可都必须进入产品。
+    for license in &plan.source.licenses {
+        let target = python.join(license);
+        if !target.is_file() {
+            copy_authorized(&plan.root.join(license), &target, &plan.root)?;
+        }
+    }
     for payload in &plan.payloads {
-        let destination = python
-            .join("lib/python3.12/site-packages")
-            .join(&payload.destination);
+        let destination = output.join(&site_packages).join(&payload.destination);
         ensure!(
             !destination.exists(),
             "CPython 包载荷目标冲突：{}",
@@ -52,36 +79,46 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
     );
     std::fs::copy(&plan.shim, output.join(native::shim_name()))?;
     native::relocate(output)?;
+    let mut files = Vec::new();
+    list_files(&python, output, &mut files)?;
+    // 冻结第三方附属DLL目录，运行时注册相同搜索闭包，避免审计与实际加载脱节。
+    let native_search_paths: std::collections::BTreeSet<_> = files
+        .iter()
+        .filter_map(|file| file["path"].as_str())
+        .filter(|path| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dll"))
+        })
+        .filter_map(|path| {
+            Path::new(path)
+                .parent()
+                .map(|parent| parent.to_string_lossy().into_owned())
+        })
+        .collect();
     let config = json!({
         "schema": 1, "python_version": VERSION, "home": "python",
-        "library": format!("python/lib/{}", native::library_name()),
+        "library": native::library_relpath()?,
         "shim": native::shim_name(),
-        "search_paths": ["python/lib/python3.12", "python/lib/python3.12/lib-dynload", "python/lib/python3.12/site-packages"],
+        "search_paths": native::search_paths()?, "native_search_paths": native_search_paths,
         "stdlib_provider": "cpython", "modules": plan.modules, "container_transfer": plan.container_transfer,
     });
     std::fs::write(output.join(CONFIG), serde_json::to_vec_pretty(&config)?)?;
-    let mut files = Vec::new();
-    list_files(&python, output, &mut files)?;
     let report = json!({
         "schema": 1, "python_version": VERSION, "rid": native::rid()?,
         "source": plan.source,
-        "archive_url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260623/cpython-3.12.13%2B20260623-aarch64-apple-darwin-install_only.tar.gz",
+        "archive_url": native::archive_url()?,
         "build_configuration": {"implementation": "cpython", "gil": true, "archive_layout": "install_only", "source_build": "python-build-standalone@20260623"},
         "container_transfer": plan.container_transfer, "execution": "ryupy_compiled_entry",
         "modules": plan.modules.iter().map(|name| (name.clone(), json!({"provider": "cpython", "reason": crate::cpython_inventory::reason(plan,name)}))).collect::<serde_json::Map<_,_>>(),
         "stdlib_provider": "cpython", "stdlib_inventory": plan.stdlib, "declared_modules": plan.declared, "package_inventory": plan.packages,
         "entry_provider": "ryupy_compiled_source", "files": files,
+        "dependency_collection": plan.dependency_report,
         "payloads": plan.payloads.iter().map(|payload| &payload.destination).collect::<Vec<_>>(),
         "managed_bundle": {"source": "single_bridge_output", "symbols": "embedded_portable_pdb"},
         "system_dependencies": native::system_dependencies(),
         // 证书属于宿主数据依赖；固定PBS首发使用OpenSSL的系统默认路径。
-        "certificate_policy": {
-            "mode": "system_default", "bundled": false,
-            "source": "macos_system_openssl_paths",
-            "default_cafile": "/private/etc/ssl/cert.pem",
-            "default_capath": "/private/etc/ssl/certs",
-            "environment_overrides": ["SSL_CERT_FILE", "SSL_CERT_DIR"]
-        },
+        "certificate_policy": native::certificate_policy()?,
         "dependency_downloads_at_runtime": false,
     });
     std::fs::write(output.join(REPORT), serde_json::to_vec_pretty(&report)?)?;
@@ -117,14 +154,24 @@ pub(crate) fn publish(source: &Path, output: &Path) -> Result<()> {
 
 /// 基础发行内链接必须仍指向发行树内部；解引用复制后产品目录不依赖原安装路径。
 fn copy_authorized(source: &Path, output: &Path, boundary: &Path) -> Result<()> {
-    copy_tree(source, output, &boundary.canonicalize()?, &mut Vec::new())
+    copy_tree(
+        source,
+        output,
+        &boundary.canonicalize()?,
+        &mut Vec::new(),
+        None,
+    )
 }
 fn copy_tree(
     source: &Path,
     output: &Path,
     boundary: &Path,
     stack: &mut Vec<std::path::PathBuf>,
+    excluded: Option<&Path>,
 ) -> Result<()> {
+    if excluded == Some(source) {
+        return Ok(());
+    }
     let resolved = source
         .canonicalize()
         .with_context(|| format!("CPython 载荷无法解析：{}", source.display()))?;
@@ -150,7 +197,7 @@ fn copy_tree(
             if name == "__pycache__" || name == ".DS_Store" {
                 continue;
             }
-            copy_tree(&entry.path(), &output.join(name), boundary, stack)?;
+            copy_tree(&entry.path(), &output.join(name), boundary, stack, excluded)?;
         }
         stack.pop();
     } else {

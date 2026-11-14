@@ -24,7 +24,7 @@ internal static class PyAttributeDeletion
         }
     }
 
-    internal static void Guard(object? value, string name)
+    internal static void Guard(object? value, string name, bool fromObject = false)
     {
         if (value is PyModule module && !PyModuleInstances.IsInstance(module))
             throw Unsupported("module attribute deletion requires global-slot synchronization");
@@ -58,9 +58,9 @@ internal static class PyAttributeDeletion
             PyListLayout.GuardInstanceMutation(ordinary, name);
             PyDictLayout.GuardInstanceMutation(ordinary, name);
             PyEnum.GuardMemberMutation(ordinary, name);
-            owner.CheckDataclassWrite(name, deleting: true);
+            if (!fromObject) owner.CheckDataclassWrite(name, deleting: true);
         }
-        if (owner.TryLookup("__delattr__", out _, out _))
+        if (!fromObject && owner.TryLookup("__delattr__", out _, out _))
             throw Unsupported("custom __delattr__ is not supported");
         owner.TryLookup(name, out _, out object? raw);
         if (raw is PyProperty property)

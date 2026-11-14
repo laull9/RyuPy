@@ -49,7 +49,7 @@ public static class Bootstrap
     }
 }
 
-internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers)
+internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths)
 {
     internal static HostConfiguration Read(string filename)
     {
@@ -65,7 +65,8 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
             string resolved = Path.GetFullPath(value, directory);
             if (!development)
             {
-                if (Path.IsPathRooted(value) || !resolved.StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                StringComparison cmp = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                if (Path.IsPathRooted(value) || (!resolved.StartsWith(directory + Path.DirectorySeparatorChar, cmp) && !resolved.Equals(directory, cmp)))
                     throw new InvalidDataException("CPython发行路径必须位于配置目录：" + value);
                 // 逐段解析符号链接，避免相对路径经过链接逃离发行闭包。
                 string current = directory;
@@ -74,7 +75,7 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
                     current = Path.Combine(current, component);
                     FileSystemInfo info = Directory.Exists(current) ? new DirectoryInfo(current) : new FileInfo(current);
                     if (info.LinkTarget is not null) current = info.ResolveLinkTarget(true)!.FullName;
-                    if (!current.StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                    if (!current.StartsWith(directory + Path.DirectorySeparatorChar, cmp) && !current.Equals(directory, cmp))
                         throw new InvalidDataException("CPython发行链接越过配置目录：" + value);
                 }
             }
@@ -87,6 +88,8 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
         if (mode is not ("proxy" or "synchronized")) throw new InvalidDataException("container_transfer必须为proxy或synchronized");
         return new(Resolve("home"), Resolve("library"), Resolve("shim"), paths,
             root.GetProperty("modules").EnumerateArray().Select(p => p.GetString()!).ToArray(),
-            mode == "synchronized");
+            mode == "synchronized",
+            root.TryGetProperty("native_search_paths", out JsonElement nativePaths)
+                ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : []);
     }
 }

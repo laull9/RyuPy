@@ -26,6 +26,19 @@ Markdown失败于find_spec缺source metadata。CP20当次基线全部通过，�
 显式synchronized采用调用边界物化/写回，保持共享图与异常前副作用；两域后台线程并发修改
 同一容器暂缓。默认proxy继续使用活代理，混合set/frozenset比较在两种模式均明确报NI。
 
+2026-11-14主代理完整固定20项目provider矩阵：macOS arm64的JIT、NativeAOT、删除私有输入后搬迁
+各19/20通过，attrs三模式失败于编译入口模块缺少活字典。三流和文件副作用参与比较，docopt仅将
+已知载荷警告头的绝对路径规范为相对名，原四条SyntaxWarning的类型、行号和正文均保留。
+结果归属产品兼容率，纯RyuPy原生执行率继续沿独立默认矩阵统计。详见
+[固定项目provider验收](../tests/cpython/projects_README.md)。
+
+2026-11-14新增显式安装依赖闭包，自动收集入口导入、传递需求、extras/marker、包数据、metadata、
+许可证和原生库；动态插件可显式补充。主代理接线后macOS arm64的同次CP/JIT/NativeAOT、删除
+构建输入后的中文路径搬迁、三流及文件副作用与缺依赖负例通过。配置与命令见
+[自动依赖闭包](../tests/cpython/dependencies/README.md)。macOS/Linux/Windows standalone及Linux无Python/.NET/SDK容器验收通过；
+范围和实际CI链接见[平台实测状态](cpython-platform-support.md#52-平台实测状态)。
+当前源码完整make check通过：3113项C#、Rust全套、467项编译e2e，283项ignored保留。
+
 当前显式provider试点把固定发行的标准库库存整体交CPython管理；同名标准库源码或包出现在
 应用搜索根时，编译器以E0100和冲突路径拒绝。额外第三方包依据显式声明与随包库存冻结，
 进程启动后保持同一初始化权威。普通原生配置沿既有模块解析路径执行。

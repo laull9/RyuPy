@@ -1,12 +1,14 @@
 //! 从固定发行源码布局和上游构建元数据静态冻结执行域；不启动 Python、不加载扩展。
-use super::cpython_provider::{Payload, Plan};
+use super::cpython_provider::{Payload, Plan, native};
 use anyhow::{Context, Result, ensure};
 use std::collections::BTreeSet;
 use std::path::Path;
 
 pub(crate) fn stdlib(root: &Path, metadata: &serde_json::Value) -> Result<BTreeSet<String>> {
-    let mut names = directory(&root.join("lib/python3.12"), false)?;
-    names.extend(directory(&root.join("lib/python3.12/lib-dynload"), true)?);
+    let mut names = BTreeSet::new();
+    for directory_path in native::stdlib_dirs()? {
+        names.extend(directory(&root.join(directory_path), true)?);
+    }
     let extensions = metadata["build_info"]["extensions"]
         .as_object()
         .context("CPython 上游元数据缺少扩展模块库存")?;
@@ -22,7 +24,16 @@ pub(crate) fn stdlib(root: &Path, metadata: &serde_json::Value) -> Result<BTreeS
     Ok(names)
 }
 pub(crate) fn packages(root: &Path, payloads: &[Payload]) -> Result<BTreeSet<String>> {
-    let mut names = directory(&root.join("lib/python3.12/site-packages"), true)?;
+    let mut names = directory(
+        &root.join(native::site_packages_relpath()?.strip_prefix("python")?),
+        true,
+    )?;
+    names.extend(payload_packages(payloads)?);
+    Ok(names)
+}
+/// 自动闭包排除基础发行开发包，库存只从本次实际载荷产生。
+pub(crate) fn payload_packages(payloads: &[Payload]) -> Result<BTreeSet<String>> {
+    let mut names = BTreeSet::new();
     for payload in payloads {
         let path = Path::new(&payload.destination);
         // 单层载荷可建立导入身份；嵌套资源本身不凭目录名字创建新模块。
@@ -68,10 +79,11 @@ fn module_file(name: &str, extensions: bool) -> Option<String> {
     let module = if let Some(name) = name.strip_suffix(".py") {
         name
     } else if extensions {
-        // 固定 macOS CPython 3.12 的正式扩展后缀；不按首个点猜任意文件的模块名。
-        name.strip_suffix(".cpython-312-darwin.so")
-            .or_else(|| name.strip_suffix(".abi3.so"))
-            .or_else(|| name.strip_suffix(".so"))?
+        // 按目标平台正式扩展后缀识别，不按首个点猜模块名。
+        native::extension_suffixes()
+            .ok()?
+            .iter()
+            .find_map(|suffix| name.strip_suffix(suffix))?
     } else {
         return None;
     };
@@ -81,6 +93,17 @@ pub(crate) fn reason(plan: &Plan, name: &str) -> &'static str {
     let root = name.split('.').next().unwrap_or(name);
     if plan.stdlib.contains(root) {
         "fixed_stdlib_inventory"
+    } else if plan.dependency_report["distributions"]
+        .as_array()
+        .is_some_and(|items| {
+            items.iter().any(|item| {
+                item["modules"].as_array().is_some_and(|modules| {
+                    modules.iter().any(|module| module.as_str() == Some(root))
+                })
+            })
+        })
+    {
+        "installed_dependency_closure"
     } else if plan.declared.contains(root) {
         "explicit_dependency_family"
     } else {

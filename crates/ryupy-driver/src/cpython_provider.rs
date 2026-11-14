@@ -4,10 +4,12 @@ use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::path::{Component, Path, PathBuf};
 
+#[path = "cpython_dependencies.rs"]
+mod dependencies;
 #[path = "cpython_deployment.rs"]
 mod deployment;
 #[path = "cpython_native.rs"]
-mod native;
+pub(crate) mod native;
 pub(crate) use deployment::{extend_project, publish};
 const VERSION: &str = "3.12.13";
 pub(crate) const CONFIG: &str = "ryupy-cpython.json";
@@ -30,6 +32,7 @@ pub(crate) struct Source {
 #[serde(deny_unknown_fields)]
 struct Declaration {
     schema: u32,
+    dependencies: Option<dependencies::Declaration>,
     python_version: String,
     distribution_root: PathBuf,
     source: Source,
@@ -71,9 +74,10 @@ pub(crate) struct Plan {
     pub payloads: Vec<Payload>,
     pub bridge: PathBuf,
     pub shim: PathBuf,
+    pub dependency_report: serde_json::Value,
 }
 
-pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
+pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
     sess.cpython_provider_state.plan = None;
     let Some(path) = &sess.cpython_provider else {
         return Ok(());
@@ -113,8 +117,12 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
         build.trim() == source.build_id,
         "CPython 发行 BUILD 与声明来源不符"
     );
-    let header = std::fs::read_to_string(root.join("include/python3.12/patchlevel.h"))
+    let header_path = native::header_relpaths()?
+        .iter()
+        .map(|path| root.join(path))
+        .find(|path| path.is_file())
         .context("CPython 发行缺少固定版本头文件")?;
+    let header = std::fs::read_to_string(header_path).context("CPython 发行缺少固定版本头文件")?;
     ensure!(
         header
             .lines()
@@ -140,8 +148,8 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
     ensure!(
         metadata["version"] == "8"
             && metadata["python_version"] == VERSION
-            && metadata["target_triple"] == "aarch64-apple-darwin"
-            && metadata["build_options"] == "pgo+lto"
+            && metadata["target_triple"] == native::target_triple()?
+            && metadata["build_options"] == native::build_options()?
             && metadata["libpython_link_mode"] == "shared",
         "CPython 上游构建元数据与固定发行不符"
     );
@@ -195,8 +203,19 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
             .with_context(|| format!("CPython 包载荷不存在：{}", payload.source.display()))?;
     }
     let stdlib = crate::cpython_inventory::stdlib(&root, &metadata)?;
-    let packages = crate::cpython_inventory::packages(&root, &payloads)?;
+    let closure = declaration
+        .dependencies
+        .map(|request| dependencies::collect(request, base, &root, entry, &modules, &stdlib))
+        .transpose()?
+        .unwrap_or_default();
     let declared = modules.iter().cloned().collect();
+    payloads.extend(closure.payloads);
+    let mut packages = if closure.report.is_null() {
+        crate::cpython_inventory::packages(&root, &payloads)?
+    } else {
+        crate::cpython_inventory::payload_packages(&payloads)?
+    };
+    packages.extend(closure.modules);
     modules.extend(stdlib.iter().cloned());
     modules.extend(packages.iter().cloned());
     modules.sort();
@@ -221,7 +240,8 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
         .unwrap_or_else(|| bridge.join(native::shim_name()));
     ensure!(
         bridge.join("RyuPy.CPython.dll").is_file(),
-        "缺少 RyuPy.CPython.dll，请先构建随包宿主"
+        "缺少 RyuPy.CPython.dll，请先构建随包宿主或指定bridge_directory：{}",
+        bridge.display()
     );
     ensure!(shim.is_file(), "缺少 CPython shim：{}", shim.display());
     native::preflight(&root)?;
@@ -236,6 +256,7 @@ pub(crate) fn prepare(sess: &mut Session) -> Result<()> {
         payloads,
         bridge,
         shim,
+        dependency_report: closure.report,
     });
     Ok(())
 }

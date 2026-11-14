@@ -6,7 +6,9 @@
 Python → CIL → NativeAOT 的编译链，长期对标 Nuitka 的 AOT 打包，并按实测热点优化性能。**
 CP1–CP3显式试点在macOS arm64已通过21项CP/JIT/NativeAOT搬迁、原联合应用及六项生命周期模式；
 真实错版本ABI、handled异常双向状态和混合异常栈均通过。默认native固定20保留门为13/6/1；
-2026-11-14完整make check已exit0，Linux/Windows、干净机与HTTPS待验。决策见
+2026-11-14完整make check已exit0。固定项目provider三模式各19/20；macOS/Linux/Windows standalone与Linux
+无Python/.NET/SDK容器通过。跨平台完整对象桥/NumPy、HTTPS和onefile继续推进；
+实际范围见[平台状态](cpython-platform-support.md#52-平台实测状态)。决策见
 [ADR-0181](adr/0181-cpython-provider-first.md)，架构合同见 [CPython provider](cpython-provider.md)。
 
 ### 短期顺序

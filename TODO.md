@@ -18,8 +18,19 @@
   双向异常、生命周期、搬迁与缺依赖负例在macOS arm64通过；其他平台待验。
 - [ ] **默认兼容配置晋升**：CP1–CP3 全部门通过后切默认 CPython provider，保留显式
   纯 RyuPy 配置；固定 20 项增加 provider 维度，保留原始入口、版本与 native 结果。
-- [ ] **CP4 覆盖与 AOT 分发**：产品固定集至少 16/20；扩大标准库验收，完成
+- [~] **CP4 覆盖与 AOT 分发**：产品固定集至少 16/20；扩大标准库验收，完成
   macOS/Linux/Windows 目标机与依赖闭包，standalone 后再推进 onefile。
+  自动依赖闭包已接入显式provider：入口导入、Requires-Dist/extras/marker、RECORD资源与metadata，
+  以及NumPy原生扩展同包部署；2026-11-14主代理接入平台布局后，macOS arm64的
+  CP/JIT/NativeAOT、删除构建输入搬迁、三流/副作用与缺依赖负例复验通过。
+  三平台布局、机器架构/格式校验与原生加载审计已接线；20项定向Rust测试及Clippy通过。
+  独立CI的macOS/Linux/Windows真实应用发布、输入删除搬迁与缺依赖负例全部通过；Linux无Python/.NET/SDK容器通过。平台合同见
+  [ADR-0186](docs/adr/0186-cpython-platform-closure.md)。
+  固定20项目provider的macOS完整三模式矩阵已复验：JIT/NativeAOT/输入删除搬迁各19通过、attrs失败。
+  attrs阻断于编译入口模块缺少活字典；docopt保留四条警告，仅规范警告头路径后逐条比较。
+  原生执行率仍单列，详见[项目矩阵](tests/cpython/projects_README.md)。
+  三平台验收范围见[平台实测状态](docs/cpython-platform-support.md#52-平台实测状态)；依赖配置见
+  [自动依赖说明](tests/cpython/dependencies/README.md)与[ADR-0185](docs/adr/0185-cpython-installed-dependency-closure.md)。
 - [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
 
@@ -29,8 +40,8 @@ NumPy2.3.5，21项CP/JIT/NativeAOT原位与中文空格&搬迁完整通过，含
 原联合应用完整三流、HTTP/数据库副作用与资源/SQLite包负例通过，业务源码未改。
 真实3.11.15错版本ABI、CPU错配及缺依赖门通过；C ABI联合/标量/ctypes/默认proxy专项通过。
 固定20默认native完整保留门有效：13 native/6 unsupported/1 failed，保护11全部保留，CP20全过。
-2026-11-14完整make check已exit0。冻结快照v3长门、v4诊断变更复验范围见
-[人工登记](docs/validation/cpython-provider-2026-11-13.md)。Linux/Windows、干净目标机和HTTPS待验；
+2026-11-14当前实现完整make check已exit0：3113项C#、Rust全套、467项编译e2e，283项ignored保留。冻结快照v3长门、v4诊断变更复验范围见
+[人工登记](docs/validation/cpython-provider-2026-11-13.md)。跨平台完整对象桥/NumPy、macOS/Windows干净目标与HTTPS待验；
 本轮PBS将_sqlite3内建于libpython，独立缺扩展共享库负例为环境阻塞。默认CPython配置尚待单独晋升。
 
 ### 结构整理配套任务（后续开发竖切）

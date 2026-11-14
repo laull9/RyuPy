@@ -552,17 +552,6 @@ public static partial class PyOps
         {
             throw new PyTypeError($"isinstance expected 2 arguments, got {args.Length}");
         }
-        if (args[1] is PyTuple alternatives)
-        {
-            foreach (object? candidate in alternatives.Items)
-            {
-                if (MatchesType(args[0], candidate))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
         return MatchesType(args[0], args[1]);
     }
 

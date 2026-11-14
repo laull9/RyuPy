@@ -1,0 +1,168 @@
+name: CPython standalone multiplatform distribution
+
+on:
+  push:
+    branches: [dev, main, 'wip/**']
+    paths:
+      - '.github/workflows/cpython-standalone.yml'
+      - 'crates/ryupy-driver/src/cpython_*'
+      - 'runtime/RyuPy.CPython/**'
+      - 'runtime/RyuPy.Runtime/**'
+      - 'tests/cpython/**'
+      - 'docs/cpython-platform-support.md'
+  pull_request:
+    paths:
+      - '.github/workflows/cpython-standalone.yml'
+      - 'crates/ryupy-driver/src/cpython_*'
+      - 'runtime/RyuPy.CPython/**'
+      - 'runtime/RyuPy.Runtime/**'
+      - 'tests/cpython/**'
+      - 'docs/cpython-platform-support.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+  PYTHONUTF8: '1'
+  RUSTUP_TOOLCHAIN: '1.99.1'
+
+jobs:
+  standalone-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rid: linux-x64
+            shell: bash
+            cli: target/debug/ryupy
+            shim_ext: so
+          - os: windows-2022
+            rid: win-x64
+            shell: pwsh
+            cli: target/debug/ryupy.exe
+            shim_ext: dll
+          - os: macos-15
+            rid: osx-arm64
+            shell: bash
+            cli: target/debug/ryupy
+            shim_ext: dylib
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Short Cargo checkout paths (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          "CARGO_HOME=D:\c" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          git config --global core.longpaths true
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+        with:
+          toolchain: '1.99.1'
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+
+      - name: Setup MSVC developer environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Native Tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf binutils zstd
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.4'
+          enable-cache: false
+
+      - name: Install Pinned CPython 3.12.13 (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          python3 -B tests/cpython/standalone_prepare.py --destination "$RUNNER_TEMP/pbs-20260623" --github-env "$GITHUB_ENV"
+
+      - name: Install Pinned CPython 3.12.13 (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python -B tests/cpython/standalone_prepare.py --destination "$env:RUNNER_TEMP/pbs-20260623" --github-env "$env:GITHUB_ENV"
+          $pyBin = Join-Path $env:RUNNER_TEMP "pbs-20260623/python.exe"
+          $runnerEnv = Join-Path $env:RUNNER_TEMP "standalone-runner"
+          uv venv --python "$pyBin" "$runnerEnv"
+          $runnerPython = Join-Path $runnerEnv "Scripts/python.exe"
+          uv pip install --python "$runnerPython" zstandard==0.25.0
+          "RUNNER_PYTHON=$runnerPython" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build RyuPy Runtime and CPython Bridge (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          dotnet build runtime/RyuPy.Runtime -c Release -p:Platform=AnyCPU -nologo -v q
+          dotnet build runtime/RyuPy.CPython -c Release -p:Platform=AnyCPU -nologo -v q
+          sh runtime/RyuPy.CPython/native/build.sh "$CPYTHON_HOME" runtime/RyuPy.CPython/bin/Release/net10.0
+
+      - name: Build RyuPy Runtime and CPython Bridge (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          dotnet build runtime/RyuPy.Runtime -c Release -p:Platform=AnyCPU -nologo -v q
+          dotnet build runtime/RyuPy.CPython -c Release -p:Platform=AnyCPU -nologo -v q
+          $bridge = "runtime/RyuPy.CPython/bin/Release/net10.0/RyuPy.CPython.dll"
+          if (-not (Test-Path $bridge)) { throw "托管桥输出未生成：$bridge" }
+          & pwsh runtime/RyuPy.CPython/native/build.ps1 -PythonHome "$env:CPYTHON_HOME" -Output "runtime/RyuPy.CPython/bin/Release/net10.0"
+
+      - name: Compile ryupy-driver and CLI
+        run: |
+          cargo build -p ryupy-cli
+
+      - name: Run CPython Platform and ABI Unit Tests
+        run: |
+          cargo test -p ryupy-driver --lib -- cpython
+          cargo clippy -p ryupy-driver -- -D warnings
+
+      - name: Linux native dependency closure
+        if: runner.os == 'Linux'
+        run: |
+          cargo test -p ryupy-driver --test cpython_linux_closure linux_
+
+      - name: Run Platform Contract Tests (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          "$PYTHON_BIN" -B tests/cpython/test_cpython_platform.py
+
+      - name: Run Platform Contract Tests (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          & "$env:PYTHON_BIN" -B tests/cpython/test_cpython_platform.py
+
+      - name: Prepare clean Linux target
+        if: runner.os == 'Linux'
+        run: docker pull mcr.microsoft.com/dotnet/runtime-deps:10.0-noble
+
+      - name: Standalone NativeAOT Build and Relocation Verification (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          args=(-B tests/cpython/standalone_run.py --python "$PYTHON_BIN" --distribution "$CPYTHON_HOME" --ryupy "${{ matrix.cli }}")
+          if [ "$RUNNER_OS" = "Linux" ]; then args+=(--linux-container mcr.microsoft.com/dotnet/runtime-deps:10.0-noble); fi
+          "$PYTHON_BIN" "${args[@]}"
+
+      - name: Standalone NativeAOT Build and Relocation Verification (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          & "$env:RUNNER_PYTHON" -B tests/cpython/standalone_run.py --python "$env:PYTHON_BIN" --distribution "$env:CPYTHON_HOME" --ryupy "${{ matrix.cli }}"

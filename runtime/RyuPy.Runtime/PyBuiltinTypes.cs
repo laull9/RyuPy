@@ -7,7 +7,9 @@ public static partial class PyOps
 {
     private static bool MatchesType(object? value, object? type) => type switch
     {
-        IPyForeignObject foreign => foreign.IsInstanceOf(PyType.Get("type")) ? foreign.Accepts(value) : throw new PyTypeError("isinstance() arg 2 must be a type"),
+        PyTuple tuple => MatchesTuple(value, tuple),
+        IPyForeignObject foreign when foreign.IsInstanceOf(PyType.Get("tuple")) => MatchesForeignTuple(value, foreign),
+        IPyForeignObject foreign => foreign.IsInstanceOf(PyType.Get("type")) ? foreign.Accepts(value) : throw new PyTypeError("isinstance() arg 2 must be a type, a tuple of types, or a union"),
         PyTypingForm { Name: "NoReturn" } => PyTypingNoReturn.RejectCheck(subclass: false),
         PyTypingForm { Name: "ClassVar" } => PyTypingClassVar.RejectRootCheck(subclass: false),
         PyTypingAlias { Name: "ClassVar" } => PyTypingGeneric.RejectRuntimeAlias(),
@@ -25,6 +27,32 @@ public static partial class PyOps
             "isinstance() arg 2 must be a type, a tuple of types, or a union"
         ),
     };
+
+    private static bool MatchesTuple(object? value, PyTuple tuple)
+    {
+        foreach (object? candidate in tuple.Items)
+        {
+            if (MatchesType(value, candidate))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool MatchesForeignTuple(object? value, IPyForeignObject foreignTuple)
+    {
+        IPyIterator iterator = foreignTuple.Iterate();
+        while (iterator.MoveNext())
+        {
+            object? candidate = iterator.Current();
+            if (MatchesType(value, candidate))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>内建类型名匹配：覆盖 bool/int 子类型、用户异常链与容器。</summary>
     private static bool MatchesBuiltin(object? value, string expected) => value switch
@@ -63,21 +91,43 @@ public static partial class PyOps
         {
             throw new PyTypeError($"issubclass expected 2 arguments, got {args.Length}");
         }
-        if (args[1] is PyTuple alternatives)
-        {
-            foreach (object? candidate in alternatives.Items)
-            {
-                if (IsSubclassOf(args[0], candidate))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
         return IsSubclassOf(args[0], args[1]);
     }
 
-    private static bool IsSubclassOf(object? child, object? parent) => (child, parent) switch
+    private static bool IsSubclassOf(object? child, object? parent) => parent switch
+    {
+        PyTuple tuple => IsSubclassOfTuple(child, tuple),
+        IPyForeignObject foreign when foreign.IsInstanceOf(PyType.Get("tuple")) => IsSubclassOfForeignTuple(child, foreign),
+        _ => IsSubclassOfCore(child, parent),
+    };
+
+    private static bool IsSubclassOfTuple(object? child, PyTuple tuple)
+    {
+        foreach (object? candidate in tuple.Items)
+        {
+            if (IsSubclassOf(child, candidate))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsSubclassOfForeignTuple(object? child, IPyForeignObject foreignTuple)
+    {
+        IPyIterator iterator = foreignTuple.Iterate();
+        while (iterator.MoveNext())
+        {
+            object? candidate = iterator.Current();
+            if (IsSubclassOf(child, candidate))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsSubclassOfCore(object? child, object? parent) => (child, parent) switch
     {
         (_, PyTypingForm { Name: "NoReturn" }) => PyTypingNoReturn.RejectCheck(subclass: true),
         (_, PyTypingForm { Name: "ClassVar" }) => PyTypingClassVar.RejectRootCheck(subclass: true),

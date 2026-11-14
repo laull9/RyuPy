@@ -3,7 +3,8 @@
 > **CPython provider试点（2026-11-13）**：固定3.12.13/PBS20260623，显式provider在macOS arm64
 > 已通过21项CP/JIT与NativeAOT/搬迁、原联合应用和六项C#生命周期模式。API与冻结快照范围见
 > [验收驱动](../tests/cpython/README.md)。真实错版本ABI、handled异常双向状态、混合栈无陈旧帧均通过；
-> 其他平台、干净机与HTTPS待验。CPython provider采用显式声明入口。
+> 上述完整对象桥矩阵的其他平台及HTTPS待验。新增standalone平台与干净目标结果见
+> [平台实测](cpython-platform-support.md#52-平台实测状态)。CPython provider采用显式声明入口。
 
 > 本文定义 RyuPy **当前支持**的 Python 子集，以及它与 Python 语义的对应方式。
 > 常用行为以固定版本 CPython 为准，按项目与 API 验收。已接受偏差明确登记，不支持能力明确报错；运行时才能确定的非法操作抛 Python 语义异常。未记录的差异按缺陷处理。
@@ -246,6 +247,16 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 - `a and b` / `a or b`：Python 返回**操作数本身**而非 `bool`。Phase 1 要求两侧类型相同，结果类型即该类型。
 
 ## 4. 语义陷阱清单
+
+### CPython provider的项目与文本边界（2026-11-14）
+
+- 嵌入解释器固定隔离UTF-8模式，构建期JSON管道同样使用UTF-8；独立CPython oracle以`-X utf8`对齐。
+- 编译入口对应的`__main__`仍缺少与全局槽双向同步的模块活字典；`attrs23.2.0`固定入口在
+  读取`sys.modules[cls.__module__].__dict__`时抛AttributeError，列为实际项目失败。
+- 显式`object.__setattr__`、`object.__delattr__`绕过用户同名hook与frozen检查，保留property及槽布局协议；
+  默认路径继续沿已有修改/删除守卫。差分用例见`phase3/object_base_mutation`。
+- 固定项目stderr保留警告类型、行号和正文，比较时只把已知载荷警告头中的绝对路径映射为部署相对名；
+  `docopt0.6.2`的四条原SyntaxWarning逐条保留，stdout及文件副作用仍逐字比较。
 
 ### CPython provider的显式边界（2026-11-13）
 

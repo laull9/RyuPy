@@ -5,6 +5,18 @@ stdout、stderr 和退出码，再运行 RyuPy 编译入口。各执行臂使用
 创建数据库、重置 loopback HTTP 请求计数。输出默认写仓库外临时目录并清理，`--keep`
 仅用于显式失败调试。本次固定21个Python程序及6种独立C#宿主模式；最终冻结版全量结果登记在下表。
 
+## 固定20项目
+
+macOS arm64已完成JIT/NativeAOT/输入删除搬迁三模式各19/20通过，attrs因模块活字典缺口失败。
+原始版本与入口、逐项目结果和警告路径比较规则见[项目矩阵](projects_README.md)。
+
+## 自动依赖闭包
+
+显式provider可通过`dependencies`从指定安装环境冻结入口与传递依赖，保留RECORD中的包数据、
+metadata、许可证及原生库。配置、动态导入补充和真实JIT/NativeAOT搬迁命令见
+[依赖闭包测试](dependencies/README.md)。2026-11-14平台路径接线后，macOS arm64完整复验通过；
+固定20项目与Linux/Windows分别登记各自验收结果。
+
 ## 发行和依赖锁
 
 | 输入 | 固定选择 | 来源和部署要求 |
@@ -66,7 +78,9 @@ v4仅修改直接C绑定三处失败诊断字符串，另有一行接口注释�
 原联合应用业务输入保持原样，数据库/HTTP副作用、资源与sqlite3包负例全过。
 默认native固定20门完整有效：13 native、6 unsupported、1 failed，保护11全部保留。
 2026-11-14完整make check已exit0，结论见[人工验收登记](../../docs/validation/cpython-provider-2026-11-13.md)。
-Linux x64、Windows x64、无Python/.NET/SDK干净目标机与HTTPS仍待验。
+上述21项与生命周期矩阵的Linux/Windows覆盖、macOS/Windows无开发环境目标机及HTTPS继续专项验收。
+2026-11-14新增standalone应用在macOS/Linux/Windows发布、输入删除搬迁与缺组件负例全部通过；
+Linux无Python/.NET/SDK容器亦通过，见[平台实测](../../docs/cpython-platform-support.md#52-平台实测状态)。
 首次exit_int AOT发布曾有ILC `Invalid handle`；稳定单项及最终21全量均通过，该次根因仍未知。
 后续embedded PDB和依赖闭包分发改善另有PE读取验证。
 
