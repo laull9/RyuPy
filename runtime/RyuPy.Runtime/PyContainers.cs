@@ -142,7 +142,11 @@ public sealed partial class PyList
     public PyList() => _items = new List<object?>();
 
     /// <summary>元素个数。</summary>
-    public int Count => _items is { } items ? items.Count : _numeric!.Count;
+    public int Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _items is { } items ? items.Count : _numeric is { } slots ? slots.Count : _booleans!.Count;
+    }
 
     /// <summary>按 Python 下标规则取元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
@@ -150,17 +154,24 @@ public sealed partial class PyList
     public object? GetItem(long index)
     {
         var items = _items;
-        if (items is null) return ReadNumeric(index);
-        int count = items.Count;
-        long position = index < 0 ? index + count : index;
-        if ((ulong)position >= (ulong)count) return ListIndexError();
-        return items[(int)position];
+        if (items is not null)
+        {
+            int count = items.Count;
+            long position = index < 0 ? index + count : index;
+            if ((ulong)position >= (ulong)count) return ListIndexError();
+            return items[(int)position];
+        }
+        return GetItemSlow(index);
     }
 
     /// <summary>按 Python 下标规则写元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
     /// <param name="value">新值。</param>
-    public void SetItem(long index, object? value) => Items[(int)Normalize(index)] = value;
+    public void SetItem(long index, object? value)
+    {
+        if (_booleans is not null) { SetBooleanItem(index, value); return; }
+        Items[(int)Normalize(index)] = value;
+    }
 
     /// <summary>按 Python 下标规则删除元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
@@ -268,7 +279,7 @@ public sealed partial class PyList
     public void Append(object? value)
     {
         if (_items is { } items) items.Add(value);
-        else AppendNumeric(value);
+        else AppendNonItems(value);
     }
 
     /// <summary><c>extend(x)</c>。</summary>
@@ -302,6 +313,7 @@ public sealed partial class PyList
             throw (PyBaseException)PyErrors.PrepareRaise(new PyIndexError("pop index out of range"));
         }
         // 先证明位置合法再窄化；成功路径维持既有物化及对象身份。
+        if (_booleans is { } booleans) return PopBoolean(booleans, (int)position);
         var items = Items;
         object? value = items[(int)position];
         items.RemoveAt((int)position);
@@ -340,13 +352,13 @@ public sealed partial class PyList
     public bool Contains(object? value) => IndexOf(value) >= 0;
 
     /// <summary><c>clear()</c>。</summary>
-    public void Clear() => Items.Clear();
+    public void Clear() { if (_booleans is { } b) b.Clear(); else Items.Clear(); }
 
     /// <summary><c>reverse()</c>。</summary>
-    public void Reverse() => Items.Reverse();
+    public void Reverse() { if (_booleans is { } b) b.Reverse(); else Items.Reverse(); }
 
     /// <summary><c>copy()</c>：浅拷贝。</summary>
-    public PyList Copy() => new(Items);
+    public PyList Copy() => _booleans is { } b ? new(new List<bool>(b)) : new(Items);
 
     private long Normalize(long index)
     {

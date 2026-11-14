@@ -218,6 +218,7 @@ public sealed partial class PyList
     {
         // List.AddRange 原生支持 self；无额外全量数组。数值路固定原长，保持别名有限复制。
         if (_items is { } target && source._items is { } items) { target.AddRange(items); return; }
+        if (_booleans is { } boolTarget && source._booleans is { } boolItems) { boolTarget.AddRange(boolItems); return; }
         int count = source.Count;
         ReserveExtend(count);
         for (int index = 0; index < count; index++) Append(source.GetItem(index));
@@ -236,6 +237,7 @@ public sealed partial class PyList
         // 不捕获 OOM 重试；巨大合法 hint 的资源失败时点不承诺与 CP 逐分配等价。
         int capacity = (int)Math.Min(int.MaxValue, Count + Math.Min(hint, 4096));
         if (_items is { } items) items.EnsureCapacity(capacity);
+        else if (_booleans is { } booleans) booleans.EnsureCapacity(capacity);
         else _numeric!.EnsureCapacity(capacity);
     }
 }

@@ -17,6 +17,17 @@ public sealed partial class PyList
     [MethodImpl(MethodImplOptions.NoInlining)]
     private List<object?> MaterializeAll()
     {
+        if (_booleans is { } booleans)
+        {
+            var boolResult = new List<object?>(booleans.Count);
+            for (int index = 0; index < booleans.Count; index++)
+            {
+                boolResult.Add(PyOps.BoxBool(booleans[index]));
+            }
+            _items = boolResult;
+            _booleans = null;
+            return boolResult;
+        }
         var slots = _numeric!;
         var result = new List<object?>(slots.Count);
         for (int index = 0; index < slots.Count; index++)
@@ -60,6 +71,7 @@ public sealed partial class PyList
     internal void AppendFreshF64(double value)
     {
         if (_numeric is { } slots) slots.Add(PyNumericSlot.Fresh(value));
+        else if (_booleans is not null) MaterializeAll().Add(value);
         else _items!.Add(value);
     }
 
@@ -80,7 +92,7 @@ public sealed partial class PyList
     internal bool TryReadF64(int position, out double value)
     {
         if (_numeric is { } slots) { value = slots[position].Number; return true; }
-        if (_items![position] is double number) { value = number; return true; }
+        if (_items is { } items && items[position] is double number) { value = number; return true; }
         value = 0;
         return false;
     }

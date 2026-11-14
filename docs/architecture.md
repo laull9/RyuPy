@@ -249,3 +249,6 @@ ADR0155候选由driver独做固定资源部署/普通父包resolver/有限hard-s
 MIR仅携带候选冷载荷，codegen机械注册，不读HIR或文件。候选与活动Registry分离，
 真实Import/find_spec才全组检查发布；4个冷CLR方法、0新增RuntimeFn，热调用ABI不变。
 ExplicitOnly/AOT/fixed关闭，完整同源门待验，不能以部署或helper成功证明默认兼容。
+
+PyList内部布尔背板仅用于单元素bool的正次重复新结果，物化后永久object模式；
+Count保持原有object/数值热路优先，迭代与桥接的存储边界见[ADR-0197](adr/0197-boolean-repeat-list-storage.md)。

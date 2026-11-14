@@ -196,6 +196,11 @@ public static partial class PyOps
                     : new StringBuilder(text.Length * times).Insert(0, text, times).ToString();
                 return true;
             case PyList list:
+                if (PyList.TryRepeatBoolean(list, times, out PyList? boolList))
+                {
+                    result = boolList;
+                    return true;
+                }
                 var items = new List<object?>(list.Items);
                 RepeatInPlace(items, times);
                 result = new PyList(items);

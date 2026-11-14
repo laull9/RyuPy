@@ -602,6 +602,22 @@ CPython会返回内建list对象。原始反例保留为 `phase3/aot_list_comp_b
 私有列表追加特化需保持旧/新RyuPy完整异常流一致，并逐项核对CP的退出码、用户函数帧与异常消息。
 该额外帧作为兼容性欠账单列，后续结合作用域方案修复。
 
+### 4.18 列表重复的用户计数对象入口差异
+
+现有 `source * count_obj` 对自定义计数对象未进入 `__index__`，直接抛出TypeError；
+CPython会调用一次该方法后使用它返回的整数。原始回调修改source的反例保留为
+`phase3/aot_boolean_repeat_index_operator` pending。root `list.__mul__(source, count_obj)`
+已按现有协议调用一次并观察回调后的source，布尔存储用例先沿该入口覆盖时序。
+保存实例 `source.__mul__` 属性入口也尚缺覆盖，后续与运算符入口分别修复。
+
+### 4.19 布尔重复列表紧凑存储
+
+单元素精确bool的正次重复可使用内部紧凑背板，读取返回规范True/False单例。
+异构写与公开Items访问永久物化；PyList身份、别名、活迭代及数值列表原合同保留。
+两种重复入口各自参数行为保留，§4.18的用户计数缺口仍独立pending。
+已通过CP/JIT、真实NativeAOT/搬迁和NumPy双向同步；分配几何和资源失败时点边界及性能取舍见
+[ADR-0197](adr/0197-boolean-repeat-list-storage.md)。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。
