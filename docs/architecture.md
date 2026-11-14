@@ -82,7 +82,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
   保留独立作用域和求值顺序；普通方法路径不变，见 [ADR-0196](adr/0196-private-list-comprehension-append.md)。
 
 - M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
-  MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存全部局部到每实例 object[]；
+  MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存局部到每实例 object[]；
+  已证明只读形参省去冗余挂起写回，恢复读取保留，EH/product及定义覆盖门禁见ADR-0198；
   CIL 仅绑定静态恢复委托，`PyGenerator` 管理运行 / 终止、重入与每次恢复的 traceback。
   `generator_exceptions.rs` 将原Region变为逻辑handler表，恢复函数只有单outer catch；
   handler保存locals/异常/PC后返回内部Retry，正常yield/return以leave经过保护区外出口，不跳入CLR try中部。

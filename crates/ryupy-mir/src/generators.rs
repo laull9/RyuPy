@@ -1,6 +1,6 @@
 //! 普通生成器的独立 MIR 降级：Suspend CFG → 工厂函数 + 可恢复 CFG。
 //!
-//! 首版保存所有局部（包含循环迭代器、临时值与共享 cell 引用），不做存活性裁剪。
+//! 保存局部、迭代器、临时值与cell引用；仅跳过已证明只读形参的冗余挂起写回，不做活跃性裁剪。
 //! 帧槽 0 是恢复块编号，槽 1 是本次 send 的值，槽 2 是注入异常、槽 3 是待接异常，槽 4 起按原 LocalId 保存装箱值。生成器运行时负责
 //! running/closed 状态与每次恢复的 traceback 帧；此处只表达显式状态读写和控制流。
 
@@ -101,6 +101,8 @@ fn lower_one(
 ) -> crate::trace_lowering::GeneratorLayout {
     let function = &mut program.functions[id];
     let mut body = std::mem::replace(&mut function.body, empty_body());
+    let readonly_params =
+        crate::generator_readonly_params::find_readonly_params(function, &body, product);
     let original: Vec<_> = body
         .locals
         .iter()
@@ -192,6 +194,10 @@ fn lower_one(
                     resume_targets.push(resume);
                 }
                 for (slot, ty) in &original {
+                    if readonly_params.contains(slot) {
+                        // 工厂已入帧且绑定不变的Dynamic形参，恢复仍读取，挂起不重复写回。
+                        continue;
+                    }
                     let value = boxed(
                         &mut body.locals,
                         &mut block.stmts,
