@@ -482,7 +482,9 @@ nonlocal 都报 `E0103`。嵌套 async def 报 `E0100`；嵌套 def 装饰器沿
 类体推导式、async for、海象表达式明确拒绝。生成器表达式复用独立作用域与 M3.2 状态机：
 最左 iterable 立即求值并取得迭代器，其余 iterable、条件和元素延迟到 next；没有急切结果容器。
 生成器表达式内零参 super 暂拒绝；send 的值被其内部语句 yield 忽略，throw/close 等限制同普通生成器。
-设计与分配代价见 [ADR-0016](adr/0016-comprehension-scopes.md)，不宣称性能提升。
+独立作用域设计见 [ADR-0016](adr/0016-comprehension-scopes.md)。已证明的私有列表收集器
+直接调用ListAppend，保留接收者/元素顺序、捕获与异常路径；固定CP/JIT、NativeAOT及搬迁通过。
+有限默认与性能数据见 [ADR-0196](adr/0196-private-list-comprehension-append.md)；既有额外异常帧见§4.17。
 
 此外，用户 `__iter__` 的返回值必须已具备迭代器协议，不再递归对其调用 `__iter__`；返回 list
 等仅可迭代对象立即抛 `TypeError`。入口 Main 的真实 PE 方法头启用局部清零，保证成功退出 0，
@@ -593,6 +595,20 @@ HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI
 `NotImplementedError: builtin fallback for unbound module name 'list' is not supported`。
 CPython会返回内建list对象。原始反例保留为 `phase3/aot_list_comp_builtin_rebinding` pending；
 该名字回退路径独立修复，私有列表收集器采用已绑定的同名全局验证隔离。
+
+### 4.17 急切推导式的既有异常帧边界
+
+本轮固定CPython3.12.13的元素/过滤异常路径没有listcomp用户帧；RyuPy沿ADR-0016独立函数作用域保留一条`<listcomp>`帧。
+私有列表追加特化需保持旧/新RyuPy完整异常流一致，并逐项核对CP的退出码、用户函数帧与异常消息。
+该额外帧作为兼容性欠账单列，后续结合作用域方案修复。
+
+### 4.18 列表重复的用户计数对象入口差异
+
+现有 `source * count_obj` 对自定义计数对象未进入 `__index__`，直接抛出TypeError；
+CPython会调用一次该方法后使用它返回的整数。原始回调修改source的反例保留为
+`phase3/aot_boolean_repeat_index_operator` pending。root `list.__mul__(source, count_obj)`
+已按现有协议调用一次并观察回调后的source，布尔存储用例先沿该入口覆盖时序。
+保存实例 `source.__mul__` 属性入口也尚缺覆盖，后续与运算符入口分别修复。
 
 ## 5. 模块与入口
 

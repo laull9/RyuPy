@@ -19,10 +19,14 @@
 - [x] sum流式迭代：9项C#、CP/JIT、真实AOT/异常/搬迁及随包NumPy对象桥通过；
   6项AOT对照、完整26项当前复测与make check退出0（C#3134/2，编译e2e470/284）。
   原始generators对照约416.9→336.4ms、RSS83.6→21.9MiB；逐项目标继续推进。
-- [~] 下一竖切：列表推导式私有collector直调追加，保留独立作用域、闭包与求值顺序；sieve紧凑布尔存储继续设计。
+- [x] 列表推导式私有收集器ListAppend直调：8项结构测试、CP/JIT、真实AOT/异常/搬迁、
+  随包NumPy迭代源、26项AOT配对及make check通过（C#3134/2，编译e2e471/285）。
+  comprehensions约130.1→117.7ms，RSS持平；既有list名字回退和额外异常帧单列，见ADR-0196。
+- [~] 下一竖切：sieve紧凑布尔存储，先审查身份、异构物化、迭代与公开Items别名合同，再实测取舍。
 - [~] 随包 CPython、真实 NumPy 与联合应用性能配对；固定NumPy2.3.5短样例的CP/provider NativeAOT成对复验通过，
   完整联合应用及长任务稳态待测，保留同版本、退出码及双流校验。
 - [ ] 单文件首次/重复解包、standalone 与进程树内存分别验收；缓存与执行替换先定义交付生命周期。
+  [设计复核](docs/aot-onefile-optimization-plan.md)：默认资源写入隔离保留；共享缓存、运行租约和有界回收尚待确定。
 - [ ] 每个竖切完成即时 CPython 差分、真实 AOT A/B 与搬迁，最终全套复测、`make check` 后提交推送。
 
 调查与边界见 [编译器候选](docs/aot-compiler-optimization-plan.md)、

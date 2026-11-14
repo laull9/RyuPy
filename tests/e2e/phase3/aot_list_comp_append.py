@@ -1,4 +1,3 @@
-# ryupy: pending
 # 列表推导式私有 collector ListAppend 直调优化端到端验证。
 # 覆盖：基础/嵌套/多for与if；外部内部sideeffect顺序；lambda晚绑定与外部capture；
 # 元素抛错与短路边界；自定义类append与普通变量result保持；module-global rebinding。

@@ -269,3 +269,15 @@ hello波动49%、containers12%保留。接近1倍的结果仍按波动解释，�
 最新完整make check退出0：CP基线744通过，C#3134通过/2跳过，编译e2e470通过/284忽略。
 同工作区生成器活跃性实验仍为test-only，单独保留WIP。分项对照与取舍见
 [字符串](aot-string-optimization.md)、[PIC](aot-pic-optimization.md)、[sum](aot-sum-optimization.md)。
+
+
+## 10. 私有列表追加的26项配对复验
+
+在已验证的字符串/PIC/流式sum基础上，仅增加ADR-0196的私有列表追加直调。
+同次1warm5、固定CPython、两臂无插桩墙钟/RSS、独立统计轮，全部26项完整双流/退出码及搬迁通过。
+排除hello，几何平均CP/Ryu为旧1.1223、新1.1272；新臂按中位数速度13/26、RSS3/26、同时2/26。
+
+comprehensions：CP42.94ms，旧130.08ms，新117.66ms（下降9.54%）；旧/新RSS46.86/46.88MiB，
+分配均约119.80MiB。其他项目与残余差距见[推导式专项](aot-comprehension-optimization.md)。
+完整make check退出0：CP基线746，C#3134/2，编译e2e471/285；同工作区生成器候选仍为test-only。
+本次配对独立解读，跨轮单个中位数不用于计算竖切收益。
