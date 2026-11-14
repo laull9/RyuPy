@@ -290,6 +290,68 @@ fn collect_system(name: &str, python: &Path) -> Result<(PathBuf, Value)> {
     ))
 }
 
+/// PBS稳定ABI转发库可使用$ORIGIN加载边；仅在原始相对路径确实落入冻结树时改写为SONAME。
+fn normalize_origin_needed(image: &Path, root: &Path) -> Result<()> {
+    let dynamic = command("readelf", &["-d", path_text(image)?])?;
+    for line in dynamic.lines() {
+        let option = if line.contains("(NEEDED)") {
+            "--replace-needed"
+        } else if line.contains("(SONAME)") {
+            "--set-soname"
+        } else {
+            continue;
+        };
+        let Some((_, tail)) = line.split_once('[') else {
+            continue;
+        };
+        let (raw, _) = tail.split_once(']').context("ELF动态字段缺少右括号")?;
+        let relative = raw
+            .strip_prefix("$ORIGIN/")
+            .or_else(|| raw.strip_prefix("${ORIGIN}/"));
+        let Some(relative) = relative else {
+            continue;
+        };
+        let target = origin_target(image, relative, root)?;
+        if option == "--set-soname" {
+            ensure!(
+                target == image.canonicalize()?,
+                "ELF相对SONAME必须指向映像自身"
+            );
+        }
+        inspect(&target)?;
+        let name = target
+            .file_name()
+            .context("ELF目标缺少库名")?
+            .to_str()
+            .context("ELF库名不是UTF-8")?;
+        library_name(name)?;
+        if option == "--replace-needed" {
+            command("patchelf", &[option, raw, name, path_text(image)?])?;
+        } else {
+            command("patchelf", &[option, name, path_text(image)?])?;
+        }
+    }
+    Ok(())
+}
+
+fn origin_target(image: &Path, relative: &str, root: &Path) -> Result<PathBuf> {
+    ensure!(
+        !relative.contains(['$', ':', '\\', '\n', '\r']) && !Path::new(relative).is_absolute(),
+        "ELF ORIGIN引用格式错误：{relative}"
+    );
+    let target = image
+        .parent()
+        .context("ELF映像缺少父目录")?
+        .join(relative)
+        .canonicalize()
+        .context("ELF ORIGIN引用目标缺失")?;
+    ensure!(
+        target.starts_with(root),
+        "ELF ORIGIN加载边越过冻结产品根：{relative}"
+    );
+    Ok(target)
+}
+
 /// 收集期间使用增长队列：新引入的库与原载荷接受相同传递依赖和架构审核。
 pub(super) fn relocate(output: &Path, shim: &str, core: &[&str]) -> Result<()> {
     command("patchelf", &["--version"])?;
@@ -310,6 +372,7 @@ pub(super) fn relocate(output: &Path, shim: &str, core: &[&str]) -> Result<()> {
     let mut index = 0;
     while index < all.len() {
         let image = all[index].clone();
+        normalize_origin_needed(&image, &frozen_root)?;
         let elf = inspect(&image)?;
         for name in &elf.needed {
             if core.contains(&name.as_str()) {

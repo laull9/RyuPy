@@ -22,6 +22,23 @@ impl Drop for Workspace {
 }
 
 #[test]
+fn linux_origin_edges_must_resolve_inside_frozen_root() {
+    let work = Workspace::new();
+    let lib = work.0.join("python/lib");
+    std::fs::create_dir_all(&lib).unwrap();
+    std::fs::write(lib.join("libpython3.12.so.1.0"), "手写目标").unwrap();
+    let image = lib.join("libpython3.so");
+    let root = work.0.join("python").canonicalize().unwrap();
+    assert_eq!(
+        origin_target(&image, "../lib/libpython3.12.so.1.0", &root).unwrap(),
+        lib.join("libpython3.12.so.1.0").canonicalize().unwrap()
+    );
+    std::fs::write(work.0.join("outside.so"), "域外目标").unwrap();
+    assert!(origin_target(&image, "../../outside.so", &root).is_err());
+    assert!(origin_target(&image, "$PLATFORM/library.so", &root).is_err());
+}
+
+#[test]
 fn linux_license_directory_references_do_not_hide_named_files() {
     let files = license_references("目录 /usr/share/common-licenses/\n 与目录 /usr/share/common-licenses/.\n许可 /usr/share/common-licenses/LGPL-2.1 和 /usr/share/common-licenses/GPL-2.").unwrap();
     assert_eq!(
@@ -122,6 +139,22 @@ fn linux_real_libcrypt_is_frozen_with_license_and_rpath() {
         ],
     )
     .unwrap();
+    // 模拟PBS libpython3.so的$ORIGIN加载边，并确保真实工具走规范化重定位。
+    let forwarding = work.0.join("python/lib/forward.so");
+    std::fs::copy(&shim, &forwarding).unwrap();
+    command(
+        "patchelf",
+        &[
+            "--replace-needed",
+            "libcrypt.so.1",
+            "$ORIGIN/../../shim.so",
+            path_text(&forwarding).unwrap(),
+        ],
+    )
+    .unwrap();
+    // 此边越过python根，产品必须拒绝；随后移除手写负例再验证真实系统库冻结。
+    assert!(relocate(&work.0, "shim.so", &["libc.so.6", "ld-linux-x86-64.so.2"]).is_err());
+    std::fs::remove_file(&forwarding).unwrap();
     let core = ["libc.so.6", "ld-linux-x86-64.so.2"];
     relocate(&work.0, "shim.so", &core).unwrap();
     let report: Value =

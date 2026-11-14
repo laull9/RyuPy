@@ -114,15 +114,17 @@ jobs:
       - name: Build RyuPy Runtime and CPython Bridge (POSIX)
         if: runner.os != 'Windows'
         run: |
-          dotnet build runtime/RyuPy.Runtime -c Release -nologo -v q
-          dotnet build runtime/RyuPy.CPython -c Release -nologo -v q
+          dotnet build runtime/RyuPy.Runtime -c Release -p:Platform=AnyCPU -nologo -v q
+          dotnet build runtime/RyuPy.CPython -c Release -p:Platform=AnyCPU -nologo -v q
           sh runtime/RyuPy.CPython/native/build.sh "$CPYTHON_HOME" runtime/RyuPy.CPython/bin/Release/net10.0
 
       - name: Build RyuPy Runtime and CPython Bridge (Windows)
         if: runner.os == 'Windows'
         run: |
-          dotnet build runtime/RyuPy.Runtime -c Release -nologo -v q
-          dotnet build runtime/RyuPy.CPython -c Release -nologo -v q
+          dotnet build runtime/RyuPy.Runtime -c Release -p:Platform=AnyCPU -nologo -v q
+          dotnet build runtime/RyuPy.CPython -c Release -p:Platform=AnyCPU -nologo -v q
+          $bridge = "runtime/RyuPy.CPython/bin/Release/net10.0/RyuPy.CPython.dll"
+          if (-not (Test-Path $bridge)) { throw "托管桥输出未生成：$bridge" }
           & pwsh runtime/RyuPy.CPython/native/build.ps1 -PythonHome "$env:CPYTHON_HOME" -Output "runtime/RyuPy.CPython/bin/Release/net10.0"
 
       - name: Compile ryupy-driver and CLI

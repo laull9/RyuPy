@@ -117,3 +117,9 @@ BUILD未匹配PBS20260623；Windows Ruff Git源码路径过长。CI改用standal
 Windows已越过JSON编码失败，驱动现将本次桥与shim复制到私有输入并显式冻结路径，
 搬迁时与其他输入一起删除。修正后的macOS standalone完整复验通过。
 Linux系统包冻结与Windows UTF-8管道修复经异构只读审查，无新阻断。
+
+第五轮CI：Linux真实系统闭包专测通过，产品构建遇到PBS的libpython3.so稳定ABI转发库
+使用$ORIGIN/../lib/libpython3.12.so.1.0。静态检查确切官方归档后，新增有界解析与重写，
+要求目标真实位于冻结产品内；本机7项控制流/拒绝测试通过。Windows MSVC环境Platform=x64
+使托管桥输出到bin/x64/Release；CI托管构建显式Platform=AnyCPU并立即断言桥输出。
+macOS第五轮完整验收仍通过，Linux/Windows修正版继续实测。
