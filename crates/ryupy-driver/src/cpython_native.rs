@@ -1,170 +1,202 @@
-//! CPython 原生分发的平台身份与 macOS 搬迁：只允许发行内依赖及明确系统库，拒绝开发机绝对引用。
-use anyhow::{Context, Result, bail, ensure};
+//! CPython 原生分发的平台身份、ABI 验证与搬迁重定位：
+//! 集中管理 macOS arm64、Linux x64 与 Windows x64 的原生依赖封闭与二进制验证，
+//! 拒绝开发机绝对引用与错架构/错版本库，保证分发目录可独立运行。
+
+#![allow(dead_code)]
+
+use anyhow::{Result, ensure};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+#[path = "cpython_platform.rs"]
+mod platform;
+#[path = "cpython_platform_abi.rs"]
+mod platform_abi;
+#[path = "cpython_platform_relocate.rs"]
+mod platform_relocate;
+
+#[allow(dead_code)]
+pub(crate) use platform::PlatformKind;
+
+/// 平台 C shim 动态库文件名。
 pub(super) fn shim_name() -> &'static str {
-    match std::env::consts::OS {
-        "macos" => "libryupy_cpython.dylib",
-        "windows" => "ryupy_cpython.dll",
-        _ => "libryupy_cpython.so",
-    }
+    PlatformKind::current()
+        .map(|p| p.shim_name())
+        .unwrap_or_else(|_| match std::env::consts::OS {
+            "macos" => "libryupy_cpython.dylib",
+            "windows" => "ryupy_cpython.dll",
+            _ => "libryupy_cpython.so",
+        })
 }
+
+/// 平台固定 libpython 动态链接库文件名。
 pub(super) fn library_name() -> &'static str {
-    match std::env::consts::OS {
-        "macos" => "libpython3.12.dylib",
-        "windows" => "python312.dll",
-        _ => "libpython3.12.so.1.0",
-    }
+    PlatformKind::current()
+        .map(|p| p.library_name())
+        .unwrap_or_else(|_| match std::env::consts::OS {
+            "macos" => "libpython3.12.dylib",
+            "windows" => "python312.dll",
+            _ => "libpython3.12.so.1.0",
+        })
 }
+
+/// 当前主机目标 RID。
 pub(super) fn rid() -> Result<&'static str> {
-    match (std::env::consts::OS, std::env::consts::ARCH) {
-        ("macos", "aarch64") => Ok("osx-arm64"),
-        _ => bail!("CPython provider 当前只接受已冻结的 macOS arm64 发行，其他目标待独立验收"),
-    }
+    Ok(PlatformKind::current()?.rid())
 }
+
+/// 目标 Triple。
+pub(super) fn target_triple() -> Result<&'static str> {
+    Ok(PlatformKind::current()?.target_triple())
+}
+
+/// 固定上游构建 options（POSIX 为 pgo+lto，Windows 为 pgo）。
+pub(crate) fn build_options() -> Result<&'static str> {
+    Ok(PlatformKind::current()?.build_options())
+}
+
+/// 固定上游构建归档 URL。
+pub(super) fn archive_url() -> Result<&'static str> {
+    Ok(PlatformKind::current()?.archive_url())
+}
+
+/// 分发内核心库相对路径。
+pub(super) fn library_relpath() -> Result<PathBuf> {
+    Ok(PlatformKind::current()?.library_relpath())
+}
+
+/// Python 运行时搜索路径。
+pub(super) fn search_paths() -> Result<Vec<String>> {
+    Ok(PlatformKind::current()?.search_paths())
+}
+
+/// site-packages 相对路径。
+pub(crate) fn site_packages_relpath() -> Result<PathBuf> {
+    Ok(PlatformKind::current()?.site_packages_relpath())
+}
+
+/// 标准库目录列表。
+pub(crate) fn stdlib_dirs() -> Result<&'static [&'static str]> {
+    Ok(PlatformKind::current()?.stdlib_dirs())
+}
+
+/// 候选版本头文件相对路径。
+pub(super) fn header_relpaths() -> Result<&'static [&'static str]> {
+    Ok(PlatformKind::current()?.header_relpaths())
+}
+
+/// 必须复制的子目录名。
+pub(super) fn copy_directories() -> Result<&'static [&'static str]> {
+    Ok(PlatformKind::current()?.copy_directories())
+}
+
+/// 平台官方扩展模块文件后缀名。
+pub(crate) fn extension_suffixes() -> Result<&'static [&'static str]> {
+    Ok(PlatformKind::current()?.extension_suffixes())
+}
+
+/// 系统证书策略描述。
+pub(super) fn certificate_policy() -> Result<serde_json::Value> {
+    Ok(PlatformKind::current()?.certificate_policy())
+}
+
+/// 平台原生依赖白名单。
 pub(super) fn system_dependencies() -> &'static [&'static str] {
-    &["/usr/lib/", "/System/Library/Frameworks/"]
+    PlatformKind::current()
+        .map(|p| p.system_dependencies())
+        .unwrap_or_else(|_| &["/usr/lib/", "/System/Library/Frameworks/"])
 }
+
+/// 验证给定的目标 Triple 是否合法且与当前平台匹配。
+pub(super) fn validate_target_triple(triple: &str) -> Result<()> {
+    let current_triple = target_triple()?;
+    ensure!(
+        triple == current_triple,
+        "CPython 上游构建元数据 target_triple 错配：元数据为 {triple}，当前平台预期为 {current_triple}"
+    );
+    Ok(())
+}
+
+/// 运行期预检：核查基础发行目录中的 libpython 文件完整性与机器架构（Mach-O arm64 / ELF x86_64 / PE x64）。
 pub(super) fn preflight(root: &Path) -> Result<()> {
-    rid()?;
-    let library = root.join("lib").join(library_name());
+    let platform = PlatformKind::current()?;
+    let lib_path = match platform {
+        PlatformKind::MacOSArm64 | PlatformKind::LinuxX64 => {
+            root.join("lib").join(platform.library_name())
+        }
+        PlatformKind::WindowsX64 => root.join(platform.library_name()),
+    };
     ensure!(
-        library.is_file(),
+        lib_path.is_file(),
         "CPython 发行缺少 libpython：{}",
-        library.display()
+        lib_path.display()
     );
-    let output = Command::new("lipo")
-        .arg("-archs")
-        .arg(&library)
-        .output()
-        .context("无法运行 lipo 检查 CPython 架构")?;
-    ensure!(
-        output.status.success()
-            && String::from_utf8_lossy(&output.stdout)
-                .split_whitespace()
-                .any(|arch| arch == "arm64"),
-        "CPython libpython 架构不是 arm64"
-    );
-    Ok(())
-}
-fn run(program: &str, args: &[&std::ffi::OsStr]) -> Result<()> {
-    let output = Command::new(program)
-        .args(args)
-        .output()
-        .with_context(|| format!("无法启动 {program}"))?;
-    ensure!(
-        output.status.success(),
-        "{program} 失败：{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    Ok(())
-}
-fn images(root: &Path, found: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in std::fs::read_dir(root)? {
-        let path = entry?.path();
-        if path.is_dir() {
-            images(&path, found)?;
-        } else if path
-            .extension()
-            .is_some_and(|ext| ext == "dylib" || ext == "so")
-        {
-            found.push(path);
-        }
-    }
-    Ok(())
-}
-/// PBS 安装工具可能改过 libpython ID。逐映像改为相对 loader 的发行内引用并重新签名。
-pub(super) fn relocate(output: &Path) -> Result<()> {
-    rid()?;
-    let mut all = Vec::new();
-    images(&output.join("python"), &mut all)?;
-    all.push(output.join(shim_name()));
-    for image in &all {
-        let report = Command::new("otool").arg("-L").arg(image).output()?;
-        ensure!(
-            report.status.success(),
-            "CPython 原生依赖无法读取：{}",
-            image.display()
-        );
-        let text = String::from_utf8(report.stdout)?;
-        for line in text.lines().skip(1) {
-            let Some(dependency) = line.trim().split(" (compatibility version ").next() else {
-                continue;
-            };
-            if dependency.is_empty()
-                || system_dependencies()
-                    .iter()
-                    .any(|prefix| dependency.starts_with(prefix))
-            {
-                continue;
-            }
-            let name = Path::new(dependency)
-                .file_name()
-                .context("Mach-O 依赖缺少文件名")?;
-            let matches: Vec<_> = all
-                .iter()
-                .filter(|candidate| candidate.file_name() == Some(name))
-                .collect();
+
+    // 严密核验机器架构（64 位与特定指令集），绝不通过跳过检查掩盖错配
+    platform_abi::check_architecture(&lib_path, platform.rid())?;
+
+    // macOS 下若 lipo 可用，额外进行二次双重确认
+    if platform == PlatformKind::MacOSArm64 {
+        if let Ok(output) = Command::new("lipo").arg("-archs").arg(&lib_path).output() {
             ensure!(
-                matches.len() == 1,
-                "CPython 原生依赖未唯一收集：{} → {dependency}",
-                image.display()
+                output.status.success()
+                    && String::from_utf8_lossy(&output.stdout)
+                        .split_whitespace()
+                        .any(|arch| arch == "arm64"),
+                "CPython libpython 架构不是 arm64"
             );
-            let target = matches[0];
-            if target == image {
-                continue;
-            }
-            let relative = relative_path(image.parent().context("原生映像缺少父目录")?, target)?;
-            let replacement = format!("@loader_path/{relative}");
-            if dependency != replacement {
-                run(
-                    "install_name_tool",
-                    &[
-                        "-change".as_ref(),
-                        dependency.as_ref(),
-                        replacement.as_ref(),
-                        image.as_os_str(),
-                    ],
-                )?;
-            }
         }
-        if image
-            .extension()
-            .is_some_and(|extension| extension == "dylib")
-        {
-            let id = format!("@rpath/{}", image.file_name().unwrap().to_string_lossy());
-            run(
-                "install_name_tool",
-                &["-id".as_ref(), id.as_ref(), image.as_os_str()],
-            )?;
-        }
-        run(
-            "codesign",
-            &[
-                "--force".as_ref(),
-                "--sign".as_ref(),
-                "-".as_ref(),
-                image.as_os_str(),
-            ],
-        )?;
     }
     Ok(())
 }
-fn relative_path(base: &Path, target: &Path) -> Result<String> {
-    let base: Vec<_> = base.components().collect();
-    let target: Vec<_> = target.components().collect();
-    let shared = base
-        .iter()
-        .zip(&target)
-        .take_while(|(left, right)| left == right)
-        .count();
-    ensure!(shared > 0, "原生依赖不属于同一文件系统根");
-    let mut result = PathBuf::new();
-    for _ in shared..base.len() {
-        result.push("..");
+
+/// 原生库重定位与依赖封闭性检查：
+/// 在 macOS 上逐映像修正 install name 并重新代码签名；
+/// 在 Linux 上校验 ELF DT_NEEDED 闭包并配置 rpath；
+/// 在 Windows 上校验 PE 导入表，拒绝任何未经授权的外部依赖。
+pub(super) fn relocate(output: &Path) -> Result<()> {
+    let platform = PlatformKind::current()?;
+    let shim = platform.shim_name();
+    let sys_deps = platform.system_dependencies();
+
+    match platform {
+        PlatformKind::MacOSArm64 => {
+            platform_relocate::relocate_macos(output, shim, sys_deps)?;
+        }
+        PlatformKind::LinuxX64 => {
+            platform_relocate::relocate_linux(output, shim, sys_deps)?;
+        }
+        PlatformKind::WindowsX64 => {
+            platform_relocate::relocate_windows(output, shim, sys_deps)?;
+        }
     }
-    for component in &target[shared..] {
-        result.push(component.as_os_str());
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_platform_consistency() {
+        let current = PlatformKind::current().unwrap();
+        assert_eq!(current.rid(), rid().unwrap());
+        assert_eq!(current.shim_name(), shim_name());
+        assert_eq!(current.library_name(), library_name());
     }
-    Ok(result.to_str().context("原生库相对路径不是 UTF-8")?.into())
+
+    #[test]
+    fn test_all_platforms_metadata() {
+        for rid_str in ["osx-arm64", "linux-x64", "win-x64"] {
+            let p = PlatformKind::from_rid(rid_str).unwrap();
+            assert_eq!(p.rid(), rid_str);
+            assert!(!p.target_triple().is_empty());
+            assert!(!p.archive_url().is_empty());
+            assert!(!p.search_paths().is_empty());
+            assert!(!p.extension_suffixes().is_empty());
+            assert!(!p.system_dependencies().is_empty());
+            let policy = p.certificate_policy();
+            assert_eq!(policy["mode"], "system_default");
+        }
+    }
 }

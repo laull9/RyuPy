@@ -33,6 +33,34 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
     private string pythonPath = "", shimPath = "";
     [DllImport("libSystem.B.dylib", EntryPoint = "dlopen")] private static extern nint MacLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
     [DllImport("libdl.so.2", EntryPoint = "dlopen")] private static extern nint LinuxLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+    [DllImport("libc.so.6", EntryPoint = "dlopen")] private static extern nint LinuxLibcLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetDefaultDllDirectories(uint flags);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern nint AddDllDirectory(string directory);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern nint LoadLibraryExW(string path, nint file, uint flags);
+
+    // Windows加载仅使用显式库目录、随包注册目录和系统目录，屏蔽cwd与开发PATH。
+    private static nint WindowsLoad(string path)
+    {
+        nint library = LoadLibraryExW(path, 0, 0x1100);
+        if (library == 0) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法加载随包原生库：" + path);
+        return library;
+    }
+
+    private static void ConfigureWindowsSearch(HostConfiguration configuration)
+    {
+        if (!SetDefaultDllDirectories(0x1000))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法启用Windows封闭DLL搜索");
+        // 目录注册与原生库同寿命，保留到进程退出；扩展可在宿主停止后仍持有地址。
+        foreach (string directory in new[] { configuration.Home, Path.Combine(configuration.Home, "DLLs") })
+            if (Directory.Exists(directory) && AddDllDirectory(directory) == 0)
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法注册随包DLL目录：" + directory);
+    }
+
+    private static nint LinuxDlopen(string path, int flags)
+    {
+        try { return LinuxLoad(path, flags); }
+        catch (DllNotFoundException) { return LinuxLibcLoad(path, flags); }
+    }
 
     private CPythonHost(HostConfiguration configuration)
     {
@@ -47,16 +75,17 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         try
         {
             host.pythonPath = configuration.Library; host.shimPath = configuration.Shim;
+            if (OperatingSystem.IsWindows()) ConfigureWindowsSearch(configuration);
             // C扩展从进程全局符号表解析Py*；固定绝对路径加载，绝不探测系统Python。
             host.pythonLibrary = OperatingSystem.IsMacOS() ? MacLoad(configuration.Library, 0xA)
-                : OperatingSystem.IsLinux() ? LinuxLoad(configuration.Library, 0x102) : NativeLibrary.Load(configuration.Library);
+                : OperatingSystem.IsLinux() ? LinuxDlopen(configuration.Library, 0x102) : WindowsLoad(configuration.Library);
             if (host.pythonLibrary == 0) throw new DllNotFoundException("无法加载固定libpython：" + configuration.Library);
             // 在shim符号绑定之前读取实际库版本；错误ABI有确定诊断，而非偶然缺符号。
             var versionFunction = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(host.pythonLibrary, "Py_GetVersion");
             string actualVersion = Marshal.PtrToStringUTF8(versionFunction())!;
             if (!actualVersion.StartsWith("3.12.13 ", StringComparison.Ordinal))
                 throw new InvalidDataException("ABI requires CPython 3.12.13, loaded " + actualVersion);
-            host.shimLibrary = NativeLibrary.Load(configuration.Shim);
+            host.shimLibrary = OperatingSystem.IsWindows() ? WindowsLoad(configuration.Shim) : NativeLibrary.Load(configuration.Shim);
             NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
             nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
             nint[] args = argv.Select(Marshal.StringToCoTaskMemUTF8).ToArray();

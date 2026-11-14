@@ -107,6 +107,9 @@ API int rp_start(const char *home, const char **paths, int path_count, const cha
         snprintf(init_error, sizeof(init_error), "ABI requires CPython 3.12.13, loaded %s", Py_GetVersion()); return -1;
     }
     if (Py_IsInitialized()) { strcpy(init_error, "CPython already initialized"); return -1; }
+    PyPreConfig preconfig; PyPreConfig_InitIsolatedConfig(&preconfig);
+    preconfig.utf8_mode = 1;
+    if (fail_status(Py_PreInitialize(&preconfig))) return -1;
     PyConfig config; PyConfig_InitIsolatedConfig(&config);
     config.site_import = 0; config.write_bytecode = 0; config.parse_argv = 0;
     config.install_signal_handlers = 0; config.module_search_paths_set = 1;
