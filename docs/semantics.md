@@ -618,6 +618,14 @@ CPython会调用一次该方法后使用它返回的整数。原始回调修改s
 已通过CP/JIT、真实NativeAOT/搬迁和NumPy双向同步；分配几何和资源失败时点边界及性能取舍见
 [ADR-0197](adr/0197-boolean-repeat-list-storage.md)。
 
+### 4.20 生成器只读形参与观察边界
+
+仅已证明绑定不变、factory已初始化的普通Dynamic形参可省去挂起写回，恢复读取继续保留。
+参数重绑定、send覆盖、cell/EH和trace product保持全量；CP/JIT/NativeAOT与搬迁通过。
+生成器locals()仍明确不支持，隐式销毁时机沿既有refcount边界，observation反例保留pending。
+未捕获throw注入在旧/新AOT均出现生成器line0，CPython3.12为yield行；这一行号欠账后续修复。
+性能及有限准入见[ADR-0198](adr/0198-generator-readonly-param-spills.md)。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。

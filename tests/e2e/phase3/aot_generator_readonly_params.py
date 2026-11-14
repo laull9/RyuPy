@@ -1,4 +1,3 @@
-# ryupy: pending
 # 生成器只读形参挂起写回消除 E2E 验证套件
 # 覆盖场景：
 # 1. 只读 param 多 yield 读取
