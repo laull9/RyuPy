@@ -5,29 +5,23 @@ on:
     branches: [dev, main, 'wip/**']
     paths:
       - '.github/workflows/cpython-versions.yml'
-      - 'crates/ryupy-driver/src/onefile*'
-      - 'crates/ryupy-driver/src/python_selection*'
-      - 'crates/ryupy-driver/src/cpython_*'
-      - 'runtime/RyuPy.OneFile/**'
-      - 'runtime/RyuPy.CPython/**'
-      - 'tests/cpython/onefile*'
-      - 'tests/cpython/version*'
-      - 'tests/cpython/test_portable.py'
-      - 'tests/cpython/fixtures/onefile*'
-      - 'tests/cpython/fixtures/version*'
+      - 'crates/ryupy-driver/**'
+      - 'crates/ryupy-cli/**'
+      - 'runtime/**'
+      - 'tests/cpython/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.cargo/**'
   pull_request:
     paths:
       - '.github/workflows/cpython-versions.yml'
-      - 'crates/ryupy-driver/src/onefile*'
-      - 'crates/ryupy-driver/src/python_selection*'
-      - 'crates/ryupy-driver/src/cpython_*'
-      - 'runtime/RyuPy.OneFile/**'
-      - 'runtime/RyuPy.CPython/**'
-      - 'tests/cpython/onefile*'
-      - 'tests/cpython/version*'
-      - 'tests/cpython/test_portable.py'
-      - 'tests/cpython/fixtures/onefile*'
-      - 'tests/cpython/fixtures/version*'
+      - 'crates/ryupy-driver/**'
+      - 'crates/ryupy-cli/**'
+      - 'runtime/**'
+      - 'tests/cpython/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.cargo/**'
   workflow_dispatch:
 
 permissions:

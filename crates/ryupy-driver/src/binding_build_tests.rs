@@ -331,6 +331,7 @@ fn assert_runtime_bundle(value: &serde_json::Value) {
         .collect();
     assert_eq!(artifacts.len() - dependencies.len(), 4);
     if crate::runtime::runtime_dir()
+        .unwrap()
         .join(crate::runtime::DEPENDENCIES)
         .is_file()
     {

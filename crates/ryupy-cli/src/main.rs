@@ -20,6 +20,10 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 
 fn main() -> ExitCode {
     let mut cli = Cli::parse();
+    if cli.licenses {
+        print!("{}", ryupy_driver::runtime_licenses());
+        return ExitCode::SUCCESS;
+    }
     if cli.help_advanced {
         return match args::print_advanced_help() {
             Ok(()) => ExitCode::SUCCESS,
@@ -102,6 +106,9 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
             let aot = aot || onefile;
+            if aot {
+                dotnet::require_sdk()?;
+            }
             let out_dir = out_dir.unwrap_or_else(|| {
                 if aot {
                     input
@@ -129,11 +136,14 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                 resources.as_deref(),
                 native_binding.as_deref(),
             )?;
-            eprintln!("已生成 {}", artifacts.dll.display());
             if let Some(exe) = artifacts.native_exe {
                 eprintln!("已生成 {}", exe.display());
+            } else {
+                eprintln!("已生成 {}", artifacts.dll.display());
             }
-            if let Some(manifest) = artifacts.manifest {
+            if sess.diagnostic_stages
+                && let Some(manifest) = artifacts.manifest
+            {
                 eprintln!(
                     "{}：{}",
                     if onefile {
@@ -154,6 +164,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             search_paths,
             include_modules,
         } => {
+            dotnet::require_runtime()?;
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;

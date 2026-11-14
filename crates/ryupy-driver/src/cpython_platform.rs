@@ -292,6 +292,8 @@ impl PlatformKind {
                 "USERENV.dll",
                 "VERSION.dll",
                 "WINMM.dll",
+                // Tk9打印能力使用Windows自带的Winspool API，不收集第三方库。
+                "WINSPOOL.DRV",
                 "bcrypt.dll",
                 "msi.dll",
                 "ucrtbase.dll",

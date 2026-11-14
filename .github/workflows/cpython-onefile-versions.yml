@@ -5,33 +5,25 @@ on:
     branches: [dev, main, 'wip/**']
     paths:
       - '.github/workflows/cpython-onefile-versions.yml'
-      - 'crates/ryupy-driver/src/onefile*'
+      - 'crates/ryupy-driver/**'
       - 'crates/ryupy-cli/**'
-      - 'crates/ryupy-driver/src/python_selection*'
-      - 'crates/ryupy-driver/src/cpython_*'
-      - 'runtime/RyuPy.OneFile/**'
-      - 'runtime/RyuPy.CPython/**'
-      - 'tests/cpython/onefile*'
-      - 'tests/cpython/multifile*'
-      - 'tests/cpython/fixtures/multifile*'
-      - 'tests/cpython/version*'
-      - 'tests/cpython/fixtures/onefile*'
-      - 'tests/cpython/fixtures/version*'
+      - 'runtime/**'
+      - 'tests/cpython/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Makefile'
+      - '.cargo/**'
   pull_request:
     paths:
       - '.github/workflows/cpython-onefile-versions.yml'
-      - 'crates/ryupy-driver/src/onefile*'
+      - 'crates/ryupy-driver/**'
       - 'crates/ryupy-cli/**'
-      - 'crates/ryupy-driver/src/python_selection*'
-      - 'crates/ryupy-driver/src/cpython_*'
-      - 'runtime/RyuPy.OneFile/**'
-      - 'runtime/RyuPy.CPython/**'
-      - 'tests/cpython/onefile*'
-      - 'tests/cpython/multifile*'
-      - 'tests/cpython/fixtures/multifile*'
-      - 'tests/cpython/version*'
-      - 'tests/cpython/fixtures/onefile*'
-      - 'tests/cpython/fixtures/version*'
+      - 'runtime/**'
+      - 'tests/cpython/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Makefile'
+      - '.cargo/**'
   workflow_dispatch:
 
 permissions:
@@ -55,17 +47,17 @@ jobs:
           - os: ubuntu-24.04
             rid: linux-x64
             shell: bash
-            cli: target/debug/ryupy
+            cli: target/release/ryupy
           - os: windows-2022
             rid: win-x64
             shell: pwsh
-            cli: target/debug/ryupy.exe
+            cli: target/release/ryupy.exe
           - os: macos-15
             rid: osx-arm64
             shell: bash
-            cli: target/debug/ryupy
+            cli: target/release/ryupy
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 45
     defaults:
       run:
         shell: ${{ matrix.shell }}
@@ -140,7 +132,7 @@ jobs:
           & pwsh runtime/RyuPy.CPython/native/build.ps1 -PythonHome "$env:CPYTHON_HOME" -Output "runtime/RyuPy.CPython/bin/Release/net10.0"
 
       - name: Compile ryupy-cli
-        run: cargo build -p ryupy-cli
+        run: cargo build --release -p ryupy-cli
 
       - name: Check OneFile Archive and Source Contracts
         run: |
@@ -174,3 +166,10 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           & "$env:RUNNER_PYTHON" -B tests/cpython/multifile_run.py --python "$env:PYTHON_BIN" --ryupy "${{ matrix.cli }}"
+
+      - name: Upload verified single-file CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: ryupy-cli-${{ matrix.rid }}
+          path: ${{ matrix.cli }}
+          if-no-files-found: error

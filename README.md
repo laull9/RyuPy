@@ -1,63 +1,59 @@
 # RyuPy
 
-把常见 Python 项目编译成 .NET CIL，交给 RyuJIT 运行。编译器用 Rust 编写，运行时 `RyuPy.Runtime` 用 C# 编写；当前 WIP 已提供有界 Native AOT 发布，适用范围与验证记录见 docs/validation/。
+将Python项目编译为.NET CIL及NativeAOT独立应用。编译器用Rust编写，运行时用C#编写，
+兼容模式复用随包CPython标准库与第三方扩展；本地应用模块进入CIL编译链。
 
-## 项目方向（2026-11-13）
+## 使用
 
-**兼容性优先复用随包 libpython，性能保留 CIL / NativeAOT 优化空间。**
-近期依次完成可分发宿主与通用对象桥、现有“HTTP → 编码解压 → 包资源 → SQLite”
-同程序迁移、真实 NumPy 扩展的加载/回调/异常/生命周期验收。
-长期对标 Nuitka 的 AOT 打包体验，扩大标准库覆盖，再按实测热点选择 C# 原生替换。
-本轮只调整规划与文档，宿主和新 provider 尚待实现，现有命令与默认执行路径保持原样。
-见 [路线图](docs/roadmap.md)、[宿主与对象桥](docs/cpython-provider.md)、
-[目录整理](docs/repository-layout-plan.md) 和 [ADR-0181](docs/adr/0181-cpython-provider-first.md)。
+RyuPy CLI本身是一个文件，C#运行时、互操作桥、SQLite依赖、许可证和shim源码均内嵌。
+将`ryupy`（Windows为`ryupy.exe`）放到PATH后，在已准备好业务依赖的Python项目中执行：
 
-## 当前状态
-
-状态日期：2026-11-12。产品证据对应代码 [85b11a94](https://github.com/laull9/RyuPy/commit/85b11a94368f0ba0a0bda80d611b9e0c39a5cf7b)，本次仅更新文档，不表示在后续文档提交上重新构建或运行产品。
-
-固定 20 项目的最新完整入口结果：启用构建时 Cargo feature `ryupy-driver/ordinary-dynamic-module-pilot` 的普通动态模块 pilot 为 **14 成功 / 6 unsupported / 0 失败**；默认源计划为 **13 成功 / 6 unsupported / 1 失败**，差异仍是既有 Markdown 路径。这里的成功指托管程序集的 **JIT 执行**，不等于 NativeAOT，也不代表项目全部 API 兼容。默认 JIT 的 Markdown 失败是 `NotImplementedError: find_spec(): legacy or native module registrations without source metadata are not implemented`；pilot JIT 的该入口通过。独立 `distribution-metadata` AOT 的旧失败则是 `[E0100] 显式实例 AOT 需要资源清单且不支持原生绑定`，不是同一个失败。
-
-独立默认 CLI 的有限 Decimal、tzinfo 用户单基图已在 Ubuntu 24.04 x86_64、.NET SDK 10.0.403 上完成真实 Linux x64 ELF 原位与搬迁运行。证据见 [CI 43210802587](https://github.com/laull9/RyuPy/actions/runs/43210802587) 及各独立 artifact；整次 CI 仍有旧门失败，不能据专项通过称全绿。完整 toml Native、全量 MI Native 不在通过范围。
-
-pilot 是构建时 feature，不是 CLI 运行参数；普通默认构建未启用它，因此默认命令对应 13 / 6 / 1，不应期待 pilot 的 14 / 6 / 0。
-
-当前能力、有限兼容范围与未完成项以 [TODO](TODO.md)、[语义说明](docs/semantics.md) 和 [验证归档](docs/validation/) 为准。WIP 的专项通过不等于全部真实项目、任意扩展或所有部署环境通过。
-
-固定项目集保留原版本与入口。后续产品兼容目标为至少 16/20，分别登记纯 RyuPy 与
-CPython provider 结果；历史原生 16/20 转为长期优化指标。上面的 13/20、14/20 是既有
-JIT 证据，新宿主尚无通过记录。生命周期按托管对象、CPython 对象与跨堆代理分别验收，
-见 [兼容性口径](docs/compatibility.md) 和 [对象桥合同](docs/cpython-provider.md)。
-
-```bash
-make run FILE=tests/e2e/phase1/m1_5_dataclass.py
-make dump FILE=tests/e2e/phase1/m1_0_print_int.py EMIT=ast
+```sh
+ryupy main.py                         # 默认自动环境＋单文件AOT
+ryupy main.py --onefile               # 显式选择同一形态
+ryupy main.py --mode standalone       # 独立运行目录
+ryupy main.py --native                # 纯RyuPy执行域
+ryupy main.py -o release              # 指定输出根，默认./dist
 ```
 
-## 快速开始
+普通多文件项目的静态导入自动进入编译图。工具依次探测项目venv、激活环境和PATH中的Python，
+核验完整版本和ABI，收齐已安装的第三方依赖、metadata与包资源。无需填写版本号或provider JSON，
+构建工具在RyuPy私有缓存准备。`--help`查看常用调用，`--help-advanced`查看开发选项，
+`--licenses`查看内嵌组件许可。
 
-依赖：Rust stable（2024 edition）、.NET SDK 10；差分验收固定 CPython 3.12.13。NativeAOT 还需目标平台的原生工具链；本轮只验证 Ubuntu 24.04 x86_64，未验证 macOS / Windows AOT。
+单文件应用位于`dist/main.onefile/main`（Windows为`main.exe`），搬走该文件即可运行。
+启动时在独占临时目录解包，正常退出及已覆盖的中断后清理。目录发布位于`dist/main.dist`。
+原生发布会自动检测.NET SDK 10及以上和Python环境，构建机还需平台C工具链、curl及支持
+Zstandard的tar或zstd；运行生成的AOT应用无需安装.NET、Python或构建工具。
+托管运行需要.NET Runtime 10。CLI的帮助、版本和许可查询无需.NET或Python。
 
-```bash
-make runtime   # 构建 C# 运行时
-make check     # lint + 测试 + e2e
-make build     # 打宿主平台发行包（releases/）
-make bench     # CPython vs RyuPy JIT 固定输入基准（不进入 make check）
-make bench-aot # AOT 后端；也可 make bench ARGS='--aot'
-make help      # 全部命令
+## 当前验收
+
+2026-11-14：macOS arm64已经用仓库外的唯一CLI文件、全新私有缓存构建普通五文件项目；
+四路原生JIT冷缓存并发、深层第三方依赖与资源、删除CLI/缓存/项目全部输入后的唯一AOT搬迁，
+三流和文件副作用均与同次CPython一致。三平台运行同一[多文件项目驱动](tests/cpython/multifile_README.md)。
+三平台固定CPython standalone和onefile、Linux无Python/.NET/SDK断网容器已通过；
+新单文件CLI及Python3.9–3.15矩阵继续逐项复验，实际结果见[版本验收](tests/cpython/version_README.md)。
+
+固定20项目CPython provider在macOS的JIT、NativeAOT及输入删除搬迁各通过19项，attrs缺入口
+模块活字典。纯RyuPy保留门为13通过、6未支持、1失败，独立登记。范围见
+[兼容性清单](docs/compatibility.md)、[平台状态](docs/cpython-platform-support.md)和[TODO](TODO.md)。
+
+## 从源码构建
+
+需要Rust stable（2024 edition，MSRV 1.85）和.NET SDK 10。Cargo在隔离输出目录编译C#组件
+并嵌入CLI，源码仓库保留源码、手写测试输入、配置和人工文档。
+
+```sh
+cargo build -p ryupy-cli
+make check     # fmt、clippy、Rust/C#测试与e2e
+make build     # Release单文件CLI与仅含该文件的分发归档
 ```
 
-## AOT 构建与交付（有限范围已验证）
-
-`ryupy build --aot path/name.py` 把中间产物放入 `path/name.build/`，交付目录为 `path/name.dist/`，原生入口为 `name`（Windows 为 `name.exe`）。`--out-dir ROOT` 将这两个目录放到 ROOT；JIT 缓存布局不变。已有未知或修改过的输出目录不会被覆盖。
-
-可复用的独立验收入口与边界见 [Decimal Native 门](tests/aot/decimal_finite_native/README.md) 和 [tzinfo Native 门](tests/aot/tzinfo_native/README.md)。通过的是默认 CLI 的这些有限图，不是完整 toml 或任意多继承程序。
-
-新 AOT 基准直接执行交付目录中的原生程序，编译/ILC 不计入运行采样；保存结果标明后端，默认不混比 JIT/AOT。当前基准 runner 仅支持 POSIX，`--aot --profile` 不支持。完整限制与本轮验证状态见 [ADR-0052](docs/adr/0052-aot-build-dist-and-bench.md)。
-
-## 显式包含文件包（本地候选）
-
-`ryupy build app.py -I vendor --include-module package.assets` 将字符串形式引用的真实源码包纳入编译图；`run`也支持重复该选项。初始化仍在实际导入时发生，包含不自动复制数据。有限 `importlib.resources.files(anchor)` 可读取已登记文件包：JIT使用真实源根，AOT仍须通过现有 `--resources` 显式部署数据。非包/default caller/其它loader等边界见[ADR-0057](docs/adr/0057-explicit-package-resources.md)，不代表完整importlib或第三方项目通过。
+旧`build/run/probe/dump`开发入口保留原有行为，`build/run`默认纯原生执行域；例如
+`ryupy build main.py`生成托管产物，`ryupy run main.py`编译并运行。
+实现与验收合同见[ADR-0190](docs/adr/0190-project-cli.md)、
+[ADR-0191](docs/adr/0191-single-file-compiler-cli.md)及[CPython provider](docs/cpython-provider.md)。
 
 ## 目录
 

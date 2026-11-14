@@ -11,8 +11,10 @@ mod accumulator_options;
 mod cpython_inventory;
 mod cpython_jit;
 mod cpython_provider;
+mod embedded_runtime;
 pub mod onefile;
 mod onefile_publication;
+mod runtime_assets;
 pub use cpython_provider::CPythonProviderState;
 pub use onefile_publication::build_onefile;
 mod aot;
@@ -20,6 +22,10 @@ mod aot_layout;
 mod binding_build;
 mod binding_sources;
 pub mod dotnet;
+/// 内嵌运行时及第三方组件的许可证文本，无需准备缓存或.NET环境。
+pub fn runtime_licenses() -> &'static str {
+    embedded_runtime::licenses()
+}
 mod dump;
 pub use dump::dump;
 mod default_aot;

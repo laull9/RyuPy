@@ -13,6 +13,8 @@ mod dependencies;
 mod deployment;
 #[path = "cpython_discovery.rs"]
 pub(crate) mod discovery;
+#[path = "cpython_shim.rs"]
+mod shim;
 pub(crate) use deployment::{extend_project, publish};
 const VERSION: &str = "3.12.13";
 pub(crate) const CONFIG: &str = "ryupy-cpython.json";
@@ -78,6 +80,7 @@ pub(crate) struct Plan {
     pub payloads: Vec<Payload>,
     pub bridge: PathBuf,
     pub shim: PathBuf,
+    pub _shim_build: Option<std::sync::Arc<shim::BuildRoot>>,
     pub dependency_report: serde_json::Value,
 }
 
@@ -203,15 +206,14 @@ pub(crate) fn prepare_auto(sess: &mut Session, entry: &Path) -> Result<()> {
     );
     let metadata: serde_json::Value =
         serde_json::from_slice(&std::fs::read(root.join("PYTHON.json"))?)?;
-    let default_bridge =
-        crate::runtime::workspace_root().join("runtime/RyuPy.CPython/bin/Release/net10.0");
+    let default_bridge = crate::runtime::cpython_bridge_dir()?;
     let bridge = default_bridge;
     ensure!(
         bridge.join("RyuPy.CPython.dll").is_file(),
         "缺少 RyuPy.CPython.dll，请先构建随包宿主：{}",
         bridge.display()
     );
-    let shim = ensure_shim_for_version(&root, &bridge, &version)?;
+    let (shim, shim_build) = shim::build(&root, &version)?;
     let stdlib = crate::cpython_inventory::stdlib_for_version(&root, &metadata, &version)?;
     let mut modules = Vec::new();
     let mut payloads = Vec::new();
@@ -259,6 +261,7 @@ pub(crate) fn prepare_auto(sess: &mut Session, entry: &Path) -> Result<()> {
         payloads,
         bridge,
         shim,
+        _shim_build: Some(shim_build),
         dependency_report: closure.report,
     });
     Ok(())
@@ -332,16 +335,16 @@ fn finish_prepare(
             "模块同时声明为RyuPy源码与CPython完整依赖族：{included}"
         );
     }
-    let default_bridge =
-        crate::runtime::workspace_root().join("runtime/RyuPy.CPython/bin/Release/net10.0");
-    let bridge = declaration
-        .bridge_directory
-        .map(|path| absolute(base, &path))
-        .transpose()?
-        .unwrap_or(default_bridge);
-    let shim = match declaration.shim {
+    let bridge = match declaration.bridge_directory {
         Some(path) => absolute(base, &path)?,
-        None => ensure_shim_for_version(&root, &bridge, &version)?,
+        None => crate::runtime::cpython_bridge_dir()?,
+    };
+    let (shim, shim_build) = match declaration.shim {
+        Some(path) => (absolute(base, &path)?, None),
+        None => {
+            let (path, owner) = shim::build(&root, &version)?;
+            (path, Some(owner))
+        }
     };
     ensure!(
         bridge.join("RyuPy.CPython.dll").is_file(),
@@ -362,61 +365,10 @@ fn finish_prepare(
         payloads,
         bridge,
         shim,
+        _shim_build: shim_build,
         dependency_report: closure.report,
     });
     Ok(())
-}
-
-fn ensure_shim_for_version(
-    root: &Path,
-    _bridge: &Path,
-    version: &version::PythonVersion,
-) -> Result<PathBuf> {
-    let shim_name = native::shim_name();
-    let workspace = crate::runtime::workspace_root();
-    let shim_cache = workspace.join(format!(
-        "target/cpython_shims/{}/{}",
-        version.version_str(),
-        std::process::id()
-    ));
-    let target_shim = shim_cache.join(shim_name);
-    std::fs::create_dir_all(&shim_cache)?;
-    if cfg!(windows) {
-        let script = workspace.join("runtime/RyuPy.CPython/native/build.cmd");
-        let mut cmd = std::process::Command::new("cmd.exe");
-        cmd.arg("/c")
-            .arg(&script)
-            .arg(root)
-            .arg(&shim_cache)
-            .arg(version.series());
-        let output = cmd.output()?;
-        ensure!(
-            output.status.success(),
-            "编译 CPython shim 失败：{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    } else {
-        let script = workspace.join("runtime/RyuPy.CPython/native/build.sh");
-        let mut cmd = std::process::Command::new("sh");
-        cmd.arg(&script)
-            .arg(root)
-            .arg(&shim_cache)
-            .arg(version.series());
-        let output = cmd.output()?;
-        ensure!(
-            output.status.success(),
-            "编译 CPython shim 失败：{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-    ensure!(
-        target_shim.is_file(),
-        "shim 产物未生成：{}",
-        target_shim.display()
-    );
-    Ok(target_shim)
 }
 
 pub(crate) fn selected(sess: &Session, name: &str) -> bool {

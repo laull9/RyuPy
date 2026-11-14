@@ -1,29 +1,13 @@
-//! 定位并复制 `RyuPy.Runtime.dll`。
-//!
-//! 查找顺序：
-//! 1. 环境变量 `RYUPY_RUNTIME_DIR`（指向包含 `RyuPy.Runtime.dll` 的目录）；
-//! 2. 发行包布局，相对**当前可执行文件**：
-//!    - `<prefix>/bin/ryupy` + `<prefix>/runtime/RyuPy.Runtime.dll`（`make build` 的产物）；
-//!    - `<prefix>/ryupy` + `<prefix>/runtime/RyuPy.Runtime.dll`（放在同一目录时）；
-//! 3. 开发模式默认路径 `<workspace>/runtime/RyuPy.Runtime/bin/Release/net10.0/`
-//!    （由 `make runtime` 即 `dotnet build -c Release` 生成）。
-//!
-//! 发行包必须排在开发路径前面：`workspace_root()` 来自编译期的 `CARGO_MANIFEST_DIR`，
-//! 在别的机器上并不存在；相对可执行文件查找才能让打包后的 CLI 真正可搬运。
+//! 从当前编译器内嵌字节准备C#运行时；显式RYUPY_RUNTIME_DIR保留开发覆盖入口。
+//! 默认不读取源码仓库或可执行文件旁的旁置目录，完整模块组来自同次编译器构建。
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 
-pub const RUNTIME_DLL: &str = "RyuPy.Runtime.dll";
-pub(crate) const DEPENDENCIES: &str = "RuntimeDependencies.props";
-const LICENSE: &str = "ThirdPartyNotices.sqlite3.txt";
-const MANAGED_DEPENDENCIES: &[&str] = &[
-    "Microsoft.Data.Sqlite.dll",
-    "SQLitePCLRaw.core.dll",
-    "SQLitePCLRaw.batteries_v2.dll",
-    "SQLitePCLRaw.provider.e_sqlite3.dll",
-];
+pub(crate) use crate::runtime_assets::DEPENDENCIES;
+pub use crate::runtime_assets::RUNTIME_DLL;
+use crate::runtime_assets::{LICENSE, MANAGED_DEPENDENCIES};
 
 /// 只分类固定 provider 的确切原生库名，不通过扩展名猜测任意 sidecar 的运行时身份。
 pub(crate) fn dependency_role(name: &str) -> Option<&'static str> {
@@ -38,25 +22,22 @@ pub(crate) fn dependency_role(name: &str) -> Option<&'static str> {
     }
 }
 
-pub fn runtime_dir() -> PathBuf {
+pub fn runtime_dir() -> Result<PathBuf> {
     if let Some(dir) = std::env::var_os("RYUPY_RUNTIME_DIR") {
-        return PathBuf::from(dir);
+        return Ok(PathBuf::from(dir));
     }
-    if let Some(dir) = packaged_runtime_dir() {
-        return dir;
-    }
-    workspace_root().join("runtime/RyuPy.Runtime/bin/Release/net10.0")
+    crate::embedded_runtime::prepare()
 }
 
-/// 可执行文件旁边带运行时的两种布局；都没有时返回 `None`，交给开发路径。
-fn packaged_runtime_dir() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let exe_dir = exe.parent()?;
-    [exe_dir.join("runtime"), exe_dir.join("..").join("runtime")]
-        .into_iter()
-        .find(|candidate| candidate.join(RUNTIME_DLL).is_file())
-        // 规范化掉 `..`，让错误信息和产物路径更可读；失败时保留原路径即可。
-        .map(|candidate| candidate.canonicalize().unwrap_or(candidate))
+/// 内嵌桥与Runtime同组；不接受可执行文件旁的未登记旁置程序集。
+pub(crate) fn cpython_bridge_dir() -> Result<PathBuf> {
+    let runtime = runtime_dir()?;
+    anyhow::ensure!(
+        runtime.join(crate::runtime_assets::BRIDGE_DLL).is_file(),
+        "运行时缺少RyuPy.CPython.dll：{}",
+        runtime.display()
+    );
+    Ok(runtime)
 }
 
 pub fn workspace_root() -> PathBuf {
@@ -69,24 +50,33 @@ pub fn workspace_root() -> PathBuf {
 }
 
 pub fn copy_runtime_to(out_dir: &Path) -> Result<()> {
-    copy_runtime_from(&runtime_dir(), out_dir)
+    copy_runtime_subset(&runtime_dir()?, out_dir, false)
 }
 
 /// 显式组件从同一构建输出根部署完整托管/原生依赖闭包，避免混用两个开发bin来源。
 pub(crate) fn copy_runtime_from(source: &Path, out_dir: &Path) -> Result<()> {
+    copy_runtime_subset(source, out_dir, true)
+}
+
+fn copy_runtime_subset(source: &Path, out_dir: &Path, bridge: bool) -> Result<()> {
     let src = source.join(RUNTIME_DLL);
     std::fs::copy(&src, out_dir.join(RUNTIME_DLL)).with_context(|| {
         format!(
-            "找不到 {}，请先运行 `make runtime`，或设置 RYUPY_RUNTIME_DIR",
+            "运行时组件缺失：{}；请检查显式RYUPY_RUNTIME_DIR或重新安装编译器",
             src.display()
         )
     })?;
-    copy_dependencies(source, out_dir)?;
+    copy_dependencies_selected(source, out_dir, bridge)?;
     Ok(())
 }
 
 /// .NET 未提供 deps.json 的生成入口仍从应用目录解析托管 DLL；native 资产选择同宿主 RID。
+#[cfg(test)]
 fn copy_dependencies(source: &Path, output: &Path) -> Result<()> {
+    copy_dependencies_selected(source, output, false)
+}
+
+fn copy_dependencies_selected(source: &Path, output: &Path, bridge: bool) -> Result<()> {
     // 先检查完整闭包再复制；明确的缺库错误优于应用启动后才出现 FileNotFoundException。
     anyhow::ensure!(
         source.join(DEPENDENCIES).is_file()
@@ -133,6 +123,13 @@ fn copy_dependencies(source: &Path, output: &Path) -> Result<()> {
     }
     for entry in std::fs::read_dir(source)? {
         let path = entry?.path();
+        if !bridge
+            && path
+                .file_name()
+                .is_some_and(|name| name == crate::runtime_assets::BRIDGE_DLL)
+        {
+            continue;
+        }
         if path
             .extension()
             .is_some_and(|extension| extension == "dll" || extension == "props")
