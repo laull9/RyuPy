@@ -40,3 +40,9 @@ python -B tests/aot/current_baseline.py --target /tmp/ryupy-baseline-target --ou
 
 专用CI只手动或独立基线分支触发，不在每次dev推送自动追加昂贵测量。
 首次完整同提交结果待CI；脚本就绪或纯测试通过不等于AOT性能已有数据。
+
+## 后续口径更正
+
+run 43596268398完成了本方案，但CPython wall包含runpy/gc/json统计外壳，产品也开启了各自统计。
+这些wall不可解释为直接启动性能或直接CPython加速。保留作为历史诊断，不与新直接wall结果拼接。
+无统计直接对照与独立诊断计划见[DIRECT_WALL.md](DIRECT_WALL.md)。

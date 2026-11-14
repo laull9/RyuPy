@@ -8,7 +8,8 @@ python -B cpython_harness.py <统计输出文件> <基准脚本>
 
 与 RyuPy 的 `RYUPY_STATS`（`PyStats.cs`）对应：`main_ms` 只计脚本本身的执行时间，
 不含解释器启动；再记录各代 GC 次数，便于和 .NET 的 gc0/gc1/gc2 对照。
-外壳只多导入 `runpy`（启动时已基本加载），对墙钟时间的影响在 1 ms 以内。
+外壳导入 gc/json/runpy 并写统计，其启动成本不能假定在 1 ms 以内。
+带此外壳的墙钟仅用于诊断，不可当作直接 CPython 启动基线。
 """
 
 import gc
