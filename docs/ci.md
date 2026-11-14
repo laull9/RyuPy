@@ -5,6 +5,7 @@
 ## 日常检查
 
 `ci.yml`响应dev/main推送和以dev/main为目标的PR，同一分支或PR的新提交取消旧检查。
+同仓库同来源分支的push/PR共享并发槽位，自动取消重复执行；fork按来源仓库隔离。
 只使用Ubuntu 24.04，执行发布tag守卫回归、发行下载回归和`make check`。
 不自动启动NativeAOT跨平台发布、Python七版本矩阵、历史性能配对或专项实验。
 完整本地开发门继续使用`make check`。

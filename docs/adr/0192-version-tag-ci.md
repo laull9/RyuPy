@@ -12,7 +12,8 @@ GitHub的分支和tag过滤分别匹配ref，不能仅把main与v*写进同一pu
 
 入口采用只读contents权限，不允许workflow_dispatch绕过；套件只暴露workflow_call。
 未合并分支tag在入口失败，矩阵保持未启动。祖先版本允许补发，注解tag解析到实际commit。
-日常新提交取消同一分支的旧检查，版本验收保持各tag独立，不自动发布Release。
+日常按来源仓库与来源分支共享并发槽位，push和PR互相去重；fork按仓库隔离。
+新提交取消同一分支的旧检查，版本验收保持各tag独立，不自动发布Release。
 
 31份专项实验工作流归档到Actions发现目录之外，原YAML正文保留；历史读取器切换至归档目录。
 产品测试驱动、本地make check和已验收的三套发布步骤保持可执行。
