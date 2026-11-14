@@ -103,3 +103,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
 - [0193：有界字符串累加器与顶层模块观察语义](0193-bounded-string-accumulator.md)（已接受，差分/AOT/性能/完整门禁及异构复审通过）
 - [0195：PIC核心条目的固定容量按需分页](0195-pic-paged-storage.md)（已接受，全26项AOT/搬迁及完整门禁通过）
+
+- [0196：列表推导式私有收集器直接追加](0196-private-list-comprehension-append.md)（已接受，26项AOT对照/搬迁及完整门禁通过）
