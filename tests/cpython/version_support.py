@@ -70,6 +70,6 @@ def run_priority_matrix(cli: Path, python: Path, workspace: Path, env: dict):
         expected = run([venv_python(environments[name]), "-I", "-X", "utf8", entry], cwd=workspace, env=env)
         actual = run([shutil.which("dotnet"), output / "priority.dll"], cwd=workspace, env=env)
         assert_result(actual, expected)
-        assert actual.stdout == (name + "\n").encode()
+        assert actual.stdout == (name + os.linesep).encode()
         shutil.rmtree(output)
     print("[version] 三个真实venv的项目/激活/PATH选择与产品运行均通过", flush=True)

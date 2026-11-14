@@ -62,7 +62,7 @@ curl stdin配置传递且仅用于官方API；匹配缓存先核对精确版本�
 与schema7 optimizations字段按官方20220528的3.9.13真实元数据适配，保留原始JSON。
 报告中的archive_url改为本次实际安装归档，本地观察来源无归档时明确留空。
 
-新增7项可重复发行准备合同测试：新旧Windows资产选择、schema7/8优化字段、官方API凭据
+新增8项可重复发行准备合同测试：新旧Windows资产选择、schema7/8优化字段、官方API凭据
 隔离与精确缓存离线选择/错误元数据拒绝，入口`python -B tests/cpython/test_portable.py`。
 跨平台21项矩阵正在复验；Linux真实zlib专测与目标容器同时作为门禁。
 

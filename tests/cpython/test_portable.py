@@ -120,6 +120,14 @@ class PortableContracts(unittest.TestCase):
             self.assertEqual(len(backups), 1)
             self.assertEqual((backups[0] / 'old-diagnostic.txt').read_text(), 'preserve incomplete tree')
 
+    def test_interrupted_json_cache_is_prepared_again(self):
+        with tempfile.TemporaryDirectory(prefix='ryupy-interrupted-cache-') as temporary:
+            cache = Path(temporary)
+            root = cache / 'cpython-3.9.13+20220528-x86_64-pc-windows-msvc'
+            self.ready_tree(root)
+            (root / 'PYTHON.json').write_text('{unfinished', encoding='utf-8')
+            self.assertIsNone(portable.cached_distribution(cache, '3.9.13', 'x86_64-pc-windows-msvc', 'pgo'))
+
     def test_concurrent_cache_publishers_reuse_complete_winner(self):
         from concurrent.futures import ThreadPoolExecutor
         with tempfile.TemporaryDirectory(prefix='ryupy-cache-concurrent-') as temporary:

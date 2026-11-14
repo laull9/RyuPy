@@ -137,8 +137,12 @@ def cached_distribution(cache, version, triple, options):
         metadata_path = root / 'PYTHON.json'
         if not source.is_file() or not metadata_path.is_file():
             continue
-        provenance = json.loads(source.read_text(encoding='utf-8'))
-        metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+        try:
+            provenance = json.loads(source.read_text(encoding='utf-8'))
+            metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            # 旧版本中断留下的半写JSON属于未完成缓存，后续准备并隔离替换。
+            continue
         release = provenance.get('release', '')
         build = release.removeprefix(RELEASES + 'tag/')
         if (not re.fullmatch(r'\d{8}', build)
