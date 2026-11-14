@@ -11,7 +11,7 @@ use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
 #[derive(Parser)]
 #[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
 struct Cli {
-    /// 显式 CPython provider 声明（固定发行、模块执行域与包载荷）
+    /// CPython provider 声明路径，或 auto 自动匹配当前 Python 环境
     #[arg(long, global = true)]
     cpython_provider: Option<PathBuf>,
     /// 显式封闭分发快照请求（JIT/AOT）；不改变sys.path
@@ -56,13 +56,13 @@ enum Command {
         #[arg(long)]
         aot: bool,
     },
-    /// 编译为 .dll（加 --aot 生成原生可执行文件）
+    /// 编译为 .dll，或通过 --aot / --onefile 发布原生应用
     Build {
         input: PathBuf,
         /// 诊断：逐阶段写 stderr（编译至产物写出，不含 AOT publish；默认关闭）
         #[arg(long, conflicts_with = "native_binding")]
         diagnostic_stages: bool,
-        /// 输出根；AOT默认源目录下<文件名>.build/.dist，JIT默认__pycache__/<文件名>/
+        /// 输出根；AOT使用<入口>.build/.dist，单文件发布到<入口>.onefile，JIT默认__pycache__/
         #[arg(short, long)]
         out_dir: Option<PathBuf>,
         #[arg(long)]
