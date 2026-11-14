@@ -80,10 +80,14 @@ fn collect(
             path.display()
         );
         let name = portable(path.strip_prefix(root)?)?;
-        ensure!(
-            seen.insert(name.to_lowercase()),
-            "onefile 路径大小写重复：{name}"
-        );
+        // 单文件仅同宿主发布；Linux 的官方 terminfo 含大小写不同的真实条目。
+        // Windows/macOS 保留不区分大小写的冲突保护，Linux 则按其路径语义完整收齐。
+        let identity = if cfg!(target_os = "linux") {
+            name.clone()
+        } else {
+            name.to_lowercase()
+        };
+        ensure!(seen.insert(identity), "onefile 路径大小写重复：{name}");
         ensure!(nodes.len() < 100_000, "onefile 文件数超过限制");
         nodes.push((name, path.clone(), meta));
         if nodes.last().is_some_and(|n| n.2.is_dir()) {
@@ -137,10 +141,12 @@ fn portable(path: &Path) -> Result<String> {
             .unwrap_or_default()
             .to_ascii_uppercase();
         ensure!(
-            !matches!(base.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-                && !(base.len() == 4
-                    && (base.starts_with("COM") || base.starts_with("LPT"))
-                    && matches!(base.as_bytes()[3], b'1'..=b'9')),
+            !matches!(
+                base.as_str(),
+                "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+            ) && !(base.len() == 4
+                && (base.starts_with("COM") || base.starts_with("LPT"))
+                && matches!(base.as_bytes()[3], b'1'..=b'9')),
             "onefile 路径含 Windows 保留名"
         );
     }
@@ -155,13 +161,36 @@ fn string(out: &mut File, value: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn linux_payload_keeps_distinct_case_entries() -> Result<()> {
+        let root = super::super::work_root()?;
+        let result = (|| -> Result<()> {
+            let payload = root.join("dist");
+            std::fs::create_dir(&payload)?;
+            std::fs::write(payload.join("hp2621A"), b"entry")?;
+            std::fs::write(payload.join("hp2621a"), b"data")?;
+            write(
+                &payload,
+                &payload.join("hp2621A"),
+                &root.join("payload.raw"),
+            )
+        })();
+        std::fs::remove_dir_all(root)?;
+        result
+    }
     #[test]
     fn rejects_ambiguous_names() {
         for name in [
-            "../x", "/x", "a//b", "a/./b", "a\\b", "CON.txt", "x:", "a. ", "LPT1",
+            "../x", "/x", "a//b", "a/./b", "CON.txt", "CONIN$", "CONOUT$", "x:", "a. ", "LPT1",
         ] {
             assert!(portable(Path::new(name)).is_err(), "{name}");
         }
+        // Windows 输入路径的反斜杠是合法分隔符；归档统一写成正斜杠。
+        #[cfg(windows)]
+        assert_eq!(portable(Path::new("a\\b")).unwrap(), "a/b");
+        #[cfg(not(windows))]
+        assert!(portable(Path::new("a\\b")).is_err());
         assert_eq!(
             portable(Path::new("中文 空格/a.txt")).unwrap(),
             "中文 空格/a.txt"

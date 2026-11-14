@@ -27,11 +27,12 @@ internal static class Tests
             finally { Directory.Delete(root, true); }
         }
         Check(Archive("程序 空格", 5), true);
-        foreach (string path in new[] { "../escape", "/escape", "a\\b", "a/../b", "a//b", "NUL.txt", "C:escape", "a.", "a\0b" })
+        foreach (string path in new[] { "../escape", "/escape", "a\\b", "a/../b", "a//b", "NUL.txt", "CONIN$", "CONOUT$", "C:escape", "a.", "a\0b" })
             Check(Archive(path, 5), false);
         Check(Archive("main", ulong.MaxValue), false);
         Check(Archive("main", 5, 100_001), false);
         Check(Archive("main", 5, duplicate: true), false);
+        Check(Archive("main", 5, duplicate: true, caseDistinct: true), OperatingSystem.IsLinux());
         Check(Archive("main", 5, kind: 2), false);
         byte[] good = Archive("main", 5);
         // 每个截断点都必须拒绝，包含文件数据和结束标记的每个字节。
@@ -58,7 +59,7 @@ internal static class Tests
         Console.WriteLine($"onefile 解析器：{count} 项通过");
         return 0;
     }
-    private static byte[] Archive(string name, ulong size, uint count = 1, bool duplicate = false, byte kind = 1)
+    private static byte[] Archive(string name, ulong size, uint count = 1, bool duplicate = false, byte kind = 1, bool caseDistinct = false)
     {
         using var bytes = new MemoryStream();
         using var writer = new BinaryWriter(bytes, Encoding.UTF8, true);
@@ -68,7 +69,8 @@ internal static class Tests
         writer.Write(duplicate ? 2u : count);
         for (int i = 0; i < (duplicate ? 2 : 1); i++)
         {
-            Text(name); writer.Write(kind); writer.Write(0x1c0u); writer.Write(size); writer.Write("hello"u8);
+            Text(i == 1 && caseDistinct ? name.ToUpperInvariant() : name);
+            writer.Write(kind); writer.Write(0x1c0u); writer.Write(size); writer.Write("hello"u8);
         }
         writer.Write("ENDOF001"u8);
         return bytes.ToArray();

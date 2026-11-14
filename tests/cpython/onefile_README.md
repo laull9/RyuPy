@@ -39,7 +39,7 @@ ryupy build app.py --aot --onefile
 
 手写业务测试应用涵盖以下完整核心能力：
 1. **SQLite3 数据库**：真实创建 SQLite 数据库、数据表、参数化插入及聚合查询（SUM/COUNT）。
-2. **SSL / 密码学**：`ssl.create_default_context()` 上下文初始化及 SHA-256 算法测试。
+2. **SSL**：`ssl.create_default_context()` 上下文初始化、协议与证书验证模式。
 3. **元数据读取**：`importlib.metadata.version('onefile_pkg')` 与 `metadata('onefile_pkg')` 正常读取。
 4. **内嵌包资源**：`importlib.resources.files('onefile_pkg').joinpath('资源.txt')` 读取包含中文与特殊标点的 UTF-8 资源。
 5. **默认 UTF-8 编码**：全流程文件读写默认 UTF-8。
@@ -55,11 +55,11 @@ ryupy build app.py --aot --onefile
 
 ## 4. 并发、生命周期与负例校验
 
-1. **双进程并发运行**：同时拉起 2 个单文件执行实例，验证单文件的自解压/运行时缓存互斥锁不发生死锁或写入冲突。
-2. **中断与清理**：单文件自解压缓存应具备幂等性与租约保护，支持安全清理。
+1. **双进程并发运行**：同时拉起 2 个单文件执行实例，严格比较两个独立工作目录中的三流与副作用，并检查独占解包目录全部清理。
+2. **中断与清理**：业务进程明确进入等待后中断启动器，检查子进程退出码和独占临时目录清理。macOS/Linux覆盖SIGINT、SIGTERM、SIGHUP，Windows验证CTRL_BREAK事件。
 3. **损坏单文件负例**：
-   - 截断或破坏单文件二进制末尾元数据（例如最后 512 字节 Payload 索引）。
-   - 启动被破坏的单文件必须立即以非 0 退出码失败，并向 stderr 报告错误，绝不能发生未定义段错误（Segmentation Fault）或静默成功。
+   - 破坏原生文件头，确认操作系统拒绝启动；压缩流的逐字节截断、尾随数据及路径越界由源码解析器测试覆盖。
+   - 启动被破坏的文件须由OS加载器明确拒绝或非零退出；不依赖任意截断平台文件尾部的偶然效果。
 
 ---
 
@@ -85,3 +85,7 @@ python3 -B tests/cpython/onefile_run.py --ryupy target/debug/ryupy
 # 调试时保留临时目录
 python3 -B tests/cpython/onefile_run.py --keep
 ```
+
+2026-11-14主代理加强版macOS完整驱动退出0：唯一文件隔离搬迁、字节级三流/副作用、
+退出42、双并发与三个POSIX信号的子进程退出及解包目录清理、损坏原生文件头拒绝均通过。
+三平台CI由远端WIP候选继续实跑，Windows中断及Linux容器的结果以实际运行登记。

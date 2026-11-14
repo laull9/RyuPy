@@ -13,7 +13,8 @@ internal static class Payload
         string entry = ReadPath(reader);
         uint count = reader.ReadUInt32();
         if (count == 0 || count > 100_000) throw new InvalidDataException("载荷文件数越界");
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Linux 原生树含 terminfo 等大小写不同的合法文件，沿同宿主平台路径语义解包。
+        var seen = new HashSet<string>(OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
         var directories = new List<(string, uint)>();
         ulong total = 0;
         bool found = false;
@@ -84,7 +85,7 @@ internal static class Payload
                 part.Any(c => char.IsControl(c) || "\\:*?\"<>|".Contains(c)))
                 throw new InvalidDataException("载荷路径越界或含平台歧义字符");
             string stem = part.Split('.')[0].ToUpperInvariant();
-            if (stem is "CON" or "PRN" or "AUX" or "NUL" ||
+            if (stem is "CON" or "PRN" or "AUX" or "NUL" or "CONIN$" or "CONOUT$" ||
                 (stem.Length == 4 && (stem.StartsWith("COM", StringComparison.Ordinal) || stem.StartsWith("LPT", StringComparison.Ordinal)) && stem[3] is >= '1' and <= '9'))
                 throw new InvalidDataException("载荷路径含平台保留名");
         }

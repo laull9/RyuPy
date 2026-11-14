@@ -50,12 +50,15 @@ fn work_root() -> Result<PathBuf> {
             std::process::id(),
             NEXT.fetch_add(1, Ordering::Relaxed)
         ));
-        let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
-        {
+        let builder = {
             use std::os::unix::fs::DirBuilderExt;
+            let mut builder = std::fs::DirBuilder::new();
             builder.mode(0o700);
-        }
+            builder
+        };
+        #[cfg(not(unix))]
+        let builder = std::fs::DirBuilder::new();
         match builder.create(&root) {
             Ok(()) => return Ok(root),
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
@@ -151,6 +154,8 @@ fn build(dist: &Path, executable: &Path, output: &Path, root: &Path) -> Result<P
 fn sdk(root: &Path, stage: &str, args: &[&str]) -> Result<()> {
     let output = Command::new(crate::dotnet::dotnet_exe())
         .args(args)
+        // 必须在 Common.props 导入前设定，避免项目内修改触发 MSB3539。
+        .arg(format!("-p:BaseIntermediateOutputPath=obj-{stage}/"))
         .args([
             "-p:ImportDirectoryBuildProps=false",
             "-p:ImportDirectoryBuildTargets=false",
