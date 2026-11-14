@@ -1,4 +1,4 @@
-//! 严格有界字符串累加优化候选（AOT String Accumulator）：
+//! 严格有界字符串累加优化（AOT String Accumulator）：
 //! 仅在可严格证明左操作数（LHS）为精确内建字符串且循环完全隔离、无动态观察点的前提下，
 //! 将二次方字符串拼接重写为 StringBuilder 延迟物化 Holder。
 //!
@@ -6,7 +6,7 @@
 //! 1. 仅限模块全局槽（GlobalId），关闭未完全证明的 local 槽以避免局部临时量生命周期遗漏；
 //! 2. 必须由 preheader 显式赋予字符串字面量（精确保证内建 str 身份与已绑定状态，无 NameError 风险）；
 //! 3. header/body/latch 实行全指令严格白名单，彻底杜绝用户自定义 __add__/__iadd__、动态协议与中间 globals() 观察；
-//! 4. 当前本地候选接入流水线接受差分与A/B验收，尚未提交晋升。
+//! 4. 默认流水线接入；准入边界、真实差分与性能验收见 ADR-0193。
 
 use super::MirPass;
 use super::string_accumulator_match::predecessors;

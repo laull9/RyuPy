@@ -125,7 +125,7 @@ ryupy-e2e（仅测试）─► ryupy-driver
 - 模块静态槽的字符串累加由独立 `StringAccumulator` Pass 处理：只接受已证明精确字符串初值、
   常量后缀和无观察的 +1 range 模板，静态 `StrConcat` 与动态 `LoadName/Add` 分别匹配，
   复用 holder 并在出口按原槽类型物化。EH、实例模块、环境及字典观察合同保持原路径，
-  资源耗尽边界见 ADR-0193；候选验收状态见 `docs/aot-string-optimization.md`。
+  资源耗尽边界见 ADR-0193；实现验收状态见 `docs/aot-string-optimization.md`。
 
 - 自动普通动态模块的ForEach累加实验由Session显式选择，默认关闭。新独立matcher在
   SimplifyCfg后、首次DeadValues前验证通用迭代四角色与唯一返回，复用既有holder ABI。
@@ -226,6 +226,8 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 `with` 在 HIR 去糖成已有的 `try` / `except BaseException` / `finally`（见 [semantics.md](semantics.md) §5.1），MIR 不再增加专用节点：异常区域、`return` / `break` / `continue` 的清理边与 `__exit__` 调用复用同一套 `finally` 状态机。`handled` 局部变量保证每次进入只调用一次 `__exit__`。
 
 运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。M2.9 的 PIC 由 codegen 分配调用点编号，`PyPic` 只缓存整数 / 浮点 / 字符串运算形状与普通类方法绑定；类全局版本、实例属性版本变化即失效，模块属性不缓存，见 [ADR-0012](adr/0012-bounded-dynamic-pic.md)。
+
+四张核心条目表按256项一页惰性分配，逻辑容量和失效规则保留；页发布使用CAS，条目字段同步沿原合同，见 [ADR-0195](adr/0195-pic-paged-storage.md)。
 
 普通对象与 frozen dataclass 均保留引用身份；M3.6 默认统一使用 PyInstance，旧 Phase 1 值类型降级不再作为当前实现。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
 

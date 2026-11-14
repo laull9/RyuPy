@@ -17,8 +17,14 @@
 
 ## 已执行与待执行
 
-主代理已执行 cargo test -p ryupy-mir --lib liveness：5项通过；包含实际降级并运行 MIR 验证器。此前全套 MIR 单测344通过、4忽略；追加预算耗尽断言后需复验。
+主代理已执行 cargo test -p ryupy-mir --lib liveness：5项通过；包含实际降级并运行 MIR 验证器。预算耗尽断言已随完整门禁通过，当前同工作区MIR为359通过、4忽略。
 
 后续需验证 pending E2E 的 send/throw/close、yield from、回调观察、typed 临时和帧生命周期，再执行 NativeAOT 差分与 A/B。本轮未修改 C# 运行时，移除了重复且不覆盖真实编译降级的手写 C# 代理测试；实际裁剪由 MIR 降级结构测试和后续端到端差分验证。
 
 该候选保留静态槽和命名变量，且清理操作仍需 ArraySet，不能预先承诺 generators 吞吐提升。没有应用级收益时应撤回实验，不为建立分析框架单独扩大架构。
+
+## 原始负载的追加核实
+
+主代理用正式Release CLI即时打印原始generators.py的Native MIR：`count_up` 的 `n`、`i` 为Dynamic，挂起时保存对象引用；不会每轮按typed I64参数重复装箱。撤回以这两个槽推算数十MiB冗余spill的归因。报告中三百万外部产出还包含yield from内部恢复，不能混用作统一resume调用次数。
+
+已从运行时源码确认 `BuiltinSum` 通过 `ToSequence` 对迭代器调用 `DrainIterator`，先收集到List再复制数组；这是生成器表达式sum的全量物化热点，并改变迭代/加法副作用交错。下一竖切优先改为流式迭代，独立验证CPython事件顺序与真实AOT收益，再评估累加装箱优化。

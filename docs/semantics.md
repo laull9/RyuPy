@@ -567,15 +567,15 @@ HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI
 不绕过宿主密码策略。compare_digest 的恒时性质限于同类型同长度字节的最终 BCL 比较，
 参数检查和转换另行执行。未导出的长尾 API 正常 AttributeError；完整清单及平台边界见 ADR。
 
-### 4.14 有限字符串累加的资源边界（ADR-0193，候选）
+### 4.14 有限字符串累加的资源边界（ADR-0193）
 
 精确字符串初值、常量后缀、无观察的 +1 range 可使用内部 holder 延迟物化，普通结果、
 初值/空追加身份、已有别名及非字符串用户协议保留。实例模块、EH、动态调用/活字典观察
-回退原路径。候选已通过即时CPython/JIT、真实NativeAOT搬迁差分与完整make check，待异构复审后晋升。
+回退原路径。该有限实现已通过即时CPython/JIT、真实NativeAOT搬迁差分、完整make check与异构复审，默认启用。
 
 该优化改变分配数量与资源耗尽时刻；宿主OOM及checked容量溢出沿既有宿主异常边界，
-资源耗尽期间的跨模块部分绑定观察尚未逐点对齐CPython MemoryError。不将该边界扩展至
-普通可达用户回调或非资源错误。完整准入、测量和候选状态见 [ADR-0193](adr/0193-bounded-string-accumulator.md)。
+接受资源耗尽期间的部分模块绑定差异：即使外层捕获该错误，目标槽位可能仍为初值。
+普通可达用户回调和非资源错误保持既有合同。完整准入与测量见 [ADR-0193](adr/0193-bounded-string-accumulator.md)。
 
 ## 5. 模块与入口
 
