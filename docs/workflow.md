@@ -46,7 +46,7 @@ make python-extensions                      # 自检 Phase 4，需 NumPy / sqlit
 make cases-selftest                         # 只验证用例与框架（多文件 / 参数 / 错误路径），不编译
 make e2e                                    # 端到端（跳过 pending）
 make e2e-all                                # 包括 pending，看整体进度
-make build                                  # 打发行包：Release CLI + 运行时 → releases/*.tar.gz
+make build                                  # 单文件Release CLI（内嵌C#闭包）→ releases/*.tar.gz
 make check                                  # 提交前必跑（含离线项目门禁自检）
 make projects-preserve                      # 完整20项默认JIT，按ID保护现有11项
 make projects-promote                       # 按既有合同检查默认晋升

@@ -4,7 +4,10 @@
 
 ## 1. 平台目标与发行锁定
 
-CPython provider 沿固定 CPython 3.12.13、python-build-standalone (PBS) `20260623` 发行构建。不随意扩大 minor 版本支持，不引入运行时联网或搜索开发机系统 Python。
+普通文件入口 `ryupy main.py` 默认自动探测正式 CPython 3.9–3.15、常规 GIL 与当前目标架构，
+按用户完整 micro 版本准备可冻结的官方 PBS 发行。运行时只加载随包文件。
+旧显式 schema 1 保留 CPython 3.12.13 / PBS `20260623` 固定回归；下表以该回归版本展示路径，
+auto 的库名、标准库目录、扩展后缀与 shim 均按探测结果生成。完整合同见 [ADR-0189](adr/0189-python-version-adaptation.md)。
 
 | 平台 | RID | Target Triple | 核心库相对路径 | 上游归档 URL | Build Options | 证书策略默认路径 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -64,7 +67,7 @@ CPython provider 沿固定 CPython 3.12.13、python-build-standalone (PBS) `2026
   - 严禁使用泛路径（如 `/lib/` 或 `/usr/lib/`）作为白名单，避免非系统第三方库逃逸审计。
   - 仅放行标准基础系统库：`ld-linux-x86-64.so.2`、`libc.so.6`、`libm.so.6`、`libpthread.so.0`、`libdl.so.2`、`librt.so.1`、`libresolv.so.2`、`libutil.so.1`、`libgcc_s.so.1`、`libstdc++.so.6`。
   - 所有非系统依赖必须在分发目录内唯一匹配，并通过 `patchelf` 将 rpath 设为 `$ORIGIN` 及指向所有被依赖目录的相对路径（如 `$ORIGIN/../..`）。
-  - PBS 稳定 ABI 转发库的 `$ORIGIN` 依赖先验证实际目标位于产品根内，再重写为随包库名。缺少的 `libcrypt.so.1` 仅从唯一 Debian/Ubuntu amd64 系统包冻结，随包保存包版本、来源与许可证；其他缺库须显式提供。见 [ADR-0187](adr/0187-linux-libcrypt-closure.md)。
+  - PBS 稳定 ABI 转发库的 `$ORIGIN` 依赖先验证实际目标位于产品根内，再重写为随包库名。缺少的 `libcrypt.so.1` / `libz.so.1` 仅从唯一 Debian/Ubuntu amd64 系统包冻结，随包保存包版本、来源与许可证；其他缺库须显式提供。见 [ADR-0187](adr/0187-linux-libcrypt-closure.md)。
 - **Windows**：
   - 严密解析 PE 的普通导入表（DataDirectory[1]）以及延迟导入表（Delay Import Table, DataDirectory[13]）。
   - 仅放行 Windows OS 核心库（`KERNEL32.dll`、`USER32.dll`、`WS2_32.dll`、`ADVAPI32.dll`、`api-ms-win-*` 等）或随包分发的 DLL。
@@ -104,8 +107,8 @@ Linux 干净目标选择 Ubuntu 24.04 系的 `mcr.microsoft.com/dotnet/runtime-d
 独立工作目录、断网和空 PATH 执行 NativeAOT，比较三流及文件副作用并重跑三个缺依赖负例。
 
 固定 20 项目和完整对象桥生命周期按各自矩阵验收：当前 macOS 三模式各 19/20，attrs 缺入口
-模块活字典；其他平台完整项目集、NumPy、HTTPS 证书链，以及 macOS/Windows 无开发环境目标
-仍待专项验证。onefile 与默认兼容配置晋升沿路线图独立推进。
+模块活字典；其他平台完整项目集、完整对象桥生命周期、HTTPS 证书链，以及 macOS/Windows 无开发环境目标
+继续专项验证。单文件 CLI、onefile 与逐版本 NumPy 验收使用下述独立门禁。
 
 ### 5.3 CI 实测修复记录
 
@@ -119,3 +122,19 @@ Linux 干净目标选择 Ubuntu 24.04 系的 `mcr.microsoft.com/dotnet/runtime-d
   及错架构拒绝；公共许可证裸目录引用跳过，具名文件缺失与越界仍拒绝。
 - 产品 PE 解析器已对固定 Windows 发行的 44 个 DLL/PYD 静态解析，补齐 14 个确切 OS DLL
   名；VC 运行时继续要求随包。macOS runner 使用仍受支持的 macos-15。
+
+
+### 5.4 单文件编译器、普通项目与自动版本
+
+RyuPy CLI 自身内嵌同次构建的 C# Runtime、互操作桥、SQLite 依赖、shim 和单文件模板。
+三平台 Release 门禁只复制唯一 CLI 到仓库外，再验证空 PATH 信息查询、四路冷缓存原生 JIT、
+五模块普通项目与 src 布局。动态本地插件通过 `--include-module` 补充；未引用开发文件保持图外。
+删除 CLI、私有缓存、项目、venv 及所有中间目录后，只搬迁最终 AOT 文件执行并比较同次 oracle。
+Linux 另使用无 Python/.NET/SDK 的断网目标容器。
+
+- [单文件与普通项目门禁](https://github.com/laull9/RyuPy/actions/runs/43609367344)
+- [3.9–3.15 三平台版本门禁](https://github.com/laull9/RyuPy/actions/runs/43609367207)
+- [固定发行 standalone 门禁](https://github.com/laull9/RyuPy/actions/runs/43609367231)
+
+各门禁的最终状态和已验收范围同步登记在 [多文件说明](../tests/cpython/multifile_README.md)、
+[版本说明](../tests/cpython/version_README.md) 与 [ADR-0191](adr/0191-single-file-compiler-cli.md)。

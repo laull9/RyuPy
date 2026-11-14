@@ -1,10 +1,10 @@
 # Python 3.9+ 自动版本验收
 
-产品入口为 `ryupy --cpython-provider auto build app.py`。产品自行探测项目 `.venv`、激活环境和PATH，
+普通入口为 `ryupy app.py`，旧子命令可用 `ryupy --cpython-provider auto build app.py`。产品自行探测项目 `.venv`、激活环境和PATH，
 不要求用户指定版本。测试驱动的 `--python` 和 `--python-version` 用来准备、核对不同用户环境，
 不会作为版本参数传给产品。
 
-`version_run.py` 对每个实际解释器创建真实项目venv，严格安装匹配的NumPy wheel与packaging，
+`version_run.py` 对每个实际解释器创建真实项目venv，严格安装匹配的NumPy wheel，构建工具在私有缓存准备，
 同次执行CPython oracle，再实际执行生成的JIT和NativeAOT产物。stdout、stderr、退出码及默认
 中文文件IO副作用逐字节比较。业务覆盖真实NumPy数组/视图别名、计算、ValueError、SQLite与SSL。
 构建报告的冻结版本必须等于用户解释器的完整版本；AOT搬迁前删除项目、venv、JIT及所有构建目录。

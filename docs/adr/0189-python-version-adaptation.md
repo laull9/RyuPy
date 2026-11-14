@@ -7,7 +7,8 @@
 
 `--cpython-provider auto` 在构建期选择项目及祖先 `.venv`/`venv`/`env`、
 激活环境、PATH。选中的环境损坏或不受支持即报错，保持原诊断。
-纯 native 默认入口及编译链不变；auto 使用 synchronized 调用边界物化与写回，
+旧 build/run 与 driver 的 native 默认合同保留；普通文件入口默认 auto。
+auto 使用 synchronized 调用边界物化与写回，
 显式 schema 1 默认保留 proxy。应用入口始终编译为 CIL。
 
 探针使用 `-I -S -B`，不执行 site 或任意 `.pth`。3.9–3.13 的 `-S` 会改变
@@ -83,3 +84,8 @@ Windows 3.14.10官方安装归档的48个DLL/pyd在本机完成普通与delay导
 Windows矩阵复验识别的msvcrt.dll与ntdll.dll沿操作系统组件归类；VC可再分发运行库仍要求随包。
 来源说明：[系统msvcrt.dll](https://devblogs.microsoft.com/oldnewthing/20140411-00/?p=1273%2F)、
 [NT进程API](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryinformationprocess)。
+
+
+真实 Windows 3.9 冷下载复验暴露 curl stdout 重试会拼接断流前缀，导致最终成功的 JSON 仍损坏。
+API 响应改用独占临时文件，curl 每次重试回退并截断，成功后才解析。新增真实本地 HTTP 提前断流、
+第二次完整响应的回归，9 项发行准备测试全部通过；凭据仍仅经 stdin 传递。

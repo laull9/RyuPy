@@ -52,8 +52,8 @@ NumPy2.3.5，21项CP/JIT/NativeAOT原位与中文空格&搬迁完整通过，含
 真实3.11.15错版本ABI、CPU错配及缺依赖门通过；C ABI联合/标量/ctypes/默认proxy专项通过。
 固定20默认native完整保留门有效：13 native/6 unsupported/1 failed，保护11全部保留，CP20全过。
 2026-11-14当前实现完整make check已exit0：3113项C#、Rust全套、467项编译e2e，283项ignored保留。冻结快照v3长门、v4诊断变更复验范围见
-[人工登记](docs/validation/cpython-provider-2026-11-13.md)。跨平台完整对象桥/NumPy、macOS/Windows干净目标与HTTPS待验；
-本轮PBS将_sqlite3内建于libpython，独立缺扩展共享库负例为环境阻塞。默认CPython配置尚待单独晋升。
+[人工登记](docs/validation/cpython-provider-2026-11-13.md)。跨平台完整对象桥生命周期、macOS/Windows干净目标与HTTPS待验；
+本轮PBS将_sqlite3内建于libpython，独立缺扩展共享库负例为环境阻塞。普通文件入口默认auto已接入，旧子命令和driver默认native合同保留。
 
 ### 结构整理配套任务（后续开发竖切）
 

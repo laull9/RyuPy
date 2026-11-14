@@ -44,14 +44,44 @@ class PortableContracts(unittest.TestCase):
         return metadata, provenance
 
     def test_api_credential_only_uses_stdin_for_official_api(self):
+        def response(command, **kwargs):
+            Path(command[command.index('--output') + 1]).write_bytes(b'{}')
         with mock.patch.dict(os.environ, {'GITHUB_TOKEN': 'fixture_not_a_secret'}, clear=True):
-            with mock.patch.object(portable.subprocess, 'check_output', return_value=b'{}') as call:
+            with mock.patch.object(portable.subprocess, 'run', side_effect=response) as call:
                 portable.fetch(portable.API + '?per_page=5')
                 self.assertNotIn('fixture_not_a_secret', str(call.call_args.args))
                 self.assertIn(b'fixture_not_a_secret', call.call_args.kwargs['input'])
-            with mock.patch.object(portable.subprocess, 'check_output', return_value=b'{}') as call:
+            with mock.patch.object(portable.subprocess, 'run', side_effect=response) as call:
                 portable.fetch('https://raw.githubusercontent.com/vendor/source')
                 self.assertIsNone(call.call_args.kwargs['input'])
+
+    def test_real_curl_retry_discards_interrupted_json_prefix(self):
+        """真实HTTP连接提前关闭后重试；只允许解析第二次完整响应。"""
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        from threading import Thread
+        replies = []
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                replies.append(self.path)
+                payload = b'{"result": "complete"}'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(payload)))
+                self.end_headers()
+                self.wfile.write(b'{"broken":' if len(replies) == 1 else payload)
+                self.wfile.flush()
+                self.close_connection = True
+            def log_message(self, *_args):
+                pass
+        server = HTTPServer(('127.0.0.1', 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            self.assertEqual(portable.fetch(f'http://127.0.0.1:{server.server_port}/fixture'), {'result': 'complete'})
+            self.assertEqual(len(replies), 2)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_old_and_current_windows_assets_match_exact_version(self):
         triple = 'x86_64-pc-windows-msvc'

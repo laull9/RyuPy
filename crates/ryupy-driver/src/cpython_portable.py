@@ -193,7 +193,12 @@ def fetch(url, output=None):
     if output:
         subprocess.run(cmd + ['--output', str(output)], input=config, check=True)
     else:
-        return json.loads(subprocess.check_output(cmd, input=config))
+        # curl重试写stdout会拼接失败响应；普通输出文件可在每次重试前回退并截断。
+        # JSON仅解析完整成功响应，网络中断留下的前缀不会污染下一次结果。
+        with tempfile.TemporaryDirectory(prefix='ryupy-api-response-') as temporary:
+            response = Path(temporary) / 'response.json'
+            subprocess.run(cmd + ['--output', str(response)], input=config, check=True)
+            return json.loads(response.read_bytes())
 
 
 def fetch_asset(asset, output):

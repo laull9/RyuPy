@@ -33,7 +33,7 @@ Zstandard的tar或zstd；运行生成的AOT应用无需安装.NET、Python或构
 四路原生JIT冷缓存并发、深层第三方依赖与资源、删除CLI/缓存/项目全部输入后的唯一AOT搬迁，
 三流和文件副作用均与同次CPython一致。三平台运行同一[多文件项目驱动](tests/cpython/multifile_README.md)。
 三平台固定CPython standalone和onefile、Linux无Python/.NET/SDK断网容器已通过；
-新单文件CLI及Python3.9–3.15矩阵继续逐项复验，实际结果见[版本验收](tests/cpython/version_README.md)。
+三平台Release单文件CLI已通过独立验收；Python3.9–3.15和新增src布局继续逐项复验，实际结果见[版本验收](tests/cpython/version_README.md)。
 
 固定20项目CPython provider在macOS的JIT、NativeAOT及输入删除搬迁各通过19项，attrs缺入口
 模块活字典。纯RyuPy保留门为13通过、6未支持、1失败，独立登记。范围见
