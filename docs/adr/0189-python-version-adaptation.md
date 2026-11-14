@@ -61,3 +61,15 @@ curl stdin配置传递且仅用于官方API；匹配缓存先核对精确版本�
 官方来源记录，再交Rust复验ABI与许可，避免重复构建联网。Windows历史资产的shared文件名
 与schema7 optimizations字段按官方20220528的3.9.13真实元数据适配，保留原始JSON。
 报告中的archive_url改为本次实际安装归档，本地观察来源无归档时明确留空。
+
+新增7项可重复发行准备合同测试：新旧Windows资产选择、schema7/8优化字段、官方API凭据
+隔离与精确缓存离线选择/错误元数据拒绝，入口`python -B tests/cpython/test_portable.py`。
+跨平台21项矩阵正在复验；Linux真实zlib专测与目标容器同时作为门禁。
+
+复审与真实CI修复：许可证、来源与关键发行文件在私有候选中全部齐备后，持有内核文件锁原子发布；
+中断释放锁，残缺旧目录隔离保存，并发构建复用完整赢家。解包失败保留tar原诊断并提示构建机
+需要Zstandard支持；构建机还需要curl、C工具链与.NET SDK，目标程序无需这些工具。
+官方API采用20条压缩分页（100条响应实测触发网关504），使用可选凭据并优先离线缓存。
+20261009的组件来源迁移为downloads.json，按固定release读取JSON；旧版Python字面量仍静态解析。
+真实20261009来源及zlib-ng许可补齐已本机复验。Windows构建脚本使用UTF-8 BOM兼容PowerShell 5，
+版本推导先于include参数构造。小归档同样校验HTTP已声明长度，不增加文件摘要。

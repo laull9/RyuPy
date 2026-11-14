@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     为 Windows 平台构建选中 CPython 版本 的 ryupy_cpython.dll shim。
 .DESCRIPTION
@@ -25,11 +25,6 @@ $resolvedOutput = (Resolve-Path $Output).Path
 $srcFile = Join-Path $PSScriptRoot "ryupy_cpython.c"
 $targetDll = Join-Path $resolvedOutput "ryupy_cpython.dll"
 
-$includes = @("/I$resolvedPython\include")
-if ($PythonVersion) {
-    $includes += "/I$resolvedPython\include\python$PythonVersion"
-}
-
 # 从同一发行头文件精确派生 import library；python3.lib 是稳定 ABI 桩，不能用于嵌入。
 if (-not $PythonVersion) {
     $header = Get-Content -LiteralPath (Join-Path $resolvedPython "include\patchlevel.h") -Raw
@@ -40,6 +35,7 @@ if (-not $PythonVersion) {
     }
     $PythonVersion = $majorMatch.Groups[1].Value + "." + $minorMatch.Groups[1].Value
 }
+$includes = @("/I$resolvedPython\include", "/I$resolvedPython\include\python$PythonVersion")
 $cleanVer = $PythonVersion.Replace(".", "")
 $libName = "python$cleanVer.lib"
 if (-not (Test-Path -LiteralPath (Join-Path $resolvedPython "libs\$libName"))) {
