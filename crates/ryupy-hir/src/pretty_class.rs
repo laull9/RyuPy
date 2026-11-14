@@ -11,6 +11,9 @@ pub(crate) fn dump_items(
 ) {
     for item in items {
         match &item.kind {
+            crate::hir::ClassItemKind::NestedClass(id) => {
+                writeln!(out, "{pad}    lexical class {}", module.classes[*id].name).unwrap();
+            }
             crate::hir::ClassItemKind::If {
                 test,
                 body: then_body,

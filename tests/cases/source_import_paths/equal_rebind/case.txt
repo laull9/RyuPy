@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 已有固定CP3.12.13原样观察；新runtime真实JIT/完整门未跑，不提前转正。

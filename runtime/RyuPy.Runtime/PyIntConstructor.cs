@@ -36,6 +36,7 @@ public static class PyIntConstructor
         if (!hasBase) return PyOps.ToIntValue(args[0]!);
         int numberBase = Base(radix);
         // bytearray 的读取/快照必须晚于 base.__index__，该回调可以合法修改文本。
+        if (args[0] is PyStringInstance subtext) return PyIntText.Parse(subtext.Value, numberBase);
         if (args[0] is not (string or PyBytes or PyByteArray))
             throw new PyTypeError("int() can't convert non-string with explicit base");
         return PyIntText.Parse(args[0]!, numberBase);
@@ -65,6 +66,7 @@ public static class PyIntConstructor
             if (PyObject.TryMethod(value, "__int__", [], out object? result)) return Result(result, "__int__");
             if (PyObject.TryMethod(value, "__index__", [], out result)) return Result(result, "__index__");
             if (HasTrunc(value)) throw new PyNotImplementedError("int() __trunc__ delegation and its deprecation warning are not supported yet");
+            if (value is PyStringInstance subtext) return PyIntText.Parse(subtext.Value, 10);
             if (value is PyMemoryView) throw new PyNotImplementedError("int() memoryview parsing is not supported yet");
             throw new PyTypeError($"int() argument must be a string, a bytes-like object or a real number, not '{PyRepr.TypeName(value)}'");
         }
@@ -84,7 +86,6 @@ public static class PyIntConstructor
         if (value is PyBaseException error && error.PythonClass is not null)
             return error.PythonClass.TryLookup("__trunc__", out _, out _);
         if (value is not PyNativeObject native) return false;
-        try { native.GetAttr("__trunc__"); return true; }
-        catch (PyAttributeError) { return false; }
+        return PyObject.TryGetNativeSpecial(native, "__trunc__", out _);
     }
 }

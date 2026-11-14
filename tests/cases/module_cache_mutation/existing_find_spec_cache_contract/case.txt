@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 候选支持域，尚未执行 RyuPy 差分，不预先转正。

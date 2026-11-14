@@ -1,0 +1,2 @@
+[demo]
+path_key = absent_path_key:Value

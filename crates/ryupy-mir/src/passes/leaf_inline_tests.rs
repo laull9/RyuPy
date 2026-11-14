@@ -29,12 +29,18 @@ fn empty(name: &str) -> Function {
         terminator: Terminator::Return(None),
     });
     Function {
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
         name: name.into(),
         codegen_name: name.into(),
         source_file: "leaf.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -46,12 +52,14 @@ fn empty(name: &str) -> Function {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     }
 }
 fn sample(calls: usize) -> (Program, FnId, FnId) {
     let mut globals = Arena::default();
     let mut slot = || {
         globals.alloc(GlobalDecl {
+            storage: crate::GlobalStorage::LegacyStatic,
             name: "slot".into(),
             ty: MirType::Dynamic,
         })
@@ -265,8 +273,12 @@ fn identity_slots_cannot_be_written_reused_or_exported() {
         vec![(
             p,
             crate::UnitMeta {
+                instance_capabilities: Default::default(),
+                execution: crate::ModuleExecutionKind::LegacySingleton,
+                environment_reason: "existing-contract".into(),
                 location: Default::default(),
                 file_backed_by_global: false,
+                is_package: false,
                 name: "test".into(),
                 package: "".into(),
                 file: "test.py".into(),
@@ -280,11 +292,16 @@ fn identity_slots_cannot_be_written_reused_or_exported() {
         )],
         0,
     );
+    // 此fixture没有来源槽，唯一导出就是上面的真实特化锚点，不能误中其它守门。
     assert!(
-        crate::validate::validate_linked_exports(&linked)
-            .unwrap_err()
+        linked
+            .functions
             .iter()
-            .any(|e| e.contains("身份锚点"))
+            .all(|(_, f)| f.dynamic_origin.is_none())
+    );
+    assert_eq!(
+        crate::validate::validate_linked_exports(&linked).unwrap_err(),
+        vec!["模块 `test` 不能导出私有函数身份/来源槽".to_string()]
     );
 }
 
@@ -374,4 +391,60 @@ fn pipeline_experiments_are_independent_and_default_leaf_is_off() {
             .iter()
             .any(|p| p.name() == "guarded_leaf_inline")
     );
+}
+
+/// 尾owner只是隐藏ABI，不改变Python实参个数；失败路仍保留原DynCallValue。
+#[test]
+fn dynamic_owner_keeps_leaf_arity_and_original_fallback() {
+    let (mut p, leaf, caller) = sample(1);
+    let f = &mut p.functions[leaf];
+    let owner = local(f, MirType::Dynamic);
+    f.params.push(owner);
+    f.dynamic_origin = Some(DynamicFunctionOrigin {
+        owner,
+        source_global: None,
+    });
+    if let Statement::Assign {
+        value: Rvalue::Call { callee, args },
+        ..
+    } = &mut f.body.blocks[f.body.entry].stmts[0]
+    {
+        *callee = Callee::Runtime(RuntimeFn::TracePushWithOrigin);
+        args.push(get(owner));
+    }
+    LeafInline.run(&mut p);
+    assert_eq!(wraps(&p.functions[caller]), 1);
+    assert!(p.functions[caller].body.blocks.iter().any(|(_, b)| b.stmts.iter().any(|stmt|
+        matches!(stmt, Statement::Assign {value: Rvalue::DynCallValue {args, ..}, ..} if args.len() == 1))));
+    crate::validate::validate(&p).unwrap();
+}
+
+#[test]
+fn dynamic_owner_is_not_an_arithmetic_parameter() {
+    let (mut p, leaf, caller) = sample(1);
+    let f = &mut p.functions[leaf];
+    let owner = local(f, MirType::Dynamic);
+    f.params.push(owner);
+    f.dynamic_origin = Some(DynamicFunctionOrigin {
+        owner,
+        source_global: None,
+    });
+    for stmt in &mut f.body.blocks[f.body.entry].stmts {
+        match stmt {
+            Statement::Assign {
+                value: Rvalue::Call { callee, args },
+                ..
+            } => {
+                *callee = Callee::Runtime(RuntimeFn::TracePushWithOrigin);
+                args.push(get(owner));
+            }
+            Statement::Assign {
+                value: Rvalue::DynBinary { lhs, .. },
+                ..
+            } => *lhs = get(owner),
+            _ => {}
+        }
+    }
+    LeafInline.run(&mut p);
+    assert_eq!(wraps(&p.functions[caller]), 0);
 }

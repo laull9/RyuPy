@@ -1,4 +1,4 @@
-//! 显式资源选择与schema2报告；仅针对本次已编译模块，不扫描目录或扩大Python导入闭包。
+//! 显式资源选择与普通/绑定发布的资源报告；仅针对本次已编译模块，不扫描目录或扩大导入闭包。
 use crate::modules::SourceModule;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
@@ -52,9 +52,11 @@ pub(crate) struct ResourcePlan {
     pub(crate) locations: Vec<ModuleLocationRecord>,
     pub(super) claims: BTreeMap<String, Vec<Claim>>,
     pub(super) source_files: Vec<PathBuf>,
-    pub(super) source_hashes: Vec<String>,
+    pub(super) source_bytes: Vec<Vec<u8>>,
     pub(super) source_lengths: Vec<u64>,
     pub(super) selected: BTreeSet<usize>,
+    pub(crate) automatic: Option<crate::default_aot::Audit>,
+    pub(super) declared: bool,
 }
 
 impl ResourcePlan {
@@ -83,11 +85,10 @@ impl ResourcePlan {
                 .map(|s| s.resolved_source_path.clone())
                 .collect(),
             source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
-            source_hashes: sources
-                .iter()
-                .map(|s| crate::manifest_files::hash_bytes(s.text.as_bytes()))
-                .collect(),
+            source_bytes: sources.iter().map(|s| s.text.as_bytes().to_vec()).collect(),
             selected: BTreeSet::new(),
+            automatic: None,
+            declared: true,
         };
         let mut targets = Targets::default();
         // 锚点先全部保留，防先处理的资源覆盖后声明模块的虚拟源位置。
@@ -143,6 +144,49 @@ impl ResourcePlan {
         plan.locations.sort_by_key(|l| l.module_id);
         Ok(plan)
     }
+    /// 默认域只签发虚拟锚；所有源仍由原stage持句柄复核，无数据claims。
+    pub(crate) fn automatic(sources: &[SourceModule]) -> Result<Self> {
+        ensure!(sources.len() <= 256, "默认AOT位置超过256项");
+        let mut targets = Targets::default();
+        let mut locations = Vec::new();
+        for (index, source) in sources.iter().enumerate() {
+            let relative_file = format!("{PREFIX}{}", source.logical_source);
+            targets.insert(&relative_file, Kind::Anchor)?;
+            locations.push(ModuleLocationRecord {
+                module_id: u32::try_from(index)?,
+                module_name: source.name.clone(),
+                kind: "executable_relative",
+                relative_file,
+            });
+        }
+        Ok(Self {
+            locations,
+            claims: BTreeMap::new(),
+            source_files: sources
+                .iter()
+                .map(|s| s.resolved_source_path.clone())
+                .collect(),
+            source_bytes: sources.iter().map(|s| s.text.as_bytes().to_vec()).collect(),
+            source_lengths: sources.iter().map(|s| s.text.len() as u64).collect(),
+            selected: (0..sources.len()).collect(),
+            automatic: None,
+            declared: false,
+        })
+    }
+    /// 在同次真实源码图上补齐锚点；保留显式 claims，并统一检查锚点与数据冲突。
+    pub(crate) fn add_automatic_locations(&mut self, sources: &[SourceModule]) -> Result<()> {
+        let automatic = Self::automatic(sources)?;
+        let mut targets = Targets::default();
+        for location in &automatic.locations {
+            targets.insert(&location.relative_file, Kind::Anchor)?;
+        }
+        for target in self.claims.keys() {
+            targets.insert(target, Kind::Resource)?;
+        }
+        self.locations = automatic.locations;
+        self.selected = automatic.selected;
+        Ok(())
+    }
     pub(crate) fn module_location(&self, id: u32) -> Option<&str> {
         self.locations
             .iter()
@@ -154,14 +198,38 @@ impl ResourcePlan {
     }
 }
 
-/// 在同次schema1序列化结果上追加资源声明；无请求不调用，保schema1原快路/字节合同。
+/// 在同次发射清单上追加资源声明；普通与绑定各有独立版本，保留原生模块来源与 PInvoke 记录。
+/// 无资源请求不调用，旧 schema1/3/4 的快路和字段合同保持原样。
 pub(crate) fn extend_manifest(bytes: &[u8], staged: &StagedResources) -> Result<Vec<u8>> {
     let mut value: serde_json::Value = serde_json::from_slice(bytes)?;
-    value["schema_version"] = 2.into();
+    let version = match (
+        value["schema_version"].as_u64(),
+        value.get("native_bindings").is_some(),
+        staged.automatic.is_some(),
+    ) {
+        (Some(1), false, false) => 2,
+        (Some(1), false, true) => 4,
+        (Some(3), true, false) => 5,
+        (Some(4), true, false) => 6,
+        (Some(7), true, false) => 8,
+        (Some(3 | 4 | 7), true, true) => 9,
+        _ => anyhow::bail!("资源扩展与基础发布清单版本不匹配"),
+    };
+    if value.get("native_bindings").is_some() {
+        ensure!(
+            value["kind"] == "ryupy-native-aot-artifact",
+            "绑定资源仅用于 AOT 清单"
+        );
+    }
+    value["schema_version"] = version.into();
     value["module_locations"] = serde_json::to_value(&staged.locations)?;
     value["resources"] = serde_json::to_value(&staged.records)?;
     value["scope"]["resources_included"] = (!staged.records.is_empty()).into();
-    value["scope"]["declared_resources_complete"] = true.into();
+    value["scope"]["declared_resources_complete"] = staged.declared.into();
+    if let Some(audit) = &staged.automatic {
+        value["default_source_plan"] = audit.manifest.clone();
+        value["scope"]["automatic_module_locations_complete"] = true.into();
+    }
     let mut output = serde_json::to_vec_pretty(&value)?;
     output.push(b'\n');
     Ok(output)
@@ -175,3 +243,7 @@ mod stage_tests;
 pub(crate) fn validate_layout_artifact_path(path: &str) -> Result<()> {
     paths::portable(path)
 }
+
+#[cfg(test)]
+#[path = "resources_combined_tests.rs"]
+mod combined_tests;

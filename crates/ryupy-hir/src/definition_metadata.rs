@@ -5,6 +5,8 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Default)]
 pub struct DefinitionMetadata {
+    pub class_cell_reads: rustc_hash::FxHashSet<crate::ClassId>,
+    pub lexical_classes: FxHashMap<crate::ClassId, crate::lexical_class_lower::LoweredClass>,
     pub defaults: FxHashMap<FuncId, Vec<Option<ExprId>>>,
     pub annotations: FxHashMap<FuncId, Vec<(Name, ExprId)>>,
 }

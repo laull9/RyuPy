@@ -1,0 +1,34 @@
+# CP 合法正期待保留；RyuPy 当前 __name__/__package__ 外部读取仍绕过公开槽。
+# 独立 pending，不加入通过项或 ignored 计数；本次尚未执行参考程序。
+import sys
+
+class Token:
+    def __str__(self):
+        raise AssertionError('unexpected metadata conversion')
+
+def read_name():
+    return __name__
+
+def read_package():
+    return __package__
+
+module = sys.modules[__name__]
+saved_name = module.__name__
+saved_package = module.__package__
+token = Token()
+try:
+    for value in [token, None, 42, 'replacement']:
+        module.__name__ = value
+        assert module.__name__ is value
+        assert read_name() is value
+        module.__package__ = value
+        assert module.__package__ is value
+        assert read_package() is value
+finally:
+    module.__name__ = saved_name
+    module.__package__ = saved_package
+assert module.__name__ is saved_name
+assert read_name() is saved_name
+assert module.__package__ is saved_package
+assert read_package() is saved_package
+print('module-metadata-identity')

@@ -23,7 +23,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use ryupy_base::{Diagnostic, Span, TextRange};
 use ryupy_syntax::ast;
 
-use crate::hir::{ClosureInfo, FuncId, Function, Name};
+use crate::hir::{ClassId, ClosureInfo, FuncId, Function, Name};
 use la_arena::Arena;
 
 // 复用 re-export 的 AST 类型名，保持与其它模块一致的写法。
@@ -35,6 +35,10 @@ pub(crate) struct ScopeData {
     pub(crate) func_id: FuncId,
     /// 作用域种类：函数 / lambda 为 `false`，模块顶层为 `true`。
     pub(crate) is_module: bool,
+    /// 特殊类定义作用域不对应可调用函数，只提供隐式 __class__ 绑定。
+    pub(crate) class: Option<ClassId>,
+    /// 本函数实际捕获的隐式类 cell 来源；普通局部同名绑定仍是 None。
+    pub(crate) class_cell: Option<ClassId>,
     /// def 语句 / lambda 表达式的源码范围。
     pub(crate) range: TextRange,
     pub(crate) parent: Option<usize>,
@@ -92,6 +96,8 @@ pub(crate) fn analyze_closures(
     parsed: &ryupy_syntax::ParsedModule,
     functions: &mut Arena<Function>,
     main_id: FuncId,
+    instance_classes: Option<&FxHashMap<TextRange, ClassId>>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> ClosureAnalysis {
     let mut scopes: Vec<ScopeData> = Vec::new();
@@ -107,6 +113,8 @@ pub(crate) fn analyze_closures(
         postponed_annotations: crate::future_imports::annotations(&parsed.module.body),
         func_id: main_id,
         is_module: true,
+        class: None,
+        class_cell: None,
         range: parsed.module.range,
         parent: None,
         assigned: Vec::new(),
@@ -120,10 +128,12 @@ pub(crate) fn analyze_closures(
     collect_module_nested(
         &parsed.module.body,
         main_scope,
+        instance_classes.is_some(),
         functions,
         &mut scopes,
         &mut nested_funcs,
         &mut nested_def_names,
+        lexical_classes,
     );
 
     // 每个顶层 def / 方法是独立的函数作用域（父作用域 = 模块）。
@@ -141,9 +151,24 @@ pub(crate) fn analyze_closures(
                     &mut scopes,
                     &mut nested_funcs,
                     &mut nested_def_names,
+                    lexical_classes,
                 );
             }
             Stmt::ClassDef(cls_def) => {
+                let parent = instance_classes
+                    .and_then(|classes| classes.get(&cls_def.range))
+                    .map_or(main_scope, |class| {
+                        crate::closures_walk::walk_class_scope(
+                            cls_def,
+                            *class,
+                            main_scope,
+                            functions,
+                            &mut scopes,
+                            &mut nested_funcs,
+                            &mut nested_def_names,
+                            lexical_classes,
+                        )
+                    });
                 for fn_def in crate::class_body::methods(&cls_def.body) {
                     let func_id = top_level_func_by_range(functions, fn_def.range);
                     walk_function_scope(
@@ -151,15 +176,32 @@ pub(crate) fn analyze_closures(
                         &fn_def.parameters,
                         func_id,
                         fn_def.range,
-                        main_scope,
+                        parent,
                         functions,
                         &mut scopes,
                         &mut nested_funcs,
                         &mut nested_def_names,
+                        lexical_classes,
                     );
                 }
             }
             _ => {}
+        }
+    }
+
+    // CP 的 super 名字读取隐式请求 __class__，即使 super 被参数/local/global 遮蔽。
+    // 仍走下面的普通词法解析：__class__ 自身的遮蔽不能被这份隐式需求覆盖。
+    if instance_classes.is_some() || !lexical_classes.is_empty() {
+        for scope in &mut scopes {
+            if !scope.is_module
+                && scope.class.is_none()
+                && let Some((_, range)) = scope
+                    .reads
+                    .iter()
+                    .find(|(name, _)| name.as_str() == "super")
+            {
+                scope.reads.push((Name::from("__class__"), *range));
+            }
         }
     }
 
@@ -199,7 +241,11 @@ pub(crate) fn analyze_closures(
                 if !scopes[ancestor].cells_contains(&name) {
                     scopes[ancestor].cells.push(name.clone());
                 }
+                let class_cell = scopes[ancestor].class;
                 for t in chain {
+                    if class_cell.is_some() {
+                        scopes[t].class_cell = class_cell;
+                    }
                     if !scopes[t].free_contains(&name) {
                         scopes[t].free.push(name.clone());
                     }
@@ -219,10 +265,11 @@ pub(crate) fn analyze_closures(
 
     // ── 产出每个函数的 ClosureInfo ────────────────────────────────────────
     let mut infos: FxHashMap<FuncId, ClosureInfo> = FxHashMap::default();
-    for scope in &scopes {
+    for scope in scopes.iter().filter(|scope| scope.class.is_none()) {
         infos.insert(
             scope.func_id,
             ClosureInfo {
+                class_cell: scope.class_cell,
                 free: scope.free.clone(),
                 cells: scope.cells.clone(),
                 has_nested: !scope.nested.is_empty(),
@@ -238,7 +285,9 @@ pub(crate) fn analyze_closures(
         // 顶层 def / 方法在第一遍已登记，由 lower_module 按 user_funcs 降级。
         nested_order: scopes
             .iter()
-            .filter(|s| !s.is_module && s.func_id.into_raw().into_u32() >= first_nested)
+            .filter(|s| {
+                !s.is_module && s.class.is_none() && s.func_id.into_raw().into_u32() >= first_nested
+            })
             .map(|s| (s.func_id, s.range))
             .collect(),
     }

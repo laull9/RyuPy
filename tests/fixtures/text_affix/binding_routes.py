@@ -1,0 +1,170 @@
+# ryupy: pending
+# 同一过滤任务的直接/保存/暂停/根入口；子类getter在参数之前，绑定错误不调用index。
+events = []
+
+
+def mark(label, value):
+    events.append(label)
+    return value
+
+
+class Index:
+    def __index__(self):
+        events.append('index')
+        return 0
+
+
+class Routing(str):
+    @property
+    def startswith(self):
+        events.append('get')
+        return self.target
+
+    @property
+    def select(self):
+        events.append('select-get')
+        return self.target
+
+
+routing = Routing('unused')
+
+
+def replace_target():
+    events.append('replace')
+    routing.target = 'zzz'.startswith
+    return 'a'
+
+
+routing.target = 'abc'.startswith
+assert routing.startswith(replace_target(), 0, 3)
+assert events == ['get', 'replace']
+print('direct', events)
+events.clear()
+routing.target = 'abc'.startswith
+saved = routing.startswith
+replace_target()
+assert saved('a', 0, 3)
+assert events == ['get', 'replace']
+print('saved', events)
+
+
+def paused():
+    return routing.startswith((yield 'prefix'), 0, 3)
+
+
+events.clear()
+routing.target = 'abc'.startswith
+pending = paused()
+assert next(pending) == 'prefix'
+replace_target()
+try:
+    pending.send('a')
+except StopIteration as done:
+    assert done.value is True
+else:
+    raise AssertionError('生成器应结束')
+assert events == ['get', 'replace']
+print('prepared', events)
+events.clear()
+routing.target = 'abc'.startswith
+assert routing.select(replace_target(), 0, 3)
+assert events == ['select-get', 'replace']
+print('non-affix', events)
+
+# getter成功返回非callable时，参数仍全部求值，然后才拒调用；不能把None当receiver。
+events.clear()
+routing.target = None
+try:
+    routing.startswith(mark('prefix', 'a'), mark('start', 0), mark('end', 3))
+except TypeError as error:
+    assert str(error) == "'NoneType' object is not callable"
+else:
+    raise AssertionError('None不可调用')
+assert events == ['get', 'prefix', 'start', 'end']
+print('non-callable', events)
+
+# getter自抛时不求值任何参数，原异常及其cause/context不被捕获入口重包。
+getter_error = ValueError('getter-body')
+getter_cause = LookupError('getter-cause')
+ambient = RuntimeError('getter-ambient')
+
+
+class GetterFailure(str):
+    @property
+    def startswith(self):
+        events.append('getter-fail')
+        raise getter_error from getter_cause
+
+
+events.clear()
+try:
+    raise ambient
+except RuntimeError:
+    try:
+        GetterFailure('abc').startswith(mark('unexpected-prefix', 'a'))
+    except ValueError as caught:
+        assert caught is getter_error
+        assert caught.__context__ is ambient
+        assert caught.__cause__ is getter_cause
+        assert caught.__suppress_context__ is True
+    else:
+        raise AssertionError('getter应失败')
+assert events == ['getter-fail']
+print('getter-error', events)
+
+
+class Override(str):
+    def startswith(self, *args):
+        return 'override-start'
+
+    def endswith(self, *args):
+        return 'override-end'
+
+    def root_start(self):
+        return super().startswith('a', 0, 3)
+
+
+override = Override('abc')
+saved_override = override.endswith
+roots = (override.startswith('z', 99), saved_override('z', 99),
+         str.startswith(override, 'a', 0, 3), str.endswith(override, 'c', 0, 3),
+         override.root_start())
+assert roots == ('override-start', 'override-end', True, True, True)
+print('roots', roots)
+
+
+def binding(label, call, message, expected_events):
+    events.clear()
+    try:
+        call()
+    except TypeError as error:
+        assert str(error) == message
+        assert events == expected_events
+        print(label, str(error), events)
+    else:
+        raise AssertionError('绑定应失败')
+
+
+saved_start = 'abc'.startswith
+saved_end = 'abc'.endswith
+binding('direct-zero-kw', lambda: 'abc'.startswith(start=mark('kw', Index())),
+        'str.startswith() takes no keyword arguments', ['kw'])
+binding('saved-zero-kw', lambda: saved_end(end=mark('kw', Index())),
+        'endswith() takes no keyword arguments', ['kw'])
+binding('direct-four-kw', lambda: 'abc'.endswith('c', mark('start', Index()), 3, 9, extra=mark('kw', 1)),
+        'str.endswith() takes no keyword arguments', ['start', 'kw'])
+binding('saved-four-kw', lambda: saved_start('a', mark('start', Index()), 3, 9, extra=mark('kw', 1)),
+        'startswith() takes no keyword arguments', ['start', 'kw'])
+binding('root-zero-kw', lambda: str.startswith(override, start=mark('kw', Index())),
+        'str.startswith() takes no keyword arguments', ['kw'])
+binding('root-four-kw', lambda: str.endswith(override, 'c', mark('start', Index()), 3, 9, extra=mark('kw', 1)),
+        'str.endswith() takes no keyword arguments', ['start', 'kw'])
+binding('root-missing-self', lambda: str.startswith(start=mark('kw', Index())),
+        'unbound method str.startswith() needs an argument', ['kw'])
+binding('root-wrong-self', lambda: str.endswith(7, 'c', start=mark('kw', Index())),
+        "descriptor 'endswith' for 'str' objects doesn't apply to a 'int' object", ['kw'])
+binding('zero-arity', lambda: 'abc'.startswith(),
+        'startswith() takes at least 1 argument (0 given)', [])
+binding('four-arity', lambda: 'abc'.endswith('c', 0, 3, 9),
+        'endswith() takes at most 3 arguments (4 given)', [])
+print('text-affix-binding-ok')

@@ -42,6 +42,7 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         blocks[handler].terminator = Terminator::Goto(after);
         previous = Some(after);
         regions.push(Region {
+            source_handler_chain: None,
             kind: RegionKind::CatchAll,
             try_start: protected,
             try_len: 1,
@@ -54,9 +55,12 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         name: "__main__".into(),
         codegen_name: "eh_capacity".into(),
         source_file: "eh.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry: first.unwrap(),
@@ -68,11 +72,19 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),
@@ -81,6 +93,12 @@ fn serialize_clauses(count: usize) -> Vec<u8> {
         exports: vec![],
     });
     let program = LinkedProgram {
+        external_provider: None,
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
+        distribution_metadata: None,
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

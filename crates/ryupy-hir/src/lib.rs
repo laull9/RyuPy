@@ -22,6 +22,7 @@ mod closures_decl;
 mod closures_find;
 mod closures_lower;
 mod closures_walk;
+mod comparisons;
 mod comprehension_ast;
 mod comprehensions;
 mod control_flow;
@@ -29,20 +30,39 @@ mod decorators;
 mod definition_metadata;
 mod enum_class;
 mod exception_imports;
+mod exception_targets;
+mod handler_semantics;
+pub use handler_semantics::HandlerSemantics;
 pub mod expr;
+mod function_definition;
+mod function_exception_imports;
+pub use function_definition::DefinitionInfo;
+#[cfg(test)]
+mod function_definition_tests;
 mod future_imports;
 mod generator_scan;
 mod hir;
 pub mod imports;
+mod lexical_class_lower;
+mod lexical_class_registry;
+mod lexical_private;
 pub mod lower;
 mod lower_fn;
+pub use lexical_class_lower::LexicalBinding;
+pub use lexical_class_registry::LexicalClassDefinition;
+#[cfg(test)]
+mod lexical_private_tests;
 mod lower_stmts;
+mod module_definition_bindings;
+mod module_deletions;
+pub use module_deletions::uses_deleted_builtin_fallback;
 mod module_definitions;
 mod module_vars;
 mod native_bases;
 pub mod operator;
 pub mod pretty;
 mod scope;
+mod source_lines;
 mod typed_dict;
 mod with;
 
@@ -66,12 +86,16 @@ mod annotation_tests;
 
 mod sequence_target;
 
+mod abc_bases;
+mod ordinary_mi;
 mod runtime_bases;
 
 mod unresolved_globals;
 
 mod imports_lower;
 
+#[cfg(test)]
+mod function_exception_import_tests;
 #[cfg(test)]
 mod function_import_tests;
 
@@ -91,3 +115,53 @@ mod flag_tests;
 
 #[cfg(test)]
 mod module_location_tests;
+
+#[cfg(test)]
+mod string_class_publication_tests;
+
+#[cfg(test)]
+mod module_function_binding_tests;
+
+#[cfg(test)]
+mod dynamic_except_tests;
+
+mod function_locals;
+
+#[cfg(test)]
+mod function_locals_tests;
+
+#[cfg(test)]
+mod instance_globals_tests;
+
+mod instance_aot;
+mod instance_aot_lambda;
+#[cfg(test)]
+mod instance_aot_tests;
+mod instance_globals;
+pub use instance_aot::{validate_instance_aot, validate_instance_aot_direct_globals};
+mod ordinary_dynamic;
+pub use ordinary_dynamic::{
+    OrdinaryDynamicEligibility, has_defined_functions, instance_ast_supported,
+    ordinary_dynamic_eligibility,
+};
+#[cfg(test)]
+mod ordinary_dynamic_tests;
+
+#[cfg(test)]
+mod module_delete_tests;
+
+#[cfg(test)]
+mod class_cell_tests;
+#[cfg(test)]
+mod lexical_super_tests;
+
+#[cfg(test)]
+mod lexical_class_tests;
+
+#[cfg(test)]
+mod lexical_class_boundary_tests;
+
+#[cfg(test)]
+mod direct_globals_tests;
+
+mod direct_globals;

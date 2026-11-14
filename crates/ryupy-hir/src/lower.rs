@@ -44,13 +44,37 @@ pub fn lower_module_with_native_exceptions(
     source: &str,
     native_exceptions: &[&str],
 ) -> (Module, Vec<Diagnostic>) {
-    let mut diagnostics = Vec::new();
+    if info.instance_globals {
+        let diagnostics = crate::instance_globals::validate(
+            &parsed.module.body,
+            parsed.file,
+            info.instance_capabilities,
+        );
+        if !diagnostics.is_empty() {
+            // 预检失败不继续降级：保留结构完整的空模块供诊断调用方使用。
+            let mut empty = ParsedModule {
+                file: parsed.file,
+                module: parsed.module.clone(),
+            };
+            empty.module.body.clear();
+            let (module, _) =
+                lower_module_with_native_exceptions(&empty, info, source, native_exceptions);
+            return (module, diagnostics);
+        }
+    }
+    let mut diagnostics = crate::lexical_private::validate(parsed.file, &parsed.module.body);
     crate::future_imports::validate(&parsed.module.body, parsed.file, &mut diagnostics);
-    let line_starts = compute_line_starts(source);
+    let line_starts = crate::source_lines::line_starts(source);
     let mut functions = Arena::default();
     let mut classes = Arena::default();
     let mut global_scope = GlobalScope {
+        instance_globals: info.instance_globals,
+        deleted_names: crate::module_deletions::collect(&parsed.module.body),
         postponed_annotations: crate::future_imports::annotations(&parsed.module.body),
+        native_exception_modules: native_exceptions
+            .iter()
+            .map(|name| (*name).to_owned())
+            .collect(),
         exception_imports: crate::exception_imports::collect(
             &parsed.module.body,
             native_exceptions,
@@ -67,7 +91,14 @@ pub fn lower_module_with_native_exceptions(
     );
 
     // 模块级变量与导入绑定（M2.7）：见 module_vars.rs。
-    let (mut vars, mut module_var_ids) = crate::module_vars::collect_module_vars(parsed, info);
+    let (mut vars, mut module_var_ids) =
+        crate::module_vars::collect_module_vars(parsed, info, &global_scope.deleted_names);
+    crate::module_deletions::validate_default_builtins(
+        &vars,
+        info.instance_globals,
+        parsed.file,
+        &mut diagnostics,
+    );
 
     crate::typed_dict::register(parsed, info, native_exceptions, &mut global_scope);
 
@@ -76,51 +107,13 @@ pub fn lower_module_with_native_exceptions(
     // 类体的方法也是普通函数：这里先把它们全部分配 FuncId，函数体内可以互相前向
     // 引用（通过 `self.other()` 在运行时查找），也保证类体属性表达式与方法体在
     // 同一轮之后统一降级。
-    // 同名定义若包含装饰链，全部定义位置共用公开动态槽；失败时保留此前绑定。
-    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
-        match stmt {
-            ast::Stmt::FunctionDef(def) if !def.decorator_list.is_empty() => {
-                global_scope
-                    .dynamic_names
-                    .insert(Name::from(def.name.as_str()));
-            }
-            ast::Stmt::ClassDef(class)
-                if crate::decorators::has_runtime_class_decorators(
-                    class,
-                    &global_scope.dataclass_markers,
-                ) || crate::runtime_bases::candidate(class, &global_scope, &module_var_ids)
-                    .is_some()
-                    || matches!(
-                        crate::native_bases::resolve(class, &global_scope),
-                        Some((
-                            crate::hir::NativeBase::Enum | crate::hir::NativeBase::Flag,
-                            _
-                        ))
-                    ) =>
-            {
-                global_scope
-                    .dynamic_names
-                    .insert(Name::from(class.name.as_str()));
-            }
-            _ => {}
-        }
-    }
-    // 原生Enum即使没有装饰器，也只在完成成员转换之后发布到动态公开槽。
-    for stmt in crate::module_definitions::definitions(&parsed.module.body) {
-        if let ast::Stmt::ClassDef(class) = stmt {
-            let name = Name::from(class.name.as_str());
-            if global_scope.dynamic_names.contains(&name) {
-                module_var_ids.entry(name.clone()).or_insert_with(|| {
-                    vars.alloc(ModuleVar {
-                        name,
-                        range: class.range(),
-                        annotation: None,
-                        is_global: true,
-                    })
-                });
-            }
-        }
-    }
+    // 在任何函数体/default降级前统一公开绑定；内部FuncId登记并不等于执行def。
+    crate::module_definition_bindings::register(
+        parsed,
+        &mut global_scope,
+        &mut vars,
+        &mut module_var_ids,
+    );
     let mut definition_functions = FxHashMap::default();
     let mut definition_classes = FxHashMap::default();
     let mut raw_classes = Vec::new();
@@ -132,7 +125,8 @@ pub fn lower_module_with_native_exceptions(
             ast::Stmt::ClassDef(cls_def) => {
                 let name = Name::from(cls_def.name.as_str());
                 if global_scope.names.contains_key(&name)
-                    && !global_scope.dynamic_names.contains(&name)
+                    && (!global_scope.dynamic_names.contains(&name)
+                        || global_scope.delete_only_definitions.contains(&name))
                 {
                     diagnostics.push(
                         Diagnostic::error(
@@ -144,8 +138,12 @@ pub fn lower_module_with_native_exceptions(
                     );
                 }
                 let cls_id = classes.alloc(crate::hir::Class {
+                    lexical: None,
+                    has_class_cell: false,
                     name: name.clone(),
                     base: None,
+                    ordinary_mi_bases: None,
+                    deferred_runtime_base: false,
                     fields: Vec::new(),
                     has_annotations: false,
                     declared_fields: Vec::new(),
@@ -177,6 +175,7 @@ pub fn lower_module_with_native_exceptions(
                 for fn_def in crate::class_body::methods(&cls_def.body) {
                     let method_name = Name::from(fn_def.name.as_str());
                     let func_id = functions.alloc(crate::hir::Function {
+                        definition: None,
                         name: method_name.clone(),
                         kind: crate::hir::FunctionKind::User,
                         params: Vec::new(),
@@ -200,7 +199,8 @@ pub fn lower_module_with_native_exceptions(
             ast::Stmt::FunctionDef(fn_def) => {
                 let name = Name::from(fn_def.name.as_str());
                 if global_scope.names.contains_key(&name)
-                    && !global_scope.dynamic_names.contains(&name)
+                    && (!global_scope.dynamic_names.contains(&name)
+                        || global_scope.delete_only_definitions.contains(&name))
                 {
                     diagnostics.push(
                         Diagnostic::error(
@@ -212,6 +212,7 @@ pub fn lower_module_with_native_exceptions(
                     );
                 }
                 let func_id = functions.alloc(Function {
+                    definition: None,
                     name: name.clone(),
                     kind: FunctionKind::User,
                     params: Vec::new(),
@@ -237,6 +238,7 @@ pub fn lower_module_with_native_exceptions(
 
     // 分配 main 入口函数
     let main_id = functions.alloc(Function {
+        definition: None,
         name: "main".into(),
         kind: FunctionKind::ModuleMain,
         params: Vec::new(),
@@ -251,9 +253,16 @@ pub fn lower_module_with_native_exceptions(
 
     // M3.0：闭包作用域分析——发现嵌套 def / lambda 并计算 free / cell 变量。
     // 必须在降级任何函数体之前完成：名字解析（Free / cell）和 lambda 表达式
-    // 都依赖它的登记表。
-    let analysis =
-        crate::closures::analyze_closures(parsed, &mut functions, main_id, &mut diagnostics);
+    // 都依赖它的登记表；新类模板同时明确每个表达式arena的真实owner。
+    let analysis = crate::lexical_class_registry::analyze(
+        parsed,
+        &mut functions,
+        &mut classes,
+        main_id,
+        info.instance_globals.then_some(&definition_classes),
+        &line_starts,
+        &mut diagnostics,
+    );
     let mut nested_defaults = crate::definition_metadata::DefinitionMetadata::default();
 
     let mut main_body = Body::default();
@@ -263,7 +272,7 @@ pub fn lower_module_with_native_exceptions(
     // 解析所有类：基类必须已经解析过，因此这里保持源码顺序。
     // 类体属性表达式降级到 main_body，由 MIR 在 `class` 语句位置求值。
     for (cls_def, cls_id, methods) in raw_classes {
-        if let Some(parsed_cls) = crate::class::parse_class_def(
+        if let Some(mut parsed_cls) = crate::class::parse_class_def(
             cls_def,
             parsed.file,
             &global_scope,
@@ -276,6 +285,10 @@ pub fn lower_module_with_native_exceptions(
             &mut main_body,
             &mut diagnostics,
         ) {
+            parsed_cls.has_class_cell = analysis
+                .infos
+                .values()
+                .any(|info| info.class_cell == Some(cls_id));
             classes[cls_id] = parsed_cls;
         }
     }
@@ -362,6 +375,8 @@ pub fn lower_module_with_native_exceptions(
         module_vars: &module_var_ids,
         vars: &mut vars,
         module_scope: true,
+        forbid_lexical_class: false,
+        direct_stmt_index: 0,
         package: &info.package,
         classes: &classes,
         nested_funcs: &analysis.nested_funcs,
@@ -378,9 +393,12 @@ pub fn lower_module_with_native_exceptions(
     {
         main_lower_ctx.setup_annotations(parsed.module.range);
     }
-    for stmt in &parsed.module.body {
+    for (index, stmt) in parsed.module.body.iter().enumerate() {
+        if index == 0 && main_lower_ctx.lower_instance_docstring(stmt) {
+            continue;
+        }
         match stmt {
-            // `def` 不产生普通语句，但它的默认值必须在**定义位置**求值
+            // 静态def只初始化默认值；公开动态def必须在定义成功后才发布新函数对象。
             ast::Stmt::FunctionDef(fn_def) => {
                 let name = Name::from(fn_def.name.as_str());
                 if let Some(func_id) = definition_functions.get(&fn_def.range) {
@@ -430,6 +448,7 @@ pub fn lower_module_with_native_exceptions(
         }
     }
 
+    crate::lexical_class_lower::apply(&mut classes, &mut nested_defaults);
     for (func_id, annotations) in nested_defaults.annotations {
         functions[func_id].annotation_values = annotations;
     }
@@ -462,8 +481,11 @@ pub(crate) struct StmtLowerCtx<'a> {
     pub(crate) module_vars: &'a FxHashMap<Name, ModuleVarId>,
     /// 模块级变量 arena；`x: T = ...` 要在 lowering 时补上标注。
     pub(crate) vars: &'a mut Arena<ModuleVar>,
-    /// 是否位于模块顶层（只有模块顶层允许 import 语句）。
+    /// 当前函数直属语句索引；嵌套suite不更新，用于局部导入的结构化支配证明。
+    pub(crate) direct_stmt_index: usize,
+    /// 是否位于模块顶层；函数导入仍在原语句位置执行。
     pub(crate) module_scope: bool,
+    pub(crate) forbid_lexical_class: bool,
     /// 当前模块的 `__package__`，用于把相对导入换算成绝对模块名。
     pub(crate) package: &'a str,
     /// 已解析的类（`except` 需要判断用户类是否属于异常家族）。
@@ -513,26 +535,7 @@ pub(crate) fn lower_default_expr(
     ctx.lower_expr(expr)
 }
 
-/// 预先算出每一行的起始字节偏移，供 `TextRange` → 行号换算。
-fn compute_line_starts(source: &str) -> Vec<usize> {
-    let mut starts = vec![0usize];
-    for (idx, byte) in source.bytes().enumerate() {
-        if byte == b'\n' {
-            starts.push(idx + 1);
-        }
-    }
-    starts
-}
-
 impl StmtLowerCtx<'_> {
-    /// 字节偏移 → 1 起行号。
-    pub(crate) fn line_of(&self, offset: usize) -> u32 {
-        match self.line_starts.binary_search(&offset) {
-            Ok(idx) => idx as u32 + 1,
-            Err(idx) => idx as u32,
-        }
-    }
-
     /// 语句降级复用：把下标位置（可能是切片）降级成表达式。
     pub(crate) fn lower_subscript_index(&mut self, slice: &ast::Expr) -> ExprId {
         let mut expr_ctx = ExprLowerCtx {

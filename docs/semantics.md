@@ -1,9 +1,20 @@
 # 语言子集与语义规范
 
+> **CPython provider试点（2026-11-13）**：固定3.12.13/PBS20260623，显式provider在macOS arm64
+> 已通过21项CP/JIT与NativeAOT/搬迁、原联合应用和六项C#生命周期模式。API与冻结快照范围见
+> [验收驱动](../tests/cpython/README.md)。真实错版本ABI、handled异常双向状态、混合栈无陈旧帧均通过；
+> 上述完整对象桥矩阵的其他平台及HTTPS待验。新增standalone平台与干净目标结果见
+> [平台实测](cpython-platform-support.md#52-平台实测状态)。普通文件入口默认自动环境，旧显式声明入口保留。
+
 > 本文定义 RyuPy **当前支持**的 Python 子集，以及它与 Python 语义的对应方式。
 > 常用行为以固定版本 CPython 为准，按项目与 API 验收。已接受偏差明确登记，不支持能力明确报错；运行时才能确定的非法操作抛 Python 语义异常。未记录的差异按缺陷处理。
 >
 > 80% 目标、项目清单与偏差见 [compatibility.md](compatibility.md)，标准库移植见 [stdlib.md](stdlib.md)。计划状态不能当成已实现。
+
+2026-11-14 交付入口：`ryupy main.py` 默认 onefile 和自动 CPython 环境，`--native` 选择纯 RyuPy。
+应用本地模块编译为 CIL，第三方包与标准库由明确的 provider 计划承载；全应用解释回退未接入。
+版本探测、依赖收集、发布形态属于 driver 合同，语法及对象行为仍按本文逐项验收。
+见 [ADR-0190](adr/0190-project-cli.md) 和 [版本验收](../tests/cpython/version_README.md)。
 
 状态图例：✅ 已实现 · 🚧 进行中 · 📋 计划中（括号内为里程碑） · ❌ Phase 1 不支持（编译期报错）
 
@@ -38,7 +49,7 @@
 | 链式比较 `a < b < c` | ✅ M1.2 | 中间项无副作用时展开，否则 ❌ |
 | `import x` / `import x as y` / `from x import y` / 别名 | ✅ M2.7 | 编译期构建模块图，运行时走 `PyModules` 导入缓存 |
 | 普通包 `__init__.py` 与包内相对导入 | ✅ M2.7 | 相对导入在 HIR 换算成绝对模块名 |
-| 模块级变量、函数读写模块变量、`global` | ✅ M2.7 | 模块变量是静态槽位，模块对象通过生成的 getter / setter 暴露 |
+| 模块级变量、函数读写模块变量、`global` | ✅ M2.7 | 默认模块仍是静态槽位；显式B2实例模式的有限函数/类/闭包/生成器共享真实字典，范围见[合同](module-owners.md)，未选模式仍用静态槽 |
 | `__name__` / `__package__` / `__file__`、`__main__` 入口 | ✅ M2.7 | 模块入口开头写入；入口模块名为 `__main__` |
 | `from x import *` | ❌ | 明确报 `E0100`，要求显式列出名字 |
 | 函数体内 `import` | ❌ | 明确报 `E0100`，当前只支持模块顶层导入 |
@@ -46,8 +57,8 @@
 | 列表 / 字典 / 元组 / 集合 / frozenset / bytes / bytearray / slice | ✅ M2.3 | 容器表达式统一降级为 `Dynamic`，由运行时 `PyList` / `PyDict` / `PySet` / `PyFrozenSet` / `PyBytes` / `PyByteArray` / `PySlice` 承载 |
 | `x[i]` / `x[i:j:k]` / `del x[i]` / `x[i] = v` | ✅ M2.3 | `RuntimeFn::GetItem` / `SetItem` / `DelItem`；切片对象 `PySlice`，负值索引与越界按 Python 规则处理 |
 | `a in b` / `a not in b`、`a is b` / `a is not b` | ✅ M2.3 | `RuntimeFn::Contains` / `IsSame` |
-| 普通 / 星号（`a, *b, c = x`）解包赋值、`for x in 容器` | ✅ M2.3 | `RuntimeFn::UnpackCheck` 长度校验；`IterStart` / `IterNextOk` / `IterValue` 迭代协议 |
-| `del x` | ✅ M2.3 | `StmtKind::Delete` → `DelItem` |
+| 平坦序列解包赋值（含 `a, *b, c = x`）、`for x in 容器` | ✅ M2.3；一般非星号 iterator 有限修复通过 | 受控直接 tuple/list 字面量保 `UnpackCheck` 长度校验；一般非星号源新增 `UnpackSequence` 有界迭代准备。一般星号有限修复使用 UnpackEx 双iter/hint准备（ADR0068，专项及完整门禁通过），直接无展开字面量保旧结构；嵌套解包目标报 E0100。for 的迭代源沿用 `IterStart` / `IterNextOk` / `IterValue` |
+| 模块顶层 `del name`、函数显式 `global` 删除 | ✅ 有限 | 默认 typed 绑定位/动态哨兵、显式实例真实字典删键；删除不查 builtin，读取才回退。默认元数据/自定义 builtins 等边界见[合同](module-deletion.md)；局部/cell/class namespace 不由此行扩域 |
 | 嵌套 `def`、闭包、lambda | ✅ M3.0 | 定义位置创建 `PyFunction`；按 free 列表捕获共享 cell，保持 late binding 与函数逃逸 |
 | list / dict / set 推导式（多层 for / if、解包、闭包） | ✅ M3.1 | 独立隐式函数作用域；最左 iterable 在外层取得迭代器 |
 | 普通生成器 | 部分 | 语句 / 表达式 yield、send、if/for/while、return value、共享 cell、next/迭代/耗尽；完整协议待后续 |
@@ -68,9 +79,22 @@
 | `__repr__` / `__str__` / `__eq__` / `__hash__` / `__bool__` / `__len__` / `__iter__` / `__next__` / `__getitem__` 与常用运算槽 | ✅ M2.5 | `PyObject.TryMethod` 统一分派；未支持的魔术方法不伪造结果 |
 | `with` / 多上下文 / `as` / 异常抑制 | ✅ M2.8 | 去糖为 `try` / `except BaseException` / `finally`；`__enter__` / `__exit__` 走普通属性与调用协议 |
 | 常用标准库 | 🚧 M3.4–M3.6 | 按独立 API 表开放；不是整个模块兼容 |
-| 多重继承、元类、任意描述符、动态代码与 import hook | ❌ | 暂缓，明确拒绝 |
-| 继承内建容器 / 字符串（`class X(dict)`） | ❌ | 明确报 `E0100`；`class X(object)` 等价于不写基类 |
+| 普通多重继承 | ⚠️ 候选 | Legacy JIT 冷 C3/发布合同已有本地差分，完整保护待；Instance/AOT及特殊布局仍拒，见 ADR0161 |
+| 元类、任意描述符、动态代码与 import hook | ❌ | 暂缓，明确拒绝 |
+| 继承内建容器（`class X(dict)`） | ❌ | 仍明确拒绝；`class X(object)` 使用普通类路径 |
+| 单继承字符串（`class S(str)`） | ⚠️ 有限 | 真实载体/身份、默认值协议与现有常用方法；守卫与未支持域见下文 |
 | `async with` | ❌ | 明确报 `E0100`，不退化成同步上下文 |
+
+### bytearray 切片赋值有限候选
+
+仅接精确 bytes/bytearray、现有连续 B/c memoryview、精确 list/tuple/range 整数序列右值。
+slice 按 step/start/stop 转换；不同 bytearray 一轮，其余源在两轮之间转换/快照，第二轮
+完成后按当前目标长度调整。空右值删除扩展选中项，非空扩展错长先 ValueError。
+活动导出允许同长写，真实 resize 才 BufferError，所有别名仍见同一目标对象。
+通用 iterable、原生子类、其它 view 布局、复杂 index descriptor 与警告型 index 返回
+不计支持，明确 NI；单元素/其它容器旧索引边界不改变。首次24项专项、三unique应用
+（首2/3后基础窄迁单独1/1）和正常完整门禁1771C#/228CP/202e2e+30原ignored通过；
+算法/成本及首失败来源见 [ADR0098](adr/0098-bytearray-slice-assignment.md)。
 
 ## 2. 类型映射
 
@@ -79,7 +103,8 @@
 | `int` | `Int` | `I64` | `int64` |
 | `float` | `Float` | `F64` | `float64` |
 | `bool` | `Bool` | `Bool` | `bool` |
-| `str` | `Str` | `Str` | `string` |
+| 已证明的精确字符串（例如字面量） | `Str` | `Str` | `string` |
+| `str` 注解的未知值 | `OpaqueStr` | `Dynamic` | `object`（保原对象身份） |
 | `None` | `None` | `Unit` | `void` |
 | `@dataclass` | `Class` | `Dynamic`（默认） | PyInstance 引用 |
 | `@dataclass(frozen=True)` | `Class` | `Dynamic`（默认） | PyInstance 引用（ADR-0009：保留身份） |
@@ -103,8 +128,109 @@
 `TypeError`。`str + int`、`"a" < 1` 等静态可见的错误也不再拒绝编译，交给 `PyOps` 给出与
 CPython 一致的消息。
 
+`str` 注解不是实际字符串类型证明。C0 阶段以 `OpaqueStr` 保存任意传入对象，参数、返回、
+模块槽和字段不强制转为 CLR string。只复制或返回该值的静态函数仍可保留无关数值循环和
+精确字符串局部；比较、真值、属性、调用等未证明安全的消费沿原整函数动态回退，包括结果
+为 bool 的表达式。literal-only 的注解返回也使用 object，可能使调用者丢失精确事实；尚无
+性能测量。此阶段不实现字符串子类布局，详见 [ADR-0062](adr/0062-opaque-str-annotations.md)。
+
+### 字符串前后缀窗口（候选）
+
+`str.startswith/endswith` 接受单个文本或tuple候选及可选start/end，None使用默认，
+类型级 `__index__` 按start→end各一次；先固定原实参引用再进入回调，tuple按序短路。
+窗口按码点而非UTF-16下标，超尾start不能夹成有效空窗，匹配不能切开正常代理对。
+直接、保存、根描述符保各自绑定错误优先级；bytes既有实现未变。
+
+真实字符串子类所有方法改为实参前捕获属性，getter失败阻止实参求值，返回非callable仍先
+求完实参；用户异常不在新入口广catch。普通实例/精确文本保持原派发，但每次资格判定增加
+类型检查；子类方法失去原PIC热命中并可能新建实参数组。单参不扫描全串，有界正码点位置
+仍可能线性扫描，不加缓存，不宣性能收益。警告型index返回、复杂descriptor及D009保边界。
+
+当前新增23运行时与34旧回归通过，四应用与一结构通过（首次3/5保留），正常完整门禁1630C#/228CP/202e2e+30原ignored通过。首失败是原生异常cause属性
+赋值旧债，并非cause读取缺失；详情与后续验收见[ADR-0089](adr/0089-text-affix-window.md)。
+
+### 字符串 partition/rpartition 的有限合同（ADR0108）
+
+只接受一个位置sep，真实str/str子类可用，无隐式转换；空sep报ValueError。根入口self错误
+优先，随后keyword、arity、sep类型、空sep。结果为三项tuple，命中中项保原sep身份，
+未命中partition首项/rpartition末项保原receiver身份，含真实子类；切出的两侧为exact str。
+首/末ordinal搜索拒绝正常代理对内部的端点，失败候选后继续搜索并保重叠；动态孤立代理
+可作为输入，独立high+low拼接的来源区分仍属D009，不把UTF16守卫称为表示修复。
+
+候选12项C#、三主CP/JIT与独立30观察通过；继承类对象的实参前属性捕获首项已证失败，
+完整CP源单列pending，后续super等项未执行。候选002正常门禁2045C#/240CP/208e2e通过，
+36ignored=原33+三新边界；3060性能样本保留，旧rfind根/find预备等回退风险未排除，见
+[ADR0108](adr/0108-string-partition.md)。本API通过不意味着docopt原入口通过。
+
+### 字符串子类：有限布局与公共协议
+
+精确字符串仍为 CLR `string`；单继承 `str` 及其用户后代使用带不可变文本载体的真实实例，
+保类身份和普通实例属性，不把子类对象悄悄展平成静态字符串。类体与校验、装饰器完成后才
+发布候选类的公开绑定；类体或装饰器失败保留旧绑定。实际布局依据基类对象，不依据名称。
+
+- 支持 `S()`、`S(object)`、`object=`、显式 `str.__new__(S, object)` 与有限 `__init__`；
+  根 `str.__init__` 与 `object.__init__` 共享身份和参数规则。多继承/混合专用布局不开放。
+- 默认长度、真值、迭代、下标、切片、包含、拼接、重复及已有 `%` 子集复用文本算法；
+  长度/下标/切片/迭代按码点。默认比较和哈希兼容现精确字符串，用作 dict/set 键可互查。
+- 方法范围为 `encode`、`upper/lower`、`strip/lstrip/rstrip`、`split/splitlines/join`、
+  `replace`、`find/rfind/index/rindex/count`、`startswith/endswith`，沿各方法已有参数边界。
+  支持普通方法覆盖、property、实例属性遮蔽、保存的绑定方法、根方法及 `super()` 调用；
+  文本参数直接读取载体，不隐式调用用户 `__str__`。不代表任意自定义描述符已支持。
+- 公共 `str()`/`repr()` 保用户协议合法返回的字符串子类原对象身份；普通根文本转换产物仍为
+  精确字符串。`str` 仅已证明精确值的单普通位置参数保旧快路，其余完整求值并绑定，不漏多参
+  或星号。`ord` 读原文本；`int`/`float` 保各自用户转换、`__index__`、原文本解析的有限优先级，
+  `int(text, base)` 不以用户 `__int__` 替代原文本解析。
+
+当前边界（不能据本节推断完整 `str` 子类兼容）：
+- 创建期及后续修改明确拒自定义 `__new__`、布局/属性拦截槽、任意自定义描述符，以及覆盖
+  默认 sequence、比较/hash 槽；`__reversed__/__format__/__round__/__length_hint__` 也未开放。
+  `add/mul/mod/sub/truediv/floordiv/pow/and/or/xor/lshift/rshift` 的普通、反向和原地运算槽
+  均受守卫限制；后九组含既有反向派发顺序债，并非声称这些运算本来都属于字符串协议。
+  类 `__name__/__qualname__` 修改、类/实例 `__dict__` 与实例 `__class__` 修改仍明确拒绝。
+- `encoding/errors` 解码构造尚未实现；合法解码域明确 `NotImplementedError`，不假作普通
+  `str(object)`。路径、正则、JSON 等其它 consumer 没有随本切统一接入，不宣称接受子类载体。
+- 排序统一沿现精确字符串的 UTF-16 ordinal；非 BMP 与 BMP 混合排序不等于 CPython 码点序。
+  `tests/fixtures/str_subclass/unicode_order.py.pending` 与 `custom_new.py.pending` 保完整合法
+  CP 期待，不计通过；不把旧排序差异改写成错误的 CP 期待。
+
+C0 的 object 参数/返回/槽位及保守动态回退成本仍在；未知对象转换使用现完整动态 binder，
+可能增加参数数组/调用开销，不宣称所有字符串快路或性能不变。本轮本地首专项为 runtime
+36/36、既有 RuntimeBases 6/6、driver 4/4（1 MIR + 3 CP/JIT 源差分），含根初始化身份。
+正常完整门禁本地通过（764 C#、228 CP基线、202 e2e+30原ignored），未发布；
+不新增项目、NativeAOT 或性能运行，不宣称 pyfiglet 通过。详见
+[ADR-0063](adr/0063-string-subclass-layout.md)。
+
 动态属性访问、容器、异常捕获已在 M2.2–M2.5 接入，模块系统在 M2.7、`with` 在 M2.8 接入；
-多重继承、元类、任意描述符等暂缓能力仍在编译期报诊断，不静默降级成占位值。
+普通MI候选的精确域见[ADR0161](adr/0161-ordinary-mi-c3.md)；其余元类、任意描述符等暂缓能力仍明确拒绝，不静默降级成占位值。
+
+### 公共 format：独立对象协议与有限规格（候选）
+
+`format(value, format_spec='', /)` 走现Dynamic内建、返回object；先拒关键字，再检查1..2个位置参数，
+最后检查真实str/str子类规格。用户槽收到原规格对象；类链上的`__format__`一次绑定调用，
+忽略实例同名值与`__getattr__`，返回真实str子类时保原对象。函数、staticmethod/classmethod、
+property返回可调用对象及普通callable槽有专用绑定；任意Python自定义descriptor明确NI。
+默认object空规格调用str并保结果身份，非空先TypeError而不先str。专门原生布局不乱套object协议。
+
+文本按当前Python码点口径作宽度/精度和fill，支持Unicode15 Nd规格数字；无变换的非空文本
+规格可返回原子类对象，空规格子类调用`__str__`。str子类自定义`__format__`守卫尚未开放。
+整数支持省略/d/b/o/x/X、符号/对齐/前缀/补零；bool仅真正空规格返回True/False，其余按整数。
+新format十进制输出按固定默认4300位，非十进制无该限制；配置API不随切实现。
+分组、c/n、整数浮点presentation等合法未实现域明确NI，非法语法/接收类型组合仍ValueError。
+浮点阶段2仅空规格；随后阶段3开放显式g/G（默认6、精度0按1），支持符号/宽度/对齐/补零；f/e/%、无typeprecision、z/#/grouping等仍明确NI。
+NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有效精度；CP的INT_MAX
+错误边界与后端实际999999999精度限制分开，后者不限制未调用后端的特殊数/零值。
+
+真实CLR最大字符串容量之外明确NI，与CP资源异常域不同；不设任意一百万上限，
+正常可分配请求照常，容量计算覆盖整个UTF16结果。OOM不捕获重试，不偷偷截断。
+精确值不查询用户类槽，规格记录为局部值类型；二幂进制按字节线性转换。
+公共调用仍有动态参数数组/binder成本，不冒零分配或实测性能提升。
+
+旧f-string继续使用既有FormatValue和string ABI，并未跟此builtin统一；它的bool/浮点/Unicode
+规格与单字段子类身份仍有差异。通用重复**键、部分混合*求值顺序、显式object/str/super根format
+也未因本切修复。长尾CP正期待在`tests/fixtures/format_builtin/long_tail.py.pending`，不计通过。
+当前候选新C#27/27及四项CP/JIT已过；异常链保首次旧nested-caught帧债，再以模块级cause窄迁通过，正常完整门禁877C#/228CP/202e2e+30原ignored通过。
+详见[ADR-0073](adr/0073-builtin-format-protocol.md)，不声称tabulate、main、AOT或性能通过。
+阶段3首次49项C#（新22+原27）和1项297调用CP/JIT差分通过，正常完整门禁899C#/228CP/202e2e+30原ignored通过；见[ADR-0074](adr/0074-format-float-general.md)。
 
 ## 3. 运算规则
 
@@ -126,6 +252,33 @@ CPython 一致的消息。
 - `a and b` / `a or b`：Python 返回**操作数本身**而非 `bool`。Phase 1 要求两侧类型相同，结果类型即该类型。
 
 ## 4. 语义陷阱清单
+
+### CPython provider的项目与文本边界（2026-11-14）
+
+- 嵌入解释器固定隔离UTF-8模式，构建期JSON管道同样使用UTF-8；独立CPython oracle以`-X utf8`对齐。
+- 编译入口对应的`__main__`仍缺少与全局槽双向同步的模块活字典；`attrs23.2.0`固定入口在
+  读取`sys.modules[cls.__module__].__dict__`时抛AttributeError，列为实际项目失败。
+- 显式`object.__setattr__`、`object.__delattr__`绕过用户同名hook与frozen检查，保留property及槽布局协议；
+  默认路径继续沿已有修改/删除守卫。差分用例见`phase3/object_base_mutation`。
+- 固定项目stderr保留警告类型、行号和正文，比较时只把已知载荷警告头中的绝对路径映射为部署相对名；
+  `docopt0.6.2`的四条原SyntaxWarning逐条保留，stdout及文件副作用仍逐字比较。
+
+### CPython provider的显式边界（2026-11-13）
+
+- 默认`proxy`传递活对象；`container_transfer="synchronized"`在调用边界物化精确list/dict并写回，
+  保共享引用、环、回调重入与异常前副作用。两域后台线程并发修改同一容器暂缓，数组保真实ndarray。
+- 跨域同一对象与等值不可变键分别保持身份及hash/equal不变量；共享intern参数缓存有原对象作用域。
+  生命周期验收先暖机再严格稳态；动态唯一消息显式释放，异常释放不递归破坏共享Args别名。
+- 编译异常类导出目前限定纯单继承链，每层无自定义init/new/str/repr、字段或方法，仅允许
+  module/qualname/doc元数据；整链预检后建立真实CP类型。类attrs或实例UserAttributes超出该域时报NI。
+  首次成功导出后该native类SetAttr/DeleteAttr报NI，CP heap type设IMMUTABLETYPE；未导出类保持原语义。
+  CP派生异常沿真实MRO选择最近Runtime ExceptionFactory建立catch壳，实际type仍来自ForeignObject。
+  该边界及拒绝路径已通过独立JIT/NativeAOT/搬迁验收，结果见验收矩阵。
+- handled异常状态按调用/回调作用域双向保存恢复；sys.exception与裸raise使用同一真实异常。
+  CP正常返回后修改的cause/context/suppress/args保持最新值，同handler再次进入CP和重抛均已差分通过。
+- 混合traceback按域标记并保持各域帧次序；outer包装异常保编译调用点且无已退出callback陈旧帧，
+  总帧limit0/1/-1经原traceback公开入口验收。set/frozenset跨域混合比较在两种传输模式均明确报NI。
+
 
 > 每一条都应该有对应的 e2e 用例。新发现的陷阱请追加到这里。
 
@@ -163,7 +316,7 @@ CPython 一致的消息。
 | 30 | `for` 循环变量与 `range` 参数 | 循环变量可被循环体重写而不影响迭代；`range(...)` 参数只求值一次 | 用循环变量当计数器会破坏迭代 | 静态计数循环使用隐藏计数器：每轮开头才写用户变量，边界复制进局部变量 |
 | 31 | 排序稳定性 | `sorted` / `list.sort` 稳定；`reverse=True` 仍保持相等元素的原始顺序 | `List.Sort` 不稳定，且「排完再反转」会颠倒相等元素 | `PySort` 二分插入 + 自底向上归并（只用 `<`，见 #43）；降序通过反转「先后」判断实现 |
 | 32 | 空容器真值 | `[]`、`{}`、`""`、`set()` 为假 | 引用类型默认非空 | `PyOps.Truthy` 显式列出每种容器类型（含 dict 视图、bytes / bytearray） |
-| 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | `PyOps.UnpackCheck(length, required, hasStar)`：星号形态只检查下限，非星号形态必须精确相等；M3.1 修复星号目标始终获得新 list（不保留 tuple 切片类型） |
+| 33 | 解包数量不符 | 少了报「not enough」，多了报「too many」 | — | 受控序列保 `UnpackCheck(length, required, hasStar)`；非星号一般源的修复为 `UnpackSequence(source, required)`：读取 N 项后仅多探测一次，不取 len / length_hint；普通实例仅缺少 `__iter__` 时可按整数 `__getitem__` 回退。先冻结本层值再写目标，失败不回滚已完成的目标写入。一般星号候选见ADR0068：两次iter、向首iterator取len/hint、耗尽第二iterator再冻结后缀，中段始终新list；嵌套目标未扩展。既有非星号12项运行时与4项driver（3应用差分＋1结构）及正常完整门禁本地通过（ADR-0064） |
 | 34 | 指数 / 移位量上限（RyuPy 偏差） | 任意大的指数会尝试构造巨大整数 | — | `PyInt.MaxBitShift = 1_000_000`：超过时报 `OverflowError`，避免一次运算耗尽内存；`2 ** 100`、`1 << 100` 等常用规模不受影响 |
 | 35 | 参数绑定错误 | 运行时 `TypeError`：缺少 / 过多 / 重复绑定 / 未知关键字 / 位置-only 当关键字 | — | `PyBinder` 按 CPython 规则绑定并生成相同措辞的消息；编译期只判断能否走静态快路径，**不**把绑定错误变成编译错误 |
 | 36 | 默认值求值时机 | 在 `def` 执行时于模块作用域求值、只求值一次；可变默认值跨调用共享 | — | 默认值在定义位置（`FunctionDefaults` 语句）写进模块静态数组；`def f(x=[])` 的所有调用共享同一个 list |
@@ -174,8 +327,8 @@ CPython 一致的消息。
 | 41 | 增量赋值目标只求值一次 | `a[f()] += 1`、`g().x += 1` 中 `f` / `g` 只调用一次 | 读、写各降级一次会执行两遍 | M2.12：`aug_assign.rs` 把除不可变字面量外的子表达式（含名字）先求值进隐藏局部，冻结原对象/索引并跨暂停保存 |
 | 42 | `True` / `False` 与小整数的 `is` | `True` 是单例；[-5, 256] 的 int 被缓存，`x is 0` 为真 | 每次 `box` 都是新对象 | M2.12：bool 装箱复用单例、小整数装箱走缓存；`PyOps.Is` 对 bool 与 [-5, 256] 的 int 按值判定（不依赖装箱来源）。范围外的 int 仍按对象身份，与 CPython 一样不应依赖 |
 | 43 | 排序只用 `<` | `sorted` / `list.sort` 只调用 `__lt__`，不调用 `__eq__` | — | M2.12：`PySort` 改为只用「小于」的二分插入 + 归并；此前每次比较先 `==` 再 `<`，会多调用用户 `__eq__` |
-| 44 | `%` 字符串格式化（有限子集） | `"%d-%s" % (1, "a")`、`"%(name)s" % mapping` | — | M3.7 支持无修饰 `%s/%r/%a/%d/%i/%u/%%` 与映射键，逐项求值；flags/宽度/precision/其它转换及 bytes 仍未支持，详见 [string-percent.md](string-percent.md) |
-| 45 | 类体内引用同类定义的函数名（未支持） | `v = property(getv, setv)` 可以读到类体里刚定义的 `getv` | — | 当前报 `E0106` 未定义名字；类体作用域的名字解析待补（TODO 技术债） |
+| 44 | `%` 字符串格式化（有限子集） | `"%d-%s" % (1, "a")`、`"%(name)s" % mapping` | — | M3.7 支持无修饰 `%s/%r/%a/%d/%i/%u/%%` 与映射键，逐项求值；d/i/u 的 ASCII flags/literal width 已实现候选、待产品验证；字符串宽度/precision/其它转换及 bytes 仍未支持，详见 [string-percent.md](string-percent.md) |
+| 45 | 类体内引用同类定义的函数名 | `v = property(getv, setv)` 读到类体刚定义的原始函数 | 不能提前绑定 self，也不能把类命名空间捕获进方法正文 | 既有 ClassScope/ClassNamespaceGet 路线经专用真实差分确认；别名、defaults/decorator、条件 fallback、方法与内部闭包的模块 late 名及 getter super 均有断言。旧 E0106 记录已过期，本轮仅补证，见 ADR0067；不外推任意 descriptor 或失败类发布 |
 
 | 46 | 闭包 late binding 与默认值 | 闭包读调用时的变量；默认值保留定义时的结果 | 复制捕获值会丢失共享修改 | M3.0：一个绑定对应一个 cell，多闭包共享，默认值在 def / lambda 位置求值 |
 | 47 | 空 cell 的异常 | 本地 cell 抛 `UnboundLocalError`，外层自由变量抛 `NameError` | null / 默认零值无法区分 | M3.0：cell 放未赋值哨兵；读取时按作用域选择异常，被捕获的 except 绑定在正常、返回、循环跳转和异常退出时都清空 cell |
@@ -214,8 +367,7 @@ stderr 上是 traceback，最后一行是 `Type: message`，退出码 1。`raise
 
 ### 4.2 `try` 的编译方式（M2.2）
 
-- **`except`** 编译成 CIL 的**类型化 catch**。CLR 按「类型及其基类」匹配，正好等于 Python 的
-  `except` 语义，CLR 主继承树之外的已登记额外父边（目前仅 io.UnsupportedOperation → ValueError）由 MIR 在原 handler 位置展开独立 catch，见 io-unsupported-operation.md。用户异常内部按所属模块限定身份，不以显示名覆盖其它模块或内建异常。
+- **纯静态目标 `except`** 保留 CIL 的**类型化 catch**。CLR 按「类型及其基类」匹配；CLR 主继承树之外的已登记额外父边（目前仅 io.UnsupportedOperation → ValueError）由 MIR 在原 handler 位置展开独立 catch，见 io-unsupported-operation.md。用户异常内部按所属模块限定身份，不以显示名覆盖其它模块或内建异常。
   `except (A, B)` 为每种类型各生成一条记录；每条记录配一个**独立的两指令处理入口**
   （`stloc` 取下异常 + `leave` 跳出），因为 CLR 会把「try 与 handler 区间完全相同」的
   两条记录当成重复子句直接拒绝。
@@ -262,8 +414,9 @@ M3.10 的数值列表岛已按 ADR-0039 完成有界验收，不能将其冒称�
   压缩；删除是 O(1)，迭代按槽位顺序即插入顺序。`Version` 只在增删 / 清空时递增，**覆盖已有键
   不递增**（CPython 允许迭代中给已有键赋新值）。
 - **迭代期间修改**：字典迭代器记下开始时的 `Version`，增删后再取下一个元素抛 `RuntimeError`；
-  但 `dict.keys()` 视图是「活的」，新建一次遍历看到的是当时内容，不校验版本。集合迭代使用确定性
-  快照（CPython 的集合迭代期修改是未定义行为）。
+  但 `dict.keys()` 视图是「活的」，新建一次遍历看到的是当时内容，不校验版本。可变集合候选仍保O(n)
+  快照，但独立游标按初始size检查变化并粘滞报错，真正耗尽后不复活；非空clear后恢复同size明确NI，
+  CP正例保pending。无clear的同size变异仍是快照旧债，不能把CP所有修改行为笼统称未定义（ADR0090）。
 - **字符串按码点**：`PyText` 提供 `Length` / `At` / `Slice` / `Items`，下标、切片、迭代与 `len`
   都按码点而不是 UTF-16 code unit 计数。
 - **排序稳定**：`sorted` / `list.sort` 使用 `PySort` 的稳定归并排序，`reverse=True` 通过反转
@@ -285,17 +438,22 @@ M3.10 的数值列表岛已按 ADR-0039 完成有界验收，不能将其冒称�
 
 - **查找优先级**：`property`（数据描述符）→ 实例字典 → 类链；方法与 `staticmethod` /
   `classmethod` 在读取时绑定。`del obj.attr` 只删除实例字典中的值，类属性继续可见。
-- **绑定方法**：`PyBoundMethod` 记录定义类与接收者；零参数 `super()` 通过线程局部的方法
-  上下文取「定义类的下一个基类」，因此多级继承链上的 `super().__init__` 语义正确。
+- **绑定方法与super**：`PyBoundMethod` 记录定义类与接收者。默认直写零参仍用旧方法上下文，
+  不把lookup owner/进入时self当作完整CP词法规则；显式实例普通函数改用真实类cell与当前首参，见S1。
 - **缓存失效**：类属性查找带缓存，条目记录全局修改版本。任何类属性增删 / 替换都会让缓存
   失效（陷阱 #22）；条目超过 256 条整体清空，容量有界。
 - **魔术方法**：`__repr__` / `__str__` / `__eq__` / `__hash__` / `__bool__` / `__len__` /
   `__iter__` / `__next__` / `__getitem__` / `__setitem__` / `__delitem__` / `__contains__`
   与常用一元 / 二元运算槽接入统一入口。默认对象身份仍在：没有 `__eq__` 时按引用相等，
-  没有 `__hash__` 时按身份哈希。
+  类链完全缺失 `__hash__` 槽时按身份哈希；None 槽拒绝，其他非可调用值报调用错误。普通类创建期抑制规则的有限修复已通过本地专项及完整门禁，见 ADR0066。
 - **身份**：普通对象始终是引用；`frozen=True` dataclass 也改为 .NET 引用类型，装箱 / 传参
   只复制引用，满足 ADR-0009 的默认身份要求。
-- **暂缓能力**：多重继承、元类、自定义 `__getattribute__` 在 HIR 报 `E0100`，
+- **默认类读取**：普通实例没有用户类链同名项时，`__class__` 返回实际类引用并压过
+  实例同名字段；存在用户同名项时保留 None、property、普通值及方法绑定优先级。
+  普通类对象读取真实元类，不取自身字典同名值；PyType 载体补 type 固定点。
+  PIC 根身份值不接受字段遮蔽，仍按全局类版本失效。详见 ADR0109；这不是动态换类、
+  一般描述符/元类、全载体反射或真实 str/list/dict 派生用户覆盖的全面支持。
+- **暂缓能力**：除ADR0161普通MI候选域外的继承、元类、自定义 `__getattribute__` 保持拒绝，
   不静默降级。
 
 ### 4.6 闭包作用域（M3.0）
@@ -324,11 +482,125 @@ nonlocal 都报 `E0103`。嵌套 async def 报 `E0100`；嵌套 def 装饰器沿
 类体推导式、async for、海象表达式明确拒绝。生成器表达式复用独立作用域与 M3.2 状态机：
 最左 iterable 立即求值并取得迭代器，其余 iterable、条件和元素延迟到 next；没有急切结果容器。
 生成器表达式内零参 super 暂拒绝；send 的值被其内部语句 yield 忽略，throw/close 等限制同普通生成器。
-设计与分配代价见 [ADR-0016](adr/0016-comprehension-scopes.md)，不宣称性能提升。
+独立作用域设计见 [ADR-0016](adr/0016-comprehension-scopes.md)。已证明的私有列表收集器
+直接调用ListAppend，保留接收者/元素顺序、捕获与异常路径；固定CP/JIT、NativeAOT及搬迁通过。
+有限默认与性能数据见 [ADR-0196](adr/0196-private-list-comprehension-append.md)；既有额外异常帧见§4.17。
 
 此外，用户 `__iter__` 的返回值必须已具备迭代器协议，不再递归对其调用 `__iter__`；返回 list
 等仅可迭代对象立即抛 `TypeError`。入口 Main 的真实 PE 方法头启用局部清零，保证成功退出 0，
 不依赖平台上未初始化栈内存的偶然内容。
+
+### 4.8 函数限定名与定义来源（ADR0119）
+
+已支持的def/lambda保真实词法限定名，global定义重置、nonlocal保持词法路径，类体
+改名不改变方法默认限定名。公开精确字符串__qualname__是真实可变成员，普通字典
+同名项不能遮蔽；无效写入和删除按CP TypeError。运行时隐藏推导式函数不决定公开
+限定名：按CP3.12，list/dict/set推导式中的lambda沿外层名，genexpr用<genexpr>。
+
+首行来自首decorator expression、无装饰器def或lambda真实源行，随共享签名冷存，
+只供内部消费者，不提供公开代码对象。__code__读写删、真实str子类限定名赋值及
+未知native代码来源均明确NI；不假存代码替换、不用FuncId造行号或剥离str子类身份。
+已有genexpr目标外部自由名捕获边界仍pending，不因只读来源扫描修复而声称解决。
+完整函数反射仍未完成；overload三API有限注册另见下节与[ADR0120](adr/0120-typing-overload.md)，来源前置见[ADR0119](adr/0119-function-definition-metadata.md)。
+
+### 4.9 typing.overload 有限注册与查询（ADR0120）
+
+真实 overload/get_overloads/clear_overloads 与统一 dummy 保稳定身份；注册只解一次
+__func__，按当前 module/qualname/真实定义首行将原参数强引用写入公开真实三层字典。
+同首行覆盖保位置，查询返回新 list 快照，miss 返回新空 list；clear 清当前 registry
+但不使旧快照失效。method/static/class wrapper 的只读 __func__ 保底层真实身份。
+
+键接受 None、精确文本/bool/int/float；已知不可哈希容器报 TypeError，未知键协议、
+自定义 mapping/factory/helper 与未知 native 来源在实际消费处明确 NI。已建前缀桶
+遇错不回滚；clear 不 hash 旧键。真实公开 code、完整 wrapper 元数据、自定义属性
+拦截仍未开放。API 改写 __qualname__ 后错误前缀仍为 canonical 名，partial 的 registry
+repr 与 CP 不同，两个完整正例保持 pending，不能称完整兼容。性能、强引用增长与
+门禁范围见 [ADR0120](adr/0120-typing-overload.md)。
+
+### 4.10 原生 ABI 输入编码与孤立代理项源码字面量（ADR0173）
+
+v3 声明的 utf8 参数严格编码实际字符串，嵌入 NUL 原样保留，长度为编码后的字节数；
+输入包含孤立 UTF16 代理项时抛 UnicodeEncodeError。`"a" + chr(0xd800) + "b"`
+在真实 JIT/NativeAOT ABI 测试中均走到该错误路径。
+
+本轮发现源码字面量 `"a\ud800b"` 经过现有字符串常量生成链后成为替代字符，
+与 CPython 保留孤立代理项的行为有差异。该缺口属于源码常量链，后续需单独保真修复并追加
+普通 Python 字符串差分，ABI 封送层继续拒绝实际非法代理项，禁止替换编码回退。
+
+### 4.11 zlib/gzip 原生容器与有界解压（ADR0176）
+
+`zlib.compress/decompress/adler32/crc32` 与 `gzip.compress/decompress/open` 使用 .NET
+成熟压缩流；gzip 头尾、多成员和截断由运行时独立验证。zlib 单次解压只取首流并忽略尾随数据，
+gzip 解压处理全部成员与末尾零填充，拒绝非零垃圾尾部。每次解压或每个文件累计输出上限
+64 MiB，gzip 名字/注释头字段各限 1 MiB，超限 `MemoryError`。
+
+压缩 level 支持 -1..9；wbits 支持 15/-15/31，解压另支持 0/47，小窗口明确报错。
+gzip MTIME 显式保真，默认当前时间；负数、非有限数、uint32 越界用 `OverflowError` 拒绝，
+部分错误类别与 CPython 3.12 不同。gzip 完整压缩字节允许因 OS/XFL/块布局等实现细节不同，
+合同保留标准容器、跨解压正文、MTIME、CRC32 和 ISIZE。
+
+gzip 文件支持真实上下文关闭、追加成员、有限 strict 文本；seek/truncate/text tell 明确
+`UnsupportedOperation`。流式 zlib 对象、fileobj 和小窗口暂未提供。
+完整 API/性能取舍和验证步骤见 [ADR0176](adr/0176-zlib-gzip-native-compression.md)
+与[独立验收记录](validation/zlib-gzip.md)。
+
+### 4.12 网络标准库的强验证与有限适配（ADR0177）
+
+`urllib.parse` 保留 Python 字符串语义，HTTP 请求目标保留点段、百分号路径与 query，
+不发送 fragment。`urlopen` 使用系统 TLS 验证；自定义 SSLContext 仅允许加载可信 CA，
+拒绝 verify_mode/check_hostname 等未实现配置。跨源重定向移除凭据、HTTPS 降级重定向
+抛 URLError；这是有意采用的安全差异。环境代理与自动 cookie/auth handler 未开放。
+
+HTTP 超时、证书失败、状态错误和截断响应走真实 Python 异常层次；平台连接错误文本
+归一化，errno、TLS 握手阶段的专用超时包装尚未开放。read() 以原始 bytes 返回，
+解码和解压由调用者显式执行；资源通过 close/with 释放。
+逐 API 范围、CPython 差分和真实 HTTP/TLS/AOT 搬迁命令见
+[网络验收](validation/network-stdlib.md)。安全差异的可运行负例在 `tests/network/fixtures/client.py`。
+
+### 4.13 二进制编码与有限 BCL 密码合同（ADR0178）
+
+`base64/binascii/hashlib/hmac` 按 [ADR0178](adr/0178-binary-crypto-stdlib.md) 的逐 API
+合同开放。严格消费真实连续 buffer，解码只接 ASCII str；Base64 strict/permissive
+padding 和跨参数回调的导出租约有 CPython 3.12.13 差分及真实 NativeAOT 搬迁覆盖。
+摘要和 HMAC 由 BCL 保有界增量状态、非破坏 digest 和独立 copy。
+
+算法集合只公布实际四种 SHA256/SHA512/SHA1/MD5，其他名字 ValueError；任意自定义
+HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI。usedforsecurity
+不绕过宿主密码策略。compare_digest 的恒时性质限于同类型同长度字节的最终 BCL 比较，
+参数检查和转换另行执行。未导出的长尾 API 正常 AttributeError；完整清单及平台边界见 ADR。
+
+### 4.14 有限字符串累加的资源边界（ADR-0193）
+
+精确字符串初值、常量后缀、无观察的 +1 range 可使用内部 holder 延迟物化，普通结果、
+初值/空追加身份、已有别名及非字符串用户协议保留。实例模块、EH、动态调用/活字典观察
+回退原路径。该有限实现已通过即时CPython/JIT、真实NativeAOT搬迁差分、完整make check与异构复审，默认启用。
+
+该优化改变分配数量与资源耗尽时刻；宿主OOM及checked容量溢出沿既有宿主异常边界，
+接受资源耗尽期间的部分模块绑定差异：即使外层捕获该错误，目标槽位可能仍为初值。
+普通可达用户回调和非资源错误保持既有合同。完整准入与测量见 [ADR-0193](adr/0193-bounded-string-accumulator.md)。
+
+### 4.15 sum流式消费及既有参数边界
+
+`sum` 通过一次通用迭代器创建逐项消费，每次取值后立即执行普通二元加法；
+加法或迭代失败即停止，保留加法回调中的活列表变更、空输入start身份及__add__/__iadd__区分。
+即时CPython/JIT、真实NativeAOT和输入隐藏搬迁差分通过；完整门禁与性能验收状态见
+[sum专项](aot-sum-optimization.md)。
+
+当前仍有既有参数偏差：str/bytes/bytearray start缺少CPython专门拒绝，位置与关键字重复start缺少特化报错。
+上述两项登记后独立修复，流式消费沿既有参数解析路径。
+
+### 4.16 模块重绑定list的内建值回退待验
+
+当前模块中稍后赋值给list时，先前 `original_list = list` 的未绑定读取会触发
+`NotImplementedError: builtin fallback for unbound module name 'list' is not supported`。
+CPython会返回内建list对象。原始反例保留为 `phase3/aot_list_comp_builtin_rebinding` pending；
+该名字回退路径独立修复，私有列表收集器采用已绑定的同名全局验证隔离。
+
+### 4.17 急切推导式的既有异常帧边界
+
+本轮固定CPython3.12.13的元素/过滤异常路径没有listcomp用户帧；RyuPy沿ADR-0016独立函数作用域保留一条`<listcomp>`帧。
+私有列表追加特化需保持旧/新RyuPy完整异常流一致，并逐项核对CP的退出码、用户函数帧与异常消息。
+该额外帧作为兼容性欠账单列，后续结合作用域方案修复。
 
 ## 5. 模块与入口
 
@@ -346,8 +618,9 @@ nonlocal 都报 `E0103`。嵌套 async def 报 `E0100`；嵌套 def 装饰器沿
 
 ```text
 mgr = ctx
-exit = mgr.__exit__          # CPython 同样在 __enter__ 之前取出
-value = mgr.__enter__()
+enter = context_method(mgr, "__enter__")
+exit = context_method(mgr, "__exit__")
+value = enter()
 x = value
 handled = False
 try:
@@ -365,9 +638,10 @@ finally:
 正常落下、`return`、`break`、`continue` 与异常路径都只调用一次 `__exit__`。
 `__exit__` 返回真值抑制异常；清理时再次抛出会替换原异常（与 CPython 一致）。
 
-已知边界：这里用 `mgr.__enter__` / `mgr.__exit__` 的普通属性查找（便于复用现有属性协议），
-而 CPython 的 `with` 机制按类型槽查找。实例字典里显式遮蔽 `__enter__` / `__exit__` 属于冷门写法，
-当前行为不同，登记为偏差 D008。
+`context_method` 按类型解析并绑定，先获取 enter、再获取 exit、最后调用 enter。
+普通类继承方法和 property、已有原生上下文均走此入口；实例字段及 `__getattr__` 不参与查找。
+显式 `cm.__enter__()` 继续采用普通属性协议。D008 已修复，差分见
+`tests/cases/resources_as_file/protocol`；异常 traceback 参数仍沿现有 None 边界。
 
 ## 6. 兼容范围与性能实现
 
@@ -424,9 +698,21 @@ tuple / set 星号展开现支持暂停和普通路径：tuple从构建列表冻
 
 支持的暂停调用现已在参数求值前绑定目标：函数/普通类对象保存到临时局部，方法立即取属性。
 property和缺属性错误在参数yield前发生；非callable属性在参数求完后才报TypeError。
-内建方法绑定固定接收者和类型静态入口，参数恢复后先校验支持的arity再执行副作用；普通无暂停PIC路径不变。
+内建方法绑定固定接收者和类型静态入口，参数恢复后先校验支持的arity再执行副作用。
+ADR0070 将 list.clear/pop/reverse/copy 的直接/PIC、保存和暂停路径统一为关键字优先的窄绑定：
+实参完整求值后拒绝错误数量，失败不执行容器正文，仍保实参自身副作用。14项C#、3项真实应用和1项结构及完整门禁已通过；未测性能。
+其它方法维持既有路径；ADR0070 当时保留的 pop 用户 __index__ 与宽整数索引旧债，
+后由 ADR0071 窄切接线：绑定后只转换一次，转换先于空表、按回调后当前长度在 long 域判界；
+失败不截断删除或物化数值背板，用户回调副作用保留。三个新应用、新7项C#及1项结构和完整门禁通过。
+返回 bool 的弃用警告及真实 int 子类未闭，不宣称全部索引消费者完成。
 旧静态dataclass暂停构造专用ABI仍报E0305；M3.6默认动态dataclass走普通类绑定/调用。int/float/str/type/异常及bool/bytes/bytearray的暂停构造
 目前仅接受单位置参数，super暂停调用仍拒绝，未宣称完整内建构造签名支持。
+
+### 用户 hash 返回与整数值 hash
+
+ADR0072 候选严格区分：用户 __hash__ 返回实际整数，fits-i64保原值但-1→-2，超界才按整数hash归约；
+整数自身hash始终按2^61−1有符号归约并规范-1，等值整数double复用同规则。常用long增边界/哨兵分支，
+宽值才取模，不宣零成本；非整数double/随机化/空表有效键调用次数不扩。新11项C#、3项真实应用及完整门禁通过；没有性能测量。
 
 ### Unicode内建的表示边界
 
@@ -452,7 +738,7 @@ getter/setter/deleter复制描述符；classmethod绑定实际访问类。详细
 正常退出和 SystemExit 都尝试刷新当前 stdout/stderr；一个目标失败不跳过另一个，
 失败退出 120，不自动 close 用户重绑定流，不保证 CPython finalization 的重复刷新次数。
 文本 cookie、编码、换行和关闭后错误有差分；显式 with/close 清理不依赖 GC。
-sys.modules/path 为受控只读视图，不支持动态 import hook；环境与模块 keys/items 是快照。
+sys.path为受控只读视图；sys.modules仅准入ADR0131的受限新模块别名，不是可写dict。不支持动态import hook；环境与模块keys/items仍为快照。
 Path.absolute 保留 ..，os.path.abspath 归一化；POSIX 实机验证与 Windows 限定入口测试分开记录。Windows os.path.dirname/join 支持普通盘符相对、根重置与 UNC 词法规则；设备命名空间、需要非 ASCII 盘符/UNC 大小写等价判断的 join 明确未支持。basename/split/splitext/normpath/abspath 仍保原 Windows 拒绝，不视为完整 ntpath。
 Windows 实机文件行为与 C-long 退出边界未验收，不能宣称跨平台完整兼容。
 io.UnsupportedOperation 已通过 CLR 主树、Python 额外父边及原位 typed catch 展开，支持
@@ -473,8 +759,10 @@ JSON保留大整数/插入顺序/hook，dump按块读取当前write，编码失�
 re只接收经过Python子集解析的模式，Unicode分类固定3.12.13/Unicode15，不采用.NET默认分类/组编号。
 空匹配后同位置非空重试、回调None空替换、达到count立即停止均有回归；
 模式长度/译后体积/嵌套256/单次匹配2秒保护与64项缓存见API表，未支持语法明确拒绝。
+不可变 bytes 域已接现有匹配、捕获、替换及 escape API，40专项与四应用通过、正常完整门禁通过；身份、ASCII、模板两阶段拼接及可变输入边界见 ADR-0080，不代表完整 re 或项目兼容。
+条件组候选支持闭合ASCII编号/名字及数字前向，保持捕获参与/回溯、组号和既有消费者；开放捕获、text非ASCII条件token及极长数字条件仍明确NI。后端差异与编译期成本见ADR0082；283专项、3应用及正常完整门禁已验，不代表项目通过。
 模块异常导出只读，实际用于typed handler的稳定import/from别名禁止跨模块改写；
-本地同名源码及用户同名异常不会误认。完整动态except表达式未完成。
+本地同名源码及用户同名异常不会误认。普通模块/函数的有限动态except已接入Name、Name起点属性链和tuple表达式：目标在异常后轮到时读取，混合链全部动态分派，按真实类身份而非名字匹配。目标失败跳出本try，恢复context并清理选中的as绑定；纯static路径不变。动态函数在该异常链及共享后继可能多出LoadChecked，包含正常落下路径，不能声称零热成本。Call/Subscript等表达式、新动态生成器域及静态nested tuple旧偏差仍未闭；模块/普通local删除旧域不因此支持。8运行时专项、编译8项、结构1项和四应用复验已过，正常完整门禁1466C#/228CP/202e2e+30原ignored通过，见[ADR0085](adr/0085-dynamic-except-dispatch.md)。
 repr补不可打印控制/分隔符与孤立代理项转义，不把日志中的控制字符当作可打印文本直接写出。
 
 ### 容器工具、函数工具与类型元数据（M3.6）
@@ -486,8 +774,8 @@ repr补不可打印控制/分隔符与孤立代理项转义，不把日志中的
 同样保存异常处理上下文。显式 cause 不复制原异常，from None 仅抑制报告链而保留 context。
 默认数据类统一保留 Python 类与实例身份，属性修改或 init 替换使构造计划重新检查/回退；
 不会为保留旧静态速度而忽略生成 eq、factory、property 或 frozen 错误。
-类型元数据不等于运行时类型检查；Protocol、NamedTuple、TypeVar 与完整前向引用仍未实现。
-Hashable 的隐式类 hash 槽边界保留独立 pending，不用启发式关系冒充 ABC 正确性。
+类型元数据不等于运行时类型检查；Protocol、TypeVar 与完整前向引用仍未实现；NamedTuple 有限真实范围见本文后节。
+普通类隐式 hash 槽有限候选见 ADR0066；Hashable 的 ABC 结构判定/缓存仍独立 pending，不用内部容器预筛冒充 ABC 正确性。
 
 ### 源码模块之间的普通运行时基类
 
@@ -515,8 +803,8 @@ Hashable 的隐式类 hash 槽边界保留独立 pending，不用启发式关系
 
 静态 import 可在函数/方法/生成器实际执行位置发生，局部、global、nonlocal 和捕获 cell
 保留绑定身份；失败不覆盖旧值，from 多项按前缀逐项完成。依赖图发现不是初始化，
-AOT 仍要求未调用函数的静态依赖源码可编译。动态导入、星号导入和函数内异常别名
-catch 仍未开放，完整边界见 [function-imports.md](function-imports.md)。
+AOT 仍要求未调用函数的静态依赖源码可编译。动态导入和星号导入仍未开放；
+函数内仅直属、先于handler且无重绑/cell的已证原生异常别名可静态catch，非任意动态异常表达式。完整边界见 [function-imports.md](function-imports.md)。
 函数内属性/下标注解不求值，右值和目标求值/写入仍执行；注解中 yield 的符号判定
 保留，未支持绑定语法不静默忽略。详见 [annotation-targets.md](annotation-targets.md)。
 
@@ -599,3 +887,787 @@ int的模块级context→函数调用错误仍逐项核完整帧和链顺序，�
 成功绑定才调用一次`__abs__`，返回任意对象身份不改；abs自身绑定及badoperand错误记录调用现场。
 通用调用层未加EH或name检查，无效星号展开的既有现场边界保完整pending，不冒全调用栈修复。
 详见[ADR0054](adr/0054-abs-call-binding.md)，不是新项目或性能结果。
+
+
+### float 有限构造（本地候选）
+
+只接受零或一个位置参数；额外参数、关键字和星号完整求值/展开后绑定。保单数值静态快路，冷对象按类型级`__float__`、缺失才`__index__`顺序转换，错误返回或抛错不后退。exact double动态转换与协议double结果保身份，文本先完整验证再CLR舍入，str固定Unicode15、bytes/bytearray仅ASCII语法，float不受int的4300位限制。原生数值子类/弃用警告和memoryview等buffer长尾仍明确未支持并保CP正期望。见[ADR0055](adr/0055-float-constructor-binding.md)，未宣称全静态身份、项目或性能验收。
+
+
+### bool 与长度真值（隔离候选）
+
+零或一个位置参数完整绑定后才求真值；普通实例先`__bool__`，缺失才`__len__`，后者可通过结果对象的`__index__`取得长度。负长度先ValueError，正向超过64位上界才OverflowError。共享冷路径影响条件/not/and/or等，primitive/container与数值静态条件不改；独立len()和其它native对象真值能力不据此宣称完成。索引弃用警告与通用展开帧保原pending。见[ADR0056](adr/0056-bool-binding-and-length-truth.md)。
+
+
+### 显式文件包资源（本地候选）
+
+`build/run --include-module NAME` 只把实际源码模块及父包纳入编译图，初始化仍由正常Import触发，包含不等于复制数据。新选项暂限ASCII点分标识符，旧源码Unicode导入不收窄。`importlib.resources.files(anchor)`首切仅实际登记的文件包：字符串先正常导入，模块对象按不可变注册位置返回现有Path，不由可改`__file__`或cwd猜目录。JIT使用源码根；AOT仅显式选中资源锚点可用，未选不回退源目录。`--resources`仍AOT-only。
+
+非包锚点、默认caller、弃用package关键字warning及其它loader长尾明确未实现；显式spec/loader覆盖也拒绝，完整CP正期待保pending。目录/IO沿现有Path语义，不引入新的资源沙箱。见[ADR0057](adr/0057-explicit-package-resources.md)，不等于完整importlib、pyfiglet、AOT项目或性能验收。
+
+
+### importlib.resources.as_file 文件系统 Path
+
+`as_file(Path)` 不检查路径存在性；进入保持对象身份，目录及缺失路径原样进入，读取错误沿 Path IO 抛出。退出保留原资源、传播原异常；重复进入报 AttributeError，正常及重复退出返回 False。首次进入依次删除公开 args/kwds/func；gen 与实例字典保存真实可写状态。绑定方法保持 self 和共享函数身份，相等/hash 与字典键行为按两者身份计算。
+
+具有 is_dir 的其它资源载体明确报 NotImplementedError，int/str/None 报缺少 is_dir 的 AttributeError。zip、自定义 Traversable 和完整 singledispatch 待实现。with 与装饰器通过统一类型槽查找，忽略实例 enter/exit 覆盖；装饰器每次调用通过普通属性读取 `_recreate_cm`，保留替换入口的副作用、异常及返回上下文。见 [ADR0170](adr/0170-filesystem-as-file-context.md)。
+
+### shutil 通用流复制（本地候选）
+
+`copyfileobj(fsrc, fdst, length=0)` 绑定后求length真值一次，假值使用模块当前COPY_BUFSIZE；
+先缓存read再缓存write，逐轮read/求真值/write原对象，忽略write返回，负length和短读不改变
+循环规则。不自动flush/close/seek或回滚已写数据，用户回调异常沿既有协议传播。
+尚不提供copy/copyfile/copymode等路径复制API，不能以导入成功代表完整shutil或pyfiglet通过。
+本地专项与完整门禁通过，尚未发布，详见[ADR0058](adr/0058-shutil-copyfileobj.md)。
+
+
+### zipfile 尾记录识别（本地候选）
+
+`is_zipfile` 仅按固定CP3.12.13识别EOCD/可选ZIP64，不验证中央目录、成员、CRC或解压，
+True不保证ZipFile可打开。借入流位置会改变且不关闭，自开路径流自行关闭；只吞指定
+OSError/BadZipFile并恢复已处理回调现场。BadZipFile通过真实异常类型及既有静态catch接线，
+不是名字伪装。完整任意buffer/位置算术及ZipFile等API未纳入，详见[ADR0059](adr/0059-zipfile-tail-identification.md)。
+本地专项与完整门禁通过，尚未发布；不新增项目或性能通过声明。
+
+### optparse 常用选项（本地开发候选）
+
+真实Option/Values身份、live defaults、短选项簇和长缩写、交错参数及错误上下文按有限合同实现；
+默认帮助保原空白、流调用与构造时COLUMNS快照，帮助字符串缓存跨调用保留。
+不提供完整formatter/OptionGroup/callback/复杂nargs及任意内部状态猴补。
+同parser递归帮助和未显式metavar的非ASCII dest帮助为显式未支持边界，正常解析不因此禁止。
+当前47项专项C#、真实差分6/6与完整门禁本地已验；未发布，不声称pyfiglet已通过。
+详见[ADR0060](adr/0060-optparse-common-options.md)。
+
+### len 冷长度结果协议（有限本地验收）
+
+len 的完整动态参数建立不变；exact 容器及字符串长度分支不变。用户长度结果与普通实例
+真值共用返回 long 的冷校验：实际整数/直接bool合法，其它结果只调用一次类型级 __index__，
+负长度先 ValueError、正超64位上界 OverflowError，不退到 __int__ 或递归转换。
+直接 obj.__len__() 仍返回用户原对象。len 无槽报错与 bool 默认真、__bool__ 优先保各入口差别。
+只准备本层新造错误，用户正文异常不 catch/reprepare；关键词优先于数量，len 的自身绑定
+采用固定 CP 消息。__index__ 返回bool的弃用警告仍明确NI，真实整数子类相关域保正例pending；
+复杂star/双星号共享债未改。源码必要审、新10＋旧bool12项runtime及新len3＋旧bool3项driver及首次正常完整门禁已通过，未发布，见
+[ADR-0065](adr/0065-len-result-protocol.md)。
+
+### 通用星号解包的有限本地验收（ADR0068）
+
+一般源使用UnpackEx，完整执行len/hint回调及错误校验；hint查找/绑定与调用TypeError边界不同，
+真实hint整数先ssize_t范围再判负。最多4096仅限制容量预留，实际元素数不设上限；
+有效巨大hint的资源耗尽时点与CP可能不同，不承诺MemoryError等价。
+非星号及直接无展开tuple/list字面量结构不改；未知descriptor明确NI，不静默跳getter。
+新16项runtime、2项ABI及4项driver（3应用＋1结构）通过；正常完整门禁818 C# / 228 CP / 202 e2e＋30原ignored通过，未发布，不外推项目/AOT/性能。
+
+### 模块函数公开绑定有限本地验收（ADR0069）
+
+只对已有模块写入槽与直接顶层函数同名，或重复直接def的名字，使用真实公开动态槽；
+排除class参与名字并保留旧动态类成功域。定义的默认值/元数据/装饰全部成功后才发布，
+旧alias和defaults保独立；函数体late global与callee先于实参冻结均按该槽执行。
+选中及既有运行时发布的顶层函数使用Dynamic参数/返回，注解不能成为运行时类型限制；
+受影响main及模块槽整体装箱成本沿现规则，未碰撞数值函数结构另验，不声称零损失。
+首次HIR4/ty2与新3应用、原star同名完整源及原capture身份例通过；结构1项及正常完整门禁818 C# / 228 CP / 202 e2e＋30原ignored通过，未发布。
+无碰撞def提前读取、只有外部属性重绑的内部静态调用仍是旧债；未扩del/exec/eval或全LEGB。
+
+### getopt 与局部稳定异常（本地候选）
+
+真实 `getopt.getopt` 支持确切 list/tuple 参数和确切字符串声明，保短组合/参数、长精确与唯一缩写、重复项、停止规则及尾切片身份。
+longopts先转换，候选完整扫描后才精确命中；长参数真值一次、短参数不测真值，用户异常原对象传播。
+真实GetoptError/error同身份，构造固定两项args，msg/opt写入独立且删除回落空串；直接__str__保原msg，公共str验证并保真实字符串子类身份。
+一般输入协议、gnu_getopt、异常用户派生/args重赋值未开放；首切不提供完整模块helper或反射。
+局部异常证明仅编译期增加分析，不提前执行导入或污染模块保护名；源码同名模块优先，所有未证/重绑/捕获候选明确拒绝。
+短cluster为码点游标，args真实slice最坏累计O(n²)，保回调修改隔离而非宣称优化收益。
+当前21项C#、PE1、HIR1+4和5项CP/JIT差分已验，正常完整门禁920C#/228CP/202e2e+30原ignored通过；首失败与测试旧债见[ADR0075](adr/0075-getopt-local-exception-imports.md)。
+不称tabulate、main、AOT或性能通过，普通内建异常__module__及函数内caught链正例保pending。
+
+
+### 函数模块成员与有限调用来源（本地已验，未发布）
+
+真实函数对象在定义时捕获所属模块当时的 `__name__`，成员可独立赋值/删除并保任意对象身份，
+不与 `__dict__` 同名项混同。默认值与普通注解在创建前完成，失败定义不发布新函数。
+最终类型分类为 Dynamic 的函数携实际 self，直调在实参前冻结函数引用，实参后从同一实例读取默认值；
+别名和闭包经真实 thunk，生成器暂停/恢复保同一引用。模块每次执行创建独立来源。
+Static 保旧参数/返回 ABI 与数值结构，来源未知时内部查询明确 NI，不借用祖先模块名。
+这不是完整 frame API；当时尚无 namedtuple 消费者，后续有限工厂及其默认 module 使用见 ADR0077，不能据此前置推导全部消费者。
+Dynamic 直调增加一次私有槽读取/空检查、引用实参与帧存取；生成器增加引用保存，不宣称零成本或性能收益。
+来源/ABI/叶内联、PE与真实源码结构及三个 CP/JIT 应用专项已验；正常完整门禁通过：932 C#、228 CP 基线、202 e2e 与30原 ignored。CP 基线不代表 Ryu 支持数。
+真正 `del __name__` 后创建函数的源码保留旧 E0100 pending，活跃 None 写入不等于键缺失。
+完整边界及首次失败见 [ADR0076](adr/0076-function-module-origin.md)。
+
+
+### namedtuple 有限真实类型（本地专项已验，未发布）
+
+`collections.namedtuple` 创建独立真实类与不可变tuple载体，保存实际class及字段槽；普通tuple实例不增加类字段。支持位置/关键字/defaults、readonly字段、type/isinstance/tuple祖先、tuple值协议、跨生成类helper和真实方法预捕获。工厂普通iterable按fields逐项str、rename重复truth、defaults完整消费、最后module查询顺序运行；显式非None module原样保存。
+
+默认module来自当前真实Dynamic函数/生成器或模块执行来源；Static未知来源NI，不猜当前globals。五应用只对Dynamic运行域做CP/JIT差分，Static另有分类/ABI结构门，不能冒Static调用结果也已验。
+
+类/descriptor/helper修改、类__dict__、用户派生、copy/deepcopy、异cls显式构造、非生成类duck helper、复杂函数反射，以及Unicode/NFKC名称等首切明确NI。sequence-only __getitem__输入尚未接此API，不能把Unpack支持外推。继承tuple.index起止参数与部分错误文本保旧边界。
+
+名字仅随schema保留，不使用CLR永久intern；跨独立类的等值typename/field名字is可能与CP不同，原CP正例保pending。同类metadata/defaults容器身份及元素共享保持。defaults/_make会调用校验hint但不按巨大hint预分配，资源耗尽时点不承诺与CP一致，不吞OOM重试。
+
+本切unseal PyTuple、每PyClass布局引用及通用方法入口增加类型判断，有实际布局/JIT成本，未测性能，不称零回退。50项C#与5应用123标签/原流已验，正常完整门禁首次通过（982C#、228CP基线、202e2e+30原ignored）；该门禁阶段未新项目/AOT/性能验证；后续固定tabulate入口仍因缺html失败。详细取舍见 [ADR0077](adr/0077-namedtuple-layout.md)。
+
+
+### html.escape 的逐步对象协议（本地验收已通过）
+
+无入口str强转：三个replace之后才一次quote真值，再按需两次replace，返回最后对象。每步只对exact CLR string直接替换，str子类和普通对象保动态lookup/call及重绑时点。绑定错误单独准备caller/context，正文原异常不重包；完整用户错误链和高阶旧边界见[ADR0078](adr/0078-html-escape.md)。当前不声称unescape/parser或固定项目通过。
+
+
+### zip_longest 的按槽耗尽状态（本地验收通过）
+
+每次成功next立即冻结当前槽值，同一个iterator重复输入按真实次序消费；每槽Stop后不再调用该槽，非Stop错误则永久关停整个zip。每次推进独立row，保一次安全重入，不增加busy拒绝或修改已发布tuple。局部异常边界保原对象/已发生帧并恢复ambient，未测危险递归耗尽/error不冒完整兼容。公开验收与资源成本见[ADR0079](adr/0079-zip-longest.md)。
+
+### TextWrapper 的初始化与动态hook（本地候选已验）
+
+普通类初始化按序保存配置原对象，失败保已发生setter作用；wrap/fill及块算法真实动态调用，列表别名和hook重绑可观察。仅严格未变根实例可复用旧区间引擎，不跳过模块函数构造。默认高级算法、元数据旧债、复杂度与阶段证据见[ADR0083](adr/0083-textwrapper-class.md)，当前不声明项目通过。
+
+### str.format 的字段执行与结果身份（本地候选已验）
+
+模板按字段依次解析执行，路径逐步lookup，前字段副作用不会因后段语法失败消失。转换先于动态规格展开，最终调用真实类型级格式槽。终端单整对象可保str子类身份，已经物化的输出不因后续空字段回退。内部引擎与公共接线47专项、四应用分别通过，正常完整门禁已验；既有数值规格及高阶对象边界、成本与原参考见[ADR0084](adr/0084-string-format-template.md)，不把builtin format通过项算作模板应用通过。
+
+### MappingProxyType 的只读活代理（有限候选）
+
+`types.MappingProxyType` 保存底层对象，不复制、深冻结或展开嵌套代理。既有 dict 派生映射仍执行自己的
+缺键策略；get 不改成 getitem 回退，普通方法每次重新查找并直返原结果。构造只检查载体/类槽，不先调用
+用户 len/iter/keys；类级 getitem=None 可构造，实际读取才报不可调用。Enum 的成员代理使用同一类型并缓存，
+Mapping/MutableMapping/dict 身份分开，JSON 拒绝 proxy。
+
+公开 iter 保用户返回对象身份，内部游标只适配一次；整数 getitem 回退和 contains 早停不物化整个映射。
+主动清理的局部迭代边界先保存同一异常的现场，正确的终止域才吞 IndexError/StopIteration；获取 iter 期间
+的 StopIteration 原样传播。精确 dict 反向遍历保活游标，但原 dict 更严格结构版本检查的既有边界不因此宣称全修复。
+
+显式比较槽保底层原结果，比较时右侧 proxy 不提前剥壳；union 对两侧 proxy 各解一层。
+全局 Compare/Equal 的 bool ABI 没有改变，非 bool 比较表达式及严格子类型反射优先级不在已支持域。
+property/任意 descriptor 迭代与运算槽、内建派生运算、未闭原生映射运算 fallback、GenericAlias 等保持明确边界。
+range 是 CPython 合法输入而本切未支持，明确 NI，并保留 CP 正例，不改写为非法类型。
+
+仅新增的 proxy 消费者与精确 dict union 叶子限制基本标量键，用户键在这些路径 NI；
+不能据此说 proxy 下标或底层 copy 全部拒绝用户键。keys exact list 保原活引用，其它 keys 先物化后逐键读取。
+函数 `**proxy` 有限合并保重复键先于对应 value 读取、非字符串键最终检查，跨实参表达式/展开的旧调度边界仍在；
+字面量 `{**proxy}` 的源层 E0100 保持 pending，不通过编译器改写偷扩。
+
+普通 dict 热路保持原结构，代理绑定/游标/keys 物化、新 kwargs 慢路检测和安全键扫描有实际开销，未测性能。
+完整输入域、逐阶段实证与未支持项见 [ADR0086](adr/0086-mapping-proxy.md) 及
+[逐 API 范围](stdlib-project-tools.md)。四项公共源应用逐项及结构1项已通过，首次完整门禁本地通过；不据此宣称完整 types 或 tomli 通过。
+
+### typing IO 的名义类与根空布局（有限候选）
+
+`typing.IO/BinaryIO/TextIO` 是稳定真实类，不是 `io` 文件类型别名或虚假 typing form。
+固定 CP 源中的 28 个函数（含 8 个 property getter） 正文为 pass，合法绑定后返回 None；
+不按注解转换参数，也不因 abstractmethod 标记拒绝零参构造。继承的方法保持原函数身份和声明方绑定错误，
+BinaryIO/TextIO 各自覆盖的方法为独立对象。名义关系不凭名称或 read/write 鸭子协议猜测。
+
+裸根无实例槽，写入在 property setter 优先之后拒绝；普通无 own slots 派生仍有真实字段。
+根创建即禁止分配槽，真正 ApplyDataclass 首写前拒族，故不存在根的合法 PIC 写缓存/快构造计划；
+普通注解声明仍可执行，不误当装饰器。未完成类不能从正常构造、object.__new__ 或作为下层基类提前使用。
+
+类定义的模块来源只取最内真实模块执行标记及对应注册 getter 当前 __name__ 值并快照，
+不以文件名、cwd、函数可写 module 或外层帧猜测；未知来源只限制需要模块元数据的观察，不影响普通构造和身份 hash。
+本族完整 Generic/参数化 IO/完整反射、派生 slots/hooks 等合法域未实现，不返回伪祖先或占位参数。
+普通框架已有动态 descriptor、函数内类等边界没有整体修复。with 异常 traceback 参数和 delattr 旧缺口保留 CP 正例 pending。
+
+未给每次 SetSlot/PIC 命中新增分支；慢槽分配、类构造及冷反射仍有有限成本，没有性能测量。
+29专项与四项应用分别通过，首次正常完整门禁已通过；详见 [ADR0087](adr/0087-typing-io-runtime.md)，不据此宣称完整 typing 或 tomli 通过。
+
+
+### typing.NamedTuple 的真实有限类型
+
+公开入口是真实函数，功能式严格绑定 typename/fields 位置参数与字段关键字，按 CP 两遍消费 fields，
+不缓存重放一次性迭代器。函数式来源取真实调用者函数 Module，类语法取定义时真实模块 globals.__name__；
+二者时点不混用，未知来源不猜 cwd/文件名。可变根与工厂在实际消费点检查，超出当前委托域明确 NI。
+
+类语法保持字段顺序与尾默认值、注解的新字典及与 __new__ 的共享身份，生成对象仍是真实 tuple 布局。
+普通方法、staticmethod/classmethod、property 读写删按真实绑定执行，字段只读且没有实例字典；
+保存 bound 方法保 receiver/owner/function。失败的类终结或 decorator 不发布新绑定，不回滚已执行 body 副作用。
+内部未求值 ForwardRef 保存真实元数据与 eq/hash，不导出虚假完整 ForwardRef；有限 ASCII 语法不执行表达式。
+
+本切还修正全部实际 MakeClass 冷建类路径的初始 module/qualname 与外层首 docstring，包括普通无基类、
+用户继承、字符串/异常/IO 派生，不限名为 Runtime 的 HIR 枚举。不改 Static 数值/函数 ABI，EnumCreate 与
+TypedDictBegin 另走原协议。IO 定义期 qualname 允许真实覆盖及末期校验，late reserved 修改仍拒绝。
+类体 del、自定义 builtins 环境及真正缺名 fallback 未闭，不能从 CP 参考外推源级支持；原 getter 异常原传。
+
+完整 Generic/生成类再派生、魔术槽覆盖、晚类修改、未知可变 descriptor 常量、任意注解比较、复杂前向表达式等
+合法域保明确边界与 CP 正例 pending。class module=None 的内部 typing 回退仍 NI，函数.__class__ 是旧反射缺口。
+复用原 Special 冷分支封住未完成壳，不在普通 Invoke 加无条件门控；类准备/来源与typed属性入口有实际成本，未测性能。
+160项相关runtime与5应用＋1结构首次通过，第二次正常完整门禁1607C#/228CP/202e2e＋30原ignored通过；未发布、未重跑tomli/AOT/性能，详见[ADR0088](adr/0088-typing-namedtuple.md)。
+
+### set.clear（有限候选）
+
+精确set的直接/保存/暂停方法共用零参数绑定，keyword先于arity拒绝；失败不清空，实参副作用不撤销。
+成功原地返回None，保集合/背板身份且不调用键hash/eq。新独立set迭代游标修size错误粘性和真正耗尽，
+非空clear后同size恢复保CP正例但明确NI；无clear同size快照旧债不扩大。每set新增long字段，迭代仍O(n)
+快照并增加常数检查，未测性能。root descriptor/子类及通用**mapping旧边界未开放；47运行时专项与3应用+1结构首次通过，正常完整门禁1647C#/228CP/202e2e+30原ignored通过。
+
+### codecs BOM 常量的有限范围
+
+codecs 当前候选仅提供十四个 BOM 名称及五个不可变 bytes 对象，保 CP3.12.13 的别名身份、
+实际运行端序和普通模块重绑定语义。BOM32_LE/BE 是 UTF16 别名，BOM64_LE/BE 才是 UTF32 别名。
+未交付的 encode/decode/lookup 等成员沿原 AttributeError/ImportError，不导出假函数。
+完整编解码、registry、错误处理器、增量与流接口另切；UTF8 encode/decode/lookup 合法正例保持 pending。仅注册冷路新增对象和映射，
+不改变旧编解码热路；首次四项运行时与两项CP/JIT差分通过，正常完整门禁1651C#/228CP/202e2e+30原ignored通过；未新增项目、AOT 或性能结论，详见 ADR0095。
+
+### bytes 正则可变 subject 阶段A候选
+
+仅bytearray及现有连续B/c memoryview的match/search/fullmatch/findall与所得Match活读已通过65专项、3应用及正常完整门禁1666C#/228CP/202e2e+30原ignored。
+Match.string保原身份，group按访问时读取当前捕获区间并裁至当前长度，span/endpos保匹配时标记；
+未参与组不取buffer。扫描租约不随Match逃逸，view公开释放与无抛最终清理分开。阶段A当时的mutable finditer后由B接线，
+replacement/escape在该阶段仍NI，后续F的有限扩展见下文；未验的宽格式/多维view不能称CP非法。保exact bytes扫描，但共有Match多一引用/分支，
+每个memoryview新增锁对象与计数、release同步，未测性能。详见ADR0096；该API门禁本身不证明项目通过，固定候选入口结果另列。
+
+
+### bytes/bytearray ASCII分类候选
+
+八项isalpha/isalnum/isdigit/isspace/isascii/islower/isupper/istitle只按原始ASCII字节规则；高字节对大小写/title属于uncased，不是Unicode字母。空值仅isascii为真。保存bytearray方法活读原对象，不持导出或内容快照。
+
+bound错误先kwargs后arity；有限root先self存在/类型再绑定，不隐式接受另一载体或buffer转换。共享入口新增类型分支、扫描无内容复制；23项专项/三应用及正常完整门禁1680C#/228CP/202e2e+30原ignored已通过，不能宣称零成本或项目通过。完整descriptor框架、派生布局和memoryview方法不在本切。详见ADR0097。
+
+
+### bytes正则可变subject替换C候选
+
+sub/subn现接bytearray和现有连续B/c view候选，count→模板→subject先序保留。prefix在callback前复制，callback续扫刷新完整窗口、捕获仍活读，尾部按完成时内容复制，扫描lease释放后才最终Join；callback失败也确定释放，不重试或吞异常。无callback一次编码，callback最坏O(N×M)复制，exact bytes原正文不迁移。内部20项、公共384专项/3应用及正常完整门禁1702C#/228CP/202e2e+30原ignored通过。replacement/template/escape在该阶段仍未支持，后续B/F范围见下文及ADR0096。
+
+
+### bytes正则可变subject迭代B候选
+
+finditer接同一bytearray/连续B/c view域。pos/end协议完成后立即租约，创建不扫描；每next刷新一次完整前缀，内部空匹配retry复用。最后yield仍锁，真正耗尽才释放并清source/Current/lease/pattern；保存的Match独立活读，不锁resize。遗弃沿现lease finalizer，不承诺即时析构。非Stop后端/分配故障保上次成功checkpoint和租约，下一次显式next才再试，是Ryu资源政策而非CP异常cursor等价。没有自动重试或新Python close API。
+
+exact bytes/text执行原路保留，共同mutable分流有判断成本；可变M次产出及耗尽检查最坏O(N×(M+1))全文复制，marks-only不保M份宿主快照。401专项/3公共CP-first应用首次通过，正常完整门禁1719C#/228CP/202e2e+30原ignored通过。没有新的项目、AOT或性能验收；该阶段尚未支持的mutable replacement由后续F有限扩展。
+
+
+### bytes正则可变replacement阶段F候选
+
+callback返回bytearray或现有连续B/c view时保原引用至全部callback完成，随后按片段顺序获取租约；全部验证后一次输出分配/复制，finally释放。released空view也验证，错误索引包含前缀。bytearray作为非回调replacement时在count转换后读取：含反斜杠才快照并解析，无反斜杠保原对象供晚Join；Match.expand总是准备不可变模板快照。re.escape对bytearray及同域view短租约下两遍扫描、一次输出分配，不调用Python回调。
+
+memoryview作为sub/expand模板仍NI：真实CP的可写hash错误、readonly缓存/释放及无效模板错误不能用统一快照冒充。跨全局空/单字节bytes身份旧差异保CP正例pending。exact bytes原拼接/escape正文不迁移；新冷Join O(parts+输出)及O(parts)引用/租约，escape O(n)，模板有必要快照成本，无性能测量结论。首次regex/memoryview专项429/429通过；首次三应用2/3，模板应用遇旧bytearray slice赋值缺口，原证据逐字pending保留，七处等价测试写法窄迁后单独1/1通过，三unique应用各通过（非首轮3/3），首次正常完整门禁1747C#/228CP/202e2e+30原ignored通过。详见ADR0096。
+
+### slice 公共有限类型候选
+
+slice 构造器与切片语法共享真实类型/载体，保存原字段身份，keyword先于arity报错；
+字段只读、不可派生。公共indices按length→step→start→stop执行普通整数协议，全程任意精度，
+不改变其它容器旧内部long切片算法。返回bool需warning或复杂index descriptor仍NI。
+三字段比较支持精确原生标量和嵌套slice，逐字段身份快判且不预筛短路后项；非同一用户/容器
+字段、混合用户富比较明确NI，不能经bool ABI吞掉合法任意对象返回。显式比较非slice返NotImplemented。
+hash沿已有字段hash协议顺序执行、不缓存，等值slice可作dict/set键；不承诺CP具体hash值。
+完整反射/descriptor重绑/reduce另切。构造复用原载体，比较/hash无临时tuple，indices和绑定对象
+仍有分配，共享入口有类型判断成本。21项C#、三unique应用及结构通过，首次正常完整门禁1792C#/228CP/202e2e+30原ignored通过。
+hash的tuple/frozenset/native字段和复杂callable槽在实际访问时NI，不预筛后项；见ADR0099。
+
+### delattr 有限公开入口候选
+
+两个位置参数、keyword先于arity再检查str名称，成功None；精确str及现已封闭的str子类名称支持，
+不隐式__str__。任意str子类可有hash副作用，不能将现有禁止eq/hash覆写的有限布局外推。
+复用普通实例/类属性、普通函数property deleter、已有函数metadata及只读/冻结对象。
+公开与显式del共有guard拒绝custom __delattr__、一般数据descriptor、未知fdel形态和模块删除，
+不偷偷删槽；原frozen顺序、property优先及非数据native包装遮蔽槽保留。未开放保留元数据NI。
+删除路径增加类型链查询、property可能重复查找，不增加get/set热路或对象字段，不宣称无成本。
+23项C#、三unique公开应用和结构通过，第二正常完整门禁1815C#/228CP/202e2e+30原ignored通过。
+暖态1000次组合测量：共享set+delete为0字节，公开direct/saved各32,000字节；含调用器，
+没有分配剖析归因或吞吐结论。动态property命名错误与未绑定builtin fallback原源保pending；见ADR0100。
+
+### 普通函数locals有限候选
+
+普通无cell/free的def/lambda真正内建直接调用，按CP3.12同调用共享dict、逐源码槽刷新、
+未绑定删除及额外键保留；外部dict写不回fast locals，值对象身份不变。源码slot元数据排除
+隐藏临时量，纯注解名无读写不入表。普通Dynamic局部bare del先检查绑定再清哨兵，
+模块/global/nonlocal/cell/静态槽和复杂目标仍拒绝。非法调用不刷新，完整边界见[ADR0101](adr/0101-function-locals.md)。
+module/class、generator/comp、间接调用、cell/free与复杂定义形状明确NI；混合star及非最终**
+明确E0305，不用错误展开顺序冒充支持。locals字典key回调结构重入明确NI并保已发生副作用；
+已有值改写允许，未绑定删除只压制KeyError。含非str额外键时不压缩墓碑，成本不隐瞒。
+
+### bytes/bytearray.translate有限buffer候选
+
+通用256字节映射与原字节删除，None仅作恒等table。精确bytes无实际变化返self，bytearray始终
+fresh；表/删除接受精确bytes、bytearray与现连续B/c view，活读别名、released检查和错误次序
+见[ADR0102](adr/0102-binary-translate.md)。无Python回调域用同步span/栈map/两遍精确输出，
+None+已验证空delete的bytes直接返self。不把CP合法的用户buffer/宽格式/多维误称非法，
+不扩真实子类或全局空bytes单例策略。重复**关键字仍有旧公共展开错误，六入口原差异保pending；
+本次binder验收不代表完整调用展开副作用/错误合同。
+
+### 精确list基础协议候选
+
+空连续切片用count处理，负步删除按原下标降序；公共index缺项ValueError但内部查找哨兵不变。
+extend/+=对精确list/tuple无全量快照，通用source按iter→原源len/hint→流式next/append，
+保失败前缀、原异常链及副作用。list游标首次耗尽永久结束；用户游标一次Stop不强制永久终止。
+长度提示完整验证但预分配至多4096额外槽，实际消费无截断；巨大合法hint的资源失败时点不与CP
+逐分配等价。局部getitem fallback不扩全局迭代，复杂descriptor仍NI；该基础切未开放真实派生，
+其后有限布局见下一节ADR0104。
+完整范围、旧失败与最终验证见[ADR0103](adr/0103-list-primitives.md)。
+
+### 真实list单继承有限候选
+
+新增真实wrapper持固定PyList存储，默认分配空、init绑定后clear/流式消费；原地返回公开self，
+新copy/slice/+/*为精确list，方法覆盖/保存/super与root绕过分开。根str共享object描述符，
+比较保元素身份/strict-subclass顺序，foreign !=不误改eq。root sort仅无key回调原生numeric或
+BMP无代理文本；非bool排序结果、复杂/宽slice、custom核心magic、copy/deepcopy等明确NI。
+详细范围、四个已冻独立反例及最终验证见[ADR0104](adr/0104-list-subclass-layout.md)，
+不将新根有限能力外推到所有精确list旧直接方法或全局字符串比较。
+
+### 精确dict更新基础候选
+
+update零或一位置来源、kwargs最后应用。outer pairs逐项消费并即时提交，inner pair按CP完整
+物化后检查长度；mapping先keys选择，generic keys物化、exact list keys活读，再逐getitem。
+keys getter AttributeError才回退；getitem失败先于键验证。inner TypeError重写保调用者ambient，
+其它用户异常身份/链/帧保留。具体提示与资源边界见[ADR0105](adr/0105-dict-update-protocol.md)。
+新generic域只scalar键，目标按结构版本重检，合法custom/tuple/bytes键暂NI；旧exact/native
+raw行为不冒全hash/reentry修复。此基础不开放dict派生或root描述符，不等于完整dict API。
+
+### 真实 dict 派生有限默认布局（ADR0106）
+
+独立wrapper保身份和不可替换payload；根init更新不clear、root方法绕普通覆盖、只有缺键getitem查类missing，fromkeys实际cls()后插入。新布局只支持精确scalar键，custom核心槽/复杂键域/同尺寸结构变异迭代/结构重入比较/高级视图及复制算法明确NI，详见ADR0106；旧exact raw hash重用问题不因此算完成。消费者逐入口区分根存储与公开方法，JSON/items、Counter空与非空更新、mappingproxy委托不能互相替代。既有显式两参super及字面量dict展开缺口保独立pending，不改CP期望冒成功。
+
+### re.split / Pattern.split 有限通用合同（ADR0107）
+
+两个入口各自按CP3.12绑定，Compile先于maxsplit、ssize_t index一次先于subject消费；负数仍验subject而不扫描。每个匹配插入全部捕获，未参与为None，空匹配后允许同位非空重试；正限额达到即取尾片，不多扫描一次。exact整片保身份，bytearray/连续B/c view输出独立bytes且租约确定释放。动态孤立代理通过chr实证；源字面量的旧ruff替换、非连续view创建和临时父view依赖CP即时回收保持独立pending，不声称已修。旧Compile/flags、高阶index、宽/多维buffer、原生子类等范围及原失败见[ADR0107](adr/0107-regex-split.md)。
+
+### TypeVar 与有限别名参数元数据（ADR0110）
+
+TypeVar 为真原生类型的新身份对象，核心只读、约束原引用、module/extra 可写删。隐式
+特殊槽不读取实例 extra；__parameters__ 沿已有 alias 参数树按身份保序去重并惰性缓存。
+构造 flags/bound/constraints 次序按 CP3.12.13，来源使用当前帧函数的可写 __module__，
+不每次重新读取 globals。未知 bound 比较、动态 helper 和超域 ForwardRef 字符串明确NI。
+Generic 派生、alias 替换、完整反射和联合运算仍未实现，合法 global del/operator/exec
+等旧缺口保独立 pending。范围、失败及性能限制见[ADR0110](adr/0110-typevar-foundation.md)。
+
+### Generic 真实根与有限别名（ADR0111）
+
+canonical 真类根、空实例布局及 TypeVar-only 专用128项LRU已接候选；args/parameters
+为独立稳定tuple，原导出守卫在实际消费相位迁移。旧 cache 命中不抢先读已改绑导出，
+IO关系未知分支NI而tuple先命中短路。完整基类/类体终结、用户alias替换与复杂反射另切；
+根与alias的module显示规则分开，未知格式化回调消费时NI，不冒__str__等价。范围、
+同名class绑定原失败及验证见[ADR0111](adr/0111-generic-root-alias.md)。
+
+### Generic 参数化单基类（ADR0112）
+
+最外Subscript或保存alias的单基类保一次求值、原alias身份与真实Generic父链；仅family
+冷状态/metadata缓存，普通new/init/字段布局不变。body后orig覆写、set_name、父hook、
+own参数推导按相位处理；未知合法hook/descriptor在真实消费NI。non-data可字段遮蔽，
+data在字段前拒绝，class __module__仍直接返原对象。用户类再订阅、IO迁移及一般反射
+不开放；原class-body raise/core反射失败完整保留，见[ADR0112](adr/0112-generic-single-base.md)。
+
+### SpecialForm必要缓存与元数据基础（ADR0113）
+
+Optional/Union共用128项原始receiver/parameter LRU，不再先归一化驻留；Optional冷
+miss订阅当前Union，暖函数体不消费globals但key hash/eq仍消费自身helper。部分内层
+存活可保身份，完全淘汰才新建；native alias不误读typing分类器。非Callable的args
+和get_args共享稳定tuple，根类型metadata区分SpecialForm/Literal等，不假称完整Any
+类/元类或私有helper协议。合法复杂回调/可写metadata/前向引用保pending，ClassVar
+本体未导出。原三参type、孤代理端到端、私有helper读取旧缺口也完整保留，见ADR0113。
+
+### 普通 typing 根原始缓存（ADR0114）
+
+十一普通根共享独立128项 receiver/raw parameter LRU，冷构造不进入归一化 Intern；
+暖命中绕过正文 helper，hash/eq仍消费自身依赖。冷失败不占容量，保存根不消费改绑
+的公开导出。安全不可变参数树保惰性稳定metadata，未知合法采参/回调NI，不能冒充
+TypeError；exact list/dict尚未实际执行unhashable回退。Tuple/Callable、ClassVar和
+旧hash/origin限制另切，九完整边界保持pending，见[ADR0114](adr/0114-ordinary-typing-raw-cache.md)。
+
+### typing.Tuple独立原始缓存（ADR0115）
+
+Tuple单独128项raw receiver/parameter LRU，不进入旧Intern；保存根、None转换前键
+和scalar/单tuple形状保身份。冷正文无arity/helper预检，空参数不读type-check或
+sentinel但仍消费constructor/collector；尾Ellipsis在全部前缀检查后才消费，允许多前缀。
+单/中Ellipsis与其它未知合法域完整pending，不冒TypeError；安全metadata复用不扩
+checker，完整回调/fallback与ClassVar仍未完成，见[ADR0115](adr/0115-tuple-typing-raw-cache.md)。
+
+### typing.Callable外层与独立原始缓存（ADR0116）
+
+exact二元tuple形状验证和list单次快照位于inner缓存之外，含暖命中；list与同值tuple
+可共用键，但scalar/tuple及None转换前形状不抹平。inner独立128项raw LRU，冷正文
+先type-check result，再仅type-convert args，之后消费专用constructor/sentinel/collector。
+暖命中绕正文但hash/eq仍消费自身helper；真实_CallableGenericAlias及_GenericAlias
+直接父关系保身份与类型判断。完整动态helper/派生/ForwardRef/Ellipsis/未知采参保
+pending，ClassVar尚未恢复，不以NI或窄源替代完整合法源，见[ADR0116](adr/0116-callable-typing-raw-cache.md)。
+
+### ModuleSpec 有限元数据
+
+真实公开规格与普通已编译源模块绑定见 [ModuleSpec合同](module-spec.md)。
+已通过最终正常门禁的范围与保留失败见[ADR0121](adr/0121-module-spec.md)。
+内部合成ModuleMetadata初值不使普通静态global整体降级，四元数据槽仍Dynamic；
+用户真实读取与动态局部仍保原降级规则，不是一般用户表达式豁免。
+本切不包含util执行链；旧失败模块静态槽别名、模块删除与原生/入口反射边界保pending，
+未以普通类默认identity equality或可hash行为冒充CP规格对象协议。
+
+### importlib.util.find_spec 有限发现
+
+当前已验有限范围的精确绑定、相对解析、缓存spec原身份和父包初始化顺序见
+[发现合同](importlib-util.md)。仅新ABI已定位源码登记可发现；查询不执行、缓存或挂载目标，
+父正文已导入目标也不回头偷取缓存spec。未登记名称、native/legacy父与动态finder/path
+明确NI，不冒充None或真实非包。自定义name/package协议在回调前拒绝，普通错误保
+原异常相位、name/cause/context。loader有限字段比较保身份及同NaN，复杂不同字段
+明确NI。实例执行、可写缓存和完整html.parser仍pending；最终验收见ADR0122。
+
+
+### 显式模块实例基础B1
+
+`--instance-module`只选择图内JIT源码模块，真实唯一dict与ModuleMain(context)共享名称存储，
+未选模块静态语义不变；失败重试新旧对象隔离只在已选模式成立。重复执行保未覆盖键，
+直接失败不回滚也不移除缓存；普通失败import只移除仍为本次对象的缓存项。
+每次执行捕获真实builtins引用，外部重绑定影响下一次，就地变更可在本次观察；非dict
+环境提前NI，不冒CP的module环境和延迟错误协议。缺/替换__import__明确失败，未知hook
+不偷偷绕过。函数/类/生成器、注解、del、except、环境名字和AOT等边界前诊断。
+动态真实异常类型调用保raw args与CLR身份，专有未接构造仍NI。详见[合同](module-instances.md)
+及[ADR0123](adr/0123-module-instance-foundation.md)。公开loader、完整模块反射与html.parser
+未完成；完整门禁和内部PE通过不等于Markdown项目通过。
+
+### 显式模块实例定义归属B2
+
+选中实例模式的函数保存真实globals与定义时builtins，Env仅保cell，实际self用于函数身份；
+移动函数或改__module__不转移owner。参数/local/free先词法决议，global进实例字典。
+旧frame保原builtins引用，原地变更可见；后续def重新从当前globals捕获，缺键继承caller
+且不插键。genexpr在outer iterable前捕获，暂停生成器/生成器方法保帧中实际owner。
+
+模块级有限普通class保局部真实对象，decorator表达式之后、bases之前guard/capture；
+类metadata在bases之后、用户body之前初始化，方法def再次捕获。function.__module__
+缺global为None，class.__module__可回退captured builtins。真实环境属性只读。
+
+B2当轮的急切推导式、嵌套class、super/__class__、自定义build_class、metaclass/特殊base等
+仍明确拒绝（后续__class__/super限域开放见S0/S1），非dict builtins仍提前NI；不冒CP全域。最终77+64项真实PE及完整门禁通过，
+默认性能不利经过一次有界同版本/JIT诊断仍未关闭。见[合同](module-owners.md)、
+[ADR0124](adr/0124-module-definition-owners.md)和[全部性能结果](module-owners-performance.md)。
+公开loader、可写缓存、AOT、native发现及完整html.parser未因此完成。
+
+### 显式实例类的词法 cell（S0）
+
+实例普通类的裸__class__现在来自每次定义独立分配的真实cell，不是类namespace成员、
+模块owner或属性查找TLS。正常终结后、类装饰器前填原类；类体/终结失败可逃逸空cell，
+装饰器替换/失败不改变已填原类。旧方法、闭包和生成器跨移植/模块重执行保原cell，
+真实globals与定义时builtins仍按B2规则分别处理。详见[ADR0127](adr/0127-instance-lexical-class-cell.md)。
+
+创建__set_name__/父__init_subclass__协议尚未实现，含cell类在冷边界明确NI；这不模拟
+CP调用这些hooks的时序、副作用或失败cell状态。B2-owned函数的__closure__读取NI，
+写删为readonly，普通__dict__同名值不替代真实Env。S0当轮的super拒绝由下节S1限域推进；
+显式__classcell__、nonlocal cell、嵌套class等仍保留边界，不因__class__前置通过就声称原html.parser/Markdown通过。
+
+
+### 显式实例函数的词法零参super（S1）
+
+普通非生成器函数读取super即请求隐式__class__，即使super被参数/local/global遮蔽；
+__class__自身遮蔽仍生效。仅实际callee为canonical super才消费真实free cell及当前首位置
+形参，否则回原CallValue0 PIC。先求值callee，再读当前首参；不从type(self)、属性owner、
+__module__或TLS推断。无首参、缺/空类cell报RuntimeError，无关普通receiver报TypeError。
+MIR验证Env槽与首参来源，CIL仅传site/callee/env/slot/arg0/kind，不提前读cell。
+
+显式参数、star/kwargs、属性alias、native callback/partial、generator/genexpr alias、
+class receiver、特殊布局/MRO、代理__class__回退、任意descriptor/复杂反射、普通outer
+__class__ freecell、删除参数及None未绑定proxy保留边界。CP允许的partial/None行为在此NI
+只表示未实现。代理__new__/__init__仍是正常基类属性，不和super类型自身的反射混淆。
+默认直写零参保旧ABI/TLS；一等canonical无frame拒绝，旧非零位置参数NI、关键词优先
+TypeError。默认super(*[])等展开为空仍可能走旧TLS，不宣称所有star形式已拒绝。
+
+最新正常门禁、真实PE24、原入口及限定成本观察完成，完整范围见[ADR0128](adr/0128-instance-lexical-super.md)。
+此S1验收时公开module_from_spec/exec_module与完整Markdown尚未完成；性能不利未关闭。公开loader的后续首切见下一节。
+
+
+### 公开编译模块实例执行（首切）
+
+module_from_spec对原生未改ModuleSpec和自有compiled loader创建真正独立模块，保原
+spec/loader/path，不提前插builtins、执行或缓存。None loader非包也可创建空目标。
+exec_module用loader捕获的代码和目标唯一globals，不按可写名字重新查注册、不选择目标
+原默认代码；先检查目标当前name，再检查实例能力和builtins。None名字采用来源名检查但
+不改目标元数据；失败保部分写入/原异常，重执行不清字典、不重置spec、不改导入缓存。
+
+源码必须显式instance模式。自定义spec/loader、namespace、静态目标/来源执行、ModuleType
+及动态磁盘源、资源clone仍未开放。已保存bound method不等同于后来新属性查找。
+完整合同与语义边界见[ADR0129](adr/0129-public-module-from-spec.md)。
+
+
+### 固定码点宽度后顾首切（ADR0130）
+
+后顾正文限既有字符原子、非捕获组合与定宽重复/分支，不含内部捕获、引用、条件、嵌套
+断言、显式anchor/boundary。宽度是Python码点/字节，UTF16可变长度不影响定宽判断。
+变宽在受支持语法解析完成后按源码序报re.error，pattern/pos/lineno/colno均None。
+单项计数与最终宽度超过int.MaxValue明确NI；正文累计零乘可归零，单项超大计数仍NI。
+D009表示差异、复杂后顾、极大数精确错误与Match额外元数据不因此完成。
+
+未知字母escape的text偏移修正至反斜线并局部准备错误；新宽度错误同样准备。有限min>max
+在共同token处先于deferred宽度检查；不是所有旧text错误现场/消息的整体修复。
+完整合同与保留失败见[ADR0130](adr/0130-fixed-width-lookbehind.md)。
+
+
+### sys.modules 受限新模块别名（ADR0131）
+
+精确非空无点str新键可挂真实模块原引用；已有缓存/注册/包前缀冲突与State1拒绝。
+State0允许，不执行正文或补builtins，不改原name/spec/loader/globals和函数owner。
+五注册写路逆向守卫，alias未知子域及缺属性回退冷NI。setter仅位置参数，关键字不写入。
+完整替换/删除/None/任意对象、真dict、生命周期和动态spec._initializing副作用仍pending。
+posonly精确错误消息仍有binder差异。见[完整合同](module-cache-alias-slice.md)。
+
+
+### XML Element有限对象（ADR0132）
+
+Element/SubElement保原值、构造attrib浅复制/赋值共享、重复children身份；keys/items为
+list快照。append/insert、len、内建整数/读slice、活children及有限前序支持，没有公开
+__iter__；环可建但遍历消费时NI，超过10000深度NI。QName仅精确文本，改变模块绑定
+写前NI；域外repr/str不回占位字符串。bool真实发警告，旧filename basename差异与
+完整警告例继续pending。TreeBuilder/序列化/解析及长尾均未完成，见[完整合同](xml-element-core-slice.md)。
+
+### 精确原生OrderedDict有限首切（ADR0133）
+
+独立native真类型及dict祖先，只开放精确标量键；raw PyDict保插入序，OD链保重排序。
+覆盖不移动，re-init不清空，copy独立链共享值，fromkeys保同一default引用。活视图
+及正反游标先判无next-key终止；真实结构修改仅首次RuntimeError后永久耗尽，覆盖
+和端点no-op move不失效。dict只读根看raw，dict.copy及dict构造/update/**看公开序；
+根写入与union先绑定再写前NI，不误称receiver非dict或静默改双存储。
+
+update按mapping逐next/getitem/提交，pairs只N+1解包，不求hint；错误保前缀与原异常，
+kwargs在位置源成功后写。OD比较先raw内容再链序，保plain dict反向子类型优先与兄弟
+派生左侧方向；eq/ne独立，foreign非bool表达式、结构重入及完整派生/用户键域暂缓。
+
+move先truth再查当前Count；空目标精确标量及四空builtin走已验缺键合同，未知key
+在hash/eq/repr前NI，不算CP等价。仅move缺None的KeyError.args为空，未改全局异常。
+原13异常cause setter完整失败保pending，独立19 raise-from链与09/病例22的None相位
+完整通过，不用新例替换原失败。细节见[完整合同](ordered-dict-core-slice.md)。
+
+普通dict比较/hash/消费者新增OD识别有真实成本，不能以PyDict存储未改宣称零回退；
+唯一轻量窗口与全部不利见[性能记录](ordered-dict-performance.md)。正常完整门禁已过，
+不等于远端已发布；最终DLL与具体交付边界见合同页。
+
+### 普通动态模块隔离试点（ADR0134）
+
+默认关闭的编译期feature允许一族普通非包非入口源码模块复用已有真实实例环境。全文通过
+实例预检、无class、至少一个def且全部def无完整静态签名或含变长参数才选择；未选者保旧ABI。
+普通import和同源compiled loader共享唯一dict及定义owner，不增加缓存。该候选不是已发布
+默认，不包括AOT/typed优化/显式super恢复。`function.__defaults__`反射仍是完整保留边界。
+具体选择、持久合同及不同门禁见[ADR0134](adr/0134-ordinary-dynamic-module-pilot.md)。
+
+### 显式普通实例相对from-import候选
+
+显式普通模块相对导入使用执行目标的真实package/spec，分完整fromlist预处理和逐项绑定两阶段。
+旧自动P1不扩域。精确metadata、注册来源、未知finder/path/警告协议的支持与明确NI边界见
+[ADR-0136](adr/0136-instance-relative-from-import.md)。目前是候选，完整门禁及真实项目迁移需分别验收。
+
+### 显式普通实例Name/bare异常链候选
+
+源码异常目标按原词法绑定延迟读取，真实globals及定义捕获builtins不被冻结成静态类型。
+实例as清理删除真实dict键；局部/cell/free隐式清理保未绑定语义。显式local/cell/free del
+仍预检拒绝，generator/类体源码handler未开放，合成with沿旧路径。见[ADR-0137](adr/0137-instance-name-exception-handlers.md)。
+
+### 无资源AOT模块元数据候选
+
+新显式来源注册但位置kind0时，spec/loader/cached初值为None，普通path未绑定、包path为空list；
+它们仍是真实可变全局槽，不提供文件资源/finder来源能力。与CPython文件源码模块不同，
+无来源finder仍NI；旧ABI不扩域。合同、边界与待执行门禁见[ADR0138](adr/0138-locationless-aot-module-metadata.md)。
+
+### 显式二参super候选（待hosted验收）
+
+普通PyClass与真实相关PyInstance的显式二参构造已接通共享候选入口；不得再忽略参数
+或按TLS推断。普通PySuper属性目标必须先于实参捕获，含getter错误和ancestor方法变更。
+旧PE IsModule是历史捕获判据alias，不是Python模块判断。源码super可能多分配bound
+method并绕原super PIC，未测性能。合法未实现的未绑定/class/native/代理descriptor/MRO
+形式保持NI，通用类重绑与复杂star顺序不随本切完成。测试仍pending，当前9/8/3基线
+不得预先改写。详见[ADR0140](adr/0140-explicit-super-bound-instances.md)。
+
+### Legacy生成器动态except（ADR0141候选）
+
+HIR仅新增Legacy SourceDynamic的生成器准入，沿既有Name/属性链/无展开tuple目标；
+目标求值、as及异常上下文由原动态CFG与生成器状态机组合。六组完整CP合同与普通observer
+前置有效；CI012显式V1有限产品已验，但原默认frames独立门仍失败。普通CLI默认有限迁移另为待验候选。Instance动态生成器、
+except*与其它复杂目标继续拒绝，默认模块集合和Native自动Legacy不变。
+
+### 显式 trace V1有限产品与默认迁移候选（ADR0142/0143）
+
+`--trace-product-v1` 仅尝试单源码 Legacy 的封闭普通 next/property/标量域。所有能力检查在发射前完成；未知 callee、外逃、字段/构造器、Instance、源 bare、send/throw/close/yield-from、SystemExit/PEP479 整产物拒绝，不切局部旧实现。裸Session/dump与合法域外仍保旧；普通CLI的有限自动选择已接但尚未产品验收。
+
+异常单参构造若通过参数/返回/别名可能取得None，同样在产品HIR合同拒绝；现有无参/显式None的旧ABI歧义未作全面修复，零参及直接raise已准入类型仍单独保留。
+
+内部 all-miss continuation 与源码显式 raise 分开，Retry 保持同 activation；异常 Frames 在 V1 中只能从唯一 owner 历史派生。CI012原A/B/HOT显式JIT/Native×PIC十二run及C/D四编译拒绝已通过；原默认frames仍失败。新候选必须同源通过真实无flag整流与域外对照，不能用结构或离线自测替代。见[ADR0143](adr/0143-generator-trace-default-cutover.md)。
+
+### 普通JIT source-bound首次Import父路径候选（ADR0144）
+
+实际kind1普通父子且目录相干的首次miss读取父当前path：精确空list/tuple为MNFE，同值新list/tuple及[d,d]合法。先cache/父二查、实际getter、finder边界和来源证明，再判路径；None/未知路径/协议/跨root明确NI，不假报不存在。cache命中含State1不重查。
+
+find_spec父导入共享唯一初始化但保strict发现合同，避免重复getter；父spec圆环协议、kind0/2及来源歧义未扩域。CP已测，C#/JIT/完整门/旧Native未验，四目录pending，见[合同](source-import-paths.md)。
+
+单成员Legacy ImportAttr同名MNFE进入第二属性/cache阶段，正文已挂父值优先；正常已初始化kind1源的最终ImportError补父name/path及含路径消息。可写name/file/spec诊断、循环消息、多成员fromlist相位与实例Relative旧formatter未修，不扩大compiler ABI。host登记子名须为单路径分量。新增caller C#与真实JIT门仍待执行。
+
+### 实际来源与warning/功能式TypedDict候选（ADR0145，未验收）
+
+新source帧让warning读取stacklevel同一帧活globals，None在消息构造/str前抑制但不跳过类别校验；缺名/非str用<string>，str子类有限payload匹配。环境去重不含可变name，module/once共altkey，过滤重设刷新。只承诺普通精确str元数据键域，不宣称PyDict查找无任意用户回调。
+
+Main/Dynamic功能式TypedDict读执行入口快照/真实可写function.Module，raw identity与一次truthiness保留；仅AttributeError及子类转事后同env live fallback，缺键main，非None不二次bool。二级None元类默认填充与非str显示明确NI，旧正确路径不得因guard回退。Static TD继续旧文件扫描算法与重绑债；TypeVar旧内部来源接口不改。详见[ADR0145](adr/0145-compiled-source-provenance.md)。纯Rust结构门已过不代表真实C#/JIT/Native通过，来源e2e仍pending。
+
+### JIT空资源子包发现候选（ADR0146）
+
+JIT build/run仅可选纳入硬图普通父包同目录、resolver同位且UTF8无BOM/coding声明、解析body为空的直接子包。有限files literal调用只是提示，不替换实际callee；dead/missing/非空/坏源码候选不提前报错或执行。AOT不自动纳图，资源复制仍显式。新增登记不再改变新Legacy V1 Static TD的词法归属；该词法值并非actual Function.Module，Static rebound/定义前globals改名旧债保留，旧host/Unknown仍原算法。新产品及完整门未验，见[ADR0146](adr/0146-empty-resource-package-discovery.md)。
+
+### str.expandtabs 有限候选与宿主容量（ADR0148，未验收）
+
+统一窄绑定、一次类型级index与码点两遍扫描；空串/无tab仍转换，C-int越界为OverflowError。
+输出超过.NET10真实上限0x3FFFFFDF个UTF16单位明确NotImplementedError，消息为
+`str.expandtabs: result exceeds managed string capacity`；这是新API宿主偏差，不宣称CP容量等价，
+不执行CP巨大分配，也不引入1M人为阈值。实际OOM沿既有宿主策略，未新增MemoryError映射。
+有效代理对一列、孤立代理保值，只有CR/LF清列；独立代理拼接D009及int派生布局仍pending。
+普通dict重复keyword/任意mapping展开和通用属性协议旧债不在本切修复。bool-index弃用警告必须
+保实际过滤/error/caller位置与stderr重入/原异常身份；真实源码与JIT/AOT尚未验证，不能登记项目
+晋升。详见[ADR0148](adr/0148-string-expandtabs.md)及pending源码tests/fixtures/text_expandtabs。
+
+### str 五搜索码点窗口候选（ADR0149，未编译验收）
+
+count/find/rfind/index/rindex 共用绑定与码点窗口；start/end先后转换后验证needle，None与大整数
+饱和、空needle越尾/反向窗、非重叠count及命中两端代理边界分别处理。冷类型槽与expandtabs
+共享调用而不共享C-int转换；affix只共享纯Offset。真实属性override、D009/int派生布局和warnings
+既存失败边界保持；C#/JIT/AOT、完整保护及Markdown尚未验，见[ADR0149](adr/0149-string-search-windows.md)。
+
+### ADR-0150：封闭分发快照候选边界（待验收）
+
+--distribution-metadata以显式根完整快照替代该产品的发行版发现环境，不实现动态sys.path。未配置不是空，首次metadata import绑定导入函数并锁定runtime域配置；owner/payload冲突拒绝。普通导入只新增精确字符串域，自定义name/相对package或字符串子类不跳过用户协议伪装兼容。默认导入、原搜索窗口/core/warning不变。
+
+ADR-0150修订002：metadata新增可导入性不代表无配置可发现；未实现高级属性保持AttributeError/from-import失败，防止占位吞掉ImportError fallback。分发文件读取有平台限定末端nofollow与句柄身份核验，仍不是恶意并发下的原子快照。
+
+### textwrap.dedent 的有限owner状态（源码候选，未产品验收）
+
+正常绑定后，首次准入→whitespace Pattern身份→raw字符串类型及空白行归一→leading Pattern身份
+→共同前缀→按需当前同一re.sub，顺序不可互换。无margin不读re/sub，但不能绕过两private阶段。
+无变化exact str保identity，str子类不调用覆写并返回base str；只按ASCII space/tab、LF处理。
+新四名只归真实模块owner，旧三导出仍归原字典；保存别名与旧工厂读取不失效。
+源码re成功/导入前非规范compile/flags/有限backend挂载只令新dedent NI，实际依赖导入异常原样传播。
+private字段/re替换普通赋值成功，dedent消费域外值NI；当前同一re.sub保3pos、返回与异常原对象。
+公开compile/MULTILINE在首次绑定后改变不重新拒绝；私有backend整体替换及完整CP导入hook仍域外。
+stock re保原pattern16384、译后主体200000字符及单次match2秒预算；前者不代表16379空格margin可用，
+不宣称实际最大接受值，也不在自定义sub前统一限margin。完整__getattribute__ trap与大margin CP成功例独立pending。
+CP正例pending与NI负门分开；本地CP自检不计产品验收，见[ADR-0151](adr/0151-textwrap-dedent.md)。
+
+### 十进制百分号宽度候选的宿主容量边界
+
+只扩通用str百分号d/i/u的ASCII flags与literal width，复用既有数值转换和mapping顺序。
+全输出按.NET v10.0.14最终string的0x3FFFFFDF UTF16单位逐项差值计长，
+数值转换后、填充分配前超限明确NI；词法width超过long.MaxValue仍先报ValueError。
+此为宿主表示偏差，不声称CP同输入NI或OOM时序等价，也不保证容量内物理内存充足。
+既有无修饰常用路径不缩域；precision/star/其它specifier及bool转换警告边界保持。
+实现与新增测试尚待C#/JIT/Native及真实未改入口验证，不增加项目通过数，见ADR0153。
+
+### KeyError默认域构造有限验收（2026-11-10）
+
+仅KeyError的直接构造与普通值读取接入通用LoadDefaultBuiltin冷ABI，读取真实共享默认字典，
+先固定callee再求完整参数，复用位置异常工厂；零参/None/空串不混同，原对象不先转消息。
+其它异常、内部ForKey、删除回退和现有locals/free/globals/InstanceGlobals owner路径不改。
+静态custom builtins的完整捕获、静态except的动态重绑、用户异常repr及ForKey展示时机不晋升。
+`fefe3954155be47e99f163cfc6fe1d6c1c437426`的CI42907658383已验20/20 CP/JIT/Native及搬迁，
+两策略make check退出0、原S1 38项与ABI1700保留；整CI仍有两个旧失败，默认项目矩阵11/8/1。
+见`tests/cases/keyerror_construction/README.md`，不泛化其它异常或增加项目分子。
+
+
+### TreeBuilder状态机候选（产品待验）
+
+真实节点事件、默认非空dict别名、空dict分离、显式Element复制；close不flush/不验栈，
+end忽略tag且空栈前先flush。第二根先flush并清tail目标后抛真实ParseError，不回滚已发生变化。
+六组CP参考冻结不等于产品通过；原TreeBuilder pending、旧callback traceback红项不变。
+新SyntaxError/ParseError只开放零/单精确str消息，零参str为`None`；位置协议、非str消息、字段写删、
+用户派生明确NI/E0100。builder的用户factory、非bool flags、非精确str数据/追加、非精确dict/string键
+为显式NI域外，不是假称CP同错。稳定ParseError catch所需的公开异身份重绑提前NI，同值可赋回；
+其它ElementTree旧重绑行为不封禁。成本与全部边界见[ADR0154](adr/0154-treebuilder-state-machine.md)。
+
+### ADR-0155候选：有限JIT来源发现边界（尚待产品验收）
+
+pilot普通JIT可准备固定catalog与literal提示候选；提示不证明调用目标或可达性，候选
+不会提前初始化或改变native身份。真正Import/find_spec遇需要替换的已缓存native父或
+认证身份冲突明确NotImplementedError且零发布。被标记不可执行的soft源码自身零正文，
+实际加载NI，成功父/调用方副作用保留；不承诺精确SyntaxError/IndentationError/位置字段。
+自动metadata为入口/-I直接根的完整静态环境；不可用只在实际查询Require时报NI，不返回
+假空。未规划entry-point目标可明确域外，但不覆盖已有身份，load仍实时使用重绑callee。
+源码文件使用最终部署真实路径，普通JIT未承诺任意搬迁；ExplicitOnly/AOT/fixed不自动开启。
+
+### 显式 Instance 直接 globals（ADR-0158，未验收候选）
+
+新增独立 opt-in `--instance-direct-globals`，仅普通显式Instance中的零参直接
+Name调用使用真实callee/context冷分派，返回module.__dict__/function.__globals__
+同一真字典。裸builtin值、非零参、推导式保持编译边界，间接无context标记为NI。
+Default builtins新增稳定普通callable；删除该键为NameError，重绑遵守真实值。
+默认项目、Legacy热ABI、AOT类域未扩大，源码实现不等于JIT/Native验收。
+
+### traceback 当前异常文本窄接口（Legacy）
+
+`traceback.format_exc(limit=None, chain=True)` 与
+`traceback.print_exc(limit=None, file=None, chain=True)` 读取真实当前 handler 异常，
+保留 cause/context，`chain=False` 只输出本体；正整数 limit 取外层帧，负整数取内层帧，
+零只输出异常文本。`print_exc` 默认选择调用时的 `sys.stderr`，显式 file 使用真实 write，
+不吞 writer 异常，也不关闭/刷新用户文件。无当前异常输出 `NoneType: None\n`。
+
+这是既有 Legacy 渲染器的有限接口，不是完整 traceback 模块兼容：默认帧文本仍只含
+文件、行号、函数名，不加载源代码行、不画位置指示；既有长异常链深度保护保留。
+尚不支持自定义 limit 数值协议、`sys.tracebacklimit`、异常 notes、ExceptionGroup 或
+frame/traceback 对象 API。V1 产品域明确以 NotImplementedError 拒绝观察，不调用终端
+接收器或篡改 trace owner。零帧 CP 差分与含真实帧的测试分别验收，前者不能证明默认
+完整文本相等。
+
+### operator 二元函数与普通对象富比较的有限支持
+
+`operator.add/iadd/eq/ne/lt/le/gt/ge` 仅接受两个位置参数。`iadd` 复用语言增量赋值，
+保留 list 别名和用户 `__iadd__`，其 NotImplemented 回退仍复用既有二元入口。
+普通无特殊布局对象的比较共享一个原始值协议：右严格子类先反射、NotImplemented
+继续另一侧、显式 `__ne__` 与缺席时的默认取反有区别。operator 返回该原始结果；
+语言现有 Compare ABI 仍在同一协议出口求真值，**没有**改变 MIR 比较结果类型。
+因此 `bool(a == b)` 的分派可对齐，但直接 `print(a == b)` 对自定义非 bool 结果
+仍是旧偏差，不能宣称所有 Python 富比较表达式兼容。特殊布局和原生对象仍走原有
+专用比较路径，未据此扩张为其自定义非 bool 返回兼容保证。
+
+算术仍保留旧 Binary 左槽优先于右反射槽的已知偏差，尚未补全右子类反射优先；
+operator 不另造一套修补分派。`operator_reflected_subclass_pending.py` 明确保留该
+CP 差分失败边界，普通无子类的左右 NotImplemented 回退另有通过用例。
+
+### 普通空 slots 与 ABC 固定槽的有限布局
+
+普通类的空 `__slots__` 现在参与真实布局：无字典祖先的空槽实例不能新增字段；未声明
+slots 的后代恢复实例字典，有字典祖先则继续保留字典。canonical MappingView 的
+`_mapping` 使用独立固定槽，不进入 `__dict__`，同名字典项不能覆盖数据描述符。
+不相关固定存储祖先产生布局冲突。非空用户 slots 仍明确 NotImplementedError。
+
+本轮仅 slots/ABC 族开放 live `__dict__`，不扩大旧无 slots 普通类的既有反射边界。
+返回真正字典，别名修改立即可见；赋值只支持 exact dict 引用替换，dict 子类替换明确
+NotImplementedError，非 dict 为 TypeError。删除 `__dict__` 重置字典，不清空旧别名。
+字典内的 `__dict__` 键不改变结构属性。类 `__dict__` 覆盖/重绑与该族实例 `__class__`
+重绑明确不支持。真实 slots 族完成后修改 `__slots__` 仅改变类元数据，不重新布置实例。
+旧无 slots 祖先晚设不受支持的声明（如 None）仍受 S1 家族能力守卫拒绝；
+此为保留的有限实现边界，CPython 此时仅改变元数据，不会拒绝派生类使用。
+
+新族暂走属性及方法 PIC 冷回退，避免直接字典修改绕过缓存失效；dataclass 直接数组写
+构造计划不准入新族。旧 typing.IO/Generic 专用布局合同不因此改变。此切不宣称完整
+slots/ABCMeta，也不宣称性能零成本：PyInstance 新增一个惰性字典引用字段。
+
+#### 精确 set 方法族（ABC 项目验证配套）
+
+`isdisjoint/issubset/issuperset/copy/update/intersection_update/difference_update/symmetric_difference/symmetric_difference_update` 采用统一直接/PIC/保存方法绑定；`union/intersection/difference` 接受零或多个 iterable。非集合源遵守 CPython 3.12 的短路消费，update/difference_update 失败保留前缀，intersection_update 失败不替换原集合。现有 HashSet 未暴露缓存 hash，精确 set/frozenset 源含用户 hash 的复制/查询、以及需复用缓存 hash 的交集/对称差用户对象域明确 NI，不用重复用户回调伪装兼容；一般 iterable 的 update 复用流式 SetExtend。未扩展 frozenset 自身方法表、set 派生、根类型未绑定描述符或 pop，未宣称成本不变。
+
+
+### 原生裸 return 的 None 身份（新 dev 集成）
+
+动态函数和方法的裸 `return` 使用与显式 `return None`、动态落尾相同的 None 单例，
+不能把整数零写入 object 返回槽。回归覆盖身份、关键字方法调用、带标注混合返回
+以及 finally 中的裸返回；静态 Unit 和明确 int 返回保持原合同。
+本项不改 CPython provider 或 C ABI；NativeAOT、混合域与完整门禁另行验收。
+
+### 原生函数自然落尾的 None 类型（新 dev 集成）
+
+带标注普通函数的可达自然落尾作为隐式 `return None` 参与类型检查；与静态返回类型
+不兼容时复用既有整函数动态降级，不伪造 i64 零值。结构分析合并分支、循环零次/耗尽
+与 break、except/else、finally 对转移的保留或覆盖；嵌套函数返回不属于外层。
+完整分支返回、循环后明确返回及已证明不落尾的 `while True` 保留静态资格，仍受其它
+类型条件约束。未知控制流保守允许落尾，不折叠 `if True`、不识别 `while 1`、不证明
+for 非空或 except 不匹配；可能额外整函数降级并产生装箱，不能称为性能提升。
+调用者传播沿用既有最多 16 轮固定点；本组只验证单层调用者，不宣称任意深度调用链。
+本次类型单测、类型/MIR结构及固定 CPython 3.12.13 同次 JIT 差分通过；NativeAOT、
+混合域、跨平台和完整门禁未由本组验收，未修改用户 CompareChain/provider/C ABI。
+
+### 原生 str.translate 与外部对象边界（新 dev 集成）
+
+原生字符串支持整数码点查表，LookupError 保留原字符、None 删除、整数/字符串替换；
+直接、保存、prepared 与根描述符入口共用实现。吞掉的 LookupError 回调恢复编译帧深度，
+其它异常保持身份/上下文；只对本层新建错误调用既有 PrepareRaise，不修改外部异常同步。
+ASCII 缓存、扩展替换和删除段的查表次数由固定 CPython 3.12.13 同次行为测试覆盖。
+继承 D009 的 UTF-16 代理分组边界，不宣称完整 Python 字符串身份或任意版本回调合同。
+
+当前只接入原生映射域：外部 `IPyForeignObject` 表（包括空输入）以及原生表返回的外部
+包装值明确抛 NotImplementedError，不运行其隐式标量转换。该限制不能计入 provider
+兼容率；真正的 CPython 表/包装 str、bigint 与生命周期接入留给 provider 工作，未改
+foreign.Item、转换规则或 C ABI。真实混合域和 NativeAOT 另验，本组负例只验证中性
+边界拒绝、零外部回调以及活动异常/调用帧保留。
+
+### 原生字符串整数下标与 warnings 回调（新 dev 集成）
+
+精确 str 和 str 派生默认下标共用整数转换，整数/bool 快路保留；原生用户对象通过类型
+`__index__` 槽调用一次，实例同名属性不替代槽。bool 返回沿既有 warnings 机制发出
+DeprecationWarning，非整数返回报 TypeError，超大整数报保留原输入类型名的 IndexError。
+本组不扩展其它序列 API，不改变已有 foreign 首分支或 provider 标量转换。
+
+warnings 的 error 筛选对同一 warning 调用现有 PrepareRaise，保留活动异常上下文；
+默认输出吞掉 Python OSError 时只恢复编译回调帧，真实传播错误保留 write 帧。
+新版 PyErrors 的外部异常同步与 handled-scope 合同保持不变。纯原生 JIT/中性合同
+的测试不能代替真实 libpython 混合域、NativeAOT、跨平台或完整门禁验收。

@@ -1,4 +1,4 @@
-// 仅验证冷登记及纯路径；不生成动态程序集、不编译或执行 C，不替代真实三平台调用。
+// 验证冷登记、路径安全和缺失/拒绝访问诊断；不生成动态程序集或编译执行C。
 using System;
 using System.IO;
 using System.Reflection;
@@ -53,15 +53,51 @@ public class PyNativeBindingLibraryTests
         Assert.True((bool)table.GetType().GetMethod("TryGetValue")!.Invoke(table, lookup)!);
         object state = lookup[1]!;
         MethodInfo resolve = state.GetType().GetMethod("Resolve", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        void Missing(string requested, Assembly actualOwner)
+        DllNotFoundException Missing(string requested, Assembly actualOwner)
         {
             var error = Assert.Throws<TargetInvocationException>(() => resolve.Invoke(state, new object?[] { requested, actualOwner, null }));
-            Assert.IsType<DllNotFoundException>(error.InnerException);
+            return Assert.IsType<DllNotFoundException>(error.InnerException);
         }
         Missing("undeclared", owner);
         Missing(name, typeof(PyNativeBindingLibrary).Assembly);
-        Missing(name, owner);
+        var missing = Missing(name, owner);
+        Assert.Contains(name, missing.Message, StringComparison.Ordinal);
+        Assert.Contains(PyNativeBindingLibrary.ResolveForBaseDirectory(AppContext.BaseDirectory, relative), missing.Message, StringComparison.Ordinal);
+        Assert.IsAssignableFrom<IOException>(missing.InnerException);
+        Assert.Contains(missing.InnerException!.Message, missing.Message, StringComparison.Ordinal);
         Missing(name, owner);
         Assert.Equal(IntPtr.Zero, state.GetType().GetField("_handle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(state));
+    }
+
+    [Fact]
+    public void InaccessiblePathKeepsLibraryPathAndOriginalPermissionFailure()
+    {
+        // Unix目录权限阻止遍历，验证加载前权限门；Windows权限由目标平台门独立验收。
+        if (OperatingSystem.IsWindows()) return;
+        string directory = Path.Combine(Path.GetTempPath(), "ryupy-native-permission-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string path = Path.Combine(directory, "library.so");
+        File.WriteAllText(path, "not loaded");
+        UnixFileMode original = File.GetUnixFileMode(directory);
+        try
+        {
+            File.SetUnixFileMode(directory, UnixFileMode.None);
+            Type library = typeof(PyNativeBindingLibrary).GetNestedType("Library", BindingFlags.NonPublic)!;
+            object state = Activator.CreateInstance(library, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                null, new object[] { typeof(PyNativeBindingLibraryTests).Assembly, "permission_fixture", path }, null)!;
+            MethodInfo resolve = library.GetMethod("Resolve", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var wrapped = Assert.Throws<TargetInvocationException>(() => resolve.Invoke(state,
+                new object?[] { "permission_fixture", typeof(PyNativeBindingLibraryTests).Assembly, null }));
+            var failure = Assert.IsType<DllNotFoundException>(wrapped.InnerException);
+            Assert.Contains("permission_fixture", failure.Message, StringComparison.Ordinal);
+            Assert.Contains(path, failure.Message, StringComparison.Ordinal);
+            var reason = Assert.IsType<UnauthorizedAccessException>(failure.InnerException);
+            Assert.Contains(reason.Message, failure.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.SetUnixFileMode(directory, original);
+            Directory.Delete(directory, true);
+        }
     }
 }

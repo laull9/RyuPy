@@ -1,0 +1,15 @@
+<!-- CP1b手写生命周期宿主；程序集路径由验收器显式传入，所有生成目录位于仓库外。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs" />
+    <Reference Include="RyuPy.Runtime"><HintPath>$(RuntimeDirectory)/RyuPy.Runtime.dll</HintPath></Reference>
+    <Reference Include="RyuPy.CPython"><HintPath>$(BridgeDirectory)/RyuPy.CPython.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

@@ -37,13 +37,13 @@ public static partial class PyPic
         // property getter 条目：非 null 时忽略 Slot
         public PyFunction? Getter;
         public PyClass? GetterOwner;
-        // 类属性值条目：IsClassValue 时 Slot 是同名实例槽位（-1 表示没有），命中先查遮蔽
+        // 类值条目：Slot是可遮蔽的同名槽位；根__class__固定为-1，不接受实例字段遮蔽。
         public bool IsClassValue;
         public object? ClassValue;
     }
 
-    private static readonly AttrEntry[] GetAttrEntries = new AttrEntry[MaxSites * EntriesPerSite];
-    private static readonly AttrEntry[] SetAttrEntries = new AttrEntry[MaxSites * EntriesPerSite];
+    private static readonly PagedEntries<AttrEntry> GetAttrEntries = new(MaxSites * EntriesPerSite);
+    private static readonly PagedEntries<AttrEntry> SetAttrEntries = new(MaxSites * EntriesPerSite);
 
     /// <summary>property getter 调用复用的 `[self]` 实参数组（每个调用点一个，规则同 ArgScratch）。</summary>
     private static readonly object?[][] GetterScratch = new object?[MaxSites][];
@@ -52,10 +52,11 @@ public static partial class PyPic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static object? GetAttr(int site, object? obj, string name)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             return PyObject.GetAttr(obj, name);
         }
+        PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
@@ -93,7 +94,14 @@ public static partial class PyPic
     {
         PyClass cls = instance.Class;
         var entry = new AttrEntry { Valid = 1, Class = cls, ClassVersion = classVersion };
-        if (cls.HasProperties
+        if (name == "__class__" && !cls.TryLookup(name, out _, out _))
+        {
+            // 复用现有类值命中分支；不增加热路分支，类链变化沿用全局版本失效。
+            entry.IsClassValue = true;
+            entry.ClassValue = cls;
+            entry.Slot = -1;
+        }
+        else if (cls.HasProperties
             && cls.TryLookup(name, out PyClass owner, out object? raw)
             && raw is PyProperty property)
         {
@@ -142,11 +150,12 @@ public static partial class PyPic
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void SetAttr(int site, object? obj, string name, object? value)
     {
-        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata)
+        if (!Enabled || (uint)site >= MaxSites || obj is not PyInstance instance || instance.Class.HasEnumMetadata || instance.Class.HasSlotLayout || instance.Class.HasDictC3Layout)
         {
             PyObject.SetAttr(obj, name, value);
             return;
         }
+        PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
         int baseIndex = site * EntriesPerSite;
         for (int i = 0; i < EntriesPerSite; i++)
@@ -187,6 +196,8 @@ public static partial class PyPic
         public string? Name;
         /// <summary>`super()` 所在方法的定义类（查找从它的基类开始）。</summary>
         public PyClass? Start;
+        // 同一个owner的super在不同MI接收类上可选择不同下一分支。
+        public PyClass? ReceiverMro;
         public long ClassVersion;
         /// <summary>找到方法的类（作为被调方法的 `super()` 上下文）。</summary>
         public PyClass? Owner;
@@ -200,7 +211,7 @@ public static partial class PyPic
     /// </summary>
     /// <remarks>
     /// 零参数 <c>super()</c> 的结果每次都是新的 <see cref="PySuper"/>，但「从哪个类开始找、找到哪个
-    /// 函数」只取决于定义类与类版本，可以缓存。命中时直接以 <c>super.Self</c> 为第一个实参调用目标
+    /// 函数」在单继承依赖定义类与版本，MI还依赖实际接收类。命中时直接以 <c>super.Self</c> 为第一个实参调用目标
     /// 函数，省掉绑定方法对象与类链遍历；只缓存普通函数（property / classmethod 等走通用路径）。
     /// </remarks>
     private static object? CallMethodFallback(int site, object? obj, string name, object?[] args)
@@ -209,14 +220,21 @@ public static partial class PyPic
         {
             return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
         }
+        PyLexicalSuper.GuardAttribute(name);
+        if (name == "__class__" || super.Self is PyClass)
+            return PyOps.CallMethod(obj, name, args, [], []);
+        PyLexicalClassGuard.Receiver(obj);
         long classVersion = PyClass.GlobalVersion;
+        PyClass? receiverClass = super.Self switch { PyInstance value => value.Class, PyClass value => value, _ => null };
+        PyClass? receiverMro = receiverClass?.HasMultipleInheritance == true ? receiverClass : null;
         ref SuperEntry entry = ref SuperEntries[site];
         if (entry.Valid == 0
             || !ReferenceEquals(entry.Start, super.Owner)
+            || !ReferenceEquals(entry.ReceiverMro, receiverMro)
             || entry.ClassVersion != classVersion
             || !string.Equals(entry.Name, name, System.StringComparison.Ordinal))
         {
-            if (!TryResolveSuper(super.Owner, name, out PyClass? owner, out PyFunction? target))
+            if (!TryResolveSuper(super.Owner, super.Self, name, out PyClass? owner, out PyFunction? target))
             {
                 return PyOps.CallMethod(obj, name, args, PyOps.EmptyArray(), PyOps.EmptyArray());
             }
@@ -225,6 +243,7 @@ public static partial class PyPic
                 Valid = 1,
                 Name = name,
                 Start = super.Owner,
+                ReceiverMro = receiverMro,
                 ClassVersion = classVersion,
                 Owner = owner,
                 Target = target,
@@ -239,15 +258,20 @@ public static partial class PyPic
     /// <summary>沿 `start` 的基类链找第一个定义 `name` 的类；只接受普通函数。</summary>
     private static bool TryResolveSuper(
         PyClass start,
+        object? receiver,
         string name,
         out PyClass? owner,
         out PyFunction? target
     )
     {
-        for (PyClass? current = start.BaseClass; current is not null; current = current.BaseClass)
+        if (start.IsTypingGenericFamily && name is "__init_subclass__" or "__class_getitem__")
+            throw PyTypingGeneric.Unsupported($"explicit Generic super {name} binding is not supported");
+        foreach (PyClass current in PyClass.SuperClasses(start, receiver))
         {
             if (current.Attributes.TryGetValue(name, out object? raw))
             {
+                if (current.IsTypingGenericRoot && name.StartsWith("__", System.StringComparison.Ordinal))
+                    throw PyTypingGeneric.Unsupported($"changed Generic super protocol {name} is not supported");
                 owner = current;
                 target = raw as PyFunction;
                 return target is not null;

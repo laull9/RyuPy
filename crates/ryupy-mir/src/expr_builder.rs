@@ -9,7 +9,7 @@
 //!
 //! **动态路径**（M2.1）：
 //! - 所有值都是装箱的 `object`：字面量先 `Box`，运算交给 `PyOps`；
-//! - 比较返回 CIL `bool`，真值判定走 `PyOps.Truthy`；
+//! - 富比较保留原始对象，条件位置的真值判定走 `PyOps.Truthy`；
 //! - 动态值流入静态槽位时插入 `Unbox`（`PyCast.*`），底层类型不符抛 Python `TypeError`；
 //! - `and` / `or` 仍用基本块短路，但返回的是**操作数本身**。
 //!
@@ -28,11 +28,15 @@ use crate::mir::{
 };
 
 pub struct ExprBuilder<'a> {
+    pub direct_globals_contracts: &'a mut Vec<crate::DirectGlobalsContract>,
+    pub trace_expressions: Option<&'a mut Vec<crate::trace_lowering::ExpressionOrigin>>,
+    pub module_state: Option<MirLocalId>,
     pub hir: &'a Module,
     pub types: &'a ModuleTypes,
     pub fn_map: &'a FxHashMap<ryupy_hir::FuncId, FnId>,
     pub fn_globals: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     pub fn_defaults: &'a FxHashMap<ryupy_hir::FuncId, Option<crate::mir::GlobalId>>,
+    pub fn_sources: &'a FxHashMap<ryupy_hir::FuncId, crate::mir::GlobalId>,
     /// HIR 类 → 类对象静态槽位（普通类与 dataclass 类对象都从这里读取）。
     pub class_globals: &'a FxHashMap<ryupy_hir::ClassId, crate::mir::GlobalId>,
     /// HIR 模块变量 → 静态槽位。
@@ -43,8 +47,14 @@ pub struct ExprBuilder<'a> {
     pub current_hir_fn: ryupy_hir::FuncId,
     /// 闭包环境形参（M3.0）：`Free` 读取时从这里取外层 cell。
     pub env: Option<MirLocalId>,
+    /// 每次函数调用独有的懒分配locals字典槽。
+    pub function_locals_cache: &'a mut Option<MirLocalId>,
     /// 类体读取只查当前类的原始命名空间，不绑定描述符。
     pub class_namespace: Option<Operand>,
+    pub lexical_namespace: bool,
+    /// 类体创建函数时，显式捕获本次定义的隐式 cell，不读取类 namespace。
+    pub class_cell: Option<(ryupy_hir::ClassId, Operand)>,
+    pub lexical_cell_stack: Vec<(ryupy_hir::ClassId, Operand)>,
     pub locals: &'a mut Arena<LocalDecl>,
     pub blocks: &'a mut Arena<BasicBlock>,
     pub current_bb: &'a mut crate::mir::BlockId,
@@ -86,73 +96,6 @@ impl<'a> ExprBuilder<'a> {
         }
     }
 
-    /// 构造嵌套函数的闭包环境：按被创建函数的 `free` 顺序取 cell。
-    ///
-    /// 每个名字要么是当前函数的 cell 局部（直接引用槽位），要么是当前函数
-    /// 自己的 free 变量（从 env 里取出对应 cell，向上透传）。
-    pub(crate) fn build_closure_env(&mut self, nested_fn: ryupy_hir::FuncId) -> Vec<Operand> {
-        let free: Vec<ryupy_hir::Name> = self.hir.functions[nested_fn].closure.free.clone();
-        let own_cells = self.hir.functions[self.current_hir_fn]
-            .closure
-            .cells
-            .clone();
-        let own_free = self.hir.functions[self.current_hir_fn].closure.free.clone();
-
-        let mut ops = Vec::with_capacity(free.len());
-        for name in &free {
-            if own_cells.contains(name) {
-                // 当前函数的 cell 局部：直接引用槽位（槽位里就是 object[1]）。
-                let hir_local = self.hir.functions[self.current_hir_fn]
-                    .body
-                    .locals
-                    .iter()
-                    .find(|(_, l)| l.name == *name)
-                    .map(|(id, _)| id);
-                match hir_local.and_then(|id| self.local_map.get(&id)) {
-                    Some(&mir_local) => ops.push(Operand::Local(mir_local)),
-                    None => ops.push(self.missing_cell_operand(name)),
-                }
-            } else if let Some(idx) = own_free.iter().position(|n| n == name) {
-                // 向上透传：从当前函数的 env 里取出外层 cell。
-                let env = self.env_operand();
-                let cell = self.alloc_temp(MirType::Dynamic);
-                self.push_stmt(Statement::Assign {
-                    dest: cell,
-                    value: Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::ArrayGet),
-                        args: vec![env, Operand::Const(Constant::I64(idx as i64))],
-                    },
-                });
-                ops.push(Operand::Local(cell));
-            } else {
-                ops.push(self.missing_cell_operand(name));
-            }
-        }
-        ops
-    }
-
-    /// free 名字解析失败（理论上不可达）：报内部诊断并放 None 占位。
-    fn missing_cell_operand(&mut self, name: &ryupy_hir::Name) -> Operand {
-        let range = self.hir.functions[self.current_hir_fn].range;
-        self.diagnostics.push(
-            Diagnostic::error(
-                ryupy_base::Span::new(self.hir.file, range),
-                format!("内部错误：闭包环境缺少 cell `{name}`"),
-            )
-            .with_code("E0101")
-            .with_primary_label("free 变量分析与 MIR 构建不一致"),
-        );
-        let none = self.alloc_temp(MirType::Dynamic);
-        self.push_stmt(Statement::Assign {
-            dest: none,
-            value: Rvalue::Call {
-                callee: Callee::Runtime(RuntimeFn::DynNone),
-                args: Vec::new(),
-            },
-        });
-        Operand::Local(none)
-    }
-
     /// 当前函数的类型旁表；动态函数没有记录，所有查询都返回 `Dynamic`。
     fn body(&self) -> Option<&'a TypeckResults> {
         self.types.body(self.current_hir_fn)
@@ -167,9 +110,23 @@ impl<'a> ExprBuilder<'a> {
     }
 
     pub fn build_expr(&mut self, expr_id: ExprId) -> Operand {
+        let result = self.build_expr_inner(expr_id);
+        if let Some(origins) = self.trace_expressions.as_deref_mut() {
+            origins.push(crate::trace_lowering::ExpressionOrigin {
+                expression: expr_id,
+                block: *self.current_bb,
+                source_statement_cursor: self.blocks[*self.current_bb].stmts.len(),
+                result: result.clone(),
+            });
+        }
+        result
+    }
+
+    fn build_expr_inner(&mut self, expr_id: ExprId) -> Operand {
         let hir_body = &self.hir.functions[self.current_hir_fn].body;
         let expr = &hir_body.exprs[expr_id];
         match &expr.kind {
+            ExprKind::ModuleMetadata(module, name) => self.build_module_metadata(module, name),
             ExprKind::ModuleFile(name) => {
                 let dest = self.alloc_temp(MirType::Str);
                 self.push_stmt(Statement::Assign {
@@ -188,53 +145,7 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::Literal(lit) => self.build_literal(lit),
             ExprKind::Yield(value) => self.build_yield_expr(*value),
             ExprKind::YieldFrom(value) => self.build_yield_from(*value),
-            ExprKind::ModuleVar(var) => {
-                let gid = self.module_vars[var];
-                let global_ty = self.globals[gid].ty.clone();
-                let op = Operand::Global(gid);
-                // 动态槽位可能是「已解绑」哨兵（`except E as e` 结束后）；
-                // 读取时按 CPython 抛 NameError。
-                if global_ty == MirType::Dynamic {
-                    let name = self.hir.vars[*var].name.as_str().to_owned();
-                    let dest = self.alloc_temp(MirType::Dynamic);
-                    self.push_stmt(Statement::Assign {
-                        dest,
-                        value: Rvalue::Call {
-                            callee: Callee::Runtime(RuntimeFn::LoadName),
-                            args: vec![op, Operand::Const(Constant::Str(name))],
-                        },
-                    });
-                    return Operand::Local(dest);
-                }
-                if let Some(&flag) = self.module_bound_flags.get(&gid) {
-                    let name = self.hir.vars[*var].name.as_str().to_owned();
-                    self.push_stmt(Statement::Eval(Rvalue::Call {
-                        callee: Callee::Runtime(RuntimeFn::CheckGlobalBound),
-                        args: vec![Operand::Global(flag), Operand::Const(Constant::Str(name))],
-                    }));
-                }
-                // 立即冻结本次读取；后续实参/子表达式的调用可改变同一模块槽。
-                let frozen = self.alloc_temp(global_ty.clone());
-                self.push_stmt(Statement::Assign {
-                    dest: frozen,
-                    value: Rvalue::Use(op),
-                });
-                let op = Operand::Local(frozen);
-                // 动态函数里的静态模块变量要装箱。
-                if self.types.is_dynamic(self.current_hir_fn) {
-                    let dest = self.alloc_temp(MirType::Dynamic);
-                    self.push_stmt(Statement::Assign {
-                        dest,
-                        value: Rvalue::Box {
-                            value: op,
-                            from: global_ty,
-                        },
-                    });
-                    Operand::Local(dest)
-                } else {
-                    op
-                }
-            }
+            ExprKind::ModuleVar(var) => self.build_module_name(*var),
             ExprKind::Local(loc) => {
                 let mir_local = self.local_map[loc];
                 // cell 变量（M3.0）：槽位里是 `object[1]`，读取经过运行时
@@ -293,6 +204,9 @@ impl<'a> ExprBuilder<'a> {
             } => self.build_binary(*op, *lhs, *rhs, *inplace, expr_id),
             ExprKind::Unary { op, operand } => self.build_unary(*op, *operand, expr_id),
             ExprKind::Compare { op, lhs, rhs } => self.build_compare(*op, *lhs, *rhs, expr_id),
+            ExprKind::CompareChain { operands, ops } => {
+                self.build_compare_chain(operands, ops, expr_id)
+            }
             ExprKind::BoolOp { op, lhs, rhs } => self.build_bool_op(*op, *lhs, *rhs, expr_id),
             ExprKind::IfExp { cond, then_, else_ } => {
                 self.build_if_exp(*cond, *then_, *else_, expr_id)
@@ -300,6 +214,19 @@ impl<'a> ExprBuilder<'a> {
             ExprKind::Call { callee, args } => self.build_call(*callee, args, expr_id),
             ExprKind::PreparedCall { callee, args } => {
                 self.build_prepared_call(*callee, args, expr_id)
+            }
+            ExprKind::ContextMethod { base, name } => {
+                let receiver = self.build_expr(*base);
+                let receiver = self.coerce(receiver, &self.ty_of(*base), &MirType::Dynamic);
+                let dest = self.alloc_temp(MirType::Dynamic);
+                self.push_stmt(Statement::Assign {
+                    dest,
+                    value: Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::ContextMethod),
+                        args: vec![receiver, Operand::Const(Constant::Str(name.to_string()))],
+                    },
+                });
+                Operand::Local(dest)
             }
             ExprKind::Attribute { base, name } => {
                 let base_op = self.build_expr(*base);
@@ -393,6 +320,8 @@ impl<'a> ExprBuilder<'a> {
                 Operand::Local(dest)
             }
             // 内建构造名作为值（`isinstance(x, int)`、`f = str`）：构造类型对象
+            ExprKind::ClassCellRead(class) => self.build_lexical_cell_read(*class, expr.range),
+            ExprKind::ClassFreeLocal(local) => self.build_class_free_local(*local, expr.range),
             ExprKind::ClassLookup { name, fallback } => {
                 self.build_class_lookup(name.as_str(), *fallback)
             }
@@ -434,21 +363,30 @@ impl<'a> ExprBuilder<'a> {
                         let ty = self.ty_of(expr);
                         let op = self.build_expr(expr);
                         let boxed = self.coerce(op, &ty, &MirType::Dynamic);
-                        defaults.push(boxed);
+                        let saved = self.alloc_temp(MirType::Dynamic);
+                        self.push_stmt(Statement::Assign {
+                            dest: saved,
+                            value: Rvalue::Use(boxed),
+                        });
+                        defaults.push(Operand::Local(saved));
                     } else {
                         // 占位：binder 只按 HasDefault 读取对应下标。
                         defaults.push(Operand::Const(Constant::Null));
                     }
                 }
+                let module = self.capture_function_module();
+                let instance_context = self.capture_definition_context();
                 let dest = self.alloc_temp(MirType::Dynamic);
                 self.push_stmt(Statement::Assign {
                     dest,
                     value: Rvalue::MakeFunction {
+                        instance_context,
                         func: self.fn_map[func_id],
                         env,
                         defaults,
                     },
                 });
+                self.install_function_module(Operand::Local(dest), module);
                 Operand::Local(dest)
             }
             // 函数名作为值：加载模块静态字段里的 PyFunction 对象
@@ -518,12 +456,24 @@ impl<'a> ExprBuilder<'a> {
         }
     }
 
+    /// 默认域内建名称的真实冷读取；实例模块与源码遮蔽不经过这个入口。
+    pub(crate) fn default_builtin_value(&mut self, name: &str) -> Operand {
+        self.runtime_call(
+            RuntimeFn::LoadDefaultBuiltin,
+            vec![Operand::Const(Constant::Str(name.to_owned()))],
+            MirType::Dynamic,
+        )
+    }
+
     /// 内建名字作为**值**使用时的结果。
     ///
     /// 构造函数（`int` / `str` / `list` …）在 Python 里是类型对象，`isinstance`
     /// 和赋值都依赖它。真正调用走 `build_call`，不会到这里。
     fn build_builtin_value(&mut self, builtin: Builtin, _expression: ExprId) -> Operand {
         let name = match builtin {
+            // 本切仅迁移KeyError，保保存别名的真实绑定；不扩大其它异常的构造合同。
+            Builtin::Exception("KeyError") => return self.default_builtin_value("KeyError"),
+            Builtin::Exception("SyntaxError") => return self.default_builtin_value("SyntaxError"),
             // 异常类作为值：`isinstance(e, Exception)` / `raise E` 等。
             Builtin::Exception(type_name) => type_name,
             Builtin::Int => "int",
@@ -538,6 +488,7 @@ impl<'a> ExprBuilder<'a> {
             Builtin::Dynamic("frozenset") => "frozenset",
             Builtin::Dynamic("bytes") => "bytes",
             Builtin::Dynamic("bytearray") => "bytearray",
+            Builtin::Dynamic("slice") => "slice",
             Builtin::Dynamic("bool") => "bool",
             Builtin::Print => return self.builtin_function_value("print"),
             Builtin::Abs => return self.builtin_function_value("abs"),

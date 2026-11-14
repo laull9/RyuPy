@@ -17,7 +17,7 @@ public sealed partial class PyClass
     // 首批只接受全部参与初始化且无工厂的字段。复杂签名与副作用继续走原实现。
     internal void RegisterDataclassConstructor(PyFunction generatedInit, PyDataclassField[] fields, bool hasPostInit)
     {
-        if (hasPostInit) return;
+        if (HasSlotLayout || hasPostInit) return;
         foreach (var field in fields)
             if (!field.Init || !ReferenceEquals(field.Factory, PyDataclasses.Missing)) return;
         var slots = new int[fields.Length];

@@ -52,14 +52,47 @@ pub const EXCEPTION_TYPE_NAMES: &[&str] = &[
     "StopAsyncIteration",
     "EOFError",
     "json.JSONDecodeError",
+    "zipfile.BadZipFile",
+    "getopt.GetoptError",
+    "optparse.OptParseError",
+    "optparse.OptionError",
+    "optparse.OptionConflictError",
+    "optparse.OptionValueError",
+    "optparse.BadOptionError",
+    "optparse.AmbiguousOptionError",
     "dataclasses.FrozenInstanceError",
     "re.error",
     "io.UnsupportedOperation",
+    "SyntaxError",
+    "xml.etree.ElementTree.ParseError",
+    "binascii.Error",
+    // 新异常只追加，保留既有异常 token 的编号与相对顺序。
+    "zlib.error",
+    "gzip.BadGzipFile",
+    "MemoryError",
+    "TimeoutError",
 ];
 
 /// `RyuPy.Runtime` 中的静态方法。新增条目时同步修改 C# 侧与 codegen 的引用表。
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RuntimeFn {
+    /// 真实实例字典名称读取、写入与执行来源。
+    InstanceLoadName,
+    InstanceStoreName,
+    /// 显式frame的唯一globals删除；不读取或修改捕获的builtins。
+    InstanceDeleteName,
+    InstanceExecutionSource,
+    InstanceCaptureDefinitionContext,
+    InstanceDefinitionModule,
+    InstanceClassGuard,
+    /// 类体/普通终结之后，词法class cell填充之前的冷能力检查。
+    InstanceClassCellGuard,
+    InstanceMakeClass,
+    /// 每次真实import消费前检查该frame捕获的导入函数。
+    InstanceImportGuard,
+    /// 两阶段运行期相对导入；仅显式实例能力可调用。
+    InstanceRelativeImport,
+    InstanceRelativeImportAttr,
     /// 数值背板仍是真list；读预检不触发用户协议，最终新鲜F64可不先装箱。
     NumericListCreate,
     NumericListAppendF64,
@@ -102,6 +135,8 @@ pub enum RuntimeFn {
     DynBinary,
     /// `PyOps.Compare(int, object, object) -> bool`。
     DynCompare,
+    /// `PyOps.CompareValue(int, object, object) -> object`：保留富比较原始结果。
+    DynRichCompareValue,
     /// `PyOps.Unary(int, object)`。
     DynUnary,
     /// `PyOps.Truthy(object) -> bool`。
@@ -129,10 +164,31 @@ pub enum RuntimeFn {
     HandlerEnter,
     /// `PyErrors.LeaveHandler(object)`：离开 except 体，恢复上一层当前异常。
     HandlerLeave,
+    /// `PyErrors.MatchDynamicException(object, object) -> bool`：真实动态except目标校验与匹配。
+    ExceptionMatch,
     /// `PyErrors.Reraise() -> object`：裸 `raise`。
     Reraise,
     /// `PyErrors.PrepareRaise(object) -> object`：抛前准备（挂上下文 + 记栈帧）。
     RaisePrepare,
+    /// 产品 V1 的源/动态分派/接收 ABI；整产物准入之前不得发射。
+    TraceV1Explicit,
+    TraceV1Park,
+    TraceV1Match,
+    TraceV1Abort,
+    TraceV1AllMiss,
+    TraceV1Handle,
+    TraceV1Forward,
+    TraceV1GeneratorCatch,
+    TraceV1GeneratorDepth,
+    /// 隔离S2a源raise入口：归一化后发行真实Explicit请求。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterExplicit,
+    /// 隔离S2a静态handler：必须在恢复帧之前接收。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterHandle,
+    /// 隔离S2a自动cleanup：同Q转发，不重复Begin。
+    #[cfg(feature = "trace-adapter-test")]
+    TraceAdapterForward,
     /// `PyRepr.StrValue(object) -> string`：`str(x)`。
     DynStr,
     /// `PyObject.TypeOf(object) -> object`：`type(x)`。
@@ -141,9 +197,11 @@ pub enum RuntimeFn {
     DynGetAttr,
     /// `PyOps.PrepareMethod(object, string) -> object`：实参暂停前绑定方法。
     PrepareMethod,
-    /// 实参前冻结actual module属性；非模块接收者原样返回，既有方法PIC保持。
+    /// `PyOps.ContextMethod(object, string) -> object`：按类型绑定上下文槽。
+    ContextMethod,
+    /// 历史ABI：有界接收者在实参前冻结属性目标，其余原样返回。
     CaptureModuleTarget,
-    /// actual PyModule判定；无用户回调。
+    /// 历史ABI：RequiresEarlyMethodCapture判据；不是Python模块类型判断，无用户回调。
     IsModule,
     /// 显式捕获标志与目标的数组调用；参数数组不可共享。
     CallCapturedMethod,
@@ -155,8 +213,19 @@ pub enum RuntimeFn {
     LoadName,
     /// `PyOps.CheckGlobalBound(bool, string) -> void`：静态槽读取前检查绑定位。
     CheckGlobalBound,
+    /// 删除专用存在性检查；与读取的builtin回退严格分离。
+    CheckModuleDelete,
+    CheckModuleDeleteValue,
+    /// 仅可删除且有真实builtin对象的名字使用此读取冷能力。
+    LoadDeletedModuleName,
     /// `PyTraceback.PushFrame(string, string) -> long`：压入栈帧并返回深度。
     TracePush,
+    /// `PyTraceback.PushFrameWithOrigin(string, string, object) -> long`。
+    TracePushWithOrigin,
+    /// `PyTraceback.CreateModuleExecutionSource(object) -> object`，每次模块执行新建。
+    ModuleExecutionSource,
+    /// `CreateModuleExecutionSourceWithCode(object source, object context) -> object`；旧ABI不变。
+    ModuleExecutionSourceWithCode,
     /// 与TracePush相同的递归深度检查，但不压入无回调叶快路的帧。
     TraceCheckDepth,
     /// `PyTraceback.SetLine(long)`：更新当前行号。
@@ -192,6 +261,10 @@ pub enum RuntimeFn {
     ReprValue,
     /// `PyOps.CallBuiltin(string, object[])`。
     DynBuiltin,
+    /// 普通函数locals：先完整绑定，再逐槽同步，不构造快照数组。
+    FunctionLocalsValidate,
+    FunctionLocalsEnsure,
+    FunctionLocalsSync,
     /// `PyOps.CallMethod(object, string, object[])`。
     CallMethod,
     /// `PyOps.ListAppend(list, item)`：星号字面量的增量构建。
@@ -203,6 +276,10 @@ pub enum RuntimeFn {
     ListExtend,
     /// `PyOps.UnpackCheck(long, long, bool)`：解包数量不符时抛 ValueError（bool 表示有星号）。
     UnpackCheck,
+    /// `PyOps.UnpackSequence(object, long) -> object`：非星号解包并冻结为精确 tuple。
+    UnpackSequence,
+    /// `PyOps.UnpackEx(object, long, long) -> object`：星号解包冻结为前项、新 list、后项 tuple。
+    UnpackEx,
     /// `PyOps.IterStart(object) -> object`：建立迭代器。
     IterStart,
     /// `PyOps.IterNextOk(object) -> bool`：推进迭代器。
@@ -235,8 +312,20 @@ pub enum RuntimeFn {
     CellGetFree,
     /// `PyOps.TypeObject(string) -> object`：内建构造名作为值使用时的类型对象。
     TypeObject,
+    /// `PyOps.LoadDefaultBuiltin(string) -> object`：默认域真实字典冷读取，可抛错且不可缓存。
+    LoadDefaultBuiltin,
     BuiltinFunction,
+    /// `PyOps.FunctionModule(object, object)`：定义点写入已冻结的真实模块成员。
+    FunctionModule,
+    /// 读取真实函数实例的Defaults；只在成功的静态def发布处更新直调默认值槽。
+    FunctionDefaults,
     FunctionMetadata,
+    /// 新词法类事务的固定ABI；Prepare只建namespace，Finish才得到类。
+    LexicalClassPrepare,
+    LexicalClassFinish,
+    LexicalNamespaceContains,
+    LexicalNamespaceGet,
+    LexicalNamespaceSet,
     ClassNamespaceGet,
     /// 当前类自身原始字典是否包含名字，不执行描述符或继承查找。
     ClassNamespaceContains,
@@ -266,6 +355,10 @@ pub enum RuntimeFn {
     /// `PyOps.MakeClass(string, object[], object) -> object`：创建类对象。
     /// 第三个参数是异常类的工厂委托（普通类传 `null`）。
     MakeClass,
+    /// 普通MI族冷准备；仅配合类体后Finalize及延后公开合同。
+    PrepareOrdinaryMiClass,
+    /// 动态单基的延后发布准备；真实布局仍由运行时沿原单基规则验证。
+    PrepareRuntimeDerivedClass,
     /// `PyOps.SetAttr(object, string, object)`：实例 / 类属性写入。
     SetAttr,
     /// `PyOps.DelAttr(object, string)`：实例 / 类属性删除。
@@ -277,6 +370,10 @@ pub enum RuntimeFn {
     ImportModule,
     /// 读取已缓存模块的初始运行位置；不会触发import或用户属性协议。
     ModuleFile,
+    /// 本次导入元数据快照：(str, str) -> Dynamic。
+    ModuleMetadata,
     /// `PyModules.ImportAttr(string, string) -> object`：`from m import name` 的取值。
     ImportAttr,
+    /// 调用者显式context与实际零参callee；只在direct_globals能力下使用。
+    InstanceDirectGlobals,
 }

@@ -17,9 +17,11 @@ public static partial class PyOps
     private static object? ByteArrayMethod(PyByteArray array, string name, object?[] args) => name switch
     {
         "startswith" or "endswith" => PyBinaryAffix.Match(array, name, args),
+        "translate" => PyBinaryTranslate.Invoke(array, args, [], []),
         "append" => AppendByte(array, args),
         "extend" => ExtendByteArray(array, args),
         "decode" => PyEncoding.Decode([.. array.Bytes], args.Length > 0 ? AsText(args[0]) : "utf-8"),
+        _ when PyBinaryClassification.Has(name) => PyBinaryClassification.Invoke(array, name, args.Length, 0),
         _ => throw MissingAttribute("bytearray", name),
     };
 
@@ -39,7 +41,9 @@ public static partial class PyOps
     {
         "decode" => bytes.Decode(args.Length > 0 ? AsText(args[0]) : "utf-8"),
         "hex" => Convert.ToHexString(bytes.Bytes).ToLowerInvariant(),
+        "translate" => PyBinaryTranslate.Invoke(bytes, args, [], []),
         "startswith" or "endswith" => PyBinaryAffix.Match(bytes, name, args),
+        _ when PyBinaryClassification.Has(name) => PyBinaryClassification.Invoke(bytes, name, args.Length, 0),
         _ => throw MissingAttribute("bytes", name),
     };
 
@@ -51,17 +55,13 @@ public static partial class PyOps
         "strip" => StripText(text, args, left: true, right: true),
         "lstrip" => StripText(text, args, left: true, right: false),
         "rstrip" => StripText(text, args, left: false, right: true),
-        "split" => SplitText(text, args),
+        "split" => PyTextSplit.Invoke(text, args, [], []),
+        "isspace" or "isalnum" => PyUnicodeWhitespace.Invoke(text, args, [], name),
         "splitlines" => SplitLines(text, args),
         "join" => JoinText(text, Single("join", args)),
         "replace" => ReplaceText(text, args),
-        "find" => FindText(text, args, fromEnd: false, raiseIfMissing: false),
-        "rfind" => FindText(text, args, fromEnd: true, raiseIfMissing: false),
-        "index" => FindText(text, args, fromEnd: false, raiseIfMissing: true),
-        "rindex" => FindText(text, args, fromEnd: true, raiseIfMissing: true),
-        "count" => CountText(text, args),
-        "startswith" => text.StartsWith(AsText(Single("startswith", args)), StringComparison.Ordinal),
-        "endswith" => text.EndsWith(AsText(Single("endswith", args)), StringComparison.Ordinal),
+        "count" or "find" or "rfind" or "index" or "rindex" => PyTextSearch.Invoke(text, name, args, []),
+        "startswith" or "endswith" => PyTextAffix.Match(text, name, args, [], qualified: false),
         _ => throw MissingAttribute("str", name),
     };
 
@@ -108,7 +108,7 @@ public static partial class PyOps
     }
 
     private static bool IsStrippable(char ch, string? chars) =>
-        chars is null ? char.IsWhiteSpace(ch) : chars.Contains(ch, StringComparison.Ordinal);
+        chars is null ? PyUnicodeWhitespace.Is(ch) : chars.Contains(ch, StringComparison.Ordinal);
 
     /// <summary>
     /// `str.replace(old, new[, count])`。.NET 的 `Replace` 总是替换全部，
@@ -151,72 +151,6 @@ public static partial class PyOps
         return builder.ToString();
     }
 
-    /// <summary>find / rfind / index / rindex 共用；返回值是**码点**下标。</summary>
-    private static object FindText(
-        string text,
-        object?[] args,
-        bool fromEnd,
-        bool raiseIfMissing
-    )
-    {
-        if (args.Length is < 1 or > 3)
-        {
-            throw new PyTypeError($"find expected 1 to 3 arguments, got {args.Length}");
-        }
-        string needle = AsText(args[0]);
-        int start = args.Length > 1 ? (int)ToIndex(args[1], "start") : 0;
-        int end = args.Length > 2 ? (int)ToIndex(args[2], "end") : text.Length;
-        start = Math.Clamp(start, 0, text.Length);
-        end = Math.Clamp(end, start, text.Length);
-        string window = text[start..end];
-        int index = fromEnd
-            ? window.LastIndexOf(needle, StringComparison.Ordinal)
-            : window.IndexOf(needle, StringComparison.Ordinal);
-        if (index < 0)
-        {
-            if (raiseIfMissing)
-            {
-                throw new PyValueError("substring not found");
-            }
-            return -1L;
-        }
-        // UTF-16 偏移 → 码点下标（与 Python 的 str.find 一致）
-        return PyText.Length(text[..(start + index)]);
-    }
-
-    private static object CountText(string text, object?[] args)
-    {
-        string needle = AsText(Single("count", args));
-        if (needle.Length == 0)
-        {
-            return (long)PyText.Length(text) + 1;
-        }
-        long count = 0;
-        int index = 0;
-        while ((index = text.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            index += needle.Length;
-        }
-        return count;
-    }
-
-    private static object SplitText(string text, object?[] args)
-    {
-        if (args.Length == 0)
-        {
-            return new PyList(Array.ConvertAll(
-                text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries),
-                part => (object?)part
-            ));
-        }
-        string separator = AsText(args[0]);
-        return new PyList(Array.ConvertAll(
-            text.Split(separator, StringSplitOptions.None),
-            part => (object?)part
-        ));
-    }
-
     private static object JoinText(string separator, object? value)
     {
         object?[] items = ToSequence(value);
@@ -224,13 +158,13 @@ public static partial class PyOps
         for (int i = 0; i < items.Length; i++)
         {
             parts[i] = items[i] is string s
-                ? s
+                ? s : items[i] is PyStringInstance subtext ? subtext.Value
                 : throw new PyTypeError("sequence item: expected str instance");
         }
         return string.Join(separator, parts);
     }
 
     private static string AsText(object? value) =>
-        value as string
-        ?? throw new PyTypeError($"expected str, got '{PyRepr.TypeName(value)}'");
+        value is string text ? text : value is PyStringInstance subtext ? subtext.Value
+        : throw new PyTypeError($"expected str, got '{PyRepr.TypeName(value)}'");
 }

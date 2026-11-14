@@ -1,4 +1,4 @@
-//! 固定两参数C整数绑定的显式发射记录；不从源码名称推断、不增加用户FFI语法。
+//! 声明式 C 绑定的显式发射记录；兼容旧版两参数入口，v3 使用 MIR 静态合同。
 use dotnetdll::prelude::*;
 use ryupy_mir::{ExportGuard, FnId, GlobalId, LinkedProgram, MirType, ModuleId};
 
@@ -12,18 +12,45 @@ pub struct FixedI32Binding {
     pub export: GlobalId,
     pub module_ref: String,
     pub entry_point: String,
+    /// None 保留 v1/v2 固定签名；Some 为已验证 v3 静态合同。
+    pub signature: Option<ryupy_mir::native_abi::AbiSignature>,
 }
 
-/// 首切只接受单个顶层模块/导出。所有检查发生在构造Resolution之前。
+/// 有界多导出共享单个顶层模块、库和初始化器。所有检查发生在构造Resolution之前。
 pub(crate) fn validate(
     program: &LinkedProgram,
     bindings: &[FixedI32Binding],
 ) -> Result<(), CodegenError> {
     let bad = |text: &str| CodegenError::Unsupported(format!("fixed C binding: {text}"));
-    if bindings.len() > 1 {
-        return Err(bad("only one binding is supported"));
+    if bindings.len() > 64 {
+        return Err(bad("at most 64 exports are supported"));
+    }
+    let mut exports = std::collections::HashSet::new();
+    let mut symbols = std::collections::HashMap::new();
+    for b in bindings {
+        let first = &bindings[0];
+        if b.module != first.module
+            || b.initializer != first.initializer
+            || b.module_ref != first.module_ref
+            || !exports.insert(b.export)
+        {
+            return Err(bad("expected distinct exports from one module and library"));
+        }
+        if let Some(previous) = symbols.insert(&b.entry_point, &b.signature) {
+            let compatible = match (previous, &b.signature) {
+                (None, None) => true,
+                (Some(left), Some(right)) => left.same_abi(right),
+                _ => false,
+            };
+            if !compatible {
+                return Err(bad("one symbol requires one consistent ABI signature"));
+            }
+        }
     }
     for binding in bindings {
+        if let Some(signature) = &binding.signature {
+            signature.validate().map_err(|message| bad(&message))?;
+        }
         let module = program
             .modules
             .iter()
@@ -39,6 +66,12 @@ pub(crate) fn validate(
             .iter()
             .find_map(|(id, value)| (id == binding.export).then_some(value))
             .ok_or_else(|| bad("missing export global"))?;
+        let export = module
+            .exports
+            .iter()
+            .find(|e| e.value == binding.export)
+            .ok_or_else(|| bad("missing module export"))?;
+        let names: std::collections::HashSet<_> = module.exports.iter().map(|e| &e.name).collect();
         let identifier = |value: &str| {
             !value.is_empty()
                 && value.bytes().enumerate().all(|(i, c)| {
@@ -54,14 +87,14 @@ pub(crate) fn validate(
         if module.init != binding.initializer
             || program.entry == binding.module
             || global.ty != MirType::Dynamic
-            || module.exports.len() != 1
-            || module.exports[0].value != binding.export
-            || !identifier(&module.exports[0].name)
+            || module.exports.len() != bindings.len()
+            || names.len() != bindings.len()
+            || !identifier(&export.name)
             || matches!(
-                module.exports[0].name.as_str(),
+                export.name.as_str(),
                 "__file__" | "__name__" | "__package__"
             )
-            || !matches!(module.exports[0].guard, ExportGuard::ValueSentinel)
+            || !matches!(export.guard, ExportGuard::ValueSentinel)
             || !module.protected_exports.is_empty()
             || !module.file.is_empty()
             || !matches!(module.location, ryupy_mir::ModuleLocation::LegacyDiagnostic)
@@ -128,6 +161,18 @@ pub fn emit(
     opts: &EmitOptions,
     bindings: &[FixedI32Binding],
 ) -> Result<Vec<u8>, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
+    if program.distribution_metadata.is_some() {
+        return Err(CodegenError::Unsupported(
+            "分发快照不支持外部原生绑定宿主".into(),
+        ));
+    }
+    if program.trace_product.is_some() {
+        return Err(CodegenError::Unsupported(
+            "trace V1不接受外部原生绑定".into(),
+        ));
+    }
     validate(program, bindings)?;
     let (res, _) = crate::assembly::build_resolution_with_bindings(program, opts, bindings);
     res.write(WriteOptions {
@@ -178,8 +223,20 @@ pub fn emit_with_report(
     bindings: &[FixedI32Binding],
     deployment: &BindingDeployment,
 ) -> Result<BindingEmissionArtifact, CodegenError> {
+    ryupy_mir::generator_product::validate_emission(program).map_err(CodegenError::Unsupported)?;
+    crate::source_provenance::validate(program)?;
+    if program.distribution_metadata.is_some() {
+        return Err(CodegenError::Unsupported(
+            "分发快照不支持外部原生绑定宿主".into(),
+        ));
+    }
+    if program.trace_product.is_some() {
+        return Err(CodegenError::Unsupported(
+            "trace V1不接受外部原生绑定".into(),
+        ));
+    }
     validate(program, bindings)?;
-    if bindings.len() != 1
+    if bindings.is_empty()
         || !matches!(
             deployment.relative_file.as_str(),
             "_internal/native/v1/b0/library.so"
@@ -188,7 +245,7 @@ pub fn emit_with_report(
         )
     {
         return Err(CodegenError::Unsupported(
-            "fixed C binding: expected one binding and a controlled deployment path".into(),
+            "fixed C binding: expected exports and a controlled deployment path".into(),
         ));
     }
     let (res, report, records) =
@@ -204,4 +261,17 @@ pub fn emit_with_report(
         report,
         bindings: records,
     })
+}
+
+/// 真实源码加一个已验证原生占位模块；凭declare前来源集合防止把旧源码unit冒作例外。
+pub fn emit_source_with_report(
+    program: &LinkedProgram,
+    opts: &EmitOptions,
+    bindings: &[FixedI32Binding],
+    deployment: &BindingDeployment,
+    sources: &crate::SourceModules,
+) -> Result<BindingEmissionArtifact, CodegenError> {
+    validate(program, bindings)?;
+    sources.validate_extension(program, bindings)?;
+    emit_with_report(program, opts, bindings, deployment)
 }

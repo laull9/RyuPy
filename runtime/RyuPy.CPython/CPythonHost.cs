@@ -1,0 +1,245 @@
+// 单主解释器状态机、租约/GIL与引用释放队列；finalizer仅登记释放，绝不调用Python。
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using RyuPy.Runtime;
+
+namespace RyuPy.CPython;
+
+/// <summary>可观察生命周期计数，各项用于定位跨堆持有与迟到释放。</summary>
+public sealed record HostStatistics(string State, long BridgeCalls, int ActiveLeases, int Handles, int ManagedRoots, int PendingReleases, long LateReleases);
+
+/// <summary>固定CPython3.12.13、单次初始化的随包宿主。</summary>
+public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
+{
+    private static int processStarted;
+    internal static CPythonHost? Instance;
+    private readonly object gate = new();
+    private readonly int ownerThread = Environment.CurrentManagedThreadId;
+    private readonly HashSet<string> modules;
+    private readonly Dictionary<nint, WeakReference<object>> objects = new();
+    private readonly Dictionary<string, PyModule> imported = new(StringComparer.Ordinal);
+    internal readonly ConcurrentDictionary<nint, object> Roots = new();
+    private readonly ConditionalWeakTable<object, ManagedReference> reverse = new();
+    private readonly ConcurrentQueue<nint> releases = new();
+    private readonly Dictionary<long, nint> handles = new();
+    private long nextHandle;
+    private int state;
+    private int active;
+    private long calls, late, nextRoot;
+    [ThreadStatic] private static int leaseDepth;
+    // 原生库保留到进程退出，扩展仍可能持有函数地址。
+    private nint pythonLibrary, shimLibrary;
+    private string pythonPath = "", shimPath = "";
+    [DllImport("libSystem.B.dylib", EntryPoint = "dlopen")] private static extern nint MacLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+    [DllImport("libdl.so.2", EntryPoint = "dlopen")] private static extern nint LinuxLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+    [DllImport("libc.so.6", EntryPoint = "dlopen")] private static extern nint LinuxLibcLoad([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+    [DllImport("kernel32.dll", SetLastError = true)] private static extern bool SetDefaultDllDirectories(uint flags);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern nint AddDllDirectory(string directory);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] private static extern nint LoadLibraryExW(string path, nint file, uint flags);
+
+    // Windows加载仅使用显式库目录、随包注册目录和系统目录，屏蔽cwd与开发PATH。
+    private static nint WindowsLoad(string path)
+    {
+        nint library = LoadLibraryExW(path, 0, 0x1100);
+        if (library == 0) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法加载随包原生库：" + path);
+        return library;
+    }
+
+    private static void ConfigureWindowsSearch(HostConfiguration configuration)
+    {
+        if (!SetDefaultDllDirectories(0x1000))
+            throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法启用Windows封闭DLL搜索");
+        // 目录注册与原生库同寿命，保留到进程退出；扩展可在宿主停止后仍持有地址。
+        foreach (string directory in new[] { configuration.Home, Path.Combine(configuration.Home, "DLLs") }.Concat(configuration.NativeSearchPaths).Distinct(StringComparer.OrdinalIgnoreCase))
+            if (Directory.Exists(directory) && AddDllDirectory(directory) == 0)
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法注册随包DLL目录：" + directory);
+    }
+
+    private static nint LinuxDlopen(string path, int flags)
+    {
+        try { return LinuxLoad(path, flags); }
+        catch (DllNotFoundException) { return LinuxLibcLoad(path, flags); }
+    }
+
+    private CPythonHost(HostConfiguration configuration)
+    {
+        modules = new(configuration.Modules, StringComparer.Ordinal); synchronizeContainers = configuration.SynchronizeContainers;
+    }
+
+    internal static unsafe CPythonHost Start(string path, string[] argv)
+    {
+        HostConfiguration configuration = HostConfiguration.Read(path);
+        if (Interlocked.Exchange(ref processStarted, 1) != 0) throw new InvalidOperationException("每进程只允许一次CPython初始化");
+        var host = new CPythonHost(configuration); Instance = host;
+        try
+        {
+            host.pythonPath = configuration.Library; host.shimPath = configuration.Shim;
+            if (OperatingSystem.IsWindows()) ConfigureWindowsSearch(configuration);
+            // C扩展从进程全局符号表解析Py*；固定绝对路径加载，绝不探测系统Python。
+            host.pythonLibrary = OperatingSystem.IsMacOS() ? MacLoad(configuration.Library, 0xA)
+                : OperatingSystem.IsLinux() ? LinuxDlopen(configuration.Library, 0x102) : WindowsLoad(configuration.Library);
+            if (host.pythonLibrary == 0) throw new DllNotFoundException("无法加载固定libpython：" + configuration.Library);
+            // 在shim符号绑定之前读取实际库版本；错误ABI有确定诊断，而非偶然缺符号。
+            var versionFunction = (delegate* unmanaged[Cdecl]<nint>)NativeLibrary.GetExport(host.pythonLibrary, "Py_GetVersion");
+            string actualVersion = Marshal.PtrToStringUTF8(versionFunction())!;
+            if (!actualVersion.StartsWith(configuration.ExpectedVersion + " ", StringComparison.Ordinal))
+                throw new InvalidDataException($"ABI requires CPython {configuration.ExpectedVersion}, loaded {actualVersion}");
+            host.shimLibrary = OperatingSystem.IsWindows() ? WindowsLoad(configuration.Shim) : NativeLibrary.Load(configuration.Shim);
+            // 原固定 3.12.13 shim 沿用已有静态版本 guard；多版本 shim 必须提供头文件版本。
+            if (NativeLibrary.TryGetExport(host.shimLibrary, "rp_build_version", out nint shimVersionAddress))
+            {
+                var shimVersionFunction = (delegate* unmanaged[Cdecl]<nint>)shimVersionAddress;
+                string shimVersion = Marshal.PtrToStringUTF8(shimVersionFunction())!;
+                if (shimVersion != configuration.ExpectedVersion)
+                    throw new InvalidDataException($"shim头文件版本应为 {configuration.ExpectedVersion}，实际为 {shimVersion}");
+            }
+            else if (configuration.ExpectedVersion != "3.12.13")
+                throw new InvalidDataException("多版本CPython shim缺少构建版本导出");
+            NativeLibrary.SetDllImportResolver(typeof(Native).Assembly, (name, _, _) => name == Native.Library ? host.shimLibrary : 0);
+            nint[] paths = configuration.SearchPaths.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
+            nint[] args = argv.Select(Marshal.StringToCoTaskMemUTF8).ToArray();
+            try
+            {
+                fixed (nint* pathPointer = paths, argPointer = args)
+                    if (Native.rp_start(configuration.Home, pathPointer, paths.Length, argPointer, args.Length, &Dispatch) != 0)
+                        throw new InvalidOperationException("CPython初始化失败：" + Marshal.PtrToStringUTF8(Native.rp_init_error()));
+            }
+            finally { foreach (nint item in paths) Marshal.FreeCoTaskMem(item); foreach (nint item in args) Marshal.FreeCoTaskMem(item); }
+            host.state = 1;
+            host.InstallImports();
+            return host;
+        }
+        catch (Exception error)
+        {
+            if (host.state == 1) { try { host.Dispose(); } catch { } }
+            host.state = 3; Instance = null;
+            throw new InvalidOperationException($"CPython启动失败 [stage=load/init config={path} library={configuration.Library} shim={configuration.Shim}]：{error.Message}", error);
+        }
+    }
+
+    /// <summary>即时计数，不触发GC或隐式回收。</summary>
+    public HostStatistics Statistics
+    {
+        get { lock (gate) return new(state == 1 ? "running" : state is 2 or 4 ? "stopping" : "closed", calls, active, handles.Count, Roots.Count, releases.Count, late); }
+    }
+
+    internal Lease Enter(bool callback = false)
+    {
+        lock (gate)
+        {
+            if (state != 1 && !((state is 2 or 4) && (Environment.CurrentManagedThreadId == ownerThread || state == 2 && callback && active > 0)))
+                throw new ObjectDisposedException("CPython", "解释器关闭中或已关闭");
+            active++; calls++;
+        }
+        // 取得GIL时不持有托管锁，Python可以重入同一宿主。
+        int gil = 0; bool acquired = false;
+        try { gil = Native.rp_gil(); acquired = true; Drain(); leaseDepth++; return new Lease(this, gil); }
+        catch
+        {
+            if (acquired) Native.rp_gil_release(gil);
+            lock (gate) { active--; Monitor.PulseAll(gate); }
+            throw;
+        }
+    }
+
+    internal readonly struct Lease(CPythonHost host, int gil) : IDisposable
+    {
+        public void Dispose()
+        {
+            host.Drain(); leaseDepth--; Native.rp_gil_release(gil);
+            lock (host.gate) { host.active--; Monitor.PulseAll(host.gate); }
+        }
+    }
+
+    internal long Track(nint pointer) { lock (gate) { long token = ++nextHandle; handles.Add(token, pointer); return token; } }
+    internal void Release(long token)
+    {
+        lock (gate)
+        {
+            if (!handles.Remove(token, out nint pointer)) { if (state == 3) late++; return; }
+            if (state is 3 or 4) { late++; return; }
+            releases.Enqueue(pointer);
+        }
+    }
+    private void Drain() { while (releases.TryDequeue(out nint pointer)) Native.rp_decref(pointer); }
+
+    /// <summary>在合法租约内排空释放队列；可用来观察稳态。</summary>
+    public void DrainReferences() { using Lease lease = Enter(); }
+
+    /// <summary>显式注销反向代理，应用应先令Python端删除其引用以断开跨堆环。</summary>
+    public void Unregister(object value)
+    {
+        using Lease lease = Enter();
+        if (reverse.TryGetValue(value, out ManagedReference? reference))
+        {
+            Roots.TryRemove(reference.Identity, out _); reverse.Remove(value);
+            if (transfers.TryGetValue(value, out ContainerTransfer? transfer)) { transfers.Remove(value); transfer.Owner.Dispose(); }
+        }
+    }
+
+    /// <summary>停止外部租约，等待已进入的调用，所属线程终止解释器一次。</summary>
+    public void Dispose()
+    {
+        if (leaseDepth != 0) throw new InvalidOperationException("持有CPython租约时禁止关闭宿主");
+        if (Environment.CurrentManagedThreadId != ownerThread) throw new InvalidOperationException("CPython必须在初始化线程关闭");
+        lock (gate)
+        {
+            if (state == 3) return;
+            if (state != 1) throw new InvalidOperationException("CPython关闭重入");
+            state = 2;
+            // Wait释放gate；现存外部调用和回调可以完成并通知。
+            while (active != 0) Monitor.Wait(gate);
+        }
+        Exception? observationError = null;
+        try
+        {
+            using Lease lease = Enter();
+            try { CaptureModulePaths(); } catch (Exception error) { observationError = error; }
+            Drain(); lock (gate) liveHandlesAtShutdown = handles.Count;
+            // 活代理可能被atexit回调再次使用，保留其owned引用与身份缓存到Finalize结束。
+        }
+        catch (Exception error) { observationError ??= error; }
+        lock (gate) state = 4;
+        int result;
+        try { result = Native.rp_stop(); }
+        finally
+        {
+            // Finalize期间的C代理析构/atexit仍可访问Roots；完成后才清除托管根。
+            Roots.Clear(); imported.Clear(); objects.Clear(); transfers.Clear(); transferIndex.Clear(); lock (gate) { state = 3; handles.Clear(); } Instance = null;
+        }
+        WriteReport();
+        if (observationError is not null) throw new InvalidOperationException("CPython关闭观测失败", observationError);
+        if (result != 0) throw new InvalidOperationException("CPython关闭时标准流刷新失败");
+    }
+
+    internal bool IsClosed { get { lock (gate) return state == 3; } }
+
+    /// <inheritdoc />
+    public object? SystemAttribute(string name) => PythonCall(() =>
+    {
+        nint system = Check(Native.rp_op(1, s: "sys"));
+        try { return FromOwned(Native.rp_op(2, system, s: name)); } finally { Native.rp_decref(system); }
+    });
+    /// <inheritdoc />
+    public bool Owns(string name) => modules.Contains(name) || modules.Any(m => name.StartsWith(m + ".", StringComparison.Ordinal));
+    /// <summary>确定释放一个opaque对象；调用者应保证后续不再使用其任何别名。</summary>
+    public void ReleaseObject(object value)
+    {
+        // 关闭后只登记迟到释放，不取得GIL也不读取Python对象。
+        bool closed; lock (gate) closed = state == 3;
+        if (closed) { lock (gate) ReleaseCore(value); return; }
+        using Lease lease = Enter(); ReleaseCore(value);
+    }
+    private void ReleaseCore(object value)
+    {
+        if (value is PythonObject foreign) { if (!foreign.IsDisposed) objects.Remove(foreign.Pointer); foreign.Dispose(); }
+        else if (value is PyBaseException { ForeignObject: PythonObject origin })
+        { if (!origin.IsDisposed) objects.Remove(origin.Pointer); origin.Dispose(); }
+        else if (reverse.TryGetValue(value, out ManagedReference? reference))
+        {
+            objects.Remove(reference.Pointer); reference.Owner?.Dispose(); reverse.Remove(value); transfers.Remove(value);
+        }
+    }
+    internal sealed record ManagedReference(nint Identity, nint Pointer, PythonObject? Owner = null);
+}

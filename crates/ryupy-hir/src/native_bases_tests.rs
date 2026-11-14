@@ -10,6 +10,8 @@ fn lower(source: &str, native: &[&str]) -> (crate::Module, Vec<ryupy_base::Diagn
     lower_module_with_native_exceptions(
         &parsed,
         &ModuleInfo {
+            instance_capabilities: Default::default(),
+            instance_globals: false,
             resolve_file_at_runtime: false,
             name: "__main__".into(),
             package: String::new(),
@@ -57,11 +59,6 @@ fn missing_native_identity_uses_guarded_runtime_base_not_native_assumptions() {
         "import other as unittest\nclass C(unittest.TestCase):\n    pass\n",
     ] {
         let (module, errors) = lower(source, &["unittest"]);
-        if source.contains("del unittest") {
-            // 删除名字仍未实现；未知读取转运行时不能掩盖该独立语法诊断。
-            assert!(errors.iter().any(|error| error.code == Some("E0100")));
-            continue;
-        }
         assert!(errors.is_empty(), "{source}: {errors:?}");
         assert!(
             module

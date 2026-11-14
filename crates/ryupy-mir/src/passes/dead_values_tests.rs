@@ -49,12 +49,18 @@ fn sample() -> (Function, [LocalId; 4]) {
     });
     (
         Function {
+            module_state: None,
+            instance_capabilities: Default::default(),
+            module_state_source: None,
             name: "dead".into(),
             codegen_name: "dead".into(),
             source_file: "dead.py".into(),
+            definition: None,
             params: vec![],
             ret: MirType::Unit,
             body: Body {
+                direct_globals_contracts: Vec::new(),
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -66,6 +72,7 @@ fn sample() -> (Function, [LocalId; 4]) {
             defaults_global: None,
             signature_global: None,
             env: None,
+            dynamic_origin: None,
         },
         [counter, boxed, target, unused],
     )
@@ -151,6 +158,7 @@ fn discarded_calls_unbox_arithmetic_and_field_access_still_execute() {
 fn generator_frames_and_exception_metadata_are_conservative_roots() {
     let (mut function, [_, boxed, _, _]) = sample();
     function.body.regions.push(Region {
+        source_handler_chain: None,
         kind: RegionKind::CatchAll,
         try_start: function.body.entry,
         try_len: 1,
@@ -167,6 +175,7 @@ fn generator_frames_and_exception_metadata_are_conservative_roots() {
             value: Rvalue::MakeGenerator {
                 resume: FnId::from_raw(la_arena::RawIdx::from(0)),
                 frame: vec![Operand::Local(target)],
+                origin: None,
             },
         });
     DeadValues.run(&mut function);

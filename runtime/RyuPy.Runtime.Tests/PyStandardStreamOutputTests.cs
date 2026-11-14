@@ -50,17 +50,29 @@ public class PyStandardStreamOutputTests
         PySystem.Initialize("standard-output-test.py", []);
         var sys = PyModules.Import("sys");
         object? previous = PySystem.Stderr, previousOutput = PySystem.Stdout;
-        var error = new PyValueError("line\nnext");
-        string raw = PyTraceback.Format(error);
-        Assert.Contains("\n", raw);
-        Assert.DoesNotContain("\r", raw);
+        object? previousHandler = PyErrors.EnterHandler(null);
         try
         {
+            var cause = new PyValueError("root");
+            var context = new PyTypeError("middle");
+            context.WithCause(cause);
+            var error = new PyValueError("line\nnext") { Context = context };
+            const string raw = "ValueError: root\n\n"
+                + "The above exception was the direct cause of the following exception:\n\n"
+                + "TypeError: middle\n\n"
+                + "During handling of the above exception, another exception occurred:\n\n"
+                + "ValueError: line\nnext\n";
+            const string windows = "ValueError: root\r\n\r\n"
+                + "The above exception was the direct cause of the following exception:\r\n\r\n"
+                + "TypeError: middle\r\n\r\n"
+                + "During handling of the above exception, another exception occurred:\r\n\r\n"
+                + "ValueError: line\r\nnext\r\n";
+            Assert.Equal(raw, PyTraceback.Format(error));
             var writer = new RecordingWriter();
             sys.SetAttr("stderr", new PyStandardStream("<stderr>", null, writer));
             PyTraceback.Report(error);
             Assert.Equal(1, writer.Writes);
-            Assert.Equal(PyStandardStream.TranslateOutput(raw, OperatingSystem.IsWindows()), writer.ToString());
+            Assert.Equal(OperatingSystem.IsWindows() ? windows : raw, writer.ToString());
             string? received = null;
             var cls = new PyClass("Output");
             cls.SetAttr("write", PyNativeFunctions.Create("write", ["self", "text"], [null, null], 2,
@@ -76,11 +88,15 @@ public class PyStandardStreamOutputTests
             received = null;
             Builtins.WriteStr(raw);
             Assert.Same(raw, received);
+            Assert.Same(context, error.Context); Assert.Null(error.Cause); Assert.False(error.SuppressContextFlag);
+            Assert.Same(cause, context.Cause); Assert.True(context.SuppressContextFlag);
+            Assert.Empty(cause.Frames); Assert.Empty(context.Frames); Assert.Empty(error.Frames);
         }
         finally
         {
             sys.SetAttr("stderr", previous);
             sys.SetAttr("stdout", previousOutput);
+            PyErrors.LeaveHandler(previousHandler);
         }
     }
 

@@ -1,0 +1,41 @@
+"""CP真实正例：后阶段mutable subject活读/export；不注册，不计immutable首切通过。"""
+import re
+
+subject = bytearray(b'abcd')
+match = re.search(b'(bc)', subject)
+assert match.string is subject and match.span() == (1, 3)
+subject[1:3] = b'XY'
+assert match.group() == b'XY'
+subject.append(90)
+del subject[2:]
+assert match.group() == b'X' and match.span() == (1, 3) and match.endpos == 4
+
+subject = bytearray(b'aa')
+iterator = re.finditer(b'a', subject)
+try:
+    subject.append(90)
+except BufferError as error:
+    assert str(error) == 'Existing exports of data: object cannot be re-sized'
+else:
+    raise AssertionError('finditer creation must export before first next')
+first = next(iterator)
+subject[1] = 98
+assert list(iterator) == []
+subject.append(90)
+assert first.group() == b'a' and subject == bytearray(b'abZ')
+
+subject = bytearray(b'xa xa')
+def replace(match):
+    try:
+        subject.append(90)
+    except BufferError:
+        pass
+    else:
+        raise AssertionError('sub callback must hold subject export')
+    subject[0] = 81
+    subject[4] = 98
+    return b'R'
+assert re.sub(b'a', replace, subject) == b'xR xb'
+subject.append(90)
+assert subject == bytearray(b'Qa xbZ')
+print('pending.mutable-subjects', match.group(), first.group(), subject)

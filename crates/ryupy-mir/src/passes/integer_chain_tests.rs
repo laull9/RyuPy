@@ -28,12 +28,18 @@ fn sample(steps: usize) -> (Function, LocalId) {
         terminator: Terminator::Unreachable,
     });
     let mut f = Function {
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
         name: "integer_chain".into(),
         codegen_name: "integer_chain".into(),
         source_file: "chain.py".into(),
+        definition: None,
         params: Vec::new(),
         ret: MirType::Dynamic,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -45,6 +51,7 @@ fn sample(steps: usize) -> (Function, LocalId) {
         defaults_global: None,
         signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
         env: None,
+        dynamic_origin: None,
     };
     let inputs: Vec<_> = (0..=steps)
         .map(|_| local(&mut f, MirType::Dynamic))
@@ -80,6 +87,7 @@ fn validate(f: Function) {
     let entry = functions.alloc(f);
     let mut globals = Arena::default();
     globals.alloc(GlobalDecl {
+        storage: crate::GlobalStorage::LegacyStatic,
         name: "signature".into(),
         ty: MirType::Dynamic,
     });
@@ -372,6 +380,7 @@ fn add_chain_observers_callbacks_and_unsupported_frames_keep_original_path() {
             5 => f.env = Some(f.params[0]),
             6 => f.body.locals[f.params[0]].is_cell = true,
             7 => f.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

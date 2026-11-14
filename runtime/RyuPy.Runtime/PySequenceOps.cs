@@ -75,6 +75,12 @@ public static partial class PyOps
                     return set;
                 }
                 break;
+            case PyDictInstance dict when op == BitOr:
+                return PyDictSubclassDispatch.Union(dict, b, inplace: true);
+            case PyListInstance list when op == Add:
+                return PyListProtocols.InPlaceAdd(list, b);
+            case PyListInstance list when op == Mul:
+                return PyListProtocols.InPlaceMultiply(list, b);
             case PyInstance or PyNativeObject when op > 0 && op < InPlaceMagicNames.Length:
                 if (PyObject.TryMethod(a, InPlaceMagicNames[op], [b], out object? result)
                     && result is not PyNotImplemented)
@@ -116,12 +122,16 @@ public static partial class PyOps
             case PyList left:
                 if (b is not PyList right)
                 {
+                    if (b is PyListInstance) { result = PyListProtocols.Concat(left, b); return true; }
                     throw ConcatError("list", b);
                 }
                 var items = new List<object?>(left.Count + right.Count);
                 items.AddRange(left.Items);
                 items.AddRange(right.Items);
                 result = new PyList(items);
+                return true;
+            case PyListInstance left:
+                result = PyListProtocols.Concat(left, b);
                 return true;
             case PyTuple leftTuple:
                 if (b is not PyTuple rightTuple)
@@ -134,6 +144,7 @@ public static partial class PyOps
                 result = new PyTuple(joined);
                 return true;
             case string:
+            case PyStringInstance:
                 throw ConcatError("str", b);
             case PyBytes leftBytes:
                 result = new PyBytes([.. leftBytes.Bytes, .. BytesLike(b, "bytes")]);
@@ -165,6 +176,16 @@ public static partial class PyOps
         {
             result = null;
             return false;
+        }
+        if (sequence is PyListInstance listInstance)
+        {
+            result = PyListProtocols.Repeat(listInstance, count);
+            return true;
+        }
+        if (sequence is PyStringInstance subtext)
+        {
+            result = PyStringProtocols.Repeat(subtext, count);
+            return true;
         }
         int times = RepeatCount(sequence, count);
         switch (sequence)
@@ -204,7 +225,7 @@ public static partial class PyOps
     }
 
     private static bool IsSequenceForRepeat(object value) =>
-        value is string or PyList or PyTuple or PyBytes or PyByteArray;
+        value is string or PyStringInstance or PyList or PyListInstance or PyTuple or PyBytes or PyByteArray;
 
     /// <summary>
     /// 校验重复次数：必须是整数（bool 视为 0 / 1），负数按 0；超出可分配范围抛

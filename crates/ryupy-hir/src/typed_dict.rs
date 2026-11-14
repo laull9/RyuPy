@@ -59,7 +59,12 @@ pub(crate) fn candidate<'a>(
     globals: &GlobalScope,
 ) -> Option<&'a ast::Expr> {
     let expr = class.arguments.as_ref()?.args.first()?;
-    let yes = match expr {
+    candidate_expr(expr, globals).then_some(expr)
+}
+
+/// 只复用现有TypedDict候选语法；实际身份仍由专用运行时验证。
+pub(crate) fn candidate_expr(expr: &ast::Expr, globals: &GlobalScope) -> bool {
+    match expr {
         ast::Expr::Name(name) => {
             let name = Name::from(name.id.as_str());
             globals.typed_dict_roots.contains(&name) || globals.typed_dict_classes.contains(&name)
@@ -69,8 +74,7 @@ pub(crate) fn candidate<'a>(
                 if globals.typed_dict_modules.contains(&Name::from(name.id.as_str())))
         }
         _ => false,
-    };
-    yes.then_some(expr)
+    }
 }
 
 pub(crate) fn validate(

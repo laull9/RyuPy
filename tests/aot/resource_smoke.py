@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """每宿主一次资源AOT发布；固定源码，无后端专用Python分支。"""
 from aot_layout import reported_aot
+from native_evidence import preserve_dist
 import argparse
 import hashlib
 import json
@@ -10,7 +11,8 @@ import re
 import shutil
 import tempfile
 import time
-from smoke import executable, IMAGE
+from smoke import executable
+from docker_image import prepare_image
 from platform_runner import Runner
 from platform_support import host, audit, clean_environment
 from platform_smoke import published_platform_native, rustc_executable
@@ -140,6 +142,8 @@ def main():
         layout = reported_aot(published.stderr,il,'main',args.rid)
         native = layout.native
         manifest_file = published_manifest(published.stderr,native)
+        # 第一次原生运行之前保存完整交付物；后续失败仍能重放本次发布。
+        preserve_dist(native.parent, logs)
         sdk = read_sdk_version(layout.host/'sdk.version')
         result['aot_il_sha256'] = sha(layout.managed)
         assert sha(layout.managed.parent/'RyuPy.Runtime.dll') == result['runtime_sha256']
@@ -178,13 +182,15 @@ def main():
             actual = run.run(f'native-{mode}',[str(binary),mode],cwd=unrelated,env=clean,timeout=30)
             equal(references[mode],actual)
         if args.rid == 'linux-x64':
+            docker = executable('docker')
+            image = prepare_image(run, docker, work)
             script = ('for tool in dotnet python python3 python3.12; do '
                 'if command -v "$tool" >/dev/null 2>&1; then exit 97; fi; done; '
                 'binary=$1; shift; exec "$binary" "$@"')
             for mode in ('en','fr'):
-                actual = run.run(f'docker-{mode}',[executable('docker'),'run','--rm','--network','none',
+                actual = run.run(f'docker-{mode}',[docker,'run','--pull=never','--rm','--network','none',
                     '--read-only','--mount',f'type=bind,src={relocated},dst=/app,readonly',
-                    '--workdir','/tmp','--entrypoint','/bin/sh',IMAGE,'-c',script,'resource-smoke',
+                    '--workdir','/tmp','--entrypoint','/bin/sh',image,'-c',script,'resource-smoke',
                     '/app/'+binary.name,mode],cwd=work,timeout=30)
                 equal(references[mode],actual)
             result['clean_machine_without_runtime_tested'] = True

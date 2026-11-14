@@ -101,6 +101,7 @@ impl ProgramPass for LeafInline {
                 let leaf = leaves[which];
                 let anchor = *anchors.entry(which).or_insert_with(|| {
                     let slot = program.globals.alloc(GlobalDecl {
+                        storage: crate::GlobalStorage::LegacyStatic,
                         name: format!("__leaf_identity_{}", leaf.function.into_raw()),
                         ty: MirType::Dynamic,
                     });

@@ -22,6 +22,7 @@ pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirTyp
         name: name.into(),
         codegen_name: name.into(),
         source_file: "exact_i64.py".into(),
+        definition: None,
         params,
         ret,
         body,
@@ -31,6 +32,10 @@ pub(super) fn function(name: &str, body: Body, params: Vec<LocalId>, ret: MirTyp
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
     }
 }
 
@@ -45,6 +50,8 @@ pub(super) fn single_block(
         terminator: Terminator::Return(ret),
     });
     Body {
+        direct_globals_contracts: Vec::new(),
+        source_handler_contracts: Vec::new(),
         locals,
         blocks,
         entry,
@@ -95,6 +102,8 @@ pub(super) fn program() -> LinkedProgram {
     functions.alloc(function(
         "guarded_exact",
         Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,
@@ -170,8 +179,12 @@ pub(super) fn program() -> LinkedProgram {
     ));
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),
@@ -180,6 +193,12 @@ pub(super) fn program() -> LinkedProgram {
         exports: Vec::new(),
     });
     LinkedProgram {
+        external_provider: None,
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
+        distribution_metadata: None,
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),

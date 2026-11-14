@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- 只在隔离probe测试构建启用，与ProjectReference的全局属性一致。 -->
+    <DefineConstants Condition="'$(TraceAdapterTest)' == 'true'">$(DefineConstants);TRACE_ADAPTER_TEST</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

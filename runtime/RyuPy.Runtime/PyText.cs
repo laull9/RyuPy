@@ -99,11 +99,29 @@ public static class PyText
             return text.Substring(first, last - first);
         }
         var builder = new StringBuilder((int)Math.Min(count * 2, int.MaxValue));
-        long logical = start;
-        for (long i = 0; i < count; i++, logical += step)
+        // 游标只沿原字符串移动一次；不能逐项 OffsetOf，否则反转长文本退化成 O(n²)。
+        // 不建立码点偏移数组，保持额外空间仅为结果缓冲区。
+        int offset = first;
+        for (long i = 0; i < count; i++)
         {
-            int offset = OffsetOf(text, logical);
             builder.Append(text, offset, CodePointWidth(text, offset));
+            // 最后一项之后不再移动，避免巨大步长越界或不必要的扫描。
+            if (i + 1 == count) break;
+            if (step > 0)
+            {
+                for (long skipped = 0; skipped < step; skipped++)
+                    offset += CodePointWidth(text, offset);
+            }
+            else
+            {
+                for (long skipped = 0; skipped > step; skipped--)
+                {
+                    offset--;
+                    // 只有原输入中相邻的高低代理项组成一个码点；孤立代理项不能被吞掉。
+                    if (offset > 0 && char.IsLowSurrogate(text[offset])
+                        && char.IsHighSurrogate(text[offset - 1])) offset--;
+                }
+            }
         }
         return builder.ToString();
     }

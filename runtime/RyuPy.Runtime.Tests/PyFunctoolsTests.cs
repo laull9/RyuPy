@@ -10,8 +10,13 @@ public class PyFunctoolsTests
     internal static readonly Dictionary<string, object?> Module = PyFunctools.CreateAttributes();
     internal static object? Invoke(object? value, object?[] args, string[]? names = null, object?[]? values = null) =>
         PyOps.CallValue(value, args, names ?? [], values ?? []);
-    internal static PyFunction Function(string name, PyCall body) =>
-        new(name, PySignature.Create(name, [], [], []), body, []);
+    internal static PyFunction Function(string name, PyCall body)
+    {
+        var function = new PyFunction(name, PySignature.Create(name, [], [], []), body, []);
+        // 本fixture模拟已知名字的Python函数，显式提供限定名；不捏造源码行号。
+        PyObject.SetAttr(function, "__qualname__", name);
+        return function;
+    }
 
     [Fact]
     public void PartialPreservesArgumentsLiveKeywordsAndDoesNotBindSelf()
@@ -75,6 +80,6 @@ public class PyFunctoolsTests
         Assert.Equal(1L, PyObject.GetAttr(wrapper, "custom"));
         Assert.Same(annotations, PyObject.GetAttr(wrapper, "__annotations__"));
         Assert.Same(original, PyObject.GetAttr(wrapper, "__wrapped__"));
-        Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(wrapper, "__qualname__"));
+        Assert.Equal("original", PyObject.GetAttr(wrapper, "__qualname__"));
     }
 }

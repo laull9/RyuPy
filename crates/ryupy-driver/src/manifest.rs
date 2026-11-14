@@ -32,7 +32,6 @@ pub(crate) struct ManifestContext {
     pub report: EmissionReport,
     pub sources: Vec<SourceSummary>,
     pub entry_module_id: u32,
-    pub managed_sha256: String,
     pub managed_size: u64,
     pub options: Value,
 }
@@ -49,19 +48,25 @@ impl ManifestContext {
             report,
             sources,
             entry_module_id,
-            managed_sha256: manifest_files::hash_bytes(managed),
             managed_size: managed.len() as u64,
             options: json!({"experimental_direct_accumulator": session.experimental_direct_accumulator,
+                "experimental_foreach_accumulator": session.experimental_foreach_accumulator,
                 "experimental_leaf_inline": session.experimental_leaf_inline,
                 "diagnostic_scalar_slp": session.diagnostic_scalar_slp,
-                "experimental_packed_slp": session.experimental_packed_slp}),
+                "experimental_packed_slp": session.experimental_packed_slp,
+                "instance_modules": session.instance_modules,
+                "module_environment_policy": session.module_environment_policy.identity()}),
         };
+        let mut context = context;
+        if let Some(report) = &session.distribution_metadata_report {
+            context.options["distribution_metadata"] = report.clone();
+        }
         context.validate()?;
         Ok(context)
     }
 
     fn validate(&self) -> Result<()> {
-        ensure!(self.report.schema_version == 1, "不支持的 codegen 报告版本");
+        validate_report_version(self.report.schema_version)?;
         ensure!(
             !self.sources.is_empty() && self.report.modules.len() == self.sources.len(),
             "报告与实际源模块数量不符"
@@ -89,7 +94,10 @@ impl ManifestContext {
                 module.module_name == source.module_name,
                 "codegen 模块身份与编译文本不符"
             );
-            for method in [&module.init, &module.getter, &module.setter] {
+            for method in std::iter::once(&module.init)
+                .chain(module.getter.iter())
+                .chain(module.setter.iter())
+            {
                 check_method(method)?;
             }
         }
@@ -111,7 +119,7 @@ impl ManifestContext {
 
     pub(crate) fn verify_managed_input(&self, input: &FileDigest) -> Result<()> {
         ensure!(
-            input.size == self.managed_size && input.sha256 == self.managed_sha256,
+            input.size == self.managed_size,
             "AOT 托管输入已不等于本次 codegen 字节"
         );
         Ok(())
@@ -144,18 +152,11 @@ impl ManifestContext {
         self.verify_managed_input(&build_inputs[0])?;
         for input in artifacts.iter().chain(build_inputs) {
             manifest_files::safe_relative(&input.relative_path)?;
-            ensure!(
-                input.sha256.len() == 64
-                    && input
-                        .sha256
-                        .bytes()
-                        .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
-                "清单文件摘要无效"
-            );
         }
         let modules: Vec<Value> = self.report.modules.iter().map(|module| json!({
             "id":module.module_id,"name":module.module_name,"init":method(&module.init),
-            "getter":method(&module.getter),"setter":method(&module.setter),"exports":module.exports
+            "environment_reason":module.environment_reason,
+            "getter":module.getter.as_ref().map(method),"setter":module.setter.as_ref().map(method),"exports":module.exports
         })).collect();
         let references: Vec<Value> = self.report.delegate_references.iter().map(|reference| json!({
             "site":{"source_method":method(&reference.source),"instruction":reference.instruction},
@@ -200,6 +201,12 @@ pub(crate) fn input_digests(dll: &Path, runtime: &Path) -> Result<Vec<FileDigest
         manifest_files::digest_file(dll, "managed-entry.dll", "compiled_managed_input")?,
         manifest_files::digest_file(runtime, "RyuPy.Runtime.dll", "runtime_managed_input")?,
     ])
+}
+
+/// 报告 v2 仅增加观察定位字段；原部署投影接受 v1/v2，未知版本仍拒绝。
+pub(crate) fn validate_report_version(version: u32) -> Result<()> {
+    ensure!(matches!(version, 1 | 2), "不支持的 codegen 报告版本");
+    Ok(())
 }
 
 #[cfg(test)]

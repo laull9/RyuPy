@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "mode": "default-jit",
+  "reference_commit": "db866eadb608465d47cc1af81f072434f66b8b3e",
+  "project_ids": [
+    "six",
+    "sortedcontainers",
+    "toml",
+    "tomli",
+    "pyparsing",
+    "attrs",
+    "networkx",
+    "python-dateutil",
+    "click",
+    "docopt",
+    "pyfiglet",
+    "tabulate",
+    "texttable",
+    "markdown",
+    "chardet",
+    "wcwidth",
+    "colorama",
+    "termcolor",
+    "binaryornot",
+    "progress"
+  ],
+  "protected_native": [
+    "tomli",
+    "docopt",
+    "tabulate",
+    "texttable",
+    "chardet",
+    "wcwidth",
+    "colorama",
+    "termcolor",
+    "binaryornot",
+    "progress",
+    "toml"
+  ],
+  "promotion_requires": [
+    "progress"
+  ],
+  "historical_regression_note": "progress 历史默认通过，db866ead 默认因 explicit super 失败；保九项不代表已恢复或默认晋升。",
+  "preservation_reference_commit": "f34f22b057974f60cfcfff52dd37b1f4e4dfb1ec",
+  "historical_protected_native": [
+    "tomli",
+    "docopt",
+    "tabulate",
+    "texttable",
+    "chardet",
+    "wcwidth",
+    "colorama",
+    "termcolor",
+    "binaryornot"
+  ],
+  "preservation_update_note": "f34/CI58完整20已实际恢复progress，当前protected_native为旧10逐ID保护；新增pyfiglet不能抵消回退。reference_commit及historical字段保旧九项/旧progress失败事实，不改历史。",
+  "toml_preservation_note": "真实toml原入口、扩展、有限Decimal及tzinfo四图双PIC同源通过后新增toml逐ID保护；完整20同源回归仍须执行，不改历史reference、原源/入口/golden与旧选择。compiled晋升仅decoder/encoder/tz三模块，其余字段不变。"
+}

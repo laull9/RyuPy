@@ -1,0 +1,148 @@
+{
+  "status": "planned-not-executed",
+  "cases": [
+    {
+      "id": "bare",
+      "input": "fixtures/bare/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "positional",
+      "input": "fixtures/positional/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "parameter_positional",
+      "input": "fixtures/parameter_positional/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "star",
+      "input": "fixtures/star/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "keyword_star",
+      "input": "fixtures/keyword_star/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "list_comp",
+      "input": "fixtures/list_comp/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "set_comp",
+      "input": "fixtures/set_comp/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "dict_comp",
+      "input": "fixtures/dict_comp/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "generator_expr",
+      "input": "fixtures/generator_expr/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "generator_function",
+      "input": "fixtures/generator_function/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "default_off",
+      "input": "fixtures/default_off/entry.py",
+      "selected": [
+        "subject"
+      ],
+      "instance_direct_globals": false,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "entry",
+      "input": "fixtures/entry/entry.py",
+      "selected": [
+        "__main__"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    },
+    {
+      "id": "package",
+      "input": "fixtures/package/entry.py",
+      "selected": [
+        "pkg"
+      ],
+      "instance_direct_globals": true,
+      "policy": "OrdinaryDynamicPilot",
+      "aot": false,
+      "expect": "HasErrors + E0100; no product DLL; no initialization/runtime"
+    }
+  ]
+}

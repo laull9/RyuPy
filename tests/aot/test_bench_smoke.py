@@ -25,12 +25,17 @@ def bundle(root, source):
     (attempt/'hello.dll').write_bytes(b'il');(attempt/'RyuPy.Runtime.dll').write_bytes(b'rt')
     host=attempt/'ryupy-aot-one/host';host.mkdir(parents=True);(host/'sdk.version').write_text('10.0.403\n')
     dist=root/'hello.dist';data=manifest_fixture(dist)
+    # 真实无flag CLI采用catalog-only，管线回归须覆盖当前默认而非历史explicit-only。
+    data['compiler']['options']['module_environment_policy']='catalog-only'
     (dist/'program').rename(dist/'hello');(dist/'hello').chmod(0o755)
     for record in data['artifacts']:
         if record['relative_path']=='program':record['relative_path']='hello'
     for record,name in zip(data['build_inputs'],('hello.dll','RyuPy.Runtime.dll')):
         raw=(attempt/name).read_bytes();record.update(size=len(raw),sha256=hashlib.sha256(raw).hexdigest())
     data['sources'][0]['compiled_text_sha256']=hashlib.sha256(source.read_bytes()).hexdigest()
+    # 当前普通发布明确省略这些摘要；归档器自校验证据仍另算摘要。
+    for item in data['sources']:item['compiled_text_sha256']=''
+    for item in data['build_inputs']+data['artifacts']:item['sha256']=''
     (dist/'ryupy-artifact.json').write_text(json.dumps(data))
 
 
@@ -57,15 +62,34 @@ class BenchSmokeTests(unittest.TestCase):
                 name=command[3].removeprefix('ARGS=--save ')
                 saved=target/'bench/results'/f'{name}.json';saved.parent.mkdir(parents=True);saved.write_text(json.dumps(payload()))
                 bundle(target/'bench/aot/hello-new',source)
-            with patch.object(smoke.Runner,'run',side_effect=fake) as run:
-                smoke.run(root,out,target)
+            with patch.object(smoke.Runner,'run',side_effect=fake) as run, patch.object(smoke,'verify_relocation',return_value={'status':'passed'}) as relocation:
+                smoke.run(root,out,target,expected_sdk='10.0.403')
                 self.assertEqual(run.call_count,1)
+                relocation.assert_called_once()
             evidence=json.loads((out/'result.json').read_text())
+            self.assertEqual(evidence['expected_sdk'],'10.0.403')
             self.assertEqual(evidence['status'],'passed');self.assertEqual(evidence['bundle_relative_to_target'],'bench/aot/hello-new')
             self.assertTrue(old.exists());self.assertTrue((out/'saved-result.json').is_file())
             self.assertEqual((out/'owned-bundle/hello.build/attempt-one/.hidden-sdk.cs').read_bytes(),b'hidden-source')
             self.assertTrue((out/'owned-bundle/hello.build/attempt-one/empty').is_dir())
             self.assertEqual(evidence['archive']['owner_sha256'],hashlib.sha256(b'owner-bytes').hexdigest())
+
+    def test_wrong_actual_sdk_marks_failure_before_relocation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);out=root/'evidence';target=root/'target'
+            source=root/'tests/benchmarks/hello.py';source.parent.mkdir(parents=True);source.write_text('print("hello")\n')
+            def fake(label, command, **kwargs):
+                name=command[3].removeprefix('ARGS=--save ')
+                saved=target/'bench/results'/f'{name}.json';saved.parent.mkdir(parents=True);saved.write_text(json.dumps(payload()))
+                bundle(target/'bench/aot/hello-new',source)
+            with patch.object(smoke.Runner,'run',side_effect=fake), patch.object(smoke,'verify_relocation') as relocation:
+                with self.assertRaisesRegex(ValueError,'实际SDK'):
+                    smoke.run(root,out,target,expected_sdk='11.0.100')
+                relocation.assert_not_called()
+            evidence=json.loads((out/'result.json').read_text())
+            self.assertEqual(evidence['status'],'failed')
+            self.assertEqual(evidence['expected_sdk'],'11.0.100')
+            self.assertTrue((out/'owned-bundle').exists())
 
     def test_make_failure_preserves_status_never_checks_old_bundle(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -97,13 +121,29 @@ class BenchSmokeTests(unittest.TestCase):
             with self.assertRaises(TimeoutError):smoke.archive_bundle(source,out,0)
             self.assertFalse((out/'owned-bundle').exists())
 
+    def test_actual_sdk_must_match_requested_pin(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp);source=root/'hello.py';source.write_text('print("hello")\n')
+            dest=root/'bundle';bundle(dest,source)
+            smoke.validate_bundle(dest,source,'10.0.403')
+            with self.assertRaisesRegex(ValueError,'实际SDK'):
+                smoke.validate_bundle(dest,source,'11.0.100')
+            # 当宿主SDK记录与清单一起漂移时，内部一致性不够，仍须拒绝冻结版本不符。
+            record=dest/'hello.build/attempt-one/ryupy-aot-one/host/sdk.version'
+            record.write_text('11.0.100\n')
+            path=dest/'hello.dist/ryupy-artifact.json';data=json.loads(path.read_text())
+            data['toolchain']['sdk_version']='11.0.100';path.write_text(json.dumps(data))
+            smoke.validate_bundle(dest,source)
+            with self.assertRaisesRegex(ValueError,'实际11.0.100'):
+                smoke.validate_bundle(dest,source,'10.0.403')
+
     def test_native_input_tamper_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp);source=root/'hello.py';source.write_text('print("hello")\n')
             dest=root/'bundle';bundle(dest,source)
             smoke.validate_bundle(dest,source)
             (dest/'hello.build/attempt-one/hello.dll').write_bytes(b'changed')
-            with self.assertRaises(AssertionError):smoke.validate_bundle(dest,source)
+            with self.assertRaises(ValueError):smoke.validate_bundle(dest,source)
 
 
 if __name__=='__main__':unittest.main()

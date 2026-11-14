@@ -12,12 +12,18 @@ pub(crate) fn program(statement: Statement) -> Program {
     });
     let mut functions = Arena::default();
     let entry = functions.alloc(Function {
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
         name: "main".into(),
         codegen_name: "main".into(),
         source_file: "print.py".into(),
+        definition: None,
         params: vec![],
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals: {
                 let mut locals = Arena::default();
                 locals.alloc(crate::LocalDecl {
@@ -37,6 +43,7 @@ pub(crate) fn program(statement: Statement) -> Program {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     Program {
         functions,

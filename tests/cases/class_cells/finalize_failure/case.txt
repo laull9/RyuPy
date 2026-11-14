@@ -1,0 +1,2 @@
+entry = entry.py
+instance_module = subject

@@ -38,7 +38,10 @@ impl std::fmt::Display for Name {
 /// 模块的身份信息，全部由 driver 提供（HIR 不读文件）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModuleInfo {
-    /// 仅实际构建开启：模块初始化从已注册对象获取冷解析的位置。
+    /// 模块真实名字绑定到每个模块对象独立的运行时命名空间。
+    pub instance_globals: bool,
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
+    /// 仅实际构建开启：前言从本次导入对象获取冷位置与四个元数据初值。
     pub resolve_file_at_runtime: bool,
     /// 点分绝对模块名；入口文件固定为 `__main__`。
     pub name: String,
@@ -60,6 +63,8 @@ pub struct ModuleVar {
     pub annotation: Option<TypeRef>,
     /// 被函数里的 `global` 声明过。这类名字的读写走动态路径。
     pub is_global: bool,
+    /// 源码可能删除此模块绑定；独立于值类型，普通数值仍保typed槽。
+    pub may_delete: bool,
 }
 
 #[derive(Debug)]
@@ -89,6 +94,8 @@ pub struct Module {
 
 #[derive(Debug)]
 pub struct Function {
+    /// 真实源码定义来源；隐式函数保持未知。
+    pub definition: Option<crate::DefinitionInfo>,
     pub name: Name,
     pub kind: FunctionKind,
     pub params: Vec<Param>,
@@ -111,6 +118,8 @@ pub struct Function {
 /// 一个函数作用域的闭包分析结果。
 #[derive(Debug, Default, Clone)]
 pub struct ClosureInfo {
+    /// 真实隐式 __class__ 自由绑定的词法类来源；局部同名 cell 不使用此标记。
+    pub class_cell: Option<ClassId>,
     /// 本函数引用的外层 cell（含 `nonlocal`），顺序即 env 数组下标。
     ///
     /// 创建本函数对象时，外层按此顺序把对应的 cell 装进 env；
@@ -202,6 +211,10 @@ pub enum TypeRef {
 
 #[derive(Debug, Default)]
 pub struct Body {
+    /// AST零参直接Name globals调用的源码事实；MIR仍须独立能力/context。
+    pub direct_globals_calls: Vec<(ExprId, ExprId)>,
+    /// 可支持直接 locals() 的普通函数；源码可见槽按 CPython 编译访问顺序排列。
+    pub function_locals: Option<Vec<LocalId>>,
     pub locals: Arena<Local>,
     pub exprs: Arena<Expr>,
     pub stmts: Arena<Stmt>,
@@ -229,6 +242,10 @@ pub struct Expr {
 
 #[derive(Clone, Debug)]
 pub enum ExprKind {
+    /// 内层类体读取外层定义的隐式cell，不是当前类namespace或模块槽。
+    ClassCellRead(ClassId),
+    /// 类体读取定义者普通局部cell，未绑定按free的NameError而非LOAD_FAST。
+    ClassFreeLocal(LocalId),
     /// 类体定义位置读取先前类命名空间绑定；不对descriptor做实例绑定。
     ClassLocal(Name),
     /// 条件可能绑定的类名字；仅命名空间缺值时求 fallback。
@@ -245,6 +262,8 @@ pub enum ExprKind {
     UnresolvedGlobal(Name),
     /// 编译器生成的模块初始化读取，不是可遮蔽的Python调用。
     ModuleFile(Name),
+    /// 本次导入的初始元数据，只在模块前言读取一次。
+    ModuleMetadata(Name, Name),
     Literal(Literal),
     Local(LocalId),
     /// 读取模块级变量（M2.7）。
@@ -268,12 +287,16 @@ pub enum ExprKind {
         /// 要原地修改并保留身份，不可变值与普通二元运算相同。
         inplace: bool,
     },
-    /// 链式比较 `a < b < c` 在 lowering 时展开为 `a < b and b < c`
-    /// （要求中间项无副作用，否则报「暂不支持」）。
+    /// 单个富比较；返回值由运行时对象协议决定。
     Compare {
         op: CmpOp,
         lhs: ExprId,
         rhs: ExprId,
+    },
+    /// 每个操作数只求值一次；中间比较按真值短路，最终保留原始比较结果。
+    CompareChain {
+        operands: Vec<ExprId>,
+        ops: Vec<CmpOp>,
     },
     /// 短路逻辑。注意 Python 的 `and/or` 返回操作数本身而不是 bool。
     BoolOp {
@@ -294,6 +317,11 @@ pub enum ExprKind {
     PreparedCall {
         callee: ExprId,
         args: Vec<CallArg>,
+    },
+    /// 隐式上下文协议：按类型绑定方法，绕过实例属性。
+    ContextMethod {
+        base: ExprId,
+        name: Name,
     },
     Attribute {
         base: ExprId,
@@ -401,23 +429,7 @@ pub enum BinOp {
     RShift,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CmpOp {
-    Eq,
-    NotEq,
-    Lt,
-    LtE,
-    Gt,
-    GtE,
-    /// `in`：成员判断，走容器的 `__contains__`。
-    In,
-    /// `not in`。
-    NotIn,
-    /// `is`：引用身份。
-    Is,
-    /// `is not`。
-    IsNot,
-}
+pub use crate::comparisons::CmpOp;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BoolOp {
@@ -476,10 +488,10 @@ pub enum StmtKind {
     Break,
     Continue,
     Pass,
-    /// 内部节点：在模块入口的**定义位置**求值该函数的参数默认值。
+    /// 内部节点：普通静态绑定def的执行点，准备默认值/注解并创建、发布新函数。
     ///
     /// Python 在 `def` 执行时求值默认值；把它保留成一条语句（而不是统一提到开头），
-    /// 默认值才能引用此前的模块变量。
+    /// 默认值才能引用此前的模块变量；节点不把该函数降级为动态公开绑定。
     FunctionDefaults(FuncId),
     /// 嵌套 `def`（M3.0）：在执行位置创建函数对象并写入绑定名。
     ///
@@ -501,7 +513,7 @@ pub enum StmtKind {
         value: Option<ExprId>,
         cause: Option<ExprId>,
     },
-    /// `del a[i]` / `del a[x:y]`；目标是下标表达式。
+    /// 顺序删除模块绑定、已支持局部或属性/下标；目标本身不执行普通名字读取。
     Delete(Vec<ExprId>),
     /// 顶层 `class` 定义。MIR 在**定义位置**创建类对象并顺序执行类体，
     /// 保证类属性求值、方法对象创建与模块语句的先后关系正确。
@@ -517,6 +529,8 @@ pub enum StmtKind {
     },
     /// `from x import a, b as c`（M2.7）。星号导入明确拒绝，由 lower 报诊断。
     ImportFrom {
+        /// 实例执行保留原始相对信息，静态发现不决定运行期包。
+        relative: Option<(u32, String)>,
         /// 绝对模块名。
         module: String,
         /// 依次绑定：导入方看到的名字 → 目标模块里的名字。
@@ -538,6 +552,8 @@ pub enum StmtKind {
 /// `except` 分支。独立分配在 [`Body::handlers`] 里，`Try` 只持有 ID。
 #[derive(Debug)]
 pub struct Handler {
+    /// 来源与分派显式保存，裸链不能从type_expr存在性推断。
+    pub semantics: crate::HandlerSemantics,
     /// 匹配的异常类型名；`None` 表示裸 `except:`。
     ///
     /// 之所以在 HIR 就把 `except ValueError` 解析成名字而不是保留表达式：
@@ -546,6 +562,11 @@ pub struct Handler {
     /// 接入：类名与内建异常名一样作为 catch 的类型标识（codegen 会生成对应的
     /// CLR 异常子类，保持 CLR 与 Python 继承树同构）。
     pub types: Option<Vec<String>>,
+    /// 动态链的真实目标表达式；与types互斥，两者皆None仅表示裸except。
+    /// 仅mixed链保存全部非bare目标，静态链不增加表达式arena或改变旧EH。
+    pub type_expr: Option<ExprId>,
+    /// 动态目标开始求值时使用的except头行；静态/裸handler不发射此行。
+    pub type_line: u32,
     /// `as name` 绑定的目标（函数内是局部变量，模块顶层是模块变量）。
     pub name: Option<Binding>,
     pub body: Vec<StmtId>,

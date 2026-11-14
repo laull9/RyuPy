@@ -87,3 +87,10 @@ Mac object/archive/native minimum均12.0、原warning消失且原9应用保持�
 详见[后续记录](../../../docs/validation/aot-python-binding/README.md#后续-macos-自有测试输入目标修复)。
 实际宿主仍14.8.9，未新增性能测量；
 SDK目标变化时需重新核对测试常量，不能把任意第三方库自动降版本。
+
+## 后续公共绑定：单库多导出
+
+版本 2 声明增加 `exports` 数组，最多 64 个固定数值函数，共享一个真实模块和一份库部署；
+版本 1 保持原合同。逐函数错误、清单 schema 4、静态逐符号链接及真实双模式搬迁见
+[接口与验证](../binding_multi/README.md)和[ADR-0169](../../../docs/adr/0169-cabi-multiple-exports.md)。
+资源组合仍是独立部署缺口；公共 TODO 与路线由主代理整合。

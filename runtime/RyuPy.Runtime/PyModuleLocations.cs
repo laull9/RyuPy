@@ -54,8 +54,10 @@ public static partial class PyModules
     public static void RegisterLocated(string name, string package, string diagnosticFile, long locationKind,
         string locationValue, bool fileBackedByGlobal, PyModuleInit init, PyModuleGet get, PyModuleSet set)
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         string resolved = PyModuleLocations.Resolve(locationKind, locationKind == 0 ? diagnosticFile : locationValue);
         Registry[name] = new Registration(package, diagnosticFile, init, get, set, resolved, fileBackedByGlobal);
+        PyProvider.Current?.Registered(name);
     }
 
     /// <summary>模块入口专用：返回已缓存对象的初始位置，不读取可变属性，也不触发导入。</summary>

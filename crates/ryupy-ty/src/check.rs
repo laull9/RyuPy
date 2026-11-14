@@ -28,8 +28,9 @@ const MAX_ROUNDS: usize = 16;
 pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
     let mut modes: ArenaMap<ryupy_hir::FuncId, FuncMode> = ArenaMap::default();
     for (func_id, func) in module.functions.iter() {
-        modes.insert(func_id, initial_mode(module, func));
+        modes.insert(func_id, crate::initial_mode::initial_mode(module, func));
     }
+    crate::runtime_function_modes::apply(module, &mut modes);
 
     // 模块级变量的槽位类型只依赖 HIR 结构，先算好供所有轮次复用。
     let module_vars = crate::module_vars::infer_module_var_types(module);
@@ -107,42 +108,6 @@ pub fn check_module(module: &Module) -> (ModuleTypes, Vec<Diagnostic>) {
         module_vars,
     };
     (types, diagnostics)
-}
-
-/// 标注齐全才可能走静态路径；模块入口没有标注，但从静态开始（Phase 1 行为）。
-fn initial_mode(module: &Module, func: &Function) -> FuncMode {
-    // M3.0：闭包能力一律走动态路径——
-    // - 含嵌套 def / lambda 的函数需要创建函数对象与 cell 装箱；
-    // - 引用外层 cell（free 非空）的函数需要 env 参数与动态读取。
-    // 两者都不影响未捕获函数保留静态快路径。
-    if func.is_generator || func.closure.has_nested || !func.closure.free.is_empty() {
-        return FuncMode::Dynamic;
-    }
-    // 装饰后的类标注只指向公开动态值，不能据原 ClassId 生成静态布局。
-    if func.params.iter().filter_map(|p| p.annotation.as_ref())
-        .chain(func.ret.iter())
-        .chain(func.body.locals.iter().filter_map(|(_, l)| l.annotation.as_ref()))
-        .any(|ann| matches!(ann, TypeRef::Class(id) if (module.classes[*id].decorated_binding.is_some() || module.classes[*id].runtime_dataclass)))
-    {
-        return FuncMode::Dynamic;
-    }
-    if func.kind == FunctionKind::ModuleMain {
-        return FuncMode::Static;
-    }
-    // `*args` / `**kwargs` 的槽位在运行时是 tuple / dict，标注不能改变这一点；
-    // 这类函数一律走动态路径（参数是装箱值），由运行时完成绑定。
-    let has_variadic = func.params.iter().any(|p| {
-        matches!(
-            p.kind,
-            ryupy_hir::ParamKind::VarPositional | ryupy_hir::ParamKind::VarKeyword
-        )
-    });
-    let params_annotated = func.params.iter().all(|p| p.annotation.is_some());
-    if !has_variadic && params_annotated && func.ret.is_some() {
-        FuncMode::Static
-    } else {
-        FuncMode::Dynamic
-    }
 }
 
 fn compute_sigs(
@@ -244,12 +209,11 @@ fn try_static(
         )
     };
 
-    // 只要函数体里出现 Dynamic 事实，静态发射就无法完成，降级处理
-    let has_dynamic = results.exprs.iter().any(|(_, ty)| ty.is_dynamic())
-        || results.locals.iter().any(|(_, ty)| ty.is_dynamic());
+    // 内部元数据前言可独立写object槽；用户动态消费仍按原规则整函数降级。
+    let has_dynamic = crate::module_metadata::has_dynamic_values(func, &results);
 
     StaticOutcome {
-        needs_dynamic: soft_demote || has_dynamic,
+        needs_dynamic: soft_demote || has_dynamic || !crate::opaque::safe_uses(func, &results),
         demote_callees,
     }
 }
@@ -257,7 +221,12 @@ fn try_static(
 /// 取表达式的直接子表达式（用于「容器字面量整体降级但仍要检查元素」）。
 fn expr_children(kind: &ExprKind) -> Vec<ExprId> {
     match kind {
-        ExprKind::List(items) | ExprKind::Tuple(items) | ExprKind::Set(items) => items.clone(),
+        ExprKind::List(items)
+        | ExprKind::Tuple(items)
+        | ExprKind::Set(items)
+        | ExprKind::CompareChain {
+            operands: items, ..
+        } => items.clone(),
         ExprKind::Dict(pairs) => pairs.iter().flat_map(|(k, v)| [*k, *v]).collect(),
         ExprKind::Subscript { base, index } => vec![*base, *index],
         ExprKind::Slice { start, stop, step } => {
@@ -274,7 +243,7 @@ pub fn type_ref_to_ty(type_ref: &TypeRef) -> Ty {
         TypeRef::Int => Ty::Int,
         TypeRef::Float => Ty::Float,
         TypeRef::Bool => Ty::Bool,
-        TypeRef::Str => Ty::Str,
+        TypeRef::Str => Ty::OpaqueStr,
         TypeRef::None => Ty::None,
         TypeRef::Class(id) => Ty::Class(*id),
         TypeRef::Error => Ty::Error,
@@ -323,6 +292,22 @@ impl FunctionChecker<'_> {
             self.check_stmt(stmt_id);
         }
 
+        // Python 标注不是运行时契约：可达落尾隐含 None，不能伪造静态零值。
+        // 模块入口不是普通 Python 调用；生成器已由初始模式处理。
+        if self.func.kind != FunctionKind::ModuleMain
+            && !self.func.is_generator
+            && crate::fallthrough::may_fall_through(&self.func.body)
+            && self
+                .infer
+                .unify(
+                    &InferTy::Known(self.sig.ret.clone()),
+                    &InferTy::Known(Ty::None),
+                )
+                .is_err()
+        {
+            self.soft_demote = true;
+        }
+
         // 参数默认值在模块作用域、def 执行时求值：放在语句之后检查，
         // 这样默认值引用的模块变量已经完成类型推导（类型与求值顺序无关）。
         // 它们仍然让 `has_dynamic` 能据此决定 main 是否降级。
@@ -330,26 +315,36 @@ impl FunctionChecker<'_> {
             for &expr in &self.module.default_exprs {
                 self.check_expr(expr);
             }
-            // 类体属性表达式也在模块作用域求值，必须补齐类型旁表，
-            // 否则 MIR 会把它们当成都态值而丢失静态特化。
-            for (_, class) in self.module.classes.iter() {
-                self.soft_demote |= class.decorated_binding.is_some() || class.runtime_dataclass;
-                for decorator in &class.decorators {
-                    if let ryupy_hir::Decorator::Expr(expr) = decorator {
-                        self.check_expr(*expr);
-                    }
-                }
-                if let Some(
-                    ryupy_hir::ClassBase::Expr(expr)
-                    | ryupy_hir::ClassBase::Runtime(expr)
-                    | ryupy_hir::ClassBase::Native { value: expr, .. }
-                    | ryupy_hir::ClassBase::TypedDict { value: expr, .. },
-                ) = &class.base
-                {
+        }
+        // 类表达式只在记录的真实arena owner中检查，绝不能把局部工厂读成模块类。
+        for (_, class) in self.module.classes.iter() {
+            let owns = class.lexical.as_ref().map_or(
+                self.func.kind == FunctionKind::ModuleMain,
+                |definition| {
+                    definition
+                        .owner
+                        .is_some_and(|owner| std::ptr::eq(&self.module.functions[owner], self.func))
+                },
+            );
+            if !owns {
+                continue;
+            }
+            self.soft_demote |= class.decorated_binding.is_some() || class.runtime_dataclass;
+            for decorator in &class.decorators {
+                if let ryupy_hir::Decorator::Expr(expr) = decorator {
                     self.check_expr(*expr);
                 }
-                self.check_class_items(&class.body);
             }
+            if let Some(
+                ryupy_hir::ClassBase::Expr(expr)
+                | ryupy_hir::ClassBase::Runtime(expr)
+                | ryupy_hir::ClassBase::Native { value: expr, .. }
+                | ryupy_hir::ClassBase::TypedDict { value: expr, .. },
+            ) = &class.base
+            {
+                self.check_expr(*expr);
+            }
+            self.check_class_items(&class.body);
         }
 
         for (loc_id, _loc) in self.func.body.locals.iter() {
@@ -367,6 +362,7 @@ impl FunctionChecker<'_> {
     fn check_class_items(&mut self, items: &[ryupy_hir::ClassItem]) {
         for item in items {
             match &item.kind {
+                ryupy_hir::ClassItemKind::NestedClass(_) => {}
                 ryupy_hir::ClassItemKind::If { test, body, orelse } => {
                     self.check_expr(*test);
                     self.check_class_items(body);
@@ -377,7 +373,15 @@ impl FunctionChecker<'_> {
                 | ryupy_hir::ClassItemKind::Expr(value) => {
                     self.check_expr(*value);
                 }
-                ryupy_hir::ClassItemKind::Method { decorators, .. } => {
+                ryupy_hir::ClassItemKind::Method { func, decorators } => {
+                    for parameter in &self.module.functions[*func].params {
+                        if let Some(value) = parameter.default {
+                            self.check_expr(value);
+                        }
+                    }
+                    for (_, value) in &self.module.functions[*func].annotation_values {
+                        self.check_expr(*value);
+                    }
                     for decorator in decorators {
                         if let ryupy_hir::Decorator::Expr(expr) = decorator {
                             self.check_expr(*expr);
@@ -392,6 +396,7 @@ impl FunctionChecker<'_> {
         let expr = &self.func.body.exprs[expr_id];
         let ty = match &expr.kind {
             ExprKind::ModuleFile(_) => Ty::Str,
+            ExprKind::ModuleMetadata(_, _) => Ty::Dynamic,
             ExprKind::Literal(lit) => match lit {
                 Literal::Int(v) => {
                     if i64::try_from(*v).is_err() {
@@ -419,7 +424,11 @@ impl FunctionChecker<'_> {
                 self.check_expr(*fallback);
                 Ty::Dynamic
             }
-            ExprKind::Free(_) | ExprKind::Lambda(_) | ExprKind::ClassLocal(_) => Ty::Dynamic,
+            ExprKind::Free(_)
+            | ExprKind::Lambda(_)
+            | ExprKind::ClassLocal(_)
+            | ExprKind::ClassCellRead(_)
+            | ExprKind::ClassFreeLocal(_) => Ty::Dynamic,
             // 函数名作为值使用时是一等函数对象；调用位置由 check_call 单独处理。
             ExprKind::Func(id) => Ty::Func(*id),
             ExprKind::Builtin(builtin) => match builtin {
@@ -488,6 +497,7 @@ impl FunctionChecker<'_> {
                     }
                 }
             }
+            ExprKind::CompareChain { operands, ops } => self.check_comparison_chain(operands, ops),
             ExprKind::BoolOp { op: _, lhs, rhs } => {
                 let lhs_ty = self.check_expr(*lhs);
                 let rhs_ty = self.check_expr(*rhs);
@@ -520,6 +530,11 @@ impl FunctionChecker<'_> {
                     self.soft_demote = true;
                     Ty::Dynamic
                 }
+            }
+            ExprKind::ContextMethod { base, .. } => {
+                self.check_expr(*base);
+                self.soft_demote = true;
+                Ty::Dynamic
             }
             ExprKind::Attribute { base, name } => {
                 let base_ty = self.check_expr(*base);

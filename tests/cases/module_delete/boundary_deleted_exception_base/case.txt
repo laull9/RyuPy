@@ -1,0 +1,3 @@
+# 原pe-001完整组合源：可删builtin异常名作为用户异常基类仍明确NI，保原断言。
+entry = entry.py
+pending = true

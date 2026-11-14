@@ -1,0 +1,3 @@
+entry = entry.py
+pending = true
+# 手动CLI配置，当前runner不支持：include_module = static_source

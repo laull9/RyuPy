@@ -32,8 +32,10 @@ public static partial class PyOps
     /// <param name="name">编译器识别的内建函数名。</param>
     public static object BuiltinFunction(string name) => name == "NotImplemented" ? PyNotImplemented.Instance
         : name == "Ellipsis" ? PyEllipsis.Instance
+        : name == "super" ? PyLexicalSuper.Type
         : name == "map" ? PyMap.Type
         : name == "memoryview" ? PyMemoryView.Type
+        : name == "slice" ? PySlice.Type
         : name is "exit" or "quit" ? PySiteQuitters.Get(name)
         : BuiltinFunctions.GetOrAdd(name, static value => new PyBuiltinFunction(value));
 }

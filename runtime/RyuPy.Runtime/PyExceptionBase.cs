@@ -1,3 +1,4 @@
+// Python异常实例、原始参数、异常链和编译栈的统一承载；外部对象保持真实身份并延迟显示。
 using System;
 using System.Collections.Generic;
 
@@ -15,14 +16,41 @@ namespace RyuPy.Runtime;
 /// </remarks>
 public class PyBaseException : Exception
 {
+    // 只有 V1 成功源操作绑定；构造异常本身不建立传播，也不授 NativeFresh 权限。
+    internal TraceProductBinding? TraceProductBinding;
+#if TRACE_ADAPTER_TEST
+    // 构造期不读取scope；首次真实Source成功后才发布。
+    internal TraceAdapterBinding? TraceAdapterBinding;
+#endif
+    /// <summary>外部执行域保留的真实异常实例协议；纯原生异常为空。</summary>
+    public IPyForeignObject? ForeignObject { get; set; }
+
+    /// <summary>外部异常真实显示名，CLR继承继续由内建壳维护。</summary>
+    public string? ForeignDisplayName { get; private set; }
+    /// <summary>绑定真实外部异常及未格式化的原args；不执行用户字符串转换。</summary>
+    public void BindForeignException(IPyForeignObject origin, object?[] args, string displayName)
+    { ForeignObject = origin; Args = args; ForeignDisplayName = displayName; }
+
+    /// <summary>外部异常真实传播时整体刷新链，包括已清除的cause/context。</summary>
+    public void BindForeignChain(PyBaseException? cause, PyBaseException? context, bool suppressContext)
+    { Cause = cause; Context = context; SuppressContextFlag = suppressContext; }
+
     /// <summary>Python 异常类名，例如 <c>TypeError</c>。</summary>
     public string PyTypeName { get; }
 
     /// <summary>Python 侧消息（<c>str(exc)</c> 的内容）。</summary>
-    public virtual string PyMessage { get; }
+    public virtual string PyMessage => ForeignObject is PyNativeObject foreign ? foreign.PythonStr() : positionalConstruction
+        ? PyTypeName == "KeyError" && Args.Length == 1 ? PyRepr.Repr(Args[0]) : PyErrors.UserExceptionMessage(Args)
+        : initialMessage;
+
+    private readonly string initialMessage;
+    private bool positionalConstruction;
+
+    /// <summary>位置构造冷路延迟格式化；既有内部消息构造保持原CLR消息行为。</summary>
+    public override string Message => ForeignObject is not null || positionalConstruction ? PyMessage : base.Message;
 
     /// <summary><c>exc.args</c>：构造时的位置参数。</summary>
-    public object?[] Args { get; }
+    public object?[] Args { get; private set; }
 
     /// <summary><c>raise ... from ...</c> 的显式原因（<c>__cause__</c>）。</summary>
     public PyBaseException? Cause { get; private set; }
@@ -36,8 +64,32 @@ public class PyBaseException : Exception
     /// </summary>
     public PyBaseException? Context { get; set; }
 
-    /// <summary>抛出点的栈帧快照，最内层在前；由 <see cref="PyTraceback"/> 在抛出时填写。</summary>
-    public PyStackFrame[] Frames { get; internal set; } = [];
+    // 仅 Legacy 路径存储抛出点的栈帧快照。
+    private PyStackFrame[] _legacyFrames = [];
+    /// <summary>
+    /// 栈帧列表，最内层在前；Legacy 返回抛出点快照，V1 由绑定 owner 的历史派生。
+    /// </summary>
+    public PyStackFrame[] Frames
+    {
+        get
+        {
+            if (TraceProductBinding is not { } binding) return _legacyFrames;
+            var history = binding.Owner.Snapshot.History;
+            var frames = new PyStackFrame[history.Count];
+            for (int i = 0; i < frames.Length; i++)
+            {
+                var frame = history[history.Count - 1 - i];
+                frames[i] = new(frame.File, frame.Function, frame.Line);
+            }
+            return frames;
+        }
+        internal set
+        {
+            if (TraceProductBinding is not null || PyTraceProduct.Enabled)
+                throw new InvalidOperationException("trace V1 history has a single owner");
+            _legacyFrames = value;
+        }
+    }
 
     /// <summary>用户异常类对应的 Python 类对象；内建异常为 <c>null</c>。</summary>
     public PyClass? PythonClass { get; private set; }
@@ -62,10 +114,17 @@ public class PyBaseException : Exception
         : base(message, cause)
     {
         PyTypeName = typeName;
-        PyMessage = message;
+        initialMessage = message;
         Args = args ?? (message.Length == 0 ? [] : [message]);
         Cause = cause;
         SuppressContextFlag = cause is not null;
+    }
+
+    // 仅真实PyType调用工厂使用；保CLR子类身份，原始参数浅拷贝且不提前运行用户str/repr。
+    internal void InitializePositionalArguments(object?[] args)
+    {
+        Args = (object?[])args.Clone();
+        positionalConstruction = true;
     }
 
     /// <summary>供生成的用户异常子类使用：指定类型名、消息与位置参数。</summary>
@@ -87,8 +146,10 @@ public class PyBaseException : Exception
     /// <param name="cause">显式原因。</param>
     public PyBaseException WithCause(PyBaseException? cause)
     {
+        ForeignObject?.SynchronizeException(this, write: false);
         Cause = cause;
         SuppressContextFlag = true;
+        ForeignObject?.SynchronizeException(this, write: true);
         return this;
     }
 
@@ -97,7 +158,8 @@ public class PyBaseException : Exception
     {
         // 延迟消息可能调用用户 __str__，一次报告只求值一次。
         string message = PyRepr.Str(this);
-        return message.Length == 0 ? PyTypeName : $"{PyTypeName}: {message}";
+        string name = PyNativeExceptionDisplay.Name(this);
+        return message.Length == 0 ? name : $"{name}: {message}";
     }
 }
 

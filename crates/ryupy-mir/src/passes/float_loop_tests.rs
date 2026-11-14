@@ -75,12 +75,18 @@ pub(super) fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
     blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
     (
         Function {
+            module_state: None,
+            instance_capabilities: Default::default(),
+            module_state_source: None,
             name: "float_loop".into(),
             codegen_name: "float_loop".into(),
             source_file: "float_loop.py".into(),
+            definition: None,
             params: vec![a, b],
             ret: MirType::Dynamic,
             body: Body {
+                direct_globals_contracts: Vec::new(),
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry: pre,
@@ -92,6 +98,7 @@ pub(super) fn sample() -> (Function, [BlockId; 5], [LocalId; 6]) {
             specialization_identity_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [pre, header, body, latch, exit],
         [a, b, initial, total, product, result],

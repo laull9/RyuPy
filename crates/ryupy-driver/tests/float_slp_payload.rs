@@ -75,22 +75,35 @@ if (code is int n && n != 0) throw new Exception("入口失败");
 if (args.Length > 1 && Vector128.IsHardwareAccelerated) throw new Exception("未关闭硬件intrinsic");
 var type = assembly.GetType("RyuPy.Generated.Module")!;
 const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static;
-MethodInfo Method(string name) => type.GetMethod("m0_" + name, flags) ?? type.GetMethod(name, flags)!;
+var module = PyModules.Import("__main__");
+(MethodInfo Core, PyFunction Owner) Function(string name, int arity) {
+    // 入口已执行；从真实模块公开绑定取owner，绝不new假函数或传null占位。
+    var owner = module.GetAttr(name) as PyFunction ?? throw new Exception($"未发布函数{name}");
+    var core = type.GetMethod("m0_" + name, flags) ?? throw new Exception($"缺少core{name}");
+    if (!core.IsStatic || core.ReturnType != typeof(object)
+        || core.GetParameters().Length != arity + 1
+        || core.GetParameters().Any(parameter => parameter.ParameterType != typeof(object))
+        || owner.Name != name || owner.Signature.Names.Length != arity || owner.Env is not null
+        || owner.Body.Method.DeclaringType != type)
+        throw new Exception($"Dynamic core/已发布owner ABI不匹配{name}");
+    return (core, owner);
+}
 long Bits(object? value) => BitConverter.DoubleToInt64Bits((double)value!);
 ulong[] patterns = [0UL, 0x8000000000000000UL, 0x3ff0000000000000UL, 0xbff0000000000000UL,
     0x7ff0000000000000UL, 0xfff0000000000000UL, 0x7ff8000000000011UL, 0xfff8000000000022UL,
     1UL, 0x7fefffffffffffffUL];
 foreach (string suffix in new[] { "", "_sub" }) {
-    var pair = Method("pair" + suffix); var scalar = Method("scalar" + suffix);
+    var (pair, pairOwner) = Function("pair" + suffix, 6);
+    var (scalar, scalarOwner) = Function("scalar" + suffix, 3);
     for (int i = 0; i < patterns.Length; i++)
     for (int j = 0; j < patterns.Length; j++)
     for (int k = 0; k < patterns.Length; k++) {
         object a = BitConverter.Int64BitsToDouble(unchecked((long)patterns[i]));
         object b = BitConverter.Int64BitsToDouble(unchecked((long)patterns[j]));
         object c = BitConverter.Int64BitsToDouble(unchecked((long)patterns[k]));
-        var result = (PyList)pair.Invoke(null, [a,b,c,c,b,a])!;
-        long left = Bits(scalar.Invoke(null, [a,b,c]));
-        long right = Bits(scalar.Invoke(null, [c,b,a]));
+        var result = (PyList)pair.Invoke(null, [a,b,c,c,b,a,pairOwner])!;
+        long left = Bits(scalar.Invoke(null, [a,b,c,scalarOwner]));
+        long right = Bits(scalar.Invoke(null, [c,b,a,scalarOwner]));
         if (Bits(result.GetItem(0)) != left || Bits(result.GetItem(1)) != right)
             throw new Exception($"位模式改变{suffix}/{i}/{j}/{k}: {Bits(result.GetItem(0)):x16}/{left:x16}");
     }

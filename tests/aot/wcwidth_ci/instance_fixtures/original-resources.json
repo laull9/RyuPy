@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "module": "wcwidth",
+      "files": []
+    },
+    {
+      "module": "wcwidth.wcwidth",
+      "files": []
+    },
+    {
+      "module": "wcwidth.table_vs16",
+      "files": []
+    },
+    {
+      "module": "wcwidth.table_wide",
+      "files": []
+    },
+    {
+      "module": "wcwidth.table_zero",
+      "files": []
+    },
+    {
+      "module": "wcwidth.unicode_versions",
+      "files": []
+    }
+  ]
+}

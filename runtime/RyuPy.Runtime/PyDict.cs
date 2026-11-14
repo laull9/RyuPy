@@ -32,11 +32,17 @@ public sealed class PyDict
     /// <summary>墓碑超过这个数量且占比过半时才整理，避免每次删除都搬数组。</summary>
     private const int MinTombstonesBeforeCompact = 32;
 
-    private readonly Dictionary<object, int> _index = new(PyKeyComparer.Instance);
+    private readonly Dictionary<object, int> _index;
     private readonly List<object?> _keys = [];
     private readonly List<object?> _values = [];
     private int _used;
     private int _tombstones;
+
+    /// <summary>普通字典仍使用共享comparer，不增加locals守卫字段或分派。</summary>
+    public PyDict() => _index = new(PyKeyComparer.Instance);
+
+    /// <summary>仅locals缓存选择带owner的重入安全comparer。</summary>
+    internal PyDict(IEqualityComparer<object> comparer) => _index = new(comparer);
 
     /// <summary>元素个数（不含墓碑）。</summary>
     public int Count => _used;
@@ -90,6 +96,7 @@ public sealed class PyDict
     /// <param name="key">键。</param>
     public object? Get(object? key)
     {
+        if (key is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
         if (key is not null && _index.TryGetValue(key, out int slot))
         {
             return _values[slot];
@@ -100,14 +107,18 @@ public sealed class PyDict
     /// <summary>取值，缺失时返回默认值。</summary>
     /// <param name="key">键。</param>
     /// <param name="fallback">默认值。</param>
-    public object? GetOrDefault(object? key, object? fallback) =>
-        key is not null && _index.TryGetValue(key, out int slot) ? _values[slot] : fallback;
+    public object? GetOrDefault(object? key, object? fallback)
+    {
+        if (key is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
+        return key is not null && _index.TryGetValue(key, out int slot) ? _values[slot] : fallback;
+    }
 
     /// <summary>尝试取值。</summary>
     /// <param name="key">键。</param>
     /// <param name="value">取到的值。</param>
     public bool TryGet(object? key, out object? value)
     {
+        if (key is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
         if (key is not null && _index.TryGetValue(key, out int slot))
         {
             value = _values[slot];
@@ -138,25 +149,44 @@ public sealed class PyDict
         _values.Add(value);
         _used++;
         Version++;
-        if (_tombstones >= MinTombstonesBeforeCompact && _tombstones * 2 > _keys.Count)
+        if (_tombstones >= MinTombstonesBeforeCompact && _tombstones * 2 > _keys.Count
+            && CanCompactLocals())
         {
             Compact();
         }
+    }
+
+    // Compact会重新hash键。locals含非精确str额外键时保留墓碑，避免在部分搬移后执行
+    // 用户协议。正常源码名缓存仍照常整理；只在达到原整理阈值时扫描，不加普通查找成本。
+    private bool CanCompactLocals()
+    {
+        if (_index.Comparer is not FunctionLocalsKeyComparer) return true;
+        foreach (object? key in _keys)
+            if (key is not null and not string) return false;
+        return true;
     }
 
     /// <summary>删除键，缺失抛 <c>KeyError</c>。删除是 O(1)（留墓碑）。</summary>
     /// <param name="key">键。</param>
     public void Delete(object? key)
     {
+        if (!DeleteIfPresent(key)) throw PyKeyError.ForKey(key);
+    }
+
+    /// <summary>单次查找删除；缺键不分配异常，仍传播用户hash/eq异常。</summary>
+    internal bool DeleteIfPresent(object? key)
+    {
+        if (key is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
         if (key is null || !_index.Remove(key, out int slot))
         {
-            throw PyKeyError.ForKey(key);
+            return false;
         }
         _keys[slot] = null;
         _values[slot] = null;
         _used--;
         _tombstones++;
         Version++;
+        return true;
     }
 
     /// <summary>包含判断；不可哈希的键抛 <c>TypeError</c>（与 CPython 一致）。</summary>
@@ -164,6 +194,7 @@ public sealed class PyDict
     public bool Contains(object? key)
     {
         RequireHashable(key);
+        if (key is PyInstance instance && Count == 0) PyHash.RequireOrdinaryHashable(instance);
         return key is not null && _index.ContainsKey(key);
     }
 
@@ -173,6 +204,12 @@ public sealed class PyDict
     /// <param name="fallback">默认值。</param>
     public object? Pop(object? key, bool hasDefault, object? fallback)
     {
+        // CP空pop先按元素数返回，不hash；clear/删空后仍有bucket时也不能交CLR探测。
+        if (Count == 0)
+        {
+            if (hasDefault) return fallback;
+            throw PyKeyError.ForKey(key);
+        }
         if (key is not null && _index.TryGetValue(key, out int slot))
         {
             object? value = _values[slot];
@@ -201,38 +238,7 @@ public sealed class PyDict
 
     /// <summary><c>update(other)</c>：按另一字典或键值对序列更新。</summary>
     /// <param name="other">另一个字典或可迭代的键值对。</param>
-    public void Update(object? other)
-    {
-        switch (other)
-        {
-            case PyEnumMembers proxy:
-                Update(proxy.Dictionary);
-                break;
-            case IPyNativeMapping mapping:
-                Update(mapping.Dictionary);
-                break;
-            case PyDict dict:
-                foreach (var (key, value) in dict.Entries())
-                {
-                    Set(key, value);
-                }
-                break;
-            default:
-                foreach (object? item in PyOps.ToSequence(other))
-                {
-                    object?[] pair = PyOps.ToSequence(item);
-                    if (pair.Length != 2)
-                    {
-                        throw new PyValueError(
-                            "dictionary update sequence element has length "
-                                + $"{pair.Length}; 2 is required"
-                        );
-                    }
-                    Set(pair[0], pair[1]);
-                }
-                break;
-        }
-    }
+    public void Update(object? other) => PyOps.DictUpdateSource(this, other);
 
     /// <summary><c>clear()</c>。</summary>
     public void Clear()
@@ -254,6 +260,23 @@ public sealed class PyDict
             copy.Set(key, value);
         }
         return copy;
+    }
+
+    // 仅新布局 scalar popitem 使用。尾墓碑和被删尾槽一起裁掉，重复尾删总扫描 O(n)。
+    // 不改旧 Pop、存储字段或自定义键支持；调用者已验证键域，不执行用户 hash/eq。
+    internal PyTuple PopLastScalar()
+    {
+        int slot = _keys.Count - 1;
+        while (slot >= 0 && _keys[slot] is null) slot--;
+        object key = _keys[slot]!;
+        object? value = _values[slot];
+        _index.Remove(key);
+        int removedTombstones = _keys.Count - slot - 1;
+        _keys.RemoveRange(slot, _keys.Count - slot);
+        _values.RemoveRange(slot, _values.Count - slot);
+        _tombstones -= removedTombstones;
+        _used--; Version++;
+        return new PyTuple([key, value]);
     }
 
     /// <summary>
@@ -332,10 +355,15 @@ public sealed class PyDictView
     /// <summary>构造视图。</summary>
     /// <param name="dict">被观察的字典。</param>
     /// <param name="kind">视图种类。</param>
-    public PyDictView(PyDict dict, PyDictViewKind kind)
+    public PyDictView(PyDict dict, PyDictViewKind kind) : this(dict, kind, false) { }
+
+    // 旧 exact 视图仍走原路；只有新根入口使用独立协议，避免扩大已有兼容声明。
+    internal bool UseLayoutProtocol { get; }
+    // wrapper来源的只标量不变量可沿视图保留；精确root视图必须防后续旧入口写入自定义键。
+    internal bool ScalarInvariant { get; }
+    internal PyDictView(PyDict dict, PyDictViewKind kind, bool useLayoutProtocol, bool scalarInvariant = false)
     {
-        Dict = dict;
-        Kind = kind;
+        Dict = dict; Kind = kind; UseLayoutProtocol = useLayoutProtocol; ScalarInvariant = scalarInvariant;
     }
 
     /// <summary>当前元素个数（活的）。</summary>
@@ -351,6 +379,7 @@ public sealed class PyDictView
     /// </remarks>
     public bool Contains(object? value)
     {
+        if (UseLayoutProtocol) return PyDictViewProtocols.Contains(this, value);
         switch (Kind)
         {
             case PyDictViewKind.Keys:
@@ -384,6 +413,7 @@ public sealed class PyDictView
     /// </remarks>
     public object?[] ToArray()
     {
+        if (UseLayoutProtocol) return PyDictViewProtocols.ToArray(this);
         var items = new object?[Dict.Count];
         int index = 0;
         foreach (var (key, value) in Dict.Entries())

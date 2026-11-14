@@ -141,7 +141,10 @@ public static class PyIO
             or NotSupportedException or ObjectDisposedException or OverflowException)
         {
             // 宿主异常刚转换时尚无 Python 帧；在离开真实调用现场前补报告帧及活动异常上下文。
-            throw (PyBaseException)PyErrors.PrepareRaise(FileSystemError(error));
+            // 此 catch 已排除 PyBaseException；映射分支确实创建新对象，不把已有错误授为 Fresh。
+            var mapped = FileSystemError(error);
+            throw PyTraceProduct.Enabled ? PyTraceProduct.NativeFresh(mapped)
+                : (PyBaseException)PyErrors.PrepareRaise(mapped);
         }
     }
     /// <summary>将宿主文件系统异常映射为 Python 异常，供路径模块共享。</summary>

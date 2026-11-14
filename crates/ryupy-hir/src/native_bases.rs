@@ -13,22 +13,20 @@ pub(crate) fn resolve<'a>(
         return None;
     }
     let expr = &args.args[0];
-    let (binding, member) = match expr {
-        ast::Expr::Name(name) => (name.id.as_str(), None),
-        ast::Expr::Attribute(attr) => match &*attr.value {
-            ast::Expr::Name(name) => (name.id.as_str(), Some(attr.attr.as_str())),
-            _ => return None,
-        },
-        _ => return None,
-    };
+    resolve_expr(expr, globals).map(|kind| (kind, expr))
+}
+
+/// 多基类资格检查复用同一稳定导入身份，不能按名称猜测原生布局。
+pub(crate) fn resolve_expr(expr: &ast::Expr, globals: &GlobalScope) -> Option<NativeBase> {
+    let (binding, path) = crate::exception_imports::attribute_path(expr)?;
     let kind = globals
         .exception_imports
         .get(&Name::from(binding))?
-        .resolve_native_base(member, expr.range().start())?;
-    Some((kind, expr))
+        .resolve_native_base(&path, expr.range().start())?;
+    Some(kind)
 }
 
-/// 唯一额外开放的模块异常基类；仍要求driver确认的稳定io导入，不接受任意属性类。
+/// 有限模块异常基类；仍要求driver确认的稳定原生导入，不接受任意属性类。
 pub(crate) fn io_exception(
     class: &ast::StmtClassDef,
     globals: &GlobalScope,
@@ -38,17 +36,34 @@ pub(crate) fn io_exception(
         return None;
     }
     let expr = &args.args[0];
-    let (name, member) = match expr {
-        ast::Expr::Name(name) => (name.id.as_str(), None),
-        ast::Expr::Attribute(attr) => match attr.value.as_ref() {
-            ast::Expr::Name(name) => (name.id.as_str(), Some(attr.attr.as_str())),
-            _ => return None,
-        },
-        _ => return None,
-    };
+    let (name, path) = crate::exception_imports::attribute_path(expr)?;
     globals
         .exception_imports
         .get(&Name::from(name))?
-        .resolve(member, expr.range().start())
-        .filter(|name| *name == "io.UnsupportedOperation")
+        .resolve(&path, expr.range().start())
+        .filter(|name| matches!(*name, "io.UnsupportedOperation" | "zipfile.BadZipFile"))
+}
+
+/// 原生自定义初始化异常尚无用户派生ABI；仅拒已证身份，不按类名猜测。
+pub(crate) fn unsupported_custom_exception_base(
+    class: &ast::StmtClassDef,
+    globals: &GlobalScope,
+) -> bool {
+    let Some(args) = &class.arguments else {
+        return false;
+    };
+    args.args.iter().any(|expr| {
+        let Some((name, path)) = crate::exception_imports::attribute_path(expr) else {
+            return false;
+        };
+        globals
+            .exception_imports
+            .get(&Name::from(name))
+            .and_then(|binding| binding.resolve(&path, expr.range().start()))
+            .is_some_and(|name| {
+                name.starts_with("optparse.")
+                    || name == "getopt.GetoptError"
+                    || name == "xml.etree.ElementTree.ParseError"
+            })
+    })
 }

@@ -23,8 +23,8 @@ public class PyFunctionMetadataTests
         var wrapper = Function("wrapper");
         Assert.Same(PyNone.Instance, PyObject.GetAttr(wrapper, "__doc__"));
         Assert.Equal(0, Assert.IsType<PyDict>(PyObject.GetAttr(wrapper, "__annotations__")).Count);
-        Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(function, "__qualname__"));
-        Assert.Throws<PyAttributeError>(() => PyObject.GetAttr(function, "__module__"));
+        Assert.Throws<PyNotImplementedError>(() => PyObject.GetAttr(function, "__qualname__"));
+        Assert.Same(PyNone.Instance, PyObject.GetAttr(function, "__module__"));
     }
 
     [Fact]

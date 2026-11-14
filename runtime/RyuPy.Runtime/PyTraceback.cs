@@ -1,3 +1,4 @@
+// 编译帧栈、混合执行域异常报告与SystemExit退出规则；格式化保持真实异常链和帧顺序。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,13 +30,13 @@ namespace RyuPy.Runtime;
 /// 退出码 1，与 CPython 相同。<c>SystemExit</c> 单独处理：<c>sys.exit(3)</c> 应当返回 3
 /// 而不是打印 traceback。
 /// </remarks>
-public static class PyTraceback
+public static partial class PyTraceback
 {
     private const string Header = "Traceback (most recent call last):";
     private const string CauseSeparator =
-        "\nThe above exception was the direct cause of the following exception:\n";
+        "\nThe above exception was the direct cause of the following exception:\n\n";
     private const string ContextSeparator =
-        "\nDuring handling of the above exception, another exception occurred:\n";
+        "\nDuring handling of the above exception, another exception occurred:\n\n";
 
     /// <summary>帧栈的初始容量；超过时成倍增长。</summary>
     private const int InitialFrameCapacity = 128;
@@ -85,7 +86,10 @@ public static class PyTraceback
     /// <summary>压入一帧，返回该帧的深度（1 起）。</summary>
     /// <param name="file">该帧所属源文件；多模块程序用逐帧文件名。</param>
     /// <param name="function">函数名；模块顶层传 <c>&lt;module&gt;</c>。</param>
-    public static long PushFrame(string file, string function)
+    public static long PushFrame(string file, string function) => PushFrameCore(file, function, null);
+
+    // 原入口也写null，确保未知/纯静态帧不会借用上一层或旧深度的函数来源。
+    private static long PushFrameCore(string file, string function, object? origin)
     {
         CheckDepth();
         if (_depth == _functions.Length)
@@ -93,10 +97,16 @@ public static class PyTraceback
             Array.Resize(ref _functions, _depth * 2);
             Array.Resize(ref _files, _depth * 2);
             Array.Resize(ref _lines, _depth * 2);
+            Array.Resize(ref _origins, _depth * 2);
         }
+#if TRACE_ADAPTER_TEST
+        AdapterPush(_depth);
+#endif
+        ProductPush(_depth);
         _functions[_depth] = function;
         _files[_depth] = file;
         _lines[_depth] = 0;
+        _origins[_depth] = origin;
         _depth++;
         return _depth;
     }
@@ -106,7 +116,7 @@ public static class PyTraceback
     {
         // 与普通入口共享同一限额和错误，不能因省略叶函数帧而吞掉可捕获异常。
         if (_depth >= RecursionLimit)
-            throw new PyRecursionError("maximum recursion depth exceeded");
+            throw PyTraceProduct.NativeFresh(new PyRecursionError("maximum recursion depth exceeded"));
     }
 
     /// <summary>保存调用者帧深度；原生回调捕获异常后用 PopTo(depth + 1) 恢复，不创建虚假帧。</summary>
@@ -139,6 +149,10 @@ public static class PyTraceback
     {
         if (depth >= 1 && depth <= _depth)
         {
+#if TRACE_ADAPTER_TEST
+            Array.Clear(_adapterActivations, (int)depth - 1, _depth - (int)depth + 1);
+#endif
+            Array.Clear(_origins, (int)depth - 1, _depth - (int)depth + 1);
             _depth = (int)depth - 1;
         }
     }
@@ -147,6 +161,8 @@ public static class PyTraceback
     /// <param name="exception">即将抛出的异常。</param>
     public static void Attach(object exception)
     {
+        if (PyTraceProduct.Enabled)
+            throw new InvalidOperationException("legacy Attach is forbidden inside trace V1");
         if (exception is not PyBaseException ex || ex.Frames.Length > 0)
         {
             return;
@@ -171,6 +187,19 @@ public static class PyTraceback
         return builder.ToString();
     }
 
+    private static void AppendPart(StringBuilder builder, List<string>? parts, string text)
+    {
+        builder.Append(text); parts?.Add(text);
+    }
+
+    internal static string[] FormatParts(PyBaseException exception, long? limit, bool chain)
+    {
+        var parts = new List<string>();
+        AppendChain(new StringBuilder(), exception, 0,
+            new HashSet<PyBaseException>(ReferenceEqualityComparer.Instance), limit, chain, parts);
+        return parts.ToArray();
+    }
+
     /// <summary>退出回调的不可传播异常只报告本体，不修改或展开原异常链。</summary>
     public static string FormatSingle(PyBaseException exception)
     {
@@ -179,44 +208,58 @@ public static class PyTraceback
         return builder.ToString();
     }
 
-    private static void AppendChain(StringBuilder builder, PyBaseException exception, int depth, HashSet<PyBaseException> seen)
+    private static void AppendChain(StringBuilder builder, PyBaseException exception, int depth, HashSet<PyBaseException> seen, long? limit = null, bool chain = true, List<string>? parts = null)
     {
         // 异常链可能成环；身份集合避免同一实例反复报告，深度上限仍保护特别长的无环链。
         seen.Add(exception);
         if (depth > 16)
         {
-            AppendSingle(builder, exception);
+            AppendSingle(builder, exception, limit, parts);
             return;
         }
 
-        if (exception.Cause is not null)
+        if (chain && exception.Cause is not null)
         {
             if (!seen.Contains(exception.Cause))
             {
-                AppendChain(builder, exception.Cause, depth + 1, seen);
-                builder.Append(CauseSeparator);
+                AppendChain(builder, exception.Cause, depth + 1, seen, limit, chain, parts);
+                AppendPart(builder, parts, CauseSeparator);
             }
         }
-        else if (!exception.SuppressContextFlag && exception.Context is not null && !seen.Contains(exception.Context))
+        else if (chain && !exception.SuppressContextFlag && exception.Context is not null && !seen.Contains(exception.Context))
         {
-            AppendChain(builder, exception.Context, depth + 1, seen);
-            builder.Append(ContextSeparator);
+            AppendChain(builder, exception.Context, depth + 1, seen, limit, chain, parts);
+            AppendPart(builder, parts, ContextSeparator);
         }
-        AppendSingle(builder, exception);
+        AppendSingle(builder, exception, limit, parts);
     }
 
-    private static void AppendSingle(StringBuilder builder, PyBaseException exception)
+    private static void AppendSingle(StringBuilder builder, PyBaseException exception, long? limit = null, List<string>? parts = null)
     {
         PyStackFrame[] frames = exception.Frames;
-        if (frames.Length > 0)
+        PyStackFrame[] foreignFrames = exception.ForeignObject?.TracebackFrames() ?? [];
+        int total = frames.Length + foreignFrames.Length;
+        int count = limit is null ? total : (int)Math.Min(total, limit == long.MinValue ? long.MaxValue : Math.Abs(limit.Value));
+        int start = limit is < 0 ? total - count : 0;
+        int end = start + count;
+        if (count > 0)
         {
-            builder.Append(Header).Append('\n');
-            // frames 最内层在前，输出时从最外层开始
-            for (int i = frames.Length - 1; i >= 0; i--)
+            AppendPart(builder, parts, Header + "\n");
+            int compiledEnd = Math.Min(end, frames.Length);
+            if (start < compiledEnd && exception.ForeignObject is not null)
+                AppendPart(builder, parts, "  [RyuPy 编译栈]\n");
+            // 展示序固定为compiled域从外至内，随后CP域从外至内；limit对完整帧序统一截取。
+            for (int i = start; i < compiledEnd; i++)
             {
-                PyStackFrame frame = frames[i];
-                builder.Append("  File \"").Append(frame.File).Append("\", line ");
-                builder.Append(frame.Line).Append(", in ").Append(frame.Function).Append('\n');
+                PyStackFrame frame = frames[frames.Length - 1 - i];
+                AppendPart(builder, parts, $"  File \"{frame.File}\", line {frame.Line}, in {frame.Function}\n");
+            }
+            int foreignStart = Math.Max(start, frames.Length);
+            if (foreignStart < end) AppendPart(builder, parts, "  [CPython 解释栈]\n");
+            for (int i = foreignStart; i < end; i++)
+            {
+                PyStackFrame frame = foreignFrames[i - frames.Length];
+                AppendPart(builder, parts, $"  File \"{frame.File}\", line {frame.Line}, in {frame.Function}\n");
             }
         }
         string rendered;
@@ -224,25 +267,28 @@ public static class PyTraceback
         {
             rendered = exception.Render();
         }
-        catch (PyBaseException)
+        catch (PyBaseException error)
         {
+            PyTraceProduct.Suppress(error);
             // 报告异常时不能被用户 __str__ 再次打断；普通 str(exc) 仍传播原错误。
-            rendered = exception.PyTypeName + ": <exception str() failed>";
+            rendered = PyNativeExceptionDisplay.Name(exception) + ": <exception str() failed>";
         }
-        builder.Append(rendered).Append('\n');
+        AppendPart(builder, parts, rendered + "\n");
     }
 
     /// <summary>把未捕获异常写到 stderr（格式与 CPython 一致）。</summary>
     /// <param name="exception">未被捕获的异常。</param>
     public static void Report(PyBaseException exception)
     {
+        PyTraceProduct.Terminal(exception);
         // stdout 是带缓冲的：若不先刷新，缓冲区里的输出会出现在 stderr 之后，
         // 甚至随进程退出顺序不同而丢失
-        try { Builtins.Flush(); } catch (Exception) { /* 原始输出失效时仍尝试报告。 */ }
+        try { Builtins.Flush(); } catch (Exception error) { PyTraceProduct.Suppress(error); }
         string formatted = Format(exception);
         try { PySystem.Write(PySystem.Stderr, formatted); PySystem.Flush(PySystem.Stderr); }
-        catch (Exception)
+        catch (Exception error)
         {
+            PyTraceProduct.Suppress(error);
             // 用户替换的stderr可能失效，错误报告自身不能变成未处理CLR异常。
             try { Console.Error.Write(formatted); Console.Error.Flush(); }
             catch (Exception) { }
@@ -264,18 +310,7 @@ public static class PyTraceback
     /// <param name="exception">逃逸到顶层的 CLR 异常。</param>
     public static void ReportClr(Exception exception)
     {
-        PyBaseException mapped = exception switch
-        {
-            OverflowException => new PyOverflowError(
-                "int too large to fit in a 64-bit integer (RyuPy static integer limit)"
-            ),
-            DivideByZeroException => new PyZeroDivisionError(
-                "integer division or modulo by zero"
-            ),
-            _ => new PyRuntimeError(exception.Message),
-        };
-        Attach(mapped);
-        Report(mapped);
+        Report(PyErrors.FromClr(exception));
     }
 
     /// <summary>
@@ -288,7 +323,9 @@ public static class PyTraceback
         // 与 CPython 一致：退出时先把 stdout 的缓冲写出去
         try { Builtins.Flush(); }
         catch (Exception error) { Report(error as PyBaseException ?? PyIO.FileSystemError(error)); return 120; }
-        switch (exit.Code)
+        object? code = exit.Code;
+        if (code is IPyForeignObject foreign && foreign.IsInstanceOf(PyType.Get("int"))) code = foreign.ReadScalar("int");
+        switch (code)
         {
             case null:
             case PyNone:
@@ -305,7 +342,7 @@ public static class PyTraceback
             default:
                 // 此时Python调用栈已经展开；新__str__失败只记录其自身调用帧。
                 Reset();
-                try { SafeExitError(PyRepr.Str(exit.Code) + "\n"); }
+                try { SafeExitError(PyRepr.Str(code) + "\n"); }
                 catch (PyBaseException error) { SafeExitError("\n"); Report(error); }
                 catch (Exception error) { SafeExitError("\n"); ReportClr(error); }
                 return 1;
@@ -319,5 +356,12 @@ public static class PyTraceback
     }
 
     /// <summary>清空帧栈；仅用于同一进程内反复执行多个模块的宿主场景（测试）。</summary>
-    public static void Reset() => _depth = 0;
+    public static void Reset()
+    {
+#if TRACE_ADAPTER_TEST
+        Array.Clear(_adapterActivations, 0, _depth);
+#endif
+        Array.Clear(_origins, 0, _depth);
+        _depth = 0;
+    }
 }

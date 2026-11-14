@@ -1,0 +1,258 @@
+{
+  "provenance": "2026-11-06本轮全新编写，未使用历史片段，数量不对应旧矩阵",
+  "cases": [
+    {
+      "id": "empty_seed_identity",
+      "note": "空迭代保留long、BigInt、bool、float、list原对象",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "numeric_transitions",
+      "note": "溢出、大整数回落、bool和浮点转换",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "list_alias",
+      "note": "list原地扩展和别名",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "protocol_iadd",
+      "note": "用户__iadd__保持身份和副作用",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "protocol_fallback",
+      "note": "NotImplemented回退__add__/__radd__，慢路回到整数",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "saved_integer_identity",
+      "note": "用户协议返回外部saved整数，最后值不得重新装箱破坏身份",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "iterator_next_effects",
+      "note": "迭代器Next副作用和耗尽顺序；非CLR Current探针",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "iterator_mid_exception",
+      "note": "中途Next异常保留此前list修改",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "list_partial_exception",
+      "note": "list += RHS迭代途中失败后部分修改可见",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "range_steps",
+      "note": "真实range负step、空范围和zero-step异常",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "range_callee_capture",
+      "note": "callee在实参副作用重绑前捕获，三个实参从左到右",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "range_rebound",
+      "note": "模块range重绑必须调用真实callee",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "global_rhs_rebind",
+      "note": "TOKEN与RHS callee每轮动态读取",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "recursive_fold",
+      "note": "用户协议重入同一fold，不共享holder状态",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "plain_add",
+      "note": "普通+不是增强赋值",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "read_total",
+      "note": "循环中途读取total",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "target_total",
+      "note": "循环target覆盖total",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "unpack_target",
+      "note": "解包循环target",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "global_target",
+      "note": "global循环target",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "global_total",
+      "note": "模块环境中的累加目标",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "exception_region",
+      "note": "EH区域保留原路径",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "locals_observer",
+      "note": "locals观察",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "multiple_exit",
+      "note": "循环多出口",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "nonempty_else",
+      "note": "非空for else",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "post_update_effect",
+      "note": "更新后副作用",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "unbound_before_rhs",
+      "note": "未绑定total先于RHS报错",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "deleted_before_rhs",
+      "note": "del后的未绑定与RHS顺序",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "cell_capture",
+      "note": "cell局部累加目标",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "yield_boundary",
+      "note": "生成器暂停边界",
+      "selection": "reject",
+      "ledger": "required"
+    },
+    {
+      "id": "planner_class",
+      "note": "subject类定义强制plannerLegacy",
+      "selection": "legacy",
+      "ledger": "required"
+    },
+    {
+      "id": "planner_static",
+      "note": "静态函数不进入普通动态pilot",
+      "selection": "legacy",
+      "ledger": "required"
+    },
+    {
+      "id": "protocol_add_result",
+      "note": "__iadd__拒绝后__add__返回外部saved整数身份",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "protocol_all_notimplemented",
+      "note": "所有协议均NotImplemented时按顺序调用并抛TypeError",
+      "selection": "candidate",
+      "ledger": "required"
+    },
+    {
+      "id": "known_caller_frame",
+      "note": "调用者frame局部total未支持",
+      "selection": "candidate",
+      "ledger": "known-existing-boundary",
+      "known_expectation": {
+        "native_stdout": "frame-unavailable\n8\n"
+      }
+    },
+    {
+      "id": "known_traceback_locals",
+      "note": "traceback真实frame locals未支持",
+      "selection": "candidate",
+      "ledger": "known-existing-boundary",
+      "known_expectation": {
+        "native_stdout": "traceback-unavailable\n"
+      }
+    },
+    {
+      "id": "known_settrace",
+      "note": "sys.settrace未支持",
+      "selection": "candidate",
+      "ledger": "known-existing-boundary",
+      "known_expectation": {
+        "native_stdout": "settrace-unavailable\n3\n"
+      }
+    },
+    {
+      "id": "known_strict_right_subclass",
+      "note": "严格右子类反射加优先级既有边界",
+      "selection": "candidate",
+      "ledger": "known-existing-boundary",
+      "known_expectation": {
+        "native_stdout": "left-add\n10\n"
+      }
+    },
+    {
+      "id": "known_range_index",
+      "note": "range用户__index__既有边界",
+      "selection": "candidate",
+      "ledger": "known-existing-boundary",
+      "known_expectation": {
+        "native_stdout": "TypeError\n"
+      }
+    },
+    {
+      "id": "known_asyncio",
+      "note": "async函数与asyncio不在当前合同",
+      "selection": "candidate",
+      "ledger": "known-existing-boundary",
+      "known_expectation": {
+        "native_stdout": null,
+        "compile_diagnostic": "嵌套函数暂不支持 async"
+      }
+    }
+  ]
+}

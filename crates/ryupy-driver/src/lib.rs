@@ -7,55 +7,63 @@
 //! .py ─parse→ AST ─lower→ HIR ─check→ HIR+Types ─build→ MIR ─passes→ MIR ─codegen→ .dll
 //! ```
 
+mod accumulator_options;
+mod cpython_inventory;
+mod cpython_jit;
+mod cpython_provider;
+mod embedded_runtime;
+pub mod onefile;
+mod onefile_publication;
+mod runtime_assets;
+pub use cpython_provider::CPythonProviderState;
+pub use onefile_publication::build_onefile;
 mod aot;
 mod aot_layout;
 mod binding_build;
+mod binding_sources;
 pub mod dotnet;
+/// 内嵌运行时及第三方组件的许可证文本，无需准备缓存或.NET环境。
+pub fn runtime_licenses() -> &'static str {
+    embedded_runtime::licenses()
+}
+mod dump;
+pub use dump::dump;
+mod default_aot;
+mod linked_compile;
+use linked_compile::compile_linked_traced;
+mod distribution_metadata;
+mod instance_modules;
+mod module_environments;
+mod module_hints;
+mod ordinary_mi;
+pub use module_environments::{ModuleEnvironmentDecision, ModuleEnvironmentPolicy};
 mod manifest;
 mod manifest_files;
 mod manifest_sdk;
 pub mod modules;
 mod native_binding;
 mod native_binding_manifest;
+pub mod python_selection;
 mod resources;
 pub mod runtime;
+mod stage_trace;
+mod trace_product;
+pub use trace_product::TraceEntry;
 
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use ryupy_base::{Diagnostics, FileId, SourceDb};
+use ryupy_base::FileId;
 
-/// 一次编译会话。诊断累积在这里，由调用方（CLI / 测试）决定如何打印。
-#[derive(Default)]
-pub struct Session {
-    pub sources: SourceDb,
-    pub diagnostics: Diagnostics,
-    /// 显式启用直接 CIL 累加实验；默认保留已验证的 holder 路径。
-    /// 仅控制本次会话的 MIR 流水线，不从进程环境隐式读取，也不改变语言语义。
-    pub experimental_direct_accumulator: bool,
-    /// 实验：精确Int64实参的受守卫纯叶内联；guard失败性能未达默认门槛。
-    pub experimental_leaf_inline: bool,
-    /// 仅诊断：SLP保相同守卫/物化，但使用直接标量运算，隔离packed本身的收益。
-    pub diagnostic_scalar_slp: bool,
-    /// 实验：两lane packed SLP已实现，但相对同守卫标量无净收益，默认关闭。
-    pub experimental_packed_slp: bool,
-}
-
-impl Session {
-    pub fn load_file(&mut self, path: &Path) -> Result<FileId> {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("无法读取源文件 {}", path.display()))?;
-        Ok(self.sources.add(path.display().to_string(), text))
-    }
-
-    /// 把全部诊断渲染成文本。
-    pub fn render_diagnostics(&self, color: bool) -> String {
-        self.diagnostics
-            .iter()
-            .map(|d| ryupy_base::diagnostic::render(&self.sources, d, color))
-            .collect()
-    }
-}
+mod optional_sources;
+pub use optional_sources::DefaultSourceState;
+mod session;
+mod source_catalog;
+mod source_probe;
+mod source_scan;
+pub use source_probe::probe_sources;
+mod source_deployment;
+pub use session::Session;
 
 /// 编译因用户代码错误而中止（诊断已存入 [`Session`]）。区别于 IO 等内部错误。
 /// CLI 通过 `err.is::<HasErrors>()` 判断只需打印诊断、不必再打印错误链。
@@ -101,6 +109,7 @@ pub struct Artifacts {
 
 /// 单模块产物与跨模块绑定契约，一同交给链接器。
 struct CompiledModule {
+    trace_proof: Option<ryupy_mir::generator_product::Proof>,
     program: ryupy_mir::Program,
     exports: Vec<ryupy_mir::ModuleExport>,
     protected_exports: Vec<String>,
@@ -112,13 +121,19 @@ fn compile_module(
     sess: &mut Session,
     module: &modules::SourceModule,
     native_exceptions: &[&str],
+    plan: &module_environments::ModuleEnvironmentPlan,
+    trace: &stage_trace::StageTrace,
+    trace_request: trace_product::Request,
 ) -> Result<CompiledModule> {
     let info = ryupy_hir::ModuleInfo {
+        instance_globals: plan.instance_globals(),
+        instance_capabilities: plan.capabilities,
         name: module.name.clone(),
         package: module.package.clone(),
         file: module.file.clone(),
         resolve_file_at_runtime: true,
     };
+    trace.mark("begin", "hir", &module.name);
     let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
         &module.parsed,
         &info,
@@ -127,28 +142,47 @@ fn compile_module(
     );
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
+    if plan.automatic && !hir.protected_exports.is_empty() {
+        bail!("内部错误：实例计划仍依赖静态异常导出保护");
+    }
+    trace.mark("end", "hir", &module.name);
 
+    trace.mark("begin", "type-check", &module.name);
     let (types, diags) = ryupy_ty::check_module(&hir);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
+    trace.mark("end", "type-check", &module.name);
 
+    if let Some(compiled) = trace_product::compile(sess, &hir, &types, plan, trace, trace_request)?
+    {
+        return Ok(compiled);
+    }
+    trace.mark("begin", "mir-build", &module.name);
     let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
     sess.diagnostics.extend(diags);
     stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(
-        &mut mir,
-        &ryupy_mir::passes::pipeline_with_slp_options(
-            sess.experimental_direct_accumulator,
-            sess.experimental_leaf_inline,
-            sess.diagnostic_scalar_slp,
-            sess.experimental_packed_slp,
-        ),
-    )
+    trace.mark("end", "mir-build", &module.name);
+    trace.mark("begin", "pipeline", &module.name);
+    let passes = accumulator_options::pipeline(sess, plan)?;
+    if sess.diagnostic_stages {
+        ryupy_mir::passes::run_pipeline_observed(
+            &mut mir,
+            &passes,
+            &mut stage_trace::PassTrace::new(trace, &module.name),
+        )
+    } else {
+        ryupy_mir::passes::run_pipeline(&mut mir, &passes)
+    }
     .map_err(|e| anyhow::anyhow!(e))?;
+    trace.mark("end", "pipeline", &module.name);
+    trace.mark("begin", "final-validate", &module.name);
     if let Err(errs) = ryupy_mir::validate::validate(&mir) {
         bail!("内部错误：MIR 验证失败\n{}", errs.join("\n"));
     }
+    trace.mark("end", "final-validate", &module.name);
+    trace.mark("result", "trace-legacy", &module.name);
     Ok(CompiledModule {
+        trace_proof: None,
         program: mir,
         exports,
         protected_exports: hir.protected_exports,
@@ -156,6 +190,7 @@ fn compile_module(
 }
 
 /// 编译整个模块图，返回合并后的程序。
+#[cfg(test)]
 fn compile_linked(
     sess: &mut Session,
     entry: &Path,
@@ -189,65 +224,16 @@ fn compile_linked_locations(
     Vec<manifest::SourceSummary>,
     Option<resources::ResourcePlan>,
 )> {
-    let (sources, entry_index) = modules::load_program(sess, entry, search_paths)?;
-    let resource_plan = resource_request
-        .map(|path| resources::ResourcePlan::read(path, &sources))
-        .transpose()?;
-    let entry_file = sources[entry_index].parsed.file;
-    let native_exceptions: Vec<&str> = [
-        "json",
-        "re",
-        "dataclasses",
-        "unittest",
-        "enum",
-        "io",
-        "typing",
-    ]
-    .into_iter()
-    .filter(|name| !sources.iter().any(|source| source.name == *name))
-    .collect();
-    let mut units = Vec::new();
-    let mut summaries = Vec::new();
-    for (index, module) in sources.into_iter().enumerate() {
-        if collect_manifest {
-            summaries.push(manifest::SourceSummary::new(u32::try_from(index)?, &module));
-        }
-        let CompiledModule {
-            program,
-            exports,
-            protected_exports,
-        } = compile_module(sess, &module, &native_exceptions)?;
-        units.push((
-            program,
-            ryupy_mir::UnitMeta {
-                protected_exports,
-                name: module.name.clone(),
-                package: module.package.clone(),
-                file: module.file.clone(),
-                location: if !aot_locations {
-                    ryupy_mir::ModuleLocation::SourceAbsolute(
-                        module
-                            .resolved_source_path
-                            .to_str()
-                            .context("模块源码绝对路径必须可表示为 UTF-8")?
-                            .to_owned(),
-                    )
-                } else if let Some(relative) = resource_plan
-                    .as_ref()
-                    .and_then(|plan| plan.module_location(index as u32))
-                {
-                    ryupy_mir::ModuleLocation::ExecutableRelative(relative.to_owned())
-                } else {
-                    ryupy_mir::ModuleLocation::LegacyDiagnostic
-                },
-                file_backed_by_global: true,
-                exports,
-            },
-        ));
-    }
-    let linked = ryupy_mir::link(units, entry_index);
-    check_linked_exports(sess, &linked, entry_file)?;
-    Ok((linked, summaries, resource_plan))
+    let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
+    compile_linked_traced(
+        sess,
+        entry,
+        search_paths,
+        collect_manifest,
+        resource_request,
+        aot_locations,
+        &trace,
+    )
 }
 
 /// 链接后的导出 guard 也必须验证，避免错误字段 ID 或栈类型进入 codegen。
@@ -256,7 +242,7 @@ fn check_linked_exports(
     linked: &ryupy_mir::LinkedProgram,
     file: FileId,
 ) -> Result<()> {
-    if let Err(errors) = ryupy_mir::validate::validate_linked_exports(linked) {
+    if let Err(errors) = ryupy_mir::source_provenance::require_linked(linked) {
         for error in errors {
             sess.diagnostics.push(
                 ryupy_base::Diagnostic::error(
@@ -292,21 +278,22 @@ pub fn build(sess: &mut Session, opts: &BuildOptions) -> Result<Artifacts> {
     build_with_resources(sess, opts, None)
 }
 
-/// 首切资源与绑定互斥，在任何输出写入前拒绝组合。
+/// 资源计划与原生绑定共同进入构建及发布流程，声明错误在输出写入前拒绝。
 pub fn build_configured(
     sess: &mut Session,
     opts: &BuildOptions,
     resources: Option<&Path>,
     binding: Option<&Path>,
 ) -> Result<Artifacts> {
+    accumulator_options::validate(sess)?;
     anyhow::ensure!(
-        resources.is_none() || binding.is_none(),
-        "首切不支持 --resources 与 --native-binding 同用"
+        resources.is_none() || opts.aot,
+        "--resources 仅可与 --aot 同用"
     );
     if let Some(path) = binding {
         return if opts.aot {
             aot_layout::build(opts, |inner, owned| {
-                binding_build::build_in_attempt(sess, inner, path, owned)
+                binding_build::build_in_attempt(sess, inner, path, resources, owned)
             })
         } else {
             binding_build::build(sess, opts, path)
@@ -321,6 +308,7 @@ pub fn build_with_resources(
     opts: &BuildOptions,
     resource_request: Option<&Path>,
 ) -> Result<Artifacts> {
+    accumulator_options::validate(sess)?;
     anyhow::ensure!(
         resource_request.is_none() || opts.aot,
         "--resources 仅可与 --aot 同用"
@@ -328,6 +316,11 @@ pub fn build_with_resources(
     if opts.aot {
         return aot_layout::build(opts, |inner, owned| {
             build_with_resources_inner(sess, inner, resource_request, Some(owned))
+        });
+    }
+    if sess.cpython_provider.is_some() {
+        return cpython_jit::build(opts, |inner| {
+            build_with_resources_inner(sess, inner, resource_request, None)
         });
     }
     build_with_resources_inner(sess, opts, resource_request, None)
@@ -339,22 +332,42 @@ fn build_with_resources_inner(
     resource_request: Option<&Path>,
     owned: Option<&aot_layout::OwnedAttempt>,
 ) -> Result<Artifacts> {
+    let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     aot::validate_before_build(&opts.input, opts.aot)?;
-    let (linked, sources, resource_plan) = compile_linked(
+    cpython_provider::prepare(sess, opts)?;
+    // 每次请求显式重置，不从前次成功/失败会话继承默认AOT权限。
+    sess.default_source_state.aot_request =
+        default_aot::eligible(sess, opts.aot, resource_request.is_some());
+    let previous_output = sess.default_source_state.output.take();
+    let previous_report = sess
+        .default_source_state
+        .report_output
+        .replace(opts.out_dir.clone());
+    if optional_sources::enabled(sess, opts.aot) {
+        sess.default_source_state.output = Some(opts.out_dir.clone());
+    }
+    let compiled = compile_linked_traced(
         sess,
         &opts.input,
         &opts.search_paths,
         opts.aot,
         resource_request,
-    )?;
+        opts.aot,
+        &trace,
+    );
+    sess.default_source_state.output = previous_output;
+    sess.default_source_state.report_output = previous_report;
+    sess.default_source_state.aot_request = false;
+    let (linked, sources, resource_plan) = compiled?;
 
     let name = assembly_name(&opts.input);
     let emit_opts = ryupy_codegen_cil::EmitOptions {
         assembly_name: name.clone(),
         entry_source_path: Some(opts.input.to_string_lossy().into_owned()),
     };
+    trace.mark("begin", "emit", "-");
     let (bytes, context) = if opts.aot {
-        let emitted = ryupy_codegen_cil::emit_assembly_with_report(&linked, &emit_opts)?;
+        let emitted = ryupy_codegen_cil::emit_source_assembly_with_report(&linked, &emit_opts)?;
         let context = manifest::ManifestContext::new(
             emitted.report,
             sources,
@@ -364,9 +377,12 @@ fn build_with_resources_inner(
         )?;
         (emitted.bytes, Some(context))
     } else {
-        (ryupy_codegen_cil::emit_assembly(&linked, &emit_opts)?, None)
+        let bytes = ryupy_codegen_cil::emit_source_assembly(&linked, &emit_opts)?;
+        (bytes, None)
     };
 
+    trace.mark("end", "emit", "-");
+    trace.mark("begin", "output-write", "-");
     std::fs::create_dir_all(&opts.out_dir)?;
     let dll = opts.out_dir.join(format!("{name}.dll"));
     std::fs::write(&dll, bytes)?;
@@ -374,7 +390,18 @@ fn build_with_resources_inner(
         opts.out_dir.join(format!("{name}.runtimeconfig.json")),
         ryupy_codegen_cil::runtimeconfig::render(),
     )?;
-    runtime::copy_runtime_to(&opts.out_dir)?;
+    if sess.diagnostic_stages
+        && let Ok(report) = sess.module_environment_report_json()
+    {
+        // 审计只是观察：同名目录、权限或写盘失败不能改变原编译及runtime复制结果。
+        // 普通JIT交付没有manifest，原stderr阶段协议也不插入新记录。
+        let _ = std::fs::write(opts.out_dir.join("module-environment.json"), report);
+    }
+    distribution_metadata::write_report(sess, &opts.out_dir)?;
+    optional_sources::write_report(sess, &opts.out_dir)?;
+    cpython_provider::copy_runtime_to(sess, &opts.out_dir)?;
+    cpython_provider::stage(sess, &opts.out_dir)?;
+    trace.mark("end", "output-write", "-");
 
     let (native_exe, manifest) = if let Some(context) = context {
         let published = aot::publish_with_manifest(
@@ -395,82 +422,44 @@ fn build_with_resources_inner(
     })
 }
 
-/// 运行到指定阶段并返回该阶段 IR 的文本。
-///
-/// `dump` 只处理入口模块本身（不做模块图搜索）：查看单个文件的 HIR / MIR 时，
-/// 其他模块的内容只会以 `Import` 节点出现。
-pub fn dump(sess: &mut Session, input: &Path, stage: Stage) -> Result<String> {
-    let module = modules::load_single(sess, input)?;
-    if stage == Stage::Ast {
-        return Ok(format!("{:#?}", module.parsed.module));
-    }
-    stop_if_errors(sess)?;
-
-    let info = ryupy_hir::ModuleInfo {
-        name: module.name.clone(),
-        package: module.package.clone(),
-        file: module.file.clone(),
-        resolve_file_at_runtime: false,
-    };
-    let native_exceptions = modules::native_exception_modules(input);
-    let (hir, diags) = ryupy_hir::lower_module_with_native_exceptions(
-        &module.parsed,
-        &info,
-        &module.text,
-        &native_exceptions,
-    );
-    sess.diagnostics.extend(diags);
-    if stage == Stage::Hir {
-        return Ok(ryupy_hir::pretty::dump(&hir));
-    }
-    stop_if_errors(sess)?;
-
-    let (types, diags) = ryupy_ty::check_module(&hir);
-    sess.diagnostics.extend(diags);
-    if stage == Stage::Types {
-        return Ok(types.dump());
-    }
-    stop_if_errors(sess)?;
-
-    let (mut mir, exports, diags) = ryupy_mir::build_program(&hir, &types);
-    sess.diagnostics.extend(diags);
-    stop_if_errors(sess)?;
-    ryupy_mir::passes::run_pipeline(
-        &mut mir,
-        &ryupy_mir::passes::pipeline_with_slp_options(
-            sess.experimental_direct_accumulator,
-            sess.experimental_leaf_inline,
-            sess.diagnostic_scalar_slp,
-            sess.experimental_packed_slp,
-        ),
-    )
-    .map_err(|e| anyhow::anyhow!(e))?;
-    if stage == Stage::Mir {
-        return Ok(ryupy_mir::pretty::dump(&mir));
-    }
-
-    let linked = ryupy_mir::link(
-        vec![(
-            mir,
-            ryupy_mir::UnitMeta {
-                protected_exports: hir.protected_exports,
-                name: module.name.clone(),
-                package: module.package.clone(),
-                file: module.file.clone(),
-                location: ryupy_mir::ModuleLocation::LegacyDiagnostic,
-                file_backed_by_global: false,
-                exports,
-            },
-        )],
-        0,
-    );
-    check_linked_exports(sess, &linked, module.parsed.file)?;
-    let emit_opts = ryupy_codegen_cil::EmitOptions {
-        assembly_name: assembly_name(input),
-        entry_source_path: Some(input.to_string_lossy().into_owned()),
-    };
-    Ok(ryupy_codegen_cil::dump_cil(&linked, &emit_opts)?)
-}
-
 #[cfg(test)]
 mod fixed_binding_tests;
+
+#[cfg(test)]
+mod instance_aot_evidence_tests;
+#[cfg(test)]
+mod instance_aot_tests;
+#[cfg(test)]
+mod instance_class_aot_tests;
+#[cfg(test)]
+mod instance_module_tests;
+
+#[cfg(test)]
+mod ordinary_dynamic_tests;
+
+#[cfg(test)]
+mod foreach_accumulator_tests;
+
+#[cfg(test)]
+mod foreach_fixture_tests;
+
+#[cfg(test)]
+mod foreach_current_tests;
+
+#[cfg(test)]
+mod explicit_super_fixture_tests;
+
+#[cfg(test)]
+mod generator_dynamic_fixture_tests;
+
+#[cfg(test)]
+mod generator_product_tests;
+
+#[cfg(test)]
+mod generator_default_tests;
+
+#[cfg(test)]
+mod default_source_tests;
+
+#[cfg(test)]
+mod test_temp;

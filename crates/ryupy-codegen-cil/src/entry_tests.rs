@@ -4,8 +4,7 @@ use dotnetdll::prelude::*;
 use la_arena::Arena;
 use ryupy_mir::{BasicBlock, Body, Function, LinkedProgram, MirType, ModuleDef, Terminator};
 
-#[test]
-fn serialized_entry_initializes_exit_code() {
+fn empty_program() -> LinkedProgram {
     let mut blocks = Arena::default();
     let entry = blocks.alloc(BasicBlock {
         stmts: Vec::new(),
@@ -16,9 +15,12 @@ fn serialized_entry_initializes_exit_code() {
         name: "__main__".into(),
         codegen_name: "__main__".into(),
         source_file: "entry.py".into(),
+        definition: None,
         params: Vec::new(),
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -30,11 +32,19 @@ fn serialized_entry_initializes_exit_code() {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),
@@ -42,13 +52,24 @@ fn serialized_entry_initializes_exit_code() {
         init,
         exports: Vec::new(),
     });
-    let program = LinkedProgram {
+    LinkedProgram {
+        external_provider: None,
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
+        distribution_metadata: None,
+        trace_product: None,
         functions,
         modules,
         classes: Arena::default(),
         globals: Arena::default(),
         entry,
-    };
+    }
+}
+
+#[test]
+fn serialized_entry_initializes_exit_code() {
+    let program = empty_program();
     let bytes = crate::emit_assembly(
         &program,
         &crate::EmitOptions {
@@ -105,5 +126,53 @@ fn serialized_entry_initializes_exit_code() {
     assert!(matches!(body.instructions[22], Instruction::Return));
     for index in [8, 11, 15, 19] {
         assert!(matches!(body.instructions[index], Instruction::Leave(20)));
+    }
+}
+
+#[test]
+fn provider_entry_start_is_protected_and_every_exit_uses_finish() {
+    let mut program = empty_program();
+    program.external_provider = Some("ryupy-cpython.json".into());
+    let bytes = crate::emit_assembly(
+        &program,
+        &crate::EmitOptions {
+            assembly_name: "provider_entry".into(),
+            entry_source_path: Some("entry.py".into()),
+        },
+    )
+    .unwrap();
+    let resolution = Resolution::parse(&bytes, ReadOptions::default()).unwrap();
+    let main = resolution
+        .type_definitions
+        .iter()
+        .flat_map(|ty| &ty.methods)
+        .find(|method| method.name == "Main")
+        .unwrap();
+    let body = main.body.as_ref().unwrap();
+    assert!(
+        body.instructions[5]
+            .show(&resolution)
+            .contains("ryupy-cpython.json")
+    );
+    assert!(matches!(body.instructions[6], Instruction::LoadArgument(0)));
+    let start = body.instructions[7].show(&resolution);
+    assert!(
+        start.contains("Bootstrap") && start.contains("Start"),
+        "{start}"
+    );
+    let finish = body.instructions[24].show(&resolution);
+    assert!(
+        finish.contains("Bootstrap") && finish.contains("Finish"),
+        "{finish}"
+    );
+    let body::DataSection::ExceptionHandlers(handlers) = &body.data_sections[0] else {
+        panic!("缺少入口异常表");
+    };
+    assert_eq!(handlers.len(), 3);
+    for handler in handlers {
+        assert_eq!((handler.try_offset, handler.try_length), (2, 10));
+    }
+    for offset in [11, 14, 18, 22] {
+        assert!(matches!(body.instructions[offset], Instruction::Leave(23)));
     }
 }

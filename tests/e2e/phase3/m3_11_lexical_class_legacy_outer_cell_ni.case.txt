@@ -1,0 +1,2 @@
+expect_exit = 1
+expect_exception = NameError: cannot access free variable '__class__' where it is not associated with a value in enclosing scope

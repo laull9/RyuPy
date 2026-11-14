@@ -102,8 +102,15 @@ impl StmtLowerCtx<'_> {
                 } else {
                     false
                 };
-                if !is_range {
-                    // 非 range 的可迭代对象：走通用迭代协议（M2.3 容器图）
+                if !is_range
+                    || self.global_scope.instance_globals
+                    || self
+                        .global_scope
+                        .deleted_names
+                        .contains(&Name::from("range"))
+                {
+                    // 非range或公开绑定可删除时走真实调用，避免删除前、回退后或重绑后
+                    // 仍仅按名称拼写绕过绑定；无删除的默认程序保留原生计数循环。
                     let iter = self.lower_expr(&for_stmt.iter);
                     self.loop_depth += 1;
                     let mut body = self.lower_suite(&for_stmt.body);

@@ -7,12 +7,21 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 use anyhow::{Context, Result};
+#[path = "dotnet_discovery.rs"]
+mod discovery;
 
 /// `dotnet` 可执行文件，可用环境变量 `DOTNET` 覆盖。
 pub fn dotnet_exe() -> PathBuf {
-    std::env::var_os("DOTNET")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("dotnet"))
+    discovery::executable()
+}
+
+/// 原生发布开始前确认已安装可用的.NET SDK。
+pub fn require_sdk() -> Result<()> {
+    discovery::require_sdk()
+}
+/// 托管应用运行前确认已安装目标.NET Runtime。
+pub fn require_runtime() -> Result<()> {
+    discovery::require_runtime()
 }
 
 /// 运行生成程序集时的进程环境。

@@ -39,12 +39,18 @@ fn sample() -> (Function, [LocalId; 5]) {
     });
     (
         Function {
+            module_state: None,
+            instance_capabilities: Default::default(),
+            module_state_source: None,
             name: "float_chain".into(),
             codegen_name: "float_chain".into(),
             source_file: "float_chain.py".into(),
+            definition: None,
             params: vec![a, b, c],
             ret: MirType::Dynamic,
             body: Body {
+                direct_globals_contracts: Vec::new(),
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -56,6 +62,7 @@ fn sample() -> (Function, [LocalId; 5]) {
             specialization_identity_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [a, b, c, middle, result],
     )
@@ -178,6 +185,7 @@ fn exception_closure_cell_generator_and_intermediate_inplace_are_rejected() {
             1 => f.body.locals[a].is_cell = true,
             2 => f.signature_global = None,
             3 => f.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

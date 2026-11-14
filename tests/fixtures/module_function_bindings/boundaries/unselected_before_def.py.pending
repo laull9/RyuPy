@@ -1,0 +1,12 @@
+# ryupy: pending
+# 域外旧债：无其它模块绑定的单次普通def，定义前读取应抛NameError。
+# 核心逻辑逐字来自唯一CP参考boundary组；这里只增独立运行输出，不冒充已运行此文件。
+events = []
+try:
+    untouched
+except NameError as error:
+    events.append(['expected unbound', str(error)])
+def untouched():
+    return 'created later'
+result = [events, untouched()]
+print(result)

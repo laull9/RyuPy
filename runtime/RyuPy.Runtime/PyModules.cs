@@ -1,3 +1,4 @@
+// 模块对象与普通导入机制；受限缓存别名的校验和来源记录隔离在 CacheAliases 冷路。
 using System;
 using System.Collections.Generic;
 
@@ -16,14 +17,16 @@ public delegate void PyModuleSet(PyModule module, string name, object? value);
 /// Python 模块对象（M2.7）。
 /// </summary>
 /// <remarks>
-/// 模块变量在生成的程序集里是**静态槽位**，读写通过编译期生成的 getter / setter 委托完成，
-/// 因此模块内部代码保持静态类型，外部访问看到的仍是 Python 值。
-/// 未在模块里声明的属性（例如自动挂上去的子模块）放在动态字典里。
+/// legacy模块变量通过编译期getter/setter访问静态槽，未声明属性保留动态字典。
+/// 显式实例模块复用委托接口，全部公开属性只进入自身唯一PyDict；不复制静态槽。
 /// </remarks>
 public sealed class PyModule
 {
     /// <summary>点分绝对模块名；入口模块是 <c>__main__</c>。</summary>
     public string Name { get; }
+
+    /// <summary>外部provider模块的真实对象协议；普通原生模块为空。</summary>
+    public IPyForeignObject? ForeignObject { get; internal set; }
 
     /// <summary><c>__package__</c>。</summary>
     public string Package { get; }
@@ -33,11 +36,18 @@ public sealed class PyModule
 
     /// <summary>0 = 未初始化，1 = 初始化中，2 = 已完成。</summary>
     internal int State;
+    // 由内部注册签发，不从可改公开属性推断父包来源。
+    internal bool IsNativeRegistration { get; }
 
     private readonly PyModuleInit init;
     private readonly PyModuleGet get;
     private readonly PyModuleSet set;
     private readonly bool fileBackedByGlobal;
+    private readonly bool legacyResourceMetadata;
+    // 真正字典存储独立于来源元数据；公开新模块不伪造Metadata来启用槽语义。
+    private readonly bool instanceGlobals;
+
+    internal PyModuleMetadata? Metadata { get; set; }
 
     /// <summary>未声明属性的动态字典（子模块、运行时挂载的属性）。</summary>
     internal Dictionary<string, object?> DynamicAttributes { get; } = new(StringComparer.Ordinal);
@@ -49,10 +59,16 @@ public sealed class PyModule
         PyModuleInit init,
         PyModuleGet get,
         PyModuleSet set,
-        bool fileBackedByGlobal = false
+        bool fileBackedByGlobal = false,
+        bool legacyResourceMetadata = false,
+        bool instanceGlobals = false,
+        bool isNativeRegistration = false
     )
     {
+        IsNativeRegistration = isNativeRegistration;
+        this.instanceGlobals = instanceGlobals;
         this.fileBackedByGlobal = fileBackedByGlobal;
+        this.legacyResourceMetadata = legacyResourceMetadata;
         Name = name;
         Package = package;
         File = file;
@@ -66,16 +82,28 @@ public sealed class PyModule
     /// <summary>读取模块属性：动态字典 → 特殊名字 → 编译期槽位。</summary>
     public object? GetAttr(string name)
     {
+        if (instanceGlobals) return get(name);
         if (DynamicAttributes.TryGetValue(name, out var dynamicValue))
         {
             return dynamicValue;
         }
+        if (PyModuleMetadata.IsName(name))
+        {
+            // 旧十参资源ABI没有元数据槽；保持缺属性和getter副作用，不冒领新能力。
+            if (legacyResourceMetadata) return get(name);
+            // 真实编译槽即使未绑定也不回退初始快照，外部读写与模块内部保持同一状态。
+            if (fileBackedByGlobal && Metadata is not null) return get(name);
+            try { return get(name); }
+            catch (PyAttributeError) when (Metadata is not null) { return Metadata.Attribute(name); }
+            catch (PyAttributeError) when (name is "__spec__" or "__loader__")
+            { throw new PyNotImplementedError("module spec/loader metadata requires an explicitly registered source module"); }
+        }
         switch (name)
         {
             case "__name__":
-                return Name;
+                return fileBackedByGlobal && Metadata is not null ? get(name) : Name;
             case "__package__":
-                return Package;
+                return fileBackedByGlobal && Metadata is not null ? get(name) : Package;
             case "__file__":
                 // 编译器明确声明的槽是可写 Python 值；未绑定错误不能被初始路径吞掉。
                 return fileBackedByGlobal ? get(name) : File;
@@ -112,9 +140,17 @@ public static partial class PyModules
         PyModuleGet get,
         PyModuleSet set,
         string? resolvedFile = null,
-        bool fileBackedByGlobal = false
+        bool fileBackedByGlobal = false,
+        ResourceLocation? resourceLocation = null,
+        bool metadataEnabled = false,
+        PyCompiledModuleCode? instanceCode = null,
+        bool nativeRegistration = false
     )
     {
+        public bool NativeRegistration { get; } = nativeRegistration;
+        public ResourceLocation? ResourceLocation { get; } = resourceLocation;
+        public bool MetadataEnabled { get; } = metadataEnabled;
+        public PyCompiledModuleCode? InstanceCode { get; } = instanceCode;
         public string Package { get; } = package;
         // File 仅用于原诊断来源映射，不改 warnings 的既有 basename 合同。
         public string File { get; } = file;
@@ -127,6 +163,16 @@ public static partial class PyModules
 
     private static readonly Dictionary<string, Registration> Registry = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, PyModule> Cache = new(StringComparer.Ordinal);
+
+    /// <summary>类定义冷路读取已注册模块的真实全局槽，不导入、不借缓存模块的固定 Name。</summary>
+    internal static bool TryGetClassDefinitionModule(string key, out object? value)
+    {
+        value = null;
+        if (!Registry.TryGetValue(key, out var registration)) return false;
+        // 任意值均保原引用；真实 getter 错误不能被当作未知来源吞掉。
+        value = registration.Get("__name__");
+        return true;
+    }
 
     /// <summary>从帧文件标识查唯一模块；当前编译器可能只存 basename，歧义不能猜测。</summary>
     public static string? ModuleForFile(string file)
@@ -152,20 +198,32 @@ public static partial class PyModules
         PyModuleSet set
     )
     {
+        EnsureRegistrationAvoidsCacheAliases(name);
         Registry[name] = new Registration(package, file, init, get, set);
+        PyProvider.Current?.Registered(name);
     }
 
     /// <summary>登记原生模块属性；对象缓存与普通编译模块共享，属性写入保持实时可见。</summary>
     public static void RegisterNative(string name, Dictionary<string, object?> attributes, Action<string, object?>? beforeSet = null)
     {
-        Register(name, name.Contains('.') ? name[..name.LastIndexOf('.')] : "", "", () => { },
+        RegisterNativeLazy(name, name.Contains('.') ? name[..name.LastIndexOf('.')] : "", "", () => { },
             key => attributes.TryGetValue(key, out object? value) ? value
                 : throw new PyAttributeError($"module '{name}' has no attribute '{key}'"),
             (_, key, value) => { beforeSet?.Invoke(key, value); attributes[key] = value; });
     }
 
+    // 与普通Register共用生命周期；仅内部native模块可签发来源，不扩公开ABI。
+    internal static void RegisterNativeLazy(string name, string package, string file,
+        PyModuleInit init, PyModuleGet get, PyModuleSet set)
+    {
+        EnsureRegistrationAvoidsCacheAliases(name);
+        Registry[name] = new Registration(package, file, init, get, set, nativeRegistration: true);
+        PyProvider.Current?.Registered(name);
+    }
+
     internal static Dictionary<string, PyModule> CacheSnapshot() => new(Cache, StringComparer.Ordinal);
-    internal static bool TryCached(string name, out PyModule? module) => Cache.TryGetValue(name, out module);
+    /// <summary>读取已有Runtime模块缓存；供入口组合获取初始化前的argv来源。</summary>
+    public static bool TryCached(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out PyModule? module) => Cache.TryGetValue(name, out module);
 
     /// <summary>导入模块；已缓存或正在初始化时直接返回现有对象。</summary>
     /// <remarks>
@@ -175,11 +233,13 @@ public static partial class PyModules
     /// </remarks>
     public static PyModule Import(string name)
     {
+        if (PyProvider.Current is { } provider && provider.Owns(name)) return provider.Import(name);
         if (Cache.TryGetValue(name, out var cached))
         {
             return cached;
         }
 
+        ActivateCandidates(name, finder: false);
         PyModule? parent = null;
         string? childName = null;
         int dot = name.LastIndexOf('.');
@@ -196,30 +256,52 @@ public static partial class PyModules
 
         if (!Registry.TryGetValue(name, out var registration))
         {
+            RejectCacheAliasDescendant(name);
+            _ = ThrowUnavailableImport(name, parent, childName);
             throw new PyModuleNotFoundError($"No module named '{name}'");
         }
 
-        var module = new PyModule(
+        RequireSourceImportPath(name, parent, childName, registration);
+        return InitializeRegisteredModule(name, parent, childName, registration);
+    }
+
+    // 普通导入与发现所需的父导入共用唯一生命周期；调用方各自完成查找和末次缓存短路。
+    // 不再递归查父或重读path/hooks，避免find_spec已检查过的getter被再次消费。
+    private static PyModule InitializeRegisteredModule(string name, PyModule? parent,
+        string? childName, Registration registration)
+    {
+        var module = registration.InstanceCode is { } code ? PyModuleInstances.Create(code) : new PyModule(
             name,
             registration.Package,
             registration.ResolvedFile,
             registration.Init,
             registration.Get,
             registration.Set,
-            registration.FileBackedByGlobal
+            registration.FileBackedByGlobal,
+            registration.ResourceLocation is not null && !registration.MetadataEnabled,
+            isNativeRegistration: registration.NativeRegistration
         );
+        if (registration.InstanceCode is null && registration.MetadataEnabled && registration.ResourceLocation is { } source)
+            module.Metadata = source.Kind == 0
+                ? PyModuleMetadata.WithoutLocation(name, source.IsPackage)
+                : new PyModuleMetadata(name, registration.ResolvedFile, source.IsPackage);
         // 必须先登记再执行：循环导入的另一端需要看到「初始化中」的模块对象。
+        if (registration.ResourceLocation is { } resourceLocation && !ResourceLocations.TryGetValue(module, out _))
+            ResourceLocations.Add(module, resourceLocation);
+        BindDefaultSource(module, registration);
         Cache[name] = module;
         module.State = 1;
         try
         {
+            PyProvider.Current?.Initializing(module);
             module.RunInit();
             module.State = 2;
         }
         catch
         {
             // 失败模块不能留在缓存里；已经成功导入的依赖保留。
-            Cache.Remove(name);
+            if (Cache.TryGetValue(name, out var current) && ReferenceEquals(current, module)) Cache.Remove(name);
+            PyProvider.Current?.Failed(name);
             throw;
         }
 
@@ -239,18 +321,48 @@ public static partial class PyModules
         {
             return module.GetAttr(name);
         }
-        catch (PyAttributeError)
+        catch (PyAttributeError missing)
         {
-            var submodule = moduleName + "." + name;
-            if (Registry.ContainsKey(submodule))
+            if (CacheAliasNames?.Contains(moduleName) == true)
             {
-                var imported = Import(submodule);
-                // CPython 会把子模块挂到父包上，后续 pkg.sub 也能取到。
+                // 已有属性仍走原对象；未知子模块域先拒绝，保留 getter 缺属性与外层异常链。
+                PyErrors.Prepare(missing);
+                throw CacheAliasUnsupported("missing attributes cannot fall back to alias submodules", missing);
+            }
+        }
+        var submodule = moduleName + "." + name;
+        if (PyProvider.Current?.Owns(submodule) == true || Registry.ContainsKey(submodule) || CandidateRoots.Contains(submodule) || ActiveUnavailable.ContainsKey(submodule))
+        {
+            PyModule? imported = null;
+            try { imported = Import(submodule); }
+            catch (PyModuleNotFoundError missing)
+            {
+                object? previous = PyErrors.EnterHandler(missing);
+                try
+                {
+                    object? failedName;
+                    try { failedName = PyObject.ReadImportErrorName(missing, requireComparableName: true); }
+                    catch (PyBaseException lookup) { PyErrors.PrepareRaise(lookup); throw; }
+                    if (failedName is null or PyNone) throw;
+                    if (failedName is not string failed)
+                        throw new PyNotImplementedError("import: custom ModuleNotFoundError.name comparison is not implemented") { Context = missing };
+                    if (!string.Equals(failed, submodule, StringComparison.Ordinal)) throw;
+                }
+                finally { PyErrors.LeaveHandler(previous); }
+            }
+            // 仅导入调用参与同名抑制，既有外层发布的setter错误仍原样传播。
+            if (imported is not null)
+            {
                 module.SetAttr(name, imported);
                 return imported;
             }
-            throw new PyImportError($"cannot import name '{name}' from '{moduleName}'");
+            // 正文可能发布父属性后再抛同名MNFE；不能盲转错误或重新执行失败子模块。
+            // 离开missing的handler再读取，以免最终ImportError残留被抑制异常的context。
+            try { return module.GetAttr(name); }
+            catch (PyAttributeError) { }
+            if (Cache.TryGetValue(submodule, out PyModule? partial)) return partial;
         }
+        throw ImportAttributeMissing(module, moduleName, name);
     }
 
     /// <summary>执行入口模块（<c>__main__</c>）；开启 <c>RYUPY_STATS</c> 时从这里开始计执行耗时。</summary>
@@ -268,7 +380,13 @@ public static partial class PyModules
     public static void MissingAttr(string module, string name) =>
         throw new PyAttributeError($"module '{module}' has no attribute '{name}'");
 
-    /// <summary>把未声明的模块属性写进动态字典。</summary>
-    public static void SetDynamic(PyModule module, string name, object? value) =>
-        module.DynamicAttributes[name] = value;
+    /// <summary>legacy未声明属性写动态字典；实例模块仍写唯一globals。</summary>
+    public static void SetDynamic(PyModule module, string name, object? value)
+    {
+        // 新ParseError的静态catch身份不能被公开legacy动态写入口绕过。
+        if (module.IsNativeRegistration && module.Name == PyXmlElementTree.ModuleName && name == "ParseError")
+            module.SetAttr(name, value);
+        else if (PyModuleInstances.IsInstance(module)) module.SetAttr(name, value);
+        else module.DynamicAttributes[name] = value;
+    }
 }

@@ -1,0 +1,17 @@
+<!-- 一次编译的普通CLR Host，仅引用已有公开ABI；不发布Native。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>AllocationHost</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="RyuPy.Runtime">
+      <HintPath>$(BaselineRuntime)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

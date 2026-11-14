@@ -4,9 +4,9 @@ use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
-struct Temp(PathBuf);
+pub(super) struct Temp(pub(super) PathBuf);
 impl Temp {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         let root = std::env::temp_dir().join(format!(
             "ryupy-stage-{}-{}",
             std::process::id(),
@@ -20,7 +20,7 @@ impl Temp {
         fs::create_dir_all(&path).unwrap();
         path
     }
-    fn source(&self, folder: &str, name: &str, logical: &str) -> SourceModule {
+    pub(super) fn source(&self, folder: &str, name: &str, logical: &str) -> SourceModule {
         let directory = self.dir(folder);
         let path = directory.join(format!("{name}.py"));
         fs::write(&path, "pass\n").unwrap();
@@ -30,7 +30,11 @@ impl Temp {
         source.logical_source = logical.to_owned();
         source
     }
-    fn plan(&self, sources: &[SourceModule], entries: serde_json::Value) -> Result<ResourcePlan> {
+    pub(super) fn plan(
+        &self,
+        sources: &[SourceModule],
+        entries: serde_json::Value,
+    ) -> Result<ResourcePlan> {
         let request = self.0.join("request.json");
         fs::write(
             &request,
@@ -39,7 +43,7 @@ impl Temp {
         .unwrap();
         ResourcePlan::read(&request, sources)
     }
-    fn owned(&self) -> PathBuf {
+    pub(super) fn owned(&self) -> PathBuf {
         self.dir("owned")
     }
     fn publish(&self) -> PathBuf {
@@ -53,7 +57,7 @@ impl Drop for Temp {
         let _ = fs::remove_dir_all(&self.0);
     }
 }
-fn request(name: &str, files: &[&str]) -> serde_json::Value {
+pub(super) fn request(name: &str, files: &[&str]) -> serde_json::Value {
     serde_json::json!([{"module":name,"files":files}])
 }
 fn assert_sentinel(root: &Path) {

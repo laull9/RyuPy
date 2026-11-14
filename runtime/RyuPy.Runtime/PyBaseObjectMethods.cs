@@ -9,12 +9,21 @@ internal static class PyBaseObjectMethods
 {
     private static readonly ConcurrentDictionary<string, Method> Methods = new();
     internal static bool IsMethod(string name) => name is "__new__" or "__init__"
-        or "__eq__" or "__ne__" or "__repr__" or "__str__" or "__hash__";
-    internal static object Unbound(string name) => Methods.GetOrAdd(name, static n => new Method(n, null));
+        or "__eq__" or "__ne__" or "__repr__" or "__str__" or "__hash__"
+        or "__setattr__" or "__delattr__";
+    // list继承的object.__str__与object根共享同一描述符；repr用户回调不进入旧广catch。
+    internal static object Unbound(string name) => name == "__str__" ? PyListDescriptors.Unbound(name)
+        : Methods.GetOrAdd(name, static n => new Method(n, null));
     internal static object Bind(PyBaseObject value, string name) => new Method(name, value);
     internal static object BindConstruction(object value, string name) => new Method(name, value);
     internal static bool IsRootNew(object? value) => ReferenceEquals(value, Unbound("__new__"));
     internal static bool IsRootInit(object? value) => ReferenceEquals(value, Unbound("__init__"));
+    internal static bool IsRootHash(object? value) =>
+        value is Method && ReferenceEquals(value, Unbound("__hash__"));
+
+    // 只给已核object hash描述符绑定self，不把其它native callable泛化为描述符。
+    internal static object? BindRootHash(object? value, object? self) =>
+        self is not null && IsRootHash(value) ? BindConstruction(self, "__hash__") : value;
 
     // 独立原生可调用槽，不冒 PyFunction，也不走普通方法 PIC 的可变实例字典。
     private sealed class Method(string name, object? receiver) : PyNativeObject, IPyNativeCallable
@@ -42,9 +51,13 @@ internal static class PyBaseObjectMethods
             if (args.Length < offset)
                 throw new PyTypeError($"descriptor '{name}' of 'object' object needs an argument");
             object? self = receiver ?? args[0];
+            PyLexicalClassGuard.Receiver(self);
             int extra = args.Length - offset;
             if (name == "__init__")
             {
+                // str沿真正object根init身份；仅其实际布局走专用参数规则，普通对象原路不变。
+                if (PyStringLayout.TryGet(self, out _))
+                    return PyStringLayout.Init(self, offset == 0 ? args : args[1..], names, []);
                 if (extra == 0 && names.Length == 0) return PyNone.Instance;
                 if (self is PyInstance instance)
                 {
@@ -52,6 +65,27 @@ internal static class PyBaseObjectMethods
                     return PyNone.Instance;
                 }
                 throw new PyTypeError("object.__init__() takes exactly one argument (the instance to initialize)");
+            }
+            if (name == "__setattr__")
+            {
+                if (extra != 2 || names.Length != 0)
+                    throw new PyTypeError($"object.__setattr__() takes exactly 2 arguments ({extra + 1} given with self)");
+                if (args[offset] is not string attrName)
+                    throw new PyTypeError("attribute name must be string");
+                if (self is PyInstance instance)
+                    PyObject.InitializeDataclassField(instance, attrName, args[offset + 1]);
+                else
+                    PyObject.SetAttr(self, attrName, args[offset + 1]);
+                return PyNone.Instance;
+            }
+            if (name == "__delattr__")
+            {
+                if (extra != 1 || names.Length != 0)
+                    throw new PyTypeError($"object.__delattr__() takes exactly 1 argument ({extra + 1} given with self)");
+                if (args[offset] is not string attrName)
+                    throw new PyTypeError("attribute name must be string");
+                PyObject.DeleteObjectAttribute(self, attrName, true);
+                return PyNone.Instance;
             }
             int required = name is "__eq__" or "__ne__" ? 1 : 0;
             if (extra != required || names.Length != 0)

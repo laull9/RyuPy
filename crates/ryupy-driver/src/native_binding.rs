@@ -1,4 +1,4 @@
-//! 固定单签名声明：从 fded 基线重新实现，严格拒绝未知字段，不解释通用 FFI 类型语言。
+//! 单库绑定声明：v1/v2 固定签名兼容，v3 为严格、显式的有界多导出 ABI。
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -6,19 +6,31 @@ use std::path::{Path, PathBuf};
 pub(crate) mod files;
 #[path = "native_binding_images.rs"]
 mod images;
+#[path = "native_binding_signature.rs"]
+mod signature;
 pub(crate) const INPUT_LIMIT: u64 = 64 * 1024 * 1024;
 const DECLARATION_LIMIT: u64 = 64 * 1024;
 pub(crate) const SIGNATURE: &str = "cdecl_i32_i32_i64";
+pub(crate) const EXPORT_LIMIT: usize = 64;
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Declaration {
     schema_version: u32,
     module: String,
-    export: String,
-    signature: String,
+    export: Option<String>,
+    signature: Option<serde_json::Value>,
     library: String,
-    symbol: String,
+    symbol: Option<String>,
+    exports: Option<Vec<BindingExport>>,
     target: Target,
+}
+/// 一个公开Python函数；允许不同名字显式绑定同一C符号，各自保有函数身份。
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct BindingExport {
+    pub name: String,
+    pub symbol: String,
+    pub signature: serde_json::Value,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -26,6 +38,9 @@ struct Target {
     rid: String,
     shared: Option<String>,
     archive: Option<String>,
+    linkage: Option<String>,
+    #[serde(default)]
+    dependencies: Vec<String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Platform {
@@ -73,34 +88,97 @@ impl Platform {
     }
 }
 pub(crate) struct BindingPlan {
+    pub declaration_version: u32,
     pub module: String,
-    pub export: String,
+    pub exports: Vec<BindingExport>,
+    pub signatures: Vec<Option<ryupy_mir::native_abi::AbiSignature>>,
     pub library: String,
-    pub symbol: String,
     pub declaration_sha256: String,
     pub platform: Platform,
     pub aot: bool,
+    pub dynamic: bool,
+    pub dependencies: Vec<(String, files::NativeInput)>,
     pub input: files::NativeInput,
 }
 impl BindingPlan {
     pub(crate) fn read(path: &Path, platform: Platform, aot: bool) -> Result<Self> {
         let bytes = files::read_small(path, DECLARATION_LIMIT)?;
         let d: Declaration = serde_json::from_slice(&bytes).context("无效原生绑定声明")?;
+        // 历史声明只在此归一化；混合字段拒绝，避免新版配置被旧字段静默截断。
+        let exports = match d.schema_version {
+            1 => {
+                ensure!(d.exports.is_none(), "版本1不能包含exports");
+                vec![BindingExport {
+                    name: d.export.context("版本1缺少export")?,
+                    symbol: d.symbol.context("版本1缺少symbol")?,
+                    signature: d.signature.context("版本1缺少signature")?,
+                }]
+            }
+            2 | 3 => {
+                ensure!(
+                    d.export.is_none() && d.symbol.is_none() && d.signature.is_none(),
+                    "版本2/3不能包含版本1单导出字段"
+                );
+                d.exports.context("版本2/3缺少exports")?
+            }
+            _ => anyhow::bail!("只支持版本1、版本2或版本3原生绑定声明"),
+        };
         ensure!(
-            d.schema_version == 1 && d.signature == SIGNATURE,
-            "只支持版本1及固定cdecl_i32_i32_i64签名"
+            (1..=EXPORT_LIMIT).contains(&exports.len()),
+            "原生导出数量必须为1至64"
         );
-        for value in [&d.module, &d.export, &d.library, &d.symbol] {
+        for value in [&d.module, &d.library] {
             ensure!(identifier(value), "绑定名称必须是有界ASCII标识符");
         }
-        ensure!(
-            d.module != "__main__"
-                && !matches!(d.export.as_str(), "__name__" | "__package__" | "__file__"),
-            "绑定不能替代入口或保留元数据"
-        );
+        ensure!(d.module != "__main__", "绑定不能替代入口");
+        let mut names = std::collections::HashSet::new();
+        let mut signatures = Vec::new();
+        for e in &exports {
+            ensure!(
+                identifier(&e.name) && identifier(&e.symbol),
+                "绑定名称必须是有界ASCII标识符"
+            );
+            signatures.push(if d.schema_version == 3 {
+                Some(signature::parse(&e.signature).with_context(|| format!("导出{}", e.name))?)
+            } else {
+                ensure!(e.signature == SIGNATURE, "只支持固定cdecl_i32_i32_i64签名");
+                None
+            });
+            ensure!(
+                !matches!(e.name.as_str(), "__name__" | "__package__" | "__file__"),
+                "绑定不能替代保留元数据"
+            );
+            ensure!(names.insert(&e.name), "原生导出名称重复");
+        }
+        for (index, export) in exports.iter().enumerate() {
+            for (previous, other) in exports[..index].iter().enumerate() {
+                if export.symbol == other.symbol {
+                    ensure!(
+                        match (&signatures[index], &signatures[previous]) {
+                            (Some(left), Some(right)) => left.same_abi(right),
+                            (None, None) => true,
+                            _ => false,
+                        },
+                        "同一C符号不能声明冲突ABI签名"
+                    );
+                }
+            }
+        }
         ensure!(d.target.rid == platform.rid(), "绑定RID必须精确匹配宿主");
+        // AOT 动态绑定继续使用静态机器签名；仅加载时机与部署形态改变。
+        let dynamic = match d.target.linkage.as_deref() {
+            None => !aot,
+            Some("dynamic") if d.schema_version == 3 => true,
+            Some("static") if d.schema_version == 3 && aot => false,
+            _ => anyhow::bail!("linkage仅支持v3的dynamic或AOT static"),
+        };
+        ensure!(
+            dynamic || d.target.dependencies.is_empty(),
+            "静态绑定不能声明动态依赖"
+        );
+        ensure!(d.target.dependencies.len() <= 64, "动态依赖最多64个");
         // 只消费本次模式所选输入，不给另一条未读取的路径背书。
-        let selected = (if aot {
+        let selected = (if !dynamic {
             d.target.archive
         } else {
             d.target.shared
@@ -109,17 +187,66 @@ impl BindingPlan {
         let path = absolute(path)?;
         let root = path.parent().context("声明没有父目录")?;
         let source = files::checked_relative(root, &selected)?;
-        let input = files::NativeInput::open(&source, platform, aot)?;
+        let input = files::NativeInput::open(&source, platform, !dynamic)?;
+        let mut dependencies = Vec::new();
+        let mut names = std::collections::HashSet::from([Path::new(platform.relative_file())
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_lowercase()]);
+        for dependency in d.target.dependencies {
+            let path = files::checked_relative(root, &dependency)?;
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .context("依赖文件名无效")?;
+            ensure!(
+                name.is_ascii() && names.insert(name.to_ascii_lowercase()),
+                "依赖部署名必须ASCII且唯一"
+            );
+            let mut native = files::NativeInput::open(&path, platform, false)?;
+            native.digest.relative_path = dependency;
+            native.digest.role = "native_dependency_input".into();
+            dependencies.push((name.to_owned(), native));
+        }
         Ok(Self {
+            declaration_version: d.schema_version,
             module: d.module,
-            export: d.export,
+            exports,
+            signatures,
             library: d.library,
-            symbol: d.symbol,
-            declaration_sha256: crate::manifest_files::hash_bytes(&bytes),
+            declaration_sha256: String::new(),
             platform,
             aot,
+            dynamic,
+            dependencies,
             input,
         })
+    }
+    /// 将入口库及显式依赖作为同次候选包冻结；加载器相对路径由库自身负责。
+    pub(crate) fn stage_shared(&self, bundle: &Path) -> Result<Vec<files::FrozenInput>> {
+        let target = bundle.join(self.platform.relative_file());
+        let parent = target.parent().context("shared缺父目录")?;
+        std::fs::create_dir_all(parent)?;
+        let mut frozen = vec![self.input.freeze(&target)?];
+        for (name, input) in &self.dependencies {
+            frozen.push(input.freeze(&parent.join(name))?);
+        }
+        Ok(frozen)
+    }
+    pub(crate) fn mark_shared(&self, artifacts: &mut [crate::manifest_files::FileDigest]) {
+        let parent = Path::new(self.platform.relative_file()).parent().unwrap();
+        for item in artifacts {
+            if item.relative_path == self.platform.relative_file() {
+                item.role = "native_shared".into();
+            } else if self
+                .dependencies
+                .iter()
+                .any(|(name, _)| parent.join(name).to_string_lossy() == item.relative_path)
+            {
+                item.role = "native_dependency".into();
+            }
+        }
     }
     pub(crate) fn check_modules(&self, p: &ryupy_mir::LinkedProgram) -> Result<()> {
         for (_, m) in p.modules.iter() {

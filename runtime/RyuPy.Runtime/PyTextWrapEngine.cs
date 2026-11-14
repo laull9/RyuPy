@@ -5,7 +5,7 @@ using System.Text;
 namespace RyuPy.Runtime;
 
 /// <summary>换行引擎：源区间保存词块，固定Unicode15分类，只有规范化和输出行生成字符串。</summary>
-internal static class PyTextWrapEngine
+internal static partial class PyTextWrapEngine
 {
     private readonly record struct Chunk(int Start, int End)
     {

@@ -1,0 +1,2 @@
+events = []
+attempts = 0

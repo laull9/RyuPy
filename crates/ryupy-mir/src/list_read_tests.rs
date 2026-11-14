@@ -42,12 +42,18 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 5]) {
     };
     let mut functions = Arena::default();
     let main = functions.alloc(Function {
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
         name: "checked_read".into(),
         codegen_name: "checked_read".into(),
         source_file: "checked.py".into(),
+        definition: None,
         params: vec![list, index, other],
         ret: MirType::F64,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals,
             blocks,
             entry,
@@ -59,6 +65,7 @@ fn sample() -> (Program, [BlockId; 3], [LocalId; 5]) {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
     });
     (
         Program {
@@ -234,6 +241,7 @@ fn global_write_unknown_call_bool_alias_and_eh_cannot_preserve_proof() {
         let (mut p, [entry, yes, no], [list, _, _, condition, _]) = sample();
         if case == 0 {
             let global = p.globals.alloc(GlobalDecl {
+                storage: crate::GlobalStorage::LegacyStatic,
                 name: "changed".into(),
                 ty: MirType::Dynamic,
             });
@@ -270,6 +278,7 @@ fn global_write_unknown_call_bool_alias_and_eh_cannot_preserve_proof() {
             };
         } else {
             p.functions[p.entry].body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

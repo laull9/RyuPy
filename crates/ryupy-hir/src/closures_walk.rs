@@ -10,11 +10,14 @@ use ryupy_syntax::ast;
 use ryupy_syntax::ast::visitor::{Visitor, walk_expr, walk_stmt};
 
 use crate::closures::ScopeData;
-use crate::hir::{ClosureInfo, FuncId, Function, FunctionKind, Name};
+use crate::hir::{ClassId, ClosureInfo, FuncId, Function, FunctionKind, Name};
 
 #[derive(Default)]
 pub(crate) struct ScopeCollector {
     postponed_annotations: bool,
+    class_annotations: bool,
+    /// 实例类的用户 body 另以特殊定义作用域收集，decorator/base 仍归外层。
+    skip_class_body: bool,
     assigned: Vec<Name>,
     globals: FxHashSet<Name>,
     nonlocals: Vec<(Name, TextRange)>,
@@ -25,20 +28,25 @@ pub(crate) struct ScopeCollector {
 /// 保持发现顺序，避免按函数种类重排后改变环境槽位和诊断顺序。
 enum Nested {
     Def(ast::StmtFunctionDef),
+    Class(ast::StmtClassDef),
     Lambda(ast::ExprLambda),
     Comprehension(ast::Expr),
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn collect_module_nested(
     body: &[ast::Stmt],
     parent: usize,
+    instance_class_cells: bool,
     functions: &mut Arena<Function>,
     scopes: &mut Vec<ScopeData>,
     nested_funcs: &mut FxHashMap<TextRange, FuncId>,
     nested_def_names: &mut FxHashMap<TextRange, Name>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
 ) {
     let mut collector = ScopeCollector {
         postponed_annotations: scopes[parent].postponed_annotations,
+        skip_class_body: instance_class_cells,
         ..ScopeCollector::default()
     };
     for stmt in body {
@@ -67,7 +75,56 @@ pub(crate) fn collect_module_nested(
         scopes,
         nested_funcs,
         nested_def_names,
+        lexical_classes,
     );
+}
+
+/// 类体只提供特殊 __class__ 绑定；普通属性和类体裸名不能成为方法的 enclosing locals。
+/// 方法默认值/装饰表达式中的 lambda 与类体 lambda 在此登记，class decorator/base 不在此。
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn walk_class_scope(
+    class: &ast::StmtClassDef,
+    class_id: ClassId,
+    parent: usize,
+    functions: &mut Arena<Function>,
+    scopes: &mut Vec<ScopeData>,
+    nested_funcs: &mut FxHashMap<TextRange, FuncId>,
+    nested_def_names: &mut FxHashMap<TextRange, Name>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
+) -> usize {
+    let mut collector = ScopeCollector {
+        postponed_annotations: scopes[parent].postponed_annotations,
+        skip_class_body: true,
+        ..ScopeCollector::default()
+    };
+    collector.visit_class_items(&class.body);
+    let scope = scopes.len();
+    scopes.push(ScopeData {
+        postponed_annotations: collector.postponed_annotations,
+        func_id: scopes[parent].func_id,
+        is_module: false,
+        class: Some(class_id),
+        class_cell: None,
+        range: class.range,
+        parent: Some(parent),
+        assigned: vec![Name::from("__class__")],
+        globals: FxHashSet::default(),
+        nonlocals: Vec::new(),
+        reads: Vec::new(),
+        nested: Vec::new(),
+        free: Vec::new(),
+        cells: Vec::new(),
+    });
+    register_discovered(
+        collector,
+        scope,
+        functions,
+        scopes,
+        nested_funcs,
+        nested_def_names,
+        lexical_classes,
+    );
+    scope
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -81,6 +138,7 @@ pub(crate) fn walk_function_scope(
     scopes: &mut Vec<ScopeData>,
     nested_funcs: &mut FxHashMap<TextRange, FuncId>,
     nested_def_names: &mut FxHashMap<TextRange, Name>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
 ) {
     let mut collector = ScopeCollector {
         postponed_annotations: scopes[parent].postponed_annotations,
@@ -104,6 +162,7 @@ pub(crate) fn walk_function_scope(
         scopes,
         nested_funcs,
         nested_def_names,
+        lexical_classes,
     );
 }
 
@@ -123,6 +182,8 @@ fn push_scope(
         postponed_annotations: collector.postponed_annotations,
         func_id,
         is_module: false,
+        class: None,
+        class_cell: None,
         range,
         parent: Some(parent),
         assigned: std::mem::take(&mut collector.assigned),
@@ -136,6 +197,7 @@ fn push_scope(
     index
 }
 
+#[allow(clippy::too_many_arguments)]
 fn register_discovered(
     collector: ScopeCollector,
     parent: usize,
@@ -143,10 +205,27 @@ fn register_discovered(
     scopes: &mut Vec<ScopeData>,
     nested_funcs: &mut FxHashMap<TextRange, FuncId>,
     nested_def_names: &mut FxHashMap<TextRange, Name>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
 ) {
     for node in collector.nested {
+        if let Nested::Class(class) = &node {
+            if let Some(&class_id) = lexical_classes.get(&class.range) {
+                walk_lexical_class_scope(
+                    class,
+                    class_id,
+                    parent,
+                    functions,
+                    scopes,
+                    nested_funcs,
+                    nested_def_names,
+                    lexical_classes,
+                );
+            }
+            continue;
+        }
         let (name, range) = match &node {
             Nested::Def(def) => (Name::from(def.name.as_str()), def.range),
+            Nested::Class(_) => continue,
             Nested::Lambda(lambda) => (Name::from("<lambda>"), lambda.range),
             Nested::Comprehension(expr) => {
                 let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(expr) else {
@@ -160,6 +239,7 @@ fn register_discovered(
             nested_def_names.insert(range, name.clone());
         }
         let child = functions.alloc(Function {
+            definition: None,
             name,
             kind: FunctionKind::Nested,
             params: Vec::new(),
@@ -173,6 +253,7 @@ fn register_discovered(
         });
         nested_funcs.insert(range, child);
         match node {
+            Nested::Class(_) => {}
             Nested::Comprehension(expr) => {
                 let Some(comp) = crate::comprehension_ast::Comprehension::from_expr(&expr) else {
                     continue;
@@ -203,6 +284,7 @@ fn register_discovered(
                     scopes,
                     nested_funcs,
                     nested_def_names,
+                    lexical_classes,
                 );
             }
             Nested::Def(def) => walk_function_scope(
@@ -215,6 +297,7 @@ fn register_discovered(
                 scopes,
                 nested_funcs,
                 nested_def_names,
+                lexical_classes,
             ),
             Nested::Lambda(lambda) => {
                 let mut collector = ScopeCollector {
@@ -235,6 +318,7 @@ fn register_discovered(
                     scopes,
                     nested_funcs,
                     nested_def_names,
+                    lexical_classes,
                 );
             }
         }
@@ -242,7 +326,7 @@ fn register_discovered(
 }
 
 impl ScopeCollector {
-    fn visit_class_expressions(&mut self, class: &ast::StmtClassDef) {
+    fn visit_class_header(&mut self, class: &ast::StmtClassDef) {
         for decorator in &class.decorator_list {
             self.visit_expr(&decorator.expression);
         }
@@ -251,7 +335,13 @@ impl ScopeCollector {
                 self.visit_expr(base);
             }
         }
-        self.visit_class_items(&class.body);
+    }
+
+    fn visit_class_expressions(&mut self, class: &ast::StmtClassDef) {
+        self.visit_class_header(class);
+        if !self.skip_class_body {
+            self.visit_class_items(&class.body);
+        }
     }
 
     // 条件内的方法依旧是已登记的类方法，不再当模块嵌套函数重复分配。
@@ -328,10 +418,14 @@ impl<'a> Visitor<'a> for ScopeCollector {
             }
             ast::Stmt::ClassDef(class) => {
                 self.push_assigned(Name::from(class.name.as_str()));
-                self.visit_class_expressions(class);
+                self.visit_class_header(class);
+                self.nested.push(Nested::Class(class.clone()));
             }
             // 函数局部注解从不执行；类体需执行的旧模式注解由visit_class_expressions单独处理。
             ast::Stmt::AnnAssign(assign) => {
+                if self.class_annotations && !self.postponed_annotations {
+                    self.visit_expr(&assign.annotation);
+                }
                 self.visit_expr(&assign.target);
                 if let Some(value) = &assign.value {
                     self.visit_expr(value);
@@ -391,4 +485,85 @@ impl<'a> Visitor<'a> for ScopeCollector {
             _ => walk_expr(self, expr),
         }
     }
+}
+
+/// 新类的body在定义者CFG展开；方法与lambda经特殊类scope捕获fresh __class__。
+#[allow(clippy::too_many_arguments)]
+fn walk_lexical_class_scope(
+    class: &ast::StmtClassDef,
+    class_id: ClassId,
+    parent: usize,
+    functions: &mut Arena<Function>,
+    scopes: &mut Vec<ScopeData>,
+    nested_funcs: &mut FxHashMap<TextRange, FuncId>,
+    nested_def_names: &mut FxHashMap<TextRange, Name>,
+    lexical_classes: &FxHashMap<TextRange, ClassId>,
+) {
+    let mut collector = ScopeCollector {
+        postponed_annotations: scopes[parent].postponed_annotations,
+        skip_class_body: true,
+        class_annotations: true,
+        ..ScopeCollector::default()
+    };
+    for item in &class.body {
+        collector.visit_stmt(item);
+    }
+    // 绑定名按整个class suite判定，不让x=x读取外函数cell。
+    let reads: Vec<_> = collector
+        .reads
+        .iter()
+        .filter(|(name, _)| !collector.assigned.contains(name) && !collector.globals.contains(name))
+        .cloned()
+        .collect();
+    // 类体读取不是定义者的LOAD_FAST：本函数局部也必须形成cell，
+    // 才能在未绑定时遵循free读取的NameError，并保持后来赋值可见。
+    for (name, range) in reads {
+        if name.as_str() == "__class__" && scopes[parent].class.is_some() {
+            continue;
+        }
+        let mut owner = parent;
+        while scopes[owner].class.is_some() {
+            let Some(next) = scopes[owner].parent else {
+                break;
+            };
+            owner = next;
+        }
+        if !scopes[owner].is_module
+            && scopes[owner].assigned_contains(&name)
+            && !scopes[owner].globals.contains(&name)
+        {
+            if !scopes[owner].cells_contains(&name) {
+                scopes[owner].cells.push(name);
+            }
+        } else {
+            scopes[owner].reads.push((name, range));
+        }
+    }
+    scopes[parent].nested.push(class.range);
+    let scope = scopes.len();
+    scopes.push(ScopeData {
+        postponed_annotations: collector.postponed_annotations,
+        func_id: scopes[parent].func_id,
+        is_module: false,
+        class: Some(class_id),
+        class_cell: None,
+        range: class.range,
+        parent: Some(parent),
+        assigned: vec![Name::from("__class__")],
+        globals: FxHashSet::default(),
+        nonlocals: Vec::new(),
+        reads: Vec::new(),
+        nested: Vec::new(),
+        free: Vec::new(),
+        cells: Vec::new(),
+    });
+    register_discovered(
+        collector,
+        scope,
+        functions,
+        scopes,
+        nested_funcs,
+        nested_def_names,
+        lexical_classes,
+    );
 }

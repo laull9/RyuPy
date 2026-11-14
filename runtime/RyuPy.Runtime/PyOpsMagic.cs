@@ -13,6 +13,7 @@ public static partial class PyOps
     /// </remarks>
     public static bool Truthy(object? value) => value switch
     {
+        IPyForeignObject foreign => foreign.Truth(),
         PyNotImplemented => PyWarnings.BooleanNotImplemented(),
         null => false,
         PyNone => false,
@@ -23,6 +24,7 @@ public static partial class PyOps
         BigInteger big => !big.IsZero,
         double d => d != 0.0,
         string s => s.Length > 0,
+        PyStringInstance s => s.Value.Length > 0,
         PyList list => list.Count > 0,
         PyTuple tuple => tuple.Length > 0,
         PyDict dict => dict.Count > 0,
@@ -31,6 +33,8 @@ public static partial class PyOps
         PyBytes bytes => bytes.Count > 0,
         PyByteArray array => array.Count > 0,
         PyDictView view => view.Count > 0,
+        PyListInstance list => PyListProtocols.Truthy(list),
+        PyDictInstance dict => PyDictProtocols.Truthy(dict),
         PyInstance instance => TruthyInstance(instance),
         PyNativeObject native => TruthyInstance(native),
         _ => true,
@@ -43,13 +47,13 @@ public static partial class PyOps
         {
             return custom is bool b
                 ? b
-                : throw new PyTypeError(
+                : throw TruthError(new PyTypeError(
                     $"__bool__ should return bool, returned {PyRepr.TypeName(custom)}"
-                );
+                ));
         }
         if (PyObject.TryMethod(instance, "__len__", [], out object? length))
         {
-            return PyCast.ToInt64(length) != 0;
+            return TruthyLength(length);
         }
         return true;
     }
@@ -121,6 +125,12 @@ public static partial class PyOps
         if (PyObject.TryMethod1(b, reflected, a, out object? reflectedValue) && reflectedValue is not PyNotImplemented)
         {
             result = Truthy(reflectedValue);
+            return true;
+        }
+        if ((a is PyListInstance || b is PyListInstance)
+            && PyListLayout.TryGet(a, out _) && PyListLayout.TryGet(b, out _))
+        {
+            result = Truthy(PyListProtocols.Compare(forward, a, b));
             return true;
         }
         result = false;

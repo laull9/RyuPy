@@ -11,6 +11,7 @@ public static partial class PyNativeBindings
     /// <summary>仅实际整数表示；bool/用户协议不进入C，BigInteger先比较范围再转换。</summary>
     public static int CheckedI32(object? value, string function, string parameter)
     {
+        value = ReadExactScalar(value, "exact_int");
         switch (value)
         {
             case int small:
@@ -27,11 +28,19 @@ public static partial class PyNativeBindings
         }
     }
 
-    /// <summary>仅三个已声明CLR加载错误变成Python ImportError；不公开宿主原错误路径。</summary>
+    // C ABI只读取外部精确标量的载荷；普通原生值保持现有严格检查和常用热路。
+    internal static object? ReadExactScalar(object? value, string kind)
+    {
+        if (value is not IPyForeignObject foreign) return value;
+        try { return foreign.ReadScalar(kind); }
+        catch (PyBaseException error) { PyErrors.PrepareRaise(error); throw; }
+    }
+
+    /// <summary>仅三个已声明CLR加载错误变成Python ImportError；保留库定位与底层加载原因。</summary>
     public static PyBaseException LoadFailure(Exception error, string library, string symbol)
     {
         if (error is DllNotFoundException or EntryPointNotFoundException or BadImageFormatException)
-            return Prepared(new PyImportError($"cannot load declared native library '{library}' symbol '{symbol}'"));
+            return Prepared(new PyImportError($"cannot load declared native library '{library}' symbol '{symbol}': {error.Message}"));
         // 生成wrapper只有三种typed catch；若调用者误用此边界，仍保原类型/对象/栈，不宽映射。
         ExceptionDispatchInfo.Capture(error).Throw();
         throw new InvalidOperationException("unreachable after rethrow");

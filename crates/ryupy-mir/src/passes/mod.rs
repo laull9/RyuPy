@@ -10,6 +10,11 @@
 
 use crate::mir::{Function, Program};
 
+mod observer;
+pub use observer::{PipelineEvent, PipelineObserver, PipelinePhase, PipelineStep};
+#[cfg(test)]
+mod observer_tests;
+
 pub(crate) mod dead_values;
 #[cfg(test)]
 mod dead_values_tests;
@@ -25,6 +30,10 @@ mod float_slp;
 mod float_slp_expand;
 #[cfg(test)]
 mod float_slp_tests;
+mod foreach_numeric_accumulator;
+mod foreach_numeric_accumulator_analysis;
+#[cfg(test)]
+mod foreach_numeric_accumulator_tests;
 mod integer_chain_expand;
 #[cfg(test)]
 mod integer_chain_tests;
@@ -44,12 +53,20 @@ mod tuple_scalar;
 #[cfg(test)]
 mod tuple_scalar_tests;
 
+mod string_accumulator;
+mod string_accumulator_expand;
+mod string_accumulator_match;
+#[cfg(test)]
+mod string_accumulator_tests;
+
 pub use dead_values::DeadValues;
 pub use float_chain::FloatChain;
 pub use float_slp::FloatSlp;
+pub use foreach_numeric_accumulator::ForEachNumericAccumulator;
 pub use interval_narrow::IntervalNarrow;
 pub use numeric_accumulator::{DirectNumericAccumulator, NumericAccumulator};
 pub use simplify_cfg::SimplifyCfg;
+pub use string_accumulator::StringAccumulator;
 pub use tuple_scalar::TupleScalar;
 
 pub trait MirPass {
@@ -102,15 +119,35 @@ pub fn pipeline_with_slp_options(
     scalar_slp: bool,
     experimental_packed_slp: bool,
 ) -> Vec<PipelinePass> {
-    let mut passes: Vec<PipelinePass> = vec![
-        PipelinePass::Function(Box::new(SimplifyCfg)),
-        PipelinePass::Function(Box::new(DeadValues)),
-    ];
+    pipeline_with_foreach_options(
+        experimental,
+        experimental_leaf_inline,
+        scalar_slp,
+        experimental_packed_slp,
+        false,
+    )
+}
+
+/// 独立ForEach实验只由真实模块计划开启；旧入口保持默认关闭。
+/// driver先显式拒绝direct冲突；底层另保守禁止两者叠加。
+pub fn pipeline_with_foreach_options(
+    experimental: bool,
+    experimental_leaf_inline: bool,
+    scalar_slp: bool,
+    experimental_packed_slp: bool,
+    experimental_foreach_accumulator: bool,
+) -> Vec<PipelinePass> {
+    let mut passes: Vec<PipelinePass> = vec![PipelinePass::Function(Box::new(SimplifyCfg))];
+    if experimental_foreach_accumulator && !experimental {
+        passes.push(PipelinePass::Function(Box::new(ForEachNumericAccumulator)));
+    }
+    passes.push(PipelinePass::Function(Box::new(DeadValues)));
     if experimental {
         passes.push(PipelinePass::Function(Box::new(DirectNumericAccumulator)));
     } else {
         passes.push(PipelinePass::Function(Box::new(NumericAccumulator)));
     }
+    passes.push(PipelinePass::Function(Box::new(StringAccumulator)));
     passes.push(PipelinePass::Function(Box::new(TupleScalar)));
     passes.push(PipelinePass::Function(Box::new(DeadValues)));
     passes.push(PipelinePass::Function(Box::new(IntervalNarrow)));
@@ -136,7 +173,46 @@ pub fn pipeline_with_slp_options(
 /// 当作编译失败处理（例如在 CI 里收集全部问题）。这里返回错误，由 driver 转成
 /// 诊断 / <c>anyhow</c> 错误，维持「任何输入都不 panic」的约定。
 pub fn run_pipeline(program: &mut Program, passes: &[PipelinePass]) -> Result<(), String> {
-    for pass in passes {
+    run_pipeline_observed(program, passes, &mut observer::NoopObserver)
+}
+
+/// 只通知不可变诊断元数据；观察者不参与变换、校验或错误决策。
+pub fn run_pipeline_observed<O: PipelineObserver>(
+    program: &mut Program,
+    passes: &[PipelinePass],
+    observer: &mut O,
+) -> Result<(), String> {
+    run_pipeline_stage(program, passes, observer, None)
+}
+
+/// 延迟生成器产品在每个 pass 后运行高层验证，最终 lowering 后仍必须运行严格验证。
+pub fn run_pipeline_high<O: PipelineObserver>(
+    program: &mut Program,
+    passes: &[PipelinePass],
+    observer: &mut O,
+    generators: &[crate::FnId],
+) -> Result<(), String> {
+    run_pipeline_stage(program, passes, observer, Some(generators))
+}
+
+fn run_pipeline_stage<O: PipelineObserver>(
+    program: &mut Program,
+    passes: &[PipelinePass],
+    observer: &mut O,
+    generators: Option<&[crate::FnId]>,
+) -> Result<(), String> {
+    for (index, pass) in passes.iter().enumerate() {
+        let mut notify = |phase, step| {
+            if O::ENABLED {
+                observer.observe(PipelineEvent {
+                    ordinal: index + 1,
+                    pass_name: pass.name(),
+                    phase,
+                    step,
+                });
+            }
+        };
+        notify(PipelinePhase::Run, PipelineStep::Begin);
         match pass {
             PipelinePass::Function(pass) => {
                 for (_, func) in program.functions.iter_mut() {
@@ -145,13 +221,20 @@ pub fn run_pipeline(program: &mut Program, passes: &[PipelinePass]) -> Result<()
             }
             PipelinePass::Program(pass) => pass.run(program),
         }
-        if let Err(errs) = crate::validate::validate(program) {
+        notify(PipelinePhase::Run, PipelineStep::End);
+        notify(PipelinePhase::Validate, PipelineStep::Begin);
+        let validation = match generators {
+            Some(ids) => crate::validate::validate_high(program, ids),
+            None => crate::validate::validate(program),
+        };
+        if let Err(errs) = validation {
             return Err(format!(
                 "内部错误：Pass `{}` 产出了非法 MIR:\n{}",
                 pass.name(),
                 errs.join("\n")
             ));
         }
+        notify(PipelinePhase::Validate, PipelineStep::End);
     }
     Ok(())
 }

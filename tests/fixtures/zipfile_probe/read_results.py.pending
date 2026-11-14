@@ -1,0 +1,17 @@
+# ryupy: pending
+# 保留自定义read完整宽返回域的CP参考；其中bytes、bytearray及超请求长度组合可支持，不代表全文件均未实现。
+import zipfile
+end = b'PK\x05\x06' + b'\0' * 18
+class Stream:
+    def __init__(self, value, late): self.value=value; self.late=late; self.calls=[]
+    def seek(self,*a): self.calls.append(('seek',a))
+    def tell(self): return 22
+    def read(self,n):
+        self.calls.append(('read',n))
+        if self.late and n==22: return b'no'
+        return self.value
+for late in (False,True):
+ for label,value in [('str','PK\x05\x06'+'\0'*18),('none',None),('bytearray',bytearray(end)),('overlong',end+b'extra')]:
+  s=Stream(value,late)
+  try: print(late,label,zipfile.is_zipfile(s),s.calls)
+  except Exception as e:print(late,label,type(e).__name__,str(e),s.calls)

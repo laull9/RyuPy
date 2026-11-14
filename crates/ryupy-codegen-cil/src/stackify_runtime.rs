@@ -8,6 +8,65 @@ use ryupy_mir::RuntimeFn;
 pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &LowerCtx<'_>) {
     let system = &ctx.runtime_refs.system;
     match rt_fn {
+        RuntimeFn::LexicalClassPrepare => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_prepare))
+        }
+        RuntimeFn::LexicalClassFinish => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_finish))
+        }
+        RuntimeFn::LexicalNamespaceContains => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_contains))
+        }
+        RuntimeFn::LexicalNamespaceGet => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_get))
+        }
+        RuntimeFn::LexicalNamespaceSet => {
+            ins.push(Instruction::call(ctx.runtime_refs.classes.lexical_set))
+        }
+        RuntimeFn::CheckModuleDelete
+        | RuntimeFn::CheckModuleDeleteValue
+        | RuntimeFn::LoadDeletedModuleName
+        | RuntimeFn::InstanceDeleteName => ins.push(Instruction::call(
+            crate::module_deletion_refs::required(ctx.runtime_refs, *rt_fn),
+        )),
+        RuntimeFn::InstanceClassCellGuard => ins.push(Instruction::call(
+            ctx.runtime_refs
+                .class_cell_guard
+                .expect("已收集class cell守卫ABI"),
+        )),
+        RuntimeFn::InstanceClassGuard => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).class_guard,
+        )),
+        RuntimeFn::InstanceMakeClass => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).create_class,
+        )),
+        RuntimeFn::InstanceCaptureDefinitionContext => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).capture_definition,
+        )),
+        RuntimeFn::InstanceDefinitionModule => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).definition_module,
+        )),
+        RuntimeFn::InstanceRelativeImport => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).relative_import,
+        )),
+        RuntimeFn::InstanceRelativeImportAttr => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).relative_attribute,
+        )),
+        RuntimeFn::InstanceImportGuard => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).import_guard,
+        )),
+        RuntimeFn::InstanceDirectGlobals => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).direct_globals,
+        )),
+        RuntimeFn::InstanceLoadName => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).load_name,
+        )),
+        RuntimeFn::InstanceStoreName => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).store_name,
+        )),
+        RuntimeFn::InstanceExecutionSource => ins.push(Instruction::call(
+            crate::instance_refs::required(ctx.runtime_refs).execution_source,
+        )),
         RuntimeFn::PrintTarget => ins.push(Instruction::call(ctx.runtime_refs.system.print_target)),
         RuntimeFn::WriteI64 => ins.push(Instruction::call(system.write_i64)),
         RuntimeFn::WriteF64 => ins.push(Instruction::call(system.write_f64)),
@@ -40,8 +99,8 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::GeneratorDelegateResult => {
             ins.push(Instruction::call(ctx.runtime_refs.delegation.result))
         }
-        RuntimeFn::GeneratorInput => ins.push(Instruction::call(ctx.runtime_refs.generator_input)),
-        RuntimeFn::GeneratorRetry => ins.push(Instruction::call(ctx.runtime_refs.generator_retry)),
+        RuntimeFn::GeneratorInput => ins.push(Instruction::call(ctx.runtime_refs.generators.input)),
+        RuntimeFn::GeneratorRetry => ins.push(Instruction::call(ctx.runtime_refs.generators.retry)),
         RuntimeFn::ArrayGet => ins.push(Instruction::call(ctx.runtime_refs.array_get)),
         RuntimeFn::ArraySet => ins.push(Instruction::call(ctx.runtime_refs.array_set)),
         RuntimeFn::NumericListCreate => {
@@ -109,12 +168,28 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::FunctionMetadata => ins.push(Instruction::call(
             ctx.runtime_refs.function_objects.metadata,
         )),
+        RuntimeFn::FunctionModule => {
+            ins.push(Instruction::call(ctx.runtime_refs.function_objects.module))
+        }
+        RuntimeFn::FunctionDefaults => {
+            ins.push(Instruction::CastClass {
+                skip_type_check: false,
+                param0: ctx.runtime_refs.py_function_type.clone(),
+            });
+            ins.push(Instruction::call(ctx.runtime_refs.py_function_get_defaults));
+        }
         RuntimeFn::TypeObject => ins.push(Instruction::call(ctx.runtime_refs.type_object)),
+        RuntimeFn::LoadDefaultBuiltin => {
+            ins.push(Instruction::call(ctx.runtime_refs.load_default_builtin))
+        }
         RuntimeFn::ArgError => ins.push(Instruction::call(ctx.runtime_refs.arg_error)),
         RuntimeFn::StarArg => ins.push(Instruction::call(ctx.runtime_refs.star_arg)),
         RuntimeFn::FormatValue => ins.push(Instruction::call(ctx.runtime_refs.format_value)),
         RuntimeFn::WriteObject => ins.push(Instruction::call(system.write_object)),
         RuntimeFn::DynBinary => ins.push(Instruction::call(ctx.runtime_refs.dyn_binary)),
+        RuntimeFn::DynRichCompareValue => {
+            ins.push(Instruction::call(ctx.runtime_refs.dyn_rich_compare_value))
+        }
         RuntimeFn::DynCompare => ins.push(Instruction::call(ctx.runtime_refs.dyn_compare)),
         RuntimeFn::DynUnary => ins.push(Instruction::call(ctx.runtime_refs.dyn_unary)),
         RuntimeFn::DynTruthy => ins.push(Instruction::call(ctx.runtime_refs.dyn_truthy)),
@@ -128,13 +203,50 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::RangeStep => ins.push(Instruction::call(ctx.runtime_refs.range_step)),
         RuntimeFn::HandlerEnter => ins.push(Instruction::call(ctx.runtime_refs.handler_enter)),
         RuntimeFn::HandlerLeave => ins.push(Instruction::call(ctx.runtime_refs.handler_leave)),
+        RuntimeFn::ExceptionMatch => ins.push(Instruction::call(ctx.runtime_refs.exception_match)),
         RuntimeFn::Reraise => ins.push(Instruction::call(ctx.runtime_refs.reraise)),
+        #[cfg(feature = "trace-adapter-test")]
+        RuntimeFn::TraceAdapterExplicit => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_explicit));
+        }
+        #[cfg(feature = "trace-adapter-test")]
+        RuntimeFn::TraceAdapterHandle => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_handle));
+        }
+        #[cfg(feature = "trace-adapter-test")]
+        RuntimeFn::TraceAdapterForward => {
+            ins.push(Instruction::call(ctx.runtime_refs.trace_adapter_forward));
+        }
         RuntimeFn::RaisePrepare => ins.push(Instruction::call(ctx.runtime_refs.raise_prepare)),
+        RuntimeFn::TraceV1Explicit
+        | RuntimeFn::TraceV1Park
+        | RuntimeFn::TraceV1Match
+        | RuntimeFn::TraceV1Abort
+        | RuntimeFn::TraceV1AllMiss
+        | RuntimeFn::TraceV1Handle
+        | RuntimeFn::TraceV1Forward
+        | RuntimeFn::TraceV1GeneratorCatch
+        | RuntimeFn::TraceV1GeneratorDepth => ins.push(Instruction::call(
+            ctx.runtime_refs
+                .trace_product
+                .as_ref()
+                .expect("已验证的产品 trace 引用")
+                .get(*rt_fn),
+        )),
         RuntimeFn::MakeUnbound => ins.push(Instruction::call(ctx.runtime_refs.make_unbound)),
         RuntimeFn::TraceCheckDepth => {
             ins.push(Instruction::call(ctx.runtime_refs.trace_check_depth))
         }
         RuntimeFn::TracePush => ins.push(Instruction::call(ctx.runtime_refs.trace_push)),
+        RuntimeFn::TracePushWithOrigin => {
+            ins.push(Instruction::call(ctx.runtime_refs.origins.push_frame))
+        }
+        RuntimeFn::ModuleExecutionSource => {
+            ins.push(Instruction::call(ctx.runtime_refs.origins.module_source))
+        }
+        RuntimeFn::ModuleExecutionSourceWithCode => ins.push(Instruction::call(
+            ctx.runtime_refs.origins.module_source_with_code,
+        )),
         RuntimeFn::TraceLine => ins.push(Instruction::call(ctx.runtime_refs.trace_line)),
         RuntimeFn::TracePopTo => ins.push(Instruction::call(ctx.runtime_refs.trace_pop_to)),
         RuntimeFn::DynStr => ins.push(Instruction::call(ctx.runtime_refs.dyn_str)),
@@ -146,6 +258,7 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         RuntimeFn::CheckGlobalBound => {
             ins.push(Instruction::call(ctx.runtime_refs.bindings.check_name))
         }
+        RuntimeFn::ModuleMetadata => ins.push(Instruction::call(ctx.runtime_refs.module_metadata)),
         RuntimeFn::ModuleFile => ins.push(Instruction::call(ctx.runtime_refs.module_file)),
         RuntimeFn::ImportModule => ins.push(Instruction::call(ctx.runtime_refs.import_module)),
         RuntimeFn::ImportAttr => ins.push(Instruction::call(ctx.runtime_refs.import_attr)),
@@ -164,20 +277,28 @@ pub(crate) fn emit_call(rt_fn: &RuntimeFn, ins: &mut Vec<Instruction>, ctx: &Low
         | RuntimeFn::Len
         | RuntimeFn::IsSame
         | RuntimeFn::ReprValue
+        | RuntimeFn::FunctionLocalsValidate
+        | RuntimeFn::FunctionLocalsEnsure
+        | RuntimeFn::FunctionLocalsSync
         | RuntimeFn::DynBuiltin
         | RuntimeFn::CaptureModuleTarget
         | RuntimeFn::IsModule
         | RuntimeFn::CallCapturedMethod
         | RuntimeFn::PrepareMethod
+        | RuntimeFn::ContextMethod
         | RuntimeFn::SetAdd
         | RuntimeFn::SetExtend
         | RuntimeFn::ListAppend
         | RuntimeFn::ListExtend
+        | RuntimeFn::UnpackSequence
+        | RuntimeFn::UnpackEx
         | RuntimeFn::UnpackCheck
         | RuntimeFn::IterStart
         | RuntimeFn::IterNextOk
         | RuntimeFn::IterValue
         | RuntimeFn::MakeClass
+        | RuntimeFn::PrepareOrdinaryMiClass
+        | RuntimeFn::PrepareRuntimeDerivedClass
         | RuntimeFn::DelAttr
         | RuntimeFn::Decorate => {
             ins.push(Instruction::call(runtime_method(*rt_fn, ctx.runtime_refs)))

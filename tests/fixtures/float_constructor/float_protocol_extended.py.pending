@@ -1,0 +1,55 @@
+# ryupy: pending
+# float 首切长尾原正期望：真实数值子类返回的弃用警告及 buffer 输入，不能用普通类伪装 payload。
+import warnings
+
+
+class FloatChild(float):
+    pass
+
+
+class IntChild(int):
+    pass
+
+
+class FloatResult:
+    def __float__(self):
+        return FloatChild(3.25)
+
+
+class IntResult:
+    def __index__(self):
+        return IntChild(9)
+
+
+class BoolResult:
+    def __index__(self):
+        return True
+
+
+with warnings.catch_warnings(record=True) as records:
+    warnings.simplefilter("always")
+    floating = float(FloatResult())
+    integer = float(IntResult())
+    boolean = float(BoolResult())
+
+assert type(floating) is float and floating == 3.25
+assert type(integer) is float and integer == 9.0
+assert type(boolean) is float and boolean == 1.0
+assert len(records) == 3
+assert all(item.category is DeprecationWarning for item in records)
+print("deprecated-results", floating, integer, boolean)
+print("warning-categories", [item.category.__name__ for item in records])
+
+raw = bytearray(b"1.5")
+view = memoryview(raw)
+assert float(view) == 1.5
+raw[0] = ord("2")
+assert float(view) == 2.5
+view.release()
+try:
+    float(view)
+except TypeError:
+    print("released-view", "TypeError")
+else:
+    raise AssertionError("released memoryview must fail")
+print("live-buffer", 1.5, 2.5)

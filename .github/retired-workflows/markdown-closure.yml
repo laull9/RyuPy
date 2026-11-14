@@ -1,0 +1,63 @@
+# 两个显式事实窗口独立可复用接线；调用方保精确标题/首次push路由，不触旧验收链。
+name: NOT-ACCEPTANCE Markdown闭包事实窗口
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  markdown-closure:
+    name: NOT-ACCEPTANCE 完整parser及Markdown全组闭包
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+      CARGO_TERM_COLOR: never
+      LC_ALL: C.UTF-8
+      TZ: UTC
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: 新窗口及全部旧路由消费者纯自测
+        timeout-minutes: 3
+        run: |
+          python3 -B tests/validation/markdown_closure_probe.py --self-test
+          python3 -B tests/validation/markdown_preflight.py --self-test
+          python3 -B -m unittest discover -s tests/validation/generator_product -p test_diagnostic_once.py
+          python3 -B scripts/textwrap_dedent_selftest.py
+          python3 -B scripts/decimal_percent_selftest.py
+          python3 -B scripts/keyerror_construction_selftest.py
+      - name: 原固定官方工具准备一次完整双流
+        timeout-minutes: 10
+        run: |
+          mkdir -p target/markdown-closure-prepare
+          printf '%s\n' '["python3", "-B", "tests/aot/wcwidth_ci/prepare.py"]' > target/markdown-closure-prepare/argv.json
+          status=0
+          python3 -B tests/aot/wcwidth_ci/prepare.py > target/markdown-closure-prepare/stdout 2> target/markdown-closure-prepare/stderr || status=$?
+          printf '%s\n' "$status" > target/markdown-closure-prepare/exit
+          exit "$status"
+      - name: 同源工具一次构建及两个独立显式事实窗口
+        timeout-minutes: 30
+        run: '"$PYTHON" -B tests/validation/markdown_closure_probe.py'
+      - name: 失败也保全部小输入原流计划PE及实际Runtime，不上传CLI
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: markdown-closure-NOT-ACCEPTANCE-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/markdown-closure
+            target/markdown-closure-prepare
+            ${{ runner.temp }}/wcwidth-aot-tools/download-identity.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: 明示NOT-ACCEPTANCE与未运行边界
+        if: always()
+        run: |
+          printf '%s\n' '## NOT-ACCEPTANCE: explicit Markdown closure' \
+            '仅CP最多1、compile最多2、JIT最多2；A失败不吞独立B，共同来源或工具失败全停，不自动重试。' \
+            '原完整parser仍pending，原Markdown77B与实际metadata全18targets；不按36模块硬判成功。' \
+            'not-run: NativeAOT、固定20、完整make check、旧11逐ID保护、性能、上游整库、任意坏target惰性。' \
+            'accepted与默认11/8/1不变；CLI只保hash支持同源重建，不保证同字节恢复。' >> "$GITHUB_STEP_SUMMARY"

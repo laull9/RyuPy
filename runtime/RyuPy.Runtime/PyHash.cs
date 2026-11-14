@@ -27,7 +27,7 @@ namespace RyuPy.Runtime;
 /// <c>PyObject_RichCompareBool</c>。因此 <see cref="Equal"/> 不含身份兜底，而
 /// <see cref="PyKeyComparer"/> 有，两边不能合并。
 /// </remarks>
-public static class PyHash
+public static partial class PyHash
 {
     /// <summary>字符串哈希缓存的启用阈值（字符数）。</summary>
     private const int StringHashCacheThreshold = 32;
@@ -44,21 +44,31 @@ public static class PyHash
     /// <param name="value">任意值。</param>
     public static long Of(object? value) => value switch
     {
+        IPyForeignObject foreign => foreign.Hash(),
         null or PyNone => 0x1F2A3B4C5D6E7F80L,
         // bool 与 int 的哈希必须一致：hash(True) == hash(1)
         bool b => b ? 1 : 0,
-        long l => l,
-        int i => i,
+        long l => IntegerValueHash(l),
+        int i => NormalizeHashSentinel(i),
         BigInteger big => BigIntegerHash(big),
         double d => DoubleHash(d),
         string s => StringHash(s),
+        PyStringInstance s => StringHash(s.Value),
         PyTuple tuple => TupleHash(tuple),
+        PySlice slice => slice.ContentHash(),
         PyFrozenSet frozen => SetHash(frozen),
         PyBytes bytes => BytesHash(bytes),
         PyBuiltinMethod method => method.IdentityHash(),
+        PySliceMembers.Method method => method.IdentityHash(),
         PyInstance member when PyEnum.IsMember(member) => PyEnum.MemberHash(member),
         PyList => throw Unhashable("list"),
+        PyListInstance list => throw PyListLayout.Own(new PyTypeError($"unhashable type: '{list.Class.Name}'")),
         PyDict => throw Unhashable("dict"),
+        PyDictView { UseLayoutProtocol: true } view when view.Kind != PyDictViewKind.Values
+            => throw PyDictLayout.Own(new PyTypeError($"unhashable type: '{PyRepr.TypeName(view)}'")),
+        PyDictInstance dict => throw PyDictLayout.Own(new PyTypeError($"unhashable type: '{dict.Class.Name}'")),
+        PyOrderedDict => throw Unhashable("collections.OrderedDict"),
+        PyOrderedDictView odView when odView.Kind != PyDictViewKind.Values => throw Unhashable(odView.TypeName),
         IPyNativeMapping or PyDeque => throw Unhashable(PyRepr.TypeName(value)),
         PySet => throw Unhashable("set"),
         PyByteArray => throw Unhashable("bytearray"),
@@ -70,23 +80,32 @@ public static class PyHash
     /// <summary>调用用户 `__hash__`；没有定义时返回 <c>null</c>。</summary>
     private static long? CustomHash(object? value)
     {
+        if (value is PyInstance instance && instance.Class.HasOrdinaryHashSlots)
+            return OrdinaryHash(instance);
         if (!PyObject.TryMethod(value, "__hash__", [], out object? result))
         {
             return null;
         }
-        return PyCast.ToInt64(result);
+        return UserHashResult(result);
     }
 
     /// <summary>该值能否作为字典键 / 集合元素。</summary>
     /// <param name="value">任意值。</param>
     public static bool IsHashable(object? value) =>
-        value is not (PyList or PyDict or PySet or PyByteArray or IPyNativeMapping or PyDeque);
+        value is not (PyList or PyListInstance or PyDict or PyDictInstance or PySet or PyByteArray or IPyNativeMapping or PyDeque or PyOrderedDict)
+        && value is not PyOrderedDictView { Kind: not PyDictViewKind.Values }
+        && value is not PyDictView { UseLayoutProtocol: true, Kind: not PyDictViewKind.Values };
 
     /// <summary>Python 的 <c>==</c>。</summary>
     /// <param name="a">左操作数。</param>
     /// <param name="b">右操作数。</param>
     public static bool Equal(object? a, object? b)
     {
+        if (a is IPyForeignObject left) return left.Compare(PyOps.Eq, b, false);
+        if (b is IPyForeignObject right) return right.Compare(PyOps.Eq, a, true);
+        // 有限metadata对象不把尚未实现的值比较冒充CLR身份相等。
+        if (a is PyEntryPoint or PyEntryPoints || b is PyEntryPoint or PyEntryPoints)
+            throw PyDistributionSnapshot.Unsupported("entry point value equality");
         // 最常见的键 / 元素类型先比：不可能有用户 __eq__，结果与下面的通用顺序一致
         if (a is long x && b is long y)
         {
@@ -96,6 +115,9 @@ public static class PyHash
         {
             return string.Equals(sa0, sb0, StringComparison.Ordinal);
         }
+        if ((a is PyStringInstance || b is PyStringInstance)
+            && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
+            return string.Equals(subleft, subright, StringComparison.Ordinal);
         // NaN 必须排在身份判断之前：即使是同一个 nan 对象，Python 里 nan == nan 也是 False。
         // 字典/集合查询用的身份兜底单独放在 <see cref="PyKeyComparer"/> 里，与 CPython 一致。
         if (a is double na && double.IsNaN(na))
@@ -108,8 +130,16 @@ public static class PyHash
         }
         if (ReferenceEquals(a, b))
         {
+            if (a is PyInstance sameInstance) sameInstance.Class.GuardInheritedGenericProtocol("__eq__");
             return true;
         }
+        if (a is PyOrderedDict or PyOrderedDictView || b is PyOrderedDict or PyOrderedDictView)
+            return PyOrderedDictComparison.Expression(PyOps.Eq, a, b, expression: false);
+        if (a is PyDictView { UseLayoutProtocol: true } || b is PyDictView { UseLayoutProtocol: true })
+            return PyDictViewComparisonDispatch.Compare(PyOps.Eq, a, b, expression: false);
+        PySlice.GuardMixedComparison(a, b);
+        if (a is PySliceMembers.Method sliceMethod && b is PySliceMembers.Method otherSliceMethod)
+            return sliceMethod.SameMethod(otherSliceMethod);
         // 用户 `__eq__`：先试左侧，再试右侧（与 CPython 的富比较顺序一致）。
         if (PyObject.TryMethod1(a, "__eq__", b, out object? leftResult)
             && leftResult is not PyNotImplemented)
@@ -121,6 +151,12 @@ public static class PyHash
         {
             return PyOps.Truthy(rightResult);
         }
+        if ((a is PyDictInstance || b is PyDictInstance)
+            && PyDictLayout.TryGet(a, out _) && PyDictLayout.TryGet(b, out _))
+            return PyOps.Truthy(PyDictProtocols.Compare("__eq__", a!, b));
+        if ((a is PyListInstance || b is PyListInstance)
+            && PyListLayout.TryGet(a, out _) && PyListLayout.TryGet(b, out _))
+            return PyOps.Truthy(PyListProtocols.Compare("__eq__", a!, b));
         if (a is null or PyNone || b is null or PyNone)
         {
             return (a is null or PyNone) && (b is null or PyNone);
@@ -128,11 +164,11 @@ public static class PyHash
         // bool 先于数值判断：CLR 里 bool 不继承 long，但 Python 里 True == 1
         if (a is bool ba)
         {
-            return b is bool bb ? ba == bb : NumericEqual(ba ? 1 : 0, b);
+            return b is bool bb ? ba == bb : IsNumber(b) && NumericEqual(ba ? 1 : 0, b);
         }
         if (b is bool bb2)
         {
-            return NumericEqual(bb2 ? 1 : 0, a);
+            return IsNumber(a) && NumericEqual(bb2 ? 1 : 0, a);
         }
         if (a is string sa)
         {
@@ -144,6 +180,8 @@ public static class PyHash
         }
         switch (a)
         {
+            case PySlice slice:
+                return b is PySlice otherSlice && slice.CompareFields(PyOps.Eq, otherSlice);
             case PyBuiltinMethod method:
                 return b is PyBuiltinMethod other && method.SameMethod(other);
             case PyList la:
@@ -328,12 +366,22 @@ public static class PyHash
         return FitsSigned(hash);
     }
 
+    // 两项探针与一般tuple共享同一乘加内核、调用顺序和收尾；不物化临时tuple。
+    internal static long TwoStringTupleHash(string first, string second)
+    {
+        long hash = TupleHashStep(0x345678, first);
+        return FitsSigned(TupleHashStep(hash, second));
+    }
+
+    private static long TupleHashStep(long hash, object? item) =>
+        unchecked(hash * 1000003 ^ Of(item));
+
     private static long TupleHash(PyTuple tuple)
     {
         long hash = 0x345678;
         foreach (object? item in tuple.Items)
         {
-            hash = unchecked(hash * 1000003 ^ Of(item));
+            hash = TupleHashStep(hash, item);
         }
         return FitsSigned(hash);
     }
@@ -350,15 +398,8 @@ public static class PyHash
 
     private static long BigIntegerHash(BigInteger value)
     {
-        // CPython：hash(n) = n mod (2^61 - 1)，负数再取一次补码风格
-        const long Modulus = (1L << 61) - 1;
-        BigInteger mod = BigInteger.Remainder(value, Modulus);
-        if (mod.Sign < 0)
-        {
-            mod += Modulus;
-        }
-        long result = (long)mod;
-        return value.Sign < 0 ? -result : result;
+        // Remainder 保被除数符号，负数不能补正模；全表示共享同一整数值 hash。
+        return NormalizeHashSentinel((long)BigInteger.Remainder(value, IntegerHashModulus));
     }
 
     private static long DoubleHash(double value)
@@ -375,11 +416,12 @@ public static class PyHash
         if (Math.Floor(value) == value)
         {
             // 上界用精确 2^63 且不包含它；double(long.MaxValue) 已舍入到 2^63。
-            if (value >= long.MinValue && value < 9223372036854775808.0) return (long)value;
+            if (value >= long.MinValue && value < 9223372036854775808.0) return IntegerValueHash((long)value);
             // 超出 i64 的整数浮点仍须与同值 BigInteger 命中同一字典/集合键。
             return BigIntegerHash(new BigInteger(value));
         }
-        return BitConverter.DoubleToInt64Bits(value);
+        // 有限非整数也按精确有理数hash，与Decimal相等时不能分裂字典键。
+        return PyFiniteNumericHash.Float(value);
     }
 
     private static long FitsSigned(long value) => value;

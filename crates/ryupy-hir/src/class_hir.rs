@@ -11,9 +11,17 @@ use ryupy_base::TextRange;
 ///   求值属性并登记方法。
 #[derive(Debug)]
 pub struct Class {
+    /// 新位置的静态词法定义计划；None继续旧顶层专用路径。
+    pub lexical: Option<crate::LexicalClassDefinition>,
+    /// 本次类定义需要独立的隐式 __class__ cell；普通 namespace 同名项与它无关。
+    pub has_class_cell: bool,
     pub name: Name,
     /// 单继承的基类；`None` 表示 `object`。
     pub base: Option<ClassBase>,
+    /// Some为有延后发布合同的普通MI族；逐个保留真实运行时基表达式，含单基后代。
+    pub ordinary_mi_bases: Option<Vec<ExprId>>,
+    /// 未知动态单基仅选择延后发布合同；不证明MI身份，不改变真实基值与专用布局判断。
+    pub deferred_runtime_base: bool,
     pub fields: Vec<Field>,
     /// 类自身简单标注名，按首次声明顺序去重；供动态dataclass转换读取。
     /// 不参与静态字段布局，也不把普通类标注强行解析为TypeRef。
@@ -84,6 +92,8 @@ pub struct ClassItem {
 
 #[derive(Clone, Debug)]
 pub enum ClassItemKind {
+    /// 内嵌类在当前namespace的源码位置执行，ClassId只引用静态模板。
+    NestedClass(ClassId),
     /// 条件在类定义时执行，不改变命名空间或提前折叠分支。
     If {
         test: ExprId,

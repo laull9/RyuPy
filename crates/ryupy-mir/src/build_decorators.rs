@@ -3,6 +3,13 @@ use crate::build::FunctionBuilder;
 use crate::mir::{Callee, Constant, MirType, Operand, RuntimeFn, Rvalue, Statement};
 use ryupy_hir::{AssignTarget, Binding, Decorator, ExprId, FuncId};
 
+/// 注解在创建函数前求值；这里只保存已冻结的Python对象，安装时不再运行用户表达式。
+struct PreparedFunctionMetadata {
+    doc: Operand,
+    names: Vec<Operand>,
+    values: Vec<Operand>,
+}
+
 impl FunctionBuilder<'_> {
     /// 冻结装饰器表达式的当前值，避免后续默认值重绑定模块槽位。
     pub(crate) fn prepare_decorators(
@@ -88,18 +95,24 @@ impl FunctionBuilder<'_> {
                 None => Operand::Const(Constant::Null),
             })
             .collect();
+        let metadata = self.prepare_function_metadata(func);
         let env = self.expr_builder().build_closure_env(func);
+        let module = self.expr_builder().capture_function_module();
+        let instance_context = self.expr_builder().capture_definition_context();
         let local = self.alloc_temp(MirType::Dynamic);
         self.push_stmt(Statement::Assign {
             dest: local,
             value: Rvalue::MakeFunction {
+                instance_context,
                 func: self.fn_map[&func],
                 env,
                 defaults,
             },
         });
         let value = Operand::Local(local);
-        self.emit_function_metadata(func, value.clone());
+        self.expr_builder()
+            .install_function_module(value.clone(), module);
+        self.install_function_metadata(metadata, value.clone());
         value
     }
 
@@ -123,7 +136,7 @@ impl FunctionBuilder<'_> {
         self.store_binding(binding, value, &MirType::Dynamic);
     }
 
-    pub(crate) fn emit_function_metadata(&mut self, func: FuncId, value: Operand) {
+    fn prepare_function_metadata(&mut self, func: FuncId) -> Option<PreparedFunctionMetadata> {
         let function = &self.hir.functions[func];
         // 空元数据由新函数对象惰性提供，不为常见无标注函数分配空数组/字典。
         if function.docstring.is_none()
@@ -133,7 +146,7 @@ impl FunctionBuilder<'_> {
                 .iter()
                 .all(|param| param.annotation.is_none())
         {
-            return;
+            return None;
         }
         let doc = function.docstring.clone();
         let annotations = function.annotation_values.clone();
@@ -146,6 +159,17 @@ impl FunctionBuilder<'_> {
         let doc = doc
             .map(|s| Operand::Const(Constant::Str(s)))
             .unwrap_or(Operand::Const(Constant::Null));
+        Some(PreparedFunctionMetadata { doc, names, values })
+    }
+
+    fn install_function_metadata(
+        &mut self,
+        metadata: Option<PreparedFunctionMetadata>,
+        value: Operand,
+    ) {
+        let Some(PreparedFunctionMetadata { doc, names, values }) = metadata else {
+            return;
+        };
         self.push_stmt(Statement::Eval(Rvalue::Call {
             callee: Callee::Runtime(RuntimeFn::FunctionMetadata),
             args: vec![value, doc, Operand::Array(names), Operand::Array(values)],

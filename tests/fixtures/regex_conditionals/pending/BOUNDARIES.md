@@ -1,0 +1,16 @@
+# 条件组未支持边界
+
+本目录不注册driver、不执行、不计支持。open_groups保固定CP原流的合法开放捕获模式，
+包含首次/间隔重复/连续重复/命名开放；必须保真groups与span，不能把NI写成CP错误。
+后端一次探针已显示间隔重复与CP有差异；连续碰巧相等不构成可安全透传的证明。
+
+unicode_tokens同时保Unicode合法名字正例与Unicode数字/符号/未知名字的真实CP错误。
+本切text任意非ASCII条件token明确NI，不依宿主Unicode分类伪造Python identifier。
+bytes高位条件名已在active按CP错误测试，不混入text的拒绝边界。
+
+超过4300位的全ASCII数字条件是另一个明确NI边界。本轮未采此长度的CP原流，
+没有自动fixture或已验证结果；未来需先固定CP整数转换设置与错误先后，再做有界验证。
+active的40位数字、MAXGROUPS、前导0不代表这一极冷长token已支持。
+
+lookbehind、atomic、possessive、comment、scoped flags、I-backref及split/scanner等旧NI
+沿原文档和既有pending，不因条件组新增而转正。现有Unsupported完整链fixture原样保留。

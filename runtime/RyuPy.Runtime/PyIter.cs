@@ -1,3 +1,4 @@
+// 内建容器的活游标与用户迭代器适配；list 首次耗尽后永久结束，之前观察实时元素。
 using System;
 using System.Collections.Generic;
 
@@ -17,8 +18,8 @@ namespace RyuPy.Runtime;
 /// <list type="bullet">
 /// <item>列表 / 字符串 / 字节按下标推进（能自然看到追加的元素）；</item>
 /// <item>字典与视图直接在槽位数组上推进，并带版本号（增删即报错）；</item>
-/// <item>集合用快照（CPython 对集合的迭代期修改是未定义行为，这里选择确定性快照，
-/// 已在 semantics.md 登记）。</item>
+/// <item>可变集合交给独立迭代器检查大小和 clear 状态；frozenset 保留确定性快照。
+/// 可变集合的同大小变异仍有明确边界，见 semantics.md。</item>
 /// </list>
 ///
 /// 编译产物用两个入口推进迭代：<see cref="PyOps.IterNextOk"/> 判断是否还有元素，
@@ -78,24 +79,32 @@ public sealed class PyIter : IPyIterator
     /// <param name="source">可迭代对象。</param>
     public static IPyIterator Create(object? source) => source switch
     {
+        IPyForeignObject foreign => foreign.Iterate(),
         null or PyNone => throw NotIterable(source),
         PyList list => new PyIter(list, 0, null, null),
         PyTuple tuple => new PyIter(tuple, 0, null, null),
         PyDict dict => new PyIter(dict, dict.Version, null, null),
         // 视图不复制：直接在字典的槽位上迭代，版本校验保证增删会报错
+        PyDictView { UseLayoutProtocol: true } view => PyDictViewProtocols.Iter(view),
         PyDictView view => new PyIter(view.Dict, view.Dict.Version, null, view.Kind),
-        PySet set => new PyIter(set, 0, [.. set.Items], null),
+        PySet set => new PySetIterator(set),
         PyFrozenSet frozen => new PyIter(frozen, 0, [.. frozen.Items], null),
         string text => new PyIter(text, 0, null, null),
+        PyStringInstance text => new PyIter(text.Value, 0, null, null),
         PyBytes bytes => new PyIter(bytes, 0, null, null),
         PyByteArray array => new PyIter(array, 0, null, null),
         PyRange range => new PyRangeIter(range),
         PyClass cls when PyEnum.IsEnumClass(cls) => PyEnum.Iterate(cls),
         // 原生流的__iter__仍需检查关闭状态，不能被IPyIterator快路径绕过。
-        PyNativeObject native => CreateFromObject(native),
+        // C Element 没有公开 __iter__ 槽；仅 native 迭代分支适配其序列游标，
+        // 不把它错误登记成 collections.abc.Iterable，也不改变普通容器热路。
+        PyNativeObject native => native is PyXmlElement element
+            ? new PyXmlChildrenIterator(element) : CreateFromObject(native),
         // 迭代器本身可迭代：`iter(it)` 返回自身
         IPyIterator iterator => iterator,
         // 普通实例：调用一次 `__iter__`，验证返回对象的迭代器协议。
+        PyListInstance list => PyListProtocols.Iter(list),
+        PyDictInstance dict => PyDictSubclassDispatch.Iter(dict),
         PyInstance instance => CreateFromObject(instance),
         _ => throw NotIterable(source),
     };
@@ -105,6 +114,16 @@ public sealed class PyIter : IPyIterator
     {
         switch (_source)
         {
+            case PyList list:
+                // 列表独占负游标哨兵，不为所有内建迭代器增加状态字段。
+                if (_cursor < 0) return false;
+                if (_cursor >= list.Count)
+                {
+                    _cursor = -1;
+                    return false;
+                }
+                _cursor++;
+                return true;
             case PyDict dict:
                 CheckVersion(dict.Version);
                 while (_cursor < dict.SlotCount)

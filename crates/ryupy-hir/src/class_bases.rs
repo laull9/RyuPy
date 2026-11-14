@@ -73,6 +73,16 @@ pub(crate) fn parse_base(
         return None;
     }
     match crate::scope::resolve_builtin(base_name.id.as_str()) {
+        Some(crate::hir::Builtin::Exception("SyntaxError")) => {
+            diags.push(
+                Diagnostic::error(
+                    Span::new(file, base_name.range),
+                    "SyntaxError的用户派生尚未支持",
+                )
+                .with_code("E0100"),
+            );
+            None
+        }
         Some(crate::hir::Builtin::Exception(type_name)) => Some(ClassBase::Builtin(type_name)),
         _ => {
             diags.push(

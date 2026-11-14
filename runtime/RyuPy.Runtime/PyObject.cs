@@ -1,3 +1,4 @@
+// Python 驻留类型身份及动态对象属性协议；专有模块异常保留各自限定类型键。
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ public sealed class PyType
     public static PyType Get(string name) => Cache.GetOrAdd(name, static n => new PyType(n));
 
     /// <summary>与 CPython 一致的 <c>repr</c> 形式。</summary>
-    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "_TypedDictMeta" ? "typing." : "")}{Name}'>";
+    public override string ToString() => $"<class '{(Name == "JSONDecodeError" ? "json.decoder." : Name == "error" ? "re." : Name == "BadGzipFile" ? "gzip." : Name == "BadZipFile" ? "zipfile." : Name == "GetoptError" ? "getopt." : Name == "ParseError" ? "xml.etree.ElementTree." : PyOptParseExceptions.IsType(Name) ? "optparse." : PyTyping.IsMetadataType(Name) ? "typing." : "")}{Name}'>";
 }
 
 /// <summary>
@@ -42,17 +43,26 @@ public sealed class PyType
 /// </list>
 /// 普通方法在读取时绑定接收者，`super()` 依赖绑定方法记录的定义类。
 /// </remarks>
-public static class PyObject
+public static partial class PyObject
 {
     /// <summary><c>type(value)</c>。</summary>
     /// <param name="value">任意 Python 值。</param>
     public static object TypeOf(object? value) => value switch
     {
+        PyBaseException { ForeignObject: { } origin } => origin.ForeignType,
+        IPyForeignObject foreign => foreign.ForeignType,
         // 裸object身份不受原生类型短名注册表影响。
         PyBaseObject => PyBaseObject.Type,
-        PyNativeObject native => (object?)PyNativeType.LookupByName(native.TypeName) ?? PyType.Get(native.TypeName),
+        PyNativeObject native => native is PyTypingTypeVar ? PyTypingTypeVar.Type
+            : native is PyStarMap ? PyStarMap.Type
+            : native is PyCount ? PyCount.Type
+            : (object?)PyNativeType.LookupByName(native.TypeName) ?? PyType.Get(native.TypeName),
         PyNativeType => PyType.Get("type"),
+        PySuper => PyLexicalSuper.Type,
+        PyUrlResult result => PyNativeType.LookupByName(result.Parsed ? "ParseResult" : "SplitResult")!,
+        PyNamedTupleInstance instance => instance.Class,
         PyInstance instance => instance.Class,
+        PyModule { ForeignObject: { } foreign } => foreign.ForeignType,
         PyModule => PyType.Get("module"),
         PyClass cls when cls.HasEnumMetadata => PyEnum.MetaType,
         PyClass => PyType.Get("type"),
@@ -70,9 +80,13 @@ public static class PyObject
     /// <param name="name">属性名。</param>
     public static object? GetAttr(object? obj, string name) => obj switch
     {
+        PyBaseException { ForeignObject: PyNativeObject origin } => origin.GetAttr(name),
+        PySlice slice => slice.GetAttribute(name),
         PyNativeType native => native.GetAttr(name),
         PyNativeObject native => native.GetAttr(name),
         PyModule module => module.GetAttr(name),
+        PyUrlResult result => result.Attribute(name),
+        PyNamedTupleInstance instance => PyNamedTupleLayout.GetInstanceAttribute(instance, name),
         PyInstance instance => GetInstanceAttr(instance, name),
         PyClass cls => GetClassAttr(cls, name),
         PySuper super => GetSuperAttr(super, name),
@@ -82,9 +96,19 @@ public static class PyObject
         PyFunction function => function.GetMetadata(name),
         PyBuiltinFunction function => function.GetMetadata(name),
         PyBuiltinMethod method => method.GetMetadata(name),
+        // 精确内建载体的根类型属性；前面的用户/原生类分派保留真实描述符优先级。
+        PyList or PyTuple or PyDict or PySet or PyFrozenSet or PyByteArray or PyBytes or string
+            or int or long or System.Numerics.BigInteger or bool or double or PyNone or null
+            when name == "__class__" => TypeOf(obj),
+        PyDictView { UseLayoutProtocol: true } when name == "mapping"
+            => throw PyDictLayout.Own(new PyNotImplementedError("dict view mapping metadata is not supported")),
         PyList or PyTuple or PyDict or PySet or PyFrozenSet or PyDictView or PyByteArray or PyBytes or string or PyGenerator
             => PyOps.PrepareMethod(obj, name),
-        PyBoundMethod method => GetAttr(method.Target, name),
+        // 方法和包装的真实底层身份优先于函数普通字典中可伪装的同名属性。
+        PyBoundMethod method when name == "__func__" => method.Target,
+        PyStaticMethod method when name == "__func__" => method.Value,
+        PyClassMethod method when name == "__func__" => method.Value,
+        PyBoundMethod method => PyTypingIo.BoundMetadata(method, name),
         PyProperty property => property.GetAccessor(name),
         _ => throw new PyAttributeError(
             $"'{PyRepr.TypeName(obj)}' object has no attribute '{name}'"
@@ -96,6 +120,18 @@ public static class PyObject
     {
         switch (obj)
         {
+            case PyBaseException { ForeignObject: PyNativeObject origin } error:
+                origin.SetAttr(name, value); error.ForeignObject.SynchronizeException(error, false); return;
+            case PySlice:
+                PySliceMembers.RejectMutation(name, value, deleting: false);
+                return;
+            case PyType type when ReferenceEquals(type, PySlice.Type):
+                PySliceMembers.RejectTypeMutation(name, deleting: false);
+                return;
+            case PyNamedTupleInstance namedTuple:
+                if (PyTypingNamedTupleMembers.TryWriteProperty(namedTuple, name, value, deleting: false)) return;
+                PyNamedTupleLayout.RejectInstanceMutation(namedTuple, name, deleting: false);
+                return;
             case PyType type when ReferenceEquals(type, PyBaseObject.Type):
                 PyBaseObject.RejectTypeMutation(name);
                 return;
@@ -118,6 +154,14 @@ public static class PyObject
                 exception.SuppressContextFlag = value is bool flag ? flag
                     : throw new PyTypeError("attribute value type must be bool");
                 return;
+            case PySyntaxError:
+                throw PyXmlTreeBuilderErrors.Unsupported("SyntaxError/ParseError attribute mutation");
+            case PyGetoptError getopt:
+                getopt.Write(name, value);
+                return;
+            case PyOptParseError error:
+                error.Write(name, value);
+                return;
             case PyBaseException exception when exception.PythonClass is not null:
                 exception.UserAttributes[name] = value;
                 return;
@@ -128,62 +172,8 @@ public static class PyObject
         }
     }
 
-    /// <summary>删除属性。</summary>
-    public static void DelAttr(object? obj, string name)
-    {
-        switch (obj)
-        {
-            case PyType type when ReferenceEquals(type, PyBaseObject.Type):
-                PyBaseObject.RejectTypeMutation(name);
-                return;
-            case PyNativeObject native:
-                native.DelAttr(name);
-                return;
-            case PyFunction function:
-                function.DeleteMetadata(name);
-                return;
-            case PyClass cls:
-                if (!cls.DeleteAttr(name))
-                {
-                    throw new PyAttributeError(
-                        $"type object '{cls.Name}' has no attribute '{name}'"
-                    );
-                }
-                return;
-            case PyInstance instance:
-                PyEnum.GuardMemberMutation(instance, name);
-                instance.Class.CheckDataclassWrite(name, deleting: true);
-                if (instance.Class.HasProperties
-                    && instance.Class.TryLookup(name, out PyClass propertyOwner, out object? descriptor)
-                    && descriptor is PyProperty property)
-                {
-                    if (property.Deleter is null)
-                        throw new PyAttributeError($"property '{name}' of '{instance.Class.Name}' object has no deleter");
-                    InvokeBound(property.Deleter, propertyOwner, instance, [], [], []);
-                    return;
-                }
-                if (instance.Class.TryGetInstanceSlot(name, out int slot) && instance.IsSlotSet(slot))
-                {
-                    instance.ClearSlot(slot);
-                    return;
-                }
-                throw new PyAttributeError(
-                    $"'{instance.Class.Name}' object has no attribute '{name}'"
-                );
-            case PyBaseException exception when exception.PythonClass is not null:
-                if (exception.UserAttributes.Remove(name))
-                {
-                    return;
-                }
-                throw new PyAttributeError(
-                    $"'{exception.PyTypeName}' object has no attribute '{name}'"
-                );
-            default:
-                throw new PyAttributeError(
-                    $"'{PyRepr.TypeName(obj)}' object has no attribute '{name}'"
-                );
-        }
-    }
+    /// <summary>普通属性删除，沿既有用户协议与布局守卫。</summary>
+    public static void DelAttr(object? obj, string name) => DeleteObjectAttribute(obj, name, false);
 
     /// <summary>
     /// 属性绑定：把类链上的原始值变成实例可调用的形态。
@@ -198,7 +188,7 @@ public static class PyObject
         PyStaticMethod method => method.Value,
         PyClassMethod method => new PyBoundMethod(owner, ClassMethodReceiver(owner, self), method.Value),
         PyProperty property => property,
-        _ => raw,
+        _ => PyBaseObjectMethods.BindRootHash(raw, self),
     };
 
     // classmethod 绑定到访问者的实际类，不是定义方法的基类，也不是访问它的实例。
@@ -221,6 +211,7 @@ public static class PyObject
     )
     {
         if (target is PyClassMethod) self = ClassMethodReceiver(owner, self);
+        PyLexicalClassGuard.Receiver(self);
         // 绝大多数方法不调用 `super()`，不需要维护上下文，直接调用。
         if (target is PyFunction plain && !plain.UsesSuper)
         {
@@ -271,6 +262,7 @@ public static class PyObject
         object?[] kwValues
     )
     {
+        PyLexicalClassGuard.Receiver(self);
         if (!function.UsesSuper)
         {
             return function.Invoke(args, kwNames, kwValues);
@@ -291,7 +283,7 @@ public static class PyObject
     /// <summary>值是否可能带 Python 层方法（用户类实例、带 Python 类的异常）。</summary>
     /// <remarks>热路径先用它排除内建值，避免为 <see cref="TryMethod"/> 构造实参数组。</remarks>
     public static bool MayHaveMethods(object? value) =>
-        value is PyInstance or PyNativeObject || value is PyBaseException { PythonClass: not null };
+        value is PyInstance or PyNativeObject or PyHTTPError || value is PyBaseException { PythonClass: not null };
 
     /// <summary>单实参版本的 <see cref="TryMethod"/>：内建值直接返回 false，不分配实参数组。</summary>
     public static bool TryMethod1(object? self, string name, object? arg, out object? result)
@@ -315,14 +307,30 @@ public static class PyObject
         out object? result
     )
     {
+        // 内建异常槽返回原msg；公开str负责验证返回对象而非提前剥离str子类。
+        if (self is PyGetoptError getopt && name == "__str__")
+        {
+            result = PyOps.CallValue(getopt.StrMethod(), args, [], []);
+            return true;
+        }
         if (self is PyNativeObject native)
         {
-            object? method;
-            try { method = native.GetAttr(name); }
-            catch (PyAttributeError) { result = null; return false; }
+            if (!TryGetNativeSpecial(native, name, out object? method)) { result = null; return false; }
             result = PyOps.CallValue(method, args, [], []);
             return true;
         }
+        if (self is PyHTTPError httpError && name is "__enter__" or "__exit__")
+        {
+            result = PyOps.CallValue(httpError.Attribute(name), args, [], []);
+            return true;
+        }
+        if (self is PyInstance { Class.HasDictC3Layout: true } mixed)
+        {
+            if (mixed.Class.TryResolveDictC3(name, out var resolved))
+            { result = resolved.Invoke(mixed, args, [], []); return true; }
+            result = null; return false;
+        }
+        if (self is PyInstance genericInstance) genericInstance.Class.GuardInheritedGenericProtocol(name);
         if (self is PyInstance instance
             && instance.Class.TryLookup(name, out PyClass owner, out object? raw))
         {
@@ -354,8 +362,11 @@ public static class PyObject
     }
 
     /// <summary><c>isinstance(value, cls)</c> 的类部分。</summary>
-    public static bool IsInstance(object? value, PyClass cls) => value switch
+    public static bool IsInstance(object? value, PyClass cls) => cls.IsTypingGenericRoot
+        ? PyTypingGenericMetadata.InstanceOf(value, cls) : cls.IsTypingIoFamily
+        ? value is PyInstance familyInstance && familyInstance.Class.IsSubclassOf(cls) : value switch
     {
+        PyNamedTupleInstance instance => instance.Class.IsSubclassOf(cls),
         PyInstance instance => instance.Class.IsSubclassOf(cls),
         PyBaseException exception => exception.PythonClass is not null
             ? exception.PythonClass.IsSubclassOf(cls)
@@ -368,7 +379,18 @@ public static class PyObject
     /// <summary>读取实例属性。</summary>
     private static object? GetInstanceAttr(PyInstance instance, string name)
     {
+        instance.Class.RequireLexicalFactoryReady();
+        if (PyTypingGenericMetadata.InstanceAttribute(instance, name, out object? genericValue)) return genericValue;
+        if (PyTypingIo.TryInstanceMetadata(instance, name, out object? ioValue)) return ioValue;
+        if (PyStringLayout.TryInstanceMetadata(instance, name, out object? stringValue)) return stringValue;
+        if (PyListLayout.TryInstanceMetadata(instance, name, out object? listValue)) return listValue;
+        if (PyDictLayout.TryInstanceMetadata(instance, name, out object? dictValue)) return dictValue;
         if (PyEnum.TryGetMemberAttr(instance, name, out object? enumValue)) return enumValue;
+        // 未被用户类项遮蔽的根__class__是数据描述符，压过同名实例字段；None也是有效覆盖。
+        if (name == "__class__" && !instance.Class.TryLookup(name, out _, out _)) return instance.Class;
+        // 未知数据描述符在实例字段之前消费；普通非数据描述符延后到类链绑定处。
+        if (instance.Class.IsTypingGenericFamily && instance.Class.TryLookup(name, out _, out object? candidate))
+            PyTypingGenericProtocols.GuardDescriptorRead(instance.Class, candidate, dataOnly: true);
         // 1. 数据描述符（property）优先，即使实例字典里有同名值。
         //    没有描述符的类直接跳过这次类查找。
         if (instance.Class.HasProperties
@@ -377,25 +399,34 @@ public static class PyObject
         {
             if (property.Getter is null)
             {
-                throw new PyAttributeError($"property '{name}' of '{instance.Class.Name}' object has no getter");
+                throw InstanceAttributeError(instance, $"property '{name}' of '{instance.Class.Name}' object has no getter");
             }
             return InvokeBound(property.Getter, dataOwner, instance, [], [], []);
         }
-        // 2. 实例属性槽位
-        if (instance.Class.TryGetInstanceSlot(name, out int instanceSlot)
-            && instance.TryGetSlot(instanceSlot, out object? value))
+        if (instance.Class.HasSlotLayout)
+        {
+            if (instance.Class.TryLookup(name, out _, out object? fixedRaw) && fixedRaw is PyInstanceSlotDescriptor fixedSlot) return fixedSlot.Read(instance);
+            if (name == "__dict__") return instance.SlotDictionary;
+        }
+        // 2. 实例属性权威：旧数组槽或新族真实dict。
+        if (instance.TryOwnAttribute(name, out object? value))
         {
             return value;
         }
-        // 3. 类链上的方法 / 值
+        // 3. 新native族的真实owner绑定；实例字段仍先于非数据native方法。
+        if (instance.Class.HasDictC3Layout && instance.Class.TryResolveDictC3(name, out var resolved))
+            return resolved.Bind(instance);
+        // 旧族保留用户owner快路。
         if (instance.Class.TryLookup(name, out PyClass owner, out object? raw))
         {
+            PyTypingGenericProtocols.GuardDescriptorRead(instance.Class, raw);
             return Bind(raw, owner, instance);
         }
         if (instance.Class.TryRootConstructionAttribute(name, instance, out object? rootMethod)) return rootMethod;
         // 4. `__getattr__` 兜底
         if (instance.Class.TryLookup("__getattr__", out PyClass getattrOwner, out object? getattr))
         {
+            instance.Class.GuardInheritedGenericProtocol("__getattr__");
             return InvokeBound(
                 getattr,
                 getattrOwner,
@@ -405,32 +436,45 @@ public static class PyObject
                 []
             );
         }
-        throw new PyAttributeError(
-            $"'{instance.Class.Name}' object has no attribute '{name}'"
+        throw InstanceAttributeError(instance,
+            $"'{(instance.Class.IsTypingGenericRoot ? "typing.Generic" : instance.Class.Name)}' object has no attribute '{name}'"
         );
+    }
+
+    // 仅实例查找自身的新错误；str子类提前捕获不包住用户getter，普通实例错误路径不变。
+    private static PyAttributeError InstanceAttributeError(PyInstance instance, string message)
+    {
+        var error = new PyAttributeError(message);
+        if (instance is PyStringInstance or PyListInstance or PyDictInstance) PyErrors.PrepareRaise(error);
+        return error;
     }
 
     /// <summary>读取类对象上的属性。</summary>
     private static object? GetClassAttr(PyClass cls, string name)
     {
+        cls.RequireLexicalFactoryReady();
+        if (PyTypingGenericMetadata.ClassAttribute(cls, name, out object? genericValue)) return genericValue;
+        if (PyTypingIo.TryClassMetadata(cls, name, out object? ioValue)) return ioValue;
+        if (PyNamedTupleLayout.TryClassMetadata(cls, name, out object? tupleValue)) return tupleValue;
+        if (PyStringLayout.TryClassMetadata(cls, name, out object? stringValue)) return stringValue;
+        if (PyListLayout.TryClassMetadata(cls, name, out object? listValue)) return listValue;
+        if (PyDictLayout.TryClassMetadata(cls, name, out object? dictValue)) return dictValue;
         if (PyEnum.TryGetClassAttr(cls, name, out object? enumValue)) return enumValue;
         switch (name)
         {
+            case "__class__":
+                return TypeOf(cls); // 类字典的同名项属于实例读取，不遮蔽类对象的真实元类。
             case "__name__":
-            case "__qualname__":
                 return cls.Name;
+            case "__qualname__":
+                return cls.Attributes.TryGetValue(name, out object? qualified) ? qualified : cls.Name;
             case "__module__":
+                if (cls.Attributes.TryGetValue(name, out object? module)) return module;
                 return cls.NativeDefinitionModule is null ? "__main__" : cls.NativeModuleValue;
             case "__bases__":
-                if (cls.BaseClass is not null)
-                {
-                    return new PyTuple([cls.BaseClass]);
-                }
-                if (cls.BuiltinBase is { } builtin)
-                {
-                    return new PyTuple([PyType.Get(builtin)]);
-                }
-                return new PyTuple([PyBaseObject.Type]);
+                return cls.DirectBasesTuple();
+            case "__mro__":
+                return cls.MroTuple();
             case "__base__":
                 return (object?)cls.BaseClass ?? (cls.BuiltinBase is { } baseName
                     ? PyType.Get(baseName) : PyBaseObject.Type);
@@ -441,16 +485,18 @@ public static class PyObject
                     {
                         dict.Set(key, value);
                     }
-                    return dict;
+                    return cls.IsExportedExceptionFrozen ? PyMappingProxy.Create([dict], [], []) : dict;
                 }
         }
+        if (cls.HasDictC3Layout && cls.TryResolveDictC3(name, out var resolved)) return resolved.Bind(cls, classAccess: true);
         if (!cls.TryLookup(name, out PyClass owner, out object? raw))
         {
             if (cls.TryRootConstructionAttribute(name, null, out object? rootMethod)) return rootMethod;
             throw new PyAttributeError(
-                $"type object '{cls.Name}' has no attribute '{name}'"
+                $"type object '{(cls.IsTypingGenericRoot ? "typing.Generic" : cls.Name)}' has no attribute '{name}'"
             );
         }
+        PyTypingGenericProtocols.GuardDescriptorRead(cls, raw);
         return raw switch
         {
             IPyNativeDescriptor descriptor => descriptor.Bind(owner, null),
@@ -463,109 +509,5 @@ public static class PyObject
         };
     }
 
-    /// <summary>读取 `super()` 代理的属性：从定义类的下一个基类开始。</summary>
-    private static object? GetSuperAttr(PySuper super, string name)
-    {
-        for (PyClass? current = super.Owner.BaseClass; current is not null; current = current.BaseClass)
-        {
-            if (current.Attributes.TryGetValue(name, out object? raw))
-            {
-                if (raw is PyProperty property)
-                {
-                    return InvokeBound(property.Getter, current, super.Self, [], [], []);
-                }
-                return Bind(raw, current, super.Self);
-            }
-        }
-        if (super.Owner.TryRootConstructionAttribute(name, super.Self, out object? rootMethod)) return rootMethod;
-        throw new PyAttributeError(
-            $"'super' object has no attribute '{name}'"
-        );
-    }
 
-    /// <summary>写实例属性；property setter 优先。</summary>
-    private static void SetInstanceAttr(PyInstance instance, string name, object? value)
-    {
-        PyEnum.GuardMemberMutation(instance, name);
-        instance.Class.CheckDataclassWrite(name, deleting: false);
-        InitializeDataclassField(instance, name, value);
-    }
-
-    // 相当于生成 frozen __init__ 内的 object.__setattr__：只跳过冻结检查，仍保留 property 协议。
-    internal static void InitializeDataclassField(PyInstance instance, string name, object? value)
-    {
-        if (instance.Class.HasProperties
-            && instance.Class.TryLookup(name, out PyClass owner, out object? raw)
-            && raw is PyProperty property)
-        {
-            if (property.Setter is null)
-            {
-                throw new PyAttributeError(
-                    $"property '{name}' of '{instance.Class.Name}' object has no setter"
-                );
-            }
-            InvokeBound(property.Setter, owner, instance, [value], [], []);
-            return;
-        }
-        int slot = instance.Class.GetOrAddInstanceSlot(name);
-        instance.SetSlot(slot, value);
-    }
-
-    private static object? GetTypeAttr(PyType type, string name) =>
-        ReferenceEquals(type, PyBaseObject.Type) ? PyBaseObject.TypeAttribute(name) : name switch
-        {
-            "__name__" or "__qualname__" => type.Name,
-            "__module__" when type.Name == "JSONDecodeError" => "json.decoder",
-            "__module__" when type.Name == "error" => "re",
-            "__module__" when type.Name == "_TypedDictMeta" => "typing",
-            "__module__" when type.Name == "ellipsis" => "builtins",
-            _ => throw new PyAttributeError($"type object '{type.Name}' has no attribute '{name}'"),
-        };
-
-    private static object? GetExceptionAttr(PyBaseException exception, string name)
-    {
-        if (name == "__suppress_context__") return exception.SuppressContextFlag;
-        // 用户异常类上定义的方法 / 属性优先（`e.describe()` 之类）。
-        if (exception.PythonClass is not null
-            && exception.PythonClass.TryLookup(name, out PyClass owner, out object? raw))
-        {
-            return Bind(raw, owner, exception);
-        }
-        if (exception.PythonClass is not null
-            && exception.UserAttributes.TryGetValue(name, out object? value))
-        {
-            return value;
-        }
-        return name switch
-        {
-            "msg" when exception is PyRegexError regex => regex.MessageText,
-            "pattern" when exception is PyRegexError regex => regex.Pattern,
-            "pos" when exception is PyRegexError regex => regex.Position,
-            "lineno" when exception is PyRegexError regex => regex.LineNumber,
-            "colno" when exception is PyRegexError regex => regex.ColumnNumber,
-            "msg" when exception is PyJSONDecodeError json => json.Msg,
-            "doc" when exception is PyJSONDecodeError json => json.Doc,
-            "pos" when exception is PyJSONDecodeError json => json.Pos,
-            "lineno" when exception is PyJSONDecodeError json => json.LineNo,
-            "colno" when exception is PyJSONDecodeError json => json.ColNo,
-            "args" => new PyTuple(exception.Args),
-            "value" when exception is PyStopIteration stop => stop.Value ?? PyNone.Instance,
-            "code" when exception is PySystemExit exit => exit.Code ?? PyNone.Instance,
-            "__cause__" => (object?)exception.Cause ?? PyNone.Instance,
-            "__context__" => (object?)exception.Context ?? PyNone.Instance,
-            "__class__" => (object?)exception.PythonClass ?? PyType.Get(exception.PyTypeName),
-            "__traceback__" => PyNone.Instance,
-            _ => throw new PyAttributeError(
-                $"'{exception.PyTypeName}' object has no attribute '{name}'"
-            ),
-        };
-    }
-
-    private static object?[] Prepend(object? self, object?[] args)
-    {
-        var result = new object?[args.Length + 1];
-        result[0] = self;
-        Array.Copy(args, 0, result, 1, args.Length);
-        return result;
-    }
 }

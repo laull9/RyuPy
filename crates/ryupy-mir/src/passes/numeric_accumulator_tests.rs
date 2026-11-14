@@ -60,12 +60,18 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
     blocks[exit].terminator = Terminator::Return(Some(Operand::Local(total)));
     (
         Function {
+            module_state: None,
+            instance_capabilities: Default::default(),
+            module_state_source: None,
             name: "sum".into(),
             codegen_name: "sum".into(),
             source_file: "sum.py".into(),
+            definition: None,
             params: vec![rhs],
             ret: MirType::Dynamic,
             body: Body {
+                direct_globals_contracts: Vec::new(),
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -77,6 +83,7 @@ fn sample() -> (Function, [BlockId; 5], [LocalId; 3]) {
             defaults_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [entry, header, body, latch, exit],
         [total, temp, rhs],
@@ -206,6 +213,7 @@ fn observations_rhs_alias_cell_exception_and_generator_reject() {
             }
             2 => f.body.locals[total].is_cell = true,
             3 => f.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,
@@ -274,4 +282,91 @@ fn default_pipeline_retains_holder_and_explicit_option_selects_direct() {
                 })
             )))
     );
+}
+
+#[test]
+fn any_function_locals_abi_rejects_both_representations() {
+    // 即使不在循环内或没有显式total实参，也拒绝隐式局部观察协议。
+    for runtime in [
+        RuntimeFn::FunctionLocalsValidate,
+        RuntimeFn::FunctionLocalsEnsure,
+        RuntimeFn::FunctionLocalsSync,
+    ] {
+        for assign in [false, true] {
+            let (mut f, [entry, _, _, _, _], [_, temp, _]) = sample();
+            let call = Rvalue::Call {
+                callee: Callee::Runtime(runtime),
+                args: vec![],
+            };
+            f.body.blocks[entry].stmts.push(if assign {
+                Statement::Assign {
+                    dest: temp,
+                    value: call,
+                }
+            } else {
+                Statement::Eval(call)
+            });
+            let original = format!("{f:?}");
+            super::NumericAccumulator.run(&mut f);
+            assert_eq!(format!("{f:?}"), original);
+            DirectNumericAccumulator.run(&mut f);
+            assert_eq!(format!("{f:?}"), original);
+        }
+    }
+}
+
+#[test]
+fn source_pipeline_string_holder_acceptance_and_observer_rejection() {
+    fn count(source: &str) -> usize {
+        let mut db = ryupy_base::SourceDb::default();
+        let file = db.add("accumulator.py", source);
+        let (parsed, diagnostics) = ryupy_syntax::parse(file, source);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (hir, diagnostics) =
+            ryupy_hir::lower_module(&parsed, &ryupy_hir::ModuleInfo::default(), source);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (types, diagnostics) = ryupy_ty::check_module(&hir);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let (mut program, _, diagnostics) = crate::build_program(&hir, &types);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        super::run_pipeline(&mut program, &super::default_pipeline()).unwrap();
+        program
+            .functions
+            .iter()
+            .flat_map(|(_, f)| f.body.blocks.iter())
+            .flat_map(|(_, b)| &b.stmts)
+            .filter(|stmt| {
+                matches!(
+                    stmt,
+                    Statement::Eval(Rvalue::Call {
+                        callee: Callee::Runtime(RuntimeFn::NumericAccumulatorAdd),
+                        ..
+                    })
+                )
+            })
+            .count()
+    }
+    assert_eq!(
+        count(
+            "def f(initial, n, piece):\n    total = initial\n    for i in range(n):\n        total += piece\n    return total\nprint(f('', 3, 'ab'))\n"
+        ),
+        1
+    );
+    // 新模块槽字符串 Pass 接纳这个无观察正例，原局部 holder 的拒绝边界继续逐项检查。
+    assert_eq!(
+        count("total = ''\nfor i in range(3):\n    total += 'ab'\nprint(total)\n"),
+        1
+    );
+    for source in [
+        "total = ''\nfor i in range(3):\n    print(total)\n    total += 'ab'\nprint(total)\n",
+        "def f(initial, n):\n    total = initial\n    for i in range(n):\n        total += total\n    return total\n",
+        "def f(initial, n):\n    total = initial\n    for i in range(n):\n        print(locals())\n        total += 'ab'\n    return total\n",
+        "def f(initial, n):\n    total = initial\n    for i in range(n):\n        print(total)\n        total += 'ab'\n    return total\n",
+        "def f(initial, n):\n    total = initial\n    for i in range(n):\n        if i == 2:\n            return total\n        total += 'ab'\n    return total\n",
+        "def f(initial, n):\n    total = initial\n    try:\n        for i in range(n):\n            total += 'ab'\n    except TypeError:\n        return total\n    return total\n",
+        "def f(initial, n):\n    total = initial\n    for i in range(n):\n        yield total\n        total += 'ab'\n",
+        "def f(initial, n):\n    total = initial\n    def read():\n        return total\n    for i in range(n):\n        print(read())\n        total += 'ab'\n    return total\n",
+    ] {
+        assert_eq!(count(source), 0, "观察/逃逸路径不得进入holder: {source}");
+    }
 }

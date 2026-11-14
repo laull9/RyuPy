@@ -73,7 +73,7 @@ public class PyRegexTests
         Assert.Equal(1L, Assert.Throws<PyRegexError>(() => PyRegex.Compile("a(bc")).Position);
         Assert.Throws<PyRegexError>(() => PyRegex.Compile(@"\p{L}"));
         Assert.Throws<PyRegexError>(() => PyRegex.Compile("(?<name>a)"));
-        Assert.Throws<PyNotImplementedError>(() => PyRegex.Compile("(?<=a)b"));
+        Assert.Throws<PyNotImplementedError>(() => PyRegex.Compile("(?<=(a))b"));
         Assert.Throws<PyNotImplementedError>(() => PyRegex.Compile("a++"));
         Assert.Throws<PyValueError>(() => PyRegex.Compile("a", 4L));
         Assert.Throws<PyValueError>(() => PyRegex.Compile("a", 288L));

@@ -16,9 +16,12 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         name: "__main__".into(),
         codegen_name: "__main__".into(),
         source_file: "entry.py".into(),
+        definition: None,
         params: Vec::new(),
         ret: MirType::Unit,
         body: Body {
+            direct_globals_contracts: Vec::new(),
+            source_handler_contracts: Vec::new(),
             locals: Arena::default(),
             blocks,
             entry,
@@ -30,11 +33,19 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         defaults_global: None,
         signature_global: None,
         env: None,
+        dynamic_origin: None,
+        module_state: None,
+        instance_capabilities: Default::default(),
+        module_state_source: None,
     });
     let mut modules = Arena::default();
     let entry = modules.alloc(ModuleDef {
+        instance_capabilities: Default::default(),
+        execution: ryupy_mir::ModuleExecutionKind::LegacySingleton,
+        environment_reason: "existing-contract".into(),
         location: Default::default(),
         file_backed_by_global: false,
+        is_package: false,
         protected_exports: Vec::new(),
         name: "__main__".into(),
         package: String::new(),
@@ -44,6 +55,7 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
     });
     let mut classes = Arena::default();
     classes.alloc(ryupy_mir::ClassDef {
+        class_cell: None,
         name: "ProjectWarning".into(),
         codegen_name: "ProjectWarning".into(),
         fields: vec![],
@@ -55,6 +67,12 @@ fn serialized_warning_constructor_defers_message_policy_to_runtime() {
         factory_global: None,
     });
     let program = LinkedProgram {
+        external_provider: None,
+        candidate_modules: Vec::new(),
+        metadata_unavailable: None,
+        optional_sources: None,
+        distribution_metadata: None,
+        trace_product: None,
         functions,
         modules,
         classes,

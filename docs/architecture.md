@@ -3,6 +3,11 @@
 > 本文描述**当前代码的实际分层**以及每层的职责边界。愿景与阶段规划见 [roadmap.md](roadmap.md)；
 > 关键取舍见 [adr/](adr/)；Python 语义细节见 [semantics.md](semantics.md)。
 
+> **2026-11-13 已接入的试点架构**：当前crate分层继续有效；随包 libpython 宿主与通用对象桥
+> 见 [cpython-provider.md](cpython-provider.md)。`RyuPy.CPython` 封装 C API、GIL、句柄、
+> 静态回调与确定释放，Runtime提供中性对象/provider合同，driver管理显式归属与分发闭包。
+> 标准库和扩展优先由CPython provider承接，typed CIL快路保留；下方总览保留编译流水线。
+
 ## 1. 总览
 
 ```text
@@ -34,6 +39,11 @@ ryupy-e2e（仅测试）─► ryupy-driver
 4. **`ryupy-codegen-cil` 只依赖 `ryupy-mir`**，不得引用 HIR / 类型 crate。后端不理解 Python。
 5. **只有 `ryupy-codegen-cil` 依赖 `dotnetdll`**。
 6. 只有 `ryupy-driver` 做文件 IO、启动子进程；各阶段 crate 是纯函数式的「数据进、数据出」。
+
+**当前provider架构约束：**编译进程不载入用户 CPython 扩展；provider 决策
+与分发归 driver，CIL 后端只发射 MIR 显式操作。互操作组件依赖 Runtime 中性合同，
+由入口组合注册，禁止反向依赖；PyObject/GIL/引用所有权不泄漏到 Rust IR 或原生快路。
+上面的 IO 约束用于编译阶段；目标进程的文件、网络和 CPython 宿主由运行时负责。
 
 | Crate | 输入 → 输出 | 负责 | 不负责 |
 | --- | --- | --- | --- |
@@ -68,6 +78,8 @@ ryupy-e2e（仅测试）─► ryupy-driver
   最左 iterable 在外层取得迭代器，以隐藏位置参数传入。`comprehension_ast.rs` 提供只读公共视图；
   dict 的 key 单独保存临时量保证先于 value 求值；生成器表达式生成 Yield 而非容器插入，
   标记隐式函数为生成器并复用 M3.2 状态机，最左 iterable 的立即求值边界不变。
+  MIR以合成来源、精确空列表初始化与单一定义证明私有list收集器后，直接调用既有ListAppend，
+  保留独立作用域和求值顺序；普通方法路径不变，见 [ADR-0196](adr/0196-private-list-comprehension-append.md)。
 
 - M3.2 由 `generator_scan.rs` 判定含不可达 yield 的当前函数，排除嵌套作用域；生成器强制 Dynamic。
   MIR `generators.rs` 将 Suspend 转工厂与恢复 CFG，显式保存全部局部到每实例 object[]；
@@ -111,6 +123,16 @@ ryupy-e2e（仅测试）─► ryupy-driver
   直接局部累加仅由显式编译会话 `--experimental-direct-accumulator` 选择，因配对吞吐未达默认门槛而关闭。
   Python 快慢路与溢出判断仍在 MIR，后端仅发 CLR 精确类型 / 拆箱 / 回绕加法原语（ADR-0033 / 0034）。
 
+
+- 模块静态槽的字符串累加由独立 `StringAccumulator` Pass 处理：只接受已证明精确字符串初值、
+  常量后缀和无观察的 +1 range 模板，静态 `StrConcat` 与动态 `LoadName/Add` 分别匹配，
+  复用 holder 并在出口按原槽类型物化。EH、实例模块、环境及字典观察合同保持原路径，
+  资源耗尽边界见 ADR-0193；实现验收状态见 `docs/aot-string-optimization.md`。
+
+- 自动普通动态模块的ForEach累加实验由Session显式选择，默认关闭。新独立matcher在
+  SimplifyCfg后、首次DeadValues前验证通用迭代四角色与唯一返回，复用既有holder ABI。
+  build/dump共用实际automatic/InstanceGlobals计划守卫，不扩P1族、不猜range名称，
+  不修改旧五块ForRange matcher；frame观察边界和重建验收隔离见[ADR-0135](adr/0135-foreach-local-accumulator.md)。
 
 - M3.0 用 `MakeFunction` 显式携带环境 cell 与默认值；环境作为隐藏尾参数，Python 参数元数据
   不包含它。`CellNew` / `CellGet` / `CellGetFree` / `CellSet` 统一读写共享绑定。
@@ -163,10 +185,13 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 
 ## 6. 测试策略
 
+目标规则以 [ADR-0182](adr/0182-source-only-test-oracles.md) 为准：Python 行为同次 CPython
+即时比较，IR/诊断使用源码断言；旧快照消费者待迁移，生成结果禁止入库。
+
 | 层次 | 工具 | 测什么 | 位置 |
 | --- | --- | --- | --- |
 | 单元测试 | `#[test]` | 单个函数的边界情况（并查集、运算规则表…） | 各 crate 的 `#[cfg(test)]` |
-| 快照测试 | `insta` | 每层 IR 的文本转储、诊断文本 | 各 crate 的 `tests/` 或 `#[cfg(test)]` |
+| 结构测试（迁移目标） | Rust 源码断言 / IR 验证器 | 每层 IR 不变量、诊断错误码/位置/必要消息 | 各 crate 的 `tests/` 或 `#[cfg(test)]` |
 | 端到端差分 | `libtest-mimic` | 同一 `.py` 在 CPython 与 RyuPy 下 stdout 一致 | `tests/e2e/**/*.py`，由 `ryupy-e2e` 驱动 |
 | 目录用例差分 | `libtest-mimic` + `ryupy-e2e` 库 | 入口 / 参数 / 环境 / stdio / 工作目录，以及退出码、异常类型、消息、cause | `tests/cases/**/case.txt` |
 | 项目级验收 | `ryupy-e2e` 项目 runner | 编译并运行固定项目入口，对照 CPython 基线 | `tests/projects/`，结果写 JSONL |
@@ -204,6 +229,8 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 
 运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。M2.9 的 PIC 由 codegen 分配调用点编号，`PyPic` 只缓存整数 / 浮点 / 字符串运算形状与普通类方法绑定；类全局版本、实例属性版本变化即失效，模块属性不缓存，见 [ADR-0012](adr/0012-bounded-dynamic-pic.md)。
 
+四张核心条目表按256项一页惰性分配，逻辑容量和失效规则保留；页发布使用CAS，条目字段同步沿原合同，见 [ADR-0195](adr/0195-pic-paged-storage.md)。
+
 普通对象与 frozen dataclass 均保留引用身份；M3.6 默认统一使用 PyInstance，旧 Phase 1 值类型降级不再作为当前实现。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
 
 原生路径继续满足 AOT 分析约束，但真正发布与裁剪测试安排在 M5.2。动态导入通过构建时可达清单限定；桥接产物仍需 libpython 与扩展。Native AOT 对运行时程序集加载和代码生成的限制见 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
@@ -211,3 +238,14 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 ## 8. 保留的架构决定
 
 保留实际九个 crate 的分层、非 SSA MIR（ADR-0002）、GC 合法的 PyValue 候选布局（ADR-0003）、子进程 `dotnet x.dll` 运行方式与按需引入依赖。Phase 3 有数据流分析需求后再判断是否增加 SSA 视图或图算法库，不照旧愿景提前引入完整优化框架。
+
+## 实际代码来源候选（ADR0145）
+
+MIR单一CodeSource表记录真实unit入口与私有signature归属，link按ID重映射，CIL冷关联不可变Runtime载体。真实源码driver使用required入口，旧手工MIR emit保兼容；fixed-binding豁免仅限实际已验证新增initializer。warnings环境与TypedDict函数Module能力分开，不按basename/注册名补来源。合同、有限前言门与热成本见[ADR0145](adr/0145-compiled-source-provenance.md)，当前产品未验收。
+
+ADR0146候选只在driver完成硬图后作JIT可选空资源子包发现；AOT图不变。新Legacy冷source V1消费已有MIR关联证明授予词法归属，不新增owner或热调用ABI；旧host仍原合同。真实产品及完整门待验，见[ADR0146](adr/0146-empty-resource-package-discovery.md)。
+
+ADR0155候选由driver独做固定资源部署/普通父包resolver/有限hard-soft图与分发IO；
+MIR仅携带候选冷载荷，codegen机械注册，不读HIR或文件。候选与活动Registry分离，
+真实Import/find_spec才全组检查发布；4个冷CLR方法、0新增RuntimeFn，热调用ABI不变。
+ExplicitOnly/AOT/fixed关闭，完整同源门待验，不能以部署或helper成功证明默认兼容。

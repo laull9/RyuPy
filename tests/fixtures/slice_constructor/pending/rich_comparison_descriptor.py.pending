@@ -1,0 +1,22 @@
+# ryupy: pending
+# CP真实正例；任意比较返回值与复杂index descriptor尚不计入有限slice支持。
+events = []
+answer = object()
+class Rich:
+    def __eq__(self, other):
+        events.append('eq')
+        return False
+    def __lt__(self, other):
+        events.append('lt')
+        return answer
+assert (slice(Rich()) < slice(Rich())) is answer
+assert events == ['eq', 'lt']
+class Descriptor:
+    def __get__(self, instance, owner):
+        events.append('get')
+        return lambda: 3
+class Indexed:
+    __index__ = Descriptor()
+assert slice(None).indices(Indexed()) == (0, 3, 1)
+assert events == ['eq', 'lt', 'get']
+print('pending.rich-descriptor')

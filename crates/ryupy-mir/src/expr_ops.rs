@@ -143,38 +143,35 @@ impl<'a> ExprBuilder<'a> {
         }
     }
 
-    /// `in` / `not in` / `is` / `is not`。
-    pub(crate) fn build_membership_compare(
+    /// 身份与成员比较固定返回 bool；调用方明确选择是否装箱为动态表达式结果。
+    fn membership_values(
         &mut self,
         op: CmpOp,
-        lhs: ExprId,
-        rhs: ExprId,
+        lhs: Operand,
+        rhs: Operand,
+        left: &Ty,
+        right: &Ty,
+        dynamic: bool,
     ) -> Operand {
-        let lhs_op = self.build_expr(lhs);
-        let lhs_ty = self.ty_of(lhs);
-        let lhs_value = self.coerce(lhs_op, &lhs_ty, &MirType::Dynamic);
-        let rhs_op = self.build_expr(rhs);
-        let rhs_ty = self.ty_of(rhs);
-        let rhs_value = self.coerce(rhs_op, &rhs_ty, &MirType::Dynamic);
-
-        let negate = matches!(op, CmpOp::NotIn | CmpOp::IsNot);
-        let runtime = match op {
-            CmpOp::Is | CmpOp::IsNot => RuntimeFn::IsSame,
-            _ => RuntimeFn::Contains,
+        let lhs = self.coerce(lhs, left, &MirType::Dynamic);
+        let rhs = self.coerce(rhs, right, &MirType::Dynamic);
+        let runtime = if matches!(op, CmpOp::Is | CmpOp::IsNot) {
+            RuntimeFn::IsSame
+        } else {
+            RuntimeFn::Contains
         };
-        // `in` 的语义是 `x in container`，运行时签名是 (container, value)
-        let (first, second) = match op {
-            CmpOp::Is | CmpOp::IsNot => (lhs_value, rhs_value),
-            _ => (rhs_value, lhs_value),
+        let args = if matches!(op, CmpOp::Is | CmpOp::IsNot) {
+            vec![lhs, rhs]
+        } else {
+            vec![rhs, lhs]
         };
-
-        let raw = self.runtime_call(runtime, vec![first, second], MirType::Bool);
-        let value = if negate {
+        let raw = self.runtime_call(runtime, args, MirType::Bool);
+        let value = if matches!(op, CmpOp::NotIn | CmpOp::IsNot) {
             let dest = self.alloc_temp(MirType::Bool);
             self.push_stmt(Statement::Assign {
                 dest,
                 value: Rvalue::Unary {
-                    op: crate::mir::UnaryOp::Not,
+                    op: UnaryOp::Not,
                     operand: raw,
                 },
             });
@@ -182,7 +179,15 @@ impl<'a> ExprBuilder<'a> {
         } else {
             raw
         };
-        self.bool_to_value(value)
+        self.coerce(
+            value,
+            &Ty::Bool,
+            &if dynamic {
+                MirType::Dynamic
+            } else {
+                MirType::Bool
+            },
+        )
     }
 
     /// 把 CIL `bool` 装成动态值；静态上下文原样返回。
@@ -282,34 +287,51 @@ impl<'a> ExprBuilder<'a> {
         rhs: ExprId,
         expr_id: ExprId,
     ) -> Operand {
-        // `in` / `not in` / `is` / `is not`：走运行时容器协议与身份比较
-        if matches!(op, CmpOp::In | CmpOp::NotIn | CmpOp::Is | CmpOp::IsNot) {
-            return self.build_membership_compare(op, lhs, rhs);
-        }
-        let mut lhs_op = self.build_expr(lhs);
-        let mut rhs_op = self.build_expr(rhs);
+        let lhs_op = self.build_expr(lhs);
         let lhs_ty = self.ty_of(lhs);
+        let rhs_op = self.build_expr(rhs);
         let rhs_ty = self.ty_of(rhs);
+        self.compare_values(
+            op,
+            lhs_op,
+            rhs_op,
+            &lhs_ty,
+            &rhs_ty,
+            self.ty_of(expr_id).is_dynamic(),
+        )
+    }
 
-        if self.ty_of(expr_id).is_dynamic() {
-            lhs_op = self.coerce(lhs_op, &lhs_ty, &MirType::Dynamic);
-            rhs_op = self.coerce(rhs_op, &rhs_ty, &MirType::Dynamic);
-            let dest = self.alloc_temp(MirType::Bool);
-            self.push_stmt(Statement::Assign {
-                dest,
-                value: Rvalue::DynCompare {
-                    op: dyn_cmp_op(op),
-                    lhs: lhs_op,
-                    rhs: rhs_op,
-                },
-            });
-            // 动态上下文里比较结果也是 object（Python 的 True/False 是一等值）
-            return self.bool_to_value(Operand::Local(dest));
+    /// 二元比较与链式比较共享值级语义；操作数已经在各自求值点冻结。
+    pub(crate) fn compare_values(
+        &mut self,
+        op: CmpOp,
+        mut lhs_op: Operand,
+        mut rhs_op: Operand,
+        lhs_ty: &Ty,
+        rhs_ty: &Ty,
+        dynamic: bool,
+    ) -> Operand {
+        if matches!(op, CmpOp::In | CmpOp::NotIn | CmpOp::Is | CmpOp::IsNot) {
+            return self.membership_values(op, lhs_op, rhs_op, lhs_ty, rhs_ty, dynamic);
+        }
+        if dynamic {
+            lhs_op = self.coerce(lhs_op, lhs_ty, &MirType::Dynamic);
+            rhs_op = self.coerce(rhs_op, rhs_ty, &MirType::Dynamic);
+            // Python 富比较可以返回 ndarray 或用户对象；只在条件位置求真。
+            return self.runtime_call(
+                RuntimeFn::DynRichCompareValue,
+                vec![
+                    Operand::Const(Constant::I64(i64::from(dyn_cmp_op(op).code()))),
+                    lhs_op,
+                    rhs_op,
+                ],
+                MirType::Dynamic,
+            );
         }
 
-        if lhs_ty == Ty::Int && rhs_ty == Ty::Float {
+        if *lhs_ty == Ty::Int && *rhs_ty == Ty::Float {
             lhs_op = self.cast_i64_to_f64(lhs_op);
-        } else if lhs_ty == Ty::Float && rhs_ty == Ty::Int {
+        } else if *lhs_ty == Ty::Float && *rhs_ty == Ty::Int {
             rhs_op = self.cast_i64_to_f64(rhs_op);
         }
 

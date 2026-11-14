@@ -18,9 +18,22 @@
   未知转换与不完整格式报 ValueError；参数不足/过量与不合类型报 TypeError。
 - 精确内建 str 左操作数先执行自身格式协议，右侧 `__rmod__` 不能抢占；普通数值取模不变。
 
+## 十进制 flags 与 literal width（候选待验证）
+
+`d/i/u` 新增 ASCII `#0-+ ` flags（允许重复/任意顺序）与字面 ASCII 宽度。
+`+` 优先空格，负号保留；`-` 优先 `0`，左对齐右补空格，零填充在符号之后。
+`#` 对十进制无额外前缀；宽度包含符号且不截断。沿原 Decimal 转换，不另调用用户协议。
+宽度按64位非负整数解析，溢出为 ValueError `width too big`；完整映射键先取值，宽度解析完成后才检查位置参数，词法溢出先于缺参。
+
+全输出逐项按 .NET10 最终 string 的 0x3FFFFFDF UTF16容量守卫，不是业务配额。
+数值转换后、实际填充前用差值检查累计容量，避免 long.MaxValue 加前缀回绕；
+literal、%%及旧转换同样累计。越界明确 NotImplementedError，属于宿主偏差而非CP同值答案；
+容量内不保证物理内存分配成功。参见 [ADR0153](adr/0153-decimal-percent-width.md)。
+当前只有固定CP参考观察及代码静态审阅，C#/JIT/Native/真实项目验收尚待执行。
+
 ## 明确未支持
 
-flags、宽度、precision、`*`、长度修饰与 `%o/%x/%X/%e/%E/%f/%F/%g/%G/%c`
+s/r/a 的 flags/宽度、precision、`*`、长度修饰与 `%o/%x/%X/%e/%E/%f/%F/%g/%G/%c`
 均明确 NotImplementedError，不近似输出。尚未提供 bytes 百分号格式。
 
 无转换项的余参规则不是简单的“只允许 dict”：固定 CPython 也允许具有 mapping slot 的

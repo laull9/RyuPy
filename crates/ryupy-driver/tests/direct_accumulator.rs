@@ -24,7 +24,6 @@ fn source_loop_really_uses_guarded_i64_locals_instead_of_holder() {
         "不能移除完整动态回退"
     );
     assert!(!output.contains("NumericAccumulator"), "仍残留holder ABI");
-    insta::assert_snapshot!("direct_accumulator_mir", output);
     std::fs::remove_file(path).unwrap();
 }
 

@@ -217,7 +217,10 @@ pub(crate) fn lower_list(
                 return Decorator::Dataclass;
             }
             // 仅真正的内建名字走既有描述符快路径；同名用户绑定必须正常求值。
-            if !class && let ast::Expr::Name(name) = expression {
+            if !globals.instance_globals
+                && !class
+                && let ast::Expr::Name(name) = expression
+            {
                 let name = Name::from(name.id.as_str());
                 if !globals.names.contains_key(&name)
                     && !module_vars.contains_key(&name)
@@ -258,6 +261,8 @@ mod tests {
         crate::lower_module(
             &parsed,
             &crate::ModuleInfo {
+                instance_capabilities: Default::default(),
+                instance_globals: false,
                 resolve_file_at_runtime: false,
                 name: "__main__".into(),
                 package: String::new(),

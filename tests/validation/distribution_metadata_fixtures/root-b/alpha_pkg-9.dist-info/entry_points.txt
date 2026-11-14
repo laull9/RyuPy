@@ -1,0 +1,2 @@
+[demo]
+shadowed = absent_shadow:Value

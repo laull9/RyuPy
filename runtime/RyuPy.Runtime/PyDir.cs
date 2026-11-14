@@ -35,8 +35,9 @@ public static class PyDir
 
     private static HashSet<string> ClassNames(PyClass cls)
     {
+        if (cls.IsTypingIoFamily) throw PyTypingIo.Unsupported("typing IO complete directory reflection is not supported");
         var names = new HashSet<string>(StringComparer.Ordinal);
-        for (PyClass? current = cls; current is not null; current = current.BaseClass)
+        foreach (PyClass current in cls.MroClasses())
             foreach (string name in current.Attributes.Keys) names.Add(name);
         return names;
     }

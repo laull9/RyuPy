@@ -1,5 +1,21 @@
 # 开发工作流
 
+## 当前实施与迁移规则（2026-11-13）
+
+执行顺序以 [路线图 CP1–CP5](roadmap.md) 为准；当前已授权实施随包宿主、通用对象桥、
+provider构建与真实应用验收。结构迁移单列于 [仓库结构规划](repository-layout-plan.md)。
+全分支、全历史可复现产物清理与远端强推已完成；测试消费者按套件迁移到即时oracle，
+保留源码、必要手写输入和实施记录；即时oracle与结构断言已接入，完整检查持续验证。
+最新规则见 [ADR-0182](adr/0182-source-only-test-oracles.md)：生成 golden、快照、比较产物和
+patch/diff 全部清理；测试驱动迁移为同次 CPython 即时比较，旧产物格式停止维护。
+后续结构迁移、provider 接入和性能优化独立验收；迁移前后保留发现清单、用例 ID、
+pending 与输入程序。新宿主/桥/API 先写 pending，差分及指定平台验收后转正。
+联合应用保留原业务源码与输入，只改 provider 计划和驱动；新增 RuntimeFn 同步 runtime/codegen，
+NativeAOT 回调禁止动态 IL 依赖。普通文件无需新增 hash 校验。
+测试输出、生成数据库、日志和比较结果写入仓库外临时目录并清理；必要脚本、手写输入、配置和人工结论进入
+Git。已跟踪产物按审查后的清单清理历史；先建立仓库外持久备份，强推使用明确 refs
+和并发保护。完成后记录备份位置、受影响分支及协作者同步办法，避免旧分支重新引入产物。
+
 > 工作流的目标是：**每一步都能看到可运行的结果，每一个决定都留下记录，每一个坑都写成测试。**
 
 ## 1. 环境准备
@@ -9,14 +25,13 @@
 | Rust | stable（见 `rust-toolchain.toml`） | 编译器本体 |
 | .NET SDK | 10.x | 构建运行时、运行生成的 `.dll`、Native AOT |
 | Python | 3.12+ | e2e 差分测试的「标准答案」 |
-| cargo-insta（可选） | 最新 | `cargo install cargo-insta`，审阅快照 |
 | ilspycmd（可选） | 最新 | `dotnet tool install -g ilspycmd`，把生成的 `.dll` 反编译成 C# 查看 |
 
 首次进入仓库：
 
 ```bash
 make runtime   # 构建 C# 运行时
-make check     # lint + 单元/快照测试 + e2e，全绿即环境 OK
+make check     # fmt/clippy、即时CPython、C#、Rust与e2e完整检查
 ```
 
 ## 2. 常用命令
@@ -25,15 +40,16 @@ make check     # lint + 单元/快照测试 + e2e，全绿即环境 OK
 make help                                   # 全部命令
 make dump FILE=foo.py EMIT=ast|hir|types|mir|cil   # 查看任意阶段的 IR
 make run  FILE=foo.py                       # 编译并运行
-make test                                   # Python 基线 + 单元 + 快照
+make test                                   # 固定CPython、C#及Rust完整测试
 make python-baseline                        # 自检含 pending 的 Phase 1–3 Python 用例
 make python-extensions                      # 自检 Phase 4，需 NumPy / sqlite3 / zlib
 make cases-selftest                         # 只验证用例与框架（多文件 / 参数 / 错误路径），不编译
 make e2e                                    # 端到端（跳过 pending）
 make e2e-all                                # 包括 pending，看整体进度
-make build                                  # 打发行包：Release CLI + 运行时 → releases/*.tar.gz
-make snap                                   # 审阅快照变更
-make check                                  # 提交前必跑
+make build                                  # 单文件Release CLI（内嵌C#闭包）→ releases/*.tar.gz
+make check                                  # 提交前必跑（含离线项目门禁自检）
+make projects-preserve                      # 完整20项默认JIT，按ID保护现有11项
+make projects-promote                       # 按既有合同检查默认晋升
 ```
 
 ## 3. 开发循环：一次只做一个「竖切」
@@ -51,8 +67,8 @@ Phase 2 起先查看固定项目集的失败原因，再选择能解除阻塞的
             先用 python3 运行确认用例本身正确
 ③ 逐层实现  syntax → hir → ty → mir → codegen，每层：
               - make dump EMIT=<该层> 看输出是否符合预期
-              - 为该层加一个 insta 快照测试，审阅后接受
-              - 对错误输入加诊断快照（编译失败的用例）
+              - 为该层加结构与不变量源码断言
+              - 对错误输入断言诊断错误码、位置及必要消息
 ④ 转正      去掉 `# ryupy: pending`，make e2e 通过
 ⑤ 收尾      make check 全绿 → 勾掉 TODO.md 条目 → 提交
 ⑥ 记录      踩到的坑写进 docs/notes/；做了取舍就写 ADR
@@ -68,8 +84,8 @@ Phase 1 已完成 M1.0–M1.5；旧 M1.6 的 AOT 保持待做并转入 M5.2。�
 | 想验证的东西 | 用什么 |
 | --- | --- |
 | 程序运行结果是否与 Python 一致 | e2e 用例（首选，最有说服力） |
-| 某一层的输出结构 | insta 快照（`make dump` 的输出就是快照内容） |
-| 某个错误能否正确报出、提示是否友好 | 诊断文本快照（`render(.., color=false)`） |
+| 某一层的输出结构 | 源码结构断言、IR 验证器；dump 仅临时调试 |
+| 某个错误能否正确报出、提示是否友好 | 错误码、位置、必要消息的源码断言 |
 | 算法本身（并查集、运算规则表、浮点格式化） | 普通单元测试，覆盖边界值 |
 | 导入顺序、循环导入、模块共享状态 | `tests/cases/` 的多文件目录用例，入口由清单声明 |
 | Python 异常、finally 与清理副作用 | `tests/cases/` 的错误路径用例：退出码 / 异常类型 / 消息 / cause / stdout |
@@ -82,6 +98,10 @@ Phase 1 已完成 M1.0–M1.5；旧 M1.6 的 AOT 保持待做并转入 M5.2。�
 后面四类测试入口属于后续任务，现有单文件 e2e 不能替代。已接受偏差单独验证并链接编号，不能通过改 CPython 期望值掩盖差异；pending、跳过与桥接结果不能补入原生通过数。
 
 Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPython 基线，先确认 pending 程序本身成立；Rust e2e 仍跳过 pending。多文件辅助模块不单独发现，预期错误退出由独立 manifest 验证，详见 [tests/README.md](../tests/README.md)。
+
+项目能力保持与默认晋升使用[项目门禁](../tests/projects.md#p0按项目-id-的保留与默认晋升门禁)。
+`make check`绿色不替代完整固定20项；当前十项逐ID保持（含已恢复progress），新项目另行报告。原源由开发者预先
+准备，预期由固定 CPython 当次生成；定向--only结果不能替代完整矩阵。默认配置、显式配置和AOT分开验收。
 
 ## 5. 调试手段
 
@@ -104,7 +124,7 @@ Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPyt
   ```
 
 - 一个提交只做一件事；**提交前 `make check` 必须通过**。
-- 修改快照时，在提交说明里写清楚快照为什么变了。
+- 提交前审核文件用途，禁止生成快照、测试结果、比较报告及 patch/diff；不得用内联大段生成输出替代文件快照。
 
 ## 7. 什么时候写 ADR
 
@@ -124,8 +144,8 @@ Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPyt
 一个里程碑（如 M1.2）只有同时满足以下条件才算完成：
 
 - [ ] 该里程碑所有 e2e 用例已去掉 `pending` 并通过；
-- [ ] 每层新增的结构都有快照测试；
-- [ ] 至少有一个「错误输入」的诊断快照；
+- [ ] 每层新增的结构都有源码结构断言；
+- [ ] 至少有一个「错误输入」的诊断断言；
 - [ ] `make check` 全绿；
 - [ ] `TODO.md` 已更新，`semantics.md` 中对应特性的状态已更新；
 - [ ] 涉及模块 / 标准库 / 项目时，传递依赖、API 范围、平台和执行路径已经登记，相关项目测试通过；
@@ -139,3 +159,10 @@ Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPyt
 
 - **ruff**：修改根 `Cargo.toml` 中三个 ruff 依赖的 `tag`（必须一起改）→ `cargo update -p ruff_python_parser` → `make check`。AST 结构变化只会影响 `ryupy-syntax` 和 `ryupy-hir/src/lower.rs`。
 - **.NET**：同时修改 `RyuPy.Runtime.csproj` 的 `TargetFramework`、`runtimeconfig.rs` 的 `TARGET_FRAMEWORK_MAJOR`、`runtime.rs` 的默认路径、CI 中的 `dotnet-version`。
+
+
+## CI触发
+
+日常dev/main推送及目标为dev/main的PR只运行单个Linux检查。跨平台发布使用main上的`v*`
+版本tag触发，入口先验证提交已进入main，再运行三套可复用矩阵。旧专项实验工作流已退役归档；
+本机测试驱动保留。详见[CI规则](ci.md)和[ADR-0192](adr/0192-version-tag-ci.md)。

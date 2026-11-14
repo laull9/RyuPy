@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 专用Native入口沿用测试friend身份；所有配置必须有独立artifacts路径。 -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>TraceAdapterHost</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(TraceNativeEntry)' == 'true'">
+    <DefineConstants>$(DefineConstants);TRACE_NATIVE_ENTRY</DefineConstants>
+    <PublishAot>true</PublishAot>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
+    <ILLinkTreatWarningsAsErrors>true</ILLinkTreatWarningsAsErrors>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(TraceNativeEntry)' == 'true'">
+    <Compile Remove="ManagedInputChecks.cs;GeneratedPeChecks.cs;GeneratedPeChecksTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="RyuPy.Runtime"><HintPath>$(ProbeRuntime)</HintPath></Reference>
+    <Reference Include="ProbeGenerated"><HintPath>$(ProbeGenerated)</HintPath></Reference>
+  </ItemGroup>
+  <!-- 防错而非跳过：普通Build若意外进入Publish/ILC必须在执行前失败。 -->
+  <Target Name="TraceRejectNativePreflightPublish" BeforeTargets="Publish;IlcCompile;LinkNative"
+          Condition="'$(TracePreflightOnly)' == 'true'">
+    <Error Text="Native配置预编译禁止Publish/ILC/LinkNative" />
+  </Target>
+  <!-- Compile集合/引用在实际Csc前落证；目录由runner固定，不改变引用解析。 -->
+  <Target Name="TraceRecordCompilerInputs" BeforeTargets="CoreCompile" Condition="'$(TraceEvidence)' != ''">
+    <MakeDir Directories="$(TraceEvidence)" />
+    <WriteLinesToFile File="$(TraceEvidence)/compile-items.txt" Lines="@(Compile->'%(FullPath)')" Overwrite="true" />
+    <WriteLinesToFile File="$(TraceEvidence)/references.txt" Lines="@(ReferencePath->'%(FullPath)')" Overwrite="true" />
+    <WriteLinesToFile File="$(TraceEvidence)/imports.txt" Lines="$(MSBuildAllProjects)" Overwrite="true" />
+    <WriteLinesToFile File="$(TraceEvidence)/defines.txt" Lines="$(DefineConstants)" Overwrite="true" />
+    <WriteLinesToFile File="$(TraceEvidence)/properties.txt"
+      Lines="TraceNativeEntry=$(TraceNativeEntry);TracePreflightOnly=$(TracePreflightOnly);PublishAot=$(PublishAot);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=$(SelfContained);TreatWarningsAsErrors=$(TreatWarningsAsErrors);IlcTreatWarningsAsErrors=$(IlcTreatWarningsAsErrors);ILLinkTreatWarningsAsErrors=$(ILLinkTreatWarningsAsErrors);TrimmerSingleWarn=$(TrimmerSingleWarn);NETCoreSdkVersion=$(NETCoreSdkVersion);NativeCompilationDuringPublish=$(NativeCompilationDuringPublish);IlcHostPackagePath=$(IlcHostPackagePath);RuntimePackagePath=$(RuntimePackagePath)"
+      Overwrite="true" />
+  </Target>
+</Project>

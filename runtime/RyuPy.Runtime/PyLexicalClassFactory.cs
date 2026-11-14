@@ -1,0 +1,203 @@
+// 新定义位置普通类的私有namespace事务；不创建CLR类，不借用ambient模块，不修改旧创建路径。
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+
+namespace RyuPy.Runtime;
+
+/// <summary>静态编译的词法类体使用的冷事务入口；成功终结后由编译代码填cell并发布。</summary>
+public static class PyLexicalClassFactory
+{
+    private sealed class Frame(string name, PyClass? parent, object? module, string qualname, object?[]? bases = null)
+    {
+        internal readonly string Name = name;
+        internal readonly PyClass? Parent = parent;
+        internal readonly object?[]? Bases = bases;
+        internal readonly Dictionary<string, object?> Namespace = new(StringComparer.Ordinal)
+        { ["__module__"] = module ?? PyNone.Instance, ["__qualname__"] = qualname };
+        // 0正文、1终结中、2完成、3失败；所有失败frame都不能重试成另一个类。
+        internal byte Phase;
+    }
+
+    /// <summary>验证真实base能力并冻结引用；此时只创建namespace，不创建或发布类。</summary>
+    public static object Prepare(string name, string qualname, object? module, object?[] bases) =>
+        PrepareForMode(name, qualname, module, bases, RuntimeFeature.IsDynamicCodeSupported);
+
+    internal static object PrepareForMode(string name, string qualname, object? module, object?[] bases, bool supportsDynamicCode)
+    {
+        try
+        {
+            if (bases.Length > 1 || bases.Length == 1 && (PyClass.HasDictProvider(bases[0])
+                || bases[0] is PyClass { HasMultipleInheritance: true }))
+            {
+                if (!supportsDynamicCode) throw Unsupported("MI or native-layout C3 without dynamic code support");
+                // 私有frame冻结原引用；已知layout冲突及C3错误保留到正文后的Finish。
+                bool dict = Array.Exists(bases, PyClass.HasDictProvider);
+                foreach (object? value in bases)
+                    if (dict) PyClass.ValidateDictC3Base(value);
+                    else if (!ReferenceEquals(value, PyBaseObject.Type))
+                        ValidateAncestors(value as PyClass ?? throw Unsupported("non-ordinary base"));
+                return new Frame(name, null, module, qualname, (object?[])bases.Clone());
+            }
+            PyClass? parent = null;
+            if (bases.Length == 1 && !ReferenceEquals(bases[0], PyBaseObject.Type))
+            {
+                parent = bases[0] as PyClass ?? throw Unsupported("non-ordinary base or metaclass protocol");
+                if (parent.HasMultipleInheritance) throw Unsupported("MI at lexical definition positions");
+                ValidateAncestors(parent);
+            }
+            return new Frame(name, parent, module, qualname);
+        }
+        catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
+    }
+
+    /// <summary>只判断本次定义的原始namespace，None仍是真实绑定。</summary>
+    public static bool NamespaceContains(object frame, string name) => Open(frame).Namespace.ContainsKey(name);
+
+    /// <summary>读取原始namespace，不走继承或描述符；缺名由编译代码选择回退或报错。</summary>
+    public static object? NamespaceGet(object frame, string name) =>
+        Open(frame).Namespace.TryGetValue(name, out object? value) ? value
+        : throw (PyBaseException)PyErrors.PrepareRaise(new PyNameError($"name '{name}' is not defined"));
+
+    /// <summary>正文写入只记录值，hook和descriptor能力在Finish统一检查。</summary>
+    public static void NamespaceSet(object frame, string name, object? value) => Open(frame).Namespace[name] = value;
+
+    /// <summary>正文成功之后重查完整父链和最终namespace，然后创建真实普通类。</summary>
+    public static object Finish(object frame)
+    {
+        Frame current = Open(frame);
+        current.Phase = 1;
+        try
+        {
+            PyClass result;
+            if (current.Bases is { } bases)
+            {
+                result = (PyClass)PyOps.PrepareOrdinaryMiClass(current.Name, bases);
+                foreach (var pair in current.Namespace) result.Attributes[pair.Key] = pair.Value;
+                result.FinalizeOrdinaryConstruction();
+            }
+            else
+            {
+                ValidateAncestors(current.Parent);
+                ValidateNamespace(current.Namespace);
+                result = new PyClass(current.Name) { BaseClass = current.Parent };
+                foreach (var pair in current.Namespace) result.Attributes[pair.Key] = pair.Value;
+                result.FinalizeOrdinaryConstruction();
+            }
+            result.EnableLexicalFactoryFamily();
+            current.Phase = 2;
+            return result;
+        }
+        catch (PyBaseException error)
+        {
+            current.Phase = 3;
+            throw (PyBaseException)PyErrors.PrepareRaise(error);
+        }
+    }
+
+    private static Frame Open(object value)
+    {
+        if (value is not Frame { Phase: 0 } frame)
+            throw (PyBaseException)PyErrors.PrepareRaise(Unsupported("inactive definition namespace"));
+        return frame;
+    }
+
+    internal static void ValidateDefinition(PyClass cls)
+    {
+        try
+        {
+            if (cls.HasDictC3Layout) { cls.ValidateDictC3Family(); return; }
+            if (!cls.HasOrdinaryLexicalLayout) throw Unsupported("special-layout definition");
+            foreach (PyClass ancestor in cls.MroClasses())
+                if (!ReferenceEquals(ancestor, cls)) ValidateAncestors(ancestor);
+            ValidateNamespace(cls.Attributes, cls);
+            if (cls.HasMultipleInheritance) cls.ValidateMiStructuralMetadata();
+        }
+        catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
+    }
+
+    internal static void ValidateFamily(PyClass cls)
+    {
+        try
+        {
+            if (cls.HasDictC3Layout) { cls.RequireDictReady(); cls.ValidateDictC3Family(); return; }
+            ValidateAncestors(cls);
+            if (cls.HasMultipleInheritance) cls.ValidateMiStructuralMetadata();
+        }
+        catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
+    }
+
+    // 仅dict混合域消费祖先的冻结存储事实；旧普通词法域保留原namespace准入。
+    internal static void ValidateDictC3Ancestor(PyClass cls)
+    {
+        try
+        {
+            ValidateAncestors(cls, frozenSlotMetadata: true);
+            if (cls.HasMultipleInheritance) cls.ValidateMiStructuralMetadata();
+        }
+        catch (PyBaseException error) { throw (PyBaseException)PyErrors.PrepareRaise(error); }
+    }
+
+    private static void ValidateAncestors(PyClass? parent, bool frozenSlotMetadata = false)
+    {
+        var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
+        if (parent is null) return;
+        foreach (PyClass current in parent.MroClasses())
+        {
+            if (!seen.Add(current) || !current.IsCompletedOrdinaryLexicalBase)
+                throw Unsupported("unfinished or special-layout ancestor");
+            ValidateNamespace(current.Attributes, current, frozenSlotMetadata);
+        }
+    }
+
+    private static void ValidateNamespace(Dictionary<string, object?> attributes, PyClass? cls = null, bool frozenSlotMetadata = false)
+    {
+        foreach (var pair in attributes)
+        {
+            if (pair.Key == "__slots__" && frozenSlotMetadata && cls?.IsCompletedOrdinaryLexicalBase == true) continue;
+            // 不搬用dict槽禁令：普通类已有数值/容器方法仍保留。__class__只是普通属性。
+            if (pair.Key == "__slots__" && (cls?.AllowsSlotsNamespace(pair.Value) ?? PyClass.EmptySlots(pair.Value))) continue;
+            if (pair.Value is PyInstanceSlotDescriptor slot && cls?.AllowsSlotDescriptor(pair.Key, slot) == true) continue;
+            if (pair.Key is "__slots__" or "__init_subclass__" or "__class_getitem__"
+                or "__mro_entries__" or "__prepare__" or "__set_name__" or "__classcell__"
+                or "__getattribute__" or "__setattr__" or "__delattr__")
+                throw Unsupported($"class protocol {pair.Key}");
+            if (pair.Value is PyProperty or PyStaticMethod or PyClassMethod) continue;
+            if (pair.Value is IPyNativeDescriptor || HasDescriptorProtocol(pair.Value))
+                throw Unsupported("custom descriptor");
+        }
+    }
+
+    private static bool HasDescriptorProtocol(object? value)
+    {
+        PyClass? type = value switch
+        {
+            PyInstance instance => instance.Class,
+            PyNamedTupleInstance tuple => tuple.Class,
+            PyBaseException error => error.PythonClass,
+            _ => null,
+        };
+        var seen = new HashSet<PyClass>(ReferenceEqualityComparer.Instance);
+        if (type is null) return false;
+        foreach (PyClass current in type.MroClasses())
+        {
+            if (!seen.Add(current)) throw Unsupported("cyclic descriptor type");
+            foreach (string name in new[] { "__get__", "__set__", "__delete__", "__set_name__" })
+                if (current.Attributes.ContainsKey(name)) return true;
+        }
+        return false;
+    }
+
+    private static PyNotImplementedError Unsupported(string detail) =>
+        new($"lexical class factory does not support {detail}");
+}
+
+public sealed partial class PyClass
+{
+    // 普通完成事实来自现有终结协议；既有类不新增守卫或改变布局。
+    internal bool IsCompletedOrdinaryLexicalBase => _ordinaryFinalized && HasOrdinaryLexicalLayout;
+    internal bool HasOrdinaryLexicalLayout => BuiltinBase is null && ExceptionFactory is null
+        && !HasStringLayout && !HasListLayout && !HasDictLayout && NamedTupleLayout is null
+        && !HasEnumMetadata && !DataclassActive && !IsNativeRuntimeClass
+        && !IsTypingGenericFamily && !IsTypingIoFamily;
+}

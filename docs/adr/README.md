@@ -1,5 +1,8 @@
 # 架构决策记录（ADR）
 
+最新仓库规则：[ADR-0182：源码仓库与即时 CPython 比较](0182-source-only-test-oracles.md)。
+旧文档的生成 golden、快照和原始结果保留约定由此替换。
+
 每篇 ADR 记录一个**有取舍的决定**：当时的背景、考虑过的方案、最终选择及其代价。
 ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把旧的状态改为「已被 ADR-XXXX 取代」。
 
@@ -55,6 +58,13 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 | [0048](0048-default-site-quitters.md) | 默认 site 的真实 exit / quit | 三平台专项与组合CI通过；WIP未main，非完整 site |
 | [0049](0049-base-object-identity.md) | 真实 object 基础实例与身份 | 三平台有限专项通过；派生构造与富比较旧债独立保留 |
 | [0050](0050-ordinary-construction-protocol.md) | 普通单继承的有限 new/init | 本地候选；专用布局与槽历史限制明确 |
+| [0133](0133-ordered-dict-core.md) | 精确原生OrderedDict的双顺序与有限消费者 | 有限首切及完整门禁通过；性能风险开放，不等于远端发布 |
+
+## 当前主线决策
+
+| ADR | 主题 | 状态 |
+| --- | --- | --- |
+| [0181](0181-cpython-provider-first.md) | 随包 CPython provider、通用对象桥与实测热点优化 | 方向已接受，实现待启动；更新 0009/0172 排期 |
 
 ## 模板
 
@@ -79,3 +89,19 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 ## 后果
 带来的代价、需要后续跟进的事项、什么情况下应该重新审视。
 ```
+| [0142](0142-generator-trace-product-v1.md) | 显式生成器 trace 产品 V1：末端 lowering 与单一权威 | 未验收源码候选；默认关闭，完整产品/回归待执行 |
+
+| [0145](0145-compiled-source-provenance.md) | 实际代码来源与同帧warnings/功能式TypedDict | 有限源码候选；纯Rust门完成，真实C#/JIT/Native与完整保护待验 |
+
+| [0149](0149-string-search-windows.md) | 五个字符串搜索方法共享码点窗口 | 未编译源码候选；原槽/警告、同源JIT/AOT与项目保护待验 |
+- [0155：有限JIT默认来源候选与分发环境](0155-default-source-candidates.md)（实现候选，完整门待验）
+- [0158：显式普通实例直接globals冷路](0158-instance-direct-globals.md)（未验收；推导式保持拒绝）
+
+- [0169：固定 C ABI 单库多导出](0169-cabi-multiple-exports.md)（已整合，macOS arm64 搬迁验收）
+- [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
+- [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
+- [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
+- [0193：有界字符串累加器与顶层模块观察语义](0193-bounded-string-accumulator.md)（已接受，差分/AOT/性能/完整门禁及异构复审通过）
+- [0195：PIC核心条目的固定容量按需分页](0195-pic-paged-storage.md)（已接受，全26项AOT/搬迁及完整门禁通过）
+
+- [0196：列表推导式私有收集器直接追加](0196-private-list-comprehension-append.md)（已接受，26项AOT对照/搬迁及完整门禁通过）

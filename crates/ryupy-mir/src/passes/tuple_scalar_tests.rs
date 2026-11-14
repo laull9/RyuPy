@@ -54,12 +54,18 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
     });
     (
         Function {
+            module_state: None,
+            instance_capabilities: Default::default(),
+            module_state_source: None,
             name: "tuple_probe".into(),
             codegen_name: "tuple_probe".into(),
             source_file: "tuple_probe.py".into(),
+            definition: None,
             params: vec![left, right],
             ret: MirType::Dynamic,
             body: Body {
+                direct_globals_contracts: Vec::new(),
+                source_handler_contracts: Vec::new(),
                 locals,
                 blocks,
                 entry,
@@ -71,6 +77,7 @@ fn sample(index: i64) -> (Function, [LocalId; 6]) {
             defaults_global: None,
             signature_global: Some(GlobalId::from_raw(RawIdx::from(0))),
             env: None,
+            dynamic_origin: None,
         },
         [left, right, tuple, key, result, length],
     )
@@ -246,6 +253,7 @@ fn cells_generators_closures_and_exception_regions_are_outside_first_slice() {
                 }
             }
             _ => function.body.regions.push(Region {
+                source_handler_chain: None,
                 kind: RegionKind::CatchAll,
                 try_start: entry,
                 try_len: 1,

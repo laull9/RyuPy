@@ -20,6 +20,7 @@ pub(crate) fn resolve(module: &mut Module) {
                     range: expression.range,
                     annotation: Some(TypeRef::Runtime),
                     is_global: true,
+                    may_delete: false,
                 })
             });
             expression.kind = ExprKind::ModuleVar(id);
@@ -75,13 +76,11 @@ pub(crate) fn unsupported_builtin(name: &str) -> bool {
             | "TimeoutError"
             | "UnicodeTranslateError"
             | "BufferError"
-            | "MemoryError"
             | "ReferenceError"
             | "SystemError"
             | "FloatingPointError"
             | "ascii"
             | "bin"
-            | "format"
             | "hex"
             | "oct"
             | "slice"
@@ -132,7 +131,7 @@ mod tests {
     }
     #[test]
     fn unsupported_builtin_stays_diagnostic_but_user_binding_wins() {
-        for source in ["locals()", "eval('1')", "format(1)"] {
+        for source in ["globals()", "eval('1')"] {
             let (_, diagnostics) = lower(source);
             assert!(diagnostics.iter().any(|d| d.code == Some("E0100")));
         }
@@ -166,5 +165,77 @@ mod tests {
         }
         let (_, diagnostics) = lower("help()\n");
         assert!(diagnostics.iter().any(|d| d.code == Some("E0100")));
+    }
+    #[test]
+    fn format_is_dynamic_and_saved_alias_calls_its_module_binding() {
+        let (module, diagnostics) = lower("saved = format\nformat(1)\nsaved(2, 'x')\n");
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+        let body = &module.functions[module.main].body;
+        let saved = module
+            .vars
+            .iter()
+            .find(|(_, var)| var.name.as_str() == "saved")
+            .unwrap()
+            .0;
+        assert_eq!(
+            body.exprs
+                .iter()
+                .filter(|(_, expr)| matches!(
+                    expr.kind,
+                    ExprKind::Builtin(Builtin::Dynamic("format"))
+                ))
+                .count(),
+            2
+        );
+        assert!(body.stmts.iter().any(|(_, stmt)| matches!(stmt.kind,
+            StmtKind::Assign { target: AssignTarget::ModuleVar(id), value }
+                if id == saved && matches!(body.exprs[value].kind,
+                    ExprKind::Builtin(Builtin::Dynamic("format")))
+        )));
+        assert!(body.exprs.iter().any(|(_, expr)| matches!(&expr.kind,
+            ExprKind::Call { callee, .. } if matches!(body.exprs[*callee].kind,
+                ExprKind::Builtin(Builtin::Dynamic("format")))
+        )));
+        assert!(body.exprs.iter().any(|(_, expr)| matches!(&expr.kind,
+            ExprKind::Call { callee, .. } if matches!(body.exprs[*callee].kind,
+                ExprKind::ModuleVar(id) if id == saved)
+        )));
+    }
+
+    #[test]
+    fn format_user_bindings_remain_real_call_targets() {
+        for source in [
+            "def f(format):\n    return format(1)\n",
+            "def f():\n    format = callback\n    return format(1)\n",
+            "format = callback\nformat(1)\n",
+        ] {
+            let (module, diagnostics) = lower(source);
+            assert!(diagnostics.is_empty(), "{diagnostics:?}");
+            let mut named_calls = 0;
+            for (_, function) in module.functions.iter() {
+                for (_, expression) in function.body.exprs.iter() {
+                    assert!(!matches!(
+                        expression.kind,
+                        ExprKind::Builtin(Builtin::Dynamic("format"))
+                    ));
+                    if let ExprKind::Call { callee, .. } = &expression.kind {
+                        match function.body.exprs[*callee].kind {
+                            ExprKind::Local(id)
+                                if function.body.locals[id].name.as_str() == "format" =>
+                            {
+                                named_calls += 1
+                            }
+                            ExprKind::ModuleVar(id)
+                                if module.vars[id].name.as_str() == "format" =>
+                            {
+                                named_calls += 1
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            assert_eq!(named_calls, 1, "{source}");
+        }
     }
 }

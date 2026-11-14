@@ -1,3 +1,4 @@
+// 动态Python操作的中性分派：数值、比较、调用及外部对象协议共享统一入口。
 using System;
 using System.Numerics;
 
@@ -102,6 +103,8 @@ public static partial class PyOps
     /// <remarks>操作码带 <see cref="InPlaceFlag"/> 时按增量赋值处理（见 <c>PySequenceOps.cs</c>）。</remarks>
     public static object Binary(int op, object a, object b)
     {
+        if (a is IPyForeignObject leftForeign) return leftForeign.Binary(op, b, false);
+        if (b is IPyForeignObject rightForeign) return rightForeign.Binary(op, a, true);
         if ((op & InPlaceFlag) != 0)
         {
             return InPlaceBinary(op & ~InPlaceFlag, a, b);
@@ -115,10 +118,16 @@ public static partial class PyOps
         // 精确内建字符串的 % 已实现格式化槽，不能让右侧 __rmod__ 抢在转换前执行。
         // 其它类型仍沿既有二元/反射协议；数值取模不受此入口影响。
         if (op == Mod && a is string format) return PyPercentFormat.Format(format, b);
+        if (op == Mod && a is PyStringInstance subformat) return PyPercentFormat.Format(subformat.Value, b);
+        if (op == BitOr && (a is PyDictInstance || b is PyDictInstance)
+            && a is not PyMappingProxy and not PyOrderedDict && b is not PyMappingProxy and not PyOrderedDict)
+            return PyDictSubclassDispatch.Union(a, b, inplace);
         if (TryBinaryMagic(op, a, b, out object? magic))
         {
             return magic!;
         }
+        if (a is PyDictView { UseLayoutProtocol: true } || b is PyDictView { UseLayoutProtocol: true })
+            throw PyDictLayout.Own(new PyNotImplementedError("dict view set operations are not supported"));
         bool aInt = PyInt.IsInt(a);
         bool bInt = PyInt.IsInt(b);
         bool aNum = aInt || a is double;
@@ -139,6 +148,9 @@ public static partial class PyOps
                 {
                     return string.Concat(left, right);
                 }
+                if ((a is PyStringInstance || b is PyStringInstance)
+                    && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
+                    return string.Concat(subleft, subright);
                 if (TryConcat(a, b, out object? concatenated))
                 {
                     return concatenated!;
@@ -228,12 +240,7 @@ public static partial class PyOps
                 RequireInts("&", a, b, aInt, bInt, inplace);
                 return PyInt.BitAnd(a, b);
             case BitOr:
-                if (SetUnion(a, b) is object union)
-                {
-                    return union;
-                }
-                RequireInts("|", a, b, aInt, bInt, inplace);
-                return PyInt.BitOr(a, b);
+                return BinaryOrValues(a, b, inplace);
             case BitXor:
                 if (SetSymmetricDifference(a, b) is object xor)
                 {
@@ -252,9 +259,29 @@ public static partial class PyOps
         }
     }
 
+    /// <summary>位或的内建值叶子，不再次分派用户运算槽；proxy已尝试两候选后复用。</summary>
+    internal static object BinaryOrValues(object a, object b, bool inplace)
+    {
+        if (a is PyDictInstance || b is PyDictInstance)
+        {
+            object result = a is PyDictInstance
+                ? PyDictProtocols.Invoke("__or__", a, [b])!
+                : PyDictProtocols.Invoke("__ror__", b, [a])!;
+            if (result is not PyNotImplemented) return result;
+        }
+        // 仅新增普通exactdict union；不将旧dict |=回退伪装成复制替换。
+        if (!inplace && a is PyDict leftDict && b is PyDict rightDict)
+            return PyMappingProxyOperators.DictUnion(leftDict, rightDict);
+        if (SetUnion(a, b) is object union) return union;
+        RequireInts("|", a, b, PyInt.IsInt(a), PyInt.IsInt(b), inplace);
+        return PyInt.BitOr(a, b);
+    }
+
     /// <summary>比较运算：返回 Python <c>bool</c>。NaN 下所有排序比较为假，相等为假、不等为真。</summary>
     public static bool Compare(int op, object a, object b)
     {
+        if (a is IPyForeignObject leftForeign) return leftForeign.Compare(op, b, false);
+        if (b is IPyForeignObject rightForeign) return rightForeign.Compare(op, a, true);
         // 快路径：两侧都是 long / double / str 时与通用路径结果相同（不涉及用户魔术方法），
         // 但跳过了 `__eq__` / `__lt__` 探测与 Order 的形态分类。double 的 IEEE 比较本身就满足
         // Python 的 NaN 规则（相等为假、不等为真、排序比较为假）。
@@ -279,14 +306,32 @@ public static partial class PyOps
         {
             return CompareOrdered(op, Math.Sign(string.CompareOrdinal(sa, sb)));
         }
+        if ((a is PyStringInstance || b is PyStringInstance)
+            && PyStringLayout.TryGet(a, out string subleft) && PyStringLayout.TryGet(b, out string subright))
+            return CompareOrdered(op, Math.Sign(string.CompareOrdinal(subleft, subright)));
+        if (op is Eq or Ne && (a is PyOrderedDict or PyOrderedDictView || b is PyOrderedDict or PyOrderedDictView))
+            return PyOrderedDictComparison.Expression(op, a, b);
+        if (a is PyDictView { UseLayoutProtocol: true } || b is PyDictView { UseLayoutProtocol: true })
+            return PyDictViewComparisonDispatch.Compare(op, a, b, expression: true);
+        if (op is Eq or Ne && (a is PyDictInstance || b is PyDictInstance))
+            return PyDictComparisonDispatch.Compare(op, a, b);
+        if (op is Eq or Ne && (a is PyListInstance || b is PyListInstance))
+            return PyListComparisonDispatch.Compare(op, a, b);
+        if (PyOrdinaryRichComparison.TryCompare(op, a, b, out object? ordinary))
+            return Truthy(ordinary);
         if (op == Eq)
         {
             return ValuesEqual(a, b);
         }
         if (op == Ne)
         {
+            if (a is PyInstance leftGeneric) leftGeneric.Class.GuardInheritedGenericProtocol("__ne__");
+            if (b is PyInstance rightGeneric) rightGeneric.Class.GuardInheritedGenericProtocol("__ne__");
             return !ValuesEqual(a, b);
         }
+        if (a is PySlice leftSlice && b is PySlice rightSlice)
+            return leftSlice.CompareFields(op, rightSlice);
+        PySlice.GuardMixedComparison(a, b);
         if (TryRichCompare(op, a, b, out bool compared))
         {
             return compared;
@@ -323,6 +368,7 @@ public static partial class PyOps
     /// <summary>一元运算。</summary>
     public static object Unary(int op, object value)
     {
+        if (value is IPyForeignObject foreign) return foreign.Unary(op);
         switch (op)
         {
             case Neg:
@@ -369,6 +415,7 @@ public static partial class PyOps
     /// <summary><c>int(x)</c>，结果为动态值。</summary>
     public static object ToIntValue(object value) => value switch
     {
+        IPyForeignObject foreign => foreign.ReadScalar("integer"),
         bool b => b ? 1L : 0L,
         long or int or BigInteger => PyInt.Normalize(PyInt.ToBigInteger(value)),
         double d => PyInt.Normalize(TruncateToInteger(d, "float")),
@@ -379,13 +426,12 @@ public static partial class PyOps
     /// <summary><c>float(x)</c>，结果为动态值。</summary>
     public static object ToFloatValue(object value) => value switch
     {
+        IPyForeignObject foreign => foreign.ReadScalar("floating"),
         bool b => b ? 1.0 : 0.0,
-        long or int or BigInteger => ToDouble(value),
-        double d => d,
-        string s => ParseFloat(s),
-        _ => throw new PyTypeError(
-            $"float() argument must be a string or a real number, not '{PyRepr.TypeName(value)}'"
-        ),
+        long or int => ToDouble(value),
+        BigInteger big => PyFloatConstructor.FromBigInteger(big),
+        double => value,
+        _ => PyFloatConstructor.ConvertObject(value),
     };
 
     /// <summary><c>abs(x)</c>，结果为动态值。</summary>
@@ -407,6 +453,7 @@ public static partial class PyOps
     /// <summary>整数 / 布尔转 <c>double</c>；超出 <c>double</c> 范围时报 <c>OverflowError</c>。</summary>
     public static double ToDouble(object value) => value switch
     {
+        IPyForeignObject foreign => (double)foreign.ReadScalar("float"),
         bool b => b ? 1.0 : 0.0,
         double d => d,
         long l => l,
@@ -453,39 +500,6 @@ public static partial class PyOps
             remainder += b;
         }
         return remainder;
-    }
-
-    private static object ParseFloat(string text)
-    {
-        string trimmed = text.Trim();
-        if (trimmed.Length == 0)
-        {
-            throw new PyValueError("could not convert string to float: ''");
-        }
-        // CPython 接受 inf / infinity / nan（大小写不敏感），.NET 的 TryParse 也接受，
-        // 但额外允许 "Nan"/"Infinity" 之外的写法差异需要显式归一化。
-        string lowered = trimmed.ToLowerInvariant();
-        if (lowered is "inf" or "+inf" or "infinity" or "+infinity")
-        {
-            return double.PositiveInfinity;
-        }
-        if (lowered is "-inf" or "-infinity")
-        {
-            return double.NegativeInfinity;
-        }
-        if (lowered is "nan" or "+nan" or "-nan")
-        {
-            return double.NaN;
-        }
-        if (double.TryParse(
-                trimmed,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out double parsed))
-        {
-            return parsed;
-        }
-        throw new PyValueError($"could not convert string to float: {PyRepr.Quote(text)}");
     }
 
     /// <summary>集合的并集；任一侧不是集合时返回 <c>null</c>。</summary>

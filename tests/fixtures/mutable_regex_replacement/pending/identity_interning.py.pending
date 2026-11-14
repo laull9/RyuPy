@@ -1,0 +1,35 @@
+# ryupy: pending
+"""原CP正例保全：全局empty/single-byte身份旧债，不注册driver、不计F1/F2通过。"""
+import re
+
+# 对应补参考J.empty_single/J.empty_templates/X；EMPTY必须保持字面bytes，不能替换成regex自产对象。
+# 本文件未单独运行，原CP事实来自source620cabfa…的67行唯一参考；不得借此再开第四应用。
+EMPTY = b''
+p = re.compile(b'(a)')
+array = bytearray(b'')
+root = memoryview(bytearray(b''))
+chars = root.cast('c')
+root.release()
+readonly = memoryview(b'')
+for value in (array, chars, readonly):
+    result = p.sub(lambda match: value, b'a')
+    assert type(result) is bytes and result is EMPTY and result is not value
+chars.release()
+readonly.release()
+
+# F2 bytearray输入的值/类型可独立验收，但跨任意b''身份仍必须保留此完整正例。
+value = bytearray(b'')
+assert p.sub(value, b'a') is EMPTY
+assert p.match(b'a').expand(value) is EMPTY
+assert re.escape(value) is EMPTY
+
+# writable/readonly view escape都合法；其empty singleton不应偷偷改期待。
+for value in (memoryview(bytearray(b'')), memoryview(b'')):
+    assert re.escape(value) is EMPTY
+    value.release()
+
+# 原exact escape旧路的0/1字节identity，与3字节不保输入identity分别记录。
+for value in (EMPTY, b'a'):
+    assert re.escape(value) is value
+value = b'abc'
+assert re.escape(value) == value and re.escape(value) is not value

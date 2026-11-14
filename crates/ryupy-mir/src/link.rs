@@ -23,9 +23,15 @@ use crate::mir::{
 /// 一个模块的元信息（由 driver 从模块图提供）。
 #[derive(Debug, Clone)]
 pub struct UnitMeta {
+    pub instance_capabilities: ryupy_base::InstanceCapabilities,
+    pub execution: crate::ModuleExecutionKind,
+    /// 编译计划的审计原因；不作为运行时语义开关。
+    pub environment_reason: String,
     /// 实际build显式注入；普通dump使用LegacyDiagnostic。
     pub location: crate::ModuleLocation,
     pub file_backed_by_global: bool,
+    /// 实际源码解析分支证明的包身份，不从文件名或公开属性推断。
+    pub is_package: bool,
     /// 静态异常 handler 依赖的导入别名，不允许跨模块 setter 重绑定。
     pub protected_exports: Vec<String>,
     pub name: String,
@@ -39,6 +45,14 @@ pub struct UnitMeta {
 ///
 /// `entry` 是入口模块在 `units` 里的下标（`__main__`）。
 pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
+    link_with_origins(units, entry, None)
+}
+
+pub(crate) fn link_with_origins(
+    units: Vec<(Program, UnitMeta)>,
+    entry: usize,
+    mut origins: Option<&mut Vec<crate::trace_lowering::LinkRemap>>,
+) -> LinkedProgram {
     let mut functions: Arena<Function> = Arena::default();
     let mut classes: Arena<ClassDef> = Arena::default();
     let mut globals: Arena<GlobalDecl> = Arena::default();
@@ -60,6 +74,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             global_map.insert(
                 old,
                 globals.alloc(GlobalDecl {
+                    storage: decl.storage.clone(),
                     name: format!("{prefix}{}", decl.name),
                     ty: remap_type(&decl.ty, &class_map),
                 }),
@@ -68,12 +83,18 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
         let mut fn_map: FxHashMap<FnId, FnId> = FxHashMap::default();
         for (old, func) in program.functions.iter() {
             let new_id = functions.alloc(Function {
+                module_state: func.module_state,
+                instance_capabilities: func.instance_capabilities,
+                module_state_source: func.module_state_source,
                 name: func.name.clone(),
                 codegen_name: format!("{prefix}{}", func.codegen_name),
                 source_file: func.source_file.clone(),
+                definition: func.definition.clone(),
                 params: func.params.clone(),
                 ret: remap_type(&func.ret, &class_map),
                 body: Body {
+                    direct_globals_contracts: Vec::new(),
+                    source_handler_contracts: Vec::new(),
                     locals: Arena::default(),
                     blocks: Arena::default(),
                     entry: la_arena::Idx::from_raw(0.into()),
@@ -96,14 +117,42 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 defaults_global: func.defaults_global.map(|g| global_map[&g]),
                 signature_global: func.signature_global.map(|g| global_map[&g]),
                 env: func.env,
+                dynamic_origin: func.dynamic_origin.map(|origin| {
+                    crate::mir::DynamicFunctionOrigin {
+                        owner: origin.owner,
+                        source_global: origin.source_global.map(|g| global_map[&g]),
+                    }
+                }),
             });
             fn_map.insert(old, new_id);
         }
 
+        // 来源槽先分配，FnId映射就绪后才回填其完整所属关系；不能保留unit内的旧序号。
+        for (old, decl) in program.globals.iter() {
+            if let crate::GlobalStorage::CodeSource {
+                entry,
+                functions: members,
+                legacy_entry,
+            } = &decl.storage
+            {
+                globals[global_map[&old]].storage = crate::GlobalStorage::CodeSource {
+                    entry: fn_map[entry],
+                    functions: members.iter().map(|id| fn_map[id]).collect(),
+                    legacy_entry: legacy_entry.as_ref().map(|value| crate::LegacySourceEntry {
+                        initial_name: value.initial_name.clone(),
+                        name_global: global_map[&value.name_global],
+                    }),
+                };
+            }
+        }
         // 2. 类定义：字段 / 基类 / 工厂槽位都要改写。
         for (old, cls) in program.classes.iter() {
             let new_id = class_map[&old];
             classes[new_id] = ClassDef {
+                class_cell: cls
+                    .class_cell
+                    .as_ref()
+                    .map(|cell| remap_class_cell(cell, &fn_map, &global_map)),
                 name: cls.name.clone(),
                 codegen_name: format!("{prefix}{}", cls.codegen_name),
                 fields: cls
@@ -132,6 +181,17 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                 });
             }
             let body = Body {
+                direct_globals_contracts: func
+                    .body
+                    .direct_globals_contracts
+                    .iter()
+                    .map(|fact| {
+                        let mut fact = fact.clone();
+                        fact.callee_value = remap_operand(&fact.callee_value, &global_map);
+                        fact
+                    })
+                    .collect(),
+                source_handler_contracts: func.body.source_handler_contracts.clone(),
                 locals,
                 blocks: remap_blocks(&func.body.blocks, &fn_map, &class_map, &global_map),
                 entry: func.body.entry,
@@ -140,6 +200,7 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
                     .regions
                     .iter()
                     .map(|region| crate::mir::Region {
+                        source_handler_chain: region.source_handler_chain,
                         kind: match &region.kind {
                             crate::mir::RegionKind::Catch { type_names } => {
                                 crate::mir::RegionKind::Catch {
@@ -182,6 +243,9 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             }
         }
 
+        if let Some(origins) = origins.as_deref_mut() {
+            origins.push(crate::trace_lowering::LinkRemap::new(&fn_map, &global_map));
+        }
         // 4. 模块导出表。
         let exports = meta
             .exports
@@ -198,8 +262,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
             })
             .collect();
         module_ids.push(modules.alloc(ModuleDef {
+            instance_capabilities: meta.instance_capabilities,
+            execution: meta.execution,
+            environment_reason: meta.environment_reason,
             location: meta.location,
             file_backed_by_global: meta.file_backed_by_global,
+            is_package: meta.is_package,
             protected_exports: meta.protected_exports,
             name: meta.name,
             package: meta.package,
@@ -212,8 +280,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     let entry_module = module_ids.get(entry).copied().unwrap_or_else(|| {
         // 空程序（理论上不会出现）：补一个空入口模块，避免 panic。
         modules.alloc(ModuleDef {
+            instance_capabilities: Default::default(),
+            execution: crate::ModuleExecutionKind::LegacySingleton,
+            environment_reason: "existing-contract".into(),
             location: Default::default(),
             file_backed_by_global: false,
+            is_package: false,
             protected_exports: Vec::new(),
             name: "__main__".to_owned(),
             package: String::new(),
@@ -224,6 +296,12 @@ pub fn link(units: Vec<(Program, UnitMeta)>, entry: usize) -> LinkedProgram {
     });
 
     LinkedProgram {
+        external_provider: None,
+        candidate_modules: Vec::new(),
+        optional_sources: None,
+        metadata_unavailable: None,
+        distribution_metadata: None,
+        trace_product: None,
         functions,
         classes,
         globals,
@@ -434,6 +512,10 @@ fn remap_rvalue(
                 .collect(),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
         },
+        Rvalue::InstanceZeroCall { callee, frame } => Rvalue::InstanceZeroCall {
+            callee: remap_operand(callee, global_map),
+            frame: *frame,
+        },
         Rvalue::DynCallValue { callee, args } => Rvalue::DynCallValue {
             callee: remap_operand(callee, global_map),
             args: args.iter().map(|a| remap_operand(a, global_map)).collect(),
@@ -454,18 +536,27 @@ fn remap_rvalue(
         Rvalue::GeneratorDelegateStep { delegate } => Rvalue::GeneratorDelegateStep {
             delegate: remap_operand(delegate, global_map),
         },
-        Rvalue::MakeGenerator { resume, frame } => Rvalue::MakeGenerator {
+        Rvalue::MakeGenerator {
+            resume,
+            frame,
+            origin,
+        } => Rvalue::MakeGenerator {
             resume: fn_map[resume],
+            origin: origin.as_ref().map(|op| remap_operand(op, global_map)),
             frame: frame
                 .iter()
                 .map(|op| remap_operand(op, global_map))
                 .collect(),
         },
         Rvalue::MakeFunction {
+            instance_context,
             func,
             env,
             defaults,
         } => Rvalue::MakeFunction {
+            instance_context: instance_context
+                .as_ref()
+                .map(|op| remap_operand(op, global_map)),
             func: fn_map[func],
             env: env.iter().map(|a| remap_operand(a, global_map)).collect(),
             defaults: defaults
@@ -477,44 +568,24 @@ fn remap_rvalue(
     }
 }
 
-impl ClassDef {
-    /// link 阶段先占位，随后整体覆盖。
-    fn placeholder() -> Self {
-        Self {
-            name: String::new(),
-            codegen_name: String::new(),
-            fields: Vec::new(),
-            is_value_type: false,
-            is_dataclass: false,
-            base: None,
-            builtin_base: None,
-            is_exception: false,
-            factory_global: None,
+/// 类 cell 的函数身份随模块合并重映射，局部和块仍属于同一实际 owner。
+fn remap_class_cell(
+    cell: &crate::ClassCellDefinition,
+    functions: &FxHashMap<FnId, FnId>,
+    globals: &FxHashMap<GlobalId, GlobalId>,
+) -> crate::ClassCellDefinition {
+    let mut mapped = cell.clone();
+    mapped.owner = functions[&cell.owner];
+    if let Some(plan) = &mut mapped.lexical
+        && let crate::LexicalClassPublication::Global(global) = &mut plan.publication
+    {
+        *global = globals[global];
+    }
+    for capture in &mut mapped.captures {
+        capture.function = functions[&capture.function];
+        if let crate::ClassCellEnvSource::GeneratorFrame { factory, .. } = &mut capture.source {
+            *factory = functions[factory];
         }
     }
-}
-
-impl Function {
-    /// 空程序兜底用；正常流程不会使用。
-    fn placeholder() -> Self {
-        Self {
-            name: String::new(),
-            codegen_name: String::new(),
-            source_file: String::new(),
-            params: Vec::new(),
-            ret: MirType::Unit,
-            body: Body {
-                locals: Arena::default(),
-                blocks: Arena::default(),
-                entry: la_arena::Idx::from_raw(0.into()),
-                regions: Vec::new(),
-            },
-            param_meta: Vec::new(),
-            function_global: None,
-            specialization_identity_global: None,
-            defaults_global: None,
-            signature_global: None,
-            env: None,
-        }
-    }
+    mapped
 }
