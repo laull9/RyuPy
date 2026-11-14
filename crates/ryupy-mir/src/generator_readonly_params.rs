@@ -7,11 +7,10 @@
 //!
 //! 安全准入规则：
 //! 1. 仅在 !product 时启用；
-//! 2. 仅在 !optimize_liveness 时启用（与未定稿活跃性实验严格隔离）；
-//! 3. 函数体无异常保护区（body.regions.is_empty()，EH 场景必须全量保存）；
-//! 4. 必须为函数显式形参，严格排除 env、origin、module_state 等编译器隐藏参数；
-//! 5. 类型必须为 MirType::Dynamic 且非 cell 参数；
-//! 6. 穷举所有 BasicBlock 的 Statement 与 Terminator，确认其从未作为定义目标。
+//! 2. 函数体无异常保护区（body.regions.is_empty()，EH 场景必须全量保存）；
+//! 3. 必须为函数显式形参，严格排除 env、origin、module_state 等编译器隐藏参数；
+//! 4. 类型必须为 MirType::Dynamic 且非 cell 参数；
+//! 5. 穷举所有 BasicBlock 的 Statement 与 Terminator，确认其从未作为定义目标。
 
 use crate::mir::{Body, Function, LocalId, MirType, Statement, Terminator};
 use rustc_hash::FxHashSet;
@@ -77,15 +76,14 @@ fn is_hidden_parameter(function: &Function, body: &Body, slot: LocalId) -> bool 
 
 /// 在 Plan::take 之前计算生成器中可跳过 Suspend 写回的只读 Dynamic 形参集合。
 ///
-/// 若不满足安全门禁（如处于 product 追踪降低模式、开启活跃性实验、存在异常区域等），
+/// 若不满足安全门禁（如处于 product 追踪降低模式、存在异常区域等），
 /// 立即返回空集合，保持原有全量写回行为。
 pub(crate) fn find_readonly_params(
     function: &Function,
     body: &Body,
     product: bool,
-    optimize_liveness: bool,
 ) -> FxHashSet<LocalId> {
-    if product || optimize_liveness || !body.regions.is_empty() {
+    if product || !body.regions.is_empty() {
         return FxHashSet::default();
     }
 

@@ -52,3 +52,6 @@
 主代理纠正：首次e2e runner显示1 passed，但results.jsonl实际为pending，locals()不支持且finally依赖隐式销毁。
 已保留独立observation pending原反例；主用例改显式close，并增加send直接覆写形参与nonlocal直接修改形参。
 新增真实源捕获参数结构断言，当前9项定向MIR通过，原“完整CP差分通过”结论撤回，待新验证。
+
+主代理已将旧test-only活跃性实验完整备份到远端WIP后从当前树撤下。
+当前产品集成只含只读形参分析，无实验入口、无optimize_liveness开关，独立重新验收。

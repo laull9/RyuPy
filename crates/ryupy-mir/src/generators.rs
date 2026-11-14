@@ -1,6 +1,6 @@
 //! 普通生成器的独立 MIR 降级：Suspend CFG → 工厂函数 + 可恢复 CFG。
 //!
-//! 首版保存所有局部（包含循环迭代器、临时值与共享 cell 引用），不做存活性裁剪。
+//! 保存局部、迭代器、临时值与cell引用；仅跳过已证明只读形参的冗余挂起写回，不做活跃性裁剪。
 //! 帧槽 0 是恢复块编号，槽 1 是本次 send 的值，槽 2 是注入异常、槽 3 是待接异常，槽 4 起按原 LocalId 保存装箱值。生成器运行时负责
 //! running/closed 状态与每次恢复的 traceback 帧；此处只表达显式状态读写和控制流。
 
@@ -23,7 +23,7 @@ pub(crate) fn lower_with_trace(
 ) -> Vec<crate::trace_lowering::GeneratorLayout> {
     generators
         .iter()
-        .map(|&id| lower_one(program, id, exception_globals, product, false))
+        .map(|&id| lower_one(program, id, exception_globals, product))
         .collect()
 }
 
@@ -93,33 +93,16 @@ pub(super) fn boxed(
     Operand::Local(dest)
 }
 
-/// 候选只供结构验证显式选择；产品入口在语义与性能验收前保持原路径。
-#[cfg(test)]
-pub(crate) fn lower_with_liveness_for_test(program: &mut Program, id: FnId) {
-    lower_one(program, id, &Default::default(), false, true);
-}
-
 fn lower_one(
     program: &mut Program,
     id: FnId,
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
     product: bool,
-    optimize_liveness: bool,
 ) -> crate::trace_lowering::GeneratorLayout {
     let function = &mut program.functions[id];
-    let params = function.params.clone();
     let mut body = std::mem::replace(&mut function.body, empty_body());
-    let suspend_liveness = if optimize_liveness {
-        crate::generators_liveness::analyze_suspend_liveness(&body, &params, product)
-    } else {
-        None
-    };
-    let readonly_params = crate::generator_readonly_params::find_readonly_params(
-        function,
-        &body,
-        product,
-        optimize_liveness,
-    );
+    let readonly_params =
+        crate::generator_readonly_params::find_readonly_params(function, &body, product);
     let original: Vec<_> = body
         .locals
         .iter()
@@ -210,22 +193,10 @@ fn lower_one(
                 if !resume_targets.contains(&resume) {
                     resume_targets.push(resume);
                 }
-                let live_slots = suspend_liveness.as_ref().and_then(|map| map.get(&block_id));
                 for (slot, ty) in &original {
                     if readonly_params.contains(slot) {
-                        // 只读 Dynamic 形参已由 factory 写入帧，生命周期内引用绑定不变，跳过重复 ArraySet
+                        // 工厂已入帧且绑定不变的Dynamic形参，恢复仍读取，挂起不重复写回。
                         continue;
-                    }
-                    if let Some(live) = live_slots {
-                        if !live.contains(slot) {
-                            // 针对不跨挂起活跃的 Dynamic 编译器临时，安全写入 null 清理旧引用，消除 retention
-                            block.stmts.push(set_slot(
-                                frame,
-                                slot.into_raw().into_u32() as usize + 4,
-                                Operand::Const(Constant::Null),
-                            ));
-                            continue;
-                        }
                     }
                     let value = boxed(
                         &mut body.locals,

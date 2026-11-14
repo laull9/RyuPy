@@ -4,7 +4,7 @@
 //! 1. 结构断言：原始 count_up(n) 的 Dynamic 形参 n 命中只读形参集合，在 Suspend 时消除冗余 ArraySet 写回；
 //! 2. 结构断言：恢复时入口 ArrayGet 保持完整加载，非参数局部（如 i）与控制状态槽维持正常写回；
 //! 3. 边界拒绝：形参重赋值、send 恢复定义、静态 Typed 形参、闭包 cell 形参、异常保护区 (EH)、
-//!    product 模式和 optimize_liveness 模式均严格拒绝，退回全量写回；
+//!    product 模式均严格拒绝，退回全量写回；
 //! 4. 可变对象别名跨暂停：对象内容被就地修改但引用不变的参数正常命中只读优化；
 //! 5. 降低后全量 MIR 验证 (crate::validate::validate) 均通过。
 
@@ -449,14 +449,11 @@ fn test_safety_gates_and_hidden_parameters() {
     };
 
     // 正常命中：仅 p_dyn 命中
-    let normal = find_readonly_params(&function, &body, false, false);
+    let normal = find_readonly_params(&function, &body, false);
     assert_eq!(normal, FxHashSet::from_iter([p_dyn]));
 
     // 门禁：product 模式拒绝
-    assert!(find_readonly_params(&function, &body, true, false).is_empty());
-
-    // 门禁：optimize_liveness 模式拒绝
-    assert!(find_readonly_params(&function, &body, false, true).is_empty());
+    assert!(find_readonly_params(&function, &body, true).is_empty());
 
     // 门禁：存在异常区域拒绝
     body.regions.push(Region {
@@ -467,7 +464,7 @@ fn test_safety_gates_and_hidden_parameters() {
         kind: RegionKind::CatchAll,
         exc_local: None,
     });
-    assert!(find_readonly_params(&function, &body, false, false).is_empty());
+    assert!(find_readonly_params(&function, &body, false).is_empty());
 }
 
 #[test]
