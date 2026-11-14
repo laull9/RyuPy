@@ -26,15 +26,16 @@ def measurement_environment(original):
     return env
 
 
-def run(root,target,out):
+def run(root,target,out, *, cases=CASES, source_directory=None, capture_mir=False):
+    sources = source_directory or root/"tests/benchmarks"
     out.mkdir(parents=True,exist_ok=False)
     runner=Runner(out/'processes',deadline=time.monotonic()+2400)
     env=measurement_environment(os.environ);env['CARGO_TARGET_DIR']=str(target)
-    report={'status':'started','protocol':'direct-wall-v1','cases':CASES,'rounds':ROUNDS,
-            'pre_runs_per_arm':1,'direct_processes_planned':len(CASES)*3*(ROUNDS+1),
-            'diagnostic_processes_planned':len(CASES)*3,'statistics_in_wall':False,
+    report={'status':'started','protocol':'direct-wall-v1','cases':cases,'rounds':ROUNDS,
+            'pre_runs_per_arm':1,'direct_processes_planned':len(cases)*3*(ROUNDS+1),
+            'diagnostic_processes_planned':len(cases)*3,'statistics_in_wall':False,
             'cold_definition':'新进程，不清OS文件缓存；预运行不表示进程内暖稳态',
-            'diagnostic_wall_comparable':False,'universal_speedup_claim':False}
+            'source_directory':str(sources.relative_to(root)), 'diagnostic_wall_comparable':False,'universal_speedup_claim':False}
     try:
         if sys.platform!='linux' or platform.machine()!='x86_64':raise ValueError('仅Linux x64')
         if platform.python_version()!=PYTHON_VERSION:raise ValueError('CP版本不匹配')
@@ -54,8 +55,10 @@ def run(root,target,out):
         if not cli.is_file():raise ValueError('需要预先构建release CLI')
         products={};published=[]
         # 所有编译/ILC先完成，再启动wall采样。JIT复用AOT同次DLL，不重新编译。
-        for case in CASES:
-            source=root/f'tests/benchmarks/{case}.py';output=build/case
+        for case in cases:
+            source=sources/f'{case}.py';output=build/case
+            if capture_mir:
+                runner.run(f'mir-{case}',[cli,'dump',source,'--emit','mir'],cwd=root,env=env,limit=120)
             result=runner.run(f'build-{case}',[cli,'build',source,'--aot','-o',output],cwd=root,env=env,limit=300)
             native=verified_native(output,SimpleNamespace(name=case,path=source),result['stderr'].decode())
             layout=reported_aot(result['stderr'],output,case,'linux-x64')
@@ -68,17 +71,17 @@ def run(root,target,out):
                               'artifacts':data['artifacts'],'build_wall_ms':result['wall_ms'],
                               'managed_input':str(layout.managed),'native':str(native)})
         report['published']=published;write_json(out/'run.json',report)
-        expected,records=collect_direct(runner,products,CASES,root,env)
-        write_json(out/'wall.json',{'protocol':'direct-wall-v1','records':records,'summary':summary(records,CASES)})
+        expected,records=collect_direct(runner,products,cases,root,env)
+        write_json(out/'wall.json',{'protocol':'direct-wall-v1','records':records,'summary':summary(records,cases)})
         # 诊断仅供分配/GC热点归因；不把这些进程的wall/Main混入直接启动对照。
         diagnostics=[]
-        for case in CASES:
+        for case in cases:
             for arm in ARMS:
                 label=f'diagnostic-{case}-{arm}';stats=runner.logs/label/'stats.json'
                 command=products[case][arm]
                 if arm=='cpython':
                     command=[sys.executable,'-B',str(root/'tests/benchlib/cpython_harness.py'),str(stats),
-                             str(root/f'tests/benchmarks/{case}.py')]
+                             str(sources/f'{case}.py')]
                 result=runner.run(label,command,cwd=root,env=env,limit=120,stats=arm!='cpython')
                 validate_output(result,expected[case])
                 diagnostics.append({'workload':case,'arm':arm,'comparable_wall':False,

@@ -19,7 +19,7 @@ class DirectBaselineTests(unittest.TestCase):
             if key!='PATH':self.assertNotIn(key,env)
         self.assertEqual(env['PATH'],'tools')
 
-    def exercise(self, root, *, bad_diagnostic=False):
+    def exercise(self, root, *, bad_diagnostic=False, attribution=False):
         target=root/'target';(target/'release').mkdir(parents=True)
         (target/'release/ryupy').write_text('not executed')
         out=root/'out';calls=[];layouts={}
@@ -52,9 +52,13 @@ class DirectBaselineTests(unittest.TestCase):
              patch.object(baseline.platform,'machine',return_value='x86_64'),patch.object(baseline.shutil,'which',return_value='/fixed/dotnet'),\
              patch.object(baseline,'verified_native',side_effect=lambda output,bench,stderr:output/bench.name),\
              patch.object(baseline,'reported_aot',side_effect=lambda stderr,output,name,rid:layouts[name]):
+            options={}
+            if attribution:
+                options=dict(cases=('append_module','append_local','join_module','join_local'),
+                             source_directory=root/'attribution-input',capture_mir=True)
             if bad_diagnostic:
-                with self.assertRaises(ValueError):baseline.run(root,target,out)
-            else:baseline.run(root,target,out)
+                with self.assertRaises(ValueError):baseline.run(root,target,out,**options)
+            else:baseline.run(root,target,out,**options)
         return out,calls,layouts
 
     def test_same_pe_and_diagnostics_follow_all_direct_samples(self):
@@ -73,6 +77,19 @@ class DirectBaselineTests(unittest.TestCase):
             wall=json.loads((out/'wall.json').read_text());self.assertEqual(len(wall['records']),54)
             diagnostic=json.loads((out/'diagnostics.json').read_text());self.assertEqual(len(diagnostic),9)
             self.assertTrue(all(x['comparable_wall'] is False and 'wall_ms' not in x for x in diagnostic))
+
+    def test_attribution_uses_four_original_sources_and_captures_mir(self):
+        with tempfile.TemporaryDirectory() as temp:
+            out,calls,_=self.exercise(Path(temp),attribution=True)
+            report=json.loads((out/'run.json').read_text())
+            self.assertEqual(report['direct_processes_planned'],84)
+            self.assertEqual(report['diagnostic_processes_planned'],12)
+            self.assertEqual(report['source_directory'],'attribution-input')
+            self.assertEqual(len([x for x in calls if x[0].startswith('mir-')]),4)
+            for label,command,_,_ in calls:
+                if label.startswith(('mir-','build-')):
+                    self.assertIn('attribution-input',command[2])
+            self.assertEqual(len(json.loads((out/'wall.json').read_text())['records']),72)
 
     def test_bad_diagnostic_fails_overall_but_preserves_direct_evidence(self):
         with tempfile.TemporaryDirectory() as temp:

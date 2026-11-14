@@ -1,0 +1,84 @@
+# 独立性能基线，不作为dev提交的自动性能门，也不追加样本追逐有利结果。
+name: String accumulation attribution
+
+on:
+  push:
+    branches: [ci/aot-string-attribution-20261114]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aot-string-attribution-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+  PYTHONDONTWRITEBYTECODE: '1'
+  PYTHONHASHSEED: '0'
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    env:
+      RYUPY_EXPECTED_SDK: '10.0.403'
+    # 冷构建30分钟 + 测量42分钟，另留18分钟给安装与失败工件收尾。
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - name: Define isolated SDK path
+        # jobs.env不支持runner上下文；在step中使用RUNNER_TEMP并传给后续安装/发布。
+        run: |
+          sdk_root="$RUNNER_TEMP/ryupy-dotnet-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$sdk_root"
+          echo "DOTNET_INSTALL_DIR=$sdk_root" >> "$GITHUB_ENV"
+          echo "DOTNET=$sdk_root/dotnet" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.RYUPY_EXPECTED_SDK }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: tests/pinned-python.txt
+      - name: Verify selected SDK before compilation
+        run: |
+          test "$(command -v dotnet)" = "$DOTNET_INSTALL_DIR/dotnet"
+          test "$(dotnet --version)" = "$RYUPY_EXPECTED_SDK"
+      - name: Lightweight baseline regressions
+        run: |
+          python -B tests/aot/test_current_baseline.py
+          python -B tests/aot/test_direct_protocol.py
+          python -B tests/aot/test_direct_baseline.py
+          python -B tests/aot/test_perf.py
+          python -B tests/test_bench_aot.py
+          python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
+      - name: Native prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Build isolated release compiler and runtime
+        # 独立临时target不依赖缓存命中；这是保守预算，不是实测构建耗时。
+        timeout-minutes: 30
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/ryupy-aot-target
+        run: |
+          make runtime
+          cargo build -p ryupy-cli --release --locked
+      - name: Direct wall comparison, then separate diagnostics
+        timeout-minutes: 42
+        run: |
+          python -B tests/aot/string_attribution.py \
+            --target "$RUNNER_TEMP/ryupy-aot-target" \
+            --out "$RUNNER_TEMP/aot-string-attribution-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Preserve observations including failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aot-string-attribution-linux-x64-${{ github.sha }}
+          path: ${{ runner.temp }}/aot-string-attribution-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
