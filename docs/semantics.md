@@ -571,7 +571,7 @@ HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI
 
 精确字符串初值、常量后缀、无观察的 +1 range 可使用内部 holder 延迟物化，普通结果、
 初值/空追加身份、已有别名及非字符串用户协议保留。实例模块、EH、动态调用/活字典观察
-回退原路径。候选已通过即时CPython/JIT和真实NativeAOT搬迁差分，默认晋升与最终门禁继续验收。
+回退原路径。候选已通过即时CPython/JIT、真实NativeAOT搬迁差分与完整make check，待异构复审后晋升。
 
 该优化改变分配数量与资源耗尽时刻；宿主OOM及checked容量溢出沿既有宿主异常边界，
 资源耗尽期间的跨模块部分绑定观察尚未逐点对齐CPython MemoryError。不将该边界扩展至

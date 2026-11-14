@@ -352,8 +352,13 @@ fn source_pipeline_string_holder_acceptance_and_observer_rejection() {
         ),
         1
     );
+    // 新模块槽字符串 Pass 接纳这个无观察正例，原局部 holder 的拒绝边界继续逐项检查。
+    assert_eq!(
+        count("total = ''\nfor i in range(3):\n    total += 'ab'\nprint(total)\n"),
+        1
+    );
     for source in [
-        "total = ''\nfor i in range(3):\n    total += 'ab'\nprint(total)\n",
+        "total = ''\nfor i in range(3):\n    print(total)\n    total += 'ab'\nprint(total)\n",
         "def f(initial, n):\n    total = initial\n    for i in range(n):\n        total += total\n    return total\n",
         "def f(initial, n):\n    total = initial\n    for i in range(n):\n        print(locals())\n        total += 'ab'\n    return total\n",
         "def f(initial, n):\n    total = initial\n    for i in range(n):\n        print(total)\n        total += 'ab'\n    return total\n",
