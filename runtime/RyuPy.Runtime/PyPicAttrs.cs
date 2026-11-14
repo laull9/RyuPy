@@ -42,8 +42,8 @@ public static partial class PyPic
         public object? ClassValue;
     }
 
-    private static readonly AttrEntry[] GetAttrEntries = new AttrEntry[MaxSites * EntriesPerSite];
-    private static readonly AttrEntry[] SetAttrEntries = new AttrEntry[MaxSites * EntriesPerSite];
+    private static readonly PagedEntries<AttrEntry> GetAttrEntries = new(MaxSites * EntriesPerSite);
+    private static readonly PagedEntries<AttrEntry> SetAttrEntries = new(MaxSites * EntriesPerSite);
 
     /// <summary>property getter 调用复用的 `[self]` 实参数组（每个调用点一个，规则同 ArgScratch）。</summary>
     private static readonly object?[][] GetterScratch = new object?[MaxSites][];

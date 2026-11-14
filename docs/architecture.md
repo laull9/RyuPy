@@ -227,6 +227,8 @@ AOT 的显式 `--out-dir ROOT` 为 build/dist 的共同根，JIT 显式输出不
 
 运行时 ABI 统一管理 RuntimeFn 签名、动态值布局、类型 / shape 版本、模块槽位和桥接句柄。新增 RuntimeFn 时同步修改 C# 实现与 codegen 引用表。PIC / 特化缓存有容量上限；属性、方法、继承链与模块绑定变化后旧条目失效，失败走通用路径。M2.9 的 PIC 由 codegen 分配调用点编号，`PyPic` 只缓存整数 / 浮点 / 字符串运算形状与普通类方法绑定；类全局版本、实例属性版本变化即失效，模块属性不缓存，见 [ADR-0012](adr/0012-bounded-dynamic-pic.md)。
 
+四张核心条目表按256项一页惰性分配，逻辑容量和失效规则保留；页发布使用CAS，条目字段同步沿原合同，见 [ADR-0195](adr/0195-pic-paged-storage.md)。
+
 普通对象与 frozen dataclass 均保留引用身份；M3.6 默认统一使用 PyInstance，旧 Phase 1 值类型降级不再作为当前实现。非逃逸且身份不可观察时可以消除分配；`ref struct` 数组视图不能入堆或跨 yield，动态数组值使用有所有权的堆句柄。
 
 原生路径继续满足 AOT 分析约束，但真正发布与裁剪测试安排在 M5.2。动态导入通过构建时可达清单限定；桥接产物仍需 libpython 与扩展。Native AOT 对运行时程序集加载和代码生成的限制见 [Microsoft 文档](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)。
