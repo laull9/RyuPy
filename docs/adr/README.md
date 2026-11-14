@@ -101,3 +101,4 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0170：文件系统 as_file 上下文](0170-filesystem-as-file-context.md)（已整合，CP/JIT/NativeAOT 验收）
 - [0171：C ABI 与资源组合发布](0171-aot-binding-resources.md)（已整合，综合搬迁验收）
 - [0172：AOT 与完整标准库 provider 路线](0172-aot-stdlib-provider-plan.md)（设计提案，待交叉评审）
+- [0193：有界字符串累加器与顶层模块观察语义](0193-bounded-string-accumulator.md)（已接受，差分/AOT/性能/完整门禁及异构复审通过）

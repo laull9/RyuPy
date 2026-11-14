@@ -122,6 +122,11 @@ ryupy-e2e（仅测试）─► ryupy-driver
   Python 快慢路与溢出判断仍在 MIR，后端仅发 CLR 精确类型 / 拆箱 / 回绕加法原语（ADR-0033 / 0034）。
 
 
+- 模块静态槽的字符串累加由独立 `StringAccumulator` Pass 处理：只接受已证明精确字符串初值、
+  常量后缀和无观察的 +1 range 模板，静态 `StrConcat` 与动态 `LoadName/Add` 分别匹配，
+  复用 holder 并在出口按原槽类型物化。EH、实例模块、环境及字典观察合同保持原路径，
+  资源耗尽边界见 ADR-0193；实现验收状态见 `docs/aot-string-optimization.md`。
+
 - 自动普通动态模块的ForEach累加实验由Session显式选择，默认关闭。新独立matcher在
   SimplifyCfg后、首次DeadValues前验证通用迭代四角色与唯一返回，复用既有holder ABI。
   build/dump共用实际automatic/InstanceGlobals计划守卫，不扩P1族、不猜range名称，
