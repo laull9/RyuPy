@@ -11,16 +11,25 @@ use std::process::{Command, Stdio};
 
 /// 在系统 PATH 中查找指定可执行程序。
 fn find_in_path(cmd: &str) -> Option<PathBuf> {
-    if let Some(path_var) = std::env::var_os("PATH") {
-        for dir in std::env::split_paths(&path_var) {
-            let candidate = dir.join(cmd);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-            if cfg!(windows) {
-                let exe = dir.join(format!("{cmd}.exe"));
-                if exe.is_file() {
-                    return Some(exe);
+    find_python_in_paths(&[cmd], std::env::split_paths(&std::env::var_os("PATH")?))
+}
+
+/// PATH目录优先于命令别名；避免Windows系统python3抢走前置venv的python.exe。
+fn find_python_in_paths(
+    commands: &[&str],
+    directories: impl IntoIterator<Item = PathBuf>,
+) -> Option<PathBuf> {
+    for directory in directories {
+        for command in commands {
+            let names = if cfg!(windows) {
+                vec![(*command).to_owned(), format!("{command}.exe")]
+            } else {
+                vec![(*command).to_owned()]
+            };
+            for name in names {
+                let candidate = directory.join(name);
+                if candidate.is_file() {
+                    return Some(candidate);
                 }
             }
         }
@@ -137,13 +146,12 @@ pub(crate) fn discover(entry: &Path) -> Result<DiscoveredPython> {
     }
 
     // 优先级 3：PATH 系统 Python（找到解释器但不支持时直接报错诊断，不存在则继续候选）
-    for candidate_name in &["python3", "python"] {
-        if let Some(path) = find_in_path(candidate_name) {
+    if let Some(path_var) = std::env::var_os("PATH") {
+        if let Some(path) =
+            find_python_in_paths(&["python3", "python"], std::env::split_paths(&path_var))
+        {
             let info = probe_executable(&path).with_context(|| {
-                format!(
-                    "系统 PATH 中的解释器 ({}) 探测失败或不受支持",
-                    path.display()
-                )
+                format!("系统PATH中的解释器 ({}) 探测失败或不受支持", path.display())
             })?;
             return resolve_distribution(&path, info);
         }
@@ -478,3 +486,7 @@ fn resolve_distribution(exe: &Path, probe: ProbeOutput) -> Result<DiscoveredPyth
         libdir,
     })
 }
+
+#[cfg(test)]
+#[path = "cpython_discovery_tests.rs"]
+mod tests;

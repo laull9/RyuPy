@@ -31,27 +31,19 @@ runtime: ## 构建 C# 运行时 RyuPy.Runtime（Release）
 	dotnet build runtime/RyuPy.Runtime -c Release -nologo -v q
 
 .PHONY: build
-build: runtime ## 打发行包：Release CLI + 运行时 → releases/ryupy-<版本>-<平台>.tar.gz
+build: ## 构建单一可分发CLI → releases/<平台>/ryupy（C#闭包已内嵌）
 	cargo build $(CARGO_FEATURE_ARGS) --release -p ryupy-cli
 	@set -eu; \
 	target_dir=$$(cargo metadata --format-version 1 --no-deps | "$(PYTHON)" -c 'import json,sys; print(json.load(sys.stdin)["target_directory"])'); \
-	rm -rf "$(RELEASE_DIR)"; \
-	mkdir -p "$(RELEASE_DIR)/bin" "$(RELEASE_DIR)/runtime"; \
-	cp "$$target_dir/release/ryupy" "$(RELEASE_DIR)/bin/ryupy"; \
-	cp runtime/RyuPy.Runtime/bin/Release/net10.0/*.dll runtime/RyuPy.Runtime/bin/Release/net10.0/*.props "$(RELEASE_DIR)/runtime/"; \
-	cp runtime/RyuPy.Runtime/bin/Release/net10.0/ThirdPartyNotices.sqlite3.txt "$(RELEASE_DIR)/runtime/"; \
-	runtime_rid=$$(dotnet msbuild runtime/RyuPy.Runtime -nologo -getProperty:NETCoreSdkRuntimeIdentifier); \
-	mkdir -p "$(RELEASE_DIR)/runtime/runtimes/$$runtime_rid"; \
-	cp -R "runtime/RyuPy.Runtime/bin/Release/net10.0/runtimes/$$runtime_rid/native" "$(RELEASE_DIR)/runtime/runtimes/$$runtime_rid/"; \
-	tar -czf "releases/$(RELEASE_NAME).tar.gz" -C releases "$(RELEASE_NAME)"; \
-	echo "发行包：releases/$(RELEASE_NAME).tar.gz"; \
-	tmp=$$(mktemp -d); \
-	trap 'rm -rf "$$tmp"' EXIT; \
+	rm -rf "$(RELEASE_DIR)"; mkdir -p "$(RELEASE_DIR)"; \
+	cp "$$target_dir/release/ryupy" "$(RELEASE_DIR)/ryupy"; \
+	tar -czf "$(RELEASE_DIR).tar.gz" -C "$(dir $(RELEASE_DIR))" "$(notdir $(RELEASE_DIR))"; \
+	tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT; \
 	printf 'print("release ok")\n' > "$$tmp/hello.py"; \
-	env -u RYUPY_RUNTIME_DIR "$(RELEASE_DIR)/bin/ryupy" build "$$tmp/hello.py" -o "$$tmp/out"; \
+	env -u RYUPY_RUNTIME_DIR "$(RELEASE_DIR)/ryupy" build "$$tmp/hello.py" -o "$$tmp/out"; \
 	out=$$(env -u RYUPY_RUNTIME_DIR dotnet "$${tmp}/out/hello.dll"); \
 	test "$${out}" = "release ok"; \
-	echo "自检：发行包可独立定位运行时并运行示例（$${out}）"
+	echo "单文件CLI：$(RELEASE_DIR)/ryupy；独立内嵌运行时自检通过"
 
 .PHONY: fmt
 fmt: ## 格式化 Rust 代码

@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/cpython-versions.yml'
       - 'crates/ryupy-driver/src/onefile*'
+      - 'crates/ryupy-cli/**'
       - 'crates/ryupy-driver/src/python_selection*'
       - 'crates/ryupy-driver/src/cpython_*'
       - 'runtime/RyuPy.OneFile/**'
@@ -19,6 +20,7 @@ on:
     paths:
       - '.github/workflows/cpython-versions.yml'
       - 'crates/ryupy-driver/src/onefile*'
+      - 'crates/ryupy-cli/**'
       - 'crates/ryupy-driver/src/python_selection*'
       - 'crates/ryupy-driver/src/cpython_*'
       - 'runtime/RyuPy.OneFile/**'

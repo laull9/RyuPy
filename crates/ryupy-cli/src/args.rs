@@ -58,6 +58,9 @@ pub(super) struct Cli {
     /// 显示兼容参数与实验诊断选项
     #[arg(long, global = true)]
     pub(super) help_advanced: bool,
+    /// 显示内嵌运行时组件的第三方许可证
+    #[arg(long, global = true)]
+    pub(super) licenses: bool,
     #[command(flatten)]
     pub(super) application: Application,
     /// 保留旧构建、运行、探测与IR诊断入口
@@ -69,7 +72,7 @@ pub(super) struct Cli {
 #[derive(Args, Default)]
 pub(super) struct Application {
     /// Python 项目入口文件；本地导入自动进入编译图
-    #[arg(required_unless_present = "help_advanced")]
+    #[arg(required_unless_present_any = ["help_advanced", "licenses"])]
     pub input: Option<PathBuf>,
     /// 发布形态，默认 onefile
     #[arg(long, value_enum, conflicts_with_all = ["onefile", "standalone"])]

@@ -34,6 +34,7 @@ fn session(root: &Path) -> Session {
         dependency_report: serde_json::Value::Null,
         bridge: root.into(),
         shim: root.join("shim"),
+        _shim_build: None,
         source: Source {
             project: "python-build-standalone".into(),
             build_id: "20260623".into(),

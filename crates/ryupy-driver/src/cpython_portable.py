@@ -235,8 +235,29 @@ def fetch_asset(asset, output):
 def extract_archive(archive, destination, members=()):
     """归档工具失败保留原始诊断，明确区分构建机tar/zstd条件。"""
     try:
-        result = subprocess.run(['tar', '-xf', str(archive), '-C', str(destination), *members],
-                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        decoder = shutil.which('zstd') if archive.suffix == '.zst' else None
+        if decoder:
+            # 显式管道避免Windows tar隐藏的外部filter调用丢失参数和错误诊断。
+            with tempfile.TemporaryFile() as diagnostics:
+                process = subprocess.Popen([decoder, '-d', '-c', '-M512MB', str(archive)],
+                                           stdout=subprocess.PIPE, stderr=diagnostics)
+                try:
+                    result = subprocess.run(['tar', '-xf', '-', '-C', str(destination), *members],
+                                            stdin=process.stdout, stdout=subprocess.PIPE,
+                                            stderr=subprocess.PIPE, timeout=600)
+                    process.stdout.close()
+                    status = process.wait(timeout=30)
+                except BaseException:
+                    process.kill()
+                    process.wait()
+                    raise
+                diagnostics.seek(0)
+                detail = diagnostics.read().decode('utf-8', errors='replace')
+                if status:
+                    raise ValueError('官方发行Zstandard解码失败：' + detail)
+        else:
+            result = subprocess.run(['tar', '-xf', str(archive), '-C', str(destination), *members],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=600)
     except FileNotFoundError as error:
         raise ValueError('构建期准备发行需要tar解包工具') from error
     if result.returncode:
