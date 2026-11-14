@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -93,7 +92,6 @@ public sealed partial class PyList
     internal bool TryReadF64(int position, out double value)
     {
         if (_numeric is { } slots) { value = slots[position].Number; return true; }
-        if (_booleans is not null) { value = 0; return false; }
         if (_items is { } items && items[position] is double number) { value = number; return true; }
         value = 0;
         return false;
@@ -106,7 +104,6 @@ public sealed partial class PyList
     {
         long position = index < 0 ? index + Count : index;
         if (_numeric is { } slots) return slots[(int)position].Number;
-        if (_booleans is not null) throw new InvalidOperationException("ReadCheckedNumeric called on boolean list");
         return (double)_items![(int)position]!;
     }
 }

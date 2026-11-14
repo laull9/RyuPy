@@ -39,3 +39,24 @@
 2. **NativeAOT 与全套 Gate**：
    - 本竖切仅在 `dotnet build runtime` 及定向测试 `FullyQualifiedName~PyBooleanList|FullyQualifiedName~PyNumericList` 范围内验证通过。
    - 完整的端到端用例（`tests/e2e/phase3/aot_boolean_list_storage.py` 等）、全套 gate、NativeAOT 编译、吞吐 baseline 与 cargo 集成由主代理负责，本子任务未运行以避免与其他并行任务冲突。
+
+
+## 主代理正确性复核
+
+移除未使用的内部CreateBoolean入口，补充公开Items直接物化后的永久别名、原地重复与异构自引用追加测试。
+新增100000元素真实构造分配上界（100000至200000字节，排除8B引用数组）及完整迭代后仍紧凑断言。
+合计25项定向测试通过；编译时仍有仓库既有xUnit分析器警告，本切未新增警告。
+固定CPython3.12.13/真实JIT/NativeAOT、隐藏源码与构建目录、空PATH中文搬迁完整双流一致。
+随包NumPy2.3.5转换布尔列表、operator.setitem对布尔/异构值的双向同步及搬迁也通过。
+主用例已转正，原运算符自定义__index__计数缺口保留独立pending反例，见semantics §4.18。
+全26项性能及完整门禁继续验收，未声明最终默认准入。
+
+
+## 第一版26项实测与修正候选
+
+第一版全部26项输出/退出及搬迁通过。sieve177.29→139.88ms，RSS52.73→23.98MiB，
+CP78.20ms/30.03MiB；但matmul25.92→30.62ms，五次采样均上升，必须修正后再评估。
+其余如records135.00→135.00ms、RSS50.84→50.95MiB，保留字段代价实测。
+主代理移除TryReadF64中冗余的bool提前判断（_items模式匹配已安全返回false），
+ReadCheckedNumeric保留原“同一守卫真边、无回调/写入”前置合同，不额外增加不可能命中的bool分支。
+该修正是否解决matmul回退尚待新配对，第一版不能准入默认。
