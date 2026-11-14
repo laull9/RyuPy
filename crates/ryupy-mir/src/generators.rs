@@ -114,6 +114,12 @@ fn lower_one(
     } else {
         None
     };
+    let readonly_params = crate::generator_readonly_params::find_readonly_params(
+        function,
+        &body,
+        product,
+        optimize_liveness,
+    );
     let original: Vec<_> = body
         .locals
         .iter()
@@ -206,6 +212,10 @@ fn lower_one(
                 }
                 let live_slots = suspend_liveness.as_ref().and_then(|map| map.get(&block_id));
                 for (slot, ty) in &original {
+                    if readonly_params.contains(slot) {
+                        // 只读 Dynamic 形参已由 factory 写入帧，生命周期内引用绑定不变，跳过重复 ArraySet
+                        continue;
+                    }
                     if let Some(live) = live_slots {
                         if !live.contains(slot) {
                             // 针对不跨挂起活跃的 Dynamic 编译器临时，安全写入 null 清理旧引用，消除 retention

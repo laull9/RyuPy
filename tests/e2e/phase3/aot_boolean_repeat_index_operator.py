@@ -24,4 +24,3 @@ class EmptyCount:
         source3.clear()
         return 4
 print("callback empty", source3 * EmptyCount(), source3)
-

@@ -105,3 +105,5 @@ ADR 一旦「已接受」就不再修改正文；推翻时新写一篇，并把�
 - [0195：PIC核心条目的固定容量按需分页](0195-pic-paged-storage.md)（已接受，全26项AOT/搬迁及完整门禁通过）
 
 - [0196：列表推导式私有收集器直接追加](0196-private-list-comprehension-append.md)（已接受，26项AOT对照/搬迁及完整门禁通过）
+
+- [0197：布尔重复列表紧凑存储](0197-boolean-repeat-list-storage.md)（已接受，26项AOT配对、对象桥/搬迁及完整门禁通过）

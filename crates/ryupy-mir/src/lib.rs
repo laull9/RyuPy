@@ -70,6 +70,9 @@ mod generator_product_structure_tests;
 mod generator_product_tests;
 mod generator_product_trace;
 mod generator_product_values;
+pub(crate) mod generator_readonly_params;
+#[cfg(test)]
+mod generator_readonly_params_tests;
 mod generators;
 pub(crate) mod generators_liveness;
 
