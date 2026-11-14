@@ -189,6 +189,56 @@ fn linux_real_libcrypt_is_frozen_with_license_and_rpath() {
     assert!(relocate(&work.0, "shim.so", &core).is_err());
 }
 
+/// 真实zlib加载边使用同一系统包冻结流程，许可证和rpath必须进入产品。
+#[cfg(target_os = "linux")]
+#[test]
+fn linux_real_zlib_is_frozen_with_license_and_rpath() {
+    let work = Workspace::new();
+    std::fs::create_dir_all(work.0.join("python/lib")).unwrap();
+    let source = work.0.join("consumer.c");
+    std::fs::write(&source, "extern const char *zlibVersion(void);\nconst char *probe(void) { return zlibVersion(); }\n").unwrap();
+    let shim = work.0.join("shim.so");
+    command(
+        "cc",
+        &[
+            "-shared",
+            "-fPIC",
+            path_text(&source).unwrap(),
+            "-Wl,--no-as-needed",
+            "-l:libz.so.1",
+            "-o",
+            path_text(&shim).unwrap(),
+        ],
+    )
+    .unwrap();
+    relocate(&work.0, "shim.so", &["libc.so.6", "ld-linux-x86-64.so.2"]).unwrap();
+    let report: Value =
+        serde_json::from_slice(&std::fs::read(work.0.join("python/native-sources.json")).unwrap())
+            .unwrap();
+    let library = report["libraries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["soname"] == "libz.so.1")
+        .unwrap();
+    assert!(work.0.join("python/lib/libz.so.1").is_file());
+    assert!(library["package"].as_str().unwrap().starts_with("zlib1g"));
+    assert!(!library["version"].as_str().unwrap().is_empty());
+    for license in library["licenses"].as_array().unwrap() {
+        assert!(
+            work.0
+                .join("python")
+                .join(license.as_str().unwrap())
+                .is_file()
+        );
+    }
+    assert!(
+        command("patchelf", &["--print-rpath", path_text(&shim).unwrap()])
+            .unwrap()
+            .contains("$ORIGIN/python/lib")
+    );
+}
+
 /// 子测试进程独占 PATH，避免并行测试期间修改主进程环境；工具只模拟静态输出。
 #[cfg(unix)]
 #[test]
@@ -208,7 +258,7 @@ fn linux_mock_tools_audit_transitive_closure() {
                     .is_file()
             );
         } else {
-            let error = result.unwrap_err().to_string();
+            let error = format!("{:#}", result.unwrap_err());
             let expected = match scenario.as_str() {
                 "version" => "符号版本不满足",
                 "missing" => "显式 payload",

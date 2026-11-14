@@ -1,4 +1,4 @@
-//! Linux ELF 静态闭包：优先冻结载荷，缺失的 libcrypt ABI 从本机 dpkg 包收集。
+//! Linux ELF 静态闭包：优先冻结载荷，缺失的 libcrypt/zlib ABI 从本机 dpkg 包收集。
 //! 不加载 ELF，不访问网络；来源、包版本和完整许可随产品冻结，随后递归审核并重写 rpath。
 
 use anyhow::{Context, Result, ensure};
@@ -231,9 +231,9 @@ fn freeze_license(package: &str, files: &str, python: &Path) -> Result<Vec<Strin
 }
 
 fn collect_system(name: &str, python: &Path) -> Result<(PathBuf, Value)> {
-    // 本次只授权标准库 _crypt 所需 ABI；其余边必须通过冻结 payload 显式提供。
+    // _crypt 与真实NumPy/新版发行所需的精确ABI；仍须逐库核实包归属、版本和许可证。
     ensure!(
-        name == "libcrypt.so.1",
+        matches!(name, "libcrypt.so.1" | "libz.so.1"),
         "Linux 未收集原生依赖 {name}，请通过显式 payload 提供"
     );
     let cache = command("/sbin/ldconfig", &["-p"])?;
@@ -379,7 +379,8 @@ pub(super) fn relocate(output: &Path, shim: &str, core: &[&str]) -> Result<()> {
                 continue;
             }
             if payload_match(&all, name)?.is_none() {
-                let (path, report) = collect_system(name, &python)?;
+                let (path, report) = collect_system(name, &python)
+                    .with_context(|| format!("Linux 原生加载边：{} -> {name}", image.display()))?;
                 all.push(path);
                 reports.push(report);
             }

@@ -104,6 +104,22 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         })
         .collect();
     let version_str = plan.version.version_str();
+    let provenance = plan.root.join("distribution-source.json");
+    let provenance: serde_json::Value = if provenance.is_file() {
+        serde_json::from_slice(&std::fs::read(provenance)?)?
+    } else {
+        serde_json::Value::Null
+    };
+    let archive_url = if let Some(url) = provenance["install_archive"].as_str() {
+        Some(url.to_owned())
+    } else if version_str == "3.12.13"
+        && plan.source.project == "python-build-standalone"
+        && plan.source.build_id == "20260623"
+    {
+        Some(native::archive_url()?.to_owned())
+    } else {
+        None
+    };
     let config = json!({
         "schema": 1, "python_version": version_str, "home": "python",
         "library": native::library_relpath_for_version(&plan.version)?,
@@ -115,7 +131,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
     let report = json!({
         "schema": 1, "python_version": version_str, "rid": native::rid()?,
         "source": plan.source,
-        "archive_url": native::archive_url()?,
+        "archive_url": archive_url, "distribution_source": provenance,
         "build_configuration": {"implementation": "cpython", "gil": true, "archive_layout": "install_only", "source_build": format!("{}@{}", plan.source.project, plan.source.build_id)},
         "container_transfer": plan.container_transfer, "execution": "ryupy_compiled_entry",
         "modules": plan.modules.iter().map(|name| (name.clone(), json!({"provider": "cpython", "reason": crate::cpython_inventory::reason(plan,name)}))).collect::<serde_json::Map<_,_>>(),

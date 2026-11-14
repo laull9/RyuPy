@@ -55,3 +55,9 @@ Linux/Windows 真实产品矩阵由主代理及 CI 验收。
 补充来源写入产品 `python/license-sources.json`，原始上游 PYTHON.json 保留。
 未知遗漏无补充规则时构建报错。固定 3.12.13 旧 shim 保留静态 guard 兼容；
 新多版本 shim 必须导出并核对其头文件完整版本。
+
+跨平台首轮发现并修正：GitHub API可使用构建环境的GH_TOKEN/GITHUB_TOKEN，凭据仅通过
+curl stdin配置传递且仅用于官方API；匹配缓存先核对精确版本、schema、目标、shared模式和
+官方来源记录，再交Rust复验ABI与许可，避免重复构建联网。Windows历史资产的shared文件名
+与schema7 optimizations字段按官方20220528的3.9.13真实元数据适配，保留原始JSON。
+报告中的archive_url改为本次实际安装归档，本地观察来源无归档时明确留空。

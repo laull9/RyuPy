@@ -12,6 +12,7 @@ on:
       - 'runtime/RyuPy.CPython/**'
       - 'tests/cpython/onefile*'
       - 'tests/cpython/version*'
+      - 'tests/cpython/test_portable.py'
       - 'tests/cpython/fixtures/onefile*'
       - 'tests/cpython/fixtures/version*'
   pull_request:
@@ -24,6 +25,7 @@ on:
       - 'runtime/RyuPy.CPython/**'
       - 'tests/cpython/onefile*'
       - 'tests/cpython/version*'
+      - 'tests/cpython/test_portable.py'
       - 'tests/cpython/fixtures/onefile*'
       - 'tests/cpython/fixtures/version*'
   workflow_dispatch:
@@ -37,6 +39,7 @@ env:
   UseSharedCompilation: 'false'
   PYTHONUTF8: '1'
   RUSTUP_TOOLCHAIN: '1.99.1'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   version-matrix:
@@ -121,8 +124,15 @@ jobs:
           dotnet build runtime/RyuPy.Runtime -c Release -p:Platform=AnyCPU -nologo -v q
           dotnet build runtime/RyuPy.CPython -c Release -p:Platform=AnyCPU -nologo -v q
 
+      - name: Check portable distribution contracts
+        run: python -B tests/cpython/test_portable.py
+
       - name: Compile ryupy-cli
         run: cargo build -p ryupy-cli
+
+      - name: Verify real Linux system library closure
+        if: runner.os == 'Linux'
+        run: cargo test -p ryupy-driver --test cpython_linux_closure linux_
 
       - name: Prepare clean Linux target
         if: runner.os == 'Linux'

@@ -388,10 +388,16 @@ fn resolve_distribution(exe: &Path, probe: ProbeOutput) -> Result<DiscoveredPyth
     let root = PathBuf::from(prepared["root"].as_str().context("缺少发行根")?).canonicalize()?;
     let metadata: serde_json::Value =
         serde_json::from_slice(&std::fs::read(root.join("PYTHON.json"))?)?;
+    // v7 的同一事实名为 optimizations；保留原始官方JSON，按已审查schema读取。
+    let build_options = match metadata["version"].as_str() {
+        Some("7") => &metadata["optimizations"],
+        Some("8") => &metadata["build_options"],
+        _ => bail!("不支持的官方 PBS 元数据schema：{}", metadata["version"]),
+    };
     ensure!(
         metadata["python_version"] == version.version_str()
             && metadata["target_triple"] == super::native::target_triple()?
-            && metadata["build_options"] == super::native::build_options()?
+            && build_options == super::native::build_options()?
             && metadata["libpython_link_mode"] == "shared",
         "官方基础发行元数据与选中版本/ABI不一致"
     );
@@ -417,7 +423,11 @@ fn resolve_distribution(exe: &Path, probe: ProbeOutput) -> Result<DiscoveredPyth
         match value {
             serde_json::Value::Object(obj) => {
                 for (key, val) in obj {
-                    if key == "license_paths" {
+                    if key == "license_path" {
+                        let rel = val.as_str().context("许可路径格式错误")?;
+                        super::relative(rel)?;
+                        ensure!(root.join(rel).is_file(), "组件许可缺失：{rel}");
+                    } else if key == "license_paths" {
                         for path in val.as_array().context("许可路径列表格式错误")? {
                             let rel = path.as_str().context("许可路径格式错误")?;
                             super::relative(rel)?;

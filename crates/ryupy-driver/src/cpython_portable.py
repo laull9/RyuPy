@@ -6,23 +6,87 @@
 import ast
 from concurrent.futures import ThreadPoolExecutor
 import json
+import os
 import re
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
+from urllib.parse import unquote
 
 API = 'https://api.github.com/repos/astral-sh/python-build-standalone/releases'
+RELEASES = 'https://github.com/astral-sh/python-build-standalone/releases/'
+
+
+def metadata_options(metadata):
+    schema = metadata.get('version')
+    if schema == '7':
+        return metadata.get('optimizations')
+    if schema == '8':
+        return metadata.get('build_options')
+    raise ValueError('不支持的官方PBS元数据schema：' + str(schema))
+
+
+def cached_distribution(cache, version, triple, options):
+    """仅复用带官方来源记录且精确匹配的完整缓存；后续Rust仍核对实际ABI和所有许可。"""
+    for root in sorted(cache.glob(f'cpython-{version}+*-{triple}'), reverse=True):
+        if not root.is_dir():
+            continue
+        source = root / 'distribution-source.json'
+        metadata_path = root / 'PYTHON.json'
+        if not source.is_file() or not metadata_path.is_file():
+            continue
+        provenance = json.loads(source.read_text(encoding='utf-8'))
+        metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+        release = provenance.get('release', '')
+        build = release.removeprefix(RELEASES + 'tag/')
+        if (not re.fullmatch(r'\d{8}', build)
+                or root.name != f'cpython-{version}+{build}-{triple}'
+                or provenance.get('project') != 'python-build-standalone'
+                or metadata.get('python_version') != version
+                or metadata.get('target_triple') != triple
+                or metadata_options(metadata) != options
+                or metadata.get('libpython_link_mode') != 'shared'):
+            raise ValueError('已有发行缓存的来源或元数据不匹配：' + str(root))
+        prefix = RELEASES + f'download/{build}/cpython-{version}+{build}-{triple}'
+        stems = [prefix, prefix + '-shared'] if triple.endswith('windows-msvc') else [prefix]
+        expected = {'install_archive': [stem + '-install_only.tar.gz' for stem in stems],
+                    'metadata_archive': [stem + f'-{options}-full.tar.zst' for stem in stems]}
+        for field, urls in expected.items():
+            if unquote(provenance.get(field, '')) not in urls:
+                raise ValueError('已有发行缓存缺少匹配官方归档来源：' + str(root))
+        return {'root': str(root), 'url': release, 'build': build}
+    return None
+
+
+def release_assets(release, version, triple, options):
+    """匹配新旧官方动态发行命名，完整版本、构建日期和目标必须同时一致。"""
+    prefix = f'cpython-{version}+{release["tag_name"]}'
+    suffixes = [(f'-{triple}-{options}-full.tar.zst', f'-{triple}-install_only.tar.gz')]
+    if triple.endswith('windows-msvc'):
+        suffixes.append((f'-{triple}-shared-{options}-full.tar.zst', f'-{triple}-shared-install_only.tar.gz'))
+    assets = {asset['name']: asset for asset in release['assets']}
+    return next(((assets[prefix + full], assets[prefix + install])
+                 for full, install in suffixes if prefix + full in assets and prefix + install in assets), None)
 
 
 def fetch(url, output=None):
     cmd = ['curl', '--fail', '--location', '--silent', '--show-error',
            '--retry', '3', '--connect-timeout', '30', '--max-time', '600', url]
+    # 仅官方API请求使用可选凭据；通过stdin传curl配置，失败诊断与进程参数都不含token。
+    config = None
+    if url.startswith(API):
+        token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+        if token:
+            if any(char in token for char in '\r\n'):
+                raise ValueError('GitHub API凭据格式无效')
+            config = ('header = ' + json.dumps('Authorization: Bearer ' + token) + '\n').encode()
+            cmd += ['--config', '-']
     if output:
-        subprocess.run(cmd + ['--output', str(output)], check=True)
+        subprocess.run(cmd + ['--output', str(output)], input=config, check=True)
     else:
-        return json.loads(subprocess.check_output(cmd))
+        return json.loads(subprocess.check_output(cmd, input=config))
 
 
 def fetch_asset(asset, output):
@@ -67,6 +131,9 @@ def prepare(req):
         local = Path(tempfile.gettempdir()) / 'ryupy-no-local-distribution'
     cache = Path.home() / '.cache/ryupy/cpython-auto'
     cache.mkdir(parents=True, exist_ok=True)
+    existing = cached_distribution(cache, version, triple, options)
+    if existing:
+        return existing
     # 元数据完整的本地发行由 Rust 再核对字段与原生 ABI。
     if (local / 'PYTHON.json').is_file() and (local / 'licenses').is_dir():
         return {'root': str(local), 'url': str(local), 'build': (local / 'BUILD').read_text(encoding="utf-8").strip() if (local / 'BUILD').is_file() else version, 'project': 'cpython-local-metadata'}
@@ -88,8 +155,6 @@ def prepare(req):
                     tree.rename(destination)
             return {'root': str(destination), 'url': str(local), 'build': build,
                     'project': 'cpython-local-metadata'}
-    full_suffix = f'-{triple}-{options}-full.tar.zst'
-    install_suffix = f'-{triple}-install_only.tar.gz'
     def releases():
         if build:
             yield fetch(API + '/tags/' + build)
@@ -100,12 +165,11 @@ def prepare(req):
                     break
                 yield from batch
     for release in releases():
-        assets = release['assets']
         prefix = f'cpython-{version}+{release["tag_name"]}'
-        full = next((a for a in assets if a['name'] == prefix + full_suffix), None)
-        install = next((a for a in assets if a['name'] == prefix + install_suffix), None)
-        if not full or not install:
+        selected = release_assets(release, version, triple, options)
+        if not selected:
             continue
+        full, install = selected
         destination = cache / (prefix + '-' + triple)
         provenance = {'project': 'python-build-standalone', 'release': release['html_url'],
                       'install_archive': install['browser_download_url'],
@@ -148,6 +212,8 @@ def complete_licenses(result):
     def visit(value):
         if isinstance(value, dict):
             paths.update(value.get('license_paths', []))
+            if value.get('license_path'):
+                paths.add(value['license_path'])
             for child in value.values():
                 visit(child)
         elif isinstance(value, list):
@@ -183,7 +249,8 @@ def complete_licenses(result):
     return result
 
 
-try:
-    print(json.dumps(complete_licenses(prepare(json.load(sys.stdin)))))
-except Exception as error:
-    sys.exit('自动准备匹配基础发行失败：' + str(error))
+if __name__ == '__main__':
+    try:
+        print(json.dumps(complete_licenses(prepare(json.load(sys.stdin)))))
+    except Exception as error:
+        sys.exit('自动准备匹配基础发行失败：' + str(error))
