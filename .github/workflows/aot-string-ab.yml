@@ -3,7 +3,7 @@ name: String accumulator same-runner AB
 
 on:
   push:
-    branches: [ci/aot-string-ab-fix-20261114]
+    branches: [ci/aot-string-ab-20261114]
   workflow_dispatch:
 
 permissions:

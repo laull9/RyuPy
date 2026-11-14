@@ -346,7 +346,12 @@ fn source_pipeline_string_holder_acceptance_and_observer_rejection() {
             })
             .count()
     }
-    assert_eq!(count("def f(initial, n, piece):\n    total = initial\n    for i in range(n):\n        total += piece\n    return total\nprint(f('', 3, 'ab'))\n"), 1);
+    assert_eq!(
+        count(
+            "def f(initial, n, piece):\n    total = initial\n    for i in range(n):\n        total += piece\n    return total\nprint(f('', 3, 'ab'))\n"
+        ),
+        1
+    );
     for source in [
         "total = ''\nfor i in range(3):\n    total += 'ab'\nprint(total)\n",
         "def f(initial, n):\n    total = initial\n    for i in range(n):\n        total += total\n    return total\n",
