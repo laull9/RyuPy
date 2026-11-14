@@ -60,7 +60,7 @@ class RuntimeSingleBaseGateTests(unittest.TestCase):
         self.assertIn("('runtime-single-base-native',__import__('runtime_single_base').run)", raw)
         self.assertIn("r.result.get('runtime_single_base_native', {}).get('passed')", raw)
         self.assertIn("'pre_emission_rejection_verified':True", raw)
-        step = (HERE.parents[2]/'.github/workflows/ordinary-mi.yml').read_text()
+        step = (HERE.parents[2]/'.github/retired-workflows/ordinary-mi.yml').read_text()
         self.assertIn('timeout-minutes: 40', step)
         self.assertIn('!target/ordinary-mi-evidence/runtime-single-*-native-build/**', step)
         # 拒绝把真实dist归档也排除，失败与成功均可收原件。

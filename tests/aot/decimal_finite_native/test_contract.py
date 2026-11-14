@@ -64,8 +64,8 @@ class DecimalNativeContractTests(unittest.TestCase):
         with self.assertRaises(ValueError): source_index(Path('.'), b'')
 
     def test_independent_route_and_artifact(self):
-        controller = (ROOT/'.github/workflows/wcwidth-legacy-aot.yml').read_text()
-        workflow = (ROOT/'.github/workflows/decimal-finite-native.yml').read_text()
+        controller = (ROOT/'.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
+        workflow = (ROOT/'.github/retired-workflows/decimal-finite-native.yml').read_text()
         self.assertLessEqual(len(controller.splitlines()), 600)
         self.assertIn("  decimal-finite-native:\n    needs: select-mode\n    if: needs.select-mode.outputs.ordinary_mi == 'true'\n", controller)
         self.assertIn('uses: ./.github/workflows/decimal-finite-native.yml', controller)

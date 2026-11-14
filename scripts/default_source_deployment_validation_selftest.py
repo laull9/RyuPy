@@ -79,11 +79,11 @@ class Tests(unittest.TestCase):
         for name in selector.ORDINARY:
             self.assertIn('    needs: select-mode\n', blocks[name])
             self.assertNotIn('needs: default-source-deployment', blocks[name])
-        child = (gate.ROOT / '.github/workflows/default-source-deployment.yml').read_text()
+        child = (gate.ROOT / '.github/retired-workflows/default-source-deployment.yml').read_text()
         self.assertNotIn('continue-on-error', child)
         self.assertIn('if: always()', child)
         for name in ('wcwidth-legacy-aot', 'default-source-deployment', 'trace-edge-diagnostic'):
-            self.assertLessEqual(len((gate.ROOT / ('.github/workflows/' + name + '.yml')).read_text().splitlines()), 600)
+            self.assertLessEqual(len((gate.ROOT / ('.github/retired-workflows/' + name + '.yml')).read_text().splitlines()), 600)
 
     def test_migrated_diagnostic_cannot_expand_permissions_or_change_steps(self):
         _, blocks = selector.jobs()
@@ -91,7 +91,7 @@ class Tests(unittest.TestCase):
         for mutation in (original.replace('select-mode', 'default-source-deployment'),
                          original.replace("== 'true'", "!= 'true'"), original + '    secrets: inherit\n'):
             with self.assertRaises(ValueError): selector.protected_job_digest('trace-edge-diagnostic', mutation)
-        path = gate.ROOT / '.github/workflows/trace-edge-diagnostic.yml'
+        path = gate.ROOT / '.github/retired-workflows/trace-edge-diagnostic.yml'
         text = path.read_text(); read_text = Path.read_text
         for mutation in (text.replace('contents: read', 'contents: write'),
                          text.replace('workflow_call:', 'workflow_call:\n    inputs: {}')):

@@ -1,24 +1,7 @@
 name: CPython standalone multiplatform distribution
 
 on:
-  push:
-    branches: [dev, main, 'wip/**']
-    paths:
-      - '.github/workflows/cpython-standalone.yml'
-      - 'crates/ryupy-driver/src/cpython_*'
-      - 'runtime/RyuPy.CPython/**'
-      - 'runtime/RyuPy.Runtime/**'
-      - 'tests/cpython/**'
-      - 'docs/cpython-platform-support.md'
-  pull_request:
-    paths:
-      - '.github/workflows/cpython-standalone.yml'
-      - 'crates/ryupy-driver/src/cpython_*'
-      - 'runtime/RyuPy.CPython/**'
-      - 'runtime/RyuPy.Runtime/**'
-      - 'tests/cpython/**'
-      - 'docs/cpython-platform-support.md'
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

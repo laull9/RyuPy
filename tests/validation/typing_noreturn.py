@@ -52,7 +52,7 @@ FROZEN = {
     'tests/e2e/phase3/m3_7_typing_noreturn.py':
         '542f65d9108f343605b0c1df41b21e53c42618f088a900eee0196e1e108f99cb',
 }
-CI_PATHS = {'.github/workflows/wcwidth-legacy-aot.yml', '.github/workflows/typing-noreturn.yml',
+CI_PATHS = {'.github/retired-workflows/wcwidth-legacy-aot.yml', '.github/retired-workflows/typing-noreturn.yml',
     'tests/validation/typing_noreturn.py', 'tests/validation/test_typing_noreturn.py',
     'tests/validation/markdown_preflight.py',
     'tests/validation/generator_product/test_diagnostic_once.py'}

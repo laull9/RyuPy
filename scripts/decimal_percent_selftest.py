@@ -251,7 +251,7 @@ class PercentControlTests(unittest.TestCase):
             self.assertTrue(runner.identity_failed)
 
     def test_native_uses_original_helper_and_uploads_after_failure(self):
-        workflow = (c.ROOT / '.github/workflows/decimal-percent.yml').read_text()
+        workflow = (c.ROOT / '.github/retired-workflows/decimal-percent.yml').read_text()
         self.assertIn("!cancelled() && hashFiles('target/decimal-percent-evidence/state.json') != ''", workflow)
         self.assertIn('**/native-dist.tar.gz', workflow)
         self.assertLess(workflow.index('percent-checkpoint-'), workflow.index('--phase native'))

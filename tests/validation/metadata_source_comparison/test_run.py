@@ -28,7 +28,7 @@ class Tests(unittest.TestCase):
             with self.assertRaises(ValueError): d.context(env, changed)
 
     def test_actual_workflow_selector_all_branches(self):
-        text = (d.ROOT / '.github/workflows/metadata-source-comparison.yml').read_text()
+        text = (d.ROOT / '.github/retired-workflows/metadata-source-comparison.yml').read_text()
         raw = text.split("          python3 - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
         code = '\n'.join(line[10:] for line in raw.splitlines())
         base = {'ref': d.REF, 'after': HEAD, 'head_commit': {'message': d.TITLE, 'id': HEAD}}
@@ -57,7 +57,7 @@ class Tests(unittest.TestCase):
 
     def test_old_workflows_do_not_trigger_on_diagnostic_branch(self):
         # 直接审当前触发块；没有新增宽泛push或由新workflow调用旧门。
-        for file in (d.ROOT / '.github/workflows').glob('*.yml'):
+        for file in (d.ROOT / '.github/retired-workflows').glob('*.yml'):
             if file.name == 'metadata-source-comparison.yml': continue
             block = file.read_text().split('jobs:', 1)[0]
             self.assertNotIn('ci/metadata-source-comparison-001', block)

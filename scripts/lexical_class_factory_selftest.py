@@ -269,7 +269,7 @@ class Tests(unittest.TestCase):
 
     def test_markdown_selector_still_rejects_unknown_job_and_lost_old_chain(self):
         import markdown_preflight as preflight
-        path = c.ROOT / '.github/workflows/wcwidth-legacy-aot.yml'
+        path = c.ROOT / '.github/retired-workflows/wcwidth-legacy-aot.yml'
         original = path.read_text()
         test = preflight.PureTests('test_workflow_job_filters_keep_original_chains')
         # 原精确集合不改为子集；任意新增与删除旧链都必须继续失败。
@@ -282,7 +282,7 @@ class Tests(unittest.TestCase):
                 test.test_workflow_job_filters_keep_original_chains()
 
     def test_real_workflow_timeouts_permissions_and_checkpoint_order(self):
-        raw = (c.ROOT / '.github/workflows/lexical-class-factory.yml').read_text()
+        raw = (c.ROOT / '.github/retired-workflows/lexical-class-factory.yml').read_text()
         self.assertIn('timeout-minutes: 65', raw)
         self.assertEqual(raw.count('timeout-minutes: 25'), 2)
         self.assertIn('timeout-minutes: 10', raw)
@@ -292,7 +292,7 @@ class Tests(unittest.TestCase):
         self.assertLess(raw.index('Native前保原双流'), raw.index('重核同源后'))
         self.assertLess(raw.index('lexical_class_factory_contract.py'), raw.index('tests/aot/wcwidth_ci/prepare.py'))
         self.assertEqual(raw.count('uses: actions/upload-artifact@'), 3)
-        for path in (c.ROOT / '.github/workflows/wcwidth-legacy-aot.yml', c.ROOT / '.github/workflows/lexical-class-factory.yml'):
+        for path in (c.ROOT / '.github/retired-workflows/wcwidth-legacy-aot.yml', c.ROOT / '.github/retired-workflows/lexical-class-factory.yml'):
             self.assertLessEqual(len(path.read_text().splitlines()), 600)
 
     def test_trace_missing_class_frame_stays_unaligned_and_path_only_maps(self):

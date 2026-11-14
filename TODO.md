@@ -42,6 +42,9 @@
 - [x] **Python 3.9+ 自动版本适配**：`--cpython-provider auto` 自动探测项目/激活环境，
   构建期匹配解释器、ABI、原生 shim、标准库与扩展 wheel，并冻结到发布产物；用户无需指定版本。
   正式CPython 3.9–3.15在三平台共21项全部通过真实NumPy、JIT、NativeAOT与输入删除搬迁；保留显式provider、--native和旧开发子命令。
+- [x] **CI收敛**：日常dev/main及PR只保留一个Linux检查；main上的`v*` tag经真实提交图校验后，
+  才运行三平台单文件/standalone及Python七版本矩阵。31份旧专项工作流退役归档，历史读取路径同步。
+  规则见[CI说明](docs/ci.md)与[ADR-0192](docs/adr/0192-version-tag-ci.md)。
 - [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
 

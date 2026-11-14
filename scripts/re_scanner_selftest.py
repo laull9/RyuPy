@@ -233,7 +233,7 @@ class ScannerControlTests(unittest.TestCase):
         self.assertEqual([native[i + 1] for i, token in enumerate(native) if token == '--include-module'],
                          ['html.parser', 'markdown.extensions.attr_list'])
         self.assertNotIn('markdown.extensions.extra', native)
-        workflow = (c.ROOT / '.github/workflows/re-scanner.yml').read_text()
+        workflow = (c.ROOT / '.github/retired-workflows/re-scanner.yml').read_text()
         self.assertLess(workflow.index('scanner-checkpoint-'), workflow.index('--phase native'))
         self.assertIn('**/native-dist.tar.gz', workflow)
         self.assertNotIn('continue-on-error', workflow)

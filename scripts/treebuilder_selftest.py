@@ -354,7 +354,7 @@ class ContractTests(unittest.TestCase):
                             (v.base.check_context,v.base.DATA['title'])]:check(*self.context(title))
 
     def test_workflow_selector_and_old_dependency_graph(self):
-        text=(c.ROOT/'.github/workflows/wcwidth-legacy-aot.yml').read_text()
+        text=(c.ROOT/'.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
         selector=text.split("python3 - <<'PY'\n",1)[1].split('\n          PY',1)[0]
         with tempfile.TemporaryDirectory() as temp:
             output=Path(temp)/'output';event_file=Path(temp)/'event'
@@ -367,7 +367,7 @@ class ContractTests(unittest.TestCase):
                     for name in ['metadata','dedent','scanner','percent','keyerror']:self.assertEqual(actual[name],'true')
                     self.assertEqual(actual['diagnostic'],actual['markdown'])
                     self.assertEqual(actual['diagnostic'],'false')
-        parallel=(c.ROOT/'.github/workflows/keyerror-construction.yml').read_text().split('  keyerror-construction:',1)[0]
+        parallel=(c.ROOT/'.github/retired-workflows/keyerror-construction.yml').read_text().split('  keyerror-construction:',1)[0]
         self.assertIn('  treebuilder-state:',parallel)
         self.assertIn('uses: ./.github/workflows/treebuilder.yml',parallel)
         self.assertNotIn('    needs:',parallel)
@@ -378,9 +378,9 @@ class ContractTests(unittest.TestCase):
         self.assertIn("actual['tools'].get(p) != digest",gate)
 
     def test_reusable_three_levels_no_cycle_permissions_or_false_dependency(self):
-        root=(c.ROOT/'.github/workflows/wcwidth-legacy-aot.yml').read_text()
-        parent=(c.ROOT/'.github/workflows/keyerror-construction.yml').read_text()
-        child=(c.ROOT/'.github/workflows/treebuilder.yml').read_text()
+        root=(c.ROOT/'.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
+        parent=(c.ROOT/'.github/retired-workflows/keyerror-construction.yml').read_text()
+        child=(c.ROOT/'.github/retired-workflows/treebuilder.yml').read_text()
         self.assertIn('uses: ./.github/workflows/keyerror-construction.yml',root)
         self.assertIn('uses: ./.github/workflows/treebuilder.yml',parent)
         self.assertNotIn('uses: ./.github/workflows/',child)

@@ -26,7 +26,7 @@ BUNDLE_SHA = 'fcf1782cee6fa881a9f2e26b55b901dd89393857ddfc97735d77ad3515644eea'
 A_PATH = 'tests/cases/importlib_util_find/pending_parser_complete/entry.py'
 A_SHA = '994a29e98caedfa952e228617464b61ded841931e76e7fa7f14e53ce0b9ed302'
 A_ORACLE = 'c0b5a052844c65afbab79e431cb90e9aedee6ac9bffdeebf1770a5639c81bfb2'
-ALLOWED = {'.github/workflows/wcwidth-legacy-aot.yml', '.github/workflows/markdown-closure.yml',
+ALLOWED = {'.github/retired-workflows/wcwidth-legacy-aot.yml', '.github/retired-workflows/markdown-closure.yml',
            'tests/validation/markdown_closure_probe.py',
            'tests/validation/markdown_closure_inputs.tar.gz', 'tests/validation/markdown_preflight.py',
            'scripts/textwrap_dedent_selftest.py', 'scripts/decimal_percent_selftest.py',
@@ -408,14 +408,14 @@ class PureTests(unittest.TestCase):
         self.assertEqual(len(caller.splitlines()), 3)
         self.assertIn('    needs: select-mode\n', caller)
         self.assertIn('    uses: ./.github/workflows/markdown-closure.yml\n', caller)
-        child = (REPO / '.github/workflows/markdown-closure.yml').read_text()
+        child = (REPO / '.github/retired-workflows/markdown-closure.yml').read_text()
         self.assertIn('on:\n  workflow_call:\n', child)
         self.assertIn('permissions:\n  contents: read\n', child)
         self.assertEqual(child.count('  markdown-closure:\n'), 1)
         self.assertNotIn('needs.select-mode', child)
         self.assertIn('if: always()', child)
-        for path in (REPO / '.github/workflows/wcwidth-legacy-aot.yml',
-                     REPO / '.github/workflows/markdown-closure.yml'):
+        for path in (REPO / '.github/retired-workflows/wcwidth-legacy-aot.yml',
+                     REPO / '.github/retired-workflows/markdown-closure.yml'):
             self.assertLessEqual(len(path.read_text().splitlines()), 600)
         for title, mode, ref in [(TITLE.upper(), 'push', old.REF), (TITLE+'\n', 'push', old.REF),
                                  (TITLE, 'workflow_dispatch', old.REF), (TITLE, 'push', old.REF.upper())]:

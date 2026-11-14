@@ -391,7 +391,7 @@ class KeyErrorControlTests(unittest.TestCase):
     def test_reuses_original_native_gate_and_keeps_failed_uploads(self):
         self.assertEqual(gate.native.__module__,'textwrap_dedent_native')
         self.assertIs(gate.native.__defaults__[0],c.shared)
-        workflow=(c.ROOT/'.github/workflows/keyerror-construction.yml').read_text()
+        workflow=(c.ROOT/'.github/retired-workflows/keyerror-construction.yml').read_text()
         self.assertIn("!cancelled() && hashFiles('target/keyerror-construction-evidence/state.json') != ''",workflow)
         self.assertIn('**/native-dist.tar.gz',workflow)
         self.assertLess(workflow.index('keyerror-checkpoint-'),workflow.index('--phase native'))

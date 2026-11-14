@@ -1,49 +1,50 @@
+# 日常只保留一个Linux检查；三平台发布由main上的v* tag专门触发。
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [dev, main]
   pull_request:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+  PYTHONDONTWRITEBYTECODE: '1'
+  RUSTUP_TOOLCHAIN: '1.99.1'
 
 jobs:
   check:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: '10.0.403'
       - uses: actions/setup-python@v5
-        if: runner.os != 'macOS'
         with:
-          python-version: "3.12.13"
-      # setup-python 的 3.12.13 清单不含 Darwin；不放宽差分基线或跳过 macOS 测试。
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-        if: runner.os == 'macOS'
-        with:
-          version: "0.13.4"
-          enable-cache: false
-      - name: install pinned Python on macOS
-        if: runner.os == 'macOS'
+          python-version-file: tests/pinned-python.txt
+      - name: Native test prerequisites
         run: |
-          uv python install 3.12.13
-          python_path="$(uv python find 3.12.13)"
-          "$python_path" -c 'import sys; assert sys.version_info[:3] == (3, 12, 13), sys.version'
-          echo "PYTHON=$python_path" >> "$GITHUB_ENV"
-      - name: lint
-        run: make lint
-      - name: unit & snapshot tests
-        run: make test
-      - name: e2e (differential vs CPython)
-        run: make e2e
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev patchelf binutils
+      - name: Release tag guard and portable download regressions
+        run: |
+          python -B scripts/test_release_tag.py
+          python -B tests/cpython/test_portable.py
+      - name: Check source and runtime
+        run: make check

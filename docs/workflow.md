@@ -159,3 +159,10 @@ Phase 2–4 的主要 Python 用例已预置。`make check` 会运行独立 CPyt
 
 - **ruff**：修改根 `Cargo.toml` 中三个 ruff 依赖的 `tag`（必须一起改）→ `cargo update -p ruff_python_parser` → `make check`。AST 结构变化只会影响 `ryupy-syntax` 和 `ryupy-hir/src/lower.rs`。
 - **.NET**：同时修改 `RyuPy.Runtime.csproj` 的 `TargetFramework`、`runtimeconfig.rs` 的 `TARGET_FRAMEWORK_MAJOR`、`runtime.rs` 的默认路径、CI 中的 `dotnet-version`。
+
+
+## CI触发
+
+日常dev/main推送及目标为dev/main的PR只运行单个Linux检查。跨平台发布使用main上的`v*`
+版本tag触发，入口先验证提交已进入main，再运行三套可复用矩阵。旧专项实验工作流已退役归档；
+本机测试驱动保留。详见[CI规则](ci.md)和[ADR-0192](adr/0192-version-tag-ci.md)。

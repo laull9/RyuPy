@@ -22,7 +22,7 @@ REF = 'refs/heads/ci/wcwidth-legacy-aot-2909056'
 BASE_TREE = '955fda16bb06eb9239c1637b6a8862eb27ebb1b4'
 BASE_SOURCE_HEAD = '24b92770396996b33ba81fc9f25b7115f395fe21'
 FEATURE = 'ryupy-driver/ordinary-dynamic-module-pilot'
-ALLOWED = {'.github/workflows/wcwidth-legacy-aot.yml', 'tests/validation/markdown_preflight.py',
+ALLOWED = {'.github/retired-workflows/wcwidth-legacy-aot.yml', 'tests/validation/markdown_preflight.py',
            'tests/validation/generator_product/test_diagnostic_once.py'}
 ENTRY_SHA = '78a03254033372f140726edaa44e1b9b70238c591b28403cdd4fdf30a45c0777'
 GOLDEN_SHA = 'a824d6deda7b3f0a3f627045ea4046baa2ac6e49ec62e22ea4b367ae759923cf'
@@ -420,7 +420,7 @@ class PureTests(unittest.TestCase):
                              else ['runtime-build', 'compiler-build'])
 
     def test_workflow_job_filters_keep_original_chains(self):
-        text = (REPO / '.github/workflows/wcwidth-legacy-aot.yml').read_text()
+        text = (REPO / '.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
         jobs = {match[1]: match[2] for match in re.finditer(r'^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:|\Z)', text.split('\njobs:\n', 1)[1], re.M | re.S)}
         ordinary = {'baseline', 'full-check', 'projects', 'trace-adapter-s2',
                     'trace-rust-preflight', 'pyfiglet-explicit-deployment', 'source-import-paths'}

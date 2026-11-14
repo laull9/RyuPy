@@ -120,7 +120,7 @@ class ObservationArtifacts(unittest.TestCase):
         names = re.findall(r"#\[test\]\s*fn (\w+)", source)
         self.assertEqual(set(names), set(gate.EXPECTED["observer"]))
         self.assertEqual(len(names), 4)
-        workflow = (repo / ".github/workflows/wcwidth-legacy-aot.yml").read_text()
+        workflow = (repo / ".github/retired-workflows/wcwidth-legacy-aot.yml").read_text()
         self.assertIn("target/trace-rust-preflight", workflow)
         self.assertIn("if: always()", workflow)
 

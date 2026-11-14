@@ -91,3 +91,7 @@ docs/                  文档
 | [docs/notes/](docs/notes/) | 学习笔记 |
 | [tests/README.md](tests/README.md) | 后续阶段 Python pending 用例与 CPython 基线 |
 | [TODO.md](TODO.md) | 按里程碑拆分的任务清单 |
+
+
+日常CI仅保留单个Linux检查；三平台发布和Python版本矩阵仅由已进入main的`v*` tag触发。
+旧专项实验已归档，规则与操作见[CI说明](docs/ci.md)。

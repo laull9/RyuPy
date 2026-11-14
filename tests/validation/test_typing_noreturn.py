@@ -26,8 +26,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(len((n.ROOT / 'tests/projects/baselines/markdown/stdout.txt').read_bytes()), 77)
 
     def test_reusable_workflow_is_same_commit_read_only_and_preserves_stages(self):
-        main = (n.ROOT / '.github/workflows/wcwidth-legacy-aot.yml').read_text()
-        called = (n.ROOT / '.github/workflows/typing-noreturn.yml').read_text()
+        main = (n.ROOT / '.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
+        called = (n.ROOT / '.github/retired-workflows/typing-noreturn.yml').read_text()
         block = main.split('  typing-noreturn:\n', 1)[1].split('  baseline:\n', 1)[0]
         self.assertIn('    uses: ./.github/workflows/typing-noreturn.yml', block)
         self.assertIn('    needs: select-mode', block)

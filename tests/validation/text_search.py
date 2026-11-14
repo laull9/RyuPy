@@ -15,7 +15,7 @@ shared = old.shared
 ROOT = old.ROOT
 require, sha, save = old.require, old.sha, old.save
 DATA = json.loads(Path(__file__).with_suffix('.json').read_text())
-CI_PATHS = {'.github/workflows/wcwidth-legacy-aot.yml', '.github/workflows/text-search.yml',
+CI_PATHS = {'.github/retired-workflows/wcwidth-legacy-aot.yml', '.github/retired-workflows/text-search.yml',
             'tests/validation/text_search.py', 'tests/validation/text_search_native.py',
             'tests/validation/text_search.json', 'tests/validation/test_text_search.py',
             'tests/validation/generator_product/test_diagnostic_once.py', 'tests/validation/markdown_preflight.py'}

@@ -1,7 +1,8 @@
 # dev 的最小 NativeAOT 验证链
 
-`.github/workflows/aot-dev-validation.yml` 对 dev 推送、目标为 dev 的 PR 及手动运行生效。
-这是独立的新门，不扩大历史性能工作流的触发范围，也不恢复被删除的生成预期文件。
+2026-11-14：该专项工作流已退役到`.github/retired-workflows/aot-dev-validation.yml`。
+日常改为单个Linux检查，三平台发布仅由main上的`v*` tag触发，见[CI规则](../../docs/ci.md)。
+下方保留原验收范围和可在本地执行的驱动命令。
 
 ## 验收范围
 

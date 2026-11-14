@@ -58,7 +58,7 @@ class InterpreterRoutingTests(unittest.TestCase):
         self.assertEqual(calls.count('make-check'), 1)
 
     def test_debug_evidence_is_under_existing_always_uploaded_tree(self):
-        workflow = full_check.h.REPO / '.github/workflows/wcwidth-legacy-aot.yml'
+        workflow = full_check.h.REPO / '.github/retired-workflows/wcwidth-legacy-aot.yml'
         section = workflow.read_text().split('      - name: 保存完整检查原流\n', 1)[1].split('\n  projects:', 1)[0]
         self.assertIn('if: always()', section)
         self.assertIn('            target/full-check-evidence\n', section)

@@ -20,7 +20,7 @@ ORDINARY = {'baseline', 'full-check', 'projects', 'trace-adapter-s2', 'trace-rus
 
 
 def jobs():
-    raw = (c.ROOT / '.github/workflows/wcwidth-legacy-aot.yml').read_text()
+    raw = (c.ROOT / '.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
     blocks = dict(re.findall(r'^  ([a-z][a-z0-9-]*):\n(.*?)(?=^  [a-z][a-z0-9-]*:|\Z)', raw.split('\njobs:\n', 1)[1], re.M | re.S))
     return raw, blocks
 
@@ -33,7 +33,7 @@ def protected_job_digest(name, block):
             "    if: github.ref == 'refs/heads/ci/wcwidth-legacy-aot-2909056' && github.event_name == 'push' && needs.select-mode.outputs.diagnostic == 'true'\n"
             "    uses: ./.github/workflows/trace-edge-diagnostic.yml\n")
         if block != expected: raise ValueError('诊断caller语义改变')
-        child = (c.ROOT / '.github/workflows/trace-edge-diagnostic.yml').read_text()
+        child = (c.ROOT / '.github/retired-workflows/trace-edge-diagnostic.yml').read_text()
         header, body = child.split('  trace-edge-diagnostic:\n')
         expected_header = ('# 原诊断job逐字段迁移；caller独占路由，权限不扩大。\n'
             'name: 首边诊断原流程\non:\n  workflow_call:\npermissions:\n  contents: read\njobs:\n')
@@ -280,7 +280,7 @@ class Tests(unittest.TestCase):
                 if broken=='none': self.assertEqual(len(calls),22)
 
     def test_workflow_keeps_preflight_and_failure_uploads(self):
-        raw=(c.ROOT/'.github/workflows/textwrap-dedent.yml').read_text()
+        raw=(c.ROOT/'.github/retired-workflows/textwrap-dedent.yml').read_text()
         self.assertLess(raw.index('textwrap_dedent_selftest.py'),raw.index('tests/aot/wcwidth_ci/prepare.py'))
         self.assertLess(raw.index('dedent-checkpoint-'),raw.index('--phase native'))
         self.assertIn('target/textwrap-dedent-evidence/**/native-dist.tar.gz',raw)

@@ -46,7 +46,7 @@ class DiagnosticTests(unittest.TestCase):
 
     def test_selector_exact_title_case_variants_dispatch_and_missing_head(self):
         # 执行workflow内唯一、无源码依赖的selector脚本，避免另写一个等价但未受测的判断器。
-        workflow = (HERE.parents[2] / '.github/workflows/wcwidth-legacy-aot.yml').read_text()
+        workflow = (HERE.parents[2] / '.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
         block = workflow.split("          python3 - <<'PY'\n", 1)[1].split('\n          PY', 1)[0]
         code = '\n'.join(line[10:] for line in block.splitlines())
         markdown_title = 'diagnostic-not-acceptance: markdown-preflight-001'

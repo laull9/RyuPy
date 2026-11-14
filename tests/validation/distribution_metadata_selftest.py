@@ -244,11 +244,11 @@ class Tests(unittest.TestCase):
         self.assertNotIn('text_search.Runner', main)
 
     def test_workflow_independent_dag_checkpoint_and_single_tools(self):
-        text = (gate.ROOT / '.github/workflows/wcwidth-legacy-aot.yml').read_text()
+        text = (gate.ROOT / '.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
         self.assertLessEqual(len(text.splitlines()), 600)
         old_jobs = text.split('  baseline:\n', 1)[1]
         self.assertNotIn('needs: distribution-metadata', old_jobs)
-        new = (gate.ROOT / '.github/workflows/distribution-metadata.yml').read_text()
+        new = (gate.ROOT / '.github/retired-workflows/distribution-metadata.yml').read_text()
         self.assertEqual(new.count('--phase jit'), 1); self.assertEqual(new.count('--phase native'), 1)
         self.assertLess(new.index('metadata-checkpoint-'), new.index('--phase native'))
         self.assertNotIn('continue-on-error', new)

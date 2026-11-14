@@ -195,7 +195,7 @@ class Runner:
             if key == 'B':
                 current = shared.tree_records(git(ROOT, 'ls-tree', '-rz', 'HEAD'))
                 changed = {n for n in current.keys() | identity['files'].keys() if current.get(n) != identity['files'].get(n)}
-                allowed = {'.github/workflows/metadata-source-comparison.yml',
+                allowed = {'.github/retired-workflows/metadata-source-comparison.yml',
                            *('tests/validation/metadata_source_comparison/' + n for n in ('run.py', 'test_run.py', 'frozen.json'))}
                 require(changed <= allowed, '控制器改变旧源码/期望/工作流')
             for name, digest in expected['contracts'].items(): require(sha(source / name) == digest, '锁/合同变化')

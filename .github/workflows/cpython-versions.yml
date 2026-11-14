@@ -1,28 +1,7 @@
 name: CPython Automatic Version Compatibility
 
 on:
-  push:
-    branches: [dev, main, 'wip/**']
-    paths:
-      - '.github/workflows/cpython-versions.yml'
-      - 'crates/ryupy-driver/**'
-      - 'crates/ryupy-cli/**'
-      - 'runtime/**'
-      - 'tests/cpython/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.cargo/**'
-  pull_request:
-    paths:
-      - '.github/workflows/cpython-versions.yml'
-      - 'crates/ryupy-driver/**'
-      - 'crates/ryupy-cli/**'
-      - 'runtime/**'
-      - 'tests/cpython/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.cargo/**'
-  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read

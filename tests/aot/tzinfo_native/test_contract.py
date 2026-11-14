@@ -38,13 +38,13 @@ class ContractTests(unittest.TestCase):
         self.assertIn("min(timeout, remaining(self.deadline, time.time()))", source)
         self.assertNotIn("'cargo'", source)
         self.assertNotIn("'runtime-build'", source)
-        workflow = (gate.ROOT/'.github/workflows/decimal-finite-native.yml').read_text()
+        workflow = (gate.ROOT/'.github/retired-workflows/decimal-finite-native.yml').read_text()
         self.assertIn('timeout-minutes: 25', workflow)
         self.assertIn('timeout-minutes: 40', workflow)
         self.assertLess(workflow.index(' -B tests/aot/decimal_finite_native/run.py'),
                         workflow.index(' -B tests/aot/tzinfo_native/run.py'))
         self.assertIn('name: tzinfo-native-evidence-', workflow)
-        self.assertEqual(len((gate.ROOT/'.github/workflows/wcwidth-legacy-aot.yml').read_text().splitlines()), 600)
+        self.assertEqual(len((gate.ROOT/'.github/retired-workflows/wcwidth-legacy-aot.yml').read_text().splitlines()), 600)
 
 
 if __name__ == '__main__': unittest.main()

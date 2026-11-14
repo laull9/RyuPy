@@ -88,7 +88,7 @@ class Tests(unittest.TestCase):
             self.assertFalse(runner.result['full_contract_supported'])
         self.assertEqual(s.DATA['legacy_parent'], '98cdc560427eb047598924f0fad3d7fc13caaabc')
         self.assertEqual(s.DATA['legacy_tree'], '911e9c735ef01ed878a17f9f1953307010a3afa5')
-        self.assertIn('fetch-depth: 3', (s.ROOT / '.github/workflows/text-search.yml').read_text())
+        self.assertIn('fetch-depth: 3', (s.ROOT / '.github/retired-workflows/text-search.yml').read_text())
 
     def test_trx_requires_exact_all_passed_counter(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -270,12 +270,12 @@ class Tests(unittest.TestCase):
             self.assertTrue(all(not row['passed'] for row in runner.result['stages'].values()))
 
     def test_workflow_limits_and_old_unchanged_callers(self):
-        text = (s.ROOT / '.github/workflows/wcwidth-legacy-aot.yml').read_text()
+        text = (s.ROOT / '.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
         self.assertLessEqual(len(text.splitlines()), 600)
         block = text.split('  text-search:\n')[1].split('  baseline:\n')[0]
         self.assertIn('needs: select-mode', block)
         self.assertIn('uses: ./.github/workflows/text-search.yml', block)
-        called = (s.ROOT / '.github/workflows/text-search.yml').read_text()
+        called = (s.ROOT / '.github/retired-workflows/text-search.yml').read_text()
         self.assertIn('timeout-minutes: 170', called)
         self.assertNotIn('continue-on-error:', called)
         self.assertIn('persist-credentials: false', called)

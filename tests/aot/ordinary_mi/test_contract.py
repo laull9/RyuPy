@@ -44,7 +44,7 @@ class Contracts(unittest.TestCase):
         event['head_commit']['message']=TITLE.upper()
         with self.assertRaises(ValueError):context(env,event)
     def test_selector_exact_and_independent(self):
-        workflow=(ROOT/'.github/workflows/wcwidth-legacy-aot.yml').read_text()
+        workflow=(ROOT/'.github/retired-workflows/wcwidth-legacy-aot.yml').read_text()
         lines=workflow.splitlines();start=next(i for i,s in enumerate(lines) if "python3 - <<'PY'" in s)+1;end=next(i for i in range(start,len(lines)) if lines[i].strip()=='PY')
         code='\n'.join(s[10:] for s in lines[start:end])
         for title,ref,expected in [(TITLE,'ci/wcwidth-legacy-aot-2909056',True),(TITLE,'main',False),(TITLE.upper(),'ci/wcwidth-legacy-aot-2909056',False),(TITLE+' ','ci/wcwidth-legacy-aot-2909056',False),('validation: default-source-aot-001','ci/wcwidth-legacy-aot-2909056',False)]:
@@ -99,7 +99,7 @@ class Contracts(unittest.TestCase):
 
     def test_reachable_workflow_budget_and_old_dag(self):
         # YAML语法解析另在冻结前实跑；hosted纯门不引入额外PyYAML网络依赖。
-        root=ROOT/'.github/workflows';todo=['wcwidth-legacy-aot.yml'];seen=set()
+        root=ROOT/'.github/retired-workflows';todo=['wcwidth-legacy-aot.yml'];seen=set()
         while todo:
             name=todo.pop()
             if name in seen:continue
