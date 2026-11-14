@@ -216,6 +216,11 @@ def main():
         )
         run_cmd(["uv", "pip", "install", "--python", str(venv_python), "--no-deps", str(wheel_path)], cwd=workspace, env=env)
 
+        # 兼容Windows安装器使用的反斜杠RECORD，所有平台均经过产品收集器验证。
+        site = venv_dir / ("Lib/site-packages" if sys.platform == "win32" else "lib/python3.12/site-packages")
+        record = site / "standalone_pkg-1.0.0.dist-info/RECORD"
+        record.write_text(record.read_text(encoding="utf-8").replace("/", "\\"), encoding="utf-8")
+
         # 3. 准备手写小应用源码与分发声明
         app_entry = inputs_dir / "项目 入口.py"
         app_entry.write_text((ROOT / "tests/cpython/standalone_app.py").read_text(encoding="utf-8"), encoding="utf-8")
@@ -254,7 +259,7 @@ def main():
         # 4. 同次 CPython 运行取得 oracle 基准
         oracle_cwd = workspace / "oracle"
         oracle_cwd.mkdir()
-        oracle_res = run_cmd([str(venv_python), "-I", str(app_entry)], cwd=oracle_cwd, env=env)
+        oracle_res = run_cmd([str(venv_python), "-I", "-X", "utf8", str(app_entry)], cwd=oracle_cwd, env=env)
         oracle_side_effect = (oracle_cwd / "业务 副作用.txt").read_bytes()
         print("[standalone] CPython oracle 基准执行完成，三流与副作用已捕获")
 

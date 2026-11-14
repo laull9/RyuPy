@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import tokenize
 
 
 def fail(message):
@@ -22,7 +23,7 @@ def record_files(dist):
             continue
         if len(row) != 3:
             fail(f'{dist.metadata["Name"]} 的RECORD格式错误')
-        files.append(row[0])
+        files.append(row[0].replace("\\", "/"))
     return files
 
 
@@ -66,6 +67,8 @@ def main(request):
     modules = set(request['dynamic_modules'])
     entry = Path(request['entry'])
     project = entry.parent
+    while (project / "__init__.py").is_file():
+        project = project.parent
     stdlib = set(request['stdlib'])
     provided = set(request['provided_modules'])
     seen = set()
@@ -75,12 +78,26 @@ def main(request):
         if path in seen:
             return
         seen.add(path)
-        tree = ast.parse(path.read_text(encoding='utf-8-sig'), filename=str(path))
+        with tokenize.open(path) as source:
+            tree = ast.parse(source.read(), filename=str(path))
         for node in ast.walk(tree):
             names = []
             if isinstance(node, ast.Import):
                 names = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom) and not node.level and node.module:
+            elif isinstance(node, ast.ImportFrom) and node.level:
+                # 相对导入只解析当前源码包树，不执行模块或site初始化。
+                base = path.parent
+                for _ in range(node.level - 1):
+                    base = base.parent
+                local_names = [node.module] if node.module else [alias.name for alias in node.names]
+                for local_name in local_names:
+                    local = base.joinpath(*local_name.split('.'))
+                    if local.is_dir():
+                        for source in sorted(local.rglob('*.py')):
+                            scan(source)
+                    elif local.with_suffix('.py').is_file():
+                        scan(local.with_suffix('.py'))
+            elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
             for name in names:
                 top = name.split('.')[0]

@@ -69,9 +69,14 @@ pub(super) fn collect(
         "CPython依赖收集失败：{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let closure: Closure =
+    let mut closure: Closure =
         serde_json::from_slice(&output.stdout).context("依赖收集器输出格式错误")?;
-    for payload in &closure.payloads {
+    for payload in &mut closure.payloads {
+        // 两侧统一为同一系统规范路径，消除Windows普通盘符与verbatim前缀差异。
+        payload.source = payload
+            .source
+            .canonicalize()
+            .context("依赖源文件无法规范化")?;
         relative(&payload.destination)?;
         ensure!(
             payload.source.starts_with(&environment),

@@ -64,3 +64,6 @@ python3 -B tests/cpython/dependencies/run.py \
   --metadata "$HOME/.cache/ryupy/cpython-provider/pbs-20260623-metadata/python" \
   --numpy-root "$HOME/.cache/ryupy/cpython-provider/numpy-2.3.5-cp312-osx-arm64" --aot
 ```
+
+2026-11-14异构审查后补充：包内相对导入的产品收集器回归通过；standalone驱动覆盖Windows式
+反斜杠RECORD。Oracle显式使用`-X utf8`，与宿主冻结的隔离UTF-8模式一致。

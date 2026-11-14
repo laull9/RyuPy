@@ -51,7 +51,7 @@ public sealed partial class CPythonHost : IDisposable, IPyModuleProvider
         if (!SetDefaultDllDirectories(0x1000))
             throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法启用Windows封闭DLL搜索");
         // 目录注册与原生库同寿命，保留到进程退出；扩展可在宿主停止后仍持有地址。
-        foreach (string directory in new[] { configuration.Home, Path.Combine(configuration.Home, "DLLs") })
+        foreach (string directory in new[] { configuration.Home, Path.Combine(configuration.Home, "DLLs") }.Concat(configuration.NativeSearchPaths).Distinct(StringComparer.OrdinalIgnoreCase))
             if (Directory.Exists(directory) && AddDllDirectory(directory) == 0)
                 throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error(), "无法注册随包DLL目录：" + directory);
     }

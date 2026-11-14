@@ -23,7 +23,7 @@ case "$(uname -s)" in
     cc -shared -fPIC -O2 -Wall -Wextra -Werror \
       -I"$python_home/include/python3.12" -I"$python_home/include" \
       "$script_dir/ryupy_cpython.c" \
-      -L"$python_home/lib" -lpython3.12 \
+      "$python_home/lib/libpython3.12.so.1.0" \
       '-Wl,-rpath,$ORIGIN/python/lib' \
       -o "$output/libryupy_cpython.so"
     ;;

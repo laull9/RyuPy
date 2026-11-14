@@ -98,7 +98,7 @@ def main():
         oracle_cwd = work / 'oracle'
         oracle_cwd.mkdir()
         assert run([python, '-I', '-c', 'import sys; print(sys.version.split()[0])'], work, env).stdout.strip() == b'3.12.13'
-        oracle = run([python, '-I', entry], oracle_cwd, env)
+        oracle = run([python, '-I', '-X', 'utf8', entry], oracle_cwd, env)
         # 先确认缺少传递依赖得到构建期可操作错误，之后恢复同一输入。
         hidden = site / 'closure_gamma-1.0.dist-info'
         hidden.rename(inputs / '隐藏 metadata')
@@ -121,6 +121,19 @@ def main():
         reject(gamma_record, gamma_record.read_text().rstrip() + '\nmissing_payload.py,,\n', '缺少文件')
         gamma_wheel = site / 'closure_gamma-1.0.dist-info/WHEEL'
         reject(gamma_wheel, gamma_wheel.read_text().replace('py3-none-any', 'cp311-cp311-win_amd64'), 'wheel ABI/平台不匹配')
+        # 产品静态收集器必须沿包内相对导入发现底层第三方依赖。
+        relative_package = inputs / 'relative_application'
+        relative_package.mkdir()
+        (relative_package / '__init__.py').write_text('')
+        (relative_package / 'entry.py').write_text('from . import helper\n')
+        (relative_package / 'helper.py').write_text('import closure_plugin\n')
+        request = {'environment': str(venv), 'entry': str(relative_package / 'entry.py'),
+                   'requirements': [], 'dynamic_modules': [], 'stdlib': [], 'provided_modules': []}
+        result = subprocess.run([distribution / 'bin/python3.12', '-I', '-S', '-B',
+                                 ROOT / 'crates/ryupy-driver/src/cpython_dependencies.py'],
+                                input=json.dumps(request).encode(), capture_output=True, cwd=work, env=env, timeout=60)
+        assert result.returncode == 0, result.stderr
+        assert {item['name'] for item in json.loads(result.stdout)['report']['distributions']} == {'closure-plugin'}
         # 未执行site初始化：即使环境中有启动钩子，静态工具也不能执行它。
         hook_marker = work / '禁止启动钩子.txt'
         (site / 'unowned.pth').write_text('import pathlib; pathlib.Path(' + repr(str(hook_marker)) + ').write_text("错误")\n')

@@ -72,7 +72,7 @@ CPython provider 沿固定 CPython 3.12.13、python-build-standalone (PBS) `2026
 ## 5. 本机验证与 CI 门禁划分
 
 ### 5.1 验证项目与测试矩阵
-CI 工作流 `.github/workflows/cpython-standalone.yml` 包含三个真实平台矩阵（`ubuntu-24.04`、`windows-2022`、`macos-14`），涵盖以下真实步骤：
+CI 工作流 `.github/workflows/cpython-standalone.yml` 包含三个真实平台矩阵（`ubuntu-24.04`、`windows-2022`、`macos-15`），涵盖以下真实步骤：
 1. **Rust 平台与 ABI 单元测试**：`cargo test -p ryupy-driver --lib -- cpython`（20 项通过）。
 2. **Platform 契约测试**：`tests/cpython/test_cpython_platform.py`（3 项通过，已移除仅测试 Python 宿主本身的假 UTF-8 测试）。
 3. **真实 NativeAOT 构建与搬迁验证**：`tests/cpython/standalone_run.py`：
@@ -92,3 +92,11 @@ CI 工作流 `.github/workflows/cpython-standalone.yml` 包含三个真实平台
   - 构建脚本（`build.sh`、`build.ps1`、`build.cmd`）与真实应用CI入口已实现，平台实际执行待验。
   - Linux CI 已配置 `patchelf`、`binutils` (readelf) 与 `zstd`；Windows CI 已配置 MSVC 开发环境（`ilammy/msvc-dev-cmd`）、修复 `CPYTHON_HOME` 父目录解析并匹配 `build.ps1` 参数。
   - 当前两平台在待验状态，待 GitHub Actions runner 实际执行检验，不伪造干净机验收。
+
+2026-11-14首轮CI发现并修正：Linux工具链缺clippy，Windows构建工具须安装到独立venv，
+macOS14 runner已停用，矩阵改用macos-15。平台最终结果以修正后的CI运行登记。
+
+异构审查修复：Rust/Python两侧源路径统一canonicalize，RECORD分隔符统一，包内相对导入递归发现；
+Linux shim直接链接版本化libpython；PE表允许Size省略终结项且受原始节边界约束；
+第三方附属DLL目录由产品配置冻结并在Windows宿主注册。macOS两套JIT/AOT搬迁回归通过，
+反斜杠RECORD与相对导入回归通过；Linux/Windows继续以CI实际结果验收。

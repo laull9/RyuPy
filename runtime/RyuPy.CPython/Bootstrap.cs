@@ -49,7 +49,7 @@ public static class Bootstrap
     }
 }
 
-internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers)
+internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths)
 {
     internal static HostConfiguration Read(string filename)
     {
@@ -88,6 +88,8 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
         if (mode is not ("proxy" or "synchronized")) throw new InvalidDataException("container_transfer必须为proxy或synchronized");
         return new(Resolve("home"), Resolve("library"), Resolve("shim"), paths,
             root.GetProperty("modules").EnumerateArray().Select(p => p.GetString()!).ToArray(),
-            mode == "synchronized");
+            mode == "synchronized",
+            root.TryGetProperty("native_search_paths", out JsonElement nativePaths)
+                ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : []);
     }
 }

@@ -79,16 +79,31 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
     );
     std::fs::copy(&plan.shim, output.join(native::shim_name()))?;
     native::relocate(output)?;
+    let mut files = Vec::new();
+    list_files(&python, output, &mut files)?;
+    // 冻结第三方附属DLL目录，运行时注册相同搜索闭包，避免审计与实际加载脱节。
+    let native_search_paths: std::collections::BTreeSet<_> = files
+        .iter()
+        .filter_map(|file| file["path"].as_str())
+        .filter(|path| {
+            Path::new(path)
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dll"))
+        })
+        .filter_map(|path| {
+            Path::new(path)
+                .parent()
+                .map(|parent| parent.to_string_lossy().into_owned())
+        })
+        .collect();
     let config = json!({
         "schema": 1, "python_version": VERSION, "home": "python",
         "library": native::library_relpath()?,
         "shim": native::shim_name(),
-        "search_paths": native::search_paths()?,
+        "search_paths": native::search_paths()?, "native_search_paths": native_search_paths,
         "stdlib_provider": "cpython", "modules": plan.modules, "container_transfer": plan.container_transfer,
     });
     std::fs::write(output.join(CONFIG), serde_json::to_vec_pretty(&config)?)?;
-    let mut files = Vec::new();
-    list_files(&python, output, &mut files)?;
     let report = json!({
         "schema": 1, "python_version": VERSION, "rid": native::rid()?,
         "source": plan.source,

@@ -11,10 +11,11 @@ JIT与NativeAOT部署消费同一冻结计划。macOS和Linux固定pgo+lto，Win
 每个原生映像验证目标格式和机器架构，非系统依赖必须在分发内唯一解析。
 
 Linux要求readelf与patchelf成功执行，收集版本化共享库并重写每个映像的相对rpath；系统库按
-精确名字匹配。Windows解析普通与延迟导入表，限制目录、原始节、描述符及字符串边界。
+精确名字匹配。Windows解析普通与延迟导入表，限制目录、原始节、描述符及字符串边界；表扫描以原始节边界和全零终结项为准，
+兼容数据目录Size省略终结项的链接器输出。
 VC运行时属于产品依赖，须随包；白名单仅保留Windows操作系统库和API-set族。
 Windows宿主使用SetDefaultDllDirectories、AddDllDirectory及带明确搜索标记的LoadLibraryExW，
-仅注册随包home与DLLs目录，屏蔽开发PATH和cwd。目录注册及原生库同寿命，保留到进程退出。
+注册随包home、DLLs及构建期冻结的第三方附属DLL目录，屏蔽开发PATH和cwd。目录注册及原生库同寿命，保留到进程退出。
 
 嵌入解释器采用隔离PyPreConfig，固定UTF-8模式，避免进程locale引起默认文件读写退化为ASCII。
 默认中文读写通过真实CPython oracle、RyuPy编译入口、JIT/NativeAOT搬迁验证。

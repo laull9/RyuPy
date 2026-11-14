@@ -46,7 +46,7 @@ jobs:
             shell: pwsh
             cli: target/debug/ryupy.exe
             shim_ext: dll
-          - os: macos-14
+          - os: macos-15
             rid: osx-arm64
             shell: bash
             cli: target/debug/ryupy
@@ -63,6 +63,7 @@ jobs:
         uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
         with:
           toolchain: '1.99.1'
+          components: clippy, rustfmt
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -105,7 +106,11 @@ jobs:
           "PYTHON_BIN=$pyBin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $pyHome = Split-Path $pyBin -Parent
           "CPYTHON_HOME=$pyHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          uv pip install --python "$pyBin" zstandard==0.25.0
+          $runnerEnv = Join-Path $env:RUNNER_TEMP "standalone-runner"
+          uv venv --python "$pyBin" "$runnerEnv"
+          $runnerPython = Join-Path $runnerEnv "Scripts/python.exe"
+          uv pip install --python "$runnerPython" zstandard==0.25.0
+          "RUNNER_PYTHON=$runnerPython" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Build RyuPy Runtime and CPython Bridge (POSIX)
         if: runner.os != 'Windows'
@@ -148,4 +153,4 @@ jobs:
       - name: Standalone NativeAOT Build and Relocation Verification (Windows)
         if: runner.os == 'Windows'
         run: |
-          & "$env:PYTHON_BIN" -B tests/cpython/standalone_run.py --python "$env:PYTHON_BIN" --distribution "$env:CPYTHON_HOME" --ryupy "${{ matrix.cli }}"
+          & "$env:RUNNER_PYTHON" -B tests/cpython/standalone_run.py --python "$env:PYTHON_BIN" --distribution "$env:CPYTHON_HOME" --ryupy "${{ matrix.cli }}"

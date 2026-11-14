@@ -376,9 +376,12 @@ fn parse_pe_imports(data: &[u8]) -> Result<Vec<String>> {
         ensure!(rva != 0 && size >= stride, "PE导入目录地址/大小无效");
         let (offset, available) = map(rva)?;
         ensure!(size <= available, "PE导入目录越界");
+        // 数据目录Size在部分链接器输出中省略全零项；扫描仍严格限制于当前原始节。
         let mut terminated = false;
-        for descriptor in (offset..offset + size).step_by(stride) {
-            ensure!(descriptor + stride <= offset + size, "PE导入描述符截断");
+        for descriptor in (offset..offset + available).step_by(stride) {
+            if descriptor + stride > offset + available {
+                break;
+            }
             if data[descriptor..descriptor + stride]
                 .iter()
                 .all(|byte| *byte == 0)
@@ -458,11 +461,11 @@ mod tests {
         }
         let mut no_terminator = data.clone();
         no_terminator[0x114..0x118].copy_from_slice(&20u32.to_le_bytes());
+        assert!(parse_pe_imports(&no_terminator).is_ok(), "Size可省略终结项");
+        no_terminator[0x214..0x600].fill(0xff);
         assert!(
-            parse_pe_imports(&no_terminator)
-                .unwrap_err()
-                .to_string()
-                .contains("终结符")
+            parse_pe_imports(&no_terminator).is_err(),
+            "原始节内无终结项必须拒绝"
         );
         let mut no_raw_bytes = data;
         no_raw_bytes[0x198..0x19c].copy_from_slice(&16u32.to_le_bytes());
