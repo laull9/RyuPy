@@ -134,6 +134,11 @@ jobs:
           cargo test -p ryupy-driver --lib -- cpython
           cargo clippy -p ryupy-driver -- -D warnings
 
+      - name: Linux native dependency closure
+        if: runner.os == 'Linux'
+        run: |
+          cargo test -p ryupy-driver --test cpython_linux_closure linux_
+
       - name: Run Platform Contract Tests (POSIX)
         if: runner.os != 'Windows'
         run: |

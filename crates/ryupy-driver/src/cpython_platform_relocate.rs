@@ -175,96 +175,9 @@ pub(super) fn relocate_macos(output: &Path, shim_name: &str, system_deps: &[&str
 
 /// Linux ELF 共享库依赖与 rpath 封闭性校验及重定位。
 pub(super) fn relocate_linux(output: &Path, shim_name: &str, system_deps: &[&str]) -> Result<()> {
-    let mut all = Vec::new();
-    collect_images(&output.join("python"), &mut all)?;
-    all.push(output.join(shim_name));
-
-    // 检查必需审计工具 readelf
-    let readelf_out = Command::new("readelf")
-        .arg("-h")
-        .arg(output.join(shim_name))
-        .output()
-        .context("缺少 Linux 平台 ELF 审计工具 readelf，无法验证依赖闭包安全")?;
-    ensure!(
-        readelf_out.status.success(),
-        "readelf 运行失败，无法解析 ELF 依赖"
-    );
-
-    // 检查重定位工具 patchelf
-    let patchelf_avail = Command::new("patchelf").arg("--version").output();
-    let patchelf_ok = patchelf_avail
-        .as_ref()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    ensure!(
-        patchelf_ok,
-        "缺少 patchelf 工具，无法重定位 Linux 原生共享库 rpath"
-    );
-
-    for image in &all {
-        super::platform_abi::check_architecture(image, super::rid()?)?;
-        let report = Command::new("readelf")
-            .arg("-d")
-            .arg(image)
-            .output()
-            .with_context(|| format!("readelf 无法读取动态依赖节：{}", image.display()))?;
-        ensure!(
-            report.status.success(),
-            "readelf 读取失败 (code {:?})：{}",
-            report.status.code(),
-            image.display()
-        );
-        let text = String::from_utf8_lossy(&report.stdout);
-        let mut needed_deps = Vec::new();
-        for line in text.lines() {
-            if line.contains("(NEEDED)") {
-                if let Some(dep) = extract_needed_library(line) {
-                    needed_deps.push(dep);
-                }
-            }
-        }
-
-        let mut required_dirs = std::collections::BTreeSet::new();
-        for dep in &needed_deps {
-            if system_deps.iter().any(|sys| dep == sys) {
-                continue;
-            }
-            let matches: Vec<_> = all
-                .iter()
-                .filter(|c| c.file_name().and_then(|f| f.to_str()) == Some(dep))
-                .collect();
-            ensure!(
-                matches.len() == 1,
-                "Linux CPython 原生依赖未封闭：{} 依赖 {}，分发内匹配项数量为 {}（必须为 1）",
-                image.display(),
-                dep,
-                matches.len()
-            );
-            if let Some(parent) = matches[0].parent() {
-                required_dirs.insert(parent);
-            }
-        }
-
-        // rpath 必须包含 $ORIGIN 以及指向每个已解析非系统依赖所在目录的相对路径
-        let image_parent = image.parent().context("原生库缺少父目录")?;
-        let mut rpaths = vec!["$ORIGIN".to_string()];
-        for dir in required_dirs {
-            if dir != image_parent {
-                let rel = relative_path(image_parent, dir)?;
-                rpaths.push(format!("$ORIGIN/{rel}"));
-            }
-        }
-        let rpath_str = rpaths.join(":");
-        run_command(
-            "patchelf",
-            &[
-                "--set-rpath".as_ref(),
-                rpath_str.as_ref(),
-                image.as_os_str(),
-            ],
-        )?;
-    }
-    Ok(())
+    #[path = "cpython_platform_linux.rs"]
+    mod linux;
+    linux::relocate(output, shim_name, system_deps)
 }
 
 /// 从 readelf -d 的输出行中提取 NEEDED 库名称。

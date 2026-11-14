@@ -106,3 +106,8 @@ BUILD未匹配PBS20260623；Windows Ruff Git源码路径过长。CI改用standal
 确切20260623官方install_only资产获取同一基础发行，验证解释器版本后写入来源BUILD凭据
 （官方安装归档原本没有该文件），shim、Oracle与发布共用该发行。Windows Cargo目录缩短至D:\c。
 确切归档准备和macOS standalone全流已由主代理本地复验通过，修正版平台CI继续验收。
+
+第三轮CI：macOS15 arm64完整产品构建、空PATH搬迁与三项缺依赖负例通过。Linux已进入
+真实产品构建，因PBS的_crypt缺少libcrypt.so.1失败；新增ADR0187的构建期dpkg来源/许可冻结，
+专用真实Linux测试已接入CI。Windows已通过构建、单测与平台契约，在中文构建环境路径收集失败，
+收集器已显式加入-X utf8，等待实机复验。

@@ -43,10 +43,12 @@ pub(super) fn collect(
         "requirements": declaration.requirements, "dynamic_modules": declaration.dynamic_modules,
         "stdlib": stdlib, "provided_modules": provided,
     });
-    // -I -S 禁止用户site、.pth与环境变量注入；收集器从不导入应用包。
+    // -I -S隔离应用导入；-X utf8固定JSON管道编码，避免Windows中文路径被ANSI解码破坏。
     let mut child = Command::new(executable)
         .args([
             "-I",
+            "-X",
+            "utf8",
             "-S",
             "-B",
             "-c",
