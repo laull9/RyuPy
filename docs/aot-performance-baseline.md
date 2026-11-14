@@ -246,3 +246,26 @@
 ## 8. 完整检查
 
 主代理于2026-11-15执行固定CPython、RUSTC_WRAPPER为空、项目target、仓库外独占TMPDIR的make check，退出0。fmt、workspace严格Clippy、Rust套件通过；CPython基线743通过；C#3118通过、2跳过；e2e468通过、285忽略。基准工具独立轻测20项通过。未完成候选的pending和实验状态保留，后续产品修改重新执行对应检查。
+
+
+## 9. 首批优化后的完整复测
+
+原始基线保持上文记录。字符串有限特化（6aa3d992）、PIC按需分页（9cb7a4d7）已提交；
+流式sum候选在aa9fa3a8之后同次复测原始26项，固定CPython3.12.13、M5、.NET10.0.403、
+NativeAOT/native、直接脚本v2协议、1warm5无插桩墙钟/RSS，统计轮独立。全部26项和PIC关闭变体通过。
+
+排除startup的几何平均CP/Ryu为1.1290×。按本轮中位数：速度13/26、RSS3/26、同时满足2/26。
+hello波动49%、containers12%保留。接近1倍的结果仍按波动解释，逐项速度与内存目标继续推进。
+
+| 优先项 | 本轮CPython ms | 当前RyuPy ms | RSS MiB CP/Ryu |
+| --- | ---: | ---: | ---: |
+| str_concat | 177 | 11.5 | 16.5/22.7 |
+| containers | 34.6 | 23.9 | 35.9/40.5 |
+| generators | 116 | 337 | 14.8/21.9 |
+| comprehensions | 42.1 | 131 | 19.3/46.9 |
+| sieve | 78.2 | 180 | 30.1/52.7 |
+| records | 68.0 | 136 | 32.9/50.8 |
+
+最新完整make check退出0：CP基线744通过，C#3134通过/2跳过，编译e2e470通过/284忽略。
+同工作区生成器活跃性实验仍为test-only，单独保留WIP。分项对照与取舍见
+[字符串](aot-string-optimization.md)、[PIC](aot-pic-optimization.md)、[sum](aot-sum-optimization.md)。

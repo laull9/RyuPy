@@ -587,6 +587,13 @@ HMAC digest callable、HMAC 元数据写入及 binascii.Error 重绑定明确 NI
 当前仍有既有参数偏差：str/bytes/bytearray start缺少CPython专门拒绝，位置与关键字重复start缺少特化报错。
 上述两项登记后独立修复，流式消费沿既有参数解析路径。
 
+### 4.16 模块重绑定list的内建值回退待验
+
+当前模块中稍后赋值给list时，先前 `original_list = list` 的未绑定读取会触发
+`NotImplementedError: builtin fallback for unbound module name 'list' is not supported`。
+CPython会返回内建list对象。原始反例保留为 `phase3/aot_list_comp_builtin_rebinding` pending；
+该名字回退路径独立修复，私有列表收集器采用已绑定的同名全局验证隔离。
+
 ## 5. 模块与入口
 
 - 顶层语句按顺序组成隐式 `main`，入口模块名为 `__main__`；模块顶层代码编译成独立的初始化函数，由运行时导入机制触发，**编译期不执行副作用**。

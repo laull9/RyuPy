@@ -432,6 +432,9 @@ impl ExprBuilder<'_> {
         args: &[CallArg],
         call_ty: &Ty,
     ) -> Operand {
+        if let Some(direct) = self.try_build_private_comp_append(base, &name, args, call_ty) {
+            return direct;
+        }
         let obj_op = self.build_expr(base);
         let obj_ty = self.ty_of(base);
         let obj = self.coerce(obj_op, &obj_ty, &MirType::Dynamic);
