@@ -5,122 +5,10 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand, ValueEnum};
-use ryupy_driver::{BuildOptions, HasErrors, Session, Stage, dotnet};
-
-#[derive(Parser)]
-#[command(name = "ryupy", version, about = "Python → .NET CIL 编译器")]
-struct Cli {
-    /// 显式 CPython provider 声明（固定发行、模块执行域与包载荷）
-    #[arg(long, global = true)]
-    cpython_provider: Option<PathBuf>,
-    /// 显式封闭分发快照请求（JIT/AOT）；不改变sys.path
-    #[arg(long, global = true)]
-    distribution_metadata: Option<PathBuf>,
-    /// 强制有限trace V1：域外整产物编译拒绝；普通build/run无flag自动检查有限域
-    #[arg(long, global = true)]
-    trace_product_v1: bool,
-    /// 显式启用已发现源码模块的真实实例全局；不会自动包含模块（可重复）
-    #[arg(long = "instance-module", global = true)]
-    instance_modules: Vec<String>,
-    /// 显式普通Instance的直接globals冷路；不支持推导式或间接builtin调用
-    #[arg(long, global = true)]
-    instance_direct_globals: bool,
-    /// 实验：将受守卫循环累加展开成直接 CIL（不保证更快；默认使用 holder）
-    #[arg(long, global = true)]
-    experimental_direct_accumulator: bool,
-    /// 实验：受守卫纯叶调用内联（默认关闭，不保证更快）
-    #[arg(long, global = true)]
-    experimental_leaf_inline: bool,
-    /// 诊断：保SLP守卫/物化，以标量运算作为packed SIMD的公平控制组
-    #[arg(long, global = true, conflicts_with = "experimental_packed_slp")]
-    diagnostic_scalar_slp: bool,
-    /// 实验：真正packed两lane SLP（相对同守卫标量未获净收益，默认关闭）
-    #[arg(long, global = true, conflicts_with = "diagnostic_scalar_slp")]
-    experimental_packed_slp: bool,
-    #[command(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// 静态探测来源闭包并输出 JSON；只解析源码，不执行 Python 或语义编译
-    Probe {
-        input: PathBuf,
-        /// 报告及已授权 catalog 部署目录；默认入口旁 __pycache__/<入口>/probe
-        #[arg(short, long)]
-        out_dir: Option<PathBuf>,
-        #[arg(short = 'I', long = "search-path")]
-        search_paths: Vec<PathBuf>,
-        /// 按现有默认 AOT 策略探测，不启动 ILC
-        #[arg(long)]
-        aot: bool,
-    },
-    /// 编译为 .dll（加 --aot 生成原生可执行文件）
-    Build {
-        input: PathBuf,
-        /// 诊断：逐阶段写 stderr（编译至产物写出，不含 AOT publish；默认关闭）
-        #[arg(long, conflicts_with = "native_binding")]
-        diagnostic_stages: bool,
-        /// 输出根；AOT默认源目录下<文件名>.build/.dist，JIT默认__pycache__/<文件名>/
-        #[arg(short, long)]
-        out_dir: Option<PathBuf>,
-        #[arg(long)]
-        aot: bool,
-        /// 显式资源清单（仅 AOT；目标相对路径首切限 ASCII）
-        #[arg(long, requires = "aot")]
-        resources: Option<PathBuf>,
-        /// 显式固定签名 C ABI 声明；AOT 可同时发布显式资源
-        #[arg(long)]
-        native_binding: Option<PathBuf>,
-        /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
-        #[arg(short = 'I', long = "search-path")]
-        search_paths: Vec<PathBuf>,
-        /// 显式包含ASCII点分源码模块（可重复；仍按import惰性初始化，不复制资源）
-        #[arg(long = "include-module")]
-        include_modules: Vec<String>,
-    },
-    /// 编译并立即用 dotnet 运行
-    Run {
-        input: PathBuf,
-        /// 诊断：逐阶段写 stderr（仅编译，不含 dotnet 运行；默认关闭）
-        #[arg(long)]
-        diagnostic_stages: bool,
-        /// 额外的模块搜索根（可重复；入口文件所在目录始终最优先）
-        #[arg(short = 'I', long = "search-path")]
-        search_paths: Vec<PathBuf>,
-        /// 显式包含ASCII点分源码模块（可重复；仍按import惰性初始化，不复制资源）
-        #[arg(long = "include-module")]
-        include_modules: Vec<String>,
-    },
-    /// 打印某一阶段的中间表示
-    Dump {
-        input: PathBuf,
-        #[arg(long, value_enum, default_value_t = EmitArg::Hir)]
-        emit: EmitArg,
-    },
-}
-
-#[derive(Clone, Copy, ValueEnum)]
-enum EmitArg {
-    Ast,
-    Hir,
-    Types,
-    Mir,
-    Cil,
-}
-
-impl From<EmitArg> for Stage {
-    fn from(e: EmitArg) -> Self {
-        match e {
-            EmitArg::Ast => Stage::Ast,
-            EmitArg::Hir => Stage::Hir,
-            EmitArg::Types => Stage::Types,
-            EmitArg::Mir => Stage::Mir,
-            EmitArg::Cil => Stage::Cil,
-        }
-    }
-}
+use clap::Parser;
+mod args;
+use args::{Cli, Command};
+use ryupy_driver::{BuildOptions, HasErrors, Session, dotnet};
 
 fn default_out_dir(input: &std::path::Path) -> PathBuf {
     let dir = input.parent().unwrap_or_else(|| std::path::Path::new("."));
@@ -131,7 +19,27 @@ fn default_out_dir(input: &std::path::Path) -> PathBuf {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    if cli.licenses {
+        print!("{}", ryupy_driver::runtime_licenses());
+        return ExitCode::SUCCESS;
+    }
+    if cli.help_advanced {
+        return match args::print_advanced_help() {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(error) => {
+                eprintln!("error: {error:#}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+    let command = match cli.take_command() {
+        Ok(command) => command,
+        Err(error) => {
+            eprintln!("error: {error:#}");
+            return ExitCode::FAILURE;
+        }
+    };
     let mut sess = Session {
         distribution_metadata: cli.distribution_metadata,
         cpython_provider: cli.cpython_provider,
@@ -144,7 +52,7 @@ fn main() -> ExitCode {
         experimental_packed_slp: cli.experimental_packed_slp,
         ..Session::default()
     };
-    let result = run(cli.command, &mut sess);
+    let result = run(command, &mut sess);
 
     if !sess.diagnostics.is_empty() {
         eprint!(
@@ -188,6 +96,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             diagnostic_stages,
             out_dir,
             aot,
+            onefile,
             resources,
             native_binding,
             search_paths,
@@ -196,6 +105,10 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
+            let aot = aot || onefile;
+            if aot {
+                dotnet::require_sdk()?;
+            }
             let out_dir = out_dir.unwrap_or_else(|| {
                 if aot {
                     input
@@ -207,7 +120,12 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                     default_out_dir(&input)
                 }
             });
-            let artifacts = ryupy_driver::build_configured(
+            let build = if onefile {
+                ryupy_driver::build_onefile
+            } else {
+                ryupy_driver::build_configured
+            };
+            let artifacts = build(
                 sess,
                 &BuildOptions {
                     input,
@@ -218,14 +136,23 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
                 resources.as_deref(),
                 native_binding.as_deref(),
             )?;
-            eprintln!("已生成 {}", artifacts.dll.display());
             if let Some(exe) = artifacts.native_exe {
                 eprintln!("已生成 {}", exe.display());
+            } else {
+                eprintln!("已生成 {}", artifacts.dll.display());
             }
-            if let Some(manifest) = artifacts.manifest {
+            if sess.diagnostic_stages
+                && let Some(manifest) = artifacts.manifest
+            {
                 eprintln!(
                     "{}：{}",
-                    if aot { "AOT 清单" } else { "产物清单" },
+                    if onefile {
+                        "内嵌 standalone 清单"
+                    } else if aot {
+                        "AOT 清单"
+                    } else {
+                        "产物清单"
+                    },
                     manifest.display()
                 );
             }
@@ -237,6 +164,7 @@ fn run(command: Command, sess: &mut Session) -> Result<ExitCode> {
             search_paths,
             include_modules,
         } => {
+            dotnet::require_runtime()?;
             sess.trace_entry = ryupy_driver::TraceEntry::StandaloneMain;
             sess.diagnostic_stages = diagnostic_stages;
             sess.include_modules = include_modules;
@@ -416,6 +344,8 @@ mod include_module_tests {
         ];
         assert!(Cli::try_parse_from(args).is_err());
         assert!(Cli::try_parse_from(args.into_iter().chain(["--aot"])).is_ok());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--onefile"])).is_ok());
+        assert!(Cli::try_parse_from(args.into_iter().chain(["--aot", "--onefile"])).is_ok());
     }
     #[test]
     fn include_module_is_repeatable_for_build_and_run() {
@@ -430,7 +360,7 @@ mod include_module_tests {
                 "other",
             ])
             .unwrap();
-            let names = match cli.command {
+            let names = match cli.command.unwrap() {
                 Command::Build {
                     include_modules, ..
                 }
@@ -482,7 +412,7 @@ mod instance_module_tests {
         assert_eq!(cli.instance_modules, ["a", "b"]);
         let Command::Run {
             include_modules, ..
-        } = cli.command
+        } = cli.command.unwrap()
         else {
             panic!("run");
         };

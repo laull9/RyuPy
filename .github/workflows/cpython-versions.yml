@@ -1,0 +1,148 @@
+name: CPython Automatic Version Compatibility
+
+on:
+  push:
+    branches: [dev, main, 'wip/**']
+    paths:
+      - '.github/workflows/cpython-versions.yml'
+      - 'crates/ryupy-driver/**'
+      - 'crates/ryupy-cli/**'
+      - 'runtime/**'
+      - 'tests/cpython/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.cargo/**'
+  pull_request:
+    paths:
+      - '.github/workflows/cpython-versions.yml'
+      - 'crates/ryupy-driver/**'
+      - 'crates/ryupy-cli/**'
+      - 'runtime/**'
+      - 'tests/cpython/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.cargo/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MSBUILDDISABLENODEREUSE: '1'
+  DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+  UseSharedCompilation: 'false'
+  PYTHONUTF8: '1'
+  RUSTUP_TOOLCHAIN: '1.99.1'
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  version-matrix:
+    name: Python ${{ matrix.python-version }} [${{ matrix.os }}]
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14', '3.15']
+        include:
+          - python-version: '3.9'
+            numpy-version: '1.26.4'
+          - python-version: '3.10'
+            numpy-version: '2.2.3'
+          - python-version: '3.11'
+            numpy-version: '2.3.5'
+          - python-version: '3.12'
+            numpy-version: '2.3.5'
+          - python-version: '3.13'
+            numpy-version: '2.3.5'
+          - python-version: '3.14'
+            numpy-version: '2.5.4'
+          - python-version: '3.15'
+            numpy-version: '2.5.4'
+          - os: ubuntu-24.04
+            shell: bash
+            cli: target/debug/ryupy
+          - os: macos-15
+            shell: bash
+            cli: target/debug/ryupy
+          - os: windows-2022
+            shell: pwsh
+            cli: target/debug/ryupy.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Short Cargo paths (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          "CARGO_HOME=D:\c" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          git config --global core.longpaths true
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Linux native tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y patchelf binutils zstd
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        with:
+          version: '0.13.4'
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build RyuPy Runtime and Bridges
+        run: |
+          dotnet build runtime/RyuPy.Runtime -c Release -p:Platform=AnyCPU -nologo -v q
+          dotnet build runtime/RyuPy.CPython -c Release -p:Platform=AnyCPU -nologo -v q
+
+      - name: Check portable distribution contracts
+        run: python -B tests/cpython/test_portable.py
+
+      - name: Compile ryupy-cli
+        run: cargo build -p ryupy-cli
+
+      - name: Verify real Linux system library closure
+        if: runner.os == 'Linux'
+        run: cargo test -p ryupy-driver --test cpython_linux_closure linux_
+
+      - name: Prepare clean Linux target
+        if: runner.os == 'Linux'
+        run: docker pull mcr.microsoft.com/dotnet/runtime-deps:10.0-noble
+
+      - name: Verify actual version and relocated product (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          args=(-B tests/cpython/version_run.py --ryupy "${{ matrix.cli }}" --python-version "${{ matrix.python-version }}" --python "$(command -v python3)" --numpy-version "${{ matrix.numpy-version }}")
+          if [ "$RUNNER_OS" = "Linux" ]; then args+=(--linux-container mcr.microsoft.com/dotnet/runtime-deps:10.0-noble); fi
+          if [ "${{ matrix.python-version }}" = "3.12" ]; then args+=(--priority); fi
+          python3 "${args[@]}"
+
+      - name: Verify actual version and relocated product (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          $versionArgs = @('-B', 'tests/cpython/version_run.py', '--ryupy', '${{ matrix.cli }}', '--python-version', '${{ matrix.python-version }}', '--python', (Get-Command python).Source, '--numpy-version', '${{ matrix.numpy-version }}')
+          if ('${{ matrix.python-version }}' -eq '3.12') { $versionArgs += '--priority' }
+          & python @versionArgs

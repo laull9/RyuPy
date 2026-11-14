@@ -15,7 +15,7 @@ Linux 每条非核心 ELF 边先在冻结产品载荷中唯一解析。同一真
 且通过ELF架构检查，再重写成同包SONAME并统一rpath。越界或缺失目标拒绝，现有载荷无法满足时
 不会回退替换它。
 
-本次系统收集明确限于 `libcrypt.so.1`，作为 `_crypt` 的必要系统 ABI。仅从本机
+系统收集明确限于 `libcrypt.so.1` 与 `libz.so.1`，分别作为 `_crypt` 和真实 NumPy/新版发行所需的必要系统 ABI。仅从本机
 `/sbin/ldconfig -p` 的 x86-64 记录解析，真实来源必须唯一；通过 dpkg-query 的文件归属、
 已安装状态、amd64 架构、精确包名及版本核验后复制到 `python/lib/libcrypt.so.1`。
 缓存路径与解析后的真实路径一并冻结。未授权的其他边要求显式 payload；未安装 dpkg
@@ -48,3 +48,7 @@ patchelf，并验证冻结库、来源、许可、相对 rpath 及错架构拒�
 2026-11-14，[候选 77605121 的 Linux CI](https://github.com/laull9/RyuPy/actions/runs/43585093316/job/132417756489)
 完整通过 8 项专测、同次 CPython oracle、NativeAOT 发布、删除构建输入后的中文空格路径搬迁，
 以及无 Python/.NET/SDK 的 Ubuntu 原生依赖容器运行；三流、文件副作用和三个缺失组件负例均通过。
+
+2026-11-14自动版本首轮Linux真实运行暴露libz.so.1缺口；沿同一dpkg唯一归属、包版本/架构、
+许可复制和递归rpath流程冻结zlib1g，核心系统白名单保持原范围。新增真实cc+libz专测核对
+来源、许可证和相对rpath；拒绝未知SONAME继续生效。

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 /// 与 build 使用相同策略门和搜索根；调用方可显式选择报告输出目录。
 pub fn probe_sources(sess: &mut Session, opts: &BuildOptions) -> Result<String> {
-    crate::cpython_provider::prepare(sess, &opts.input)?;
+    crate::cpython_provider::prepare(sess, opts)?;
     ensure!(!sess.fixed_binding_build, "固定绑定构建使用自身来源合同");
     // 探测是独立事务，不能抹掉同一 Session 原有的来源计划和权限载体。
     let previous_state = std::mem::take(&mut sess.default_source_state);

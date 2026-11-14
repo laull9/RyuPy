@@ -40,7 +40,7 @@ fn build_internal(
     // provider执行域和部署计划覆盖整个绑定候选；成功/失败都恢复调用方会话。
     let previous = std::mem::take(&mut sess.cpython_provider_state);
     let result = (|| {
-        crate::cpython_provider::prepare(sess, &opts.input)?;
+        crate::cpython_provider::prepare(sess, opts)?;
         build_prepared(sess, opts, declaration, resources, owned)
     })();
     sess.cpython_provider_state = previous;

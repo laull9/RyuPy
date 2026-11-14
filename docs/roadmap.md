@@ -55,11 +55,20 @@ CP1–CP3显式试点在macOS arm64已通过21项CP/JIT/NativeAOT搬迁、原联
 
 修订日期：2026-11-02。本文描述后续计划；已实现能力见 [semantics.md](semantics.md)，执行任务见 [TODO.md](../TODO.md)。本次调整记录在 [ADR-0009](adr/0009-project-compatibility-first.md)。
 
+## 2026-11-14 单文件交付
+
+单文件 CLI、完整载荷 onefile、普通多文件入口和 Python 3.9–3.15 自动冻结已实现。
+`ryupy main.py` 直接生成单一 AOT，用户环境和完整版本由编译器探测；`--native` 保留纯 RyuPy。
+本地源码按实际导入链编译，支持 `-I src` 与显式本地插件，忽略未引用开发文件。
+[三平台门禁](cpython-platform-support.md#54-单文件编译器普通项目与自动版本)分别验证编译器独立文件、
+输入删除搬迁、版本及 NumPy。后续重点为完整对象桥跨平台生命周期、更多真实项目、
+HTTPS 证书链和实测热点，固定项目集的 attrs 活字典缺口继续登记。
+
 ## 2026-11-13 AOT 打包推进
 
 当前优先交付可搬迁 standalone：源码模块、包数据和 C ABI 库共同进入发布目录。已整合单库多导出 v2 绑定与文件系统 `importlib.resources.as_file(Path)`，分别完成 macOS arm64 真实搬迁和差分测试。资源与绑定组合发布已完成 23 步真实搬迁验收；通用 C ABI v3 进一步支持 13 类标量、void 返回和 UTF-8/bytes 只读借用，已通过静态 AOT、`as_file()` 资源组合与受限环境搬迁（[ADR0173](adr/0173-declarative-cabi-signatures.md)）。接下来推进 SafeHandle 所有权、多库依赖闭包、更多源码模块准入及跨平台目标环境验收。
 
-完整标准库继续按 API、底层依赖和平台登记。版本化 catalog v2 已接入五个纯 Python 原源模块，新增 colorsys 六 API 差分与真实 AOT 搬迁；`ryupy probe` 及普通构建报告列出 provider、来源、版本、依赖缺口与动态不确定性，默认发行已开启认证 catalog 静态准入，动态用户模块保留 pilot 策略门（[ADR0174](adr/0174-versioned-source-catalog-probe.md)）。C#/.NET 已整合 SQLite、HTTP/TLS、gzip/zlib、Base64 与摘要认证的常用 API，并通过跨模块应用搬迁；SQLite/TLS 复用成熟 provider 与系统实现。完整 provider 覆盖与 libpython 宿主继续实施。onefile 排在 standalone 分发闭环之后。完整接入路线见 [ADR0172](adr/0172-aot-stdlib-provider-plan.md)。
+完整标准库继续按 API、底层依赖和平台登记。版本化 catalog v2 已接入五个纯 Python 原源模块，新增 colorsys 六 API 差分与真实 AOT 搬迁；`ryupy probe` 及普通构建报告列出 provider、来源、版本、依赖缺口与动态不确定性，默认发行已开启认证 catalog 静态准入，动态用户模块保留 pilot 策略门（[ADR0174](adr/0174-versioned-source-catalog-probe.md)）。C#/.NET 已整合 SQLite、HTTP/TLS、gzip/zlib、Base64 与摘要认证的常用 API，并通过跨模块应用搬迁；SQLite/TLS 复用成熟 provider 与系统实现。完整 provider 覆盖与 libpython 宿主继续实施。standalone 与 onefile 的当前结果见上述单文件交付登记。完整接入路线见 [ADR0172](adr/0172-aot-stdlib-provider-plan.md)。
 
 ## 愿景
 

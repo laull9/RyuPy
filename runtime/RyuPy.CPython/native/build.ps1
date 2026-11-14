@@ -1,6 +1,6 @@
-<#
+﻿<#
 .SYNOPSIS
-    为 Windows 平台构建固定 CPython 3.12.13 的 ryupy_cpython.dll shim。
+    为 Windows 平台构建选中 CPython 版本 的 ryupy_cpython.dll shim。
 .DESCRIPTION
     支持 MSVC cl.exe、clang-cl 与 clang 工具链，输出目录始终由调用方指定到构建缓存或发布根，绝不污染源码。
 #>
@@ -9,28 +9,54 @@ param (
     [string]$PythonHome,
 
     [Parameter(Mandatory = $true, Position = 1)]
-    [string]$Output
+    [string]$Output,
+
+    [Parameter(Mandatory = $false, Position = 2)]
+    [string]$PythonVersion
 )
 
 $ErrorActionPreference = 'Stop'
 
-$resolvedPython = (Resolve-Path $PythonHome).Path
+# Rust规范路径可能带verbatim前缀，原生编译器参数使用等价的普通盘符/UNC拼写。
+function Native-Path([string]$value) {
+    $resolved = (Resolve-Path -LiteralPath $value).ProviderPath
+    if ($resolved.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        return '\\' + $resolved.Substring(8)
+    }
+    if ($resolved.StartsWith('\\?\', [StringComparison]::Ordinal)) {
+        return $resolved.Substring(4)
+    }
+    return $resolved
+}
+$resolvedPython = Native-Path $PythonHome
 if (-not (Test-Path $Output)) {
     New-Item -ItemType Directory -Path $Output -Force | Out-Null
 }
-$resolvedOutput = (Resolve-Path $Output).Path
+$resolvedOutput = Native-Path $Output
 $srcFile = Join-Path $PSScriptRoot "ryupy_cpython.c"
 $targetDll = Join-Path $resolvedOutput "ryupy_cpython.dll"
 
-$includes = @(
-    "/I$resolvedPython\include",
-    "/I$resolvedPython\include\python3.12"
-)
-$libs = @("/LIBPATH:$resolvedPython\libs", "python312.lib")
+# 从同一发行头文件精确派生 import library；python3.lib 是稳定 ABI 桩，不能用于嵌入。
+if (-not $PythonVersion) {
+    $header = Get-Content -LiteralPath (Join-Path $resolvedPython "include\patchlevel.h") -Raw
+    $majorMatch = [regex]::Match($header, '(?m)^#define\s+PY_MAJOR_VERSION\s+(\d+)')
+    $minorMatch = [regex]::Match($header, '(?m)^#define\s+PY_MINOR_VERSION\s+(\d+)')
+    if (-not $majorMatch.Success -or -not $minorMatch.Success) {
+        throw "无法从选中发行的 patchlevel.h 读取 Python 版本"
+    }
+    $PythonVersion = $majorMatch.Groups[1].Value + "." + $minorMatch.Groups[1].Value
+}
+$includes = @("/I$resolvedPython\include", "/I$resolvedPython\include\python$PythonVersion")
+$cleanVer = $PythonVersion.Replace(".", "")
+$libName = "python$cleanVer.lib"
+if (-not (Test-Path -LiteralPath (Join-Path $resolvedPython "libs\$libName"))) {
+    throw "选中发行缺少 import library：$libName"
+}
+$libs = @("/LIBPATH:$resolvedPython\libs", $libName)
 
 if (Get-Command "cl.exe" -ErrorAction SilentlyContinue) {
     Write-Host "[ryupy-cpython] 使用 MSVC cl.exe 构建 Windows shim..."
-    $clArgs = @("/nologo", "/O2", "/W3", "/WX", "/MD", "/LD") + $includes + @("/Fo$resolvedOutput\ryupy_cpython.obj", $srcFile, "/link") + $libs + @("/OUT:$targetDll", "/IMPLIB:$resolvedOutput\ryupy_cpython.lib")
+    $clArgs = @("/nologo", "/utf-8", "/O2", "/W3", "/WX", "/MD", "/LD") + $includes + @("/Fo$resolvedOutput\ryupy_cpython.obj", $srcFile, "/link") + $libs + @("/OUT:$targetDll", "/IMPLIB:$resolvedOutput\ryupy_cpython.lib")
     & cl.exe $clArgs
     if ($LASTEXITCODE -ne 0) {
         throw "MSVC 编译 ryupy_cpython.dll 失败，退出码: $LASTEXITCODE"
@@ -49,10 +75,10 @@ if (Get-Command "clang.exe" -ErrorAction SilentlyContinue) {
     $clangArgs = @(
         "-shared", "-O2", "-Wall", "-Wextra", "-Werror",
         "-I$resolvedPython\include",
-        "-I$resolvedPython\include\python3.12",
+        "-I$resolvedPython\include\python$PythonVersion",
         $srcFile,
         "-L$resolvedPython\libs",
-        "-lpython312",
+        ("-l" + $libName.Replace(".lib", "")),
         "-o", $targetDll
     )
     & clang.exe $clangArgs

@@ -22,6 +22,7 @@ pub(super) struct Closure {
     pub payloads: Vec<Payload>,
     pub report: serde_json::Value,
 }
+#[allow(dead_code)]
 pub(super) fn collect(
     declaration: Declaration,
     base: &Path,
@@ -30,30 +31,124 @@ pub(super) fn collect(
     provided: &[String],
     stdlib: &std::collections::BTreeSet<String>,
 ) -> Result<Closure> {
+    collect_for_version(
+        declaration,
+        base,
+        root,
+        SourceInput {
+            entry,
+            search_paths: &[],
+            include_modules: &[],
+        },
+        provided,
+        stdlib,
+        &super::native::version::PythonVersion::new(3, 12, 13),
+    )
+}
+
+struct CollectRequest<'a> {
+    auto_tools: bool,
+    environment: &'a Path,
+    root: &'a Path,
+    source: SourceInput<'a>,
+    provided: &'a [String],
+    stdlib: &'a std::collections::BTreeSet<String>,
+    version: &'a super::native::version::PythonVersion,
+    requirements: Vec<String>,
+    dynamic_modules: Vec<String>,
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct SourceInput<'a> {
+    pub entry: &'a Path,
+    pub search_paths: &'a [PathBuf],
+    pub include_modules: &'a [String],
+}
+
+pub(super) fn collect_for_version(
+    declaration: Declaration,
+    base: &Path,
+    root: &Path,
+    source: SourceInput<'_>,
+    provided: &[String],
+    stdlib: &std::collections::BTreeSet<String>,
+    version: &super::native::version::PythonVersion,
+) -> Result<Closure> {
     let environment = absolute(base, &declaration.environment)?
         .canonicalize()
         .context("依赖构建环境不存在，请准备固定CPython环境")?;
+    collect_internal(CollectRequest {
+        auto_tools: false,
+        environment: &environment,
+        root,
+        source,
+        provided,
+        stdlib,
+        version,
+        requirements: declaration.requirements,
+        dynamic_modules: declaration.dynamic_modules,
+    })
+}
+
+pub(super) fn collect_auto(
+    environment: &Path,
+    root: &Path,
+    source: SourceInput<'_>,
+    provided: &[String],
+    stdlib: &std::collections::BTreeSet<String>,
+    version: &super::native::version::PythonVersion,
+) -> Result<Closure> {
+    collect_internal(CollectRequest {
+        auto_tools: true,
+        environment,
+        root,
+        source,
+        provided,
+        stdlib,
+        version,
+        requirements: Vec::new(),
+        dynamic_modules: Vec::new(),
+    })
+}
+
+fn collect_internal(req: CollectRequest<'_>) -> Result<Closure> {
+    let environment = req.environment.canonicalize()?;
     let executable = if cfg!(windows) {
-        root.join("python.exe")
+        let exe = req.root.join("python.exe");
+        if exe.is_file() {
+            exe
+        } else {
+            req.root.join("Scripts/python.exe")
+        }
     } else {
-        root.join("bin/python3.12")
+        let candidates = [
+            req.root.join(format!(
+                "bin/python{}.{}",
+                req.version.major, req.version.minor
+            )),
+            req.root.join("bin/python3"),
+            req.root.join("bin/python"),
+        ];
+        candidates
+            .into_iter()
+            .find(|p| p.is_file())
+            .unwrap_or_else(|| req.root.join("bin/python3"))
     };
     let request = serde_json::json!({
-        "environment": environment, "entry": entry.canonicalize()?,
-        "requirements": declaration.requirements, "dynamic_modules": declaration.dynamic_modules,
-        "stdlib": stdlib, "provided_modules": provided,
+        "environment": req.environment, "entry": req.source.entry.canonicalize()?,
+        "requirements": req.requirements, "dynamic_modules": req.dynamic_modules,
+        "stdlib": req.stdlib, "provided_modules": req.provided,
+        "auto_tools": req.auto_tools, "search_paths": req.source.search_paths,
+        "include_modules": req.source.include_modules,
     });
     // -I -S隔离应用导入；-X utf8固定JSON管道编码，避免Windows中文路径被ANSI解码破坏。
+    let script = format!(
+        "{}\n{}",
+        include_str!("cpython_build_tools.py"),
+        include_str!("cpython_dependencies.py")
+    );
     let mut child = Command::new(executable)
-        .args([
-            "-I",
-            "-X",
-            "utf8",
-            "-S",
-            "-B",
-            "-c",
-            include_str!("cpython_dependencies.py"),
-        ])
+        .args(["-I", "-X", "utf8", "-S", "-B", "-c", &script])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -4,12 +4,17 @@
 > 已通过21项CP/JIT与NativeAOT/搬迁、原联合应用和六项C#生命周期模式。API与冻结快照范围见
 > [验收驱动](../tests/cpython/README.md)。真实错版本ABI、handled异常双向状态、混合栈无陈旧帧均通过；
 > 上述完整对象桥矩阵的其他平台及HTTPS待验。新增standalone平台与干净目标结果见
-> [平台实测](cpython-platform-support.md#52-平台实测状态)。CPython provider采用显式声明入口。
+> [平台实测](cpython-platform-support.md#52-平台实测状态)。普通文件入口默认自动环境，旧显式声明入口保留。
 
 > 本文定义 RyuPy **当前支持**的 Python 子集，以及它与 Python 语义的对应方式。
 > 常用行为以固定版本 CPython 为准，按项目与 API 验收。已接受偏差明确登记，不支持能力明确报错；运行时才能确定的非法操作抛 Python 语义异常。未记录的差异按缺陷处理。
 >
 > 80% 目标、项目清单与偏差见 [compatibility.md](compatibility.md)，标准库移植见 [stdlib.md](stdlib.md)。计划状态不能当成已实现。
+
+2026-11-14 交付入口：`ryupy main.py` 默认 onefile 和自动 CPython 环境，`--native` 选择纯 RyuPy。
+应用本地模块编译为 CIL，第三方包与标准库由明确的 provider 计划承载；全应用解释回退未接入。
+版本探测、依赖收集、发布形态属于 driver 合同，语法及对象行为仍按本文逐项验收。
+见 [ADR-0190](adr/0190-project-cli.md) 和 [版本验收](../tests/cpython/version_README.md)。
 
 状态图例：✅ 已实现 · 🚧 进行中 · 📋 计划中（括号内为里程碑） · ❌ Phase 1 不支持（编译期报错）
 

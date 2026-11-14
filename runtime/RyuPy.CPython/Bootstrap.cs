@@ -49,15 +49,21 @@ public static class Bootstrap
     }
 }
 
-internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths)
+internal sealed record HostConfiguration(string Home, string Library, string Shim, string[] SearchPaths, string[] Modules, bool SynchronizeContainers, string[] NativeSearchPaths, string ExpectedVersion)
 {
     internal static HostConfiguration Read(string filename)
     {
         filename = Path.GetFullPath(filename, AppContext.BaseDirectory);
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(filename));
         JsonElement root = document.RootElement;
-        if (root.GetProperty("schema").GetInt32() != 1 || root.GetProperty("python_version").GetString() != "3.12.13")
-            throw new InvalidDataException("CPython配置要求schema=1与python_version=3.12.13");
+        if (root.GetProperty("schema").GetInt32() != 1)
+            throw new InvalidDataException("CPython配置要求schema=1");
+        string expectedVersion = root.GetProperty("python_version").GetString()!;
+        string[] versionParts = (expectedVersion ?? "").Split('.');
+        if (versionParts.Length != 3 || versionParts.Any(p => p.Length == 0 || p.Any(c => c < '0' || c > '9'))
+            || !Version.TryParse(expectedVersion, out Version? parsedVersion)
+            || parsedVersion.Major != 3 || parsedVersion.Minor < 9 || parsedVersion.Minor > 15)
+            throw new InvalidDataException("CPython配置要求正式版3.9–3.15，固定声明版本为3.12.13，实际为：" + expectedVersion);
         string directory = Path.GetDirectoryName(filename)!;
         bool development = root.TryGetProperty("development", out JsonElement developer) && developer.GetBoolean();
         string ResolveValue(string value)
@@ -90,6 +96,7 @@ internal sealed record HostConfiguration(string Home, string Library, string Shi
             root.GetProperty("modules").EnumerateArray().Select(p => p.GetString()!).ToArray(),
             mode == "synchronized",
             root.TryGetProperty("native_search_paths", out JsonElement nativePaths)
-                ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : []);
+                ? nativePaths.EnumerateArray().Select(p => ResolveValue(p.GetString()!)).ToArray() : [],
+            expectedVersion);
     }
 }

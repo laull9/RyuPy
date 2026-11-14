@@ -220,10 +220,36 @@ API、平台及v3/v4冻结快照的依赖影响复验范围见[验收驱动](../
 本机NumPy wheel为cp312-cp312-macosx_14_0_arm64，核心扩展依赖系统Accelerate。
 该PBS的_sqlite3和zlib为内建模块，单独缺_sqlite3共享库负例需独立扩展构建发行，列环境阻塞。
 
+### 6.3 自动适配环境与单文件交付
+
+```sh
+ryupy app.py --onefile --out-dir dist
+```
+
+构建器依次选择入口项目及祖先目录的 `.venv`/`venv`/`env`、激活环境、PATH，Windows
+还支持 `py` 启动器。用户无需填写版本号或 provider JSON。当前接收正式 CPython 3.9–3.15
+常规 GIL 的目标架构发行；选中环境损坏、缺依赖或 ABI 不兼容时，返回对应诊断。
+探针隔离执行，不加载 `.pth`；从选中环境收齐依赖、metadata、包资源和原生库。
+
+系统、Homebrew、conda 环境提供实际完整版本和依赖。构建器自动准备同一 micro 版本的
+官方可搬迁 PBS，逐项核对真实上游元数据、许可、头文件、libpython、shim 与 wheel ABI。
+完整缓存位于用户缓存目录，优先离线复用；首次下载可使用构建环境中的 `GH_TOKEN` 或
+`GITHUB_TOKEN` 访问官方 API，凭据通过 curl stdin 传递。构建机需具备 .NET SDK、C 工具链、
+curl、tar 及 Zstandard 解包支持。
+
+`--onefile` 隐含 NativeAOT，最终文件为 `dist/app.onefile/app`（Windows为 `app.exe`），
+发布目录只有该文件。将它移到目标机即可运行；完整 Python、第三方依赖和资源已经内嵌，
+启动时解包到独占临时目录，退出后清理。同名发布完成新候选后才替换旧版，失败时保留旧版。
+三平台单文件、输入删除搬迁、三流、副作用、并发和中断清理已经通过，Linux另有
+无 Python/.NET/SDK 的断网容器验收。详细过程见
+[单文件验收](../tests/cpython/onefile_README.md)与[版本矩阵](../tests/cpython/version_README.md)。
+新应用入口默认自动适配；--native选择纯RyuPy，旧build/run默认值与显式provider声明保持可用。
+编译器CLI内嵌C#闭包与环境发现见[ADR-0191](adr/0191-single-file-compiler-cli.md)。
+
 ## 7. 长期 AOT 与性能路线
 
 CP4：完善传递依赖、动态导入声明、资源/metadata、诊断与三平台 standalone；按固定应用
-逐步扩大标准库覆盖，再做 onefile 解包/缓存/退出清理、签名与可重复构建。
+逐步扩大标准库覆盖；onefile 解包与退出清理已交付，签名、可重复构建与启动成本继续专项推进。
 以相同源程序、依赖版本和输入对照 CPython 与固定版本 Nuitka，记录正确性、安装前提、
 包大小、启动、吞吐、峰值内存和构建时间；明确 Nuitka 配置与 RyuPy 执行域。
 

@@ -1,13 +1,16 @@
 //! 从随产品编译的 C# 源码生成字面模块注册事实，供探测报告使用，不执行运行时或用户源码。
+mod runtime_bundle_build;
 mod runtime_registry_scan;
 use std::{env, fs, io, path::PathBuf};
 fn main() -> io::Result<()> {
+    runtime_bundle_build::build();
     let root = PathBuf::from(
         env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| io::Error::other("缺少 crate 根"))?,
     );
     let runtime = root.join("../../runtime/RyuPy.Runtime");
     println!("cargo:rerun-if-changed={}", runtime.display());
     println!("cargo:rerun-if-changed=runtime_registry_scan.rs");
+    println!("cargo:rerun-if-changed=runtime_bundle_build.rs");
     let mut paths = fs::read_dir(&runtime)?
         .map(|entry| entry.map(|entry| entry.path()))
         .collect::<io::Result<Vec<_>>>()?;

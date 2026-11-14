@@ -1,5 +1,5 @@
 //! 将冻结的 CPython 基础发行与显式包载荷部署到应用旁；JIT 与 NativeAOT 共用相同配置与分发清单。
-use super::{CONFIG, Plan, REPORT, VERSION, native};
+use super::{CONFIG, Plan, REPORT, native};
 use anyhow::{Context, Result, ensure};
 use serde_json::json;
 use std::path::Path;
@@ -23,7 +23,7 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
         python.display()
     );
     std::fs::create_dir(&python)?;
-    let site_packages = native::site_packages_relpath()?;
+    let site_packages = native::site_packages_relpath_for_version(&plan.version)?;
     let relative_site = site_packages
         .strip_prefix("python")
         .context("平台site-packages路径必须以python开头")?;
@@ -40,8 +40,15 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
             )?;
         }
     }
-    for file in ["BUILD", "PYTHON.json"] {
-        copy_authorized(&plan.root.join(file), &python.join(file), &plan.root)?;
+    for file in [
+        "BUILD",
+        "PYTHON.json",
+        "license-sources.json",
+        "distribution-source.json",
+    ] {
+        if plan.root.join(file).is_file() {
+            copy_authorized(&plan.root.join(file), &python.join(file), &plan.root)?;
+        }
     }
     // Windows核心库位于发行根；Unix核心库已随lib目录复制。
     if cfg!(windows) {
@@ -96,19 +103,36 @@ pub(super) fn stage(plan: &Plan, output: &Path) -> Result<()> {
                 .map(|parent| parent.to_string_lossy().into_owned())
         })
         .collect();
+    let version_str = plan.version.version_str();
+    let provenance = plan.root.join("distribution-source.json");
+    let provenance: serde_json::Value = if provenance.is_file() {
+        serde_json::from_slice(&std::fs::read(provenance)?)?
+    } else {
+        serde_json::Value::Null
+    };
+    let archive_url = if let Some(url) = provenance["install_archive"].as_str() {
+        Some(url.to_owned())
+    } else if version_str == "3.12.13"
+        && plan.source.project == "python-build-standalone"
+        && plan.source.build_id == "20260623"
+    {
+        Some(native::archive_url()?.to_owned())
+    } else {
+        None
+    };
     let config = json!({
-        "schema": 1, "python_version": VERSION, "home": "python",
-        "library": native::library_relpath()?,
+        "schema": 1, "python_version": version_str, "home": "python",
+        "library": native::library_relpath_for_version(&plan.version)?,
         "shim": native::shim_name(),
-        "search_paths": native::search_paths()?, "native_search_paths": native_search_paths,
+        "search_paths": native::search_paths_for_version(&plan.version)?, "native_search_paths": native_search_paths,
         "stdlib_provider": "cpython", "modules": plan.modules, "container_transfer": plan.container_transfer,
     });
     std::fs::write(output.join(CONFIG), serde_json::to_vec_pretty(&config)?)?;
     let report = json!({
-        "schema": 1, "python_version": VERSION, "rid": native::rid()?,
+        "schema": 1, "python_version": version_str, "rid": native::rid()?,
         "source": plan.source,
-        "archive_url": native::archive_url()?,
-        "build_configuration": {"implementation": "cpython", "gil": true, "archive_layout": "install_only", "source_build": "python-build-standalone@20260623"},
+        "archive_url": archive_url, "distribution_source": provenance,
+        "build_configuration": {"implementation": "cpython", "gil": true, "archive_layout": "install_only", "source_build": format!("{}@{}", plan.source.project, plan.source.build_id)},
         "container_transfer": plan.container_transfer, "execution": "ryupy_compiled_entry",
         "modules": plan.modules.iter().map(|name| (name.clone(), json!({"provider": "cpython", "reason": crate::cpython_inventory::reason(plan,name)}))).collect::<serde_json::Map<_,_>>(),
         "stdlib_provider": "cpython", "stdlib_inventory": plan.stdlib, "declared_modules": plan.declared, "package_inventory": plan.packages,

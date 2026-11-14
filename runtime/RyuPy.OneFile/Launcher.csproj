@@ -1,0 +1,10 @@
+<!-- 唯一 NativeAOT 启动器，完整压缩树嵌入托管资源后由 ILC 纳入原生文件。 -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>RyuPyOneFile</AssemblyName><PublishAot>true</PublishAot>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors><IlcTreatWarningsAsErrors>true</IlcTreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup><Compile Include="Program.cs" /><Compile Include="Payload.cs" /><Compile Include="DecodedPayloadStream.cs" /><EmbeddedResource Include="payload.br" LogicalName="RyuPy.OneFile.Payload" /></ItemGroup>
+</Project>

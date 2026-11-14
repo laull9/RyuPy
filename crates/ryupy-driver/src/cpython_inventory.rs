@@ -4,15 +4,47 @@ use anyhow::{Context, Result, ensure};
 use std::collections::BTreeSet;
 use std::path::Path;
 
+#[allow(dead_code)]
 pub(crate) fn stdlib(root: &Path, metadata: &serde_json::Value) -> Result<BTreeSet<String>> {
+    stdlib_for_version(
+        root,
+        metadata,
+        &native::version::PythonVersion::new(3, 12, 13),
+    )
+}
+
+pub(crate) fn stdlib_for_version(
+    root: &Path,
+    metadata: &serde_json::Value,
+    version: &native::version::PythonVersion,
+) -> Result<BTreeSet<String>> {
     let mut names = BTreeSet::new();
-    for directory_path in native::stdlib_dirs()? {
-        names.extend(directory(&root.join(directory_path), true)?);
+    for directory_path in native::stdlib_dirs_for_version(version)? {
+        names.extend(directory_for_version(
+            &root.join(directory_path),
+            true,
+            version,
+        )?);
     }
-    let extensions = metadata["build_info"]["extensions"]
-        .as_object()
-        .context("CPython 上游元数据缺少扩展模块库存")?;
-    names.extend(extensions.keys().filter(|name| valid_root(name)).cloned());
+    if let Some(extensions) = metadata["build_info"]["extensions"].as_object() {
+        names.extend(extensions.keys().filter(|name| valid_root(name)).cloned());
+    }
+    // 任何合规 CPython 实现中，核心内置模块均直接在 libpython 中可用
+    for core_mod in &[
+        "sys",
+        "builtins",
+        "math",
+        "time",
+        "gc",
+        "itertools",
+        "marshal",
+        "posix",
+        "nt",
+        "_io",
+        "_thread",
+    ] {
+        names.insert((*core_mod).to_string());
+    }
     names.remove("__main__");
     ensure!(
         names.contains("math")
@@ -23,16 +55,38 @@ pub(crate) fn stdlib(root: &Path, metadata: &serde_json::Value) -> Result<BTreeS
     );
     Ok(names)
 }
+
+#[allow(dead_code)]
 pub(crate) fn packages(root: &Path, payloads: &[Payload]) -> Result<BTreeSet<String>> {
-    let mut names = directory(
-        &root.join(native::site_packages_relpath()?.strip_prefix("python")?),
-        true,
-    )?;
-    names.extend(payload_packages(payloads)?);
+    packages_for_version(
+        root,
+        payloads,
+        &native::version::PythonVersion::new(3, 12, 13),
+    )
+}
+
+pub(crate) fn packages_for_version(
+    root: &Path,
+    payloads: &[Payload],
+    version: &native::version::PythonVersion,
+) -> Result<BTreeSet<String>> {
+    let site_rel = native::site_packages_relpath_for_version(version)?;
+    let relative_site = site_rel.strip_prefix("python").unwrap_or(&site_rel);
+    let mut names = directory_for_version(&root.join(relative_site), true, version)?;
+    names.extend(payload_packages_for_version(payloads, version)?);
     Ok(names)
 }
+
 /// 自动闭包排除基础发行开发包，库存只从本次实际载荷产生。
+#[allow(dead_code)]
 pub(crate) fn payload_packages(payloads: &[Payload]) -> Result<BTreeSet<String>> {
+    payload_packages_for_version(payloads, &native::version::PythonVersion::new(3, 12, 13))
+}
+
+pub(crate) fn payload_packages_for_version(
+    payloads: &[Payload],
+    version: &native::version::PythonVersion,
+) -> Result<BTreeSet<String>> {
     let mut names = BTreeSet::new();
     for payload in payloads {
         let path = Path::new(&payload.destination);
@@ -45,14 +99,28 @@ pub(crate) fn payload_packages(payloads: &[Payload]) -> Result<BTreeSet<String>>
                 names.insert(payload.destination.clone());
             }
         } else if payload.source.is_file() {
-            if let Some(name) = module_file(&payload.destination, true) {
+            if let Some(name) = module_file_for_version(&payload.destination, true, version) {
                 names.insert(name);
             }
         }
     }
     Ok(names)
 }
+
+#[allow(dead_code)]
 fn directory(root: &Path, extensions: bool) -> Result<BTreeSet<String>> {
+    directory_for_version(
+        root,
+        extensions,
+        &native::version::PythonVersion::new(3, 12, 13),
+    )
+}
+
+fn directory_for_version(
+    root: &Path,
+    extensions: bool,
+    version: &native::version::PythonVersion,
+) -> Result<BTreeSet<String>> {
     let mut names = BTreeSet::new();
     if !root.is_dir() {
         return Ok(names);
@@ -65,22 +133,37 @@ fn directory(root: &Path, extensions: bool) -> Result<BTreeSet<String>> {
         if path.is_dir() && path.join("__init__.py").is_file() && valid_root(file) {
             names.insert(file.into());
         } else if path.is_file() {
-            if let Some(name) = module_file(file, extensions) {
+            if let Some(name) = module_file_for_version(file, extensions, version) {
                 names.insert(name);
             }
         }
     }
     Ok(names)
 }
+
 fn valid_root(name: &str) -> bool {
     !name.contains('.') && name != "__main__" && super::module_hints::valid_name(name)
 }
+
+#[allow(dead_code)]
 fn module_file(name: &str, extensions: bool) -> Option<String> {
+    module_file_for_version(
+        name,
+        extensions,
+        &native::version::PythonVersion::new(3, 12, 13),
+    )
+}
+
+fn module_file_for_version(
+    name: &str,
+    extensions: bool,
+    version: &native::version::PythonVersion,
+) -> Option<String> {
     let module = if let Some(name) = name.strip_suffix(".py") {
         name
     } else if extensions {
-        // 按目标平台正式扩展后缀识别，不按首个点猜模块名。
-        native::extension_suffixes()
+        // 按目标平台与版本正式扩展后缀识别
+        native::extension_suffixes_for_version(version)
             .ok()?
             .iter()
             .find_map(|suffix| name.strip_suffix(suffix))?

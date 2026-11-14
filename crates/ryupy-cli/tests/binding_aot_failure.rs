@@ -60,6 +60,7 @@ fn verify_failure(code: i32) {
         &fake,
         format!(
             r#"#!/bin/sh
+if [ "$1" = "--list-sdks" ]; then echo "10.0.403 [fixture]"; exit 0; fi
 printf '%s\n' "$@" > "$AOT_ARGS"
 # 保留即将被失败清理的项目，用于锁实际静态引用及 XML 转义。
 cat "$2" > "$AOT_PROJECT"

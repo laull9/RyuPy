@@ -1,5 +1,14 @@
 # 兼容性清单与偏差
 
+## 2026-11-14 应用入口与交付合同
+
+`ryupy main.py` 默认自动探测项目 Python 并生成 onefile；`--native` 显式选择纯 RyuPy。
+旧 build/run 子命令与 driver 默认合同保留。支持范围为正式 CPython 3.9–3.15、常规 GIL、
+macOS arm64 / Linux x64 / Windows x64，按完整 micro 版本、ABI 和扩展 wheel 冻结。
+本地应用模块编译为 CIL，第三方依赖由随包 CPython 承载。自动版本与平台逐项运行结果见
+[版本矩阵](../tests/cpython/version_README.md)，单文件 CLI 与多文件发布见
+[独立验收](../tests/cpython/multifile_README.md)。下方带日期的记录保留原验收范围。
+
 ## 当前目标与计量更新（2026-11-13）
 
 按 [ADR-0181](adr/0181-cpython-provider-first.md)，先完成随包宿主与对象桥、同一联合应用
