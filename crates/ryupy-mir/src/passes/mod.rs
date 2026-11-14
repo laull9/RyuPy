@@ -53,6 +53,15 @@ mod tuple_scalar;
 #[cfg(test)]
 mod tuple_scalar_tests;
 
+#[cfg(test)]
+pub(crate) mod string_accumulator;
+#[cfg(test)]
+pub(crate) mod string_accumulator_match;
+#[cfg(test)]
+pub(crate) mod string_accumulator_expand;
+#[cfg(test)]
+mod string_accumulator_tests;
+
 pub use dead_values::DeadValues;
 pub use float_chain::FloatChain;
 pub use float_slp::FloatSlp;

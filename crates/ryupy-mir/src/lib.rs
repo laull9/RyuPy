@@ -71,6 +71,7 @@ mod generator_product_tests;
 mod generator_product_trace;
 mod generator_product_values;
 mod generators;
+pub(crate) mod generators_liveness;
 
 pub mod link;
 mod link_placeholders;

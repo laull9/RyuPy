@@ -23,7 +23,7 @@ pub(crate) fn lower_with_trace(
 ) -> Vec<crate::trace_lowering::GeneratorLayout> {
     generators
         .iter()
-        .map(|&id| lower_one(program, id, exception_globals, product))
+        .map(|&id| lower_one(program, id, exception_globals, product, false))
         .collect()
 }
 
@@ -93,14 +93,27 @@ pub(super) fn boxed(
     Operand::Local(dest)
 }
 
+/// 候选只供结构验证显式选择；产品入口在语义与性能验收前保持原路径。
+#[cfg(test)]
+pub(crate) fn lower_with_liveness_for_test(program: &mut Program, id: FnId) {
+    lower_one(program, id, &Default::default(), false, true);
+}
+
 fn lower_one(
     program: &mut Program,
     id: FnId,
     exception_globals: &rustc_hash::FxHashMap<String, GlobalId>,
     product: bool,
+    optimize_liveness: bool,
 ) -> crate::trace_lowering::GeneratorLayout {
     let function = &mut program.functions[id];
+    let params = function.params.clone();
     let mut body = std::mem::replace(&mut function.body, empty_body());
+    let suspend_liveness = if optimize_liveness {
+        crate::generators_liveness::analyze_suspend_liveness(&body, &params, product)
+    } else {
+        None
+    };
     let original: Vec<_> = body
         .locals
         .iter()
@@ -191,7 +204,19 @@ fn lower_one(
                 if !resume_targets.contains(&resume) {
                     resume_targets.push(resume);
                 }
+                let live_slots = suspend_liveness.as_ref().and_then(|map| map.get(&block_id));
                 for (slot, ty) in &original {
+                    if let Some(live) = live_slots {
+                        if !live.contains(slot) {
+                            // 针对不跨挂起活跃的 Dynamic 编译器临时，安全写入 null 清理旧引用，消除 retention
+                            block.stmts.push(set_slot(
+                                frame,
+                                slot.into_raw().into_u32() as usize + 4,
+                                Operand::Const(Constant::Null),
+                            ));
+                            continue;
+                        }
+                    }
                     let value = boxed(
                         &mut body.locals,
                         &mut block.stmts,
