@@ -34,3 +34,22 @@ String.Join，是线性路径。以上是待拆分验证的归因假说，不能
 非str/子类/反射回退、异常旧值都需独立差分验证。实施前先独审guard并获得本拆分实测；
 任何局部收益都不能声称解决原模块级20GB问题。优化A/B必须同runner同源工具链执行，
 原模块混合负载、数值holder、别名/身份及异常路径作为回退保护。
+
+## 局部候选实现与验收边界
+
+归因 run43601322562：local += AOT约3340ms / 累计托管分配20.0037GB，
+module +=约2373ms /20.0278GB；join local约27.5ms /8.12MB。
+工件MIR确认local使用NumericAccumulator而module仍为dyn.Add.inplace。
+这是同次归因观测，不是新优化收益。
+
+候选仅扩展已有holder：精确System.String采用内部StringBuilder，保持同版本物化缓存，
+空追加不换身份、空seed首次追加保rhs身份，旧快照永不修改；动态/子类操作先物化再执行
+完整原inplace协议，只有成功后替换状态。追加容量预备后才更新逻辑内容。
+缓冲改变资源需求，不能保证OOM发生在与旧实现相同的迭代或相同内存阈值。
+MIR额外保守拒绝全函数FunctionLocals ABI，仍拒绝模块、cell、闭包、EH、yield、
+循环内别名/自引用和多出口。数值路径不改逻辑，仍须同机回归计时。
+
+运行时单测、MIR源码pipeline形状断言及m3_10_string_accumulator差分覆盖上述语义。
+提交阶段若本地没有C#/Rust工具链，只能记录CP预检与Python驱动测试，不能声称产品验收。
+完整CI必须先执行这些产品测试及CP/JIT/AOT差分，再做同runner同源工具链的旧/新交错A/B；
+原模块+=保留为预期不受益对照，join与数值累加保留为回归对照。
