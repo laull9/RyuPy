@@ -3,7 +3,7 @@ name: Dev NativeAOT validation
 
 on:
   push:
-    branches: [dev, ci/aot-relocation-0d7a6ea]
+    branches: [dev, ci/aot-sdk-pin-001b2a7]
   pull_request:
     branches: [dev]
   workflow_dispatch:
