@@ -1,8 +1,8 @@
 # RyuPy AOT 单文件（--onefile）独立交付真实验收规范
 
 本文档定义 RyuPy NativeAOT 单文件发布的架构契约、测试矩阵、并发及负例边界。
-所有实现由 Codex（driver `onefile` + `runtime/RyuPy.OneFile`）与主代理（CLI 接线）负责；
-验收套件与驱动由测试子代理独占维护于 `tests/cpython/onefile*.py` 及 `tests/cpython/fixtures/onefile_*`。
+driver负责完整载荷和发布事务，`runtime/RyuPy.OneFile`负责原生解包与子进程生命周期；
+验收入口为 `tests/cpython/onefile_run.py`，业务输入位于 `tests/cpython/fixtures/onefile_*`。
 
 ---
 
@@ -11,7 +11,9 @@
 用户期望直接将 Python 应用打包为单一可分发原生二进制文件，无需部署任何外部目录或解释器：
 
 ```bash
-# 预期标准命令行（由主代理完成 CLI 接线）
+# 自动匹配项目Python版本和依赖环境
+ryupy --cpython-provider auto build app.py --onefile --out-dir dist/
+# 原生模式
 ryupy build app.py --onefile --out-dir dist/
 # 或与 --aot 组合
 ryupy build app.py --aot --onefile
@@ -88,4 +90,8 @@ python3 -B tests/cpython/onefile_run.py --keep
 
 2026-11-14主代理加强版macOS完整驱动退出0：唯一文件隔离搬迁、字节级三流/副作用、
 退出42、双并发与三个POSIX信号的子进程退出及解包目录清理、损坏原生文件头拒绝均通过。
-三平台CI由远端WIP候选继续实跑，Windows中断及Linux容器的结果以实际运行登记。
+候选cd5c620b的[三平台单文件CI](https://github.com/laull9/RyuPy/actions/runs/43596225141)全部通过：
+Windows包含CTRL_BREAK清理，Linux包含无Python/.NET/SDK的断网容器，三平台均删除构建输入、
+搬迁唯一可执行文件，并通过字节级三流、副作用、退出42、并发及损坏原生文件头负例。
+产物路径为`dist/<stem>.onefile/<stem>[.exe]`，发布目录内只有该文件。运行时使用独占临时目录解包，
+正常退出和已覆盖中断后清理。构建期需要.NET SDK及C工具链；auto准备发行还需要curl、tar的Zstandard支持。

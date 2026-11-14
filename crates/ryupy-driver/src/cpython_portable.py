@@ -178,8 +178,8 @@ def release_assets(release, version, triple, options):
 
 
 def fetch(url, output=None):
-    cmd = ['curl', '--fail', '--location', '--silent', '--show-error',
-           '--retry', '3', '--connect-timeout', '30', '--max-time', '600', url]
+    cmd = ['curl', '--fail', '--location', '--silent', '--show-error', '--http1.1',
+           '--retry', '3', '--retry-all-errors', '--connect-timeout', '30', '--max-time', '600', url]
     # 仅官方API请求使用可选凭据；通过stdin传curl配置，失败诊断与进程参数都不含token。
     config = None
     if url.startswith(API):
@@ -211,8 +211,8 @@ def fetch_asset(asset, output):
             parts.append((start, end, Path(temporary) / str(index)))
         def download(part):
             start, end, path = part
-            subprocess.run(['curl', '--fail', '--location', '--silent', '--show-error',
-                            '--retry', '3', '--connect-timeout', '30', '--max-time', '600',
+            subprocess.run(['curl', '--fail', '--location', '--silent', '--show-error', '--http1.1',
+                            '--retry', '3', '--retry-all-errors', '--connect-timeout', '30', '--max-time', '600',
                             '--range', f'{start}-{end}', '--dump-header', str(path) + '.headers',
                             asset['browser_download_url'],
                             '--output', str(path)], check=True)
@@ -285,9 +285,10 @@ def prepare(req):
         if build:
             yield fetch(API + '/tags/' + build)
         else:
-            # 100条携带全部资产列表会令部分网关504；20条压缩分页保持请求量与响应大小可控。
-            for page in range(1, 21):
-                batch = fetch(API + f'?per_page=20&page={page}')
+            # 单条release携带数百资产；真实CI中20/100条响应被网关截断，保持小分页。
+            # 可选认证避免共享IP限流，完整发行缓存命中则完全跳过API。
+            for page in range(1, 41):
+                batch = fetch(API + f'?per_page=5&page={page}')
                 if not batch:
                     break
                 yield from batch
