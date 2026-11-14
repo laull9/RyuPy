@@ -142,7 +142,11 @@ public sealed partial class PyList
     public PyList() => _items = new List<object?>();
 
     /// <summary>元素个数。</summary>
-    public int Count => _items is { } items ? items.Count : _booleans is { } booleans ? booleans.Count : _numeric!.Count;
+    public int Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _items is { } items ? items.Count : _numeric is { } slots ? slots.Count : _booleans!.Count;
+    }
 
     /// <summary>按 Python 下标规则取元素。</summary>
     /// <param name="index">下标（支持负数）。</param>
