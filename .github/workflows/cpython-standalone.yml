@@ -59,6 +59,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Short Cargo checkout paths (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          "CARGO_HOME=D:\c" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          git config --global core.longpaths true
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
         with:
@@ -92,20 +98,13 @@ jobs:
       - name: Install Pinned CPython 3.12.13 (POSIX)
         if: runner.os != 'Windows'
         run: |
-          uv python install 3.12.13
-          CPYTHON_BIN=$(uv python find 3.12.13 --managed-python)
-          echo "PYTHON_BIN=$CPYTHON_BIN" >> "$GITHUB_ENV"
-          CPYTHON_HOME=$(dirname "$(dirname "$CPYTHON_BIN")")
-          echo "CPYTHON_HOME=$CPYTHON_HOME" >> "$GITHUB_ENV"
+          python3 -B tests/cpython/standalone_prepare.py --destination "$RUNNER_TEMP/pbs-20260623" --github-env "$GITHUB_ENV"
 
       - name: Install Pinned CPython 3.12.13 (Windows)
         if: runner.os == 'Windows'
         run: |
-          uv python install 3.12.13
-          $pyBin = uv python find 3.12.13 --managed-python
-          "PYTHON_BIN=$pyBin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          $pyHome = Split-Path $pyBin -Parent
-          "CPYTHON_HOME=$pyHome" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          python -B tests/cpython/standalone_prepare.py --destination "$env:RUNNER_TEMP/pbs-20260623" --github-env "$env:GITHUB_ENV"
+          $pyBin = Join-Path $env:RUNNER_TEMP "pbs-20260623/python.exe"
           $runnerEnv = Join-Path $env:RUNNER_TEMP "standalone-runner"
           uv venv --python "$pyBin" "$runnerEnv"
           $runnerPython = Join-Path $runnerEnv "Scripts/python.exe"

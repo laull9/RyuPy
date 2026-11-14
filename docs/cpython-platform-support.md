@@ -100,3 +100,9 @@ macOS14 runner已停用，矩阵改用macos-15。平台最终结果以修正后�
 Linux shim直接链接版本化libpython；PE表允许Size省略终结项且受原始节边界约束；
 第三方附属DLL目录由产品配置冻结并在Windows宿主注册。macOS两套JIT/AOT搬迁回归通过，
 反斜杠RECORD与相对导入回归通过；Linux/Windows继续以CI实际结果验收。
+
+2026-11-14第二轮CI已完成但三平台均未进入应用验收：Linux/macOS的uv解释器仅固定Python版本，
+BUILD未匹配PBS20260623；Windows Ruff Git源码路径过长。CI改用standalone_prepare.py从
+确切20260623官方install_only资产获取同一基础发行，验证解释器版本后写入来源BUILD凭据
+（官方安装归档原本没有该文件），shim、Oracle与发布共用该发行。Windows Cargo目录缩短至D:\c。
+确切归档准备和macOS standalone全流已由主代理本地复验通过，修正版平台CI继续验收。

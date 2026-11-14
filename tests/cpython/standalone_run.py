@@ -194,7 +194,8 @@ def main():
                 shutil.copy2(src, dst)
 
         build_marker = dist_copy / "BUILD"
-        assert build_marker.read_text(encoding="utf-8").strip() == PBS_BUILD_ID, "须使用固定PBS20260623基础发行"
+        actual_build = build_marker.read_text(encoding="utf-8").strip()
+        assert actual_build == PBS_BUILD_ID, f"PBS构建号不符：期望{PBS_BUILD_ID}，实际{actual_build!r}"
 
         # 2. 准备虚拟环境并安装 packaging==25.0 与手写 fixture wheel
         venv_dir = inputs_dir / "虚拟 环境"
