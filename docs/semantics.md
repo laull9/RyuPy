@@ -247,6 +247,16 @@ NaN/Inf/±0短结果保符号规则，非零有限值复用固定.NET10显式有
 
 ## 4. 语义陷阱清单
 
+### CPython provider的项目与文本边界（2026-11-14）
+
+- 嵌入解释器固定隔离UTF-8模式，构建期JSON管道同样使用UTF-8；独立CPython oracle以`-X utf8`对齐。
+- 编译入口对应的`__main__`仍缺少与全局槽双向同步的模块活字典；`attrs23.2.0`固定入口在
+  读取`sys.modules[cls.__module__].__dict__`时抛AttributeError，列为实际项目失败。
+- 显式`object.__setattr__`、`object.__delattr__`绕过用户同名hook与frozen检查，保留property及槽布局协议；
+  默认路径继续沿已有修改/删除守卫。差分用例见`phase3/object_base_mutation`。
+- 固定项目stderr保留警告类型、行号和正文，比较时只把已知载荷警告头中的绝对路径映射为部署相对名；
+  `docopt0.6.2`的四条原SyntaxWarning逐条保留，stdout及文件副作用仍逐字比较。
+
 ### CPython provider的显式边界（2026-11-13）
 
 - 默认`proxy`传递活对象；`container_transfer="synchronized"`在调用边界物化精确list/dict并写回，

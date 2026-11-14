@@ -107,6 +107,12 @@ public sealed partial class PyClass
                 : PyBaseObjectMethods.BindConstruction(self, name);
             return true;
         }
+        if (name is "__setattr__" or "__delattr__")
+        {
+            value = self is null ? PyBaseObjectMethods.Unbound(name)
+                : PyBaseObjectMethods.BindConstruction(self, name);
+            return true;
+        }
         if (name is not ("__new__" or "__init__") || Construction().Special) return false;
         value = name == "__new__" || self is null ? PyBaseObjectMethods.Unbound(name)
             : PyBaseObjectMethods.BindConstruction(self, name);

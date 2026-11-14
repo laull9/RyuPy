@@ -5,6 +5,18 @@ stdout、stderr 和退出码，再运行 RyuPy 编译入口。各执行臂使用
 创建数据库、重置 loopback HTTP 请求计数。输出默认写仓库外临时目录并清理，`--keep`
 仅用于显式失败调试。本次固定21个Python程序及6种独立C#宿主模式；最终冻结版全量结果登记在下表。
 
+## 固定20项目
+
+macOS arm64已完成JIT/NativeAOT/输入删除搬迁三模式各19/20通过，attrs因模块活字典缺口失败。
+原始版本与入口、逐项目结果和警告路径比较规则见[项目矩阵](projects_README.md)。
+
+## 自动依赖闭包
+
+显式provider可通过`dependencies`从指定安装环境冻结入口与传递依赖，保留RECORD中的包数据、
+metadata、许可证及原生库。配置、动态导入补充和真实JIT/NativeAOT搬迁命令见
+[依赖闭包测试](dependencies/README.md)。2026-11-14平台路径接线后，macOS arm64完整复验通过；
+固定20项目与Linux/Windows分别登记各自验收结果。
+
 ## 发行和依赖锁
 
 | 输入 | 固定选择 | 来源和部署要求 |

@@ -240,7 +240,8 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
         .unwrap_or_else(|| bridge.join(native::shim_name()));
     ensure!(
         bridge.join("RyuPy.CPython.dll").is_file(),
-        "缺少 RyuPy.CPython.dll，请先构建随包宿主"
+        "缺少 RyuPy.CPython.dll，请先构建随包宿主或指定bridge_directory：{}",
+        bridge.display()
     );
     ensure!(shim.is_file(), "缺少 CPython shim：{}", shim.display());
     native::preflight(&root)?;

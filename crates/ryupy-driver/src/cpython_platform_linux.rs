@@ -174,6 +174,26 @@ fn package_owner(source: &Path) -> Result<String> {
     owners.into_iter().next().context("缺少 OS 包")
 }
 
+/// 许可目录的裸引用没有文件名；只提取直接引用的许可文件，具名缺失仍由冻结阶段拒绝。
+fn license_references(text: &str) -> Result<BTreeSet<String>> {
+    let mut names = BTreeSet::new();
+    for tail in text.split("/usr/share/common-licenses/").skip(1) {
+        ensure!(
+            !tail.starts_with("../") && !tail.starts_with('/'),
+            "公共许可证引用越界"
+        );
+        let name: String = tail
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || "-_.+".contains(*c))
+            .collect();
+        let name = name.trim_end_matches('.');
+        if !name.is_empty() {
+            names.insert(name.to_string());
+        }
+    }
+    Ok(names)
+}
+
 /// 冻结 Debian copyright 及其引用的 common-licenses 文本；缺失文本立即终止。
 fn freeze_license(package: &str, files: &str, python: &Path) -> Result<Vec<String>> {
     let base = package.split(':').next().context("OS 包名为空")?;
@@ -198,17 +218,11 @@ fn freeze_license(package: &str, files: &str, python: &Path) -> Result<Vec<Strin
     std::fs::copy(&copyright, destination.join("copyright"))?;
     let mut result = vec![relative.join("copyright").to_string_lossy().into_owned()];
     // Debian copyright 中的外部许可引用有句号/引号等标点；仅接受公共许可目录的直接文件。
-    for tail in text.split("/usr/share/common-licenses/").skip(1) {
-        let name: String = tail
-            .chars()
-            .take_while(|c| c.is_ascii_alphanumeric() || "-_.+".contains(*c))
-            .collect();
-        let name = name.trim_end_matches('.');
-        ensure!(!name.is_empty() && name != "..", "公共许可证引用无效");
-        let source = Path::new("/usr/share/common-licenses").join(name);
+    for name in license_references(&text)? {
+        let source = Path::new("/usr/share/common-licenses").join(&name);
         ensure!(source.is_file(), "公共许可证缺失：{}", source.display());
-        std::fs::copy(&source, destination.join(name))?;
-        let frozen = relative.join(name).to_string_lossy().into_owned();
+        std::fs::copy(&source, destination.join(&name))?;
+        let frozen = relative.join(&name).to_string_lossy().into_owned();
         if !result.contains(&frozen) {
             result.push(frozen);
         }

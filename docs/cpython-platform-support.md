@@ -111,3 +111,9 @@ BUILD未匹配PBS20260623；Windows Ruff Git源码路径过长。CI改用standal
 真实产品构建，因PBS的_crypt缺少libcrypt.so.1失败；新增ADR0187的构建期dpkg来源/许可冻结，
 专用真实Linux测试已接入CI。Windows已通过构建、单测与平台契约，在中文构建环境路径收集失败，
 收集器已显式加入-X utf8，等待实机复验。
+
+第四轮CI：macOS再次完整通过；Linux真实专测暴露copyright中的裸公共许可目录引用，
+解析已修正并补充回归（6项本机控制流通过）；具名许可缺失和越界仍拒绝。
+Windows已越过JSON编码失败，驱动现将本次桥与shim复制到私有输入并显式冻结路径，
+搬迁时与其他输入一起删除。修正后的macOS standalone完整复验通过。
+Linux系统包冻结与Windows UTF-8管道修复经异构只读审查，无新阻断。

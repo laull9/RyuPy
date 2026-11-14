@@ -197,6 +197,15 @@ def main():
         actual_build = build_marker.read_text(encoding="utf-8").strip()
         assert actual_build == PBS_BUILD_ID, f"PBS构建号不符：期望{PBS_BUILD_ID}，实际{actual_build!r}"
 
+        # 将本次构建的桥复制到私有输入；声明显式冻结该来源，避免编译缓存中的旧workspace路径。
+        bridge_source = ROOT / "runtime/RyuPy.CPython/bin/Release/net10.0"
+        bridge = inputs_dir / "bridge"
+        shutil.copytree(bridge_source, bridge, symlinks=False)
+        shim_name = {'win-x64': 'ryupy_cpython.dll', 'osx-arm64': 'libryupy_cpython.dylib',
+                     'linux-x64': 'libryupy_cpython.so'}[current_rid]
+        assert (bridge / 'RyuPy.CPython.dll').is_file(), bridge
+        assert (bridge / shim_name).is_file(), bridge
+
         # 2. 准备虚拟环境并安装 packaging==25.0 与手写 fixture wheel
         venv_dir = inputs_dir / "虚拟 环境"
         run_cmd(["uv", "venv", "--python", args.python, str(venv_dir)], cwd=workspace, env=env)
@@ -249,6 +258,7 @@ def main():
                 "licenses": licenses_list,
             },
             "container_transfer": "synchronized",
+            "bridge_directory": str(bridge), "shim": str(bridge / shim_name),
             "dependencies": {
                 "environment": str(venv_dir),
                 "requirements": ["standalone_pkg==1.0.0"],

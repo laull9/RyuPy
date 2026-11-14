@@ -22,6 +22,16 @@ impl Drop for Workspace {
 }
 
 #[test]
+fn linux_license_directory_references_do_not_hide_named_files() {
+    let files = license_references("目录 /usr/share/common-licenses/\n 与目录 /usr/share/common-licenses/.\n许可 /usr/share/common-licenses/LGPL-2.1 和 /usr/share/common-licenses/GPL-2.").unwrap();
+    assert_eq!(
+        files,
+        BTreeSet::from(["LGPL-2.1".to_string(), "GPL-2".to_string()])
+    );
+    assert!(license_references("/usr/share/common-licenses/../private").is_err());
+}
+
+#[test]
 fn linux_version_requirements_are_scoped_to_library() {
     let mut elf = Elf::default();
     versions("Version definition section '.gnu.version_d' contains 2 entries:\n  Name: XCRYPT_2.0\n  Name: XCRYPT_4.3\nVersion needs section '.gnu.version_r' contains 2 entries:\n File: libcrypt.so.1 Cnt: 1\n Name: XCRYPT_2.0 Flags: none\n File: libc.so.6 Cnt: 1\n Name: GLIBC_2.2.5 Flags: none", &mut elf).unwrap();
