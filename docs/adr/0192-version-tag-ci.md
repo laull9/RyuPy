@@ -23,3 +23,8 @@ GitHub的分支和tag过滤分别匹配ref，不能仅把main与v*写进同一pu
 真实临时Git图覆盖main当前tag、main祖先注解tag、未合并dev拒绝、分支/非v tag/手动事件拒绝、
 错误检出拒绝。工作流还校验触发器、main-tag依赖与本地复用路径，归档正文与迁移前逐字节相同。
 YAML/表达式以actionlint检查，日常门的实际运行单独登记。版本矩阵在本次收敛前已21/21通过。
+
+
+首次Linux日常门发现两项textwrap oracle要求PYTHON为绝对路径，而无uv的make回退为python3。
+CI显式传入setup-python的python-path输出，固定版本与原断言保留；同一测试的相对路径负例
+和固定绝对路径正例均已实际执行，完整本机make check继续通过。

@@ -37,6 +37,7 @@ jobs:
         with:
           dotnet-version: '10.0.403'
       - uses: actions/setup-python@v5
+        id: python
         with:
           python-version-file: tests/pinned-python.txt
       - name: Native test prerequisites
@@ -48,4 +49,8 @@ jobs:
           python -B scripts/test_release_tag.py
           python -B tests/cpython/test_portable.py
       - name: Check source and runtime
+        # 差分oracle要求绝对解释器路径；make在无uv时的python3回退不满足该合同。
+        env:
+          PYTHON: ${{ steps.python.outputs.python-path }}
+          RYUPY_FOREACH_PYTHON: ${{ steps.python.outputs.python-path }}
         run: make check
