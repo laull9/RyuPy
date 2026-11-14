@@ -26,15 +26,19 @@ jobs:
   linux-x64:
     runs-on: ubuntu-24.04
     env:
-      # setup-dotnet默认与runner预装SDK共目录；隔离后禁止意外使用更新SDK。
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/ryupy-dotnet-${{ github.run_id }}-${{ github.run_attempt }}
-      DOTNET: ${{ runner.temp }}/ryupy-dotnet-${{ github.run_id }}-${{ github.run_attempt }}/dotnet
       RYUPY_EXPECTED_SDK: '10.0.403'
     # 冷构建30分钟 + 管线32分钟，另留18分钟给安装与失败工件收尾。
     timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - name: Define isolated SDK path
+        # jobs.env不支持runner上下文；在step中使用RUNNER_TEMP并传给后续安装/发布。
+        run: |
+          sdk_root="$RUNNER_TEMP/ryupy-dotnet-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          test ! -e "$sdk_root"
+          echo "DOTNET_INSTALL_DIR=$sdk_root" >> "$GITHUB_ENV"
+          echo "DOTNET=$sdk_root/dotnet" >> "$GITHUB_ENV"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.RYUPY_EXPECTED_SDK }}
