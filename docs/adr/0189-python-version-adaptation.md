@@ -74,3 +74,12 @@ curl stdin配置传递且仅用于官方API；匹配缓存先核对精确版本�
 20261009的组件来源迁移为downloads.json，按固定release读取JSON；旧版Python字面量仍静态解析。
 真实20261009来源及zlib-ng许可补齐已本机复验。Windows构建脚本使用UTF-8 BOM兼容PowerShell 5，
 版本推导先于include参数构造。小归档同样校验HTTP已声明长度，不增加文件摘要。
+
+Windows 3.14.10官方安装归档的48个DLL/pyd在本机完成普通与delay导入静态审计，
+系统组件与随包库均有明确归属。Tk9的WINSPOOL.DRV沿Windows系统库处理，依据
+[微软Winspool API说明](https://learn.microsoft.com/en-us/windows/win32/printdocs/getdefaultprinter)。
+该记录对应静态审计；跨平台原生执行由版本CI逐项登记。
+
+Windows矩阵复验识别的msvcrt.dll与ntdll.dll沿操作系统组件归类；VC可再分发运行库仍要求随包。
+来源说明：[系统msvcrt.dll](https://devblogs.microsoft.com/oldnewthing/20140411-00/?p=1273%2F)、
+[NT进程API](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryinformationprocess)。

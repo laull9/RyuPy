@@ -16,8 +16,8 @@
   切CPython provider，macOS arm64同次CP/JIT/AOT/搬迁、数据库独立检查通过；干净机待验。
 - [~] **CP3 真实 NumPy**：已固定NumPy2.3.5/cp312/macosx_14_0_arm64官方wheel，ndarray/dtype/视图、计算、编译回调、
   双向异常、生命周期、搬迁与缺依赖负例在macOS arm64通过；其他平台待验。
-- [ ] **默认兼容配置晋升**：CP1–CP3 全部门通过后切默认 CPython provider，保留显式
-  纯 RyuPy 配置；固定 20 项增加 provider 维度，保留原始入口、版本与 native 结果。
+- [~] **应用入口兼容配置**：用户指定的新文件入口默认自动CPython环境，--native保留纯RyuPy；
+  旧build/run与driver默认执行域保留。全对象桥生命周期按平台继续专项验收，固定项目原始入口与native结果独立登记。
 - [~] **CP4 覆盖与 AOT 分发**：产品固定集至少 16/20；扩大标准库验收，完成
   macOS/Linux/Windows 目标机与依赖闭包，standalone 后再推进 onefile。
   自动依赖闭包已接入显式provider：入口导入、Requires-Dist/extras/marker、RECORD资源与metadata，
@@ -35,9 +35,13 @@
   发布目录仅含唯一可执行。macOS 正式 CLI 原生/CPython 全载荷、输入删除搬迁、三流和副作用通过；
   同名重建及失败保留旧版通过；三平台单文件、中断清理及Linux无Python/.NET/SDK容器通过。
   设计见 [ADR-0188](docs/adr/0188-aot-onefile.md)。
+- [~] **单文件CLI与普通多文件项目入口**：`ryupy main.py --onefile`默认自动环境，CLI自身内嵌完整C#闭包；
+  Release版约13MiB，macOS仓库外仅CLI、空PATH信息查询、四路原生JIT冷缓存、五模块编译、
+  删除CLI/缓存/项目输入后的唯一AOT搬迁已通过；三平台Release和21版本矩阵复验中。
+  架构与独立验收见[ADR-0190](docs/adr/0190-project-cli.md)、[ADR-0191](docs/adr/0191-single-file-compiler-cli.md)。
 - [~] **Python 3.9+ 自动版本适配**：`--cpython-provider auto` 自动探测项目/激活环境，
   构建期匹配解释器、ABI、原生 shim、标准库与扩展 wheel，并冻结到发布产物；用户无需指定版本。
-  逐版本真实验收后登记，保留显式 provider 和纯 RyuPy 默认入口。
+  逐版本真实验收后登记，保留显式provider、--native和旧开发子命令。
 - [ ] **CP5 实测热点优化**：统计桥接/GIL/分配/复制；保留 typed CIL 等快路，
   按真实收益选择 C# 原生替换，与 CPython/Nuitka 同程序对照。
 

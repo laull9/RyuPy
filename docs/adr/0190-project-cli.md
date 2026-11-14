@@ -49,3 +49,8 @@ ryupy main.py -o release              # 指定输出根
 所有中间目录，在空PATH、污染Python变量和独立cwd下执行，退出码、stdout、stderr与
 文件副作用逐字节等于同次CPython。正常退出后独占解包目录为空。
 CI三平台增加同一驱动，Linux追加无Python/.NET/SDK的断网目标容器。
+
+普通项目导入闭包修复：复现未引用开发文件的缺失依赖误阻断后，收集器改按实际导入链与父包
+初始化递归，保持未引用文件独立。编译搜索根和显式本地模块请求进入同一收集上下文，
+`-I src`与`--include-module`声明的本地模块也能收齐其第三方依赖。普通与src布局、
+importlib动态本地插件的真实CIL执行均按同次oracle验收。

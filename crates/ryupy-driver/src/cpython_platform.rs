@@ -294,6 +294,9 @@ impl PlatformKind {
                 "WINMM.dll",
                 // Tk9打印能力使用Windows自带的Winspool API，不收集第三方库。
                 "WINSPOOL.DRV",
+                // 系统自带的历史CRT与NT原生API；VC可再分发运行库仍必须随包。
+                "msvcrt.dll",
+                "ntdll.dll",
                 "bcrypt.dll",
                 "msi.dll",
                 "ucrtbase.dll",

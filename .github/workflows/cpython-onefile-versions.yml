@@ -150,6 +150,13 @@ jobs:
           if [ "$RUNNER_OS" = "Linux" ]; then args+=(--linux-container mcr.microsoft.com/dotnet/runtime-deps:10.0-noble); fi
           "$PYTHON_BIN" "${args[@]}"
 
+      - name: Verify src layout project (POSIX)
+        if: runner.os != 'Windows'
+        run: |
+          args=(-B tests/cpython/multifile_run.py --python "$PYTHON_BIN" --ryupy "${{ matrix.cli }}" --src-layout)
+          if [ "$RUNNER_OS" = "Linux" ]; then args+=(--linux-container mcr.microsoft.com/dotnet/runtime-deps:10.0-noble); fi
+          "$PYTHON_BIN" "${args[@]}"
+
       - name: Verify OneFile Acceptance Suite (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -166,6 +173,11 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           & "$env:RUNNER_PYTHON" -B tests/cpython/multifile_run.py --python "$env:PYTHON_BIN" --ryupy "${{ matrix.cli }}"
+
+      - name: Verify src layout project (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          & "$env:RUNNER_PYTHON" -B tests/cpython/multifile_run.py --python "$env:PYTHON_BIN" --ryupy "${{ matrix.cli }}" --src-layout
 
       - name: Upload verified single-file CLI
         uses: actions/upload-artifact@v4

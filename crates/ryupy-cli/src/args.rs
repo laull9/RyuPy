@@ -144,7 +144,7 @@ mod tests;
 
 #[derive(Subcommand)]
 pub(super) enum Command {
-    /// 静态探测来源闭包并输出 JSON；只解析源码，不执行 Python 或语义编译
+    /// 静态探测来源闭包并输出 JSON；解析源码与环境，不执行应用代码
     Probe {
         input: PathBuf,
         /// 报告及已授权 catalog 部署目录；默认入口旁 __pycache__/<入口>/probe

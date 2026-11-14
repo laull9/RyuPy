@@ -107,7 +107,7 @@ pub(super) fn require_runtime() -> Result<()> {
             words.next() == Some("Microsoft.NETCore.App")
                 && words
                     .next()
-                    .is_some_and(|version| version.starts_with("10."))
+                    .is_some_and(|version| version.starts_with("10.") && !version.contains('-'))
         }),
         "运行托管产物需要.NET Runtime 10；当前检测到：{}",
         versions.trim()

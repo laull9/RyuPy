@@ -334,7 +334,7 @@ fn build_with_resources_inner(
 ) -> Result<Artifacts> {
     let trace = stage_trace::StageTrace::new(sess.diagnostic_stages);
     aot::validate_before_build(&opts.input, opts.aot)?;
-    cpython_provider::prepare(sess, &opts.input)?;
+    cpython_provider::prepare(sess, opts)?;
     // 每次请求显式重置，不从前次成功/失败会话继承默认AOT权限。
     sess.default_source_state.aot_request =
         default_aot::eligible(sess, opts.aot, resource_request.is_some());

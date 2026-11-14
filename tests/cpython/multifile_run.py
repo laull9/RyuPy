@@ -20,11 +20,22 @@ def run(command, cwd, env, data=None):
     return process
 
 
+def check_source_includes(cli, project, interpreter, workspace, env):
+    """显式动态本地模块的第三方依赖也进入同次闭包，实际执行CIL与oracle比较。"""
+    entry = project / 'optional_entry.py'
+    entry.write_text('import importlib\nmodule = importlib.import_module("optional_app_plugin")\nprint(module.render())\n', encoding='utf-8')
+    (project / 'optional_app_plugin.py').write_text('import tomli\ndef render():\n    return tomli.loads("price = 17")["price"]\n', encoding='utf-8')
+    expected = run([interpreter, '-X', 'utf8', '-B', entry], workspace, env)
+    actual = run([cli, '--cpython-provider', 'auto', 'run', entry, '--include-module', 'optional_app_plugin'], project, env)
+    assert (actual.stdout, actual.stderr) == (expected.stdout, expected.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ryupy', type=Path, default=ROOT / 'target/debug' / ('ryupy.exe' if sys.platform == 'win32' else 'ryupy'))
     parser.add_argument('--python', type=Path, default=Path(sys.executable))
     parser.add_argument('--linux-container')
+    parser.add_argument('--src-layout', action='store_true', help='额外源码根src布局，实际验证-I接线')
     parser.add_argument('--keep', action='store_true')
     args = parser.parse_args()
     workspace = external_workspace('ryupy-multifile-')
@@ -95,6 +106,10 @@ def main():
         # 普通多文件项目：包含五个手写模块调用链、第三方包tomli及第三方中文资源。
         project = inputs / '订单 项目'
         shutil.copytree(ROOT / 'tests/cpython/fixtures/multifile_app', project)
+        source_root = project / 'src' if args.src_layout else project
+        if args.src_layout:
+            source_root.mkdir()
+            shutil.move(project / 'invoice', source_root / 'invoice')
         interpreter = create_venv(args.python.resolve(), project / '.venv', workspace, env)
         wheel = build_fixture_wheel(inputs, 'receipt_assets', '1.0.0', {
             'receipt_assets/__init__.py': 'from importlib.resources import files\ndef label():\n    return files(__package__).joinpath("资源.txt").read_text(encoding="utf-8").strip()\n',
@@ -111,12 +126,19 @@ def main():
         name = '中文顾客 & 空格'
         oracle_cwd = workspace / 'oracle'
         oracle_cwd.mkdir()
-        oracle = run([interpreter, '-X', 'utf8', '-B', entry, name], oracle_cwd, env, data)
+        oracle_env = dict(env)
+        if args.src_layout:
+            oracle_env['PYTHONPATH'] = str(source_root)
+        oracle = run([interpreter, '-X', 'utf8', '-B', entry, name], oracle_cwd, oracle_env, data)
         expected_effect = (oracle_cwd / '收据.txt').read_bytes()
+        check_source_includes(packaged_cli, project, interpreter, workspace, env)
 
         # 普通命令只表达入口与发布形态：不激活venv，自动探测项目环境，直接输出单一AOT文件。
         output = project / 'dist'
-        run([packaged_cli, entry, '--onefile'], project, env)
+        command = [packaged_cli, entry, '--onefile']
+        if args.src_layout:
+            command += ['-I', source_root]
+        run(command, project, env)
         assert list(compiler.iterdir()) == [packaged_cli], '编译器不得依赖或生成旁置runtime目录'
         binary = audit_onefile_output(output, 'main')
         manifest = json.loads((output / 'main.dist/ryupy-artifact.json').read_text(encoding='utf-8'))

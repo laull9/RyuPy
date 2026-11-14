@@ -35,7 +35,11 @@ pub(super) fn collect(
         declaration,
         base,
         root,
-        entry,
+        SourceInput {
+            entry,
+            search_paths: &[],
+            include_modules: &[],
+        },
         provided,
         stdlib,
         &super::native::version::PythonVersion::new(3, 12, 13),
@@ -46,7 +50,7 @@ struct CollectRequest<'a> {
     auto_tools: bool,
     environment: &'a Path,
     root: &'a Path,
-    entry: &'a Path,
+    source: SourceInput<'a>,
     provided: &'a [String],
     stdlib: &'a std::collections::BTreeSet<String>,
     version: &'a super::native::version::PythonVersion,
@@ -54,11 +58,18 @@ struct CollectRequest<'a> {
     dynamic_modules: Vec<String>,
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct SourceInput<'a> {
+    pub entry: &'a Path,
+    pub search_paths: &'a [PathBuf],
+    pub include_modules: &'a [String],
+}
+
 pub(super) fn collect_for_version(
     declaration: Declaration,
     base: &Path,
     root: &Path,
-    entry: &Path,
+    source: SourceInput<'_>,
     provided: &[String],
     stdlib: &std::collections::BTreeSet<String>,
     version: &super::native::version::PythonVersion,
@@ -70,7 +81,7 @@ pub(super) fn collect_for_version(
         auto_tools: false,
         environment: &environment,
         root,
-        entry,
+        source,
         provided,
         stdlib,
         version,
@@ -82,7 +93,7 @@ pub(super) fn collect_for_version(
 pub(super) fn collect_auto(
     environment: &Path,
     root: &Path,
-    entry: &Path,
+    source: SourceInput<'_>,
     provided: &[String],
     stdlib: &std::collections::BTreeSet<String>,
     version: &super::native::version::PythonVersion,
@@ -91,7 +102,7 @@ pub(super) fn collect_auto(
         auto_tools: true,
         environment,
         root,
-        entry,
+        source,
         provided,
         stdlib,
         version,
@@ -124,10 +135,11 @@ fn collect_internal(req: CollectRequest<'_>) -> Result<Closure> {
             .unwrap_or_else(|| req.root.join("bin/python3"))
     };
     let request = serde_json::json!({
-        "environment": req.environment, "entry": req.entry.canonicalize()?,
+        "environment": req.environment, "entry": req.source.entry.canonicalize()?,
         "requirements": req.requirements, "dynamic_modules": req.dynamic_modules,
         "stdlib": req.stdlib, "provided_modules": req.provided,
-        "auto_tools": req.auto_tools,
+        "auto_tools": req.auto_tools, "search_paths": req.source.search_paths,
+        "include_modules": req.source.include_modules,
     });
     // -I -S隔离应用导入；-X utf8固定JSON管道编码，避免Windows中文路径被ANSI解码破坏。
     let script = format!(

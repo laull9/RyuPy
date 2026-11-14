@@ -46,7 +46,11 @@ Python按项目venv、激活环境、PATH和Windows py启动器发现。PATH以�
 
 ## 验收
 
-Gemini独立验收将只复制一个CLI文件到仓库外中文空格路径，使用全新私有缓存，验证无.NET
+Gemini独立验收已在macOS arm64只复制一个CLI文件到仓库外中文空格路径，使用全新私有缓存，验证无.NET
 条件下帮助/版本/许可证与原生JIT编译，再构建五个本地模块的普通项目。删除CLI、私有缓存、
 项目源码、venv、wheel和中间目录后，运行唯一AOT，严格比较同次CPython三流及文件副作用。
 三平台运行同一驱动，Linux额外使用无Python/.NET/SDK的断网容器。结果以实际完成状态登记。
+
+主代理Release版（约13MiB）重跑同一完整流程退出0，otool仅显示macOS系统库。
+完整make check再次exit0：3113项C#通过、2跳过，Rust全套与467项编译e2e通过、283 ignored。
+Windows编译器通过crt-static静态链接C运行时；三平台Release产物均由真实验收后上传唯一CLI文件。

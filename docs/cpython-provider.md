@@ -223,7 +223,7 @@ API、平台及v3/v4冻结快照的依赖影响复验范围见[验收驱动](../
 ### 6.3 自动适配环境与单文件交付
 
 ```sh
-ryupy --cpython-provider auto build app.py --onefile --out-dir dist
+ryupy app.py --onefile --out-dir dist
 ```
 
 构建器依次选择入口项目及祖先目录的 `.venv`/`venv`/`env`、激活环境、PATH，Windows
@@ -243,7 +243,8 @@ curl、tar 及 Zstandard 解包支持。
 三平台单文件、输入删除搬迁、三流、副作用、并发和中断清理已经通过，Linux另有
 无 Python/.NET/SDK 的断网容器验收。详细过程见
 [单文件验收](../tests/cpython/onefile_README.md)与[版本矩阵](../tests/cpython/version_README.md)。
-原生默认入口与旧显式 provider 声明保持可用；自动适配由上述显式命令启用。
+新应用入口默认自动适配；--native选择纯RyuPy，旧build/run默认值与显式provider声明保持可用。
+编译器CLI内嵌C#闭包与环境发现见[ADR-0191](adr/0191-single-file-compiler-cli.md)。
 
 ## 7. 长期 AOT 与性能路线
 

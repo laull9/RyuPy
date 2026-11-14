@@ -74,44 +74,73 @@ def main(request):
     provided = set(request['provided_modules'])
     seen = set()
 
-    def scan(path):
-        path = path.resolve()
-        if path in seen:
+    roots = list(dict.fromkeys([project.resolve(), *(Path(value).resolve() for value in request.get('search_paths', []))]))
+
+    def follow_local(root, target):
+        # 只跟随实际导入链及父包初始化，不把同目录测试/开发文件当应用依赖。
+        current = root
+        for part in target.relative_to(root).parts:
+            current = current / part
+            if current.is_dir():
+                initializer = current / '__init__.py'
+                if initializer.is_file():
+                    scan(initializer, root)
+            elif current.with_suffix('.py').is_file():
+                scan(current.with_suffix('.py'), root)
+                break
+            else:
+                break
+
+    def scan(path, root):
+        path = path.absolute()
+        identity = (path.resolve(), root)
+        if identity in seen:
             return
-        seen.add(path)
+        seen.add(identity)
         with tokenize.open(path) as source:
             tree = ast.parse(source.read(), filename=str(path))
         for node in ast.walk(tree):
-            names = []
-            if isinstance(node, ast.Import):
-                names = [alias.name for alias in node.names]
-            elif isinstance(node, ast.ImportFrom) and node.level:
-                # 相对导入只解析当前源码包树，不执行模块或site初始化。
+            if isinstance(node, ast.ImportFrom) and node.level:
                 base = path.parent
                 for _ in range(node.level - 1):
                     base = base.parent
-                local_names = [node.module] if node.module else [alias.name for alias in node.names]
-                for local_name in local_names:
-                    local = base.joinpath(*local_name.split('.'))
-                    if local.is_dir():
-                        for source in sorted(local.rglob('*.py')):
-                            scan(source)
-                    elif local.with_suffix('.py').is_file():
-                        scan(local.with_suffix('.py'))
+                if not base.is_relative_to(root):
+                    fail('相对导入越过项目源码根：' + str(path))
+                target = base.joinpath(*(node.module or '').split('.')) if node.module else base
+                follow_local(root, target)
+                for alias in node.names:
+                    if alias.name != '*':
+                        follow_local(root, target.joinpath(*alias.name.split('.')))
+                continue
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
+            else:
+                continue
             for name in names:
                 top = name.split('.')[0]
-                local = project / top
-                if local.is_dir():
-                    for source in sorted(local.rglob('*.py')):
-                        scan(source)
-                elif local.with_suffix('.py').is_file():
-                    scan(local.with_suffix('.py'))
+                local_root = next((candidate for candidate in roots
+                                   if (candidate / top).is_dir() or (candidate / top).with_suffix('.py').is_file()), None)
+                if local_root is not None:
+                    target = local_root.joinpath(*name.split('.'))
+                    follow_local(local_root, target)
+                    if isinstance(node, ast.ImportFrom):
+                        for alias in node.names:
+                            if alias.name != '*':
+                                follow_local(local_root, target.joinpath(*alias.name.split('.')))
                 elif top not in stdlib:
                     modules.add(top)
 
-    scan(entry)
+    scan(entry, roots[0])
+    for name in request.get('include_modules', []):
+        if not all(part.isidentifier() for part in name.split('.')):
+            fail('显式本地模块名非法：' + name)
+        top = name.split('.')[0]
+        local_root = next((root for root in roots if (root / top).is_dir() or (root / top).with_suffix('.py').is_file()), None)
+        if local_root is None:
+            fail('显式包含的本地模块未找到源码：' + name)
+        follow_local(local_root, local_root.joinpath(*name.split('.')))
     for module in sorted(modules):
         if not all(part.isidentifier() for part in module.split('.')):
             fail(f'动态导入模块名非法：{module}')
@@ -227,6 +256,8 @@ def main(request):
                          for destination, source in sorted(payloads.items())],
             'report': {'collector': 'static_metadata_record', 'packaging_version': packaging.__version__,
                        'environment': str(environment), 'entry': str(entry),
+                       'search_paths': list(map(str, roots)),
+                       'source_includes': request.get('include_modules', []),
                        'dynamic_modules': request['dynamic_modules'],
                        'requirements': request['requirements'], 'distributions': reports,
                        'marker_environment': marker_environment}}

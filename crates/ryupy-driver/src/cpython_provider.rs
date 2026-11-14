@@ -84,13 +84,19 @@ pub(crate) struct Plan {
     pub dependency_report: serde_json::Value,
 }
 
-pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
+pub(crate) fn prepare(sess: &mut Session, opts: &crate::BuildOptions) -> Result<()> {
+    let included_modules = sess.include_modules.clone();
+    let source_input = dependencies::SourceInput {
+        entry: &opts.input,
+        search_paths: &opts.search_paths,
+        include_modules: &included_modules,
+    };
     sess.cpython_provider_state.plan = None;
     let Some(path) = &sess.cpython_provider else {
         return Ok(());
     };
     if path == Path::new("auto") {
-        return prepare_auto(sess, entry);
+        return prepare_auto(sess, source_input);
     }
     ensure!(
         sess.distribution_metadata.is_none(),
@@ -182,10 +188,19 @@ pub(crate) fn prepare(sess: &mut Session, entry: &Path) -> Result<()> {
             );
         }
     }
-    finish_prepare(sess, entry, base, declaration, root, metadata, version)
+    finish_prepare(
+        sess,
+        source_input,
+        base,
+        declaration,
+        root,
+        metadata,
+        version,
+    )
 }
 
-pub(crate) fn prepare_auto(sess: &mut Session, entry: &Path) -> Result<()> {
+fn prepare_auto(sess: &mut Session, source_input: dependencies::SourceInput<'_>) -> Result<()> {
+    let entry = source_input.entry;
     ensure!(
         sess.distribution_metadata.is_none(),
         "CPython provider 自动模式的包数据须自动探测或通过闭包处理"
@@ -220,7 +235,7 @@ pub(crate) fn prepare_auto(sess: &mut Session, entry: &Path) -> Result<()> {
     let closure = dependencies::collect_auto(
         &discovered.prefix,
         &root,
-        entry,
+        source_input,
         &modules,
         &stdlib,
         &version,
@@ -269,7 +284,7 @@ pub(crate) fn prepare_auto(sess: &mut Session, entry: &Path) -> Result<()> {
 
 fn finish_prepare(
     sess: &mut Session,
-    entry: &Path,
+    source_input: dependencies::SourceInput<'_>,
     base: &Path,
     declaration: Declaration,
     root: PathBuf,
@@ -312,7 +327,13 @@ fn finish_prepare(
         .dependencies
         .map(|request| {
             dependencies::collect_for_version(
-                request, base, &root, entry, &modules, &stdlib, &version,
+                request,
+                base,
+                &root,
+                source_input,
+                &modules,
+                &stdlib,
+                &version,
             )
         })
         .transpose()?
