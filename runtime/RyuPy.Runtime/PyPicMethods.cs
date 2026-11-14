@@ -30,7 +30,7 @@ public static partial class PyPic
         public PyClass? SelfClass;
     }
 
-    private static readonly MethodEntry[] MethodEntries = new MethodEntry[MaxSites * EntriesPerSite];
+    private static readonly PagedEntries<MethodEntry> MethodEntries = new(MaxSites * EntriesPerSite);
 
     /// <summary>`CallMethodN`：0 个位置实参。</summary>
     public static object? CallMethod0(int site, object? obj, string name)
