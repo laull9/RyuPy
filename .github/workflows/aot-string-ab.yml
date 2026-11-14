@@ -27,6 +27,9 @@ jobs:
       RYUPY_EXPECTED_SDK: '10.0.403'
     # 双构建60分钟 + 直接对照82分钟，另留8分钟安装及工件收尾。
     timeout-minutes: 150
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
@@ -35,7 +38,20 @@ jobs:
           path: .ab-base
       - name: Move baseline outside measured checkout
         run: mv .ab-base "$RUNNER_TEMP/ryupy-ab-base"
+      - name: Initialize independent failure evidence
+        run: |
+          evidence="$RUNNER_TEMP/aot-string-ab-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -p "$evidence"
+          echo "AB_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+          {
+            echo "candidate=$GITHUB_SHA"
+            echo "base=$(git -C "$RUNNER_TEMP/ryupy-ab-base" rev-parse HEAD)"
+            echo "expected_sdk=$RYUPY_EXPECTED_SDK"
+            uname -a
+          } > "$evidence/context.txt"
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8 # 1.99.1
+      - name: Check candidate Rust formatting before builds
+        run: cargo fmt --all --check 2>&1 | tee "$AB_EVIDENCE/fmt.log"
       - name: Define isolated SDK path
         # jobs.env不支持runner上下文；在step中使用RUNNER_TEMP并传给后续安装/发布。
         run: |
@@ -51,10 +67,13 @@ jobs:
           python-version-file: tests/pinned-python.txt
       - name: Verify selected SDK before compilation
         run: |
+          exec > >(tee "$AB_EVIDENCE/sdk.log") 2>&1
+          dotnet --info
           test "$(command -v dotnet)" = "$DOTNET_INSTALL_DIR/dotnet"
           test "$(dotnet --version)" = "$RYUPY_EXPECTED_SDK"
       - name: Lightweight baseline regressions
         run: |
+          exec > >(tee "$AB_EVIDENCE/lightweight-tests.log") 2>&1
           python -B tests/aot/test_string_ab.py
           python -B tests/aot/test_string_ab_build.py
           python -B tests/aot/test_current_baseline.py
@@ -65,12 +84,15 @@ jobs:
           python -B -m unittest discover -s tests/aot -p 'test_manifest_*.py'
       - name: Native prerequisites
         run: |
+          exec > >(tee "$AB_EVIDENCE/prerequisites.log") 2>&1
           sudo apt-get update
           sudo apt-get install -y clang zlib1g-dev
       - name: Build both isolated products and candidate regressions
         timeout-minutes: 60
         run: |
+          exec > >(tee "$AB_EVIDENCE/build-and-regressions.log") 2>&1
           for variant in base candidate; do
+            echo "=== Building $variant ==="
             source="$GITHUB_WORKSPACE"
             if [ "$variant" = base ]; then source="$RUNNER_TEMP/ryupy-ab-base"; fi
             (
@@ -81,12 +103,12 @@ jobs:
             )
           done
           export CARGO_TARGET_DIR="$RUNNER_TEMP/ryupy-ab-candidate-target"
-          cargo fmt --all --check
           cargo test -p ryupy-mir numeric_accumulator --locked
           dotnet test runtime/RyuPy.Runtime.Tests -c Release --filter 'FullyQualifiedName~Accumulator'
       - name: Same runner interleaved wall then separate diagnostics
         timeout-minutes: 82
         run: |
+          exec > >(tee "$AB_EVIDENCE/measurement-entry.log") 2>&1
           python -B tests/aot/string_ab.py \
             --base "$RUNNER_TEMP/ryupy-ab-base" \
             --candidate "$GITHUB_WORKSPACE" \
@@ -99,7 +121,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: aot-string-ab-linux-x64-${{ github.sha }}
-          path: ${{ runner.temp }}/aot-string-ab-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/aot-string-ab-${{ github.run_id }}-${{ github.run_attempt }}
+            ${{ runner.temp }}/aot-string-ab-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: warn
           retention-days: 14
           include-hidden-files: true
