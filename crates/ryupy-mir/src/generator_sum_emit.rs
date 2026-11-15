@@ -23,7 +23,11 @@ pub(super) fn prepare(program: &Program, deferred: &DeferredGenerators) -> Vec<C
                 return None;
             }
             let snapshot = Snapshot::capture(program, function, plan.residents.clone());
-            Some(Candidate { function, plan, snapshot })
+            Some(Candidate {
+                function,
+                plan,
+                snapshot,
+            })
         })
         .collect()
 }
@@ -41,7 +45,12 @@ pub(super) fn finish(program: &mut Program, candidates: Vec<Candidate>) {
             for (_, block) in factory.body.blocks.iter_mut() {
                 for statement in &mut block.stmts {
                     if let Statement::Assign {
-                        value: Rvalue::MakeStateGenerator { resume: actual, sum_resume, .. },
+                        value:
+                            Rvalue::MakeStateGenerator {
+                                resume: actual,
+                                sum_resume,
+                                ..
+                            },
                         ..
                     } = statement
                         && *actual == resume
@@ -58,11 +67,22 @@ fn build_batch(program: &Program, candidate: &Candidate) -> Option<(FnId, Functi
     let factory = &program.functions[candidate.function];
     let statements = &factory.body.blocks[factory.body.entry].stmts;
     let [
-        Statement::Assign { value: Rvalue::NewObject { class, args }, .. },
-        Statement::Assign { value: Rvalue::MakeStateGenerator { resume, .. }, .. },
-    ] = statements.as_slice() else { return None; };
+        Statement::Assign {
+            value: Rvalue::NewObject { class, args },
+            ..
+        },
+        Statement::Assign {
+            value: Rvalue::MakeStateGenerator { resume, .. },
+            ..
+        },
+    ] = statements.as_slice()
+    else {
+        return None;
+    };
     // 工厂实参决定原输入字段，不依赖字段名字、顺序或源码range名字。
-    let input_field = args.iter().position(|arg| *arg == Operand::Local(candidate.plan.guard_input))?;
+    let input_field = args
+        .iter()
+        .position(|arg| *arg == Operand::Local(candidate.plan.guard_input))?;
     let mut batch = copy_resume(&program.functions[*resume]);
     let frame = *batch.params.first()?;
     let sum = local(&mut batch.body.locals, MirType::Dynamic);
@@ -92,7 +112,10 @@ fn build_batch(program: &Program, candidate: &Candidate) -> Option<(FnId, Functi
     let fallback = batch.body.blocks.alloc(BasicBlock {
         stmts: vec![Statement::Assign {
             dest: fallback_value,
-            value: Rvalue::Call { callee: Callee::Fn(*resume), args: vec![Operand::Local(frame)] },
+            value: Rvalue::Call {
+                callee: Callee::Fn(*resume),
+                args: vec![Operand::Local(frame)],
+            },
         }],
         terminator: Terminator::Return(Some(Operand::Local(fallback_value))),
     });
@@ -102,16 +125,30 @@ fn build_batch(program: &Program, candidate: &Candidate) -> Option<(FnId, Functi
     let guarded = local(&mut batch.body.locals, MirType::Bool);
     batch.body.entry = batch.body.blocks.alloc(BasicBlock {
         stmts: vec![
-            call(raw, RuntimeFn::GeneratorStateData, vec![Operand::Local(frame)]),
+            call(
+                raw,
+                RuntimeFn::GeneratorStateData,
+                vec![Operand::Local(frame)],
+            ),
             Statement::Assign {
                 dest: payload,
-                value: Rvalue::Unbox { value: Operand::Local(raw), to: MirType::Class(*class) },
+                value: Rvalue::Unbox {
+                    value: Operand::Local(raw),
+                    to: MirType::Class(*class),
+                },
             },
             Statement::Assign {
                 dest: input,
-                value: Rvalue::GetField { obj: Operand::Local(payload), field: input_field as u32 },
+                value: Rvalue::GetField {
+                    obj: Operand::Local(payload),
+                    field: input_field as u32,
+                },
             },
-            call(guarded, RuntimeFn::GeneratorSumRangeGuard, vec![Operand::Local(input)]),
+            call(
+                guarded,
+                RuntimeFn::GeneratorSumRangeGuard,
+                vec![Operand::Local(input)],
+            ),
         ],
         terminator: Terminator::Branch {
             cond: Operand::Local(guarded),

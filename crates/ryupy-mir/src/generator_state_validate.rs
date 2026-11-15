@@ -45,7 +45,8 @@ pub(crate) fn validate_creation(
                 })
         })
     });
-    if !valid_sum || !valid_payload
+    if !valid_sum
+        || !valid_payload
         || !valid_target
         || *initial_pc < 0
         || origin

@@ -23,8 +23,8 @@ impl GeneratorRefs {
         let resume = res.push_type_reference(type_ref! { RyuPy.Runtime.PyResume in #runtime });
         let generator =
             res.push_type_reference(type_ref! { RyuPy.Runtime.PyGenerator in #runtime });
-        let sum_resume = res
-            .push_type_reference(type_ref! { RyuPy.Runtime.PyResumeSumCompiled in #runtime });
+        let sum_resume =
+            res.push_type_reference(type_ref! { RyuPy.Runtime.PyResumeSumCompiled in #runtime });
         let sum_resume: MethodType = BaseType::class(sum_resume).into();
         let resume: MethodType = BaseType::class(resume).into();
         let generator: MethodType = BaseType::class(generator).into();
@@ -37,9 +37,8 @@ impl GeneratorRefs {
             sum_state_ctor: res.push_method_reference(method_ref! {
                 void @generator::.ctor(@resume, object, long, string, string, object, @sum_resume)
             }),
-            sum_resume_ctor: res.push_method_reference(
-                method_ref! { void @sum_resume::.ctor(object, nint) },
-            ),
+            sum_resume_ctor: res
+                .push_method_reference(method_ref! { void @sum_resume::.ctor(object, nint) }),
             sum_try_consume: res.push_method_reference(
                 method_ref! { static bool @ops::GeneratorSumTryConsume(object, object) },
             ),

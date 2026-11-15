@@ -42,7 +42,9 @@ pub(crate) fn emit(
     }
     let ctor = if let Some(sum_resume) = sum_resume {
         ins.push(Instruction::LoadNull);
-        ins.push(Instruction::LoadMethodPointer(ctx.fn_map[&sum_resume].into()));
+        ins.push(Instruction::LoadMethodPointer(
+            ctx.fn_map[&sum_resume].into(),
+        ));
         ins.push(Instruction::NewObject(UserMethod::Reference(
             ctx.runtime_refs.generators.sum_resume_ctor,
         )));

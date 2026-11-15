@@ -207,16 +207,23 @@ pub(crate) fn collect(
         for (_, block) in function.body.blocks.iter() {
             for statement in &block.stmts {
                 if let Statement::Assign {
-                    value: Rvalue::MakeStateGenerator { sum_resume: Some(sum), .. },
+                    value:
+                        Rvalue::MakeStateGenerator {
+                            sum_resume: Some(sum),
+                            ..
+                        },
                     ..
                 } = statement
                 {
-                    roles.insert(functions[sum], Role {
-                        name: "generator_sum_resume",
-                        module: None,
-                        function: Some(sum.into_raw().into_u32()),
-                        class: None,
-                    });
+                    roles.insert(
+                        functions[sum],
+                        Role {
+                            name: "generator_sum_resume",
+                            module: None,
+                            function: Some(sum.into_raw().into_u32()),
+                            class: None,
+                        },
+                    );
                 }
             }
         }
