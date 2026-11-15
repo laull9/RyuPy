@@ -24,7 +24,8 @@ struct RangePlan {
     residents: FxHashSet<LocalId>,
 }
 
-// FnId/LocalId必须来自同一份deferred构建的显式来源，外来函数或任意参数号不能授予资格。
+// 这里只核对元数据内的数值ID记录；尚未绑定Program构建身份，不能用作产品证书。
+// 产品化必须用拥有式Prepared对象封装同一Program/元数据，不能接受自由组合。
 fn analyze_source(
     program: &Program,
     deferred: &crate::generator_product::DeferredGenerators,
@@ -125,11 +126,12 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
     let (yield_block, resume) = edge?;
     let residents = crate::generator_state_analysis::residents(f)?;
     let plan = RangePlan { guard_input: declared_input, iterator: iterator?, multiply: multiply?, yield_block, resume, residents };
-    resident_mapping_covers(&plan, &plan.residents).then_some(plan)
+    resident_set_requirements_hold(&plan, &plan.residents).then_some(plan)
 }
 
-// 后续发射的字段映射必须覆盖本次计划的全部暂停活值，尤其不能丢弃同一个原游标。
-fn resident_mapping_covers(plan: &RangePlan, fields: &FxHashSet<LocalId>) -> bool {
+// 这里只检查候选集合要求，不是实际lowering字段映射证明。
+// 发射后仍须核查真实Get/SetField位置/类型、yield前发布及resume读取同一字段。
+fn resident_set_requirements_hold(plan: &RangePlan, fields: &FxHashSet<LocalId>) -> bool {
     plan.residents.is_subset(fields)
         && fields.contains(&plan.guard_input)
         && fields.contains(&plan.iterator)
@@ -325,7 +327,7 @@ fn only_matching_trace_depth_may_be_popped() {
 
 
 #[test]
-fn source_function_and_parameter_must_match_the_same_witness() {
+fn numeric_ids_must_match_one_metadata_record() {
     let (program, deferred) = super::generator_sum_plan::high_with_sources(
         "def ordinary(x):\n    yield x\ng = (x * 2 for x in range(4))\n"
     );
@@ -408,16 +410,16 @@ fn loop_first_read_cannot_use_a_definition_after_suspend() {
 }
 
 #[test]
-fn field_mapping_must_preserve_original_cursor_across_suspend() {
+fn required_resident_set_includes_original_cursor() {
     let (program, deferred) = super::generator_sum_plan::high_with_sources(
         "g = (x * 2 for x in range(4))\n"
     );
     let (function, input) = deferred.comprehension_inputs[0];
     let plan = analyze_source(&program, &deferred, function, input).unwrap();
-    assert!(resident_mapping_covers(&plan, &plan.residents));
+    assert!(resident_set_requirements_hold(&plan, &plan.residents));
     let mut missing = plan.residents.clone();
     missing.remove(&plan.iterator);
-    assert!(!resident_mapping_covers(&plan, &missing));
+    assert!(!resident_set_requirements_hold(&plan, &missing));
 }
 
 #[test]
@@ -434,4 +436,16 @@ fn second_frame_entry_cannot_masquerade_as_matching_trace_depth() {
     let Statement::Assign { value, .. } = duplicate else { unreachable!() };
     f.body.blocks[f.body.entry].stmts.push(Statement::Assign { dest: new_depth, value });
     assert!(analyze(f, input).is_none());
+}
+
+
+#[test]
+fn separate_builds_can_collide_so_numeric_ids_are_not_a_product_certificate() {
+    let source = "g = (x * 2 for x in range(4))\n";
+    let (_, first) = super::generator_sum_plan::high_with_sources(source);
+    let (second_program, second) = super::generator_sum_plan::high_with_sources(source);
+    assert_eq!(first.comprehension_inputs, second.comprehension_inputs);
+    let (function, input) = first.comprehension_inputs[0];
+    // 已知证明缺口的反证：数值匹配不会拒绝跨构建组合；因此该API必须保持test-only。
+    assert!(analyze_source(&second_program, &first, function, input).is_some());
 }

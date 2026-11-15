@@ -227,3 +227,21 @@ sum自身的加法溢出另走同一pending-current边，由外层原Binary精�
 TracePopTo必须直接使用该唯一LocalId，而非仅凭TraceDepth类型。重复入口、其他深度
 以及任意Eval均拒绝。新增循环首次读（定义故意移到Suspend以后）和跨暂停字段映射丢失
 原游标的负例；候选持有residents，发射映射必须覆盖全体活值和输入/原游标，不重建游标。
+
+## 尚阻断产品发射的两项证明缺口
+
+独审确认test-only原型不是证书，以下不可用“结构测试通过”代替：
+
+1. `resident_set_requirements_hold`只自检候选要求的集合。它未核对实际lowering生成的
+   LocalId→字段号/字段类型映射，未证明每条yield前的写回或resume后的真实读取。
+   发射层必须给出实际映射，并按显式yield边逐项核查原对象引用和字段覆盖；不能把
+   `plan.residents`拿来与自身比较就宣布物化正确。当前测试名称明确改成集合要求。
+2. arena的FnId/LocalId只是数值，同样源码两次构建可以相同。当前`analyze_source`
+   参数可自由组合Program和deferred，无法证明来自同次构建。新增反证测试刻意展示此
+   碰撞并允许当前test-only候选识别，**该测试通过说明缺口存在，不说明资格安全**。
+
+建议产品接口沿既有PreparedHigh的拥有式模式：私有PreparedSum同时拥有Program、显式
+来源元数据和计划；分析后不暴露可变Program，lower消费该对象内部同一版本。link或
+其他结构改写失效后重做分析，不接受外来ID/元数据组合。不要简单保存Program指针：
+Program可以移动，指针既不是稳定构建身份，也不是未改写证明。此封装与实际字段映射
+验证尚未实现，故仍无产品发射、无默认启用、无原基准融合命中结论。
