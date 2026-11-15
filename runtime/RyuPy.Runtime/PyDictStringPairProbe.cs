@@ -30,7 +30,7 @@ public sealed partial class PyKeyComparer : IAlternateEqualityComparer<PyDictStr
 
 public sealed partial class PyDict
 {
-    // 访问器仅供有物化映射的执行区使用。失败意味着没有执行查找/写入，不是查找缺失。
+    // 访问器仅供有物化映射的执行区使用。失败意味着没有执行用户协议或写入，不是查找缺失。
     // 不缓存值或槽位；每次真实访问仍由原_index完成，覆盖、墓碑整理和删除顺序完全共享。
     internal sealed class StringPairAccess(PyDict owner)
     {

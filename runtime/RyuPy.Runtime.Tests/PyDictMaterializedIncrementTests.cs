@@ -129,4 +129,76 @@ public sealed class PyDictMaterializedIncrementTests
             Assert.Equal(ordinary.Version, fused.Version);
         }
     }
+
+    [Fact]
+    public void UserKeyHashAndEqualityRunOncePerOrdinaryOperationOnly()
+    {
+        int hashes = 0, equalities = 0; object? query = null;
+        var cls = new PyClass("ObservedKey");
+        cls.SetAttr("__hash__", PyNativeFunctions.CreateVariadic("hash", args =>
+        { hashes++; if (query is not null) Assert.Same(query, args[0]); return 123L; }));
+        cls.SetAttr("__eq__", PyNativeFunctions.CreateVariadic("eq", args =>
+        { equalities++; Assert.Same(query, args[1]); return true; }));
+        var stored = new PyInstance(cls); var dict = new PyDict(); dict.Set(stored, 4L);
+        query = new PyInstance(cls); hashes = 0; equalities = 0;
+        Assert.False(new PyDict.StringPairAccess(dict).TryIncrementMaterializedKey(query));
+        Assert.Equal(0, hashes); Assert.Equal(0, equalities);
+        Ordinary(dict, query);
+        // get与set各一次hash/eq，融合拒绝不能额外执行一遍或吞掉原协议。
+        Assert.Equal(2, hashes); Assert.Equal(2, equalities);
+        Assert.Same(stored, dict.Keys.Single()); Assert.Equal(5L, dict.Entries().Single().Value);
+    }
+
+    [Fact]
+    public void FallbackCallbackDeleteReinsertKeepsTheNewStoredKey()
+    {
+        var dict = new PyDict(); var access = new PyDict.StringPairAccess(dict); int calls = 0;
+        var original = new PyTuple(["ann", "buy"]); var replacement = new PyTuple(["ann", "buy"]);
+        var cls = new PyClass("ReplaceCounter");
+        cls.SetAttr("__add__", PyNativeFunctions.CreateVariadic("add", _ =>
+        { calls++; dict.Delete(original); dict.Set(replacement, 100L); return 41L; }));
+        dict.Set(original, new PyInstance(cls)); long version = dict.Version;
+        Assert.False(access.TryIncrementMaterializedKey(original)); Assert.Equal(0, calls);
+        Ordinary(dict, original);
+        Assert.Equal(1, calls); Assert.Same(replacement, dict.Keys.Single());
+        Assert.Equal(41L, dict.Get(original)); Assert.Equal(version + 2, dict.Version);
+        Assert.True(access.TryIncrementMaterializedKey(original));
+        Assert.Same(replacement, dict.Keys.Single()); Assert.Equal(42L, dict.Get(original));
+    }
+
+    [Fact]
+    public void ActiveIteratorAllowsFusedOverwriteButRejectsInsertAndDeleteReinsert()
+    {
+        var dict = new PyDict(); var access = new PyDict.StringPairAccess(dict);
+        var a = new PyTuple(["ann", "buy"]); var b = new PyTuple(["bob", "buy"]);
+        Assert.True(access.TryIncrementMaterializedKey(a)); Assert.True(access.TryIncrementMaterializedKey(b));
+        IPyIterator stable = PyIter.Create(dict); Assert.True(stable.MoveNext());
+        Assert.True(access.TryIncrementMaterializedKey(a)); Assert.True(stable.MoveNext());
+        IPyIterator inserted = PyIter.Create(dict); Assert.True(inserted.MoveNext());
+        Assert.True(access.TryIncrementMaterializedKey(new PyTuple(["cyd", "buy"])));
+        Assert.Throws<PyRuntimeError>(() => inserted.MoveNext());
+        IPyIterator replaced = PyIter.Create(dict); Assert.True(replaced.MoveNext());
+        dict.Delete(a); Assert.True(access.TryIncrementMaterializedKey(a));
+        Assert.Throws<PyRuntimeError>(() => replaced.MoveNext());
+        Assert.Same(a, dict.Keys.Last());
+    }
+
+    [Fact]
+    public void LargeExternalMutationCannotRenewProofBeyondScanBudget()
+    {
+        var dict = new PyDict(); var access = new PyDict.StringPairAccess(dict);
+        for (int i = 0; i < 300; i++) Assert.True(access.TryIncrementMaterializedKey(new PyTuple([i.ToString(), "buy"])));
+        var key = new PyTuple(["0", "buy"]); Assert.True(access.TryIncrementMaterializedKey(key));
+        // 外部新增即使仍是精确字符串对，大表也必须拒绝，不能借值更新承接外部版本。
+        var outside = new PyTuple(["outside", "buy"]); dict.Set(outside, 0L);
+        long version = dict.Version; object old = dict.Get(key)!;
+        for (int i = 0; i < 3; i++) Assert.False(access.TryIncrementMaterializedKey(key));
+        Assert.Same(old, dict.Get(key)); Assert.Equal(version, dict.Version);
+        Ordinary(dict, key); Assert.Equal(3L, dict.Get(key));
+        Assert.False(access.TryIncrementMaterializedKey(key));
+        dict.Delete(outside); dict.Set(new PyTuple(["replacement", "buy"]), 0L);
+        Assert.Equal(301, dict.Count); Assert.False(access.TryIncrementMaterializedKey(key));
+        dict.Clear(); Assert.True(access.TryIncrementMaterializedKey(key));
+        Assert.Same(key, dict.Keys.Single()); Assert.Same(PyInt.Box(1L), dict.Get(key));
+    }
 }

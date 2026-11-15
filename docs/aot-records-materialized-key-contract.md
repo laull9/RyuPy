@@ -57,10 +57,12 @@ parse/HIR/type/build/validate，要求上述具名tuple/get/add/set形状仍在�
 
 ## 合同测试与接线准入
 
-新增7项C#合同包括：miss/hit/删除重插原key身份；缓存上下边界；MaxValue拒绝后
+新增11项C#合同包括：miss/hit/删除重插原key身份；缓存上下边界；MaxValue拒绝后
 BigInteger提升；bool拒绝后原算术；用户add的可观察副作用仅在fallback执行一次；
 抛出异常不写值或重放；派生tuple/用户成员/自定义comparer拒绝；600步普通vs候选的
 逐步键/值实体与顺序/版本差分，含真实哈希碰撞。普通参考臂调用真实 `PyOps.Binary`。
+补充原用户key的hash/eq仅在fallback的get/set各执行一次、add回调删除重插后的新键实体、
+活动迭代器覆盖/结构变化，以及超过256槽后外部修改、同Count删插与清空恢复的版本预算。
 
 手写pending Python输入覆盖上述用户可见行为以及dict派生get/set协议，不保存golden。
 它不代表产品候选已启用；未来接线必须用固定CPython同次输出做实际JIT/AOT差分。
