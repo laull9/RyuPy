@@ -77,6 +77,10 @@ fn analyze(f: &Function, declared_input: LocalId) -> Option<RangePlan> {
                         return None;
                     }
                 }
+                Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(RuntimeFn::TracePopTo),
+                    args,
+                }) if args.len() == 1 && fact(&args[0], &facts) == Some(Fact::TraceDepth) => {}
                 _ => return None,
             }
         }
@@ -256,4 +260,32 @@ fn single_static_definition_does_not_authorize_read_before_definition() {
         }
     }
     assert!(analyze(f, input).is_none());
+}
+
+
+#[test]
+fn only_matching_trace_depth_may_be_popped() {
+    for bad in [false, true] {
+        let (mut program, deferred) = super::generator_sum_plan::high_with_sources(
+            "g = (x * 2 for x in range(4))\n"
+        );
+        let (function, input) = deferred.comprehension_inputs[0];
+        assert!(analyze(&program.functions[function], input).is_some());
+        let mut changed = false;
+        for (_, block) in program.functions[function].body.blocks.iter_mut() {
+            for statement in &mut block.stmts {
+                if let Statement::Eval(Rvalue::Call {
+                    callee: Callee::Runtime(runtime), args,
+                }) = statement
+                    && *runtime == RuntimeFn::TracePopTo
+                {
+                    if bad { *runtime = RuntimeFn::TraceCheckDepth; }
+                    else { *args = vec![Operand::Const(Constant::I64(0))]; }
+                    changed = true;
+                }
+            }
+        }
+        assert!(changed, "原高层genexpr必须保留真实TracePopTo负例");
+        assert!(analyze(&program.functions[function], input).is_none());
+    }
 }

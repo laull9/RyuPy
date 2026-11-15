@@ -214,3 +214,7 @@ sum自身的加法溢出另走同一pending-current边，由外层原Binary精�
 候选额外加入全CFG支配收敛，包含Suspend的resume边；预算不收敛即拒绝。每个非参数
 局部的定义必须支配全部读取，同块还须严格在读取之前。测试故意把乘法移到IterValue
 之前，证明“只有一个静态定义”不等于安全事实。此检查仍未在本环境编译运行，不记通过。
+
+独审补正：高层返回epilogue仍可能有Eval(TracePopTo)。range候选只准许单参数且该参数
+已被证明为真实TracePush/TracePushWithOrigin结果、并通过定义支配检查的TracePopTo。
+任意Eval、常量伪深度及换成其他RuntimeFn均拒绝；正例与两种变异负例独立保留，未运行。
