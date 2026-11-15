@@ -160,7 +160,7 @@ fn records_wire_plan_matches_only_closed_capture_window() {
 
 #[test]
 fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
-    for mode in 0..6 {
+    for mode in 0..10 {
         let mut program = compile("def step(counts, user, action):\n    key = (user, action)\n    counts[key] = counts.get(key, 0) + 1\n    return key\n");
         let (_, f) = program.functions.iter_mut().find(|(_, f)| f.name == "step").unwrap();
         let plans = crate::records_increment_plan::plans(f);
@@ -178,6 +178,27 @@ fn records_wire_plan_rejects_overwrite_escape_observer_and_wrong_target() {
             }
             4 => f.body.locals[p.key].is_cell = true,
             5 => f.body.blocks[p.block].terminator = Terminator::Return(Some(Operand::Local(target))),
+            6 => {
+                // 即使新块不可达也保守拒绝外部读取，不能仅查连续窗口。
+                f.body.blocks.alloc(BasicBlock {
+                    stmts: vec![Statement::Eval(Rvalue::Use(Operand::Local(updated)))],
+                    terminator: Terminator::Unreachable,
+                });
+            }
+            7 => {
+                f.body.blocks.alloc(BasicBlock {
+                    stmts: vec![Statement::Assign { dest: target, value: Rvalue::Use(Operand::Local(p.receiver)) }],
+                    terminator: Terminator::Unreachable,
+                });
+            }
+            8 => {
+                let Statement::Assign { value: Rvalue::DynCallMethod { captured, obj, .. }, .. } = &mut f.body.blocks[p.block].stmts[p.start] else { panic!("get call"); };
+                std::mem::swap(captured.as_mut().unwrap(), obj);
+            }
+            9 => {
+                // 只读结构匹配还须拒绝临时量与函数入参别名。
+                f.params.push(target);
+            }
             _ => unreachable!(),
         }
         assert!(crate::records_increment_plan::plans(f).is_empty(), "mode {mode}");
