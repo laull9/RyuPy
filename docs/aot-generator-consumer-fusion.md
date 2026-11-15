@@ -150,3 +150,20 @@ producer自身的调用仍保留自己的Line及调用帧，发生异常立即�
 若基于此合同的首切不能在原始genexpr_sum命中，则先记录具体拒绝原因，不扩大守卫或
 放松语义换取图表改善。普通for的任意循环体拥有消费者副作用，需要另外的双帧执行区；
 yield-from还必须保持完整控制协议，不能复用“精确long无消费者回调”的证明。
+
+## 独审后Runtime协议原型（未接编译器）
+
+实际入口修订为真实`BuiltinSumFast`内部对真实`PyGenerator`实例能力检查，不做静态
+sum名字认定、不再次查找/调用工厂。保留原六参字段构造器，新增七参附带`PyResumeSum`
+的构造器。编译器目前完全不发射该重载，生产生成器均无能力；这不是默认启用声明。
+
+原型让批量入口经过同一个MoveNextCore生命周期。`PyGeneratorSumState`只存在于本次
+调用栈，不挂到可恢复实例，因此异常或消费者回调后没有残余批量模式可泄漏。返回值记录
+Completed/Total/ConsumedAny；返回false是完全未执行的unavailable，成功且非Completed
+时Current是唯一待相加项。真实sum在外层处理该项并维持dirty，空输入和用户回调返回的
+long原盒不丢失；trace V1运行时直接拒绝批量，不提前消费。
+
+C#手写恢复器覆盖一委托消费多项、零增量dirty、空start身份、正负溢出、消费者
+StopIteration不触发PEP479、不关闭且继续next、已暂停next/send、生产者PEP479、回调
+long身份、生产者重入拒绝/消费者回调恢复和trace拒绝。这里只是已编写测试，尚未编译。
+后续须由独审及CI验证，然后才接显式MIR生成入口；不把手写恢复器算产品融合完成。

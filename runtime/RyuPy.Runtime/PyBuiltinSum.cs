@@ -45,8 +45,18 @@ public static partial class PyOps
             dirty = false;
         }
 
-        while (iterator.MoveNext())
+        while (true)
         {
+            // 只从已解析的真实内建入口选择实例能力；重绑定sum不经过此处。
+            // 批量域内仅做不会调用Python的精确long加法。异构/溢出项仍在本域恰好加一次。
+            if (nativeMode && iterator is PyGenerator generator
+                && generator.TrySumBatch(nativeTotal, out var batch))
+            {
+                nativeTotal = batch.Total;
+                dirty |= batch.ConsumedAny;
+                if (batch.Completed) break;
+            }
+            else if (!iterator.MoveNext()) break;
             object? current = iterator.Current();
 
             if (nativeMode && current is long itemLong)
