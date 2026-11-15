@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from check_evidence import CONTRACTS, PREFIX, check
+from check_evidence import ALLOWED_SKIPS, CONTRACTS, PREFIX, check
 
 
 class EvidenceTests(unittest.TestCase):
@@ -24,6 +24,19 @@ class EvidenceTests(unittest.TestCase):
         ET.SubElement(summary, "Counters", total="16", executed="16", passed="16", failed="0")
 
     def verify(self, mode="focused"):
+        # 模拟 VSTest 的定义表，将结果 testId 映射到实际类/方法身份。
+        definitions = self.root.find("TestDefinitions")
+        if definitions is not None: self.root.remove(definitions)
+        definitions = ET.SubElement(self.root, "TestDefinitions")
+        seen = set()
+        for result in self.root[0]:
+            test_id = result.get("testId")
+            if test_id in seen: continue
+            seen.add(test_id)
+            unit = ET.SubElement(definitions, "UnitTest", id=test_id)
+            identity = result.get("testName").split("(", 1)[0]
+            cls, method = identity.rsplit(".", 1)
+            ET.SubElement(unit, "TestMethod", className=cls, name=method)
         ET.ElementTree(self.root).write(self.path)
         check(self.path, mode)
 
@@ -60,6 +73,43 @@ class EvidenceTests(unittest.TestCase):
     def test_failed_result(self):
         self.root[0][0].set("outcome", "Failed")
         with self.assertRaises(AssertionError): self.verify()
+
+    def add_skips(self, names):
+        for index, name in enumerate(names):
+            ET.SubElement(self.root[0], "UnitTestResult", testId=f"skip-{index}",
+                          testName=name, outcome="NotExecuted")
+        self.root[1][0].set("total", str(16 + len(names)))
+        self.root[1][0].set("notExecuted", str(len(names)))
+
+    def test_two_allowed_skips(self):
+        self.add_skips(sorted(ALLOWED_SKIPS))
+        self.verify("full")
+
+    def test_other_skip_rejected(self):
+        self.add_skips(["Other.Skipped"])
+        with self.assertRaises(AssertionError): self.verify("full")
+
+    def test_extra_skip_rejected(self):
+        self.add_skips(sorted(ALLOWED_SKIPS) + ["Other.Skipped"])
+        with self.assertRaises(AssertionError): self.verify("full")
+
+    def test_duplicate_allowed_skip_rejected(self):
+        name = sorted(ALLOWED_SKIPS)[0]
+        self.add_skips([name, name])
+        with self.assertRaises(AssertionError): self.verify("full")
+
+    def test_focused_forbids_allowed_skip(self):
+        self.add_skips(sorted(ALLOWED_SKIPS))
+        with self.assertRaises(AssertionError): self.verify()
+
+    def test_source_identity_mismatch(self):
+        self.verify()
+        tree = ET.parse(self.path)
+        ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+        method = tree.getroot().find("t:TestDefinitions/t:UnitTest/t:TestMethod", ns)
+        method.set("name", "WrongMethod")
+        tree.write(self.path)
+        with self.assertRaises(AssertionError): check(self.path, "focused")
 
     def test_zero(self):
         self.root[0][:] = []

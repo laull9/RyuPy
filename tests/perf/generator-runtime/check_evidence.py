@@ -22,6 +22,11 @@ CONTRACTS = {
     "ProducerErrorRestoresCallerContextAndReleasesCapability": 1,
 }
 PREFIX = "RyuPy.Runtime.Tests.PyGeneratorSumTests."
+# 属性名不是测试身份：精确映射源码中的类与方法，不允许同类其他测试跳过。
+ALLOWED_SKIPS = {
+    "RyuPy.Runtime.Tests.PyTextDedentInitializationTests.FreshProcessContract",
+    "RyuPy.Runtime.Tests.PyTraceStateArtifactTests.ProducedAssemblyPreservesEveryBaselinePublicSignature",
+}
 
 
 def check(path: Path, mode: str) -> None:
@@ -32,15 +37,33 @@ def check(path: Path, mode: str) -> None:
     assert results, "没有执行测试"
     ids = [r.attrib["testId"] for r in results]
     assert all(ids) and len(set(ids)) == len(ids), "testId 为空或重复"
-    assert all(r.attrib["outcome"] == "Passed" for r in results), "测试失败或跳过"
+    definitions = root.findall("t:TestDefinitions/t:UnitTest", ns)
+    definition_ids = [d.attrib["id"] for d in definitions]
+    assert len(set(definition_ids)) == len(definition_ids), "测试定义 ID 重复"
+    identities = {}
+    for definition in definitions:
+        method = definition.find("t:TestMethod", ns)
+        assert method is not None
+        identities[definition.attrib["id"]] = (
+            method.attrib["className"].split(",", 1)[0] + "." + method.attrib["name"])
+    for result in results:
+        assert identities[result.attrib["testId"]] == result.attrib["testName"].split("(", 1)[0], "测试源码身份不符"
+    skipped = [r for r in results if r.attrib["outcome"] == "NotExecuted"]
+    passed = [r for r in results if r.attrib["outcome"] == "Passed"]
+    assert len(passed) + len(skipped) == len(results), "测试有失败或未知状态"
+    skip_names = [identities[r.attrib["testId"]] for r in skipped]
+    assert len(set(skip_names)) == len(skip_names), "白名单跳过重复"
+    assert not skipped if mode == "focused" else set(skip_names) <= ALLOWED_SKIPS, "存在未授权跳过"
     summary = root.find("t:ResultSummary", ns)
     assert summary is not None and summary.attrib["outcome"] == "Completed"
     counters = summary.find("t:Counters", ns)
     assert counters is not None, "缺失汇总"
-    for key in ("total", "executed", "passed"):
-        assert int(counters.attrib[key]) == len(results), f"汇总 {key} 不一致"
+    expected = {"total": len(results), "executed": len(passed),
+                "passed": len(passed), "notExecuted": len(skipped)}
+    for key, count in expected.items():
+        assert int(counters.attrib.get(key, "0")) == count, f"汇总 {key} 不一致"
     for key, value in counters.attrib.items():
-        if key not in ("total", "executed", "passed"):
+        if key not in expected:
             assert int(value) == 0, f"汇总有未通过记录：{key}"
     names = [r.attrib["testName"] for r in results]
     focused = [name for name in names if name.startswith(PREFIX)]
@@ -52,7 +75,10 @@ def check(path: Path, mode: str) -> None:
     else:
         # 全套无过滤命令负责完整发现；门禁另防意外只执行定向套件，并记录实际数。
         assert len(results) > 16 and len(focused) < len(results), "全套退化为定向测试"
-    print(f"{mode}: {len(results)} 个测试全部通过；包含 13 方法/16 实例生成器合同。")
+    print(f"{mode}: {len(results)} 个记录，{len(passed)} 通过，{len(skipped)} 个白名单跳过；"
+          "包含 13 方法/16 实例生成器合同。")
+    for name in skip_names:
+        print("未验证专项：" + name)
 
 
 if __name__ == "__main__":
