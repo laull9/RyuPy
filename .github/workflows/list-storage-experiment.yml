@@ -1,0 +1,72 @@
+# 仅用于独立实验分支；不得合入 dev/main 或改变默认 CI。
+name: List storage isolated experiment
+on:
+  push:
+    branches: [work/list-storage-ci-20261115]
+permissions:
+  contents: read
+concurrency:
+  group: list-storage-experiment-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prototype:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    env:
+      DOTNET_NOLOGO: '1'
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      MSBUILDDISABLENODEREUSE: '1'
+      DOTNET_CLI_DO_NOT_USE_MSBUILD_SERVER: '1'
+      UseSharedCompilation: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - name: 准备独立 SDK 与证据目录
+        run: |
+          set -euo pipefail
+          echo "DOTNET_INSTALL_DIR=$RUNNER_TEMP/list-storage-dotnet" >> "$GITHUB_ENV"
+          echo "EVIDENCE=$RUNNER_TEMP/list-storage-evidence" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/list-storage-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/list-storage-evidence/commit.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          printf '%s\n' '隔离 C# 原型合同与暖进程存储筛选；不是产品 JIT/NativeAOT、CP 差分、list_ops 或性能收益验收。' > "$RUNNER_TEMP/list-storage-evidence/scope.txt"
+      - name: 自检证据门禁
+        run: python3 -B tests/perf/list-storage/test_check_evidence.py
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.403'
+      - name: 核验实际 SDK
+        run: |
+          set -euo pipefail
+          dotnet --info | tee "$EVIDENCE/dotnet-info.txt"
+          test "$(dotnet --version)" = '10.0.403'
+          test "$(readlink -f "$(command -v dotnet)")" = "$DOTNET_INSTALL_DIR/dotnet"
+      - name: 编译原型并运行定向合同
+        run: |
+          set -euo pipefail
+          dotnet test runtime/RyuPy.Runtime.Tests/RyuPy.Runtime.Tests.csproj -c Release \
+            --filter 'FullyQualifiedName~PySegmentedListStorageTests' \
+            --logger 'trx;LogFileName=list-storage.trx' --results-directory "$EVIDENCE" \
+            2>&1 | tee "$EVIDENCE/tests.log"
+      - name: 编译独立筛选 host
+        run: |
+          set -euo pipefail
+          dotnet build tests/perf/list-storage/host/ListStorageHost.csproj -c Release \
+            2>&1 | tee "$EVIDENCE/host-build.log"
+      - name: 运行同进程双臂筛选（非产品 AOT）
+        run: |
+          set -euo pipefail
+          dotnet run --no-build -c Release --project tests/perf/list-storage/host/ListStorageHost.csproj -- 10 \
+            2> "$EVIDENCE/host-stderr.log" | tee "$EVIDENCE/samples.json"
+          python3 -B tests/perf/list-storage/check_evidence.py "$EVIDENCE" \
+            | tee "$EVIDENCE/evidence-check.log"
+      - name: 总是保存本次 SHA 的原始证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: list-storage-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/list-storage-evidence
+          if-no-files-found: error
+          retention-days: 14
