@@ -29,7 +29,7 @@ jobs:
           test "$(cat "$EVIDENCE/commit.txt")" = "$GITHUB_SHA"
           export GIT_INDEX_FILE="$EVIDENCE/source-index"
           git read-tree HEAD
-          git update-index --force-remove .github/workflows/records-cli-experiment.yml
+          git update-index --force-remove .github/workflows/records-cli-experiment.yml tests/perf/package_records_evidence.py
           git write-tree | tee "$EVIDENCE/source-tree.txt"
           test "$(cat "$EVIDENCE/source-tree.txt")" = 2d59e91ee05a3e5d45a97c2a213613ea92feb587
           unset GIT_INDEX_FILE
@@ -123,11 +123,114 @@ jobs:
         run: |
           set -euo pipefail
           python3 -B tests/perf/check_records_source_trial.py "$EVIDENCE/trial" --expected-sha "$GITHUB_SHA" 2>&1 | tee "$EVIDENCE/verified.log"
-      - uses: actions/upload-artifact@v4
+      - name: Package complete evidence into bounded independent artifacts
+        id: package
         if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tests/perf/package_records_evidence.py "$EVIDENCE" "$RUNNER_TEMP/records-parts" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success'
         with:
-          name: records-compiled-source-${{ github.sha }}
-          path: ${{ env.EVIDENCE }}
+          name: records-source-summary-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/summary
           if-no-files-found: error
           include-hidden-files: true
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 1
+        with:
+          name: records-source-part-01-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-01.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 2
+        with:
+          name: records-source-part-02-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-02.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 3
+        with:
+          name: records-source-part-03-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-03.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 4
+        with:
+          name: records-source-part-04-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-04.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 5
+        with:
+          name: records-source-part-05-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-05.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 6
+        with:
+          name: records-source-part-06-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-06.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 7
+        with:
+          name: records-source-part-07-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-07.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 8
+        with:
+          name: records-source-part-08-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-08.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 9
+        with:
+          name: records-source-part-09-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-09.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 10
+        with:
+          name: records-source-part-10-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-10.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 11
+        with:
+          name: records-source-part-11-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-11.bin
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.package.outcome == 'success' && fromJSON(steps.package.outputs.count) >= 12
+        with:
+          name: records-source-part-12-${{ github.sha }}
+          path: ${{ runner.temp }}/records-parts/part-12.bin
+          compression-level: 0
+          if-no-files-found: error
           retention-days: 14
