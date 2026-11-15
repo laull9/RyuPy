@@ -245,3 +245,23 @@ TracePopTo必须直接使用该唯一LocalId，而非仅凭TraceDepth类型。�
 其他结构改写失效后重做分析，不接受外来ID/元数据组合。不要简单保存Program指针：
 Program可以移动，指针既不是稳定构建身份，也不是未改写证明。此封装与实际字段映射
 验证尚未实现，故仍无产品发射、无默认启用、无原基准融合命中结论。
+
+## Runtime首次CI失败及修正范围
+
+run43679743022实际提交`66c2db9e94b45b03774c70f59ac08c60f1829dcc`：定向15通过/1失败；
+全Runtime3190通过/2跳过/8失败。结果不可写成通过。
+
+- 负溢出测试最终`long.MinValue - 1 + 7`重新落入long范围，原断言错误要求BigInteger盒；
+  原PyInt.Normalize明确允许收敛。改成独立BigInteger数学预期，再显式断言正确long或
+  BigInteger类型和值，不改变产品数值逻辑。此修正仍待重跑验证。
+- TextWrap两项失败在TextWrapOracle.Read，CI未提供固定3.12.13的PYTHON绝对路径。
+  属于工作流配置，不能删除预言机或修改测试版本要求充作产品修复。
+- 五项真实PE审计准确抓到4参MoveNextCore和TrySumBatch新trace读取不在批准合同。
+  经独审选择保留显式调用栈参数，精确迁移私有MoveNextCore的四参数签名与指令/EH检查；
+  TrySumBatch只获get_Enabled读取许可，旧三参签名/其他调用/opcode仍拒绝。没有通配扩权。
+  新增实际PE变异：TrySumBatch读开关改成Exit必须拒绝；交换已允许的Enter/Leave两个
+  同签名目标也必须由finally顺序检查拒绝。变异PE从不加载/执行。
+
+原型delegate、状态类型及七参构造器改为internal，六参公开ABI保留；新增公开形状测试。
+没有历史DLL专项通过声明。将来CIL跨程序集接线需要正式公开ABI手写增量和历史DLL专项，
+不能直接把本内部构造器作为产品ABI。所有修正仍待真实CI与trace专项验证。

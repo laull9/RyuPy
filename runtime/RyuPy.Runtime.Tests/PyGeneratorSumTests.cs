@@ -70,8 +70,12 @@ public class PyGeneratorSumTests
     public void OverflowItemIsAddedExactlyOnce(long start, long item)
     {
         var data = new Payload([item, 7L]);
-        Assert.Equal(new BigInteger(start) + item + 7,
-            PyOps.CallBuiltin("sum", [Create(data), start], [], []));
+        BigInteger expected = new BigInteger(start) + item + 7;
+        object? actual = PyOps.CallBuiltin("sum", [Create(data), start], [], []);
+        // 中途升级后最终回到long范围时，运行时按已有Normalize合同收敛；不强求BigInteger盒。
+        if (expected >= long.MinValue && expected <= long.MaxValue)
+            Assert.Equal((long)expected, Assert.IsType<long>(actual));
+        else Assert.Equal(expected, Assert.IsType<BigInteger>(actual));
         Assert.Equal(2, data.Index);
     }
 
@@ -221,6 +225,17 @@ public class PyGeneratorSumTests
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
         Assert.NotNull(field);
         Assert.Null(field!.GetValue(g));
+    }
+
+    [Fact]
+    public void ExperimentalCapabilityDoesNotAddPublicAbi()
+    {
+        Assert.False(typeof(PyResumeSum).IsPublic);
+        Assert.False(typeof(PyGeneratorSumState).IsPublic);
+        Assert.NotNull(typeof(PyGenerator).GetConstructor([
+            typeof(PyResume), typeof(object), typeof(long), typeof(string), typeof(string), typeof(object)]));
+        Assert.Null(typeof(PyGenerator).GetConstructor([
+            typeof(PyResume), typeof(object), typeof(long), typeof(string), typeof(string), typeof(object), typeof(PyResumeSum)]));
     }
 
 }
