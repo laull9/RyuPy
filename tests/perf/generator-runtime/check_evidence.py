@@ -74,7 +74,8 @@ def check(path: Path, mode: str) -> None:
         assert len(results) == 16, "定向套件混入其他测试"
     else:
         # 全套无过滤命令负责完整发现；门禁另防意外只执行定向套件，并记录实际数。
-        assert len(results) > 16 and len(focused) < len(results), "全套退化为定向测试"
+        assert any(not r.attrib["testName"].startswith(PREFIX) for r in passed), \
+            "全套没有任何非定向通过测试"
     print(f"{mode}: {len(results)} 个记录，{len(passed)} 通过，{len(skipped)} 个白名单跳过；"
           "包含 13 方法/16 实例生成器合同。")
     for name in skip_names:

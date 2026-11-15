@@ -83,7 +83,14 @@ class EvidenceTests(unittest.TestCase):
 
     def test_two_allowed_skips(self):
         self.add_skips(sorted(ALLOWED_SKIPS))
+        ET.SubElement(self.root[0], "UnitTestResult", testId="other", testName="Other.Test", outcome="Passed")
+        for field, value in (("total", "19"), ("executed", "17"), ("passed", "17")):
+            self.root[1][0].set(field, value)
         self.verify("full")
+
+    def test_focused_plus_two_skips_is_not_full(self):
+        self.add_skips(sorted(ALLOWED_SKIPS))
+        with self.assertRaises(AssertionError): self.verify("full")
 
     def test_other_skip_rejected(self):
         self.add_skips(["Other.Skipped"])
