@@ -10,6 +10,8 @@ jobs:
     if: github.ref == 'refs/heads/work/records-mir-wire-20261115'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    env:
+      RUSTUP_TOOLCHAIN: '1.99.1'
     steps:
       - uses: actions/checkout@v4
       - name: Freeze source and fresh evidence
@@ -25,7 +27,7 @@ jobs:
           git read-tree HEAD
           git update-index --force-remove .github/workflows/records-wire-diagnostic.yml
           git write-tree | tee "$EVIDENCE/source-tree.txt"
-          test "$(cat "$EVIDENCE/source-tree.txt")" = '553d47b75586b37874073964d8ab77c82ba276e1'
+          test "$(cat "$EVIDENCE/source-tree.txt")" = '56c079dfd864ad65145164df4f4fbbf5fc67af0e'
           unset GIT_INDEX_FILE
           printf '%s\n' '{"sdk":{"version":"10.0.403","rollForward":"disable","allowPrerelease":false}}' > global.json
       - uses: actions/setup-dotnet@v4
@@ -33,7 +35,7 @@ jobs:
           dotnet-version: '10.0.403'
       - uses: dtolnay/rust-toolchain@d124f86f28ff42855784ff3319f48ac182c248f8
         with:
-          toolchain: stable
+          toolchain: '1.99.1'
           components: rustfmt
       - name: Execute formatting diagnostic and complete MIR independently
         shell: bash
@@ -66,7 +68,7 @@ jobs:
           assert re.search(r'test result: ok\. 1 passed; 0 failed; 0 ignored; 0 measured;',text)
           name='records_increment_contract_tests::records_wire_diagnostic_preserves_actual_before_and_after_mir'
           assert len(re.findall(r'^test '+re.escape(name)+r' \.\.\. ok$',text,re.M))==1
-          for label in ('records','visible-key','receiver-rebind','observed-locals'):
+          for label in ('records','visible-key','callback-addend','observed-locals'):
               for phase in ('before','after'):
                   begin=f'records-wire begin {label} {phase}'
                   end=f'records-wire end {label} {phase}'
